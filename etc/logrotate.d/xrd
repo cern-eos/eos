@@ -1,0 +1,10 @@
+/var/log/xroot/empty {
+    missingok	
+    rotate 1
+    size 0	
+    daily
+    postrotate
+	find /var/log/xroot/ -name "xrdlog.*" -name "[xc][rm][sd]log.*" -type f -mtime +90 -exec rm -f {} \;
+	touch /var/log/xroot/empty
+    endscript
+}

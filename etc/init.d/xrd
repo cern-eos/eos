@@ -1,0 +1,220 @@
+#! /bin/bash
+#
+#****************************************************************************
+#                      xrd.init
+#
+# chkconfig: 345 95 5
+# description: Xrootd Initialisation Script
+#****************************************************************************
+
+# Source function library
+. /etc/rc.d/init.d/functions
+
+# Variables
+prog="xrootd"
+sysconfigfile="xrd"
+
+# Defaults
+XRD_LOCATION="/opt/eos"
+XRD_MAXFD=65000
+XRD_USER="daemon"
+XRD_LOGDIR="/var/log/xroot"
+XRD_COREDIR="/var/spool/xroot/core"
+XRD_ADMINDIR="/var/spool/xroot/admin"
+XRD_CONFIG="/etc/xrd.cf"
+XRD_ROLEFLAG=""
+
+FRETVAL=0
+RETVAL=0
+
+# Source sysconfig files
+if [ -f /etc/sysconfig/$sysconfigfile ]; then
+        . /etc/sysconfig/$sysconfigfile
+fi
+
+
+cleanup() {
+        if [ "${XRD_ROLES}" = "ost" ]; then
+	    echo ""
+	fi
+}
+
+
+start() {
+        # Run daemon
+        echo -n $"Starting $prog: "
+
+	# Start xrootd daemons
+	echo
+	for i in ${XRD_ROLES}; do
+
+	        # Load the appropriate sysconfig file for the role
+	        if [ -f /etc/sysconfig/$sysconfigfile.$i ]; then
+                        . /etc/sysconfig/$sysconfigfile.$i
+                else
+		        # Load default
+		        if [ -f /etc/sysconfig/$sysconfigfile ]; then
+                                . /etc/sysconfig/$sysconfigfile
+                        fi
+                fi
+
+		# Check to see if a dedicated config file exists
+		_XRD_CONFIG=${XRD_CONFIG}
+		if [ -f ${XRD_CONFIG}.$i ]; then
+		        _XRD_CONFIG=${XRD_CONFIG}.$i
+		fi
+                echo -n $"Starting $prog as $i "
+
+		# Check to see whether the xrootd daemon for this role is 
+                # already running
+		pid=`pidofproc $prog.$i`
+		if [ -n "$pid" ]; then
+                        echo -n $"- already started"
+			failure
+			echo
+                else
+		        # Setup the base xrootd options
+		        _XRD_OPTIONS="-n $i ${XRD_ROLEFLAG}-c ${_XRD_CONFIG} -l ${XRD_LOGDIR}/xrdlog.$i -b "
+			_XRD_OPTIONS=${_XRD_OPTIONS%' '}
+			echo  with ${_XRD_OPTIONS}
+			# Setup xrootd environment
+
+                        if [ -z "${XRD_USER}" ]; then 
+			    chown root ${XRD_COREDIR}; 
+			else
+			    chown -R ${XRD_USER} ${XRD_COREDIR} ${XRD_ADMINDIR} ${XRD_LOGDIR}
+			fi
+			
+			cd ${XRD_COREDIR}
+
+                        ulimit -n ${XRD_MAXFD}
+		       	daemon --user ${XRD_USER} env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}
+
+			# Write the pid to a file
+			RETVAL=$?
+			if [ $RETVAL -eq 0 ]; then
+			        pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 $prog.*$_XRD_OPTIONS\$" | awk '{print $1}'`
+				rm -f /var/run/$prog.$i.pid
+				if [ -n "$pid" ]; then
+                                        echo $pid > /var/run/$prog.$i.pid
+                                        RETVAL=0
+				else
+                                        RETVAL=1
+				fi      
+			fi
+
+                        [ $RETVAL -eq 0 ] && success $"$base startup" || failure $"$base startup"
+                        echo
+                        if [ $RETVAL -eq 0 ]; then
+                                touch /var/lock/subsys/$prog.$i
+                        else
+                                FRETVAL=$RETVAL
+                        fi
+		fi
+	done
+ 
+        RETVAL=$FRETVAL
+        return $RETVAL
+}
+
+stop() {
+        cleanup
+        echo -n $"Stopping $prog: $1 "
+        if [ -n "$1" ]; then
+                killproc $prog.$1
+        else
+                killproc $prog
+        fi
+        RETVAL=$?
+        echo
+        if [ -n "$1" ]; then
+                [ -f /var/lock/subsys/$prog.$1 ] && rm -f /var/lock/subsys/$prog.$1
+        else 
+                rm -f /var/lock/subsys/$prog.*
+        fi
+        return $RETVAL
+}
+
+status() {
+        # Loop over xrootd roles
+        for i in ${XRD_ROLES}; do
+                # Check if the xrootd daemon associated to this role running
+                pid=`pidofproc $prog.$i`
+                if [ -n "$pid" ]; then
+                        echo $"$prog for role: $i (pid $pid) is running..."
+                        continue
+                else
+                        # See if /var/lock/subsys/$prog.$i exists
+                        if [ -f /var/lock/subsys/$prog.$i ]; then
+                                echo $"$prog for role: $i dead but subsys locked"
+                        else
+                                echo $"$prog for role: $i is stopped"
+                        fi
+                        RETVAL=1
+                fi                        
+        done
+        return $RETVAL
+}
+
+restart() {
+        stop $1
+        start $1
+}
+
+# Determine the role
+if [ -n "$2" ]; then
+        XRD_ROLES=$2
+	if [ "$XRD_ROLES" = "manager" ]; then
+   		XRD_ROLEFLAG="-r "
+	fi
+elif [ -z "${XRD_ROLES}" ]; then
+        # No roles defined in the sysconfig file so lets automatically find out
+        # which role we are. We assume we are a ost to begin with
+        XRD_ROLES="ost"
+	# New lets really see!
+	if [ ! -f "${XRD_CONFIG}" ]; then
+	        echo $"Failed to determine xrootd role - ${XRD_CONFIG}: No such file or directory"
+		exit 1
+	fi
+	# Look for the all.manager entry in the xrd config file. If it has the 
+        # hostname of the machine in it then this is a manager node
+	grep `hostname -f` ${XRD_CONFIG} | grep "all.manager" > /dev/null
+	if [ $? = "0" ]; then
+	        XRD_ROLES="manager"
+		XRD_USER=""
+		XRD_ROLEFLAG="-r "
+	fi
+
+	grep `hostname -f` ${XRD_CONFIG} | grep "all.manager meta" > /dev/null
+	if [ $? = "0" ]; then
+	        XRD_ROLES="meta"
+		XRD_USER=""
+	fi
+
+fi
+
+# See how we were called
+case "$1" in
+
+        start)
+                start $2
+                ;;
+        stop)
+                stop $2
+                ;;
+        status)
+                status
+                ;;
+        restart)
+                restart $2
+                ;;
+        condrestart)
+                [ -n "$2" -a -f /var/lock/subsys/$prog.$2 ] && restart $2 || :
+                [ -z "$2" ] && restart || :
+                ;;
+        *)
+                echo $"Usage: $0 {start|stop|status|restart|condrestart} [role]"
+                exit 1
+esac
+
+exit $RETVAL

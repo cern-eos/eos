@@ -1,0 +1,30 @@
+###########################################################
+xrootd.fslib /opt/eos/lib/libXrdMgmOfs.so
+xrootd.seclib /opt/eos/lib/libXrdSec.so
+###########################################################
+xrd.async off
+xrd.sched mint 8 maxt 128 idle 64
+###########################################################
+all.export /
+all.role manager
+###########################################################
+oss.fdlimit 16384 32768
+###########################################################
+# UNIX authentication
+sec.protocol /opt/eos/lib/ unix
+# SSL authentication
+#sec.protocol /opt/eos/lib ssl -d:10 -export:/tmp/proxy/  -cert:/etc/grid-security/hostcert.pem -key:/etc/grid-security/hostkey.pem -mapcernuser:1 -mapnobody:1 -mapguser:1 -mapgroup:1
+# KRB  authentication
+#sec.protocol /opt/eos/lib krb5 host/<host>@CERN.CH
+###########################################################
+sec.protbind * only unix
+###########################################################
+mgmofs.fs /
+mgmofs.targetport 1095
+#mgmofs.authlib /opt/eos/lib/libXrdAliceTokenAcc.so
+#mgmofs.authorize 1
+###########################################################
+mgmofs.symkey MTIzNDU2Nzg5MDEyMzQ1Njc4OTAK
+mgmofs.trace all debug
+mgmofs.broker root://localhost:1097//eos/
+

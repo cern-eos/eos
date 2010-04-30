@@ -1,0 +1,13 @@
+######################### Broker OFS ########################
+xrootd.fslib /opt/eos/lib/libXrdMqOfs.so
+all.export /eos/ nolock
+#############################################################
+#allow upto 1024 threads
+xrd.sched mint 16 maxt 1024 idle 128
+#run on port 1097
+xrd.port 1097
+#############################################################
+#get some nice statics in the log file about the queue status
+ofs.trace getstats -login -disc all
+#############################################################
+mq.queue /eos/

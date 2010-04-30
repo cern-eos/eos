@@ -1,0 +1,558 @@
+
+/*----------------------------------------------------------------------------*/
+#include "XrdCommon/XrdCommonFileId.hh"
+#include "XrdCommon/XrdCommonFileSystem.hh"
+#include "XrdCommon/XrdCommonStatfs.hh"
+/*----------------------------------------------------------------------------*/
+#include "XrdNet/XrdNetOpts.hh"
+#include "XrdOfs/XrdOfs.hh"
+#include "XrdOfs/XrdOfsTrace.hh"
+#include "XrdOss/XrdOssApi.hh"
+#include "XrdFstOfs/XrdFstOfs.hh"
+#include "XrdOuc/XrdOucHash.hh"
+#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSfs/XrdSfsAio.hh"
+#include "XrdSys/XrdSysTimer.hh"
+
+class XrdFstOfs;
+
+/*----------------------------------------------------------------------------*/
+// the global OFS handle
+XrdFstOfs gOFS;
+// the client admin table
+XrdOucHash<XrdFstOfsClientAdmin> *XrdFstOfs::gClientAdminTable;
+// the capability engine
+
+extern XrdSysError OfsEroute;
+extern XrdOssSys  *XrdOfsOss;
+extern XrdOss     *XrdOssGetSS(XrdSysLogger *, const char *, const char *);
+extern XrdOucTrace OfsTrace;
+
+
+/*----------------------------------------------------------------------------*/
+extern "C"
+{
+XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs, 
+                                      XrdSysLogger     *lp,
+                                      const char       *configfn)
+{
+// Do the herald thing
+//
+   OfsEroute.SetPrefix("FstOfs_");
+   OfsEroute.logger(lp);
+   XrdOucString version = "FstOfs (Object Storage File System) ";
+   version += VERSION;
+   OfsEroute.Say("++++++ (c) 2010 CERN/IT-DSS ",
+		 version.c_str());
+
+// Initialize the subsystems
+//
+   gOFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
+
+   if ( gOFS.Configure(OfsEroute) ) return 0;
+// Initialize the target storage system
+//
+   if (!(XrdOfsOss = (XrdOssSys*) XrdOssGetSS(lp, configfn, gOFS.OssLib))) return 0;
+
+// All done, we can return the callout vector to these routines.
+//
+   return &gOFS;
+}
+}
+
+/*----------------------------------------------------------------------------*/
+int XrdFstOfs::Configure(XrdSysError& Eroute) 
+{
+  char *var;
+  const char *val;
+  int  cfgFD;
+  int NoGo=0;
+  
+  autoBoot = false;
+
+  FstOfsBrokerUrl = "root://localhost:1097//eos/";
+
+  // extract the manager from the config file
+  XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
+
+  if( !ConfigFN || !*ConfigFN) {
+    // this error will be reported by XrdOfsFS.Configure
+  } else {
+    // Try to open the configuration file.
+    //
+    if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
+      return Eroute.Emsg("Config", errno, "open config file fn=", ConfigFN);
+
+    Config.Attach(cfgFD);
+    // Now start reading records until eof.
+    //
+    
+    while((var = Config.GetMyFirstWord())) {
+      if (!strncmp(var, "fstofs.",7)) {
+	var += 7;
+	// we parse config variables here 
+	if (!strcmp("symkey",var)) {
+	  if ((!(val = Config.GetWord())) || (strlen(val)!=28)) {
+	    Eroute.Emsg("Config","argument 2 for symkey missing or length!=28");
+	    NoGo=1;
+	  } else {
+	    // this key is valid forever ...
+	    if (!gXrdCommonSymKeyStore.SetKey64(val,0)) {
+	      Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
+	      NoGo=1;
+	    }
+	    Eroute.Say("=====> fstofs.symkey : ", val);
+	  }
+	}
+
+	if (!strcmp("broker",var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument 2 for broker missing. Should be URL like root://<host>/<queue>/"); NoGo=1;
+	  } else {
+	    FstOfsBrokerUrl = val;
+	  }
+	}
+
+	if (!strcmp("trace",var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument 2 for trace missing. Can be 'client'"); NoGo=1;
+	  } else {
+	    EnvPutInt( NAME_DEBUG, 3);
+	  }
+	}
+	
+	if (!strcmp("autoboot",var)) {
+	  if ((!(val = Config.GetWord())) || (strcmp("true",val) && strcmp("false",val) && strcmp("1",val) && strcmp("0",val))) {
+	    Eroute.Emsg("Config","argument 2 for autobootillegal or missing. Must be <true>,<false>,<1> or <0>!"); NoGo=1;
+	  } else {
+            if ((!strcmp("true",val) || (!strcmp("1",val)))) {
+              autoBoot = true;
+            }
+          }
+	}
+      }
+    }
+    Config.Close();
+  }
+
+  if (autoBoot) {
+    Eroute.Say("=====> fstofs.autoboot : true");
+  } else {
+    Eroute.Say("=====> fstofs.autoboot : false");
+  }
+  
+  if (! FstOfsBrokerUrl.endswith("/")) {
+    FstOfsBrokerUrl += "/";
+  }
+
+  FstDefaultReceiverQueue = FstOfsBrokerUrl;
+
+  FstOfsBrokerUrl += HostName; 
+  FstOfsBrokerUrl += ":";
+  FstOfsBrokerUrl += myPort;
+  FstOfsBrokerUrl += "/fst";
+  Eroute.Say("=====> fstofs.broker : ", FstOfsBrokerUrl.c_str(),"");
+
+  // create the messaging object(recv thread)
+  
+  FstDefaultReceiverQueue += "*/mgm";
+  int pos1 = FstDefaultReceiverQueue.find("//");
+  int pos2 = FstDefaultReceiverQueue.find("//",pos1+2);
+  if (pos2 != STR_NPOS) {
+    FstDefaultReceiverQueue.erase(0, pos2+1);
+  }
+
+  Eroute.Say("=====> fstofs.defaultreceiverqueue : ", FstDefaultReceiverQueue.c_str(),"");
+  // set our Eroute for XrdMqMessage
+  XrdMqMessage::Eroute = OfsEroute;
+
+  // create the specific listener class
+  FstOfsMessaging = new XrdFstMessaging(FstOfsBrokerUrl.c_str(),FstDefaultReceiverQueue.c_str());
+
+  if ( (!FstOfsMessaging) || (FstOfsMessaging->IsZombie()) ) {
+    Eroute.Emsg("Config","cannot create messaging object(thread)");
+    return NoGo;
+  }
+  if (NoGo) 
+    return NoGo;
+
+  XrdOucString unit = "fst@"; unit+= HostName; unit+=":"; unit+=myPort;
+
+  XrdCommonLogging::SetLogPriority(LOG_DEBUG);
+  XrdCommonLogging::SetUnit(unit.c_str());
+  FstOfsMessaging->SetLogId("FstOfsMessaging");
+
+  eos_info("logging configured\n");
+
+  if (autoBoot) {
+    XrdFstOfs::AutoBoot();
+  }
+  
+  int rc = XrdOfs::Configure(Eroute);
+  return rc;
+}
+
+/*----------------------------------------------------------------------------*/
+int            
+XrdFstOfs::FSctl(int, XrdSfsFSctl&, XrdOucErrInfo &error, const XrdSecEntity*) 
+{
+  EPNAME("FSctl");
+  return XrdFstOfs::Emsg(epname, error, EOPNOTSUPP, "FSctl", "");
+}
+
+
+/*----------------------------------------------------------------------------*/
+int          
+XrdFstOfsFile::open(const char                *path,
+			XrdSfsFileOpenMode   open_mode,
+			mode_t               create_mode,
+			const XrdSecEntity        *client,
+			const char                *opaque)
+{
+  EPNAME("open");
+  // the OFS open is catched to set the access/modify time in the nameserver
+  time_t now = time(NULL);
+
+  const char *tident = error.getErrUser();
+  char *val=0;
+  bool  isRW = false;
+  int   retc = SFS_OK;
+
+  XrdOucString stringOpaque = opaque;
+  stringOpaque.replace("?","&");
+  stringOpaque.replace("&&","&");
+
+  openOpaque  = new XrdOucEnv(stringOpaque.c_str());
+  int caprc = 0;
+  
+  if ((val = openOpaque->Get("mgm.logid"))) {
+    SetLogId(val, tident);
+  }
+
+  if ((caprc=gCapabilityEngine.Extract(openOpaque, capOpaque))) {
+    // no capability - go away!
+    return gOFS.Emsg(epname,error,caprc,"open - capability illegal",path);
+  }
+
+  int envlen;
+  //ZTRACE(open,"capability contains: " << capOpaque->Env(envlen));
+  eos_info("path=%s info=%s capability=%s", path, opaque, capOpaque->Env(envlen));
+
+  const char* localprefix=0;
+  const char* hexfid=0;
+
+  if (!(localprefix=capOpaque->Get("mgm.localprefix"))) {
+    return gOFS.Emsg(epname,error,EINVAL,"open - no local prefix in capability",path);
+  }
+  
+  if (!(hexfid=capOpaque->Get("mgm.fid"))) {
+    return gOFS.Emsg(epname,error,EINVAL,"open - no file id in capability",path);
+  }
+
+  XrdCommonFileId::FidPrefix2FullPath(hexfid, localprefix,fstPath);
+
+  open_mode |= SFS_O_MKPTH;
+  create_mode|= SFS_O_MKPTH;
+
+  if ( (open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
+		     SFS_O_CREAT  | SFS_O_TRUNC) ) != 0) 
+    isRW = true;
+
+  struct stat statinfo;
+  if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
+    // file does not exist, keep the create lfag
+  } else {
+    if (open_mode & SFS_O_CREAT) 
+      open_mode -= SFS_O_CREAT;
+  }
+
+  // get the identity
+
+  uid_t sec_uid = 0;
+  gid_t sec_gid = 0;
+  uid_t sec_ruid = 0;
+  gid_t sec_rgid = 0;
+  
+
+  if ((val = capOpaque->Get("mgm.uid"))) {
+    sec_uid = atoi(val);
+  } else {
+    return gOFS.Emsg(epname,error,EINVAL,"open - sec uid missing",path);
+  }
+
+  if (capOpaque->Get("mgm.gid")) {
+    sec_gid = atoi(val);
+  } else {
+    return gOFS.Emsg(epname,error,EINVAL,"open - sec gid missing",path);
+  }
+
+  if ((val = capOpaque->Get("mgm.ruid"))) {
+    sec_uid = atoi(val);
+  } else {
+    return gOFS.Emsg(epname,error,EINVAL,"open - sec ruid missing",path);
+  }
+
+  if (capOpaque->Get("mgm.rgid")) {
+    sec_gid = atoi(val);
+  } else {
+    return gOFS.Emsg(epname,error,EINVAL,"open - sec rgid missing",path);
+  }
+
+  SetLogId(logId, sec_uid, sec_gid, sec_ruid, sec_rgid, tident);
+
+  eos_info("fstpath=%s", fstPath.c_str());
+  int rc = XrdOfsFile::open(fstPath.c_str(),open_mode,create_mode,client,stringOpaque.c_str()); 
+  return rc;
+  }
+
+/*----------------------------------------------------------------------------*/
+int
+XrdFstOfsFile::close()
+{
+ EPNAME("close");
+ int rc = 0;;
+
+ if (!closed) {
+   eos_info("");
+   
+   rc = XrdOfsFile::close();
+   closed = true;
+ } 
+
+ return rc;
+}
+
+
+/*----------------------------------------------------------------------------*/
+int
+XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,   
+		    XrdSfsXferSize     amount)
+{
+  EPNAME("read");
+
+  int rc = XrdOfsFile::read(fileOffset,amount);
+
+  eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,amount);
+
+  return rc;
+}
+
+/*----------------------------------------------------------------------------*/
+XrdSfsXferSize 
+XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
+		      char              *buffer,
+		      XrdSfsXferSize     buffer_size)
+{
+  EPNAME("read");
+
+  int rc = XrdOfsFile::read(fileOffset,buffer,buffer_size);
+
+  eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,buffer_size);
+  return rc;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdFstOfsFile::read(XrdSfsAio *aioparm)
+{
+  EPNAME("read");  
+
+  eos_debug("aio");
+  int rc = XrdOfsFile::read(aioparm);
+
+  return rc;
+}
+
+/*----------------------------------------------------------------------------*/
+XrdSfsXferSize
+XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
+		     const char        *buffer,
+		     XrdSfsXferSize     buffer_size)
+{
+  EPNAME("write");
+
+  int rc = XrdOfsFile::write(fileOffset,buffer,buffer_size);
+
+  eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,buffer_size);
+
+  return rc;
+}
+
+
+/*----------------------------------------------------------------------------*/
+int
+XrdFstOfsFile::write(XrdSfsAio *aioparm)
+{
+  EPNAME("write");
+
+  int rc = XrdOfsFile::write(aioparm);
+
+  return rc;
+}
+
+
+/*----------------------------------------------------------------------------*/
+int          
+XrdFstOfsFile::sync()
+{
+  return XrdOfsFile::sync();
+}
+
+/*----------------------------------------------------------------------------*/
+int          
+XrdFstOfsFile::sync(XrdSfsAio *aiop)
+{
+  return XrdOfsFile::sync();
+}
+
+/*----------------------------------------------------------------------------*/
+int          
+XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
+{
+  return XrdOfsFile::truncate(fileOffset);
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdFstMessaging::Listen() 
+{
+  while(1) {
+    XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
+    if (newmessage) newmessage->Print();
+    if (newmessage) {
+      Process(newmessage);
+      delete newmessage;
+    }
+
+    while ((newmessage = XrdMqMessaging::gMessageClient.RecvFromInternalBuffer())) {
+      if (newmessage) newmessage->Print();
+      if (newmessage) {
+	Process(newmessage);
+	delete newmessage;
+      }
+    }
+    sleep(1);
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdFstMessaging::Process(XrdMqMessage* newmessage) 
+{
+  XrdOucString saction = newmessage->GetBody();
+
+  XrdOucEnv action(saction.c_str());
+  
+  XrdOucString cmd    = action.Get("mgm.cmd");
+  XrdOucString subcmd = action.Get("mgm.subcmd");
+
+  fprintf(stderr, "process got command %s\n", cmd.c_str());
+  if (cmd == "fs" && subcmd == "boot") {
+    // boot request
+    gOFS.Boot(action);
+  }
+
+  if (cmd == "debug") {
+    gOFS.SetDebug(action);
+  }
+}
+
+
+/*----------------------------------------------------------------------------*/
+void
+XrdFstOfs::Boot(XrdOucEnv &env) 
+{
+  bool booted=false;
+  XrdMqMessage message("fst");
+  XrdOucString msgbody="";
+  // send booting message
+  XrdOucString response ="";
+      
+  XrdCommonFileSystem::GetBootReplyString(msgbody, env, XrdCommonFileSystem::kBooting);
+  message.SetBody(msgbody.c_str());
+  
+  if (!XrdMqMessaging::gMessageClient.SendMessage(message)) {
+    // display communication error
+    eos_err("cannot send booting message");
+  } else {
+    // do boot procedure here
+    booted = BootFs(env, response);
+  }
+
+  // send boot end message
+  if (booted) {
+    XrdCommonFileSystem::GetBootReplyString(msgbody, env, XrdCommonFileSystem::kBooted);
+    if (response.length()) msgbody+=response;
+    eos_info("boot procedure successful!");
+  } else {
+    XrdCommonFileSystem::GetBootReplyString(msgbody, env, XrdCommonFileSystem::kBootFailure);
+    if (response.length()) msgbody+=response;
+    eos_err("boot procedure failed!");
+  }
+
+  message.NewId();
+  message.SetBody(msgbody.c_str());
+
+  if (!XrdMqMessaging::gMessageClient.SendMessage(message)) {
+    // display communication error
+    eos_err("cannot send booted message");
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdFstOfs::SetDebug(XrdOucEnv &env) 
+{
+   XrdOucString debugnode =  env.Get("mgm.nodename");
+   XrdOucString debuglevel = env.Get("mgm.debuglevel");
+   
+   int debugval = XrdCommonLogging::GetPriorityByString(debuglevel.c_str());
+   if (debugval<0) {
+     eos_err("debug level %s is not known!", debuglevel.c_str());
+   } else {
+     XrdCommonLogging::SetLogPriority(debugval);
+     eos_notice("setting debug level to <%s>", debuglevel.c_str());
+   }
+   fprintf(stderr,"Setting debug to %s\n", debuglevel.c_str());
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdFstOfs::AutoBoot() 
+{
+  bool sent=false;
+  do {
+    XrdOucString msgbody=XrdCommonFileSystem::GetAutoBootRequestString();
+    XrdMqMessage message("bootme");
+    message.SetBody(msgbody.c_str());
+    if (!(sent = XrdMqMessaging::gMessageClient.SendMessage(message))) {
+      // display communication error
+      eos_warning("failed to send auto boot request message - probably no master online ... retry in 5s ...");
+      sleep(5);
+    } 
+  } while(!sent);
+  eos_info("sent autoboot request to %s",  FstDefaultReceiverQueue.c_str());
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+XrdFstOfs::BootFs(XrdOucEnv &env, XrdOucString &response) 
+{
+  eos_info("booting filesystem %s id %s",env.Get("mgm.fspath"), env.Get("mgm.fsid"));
+
+  // try to statfs the filesystem
+  XrdCommonStatfs* statfs = XrdCommonStatfs::DoStatfs(env.Get("mgm.fspath"));
+  if (!statfs) {
+    response += "errmsg=cannot statfs "; response += env.Get("mgm.fspath"); response += "["; response += strerror(errno); response += "]";response += "&errc="; response += errno; 
+    return false;
+  }
+
+  // test if we have rw access
+  if (access(env.Get("mgm.fspath"),R_OK|W_OK|X_OK)) {
+    response += "errmsg=cannot acccess "; response += env.Get("mgm.fspath"); response += "[no rwx permissions]"; response += "&errc="; response += errno;
+  }
+  response = statfs->GetEnv();
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
