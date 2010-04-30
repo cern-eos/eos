@@ -37,7 +37,7 @@ libXrdMqOfs_la_SOURCES = \
 libXrdMqOfs_la_LIBADD = -L$(XROOTD_LIBDIR)/ -lXrdSys -lXrdOuc -lXrdClient -lXrdOfs ${OPENSSL_LIBDIR} -lcrypto -luuid 
 libXrdMqOfs_la_LDFLAGS = -module
 
-EXTRA_DIST = configure.ac bootstrap.sh xrootd-mq.spec.in 
+EXTRA_DIST = 
 
 libXrdMqClient_la_SOURCES = \
 	XrdMqClient.cc \

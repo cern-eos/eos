@@ -1,0 +1,47 @@
+%define _unpackaged_files_terminate_build 0
+%define __os_install_post       /bin/true
+
+Summary: eos project
+Name: eos
+Version: @VERSION@
+Release: 0
+Prefix: /opt/xrootd
+License: none
+Group: Applications/File
+Source: @PACKAGE_TARNAME@-@PACKAGE_VERSION@.tar.gz
+BuildRoot: %{_tmppath}/%{name}-root
+AutoReqProv: no
+
+%description
+eos project
+
+%prep
+
+# TODO: change this explicit path
+%setup -n @PACKAGE_TARNAME@-@PACKAGE_VERSION@
+
+%build
+./bootstrap.sh
+./configure 
+make -j 4
+
+
+%install
+make install DESTDIR=$RPM_BUILD_ROOT
+
+
+%files
+%defattr(-,root,root,-)
+/opt/eos/*
+%config(noreplace) /etc/xrd.cf.fst
+%config(noreplace) /etc/xrd.cf.mgm
+%config(noreplace) /etc/xrd.cf.mq
+%config(noreplace) /etc/sysconfig/xrd.example
+%config(noreplace) /etc/logrotate.d/xrd
+%_sysconfdir/rc.d/init.d/xrd
+%_sysconfdir/rc.d/init.d/cmsd
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%changelog

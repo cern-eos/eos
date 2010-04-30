@@ -1,4 +1,4 @@
-.NOTPARALLEL:
+$.NOTPARALLEL:
 
 AUTOMAKE_OPTIONS = foreign 1.6
 
@@ -11,22 +11,22 @@ silent:
             -e 's/.*-o  *\([^ ]*\).*/++++ Creating \1 ++++/p' \
             -e '/make/p'
 
-EXTRA_DIST = bootstrap.sh Doxyfile etc/xrd.cf.mgm etc/xrd.cf.fst etc/xrd.cf.mq etc/logrotate.d/xrd etc/init.d/xrd etc/init.d/cmsd etc/sysconfig/xrd.example 
+EXTRA_DIST = bootstrap.sh Doxyfile etc/xrd.cf.mgm etc/xrd.cf.fst etc/xrd.cf.mq etc/logrotate.d/xrd etc/init.d/xrd etc/init.d/cmsd etc/sysconfig/xrd.example configure.ac m4
 
 rpm:    dist
 	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
-	rpmbuild -bb xstore.spec
+	rpmbuild -bb eos.spec
 
-doc: Doxyfile
+doc:
 	@export DOXYGEN=`which doxygen`; \
-	if test -x "$(DOXYGEN)"; then \
+	if test -x "$${DOXYGEN}"; then \
 	echo "****| BUILDING DOXYGEN DOCUMENTATION"; \
-	$$DOXYGEN Doxyfile >& doxy.log; \
+	$${DOXYGEN} Doxyfile >& doxy.log; \
 	fi 
 
 
 clean-doc:
-	@rm -rf doxydoc/
+	@rm -rf doxydoc/ doxy.log
 
 install-exec-local: 
 	@mkdir -p $(DESTDIR)/var/log/xroot/fst/

@@ -91,6 +91,7 @@ AC_CONFIG_FILES(Makefile
 		XrdMqOfs/Makefile
 		XrdCommon/Makefile
 		Console/Makefile
+		eos.spec
 		)
 
 XROOTD_INCDIR="${XROOTD}/include/xrootd/"
