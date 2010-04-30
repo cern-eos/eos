@@ -29,19 +29,19 @@ clean-doc:
 	@rm -rf doxydoc/ doxy.log
 
 install-exec-local: 
-	@mkdir -p $(DESTDIR)/var/log/xroot/fst/
-	@mkdir -p $(DESTDIR)/var/log/xroot/mgm/
-	@mkdir -p $(DESTDIR)/var/log/xroot/mq/
-	@mkdir -p $(DESTDIR)/var/log/xroot/empty
-	@mkdir -p $(DESTDIR)/var/spool/xroot/admin
-	@mkdir -p $(DESTDIR)/var/spool/xroot/core
-	@mkdir -p $(DESTDIR)/etc/rc.d/init.d
-	@mkdir -p $(DESTDIR)/etc/logrotate.d
-	@mkdir -p $(DESTDIR)/etc/sysconfig
-	@$(INSTALL) -m 644 $(srcdir)/etc/xrd.cf.mgm $(DESTDIR)/etc/xrd.cf.mgm
-	@$(INSTALL) -m 644 $(srcdir)/etc/xrd.cf.fst $(DESTDIR)/etc/xrd.cf.fst
-	@$(INSTALL) -m 644 $(srcdir)/etc/xrd.cf.mq  $(DESTDIR)/etc/xrd.cf.mq
-	@$(INSTALL) -m 755 $(srcdir)/etc/init.d/xrd $(DESTDIR)/etc/rc.d/init.d/xrd
-	@$(INSTALL) -m 755 $(srcdir)/etc/init.d/cmsd $(DESTDIR)/etc/rc.d/init.d/cmsd
-	@$(INSTALL) -m 644 $(srcdir)/etc/logrotate.d/xrd $(DESTDIR)/etc/logrotate.d/xrd
-	@$(INSTALL) -m 644 $(srcdir)/etc/sysconfig/xrd.example $(DESTDIR)/etc/sysconfig/xrd.example
+	@mkdir -p $(DESTDIR)/$(localstatedir)/log/xroot/fst/
+	@mkdir -p $(DESTDIR)/$(localstatedir)/log/xroot/mgm/
+	@mkdir -p $(DESTDIR)/$(localstatedir)/log/xroot/mq/
+	@mkdir -p $(DESTDIR)/$(localstatedir)/log/xroot/empty
+	@mkdir -p $(DESTDIR)/$(localstatedir)/spool/xroot/admin
+	@mkdir -p $(DESTDIR)/$(localstatedir)/spool/xroot/core
+	@mkdir -p $(DESTDIR)/$(sysconfdir)/rc.d/init.d
+	@mkdir -p $(DESTDIR)/$(sysconfdir)/logrotate.d
+	@mkdir -p $(DESTDIR)/$(sysconfdir)/sysconfig
+	@$(INSTALL) -m 644 $(srcdir)/etc/xrd.cf.mgm $(DESTDIR)/$(sysconfdir)/xrd.cf.mgm
+	@$(INSTALL) -m 644 $(srcdir)/etc/xrd.cf.fst $(DESTDIR)/$(sysconfdir)/xrd.cf.fst
+	@$(INSTALL) -m 644 $(srcdir)/etc/xrd.cf.mq  $(DESTDIR)/$(sysconfdir)/xrd.cf.mq
+	@$(INSTALL) -m 755 $(srcdir)/etc/init.d/xrd $(DESTDIR)/$(sysconfdir)/rc.d/init.d/xrd
+	@$(INSTALL) -m 755 $(srcdir)/etc/init.d/cmsd $(DESTDIR)/$(sysconfdir)/rc.d/init.d/cmsd
+	@$(INSTALL) -m 644 $(srcdir)/etc/logrotate.d/xrd $(DESTDIR)/$(sysconfdir)/logrotate.d/xrd
+	@$(INSTALL) -m 644 $(srcdir)/etc/sysconfig/xrd.example $(DESTDIR)/$(sysconfdir)/sysconfig/xrd.example

@@ -19,6 +19,7 @@ const char *XrdMqMessageCVSID = "$Id: XrdMqMessage.cc,v 1.0.0 2007/10/04 01:34:1
 #include <fcntl.h>
 #include <dirent.h>
 #include <libgen.h>
+#include <stdint.h>
 
 void PRINTBUFFER(const char* x, unsigned int y) {
   printf("----------------------------\n");

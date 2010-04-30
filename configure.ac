@@ -100,6 +100,12 @@ XROOTD_LIBDIR="${XROOTD}/lib${MARK64}/"
 AC_SUBST(XROOTD_INCDIR)
 AC_SUBST(XROOTD_LIBDIR)
 
+# Check for readline
+AC_CHECK_HEADERS([readline/readline.h], ,
+    AC_MSG_ERROR( "Please install libreadline-dev" ))
+
+AC_CHECK_LIB(readline, readline, , AC_MSG_ERROR( "Please install lib readline" ) )
+
 echo "=================================================="
 echo "Configuring for .../lib$MARK64 library directories"
 echo "Include Dir     : $XROOTD_INCDIR"
