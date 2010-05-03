@@ -101,10 +101,13 @@ AC_SUBST(XROOTD_INCDIR)
 AC_SUBST(XROOTD_LIBDIR)
 
 # Check for readline
+export LDFLAGS_BUP=$LDFLAGS
+export LDFLAGS=-lcurses
 AC_CHECK_HEADERS([readline/readline.h], ,
     AC_MSG_ERROR( "Please install libreadline-dev" ))
 
 AC_CHECK_LIB(readline, readline, , AC_MSG_ERROR( "Please install lib readline" ) )
+export LDFLAGS=$LDFLAGS_BUP
 
 echo "=================================================="
 echo "Configuring for .../lib$MARK64 library directories"
