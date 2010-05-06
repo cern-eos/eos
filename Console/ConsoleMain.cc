@@ -23,12 +23,15 @@
 #include <iostream>
 /*----------------------------------------------------------------------------*/
 XrdOucString serveruri="";
+XrdOucString historyfile="";
+
 int global_retc=0;
 /*----------------------------------------------------------------------------*/
 
 void exit_handler (int a) {
   fprintf(stdout,"\n");
   fprintf(stderr,"<Control-C>\n");
+  write_history(historyfile.c_str());
   exit(-1);
 }
 
@@ -411,6 +414,15 @@ int main (int argc, char* argv[]) {
 
   initialize_readline ();	/* Bind our completer. */
 
+  if (getenv("EOS_HISTORY_FILE")) {
+    historyfile = getenv("EOS_HISTORY_FILE");
+  } else {
+    if (getenv("HOME")) {
+      historyfile = getenv("HOME");
+      historyfile += "/.eos_history";
+    }
+  }
+  read_history(historyfile.c_str());
   /* Loop reading and executing lines until the user quits. */
   for ( ; done == 0; )
     {
@@ -432,6 +444,8 @@ int main (int argc, char* argv[]) {
 
       free (line);
     }
+
+  write_history(historyfile.c_str());
   exit (0);
 }
 

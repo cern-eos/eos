@@ -53,6 +53,7 @@ public:
     unsigned long long magic;     // XRDCOMMONFMDCREATE_MAGIC | XRDCOMMONFMDDELETE_MAGIC
     unsigned long sequenceheader; // must be equal to sequencetrailer
     unsigned long long fid;       // fileid
+    unsigned long long cid;       // container id (e.g. directory id)
     unsigned long fsid;           // filesystem id
     unsigned long ctime;          // creation time 
     unsigned long ctime_ns;       // ns of creation time
@@ -99,7 +100,7 @@ public:
   void MakeCreationBlock() { fMd.magic =  XRDCOMMONFMDCREATE_MAGIC;}
   void MakeDeletionBlock() { fMd.magic =  XRDCOMMONFMDDELETE_MAGIC;}
 
-  XrdCommonFmd(int fid=0, int fsid=0) {memset(&fMd,0, sizeof(struct FMD)); XrdCommonLogId();fMd.fid=fid; fMd.fsid=fsid;};
+  XrdCommonFmd(int fid=0, int fsid=0) {memset(&fMd,0, sizeof(struct FMD)); XrdCommonLogId();fMd.fid=fid; fMd.fsid=fsid;fMd.cid=0;};
   ~XrdCommonFmd() {};
 };
 
