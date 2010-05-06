@@ -34,7 +34,7 @@ libXrdMqOfs_la_SOURCES = \
 	XrdMqMessage.cc \
 	XrdMqMessage.hh
 
-libXrdMqOfs_la_LIBADD = -L$(XROOTD_LIBDIR)/ -lXrdSys -lXrdOuc -lXrdClient -lXrdOfs ${OPENSSL_LIBDIR} -lcrypto -luuid 
+libXrdMqOfs_la_LIBADD = -L$(XROOTD_LIBDIR)/ -lXrdSys -lXrdOuc -lXrdClient -lXrdOfs ${OPENSSL_LIBDIR} -lcrypto -luuid -lcurses 
 libXrdMqOfs_la_LDFLAGS = -module
 
 EXTRA_DIST = 
@@ -48,7 +48,7 @@ libXrdMqClient_la_SOURCES = \
 	XrdMqMessaging.cc \
 	XrdMqMessaging.hh
 
-libXrdMqClient_la_LIBADD = -L$(XROOTD_LIBDIR)/ -lXrdSys -lXrdNet -lXrdOuc -lXrdClient ${OPENSSL_LIBDIR} -lcrypto -luuid 
+libXrdMqClient_la_LIBADD = -L$(XROOTD_LIBDIR)/ -lXrdSys -lXrdNet -lXrdOuc -lXrdClient ${OPENSSL_LIBDIR} -lcrypto -luuid -lcurses 
 
 rpm:	dist
 	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/

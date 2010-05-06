@@ -1,14 +1,14 @@
-
 /*----------------------------------------------------------------------------*/
+#include "XrdCommon/XrdCommonFmd.hh"
 #include "XrdCommon/XrdCommonFileId.hh"
 #include "XrdCommon/XrdCommonFileSystem.hh"
 #include "XrdCommon/XrdCommonStatfs.hh"
+#include "XrdFstOfs/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOss/XrdOssApi.hh"
-#include "XrdFstOfs/XrdFstOfs.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSfs/XrdSfsAio.hh"
@@ -67,10 +67,13 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   const char *val;
   int  cfgFD;
   int NoGo=0;
-  
-  autoBoot = false;
+  XrdFstOfsConfig::gConfig.autoBoot = false;
 
-  FstOfsBrokerUrl = "root://localhost:1097//eos/";
+  XrdFstOfsConfig::gConfig.FstOfsBrokerUrl = "root://localhost:1097//eos/";
+
+  XrdFstOfsConfig::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
+
+  XrdFstOfsConfig::gConfig.FstQuotaReportInterval = 60;
 
   // extract the manager from the config file
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
@@ -109,7 +112,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 	  if (!(val = Config.GetWord())) {
 	    Eroute.Emsg("Config","argument 2 for broker missing. Should be URL like root://<host>/<queue>/"); NoGo=1;
 	  } else {
-	    FstOfsBrokerUrl = val;
+	    XrdFstOfsConfig::gConfig.FstOfsBrokerUrl = val;
 	  }
 	}
 
@@ -126,56 +129,81 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 	    Eroute.Emsg("Config","argument 2 for autobootillegal or missing. Must be <true>,<false>,<1> or <0>!"); NoGo=1;
 	  } else {
             if ((!strcmp("true",val) || (!strcmp("1",val)))) {
-              autoBoot = true;
+              XrdFstOfsConfig::gConfig.autoBoot = true;
             }
           }
+	}
+
+	if (!strcmp("metalog",var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument 2 for metalog missing"); NoGo=1;
+	  } else {
+	    XrdFstOfsConfig::gConfig.FstMetaLogDir = val;
+	  }
+	}
+
+	if (!strcmp("quotainterval",var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument 2 for quotainterval missing"); NoGo=1;
+	  } else {
+	    XrdFstOfsConfig::gConfig.FstQuotaReportInterval = atoi(val);
+	    if (XrdFstOfsConfig::gConfig.FstQuotaReportInterval < 10) XrdFstOfsConfig::gConfig.FstQuotaReportInterval = 10;
+	    if (XrdFstOfsConfig::gConfig.FstQuotaReportInterval > 3600) XrdFstOfsConfig::gConfig.FstQuotaReportInterval = 3600;
+	  }
 	}
       }
     }
     Config.Close();
   }
 
-  if (autoBoot) {
+  if (XrdFstOfsConfig::gConfig.autoBoot) {
     Eroute.Say("=====> fstofs.autoboot : true");
   } else {
     Eroute.Say("=====> fstofs.autoboot : false");
   }
-  
-  if (! FstOfsBrokerUrl.endswith("/")) {
-    FstOfsBrokerUrl += "/";
+
+  XrdOucString sayquotainterval =""; sayquotainterval += XrdFstOfsConfig::gConfig.FstQuotaReportInterval;
+  Eroute.Say("=====> fstofs.quotainterval : ",sayquotainterval.c_str());
+
+  if (! XrdFstOfsConfig::gConfig.FstOfsBrokerUrl.endswith("/")) {
+    XrdFstOfsConfig::gConfig.FstOfsBrokerUrl += "/";
   }
 
-  FstDefaultReceiverQueue = FstOfsBrokerUrl;
+  XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue = XrdFstOfsConfig::gConfig.FstOfsBrokerUrl;
 
-  FstOfsBrokerUrl += HostName; 
-  FstOfsBrokerUrl += ":";
-  FstOfsBrokerUrl += myPort;
-  FstOfsBrokerUrl += "/fst";
-  Eroute.Say("=====> fstofs.broker : ", FstOfsBrokerUrl.c_str(),"");
+  XrdFstOfsConfig::gConfig.FstOfsBrokerUrl += HostName; 
+  XrdFstOfsConfig::gConfig.FstOfsBrokerUrl += ":";
+  XrdFstOfsConfig::gConfig.FstOfsBrokerUrl += myPort;
+  XrdFstOfsConfig::gConfig.FstOfsBrokerUrl += "/fst";
+  Eroute.Say("=====> fstofs.broker : ", XrdFstOfsConfig::gConfig.FstOfsBrokerUrl.c_str(),"");
 
   // create the messaging object(recv thread)
   
-  FstDefaultReceiverQueue += "*/mgm";
-  int pos1 = FstDefaultReceiverQueue.find("//");
-  int pos2 = FstDefaultReceiverQueue.find("//",pos1+2);
+  XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue += "*/mgm";
+  int pos1 = XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.find("//");
+  int pos2 = XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.find("//",pos1+2);
   if (pos2 != STR_NPOS) {
-    FstDefaultReceiverQueue.erase(0, pos2+1);
+    XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.erase(0, pos2+1);
   }
 
-  Eroute.Say("=====> fstofs.defaultreceiverqueue : ", FstDefaultReceiverQueue.c_str(),"");
+  Eroute.Say("=====> fstofs.defaultreceiverqueue : ", XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.c_str(),"");
   // set our Eroute for XrdMqMessage
   XrdMqMessage::Eroute = OfsEroute;
 
+
+
   // create the specific listener class
-  FstOfsMessaging = new XrdFstMessaging(FstOfsBrokerUrl.c_str(),FstDefaultReceiverQueue.c_str());
+  FstOfsMessaging = new XrdFstMessaging(XrdFstOfsConfig::gConfig.FstOfsBrokerUrl.c_str(),XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.c_str());
 
   if ( (!FstOfsMessaging) || (FstOfsMessaging->IsZombie()) ) {
     Eroute.Emsg("Config","cannot create messaging object(thread)");
-    return NoGo;
+    NoGo = 1;
   }
   if (NoGo) 
     return NoGo;
 
+
+  // Set Loggin parameters
   XrdOucString unit = "fst@"; unit+= HostName; unit+=":"; unit+=myPort;
 
   XrdCommonLogging::SetLogPriority(LOG_DEBUG);
@@ -184,7 +212,15 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 
   eos_info("logging configured\n");
 
-  if (autoBoot) {
+  // Attach Storage to the meta log dir
+  FstOfsStorage = XrdFstOfsStorage::Create(XrdFstOfsConfig::gConfig.FstMetaLogDir.c_str());
+  Eroute.Say("=====> fstofs.metalogdir : ", XrdFstOfsConfig::gConfig.FstMetaLogDir.c_str());
+  if (!FstOfsStorage) {
+    Eroute.Emsg("Config","cannot setup meta data storage using directory: ", XrdFstOfsConfig::gConfig.FstMetaLogDir.c_str());
+    return 1;
+  } 
+
+  if (XrdFstOfsConfig::gConfig.autoBoot) {
     XrdFstOfs::AutoBoot();
   }
   
@@ -210,13 +246,13 @@ XrdFstOfsFile::open(const char                *path,
 			const char                *opaque)
 {
   EPNAME("open");
-  // the OFS open is catched to set the access/modify time in the nameserver
-  time_t now = time(NULL);
 
   const char *tident = error.getErrUser();
   char *val=0;
   bool  isRW = false;
   int   retc = SFS_OK;
+
+  Path = path;
 
   XrdOucString stringOpaque = opaque;
   stringOpaque.replace("?","&");
@@ -240,6 +276,11 @@ XrdFstOfsFile::open(const char                *path,
 
   const char* localprefix=0;
   const char* hexfid=0;
+  const char* sfsid=0;
+  const char* slid=0;
+  unsigned long long fileid=0;
+  unsigned long fsid=0;
+  unsigned long lid=0;
 
   if (!(localprefix=capOpaque->Get("mgm.localprefix"))) {
     return gOFS.Emsg(epname,error,EINVAL,"open - no local prefix in capability",path);
@@ -249,7 +290,20 @@ XrdFstOfsFile::open(const char                *path,
     return gOFS.Emsg(epname,error,EINVAL,"open - no file id in capability",path);
   }
 
+  if (!(sfsid=capOpaque->Get("mgm.fsid"))) {
+    return gOFS.Emsg(epname,error, EINVAL,"open - no file system id in capability",path);
+  }
+
+  if (!(slid=capOpaque->Get("mgm.lid"))) {
+    return gOFS.Emsg(epname,error, EINVAL,"open - no layout id in capability",path);
+  }
+
   XrdCommonFileId::FidPrefix2FullPath(hexfid, localprefix,fstPath);
+
+  fileid = XrdCommonFileId::Hex2Fid(hexfid);
+
+  fsid   = atoi(sfsid);
+  lid = atoi(slid);
 
   open_mode |= SFS_O_MKPTH;
   create_mode|= SFS_O_MKPTH;
@@ -301,6 +355,14 @@ XrdFstOfsFile::open(const char                *path,
   SetLogId(logId, sec_uid, sec_gid, sec_ruid, sec_rgid, tident);
 
   eos_info("fstpath=%s", fstPath.c_str());
+
+  // attach meta data
+  fMd = gFmdHandler.GetFmd(fileid, fsid, sec_uid, sec_gid, lid, isRW);
+  if (!fMd) {
+    eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
+    return gOFS.Emsg(epname,error,EINVAL,"open - unable to get file meta data",path);
+  }
+
   int rc = XrdOfsFile::open(fstPath.c_str(),open_mode,create_mode,client,stringOpaque.c_str()); 
   return rc;
   }
@@ -316,6 +378,19 @@ XrdFstOfsFile::close()
    eos_info("");
    
    rc = XrdOfsFile::close();
+   if (fMd) {
+     // commit meta data
+     struct stat statinfo;
+     if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
+       rc = gOFS.Emsg(epname,error, EIO, "close - cannot stat closed file to determine file size",Path.c_str());
+     } else {
+       // update size
+       fMd->fMd.size = statinfo.st_size;
+     }
+     
+     if (!gFmdHandler.Commit(fMd))
+       rc = gOFS.Emsg(epname,error,EIO,"close - unable to commit meta data",Path.c_str());
+   }
    closed = true;
  } 
 
@@ -328,7 +403,7 @@ int
 XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,   
 		    XrdSfsXferSize     amount)
 {
-  EPNAME("read");
+  //  EPNAME("read");
 
   int rc = XrdOfsFile::read(fileOffset,amount);
 
@@ -343,7 +418,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
 		      char              *buffer,
 		      XrdSfsXferSize     buffer_size)
 {
-  EPNAME("read");
+  //  EPNAME("read");
 
   int rc = XrdOfsFile::read(fileOffset,buffer,buffer_size);
 
@@ -355,7 +430,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
 int
 XrdFstOfsFile::read(XrdSfsAio *aioparm)
 {
-  EPNAME("read");  
+  //  EPNAME("read");  
 
   eos_debug("aio");
   int rc = XrdOfsFile::read(aioparm);
@@ -369,7 +444,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
 		     const char        *buffer,
 		     XrdSfsXferSize     buffer_size)
 {
-  EPNAME("write");
+  //  EPNAME("write");
 
   int rc = XrdOfsFile::write(fileOffset,buffer,buffer_size);
 
@@ -383,7 +458,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
 int
 XrdFstOfsFile::write(XrdSfsAio *aioparm)
 {
-  EPNAME("write");
+  //  EPNAME("write");
 
   int rc = XrdOfsFile::write(aioparm);
 
@@ -422,16 +497,9 @@ XrdFstMessaging::Listen()
     if (newmessage) {
       Process(newmessage);
       delete newmessage;
+    } else {
+      sleep(1);
     }
-
-    while ((newmessage = XrdMqMessaging::gMessageClient.RecvFromInternalBuffer())) {
-      if (newmessage) newmessage->Print();
-      if (newmessage) {
-	Process(newmessage);
-	delete newmessage;
-      }
-    }
-    sleep(1);
   }
 }
 
@@ -531,7 +599,7 @@ XrdFstOfs::AutoBoot()
       sleep(5);
     } 
   } while(!sent);
-  eos_info("sent autoboot request to %s",  FstDefaultReceiverQueue.c_str());
+  eos_info("sent autoboot request to %s",  XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
@@ -543,16 +611,117 @@ XrdFstOfs::BootFs(XrdOucEnv &env, XrdOucString &response)
   // try to statfs the filesystem
   XrdCommonStatfs* statfs = XrdCommonStatfs::DoStatfs(env.Get("mgm.fspath"));
   if (!statfs) {
-    response += "errmsg=cannot statfs "; response += env.Get("mgm.fspath"); response += "["; response += strerror(errno); response += "]";response += "&errc="; response += errno; 
+    response += "errmsg=cannot statfs "; response += env.Get("mgm.fspath"); response += " ["; response += strerror(errno); response += "]";response += "&errc="; response += errno; 
     return false;
   }
 
   // test if we have rw access
   if (access(env.Get("mgm.fspath"),R_OK|W_OK|X_OK)) {
-    response += "errmsg=cannot acccess "; response += env.Get("mgm.fspath"); response += "[no rwx permissions]"; response += "&errc="; response += errno;
+    response += "errmsg=cannot access "; response += env.Get("mgm.fspath"); response += " [no rwx permissions]"; response += "&errc="; response += errno;
+    return false;
   }
   response = statfs->GetEnv();
+
+  if (!FstOfsStorage->SetFileSystem(env)) {
+    response = "";
+    response += "errmsg=cannot configure filesystem [check fst logfile!]"; response += "&errc="; response += EIO;
+    return false;
+  }
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
+int            
+XrdFstOfs::rem(const char             *path,
+	       XrdOucErrInfo          &error,
+	       const XrdSecEntity     *client,
+	       const char             *opaque) 
+{
+  
+  EPNAME("rem");
+  // the OFS open is catched to set the access/modify time in the nameserver
+
+  //  const char *tident = error.getErrUser();
+  //  char *val=0;
+  int   retc = SFS_OK;
+
+
+  XrdOucString stringOpaque = opaque;
+  stringOpaque.replace("?","&");
+  stringOpaque.replace("&&","&");
+
+  XrdOucEnv openOpaque(stringOpaque.c_str());
+  XrdOucEnv* capOpaque;
+  XrdOucString fstPath="";
+
+  int caprc = 0;
+  
+
+  if ((caprc=gCapabilityEngine.Extract(&openOpaque, capOpaque))) {
+    // no capability - go away!
+    if (capOpaque) delete capOpaque;
+    return gOFS.Emsg(epname,error,caprc,"open - capability illegal",path);
+  }
+
+  int envlen;
+  //ZTRACE(open,"capability contains: " << capOpaque->Env(envlen));
+  eos_info("path=%s info=%s capability=%s", path, opaque, capOpaque->Env(envlen));
+
+  const char* localprefix=0;
+  const char* hexfid=0;
+  const char* sfsid=0;
+  const char* slid=0;
+  unsigned long long fileid=0;
+  unsigned long fsid=0;
+  unsigned long lid=0;
+
+  if (!(localprefix=capOpaque->Get("mgm.localprefix"))) {
+    if (capOpaque) delete capOpaque;
+    return gOFS.Emsg(epname,error,EINVAL,"open - no local prefix in capability",path);
+  }
+  
+  if (!(hexfid=capOpaque->Get("mgm.fid"))) {
+    if (capOpaque) delete capOpaque;
+    return gOFS.Emsg(epname,error,EINVAL,"open - no file id in capability",path);
+  }
+
+  if (!(sfsid=capOpaque->Get("mgm.fsid"))) {
+    if (capOpaque) delete capOpaque;
+    return gOFS.Emsg(epname,error, EINVAL,"open - no file system id in capability",path);
+  }
+
+
+  XrdCommonFileId::FidPrefix2FullPath(hexfid, localprefix,fstPath);
+
+  fileid = XrdCommonFileId::Hex2Fid(hexfid);
+
+  fsid   = atoi(sfsid);
+  lid = atoi(slid);
+
+  struct stat statinfo;
+  if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
+    eos_notice("unable to delete file - file does not exist: %s fstpath=%s fsid=%lu %id=%llu", path, fstPath.c_str(),fsid, fileid);
+    if (capOpaque) delete capOpaque;
+    return gOFS.Emsg(epname,error,ENOENT,"delete file - file does not exist",fstPath.c_str());    
+  } 
+  // get the identity
+
+  eos_info("fstpath=%s", fstPath.c_str());
+
+  // attach meta data
+  int rc = XrdOfs::rem(fstPath.c_str(),error,client,stringOpaque.c_str());
+
+  if (!rc) {
+    if (capOpaque) delete capOpaque;
+    return rc;
+  }
+
+  if (!gFmdHandler.DeleteFmd(fileid, fsid)) {
+    eos_crit("unable to delete fmd for fileid %llu on filesystem %lu",fileid,fsid);
+    if (capOpaque) delete capOpaque;
+    return gOFS.Emsg(epname,error,EIO,"delete file meta data ",fstPath.c_str());
+  }
+
+  if (capOpaque) delete capOpaque;
+  return SFS_OK;
+}

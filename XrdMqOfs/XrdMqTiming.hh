@@ -1,5 +1,5 @@
-#ifndef __MQ__TIMING__HH
-#define __MQ__TIMING__HH
+#ifndef __MQ__TIMING__HH__
+#define __MQ__TIMING__HH__
 
 #include <sys/time.h>
 
@@ -14,12 +14,12 @@ public:
   XrdMqTiming(const char* name, struct timeval &i_tv) {
     memcpy(&tv, &i_tv, sizeof(struct timeval));
     tag = name;
-    next = NULL;
+    next = 0;
     ptr  = this;
   }
   XrdMqTiming(const char* i_maintag) {
     tag = "BEGIN";
-    next = NULL;
+    next = 0;
     ptr  = this;
     maintag = i_maintag;
   }

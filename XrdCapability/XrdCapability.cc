@@ -34,8 +34,7 @@ bool
 XrdCapability::Configure(const char* ConfigFN) 
 {
   char *var;
-  const char *val;
-  int  cfgFD, retc, NoGo = 0;
+  int  cfgFD, NoGo = 0;
   XrdOucStream Config(&TkEroute, getenv("XRDINSTANCE"));
 
   if (!ConfigFN || !*ConfigFN) {
@@ -72,7 +71,7 @@ XrdCapability::Init()
 int
 XrdCapability::Create(XrdOucEnv *inenv, XrdOucEnv* &outenv, XrdCommonSymKey* key) 
 {
-  outenv = NULL;
+  outenv = 0;
 
   if (!key)
     return ENOKEY;
@@ -100,7 +99,7 @@ XrdCapability::Create(XrdOucEnv *inenv, XrdOucEnv* &outenv, XrdCommonSymKey* key
 int 
 XrdCapability::Extract(XrdOucEnv *inenv, XrdOucEnv* &outenv)
 {
-  outenv = NULL;
+  outenv = 0;
   if (!inenv)
     return EINVAL;
 
@@ -117,7 +116,7 @@ XrdCapability::Extract(XrdOucEnv *inenv, XrdOucEnv* &outenv)
   if ( (!symkey) || (!symmsg) ) 
     return EINVAL;
   
-  XrdCommonSymKey* key = NULL;
+  XrdCommonSymKey* key = 0;
   if (!(key = gXrdCommonSymKeyStore.GetKey(symkey))) {
     return ENOKEY;
   }

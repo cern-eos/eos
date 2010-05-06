@@ -1,5 +1,5 @@
 AC_PREREQ(2.57)
-AC_INIT(eos, 0.0.0d,[andreas.joachim.peters@cern.ch])
+AC_INIT(eos, 0.0.0e,[andreas.joachim.peters@cern.ch])
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 AC_CONFIG_SRCDIR([configure.ac])
@@ -8,6 +8,8 @@ AM_INIT_AUTOMAKE(1.6 foreign)
 
 AC_PREFIX_DEFAULT(/opt/eos/)
 
+
+export CXXFLAGS="-Wall -Werror $CXXFLAGS"
 
 case "$target_os" in
    tiger*)
@@ -97,9 +99,14 @@ AC_CONFIG_FILES(Makefile
 XROOTD_INCDIR="${XROOTD}/include/xrootd/"
 XROOTD_LIBDIR="${XROOTD}/lib${MARK64}/"
 
+
+EOS_INCDIR="${XROOTD}/include/"
+
+
 AC_SUBST(XROOTD_INCDIR)
 AC_SUBST(XROOTD_LIBDIR)
-
+AC_SUBST(EOS_INCDIR)
+	
 # Check for readline
 export LDFLAGS_BUP=$LDFLAGS
 export LDFLAGS=-lcurses

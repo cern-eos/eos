@@ -59,7 +59,7 @@ int main (int argc, char* argv[]) {
 #ifdef CRYPTO
     message.Sign();
 #endif
-    bool ret = (mqc << message);
+    (mqc << message);
   }
 
   TIMING("SEND+RECV",&mq);

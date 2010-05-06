@@ -33,7 +33,7 @@ XrdCommonProcFile::Write(double val, int writedelay) {
 
 bool 
 XrdCommonProcFile::Write(const char* pbuf, int writedelay) {
-  time_t now = time(NULL);
+  time_t now = time(0);
   if (writedelay) { 
 
     if (now-lastwrite <writedelay) {
@@ -45,7 +45,7 @@ XrdCommonProcFile::Write(const char* pbuf, int writedelay) {
   lseek(fd,0,SEEK_SET);
   while ( (result=::ftruncate(fd,0)) && (errno == EINTR ) ) {}
   lastwrite = now;
-  if ( (write(fd,pbuf,strlen(pbuf))) == (strlen(pbuf))) {
+  if ( (write(fd,pbuf,strlen(pbuf))) == ((int)strlen(pbuf))) {
     return true;
   } else {
     return false;
@@ -55,7 +55,7 @@ XrdCommonProcFile::Write(const char* pbuf, int writedelay) {
 bool
 XrdCommonProcFile::WriteKeyVal(const char* key, unsigned long long value, int writedelay, bool dotruncate) {
   if (dotruncate) {
-    time_t now = time(NULL);
+    time_t now = time(0);
     if (writedelay) {
       
       if (now-lastwrite <writedelay) {
@@ -69,8 +69,8 @@ XrdCommonProcFile::WriteKeyVal(const char* key, unsigned long long value, int wr
     lastwrite = now;
   }
   char pbuf[1024];
-  sprintf(pbuf,"%d %-32s %lld\n",time(NULL),key,value);
-  if ( (write(fd,pbuf,strlen(pbuf))) == (strlen(pbuf))) {
+  sprintf(pbuf,"%u %-32s %lld\n",(unsigned int)time(0),key,value);
+  if ( ((write(fd,pbuf,strlen(pbuf))) == (int)strlen(pbuf))) {
     return true;
   } else {
     return false;
@@ -85,7 +85,7 @@ XrdCommonProcFile::Read() {
   if (rb<=0) 
     return -1;
 
-  return strtoll(pbuf,(char**)NULL,10);
+  return strtoll(pbuf,(char**)0,10);
 }
 
 bool 
@@ -116,7 +116,7 @@ XrdCommonProc::Handle(const char* name) {
       return phandle;
     }
   }
-  return NULL;
+  return 0;
 }
 
 

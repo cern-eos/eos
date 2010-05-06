@@ -1,17 +1,22 @@
 #ifndef __XRDFSTOFS_FSTOFS_HH__
-#define __XRDFSTOFS_FSTOFS_HH_
+#define __XRDFSTOFS_FSTOFS_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "XrdCapability/XrdCapability.hh"
 #include "XrdCommon/XrdCommonSymKeys.hh"
 #include "XrdCommon/XrdCommonLogging.hh"
+#include "XrdCommon/XrdCommonFmd.hh"
 #include "XrdFstOfs/XrdFstOfsClientAdmin.hh"
+#include "XrdFstOfs/XrdFstOfsStorage.hh"
+#include "XrdFstOfs/XrdFstOfsConfig.hh"
 #include "XrdMqOfs/XrdMqMessaging.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
+/*----------------------------------------------------------------------------*/
+#include <sys/mman.h>
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
@@ -57,19 +62,23 @@ public:
   int          truncate(XrdSfsFileOffset   fileOffset);
 
 
-  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = NULL; capOpaque = NULL; fstPath=""; XrdCommonLogId::XrdCommonLogId(); closed=false;}
+  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; XrdCommonLogId(); closed=false; fMd = 0;}
   virtual ~XrdFstOfsFile() {
     close();
-    if (openOpaque) {delete openOpaque; openOpaque=NULL;}
-    if (capOpaque)  {delete capOpaque;  capOpaque =NULL;}
+    if (openOpaque) {delete openOpaque; openOpaque=0;}
+    if (capOpaque)  {delete capOpaque;  capOpaque =0;}
+    // unmap the MD record
+    if (fMd) {delete fMd; fMd = 0;}
   }
 
 private:
   XrdOucEnv*   openOpaque;
   XrdOucEnv*   capOpaque;
   XrdOucString fstPath;
+  XrdOucString Path;
   unsigned long fileId;
   bool         closed;
+  XrdCommonFmd* fMd;
 };
 
 class XrdFstOfsDirectory : public XrdOfsDirectory, public XrdCommonLogId {
@@ -128,7 +137,7 @@ public:
   int            rem(const char             *path,
 		     XrdOucErrInfo    &out_error,
 		     const XrdSecEntity     *client,
-                        const char             *info = 0) { return SFS_OK;}
+		     const char             *info = 0) ;
   
   int            remdir(const char             *dirName,
 			XrdOucErrInfo    &out_error,
@@ -160,15 +169,14 @@ public:
  
   static XrdOucHash<XrdFstOfsClientAdmin> *gClientAdminTable;
 
-  XrdOucString     FstOfsBrokerUrl;      // -> Url of the message broker
   XrdFstMessaging* FstOfsMessaging;      // -> messaging interface class
-  XrdOucString     FstDefaultReceiverQueue; // -> Queue where we are sending to by default
-  bool             autoBoot;             // -> indicates if the node tries to boot automatically or waits for a boot message from a master
+  XrdFstOfsStorage* FstOfsStorage;       // -> Meta data & filesytem store object
   virtual ~XrdFstOfs() {};
 };
 
 /*----------------------------------------------------------------------------*/
 extern XrdFstOfs gOFS;
+
 /*----------------------------------------------------------------------------*/
 
 #endif

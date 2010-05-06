@@ -76,7 +76,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
   gOFS = &myFS;
 
   // Initialize authorization module ServerAcc
-  gOFS->CapabilityEngine = (XrdCapability*) XrdAccAuthorizeObject(lp, configfn, NULL);
+  gOFS->CapabilityEngine = (XrdCapability*) XrdAccAuthorizeObject(lp, configfn, 0);
   if (!gOFS->CapabilityEngine) {
     return 0;
   }
@@ -100,7 +100,6 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
 {
    static const char *epname = "opendir";
    const char *tident = error.getErrUser();
-   const char* rpath;
    XrdSecEntity mappedclient;
    XrdOucEnv Open_Env(info);
 
@@ -140,8 +139,7 @@ const char *XrdMgmOfsDirectory::nextEntry()
 */
 {
     static const char *epname = "nextEntry";
-    struct dirent *rp;
-    int retc;
+    //    int retc;
 
 // Lock the direcrtory and do any required tracing
 //
@@ -231,12 +229,12 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   eos_debug("rolemap done");
 
   openOpaque = new XrdOucEnv(info);
-  const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
-  char *opname;
-  int aop=0;
+  //  const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
+  //  char *opname;
+  //  int aop=0;
   
-  mode_t acc_mode = Mode & S_IAMB;
-  int retc, open_flag = 0;
+  //  mode_t acc_mode = Mode & S_IAMB;
+  int open_flag = 0;
   
   int isRW = 0;
   int isRewrite = 0;
@@ -312,19 +310,42 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   // construct capability
   
   XrdOucString capability = "";
-  capability +=  "mgm.uid=";       capability+=(int)uid; 
+  static int rfileid=1;
+  static int wfileid=1;
+  
+  // this is dummy fid creation
+  if (isRW) {
+    fileId = (wfileid++/2) + 1;
+  } else {    
+    fileId = rfileid++;
+  }
+  
+  if (isRW) {
+    if (isRewrite) {
+      capability += "&mgm.access=update";
+    } else {
+      capability += "&mgm.access=create";
+    }
+  } else {
+    capability += "&mgm.access=read";
+  }
+
+  capability += "&mgm.uid=";       capability+=(int)uid; 
   capability += "&mgm.gid=";       capability+=(int)gid;
   capability += "&mgm.ruid=";      capability+=(int)uid; 
   capability += "&mgm.rgid=";      capability+=(int)gid;
   capability += "&mgm.path=";      capability += path;
   capability += "&mgm.manager=";   capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";    XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fileId,hexfid);capability += hexfid;
+  capability += "&mgm.fsid=1";
   capability += "&mgm.localprefix="; capability+= "/var/tmp/ost/";
   capability += "&mgm.lid=";       capability += XrdCommonLayoutId::kPlain;
 
+
+
   // encrypt capability
   XrdOucEnv  incapability(capability.c_str());
-  XrdOucEnv* capabilityenv = NULL;
+  XrdOucEnv* capabilityenv = 0;
   XrdCommonSymKey* symkey = gXrdCommonSymKeyStore.GetCurrentKey();
 
   int caprc=0;
@@ -358,7 +379,7 @@ int XrdMgmOfsFile::close()
     Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
   */
 {
-  static const char *epname = "close";
+  //  static const char *epname = "close";
 
   oh = -1;
   if (fname) {free(fname); fname = 0;}
@@ -387,7 +408,6 @@ XrdSfsXferSize XrdMgmOfsFile::read(XrdSfsFileOffset  offset,    // In
 */
 {
   static const char *epname = "read";
-  XrdSfsXferSize nbytes;
   
   // Make sure the offset is not too large
   //
@@ -432,7 +452,6 @@ XrdSfsXferSize XrdMgmOfsFile::write(XrdSfsFileOffset   offset,    // In
 */
 {
   static const char *epname = "write";
-  XrdSfsXferSize nbytes;
   
   
   // Make sure the offset is not too large
@@ -541,7 +560,7 @@ int XrdMgmOfs::chmod(const char             *path,    // In
 {
   static const char *epname = "chmod";
   const char *tident = error.getErrUser(); 
-  mode_t acc_mode = Mode & S_IAMB;
+  //  mode_t acc_mode = Mode & S_IAMB;
 
   XrdOucEnv chmod_Env(info);
 
@@ -675,8 +694,8 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 */
 {
   static const char *epname = "mkdir";
-  mode_t acc_mode = (Mode & S_IAMB) | S_IFDIR;
-  const char *tident = error.getErrUser();
+  //  mode_t acc_mode = (Mode & S_IAMB) | S_IFDIR;
+  //  const char *tident = error.getErrUser();
   
   // Create the path if it does not already exist
   //
@@ -702,7 +721,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     //
     local_path = actual_path+1;
     while((next_path = index(local_path, int('/'))))
-      { int rc;
+      { //int rc;
       *next_path = '\0';
       //	   if ((rc=XrdMgmOfsUFS::Mkdir(actual_path,S_IRWXU)) && serrno != EEXIST)
       //	     return -serrno;
@@ -742,7 +761,7 @@ int XrdMgmOfs::Mkpath(const char *path, mode_t mode, const char *info,XrdSecEnti
 {
     char actual_path[4096], *local_path, *next_path;
     unsigned int plen;
-    static const char *epname = "Mkpath";
+    //    static const char *epname = "Mkpath";
 
 // Extract out the path we should make
 //
@@ -769,7 +788,7 @@ int XrdMgmOfs::Mkpath(const char *path, mode_t mode, const char *info,XrdSecEnti
      if (1) {
      //     if (XrdMgmOfsUFS::Statfn(actual_path, &buf)) {
        if (client && error) {
-	 const char *tident = (*error).getErrUser();
+	 //	 const char *tident = (*error).getErrUser();
 	 //	 if ( (XrdxCastor2FS->_mkdir(actual_path,mode,(*error),client,info)) )
 	 //	   return -serrno;
        } else {
@@ -792,8 +811,8 @@ int XrdMgmOfs::prepare( XrdSfsPrep       &pargs,
 			   XrdOucErrInfo    &error,
 			   const XrdSecEntity *client)
 {
-  static const char *epname = "prepare";
-  const char *tident = error.getErrUser();  
+  //  static const char *epname = "prepare";
+  //const char *tident = error.getErrUser();  
   return SFS_OK;
 }
 
@@ -816,8 +835,6 @@ int XrdMgmOfs::rem(const char             *path,    // In
    static const char *epname = "rem";
    const char *tident = error.getErrUser();
    XrdSecEntity mappedclient;
-
-   int nkept = 0;
 
    XTRACE(remove, path,"");
 
@@ -1306,8 +1323,8 @@ XrdMgmOfs::fsctl(const int               cmd,
     }
     
     char locResp[4096];
-    int  locRlen = 4096;
-    struct stat fstat;
+    //    int  locRlen = 4096;
+    //struct stat fstat;
     char rType[3], *Resp[] = {rType, locResp};
     rType[0] = 'S';//(fstat.st_mode & S_IFBLK == S_IFBLK ? 's' : 'S');
     // we don't want to manage writes via global redirection - therefore we mark the files as 'r'

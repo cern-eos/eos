@@ -11,7 +11,7 @@ XrdCommonStringStore::Store(const char* charstring , int lifetime) {
   if (!charstring) return (char*)"";
 
   StringMutex.Lock();
-  if (yourstring = theStore.Find(charstring)) {
+  if ((yourstring = theStore.Find(charstring))) {
     StringMutex.UnLock();
     return (char*)yourstring->c_str();
   } else {

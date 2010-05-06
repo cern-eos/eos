@@ -1,7 +1,11 @@
 #ifndef __XRDMGMOFS_FSTNODES__HH__
 #define __XRDMGMOFS_FSTNODES__HH__
 
-
+/*----------------------------------------------------------------------------*/
+// this is needed because of some openssl definition conflict!
+#undef des_set_key
+#include <google/dense_hash_map>
+#include <google/sparsehash/densehashtable.h>
 /*----------------------------------------------------------------------------*/
 #include "XrdMgmFstFileSystem.hh"
 #include "XrdMqOfs/XrdMqMessage.hh"
@@ -9,8 +13,6 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
-
 /*----------------------------------------------------------------------------*/
 
 
@@ -38,13 +40,14 @@ public:
 
   static bool Update(XrdAdvisoryMqMessage* advmsg);
   static bool Update(XrdOucEnv &config);
-  static bool Update(const char* infsname, int id, const char* schedgroup = "default", int bootstatus=XrdCommonFileSystem::kDown, int errc=0, const char* errmsg=0);
+  static bool UpdateQuotaStatus(XrdOucEnv &config);
+  static bool Update(const char* infsname, int id, const char* schedgroup = "default", int bootstatus=XrdCommonFileSystem::kDown, XrdOucEnv* env=0, int errc=0, const char* errmsg=0);
 
   bool SetNodeStatus(int status); 
 
   static XrdMgmFstNode* GetNode(const char* queue);
    
-  XrdMgmFstNode(const char* queue){queueName = queue;};
+  XrdMgmFstNode(const char* queue){queueName = queue; /*gFstIndex.set_empty_key(0);*/};
   ~XrdMgmFstNode(){}
 
   unsigned int GetNumberOfFileSystems() {return fileSystems.Num();}
@@ -54,12 +57,16 @@ public:
 
   static const char* GetInfoHeader() {static char infoHeader[1024];sprintf(infoHeader,"%-36s %-4s %-10s %-s\n","QUEUE","HBT","STATUS","#FS");return infoHeader;}
   const char* GetInfoString() {
-    if (time(NULL)-GetLastHeartBeat()<10000) {
-      sprintf(infoString,"%-36s %04d %-10s %02d\n", GetQueue(), time(NULL)-GetLastHeartBeat(), GetNodeStatusString(), GetNumberOfFileSystems()); return infoString;
+    if (time(0)-GetLastHeartBeat()<10000) {
+      sprintf(infoString,"%-36s %04lu %-10s %02d\n", GetQueue(), time(0)-GetLastHeartBeat(), GetNodeStatusString(), GetNumberOfFileSystems()); return infoString;
     } else {
       sprintf(infoString,"%-36s ---- %-10s %02d\n", GetQueue(), GetNodeStatusString(), GetNumberOfFileSystems()); return infoString;}
   }
   static XrdOucHash<XrdMgmFstNode> gFstNodes;  
+  //  static google::dense_hash_map<long, unsigned long long> gFstIndex;
+
+
+  
   static XrdSysMutex  gMutex;  // mutex to protect node hash access
 
 

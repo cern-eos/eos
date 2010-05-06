@@ -11,15 +11,17 @@
 class XrdCommonFileSystem {
 public:
 
-  enum eBootStatus   { kBootFailure=-1, kDown=0, kBootSent, kBooting=2, kBooted=3};
+  enum eBootStatus   { kOpsError=-2, kBootFailure=-1, kDown=0, kBootSent, kBooting=2, kBooted=3};
   enum eConfigStatus { kOff=0, kRO, kRW};
 
   static const char* GetStatusAsString(int status) {
     if (status == kDown) return "down";
+    if (status == kOpsError) return "opserror";
     if (status == kBootFailure) return "bootfailure";
     if (status == kBootSent) return "bootsent";
     if (status == kBooting) return "booting";
     if (status == kBooted) return "booted";
+    return "unknown";
   }
 
   static int GetStatusFromString(const char* ss) {
@@ -27,6 +29,7 @@ public:
       return kDown;
     
     if (!strcmp(ss,"down")) return kDown;
+    if (!strcmp(ss,"opserror")) return kOpsError;
     if (!strcmp(ss,"bootfailure")) return kBootFailure;
     if (!strcmp(ss,"bootsent")) return kBootSent;
     if (!strcmp(ss,"booting")) return kBooting;
@@ -39,8 +42,9 @@ public:
     XrdOucString envstring = config.Env(envlen);
     envstring.replace("mgm.cmd=","mgm._cmd=");
     envstring.replace("mgm.subcmd=","mgm._subcmd=");
-    msgbody = "mgm.cmd=fs&"; msgbody += "mgm.subcmd=set&";msgbody += envstring; msgbody += "&" ; msgbody+="mgm.fsstatus=";msgbody += GetStatusAsString(status); msgbody+="&";
+    msgbody = "mgm.cmd=fs&"; msgbody += "mgm.subcmd=set";msgbody += envstring; msgbody += "&" ; msgbody+="mgm.fsstatus=";msgbody += GetStatusAsString(status); msgbody+="&";
     if (failurereason) { msgbody +="errmsg="; msgbody+= failurereason;}
+    return msgbody.c_str();
   }
 
   static const char* GetBootRequestString(XrdOucString &msgbody, XrdOucEnv &config) {
@@ -49,10 +53,43 @@ public:
     envstring.replace("mgm.cmd=","mgm._cmd=");
     envstring.replace("mgm.subcmd=","mgm._subcmd=");
     msgbody = "mgm.cmd=fs&"; msgbody += "mgm.subcmd=boot"; msgbody += envstring;  
+    return msgbody.c_str();
   }
 
   static const char* GetAutoBootRequestString() {
     return "mgm.cmd=bootreq";
+  }
+
+  const char* GetReadableSizeString(XrdOucString& sizestring, unsigned long long insize, const char* unit = "") {
+    char formsize[1024];
+    if (insize > 1000) {
+      if (insize > (1000*1000)) {
+	if (insize > (1000l*1000l*1000l)) {
+	  if (insize > (1000l*1000l*1000l*1000l)) {
+	    // TB
+	    sprintf(formsize,"%.02f T%s",insize*1.0 / (1000l*1000l*1000l*1000l), unit);
+	  } else {
+	    // GB
+	    sprintf(formsize,"%.02f G%s",insize*1.0 / (1000l*1000l*1000l), unit);
+	  }
+	} else {
+	  // MB
+	  sprintf(formsize,"%.02f M%s",insize*1.0 / (1000*1000),unit);
+	}
+      } else {
+	// kB
+	sprintf(formsize,"%.02f k%s",insize*1.0 / (1000),unit);
+      }
+    } else {
+      if (strlen(unit)) {
+	sprintf(formsize,"%.02f %s",insize*1.0, unit);
+      } else {
+	sprintf(formsize,"%.02f",insize*1.0);
+      }
+    }
+    sizestring = formsize;
+
+    return sizestring.c_str();
   }
 }; 
 

@@ -135,16 +135,24 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	  retc = EINVAL;
 	} else {
 	  fsid = atoi(fsidst);
-	  XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::ExistsNodeFileSystemId, &fsid);
-	  if (!fsid) {
-	    stdErr="error: filesystem id="; stdErr += fsidst; stdErr += " is already in use!";
-	    retc = EBUSY;
+	  // cross check if this is really a number
+	  char cfsid[1024]; sprintf(cfsid,"%u",fsid); 
+	  
+	  if (strcmp(cfsid,fsidst)) {
+	    stdErr="error: filesystem id="; stdErr += fsidst; stdErr += " is not a positive number! "; stdErr += fsidst;
+	    retc = EINVAL;
 	  } else {
-	    if (!XrdMgmFstNode::Update(fsname, fsid, fssched)) {
-	      stdErr="error: cannot set the filesystem information to mgm.fsname="; stdErr += fsname; stdErr += " mgm.fsid=", stdErr += fsidst; stdErr += " mgm.fsschedgroup=" ; stdErr += fssched;
-	      retc = EINVAL;
+	    XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::ExistsNodeFileSystemId, &fsid);
+	    if (!fsid) {
+	      stdErr="error: filesystem id="; stdErr += fsidst; stdErr += " is already in use!";
+	      retc = EBUSY;
 	    } else {
-	    stdOut="success: added/set mgm.fsname="; stdOut += fsname; stdOut += " mgm.fsid=", stdOut += fsidst; stdOut += " mgm.fsschedgroup=" ; stdOut += fssched;
+	      if (!XrdMgmFstNode::Update(fsname, fsid, fssched)) {
+		stdErr="error: cannot set the filesystem information to mgm.fsname="; stdErr += fsname; stdErr += " mgm.fsid=", stdErr += fsidst; stdErr += " mgm.fsschedgroup=" ; stdErr += fssched;
+		retc = EINVAL;
+	      } else {
+		stdOut="success: added/set mgm.fsname="; stdOut += fsname; stdOut += " mgm.fsid=", stdOut += fsidst; stdOut += " mgm.fsschedgroup=" ; stdOut += fssched;
+	      }
 	    }
 	  }
 	}
@@ -316,7 +324,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 int
 XrdMgmProcCommand::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen) 
 {
-  if ( (blen <= (len - offset)) ) {
+  if ( ((unsigned int)blen <= (len - offset)) ) {
     memcpy(buff, resultStream.c_str() + offset, blen);
     return blen;
   } else {

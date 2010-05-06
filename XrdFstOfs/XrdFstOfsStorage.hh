@@ -1,0 +1,79 @@
+#ifndef __XRDFSTOFS_STORAGE_HH__
+#define __XRDFSTOFS_STORAGE_HH__
+
+/*----------------------------------------------------------------------------*/
+#include "XrdCommon/XrdCommonLogging.hh"
+#include "XrdCommon/XrdCommonStatfs.hh"
+/*----------------------------------------------------------------------------*/
+#include "XrdSys/XrdSysPthread.hh"
+/*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+class XrdFstOfsFileSystem : public XrdCommonLogId {
+private:
+  XrdOucString Path;
+  unsigned int Id;
+  XrdOucString queueName;
+  XrdOucString schedulingGroup;
+  XrdOucString  Env;
+
+  XrdCommonStatfs* statFs;         // the owner of the object is a global hash in XrdCommonStatfs - this are just references
+  unsigned long last_blocks_free;  
+  time_t last_status_broadcast;
+
+public:
+  XrdFstOfsFileSystem(const char* inpath) {Path = inpath; Id = 0; queueName =""; schedulingGroup=""; statFs = 0; last_blocks_free=0;last_status_broadcast=0;}
+  ~XrdFstOfsFileSystem() {}
+
+  void SetId(unsigned int id) {Id = id;}
+  void SetSchedulingGroup(const char* inschedgroup) { schedulingGroup = inschedgroup;}
+  void SetQueue(const char* inqueue) { queueName = inqueue;}
+  const char* GetEnvString() { 
+    Env = "mgm.fsname="; Env += queueName; Env += "&mgm.fsschedgroup="; Env += schedulingGroup;
+    Env += "&mgm.fspath="; Env += Path; Env += "&mgm.fsid="; Env += (int)Id; return Env.c_str();
+  }
+
+  void BroadcastError(const char* msg);
+  void BroadcastStatus();
+
+
+
+  XrdCommonStatfs* GetStatfs(bool &changedalot);
+}; 
+
+
+/*----------------------------------------------------------------------------*/
+class XrdFstOfsStorage : public XrdCommonLogId {
+private:
+  bool zombie;
+
+  XrdSysMutex fsMutex;
+  XrdOucString metaDirectory;
+
+public:
+  // fsstat & quota thread
+  static void* StartFsQuota(void *pp); 
+  static void* StartFsScrub(void * pp);
+  static void* StartFsTrim(void* pp);
+
+  void Quota();
+  void Scrub();
+  void Trim();
+
+  XrdOucHash<XrdFstOfsFileSystem> fileSystems;
+  static int HasStatfsChangedalot(const char* key, XrdFstOfsFileSystem* filesystem, void* arg);
+
+  XrdFstOfsStorage(const char* metadirectory);
+  ~XrdFstOfsStorage() {};
+
+  static XrdFstOfsStorage* Create(const char* metadirectory);
+
+  bool SetFileSystem(XrdOucEnv &env);
+  bool RemoveFileSystem(XrdOucEnv &env);
+
+  bool IsZombie() {return zombie;}
+
+};
+
+
+#endif

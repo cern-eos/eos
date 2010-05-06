@@ -22,14 +22,14 @@ void
 XrdCommonMapping::GetPhysicalGroups(const char* __name__, XrdOucString& __allgroups__, XrdOucString& __defaultgroup__) {        
   __allgroups__=":";                                                    
   __defaultgroup__="";                                                  
-  XrdCommonMappingGroupInfo* ginfo=NULL;                                   
+  XrdCommonMappingGroupInfo* ginfo=0;                                   
   
-  if (ginfo = gGroupInfoCache.Find(__name__)) {          
+  if ((ginfo = gGroupInfoCache.Find(__name__))) {          
     __allgroups__ = ginfo->AllGroups;                                   
     __defaultgroup__ = ginfo->DefaultGroup;                             
     return;}                                                                     
   struct group* gr;                                                     
-  struct passwd* passwdinfo = NULL;                                     
+  struct passwd* passwdinfo = 0;                                     
   if (!(passwdinfo = gPasswdStore.Find(__name__))) {     
     passwdinfo = getpwnam(__name__);                                  
     if (passwdinfo) {                                                 
@@ -67,7 +67,7 @@ XrdCommonMapping::GetPhysicalGroups(const char* __name__, XrdOucString& __allgro
 void 
 XrdCommonMapping::RoleMap(const XrdSecEntity* _client,const char* _env, XrdSecEntity &_mappedclient, const char* tident, uid_t &uid, gid_t &gid, uid_t &ruid, gid_t &rgid) {
   //  EPNAME("rolemap");
-  XrdSecEntity* entity = NULL;
+  XrdSecEntity* entity = 0;
   XrdOucEnv lenv(_env); 
   const char* role      = lenv.Get("role");		
   const char* suid = lenv.Get("suid");		
@@ -76,7 +76,6 @@ XrdCommonMapping::RoleMap(const XrdSecEntity* _client,const char* _env, XrdSecEn
   char clientid[1024];
   sprintf(clientid,"%s:%llu",tident, (unsigned long long) _client);
 
-  int cnt=0;
   if ( (!suid) && (!role) && (entity = gSecEntityStore.Find(clientid))) {
     // find existing client rolemaps ....
     _mappedclient.name = entity->name;
@@ -349,7 +348,7 @@ XrdCommonMapping::RoleMap(const XrdSecEntity* _client,const char* _env, XrdSecEn
       int adpos  = stident.find("@"); user.assign(tident,adpos+1); reducedTident += user; 
       XrdOucString* hisusers = gUserRoleTable.Find(reducedTident.c_str()); 
       XrdOucString match = ":";match+= suid; match+=":";		
-      if (hisusers)							
+      if (hisusers) {							
 	if ((hisusers->find(match.c_str())) != STR_NPOS) {		
 	  XrdOucString allgroups="";
 	  XrdOucString defaultgroup="";
@@ -394,6 +393,7 @@ XrdCommonMapping::RoleMap(const XrdSecEntity* _client,const char* _env, XrdSecEn
 	    _mappedclient.name = XrdCommonStringStore::Store(hisroles->c_str()+7);	
 	  }								
 	}
+      }
     }
     // root mapping to root/root/root
     if (_mappedclient.role && (!strcmp(_mappedclient.role,"root"))) {
@@ -434,7 +434,7 @@ XrdCommonMapping::RoleMap(const XrdSecEntity* _client,const char* _env, XrdSecEn
     // try virtual mapping for uids
     long* vuid=0;
     gVirtualMapMutex.Lock();
-    if (vuid = gVirtualUidMap.Find(newentity->name)) {
+    if ((vuid = gVirtualUidMap.Find(newentity->name))) {
       uid = *vuid;
     }
     gVirtualMapMutex.UnLock();
@@ -444,7 +444,7 @@ XrdCommonMapping::RoleMap(const XrdSecEntity* _client,const char* _env, XrdSecEn
     // try virtual mapping for gids
     long* vgid=0;
     gVirtualMapMutex.Lock();
-    if (vgid = gVirtualGidMap.Find(newentity->role)) {
+    if ((vgid = gVirtualGidMap.Find(newentity->role))) {
       gid = *vgid;
     }
     gVirtualMapMutex.UnLock();
@@ -459,7 +459,7 @@ void XrdCommonMapping::GetId(XrdSecEntity &_client, uid_t &_uid, gid_t &_gid) {
   _uid=99;                                                             
   _gid=99;                                                             
   struct passwd* pw;                                      
-  XrdCommonMappingGroupInfo* ginfo=NULL;
+  XrdCommonMappingGroupInfo* ginfo=0;
   if (_client.name) {
     if ((ginfo = gGroupInfoCache.Find(_client.name))) { 
       pw = &(ginfo->Passwd);                          

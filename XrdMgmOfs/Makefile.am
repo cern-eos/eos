@@ -1,4 +1,4 @@
-INCLUDES = -I$(XROOTD_INCDIR) -I../
+INCLUDES = -I$(EOS_INCDIR) -I$(XROOTD_INCDIR) -I../
 
 lib_LTLIBRARIES = libXrdMgmOfs.la
 

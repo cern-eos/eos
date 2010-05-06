@@ -74,7 +74,7 @@ public:
 
   XrdSmartOucEnv* Remove() {
     XrdSmartOucEnv* ptr;
-    ptr = NULL;
+    ptr = 0;
     if (nextelement) {
       ptr = nextelement;
       nextelement = nextelement->nextelement;
@@ -144,7 +144,7 @@ public:
   int stat(struct stat *buf);
   
   XrdMqOfsFile(char *user=0) : XrdOfsFile(user) {
-    QueueName = "";envOpaque=NULL;Out=NULL;}
+    QueueName = "";envOpaque=0;Out=0;}
   
   ~XrdMqOfsFile() { 
     if (envOpaque) delete envOpaque;
@@ -174,7 +174,7 @@ public:
   // our plugin function
   int FSctl(int, XrdSfsFSctl&, XrdOucErrInfo&, const XrdSecEntity*);
   
-  XrdMqOfs(XrdSysError *lp=NULL);
+  XrdMqOfs(XrdSysError *lp=0);
   virtual              ~XrdMqOfs() {}
   virtual bool Init(XrdSysError &);
   const   char          *getVersion();

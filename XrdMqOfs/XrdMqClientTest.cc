@@ -74,7 +74,7 @@ int main (int argc, char* argv[]) {
     message.kMessageHeader.kDescription = "Test";
     message.kMessageHeader.kDescription += i;
     
-    bool ret = (mqc << message);
+    (mqc << message);
 
     XrdMqMessage* newmessage = mqc.RecvMessage();
     if (i==0) 

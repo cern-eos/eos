@@ -1,5 +1,5 @@
-#ifndef ___XRDMGMOFS__MGMOFSTRACE_H___
-#define ___XRDMGMOFS__MGMOFSTRACE_H___
+#ifndef __XRDMGMOFS__MGMOFSTRACE_H__
+#define __XRDMGMOFS__MGMOFSTRACE_H__
 
 #ifndef NODEBUG
 

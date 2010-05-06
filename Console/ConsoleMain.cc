@@ -58,7 +58,7 @@ COMMAND commands[] = {
   { (char*)"exit", com_quit, (char*)"Exit from EOS console" },
   { (char*)"clear", com_clear, (char*)"Clear the terminal" },
   { (char*)".q",   com_quit, (char*)"Exit from EOS console" },
-  { (char *)NULL, (rl_icpfunc_t *)NULL, (char *)NULL }
+  { (char *)0, (rl_icpfunc_t *)0, (char *)0 }
 };
 
 /* Forward declarations. */
@@ -107,12 +107,12 @@ void initialize_readline ()
    region of rl_line_buffer that contains the word to complete.  TEXT is
    the word to complete.  We can use the entire contents of rl_line_buffer
    in case we want to do some simple parsing.  Return the array of matches,
-   or NULL if there aren't any. */
+   or 0 if there aren't any. */
 char **
 EOSConsole_completion (const char *text, int start, int intend) {
   char **matches;
 
-  matches = (char **)NULL;
+  matches = (char **)0;
 
   /* If this word is at the start of the line, then it is a command
      to complete.  Otherwise it is the name of a file in the current
@@ -141,7 +141,7 @@ command_generator (const char *text, int state) {
     }
 
   /* Return the next name which partially matches from the command list. */
-  while (name = commands[list_index].name)
+  while ((name = commands[list_index].name))
     {
       list_index++;
 
@@ -149,8 +149,8 @@ command_generator (const char *text, int state) {
         return (dupstr(name));
     }
 
-  /* If no names matched, then return NULL. */
-  return ((char *)NULL);
+  /* If no names matched, then return 0. */
+  return ((char *)0);
 }
 
 /* **************************************************************** */
@@ -272,20 +272,48 @@ com_fs (char* arg1) {
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
-  XrdOucString arg = subtokenizer.GetToken();
   if ( subcommand == "ls" ) {
     XrdOucString in ="mgm.cmd=fs&mgm.subcmd=ls";
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
   if ( subcommand == "set" ) {
-    return (0);
+    XrdOucString fsname = subtokenizer.GetToken();
+    XrdOucString fsid   = subtokenizer.GetToken();
+    if (fsname.length() && fsid.length()) {
+      XrdOucString in = "mgm.cmd=fs&mgm.subcmd=set&mgm.fsid=";
+      in += fsid;
+      in += "&mgm.fsname=";
+      in += fsname;
+      global_retc = output_result(client_admin_command(in));
+      // boot by fsid
+      return (0);
+    }
   }
   if ( subcommand == "rm" ) {
+    XrdOucString arg = subtokenizer.GetToken();
+    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=rm";
+    int fsid = atoi(arg.c_str());
+    char r1fsid[128]; sprintf(r1fsid,"%d", fsid);
+    char r2fsid[128]; sprintf(r2fsid,"%04d", fsid);
+    if ( (arg == r1fsid) || (arg == r2fsid) ) {
+      // boot by fsid
+      in += "&mgm.fsid=";
+    } else {
+      if (arg.endswith("/fst"))
+	in += "&mgm.nodename=";
+      else 
+	in += "&mgm.fsname=";
+    }
+
+    in += arg;
+    global_retc = output_result(client_admin_command(in));
+    return (0);
     return (0);
   }
 
   if ( subcommand == "boot" ) {
+    XrdOucString arg = subtokenizer.GetToken();
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=boot";
     int fsid = atoi(arg.c_str());
     char r1fsid[128]; sprintf(r1fsid,"%d", fsid);
@@ -302,10 +330,10 @@ com_fs (char* arg1) {
     return (0);
   }
 
-  printf("usage: fs ls   [<fs-name>|<fs-id>]             : list configured filesystems (or by name or id match\n");
+  printf("usage: fs ls                                   : list configured filesystems (or by name or id match\n");
   printf("       fs set   <fs-name> <fs-id>              : configure filesystem with name and id\n");
   printf("       fs rm    <fs-name>|<fs-id>              : remove filesystem configuration by name or id\n");
-  printf("       fs boot  <fs-name>|<fs-id>|<node-queue> : boot filesystem/node \n");
+  printf("       fs boot  <fs-id>|<node-queue>           : boot filesystem/node ['fs boot *' to boot all]  \n");
   return (0);
 }
 
@@ -445,7 +473,7 @@ execute_line (char *line) {
 }
 
 /* Look up NAME as the name of a command, and return a pointer to that
-   command.  Return a NULL pointer if NAME isn't a command name. */
+   command.  Return a 0 pointer if NAME isn't a command name. */
 COMMAND *
 find_command (char *name) {
   register int i;
@@ -454,7 +482,7 @@ find_command (char *name) {
     if (strcmp (name, commands[i].name) == 0)
       return (&commands[i]);
 
-  return ((COMMAND *)NULL);
+  return ((COMMAND *)0);
 }
 
 /* Strip whitespace from the start and end of STRING.  Return a pointer

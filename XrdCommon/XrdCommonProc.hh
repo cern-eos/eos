@@ -21,7 +21,7 @@ private:
 
 public:
   bool Open();
-  bool Close() { if (fd>=0) close(fd);}
+  bool Close() { if (fd>=0) close(fd);return true;}
   bool Write(long long val, int writedelay=0);
   bool Write(double val, int writedelay=0);
   bool Write(const char* str, int writedelay=0);

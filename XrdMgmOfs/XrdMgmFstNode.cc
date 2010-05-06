@@ -4,6 +4,8 @@
 /*----------------------------------------------------------------------------*/
 
 XrdOucHash<XrdMgmFstNode> XrdMgmFstNode::gFstNodes;
+//google::dense_hash_map<long, unsigned long long> gFstIndex;
+
 XrdSysMutex XrdMgmFstNode::gMutex;
 
 /*----------------------------------------------------------------------------*/
@@ -16,6 +18,7 @@ XrdMgmFstNode::SetNodeStatus(int status)
     fileSystems.Apply(XrdMgmFstNode::SetStatusFileSystem, &fsstatus);    
   }
   nodeStatus = status;
+  return true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -48,30 +51,50 @@ XrdMgmFstNode::Update(XrdAdvisoryMqMessage* advmsg)
 bool
 XrdMgmFstNode::Update(XrdOucEnv &config) 
 {
-  XrdOucString infsname = config.Get("mgm.fsname");
-  XrdOucString sid      = config.Get("mgm.fsid");
-  XrdOucString schedgroup = config.Get("mgm.fsschedgroup");
+  XrdOucString infsname     = config.Get("mgm.fsname");
+  XrdOucString sid          = config.Get("mgm.fsid");
+  XrdOucString schedgroup   = config.Get("mgm.fsschedgroup");
   XrdOucString fsstatus     = config.Get("mgm.fsstatus");
-  XrdOucString serrc = config.Get("errc");
+  XrdOucString serrc        = config.Get("errc");
   int errc=0;
-  XrdOucString errmsg = config.Get("errmsg");
+  XrdOucString errmsg       = config.Get("errmsg");
   if (serrc.length()) 
       errc = atoi(serrc.c_str());
 
-  int envlen;
   int id = atoi(sid.c_str());
   if (!id) 
     return false;
   
   int statusid = XrdCommonFileSystem::GetStatusFromString(fsstatus.c_str());
 
-  return Update(infsname.c_str(), id, schedgroup.c_str(),statusid, errc, errmsg.c_str());
+  return Update(infsname.c_str(), id, schedgroup.c_str(),statusid, &config, errc, errmsg.c_str());
 }
 
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int bootstatus, int errc, const char* errmsg) 
+XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config) 
+{
+  XrdOucString infsname     = config.Get("mgm.fsname");
+  XrdOucString sid          = config.Get("mgm.fsid");
+  XrdOucString fsstatus     = config.Get("mgm.fsstatus");
+  XrdOucString serrc        = config.Get("errc");
+  int errc=0;
+  XrdOucString errmsg       = config.Get("errmsg");
+  if (serrc.length()) 
+      errc = atoi(serrc.c_str());
+
+  int id = atoi(sid.c_str());
+  if (!id) 
+    return false;
+  
+  return true;
+}
+
+
+/*----------------------------------------------------------------------------*/
+bool
+XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int bootstatus, XrdOucEnv* env , int errc, const char* errmsg) 
 {
   if (!infsname) 
     return false;
@@ -117,15 +140,14 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
     node->fileSystems.Add(fsname.c_str(),fs);
   } else {
     fs->SetId(id);
-    fs->SetPath(fsname.c_str());
-    fs->SetSchedulingGroup(schedgroup);
+    if (fsname.length())    fs->SetPath(fsname.c_str());
+    if (strlen(schedgroup)) fs->SetSchedulingGroup(schedgroup);
     if (bootstatus!= XrdCommonFileSystem::kDown) 
       fs->SetBootStatus(bootstatus);
   }
 
-  if (errc) {
-    fs->SetError(errc, errmsg);
-  }
+  fs->SetError(errc, errmsg);
+  fs->SetStatfsEnv(env);
   return true;
 }
 

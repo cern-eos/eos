@@ -60,7 +60,7 @@ public:
     if (!validity)
       return true;
     else
-      return ((time(NULL)+XRDCOMMONSYMKEYS_GRACEPERIOD) > validity);
+      return ((time(0)+XRDCOMMONSYMKEYS_GRACEPERIOD) > validity);
   }
 
   static XrdCommonSymKey* Create(const char* inkey, time_t validity) {

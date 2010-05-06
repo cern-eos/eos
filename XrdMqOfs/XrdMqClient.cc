@@ -98,10 +98,23 @@ XrdMqMessage* XrdMqClient::RecvFromInternalBuffer() {
   if (kMessageBuffer.length()) {
     // there is still a message in the buffer
     int nextmessage;
+    int firstmessage;
+
+    firstmessage = kMessageBuffer.find(XMQHEADER);
+
+    if (firstmessage == STR_NPOS)
+      return 0;
+    else {
+      if (firstmessage>1)
+	kMessageBuffer.erase(0,firstmessage);
+    }
+
     nextmessage = kMessageBuffer.find(XMQHEADER,strlen(XMQHEADER));
     char savec=0;
     if (nextmessage != STR_NPOS) {savec = kMessageBuffer.c_str()[nextmessage]; ((char*)kMessageBuffer.c_str())[nextmessage] = 0;}
     XrdMqMessage* message = XrdMqMessage::Create(kMessageBuffer.c_str());
+    if (!message) 
+      return 0;
     XrdMqMessageHeader::GetTime(message->kMessageHeader.kReceiverTime_sec,message->kMessageHeader.kReceiverTime_nsec);
     if (nextmessage != STR_NPOS) ((char*)kMessageBuffer.c_str())[nextmessage] = savec;
     if (nextmessage == STR_NPOS) {
@@ -113,7 +126,7 @@ XrdMqMessage* XrdMqClient::RecvFromInternalBuffer() {
     }
     return message;
   }
-  return NULL;
+  return 0;
 }
 
 
@@ -133,15 +146,15 @@ XrdMqMessage* XrdMqClient::RecvMessage() {
     if (!client) {
       // fatal no client 
       XrdMqMessage::Eroute.Emsg("RecvMessage", EINVAL, "receive message - no client present");  
-      return NULL;
+      return 0;
     }
     struct XrdClientStatInfo stinfo;
     if (!client->Stat(&stinfo,true)) {
-      return NULL;
+      return 0;
     }
 
     if (!stinfo.size) {
-      return NULL;
+      return 0;
     }
 
     // mantain a receiver buffer which fits the need
@@ -167,10 +180,10 @@ XrdMqMessage* XrdMqClient::RecvMessage() {
     // ...
   } else {
     // multiple broker case
-    return NULL;
+    return 0;
   }
 
-  return NULL;
+  return 0;
 }
 
 /*----------------------------------------------------------------------------*/

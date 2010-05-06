@@ -54,7 +54,7 @@ STRINGSTORE(const char* __charptr__) {
   XrdOucString* yourstring;
   if (!__charptr__ ) return (char*)"";
 
-  if (yourstring = XrdOfsFS.stringstore->Find(__charptr__)) {
+  if ((yourstring = XrdOfsFS.stringstore->Find(__charptr__))) {
     return (char*)yourstring->c_str();
   } else {
     XrdOucString* newstring = new XrdOucString(__charptr__);
@@ -83,8 +83,8 @@ XrdMqOfs::XrdMqOfs(XrdSysError *ep)
 {
   eDest = ep;
   ConfigFN  = 0;  
-  StartupTime = time(NULL);
-  LastOutputTime = time(NULL);
+  StartupTime = time(0);
+  LastOutputTime = time(0);
   ReceivedMessages = 0;
   FanOutMessages = 0;
   DeliveredMessages = 0;
@@ -98,9 +98,6 @@ XrdMqOfs::XrdMqOfs(XrdSysError *ep)
 bool
 XrdMqOfs::Init (XrdSysError &ep)
 {
-  int rc;
-  pthread_t tid;
-  
   stringstore = new XrdOucHash<XrdOucString> ();
 
   return true;
@@ -174,7 +171,7 @@ XrdMqOfs::stat(const char                *queuename,
   EPNAME("stat");
   const char *tident = error.getErrUser();
 
-  XrdMqMessageOut* Out = NULL;
+  XrdMqMessageOut* Out = 0;
 
   Statistics();
 
@@ -317,7 +314,7 @@ XrdMqOfsFile::close() {
       Out->Lock();
       XrdOfsFS.QueueOut.Del(QueueName.c_str());
     }
-    Out = NULL;
+    Out = 0;
   }
 
   {
@@ -350,7 +347,7 @@ XrdMqOfsFile::read(XrdSfsFileOffset  fileOffset,
   if (Out) {
     unsigned int mlen = Out->MessageBuffer.length();
     ZTRACE(open,"reading size:" << buffer_size);
-    if (buffer_size != mlen) {
+    if ((unsigned long) buffer_size != mlen) {
       memcpy(buffer,Out->MessageBuffer.c_str(),buffer_size);
       Out->MessageBuffer.erase(0,buffer_size);
       return buffer_size;
@@ -445,11 +442,10 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
 
     char buff[256], *bp;
     int i;
-    char* locResp;
 
     // Obtain port number we will be using
     //
-    myPort = (bp = getenv("XRDPORT")) ? strtol(bp, (char **)NULL, 10) : 0;
+    myPort = (bp = getenv("XRDPORT")) ? strtol(bp, (char **)0, 10) : 0;
 
     // Establish our hostname and IPV4 address
     //
@@ -520,7 +516,7 @@ XrdMqOfs::Statistics() {
   EPNAME("Statistics");
   StatLock.Lock();
   const char* tident="";
-  time_t now = time(NULL);
+  time_t now = time(0);
   if ((now-LastOutputTime) > 2) {
     printf("Stats printing\n");
     ZTRACE(getstats,"*****************************************************");
@@ -536,12 +532,12 @@ XrdMqOfs::Statistics() {
     ZTRACE(getstats,"Backlog   Messages            : " << QueueBacklogHits);
     char rates[4096];
     sprintf(rates, "Rates: IN: %d OUT: %d FAN: %d ADV: %d: UNDEV: %d NOMSG: %d" 
-	    ,(int)1.0*ReceivedMessages/(now-StartupTime)
-	    ,(int)1.0*DeliveredMessages/(now-StartupTime)
-	    ,(int)1.0*FanOutMessages/(now-StartupTime)
-	    ,(int)1.0*AdvisoryMessages/(now-StartupTime)
-	    ,(int)1.0*UndeliverableMessages/(now-StartupTime)
-	    ,(int)1.0*NoMessages/(now-StartupTime));
+	    ,(int)(1.0*ReceivedMessages/(now-StartupTime))
+	    ,(int)(1.0*DeliveredMessages/(now-StartupTime))
+	    ,(int)(1.0*FanOutMessages/(now-StartupTime))
+	    ,(int)(1.0*AdvisoryMessages/(now-StartupTime))
+	    ,(int)(1.0*UndeliverableMessages/(now-StartupTime))
+	    ,(int)(1.0*NoMessages/(now-StartupTime)));
     ZTRACE(getstats, rates);
     ZTRACE(getstats,"*****************************************************");
     LastOutputTime = now;

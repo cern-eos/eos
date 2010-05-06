@@ -24,7 +24,7 @@
 /*----------------------------------------------------------------------------*/
 class XrdMgmMessaging : public XrdMqMessaging, public XrdCommonLogId {
 public:
-  XrdMgmMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false) : XrdMqMessaging(url,defaultreceiverqueue, advisorystatus, advisoryquery) { XrdCommonLogId::XrdCommonLogId();}
+  XrdMgmMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false) : XrdMqMessaging(url,defaultreceiverqueue, advisorystatus, advisoryquery) { XrdCommonLogId();}
   virtual ~XrdMgmMessaging(){}
   
   virtual void Listen();
@@ -129,7 +129,7 @@ public:
                             const char *y="");
 
                        XrdMgmOfsFile(char *user=0) : XrdSfsFile(user)
-                                          {oh = -1; fname = 0; openOpaque=0;uid=ruid=99; gid=rgid=99;fileId=0; procCmd=0; XrdCommonLogId::XrdCommonLogId();}
+                                          {oh = -1; fname = 0; openOpaque=0;uid=ruid=99; gid=rgid=99;fileId=0; procCmd=0; XrdCommonLogId();}
                       ~XrdMgmOfsFile() {
 			if (oh) close();
 			if (openOpaque) {delete openOpaque; openOpaque = 0;}
@@ -288,7 +288,7 @@ const   char          *getVersion();
 // Common functions
 //
 static  int            Mkpath(const char *path, mode_t mode, 
-                              const char *info=0, XrdSecEntity* client = NULL, XrdOucErrInfo* error = NULL);
+                              const char *info=0, XrdSecEntity* client = 0, XrdOucErrInfo* error = 0);
 
         int            Emsg(const char *, XrdOucErrInfo&, int, const char *x,
                             const char *y="");

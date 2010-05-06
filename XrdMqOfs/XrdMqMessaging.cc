@@ -9,13 +9,14 @@ void*
 XrdMqMessaging::Start(void *pp) 
 {
   ((XrdMqMessaging*)pp)->Listen();
+  return 0;
 }
 
 /*----------------------------------------------------------------------------*/
 XrdMqMessaging::XrdMqMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus, bool advisoryquery ) 
 {
   pthread_t tid;
-  int n, rc;
+  int rc;
   if (gMessageClient.AddBroker(url, advisorystatus,advisoryquery)) {
     zombie = false;
   } else {

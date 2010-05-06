@@ -20,7 +20,7 @@ XrdMqOfs::AddToMatch(const char* key, XrdMqMessageOut *Out, void* Arg) {
   EPNAME("AddToMatch");
   const char* tident = ((XrdMqOfsMatches*)Arg)->tident;
   if (Arg) {
-    char debugline[4096];
+    //    char debugline[4096];
     
     //    sprintf(debugline,"Matching %s -> %s [%d : %d %d]\n", ((XrdMqOfsMatches*)Arg)->queuename.c_str(), key, (((XrdMqOfsMatches*)Arg)->messagetype), Out->AdvisoryStatus, Out->AdvisoryQuery);
     //    TRACES(debugline);
@@ -50,7 +50,7 @@ XrdMqOfs::AddToMatch(const char* key, XrdMqMessageOut *Out, void* Arg) {
     }
 
     ZTRACE(open,"Trying to match ...");
-    XrdMqOfsMatches* match = (XrdMqOfsMatches*) Arg;
+    //    XrdMqOfsMatches* match = (XrdMqOfsMatches*) Arg;
     XrdOucString Key = key;
     XrdOucString nowildcard = ((XrdMqOfsMatches*)Arg)->queuename;
     nowildcard.replace("*","");
@@ -99,7 +99,7 @@ XrdMqOfs::AddToMatch(const char* key, XrdMqMessageOut *Out, void* Arg) {
 size_t
 XrdMqMessageOut::RetrieveMessages() {
   XrdSmartOucEnv* message;
-  while (message = (XrdSmartOucEnv*) MessageQueue.Remove()) {
+  while ((message = (XrdSmartOucEnv*) MessageQueue.Remove())) {
     message->procmutex.Lock();
     int len;
     MessageBuffer += message->Env(len);
@@ -184,7 +184,7 @@ XrdMqOfs::FSctl(const int               cmd,
   XrdSmartOucEnv* env = new XrdSmartOucEnv(opaque.c_str());
 
   // look into the header
-  XrdMqMessageHeader mh;int i;
+  XrdMqMessageHeader mh;
   if (!mh.Decode(opaque.c_str())) {
     XrdMqOfs::Emsg(epname, error, EINVAL, "decode message header", "");
     return SFS_ERROR;

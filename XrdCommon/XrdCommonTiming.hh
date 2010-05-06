@@ -18,12 +18,12 @@ public:
   XrdxCommonTiming(const char* name, struct timeval &i_tv) {
     memcpy(&tv, &i_tv, sizeof(struct timeval));
     tag = name;
-    next = NULL;
+    next = 0;
     ptr  = this;
   }
   XrdxCommonTiming(const char* i_maintag) {
     tag = "BEGIN";
-    next = NULL;
+    next = 0;
     ptr  = this;
     maintag = i_maintag;
   }

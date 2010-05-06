@@ -64,7 +64,7 @@ public:
   int    kType;                    // type of message
 
   bool  Encode();
-  bool  Decode(const char* headerasstring = NULL);
+  bool  Decode(const char* headerasstring = 0);
   void  Print();
 
 

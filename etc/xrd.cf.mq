@@ -1,5 +1,5 @@
 ######################### Broker OFS ########################
-xrootd.fslib /opt/eos/lib/libXrdMqOfs.so
+xrootd.fslib libXrdMqOfs.so
 all.export /eos/ nolock
 #############################################################
 #allow upto 1024 threads

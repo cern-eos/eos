@@ -3,7 +3,7 @@
 
 const char *XrdMqMessageCVSID = "$Id: XrdMqMessage.cc,v 1.0.0 2007/10/04 01:34:19 ajp Exp $";
 
-/***********************************
+/**********************************/
 /* xroot includes                 */
 
 #include <XrdMqOfs/XrdMqMessage.hh>
@@ -23,7 +23,7 @@ const char *XrdMqMessageCVSID = "$Id: XrdMqMessage.cc,v 1.0.0 2007/10/04 01:34:1
 
 void PRINTBUFFER(const char* x, unsigned int y) {
   printf("----------------------------\n");
-  for (int i=0; i< y; i++) {
+  for (unsigned int i=0; i< y; i++) {
     printf("%03d \t",x[i]);
   }
   printf("============================\n");
@@ -31,7 +31,7 @@ void PRINTBUFFER(const char* x, unsigned int y) {
 
 
 
-EVP_PKEY    *XrdMqMessage::PrivateKey = NULL;
+EVP_PKEY    *XrdMqMessage::PrivateKey = 0;
 XrdOucString XrdMqMessage::PublicKeyDirectory="";
 XrdOucString XrdMqMessage::PrivateKeyFile="";
 XrdOucString XrdMqMessage::PublicKeyFileHash="";
@@ -39,7 +39,7 @@ XrdOucHash<EVP_PKEY> XrdMqMessage::PublicKeyHash;
 bool         XrdMqMessage::kCanSign=false;
 bool         XrdMqMessage::kCanVerify=false;
 XrdSysMutex  XrdMqMessage::CryptoMutex;
-XrdSysLogger* XrdMqMessage::Logger=NULL;
+XrdSysLogger* XrdMqMessage::Logger=0;
 XrdSysError  XrdMqMessage::Eroute(0);
 
 /******************************************************************************/
@@ -97,7 +97,7 @@ XrdMqMessageHeader::Decode(const char* header) {
   // we can decode a full message extracting the query tag or decode with the query value only
 
   XrdOucEnv decenv(header);
-  const char* hp=NULL;
+  const char* hp=0;
 
   hp = decenv.Get(XMQHEADER);
   kMessageHeaderBuffer = XMQHEADER;
@@ -262,7 +262,7 @@ bool XrdMqMessage::Decode() {
   bool headerdec = kMessageHeader.Decode(kMessageBuffer.c_str());
 
   XrdOucEnv decenv(kMessageBuffer.c_str());
-  const char* hp=NULL;
+  const char* hp=0;
 
   hp = decenv.Get(XMQBODY);
   if (hp) {
@@ -270,6 +270,7 @@ bool XrdMqMessage::Decode() {
   } else {
     kMessageBody = "";
   }
+  return headerdec;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -296,7 +297,9 @@ XrdMqMessage::Base64Encode(char* in, unsigned int inlen, XrdOucString &out) {
   b64 = BIO_push(b64, bmem);
 
   BIO_write(b64, in, inlen);
-  BIO_flush(b64);
+  int rc = BIO_flush(b64);
+  // to make gcc happy
+  rc /=1;
 
   // retrieve size
   char* dummy;
@@ -330,7 +333,6 @@ XrdMqMessage::Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen) {
   }
 
   char* encryptionbuffer = (char*) malloc(body64len);
-  unsigned int encryptionbufferlen=0;
   
   bmem                = BIO_push(b64  , bmem);
   outlen = BIO_read(bmem , encryptionbuffer, body64len);
@@ -372,9 +374,9 @@ XrdMqMessage::CipherEncrypt(XrdOucString &in, char* &out, unsigned int &outlen, 
   }
 
   EVP_CIPHER_CTX_init(&ctx);
-  EVP_EncryptInit_ex(&ctx, cipher, NULL, NULL, NULL);
+  EVP_EncryptInit_ex(&ctx, cipher, 0, 0, 0);
   EVP_CIPHER_CTX_set_key_length(&ctx, SHA_DIGEST_LENGTH);
-  EVP_EncryptInit_ex(&ctx, NULL, NULL, (const unsigned char*) key, iv);
+  EVP_EncryptInit_ex(&ctx, 0, 0, (const unsigned char*) key, iv);
   if (!(EVP_EncryptUpdate(&ctx, (uint_fast8_t*) oencryptptr, &encryptlen1, (uint_fast8_t*) in.c_str(), in.length()+1))) {
     Eroute.Emsg("CipherEncrypt", EINVAL, "update cipher block");
     return false;
@@ -398,7 +400,7 @@ XrdMqMessage::CipherEncrypt(XrdOucString &in, char* &out, unsigned int &outlen, 
 
   out = encryptptr;
   outlen = (encryptlen1 + encryptlen2);
-  if (outlen> (4096 + in.length())) {
+  if (outlen> (unsigned int)(4096 + in.length())) {
     Eroute.Emsg("CipherEncrypt", ENOMEM, "guarantee uncorrupted memory - memory overwrite detected");
     return false;
   }
@@ -426,9 +428,9 @@ XrdMqMessage::CipherDecrypt(char* in, unsigned int inlen, XrdOucString &out, cha
   const EVP_CIPHER* cipher = XMQCIPHER();
 
   EVP_CIPHER_CTX_init(&ctx);
-  EVP_DecryptInit_ex(&ctx, cipher, NULL, NULL, NULL);
+  EVP_DecryptInit_ex(&ctx, cipher, 0, 0, 0);
   EVP_CIPHER_CTX_set_key_length(&ctx, SHA_DIGEST_LENGTH);
-  EVP_DecryptInit_ex(&ctx, NULL, NULL, (const unsigned char*) key, iv);
+  EVP_DecryptInit_ex(&ctx, 0, 0, (const unsigned char*) key, iv);
   
   
   if (!(EVP_DecryptUpdate(&ctx, (uint_fast8_t*) decryptptr, &decryptlen1, (uint_fast8_t*) in, inlen))) {
@@ -453,7 +455,7 @@ XrdMqMessage::CipherDecrypt(char* in, unsigned int inlen, XrdOucString &out, cha
     return false;
   }
 
-  if ((decryptlen1+decryptlen2)> (4096 + inlen)) {
+  if ((unsigned int)(decryptlen1+decryptlen2)> (4096 + inlen)) {
     Eroute.Emsg("CipherDecrypt", ENOMEM, "guarantee uncorrupted memory - memory overwrite detected");
     return false;
   }
@@ -496,7 +498,7 @@ XrdMqMessage::RSADecrypt(char* in, unsigned int inlen, char* &out, unsigned int 
     return false;
   }
 
-  if (inlen != RSA_size(pkey->pkey.rsa)) {
+  if ((inlen != (unsigned int)RSA_size(pkey->pkey.rsa))) {
     Eroute.Emsg("RSADecrypt", EINVAL, "decrypt - keylength/encryption buffer mismatch");
     return false;
   }
@@ -568,12 +570,9 @@ XrdMqMessage::SymmetricStringDecrypt(XrdOucString &in, XrdOucString &out, char* 
 /* Sign                                                                       */
 /*----------------------------------------------------------------------------*/
 bool XrdMqMessage::Sign(bool encrypt) {
-  int err;
   unsigned int sig_len;
-  unsigned int encodelength;
-  int cnt=0;
   unsigned char sig_buf[16384];
-  char signed_signature_buff[16384];
+
 
   EVP_MD_CTX     md_ctx;
   EVP_MD_CTX_init(&md_ctx);
@@ -610,7 +609,7 @@ bool XrdMqMessage::Sign(bool encrypt) {
   }
 
   /* RSA encode the message digest */
-  char* rsadigest=NULL;
+  char* rsadigest=0;
   unsigned int rsalen;
   if (!RSAEncrypt((char*)md_ctx.md_data, SHA_DIGEST_LENGTH, rsadigest, rsalen)) {
     EVP_MD_CTX_cleanup(&md_ctx);
@@ -842,7 +841,7 @@ XrdMqMessage::Create(const char* messagebuffer) {
   XrdMqMessage* msg = new XrdMqMessage(mbuf);
   if (!msg->Decode()) {
     delete msg;
-    return NULL;
+    return 0;
   } else {
     return msg;
   }
@@ -922,11 +921,11 @@ XrdMqMessage::Configure(const char* ConfigFN) {
   if (PrivateKeyFile.length()) {
     // load the private key
     FILE* fp = fopen(PrivateKeyFile.c_str(), "r");
-    if (fp == NULL) {
+    if (fp == 0) {
       return Eroute.Emsg("Config", errno, "open private key file fn=", PrivateKeyFile.c_str());
     }
     
-    PrivateKey = PEM_read_PrivateKey(fp, NULL, NULL, NULL);
+    PrivateKey = PEM_read_PrivateKey(fp, 0, 0, 0);
     fclose (fp);
     
     if (!PrivateKey) {
@@ -945,8 +944,8 @@ XrdMqMessage::Configure(const char* ConfigFN) {
     struct dirent *ep;
     
     dp = opendir (PublicKeyDirectory.c_str());
-    if (dp != NULL) {
-      while (ep = readdir (dp)) {
+    if (dp != 0) {
+      while ((ep = readdir (dp))) {
 	if ( (!strncmp(ep->d_name,".",1) ) )
 	  continue;
 
@@ -958,15 +957,15 @@ XrdMqMessage::Configure(const char* ConfigFN) {
 	  return Eroute.Emsg("Config", errno, "open public key file fn=", fullcertpath.c_str());
 	}
 	
-	X509* x509 = PEM_read_X509(fp, NULL, NULL, NULL);
+	X509* x509 = PEM_read_X509(fp, 0, 0, 0);
 	fclose(fp);
 	
-	if (x509 == NULL) {
+	if (x509 == 0) {
 	  ERR_print_errors_fp (stderr);
 	  return Eroute.Emsg("Config", EINVAL, "load public key file fn=", fullcertpath.c_str());
 	}
 	EVP_PKEY* pkey = X509_extract_key(x509);
-	if (pkey == NULL) {
+	if (pkey == 0) {
 	  ERR_print_errors_fp (stderr);
 	  return Eroute.Emsg("Config", EINVAL, "extract public key from file fn=", fullcertpath.c_str());
 	}
@@ -974,7 +973,7 @@ XrdMqMessage::Configure(const char* ConfigFN) {
 	PublicKeyHash.Add(ep->d_name, pkey);
 	
 	X509_free(x509);
-	x509 = NULL;
+	x509 = 0;
       }
       (void) closedir (dp);
     } else {
@@ -995,6 +994,7 @@ XrdMqMessage::Configure(const char* ConfigFN) {
     XrdOucString nh = ""; nh+= PublicKeyHash.Num();
     Eroute.Say("=====> public keys <#>   :   :     ", nh.c_str(),"");
    }
+  return 0;
 }
 
 
@@ -1065,7 +1065,7 @@ XrdAdvisoryMqMessage::Create(const char* messagebuffer) {
   msg->kMessageBuffer = messagebuffer;
   if (!msg->Decode()) {
     delete msg;
-    return NULL;
+    return 0;
   } else {
     return msg;
   }

@@ -25,8 +25,9 @@ XrdCommonSymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString &out) {
   b64 = BIO_push(b64, bmem);
 
   BIO_write(b64, in, inlen);
-  BIO_flush(b64);
-
+  int rc = BIO_flush(b64);
+  // to avoid gcc4 error
+  rc /=1;
   // retrieve size
   char* dummy;
   long size = BIO_get_mem_data(b64, &dummy);
@@ -57,7 +58,6 @@ XrdCommonSymKey::Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen
   }
 
   char* encryptionbuffer = (char*) malloc(body64len);
-  unsigned int encryptionbufferlen=0;
   
   bmem                = BIO_push(b64  , bmem);
   outlen = BIO_read(bmem , encryptionbuffer, body64len);
@@ -81,13 +81,13 @@ XrdCommonSymKey*
 XrdCommonSymKeyStore::SetKey64(const char* inkey64, time_t invalidity) 
 {
   if (!inkey64)
-    return NULL;
+    return 0;
 
-  char* binarykey = NULL;
+  char* binarykey = 0;
   unsigned int outlen = 0;
   XrdOucString s64=inkey64;
   if (!XrdCommonSymKey::Base64Decode(s64, binarykey, outlen)) {
-    return NULL;
+    return 0;
   }
   return SetKey(binarykey, invalidity);
 }
@@ -97,12 +97,12 @@ XrdCommonSymKey*
 XrdCommonSymKeyStore::SetKey(const char* inkey, time_t invalidity) 
 {
   if (!inkey)
-    return NULL;
+    return 0;
 
   Mutex.Lock();
   XrdCommonSymKey* key = XrdCommonSymKey::Create(inkey,invalidity);
   if (!key) {
-    return NULL;
+    return 0;
   }
   // check if it exists
   XrdCommonSymKey* existkey = Store.Find(key->GetDigest64());
@@ -137,6 +137,6 @@ XrdCommonSymKeyStore::GetCurrentKey()
     if (currentKey->IsValid())
       return currentKey;
   }
-  return NULL;
+  return 0;
 }
 

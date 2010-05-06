@@ -1,5 +1,5 @@
 #ifndef __XRDMQ_MESSAGING_HH__
-#define __XRDMQ_MESSAGING_HH_
+#define __XRDMQ_MESSAGING_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "XrdMqOfs/XrdMqClient.hh"

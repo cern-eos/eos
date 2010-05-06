@@ -55,7 +55,7 @@ int main (int argc, char* argv[]) {
       message.NewId();
       message.kMessageHeader.kDescription = "Hello Worker Test";
       message.kMessageHeader.kDescription += i;
-      bool ret = (mqc << message);
+      (mqc << message);
       
       for (int j=0; j< 1; j++) {
 	XrdMqMessage* newmessage = mqc.RecvMessage();

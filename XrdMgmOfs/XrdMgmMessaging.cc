@@ -12,17 +12,9 @@ XrdMgmMessaging::Listen()
     if (newmessage) {    
       Process(newmessage);
       delete newmessage;
+    } else {
+      sleep(1);
     }
-
-
-    while ((newmessage = XrdMqMessaging::gMessageClient.RecvFromInternalBuffer())) {
-      //      if (newmessage) newmessage->Print();
-      if (newmessage) {
-	Process(newmessage);
-	delete newmessage;
-      }
-    }
-    sleep(1);
   }
 }
 
@@ -59,6 +51,26 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
       }
     }
 
+    if (cmd == "setstatus") {
+      if (subcmd == "fs") {
+	eos_notice("setstatus fs %s\n", saction.c_str());
+	if (!XrdMgmFstNode::Update(action)) {
+	  eos_err("setstatus fs failed for %s", saction.c_str());
+	} else {
+	  // ok !
+	}
+      }
+
+      if (subcmd == "quota") {
+	eos_notice("setstatus quota %s\n", saction.c_str());
+	if (!XrdMgmFstNode::UpdateQuotaStatus(action)) {
+	  eos_err("setstatus quota failed for %s", saction.c_str());
+	} else {
+	  // ok !
+	}
+      }
+    }
+	
     if (cmd == "bootreq") {
       eos_notice("bootrequest received");
       XrdOucString nodename = newmessage->kMessageHeader.kSenderId;

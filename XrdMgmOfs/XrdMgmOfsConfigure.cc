@@ -48,11 +48,10 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
     char buff[256], *bp;
     int i;
-    char* locResp;
     
     // Obtain port number we will be using
     //
-    myPort = (bp = getenv("XRDPORT")) ? strtol(bp, (char **)NULL, 10) : 0;
+    myPort = (bp = getenv("XRDPORT")) ? strtol(bp, (char **)0, 10) : 0;
     
     // Establish our hostname and IPV4 address
     //
@@ -62,7 +61,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     strcpy(buff, "[::"); bp = buff+3;
     bp += XrdNetDNS::IP2String(myIPaddr, 0, bp, 128);
     *bp++ = ']'; *bp++ = ':';
-    sprintf(bp, "%d", myPort);
+    sprintf(bp, "%ld", myPort);
     for (i = 0; HostName[i] && HostName[i] != '.'; i++);
     HostName[i] = '\0';
     HostPref = strdup(HostName);
@@ -312,7 +311,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     
     // Authorization comes from the library or we use the default
     //
-    Authorization = XrdAccAuthorizeObject(Eroute.logger(),ConfigFN,NULL);
+    Authorization = XrdAccAuthorizeObject(Eroute.logger(),ConfigFN,0);
 
     if (!(myLib = new XrdSysPlugin(&Eroute, AuthLib.c_str()))) {
       Eroute.Emsg("Config","Failed to load authorization library!"); NoGo=1;
@@ -322,7 +321,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
       if (!ep) {
 	Eroute.Emsg("Config","Failed to get authorization library plugin!"); NoGo=1;
       } else {
-	Authorization = ep(Eroute.logger(), ConfigFN,NULL);
+	Authorization = ep(Eroute.logger(), ConfigFN,0);
       }
     }
   }

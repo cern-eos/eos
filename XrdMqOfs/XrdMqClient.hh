@@ -25,7 +25,7 @@ public:
   bool Subscribe(const char* queue = 0);
   bool Unsubscribe(const char* queue = 0);
 
-  bool        SendMessage(XrdMqMessage &msg, const char* receiverid=NULL, bool sign=false, bool encrypt=false );
+  bool        SendMessage(XrdMqMessage &msg, const char* receiverid=0, bool sign=false, bool encrypt=false );
   bool        ReplyMessage(XrdMqMessage &replymsg, XrdMqMessage &inmsg, bool sign=false, bool encrypt=false ) {
     replymsg.SetReply(inmsg); return SendMessage(replymsg, inmsg.kMessageHeader.kSenderId.c_str(),sign, encrypt);
   }
@@ -45,7 +45,7 @@ public:
   bool AddBroker(const char* brokerurl, bool advisorystatus=false, bool advisoryquery=false);
 
 
-  XrdMqClient(const char* clientid = NULL, const char* brokerurl = NULL, const char* defaultreceiverid = NULL);
+  XrdMqClient(const char* clientid = 0, const char* brokerurl = 0, const char* defaultreceiverid = 0);
 
   ~XrdMqClient();
 
