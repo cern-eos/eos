@@ -42,6 +42,8 @@ int com_quit PARAMS((char *));
 int com_fs   PARAMS((char*));
 int com_debug PARAMS((char*));
 int com_clear PARAMS((char*));
+int com_quota PARAMS((char*));
+int com_config PARAMS((char*));
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -53,14 +55,16 @@ typedef struct {
 } COMMAND;
 
 COMMAND commands[] = {
-  { (char*)"help", com_help, (char*)"Display this text" },
-  { (char*)"?",    com_help, (char*)"Synonym for `help'" },
-  { (char*)"fs",   com_fs,   (char*)"Filsystem configuration"},
-  { (char*)"debug",com_debug,(char*)"Set debug level"},
-  { (char*)"quit", com_quit, (char*)"Exit from EOS console" },
-  { (char*)"exit", com_quit, (char*)"Exit from EOS console" },
+  { (char*)"help",  com_help, (char*)"Display this text" },
+  { (char*)"?",     com_help, (char*)"Synonym for `help'" },
+  { (char*)"fs",    com_fs,   (char*)"File System configuration"},
+  { (char*)"quota", com_quota,(char*)"Quota System configuration"},
+  { (char*)"config",com_config,(char*)"Configuration System"},
+  { (char*)"debug", com_debug,(char*)"Set debug level"},
+  { (char*)"quit",  com_quit, (char*)"Exit from EOS console" },
+  { (char*)"exit",  com_quit, (char*)"Exit from EOS console" },
   { (char*)"clear", com_clear, (char*)"Clear the terminal" },
-  { (char*)".q",   com_quit, (char*)"Exit from EOS console" },
+  { (char*)".q",    com_quit, (char*)"Exit from EOS console" },
   { (char *)0, (rl_icpfunc_t *)0, (char *)0 }
 };
 
@@ -175,6 +179,10 @@ output_result(XrdOucEnv* result) {
   rstdout.replace("online","\033[1monline\033[0m");
   rstdout.replace("offline","\033[47;31m\e[5moffline\033[0m");
 
+  rstdout.replace("OK","\033[49;32mOK\033[0m");
+  rstdout.replace("WARNING","\033[49;33mWARNING\033[0m");
+  rstdout.replace("EXCEEDED","\033[49;31mEXCEEDED\033[0m");
+
   int retc = EFAULT;
   if (result->Get("mgm.proc.retc")) {
     retc = atoi(result->Get("mgm.proc.retc"));
@@ -288,6 +296,25 @@ com_fs (char* arg1) {
       in += fsid;
       in += "&mgm.fsname=";
       in += fsname;
+      XrdOucString arg = subtokenizer.GetToken();
+      
+      do {
+	if (arg == "-sched") {
+	  XrdOucString sched = subtokenizer.GetToken();
+	  if (!sched.length()) 
+	    goto com_fs_usage;
+	  
+	  in += "&mgm.fsschedgroup=";
+	  in += sched;
+	  arg = subtokenizer.GetToken();
+	} else {
+	  if (arg == "-force") {
+	    in += "mgm.fsforce=1";
+	  }
+	  arg = subtokenizer.GetToken();
+	} 
+      } while (arg.length());
+
       global_retc = output_result(client_admin_command(in));
       // boot by fsid
       return (0);
@@ -333,10 +360,265 @@ com_fs (char* arg1) {
     return (0);
   }
 
-  printf("usage: fs ls                                   : list configured filesystems (or by name or id match\n");
-  printf("       fs set   <fs-name> <fs-id>              : configure filesystem with name and id\n");
-  printf("       fs rm    <fs-name>|<fs-id>              : remove filesystem configuration by name or id\n");
-  printf("       fs boot  <fs-id>|<node-queue>           : boot filesystem/node ['fs boot *' to boot all]  \n");
+  com_fs_usage:
+
+  printf("usage: fs ls                                                 : list configured filesystems (or by name or id match\n");
+  printf("       fs set   <fs-name> <fs-id> [-sched <group> ] [-force] : configure filesystem with name and id\n");
+  printf("       fs rm    <fs-name>|<fs-id>                            : remove filesystem configuration by name or id\n");
+  printf("       fs boot  <fs-id>|<node-queue>                         : boot filesystem/node ['fs boot *' to boot all]  \n");
+  return (0);
+}
+
+/* Quota System listing, configuration, manipulation */
+int
+com_quota (char* arg1) {
+  // split subcommands
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString subcommand = subtokenizer.GetToken();
+  XrdOucString arg = subtokenizer.GetToken();
+  
+  if ( subcommand == "ls" ) {
+    XrdOucString in ="mgm.cmd=quota&mgm.subcmd=ls";
+    if (arg.length())
+      do {
+	if (arg == "-uid") {
+	  XrdOucString uid = subtokenizer.GetToken();
+	  if (!uid.length()) 
+	    goto com_quota_usage;
+	  in += "&mgm.quota.uid=";
+	  in += uid;
+	  arg = subtokenizer.GetToken();
+	} else 
+	  if (arg == "-gid") {
+	    XrdOucString gid = subtokenizer.GetToken();
+	    if (!gid.length()) 
+	      goto com_quota_usage;
+	    in += "&mgm.quota.gid=";
+	    in += gid;
+	    arg = subtokenizer.GetToken();
+	  } else 
+	    
+	    if (arg.c_str()) {
+	      in += "&mgm.quota.space=";
+	      in += arg;
+	    } else 
+	      goto com_quota_usage;
+      } while (arg.length());
+    
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+  
+  if ( subcommand == "set" ) {
+    XrdOucString in ="mgm.cmd=quota&mgm.subcmd=set";
+    XrdOucString space ="default";
+    do {
+      if (arg == "-uid") {
+	XrdOucString uid = subtokenizer.GetToken();
+	if (!uid.length()) 
+	  goto com_quota_usage;
+	in += "&mgm.quota.uid=";
+	in += uid;
+	arg = subtokenizer.GetToken();
+      } else
+	if (arg == "-gid") {
+	  XrdOucString gid = subtokenizer.GetToken();
+	  if (!gid.length()) 
+	    goto com_quota_usage;
+	  in += "&mgm.quota.gid=";
+	  in += gid;
+	  arg = subtokenizer.GetToken();
+	} else
+	  if (arg == "-space") {
+	     space = subtokenizer.GetToken();
+	     if (!space.length()) 
+	       goto com_quota_usage;
+	     
+	     in += "&mgm.quota.space=";
+	     in += space;
+	     arg = subtokenizer.GetToken();
+	   } else
+	     if (arg == "-size") {
+	       XrdOucString bytes = subtokenizer.GetToken();
+	       if (!bytes.length()) 
+		 goto com_quota_usage;
+	       in += "&mgm.quota.maxbytes=";
+	       in += bytes;
+	       arg = subtokenizer.GetToken();
+	     } else
+	       if (arg == "-inodes") {
+		 XrdOucString inodes = subtokenizer.GetToken();
+		 if (!inodes.length()) 
+		   goto com_quota_usage;
+		 in += "&mgm.quota.maxinodes=";
+		 in += inodes;
+		 arg = subtokenizer.GetToken();
+	       } else 
+		 goto com_quota_usage;
+     } while (arg.length());
+
+     global_retc = output_result(client_admin_command(in));
+     return (0);
+   }
+
+  if ( subcommand == "rm" ) {
+    XrdOucString in ="mgm.cmd=quota&mgm.subcmd=rm";
+    do {
+      if (arg == "-uid") {
+	XrdOucString uid = subtokenizer.GetToken();
+	if (!uid.length()) 
+	  goto com_quota_usage;
+	in += "&mgm.quota.uid=";
+	in += uid;
+	arg = subtokenizer.GetToken();
+      } else 
+	if (arg == "-gid") {
+	  XrdOucString gid = subtokenizer.GetToken();
+	  if (!gid.length()) 
+	    goto com_quota_usage;
+	  in += "&mgm.quota.gid=";
+	  in += gid;
+	  arg = subtokenizer.GetToken();
+	} else 
+	  
+	  if (arg.c_str()) {
+	    in += "&mgm.quota.space=";
+	    in += arg;
+	  } else 
+	    goto com_quota_usage;
+    } while (arg.length());
+    
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+  
+   com_quota_usage:
+  printf("usage: quota ls [-uid <uid>] [ -gid <gid> ] [-space {<space>}                                          : list configured quota and used space\n");
+  printf("usage: quota set [-uid <uid>] [ -gid <gid> ] -space {<space>} [-size <bytes>] [ -inodes <inodes>]      : set volume and/or inode quota by uid or gid \n");
+  printf("usage: quota rm [-uid <uid>] [ -gid <gid> ] -space {<space>}                                           : remove configured quota for uid/gid in space\n");
+  printf("                                                  -uid <uid>       : print information only for uid <uid>\n");
+  printf("                                                  -gid <gid>       : print information only for gid <gid>\n");
+  printf("                                                  -space {<space>} : print information only for space <space>\n");
+  printf("                                                  -size <bytes>    : set the space quota to <bytes>\n");
+  printf("                                                  -inodes <inodes> : limit the inodes quota to <inodes>\n");
+  printf("     => you have to specify either the user or the group id\n");
+  printf("     => the space argument is by default assumed as 'default'\n");
+  printf("     => you have to sepecify at least a size or an inode limit to set quota\n");
+
+  return (0);
+}
+
+/* Configuration System listing, configuration, manipulation */
+int
+com_config (char* arg1) {
+  // split subcommands
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString subcommand = subtokenizer.GetToken();
+  XrdOucString arg = subtokenizer.GetToken();
+  
+  if ( subcommand == "dump" ) {
+    XrdOucString in ="mgm.cmd=config&mgm.subcmd=dump";
+    if (arg.length())
+      do {
+	if (arg == "-fs") {
+	  XrdOucString fs = subtokenizer.GetToken();
+	  if (!fs.length()) 
+	    goto com_config_usage;
+	  in += "&mgm.config.fs=";
+	  in += fs;
+	  arg = subtokenizer.GetToken();
+	} else 
+	  if (arg == "-vid") {
+	    XrdOucString vid = subtokenizer.GetToken();
+	    if (!vid.length()) 
+	      goto com_config_usage;
+	    in += "&mgm.config.vid=";
+	    in += vid;
+	    arg = subtokenizer.GetToken();
+	  } else 
+	    if (arg == "-quota") {
+	      XrdOucString quota = subtokenizer.GetToken();
+	    if (!quota.length()) 
+	      goto com_config_usage;
+	    in += "&mgm.config.quota=";
+	    in += quota;
+	    arg = subtokenizer.GetToken();
+	    }
+      } while (arg.length());
+    
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+  
+  
+  if ( subcommand == "ls" ) {
+    XrdOucString in ="mgm.cmd=config&mgm.subcmd=ls";
+    arg = subtokenizer.GetToken();
+    if (arg.length()) 
+      goto com_config_usage;
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+  
+  if ( subcommand == "load") {
+    XrdOucString in ="mgm.cmd=config&mgm.subcmd=load";
+    arg = subtokenizer.GetToken();
+    if (arg.length()) 
+      goto com_config_usage;
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+
+  if ( subcommand == "save") {
+    XrdOucString in ="mgm.cmd=config&mgm.subcmd=save";
+    arg = subtokenizer.GetToken();
+    if (arg.length()) 
+      goto com_config_usage;
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+
+  if ( subcommand == "diff") {
+    XrdOucString in ="mgm.cmd=config&mgm.subcmd=diff";
+    arg = subtokenizer.GetToken();
+    if (arg.length()) 
+      goto com_config_usage;
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+
+
+  if ( subcommand == "changelog") {
+    XrdOucString in ="mgm.cmd=config&mgm.subcmd=changelog";
+    arg = subtokenizer.GetToken();
+    if (arg.length()) 
+      goto com_config_usage;
+    
+    if (arg.length()) {
+      in += "mgm.config.lines="; in+= arg;
+    }
+
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+  
+ com_config_usage:
+  printf("usage: config ls                                     :  list existing configurations\n");
+  printf("usage: config dump [-fs] [-vid] [-quota] [<name>]    :  dump current configuration or configuration with name <name>\n");
+  printf("usage: config save [-f] [<name>]                     :  save config (optionally under name)\n");
+  printf("usage: config load [-f] [<name>]                     :  load config (optionally with name)\n");
+  printf("usage: config diff                                   :  show changes since last load/save operation\n");
+  printf("usage: config changelog [#lines -10]                 :  show the last <#> lines from the changelog\n");
+
   return (0);
 }
 
@@ -359,8 +641,9 @@ com_debug (char* arg1) {
     return (0);
   }
 
-  printf("       debug  <node-queue> <level>: set <node-queue> into debug level <level>\n");
-
+  printf("       debug  <level>                          : set the mgm where this console is connected to into debug level <level>\n");
+  printf("       debug  <node-queue> <level>             : set the <node-queue> into debug level <level>\n");
+  
   return (0);
 }
 

@@ -21,6 +21,7 @@ XRD_USER="daemon"
 XRD_LOGDIR="/var/log/xroot"
 XRD_COREDIR="/var/spool/xroot/core"
 XRD_ADMINDIR="/var/spool/xroot/admin"
+XRD_CONFIGDIR="/var/spool/xroot/config"
 XRD_CONFIG="/etc/xrd.cf"
 XRD_ROLEFLAG=""
 
@@ -80,9 +81,11 @@ start() {
 			# Setup xrootd environment
 
                         if [ -z "${XRD_USER}" ]; then 
+			    mkdir -p ${XRD_USER} ${XRD_COREDIR} ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
 			    chown root ${XRD_COREDIR}; 
 			else
-			    chown -R ${XRD_USER} ${XRD_COREDIR} ${XRD_ADMINDIR} ${XRD_LOGDIR}
+			    mkdir -p ${XRD_USER} ${XRD_COREDIR} ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
+			    chown -R ${XRD_USER} ${XRD_COREDIR} ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
 			fi
 			
 			cd ${XRD_COREDIR}

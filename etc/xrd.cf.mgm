@@ -27,4 +27,5 @@ mgmofs.targetport 1095
 mgmofs.symkey MTIzNDU2Nzg5MDEyMzQ1Njc4OTAK
 mgmofs.trace all debug
 mgmofs.broker root://localhost:1097//eos/
+mgmofs.configdir /var/spool/xroot/config/
 

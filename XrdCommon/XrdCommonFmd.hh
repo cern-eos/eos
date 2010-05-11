@@ -141,10 +141,10 @@ public:
   google::dense_hash_map<unsigned long long, unsigned long long> FmdSize;
 
   // that is all we need for quota
-  google::dense_hash_map<long, unsigned long long> UserBytes;
-  google::dense_hash_map<long, unsigned long long> GroupBytes;
-  google::dense_hash_map<long, unsigned long long> UserFiles;
-  google::dense_hash_map<long, unsigned long long> GroupFiles;
+  google::dense_hash_map<long long, unsigned long long> UserBytes; // the key is encoded as (fid<<32) | uid 
+  google::dense_hash_map<long long, unsigned long long> GroupBytes;// the key is encoded as (fid<<32) | gid
+  google::dense_hash_map<long long, unsigned long long> UserFiles; // the key is encoded as (fid<<32) | uid
+  google::dense_hash_map<long long, unsigned long long> GroupFiles;// the key is encoded as (fid<<32) | gid
 
 
   XrdCommonFmdHandler() {

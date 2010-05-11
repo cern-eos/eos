@@ -12,7 +12,7 @@ class XrdCommonFileSystem {
 public:
 
   enum eBootStatus   { kOpsError=-2, kBootFailure=-1, kDown=0, kBootSent, kBooting=2, kBooted=3};
-  enum eConfigStatus { kOff=0, kRO, kRW};
+  enum eConfigStatus { kUnknown=-1, kOff=0, kRO, kRW};
 
   static const char* GetStatusAsString(int status) {
     if (status == kDown) return "down";
@@ -60,7 +60,22 @@ public:
     return "mgm.cmd=bootreq";
   }
 
-  const char* GetReadableSizeString(XrdOucString& sizestring, unsigned long long insize, const char* unit = "") {
+  static const char* GetQuotaReportString(XrdOucString &msgbody) {
+    msgbody = "mgm.cmd=quota&"; msgbody += "mgm.subcmd=setstatus"; msgbody += "&" ;
+    return msgbody.c_str();
+  }
+
+  static void CreateQuotaReportString(const char* tag, XrdOucString &reportstring) {
+    reportstring = tag; reportstring+="=";;
+  }
+
+  static void AddQuotaReportString(unsigned long long id, unsigned long long val, XrdOucString &reportstring) {
+    char addit[1024];
+    sprintf(addit,"%llu:%llu,", id, val);
+    reportstring += addit;
+  }
+
+  static const char* GetReadableSizeString(XrdOucString& sizestring, unsigned long long insize, const char* unit = "") {
     char formsize[1024];
     if (insize > 1000) {
       if (insize > (1000*1000)) {
@@ -90,6 +105,49 @@ public:
     sizestring = formsize;
 
     return sizestring.c_str();
+  }
+
+  static unsigned long long GetSizeFromString(XrdOucString sizestring) {
+    errno = 0;
+    unsigned long long convfactor=1ll;
+    if (!sizestring.length()) {
+      errno = EINVAL;
+      return 0;
+    }
+
+    if (sizestring.endswith("B") || sizestring.endswith("b")) {
+      sizestring.erase(sizestring.length()-1);
+    }
+      
+    if (sizestring.endswith("T") || sizestring.endswith("t")) {
+      convfactor = 1000l*1000l*1000l*1000l;
+    }
+
+    if (sizestring.endswith("G") || sizestring.endswith("g")) {
+      convfactor = 1000l*1000l*1000l;
+    }
+    
+    if (sizestring.endswith("M") || sizestring.endswith("m")) {
+      convfactor = 1000l*1000l;
+    }
+
+    if (sizestring.endswith("K") || sizestring.endswith("k")) {
+      convfactor = 1000l;
+    }
+    sizestring.erase(sizestring.length()-1);
+    return (strtoll(sizestring.c_str(),0,10) * convfactor);
+  }
+
+  static bool SplitKeyValue(XrdOucString keyval, XrdOucString &key, XrdOucString &value) {
+    int equalpos = keyval.find(":");
+    if (equalpos != STR_NPOS) {
+      key.assign(keyval,0,equalpos-1);
+      value.assign(keyval,equalpos+1);
+      return true;
+    } else {
+      key=value="";
+      return false;
+    }
   }
 }; 
 

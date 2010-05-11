@@ -3,6 +3,7 @@
 #include "XrdMgmOfs/XrdMgmProcInterface.hh"
 #include "XrdMgmOfs/XrdMgmFstNode.hh"
 #include "XrdMgmOfs/XrdMgmOfs.hh"
+#include "XrdMgmOfs/XrdMgmQuota.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
@@ -112,6 +113,50 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 
   // admin command section
   if (adminCmd) {
+    if (cmd == "config") {
+      if (subcmd == "ls") {
+	eos_notice("config ls");
+	XrdOucString listing="";
+	if (!gOFS->ConfigEngine->ListConfigs(listing)) {
+	  stdErr += "error: listing of existing configs failed!";
+	  retc = errno;
+	} else {
+	  stdOut += listing;
+	}
+      }
+      
+      if (subcmd == "load") {
+	eos_notice("config load");
+      }
+
+      if (subcmd == "save") {
+	eos_notice("config save");
+      }
+
+      if (subcmd == "dump") {
+	eos_notice("config dump");
+	XrdOucString dump="";
+	if (!gOFS->ConfigEngine->DumpConfig(0,dump)) {
+	  stdErr += "error: listing of existing configs failed!";
+	  retc = errno;
+	} else {
+	  stdOut += dump;
+	}
+      }
+
+      if (subcmd == "diff") {
+	eos_notice("config diff");
+      }
+
+      if (subcmd == "changelog") {
+	eos_notice("config changelog");
+      }
+
+      stdOut+="\n==== config done ====";
+      MakeResult();
+      return SFS_OK;
+    }
+
     if (cmd == "fs") {
       if (subcmd == "ls") {
 	stdOut += XrdMgmFstNode::GetInfoHeader();
@@ -131,7 +176,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	unsigned int fsid = 0;
 
 	if (!fsname || !fsidst) {
-	  stdErr="usage: fs set <fs-name> <fs-id> [<fs-sched-group>]  : configure filesystem with name and id";
+	  stdErr="error: illegal parameters";
 	  retc = EINVAL;
 	} else {
 	  fsid = atoi(fsidst);
@@ -152,6 +197,8 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 		retc = EINVAL;
 	      } else {
 		stdOut="success: added/set mgm.fsname="; stdOut += fsname; stdOut += " mgm.fsid=", stdOut += fsidst; stdOut += " mgm.fsschedgroup=" ; stdOut += fssched;
+		// add to config
+		gOFS->ConfigEngine->SetFsConfig(fsname, ((XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid])->GetBootString());
 	      }
 	    }
 	  }
@@ -182,9 +229,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	    fspath = splitpathname.c_str();
 	    nodename = splitnodename.c_str();
 	  }
-	}
-	
-	printf("Deleting %s %s\n", nodename, fspath);
+	}	
 	if (nodename) {
 	  // delete by node
 	  XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(nodename);
@@ -198,6 +243,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	      if (!node->fileSystems.Del(fspath)) {
 		// success
 		stdOut="success: deleted filesystem from node mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem mgm.fsname="; stdOut += fsname;
+		gOFS->ConfigEngine->DeleteFsConfig(fsname);
 	      } else {
 		// failed
 		stdErr="error: cannot delete filesystem - no filesystem with name mgm.fsname="; stdErr += fsname; stdErr += " at node mgm.nodename="; stdErr += nodename;	
@@ -278,6 +324,66 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	  }
 	}
       }
+      stdOut+="\n==== fs done ====";
+    }
+
+    if (cmd == "quota") {
+      if (subcmd == "ls") {
+	eos_notice("quota ls");
+	XrdOucString space = opaque.Get("mgm.quota.space");
+	XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
+	XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
+	
+	XrdMgmQuota::PrintOut(space.c_str(), stdOut , uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1);
+      }
+
+      if (subcmd == "set") {
+	eos_notice("quota set");
+	XrdOucString space = opaque.Get("mgm.quota.space");
+	XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
+	XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
+	XrdOucString svolume = opaque.Get("mgm.quota.maxbytes");
+	XrdOucString sinodes = opaque.Get("mgm.quota.maxinodes");
+
+	unsigned long long size   = XrdCommonFileSystem::GetSizeFromString(svolume);
+	if ((svolume.length()) && (errno == EINVAL)) {
+	  stdErr="error: the size you specified is not a valid number!";
+	  retc = EINVAL;
+	} else {
+	  unsigned long long inodes = XrdCommonFileSystem::GetSizeFromString(sinodes);
+	  if ((sinodes.length()) && (errno == EINVAL)) {
+	    stdErr="error: the inodes you specified are not a valid number!";
+	    retc = EINVAL;
+	  } else {
+	    if ( (!svolume.length())&&(!sinodes.length())  ) {
+	      stdErr="error: quota set - max. bytes or max. inodes have to be defined!";
+	      retc = EINVAL;
+	    } else {
+	      XrdOucString msg ="";
+	      if (!XrdMgmQuota::SetQuota(space, uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, svolume.length()?size:-1, sinodes.length()?inodes:-1, msg, retc)) {
+		stdErr = msg;
+	      } else {
+		stdOut = msg;
+	      }
+	    }
+	  }
+	}
+      }
+
+      if (subcmd == "rm") {
+	eos_notice("quota rm");
+	XrdOucString space = opaque.Get("mgm.quota.space");
+	XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
+	XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
+
+	XrdOucString msg ="";
+	if (!XrdMgmQuota::RmQuota(space, uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, msg, retc)) {
+	  stdErr = msg;
+	} else {
+	  stdOut = msg;
+	}
+      }
+      stdOut+="\n==== quota done ====";
     }
 
     if (cmd == "debug") {
@@ -288,7 +394,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
       XrdOucString body = opaque.Env(envlen);
       message.SetBody(body.c_str());
       
-      if (debugnode == "") {
+      if ((debugnode == "") || (debugnode == gOFS->MgmOfsQueue)) {
 	// this is for us!
 	int debugval = XrdCommonLogging::GetPriorityByString(debuglevel.c_str());
 	if (debugval<0) {
@@ -309,6 +415,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	  eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s", debuglevel.c_str(), debugnode.c_str());
 	}
       }
+      stdOut+="\n==== debug done ====";
     }
 
     MakeResult();

@@ -22,7 +22,7 @@ eos project
 
 %build
 ./bootstrap.sh
-./configure 
+./configure --sysconfdir=/etc/
 make -j 4
 
 

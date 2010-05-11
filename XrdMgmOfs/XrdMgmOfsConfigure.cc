@@ -8,6 +8,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdMgmOfs/XrdMgmOfs.hh"
 #include "XrdMgmOfs/XrdMgmOfsTrace.hh"
+#include "XrdMgmOfs/XrdMgmFstNode.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -37,6 +38,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   MgmOfsTargetPort = "1094";
   MgmOfsName = "";
   MgmOfsBrokerUrl = "root://localhost:1097//eos/";
+
+  MgmConfigDir = "/var/tmp/";
+
 
   long myPort=0;
 
@@ -193,6 +197,16 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	  Eroute.Say("=====> mgmofs.symkey : ", val);
 	}
       }
+      
+      if (!strcmp("configdir",var)) {
+	if (!(val = Config.GetWord())) {
+	  Eroute.Emsg("Config","argument for configdir invalid.");NoGo=1;
+	} else {
+	  MgmConfigDir = val;
+	}
+      }
+
+
       if (!strcmp("trace",var)) {
 	static struct traceopts {const char *opname; int opval;} tropts[] =
 								   {
@@ -263,6 +277,8 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   MgmDefaultReceiverQueue = MgmOfsBrokerUrl; MgmDefaultReceiverQueue += "*/fst";  
 
   MgmOfsBrokerUrl += ManagerId; MgmOfsBrokerUrl += "/mgm";
+
+  MgmOfsQueue = "/eos/"; MgmOfsQueue += ManagerId; MgmOfsQueue += "/mgm";
 
   XrdCommonLogging::SetUnit(MgmOfsBrokerUrl.c_str());
 
@@ -335,6 +351,20 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   XrdCommonLogging::SetLogPriority(LOG_DEBUG);
   XrdCommonLogging::SetUnit(unit.c_str());
   MgmOfsMessaging->SetLogId("MgmOfsMessaging");
+
+  // this global hash needs to initialize the set empty key function at first place
+  XrdMgmFstNode::gFileSystemById.set_empty_key(0);
+
+  // check config directory access
+  if (::access(MgmConfigDir.c_str(), W_OK|R_OK|X_OK)) {
+    Eroute.Emsg("Config","I cannot acccess the configuration directory for r/w!", MgmConfigDir.c_str()); NoGo=1;
+  } else {
+    Eroute.Say("=====> mgmofs.configdir: ", MgmConfigDir.c_str(),"");
+    MgmConfigDir = MgmConfigDir.c_str();
+  }
+
+  // start the config enging
+  ConfigEngine = new XrdMgmConfigEngine(MgmConfigDir.c_str());
 
   eos_emerg("%s",(char*)"test emerg");
   eos_alert("%s",(char*)"test alert");

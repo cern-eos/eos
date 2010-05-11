@@ -78,7 +78,7 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
     if (admin) {
       char result[8192]; result[0]=0;
       int  result_size=8192;
-
+      admin->Connect();
       if (admin->Query(kXR_Qopaquf,
 		       (kXR_char *) message.c_str(),
 		       (kXR_char *) result, result_size)) {

@@ -32,6 +32,8 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
       }
     }
   } else {
+    XrdMgmFstNode::gMutex.Lock();
+
     XrdOucString saction = newmessage->GetBody();
     newmessage->Print();
     // replace the arg separator # with an & to be able to put it into XrdOucEnv
@@ -51,20 +53,11 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
       }
     }
 
-    if (cmd == "setstatus") {
-      if (subcmd == "fs") {
-	eos_notice("setstatus fs %s\n", saction.c_str());
-	if (!XrdMgmFstNode::Update(action)) {
-	  eos_err("setstatus fs failed for %s", saction.c_str());
-	} else {
-	  // ok !
-	}
-      }
-
-      if (subcmd == "quota") {
-	eos_notice("setstatus quota %s\n", saction.c_str());
+    if (cmd == "quota") {
+      if (subcmd == "setstatus") {
+	eos_notice("quota setstatus %s\n", saction.c_str());
 	if (!XrdMgmFstNode::UpdateQuotaStatus(action)) {
-	  eos_err("setstatus quota failed for %s", saction.c_str());
+	  eos_err("quota setstatus failed for %s", saction.c_str());
 	} else {
 	  // ok !
 	}
@@ -85,5 +78,6 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
 	eos_err("cannot boot node - no node configured with nodename %s", nodename.c_str());
       }
     }
+    XrdMgmFstNode::gMutex.UnLock();
   }
 }

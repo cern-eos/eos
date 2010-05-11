@@ -36,8 +36,6 @@ public:
   void BroadcastError(const char* msg);
   void BroadcastStatus();
 
-
-
   XrdCommonStatfs* GetStatfs(bool &changedalot);
 }; 
 
@@ -67,6 +65,8 @@ public:
   ~XrdFstOfsStorage() {};
 
   static XrdFstOfsStorage* Create(const char* metadirectory);
+
+  void BroadcastQuota(XrdOucString &quotareport);
 
   bool SetFileSystem(XrdOucEnv &env);
   bool RemoveFileSystem(XrdOucEnv &env);

@@ -149,7 +149,7 @@ int
 XrdCommonFmdHandler::CompareMtime(const void* a, const void *b) {
   struct filestat {
     struct stat buf;
-    char filename[256];
+    char filename[1024];
   };
   return ( (((struct filestat*)a)->buf.st_mtime) - ((struct filestat*)b)->buf.st_mtime);
 }
@@ -314,26 +314,26 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
       unsigned long long exsize = FmdSize[pMd->fid];
       if (exsize) {
 	// substract old size
-	UserBytes[pMd->uid]  -= exsize;
-	GroupBytes[pMd->gid] -= exsize;
-	UserFiles[pMd->uid]--;
-	GroupFiles[pMd->gid]--;
+	UserBytes [(pMd->fid<<32) | pMd->uid]  -= exsize;
+	GroupBytes[(pMd->fid<<32) | pMd->gid] -= exsize;
+	UserFiles [(pMd->fid<<32) | pMd->uid]--;
+	GroupFiles[(pMd->fid<<32) | pMd->gid]--;
       }
       // store new size
       FmdSize[pMd->fid] = pMd->size;
 
       // add new size
-      UserBytes[pMd->uid]  += pMd->size;
-      GroupBytes[pMd->gid] += pMd->size;
-      UserFiles[pMd->uid]++;
-      GroupFiles[pMd->gid]++;
+      UserBytes [(pMd->fid<<32) | pMd->uid]  += pMd->size;
+      GroupBytes[(pMd->fid<<32) | pMd->gid] += pMd->size;
+      UserFiles [(pMd->fid<<32) | pMd->uid]++;
+      GroupFiles[(pMd->fid<<32) | pMd->gid]++;
     }
     if (XrdCommonFmd::IsDelete(pMd)) {
       FmdSize[pMd->fid] = 0;
-      UserBytes[pMd->uid]  -= pMd->size;
-      GroupBytes[pMd->gid] -= pMd->size;
-      UserFiles[pMd->uid]--;
-      GroupFiles[pMd->gid]--;
+      UserBytes [(pMd->fid<<32) | pMd->uid]  -= pMd->size;
+      GroupBytes[(pMd->fid<<32) | pMd->gid] -= pMd->size;
+      UserFiles [(pMd->fid<<32) | pMd->uid]--;
+      GroupFiles[(pMd->fid<<32) | pMd->gid]--;
     }
     pMd++;
     changelogstart += sizeof(struct XrdCommonFmd::FMD);
@@ -407,8 +407,8 @@ XrdCommonFmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid
 	FmdSize[fid] = 0;
 
 	// add new file counter
-	UserFiles[fmd->fMd.uid] ++;
-	GroupFiles[fmd->fMd.gid] ++;
+	UserFiles [(fid<<32) | fmd->fMd.uid] ++;
+	GroupFiles[(fid<<32) | fmd->fMd.gid] ++;
   
 	
 	eos_debug("returning meta data block for fid %d on fs %d", fid, fsid);
@@ -488,8 +488,8 @@ XrdCommonFmdHandler::Commit(XrdCommonFmd* fmd)
 
   // adjust the quota accounting of the update
   eos_debug("booking %d new bytes on quota %d/%d", (fmd->fMd.size-oldsize), fmd->fMd.uid, fmd->fMd.gid);
-  UserBytes[fmd->fMd.uid] += (fmd->fMd.size-oldsize);
-  GroupBytes[fmd->fMd.gid] += (fmd->fMd.size-oldsize);
+  UserBytes [(fmd->fMd.fid<<32) | fmd->fMd.uid] += (fmd->fMd.size-oldsize);
+  GroupBytes[(fmd->fMd.fid<<32) | fmd->fMd.gid] += (fmd->fMd.size-oldsize);
 
   Mutex.UnLock();
   return true;

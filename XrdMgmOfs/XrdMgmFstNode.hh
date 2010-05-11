@@ -7,6 +7,7 @@
 #include <google/dense_hash_map>
 #include <google/sparsehash/densehashtable.h>
 /*----------------------------------------------------------------------------*/
+#include "XrdCommon/XrdCommonLogging.hh"
 #include "XrdMgmFstFileSystem.hh"
 #include "XrdMqOfs/XrdMqMessage.hh"
 /*----------------------------------------------------------------------------*/
@@ -18,7 +19,7 @@
 
 class XrdMgmFstNode;
 
-class XrdMgmFstNode {
+class XrdMgmFstNode  {
   friend class XrdMgmProcCommand;
   friend class XrdMgmMessaging;
 private:
@@ -32,11 +33,14 @@ protected:
 
   XrdOucHash<XrdMgmFstFileSystem> fileSystems;
 
+
 public:
   XrdOucString hostPortName;
 
   const char* GetNodeStatusString() {if (nodeStatus==kHeartBeatLow) return "lowhb"; if (nodeStatus==kOffline) return "offline"; if (nodeStatus==kOnline) return "online"; return "";}
   enum eNodeStatus { kHeartBeatLow=-1, kOffline=0, kOnline=1}; 
+
+  static google::dense_hash_map<unsigned int, unsigned long long> gFileSystemById;  // the value points to the address of a XrdMgmFstFileSystem object. Doing so saves a lot of hassle
 
   static bool Update(XrdAdvisoryMqMessage* advmsg);
   static bool Update(XrdOucEnv &config);
@@ -47,7 +51,7 @@ public:
 
   static XrdMgmFstNode* GetNode(const char* queue);
    
-  XrdMgmFstNode(const char* queue){queueName = queue; /*gFstIndex.set_empty_key(0);*/};
+  XrdMgmFstNode(const char* queue){queueName = queue; nodeStatus = kOffline;lastHeartBeat = 0; }
   ~XrdMgmFstNode(){}
 
   unsigned int GetNumberOfFileSystems() {return fileSystems.Num();}
@@ -57,10 +61,11 @@ public:
 
   static const char* GetInfoHeader() {static char infoHeader[1024];sprintf(infoHeader,"%-36s %-4s %-10s %-s\n","QUEUE","HBT","STATUS","#FS");return infoHeader;}
   const char* GetInfoString() {
-    if (time(0)-GetLastHeartBeat()<10000) {
-      sprintf(infoString,"%-36s %04lu %-10s %02d\n", GetQueue(), time(0)-GetLastHeartBeat(), GetNodeStatusString(), GetNumberOfFileSystems()); return infoString;
+    time_t tdif = time(0)-GetLastHeartBeat();
+    if ( (tdif<10000) && (tdif>=0) ) {
+      sprintf(infoString,"\n%-36s %04lu %-10s %02d\n", GetQueue(), tdif, GetNodeStatusString(), GetNumberOfFileSystems()); return infoString;
     } else {
-      sprintf(infoString,"%-36s ---- %-10s %02d\n", GetQueue(), GetNodeStatusString(), GetNumberOfFileSystems()); return infoString;}
+      sprintf(infoString,"\n%-36s ---- %-10s %02d\n", GetQueue(), GetNodeStatusString(), GetNumberOfFileSystems()); return infoString;}
   }
   static XrdOucHash<XrdMgmFstNode> gFstNodes;  
   //  static google::dense_hash_map<long, unsigned long long> gFstIndex;

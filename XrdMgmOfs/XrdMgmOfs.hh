@@ -9,6 +9,7 @@
 #include "XrdCommon/XrdCommonLogging.hh"
 #include "XrdMqOfs/XrdMqMessaging.hh"
 #include "XrdMgmOfs/XrdMgmProcInterface.hh"
+#include "XrdMgmOfs/XrdMgmConfigEngine.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCms/XrdCmsFinder.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -299,9 +300,10 @@ virtual               ~XrdMgmOfs() {}
 virtual int            Configure(XrdSysError &);
 virtual bool           Init(XrdSysError &);
         int            Stall(XrdOucErrInfo &error, int stime, const char *msg);
-
+  
         char          *ConfigFN;       
-
+  
+        XrdMgmConfigEngine* ConfigEngine;    // storing/restoring configuration
         XrdCapability*  CapabilityEngine;    // -> authorization module for token encryption/decryption
   
         XrdOucString     MgmOfsBrokerUrl;    // -> Url of the message broker
@@ -309,7 +311,8 @@ virtual bool           Init(XrdSysError &);
         XrdOucString     MgmDefaultReceiverQueue; // -> Queue where we are sending to by default
         XrdOucString     MgmOfsName;         // -> mount point of the filesystem
         XrdOucString     MgmOfsTargetPort;   // -> xrootd port where redirections go on the OSTs -default is 1094
-
+        XrdOucString     MgmOfsQueue;        // -> our mgm queue name
+        XrdOucString     MgmConfigDir;       // Directory where config files are stored
         XrdOucString     AuthLib;            // -> path to a possible authorizationn library
         bool             authorize;          // -> determins if the autorization should be applied or not
         XrdAccAuthorize *Authorization;      // -> Authorization   Service

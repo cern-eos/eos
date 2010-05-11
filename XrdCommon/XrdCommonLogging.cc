@@ -21,6 +21,7 @@ XrdCommonLogging::log(const char* func, const char* file, int line, const char* 
     File.erase(3, up);
     File.insert("...",3);
   }
+
   if (!(priority & gLogMask)) 
     return;
 

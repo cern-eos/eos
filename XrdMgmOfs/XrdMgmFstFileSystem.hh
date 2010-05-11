@@ -30,6 +30,12 @@ private:
   struct statfs statFs;
 
 public:
+
+  google::dense_hash_map<long, unsigned long long> UserBytes; // the key is uid
+  google::dense_hash_map<long, unsigned long long> GroupBytes;// the key is gid
+  google::dense_hash_map<long, unsigned long long> UserFiles; // the key is uid
+  google::dense_hash_map<long, unsigned long long> GroupFiles;// the key is gid
+
   unsigned int GetId()    {return Id;}
   const char*  GetPath()  {return Path.c_str();}
   const char*  GetQueue() {return queueName.c_str();}
@@ -47,16 +53,20 @@ public:
 
   const char*  GetSchedulingGroup() {return schedulingGroup.c_str();}
 
+  // a space is derived from a scheduling group which has to be defined as <schedgroup> = <space> or <schedgroup> = <space>.<int>
+  const char*  GetSpaceName() { int ppos = schedulingGroup.find("."); if (ppos != STR_NPOS) {XrdOucString sgroup; sgroup.assign(schedulingGroup, 0, ppos-1); return sgroup.c_str();} else return schedulingGroup.c_str();}
+
+
   const char* GetBootStatusString()   {if (bootStatus==kBootFailure) return "failed"; if (bootStatus==kDown) return "down"; if (bootStatus==kBootSent) return "sent"; if (bootStatus==kBooting) return "booting"; if (bootStatus==kBooted) return "booted"; if (bootStatus==kOpsError) return "opserror";  return "";}
-  const char* GetConfigStatusString() {if (configStatus==kOff) return "off"; if (configStatus==kRO) return "ro"; if (configStatus==kRW) return "rw"; return "unknown";}
+  const char* GetConfigStatusString() {if (configStatus==kOff) return "off"; if (configStatus==kUnknown) return "?"; if (configStatus==kRO) return "ro"; if (configStatus==kRW) return "rw"; return "unknown";}
   static const char* GetInfoHeader() {static char infoHeader[1024];sprintf(infoHeader,"%-36s %-4s %-24s %-16s %-10s %-4s %-10s %-8s %-8s %-8s %-3s %s\n","QUEUE","FSID","PATH","SCHEDGROUP","BOOTSTAT","BT", "CONFIGSTAT","BLOCKS", "FREE", "FILES", "EC ", "EMSG"); return infoHeader;}
-  const char* GetInfoString()         {XrdOucString sizestring,freestring,filesstring; sprintf(infoString,"%-36s %04u %-24s %-16s %-10s %04lu %-10s %-8s %-8s %-8s %03d %s\n",GetQueue(),GetId(),GetPath(),GetSchedulingGroup(),GetBootStatusString(),GetBootDoneTime()?(GetBootDoneTime()-GetBootSentTime()):(GetBootSentTime()?(time(0)-GetBootSentTime()):0) , GetConfigStatusString(), XrdCommonFileSystem::GetReadableSizeString(sizestring,statFs.f_blocks * 4096ll,"B"), XrdCommonFileSystem::GetReadableSizeString(freestring, statFs.f_bfree * 4096ll,"B"), XrdCommonFileSystem::GetReadableSizeString(filesstring, (statFs.f_files-statFs.f_ffree) *1ll),errc, errmsg.c_str());fprintf(stderr,"CONTENTS %lu %lu\n", statFs.f_files, statFs.f_ffree);return infoString;}
+  const char* GetInfoString()         {XrdOucString sizestring,freestring,filesstring; sprintf(infoString,"%-36s %04u %-24s %-16s %-10s %04lu %-10s %-8s %-8s %-8s %03d %s\n",GetQueue(),GetId(),GetPath(),GetSchedulingGroup(),GetBootStatusString(),GetBootDoneTime()?(GetBootDoneTime()-GetBootSentTime()):(GetBootSentTime()?(time(0)-GetBootSentTime()):0) , GetConfigStatusString(), XrdCommonFileSystem::GetReadableSizeString(sizestring,statFs.f_blocks * 4096ll,"B"), XrdCommonFileSystem::GetReadableSizeString(freestring, statFs.f_bfree * 4096ll,"B"), XrdCommonFileSystem::GetReadableSizeString(filesstring, (statFs.f_files-statFs.f_ffree) *1ll),errc, errmsg.c_str());return infoString;}
 
   void SetDown()    {bootStatus   = kDown;}   
   void SetBootSent(){bootStatus   = kBootSent;bootSentTime = time(0);bootDoneTime = 0;}
   void SetBooting() {bootStatus   = kBooting;}
-  void SetBooted()  {bootStatus   = kBooted; bootDoneTime = time(0);}
-  void SetBootStatus(int status) {bootStatus = status; if (status == kBooted) bootDoneTime = time(0); if (status == kBootSent) bootSentTime = time(0);}
+  void SetBooted()  {bootStatus   = kBooted; bootDoneTime = time(0);if (!bootSentTime) bootSentTime = time(0);}
+  void SetBootStatus(int status) {bootStatus = status; if (status == kBooted) bootDoneTime = time(0); if (status == kBootSent) bootSentTime = time(0);if (!bootSentTime) bootSentTime = time(0)-9999;}
   void SetBootFailure(const char* txt) {bootStatus = kBootFailure;bootFailureMsg = txt;}
   void SetRO()      {configStatus = kRO;}
   void SetRW()      {configStatus = kRW;}
@@ -78,14 +88,18 @@ public:
     if (( val = env->Get("statfs.namelen"))){statFs.f_namelen = strtol(val,0,10);}
   }
 
-  struct statfs* GetStatfs();
+  struct statfs* GetStatfs() { return &statFs;}
 
   XrdMgmFstFileSystem(int id, const char* path, const char* queue, const char* schedulinggroup = "default") {
     Id = id; Path = path; queueName = queue; bootStatus=kDown;configStatus = kOff; schedulingGroup = schedulinggroup; bootSentTime=0; bootFailureMsg=""; bootDoneTime=0; errc=0; errmsg=""; memset(&statFs,0,sizeof(statFs));
+    UserBytes.set_empty_key(-1);
+    GroupBytes.set_empty_key(-1);
+    UserFiles.set_empty_key(-1);
+    GroupFiles.set_empty_key(-1);
   };
-  
+
   ~XrdMgmFstFileSystem() {};
-  
+
 }; 
 
 

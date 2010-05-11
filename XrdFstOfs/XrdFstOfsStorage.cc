@@ -40,13 +40,32 @@ XrdFstOfsFileSystem::BroadcastStatus()
   XrdOucEnv env(GetEnvString());
 
   XrdCommonFileSystem::GetBootReplyString(msgbody, env, XrdCommonFileSystem::kBooted);
-  
+
   XrdOucString response = statFs->GetEnv();
 
   msgbody += response;
   message.SetBody(msgbody.c_str());
 
   eos_debug("broadcasting status message: %s", msgbody.c_str());
+
+  if (!XrdMqMessaging::gMessageClient.SendMessage(message)) {
+    // display communication error
+    eos_err("cannot send status broadcast");
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdFstOfsStorage::BroadcastQuota(XrdOucString &quotastring)
+{
+  XrdMqMessage message("fst");
+  XrdOucString msgbody;
+  XrdCommonFileSystem::GetQuotaReportString(msgbody);
+
+  msgbody += quotastring;
+  message.SetBody(msgbody.c_str());
+
+  eos_debug("broadcasting quota message: %s", msgbody.c_str());
 
   if (!XrdMqMessaging::gMessageClient.SendMessage(message)) {
     // display communication error
@@ -91,7 +110,8 @@ XrdFstOfsFileSystem::GetStatfs(bool &changedalot)
 /*----------------------------------------------------------------------------*/
 XrdFstOfsStorage::XrdFstOfsStorage(const char* metadirectory)
 {
-  // set logid
+
+
   SetLogId("FstOfsStorage");
 
   // make metadir
@@ -241,7 +261,8 @@ XrdFstOfsStorage::StartFsTrim(void * pp)
   XrdFstOfsStorage* storage = (XrdFstOfsStorage*)pp;
   storage->Trim();
   return 0;
-}
+}    
+
 
 /*----------------------------------------------------------------------------*/
 void
@@ -260,25 +281,50 @@ XrdFstOfsStorage::Quota()
     fsMutex.UnLock();
 
     gFmdHandler.Mutex.Lock();
-    google::dense_hash_map<long, unsigned long long>::const_iterator it;
+    google::dense_hash_map<long long, unsigned long long>::const_iterator it;
+
+    XrdOucString fullreport="";
+    XrdOucString quotareport="";
+
+    XrdCommonFileSystem::CreateQuotaReportString("fst.quota.userbytes", quotareport);
 
     for(it = gFmdHandler.UserBytes.begin(); it != gFmdHandler.UserBytes.end(); it++) {
-      eos_debug("USER  BYTES : uid %d volume=%llu", it->first, it->second);
+      XrdCommonFileSystem::AddQuotaReportString((unsigned long) it->first, it->second, quotareport);
+      eos_debug("USER  BYTES : uid %lld volume=%llu", it->first, it->second);
     }
+    
+    fullreport += quotareport; fullreport +="&";
 
+    XrdCommonFileSystem::CreateQuotaReportString("fst.quota.groupbytes", quotareport);
+    
     for(it = gFmdHandler.GroupBytes.begin(); it != gFmdHandler.GroupBytes.end(); it++) {
-      eos_debug("GROUP BYTES : uid %d volume=%llu", it->first, it->second);
+      XrdCommonFileSystem::AddQuotaReportString((unsigned long) it->first, it->second, quotareport);
+      eos_debug("GROUP BYTES : uid %lld volume=%llu", it->first, it->second);
     }
+    
+    fullreport += quotareport; fullreport +="&";
+    
+    XrdCommonFileSystem::CreateQuotaReportString("fst.quota.userfiles", quotareport);
 
     for(it = gFmdHandler.UserFiles.begin(); it != gFmdHandler.UserFiles.end(); it++) {
-      eos_debug("USER  FILES : uid %d  files=%llu", it->first, it->second);
+      XrdCommonFileSystem::AddQuotaReportString((unsigned long) it->first, it->second, quotareport);
+      eos_debug("USER  FILES : uid %lld  files=%llu", it->first, it->second);
     }
+
+    fullreport += quotareport; fullreport +="&";
+
+    XrdCommonFileSystem::CreateQuotaReportString("fst.quota.groupfiles", quotareport);
 
     for(it = gFmdHandler.GroupFiles.begin(); it != gFmdHandler.GroupFiles.end(); it++) {
-      eos_debug("GROUP FILES : uid %d  files=%llu", it->first, it->second);
+      XrdCommonFileSystem::AddQuotaReportString((unsigned long) it->first, it->second, quotareport);
+      eos_debug("GROUP FILES : uid %lld  files=%llu", it->first, it->second);
     }
 
+    fullreport += quotareport;
 
+    // broadcast the quota table
+    BroadcastQuota(fullreport);
+ 
     gFmdHandler.Mutex.UnLock();
     sleep(XrdFstOfsConfig::gConfig.FstQuotaReportInterval);
     

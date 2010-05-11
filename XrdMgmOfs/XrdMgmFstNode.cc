@@ -1,9 +1,14 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdMqOfs/XrdMqMessaging.hh"
 #include "XrdMgmOfs/XrdMgmFstNode.hh"
+#include "XrdMgmOfs/XrdMgmQuota.hh"
+/*----------------------------------------------------------------------------*/
+#include "XrdOuc/XrdOucTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
 XrdOucHash<XrdMgmFstNode> XrdMgmFstNode::gFstNodes;
+google::dense_hash_map<unsigned int, unsigned long long> XrdMgmFstNode::gFileSystemById;
+
 //google::dense_hash_map<long, unsigned long long> gFstIndex;
 
 XrdSysMutex XrdMgmFstNode::gMutex;
@@ -75,19 +80,122 @@ XrdMgmFstNode::Update(XrdOucEnv &config)
 bool
 XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config) 
 {
-  XrdOucString infsname     = config.Get("mgm.fsname");
-  XrdOucString sid          = config.Get("mgm.fsid");
-  XrdOucString fsstatus     = config.Get("mgm.fsstatus");
-  XrdOucString serrc        = config.Get("errc");
-  int errc=0;
-  XrdOucString errmsg       = config.Get("errmsg");
-  if (serrc.length()) 
-      errc = atoi(serrc.c_str());
+  // get the quota values
+  XrdOucString userbytes  = config.Get("fst.quota.userbytes");
+  XrdOucString groupbytes = config.Get("fst.quota.groupbytes");
+  XrdOucString userfiles  = config.Get("fst.quota.userfiles");
+  XrdOucString groupfiles = config.Get("fst.quota.groupfiles");
 
-  int id = atoi(sid.c_str());
-  if (!id) 
-    return false;
-  
+  // decode the env strings
+  while (userbytes.replace (","," ")){};
+  while (groupbytes.replace(","," ")){};
+  while (userfiles.replace (","," ")){};
+  while (groupfiles.replace(","," ")){};
+
+  if (userbytes.c_str()) {
+    // user bytes
+    XrdOucTokenizer tokenizer((char*)userbytes.c_str());
+    tokenizer.GetLine();
+    const char* val;
+    while ( (val = tokenizer.GetToken()) ) {
+      XrdOucString keyval = val;
+      XrdOucString key="";
+      XrdOucString value="";
+      if (XrdCommonFileSystem::SplitKeyValue(keyval, key, value)) {
+	long long fsiduid   = strtoll(key.c_str(),0,10);
+	unsigned long long fsidquota = strtoll(value.c_str(),0,10);
+	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
+	unsigned long uid  = fsiduid & 0xffffffff;
+	eos_static_debug("decoded quota userbytes    : fsid=%lu uid=%lu bytes=%llu", fsid, uid, fsidquota);
+	XrdMgmFstFileSystem* filesystem = 0;
+	if ( (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	  filesystem->UserBytes[uid] = fsidquota;
+	  XrdMgmQuota::UpdateHint(fsid);
+	}
+      } else {
+	eos_static_err("key-value pair split error for %s", keyval.c_str());
+      }
+    }
+  }
+
+  if (groupbytes.c_str()) {
+    // user bytes
+    XrdOucTokenizer tokenizer((char*)groupbytes.c_str());
+    tokenizer.GetLine();
+    const char* val;
+    while ( (val = tokenizer.GetToken()) ) {
+      XrdOucString keyval = val;
+      XrdOucString key="";
+      XrdOucString value="";
+      if (XrdCommonFileSystem::SplitKeyValue(keyval, key, value)) {
+	long long fsiduid   = strtoll(key.c_str(),0,10);
+	unsigned long long fsidquota = strtoll(value.c_str(),0,10);
+	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
+	unsigned long gid  = fsiduid & 0xffffffff;
+	eos_static_debug("decoded quota groupbytes  : fsid=%lu uid=%lu bytes=%llu", fsid, gid, fsidquota);
+	XrdMgmFstFileSystem* filesystem = 0;
+	if ( (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	  filesystem->GroupBytes[gid] = fsidquota;
+	  XrdMgmQuota::UpdateHint(fsid);
+	}
+      } else {
+	eos_static_err("key-value pair split error for %s", keyval.c_str());
+      }
+    }
+  }
+
+  if (userfiles.c_str()) {
+    // user bytes
+    XrdOucTokenizer tokenizer((char*)userfiles.c_str());
+    tokenizer.GetLine();
+    const char* val;
+    while ( (val = tokenizer.GetToken()) ) {
+      XrdOucString keyval = val;
+      XrdOucString key="";
+      XrdOucString value="";
+      if (XrdCommonFileSystem::SplitKeyValue(keyval, key, value)) {
+	long long fsiduid   = strtoll(key.c_str(),0,10);
+	unsigned long long fsidquota = strtoll(value.c_str(),0,10);
+	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
+	unsigned long uid  = fsiduid & 0xffffffff;
+	eos_static_debug("decoded quota userfiles: fsid=%lu uid=%lu files=%llu", fsid, uid, fsidquota);
+	XrdMgmFstFileSystem* filesystem = 0;
+	if ( (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	  filesystem->UserFiles[uid] = fsidquota;
+	  XrdMgmQuota::UpdateHint(fsid);
+	}
+      } else {
+	eos_static_err("key-value pair split error for %s", keyval.c_str());
+      }
+    }
+  }
+
+  if (groupfiles.c_str()) {
+    // user bytes
+    XrdOucTokenizer tokenizer((char*)groupfiles.c_str());
+    tokenizer.GetLine();
+    const char* val;
+    while ( (val = tokenizer.GetToken()) ) {
+      XrdOucString keyval = val;
+      XrdOucString key="";
+      XrdOucString value="";
+      if (XrdCommonFileSystem::SplitKeyValue(keyval, key, value)) {
+	long long fsiduid   = strtoll(key.c_str(),0,10);
+	unsigned long long fsidquota = strtoll(value.c_str(),0,10);
+	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
+	unsigned long gid  = fsiduid & 0xffffffff;
+	eos_static_debug("decoded quota groupfiles: fsid=%lu uid=%lu files=%llu", fsid, gid, fsidquota);
+	XrdMgmFstFileSystem* filesystem = 0;
+	if ( (filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	  filesystem->GroupFiles[gid] = fsidquota;
+	  XrdMgmQuota::UpdateHint(fsid);
+	}
+      } else {
+	eos_static_err("key-value pair split error for %s", keyval.c_str());
+      }
+    }
+  }
+
   return true;
 }
 
@@ -98,6 +206,8 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
 {
   if (!infsname) 
     return false;
+
+  // set the empty key for the static filesystem hash
 
   if (!schedgroup) {
     schedgroup = "default";
@@ -138,10 +248,30 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
     // create a new filesystem there
     fs = new XrdMgmFstFileSystem(id, fsname.c_str(), nodename.c_str(), schedgroup);
     node->fileSystems.Add(fsname.c_str(),fs);
+    gFileSystemById[id]=(unsigned long long)fs;
+    // create the quota space entry in the hash to be able to set quota on the empty space
+    XrdMgmQuota::GetSpaceQuota(fs->GetSpaceName());
+    XrdMgmQuota::UpdateHint(fs->GetId());
+
   } else {
+    if (fs->GetId()>0) {
+      // invalidate the old entry
+      gFileSystemById[fs->GetId()] = 0;
+    }
+    gFileSystemById[id] = (unsigned long long)fs;
     fs->SetId(id);
+
+    if (schedgroup && (strcmp(fs->GetSchedulingGroup(),schedgroup)) ) {
+      // scheduling group changed
+      // create the quota space entry in the hash to be able to set quota on the empty space
+      XrdMgmQuota::GetSpaceQuota(fs->GetSpaceName());
+      XrdMgmQuota::UpdateHint(fs->GetId());
+    }
+
+    
     if (fsname.length())    fs->SetPath(fsname.c_str());
     if (strlen(schedgroup)) fs->SetSchedulingGroup(schedgroup);
+
     if (bootstatus!= XrdCommonFileSystem::kDown) 
       fs->SetBootStatus(bootstatus);
   }
