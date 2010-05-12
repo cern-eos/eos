@@ -522,46 +522,43 @@ com_config (char* arg1) {
   
   if ( subcommand == "dump" ) {
     XrdOucString in ="mgm.cmd=config&mgm.subcmd=dump";
-    if (arg.length())
+    if (arg.length()) { 
       do {
 	if (arg == "-fs") {
-	  XrdOucString fs = subtokenizer.GetToken();
-	  if (!fs.length()) 
-	    goto com_config_usage;
-	  in += "&mgm.config.fs=";
-	  in += fs;
+	  in += "&mgm.config.fs=1";
 	  arg = subtokenizer.GetToken();
 	} else 
 	  if (arg == "-vid") {
-	    XrdOucString vid = subtokenizer.GetToken();
-	    if (!vid.length()) 
-	      goto com_config_usage;
-	    in += "&mgm.config.vid=";
-	    in += vid;
+	    in += "&mgm.config.vid=1";
 	    arg = subtokenizer.GetToken();
 	  } else 
 	    if (arg == "-quota") {
-	      XrdOucString quota = subtokenizer.GetToken();
-	    if (!quota.length()) 
-	      goto com_config_usage;
-	    in += "&mgm.config.quota=";
-	    in += quota;
-	    arg = subtokenizer.GetToken();
-	    }
+	      in += "&mgm.config.quota=1";
+	      arg = subtokenizer.GetToken();
+	    } else 
+	      if (arg == "-comment") {
+		in += "&mgm.config.comment=1";
+		arg = subtokenizer.GetToken();
+	      } else 
+		if (!arg.beginswith("-")) {
+		  in += "&mgm.config.file=";
+		  in += arg;
+		  arg = subtokenizer.GetToken();
+		}
       } while (arg.length());
-    
+    }      
     
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
+
   
   
   if ( subcommand == "ls" ) {
     XrdOucString in ="mgm.cmd=config&mgm.subcmd=ls";
-    arg = subtokenizer.GetToken();
-    if (arg.length()) 
-      goto com_config_usage;
-    
+    if (arg == "-backup") {
+      in += "&mgm.config.showbackup=1";
+    }
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
@@ -578,10 +575,45 @@ com_config (char* arg1) {
 
   if ( subcommand == "save") {
     XrdOucString in ="mgm.cmd=config&mgm.subcmd=save";
-    arg = subtokenizer.GetToken();
-    if (arg.length()) 
-      goto com_config_usage;
+    bool hasfile =false;
+    printf("arg is %s\n", arg.c_str());
+    do {
+      if (arg == "-f") {
+	in += "&mgm.config.force=1";
+	arg = subtokenizer.GetToken();
+      } else 
+	if (arg == "-comment") {
+	  in += "&mgm.config.comment=";
+	  arg = subtokenizer.GetToken();
+	  if (arg.beginswith("\"")) {
+	    in += arg;
+	    arg = subtokenizer.GetToken();
+	    if (arg.length()) {
+	      do {
+		in += " ";
+		in += arg;
+		arg = subtokenizer.GetToken();
+	      } while (arg.length() && (!arg.endswith("\"")));
+	      if (arg.endswith("\"")) {
+		in += " ";
+		in += arg;
+		arg = subtokenizer.GetToken();
+	      }
+	    }
+	  }
+	} else {
+	  if (!arg.beginswith("-")) {
+	    in += "&mgm.config.file=";
+	    in += arg;
+	    hasfile = true;
+	    arg = subtokenizer.GetToken();
+	  } else {
+	    goto com_config_usage;
+	  }
+	}
+    } while (arg.length());
     
+    if (!hasfile) goto com_config_usage;
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
@@ -612,12 +644,12 @@ com_config (char* arg1) {
   }
   
  com_config_usage:
-  printf("usage: config ls                                     :  list existing configurations\n");
-  printf("usage: config dump [-fs] [-vid] [-quota] [<name>]    :  dump current configuration or configuration with name <name>\n");
-  printf("usage: config save [-f] [<name>]                     :  save config (optionally under name)\n");
-  printf("usage: config load [-f] [<name>]                     :  load config (optionally with name)\n");
-  printf("usage: config diff                                   :  show changes since last load/save operation\n");
-  printf("usage: config changelog [#lines -10]                 :  show the last <#> lines from the changelog\n");
+  printf("usage: config ls   [-backup]                                   :  list existing configurations\n");
+  printf("usage: config dump [-fs] [-vid] [-quota] [-comment] [<name>]   :  dump current configuration or configuration with name <name>\n");
+  printf("usage: config save [-comment \"<comment>\"] [-f] [<name>]      :  save config (optionally under name)\n");
+  printf("usage: config load [-comment \"<comment>\"] [-f] [<name>]      :  load config (optionally with name)\n");
+  printf("usage: config diff                                             :  show changes since last load/save operation\n");
+  printf("usage: config changelog [-#lines]                              :  show the last <#> lines from the changelog - default is -10 \n");
 
   return (0);
 }

@@ -117,7 +117,9 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
       if (subcmd == "ls") {
 	eos_notice("config ls");
 	XrdOucString listing="";
-	if (!gOFS->ConfigEngine->ListConfigs(listing)) {
+	bool showbackup = (bool)opaque.Get("mgm.config.showbackup");
+	
+	if (!(gOFS->ConfigEngine->ListConfigs(listing, showbackup))) {
 	  stdErr += "error: listing of existing configs failed!";
 	  retc = errno;
 	} else {
@@ -131,12 +133,17 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 
       if (subcmd == "save") {
 	eos_notice("config save");
+	if (!gOFS->ConfigEngine->SaveConfig(opaque, stdErr)) {
+	  retc = errno;
+	} else {
+	  stdOut = "success: configuration successfully saved!";
+	}
       }
 
       if (subcmd == "dump") {
 	eos_notice("config dump");
 	XrdOucString dump="";
-	if (!gOFS->ConfigEngine->DumpConfig(0,dump)) {
+	if (!gOFS->ConfigEngine->DumpConfig(dump, opaque)) {
 	  stdErr += "error: listing of existing configs failed!";
 	  retc = errno;
 	} else {
@@ -152,7 +159,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	eos_notice("config changelog");
       }
 
-      stdOut+="\n==== config done ====";
+      //      stdOut+="\n==== config done ====";
       MakeResult();
       return SFS_OK;
     }
@@ -324,7 +331,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	  }
 	}
       }
-      stdOut+="\n==== fs done ====";
+      //      stdOut+="\n==== fs done ====";
     }
 
     if (cmd == "quota") {
@@ -383,7 +390,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	  stdOut = msg;
 	}
       }
-      stdOut+="\n==== quota done ====";
+      //      stdOut+="\n==== quota done ====";
     }
 
     if (cmd == "debug") {
@@ -415,7 +422,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	  eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s", debuglevel.c_str(), debugnode.c_str());
 	}
       }
-      stdOut+="\n==== debug done ====";
+      //      stdOut+="\n==== debug done ====";
     }
 
     MakeResult();

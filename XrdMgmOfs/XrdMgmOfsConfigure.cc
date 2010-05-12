@@ -203,6 +203,8 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	  Eroute.Emsg("Config","argument for configdir invalid.");NoGo=1;
 	} else {
 	  MgmConfigDir = val;
+	  if (!MgmConfigDir.endswith("/")) 
+	    MgmConfigDir += "/";
 	}
       }
 
