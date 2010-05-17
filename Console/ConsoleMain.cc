@@ -564,11 +564,11 @@ com_config (char* arg1) {
   }
   
   if ( subcommand == "load") {
-    XrdOucString in ="mgm.cmd=config&mgm.subcmd=load";
-    arg = subtokenizer.GetToken();
-    if (arg.length()) 
+    XrdOucString in ="mgm.cmd=config&mgm.subcmd=load&mgm.config.file=";
+    if (!arg.length()) 
       goto com_config_usage;
     
+    in += arg;
     global_retc = output_result(client_admin_command(in));
     return (0);
   }

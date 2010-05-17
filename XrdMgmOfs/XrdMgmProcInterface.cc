@@ -126,13 +126,19 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	  stdOut += listing;
 	}
       }
-      
+
+      int envlen;
       if (subcmd == "load") {
-	eos_notice("config load");
+	eos_notice("config load: %s", opaque.Env(envlen));
+	if (!gOFS->ConfigEngine->LoadConfig(opaque, stdErr)) {
+	  retc = errno;
+	} else {
+	  stdOut = "success: configuration successfully loaded!";
+	}
       }
 
       if (subcmd == "save") {
-	eos_notice("config save");
+	eos_notice("config save: %s", opaque.Env(envlen));
 	if (!gOFS->ConfigEngine->SaveConfig(opaque, stdErr)) {
 	  retc = errno;
 	} else {
@@ -475,6 +481,9 @@ XrdMgmProcCommand::MakeResult()
   resultStream += "&mgm.proc.retc=";
   resultStream += retc;
 
+  if (retc) {
+    eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);
+  }
   len = resultStream.length();
   offset = 0;
 }
