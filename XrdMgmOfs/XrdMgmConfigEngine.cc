@@ -258,7 +258,7 @@ XrdMgmConfigEngine::ParseConfig(XrdOucString &inconfig, XrdOucString &err)
 int
 XrdMgmConfigEngine::DeleteConfigByMatch(const char* key, XrdOucString* def, void* Arg)
 {
-  XrdOucString* matchstring = (XrdOucString*) matchstring;
+  XrdOucString* matchstring = (XrdOucString*)Arg;
   XrdOucString skey = key;
 
   if (skey.beginswith(matchstring->c_str())) {
