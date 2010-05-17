@@ -1,5 +1,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdMgmOfs/XrdMgmConfigEngine.hh"
+#include "XrdMgmOfs/XrdMgmFstNode.hh"
+#include "XrdMgmOfs/XrdMgmQuota.hh"
 /*----------------------------------------------------------------------------*/
 #include <iostream>
 #include <fstream>
@@ -45,12 +47,14 @@ XrdMgmConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err)
       eos_notice("IN ==> %s", s.c_str());
     }
     infile.close();
-    return ParseConfig(allconfig, err);
+    if (!ParseConfig(allconfig, err))
+      return false;
+
+    return ApplyConfig(err);
   } else {
     err = "error: failed to open configuration file with name \""; err += name; err += "\"!";
     return false;
   }
-  eos_debug("shouldn't get here");
   return true;
 }
 
@@ -219,6 +223,48 @@ XrdMgmConfigEngine::BroadCastConfig()
 }
 
 /*----------------------------------------------------------------------------*/
+void
+XrdMgmConfigEngine::ResetConfig() 
+{
+  XrdMgmFstNode::gMutex.Lock();
+  XrdMgmFstNode::gFileSystemById.clear();
+  XrdMgmFstNode::gFstNodes.Purge();
+
+  XrdMgmQuota::gQuotaMutex.Lock();
+  XrdMgmQuota::gQuota.Purge();
+  XrdMgmQuota::gQuotaMutex.UnLock();
+
+  XrdMgmFstNode::gMutex.UnLock();
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+XrdMgmConfigEngine::ApplyConfig(XrdOucString &err) 
+{
+  err = "";
+
+  XrdMgmFstNode::gMutex.Lock();
+  XrdMgmFstNode::gFileSystemById.clear();
+  XrdMgmFstNode::gFstNodes.Purge();
+
+  XrdMgmQuota::gQuotaMutex.Lock();
+  XrdMgmQuota::gQuota.Purge();
+  XrdMgmQuota::gQuotaMutex.UnLock();
+
+  Mutex.Lock();
+  configDefinitions.Apply(ApplyEachConfig, &err);
+  Mutex.UnLock();
+
+  XrdMgmFstNode::gMutex.UnLock();
+
+  if (err.length()) {
+    errno = EINVAL;
+    return false;
+  }
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
 bool
 XrdMgmConfigEngine::ParseConfig(XrdOucString &inconfig, XrdOucString &err)
 {
@@ -246,7 +292,10 @@ XrdMgmConfigEngine::ParseConfig(XrdOucString &inconfig, XrdOucString &err)
 	return false;
       }
       value.assign(key, seppos + 4);
+      key.erase(seppos);
+
       eos_notice("setting config key=%s value=%s", key.c_str(),value.c_str());
+      configDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
     }
   }
 
@@ -258,13 +307,52 @@ XrdMgmConfigEngine::ParseConfig(XrdOucString &inconfig, XrdOucString &err)
 int
 XrdMgmConfigEngine::DeleteConfigByMatch(const char* key, XrdOucString* def, void* Arg)
 {
-  XrdOucString* matchstring = (XrdOucString*)Arg;
+  XrdOucString* matchstring = (XrdOucString*) Arg;
   XrdOucString skey = key;
 
   if (skey.beginswith(matchstring->c_str())) {
     return -1;
   }
 
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
+{
+  XrdOucString* err = (XrdOucString*) Arg;
+  *err = "";
+
+  XrdOucString toenv = def->c_str();
+  while(toenv.replace(" ", "&")) {}
+  XrdOucEnv envdev(toenv.c_str());
+
+  eos_static_debug("key=%s def=%s", key, def->c_str());
+  XrdOucString skey = key;
+  if (skey.beginswith("vid:")) {
+    // set a virtual id mapping
+    skey.erase(0,4);
+  }
+  
+  if (skey.beginswith("fs:")) {
+    // set a filesystem definition
+    skey.erase(0,3);
+    if (!XrdMgmFstNode::Update(envdev)) {
+      *err += "error: unable to update config "; *err += key, *err += " => "; *err += def->c_str(); *err +="\n";
+      return 0;
+    }
+  }
+  
+  if (skey.beginswith("quota:")) {
+    // set a quota definition
+    skey.erase(0,6);
+  }
+  
+  if (skey.beginswith("comment:")) {
+    // nothing to do
+  }
+  
   return 0;
 }
 

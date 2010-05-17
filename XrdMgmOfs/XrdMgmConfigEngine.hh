@@ -41,6 +41,8 @@ public:
     XrdOucString option;
   };
 
+  static int ApplyEachConfig(const char* key, XrdOucString* def, void* Arg);
+
   static int PrintEachConfig(const char* key, XrdOucString* def, void* Arg);
 
   static int DeleteConfigByMatch(const char* key, XrdOucString* def, void* Arg);
@@ -72,6 +74,10 @@ public:
   bool BroadCastConfig();
 
   bool ParseConfig(XrdOucString &broadcast, XrdOucString &err);
+
+  bool ApplyConfig(XrdOucString &err);
+
+  void ResetConfig();
 
   void PrintConfig() {
     Mutex.Lock();

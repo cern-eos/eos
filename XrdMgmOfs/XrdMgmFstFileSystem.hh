@@ -91,7 +91,7 @@ public:
   struct statfs* GetStatfs() { return &statFs;}
 
   XrdMgmFstFileSystem(int id, const char* path, const char* queue, const char* schedulinggroup = "default") {
-    Id = id; Path = path; queueName = queue; bootStatus=kDown;configStatus = kOff; schedulingGroup = schedulinggroup; bootSentTime=0; bootFailureMsg=""; bootDoneTime=0; errc=0; errmsg=""; memset(&statFs,0,sizeof(statFs));
+    Id = id; Path = path; queueName = queue; bootStatus=kDown;configStatus = kUnknown; schedulingGroup = schedulinggroup; bootSentTime=0; bootFailureMsg=""; bootDoneTime=0; errc=0; errmsg=""; memset(&statFs,0,sizeof(statFs));
     UserBytes.set_empty_key(-1);
     GroupBytes.set_empty_key(-1);
     UserFiles.set_empty_key(-1);

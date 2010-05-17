@@ -61,12 +61,18 @@ XrdMgmFstNode::Update(XrdOucEnv &config)
   XrdOucString schedgroup   = config.Get("mgm.fsschedgroup");
   XrdOucString fsstatus     = config.Get("mgm.fsstatus");
   XrdOucString serrc        = config.Get("errc");
+
+  int envlen=0;
+  eos_static_debug("%s", config.Env(envlen));
   int errc=0;
   XrdOucString errmsg       = config.Get("errmsg");
   if (serrc.length()) 
       errc = atoi(serrc.c_str());
 
-  int id = atoi(sid.c_str());
+  int id = 0;
+  if (sid.length()) 
+    id = atoi(sid.c_str());
+  
   if (!id) 
     return false;
   
@@ -213,6 +219,7 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
     schedgroup = "default";
   }
 
+  eos_static_debug("%s %d %s %d", infsname, id, schedgroup, bootstatus);
   XrdOucString fsname = infsname;
   XrdOucString lQueue="";
   // remove // from fsnames

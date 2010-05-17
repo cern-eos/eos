@@ -573,6 +573,12 @@ com_config (char* arg1) {
     return (0);
   }
 
+  if ( subcommand == "reset") {
+    XrdOucString in ="mgm.cmd=config&mgm.subcmd=reset";
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+
   if ( subcommand == "save") {
     XrdOucString in ="mgm.cmd=config&mgm.subcmd=save";
     bool hasfile =false;
@@ -650,6 +656,7 @@ com_config (char* arg1) {
   printf("usage: config load [-comment \"<comment>\"] [-f] [<name>]      :  load config (optionally with name)\n");
   printf("usage: config diff                                             :  show changes since last load/save operation\n");
   printf("usage: config changelog [-#lines]                              :  show the last <#> lines from the changelog - default is -10 \n");
+  printf("usage: config reset                                            :  reset all configuration to empty state\n");
 
   return (0);
 }

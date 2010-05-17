@@ -146,6 +146,12 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	}
       }
 
+      if (subcmd == "reset") {
+	eos_notice("config reset");
+	gOFS->ConfigEngine->ResetConfig();
+	stdOut = "success: configuration has been reset(cleaned)!";
+      }
+
       if (subcmd == "dump") {
 	eos_notice("config dump");
 	XrdOucString dump="";
