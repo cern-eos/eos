@@ -10,6 +10,95 @@
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
+/*----------------------------------------------------------------------------*/
+XrdMgmConfigEngineChangeLog::XrdMgmConfigEngineChangeLog()
+{
+}
+
+void XrdMgmConfigEngineChangeLog::Init(const char* changelogfile) 
+{
+  fd = open(changelogfile, O_CREAT | O_APPEND | O_RDWR, 0644);
+  if (fd<0) {
+    eos_err("failed to open config engine changelogfile %s", changelogfile);
+  }
+}
+
+
+
+/*----------------------------------------------------------------------------*/
+XrdMgmConfigEngineChangeLog::~XrdMgmConfigEngineChangeLog() 
+{
+  if (fd>0) 
+    close(fd);
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
+XrdMgmConfigEngineChangeLog::AddEntry(const char* info) 
+{
+  
+  time_t now = time(0);
+  char dtime[1024]; sprintf(dtime, "%lu ", now);
+  Mutex.Lock();
+  XrdOucString stime = dtime; stime += ctime(&now);
+  stime.erase(stime.length()-1);
+  stime += " ";
+  stime += info;
+  stime += "\n";
+  if (fd>0) {
+    lseek(fd,0,SEEK_END);
+
+    if ((write(fd, stime.c_str(), stime.length()+1)) != ((int)(stime.length()+1))) {
+      eos_err("failed to write config engine changelog entry");
+      return false;
+    }
+  }
+
+  Mutex.UnLock();
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
+XrdMgmConfigEngineChangeLog::Tail(unsigned int nlines, XrdOucString &tail) 
+{
+  Mutex.Lock();
+  unsigned int nfeed=0;
+  off_t pos = lseek(fd, 0, SEEK_END);
+  off_t offset;
+  off_t goffset;
+  off_t roffset;
+  for ( offset = pos-1; offset>=0; offset--) {
+    goffset = offset;
+    char c;
+    if ((pread(fd, &c, 1,offset))!=1) {
+      tail = "error: cannot read changelog file (1)";
+      Mutex.UnLock();
+      return false;
+    }
+    if (c == '\n') 
+      nfeed++;
+
+    if (nfeed == nlines)
+      break;
+  }
+
+  for ( roffset = goffset; roffset < pos; roffset ++) {
+    char c;
+    if ((pread(fd, &c, 1, roffset))!=1) {
+      tail = "error: cannot read changelog file (2) "; tail += (int)roffset;
+      Mutex.UnLock();
+      return false;
+    }
+    tail += c;
+  }
+
+  Mutex.UnLock();
+  while(tail.replace("&"," ")) {}
+  eos_static_info("tail is %s", tail.c_str());
+  return true;
+}
+
 
 /*----------------------------------------------------------------------------*/
 bool 
@@ -18,6 +107,7 @@ XrdMgmConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err)
   const char* name = env.Get("mgm.config.file");
   eos_notice("loading name=%s ", name);
 
+  XrdOucString cl = "loaded config "; cl += name; cl += " ";
   if (!name) {
     err = "error: you have to specify a configuration file name";
     return false;
@@ -50,7 +140,16 @@ XrdMgmConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err)
     if (!ParseConfig(allconfig, err))
       return false;
 
-    return ApplyConfig(err);
+    if (!ApplyConfig(err)) {
+      cl += " with failure";
+      changeLog.AddEntry(cl.c_str());
+      return false;
+    } else {
+      cl += " successfully";
+      changeLog.AddEntry(cl.c_str());
+      return true;
+    }
+
   } else {
     err = "error: failed to open configuration file with name \""; err += name; err += "\"!";
     return false;
@@ -66,6 +165,7 @@ XrdMgmConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
   bool force = (bool)env.Get("mgm.config.force");
   const char* comment = env.Get("mgm.config.comment");
 
+  XrdOucString cl = "saved  config "; cl += name; cl += " "; if (force) cl += "(force)";
   eos_notice("saving config name=%s comment=%s force=%d", name, comment, force);
 
   if (!name) {
@@ -123,7 +223,9 @@ XrdMgmConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
     err = "error: failed to save configuration file with name \""; err += name; err += "\"!";
     return false;
   }
-  
+ 
+  cl += " successfully";
+  changeLog.AddEntry(cl.c_str());  
   return true;
 }
 
@@ -226,6 +328,10 @@ XrdMgmConfigEngine::BroadCastConfig()
 void
 XrdMgmConfigEngine::ResetConfig() 
 {
+
+  XrdOucString cl = "reset  config ";
+  changeLog.AddEntry(cl.c_str());
+
   XrdMgmFstNode::gMutex.Lock();
   XrdMgmFstNode::gFileSystemById.clear();
   XrdMgmFstNode::gFstNodes.Purge();
@@ -348,6 +454,11 @@ XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Ar
     // set a quota definition
     skey.erase(0,6);
   }
+
+  if (skey.beginswith("policy:")) {
+    // set a quota definition
+    skey.erase(0,7);
+  }
   
   if (skey.beginswith("comment:")) {
     // nothing to do
@@ -381,6 +492,10 @@ XrdMgmConfigEngine::PrintEachConfig(const char* key, XrdOucString* def, void* Ar
       if (skey.beginswith("quota:"))
 	filter = true;
     }
+    if (option.find("p")!=STR_NPOS) {
+      if (skey.beginswith("policy:"))
+	filter = true;
+    }
     if (option.find("c")!=STR_NPOS) {
       if (skey.beginswith("comment:"))
 	filter = true;
@@ -404,7 +519,7 @@ XrdMgmConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
   pinfo.out = &out;
   pinfo.option = "vfqc";
   
-  if (filter.Get("mgm.config.vid") || (filter.Get("mgm.config.fs")) || (filter.Get("mgm.config.quota")) || (filter.Get("mgm.config.comment"))) 
+  if (filter.Get("mgm.config.vid") || (filter.Get("mgm.config.fs")) || (filter.Get("mgm.config.quota")) || (filter.Get("mgm.config.comment")  || (filter.Get("mgm.config.policy"))))
     pinfo.option = "";
   
   if (filter.Get("mgm.config.vid")) {
@@ -412,6 +527,9 @@ XrdMgmConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
     }
   if (filter.Get("mgm.config.fs")) {
     pinfo.option += "f";
+  }
+  if (filter.Get("mgm.config.policy")) {
+    pinfo.option += "p";
   }
   if (filter.Get("mgm.config.quota")) {
     pinfo.option += "q";
@@ -444,6 +562,8 @@ XrdMgmConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
       if ( (pinfo.option.find("q")!=STR_NPOS) && (sinputline.beginswith("quota:")))
 	filter = true;
       if ( (pinfo.option.find("c")!=STR_NPOS) && (sinputline.beginswith("comment:")))
+	filter = true;
+      if ( (pinfo.option.find("p")!=STR_NPOS) && (sinputline.beginswith("policy:")))
 	filter = true;
       if (filter) {
 	out += sinputline;

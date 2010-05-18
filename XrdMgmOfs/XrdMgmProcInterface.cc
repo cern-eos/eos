@@ -168,6 +168,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
       }
 
       if (subcmd == "changelog") {
+	int nlines = 5;
+	char* val;
+	if ((val=opaque.Get("mgm.config.lines"))) {
+	  nlines = atoi(val);
+	  if (nlines <1) nlines=1;
+	}
+	gOFS->ConfigEngine->GetChangeLog()->Tail(nlines, stdOut);
 	eos_notice("config changelog");
       }
 
@@ -217,7 +224,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	      } else {
 		stdOut="success: added/set mgm.fsname="; stdOut += fsname; stdOut += " mgm.fsid=", stdOut += fsidst; stdOut += " mgm.fsschedgroup=" ; stdOut += fssched;
 		// add to config
-		gOFS->ConfigEngine->SetFsConfig(fsname, ((XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid])->GetBootString());
+		gOFS->ConfigEngine->SetConfigValue("fs", fsname, ((XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid])->GetBootString());
 	      }
 	    }
 	  }
@@ -262,7 +269,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	      if (!node->fileSystems.Del(fspath)) {
 		// success
 		stdOut="success: deleted filesystem from node mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem mgm.fsname="; stdOut += fsname;
-		gOFS->ConfigEngine->DeleteFsConfig(fsname);
+		gOFS->ConfigEngine->DeleteConfigValue("fs",fsname);
 	      } else {
 		// failed
 		stdErr="error: cannot delete filesystem - no filesystem with name mgm.fsname="; stdErr += fsname; stdErr += " at node mgm.nodename="; stdErr += nodename;	

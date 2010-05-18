@@ -21,16 +21,35 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
+
 /*----------------------------------------------------------------------------*/
 
 #define XRDMGMCONFIGENGINE_EOS_SUFFIX ".eoscf"
+
+class XrdMgmConfigEngineChangeLog : public XrdCommonLogId {
+private:
+  XrdSysMutex Mutex;
+  int fd;
+public:
+  XrdMgmConfigEngineChangeLog();
+  ~XrdMgmConfigEngineChangeLog();
+
+  void Init(const char* changelogfile);
+
+  bool AddEntry(const char* info);
+  bool Tail(unsigned int nlines, XrdOucString &tail);
+};
+
+
 
 class XrdMgmConfigEngine : public XrdCommonLogId {
 private:
   XrdOucString configDir;
   XrdSysMutex Mutex;
   XrdOucString currentConfig;
-
+  
+  XrdMgmConfigEngineChangeLog changeLog;
 
   XrdOucHash<XrdOucString> configDefinitions;
 
@@ -51,7 +70,12 @@ public:
   XrdMgmConfigEngine(const char* configdir) {
     configDir = configdir;
     currentConfig = "default.eoscf";
+    XrdOucString changeLogFile = configDir;
+    changeLogFile += "/config.changelog";
+    changeLog.Init(changeLogFile.c_str());
   }
+
+  XrdMgmConfigEngineChangeLog* GetChangeLog() { return &changeLog;}
 
   bool LoadConfig(XrdOucEnv& env, XrdOucString &err);
   bool SaveConfig(XrdOucEnv& env, XrdOucString &err);
@@ -85,9 +109,11 @@ public:
     Mutex.UnLock();
   }
 
-  void SetFsConfig(const char* fsname, const char* def) {
+  void SetConfigValue(const char* prefix, const char* fsname, const char* def) {
     Mutex.Lock();
-    XrdOucString configname = "fs:";
+    XrdOucString cl = "set config "; cl+= prefix; cl += ":"; cl += fsname; cl+= " => "; cl += def;
+    changeLog.AddEntry(cl.c_str());
+    XrdOucString configname = prefix; configname+=":";
     XrdOucString *sdef = new XrdOucString(def);
     configname += fsname;
     configDefinitions.Rep(configname.c_str(),sdef);
@@ -95,16 +121,17 @@ public:
     Mutex.UnLock();
   }
 
-  void DeleteFsConfig(const char* fsname) {
+  void DeleteConfigValue(const char* prefix, const char* fsname) {
     Mutex.Lock();
+    XrdOucString configname = prefix; configname+=":"; configname += fsname;
     configDefinitions.Del(fsname);
     eos_static_debug("%s", fsname);
     Mutex.UnLock();
   }
 
-  void DeleteFsConfigByMatch(const char* match) {
+  void DeleteConfigValueByMatch(const char* prefix, const char* match) {
     Mutex.Lock();
-    XrdOucString smatch = match;
+    XrdOucString smatch = prefix; smatch += ":"; smatch += match;
     configDefinitions.Apply(DeleteConfigByMatch, &smatch);
     Mutex.UnLock();
   }

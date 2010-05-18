@@ -540,11 +540,15 @@ com_config (char* arg1) {
 		in += "&mgm.config.comment=1";
 		arg = subtokenizer.GetToken();
 	      } else 
-		if (!arg.beginswith("-")) {
-		  in += "&mgm.config.file=";
-		  in += arg;
+		if (arg == "-policy") {
+		  in += "&mgm.config.policy=1";
 		  arg = subtokenizer.GetToken();
-		}
+		} else 
+		  if (!arg.beginswith("-")) {
+		    in += "&mgm.config.file=";
+		    in += arg;
+		    arg = subtokenizer.GetToken();
+		  }
       } while (arg.length());
     }      
     
@@ -637,26 +641,31 @@ com_config (char* arg1) {
 
   if ( subcommand == "changelog") {
     XrdOucString in ="mgm.cmd=config&mgm.subcmd=changelog";
+    if (arg.length()) {
+      if (arg.beginswith("-")) {
+	// allow -100 and 100 
+	arg.erase(0,1);
+      }
+      in += "&mgm.config.lines="; in+= arg;
+    }
+
     arg = subtokenizer.GetToken();
     if (arg.length()) 
       goto com_config_usage;
-    
-    if (arg.length()) {
-      in += "mgm.config.lines="; in+= arg;
-    }
 
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
   
  com_config_usage:
-  printf("usage: config ls   [-backup]                                   :  list existing configurations\n");
-  printf("usage: config dump [-fs] [-vid] [-quota] [-comment] [<name>]   :  dump current configuration or configuration with name <name>\n");
-  printf("usage: config save [-comment \"<comment>\"] [-f] [<name>]      :  save config (optionally under name)\n");
-  printf("usage: config load [-comment \"<comment>\"] [-f] [<name>]      :  load config (optionally with name)\n");
-  printf("usage: config diff                                             :  show changes since last load/save operation\n");
-  printf("usage: config changelog [-#lines]                              :  show the last <#> lines from the changelog - default is -10 \n");
-  printf("usage: config reset                                            :  reset all configuration to empty state\n");
+  printf("usage: config ls   [-backup]                                             :  list existing configurations\n");
+  printf("usage: config dump [-fs] [-vid] [-quota] [-policy] [-comment] [<name>]   :  dump current configuration or configuration with name <name>\n");
+
+  printf("usage: config save [-comment \"<comment>\"] [-f] [<name>]                :  save config (optionally under name)\n");
+  printf("usage: config load [-comment \"<comment>\"] [-f] [<name>]                :  load config (optionally with name)\n");
+  printf("usage: config diff                                                       :  show changes since last load/save operation\n");
+  printf("usage: config changelog [-#lines]                                        :  show the last <#> lines from the changelog - default is -10 \n");
+  printf("usage: config reset                                                      :  reset all configuration to empty state\n");
 
   return (0);
 }
