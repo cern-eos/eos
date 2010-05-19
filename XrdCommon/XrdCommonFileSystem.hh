@@ -12,7 +12,7 @@ class XrdCommonFileSystem {
 public:
 
   enum eBootStatus   { kOpsError=-2, kBootFailure=-1, kDown=0, kBootSent, kBooting=2, kBooted=3};
-  enum eConfigStatus { kUnknown=-1, kOff=0, kRO, kRW};
+  enum eConfigStatus { kUnknown=-1, kOff=0, kDrain, kRO, kRW};
 
   static const char* GetStatusAsString(int status) {
     if (status == kDown) return "down";
@@ -37,6 +37,18 @@ public:
     return kDown;
   }
 
+  static int GetConfigStatusFromString(const char* ss) {
+    if (!ss) 
+      return kDown;
+    
+    if (!strcmp(ss,"unknown")) return kUnknown;
+    if (!strcmp(ss,"off")) return kOff;
+    if (!strcmp(ss,"drain")) return kDrain;
+    if (!strcmp(ss,"ro")) return kRO;
+    if (!strcmp(ss,"rw")) return kRW;
+    return kUnknown;
+  }
+
   static const char* GetBootReplyString(XrdOucString &msgbody, XrdOucEnv &config, int status, const char* failurereason=0) {
     int envlen;
     XrdOucString envstring = config.Env(envlen);
@@ -53,6 +65,11 @@ public:
     envstring.replace("mgm.cmd=","mgm._cmd=");
     envstring.replace("mgm.subcmd=","mgm._subcmd=");
     msgbody = "mgm.cmd=fs&"; msgbody += "mgm.subcmd=boot"; msgbody += envstring;  
+    return msgbody.c_str();
+  }
+  
+  static const char* GetRestartRequestString(XrdOucString &msgbody) {
+    msgbody = "mgm.cmd=restart"; 
     return msgbody.c_str();
   }
 

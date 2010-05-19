@@ -4,6 +4,7 @@
 #include "XrdMgmOfs/XrdMgmFstNode.hh"
 #include "XrdMgmOfs/XrdMgmOfs.hh"
 #include "XrdMgmOfs/XrdMgmQuota.hh"
+#include "XrdMgmOfs/XrdMgmFstFileSystem.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
@@ -223,8 +224,6 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 		retc = EINVAL;
 	      } else {
 		stdOut="success: added/set mgm.fsname="; stdOut += fsname; stdOut += " mgm.fsid=", stdOut += fsidst; stdOut += " mgm.fsschedgroup=" ; stdOut += fssched;
-		// add to config
-		gOFS->ConfigEngine->SetConfigValue("fs", fsname, ((XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid])->GetBootString());
 	      }
 	    }
 	  }
@@ -300,6 +299,91 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	  } 
 	}
       }
+
+      if (subcmd == "config") {
+	const char* nodename =  opaque.Get("mgm.nodename");
+	const char* fsname   =  opaque.Get("mgm.fsname");
+	const char* fsidst   =  opaque.Get("mgm.fsid");
+	const char* fsconfig =  opaque.Get("mgm.fsconfig");
+	const char* fspath   =  0;
+	int configstatus = XrdCommonFileSystem::kUnknown;
+	if (fsconfig)
+	  configstatus = XrdCommonFileSystem::GetConfigStatusFromString(fsconfig);
+	
+	if (configstatus == XrdCommonFileSystem::kUnknown) {
+	  stdErr="error: cannot set the configuration status to the requested status: "; stdErr += fsconfig; ; stdErr += " - this status must be 'rw','ro','drain','off'";
+	  retc = EINVAL;
+	} else {
+	  XrdOucString splitpathname="";
+	  XrdOucString splitnodename="";
+	  
+	  if (fsname) {
+	    XrdOucString q = fsname; 
+	    int spos = q.find("/fst/");
+	    if (spos != STR_NPOS) {
+	      splitpathname.assign(q,spos+4);
+	      splitnodename.assign(q,0,spos+3);
+	      
+	      if (!splitpathname.endswith("/")) {
+		splitpathname+= "/";
+	      }
+	      
+	      fspath = splitpathname.c_str();
+	      nodename = splitnodename.c_str();
+	    }
+	  }	
+	  
+	  if (nodename) {
+	    // set by node
+	    XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(nodename);
+	    if (node) {
+	      if (!fspath) {
+		// set status to all filesystems of a complete node
+		node->SetNodeConfigStatus(configstatus);
+		stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at node "; stdOut += nodename;
+	      } else {
+		// set status for one filesystem of a certain node
+		XrdMgmFstFileSystem* filesystem = node->fileSystems.Find(fspath);
+		if (filesystem) {
+		  filesystem->SetConfigStatus(configstatus);
+		  // success
+		  stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at filesystem ";stdOut += fsname;
+		} else {
+		  stdErr="error: cannot set config status on node/filesystem - no filesystem on node "; stdOut += nodename; stdOut += " with path "; stdOut += fspath;
+		  retc= ENOENT;
+		}
+	      }
+	    } else {
+	      stdErr="error: cannot set config status on node - no node with name mgm.nodename="; stdErr += nodename;
+	      retc = ENOENT;
+	    }
+	  } else {
+	    if (fsidst) {
+	      unsigned int fsid = atoi(fsidst);
+	      // set by fs id
+	      XrdMgmFstNode::FindStruct fsfinder(fsid,"");
+	      XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::FindNodeFileSystem,&fsfinder);
+ 	      if (fsfinder.found) {
+		XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(fsfinder.nodename.c_str());
+		XrdMgmFstFileSystem* filesystem = 0;
+		if (node) filesystem  = node->fileSystems.Find(fsfinder.fsname.c_str());
+		
+		if (node && filesystem) {
+		  filesystem->SetConfigStatus(configstatus);
+		  // success
+		  stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at filesystemj ";stdOut += fsname;
+		} else {
+		  // failed
+		  stdErr="error: cannot set config status on filesystem - no filesystem with name "; stdErr += fsidst;
+		  retc = ENOENT;
+		}
+	      }
+	    } 
+	  }
+	}
+      }
+
+
 
       if (subcmd == "boot") {
 	const char* nodename =  opaque.Get("mgm.nodename");
@@ -419,29 +503,79 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
       int envlen;
       XrdOucString body = opaque.Env(envlen);
       message.SetBody(body.c_str());
-      
-      if ((debugnode == "") || (debugnode == gOFS->MgmOfsQueue)) {
-	// this is for us!
-	int debugval = XrdCommonLogging::GetPriorityByString(debuglevel.c_str());
-	if (debugval<0) {
-	  stdErr="error: debug level "; stdErr += debuglevel; stdErr+= " is not known!";
-	  retc = EINVAL;
-	} else {
-	  XrdCommonLogging::SetLogPriority(debugval);
-	  stdOut="success: debug level is now <"; stdOut+=debuglevel.c_str();stdOut += ">";
-	  eos_notice("setting debug level to <%s>", debuglevel.c_str());
-	}
+      // filter out several *'s ...
+      int nstars=0;
+      int npos=0;
+      while ( (debugnode.find("*",npos)) != STR_NPOS) {npos++;nstars++;}
+      if (nstars>1) {
+	stdErr="error: debug level node can only contain one wildcard character (*) !";
+	retc = EINVAL;
       } else {
-	// send to the specified list
-	if (!XrdMgmMessaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
-	  stdErr="error: could not send debug level to nodes mgm.nodename="; stdErr += debugnode;
-	  retc = EINVAL;
+	if ((debugnode == "*") || (debugnode == "") || (debugnode == gOFS->MgmOfsQueue)) {
+	  // this is for us!
+	  int debugval = XrdCommonLogging::GetPriorityByString(debuglevel.c_str());
+	  if (debugval<0) {
+	    stdErr="error: debug level "; stdErr += debuglevel; stdErr+= " is not known!";
+	    retc = EINVAL;
+	  } else {
+	    XrdCommonLogging::SetLogPriority(debugval);
+	    stdOut="success: debug level is now <"; stdOut+=debuglevel.c_str();stdOut += ">";
+	    eos_notice("setting debug level to <%s>", debuglevel.c_str());
+	  }
+	}
+	if (debugnode == "*") {
+	  debugnode = "/eos/*/fst";
+	  if (!XrdMgmMessaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+	    stdErr="error: could not send debug level to nodes mgm.nodename="; stdErr += debugnode; stdErr += "\n";
+	    retc = EINVAL;
+	  } else {
+	    stdOut="success: switched to mgm.debuglevel="; stdOut += debuglevel; stdOut += " on nodes mgm.nodename="; stdOut += debugnode; stdOut += "\n";
+	    eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s", debuglevel.c_str(), debugnode.c_str());
+	  }
+	  debugnode = "/eos/*/mgm";
+	  if (!XrdMgmMessaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+	    stdErr+="error: could not send debug level to nodes mgm.nodename="; stdErr += debugnode;
+	    retc = EINVAL;
+	  } else {
+	    stdOut+="success: switched to mgm.debuglevel="; stdOut += debuglevel; stdOut += " on nodes mgm.nodename="; stdOut += debugnode;
+	    eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s", debuglevel.c_str(), debugnode.c_str());
+	  }
 	} else {
-	  stdOut="success: switched to mgm.debuglevel="; stdOut += debuglevel; stdOut += " on nodes mgm.nodename="; stdOut += debugnode;
-	  eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s", debuglevel.c_str(), debugnode.c_str());
+	  if (debugnode != "") {
+	    // send to the specified list
+	    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+	      stdErr="error: could not send debug level to nodes mgm.nodename="; stdErr += debugnode;
+	      retc = EINVAL;
+	    } else {
+	      stdOut="success: switched to mgm.debuglevel="; stdOut += debuglevel; stdOut += " on nodes mgm.nodename="; stdOut += debugnode;
+	      eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s", debuglevel.c_str(), debugnode.c_str());
+	    }
+	  }
 	}
       }
       //      stdOut+="\n==== debug done ====";
+    }
+
+    if (cmd == "restart") {
+      if (subcmd == "fst") {
+	XrdOucString debugnode =  opaque.Get("mgm.nodename");
+	if (( debugnode == "") || (debugnode == "*")) {
+	  XrdMqMessage message("mgm"); XrdOucString msgbody="";
+	  XrdCommonFileSystem::GetRestartRequestString(msgbody);
+	  message.SetBody(msgbody.c_str());
+
+	  // broadcast a global restart message
+	  if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
+	    stdOut="success: sent global service restart message to all fst nodes"; 
+	  } else {
+	    stdErr="error: could not send global fst restart message!";
+	    retc = EIO;
+	  } 
+	} else {
+	  stdErr="error: only global fst restart is supported yet!";
+	  retc = EINVAL;
+	} 
+      }
     }
 
     MakeResult();

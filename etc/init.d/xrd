@@ -28,6 +28,7 @@ XRD_ROLEFLAG=""
 FRETVAL=0
 RETVAL=0
 
+USER=`whoami`
 # Source sysconfig files
 if [ -f /etc/sysconfig/$sysconfigfile ]; then
         . /etc/sysconfig/$sysconfigfile
@@ -90,16 +91,27 @@ start() {
 			
 			cd ${XRD_COREDIR}
 
-                        ulimit -n ${XRD_MAXFD}
-		       	daemon --user ${XRD_USER} env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}
+			if [ ${XRD_USER} = "$USER" ]; then
+			    daemon env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}
+			else
+			    ulimit -n ${XRD_MAXFD}
+			    daemon --user ${XRD_USER} env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}
+			fi
 
 			# Write the pid to a file
 			RETVAL=$?
 			if [ $RETVAL -eq 0 ]; then
 			        pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 $prog.*$_XRD_OPTIONS\$" | awk '{print $1}'`
-				rm -f /var/run/$prog.$i.pid
+				if [ $USER = "root" ]; then
+				    echo $USER removing pid
+				    rm -f /var/run/$prog.$i.pid
+				fi
 				if [ -n "$pid" ]; then
                                         echo $pid > /var/run/$prog.$i.pid
+					if [ $USER = "root" ]; then
+					    chown ${XRD_USER} /var/run/$prog.$i.pid
+					fi
+					    
                                         RETVAL=0
 				else
                                         RETVAL=1
@@ -109,7 +121,10 @@ start() {
                         [ $RETVAL -eq 0 ] && success $"$base startup" || failure $"$base startup"
                         echo
                         if [ $RETVAL -eq 0 ]; then
+			    if [ $USER = "root" ]; then			    
                                 touch /var/lock/subsys/$prog.$i
+				chown ${XRD_USER} /var/lock/subsys/$prog.$i
+			    fi
                         else
                                 FRETVAL=$RETVAL
                         fi
@@ -124,16 +139,20 @@ stop() {
         cleanup
         echo -n $"Stopping $prog: $1 "
         if [ -n "$1" ]; then
-                killproc $prog.$1
+                killproc $prog.$1 2>/dev/null
         else
-                killproc $prog
+                killproc $prog 2>/dev/null
         fi
         RETVAL=$?
         echo
         if [ -n "$1" ]; then
+	    if [ $USER = "root" ]; then
                 [ -f /var/lock/subsys/$prog.$1 ] && rm -f /var/lock/subsys/$prog.$1
+	    fi
         else 
+	    if [ $USER = "root" ]; then
                 rm -f /var/lock/subsys/$prog.*
+	    fi
         fi
         return $RETVAL
 }

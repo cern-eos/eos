@@ -110,7 +110,6 @@ public:
   }
 
   void SetConfigValue(const char* prefix, const char* fsname, const char* def) {
-    Mutex.Lock();
     XrdOucString cl = "set config "; cl+= prefix; cl += ":"; cl += fsname; cl+= " => "; cl += def;
     changeLog.AddEntry(cl.c_str());
     XrdOucString configname = prefix; configname+=":";
@@ -118,7 +117,6 @@ public:
     configname += fsname;
     configDefinitions.Rep(configname.c_str(),sdef);
     eos_static_debug("%s => %s", fsname, def);
-    Mutex.UnLock();
   }
 
   void DeleteConfigValue(const char* prefix, const char* fsname) {

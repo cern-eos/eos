@@ -2,6 +2,7 @@
 #include "XrdMqOfs/XrdMqMessaging.hh"
 #include "XrdMgmOfs/XrdMgmFstNode.hh"
 #include "XrdMgmOfs/XrdMgmQuota.hh"
+#include "XrdMgmOfs/XrdMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucTokenizer.hh"
 /*----------------------------------------------------------------------------*/
@@ -20,9 +21,17 @@ XrdMgmFstNode::SetNodeStatus(int status)
   if (status == kOffline) {
     int fsstatus = XrdMgmFstFileSystem::kDown;
     // disable the filesystems here!
-    fileSystems.Apply(XrdMgmFstNode::SetStatusFileSystem, &fsstatus);    
+    fileSystems.Apply(XrdMgmFstNode::SetBootStatusFileSystem, &fsstatus);    
   }
   nodeStatus = status;
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+XrdMgmFstNode::SetNodeConfigStatus(int status) 
+{
+  fileSystems.Apply(XrdMgmFstNode::SetConfigStatusFileSystem, &status);    
   return true;
 }
 
@@ -61,7 +70,7 @@ XrdMgmFstNode::Update(XrdOucEnv &config)
   XrdOucString schedgroup   = config.Get("mgm.fsschedgroup");
   XrdOucString fsstatus     = config.Get("mgm.fsstatus");
   XrdOucString serrc        = config.Get("errc");
-
+  
   int envlen=0;
   eos_static_debug("%s", config.Env(envlen));
   int errc=0;
@@ -259,7 +268,6 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
     // create the quota space entry in the hash to be able to set quota on the empty space
     XrdMgmQuota::GetSpaceQuota(fs->GetSpaceName());
     XrdMgmQuota::UpdateHint(fs->GetId());
-
   } else {
     if (fs->GetId()>0) {
       // invalidate the old entry
@@ -281,10 +289,16 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
 
     if (bootstatus!= XrdCommonFileSystem::kDown) 
       fs->SetBootStatus(bootstatus);
+
   }
 
+  fs->SetConfigStatusEnv(env);
   fs->SetError(errc, errmsg);
   fs->SetStatfsEnv(env);
+
+  // change config
+  gOFS->ConfigEngine->SetConfigValue("fs", fs->GetQueuePath(), fs->GetBootString());
+
   return true;
 }
 
@@ -431,11 +445,30 @@ XrdMgmFstNode::BootFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, 
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmFstNode::SetStatusFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg)
+XrdMgmFstNode::SetBootStatusFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg)
 {
   int* status = (int*) Arg;
-  if (filesystem)
+
+  if (filesystem) {
     filesystem->SetBootStatus(*status);
+    // add to config
+    gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
+  }
+
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmFstNode::SetConfigStatusFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg)
+{
+  int* status = (int*) Arg;
+  if (filesystem) {
+    filesystem->SetConfigStatus(*status);
+    eos_static_info("%s %s", filesystem->GetQueue(), filesystem->GetConfigStatusString());
+      
+    gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
+  }
 
   return 0;
 }

@@ -13,8 +13,10 @@ class XrdMgmFstFileSystem : public XrdCommonFileSystem {
 private:
   char infoString[1024];
   unsigned int Id;
-  XrdOucString Path;
-  XrdOucString queueName;
+  XrdOucString Path;           // this is only the path
+  XrdOucString queueName;      // this does not contain the path
+  XrdOucString queueNamePath;  // this contains the path
+
   XrdOucString schedulingGroup;
   time_t bootSentTime;
   time_t bootDoneTime;
@@ -39,6 +41,7 @@ public:
   unsigned int GetId()    {return Id;}
   const char*  GetPath()  {return Path.c_str();}
   const char*  GetQueue() {return queueName.c_str();}
+  const char*  GetQueuePath() {queueNamePath = GetQueue(); queueNamePath += GetPath(); return queueNamePath.c_str();}
   int GetBootStatus()     {return bootStatus;}
   int GetConfigStatus()   {return configStatus;}
   time_t GetBootSentTime() { return bootSentTime;}
@@ -58,7 +61,7 @@ public:
 
 
   const char* GetBootStatusString()   {if (bootStatus==kBootFailure) return "failed"; if (bootStatus==kDown) return "down"; if (bootStatus==kBootSent) return "sent"; if (bootStatus==kBooting) return "booting"; if (bootStatus==kBooted) return "booted"; if (bootStatus==kOpsError) return "opserror";  return "";}
-  const char* GetConfigStatusString() {if (configStatus==kOff) return "off"; if (configStatus==kUnknown) return "?"; if (configStatus==kRO) return "ro"; if (configStatus==kRW) return "rw"; return "unknown";}
+  const char* GetConfigStatusString() {if (configStatus==kOff) return "off"; if (configStatus==kUnknown) return "?"; if (configStatus==kRO) return "ro"; if (configStatus==kDrain) return "drain"; if (configStatus==kRW) return "rw"; return "unknown";}
   static const char* GetInfoHeader() {static char infoHeader[1024];sprintf(infoHeader,"%-36s %-4s %-24s %-16s %-10s %-4s %-10s %-8s %-8s %-8s %-3s %s\n","QUEUE","FSID","PATH","SCHEDGROUP","BOOTSTAT","BT", "CONFIGSTAT","BLOCKS", "FREE", "FILES", "EC ", "EMSG"); return infoHeader;}
   const char* GetInfoString()         {XrdOucString sizestring,freestring,filesstring; sprintf(infoString,"%-36s %04u %-24s %-16s %-10s %04lu %-10s %-8s %-8s %-8s %03d %s\n",GetQueue(),GetId(),GetPath(),GetSchedulingGroup(),GetBootStatusString(),GetBootDoneTime()?(GetBootDoneTime()-GetBootSentTime()):(GetBootSentTime()?(time(0)-GetBootSentTime()):0) , GetConfigStatusString(), XrdCommonFileSystem::GetReadableSizeString(sizestring,statFs.f_blocks * 4096ll,"B"), XrdCommonFileSystem::GetReadableSizeString(freestring, statFs.f_bfree * 4096ll,"B"), XrdCommonFileSystem::GetReadableSizeString(filesstring, (statFs.f_files-statFs.f_ffree) *1ll),errc, errmsg.c_str());return infoString;}
 
@@ -87,6 +90,15 @@ public:
     if (( val = env->Get("statfs.ffree"))) {statFs.f_ffree = strtol(val,0,10);}
     if (( val = env->Get("statfs.namelen"))){statFs.f_namelen = strtol(val,0,10);}
   }
+
+  void SetConfigStatusEnv(XrdOucEnv* env) {
+    if (env) {
+      const char* val = env->Get("mgm.cfgstatus");
+      if (val) { SetConfigStatus( GetConfigStatusFromString(val));}
+    }
+  }
+
+  void SetConfigStatus(int status) { if ( (status >= kUnknown) && (status <= kRW)) configStatus = status; }
 
   struct statfs* GetStatfs() { return &statFs;}
 

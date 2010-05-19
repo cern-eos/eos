@@ -48,6 +48,7 @@ public:
   static bool Update(const char* infsname, int id, const char* schedgroup = "default", int bootstatus=XrdCommonFileSystem::kDown, XrdOucEnv* env=0, int errc=0, const char* errmsg=0);
 
   bool SetNodeStatus(int status); 
+  bool SetNodeConfigStatus(int status); 
 
   static XrdMgmFstNode* GetNode(const char* queue);
    
@@ -70,7 +71,7 @@ public:
   static XrdOucHash<XrdMgmFstNode> gFstNodes;  
   //  static google::dense_hash_map<long, unsigned long long> gFstIndex;
 
-
+  
   
   static XrdSysMutex  gMutex;  // mutex to protect node hash access
 
@@ -101,7 +102,8 @@ public:
 
   static int                    FindFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg);
   static int                    BootFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg);
-  static int                    SetStatusFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
+  static int                    SetBootStatusFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
+  static int                    SetConfigStatusFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
 };
 
 #endif

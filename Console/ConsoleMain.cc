@@ -44,6 +44,7 @@ int com_debug PARAMS((char*));
 int com_clear PARAMS((char*));
 int com_quota PARAMS((char*));
 int com_config PARAMS((char*));
+int com_restart PARAMS((char*));
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -60,6 +61,7 @@ COMMAND commands[] = {
   { (char*)"fs",    com_fs,   (char*)"File System configuration"},
   { (char*)"quota", com_quota,(char*)"Quota System configuration"},
   { (char*)"config",com_config,(char*)"Configuration System"},
+  { (char*)"restart",com_restart,(char*)"Restart System"},
   { (char*)"debug", com_debug,(char*)"Set debug level"},
   { (char*)"quit",  com_quit, (char*)"Exit from EOS console" },
   { (char*)"exit",  com_quit, (char*)"Exit from EOS console" },
@@ -320,6 +322,7 @@ com_fs (char* arg1) {
       return (0);
     }
   }
+
   if ( subcommand == "rm" ) {
     XrdOucString arg = subtokenizer.GetToken();
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=rm";
@@ -360,12 +363,49 @@ com_fs (char* arg1) {
     return (0);
   }
 
+  if ( subcommand == "config" ) {
+    XrdOucString arg = subtokenizer.GetToken();
+    if (!arg.length())
+      goto com_fs_usage;
+
+    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=config";
+    int fsid = atoi(arg.c_str());
+    char r1fsid[128]; sprintf(r1fsid,"%d", fsid);
+    char r2fsid[128]; sprintf(r2fsid,"%04d", fsid);
+    if ( (arg == r1fsid) || (arg == r2fsid) ) {
+      // config by fsid
+      in += "&mgm.fsid=";
+    } else {
+      if (arg.endswith("/fst"))
+	in += "&mgm.nodename=";
+      else 
+	in += "&mgm.fsname=";
+    }
+    
+    in += arg;
+
+    arg = subtokenizer.GetToken();
+    if (!arg.length())     
+      goto com_fs_usage;
+
+    in += "&mgm.fsconfig=";
+    in += arg;
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+    return (0);
+  }
+
   com_fs_usage:
 
   printf("usage: fs ls                                                 : list configured filesystems (or by name or id match\n");
   printf("       fs set   <fs-name> <fs-id> [-sched <group> ] [-force] : configure filesystem with name and id\n");
   printf("       fs rm    <fs-name>|<fs-id>                            : remove filesystem configuration by name or id\n");
   printf("       fs boot  <fs-id>|<node-queue>                         : boot filesystem/node ['fs boot *' to boot all]  \n");
+  printf("       fs config <fs-id>|<node-queue> <status>               : set filesystem configuration status\n");
+  printf("                    <status> can be := rw                    : filesystem is in read write mode\n");
+  printf("                                    := ro                    : filesystem is in read-only mode\n");
+  printf("                                    := drain                 : filesystem is in drain mode\n");
+  printf("                                    := off                   : filesystem is disabled\n"); 
   return (0);
 }
 
@@ -670,7 +710,7 @@ com_config (char* arg1) {
   return (0);
 }
 
-/* Filesystem listing, configuration, manipulation */
+/* Debug Level Setting */
 int
 com_debug (char* arg1) {
   // split subcommands
@@ -691,7 +731,35 @@ com_debug (char* arg1) {
 
   printf("       debug  <level>                          : set the mgm where this console is connected to into debug level <level>\n");
   printf("       debug  <node-queue> <level>             : set the <node-queue> into debug level <level>\n");
+  printf("               Examples: > debug info *\n");
+  printf("                         > debug info /eos/*/fst\n");
+  printf("                         > debug info /eos/*/mgm\n");
+	 
+  return (0);
+}
+
+/* Restart System */
+int
+com_restart (char* arg1) {
+  // split subcommands
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString nodes = subtokenizer.GetToken();
+  XrdOucString selection = subtokenizer.GetToken();
+
+  XrdOucString in = "mgm.cmd=restart&mgm.subcmd="; 
+  if (nodes.length()) {
+    in += nodes;
+    if (selection.length()) {
+      in += "&mgm.nodename=";
+      in += selection;
+    }
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
   
+  printf("       restart fst [*]                         : restart all services on fst nodes !\n");
   return (0);
 }
 

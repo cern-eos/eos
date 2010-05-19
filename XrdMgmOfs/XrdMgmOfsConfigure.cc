@@ -197,7 +197,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	  Eroute.Say("=====> mgmofs.symkey : ", val);
 	}
       }
-      
       if (!strcmp("configdir",var)) {
 	if (!(val = Config.GetWord())) {
 	  Eroute.Emsg("Config","argument for configdir invalid.");NoGo=1;

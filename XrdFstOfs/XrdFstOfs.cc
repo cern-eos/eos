@@ -523,6 +523,11 @@ XrdFstMessaging::Process(XrdMqMessage* newmessage)
   if (cmd == "debug") {
     gOFS.SetDebug(action);
   }
+
+  if (cmd == "restart") {
+    eos_notice("restarting service");
+    system("unset XRDPROG XRDCONFIGFN XRDINSTANCE XRDEXPORTS XRDHOST XRDOFSLIB XRDPORT XRDADMINPATH XRDOFSEVENTS XRDNAME XRDREDIRECT; /etc/init.d/xrd restart fst >& /dev/null");
+  }
 }
 
 
