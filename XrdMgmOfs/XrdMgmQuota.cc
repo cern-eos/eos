@@ -1,6 +1,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdMgmOfs/XrdMgmQuota.hh"
 #include "XrdMgmOfs/XrdMgmFstNode.hh"
+#include "XrdMgmOfs/XrdMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 XrdOucHash<XrdMgmSpaceQuota> XrdMgmQuota::gQuota;
@@ -439,12 +440,19 @@ XrdMgmQuota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long 
 
   XrdMgmSpaceQuota* spacequota = 0;
 
+  XrdOucString configstring="";
+  char configvalue[1024];
+
   if (!space.length()) {
     spacequota = GetSpaceQuota("default", true);
+    configstring += "default";
   } else {
     spacequota = GetSpaceQuota(space.c_str(), true);
+    configstring += space.c_str();
   }
-
+  
+  configstring += ":";
+  
   retc =  EINVAL;
 	
   if (spacequota) {
@@ -454,6 +462,9 @@ XrdMgmQuota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long 
     if ( (uid_sel >=0) && (bytes>=0) ) {
       spacequota->SetQuota(XrdMgmSpaceQuota::kUserBytesTarget, uid_sel, bytes);
       sprintf(printline, "success: updated quota for uid=%ld to %s\n", uid_sel,XrdCommonFileSystem::GetReadableSizeString(sizestring, bytes,"B"));
+      configstring += "uid="; configstring += (int) uid_sel; configstring += ":";
+      configstring += XrdMgmSpaceQuota::GetTagAsString(XrdMgmSpaceQuota::kUserBytesTarget);
+      sprintf(configvalue,"%llu",bytes);
       msg+= printline;
       retc = 0;
     } 
@@ -461,6 +472,9 @@ XrdMgmQuota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long 
     if ( (uid_sel >=0) && (files>=0) ) {
       spacequota->SetQuota(XrdMgmSpaceQuota::kUserFilesTarget, uid_sel, files);
       sprintf(printline, "success: updated quota for uid=%ld to %s files\n", uid_sel,XrdCommonFileSystem::GetReadableSizeString(sizestring, files,""));
+      configstring += "uid="; configstring += (int) uid_sel; configstring += ":";
+      configstring += XrdMgmSpaceQuota::GetTagAsString(XrdMgmSpaceQuota::kUserFilesTarget);
+      sprintf(configvalue,"%llu",files);
       msg+= printline;
       retc = 0;
     }
@@ -468,18 +482,26 @@ XrdMgmQuota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long 
     if ( (gid_sel >=0) && (bytes>=0) ) {
       spacequota->SetQuota(XrdMgmSpaceQuota::kGroupBytesTarget, gid_sel, bytes);
       sprintf(printline, "success: updated quota for gid=%ld to %s\n", gid_sel,XrdCommonFileSystem::GetReadableSizeString(sizestring, bytes,"B"));
+      configstring += "gid="; configstring += (int) gid_sel; configstring += ":";
+      configstring += XrdMgmSpaceQuota::GetTagAsString(XrdMgmSpaceQuota::kGroupBytesTarget);
+      sprintf(configvalue,"%llu",bytes);
       msg+= printline;
       retc = 0;
     }
 
     if ( (gid_sel >=0) && (files>=0) ) {
       spacequota->SetQuota(XrdMgmSpaceQuota::kGroupFilesTarget, gid_sel, files);
-      sprintf(printline, "success: updated quota for gid=%ld to %s files\n", uid_sel,XrdCommonFileSystem::GetReadableSizeString(sizestring, files,""));
+      sprintf(printline, "success: updated quota for gid=%ld to %s files\n", gid_sel,XrdCommonFileSystem::GetReadableSizeString(sizestring, files,""));
+      configstring += "gid="; configstring += (int) gid_sel; configstring += ":";
+      configstring += XrdMgmSpaceQuota::GetTagAsString(XrdMgmSpaceQuota::kGroupFilesTarget);
+      sprintf(configvalue,"%llu",files);
       msg+= printline;
       retc = 0;
     }
 
     spacequota->UpdateTargetSums();
+    // store the setting into the config table
+    gOFS->ConfigEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
     return true;
   } else {
     msg = "error: no space defined with name ";msg += space;

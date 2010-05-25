@@ -37,6 +37,30 @@ public:
   enum eQuotaTag {kUserBytesIs=1, kUserBytesTarget=2, kUserFilesIs=3, kUserFilesTarget=4, kGroupBytesIs=5, kGroupBytesTarget=6, kGroupFilesIs=7, kGroupFilesTarget=8, kAllUserBytesIs=9, kAllUserBytesTarget=10, kAllGroupBytesIs=11, kAllGroupBytesTarget=12, kAllUserFilesIs=13, kAllUserFilesTarget=14, kAllGroupFilesIs=15, kAllGroupFilesTarget=16};
 
 
+  static const char* GetTagAsString(int tag) {
+    if (tag == kUserBytesTarget) { return "userbytes";} 
+    if (tag == kUserFilesTarget) { return "userfiles";}
+    if (tag == kGroupBytesTarget){ return "groupbytes";}
+    if (tag == kGroupFilesTarget){ return "groupfiles";}
+    if (tag == kAllUserBytesTarget) { return "alluserbytes";}
+    if (tag == kAllUserFilesTarget) { return "alluserfiles";}
+    if (tag == kAllGroupBytesTarget){ return "allgroupbytes";}
+    if (tag == kAllGroupFilesTarget){ return "allgroupfiles";}    
+    return 0;
+  }    
+
+  static unsigned long GetTagFromString(XrdOucString &tag) {
+    if (tag == "userbytes"    ) return kUserBytesTarget;
+    if (tag == "userfiles"    ) return kUserFilesTarget;
+    if (tag == "groupbytes"   ) return kGroupBytesTarget;
+    if (tag == "groupfiles"   ) return kGroupFilesTarget;
+    if (tag == "alluserbytes" ) return kAllUserBytesTarget;
+    if (tag == "alluserfiles" ) return kAllUserFilesTarget;
+    if (tag == "allgroupbytes") return kAllGroupBytesTarget;
+    if (tag == "allgroupfiles") return kAllGroupFilesTarget;
+    return 0;
+  }    
+
   const char* GetTagCategory(int tag) {
 
     if ( ( tag == kUserBytesIs) || ( tag == kUserBytesTarget) ||

@@ -7,6 +7,7 @@
 #include <XrdOuc/XrdOucHash.hh>
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdOuc/XrdOucStream.hh>
+#include <XrdOuc/XrdOucTokenizer.hh>
 #include <XrdSys/XrdSysError.hh>
 #include <XrdSys/XrdSysPthread.hh>
 #include <XrdSys/XrdSysLogger.hh>
@@ -86,7 +87,9 @@ public:
 
   static const char*   Seal(XrdOucString &s) {  while (s.replace("&","#and#")) {}; return s.c_str();}
   static const char* UnSeal(XrdOucString &s) {  while (s.replace("#and#","&")) {}; return s.c_str();}
- 
+  static void Sort(XrdOucString &s, bool dosort=true);
+
+
   static bool Base64Encode(char* in, unsigned int inlen, XrdOucString &fout);
   static bool Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen);
 

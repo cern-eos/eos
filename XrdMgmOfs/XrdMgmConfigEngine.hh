@@ -32,6 +32,8 @@ private:
   XrdSysMutex Mutex;
   int fd;
 public:
+  XrdOucString configChanges;
+
   XrdMgmConfigEngineChangeLog();
   ~XrdMgmConfigEngineChangeLog();
 
@@ -47,8 +49,8 @@ class XrdMgmConfigEngine : public XrdCommonLogId {
 private:
   XrdOucString configDir;
   XrdSysMutex Mutex;
-  XrdOucString currentConfig;
-  
+  XrdOucString currentConfigFile;
+
   XrdMgmConfigEngineChangeLog changeLog;
 
   XrdOucHash<XrdOucString> configDefinitions;
@@ -69,7 +71,8 @@ public:
 
   XrdMgmConfigEngine(const char* configdir) {
     configDir = configdir;
-    currentConfig = "default.eoscf";
+    changeLog.configChanges = "";
+    currentConfigFile = "default.eoscf";
     XrdOucString changeLogFile = configDir;
     changeLogFile += "/config.changelog";
     changeLog.Init(changeLogFile.c_str());
@@ -79,6 +82,7 @@ public:
 
   bool LoadConfig(XrdOucEnv& env, XrdOucString &err);
   bool SaveConfig(XrdOucEnv& env, XrdOucString &err);
+  void Diffs(XrdOucString &diffs) { diffs = changeLog.configChanges;   while(diffs.replace("&"," ")) {}};
 
   // for sorted listings
   static int CompareCtime(const void* a, const void*b) {
@@ -120,13 +124,15 @@ public:
   }
 
   void DeleteConfigValue(const char* prefix, const char* fsname) {
-    Mutex.Lock();
+    Mutex.Lock();  
+
     XrdOucString configname = prefix; configname+=":"; configname += fsname;
-    configDefinitions.Del(fsname);
+    configDefinitions.Del(fsname);  XrdOucString currentConfig;
+
     eos_static_debug("%s", fsname);
     Mutex.UnLock();
   }
-
+  
   void DeleteConfigValueByMatch(const char* prefix, const char* match) {
     Mutex.Lock();
     XrdOucString smatch = prefix; smatch += ":"; smatch += match;

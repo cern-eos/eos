@@ -55,6 +55,8 @@ XrdMgmConfigEngineChangeLog::AddEntry(const char* info)
   }
 
   Mutex.UnLock();
+  configChanges += info; configChanges+="\n";
+
   return true;
 }
 
@@ -147,6 +149,8 @@ XrdMgmConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err)
     } else {
       cl += " successfully";
       changeLog.AddEntry(cl.c_str());
+      currentConfigFile = name;
+      changeLog.configChanges = "";
       return true;
     }
 
@@ -154,7 +158,7 @@ XrdMgmConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err)
     err = "error: failed to open configuration file with name \""; err += name; err += "\"!";
     return false;
   }
-  return true;
+  return false;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -226,6 +230,8 @@ XrdMgmConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
  
   cl += " successfully";
   changeLog.AddEntry(cl.c_str());  
+  changeLog.configChanges ="";
+  currentConfigFile = name;
   return true;
 }
 
@@ -298,8 +304,24 @@ XrdMgmConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
     for (int j=0; j< i; j++) {
       char outline[1024];
       time_t modified = allstat[j].buf.st_mtime;
+      
+      XrdOucString fn = allstat[j].filename;
+      fn.replace(XRDMGMCONFIGENGINE_EOS_SUFFIX,"");
+      
+      if (fn == currentConfigFile) {
+	if (changeLog.configChanges.length()) {
+	  fn = "!";
+	} else {
+	  fn = "*";
+	}
+      } else {
+	fn = " ";
+      } 
 
-      sprintf(outline,"created: %s name: %s", ctime(&modified), allstat[j].filename);
+      fn += allstat[j].filename;
+      fn.replace(XRDMGMCONFIGENGINE_EOS_SUFFIX,"");
+
+      sprintf(outline,"created: %s name: %s", ctime(&modified), fn.c_str());
       XrdOucString removelinefeed = outline;
       while(removelinefeed.replace('\n',"")) {}
       // remove  suffix
@@ -331,7 +353,8 @@ XrdMgmConfigEngine::ResetConfig()
 
   XrdOucString cl = "reset  config ";
   changeLog.AddEntry(cl.c_str());
-
+  changeLog.configChanges = "";
+  currentConfigFile = "";
   XrdMgmFstNode::gMutex.Lock();
   XrdMgmFstNode::gFileSystemById.clear();
   XrdMgmFstNode::gFstNodes.Purge();
@@ -428,7 +451,6 @@ int
 XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
 {
   XrdOucString* err = (XrdOucString*) Arg;
-  *err = "";
 
   XrdOucString toenv = def->c_str();
   while(toenv.replace(" ", "&")) {}
@@ -453,6 +475,42 @@ XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Ar
   if (skey.beginswith("quota:")) {
     // set a quota definition
     skey.erase(0,6);
+    int spaceoffset=0;
+    int ugoffset=0;
+    int ugequaloffset=0;
+    int tagoffset=0;
+    ugoffset     = skey.find(':', spaceoffset+1);
+    ugequaloffset= skey.find('=', ugoffset+1);
+    tagoffset    = skey.find(':', ugequaloffset+1);
+
+    if ( (ugoffset      == STR_NPOS) ||
+	 (ugequaloffset == STR_NPOS) ||
+	 (tagoffset     == STR_NPOS) ) {
+      eos_static_err("cannot parse config line key: |%s|",skey.c_str());
+      *err += "error: cannot parse config line key: "; *err += skey.c_str();
+    }
+
+    XrdOucString space="";
+    XrdOucString ug="";
+    XrdOucString ugid="";
+    XrdOucString tag="";
+    space.assign(skey,0,ugoffset-1);
+    ug.assign(skey,ugoffset+1, ugequaloffset-1);
+    ugid.assign(skey,ugequaloffset+1, tagoffset-1);
+    tag.assign(skey,tagoffset+1);
+    XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(space.c_str());
+
+    unsigned long long value = strtoll(def->c_str(),0,10);
+    long id = strtol(ugid.c_str(),0,10);
+
+    if (spacequota) {
+      if (id>0) {
+	spacequota->SetQuota(XrdMgmSpaceQuota::GetTagFromString(tag), id, value, false);
+      } else {
+	*err += "error: illegal id found: "; *err += ugid;
+	eos_static_err("config id is negative");
+      }
+    }
   }
 
   if (skey.beginswith("policy:")) {

@@ -27,7 +27,7 @@ private:
 
   size_t len;
   off_t  offset;
-  void MakeResult();
+  void MakeResult(bool dosort=false);
 
   bool adminCmd;
   bool userCmd; 

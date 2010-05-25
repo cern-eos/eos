@@ -89,7 +89,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
   uid = inuid;
   gid = ingid;
   path = inpath;
-
+  bool dosort = false;
   if ( path.beginswith ("/proc/admin")) {
     adminCmd = true;
   } 
@@ -161,11 +161,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	  retc = errno;
 	} else {
 	  stdOut += dump;
+	  dosort = true;
 	}
       }
 
       if (subcmd == "diff") {
 	eos_notice("config diff");
+	gOFS->ConfigEngine->Diffs(stdOut);
       }
 
       if (subcmd == "changelog") {
@@ -180,7 +182,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
       }
 
       //      stdOut+="\n==== config done ====";
-      MakeResult();
+      MakeResult(dosort);
       return SFS_OK;
     }
 
@@ -578,7 +580,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
       }
     }
 
-    MakeResult();
+    MakeResult(dosort);
     XrdMgmFstNode::gMutex.UnLock();
     return SFS_OK;
   }
@@ -619,9 +621,10 @@ XrdMgmProcCommand::close()
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmProcCommand::MakeResult() 
+XrdMgmProcCommand::MakeResult(bool dosort) 
 {
   resultStream =  "mgm.proc.stdout=";
+  XrdMqMessage::Sort(stdOut,dosort);
   resultStream += XrdMqMessage::Seal(stdOut);
   resultStream += "&mgm.proc.stderr=";
   resultStream += XrdMqMessage::Seal(stdErr);

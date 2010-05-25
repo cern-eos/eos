@@ -20,6 +20,9 @@ const char *XrdMqMessageCVSID = "$Id: XrdMqMessage.cc,v 1.0.0 2007/10/04 01:34:1
 #include <dirent.h>
 #include <libgen.h>
 #include <stdint.h>
+#include <iostream>
+#include <algorithm>
+#include <vector>
 
 void PRINTBUFFER(const char* x, unsigned int y) {
   printf("----------------------------\n");
@@ -1070,3 +1073,26 @@ XrdAdvisoryMqMessage::Create(const char* messagebuffer) {
     return msg;
   }
 } 
+
+/*----------------------------------------------------------------------------*/
+/* A Text Sort Function                                                       */
+/*----------------------------------------------------------------------------*/
+
+void
+XrdMqMessage::Sort(XrdOucString &s, bool dosort) 
+{
+  if (!dosort) return;
+  XrdOucString sorts="";
+  std::vector<std::string> vec;
+  XrdOucTokenizer linizer((char*)s.c_str());
+  char* val=0;
+  while ( (val = linizer.GetLine()) ) {
+    vec.push_back(val);
+  }
+  std::sort(vec.begin(), vec.end());
+  for (unsigned int i = 0; i < vec.size(); ++i) {
+    sorts+=vec[i].c_str();
+    sorts+="\n";
+  }
+  s = sorts;
+}
