@@ -72,22 +72,39 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
   message += "?";
   message += msg.GetMessageBuffer();
 
+  XrdClientAdmin* admin=0;
   //  msg.Print();
   for (int i=0 ;i< kBrokerN; i++) {
-    XrdClientAdmin* admin = GetBrokerXrdClientSender(i);
+    admin = GetBrokerXrdClientSender(i);
     if (admin) {
       char result[8192]; result[0]=0;
       int  result_size=8192;
       admin->Connect();
-      if (admin->Query(kXR_Qopaquf,
-		       (kXR_char *) message.c_str(),
-		       (kXR_char *) result, result_size)) {
+      admin->Query(kXR_Qopaquf,
+		   (kXR_char *) message.c_str(),
+		   (kXR_char *) result, result_size);
+      if (!admin->LastServerResp()) 
+	return false;
+      
+      switch (admin->LastServerResp()->status) {
+      case kXR_ok:
+      return true;
+      
+      case kXR_error:
+	break;
+	
+      default:
 	return true;
       }
     }
     // we continue until any of the brokers accepts the message
   }
   //  XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "send message to all brokers");  
+  if (admin) {
+    XrdMqMessage::Eroute.Emsg("SendMessage", admin->LastServerError()->errnum, admin->LastServerError()->errmsg);
+  } else {
+    XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "no broker available");
+  }
   return false;
 }
 

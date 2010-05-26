@@ -48,6 +48,7 @@ XrdMgmSpaceQuota::AddQuota(unsigned long tag, unsigned long id, unsigned long lo
   if (lock) Mutex.Lock();
   eos_static_debug("add quota tag=%lu id=%lu value=%llu", tag, id , value);
   Quota[Index(tag,id)] += value;
+  eos_static_debug("sum quota tag=%lu id=%lu value=%llu", tag, id, Quota[Index(tag,id)]);
   if (lock) Mutex.UnLock();
 }
 
@@ -353,7 +354,8 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
 
       google::dense_hash_map<unsigned int, unsigned long long>::const_iterator it;
       
-      bool firstinnerfs=true;
+      bool firstinnerfs;
+      firstinnerfs=true;
 
       spacequota->ResetPhysicalFreeBytes();
       spacequota->ResetPhysicalMaxBytes();
@@ -362,7 +364,7 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
 
       for(it = XrdMgmFstNode::gFileSystemById.begin(); it != XrdMgmFstNode::gFileSystemById.end(); it++) {
 
-	eos_static_debug("looping over all nodes fsid %lu",(it->first));
+	eos_static_debug("looping over all nodes fsid %lu %llu",(it->first), (it->second));
 	// loop over all filesystems
 	google::dense_hash_map<long, unsigned long long>::const_iterator idit;
 	XrdMgmFstFileSystem* innerfilesystem = (XrdMgmFstFileSystem*)(it->second);
@@ -383,7 +385,7 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
 	  continue;
 
 	// user/group occupation
-	for (idit = filesystem->UserBytes.begin(); idit != filesystem->UserBytes.end(); idit++) {
+	for (idit = innerfilesystem->UserBytes.begin(); idit != innerfilesystem->UserBytes.end(); idit++) {
 	  eos_static_debug("looping over all user bytes uid %lu",(idit->first));
 	  // loop over user byte values
 	  if (firstinnerfs) {
@@ -393,7 +395,7 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
 	  spacequota->AddQuota(XrdMgmSpaceQuota::kUserBytesIs, idit->first, idit->second);
 	  spacequota->AddQuota(XrdMgmSpaceQuota::kAllUserBytesIs, 0, idit->second);
 	}
-	for (idit = filesystem->UserFiles.begin(); idit != filesystem->UserFiles.end(); idit++) {
+	for (idit = innerfilesystem->UserFiles.begin(); idit != innerfilesystem->UserFiles.end(); idit++) {
 	  eos_static_debug("looping over all user files uid %lu",(idit->first));
 	  // loop over user file values
 	  if (firstinnerfs) {
@@ -403,7 +405,7 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
 	  spacequota->AddQuota(XrdMgmSpaceQuota::kUserFilesIs, idit->first, idit->second);
 	  spacequota->AddQuota(XrdMgmSpaceQuota::kAllUserFilesIs, 0, idit->second);
 	}
-	for (idit = filesystem->GroupBytes.begin(); idit != filesystem->GroupBytes.end(); idit++) {
+	for (idit = innerfilesystem->GroupBytes.begin(); idit != innerfilesystem->GroupBytes.end(); idit++) {
 	  eos_static_debug("looping over all group bytes gid %lu",(idit->first));
 	  // loop over group byte values
 	  if (firstinnerfs) {
@@ -413,7 +415,7 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
 	  spacequota->AddQuota(XrdMgmSpaceQuota::kGroupBytesIs, idit->first, idit->second);
 	  spacequota->AddQuota(XrdMgmSpaceQuota::kAllGroupBytesIs, 0, idit->second);
 	}
-	for (idit = filesystem->GroupFiles.begin(); idit != filesystem->GroupFiles.end(); idit++) {
+	for (idit = innerfilesystem->GroupFiles.begin(); idit != innerfilesystem->GroupFiles.end(); idit++) {
 	  eos_static_debug("looping over all group files gid %lu",(idit->first));
 	  // loop over group files values
 	  if (firstinnerfs) {

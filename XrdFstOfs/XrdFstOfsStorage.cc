@@ -273,7 +273,6 @@ XrdFstOfsStorage::Quota()
     // check statfs for each filesystem - if there was a significant change, broadcast
     // the statfs information and quota table
     bool changedalot = false;
-
     fsMutex.Lock();
     // update the filesystem statfs
     fileSystems.Apply(HasStatfsChangedalot, &changedalot);
@@ -287,7 +286,7 @@ XrdFstOfsStorage::Quota()
     XrdOucString quotareport="";
 
     XrdCommonFileSystem::CreateQuotaReportString("fst.quota.userbytes", quotareport);
-
+    
     for(it = gFmdHandler.UserBytes.begin(); it != gFmdHandler.UserBytes.end(); it++) {
       XrdCommonFileSystem::AddQuotaReportString((unsigned long) it->first, it->second, quotareport);
       eos_debug("USER  BYTES : uid %lld volume=%llu", it->first, it->second);

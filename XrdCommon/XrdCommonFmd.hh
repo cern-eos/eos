@@ -138,19 +138,19 @@ public:
   // hash map pointing from fid to offset in changelog file
   google::dense_hash_map<unsigned long long, unsigned long long> Fmd;
   // hash map with fid file sizes
-  google::dense_hash_map<unsigned long long, unsigned long long> FmdSize;
+  google::dense_hash_map<long long, unsigned long long> FmdSize;
 
   // that is all we need for quota
-  google::dense_hash_map<long long, unsigned long long> UserBytes; // the key is encoded as (fid<<32) | uid 
-  google::dense_hash_map<long long, unsigned long long> GroupBytes;// the key is encoded as (fid<<32) | gid
-  google::dense_hash_map<long long, unsigned long long> UserFiles; // the key is encoded as (fid<<32) | uid
-  google::dense_hash_map<long long, unsigned long long> GroupFiles;// the key is encoded as (fid<<32) | gid
+  google::dense_hash_map<long long, unsigned long long> UserBytes; // the key is encoded as (fsid<<32) | uid 
+  google::dense_hash_map<long long, unsigned long long> GroupBytes;// the key is encoded as (fsid<<32) | gid
+  google::dense_hash_map<long long, unsigned long long> UserFiles; // the key is encoded as (fsid<<32) | uid
+  google::dense_hash_map<long long, unsigned long long> GroupFiles;// the key is encoded as (fsid<<32) | gid
 
 
   XrdCommonFmdHandler() {
     SetLogId("CommonFmdHandler"); isOpen=false;
     Fmd.set_empty_key(0);
-    FmdSize.set_empty_key(0);
+    FmdSize.set_empty_key(-1);
 
     UserBytes.set_empty_key(-1);
     GroupBytes.set_empty_key(-1);

@@ -243,6 +243,12 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
     return false;
   }
   struct stat stbuf;
+  
+  // create first empty root entries
+  UserBytes [(((unsigned long long)fsid)<<32) | 0] = 0;
+  GroupBytes[(((unsigned long long)fsid)<<32) | 0] = 0;
+  UserFiles [(((unsigned long long)fsid)<<32) | 0] = 0;
+  GroupFiles[(((unsigned long long)fsid)<<32) | 0] = 0;
 
   if (::fstat(fdChangeLogRead[fsid], &stbuf)) {
     eos_crit("unable to stat file size of changelog file - errc%d", errno);
@@ -283,7 +289,7 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
     nchecked++;
     eos_debug("checking SEQ# %d # %d", sequencenumber, nchecked);
     pMd = (struct XrdCommonFmd::FMD*) changelogstart;
-    eos_debug("%llx %llx %ld %llx %lu %llu %x", pMd, &(pMd->fid), sizeof(*pMd), pMd->magic, pMd->sequenceheader, pMd->fid,pMd->crc32);
+    eos_debug("%llx %llx %ld %llx %lu %llu %lu %x", pMd, &(pMd->fid), sizeof(*pMd), pMd->magic, pMd->sequenceheader, pMd->fid, pMd->fsid, pMd->crc32);
     if (!(retc = XrdCommonFmd::IsValid(pMd, sequencenumber))) {
       // good meta data block
     } else {
@@ -311,30 +317,37 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
     Fmd.insert(make_pair(pMd->fid, (unsigned long long) (changelogstart-changelogmap)));
     // do quota hashs
     if (XrdCommonFmd::IsCreate(pMd)) {
-      unsigned long long exsize = FmdSize[pMd->fid];
-      if (exsize) {
+      long long exsize = -1;
+      if (FmdSize.count(pMd->fid)>0) {
+	// exists
+	exsize = FmdSize[pMd->fid];
+      }
+
+      //      eos_debug("fid %lu psize %lld", pMd->fid, FmdSize[pMd->fid]);
+      if (exsize>=0) {
 	// substract old size
-	UserBytes [(pMd->fid<<32) | pMd->uid]  -= exsize;
-	GroupBytes[(pMd->fid<<32) | pMd->gid] -= exsize;
-	UserFiles [(pMd->fid<<32) | pMd->uid]--;
-	GroupFiles[(pMd->fid<<32) | pMd->gid]--;
+	UserBytes [(((unsigned long long)pMd->fsid)<<32) | pMd->uid]  -= exsize;
+	GroupBytes[(((unsigned long long)pMd->fsid)<<32) | pMd->gid]  -= exsize;
+	UserFiles [(((unsigned long long)pMd->fsid)<<32) | pMd->uid]--;
+	GroupFiles[(((unsigned long long)pMd->fsid)<<32) | pMd->gid]--;
       }
       // store new size
       FmdSize[pMd->fid] = pMd->size;
 
       // add new size
-      UserBytes [(pMd->fid<<32) | pMd->uid]  += pMd->size;
-      GroupBytes[(pMd->fid<<32) | pMd->gid] += pMd->size;
-      UserFiles [(pMd->fid<<32) | pMd->uid]++;
-      GroupFiles[(pMd->fid<<32) | pMd->gid]++;
+      UserBytes [(pMd->fsid<<32) | pMd->uid]  += pMd->size;
+      GroupBytes[(pMd->fsid<<32) | pMd->gid] += pMd->size;
+      UserFiles [(pMd->fsid<<32) | pMd->uid]++;
+      GroupFiles[(pMd->fsid<<32) | pMd->gid]++;
     }
     if (XrdCommonFmd::IsDelete(pMd)) {
       FmdSize[pMd->fid] = 0;
-      UserBytes [(pMd->fid<<32) | pMd->uid]  -= pMd->size;
-      GroupBytes[(pMd->fid<<32) | pMd->gid] -= pMd->size;
-      UserFiles [(pMd->fid<<32) | pMd->uid]--;
-      GroupFiles[(pMd->fid<<32) | pMd->gid]--;
+      UserBytes [(pMd->fsid<<32) | pMd->uid]  -= pMd->size;
+      GroupBytes[(pMd->fsid<<32) | pMd->gid] -= pMd->size;
+      UserFiles [(pMd->fsid<<32) | pMd->uid]--;
+      GroupFiles[(pMd->fsid<<32) | pMd->gid]--;
     }
+    eos_debug("userbytes %llu groupbytes %llu userfiles %llu groupfiles %llu",  UserBytes [(pMd->fsid<<32) | pMd->uid], GroupBytes[(pMd->fsid<<32) | pMd->gid], UserFiles [(pMd->fsid<<32) | pMd->uid],GroupFiles[(pMd->fsid<<32) | pMd->gid]);
     pMd++;
     changelogstart += sizeof(struct XrdCommonFmd::FMD);
   }
@@ -407,8 +420,8 @@ XrdCommonFmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid
 	FmdSize[fid] = 0;
 
 	// add new file counter
-	UserFiles [(fid<<32) | fmd->fMd.uid] ++;
-	GroupFiles[(fid<<32) | fmd->fMd.gid] ++;
+	UserFiles [(((unsigned long long) fsid)<<32) | fmd->fMd.uid] ++;
+	GroupFiles[(((unsigned long long) fsid)<<32) | fmd->fMd.gid] ++;
   
 	
 	eos_debug("returning meta data block for fid %d on fs %d", fid, fsid);
@@ -488,8 +501,8 @@ XrdCommonFmdHandler::Commit(XrdCommonFmd* fmd)
 
   // adjust the quota accounting of the update
   eos_debug("booking %d new bytes on quota %d/%d", (fmd->fMd.size-oldsize), fmd->fMd.uid, fmd->fMd.gid);
-  UserBytes [(fmd->fMd.fid<<32) | fmd->fMd.uid] += (fmd->fMd.size-oldsize);
-  GroupBytes[(fmd->fMd.fid<<32) | fmd->fMd.gid] += (fmd->fMd.size-oldsize);
+  UserBytes [(fmd->fMd.fsid<<32) | fmd->fMd.uid] += (fmd->fMd.size-oldsize);
+  GroupBytes[(fmd->fMd.fsid<<32) | fmd->fMd.gid] += (fmd->fMd.size-oldsize);
 
   Mutex.UnLock();
   return true;
