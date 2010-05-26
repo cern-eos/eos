@@ -20,7 +20,6 @@ class XrdFstOfs;
 // the global OFS handle
 XrdFstOfs gOFS;
 // the client admin table
-XrdOucHash<XrdFstOfsClientAdmin> *XrdFstOfs::gClientAdminTable;
 // the capability engine
 
 extern XrdSysError OfsEroute;
@@ -298,6 +297,10 @@ XrdFstOfsFile::open(const char                *path,
     return gOFS.Emsg(epname,error, EINVAL,"open - no layout id in capability",path);
   }
 
+  if (!(slid=capOpaque->Get("mgm.manager"))) {
+    return gOFS.Emsg(epname,error, EINVAL,"open - no manager name in capability",path);
+  }
+
   XrdCommonFileId::FidPrefix2FullPath(hexfid, localprefix,fstPath);
 
   fileid = XrdCommonFileId::Hex2Fid(hexfid);
@@ -378,7 +381,8 @@ XrdFstOfsFile::close()
    eos_info("");
    
    rc = XrdOfsFile::close();
-   if (fMd) {
+
+   if (fMd && haswrite) {
      // commit meta data
      struct stat statinfo;
      if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
@@ -388,8 +392,55 @@ XrdFstOfsFile::close()
        fMd->fMd.size = statinfo.st_size;
      }
      
+     // commit local
      if (!gFmdHandler.Commit(fMd))
        rc = gOFS.Emsg(epname,error,EIO,"close - unable to commit meta data",Path.c_str());
+
+     // commit to central mgm cache
+     int envlen=0;
+     XrdOucString capOpaqueFile="";
+     capOpaqueFile += "/?";
+     capOpaqueFile += capOpaque->Env(envlen);
+     capOpaqueFile += "&mgm.pcmd=commit";
+     capOpaqueFile += "&mgm.size=";
+     char filesize[1024]; sprintf(filesize,"%llu", fMd->fMd.size);
+     capOpaqueFile += filesize;
+
+     char result[8192]; result[0]=0;
+     int  result_size=8192;
+     
+     XrdFstOfsClientAdmin* admin = gOFS.FstOfsClientAdminManager.GetAdmin(capOpaque->Get("mgm.manager"));
+     if (admin) {
+       admin->Lock();
+       admin->GetAdmin()->Connect();
+       admin->GetAdmin()->GetClientConn()->ClearLastServerError();
+       admin->GetAdmin()->Query(kXR_Qopaquf,
+		  (kXR_char *) capOpaqueFile.c_str(),
+		  (kXR_char *) result, result_size);
+
+       if (!admin->GetAdmin()->LastServerResp()) {
+	 gOFS.Emsg(epname, error, ECOMM, "commit changed filesize to meta data cache for fn=", capOpaque->Get("mgm.path"));
+	 rc = SFS_ERROR;
+       }
+       switch (admin->GetAdmin()->LastServerResp()->status) {
+       case kXR_ok:
+	 rc = SFS_OK;
+	 break;
+	 
+       case kXR_error:
+	 gOFS.Emsg(epname, error, ECOMM, "commit changed filesize to meta data cache during close of fn=", capOpaque->Get("mgm.path"));
+	 rc = SFS_ERROR;
+	 break;
+	 
+       default:
+	 rc = SFS_OK;
+	 break;
+       }
+       admin->UnLock();
+     } else {
+       eos_crit("cannot get client admin to execute commit");
+       gOFS.Emsg(epname, error, ENOMEM, "allocate client admin object during close of fn=", capOpaque->Get("mgm.path"));
+     }
    }
    closed = true;
  } 
@@ -447,7 +498,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
   //  EPNAME("write");
 
   int rc = XrdOfsFile::write(fileOffset,buffer,buffer_size);
-
+  haswrite = true;
   eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,buffer_size);
 
   return rc;
@@ -461,7 +512,7 @@ XrdFstOfsFile::write(XrdSfsAio *aioparm)
   //  EPNAME("write");
 
   int rc = XrdOfsFile::write(aioparm);
-
+  haswrite = true;
   return rc;
 }
 

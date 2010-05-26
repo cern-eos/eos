@@ -193,10 +193,15 @@ public:
 
   enum eFSCTL { kFsctlMgmOfsOffset= 40000};
 
+        int            FSctl(const int               cmd,
+			     XrdSfsFSctl            &args,
+			     XrdOucErrInfo          &error,
+			     const XrdSecEntity     *client);
+    
         int            fsctl(const int               cmd,
                              const char             *args,
                                    XrdOucErrInfo    &out_error,
-			     const XrdSecEntity *client = 0);
+         	             const XrdSecEntity *client = 0) {return SFS_OK;}
 
         int            getStats(char *buff, int blen) {return 0;}
 

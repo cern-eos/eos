@@ -62,7 +62,7 @@ public:
   int          truncate(XrdSfsFileOffset   fileOffset);
 
 
-  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; XrdCommonLogId(); closed=false; fMd = 0;}
+  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; XrdCommonLogId(); closed=false; haswrite=false; fMd = 0;}
   virtual ~XrdFstOfsFile() {
     close();
     if (openOpaque) {delete openOpaque; openOpaque=0;}
@@ -78,6 +78,7 @@ private:
   XrdOucString Path;
   unsigned long fileId;
   bool         closed;
+  bool         haswrite;
   XrdCommonFmd* fMd;
 };
 
@@ -167,7 +168,7 @@ public:
   void           AutoBoot();
 
  
-  static XrdOucHash<XrdFstOfsClientAdmin> *gClientAdminTable;
+  XrdFstOfsClientAdminManager FstOfsClientAdminManager;
 
   XrdFstMessaging* FstOfsMessaging;      // -> messaging interface class
   XrdFstOfsStorage* FstOfsStorage;       // -> Meta data & filesytem store object

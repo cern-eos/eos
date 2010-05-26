@@ -1295,26 +1295,55 @@ int XrdMgmOfs::Stall(XrdOucErrInfo   &error, // Error text & code
 }
 
 /*----------------------------------------------------------------------------*/
-
-int            
-XrdMgmOfs::fsctl(const int               cmd,
-		    const char             *args,
-		    XrdOucErrInfo    &error,
-		    const XrdSecEntity *client)
-  
+int
+XrdMgmOfs::FSctl(const int               cmd,
+                    XrdSfsFSctl            &args,
+                    XrdOucErrInfo          &error,
+                    const XrdSecEntity     *client) 
 {  
-  static const char *epname = "fsctl";
-  const char *tident = error.getErrUser(); 
+  char ipath[16384];
+  char iopaque[16384];
+  
+  static const char *epname = "FSctl";
+  const char *tident = error.getErrUser();
+  
+  // accept only plugin calls!
+  ZTRACE(fsctl,"Calling FSctl");
 
-  XrdOucString path = args;
-  XrdOucString opaque;
-  opaque.assign(path,path.find("?")+1);
-  path.erase(path.find("?"));
+  if (cmd!=SFS_FSCTL_PLUGIN) {
+    return gOFS->Emsg(epname, error, EPERM, "execute non-plugin function", "");
+  }
 
+  if (args.Arg1Len) {
+    if (args.Arg1Len < 16384) {
+      strncpy(ipath,args.Arg1,args.Arg1Len);
+      ipath[args.Arg1Len] = 0;
+    } else {
+      return gOFS->Emsg(epname, error, EINVAL, "convert path argument - string too long", "");
+    }
+  } else {
+    ipath[0] = 0;
+  }
+  
+  if (args.Arg2Len) {
+    if (args.Arg2Len < 16384) {
+      strncpy(iopaque,args.Arg2,args.Arg2Len);
+      iopaque[args.Arg2Len] = 0;
+    } else {
+      return gOFS->Emsg(epname, error, EINVAL, "convert opaque argument - string too long", "");
+    }
+  } else {
+    iopaque[0] = 0;
+  }
+  
+  // from here on we can deal with XrdOucString which is more 'comfortable'
+  XrdOucString path    = ipath;
+  XrdOucString opaque  = iopaque;
+  XrdOucString result  = "";
   XrdOucEnv env(opaque.c_str());
-  const char* scmd;
 
-  ZTRACE(fsctl,args);
+  eos_debug("path=%s opaque=%s", path.c_str(), opaque.c_str());
+
   if ((cmd == SFS_FSCTL_LOCATE)) {
     // check if this file exists
     XrdSfsFileExistence file_exists;
@@ -1323,10 +1352,8 @@ XrdMgmOfs::fsctl(const int               cmd,
     }
     
     char locResp[4096];
-    //    int  locRlen = 4096;
-    //struct stat fstat;
     char rType[3], *Resp[] = {rType, locResp};
-    rType[0] = 'S';//(fstat.st_mode & S_IFBLK == S_IFBLK ? 's' : 'S');
+    rType[0] = 'S';
     // we don't want to manage writes via global redirection - therefore we mark the files as 'r'
     rType[1] = 'r';//(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
     rType[2] = '\0';
@@ -1341,9 +1368,35 @@ XrdMgmOfs::fsctl(const int               cmd,
     return SFS_ERROR;
   }
 
+  const char* scmd;
 
-  if ((scmd = env.Get("pcmd"))) {
+  if ((scmd = env.Get("mgm.pcmd"))) {
     XrdOucString execmd = scmd;
+
+    if (execmd == "commit") {
+      char* asize = env.Get("mgm.size");
+      char* path  = env.Get("mgm.path");
+      char* afid  = env.Get("mgm.fid");
+      char* afsid = env.Get("mgm.fsid");
+
+      if (asize && afid && path && afsid) {
+	unsigned long long size = strtoll(asize,0,10);
+	unsigned long long fid  = strtoll(afid,0,10);
+	unsigned long fsid      = strtol(afsid,0,10);
+	size = fid = 0; fsid = 0;
+      
+	eos_debug("commit: path=%s size=%s fid=%s fsid=%s", path, asize, afid, afsid);
+      } else {
+	int envlen=0;
+	eos_err("commit message does not contain all meta information: %s", env.Env(envlen));
+	if (path) {
+	  return  Emsg(epname,error,EINVAL,"commit filesize change - size,fid,fsid not complete",path);
+	} else {
+	  return  Emsg(epname,error,EINVAL,"commit filesize change - size,fid,fsid,path not complete","unknown");
+	}
+      }
+      return SFS_OK;
+    }
 
     if (execmd == "stat") {
       /*      struct stat buf;
@@ -1488,7 +1541,7 @@ XrdMgmOfs::fsctl(const int               cmd,
       }
       */
     }
-
+    
   }
   
   return SFS_ERROR;

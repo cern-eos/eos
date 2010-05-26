@@ -504,7 +504,7 @@ XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Ar
     long id = strtol(ugid.c_str(),0,10);
 
     if (spacequota) {
-      if (id>0) {
+      if (id>0 || (ugid == "0")) {
 	spacequota->SetQuota(XrdMgmSpaceQuota::GetTagFromString(tag), id, value, false);
       } else {
 	*err += "error: illegal id found: "; *err += ugid;
