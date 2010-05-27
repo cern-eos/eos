@@ -18,6 +18,8 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <zlib.h>
+#include <openssl/sha.h>
+
 /*----------------------------------------------------------------------------*/
 #define XRDCOMMONFMDHEADER_MAGIC 0xabcdabcdabcdabcd
 #define XRDCOMMONFMDCREATE_MAGIC 0xffffffffffffffff
@@ -60,7 +62,7 @@ public:
     unsigned long mtime;          // modification time | deletion time
     unsigned long mtime_ns;       // ns of modification time
     unsigned long long size;      // size
-    char checksum[20];            // checksum field
+    char checksum[SHA_DIGEST_LENGTH];            // checksum field
     unsigned long lid ;           // layout id
     uid_t uid;                    // creation|deletion user  id
     gid_t gid;                    // creation|deletion group id

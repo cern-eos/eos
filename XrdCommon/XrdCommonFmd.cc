@@ -56,7 +56,7 @@ XrdCommonFmd::Write(int fd)
 {
   // compute crc32
   fMd.crc32 = ComputeCrc32((char*)(&(fMd.fid)), sizeof(struct FMD) - sizeof(fMd.magic) - (2*sizeof(fMd.sequencetrailer)) - sizeof(fMd.crc32));
-  eos_debug("computed CRC for fileid %d to %x", fMd.fid, fMd.crc32);
+  eos_debug("computed meta CRC for fileid %d to %x", fMd.fid, fMd.crc32);
   if ( (write(fd, &fMd, sizeof(fMd))) != sizeof(fMd)) {
     eos_crit("failed to write fmd struct");
     return false;

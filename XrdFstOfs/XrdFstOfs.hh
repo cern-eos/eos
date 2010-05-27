@@ -9,6 +9,7 @@
 #include "XrdFstOfs/XrdFstOfsClientAdmin.hh"
 #include "XrdFstOfs/XrdFstOfsStorage.hh"
 #include "XrdFstOfs/XrdFstOfsConfig.hh"
+#include "XrdFstOfs/XrdFstOfsChecksumPlugins.hh"
 #include "XrdMqOfs/XrdMqMessaging.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOfs/XrdOfs.hh"
@@ -62,13 +63,14 @@ public:
   int          truncate(XrdSfsFileOffset   fileOffset);
 
 
-  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; XrdCommonLogId(); closed=false; haswrite=false; fMd = 0;}
+  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; XrdCommonLogId(); closed=false; haswrite=false; fMd = 0;checkSum = 0;}
   virtual ~XrdFstOfsFile() {
     close();
     if (openOpaque) {delete openOpaque; openOpaque=0;}
     if (capOpaque)  {delete capOpaque;  capOpaque =0;}
     // unmap the MD record
     if (fMd) {delete fMd; fMd = 0;}
+    if (checkSum) { delete checkSum;}
   }
 
 private:
@@ -80,6 +82,7 @@ private:
   bool         closed;
   bool         haswrite;
   XrdCommonFmd* fMd;
+  XrdFstOfsChecksum* checkSum;
 };
 
 class XrdFstOfsDirectory : public XrdOfsDirectory, public XrdCommonLogId {
@@ -169,7 +172,6 @@ public:
 
  
   XrdFstOfsClientAdminManager FstOfsClientAdminManager;
-
   XrdFstMessaging* FstOfsMessaging;      // -> messaging interface class
   XrdFstOfsStorage* FstOfsStorage;       // -> Meta data & filesytem store object
   virtual ~XrdFstOfs() {};

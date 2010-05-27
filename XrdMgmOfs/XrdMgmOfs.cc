@@ -339,7 +339,9 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   capability += "&mgm.fid=";    XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fileId,hexfid);capability += hexfid;
   capability += "&mgm.fsid=1";
   capability += "&mgm.localprefix="; capability+= "/var/tmp/ost/";
-  capability += "&mgm.lid=";       capability += XrdCommonLayoutId::kPlain;
+  capability += "&mgm.lid=";       //capability += XrdCommonLayoutId::kPlain;
+  // test all checksum algorithms
+  capability += (int)((fileId % 5)+1);
 
 
 
@@ -1375,27 +1377,43 @@ XrdMgmOfs::FSctl(const int               cmd,
 
     if (execmd == "commit") {
       char* asize = env.Get("mgm.size");
-      char* path  = env.Get("mgm.path");
+      char* spath  = env.Get("mgm.path");
       char* afid  = env.Get("mgm.fid");
       char* afsid = env.Get("mgm.fsid");
+      char* checksum = env.Get("mgm.checksum");
+      char  binchecksum[SHA_DIGEST_LENGTH];
 
-      if (asize && afid && path && afsid) {
+      if (checksum) {
+	memset(binchecksum, 0, sizeof(binchecksum));
+	for (unsigned int i=0; i< strlen(checksum); i+=2) {
+	  // hex2binary conversion
+	  char hex[3];
+	  hex[0] = checksum[i];hex[1] = checksum[i+1];hex[2] = 0;
+	  binchecksum[i/2] = strtol(hex,0,16);
+	}
+      }
+      if (asize && afid && spath && afsid) {
 	unsigned long long size = strtoll(asize,0,10);
 	unsigned long long fid  = strtoll(afid,0,10);
 	unsigned long fsid      = strtol(afsid,0,10);
 	size = fid = 0; fsid = 0;
-      
-	eos_debug("commit: path=%s size=%s fid=%s fsid=%s", path, asize, afid, afsid);
+	if (checksum) {
+	  eos_debug("commit: path=%s size=%s fid=%s fsid=%s checksum=%s", spath, asize, afid, afsid, checksum);
+	} else {
+	  eos_debug("commit: path=%s size=%s fid=%s fsid=%s", spath, asize, afid, afsid);
+	}
       } else {
 	int envlen=0;
 	eos_err("commit message does not contain all meta information: %s", env.Env(envlen));
-	if (path) {
-	  return  Emsg(epname,error,EINVAL,"commit filesize change - size,fid,fsid not complete",path);
+	if (spath) {
+	  return  Emsg(epname,error,EINVAL,"commit filesize change - size,fid,fsid not complete",spath);
 	} else {
 	  return  Emsg(epname,error,EINVAL,"commit filesize change - size,fid,fsid,path not complete","unknown");
 	}
       }
-      return SFS_OK;
+      const char* ok = "OK";
+      error.setErrInfo(strlen(ok)+1,ok);
+      return SFS_DATA;
     }
 
     if (execmd == "stat") {
@@ -1543,8 +1561,8 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
     
   }
-  
-  return SFS_ERROR;
+
+  return  Emsg(epname,error,EINVAL,"execute FSctl command",path.c_str());  
 }
 
 

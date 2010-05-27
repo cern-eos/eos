@@ -277,6 +277,8 @@ XrdFstOfsFile::open(const char                *path,
   const char* hexfid=0;
   const char* sfsid=0;
   const char* slid=0;
+  const char* smanager=0;
+
   unsigned long long fileid=0;
   unsigned long fsid=0;
   unsigned long lid=0;
@@ -297,7 +299,7 @@ XrdFstOfsFile::open(const char                *path,
     return gOFS.Emsg(epname,error, EINVAL,"open - no layout id in capability",path);
   }
 
-  if (!(slid=capOpaque->Get("mgm.manager"))) {
+  if (!(smanager=capOpaque->Get("mgm.manager"))) {
     return gOFS.Emsg(epname,error, EINVAL,"open - no manager name in capability",path);
   }
 
@@ -366,6 +368,12 @@ XrdFstOfsFile::open(const char                *path,
     return gOFS.Emsg(epname,error,EINVAL,"open - unable to get file meta data",path);
   }
 
+  // call the checksum factory function with the selected layout
+  if (isRW || ( (val = openOpaque->Get("verifychecksum")) && ( (!strcmp(val,"1")) || (!strcmp(val,"yes")) || (!strcmp(val,"true"))) ) )  {
+    checkSum = XrdFstOfsChecksumPlugins::GetChecksumObject(lid);
+    eos_debug("checksum requested %d %u", checkSum, lid);
+  }
+
   int rc = XrdOfsFile::open(fstPath.c_str(),open_mode,create_mode,client,stringOpaque.c_str()); 
   return rc;
   }
@@ -379,7 +387,36 @@ XrdFstOfsFile::close()
 
  if (!closed) {
    eos_info("");
-   
+
+   // deal with checksums
+   if (checkSum) {
+     if (checkSum && checkSum->NeedsRecalculation()) {
+       eos_debug("recalculating checksum");
+       // re-scan the complete file
+       char checksumbuf[128 * 1024];
+       checkSum->Reset();
+       XrdSfsFileOffset checkoffset=0;
+       XrdSfsXferSize   checksize=0;
+       XrdSfsFileOffset checklength=0;
+       while ((checksize = read(checkoffset,checksumbuf,sizeof(checksumbuf)))>0) {
+	 checkSum->Add(checksumbuf, checksize, checkoffset);
+	 checklength+= checksize;
+	 checkoffset+= checksize;
+       }
+     } else {
+       // this was prefect streaming I/O
+       checkSum->Finalize();
+     }
+   }
+
+   if (checkSum) {
+     int checksumlen = 0;
+     eos_info("checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
+     checkSum->GetBinChecksum(checksumlen);
+     // copy checksum into meta data
+     memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
+   }
+
    rc = XrdOfsFile::close();
 
    if (fMd && haswrite) {
@@ -391,7 +428,7 @@ XrdFstOfsFile::close()
        // update size
        fMd->fMd.size = statinfo.st_size;
      }
-     
+
      // commit local
      if (!gFmdHandler.Commit(fMd))
        rc = gOFS.Emsg(epname,error,EIO,"close - unable to commit meta data",Path.c_str());
@@ -405,6 +442,10 @@ XrdFstOfsFile::close()
      capOpaqueFile += "&mgm.size=";
      char filesize[1024]; sprintf(filesize,"%llu", fMd->fMd.size);
      capOpaqueFile += filesize;
+     if (checkSum) {
+       capOpaqueFile += "&mgm.checksum=";
+       capOpaqueFile += checkSum->GetHexChecksum();
+     }
 
      char result[8192]; result[0]=0;
      int  result_size=8192;
@@ -473,6 +514,10 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
 
   int rc = XrdOfsFile::read(fileOffset,buffer,buffer_size);
 
+  if ((rc>0) && (checkSum)) {
+    checkSum->Add(buffer, buffer_size, fileOffset);
+  }
+
   eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,buffer_size);
   return rc;
 }
@@ -482,11 +527,12 @@ int
 XrdFstOfsFile::read(XrdSfsAio *aioparm)
 {
   //  EPNAME("read");  
+  return SFS_ERROR;
 
-  eos_debug("aio");
-  int rc = XrdOfsFile::read(aioparm);
+  //  eos_debug("aio");
+  //  int rc = XrdOfsFile::read(aioparm);
 
-  return rc;
+  //  return rc;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -498,6 +544,12 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
   //  EPNAME("write");
 
   int rc = XrdOfsFile::write(fileOffset,buffer,buffer_size);
+
+  // evt. add checksum
+  if ((rc >0) && (checkSum)){
+    checkSum->Add(buffer, (size_t) buffer_size, (off_t) fileOffset);
+  }
+    
   haswrite = true;
   eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,buffer_size);
 
@@ -510,10 +562,8 @@ int
 XrdFstOfsFile::write(XrdSfsAio *aioparm)
 {
   //  EPNAME("write");
-
-  int rc = XrdOfsFile::write(aioparm);
-  haswrite = true;
-  return rc;
+  // this is not supported
+  return SFS_ERROR;
 }
 
 
@@ -535,6 +585,8 @@ XrdFstOfsFile::sync(XrdSfsAio *aiop)
 int          
 XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
 {
+  if (checkSum) checkSum->Reset();
+
   return XrdOfsFile::truncate(fileOffset);
 }
 
