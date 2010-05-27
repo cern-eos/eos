@@ -94,6 +94,8 @@ AC_CONFIG_FILES(Makefile
 		XrdCommon/Makefile
 		Console/Makefile
 		eos.spec
+		Namespace/Makefile
+		Namespace/tests/Makefile
 		)
 
 XROOTD_INCDIR="${XROOTD}/include/xrootd/"
@@ -115,6 +117,9 @@ AC_CHECK_HEADERS([readline/readline.h], ,
 
 AC_CHECK_LIB(readline, readline, , AC_MSG_ERROR( "Please install lib readline" ) )
 export LDFLAGS=$LDFLAGS_BUP
+
+# check for cppunit
+ifdef([AM_PATH_CPPUNIT], [AM_PATH_CPPUNIT([1.12.1])], [])
 
 echo "=================================================="
 echo "Configuring for .../lib$MARK64 library directories"

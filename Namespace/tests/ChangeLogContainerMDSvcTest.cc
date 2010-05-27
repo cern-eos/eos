@@ -1,0 +1,123 @@
+//------------------------------------------------------------------------------
+// author: Lukasz Janyst <ljanyst@cern.ch>
+// desc:   ChangeLog test
+//------------------------------------------------------------------------------
+
+#include <cppunit/CompilerOutputter.h>
+#include <cppunit/ui/text/TestRunner.h>
+#include <cppunit/extensions/HelperMacros.h>
+#include "ChangeLogContainerMDSvcTest.hh"
+
+#include <stdint.h>
+#include <unistd.h>
+
+#include "persistency/ChangeLogContainerMDSvc.hh"
+
+//------------------------------------------------------------------------------
+// Generic file md test declaration
+//------------------------------------------------------------------------------
+CppUnit::Test *ChangeLogContainerMDSvcTest::suite()
+{
+  CppUnit::TestSuite *suiteOfTests
+              = new CppUnit::TestSuite( "ChangeLogContainerMDSvcTest" );
+
+  suiteOfTests->addTest( new CppUnit::TestCaller<ChangeLogContainerMDSvcTest>( 
+                               "reloadTest", 
+                               &ChangeLogContainerMDSvcTest::reloadTest ) );
+  return suiteOfTests;
+}
+
+//------------------------------------------------------------------------------
+// Concrete implementation tests
+//------------------------------------------------------------------------------
+void ChangeLogContainerMDSvcTest::reloadTest()
+{
+  try
+  {
+    eos::IContainerMDSvc *containerSvc = new eos::ChangeLogContainerMDSvc;
+    std::map<std::string, std::string> config;
+    config["changelog_path"] = "/tmp/test_changelog.log";
+    containerSvc->configure( config );
+    containerSvc->initialize();
+  
+    eos::ContainerMD *container1 = containerSvc->createContainer();
+    eos::ContainerMD *container2 = containerSvc->createContainer();
+    eos::ContainerMD *container3 = containerSvc->createContainer(); 
+    eos::ContainerMD *container4 = containerSvc->createContainer();
+    eos::ContainerMD *container5 = containerSvc->createContainer();
+
+    eos::ContainerMD::id_t id = container1->getId();
+
+    container1->setName( "root" );
+    container1->setParentId( container1->getId() );
+    container2->setName( "subContLevel1-1" );
+    container3->setName( "subContLevel1-2" );
+    container4->setName( "subContLevel2-1" );
+    container5->setName( "subContLevel2-2" );
+
+    container1->addContainer( container2 );
+    container1->addContainer( container3 );
+    container3->addContainer( container4 );
+    container3->addContainer( container5 );
+
+    containerSvc->updateStore( container1 );
+    containerSvc->updateStore( container2 );
+    containerSvc->updateStore( container3 );
+    containerSvc->updateStore( container4 );
+    containerSvc->updateStore( container5 );
+
+    container3->removeContainer( "subContainerLevel2-2" );
+    containerSvc->removeContainer( container5 );
+
+    eos::ContainerMD *container6 = containerSvc->createContainer();
+    container6->setName( "subContLevel2-3" );
+    container3->addContainer( container6 );
+    containerSvc->updateStore( container6 );
+
+    containerSvc->finalize();
+
+    containerSvc->initialize();
+    eos::ContainerMD *cont1 = containerSvc->getContainerMD( id );
+    CPPUNIT_ASSERT( cont1->getName() == "root" );
+
+    eos::ContainerMD *cont2 = cont1->findContainer( "subContLevel1-1" );
+    CPPUNIT_ASSERT( cont2 != 0 );
+    CPPUNIT_ASSERT( cont2->getName() == "subContLevel1-1" );
+
+    cont2 = cont1->findContainer( "subContLevel1-2" );
+    CPPUNIT_ASSERT( cont2 != 0 );
+    CPPUNIT_ASSERT( cont2->getName() == "subContLevel1-2" );
+
+    cont1 = cont2->findContainer( "subContLevel2-1" );
+    CPPUNIT_ASSERT( cont1 != 0 );
+    CPPUNIT_ASSERT( cont1->getName() == "subContLevel2-1" );
+
+    cont1 = cont2->findContainer( "subContLevel2-2" );
+    CPPUNIT_ASSERT( cont1 == 0 );
+
+    cont1 = cont2->findContainer( "subContLevel2-3" );
+    CPPUNIT_ASSERT( cont1 != 0 );
+    CPPUNIT_ASSERT( cont1->getName() == "subContLevel2-3" );
+
+    containerSvc->finalize();
+
+    delete containerSvc;
+    unlink( "/tmp/test_changelog.log" );
+  }
+  catch( eos::MDException &e )
+  {
+    CPPUNIT_ASSERT_MESSAGE( e.getMessage().str(), false );
+  }
+}
+
+//------------------------------------------------------------------------------
+// Start the show
+//------------------------------------------------------------------------------
+int main( int argc, char **argv)
+{
+  CppUnit::TextUi::TestRunner runner;
+  runner.addTest( ChangeLogContainerMDSvcTest::suite() );
+  runner.setOutputter( new CppUnit::CompilerOutputter( &runner.result(),
+                                                       std::cerr ) );
+  return !runner.run();
+}

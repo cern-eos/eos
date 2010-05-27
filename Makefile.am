@@ -2,7 +2,7 @@ $.NOTPARALLEL:
 
 AUTOMAKE_OPTIONS = foreign 1.6
 
-SUBDIRS = XrdCommon XrdMqOfs XrdCapability XrdFstOfs XrdMgmOfs Console
+SUBDIRS = XrdCommon XrdMqOfs XrdCapability XrdFstOfs XrdMgmOfs Console Namespace
 
 .PHONY: doc silent
 

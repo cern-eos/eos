@@ -23,4 +23,6 @@ install-sh
 libtool
 ltmain.sh
 missing
-
+doxy.log
+doxydoc
+*~
