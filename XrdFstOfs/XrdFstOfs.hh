@@ -10,6 +10,8 @@
 #include "XrdFstOfs/XrdFstOfsStorage.hh"
 #include "XrdFstOfs/XrdFstOfsConfig.hh"
 #include "XrdFstOfs/XrdFstOfsChecksumPlugins.hh"
+#include "XrdFstOfs/XrdFstOfsLayoutPlugins.hh"
+#include "XrdFstOfs/XrdFstOfsFile.hh"
 #include "XrdMqOfs/XrdMqMessaging.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOfs/XrdOfs.hh"
@@ -30,62 +32,6 @@ public:
   virtual void Process(XrdMqMessage* message);
 };
 
-/*----------------------------------------------------------------------------*/
-class XrdFstOfsFile : public XrdOfsFile, public XrdCommonLogId {
-public:
-  int          open(const char                *fileName,
-		    XrdSfsFileOpenMode   openMode,
-		    mode_t               createMode,
-		    const XrdSecEntity        *client,
-		    const char                *opaque = 0);
-  
-  int          close();
-
-  int          read(XrdSfsFileOffset   fileOffset,   // Preread only
-		      XrdSfsXferSize     amount);
-  
-  XrdSfsXferSize read(XrdSfsFileOffset   fileOffset,
-		      char              *buffer,
-		      XrdSfsXferSize     buffer_size);
-  
-  int          read(XrdSfsAio *aioparm);
-  
-  XrdSfsXferSize write(XrdSfsFileOffset   fileOffset,
-		       const char        *buffer,
-		       XrdSfsXferSize     buffer_size);
-  
-  int          write(XrdSfsAio *aioparm);
-
-  int          sync();
-
-  int          sync(XrdSfsAio *aiop);
-
-  int          truncate(XrdSfsFileOffset   fileOffset);
-
-
-  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; XrdCommonLogId(); closed=false; haswrite=false; fMd = 0;checkSum = 0; isRW= 0;}
-  virtual ~XrdFstOfsFile() {
-    close();
-    if (openOpaque) {delete openOpaque; openOpaque=0;}
-    if (capOpaque)  {delete capOpaque;  capOpaque =0;}
-    // unmap the MD record
-    if (fMd) {delete fMd; fMd = 0;}
-    if (checkSum) { delete checkSum;}
-  }
-
-private:
-  XrdOucEnv*   openOpaque;
-  XrdOucEnv*   capOpaque;
-  XrdOucString fstPath;
-  XrdOucString Path;
-  unsigned long fileId;
-  bool         closed;
-  bool         haswrite;
-  bool         isRW;
-  XrdCommonFmd* fMd;
-  XrdFstOfsChecksum* checkSum;
-};
-
 class XrdFstOfsDirectory : public XrdOfsDirectory, public XrdCommonLogId {
 public:
   XrdFstOfsDirectory(const char *user) : XrdOfsDirectory(user){XrdCommonLogId();};
@@ -96,7 +42,9 @@ public:
 class XrdFstOfs : public XrdOfs, public XrdCommonLogId {
   friend class XrdFstOfsDirectory;
   friend class XrdFstOfsFile;
-
+  friend class XrdFstOfsLayout;
+  friend class XrdFstOfsReplicaLayout;
+  friend class XrdFstOfsPlainLayout;
 private:
 
 public:

@@ -235,6 +235,17 @@ XrdFstOfs::FSctl(int, XrdSfsFSctl&, XrdOucErrInfo &error, const XrdSecEntity*)
   return XrdFstOfs::Emsg(epname, error, EOPNOTSUPP, "FSctl", "");
 }
 
+/*----------------------------------------------------------------------------*/
+int          
+XrdFstOfsFile::openofs(const char                *path,
+		    XrdSfsFileOpenMode   open_mode,
+		    mode_t               create_mode,
+		    const XrdSecEntity        *client,
+		    const char                *opaque)
+{
+  return XrdOfsFile::open(path, open_mode, create_mode, client, opaque);
+}
+
 
 /*----------------------------------------------------------------------------*/
 int          
@@ -374,9 +385,31 @@ XrdFstOfsFile::open(const char                *path,
     eos_debug("checksum requested %d %u", checkSum, lid);
   }
 
-  int rc = XrdOfsFile::open(fstPath.c_str(),open_mode,create_mode,client,stringOpaque.c_str()); 
+  layOut = XrdFstOfsLayoutPlugins::GetLayoutObject(this, lid, &error);
+
+  if( !layOut) {
+    int envlen;
+    eos_err("unable to handle layout for %s", capOpaque->Env(envlen));
+    return gOFS.Emsg(epname,error,EINVAL,"open - illegal layout specified ",capOpaque->Env(envlen));
+  }
+
+  layOut->SetLogId(logId, sec_uid, sec_gid, sec_ruid, sec_rgid, tident);
+
+  int rc = layOut->open(fstPath.c_str(), open_mode, create_mode, client, stringOpaque.c_str());
+
+  if (!rc) {
+    return rc;
+  }
+
   return rc;
   }
+
+/*----------------------------------------------------------------------------*/
+int
+XrdFstOfsFile::closeofs()
+{
+  return XrdOfsFile::close();
+}
 
 /*----------------------------------------------------------------------------*/
 int
@@ -431,7 +464,11 @@ XrdFstOfsFile::close()
      }
    }
 
-   rc = XrdOfsFile::close();
+   if (layOut) {
+     rc = layOut->close();
+   } else {
+     rc = closeofs();
+   }
 
    if (haswrite) {
      // commit meta data
@@ -511,6 +548,16 @@ XrdFstOfsFile::close()
 }
 
 
+
+/*----------------------------------------------------------------------------*/
+XrdSfsXferSize 
+XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
+		       char              *buffer,
+		       XrdSfsXferSize     buffer_size)
+{
+  return XrdOfsFile::read(fileOffset,buffer,buffer_size);
+}
+
 /*----------------------------------------------------------------------------*/
 int
 XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,   
@@ -533,7 +580,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
 {
   //  EPNAME("read");
 
-  int rc = XrdOfsFile::read(fileOffset,buffer,buffer_size);
+  int rc = layOut->read(fileOffset,buffer,buffer_size);
 
   if ((rc>0) && (checkSum)) {
     checkSum->Add(buffer, buffer_size, fileOffset);
@@ -558,13 +605,24 @@ XrdFstOfsFile::read(XrdSfsAio *aioparm)
 
 /*----------------------------------------------------------------------------*/
 XrdSfsXferSize
+XrdFstOfsFile::writeofs(XrdSfsFileOffset   fileOffset,
+		     const char        *buffer,
+		     XrdSfsXferSize     buffer_size)
+{
+  return XrdOfsFile::write(fileOffset,buffer,buffer_size);
+}
+
+
+/*----------------------------------------------------------------------------*/
+XrdSfsXferSize
 XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
 		     const char        *buffer,
 		     XrdSfsXferSize     buffer_size)
 {
   //  EPNAME("write");
 
-  int rc = XrdOfsFile::write(fileOffset,buffer,buffer_size);
+  
+  int rc = layOut->write(fileOffset,(char*)buffer,buffer_size);
 
   // evt. add checksum
   if ((rc >0) && (checkSum)){
@@ -590,16 +648,30 @@ XrdFstOfsFile::write(XrdSfsAio *aioparm)
 
 /*----------------------------------------------------------------------------*/
 int          
-XrdFstOfsFile::sync()
+XrdFstOfsFile::syncofs()
 {
   return XrdOfsFile::sync();
 }
 
 /*----------------------------------------------------------------------------*/
 int          
+XrdFstOfsFile::sync()
+{
+  return layOut->sync();
+}
+
+/*----------------------------------------------------------------------------*/
+int          
 XrdFstOfsFile::sync(XrdSfsAio *aiop)
 {
-  return XrdOfsFile::sync();
+  return layOut->sync();
+}
+
+/*----------------------------------------------------------------------------*/
+int          
+XrdFstOfsFile::truncateofs(XrdSfsFileOffset   fileOffset)
+{
+  return XrdOfsFile::truncate(fileOffset);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -608,7 +680,7 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
 {
   if (checkSum) checkSum->Reset();
 
-  return XrdOfsFile::truncate(fileOffset);
+  return layOut->truncate(fileOffset);
 }
 
 /*----------------------------------------------------------------------------*/
