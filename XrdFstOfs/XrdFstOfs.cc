@@ -248,7 +248,7 @@ XrdFstOfsFile::open(const char                *path,
 
   const char *tident = error.getErrUser();
   char *val=0;
-  bool  isRW = false;
+  isRW = false;
   int   retc = SFS_OK;
 
   Path = path;
@@ -384,8 +384,10 @@ XrdFstOfsFile::close()
 {
  EPNAME("close");
  int rc = 0;;
-
- if (!closed) {
+ bool checksumerror=false;
+ int checksumlen = 0;
+       
+ if (!closed && fMd) {
    eos_info("");
 
    // deal with checksums
@@ -410,16 +412,28 @@ XrdFstOfsFile::close()
    }
 
    if (checkSum) {
-     int checksumlen = 0;
-     eos_info("checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
-     checkSum->GetBinChecksum(checksumlen);
-     // copy checksum into meta data
-     memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
+     if (isRW) {
+       if (haswrite) {
+	 eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
+	 checkSum->GetBinChecksum(checksumlen);
+	 // copy checksum into meta data
+	 memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
+       }
+     } else {
+       // this is a read with checksum check, compare with fMD
+       eos_info("(read)  checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
+       checkSum->GetBinChecksum(checksumlen);
+       for (int i=0; i<checksumlen ; i++) {
+	 if (fMd->fMd.checksum[i] != checkSum->GetBinChecksum(checksumlen)[i]) {
+	   checksumerror=true;
+	 }
+       }
+     }
    }
 
    rc = XrdOfsFile::close();
 
-   if (fMd && haswrite) {
+   if (haswrite) {
      // commit meta data
      struct stat statinfo;
      if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
@@ -485,6 +499,13 @@ XrdFstOfsFile::close()
    }
    closed = true;
  } 
+
+ if (checksumerror) {
+   rc = SFS_ERROR;
+   gOFS.Emsg(epname, error, EIO, "verify checksum - checksum error for file fn=", capOpaque->Get("mgm.path"));   
+   int envlen=0;
+   eos_crit("checksum error for %s", capOpaque->Env(envlen));
+ }
 
  return rc;
 }

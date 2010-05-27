@@ -63,7 +63,7 @@ public:
   int          truncate(XrdSfsFileOffset   fileOffset);
 
 
-  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; XrdCommonLogId(); closed=false; haswrite=false; fMd = 0;checkSum = 0;}
+  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; XrdCommonLogId(); closed=false; haswrite=false; fMd = 0;checkSum = 0; isRW= 0;}
   virtual ~XrdFstOfsFile() {
     close();
     if (openOpaque) {delete openOpaque; openOpaque=0;}
@@ -81,6 +81,7 @@ private:
   unsigned long fileId;
   bool         closed;
   bool         haswrite;
+  bool         isRW;
   XrdCommonFmd* fMd;
   XrdFstOfsChecksum* checkSum;
 };
