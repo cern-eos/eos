@@ -45,6 +45,7 @@ class XrdFstOfs : public XrdOfs, public XrdCommonLogId {
   friend class XrdFstOfsLayout;
   friend class XrdFstOfsReplicaLayout;
   friend class XrdFstOfsPlainLayout;
+  friend class XrdFstOfsRaid5Layout;
 private:
 
 public:
