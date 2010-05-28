@@ -6,10 +6,10 @@
 #ifndef EOS_HIERARHICAL_VIEW_HH
 #define EOS_HIERARHICAL_VIEW_HH
 
-#include "IView.hh"
-#include "IContainerMDSvc.hh"
-#include "IFileMDSvc.hh"
-#include "persistency/ChangeLogContainerMDSvc.hh"
+#include "Namespace/IView.hh"
+#include "Namespace/IContainerMDSvc.hh"
+#include "Namespace/IFileMDSvc.hh"
+#include "Namespace/persistency/ChangeLogContainerMDSvc.hh"
 
 namespace eos
 {

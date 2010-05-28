@@ -3,8 +3,8 @@
 // desc:   Change log based ContainerMD service
 //------------------------------------------------------------------------------
 
-#include "ChangeLogContainerMDSvc.hh"
-#include "ChangeLogConstants.hh"
+#include "Namespace/persistency/ChangeLogContainerMDSvc.hh"
+#include "Namespace/persistency/ChangeLogConstants.hh"
 
 #include <iostream>
 #include <memory>

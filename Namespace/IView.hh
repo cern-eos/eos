@@ -8,10 +8,10 @@
 
 #include <map>
 #include <string>
-#include "IFileMDSvc.hh"
-#include "IContainerMDSvc.hh"
-#include "MDException.hh"
-#include "ContainerMD.hh"
+#include "Namespace/IFileMDSvc.hh"
+#include "Namespace/IContainerMDSvc.hh"
+#include "Namespace/MDException.hh"
+#include "Namespace/ContainerMD.hh"
 
 namespace eos
 {

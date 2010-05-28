@@ -3,8 +3,8 @@
 // desc:   Class representing the container metadata
 //------------------------------------------------------------------------------
 
-#include "ContainerMD.hh"
-#include "FileMD.hh"
+#include "Namespace/ContainerMD.hh"
+#include "Namespace/FileMD.hh"
 
 namespace eos
 {

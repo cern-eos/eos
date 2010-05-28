@@ -3,7 +3,7 @@
 // desc:   Some constants concerning the change log data
 //------------------------------------------------------------------------------
 
-#include "ChangeLogConstants.hh"
+#include "Namespace/persistency/ChangeLogConstants.hh"
 
 namespace eos
 {

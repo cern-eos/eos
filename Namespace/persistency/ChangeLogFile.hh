@@ -8,8 +8,8 @@
 
 #include <string>
 #include <stdint.h>
-#include "Buffer.hh"
-#include "MDException.hh"
+#include "Namespace/persistency/Buffer.hh"
+#include "Namespace/MDException.hh"
 
 namespace eos
 {

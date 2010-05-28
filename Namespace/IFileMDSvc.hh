@@ -6,8 +6,8 @@
 #ifndef EOS_I_FILE_MD_SVC_HH
 #define EOS_I_FILE_MD_SVC_HH
 
-#include "FileMD.hh"
-#include "MDException.hh"
+#include "Namespace/FileMD.hh"
+#include "Namespace/MDException.hh"
 
 #include <map>
 #include <string>

@@ -6,8 +6,8 @@
 #ifndef EOS_I_CONTAINER_MD_SVC_HH
 #define EOS_I_CONTAINER_MD_SVC_HH
 
-#include "ContainerMD.hh"
-#include "MDException.hh"
+#include "Namespace/ContainerMD.hh"
+#include "Namespace/MDException.hh"
 
 #include <map>
 #include <string>

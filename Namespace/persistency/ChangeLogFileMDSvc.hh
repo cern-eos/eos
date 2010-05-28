@@ -6,10 +6,10 @@
 #ifndef EOS_CHANGE_LOG_FILE_MD_SVC_HH
 #define EOS_CHANGE_LOG_FILE_MD_SVC_HH
 
-#include "FileMD.hh"
-#include "MDException.hh"
-#include "IFileMDSvc.hh"
-#include "ChangeLogFile.hh"
+#include "Namespace/FileMD.hh"
+#include "Namespace/MDException.hh"
+#include "Namespace/IFileMDSvc.hh"
+#include "Namespace/persistency/ChangeLogFile.hh"
 
 #include <google/sparse_hash_map>
 #include <list>

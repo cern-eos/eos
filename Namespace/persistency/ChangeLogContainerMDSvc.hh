@@ -6,10 +6,10 @@
 #ifndef EOS_CHANGE_LOG_CONTAINER_MD_SVC_HH
 #define EOS_CHANGE_LOG_CONTAINER_MD_SVC_HH
 
-#include "ContainerMD.hh"
-#include "MDException.hh"
-#include "IContainerMDSvc.hh"
-#include "ChangeLogFile.hh"
+#include "Namespace/ContainerMD.hh"
+#include "Namespace/MDException.hh"
+#include "Namespace/IContainerMDSvc.hh"
+#include "Namespace/persistency/ChangeLogFile.hh"
 
 #include <list>
 #include <map>

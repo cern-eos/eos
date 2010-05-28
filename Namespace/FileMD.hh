@@ -10,8 +10,8 @@
 #include <cstring>
 #include <string>
 #include <vector>
-#include "persistency/Buffer.hh"
-#include "ContainerMD.hh"
+#include "Namespace/persistency/Buffer.hh"
+#include "Namespace/ContainerMD.hh"
 
 namespace eos
 {

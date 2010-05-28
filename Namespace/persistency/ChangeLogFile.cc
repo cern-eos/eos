@@ -3,8 +3,8 @@
 // desc:   ChangeLog like store
 //------------------------------------------------------------------------------
 
-#include "ChangeLogFile.hh"
-#include "utils/SmartPtrs.hh"
+#include "Namespace/persistency/ChangeLogFile.hh"
+#include "Namespace/utils/SmartPtrs.hh"
 
 #include <fcntl.h>
 #include <sys/stat.h>

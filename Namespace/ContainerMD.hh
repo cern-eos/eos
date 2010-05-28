@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 #include <google/sparse_hash_map>
-#include "persistency/Buffer.hh"
+#include "Namespace/persistency/Buffer.hh"
 
 namespace eos
 {

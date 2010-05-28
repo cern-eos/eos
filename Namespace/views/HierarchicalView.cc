@@ -3,10 +3,10 @@
 // desc:   Hierarchical view implementation
 //------------------------------------------------------------------------------
 
-#include "HierarchicalView.hh"
-#include "utils/PathProcessor.hh"
-#include "IContainerMDSvc.hh"
-#include "IFileMDSvc.hh"
+#include "Namespace/views/HierarchicalView.hh"
+#include "Namespace/utils/PathProcessor.hh"
+#include "Namespace/IContainerMDSvc.hh"
+#include "Namespace/IFileMDSvc.hh"
 #include <iostream>
 
 namespace eos
