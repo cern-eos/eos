@@ -2,6 +2,8 @@ $.NOTPARALLEL:
 
 AUTOMAKE_OPTIONS = foreign 1.6
 
+INCLUDES = -I$(EOS_INCDIR) -I$(XROOTD_INCDIR) ${OPENSSL_INCDIR} -I../
+
 #-------------------------------------------------------------------------------
 # Libraries and programs
 #-------------------------------------------------------------------------------
