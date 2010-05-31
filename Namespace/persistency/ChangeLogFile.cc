@@ -43,28 +43,28 @@ namespace eos
 
       if( read( fd, &magic, 4 ) != 4 )
       {
-        MDException ex;
+        MDException ex( EFAULT );
         ex.getMessage() << "Unable to read the magic number from: " << name;
         throw ex;
       }
 
       if( magic != CHANGELOG_MAGIC )
       {
-        MDException ex;
+        MDException ex( EFAULT );
         ex.getMessage() << "Unrecognized file type: " << name;
         throw ex;
       }
 
       if( read( fd, &version, 2 ) != 2 )
       {
-        MDException ex;
+        MDException ex( EFAULT );
         ex.getMessage() << "Unable to read the version number from: " << name;
         throw ex;
       }
 
       if( version > 1 )
       {
-        MDException ex;
+        MDException ex( EFAULT );
         ex.getMessage() << "Unsupported version: " << name;
         throw ex;
       }
@@ -91,7 +91,7 @@ namespace eos
     //--------------------------------------------------------------------------
     if( fd == -1 )
     {
-      MDException ex;
+      MDException ex( EFAULT );
       ex.getMessage() << "Unable to create changelog file " << name;
       ex.getMessage() << ": " << strerror( errno );
       throw ex;
@@ -103,7 +103,7 @@ namespace eos
     uint32_t magic = CHANGELOG_MAGIC;
     if( write( fd, &magic, 4 ) != 4 )
     {
-      MDException ex;
+      MDException ex( EFAULT );
       ex.getMessage() << "Unable to write magic number: " << name;
       throw ex;
     }
@@ -111,7 +111,7 @@ namespace eos
     uint8_t version = 1;
     if( write( fd, &version, 2 ) != 2 )
     {
-      MDException ex;
+      MDException ex( EFAULT );
       ex.getMessage() << "Unable to write version  number: " << name;
       throw ex;
     }
@@ -140,7 +140,7 @@ namespace eos
 
     if( fsync( pFd ) != 0 )
     {
-      MDException ex;
+      MDException ex( EFAULT );
       ex.getMessage() << "Unable to sync the changelog file: ";
       ex.getMessage() << strerror( errno );
       throw ex;
@@ -155,7 +155,7 @@ namespace eos
   {
     if( !pIsOpen )
     {
-      MDException ex;
+      MDException ex( EFAULT );
       ex.getMessage() << "Changelog file is not open";
       throw ex;
     }
@@ -183,7 +183,7 @@ namespace eos
 
     if( writev( pFd, vec, 6 ) != (unsigned)(13+record.size()) )
     {
-      MDException ex;
+      MDException ex( EFAULT );
       ex.getMessage() << "Unable to write the record data at offset 0x";
       ex.getMessage() << std::setbase(16) << offset << "; ";
       ex.getMessage() << strerror( errno );
@@ -201,7 +201,7 @@ namespace eos
   {
     if( !pIsOpen )
     {
-      MDException ex;
+      MDException ex( EFAULT );
       ex.getMessage() << "Changelog file is not open";
       throw ex;
     }
@@ -214,7 +214,7 @@ namespace eos
       uint64_t off = lseek( pFd, offset, SEEK_SET );
       if( off != offset )
       {
-        MDException ex;
+        MDException ex( EFAULT );
         ex.getMessage() << "Unable to find the record data at offset 0x";
         ex.getMessage() << std::setbase(16) << offset << "; ";
         ex.getMessage() << strerror( errno );
@@ -239,7 +239,7 @@ namespace eos
 
     if( readv( pFd, vec, 4 ) != 9 )
     {
-      MDException ex;
+      MDException ex( EFAULT );
       ex.getMessage() << "Unable to write the record data at offset 0x";
       ex.getMessage() << std::setbase(16) << offset;
       throw ex;
@@ -250,7 +250,7 @@ namespace eos
     //--------------------------------------------------------------------------
     if( magic != RECORD_MAGIC )
     {
-      MDException ex;
+      MDException ex( EFAULT );
       ex.getMessage() << "The record is inconsistent. Perhaps the offset ";
       ex.getMessage() << "is incorrect.";
       throw ex;
@@ -265,7 +265,7 @@ namespace eos
 
     if( readv( pFd, vec, 2 ) != (size+4) )
     {
-      MDException ex;
+      MDException ex( EFAULT );
       ex.getMessage() << "Unable to write the record data at offset 0x";
       ex.getMessage() << std::setbase(16) << offset;
       throw ex;
@@ -276,7 +276,7 @@ namespace eos
     //--------------------------------------------------------------------------
     if( chkSum1 != chkSum2 )
     {
-      MDException ex;
+      MDException ex( EFAULT );
       ex.getMessage() << "The record is inconsistent. Perhaps the offset ";
       ex.getMessage() << "is incorrect.";
       throw ex;
@@ -293,7 +293,7 @@ namespace eos
   {
     if( !pIsOpen )
     {
-      MDException ex;
+      MDException ex( EFAULT );
       ex.getMessage() << "Changelog file is not open";
       throw ex;
     }
@@ -305,7 +305,7 @@ namespace eos
     uint64_t offset = lseek( pFd, 6, SEEK_SET );
     if( offset != 6 )
     {
-      MDException ex;
+      MDException ex( EFAULT );
       ex.getMessage() << "Unable to find the record data at offset 0x";
       ex.getMessage() << std::setbase(16) << 6 << "; ";
       ex.getMessage() << strerror( errno );

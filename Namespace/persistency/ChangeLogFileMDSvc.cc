@@ -51,7 +51,7 @@ namespace eos
     it = config.find( "changelog_path" );
     if( it == config.end() )
     {
-      MDException e;
+      MDException e( EINVAL );
       e.getMessage() << "changelog_path not specified" ;
       throw e;
     }
@@ -78,7 +78,7 @@ namespace eos
     IdMap::iterator it = pIdMap.find( id );
     if( it == pIdMap.end() )
     {
-      MDException e;
+      MDException e( ENOENT );
       e.getMessage() << "File #" << id << " not found";
       throw e;
     }
@@ -106,7 +106,7 @@ namespace eos
     IdMap::iterator it = pIdMap.find( obj->getId() );
     if( it == pIdMap.end() )
     {
-      MDException e;
+      MDException e( ENOENT );
       e.getMessage() << "File #" << obj->getId() << " not found. ";
       e.getMessage() << "The object was not created in this store!";
       throw e;
@@ -141,7 +141,7 @@ namespace eos
     IdMap::iterator it = pIdMap.find( fileId );
     if( it == pIdMap.end() )
     {
-      MDException e;
+      MDException e( ENOENT );
       e.getMessage() << "File #" << fileId << " not found. ";
       e.getMessage() << "The object was not created in this store!";
       throw e;

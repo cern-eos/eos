@@ -8,6 +8,7 @@
 
 #include <stdexcept>
 #include <sstream>
+#include <cerrno>
 
 namespace eos
 {
@@ -20,7 +21,7 @@ namespace eos
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      MDException() throw() {}
+      MDException( int errorNo = 0 ) throw(): pErrorNo( errorNo ) {}
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -37,6 +38,14 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
+      //! Get errno assosiated with the exception
+      //------------------------------------------------------------------------
+      int getErrno() const
+      {
+        return pErrorNo;
+      }
+
+      //------------------------------------------------------------------------
       //! Get the message stream
       //------------------------------------------------------------------------
       std::ostringstream &getMessage()
@@ -49,6 +58,7 @@ namespace eos
       // Data members
       //------------------------------------------------------------------------
       std::ostringstream pMessage;
+      int                pErrorNo;
   };
 }
 

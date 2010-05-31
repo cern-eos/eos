@@ -18,14 +18,14 @@ namespace eos
   {
     if( !pContainerSvc )
     {
-      MDException e;
+      MDException e( EINVAL );
       e.getMessage() << "Container MD Service was not set";
       throw e;
     }
 
     if( !pFileSvc )
     {
-      MDException e;
+      MDException e( EINVAL );
       e.getMessage() << "Container MD Service was not set";
       throw e;
     }
@@ -86,7 +86,7 @@ namespace eos
 
     if( position != elements.size()-1 )
     {
-      MDException e;
+      MDException e( ENOENT );
       e.getMessage() << "Container does not exist";
       throw e;
     }
@@ -94,8 +94,8 @@ namespace eos
     FileMD *file = cont->findFile( elements[position] );
     if( !file )
     {
-      MDException e;
-      e.getMessage() << "No such file or directory";
+      MDException e( ENOENT );
+      e.getMessage() << "File does not exist";
       throw e;
     }
     return file;
@@ -120,7 +120,7 @@ namespace eos
 
     if( position != elements.size()-1 )
     {
-      MDException e;
+      MDException e( ENOENT );
       e.getMessage() << "Container does not exist";
       throw e;
     }
@@ -130,14 +130,14 @@ namespace eos
     //--------------------------------------------------------------------------
     if( cont->findContainer( elements[position] ) )
     {
-      MDException e;
+      MDException e( EEXIST );
       e.getMessage() << "File exist";
       throw e;
     }
 
     if( cont->findFile( elements[position] ) )
     {
-      MDException e;
+      MDException e( EEXIST );
       e.getMessage() << "File exist";
       throw e;
     }
@@ -166,7 +166,7 @@ namespace eos
 
     if( position != elements.size()-1 )
     {
-      MDException e;
+      MDException e( ENOENT );
       e.getMessage() << "Container does not exist";
       throw e;
     }
@@ -195,7 +195,7 @@ namespace eos
 
     if( position != elements.size() )
     {
-      MDException e;
+      MDException e( ENOENT );
       e.getMessage() << uri << ": No such file or directory";
       throw e;
     }
@@ -215,7 +215,7 @@ namespace eos
     //--------------------------------------------------------------------------
     if( uri == "/" )
     {
-      MDException e;
+      MDException e( EEXIST );
       e.getMessage() << uri << ": File exist" << std::endl;
       throw e;
     }
@@ -227,7 +227,7 @@ namespace eos
 
     if( elements.size() == 0 )
     {
-      MDException e;
+      MDException e( EEXIST );
       e.getMessage() << uri << ": File exist" << std::endl;
       throw e;
     }
@@ -241,7 +241,7 @@ namespace eos
 
     if( position == elements.size() )
     {
-      MDException e;
+      MDException e( EEXIST );
       e.getMessage() << uri << ": File exist" << std::endl;
       throw e;
     }
@@ -251,14 +251,14 @@ namespace eos
     //--------------------------------------------------------------------------
     if( (!createParents) && (position < elements.size()-1) )
     {
-      MDException e;
+      MDException e( ENOENT );
       e.getMessage() << uri << ": Parent does not exist" << std::endl;
       throw e;
     }
 
     if( lastContainer->findFile( elements[position] ) )
     {
-      MDException e;
+      MDException e( EEXIST );
       e.getMessage() << "File exists" << std::endl;
       throw e;
     }
@@ -290,7 +290,7 @@ namespace eos
     //--------------------------------------------------------------------------
     if( uri == "/" )
     {
-      MDException e;
+      MDException e( EPERM );
       e.getMessage() << "Permission denied.";
       throw e;
     }
@@ -304,7 +304,7 @@ namespace eos
     ContainerMD *parent = findLastContainer( elements, elements.size()-1, position );
     if( (position != (elements.size()-1)) )
     {
-      MDException e;
+      MDException e( ENOENT );
       e.getMessage() << uri << ": No such file or directory";
       throw e;
     }
@@ -315,7 +315,7 @@ namespace eos
     ContainerMD *cont = parent->findContainer( elements[elements.size()-1] );
     if( !cont )
     {
-      MDException e;
+      MDException e( ENOENT );
       e.getMessage() << uri << ": No such file or directory";
       throw e;
     }
@@ -323,7 +323,7 @@ namespace eos
     if( (cont->getNumContainers() != 0 || cont->getNumFiles() != 0) &&
         !recursive )
     {
-      MDException e;
+      MDException e( ENOTEMPTY );
       e.getMessage() << uri << ": Container is not empty";
       throw e;
     }
