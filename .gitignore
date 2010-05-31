@@ -26,3 +26,5 @@ missing
 doxy.log
 doxydoc
 *~
+Namespace/tests/*_test
+Namespace/tests/*_tests
