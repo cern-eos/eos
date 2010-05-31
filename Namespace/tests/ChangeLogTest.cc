@@ -12,10 +12,10 @@
 #include <unistd.h>
 
 #define protected public
-#include "FileMD.hh"
+#include "Namespace/FileMD.hh"
 #undef protected
-#include "persistency/ChangeLogConstants.hh"
-#include "persistency/ChangeLogFile.hh"
+#include "Namespace/persistency/ChangeLogConstants.hh"
+#include "Namespace/persistency/ChangeLogFile.hh"
 
 //------------------------------------------------------------------------------
 // Generic file md test declaration
@@ -72,23 +72,27 @@ void ChangeLogTest::readWriteCorrectness()
     eos::Buffer buffer;
 
     std::vector<uint64_t> offsets;
-    for( int i = 0; i < 100; ++i )
+    for( int i = 0; i < 1000; ++i )
     {
       buffer.clear();
+      uint32_t chkSum = i*423;
       std::ostringstream o;
       o << "filename_" << i;
       fileMetadata.pId    = i;
       fileMetadata.pCTime = i*12345;
       fileMetadata.setSize( i*987 );
       fileMetadata.setContainerId( i*765 );
-      fileMetadata.setChecksum( i*432 );
+      fileMetadata.setChecksum( &chkSum, sizeof( chkSum ) );
       fileMetadata.setName( o.str() );
-      fileMetadata.allocateLocations( 5 );
+      fileMetadata.setUid( i*2 );
+      fileMetadata.setGid( i*3 );
+      fileMetadata.setLayoutId( i*4 );
       for( int j = 0; j < 5; ++j )
-        fileMetadata.setLocation( j, i*j*123 );
+        fileMetadata.addLocation( i*j*2 );
 
       fileMetadata.serialize( buffer );
       offsets.push_back( file.storeRecord( eos::UPDATE_RECORD, buffer ) );
+      fileMetadata.clearLocations();
     }
 
 
@@ -109,6 +113,7 @@ void ChangeLogTest::readWriteCorrectness()
     {
       std::ostringstream o;
       o << "filename_" << i;
+      uint32_t checkSum = i*423;
 
       file.readRecord( readOffsets[i], buffer );
       fileMetadata.deserialize( buffer );
@@ -116,12 +121,16 @@ void ChangeLogTest::readWriteCorrectness()
       CPPUNIT_ASSERT( fileMetadata.pCTime == i*12345 );
       CPPUNIT_ASSERT( fileMetadata.getSize() == i*987 );
       CPPUNIT_ASSERT( fileMetadata.getContainerId() == i*765 );
-      CPPUNIT_ASSERT( fileMetadata.getChecksum() == i*432 );
+      CPPUNIT_ASSERT( fileMetadata.checksumMatch( &checkSum ) );
+      CPPUNIT_ASSERT( fileMetadata.getUid() == i*2 );
+      CPPUNIT_ASSERT( fileMetadata.getGid() == i*3 );
+      CPPUNIT_ASSERT( fileMetadata.getLayoutId() == i*4 );
 
       CPPUNIT_ASSERT( o.str() == fileMetadata.getName() );
 
       for( int j = 0; j < 5; ++j )
-        CPPUNIT_ASSERT( fileMetadata.getLocation(j) == i*j*123 );
+        CPPUNIT_ASSERT( fileMetadata.hasLocation( i*j*2 ) );
+      fileMetadata.clearLocations();
     }
   }
   catch( eos::MDException e )

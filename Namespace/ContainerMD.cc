@@ -24,7 +24,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  void ContainerMD::serialize( Buffer &buffer )
+  void ContainerMD::serialize( Buffer &buffer ) throw( MDException )
   {
     buffer.putData( &pId,       sizeof( pId ) );
     buffer.putData( &pParentId, sizeof( pParentId ) );
@@ -38,7 +38,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Deserialize the class to a buffer
   //----------------------------------------------------------------------------
-  void ContainerMD::deserialize( Buffer &buffer )
+  void ContainerMD::deserialize( Buffer &buffer ) throw( MDException )
   {
     uint16_t offset = 0;
     offset = buffer.grabData( offset, &pId,       sizeof( pId ) );

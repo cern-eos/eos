@@ -10,7 +10,7 @@
 #include <sstream>
 
 #include "OtherTests.hh"
-#include "utils/PathProcessor.hh"
+#include "Namespace/utils/PathProcessor.hh"
 
 //------------------------------------------------------------------------------
 // Generic file md test declaration

@@ -74,7 +74,8 @@ namespace eos
       //------------------------------------------------------------------------
       //! Create a file for given uri
       //------------------------------------------------------------------------
-      virtual FileMD *createFile( const std::string &uri )
+      virtual FileMD *createFile( const std::string &uri,
+                                  uid_t uid = 0, gid_t gid = 0 )
                                                       throw( MDException ) = 0;
 
       //------------------------------------------------------------------------

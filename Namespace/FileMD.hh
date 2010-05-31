@@ -6,12 +6,13 @@
 #ifndef EOS_FILE_MD_HH
 #define EOS_FILE_MD_HH
 
+#include "Namespace/persistency/Buffer.hh"
+#include "Namespace/ContainerMD.hh"
+
 #include <stdint.h>
 #include <cstring>
 #include <string>
-#include <vector>
-#include "Namespace/persistency/Buffer.hh"
-#include "Namespace/ContainerMD.hh"
+#include <set>
 
 namespace eos
 {
@@ -24,8 +25,9 @@ namespace eos
       //------------------------------------------------------------------------
       // Type definitions
       //------------------------------------------------------------------------
-      typedef uint64_t id_t;
-      typedef uint16_t location_t;
+      typedef uint64_t             id_t;
+      typedef uint16_t             location_t;
+      typedef std::set<location_t> LocationSet;
 
       //------------------------------------------------------------------------
       //! Constructor
@@ -46,6 +48,14 @@ namespace eos
       uint64_t getCTime() const
       {
         return pCTime;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set creation time
+      //------------------------------------------------------------------------
+      void setCTime( uint64_t ctime )
+      {
+        pCTime = ctime;
       }
 
       //------------------------------------------------------------------------
@@ -83,17 +93,39 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get checksum
       //------------------------------------------------------------------------
-      uint64_t getChecksum() const
+      const Buffer &getChecksum() const
       {
         return pChecksum;
       }
 
       //------------------------------------------------------------------------
+      //! Compare checksums
+      //! WARNING: you have to supply enough bytes to compare with the checksum
+      //! stored in the object!
+      //------------------------------------------------------------------------
+      bool checksumMatch( const void *checksum ) const
+      {
+        return !memcmp( checksum, pChecksum.getDataPtr(), pChecksum.getSize() );
+      }
+
+      //------------------------------------------------------------------------
       //! Set checksum
       //------------------------------------------------------------------------
-      void setChecksum( uint64_t checksum )
+      void setChecksum( const Buffer &checksum )
       {
         pChecksum = checksum;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set checksum
+      //!
+      //! @param checksum address of a memory location string the checksum
+      //! @param size     size of the checksum in bytes
+      //------------------------------------------------------------------------
+      void setChecksum( const void *checksum, uint8_t size )
+      {
+        pChecksum.resize( size );
+        memcpy( pChecksum.getDataPtr(), checksum, size );
       }
 
       //------------------------------------------------------------------------
@@ -113,11 +145,19 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
-      //! Get location
+      //! Start iterator for locations
       //------------------------------------------------------------------------
-      const location_t &getLocation( unsigned index ) const
+      LocationSet::const_iterator locationsBegin() const
       {
-        return pLocation[index];
+        return pLocation.begin();
+      }
+
+      //------------------------------------------------------------------------
+      //! End iterator for locations
+      //------------------------------------------------------------------------
+      LocationSet::const_iterator locationsEnd() const
+      {
+        return pLocation.end();
       }
 
       //------------------------------------------------------------------------
@@ -125,23 +165,33 @@ namespace eos
       //------------------------------------------------------------------------
       void addLocation( location_t location )
       {
-        pLocation.push_back( location );
+        pLocation.insert( location );
       }
 
       //------------------------------------------------------------------------
-      //! Set location
+      //! Remove location
       //------------------------------------------------------------------------
-      void setLocation( unsigned index, location_t location )
+      void removeLocation( location_t location )
       {
-        pLocation[index] = location;
+        pLocation.erase( location );
       }
 
       //------------------------------------------------------------------------
-      //! Set location
+      //! Clear locations
       //------------------------------------------------------------------------
-      void allocateLocations( unsigned number )
+      void clearLocations()
       {
-        pLocation.resize( number, 0 );
+        pLocation.clear();
+      }
+
+      //------------------------------------------------------------------------
+      //! Test the location
+      //------------------------------------------------------------------------
+      bool hasLocation( location_t location )
+      {
+        if( pLocation.find( location ) != pLocation.end() )
+          return true;
+        return false;
       }
 
       //------------------------------------------------------------------------
@@ -153,26 +203,77 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
+      //! Get uid
+      //------------------------------------------------------------------------
+      uid_t getUid() const
+      {
+        return pUid;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set uid
+      //------------------------------------------------------------------------
+      void setUid( uid_t uid )
+      {
+        pUid = uid;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get gid
+      //------------------------------------------------------------------------
+      gid_t getGid() const
+      {
+        return pGid;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set gid
+      //------------------------------------------------------------------------
+      void setGid( gid_t gid )
+      {
+        pGid = gid;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get name
+      //------------------------------------------------------------------------
+      uint32_t getLayoutId() const
+      {
+        return pLayoutId;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set name
+      //------------------------------------------------------------------------
+      void setLayoutId( uint32_t layoutId )
+      {
+        pLayoutId = layoutId;
+      }
+
+      //------------------------------------------------------------------------
       //! Serialize the object to a buffer
       //------------------------------------------------------------------------
-      void serialize( Buffer &buffer );
+      void serialize( Buffer &buffer ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Deserialize the class to a buffer
       //------------------------------------------------------------------------
-      void deserialize( Buffer &buffer );
+      void deserialize( Buffer &buffer ) throw( MDException );
 
     protected:
       //------------------------------------------------------------------------
       // Data members
       //-----------------------------------------------------------------------0
-      id_t                    pId;
-      uint64_t                pCTime;
-      uint64_t                pSize;
-      ContainerMD::id_t       pContainerId;
-      uint32_t                pChecksum;
-      std::string             pName;
-      std::vector<location_t> pLocation;
+      id_t              pId;
+      uint64_t          pCTime;
+      uint64_t          pSize;
+      ContainerMD::id_t pContainerId;
+      std::string       pName;
+      LocationSet       pLocation;
+      uid_t             pUid;
+      gid_t             pGid;
+      uint32_t          pLayoutId;
+      Buffer            pChecksum;
   };
 }
 

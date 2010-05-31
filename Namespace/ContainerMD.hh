@@ -87,12 +87,12 @@ namespace eos
       //------------------------------------------------------------------------
       //! Serialize the object to a buffer
       //------------------------------------------------------------------------
-      void serialize( Buffer &buffer );
+      void serialize( Buffer &buffer ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Deserialize the class to a buffer
       //------------------------------------------------------------------------
-      void deserialize( Buffer &buffer );
+      void deserialize( Buffer &buffer ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Find sub container

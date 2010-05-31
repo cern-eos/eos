@@ -11,9 +11,9 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include "views/HierarchicalView.hh"
-#include "persistency/ChangeLogContainerMDSvc.hh"
-#include "persistency/ChangeLogFileMDSvc.hh"
+#include "Namespace/views/HierarchicalView.hh"
+#include "Namespace/persistency/ChangeLogContainerMDSvc.hh"
+#include "Namespace/persistency/ChangeLogFileMDSvc.hh"
 
 //------------------------------------------------------------------------------
 // Generic file md test declaration

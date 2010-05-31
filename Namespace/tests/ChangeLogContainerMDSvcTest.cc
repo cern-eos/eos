@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include "persistency/ChangeLogContainerMDSvc.hh"
+#include "Namespace/persistency/ChangeLogContainerMDSvc.hh"
 
 //------------------------------------------------------------------------------
 // Generic file md test declaration

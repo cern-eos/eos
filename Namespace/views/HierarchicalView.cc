@@ -7,7 +7,8 @@
 #include "Namespace/utils/PathProcessor.hh"
 #include "Namespace/IContainerMDSvc.hh"
 #include "Namespace/IFileMDSvc.hh"
-#include <iostream>
+
+#include <ctime>
 
 namespace eos
 {
@@ -104,7 +105,8 @@ namespace eos
   //----------------------------------------------------------------------------
   // Create a file for given uri
   //----------------------------------------------------------------------------
-  FileMD *HierarchicalView::createFile( const std::string &uri )
+  FileMD *HierarchicalView::createFile( const std::string &uri,
+                                        uid_t uid, gid_t gid )
                                                             throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -144,6 +146,9 @@ namespace eos
 
     FileMD *file = pFileSvc->createFile();
     file->setName( elements[position] );
+    file->setUid( uid );
+    file->setGid( gid );
+    file->setCTime( time( 0 ) );
     cont->addFile( file );
     pFileSvc->updateStore( file );
     

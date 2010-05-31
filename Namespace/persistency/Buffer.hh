@@ -8,6 +8,9 @@
 
 #include <cstring>
 #include <vector>
+#include <stdint.h>
+
+#include "Namespace/MDException.hh"
 
 namespace eos
 {
@@ -29,6 +32,24 @@ namespace eos
       //! Destructor
       //------------------------------------------------------------------------
       virtual ~Buffer() {}
+
+      //------------------------------------------------------------------------
+      //! Copy constructor
+      //------------------------------------------------------------------------
+      Buffer( const Buffer &other )
+      {
+        *this = other;
+      };
+
+      //------------------------------------------------------------------------
+      //! Assignment operator
+      //------------------------------------------------------------------------
+      Buffer &operator = ( const Buffer &other )
+      {
+        resize( other.getSize() );
+        memcpy( getDataPtr(), other.getDataPtr(), other.getSize() );
+        return *this;
+      };
 
       //------------------------------------------------------------------------
       //! Get data pointer
@@ -68,13 +89,18 @@ namespace eos
       //! Add data
       //------------------------------------------------------------------------
       uint16_t grabData( uint16_t offset, void *ptr, size_t dataSize ) const
+                                                            throw( MDException )
       {
+        if( offset+dataSize > getSize() )
+        {
+          MDException e( EINVAL );
+          e.getMessage() << "Not enough data to fulfil the request";
+          throw e;
+        }
         memcpy( ptr, &operator[](offset), dataSize );
         return offset+dataSize;
       }
     protected:
-      Buffer( const Buffer &other ) {};
-      Buffer &operator = ( const Buffer &other ) { return *this; };
   };
 }
 
