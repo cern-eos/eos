@@ -35,6 +35,7 @@ namespace eos
       MDException( MDException &e )
       {
         pMessage << e.getMessage().str();
+        pErrorNo = e.pErrorNo;
       }
 
       //------------------------------------------------------------------------
