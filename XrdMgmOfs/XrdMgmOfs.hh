@@ -1,15 +1,17 @@
 #ifndef __XRDMGMOFS_MGMOFS__HH__
 #define __XRDMGMOFS_MGMOFS__HH__
 
-
 /*----------------------------------------------------------------------------*/
 #include "XrdCapability/XrdCapability.hh"
-#include "XrdCommon/XrdCommonMapping.hh"
+#include "XrdCommon/XrdCommonMapping.hh"  
 #include "XrdCommon/XrdCommonSymKeys.hh"
 #include "XrdCommon/XrdCommonLogging.hh"
 #include "XrdMqOfs/XrdMqMessaging.hh"
 #include "XrdMgmOfs/XrdMgmProcInterface.hh"
 #include "XrdMgmOfs/XrdMgmConfigEngine.hh"
+#include "Namespace/IView.hh"
+#include "Namespace/IFileMDSvc.hh"
+#include "Namespace/IContainerMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCms/XrdCmsFinder.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -42,6 +44,11 @@ public:
                          const XrdSecClientName  *client = 0,
                          const char              *opaque = 0);
 
+        int         open(const char              *dirName,
+                         uid_t                    uid,
+			 gid_t                    gid,
+                         const char              *opaque = 0);
+
         const char *nextEntry();
 
         int         Emsg(const char *, XrdOucErrInfo&, int, const char *x,
@@ -52,15 +59,13 @@ const   char       *FName() {return (const char *)fname;}
 
                     XrdMgmOfsDirectory(char *user=0) : XrdSfsDirectory(user)
                                 {ateof = 0; fname = 0;
-                                 dh    = (DIR *)0;
                                  d_pnt = &dirent_full.d_entry; uid=ruid=99;gid=rgid=99;
-				 XrdCommonLogId();
+				 XrdCommonLogId();dh =0;
                                 }
 
-                   ~XrdMgmOfsDirectory() {if (dh) close();}
+                   ~XrdMgmOfsDirectory() {}
 private:
 
-  DIR           *dh;  // Directory stream handle
   char           ateof;
   char          *fname;
   XrdOucString   entry;
@@ -75,6 +80,10 @@ private:
   gid_t          gid;
   uid_t          ruid;
   gid_t          rgid;
+
+  eos::ContainerMD* dh;
+  eos::ContainerMD::FileMap::iterator dh_files;
+  eos::ContainerMD::ContainerMap::iterator dh_dirs;
 };
 
 /*----------------------------------------------------------------------------*/
@@ -130,7 +139,7 @@ public:
                             const char *y="");
 
                        XrdMgmOfsFile(char *user=0) : XrdSfsFile(user)
-                                          {oh = -1; fname = 0; openOpaque=0;uid=ruid=99; gid=rgid=99;fileId=0; procCmd=0; XrdCommonLogId();}
+                                          {oh = -1; fname = 0; openOpaque=0;uid=ruid=99; gid=rgid=99;fileId=0; procCmd=0; XrdCommonLogId();fmd=0;}
                       ~XrdMgmOfsFile() {
 			if (oh) close();
 			if (openOpaque) {delete openOpaque; openOpaque = 0;}
@@ -147,6 +156,9 @@ private:
   unsigned long fileId;
 
   XrdMgmProcCommand* procCmd;
+
+  eos::FileMD* fmd;
+
   uid_t uid;
   gid_t gid;
   uid_t ruid;
@@ -201,7 +213,8 @@ public:
         int            fsctl(const int               cmd,
                              const char             *args,
                                    XrdOucErrInfo    &out_error,
-         	             const XrdSecEntity *client = 0) {return SFS_OK;}
+         	             const XrdSecEntity *client = 0);
+	  
 
         int            getStats(char *buff, int blen) {return 0;}
 
@@ -216,9 +229,10 @@ const   char          *getVersion();
 
         int            _mkdir(const char             *dirName,
 			      XrdSfsMode        Mode,
-                                   XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client = 0,
-                             const char             *opaque = 0);
+			      XrdOucErrInfo    &out_error,
+			      uid_t uid,
+			      gid_t gid,
+			      const char             *opaque = 0);
 
         int       stageprepare(const char           *path, 
 			       XrdOucErrInfo        &error, 
@@ -247,7 +261,8 @@ const   char          *getVersion();
 
         int            _remdir(const char             *dirName,
                                     XrdOucErrInfo    &out_error,
-                              const XrdSecEntity *client = 0,
+			       uid_t                  uid,
+			       gid_t                  gid,
                               const char             *opaque = 0);
 
         int            rename(const char             *oldFileName,
@@ -262,6 +277,14 @@ const   char          *getVersion();
                                   XrdOucErrInfo    &out_error,
                             const XrdSecEntity *client = 0,
                             const char             *opaque = 0);
+
+        int            _stat(const char             *Name,
+                                  struct stat      *buf,
+                                  XrdOucErrInfo    &out_error,
+       			          uid_t             uid,
+			          gid_t             gid, 
+                            const char             *opaque = 0);
+
 
         int            lstat(const char            *Name,
                                   struct stat      *buf,
@@ -294,7 +317,7 @@ const   char          *getVersion();
 // Common functions
 //
 static  int            Mkpath(const char *path, mode_t mode, 
-                              const char *info=0, XrdSecEntity* client = 0, XrdOucErrInfo* error = 0);
+			      const char *info=0, XrdSecEntity* client = 0, XrdOucErrInfo* error = 0) { return SFS_ERROR;}
 
         int            Emsg(const char *, XrdOucErrInfo&, int, const char *x,
                             const char *y="");
@@ -322,6 +345,11 @@ virtual bool           Init(XrdSysError &);
         bool             authorize;          // -> determins if the autorization should be applied or not
         XrdAccAuthorize *Authorization;      // -> Authorization   Service
         bool             IssueCapability;    // -> defines if the Mgm issues capabilities
+  
+        eos::IContainerMDSvc  *eosDirectoryService;              // -> changelog for directories
+        eos::IFileMDSvc *eosFileService;                         // -> changelog for files
+	eos::IView      *eosView;            // -> hierarchical view of the namespace
+        XrdOucString     MgmMetaLogDir;      //  Directory containing the meta data (change) log files
 
 protected:
         char*            HostName;           // -> our hostname as derived in XrdOfs

@@ -12,13 +12,14 @@ namespace eos
   //----------------------------------------------------------------------------
   FileMD::FileMD( id_t id ):
     pId( id ),
-    pCTime( 0 ),
     pSize( 0 ),
     pContainerId( 0 ),
-    pUid( 0 ),
-    pGid( 0 ),
+    pCUid( 0 ),
+    pCGid( 0 ),
     pLayoutId( 0 )
   {
+    pCTime.tv_sec = pCTime.tv_nsec = 0;
+    pMTime.tv_sec = pMTime.tv_nsec = 0;
   }
 
   //----------------------------------------------------------------------------
@@ -28,6 +29,7 @@ namespace eos
   {
     buffer.putData( &pId,          sizeof( pId ) );
     buffer.putData( &pCTime,       sizeof( pCTime ) );
+    buffer.putData( &pMTime,       sizeof( pMTime ) );
     buffer.putData( &pSize,        sizeof( pSize ) );
     buffer.putData( &pContainerId, sizeof( pContainerId ) );
 
@@ -45,8 +47,8 @@ namespace eos
       buffer.putData( &location, sizeof( location_t ) );
     }
 
-    buffer.putData( &pUid,      sizeof( pUid ) );
-    buffer.putData( &pGid,      sizeof( pGid ) );
+    buffer.putData( &pCUid,      sizeof( pCUid ) );
+    buffer.putData( &pCGid,      sizeof( pCGid ) );
     buffer.putData( &pLayoutId, sizeof( pLayoutId ) );
 
     uint8_t size = pChecksum.getSize();
@@ -62,6 +64,7 @@ namespace eos
     uint16_t offset = 0;
     offset = buffer.grabData( offset, &pId,          sizeof( pId ) );
     offset = buffer.grabData( offset, &pCTime,       sizeof( pCTime ) );
+    offset = buffer.grabData( offset, &pMTime,       sizeof( pMTime ) );
     offset = buffer.grabData( offset, &pSize,        sizeof( pSize ) );
     offset = buffer.grabData( offset, &pContainerId, sizeof( pContainerId ) );
 
@@ -79,8 +82,8 @@ namespace eos
       pLocation.insert( location );
     }
 
-    offset = buffer.grabData( offset, &pUid,      sizeof( pUid ) );
-    offset = buffer.grabData( offset, &pGid,      sizeof( pGid ) );
+    offset = buffer.grabData( offset, &pCUid,      sizeof( pCUid ) );
+    offset = buffer.grabData( offset, &pCGid,      sizeof( pCGid ) );
     offset = buffer.grabData( offset, &pLayoutId, sizeof( pLayoutId ) );
 
     uint8_t size = 0;

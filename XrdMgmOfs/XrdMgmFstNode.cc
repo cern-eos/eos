@@ -217,7 +217,7 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int bootstatus, XrdOucEnv* env , int errc, const char* errmsg) 
+XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int bootstatus, XrdOucEnv* env , int errc, const char* errmsg, bool configchangelog) 
 {
   if (!infsname) 
     return false;
@@ -297,7 +297,7 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
   fs->SetStatfsEnv(env);
 
   // change config
-  gOFS->ConfigEngine->SetConfigValue("fs", fs->GetQueuePath(), fs->GetBootString());
+  gOFS->ConfigEngine->SetConfigValue("fs", fs->GetQueuePath(), fs->GetBootString(), configchangelog );
 
   return true;
 }

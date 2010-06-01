@@ -14,11 +14,12 @@ namespace eos
   ContainerMD::ContainerMD( id_t id ):
     pId( id ),
     pParentId( 0 ),
-    pCTime( 0 ),
     pName( "" )
   {
     pSubContainers.set_deleted_key( "" );
     pFiles.set_deleted_key( "" );
+    pCTime.tv_sec = 0;
+    pCTime.tv_nsec = 0;
   }
 
   //----------------------------------------------------------------------------

@@ -16,6 +16,8 @@
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
+#include <vector>
+/*----------------------------------------------------------------------------*/
 
 class XrdMgmSpaceQuota {
 private:
@@ -128,6 +130,8 @@ public:
 
   google::dense_hash_map<long long, unsigned long long>::const_iterator Begin() { return Quota.begin();}
   google::dense_hash_map<long long, unsigned long long>::const_iterator End()   { return Quota.end();}
+
+  std::vector< std::vector<unsigned int> > SchedulingView; // first index is the scheduling group index f.e. if we have default.0,default.1,default.2 .... SchedulingView[0] points to the array with all file system IDs in scheduling group default.0 
 
   const char* GetSpaceName() { return SpaceName.c_str();}
 

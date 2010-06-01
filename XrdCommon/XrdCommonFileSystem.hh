@@ -155,6 +155,13 @@ public:
     return (strtoll(sizestring.c_str(),0,10) * convfactor);
   }
 
+  static const char* GetSizeString(XrdOucString& sizestring, unsigned long long insize) {
+    char buffer[1024];
+    sprintf(buffer,"%llu", insize);
+    sizestring = buffer;
+    return sizestring.c_str();
+  }
+
   static bool SplitKeyValue(XrdOucString keyval, XrdOucString &key, XrdOucString &value) {
     int equalpos = keyval.find(":");
     if (equalpos != STR_NPOS) {

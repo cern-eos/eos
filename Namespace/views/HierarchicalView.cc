@@ -7,8 +7,10 @@
 #include "Namespace/utils/PathProcessor.hh"
 #include "Namespace/IContainerMDSvc.hh"
 #include "Namespace/IFileMDSvc.hh"
+#include <errno.h>
 
 #include <ctime>
+
 
 namespace eos
 {
@@ -146,9 +148,10 @@ namespace eos
 
     FileMD *file = pFileSvc->createFile();
     file->setName( elements[position] );
-    file->setUid( uid );
-    file->setGid( gid );
-    file->setCTime( time( 0 ) );
+    file->setCUid( uid );
+    file->setCGid( gid );
+    file->setCTimeNow();
+    file->setMTimeNow();
     cont->addFile( file );
     pFileSvc->updateStore( file );
     
@@ -275,6 +278,7 @@ namespace eos
     {
       ContainerMD *newContainer = pContainerSvc->createContainer();
       newContainer->setName( elements[i] );
+      newContainer->setCTimeNow();
       lastContainer->addContainer( newContainer );
       lastContainer = newContainer;
       pContainerSvc->updateStore( lastContainer );

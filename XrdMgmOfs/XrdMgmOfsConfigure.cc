@@ -9,6 +9,9 @@
 #include "XrdMgmOfs/XrdMgmOfs.hh"
 #include "XrdMgmOfs/XrdMgmOfsTrace.hh"
 #include "XrdMgmOfs/XrdMgmFstNode.hh"
+#include "Namespace/persistency/ChangeLogContainerMDSvc.hh"
+#include "Namespace/persistency/ChangeLogFileMDSvc.hh"
+#include "Namespace/views/HierarchicalView.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -40,7 +43,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   MgmOfsBrokerUrl = "root://localhost:1097//eos/";
 
   MgmConfigDir = "/var/tmp/";
-
+  MgmMetaLogDir = "/var/tmp/eos/md/";
 
   long myPort=0;
 
@@ -206,8 +209,20 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	    MgmConfigDir += "/";
 	}
       }
-
-
+      if (!strcmp("metalog",var)) {
+	if (!(val = Config.GetWord())) {
+	  Eroute.Emsg("Config","argument 2 for metalog missing"); NoGo=1;
+	} else {
+	  MgmMetaLogDir = val;
+	  // just try to create it in advance
+	  XrdOucString makeit="mkdir -p "; makeit+= MgmMetaLogDir; system(makeit.c_str());
+	  if (::access(MgmMetaLogDir.c_str(), W_OK|R_OK|X_OK)) {
+	    Eroute.Emsg("Config","I cannot acccess the meta data changelog directory for r/w!", MgmMetaLogDir.c_str()); NoGo=1;
+	  } else {
+	    Eroute.Say("=====> mgmofs.metalog: ", MgmMetaLogDir.c_str(),"");
+	  }
+	}
+      }
       if (!strcmp("trace",var)) {
 	static struct traceopts {const char *opname; int opval;} tropts[] =
 								   {
@@ -376,6 +391,33 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   eos_info("%s",(char*)"test info");
   eos_debug("%s",(char*)"test debug");
 
+  // configure the meta data catalog
+  eosDirectoryService = new eos::ChangeLogContainerMDSvc;
+  eosFileService      = new eos::ChangeLogFileMDSvc;
+  eosView             = new eos::HierarchicalView;
+
+  std::map<std::string, std::string> fileSettings;
+  std::map<std::string, std::string> contSettings;
+  std::map<std::string, std::string> settings;
+  contSettings["changelog_path"] = MgmMetaLogDir.c_str();
+  fileSettings["changelog_path"] = MgmMetaLogDir.c_str();
+  contSettings["changelog_path"] += "/directories.mdlog";
+  fileSettings["changelog_path"] += "/files.mdlog";
+
+  eosFileService->configure( fileSettings );
+  eosDirectoryService->configure( contSettings );
+
+  eosView->setContainerMDSvc( eosDirectoryService );
+  eosView->setFileMDSvc ( eosFileService );
+  
+  eosView->configure ( settings );
+
+  eos_notice("%s",(char*)"eos view configure started");
+  time_t tstart = time(0);
+  eosView->initialize();
+  time_t tstop  = time(0);
+  eos_notice("eos view configure stopped after %d seconds", (tstop-tstart));
+  
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

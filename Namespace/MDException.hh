@@ -21,7 +21,7 @@ namespace eos
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      MDException( int errorNo = 0 ) throw(): pErrorNo( errorNo ) {}
+      MDException( int errorNo = ENODATA ) throw(): pErrorNo( errorNo ) {}
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -35,7 +35,7 @@ namespace eos
       MDException( MDException &e )
       {
         pMessage << e.getMessage().str();
-        pErrorNo = e.pErrorNo;
+	pErrorNo = e.getErrno();
       }
 
       //------------------------------------------------------------------------

@@ -6,6 +6,8 @@
 #include "XrdMgmOfs/XrdMgmOfs.hh"
 #include "XrdMgmOfs/XrdMgmOfsTrace.hh"
 #include "XrdMgmOfs/XrdMgmOfsSecurity.hh"
+#include "XrdMgmOfs/XrdMgmPolicy.hh"
+#include "XrdMgmOfs/XrdMgmQuota.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdVersion.hh"
 #include "XrdClient/XrdClientAdmin.hh"
@@ -103,26 +105,60 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
    XrdSecEntity mappedclient;
    XrdOucEnv Open_Env(info);
 
+   eos_info("path=%s",dir_path);
+
    AUTHORIZE(client,&Open_Env,AOP_Readdir,"open directory",dir_path,error);
 
    XrdCommonMapping::RoleMap(client,info,mappedclient,tident, uid, gid, ruid, rgid);
 
-// Verify that this object is not already associated with an open directory
-//
-   if (dh) return
-	     Emsg(epname, error, EADDRINUSE, 
-                             "open directory", dir_path);
+   return open(dir_path, uid, gid, info);
+}
+
+/*----------------------------------------------------------------------------*/
+int XrdMgmOfsDirectory::open(const char              *dir_path, // In
+			     uid_t                    uid,      // In
+			     gid_t                    gid,      // In
+			     const char              *info)     // In
+/*
+  Function: Open the directory `path' and prepare for reading.
+
+  Input:    path      - The fully qualified name of the directory to open.
+            cred      - Authentication credentials, if any.
+            info      - Opaque information, if any.
+
+  Output:   Returns SFS_OK upon success, otherwise SFS_ERROR.
+*/
+{
+   static const char *epname = "opendir";
+   XrdOucEnv Open_Env(info);
+
+   eos_info("path=%s",dir_path);
+
+   // Open the directory
+   try {
+     dh = gOFS->eosView->getContainer(dir_path);
+   } catch( eos::MDException &e ) {
+     dh = 0;
+     errno = e.getErrno();
+     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+   }
+
+
+   // Verify that this object is not already associated with an open directory
+   //
+   if (!dh) return
+	      Emsg(epname, error, errno, 
+		   "open directory", dir_path);
    
    // Set up values for this directory object
    //
    ateof = 0;
    fname = strdup(dir_path);
 
+   dh_files = dh->filesBegin();
+   dh_dirs  = dh->containersBegin();
    
-// Open the directory and get it's id
-//
-
-   return  Emsg(epname,error,EOPNOTSUPP,"open directory",dir_path);
+   return  SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -148,12 +184,22 @@ const char *XrdMgmOfsDirectory::nextEntry()
        return (const char *)0;
       }
 
-   // Check if we are at EOF (once there we stay there)
-   //
-   if (ateof) return (const char *)0;
-   
-   Emsg(epname,error,EOPNOTSUPP,"read directory",fname);
-   return (const char *)0;
+
+   if (dh_files != dh->filesEnd()) {
+     // there are more files
+     entry = dh_files->first.c_str();
+     dh_files++;
+   } else {
+     if (dh_dirs != dh->containersEnd()) {
+       // there are more dirs
+       entry = dh_dirs->first.c_str();
+       dh_dirs++;
+     } else {
+       return (const char*) 0;
+     }
+   }
+
+   return (const char *)entry.c_str();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -166,13 +212,9 @@ int XrdMgmOfsDirectory::close()
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
 {
-  static const char *epname = "closedir";
+  //  static const char *epname = "closedir";
   
-  // Release the handle
-  //
-  
-  Emsg(epname, error, EOPNOTSUPP, "close directory", fname);
-  return SFS_ERROR;
+  return SFS_OK;
 }
 
 
@@ -300,25 +342,63 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     AUTHORIZE(client,openOpaque,(isRW?AOP_Update:AOP_Read),"open",path,error);
   }
 
-  //  ZTRACE(open, "Authorized");
-
   eos_debug("authorize done");
 
   redirectionhost= "localhost?";
 
+
+  // get the file meta data if exists
+  try {
+    fmd = gOFS->eosView->getFile(path);
+  } catch( eos::MDException &e ) {
+    fmd = 0;
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  };
+
+
+  if (isRW) {
+    // write case
+    if ((!fmd)) {
+      if (!(crOpts & XRDOSS_new))  {
+	// write open of not existing file without creation flag
+	return Emsg(epname, error, errno, "open file", path);      
+      } else {
+	// creation of a new file
+	try {
+	  fmd = gOFS->eosView->createFile(path, uid, gid);
+	} catch( eos::MDException &e ) {
+	  fmd = 0;
+	  errno = e.getErrno();
+	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	};
+
+	if (!fmd) {
+	  // creation failed
+	  return Emsg(epname, error, errno, "create file", path);      
+	}
+	// commit that
+	try {
+	  gOFS->eosView->updateFileStore(fmd);
+	} catch( eos::MDException &e ) {
+	  errno = e.getErrno();
+	  std::string errmsg = e.getMessage().str();
+	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	  return Emsg(epname, error, errno, "open file", errmsg.c_str());      
+	}
+      }
+    } else {
+      // we attached to an existing file
+    }
+  } else {
+    if ((!fmd)) 
+      return Emsg(epname, error, errno, "open file", path);      
+  }
   
   // construct capability
-  
   XrdOucString capability = "";
-  static int rfileid=1;
-  static int wfileid=1;
-  
-  // this is dummy fid creation
-  if (isRW) {
-    fileId = (wfileid++/2) + 1;
-  } else {    
-    fileId = rfileid++;
-  }
+
+  fileId = fmd->getId();
   
   if (isRW) {
     if (isRewrite) {
@@ -330,6 +410,22 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     capability += "&mgm.access=read";
   }
 
+  // select round robin laytouts
+  //  unsigned int layoutId = (int)((fileId % 5)+1);
+
+  unsigned long layoutId = XrdCommonLayoutId::kPlain;
+  XrdOucString space = "default";
+
+  // select space and layout
+  XrdMgmPolicy::GetLayoutAndSpace(path, uid, gid, layoutId, space, *openOpaque);
+  
+  XrdMgmSpaceQuota* quotaspace = XrdMgmQuota::GetSpaceQuota(space.c_str(),false);
+
+  if (!quotaspace) {
+    return Emsg(epname, error, EINVAL, "get quota space ", space.c_str());
+  }
+
+
   capability += "&mgm.uid=";       capability+=(int)uid; 
   capability += "&mgm.gid=";       capability+=(int)gid;
   capability += "&mgm.ruid=";      capability+=(int)uid; 
@@ -337,11 +433,13 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   capability += "&mgm.path=";      capability += path;
   capability += "&mgm.manager=";   capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";    XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fileId,hexfid);capability += hexfid;
-  capability += "&mgm.fsid=1";
   capability += "&mgm.localprefix="; capability+= "/var/tmp/ost/";
   capability += "&mgm.lid=";       //capability += XrdCommonLayoutId::kPlain;
   // test all checksum algorithms
   capability += (int)((fileId % 5)+1);
+
+  // this will be replaced with the scheduling call
+  capability += "&mgm.fsid=1";
 
 
 
@@ -611,7 +709,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   Function: Determine if file 'path' actually exists.
 
   Input:    path        - Is the fully qualified name of the file to be tested.
-            file_exists - Is the address of the variable to hold the status of
+:            file_exists - Is the address of the variable to hold the status of
                           'path' when success is returned. The values may be:
                           XrdSfsFileExistsIsDirectory - file not found but path is valid.
                           XrdSfsFileExistsIsFile      - file found.
@@ -625,24 +723,35 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   Notes:    When failure occurs, 'file_exists' is not modified.
 */
 {
-   static const char *epname = "exists";
+  // try if that is directory
+  eos::ContainerMD* cmd = 0;
+  try {
+    cmd = gOFS->eosView->getContainer(path);
+  } catch ( eos::MDException &e ) {
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  };
 
-// Now try to find the file or directory
-//
-//   if (!XrdMgmOfsUFS::Statfn(path, &fstat) )
-//      {     if (S_ISDIR(fstat.filemode)) file_exists=XrdSfsFileExistIsDirectory;
-//       else if (S_ISREG(fstat.filemode)) file_exists=XrdSfsFileExistIsFile;
-//       else                             file_exists=XrdSfsFileExistNo;
-//       return SFS_OK;
-//      }
-//   if (serrno == ENOENT)
-//      {file_exists=XrdSfsFileExistNo;
-//       return SFS_OK;
-//      }
+  if (!cmd) {
+    // try if that is a file
+    eos::FileMD* fmd = 0;
+    try {
+      fmd = gOFS->eosView->getFile(path);
+    } catch( eos::MDException &e ) {
+      errno = e.getErrno();
+      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    }
 
-// An error occured, return the error info
-//
-   return Emsg(epname,error,EOPNOTSUPP,"exists",path);
+    if (!fmd) {
+      file_exists=XrdSfsFileExistNo;
+    } else {
+      file_exists=XrdSfsFileExistIsFile;
+    }
+  } else {
+    file_exists = XrdSfsFileExistIsDirectory;
+  }
+  
+  return SFS_OK;
 }
 
 
@@ -668,20 +777,20 @@ int XrdMgmOfs::mkdir(const char             *path,    // In
 
    XTRACE(mkdir, path,"");
 
+   eos_info("path=%s",path);
+
    XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
 
-   int r1 = _mkdir(path,Mode,error,&mappedclient,info);
-   int r2 = SFS_OK;
-
-   return (r1 | r2);
+   return  _mkdir(path,Mode,error,uid,gid,info);
 }
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::_mkdir(const char            *path,    // In
-                              XrdSfsMode        Mode,    // In
-                              XrdOucErrInfo    &error,   // Out
-                        const XrdSecEntity     *client,  // In
-                        const char             *info)    // In
+		      XrdSfsMode             Mode,    // In
+		      XrdOucErrInfo         &error,   // Out
+		      uid_t                  uid,     // In
+		      gid_t                  gid,     // In
+		      const char            *info)    // In
 /*
   Function: Create a directory entry.
 
@@ -689,7 +798,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
             Mode      - Is the POSIX mode setting for the directory. If the
                         mode contains SFS_O_MKPTH, the full path is created.
             einfo     - Error information object to hold error details.
-            client    - Authentication credentials, if any.
+            uid,gid   - Authentication credentials
             info      - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
@@ -701,111 +810,58 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   
   // Create the path if it does not already exist
   //
-  if (Mode & SFS_O_MKPTH) {
-    char actual_path[4096], *local_path, *next_path;
-    unsigned int plen;
-    // Extract out the path we should make
-    //
-    if (!(plen = strlen(path))) return -ENOENT;
-    if (plen >= sizeof(actual_path)) return -ENAMETOOLONG;
-    strcpy(actual_path, path);
-    if (actual_path[plen-1] == '/') actual_path[plen-1] = '\0';
-    
-    // Typically, the path exist. So, do a quick check before launching into it
-    //
-    if (!(local_path = rindex(actual_path, (int)'/'))
-	||  local_path == actual_path) return 0;
-    *local_path = '\0';
-    //     if (XrdMgmOfsUFS::Statfn(actual_path, &buf)) {
-    //       *local_path = '/';
-    // Start creating directories starting with the root. Notice that we will not
-    // do anything with the last component. The caller is responsible for that.
-    //
-    local_path = actual_path+1;
-    while((next_path = index(local_path, int('/'))))
-      { //int rc;
-      *next_path = '\0';
-      //	   if ((rc=XrdMgmOfsUFS::Mkdir(actual_path,S_IRWXU)) && serrno != EEXIST)
-      //	     return -serrno;
-      // Set acl on directory
-      //	   if (!rc) {
-      //	     if (client) SETACL(actual_path,(*client),0);
-      //	   }
-      
-      *next_path = '/';
-      local_path = next_path+1;
-      }
+
+  XrdOucString spath= path;
+
+  if (!spath.beginswith("/")) {
+    errno = EINVAL;
+    return Emsg(epname,error,EINVAL,"create directory - you have to specifiy an absolute pathname",path);
   }
 
-  // Perform the actual creation
-  //
-  //  if (XrdMgmOfsUFS::Mkdir(path, acc_mode) && (serrno != EEXIST))
-  //    return Emsg(epname,error,serrno,"create directory",path);
-  // Set acl on directory
-  //  if (client)SETACL(path,(*client),0); 
+  bool recurse = false;
+  if (Mode & SFS_O_MKPTH) {
+    recurse = true;
+    eos_info("SFS_O_MKPATH set",path);
+    // short cut if it exists already
+
+    eos::ContainerMD* dir=0;
+    try {
+      dir = eosView->getContainer(path);
+    } catch( eos::MDException &e ) {
+      dir = 0;
+      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    }
+
+    if (dir) {
+      eos_info("this directory exists!",path);
+      return SFS_OK;
+    }
+  }
   
-  // All done
-  return Emsg(epname,error,EOPNOTSUPP,"mkdir",path);
-}
+  eos_info("create",path);
+  eos::ContainerMD* newdir = 0;
+  try {
+    newdir = eosView->createContainer(path, recurse);
+  } catch( eos::MDException &e ) {
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
 
-/*----------------------------------------------------------------------------*/
+  // do an mkdir -p
+  if (!newdir) {
+    return Emsg(epname,error,errno,"mkdir",path);
+  }
+  // commit on disk
+  try {
+    eosView->updateContainerStore(newdir);
+  } catch( eos::MDException &e ) {
+    errno = e.getErrno();
+    std::string errmsg = e.getMessage().str();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    return Emsg(epname, error, errno, "create directory", errmsg.c_str());      
+  }
 
-int XrdMgmOfs::Mkpath(const char *path, mode_t mode, const char *info,XrdSecEntity* client, XrdOucErrInfo* error )
-/*
-  Function: Create a directory path
-
-  Input:    path        - Is the fully qualified name of the new path.
-            mode        - The new mode that each new directory is to have.
-            info        - Opaque information, of any.
-
-  Output:   Returns 0 upon success and -errno upon failure.
-*/
-{
-    char actual_path[4096], *local_path, *next_path;
-    unsigned int plen;
-    //    static const char *epname = "Mkpath";
-
-// Extract out the path we should make
-//
-   if (!(plen = strlen(path))) return -ENOENT;
-   if (plen >= sizeof(actual_path)) return -ENAMETOOLONG;
-   strcpy(actual_path, path);
-   if (actual_path[plen-1] == '/') actual_path[plen-1] = '\0';
-
-// Typically, the path exist. So, do a quick check before launching into it
-//
-   if (!(local_path = rindex(actual_path, (int)'/'))
-   ||  local_path == actual_path) return 0;
-   *local_path = '\0';
-
-   //   if (!XrdMgmOfsUFS::Statfn(actual_path, &buf)) return 0;
-   *local_path = '/';
-
-// Start creating directories starting with the root. Notice that we will not
-// do anything with the last component. The caller is responsible for that.
-//
-   local_path = actual_path+1;
-   while((next_path = index(local_path, int('/')))) {
-     *next_path = '\0';
-     if (1) {
-     //     if (XrdMgmOfsUFS::Statfn(actual_path, &buf)) {
-       if (client && error) {
-	 //	 const char *tident = (*error).getErrUser();
-	 //	 if ( (XrdxCastor2FS->_mkdir(actual_path,mode,(*error),client,info)) )
-	 //	   return -serrno;
-       } else {
-	 //	    if (XrdMgmOfsUFS::Mkdir(actual_path,mode) && (serrno != EEXIST))
-	 //	      return -serrno;
-       }
-     }
-     // Set acl on directory
-     *next_path = '/';
-     local_path = next_path+1;
-   }
-
-// All done
-//
-   return 0;
+  return SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -905,28 +961,40 @@ int XrdMgmOfs::remdir(const char             *path,    // In
 
    XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
 
-   return _remdir(path,error,&mappedclient,info);
+   return _remdir(path,error,uid,gid,info);
 }
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::_remdir(const char             *path,    // In
-                               XrdOucErrInfo    &error,   // Out
-                         const XrdSecEntity *client,  // In
-                         const char             *info)    // In
+		       XrdOucErrInfo          &error,   // Out
+		       uid_t                   uid,     // In
+		       gid_t                   gid,     // In
+		       const char             *info)    // In
 /*
   Function: Delete a directory from the namespace.
 
   Input:    path      - Is the fully qualified name of the dir to be removed.
             einfo     - Error information object to hold error details.
-            client    - Authentication credentials, if any.
+            uid,gid   - Authentication credentials
             info      - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
 {
    static const char *epname = "remdir";
-   
-   return Emsg(epname, error, EOPNOTSUPP, "remove", path);
+   errno = 0;
+   try {
+     eosView->removeContainer(path);
+   } catch( eos::MDException &e ) {
+     errno = e.getErrno();
+     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+   }
+
+   if (errno) {
+     return Emsg(epname, error, errno, "remove", path);
+   } else {
+     return SFS_OK;
+   }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1032,16 +1100,93 @@ int XrdMgmOfs::stat(const char              *path,        // In
   AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",path,error);
 
   XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
+  return _stat(path, buf, error, uid,gid, info);
+}
 
-  return Emsg(epname, error, EOPNOTSUPP, "stat", path);
+/*----------------------------------------------------------------------------*/
+int XrdMgmOfs::_stat(const char              *path,        // In
+                           struct stat       *buf,         // Out
+                           XrdOucErrInfo     &error,       // Out
+         		   uid_t              uid,         // In 
+ 		           gid_t              gid,         // In
+                     const char              *info)        // In
+{
+  static const char *epname = "_stat";
+  
+  // try if that is directory
+  eos::ContainerMD* cmd = 0;
+  try {
+    cmd = gOFS->eosView->getContainer(path);
+  } catch( eos::MDException &e ) {
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+
+  if (!cmd) {
+    // try if that is a file
+
+    eos::FileMD* fmd = 0; 
+    try {
+      fmd = gOFS->eosView->getFile(path);
+    } catch( eos::MDException &e ) {
+      errno = e.getErrno();
+      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    }
+
+    if (!fmd) {
+      return Emsg(epname, error, errno, "stat", path);
+    }
+    memset(buf, sizeof(struct stat),0);
+    
+    buf->st_dev     = 0xcaff;
+    buf->st_ino     = fmd->getId();
+    buf->st_mode    = S_IFREG;
+    buf->st_mode    |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR );
+    buf->st_nlink   = 0;
+    buf->st_uid     = 0;
+    buf->st_gid     = 0;
+    buf->st_rdev    = 0;     /* device type (if inode device) */
+    buf->st_size    = fmd->getSize();
+    buf->st_blksize = 4096;
+    buf->st_blocks  = fmd->getSize() / 4096;
+    eos::FileMD::ctime_t atime;
+    fmd->getCTime(atime);
+    buf->st_ctime   = atime.tv_sec;
+    fmd->getMTime(atime);
+    buf->st_mtime   = atime.tv_sec;
+    buf->st_atime   = atime.tv_sec;
+    
+    return SFS_OK;
+  } else {
+    memset(buf, sizeof(struct stat),0);
+    
+    buf->st_dev     = 0xcaff;
+    buf->st_ino     = cmd->getId();
+    buf->st_mode    = S_IFDIR;
+    buf->st_mode    |= (S_IRWXU | S_IRWXG | S_IRWXO);
+    buf->st_nlink   = 0;
+    buf->st_uid     = 0;
+    buf->st_gid     = 0;
+    buf->st_rdev    = 0;     /* device type (if inode device) */
+    buf->st_size    = cmd->getNumContainers();
+    buf->st_blksize = 0;
+    buf->st_blocks  = 0;
+    eos::ContainerMD::ctime_t atime;
+    cmd->getCTime(atime);
+    buf->st_atime   = atime.tv_sec;
+    buf->st_mtime   = atime.tv_sec;
+    buf->st_ctime   = atime.tv_sec;
+    
+    return SFS_OK;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::lstat(const char              *path,        // In
-			      struct stat       *buf,         // Out
-                              XrdOucErrInfo     &error,       // Out
-                            const XrdSecEntity  *client,      // In
-                        const char              *info)        // In
+		     struct stat             *buf,         // Out
+		     XrdOucErrInfo           &error,       // Out
+		     const XrdSecEntity      *client,      // In
+		     const char              *info)        // In
 /*
   Function: Get info on 'path'.
 
@@ -1054,18 +1199,8 @@ int XrdMgmOfs::lstat(const char              *path,        // In
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
 {
-  static const char *epname = "lstat";
-  const char *tident = error.getErrUser(); 
-  XrdSecEntity mappedclient;
-  XrdOucEnv lstat_Env(info);
-
-  XTRACE(stat, path,"");
-
-  AUTHORIZE(client,&lstat_Env,AOP_Stat,"lstat",path,error);
-
-  XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
-
-  return Emsg(epname, error, EOPNOTSUPP, "lstat", path); 
+  // no symbolic links yet
+  return stat(path,buf,error,client,info);
 }
 
 
@@ -1296,6 +1431,35 @@ int XrdMgmOfs::Stall(XrdOucErrInfo   &error, // Error text & code
   return stime;
 }
 
+
+int       
+XrdMgmOfs::fsctl(const int               cmd,
+		 const char             *args,
+		 XrdOucErrInfo          &error,
+		 const XrdSecEntity *client)
+{
+  eos_info("cmd=%d args=%s", cmd,args);
+
+  if ((cmd == SFS_FSCTL_LOCATE)) {
+    // check if this file exists
+    //    XrdSfsFileExistence file_exists;
+    //    if ((_exists(path.c_str(),file_exists,error,client,0)) || (file_exists!=XrdSfsFileExistIsFile)) {
+    //      return SFS_ERROR;
+    //    }
+    
+    char locResp[4096];
+    char rType[3], *Resp[] = {rType, locResp};
+    rType[0] = 'S';
+    // we don't want to manage writes via global redirection - therefore we mark the files as 'r'
+    rType[1] = 'r';//(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
+    rType[2] = '\0';
+    sprintf(locResp,"[::%s] ",(char*)gOFS->ManagerId.c_str());
+    error.setErrInfo(strlen(locResp)+3, (const char **)Resp, 2);
+    return SFS_DATA;
+  }
+  return Emsg("fsctl", error, EOPNOTSUPP, "fsctl", args);
+}
+
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::FSctl(const int               cmd,
@@ -1376,10 +1540,10 @@ XrdMgmOfs::FSctl(const int               cmd,
     XrdOucString execmd = scmd;
 
     if (execmd == "commit") {
-      char* asize = env.Get("mgm.size");
+      char* asize  = env.Get("mgm.size");
       char* spath  = env.Get("mgm.path");
-      char* afid  = env.Get("mgm.fid");
-      char* afsid = env.Get("mgm.fsid");
+      char* afid   = env.Get("mgm.fid");
+      char* afsid  = env.Get("mgm.fsid");
       char* checksum = env.Get("mgm.checksum");
       char  binchecksum[SHA_DIGEST_LENGTH];
 
@@ -1396,12 +1560,49 @@ XrdMgmOfs::FSctl(const int               cmd,
 	unsigned long long size = strtoll(asize,0,10);
 	unsigned long long fid  = strtoll(afid,0,10);
 	unsigned long fsid      = strtol(afsid,0,10);
-	size = fid = 0; fsid = 0;
+
+	eos::Buffer checksumbuffer;
+	checksumbuffer.putData(binchecksum, SHA_DIGEST_LENGTH);
+
 	if (checksum) {
 	  eos_debug("commit: path=%s size=%s fid=%s fsid=%s checksum=%s", spath, asize, afid, afsid, checksum);
 	} else {
 	  eos_debug("commit: path=%s size=%s fid=%s fsid=%s", spath, asize, afid, afsid);
 	}
+
+	// get the file meta data if exists
+	eos::FileMD *fmd = 0;
+	try {
+	  fmd = gOFS->eosView->getFile(spath);
+	} catch( eos::MDException &e ) {
+	  errno = e.getErrno();
+	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	}
+
+	if (!fmd) {
+	  // uups, no such file anymore
+	  return Emsg(epname,error,errno,"commit filesize change",spath);
+	} else {
+	  // check if fsid and fid are ok 
+	  if (fmd->getId() != fid ) {
+	    return Emsg(epname,error, EINVAL,"commit filesize change - file id is wrong", spath);
+	  }
+	  fmd->setSize(size);
+	  fmd->addLocation(fsid);
+	  fmd->setChecksum(checksumbuffer);
+	  fmd->setMTimeNow();
+	  eos_debug("commit: setting size to %llu", fmd->getSize());
+	  try {
+	    gOFS->eosView->updateFileStore(fmd);
+	  }  catch( eos::MDException &e ) {
+	    errno = e.getErrno();
+	    std::string errmsg = e.getMessage().str();
+	    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	    return Emsg(epname, error, errno, "commit filesize change", errmsg.c_str());      
+	  }
+	}
+
+	
       } else {
 	int envlen=0;
 	eos_err("commit message does not contain all meta information: %s", env.Env(envlen));

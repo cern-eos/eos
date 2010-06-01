@@ -45,7 +45,7 @@ public:
   static bool Update(XrdAdvisoryMqMessage* advmsg);
   static bool Update(XrdOucEnv &config);
   static bool UpdateQuotaStatus(XrdOucEnv &config);
-  static bool Update(const char* infsname, int id, const char* schedgroup = "default", int bootstatus=XrdCommonFileSystem::kDown, XrdOucEnv* env=0, int errc=0, const char* errmsg=0);
+  static bool Update(const char* infsname, int id, const char* schedgroup = "default", int bootstatus=XrdCommonFileSystem::kDown, XrdOucEnv* env=0, int errc=0, const char* errmsg=0, bool configchangelog=false);
 
   bool SetNodeStatus(int status); 
   bool SetNodeConfigStatus(int status); 

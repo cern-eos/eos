@@ -1,4 +1,4 @@
-//         $Id: XrdxCommonTiming.hh,v 1.1 2008/09/15 10:04:02 apeters Exp $
+//         $Id: XrdCommonTiming.hh,v 1.1 2008/09/15 10:04:02 apeters Exp $
 
 #ifndef __XRDCOMMON__TIMING__HH
 #define __XRDCOMMON__TIMING__HH
@@ -7,21 +7,21 @@
 #include "XrdOuc/XrdOucTrace.hh"
 #include <sys/time.h>
 
-class XrdxCommonTiming {
+class XrdCommonTiming {
 public:
   struct timeval tv;
   XrdOucString tag;
   XrdOucString maintag;
-  XrdxCommonTiming* next;
-  XrdxCommonTiming* ptr;
+  XrdCommonTiming* next;
+  XrdCommonTiming* ptr;
 
-  XrdxCommonTiming(const char* name, struct timeval &i_tv) {
+  XrdCommonTiming(const char* name, struct timeval &i_tv) {
     memcpy(&tv, &i_tv, sizeof(struct timeval));
     tag = name;
     next = 0;
     ptr  = this;
   }
-  XrdxCommonTiming(const char* i_maintag) {
+  XrdCommonTiming(const char* i_maintag) {
     tag = "BEGIN";
     next = 0;
     ptr  = this;
@@ -32,8 +32,8 @@ public:
     char msg[512];
     if (!(trace.What & 0x8000)) 
       return;
-    XrdxCommonTiming* p = this->next;
-    XrdxCommonTiming* n; 
+    XrdCommonTiming* p = this->next;
+    XrdCommonTiming* n; 
     trace.Beg("Timing");
 
     cerr << std::endl;
@@ -50,7 +50,7 @@ public:
     trace.End();
   }
 
-  virtual ~XrdxCommonTiming(){XrdxCommonTiming* n = next; if (n) delete n;};
+  virtual ~XrdCommonTiming(){XrdCommonTiming* n = next; if (n) delete n;};
 };
 
 #define TIMING(__trace__, __ID__,__LIST__)                              \
@@ -59,7 +59,7 @@ do {                                                                    \
      struct timeval tp;                                                 \
      struct timezone tz;                                                \
      gettimeofday(&tp, &tz);                                            \
-     (__LIST__)->ptr->next=new XrdxCommonTiming(__ID__,tp);             \
+     (__LIST__)->ptr->next=new XrdCommonTiming(__ID__,tp);             \
      (__LIST__)->ptr = (__LIST__)->ptr->next;                           \
 } while(0);                                                             \
  

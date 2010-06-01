@@ -113,9 +113,10 @@ public:
     Mutex.UnLock();
   }
 
-  void SetConfigValue(const char* prefix, const char* fsname, const char* def) {
+  void SetConfigValue(const char* prefix, const char* fsname, const char* def, bool tochangelog = true) {
     XrdOucString cl = "set config "; cl+= prefix; cl += ":"; cl += fsname; cl+= " => "; cl += def;
-    changeLog.AddEntry(cl.c_str());
+    if (tochangelog)
+      changeLog.AddEntry(cl.c_str());
     XrdOucString configname = prefix; configname+=":";
     XrdOucString *sdef = new XrdOucString(def);
     configname += fsname;

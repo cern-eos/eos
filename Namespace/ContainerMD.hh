@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 #include <google/sparse_hash_map>
+#include <sys/time.h>
+
 #include "Namespace/persistency/Buffer.hh"
 
 namespace eos
@@ -30,6 +32,7 @@ namespace eos
       // Type definitions
       //------------------------------------------------------------------------
       typedef uint64_t id_t;
+      typedef struct timespec      ctime_t;
 
       //------------------------------------------------------------------------
       //! Constructor
@@ -61,11 +64,33 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
+      //! Set creation time
+      //------------------------------------------------------------------------
+      void setCTime( ctime_t ctime)
+      {
+        pCTime.tv_sec = ctime.tv_sec;
+	pCTime.tv_nsec = ctime.tv_nsec;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set creation time to now
+      //------------------------------------------------------------------------
+      void setCTimeNow()
+      {
+        struct timeval tv;
+        struct timezone tz;
+        gettimeofday(&tv, &tz);
+        pCTime.tv_sec  = tv.tv_sec;
+        pCTime.tv_nsec = tv.tv_usec * 1000;
+      }
+
+      //------------------------------------------------------------------------
       //! Get creation time
       //------------------------------------------------------------------------
-      uint64_t getCTime() const
+      void getCTime( ctime_t &ctime) const
       {
-        return pCTime;
+        ctime.tv_sec = pCTime.tv_sec;
+	ctime.tv_nsec = pCTime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -201,7 +226,7 @@ namespace eos
       //-----------------------------------------------------------------------0
       id_t         pId;
       id_t         pParentId;
-      uint64_t     pCTime;
+      ctime_t      pCTime;
       std::string  pName;
       ContainerMap pSubContainers;
       FileMap      pFiles;

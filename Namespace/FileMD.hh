@@ -14,6 +14,8 @@
 #include <string>
 #include <set>
 
+#include <sys/time.h>
+
 namespace eos
 {
   //----------------------------------------------------------------------------
@@ -25,6 +27,7 @@ namespace eos
       //------------------------------------------------------------------------
       // Type definitions
       //------------------------------------------------------------------------
+      typedef struct timespec      ctime_t;
       typedef uint64_t             id_t;
       typedef uint16_t             location_t;
       typedef std::set<location_t> LocationSet;
@@ -45,17 +48,62 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get creation time
       //------------------------------------------------------------------------
-      uint64_t getCTime() const
+      void getCTime( ctime_t &ctime ) const
       {
-        return pCTime;
+        ctime.tv_sec = pCTime.tv_sec;
+	ctime.tv_nsec = pCTime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
       //! Set creation time
       //------------------------------------------------------------------------
-      void setCTime( uint64_t ctime )
+      void setCTime( ctime_t ctime )
       {
-        pCTime = ctime;
+        pCTime.tv_sec = ctime.tv_sec;
+	pCTime.tv_nsec = ctime.tv_nsec;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set creation time to now
+      //------------------------------------------------------------------------
+      void setCTimeNow()
+      {
+	struct timeval tv;
+	struct timezone tz;
+	gettimeofday(&tv, &tz);
+	pCTime.tv_sec  = tv.tv_sec;
+        pCTime.tv_nsec = tv.tv_usec * 1000;
+      }
+
+
+      //------------------------------------------------------------------------
+      //! Get modification time
+      //------------------------------------------------------------------------
+      void getMTime( ctime_t &mtime ) const
+      {
+        mtime.tv_sec = pCTime.tv_sec;
+	mtime.tv_nsec = pCTime.tv_nsec;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set modification time
+      //------------------------------------------------------------------------
+      void setMTime( ctime_t mtime )
+      {
+        pCTime.tv_sec = mtime.tv_sec;
+	pCTime.tv_nsec = mtime.tv_nsec;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set modification time to now
+      //------------------------------------------------------------------------
+      void setMTimeNow()
+      {
+	struct timeval tv;
+	struct timezone tz;
+	gettimeofday(&tv, &tz);
+	pMTime.tv_sec  = tv.tv_sec;
+        pMTime.tv_nsec = tv.tv_usec * 1000;
       }
 
       //------------------------------------------------------------------------
@@ -205,33 +253,33 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get uid
       //------------------------------------------------------------------------
-      uid_t getUid() const
+      uid_t getCUid() const
       {
-        return pUid;
+        return pCUid;
       }
 
       //------------------------------------------------------------------------
       //! Set uid
       //------------------------------------------------------------------------
-      void setUid( uid_t uid )
+      void setCUid( uid_t uid )
       {
-        pUid = uid;
+        pCUid = uid;
       }
 
       //------------------------------------------------------------------------
       //! Get gid
       //------------------------------------------------------------------------
-      gid_t getGid() const
+      gid_t getCGid() const
       {
-        return pGid;
+        return pCGid;
       }
 
       //------------------------------------------------------------------------
       //! Set gid
       //------------------------------------------------------------------------
-      void setGid( gid_t gid )
+      void setCGid( gid_t gid )
       {
-        pGid = gid;
+        pCGid = gid;
       }
 
       //------------------------------------------------------------------------
@@ -265,13 +313,14 @@ namespace eos
       // Data members
       //-----------------------------------------------------------------------0
       id_t              pId;
-      uint64_t          pCTime;
+      ctime_t           pCTime;
+      ctime_t           pMTime;
       uint64_t          pSize;
       ContainerMD::id_t pContainerId;
       std::string       pName;
       LocationSet       pLocation;
-      uid_t             pUid;
-      gid_t             pGid;
+      uid_t             pCUid;
+      gid_t             pCGid;
       uint32_t          pLayoutId;
       Buffer            pChecksum;
   };

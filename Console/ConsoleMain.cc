@@ -1,8 +1,10 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdMqOfs/XrdMqMessage.hh"
+#include "XrdMqOfs/XrdMqTiming.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdClient/XrdClient.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdNet/XrdNetDNS.hh"
@@ -24,8 +26,12 @@
 /*----------------------------------------------------------------------------*/
 XrdOucString serveruri="";
 XrdOucString historyfile="";
+XrdOucString pwd="/";
 
 int global_retc=0;
+bool silent=false;
+bool timing=false;
+
 /*----------------------------------------------------------------------------*/
 
 void exit_handler (int a) {
@@ -44,7 +50,15 @@ int com_debug PARAMS((char*));
 int com_clear PARAMS((char*));
 int com_quota PARAMS((char*));
 int com_config PARAMS((char*));
+int com_fileinfo PARAMS((char*));
+int com_ls PARAMS((char*));
+int com_mkdir PARAMS((char*));
+int com_rmdir PARAMS((char*));
+int com_rm PARAMS((char*));
 int com_restart PARAMS((char*));
+int com_test PARAMS((char*));
+int com_silent PARAMS((char*));
+int com_timing PARAMS((char*));
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -56,16 +70,25 @@ typedef struct {
 } COMMAND;
 
 COMMAND commands[] = {
-  { (char*)"help",  com_help, (char*)"Display this text" },
-  { (char*)"?",     com_help, (char*)"Synonym for `help'" },
-  { (char*)"fs",    com_fs,   (char*)"File System configuration"},
-  { (char*)"quota", com_quota,(char*)"Quota System configuration"},
-  { (char*)"config",com_config,(char*)"Configuration System"},
-  { (char*)"restart",com_restart,(char*)"Restart System"},
-  { (char*)"debug", com_debug,(char*)"Set debug level"},
-  { (char*)"quit",  com_quit, (char*)"Exit from EOS console" },
-  { (char*)"exit",  com_quit, (char*)"Exit from EOS console" },
   { (char*)"clear", com_clear, (char*)"Clear the terminal" },
+  { (char*)"config",com_config,(char*)"Configuration System"},
+  { (char*)"debug", com_debug,(char*)"Set debug level"},
+  { (char*)"exit",  com_quit, (char*)"Exit from EOS console" },
+  { (char*)"fileinfo", com_fileinfo, (char*)"File Information" },
+  { (char*)"fs",    com_fs,   (char*)"File System configuration"},
+  { (char*)"help",  com_help, (char*)"Display this text" },
+  { (char*)"ls", com_ls, (char*)"List a directory" },
+  { (char*)"mkdir", com_mkdir, (char*)"Create a directory" },
+  { (char*)"quit",  com_quit, (char*)"Exit from EOS console" },
+  { (char*)"quota", com_quota,(char*)"Quota System configuration"},
+  { (char*)"restart",com_restart,(char*)"Restart System"},
+  { (char*)"rmdir", com_rmdir, (char*)"Remove a directory" },
+  { (char*)"rm", com_rm, (char*)"Remove a file" },
+  { (char*)"silent", com_silent, (char*)"Toggle silent flag for stdout" },
+  { (char*)"test", com_test, (char*)"Run performance test" },
+  { (char*)"test", com_silent, (char*)"Run performance test" },
+  { (char*)"timing", com_timing, (char*)"Toggle timing flag for execution time measurement" },
+  { (char*)"?",     com_help, (char*)"Synonym for `help'" },
   { (char*)".q",    com_quit, (char*)"Exit from EOS console" },
   { (char *)0, (rl_icpfunc_t *)0, (char *)0 }
 };
@@ -190,9 +213,10 @@ output_result(XrdOucEnv* result) {
     retc = atoi(result->Get("mgm.proc.retc"));
   }
   if (rstdout.length()) 
-    fprintf(stdout,"%s\n",rstdout.c_str());
-  if (rstderr.length())
-    fprintf(stderr,"%s\n",rstderr.c_str());
+    if (!silent)fprintf(stdout,"%s\n",rstdout.c_str());
+  if (rstderr.length()) {
+    fprintf(stderr,"%s (errc=%d) (%s)\n",rstderr.c_str(), retc, strerror(retc));
+  }
   
   delete result;
   return retc;
@@ -201,6 +225,8 @@ output_result(XrdOucEnv* result) {
 
 XrdOucEnv* 
 client_admin_command(XrdOucString &in) {
+  XrdMqTiming mytiming("eos");
+  TIMING("start", &mytiming);
   XrdOucString out="";
   XrdOucString path = serveruri;
   path += "//proc/admin/";
@@ -219,6 +245,41 @@ client_admin_command(XrdOucString &in) {
     }
     client.Close();
     XrdMqMessage::UnSeal(out);
+    TIMING("stop", &mytiming);
+    if (timing) 
+      mytiming.Print();
+      
+    return new XrdOucEnv(out.c_str());
+  }
+  return 0;
+}
+
+XrdOucEnv* 
+client_user_command(XrdOucString &in) {
+  XrdMqTiming mytiming("eos");
+  TIMING("start", &mytiming);
+  XrdOucString out="";
+  XrdOucString path = serveruri;
+  path += "//proc/user/";
+  path += "?";
+  path += in;
+
+  XrdClient client(path.c_str());
+  if (client.Open(kXR_async,0,0)) {
+    off_t offset = 0;
+    int nbytes=0;
+    char buffer[4096+1];
+    while ((nbytes = client.Read(buffer,offset, 4096)) >0) {
+      buffer[nbytes]=0;
+      out += buffer;
+      offset += nbytes;
+    }
+    client.Close();
+    XrdMqMessage::UnSeal(out);
+    TIMING("stop", &mytiming);
+    if (timing) 
+      mytiming.Print();
+
     return new XrdOucEnv(out.c_str());
   }
   return 0;
@@ -762,6 +823,271 @@ com_restart (char* arg1) {
   printf("       restart fst [*]                         : restart all services on fst nodes !\n");
   return (0);
 }
+
+/* Get file information */
+int
+com_fileinfo (char* arg1) {
+  // split subcommands
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString path = subtokenizer.GetToken();
+  XrdOucString selection = subtokenizer.GetToken();
+
+  XrdOucString in = "mgm.cmd=fileinfo&"; 
+  if (!path.length()) {
+    goto com_fileinfo_usage;
+    
+  } else {
+    in += "mgm.path=";
+    in += path;
+    
+    global_retc = output_result(client_user_command(in));
+    return (0);
+  }
+
+ com_fileinfo_usage:
+  printf("usage: fileinfo <path>                                                   :  print file information for <path>\n");
+  return (0);
+
+}
+
+/* Create a directory */
+int
+com_mkdir (char* arg1) {
+  // split subcommands
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString path = subtokenizer.GetToken();
+  XrdOucString selection = subtokenizer.GetToken();
+
+  XrdOucString in = "mgm.cmd=mkdir&"; 
+  if (!path.length()) {
+    goto com_mkdir_usage;
+    
+  } else {
+    in += "mgm.path=";
+    in += path;
+    
+    global_retc = output_result(client_user_command(in));
+    return (0);
+  }
+
+ com_mkdir_usage:
+  printf("usage: mkdir <path>                                                   :  create directory <path>\n");
+  return (0);
+
+}
+
+/* Remove a directory */
+int
+com_rmdir (char* arg1) {
+  // split subcommands
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString path = subtokenizer.GetToken();
+  XrdOucString selection = subtokenizer.GetToken();
+
+  XrdOucString in = "mgm.cmd=rmdir&"; 
+  if (!path.length()) {
+    goto com_rmdir_usage;
+    
+  } else {
+    in += "mgm.path=";
+    in += path;
+    
+    global_retc = output_result(client_user_command(in));
+    return (0);
+  }
+
+ com_rmdir_usage:
+  printf("usage: rmdir <path>                                                   :  remote directory <path>\n");
+  return (0);
+
+}
+
+/* List a directory */
+int
+com_ls (char* arg1) {
+  // split subcommands
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString param="";
+  XrdOucString option="";
+  XrdOucString path="";
+  XrdOucString in = "mgm.cmd=ls"; 
+
+  do {
+    param = subtokenizer.GetToken();
+    if (!param.length())
+      break;
+    if (param.beginswith("-")) {
+      option+= param;
+      if ( (option.find("&")) != STR_NPOS) {
+	goto com_ls_usage;
+      }
+    } else {
+      path = param;
+      break;
+    }
+  } while(1);
+
+  if (!path.length()) {
+    goto com_ls_usage;
+    
+  } else {
+    in += "&mgm.path=";
+    in += path;
+    in += "&mgm.option=";
+    in += option;
+    global_retc = output_result(client_user_command(in));
+    return (0);
+  }
+
+ com_ls_usage:
+  printf("usage: ls <path>                                                       :  list directory <path>\n");
+  return (0);
+}
+
+/* Remove a file */
+int
+com_rm (char* arg1) {
+  // split subcommands
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString path = subtokenizer.GetToken();
+  XrdOucString selection = subtokenizer.GetToken();
+
+  XrdOucString in = "mgm.cmd=rm&"; 
+  if (!path.length()) {
+    goto com_rm_usage;
+    
+  } else {
+    in += "mgm.path=";
+    in += path;
+    
+    global_retc = output_result(client_user_command(in));
+    return (0);
+  }
+
+ com_rm_usage:
+  printf("usage: rm <path>                                                      :  remote file <path>\n");
+  return (0);
+
+}
+
+
+/* Remove a file */
+int
+com_test (char* arg1) {
+  // split subcommands
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+ 
+  do {
+    XrdOucString tag  = subtokenizer.GetToken();
+    if (! tag.length()) 
+      break;
+
+    XrdOucString sn = subtokenizer.GetToken();
+    if (! sn.length()) {
+      goto com_test_usage;
+    }
+
+    int n = atoi(sn.c_str());
+    printf("info: doing directory test with loop <n>=%d", n);
+
+    if (tag == "mkdir") {
+      XrdMqTiming timing("mkdir");
+      
+      TIMING("start",&timing);
+
+      for (int i=0; i< 10; i++) {
+	char dname[1024];
+	sprintf(dname,"/test/%02d", i);
+	XrdOucString cmd = ""; cmd += dname;
+	//	printf("===> %s\n", cmd.c_str());
+	com_mkdir((char*)cmd.c_str());
+
+	for (int j=0; j< n/10; j++) {
+	  sprintf(dname,"/test/%02d/%05d", i,j);
+	  XrdOucString cmd = ""; cmd += dname;
+	  //	  printf("===> %s\n", cmd.c_str());
+	  com_mkdir((char*)cmd.c_str());
+	}
+      }
+      TIMING("stop",&timing);
+      timing.Print();
+    }
+
+    if (tag == "rmdir") {
+      XrdMqTiming timing("mkdir");   
+      TIMING("start",&timing);
+
+      for (int i=0; i< 10; i++) {
+	char dname[1024];
+	sprintf(dname,"/test/%02d", i);
+	XrdOucString cmd = ""; cmd += dname;
+	//printf("===> %s\n", cmd.c_str());
+
+	for (int j=0; j< n/10; j++) {
+	  sprintf(dname,"/test/%02d/%05d", i,j);
+	  XrdOucString cmd = ""; cmd += dname;
+	  //printf("===> %s\n", cmd.c_str());
+	  com_rmdir((char*)cmd.c_str());
+	}
+	com_rmdir((char*)cmd.c_str());
+      }
+      TIMING("stop",&timing);
+      timing.Print();
+    }
+
+    if (tag == "ls") {
+      XrdMqTiming timing("ls");   
+      TIMING("start",&timing);
+
+      for (int i=0; i< 10; i++) {
+	char dname[1024];
+	sprintf(dname,"/test/%02d", i);
+	XrdOucString cmd = ""; cmd += dname;
+	com_ls((char*)cmd.c_str());
+      }
+      TIMING("stop",&timing);
+      timing.Print();
+    }
+
+    if (tag == "lsla") {
+      XrdMqTiming timing("ls");   
+      TIMING("start",&timing);
+
+      for (int i=0; i< 10; i++) {
+	char dname[1024];
+	sprintf(dname,"/test/%02d", i);
+	XrdOucString cmd = "-la "; cmd += dname;
+	com_ls((char*)cmd.c_str());
+      }
+      TIMING("stop",&timing);
+      timing.Print();
+    }
+  } while (1);
+
+  return (0);
+ com_test_usage:
+  printf("usage: test [directory <N> ]                                             :  run performance test\n");
+  return (0);
+
+}
+
+
+int com_silent PARAMS((char*)) {
+  silent = (!silent);
+  return (0);
+}
+
+int com_timing PARAMS((char*)) {
+  timing = (!timing);
+  return (0);
+}
+
 
 /* Function which tells you that you can't do this. */
 void too_dangerous (char *caller) {

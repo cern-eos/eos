@@ -43,14 +43,9 @@ XrdMgmProcInterface::Authorize(const char* path, const char* info, uid_t uid, gi
     return true;
   }
 
-  // projectadmin access
-  if (inpath.beginswith("/proc/projectadmin/")) {
-    return false;
-  }
-
   // user access
   if (inpath.beginswith("/proc/user/")) {
-    return false;
+    return true;
   }
  
   // fst access
@@ -93,9 +88,6 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
   if ( path.beginswith ("/proc/admin")) {
     adminCmd = true;
   } 
-  if ( path.beginswith ("/proc/projectadmin")) {
-    projectAdminCmd = true;
-  }
   if ( path.beginswith ("/proc/user")) {
     userCmd = true;
   }
@@ -187,6 +179,8 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
     }
 
     if (cmd == "fs") {
+      XrdMgmFstNode::gMutex.Lock();
+
       if (subcmd == "ls") {
 	stdOut += XrdMgmFstNode::GetInfoHeader();
 	XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::ListNodes, &stdOut);
@@ -221,7 +215,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	      stdErr="error: filesystem id="; stdErr += fsidst; stdErr += " is already in use!";
 	      retc = EBUSY;
 	    } else {
-	      if (!XrdMgmFstNode::Update(fsname, fsid, fssched)) {
+	      if (!XrdMgmFstNode::Update(fsname, fsid, fssched, XrdCommonFileSystem::kDown, 0,0,0,true)) {
 		stdErr="error: cannot set the filesystem information to mgm.fsname="; stdErr += fsname; stdErr += " mgm.fsid=", stdErr += fsidst; stdErr += " mgm.fsschedgroup=" ; stdErr += fssched;
 		retc = EINVAL;
 	      } else {
@@ -348,6 +342,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 		XrdMgmFstFileSystem* filesystem = node->fileSystems.Find(fspath);
 		if (filesystem) {
 		  filesystem->SetConfigStatus(configstatus);
+		  gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
 		  // success
 		  stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at filesystem ";stdOut += fsname;
 		} else {
@@ -372,6 +367,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 		
 		if (node && filesystem) {
 		  filesystem->SetConfigStatus(configstatus);
+		  gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
 		  // success
 		  stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at filesystemj ";stdOut += fsname;
 		} else {
@@ -436,6 +432,8 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	  }
 	}
       }
+      XrdMgmFstNode::gMutex.UnLock();
+
       //      stdOut+="\n==== fs done ====";
     }
 
@@ -581,11 +579,230 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
     }
 
     MakeResult(dosort);
-    XrdMgmFstNode::gMutex.UnLock();
     return SFS_OK;
   }
 
-  XrdMgmFstNode::gMutex.UnLock();
+  if (userCmd) {
+    if ( cmd == "fileinfo" ) {
+      XrdOucString path = opaque.Get("mgm.path");
+      if (!path.length()) {
+	stdErr="error: you have to give a path name to call 'fileinfo'";
+	retc = EINVAL;
+      } else {
+	eos::FileMD* fmd=0;
+	try {
+	  fmd = gOFS->eosView->getFile(path.c_str());
+	} catch ( eos::MDException &e ) {
+	  errno = e.getErrno();
+	  stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	}
+
+	if (!fmd) {
+	  retc = errno;
+	} else {
+	  XrdOucString sizestring;
+	  char ctimestring[4096];
+	  char mtimestring[4096];
+	  eos::FileMD::ctime_t mtime;
+	  eos::FileMD::ctime_t ctime;
+	  fmd->getCTime(ctime);
+	  fmd->getMTime(mtime);
+	  time_t filectime = (time_t) ctime.tv_sec;
+	  time_t filemtime = (time_t) mtime.tv_sec;
+
+	  stdOut  = "  File: '"; stdOut += path; stdOut += "'";
+	  stdOut += "  Size: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getSize()); stdOut+="\n";
+	  stdOut += "Modify: "; stdOut += ctime_r(&filectime, ctimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += XrdCommonFileSystem::GetSizeString(sizestring, mtime.tv_sec); stdOut += "."; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, mtime.tv_nsec); stdOut += "\n";
+	  stdOut += "Change: "; stdOut += ctime_r(&filemtime, mtimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += XrdCommonFileSystem::GetSizeString(sizestring, ctime.tv_sec); stdOut += "."; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, ctime.tv_nsec);stdOut += "\n";
+	  stdOut += "   Fid: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getId()); stdOut+="\n";
+	  stdOut += "   Pid: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getContainerId()); stdOut+="\n";
+	  stdOut += "    XS: "; 
+	  for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
+	    char hb[3]; sprintf(hb,"%x", (fmd->getChecksum().getDataPtr()[i]));
+	    stdOut += hb;
+	  }
+	  stdOut+="\n";
+	  stdOut +  "Layout: plain\n"; // todo!
+	  stdOut += "*******\n";
+	  stdOut += "  #Rep: "; stdOut += (int)fmd->getNumLocation(); stdOut+="\n";
+
+	  stdOut += "<#> <fd-id> "; stdOut += XrdMgmFstFileSystem::GetInfoHeader();
+	  stdOut += "-------\n";
+	  eos::FileMD::LocationSet::const_iterator lociter;
+	  int i=0;
+	  for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); lociter++) {
+	    char fsline[4096];
+	    XrdOucString location="";
+	    XrdOucString si=""; si+= (int) i;
+	    location += (int) *lociter;
+	    sprintf(fsline,"%3s   %5s ",si.c_str(), location.c_str());
+	    stdOut += fsline; 
+	    XrdMgmFstNode::gMutex.Lock();
+	    XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
+	    if (filesystem) {
+	      stdOut += filesystem->GetInfoString();
+	    } else {
+	      stdOut += "NA";
+	    }
+								     
+	    
+	    XrdMgmFstNode::gMutex.UnLock();
+	  }
+	  stdOut += "*******";
+	}
+      }
+      MakeResult(dosort);
+      return SFS_OK;
+    } 
+    
+    if ( cmd == "mkdir" ) {
+      XrdOucString path = opaque.Get("mgm.path");
+      if (!path.length()) {
+	stdErr="error: you have to give a path name to call 'mkdir'";
+	retc = EINVAL;
+      } else {
+	XrdSfsMode mode=0;
+	if (gOFS->_mkdir(path.c_str(), mode, *error, uid,gid,(const char*)0)) {
+	  stdErr += "error: unable to create directory";
+	  retc = errno;
+	}
+      }
+      MakeResult(dosort);
+      return SFS_OK;
+    }
+
+    if ( cmd == "rmdir" ) {
+      XrdOucString path = opaque.Get("mgm.path");
+      if (!path.length()) {
+	stdErr="error: you have to give a path name to call 'rmdir'";
+	retc = EINVAL;
+      } else {
+	if (gOFS->_remdir(path.c_str(), *error, uid,gid,(const char*)0)) {
+	  stdErr += "error: unable to create directory";
+	  retc = errno;
+	}
+      }
+      MakeResult(dosort);
+      return SFS_OK;
+    }
+
+    if ( cmd == "ls" ) {
+      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString option = opaque.Get("mgm.option");
+      if (!path.length()) {
+	stdErr="error: you have to give a path name to call 'ls'";
+	retc = EINVAL;
+      } else {
+	XrdMgmOfsDirectory dir;
+	struct stat buf;
+	int listrc=0;
+	XrdOucString filter = "";
+
+	if(gOFS->_stat(path.c_str(),&buf, *error,  uid, gid, (const char*) 0)) {
+	  stdErr = error->getErrText();
+	  retc = errno;
+	} else {
+	  // if this is a directory open it and list
+	  if (S_ISDIR(buf.st_mode)) {
+	    listrc = dir.open(path.c_str(), uid, gid, (const char*) 0);
+	  } else {
+	    // if this is a file, open the parent and set the filter
+	    if (path.endswith("/")) {
+	      path.erase(path.length()-1);
+	    }
+	    int rpos = path.rfind("/");
+	    if (rpos == STR_NPOS) {
+	      listrc = SFS_ERROR;
+	      retc = ENOENT;
+	    } else {
+	      filter.assign(path,rpos+1);
+	      path.erase(rpos);
+	      listrc = dir.open(path.c_str(), uid, gid, (const char*) 0);
+	    }
+	  }
+	  
+	  if (!listrc) {
+	    const char* val;
+	    while ((val=dir.nextEntry())) {
+	      XrdOucString entryname = val;
+	      if (((option.find("a"))==STR_NPOS) && entryname.beginswith(".")) {
+		// skip over . .. and hidden files
+		continue;
+	      }
+	      if ( (filter.length()) && (filter != entryname) ) {
+		// apply filter
+		continue;
+	      }
+	      if (((option.find("l"))==STR_NPOS)) {
+		stdOut += val ;stdOut += "\n";
+	      } else {
+		// yeah ... that is actually castor code ;-)
+		char t_creat[14];
+		char ftype[8];
+		unsigned int ftype_v[7];
+		char fmode[10];
+		int fmode_v[9];
+		char modestr[11];
+		strcpy(ftype,"pcdb-ls");
+		ftype_v[0] = S_IFIFO; ftype_v[1] = S_IFCHR; ftype_v[2] = S_IFDIR;
+		ftype_v[3] = S_IFBLK; ftype_v[4] = S_IFREG; ftype_v[5] = S_IFLNK;
+		ftype_v[6] = S_IFSOCK;
+		strcpy(fmode,"rwxrwxrwx");
+		fmode_v[0] = S_IRUSR; fmode_v[1] = S_IWUSR; fmode_v[2] = S_IXUSR;
+		fmode_v[3] = S_IRGRP; fmode_v[4] = S_IWGRP; fmode_v[5] = S_IXGRP;
+		fmode_v[6] = S_IROTH; fmode_v[7] = S_IWOTH; fmode_v[8] = S_IXOTH;
+		// return full information
+		XrdOucString statpath = path; statpath += "/"; statpath += val;
+		while (statpath.replace("//","/")) {}
+		struct stat buf;
+		if (gOFS->_stat(statpath.c_str(),&buf, *error,  uid, gid, (const char*) 0)) {
+		  stdErr += "error: unable to stat path "; stdErr += statpath; stdErr +="\n";
+		retc = errno;
+		} else {
+		  int i=0;
+		  // TODO: convert virtual IDs back
+		  XrdOucString suid=""; suid += (int) buf.st_uid;
+		  XrdOucString sgid=""; sgid += (int) buf.st_gid;
+		  XrdOucString sizestring="";
+		  struct tm *t_tm;
+		  t_tm = localtime(&buf.st_mtime);
+		  
+		  strcpy(modestr,"----------");
+		  for (i=0; i<6; i++) if ( ftype_v[i] == ( S_IFMT & buf.st_mode ) ) break;
+		  modestr[0] = ftype[i];
+		  for (i=0; i<9; i++) if (fmode_v[i] & buf.st_mode) modestr[i+1] = fmode[i];
+		  if ( S_ISUID & buf.st_mode ) modestr[3] = 's';
+		  if ( S_ISGID & buf.st_mode ) modestr[6] = 's';
+		  
+		  
+		  strftime(t_creat,13,"%b %d %H:%M",t_tm);
+		  char lsline[4096];
+		  sprintf(lsline,"%s %3d %-8.8s %-8.8s %12s %s %s\n", modestr,(int)buf.st_nlink,
+			  suid.c_str(),sgid.c_str(),XrdCommonFileSystem::GetSizeString(sizestring,buf.st_size),t_creat, val);
+		  stdOut += lsline;
+		}
+	      }
+	    }
+	    dir.close();
+	  } else {
+	    stdErr += "error: unable to open directory";
+	    retc = errno;
+	  }
+	}
+      }
+      MakeResult(1);
+      return SFS_OK;
+    }
+	
+
+    stdErr += "errro: no such user command '"; stdErr += cmd; stdErr += "'";
+    retc = EINVAL;
+  
+    MakeResult(dosort);
+    return SFS_OK;
+  }
+
   return gOFS->Emsg((const char*)"open", *error, EINVAL, "execute command - not implemented ",ininfo);
 }
 

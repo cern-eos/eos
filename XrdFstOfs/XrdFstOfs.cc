@@ -516,6 +516,7 @@ XrdFstOfsFile::close()
        }
        switch (admin->GetAdmin()->LastServerResp()->status) {
        case kXR_ok:
+	 eos_debug("commited meta data to cache - %s", capOpaqueFile.c_str());
 	 rc = SFS_OK;
 	 break;
 	 
