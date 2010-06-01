@@ -18,6 +18,9 @@ private:
   XrdOucString queueNamePath;  // this contains the path
 
   XrdOucString schedulingGroup;
+  XrdOucString spaceName;
+  unsigned int schedulingGroupIndex;
+
   time_t bootSentTime;
   time_t bootDoneTime;
   XrdOucString bootFailureMsg;
@@ -48,7 +51,19 @@ public:
   time_t GetBootDoneTime() { return bootDoneTime;}
   int GetErrc()            {return errc;}
   const char* GetErrMsg()  {return errmsg.c_str();}
+  unsigned int GetSchedulingGroupIndex() { return schedulingGroupIndex; }
 
+
+  void ExtractSchedulinGroupIndex() {
+    int ppos = schedulingGroup.find("."); 
+    if (ppos != STR_NPOS) {
+      XrdOucString sindex; 
+      sindex.assign(schedulingGroup, ppos+1); 
+      schedulingGroupIndex = atoi(sindex.c_str());
+    } else {
+      schedulingGroupIndex = 0;
+    }
+  }
 
   const char*  GetBootString() { bootString = "mgm.nodename="; bootString += GetQueue(); bootString += "&mgm.fsname="; bootString += GetQueue(); bootString += GetPath(); bootString += "&mgm.fspath="; bootString += GetPath();bootString += "&mgm.fsid="; bootString += (int)GetId(); bootString += "&mgm.fsschedgroup="; bootString += GetSchedulingGroup(); bootString += "&mgm.cfgstatus=";bootString += GetConfigStatusString(); return bootString.c_str();}
 
@@ -57,7 +72,7 @@ public:
   const char*  GetSchedulingGroup() {return schedulingGroup.c_str();}
 
   // a space is derived from a scheduling group which has to be defined as <schedgroup> = <space> or <schedgroup> = <space>.<int>
-  const char*  GetSpaceName() { int ppos = schedulingGroup.find("."); if (ppos != STR_NPOS) {XrdOucString sgroup; sgroup.assign(schedulingGroup, 0, ppos-1); return sgroup.c_str();} else return schedulingGroup.c_str();}
+  const char*  GetSpaceName() { int ppos = schedulingGroup.find("."); if (ppos != STR_NPOS) {spaceName.assign(schedulingGroup, 0, ppos-1); return spaceName.c_str();} else return schedulingGroup.c_str();}
 
 
   const char* GetBootStatusString()   {if (bootStatus==kBootFailure) return "failed"; if (bootStatus==kDown) return "down"; if (bootStatus==kBootSent) return "sent"; if (bootStatus==kBooting) return "booting"; if (bootStatus==kBooted) return "booted"; if (bootStatus==kOpsError) return "opserror";  return "";}
@@ -76,7 +91,7 @@ public:
 
   void SetId(unsigned int inid)  {Id   = inid;}
   void SetPath(const char* path) {Path = path;}
-  void SetSchedulingGroup(const char* group="default") { schedulingGroup = group; }
+  void SetSchedulingGroup(const char* group="default") { schedulingGroup = group; ExtractSchedulinGroupIndex(); }
   void SetError(int inerrc, const char* inerrmsg) {errc = inerrc; if (inerrmsg) errmsg = inerrmsg; else errmsg="";}
   void SetStatfsEnv(XrdOucEnv* env) {
     const char* val;
@@ -103,7 +118,7 @@ public:
   struct statfs* GetStatfs() { return &statFs;}
 
   XrdMgmFstFileSystem(int id, const char* path, const char* queue, const char* schedulinggroup = "default") {
-    Id = id; Path = path; queueName = queue; bootStatus=kDown;configStatus = kUnknown; schedulingGroup = schedulinggroup; bootSentTime=0; bootFailureMsg=""; bootDoneTime=0; errc=0; errmsg=""; memset(&statFs,0,sizeof(statFs));
+    Id = id; Path = path; queueName = queue; bootStatus=kDown;configStatus = kUnknown; schedulingGroup = schedulinggroup; ExtractSchedulinGroupIndex();  bootSentTime=0; bootFailureMsg=""; bootDoneTime=0; errc=0; errmsg=""; memset(&statFs,0,sizeof(statFs));
     UserBytes.set_empty_key(-1);
     GroupBytes.set_empty_key(-1);
     UserFiles.set_empty_key(-1);

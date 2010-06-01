@@ -263,6 +263,11 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
   if (!fs) {
     // create a new filesystem there
     fs = new XrdMgmFstFileSystem(id, fsname.c_str(), nodename.c_str(), schedgroup);
+    if (!fs ) {
+      eos_static_err("unable to create filesystem object");
+      return false;
+    }
+
     node->fileSystems.Add(fsname.c_str(),fs);
     gFileSystemById[id]=(unsigned long long)fs;
     // create the quota space entry in the hash to be able to set quota on the empty space

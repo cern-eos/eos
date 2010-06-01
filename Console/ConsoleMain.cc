@@ -409,6 +409,8 @@ com_fs (char* arg1) {
   if ( subcommand == "boot" ) {
     XrdOucString arg = subtokenizer.GetToken();
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=boot";
+    if (!arg.length()) 
+      goto com_fs_usage;
     int fsid = atoi(arg.c_str());
     char r1fsid[128]; sprintf(r1fsid,"%d", fsid);
     char r2fsid[128]; sprintf(r2fsid,"%04d", fsid);

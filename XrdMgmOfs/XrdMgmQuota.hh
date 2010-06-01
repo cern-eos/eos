@@ -9,6 +9,7 @@
 #include <google/sparsehash/densehashtable.h>
 /*----------------------------------------------------------------------------*/
 #include "XrdCommon/XrdCommonLogging.hh"
+#include "XrdCommon/XrdCommonLayoutId.hh"
 #include "XrdMgmOfs/XrdMgmFstFileSystem.hh"
 #include "XrdMqOfs/XrdMqMessage.hh"
 /*----------------------------------------------------------------------------*/
@@ -17,6 +18,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <vector>
+#include <set>
 /*----------------------------------------------------------------------------*/
 
 class XrdMgmSpaceQuota {
@@ -25,7 +27,8 @@ private:
   XrdOucString SpaceName;
   time_t LastCalculationTime;
 
-  // one hash map for user view !
+  // one hash map for user view! depending on eQuota Tag id is either uid or gid!
+
   google::dense_hash_map<long long, unsigned long long> Quota; // the key is (eQuotaTag<<32) | id
 
   unsigned long long PhysicalFreeBytes; // this is coming from the statfs calls on all file systems
@@ -121,6 +124,9 @@ public:
   XrdMgmSpaceQuota(const char* name) {
     Quota.set_empty_key(-1);
     Quota.set_deleted_key(-2);
+    schedulingViewPtr.set_empty_key("");
+    schedulingViewGroup.set_empty_key("");
+
     SpaceName = name;
     LastCalculationTime = 0;
     PhysicalFreeBytes = PhysicalFreeFiles = PhysicalMaxBytes = PhysicalMaxFiles = 0;
@@ -131,7 +137,22 @@ public:
   google::dense_hash_map<long long, unsigned long long>::const_iterator Begin() { return Quota.begin();}
   google::dense_hash_map<long long, unsigned long long>::const_iterator End()   { return Quota.end();}
 
-  std::vector< std::vector<unsigned int> > SchedulingView; // first index is the scheduling group index f.e. if we have default.0,default.1,default.2 .... SchedulingView[0] points to the array with all file system IDs in scheduling group default.0 
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Scheduling Filesystem Vector/Hashs
+  
+  // First index is the scheduling group index f.e. if we have default.0,default.1,default.2 .... SchedulingView[0] points to the array with all file system IDs in scheduling group default.0 ... if we have only default all filesystem are in index 0
+
+  std::vector< std::set<unsigned int> > schedulingView; 
+
+  // This hash points to the iterator in a scheduling group for a certain 
+  // uid/gid pair or group tag 
+  // - the string has to be constructed as <schedulinggroupindex>:<grouptag> 
+  // - if there is no <grouptag> defined, it is replaced by <uid>:<gid>
+
+  google::dense_hash_map<std::string, std::set<unsigned int>::const_iterator> schedulingViewPtr; 
+  // This hash points to the next scheduling group to use
+  // - the string has to be constructed as <grouptag> | <uid>:<gid>
+  google::dense_hash_map<std::string, unsigned int> schedulingViewGroup;
 
   const char* GetSpaceName() { return SpaceName.c_str();}
 
@@ -167,6 +188,13 @@ public:
 
   unsigned long long Index(unsigned long tag, unsigned long id) { unsigned long long fulltag = tag; fulltag <<=32; fulltag |= id; return fulltag;}
   unsigned long UnIndex(unsigned long long reindex) {return (reindex>>32) & 0xffff;}
+
+  // the write placement routine
+  int FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::set<unsigned int> &selectedfs);
+
+  // the read  placement routing
+  int FileAccess(XrdOucEnv &envin, XrdOucEnv &envout);
+
 };
 
 class XrdMgmQuota : XrdCommonLogId {

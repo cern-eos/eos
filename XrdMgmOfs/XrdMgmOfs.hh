@@ -349,6 +349,7 @@ virtual bool           Init(XrdSysError &);
         eos::IContainerMDSvc  *eosDirectoryService;              // -> changelog for directories
         eos::IFileMDSvc *eosFileService;                         // -> changelog for files
 	eos::IView      *eosView;            // -> hierarchical view of the namespace
+        XrdSysMutex      eosViewMutex;       // -> mutex making the namespace single threaded
         XrdOucString     MgmMetaLogDir;      //  Directory containing the meta data (change) log files
 
 protected:

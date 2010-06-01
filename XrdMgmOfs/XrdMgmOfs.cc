@@ -135,6 +135,9 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
    eos_info("path=%s",dir_path);
 
    // Open the directory
+
+   //-------------------------------------------
+   gOFS->eosViewMutex.Lock();
    try {
      dh = gOFS->eosView->getContainer(dir_path);
    } catch( eos::MDException &e ) {
@@ -142,7 +145,8 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
      errno = e.getErrno();
      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
    }
-
+   gOFS->eosViewMutex.UnLock();
+   //-------------------------------------------
 
    // Verify that this object is not already associated with an open directory
    //
@@ -253,21 +257,12 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   SetLogId(logId, tident);
   eos_info("path=%s info=%s",path,info);
 
-  //  XTRACE(open, path,"");
-  
-  // if the clients sends tried info, we have to dump it
-  //  if (info) 
-    //    XTRACE(open, info,"");
-
-    //  ZTRACE(open, "Doing Rolemap");
-
   eos_debug("rolemap start");
 
   XrdCommonMapping::RoleMap(client,info,mappedclient,tident, uid, gid, ruid, rgid);
 
   SetLogId(logId, uid, gid, uid, gid, tident);
 
-  //ZTRACE(open, "Did Rolemap");
   eos_debug("rolemap done");
 
   openOpaque = new XrdOucEnv(info);
@@ -280,7 +275,8 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   
   int isRW = 0;
   int isRewrite = 0;
-  
+  bool isCreation = false;
+
   int crOpts = (Mode & SFS_O_MKPTH ? XRDOSS_mkpath : 0);
   
   int rcode=SFS_ERROR;
@@ -288,7 +284,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   XrdOucString redirectionhost="";
   int ecode=0;
   
-  //  ZTRACE(open, std::hex <<open_mode <<"-" <<std::oct <<Mode <<std::dec <<" fn = " <<path);
 
   eos_debug("mode=%x", open_mode);
 
@@ -333,7 +328,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     }
   }
 
-  //  ZTRACE(open,"doing authorize");  
   eos_debug("authorize start");
 
   if (open_flag & O_CREAT) {
@@ -348,6 +342,9 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
 
   // get the file meta data if exists
+
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
   try {
     fmd = gOFS->eosView->getFile(path);
   } catch( eos::MDException &e ) {
@@ -355,8 +352,9 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   };
-
-
+  gOFS->eosViewMutex.UnLock();
+  //-------------------------------------------
+  
   if (isRW) {
     // write case
     if ((!fmd)) {
@@ -364,7 +362,10 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	// write open of not existing file without creation flag
 	return Emsg(epname, error, errno, "open file", path);      
       } else {
-	// creation of a new file
+	// creation of a new fil
+
+	//-------------------------------------------
+	gOFS->eosViewMutex.Lock();
 	try {
 	  fmd = gOFS->eosView->createFile(path, uid, gid);
 	} catch( eos::MDException &e ) {
@@ -372,20 +373,30 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	  errno = e.getErrno();
 	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
 	};
-
+	gOFS->eosViewMutex.UnLock();
+	//-------------------------------------------
+	
 	if (!fmd) {
 	  // creation failed
 	  return Emsg(epname, error, errno, "create file", path);      
 	}
+	isCreation = true;
+
 	// commit that
+
+	//-------------------------------------------
+	gOFS->eosViewMutex.Lock();
 	try {
 	  gOFS->eosView->updateFileStore(fmd);
 	} catch( eos::MDException &e ) {
 	  errno = e.getErrno();
 	  std::string errmsg = e.getMessage().str();
 	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	  gOFS->eosViewMutex.UnLock();
 	  return Emsg(epname, error, errno, "open file", errmsg.c_str());      
 	}
+	gOFS->eosViewMutex.UnLock();
+	//-------------------------------------------
       }
     } else {
       // we attached to an existing file
@@ -416,7 +427,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   unsigned long layoutId = XrdCommonLayoutId::kPlain;
   XrdOucString space = "default";
 
-  // select space and layout
+  // select space and layout according to policies
   XrdMgmPolicy::GetLayoutAndSpace(path, uid, gid, layoutId, space, *openOpaque);
   
   XrdMgmSpaceQuota* quotaspace = XrdMgmQuota::GetSpaceQuota(space.c_str(),false);
@@ -439,7 +450,20 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   capability += (int)((fileId % 5)+1);
 
   // this will be replaced with the scheduling call
-  capability += "&mgm.fsid=1";
+
+  if (isCreation) {
+    std::set<unsigned int> selectedfs;
+    int retc = quotaspace->FilePlacement(uid,gid, openOpaque->Get("eos.grouptag"), layoutId, selectedfs);
+    XrdOucString msg = "placement returned with result = "; msg += retc;
+    std::set<unsigned int>::const_iterator sfs;
+    for ( sfs = selectedfs.begin(); sfs != selectedfs.end(); ++sfs) {
+      msg += " - filesystem "; msg += (int) *sfs;
+    }
+    
+    return Emsg(epname, error, EINVAL, "get quota space ", msg.c_str());
+  } else {
+    capability += "&mgm.fsid=1";
+  }
 
 
 
@@ -724,6 +748,9 @@ int XrdMgmOfs::_exists(const char                *path,        // In
 */
 {
   // try if that is directory
+
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
   eos::ContainerMD* cmd = 0;
   try {
     cmd = gOFS->eosView->getContainer(path);
@@ -731,9 +758,13 @@ int XrdMgmOfs::_exists(const char                *path,        // In
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   };
+  gOFS->eosViewMutex.UnLock();
+  //-------------------------------------------
 
   if (!cmd) {
     // try if that is a file
+    //-------------------------------------------
+    gOFS->eosViewMutex.Lock();
     eos::FileMD* fmd = 0;
     try {
       fmd = gOFS->eosView->getFile(path);
@@ -741,6 +772,8 @@ int XrdMgmOfs::_exists(const char                *path,        // In
       errno = e.getErrno();
       eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
     }
+    gOFS->eosViewMutex.UnLock();
+    //-------------------------------------------
 
     if (!fmd) {
       file_exists=XrdSfsFileExistNo;
@@ -825,13 +858,16 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     // short cut if it exists already
 
     eos::ContainerMD* dir=0;
+    //-------------------------------------------
+    gOFS->eosViewMutex.Lock();
     try {
       dir = eosView->getContainer(path);
     } catch( eos::MDException &e ) {
       dir = 0;
       eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
     }
-
+    gOFS->eosViewMutex.UnLock();
+    //-------------------------------------------
     if (dir) {
       eos_info("this directory exists!",path);
       return SFS_OK;
@@ -840,27 +876,37 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   
   eos_info("create",path);
   eos::ContainerMD* newdir = 0;
+
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
   try {
     newdir = eosView->createContainer(path, recurse);
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   }
+  gOFS->eosViewMutex.UnLock();
+  //-------------------------------------------
 
   // do an mkdir -p
   if (!newdir) {
     return Emsg(epname,error,errno,"mkdir",path);
   }
   // commit on disk
+
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
   try {
     eosView->updateContainerStore(newdir);
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
     std::string errmsg = e.getMessage().str();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    gOFS->eosViewMutex.UnLock();
     return Emsg(epname, error, errno, "create directory", errmsg.c_str());      
   }
-
+  gOFS->eosViewMutex.UnLock();
+  //-------------------------------------------
   return SFS_OK;
 }
 
@@ -983,12 +1029,17 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
 {
    static const char *epname = "remdir";
    errno = 0;
+
+   //-------------------------------------------
+   gOFS->eosViewMutex.Lock();
    try {
      eosView->removeContainer(path);
    } catch( eos::MDException &e ) {
      errno = e.getErrno();
      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
    }
+   gOFS->eosViewMutex.UnLock();
+   //-------------------------------------------
 
    if (errno) {
      return Emsg(epname, error, errno, "remove", path);
@@ -1115,24 +1166,32 @@ int XrdMgmOfs::_stat(const char              *path,        // In
   
   // try if that is directory
   eos::ContainerMD* cmd = 0;
+
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
   try {
     cmd = gOFS->eosView->getContainer(path);
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   }
+  gOFS->eosViewMutex.UnLock();
+  //-------------------------------------------
 
   if (!cmd) {
     // try if that is a file
 
     eos::FileMD* fmd = 0; 
+    //-------------------------------------------
+    gOFS->eosViewMutex.Lock();
     try {
       fmd = gOFS->eosView->getFile(path);
     } catch( eos::MDException &e ) {
       errno = e.getErrno();
       eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
     }
-
+    gOFS->eosViewMutex.UnLock();
+    //-------------------------------------------
     if (!fmd) {
       return Emsg(epname, error, errno, "stat", path);
     }
@@ -1572,12 +1631,17 @@ XrdMgmOfs::FSctl(const int               cmd,
 
 	// get the file meta data if exists
 	eos::FileMD *fmd = 0;
+
+	//-------------------------------------------
+	gOFS->eosViewMutex.Lock();
 	try {
 	  fmd = gOFS->eosView->getFile(spath);
 	} catch( eos::MDException &e ) {
 	  errno = e.getErrno();
 	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
 	}
+	gOFS->eosViewMutex.UnLock();
+	//-------------------------------------------
 
 	if (!fmd) {
 	  // uups, no such file anymore
@@ -1592,14 +1656,19 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  fmd->setChecksum(checksumbuffer);
 	  fmd->setMTimeNow();
 	  eos_debug("commit: setting size to %llu", fmd->getSize());
+	  //-------------------------------------------
+	  gOFS->eosViewMutex.Lock();
 	  try {
 	    gOFS->eosView->updateFileStore(fmd);
 	  }  catch( eos::MDException &e ) {
 	    errno = e.getErrno();
 	    std::string errmsg = e.getMessage().str();
 	    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	    gOFS->eosViewMutex.UnLock();
 	    return Emsg(epname, error, errno, "commit filesize change", errmsg.c_str());      
 	  }
+	  gOFS->eosViewMutex.UnLock();
+	  //-------------------------------------------
 	}
 
 	

@@ -275,6 +275,126 @@ XrdMgmSpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
   free(sortgidarray);
 }
 
+
+
+/*----------------------------------------------------------------------------*/
+int 
+XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::set<unsigned int> &selectedfs)
+{
+  unsigned int nfilesystems = XrdCommonLayoutId::GetStripeNumber(lid) + 1; // 0 = 1 replicae !
+  unsigned int nassigned = 0;
+  bool hasquota = false;
+
+  unsigned long long referencesize = 1024ll*1024ll*1024ll;  // 1 GB
+
+  // first figure out how many filesystems we need
+  eos_static_debug("uid=%u git=%u place filesystems=%u",uid,gid,nfilesystems);
+  
+  std::string indextag = "";
+  if (grouptag) {
+    indextag = grouptag;
+  } else {
+    indextag += uid; 
+    indextag += ":";
+    indextag += gid;
+  }
+  
+  // check if the uid/gid has enough quota configured to place in this space !
+  // -> user quota
+
+  eos_static_debug("%llu %llu",GetQuota(kUserBytesTarget,uid,false), GetQuota(kUserBytesIs,uid,false));
+  if ( ( ( (GetQuota(kUserBytesTarget,uid,false)) - (GetQuota(kUserBytesIs,uid,false)) ) > (long long)(1ll*nfilesystems*referencesize) ) &&
+       ( ( (GetQuota(kUserFilesTarget,uid,false)) - (GetQuota(kUserFilesIs,uid,false)) ) > (1*nfilesystems ) ) ) {
+    // the user has quota here!
+    hasquota = true;
+  } 
+  
+       // -> group quota
+  if ( ( ( (GetQuota(kGroupBytesTarget,gid,false)) - (GetQuota(kGroupBytesIs,gid,false)) ) > (long long) (1ll*nfilesystems*referencesize) ) &&
+       ( ( (GetQuota(kGroupFilesTarget,gid,false)) - (GetQuota(kGroupFilesIs,gid,false)) ) > nfilesystems ) ) {
+    // the user has quota here!
+    hasquota = true;
+  } 
+
+  if (!hasquota) {
+    eos_static_debug("uid=%u git=%u place filesystems=%u has no quota left!",uid,gid,nfilesystems);
+    return ENOSPC;
+  }
+  
+  unsigned int schedgroupindex=0;
+  
+  unsigned long currentfs=0;
+
+  // we can try all scheduling groups but not more 
+  for (unsigned int i=0; i< schedulingView.size(); i++) {
+    schedgroupindex = schedulingViewGroup[indextag];
+
+    selectedfs.clear();
+
+    int maxiterations = schedulingView[schedgroupindex].size();
+    
+    // try to get nfilesystems with enough space
+    for (int j=0; j < maxiterations; j++) {
+      // select a scheduling group
+      std::string ptrindextag = "";
+      ptrindextag += (int)schedgroupindex;
+      ptrindextag += indextag;
+      
+      // points to a scheduling group index
+      if ((schedulingViewPtr.find(ptrindextag)) == schedulingViewPtr.end()) {
+	// place the iterator on the first filesystem in the scheduling group set
+	schedulingViewPtr[ptrindextag] = schedulingView[schedgroupindex].begin();
+      }
+
+      if (schedulingViewPtr[ptrindextag] == schedulingView[schedgroupindex].end()) {
+	schedulingViewPtr[ptrindextag] = schedulingView[schedgroupindex].begin();
+      }
+
+	
+      currentfs = *schedulingViewPtr[ptrindextag];
+      eos_static_debug("checking scheduling group %d filesystem %d", schedgroupindex, currentfs);
+      // check if we have enough space
+      XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[currentfs];
+      if (filesystem) {
+	// check that we have atleast 1GB and 100 inodes and that we are in rw mode
+	eos_static_debug("fs info %u %llu %llu %s %s", filesystem->GetId(), filesystem->GetStatfs()->f_bfree, filesystem->GetStatfs()->f_ffree*4096ll, filesystem->GetConfigStatusString(), filesystem->GetBootStatusString());
+	if ( ((filesystem->GetStatfs()->f_bfree *4096ll) > (1024ll*1024ll*1024ll*1)) &&
+	     ((filesystem->GetStatfs()->f_ffree) > 100 ) &&
+	     ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kRW)) &&
+	     ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
+	  // ok, that can be used
+	  selectedfs.insert(currentfs);
+	  nassigned++;
+	}
+      }
+      schedulingViewPtr[ptrindextag]++;
+      if (nassigned >= nfilesystems)
+	break;
+    }
+    // rotate to next scheduling group
+    schedulingViewGroup[indextag] = ((schedgroupindex++)%schedulingView.size());
+    // stop when we have found enough in a scheduling group
+    if (nassigned == nfilesystems)
+      break;
+  }
+
+  if (nassigned == nfilesystems) {
+    return 0;
+  } else {
+    selectedfs.clear();
+    return ENOSPC;
+  }
+}
+
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmSpaceQuota::FileAccess(XrdOucEnv &envin, XrdOucEnv &envout)
+{
+  return 0;
+}
+
+
 /*----------------------------------------------------------------------------*/
 XrdMgmSpaceQuota* 
 XrdMgmQuota::GetSpaceQuota(const char* name, bool nocreate) 
@@ -344,9 +464,20 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
   XrdMgmFstFileSystem* filesystem=0;
   if ((filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[fsid])) {
     const char* spacename = filesystem->GetSpaceName();
-    eos_static_debug("filesystem for %lu belongs to space %s", fsid, spacename);
+    eos_static_debug("filesystem for %u %u belongs to space %s", filesystem->GetId(), fsid, spacename);
 
     XrdMgmSpaceQuota* spacequota = GetSpaceQuota(spacename);
+
+    // add fsid to SchedulingView
+    eos_static_debug("scheduling index is %d", filesystem->GetSchedulingGroupIndex());
+
+    // resize the number of scheduling groups
+    if ( (filesystem->GetSchedulingGroupIndex()+1) > spacequota->schedulingView.size()) {
+      spacequota->schedulingView.resize(filesystem->GetSchedulingGroupIndex()+1);
+    }
+
+    //    spacequota->schedulingView[filesystem->GetSchedulingGroupIndex()]
+    spacequota->schedulingView[filesystem->GetSchedulingGroupIndex()].insert(fsid);
 
     if (spacequota->NeedsRecalculation()) {
       eos_static_debug("space %s needs recomputation",spacename);
