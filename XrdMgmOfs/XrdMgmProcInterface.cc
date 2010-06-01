@@ -615,11 +615,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	  stdOut += "  Size: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getSize()); stdOut+="\n";
 	  stdOut += "Modify: "; stdOut += ctime_r(&filectime, ctimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += XrdCommonFileSystem::GetSizeString(sizestring, mtime.tv_sec); stdOut += "."; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, mtime.tv_nsec); stdOut += "\n";
 	  stdOut += "Change: "; stdOut += ctime_r(&filemtime, mtimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += XrdCommonFileSystem::GetSizeString(sizestring, ctime.tv_sec); stdOut += "."; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, ctime.tv_nsec);stdOut += "\n";
-	  stdOut += "   Fid: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getId()); stdOut+="\n";
+	  stdOut += "  CUid: "; stdOut += (int)fmd->getCUid(); stdOut += " CGid: "; stdOut += (int)fmd->getCGid();
+	  
+	  stdOut += "   Fid: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getId()); stdOut+=" ";
 	  stdOut += "   Pid: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getContainerId()); stdOut+="\n";
 	  stdOut += "    XS: "; 
 	  for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
-	    char hb[3]; sprintf(hb,"%x", (fmd->getChecksum().getDataPtr()[i]));
+	    char hb[3]; sprintf(hb,"%02x ", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
 	    stdOut += hb;
 	  }
 	  stdOut+="\n";

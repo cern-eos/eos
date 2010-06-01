@@ -1546,9 +1546,9 @@ XrdMgmOfs::FSctl(const int               cmd,
       char* afsid  = env.Get("mgm.fsid");
       char* checksum = env.Get("mgm.checksum");
       char  binchecksum[SHA_DIGEST_LENGTH];
-
+      memset(binchecksum, 0, sizeof(binchecksum));
+	
       if (checksum) {
-	memset(binchecksum, 0, sizeof(binchecksum));
 	for (unsigned int i=0; i< strlen(checksum); i+=2) {
 	  // hex2binary conversion
 	  char hex[3];
