@@ -31,4 +31,4 @@ libEosNamespace_la_SOURCES = \
 	views/HierarchicalView.hh         \
 	views/HierarchicalView.cc
 
-
+libEosNamespace_la_LIBADD = -lrt
