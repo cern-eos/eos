@@ -68,11 +68,7 @@ namespace eos
       //------------------------------------------------------------------------
       void setCTimeNow()
       {
-	struct timeval tv;
-	struct timezone tz;
-	gettimeofday(&tv, &tz);
-	pCTime.tv_sec  = tv.tv_sec;
-        pCTime.tv_nsec = tv.tv_usec * 1000;
+	clock_gettime(CLOCK_REALTIME, &pCTime);
       }
 
 
@@ -99,11 +95,7 @@ namespace eos
       //------------------------------------------------------------------------
       void setMTimeNow()
       {
-	struct timeval tv;
-	struct timezone tz;
-	gettimeofday(&tv, &tz);
-	pMTime.tv_sec  = tv.tv_sec;
-        pMTime.tv_nsec = tv.tv_usec * 1000;
+	clock_gettime(CLOCK_REALTIME, &pMTime);
       }
 
       //------------------------------------------------------------------------
