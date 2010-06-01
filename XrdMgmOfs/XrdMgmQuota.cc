@@ -368,8 +368,11 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
 	}
       }
       schedulingViewPtr[ptrindextag]++;
-      if (nassigned >= nfilesystems)
+      if (nassigned >= nfilesystems) {
+	// rotate to next scheduling group
+	schedulingViewGroup[indextag] = ((schedgroupindex++)%schedulingView.size());
 	break;
+      }
     }
     // rotate to next scheduling group
     schedulingViewGroup[indextag] = ((schedgroupindex++)%schedulingView.size());
