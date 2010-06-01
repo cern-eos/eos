@@ -40,7 +40,7 @@ namespace eos
     len = pLocation.size();
     buffer.putData( &len, sizeof( len ) );
 
-    LocationSet::iterator it;
+    LocationVector::iterator it;
     for( it = pLocation.begin(); it != pLocation.end(); ++it )
     {
       location_t location = *it;
@@ -79,7 +79,7 @@ namespace eos
     {
       location_t location;
       offset = buffer.grabData( offset, &location, sizeof( location_t ) );
-      pLocation.insert( location );
+      pLocation.push_back( location );
     }
 
     offset = buffer.grabData( offset, &pCUid,      sizeof( pCUid ) );

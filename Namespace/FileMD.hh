@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <cstring>
 #include <string>
-#include <set>
+#include <vector>
 
 #include <sys/time.h>
 
@@ -30,7 +30,7 @@ namespace eos
       typedef struct timespec      ctime_t;
       typedef uint64_t             id_t;
       typedef uint16_t             location_t;
-      typedef std::set<location_t> LocationSet;
+      typedef std::vector<location_t> LocationVector;
 
       //------------------------------------------------------------------------
       //! Constructor
@@ -184,20 +184,19 @@ namespace eos
         pName = name;
       }
 
-      //------------------------------------------------------------------------
-      //! Start iterator for locations
-      //------------------------------------------------------------------------
-      LocationSet::const_iterator locationsBegin() const
-      {
-        return pLocation.begin();
-      }
-
-      //------------------------------------------------------------------------
-      //! End iterator for locations
-      //------------------------------------------------------------------------
-      LocationSet::const_iterator locationsEnd() const
-      {
-        return pLocation.end();
+      //! Start iterator for locations 
+      //------------------------------------------------------------------------ 
+      LocationVector::const_iterator locationsBegin() const 
+      { 
+	return pLocation.begin(); 
+      } 
+    
+      //------------------------------------------------------------------------ 
+      //! End iterator for locations 
+      //------------------------------------------------------------------------ 
+      LocationVector::const_iterator locationsEnd() const 
+      { 
+	return pLocation.end(); 
       }
 
       //------------------------------------------------------------------------
@@ -205,7 +204,18 @@ namespace eos
       //------------------------------------------------------------------------
       void addLocation( location_t location )
       {
-        pLocation.insert( location );
+	if (hasLocation(location))
+	  return;
+
+        pLocation.push_back( location );
+      }
+
+      //------------------------------------------------------------------------
+      //! replace location by index
+      //------------------------------------------------------------------------
+      void replaceLocation( unsigned int index, location_t newlocation )
+      {
+	pLocation[index] = newlocation;
       }
 
       //------------------------------------------------------------------------
@@ -213,7 +223,13 @@ namespace eos
       //------------------------------------------------------------------------
       void removeLocation( location_t location )
       {
-        pLocation.erase( location );
+	std::vector<location_t>::iterator it;
+	for ( it=pLocation.begin() ; it < pLocation.end(); it++ ) {
+	  if (*it == location) {
+	    pLocation.erase(it);
+	    return;
+	  }
+	}
       }
 
       //------------------------------------------------------------------------
@@ -229,9 +245,11 @@ namespace eos
       //------------------------------------------------------------------------
       bool hasLocation( location_t location )
       {
-        if( pLocation.find( location ) != pLocation.end() )
-          return true;
-        return false;
+	for (unsigned int i=0; i< pLocation.size(); i++) {
+	  if( pLocation[i]!= location )
+	    return true;
+	}
+	return false;
       }
 
       //------------------------------------------------------------------------
@@ -310,7 +328,7 @@ namespace eos
       uint64_t          pSize;
       ContainerMD::id_t pContainerId;
       std::string       pName;
-      LocationSet       pLocation;
+      LocationVector    pLocation;
       uid_t             pCUid;
       gid_t             pCGid;
       uint32_t          pLayoutId;
