@@ -76,16 +76,19 @@ void ChangeLogTest::readWriteCorrectness()
     {
       buffer.clear();
       uint32_t chkSum = i*423;
+      eos::FileMD::ctime_t time;
+      time.tv_sec = i*1234;
+      time.tv_nsec = i*456;
       std::ostringstream o;
       o << "filename_" << i;
       fileMetadata.pId    = i;
-      fileMetadata.pCTime = i*12345;
+      fileMetadata.setCTime( time );
       fileMetadata.setSize( i*987 );
       fileMetadata.setContainerId( i*765 );
       fileMetadata.setChecksum( &chkSum, sizeof( chkSum ) );
       fileMetadata.setName( o.str() );
-      fileMetadata.setUid( i*2 );
-      fileMetadata.setGid( i*3 );
+      fileMetadata.setCUid( i*2 );
+      fileMetadata.setCGid( i*3 );
       fileMetadata.setLayoutId( i*4 );
       for( int j = 0; j < 5; ++j )
         fileMetadata.addLocation( i*j*2 );
@@ -114,16 +117,19 @@ void ChangeLogTest::readWriteCorrectness()
       std::ostringstream o;
       o << "filename_" << i;
       uint32_t checkSum = i*423;
+      eos::FileMD::ctime_t time;
 
       file.readRecord( readOffsets[i], buffer );
       fileMetadata.deserialize( buffer );
+      fileMetadata.getCTime( time );
       CPPUNIT_ASSERT( fileMetadata.pId == i );
-      CPPUNIT_ASSERT( fileMetadata.pCTime == i*12345 );
+      CPPUNIT_ASSERT( time.tv_sec == i*1234 );
+      CPPUNIT_ASSERT( time.tv_nsec == i*456 );
       CPPUNIT_ASSERT( fileMetadata.getSize() == i*987 );
       CPPUNIT_ASSERT( fileMetadata.getContainerId() == i*765 );
       CPPUNIT_ASSERT( fileMetadata.checksumMatch( &checkSum ) );
-      CPPUNIT_ASSERT( fileMetadata.getUid() == i*2 );
-      CPPUNIT_ASSERT( fileMetadata.getGid() == i*3 );
+      CPPUNIT_ASSERT( fileMetadata.getCUid() == i*2 );
+      CPPUNIT_ASSERT( fileMetadata.getCGid() == i*3 );
       CPPUNIT_ASSERT( fileMetadata.getLayoutId() == i*4 );
 
       CPPUNIT_ASSERT( o.str() == fileMetadata.getName() );
