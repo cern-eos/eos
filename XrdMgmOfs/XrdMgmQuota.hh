@@ -190,7 +190,7 @@ public:
   unsigned long UnIndex(unsigned long long reindex) {return (reindex>>32) & 0xffff;}
 
   // the write placement routine
-  int FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::set<unsigned int> &selectedfs);
+  int FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs);
 
   // the read  placement routing
   int FileAccess(XrdOucEnv &envin, XrdOucEnv &envout);

@@ -775,13 +775,17 @@ XrdFstOfs::SetDebug(XrdOucEnv &env)
 {
    XrdOucString debugnode =  env.Get("mgm.nodename");
    XrdOucString debuglevel = env.Get("mgm.debuglevel");
-   
+   XrdOucString filterlist = env.Get("mgm.filter");
    int debugval = XrdCommonLogging::GetPriorityByString(debuglevel.c_str());
    if (debugval<0) {
      eos_err("debug level %s is not known!", debuglevel.c_str());
    } else {
      XrdCommonLogging::SetLogPriority(debugval);
      eos_notice("setting debug level to <%s>", debuglevel.c_str());
+     if (filterlist.length()) {
+       XrdCommonLogging::SetFilter(filterlist.c_str());
+       eos_notice("setting message logid filter to <%s>", filterlist.c_str());
+     }
    }
    fprintf(stderr,"Setting debug to %s\n", debuglevel.c_str());
 }

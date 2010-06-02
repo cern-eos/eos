@@ -279,7 +279,7 @@ XrdMgmSpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
 
 /*----------------------------------------------------------------------------*/
 int 
-XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::set<unsigned int> &selectedfs)
+XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs)
 {
   unsigned int nfilesystems = XrdCommonLayoutId::GetStripeNumber(lid) + 1; // 0 = 1 replicae !
   unsigned int nassigned = 0;
@@ -363,7 +363,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
 	     ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kRW)) &&
 	     ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
 	  // ok, that can be used
-	  selectedfs.insert(currentfs);
+	  selectedfs.push_back(currentfs);
 	  nassigned++;
 	}
       }

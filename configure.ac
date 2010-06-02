@@ -102,7 +102,7 @@ XROOTD_INCDIR="${XROOTD}/include/xrootd/"
 XROOTD_LIBDIR="${XROOTD}/lib${MARK64}/"
 
 
-EOS_INCDIR="${XROOTD}/include/"
+EOS_INCDIR="${prefix}/include/"
 
 
 AC_SUBST(XROOTD_INCDIR)
@@ -118,7 +118,7 @@ AC_CHECK_HEADERS([readline/readline.h], ,
 AC_CHECK_LIB(readline, readline, , AC_MSG_ERROR( "Please install lib readline" ) )
 export LDFLAGS=$LDFLAGS_BUP
 
-AC_CHECK_LIB(rt, clock_gettime, , AC_MSG_ERROR( "The system does not have clock_gettime" ) )
+#AC_CHECK_LIB(rt, clock_gettime, , AC_MSG_ERROR( "The system does not have clock_gettime" ) )
 
 # check for cppunit
 ifdef([AM_PATH_CPPUNIT], [AM_PATH_CPPUNIT([1.12.1])], [])

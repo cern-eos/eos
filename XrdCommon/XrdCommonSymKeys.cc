@@ -17,6 +17,8 @@ XrdCommonSymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString &out) {
     return false;
   }
 
+  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+
   bmem = BIO_new(BIO_s_mem());
   if (!bmem) {
     return false;
@@ -47,6 +49,9 @@ bool
 XrdCommonSymKey::Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen) {
   BIO *b64, *bmem;
   b64 = BIO_new(BIO_f_base64());
+
+  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+
   if (!b64) {
     return false;
   }
@@ -89,6 +94,9 @@ XrdCommonSymKeyStore::SetKey64(const char* inkey64, time_t invalidity)
   if (!XrdCommonSymKey::Base64Decode(s64, binarykey, outlen)) {
     return 0;
   }
+  if (outlen != SHA_DIGEST_LENGTH) 
+    return 0;
+
   return SetKey(binarykey, invalidity);
 }
 

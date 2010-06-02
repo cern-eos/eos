@@ -281,7 +281,11 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   
   int rcode=SFS_ERROR;
   
-  XrdOucString redirectionhost="";
+  XrdOucString redirectionhost="invalid?";
+
+  XrdOucString targethost="";
+  int targetport = atoi(gOFS->MgmOfsTargetPort.c_str());
+
   int ecode=0;
   
 
@@ -337,8 +341,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   }
 
   eos_debug("authorize done");
-
-  redirectionhost= "localhost?";
 
 
   // get the file meta data if exists
@@ -451,16 +453,25 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   // this will be replaced with the scheduling call
 
+  XrdMgmFstFileSystem* filesystem = 0;
+
   if (isCreation) {
-    std::set<unsigned int> selectedfs;
+    std::vector<unsigned int> selectedfs;
     int retc = quotaspace->FilePlacement(uid,gid, openOpaque->Get("eos.grouptag"), layoutId, selectedfs);
     XrdOucString msg = "placement returned with result = "; msg += retc;
-    std::set<unsigned int>::const_iterator sfs;
+    std::vector<unsigned int>::const_iterator sfs;
     for ( sfs = selectedfs.begin(); sfs != selectedfs.end(); ++sfs) {
       msg += " - filesystem "; msg += (int) *sfs;
     }
-    
-    return Emsg(epname, error, EINVAL, "get quota space ", msg.c_str());
+    if (retc) {
+      return Emsg(epname, error, retc, "get quota space ", msg.c_str());
+    }
+    // get the redirection host from the first entry in the vector
+    filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[selectedfs[0]];
+    filesystem->GetHostPort(targethost,targetport);
+    redirectionhost= targethost;
+    redirectionhost+= "?";
+
   } else {
     capability += "&mgm.fsid=1";
   }
@@ -471,6 +482,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   XrdOucEnv  incapability(capability.c_str());
   XrdOucEnv* capabilityenv = 0;
   XrdCommonSymKey* symkey = gXrdCommonSymKeyStore.GetCurrentKey();
+  symkey->Print();
 
   int caprc=0;
   if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
@@ -483,7 +495,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   
   // always redirect
-  ecode = atoi(gOFS->MgmOfsTargetPort.c_str());
+  ecode = targetport;
   rcode = SFS_REDIRECT;
   error.setErrInfo(ecode,redirectionhost.c_str());
   //  ZTRACE(open, "Return redirection " << redirectionhost.c_str() << "Targetport: " << ecode);

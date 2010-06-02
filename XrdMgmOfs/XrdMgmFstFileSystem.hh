@@ -19,6 +19,7 @@ private:
 
   XrdOucString schedulingGroup;
   XrdOucString spaceName;
+
   unsigned int schedulingGroupIndex;
 
   time_t bootSentTime;
@@ -53,6 +54,25 @@ public:
   const char* GetErrMsg()  {return errmsg.c_str();}
   unsigned int GetSchedulingGroupIndex() { return schedulingGroupIndex; }
 
+  void GetHostPort(XrdOucString &host, int &port){
+    int spos,epos, dpos; 
+    spos=epos=dpos=0;
+    spos = queueName.find("/",1); 
+    epos = queueName.find("/",spos+1);
+    dpos = queueName.find(":",spos+1);
+    if ( (spos != STR_NPOS) && (epos != STR_NPOS) ) {
+      if ( (dpos == STR_NPOS) || (dpos > epos) ) {
+	host.assign(queueName, spos+1, epos-1);
+	port = 1094;
+      } else {
+	host.assign(queueName, spos+1, dpos-1);
+	XrdOucString sport;
+	sport.assign(queueName, dpos+1, epos-1);
+	port = atoi(sport.c_str());
+      }
+    }
+    return;
+  }
 
   void ExtractSchedulinGroupIndex() {
     int ppos = schedulingGroup.find("."); 
@@ -118,7 +138,7 @@ public:
   struct statfs* GetStatfs() { return &statFs;}
 
   XrdMgmFstFileSystem(int id, const char* path, const char* queue, const char* schedulinggroup = "default") {
-    Id = id; Path = path; queueName = queue; bootStatus=kDown;configStatus = kUnknown; schedulingGroup = schedulinggroup; ExtractSchedulinGroupIndex();  bootSentTime=0; bootFailureMsg=""; bootDoneTime=0; errc=0; errmsg=""; memset(&statFs,0,sizeof(statFs));
+    Id = id; Path = path; queueName = queue; bootStatus=kDown;configStatus = kUnknown; schedulingGroup = schedulinggroup; ExtractSchedulinGroupIndex();  bootSentTime=0; bootFailureMsg=""; bootDoneTime=0; errc=0; errmsg=""; memset(&statFs,0,sizeof(statFs)); spaceName = ""; 
     UserBytes.set_empty_key(-1);
     GroupBytes.set_empty_key(-1);
     UserFiles.set_empty_key(-1);

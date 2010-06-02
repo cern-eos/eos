@@ -6,7 +6,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysLogger.hh"
-#include "XrdXrootd/XrdXrootdProtocol.hh"
 /*----------------------------------------------------------------------------*/
 #include <string.h>
 #include <sys/syslog.h>
@@ -81,8 +80,11 @@ public:
   static int gPriorityLevel;
   static XrdSysMutex gMutex;
   static XrdOucString gUnit;
+  static XrdOucString gFilter;
   static void SetLogPriority(int pri) { gLogMask = LOG_UPTO(pri); gPriorityLevel = pri;}
   static void SetUnit(const char* unit) { gUnit = unit;}
+  static void SetFilter(const char* filter) {gFilter = filter;}
+
   static const char* GetPriorityString(int pri) {
     if (pri==LOG_MASK(LOG_INFO)) return "INFO ";
     if (pri==LOG_MASK(LOG_DEBUG)) return "DEBUG";

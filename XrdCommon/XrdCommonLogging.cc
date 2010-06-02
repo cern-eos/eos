@@ -9,10 +9,19 @@ int XrdCommonLogging::gPriorityLevel=0;
 
 XrdSysMutex XrdCommonLogging::gMutex;
 XrdOucString XrdCommonLogging::gUnit="none";
+XrdOucString XrdCommonLogging::gFilter="";
 
 void
 XrdCommonLogging::log(const char* func, const char* file, int line, const char* logid, uid_t uid, gid_t gid,uid_t ruid, gid_t rgid, const char* cident, int priority, const char *msg, ...) 
 {
+  if (!(priority & gLogMask)) 
+    return;
+
+  // apply filter to avoid message flooding
+  if ( (gFilter.find(logid))!=STR_NPOS) {
+    return;
+  }
+
   static char buffer[16384];
   XrdOucString File = file;
 
@@ -22,8 +31,6 @@ XrdCommonLogging::log(const char* func, const char* file, int line, const char* 
     File.insert("...",3);
   }
 
-  if (!(priority & gLogMask)) 
-    return;
 
   static time_t current_time;
   static struct timeval tv;

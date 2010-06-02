@@ -500,6 +500,8 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
     if (cmd == "debug") {
       XrdOucString debugnode =  opaque.Get("mgm.nodename");
       XrdOucString debuglevel = opaque.Get("mgm.debuglevel");
+      XrdOucString filterlist = opaque.Get("mgm.filter");
+
       XrdMqMessage message("debug");
       int envlen;
       XrdOucString body = opaque.Env(envlen);
@@ -522,6 +524,11 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	    XrdCommonLogging::SetLogPriority(debugval);
 	    stdOut="success: debug level is now <"; stdOut+=debuglevel.c_str();stdOut += ">";
 	    eos_notice("setting debug level to <%s>", debuglevel.c_str());
+	    if (filterlist.length()) {
+	      XrdCommonLogging::SetFilter(filterlist.c_str());
+	      stdOut+= " filter="; stdOut += filterlist;
+	      eos_notice("setting message logid filter to <%s>", filterlist.c_str());
+	    }
 	  }
 	}
 	if (debugnode == "*") {

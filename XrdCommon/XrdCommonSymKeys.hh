@@ -28,7 +28,7 @@ public:
   static bool Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen);
 
   XrdCommonSymKey(const char* inkey, time_t invalidity) {
-    strcpy(key,inkey);
+    memcpy(key,inkey,SHA_DIGEST_LENGTH);
     validity = invalidity;
     SHA_CTX sha1;
     SHA1_Init(&sha1);
@@ -39,7 +39,14 @@ public:
     strcpy(keydigest64,skeydigest64.c_str());
   }
   ~XrdCommonSymKey(){}
-  
+
+  void Print() {
+    fprintf(stderr,"symkey: ");
+    for (int i=0; i< SHA_DIGEST_LENGTH; i++) {
+      fprintf(stderr, "%x ",(unsigned char) key[i]);
+    }
+    fprintf(stderr, "digest: %s", keydigest64);
+  }
   const char* GetKey() {
     return key;
   }
