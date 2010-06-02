@@ -86,7 +86,6 @@ COMMAND commands[] = {
   { (char*)"rm", com_rm, (char*)"Remove a file" },
   { (char*)"silent", com_silent, (char*)"Toggle silent flag for stdout" },
   { (char*)"test", com_test, (char*)"Run performance test" },
-  { (char*)"test", com_silent, (char*)"Run performance test" },
   { (char*)"timing", com_timing, (char*)"Toggle timing flag for execution time measurement" },
   { (char*)"?",     com_help, (char*)"Synonym for `help'" },
   { (char*)".q",    com_quit, (char*)"Exit from EOS console" },
@@ -1074,7 +1073,7 @@ com_test (char* arg1) {
 
   return (0);
  com_test_usage:
-  printf("usage: test [directory <N> ]                                             :  run performance test\n");
+  printf("usage: test [mkdir|rmdir|ls|lsla <N> ]                                             :  run performance test\n");
   return (0);
 
 }
