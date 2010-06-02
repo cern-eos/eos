@@ -74,6 +74,18 @@ void ChangeLogContainerMDSvcTest::reloadTest()
     container3->addContainer( container6 );
     containerSvc->updateStore( container6 );
 
+    eos::ContainerMD::id_t idAttr = container4->getId();
+    container4->setAttribute( "test1", "test1" );
+    container4->setAttribute( "test1", "test11" );
+    container4->setAttribute( "test2", "test2" );
+    container4->setAttribute( "test3", "test3" );
+    containerSvc->updateStore( container4 );
+
+    CPPUNIT_ASSERT( container4->numAttributes() == 3 );
+    CPPUNIT_ASSERT( container4->getAttribute( "test1" ) == "test11" );
+    CPPUNIT_ASSERT( container4->getAttribute( "test3" ) == "test3" );
+    CPPUNIT_ASSERT_THROW( container4->getAttribute( "test15" ), eos::MDException );
+
     containerSvc->finalize();
 
     containerSvc->initialize();
@@ -99,7 +111,14 @@ void ChangeLogContainerMDSvcTest::reloadTest()
     CPPUNIT_ASSERT( cont1 != 0 );
     CPPUNIT_ASSERT( cont1->getName() == "subContLevel2-3" );
 
+    eos::ContainerMD *contAttrs = containerSvc->getContainerMD( idAttr );
+    CPPUNIT_ASSERT( contAttrs->numAttributes() == 3 );
+    CPPUNIT_ASSERT( contAttrs->getAttribute( "test1" ) == "test11" );
+    CPPUNIT_ASSERT( contAttrs->getAttribute( "test3" ) == "test3" );
+    CPPUNIT_ASSERT_THROW( contAttrs->getAttribute( "test15" ), eos::MDException );
+
     containerSvc->finalize();
+
 
     delete containerSvc;
     unlink( "/tmp/test_changelog.log" );

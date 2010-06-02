@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 #include <google/sparse_hash_map>
+#include <map>
 #include <sys/time.h>
 
 #include "Namespace/persistency/Buffer.hh"
@@ -27,6 +28,7 @@ namespace eos
     public:
       typedef google::sparse_hash_map<std::string, ContainerMD*> ContainerMap;
       typedef google::sparse_hash_map<std::string, FileMD*>      FileMap;
+      typedef std::map<std::string, std::string>                 XAttrMap;
 
       //------------------------------------------------------------------------
       // Type definitions
@@ -279,6 +281,72 @@ namespace eos
         return pFiles.size();
       }
 
+      //------------------------------------------------------------------------
+      //! Add extended attribute
+      //------------------------------------------------------------------------
+      void setAttribute( const std::string &name, const std::string &value )
+      {
+        pXAttrs[name] = value;
+      }
+
+      //------------------------------------------------------------------------
+      //! Remove attribute
+      //------------------------------------------------------------------------
+      void removeAttribute( const std::string &name )
+      {
+        XAttrMap::iterator it = pXAttrs.find( name );
+        if( it != pXAttrs.end() )
+          pXAttrs.erase( it );
+      }
+
+      //------------------------------------------------------------------------
+      //! Check if the attribute exist
+      //------------------------------------------------------------------------
+      bool hasAttribute( const std::string &name ) const
+      {
+        return pXAttrs.find( name ) != pXAttrs.end();
+      }
+
+      //------------------------------------------------------------------------
+      //! Return number of attributes
+      //------------------------------------------------------------------------
+      size_t numAttributes() const
+      {
+        return pXAttrs.size();
+      }
+
+      //------------------------------------------------------------------------
+      // Get the attribute
+      //------------------------------------------------------------------------
+      std::string getAttribute( const std::string &name ) const
+                                                            throw( MDException )
+      {
+        XAttrMap::const_iterator it = pXAttrs.find( name );
+        if( it == pXAttrs.end() )
+        {
+          MDException e( ENOENT );
+          e.getMessage() << "Attribute: " << name << " not found";
+          throw e;
+        }
+        return it->second;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get attribute begin iterator
+      //------------------------------------------------------------------------
+      XAttrMap::iterator attributesBegin()
+      {
+        return pXAttrs.begin();
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the attribute end iterator
+      //------------------------------------------------------------------------
+      XAttrMap::iterator attributesEnd()
+      {
+        return pXAttrs.end();
+      }
+
     protected:
 
       //------------------------------------------------------------------------
@@ -292,6 +360,7 @@ namespace eos
       gid_t        pCGid;
       mode_t       pMode;
       uint16_t     pACLId;
+      XAttrMap     pXAttrs;
       ContainerMap pSubContainers;
       FileMap      pFiles;
   };

@@ -14,7 +14,11 @@ namespace eos
   ContainerMD::ContainerMD( id_t id ):
     pId( id ),
     pParentId( 0 ),
-    pName( "" )
+    pName( "" ),
+    pCUid( 0 ),
+    pCGid( 0 ),
+    pMode( 0 ),
+    pACLId( 0 )
   {
     pSubContainers.set_deleted_key( "" );
     pFiles.set_deleted_key( "" );
@@ -38,6 +42,19 @@ namespace eos
     uint16_t len = pName.length()+1;
     buffer.putData( &len,          2 );
     buffer.putData( pName.c_str(), len );
+
+    len = pXAttrs.size();
+    buffer.putData( &len, sizeof( len ) );
+    XAttrMap::iterator it;
+    for( it = pXAttrs.begin(); it != pXAttrs.end(); ++it )
+    {
+      uint16_t strLen = it->first.length()+1;
+      buffer.putData( &strLen, sizeof( strLen ) );
+      buffer.putData( it->first.c_str(), strLen );
+      strLen = it->second.length()+1;
+      buffer.putData( &strLen, sizeof( strLen ) );
+      buffer.putData( it->second.c_str(), strLen );
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -59,6 +76,21 @@ namespace eos
     char strBuffer[len];
     offset = buffer.grabData( offset, strBuffer, len );
     pName = strBuffer;
+
+    uint16_t len1 = 0;
+    uint16_t len2 = 0;
+    len = 0;
+    offset = buffer.grabData( offset, &len, sizeof( len ) );
+    for( uint16_t i = 0; i < len; ++i )
+    {
+      offset = buffer.grabData( offset, &len1, sizeof( len1 ) );
+      char strBuffer1[len1];
+      offset = buffer.grabData( offset, strBuffer1, len1 );
+      offset = buffer.grabData( offset, &len2, sizeof( len2 ) );
+      char strBuffer2[len2];
+      offset = buffer.grabData( offset, strBuffer2, len2 );
+      pXAttrs.insert( std::make_pair( strBuffer1, strBuffer2 ) );
+    }
   };
 
   //----------------------------------------------------------------------------
