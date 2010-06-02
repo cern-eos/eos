@@ -204,8 +204,8 @@ namespace eos
       //------------------------------------------------------------------------
       void addLocation( location_t location )
       {
-	if (hasLocation(location))
-	  return;
+        if (hasLocation(location))
+          return;
 
         pLocation.push_back( location );
       }
@@ -215,7 +215,7 @@ namespace eos
       //------------------------------------------------------------------------
       void replaceLocation( unsigned int index, location_t newlocation )
       {
-	pLocation[index] = newlocation;
+        pLocation[index] = newlocation;
       }
 
       //------------------------------------------------------------------------
@@ -223,13 +223,13 @@ namespace eos
       //------------------------------------------------------------------------
       void removeLocation( location_t location )
       {
-	std::vector<location_t>::iterator it;
-	for ( it=pLocation.begin() ; it < pLocation.end(); it++ ) {
-	  if (*it == location) {
-	    pLocation.erase(it);
-	    return;
-	  }
-	}
+        std::vector<location_t>::iterator it;
+        for ( it=pLocation.begin() ; it < pLocation.end(); it++ ) {
+          if (*it == location) {
+            pLocation.erase(it);
+            return;
+          }
+        }
       }
 
       //------------------------------------------------------------------------
@@ -245,11 +245,12 @@ namespace eos
       //------------------------------------------------------------------------
       bool hasLocation( location_t location )
       {
-	for (unsigned int i=0; i< pLocation.size(); i++) {
-	  if( pLocation[i]!= location )
-	    return true;
-	}
-	return false;
+        for (unsigned int i=0; i< pLocation.size(); i++)
+        {
+          if( pLocation[i] == location )
+            return true;
+        }
+        return false;
       }
 
       //------------------------------------------------------------------------
