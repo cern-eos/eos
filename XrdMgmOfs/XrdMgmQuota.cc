@@ -288,7 +288,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
   unsigned long long referencesize = 1024ll*1024ll*1024ll;  // 1 GB
 
   // first figure out how many filesystems we need
-  eos_static_debug("uid=%u git=%u place filesystems=%u",uid,gid,nfilesystems);
+  eos_static_debug("uid=%u git=%u grouptag=%s place filesystems=%u",uid,gid,grouptag, nfilesystems);
   
   std::string indextag = "";
   if (grouptag) {
@@ -317,7 +317,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
   } 
 
   if (!hasquota) {
-    eos_static_debug("uid=%u git=%u place filesystems=%u has no quota left!",uid,gid,nfilesystems);
+    eos_static_debug("uid=%u git=%u grouptag=%s place filesystems=%u has no quota left!",uid,gid,grouptag, nfilesystems);
     return ENOSPC;
   }
   
@@ -328,7 +328,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
   // we can try all scheduling groups but not more 
   for (unsigned int i=0; i< schedulingView.size(); i++) {
     schedgroupindex = schedulingViewGroup[indextag];
-
+    eos_static_debug("scheduling group loop %d", schedgroupindex);
     selectedfs.clear();
 
     int maxiterations = schedulingView[schedgroupindex].size();
@@ -370,15 +370,20 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
       schedulingViewPtr[ptrindextag]++;
       if (nassigned >= nfilesystems) {
 	// rotate to next scheduling group
-	schedulingViewGroup[indextag] = ((schedgroupindex++)%schedulingView.size());
-	break;
+	schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
+	break; // leave the for loop inside a scheduling group
       }
     }
     // rotate to next scheduling group
-    schedulingViewGroup[indextag] = ((schedgroupindex++)%schedulingView.size());
+    schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
     // stop when we have found enough in a scheduling group
     if (nassigned == nfilesystems)
-      break;
+      break; // leave the for loop over all scheduling groups
+    else {
+      // try in the next scheduling group
+      selectedfs.clear();
+      nassigned = 0;
+    }
   }
 
   if (nassigned == nfilesystems) {
