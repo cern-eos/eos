@@ -342,6 +342,30 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   eos_debug("authorize done");
 
+  // check if we have to create the full path
+  if (crOpts & XRDOSS_mkpath) {
+    XrdOucString pdir = path;
+    int npos = pdir.rfind("/");
+    if ( (npos == STR_NPOS ) ) {
+      return Emsg(epname, error, EINVAL, "open file - this is not an absolut pathname", path);      
+    }
+    
+    pdir.erase(npos);
+    
+    XrdSfsFileExistence file_exists;
+    int ec = gOFS->_exists(pdir.c_str(),file_exists,error,client,0);
+    if (!ec) {
+      // does not exist
+    } else {
+      if  (file_exists!=XrdSfsFileExistIsDirectory) {
+	return Emsg(epname, error, ENOTDIR, "open file - parent path is not a directory", pdir.c_str());
+      }
+      ec = gOFS->_mkdir(pdir.c_str(),Mode,error,uid,gid,info);
+      if (!ec) 
+	return SFS_ERROR;
+    }
+  }
+  
 
   // get the file meta data if exists
 
@@ -383,22 +407,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	  return Emsg(epname, error, errno, "create file", path);      
 	}
 	isCreation = true;
-
-	// commit that
-
-	//-------------------------------------------
-	gOFS->eosViewMutex.Lock();
-	try {
-	  gOFS->eosView->updateFileStore(fmd);
-	} catch( eos::MDException &e ) {
-	  errno = e.getErrno();
-	  std::string errmsg = e.getMessage().str();
-	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-	  gOFS->eosViewMutex.UnLock();
-	  return Emsg(epname, error, errno, "open file", errmsg.c_str());      
-	}
-	gOFS->eosViewMutex.UnLock();
-	//-------------------------------------------
       }
     } else {
       // we attached to an existing file
@@ -423,14 +431,34 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     capability += "&mgm.access=read";
   }
 
-  // select round robin laytouts
-  //  unsigned int layoutId = (int)((fileId % 5)+1);
+  unsigned long layoutId = (isCreation)?XrdCommonLayoutId::kPlain:fmd->getLayoutId();
+  unsigned long forcedFsId = 0; // the client can force to read a file on a defined file system
+  unsigned long fsIndex = 0; // this is the filesystem defining the client access point in the selection vector - for writes it is always 0, for reads it comes out of the FileAccess function
 
-  unsigned long layoutId = XrdCommonLayoutId::kPlain;
   XrdOucString space = "default";
 
+  unsigned long newlayoutId=0;
   // select space and layout according to policies
-  XrdMgmPolicy::GetLayoutAndSpace(path, uid, gid, layoutId, space, *openOpaque);
+  XrdMgmPolicy::GetLayoutAndSpace(path, uid, gid, newlayoutId, space, *openOpaque, forcedFsId);
+
+  if (isCreation) {
+    layoutId = newlayoutId;
+    // set the layout and commit new meta data 
+    fmd->setLayoutId(layoutId);
+    //-------------------------------------------
+    gOFS->eosViewMutex.Lock();
+    try {
+      gOFS->eosView->updateFileStore(fmd);
+    } catch( eos::MDException &e ) {
+      errno = e.getErrno();
+      std::string errmsg = e.getMessage().str();
+      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      gOFS->eosViewMutex.UnLock();
+      return Emsg(epname, error, errno, "open file", errmsg.c_str());      
+    }
+    gOFS->eosViewMutex.UnLock();
+    //-------------------------------------------
+  }
   
   XrdMgmSpaceQuota* quotaspace = XrdMgmQuota::GetSpaceQuota(space.c_str(),false);
 
@@ -454,61 +482,71 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   XrdMgmFstFileSystem* filesystem = 0;
 
-  if (isCreation) {
-    std::vector<unsigned int> selectedfs;
-    int retc = quotaspace->FilePlacement(uid,gid, openOpaque->Get("eos.grouptag"), layoutId, selectedfs);
-    XrdOucString msg = "placement returned with result = "; msg += retc;
-    std::vector<unsigned int>::const_iterator sfs;
-    for ( sfs = selectedfs.begin(); sfs != selectedfs.end(); ++sfs) {
-      msg += " - filesystem "; msg += (int) *sfs;
-    }
-    if (retc) {
-      return Emsg(epname, error, retc, "get quota space ", msg.c_str());
-    }
-    // get the redirection host from the first entry in the vector
-    filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[selectedfs[0]];
-    filesystem->GetHostPort(targethost,targetport);
-    redirectionhost= targethost;
-    redirectionhost+= "?";
-
-    if ( XrdCommonLayoutId::GetLayoutType(layoutId) == XrdCommonLayoutId::kPlain ) {
-      capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
-      capability += "&mgm.localprefix="; capability+= filesystem->GetPath();
+  std::vector<unsigned int> selectedfs;
+  std::vector<unsigned int>::const_iterator sfs;
   
-    }
-
-    if ( XrdCommonLayoutId::GetLayoutType(layoutId) == XrdCommonLayoutId::kReplica ) {
-      capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
-      capability += "&mgm.localprefix="; capability+= filesystem->GetPath();
-
-      XrdMgmFstFileSystem* repfilesystem = 0;
-      // put all the replica urls into the capability
-      for ( int i = 0; i < (int)selectedfs.size(); i++) {
-	repfilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[selectedfs[i]];
-	if (!repfilesystem) {
-	  return Emsg(epname, error, EINVAL, "get replica filesystem information",path);
-	}
-	capability += "&mgm.url"; capability += i; capability += "=root://";
-	XrdOucString replicahost=""; int replicaport = 0;
-	repfilesystem->GetHostPort(replicahost,replicaport);
-	capability += replicahost; capability += ":"; capability += replicaport; capability += "/";
-	capability += path;
-	// add replica fsid
-	capability += "&mgm.fsid"; capability += i; capability += "="; capability += (int)repfilesystem->GetId();
-	capability += "&mgm.localprefix"; capability += i; capability += "=";capability+= repfilesystem->GetPath();
-      }
-    }
+  int retc = 0;
+    // ************************************************************************************************
+  if (isCreation) {
+    // ************************************************************************************************
+    // place a new file 
+    retc = quotaspace->FilePlacement(uid, gid, openOpaque->Get("eos.grouptag"), layoutId, selectedfs);
   } else {
-    capability += "&mgm.fsid=1";
+    // ************************************************************************************************
+    // access existing file
+
+    // fill the vector with the existing locations
+    for (unsigned int i=0; i< fmd->getNumLocation(); i++) {
+      int loc = fmd->getLocation(i);
+      if (loc) 
+	selectedfs.push_back(loc);
+    }
+
+    retc = quotaspace->FileAccess(uid, gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW);
+  }
+  if (retc) {
+    return Emsg(epname, error, retc, "get quota space ", path);
   }
 
+  // ************************************************************************************************
+  // get the redirection host from the first entry in the vector
+
+  filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[selectedfs[fsIndex]];
+  filesystem->GetHostPort(targethost,targetport);
+  redirectionhost= targethost;
+  redirectionhost+= "?";
   
+  if ( XrdCommonLayoutId::GetLayoutType(layoutId) == XrdCommonLayoutId::kPlain ) {
+    capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
+    capability += "&mgm.localprefix="; capability+= filesystem->GetPath();
+  }
+
+  if ( XrdCommonLayoutId::GetLayoutType(layoutId) == XrdCommonLayoutId::kReplica ) {
+    capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
+    capability += "&mgm.localprefix="; capability+= filesystem->GetPath();
+    
+    XrdMgmFstFileSystem* repfilesystem = 0;
+    // put all the replica urls into the capability
+    for ( int i = 0; i < (int)selectedfs.size(); i++) {
+      repfilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[selectedfs[i]];
+      if (!repfilesystem) {
+	return Emsg(epname, error, EINVAL, "get replica filesystem information",path);
+      }
+      capability += "&mgm.url"; capability += i; capability += "=root://";
+      XrdOucString replicahost=""; int replicaport = 0;
+      repfilesystem->GetHostPort(replicahost,replicaport);
+      capability += replicahost; capability += ":"; capability += replicaport; capability += "/";
+      capability += path;
+      // add replica fsid
+      capability += "&mgm.fsid"; capability += i; capability += "="; capability += (int)repfilesystem->GetId();
+      capability += "&mgm.localprefix"; capability += i; capability += "=";capability+= repfilesystem->GetPath();
+    }
+  }
 
   // encrypt capability
   XrdOucEnv  incapability(capability.c_str());
   XrdOucEnv* capabilityenv = 0;
   XrdCommonSymKey* symkey = gXrdCommonSymKeyStore.GetCurrentKey();
-  symkey->Print();
 
   int caprc=0;
   if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
@@ -518,7 +556,9 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   int caplen=0;
   redirectionhost+=capabilityenv->Env(caplen);
   redirectionhost+= "&mgm.logid="; redirectionhost+=this->logId;
-
+  
+  // for the moment we redirect only on storage nodes
+  redirectionhost+= "&mgm.replicaindex="; redirectionhost += (int)fsIndex;
   
   // always redirect
   ecode = targetport;
@@ -1640,7 +1680,10 @@ XrdMgmOfs::FSctl(const int               cmd,
       char* asize  = env.Get("mgm.size");
       char* spath  = env.Get("mgm.path");
       char* afid   = env.Get("mgm.fid");
-      char* afsid  = env.Get("mgm.fsid");
+      char* afsid  = env.Get("mgm.add.fsid");
+      char* amtime =     env.Get("mgm.mtime");
+      char* amtimensec = env.Get("mgm.mtime_ns");
+
       char* checksum = env.Get("mgm.checksum");
       char  binchecksum[SHA_DIGEST_LENGTH];
       memset(binchecksum, 0, sizeof(binchecksum));
@@ -1653,18 +1696,19 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  binchecksum[i/2] = strtol(hex,0,16);
 	}
       }
-      if (asize && afid && spath && afsid) {
-	unsigned long long size = strtoll(asize,0,10);
-	unsigned long long fid  = strtoll(afid,0,16);
-	unsigned long fsid      = strtol(afsid,0,10);
-
+      if (asize && afid && spath && afsid && amtime && amtimensec) {
+	unsigned long long size = strtoull(asize,0,10);
+	unsigned long long fid  = strtoull(afid,0,16);
+	unsigned long fsid      = strtoul (afsid,0,10);
+	unsigned long mtime     = strtoul (amtime,0,10);
+	unsigned long mtimens   = strtoul (amtimensec,0,10);
 	eos::Buffer checksumbuffer;
 	checksumbuffer.putData(binchecksum, SHA_DIGEST_LENGTH);
 
 	if (checksum) {
-	  eos_debug("commit: path=%s size=%s fid=%s fsid=%s checksum=%s", spath, asize, afid, afsid, checksum);
+	  eos_debug("commit: path=%s size=%s fid=%s fsid=%s checksum=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, checksum, amtime, amtimensec);
 	} else {
-	  eos_debug("commit: path=%s size=%s fid=%s fsid=%s", spath, asize, afid, afsid);
+	  eos_debug("commit: path=%s size=%s fid=%s fsid=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, amtime, amtimensec);
 	}
 
 	// get the file meta data if exists
@@ -1693,7 +1737,11 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  fmd->setSize(size);
 	  fmd->addLocation(fsid);
 	  fmd->setChecksum(checksumbuffer);
-	  fmd->setMTimeNow();
+	  //	  fmd->setMTimeNow();
+	  eos::FileMD::ctime_t mt;
+	  mt.tv_sec  = mtime;
+	  mt.tv_nsec = mtimens;
+	  fmd->setMTime(mt);
 	  eos_debug("commit: setting size to %llu", fmd->getSize());
 	  //-------------------------------------------
 	  gOFS->eosViewMutex.Lock();
@@ -1715,9 +1763,9 @@ XrdMgmOfs::FSctl(const int               cmd,
 	int envlen=0;
 	eos_err("commit message does not contain all meta information: %s", env.Env(envlen));
 	if (spath) {
-	  return  Emsg(epname,error,EINVAL,"commit filesize change - size,fid,fsid not complete",spath);
+	  return  Emsg(epname,error,EINVAL,"commit filesize change - size,fid,fsid,mtime not complete",spath);
 	} else {
-	  return  Emsg(epname,error,EINVAL,"commit filesize change - size,fid,fsid,path not complete","unknown");
+	  return  Emsg(epname,error,EINVAL,"commit filesize change - size,fid,fsid,mtime,path not complete","unknown");
 	}
       }
       const char* ok = "OK";

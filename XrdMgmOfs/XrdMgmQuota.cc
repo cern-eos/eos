@@ -281,7 +281,7 @@ XrdMgmSpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
 int 
 XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs)
 {
-  unsigned int nfilesystems = XrdCommonLayoutId::GetStripeNumber(lid) + 1; // 0 = 1 replicae !
+  unsigned int nfilesystems = XrdCommonLayoutId::GetStripeNumber(lid) + 1; // 0 = 1 replica !
   unsigned int nassigned = 0;
   bool hasquota = false;
 
@@ -396,10 +396,95 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
 
 
 /*----------------------------------------------------------------------------*/
-int
-XrdMgmSpaceQuota::FileAccess(XrdOucEnv &envin, XrdOucEnv &envout)
+int XrdMgmSpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW)
 {
-  return 0;
+  eos_static_debug("uid=%u gid=%u force=%u space=%s layout=%lu isrw=%u",uid,gid,forcedfsid,forcedspace,lid, isRW);
+
+  if (XrdCommonLayoutId::GetLayoutType(lid) == XrdCommonLayoutId::kPlain) {
+    // we have only a single replica ... so just check the state of the filesystem where that is located
+    if (locationsfs.size() && locationsfs[0]) {
+      XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[locationsfs[0]];
+      // check if filesystem is accessible
+      if (isRW) {
+	if (filesystem && ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kRW)) &&
+	    ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
+	  // perfect!
+	  fsindex = 0;
+	  eos_static_debug("selected plain file access via filesystem %u",locationsfs[0]);
+	  return 0;
+	} else {
+	  // check if we are draining or read-only
+	  if (filesystem && ( (filesystem->GetConfigStatus() == XrdCommonFileSystem::kRO) || (filesystem->GetConfigStatus() == XrdCommonFileSystem::kDrain)) )
+	    return EROFS;
+	  // we are off the wire
+	  return ENONET;
+	}
+      } else {
+	if (filesystem && ((filesystem->GetConfigStatus() >= XrdCommonFileSystem::kDrain)) &&
+	    ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
+	  // perfect!
+	  fsindex = 0;
+	  return 0;
+	} else {
+	  return ENONET;
+	}
+      }
+    } else {
+      return ENODATA;
+    }
+  }
+
+  if (XrdCommonLayoutId::GetLayoutType(lid) == XrdCommonLayoutId::kReplica) {
+    unsigned int nfilesystems = XrdCommonLayoutId::GetStripeNumber(lid) + 1; // 0 = 1 replica !
+
+    if (isRW) {
+      if (locationsfs.size() != nfilesystems) {
+	eos_static_debug("we need %u filesystems but only %u are in the meta data", nfilesystems, locationsfs.size());
+	return EFAULT;
+      }
+
+      // write case all have to be available ! 
+      for (unsigned int i=0; i< nfilesystems; i++) {
+	if ((i < locationsfs.size()) && locationsfs[i]) {
+	  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[locationsfs[i]];
+	  // check if filesystem is accessible
+	  if (filesystem && (((filesystem->GetConfigStatus() != XrdCommonFileSystem::kRW)) ||
+			     ((filesystem->GetBootStatus()   != XrdCommonFileSystem::kBooted)))) {     
+	    // that is already too bad, we cannot write since one replica is not accessible
+	    return ENONET;
+	  }
+	}
+      }
+      // if we get here all filesystems are available :-)
+      eos_static_debug("selected replica file access with all filesystems available");
+      return 0;
+    } else {
+      // for read we select one randomly and iterate until we have an available replica
+      unsigned int randomindex = (unsigned int) ( 0.999999 * random()* nfilesystems )/RAND_MAX;
+      eos_static_debug("selected random index for filesystem selection %u", randomindex);
+      for (unsigned int i=0; i< nfilesystems; i++) {
+	unsigned int currentindex = (i+randomindex)%nfilesystems;
+	// we have only a single replica ... so just check the state of the filesystem where that is located
+	if ((currentindex < locationsfs.size()) && (locationsfs[currentindex])) {
+	  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[locationsfs[currentindex]];
+	  // check if filesystem is accessible
+	  if (filesystem && ((filesystem->GetConfigStatus() >= XrdCommonFileSystem::kDrain)) &&
+	      ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
+	    if ( (forcedfsid == currentindex) || (!forcedfsid) ) {
+	      // we found a good one or the one which was desired by the client
+	      fsindex = currentindex;
+	      eos_static_debug("selected replica file access via filesystem %u",locationsfs[currentindex]);
+	      return 0;
+	    }
+	  } 
+	}
+      } 
+      // if we get here none of the filesystems was available :-(
+      return ENONET;
+    } 
+  }
+  
+  return EINVAL;
 }
 
 

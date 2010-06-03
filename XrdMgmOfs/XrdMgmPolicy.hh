@@ -13,7 +13,7 @@ public:
   XrdMgmPolicy(){};
   ~XrdMgmPolicy(){};
 
-  static void GetLayoutAndSpace(const char* path, uid_t uid, gid_t gid, unsigned long &layoutId, XrdOucString &space, XrdOucEnv &env);
+  static void GetLayoutAndSpace(const char* path, uid_t uid, gid_t gid, unsigned long &layoutId, XrdOucString &space, XrdOucEnv &env, unsigned long &forcedfsid);
 
 };
 

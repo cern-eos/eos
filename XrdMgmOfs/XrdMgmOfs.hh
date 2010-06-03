@@ -139,7 +139,7 @@ public:
                             const char *y="");
 
                        XrdMgmOfsFile(char *user=0) : XrdSfsFile(user)
-                                          {oh = -1; fname = 0; openOpaque=0;uid=ruid=99; gid=rgid=99;fileId=0; procCmd=0; XrdCommonLogId();fmd=0;}
+                                          {oh = 0; fname = 0; openOpaque=0;uid=ruid=99; gid=rgid=99;fileId=0; procCmd=0; XrdCommonLogId();fmd=0;}
                       ~XrdMgmOfsFile() {
 			if (oh) close();
 			if (openOpaque) {delete openOpaque; openOpaque = 0;}
