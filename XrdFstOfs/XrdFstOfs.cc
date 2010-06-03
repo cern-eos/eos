@@ -489,6 +489,8 @@ XrdFstOfsFile::close()
      } else {
        // update size
        fMd->fMd.size = statinfo.st_size;
+       fMd->fMd.mtime    = statinfo.st_mtime;
+       fMd->fMd.mtime_ns = statinfo.st_mtim.tv_nsec;
      }
 
      // commit local
@@ -498,6 +500,7 @@ XrdFstOfsFile::close()
      // commit to central mgm cache
      int envlen=0;
      XrdOucString capOpaqueFile="";
+     XrdOucString mTimeString="";
      capOpaqueFile += "/?";
      capOpaqueFile += capOpaque->Env(envlen);
      capOpaqueFile += "&mgm.pcmd=commit";
@@ -508,6 +511,13 @@ XrdFstOfsFile::close()
        capOpaqueFile += "&mgm.checksum=";
        capOpaqueFile += checkSum->GetHexChecksum();
      }
+     capOpaqueFile += "&mgm.mtime=";
+     capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fMd->fMd.mtime);
+     capOpaqueFile += "&mgm.mtime_ns=";
+     capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fMd->fMd.mtime_ns);
+
+     capOpaqueFile += "&mgm.add.fsid=";
+     capOpaqueFile += (int)fMd->fMd.fsid;
 
      char result[8192]; result[0]=0;
      int  result_size=8192;
