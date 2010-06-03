@@ -534,10 +534,6 @@ XrdMqMessage::SymmetricStringEncrypt(XrdOucString &in, XrdOucString &out, char* 
   unsigned int tmpbuflen;
   char* tmpbuf=0;
 
-  fprintf(stderr,"key: ");
-  for (int i=0; i< SHA_DIGEST_LENGTH; i++) {
-    fprintf(stderr,"%x ", key[i]);
-  }
   if (!CipherEncrypt(in, tmpbuf, tmpbuflen, key)) {
     return false;
   }

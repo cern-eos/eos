@@ -446,10 +446,9 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   capability += "&mgm.path=";      capability += path;
   capability += "&mgm.manager=";   capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";    XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fileId,hexfid);capability += hexfid;
-  capability += "&mgm.localprefix="; capability+= "/var/tmp/ost/";
   capability += "&mgm.lid=";       //capability += XrdCommonLayoutId::kPlain;
   // test all checksum algorithms
-  capability += (int)((fileId % 5)+1);
+  capability += (int)layoutId;
 
   // this will be replaced with the scheduling call
 
@@ -472,11 +471,38 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     redirectionhost= targethost;
     redirectionhost+= "?";
 
+    if ( XrdCommonLayoutId::GetLayoutType(layoutId) == XrdCommonLayoutId::kPlain ) {
+      capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
+      capability += "&mgm.localprefix="; capability+= filesystem->GetPath();
+  
+    }
+
+    if ( XrdCommonLayoutId::GetLayoutType(layoutId) == XrdCommonLayoutId::kReplica ) {
+      capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
+      capability += "&mgm.localprefix="; capability+= filesystem->GetPath();
+
+      XrdMgmFstFileSystem* repfilesystem = 0;
+      // put all the replica urls into the capability
+      for ( int i = 0; i < (int)selectedfs.size(); i++) {
+	repfilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[selectedfs[i]];
+	if (!repfilesystem) {
+	  return Emsg(epname, error, EINVAL, "get replica filesystem information",path);
+	}
+	capability += "&mgm.url"; capability += i; capability += "=root://";
+	XrdOucString replicahost=""; int replicaport = 0;
+	repfilesystem->GetHostPort(replicahost,replicaport);
+	capability += replicahost; capability += ":"; capability += replicaport; capability += "/";
+	capability += path;
+	// add replica fsid
+	capability += "&mgm.fsid"; capability += i; capability += "="; capability += (int)repfilesystem->GetId();
+	capability += "&mgm.localprefix"; capability += i; capability += "=";capability+= repfilesystem->GetPath();
+      }
+    }
   } else {
     capability += "&mgm.fsid=1";
   }
 
-
+  
 
   // encrypt capability
   XrdOucEnv  incapability(capability.c_str());
@@ -1629,7 +1655,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       }
       if (asize && afid && spath && afsid) {
 	unsigned long long size = strtoll(asize,0,10);
-	unsigned long long fid  = strtoll(afid,0,10);
+	unsigned long long fid  = strtoll(afid,0,16);
 	unsigned long fsid      = strtol(afsid,0,10);
 
 	eos::Buffer checksumbuffer;
@@ -1661,6 +1687,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	} else {
 	  // check if fsid and fid are ok 
 	  if (fmd->getId() != fid ) {
+	    eos_notice("commit for fid=%lu but fid=%lu", fmd->getId(), fid);
 	    return Emsg(epname,error, EINVAL,"commit filesize change - file id is wrong", spath);
 	  }
 	  fmd->setSize(size);

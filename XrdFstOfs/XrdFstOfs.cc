@@ -306,6 +306,17 @@ XrdFstOfsFile::open(const char                *path,
     return gOFS.Emsg(epname,error, EINVAL,"open - no file system id in capability",path);
   }
 
+  // if we open a replica we have to take the right filesystem id and filesystem prefix for that replica
+  if (openOpaque->Get("mgm.replicaindex")) {
+    XrdOucString replicafsidtag="mgm.fsid"; replicafsidtag += (int) atoi(openOpaque->Get("mgm.replicaindex"));
+    if (capOpaque->Get(replicafsidtag.c_str())) 
+      sfsid=capOpaque->Get(replicafsidtag.c_str());
+    XrdOucString replicalocalprefixtag="mgm.localprefix"; replicalocalprefixtag += (int) atoi(openOpaque->Get("mgm.replicaindex"));
+    if (capOpaque->Get(replicalocalprefixtag.c_str())) 
+      localprefix=capOpaque->Get(replicalocalprefixtag.c_str());
+  }
+
+
   if (!(slid=capOpaque->Get("mgm.lid"))) {
     return gOFS.Emsg(epname,error, EINVAL,"open - no layout id in capability",path);
   }

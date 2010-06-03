@@ -54,7 +54,7 @@ public:
   static unsigned long GetChecksumFromEnv(XrdOucEnv &env)    {const char* val=0; if ( (val=env.Get("eos.layout.checksum")) ) { XrdOucString xsum=val; if (xsum == "adler") return kAdler; if (xsum == "crc32") return kCRC32; if (xsum == "md5") return kMD5; if (xsum == "sha") return kSHA1;} return kNone;}
 
   static unsigned long GetLayoutFromEnv(XrdOucEnv &env)      {const char* val=0; if ( (val=env.Get("eos.layout.type")) ) { XrdOucString typ=val; if (typ == "replica") return kReplica; if (typ == "raid5") return kRaid5;} return kPlain;}
-  static unsigned long GetStripeNumberFromEnv(XrdOucEnv &env){const char* val=0; if ( (val=env.Get("eos.layout.nstripes"))) { int n = atoi(val); if ( ((n-1)>= kOneStripe) && ( (n-1) <= kSixteenStripe)) return (n);} return kOneStripe;}
+  static unsigned long GetStripeNumberFromEnv(XrdOucEnv &env){const char* val=0; if ( (val=env.Get("eos.layout.nstripes"))) { int n = atoi(val); if ( ((n-1)>= kOneStripe) && ( (n-1) <= kSixteenStripe)) return (n);} return (kOneStripe+1);}
   static unsigned long GetStripeWidthFromEnv(XrdOucEnv &env) {const char* val=0; if ( (val=env.Get("eos.layout.stripewidth"))) { unsigned int n = (unsigned int)atoi(val); return n;} return 0;}
   XrdCommonLayoutId();
   ~XrdCommonLayoutId();
