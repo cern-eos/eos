@@ -16,7 +16,7 @@ public:
 
   static void* Start(void *pp);
 
-  virtual void Listen(){};
+  virtual void Listen()=0;
   void Connect();
 
   XrdMqMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false);

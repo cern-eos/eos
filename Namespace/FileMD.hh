@@ -86,8 +86,8 @@ namespace eos
       //------------------------------------------------------------------------
       void setMTime( ctime_t mtime )
       {
-        pCTime.tv_sec = mtime.tv_sec;
-	pCTime.tv_nsec = mtime.tv_nsec;
+        pMTime.tv_sec = mtime.tv_sec;
+	pMTime.tv_nsec = mtime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -208,6 +208,16 @@ namespace eos
           return;
 
         pLocation.push_back( location );
+      }
+
+      //------------------------------------------------------------------------
+      //! Get location
+      //------------------------------------------------------------------------
+      location_t getLocation( unsigned int index )
+      {
+	if (index < pLocation.size())
+	  return pLocation[index];
+	return 0; 
       }
 
       //------------------------------------------------------------------------

@@ -277,7 +277,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   int isRewrite = 0;
   bool isCreation = false;
 
-  int crOpts = (Mode & SFS_O_MKPTH ? XRDOSS_mkpath : 0);
+  int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
   
   int rcode=SFS_ERROR;
   
@@ -293,10 +293,11 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   // Set the actual open mode and find mode
   //
-  
   if (open_mode & SFS_O_CREAT) open_mode = SFS_O_CREAT;
   else if (open_mode & SFS_O_TRUNC) open_mode = SFS_O_TRUNC;
   
+
+
   switch(open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
 		      SFS_O_CREAT  | SFS_O_TRUNC))
     {
@@ -343,7 +344,8 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   eos_debug("authorize done");
 
   // check if we have to create the full path
-  if (crOpts & XRDOSS_mkpath) {
+  if (Mode & SFS_O_MKPTH) {
+    eos_debug("SFS_O_MKPTH was requested");
     XrdOucString pdir = path;
     int npos = pdir.rfind("/");
     if ( (npos == STR_NPOS ) ) {
@@ -354,14 +356,15 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     
     XrdSfsFileExistence file_exists;
     int ec = gOFS->_exists(pdir.c_str(),file_exists,error,client,0);
-    if (!ec) {
-      // does not exist
-    } else {
-      if  (file_exists!=XrdSfsFileExistIsDirectory) {
-	return Emsg(epname, error, ENOTDIR, "open file - parent path is not a directory", pdir.c_str());
-      }
+    
+    // check if that is a file
+    if  ((!ec) && (file_exists!=XrdSfsFileExistNo) && (file_exists!=XrdSfsFileExistIsDirectory)) {
+      return Emsg(epname, error, ENOTDIR, "open file - parent path is not a directory", pdir.c_str());
+    }
+    // if it does not exist try to create the path!
+    if ((!ec) && (file_exists==XrdSfsFileExistNo)) {
       ec = gOFS->_mkdir(pdir.c_str(),Mode,error,uid,gid,info);
-      if (!ec) 
+      if (ec) 
 	return SFS_ERROR;
     }
   }
@@ -384,11 +387,11 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   if (isRW) {
     // write case
     if ((!fmd)) {
-      if (!(crOpts & XRDOSS_new))  {
+      if (!(open_flag & O_CREAT))  {
 	// write open of not existing file without creation flag
 	return Emsg(epname, error, errno, "open file", path);      
       } else {
-	// creation of a new fil
+	// creation of a new file
 
 	//-------------------------------------------
 	gOFS->eosViewMutex.Lock();
@@ -410,6 +413,9 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       }
     } else {
       // we attached to an existing file
+      if (fmd && (open_flag & O_EXCL))  {
+	return Emsg(epname, error, EEXIST, "create file", path);
+      }
     }
   } else {
     if ((!fmd)) 
@@ -480,11 +486,13 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   // this will be replaced with the scheduling call
 
+
   XrdMgmFstFileSystem* filesystem = 0;
 
   std::vector<unsigned int> selectedfs;
   std::vector<unsigned int>::const_iterator sfs;
-  
+
+  XrdMgmFstNode::gMutex.Lock();
   int retc = 0;
     // ************************************************************************************************
   if (isCreation) {
@@ -505,6 +513,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     retc = quotaspace->FileAccess(uid, gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW);
   }
   if (retc) {
+    XrdMgmFstNode::gMutex.UnLock();
     return Emsg(epname, error, retc, "get quota space ", path);
   }
 
@@ -530,6 +539,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     for ( int i = 0; i < (int)selectedfs.size(); i++) {
       repfilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[selectedfs[i]];
       if (!repfilesystem) {
+	XrdMgmFstNode::gMutex.UnLock();
 	return Emsg(epname, error, EINVAL, "get replica filesystem information",path);
       }
       capability += "&mgm.url"; capability += i; capability += "=root://";
@@ -542,6 +552,8 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       capability += "&mgm.localprefix"; capability += i; capability += "=";capability+= repfilesystem->GetPath();
     }
   }
+  
+  XrdMgmFstNode::gMutex.UnLock();
 
   // encrypt capability
   XrdOucEnv  incapability(capability.c_str());
@@ -813,9 +825,9 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   Input:    path        - Is the fully qualified name of the file to be tested.
 :            file_exists - Is the address of the variable to hold the status of
                           'path' when success is returned. The values may be:
-                          XrdSfsFileExistsIsDirectory - file not found but path is valid.
-                          XrdSfsFileExistsIsFile      - file found.
-                          XrdSfsFileExistsIsNo        - neither file nor directory.
+                          XrdSfsFileExistIsDirectory - file not found but path is valid.
+                          XrdSfsFileExistIsFile      - file found.
+                          XrdSfsFileExistNo          - neither file nor directory.
             einfo       - Error information object holding the details.
             client      - Authentication credentials, if any.
             info        - Opaque information, if any.
@@ -932,7 +944,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   bool recurse = false;
   if (Mode & SFS_O_MKPTH) {
     recurse = true;
-    eos_info("SFS_O_MKPATH set",path);
+    eos_debug("SFS_O_MKPATH set",path);
     // short cut if it exists already
 
     eos::ContainerMD* dir=0;
@@ -952,7 +964,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     }
   }
   
-  eos_info("create",path);
+  eos_info("create %s",path);
   eos::ContainerMD* newdir = 0;
 
   //-------------------------------------------
@@ -1251,7 +1263,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     cmd = gOFS->eosView->getContainer(path);
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("check for directory - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   }
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
@@ -1266,7 +1278,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
       fmd = gOFS->eosView->getFile(path);
     } catch( eos::MDException &e ) {
       errno = e.getErrno();
-      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      eos_debug("check for file - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
     }
     gOFS->eosViewMutex.UnLock();
     //-------------------------------------------
@@ -1611,7 +1623,6 @@ XrdMgmOfs::FSctl(const int               cmd,
   const char *tident = error.getErrUser();
   
   // accept only plugin calls!
-  ZTRACE(fsctl,"Calling FSctl");
 
   if (cmd!=SFS_FSCTL_PLUGIN) {
     return gOFS->Emsg(epname, error, EPERM, "execute non-plugin function", "");

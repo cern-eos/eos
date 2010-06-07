@@ -18,7 +18,7 @@ XrdCommonLogging::log(const char* func, const char* file, int line, const char* 
     return;
 
   // apply filter to avoid message flooding
-  if ( (gFilter.find(logid))!=STR_NPOS) {
+  if ( (gFilter.find(func))!=STR_NPOS) {
     return;
   }
 
@@ -60,6 +60,7 @@ XrdCommonLogging::log(const char* func, const char* file, int line, const char* 
   
   fprintf(stderr,buffer);
   fprintf(stderr,"\n\n");
+  fflush(stderr);
   va_end(args);
   gMutex.UnLock();
 }

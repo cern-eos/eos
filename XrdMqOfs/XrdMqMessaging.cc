@@ -36,7 +36,7 @@ XrdMqMessaging::XrdMqMessaging(const char* url, const char* defaultreceiverqueue
   gMessageClient.Subscribe();
   gMessageClient.SetDefaultReceiverQueue(defaultreceiverqueue);
 
-  XrdMqMessage::Eroute.Say("###### " ,"mq messaging: staring thread ","");
+  XrdMqMessage::Eroute.Say("###### " ,"mq messaging: statring thread ","");
   if ((rc = XrdSysThread::Run(&tid, XrdMqMessaging::Start, static_cast<void *>(this),
                               0, "Messaging Receiver"))) {
     XrdMqMessage::Eroute.Emsg("messaging",rc,"create messaging thread");

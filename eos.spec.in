@@ -5,7 +5,7 @@ Summary: eos project
 Name: eos
 Version: @VERSION@
 Release: 0
-Prefix: /opt/xrootd
+Prefix: /opt/eos
 License: none
 Group: Applications/File
 Source: @PACKAGE_TARNAME@-@PACKAGE_VERSION@.tar.gz
@@ -22,7 +22,7 @@ eos project
 
 %build
 ./bootstrap.sh
-./configure --sysconfdir=/etc/
+./configure --sysconfdir=/etc/ --with-xrootd=/usr/ --prefix=/opt/eos/
 make -j 4
 
 

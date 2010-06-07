@@ -371,6 +371,10 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   // this global hash needs to initialize the set empty key function at first place
   XrdMgmFstNode::gFileSystemById.set_empty_key(0);
 
+  XrdCommonLogging::gFilter = "Process,AddQuota,UpdateHint,SetQuota,UpdateQuotaStatus,SetConfigValue";
+  Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,SetQuota,UpdateQuotaStatus,SetConfigValue");
+
+
   // check config directory access
   if (::access(MgmConfigDir.c_str(), W_OK|R_OK|X_OK)) {
     Eroute.Emsg("Config","I cannot acccess the configuration directory for r/w!", MgmConfigDir.c_str()); NoGo=1;

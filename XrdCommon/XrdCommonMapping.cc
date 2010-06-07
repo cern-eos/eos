@@ -458,7 +458,7 @@ void XrdCommonMapping::GetId(XrdSecEntity &_client, uid_t &_uid, gid_t &_gid) {
   gMapMutex.Lock();                                      
   _uid=99;                                                             
   _gid=99;                                                             
-  struct passwd* pw;                                      
+  struct passwd* pw=0;                                      
   XrdCommonMappingGroupInfo* ginfo=0;
   if (_client.name) {
     if ((ginfo = gGroupInfoCache.Find(_client.name))) { 

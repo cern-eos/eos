@@ -11,7 +11,7 @@ silent:
             -e 's/.*-o  *\([^ ]*\).*/++++ Creating \1 ++++/p' \
             -e '/make/p'
 
-EXTRA_DIST = bootstrap.sh Doxyfile etc/xrd.cf.mgm etc/xrd.cf.fst etc/xrd.cf.mq etc/logrotate.d/xrd etc/init.d/xrd etc/init.d/cmsd etc/sysconfig/xrd.example configure.ac m4
+EXTRA_DIST = bootstrap.sh Doxyfile etc/xrd.cf.mgm etc/xrd.cf.fst etc/xrd.cf.mq etc/logrotate.d/xrd etc/init.d/xrd etc/init.d/cmsd etc/sysconfig/xrd.example configure.ac m4 Namespace/tests/*.cc Namespace/tests/*.hh Namespace/tests/Makefile.am Namespace/utils Namespace/views Namespace/persistency
 
 rpm:    dist
 	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/

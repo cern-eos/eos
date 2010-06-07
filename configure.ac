@@ -115,10 +115,9 @@ export LDFLAGS=-lcurses
 AC_CHECK_HEADERS([readline/readline.h], ,
     AC_MSG_ERROR( "Please install libreadline-dev" ))
 
-AC_CHECK_LIB(readline, readline, , AC_MSG_ERROR( "Please install lib readline" ) )
+AC_CHECK_LIB(readline, readline, , AC_MSG_ERROR( "Please install lib readline & curses" ) )
+AC_CHECK_LIB(rt, clock_gettime, , AC_MSG_ERROR( "The system does not have clock_gettime" ) )
 export LDFLAGS=$LDFLAGS_BUP
-
-#AC_CHECK_LIB(rt, clock_gettime, , AC_MSG_ERROR( "The system does not have clock_gettime" ) )
 
 # check for cppunit
 ifdef([AM_PATH_CPPUNIT], [AM_PATH_CPPUNIT([1.12.1])], [])

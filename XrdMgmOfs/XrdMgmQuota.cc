@@ -448,8 +448,8 @@ int XrdMgmSpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid,
 	if ((i < locationsfs.size()) && locationsfs[i]) {
 	  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[locationsfs[i]];
 	  // check if filesystem is accessible
-	  if (filesystem && (((filesystem->GetConfigStatus() != XrdCommonFileSystem::kRW)) ||
-			     ((filesystem->GetBootStatus()   != XrdCommonFileSystem::kBooted)))) {     
+	  if ((!filesystem) || (filesystem && (((filesystem->GetConfigStatus() != XrdCommonFileSystem::kRW)) ||
+					       ((filesystem->GetBootStatus()   != XrdCommonFileSystem::kBooted))))) {     
 	    // that is already too bad, we cannot write since one replica is not accessible
 	    return ENONET;
 	  }

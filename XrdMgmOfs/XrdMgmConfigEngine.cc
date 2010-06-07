@@ -68,7 +68,7 @@ XrdMgmConfigEngineChangeLog::Tail(unsigned int nlines, XrdOucString &tail)
   unsigned int nfeed=0;
   off_t pos = lseek(fd, 0, SEEK_END);
   off_t offset;
-  off_t goffset;
+  off_t goffset=0;
   off_t roffset;
   for ( offset = pos-1; offset>=0; offset--) {
     goffset = offset;

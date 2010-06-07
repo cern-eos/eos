@@ -3,7 +3,7 @@ INCLUDES = -I$(EOS_INCDIR) -I$(XROOTD_INCDIR) -I../
 lib_LTLIBRARIES = libXrdFstOfs.la
 
 libXrdFstOfs_la_SOURCES = XrdFstOfsConfig.cc XrdFstOfsConfig.hh XrdFstOfs.cc XrdFstOfs.hh XrdFstOfsFile.hh XrdFstOfsClientAdmin.hh XrdFstOfsStorage.hh XrdFstOfsStorage.cc \
-	XrdFstOfsChecksum.hh XrdFstOfsAdler.hh XrdFstOfsCRC32.hh XrdFstOfsChecksumPlugins.hh \
+	XrdFstOfsChecksum.hh XrdFstOfsAdler.hh XrdFstOfsCRC32.hh XrdFstOfsMD5.hh XrdFstOfsSHA1.hh XrdFstOfsChecksumPlugins.hh \
 	XrdFstOfsLayout.hh XrdFstOfsPlainLayout.hh XrdFstOfsPlainLayout.cc XrdFstOfsReplicaLayout.hh XrdFstOfsReplicaLayout.cc XrdFstOfsRaid5Layout.cc XrdFstOfsRaid5Layout.hh XrdFstOfsLayoutPlugins.hh
 
 libXrdFstOfs_la_LIBADD =
