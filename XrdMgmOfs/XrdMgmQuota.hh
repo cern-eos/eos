@@ -36,6 +36,12 @@ private:
   unsigned long long PhysicalMaxBytes;  // this is coming from the statfs calls on all file systems
   unsigned long long PhysicalMaxFiles;  // this is coming from the statfs calls on all file systems
 
+  // this is used to recalculate the values without invalidating the old one
+  unsigned long long PhysicalTmpFreeBytes; // this is coming from the statfs calls on all file systems
+  unsigned long long PhysicalTmpFreeFiles; // this is coming from the statfs calls on all file systems
+  unsigned long long PhysicalTmpMaxBytes;  // this is coming from the statfs calls on all file systems
+  unsigned long long PhysicalTmpMaxFiles;  // this is coming from the statfs calls on all file systems
+
 public:
   XrdSysMutex OpMutex;
 
@@ -129,7 +135,8 @@ public:
 
     SpaceName = name;
     LastCalculationTime = 0;
-    PhysicalFreeBytes = PhysicalFreeFiles = PhysicalMaxBytes = PhysicalMaxFiles = 0;
+    PhysicalFreeBytes = PhysicalFreeFiles = PhysicalMaxBytes = PhysicalMaxFiles = 0; 
+    PhysicalTmpFreeBytes = PhysicalTmpFreeFiles = PhysicalTmpMaxBytes = PhysicalTmpMaxFiles = 0;
   }
 
   ~XrdMgmSpaceQuota() {}
@@ -161,8 +168,14 @@ public:
   void SetQuota(unsigned long tag, unsigned long id, unsigned long long value, bool lock=true); 
   void AddQuota(unsigned long tag, unsigned long id, unsigned long long value, bool lock=true); 
 
+  void SetPhysicalTmpFreeBytes(unsigned long long bytes) {PhysicalTmpFreeBytes = bytes;}
+  void SetPhysicalTmpFreeFiles(unsigned long long files) {PhysicalTmpFreeFiles = files; }
+
   void SetPhysicalFreeBytes(unsigned long long bytes) {PhysicalFreeBytes = bytes;}
   void SetPhysicalFreeFiles(unsigned long long files) {PhysicalFreeFiles = files; }
+
+  void SetPhysicalTmpMaxBytes(unsigned long long bytes)  {PhysicalTmpMaxBytes = bytes;}
+  void SetPhysicalTmpMaxFiles(unsigned long long files)  {PhysicalTmpMaxFiles = files;}
 
   void SetPhysicalMaxBytes(unsigned long long bytes)  {PhysicalMaxBytes = bytes;}
   void SetPhysicalMaxFiles(unsigned long long files)  {PhysicalMaxFiles = files;}
@@ -173,10 +186,26 @@ public:
   void ResetPhysicalMaxBytes()  {SetPhysicalMaxBytes(0);}
   void ResetPhysicalMaxFiles()  {SetPhysicalMaxFiles(0);}
 
+  void ResetPhysicalTmpFreeBytes() {SetPhysicalTmpFreeBytes(0);}
+  void ResetPhysicalTmpFreeFiles() {SetPhysicalTmpFreeFiles(0);}
+
+  void ResetPhysicalTmpMaxBytes()  {SetPhysicalTmpMaxBytes(0);}
+  void ResetPhysicalTmpMaxFiles()  {SetPhysicalTmpMaxFiles(0);}
+
   void AddPhysicalFreeBytes(unsigned long long bytes) {PhysicalFreeBytes += bytes;}
   void AddPhysicalFreeFiles(unsigned long long files) {PhysicalFreeFiles += files;}
   void AddPhysicalMaxBytes(unsigned long long bytes)  {PhysicalMaxBytes += bytes;}
   void AddPhysicalMaxFiles(unsigned long long files)  {PhysicalMaxFiles += files;}
+
+  void AddPhysicalTmpFreeBytes(unsigned long long bytes) {PhysicalTmpFreeBytes += bytes;}
+  void AddPhysicalTmpFreeFiles(unsigned long long files) {PhysicalTmpFreeFiles += files;}
+  void AddPhysicalTmpMaxBytes(unsigned long long bytes)  {PhysicalTmpMaxBytes += bytes;}
+  void AddPhysicalTmpMaxFiles(unsigned long long files)  {PhysicalTmpMaxFiles += files;}
+
+  void PhysicalTmpToFreeBytes() {PhysicalFreeBytes=PhysicalTmpFreeBytes;}
+  void PhysicalTmpToFreeFiles() {PhysicalFreeFiles=PhysicalTmpFreeFiles;}
+  void PhysicalTmpToMaxBytes()  {PhysicalMaxBytes=PhysicalTmpMaxBytes;}
+  void PhysicalTmpToMaxFiles()  {PhysicalMaxFiles=PhysicalTmpMaxFiles;}
 
   void RmQuota(unsigned long tag, unsigned long id, bool lock=true);
 

@@ -529,7 +529,7 @@ XrdMqOfs::Statistics() {
     ZTRACE(getstats,"Queue     Messages            : " << Messages.Num());
     ZTRACE(getstats,"#Queues                       : " << QueueOut.Num());
     ZTRACE(getstats,"Deferred  Messages (backlog)  : " << BacklogDeferred);
-    ZTRACE(getstats,"Backlog   Messages            : " << QueueBacklogHits);
+    ZTRACE(getstats,"Backlog   Messages Hits       : " << QueueBacklogHits);
     char rates[4096];
     sprintf(rates, "Rates: IN: %d OUT: %d FAN: %d ADV: %d: UNDEV: %d NOMSG: %d" 
 	    ,(int)(1.0*ReceivedMessages/(now-StartupTime))

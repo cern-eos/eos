@@ -104,7 +104,7 @@ public:
   void SetBootSent(){bootStatus   = kBootSent;bootSentTime = time(0);bootDoneTime = 0;}
   void SetBooting() {bootStatus   = kBooting;}
   void SetBooted()  {bootStatus   = kBooted; bootDoneTime = time(0);if (!bootSentTime) bootSentTime = time(0);}
-  void SetBootStatus(int status) {bootStatus = status; if (status == kBooted) bootDoneTime = time(0); if (status == kBootSent) bootSentTime = time(0);if (!bootSentTime) bootSentTime = time(0)-9999;}
+  void SetBootStatus(int status) {if (bootStatus != status) {bootStatus = status; if (status == kBooted) bootDoneTime = time(0); if (status == kBootSent) bootSentTime = time(0);if (!bootSentTime) bootSentTime = time(0)-9999;}}
   void SetBootFailure(const char* txt) {bootStatus = kBootFailure;bootFailureMsg = txt;}
   void SetRO()      {configStatus = kRO;}
   void SetRW()      {configStatus = kRW;}

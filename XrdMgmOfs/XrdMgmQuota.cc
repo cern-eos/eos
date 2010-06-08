@@ -460,8 +460,8 @@ int XrdMgmSpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid,
       return 0;
     } else {
       // for read we select one randomly and iterate until we have an available replica
-      unsigned int randomindex = (unsigned int) ( 0.999999 * random()* nfilesystems )/RAND_MAX;
-      eos_static_debug("selected random index for filesystem selection %u", randomindex);
+      unsigned int randomindex = (unsigned int) (( 0.999999 * random()* nfilesystems )/RAND_MAX);
+      eos_static_debug("selected random index for filesystem selection %u [%u]", randomindex, nfilesystems);
       for (unsigned int i=0; i< nfilesystems; i++) {
 	unsigned int currentindex = (i+randomindex)%nfilesystems;
 	// we have only a single replica ... so just check the state of the filesystem where that is located
@@ -581,10 +581,10 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
       bool firstinnerfs;
       firstinnerfs=true;
 
-      spacequota->ResetPhysicalFreeBytes();
-      spacequota->ResetPhysicalMaxBytes();
-      spacequota->ResetPhysicalFreeFiles();
-      spacequota->ResetPhysicalMaxFiles();
+      spacequota->ResetPhysicalTmpFreeBytes();
+      spacequota->ResetPhysicalTmpMaxBytes();
+      spacequota->ResetPhysicalTmpFreeFiles();
+      spacequota->ResetPhysicalTmpMaxFiles();
 
       for(it = XrdMgmFstNode::gFileSystemById.begin(); it != XrdMgmFstNode::gFileSystemById.end(); it++) {
 
@@ -599,10 +599,10 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
 	eos_static_debug("spacename is %s", innerfilesystem->GetSpaceName());
 
 	// add physical bytes/files
-	spacequota->AddPhysicalFreeBytes(innerfilesystem->GetStatfs()->f_bfree * 4096ll);
-	spacequota->AddPhysicalMaxBytes (innerfilesystem->GetStatfs()->f_blocks * 4096ll)
-;	spacequota->AddPhysicalFreeFiles(innerfilesystem->GetStatfs()->f_ffree * 1ll);
-	spacequota->AddPhysicalMaxFiles (innerfilesystem->GetStatfs()->f_files * 1ll);
+	spacequota->AddPhysicalTmpFreeBytes(innerfilesystem->GetStatfs()->f_bfree * 4096ll);
+	spacequota->AddPhysicalTmpMaxBytes (innerfilesystem->GetStatfs()->f_blocks * 4096ll)
+;	spacequota->AddPhysicalTmpFreeFiles(innerfilesystem->GetStatfs()->f_ffree * 1ll);
+	spacequota->AddPhysicalTmpMaxFiles (innerfilesystem->GetStatfs()->f_files * 1ll);
 
 	// we recompute only the same space filessytems
 	if ((strcmp(spacename, innerfilesystem->GetSpaceName()))) 
@@ -651,6 +651,12 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
 	}
 	firstinnerfs = false;
       }
+
+      spacequota->PhysicalTmpToFreeBytes();
+      spacequota->PhysicalTmpToMaxBytes();
+      spacequota->PhysicalTmpToFreeFiles();
+      spacequota->PhysicalTmpToMaxFiles();
+
     } else {
       eos_static_debug("space %s needs to recomputation",spacename);
     }

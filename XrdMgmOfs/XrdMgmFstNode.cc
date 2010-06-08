@@ -322,10 +322,20 @@ XrdMgmFstNode::GetNode(const char* queue)
 int
 XrdMgmFstNode::ListNodes(const char* key, XrdMgmFstNode* node, void* Arg)  
 {
-  XrdOucString* listing = (XrdOucString*) Arg;
-  *listing += node->GetInfoString();
-  *listing += XrdMgmFstFileSystem::GetInfoHeader();
-  node->fileSystems.Apply(XrdMgmFstNode::ListFileSystems, Arg);
+  std::map<std::string,std::string> *nodeOutput = (std::map<std::string,std::string>*) Arg;
+  std::map<std::string,std::string> fileSysOutput;
+  XrdOucString listing="";
+  listing += node->GetInfoString();
+  listing += XrdMgmFstFileSystem::GetInfoHeader();
+  
+  node->fileSystems.Apply(XrdMgmFstNode::ListFileSystems, &fileSysOutput);
+
+  //  std::sort(fileSysOutput.begin(), fileSysOutput.end());
+  std::map<std::string,std::string>::const_iterator i;
+  for (i=fileSysOutput.begin(); i!=fileSysOutput.end(); ++i) {
+    listing += (i->second).c_str();
+  }
+  nodeOutput->insert(std::pair<std::string,std::string>(node->GetQueue(),listing.c_str()));
   return 0;
 }
 
@@ -333,8 +343,10 @@ XrdMgmFstNode::ListNodes(const char* key, XrdMgmFstNode* node, void* Arg)
 int
 XrdMgmFstNode::ListFileSystems(const char* key, XrdMgmFstFileSystem* filesystem, void* Arg)
 {
-  XrdOucString* listing = (XrdOucString*) Arg;
-  *listing += filesystem->GetInfoString();
+  std::map<std::string,std::string>* fileSysOutput = (std::map<std::string,std::string>*) Arg;
+  XrdOucString sid ="";
+  sid += (int)filesystem->GetId();
+  fileSysOutput->insert(std::pair<std::string,std::string>(sid.c_str(),filesystem->GetInfoString()));
   return 0;
 }
 

@@ -36,7 +36,7 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
     XrdMgmFstNode::gMutex.Lock();
 
     XrdOucString saction = newmessage->GetBody();
-    newmessage->Print();
+    //    newmessage->Print();
     // replace the arg separator # with an & to be able to put it into XrdOucEnv
     XrdOucEnv action(saction.c_str());
 
@@ -68,7 +68,7 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
     if (cmd == "bootreq") {
       eos_notice("bootrequest received");
       XrdOucString nodename = newmessage->kMessageHeader.kSenderId;
-      fprintf(stderr,"nodename is %s\n", nodename.c_str());
+      //      fprintf(stderr,"nodename is %s\n", nodename.c_str());
       XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(nodename.c_str());
       if (node) {
 	XrdOucString bootfs="";

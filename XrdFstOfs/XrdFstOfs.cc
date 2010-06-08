@@ -342,6 +342,7 @@ XrdFstOfsFile::open(const char                *path,
   struct stat statinfo;
   if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
     // file does not exist, keep the create lfag
+    haswrite = true;
   } else {
     if (open_mode & SFS_O_CREAT) 
       open_mode -= SFS_O_CREAT;

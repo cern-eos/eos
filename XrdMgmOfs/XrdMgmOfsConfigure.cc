@@ -312,14 +312,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   // set our Eroute for XrdMqMessage
   XrdMqMessage::Eroute = *eDest;
   
-  // create the specific listener class
-  MgmOfsMessaging = new XrdMgmMessaging(MgmOfsBrokerUrl.c_str(),MgmDefaultReceiverQueue.c_str(), true, true);
-
-  if ( (!MgmOfsMessaging) || (MgmOfsMessaging->IsZombie()) ) {
-    Eroute.Emsg("Config","cannot create messaging object(thread)");
-    return NoGo;
-  }
-
   // check if mgmofsfs has been set
 
   if (!MgmOfsName.length()) {
@@ -366,7 +358,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   XrdCommonLogging::SetLogPriority(LOG_DEBUG);
   XrdCommonLogging::SetUnit(unit.c_str());
-  MgmOfsMessaging->SetLogId("MgmOfsMessaging");
 
   // this global hash needs to initialize the set empty key function at first place
   XrdMgmFstNode::gFileSystemById.set_empty_key(0);
@@ -421,6 +412,18 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   eosView->initialize();
   time_t tstop  = time(0);
   eos_notice("eos view configure stopped after %d seconds", (tstop-tstart));
+
+  // create the specific listener class
+  MgmOfsMessaging = new XrdMgmMessaging(MgmOfsBrokerUrl.c_str(),MgmDefaultReceiverQueue.c_str(), true, true);
+  MgmOfsMessaging->SetLogId("MgmOfsMessaging");
+
+  if ( (!MgmOfsMessaging) || (MgmOfsMessaging->IsZombie()) ) {
+    Eroute.Emsg("Config","cannot create messaging object(thread)");
+    return NoGo;
+  }
+
+
+
   
   return NoGo;
 }

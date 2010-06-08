@@ -184,7 +184,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 
       if (subcmd == "ls") {
 	stdOut += XrdMgmFstNode::GetInfoHeader();
-	XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::ListNodes, &stdOut);
+	std::map<std::string,std::string> nodeOutput;
+	XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::ListNodes, &nodeOutput);
+	//std::sort(nodeOutput.begin(),nodeOutput.end());
+	std::map<std::string,std::string>::const_iterator i;
+	for (i=nodeOutput.begin(); i!=nodeOutput.end(); ++i) {
+	  stdOut += i->second.c_str();
+	}
       }
 
       if (subcmd == "set") {
