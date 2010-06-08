@@ -250,10 +250,17 @@ const   char          *getVersion();
 
         int            _rem(const char             *path,
                                  XrdOucErrInfo    &out_error,
-                           const XrdSecEntity *client = 0,
+			       uid_t                uid,
+  			       gid_t                gid,
                            const char             *opaque = 0);
 
-
+        int            _find(const char             *path,
+			     XrdOucErrInfo    &out_error,
+			     uid_t             uid,
+			     gid_t             gid,
+			     std::vector< std::vector<std::string> > &found_dirs,
+			     std::vector< std::vector<std::string> > &found_files );
+   
         int            remdir(const char             *dirName,
                                     XrdOucErrInfo    &out_error,
                               const XrdSecEntity *client = 0,

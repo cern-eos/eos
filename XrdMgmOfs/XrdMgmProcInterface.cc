@@ -701,7 +701,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	retc = EINVAL;
       } else {
 	if (gOFS->_remdir(path.c_str(), *error, uid,gid,(const char*)0)) {
-	  stdErr += "error: unable to create directory";
+	  stdErr += "error: unable to remove directory";
 	  retc = errno;
 	}
       }
@@ -816,7 +816,62 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
       MakeResult(1);
       return SFS_OK;
     }
+
+    if ( cmd == "rm" ) {
+      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString option = opaque.Get("mgm.option");
+      if (!path.length()) {
+	stdErr="error: you have to give a path name to call 'rm'";
+	retc = EINVAL;
+      } else {
+	if (gOFS->_rem(path.c_str(), *error, uid,gid,(const char*)0)) {
+	  stdErr += "error: unable to remove file/directory";
+	  retc = errno;
+	}
+      }
+      MakeResult(dosort);
+      return SFS_OK;
+    }
 	
+    if ( cmd == "find" ) {
+      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString option = opaque.Get("mgm.option");
+      if (!path.length()) {
+	stdErr="error: you have to give a path name to call 'find'";
+	retc = EINVAL;
+      } else {
+	std::vector< std::vector<std::string> > found_dirs;
+	std::vector< std::vector<std::string> > found_files;
+
+	if (gOFS->_find(path.c_str(), *error, uid,gid, found_dirs , found_files)) {
+	  stdErr += "error: unable to remove file/directory";
+	  retc = errno;
+	}
+
+	//	found_dirs.sort();
+	//	found_files.sort();
+
+	if ( ((option.find("f")) != STR_NPOS) || (!option.length())) {
+	  for (unsigned int i = 0 ; i< found_files.size(); i++) {
+	    //	    found_files[i].sort;
+	    for (unsigned int j = 0; j< found_files[i].size(); j++) {
+	      stdOut += found_files[i][j].c_str();
+	      stdOut += "\n";
+	    }
+	  } 
+	}
+	
+	if ( ((option.find("d")) != STR_NPOS) || (!option.length())){
+	  for (unsigned int i = 0; i< found_dirs.size(); i++) {
+	    //	    found_dirs[i].sort;
+	    for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
+	      stdOut += found_dirs[i][j].c_str();
+	      stdOut += "/\n";
+	    }
+	  }
+	}
+      }
+    }
 
     stdErr += "errro: no such user command '"; stdErr += cmd; stdErr += "'";
     retc = EINVAL;

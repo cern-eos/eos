@@ -971,6 +971,8 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   gOFS->eosViewMutex.Lock();
   try {
     newdir = eosView->createContainer(path, recurse);
+    newdir->setCUid(uid);
+    newdir->setCGid(uid);
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
@@ -1040,14 +1042,15 @@ int XrdMgmOfs::rem(const char             *path,    // In
 
    XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
 
-   return _rem(path,error,&mappedclient,info);
+   return _rem(path,error,uid,gid,info);
 }
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::_rem(   const char             *path,    // In
-                               XrdOucErrInfo    &error,   // Out
-                         const XrdSecEntity *client,  // In
-                         const char             *info)    // In
+		       XrdOucErrInfo          &error,   // Out
+		       uid_t                   uid,     // In
+		       gid_t                   gid,     // In
+		       const char             *info)    // In
 /*
   Function: Delete a file from the namespace.
 
@@ -1065,8 +1068,24 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   const char *tident = error.getErrUser();
   
   XTRACE(remove, path,"");
-  
-  return Emsg(epname, error, EOPNOTSUPP, "remove", path);
+
+  errno = 0;
+
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
+  try {
+    gOFS->eosView->removeFile(path);
+  } catch( eos::MDException &e ) {
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  };
+  gOFS->eosViewMutex.UnLock();
+  //-------------------------------------------
+
+  if (errno) 
+    return Emsg(epname, error, errno, "remove", path);
+  else 
+    return SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1452,6 +1471,63 @@ int XrdMgmOfs::utimes(  const char          *path,        // In
 
   return Emsg(epname, error, EOPNOTSUPP, "utimes", path); 
 }
+
+/*----------------------------------------------------------------------------*/
+int XrdMgmOfs::_find(const char       *path,             // In 
+		     XrdOucErrInfo    &out_error,        // Out
+		     uid_t             uid,              // In
+		     gid_t             gid,              // In
+		     std::vector< std::vector<std::string> > &found_dirs, // Out
+		     std::vector< std::vector<std::string> > &found_files // Out
+		     )
+{
+  // try if that is directory
+  eos::ContainerMD* cmd = 0;
+  XrdOucString Path = path;
+
+  if (!Path.endswith("/")) 
+    Path += "/";
+  
+  found_dirs[0][0] = path;
+  int deepness = 0;
+  do {
+    found_dirs.resize(deepness+1);
+    found_files.resize(deepness+1);
+    // loop over all directories in that deepness
+    for (unsigned int i=0; i< found_dirs[deepness].size(); i++) {
+      Path = found_dirs[deepness][i].c_str();
+      //-------------------------------------------
+      gOFS->eosViewMutex.Lock();
+      try {
+	cmd = gOFS->eosView->getContainer(Path.c_str());
+      } catch( eos::MDException &e ) {
+	errno = e.getErrno();
+	eos_debug("check for directory - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      }
+
+      if (cmd) {
+	// add all children into the 2D vectors
+	eos::ContainerMD::ContainerMap::iterator dit;
+	for ( dit = cmd->containersBegin(); dit != cmd->containersEnd(); ++dit) {
+	  std::string fpath = Path.c_str(); fpath += dit->second->getName();
+	  found_dirs[deepness+1].push_back(fpath);
+	}
+
+	eos::ContainerMD::FileMap::iterator fit;
+	for ( fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit) {
+	  std::string fpath = Path.c_str(); fpath += fit->second->getName();
+	  found_files[deepness].push_back(fpath);
+	}
+      }
+      gOFS->eosViewMutex.UnLock();
+    }
+    deepness++;
+  } while (found_dirs[deepness].size());
+  //-------------------------------------------  
+
+  return SFS_OK;
+}
+
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::Emsg(const char    *pfx,    // Message prefix value
