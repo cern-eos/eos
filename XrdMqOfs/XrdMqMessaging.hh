@@ -9,8 +9,8 @@
 
 class XrdMqMessaging {
 private:
-  bool zombie;
 protected:
+  bool zombie;
 public:
   static XrdMqClient gMessageClient;
 
@@ -18,7 +18,8 @@ public:
 
   virtual void Listen()=0;
   void Connect();
-
+  
+  XrdMqMessaging() {};
   XrdMqMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false);
   ~XrdMqMessaging();
 

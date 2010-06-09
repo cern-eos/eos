@@ -27,11 +27,15 @@
 /*----------------------------------------------------------------------------*/
 class XrdMgmMessaging : public XrdMqMessaging, public XrdCommonLogId {
 public:
-  XrdMgmMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false) : XrdMqMessaging(url,defaultreceiverqueue, advisorystatus, advisoryquery) { XrdCommonLogId();}
+  // we have to clone the base class constructore otherwise we cannot run inside valgrind
+  XrdMgmMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false);
   virtual ~XrdMgmMessaging(){}
   
   virtual void Listen();
   virtual void Process(XrdMqMessage* newmessage);
+
+  // listener thread startup
+  static void* Start(void*);
 };
 
 

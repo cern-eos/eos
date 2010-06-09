@@ -399,20 +399,26 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   contSettings["changelog_path"] += "/directories.mdlog";
   fileSettings["changelog_path"] += "/files.mdlog";
 
-  eosFileService->configure( fileSettings );
-  eosDirectoryService->configure( contSettings );
-
-  eosView->setContainerMDSvc( eosDirectoryService );
-  eosView->setFileMDSvc ( eosFileService );
-  
-  eosView->configure ( settings );
-
-  eos_notice("%s",(char*)"eos view configure started");
   time_t tstart = time(0);
-  eosView->initialize();
-  time_t tstop  = time(0);
-  eos_notice("eos view configure stopped after %d seconds", (tstop-tstart));
 
+  try {
+    eosFileService->configure( fileSettings );
+    eosDirectoryService->configure( contSettings );
+    
+    eosView->setContainerMDSvc( eosDirectoryService );
+    eosView->setFileMDSvc ( eosFileService );
+    
+    eosView->configure ( settings );
+
+    eos_notice("%s",(char*)"eos view configure started");
+    eosView->initialize();
+    time_t tstop  = time(0);
+    eos_notice("eos view configure stopped after %d seconds", (tstop-tstart));
+  } catch (...) {
+    time_t tstop  = time(0);
+    eos_crit("eos view initialization failed after %d seconds", (tstop-tstart));
+    return 1;
+  };
   // create the specific listener class
   MgmOfsMessaging = new XrdMgmMessaging(MgmOfsBrokerUrl.c_str(),MgmDefaultReceiverQueue.c_str(), true, true);
   MgmOfsMessaging->SetLogId("MgmOfsMessaging");
