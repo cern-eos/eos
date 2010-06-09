@@ -859,6 +859,9 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	    for (int i = found_dirs.size()-1; i>=0; i--) {
 	      std::sort(found_dirs[i].begin(), found_dirs[i].end());
 	      for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
+		// don't even try to delete the root directory
+		if (found_dirs[i][j] == "/")
+		  continue;
 		if (gOFS->_remdir(found_dirs[i][j].c_str(), *error, uid,gid,(const char*)0)) {
 		  stdErr += "error: unable to remove directory";
 		  retc = errno;
