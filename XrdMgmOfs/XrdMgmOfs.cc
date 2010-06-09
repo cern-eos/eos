@@ -810,7 +810,7 @@ int XrdMgmOfs::exists(const char                *path,        // In
 
   XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
   
-  return _exists(path,file_exists,error,&mappedclient,info);
+  return _exists(path,file_exists,error,uid,gid,info);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -818,6 +818,72 @@ int XrdMgmOfs::_exists(const char                *path,        // In
                                XrdSfsFileExistence &file_exists, // Out
                                XrdOucErrInfo       &error,       // Out
                          const XrdSecEntity    *client,          // In
+                         const char                *info)        // In
+/*
+  Function: Determine if file 'path' actually exists.
+
+  Input:    path        - Is the fully qualified name of the file to be tested.
+:            file_exists - Is the address of the variable to hold the status of
+                          'path' when success is returned. The values may be:
+                          XrdSfsFileExistIsDirectory - file not found but path is valid.
+                          XrdSfsFileExistIsFile      - file found.
+                          XrdSfsFileExistNo          - neither file nor directory.
+            einfo       - Error information object holding the details.
+            client      - Authentication credentials, if any.
+            info        - Opaque information, if any.
+
+  Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
+
+  Notes:    When failure occurs, 'file_exists' is not modified.
+*/
+{
+  // try if that is directory
+
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
+  eos::ContainerMD* cmd = 0;
+  try {
+    cmd = gOFS->eosView->getContainer(path);
+  } catch ( eos::MDException &e ) {
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  };
+  gOFS->eosViewMutex.UnLock();
+  //-------------------------------------------
+
+  if (!cmd) {
+    // try if that is a file
+    //-------------------------------------------
+    gOFS->eosViewMutex.Lock();
+    eos::FileMD* fmd = 0;
+    try {
+      fmd = gOFS->eosView->getFile(path);
+    } catch( eos::MDException &e ) {
+      errno = e.getErrno();
+      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    }
+    gOFS->eosViewMutex.UnLock();
+    //-------------------------------------------
+
+    if (!fmd) {
+      file_exists=XrdSfsFileExistNo;
+    } else {
+      file_exists=XrdSfsFileExistIsFile;
+    }
+  } else {
+    file_exists = XrdSfsFileExistIsDirectory;
+  }
+  
+  return SFS_OK;
+}
+
+
+/*----------------------------------------------------------------------------*/
+int XrdMgmOfs::_exists(const char                *path,        // In
+                               XrdSfsFileExistence &file_exists, // Out
+                               XrdOucErrInfo       &error,       // Out
+		               uid_t                uid,         // In 
+		               gid_t                gid,         // In 
                          const char                *info)        // In
 /*
   Function: Determine if file 'path' actually exists.
@@ -1070,6 +1136,17 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   XTRACE(remove, path,"");
 
   errno = 0;
+
+
+  XrdSfsFileExistence file_exists;
+  if ((_exists(path,file_exists,error,uid,gid,0))) {
+    return SFS_ERROR;
+  }
+
+  if (file_exists!=XrdSfsFileExistIsFile) {
+    errno = EISDIR;
+    return Emsg(epname, error, EISDIR,"remove",path);
+  }
 
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
@@ -1485,23 +1562,27 @@ int XrdMgmOfs::_find(const char       *path,             // In
   eos::ContainerMD* cmd = 0;
   XrdOucString Path = path;
 
-  if (!Path.endswith("/")) 
+  if (!(Path.endswith('/')))
     Path += "/";
   
-  found_dirs[0][0] = path;
+  found_dirs.resize(1);
+  found_dirs[0].resize(1);
+  found_dirs[0][0] = Path.c_str();
   int deepness = 0;
   do {
-    found_dirs.resize(deepness+1);
-    found_files.resize(deepness+1);
+    found_dirs.resize(deepness+2);
+    found_files.resize(deepness+2);
     // loop over all directories in that deepness
     for (unsigned int i=0; i< found_dirs[deepness].size(); i++) {
       Path = found_dirs[deepness][i].c_str();
+      eos_static_debug("Listing files in directory %s", Path.c_str());
       //-------------------------------------------
       gOFS->eosViewMutex.Lock();
       try {
 	cmd = gOFS->eosView->getContainer(Path.c_str());
       } catch( eos::MDException &e ) {
 	errno = e.getErrno();
+	cmd = 0;
 	eos_debug("check for directory - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
       }
 
@@ -1509,13 +1590,13 @@ int XrdMgmOfs::_find(const char       *path,             // In
 	// add all children into the 2D vectors
 	eos::ContainerMD::ContainerMap::iterator dit;
 	for ( dit = cmd->containersBegin(); dit != cmd->containersEnd(); ++dit) {
-	  std::string fpath = Path.c_str(); fpath += dit->second->getName();
+	  std::string fpath = Path.c_str(); fpath += dit->second->getName(); fpath+="/";
 	  found_dirs[deepness+1].push_back(fpath);
 	}
 
 	eos::ContainerMD::FileMap::iterator fit;
 	for ( fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit) {
-	  std::string fpath = Path.c_str(); fpath += fit->second->getName();
+	  std::string fpath = Path.c_str(); fpath += fit->second->getName(); 
 	  found_files[deepness].push_back(fpath);
 	}
       }

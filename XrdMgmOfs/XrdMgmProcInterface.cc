@@ -756,7 +756,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 		// apply filter
 		continue;
 	      }
-	      if (((option.find("l"))==STR_NPOS)) {
+	      if ((((option.find("l"))==STR_NPOS)) && ((option.find("F"))== STR_NPOS)) {
 		stdOut += val ;stdOut += "\n";
 	      } else {
 		// yeah ... that is actually castor code ;-)
@@ -800,9 +800,21 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 		  
 		  strftime(t_creat,13,"%b %d %H:%M",t_tm);
 		  char lsline[4096];
-		  sprintf(lsline,"%s %3d %-8.8s %-8.8s %12s %s %s\n", modestr,(int)buf.st_nlink,
-			  suid.c_str(),sgid.c_str(),XrdCommonFileSystem::GetSizeString(sizestring,buf.st_size),t_creat, val);
-		  stdOut += lsline;
+		  XrdOucString dirmarker="";
+		  if ((option.find("F"))!=STR_NPOS) 
+		    dirmarker="/";
+		  if (modestr[0] != 'd') 
+		    dirmarker="";
+
+		  sprintf(lsline,"%s %3d %-8.8s %-8.8s %12s %s %s%s\n", modestr,(int)buf.st_nlink,
+			  suid.c_str(),sgid.c_str(),XrdCommonFileSystem::GetSizeString(sizestring,buf.st_size),t_creat, val, dirmarker.c_str());
+		  if ((option.find("l"))!=STR_NPOS) 
+		    stdOut += lsline;
+		  else {
+		    stdOut += val;
+		    stdOut += dirmarker;
+		    stdOut += "\n";
+		  }
 		}
 	      }
 	    }
@@ -824,9 +836,41 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	stdErr="error: you have to give a path name to call 'rm'";
 	retc = EINVAL;
       } else {
-	if (gOFS->_rem(path.c_str(), *error, uid,gid,(const char*)0)) {
-	  stdErr += "error: unable to remove file/directory";
-	  retc = errno;
+	// find everything to be deleted
+	if (option == "r") {
+	  std::vector< std::vector<std::string> > found_dirs;
+	  std::vector< std::vector<std::string> > found_files;
+	  
+	  if (gOFS->_find(path.c_str(), *error, uid,gid, found_dirs , found_files)) {
+	    stdErr += "error: unable to remove file/directory";
+	    retc = errno;
+	  } else {
+	    // delete files starting at the deepest level
+	    for (int i = found_files.size()-1 ; i>=0; i--) {
+	      std::sort(found_files[i].begin(), found_files[i].end());
+	      for (unsigned int j = 0; j< found_files[i].size(); j++) {
+		if (gOFS->_rem(found_files[i][j].c_str(), *error, uid,gid,(const char*)0)) {
+		  stdErr += "error: unable to remove file";
+		  retc = errno;
+		} 
+	      }
+	    } 
+	    // delete directories starting at the deepest level
+	    for (int i = found_dirs.size()-1; i>=0; i--) {
+	      std::sort(found_dirs[i].begin(), found_dirs[i].end());
+	      for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
+		if (gOFS->_remdir(found_dirs[i][j].c_str(), *error, uid,gid,(const char*)0)) {
+		  stdErr += "error: unable to remove directory";
+		  retc = errno;
+		} 
+	      }
+	    }
+	  }
+	} else {
+	  if (gOFS->_rem(path.c_str(), *error, uid,gid,(const char*)0)) {
+	    stdErr += "error: unable to remove file/directory";
+	    retc = errno;
+	  }
 	}
       }
       MakeResult(dosort);
@@ -848,12 +892,9 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	  retc = errno;
 	}
 
-	//	found_dirs.sort();
-	//	found_files.sort();
-
 	if ( ((option.find("f")) != STR_NPOS) || (!option.length())) {
 	  for (unsigned int i = 0 ; i< found_files.size(); i++) {
-	    //	    found_files[i].sort;
+	    std::sort(found_files[i].begin(), found_files[i].end());
 	    for (unsigned int j = 0; j< found_files[i].size(); j++) {
 	      stdOut += found_files[i][j].c_str();
 	      stdOut += "\n";
@@ -863,14 +904,16 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	
 	if ( ((option.find("d")) != STR_NPOS) || (!option.length())){
 	  for (unsigned int i = 0; i< found_dirs.size(); i++) {
-	    //	    found_dirs[i].sort;
+	    std::sort(found_dirs[i].begin(), found_dirs[i].end());
 	    for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
 	      stdOut += found_dirs[i][j].c_str();
-	      stdOut += "/\n";
+	      stdOut += "\n";
 	    }
 	  }
 	}
       }
+      MakeResult(1);
+      return SFS_OK;
     }
 
     stdErr += "errro: no such user command '"; stdErr += cmd; stdErr += "'";

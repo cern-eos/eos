@@ -9,7 +9,7 @@ AM_INIT_AUTOMAKE(1.6 foreign)
 AC_PREFIX_DEFAULT(/opt/eos/)
 
 
-export CXXFLAGS="-Wall -Werror $CXXFLAGS"
+export CXXFLAGS="-Wall -Werror -O0 -g $CXXFLAGS"
 
 case "$target_os" in
    tiger*)

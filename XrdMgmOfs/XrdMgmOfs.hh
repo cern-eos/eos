@@ -203,6 +203,13 @@ public:
                               const XrdSecEntity    *client = 0,
                               const char                *opaque = 0);
 
+        int            _exists(const char                *fileName,
+                                    XrdSfsFileExistence &exists_flag,
+                                    XrdOucErrInfo       &out_error,
+			            uid_t                uid,
+  			            gid_t                gid,			       
+                              const char                *opaque = 0);
+
   enum eFSCTL { kFsctlMgmOfsOffset= 40000};
 
         int            FSctl(const int               cmd,

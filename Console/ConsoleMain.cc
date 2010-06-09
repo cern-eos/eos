@@ -23,10 +23,13 @@
 #include <readline/history.h>
 #include <string>
 #include <iostream>
+#include <vector>
 /*----------------------------------------------------------------------------*/
 XrdOucString serveruri="";
 XrdOucString historyfile="";
 XrdOucString pwd="/";
+XrdOucString rstdout;
+XrdOucString rstderr;
 
 int global_retc=0;
 bool silent=false;
@@ -45,20 +48,32 @@ void exit_handler (int a) {
 
 int com_help PARAMS((char *));
 int com_quit PARAMS((char *));
-int com_fs   PARAMS((char*));
 int com_debug PARAMS((char*));
+int com_cd PARAMS((char*));
 int com_clear PARAMS((char*));
 int com_quota PARAMS((char*));
 int com_config PARAMS((char*));
 int com_fileinfo PARAMS((char*));
+int com_fs   PARAMS((char*));
 int com_ls PARAMS((char*));
 int com_mkdir PARAMS((char*));
 int com_rmdir PARAMS((char*));
 int com_rm PARAMS((char*));
+int com_find PARAMS((char*));
+int com_pwd PARAMS((char*));
 int com_restart PARAMS((char*));
 int com_test PARAMS((char*));
 int com_silent PARAMS((char*));
 int com_timing PARAMS((char*));
+
+const char* abspath(const char* in) {
+  static XrdOucString inpath;
+  inpath = in;
+  if (inpath.beginswith("/"))
+    return inpath.c_str();
+  inpath = pwd; inpath += in;
+  return inpath.c_str();
+}
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -71,14 +86,17 @@ typedef struct {
 
 COMMAND commands[] = {
   { (char*)"clear", com_clear, (char*)"Clear the terminal" },
+  { (char*)"cd", com_cd, (char*)"Change directory" },
   { (char*)"config",com_config,(char*)"Configuration System"},
   { (char*)"debug", com_debug,(char*)"Set debug level"},
   { (char*)"exit",  com_quit, (char*)"Exit from EOS console" },
   { (char*)"fileinfo", com_fileinfo, (char*)"File Information" },
+  { (char*)"find",  com_find, (char*)"Find files/directories" },
   { (char*)"fs",    com_fs,   (char*)"File System configuration"},
   { (char*)"help",  com_help, (char*)"Display this text" },
   { (char*)"ls", com_ls, (char*)"List a directory" },
   { (char*)"mkdir", com_mkdir, (char*)"Create a directory" },
+  { (char*)"pwd", com_pwd, (char*)"Print working directory" },
   { (char*)"quit",  com_quit, (char*)"Exit from EOS console" },
   { (char*)"quota", com_quota,(char*)"Quota System configuration"},
   { (char*)"restart",com_restart,(char*)"Restart System"},
@@ -97,6 +115,8 @@ char *stripwhite (char *string);
 COMMAND *find_command (char *command);
 char **EOSConsole_completion (const char *text, int start, int intend);
 char *command_generator (const char *text, int state);
+char *dir_generator (const char *text, int state);
+char *filedir_generator (const char *text, int state);
 int valid_argument (char *caller, char *arg);
 void too_dangerous (char *caller);
 int execute_line (char *line);
@@ -132,6 +152,8 @@ void initialize_readline ()
 
   /* Tell the completer that we want a crack first. */
   rl_attempted_completion_function = EOSConsole_completion;
+
+  rl_completion_append_character = '\0';
 }
 
 /* Attempt to complete on the contents of TEXT.  START and END bound the
@@ -151,8 +173,201 @@ EOSConsole_completion (const char *text, int start, int intend) {
   if (start == 0)
     matches = rl_completion_matches (text, command_generator);
 
+  XrdOucString cmd = rl_line_buffer;
+  if ( cmd.beginswith("mkdir ") ||
+       cmd.beginswith("rmdir ") ||
+       cmd.beginswith("find ") ||
+       cmd.beginswith("cd ") ) {
+    // dir completion
+    matches = rl_completion_matches (text, dir_generator);
+  }
+
+  if ( cmd.beginswith("rm ") ||
+       cmd.beginswith("ls ") ) {
+    // dir/file completion
+    matches = rl_completion_matches (text, filedir_generator);
+  }
+  
   return (matches);
 }
+
+char *
+dir_generator (const char *text, int state) {
+  static int list_index, len;
+
+  /* If this is a new word to complete, initialize now.  This includes
+     saving the length of TEXT for efficiency, and initializing the index
+     variable to 0. */
+  if (!state)
+    {
+      list_index = 0;
+      len = strlen (text);
+    }
+
+  /* Return the next name which partially matches from the command list. */
+    // create a dirlist
+  std::vector<std::string> dirs;
+  dirs.resize(0);
+  bool oldsilent=silent;
+  silent = true;
+  XrdOucString inarg = text;
+
+  bool absolute = false;
+  if (inarg.beginswith("/")) {
+    absolute = true;
+    // absolute pathnames
+    if (inarg.endswith("/")) {
+      // that's ok
+    } else {
+      int rpos = inarg.rfind("/");
+      if ( (rpos != STR_NPOS) )
+	inarg.erase(rpos+1);
+    }
+  } else {
+    // relative pathnames
+    if ( (!inarg.length()) || (!inarg.endswith("/"))) {
+      inarg = pwd.c_str();
+    } else {
+      inarg = pwd.c_str(); 
+      inarg += text;
+    }
+  }
+  
+
+  //  while (inarg.replace("//","/")) {};
+
+  XrdOucString comarg = "-F "; 
+  comarg += inarg;
+
+  char buffer[4096];
+  sprintf(buffer,"%s",comarg.c_str());
+  com_ls((char*)buffer);
+
+  silent = oldsilent;
+
+  XrdOucTokenizer subtokenizer((char*)rstdout.c_str());
+  do {
+    subtokenizer.GetLine();
+    XrdOucString entry = subtokenizer.GetToken();
+    if (entry.endswith('\n')) 
+      entry.erase(entry.length()-1);
+    if (!entry.endswith("/"))
+      continue;
+
+    if (entry.length()) {
+      dirs.push_back(entry.c_str());
+    } else {
+      break;
+    }
+  } while (1);
+
+
+  for (unsigned int i=list_index; i< dirs.size(); i++) {
+    list_index++;
+    XrdOucString compare="";
+    if (absolute) {
+      compare = inarg;
+      compare += dirs[i].c_str();
+    } else {
+      compare = dirs[i].c_str();
+    }
+    if (strncmp (compare.c_str(), text, len) == 0) {
+      return (dupstr((char*)compare.c_str()));
+    }
+  }
+
+  /* If no names matched, then return 0. */
+  return ((char *)0);
+}
+
+char *
+filedir_generator (const char *text, int state) {
+  static int list_index, len;
+
+  /* If this is a new word to complete, initialize now.  This includes
+     saving the length of TEXT for efficiency, and initializing the index
+     variable to 0. */
+  if (!state)
+    {
+      list_index = 0;
+      len = strlen (text);
+    }
+
+  /* Return the next name which partially matches from the command list. */
+  // create a dirlist
+  std::vector<std::string> dirs;
+  dirs.resize(0);
+  bool oldsilent=silent;
+  silent = true;
+  XrdOucString inarg = text;
+
+  bool absolute = false;
+  if (inarg.beginswith("/")) {
+    absolute = true;
+    // absolute pathnames
+    if (inarg.endswith("/")) {
+      // that's ok
+    } else {
+      int rpos = inarg.rfind("/");
+      if ( (rpos != STR_NPOS) )
+	inarg.erase(rpos+1);
+    }
+  } else {
+    // relative pathnames
+    if ( (!inarg.length()) || (!inarg.endswith("/"))) {
+      inarg = pwd.c_str();
+    } else {
+      inarg = pwd.c_str(); 
+      inarg += text;
+    }
+  }
+  
+
+  //  while (inarg.replace("//","/")) {};
+
+  XrdOucString comarg = "-F "; 
+  comarg += inarg;
+
+  char buffer[4096];
+  sprintf(buffer,"%s",comarg.c_str());
+  com_ls((char*)buffer);
+
+  silent = oldsilent;
+
+  XrdOucTokenizer subtokenizer((char*)rstdout.c_str());
+  do {
+    subtokenizer.GetLine();
+    XrdOucString entry = subtokenizer.GetToken();
+    if (entry.endswith('\n')) 
+      entry.erase(entry.length()-1);
+
+    if (entry.length()) {
+      dirs.push_back(entry.c_str());
+    } else {
+      break;
+    }
+  } while (1);
+
+
+  for (unsigned int i=list_index; i< dirs.size(); i++) {
+    list_index++;
+    XrdOucString compare="";
+    if (absolute) {
+      compare = inarg;
+      compare += dirs[i].c_str();
+    } else {
+      compare = dirs[i].c_str();
+    }
+
+    if (strncmp (compare.c_str(), text, len) == 0) {
+      return (dupstr((char*)compare.c_str()));
+    }
+  }
+  
+  /* If no names matched, then return 0. */
+  return ((char *)0);
+}
+
 
 /* Generator function for command completion.  STATE lets us know whether
    to start from scratch; without any state (i.e. STATE == 0), then we
@@ -195,8 +410,8 @@ output_result(XrdOucEnv* result) {
   if (!result)
     return EINVAL;
 
-  XrdOucString rstdout = result->Get("mgm.proc.stdout");
-  XrdOucString rstderr = result->Get("mgm.proc.stderr");
+  rstdout = result->Get("mgm.proc.stdout");
+  rstderr = result->Get("mgm.proc.stderr");
 
 
   // color replacements
@@ -325,11 +540,57 @@ com_help (char *arg) {
   return (0);
 }
 
+/* Clear the terminal screen */
 int
 com_clear (char *arg) {
   system("clear");
   return (0);
 }
+
+/* Change working directory &*/
+int
+com_cd (char *arg) {
+  XrdOucString newpath=abspath(arg);
+  XrdOucString oldpwd = pwd;
+
+  pwd = newpath;
+
+  if (!pwd.endswith("/")) 
+    pwd += "/";
+
+  // filter "/./";
+  while (pwd.replace("/./","/")) {}
+  // filter "..";
+  int dppos=0;
+  while ( (dppos=pwd.find("/../")) != STR_NPOS) {
+    if (dppos==0) {
+      pwd = oldpwd;
+      break;
+    }
+    int rpos = pwd.rfind("/",dppos-1);
+    //    printf("%s %d %d\n", pwd.c_str(), dppos, rpos);
+    if (rpos != STR_NPOS) {
+      //      printf("erasing %d %d", rpos, dppos-rpos+3);
+      pwd.erase(rpos, dppos-rpos+3);
+    } else {
+      pwd = oldpwd;
+      break;
+    }
+  }
+
+  if (!pwd.endswith("/")) 
+    pwd += "/";
+
+  return (0);
+}
+
+/* Print working directory &*/
+int
+com_pwd (char *arg) {
+  fprintf(stdout,"%s\n",pwd.c_str());
+  return (0);
+}
+
 
 /* The user wishes to quit using this program.  Just set DONE non-zero. */
 int
@@ -882,6 +1143,7 @@ com_mkdir (char* arg1) {
     goto com_mkdir_usage;
     
   } else {
+    path = abspath(path.c_str());
     in += "mgm.path=";
     in += path;
     
@@ -890,7 +1152,7 @@ com_mkdir (char* arg1) {
   }
 
  com_mkdir_usage:
-  printf("usage: mkdir <path>                                                   :  create directory <path>\n");
+  printf("usage: mkdir -p <path>                                                :  create directory <path>\n");
   return (0);
 
 }
@@ -909,6 +1171,7 @@ com_rmdir (char* arg1) {
     goto com_rmdir_usage;
     
   } else {
+    path = abspath(path.c_str());
     in += "mgm.path=";
     in += path;
     
@@ -949,16 +1212,17 @@ com_ls (char* arg1) {
   } while(1);
 
   if (!path.length()) {
-    goto com_ls_usage;
-    
-  } else {
-    in += "&mgm.path=";
-    in += path;
-    in += "&mgm.option=";
-    in += option;
-    global_retc = output_result(client_user_command(in));
-    return (0);
-  }
+    path = pwd;
+  } 
+
+  path = abspath(path.c_str());
+
+  in += "&mgm.path=";
+  in += path;
+  in += "&mgm.option=";
+  in += option;
+  global_retc = output_result(client_user_command(in));
+  return (0);
 
  com_ls_usage:
   printf("usage: ls <path>                                                       :  list directory <path>\n");
@@ -989,6 +1253,7 @@ com_rm (char* arg1) {
     goto com_rm_usage;
     
   } else {
+    path = abspath(path.c_str());
     in += "mgm.path=";
     in += path;
     in += "&mgm.option=";
@@ -1000,6 +1265,50 @@ com_rm (char* arg1) {
 
  com_rm_usage:
   printf("usage: rm [-r] <path>                                                  :  remove file <path>\n");
+  return (0);
+}
+
+
+/* Find files/directories */
+int
+com_find (char* arg1) {
+  // split subcommands
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString s1;
+  XrdOucString path;
+  XrdOucString option="";
+  XrdOucString in = "mgm.cmd=find&"; 
+  while ( (s1 = subtokenizer.GetToken()).length() && (s1.beginswith("-")) ) {
+    if (s1 == "-d") {
+      option +="d";
+    }
+    
+    if (s1 == "-f") {
+      option +="f";
+    }
+    
+    if (s1.beginswith( "-h" )) {
+      goto com_find_usage;
+    }
+  }
+  
+  if (s1.length()) {
+    path = s1;
+  }
+  
+  path = abspath(path.c_str());
+  in += "mgm.path=";
+  in += path;
+  in += "&mgm.option=";
+  in += option;
+  
+  global_retc = output_result(client_user_command(in));
+  return (0);
+
+ com_find_usage:
+  printf("usage: find [-d] [-f] <path>                                                  :  find files(-f) or directories (-d) in <path>\n");
+  printf("                                                                      default :  find files and directories\n");
   return (0);
 }
 
@@ -1179,6 +1488,8 @@ int main (int argc, char* argv[]) {
   /* Loop reading and executing lines until the user quits. */
   for ( ; done == 0; )
     {
+      char prompt[4096];
+      sprintf(prompt,"%sEOS Console%s [%s%s%s] |%s> ", textbold.c_str(),textunbold.c_str(),textred.c_str(),serveruri.c_str(),textnormal.c_str(),pwd.c_str());
       line = readline (prompt);
 
       if (!line)
