@@ -134,6 +134,11 @@ public:
   // commit a modified fmd record
   bool Commit(XrdCommonFmd* fmd);
 
+  // initialize the changelog hash
+  void Reset() {
+    Fmd.clear();
+  }
+    
   static int CompareMtime(const void* a, const void *b);
 
   // that is all we need for meta data handling

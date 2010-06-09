@@ -170,8 +170,10 @@ EOSConsole_completion (const char *text, int start, int intend) {
   /* If this word is at the start of the line, then it is a command
      to complete.  Otherwise it is the name of a file in the current
      directory. */
-  if (start == 0)
+  if (start == 0) {
+    rl_completion_append_character = ' ';
     matches = rl_completion_matches (text, command_generator);
+  }
 
   XrdOucString cmd = rl_line_buffer;
   if ( cmd.beginswith("mkdir ") ||
@@ -179,12 +181,15 @@ EOSConsole_completion (const char *text, int start, int intend) {
        cmd.beginswith("find ") ||
        cmd.beginswith("cd ") ) {
     // dir completion
+    rl_completion_append_character = '\0';
     matches = rl_completion_matches (text, dir_generator);
   }
 
   if ( cmd.beginswith("rm ") ||
-       cmd.beginswith("ls ") ) {
+       cmd.beginswith("ls ") ||
+       cmd.beginswith("fileinfo ") ) {
     // dir/file completion
+    rl_completion_append_character = '\0';
     matches = rl_completion_matches (text, filedir_generator);
   }
   
@@ -271,6 +276,7 @@ dir_generator (const char *text, int state) {
     } else {
       compare = dirs[i].c_str();
     }
+    //    fprintf(stderr,"%s %s %d\n", compare.c_str(), text, len);
     if (strncmp (compare.c_str(), text, len) == 0) {
       return (dupstr((char*)compare.c_str()));
     }
@@ -315,7 +321,15 @@ filedir_generator (const char *text, int state) {
   } else {
     // relative pathnames
     if ( (!inarg.length()) || (!inarg.endswith("/"))) {
-      inarg = pwd.c_str();
+      if (!inarg.length())
+	inarg = "";
+      else {
+	int rpos = inarg.rfind("/");
+	if ( (rpos != STR_NPOS) )
+	  inarg.erase(rpos+1);
+	else 
+	  inarg ="";
+      }
     } else {
       inarg = pwd.c_str(); 
       inarg += text;
@@ -356,9 +370,10 @@ filedir_generator (const char *text, int state) {
       compare = inarg;
       compare += dirs[i].c_str();
     } else {
-      compare = dirs[i].c_str();
+      compare = inarg;
+      compare += dirs[i].c_str();
     }
-
+    //    fprintf(stderr,"%s %s %d\n", compare.c_str(), text, len);
     if (strncmp (compare.c_str(), text, len) == 0) {
       return (dupstr((char*)compare.c_str()));
     }
@@ -391,8 +406,10 @@ command_generator (const char *text, int state) {
     {
       list_index++;
 
-      if (strncmp (name, text, len) == 0)
-        return (dupstr(name));
+      if (strncmp (name, text, len) == 0) {
+	XrdOucString withspace = name;
+        return (dupstr((char*)withspace.c_str()));
+      }
     }
 
   /* If no names matched, then return 0. */
@@ -1116,6 +1133,7 @@ com_fileinfo (char* arg1) {
     goto com_fileinfo_usage;
     
   } else {
+    path = abspath(path.c_str());
     in += "mgm.path=";
     in += path;
     

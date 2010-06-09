@@ -87,8 +87,6 @@ XrdCommonFmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid)
   char fsChangeLogFileName[1024];
   sprintf(fsChangeLogFileName,"%s.%04d.mdlog", ChangeLogFileName.c_str(),fsid);
   
-  // clear the hash
-  Fmd.clear();
   if (fdChangeLogRead[fsid]>0) {
     eos_info("closing changelog read file %s", ChangeLogFileName.c_str());
     close(fdChangeLogRead[fsid]);
