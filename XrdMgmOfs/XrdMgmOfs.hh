@@ -49,8 +49,7 @@ public:
                          const char              *opaque = 0);
 
         int         open(const char              *dirName,
-                         uid_t                    uid,
-			 gid_t                    gid,
+			 XrdCommonMapping::VirtualIdentity &vid,
                          const char              *opaque = 0);
 
         const char *nextEntry();
@@ -63,7 +62,7 @@ const   char       *FName() {return (const char *)fname;}
 
                     XrdMgmOfsDirectory(char *user=0) : XrdSfsDirectory(user)
                                 {ateof = 0; fname = 0;
-                                 d_pnt = &dirent_full.d_entry; uid=ruid=99;gid=rgid=99;
+				 d_pnt = &dirent_full.d_entry; XrdCommonMapping::Nobody(vid);
 				 XrdCommonLogId();dh =0;
                                 }
 
@@ -80,10 +79,7 @@ private:
   
   struct dirent *d_pnt;
   
-  uid_t          uid;
-  gid_t          gid;
-  uid_t          ruid;
-  gid_t          rgid;
+  XrdCommonMapping::VirtualIdentity vid;
 
   eos::ContainerMD* dh;
   eos::ContainerMD::FileMap::iterator dh_files;
@@ -143,7 +139,7 @@ public:
                             const char *y="");
 
                        XrdMgmOfsFile(char *user=0) : XrdSfsFile(user)
-                                          {oh = 0; fname = 0; openOpaque=0;uid=ruid=99; gid=rgid=99;fileId=0; procCmd=0; XrdCommonLogId();fmd=0;}
+                                          {oh = 0; fname = 0; openOpaque=0;XrdCommonMapping::Nobody(vid);fileId=0; procCmd=0; XrdCommonLogId();fmd=0;}
                       ~XrdMgmOfsFile() {
 			if (oh) close();
 			if (openOpaque) {delete openOpaque; openOpaque = 0;}
@@ -163,10 +159,7 @@ private:
 
   eos::FileMD* fmd;
 
-  uid_t uid;
-  gid_t gid;
-  uid_t ruid;
-  gid_t rgid;
+  XrdCommonMapping::VirtualIdentity vid;
 };
 
 /*----------------------------------------------------------------------------*/
@@ -209,9 +202,8 @@ public:
 
         int            _exists(const char                *fileName,
                                     XrdSfsFileExistence &exists_flag,
-                                    XrdOucErrInfo       &out_error,
-			            uid_t                uid,
-  			            gid_t                gid,			       
+                                    XrdOucErrInfo       &out_error
+,			            XrdCommonMapping::VirtualIdentity &vid,
                               const char                *opaque = 0);
 
   enum eFSCTL { kFsctlMgmOfsOffset= 40000};
@@ -241,8 +233,7 @@ const   char          *getVersion();
         int            _mkdir(const char             *dirName,
 			      XrdSfsMode        Mode,
 			      XrdOucErrInfo    &out_error,
-			      uid_t uid,
-			      gid_t gid,
+			      XrdCommonMapping::VirtualIdentity &vid,
 			      const char             *opaque = 0);
 
         int       stageprepare(const char           *path, 
@@ -260,15 +251,13 @@ const   char          *getVersion();
                            const char             *opaque = 0);
 
         int            _rem(const char             *path,
-                                 XrdOucErrInfo    &out_error,
-			       uid_t                uid,
-  			       gid_t                gid,
-                           const char             *opaque = 0);
+			    XrdOucErrInfo    &out_error,
+			    XrdCommonMapping::VirtualIdentity &vid,
+			    const char             *opaque = 0);
 
         int            _find(const char             *path,
 			     XrdOucErrInfo    &out_error,
-			     uid_t             uid,
-			     gid_t             gid,
+			     XrdCommonMapping::VirtualIdentity &vid,
 			     std::vector< std::vector<std::string> > &found_dirs,
 			     std::vector< std::vector<std::string> > &found_files );
    
@@ -278,10 +267,9 @@ const   char          *getVersion();
                               const char             *opaque = 0);
 
         int            _remdir(const char             *dirName,
-                                    XrdOucErrInfo    &out_error,
-			       uid_t                  uid,
-			       gid_t                  gid,
-                              const char             *opaque = 0);
+			       XrdOucErrInfo    &out_error,
+			       XrdCommonMapping::VirtualIdentity &vid,
+			       const char             *opaque = 0);
 
         int            rename(const char             *oldFileName,
                               const char             *newFileName,
@@ -299,8 +287,7 @@ const   char          *getVersion();
         int            _stat(const char             *Name,
                                   struct stat      *buf,
                                   XrdOucErrInfo    &out_error,
-       			          uid_t             uid,
-			          gid_t             gid, 
+ 			          XrdCommonMapping::VirtualIdentity &vid,
                             const char             *opaque = 0);
 
 
@@ -377,11 +364,7 @@ protected:
 
 private:
   static  XrdSysError *eDest;
-  uid_t uid;
-  gid_t gid;
-  uid_t ruid;
-  gid_t rgid;
-
+  XrdCommonMapping::VirtualIdentity vid;
 };
 /*----------------------------------------------------------------------------*/
 extern XrdMgmOfs* gOFS;

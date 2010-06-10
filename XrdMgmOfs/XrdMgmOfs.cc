@@ -102,28 +102,26 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
 {
    static const char *epname = "opendir";
    const char *tident = error.getErrUser();
-   XrdSecEntity mappedclient;
    XrdOucEnv Open_Env(info);
 
    eos_info("path=%s",dir_path);
 
    AUTHORIZE(client,&Open_Env,AOP_Readdir,"open directory",dir_path,error);
 
-   XrdCommonMapping::RoleMap(client,info,mappedclient,tident, uid, gid, ruid, rgid);
+   XrdCommonMapping::IdMap(client,info,tident, vid);
 
-   return open(dir_path, uid, gid, info);
+   return open(dir_path, vid, info);
 }
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfsDirectory::open(const char              *dir_path, // In
-			     uid_t                    uid,      // In
-			     gid_t                    gid,      // In
+			     XrdCommonMapping::VirtualIdentity &vid, // In
 			     const char              *info)     // In
 /*
   Function: Open the directory `path' and prepare for reading.
 
   Input:    path      - The fully qualified name of the directory to open.
-            cred      - Authentication credentials, if any.
+            vid       - Virtual identity
             info      - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success, otherwise SFS_ERROR.
@@ -252,18 +250,12 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   static const char *epname = "open";
   const char *tident = error.getErrUser();
   
-  XrdSecEntity mappedclient;
-
   SetLogId(logId, tident);
   eos_info("path=%s info=%s",path,info);
 
-  eos_debug("rolemap start");
+  XrdCommonMapping::IdMap(client,info,tident,vid);
 
-  XrdCommonMapping::RoleMap(client,info,mappedclient,tident, uid, gid, ruid, rgid);
-
-  SetLogId(logId, uid, gid, uid, gid, tident);
-
-  eos_debug("rolemap done");
+  SetLogId(logId, vid.uid, vid.gid, vid.uid_list[0], vid.gid_list[0], tident);
 
   openOpaque = new XrdOucEnv(info);
   //  const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
@@ -324,12 +316,12 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   
   // proc filter
   if (XrdMgmProcInterface::IsProcAccess(path)) {
-    if (!XrdMgmProcInterface::Authorize(path, info, uid, gid, client)) {
+    if (!XrdMgmProcInterface::Authorize(path, info, vid, client)) {
       return Emsg(epname, error, EPERM, "execute proc command - you don't have the requested permissions for that operation ", path);      
     } else {
       procCmd = new XrdMgmProcCommand();
-      procCmd->SetLogId(logId,uid,gid,uid,gid, tident);
-      return procCmd->open(path, info, uid, gid, &error);
+      procCmd->SetLogId(logId,vid.uid,vid.gid,vid.uid_list[0],vid.gid_list[0], tident);
+      return procCmd->open(path, info, vid, &error);
     }
   }
 
@@ -363,7 +355,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     }
     // if it does not exist try to create the path!
     if ((!ec) && (file_exists==XrdSfsFileExistNo)) {
-      ec = gOFS->_mkdir(pdir.c_str(),Mode,error,uid,gid,info);
+      ec = gOFS->_mkdir(pdir.c_str(),Mode,error,vid,info);
       if (ec) 
 	return SFS_ERROR;
     }
@@ -396,7 +388,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	//-------------------------------------------
 	gOFS->eosViewMutex.Lock();
 	try {
-	  fmd = gOFS->eosView->createFile(path, uid, gid);
+	  fmd = gOFS->eosView->createFile(path, vid.uid, vid.gid);
 	} catch( eos::MDException &e ) {
 	  fmd = 0;
 	  errno = e.getErrno();
@@ -445,7 +437,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   unsigned long newlayoutId=0;
   // select space and layout according to policies
-  XrdMgmPolicy::GetLayoutAndSpace(path, uid, gid, newlayoutId, space, *openOpaque, forcedFsId);
+  XrdMgmPolicy::GetLayoutAndSpace(path, vid.uid, vid.gid, newlayoutId, space, *openOpaque, forcedFsId);
 
   if (isCreation) {
     layoutId = newlayoutId;
@@ -473,10 +465,10 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   }
 
 
-  capability += "&mgm.uid=";       capability+=(int)uid; 
-  capability += "&mgm.gid=";       capability+=(int)gid;
-  capability += "&mgm.ruid=";      capability+=(int)uid; 
-  capability += "&mgm.rgid=";      capability+=(int)gid;
+  capability += "&mgm.uid=";       capability+=(int)vid.uid; 
+  capability += "&mgm.gid=";       capability+=(int)vid.gid;
+  capability += "&mgm.ruid=";      capability+=(int)vid.uid_list[0]; 
+  capability += "&mgm.rgid=";      capability+=(int)vid.gid_list[0];
   capability += "&mgm.path=";      capability += path;
   capability += "&mgm.manager=";   capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";    XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fileId,hexfid);capability += hexfid;
@@ -498,7 +490,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   if (isCreation) {
     // ************************************************************************************************
     // place a new file 
-    retc = quotaspace->FilePlacement(uid, gid, openOpaque->Get("eos.grouptag"), layoutId, selectedfs);
+    retc = quotaspace->FilePlacement(vid.uid, vid.gid, openOpaque->Get("eos.grouptag"), layoutId, selectedfs);
   } else {
     // ************************************************************************************************
     // access existing file
@@ -510,7 +502,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	selectedfs.push_back(loc);
     }
 
-    retc = quotaspace->FileAccess(uid, gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW);
+    retc = quotaspace->FileAccess(vid.uid, vid.gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW);
   }
   if (retc) {
     XrdMgmFstNode::gMutex.UnLock();
@@ -778,13 +770,11 @@ int XrdMgmOfs::chmod(const char             *path,    // In
 
   XrdOucEnv chmod_Env(info);
 
-  XrdSecEntity mappedclient;
-
   XTRACE(chmod, path,"");
 
   AUTHORIZE(client,&chmod_Env,AOP_Chmod,"chmod",path,error);
 
-  XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
+  XrdCommonMapping::IdMap(client,info,tident,vid);
   
   return Emsg(epname,error,EOPNOTSUPP,"chmod",path);
 }
@@ -802,15 +792,13 @@ int XrdMgmOfs::exists(const char                *path,        // In
 
   XrdOucEnv exists_Env(info);
 
-  XrdSecEntity mappedclient;
-
   XTRACE(exists, path,"");
 
   AUTHORIZE(client,&exists_Env,AOP_Stat,"execute exists",path,error);
 
-  XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
+  XrdCommonMapping::IdMap(client,info,tident,vid);
   
-  return _exists(path,file_exists,error,uid,gid,info);
+  return _exists(path,file_exists,error,vid,info);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -882,8 +870,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
 int XrdMgmOfs::_exists(const char                *path,        // In
                                XrdSfsFileExistence &file_exists, // Out
                                XrdOucErrInfo       &error,       // Out
-		               uid_t                uid,         // In 
-		               gid_t                gid,         // In 
+		       XrdCommonMapping::VirtualIdentity &vid,   // In
                          const char                *info)        // In
 /*
   Function: Determine if file 'path' actually exists.
@@ -895,7 +882,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
                           XrdSfsFileExistIsFile      - file found.
                           XrdSfsFileExistNo          - neither file nor directory.
             einfo       - Error information object holding the details.
-            client      - Authentication credentials, if any.
+            vid         - Virtual Identity
             info        - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
@@ -962,23 +949,20 @@ int XrdMgmOfs::mkdir(const char             *path,    // In
    const char *tident = error.getErrUser();
    XrdOucEnv mkdir_Env(info);
    
-   XrdSecEntity mappedclient;
-
    XTRACE(mkdir, path,"");
 
    eos_info("path=%s",path);
 
-   XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
+   XrdCommonMapping::IdMap(client,info,tident,vid);
 
-   return  _mkdir(path,Mode,error,uid,gid,info);
+   return  _mkdir(path,Mode,error,vid,info);
 }
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::_mkdir(const char            *path,    // In
 		      XrdSfsMode             Mode,    // In
 		      XrdOucErrInfo         &error,   // Out
-		      uid_t                  uid,     // In
-		      gid_t                  gid,     // In
+		      XrdCommonMapping::VirtualIdentity &vid, // In
 		      const char            *info)    // In
 /*
   Function: Create a directory entry.
@@ -987,7 +971,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
             Mode      - Is the POSIX mode setting for the directory. If the
                         mode contains SFS_O_MKPTH, the full path is created.
             einfo     - Error information object to hold error details.
-            uid,gid   - Authentication credentials
+	    vid       - Virtual Identity
             info      - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
@@ -1037,8 +1021,8 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   gOFS->eosViewMutex.Lock();
   try {
     newdir = eosView->createContainer(path, recurse);
-    newdir->setCUid(uid);
-    newdir->setCGid(uid);
+    newdir->setCUid(vid.uid);
+    newdir->setCGid(vid.gid);
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
@@ -1096,7 +1080,6 @@ int XrdMgmOfs::rem(const char             *path,    // In
 {
    static const char *epname = "rem";
    const char *tident = error.getErrUser();
-   XrdSecEntity mappedclient;
 
    XTRACE(remove, path,"");
 
@@ -1106,16 +1089,15 @@ int XrdMgmOfs::rem(const char             *path,    // In
 
    XTRACE(remove, path,"");
 
-   XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
+   XrdCommonMapping::IdMap(client,info,tident,vid);
 
-   return _rem(path,error,uid,gid,info);
+   return _rem(path,error,vid,info);
 }
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::_rem(   const char             *path,    // In
 		       XrdOucErrInfo          &error,   // Out
-		       uid_t                   uid,     // In
-		       gid_t                   gid,     // In
+		       XrdCommonMapping::VirtualIdentity &vid, //In
 		       const char             *info)    // In
 /*
   Function: Delete a file from the namespace.
@@ -1139,7 +1121,7 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
 
 
   XrdSfsFileExistence file_exists;
-  if ((_exists(path,file_exists,error,uid,gid,0))) {
+  if ((_exists(path,file_exists,error,vid,0))) {
     return SFS_ERROR;
   }
 
@@ -1191,23 +1173,22 @@ int XrdMgmOfs::remdir(const char             *path,    // In
 
    AUTHORIZE(client,&remdir_Env,AOP_Delete,"remove",path, error);
 
-   XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
+   XrdCommonMapping::IdMap(client,info,tident,vid);
 
-   return _remdir(path,error,uid,gid,info);
+   return _remdir(path,error,vid,info);
 }
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::_remdir(const char             *path,    // In
 		       XrdOucErrInfo          &error,   // Out
-		       uid_t                   uid,     // In
-		       gid_t                   gid,     // In
+		       XrdCommonMapping::VirtualIdentity &vid, // In
 		       const char             *info)    // In
 /*
   Function: Delete a directory from the namespace.
 
   Input:    path      - Is the fully qualified name of the dir to be removed.
             einfo     - Error information object to hold error details.
-            uid,gid   - Authentication credentials
+	    vid       - Virtual Identity
             info      - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
@@ -1259,16 +1240,13 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
 
   XrdOucString source, destination;
   XrdOucString oldn,newn;
-  XrdSecEntity mappedclient;
   XrdOucEnv renameo_Env(infoO);
   XrdOucEnv renamen_Env(infoN);
   
   AUTHORIZE(client,&renameo_Env,AOP_Update,"rename",old_name, error);
   AUTHORIZE(client,&renamen_Env,AOP_Update,"rename",new_name, error);
 
-  XrdCommonMapping::RoleMap(client,infoO,mappedclient,tident,uid,gid,ruid,rgid);
-
-
+  XrdCommonMapping::IdMap(client,infoO,tident,vid);
   int r1,r2;
   
   r1=r2=SFS_OK;
@@ -1277,7 +1255,7 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   // check if dest is existing
   XrdSfsFileExistence file_exists;
 
-  if (!_exists(newn.c_str(),file_exists,error,&mappedclient,infoN)) {
+  if (!_exists(newn.c_str(),file_exists,error,vid,infoN)) {
     // it exists
     if (file_exists == XrdSfsFileExistIsDirectory) {
       // we have to path the destination name since the target is a directory
@@ -1336,16 +1314,15 @@ int XrdMgmOfs::stat(const char              *path,        // In
 
   AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",path,error);
 
-  XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
-  return _stat(path, buf, error, uid,gid, info);
+  XrdCommonMapping::IdMap(client,info,tident,vid);
+  return _stat(path, buf, error, vid, info);
 }
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::_stat(const char              *path,        // In
                            struct stat       *buf,         // Out
                            XrdOucErrInfo     &error,       // Out
-         		   uid_t              uid,         // In 
- 		           gid_t              gid,         // In
+		     XrdCommonMapping::VirtualIdentity &vid,  // In
                      const char              *info)        // In
 {
   static const char *epname = "_stat";
@@ -1388,8 +1365,8 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     buf->st_mode    = S_IFREG;
     buf->st_mode    |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR );
     buf->st_nlink   = 0;
-    buf->st_uid     = 0;
-    buf->st_gid     = 0;
+    buf->st_uid     = fmd->getCUid();
+    buf->st_gid     = fmd->getCGid();
     buf->st_rdev    = 0;     /* device type (if inode device) */
     buf->st_size    = fmd->getSize();
     buf->st_blksize = 4096;
@@ -1410,8 +1387,8 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     buf->st_mode    = S_IFDIR;
     buf->st_mode    |= (S_IRWXU | S_IRWXG | S_IRWXO);
     buf->st_nlink   = 0;
-    buf->st_uid     = 0;
-    buf->st_gid     = 0;
+    buf->st_uid     = cmd->getCUid();
+    buf->st_gid     = cmd->getCGid();
     buf->st_rdev    = 0;     /* device type (if inode device) */
     buf->st_size    = cmd->getNumContainers();
     buf->st_blksize = 0;
@@ -1469,14 +1446,13 @@ int XrdMgmOfs::readlink(const char          *path,        // In
 {
   static const char *epname = "readlink";
   const char *tident = error.getErrUser(); 
-  XrdSecEntity mappedclient;
   XrdOucEnv rl_Env(info);
 
   XTRACE(fsctl, path,"");
 
   AUTHORIZE(client,&rl_Env,AOP_Stat,"readlink",path,error);
   
-  XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
+  XrdCommonMapping::IdMap(client,info,tident,vid);
 
   return Emsg(epname, error, EOPNOTSUPP, "readlink", path); 
 }
@@ -1490,7 +1466,6 @@ int XrdMgmOfs::symlink(const char           *path,        // In
 {
   static const char *epname = "symlink";
   const char *tident = error.getErrUser(); 
-  XrdSecEntity mappedclient;
   XrdOucEnv sl_Env(info);
 
   XTRACE(fsctl, path,"");
@@ -1502,7 +1477,7 @@ int XrdMgmOfs::symlink(const char           *path,        // In
   // we only need to map absolut links
   source = path;
 
-  XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
+  XrdCommonMapping::IdMap(client,info,tident,vid);
 
   return Emsg(epname, error, EOPNOTSUPP, "symlink", path); 
 }
@@ -1516,14 +1491,13 @@ int XrdMgmOfs::access( const char           *path,        // In
 {
   static const char *epname = "access";
   const char *tident = error.getErrUser(); 
-  XrdSecEntity mappedclient;
   XrdOucEnv access_Env(info);
 
   XTRACE(fsctl, path,"");
 
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
-  
-  XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
+
+  XrdCommonMapping::IdMap(client,info,tident,vid);  
 
   return Emsg(epname, error, EOPNOTSUPP, "access", path); 
 }
@@ -1537,23 +1511,20 @@ int XrdMgmOfs::utimes(  const char          *path,        // In
 {
   static const char *epname = "utimes";
   const char *tident = error.getErrUser(); 
-  XrdSecEntity mappedclient;
   XrdOucEnv utimes_Env(info);
 
   XTRACE(fsctl, path,"");
 
   AUTHORIZE(client,&utimes_Env,AOP_Update,"set utimes",path,error);
   
-  XrdCommonMapping::RoleMap(client,info,mappedclient,tident,uid,gid,ruid,rgid);
-
+  XrdCommonMapping::IdMap(client,info,tident,vid);  
   return Emsg(epname, error, EOPNOTSUPP, "utimes", path); 
 }
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::_find(const char       *path,             // In 
 		     XrdOucErrInfo    &out_error,        // Out
-		     uid_t             uid,              // In
-		     gid_t             gid,              // In
+		     XrdCommonMapping::VirtualIdentity &vid, // In
 		     std::vector< std::vector<std::string> > &found_dirs, // Out
 		     std::vector< std::vector<std::string> > &found_files // Out
 		     )

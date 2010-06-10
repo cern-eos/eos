@@ -15,6 +15,12 @@ public:
 
   static void GetLayoutAndSpace(const char* path, uid_t uid, gid_t gid, unsigned long &layoutId, XrdOucString &space, XrdOucEnv &env, unsigned long &forcedfsid);
 
+  static bool Set(const char* value);
+  static bool Set(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
+  static void Ls(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
+  static bool Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
+
+  static const char* Get(const char* key);
 };
 
 #endif

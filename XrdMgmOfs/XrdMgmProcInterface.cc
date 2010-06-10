@@ -1,6 +1,8 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdCommon/XrdCommonStringStore.hh"
 #include "XrdCommon/XrdCommonLayoutId.hh"
+#include "XrdMgmOfs/XrdMgmPolicy.hh"
+#include "XrdMgmOfs/XrdMgmVid.hh"
 #include "XrdMgmOfs/XrdMgmProcInterface.hh"
 #include "XrdMgmOfs/XrdMgmFstNode.hh"
 #include "XrdMgmOfs/XrdMgmOfs.hh"
@@ -14,6 +16,7 @@
 XrdMgmProcInterface::XrdMgmProcInterface()
 
 {  
+
 }
 
 /*----------------------------------------------------------------------------*/
@@ -36,7 +39,7 @@ XrdMgmProcInterface::IsProcAccess(const char* path)
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMgmProcInterface::Authorize(const char* path, const char* info, uid_t uid, gid_t gid , const XrdSecEntity* entity) {
+XrdMgmProcInterface::Authorize(const char* path, const char* info, XrdCommonMapping::VirtualIdentity &vid , const XrdSecEntity* entity) {
   XrdOucString inpath = path;
 
   // administrator access
@@ -67,8 +70,7 @@ XrdMgmProcCommand::XrdMgmProcCommand()
   resultStream = "";
   offset = 0;
   len = 0;
-  uid = 0;
-  gid = 0;
+  pVid = 0;
   path = "";
   adminCmd = userCmd = projectAdminCmd = 0;
 }
@@ -80,10 +82,10 @@ XrdMgmProcCommand::~XrdMgmProcCommand()
 
 /*----------------------------------------------------------------------------*/
 int 
-XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid_t ingid, XrdOucErrInfo   *error) 
+XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping::VirtualIdentity &vid_in, XrdOucErrInfo   *error) 
 {
-  uid = inuid;
-  gid = ingid;
+  pVid = &vid_in;
+
   path = inpath;
   bool dosort = false;
   if ( path.beginswith ("/proc/admin")) {
@@ -570,6 +572,24 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
       //      stdOut+="\n==== debug done ====";
     }
 
+    if (cmd == "vid") {
+      if (subcmd == "set") {
+	eos_notice("vid set");
+	XrdMgmVid::Set(opaque, retc, stdOut,stdErr);
+      }
+
+      if (subcmd == "ls") {
+	eos_notice("vid ls");
+	XrdMgmVid::Ls(opaque, retc, stdOut, stdErr);
+	dosort = true;
+      } 
+
+      if (subcmd == "rm") {
+	eos_notice("vid rm");
+	XrdMgmVid::Rm(opaque, retc, stdOut, stdErr);
+      }
+    }
+
     if (cmd == "restart") {
       if (subcmd == "fst") {
 	XrdOucString debugnode =  opaque.Get("mgm.nodename");
@@ -685,7 +705,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	retc = EINVAL;
       } else {
 	XrdSfsMode mode=0;
-	if (gOFS->_mkdir(path.c_str(), mode, *error, uid,gid,(const char*)0)) {
+	if (gOFS->_mkdir(path.c_str(), mode, *error, *pVid,(const char*)0)) {
 	  stdErr += "error: unable to create directory";
 	  retc = errno;
 	}
@@ -700,7 +720,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	stdErr="error: you have to give a path name to call 'rmdir'";
 	retc = EINVAL;
       } else {
-	if (gOFS->_remdir(path.c_str(), *error, uid,gid,(const char*)0)) {
+	if (gOFS->_remdir(path.c_str(), *error, *pVid,(const char*)0)) {
 	  stdErr += "error: unable to remove directory";
 	  retc = errno;
 	}
@@ -721,13 +741,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	int listrc=0;
 	XrdOucString filter = "";
 
-	if(gOFS->_stat(path.c_str(),&buf, *error,  uid, gid, (const char*) 0)) {
+	if(gOFS->_stat(path.c_str(),&buf, *error,  *pVid, (const char*) 0)) {
 	  stdErr = error->getErrText();
 	  retc = errno;
 	} else {
 	  // if this is a directory open it and list
 	  if (S_ISDIR(buf.st_mode)) {
-	    listrc = dir.open(path.c_str(), uid, gid, (const char*) 0);
+	    listrc = dir.open(path.c_str(), *pVid, (const char*) 0);
 	  } else {
 	    // if this is a file, open the parent and set the filter
 	    if (path.endswith("/")) {
@@ -740,7 +760,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	    } else {
 	      filter.assign(path,rpos+1);
 	      path.erase(rpos);
-	      listrc = dir.open(path.c_str(), uid, gid, (const char*) 0);
+	      listrc = dir.open(path.c_str(), *pVid, (const char*) 0);
 	    }
 	  }
 	  
@@ -778,7 +798,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 		XrdOucString statpath = path; statpath += "/"; statpath += val;
 		while (statpath.replace("//","/")) {}
 		struct stat buf;
-		if (gOFS->_stat(statpath.c_str(),&buf, *error,  uid, gid, (const char*) 0)) {
+		if (gOFS->_stat(statpath.c_str(),&buf, *error, *pVid, (const char*) 0)) {
 		  stdErr += "error: unable to stat path "; stdErr += statpath; stdErr +="\n";
 		retc = errno;
 		} else {
@@ -841,7 +861,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	  std::vector< std::vector<std::string> > found_dirs;
 	  std::vector< std::vector<std::string> > found_files;
 	  
-	  if (gOFS->_find(path.c_str(), *error, uid,gid, found_dirs , found_files)) {
+	  if (gOFS->_find(path.c_str(), *error, *pVid, found_dirs , found_files)) {
 	    stdErr += "error: unable to remove file/directory";
 	    retc = errno;
 	  } else {
@@ -849,7 +869,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	    for (int i = found_files.size()-1 ; i>=0; i--) {
 	      std::sort(found_files[i].begin(), found_files[i].end());
 	      for (unsigned int j = 0; j< found_files[i].size(); j++) {
-		if (gOFS->_rem(found_files[i][j].c_str(), *error, uid,gid,(const char*)0)) {
+		if (gOFS->_rem(found_files[i][j].c_str(), *error, *pVid,(const char*)0)) {
 		  stdErr += "error: unable to remove file";
 		  retc = errno;
 		} 
@@ -862,7 +882,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 		// don't even try to delete the root directory
 		if (found_dirs[i][j] == "/")
 		  continue;
-		if (gOFS->_remdir(found_dirs[i][j].c_str(), *error, uid,gid,(const char*)0)) {
+		if (gOFS->_remdir(found_dirs[i][j].c_str(), *error, *pVid,(const char*)0)) {
 		  stdErr += "error: unable to remove directory";
 		  retc = errno;
 		} 
@@ -870,7 +890,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	    }
 	  }
 	} else {
-	  if (gOFS->_rem(path.c_str(), *error, uid,gid,(const char*)0)) {
+	  if (gOFS->_rem(path.c_str(), *error, *pVid,(const char*)0)) {
 	    stdErr += "error: unable to remove file/directory";
 	    retc = errno;
 	  }
@@ -890,7 +910,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, uid_t inuid, gid
 	std::vector< std::vector<std::string> > found_dirs;
 	std::vector< std::vector<std::string> > found_files;
 
-	if (gOFS->_find(path.c_str(), *error, uid,gid, found_dirs , found_files)) {
+	if (gOFS->_find(path.c_str(), *error, *pVid, found_dirs , found_files)) {
 	  stdErr += "error: unable to remove file/directory";
 	  retc = errno;
 	}

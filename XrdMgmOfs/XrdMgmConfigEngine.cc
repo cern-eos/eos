@@ -514,7 +514,7 @@ XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Ar
   }
 
   if (skey.beginswith("policy:")) {
-    // set a quota definition
+    // set a policy
     skey.erase(0,7);
   }
   

@@ -3,6 +3,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "XrdCommon/XrdCommonLogging.hh"
+#include "XrdCommon/XrdCommonMapping.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -12,8 +13,7 @@
 class XrdMgmProcCommand : public XrdCommonLogId {
 private:
   XrdOucString path;
-  uid_t uid;
-  gid_t gid;
+  XrdCommonMapping::VirtualIdentity* pVid;
   XrdOucString cmd;
   XrdOucString subcmd;
   XrdOucString args;
@@ -35,7 +35,7 @@ private:
 
 public:
 
-  int open(const char* path, const char* info, uid_t uid, gid_t gid, XrdOucErrInfo *error);
+  int open(const char* path, const char* info, XrdCommonMapping::VirtualIdentity &vid, XrdOucErrInfo *error);
   int read(XrdSfsFileOffset offset, char *buff, XrdSfsXferSize blen);
   int stat(struct stat* buf);
   int close();
@@ -50,7 +50,7 @@ private:
 public:
 
   static bool IsProcAccess(const char* path);
-  static bool Authorize(const char* path, const char* info, uid_t uid, gid_t gid, const XrdSecEntity* entity);
+  static bool Authorize(const char* path, const char* info, XrdCommonMapping::VirtualIdentity &vid, const XrdSecEntity* entity);
 
   XrdMgmProcInterface();
   ~XrdMgmProcInterface();

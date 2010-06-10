@@ -1,6 +1,10 @@
 #ifndef __XRDCOMMON_MAPPING__
 #define __XRDCOMMON_MAPPING__
 
+/*----------------------------------------------------------------------------*/
+#include "XrdCommon/XrdCommonLogging.hh"
+
+/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSec/XrdSecEntity.hh"
@@ -8,46 +12,92 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+/*----------------------------------------------------------------------------*/
 #include <pwd.h>
 #include <grp.h>
+#include <map>
+#include <vector>
+#include <string>
 
+#include <google/sparse_hash_map>
 
-class XrdCommonMappingGroupInfo {
-public:
-  XrdOucString DefaultGroup;
-  XrdOucString AllGroups;
-  struct passwd Passwd;
-  int Lifetime;
-  
-  XrdCommonMappingGroupInfo(const char* defgroup="", const char* allgrps="", struct passwd *pw=0, int lf=60) { DefaultGroup = defgroup; AllGroups = allgrps; if (pw) memcpy(&Passwd,pw,sizeof(struct passwd)); Lifetime=lf;}
-  virtual ~XrdCommonMappingGroupInfo() {}
-};
-
+/*----------------------------------------------------------------------------*/
 class XrdCommonMapping {
 private:
 public:
-  static void GetPhysicalGroups(const char* __name__, XrdOucString& __allgroups__, XrdOucString& __defaultgroup__);
-  static void RoleMap(const XrdSecEntity* _client,const char* _env, XrdSecEntity &_mappedclient, const char* tident, uid_t &uid, gid_t &gid, uid_t &ruid, gid_t &rgid);
-  static void GetId(XrdSecEntity &_client, uid_t &_uid, gid_t &gid);
 
-  static  XrdSysMutex              gMapMutex;
-  static  XrdSysMutex              gSecEntityMutex;
-  static  XrdSysMutex              gVirtualMapMutex;
+  typedef std::vector<uid_t> uid_vector;
+  typedef std::vector<gid_t> gid_vector;
+  typedef google::sparse_hash_map<uid_t, uid_vector > UserRoleMap;
+  typedef google::sparse_hash_map<uid_t, gid_vector > GroupRoleMap;
+  typedef google::sparse_hash_map<std::string, uid_t> VirtualUserMap;
+  typedef google::sparse_hash_map<std::string, gid_t> VirtualGroupMap;
+  typedef google::sparse_hash_map<uid_t, bool > SudoerMap;
 
-  // the format of the stored XrdOucString is: [static:]<role1>[:<role2>[:role3>]...]
-  // if a wild card is used the value should be only one role !
+  struct VirtualIdentity_t {
+    uid_t uid;
+    gid_t gid;
+    uid_vector uid_list;
+    gid_vector gid_list;
+  };
 
-  static  XrdOucHash<XrdOucString> gUserRoleTable;  // maps from user  string name -> list of user  roles 
-  static  XrdOucHash<XrdOucString> gGroupRoleTable; // maps from group string name -> list of group roles
+  typedef struct VirtualIdentity_t VirtualIdentity;
 
-  static  XrdOucHash<XrdSecEntity> gSecEntityStore;
+  static void Nobody(VirtualIdentity &vid) {
+    vid.uid=vid.gid=99; vid.uid_list.clear(); vid.gid_list.clear(); vid.uid_list.push_back(99);vid.gid_list.push_back(99);
+  }
 
-  static  XrdOucHash<long>         gVirtualUidMap;  // maps from string virtual user  name -> virtual UID
-  static  XrdOucHash<long>         gVirtualGidMap;  // maps from string virtual group name -> virtual GID
-  static  XrdOucHash<XrdOucString> gVirtualGroupMemberShip; // maps from string virtual name -> list of virtual group names (: separated)
+  static void Copy(VirtualIdentity &vidin, VirtualIdentity &vidout) {
+    vidout.uid = vidin.uid; vidout.gid = vidin.gid;
+    for (unsigned int i=0; i< vidin.uid_list.size(); i++) vidout.uid_list.push_back(vidin.uid_list[i]);
+    for (unsigned int i=0; i< vidin.gid_list.size(); i++) vidout.gid_list.push_back(vidin.uid_list[i]);
+  }
+
+  static void IdMap(const XrdSecEntity* client,const char* env, const char* tident, XrdCommonMapping::VirtualIdentity &vid);
+
+  static UserRoleMap  gUserRoleVector;  // describes which virtual user roles  a user with uid has
+  static GroupRoleMap gGroupRoleVector; // describes which virtual group roles a user with uid has
+
+  static VirtualUserMap  gVirtualUidMap;
+  static VirtualGroupMap gVirtualGidMap;
+
+  static SudoerMap gSudoerMap;
   
-  static  XrdOucHash<struct passwd> gPasswdStore;
-  static  XrdOucHash<XrdCommonMappingGroupInfo>  gGroupInfoCache;
+  static  XrdSysMutex gMapMutex; // protects all global vector & maps
+
+  static  void KommaListToUidVector(const char* list, std::vector<uid_t> &vector_list) {
+    XrdOucString slist = list;
+    XrdOucString number="";
+    int kommapos;
+    if (!slist.endswith(",")) 
+      slist += ",";
+    do {
+      kommapos = slist.find(",");
+      if (kommapos != STR_NPOS) {
+	number.assign(slist,0,kommapos-1);
+	vector_list.push_back((uid_t)atoi(number.c_str()));
+	slist.erase(0,kommapos+1);
+      }
+    } while (kommapos != STR_NPOS);
+  }
+
+  static  void KommaListToGidVector(const char* list, std::vector<gid_t> &vector_list) {
+    XrdOucString slist = list;
+    XrdOucString number="";
+    int kommapos;
+    if (!slist.endswith(",")) 
+      slist += ",";
+    do {
+      kommapos = slist.find(",");
+      if (kommapos != STR_NPOS) {
+	number.assign(slist,0,kommapos-1);
+	vector_list.push_back((gid_t)atoi(number.c_str()));
+	slist.erase(0,kommapos+1);
+      }
+    } while (kommapos != STR_NPOS);
+  }
+
+  static  void Print(XrdOucString &stdOut, XrdOucString option="");
 };
 
 #endif

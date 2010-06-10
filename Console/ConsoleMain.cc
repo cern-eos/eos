@@ -34,6 +34,7 @@ XrdOucString rstderr;
 int global_retc=0;
 bool silent=false;
 bool timing=false;
+bool debug=false;
 
 /*----------------------------------------------------------------------------*/
 
@@ -60,6 +61,7 @@ int com_mkdir PARAMS((char*));
 int com_rmdir PARAMS((char*));
 int com_rm PARAMS((char*));
 int com_find PARAMS((char*));
+int com_vid PARAMS((char*));
 int com_pwd PARAMS((char*));
 int com_restart PARAMS((char*));
 int com_test PARAMS((char*));
@@ -96,6 +98,7 @@ COMMAND commands[] = {
   { (char*)"help",  com_help, (char*)"Display this text" },
   { (char*)"ls", com_ls, (char*)"List a directory" },
   { (char*)"mkdir", com_mkdir, (char*)"Create a directory" },
+  { (char*)"vid", com_vid, (char*) "Virtual ID System Configuration" },
   { (char*)"pwd", com_pwd, (char*)"Print working directory" },
   { (char*)"quit",  com_quit, (char*)"Exit from EOS console" },
   { (char*)"quota", com_quota,(char*)"Quota System configuration"},
@@ -463,6 +466,9 @@ client_admin_command(XrdOucString &in) {
   path += "//proc/admin/";
   path += "?";
   path += in;
+
+  if (debug) 
+    printf("debug: %s\n", path.c_str());
 
   XrdClient client(path.c_str());
   if (client.Open(kXR_async,0,0)) {
@@ -891,6 +897,107 @@ com_quota (char* arg1) {
   return (0);
 }
 
+/* VID System listing, configuration, manipulation */
+int
+com_vid (char* arg1) {
+  // split subcommands
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString subcommand = subtokenizer.GetToken();
+  
+  if ( subcommand == "ls" ) {
+    XrdOucString in ="mgm.cmd=vid&mgm.subcmd=ls";
+    XrdOucString soption="";
+    XrdOucString option="";
+    do {
+      option = subtokenizer.GetToken();
+      if (option.beginswith("-")) {
+	option.erase(0,1);
+	soption += option;
+      }
+    } while (option.length());
+    
+    if (soption.length()) {
+      in += "&mgm.vid.option="; in += soption;
+    }
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+  
+  if ( subcommand == "set" ) {
+    XrdOucString in    = "mgm.cmd=vid&mgm.subcmd=set";
+    XrdOucString key   = subtokenizer.GetToken();
+    if (!key.length()) 
+      goto com_vid_usage;
+
+    XrdOucString vidkey="";
+    if (key == "membership") {
+
+      XrdOucString uid  = subtokenizer.GetToken();
+
+      if (!uid.length()) 
+	goto com_vid_usage;
+
+      vidkey += uid;
+
+      XrdOucString type = subtokenizer.GetToken();
+
+      if (!type.length())
+	goto com_vid_usage;
+
+      in += "&mgm.vid.cmd=membership";
+      in += "&mgm.vid.source.uid="; in += uid;
+
+      XrdOucString list = "";
+      if ( (type == "-uids") ) {
+	vidkey += ":uids";
+	list = subtokenizer.GetToken();
+	in += "&mgm.vid.key="; in += vidkey;
+	in += "&mgm.vid.target.uid="; in += list;
+      }
+
+      if ( (type == "-gids") ) {
+	vidkey += ":gids";
+	list = subtokenizer.GetToken();
+	in += "&mgm.vid.key="; in += vidkey;
+	in += "&mgm.vid.target.gid="; in += list;
+      }
+      
+      if ( (type == "-sudo") ) {
+	vidkey += ":root";
+	list = " "; // fake
+	in += "&mgm.vid.key="; in += vidkey;
+	in += "&mgm.vid.target.sudo=true";
+      }
+      if (!list.length()) {
+	goto com_vid_usage;
+      }
+      global_retc = output_result(client_admin_command(in));
+      return (0);
+    }
+   }
+
+  if ( subcommand == "rm" ) {
+    XrdOucString in ="mgm.cmd=quota&mgm.subcmd=rm";
+    XrdOucString key   = subtokenizer.GetToken();
+    if ( (!key.length()) ) 
+      goto com_vid_usage;
+    in += "&mgm.vid.key="; in += key;
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+  
+ com_vid_usage:
+  printf("usage: vid ls                                                                                       : list configured policies\n");
+  printf("usage: vid set membership <uid> -uids [<uid1>,<uid2>,...]\n");
+  printf("       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
+  printf("       vid set membership <uid> -sudo \n");
+  printf("usage: vid rm <key>                                                                                 : remove configured vid with name key\n");
+
+  return (0);
+}
+
 /* Configuration System listing, configuration, manipulation */
 int
 com_config (char* arg1) {
@@ -1060,6 +1167,11 @@ com_debug (char* arg1) {
   XrdOucString nodequeue = subtokenizer.GetToken();
   XrdOucString filterlist="";
 
+  if (level == "this") {
+    printf("info: toggling shell debugmode to debug=%d\n",debug);
+    debug = !debug;
+    return (0);
+  }
   if ( level.length() ) {
     XrdOucString in = "mgm.cmd=debug&mgm.debuglevel="; in += level; 
 
@@ -1090,7 +1202,7 @@ com_debug (char* arg1) {
   printf("                         > debug info /eos/*/fst\n");
   printf("                         > debug info /eos/*/mgm\n");
   printf("                         > debug debug -filter MgmOfsMessage\n");
-	 
+  printf("       debug  this                                        : toggle the debug flag for the shell itself\n");
   return (0);
 }
 
