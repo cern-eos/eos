@@ -1,7 +1,10 @@
 /*----------------------------------------------------------------------------*/
+#include "XrdCommon/XrdCommonMapping.hh"
 #include "XrdMgmOfs/XrdMgmConfigEngine.hh"
 #include "XrdMgmOfs/XrdMgmFstNode.hh"
 #include "XrdMgmOfs/XrdMgmQuota.hh"
+#include "XrdMgmOfs/XrdMgmVid.hh"
+
 /*----------------------------------------------------------------------------*/
 #include <iostream>
 #include <fstream>
@@ -363,6 +366,16 @@ XrdMgmConfigEngine::ResetConfig()
   XrdMgmQuota::gQuota.Purge();
   XrdMgmQuota::gQuotaMutex.UnLock();
 
+  XrdCommonMapping::gMapMutex.Lock();
+  XrdCommonMapping::gUserRoleVector.clear();
+  XrdCommonMapping::gGroupRoleVector.clear();
+  XrdCommonMapping::gVirtualUidMap.clear();
+  XrdCommonMapping::gVirtualGidMap.clear();
+  XrdCommonMapping::gMapMutex.UnLock();
+
+  Mutex.Lock();
+  configDefinitions.Purge();
+  Mutex.UnLock();
   XrdMgmFstNode::gMutex.UnLock();
 }
 
@@ -380,7 +393,15 @@ XrdMgmConfigEngine::ApplyConfig(XrdOucString &err)
   XrdMgmQuota::gQuota.Purge();
   XrdMgmQuota::gQuotaMutex.UnLock();
 
+  XrdCommonMapping::gMapMutex.Lock();
+  XrdCommonMapping::gUserRoleVector.clear();
+  XrdCommonMapping::gGroupRoleVector.clear();
+  XrdCommonMapping::gVirtualUidMap.clear();
+  XrdCommonMapping::gVirtualGidMap.clear();
+  XrdCommonMapping::gMapMutex.UnLock();
+
   Mutex.Lock();
+  configDefinitions.Purge();
   configDefinitions.Apply(ApplyEachConfig, &err);
   Mutex.UnLock();
 
@@ -516,6 +537,15 @@ XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Ar
   if (skey.beginswith("policy:")) {
     // set a policy
     skey.erase(0,7);
+  }
+
+  if (skey.beginswith("vid:")) {
+    // set a policy
+    skey.erase(0,4);
+    if (!XrdMgmVid::Set(def->c_str())) {
+      eos_static_err("cannot apply config line key: |%s|",skey.c_str());
+      *err += "error: cannot apply config line key: "; *err += skey.c_str();
+    }
   }
   
   if (skey.beginswith("comment:")) {

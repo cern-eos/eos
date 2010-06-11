@@ -30,6 +30,8 @@ XrdOucString historyfile="";
 XrdOucString pwd="/";
 XrdOucString rstdout;
 XrdOucString rstderr;
+XrdOucString user_role="";
+XrdOucString group_role="";
 
 int global_retc=0;
 bool silent=false;
@@ -52,21 +54,23 @@ int com_quit PARAMS((char *));
 int com_debug PARAMS((char*));
 int com_cd PARAMS((char*));
 int com_clear PARAMS((char*));
-int com_quota PARAMS((char*));
 int com_config PARAMS((char*));
 int com_fileinfo PARAMS((char*));
+int com_find PARAMS((char*));
 int com_fs   PARAMS((char*));
 int com_ls PARAMS((char*));
 int com_mkdir PARAMS((char*));
+int com_role PARAMS((char*));
 int com_rmdir PARAMS((char*));
 int com_rm PARAMS((char*));
-int com_find PARAMS((char*));
 int com_vid PARAMS((char*));
 int com_pwd PARAMS((char*));
+int com_quota PARAMS((char*));
 int com_restart PARAMS((char*));
 int com_test PARAMS((char*));
 int com_silent PARAMS((char*));
 int com_timing PARAMS((char*));
+int com_whoami PARAMS((char*));
 
 const char* abspath(const char* in) {
   static XrdOucString inpath;
@@ -105,9 +109,11 @@ COMMAND commands[] = {
   { (char*)"restart",com_restart,(char*)"Restart System"},
   { (char*)"rmdir", com_rmdir, (char*)"Remove a directory" },
   { (char*)"rm", com_rm, (char*)"Remove a file" },
+  { (char*)"role", com_role, (char*) "Set the client role" },
   { (char*)"silent", com_silent, (char*)"Toggle silent flag for stdout" },
   { (char*)"test", com_test, (char*)"Run performance test" },
   { (char*)"timing", com_timing, (char*)"Toggle timing flag for execution time measurement" },
+  { (char*)"whoami", com_whoami, (char*)"Determine how we are mapped on server side" },
   { (char*)"?",     com_help, (char*)"Synonym for `help'" },
   { (char*)".q",    com_quit, (char*)"Exit from EOS console" },
   { (char *)0, (rl_icpfunc_t *)0, (char *)0 }
@@ -459,6 +465,11 @@ output_result(XrdOucEnv* result) {
 
 XrdOucEnv* 
 client_admin_command(XrdOucString &in) {
+  if (user_role.length())
+    in += "&eos.ruid="; in += user_role;
+  if (group_role.length())
+    in += "&eos.guid="; in += group_role;
+
   XrdMqTiming mytiming("eos");
   TIMING("start", &mytiming);
   XrdOucString out="";
@@ -493,6 +504,11 @@ client_admin_command(XrdOucString &in) {
 
 XrdOucEnv* 
 client_user_command(XrdOucString &in) {
+  if (user_role.length())
+    in += "&eos.ruid="; in += user_role;
+  if (group_role.length())
+    in += "&eos.guid="; in += group_role;
+
   XrdMqTiming mytiming("eos");
   TIMING("start", &mytiming);
   XrdOucString out="";
@@ -522,6 +538,36 @@ client_user_command(XrdOucString &in) {
   return 0;
 }
 
+
+/* Set the client user and group role */
+int
+com_role (char *arg) {
+  XrdOucTokenizer subtokenizer(arg);
+  subtokenizer.GetLine();
+  XrdOucString user_role = subtokenizer.GetToken();
+  XrdOucString group_role = subtokenizer.GetToken();
+  printf("=> selected user role ruid=<%s> and group role guid=<%s>\n", user_role.c_str(), group_role.c_str());
+
+  if (user_role.beginswith("-"))
+    goto com_role_usage;
+
+  return (0);
+ com_role_usage:
+  printf("usage: role <user-role> [<group-role>]                       : select user role <user-role> [and group role <group-role>]\n");
+  
+  printf("            <user-role> can be a virtual user ID (unsigned int) or a user mapping alias\n");
+  printf("            <group-role> can be a virtual group ID (unsigned int) or a group mapping alias\n");
+  return (0);
+}
+
+
+/* Determine the mapping on server side */
+int
+com_whoami (char *arg) {
+  XrdOucString in = "mgm.cmd=whoami"; 
+  global_retc = output_result(client_user_command(in));
+  return (0);
+}
 
 
 /* Print out help for ARG, or for all of the commands if ARG is
@@ -975,7 +1021,97 @@ com_vid (char* arg1) {
       global_retc = output_result(client_admin_command(in));
       return (0);
     }
-   }
+    
+    if (key == "map") {
+      in += "&mgm.vid.cmd=map";
+      XrdOucString type = subtokenizer.GetToken();
+
+      if (!type.length())
+	goto com_vid_usage;
+
+      bool hastype=false;
+      if ( (type == "-krb5") )  {     
+	in += "&mgm.vid.auth=krb5";
+	hastype=true;
+      }
+      if ( (type == "-ssl") ) {
+	in += "&mgm.vid.auth=ssl";
+	hastype=true;
+      }
+      if ( (type == "-sss") ) {
+	in += "&mgm.vid.auth=sss";
+	hastype=true;
+      }
+      if ( (type == "-unix") ) {
+	in += "&mgm.vid.auth=unix";
+	hastype=true;
+      }
+      if ( (type == "-tident") ) {
+	in += "&mgm.vid.auth=tident";
+	hastype=true;
+      }
+
+      if (!hastype) 
+	goto com_vid_usage;
+      
+
+      XrdOucString pattern = subtokenizer.GetToken();
+      // deal with patterns containing spaces but inside ""
+      if (pattern.beginswith("\"")) {
+	if (!pattern.endswith("\""))
+	  do {
+	    XrdOucString morepattern = subtokenizer.GetToken();
+
+	    if (morepattern.endswith("\"")) {
+	      pattern += " ";
+	      pattern += morepattern;
+	      break;
+	    }
+	    if (!morepattern.length()) {
+	      goto com_vid_usage;
+	    }
+	    pattern += " ";
+	    pattern += morepattern;
+	  } while (1);
+      }
+      if (!pattern.length()) 
+	goto com_vid_usage;
+
+      in += "&mgm.vid.pattern="; in += pattern;
+
+      XrdOucString vid= subtokenizer.GetToken();
+      if (!vid.length())
+	goto com_vid_usage;
+
+      if (vid.beginswith("vuid:")) {
+	vid.replace("vuid:","");
+	in += "&mgm.vid.uid=";in += vid;	
+	
+	XrdOucString vid = subtokenizer.GetToken();
+	if (vid.length()) {
+	  fprintf(stderr,"Got %s\n", vid.c_str());
+	  if (vid.beginswith("vgid:")) {
+	    vid.replace("vgid:","");
+	    in += "&mgm.vid.gid=";in += vid;
+	  } else {
+	    goto com_vid_usage;
+	  }
+	}
+      } else {
+	if (vid.beginswith("vgid:")) {
+	  vid.replace("vgid:","");
+	  in += "&mgm.vid.gid=";in += vid;
+	} else {
+	  goto com_vid_usage;
+	}
+      }
+
+      in += "&mgm.vid.key="; in += "<key>";
+
+      global_retc = output_result(client_admin_command(in));
+      return (0);
+    }
+  }
 
   if ( subcommand == "rm" ) {
     XrdOucString in ="mgm.cmd=quota&mgm.subcmd=rm";
@@ -989,10 +1125,16 @@ com_vid (char* arg1) {
   }
   
  com_vid_usage:
-  printf("usage: vid ls                                                                                       : list configured policies\n");
+  printf("usage: vid ls [-u] [-g] [s] [-U] [-G]                                                               : list configured policies\n");
+  printf("                                        -u : show only user role mappings\n");
+  printf("                                        -g : show only group role mappings\n");
+  printf("                                        -s : show list of sudoers\n");
+  printf("                                        -U : show user alias mapping\n");
+  printf("                                        -G : show groupalias mapping\n");
   printf("usage: vid set membership <uid> -uids [<uid1>,<uid2>,...]\n");
   printf("       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
   printf("       vid set membership <uid> -sudo \n");
+  printf("       vid set map -krb5|-ssl|-sss|-unix|-tident <pattern> [vuid:<uid>] [vgid:<gid>] \n");
   printf("usage: vid rm <key>                                                                                 : remove configured vid with name key\n");
 
   return (0);

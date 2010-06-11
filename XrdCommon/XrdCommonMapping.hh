@@ -34,21 +34,31 @@ public:
   typedef google::sparse_hash_map<std::string, gid_t> VirtualGroupMap;
   typedef google::sparse_hash_map<uid_t, bool > SudoerMap;
 
+  class id_pair {
+  public:
+    uid_t uid;
+    gid_t gid;
+    id_pair(uid_t iuid, gid_t igid) { uid = iuid; gid = igid; }
+    ~id_pair(){};
+  };
+
   struct VirtualIdentity_t {
     uid_t uid;
     gid_t gid;
     uid_vector uid_list;
     gid_vector gid_list;
+    bool sudoer;
   };
 
   typedef struct VirtualIdentity_t VirtualIdentity;
 
   static void Nobody(VirtualIdentity &vid) {
-    vid.uid=vid.gid=99; vid.uid_list.clear(); vid.gid_list.clear(); vid.uid_list.push_back(99);vid.gid_list.push_back(99);
+    vid.uid=vid.gid=99; vid.uid_list.clear(); vid.gid_list.clear(); vid.uid_list.push_back(99);vid.gid_list.push_back(99); vid.sudoer =false;
   }
 
   static void Copy(VirtualIdentity &vidin, VirtualIdentity &vidout) {
     vidout.uid = vidin.uid; vidout.gid = vidin.gid;
+    vidout.sudoer = vidin.sudoer;
     for (unsigned int i=0; i< vidin.uid_list.size(); i++) vidout.uid_list.push_back(vidin.uid_list[i]);
     for (unsigned int i=0; i< vidin.gid_list.size(); i++) vidout.gid_list.push_back(vidin.uid_list[i]);
   }
@@ -98,6 +108,30 @@ public:
   }
 
   static  void Print(XrdOucString &stdOut, XrdOucString option="");
+
+  static void getPhysicalIds(const char* name, VirtualIdentity &vid);
+
+  static bool HasUid(uid_t uid, uid_vector vector) {
+    uid_vector::const_iterator it;
+    for (it = vector.begin(); it != vector.end(); ++it) {
+      if ((*it) == uid)
+	return true;
+    }
+    return false;
+  }
+
+  static bool HasGid(gid_t gid, gid_vector vector) {
+    uid_vector::const_iterator it;
+    for (it = vector.begin(); it != vector.end(); ++it) {
+      if ((*it) == gid)
+	return true;
+    }
+    return false;
+  }
+
+
+  static XrdOucHash<id_pair> gPhysicalUidCache;
+  static XrdOucHash<gid_vector> gPhysicalGidCache;
 };
 
 #endif

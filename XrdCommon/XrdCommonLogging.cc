@@ -17,10 +17,11 @@ XrdCommonLogging::log(const char* func, const char* file, int line, const char* 
   if (!(priority & gLogMask)) 
     return;
 
-  // apply filter to avoid message flooding
-  if ( (gFilter.find(func))!=STR_NPOS) {
-    return;
-  }
+  // apply filter to avoid message flooding for debug messages
+  if (priority <= LOG_MASK(LOG_INFO))
+    if ( (gFilter.find(func))!=STR_NPOS) {
+      return;
+    }
 
   static char buffer[16384];
   XrdOucString File = file;

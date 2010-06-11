@@ -16,14 +16,15 @@ XrdMgmVid::Set(const char* value)
   
   XrdOucString vidcmd = env.Get("mgm.vid.cmd");
 
-  if (!skey.length())
+  if (!skey.length()) {
     return false;
+  }
 
   bool set=false;
 
   if (!value) 
     return false;
-
+  
   if (vidcmd == "membership") {
     uid_t uid=99;
     
@@ -54,12 +55,82 @@ XrdMgmVid::Set(const char* value)
       set = true;
     }
   }
+
+  if (vidcmd == "map") {
+    XrdOucString auth = env.Get("mgm.vid.auth");
+    if ( (auth != "ssl") && (auth != "krb5") && (auth != "sss") && (auth!="unix") && (auth!="tident")) {
+      eos_static_err("invalid auth mode");
+      return false;
+    }
+   
+    XrdOucString pattern = env.Get("mgm.vid.pattern");
+    if (!pattern.length()) {
+      eos_static_err("missing pattern");
+      return false;
+    }
+
+    if (! pattern.beginswith("\"")) {
+      pattern.insert("\"",0);
+    }
+
+    if (! pattern.endswith("\"")) {
+      pattern+= "\"";
+    }
+
+    skey = auth; 
+    skey += ":"; skey +=pattern;
+
+    if ((!env.Get("mgm.vid.uid")) && (!env.Get("mgm.vid.gid"))) {
+      eos_static_err("missing uid|gid");
+      return false;
+    }
+    
+    XrdOucString newuid = env.Get("mgm.vid.uid");
+    XrdOucString newgid = env.Get("mgm.vid.gid");
+    
+    if (newuid.length()) {
+      uid_t muid = (uid_t)atoi(newuid.c_str());
+      XrdOucString cx = ""; cx += (int)muid;
+      if (cx != newuid) {
+	eos_static_err("strings differ %s %s", cx.c_str(),newuid.c_str());
+	return false;
+      }
+      skey += ":"; skey += "uid";
+      XrdCommonMapping::gVirtualUidMap[skey.c_str()] = muid;
+      set = true;
+      
+      // no '&' are allowed here
+      XrdOucString svalue = value;
+      while(svalue.replace("&"," ")) {};
+      gOFS->ConfigEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
+    }
+
+    skey = auth; 
+    skey += ":"; skey +=pattern;
+
+    if (newgid.length()) {
+      gid_t mgid = (gid_t)atoi(newgid.c_str());
+      XrdOucString cx =""; cx += (int) mgid;
+      if (cx != newgid) {
+	eos_static_err("strings differ %s %s", cx.c_str(),newgid.c_str());
+	return false;
+      }
+      skey += ":"; skey += "gid";
+      XrdCommonMapping::gVirtualGidMap[skey.c_str()] = mgid;
+      set = true;
+
+      // no '&' are allowed here
+      XrdOucString svalue = value;
+      while(svalue.replace("&"," ")) {};
+      gOFS->ConfigEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
+    }
+  }
+
   // put the change into the config engine
   if (set) {
     // no '&' are allowed here
     XrdOucString svalue = value;
     while(svalue.replace("&"," ")) {};
-    eos_static_info("modified mapping: %s => %s", skey.c_str(), svalue.c_str());
     gOFS->ConfigEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
   }
   

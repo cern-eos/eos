@@ -899,6 +899,22 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       MakeResult(dosort);
       return SFS_OK;
     }
+
+    if (cmd == "whoami") {
+      stdOut += "Virtual Identity: uid=";stdOut += (int)vid_in.uid; stdOut+= " (";
+      for (unsigned int i=0; i< vid_in.uid_list.size(); i++) {stdOut += (int)vid_in.uid_list[i]; stdOut += ",";}
+      stdOut.erase(stdOut.length()-1);
+      stdOut += ") gid="; stdOut+= (int)vid_in.gid; stdOut += " (";
+      for (unsigned int i=0; i< vid_in.gid_list.size(); i++) {stdOut += (int)vid_in.gid_list[i]; stdOut += ",";}
+      stdOut.erase(stdOut.length()-1);
+      stdOut += ")";
+      if (vid_in.sudoer) 
+	stdOut += " sudo*";
+
+      MakeResult(0);
+      return SFS_OK;
+    }
+
 	
     if ( cmd == "find" ) {
       XrdOucString path = opaque.Get("mgm.path");
