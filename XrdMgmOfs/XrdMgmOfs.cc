@@ -386,6 +386,14 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     fmd = dmd->findFile(baseName.c_str());
   else
     fmd = 0;
+  //-------------------------------------------
+  // check permissions
+
+  if (!dmd->access(vid.uid, vid.gid, (isRW)?W_OK | X_OK:R_OK | X_OK)) {
+    errno = EPERM;
+    gOFS->eosViewMutex.UnLock();
+    return Emsg(epname, error, errno, "open file", path);      
+  }
 
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
