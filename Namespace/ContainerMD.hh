@@ -7,6 +7,7 @@
 #define EOS_CONTAINER_MD_HH
 
 #include <stdint.h>
+#include <unistd.h>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -346,6 +347,13 @@ namespace eos
       {
         return pXAttrs.end();
       }
+
+      //------------------------------------------------------------------------
+      //! Check the access permissions
+      //!
+      //! @return true if all the requested rights are granted, false otherwise
+      //------------------------------------------------------------------------
+      bool access( uid_t uid, gid_t gid, int flags = 0 );
 
     protected:
 

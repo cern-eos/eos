@@ -5,6 +5,7 @@
 
 #include "Namespace/ContainerMD.hh"
 #include "Namespace/FileMD.hh"
+#include <sys/stat.h>
 
 namespace eos
 {
@@ -100,5 +101,83 @@ namespace eos
   {
     file->setContainerId( pId );
     pFiles[file->getName()] = file;
+  }
+
+  //----------------------------------------------------------------------------
+  // Access checking helpers
+  //----------------------------------------------------------------------------
+  #define CANREAD  0x01
+  #define CANWRITE 0x02
+  #define CANENTER 0x04
+
+  static char convertModetUser( mode_t mode )
+  {
+    char perms = 0;
+    if( mode & S_IRUSR ) perms |= CANREAD;
+    if( mode & S_IWUSR ) perms |= CANWRITE;
+    if( mode & S_IXUSR ) perms |= CANENTER;
+    return perms;
+  }
+
+  static char convertModetGroup( mode_t mode )
+  {
+    char perms = 0;
+    if( mode & S_IRGRP ) perms |= CANREAD;
+    if( mode & S_IWGRP ) perms |= CANWRITE;
+    if( mode & S_IXGRP ) perms |= CANENTER;
+    return perms;
+  }
+
+  static char convertModetOther( mode_t mode )
+  {
+    char perms = 0;
+    if( mode & S_IROTH ) perms |= CANREAD;
+    if( mode & S_IWOTH ) perms |= CANWRITE;
+    if( mode & S_IXOTH ) perms |= CANENTER;
+    return perms;
+  }
+
+  static bool checkPerms( char actual, char requested )
+  {
+    for( int i = 0; i < 3; ++i )
+      if( requested & (1<<i) )
+        if( !(actual & (1<<i)) )
+          return false;
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Check the access permissions
+  //----------------------------------------------------------------------------
+  bool ContainerMD::access( uid_t uid, gid_t gid, int flags )
+  {
+    if( uid == 0 )
+      return true;
+
+    //--------------------------------------------------------------------------
+    // Convert the flags
+    //--------------------------------------------------------------------------
+    char convFlags = 0;
+    if( flags & R_OK ) convFlags |= CANREAD;
+    if( flags & W_OK ) convFlags |= CANWRITE;
+    if( flags & X_OK ) convFlags |= CANENTER;
+
+    //--------------------------------------------------------------------------
+    // Check the perms
+    //--------------------------------------------------------------------------
+    if( uid == pCUid )
+    {
+      char user = convertModetUser( pMode );
+      return checkPerms( user, convFlags );
+    }
+
+    if( gid == pCGid )
+    {
+      char gid = convertModetGroup( pMode );
+      return checkPerms( gid, convFlags );
+    }
+
+    char other = convertModetOther( pMode );
+    return checkPerms( other, convFlags );
   }
 }

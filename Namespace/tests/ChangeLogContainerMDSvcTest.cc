@@ -55,6 +55,17 @@ void ChangeLogContainerMDSvcTest::reloadTest()
     container4->setName( "subContLevel2-1" );
     container5->setName( "subContLevel2-2" );
 
+    container5->setCUid( 17 );
+    container5->setCGid( 17 );
+    container5->setMode( 0750 );
+
+    CPPUNIT_ASSERT( container5->access( 17, 12, X_OK|R_OK|W_OK ) == true);
+    CPPUNIT_ASSERT( container5->access( 17, 12, X_OK|R_OK ) == true );
+    CPPUNIT_ASSERT( container5->access( 12, 17, X_OK|R_OK|W_OK ) == false );
+    CPPUNIT_ASSERT( container5->access( 12, 17, X_OK|W_OK ) == false );
+    CPPUNIT_ASSERT( container5->access( 12, 17, X_OK|R_OK ) == true );
+    CPPUNIT_ASSERT( container5->access( 12, 12, X_OK|R_OK ) == false );
+
     container1->addContainer( container2 );
     container1->addContainer( container3 );
     container3->addContainer( container4 );
