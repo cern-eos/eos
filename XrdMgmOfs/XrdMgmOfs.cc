@@ -143,14 +143,22 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
      errno = e.getErrno();
      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
    }
+   // check permissions
+   bool permok = dh?(!dh->access(vid.uid,vid.gid, R_OK|X_OK)): false;
    gOFS->eosViewMutex.UnLock();
    //-------------------------------------------
 
    // Verify that this object is not already associated with an open directory
    //
-   if (!dh) return
-	      Emsg(epname, error, errno, 
-		   "open directory", dir_path);
+   if (!dh) 
+     return Emsg(epname, error, errno, 
+		 "open directory", dir_path);
+   
+   if (!permok) {
+     errno = EPERM;
+     return Emsg(epname, error, errno, 
+		 "open directory", dir_path);
+   }
    
    // Set up values for this directory object
    //
@@ -450,7 +458,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   } else {
     capability += "&mgm.access=read";
   }
-
+ 
   unsigned long layoutId = (isCreation)?XrdCommonLayoutId::kPlain:fmd->getLayoutId();
   unsigned long forcedFsId = 0; // the client can force to read a file on a defined file system
   unsigned long fsIndex = 0; // this is the filesystem defining the client access point in the selection vector - for writes it is always 0, for reads it comes out of the FileAccess function
@@ -1219,8 +1227,30 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
    static const char *epname = "remdir";
    errno = 0;
 
+   eos::ContainerMD* dh=0;
+   
    //-------------------------------------------
    gOFS->eosViewMutex.Lock();
+   try {
+     dh = gOFS->eosView->getContainer(path);
+   } catch( eos::MDException &e ) {
+     dh = 0;
+     errno = e.getErrno();
+     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+   }
+   // check permissions
+   bool permok = dh?(!dh->access(vid.uid,vid.gid, X_OK|W_OK)): false;
+   gOFS->eosViewMutex.UnLock();
+   
+   if (!permok) {
+     errno = EPERM;
+     return Emsg(epname, error, errno, "rmdir", path);
+   }
+    
+
+   //-------------------------------------------
+   gOFS->eosViewMutex.Lock();
+
    try {
      eosView->removeContainer(path);
    } catch( eos::MDException &e ) {
@@ -1231,7 +1261,7 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
    //-------------------------------------------
 
    if (errno) {
-     return Emsg(epname, error, errno, "remove", path);
+     return Emsg(epname, error, errno, "rmdir", path);
    } else {
      return SFS_OK;
    }
