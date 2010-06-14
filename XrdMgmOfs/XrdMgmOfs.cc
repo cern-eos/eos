@@ -362,17 +362,31 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   }
   
 
-  // get the file meta data if exists
+  // extract the parent name
+  XrdOucString dirName = path;
+  XrdOucString baseName = path;
+  int spos = dirName.rfind("/");
+  dirName.erase(spos);
+  baseName.erase(0,spos);
+
+  // get the directory meta data if exists
+  eos::ContainerMD* dmd=0;
+
 
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   try {
-    fmd = gOFS->eosView->getFile(path);
+    dmd = gOFS->eosView->getContainer(baseName.c_str());
   } catch( eos::MDException &e ) {
-    fmd = 0;
+    dmd = 0;
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   };
+  if (dmd) 
+    fmd = dmd->findFile(baseName.c_str());
+  else
+    fmd = 0;
+
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
   

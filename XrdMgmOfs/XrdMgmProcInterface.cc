@@ -955,6 +955,28 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       return SFS_OK;
     }
 
+    if (cmd == "rtlog") {
+      XrdOucString queue = opaque.Get("mgm.queue");
+      XrdOucString since = opaque.Get("mgm.since");
+      XrdOucString tag   = opaque.Get("mgm.tag");
+      if ( (!queue.length()) || (!since.length()) || (!tag.length()) ) {
+	stdErr = "error: mgm.queue, mgm.since, mgm.tag have to be given as input paramters!";
+	retc = EINVAL;
+      }  else {
+	if ( (XrdCommonLogging::GetPriorityByString(tag.c_str())) == -1) {
+	  stdErr = "error: mgm.tag must be info,debug,err,emerg,alert,crit,warning or notice";
+	  retc = EINVAL;
+	} else {
+
+	}
+      }
+
+      stdOut += "rtlog called";
+      MakeResult(1);
+      return SFS_OK;
+    }
+
+
     stdErr += "errro: no such user command '"; stdErr += cmd; stdErr += "'";
     retc = EINVAL;
   
