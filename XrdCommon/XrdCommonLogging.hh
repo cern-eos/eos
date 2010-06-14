@@ -11,32 +11,35 @@
 #include <sys/syslog.h>
 #include <sys/time.h>
 #include <uuid/uuid.h>
+#include <string>
+#include <vector>
 /*----------------------------------------------------------------------------*/
 
 #define eos_log(__XRDCOMMON_LOG_PRIORITY__ , ...) XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid,this->ruid, this->rgid, this->cident,  LOG_MASK(__XRDCOMMON_LOG_PRIORITY__) , __VA_ARGS__
-#define eos_debug(...)   XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, LOG_MASK(LOG_DEBUG)  , __VA_ARGS__)
-#define eos_info(...)    XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, LOG_MASK(LOG_INFO)   , __VA_ARGS__)
-#define eos_notice(...)  XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, LOG_MASK(LOG_NOTICE) , __VA_ARGS__)
-#define eos_warning(...) XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, LOG_MASK(LOG_CRIT)   , __VA_ARGS__)
-#define eos_err(...)     XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, LOG_MASK(LOG_ERR)    , __VA_ARGS__)
-#define eos_crit(...)    XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, LOG_MASK(LOG_CRIT)   , __VA_ARGS__)
-#define eos_alert(...)   XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, LOG_MASK(LOG_ALERT)  , __VA_ARGS__)
-#define eos_emerg(...)   XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, LOG_MASK(LOG_EMERG)  , __VA_ARGS__)
+#define eos_debug(...)   XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, (LOG_DEBUG)  , __VA_ARGS__)
+#define eos_info(...)    XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, (LOG_INFO)   , __VA_ARGS__)
+#define eos_notice(...)  XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, (LOG_NOTICE) , __VA_ARGS__)
+#define eos_warning(...) XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, (LOG_CRIT)   , __VA_ARGS__)
+#define eos_err(...)     XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, (LOG_ERR)    , __VA_ARGS__)
+#define eos_crit(...)    XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, (LOG_CRIT)   , __VA_ARGS__)
+#define eos_alert(...)   XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, (LOG_ALERT)  , __VA_ARGS__)
+#define eos_emerg(...)   XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid, this->ruid, this->rgid, this->cident, (LOG_EMERG)  , __VA_ARGS__)
 
-#define eos_static_log(__XRDCOMMON_LOG_PRIORITY__ , ...) XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"",  LOG_MASK(__XRDCOMMON_LOG_PRIORITY__) , __VA_ARGS__
-#define eos_static_debug(...)   XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", LOG_MASK(LOG_DEBUG)  , __VA_ARGS__)
-#define eos_static_info(...)    XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", LOG_MASK(LOG_INFO)   , __VA_ARGS__)
-#define eos_static_notice(...)  XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", LOG_MASK(LOG_NOTICE) , __VA_ARGS__)
-#define eos_static_warning(...) XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", LOG_MASK(LOG_CRIT)   , __VA_ARGS__)
-#define eos_static_err(...)     XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", LOG_MASK(LOG_ERR)    , __VA_ARGS__)
-#define eos_static_crit(...)    XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", LOG_MASK(LOG_CRIT)   , __VA_ARGS__)
-#define eos_static_alert(...)   XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", LOG_MASK(LOG_ALERT)  , __VA_ARGS__)
-#define eos_static_emerg(...)   XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", LOG_MASK(LOG_EMERG)  , __VA_ARGS__)
+#define eos_static_log(__XRDCOMMON_LOG_PRIORITY__ , ...) XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"",  (__XRDCOMMON_LOG_PRIORITY__) , __VA_ARGS__
+#define eos_static_debug(...)   XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", (LOG_DEBUG)  , __VA_ARGS__)
+#define eos_static_info(...)    XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", (LOG_INFO)   , __VA_ARGS__)
+#define eos_static_notice(...)  XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", (LOG_NOTICE) , __VA_ARGS__)
+#define eos_static_warning(...) XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", (LOG_CRIT)   , __VA_ARGS__)
+#define eos_static_err(...)     XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", (LOG_ERR)    , __VA_ARGS__)
+#define eos_static_crit(...)    XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", (LOG_CRIT)   , __VA_ARGS__)
+#define eos_static_alert(...)   XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", (LOG_ALERT)  , __VA_ARGS__)
+#define eos_static_emerg(...)   XrdCommonLogging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"", (LOG_EMERG)  , __VA_ARGS__)
 
-
+#define XRDCOMMONLOGGING_CIRCULARINDEXSIZE 10000
 
 class XrdCommonLogId {
 public:
+  
   void SetLogId(const char* newlogid, const char* td= "<service>") {
     sprintf(logId,newlogid);
     sprintf(cident, td);
@@ -76,6 +79,13 @@ public:
 class XrdCommonLogging {
 private:
 public:
+  typedef std::vector< unsigned long > LogCircularIndex;
+  typedef std::vector< std::vector <std::string> > LogArray;
+
+  static LogCircularIndex gLogCircularIndex;
+  static LogArray         gLogMemory;
+  static unsigned long    gCircularIndexSize; 
+
   static int gLogMask;
   static int gPriorityLevel;
   static XrdSysMutex gMutex;
@@ -86,14 +96,14 @@ public:
   static void SetFilter(const char* filter) {gFilter = filter;}
 
   static const char* GetPriorityString(int pri) {
-    if (pri==LOG_MASK(LOG_INFO)) return "INFO ";
-    if (pri==LOG_MASK(LOG_DEBUG)) return "DEBUG";
-    if (pri==LOG_MASK(LOG_ERR)) return "ERROR";
-    if (pri==LOG_MASK(LOG_EMERG)) return "EMERG";
-    if (pri==LOG_MASK(LOG_ALERT)) return "ALERT";
-    if (pri==LOG_MASK(LOG_CRIT))  return "CRIT ";
-    if (pri==LOG_MASK(LOG_WARNING)) return "WARN ";
-    if (pri==LOG_MASK(LOG_NOTICE)) return "NOTE ";
+    if (pri==(LOG_INFO)) return "INFO ";
+    if (pri==(LOG_DEBUG)) return "DEBUG";
+    if (pri==(LOG_ERR)) return "ERROR";
+    if (pri==(LOG_EMERG)) return "EMERG";
+    if (pri==(LOG_ALERT)) return "ALERT";
+    if (pri==(LOG_CRIT))  return "CRIT ";
+    if (pri==(LOG_WARNING)) return "WARN ";
+    if (pri==(LOG_NOTICE)) return "NOTE ";
 
     return "NONE ";
   }
@@ -110,6 +120,9 @@ public:
     return -1;
   }
 
+
+  static void Init();
+  
   static void log(const char* func, const char* file, int line, const char* logid, uid_t uid, gid_t gid, uid_t ruid, gid_t rgid, const char* cident, int priority, const char *msg, ...);
 };
 

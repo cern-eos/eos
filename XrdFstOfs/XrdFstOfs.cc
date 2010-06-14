@@ -205,6 +205,8 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   // Set Loggin parameters
   XrdOucString unit = "fst@"; unit+= HostName; unit+=":"; unit+=myPort;
 
+  // setup the circular in-memory log buffer
+  XrdCommonLogging::Init();
   XrdCommonLogging::SetLogPriority(LOG_DEBUG);
   XrdCommonLogging::SetUnit(unit.c_str());
   FstOfsMessaging->SetLogId("FstOfsMessaging");

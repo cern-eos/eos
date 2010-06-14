@@ -8,8 +8,11 @@ XrdCommonMapping::GroupRoleMap    XrdCommonMapping::gGroupRoleVector;
 XrdCommonMapping::VirtualUserMap  XrdCommonMapping::gVirtualUidMap;
 XrdCommonMapping::VirtualGroupMap XrdCommonMapping::gVirtualGidMap;
 XrdCommonMapping::SudoerMap       XrdCommonMapping::gSudoerMap;
+
+
 XrdOucHash<XrdCommonMapping::id_pair>    XrdCommonMapping::gPhysicalUidCache;
 XrdOucHash<XrdCommonMapping::gid_vector> XrdCommonMapping::gPhysicalGidCache;
+
 /*----------------------------------------------------------------------------*/
 
 

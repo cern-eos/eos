@@ -67,6 +67,7 @@ int com_vid PARAMS((char*));
 int com_pwd PARAMS((char*));
 int com_quota PARAMS((char*));
 int com_restart PARAMS((char*));
+int com_rtlog PARAMS((char*));
 int com_test PARAMS((char*));
 int com_silent PARAMS((char*));
 int com_timing PARAMS((char*));
@@ -110,6 +111,7 @@ COMMAND commands[] = {
   { (char*)"rmdir", com_rmdir, (char*)"Remove a directory" },
   { (char*)"rm", com_rm, (char*)"Remove a file" },
   { (char*)"role", com_role, (char*) "Set the client role" },
+  { (char*)"rtlog", com_rtlog, (char*)"Get realtime log output from mgm & fst servers" },
   { (char*)"silent", com_silent, (char*)"Toggle silent flag for stdout" },
   { (char*)"test", com_test, (char*)"Run performance test" },
   { (char*)"timing", com_timing, (char*)"Toggle timing flag for execution time measurement" },
@@ -1455,6 +1457,35 @@ com_rmdir (char* arg1) {
   printf("usage: rmdir <path>                                                   :  remote directory <path>\n");
   return (0);
 
+}
+
+/* Retrieve realtime log output */
+
+int 
+com_rtlog (char* arg1) {
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString queue = subtokenizer.GetToken();
+  XrdOucString since = subtokenizer.GetToken();
+  XrdOucString tag   = subtokenizer.GetToken();
+  XrdOucString in = "mgm.cmd=rtlog&mgm.queue=";
+  if (queue.length()) {
+    in += queue;
+    if (!since.length())
+      in += "&mgm.rtlog.since=3600";
+    else 
+      in += "&mgm.rtlog.since="; in += since;
+    if (!tag.length()) 
+      in += "&mgm.rtlog.tag=err";
+    else 
+      in += "&mgm.rtlog.tag="; in += tag;
+    
+    global_retc = output_result(client_user_command(in));
+    return (0);
+  }
+  
+  printf("usage: rtlog <queue>|* [<sec in the past>=3600] [<debug>=err]\n");
+  return (0);
 }
 
 /* List a directory */

@@ -296,6 +296,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   MgmOfsQueue = "/eos/"; MgmOfsQueue += ManagerId; MgmOfsQueue += "/mgm";
 
+  // setup the circular in-memory logging buffer
+  XrdCommonLogging::Init();
+
   XrdCommonLogging::SetUnit(MgmOfsBrokerUrl.c_str());
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(),"");

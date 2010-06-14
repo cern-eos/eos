@@ -7,18 +7,22 @@
 int XrdCommonLogging::gLogMask=0;
 int XrdCommonLogging::gPriorityLevel=0;
 
+XrdCommonLogging::LogArray         XrdCommonLogging::gLogMemory;
+XrdCommonLogging::LogCircularIndex XrdCommonLogging::gLogCircularIndex;
+unsigned long                      XrdCommonLogging::gCircularIndexSize;
 XrdSysMutex XrdCommonLogging::gMutex;
 XrdOucString XrdCommonLogging::gUnit="none";
 XrdOucString XrdCommonLogging::gFilter="";
 
+/*----------------------------------------------------------------------------*/
 void
 XrdCommonLogging::log(const char* func, const char* file, int line, const char* logid, uid_t uid, gid_t gid,uid_t ruid, gid_t rgid, const char* cident, int priority, const char *msg, ...) 
 {
-  if (!(priority & gLogMask)) 
+  if (!((LOG_MASK(priority) & gLogMask)))
     return;
 
   // apply filter to avoid message flooding for debug messages
-  if (priority <= LOG_MASK(LOG_INFO))
+  if (priority <= LOG_INFO)
     if ( (gFilter.find(func))!=STR_NPOS) {
       return;
     }
@@ -63,5 +67,21 @@ XrdCommonLogging::log(const char* func, const char* file, int line, const char* 
   fprintf(stderr,"\n\n");
   fflush(stderr);
   va_end(args);
+
+  gLogMemory[priority][gLogCircularIndex[priority]%gCircularIndexSize] = buffer;
   gMutex.UnLock();
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdCommonLogging::Init() 
+{
+  // initialize the log array and sets the log circular size
+  gLogCircularIndex.resize(LOG_DEBUG+1);
+  gLogMemory.resize(LOG_DEBUG+1);
+  gCircularIndexSize=XRDCOMMONLOGGING_CIRCULARINDEXSIZE;
+  for (int i = 0; i<= LOG_DEBUG; i++ ) {
+    gLogCircularIndex[i] = 0;
+    gLogMemory[i].resize(gCircularIndexSize);
+  }
 }
