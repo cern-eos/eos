@@ -15,9 +15,9 @@ sec.protocol  unix
 # SSL authentication
 #sec.protocol ssl -d:10 -export:/tmp/proxy/  -cert:/etc/grid-security/hostcert.pem -key:/etc/grid-security/hostkey.pem -mapcernuser:1 -mapnobody:1 -mapguser:1 -mapgroup:1
 # KRB  authentication
-#sec.protocol krb5 host/<host>@CERN.CH
+sec.protocol krb5 host/<host>@CERN.CH
 ###########################################################
-sec.protbind * only unix
+sec.protbind * only krb5 unix
 ###########################################################
 mgmofs.fs /
 mgmofs.targetport 1095

@@ -468,7 +468,7 @@ client_admin_command(XrdOucString &in) {
   if (user_role.length())
     in += "&eos.ruid="; in += user_role;
   if (group_role.length())
-    in += "&eos.guid="; in += group_role;
+    in += "&eos.rgid="; in += group_role;
 
   XrdMqTiming mytiming("eos");
   TIMING("start", &mytiming);
@@ -507,7 +507,7 @@ client_user_command(XrdOucString &in) {
   if (user_role.length())
     in += "&eos.ruid="; in += user_role;
   if (group_role.length())
-    in += "&eos.guid="; in += group_role;
+    in += "&eos.rgid="; in += group_role;
 
   XrdMqTiming mytiming("eos");
   TIMING("start", &mytiming);
@@ -544,9 +544,9 @@ int
 com_role (char *arg) {
   XrdOucTokenizer subtokenizer(arg);
   subtokenizer.GetLine();
-  XrdOucString user_role = subtokenizer.GetToken();
-  XrdOucString group_role = subtokenizer.GetToken();
-  printf("=> selected user role ruid=<%s> and group role guid=<%s>\n", user_role.c_str(), group_role.c_str());
+  user_role = subtokenizer.GetToken();
+  group_role = subtokenizer.GetToken();
+  printf("=> selected user role ruid=<%s> and group role rgid=<%s>\n", user_role.c_str(), group_role.c_str());
 
   if (user_role.beginswith("-"))
     goto com_role_usage;

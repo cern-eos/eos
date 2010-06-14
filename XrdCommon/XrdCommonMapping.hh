@@ -129,6 +129,26 @@ public:
     return false;
   }
 
+  static bool IsUid(XrdOucString idstring,uid_t &id) {
+    id = strtoul(idstring.c_str(),0,10);
+    char revid[1024];
+    sprintf(revid,"%lu",(unsigned long)id);
+    XrdOucString srevid=revid;
+    if (idstring == srevid)
+      return true;
+    return false;
+  }
+
+
+  static bool IsGid(XrdOucString idstring,gid_t &id) {
+    id = strtoul(idstring.c_str(),0,10);
+    char revid[1024];
+    sprintf(revid,"%lu",(unsigned long)id);
+    XrdOucString srevid=revid;
+    if (idstring == srevid)
+      return true;
+    return false;
+  }
 
   static XrdOucHash<id_pair> gPhysicalUidCache;
   static XrdOucHash<gid_vector> gPhysicalGidCache;
