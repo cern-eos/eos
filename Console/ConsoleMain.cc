@@ -441,6 +441,8 @@ output_result(XrdOucEnv* result) {
   rstdout = result->Get("mgm.proc.stdout");
   rstderr = result->Get("mgm.proc.stderr");
 
+  XrdMqMessage::UnSeal(rstdout);
+  XrdMqMessage::UnSeal(rstderr);
 
   // color replacements
   rstdout.replace("online","\033[1monline\033[0m");
@@ -494,7 +496,6 @@ client_admin_command(XrdOucString &in) {
       offset += nbytes;
     }
     client.Close();
-    XrdMqMessage::UnSeal(out);
     TIMING("stop", &mytiming);
     if (timing) 
       mytiming.Print();
@@ -1466,21 +1467,26 @@ com_rtlog (char* arg1) {
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString queue = subtokenizer.GetToken();
-  XrdOucString since = subtokenizer.GetToken();
+  XrdOucString lines = subtokenizer.GetToken();
   XrdOucString tag   = subtokenizer.GetToken();
-  XrdOucString in = "mgm.cmd=rtlog&mgm.queue=";
+  XrdOucString filter= subtokenizer.GetToken();
+
+  XrdOucString in = "mgm.cmd=rtlog&mgm.rtlog.queue=";
   if (queue.length()) {
     in += queue;
-    if (!since.length())
-      in += "&mgm.rtlog.since=3600";
+    if (!lines.length())
+      in += "&mgm.rtlog.lines=10";
     else 
-      in += "&mgm.rtlog.since="; in += since;
+      in += "&mgm.rtlog.lines="; in += lines;
     if (!tag.length()) 
       in += "&mgm.rtlog.tag=err";
     else 
       in += "&mgm.rtlog.tag="; in += tag;
-    
-    global_retc = output_result(client_user_command(in));
+
+    if (filter.length()) 
+      in += "&mgm.rtlog.filter="; in += filter;
+
+    global_retc = output_result(client_admin_command(in));
     return (0);
   }
   

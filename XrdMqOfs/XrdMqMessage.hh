@@ -79,7 +79,6 @@ protected:
 
   XrdOucString kMessageBuffer;
   XrdOucString kMessageBody;
-
   int errc;
   XrdOucString errmsg;
 

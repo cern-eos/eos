@@ -612,6 +612,38 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       }
     }
 
+    if (cmd == "rtlog") {
+      XrdOucString queue = opaque.Get("mgm.rtlog.queue");
+      XrdOucString lines = opaque.Get("mgm.rtlog.lines");
+      XrdOucString tag   = opaque.Get("mgm.rtlog.tag");
+      XrdOucString filter = opaque.Get("mgm.rtlog.filter");
+      if (!filter.length()) filter = " ";
+      if ( (!queue.length()) || (!lines.length()) || (!tag.length()) ) {
+	stdErr = "error: mgm.rtlog.queue, mgm.rtlog.lines, mgm.rtlog.tag have to be given as input paramters!";
+	retc = EINVAL;
+      }  else {
+	if ( (XrdCommonLogging::GetPriorityByString(tag.c_str())) == -1) {
+	  stdErr = "error: mgm.rtlog.tag must be info,debug,err,emerg,alert,crit,warning or notice";
+	  retc = EINVAL;
+	} else {
+	  int logtagindex = XrdCommonLogging::GetPriorityByString(tag.c_str());
+	  for (int j = 0; j<= logtagindex; j++) {
+	    XrdCommonLogging::gMutex.Lock();
+	    for (int i=1; i<= atoi(lines.c_str()); i++) {
+	      XrdOucString logline = XrdCommonLogging::gLogMemory[j][(XrdCommonLogging::gLogCircularIndex[j]-i+XrdCommonLogging::gCircularIndexSize)%XrdCommonLogging::gCircularIndexSize].c_str();
+	      if (logline.length() && ( (logline.find(filter.c_str())) != STR_NPOS)) {
+		stdOut += logline;
+		stdOut += "\n";
+	      }
+	      if (!logline.length())
+		break;
+	    }
+	    XrdCommonLogging::gMutex.UnLock();
+	  }
+	}
+      }
+    }
+
     MakeResult(dosort);
     return SFS_OK;
   }
@@ -955,28 +987,6 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       return SFS_OK;
     }
 
-    if (cmd == "rtlog") {
-      XrdOucString queue = opaque.Get("mgm.queue");
-      XrdOucString since = opaque.Get("mgm.since");
-      XrdOucString tag   = opaque.Get("mgm.tag");
-      if ( (!queue.length()) || (!since.length()) || (!tag.length()) ) {
-	stdErr = "error: mgm.queue, mgm.since, mgm.tag have to be given as input paramters!";
-	retc = EINVAL;
-      }  else {
-	if ( (XrdCommonLogging::GetPriorityByString(tag.c_str())) == -1) {
-	  stdErr = "error: mgm.tag must be info,debug,err,emerg,alert,crit,warning or notice";
-	  retc = EINVAL;
-	} else {
-
-	}
-      }
-
-      stdOut += "rtlog called";
-      MakeResult(1);
-      return SFS_OK;
-    }
-
-
     stdErr += "errro: no such user command '"; stdErr += cmd; stdErr += "'";
     retc = EINVAL;
   
@@ -1029,6 +1039,7 @@ XrdMgmProcCommand::MakeResult(bool dosort)
   resultStream += "&mgm.proc.retc=";
   resultStream += retc;
 
+  fprintf(stderr,"%s\n",resultStream.c_str());
   if (retc) {
     eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);
   }

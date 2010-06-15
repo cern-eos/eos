@@ -58,7 +58,7 @@ XrdCommonLogging::log(const char* func, const char* file, int line, const char* 
   sprintf(fcident,"%s %d/%d [%d/%d]",cident,uid,gid,ruid,rgid);
 
   tm = localtime (&current_time);
-  sprintf (buffer, "%s| %-36s %-24s %lu.%06lu %012lu %16s:%-4s %02d%02d%02d %02d:%02d:%02d \n.....| %-50s %-10s | ", GetPriorityString(priority),logid, gUnit.c_str(), current_time, (unsigned long)tv.tv_usec, (unsigned long)XrdSysThread::ID(), File.c_str(), linen, tm->tm_year-100, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, fcident, func);
+  sprintf (buffer, "%lu.%06lu %s| %-36s %-24s %014lu %16s:%-4s %02d%02d%02d %02d:%02d:%02d \t.....| %-50s %-10s | ", current_time, (unsigned long)tv.tv_usec, GetPriorityString(priority),logid, gUnit.c_str(), (unsigned long)XrdSysThread::ID(), File.c_str(), linen, tm->tm_year-100, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, fcident, func);
 
   char*  ptr = buffer + strlen(buffer);
   vsprintf(ptr, msg, args);
@@ -67,8 +67,7 @@ XrdCommonLogging::log(const char* func, const char* file, int line, const char* 
   fprintf(stderr,"\n\n");
   fflush(stderr);
   va_end(args);
-
-  gLogMemory[priority][gLogCircularIndex[priority]%gCircularIndexSize] = buffer;
+  gLogMemory[priority][(gLogCircularIndex[priority]++)%gCircularIndexSize] = buffer;
   gMutex.UnLock();
 }
 
