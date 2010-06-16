@@ -9,6 +9,7 @@
 #include "XrdMgmOfs/XrdMgmQuota.hh"
 #include "XrdMgmOfs/XrdMgmFstFileSystem.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 
 
@@ -44,7 +45,8 @@ XrdMgmProcInterface::Authorize(const char* path, const char* info, XrdCommonMapp
 
   // administrator access
   if (inpath.beginswith("/proc/admin/")) {
-    return true;
+    // one has to be part of the virtual users 3/adm
+    return ( (XrdCommonMapping::HasUid(3, vid.uid_list)) || (XrdCommonMapping::HasGid(4, vid.gid_list)) );
   }
 
   // user access
@@ -756,11 +758,16 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
     
     if ( cmd == "mkdir" ) {
       XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString option = opaque.Get("mgm.option");
+      
       if (!path.length()) {
 	stdErr="error: you have to give a path name to call 'mkdir'";
 	retc = EINVAL;
       } else {
-	XrdSfsMode mode=0;
+	XrdSfsMode mode = 0;
+	if (option == "p") {
+	  mode |= SFS_O_MKPTH;
+	}
 	if (gOFS->_mkdir(path.c_str(), mode, *error, *pVid,(const char*)0)) {
 	  stdErr += "error: unable to create directory";
 	  retc = errno;

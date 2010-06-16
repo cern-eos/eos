@@ -25,11 +25,13 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
 
   // you first are 'nobody'
   Nobody(vid);
-  
   XrdOucEnv Env(env);
 
   if (!client) 
     return;
+
+  vid.name = client->name;
+  vid.tident = tident;
 
   // first map by alias
   XrdOucString useralias = client->prot;
@@ -63,6 +65,36 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
     vid.uid_list.clear();
     vid.uid_list.push_back(uid);
     vid.uid_list.push_back(99);
+  }
+
+  // tident mapping
+  XrdOucString mytident="";
+  XrdOucString stident = "tident:"; stident += "\""; stident += ReduceTident(vid.tident, mytident); 
+  XrdOucString suidtident = stident; suidtident += "\":uid";
+  XrdOucString sgidtident = stident; sgidtident += "\":gid";
+
+  if ((gVirtualUidMap.count(suidtident.c_str()))) {
+    //    eos_static_debug("tident mapping");
+    vid.uid = gVirtualUidMap[suidtident.c_str()];
+    if (!HasUid(vid.uid,vid.uid_list)) vid.uid_list.push_back(vid.uid);
+    if (!HasUid(99, vid.uid_list)) vid.uid_list.push_back(99);
+  }
+
+  if ((gVirtualGidMap.count(sgidtident.c_str()))) {
+    //    eos_static_debug("tident mapping");
+    vid.gid = gVirtualGidMap[sgidtident.c_str()];
+    if (!HasGid(vid.gid,vid.gid_list)) vid.gid_list.push_back(vid.gid);
+    if (!HasGid(99, vid.gid_list)) vid.gid_list.push_back(99);
+  }
+
+  // the configuration door for localhost clients adds always the adm/adm vid's
+  fprintf(stderr,"tident=%s\n", suidtident.c_str());
+  if (suidtident == "tident:\"root@localhost.localdomain\":uid") {
+    vid.sudoer = true;
+    vid.uid = 3;
+    vid.gid = 4;
+    if (!HasUid(3,vid.uid_list)) vid.uid_list.push_back(vid.uid);
+    if (!HasGid(4,vid.gid_list)) vid.gid_list.push_back(vid.gid);
   }
 
   // explicit virtual mapping overrules physical mappings - the second one comes from the physical mapping before

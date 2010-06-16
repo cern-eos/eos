@@ -2,6 +2,7 @@
 #include "XrdCommon/XrdCommonMapping.hh"
 #include "XrdCommon/XrdCommonFileId.hh"
 #include "XrdCommon/XrdCommonLayoutId.hh"
+#include "XrdCommon/XrdCommonPath.hh"
 #include "XrdMgmOfs/XrdMgmFstNode.hh"
 #include "XrdMgmOfs/XrdMgmOfs.hh"
 #include "XrdMgmOfs/XrdMgmOfsTrace.hh"
@@ -102,6 +103,7 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
 {
    static const char *epname = "opendir";
    const char *tident = error.getErrUser();
+
    XrdOucEnv Open_Env(info);
 
    eos_info("path=%s",dir_path);
@@ -144,7 +146,9 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
    }
    // check permissions
-   bool permok = dh?(!dh->access(vid.uid,vid.gid, R_OK|X_OK)): false;
+
+   eos_debug("access for %d %d gives %d in %o", vid.uid,vid.gid,(dh->access(vid.uid,vid.gid, R_OK|X_OK)), dh->getMode());
+   bool permok = dh?(dh->access(vid.uid,vid.gid, R_OK|X_OK)): false;
    gOFS->eosViewMutex.UnLock();
    //-------------------------------------------
 
@@ -1008,11 +1012,8 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 */
 {
   static const char *epname = "mkdir";
-  //  mode_t acc_mode = (Mode & S_IAMB) | S_IFDIR;
+  mode_t acc_mode = (Mode & S_IAMB) | S_IFDIR;
   //  const char *tident = error.getErrUser();
-  
-  // Create the path if it does not already exist
-  //
 
   XrdOucString spath= path;
 
@@ -1022,37 +1023,140 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   }
 
   bool recurse = false;
+  
+  XrdCommonPath cPath(path);
+  bool noParent=false;
+
+  eos::ContainerMD* dir=0;
+    
+  // check for the parent directory
+  if (spath != "/") {
+    //-------------------------------------------
+    gOFS->eosViewMutex.Lock();
+    try {
+      dir = eosView->getContainer(cPath.GetParentPath());
+    } catch( eos::MDException &e ) {
+      dir = 0;
+      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      noParent = true;
+    }
+    gOFS->eosViewMutex.UnLock();
+    //-------------------------------------------
+  }
+
+
+  // check if the path exists anyway
   if (Mode & SFS_O_MKPTH) {
     recurse = true;
     eos_debug("SFS_O_MKPATH set",path);
     // short cut if it exists already
 
-    eos::ContainerMD* dir=0;
-    //-------------------------------------------
-    gOFS->eosViewMutex.Lock();
-    try {
-      dir = eosView->getContainer(path);
-    } catch( eos::MDException &e ) {
-      dir = 0;
-      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-    }
-    gOFS->eosViewMutex.UnLock();
-    //-------------------------------------------
     if (dir) {
-      eos_info("this directory exists!",path);
-      return SFS_OK;
+      // only if the parent exists, the full path can exist!
+
+      //-------------------------------------------
+      gOFS->eosViewMutex.Lock();
+      try {
+	dir = eosView->getContainer(path);
+      } catch( eos::MDException &e ) {
+	dir = 0;
+	eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      }
+      gOFS->eosViewMutex.UnLock();
+      //-------------------------------------------
+      if (dir) {
+	eos_info("this directory exists!",path);
+	return SFS_OK;
+      }
     }
   }
   
-  eos_info("create %s",path);
+  eos_debug("mkdir path=%s deepness=%d dirname=%s basename=%s",path, cPath.GetSubPathSize(), cPath.GetParentPath(), cPath.GetName());
   eos::ContainerMD* newdir = 0;
 
+  if (noParent) {
+    if (recurse) {
+      unsigned int i,j;
+      // go the paths up until one exists!
+      for (i=cPath.GetSubPathSize()-1;i>=0; i--) {
+	eos_debug("testing path %s", cPath.GetSubPath(i));
+	//-------------------------------------------
+	gOFS->eosViewMutex.Lock();
+	try {
+	  dir = eosView->getContainer(cPath.GetSubPath(i));
+	} catch( eos::MDException &e ) {
+	  dir = 0;
+	}
+	gOFS->eosViewMutex.UnLock();
+	//-------------------------------------------
+	if (dir)
+	  break;
+      }
+      // that is really a serious problem!
+      if (!dir) {
+	eos_crit("didn't find any parent path traversing the namespace");
+	errno = ENODATA;
+	return Emsg(epname, error, ENODATA, "create directory", cPath.GetSubPath(i));
+      }
+      
+      // check that we can actually create something here
+      if (!dir->access(vid.uid,vid.gid, X_OK|W_OK)) {
+	errno = EPERM;
+	return Emsg(epname, error, EPERM, "create parent directory", cPath.GetSubPath(i));
+      }
+      
+      for (j=i+1; j< cPath.GetSubPathSize(); j++) {
+	//-------------------------------------------
+	gOFS->eosViewMutex.Lock();
+	try {
+	  eos_debug("creating path %s", cPath.GetSubPath(j));
+	  newdir = eosView->createContainer(cPath.GetSubPath(j), recurse);
+	  newdir->setCUid(vid.uid);
+	  newdir->setCGid(vid.gid);
+	  newdir->setMode(dir->getMode());
+	  
+	  if (dir->getMode() & S_ISGID) {
+	    // inherit the attributes
+	    eos::ContainerMD::XAttrMap::const_iterator it;
+	    for (it = dir->attributesBegin(); it != dir->attributesEnd() ; ++it) {
+	      newdir->setAttribute( it->first, it->second);
+	    }
+	  }
+	} catch( eos::MDException &e ) {
+	  errno = e.getErrno();
+	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	}
+	gOFS->eosViewMutex.UnLock();
+	//-------------------------------------------
+	
+	if (!newdir) 
+	  return Emsg(epname,error,errno,"mkdir",path);
+	dir = newdir;
+      }
+    } else {
+      errno = ENOENT;
+      return Emsg(epname,error,errno,"mkdir",path);
+    }
+  }
+
+    
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   try {
-    newdir = eosView->createContainer(path, recurse);
+    newdir = eosView->createContainer(path);
     newdir->setCUid(vid.uid);
     newdir->setCGid(vid.gid);
+    newdir->setMode(acc_mode);
+
+    newdir->setMode(dir->getMode());
+    
+    if (dir->getMode() & S_ISGID) {
+      // inherit the attributes
+      eos::ContainerMD::XAttrMap::const_iterator it;
+      for (it = dir->attributesBegin(); it != dir->attributesEnd() ; ++it) {
+	newdir->setAttribute( it->first, it->second);
+      }
+    }
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
@@ -1239,7 +1343,7 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
    }
    // check permissions
-   bool permok = dh?(!dh->access(vid.uid,vid.gid, X_OK|W_OK)): false;
+   bool permok = dh?(dh->access(vid.uid,vid.gid, X_OK|W_OK)): false;
    gOFS->eosViewMutex.UnLock();
    
    if (!permok) {
@@ -1416,7 +1520,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     buf->st_ino     = fmd->getId();
     buf->st_mode    = S_IFREG;
     buf->st_mode    |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR );
-    buf->st_nlink   = 0;
+    buf->st_nlink   = 
     buf->st_uid     = fmd->getCUid();
     buf->st_gid     = fmd->getCGid();
     buf->st_rdev    = 0;     /* device type (if inode device) */
@@ -1436,8 +1540,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     
     buf->st_dev     = 0xcaff;
     buf->st_ino     = cmd->getId();
-    buf->st_mode    = S_IFDIR;
-    buf->st_mode    |= (S_IRWXU | S_IRWXG | S_IRWXO);
+    buf->st_mode    = cmd->getMode();
     buf->st_nlink   = 0;
     buf->st_uid     = cmd->getCUid();
     buf->st_gid     = cmd->getCGid();

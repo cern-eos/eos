@@ -51,8 +51,16 @@ XrdMgmVid::Set(const char* value)
     
     if ((val=env.Get("mgm.vid.target.sudo"))) {
       // fill sudoer list
-      XrdCommonMapping::gSudoerMap[uid]=1;
-      set = true;
+      XrdOucString setting = val;
+      if (setting == "true") {	
+	XrdCommonMapping::gSudoerMap[uid]=1;
+	set = true;
+      } else {
+	// this in fact is deltion of the right
+	XrdCommonMapping::gSudoerMap[uid]=0;
+	gOFS->ConfigEngine->DeleteConfigValue("vid",skey.c_str());
+	return true;
+      }
     }
   }
 
@@ -171,6 +179,7 @@ XrdMgmVid::Ls(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &std
 bool
 XrdMgmVid::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 {
+  
   return true;
 }
 

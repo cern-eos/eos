@@ -1012,11 +1012,18 @@ com_vid (char* arg1) {
 	in += "&mgm.vid.target.gid="; in += list;
       }
       
-      if ( (type == "-sudo") ) {
+      if ( (type == "+sudo") ) {
 	vidkey += ":root";
 	list = " "; // fake
 	in += "&mgm.vid.key="; in += vidkey;
 	in += "&mgm.vid.target.sudo=true";
+      }
+
+      if ( (type == "-sudo") ) {
+	vidkey += ":root";
+	list = " "; // fake
+	in += "&mgm.vid.key="; in += vidkey;
+	in += "&mgm.vid.target.sudo=false";
       }
       if (!list.length()) {
 	goto com_vid_usage;
@@ -1136,9 +1143,9 @@ com_vid (char* arg1) {
   printf("                                        -G : show groupalias mapping\n");
   printf("usage: vid set membership <uid> -uids [<uid1>,<uid2>,...]\n");
   printf("       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
-  printf("       vid set membership <uid> -sudo \n");
+  printf("       vid set membership <uid> [+|-]sudo \n");
   printf("       vid set map -krb5|-ssl|-sss|-unix|-tident <pattern> [vuid:<uid>] [vgid:<gid>] \n");
-  printf("usage: vid rm <key>                                                                                 : remove configured vid with name key\n");
+  printf("usage: vid rm <key>                                                                                 : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
 
   return (0);
 }
@@ -1411,15 +1418,18 @@ com_mkdir (char* arg1) {
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString path = subtokenizer.GetToken();
-  XrdOucString selection = subtokenizer.GetToken();
+  XrdOucString in = "mgm.cmd=mkdir"; 
 
-  XrdOucString in = "mgm.cmd=mkdir&"; 
+  if (path == "-p") {
+    path = subtokenizer.GetToken();
+    in += "&mgm.option=p";
+  }
   if (!path.length()) {
     goto com_mkdir_usage;
     
   } else {
     path = abspath(path.c_str());
-    in += "mgm.path=";
+    in += "&mgm.path=";
     in += path;
     
     global_retc = output_result(client_user_command(in));
@@ -1498,7 +1508,10 @@ com_rtlog (char* arg1) {
     return (0);
   }
   
-  printf("usage: rtlog <queue>|* [<sec in the past>=3600] [<debug>=err]\n");
+  printf("usage: rtlog [<queue>|*|.] [<sec in the past>=3600] [<debug>=err] [filter-word]\n");
+  printf("                     - '*' means to query all nodes\n");
+  printf("                     - '.' means to query only the connected mgm\n");
+  printf("                     - if the first argument is ommitted '.' is assumed\n");
   return (0);
 }
 

@@ -47,6 +47,8 @@ public:
     gid_t gid;
     uid_vector uid_list;
     gid_vector gid_list;
+    XrdOucString tident;
+    XrdOucString name;
     bool sudoer;
   };
 
@@ -59,6 +61,8 @@ public:
   static void Copy(VirtualIdentity &vidin, VirtualIdentity &vidout) {
     vidout.uid = vidin.uid; vidout.gid = vidin.gid;
     vidout.sudoer = vidin.sudoer;
+    vidout.name = vidin.name;
+    vidout.tident = vidin.tident;
     for (unsigned int i=0; i< vidin.uid_list.size(); i++) vidout.uid_list.push_back(vidin.uid_list[i]);
     for (unsigned int i=0; i< vidin.gid_list.size(); i++) vidout.gid_list.push_back(vidin.uid_list[i]);
   }
@@ -72,6 +76,9 @@ public:
   static VirtualGroupMap gVirtualGidMap;
 
   static SudoerMap gSudoerMap;
+
+  static XrdOucHash<id_pair>    gPhysicalUidCache;
+  static XrdOucHash<gid_vector> gPhysicalGidCache;
   
   static  XrdSysMutex gMapMutex; // protects all global vector & maps
 
@@ -150,8 +157,14 @@ public:
     return false;
   }
 
-  static XrdOucHash<id_pair> gPhysicalUidCache;
-  static XrdOucHash<gid_vector> gPhysicalGidCache;
+  static const char* ReduceTident(XrdOucString &tident, XrdOucString &mytident) {
+    int dotpos = tident.find(".");
+    int addpos = tident.find("@");
+    mytident = tident;
+    mytident.erase(dotpos,addpos-dotpos);
+    return mytident.c_str();
+  }
+
 };
 
 #endif

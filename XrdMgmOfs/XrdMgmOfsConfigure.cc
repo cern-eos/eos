@@ -403,7 +403,8 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   fileSettings["changelog_path"] += "/files.mdlog";
 
   time_t tstart = time(0);
-
+  
+  //-------------------------------------------
   try {
     eosFileService->configure( fileSettings );
     eosDirectoryService->configure( contSettings );
@@ -422,6 +423,30 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     eos_crit("eos view initialization failed after %d seconds", (tstop-tstart));
     return 1;
   };
+
+  // check the '/' directory permissions
+  eos::ContainerMD* rootmd;
+  try {
+    rootmd = eosView->getContainer("/");
+  } catch ( eos::MDException &e ) {
+    Eroute.Emsg("Config","cannto get the / directory meta data");
+    eos_crit("eos view cannot retrieve the / directory");
+    return 1;
+  }
+
+  if (!rootmd->getMode()) {
+    // no permissions set yet
+    try {
+      rootmd->setMode(S_IFDIR| S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP| S_IWGRP| S_IXGRP | S_ISGID);
+    } catch ( eos::MDException &e ) {
+      Eroute.Emsg("Config","cannot set the / directory mode to inital mode");
+      eos_crit("cannot set the / directory mode to 755");
+      return 1;
+    }
+  }
+  eos_info("/ permissions are %o", rootmd->getMode());
+  //-------------------------------------------
+
   // create the specific listener class
   MgmOfsMessaging = new XrdMgmMessaging(MgmOfsBrokerUrl.c_str(),MgmDefaultReceiverQueue.c_str(), true, true);
   MgmOfsMessaging->SetLogId("MgmOfsMessaging");
