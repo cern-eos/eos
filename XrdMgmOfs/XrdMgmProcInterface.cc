@@ -45,7 +45,7 @@ XrdMgmProcInterface::Authorize(const char* path, const char* info, XrdCommonMapp
 
   // administrator access
   if (inpath.beginswith("/proc/admin/")) {
-    // one has to be part of the virtual users 3/adm
+    // one has to be part of the virtual users 3(adm)/4(adm)
     return ( (XrdCommonMapping::HasUid(3, vid.uid_list)) || (XrdCommonMapping::HasGid(4, vid.gid_list)) );
   }
 
@@ -74,7 +74,7 @@ XrdMgmProcCommand::XrdMgmProcCommand()
   len = 0;
   pVid = 0;
   path = "";
-  adminCmd = userCmd = projectAdminCmd = 0;
+  adminCmd = userCmd = 0;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -90,7 +90,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 
   path = inpath;
   bool dosort = false;
-  if ( path.beginswith ("/proc/admin")) {
+  if ( (path.beginswith ("/proc/admin")) ) {
     adminCmd = true;
   } 
   if ( path.beginswith ("/proc/user")) {
@@ -127,27 +127,42 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 
       int envlen;
       if (subcmd == "load") {
-	eos_notice("config load: %s", opaque.Env(envlen));
-	if (!gOFS->ConfigEngine->LoadConfig(opaque, stdErr)) {
-	  retc = errno;
+	if (vid_in.uid==0) {
+	  eos_notice("config load: %s", opaque.Env(envlen));
+	  if (!gOFS->ConfigEngine->LoadConfig(opaque, stdErr)) {
+	    retc = errno;
+	  } else {
+	    stdOut = "success: configuration successfully loaded!";
+	  }
 	} else {
-	  stdOut = "success: configuration successfully loaded!";
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
 	}
       }
-
+      
       if (subcmd == "save") {
 	eos_notice("config save: %s", opaque.Env(envlen));
-	if (!gOFS->ConfigEngine->SaveConfig(opaque, stdErr)) {
-	  retc = errno;
-	} else {
-	  stdOut = "success: configuration successfully saved!";
+	if (vid_in.uid == 0) {
+	  if (!gOFS->ConfigEngine->SaveConfig(opaque, stdErr)) {
+	    retc = errno;
+	  } else {
+	    stdOut = "success: configuration successfully saved!";
+	  }
+	}  else {
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
 	}
-      }
-
+      }      
+      
       if (subcmd == "reset") {
 	eos_notice("config reset");
-	gOFS->ConfigEngine->ResetConfig();
-	stdOut = "success: configuration has been reset(cleaned)!";
+	if (vid_in.uid == 0) {
+	  gOFS->ConfigEngine->ResetConfig();
+	  stdOut = "success: configuration has been reset(cleaned)!";
+	} else {
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
+	}
       }
 
       if (subcmd == "dump") {
@@ -197,135 +212,66 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	}
       }
 
-      if (subcmd == "set") {
-	char* fsname = opaque.Get("mgm.fsname");
-	char* fsidst = opaque.Get("mgm.fsid");
-	char* fssched= opaque.Get("mgm.fsschedgroup");
-	bool  fsforce = false;
-	const char* val=0;
-	if((val = opaque.Get("mgm.fsforce"))) {
-	  fsforce = atoi(val);
-	}
-
-	unsigned int fsid = 0;
-
-	if (!fsname || !fsidst) {
-	  stdErr="error: illegal parameters";
-	  retc = EINVAL;
-	} else {
-	  fsid = atoi(fsidst);
-	  // cross check if this is really a number
-	  char cfsid[1024]; sprintf(cfsid,"%u",fsid); 
-	  
-	  if (strcmp(cfsid,fsidst)) {
-	    stdErr="error: filesystem id="; stdErr += fsidst; stdErr += " is not a positive number! "; stdErr += fsidst;
-	    retc = EINVAL;
-	  } else {
-	    XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::ExistsNodeFileSystemId, &fsid);
-	    if (!fsid) {
-	      stdErr="error: filesystem id="; stdErr += fsidst; stdErr += " is already in use!";
-	      retc = EBUSY;
+      if (adminCmd) {
+	if (subcmd == "set") {
+	  if (vid_in.uid == 0) {
+	    char* fsname = opaque.Get("mgm.fsname");
+	    char* fsidst = opaque.Get("mgm.fsid");
+	    char* fssched= opaque.Get("mgm.fsschedgroup");
+	    bool  fsforce = false;
+	    const char* val=0;
+	    if((val = opaque.Get("mgm.fsforce"))) {
+	      fsforce = atoi(val);
+	    }
+	    
+	    unsigned int fsid = 0;
+	    
+	    if (!fsname || !fsidst) {
+	      stdErr="error: illegal parameters";
+	      retc = EINVAL;
 	    } else {
-	      if (!XrdMgmFstNode::Update(fsname, fsid, fssched, XrdCommonFileSystem::kDown, 0,0,0,true)) {
-		stdErr="error: cannot set the filesystem information to mgm.fsname="; stdErr += fsname; stdErr += " mgm.fsid=", stdErr += fsidst; stdErr += " mgm.fsschedgroup=" ; stdErr += fssched;
+	      fsid = atoi(fsidst);
+	      // cross check if this is really a number
+	      char cfsid[1024]; sprintf(cfsid,"%u",fsid); 
+	      
+	      if (strcmp(cfsid,fsidst)) {
+		stdErr="error: filesystem id="; stdErr += fsidst; stdErr += " is not a positive number! "; stdErr += fsidst;
 		retc = EINVAL;
 	      } else {
-		stdOut="success: added/set mgm.fsname="; stdOut += fsname; stdOut += " mgm.fsid=", stdOut += fsidst; stdOut += " mgm.fsschedgroup=" ; stdOut += fssched;
+		XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::ExistsNodeFileSystemId, &fsid);
+		if (!fsid) {
+		  stdErr="error: filesystem id="; stdErr += fsidst; stdErr += " is already in use!";
+		  retc = EBUSY;
+		} else {
+		  if (!XrdMgmFstNode::Update(fsname, fsid, fssched, XrdCommonFileSystem::kDown, 0,0,0,true)) {
+		    stdErr="error: cannot set the filesystem information to mgm.fsname="; stdErr += fsname; stdErr += " mgm.fsid=", stdErr += fsidst; stdErr += " mgm.fsschedgroup=" ; stdErr += fssched;
+		    retc = EINVAL;
+		  } else {
+		    stdOut="success: added/set mgm.fsname="; stdOut += fsname; stdOut += " mgm.fsid=", stdOut += fsidst; stdOut += " mgm.fsschedgroup=" ; stdOut += fssched;
+		  }
+		}
 	      }
 	    }
+	  } else {
+	    retc = EPERM;
+	    stdErr = "error: you have to take role 'root' to execute this command";
 	  }
 	}
       }
 
       if (subcmd == "rm") {
-	const char* nodename =  opaque.Get("mgm.nodename");
-	const char* fsname   =  opaque.Get("mgm.fsname");
-	const char* fsidst   =  opaque.Get("mgm.fsid");
-
-	const char* fspath   =  0;
-
-	XrdOucString splitpathname="";
-	XrdOucString splitnodename="";
-
-	if (fsname) {
-	  XrdOucString q = fsname;
-	  int spos = q.find("/fst/");
-	  if (spos != STR_NPOS) {
-	    splitpathname.assign(q,spos+4);
-	    splitnodename.assign(q,0,spos+3);
-
-	    if (!splitpathname.endswith("/")) {
-	      splitpathname+= "/";
-	    }
-	    
-	    fspath = splitpathname.c_str();
-	    nodename = splitnodename.c_str();
-	  }
-	}	
-	if (nodename) {
-	  // delete by node
-	  XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(nodename);
-	  if (node) {
-	    if (!fspath) {
-	      // delete complete node
-	      XrdMgmFstNode::gFstNodes.Del(nodename);
-	      stdOut="success: deleted node mgm.nodename="; stdOut += nodename;
-	    } else {
-	      // delete filesystem of a certain node
-	      if (!node->fileSystems.Del(fspath)) {
-		// success
-		stdOut="success: deleted filesystem from node mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem mgm.fsname="; stdOut += fsname;
-		gOFS->ConfigEngine->DeleteConfigValue("fs",fsname);
-	      } else {
-		// failed
-		stdErr="error: cannot delete filesystem - no filesystem with name mgm.fsname="; stdErr += fsname; stdErr += " at node mgm.nodename="; stdErr += nodename;	
-		retc = ENOENT;
-	      }
-	    }
-	  } else {
-	    stdErr="error: cannot delete node - no node with name mgm.nodename="; stdErr += nodename;
-	    retc = EINVAL;
-	  }
-	} else {
-	  if (fsidst) {
-	    unsigned int fsid = atoi(fsidst);
-	    // delete by fs id
-	    XrdMgmFstNode::FindStruct fsfinder(fsid,"");
-	    XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::FindNodeFileSystem,&fsfinder);
-	    if (fsfinder.found) {
-	      XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(fsfinder.nodename.c_str());
-	      if (node && (!node->fileSystems.Del(fsfinder.fsname.c_str()))) {
-		// success
-		stdOut="success: deleted filesystem from node mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem id mgm.fsid="; stdOut += fsidst;
-	      } else {
-		// failed
-		stdErr="error: cannot delete filesystem - no filesystem with id mgm.fsid="; stdErr += fsidst; stdErr += " at node mgm.nodename="; stdErr += nodename;		
-		retc = ENOENT;
-	      }
-	    }
-	  } 
-	}
-      }
-
-      if (subcmd == "config") {
-	const char* nodename =  opaque.Get("mgm.nodename");
-	const char* fsname   =  opaque.Get("mgm.fsname");
-	const char* fsidst   =  opaque.Get("mgm.fsid");
-	const char* fsconfig =  opaque.Get("mgm.fsconfig");
-	const char* fspath   =  0;
-	int configstatus = XrdCommonFileSystem::kUnknown;
-	if (fsconfig)
-	  configstatus = XrdCommonFileSystem::GetConfigStatusFromString(fsconfig);
-	
-	if (configstatus == XrdCommonFileSystem::kUnknown) {
-	  stdErr="error: cannot set the configuration status to the requested status: "; stdErr += fsconfig; ; stdErr += " - this status must be 'rw','ro','drain','off'";
-	  retc = EINVAL;
-	} else {
+	if (vid_in.uid == 0) {
+	  const char* nodename =  opaque.Get("mgm.nodename");
+	  const char* fsname   =  opaque.Get("mgm.fsname");
+	  const char* fsidst   =  opaque.Get("mgm.fsid");
+	  
+	  const char* fspath   =  0;
+	  
 	  XrdOucString splitpathname="";
 	  XrdOucString splitnodename="";
 	  
 	  if (fsname) {
-	    XrdOucString q = fsname; 
+	    XrdOucString q = fsname;
 	    int spos = q.find("/fst/");
 	    if (spos != STR_NPOS) {
 	      splitpathname.assign(q,spos+4);
@@ -339,113 +285,203 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      nodename = splitnodename.c_str();
 	    }
 	  }	
-	  
 	  if (nodename) {
-	    // set by node
+	    // delete by node
 	    XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(nodename);
 	    if (node) {
 	      if (!fspath) {
-		// set status to all filesystems of a complete node
-		node->SetNodeConfigStatus(configstatus);
-		stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at node "; stdOut += nodename;
+		// delete complete node
+		XrdMgmFstNode::gFstNodes.Del(nodename);
+		stdOut="success: deleted node mgm.nodename="; stdOut += nodename;
 	      } else {
-		// set status for one filesystem of a certain node
-		XrdMgmFstFileSystem* filesystem = node->fileSystems.Find(fspath);
-		if (filesystem) {
-		  filesystem->SetConfigStatus(configstatus);
-		  gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
+		// delete filesystem of a certain node
+		if (!node->fileSystems.Del(fspath)) {
 		  // success
-		  stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at filesystem ";stdOut += fsname;
-		} else {
-		  stdErr="error: cannot set config status on node/filesystem - no filesystem on node "; stdOut += nodename; stdOut += " with path "; stdOut += fspath;
-		  retc= ENOENT;
-		}
-	      }
-	    } else {
-	      stdErr="error: cannot set config status on node - no node with name mgm.nodename="; stdErr += nodename;
-	      retc = ENOENT;
-	    }
-	  } else {
-	    if (fsidst) {
-	      unsigned int fsid = atoi(fsidst);
-	      // set by fs id
-	      XrdMgmFstNode::FindStruct fsfinder(fsid,"");
-	      XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::FindNodeFileSystem,&fsfinder);
- 	      if (fsfinder.found) {
-		XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(fsfinder.nodename.c_str());
-		XrdMgmFstFileSystem* filesystem = 0;
-		if (node) filesystem  = node->fileSystems.Find(fsfinder.fsname.c_str());
-		
-		if (node && filesystem) {
-		  filesystem->SetConfigStatus(configstatus);
-		  gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
-		  // success
-		  stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at filesystem ";stdOut += fsname;
+		  stdOut="success: deleted filesystem from node mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem mgm.fsname="; stdOut += fsname;
+		  gOFS->ConfigEngine->DeleteConfigValue("fs",fsname);
 		} else {
 		  // failed
-		  stdErr="error: cannot set config status on filesystem - no filesystem with name "; stdErr += fsidst;
+		  stdErr="error: cannot delete filesystem - no filesystem with name mgm.fsname="; stdErr += fsname; stdErr += " at node mgm.nodename="; stdErr += nodename;	
 		  retc = ENOENT;
 		}
 	      }
-	    } 
-	  }
-	}
-      }
-
-
-
-      if (subcmd == "boot") {
-	const char* nodename =  opaque.Get("mgm.nodename");
-	const char* fsidst   =  opaque.Get("mgm.fsid");
-	if (nodename && (!strcmp(nodename,"*"))) {
-	  XrdOucString bootfs="";
-	  // boot all!
-	  XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::BootNode, &bootfs);
-	  stdOut="success: sent boot message to: \n";stdOut += bootfs;
-	} else {
-	  if (nodename) {
-	    // boot by node
-	    XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(nodename);
-	    
-	    if (node) {
-	      XrdOucString bootfs="";
-	      // node found
-	      node->fileSystems.Apply(XrdMgmFstNode::BootFileSystem, &bootfs);
-	      stdOut="success: sent boot message to mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem mgm.fsname="; stdOut += bootfs;
 	    } else {
-	      // not found
-	      stdErr="error: cannot boot node - no node with name mgm.nodename="; stdErr += nodename;
-	      retc= ENOENT;
+	      stdErr="error: cannot delete node - no node with name mgm.nodename="; stdErr += nodename;
+	      retc = EINVAL;
 	    }
 	  } else {
 	    if (fsidst) {
-	      // boot by fs id
 	      unsigned int fsid = atoi(fsidst);
 	      // delete by fs id
 	      XrdMgmFstNode::FindStruct fsfinder(fsid,"");
 	      XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::FindNodeFileSystem,&fsfinder);
 	      if (fsfinder.found) {
 		XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(fsfinder.nodename.c_str());
-		XrdMgmFstFileSystem* filesystem=0;
-		if (node && (filesystem = node->fileSystems.Find(fsfinder.fsname.c_str()))) {
-		  XrdOucString bootfs="";
-		  XrdMgmFstNode::BootFileSystem(fsfinder.fsname.c_str(), filesystem, &bootfs);
-		  stdOut="success: sent boot message to mgm.nodename="; stdOut += node->GetQueue(); stdOut+= " mgm.fsid="; stdOut += bootfs;
+		if (node && (!node->fileSystems.Del(fsfinder.fsname.c_str()))) {
+		  // success
+		  stdOut="success: deleted filesystem from node mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem id mgm.fsid="; stdOut += fsidst;
+		} else {
+		  // failed
+		  stdErr="error: cannot delete filesystem - no filesystem with id mgm.fsid="; stdErr += fsidst; stdErr += " at node mgm.nodename="; stdErr += nodename;		
+		  retc = ENOENT;
+		}
+	      }
+	    } 
+	  }
+	} else {
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
+	}
+      }
+
+      if (subcmd == "config") {
+	if (vid_in.uid == 0) {
+	  const char* nodename =  opaque.Get("mgm.nodename");
+	  const char* fsname   =  opaque.Get("mgm.fsname");
+	  const char* fsidst   =  opaque.Get("mgm.fsid");
+	  const char* fsconfig =  opaque.Get("mgm.fsconfig");
+	  const char* fspath   =  0;
+	  int configstatus = XrdCommonFileSystem::kUnknown;
+	  if (fsconfig)
+	    configstatus = XrdCommonFileSystem::GetConfigStatusFromString(fsconfig);
+	  
+	  if (configstatus == XrdCommonFileSystem::kUnknown) {
+	    stdErr="error: cannot set the configuration status to the requested status: "; stdErr += fsconfig; ; stdErr += " - this status must be 'rw','ro','drain','off'";
+	    retc = EINVAL;
+	  } else {
+	    XrdOucString splitpathname="";
+	    XrdOucString splitnodename="";
+	    
+	    if (fsname) {
+	      XrdOucString q = fsname; 
+	      int spos = q.find("/fst/");
+	      if (spos != STR_NPOS) {
+		splitpathname.assign(q,spos+4);
+		splitnodename.assign(q,0,spos+3);
+		
+		if (!splitpathname.endswith("/")) {
+		  splitpathname+= "/";
+		}
+		
+		fspath = splitpathname.c_str();
+		nodename = splitnodename.c_str();
+	      }
+	    }	
+	    
+	    if (nodename) {
+	      // set by node
+	      XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(nodename);
+	      if (node) {
+		if (!fspath) {
+		  // set status to all filesystems of a complete node
+		  node->SetNodeConfigStatus(configstatus);
+		  stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at node "; stdOut += nodename;
+		} else {
+		  // set status for one filesystem of a certain node
+		  XrdMgmFstFileSystem* filesystem = node->fileSystems.Find(fspath);
+		  if (filesystem) {
+		    filesystem->SetConfigStatus(configstatus);
+		    gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
+		    // success
+		    stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at filesystem ";stdOut += fsname;
+		  } else {
+		    stdErr="error: cannot set config status on node/filesystem - no filesystem on node "; stdOut += nodename; stdOut += " with path "; stdOut += fspath;
+		    retc= ENOENT;
+		  }
+		}
+	      } else {
+		stdErr="error: cannot set config status on node - no node with name mgm.nodename="; stdErr += nodename;
+		retc = ENOENT;
+	      }
+	    } else {
+	      if (fsidst) {
+		unsigned int fsid = atoi(fsidst);
+		// set by fs id
+		XrdMgmFstNode::FindStruct fsfinder(fsid,"");
+		XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::FindNodeFileSystem,&fsfinder);
+		if (fsfinder.found) {
+		  XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(fsfinder.nodename.c_str());
+		  XrdMgmFstFileSystem* filesystem = 0;
+		  if (node) filesystem  = node->fileSystems.Find(fsfinder.fsname.c_str());
+		  
+		  if (node && filesystem) {
+		    filesystem->SetConfigStatus(configstatus);
+		    gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
+		    // success
+		    stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at filesystem ";stdOut += fsname;
+		  } else {
+		    // failed
+		    stdErr="error: cannot set config status on filesystem - no filesystem with name "; stdErr += fsidst;
+		    retc = ENOENT;
+		  }
+		}
+	      } 
+	    }
+	  }
+	} else {
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
+	}
+      }
+
+      if (subcmd == "boot") {
+	if (vid_in.uid == 0) {
+	  const char* nodename =  opaque.Get("mgm.nodename");
+	  const char* fsidst   =  opaque.Get("mgm.fsid");
+	  if (nodename && (!strcmp(nodename,"*"))) {
+	    XrdOucString bootfs="";
+	    // boot all!
+	    XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::BootNode, &bootfs);
+	    stdOut="success: sent boot message to: \n";stdOut += bootfs;
+	  } else {
+	    if (nodename) {
+	      // boot by node
+	      XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(nodename);
+	      
+	      if (node) {
+		XrdOucString bootfs="";
+		// node found
+		node->fileSystems.Apply(XrdMgmFstNode::BootFileSystem, &bootfs);
+		stdOut="success: sent boot message to mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem mgm.fsname="; stdOut += bootfs;
+	      } else {
+		// not found
+		stdErr="error: cannot boot node - no node with name mgm.nodename="; stdErr += nodename;
+		retc= ENOENT;
+	      }
+	    } else {
+	      if (fsidst) {
+		// boot by fs id
+		unsigned int fsid = atoi(fsidst);
+		// delete by fs id
+		XrdMgmFstNode::FindStruct fsfinder(fsid,"");
+		XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::FindNodeFileSystem,&fsfinder);
+		if (fsfinder.found) {
+		  XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(fsfinder.nodename.c_str());
+		  XrdMgmFstFileSystem* filesystem=0;
+		  if (node && (filesystem = node->fileSystems.Find(fsfinder.fsname.c_str()))) {
+		    XrdOucString bootfs="";
+		    XrdMgmFstNode::BootFileSystem(fsfinder.fsname.c_str(), filesystem, &bootfs);
+		    stdOut="success: sent boot message to mgm.nodename="; stdOut += node->GetQueue(); stdOut+= " mgm.fsid="; stdOut += bootfs;
+		  } else {
+		    stdErr="error: cannot boot filesystem - no filesystem with id mgm.fsid="; stdErr += fsidst; 
+		    retc = ENOENT;
+		  }
 		} else {
 		  stdErr="error: cannot boot filesystem - no filesystem with id mgm.fsid="; stdErr += fsidst; 
 		  retc = ENOENT;
 		}
-	      } else {
-		stdErr="error: cannot boot filesystem - no filesystem with id mgm.fsid="; stdErr += fsidst; 
-		retc = ENOENT;
 	      }
 	    }
 	  }
+	}  else {
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
 	}
+	
+	XrdMgmFstNode::gMutex.UnLock();
+	
+	//      stdOut+="\n==== fs done ====";
       }
-      XrdMgmFstNode::gMutex.UnLock();
-
-      //      stdOut+="\n==== fs done ====";
     }
 
     if (cmd == "quota") {
@@ -575,43 +611,54 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
     }
 
     if (cmd == "vid") {
-      if (subcmd == "set") {
-	eos_notice("vid set");
-	XrdMgmVid::Set(opaque, retc, stdOut,stdErr);
-      }
-
       if (subcmd == "ls") {
 	eos_notice("vid ls");
 	XrdMgmVid::Ls(opaque, retc, stdOut, stdErr);
 	dosort = true;
       } 
 
-      if (subcmd == "rm") {
-	eos_notice("vid rm");
-	XrdMgmVid::Rm(opaque, retc, stdOut, stdErr);
+      if (vid_in.uid == 0) {
+	if (subcmd == "set") {
+	  eos_notice("vid set");
+	  XrdMgmVid::Set(opaque, retc, stdOut,stdErr);
+	}
+	
+	
+	if (subcmd == "rm") {
+	  eos_notice("vid rm");
+	  XrdMgmVid::Rm(opaque, retc, stdOut, stdErr);
+	}
+      } else {
+	retc = EPERM;
+	stdErr = "error: you have to take role 'root' to execute this command";
       }
     }
 
     if (cmd == "restart") {
-      if (subcmd == "fst") {
-	XrdOucString debugnode =  opaque.Get("mgm.nodename");
-	if (( debugnode == "") || (debugnode == "*")) {
-	  XrdMqMessage message("mgm"); XrdOucString msgbody="";
-	  XrdCommonFileSystem::GetRestartRequestString(msgbody);
-	  message.SetBody(msgbody.c_str());
-
-	  // broadcast a global restart message
-	  if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
-	    stdOut="success: sent global service restart message to all fst nodes"; 
+      if (vid_in.uid == 0) {
+	if (subcmd == "fst") {
+	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
+	  if (( debugnode == "") || (debugnode == "*")) {
+	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
+	    XrdCommonFileSystem::GetRestartRequestString(msgbody);
+	    message.SetBody(msgbody.c_str());
+	    
+	    // broadcast a global restart message
+	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
+	      stdOut="success: sent global service restart message to all fst nodes"; 
+	    } else {
+	      stdErr="error: could not send global fst restart message!";
+	      retc = EIO;
+	    } 
 	  } else {
-	    stdErr="error: could not send global fst restart message!";
-	    retc = EIO;
+	    stdErr="error: only global fst restart is supported yet!";
+	    retc = EINVAL;
 	  } 
-	} else {
-	  stdErr="error: only global fst restart is supported yet!";
-	  retc = EINVAL;
-	} 
+	}
       }
+    } else {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
     }
 
     if (cmd == "rtlog") {

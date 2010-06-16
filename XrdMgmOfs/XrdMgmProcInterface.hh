@@ -31,7 +31,6 @@ private:
 
   bool adminCmd;
   bool userCmd; 
-  bool projectAdminCmd;
 
 public:
 

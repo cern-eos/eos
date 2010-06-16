@@ -51,6 +51,7 @@ void exit_handler (int a) {
 
 int com_help PARAMS((char *));
 int com_quit PARAMS((char *));
+int com_attr PARAMS((char*));
 int com_debug PARAMS((char*));
 int com_cd PARAMS((char*));
 int com_clear PARAMS((char*));
@@ -92,6 +93,7 @@ typedef struct {
 } COMMAND;
 
 COMMAND commands[] = {
+  { (char*)"attr", com_attr, (char*)"Attribute Interface" },
   { (char*)"clear", com_clear, (char*)"Clear the terminal" },
   { (char*)"cd", com_cd, (char*)"Change directory" },
   { (char*)"config",com_config,(char*)"Configuration System"},
@@ -670,6 +672,75 @@ com_quit (char *arg) {
   done = 1;
   return (0);
 }
+
+
+/* Attribute ls, get, set rm */
+int 
+com_attr (char* arg1) {
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString subcommand = subtokenizer.GetToken();
+  XrdOucString option="";
+  XrdOucString arg = subtokenizer.GetToken();
+  XrdOucString in = "mgm.cmd=attr";
+
+  if (arg.beginswith("-")) {
+    option = arg;
+    option.erase(0,1);
+    arg = subtokenizer.GetToken();
+  }
+
+  if (!arg.length())
+    goto com_attr_usage;
+
+  if ( subcommand == "ls") {
+    XrdOucString path  = arg;
+    if (!path.length())
+      goto com_attr_usage;
+    in += "&mgm.subcmd=ls";
+  }
+
+  if ( subcommand == "set") {
+    XrdOucString key   = arg;
+    XrdOucString value = subtokenizer.GetToken();
+    XrdOucString path  = subtokenizer.GetToken();
+    if (!key.length() || !value.length() || !path.length()) 
+      goto com_attr_usage;
+    in += "&mgm.subcmd=set&mgm.attr.key="; in += key;
+    in += "&mgm.attr.value="; in += value;
+    in += "&mgm.attr.path="; in += path;
+  }
+
+  if ( subcommand == "get") {
+    XrdOucString key   = arg;
+    XrdOucString path  = subtokenizer.GetToken();
+    if (!key.length() || !path.length())
+      goto com_attr_usage;
+    in += "&mgm.subcmd=get&mgm.attr.key="; in += key;
+    in += "&mgm.attr.path="; in += path;
+  }
+
+  if ( subcommand == "rm") {
+    XrdOucString key   = arg;
+    XrdOucString path  = subtokenizer.GetToken();
+    if (!key.length() || !path.length())
+      goto com_attr_usage;
+    in += "&mgm.subcmd=rm&mgm.attr.key="; in += key;
+    in += "&mgm.attr.path="; in += path;
+  }
+ 
+  global_retc = output_result(client_user_command(in));
+  return (0); 
+
+ com_attr_usage:
+  printf("usage: attr [-r] ls <path>                                  : list attributes of path (-r recursive)\n");  
+  printf("usage: attr [-r] set <key> <value> <path>                   : set attributes of path (-r recursive)\n");
+  printf("usage: attr [-r] get <key> <path>                           : get attributes of path (-r recursive)\n");
+  printf("usage: attr [-r] rm  <key> <path>                           : delete attributes of path (-r recursive)\n");
+  return (0);
+}
+
+
 
 /* Filesystem listing, configuration, manipulation */
 int
