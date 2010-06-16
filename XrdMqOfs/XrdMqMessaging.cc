@@ -53,4 +53,42 @@ XrdMqMessaging::~XrdMqMessaging()
 
 
 /*----------------------------------------------------------------------------*/
+bool
+XrdMqMessaging::BroadCastAndCollect(XrdOucString broadcastresponsequeue, XrdOucString broadcasttargetqueues, XrdOucString &msgbody, XrdOucString &responses, unsigned long waittime) 
+{
+  XrdMqClient MessageClient(broadcastresponsequeue.c_str());
+  XrdOucString BroadCastQueue = broadcastresponsequeue;
+  if (!MessageClient.AddBroker(BroadCastQueue.c_str(),false,false)) {
+    fprintf(stderr,"failed to add broker\n");
+    return false;
+  }
+
+  MessageClient.SetDefaultReceiverQueue(broadcasttargetqueues.c_str());
+  if (!MessageClient.Subscribe()) {
+    fprintf(stderr,"failed to subscribe\n");
+    return false;
+  }
+
+  XrdMqMessage message;
+  message.SetBody(msgbody.c_str());
+  message.kMessageHeader.kDescription="Broadcast and Collect";
+  if (!(MessageClient << message)) {
+    fprintf(stderr,"failed to send\n");
+    return false;
+  }
+
+  // now collect:
+  sleep(waittime);
+  XrdMqMessage* newmessage = MessageClient.RecvMessage();
+  if (newmessage) {
+    responses += newmessage->GetBody();
+    delete newmessage;
+  }
+  
+  while ((newmessage = MessageClient.RecvFromInternalBuffer())) {
+    responses += newmessage->GetBody();
+    delete newmessage;
+  }
+  return true;
+}
 /*----------------------------------------------------------------------------*/

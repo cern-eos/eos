@@ -613,6 +613,10 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
     }
 
     if (cmd == "rtlog") {
+      dosort = 1;
+      // this is just to identify a new queue for reach request
+      static int bccount=0;
+      bccount++;
       XrdOucString queue = opaque.Get("mgm.rtlog.queue");
       XrdOucString lines = opaque.Get("mgm.rtlog.lines");
       XrdOucString tag   = opaque.Get("mgm.rtlog.tag");
@@ -626,19 +630,40 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  stdErr = "error: mgm.rtlog.tag must be info,debug,err,emerg,alert,crit,warning or notice";
 	  retc = EINVAL;
 	} else {
-	  int logtagindex = XrdCommonLogging::GetPriorityByString(tag.c_str());
-	  for (int j = 0; j<= logtagindex; j++) {
-	    XrdCommonLogging::gMutex.Lock();
-	    for (int i=1; i<= atoi(lines.c_str()); i++) {
-	      XrdOucString logline = XrdCommonLogging::gLogMemory[j][(XrdCommonLogging::gLogCircularIndex[j]-i+XrdCommonLogging::gCircularIndexSize)%XrdCommonLogging::gCircularIndexSize].c_str();
-	      if (logline.length() && ( (logline.find(filter.c_str())) != STR_NPOS)) {
-		stdOut += logline;
-		stdOut += "\n";
+	  if ((queue==".") || (queue == "*") || (queue == gOFS->MgmOfsQueue)) {
+	    int logtagindex = XrdCommonLogging::GetPriorityByString(tag.c_str());
+	    for (int j = 0; j<= logtagindex; j++) {
+	      XrdCommonLogging::gMutex.Lock();
+	      for (int i=1; i<= atoi(lines.c_str()); i++) {
+		XrdOucString logline = XrdCommonLogging::gLogMemory[j][(XrdCommonLogging::gLogCircularIndex[j]-i+XrdCommonLogging::gCircularIndexSize)%XrdCommonLogging::gCircularIndexSize].c_str();
+		if (logline.length() && ( (logline.find(filter.c_str())) != STR_NPOS)) {
+		  stdOut += logline;
+		  stdOut += "\n";
+		}
+		if (!logline.length())
+		  break;
 	      }
-	      if (!logline.length())
-		break;
+	      XrdCommonLogging::gMutex.UnLock();
 	    }
-	    XrdCommonLogging::gMutex.UnLock();
+	  }
+	  if ( (queue == "*") || ((queue != gOFS->MgmOfsQueue) && (queue != "."))) {
+	    XrdOucString broadcastresponsequeue = gOFS->MgmOfsBrokerUrl;
+	    broadcastresponsequeue += "-rtlog-";
+	    broadcastresponsequeue += bccount;
+	    XrdOucString broadcasttargetqueue = gOFS->MgmDefaultReceiverQueue;
+	    if (queue != "*") 
+	      broadcasttargetqueue = queue;
+
+	    int envlen;
+	    XrdOucString msgbody;
+	    msgbody=opaque.Env(envlen);
+	    fprintf(stderr,"msg body %s", msgbody.c_str());
+
+	    if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,broadcasttargetqueue, msgbody, stdOut, 2)) {
+	      eos_err("failed to broad cast and collect rtlog from [%s]:[%s]", broadcastresponsequeue.c_str(),broadcasttargetqueue.c_str());
+	      stdErr = "error: broadcast failed\n";
+	      retc = EFAULT;
+	    }
 	  }
 	}
       }

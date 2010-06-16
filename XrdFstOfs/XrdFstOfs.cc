@@ -902,6 +902,8 @@ XrdFstOfs::SendRtLog(XrdMqMessage* message)
     }
   }
   
+  stdOut.erase(8000);
+  stdOut+= " [... truncated ...]\n";
   XrdMqMessage repmessage("rtlog reply message");
   repmessage.SetBody(stdOut.c_str());
   if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {

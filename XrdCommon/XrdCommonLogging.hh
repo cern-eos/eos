@@ -124,6 +124,7 @@ public:
   static void Init();
   
   static void log(const char* func, const char* file, int line, const char* logid, uid_t uid, gid_t gid, uid_t ruid, gid_t rgid, const char* cident, int priority, const char *msg, ...);
+
 };
 
 #endif

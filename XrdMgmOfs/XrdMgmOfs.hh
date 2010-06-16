@@ -169,6 +169,7 @@ class XrdMgmOfs : public XrdSfsFileSystem , public XrdCommonLogId
   friend class XrdMgmOfsFile;
   friend class XrdMgmOfsDirectory;
   friend class XrdMgmOfsStats;
+  friend class XrdMgmProcCommand;
 
 public:
 

@@ -305,6 +305,13 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl, const char
 
   if (clientid) {
     kClientId = clientid;
+    if (kClientId.beginswith("root://")) {
+      // truncate the URL away
+      int pos = kClientId.find("//",7);
+      if (pos!=STR_NPOS) {
+	kClientId.erase(0,pos+1);
+      }
+    }
   } else {
     // the default is to create the client id as /xmesssage/<domain>/<host>/
     XrdOucString FullName      = XrdNetDNS::getHostName();

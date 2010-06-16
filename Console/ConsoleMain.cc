@@ -1471,6 +1471,14 @@ com_rtlog (char* arg1) {
   XrdOucString tag   = subtokenizer.GetToken();
   XrdOucString filter= subtokenizer.GetToken();
 
+  if ( (queue!=".") && (queue!="*") && (!queue.beginswith("/eos/"))) {
+    // there is no queue argument and means to talk with the mgm directly
+    filter = tag;
+    tag = lines;
+    lines =queue;
+    queue =".";
+  }
+
   XrdOucString in = "mgm.cmd=rtlog&mgm.rtlog.queue=";
   if (queue.length()) {
     in += queue;

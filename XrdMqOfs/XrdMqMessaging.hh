@@ -24,6 +24,8 @@ public:
   ~XrdMqMessaging();
 
   bool IsZombie() {return zombie;}
+
+  bool BroadCastAndCollect(XrdOucString broadcastresponsequeue, XrdOucString broadcasttargetqueues, XrdOucString &msgbody, XrdOucString &responses, unsigned long waittime=5);
 };
 
 #endif
