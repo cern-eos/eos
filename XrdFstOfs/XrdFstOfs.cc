@@ -893,6 +893,15 @@ XrdFstOfs::SendRtLog(XrdMqMessage* message)
 	      stdOut += logline;
 	      stdOut += "\n";
 	    }
+	    if (stdOut.length() > (4*1024)) {
+	      XrdMqMessage repmessage("rtlog reply message");
+	      repmessage.SetBody(stdOut.c_str());
+	      if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
+		eos_err("unable to send rtlog reply message to %s", message->kMessageHeader.kSenderId.c_str());
+	      }
+	      stdOut = "";
+	    }
+	      
 	    if (!logline.length())
 	      break;
 	  }
@@ -901,15 +910,13 @@ XrdFstOfs::SendRtLog(XrdMqMessage* message)
       }
     }
   }
-  
-  stdOut.erase(8000);
-  stdOut+= " [... truncated ...]\n";
-  XrdMqMessage repmessage("rtlog reply message");
-  repmessage.SetBody(stdOut.c_str());
-  if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
-    eos_err("unable to send rtlog reply message to %s", message->kMessageHeader.kSenderId.c_str());
+  if (stdOut.length()) {
+    XrdMqMessage repmessage("rtlog reply message");
+    repmessage.SetBody(stdOut.c_str());
+    if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
+      eos_err("unable to send rtlog reply message to %s", message->kMessageHeader.kSenderId.c_str());
+    }
   }
-  
 }
 
 /*----------------------------------------------------------------------------*/
