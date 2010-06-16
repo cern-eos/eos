@@ -25,10 +25,43 @@ namespace eos
       {
         Updated = 0,
         Deleted,
-        Created
+        Created,
+        LocationAdded,
+        LocationRemoved,
+        LocationReplaced
       };
 
-      virtual void fileMDChanged( FileMD *obj, Action type );
+      struct Event
+      {
+        Event( FileMD *_file, Action _action,
+               FileMD::location_t _location = 0,
+               FileMD::location_t _oldLocation = 0 ):
+          file( _file ),
+          fileId( 0 ),
+          action( _action ),
+          location( _location ),
+          oldLocation( _oldLocation ) {}
+
+        Event( FileMD::id_t _fileId, Action _action,
+               FileMD::location_t _location = 0,
+               FileMD::location_t _oldLocation = 0 ):
+          file( 0 ),
+          fileId( _fileId ),
+          action( _action ),
+          location( _location ),
+          oldLocation( _oldLocation ) {}
+
+
+        FileMD             *file;
+        FileMD::id_t        fileId;
+        Action              action;
+        FileMD::location_t  location;
+        FileMD::location_t  oldLocation;
+
+      };
+
+      virtual void fileMDChanged( Event *event ) = 0;
+      virtual void fileMDRead( FileMD *obj ) = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -108,6 +141,11 @@ namespace eos
       //! the store
       //------------------------------------------------------------------------
       virtual void addChangeListener( IFileMDChangeListener *listener ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Notify the listeners about the change
+      //------------------------------------------------------------------------
+      virtual void notifyListeners( IFileMDChangeListener::Event *event ) = 0;
   };
 }
 

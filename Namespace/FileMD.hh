@@ -18,6 +18,8 @@
 
 namespace eos
 {
+  class IFileMDSvc;
+
   //----------------------------------------------------------------------------
   //! Class holding the metadata information concerning a single file
   //----------------------------------------------------------------------------
@@ -35,7 +37,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      FileMD( id_t id );
+      FileMD( id_t id, IFileMDSvc *fileMDSvc = 0 );
 
       //------------------------------------------------------------------------
       //! Get file id
@@ -202,13 +204,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Add location
       //------------------------------------------------------------------------
-      void addLocation( location_t location )
-      {
-        if (hasLocation(location))
-          return;
-
-        pLocation.push_back( location );
-      }
+      void addLocation( location_t location );
 
       //------------------------------------------------------------------------
       //! Get location
@@ -223,24 +219,12 @@ namespace eos
       //------------------------------------------------------------------------
       //! replace location by index
       //------------------------------------------------------------------------
-      void replaceLocation( unsigned int index, location_t newlocation )
-      {
-        pLocation[index] = newlocation;
-      }
+      void replaceLocation( unsigned int index, location_t newlocation );
 
       //------------------------------------------------------------------------
       //! Remove location
       //------------------------------------------------------------------------
-      void removeLocation( location_t location )
-      {
-        std::vector<location_t>::iterator it;
-        for ( it=pLocation.begin() ; it < pLocation.end(); it++ ) {
-          if (*it == location) {
-            pLocation.erase(it);
-            return;
-          }
-        }
-      }
+      void removeLocation( location_t location );
 
       //------------------------------------------------------------------------
       //! Clear locations
@@ -333,17 +317,18 @@ namespace eos
       //------------------------------------------------------------------------
       // Data members
       //-----------------------------------------------------------------------0
-      id_t              pId;
-      ctime_t           pCTime;
-      ctime_t           pMTime;
-      uint64_t          pSize;
-      ContainerMD::id_t pContainerId;
-      std::string       pName;
-      LocationVector    pLocation;
-      uid_t             pCUid;
-      gid_t             pCGid;
-      uint32_t          pLayoutId;
-      Buffer            pChecksum;
+      id_t               pId;
+      ctime_t            pCTime;
+      ctime_t            pMTime;
+      uint64_t           pSize;
+      ContainerMD::id_t  pContainerId;
+      std::string        pName;
+      LocationVector     pLocation;
+      uid_t              pCUid;
+      gid_t              pCGid;
+      uint32_t           pLayoutId;
+      Buffer             pChecksum;
+      IFileMDSvc        *pFileMDSvc;
   };
 }
 

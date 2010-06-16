@@ -92,6 +92,16 @@ namespace eos
       //------------------------------------------------------------------------
       virtual void visit( IFileVisitor *visitor );
 
+      //------------------------------------------------------------------------
+      //! Notify the listeners about the change
+      //------------------------------------------------------------------------
+      virtual void notifyListeners( IFileMDChangeListener::Event *event )
+      {
+        ListenerList::iterator it;
+        for( it = pListeners.begin(); it != pListeners.end(); ++it )
+          (*it)->fileMDChanged( event );
+      }
+
     private:
       //------------------------------------------------------------------------
       // Placeholder for the record info
@@ -129,17 +139,6 @@ namespace eos
           IdMap    &pIdMap;
           uint64_t  pLargestId;
       };
-
-      //------------------------------------------------------------------------
-      // Notify the listeners about the change
-      //------------------------------------------------------------------------
-      void notifyListeners( FileMD *obj,
-                            IFileMDChangeListener::Action a )
-      {
-        ListenerList::iterator it;
-        for( it = pListeners.begin(); it != pListeners.end(); ++it )
-          (*it)->fileMDChanged( obj, a );
-      }
 
       //------------------------------------------------------------------------
       // 

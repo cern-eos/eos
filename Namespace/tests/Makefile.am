@@ -14,6 +14,11 @@ hierarchical_view_test_CPPFLAGS = $(INCLUDES)
 hierarchical_view_test_DEPENDENCIES = ../libEosNamespace.la
 hierarchical_view_test_LDADD = ../libEosNamespace.la
 
+filesystem_view_test_SOURCES = FileSystemViewTest.cc FileSystemViewTest.hh
+filesystem_view_test_CPPFLAGS = $(INCLUDES)
+filesystem_view_test_DEPENDENCIES = ../libEosNamespace.la
+filesystem_view_test_LDADD = ../libEosNamespace.la
+
 other_tests_SOURCES = OtherTests.cc OtherTests.hh
 other_tests_CPPFLAGS = $(INCLUDES)
 other_tests_DEPENDENCIES = ../libEosNamespace.la
@@ -38,7 +43,8 @@ UNITTESTS_PROGS =                      \
 	changelog_filemdsvc_test       \
 	changelog_test                 \
 	hierarchical_view_test         \
-	other_tests
+	other_tests                    \
+	filesystem_view_test
 
 noinst_PROGRAMS = $(UNITTESTS_PROGS)
 check_PROGRAMS = $(UNITTESTS_PROGS)

@@ -394,6 +394,8 @@ namespace eos
   //----------------------------------------------------------------------------
   void HierarchicalView::FileVisitor::visitFile( FileMD *file )
   {
+    if( file->getContainerId() == 0 )
+      return;
     ContainerMD *cont = pContSvc->getContainerMD( file->getContainerId() );
     cont->addFile( file );
   }

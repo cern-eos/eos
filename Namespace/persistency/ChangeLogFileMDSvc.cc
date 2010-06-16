@@ -31,9 +31,12 @@ namespace eos
     {
       Buffer buffer;
       pChangeLog->readRecord( it->second.logOffset, buffer );
-      FileMD *file = new FileMD( 0 );
+      FileMD *file = new FileMD( 0, this );
       file->deserialize( buffer );
       it->second.ptr = file;
+      ListenerList::iterator it;
+      for( it = pListeners.begin(); it != pListeners.end(); ++it )
+        (*it)->fileMDRead( file );
     }
   }
 
@@ -90,7 +93,7 @@ namespace eos
   //----------------------------------------------------------------------------
   FileMD *ChangeLogFileMDSvc::createFile() throw( MDException )
   {
-    FileMD *file = new FileMD( pFirstFreeId++ );
+    FileMD *file = new FileMD( pFirstFreeId++, this );
     pIdMap.insert( std::make_pair( file->getId(), DataInfo( 0, file ) ) );
     return file;
   }
@@ -118,7 +121,8 @@ namespace eos
     eos::Buffer buffer;
     obj->serialize( buffer );
     it->second.logOffset = pChangeLog->storeRecord( eos::UPDATE_RECORD, buffer );
-    notifyListeners( obj, IFileMDChangeListener::Updated );
+    IFileMDChangeListener::Event e( obj, IFileMDChangeListener::Updated );
+    notifyListeners( &e );
   }
 
   //----------------------------------------------------------------------------
@@ -153,7 +157,8 @@ namespace eos
     eos::Buffer buffer;
     buffer.putData( &fileId, sizeof( FileMD::id_t ) );
     pChangeLog->storeRecord( eos::DELETE_RECORD, buffer );
-    notifyListeners( it->second.ptr, IFileMDChangeListener::Deleted );
+    IFileMDChangeListener::Event e( fileId, IFileMDChangeListener::Deleted );
+    notifyListeners( &e );
     delete it->second.ptr;
     pIdMap.erase( it );
   }

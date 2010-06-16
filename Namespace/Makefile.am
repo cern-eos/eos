@@ -2,7 +2,7 @@ $.NOTPARALLEL:
 
 AUTOMAKE_OPTIONS = foreign 1.6
 
-INCLUDES = -I../ -I$(EOS_INCDIR) -I$(XROOTD_INCDIR) ${OPENSSL_INCDIR}
+INCLUDES = -I../ -I. -I$(EOS_INCDIR) -I$(XROOTD_INCDIR) ${OPENSSL_INCDIR}
 
 #-------------------------------------------------------------------------------
 # Libraries and programs
@@ -28,7 +28,9 @@ libEosNamespace_la_SOURCES = \
 	persistency/ChangeLogContainerMDSvc.cc \
 	persistency/ChangeLogFileMDSvc.hh      \
 	persistency/ChangeLogFileMDSvc.cc      \
-	views/HierarchicalView.hh         \
-	views/HierarchicalView.cc
+	views/HierarchicalView.hh              \
+	views/HierarchicalView.cc              \
+	accounting/FileSystemView.hh           \
+	accounting/FileSystemView.cc
 
 libEosNamespace_la_LIBADD = -lrt

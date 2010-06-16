@@ -3,24 +3,73 @@
 // desc:   Class representing the file metadata
 //------------------------------------------------------------------------------
 
-#include "FileMD.hh"
+#include "Namespace/FileMD.hh"
+#include "Namespace/IFileMDSvc.hh"
 
 namespace eos
 {
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  FileMD::FileMD( id_t id ):
+  FileMD::FileMD( id_t id, IFileMDSvc *fileMDSvc ):
     pId( id ),
     pSize( 0 ),
     pContainerId( 0 ),
     pCUid( 0 ),
     pCGid( 0 ),
-    pLayoutId( 0 )
+    pLayoutId( 0 ),
+    pFileMDSvc( fileMDSvc )
   {
     pCTime.tv_sec = pCTime.tv_nsec = 0;
     pMTime.tv_sec = pMTime.tv_nsec = 0;
   }
+
+  //----------------------------------------------------------------------------
+  // Add location
+  //----------------------------------------------------------------------------
+  void FileMD::addLocation( location_t location )
+  {
+    if (hasLocation(location))
+      return;
+    pLocation.push_back( location );
+    IFileMDChangeListener::Event e( this,
+                                    IFileMDChangeListener::LocationAdded,
+                                    location );
+    pFileMDSvc->notifyListeners( &e );
+  }
+
+  //----------------------------------------------------------------------------
+  // replace location by index
+  //----------------------------------------------------------------------------
+  void FileMD::replaceLocation( unsigned int index, location_t newlocation )
+  {
+    location_t oldLocation = pLocation[index];
+    pLocation[index] = newlocation;
+    IFileMDChangeListener::Event e( this,
+                                    IFileMDChangeListener::LocationReplaced,
+                                    newlocation, oldLocation );
+    pFileMDSvc->notifyListeners( &e );
+  }
+
+  //----------------------------------------------------------------------------
+  // Remove location
+  //----------------------------------------------------------------------------
+  void FileMD::removeLocation( location_t location )
+  {
+    std::vector<location_t>::iterator it;
+    for ( it=pLocation.begin() ; it < pLocation.end(); it++ ) {
+      if (*it == location)
+      {
+        pLocation.erase(it);
+        IFileMDChangeListener::Event e( this,
+                                        IFileMDChangeListener::LocationRemoved,
+                                        location );
+        pFileMDSvc->notifyListeners( &e );
+        return;
+      }
+    }
+  }
+
 
   //----------------------------------------------------------------------------
   // Serialize the object to a buffer
