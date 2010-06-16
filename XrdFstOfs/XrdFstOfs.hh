@@ -118,6 +118,7 @@ public:
   void           Boot(XrdOucEnv &env);
   bool           BootFs(XrdOucEnv &env, XrdOucString &response);
   void           SetDebug(XrdOucEnv &env);
+  void           SendRtLog(XrdMqMessage* message);
   void           AutoBoot();
 
  

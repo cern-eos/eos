@@ -749,6 +749,10 @@ XrdFstMessaging::Process(XrdMqMessage* newmessage)
     eos_notice("restarting service");
     system("unset XRDPROG XRDCONFIGFN XRDINSTANCE XRDEXPORTS XRDHOST XRDOFSLIB XRDPORT XRDADMINPATH XRDOFSEVENTS XRDNAME XRDREDIRECT; /etc/init.d/xrd restart fst >& /dev/null");
   }
+
+  if (cmd == "rtlog") {
+    gOFS.SendRtLog(newmessage);
+  }
 }
 
 
@@ -858,6 +862,52 @@ XrdFstOfs::BootFs(XrdOucEnv &env, XrdOucString &response)
     return false;
   }
   return true;
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdFstOfs::SendRtLog(XrdMqMessage* message) 
+{
+  XrdOucEnv opaque(message->GetBody());
+  XrdOucString queue = opaque.Get("mgm.rtlog.queue");
+  XrdOucString lines = opaque.Get("mgm.rtlog.lines");
+  XrdOucString tag   = opaque.Get("mgm.rtlog.tag");
+  XrdOucString filter = opaque.Get("mgm.rtlog.filter");
+  XrdOucString stdOut="";
+
+  if (!filter.length()) filter = " ";
+
+  if ( (!queue.length()) || (!lines.length()) || (!tag.length()) ) {
+    eos_err("illegal parameter queue=%s lines=%s tag=%s", queue.c_str(), lines.c_str(), tag.c_str());
+  }  else {
+    if ( (XrdCommonLogging::GetPriorityByString(tag.c_str())) == -1) {
+      eos_err("mgm.rtlog.tag must be info,debug,err,emerg,alert,crit,warning or notice");
+    } else {
+      if (queue=="*") {
+	int logtagindex = XrdCommonLogging::GetPriorityByString(tag.c_str());
+	for (int j = 0; j<= logtagindex; j++) {
+	  XrdCommonLogging::gMutex.Lock();
+	  for (int i=1; i<= atoi(lines.c_str()); i++) {
+	    XrdOucString logline = XrdCommonLogging::gLogMemory[j][(XrdCommonLogging::gLogCircularIndex[j]-i+XrdCommonLogging::gCircularIndexSize)%XrdCommonLogging::gCircularIndexSize].c_str();
+	    if (logline.length() && ( (logline.find(filter.c_str())) != STR_NPOS)) {
+	      stdOut += logline;
+	      stdOut += "\n";
+	    }
+	    if (!logline.length())
+	      break;
+	  }
+	  XrdCommonLogging::gMutex.UnLock();
+	}
+      }
+    }
+  }
+  
+  XrdMqMessage repmessage("rtlog reply message");
+  repmessage.SetBody(stdOut.c_str());
+  if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
+    eos_err("unable to send rtlog reply message to %s", message->kMessageHeader.kSenderId.c_str());
+  }
+  
 }
 
 /*----------------------------------------------------------------------------*/
