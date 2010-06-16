@@ -657,7 +657,6 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    int envlen;
 	    XrdOucString msgbody;
 	    msgbody=opaque.Env(envlen);
-	    fprintf(stderr,"msg body %s", msgbody.c_str());
 
 	    if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,broadcasttargetqueue, msgbody, stdOut, 2)) {
 	      eos_err("failed to broad cast and collect rtlog from [%s]:[%s]", broadcastresponsequeue.c_str(),broadcasttargetqueue.c_str());

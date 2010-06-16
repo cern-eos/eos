@@ -883,30 +883,28 @@ XrdFstOfs::SendRtLog(XrdMqMessage* message)
     if ( (XrdCommonLogging::GetPriorityByString(tag.c_str())) == -1) {
       eos_err("mgm.rtlog.tag must be info,debug,err,emerg,alert,crit,warning or notice");
     } else {
-      if (queue=="*") {
-	int logtagindex = XrdCommonLogging::GetPriorityByString(tag.c_str());
-	for (int j = 0; j<= logtagindex; j++) {
-	  XrdCommonLogging::gMutex.Lock();
-	  for (int i=1; i<= atoi(lines.c_str()); i++) {
-	    XrdOucString logline = XrdCommonLogging::gLogMemory[j][(XrdCommonLogging::gLogCircularIndex[j]-i+XrdCommonLogging::gCircularIndexSize)%XrdCommonLogging::gCircularIndexSize].c_str();
-	    if (logline.length() && ( (logline.find(filter.c_str())) != STR_NPOS)) {
-	      stdOut += logline;
-	      stdOut += "\n";
-	    }
-	    if (stdOut.length() > (4*1024)) {
-	      XrdMqMessage repmessage("rtlog reply message");
-	      repmessage.SetBody(stdOut.c_str());
-	      if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
-		eos_err("unable to send rtlog reply message to %s", message->kMessageHeader.kSenderId.c_str());
-	      }
-	      stdOut = "";
-	    }
-	      
-	    if (!logline.length())
-	      break;
+      int logtagindex = XrdCommonLogging::GetPriorityByString(tag.c_str());
+      for (int j = 0; j<= logtagindex; j++) {
+	XrdCommonLogging::gMutex.Lock();
+	for (int i=1; i<= atoi(lines.c_str()); i++) {
+	  XrdOucString logline = XrdCommonLogging::gLogMemory[j][(XrdCommonLogging::gLogCircularIndex[j]-i+XrdCommonLogging::gCircularIndexSize)%XrdCommonLogging::gCircularIndexSize].c_str();
+	  if (logline.length() && ( (logline.find(filter.c_str())) != STR_NPOS)) {
+	    stdOut += logline;
+	    stdOut += "\n";
 	  }
-	  XrdCommonLogging::gMutex.UnLock();
+	  if (stdOut.length() > (4*1024)) {
+	    XrdMqMessage repmessage("rtlog reply message");
+	    repmessage.SetBody(stdOut.c_str());
+	    if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
+	      eos_err("unable to send rtlog reply message to %s", message->kMessageHeader.kSenderId.c_str());
+	    }
+	    stdOut = "";
+	  }
+	  
+	  if (!logline.length())
+	    break;
 	}
+	XrdCommonLogging::gMutex.UnLock();
       }
     }
   }
