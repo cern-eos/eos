@@ -382,15 +382,20 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   int spos = dirName.rfind("/");
   dirName.erase(spos);
   baseName.erase(0,spos);
-
+  
   // get the directory meta data if exists
   eos::ContainerMD* dmd=0;
-
+  eos::ContainerMD::XAttrMap attrmap;
 
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   try {
     dmd = gOFS->eosView->getContainer(baseName.c_str());
+    // get the attributes out
+    eos::ContainerMD::XAttrMap::const_iterator it;
+    for ( it = dmd->attributesBegin(); it != dmd->attributesEnd(); ++it) {
+      attrmap[it->first] = it->second;
+    }
   } catch( eos::MDException &e ) {
     dmd = 0;
     errno = e.getErrno();
@@ -473,7 +478,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   unsigned long newlayoutId=0;
   // select space and layout according to policies
-  XrdMgmPolicy::GetLayoutAndSpace(path, vid.uid, vid.gid, newlayoutId, space, *openOpaque, forcedFsId);
+  XrdMgmPolicy::GetLayoutAndSpace(path, attrmap, vid, newlayoutId, space, *openOpaque, forcedFsId);
 
   if (isCreation) {
     layoutId = newlayoutId;

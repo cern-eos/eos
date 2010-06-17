@@ -745,9 +745,27 @@ com_attr (char* arg1) {
   printf("usage: attr [-r] ls <path>                                  : list attributes of path (-r recursive)\n");  
   printf("usage: attr [-r] set <key> <value> <path>                   : set attributes of path (-r recursive)\n");
   printf("usage: attr [-r] get <key> <path>                           : get attributes of path (-r recursive)\n");
-  printf("usage: attr [-r] rm  <key> <path>                           : delete attributes of path (-r recursive)\n");
-  printf("         if <key> starts with 'sys.' you have to be member of the sudoer to see this attributes or modify\n");
-  
+  printf("usage: attr [-r] rm  <key> <path>                           : delete attributes of path (-r recursive)\n\n");
+  printf("Help:    If <key> starts with 'sys.' you have to be member of the sudoer to see this attributes or modify\n");
+
+  printf("         Administrator Variables:\n");
+  printf("         -----------------------\n");
+  printf("         attr: sys.forced.space=<space>         = enforces to use <space>    [configuration dependend]\n");
+  printf("         attr: sys.forced.layout=<layout>       = enforces to use <layout>   [<layout>=(plain,replica,raid5)\n");
+  printf("         attr: sys.forced.checksum=<checksum>   = enforces to use <checksum> [<checksum>=(adler,crc32,md5,sha)\n");
+  printf("         attr: sys.forced.nstripes=<n>          = enforces to use <n> stripes[<n>= 1..16\n");
+  printf("         attr: sys.forced.stripewidth=<w>       = enforces to use a stripe width of <w> kb\n");
+  printf("         attr: sys.forced.nouserlayout=1        = disables the user settings with user.forced.<xxx>\n");
+  printf("         attr: sys.forced.nofsselection=1       = disables user defined filesystem selection with environmentvariables for reads\n");
+  printf("         User Variables:\n");
+  printf("         -----------------------\n");
+  printf("         attr: user.forced.space=<space>        = s.a.\n");
+  printf("         attr: user.forced.layout=<layout>      = s.a.\n");
+  printf("         attr: user.forced.checksum=<checksum>  = s.a.\n");
+  printf("         attr: user.forced.nstripes=<n>         = s.a.\n");
+  printf("         attr: user.forced.stripewidth=<n>      = s.a.\n");
+  printf("         attr: user.forced.nouserlayout=1       = disables the user settings with environment variables in the open information\n");
+  printf("         attr: user.forced.nofsselection=1      = disables user defined filesystem selection with environment variables for reads\n");
   return (0);
 }
 

@@ -2,6 +2,9 @@
 #define __XRDMGMOFS_POLICY__HH__
 
 /*----------------------------------------------------------------------------*/
+#include "XrdCommon/XrdCommonMapping.hh"
+#include "Namespace/ContainerMD.hh"
+/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 /*----------------------------------------------------------------------------*/
@@ -13,7 +16,7 @@ public:
   XrdMgmPolicy(){};
   ~XrdMgmPolicy(){};
 
-  static void GetLayoutAndSpace(const char* path, uid_t uid, gid_t gid, unsigned long &layoutId, XrdOucString &space, XrdOucEnv &env, unsigned long &forcedfsid);
+  static void GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &map, const XrdCommonMapping::VirtualIdentity &vid , unsigned long &layoutId, XrdOucString &space, XrdOucEnv &env, unsigned long &forcedfsid);
 
   static bool Set(const char* value);
   static bool Set(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
