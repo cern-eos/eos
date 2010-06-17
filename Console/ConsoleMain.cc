@@ -455,7 +455,6 @@ output_result(XrdOucEnv* result) {
   rstdout.replace("OK","\033[49;32mOK\033[0m");
   rstdout.replace("WARNING","\033[49;33mWARNING\033[0m");
   rstdout.replace("EXCEEDED","\033[49;31mEXCEEDED\033[0m");
-
   int retc = EFAULT;
   if (result->Get("mgm.proc.retc")) {
     retc = atoi(result->Get("mgm.proc.retc"));
