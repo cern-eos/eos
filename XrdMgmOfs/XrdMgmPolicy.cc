@@ -60,7 +60,7 @@ XrdMgmPolicy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &at
     XrdOucString layoutstring = "eos.layout.stripewidth="; layoutstring += attrmap["sys.forced.stripewidth"].c_str();
     XrdOucEnv layoutenv(layoutstring.c_str());
     // we force to use a specified stripe width in this directory even if the user wants something else
-    stripewidth = XrdCommonLayoutId::GetStripeNumberFromEnv(layoutenv);
+    stripewidth = XrdCommonLayoutId::GetStripeWidthFromEnv(layoutenv);
     eos_static_debug("sys.forced.stripewidth in %s",path);
   }
 
@@ -100,7 +100,7 @@ XrdMgmPolicy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &at
       XrdOucString layoutstring = "eos.layout.stripewidth="; layoutstring += attrmap["user.forced.stripewidth"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
       // we force to use a specified stripe width in this directory even if the user wants something else
-      stripewidth = XrdCommonLayoutId::GetStripeNumberFromEnv(layoutenv);
+      stripewidth = XrdCommonLayoutId::GetStripeWidthFromEnv(layoutenv);
       eos_static_debug("user.forced.stripewidth in %s",path);
     }
   }
