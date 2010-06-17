@@ -186,7 +186,13 @@ public:
         int            chmod(const char             *Name,
                                    XrdSfsMode        Mode,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecEntity *client = 0,
+                             const XrdSecEntity     *client = 0,
+                             const char             *opaque = 0);
+
+        int            _chmod(const char             *Name,
+                                   XrdSfsMode        Mode,
+                                   XrdOucErrInfo    &out_error,
+			           XrdCommonMapping::VirtualIdentity &vid,
                              const char             *opaque = 0);
 
         int            exists(const char                *fileName,
@@ -203,8 +209,8 @@ public:
 
         int            _exists(const char                *fileName,
                                     XrdSfsFileExistence &exists_flag,
-                                    XrdOucErrInfo       &out_error
-,			            XrdCommonMapping::VirtualIdentity &vid,
+                                    XrdOucErrInfo       &out_error,
+			            XrdCommonMapping::VirtualIdentity &vid,
                               const char                *opaque = 0);
 
   enum eFSCTL { kFsctlMgmOfsOffset= 40000};
@@ -319,6 +325,63 @@ const   char          *getVersion();
         int            access(const char*, int mode, XrdOucErrInfo&, const XrdSecEntity*, const char*);
 
         int            utimes(const char*, struct timeval *tvp, XrdOucErrInfo&, const XrdSecEntity*, const char*);
+
+        int            attr_ls(const char             *path,
+			       XrdOucErrInfo    &out_error,
+			       const XrdSecEntity     *client,
+			       const char             *opaque,
+			       eos::ContainerMD::XAttrMap &map);   
+
+        int            attr_set(const char             *path,
+				XrdOucErrInfo    &out_error,
+				const XrdSecEntity     *client,
+				const char             *opaque,
+				const char             *key,
+				const char             *value);
+
+        int            attr_get(const char             *path,
+				XrdOucErrInfo    &out_error,
+				const XrdSecEntity     *client,
+				const char             *opaque,
+				const char             *key,
+				XrdOucString           &value);
+
+
+        int            attr_rem(const char             *path,
+				XrdOucErrInfo    &out_error,
+			        const XrdSecEntity     *client,
+				const char             *opaque,
+				const char             *key);
+  
+        int            _attr_ls(const char             *path,
+				XrdOucErrInfo    &out_error,
+				XrdCommonMapping::VirtualIdentity &vid,
+				const char             *opaque,
+				eos::ContainerMD::XAttrMap &map);   
+
+        int            _attr_set(const char             *path,
+				 XrdOucErrInfo    &out_error,
+				 XrdCommonMapping::VirtualIdentity &vid,
+				 const char             *opaque,
+				 const char             *key,
+				 const char             *value);
+
+        int            _attr_get(const char             *path,
+				 XrdOucErrInfo    &out_error,
+				 XrdCommonMapping::VirtualIdentity &vid,
+				 const char             *opaque,
+				 const char             *key,
+				 XrdOucString           &value);
+
+
+        int            _attr_rem(const char             *path,
+				 XrdOucErrInfo    &out_error,
+				 XrdCommonMapping::VirtualIdentity &vid,
+				 const char             *opaque,
+				 const char             *key);
+				 
+  
+  
 
 // Common functions
 //

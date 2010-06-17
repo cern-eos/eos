@@ -131,6 +131,7 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
 {
    static const char *epname = "opendir";
    XrdOucEnv Open_Env(info);
+   errno = 0;
 
    eos_info("path=%s",dir_path);
 
@@ -261,6 +262,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 {
   static const char *epname = "open";
   const char *tident = error.getErrUser();
+  errno = 0;
   
   SetLogId(logId, tident);
   eos_info("path=%s info=%s",path,info);
@@ -782,10 +784,10 @@ int XrdMgmOfsFile::truncate(XrdSfsFileOffset  flen)  // In
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::chmod(const char             *path,    // In
+int XrdMgmOfs::chmod(const char                *path,    // In
                               XrdSfsMode        Mode,    // In
                               XrdOucErrInfo    &error,   // Out
-                        const XrdSecEntity *client,  // In
+                        const XrdSecEntity     *client,  // In
                         const char             *info)    // In
 /*
   Function: Change the mode on a file or directory.
@@ -810,7 +812,47 @@ int XrdMgmOfs::chmod(const char             *path,    // In
 
   XrdCommonMapping::IdMap(client,info,tident,vid);
   
-  return Emsg(epname,error,EOPNOTSUPP,"chmod",path);
+  return _chmod(path,Mode, error,vid,info);
+}
+
+/*----------------------------------------------------------------------------*/
+int XrdMgmOfs::_chmod(const char               *path,    // In
+                              XrdSfsMode        Mode,    // In
+                              XrdOucErrInfo    &error,   // Out
+	       XrdCommonMapping::VirtualIdentity &vid,   // In
+                        const char             *info)    // In
+
+{
+  static const char *epname = "chmod";
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
+  eos::ContainerMD* cmd = 0;
+  errno = 0;
+
+  eos_info("path=%s mode=%o",path, Mode);
+  
+  try {
+    cmd = gOFS->eosView->getContainer(path);
+    if (!cmd->access(vid.uid,vid.gid,W_OK)) {
+      errno = EPERM;
+    } else {
+      // change the permission mask, but make sure it is set to a directory
+      if (Mode & S_IFREG) 
+	Mode ^= S_IFREG;
+      cmd->setMode(Mode | S_IFDIR);
+      eosView->updateContainerStore(cmd);
+    }
+  } catch ( eos::MDException &e ) {
+    errno = e.getErrno();
+  };
+  
+  gOFS->eosViewMutex.UnLock();
+  //-------------------------------------------
+
+  if (cmd  && (!errno))
+    return SFS_OK;
+  
+  return Emsg(epname, error, errno, "chmod", path);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -859,6 +901,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   Notes:    When failure occurs, 'file_exists' is not modified.
 */
 {
+  errno = 0;
   // try if that is directory
 
   //-------------------------------------------
@@ -925,7 +968,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
 */
 {
   // try if that is directory
-
+  errno = 0;
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   eos::ContainerMD* cmd = 0;
@@ -1013,6 +1056,8 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 {
   static const char *epname = "mkdir";
   mode_t acc_mode = (Mode & S_IAMB) | S_IFDIR;
+  errno = 0;
+
   //  const char *tident = error.getErrUser();
 
   XrdOucString spath= path;
@@ -1122,6 +1167,8 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	      newdir->setAttribute( it->first, it->second);
 	    }
 	  }
+	  // commit
+	  eosView->updateContainerStore(newdir);
 	} catch( eos::MDException &e ) {
 	  errno = e.getErrno();
 	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
@@ -1157,32 +1204,19 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	newdir->setAttribute( it->first, it->second);
       }
     }
-  } catch( eos::MDException &e ) {
-    errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-  }
-  gOFS->eosViewMutex.UnLock();
-  //-------------------------------------------
-
-  // do an mkdir -p
-  if (!newdir) {
-    return Emsg(epname,error,errno,"mkdir",path);
-  }
-  // commit on disk
-
-  //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
-  try {
+    // commit on disk
     eosView->updateContainerStore(newdir);
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
-    std::string errmsg = e.getMessage().str();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-    gOFS->eosViewMutex.UnLock();
-    return Emsg(epname, error, errno, "create directory", errmsg.c_str());      
   }
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
+
+  if (!newdir) {
+    return Emsg(epname,error,errno,"mkdir",path);
+  }
+
   return SFS_OK;
 }
 
@@ -1248,10 +1282,10 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   // Perform the actual deletion
   //
   const char *tident = error.getErrUser();
+  errno = 0;
   
   XTRACE(remove, path,"");
 
-  errno = 0;
 
 
   XrdSfsFileExistence file_exists;
@@ -1393,6 +1427,7 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
 {
   static const char *epname = "rename";
   const char *tident = error.getErrUser();
+  errno = 0;
 
   XrdOucString source, destination;
   XrdOucString oldn,newn;
@@ -1485,6 +1520,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
   
   // try if that is directory
   eos::ContainerMD* cmd = 0;
+  errno = 0;
 
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
@@ -1687,6 +1723,7 @@ int XrdMgmOfs::_find(const char       *path,             // In
   // try if that is directory
   eos::ContainerMD* cmd = 0;
   XrdOucString Path = path;
+  errno = 0;
 
   if (!(Path.endswith('/')))
     Path += "/";
@@ -2218,4 +2255,258 @@ XrdMgmOfs::FSctl(const int               cmd,
 
 
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::attr_ls(const char             *path,
+		   XrdOucErrInfo          &error,
+		   const XrdSecEntity     *client,
+		   const char             *info,
+		   eos::ContainerMD::XAttrMap &map)
+{
+  static const char *epname = "attr_ls";
+  const char *tident = error.getErrUser(); 
+  XrdOucEnv access_Env(info);
+
+  XTRACE(fsctl, path,"");
+
+  AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
+  
+  XrdCommonMapping::IdMap(client,info,tident,vid);  
+  
+  return _attr_ls(path, error,vid,info,map);
+}   
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::attr_set(const char             *path,
+		    XrdOucErrInfo          &error,
+		    const XrdSecEntity     *client,
+		    const char             *info,
+		    const char             *key,
+		    const char             *value)
+{
+  static const char *epname = "attr_set";
+  const char *tident = error.getErrUser(); 
+  XrdOucEnv access_Env(info);
+
+  XTRACE(fsctl, path,"");
+
+  AUTHORIZE(client,&access_Env,AOP_Update,"update",path,error);
+  
+  XrdCommonMapping::IdMap(client,info,tident,vid);  
+  
+  return _attr_set(path, error,vid,info,key,value);
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::attr_get(const char             *path,
+		    XrdOucErrInfo    &error,
+		    const XrdSecEntity     *client,
+		    const char             *info,
+		    const char             *key,
+		    XrdOucString           &value)
+{
+  static const char *epname = "attr_get";
+  const char *tident = error.getErrUser(); 
+  XrdOucEnv access_Env(info);
+
+  XTRACE(fsctl, path,"");
+
+  AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
+  
+  XrdCommonMapping::IdMap(client,info,tident,vid);  
+  
+  return _attr_get(path, error,vid,info,key,value);
+}
+
+/*----------------------------------------------------------------------------*/
+int         
+XrdMgmOfs::attr_rem(const char             *path,
+		    XrdOucErrInfo    &error,
+		    const XrdSecEntity     *client,
+		    const char             *info,
+		    const char             *key)
+{
+  static const char *epname = "attr_rm";
+  const char *tident = error.getErrUser(); 
+  XrdOucEnv access_Env(info);
+
+  XTRACE(fsctl, path,"");
+
+  AUTHORIZE(client,&access_Env,AOP_Delete,"delete",path,error);
+  
+  XrdCommonMapping::IdMap(client,info,tident,vid);  
+  
+  return _attr_rem(path, error,vid,info,key);
+}
+
+/*----------------------------------------------------------------------------*/  
+int
+XrdMgmOfs::_attr_ls(const char             *path,
+		   XrdOucErrInfo    &error,
+		   XrdCommonMapping::VirtualIdentity &vid,
+		   const char             *info,
+		   eos::ContainerMD::XAttrMap &map)
+{
+  static const char *epname = "attr_ls";  
+  eos::ContainerMD *dh=0;
+  errno = 0;
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
+  try {
+    dh = gOFS->eosView->getContainer(path);
+    eos::ContainerMD::XAttrMap::const_iterator it;
+    for ( it=dh->attributesBegin(); it != dh->attributesEnd(); ++it) {
+      XrdOucString key = it->first.c_str();
+      // we don't show sys.* attributes to others than root
+      if ( key.beginswith("sys.") && (!vid.sudoer) )
+	continue;
+      map[it->first] = it->second;
+    }
+  } catch( eos::MDException &e ) {
+    dh = 0;
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+  // check permissions
+  if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
+    if (!errno)errno = EPERM;
+
+  gOFS->eosViewMutex.UnLock();
+
+  if (errno) 
+    return  Emsg(epname,error,errno,"list attributes",path);  
+  
+  return SFS_OK;
+}   
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_attr_set(const char             *path,
+		     XrdOucErrInfo    &error,
+		     XrdCommonMapping::VirtualIdentity &vid,
+		     const char             *info,
+		     const char             *key,
+		     const char             *value)
+{
+  static const char *epname = "attr_set";  
+  eos::ContainerMD *dh=0;
+  errno = 0;
+
+  if ( !key || !value) 
+    return  Emsg(epname,error,EINVAL,"set attribute",path);  
+
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
+  try {
+    dh = gOFS->eosView->getContainer(path);
+    XrdOucString Key = key;
+    if ( Key.beginswith("sys.") && (!vid.sudoer) )
+      errno = EPERM;
+    else {
+      dh->setAttribute(key,value);
+      eosView->updateContainerStore(dh);
+    }
+  } catch( eos::MDException &e ) {
+    dh = 0;
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+  // check permissions
+  if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
+    if (!errno) errno = EPERM;
+  
+  gOFS->eosViewMutex.UnLock();
+  
+  if (errno) 
+    return  Emsg(epname,error,errno,"list attributes",path);  
+
+  return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_attr_get(const char             *path,
+		     XrdOucErrInfo    &error,
+		     XrdCommonMapping::VirtualIdentity &vid,
+		     const char             *info,
+		     const char             *key,
+		     XrdOucString           &value)
+{
+  static const char *epname = "attr_set";  
+  eos::ContainerMD *dh=0;
+  errno = 0;
+
+  if ( !key) 
+    return  Emsg(epname,error,EINVAL,"get attribute",path);  
+
+  value = "";
+
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
+  try {
+    dh = gOFS->eosView->getContainer(path);
+    XrdOucString Key = key;
+    if ( Key.beginswith("sys.") && (!vid.sudoer) )
+      errno = EPERM;
+    else 
+      value = (dh->getAttribute(key)).c_str();
+  } catch( eos::MDException &e ) {
+    dh = 0;
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+  // check permissions
+  if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
+    if (!errno) errno = EPERM;
+  
+  gOFS->eosViewMutex.UnLock();
+  
+  if (errno) 
+    return  Emsg(epname,error,errno,"list attributes",path);;  
+
+  return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_attr_rem(const char             *path,
+				 XrdOucErrInfo    &error,
+		     XrdCommonMapping::VirtualIdentity &vid,
+		     const char             *info,
+		     const char             *key)
+{
+  static const char *epname = "attr_rm";  
+  eos::ContainerMD *dh=0;
+  errno = 0;
+
+  if ( !key ) 
+    return  Emsg(epname,error,EINVAL,"delete attribute",path);  
+
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
+  try {
+    dh = gOFS->eosView->getContainer(path);
+    XrdOucString Key = key;
+    if ( Key.beginswith("sys.") && (!vid.sudoer) )
+      errno = EPERM;
+    else 
+      dh->removeAttribute(key);
+  } catch( eos::MDException &e ) {
+    dh = 0;
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+  // check permissions
+  if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
+    if (!errno) errno = EPERM;
+  
+  gOFS->eosViewMutex.UnLock();
+  
+  if (errno) 
+    return  Emsg(epname,error,errno,"remove attribute",path);  
+
+  return SFS_OK;
+}
+
 /*----------------------------------------------------------------------------*/

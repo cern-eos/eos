@@ -55,6 +55,7 @@ int com_attr PARAMS((char*));
 int com_debug PARAMS((char*));
 int com_cd PARAMS((char*));
 int com_clear PARAMS((char*));
+int com_chmod PARAMS((char*));
 int com_config PARAMS((char*));
 int com_fileinfo PARAMS((char*));
 int com_find PARAMS((char*));
@@ -96,6 +97,7 @@ COMMAND commands[] = {
   { (char*)"attr", com_attr, (char*)"Attribute Interface" },
   { (char*)"clear", com_clear, (char*)"Clear the terminal" },
   { (char*)"cd", com_cd, (char*)"Change directory" },
+  { (char*)"chmod", com_chmod, (char*)"Mode Interface" },
   { (char*)"config",com_config,(char*)"Configuration System"},
   { (char*)"debug", com_debug,(char*)"Set debug level"},
   { (char*)"exit",  com_quit, (char*)"Exit from EOS console" },
@@ -681,16 +683,22 @@ com_attr (char* arg1) {
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
   XrdOucString option="";
-  XrdOucString arg = subtokenizer.GetToken();
   XrdOucString in = "mgm.cmd=attr";
+  XrdOucString arg = "";
 
-  if (arg.beginswith("-")) {
-    option = arg;
+  if (subcommand.beginswith("-")) {
+    option = subcommand;
     option.erase(0,1);
+    subcommand = subtokenizer.GetToken();
+    arg = subtokenizer.GetToken();
+    in += "&mgm.option=";
+    in += option;
+  } else {
     arg = subtokenizer.GetToken();
   }
-
-  if (!arg.length())
+    
+  if ((!subcommand.length()) || (!arg.length()) ||
+      ( (subcommand != "ls") && (subcommand != "set") && (subcommand != "get") && (subcommand != "rm") ))
     goto com_attr_usage;
 
   if ( subcommand == "ls") {
@@ -698,6 +706,7 @@ com_attr (char* arg1) {
     if (!path.length())
       goto com_attr_usage;
     in += "&mgm.subcmd=ls";
+    in += "&mgm.path=";in += path;
   }
 
   if ( subcommand == "set") {
@@ -708,7 +717,7 @@ com_attr (char* arg1) {
       goto com_attr_usage;
     in += "&mgm.subcmd=set&mgm.attr.key="; in += key;
     in += "&mgm.attr.value="; in += value;
-    in += "&mgm.attr.path="; in += path;
+    in += "&mgm.path="; in += path;
   }
 
   if ( subcommand == "get") {
@@ -717,7 +726,7 @@ com_attr (char* arg1) {
     if (!key.length() || !path.length())
       goto com_attr_usage;
     in += "&mgm.subcmd=get&mgm.attr.key="; in += key;
-    in += "&mgm.attr.path="; in += path;
+    in += "&mgm.path="; in += path;
   }
 
   if ( subcommand == "rm") {
@@ -726,7 +735,7 @@ com_attr (char* arg1) {
     if (!key.length() || !path.length())
       goto com_attr_usage;
     in += "&mgm.subcmd=rm&mgm.attr.key="; in += key;
-    in += "&mgm.attr.path="; in += path;
+    in += "&mgm.path="; in += path;
   }
  
   global_retc = output_result(client_user_command(in));
@@ -740,6 +749,39 @@ com_attr (char* arg1) {
   return (0);
 }
 
+/* Mode Interface */
+int 
+com_chmod (char* arg1) {
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString mode = subtokenizer.GetToken();
+  XrdOucString option="";
+  XrdOucString in = "mgm.cmd=chmod";
+  XrdOucString arg = "";
+
+  if (mode.beginswith("-")) {
+    option = mode;
+    option.erase(0,1);
+    mode = subtokenizer.GetToken();
+    in += "&mgm.option=";
+    in += option;
+  }
+
+  XrdOucString path = subtokenizer.GetToken();
+  if ( !path.length() || !mode.length() ) 
+    goto com_chmod_usage;
+  in += "&mgm.path="; in += path;
+  in += "&mgm.chmod.mode="; in += mode;
+
+  global_retc = output_result(client_user_command(in));
+  return (0);
+
+ com_chmod_usage:
+  printf("usage: chmod [-r] <mode> <path>                             : set mode for <path> (-r recursive)\n");  
+  printf("                 <mode> can only numerical like 755, 644, 700\n");
+  printf("                 <mode> to switch on attribute inheritance use 2755, 2644, 2700 ...\n");
+  return (0);
+}
 
 
 /* Filesystem listing, configuration, manipulation */

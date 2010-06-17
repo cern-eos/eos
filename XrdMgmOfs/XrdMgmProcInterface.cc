@@ -1065,6 +1065,136 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       return SFS_OK;
     }
 
+    
+    if ( cmd == "attr" ) {
+      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString option = opaque.Get("mgm.option");
+      if ( (!path.length()) || 
+	   ( (subcmd !="set") && (subcmd != "get") && (subcmd != "ls") && (subcmd != "rm") ) ) {
+	stdErr="error: you have to give a path name to call 'attr' and one of the subcommands 'ls', 'get','rm','set' !";
+	retc = EINVAL;
+      } else {
+	if ( ( (subcmd == "set") && ((!opaque.Get("mgm.attr.key")) || ((!opaque.Get("mgm.attr.value"))))) ||
+	     ( (subcmd == "get") && ((!opaque.Get("mgm.attr.key"))) ) ||
+	     ( (subcmd == "rm")  && ((!opaque.Get("mgm.attr.key"))) ) ) {
+	  
+	  stdErr="error: you have to provide 'mgm.attr.key' for set,get,rm and 'mgm.attr.value' for set commands!";
+	  retc = EINVAL;
+	} else {
+	  retc = 0;
+	  XrdOucString key = opaque.Get("mgm.attr.key");
+	  XrdOucString val = opaque.Get("mgm.attr.value");
+	  
+	  // find everything to be modified
+	  std::vector< std::vector<std::string> > found_dirs;
+	  std::vector< std::vector<std::string> > found_files;
+	  if (option == "r") {
+	    if (gOFS->_find(path.c_str(), *error, *pVid, found_dirs , found_files)) {
+	      stdErr += "error: unable to search in path";
+	      retc = errno;
+	    } 
+	  } else {
+	    // the single dir case
+	    found_dirs.resize(1);
+	    found_dirs[0].push_back(path.c_str());
+	  }
+	  
+	  if (!retc) {
+	    // apply to  directories starting at the highest level
+	    for (unsigned int i = 0; i< found_dirs.size(); i++) {
+	      std::sort(found_dirs[i].begin(), found_dirs[i].end());
+	      for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
+		eos::ContainerMD::XAttrMap map;
+		
+		if (subcmd == "ls") {
+		  XrdOucString partialStdOut = "";
+		  if (gOFS->_attr_ls(found_dirs[i][j].c_str(), *error, *pVid,(const char*)0, map)) {
+		    stdErr += "error: unable to list attributes in directory "; stdErr += found_dirs[i][j].c_str();
+		    retc = errno;
+		  } else {
+		    eos::ContainerMD::XAttrMap::const_iterator it;
+		    for ( it = map.begin(); it != map.end(); ++it) {
+		      partialStdOut += (it->first).c_str(); partialStdOut += "="; partialStdOut += "\""; partialStdOut += (it->second).c_str(); partialStdOut += "\""; partialStdOut +="\n";
+		    }
+		    XrdMqMessage::Sort(partialStdOut);
+		    stdOut += partialStdOut;
+		  }
+		}
+		
+		if (subcmd == "set") {
+		  if (gOFS->_attr_set(found_dirs[i][j].c_str(), *error, *pVid,(const char*)0, key.c_str(),val.c_str())) {
+		    stdErr += "error: unable to set attribute in directory "; stdErr += found_dirs[i][j].c_str();
+		    retc = errno;
+		  } else {
+		    stdOut += "success: set attribute '"; stdOut += key; stdOut += "'='"; stdOut += val; stdOut += "' in directory "; stdOut += found_dirs[i][j].c_str();stdOut += "\n";
+		  }
+		}
+		
+		if (subcmd == "get") {
+		  if (gOFS->_attr_get(found_dirs[i][j].c_str(), *error, *pVid,(const char*)0, key.c_str(), val)) {
+		    stdErr += "error: unable to get attribute '"; stdErr += key; stdErr += "' in directory "; stdErr += found_dirs[i][j].c_str();
+		  } else {
+		    stdOut += key; stdOut += "="; stdOut += "\""; stdOut += val; stdOut += "\""; stdOut +="\n"; 
+		  }
+		}
+		
+		if (subcmd == "rm") {
+		  if (gOFS->_attr_rem(found_dirs[i][j].c_str(), *error, *pVid,(const char*)0, key.c_str())) {
+		    stdErr += "error: unable to remove attribute '"; stdErr += key; stdErr += "' in directory "; stdErr += found_dirs[i][j].c_str();
+		  } else {
+		    stdOut += "success: removed attribute '"; stdOut += key; stdOut +="' from directory "; stdOut += found_dirs[i][j].c_str();stdOut += "\n";
+		  }
+		}
+	      }
+	    }
+	  }
+	}
+      }
+      MakeResult(dosort);
+      return SFS_OK;
+    }
+  
+    if ( cmd == "chmod" ) {
+      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString option = opaque.Get("mgm.option");
+      XrdOucString mode   = opaque.Get("mgm.chmod.mode");
+      if ( (!path.length()) || (!mode.length())) {
+	stdErr = "error: you have to provide a path and the mode to set!\n";
+	retc = EINVAL;
+      } else {
+	// find everything to be modified
+	std::vector< std::vector<std::string> > found_dirs;
+	std::vector< std::vector<std::string> > found_files;
+	if (option == "r") {
+	  if (gOFS->_find(path.c_str(), *error, *pVid, found_dirs , found_files)) {
+	    stdErr += "error: unable to search in path";
+	    retc = errno;
+	  } 
+	} else {
+	  // the single dir case
+	  found_dirs.resize(1);
+	  found_dirs[0].push_back(path.c_str());
+	}
+
+	XrdSfsMode Mode = (XrdSfsMode) strtoul(mode.c_str(),0,8);
+	 
+	
+	for (unsigned int i = 0; i< found_dirs.size(); i++) {
+	  std::sort(found_dirs[i].begin(), found_dirs[i].end());
+	  for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
+	    if (gOFS->_chmod(found_dirs[i][j].c_str(), Mode, *error, *pVid, (char*)0)) {
+	      stdErr += "error: unable to chmod of directory "; stdErr += found_dirs[i][j].c_str();
+	      retc = errno;
+	    } else {
+	      stdOut += "success: mode of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now '"; stdOut += mode; stdOut += "'";
+	    }
+	  }
+	}
+	MakeResult(dosort);
+	return SFS_OK;
+      }
+    }
+
     stdErr += "errro: no such user command '"; stdErr += cmd; stdErr += "'";
     retc = EINVAL;
   
