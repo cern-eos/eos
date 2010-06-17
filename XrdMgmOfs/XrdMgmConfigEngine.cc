@@ -127,7 +127,9 @@ XrdMgmConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err)
     err += name;
     return false;
   }
-  
+
+  ResetConfig();
+
   ifstream infile(fullpath.c_str());
   std::string s;
   XrdOucString allconfig="";
@@ -401,7 +403,6 @@ XrdMgmConfigEngine::ApplyConfig(XrdOucString &err)
   XrdCommonMapping::gMapMutex.UnLock();
 
   Mutex.Lock();
-  configDefinitions.Purge();
   configDefinitions.Apply(ApplyEachConfig, &err);
   Mutex.UnLock();
 

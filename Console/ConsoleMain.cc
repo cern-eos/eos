@@ -1612,6 +1612,10 @@ com_rtlog (char* arg1) {
   XrdOucString lines = subtokenizer.GetToken();
   XrdOucString tag   = subtokenizer.GetToken();
   XrdOucString filter= subtokenizer.GetToken();
+  XrdOucString in = "mgm.cmd=rtlog&mgm.rtlog.queue=";
+
+  if (!queue.length())
+    goto com_rtlog_usage;
 
   if ( (queue!=".") && (queue!="*") && (!queue.beginswith("/eos/"))) {
     // there is no queue argument and means to talk with the mgm directly
@@ -1621,7 +1625,6 @@ com_rtlog (char* arg1) {
     queue =".";
   }
 
-  XrdOucString in = "mgm.cmd=rtlog&mgm.rtlog.queue=";
   if (queue.length()) {
     in += queue;
     if (!lines.length())
@@ -1640,6 +1643,7 @@ com_rtlog (char* arg1) {
     return (0);
   }
   
+ com_rtlog_usage:
   printf("usage: rtlog [<queue>|*|.] [<sec in the past>=3600] [<debug>=err] [filter-word]\n");
   printf("                     - '*' means to query all nodes\n");
   printf("                     - '.' means to query only the connected mgm\n");
