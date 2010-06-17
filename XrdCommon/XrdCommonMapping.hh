@@ -2,7 +2,6 @@
 #define __XRDCOMMON_MAPPING__
 
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonLogging.hh"
 
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"

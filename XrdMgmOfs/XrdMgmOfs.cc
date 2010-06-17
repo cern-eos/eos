@@ -269,7 +269,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   XrdCommonMapping::IdMap(client,info,tident,vid);
 
-  SetLogId(logId, vid.uid, vid.gid, vid.uid_list[0], vid.gid_list[0], tident);
+  SetLogId(logId, vid, tident);
 
   openOpaque = new XrdOucEnv(info);
   //  const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
@@ -334,7 +334,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       return Emsg(epname, error, EPERM, "execute proc command - you don't have the requested permissions for that operation ", path);      
     } else {
       procCmd = new XrdMgmProcCommand();
-      procCmd->SetLogId(logId,vid.uid,vid.gid,vid.uid_list[0],vid.gid_list[0], tident);
+      procCmd->SetLogId(logId,vid, tident);
       return procCmd->open(path, info, vid, &error);
     }
   }
@@ -501,10 +501,10 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   }
 
 
-  capability += "&mgm.uid=";       capability+=(int)vid.uid; 
-  capability += "&mgm.gid=";       capability+=(int)vid.gid;
-  capability += "&mgm.ruid=";      capability+=(int)vid.uid_list[0]; 
-  capability += "&mgm.rgid=";      capability+=(int)vid.gid_list[0];
+  capability += "&mgm.ruid=";       capability+=(int)vid.uid; 
+  capability += "&mgm.rgid=";       capability+=(int)vid.gid;
+  capability += "&mgm.uid=";      capability+=(int)vid.uid_list[0]; 
+  capability += "&mgm.gid=";      capability+=(int)vid.gid_list[0];
   capability += "&mgm.path=";      capability += path;
   capability += "&mgm.manager=";   capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";    XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fileId,hexfid);capability += hexfid;

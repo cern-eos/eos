@@ -352,42 +352,42 @@ XrdFstOfsFile::open(const char                *path,
 
   // get the identity
 
-  uid_t sec_uid = 0;
-  gid_t sec_gid = 0;
-  uid_t sec_ruid = 0;
-  gid_t sec_rgid = 0;
+  XrdCommonMapping::VirtualIdentity vid;
+  XrdCommonMapping::Nobody(vid);
   
 
-  if ((val = capOpaque->Get("mgm.uid"))) {
-    sec_uid = atoi(val);
-  } else {
-    return gOFS.Emsg(epname,error,EINVAL,"open - sec uid missing",path);
-  }
-
-  if (capOpaque->Get("mgm.gid")) {
-    sec_gid = atoi(val);
-  } else {
-    return gOFS.Emsg(epname,error,EINVAL,"open - sec gid missing",path);
-  }
-
   if ((val = capOpaque->Get("mgm.ruid"))) {
-    sec_uid = atoi(val);
+    vid.uid = atoi(val);
   } else {
     return gOFS.Emsg(epname,error,EINVAL,"open - sec ruid missing",path);
   }
 
   if (capOpaque->Get("mgm.rgid")) {
-    sec_gid = atoi(val);
+    vid.gid = atoi(val);
   } else {
     return gOFS.Emsg(epname,error,EINVAL,"open - sec rgid missing",path);
   }
 
-  SetLogId(logId, sec_uid, sec_gid, sec_ruid, sec_rgid, tident);
+  if ((val = capOpaque->Get("mgm.uid"))) {
+    vid.uid_list.clear();
+    vid.uid_list.push_back(atoi(val));
+  } else {
+    return gOFS.Emsg(epname,error,EINVAL,"open - sec uid missing",path);
+  }
+
+  if (capOpaque->Get("mgm.gid")) {
+    vid.gid_list.clear();
+    vid.gid_list.push_back(atoi(val));
+  } else {
+    return gOFS.Emsg(epname,error,EINVAL,"open - sec gid missing",path);
+  }
+
+  SetLogId(logId, vid, tident);
 
   eos_info("fstpath=%s", fstPath.c_str());
 
   // attach meta data
-  fMd = gFmdHandler.GetFmd(fileid, fsid, sec_uid, sec_gid, lid, isRW);
+  fMd = gFmdHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
   if (!fMd) {
     eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
     return gOFS.Emsg(epname,error,EINVAL,"open - unable to get file meta data",path);
@@ -407,7 +407,7 @@ XrdFstOfsFile::open(const char                *path,
     return gOFS.Emsg(epname,error,EINVAL,"open - illegal layout specified ",capOpaque->Env(envlen));
   }
 
-  layOut->SetLogId(logId, sec_uid, sec_gid, sec_ruid, sec_rgid, tident);
+  layOut->SetLogId(logId, vid, tident);
 
   int rc = layOut->open(fstPath.c_str(), open_mode, create_mode, client, stringOpaque.c_str());
 

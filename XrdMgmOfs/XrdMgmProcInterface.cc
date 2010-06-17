@@ -477,11 +477,11 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  retc = EPERM;
 	  stdErr = "error: you have to take role 'root' to execute this command";
 	}
-	
-	XrdMgmFstNode::gMutex.UnLock();
-	
-	//      stdOut+="\n==== fs done ====";
       }
+      
+      XrdMgmFstNode::gMutex.UnLock();
+      
+      //      stdOut+="\n==== fs done ====";
     }
 
     if (cmd == "quota") {
@@ -655,10 +655,10 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    retc = EINVAL;
 	  } 
 	}
+      } else {
+	retc = EPERM;
+	stdErr = "error: you have to take role 'root' to execute this command";
       }
-    } else {
-      retc = EPERM;
-      stdErr = "error: you have to take role 'root' to execute this command";
     }
 
     if (cmd == "rtlog") {

@@ -1,5 +1,6 @@
 #include "XrdCommon/XrdCommonMapping.hh"
 #include "XrdCommon/XrdCommonStringStore.hh"
+#include "XrdCommon/XrdCommonLogging.hh"
 
 /*----------------------------------------------------------------------------*/
 XrdSysMutex                       XrdCommonMapping::gMapMutex;

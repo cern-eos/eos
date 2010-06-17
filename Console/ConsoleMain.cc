@@ -746,6 +746,8 @@ com_attr (char* arg1) {
   printf("usage: attr [-r] set <key> <value> <path>                   : set attributes of path (-r recursive)\n");
   printf("usage: attr [-r] get <key> <path>                           : get attributes of path (-r recursive)\n");
   printf("usage: attr [-r] rm  <key> <path>                           : delete attributes of path (-r recursive)\n");
+  printf("         if <key> starts with 'sys.' you have to be member of the sudoer to see this attributes or modify\n");
+  
   return (0);
 }
 
