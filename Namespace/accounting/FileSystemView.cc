@@ -36,53 +36,46 @@ namespace eos
   {
     switch( e->action )
     {
+      //------------------------------------------------------------------------
+      // Add location
+      //------------------------------------------------------------------------
       case IFileMDChangeListener::LocationAdded:
         resize( pFiles, e->location+1 );
         resize( pUnlinkedFiles, e->location+1 );
         pFiles[e->location].insert( e->file->getId() );
         break;
 
+      //------------------------------------------------------------------------
+      // Replace location
+      //------------------------------------------------------------------------
       case IFileMDChangeListener::LocationReplaced:
         if( e->oldLocation >= pFiles.size() )
-          return; // incostency should probably crash here...
+          return; // incostency, we should probably crash here...
 
-        if( e->location >= pFiles.size() )
-        {
-          resize( pFiles, e->location+1 );
-          resize( pUnlinkedFiles, e->location+1 );
-        }
+        resize( pFiles, e->location+1 );
+        resize( pUnlinkedFiles, e->location+1 );
         pFiles[e->oldLocation].erase( e->file->getId() );
         pFiles[e->location].insert( e->file->getId() );
         break;
 
+      //------------------------------------------------------------------------
+      // Remove location
+      //------------------------------------------------------------------------
       case IFileMDChangeListener::LocationRemoved:
+        if( e->location >= pUnlinkedFiles.size() )
+          return; // incostency, we should probably crash here...
+        pUnlinkedFiles[e->location].erase( e->file->getId() );
+        break;
+
+      //------------------------------------------------------------------------
+      // Unlink location
+      //------------------------------------------------------------------------
+      case IFileMDChangeListener::LocationUnlinked:
         if( e->location >= pFiles.size() )
-          return; // incostency should probably crash here...
+          return; // incostency, we should probably crash here...
         pFiles[e->location].erase( e->file->getId() );
+        pUnlinkedFiles[e->location].insert( e->file->getId() );
         break;
-
-      case IFileMDChangeListener::Updated:
-      {
-        if( e->file->getContainerId() != 0 )
-          return;
-        FileMD::LocationVector::const_iterator it;
-        for( it = e->file->locationsBegin();
-             it != e->file->locationsEnd(); ++it )
-        {
-          if( *it >= pUnlinkedFiles.size() )
-          {
-            resize( pFiles, *it+1 );
-            resize( pUnlinkedFiles, *it+1 );
-          }
-
-          if( *it >= pFiles.size() )
-            continue; // incostency should probably crash here...
-
-          pFiles[*it].erase( e->file->getId() );
-          pUnlinkedFiles[*it].insert( e->file->getId() );
-        }
-        break;
-      }
 
       default:
         break;
@@ -94,19 +87,20 @@ namespace eos
   //----------------------------------------------------------------------------
   void FileSystemView::fileMDRead( FileMD *obj )
   {
-    std::deque<FileList> *coll;
-    if( obj->getContainerId() == 0 )
-      coll = &pUnlinkedFiles;
-    else
-      coll = &pFiles;
-
     FileMD::LocationVector::const_iterator it;
     for( it = obj->locationsBegin();
          it != obj->locationsEnd(); ++it )
     {
-      if( *it >= coll->size() )
-        coll->resize( *it+1 );
-      (*coll)[*it].insert( obj->getId() );
+      resize( pFiles, *it+1 );
+      resize( pUnlinkedFiles, *it+1 );
+      pFiles[*it].insert( obj->getId() );
+    }
+    for( it = obj->unlinkedLocationsBegin();
+         it != obj->unlinkedLocationsEnd(); ++it )
+    {
+      resize( pFiles, *it+1 );
+      resize( pUnlinkedFiles, *it+1 );
+      pUnlinkedFiles[*it].insert( obj->getId() );
     }
   }
 
@@ -140,7 +134,6 @@ namespace eos
       e.getMessage() << "Location does not exist" << std::endl;
       throw( e );
     }
-
 
     return std::make_pair( pUnlinkedFiles[location].begin(), pUnlinkedFiles[location].end() );
   }

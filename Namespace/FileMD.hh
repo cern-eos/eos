@@ -186,19 +186,36 @@ namespace eos
         pName = name;
       }
 
-      //! Start iterator for locations 
+      //------------------------------------------------------------------------
+      //! Start iterator for locations
+      //------------------------------------------------------------------------
+      LocationVector::const_iterator locationsBegin() const
+      {
+	return pLocation.begin();
+      }
+
+      //------------------------------------------------------------------------
+      //! End iterator for locations
+      //------------------------------------------------------------------------
+      LocationVector::const_iterator locationsEnd() const
+      {
+	return pLocation.end();
+      }
+
+      //------------------------------------------------------------------------
+      //! Start iterator for unlinked locations 
       //------------------------------------------------------------------------ 
-      LocationVector::const_iterator locationsBegin() const 
+      LocationVector::const_iterator unlinkedLocationsBegin() const 
       { 
-	return pLocation.begin(); 
+	return pUnlinkedLocation.begin(); 
       } 
     
       //------------------------------------------------------------------------ 
-      //! End iterator for locations 
+      //! End iterator for unlinked locations 
       //------------------------------------------------------------------------ 
-      LocationVector::const_iterator locationsEnd() const 
+      LocationVector::const_iterator unlinkedLocationsEnd() const 
       { 
-	return pLocation.end(); 
+	return pUnlinkedLocation.end(); 
       }
 
       //------------------------------------------------------------------------
@@ -222,9 +239,19 @@ namespace eos
       void replaceLocation( unsigned int index, location_t newlocation );
 
       //------------------------------------------------------------------------
-      //! Remove location
+      //! Remove location that was previously unlinked
       //------------------------------------------------------------------------
       void removeLocation( location_t location );
+
+      //------------------------------------------------------------------------
+      //! Unlink location
+      //------------------------------------------------------------------------
+      void unlinkLocation( location_t location );
+
+      //------------------------------------------------------------------------
+      //! Unlink all locations
+      //------------------------------------------------------------------------
+      void unlinkAllLocations();
 
       //------------------------------------------------------------------------
       //! Clear locations
@@ -324,6 +351,7 @@ namespace eos
       ContainerMD::id_t  pContainerId;
       std::string        pName;
       LocationVector     pLocation;
+      LocationVector     pUnlinkedLocation;
       uid_t              pCUid;
       gid_t              pCGid;
       uint32_t           pLayoutId;

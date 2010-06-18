@@ -124,22 +124,39 @@ void FileSystemViewTest::fileSystemViewTest()
     size_t numUnlinked = countUnlinked( fsView );
     CPPUNIT_ASSERT( numUnlinked == 0 );
 
-    for( int i = 100; i < 900; ++i )
+    for( int i = 100; i < 500; ++i )
     {
       std::ostringstream o;
       o << "file" << i;
-      // unlink
+      // unlink some replicas
       eos::FileMD *f = c->findFile( o.str() );
+      f->unlinkLocation( f->getLocation( 0 ) );
+      f->unlinkLocation( f->getLocation( 0 ) );
+      view->updateFileStore( f );
+    }
+
+    numReplicas = countReplicas( fsView );
+    CPPUNIT_ASSERT( numReplicas == 19200 );
+    numUnlinked = countUnlinked( fsView );
+    CPPUNIT_ASSERT( numUnlinked == 800 );
+
+    for( int i = 500; i < 900; ++i )
+    {
+      std::ostringstream o;
+      o << "file" << i;
+      // unlink some replicas
+      eos::FileMD *f = c->findFile( o.str() );
+      f->unlinkAllLocations();
       c->removeFile( o.str() );
       f->setContainerId( 0 );
       view->updateFileStore( f );
     }
 
     numReplicas = countReplicas( fsView );
-    CPPUNIT_ASSERT( numReplicas == 16000 );
+    CPPUNIT_ASSERT( numReplicas == 17200 );
 
     numUnlinked = countUnlinked( fsView );
-    CPPUNIT_ASSERT( numUnlinked == 4000 );
+    CPPUNIT_ASSERT( numUnlinked == 2800 );
 
     view->finalize();
     fsView->finalize();
@@ -147,11 +164,10 @@ void FileSystemViewTest::fileSystemViewTest()
     fsView->initialize();
 
     numReplicas = countReplicas( fsView );
-    CPPUNIT_ASSERT( numReplicas == 16000 );
+    CPPUNIT_ASSERT( numReplicas == 17200 );
 
     numUnlinked = countUnlinked( fsView );
-    CPPUNIT_ASSERT( numUnlinked == 4000 );
-
+    CPPUNIT_ASSERT( numUnlinked == 2800 );
 
     view->finalize();
     fsView->finalize();

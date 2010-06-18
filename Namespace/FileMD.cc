@@ -57,10 +57,11 @@ namespace eos
   void FileMD::removeLocation( location_t location )
   {
     std::vector<location_t>::iterator it;
-    for ( it=pLocation.begin() ; it < pLocation.end(); it++ ) {
+    for( it = pUnlinkedLocation.begin(); it < pUnlinkedLocation.end(); ++it)
+    {
       if (*it == location)
       {
-        pLocation.erase(it);
+        pUnlinkedLocation.erase(it);
         IFileMDChangeListener::Event e( this,
                                         IFileMDChangeListener::LocationRemoved,
                                         location );
@@ -70,6 +71,42 @@ namespace eos
     }
   }
 
+  //----------------------------------------------------------------------------
+  // Unlink location
+  //----------------------------------------------------------------------------
+  void FileMD::unlinkLocation( location_t location )
+  {
+    std::vector<location_t>::iterator it;
+    for ( it=pLocation.begin() ; it < pLocation.end(); it++ ) {
+      if (*it == location)
+      {
+        pLocation.erase( it );
+        pUnlinkedLocation.push_back( *it );
+        IFileMDChangeListener::Event e( this,
+                                        IFileMDChangeListener::LocationUnlinked,
+                                        location );
+        pFileMDSvc->notifyListeners( &e );
+        return;
+      }
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Unlink all locations
+  //----------------------------------------------------------------------------
+  void FileMD::unlinkAllLocations()
+  {
+    std::vector<location_t>::iterator it;
+    for( it = pLocation.begin(); it < pLocation.end(); ++it )
+    {
+      pUnlinkedLocation.push_back( *it );
+      IFileMDChangeListener::Event e( this,
+                                      IFileMDChangeListener::LocationUnlinked,
+                                      *it );
+      pFileMDSvc->notifyListeners( &e );
+    }
+    pLocation.clear();
+  }
 
   //----------------------------------------------------------------------------
   // Serialize the object to a buffer
@@ -91,6 +128,15 @@ namespace eos
 
     LocationVector::iterator it;
     for( it = pLocation.begin(); it != pLocation.end(); ++it )
+    {
+      location_t location = *it;
+      buffer.putData( &location, sizeof( location_t ) );
+    }
+
+    len = pUnlinkedLocation.size();
+    buffer.putData( &len, sizeof( len ) );
+
+    for( it = pUnlinkedLocation.begin(); it != pUnlinkedLocation.end(); ++it )
     {
       location_t location = *it;
       buffer.putData( &location, sizeof( location_t ) );
@@ -129,6 +175,14 @@ namespace eos
       location_t location;
       offset = buffer.grabData( offset, &location, sizeof( location_t ) );
       pLocation.push_back( location );
+    }
+
+    offset = buffer.grabData( offset, &len, 2 );
+    for( uint16_t i = 0; i < len; ++i )
+    {
+      location_t location;
+      offset = buffer.grabData( offset, &location, sizeof( location_t ) );
+      pUnlinkedLocation.push_back( location );
     }
 
     offset = buffer.grabData( offset, &pCUid,      sizeof( pCUid ) );

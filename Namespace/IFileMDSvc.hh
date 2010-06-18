@@ -27,6 +27,7 @@ namespace eos
         Deleted,
         Created,
         LocationAdded,
+        LocationUnlinked,
         LocationRemoved,
         LocationReplaced
       };
