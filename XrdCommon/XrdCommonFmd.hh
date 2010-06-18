@@ -111,9 +111,9 @@ class XrdCommonFmdHandler : public XrdCommonLogId {
 private:
   bool isOpen;
 public:
-  google::dense_hash_map<int,int> fdChangeLogRead;
-  google::dense_hash_map<int,int> fdChangeLogWrite;
-  google::dense_hash_map<int,int> fdChangeLogSequenceNumber;
+  google::sparse_hash_map<int,int> fdChangeLogRead;
+  google::sparse_hash_map<int,int> fdChangeLogWrite;
+  google::sparse_hash_map<int,int> fdChangeLogSequenceNumber;
 
   XrdOucString ChangeLogFileName;
   XrdSysMutex Mutex;
@@ -143,30 +143,29 @@ public:
 
   // that is all we need for meta data handling
   // hash map pointing from fid to offset in changelog file
-  google::dense_hash_map<unsigned long long, google::dense_hash_map<unsigned long long, unsigned long long> > Fmd;
+  google::sparse_hash_map<unsigned long long, google::sparse_hash_map<unsigned long long, unsigned long long> > Fmd;
   // hash map with fid file sizes
-  google::dense_hash_map<long long, unsigned long long> FmdSize;
+  google::sparse_hash_map<long long, unsigned long long> FmdSize;
 
   // that is all we need for quota
-  google::dense_hash_map<long long, unsigned long long> UserBytes; // the key is encoded as (fsid<<32) | uid 
-  google::dense_hash_map<long long, unsigned long long> GroupBytes;// the key is encoded as (fsid<<32) | gid
-  google::dense_hash_map<long long, unsigned long long> UserFiles; // the key is encoded as (fsid<<32) | uid
-  google::dense_hash_map<long long, unsigned long long> GroupFiles;// the key is encoded as (fsid<<32) | gid
+  google::sparse_hash_map<long long, unsigned long long> UserBytes; // the key is encoded as (fsid<<32) | uid 
+  google::sparse_hash_map<long long, unsigned long long> GroupBytes;// the key is encoded as (fsid<<32) | gid
+  google::sparse_hash_map<long long, unsigned long long> UserFiles; // the key is encoded as (fsid<<32) | uid
+  google::sparse_hash_map<long long, unsigned long long> GroupFiles;// the key is encoded as (fsid<<32) | gid
 
 
   XrdCommonFmdHandler() {
     SetLogId("CommonFmdHandler"); isOpen=false;
-    Fmd.set_empty_key(0);
-    FmdSize.set_empty_key(-1);
+    //    FmdSize.set_empty_key(0);
 
-    UserBytes.set_empty_key(-1);
-    GroupBytes.set_empty_key(-1);
-    UserFiles.set_empty_key(-1);
-    GroupFiles.set_empty_key(-1);
+    //    UserBytes.set_empty_key(-1);
+    //    GroupBytes.set_empty_key(-1);
+    //    UserFiles.set_empty_key(-1);
+    //    GroupFiles.set_empty_key(-1);
 
-    fdChangeLogRead.set_empty_key(0);
-    fdChangeLogWrite.set_empty_key(0);
-    fdChangeLogSequenceNumber.set_empty_key(0);
+    //    fdChangeLogRead.set_empty_key(0);
+    //    fdChangeLogWrite.set_empty_key(0);
+    //    fdChangeLogSequenceNumber.set_empty_key(0);
     ChangeLogFileName="";
   }
   ~XrdCommonFmdHandler() {};

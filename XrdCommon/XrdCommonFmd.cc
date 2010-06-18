@@ -84,7 +84,7 @@ XrdCommonFmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid)
   Mutex.Lock();
   bool isNew=false;
 
-  Fmd[fsid].set_empty_key(0);
+  //  Fmd[fsid].set_empty_key(0);
   char fsChangeLogFileName[1024];
   sprintf(fsChangeLogFileName,"%s.%04d.mdlog", ChangeLogFileName.c_str(),fsid);
   
@@ -163,7 +163,7 @@ bool XrdCommonFmdHandler::AttachLatestChangeLogFile(const char* changelogdir, in
     char filename[1024];
   };
 
-  Fmd[fsid].set_empty_key(0);
+  //  Fmd[fsid].set_empty_key(0);
 
   int nobjects=0;
   long tdp=0;

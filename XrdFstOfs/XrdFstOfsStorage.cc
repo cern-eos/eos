@@ -121,7 +121,7 @@ XrdFstOfsStorage::XrdFstOfsStorage(const char* metadirectory)
   
   // check if the meta directory is accessible
   if (access(metadirectory,R_OK|W_OK|X_OK)) {
-    eos_crit("cannot access meta data directory %s\n", metadirectory);
+    eos_crit("cannot access meta data directory %s", metadirectory);
     zombie = true;
   }
 
@@ -280,7 +280,7 @@ XrdFstOfsStorage::Quota()
     fsMutex.UnLock();
 
     gFmdHandler.Mutex.Lock();
-    google::dense_hash_map<long long, unsigned long long>::const_iterator it;
+    google::sparse_hash_map<long long, unsigned long long>::const_iterator it;
 
     XrdOucString fullreport="";
     XrdOucString quotareport="";
@@ -322,7 +322,8 @@ XrdFstOfsStorage::Quota()
     fullreport += quotareport;
 
     // broadcast the quota table
-    BroadcastQuota(fullreport);
+    if (changedalot)
+      BroadcastQuota(fullreport);
  
     gFmdHandler.Mutex.UnLock();
     sleep(XrdFstOfsConfig::gConfig.FstQuotaReportInterval);
