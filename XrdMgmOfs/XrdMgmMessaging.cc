@@ -90,7 +90,7 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
       if (subcmd == "set") {
 	eos_debug("fs set %s\n", saction.c_str());
 	if (!XrdMgmFstNode::Update(action)) {
-	  // error cannot set this filesystem informatio
+	  // error cannot set this filesystem information
 	  eos_err("fs set failed for %s", saction.c_str());
 	} else {
 	  // ok !

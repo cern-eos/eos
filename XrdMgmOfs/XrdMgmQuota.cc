@@ -369,8 +369,8 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
       }
       schedulingViewPtr[ptrindextag]++;
       if (nassigned >= nfilesystems) {
-	// rotate to next scheduling group
-	schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
+	//	// rotate to next scheduling group
+	//	schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
 	break; // leave the for loop inside a scheduling group
       }
     }
@@ -387,7 +387,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
   }
 
   if (nassigned == nfilesystems) {
-    schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
+    //    schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
     return 0;
   } else {
     selectedfs.clear();

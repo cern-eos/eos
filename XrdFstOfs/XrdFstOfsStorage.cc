@@ -17,6 +17,8 @@ XrdFstOfsFileSystem::BroadcastError(const char* msg)
   XrdOucString msgbody;
   XrdOucEnv env(GetEnvString());
   XrdCommonFileSystem::GetBootReplyString(msgbody, env, XrdCommonFileSystem::kOpsError);
+  
+  SetStatus(XrdCommonFileSystem::kOpsError);
 
   XrdOucString response = "errmsg="; response += msg; response += " "; response += Path;; response += " ["; response += strerror(errno); response += "]";response += "&errc="; response += errno; 
   msgbody += response;
@@ -39,7 +41,7 @@ XrdFstOfsFileSystem::BroadcastStatus()
   XrdOucString msgbody;
   XrdOucEnv env(GetEnvString());
 
-  XrdCommonFileSystem::GetBootReplyString(msgbody, env, XrdCommonFileSystem::kBooted);
+  XrdCommonFileSystem::GetBootReplyString(msgbody, env, Status);
 
   XrdOucString response = statFs->GetEnv();
 
@@ -207,10 +209,12 @@ XrdFstOfsStorage::SetFileSystem(XrdOucEnv& env)
   }
 
   if (!gFmdHandler.AttachLatestChangeLogFile(metaDirectory.c_str(), fsid)) {
+    fs->SetStatus(XrdCommonFileSystem::kBootFailure);
     fsMutex.UnLock();
     return false;
   }
 
+  fs->SetStatus(XrdCommonFileSystem::kBooted);
   fsMutex.UnLock();
   return true;
 }
