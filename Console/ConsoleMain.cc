@@ -57,6 +57,7 @@ int com_cd PARAMS((char*));
 int com_clear PARAMS((char*));
 int com_chmod PARAMS((char*));
 int com_config PARAMS((char*));
+int com_file PARAMS((char*));
 int com_fileinfo PARAMS((char*));
 int com_find PARAMS((char*));
 int com_fs   PARAMS((char*));
@@ -101,6 +102,7 @@ COMMAND commands[] = {
   { (char*)"config",com_config,(char*)"Configuration System"},
   { (char*)"debug", com_debug,(char*)"Set debug level"},
   { (char*)"exit",  com_quit, (char*)"Exit from EOS console" },
+  { (char*)"file", com_file, (char*)"File Handling" },
   { (char*)"fileinfo", com_fileinfo, (char*)"File Information" },
   { (char*)"find",  com_find, (char*)"Find files/directories" },
   { (char*)"fs",    com_fs,   (char*)"File System configuration"},
@@ -1514,6 +1516,59 @@ com_restart (char* arg1) {
   printf("       restart fst [*]                         : restart all services on fst nodes !\n");
   return (0);
 }
+
+/* File handling */
+int 
+com_file (char* arg1) {
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString cmd = subtokenizer.GetToken();
+  XrdOucString path = subtokenizer.GetToken();
+  XrdOucString fsid1 = subtokenizer.GetToken();
+  XrdOucString fsid2 = subtokenizer.GetToken();
+
+  XrdOucString in = "mgm.cmd=file&";
+  if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) ) {
+    goto com_file_usage;
+  }
+
+  if (cmd == "drop") {
+    if ( !path.length() || !fsid1.length()) 
+      goto com_file_usage;
+    in += "&mgm.subcmd=drop";
+    in += "&mgm.path="; in += path;
+    in += "&mgm.file.fsid="; in += fsid1;
+  }
+  
+  if (cmd == "move") {
+    if ( !path.length() || !fsid1.length() || !fsid2.length() )
+      goto com_file_usage;
+    in += "&mgm.subcmd=move";
+    in += "&mgm.path="; in += path;
+    in += "&mgm.file.sourcefsid="; in += fsid1;
+    in += "&mgm.file.targetfsid="; in += fsid2;
+  }
+
+  if (cmd == "replicate") {
+    if ( !path.length() || !fsid1.length() || !fsid2.length() )
+      goto com_file_usage;
+    in += "&mgm.subcmd=replicate";
+    in += "&mgm.path="; in += path;
+    in += "&mgm.file.sourcefsid="; in += fsid1;
+    in += "&mgm.file.targetfsid="; in += fsid2;
+  }
+  
+  return (0);
+
+ com_file_usage:
+  printf("usage: file drop <path> <fsid>                                       :  drop the file <path> part on <fsid>\n");
+  printf("       file move <path> <fsid1> <fsid2>                              :  move the file <path> part on <fsid1> to <fsid2>\n");
+  printf("       file replicate <path> <fsid1> <fsid2>                         :  replicate file <path> part on <fsid1> to <fsid2>\n");
+  return (0);
+}
+
+
+
 
 /* Get file information */
 int

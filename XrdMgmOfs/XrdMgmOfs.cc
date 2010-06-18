@@ -469,7 +469,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   // select space and layout according to policies
   XrdMgmPolicy::GetLayoutAndSpace(path, attrmap, vid, newlayoutId, space, *openOpaque, forcedFsId);
 
-  if (isCreation) {
+  if (isCreation || ( (open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation()))) {
     layoutId = newlayoutId;
     // set the layout and commit new meta data 
     fmd->setLayoutId(layoutId);
@@ -517,7 +517,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   XrdMgmFstNode::gMutex.Lock();
   int retc = 0;
     // ************************************************************************************************
-  if (isCreation) {
+  if (isCreation || ( (open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation()))) {
     // ************************************************************************************************
     // place a new file 
     const char* containertag = 0;
@@ -2503,3 +2503,125 @@ XrdMgmOfs::_attr_rem(const char             *path,
 }
 
 /*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_dropstripe(const char             *path,
+		       XrdOucErrInfo          &error,
+		       XrdCommonMapping::VirtualIdentity &vid,
+		       unsigned long           fsid)
+{
+  static const char *epname = "dropstripe";  
+  eos::ContainerMD *dh=0;
+  eos::FileMD *fmd=0;
+  errno = 0;
+
+  XrdCommonPath cPath(path);
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
+  try {
+    dh = gOFS->eosView->getContainer(cPath.GetParentPath());
+  } catch( eos::MDException &e ) {
+    dh = 0;
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+
+  // check permissions
+  if (dh && (!dh->access(vid.uid,vid.gid, X_OK|W_OK)))
+    if (!errno) errno = EPERM;
+
+  if (errno) 
+    return  Emsg(epname,error,errno,"drop stripe",path);  
+
+  // get the file
+  try {
+    fmd = gOFS->eosView->getFile(path);
+    if (fmd->hasLocation(fsid)) {
+      fmd->removeLocation(fsid);
+      gOFS->eosView->updateFileStore(fmd);
+    } else {
+      errno = ENOENT;
+    }
+  } catch( eos::MDException &e ) {
+    fmd = 0;
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+  
+  gOFS->eosViewMutex.UnLock();
+  
+  if (errno) 
+    return  Emsg(epname,error,errno,"drop stripe",path);  
+
+  return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_movestripe(const char             *path,
+		       XrdOucErrInfo          &error,
+		       XrdCommonMapping::VirtualIdentity &vid,
+		       unsigned long           sourcefsid,
+		       unsigned long           targetfsid)
+{
+  static const char *epname = "movestripe";  
+  eos::ContainerMD *dh=0;
+  errno = 0;
+
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
+  try {
+    dh = gOFS->eosView->getContainer(path);
+  } catch( eos::MDException &e ) {
+    dh = 0;
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+
+  // check permissions
+  if (dh && (!dh->access(vid.uid,vid.gid, X_OK|W_OK)))
+    if (!errno) errno = EPERM;
+  
+  gOFS->eosViewMutex.UnLock();
+  
+  if (errno) 
+    return  Emsg(epname,error,errno,"drop stripe",path);  
+
+  return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_copystripe(const char             *path,
+		       XrdOucErrInfo          &error,
+		       XrdCommonMapping::VirtualIdentity &vid,
+		       unsigned long           sourcefsid,
+		       unsigned long           targetfsid)
+{
+  static const char *epname = "copystripe";  
+  eos::ContainerMD *dh=0;
+  errno = 0;
+
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
+  try {
+    dh = gOFS->eosView->getContainer(path);
+  } catch( eos::MDException &e ) {
+    dh = 0;
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+
+  // check permissions
+  if (dh && (!dh->access(vid.uid,vid.gid, X_OK|W_OK)))
+    if (!errno) errno = EPERM;
+  
+  gOFS->eosViewMutex.UnLock();
+  
+  if (errno) 
+    return  Emsg(epname,error,errno,"drop stripe",path);  
+
+  return SFS_OK;
+}
+

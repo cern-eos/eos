@@ -381,8 +381,24 @@ const   char          *getVersion();
 				 const char             *key);
 				 
   
-  
+        int            _dropstripe(const char           *path, 
+				   XrdOucErrInfo        &error,
+				   XrdCommonMapping::VirtualIdentity &vid,
+				   unsigned long         fsid);
 
+        int            _movestripe(const char           *path, 
+				   XrdOucErrInfo        &error,
+				   XrdCommonMapping::VirtualIdentity &vid,
+				   unsigned long         sourcefsid,
+				   unsigned long         targetfsid);
+
+        int            _copystripe(const char           *path, 
+				   XrdOucErrInfo        &error,
+				   XrdCommonMapping::VirtualIdentity &vid,
+				   unsigned long         sourcefsid,
+				   unsigned long         targetfsid);
+
+  
 // Common functions
 //
 static  int            Mkpath(const char *path, mode_t mode, 

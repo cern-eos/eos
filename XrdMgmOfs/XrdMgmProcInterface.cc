@@ -729,6 +729,51 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
   }
 
   if (userCmd) {
+    if ( cmd == "file" ) {
+      XrdOucString path = opaque.Get("mgm.path");
+      if (!path.length()) {
+	stdErr="error: you have to give a path name to call 'file'";
+	retc = EINVAL;
+      } else {
+	if (subcmd == "drop") {
+	  XrdOucString sfsid = opaque.Get("mgm.file.fsid");
+	  unsigned long fsid = (sfsid.length())?strtoul(sfsid.c_str(),0,10):0;
+
+	  if (gOFS->_dropstripe(path.c_str(),*error, vid, fsid)) {
+	    stdErr += "error: unable to drop stripe";
+	    retc = errno;
+	  } 
+	}
+	
+	if (subcmd == "move") {
+	  XrdOucString sfsidsource = opaque.Get("mgm.file.sourcefsid");
+	  unsigned long sourcefsid = (sfsidsource.length())?strtoul(sfsidsource.c_str(),0,10):0;
+	  XrdOucString sfsidtarget = opaque.Get("mgm.file.targetfsid");
+	  unsigned long targetfsid = (sfsidsource.length())?strtoul(sfsidtarget.c_str(),0,10):0;
+
+	  if (gOFS->_movestripe(path.c_str(),*error, vid, sourcefsid, targetfsid)) {
+	    stdErr += "error: unable to move stripe";
+	    retc = errno;
+	  }
+	}
+	
+	if (subcmd == "replicate") {
+	  XrdOucString sfsidsource = opaque.Get("mgm.file.sourcefsid");
+	  unsigned long sourcefsid = (sfsidsource.length())?strtoul(sfsidsource.c_str(),0,10):0;
+	  XrdOucString sfsidtarget = opaque.Get("mgm.file.targetfsid");
+	  unsigned long targetfsid = (sfsidtarget.length())?strtoul(sfsidtarget.c_str(),0,10):0;
+
+	  if (gOFS->_copystripe(path.c_str(),*error, vid, sourcefsid, targetfsid)) {
+	    stdErr += "error: unable to replicate stripe";
+	    retc = errno;
+	  }
+	}
+      }
+      MakeResult(dosort);
+      return SFS_OK;
+    }
+
+
     if ( cmd == "fileinfo" ) {
       XrdOucString path = opaque.Get("mgm.path");
       if (!path.length()) {
