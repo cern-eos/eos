@@ -18,20 +18,23 @@ private:
   XrdOucString schedulingGroup;
   XrdOucString  Env;
   int          Status;
-       
+  int          errc;
+  XrdOucString errmsg;
+
   XrdCommonStatfs* statFs;         // the owner of the object is a global hash in XrdCommonStatfs - this are just references
   unsigned long last_blocks_free;  
   time_t last_status_broadcast;
 
 public:
-  XrdFstOfsFileSystem(const char* inpath) {Path = inpath; Id = 0; queueName =""; schedulingGroup=""; statFs = 0; last_blocks_free=0;last_status_broadcast=0;Status = XrdCommonFileSystem::kDown;}
+  XrdFstOfsFileSystem(const char* inpath) {Path = inpath; Id = 0; queueName =""; schedulingGroup=""; statFs = 0; last_blocks_free=0;last_status_broadcast=0;Status = XrdCommonFileSystem::kDown; errc = 0; errmsg = "";}
   ~XrdFstOfsFileSystem() {}
 
   void SetId(unsigned int id) {Id = id;}
   void SetSchedulingGroup(const char* inschedgroup) { schedulingGroup = inschedgroup;}
   void SetQueue(const char* inqueue) { queueName = inqueue;}
   void SetStatus(int status) { Status = status;}
-  
+  void SetError(int ec, const char* msg) { errc = ec; errmsg = msg;}
+
   const char* GetEnvString() { 
     Env = "mgm.fsname="; Env += queueName; Env += "&mgm.fsschedgroup="; Env += schedulingGroup;
     Env += "&mgm.fspath="; Env += Path; Env += "&mgm.fsid="; Env += (int)Id; return Env.c_str();

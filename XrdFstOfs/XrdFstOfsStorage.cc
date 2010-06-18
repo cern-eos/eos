@@ -20,8 +20,14 @@ XrdFstOfsFileSystem::BroadcastError(const char* msg)
   
   SetStatus(XrdCommonFileSystem::kOpsError);
 
-  XrdOucString response = "errmsg="; response += msg; response += " "; response += Path;; response += " ["; response += strerror(errno); response += "]";response += "&errc="; response += errno; 
+  XrdOucString response = response += msg; response += " "; response += Path;; response += " ["; response += strerror(errno); response += "]";
+
+  msgbody += "errmsg=";
   msgbody += response;
+  msgbody += "&errc="; 
+  msgbody += errno; 
+
+  SetError(errno,response.c_str());
   
   message.SetBody(msgbody.c_str());
 
@@ -46,6 +52,13 @@ XrdFstOfsFileSystem::BroadcastStatus()
   XrdOucString response = statFs->GetEnv();
 
   msgbody += response;
+  if (errc) {
+    msgbody += "&errmsg=";
+    msgbody += errmsg;
+    msgbody += "&errc=";
+    msgbody += errc;
+  }
+  
   message.SetBody(msgbody.c_str());
 
   eos_debug("broadcasting status message: %s", msgbody.c_str());
@@ -210,11 +223,13 @@ XrdFstOfsStorage::SetFileSystem(XrdOucEnv& env)
 
   if (!gFmdHandler.AttachLatestChangeLogFile(metaDirectory.c_str(), fsid)) {
     fs->SetStatus(XrdCommonFileSystem::kBootFailure);
+    fs->SetError(EFAULT,"cannot attach to latest change log file - see the fst logfile for details");
     fsMutex.UnLock();
     return false;
   }
 
   fs->SetStatus(XrdCommonFileSystem::kBooted);
+  fs->SetError(0,0);
   fsMutex.UnLock();
   return true;
 }
