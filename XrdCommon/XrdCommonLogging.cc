@@ -73,7 +73,7 @@ XrdCommonLogging::log(const char* func, const char* file, int line, const char* 
   vsprintf(ptr, msg, args);
   
   fprintf(stderr,buffer);
-  fprintf(stderr,"\n\n");
+  fprintf(stderr,"\n");
   fflush(stderr);
   va_end(args);
   gLogMemory[priority][(gLogCircularIndex[priority]++)%gCircularIndexSize] = buffer;

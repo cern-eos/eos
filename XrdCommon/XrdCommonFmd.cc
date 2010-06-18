@@ -163,6 +163,8 @@ bool XrdCommonFmdHandler::AttachLatestChangeLogFile(const char* changelogdir, in
     char filename[1024];
   };
 
+  Fmd[fsid].set_empty_key(0);
+
   int nobjects=0;
   long tdp=0;
 

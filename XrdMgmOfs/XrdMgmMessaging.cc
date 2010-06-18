@@ -88,7 +88,7 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
     XrdOucString subcmd = action.Get("mgm.subcmd");
     if (cmd == "fs") {
       if (subcmd == "set") {
-	eos_notice("fs set %s\n", saction.c_str());
+	eos_debug("fs set %s\n", saction.c_str());
 	if (!XrdMgmFstNode::Update(action)) {
 	  // error cannot set this filesystem informatio
 	  eos_err("fs set failed for %s", saction.c_str());
@@ -100,7 +100,7 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
 
     if (cmd == "quota") {
       if (subcmd == "setstatus") {
-	eos_notice("quota setstatus %s\n", saction.c_str());
+	eos_debug("quota setstatus %s\n", saction.c_str());
 	if (!XrdMgmFstNode::UpdateQuotaStatus(action)) {
 	  eos_err("quota setstatus failed for %s", saction.c_str());
 	} else {

@@ -387,6 +387,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
   }
 
   if (nassigned == nfilesystems) {
+    schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
     return 0;
   } else {
     selectedfs.clear();
