@@ -89,7 +89,6 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
   }
 
   // the configuration door for localhost clients adds always the adm/adm vid's
-  fprintf(stderr,"tident=%s\n", suidtident.c_str());
   if (suidtident == "tident:\"root@localhost.localdomain\":uid") {
     vid.sudoer = true;
     vid.uid = 3;

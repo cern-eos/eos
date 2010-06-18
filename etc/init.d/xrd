@@ -76,7 +76,7 @@ start() {
 			echo
                 else
 		        # Setup the base xrootd options
-		        _XRD_OPTIONS="-n $i ${XRD_ROLEFLAG}-c ${_XRD_CONFIG} -l ${XRD_LOGDIR}/xrdlog.$i -b "
+		        _XRD_OPTIONS="-n $i ${XRD_ROLEFLAG}-c ${_XRD_CONFIG} -l ${XRD_LOGDIR}/xrdlog.$i -b -Rdaemon "
 			_XRD_OPTIONS=${_XRD_OPTIONS%' '}
 			echo  with ${_XRD_OPTIONS}
 			# Setup xrootd environment
@@ -95,7 +95,7 @@ start() {
 			    daemon env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}
 			else
 			    ulimit -n ${XRD_MAXFD}
-			    daemon --user ${XRD_USER} env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}
+			    daemon env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}
 			fi
 
 			# Write the pid to a file

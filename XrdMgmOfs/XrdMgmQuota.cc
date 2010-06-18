@@ -288,7 +288,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
   unsigned long long referencesize = 1024ll*1024ll*1024ll;  // 1 GB
 
   // first figure out how many filesystems we need
-  eos_static_debug("uid=%u git=%u grouptag=%s place filesystems=%u",uid,gid,grouptag, nfilesystems);
+  eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u",uid,gid,grouptag, nfilesystems);
   
   std::string indextag = "";
   if (grouptag) {
@@ -311,7 +311,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
   
        // -> group quota
   if ( ( ( (GetQuota(kGroupBytesTarget,gid,false)) - (GetQuota(kGroupBytesIs,gid,false)) ) > (long long) (1ll*nfilesystems*referencesize) ) &&
-       ( ( (GetQuota(kGroupFilesTarget,gid,false)) - (GetQuota(kGroupFilesIs,gid,false)) ) > nfilesystems ) ) {
+       ( ( (GetQuota(kGroupFilesTarget,gid,false)) - (GetQuota(kGroupFilesIs,gid,false)) ) > (1*nfilesystems)  ) ) {
     // the user has quota here!
     hasquota = true;
   } 

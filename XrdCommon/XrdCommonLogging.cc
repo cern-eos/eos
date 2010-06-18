@@ -25,7 +25,7 @@ XrdCommonLogging::log(const char* func, const char* file, int line, const char* 
     return;
 
   // apply filter to avoid message flooding for debug messages
-  if (priority <= LOG_INFO)
+  if (priority >= LOG_INFO)
     if ( (gFilter.find(func))!=STR_NPOS) {
       return;
     }

@@ -502,25 +502,30 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	XrdOucString svolume = opaque.Get("mgm.quota.maxbytes");
 	XrdOucString sinodes = opaque.Get("mgm.quota.maxinodes");
 
-	unsigned long long size   = XrdCommonFileSystem::GetSizeFromString(svolume);
-	if ((svolume.length()) && (errno == EINVAL)) {
-	  stdErr="error: the size you specified is not a valid number!";
+	if (uid_sel.length() && gid_sel.length()) {
+	  stdErr="error: you either specify a uid or a gid - not both!";
 	  retc = EINVAL;
 	} else {
-	  unsigned long long inodes = XrdCommonFileSystem::GetSizeFromString(sinodes);
-	  if ((sinodes.length()) && (errno == EINVAL)) {
-	    stdErr="error: the inodes you specified are not a valid number!";
+	  unsigned long long size   = XrdCommonFileSystem::GetSizeFromString(svolume);
+	  if ((svolume.length()) && (errno == EINVAL)) {
+	    stdErr="error: the size you specified is not a valid number!";
 	    retc = EINVAL;
 	  } else {
-	    if ( (!svolume.length())&&(!sinodes.length())  ) {
-	      stdErr="error: quota set - max. bytes or max. inodes have to be defined!";
+	    unsigned long long inodes = XrdCommonFileSystem::GetSizeFromString(sinodes);
+	    if ((sinodes.length()) && (errno == EINVAL)) {
+	      stdErr="error: the inodes you specified are not a valid number!";
 	      retc = EINVAL;
 	    } else {
-	      XrdOucString msg ="";
-	      if (!XrdMgmQuota::SetQuota(space, uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, svolume.length()?size:-1, sinodes.length()?inodes:-1, msg, retc)) {
-		stdErr = msg;
+	      if ( (!svolume.length())&&(!sinodes.length())  ) {
+		stdErr="error: quota set - max. bytes or max. inodes have to be defined!";
+		retc = EINVAL;
 	      } else {
-		stdOut = msg;
+		XrdOucString msg ="";
+		if (!XrdMgmQuota::SetQuota(space, uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, svolume.length()?size:-1, sinodes.length()?inodes:-1, msg, retc)) {
+		stdErr = msg;
+		} else {
+		  stdOut = msg;
+		}
 	      }
 	    }
 	  }
@@ -617,20 +622,22 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	dosort = true;
       } 
 
-      if (vid_in.uid == 0) {
-	if (subcmd == "set") {
-	  eos_notice("vid set");
-	  XrdMgmVid::Set(opaque, retc, stdOut,stdErr);
+      if ( ( subcmd == "set" ) || (subcmd == "rm") ) {
+	if (vid_in.uid == 0) {
+	  if (subcmd == "set") {
+	    eos_notice("vid set");
+	    XrdMgmVid::Set(opaque, retc, stdOut,stdErr);
+	  }
+	  
+	  
+	  if (subcmd == "rm") {
+	    eos_notice("vid rm");
+	    XrdMgmVid::Rm(opaque, retc, stdOut, stdErr);
+	  }
+	} else {
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
 	}
-	
-	
-	if (subcmd == "rm") {
-	  eos_notice("vid rm");
-	  XrdMgmVid::Rm(opaque, retc, stdOut, stdErr);
-	}
-      } else {
-	retc = EPERM;
-	stdErr = "error: you have to take role 'root' to execute this command";
       }
     }
 
@@ -980,7 +987,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      std::sort(found_files[i].begin(), found_files[i].end());
 	      for (unsigned int j = 0; j< found_files[i].size(); j++) {
 		if (gOFS->_rem(found_files[i][j].c_str(), *error, *pVid,(const char*)0)) {
-		  stdErr += "error: unable to remove file";
+		  stdErr += "error: unable to remove file\n";
 		  retc = errno;
 		} 
 	      }

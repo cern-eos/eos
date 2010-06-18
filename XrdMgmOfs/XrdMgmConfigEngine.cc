@@ -480,11 +480,7 @@ XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Ar
 
   eos_static_debug("key=%s def=%s", key, def->c_str());
   XrdOucString skey = key;
-  if (skey.beginswith("vid:")) {
-    // set a virtual id mapping
-    skey.erase(0,4);
-  }
-  
+
   if (skey.beginswith("fs:")) {
     // set a filesystem definition
     skey.erase(0,3);
@@ -541,12 +537,12 @@ XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Ar
   }
 
   if (skey.beginswith("vid:")) {
+    int envlen;
     // set a policy
-    skey.erase(0,4);
-    if (!XrdMgmVid::Set(def->c_str())) {
-      eos_static_err("cannot apply config line key: |%s|",skey.c_str());
+    if (!XrdMgmVid::Set(envdev.Env(envlen))) {
+      eos_static_err("cannot apply config line key: |%s| => |%s|",skey.c_str(), def->c_str());
       *err += "error: cannot apply config line key: "; *err += skey.c_str();
-    }
+    } 
   }
   
   if (skey.beginswith("comment:")) {

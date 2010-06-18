@@ -36,7 +36,7 @@ public:
       }
     } while (pos!=STR_NPOS);
     parentPath.assign(fullPath,0,lastpos);
-    lastPath.assign(fullPath,lastpos);
+    lastPath.assign(fullPath,lastpos+1);
   }
   
   ~XrdCommonPath(){};

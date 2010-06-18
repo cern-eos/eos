@@ -143,7 +143,7 @@ public:
 
   // that is all we need for meta data handling
   // hash map pointing from fid to offset in changelog file
-  google::dense_hash_map<unsigned long long, unsigned long long> Fmd;
+  google::dense_hash_map<unsigned long long, google::dense_hash_map<unsigned long long, unsigned long long> > Fmd;
   // hash map with fid file sizes
   google::dense_hash_map<long long, unsigned long long> FmdSize;
 

@@ -84,6 +84,7 @@ XrdCommonFmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid)
   Mutex.Lock();
   bool isNew=false;
 
+  Fmd[fsid].set_empty_key(0);
   char fsChangeLogFileName[1024];
   sprintf(fsChangeLogFileName,"%s.%04d.mdlog", ChangeLogFileName.c_str(),fsid);
   
@@ -360,10 +361,10 @@ XrdCommonFmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid
 {
   Mutex.Lock();
   if (fdChangeLogRead[fsid]>0) {
-    if (Fmd[fid] != 0) {
+    if (Fmd[fsid][fid] != 0) {
       // this is to read an existing entry
       XrdCommonFmd* fmd = new XrdCommonFmd();
-      if (!fmd->Read(fdChangeLogRead[fsid],Fmd[fid])) {
+      if (!fmd->Read(fdChangeLogRead[fsid],Fmd[fsid][fid])) {
 	eos_crit("unable to read block for fid %d on fs %d", fid, fsid);
 	Mutex.UnLock();
 	return 0;
@@ -414,7 +415,7 @@ XrdCommonFmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid
 	  return 0;
 	}
 	// add to the in-memory hashes
-	Fmd[fid]     = position;
+	Fmd[fsid][fid]     = position;
 	FmdSize[fid] = 0;
 
 	// add new file counter
@@ -493,7 +494,7 @@ XrdCommonFmdHandler::Commit(XrdCommonFmd* fmd)
   // store present size
   unsigned long long oldsize = FmdSize[fid];
   // add to the in-memory hashes
-  Fmd[fid]     = position;
+  Fmd[fsid][fid]     = position;
   FmdSize[fid] = fmd->fMd.size;
 
 

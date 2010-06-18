@@ -295,7 +295,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   int ecode=0;
   
 
-  eos_debug("mode=%x", open_mode);
+  eos_debug("mode=%x [create=%x truncate=%x]", open_mode, SFS_O_CREAT, SFS_O_TRUNC);
 
   // Set the actual open mode and find mode
   //
@@ -349,40 +349,28 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   eos_debug("authorize done");
 
+  XrdCommonPath cPath(path);
+
   // check if we have to create the full path
   if (Mode & SFS_O_MKPTH) {
     eos_debug("SFS_O_MKPTH was requested");
-    XrdOucString pdir = path;
-    int npos = pdir.rfind("/");
-    if ( (npos == STR_NPOS ) ) {
-      return Emsg(epname, error, EINVAL, "open file - this is not an absolut pathname", path);      
-    }
-    
-    pdir.erase(npos);
-    
+
     XrdSfsFileExistence file_exists;
-    int ec = gOFS->_exists(pdir.c_str(),file_exists,error,client,0);
+    int ec = gOFS->_exists(cPath.GetParentPath(),file_exists,error,vid,0);
     
     // check if that is a file
     if  ((!ec) && (file_exists!=XrdSfsFileExistNo) && (file_exists!=XrdSfsFileExistIsDirectory)) {
-      return Emsg(epname, error, ENOTDIR, "open file - parent path is not a directory", pdir.c_str());
+      return Emsg(epname, error, ENOTDIR, "open file - parent path is not a directory", cPath.GetParentPath());
     }
     // if it does not exist try to create the path!
     if ((!ec) && (file_exists==XrdSfsFileExistNo)) {
-      ec = gOFS->_mkdir(pdir.c_str(),Mode,error,vid,info);
+      ec = gOFS->_mkdir(cPath.GetParentPath(),Mode,error,vid,info);
       if (ec) 
 	return SFS_ERROR;
     }
   }
   
 
-  // extract the parent name
-  XrdOucString dirName = path;
-  XrdOucString baseName = path;
-  int spos = dirName.rfind("/");
-  dirName.erase(spos);
-  baseName.erase(0,spos);
-  
   // get the directory meta data if exists
   eos::ContainerMD* dmd=0;
   eos::ContainerMD::XAttrMap attrmap;
@@ -390,7 +378,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   try {
-    dmd = gOFS->eosView->getContainer(baseName.c_str());
+    dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
     // get the attributes out
     eos::ContainerMD::XAttrMap::const_iterator it;
     for ( it = dmd->attributesBegin(); it != dmd->attributesEnd(); ++it) {
@@ -402,9 +390,10 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   };
   if (dmd) 
-    fmd = dmd->findFile(baseName.c_str());
+    fmd = dmd->findFile(cPath.GetName());
   else
     fmd = 0;
+
   //-------------------------------------------
   // check permissions
 
@@ -531,7 +520,11 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   if (isCreation) {
     // ************************************************************************************************
     // place a new file 
-    retc = quotaspace->FilePlacement(vid.uid, vid.gid, openOpaque->Get("eos.grouptag"), layoutId, selectedfs);
+    const char* containertag = 0;
+    if (attrmap.count("user.tag")) {
+      containertag = attrmap["user.tag"].c_str();
+    }
+    retc = quotaspace->FilePlacement(vid.uid, vid.gid, containertag, layoutId, selectedfs);
   } else {
     // ************************************************************************************************
     // access existing file
@@ -906,7 +899,6 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   Notes:    When failure occurs, 'file_exists' is not modified.
 */
 {
-  errno = 0;
   // try if that is directory
 
   //-------------------------------------------
@@ -915,7 +907,6 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   try {
     cmd = gOFS->eosView->getContainer(path);
   } catch ( eos::MDException &e ) {
-    errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   };
   gOFS->eosViewMutex.UnLock();
@@ -929,7 +920,6 @@ int XrdMgmOfs::_exists(const char                *path,        // In
     try {
       fmd = gOFS->eosView->getFile(path);
     } catch( eos::MDException &e ) {
-      errno = e.getErrno();
       eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
     }
     gOFS->eosViewMutex.UnLock();
@@ -973,14 +963,13 @@ int XrdMgmOfs::_exists(const char                *path,        // In
 */
 {
   // try if that is directory
-  errno = 0;
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   eos::ContainerMD* cmd = 0;
   try {
     cmd = gOFS->eosView->getContainer(path);
   } catch ( eos::MDException &e ) {
-    errno = e.getErrno();
+    cmd = 0;
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   };
   gOFS->eosViewMutex.UnLock();
@@ -994,7 +983,6 @@ int XrdMgmOfs::_exists(const char                *path,        // In
     try {
       fmd = gOFS->eosView->getFile(path);
     } catch( eos::MDException &e ) {
-      errno = e.getErrno();
       eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
     }
     gOFS->eosViewMutex.UnLock();
@@ -1100,21 +1088,21 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     recurse = true;
     eos_debug("SFS_O_MKPATH set",path);
     // short cut if it exists already
-
+    eos::ContainerMD* fulldir=0;
     if (dir) {
       // only if the parent exists, the full path can exist!
 
       //-------------------------------------------
       gOFS->eosViewMutex.Lock();
       try {
-	dir = eosView->getContainer(path);
+	fulldir = eosView->getContainer(path);
       } catch( eos::MDException &e ) {
-	dir = 0;
+	fulldir = 0;
 	eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
       }
       gOFS->eosViewMutex.UnLock();
       //-------------------------------------------
-      if (dir) {
+      if (fulldir) {
 	eos_info("this directory exists!",path);
 	return SFS_OK;
       }
