@@ -165,6 +165,20 @@ XrdFstOfsStorage::XrdFstOfsStorage(const char* metadirectory)
     eos_crit("cannot start trimming theread");
     zombie = true;
   }
+
+  eos_info("starting deletion thread");
+  if ((rc = XrdSysThread::Run(&tid, XrdFstOfsStorage::StartFsRemover, static_cast<void *>(this),
+                              0, "Data Store Remover"))) {
+    eos_crit("cannot start deletion theread");
+    zombie = true;
+  }
+
+  eos_info("starting replication thread");
+  if ((rc = XrdSysThread::Run(&tid, XrdFstOfsStorage::StartFsPulling, static_cast<void *>(this),
+                              0, "Data Pulling Thread"))) {
+    eos_crit("cannot start pulling thread");
+    zombie = true;
+  }
 }
 
 
@@ -282,6 +296,23 @@ XrdFstOfsStorage::StartFsTrim(void * pp)
   return 0;
 }    
 
+/*----------------------------------------------------------------------------*/
+void*
+XrdFstOfsStorage::StartFsRemover(void * pp)
+{
+  XrdFstOfsStorage* storage = (XrdFstOfsStorage*)pp;
+  storage->Remover();
+  return 0;
+}    
+
+/*----------------------------------------------------------------------------*/
+void*
+XrdFstOfsStorage::StartFsPulling(void * pp)
+{
+  XrdFstOfsStorage* storage = (XrdFstOfsStorage*)pp;
+  storage->Pulling();
+  return 0;
+}    
 
 /*----------------------------------------------------------------------------*/
 void
@@ -366,6 +397,26 @@ void
 XrdFstOfsStorage::Trim()
 {
   // this thread supervises the changelogfile and trims them from time to time to shrink their size
+  while(1) {
+    sleep(1);
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdFstOfsStorage::Remover()
+{
+  // this thread unlinks stored files
+  while(1) {
+    sleep(1);
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdFstOfsStorage::Pulling()
+{
+  // this thread pulls files from other nodes
   while(1) {
     sleep(1);
   }

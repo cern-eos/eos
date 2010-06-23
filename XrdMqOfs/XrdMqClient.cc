@@ -79,6 +79,7 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
     if (admin) {
       char result[8192]; result[0]=0;
       int  result_size=8192;
+      Mutex.Lock();
       admin->Connect();
       admin->GetClientConn()->ClearLastServerError();
       admin->Query(kXR_Qopaquf,
@@ -89,17 +90,20 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
       
       switch (admin->LastServerResp()->status) {
       case kXR_ok:
-      return true;
+	Mutex.UnLock();
+	return true;
       
       case kXR_error:
 	break;
 	
       default:
+	Mutex.UnLock();
 	return true;
       }
     }
     // we continue until any of the brokers accepts the message
   }
+  Mutex.UnLock();
   //  XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "send message to all brokers");  
   if (admin) {
     XrdMqMessage::Eroute.Emsg("SendMessage", admin->LastServerError()->errnum, admin->LastServerError()->errmsg);

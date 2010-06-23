@@ -2625,3 +2625,59 @@ XrdMgmOfs::_copystripe(const char             *path,
   return SFS_OK;
 }
 
+/*----------------------------------------------------------------------------*/
+void*
+XrdMgmOfs::StartMgmDeletion(void *pp) 
+{
+  XrdMgmOfs* ofs = (XrdMgmOfs*)pp;
+  ofs->Deletion();
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdMgmOfs::Deletion() 
+{
+  // thread distributing deletions
+  while (1) {
+    sleep(1);
+    std::vector <unsigned int> fslist;
+    // get a list of file Ids
+    XrdMgmFstNode::gMutex.Lock();
+    google::dense_hash_map<unsigned int, unsigned long long>::const_iterator it;
+    for (it= XrdMgmFstNode::gFileSystemById.begin() ; it != XrdMgmFstNode::gFileSystemById.end(); ++it) {
+      fslist.push_back(it->first);
+    }
+    XrdMgmFstNode::gMutex.UnLock();
+    
+    for (unsigned int i=0 ; i< fslist.size(); i++) {
+      // loop over all file systems
+
+      //-------------------------------------------
+      gOFS->eosViewMutex.Lock();
+      std::pair<eos::FileSystemView::FileIterator, eos::FileSystemView::FileIterator> unlinkpair;
+      unlinkpair = eosFsView->getUnlinkedFiles( fslist[i] );
+
+      XrdMqMessage message("deletion");
+      eos::FileSystemView::FileIterator it;
+      for ( it = unlinkpair.first; it != unlinkpair.second; ++it) {
+	// loop over all files and emit a deletion message
+	XrdMgmFstNode::gMutex.Lock();
+	XrdMgmFstFileSystem* fs = ((XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[ fslist[i] ]);
+	if (fs) {
+	  XrdOucString receiver = fs->GetQueue();
+	  XrdMgmFstNode::gMutex.UnLock();
+	  XrdOucString msgbody = "mgm.cmd=drop&test"; 
+	  message.SetBody(msgbody.c_str());
+	  if (!XrdMgmMessaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+	    eos_err("unable to send deletion message to %s", receiver.c_str());
+	  }
+	} else {
+	  XrdMgmFstNode::gMutex.UnLock();
+	}
+      }
+      gOFS->eosViewMutex.UnLock();
+      //-------------------------------------------
+    }
+  }
+}

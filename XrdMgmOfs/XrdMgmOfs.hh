@@ -12,6 +12,7 @@
 #include "Namespace/IView.hh"
 #include "Namespace/IFileMDSvc.hh"
 #include "Namespace/IContainerMDSvc.hh"
+#include "Namespace/accounting/FileSystemView.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCms/XrdCmsFinder.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -434,8 +435,13 @@ virtual bool           Init(XrdSysError &);
         eos::IContainerMDSvc  *eosDirectoryService;              // -> changelog for directories
         eos::IFileMDSvc *eosFileService;                         // -> changelog for files
 	eos::IView      *eosView;            // -> hierarchical view of the namespace
+        eos::FileSystemView *eosFsView;      // -> filesystem view of the namespace
         XrdSysMutex      eosViewMutex;       // -> mutex making the namespace single threaded
         XrdOucString     MgmMetaLogDir;      //  Directory containing the meta data (change) log files
+
+
+ static void* StartMgmDeletion(void *pp);    //  Deletion Thread Starter
+        void  Deletion();                     // Deletion Function
 
 protected:
         char*            HostName;           // -> our hostname as derived in XrdOfs

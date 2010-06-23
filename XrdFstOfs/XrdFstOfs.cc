@@ -753,6 +753,32 @@ XrdFstMessaging::Process(XrdMqMessage* newmessage)
   if (cmd == "rtlog") {
     gOFS.SendRtLog(newmessage);
   }
+
+  if (cmd == "drop") {
+    eos_info("drop");
+
+    XrdOucEnv* capOpaque=NULL;
+    int caprc = 0;
+    if ((caprc=gCapabilityEngine.Extract(&action, capOpaque))) {
+      // no capability - go away!
+      if (capOpaque) delete capOpaque;
+      eos_err("Cannot extract capability for deletion - errno=%d",caprc);
+    } else {
+      XrdFstDeletion* newdeletion = XrdFstDeletion::Create(capOpaque);
+      if (newdeletion) {
+	gOFS.FstOfsStorage->deletionsMutex.Lock();
+	gOFS.FstOfsStorage->deletions.push_back(newdeletion);
+	gOFS.FstOfsStorage->deletionsMutex.UnLock();
+      } else {
+	eos_err("Cannot create a deletion entry - illegal opaque information");
+      }
+    }
+  }
+
+  if (cmd == "pull") {
+    eos_info("pull");
+  }
+  
 }
 
 

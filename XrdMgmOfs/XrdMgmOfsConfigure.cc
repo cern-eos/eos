@@ -393,10 +393,13 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   eosDirectoryService = new eos::ChangeLogContainerMDSvc;
   eosFileService      = new eos::ChangeLogFileMDSvc;
   eosView             = new eos::HierarchicalView;
+  eosFsView           = new eos::FileSystemView;
 
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
   std::map<std::string, std::string> settings;
+  std::map<std::string, std::string> fileFsSettings;
+
   contSettings["changelog_path"] = MgmMetaLogDir.c_str();
   fileSettings["changelog_path"] = MgmMetaLogDir.c_str();
   contSettings["changelog_path"] += "/directories.mdlog";
@@ -413,9 +416,13 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     eosView->setFileMDSvc ( eosFileService );
     
     eosView->configure ( settings );
-
+    
     eos_notice("%s",(char*)"eos view configure started");
+
     eosView->initialize();
+    eosFsView->initialize();
+    eosFileService->addChangeListener( eosFsView );
+
     time_t tstop  = time(0);
     eos_notice("eos view configure stopped after %d seconds", (tstop-tstart));
   } catch (...) {
@@ -456,7 +463,14 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     return NoGo;
   }
 
-
+  // create deletion thread
+  pthread_t tid;
+  eos_info("starting deletion thread");
+  if ((XrdSysThread::Run(&tid, XrdMgmOfs::StartMgmDeletion, static_cast<void *>(this),
+                              0, "Deletion Thread"))) {
+    eos_crit("cannot start deletion thread");
+    NoGo = 1;
+  }
 
   
   return NoGo;

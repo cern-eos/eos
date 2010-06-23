@@ -5,6 +5,8 @@
 #include "XrdCommon/XrdCommonLogging.hh"
 #include "XrdCommon/XrdCommonStatfs.hh"
 #include "XrdCommon/XrdCommonFileSystem.hh"
+#include "XrdFstOfs/XrdFstTransfer.hh"
+#include "XrdFstOfs/XrdFstDeletion.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
@@ -60,10 +62,20 @@ public:
   static void* StartFsQuota(void *pp); 
   static void* StartFsScrub(void * pp);
   static void* StartFsTrim(void* pp);
+  static void* StartFsRemover(void* pp);
+  static void* StartFsPulling(void* pp);
 
   void Quota();
   void Scrub();
   void Trim();
+  void Remover();
+  void Pulling();
+
+
+  XrdSysMutex transferMutex;
+  std::vector <XrdFstTransfer> transfers;
+  XrdSysMutex deletionsMutex;
+  std::vector <XrdFstDeletion*> deletions;
 
   XrdOucHash<XrdFstOfsFileSystem> fileSystems;
   static int HasStatfsChangedalot(const char* key, XrdFstOfsFileSystem* filesystem, void* arg);
