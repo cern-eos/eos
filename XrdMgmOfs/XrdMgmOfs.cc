@@ -2640,7 +2640,8 @@ XrdMgmOfs::Deletion()
 {
   // thread distributing deletions
   while (1) {
-    sleep(1);
+    sleep(10);
+    eos_static_info("running deletion");
     std::vector <unsigned int> fslist;
     // get a list of file Ids
     XrdMgmFstNode::gMutex.Lock();
@@ -2656,26 +2657,98 @@ XrdMgmOfs::Deletion()
       //-------------------------------------------
       gOFS->eosViewMutex.Lock();
       std::pair<eos::FileSystemView::FileIterator, eos::FileSystemView::FileIterator> unlinkpair;
-      unlinkpair = eosFsView->getUnlinkedFiles( fslist[i] );
+      try {
+	unlinkpair = eosFsView->getUnlinkedFiles( fslist[i] );
+	XrdMqMessage message("deletion");
+	eos::FileSystemView::FileIterator it;
+	eos_static_info("got files to unlink");
 
-      XrdMqMessage message("deletion");
-      eos::FileSystemView::FileIterator it;
-      for ( it = unlinkpair.first; it != unlinkpair.second; ++it) {
-	// loop over all files and emit a deletion message
-	XrdMgmFstNode::gMutex.Lock();
-	XrdMgmFstFileSystem* fs = ((XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[ fslist[i] ]);
-	if (fs) {
-	  XrdOucString receiver = fs->GetQueue();
-	  XrdMgmFstNode::gMutex.UnLock();
-	  XrdOucString msgbody = "mgm.cmd=drop&test"; 
-	  message.SetBody(msgbody.c_str());
-	  if (!XrdMgmMessaging::gMessageClient.SendMessage(message, receiver.c_str())) {
-	    eos_err("unable to send deletion message to %s", receiver.c_str());
+
+	int ndeleted=0;
+
+	XrdMgmFstFileSystem* fs = 0;
+	XrdOucString receiver="";
+	XrdOucString msgbody = "mgm.cmd=drop"; 
+	XrdOucString capability ="";
+	XrdOucString idlist="";
+
+	for ( it = unlinkpair.first; it != unlinkpair.second; ++it) {
+	  eos_static_info("deleting fid %u", *it);
+	  ndeleted++;
+	
+	  // loop over all files and emit a deletion message
+	  if (!fs) {
+	    // set the file system only for the first file to relax the mutex contention
+	    XrdMgmFstNode::gMutex.Lock();
+	    XrdMgmFstFileSystem* fs = ((XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[ fslist[i] ]);
+	    if (fs) {
+	      capability += "&mgm.access=delete";
+	      capability += "&mgm.manager" ; capability += gOFS->ManagerId.c_str();
+	      capability += "&mgm.fsid="; 
+	      capability += (int) fs->GetId();
+	      capability += "&mgm.localprefix=";
+	      capability += fs->GetPath();
+	      capability += "&mgm.fids=";
+	      receiver    = fs->GetQueue();
+	    }
+	    XrdMgmFstNode::gMutex.UnLock();
 	  }
-	} else {
-	  XrdMgmFstNode::gMutex.UnLock();
+	  
+	  XrdOucString sfid="";
+	  idlist += XrdCommonFileSystem::GetSizeString(sfid, *it);
+	  idlist += ",";
+	  
+	  if (ndeleted > 1000) {
+	    XrdOucString refcapability = capability;
+	    refcapability += idlist;
+	    XrdOucEnv incapability(refcapability.c_str());
+	    XrdOucEnv* capabilityenv = 0;
+	    XrdCommonSymKey* symkey = gXrdCommonSymKeyStore.GetCurrentKey();
+	    
+	    int caprc=0;
+	    if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
+	      eos_static_err("unable to create capability - errno=%u", caprc);
+	    } else {
+	      int caplen = 0;
+	      msgbody += capabilityenv->Env(caplen);
+	      // we send deletions in bunches of max 1000 for efficiency
+	      message.SetBody(msgbody.c_str());
+	    }
+	    
+	    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+	      eos_static_err("unable to send deletion message to %s", receiver.c_str());
+	    }
+	    idlist = "";
+	    ndeleted = 0;
+	  } 
 	}
+
+	// send the remaining ids
+	if (idlist.length()) {
+	  XrdOucString refcapability = capability;
+	  refcapability += idlist;
+	  XrdOucEnv incapability(refcapability.c_str());
+	  XrdOucEnv* capabilityenv = 0;
+	  XrdCommonSymKey* symkey = gXrdCommonSymKeyStore.GetCurrentKey();
+	  
+	  int caprc=0;
+	  if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
+	    eos_static_err("unable to create capability - errno=%u", caprc);
+	  } else {
+	    int caplen = 0;
+	    msgbody += capabilityenv->Env(caplen);
+	    // we send deletions in bunches of max 1000 for efficiency
+	    message.SetBody(msgbody.c_str());
+	  }
+	  
+	  if (!XrdMgmMessaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+	    eos_static_err("unable to send deletion message to %s", receiver.c_str());
+	  }
+	}
+      } catch (...) {
+	eos_static_err("nothing to delete in fs %d", fslist[i]);
       }
+
       gOFS->eosViewMutex.UnLock();
       //-------------------------------------------
     }
