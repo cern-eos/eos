@@ -2681,7 +2681,16 @@ XrdMgmOfs::Deletion()
 	    // set the file system only for the first file to relax the mutex contention
 	    XrdMgmFstNode::gMutex.Lock();
 	    XrdMgmFstFileSystem* fs = ((XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[ fslist[i] ]);
+
 	    if (fs) {
+	      // check the state of the filesystem (if it can actually delete in this moment!)
+	      if ( (fs->GetConfigStatus() <= XrdCommonFileSystem::kOff) && 
+		   (fs->GetBootStatus()  != XrdCommonFileSystem::kBooted) ) {
+		// we don't need to send messages, this one is anyway down
+		XrdMgmFstNode::gMutex.UnLock();
+		break;
+	      }
+
 	      capability += "&mgm.access=delete";
 	      capability += "&mgm.manager" ; capability += gOFS->ManagerId.c_str();
 	      capability += "&mgm.fsid="; 

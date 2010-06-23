@@ -419,9 +419,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     
     eos_notice("%s",(char*)"eos view configure started");
 
+    eosFileService->addChangeListener( eosFsView );
+
     eosView->initialize();
     eosFsView->initialize();
-    eosFileService->addChangeListener( eosFsView );
+
 
     time_t tstop  = time(0);
     eos_notice("eos view configure stopped after %d seconds", (tstop-tstart));
