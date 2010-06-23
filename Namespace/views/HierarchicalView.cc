@@ -181,7 +181,9 @@ namespace eos
 
     FileMD *file = cont->findFile( elements[position] );
     cont->removeFile( file->getName() );
-    pFileSvc->removeFile( file );
+    file->setContainerId( 0 );
+    file->unlinkAllLocations();
+    pFileSvc->updateStore( file );
   }
 
   //----------------------------------------------------------------------------
