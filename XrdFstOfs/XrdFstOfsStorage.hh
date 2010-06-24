@@ -75,7 +75,7 @@ public:
   XrdSysMutex transferMutex;
   std::vector <XrdFstTransfer> transfers;
   XrdSysMutex deletionsMutex;
-  std::vector <XrdFstDeletion*> deletions;
+  std::vector <XrdFstDeletion> deletions;
 
   XrdOucHash<XrdFstOfsFileSystem> fileSystems;
   static int HasStatfsChangedalot(const char* key, XrdFstOfsFileSystem* filesystem, void* arg);

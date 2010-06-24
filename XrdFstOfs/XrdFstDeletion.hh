@@ -5,41 +5,66 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
+/*----------------------------------------------------------------------------*/
+#include <vector>
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
 class XrdFstDeletion {
-private:
-  unsigned long long fId;
+public:
+  std::vector<unsigned long long> fIdVector;
   unsigned long fsId;
   XrdOucString localPrefix;
   XrdOucString managerId;
 
-public:
-  XrdFstDeletion(unsigned long long fid, unsigned long fsid, const char* localprefix, const char* managerid) {
-    fId = fid; fsId = fsid; localPrefix = localprefix; managerId = managerid;
+
+  XrdFstDeletion(std::vector<unsigned long long> &idvector, unsigned long fsid, const char* localprefix, const char* managerid) {
+    fIdVector = idvector;  fsId = fsid; localPrefix = localprefix; managerId = managerid;
   }
 
   static XrdFstDeletion* Create(XrdOucEnv* capOpaque) {
     // decode the opaque tags
     const char* localprefix=0;
-    const char* hexfid=0;
+    XrdOucString hexfids="";
+    XrdOucString hexfid="";
+    XrdOucString access="";
     const char* sfsid=0;
     const char* smanager=0;
-    
+    std::vector <unsigned long long> idvector;
+
     unsigned long long fileid=0;
     unsigned long fsid=0;
 
-    localprefix=capOpaque->Get("mgm.localprefix");
-    hexfid=capOpaque->Get("mgm.fid");
-    sfsid=capOpaque->Get("mgm.fsid");
-    smanager=capOpaque->Get("mgm.manager");
-    if (!localprefix || !hexfid || !sfsid || !smanager) {
+    localprefix = capOpaque->Get("mgm.localprefix");
+    hexfids     = capOpaque->Get("mgm.fids");
+    sfsid       = capOpaque->Get("mgm.fsid");
+    smanager    = capOpaque->Get("mgm.manager");
+    access      = capOpaque->Get("mgm.access");
+
+    // permission check
+    if (access != "delete") 
+      return 0;
+
+    if (!localprefix || !hexfids.length() || !sfsid || !smanager) {
       return 0;
     }
-    fileid = XrdCommonFileId::Hex2Fid(hexfid);
+
+    while(hexfids.replace(","," ")) {};
+    XrdOucTokenizer subtokenizer((char*)hexfids.c_str());
+    subtokenizer.GetLine();
+    while (1) {
+      hexfid = subtokenizer.GetToken();
+      if (hexfid.length()) {
+	fileid = XrdCommonFileId::Hex2Fid(hexfid.c_str());	
+	idvector.push_back(fileid);
+      } else {
+	break;
+      }
+    }
+    
     fsid   = atoi(sfsid);
-    return new XrdFstDeletion(fileid, fsid, localprefix, smanager);
+    return new XrdFstDeletion(idvector, fsid, localprefix, smanager);
   };
 
   ~XrdFstDeletion() {};

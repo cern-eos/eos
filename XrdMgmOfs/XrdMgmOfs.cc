@@ -2097,6 +2097,12 @@ XrdMgmOfs::FSctl(const int               cmd,
       return SFS_DATA;
     }
 
+    if (execmd == "drop") {
+      // drops a replica
+      int envlen;
+      eos_debug("drop request for %s",env.Env(envlen));
+    }
+
     if (execmd == "stat") {
       /*      struct stat buf;
 
@@ -2692,7 +2698,7 @@ XrdMgmOfs::Deletion()
 	      }
 
 	      capability += "&mgm.access=delete";
-	      capability += "&mgm.manager" ; capability += gOFS->ManagerId.c_str();
+	      capability += "&mgm.manager=" ; capability += gOFS->ManagerId.c_str();
 	      capability += "&mgm.fsid="; 
 	      capability += (int) fs->GetId();
 	      capability += "&mgm.localprefix=";
@@ -2704,7 +2710,8 @@ XrdMgmOfs::Deletion()
 	  }
 	  
 	  XrdOucString sfid="";
-	  idlist += XrdCommonFileSystem::GetSizeString(sfid, *it);
+	  XrdOucString hexfid=""; XrdCommonFileId::Fid2Hex(*it,hexfid);
+	  idlist += hexfid;
 	  idlist += ",";
 	  
 	  if (ndeleted > 1000) {

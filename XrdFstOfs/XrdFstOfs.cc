@@ -521,43 +521,8 @@ XrdFstOfsFile::close()
 
      capOpaqueFile += "&mgm.add.fsid=";
      capOpaqueFile += (int)fMd->fMd.fsid;
-
-     char result[8192]; result[0]=0;
-     int  result_size=8192;
      
-     XrdFstOfsClientAdmin* admin = gOFS.FstOfsClientAdminManager.GetAdmin(capOpaque->Get("mgm.manager"));
-     if (admin) {
-       admin->Lock();
-       admin->GetAdmin()->Connect();
-       admin->GetAdmin()->GetClientConn()->ClearLastServerError();
-       admin->GetAdmin()->Query(kXR_Qopaquf,
-		  (kXR_char *) capOpaqueFile.c_str(),
-		  (kXR_char *) result, result_size);
-
-       if (!admin->GetAdmin()->LastServerResp()) {
-	 gOFS.Emsg(epname, error, ECOMM, "commit changed filesize to meta data cache for fn=", capOpaque->Get("mgm.path"));
-	 rc = SFS_ERROR;
-       }
-       switch (admin->GetAdmin()->LastServerResp()->status) {
-       case kXR_ok:
-	 eos_debug("commited meta data to cache - %s", capOpaqueFile.c_str());
-	 rc = SFS_OK;
-	 break;
-	 
-       case kXR_error:
-	 gOFS.Emsg(epname, error, ECOMM, "commit changed filesize to meta data cache during close of fn=", capOpaque->Get("mgm.path"));
-	 rc = SFS_ERROR;
-	 break;
-	 
-       default:
-	 rc = SFS_OK;
-	 break;
-       }
-       admin->UnLock();
-     } else {
-       eos_crit("cannot get client admin to execute commit");
-       gOFS.Emsg(epname, error, ENOMEM, "allocate client admin object during close of fn=", capOpaque->Get("mgm.path"));
-     }
+     rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
    }
    closed = true;
  } 
@@ -573,6 +538,52 @@ XrdFstOfsFile::close()
 }
 
 
+int
+XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manager, XrdOucString &capOpaqueFile) {
+  EPNAME("CallManager");
+  int rc=SFS_OK;
+
+  char result[8192]; result[0]=0;
+  int  result_size=8192;
+  
+  XrdFstOfsClientAdmin* admin = gOFS.FstOfsClientAdminManager.GetAdmin(manager);
+  if (admin) {
+    admin->Lock();
+    admin->GetAdmin()->Connect();
+    admin->GetAdmin()->GetClientConn()->ClearLastServerError();
+    admin->GetAdmin()->Query(kXR_Qopaquf,
+			     (kXR_char *) capOpaqueFile.c_str(),
+			     (kXR_char *) result, result_size);
+    
+    if (!admin->GetAdmin()->LastServerResp()) {
+      if (error)
+	gOFS.Emsg(epname, *error, ECOMM, "commit changed filesize to meta data cache for fn=", path);
+      rc = SFS_ERROR;
+    }
+    switch (admin->GetAdmin()->LastServerResp()->status) {
+    case kXR_ok:
+      eos_debug("commited meta data to cache - %s", capOpaqueFile.c_str());
+      rc = SFS_OK;
+      break;
+      
+    case kXR_error:
+      if (error)
+	gOFS.Emsg(epname, *error, ECOMM, "commit changed filesize to meta data cache during close of fn=", path);
+      rc = SFS_ERROR;
+      break;
+      
+    default:
+      rc = SFS_OK;
+      break;
+    }
+    admin->UnLock();
+  } else {
+    eos_crit("cannot get client admin to execute commit");
+    if (error)
+      gOFS.Emsg(epname, *error, ENOMEM, "allocate client admin object during close of fn=", path);
+  }
+  return rc;
+}
 
 /*----------------------------------------------------------------------------*/
 XrdSfsXferSize 
@@ -764,10 +775,18 @@ XrdFstMessaging::Process(XrdMqMessage* newmessage)
       if (capOpaque) delete capOpaque;
       eos_err("Cannot extract capability for deletion - errno=%d",caprc);
     } else {
+      int envlen=0;
+      eos_debug("opaque is %s", capOpaque->Env(envlen));
       XrdFstDeletion* newdeletion = XrdFstDeletion::Create(capOpaque);
       if (newdeletion) {
 	gOFS.FstOfsStorage->deletionsMutex.Lock();
-	gOFS.FstOfsStorage->deletions.push_back(newdeletion);
+
+	if (gOFS.FstOfsStorage->deletions.size() < 1000) {
+	  gOFS.FstOfsStorage->deletions.push_back(*newdeletion);
+	} else {
+	  eos_err("deletion list has already 1000 entries - discarding deletion message");
+	}
+	delete newdeletion;
 	gOFS.FstOfsStorage->deletionsMutex.UnLock();
       } else {
 	eos_err("Cannot create a deletion entry - illegal opaque information");
@@ -956,8 +975,6 @@ XrdFstOfs::rem(const char             *path,
 
   //  const char *tident = error.getErrUser();
   //  char *val=0;
-  int   retc = SFS_OK;
-
 
   XrdOucString stringOpaque = opaque;
   stringOpaque.replace("?","&");
@@ -965,7 +982,6 @@ XrdFstOfs::rem(const char             *path,
 
   XrdOucEnv openOpaque(stringOpaque.c_str());
   XrdOucEnv* capOpaque;
-  XrdOucString fstPath="";
 
   int caprc = 0;
   
@@ -980,6 +996,28 @@ XrdFstOfs::rem(const char             *path,
   //ZTRACE(open,"capability contains: " << capOpaque->Env(envlen));
   eos_info("path=%s info=%s capability=%s", path, opaque, capOpaque->Env(envlen));
 
+  int rc =  _rem(path, error, client, capOpaque);
+  if (capOpaque) {
+    delete capOpaque;
+    capOpaque = 0;
+  }
+
+  return rc;
+}
+
+
+
+/*----------------------------------------------------------------------------*/
+int            
+XrdFstOfs::_rem(const char             *path,
+	       XrdOucErrInfo          &error,
+	       const XrdSecEntity     *client,
+	       XrdOucEnv              *capOpaque) 
+{
+  EPNAME("rem");
+  int   retc = SFS_OK;
+  XrdOucString fstPath="";
+
   const char* localprefix=0;
   const char* hexfid=0;
   const char* sfsid=0;
@@ -988,11 +1026,12 @@ XrdFstOfs::rem(const char             *path,
   unsigned long fsid=0;
   unsigned long lid=0;
 
+
   if (!(localprefix=capOpaque->Get("mgm.localprefix"))) {
     if (capOpaque) delete capOpaque;
     return gOFS.Emsg(epname,error,EINVAL,"open - no local prefix in capability",path);
   }
-  
+
   if (!(hexfid=capOpaque->Get("mgm.fid"))) {
     if (capOpaque) delete capOpaque;
     return gOFS.Emsg(epname,error,EINVAL,"open - no file id in capability",path);
@@ -1022,7 +1061,7 @@ XrdFstOfs::rem(const char             *path,
   eos_info("fstpath=%s", fstPath.c_str());
 
   // attach meta data
-  int rc = XrdOfs::rem(fstPath.c_str(),error,client,stringOpaque.c_str());
+  int rc = XrdOfs::rem(fstPath.c_str(),error,client,0);
 
   if (!rc) {
     if (capOpaque) delete capOpaque;
@@ -1038,3 +1077,4 @@ XrdFstOfs::rem(const char             *path,
   if (capOpaque) delete capOpaque;
   return SFS_OK;
 }
+

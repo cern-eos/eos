@@ -92,6 +92,11 @@ public:
 		     XrdOucErrInfo    &out_error,
 		     const XrdSecEntity     *client,
 		     const char             *info = 0) ;
+
+  int            _rem(const char             *path,
+		     XrdOucErrInfo    &out_error,
+		     const XrdSecEntity     *client,
+		     XrdOucEnv              *info = 0) ;
   
   int            remdir(const char             *dirName,
 			XrdOucErrInfo    &out_error,
@@ -110,6 +115,9 @@ public:
 		      XrdOucErrInfo    &out_error,
 		      const XrdSecEntity     *client,
                         const char             *opaque = 0) {memset(buf,0,sizeof(struct stat));return SFS_OK;}
+
+  int            CallManager(XrdOucErrInfo *error, const char* path, const char* manager, XrdOucString &capOpaqueFile);
+
 
   // this function deals with plugin calls
   int            FSctl(int, XrdSfsFSctl&, XrdOucErrInfo&, const XrdSecEntity*);

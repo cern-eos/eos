@@ -1,6 +1,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdFstOfs/XrdFstOfsConfig.hh"
 #include "XrdFstOfs/XrdFstOfsStorage.hh"
+#include "XrdFstOfs/XrdFstOfs.hh"
 #include <google/dense_hash_map>
 #include "XrdCommon/XrdCommonFmd.hh"
 #include "XrdCommon/XrdCommonFileSystem.hh"
@@ -409,6 +410,26 @@ XrdFstOfsStorage::Remover()
   // this thread unlinks stored files
   while(1) {
     sleep(1);
+    deletionsMutex.Lock();
+    eos_static_info("%u files to delete",deletions.size());
+    for (unsigned int i=0; i< deletions.size(); i++) {
+      for (unsigned int j=0; j< deletions[i].fIdVector.size(); j++) {
+	eos_static_info("Deleting File Id %llu on Fs %u", deletions[i].fIdVector[j], deletions[i].fsId);
+	// delete the file
+
+	// update the manager
+	XrdOucString hexstring="";
+	XrdOucString capOpaqueString="&mgm.pcmd=drop";
+	capOpaqueString+="&mgm.fsid="; capOpaqueString += (int)deletions[i].fsId;
+	capOpaqueString+="&mgm.fid=";  XrdCommonFileId::Fid2Hex(deletions[i].fIdVector[j],hexstring); capOpaqueString += hexstring;
+	int rc = gOFS.CallManager(0, 0, deletions[i].managerId.c_str(), capOpaqueString);
+	if (rc) {
+	  eos_static_err("unable to drop file id %s fsid %u at manager %s",hexstring.c_str(), deletions[i].fsId, deletions[i].managerId.c_str()); 
+	}
+      }
+    }
+
+    deletionsMutex.UnLock();
   }
 }
 
