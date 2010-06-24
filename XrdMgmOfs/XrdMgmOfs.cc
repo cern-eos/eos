@@ -2081,8 +2081,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  gOFS->eosViewMutex.UnLock();
 	  //-------------------------------------------
 	}
-
-	
       } else {
 	int envlen=0;
 	eos_err("commit message does not contain all meta information: %s", env.Env(envlen));
@@ -2096,11 +2094,32 @@ XrdMgmOfs::FSctl(const int               cmd,
       error.setErrInfo(strlen(ok)+1,ok);
       return SFS_DATA;
     }
-
+    
     if (execmd == "drop") {
       // drops a replica
       int envlen;
       eos_debug("drop request for %s",env.Env(envlen));
+      char* afid   = env.Get("mgm.fid");      
+      char* afsid  = env.Get("mgm.fsid");
+      if (afid && afsid) {
+	unsigned long fsid      = strtoul (afsid,0,10);
+	
+	//-------------------------------------------
+	gOFS->eosViewMutex.Lock();
+	try { 
+	  eos::FileMD* fmd = eosFileService->getFileMD(XrdCommonFileId::Hex2Fid(afid));
+	  fmd->removeLocation(fsid);
+	  gOFS->eosView->updateFileStore(fmd);
+	} catch (...) {
+	  eos_err("no meta record exists anymore for fid=%s", afid);
+	};
+	gOFS->eosViewMutex.UnLock();
+	//-------------------------------------------
+	
+	const char* ok = "OK";
+	error.setErrInfo(strlen(ok)+1,ok);
+	return SFS_DATA;
+      }
     }
 
     if (execmd == "stat") {
@@ -2647,7 +2666,7 @@ XrdMgmOfs::Deletion()
   // thread distributing deletions
   while (1) {
     sleep(10);
-    eos_static_info("running deletion");
+    eos_static_debug("running deletion");
     std::vector <unsigned int> fslist;
     // get a list of file Ids
     XrdMgmFstNode::gMutex.Lock();
@@ -2667,9 +2686,6 @@ XrdMgmOfs::Deletion()
 	unlinkpair = eosFsView->getUnlinkedFiles( fslist[i] );
 	XrdMqMessage message("deletion");
 	eos::FileSystemView::FileIterator it;
-	eos_static_info("got files to unlink");
-
-
 	int ndeleted=0;
 
 	XrdMgmFstFileSystem* fs = 0;
@@ -2762,7 +2778,7 @@ XrdMgmOfs::Deletion()
 	  }
 	}
       } catch (...) {
-	eos_static_err("nothing to delete in fs %d", fslist[i]);
+	eos_static_debug("nothing to delete in fs %d", fslist[i]);
       }
 
       gOFS->eosViewMutex.UnLock();

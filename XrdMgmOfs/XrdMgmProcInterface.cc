@@ -1,6 +1,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdCommon/XrdCommonStringStore.hh"
 #include "XrdCommon/XrdCommonLayoutId.hh"
+#include "XrdCommon/XrdCommonFileId.hh"
 #include "XrdMgmOfs/XrdMgmPolicy.hh"
 #include "XrdMgmOfs/XrdMgmVid.hh"
 #include "XrdMgmOfs/XrdMgmProcInterface.hh"
@@ -813,7 +814,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  stdOut += "Change: "; stdOut += ctime_r(&filemtime, ctimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += XrdCommonFileSystem::GetSizeString(sizestring, ctime.tv_sec); stdOut += "."; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, ctime.tv_nsec);stdOut += "\n";
 	  stdOut += "  CUid: "; stdOut += (int)fmd->getCUid(); stdOut += " CGid: "; stdOut += (int)fmd->getCGid();
 	  
-	  stdOut += "   Fid: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getId()); stdOut+=" ";
+	  stdOut += "   Fid: "; XrdCommonFileId::Fid2Hex(fmd->getId(),sizestring); stdOut += sizestring; stdOut+=" ";
 	  stdOut += "   Pid: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getContainerId()); stdOut+="\n";
 	  stdOut += "XStype: "; stdOut += XrdCommonLayoutId::GetChecksumString(fmd->getLayoutId());
 	  stdOut += "    XS: "; 
@@ -826,7 +827,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  stdOut += "*******\n";
 	  stdOut += "  #Rep: "; stdOut += (int)fmd->getNumLocation(); stdOut+="\n";
 
-	  stdOut += "<#> <fd-id> "; stdOut += XrdMgmFstFileSystem::GetInfoHeader();
+	  stdOut += "<#> <fs-id> "; stdOut += XrdMgmFstFileSystem::GetInfoHeader();
 	  stdOut += "-------\n";
 	  eos::FileMD::LocationVector::const_iterator lociter;
 	  int i=0;

@@ -17,10 +17,10 @@ public:
   unsigned long fsId;
   XrdOucString localPrefix;
   XrdOucString managerId;
+  XrdOucString opaque;
 
-
-  XrdFstDeletion(std::vector<unsigned long long> &idvector, unsigned long fsid, const char* localprefix, const char* managerid) {
-    fIdVector = idvector;  fsId = fsid; localPrefix = localprefix; managerId = managerid;
+  XrdFstDeletion(std::vector<unsigned long long> &idvector, unsigned long fsid, const char* localprefix, const char* managerid, const char* inopaque) {
+    fIdVector = idvector;  fsId = fsid; localPrefix = localprefix; managerId = managerid; opaque = inopaque;
   }
 
   static XrdFstDeletion* Create(XrdOucEnv* capOpaque) {
@@ -50,6 +50,7 @@ public:
       return 0;
     }
 
+    int envlen;
     while(hexfids.replace(","," ")) {};
     XrdOucTokenizer subtokenizer((char*)hexfids.c_str());
     subtokenizer.GetLine();
@@ -64,7 +65,7 @@ public:
     }
     
     fsid   = atoi(sfsid);
-    return new XrdFstDeletion(idvector, fsid, localprefix, smanager);
+    return new XrdFstDeletion(idvector, fsid, localprefix, smanager, capOpaque->Env(envlen));
   };
 
   ~XrdFstDeletion() {};

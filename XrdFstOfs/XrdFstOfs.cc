@@ -1021,24 +1021,20 @@ XrdFstOfs::_rem(const char             *path,
   const char* localprefix=0;
   const char* hexfid=0;
   const char* sfsid=0;
-  const char* slid=0;
   unsigned long long fileid=0;
   unsigned long fsid=0;
-  unsigned long lid=0;
 
+  eos_debug("");
 
   if (!(localprefix=capOpaque->Get("mgm.localprefix"))) {
-    if (capOpaque) delete capOpaque;
     return gOFS.Emsg(epname,error,EINVAL,"open - no local prefix in capability",path);
   }
 
   if (!(hexfid=capOpaque->Get("mgm.fid"))) {
-    if (capOpaque) delete capOpaque;
     return gOFS.Emsg(epname,error,EINVAL,"open - no file id in capability",path);
   }
 
   if (!(sfsid=capOpaque->Get("mgm.fsid"))) {
-    if (capOpaque) delete capOpaque;
     return gOFS.Emsg(epname,error, EINVAL,"open - no file system id in capability",path);
   }
 
@@ -1048,12 +1044,10 @@ XrdFstOfs::_rem(const char             *path,
   fileid = XrdCommonFileId::Hex2Fid(hexfid);
 
   fsid   = atoi(sfsid);
-  lid = atoi(slid);
 
   struct stat statinfo;
   if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
     eos_notice("unable to delete file - file does not exist: %s fstpath=%s fsid=%lu %id=%llu", path, fstPath.c_str(),fsid, fileid);
-    if (capOpaque) delete capOpaque;
     return gOFS.Emsg(epname,error,ENOENT,"delete file - file does not exist",fstPath.c_str());    
   } 
   // get the identity
@@ -1064,17 +1058,14 @@ XrdFstOfs::_rem(const char             *path,
   int rc = XrdOfs::rem(fstPath.c_str(),error,client,0);
 
   if (!rc) {
-    if (capOpaque) delete capOpaque;
     return rc;
   }
 
   if (!gFmdHandler.DeleteFmd(fileid, fsid)) {
     eos_crit("unable to delete fmd for fileid %llu on filesystem %lu",fileid,fsid);
-    if (capOpaque) delete capOpaque;
     return gOFS.Emsg(epname,error,EIO,"delete file meta data ",fstPath.c_str());
   }
 
-  if (capOpaque) delete capOpaque;
   return SFS_OK;
 }
 
