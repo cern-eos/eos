@@ -90,7 +90,7 @@ public:
     if ( (!IsCreate(pMd)) && (!IsDelete(pMd)) )           {return EINVAL;}
     if (pMd->sequenceheader != pMd->sequencetrailer) {return EFAULT;}
     if (pMd->sequenceheader <= sequencenumber)       {return EOVERFLOW;}
-    fprintf(stderr,"computed CRC is %lx vs %lx", ComputeCrc32((char*)(&(pMd->fid)), sizeof(struct FMD) - sizeof(pMd->magic) - (2*sizeof(pMd->sequencetrailer)) - sizeof(pMd->crc32)), pMd->crc32);
+    //    fprintf(stderr,"computed CRC is %lx vs %lx", ComputeCrc32((char*)(&(pMd->fid)), sizeof(struct FMD) - sizeof(pMd->magic) - (2*sizeof(pMd->sequencetrailer)) - sizeof(pMd->crc32)), pMd->crc32);
     if (pMd->crc32 != ComputeCrc32((char*)(&(pMd->fid)), sizeof(struct FMD) - sizeof(pMd->magic) - (2*sizeof(pMd->sequencetrailer)) - sizeof(pMd->crc32) )) {return EILSEQ;}
     sequencenumber = pMd->sequenceheader;
     return 0;
@@ -143,25 +143,25 @@ public:
 
   // that is all we need for meta data handling
   // hash map pointing from fid to offset in changelog file
-  google::sparse_hash_map<unsigned long long, google::sparse_hash_map<unsigned long long, unsigned long long> > Fmd;
+  google::dense_hash_map<unsigned long long, google::dense_hash_map<unsigned long long, unsigned long long> > Fmd;
   // hash map with fid file sizes
-  google::sparse_hash_map<long long, unsigned long long> FmdSize;
+  google::dense_hash_map<long long, unsigned long long> FmdSize;
 
   // that is all we need for quota
-  google::sparse_hash_map<long long, unsigned long long> UserBytes; // the key is encoded as (fsid<<32) | uid 
-  google::sparse_hash_map<long long, unsigned long long> GroupBytes;// the key is encoded as (fsid<<32) | gid
-  google::sparse_hash_map<long long, unsigned long long> UserFiles; // the key is encoded as (fsid<<32) | uid
-  google::sparse_hash_map<long long, unsigned long long> GroupFiles;// the key is encoded as (fsid<<32) | gid
+  google::dense_hash_map<long long, unsigned long long> UserBytes; // the key is encoded as (fsid<<32) | uid 
+  google::dense_hash_map<long long, unsigned long long> GroupBytes;// the key is encoded as (fsid<<32) | gid
+  google::dense_hash_map<long long, unsigned long long> UserFiles; // the key is encoded as (fsid<<32) | uid
+  google::dense_hash_map<long long, unsigned long long> GroupFiles;// the key is encoded as (fsid<<32) | gid
 
 
   XrdCommonFmdHandler() {
     SetLogId("CommonFmdHandler"); isOpen=false;
-    //    FmdSize.set_empty_key(0);
-
-    //    UserBytes.set_empty_key(-1);
-    //    GroupBytes.set_empty_key(-1);
-    //    UserFiles.set_empty_key(-1);
-    //    GroupFiles.set_empty_key(-1);
+    Fmd.set_empty_key(0);
+    FmdSize.set_empty_key(0);
+    UserBytes.set_empty_key(-1);
+    GroupBytes.set_empty_key(-1);
+    UserFiles.set_empty_key(-1);
+    GroupFiles.set_empty_key(-1);
 
     //    fdChangeLogRead.set_empty_key(0);
     //    fdChangeLogWrite.set_empty_key(0);

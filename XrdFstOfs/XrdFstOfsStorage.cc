@@ -331,7 +331,7 @@ XrdFstOfsStorage::Quota()
     fsMutex.UnLock();
 
     gFmdHandler.Mutex.Lock();
-    google::sparse_hash_map<long long, unsigned long long>::const_iterator it;
+    google::dense_hash_map<long long, unsigned long long>::const_iterator it;
 
     XrdOucString fullreport="";
     XrdOucString quotareport="";

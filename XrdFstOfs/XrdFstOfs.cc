@@ -207,7 +207,8 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 
   // setup the circular in-memory log buffer
   XrdCommonLogging::Init();
-  XrdCommonLogging::SetLogPriority(LOG_DEBUG);
+  //  XrdCommonLogging::SetLogPriority(LOG_DEBUG);
+  XrdCommonLogging::SetLogPriority(LOG_INFO);
   XrdCommonLogging::SetUnit(unit.c_str());
   FstOfsMessaging->SetLogId("FstOfsMessaging");
 

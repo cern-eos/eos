@@ -84,7 +84,8 @@ XrdCommonFmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid)
   Mutex.Lock();
   bool isNew=false;
 
-  //  Fmd[fsid].set_empty_key(0);
+  Fmd[fsid].set_empty_key(0);
+
   char fsChangeLogFileName[1024];
   sprintf(fsChangeLogFileName,"%s.%04d.mdlog", ChangeLogFileName.c_str(),fsid);
   
@@ -163,7 +164,7 @@ bool XrdCommonFmdHandler::AttachLatestChangeLogFile(const char* changelogdir, in
     char filename[1024];
   };
 
-  //  Fmd[fsid].set_empty_key(0);
+  Fmd[fsid].set_empty_key(0);
 
   int nobjects=0;
   long tdp=0;
@@ -243,8 +244,10 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
     // failed to read header
     return false;
   }
-  struct stat stbuf;
-  
+  struct stat stbuf; 
+
+  Fmd[fsid].set_empty_key(0);
+ 
   // create first empty root entries
   UserBytes [(((unsigned long long)fsid)<<32) | 0] = 0;
   GroupBytes[(((unsigned long long)fsid)<<32) | 0] = 0;
@@ -288,7 +291,12 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
 
   while ( (changelogstart+sizeof(struct XrdCommonFmd::FMD)) <= changelogstop) {
     nchecked++;
-    eos_debug("checking SEQ# %d # %d", sequencenumber, nchecked);
+    if (!(nchecked%1000)) {
+      eos_info("checking SEQ# %d # %d", sequencenumber, nchecked);
+    } else {
+      eos_debug("checking SEQ# %d # %d", sequencenumber, nchecked);
+    }
+
     pMd = (struct XrdCommonFmd::FMD*) changelogstart;
     eos_debug("%llx %llx %ld %llx %lu %llu %lu %x", pMd, &(pMd->fid), sizeof(*pMd), pMd->magic, pMd->sequenceheader, pMd->fid, pMd->fsid, pMd->crc32);
     if (!(retc = XrdCommonFmd::IsValid(pMd, sequencenumber))) {
