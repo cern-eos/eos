@@ -743,7 +743,9 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  if (gOFS->_dropstripe(path.c_str(),*error, vid, fsid)) {
 	    stdErr += "error: unable to drop stripe";
 	    retc = errno;
-	  } 
+	  } else {
+	    stdOut += "success: dropped stripe on fs="; stdOut += (int) fsid;
+	  }
 	}
 	
 	if (subcmd == "move") {
@@ -755,6 +757,8 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  if (gOFS->_movestripe(path.c_str(),*error, vid, sourcefsid, targetfsid)) {
 	    stdErr += "error: unable to move stripe";
 	    retc = errno;
+	  } else {
+	    stdOut += "success: scheduled move from source fs="; stdOut += sfsidsource; stdOut += " => target fs="; stdOut += sfsidtarget;
 	  }
 	}
 	
@@ -767,6 +771,8 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  if (gOFS->_copystripe(path.c_str(),*error, vid, sourcefsid, targetfsid)) {
 	    stdErr += "error: unable to replicate stripe";
 	    retc = errno;
+	  } else {
+	    stdOut += "success: scheduled replication from source fs="; stdOut += sfsidsource; stdOut += " => target fs="; stdOut += sfsidtarget;
 	  }
 	}
       }

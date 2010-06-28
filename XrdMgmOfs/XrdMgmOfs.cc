@@ -2347,7 +2347,7 @@ XrdMgmOfs::attr_rem(const char             *path,
 {
   static const char *epname = "attr_rm";
   const char *tident = error.getErrUser(); 
-  XrdOucEnv access_Env(info);
+  XrdOucEnv access_Env(info); 
 
   XTRACE(fsctl, path,"");
 
@@ -2541,6 +2541,7 @@ XrdMgmOfs::_dropstripe(const char             *path,
   eos::FileMD *fmd=0;
   errno = 0;
 
+  eos_debug("drop");
   XrdCommonPath cPath(path);
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
@@ -2563,8 +2564,9 @@ XrdMgmOfs::_dropstripe(const char             *path,
   try {
     fmd = gOFS->eosView->getFile(path);
     if (fmd->hasLocation(fsid)) {
-      fmd->removeLocation(fsid);
+      fmd->unlinkLocation(fsid);
       gOFS->eosView->updateFileStore(fmd);
+      eos_debug("removing location %u", fsid);
     } else {
       errno = ENOENT;
     }
@@ -2590,30 +2592,7 @@ XrdMgmOfs::_movestripe(const char             *path,
 		       unsigned long           sourcefsid,
 		       unsigned long           targetfsid)
 {
-  static const char *epname = "movestripe";  
-  eos::ContainerMD *dh=0;
-  errno = 0;
-
-  //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
-  try {
-    dh = gOFS->eosView->getContainer(path);
-  } catch( eos::MDException &e ) {
-    dh = 0;
-    errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-  }
-
-  // check permissions
-  if (dh && (!dh->access(vid.uid,vid.gid, X_OK|W_OK)))
-    if (!errno) errno = EPERM;
-  
-  gOFS->eosViewMutex.UnLock();
-  
-  if (errno) 
-    return  Emsg(epname,error,errno,"drop stripe",path);  
-
-  return SFS_OK;
+  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,true);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2624,14 +2603,30 @@ XrdMgmOfs::_copystripe(const char             *path,
 		       unsigned long           sourcefsid,
 		       unsigned long           targetfsid)
 {
-  static const char *epname = "copystripe";  
+  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,false);
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_replicatestripe(const char             *path,
+		       XrdOucErrInfo          &error,
+		       XrdCommonMapping::VirtualIdentity &vid,
+		       unsigned long           sourcefsid,
+		       unsigned long           targetfsid, 
+		       bool                    dropsource)
+{
+  static const char *epname = "replicatestripe";  
   eos::ContainerMD *dh=0;
   errno = 0;
+  unsigned long long fileId=0;
 
+  XrdCommonPath cPath(path);
+
+  eos_debug("replicating %s from %u=>%u [drop=%d]", path, sourcefsid,targetfsid,dropsource);
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   try {
-    dh = gOFS->eosView->getContainer(path);
+    dh = gOFS->eosView->getContainer(cPath.GetParentPath());
   } catch( eos::MDException &e ) {
     dh = 0;
     errno = e.getErrno();
@@ -2641,11 +2636,110 @@ XrdMgmOfs::_copystripe(const char             *path,
   // check permissions
   if (dh && (!dh->access(vid.uid,vid.gid, X_OK|W_OK)))
     if (!errno) errno = EPERM;
-  
+
+  eos::FileMD* fmd=0;
+
+  // get the file
+  try {
+    fmd = gOFS->eosView->getFile(path);
+    if (fmd->hasLocation(sourcefsid)) {
+      if (fmd->hasLocation(targetfsid)) {
+	errno = EEXIST;
+      } 
+    } else {
+      // this replica does not exist!
+      errno = ENODATA;
+    }
+    fileId = fmd->getId();
+  } catch( eos::MDException &e ) {
+    fmd = 0;
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+
   gOFS->eosViewMutex.UnLock();
-  
+  //-------------------------------------------
+
+
   if (errno) 
-    return  Emsg(epname,error,errno,"drop stripe",path);  
+    return  Emsg(epname,error,errno,"replicate stripe",path);    
+  
+  // prepare a replication message
+  XrdOucString capability="";
+  capability += "mgm.access=read";
+
+  // replication always assumes movements of a simple single file without structure
+  capability += "mgm.lid="; capability += XrdCommonLayoutId::kPlain;
+  capability += "&mgm.ruid=";       capability+=(int)vid.uid; 
+  capability += "&mgm.rgid=";       capability+=(int)vid.gid;
+  capability += "&mgm.uid=";        capability+=(int)vid.uid_list[0]; 
+  capability += "&mgm.gid=";        capability+=(int)vid.gid_list[0];
+  capability += "&mgm.path=";       capability += path;
+  capability += "&mgm.manager=";    capability += gOFS->ManagerId.c_str();
+  capability += "&mgm.fid=";    XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fileId,hexfid);capability += hexfid;
+
+  if (dropsource) {
+    capability += "&mgm.dropsource=1";
+  }
+
+  XrdMgmFstNode::gMutex.Lock();
+  XrdMgmFstFileSystem* sourcefilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[sourcefsid];
+  XrdMgmFstFileSystem* targetfilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[targetfsid];
+
+  if (!sourcefilesystem) {
+    errno = EINVAL;
+    XrdMgmFstNode::gMutex.UnLock();
+    return  Emsg(epname,error,ENOENT,"replicate stripe - source filesystem does not exist",path);  
+  }
+
+  if (!targetfilesystem) {
+    errno = EINVAL;
+    XrdMgmFstNode::gMutex.UnLock();
+    return  Emsg(epname,error,ENOENT,"replicate stripe - target filesystem does not exist",path);  
+  }
+
+  XrdOucString receiver    = targetfilesystem->GetQueue();
+
+  XrdMgmFstNode::gMutex.UnLock();
+
+  // build the capability contents
+  capability += "&mgm.localprefix=";       capability += sourcefilesystem->GetPath();
+  capability += "&mgm.localprefixtarget="; capability += targetfilesystem->GetPath();
+  capability += "&mgm.fsid=";              capability += (int)sourcefilesystem->GetId();
+  capability += "&mgm.fsidtarget=";        capability += (int)targetfilesystem->GetId();
+  XrdOucString sourcehost; int sourceport;
+  sourcefilesystem->GetHostPort(sourcehost, sourceport);
+  XrdOucString hostport = sourcehost; hostport += ":"; hostport += sourceport;
+  capability += "&mgm.sourcehostport=";    capability += hostport;
+
+  // issue a capability
+  XrdOucEnv incapability(capability.c_str());
+  XrdOucEnv* capabilityenv = 0;
+  XrdCommonSymKey* symkey = gXrdCommonSymKeyStore.GetCurrentKey();
+
+  int caprc=0;
+  if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
+    eos_static_err("unable to create capability - errno=%u", caprc);
+    errno = caprc;
+  } else {
+    errno = 0;
+    XrdMqMessage message("replication");
+    XrdOucString msgbody = "mgm.cmd=pull"; 
+
+    int caplen = 0;
+    msgbody += capabilityenv->Env(caplen);
+    // we send deletions in bunches of max 1000 for efficiency
+    message.SetBody(msgbody.c_str());   
+    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+      eos_static_err("unable to send deletion message to %s", receiver.c_str());
+      errno = ECOMM;
+    } else {
+      errno = 0;
+    }
+  }
+
+  if (errno) 
+    return  Emsg(epname,error,errno,"replicate stripe",path);  
 
   return SFS_OK;
 }
@@ -2702,7 +2796,7 @@ XrdMgmOfs::Deletion()
 	  if (!fs) {
 	    // set the file system only for the first file to relax the mutex contention
 	    XrdMgmFstNode::gMutex.Lock();
-	    XrdMgmFstFileSystem* fs = ((XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[ fslist[i] ]);
+	    fs = ((XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[ fslist[i] ]);
 
 	    if (fs) {
 	      // check the state of the filesystem (if it can actually delete in this moment!)
@@ -2771,10 +2865,9 @@ XrdMgmOfs::Deletion()
 	    msgbody += capabilityenv->Env(caplen);
 	    // we send deletions in bunches of max 1000 for efficiency
 	    message.SetBody(msgbody.c_str());
-	  }
-	  
-	  if (!XrdMgmMessaging::gMessageClient.SendMessage(message, receiver.c_str())) {
-	    eos_static_err("unable to send deletion message to %s", receiver.c_str());
+	    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+	      eos_static_err("unable to send deletion message to %s", receiver.c_str());
+	    }
 	  }
 	}
       } catch (...) {

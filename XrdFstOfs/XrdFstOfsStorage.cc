@@ -424,7 +424,7 @@ XrdFstOfsStorage::Remover()
       eos_static_debug("%u files to delete",deletions.size());
     for (unsigned int i=0; i< deletions.size(); i++) {
       for (unsigned int j=0; j< deletions[i].fIdVector.size(); j++) {
-	eos_static_debug("Deleting File Id=%llu on Fs=%u Opaque=%s", deletions[i].fIdVector[j], deletions[i].fsId, deletions[i].opaque.c_str());
+	eos_static_debug("Deleting File Id=%llu on Fs=%u", deletions[i].fIdVector[j], deletions[i].fsId);
 	// delete the file
 	XrdOucString hexstring="";
 	XrdCommonFileId::Fid2Hex(deletions[i].fIdVector[j],hexstring);
@@ -462,5 +462,25 @@ XrdFstOfsStorage::Pulling()
   // this thread pulls files from other nodes
   while(1) {
     sleep(1);
+    transferMutex.Lock();
+    if (transfers.size()) 
+      eos_static_debug("%u files to delete",transfers.size());
+    
+    while (transfers.size()) {
+      int retc=0;
+      transfers[0].Debug();
+      retc = transfers[0].Do();
+      transferMutex.UnLock();
+      // try the transfer here
+      
+      
+      transferMutex.Lock();
+      if (!retc) {
+	// remove the entry if successfull
+	if (transfers.size()) transfers.erase(transfers.begin());
+      }
+      
+    }
+    transferMutex.UnLock();
   }
 }

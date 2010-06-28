@@ -1527,7 +1527,7 @@ com_file (char* arg1) {
   XrdOucString fsid1 = subtokenizer.GetToken();
   XrdOucString fsid2 = subtokenizer.GetToken();
 
-  XrdOucString in = "mgm.cmd=file&";
+  XrdOucString in = "mgm.cmd=file";
   if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) ) {
     goto com_file_usage;
   }
@@ -1558,6 +1558,7 @@ com_file (char* arg1) {
     in += "&mgm.file.targetfsid="; in += fsid2;
   }
   
+  global_retc = output_result(client_user_command(in));
   return (0);
 
  com_file_usage:

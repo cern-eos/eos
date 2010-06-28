@@ -399,6 +399,13 @@ const   char          *getVersion();
 				   unsigned long         sourcefsid,
 				   unsigned long         targetfsid);
 
+        int            _replicatestripe(const char           *path, 
+				   XrdOucErrInfo        &error,
+				   XrdCommonMapping::VirtualIdentity &vid,
+				   unsigned long         sourcefsid,
+				   unsigned long         targetfsid, 
+				   bool                  dropstripe=false);
+
   
 // Common functions
 //

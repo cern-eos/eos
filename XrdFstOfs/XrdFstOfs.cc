@@ -799,8 +799,32 @@ XrdFstMessaging::Process(XrdMqMessage* newmessage)
 
   if (cmd == "pull") {
     eos_info("pull");
+
+    XrdOucEnv* capOpaque=NULL;
+    int caprc = 0;
+    if ((caprc=gCapabilityEngine.Extract(&action, capOpaque))) {
+      // no capability - go away!
+      if (capOpaque) delete capOpaque;
+      eos_err("Cannot extract capability for transfer - errno=%d",caprc);
+    } else {
+      int envlen=0;
+      eos_debug("opaque is %s", capOpaque->Env(envlen));
+      XrdFstTransfer* newtransfer = XrdFstTransfer::Create(capOpaque, saction);
+      if (newtransfer) {
+	gOFS.FstOfsStorage->transferMutex.Lock();
+
+	if (gOFS.FstOfsStorage->transfers.size() < 1000000) {
+	  gOFS.FstOfsStorage->transfers.push_back(*newtransfer);
+	} else {
+	  eos_err("transfer list has already 1 Mio. entries - discarding transfer message");
+	}
+	delete newtransfer;
+	gOFS.FstOfsStorage->transferMutex.UnLock();
+      } else {
+	eos_err("Cannot create a transfer entry - illegal opaque information");
+      }
+    }
   }
-  
 }
 
 
