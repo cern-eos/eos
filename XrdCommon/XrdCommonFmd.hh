@@ -116,12 +116,15 @@ public:
   google::sparse_hash_map<int,int> fdChangeLogSequenceNumber;
 
   XrdOucString ChangeLogFileName;
+  XrdOucString ChangeLogDir;
   XrdSysMutex Mutex;
   XrdCommonFmdHeader fmdHeader;
   
   bool SetChangeLogFile(const char* changelogfile, int fsid) ;
   bool AttachLatestChangeLogFile(const char* changelogdir, int fsid) ;
   bool ReadChangeLogHash(int fsid);
+
+  bool TrimLogFile(int fsid);
 
   // the meta data handling functions
 
@@ -135,15 +138,15 @@ public:
   bool Commit(XrdCommonFmd* fmd);
 
   // initialize the changelog hash
-  void Reset() {
-    Fmd.clear();
+  void Reset(int fsid) {
+    Fmd[fsid].clear();
   }
     
   static int CompareMtime(const void* a, const void *b);
 
   // that is all we need for meta data handling
   // hash map pointing from fid to offset in changelog file
-  google::dense_hash_map<unsigned long long, google::dense_hash_map<unsigned long long, unsigned long long> > Fmd;
+  google::sparse_hash_map<unsigned long long, google::dense_hash_map<unsigned long long, unsigned long long> > Fmd;
   // hash map with fid file sizes
   google::dense_hash_map<long long, unsigned long long> FmdSize;
 
@@ -153,11 +156,16 @@ public:
   google::dense_hash_map<long long, unsigned long long> UserFiles; // the key is encoded as (fsid<<32) | uid
   google::dense_hash_map<long long, unsigned long long> GroupFiles;// the key is encoded as (fsid<<32) | gid
 
+  // create a new changelog filename in 'dir' (the fsid suffix is not added!)
+  const char* CreateChangeLogName(const char* cldir, XrdOucString &clname) {
+    clname = cldir; clname += "/"; clname += "fmd."; char now[1024]; sprintf(now,"%u",(unsigned int) time(0)); clname += now;
+    return clname.c_str();
+  }
 
   XrdCommonFmdHandler() {
     SetLogId("CommonFmdHandler"); isOpen=false;
-    Fmd.set_empty_key(0);
-    FmdSize.set_empty_key(0);
+    FmdSize.set_empty_key(0xfffffffe);
+    FmdSize.set_deleted_key(0xffffffff);
     UserBytes.set_empty_key(-1);
     GroupBytes.set_empty_key(-1);
     UserFiles.set_empty_key(-1);
@@ -167,6 +175,7 @@ public:
     //    fdChangeLogWrite.set_empty_key(0);
     //    fdChangeLogSequenceNumber.set_empty_key(0);
     ChangeLogFileName="";
+    ChangeLogDir="";
   }
   ~XrdCommonFmdHandler() {};
 

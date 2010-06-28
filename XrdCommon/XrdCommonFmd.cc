@@ -84,8 +84,6 @@ XrdCommonFmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid)
   Mutex.Lock();
   bool isNew=false;
 
-  Fmd[fsid].set_empty_key(0);
-
   char fsChangeLogFileName[1024];
   sprintf(fsChangeLogFileName,"%s.%04d.mdlog", ChangeLogFileName.c_str(),fsid);
   
@@ -164,12 +162,16 @@ bool XrdCommonFmdHandler::AttachLatestChangeLogFile(const char* changelogdir, in
     char filename[1024];
   };
 
-  Fmd[fsid].set_empty_key(0);
+  Fmd[fsid].set_empty_key(0xffffffffe);
+  Fmd[fsid].set_deleted_key(0xffffffff);
 
   int nobjects=0;
   long tdp=0;
 
   struct filestat* allstat = 0;
+  ChangeLogDir = changelogdir;
+  ChangeLogDir += "/";
+  while (ChangeLogDir.replace("//","/")) {};
   XrdOucString Directory = changelogdir;
   XrdOucString FileName ="";
   char fileend[1024];
@@ -229,7 +231,7 @@ bool XrdCommonFmdHandler::AttachLatestChangeLogFile(const char* changelogdir, in
     free(allstat);
   } else {
     // attach a new one
-    changelogfilename += "fmd."; char now[1024]; sprintf(now,"%u",(unsigned int) time(0)); changelogfilename += now; 
+    CreateChangeLogName(changelogfilename.c_str(), changelogfilename);
     eos_info("creating new changelog file %s", changelogfilename.c_str());
   }
   // initialize sequence number
@@ -246,8 +248,6 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
   }
   struct stat stbuf; 
 
-  Fmd[fsid].set_empty_key(0);
- 
   // create first empty root entries
   UserBytes [(((unsigned long long)fsid)<<32) | 0] = 0;
   GroupBytes[(((unsigned long long)fsid)<<32) | 0] = 0;
@@ -323,7 +323,7 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
     }
 
     // setup the hash entries
-    Fmd.insert(make_pair(pMd->fid, (unsigned long long) (changelogstart-changelogmap)));
+    Fmd[fsid].insert(make_pair(pMd->fid, (unsigned long long) (changelogstart-changelogmap)));
     // do quota hashs
     if (XrdCommonFmd::IsCreate(pMd)) {
       long long exsize = -1;
@@ -459,10 +459,24 @@ XrdCommonFmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid
 bool
 XrdCommonFmdHandler::DeleteFmd(unsigned long long fid, unsigned int fsid) 
 {
+  bool rc = true;
   Mutex.Lock();
-   
+  
+  XrdCommonFmd* fmd = XrdCommonFmdHandler::GetFmd(fid,fsid, 0,0,0,false);\
+  if (!fmd)
+    rc = false;
+  else {
+    fmd->fMd.magic = XRDCOMMONFMDDELETE_MAGIC;
+    rc = Commit(fmd);
+    delete fmd;
+  }
+
+  // erase the has entries
+  Fmd[fsid].erase(fid);
+  FmdSize.erase(fid);
+
   Mutex.UnLock();
-  return false;
+  return rc;
 }
 
 
@@ -517,3 +531,132 @@ XrdCommonFmdHandler::Commit(XrdCommonFmd* fmd)
   return true;
 }
 
+/*----------------------------------------------------------------------------*/
+bool
+XrdCommonFmdHandler::TrimLogFile(int fsid) {
+  bool rc=true;
+  char newfilename[1024];
+  sprintf(newfilename,".%04d.mdlog", fsid);
+  XrdOucString NewChangeLogFileName;
+  CreateChangeLogName(ChangeLogDir.c_str(),NewChangeLogFileName);
+  NewChangeLogFileName += newfilename;
+
+  int newfd = open(NewChangeLogFileName.c_str(),O_CREAT|O_TRUNC| O_RDWR, 0600);
+
+  if (!newfd) 
+    return false;
+
+  int newrfd = open(NewChangeLogFileName.c_str(),O_RDONLY);
+  
+  if (!newrfd) {
+    close(newfd);
+    return false;
+  }
+
+  // write new header
+  if (!fmdHeader.Write(newfd))
+    return false;
+
+  std::vector <unsigned long long> alloffsets;
+  google::dense_hash_map <unsigned long long, unsigned long long> offsetmapping;
+  offsetmapping.set_empty_key(0xffffffff);
+
+  eos_static_info("trimming step 1");
+  Mutex.Lock();
+
+  google::dense_hash_map<unsigned long long, unsigned long long>::const_iterator it;
+  for (it = Fmd[fsid].begin(); it != Fmd[fsid].end(); it++) {
+    alloffsets.push_back(it->second);
+  }
+  eos_static_info("trimming step 2");
+
+  // sort the offsets
+  std::sort(alloffsets.begin(), alloffsets.end());
+  eos_static_info("trimming step 3");
+
+  // write the new file
+  std::vector<unsigned long long>::const_iterator fmdit;
+  XrdCommonFmd fmdblock;
+  int rfd = dup(fdChangeLogRead[fsid]);
+
+  eos_static_info("trimming step 4");
+
+  if (rfd > 0) {
+    for (fmdit = alloffsets.begin(); fmdit != alloffsets.end(); ++fmdit) {
+      if (!fmdblock.Read(rfd,*fmdit)) {
+	eos_static_crit("fatal error reading active changelog file at position %llu",*fmdit);
+	rc = false;
+	break;
+      } else {
+	off_t newoffset = lseek(newfd,0,SEEK_CUR);
+	offsetmapping[*fmdit] = newoffset;
+	if (!fmdblock.Write(newfd)) {
+	  rc = false;
+	  break; 
+	}
+      }
+      
+    }
+  } else {
+    eos_static_crit("fatal error duplicating read file descriptor");
+    rc = false;
+  }
+
+  eos_static_info("trimming step 5");
+
+  if (rc) {
+    // now we take a lock, copy the latest changes since the trimming to the new file and exchange the current filedescriptor
+    unsigned long long oldtailoffset = lseek(fdChangeLogWrite[fsid],0,SEEK_CUR);
+    unsigned long long newtailoffset = lseek(newfd,0,SEEK_CUR);
+    unsigned long long offset = oldtailoffset;
+
+    ssize_t tailchange = oldtailoffset-newtailoffset;
+    eos_static_info("tail length is %llu [ %llu %llu %llu ] ", tailchange, oldtailoffset, newtailoffset, offset);
+    char copybuffer[128*1024];
+    int nread=0;
+    do {
+      nread = pread(rfd, copybuffer, sizeof(copybuffer), offset);
+      if (nread>0) {
+	offset += nread;
+	int nwrite = write(newfd,copybuffer,nread);
+	if (nwrite != nread) {
+	  eos_static_crit("fatal error doing last recent change copy");
+	  rc = false;
+	  break;
+	}
+      }
+    } while (nread>0);
+
+    
+    // now adjust the in-memory map
+    // clean up erased
+    Fmd[fsid].resize(0);
+    FmdSize.resize(0);
+
+    google::dense_hash_map<unsigned long long, unsigned long long>::iterator it;
+    for (it = Fmd[fsid].begin(); it != Fmd[fsid].end(); it++) {
+      if (it->second >= oldtailoffset) {
+	// this has just to be adjusted by the trim length
+	it->second -= tailchange;
+      } else {
+	if (offsetmapping.count(it->second)) {
+	  // that is what we expect
+	  it->second = offsetmapping[it->second];
+	} else {
+	  // that should never happen!
+	  eos_static_crit("fatal error found not mapped offset position during trim procedure!");
+	  rc = false;
+	}
+      }      
+    }
+    // now high-jack the old write and read filedescriptor;
+    close(fdChangeLogWrite[fsid]);
+    close(fdChangeLogRead[fsid]);
+    fdChangeLogWrite[fsid] = newfd;
+    fdChangeLogRead[fsid] = newrfd;
+  }
+  eos_static_info("trimming step 6");  
+  close(rfd);
+  Mutex.UnLock();
+  return rc;
+}
