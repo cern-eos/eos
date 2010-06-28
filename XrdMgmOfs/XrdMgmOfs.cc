@@ -2669,7 +2669,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   capability += "mgm.access=read";
 
   // replication always assumes movements of a simple single file without structure
-  capability += "mgm.lid="; capability += XrdCommonLayoutId::kPlain;
+  capability += "&mgm.lid="; capability += XrdCommonLayoutId::kPlain;
   capability += "&mgm.ruid=";       capability+=(int)vid.uid; 
   capability += "&mgm.rgid=";       capability+=(int)vid.gid;
   capability += "&mgm.uid=";        capability+=(int)vid.uid_list[0]; 
