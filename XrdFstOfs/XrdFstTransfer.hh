@@ -5,6 +5,7 @@
 #include "XrdCommon/XrdCommonFileId.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
@@ -24,7 +25,7 @@ public:
   XrdFstTransfer(const char* sourcehostport, unsigned long long fid, unsigned long fsidsource, unsigned long fsidtarget, const char* localprefixsource,const char* localprefixtarget, const char* managerid, const char* inopaque, const char* incap) {
     fId = fid; fsIdSource = fsidsource; fsIdTarget = fsidtarget; localPrefixSource = localprefixsource; localPrefixTarget = localprefixtarget; managerId = managerid; sourceHostPort = sourcehostport; opaque = inopaque; capability = incap;
   }
-  ~XrdFstTransfer() {};
+  ~XrdFstTransfer() {}
 
   static XrdFstTransfer* Create(XrdOucEnv* capOpaque, XrdOucString &capability) {
     // decode the opaque tags
@@ -74,9 +75,7 @@ public:
     eos_static_debug("Pull File Id=%llu on Fs=%u from Host=%s Fs=%u", fId, fsIdTarget, sourceHostPort.c_str(), fsIdSource);
   }
 
-  int Do() {
-    return 0;
-  }
+  int Do();
 };
 
 
