@@ -74,6 +74,8 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 
   XrdFstOfsConfig::gConfig.FstQuotaReportInterval = 60;
 
+  setenv("XrdClientEUSER", "daemon", 1);
+
   // extract the manager from the config file
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
 
