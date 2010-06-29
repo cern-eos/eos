@@ -730,7 +730,7 @@ XrdCommonFmd::EnvToFmd(XrdOucEnv &env, struct XrdCommonFmd::FMD &fmd)
   if (env.Get("mgm.fmd.container")) {
     strncpy(fmd.container, env.Get("mgm.fmd.container"),255);
   } else {
-    sprintf(fmd.container,"");
+    fmd.container[0]=0;
   }
   fmd.crc32           = strtoul(env.Get("mgm.fmd.crc32"),NULL,0);
   fmd.sequencetrailer = strtoul(env.Get("mgm.fmd.sequencetrailer"),NULL,0);
