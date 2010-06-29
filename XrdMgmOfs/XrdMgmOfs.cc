@@ -1935,12 +1935,6 @@ XrdMgmOfs::FSctl(const int               cmd,
   static const char *epname = "FSctl";
   const char *tident = error.getErrUser();
   
-  // accept only plugin calls!
-
-  if (cmd!=SFS_FSCTL_PLUGIN) {
-    return gOFS->Emsg(epname, error, EPERM, "execute non-plugin function", "");
-  }
-
   if (args.Arg1Len) {
     if (args.Arg1Len < 16384) {
       strncpy(ipath,args.Arg1,args.Arg1Len);

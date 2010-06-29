@@ -3,6 +3,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "XrdCommon/XrdCommonFileId.hh"
+#include "XrdCommon/XrdCommonFmd.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -22,6 +23,8 @@ private:
   XrdOucString capability;
 
 public:
+  struct XrdCommonFmd::FMD fMd;
+
   XrdFstTransfer(const char* sourcehostport, unsigned long long fid, unsigned long fsidsource, unsigned long fsidtarget, const char* localprefixsource,const char* localprefixtarget, const char* managerid, const char* inopaque, const char* incap) {
     fId = fid; fsIdSource = fsidsource; fsIdTarget = fsidtarget; localPrefixSource = localprefixsource; localPrefixTarget = localprefixtarget; managerId = managerid; sourceHostPort = sourcehostport; opaque = inopaque; capability = incap;
   }

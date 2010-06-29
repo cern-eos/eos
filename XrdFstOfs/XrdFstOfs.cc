@@ -233,14 +233,6 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 }
 
 /*----------------------------------------------------------------------------*/
-int            
-XrdFstOfs::FSctl(int, XrdSfsFSctl&, XrdOucErrInfo &error, const XrdSecEntity*) 
-{
-  EPNAME("FSctl");
-  return XrdFstOfs::Emsg(epname, error, EOPNOTSUPP, "FSctl", "");
-}
-
-/*----------------------------------------------------------------------------*/
 int          
 XrdFstOfsFile::openofs(const char                *path,
 		    XrdSfsFileOpenMode   open_mode,
@@ -1094,5 +1086,93 @@ XrdFstOfs::_rem(const char             *path,
   }
 
   return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+int
+XrdFstOfs::FSctl(const int               cmd,
+                    XrdSfsFSctl            &args,
+                    XrdOucErrInfo          &error,
+                    const XrdSecEntity     *client) 
+{  
+  char ipath[16384];
+  char iopaque[16384];
+  
+  static const char *epname = "FSctl";
+  const char *tident = error.getErrUser();
+  
+  // accept only plugin calls!
+
+  if (cmd!=SFS_FSCTL_PLUGIN) {
+    return gOFS.Emsg(epname, error, EPERM, "execute non-plugin function", "");
+  }
+
+  if (args.Arg1Len) {
+    if (args.Arg1Len < 16384) {
+      strncpy(ipath,args.Arg1,args.Arg1Len);
+      ipath[args.Arg1Len] = 0;
+    } else {
+      return gOFS.Emsg(epname, error, EINVAL, "convert path argument - string too long", "");
+    }
+  } else {
+    ipath[0] = 0;
+  }
+  
+  if (args.Arg2Len) {
+    if (args.Arg2Len < 16384) {
+      strncpy(iopaque,args.Arg2,args.Arg2Len);
+      iopaque[args.Arg2Len] = 0;
+    } else {
+      return gOFS.Emsg(epname, error, EINVAL, "convert opaque argument - string too long", "");
+    }
+  } else {
+    iopaque[0] = 0;
+  }
+  
+  // from here on we can deal with XrdOucString which is more 'comfortable'
+  XrdOucString path    = ipath;
+  XrdOucString opaque  = iopaque;
+  XrdOucString result  = "";
+  XrdOucEnv env(opaque.c_str());
+
+  eos_debug("tident=%s path=%s opaque=%s",tident, path.c_str(), opaque.c_str());
+
+  if (cmd!=SFS_FSCTL_PLUGIN) {
+    return SFS_ERROR;
+  }
+
+  const char* scmd;
+
+  if ((scmd = env.Get("fst.pcmd"))) {
+    XrdOucString execmd = scmd;
+
+    if (execmd == "getfmd") {
+      char* afid   = env.Get("fst.getfmd.fid");
+      char* afsid  = env.Get("fst.getfmd.fsid");
+
+      unsigned long long fileid = XrdCommonFileId::Hex2Fid(afid);
+      unsigned long fsid = atoi(afsid);
+
+      struct XrdCommonFmd* fmd = gFmdHandler.GetFmd(fileid, fsid, 0, 0, 0, false);
+
+      if (!fmd) {
+	eos_static_err("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
+	const char* err = "ERROR";
+	error.setErrInfo(strlen(err)+1,err);
+	return SFS_DATA;
+      }
+      
+      XrdOucEnv* fmdenv = fmd->FmdToEnv();
+      int envlen;
+      XrdOucString fmdenvstring = fmdenv->Env(envlen);
+      delete fmdenv;
+      error.setErrInfo(fmdenvstring.length()+1,fmdenvstring.c_str());
+      return SFS_DATA;
+    }
+  }
+
+  return  Emsg(epname,error,EINVAL,"execute FSctl command",path.c_str());  
 }
 

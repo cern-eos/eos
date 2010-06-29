@@ -660,3 +660,76 @@ XrdCommonFmdHandler::TrimLogFile(int fsid) {
   Mutex.UnLock();
   return rc;
 }
+
+/*----------------------------------------------------------------------------*/
+XrdOucEnv*
+XrdCommonFmd::FmdToEnv() 
+{
+  char serialized[1024*64];
+  XrdOucString base64checksum;
+
+  // base64 encode the checksum
+  XrdCommonSymKey::Base64Encode(fMd.checksum, SHA_DIGEST_LENGTH, base64checksum);
+
+  sprintf(serialized,"mgm.fmd.magic=%llu&mgm.fmd.sequenceheader=%lu&mgm.fmd.fid=%llu&mgm.fmd.cid=%llu&mgm.fmd.fsid=%lu&mgm.fmd.ctime=%lu&mgm.fmd.ctime_ns=%lu&mgm.fmd.mtime=%lu&mgm.fmd.mtime_ns=%lu&mgm.fmd.size=%llu&mgm.fmd.checksum64=%s&mgm.fmd.lid=%lu&mgm.fmd.uid=%u&mgm.fmd.gid=%u&mgm.fmd.name=%s&mgm.fmd.container=%s&mgm.fmd.crc32=%lu&mgm.fmd.sequencetrailer=%lu",
+	  fMd.magic,fMd.sequenceheader,fMd.fid,fMd.cid,fMd.fsid,fMd.ctime,fMd.ctime_ns,fMd.mtime,fMd.mtime_ns,fMd.size,base64checksum.c_str(),fMd.lid,fMd.uid,fMd.gid,fMd.name,fMd.container,fMd.crc32,fMd.sequencetrailer);
+  return new XrdOucEnv(serialized);
+};
+
+/*----------------------------------------------------------------------------*/
+bool 
+XrdCommonFmd::EnvToFmd(XrdOucEnv &env, struct XrdCommonFmd::FMD &fmd)
+{
+  // check that all tags are present
+  if ( !env.Get("mgm.fmd.magic") ||
+       !env.Get("mgm.fmd.sequenceheader") ||
+       !env.Get("mgm.fmd.fid") ||
+       !env.Get("mgm.fmd.cid") ||
+       !env.Get("mgm.fmd.fsid") ||
+       !env.Get("mgm.fmd.ctime") ||
+       !env.Get("mgm.fmd.ctime_ns") ||
+       !env.Get("mgm.fmd.mtime") ||
+       !env.Get("mgm.fmd.mtime_ns") ||
+       !env.Get("mgm.fmd.size") ||
+       !env.Get("mgm.fmd.checksum64") ||
+       !env.Get("mgm.fmd.lid") ||
+       !env.Get("mgm.fmd.uid") ||
+       !env.Get("mgm.fmd.gid") ||
+       !env.Get("mgm.fmd.name") ||
+       !env.Get("mgm.fmd.container") ||
+       !env.Get("mgm.fmd.crc32") ||
+       !env.Get("mgm.fmd.sequencetrailer"))
+    return false;
+
+  // base64 decode
+  XrdOucString checksum64 = env.Get("mgm.fmd.checksum64");
+  unsigned int checksumlen;
+  memset(fmd.checksum, 0, SHA_DIGEST_LENGTH);
+
+  char* decodebuffer=0;
+  if (!XrdCommonSymKey::Base64Decode(checksum64, decodebuffer, checksumlen))
+    return false;
+
+  memcpy(fmd.checksum,decodebuffer,SHA_DIGEST_LENGTH);
+  free(decodebuffer);
+
+  fmd.magic           = strtoull(env.Get("mgm.fmd.magic"),NULL,0);
+  fmd.sequencetrailer = strtoul(env.Get("mgm.fmd.sequenceheader"),NULL,0);
+  fmd.fid             = strtoull(env.Get("mgm.fmd.fid"),NULL,0);
+  fmd.cid             = strtoull(env.Get("mgm.fmd.cid"),NULL,0);
+  fmd.fsid            = strtoul(env.Get("mgm.fmd.fsid"),NULL,0);
+  fmd.ctime           = strtoul(env.Get("mgm.fmd.ctime"),NULL,0);
+  fmd.ctime_ns        = strtoul(env.Get("mgm.fmd.ctime_ns"),NULL,0);
+  fmd.mtime           = strtoul(env.Get("mgm.fmd.mtime"),NULL,0);
+  fmd.mtime_ns        = strtoul(env.Get("mgm.fmd.mtime_ns"),NULL,0);
+  fmd.size            = strtoull(env.Get("mgm.fmd.size"),NULL,0);
+  fmd.lid             = strtoul(env.Get("mgm.fmd.lid"),NULL,0);
+  fmd.uid             = (uid_t) strtoul(env.Get("mgm.fmd.uid"),NULL,0);
+  fmd.gid             = (gid_t) strtoul(env.Get("mgm.fmd.gid"),NULL,0);
+  strncpy(fmd.name,      env.Get("mgm.fmd.name"),255);
+  strncpy(fmd.container, env.Get("mgm.fmd.container"),255);
+  fmd.crc32           = strtoul(env.Get("mgm.fmd.crc32"),NULL,0);
+  fmd.sequencetrailer = strtoul(env.Get("mgm.fmd.sequencetrailer"),NULL,0);
+  
+  return true;
+}

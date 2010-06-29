@@ -72,6 +72,7 @@ public:
 			const char                *opaque = 0) { return SFS_OK;}
 
 
+  
   int            fsctl(const int               cmd,
 		       const char             *args,
 		       XrdOucErrInfo    &out_error,
@@ -121,7 +122,6 @@ public:
 
   // this function deals with plugin calls
   int            FSctl(int, XrdSfsFSctl&, XrdOucErrInfo&, const XrdSecEntity*);
-  void           ThirdPartySetup(const char* transferdirectory, int slots, int rate);
 
   void           Boot(XrdOucEnv &env);
   bool           BootFs(XrdOucEnv &env, XrdOucString &response);

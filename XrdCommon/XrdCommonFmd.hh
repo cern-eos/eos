@@ -3,6 +3,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "XrdCommon/XrdCommonLogging.hh"
+#include "XrdCommon/XrdCommonSymKeys.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -74,6 +75,23 @@ public:
 
   struct FMD fMd;
 
+  void Replicate(struct FMD &fmd) {
+    fMd.magic = fmd.magic;
+    fMd.fid   = fmd.fid;
+    fMd.cid   = fmd.cid;
+    fMd.ctime = fmd.ctime;
+    fMd.ctime_ns = fmd.ctime_ns;
+    fMd.mtime = fmd.mtime;
+    fMd.mtime_ns = fmd.mtime_ns;
+    fMd.size  = fmd.size;
+    memcpy(fMd.checksum, fmd.checksum, SHA_DIGEST_LENGTH);
+    fMd.lid   = fmd.lid;
+    fMd.uid   = fmd.uid;
+    fMd.gid   = fmd.gid;
+    strncpy(fMd.name, fmd.name, 255);
+    strncpy(fMd.container, fmd.container,255);
+  }
+
   static unsigned long ComputeCrc32(char* ptr, unsigned long size) {
     uLong crc = crc32(0L, Z_NULL, 0);
     return (unsigned long) crc32(crc,(const Bytef*) ptr, size);
@@ -101,6 +119,9 @@ public:
   bool Read(int fd, off_t offset);
   void MakeCreationBlock() { fMd.magic =  XRDCOMMONFMDCREATE_MAGIC;}
   void MakeDeletionBlock() { fMd.magic =  XRDCOMMONFMDDELETE_MAGIC;}
+
+  XrdOucEnv* FmdToEnv();
+  static bool EnvToFmd(XrdOucEnv &env, struct XrdCommonFmd::FMD &fmd);
 
   XrdCommonFmd(int fid=0, int fsid=0) {memset(&fMd,0, sizeof(struct FMD)); XrdCommonLogId();fMd.fid=fid; fMd.fsid=fsid;fMd.cid=0;};
   ~XrdCommonFmd() {};
