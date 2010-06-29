@@ -2557,8 +2557,10 @@ XrdMgmOfs::_dropstripe(const char             *path,
   if (dh && (!dh->access(vid.uid,vid.gid, X_OK|W_OK)))
     if (!errno) errno = EPERM;
 
-  if (errno) 
+  if (errno) {
+    gOFS->eosViewMutex.UnLock();
     return  Emsg(epname,error,errno,"drop stripe",path);  
+  }
 
   // get the file
   try {

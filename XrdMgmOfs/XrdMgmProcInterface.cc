@@ -837,7 +837,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  stdOut += "-------\n";
 	  eos::FileMD::LocationVector::const_iterator lociter;
 	  int i=0;
-	  for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); lociter++) {
+	  for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
 	    char fsline[4096];
 	    XrdOucString location="";
 	    XrdOucString si=""; si+= (int) i;
@@ -855,7 +855,11 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    
 	    XrdMgmFstNode::gMutex.UnLock();
 	  }
+	  for ( lociter = fmd->unlinkedLocationsBegin(); lociter != fmd->unlinkedLocationsEnd(); ++lociter) {
+	    stdOut += "(undeleted) $ "; stdOut += (int) *lociter; stdOut += "\n";
+	  }
 	  stdOut += "*******";
+
 	}
       }
       MakeResult(dosort);

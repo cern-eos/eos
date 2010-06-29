@@ -80,8 +80,8 @@ namespace eos
     for ( it=pLocation.begin() ; it < pLocation.end(); it++ ) {
       if (*it == location)
       {
-        pLocation.erase( it );
         pUnlinkedLocation.push_back( *it );
+        pLocation.erase( it );
         IFileMDChangeListener::Event e( this,
                                         IFileMDChangeListener::LocationUnlinked,
                                         location );
