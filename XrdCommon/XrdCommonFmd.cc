@@ -696,7 +696,7 @@ XrdCommonFmd::EnvToFmd(XrdOucEnv &env, struct XrdCommonFmd::FMD &fmd)
        !env.Get("mgm.fmd.uid") ||
        !env.Get("mgm.fmd.gid") ||
        !env.Get("mgm.fmd.name") ||
-       !env.Get("mgm.fmd.container") ||
+       //       !env.Get("mgm.fmd.container") ||
        !env.Get("mgm.fmd.crc32") ||
        !env.Get("mgm.fmd.sequencetrailer"))
     return false;
