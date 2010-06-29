@@ -2,6 +2,7 @@
 #include "XrdCommon/XrdCommonFmd.hh"
 #include "XrdCommon/XrdCommonFileId.hh"
 #include "XrdCommon/XrdCommonFileSystem.hh"
+#include "XrdCommon/XrdCommonPath.hh"
 #include "XrdCommon/XrdCommonStatfs.hh"
 #include "XrdFstOfs/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
@@ -486,9 +487,15 @@ XrdFstOfsFile::close()
        rc = gOFS.Emsg(epname,error, EIO, "close - cannot stat closed file to determine file size",Path.c_str());
      } else {
        // update size
-       fMd->fMd.size = statinfo.st_size;
+       fMd->fMd.size     = statinfo.st_size;
        fMd->fMd.mtime    = statinfo.st_mtime;
        fMd->fMd.mtime_ns = statinfo.st_mtim.tv_nsec;
+       XrdCommonPath cPath(capOpaque->Get("path"));
+       strncpy(fMd->fMd.name,cPath.GetName(),255);
+       const char* val =0;
+       if ((val = capOpaque->Get("container"))) {
+	 strncpy(fMd->fMd.container,val,255);
+       }
      }
 
      // commit local

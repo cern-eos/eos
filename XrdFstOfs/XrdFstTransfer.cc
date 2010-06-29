@@ -31,7 +31,7 @@ XrdFstTransfer::Do()
 
   XrdFstOfsClientAdmin* replicaAdmin = gOFS.FstOfsClientAdminManager.GetAdmin(capOpaque.Get("mgm.sourcehostport"));
 
-  XrdOucString fmdquery="fst.pcmd=getfmd&fst.getfmd.fid=";fmdquery += capOpaque.Get("mgm.fid");
+  XrdOucString fmdquery="/?fst.pcmd=getfmd&fst.getfmd.fid=";fmdquery += capOpaque.Get("mgm.fid");
   fmdquery += "&fst.getfmd.fsid="; fmdquery += capOpaque.Get("mgm.fsid");
 
   int rc=0;
@@ -73,7 +73,8 @@ XrdFstTransfer::Do()
   struct XrdCommonFmd::FMD fmd;
   
   if (!XrdCommonFmd::EnvToFmd(fmdenv, fmd)) {
-    eos_static_err("Failed to unparse file meta data");
+    int envlen;
+    eos_static_err("Failed to unparse file meta data %s", fmdenv.Env(envlen));
     return EIO;
   }
 

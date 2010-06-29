@@ -505,6 +505,11 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   capability += "&mgm.lid=";       //capability += XrdCommonLayoutId::kPlain;
   // test all checksum algorithms
   capability += (int)layoutId;
+  
+  if (attrmap.count("user.tag")) {
+    capability += "&mgm.container="; 
+    capability += attrmap["user.tag"].c_str();
+  }
 
   // this will be replaced with the scheduling call
 
