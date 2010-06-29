@@ -82,7 +82,6 @@ XrdFstTransfer::Do()
     eos_static_err("Failed to unparse file meta data %s", fmdenv.Env(envlen));
     return EIO;
   }
-
   // very simple check
   if (fmd.fid != fId) {
     eos_static_err("Uups! Received wrong meta data from remote server - fid is %lu instead of %lu !", fmd.fid, fId);
@@ -172,6 +171,7 @@ XrdFstTransfer::Do()
   capOpaqueFile += "&mgm.fid=";  capOpaqueFile += capOpaque.Get("mgm.fid");
   capOpaqueFile += "&mgm.pcmd=commit";
   capOpaqueFile += "&mgm.size=";
+  //  eos_static_crit("filesize is %llu %llu", newfmd->fMd.size, fmd.size);
   char filesize[1024]; sprintf(filesize,"%llu", newfmd->fMd.size);
   capOpaqueFile += filesize;
   capOpaqueFile += "&mgm.mtime=";

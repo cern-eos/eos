@@ -82,18 +82,21 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
       Mutex.Lock();
       admin->Connect();
       admin->GetClientConn()->ClearLastServerError();
+      admin->GetClientConn()->SetOpTimeLimit(10);
       admin->Query(kXR_Qopaquf,
 		   (kXR_char *) message.c_str(),
 		   (kXR_char *) result, result_size);
-      if (!admin->LastServerResp()) 
+      if (!admin->LastServerResp()) {
+	admin->GetClientConn()->Disconnect(true);
 	return false;
-      
+      }
       switch (admin->LastServerResp()->status) {
       case kXR_ok:
 	Mutex.UnLock();
 	return true;
       
       case kXR_error:
+	admin->GetClientConn()->Disconnect(true);
 	break;
 	
       default:

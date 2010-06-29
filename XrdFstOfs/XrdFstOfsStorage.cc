@@ -399,7 +399,7 @@ XrdFstOfsStorage::Trim()
 {
   // this thread supervises the changelogfile and trims them from time to time to shrink their size
   while(1) {
-    sleep(30);
+    sleep(10);
     google::sparse_hash_map<unsigned long long, google::dense_hash_map<unsigned long long, unsigned long long> >::const_iterator it;
     eos_static_info("Trimming Size  %u", gFmdHandler.Fmd.size());
     for ( it = gFmdHandler.Fmd.begin(); it != gFmdHandler.Fmd.end(); ++it) {

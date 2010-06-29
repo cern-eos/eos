@@ -210,7 +210,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 
   // setup the circular in-memory log buffer
   XrdCommonLogging::Init();
-  //  XrdCommonLogging::SetLogPriority(LOG_DEBUG);
+  //XrdCommonLogging::SetLogPriority(LOG_DEBUG);
   XrdCommonLogging::SetLogPriority(LOG_INFO);
   XrdCommonLogging::SetUnit(unit.c_str());
   FstOfsMessaging->SetLogId("FstOfsMessaging");
@@ -553,6 +553,7 @@ XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manag
     admin->Lock();
     admin->GetAdmin()->Connect();
     admin->GetAdmin()->GetClientConn()->ClearLastServerError();
+    admin->GetAdmin()->GetClientConn()->SetOpTimeLimit(10);
     admin->GetAdmin()->Query(kXR_Qopaquf,
 			     (kXR_char *) capOpaqueFile.c_str(),
 			     (kXR_char *) result, result_size);
@@ -1073,7 +1074,7 @@ XrdFstOfs::_rem(const char             *path,
 
   struct stat statinfo;
   if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
-    eos_notice("unable to delete file - file does not exist: %s fstpath=%s fsid=%lu %id=%llu", path, fstPath.c_str(),fsid, fileid);
+    eos_notice("unable to delete file - file does not exist: %s fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(),fsid, fileid);
     return gOFS.Emsg(epname,error,ENOENT,"delete file - file does not exist",fstPath.c_str());    
   } 
   // get the identity

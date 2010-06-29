@@ -150,7 +150,7 @@ XrdCommonFmdHandler::CompareMtime(const void* a, const void *b) {
     struct stat buf;
     char filename[1024];
   };
-  return ( (((struct filestat*)a)->buf.st_mtime) - ((struct filestat*)b)->buf.st_mtime);
+  return ( (((struct filestat*)b)->buf.st_mtime) - ((struct filestat*)a)->buf.st_mtime);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -574,7 +574,8 @@ XrdCommonFmdHandler::TrimLogFile(int fsid) {
   Mutex.Lock();
 
   google::dense_hash_map<unsigned long long, unsigned long long>::const_iterator it;
-  for (it = Fmd[fsid].begin(); it != Fmd[fsid].end(); it++) {
+  for (it = Fmd[fsid].begin(); it != Fmd[fsid].end(); ++it) {
+    eos_static_info("adding offset %llu to fsid %u",it->second, fsid);
     alloffsets.push_back(it->second);
   }
   eos_static_info("trimming step 2");
@@ -728,19 +729,19 @@ XrdCommonFmd::EnvToFmd(XrdOucEnv &env, struct XrdCommonFmd::FMD &fmd)
   memcpy(fmd.checksum,decodebuffer,SHA_DIGEST_LENGTH);
   free(decodebuffer);
 
-  fmd.magic           = strtoull(env.Get("mgm.fmd.magic"),NULL,0);
-  fmd.sequencetrailer = strtoul(env.Get("mgm.fmd.sequenceheader"),NULL,0);
-  fmd.fid             = strtoull(env.Get("mgm.fmd.fid"),NULL,0);
-  fmd.cid             = strtoull(env.Get("mgm.fmd.cid"),NULL,0);
-  fmd.fsid            = strtoul(env.Get("mgm.fmd.fsid"),NULL,0);
-  fmd.ctime           = strtoul(env.Get("mgm.fmd.ctime"),NULL,0);
-  fmd.ctime_ns        = strtoul(env.Get("mgm.fmd.ctime_ns"),NULL,0);
-  fmd.mtime           = strtoul(env.Get("mgm.fmd.mtime"),NULL,0);
-  fmd.mtime_ns        = strtoul(env.Get("mgm.fmd.mtime_ns"),NULL,0);
-  fmd.size            = strtoull(env.Get("mgm.fmd.size"),NULL,0);
-  fmd.lid             = strtoul(env.Get("mgm.fmd.lid"),NULL,0);
-  fmd.uid             = (uid_t) strtoul(env.Get("mgm.fmd.uid"),NULL,0);
-  fmd.gid             = (gid_t) strtoul(env.Get("mgm.fmd.gid"),NULL,0);
+  fmd.magic           = strtoull(env.Get("mgm.fmd.magic"),0,10);
+  fmd.sequencetrailer = strtoul(env.Get("mgm.fmd.sequenceheader"),0,10);
+  fmd.fid             = strtoull(env.Get("mgm.fmd.fid"),0,10);
+  fmd.cid             = strtoull(env.Get("mgm.fmd.cid"),0,10);
+  fmd.fsid            = strtoul(env.Get("mgm.fmd.fsid"),0,10);
+  fmd.ctime           = strtoul(env.Get("mgm.fmd.ctime"),0,10);
+  fmd.ctime_ns        = strtoul(env.Get("mgm.fmd.ctime_ns"),0,10);
+  fmd.mtime           = strtoul(env.Get("mgm.fmd.mtime"),0,10);
+  fmd.mtime_ns        = strtoul(env.Get("mgm.fmd.mtime_ns"),0,10);
+  fmd.size            = strtoull(env.Get("mgm.fmd.size"),0,10);
+  fmd.lid             = strtoul(env.Get("mgm.fmd.lid"),0,10);
+  fmd.uid             = (uid_t) strtoul(env.Get("mgm.fmd.uid"),0,10);
+  fmd.gid             = (gid_t) strtoul(env.Get("mgm.fmd.gid"),0,10);
   if (env.Get("mgm.fmd.name")) {
     strncpy(fmd.name,      env.Get("mgm.fmd.name"),255);
   } else {
