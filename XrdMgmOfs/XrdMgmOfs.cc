@@ -2107,6 +2107,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	gOFS->eosViewMutex.Lock();
 	try { 
 	  eos::FileMD* fmd = eosFileService->getFileMD(XrdCommonFileId::Hex2Fid(afid));
+	  eos_debug("removing location %u of fid=%s", fsid,afid);
 	  fmd->removeLocation(fsid);
 	  gOFS->eosView->updateFileStore(fmd);
 	} catch (...) {

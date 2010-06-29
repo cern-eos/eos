@@ -67,6 +67,11 @@ XrdFstTransfer::Do()
   if (rc) 
     return EIO;
 
+  if (!strncmp(result,"ERROR", 5)) {
+    // remote side couldn't get the record
+    eos_static_err("Unable to retrieve meta data on remote server %s for fid=%s fsid=%s",capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"));
+    return ENODATA;
+  }
   // get the remote file meta data into an env hash
   XrdOucEnv fmdenv(result);
 
@@ -79,8 +84,8 @@ XrdFstTransfer::Do()
   }
 
   // very simple check
-  if (!fmd.fid != fId) {
-    eos_static_err("Uups! Received wrong meta data from remote server - fsid is %lu instead of %lu !", fmd.fid, fId);
+  if (fmd.fid != fId) {
+    eos_static_err("Uups! Received wrong meta data from remote server - fid is %lu instead of %lu !", fmd.fid, fId);
     return EIO;
   }
   
@@ -144,6 +149,9 @@ XrdFstTransfer::Do()
 
   delete replicaClient;
 
+  // ----------------------------------------------------------------------------------------------------------
+  // commit file meta data locally
+
   XrdCommonFmd* newfmd = gFmdHandler.GetFmd(fId, fsIdTarget,fmd.uid, fmd.gid, fmd.lid,1);
   // inherit the file meta data
   newfmd->Replicate(fmd);
@@ -156,8 +164,31 @@ XrdFstTransfer::Do()
   delete newfmd;
 
   // ----------------------------------------------------------------------------------------------------------
-  // commit file meta data locally
+  // commit file meta data centrally
+  XrdOucString capOpaqueFile="";
+  XrdOucString mTimeString="";
+  capOpaqueFile += "/?";
+  capOpaqueFile += "&mgm.path="; capOpaqueFile += capOpaque.Get("mgm.path");
+  capOpaqueFile += "&mgm.fid=";  capOpaqueFile += capOpaque.Get("mgm.fid");
+  capOpaqueFile += "&mgm.pcmd=commit";
+  capOpaqueFile += "&mgm.size=";
+  char filesize[1024]; sprintf(filesize,"%llu", newfmd->fMd.size);
+  capOpaqueFile += filesize;
+  capOpaqueFile += "&mgm.mtime=";
+  capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, newfmd->fMd.mtime);
+  capOpaqueFile += "&mgm.mtime_ns=";
+  capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, newfmd->fMd.mtime_ns);
+  
+  capOpaqueFile += "&mgm.add.fsid=";
+  capOpaqueFile += (int)newfmd->fMd.fsid;
+  
+  XrdOucErrInfo* error = 0;
 
+  rc = gOFS.CallManager(error, capOpaque.Get("mgm.path"),capOpaque.Get("mgm.manager"), capOpaqueFile);
+  if (rc) {
+    eos_static_err("Unable to commit meta data to central cache");
+    return rc;
+  }
   return 0;
 }
 

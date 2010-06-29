@@ -21,12 +21,15 @@ private:
   XrdOucString sourceHostPort;
   XrdOucString opaque;
   XrdOucString capability;
+  unsigned int tried;
+  time_t nexttrytime;
 
+  
 public:
   struct XrdCommonFmd::FMD fMd;
 
   XrdFstTransfer(const char* sourcehostport, unsigned long long fid, unsigned long fsidsource, unsigned long fsidtarget, const char* localprefixsource,const char* localprefixtarget, const char* managerid, const char* inopaque, const char* incap) {
-    fId = fid; fsIdSource = fsidsource; fsIdTarget = fsidtarget; localPrefixSource = localprefixsource; localPrefixTarget = localprefixtarget; managerId = managerid; sourceHostPort = sourcehostport; opaque = inopaque; capability = incap;
+    fId = fid; fsIdSource = fsidsource; fsIdTarget = fsidtarget; localPrefixSource = localprefixsource; localPrefixTarget = localprefixtarget; managerId = managerid; sourceHostPort = sourcehostport; opaque = inopaque; capability = incap; tried=0; nexttrytime=0;
   }
   ~XrdFstTransfer() {}
 
@@ -75,10 +78,14 @@ public:
   }
 
   void Debug() {
-    eos_static_debug("Pull File Id=%llu on Fs=%u from Host=%s Fs=%u", fId, fsIdTarget, sourceHostPort.c_str(), fsIdSource);
+    eos_static_debug("Pull File Id=%llu on Fs=%u from Host=%s Fs=%u tried=%u reschedul=%u", fId, fsIdTarget, sourceHostPort.c_str(), fsIdSource, tried, nexttrytime);
   }
 
   int Do();
+
+  void Reschedule(unsigned int aftersecs) { tried++; nexttrytime=time(NULL) + aftersecs;}
+  bool ShouldRun() { 
+    if (time(0)>= nexttrytime) return true; else return false;}
 };
 
 

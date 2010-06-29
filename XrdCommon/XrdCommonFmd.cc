@@ -81,6 +81,7 @@ XrdCommonFmd::Read(int fd, off_t offset)
 bool
 XrdCommonFmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid) 
 {
+  eos_debug("");
   Mutex.Lock();
   bool isNew=false;
 
@@ -155,6 +156,7 @@ XrdCommonFmdHandler::CompareMtime(const void* a, const void *b) {
 /*----------------------------------------------------------------------------*/
 bool XrdCommonFmdHandler::AttachLatestChangeLogFile(const char* changelogdir, int fsid) 
 {
+  eos_debug("");
   DIR *dir;
   struct dirent *dp;
   struct filestat {
@@ -162,8 +164,12 @@ bool XrdCommonFmdHandler::AttachLatestChangeLogFile(const char* changelogdir, in
     char filename[1024];
   };
 
-  Fmd[fsid].set_empty_key(0xffffffffe);
-  Fmd[fsid].set_deleted_key(0xffffffff);
+  eos_debug("before set");
+  if (!Fmd.count(fsid)) {
+    Fmd[fsid].set_empty_key(0xffffffffe);
+    Fmd[fsid].set_deleted_key(0xffffffff);
+  }
+  eos_debug("after set");
 
   int nobjects=0;
   long tdp=0;
@@ -242,6 +248,7 @@ bool XrdCommonFmdHandler::AttachLatestChangeLogFile(const char* changelogdir, in
 /*----------------------------------------------------------------------------*/
 bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid) 
 {
+  eos_debug("");
   if (!fmdHeader.Read(fdChangeLogRead[fsid])) {
     // failed to read header
     return false;
@@ -540,13 +547,15 @@ XrdCommonFmdHandler::TrimLogFile(int fsid) {
   XrdOucString NewChangeLogFileName;
   CreateChangeLogName(ChangeLogDir.c_str(),NewChangeLogFileName);
   NewChangeLogFileName += newfilename;
+  XrdOucString NewChangeLogFileNameTmp ="";
+  NewChangeLogFileNameTmp+= ".tmp";
 
-  int newfd = open(NewChangeLogFileName.c_str(),O_CREAT|O_TRUNC| O_RDWR, 0600);
+  int newfd = open(NewChangeLogFileNameTmp.c_str(),O_CREAT|O_TRUNC| O_RDWR, 0600);
 
   if (!newfd) 
     return false;
 
-  int newrfd = open(NewChangeLogFileName.c_str(),O_RDONLY);
+  int newrfd = open(NewChangeLogFileNameTmp.c_str(),O_RDONLY);
   
   if (!newrfd) {
     close(newfd);
@@ -649,14 +658,20 @@ XrdCommonFmdHandler::TrimLogFile(int fsid) {
 	}
       }      
     }
-    // now high-jack the old write and read filedescriptor;
-    close(fdChangeLogWrite[fsid]);
-    close(fdChangeLogRead[fsid]);
-    fdChangeLogWrite[fsid] = newfd;
-    fdChangeLogRead[fsid] = newrfd;
+    if (!rename(NewChangeLogFileNameTmp.c_str(),NewChangeLogFileName.c_str())) {
+      // now high-jack the old write and read filedescriptor;
+      close(fdChangeLogWrite[fsid]);
+      close(fdChangeLogRead[fsid]);
+      fdChangeLogWrite[fsid] = newfd;
+      fdChangeLogRead[fsid] = newrfd;
+    } else {
+      eos_static_crit("cannot move the temporary trim file into active file");
+      rc = false;
+    }
   }
   eos_static_info("trimming step 6");  
   close(rfd);
+
   Mutex.UnLock();
   return rc;
 }
@@ -695,7 +710,7 @@ XrdCommonFmd::EnvToFmd(XrdOucEnv &env, struct XrdCommonFmd::FMD &fmd)
        !env.Get("mgm.fmd.lid") ||
        !env.Get("mgm.fmd.uid") ||
        !env.Get("mgm.fmd.gid") ||
-       !env.Get("mgm.fmd.name") ||
+       //       !env.Get("mgm.fmd.name") ||
        //       !env.Get("mgm.fmd.container") ||
        !env.Get("mgm.fmd.crc32") ||
        !env.Get("mgm.fmd.sequencetrailer"))
@@ -726,7 +741,12 @@ XrdCommonFmd::EnvToFmd(XrdOucEnv &env, struct XrdCommonFmd::FMD &fmd)
   fmd.lid             = strtoul(env.Get("mgm.fmd.lid"),NULL,0);
   fmd.uid             = (uid_t) strtoul(env.Get("mgm.fmd.uid"),NULL,0);
   fmd.gid             = (gid_t) strtoul(env.Get("mgm.fmd.gid"),NULL,0);
-  strncpy(fmd.name,      env.Get("mgm.fmd.name"),255);
+  if (env.Get("mgm.fmd.name")) {
+    strncpy(fmd.name,      env.Get("mgm.fmd.name"),255);
+  } else {
+    fmd.name[0]=0;
+  }
+
   if (env.Get("mgm.fmd.container")) {
     strncpy(fmd.container, env.Get("mgm.fmd.container"),255);
   } else {

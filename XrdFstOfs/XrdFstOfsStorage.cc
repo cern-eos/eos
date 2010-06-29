@@ -465,22 +465,34 @@ XrdFstOfsStorage::Pulling()
     transferMutex.Lock();
     if (transfers.size()) 
       eos_static_debug("%u files to delete",transfers.size());
-    
-    while (transfers.size()) {
-      int retc=0;
-      transfers[0].Debug();
-      retc = transfers[0].Do();
-      transferMutex.UnLock();
-      // try the transfer here
-      
-      
-      transferMutex.Lock();
-      if (!retc) {
-	// remove the entry if successfull
-	if (transfers.size()) transfers.erase(transfers.begin());
+
+    bool more = false;
+
+    std::vector<XrdFstTransfer>::iterator it;
+    do {
+      more = false;
+      for ( it = transfers.begin(); it != transfers.end(); ++it) {
+	int retc=0;
+	it->Debug();
+	if ( it->ShouldRun() ) {
+	  more = true;
+	  transferMutex.UnLock();
+	  retc = it->Do();
+	  
+	  // try the transfer here
+	  transferMutex.Lock();
+	  if (retc) {
+	    // reschedule
+	    it->Reschedule(300);
+	  } else {
+	    // we have to leave the loop because the iterator get's invalid
+	    transfers.erase(it);
+	    break;
+	  }
+	}
       }
-      
-    }
+    } while (more);
+
     transferMutex.UnLock();
   }
 }
