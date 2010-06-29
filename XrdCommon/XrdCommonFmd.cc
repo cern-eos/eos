@@ -727,9 +727,13 @@ XrdCommonFmd::EnvToFmd(XrdOucEnv &env, struct XrdCommonFmd::FMD &fmd)
   fmd.uid             = (uid_t) strtoul(env.Get("mgm.fmd.uid"),NULL,0);
   fmd.gid             = (gid_t) strtoul(env.Get("mgm.fmd.gid"),NULL,0);
   strncpy(fmd.name,      env.Get("mgm.fmd.name"),255);
-  strncpy(fmd.container, env.Get("mgm.fmd.container"),255);
+  if (env.Get("mgm.fmd.container")) {
+    strncpy(fmd.container, env.Get("mgm.fmd.container"),255);
+  } else {
+    sprintf(fmd.container,"");
+  }
   fmd.crc32           = strtoul(env.Get("mgm.fmd.crc32"),NULL,0);
   fmd.sequencetrailer = strtoul(env.Get("mgm.fmd.sequencetrailer"),NULL,0);
-  
+   
   return true;
 }
