@@ -474,6 +474,9 @@ XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Ar
 {
   XrdOucString* err = (XrdOucString*) Arg;
 
+  if (!key || !def)
+    return 0;
+
   XrdOucString toenv = def->c_str();
   while(toenv.replace(" ", "&")) {}
   XrdOucEnv envdev(toenv.c_str());

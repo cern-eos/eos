@@ -347,7 +347,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    configstatus = XrdCommonFileSystem::GetConfigStatusFromString(fsconfig);
 	  
 	  if (configstatus == XrdCommonFileSystem::kUnknown) {
-	    stdErr="error: cannot set the configuration status to the requested status: "; stdErr += fsconfig; ; stdErr += " - this status must be 'rw','ro','drain','off'";
+	    stdErr="error: cannot set the configuration status to the requested status: "; stdErr += fsconfig; ; stdErr += " - this status must be 'rw','wo', 'ro','drain','off'";
 	    retc = EINVAL;
 	  } else {
 	    XrdOucString splitpathname="";
