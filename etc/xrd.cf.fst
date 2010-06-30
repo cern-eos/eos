@@ -15,7 +15,7 @@ ofs.authlib libXrdCapability.so
 ofs.authorize
 ###########################################################
 fstofs.symkey MTIzNDU2Nzg5MDEyMzQ1Njc4OTA=
-fstofs.broker root://lxbra0301.cern.ch:1097//eos/
+fstofs.broker root://lxbra0302.cern.ch:1097//eos/
 #fstofs.trace client
 fstofs.autoboot true
 fstofs.quotainterval 10

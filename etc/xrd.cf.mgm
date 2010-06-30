@@ -26,6 +26,6 @@ mgmofs.targetport 1095
 ###########################################################
 mgmofs.symkey MTIzNDU2Nzg5MDEyMzQ1Njc4OTA=
 mgmofs.trace all debug
-mgmofs.broker root://lxbra0301.cern.ch:1097//eos/
+mgmofs.broker root://lxbra0302.cern.ch:1097//eos/
 mgmofs.configdir /var/spool/xroot/config/
 mgmofs.metalog /var/tmp/eos/md/
