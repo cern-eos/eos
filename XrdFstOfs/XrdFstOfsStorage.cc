@@ -231,6 +231,12 @@ XrdFstOfsStorage::SetFileSystem(XrdOucEnv& env)
 
   fs->SetId(fsid);
   const char* val=0;
+  if (!gOFS.ROpenFid.count(fsid)) {
+    gOFS.ROpenFid[fsid].set_deleted_key(0);
+  }
+  if (!gOFS.WOpenFid.count(fsid)) {
+    gOFS.WOpenFid[fsid].set_deleted_key(0);
+  }
 
   if (( val = env.Get("mgm.fsschedgroup"))) {
     fs->SetSchedulingGroup(val);

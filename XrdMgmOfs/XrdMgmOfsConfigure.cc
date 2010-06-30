@@ -365,7 +365,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   // this global hash needs to initialize the set empty key function at first place
   XrdMgmFstNode::gFileSystemById.set_empty_key(0);
 
-  XrdCommonLogging::gFilter = "Process,AddQuota,UpdateHint,SetQuota,UpdateQuotaStatus,SetConfigValue";
+  XrdCommonLogging::gFilter = "Process,AddQuota,UpdateHint,SetQuota,UpdateQuotaStatus,SetConfigValue,Deletion";
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,SetQuota,UpdateQuotaStatus,SetConfigValue");
 
 

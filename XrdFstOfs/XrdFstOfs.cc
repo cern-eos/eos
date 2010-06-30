@@ -15,6 +15,10 @@
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 class XrdFstOfs;
 
 /*----------------------------------------------------------------------------*/
@@ -558,12 +562,12 @@ XrdFstOfsFile::close()
    else
      gOFS.ROpenFid[fMd->fMd.fsid][fMd->fMd.fid]--;
 
-   if (gOFS.WOpenFid[fMd->fMd.fsid][fMd->fMd.fid] == 0) {
+   if (gOFS.WOpenFid[fMd->fMd.fsid][fMd->fMd.fid] <= 0) {
      gOFS.WOpenFid[fMd->fMd.fsid].erase(fMd->fMd.fid);
      gOFS.WOpenFid[fMd->fMd.fsid].resize(0);
    }
 
-   if (gOFS.ROpenFid[fMd->fMd.fsid][fMd->fMd.fid] == 0) {
+   if (gOFS.ROpenFid[fMd->fMd.fsid][fMd->fMd.fid] <= 0) {
      gOFS.ROpenFid[fMd->fMd.fsid].erase(fMd->fMd.fid);
      gOFS.ROpenFid[fMd->fMd.fsid].resize(0);
    }
@@ -964,7 +968,8 @@ XrdFstOfs::BootFs(XrdOucEnv &env, XrdOucString &response)
   }
 
   // test if we have rw access
-  if (access(env.Get("mgm.fspath"),R_OK|W_OK|X_OK)) {
+  struct stat buf;
+  if ( ::stat(env.Get("mgm.fspath"), &buf) || (buf.st_uid != geteuid()) || ( (buf.st_mode & S_IRWXU ) != S_IRWXU) ) {
     response += "errmsg=cannot access "; response += env.Get("mgm.fspath"); response += " [no rwx permissions]"; response += "&errc="; response += errno;
     return false;
   }

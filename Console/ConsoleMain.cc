@@ -758,6 +758,7 @@ com_attr (char* arg1) {
   printf("         attr: sys.forced.stripewidth=<w>       = enforces to use a stripe width of <w> kb\n");
   printf("         attr: sys.forced.nouserlayout=1        = disables the user settings with user.forced.<xxx>\n");
   printf("         attr: sys.forced.nofsselection=1       = disables user defined filesystem selection with environmentvariables for reads\n");
+  printf("         attr: sys.stall.unavailable=<sec>      = stall clients for <sec> seconds if a needed file system is unavailable\n");
   printf("         User Variables:\n");
   printf("         -----------------------\n");
   printf("         attr: user.forced.space=<space>        = s.a.\n");
@@ -767,6 +768,7 @@ com_attr (char* arg1) {
   printf("         attr: user.forced.stripewidth=<n>      = s.a.\n");
   printf("         attr: user.forced.nouserlayout=1       = disables the user settings with environment variables in the open information\n");
   printf("         attr: user.forced.nofsselection=1      = disables user defined filesystem selection with environment variables for reads\n");
+  printf("         attr: user.stall.unavailable=<sec>     = stall clients for <sec> seconds if a needed file system is unavailable\n");
   return (0);
 }
 
@@ -899,21 +901,7 @@ com_fs (char* arg1) {
     sched ="";
     if (!arg.length())
       goto com_fs_usage;
-    
-    if (arg == "-sched") {
-      sched = subtokenizer.GetToken();
-      arg                = subtokenizer.GetToken();
-      if (!sched.length() || !arg.length()) 
-	goto com_fs_usage;
-    }
-    
-    sched = subtokenizer.GetToken();
-    if (sched == "-sched") {
-      sched = subtokenizer.GetToken();
-      if (!sched.length())
-	goto com_fs_usage;
-    }
-    
+
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=config";
     int fsid = atoi(arg.c_str());
     char r1fsid[128]; sprintf(r1fsid,"%d", fsid);
@@ -929,11 +917,28 @@ com_fs (char* arg1) {
     }
     
     in += arg;
+
+    arg = subtokenizer.GetToken();
+
+    if (arg == "-sched") {
+      sched = subtokenizer.GetToken();
+      arg                = subtokenizer.GetToken();
+      if (!sched.length() || !arg.length()) 
+	goto com_fs_usage;
+    }
+    
+    sched = subtokenizer.GetToken();
+    if (sched == "-sched") {
+      sched = subtokenizer.GetToken();
+      if (!sched.length())
+	goto com_fs_usage;
+    }
+    
     if (sched.length()) {
       in += "&mgm.fsschedgroup=";
       in += sched;
     }
-    arg = subtokenizer.GetToken();
+
     if (!arg.length())     
       goto com_fs_usage;
 
