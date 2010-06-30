@@ -54,10 +54,9 @@ XrdFstOfsFileSystem::BroadcastStatus()
 
   msgbody += response;
 
-  XrdOucString rwstatus;
+  XrdOucString rwstatus="";
   gOFS.OpenFidString(Id, rwstatus);
   msgbody += rwstatus;
-
   if (errc) {
     msgbody += "&errmsg=";
     msgbody += errmsg;
@@ -107,11 +106,11 @@ XrdFstOfsFileSystem::GetStatfs(bool &changedalot)
     return 0;
   }
 
-  if (!last_blocks_free) last_blocks_free = statFs->GetStatfs()->f_bfree;
+  //  if (!last_blocks_free) last_blocks_free = statFs->GetStatfs()->f_bfree;
 
   eos_debug("statfs on filesystem %s id %d - %lu => %lu", queueName.c_str(),Id,last_blocks_free,statFs->GetStatfs()->f_bfree  );
   // define significant change here as 1GB change
-  if ( llabs((last_blocks_free - statFs->GetStatfs()->f_bfree)*4096ll) > (1024ll*1024ll*1024ll)) {
+  if ( (last_blocks_free == 0) || ( llabs((last_blocks_free - statFs->GetStatfs()->f_bfree)*4096ll) > (1024ll*1024ll*1024ll))) {
     eos_debug("significant filesystem change on filesystem %s id %d", queueName.c_str(), Id);
     changedalot = true;
     last_blocks_free = statFs->GetStatfs()->f_bfree;
@@ -324,7 +323,6 @@ XrdFstOfsStorage::StartFsPulling(void * pp)
 void
 XrdFstOfsStorage::Quota() 
 {
-  
   while(1) {
     // check statfs for each filesystem - if there was a significant change, broadcast
     // the statfs information and quota table
@@ -378,8 +376,9 @@ XrdFstOfsStorage::Quota()
     fullreport += quotareport;
 
     // broadcast the quota table
-    if (changedalot)
+    if (changedalot) {
       BroadcastQuota(fullreport);
+    }
  
     gFmdHandler.Mutex.UnLock();
     sleep(XrdFstOfsConfig::gConfig.FstQuotaReportInterval);
