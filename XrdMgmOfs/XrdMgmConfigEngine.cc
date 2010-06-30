@@ -377,6 +377,7 @@ XrdMgmConfigEngine::ResetConfig()
 
   Mutex.Lock();
   configDefinitions.Purge();
+  configDefinitionsFile.Purge();
   Mutex.UnLock();
   XrdMgmFstNode::gMutex.UnLock();
 }
@@ -403,7 +404,7 @@ XrdMgmConfigEngine::ApplyConfig(XrdOucString &err)
   XrdCommonMapping::gMapMutex.UnLock();
 
   Mutex.Lock();
-  configDefinitions.Apply(ApplyEachConfig, &err);
+  configDefinitionsFile.Apply(ApplyEachConfig, &err);
   Mutex.UnLock();
 
   XrdMgmFstNode::gMutex.UnLock();
@@ -446,7 +447,7 @@ XrdMgmConfigEngine::ParseConfig(XrdOucString &inconfig, XrdOucString &err)
       key.erase(seppos);
 
       eos_notice("setting config key=%s value=%s", key.c_str(),value.c_str());
-      configDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
+      configDefinitionsFile.Add(key.c_str(), new XrdOucString(value.c_str()));
     }
   }
 
@@ -473,9 +474,6 @@ int
 XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
 {
   XrdOucString* err = (XrdOucString*) Arg;
-
-  if (!key || !def)
-    return 0;
 
   XrdOucString toenv = def->c_str();
   while(toenv.replace(" ", "&")) {}

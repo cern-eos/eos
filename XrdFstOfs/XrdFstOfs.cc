@@ -334,8 +334,8 @@ XrdFstOfsFile::open(const char                *path,
   if (Path.beginswith("/replicate:")) {
     bool isopenforwrite=false;
     gOFS.OpenFidMutex.Lock();
-    if (gOFS.WOpenFid.count(fileid)) {
-      if (gOFS.WOpenFid[fileid]>0) {
+    if (gOFS.WOpenFid[fsid].count(fileid)) {
+      if (gOFS.WOpenFid[fsid][fileid]>0) {
 	isopenforwrite=true;
       }
     }
@@ -428,9 +428,9 @@ XrdFstOfsFile::open(const char                *path,
     gOFS.OpenFidMutex.Lock();
 
     if (isRW) 
-      gOFS.WOpenFid[fileid]++;
+      gOFS.WOpenFid[fsid][fileid]++;
     else
-      gOFS.ROpenFid[fileid]++;
+      gOFS.ROpenFid[fsid][fileid]++;
 
     gOFS.OpenFidMutex.UnLock();
   }
@@ -554,18 +554,18 @@ XrdFstOfsFile::close()
 
    gOFS.OpenFidMutex.Lock();
    if (isRW) 
-     gOFS.WOpenFid[fMd->fMd.fid]--;
+     gOFS.WOpenFid[fMd->fMd.fsid][fMd->fMd.fid]--;
    else
-     gOFS.ROpenFid[fMd->fMd.fid]--;
+     gOFS.ROpenFid[fMd->fMd.fsid][fMd->fMd.fid]--;
 
-   if (gOFS.WOpenFid[fMd->fMd.fid] == 0) {
-     gOFS.WOpenFid.erase(fMd->fMd.fid);
-     gOFS.WOpenFid.resize(0);
+   if (gOFS.WOpenFid[fMd->fMd.fsid][fMd->fMd.fid] == 0) {
+     gOFS.WOpenFid[fMd->fMd.fsid].erase(fMd->fMd.fid);
+     gOFS.WOpenFid[fMd->fMd.fsid].resize(0);
    }
 
-   if (gOFS.ROpenFid[fMd->fMd.fid] == 0) {
-     gOFS.ROpenFid.erase(fMd->fMd.fid);
-     gOFS.ROpenFid.resize(0);
+   if (gOFS.ROpenFid[fMd->fMd.fsid][fMd->fMd.fid] == 0) {
+     gOFS.ROpenFid[fMd->fMd.fsid].erase(fMd->fMd.fid);
+     gOFS.ROpenFid[fMd->fMd.fsid].resize(0);
    }
    gOFS.OpenFidMutex.UnLock();
 
@@ -1226,3 +1226,28 @@ XrdFstOfs::FSctl(const int               cmd,
   return  Emsg(epname,error,EINVAL,"execute FSctl command",path.c_str());  
 }
 
+
+
+void 
+XrdFstOfs::OpenFidString(unsigned long fsid, XrdOucString &outstring)
+{
+  outstring ="";
+  OpenFidMutex.Lock();
+  google::sparse_hash_map<unsigned long long, unsigned int>::const_iterator idit;
+  int nopen = 0;
+
+  for (idit = ROpenFid[fsid].begin(); idit != ROpenFid[fsid].end(); ++idit) {
+    nopen += idit->second;
+  }
+  outstring += "&statfs.ropen=";
+  outstring += nopen;
+
+  nopen = 0;
+  for (idit = WOpenFid[fsid].begin(); idit != WOpenFid[fsid].end(); ++idit) {
+    nopen += idit->second;
+  }
+  outstring += "&statfs.wopen=";
+  outstring += nopen;
+  
+  OpenFidMutex.UnLock();
+}

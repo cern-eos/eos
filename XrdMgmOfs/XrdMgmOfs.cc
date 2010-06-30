@@ -553,8 +553,25 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     retc = quotaspace->FileAccess(vid.uid, vid.gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW);
   }
   if (retc) {
+    // check if the dir attributes tell us to let clients rebounce
+    if (attrmap.count("sys.stall.unavailable")) {
+      int stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
+      if (stalltime) {
+	// stall the client
+	return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
+      }
+    }
+    
+    if (attrmap.count("user.stall.unavailable")) {
+      int stalltime = atoi(attrmap["user.stall.unavailable"].c_str());
+      if (stalltime) {
+	// stall the client
+	return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
+      }
+    }
+    
     XrdMgmFstNode::gMutex.UnLock();
-    return Emsg(epname, error, retc, "get quota space ", path);
+    return Emsg(epname, error, retc, "access quota space ", path);
   }
 
   // ************************************************************************************************
@@ -1985,7 +2002,7 @@ XrdMgmOfs::FSctl(const int               cmd,
     if ((_exists(path.c_str(),file_exists,error,client,0)) || (file_exists!=XrdSfsFileExistIsFile)) {
       return SFS_ERROR;
     }
-    
+   
     char locResp[4096];
     char rType[3], *Resp[] = {rType, locResp};
     rType[0] = 'S';

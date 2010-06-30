@@ -34,6 +34,8 @@ private:
   XrdOucString errmsg;
 
   struct statfs statFs;
+  int ropen; // files open for read
+  int wopen; // files open for write
 
 public:
 
@@ -125,6 +127,8 @@ public:
     if (( val = env->Get("statfs.files"))) {statFs.f_files = strtol(val,0,10);}
     if (( val = env->Get("statfs.ffree"))) {statFs.f_ffree = strtol(val,0,10);}
     if (( val = env->Get("statfs.namelen"))){statFs.f_namelen = strtol(val,0,10);}
+    if (( val = env->Get("statfs.ropen"))) {ropen = strtol(val,0,10);}
+    if (( val = env->Get("statfs.wopen"))) {wopen = strtol(val,0,10);}
   }
 
   void SetConfigStatusEnv(XrdOucEnv* env) {
@@ -144,6 +148,8 @@ public:
     GroupBytes.set_empty_key(-1);
     UserFiles.set_empty_key(-1);
     GroupFiles.set_empty_key(-1);
+    ropen = 0;
+    wopen = 0;
   };
 
   ~XrdMgmFstFileSystem() {};

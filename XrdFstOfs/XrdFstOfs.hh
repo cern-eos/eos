@@ -135,8 +135,10 @@ public:
   XrdFstOfsStorage* FstOfsStorage;       // -> Meta data & filesytem store object
 
   XrdSysMutex OpenFidMutex;
-  google::sparse_hash_map<unsigned long long, unsigned int> WOpenFid;
-  google::sparse_hash_map<unsigned long long, unsigned int> ROpenFid;
+  google::sparse_hash_map<unsigned long, google::sparse_hash_map<unsigned long long, unsigned int> > WOpenFid;
+  google::sparse_hash_map<unsigned long, google::sparse_hash_map<unsigned long long, unsigned int> > ROpenFid;
+
+  void OpenFidString(unsigned long fsid, XrdOucString &outstring);
 
   virtual ~XrdFstOfs() {};
 };

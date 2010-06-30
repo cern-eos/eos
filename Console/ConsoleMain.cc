@@ -893,10 +893,27 @@ com_fs (char* arg1) {
   }
 
   if ( subcommand == "config" ) {
-    XrdOucString arg = subtokenizer.GetToken();
+    XrdOucString arg;
+    arg = subtokenizer.GetToken();
+    XrdOucString sched;
+    sched ="";
     if (!arg.length())
       goto com_fs_usage;
-
+    
+    if (arg == "-sched") {
+      sched = subtokenizer.GetToken();
+      arg                = subtokenizer.GetToken();
+      if (!sched.length() || !arg.length()) 
+	goto com_fs_usage;
+    }
+    
+    sched = subtokenizer.GetToken();
+    if (sched == "-sched") {
+      sched = subtokenizer.GetToken();
+      if (!sched.length())
+	goto com_fs_usage;
+    }
+    
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=config";
     int fsid = atoi(arg.c_str());
     char r1fsid[128]; sprintf(r1fsid,"%d", fsid);
@@ -912,7 +929,10 @@ com_fs (char* arg1) {
     }
     
     in += arg;
-
+    if (sched.length()) {
+      in += "&mgm.fsschedgroup=";
+      in += sched;
+    }
     arg = subtokenizer.GetToken();
     if (!arg.length())     
       goto com_fs_usage;
@@ -926,16 +946,17 @@ com_fs (char* arg1) {
 
   com_fs_usage:
 
-  printf("usage: fs ls                                                 : list configured filesystems (or by name or id match\n");
-  printf("       fs set   <fs-name> <fs-id> [-sched <group> ] [-force] : configure filesystem with name and id\n");
-  printf("       fs rm    <fs-name>|<fs-id>                            : remove filesystem configuration by name or id\n");
-  printf("       fs boot  <fs-id>|<node-queue>                         : boot filesystem/node ['fs boot *' to boot all]  \n");
-  printf("       fs config <fs-id>|<node-queue> <status>               : set filesystem configuration status\n");
-  printf("                    <status> can be := rw                    : filesystem is in read write mode\n");
-  printf("                                    := wo                    : filesystem is in write-once mode\n");
-  printf("                                    := ro                    : filesystem is in read-only mode\n");
-  printf("                                    := drain                 : filesystem is in drain mode\n");
-  printf("                                    := off                   : filesystem is disabled\n"); 
+  printf("usage: fs ls                                                    : list configured filesystems (or by name or id match\n");
+  printf("       fs set   <fs-name> <fs-id> [-sched <group> ] [-force]    : configure filesystem with name and id\n");
+  printf("       fs rm    <fs-name>|<fs-id>                               : remove filesystem configuration by name or id\n");
+  printf("       fs boot  <fs-id>|<node-queue>                            : boot filesystem/node ['fs boot *' to boot all]  \n");
+  printf("       fs config <fs-id>|<node-queue> <status> [-sched <group>] : set filesystem configuration status\n");
+  printf("                    <status> can be := rw                       : filesystem is in read write mode\n");
+  printf("                                    := wo                       : filesystem is in write-once mode\n");
+  printf("                                    := ro                       : filesystem is in read-only mode\n");
+  printf("                                    := drain                    : filesystem is in drain mode\n");
+  printf("                                    := off                      : filesystem is disabled\n"); 
+  printf("                    -sched <group>                              : allows to change the scheduling group\n");
   return (0);
 }
 

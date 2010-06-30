@@ -36,6 +36,14 @@ XrdMgmFstNode::SetNodeConfigStatus(int status)
 }
 
 /*----------------------------------------------------------------------------*/
+bool 
+XrdMgmFstNode::SetNodeConfigSchedulingGroup(const char* schedgroup)
+{
+  fileSystems.Apply(XrdMgmFstNode::SetConfigSchedulingGroupFileSystem, (void*)schedgroup);
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
 bool
 XrdMgmFstNode::Update(XrdAdvisoryMqMessage* advmsg) 
 {
@@ -483,6 +491,21 @@ XrdMgmFstNode::SetConfigStatusFileSystem(const char* key, XrdMgmFstFileSystem* f
   if (filesystem) {
     filesystem->SetConfigStatus(*status);
     eos_static_info("%s %s", filesystem->GetQueue(), filesystem->GetConfigStatusString());
+      
+    gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
+  }
+
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmFstNode::SetConfigSchedulingGroupFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg)
+{
+  const char* group = (const char*) Arg;
+  if (filesystem) {
+    filesystem->SetSchedulingGroup(group);
+    eos_static_info("%s %s", filesystem->GetQueue(), filesystem->GetSchedulingGroup());
       
     gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
   }

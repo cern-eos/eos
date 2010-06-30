@@ -341,6 +341,8 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  const char* fsname   =  opaque.Get("mgm.fsname");
 	  const char* fsidst   =  opaque.Get("mgm.fsid");
 	  const char* fsconfig =  opaque.Get("mgm.fsconfig");
+	  char* fssched= opaque.Get("mgm.fsschedgroup");
+
 	  const char* fspath   =  0;
 	  int configstatus = XrdCommonFileSystem::kUnknown;
 	  if (fsconfig)
@@ -376,12 +378,16 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		if (!fspath) {
 		  // set status to all filesystems of a complete node
 		  node->SetNodeConfigStatus(configstatus);
+		  if (fssched)
+		    node->SetNodeConfigSchedulingGroup(fssched);
 		  stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at node "; stdOut += nodename;
 		} else {
 		  // set status for one filesystem of a certain node
 		  XrdMgmFstFileSystem* filesystem = node->fileSystems.Find(fspath);
 		  if (filesystem) {
 		    filesystem->SetConfigStatus(configstatus);
+		    if (fssched)
+		      filesystem->SetSchedulingGroup(fssched);
 		    gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
 		    // success
 		    stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at filesystem ";stdOut += fsname;
@@ -407,6 +413,8 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		  
 		  if (node && filesystem) {
 		    filesystem->SetConfigStatus(configstatus);
+		    if (fssched)
+		      filesystem->SetSchedulingGroup(fssched);
 		    gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
 		    // success
 		    stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at filesystem ";stdOut += fsname;

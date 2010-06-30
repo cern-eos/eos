@@ -416,7 +416,7 @@ int XrdMgmSpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid,
 	  return 0;
 	} else {
 	  // check if we are draining or read-only
-	  if (filesystem && ( (filesystem->GetConfigStatus() == XrdCommonFileSystem::kRO) || (filesystem->GetConfigStatus() == XrdCommonFileSystem::kDrain)) )
+	  if (filesystem && ( (filesystem->GetConfigStatus() == XrdCommonFileSystem::kWO) || (filesystem->GetConfigStatus() == XrdCommonFileSystem::kRO) || (filesystem->GetConfigStatus() == XrdCommonFileSystem::kDrain)) )
 	    return EROFS;
 	  // we are off the wire
 	  return ENONET;

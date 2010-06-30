@@ -49,6 +49,7 @@ public:
 
   bool SetNodeStatus(int status); 
   bool SetNodeConfigStatus(int status); 
+  bool SetNodeConfigSchedulingGroup(const char* schedgroup);
 
   static XrdMgmFstNode* GetNode(const char* queue);
    
@@ -104,6 +105,7 @@ public:
   static int                    BootFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg);
   static int                    SetBootStatusFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
   static int                    SetConfigStatusFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
+  static int                    SetConfigSchedulingGroupFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
 };
 
 #endif

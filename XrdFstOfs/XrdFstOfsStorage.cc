@@ -53,6 +53,11 @@ XrdFstOfsFileSystem::BroadcastStatus()
   XrdOucString response = statFs->GetEnv();
 
   msgbody += response;
+
+  XrdOucString rwstatus;
+  gOFS.OpenFidString(Id, rwstatus);
+  msgbody += rwstatus;
+
   if (errc) {
     msgbody += "&errmsg=";
     msgbody += errmsg;

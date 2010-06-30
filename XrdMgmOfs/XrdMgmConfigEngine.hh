@@ -53,6 +53,7 @@ private:
 
   XrdMgmConfigEngineChangeLog changeLog;
 
+  XrdOucHash<XrdOucString> configDefinitionsFile;
   XrdOucHash<XrdOucString> configDefinitions;
 
 public:
@@ -67,7 +68,6 @@ public:
   static int PrintEachConfig(const char* key, XrdOucString* def, void* Arg);
 
   static int DeleteConfigByMatch(const char* key, XrdOucString* def, void* Arg);
-
 
   XrdMgmConfigEngine(const char* configdir) {
     configDir = configdir;
