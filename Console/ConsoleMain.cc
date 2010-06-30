@@ -946,8 +946,92 @@ com_fs (char* arg1) {
     in += arg;
     global_retc = output_result(client_admin_command(in));
     return (0);
+  }
+
+
+  if ( subcommand == "clone" ) {
+    XrdOucString sourceid;
+    sourceid = subtokenizer.GetToken();    
+    XrdOucString targetid;
+    targetid = subtokenizer.GetToken();
+    if (!sourceid.length() || !targetid.length()) 
+      goto com_fs_usage;
+
+    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=clone";
+
+    in += "&mgm.fsidsource="; in += sourceid;
+    in += "&mgm.fsidtarget="; in += targetid;
+
+    global_retc = output_result(client_admin_command(in));
     return (0);
   }
+
+  if ( subcommand == "compare" ) {
+    XrdOucString sourceid;
+    sourceid = subtokenizer.GetToken();    
+    XrdOucString targetid;
+    targetid = subtokenizer.GetToken();
+    if (!sourceid.length() || !targetid.length()) 
+      goto com_fs_usage;
+
+    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=compare";
+
+    in += "&mgm.fsidsource="; in += sourceid;
+    in += "&mgm.fsidtarget="; in += targetid;
+
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+
+  if ( subcommand == "dropfiles" ) {
+    XrdOucString id;
+    id = subtokenizer.GetToken();    
+
+    if (!id.length()) 
+      goto com_fs_usage;
+
+    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=dropfiles";
+
+    in += "&mgm.fside="; in += id;
+
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+   
+  if ( subcommand == "dissolve" ) {
+    XrdOucString sourceid;
+    sourceid = subtokenizer.GetToken();    
+    XrdOucString targetid;
+    targetid = subtokenizer.GetToken();
+    if (!sourceid.length() || !targetid.length()) 
+      goto com_fs_usage;
+
+    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=dissolve";
+
+    in += "&mgm.fsidsource="; in += sourceid;
+    in += "&mgm.fsidtarget="; in += targetid;
+
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  } 
+
+
+  if ( subcommand == "flatten" ) {
+    XrdOucString sourceid;
+    sourceid = subtokenizer.GetToken();    
+    XrdOucString tag;
+    tag = subtokenizer.GetToken();
+    if (!sourceid.length())
+      goto com_fs_usage;
+
+    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=flatten";
+
+    in += "&mgm.fsidsource="; in += sourceid;
+    in += "&mgm.fstag"; in += tag;
+
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  } 
 
   com_fs_usage:
 
@@ -962,6 +1046,11 @@ com_fs (char* arg1) {
   printf("                                    := drain                    : filesystem is in drain mode\n");
   printf("                                    := off                      : filesystem is disabled\n"); 
   printf("                    -sched <group>                              : allows to change the scheduling group\n");
+  printf("       fs clone <fs-id-src> <fs-id-dst>                         : allows to clone the contents of <fs-id-src> to <fs-id-dst>\n");
+  printf("       fs compare <fs-id-src> <fs-id-dst>|<space>               : does a comparison of <fs-id-src> with <fs-id-dst>|<space>\n");
+  printf("       fs dropfiles  <fs-id>                                    : allows to drop all files on <fs-id>\n");
+  printf("       fs dissolve   <fs-id> <space>                            : allows to create a new replica of all files on <fs-id> in <space>\n");
+  printf("       fs flatten    <space> [<tag>]                            : allows to flatten the file distribution in <space> for files with tag <tag>\n");
   return (0);
 }
 
