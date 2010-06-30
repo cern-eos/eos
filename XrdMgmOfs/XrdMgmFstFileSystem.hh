@@ -96,7 +96,7 @@ public:
 
 
   const char* GetBootStatusString()   {if (bootStatus==kBootFailure) return "failed"; if (bootStatus==kDown) return "down"; if (bootStatus==kBootSent) return "sent"; if (bootStatus==kBooting) return "booting"; if (bootStatus==kBooted) return "booted"; if (bootStatus==kOpsError) return "opserror";  return "";}
-  const char* GetConfigStatusString() {if (configStatus==kOff) return "off"; if (configStatus==kUnknown) return "?"; if (configStatus==kRO) return "ro"; if (configStatus==kDrain) return "drain"; if (configStatus==kRW) return "rw"; return "unknown";}
+  const char* GetConfigStatusString() {if (configStatus==kOff) return "off"; if (configStatus==kUnknown) return "?"; if (configStatus==kRO) return "ro"; if (configStatus==kDrain) return "drain"; if (configStatus==kWO) return "wo"; if (configStatus==kRW) return "rw"; return "unknown";}
   static const char* GetInfoHeader() {static char infoHeader[1024];sprintf(infoHeader,"%-36s %-4s %-24s %-16s %-10s %-4s %-10s %-8s %-8s %-8s %-3s %s\n","QUEUE","FSID","PATH","SCHEDGROUP","BOOTSTAT","BT", "CONFIGSTAT","BLOCKS", "FREE", "FILES", "EC ", "EMSG"); return infoHeader;}
   const char* GetInfoString()         {XrdOucString sizestring,freestring,filesstring; sprintf(infoString,"%-36s %04u %-24s %-16s %-10s %04lu %-10s %-8s %-8s %-8s %03d %s\n",GetQueue(),GetId(),GetPath(),GetSchedulingGroup(),GetBootStatusString(),GetBootDoneTime()?(GetBootDoneTime()-GetBootSentTime()):(GetBootSentTime()?(time(0)-GetBootSentTime()):0) , GetConfigStatusString(), XrdCommonFileSystem::GetReadableSizeString(sizestring,statFs.f_blocks * 4096ll,"B"), XrdCommonFileSystem::GetReadableSizeString(freestring, statFs.f_bfree * 4096ll,"B"), XrdCommonFileSystem::GetReadableSizeString(filesstring, (statFs.f_files-statFs.f_ffree) *1ll),errc, errmsg.c_str());return infoString;}
 
@@ -108,6 +108,7 @@ public:
   void SetBootFailure(const char* txt) {bootStatus = kBootFailure;bootFailureMsg = txt;}
   void SetRO()      {configStatus = kRO;}
   void SetRW()      {configStatus = kRW;}
+  void SetWO()      {configStatus = kWO;}
 
   void SetId(unsigned int inid)  {Id   = inid;}
   void SetPath(const char* path) {Path = path;}

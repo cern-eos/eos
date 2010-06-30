@@ -219,7 +219,7 @@ public:
   unsigned long UnIndex(unsigned long long reindex) {return (reindex>>32) & 0xffff;}
 
   // the write placement routine
-  int FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs);
+  int FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate=false);
 
   // the access routine
   int FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW);

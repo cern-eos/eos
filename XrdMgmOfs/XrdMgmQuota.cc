@@ -279,7 +279,7 @@ XrdMgmSpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
 
 /*----------------------------------------------------------------------------*/
 int 
-XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs)
+XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate)
 {
   unsigned int nfilesystems = XrdCommonLayoutId::GetStripeNumber(lid) + 1; // 0 = 1 replica !
   unsigned int nassigned = 0;
@@ -360,7 +360,8 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
 	eos_static_debug("fs info %u %llu %llu %s %s", filesystem->GetId(), filesystem->GetStatfs()->f_bfree, filesystem->GetStatfs()->f_ffree*4096ll, filesystem->GetConfigStatusString(), filesystem->GetBootStatusString());
 	if ( ((filesystem->GetStatfs()->f_bfree *4096ll) > (1024ll*1024ll*1024ll*1)) &&
 	     ((filesystem->GetStatfs()->f_ffree) > 100 ) &&
-	     ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kRW)) &&
+	     ( ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kWO) && truncate) ||
+	       ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kRW)) ) &&
 	     ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
 	  // ok, that can be used
 	  selectedfs.push_back(currentfs);

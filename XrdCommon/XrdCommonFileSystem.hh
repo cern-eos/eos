@@ -12,7 +12,7 @@ class XrdCommonFileSystem {
 public:
 
   enum eBootStatus   { kOpsError=-2, kBootFailure=-1, kDown=0, kBootSent, kBooting=2, kBooted=3};
-  enum eConfigStatus { kUnknown=-1, kOff=0, kDrain, kRO, kRW};
+  enum eConfigStatus { kUnknown=-1, kOff=0, kDrain, kRO, kWO, kRW};
 
   static const char* GetStatusAsString(int status) {
     if (status == kDown) return "down";
@@ -45,6 +45,7 @@ public:
     if (!strcmp(ss,"off")) return kOff;
     if (!strcmp(ss,"drain")) return kDrain;
     if (!strcmp(ss,"ro")) return kRO;
+    if (!strcmp(ss,"wo")) return kWO;
     if (!strcmp(ss,"rw")) return kRW;
     return kUnknown;
   }

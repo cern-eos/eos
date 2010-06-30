@@ -330,6 +330,23 @@ XrdFstOfsFile::open(const char                *path,
   fsid   = atoi(sfsid);
   lid = atoi(slid);
 
+  // check if this is an open for replication
+  if (Path.beginswith("/replicate:")) {
+    bool isopenforwrite=false;
+    gOFS.OpenFidMutex.Lock();
+    if (gOFS.WOpenFid.count(fileid)) {
+      if (gOFS.WOpenFid[fileid]>0) {
+	isopenforwrite=true;
+      }
+    }
+    gOFS.OpenFidMutex.UnLock();
+    if (isopenforwrite) {
+      return gOFS.Emsg(epname,error, EBUSY,"open - cannot replicate: file is opened in RW mode",path);
+    }
+  }
+  
+
+
   open_mode |= SFS_O_MKPTH;
   create_mode|= SFS_O_MKPTH;
 
@@ -408,11 +425,18 @@ XrdFstOfsFile::open(const char                *path,
   int rc = layOut->open(fstPath.c_str(), open_mode, create_mode, client, stringOpaque.c_str());
 
   if (!rc) {
-    return rc;
-  }
+    gOFS.OpenFidMutex.Lock();
 
-  return rc;
+    if (isRW) 
+      gOFS.WOpenFid[fileid]++;
+    else
+      gOFS.ROpenFid[fileid]++;
+
+    gOFS.OpenFidMutex.UnLock();
   }
+    
+  return rc;
+}
 
 /*----------------------------------------------------------------------------*/
 int
@@ -527,6 +551,24 @@ XrdFstOfsFile::close()
      rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
    }
    closed = true;
+
+   gOFS.OpenFidMutex.Lock();
+   if (isRW) 
+     gOFS.WOpenFid[fMd->fMd.fid]--;
+   else
+     gOFS.ROpenFid[fMd->fMd.fid]--;
+
+   if (gOFS.WOpenFid[fMd->fMd.fid] == 0) {
+     gOFS.WOpenFid.erase(fMd->fMd.fid);
+     gOFS.WOpenFid.resize(0);
+   }
+
+   if (gOFS.ROpenFid[fMd->fMd.fid] == 0) {
+     gOFS.ROpenFid.erase(fMd->fMd.fid);
+     gOFS.ROpenFid.resize(0);
+   }
+   gOFS.OpenFidMutex.UnLock();
+
  } 
 
  if (checksumerror) {

@@ -407,6 +407,15 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   //-------------------------------------------
   
   if (isRW) {
+    if ((open_mode & SFS_O_TRUNC) && fmd) {
+      // drop the old file and create a new truncated one
+      if (gOFS->_rem(path,error, vid, info)) {
+	return Emsg(epname, error, errno,"remove file for truncation", path);
+      }
+      // invalidate the record
+      fmd = 0;
+    }
+
     // write case
     if ((!fmd)) {
       if (!(open_flag & O_CREAT))  {
@@ -529,7 +538,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     if (attrmap.count("user.tag")) {
       containertag = attrmap["user.tag"].c_str();
     }
-    retc = quotaspace->FilePlacement(vid.uid, vid.gid, containertag, layoutId, selectedfs);
+    retc = quotaspace->FilePlacement(vid.uid, vid.gid, containertag, layoutId, selectedfs, open_mode & SFS_O_TRUNC);
   } else {
     // ************************************************************************************************
     // access existing file

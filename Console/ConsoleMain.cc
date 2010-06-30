@@ -932,6 +932,7 @@ com_fs (char* arg1) {
   printf("       fs boot  <fs-id>|<node-queue>                         : boot filesystem/node ['fs boot *' to boot all]  \n");
   printf("       fs config <fs-id>|<node-queue> <status>               : set filesystem configuration status\n");
   printf("                    <status> can be := rw                    : filesystem is in read write mode\n");
+  printf("                                    := wo                    : filesystem is in write-once mode\n");
   printf("                                    := ro                    : filesystem is in read-only mode\n");
   printf("                                    := drain                 : filesystem is in drain mode\n");
   printf("                                    := off                   : filesystem is disabled\n"); 
@@ -1526,6 +1527,8 @@ com_file (char* arg1) {
   XrdOucString path = subtokenizer.GetToken();
   XrdOucString fsid1 = subtokenizer.GetToken();
   XrdOucString fsid2 = subtokenizer.GetToken();
+
+  path = abspath(path.c_str());
 
   XrdOucString in = "mgm.cmd=file";
   if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) ) {

@@ -133,6 +133,11 @@ public:
   XrdFstOfsClientAdminManager FstOfsClientAdminManager;
   XrdFstMessaging* FstOfsMessaging;      // -> messaging interface class
   XrdFstOfsStorage* FstOfsStorage;       // -> Meta data & filesytem store object
+
+  XrdSysMutex OpenFidMutex;
+  google::sparse_hash_map<unsigned long long, unsigned int> WOpenFid;
+  google::sparse_hash_map<unsigned long long, unsigned int> ROpenFid;
+
   virtual ~XrdFstOfs() {};
 };
 
