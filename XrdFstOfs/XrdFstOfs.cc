@@ -392,7 +392,7 @@ XrdFstOfsFile::open(const char                *path,
     return gOFS.Emsg(epname,error,EINVAL,"open - sec uid missing",path);
   }
 
-  if (capOpaque->Get("mgm.gid")) {
+  if ((val = capOpaque->Get("mgm.gid"))) {
     vid.gid_list.clear();
     vid.gid_list.push_back(atoi(val));
   } else {
