@@ -1318,8 +1318,12 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   }
 
   if (file_exists!=XrdSfsFileExistIsFile) {
-    errno = EISDIR;
-    return Emsg(epname, error, EISDIR,"remove",path);
+    if (file_exists == XrdSfsFileExistIsDirectory)
+      errno = EISDIR;
+    else
+      errno = ENOENT;
+
+    return Emsg(epname, error, errno,"remove",path);
   }
 
   //-------------------------------------------

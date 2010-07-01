@@ -76,6 +76,7 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
 	eos_err("cannot update node status for %s", advisorymessage->GetBody());
       }
     }
+    delete advisorymessage;
   } else {
     XrdMgmFstNode::gMutex.Lock();
 
