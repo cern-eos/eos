@@ -24,6 +24,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <fstream>
 /*----------------------------------------------------------------------------*/
 XrdOucString serveruri="";
 XrdOucString historyfile="";
@@ -2104,7 +2105,48 @@ int main (int argc, char* argv[]) {
   serveruri += HostName;
   serveruri += ":1094";
 
-  if (argc>1) serveruri = argv[1];
+  int argindex=1;
+  if (argc>1) {
+    XrdOucString in1 = argv[1];
+    if (in1.beginswith("root://")) {
+      serveruri = argv[1];
+      in1 = argv[2];
+      argindex = 2;
+    } 
+    if (in1.length()) {
+      // check if this is a file
+      if (!access(in1.c_str(), R_OK)) {
+	// this is a script file
+	char str[16384];
+        fstream file_op(in1.c_str(),ios::in);
+	while(!file_op.eof()) {
+	  file_op.getline(str,16384);
+	  XrdOucString cmdline="";
+	  cmdline = str;
+	  if (!cmdline.length())
+	    break;
+	  while (cmdline.beginswith(" ")) {cmdline.erase(0,1);}
+	  while (cmdline.endswith(" "))   {cmdline.erase(cmdline.length()-1,1);}
+	  execute_line ((char*)cmdline.c_str());
+	}         
+        file_op.close();
+	exit(0);
+      } else {
+	XrdOucString cmdline="";
+	// this are commands
+	for (int i=argindex; i<argc; i++) {
+	  cmdline += argv[i];
+	  cmdline += " ";
+	}
+	// strip leading and trailing white spaces
+	while (cmdline.beginswith(" ")) {cmdline.erase(0,1);}
+	while (cmdline.endswith(" ")) {cmdline.erase(cmdline.length()-1,1);}
+	execute_line ((char*)cmdline.c_str());
+	exit(0);
+      }
+    }
+  }
+
 
   /* install a shutdown handler */
   signal (SIGINT,  exit_handler);
