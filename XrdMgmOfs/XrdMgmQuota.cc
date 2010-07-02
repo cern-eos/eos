@@ -43,7 +43,7 @@ XrdMgmSpaceQuota::SetQuota(unsigned long tag, unsigned long id, unsigned long lo
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmSpaceQuota::AddQuota(unsigned long tag, unsigned long id, unsigned long long value, bool lock) 
+XrdMgmSpaceQuota::AddQuota(unsigned long tag, unsigned long id, long long value, bool lock) 
 {
   if (lock) Mutex.Lock();
   eos_static_debug("add quota tag=%lu id=%lu value=%llu", tag, id , value);

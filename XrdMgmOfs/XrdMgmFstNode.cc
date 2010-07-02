@@ -126,7 +126,7 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
       XrdOucString value="";
       if (XrdCommonFileSystem::SplitKeyValue(keyval, key, value)) {
 	long long fsiduid   = strtoll(key.c_str(),0,10);
-	unsigned long long fsidquota = strtoll(value.c_str(),0,10);
+	long long fsidquota = strtoll(value.c_str(),0,10);
 	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
 	unsigned long uid  = fsiduid & 0xffffffff;
 	eos_static_debug("decoded quota userbytes    : fsid=%lu uid=%lu bytes=%llu", fsid, uid, fsidquota);
@@ -157,7 +157,7 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
       XrdOucString value="";
       if (XrdCommonFileSystem::SplitKeyValue(keyval, key, value)) {
 	long long fsiduid   = strtoll(key.c_str(),0,10);
-	unsigned long long fsidquota = strtoll(value.c_str(),0,10);
+	long long fsidquota = strtoll(value.c_str(),0,10);
 	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
 	unsigned long gid  = fsiduid & 0xffffffff;
 	eos_static_debug("decoded quota groupbytes  : fsid=%lu uid=%lu bytes=%llu", fsid, gid, fsidquota);
@@ -189,7 +189,7 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
       XrdOucString value="";
       if (XrdCommonFileSystem::SplitKeyValue(keyval, key, value)) {
 	long long fsiduid   = strtoll(key.c_str(),0,10);
-	unsigned long long fsidquota = strtoll(value.c_str(),0,10);
+	long long fsidquota = strtoll(value.c_str(),0,10);
 	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
 	unsigned long uid  = fsiduid & 0xffffffff;
 	eos_static_debug("decoded quota userfiles: fsid=%lu uid=%lu files=%llu", fsid, uid, fsidquota);
@@ -221,7 +221,7 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
       XrdOucString value="";
       if (XrdCommonFileSystem::SplitKeyValue(keyval, key, value)) {
 	long long fsiduid   = strtoll(key.c_str(),0,10);
-	unsigned long long fsidquota = strtoll(value.c_str(),0,10);
+	long long fsidquota = strtoll(value.c_str(),0,10);
 	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
 	unsigned long gid  = fsiduid & 0xffffffff;
 	eos_static_debug("decoded quota groupfiles: fsid=%lu uid=%lu files=%llu", fsid, gid, fsidquota);

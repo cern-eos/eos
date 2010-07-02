@@ -166,7 +166,7 @@ public:
   long long GetQuota(unsigned long tag, unsigned long id, bool lock=true);
 
   void SetQuota(unsigned long tag, unsigned long id, unsigned long long value, bool lock=true); 
-  void AddQuota(unsigned long tag, unsigned long id, unsigned long long value, bool lock=true); 
+  void AddQuota(unsigned long tag, unsigned long id, long long value, bool lock=true); 
 
   void SetPhysicalTmpFreeBytes(unsigned long long bytes) {PhysicalTmpFreeBytes = bytes;}
   void SetPhysicalTmpFreeFiles(unsigned long long files) {PhysicalTmpFreeFiles = files; }

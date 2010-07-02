@@ -474,6 +474,7 @@ XrdCommonFmdHandler::DeleteFmd(unsigned long long fid, unsigned int fsid)
     rc = false;
   else {
     fmd->fMd.magic = XRDCOMMONFMDDELETE_MAGIC;
+    fmd->fMd.size  = 0;
     rc = Commit(fmd);
     delete fmd;
   }
@@ -534,6 +535,10 @@ XrdCommonFmdHandler::Commit(XrdCommonFmd* fmd)
   UserBytes [(fmd->fMd.fsid<<32) | fmd->fMd.uid] += (fmd->fMd.size-oldsize);
   GroupBytes[(fmd->fMd.fsid<<32) | fmd->fMd.gid] += (fmd->fMd.size-oldsize);
 
+  if (fmd->fMd.magic == XRDCOMMONFMDDELETE_MAGIC) {
+    UserFiles [(fmd->fMd.fsid<<32) | fmd->fMd.uid] --;
+    GroupFiles[(fmd->fMd.fsid<<32) | fmd->fMd.gid] --;
+  }
   Mutex.UnLock();
   return true;
 }
