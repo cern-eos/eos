@@ -6,4 +6,5 @@ eos_SOURCES = \
                 ConsoleMain.cc
 
 eos_LDFLAGS = -static -export-dynamic 
-eos_LDADD = -lreadline -lcurses -ltermcap -L${XROOTD_LIBDIR}/ -lXrdClient $(top_srcdir)/XrdCommon/libXrdCommon.la
+eos_LDADD = -lncurses -lreadline -ltermcap -ldl -lcurses -L${XROOTD_LIBDIR}/ -lXrdClient $(top_srcdir)/XrdCommon/libXrdCommon.la -ltermcap
+

@@ -8,6 +8,8 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdNet/XrdNetDNS.hh"
+#include "XrdOuc/XrdOucUtils.hh"
+
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -38,6 +40,12 @@ int global_retc=0;
 bool silent=false;
 bool timing=false;
 bool debug=false;
+
+// for static linking needed
+/*int
+XrdOucUtils::makePath(char*, unsigned int) {
+  return 0;
+  }*/
 
 /*----------------------------------------------------------------------------*/
 

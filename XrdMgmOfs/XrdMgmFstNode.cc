@@ -132,8 +132,13 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 	eos_static_debug("decoded quota userbytes    : fsid=%lu uid=%lu bytes=%llu", fsid, uid, fsidquota);
 	XrdMgmFstFileSystem* filesystem = 0;
 	if ( (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	  const char* spacename = filesystem->GetSpaceName();
+	  XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(spacename);
+	  if (spacequota) {
+	    spacequota->AddQuota(XrdMgmSpaceQuota::kUserBytesIs, uid, fsidquota-filesystem->UserBytes[uid]);
+	    spacequota->AddQuota(XrdMgmSpaceQuota::kAllUserBytesIs, uid, fsidquota-filesystem->UserBytes[uid]);
+	  }
 	  filesystem->UserBytes[uid] = fsidquota;
-	  XrdMgmQuota::UpdateHint(fsid);
 	}
       } else {
 	eos_static_err("key-value pair split error for %s", keyval.c_str());
@@ -158,8 +163,14 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 	eos_static_debug("decoded quota groupbytes  : fsid=%lu uid=%lu bytes=%llu", fsid, gid, fsidquota);
 	XrdMgmFstFileSystem* filesystem = 0;
 	if ( (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	  // trying to replace the update hint with differential changes
+	  const char* spacename = filesystem->GetSpaceName();
+	  XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(spacename);
+	  if (spacequota) {
+	    spacequota->AddQuota(XrdMgmSpaceQuota::kGroupBytesIs, gid, fsidquota-filesystem->GroupBytes[gid]);
+	    spacequota->AddQuota(XrdMgmSpaceQuota::kAllGroupBytesIs, gid, fsidquota-filesystem->GroupBytes[gid]);
+	  }
 	  filesystem->GroupBytes[gid] = fsidquota;
-	  XrdMgmQuota::UpdateHint(fsid);
 	}
       } else {
 	eos_static_err("key-value pair split error for %s", keyval.c_str());
@@ -184,8 +195,14 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 	eos_static_debug("decoded quota userfiles: fsid=%lu uid=%lu files=%llu", fsid, uid, fsidquota);
 	XrdMgmFstFileSystem* filesystem = 0;
 	if ( (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	  // trying to replace the update hint with differential changes
+	  const char* spacename = filesystem->GetSpaceName();
+	  XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(spacename);
+	  if (spacequota) {
+	    spacequota->AddQuota(XrdMgmSpaceQuota::kUserFilesIs, uid, fsidquota-filesystem->UserFiles[uid]);
+	    spacequota->AddQuota(XrdMgmSpaceQuota::kAllUserFilesIs, uid, fsidquota-filesystem->UserFiles[uid]);
+	  }
 	  filesystem->UserFiles[uid] = fsidquota;
-	  XrdMgmQuota::UpdateHint(fsid);
 	}
       } else {
 	eos_static_err("key-value pair split error for %s", keyval.c_str());
@@ -210,8 +227,14 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 	eos_static_debug("decoded quota groupfiles: fsid=%lu uid=%lu files=%llu", fsid, gid, fsidquota);
 	XrdMgmFstFileSystem* filesystem = 0;
 	if ( (filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	  // trying to replace the update hint with differential changes
+	  const char* spacename = filesystem->GetSpaceName();
+	  XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(spacename);
+	  if (spacequota) {
+	    spacequota->AddQuota(XrdMgmSpaceQuota::kGroupFilesIs, gid, fsidquota-filesystem->GroupFiles[gid]);
+	    spacequota->AddQuota(XrdMgmSpaceQuota::kAllGroupFilesIs, gid, fsidquota-filesystem->GroupFiles[gid]);
+	  }
 	  filesystem->GroupFiles[gid] = fsidquota;
-	  XrdMgmQuota::UpdateHint(fsid);
 	}
       } else {
 	eos_static_err("key-value pair split error for %s", keyval.c_str());
@@ -293,7 +316,6 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
       // scheduling group changed
       // create the quota space entry in the hash to be able to set quota on the empty space
       XrdMgmQuota::GetSpaceQuota(fs->GetSpaceName());
-      XrdMgmQuota::UpdateHint(fs->GetId());
     }
 
     
@@ -308,6 +330,8 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
   fs->SetConfigStatusEnv(env);
   fs->SetError(errc, errmsg);
   fs->SetStatfsEnv(env);
+  
+  XrdMgmQuota::UpdateHint(fs->GetId());
 
   // change config
   gOFS->ConfigEngine->SetConfigValue("fs", fs->GetQueuePath(), fs->GetBootString(), configchangelog );

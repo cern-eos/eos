@@ -580,9 +580,6 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
 
       google::dense_hash_map<unsigned int, unsigned long long>::const_iterator it;
       
-      bool firstinnerfs;
-      firstinnerfs=true;
-
       spacequota->ResetPhysicalTmpFreeBytes();
       spacequota->ResetPhysicalTmpMaxBytes();
       spacequota->ResetPhysicalTmpFreeFiles();
@@ -609,49 +606,6 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
 	// we recompute only the same space filessytems
 	if ((strcmp(spacename, innerfilesystem->GetSpaceName()))) 
 	  continue;
-
-	// user/group occupation
-	for (idit = innerfilesystem->UserBytes.begin(); idit != innerfilesystem->UserBytes.end(); idit++) {
-	  eos_static_debug("looping over all user bytes uid %lu",(idit->first));
-	  // loop over user byte values
-	  if (firstinnerfs) {
-	    spacequota->ResetQuota(XrdMgmSpaceQuota::kUserBytesIs, idit->first);
-	    spacequota->ResetQuota(XrdMgmSpaceQuota::kAllUserBytesIs, 0);
-	  }
-	  spacequota->AddQuota(XrdMgmSpaceQuota::kUserBytesIs, idit->first, idit->second);
-	  spacequota->AddQuota(XrdMgmSpaceQuota::kAllUserBytesIs, 0, idit->second);
-	}
-	for (idit = innerfilesystem->UserFiles.begin(); idit != innerfilesystem->UserFiles.end(); idit++) {
-	  eos_static_debug("looping over all user files uid %lu",(idit->first));
-	  // loop over user file values
-	  if (firstinnerfs) {
-	    spacequota->ResetQuota(XrdMgmSpaceQuota::kUserFilesIs, idit->first);
-	    spacequota->ResetQuota(XrdMgmSpaceQuota::kAllUserFilesIs, 0);
-	  }
-	  spacequota->AddQuota(XrdMgmSpaceQuota::kUserFilesIs, idit->first, idit->second);
-	  spacequota->AddQuota(XrdMgmSpaceQuota::kAllUserFilesIs, 0, idit->second);
-	}
-	for (idit = innerfilesystem->GroupBytes.begin(); idit != innerfilesystem->GroupBytes.end(); idit++) {
-	  eos_static_debug("looping over all group bytes gid %lu",(idit->first));
-	  // loop over group byte values
-	  if (firstinnerfs) {
-	    spacequota->ResetQuota(XrdMgmSpaceQuota::kGroupBytesIs, idit->first);
-	    spacequota->ResetQuota(XrdMgmSpaceQuota::kAllGroupBytesIs, 0);
-	  }
-	  spacequota->AddQuota(XrdMgmSpaceQuota::kGroupBytesIs, idit->first, idit->second);
-	  spacequota->AddQuota(XrdMgmSpaceQuota::kAllGroupBytesIs, 0, idit->second);
-	}
-	for (idit = innerfilesystem->GroupFiles.begin(); idit != innerfilesystem->GroupFiles.end(); idit++) {
-	  eos_static_debug("looping over all group files gid %lu",(idit->first));
-	  // loop over group files values
-	  if (firstinnerfs) {
-	    spacequota->ResetQuota(XrdMgmSpaceQuota::kGroupFilesIs, idit->first);
-	    spacequota->ResetQuota(XrdMgmSpaceQuota::kAllGroupFilesIs, 0);
-	  }
-	  spacequota->AddQuota(XrdMgmSpaceQuota::kGroupFilesIs, idit->first, idit->second);
-	  spacequota->AddQuota(XrdMgmSpaceQuota::kAllGroupFilesIs, 0,  idit->second);
-	}
-	firstinnerfs = false;
       }
 
       spacequota->PhysicalTmpToFreeBytes();

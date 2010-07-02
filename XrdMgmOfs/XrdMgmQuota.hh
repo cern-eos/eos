@@ -122,7 +122,7 @@ public:
     return spercentage.c_str();
   }
 
-  bool NeedsRecalculation() { if ( (time(NULL) - LastCalculationTime) > 2 ) return true; else return false;}
+  bool NeedsRecalculation() { if ( (time(NULL) - LastCalculationTime) > 10 ) return true; else return false;}
 
   void UpdateTargetSums();
 

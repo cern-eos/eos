@@ -382,9 +382,9 @@ XrdFstOfsStorage::Quota()
     fullreport += quotareport;
 
     // broadcast the quota table
-    if (changedalot) {
-      BroadcastQuota(fullreport);
-    }
+    //    if (changedalot) {
+    BroadcastQuota(fullreport);
+    //    }
  
     gFmdHandler.Mutex.UnLock();
     sleep(XrdFstOfsConfig::gConfig.FstQuotaReportInterval);
