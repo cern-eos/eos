@@ -769,6 +769,14 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
 }
 
 /*----------------------------------------------------------------------------*/
+void*
+XrdFstMessaging::Start(void *pp)
+{
+  ((XrdFstMessaging*)pp)->Listen();
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
 void
 XrdFstMessaging::Listen() 
 {
