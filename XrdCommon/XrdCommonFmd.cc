@@ -467,10 +467,9 @@ bool
 XrdCommonFmdHandler::DeleteFmd(unsigned long long fid, unsigned int fsid) 
 {
   bool rc = true;
-  Mutex.Lock();
-  
+  eos_static_info("");
   XrdCommonFmd* fmd = XrdCommonFmdHandler::GetFmd(fid,fsid, 0,0,0,false);\
-  if (!fmd)
+  if (!fmd) 
     rc = false;
   else {
     fmd->fMd.magic = XRDCOMMONFMDDELETE_MAGIC;
@@ -480,6 +479,8 @@ XrdCommonFmdHandler::DeleteFmd(unsigned long long fid, unsigned int fsid)
   }
 
   // erase the has entries
+  Mutex.Lock();
+    
   Fmd[fsid].erase(fid);
   FmdSize.erase(fid);
 
@@ -531,7 +532,7 @@ XrdCommonFmdHandler::Commit(XrdCommonFmd* fmd)
 
 
   // adjust the quota accounting of the update
-  eos_debug("booking %d new bytes on quota %d/%d", (fmd->fMd.size-oldsize), fmd->fMd.uid, fmd->fMd.gid);
+  eos_debug("booking %d bytes on quota %d/%d", (fmd->fMd.size-oldsize), fmd->fMd.uid, fmd->fMd.gid);
   UserBytes [(fmd->fMd.fsid<<32) | fmd->fMd.uid] += (fmd->fMd.size-oldsize);
   GroupBytes[(fmd->fMd.fsid<<32) | fmd->fMd.gid] += (fmd->fMd.size-oldsize);
 

@@ -379,7 +379,7 @@ XrdFstOfsFile::open(const char                *path,
     return gOFS.Emsg(epname,error,EINVAL,"open - sec ruid missing",path);
   }
 
-  if (capOpaque->Get("mgm.rgid")) {
+  if ((val = capOpaque->Get("mgm.rgid"))) {
     vid.gid = atoi(val);
   } else {
     return gOFS.Emsg(epname,error,EINVAL,"open - sec rgid missing",path);
@@ -1131,7 +1131,7 @@ XrdFstOfs::_rem(const char             *path,
   // attach meta data
   int rc = XrdOfs::rem(fstPath.c_str(),error,client,0);
 
-  if (!rc) {
+  if (rc) {
     return rc;
   }
 
