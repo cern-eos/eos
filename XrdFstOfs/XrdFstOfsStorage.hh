@@ -78,7 +78,7 @@ public:
   std::vector <XrdFstDeletion> deletions;
 
   XrdOucHash<XrdFstOfsFileSystem> fileSystems;
-  static int HasStatfsChangedalot(const char* key, XrdFstOfsFileSystem* filesystem, void* arg);
+  static int HasStatfsChanged(const char* key, XrdFstOfsFileSystem* filesystem, void* arg);
 
   XrdFstOfsStorage(const char* metadirectory);
   ~XrdFstOfsStorage() {};

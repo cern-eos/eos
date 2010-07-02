@@ -97,7 +97,7 @@ XrdFstOfsStorage::BroadcastQuota(XrdOucString &quotastring)
 
 /*----------------------------------------------------------------------------*/
 XrdCommonStatfs*
-XrdFstOfsFileSystem::GetStatfs(bool &changedalot) 
+XrdFstOfsFileSystem::GetStatfs(bool &changed) 
 { 
 
   statFs = XrdCommonStatfs::DoStatfs(Path.c_str());
@@ -110,9 +110,9 @@ XrdFstOfsFileSystem::GetStatfs(bool &changedalot)
 
   eos_debug("statfs on filesystem %s id %d - %lu => %lu", queueName.c_str(),Id,last_blocks_free,statFs->GetStatfs()->f_bfree  );
   // define significant change here as 1GB change
-  if ( (last_blocks_free == 0) || ( llabs((last_blocks_free - statFs->GetStatfs()->f_bfree)*4096ll) > (1024ll*1024ll*1024ll))) {
-    eos_debug("significant filesystem change on filesystem %s id %d", queueName.c_str(), Id);
-    changedalot = true;
+  if ( (last_blocks_free == 0) || ( last_blocks_free != statFs->GetStatfs()->f_bfree) ) {
+    eos_debug("filesystem change on filesystem %s id %d", queueName.c_str(), Id);
+    changed = true;
     last_blocks_free = statFs->GetStatfs()->f_bfree;
     // since it changed a lot we broadcast the information to mgm's
     BroadcastStatus();
@@ -201,11 +201,11 @@ XrdFstOfsStorage::Create(const char* metadirectory)
 
 /*----------------------------------------------------------------------------*/
 int
-XrdFstOfsStorage::HasStatfsChangedalot(const char* key, XrdFstOfsFileSystem* filesystem, void* arg) 
+XrdFstOfsStorage::HasStatfsChanged(const char* key, XrdFstOfsFileSystem* filesystem, void* arg) 
 {
-  bool* changedalot = (bool*) arg;
+  bool* changed = (bool*) arg;
   // get a fresh statfs
-  filesystem->GetStatfs(*changedalot);
+  filesystem->GetStatfs(*changed);
   return 0;
 }
 
@@ -332,10 +332,10 @@ XrdFstOfsStorage::Quota()
   while(1) {
     // check statfs for each filesystem - if there was a significant change, broadcast
     // the statfs information and quota table
-    bool changedalot = false;
+    bool changed = false;
     fsMutex.Lock();
     // update the filesystem statfs
-    fileSystems.Apply(HasStatfsChangedalot, &changedalot);
+    fileSystems.Apply(HasStatfsChanged, &changed);
 
     fsMutex.UnLock();
 
@@ -382,9 +382,9 @@ XrdFstOfsStorage::Quota()
     fullreport += quotareport;
 
     // broadcast the quota table
-    //    if (changedalot) {
-    BroadcastQuota(fullreport);
-    //    }
+    if (changed) {
+      BroadcastQuota(fullreport);
+    }
  
     gFmdHandler.Mutex.UnLock();
     sleep(XrdFstOfsConfig::gConfig.FstQuotaReportInterval);
