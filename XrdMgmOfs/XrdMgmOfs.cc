@@ -1584,7 +1584,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     buf->st_ino     = fmd->getId();
     buf->st_mode    = S_IFREG;
     buf->st_mode    |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR );
-    buf->st_nlink   = 
+    buf->st_nlink   = 1;
     buf->st_uid     = fmd->getCUid();
     buf->st_gid     = fmd->getCGid();
     buf->st_rdev    = 0;     /* device type (if inode device) */
