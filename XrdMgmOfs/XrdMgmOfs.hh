@@ -325,7 +325,8 @@ const   char          *getVersion();
 
         int            access(const char*, int mode, XrdOucErrInfo&, const XrdSecEntity*, const char*);
 
-        int            utimes(const char*, struct timeval *tvp, XrdOucErrInfo&, const XrdSecEntity*, const char*);
+        int            utimes(const char*, struct timespec *tvp, XrdOucErrInfo&, const XrdSecEntity*, const char*);
+        int            _utimes(const char*, struct timespec *tvp, XrdOucErrInfo&,  XrdCommonMapping::VirtualIdentity &vid, const char* opaque=0);
 
         int            attr_ls(const char             *path,
 			       XrdOucErrInfo    &out_error,

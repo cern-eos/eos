@@ -133,7 +133,7 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
    XrdOucEnv Open_Env(info);
    errno = 0;
 
-   eos_info("path=%s",dir_path);
+   eos_info("(opendir) path=%s",dir_path);
 
    // Open the directory
 
@@ -148,7 +148,9 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
    }
    // check permissions
 
-   eos_debug("access for %d %d gives %d in %o", vid.uid,vid.gid,(dh->access(vid.uid,vid.gid, R_OK|X_OK)), dh->getMode());
+   if (dh) {
+     eos_debug("access for %d %d gives %d in %o", vid.uid,vid.gid,(dh->access(vid.uid,vid.gid, R_OK|X_OK)), dh->getMode());
+   }
    bool permok = dh?(dh->access(vid.uid,vid.gid, R_OK|X_OK)): false;
    gOFS->eosViewMutex.UnLock();
    //-------------------------------------------
@@ -397,6 +399,10 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   //-------------------------------------------
   // check permissions
 
+  if (!dmd) {
+    gOFS->eosViewMutex.UnLock();
+    return Emsg(epname, error, errno, "open file", path);
+  }
   if (!dmd->access(vid.uid, vid.gid, (isRW)?W_OK | X_OK:R_OK | X_OK)) {
     errno = EPERM;
     gOFS->eosViewMutex.UnLock();
@@ -1723,7 +1729,7 @@ int XrdMgmOfs::access( const char           *path,        // In
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::utimes(  const char          *path,        // In
-			   struct timeval      *tvp,         // In
+			   struct timespec      *tvp,         // In
 			   XrdOucErrInfo       &error,       // Out
 			   const XrdSecEntity  *client,       // In
 			   const char          *info)        // In
@@ -1735,9 +1741,54 @@ int XrdMgmOfs::utimes(  const char          *path,        // In
   XTRACE(fsctl, path,"");
 
   AUTHORIZE(client,&utimes_Env,AOP_Update,"set utimes",path,error);
-  
+
   XrdCommonMapping::IdMap(client,info,tident,vid);  
-  return Emsg(epname, error, EOPNOTSUPP, "utimes", path); 
+  return _utimes(path,tvp, error, vid, info);
+}
+
+/*----------------------------------------------------------------------------*/
+int XrdMgmOfs::_utimes(  const char          *path,        // In
+			struct timespec      *tvp,         // In
+			 XrdOucErrInfo       &error,       // Out
+			 XrdCommonMapping::VirtualIdentity &vid, // In
+			 const char          *info)        // In
+{
+  bool done=false;
+  eos::ContainerMD* cmd=0;
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
+  try {
+    cmd = gOFS->eosView->getContainer(path);
+    // we use creation time as modification time ... hmmm ...
+    cmd->setCTime(tvp[1]);
+    eosView->updateContainerStore(cmd);
+    done = true;
+  } catch( eos::MDException &e ) {
+    errno = e.getErrno();
+    eos_debug("check for directory - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+
+  if (!cmd) {
+    eos::FileMD* fmd = 0;
+    // try as a file
+    try {
+      fmd = gOFS->eosView->getFile(path);
+      fmd->setMTime(tvp[1]);
+      eosView->updateFileStore(fmd);
+      done = true;
+    } catch( eos::MDException &e ) {
+      errno = e.getErrno();
+      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    }
+  }
+  gOFS->eosViewMutex.UnLock();
+  //-------------------------------------------
+  
+  if (!done) {
+    return Emsg("utimes", error, errno, "set utimes", path);
+  }
+
+  return SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2153,7 +2204,7 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "stat") {
-      /*      struct stat buf;
+      struct stat buf;
 
       int retc = lstat(path.c_str(),
 		      &buf,  
@@ -2164,7 +2215,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       if (retc == SFS_OK) {
 	char statinfo[16384];
 	// convert into a char stream
-	sprintf(statinfo,"stat: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %u %u %u\n",
+	sprintf(statinfo,"stat: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
 		(unsigned long long) buf.st_dev,
 		(unsigned long long) buf.st_ino,
 		(unsigned long long) buf.st_mode,
@@ -2180,19 +2231,23 @@ XrdMgmOfs::FSctl(const int               cmd,
 		(unsigned long long) buf.st_ctime);
 	error.setErrInfo(strlen(statinfo)+1,statinfo);
 	return SFS_DATA;
-      */
+      } else {
+	XrdOucString response="stat: retc=";
+	response += errno;
+	error.setErrInfo(response.length()+1,response.c_str());
+	return SFS_DATA;
+      } 
     }
 
     if (execmd == "chmod") {
-      /*
       char* smode;
       if ((smode = env.Get("mode"))) {
  	XrdSfsMode newmode = atoi(smode);
-	int retc = chmod(path.c_str(),
-			newmode,  
-			error, 
-			client,
-			0);
+	int retc = _chmod(path.c_str(),
+			  newmode,
+			  error,
+			  vid,
+			  0);
 	XrdOucString response="chmod: retc=";
 	response += retc;
 	error.setErrInfo(response.length()+1,response.c_str());
@@ -2203,7 +2258,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 	error.setErrInfo(response.length()+1,response.c_str());
 	return SFS_DATA;
       }
-      */
     }
 
     if (execmd == "symlink") {
@@ -2259,23 +2313,23 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "utimes") {
-      /*
+      
       char* tv1_sec;
-      char* tv1_usec;
+      char* tv1_nsec;
       char* tv2_sec;
-      char* tv2_usec;
+      char* tv2_nsec;
 
       tv1_sec  = env.Get("tv1_sec");
-      tv1_usec = env.Get("tv1_usec");
+      tv1_nsec = env.Get("tv1_nsec");
       tv2_sec  = env.Get("tv2_sec");
-      tv2_usec = env.Get("tv2_usec");
+      tv2_nsec = env.Get("tv2_nsec");
 
-      struct timeval tvp[2];
-      if (tv1_sec && tv1_usec && tv2_sec && tv2_usec) {
+      struct timespec tvp[2];
+      if (tv1_sec && tv1_nsec && tv2_sec && tv2_nsec) {
 	tvp[0].tv_sec  = strtol(tv1_sec,0,10);
-	tvp[0].tv_usec = strtol(tv1_usec,0,10);
+	tvp[0].tv_nsec = strtol(tv1_nsec,0,10);
 	tvp[1].tv_sec  = strtol(tv2_sec,0,10);
-	tvp[1].tv_usec = strtol(tv2_usec,0,10);
+	tvp[1].tv_nsec = strtol(tv2_nsec,0,10);
 
 	int retc = utimes(path.c_str(), 
 			  tvp,
@@ -2290,10 +2344,9 @@ XrdMgmOfs::FSctl(const int               cmd,
       } else {
 	XrdOucString response="utimes: retc=";
 	response += EINVAL;
-	error.setErrInfo(response.lngth()+1,response.c_str());
+	error.setErrInfo(response.length()+1,response.c_str());
 	return SFS_DATA;
       }
-      */
     }
     
   }

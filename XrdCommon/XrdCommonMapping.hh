@@ -48,6 +48,7 @@ public:
     gid_vector gid_list;
     XrdOucString tident;
     XrdOucString name;
+    XrdOucString prot;
     bool sudoer;
   };
 
@@ -62,6 +63,7 @@ public:
     vidout.sudoer = vidin.sudoer;
     vidout.name = vidin.name;
     vidout.tident = vidin.tident;
+    vidout.prot = vidin.prot;
     for (unsigned int i=0; i< vidin.uid_list.size(); i++) vidout.uid_list.push_back(vidin.uid_list[i]);
     for (unsigned int i=0; i< vidin.gid_list.size(); i++) vidout.gid_list.push_back(vidin.uid_list[i]);
   }

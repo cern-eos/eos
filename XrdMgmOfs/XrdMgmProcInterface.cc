@@ -558,72 +558,77 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
     }
 
     if (cmd == "debug") {
-      XrdOucString debugnode =  opaque.Get("mgm.nodename");
-      XrdOucString debuglevel = opaque.Get("mgm.debuglevel");
-      XrdOucString filterlist = opaque.Get("mgm.filter");
-
-      XrdMqMessage message("debug");
-      int envlen;
-      XrdOucString body = opaque.Env(envlen);
-      message.SetBody(body.c_str());
-      // filter out several *'s ...
-      int nstars=0;
-      int npos=0;
-      while ( (debugnode.find("*",npos)) != STR_NPOS) {npos++;nstars++;}
-      if (nstars>1) {
-	stdErr="error: debug level node can only contain one wildcard character (*) !";
-	retc = EINVAL;
-      } else {
-	if ((debugnode == "*") || (debugnode == "") || (debugnode == gOFS->MgmOfsQueue)) {
-	  // this is for us!
-	  int debugval = XrdCommonLogging::GetPriorityByString(debuglevel.c_str());
-	  if (debugval<0) {
-	    stdErr="error: debug level "; stdErr += debuglevel; stdErr+= " is not known!";
-	    retc = EINVAL;
-	  } else {
-	    XrdCommonLogging::SetLogPriority(debugval);
-	    stdOut="success: debug level is now <"; stdOut+=debuglevel.c_str();stdOut += ">";
-	    eos_notice("setting debug level to <%s>", debuglevel.c_str());
-	    if (filterlist.length()) {
-	      XrdCommonLogging::SetFilter(filterlist.c_str());
-	      stdOut+= " filter="; stdOut += filterlist;
-	      eos_notice("setting message logid filter to <%s>", filterlist.c_str());
-	    }
-	  }
-	}
-	if (debugnode == "*") {
-	  debugnode = "/eos/*/fst";
-	  if (!XrdMgmMessaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
-	    stdErr="error: could not send debug level to nodes mgm.nodename="; stdErr += debugnode; stdErr += "\n";
-	    retc = EINVAL;
-	  } else {
-	    stdOut="success: switched to mgm.debuglevel="; stdOut += debuglevel; stdOut += " on nodes mgm.nodename="; stdOut += debugnode; stdOut += "\n";
-	    eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s", debuglevel.c_str(), debugnode.c_str());
-	  }
-	  debugnode = "/eos/*/mgm";
-	  if (!XrdMgmMessaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
-	    stdErr+="error: could not send debug level to nodes mgm.nodename="; stdErr += debugnode;
-	    retc = EINVAL;
-	  } else {
-	    stdOut+="success: switched to mgm.debuglevel="; stdOut += debuglevel; stdOut += " on nodes mgm.nodename="; stdOut += debugnode;
-	    eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s", debuglevel.c_str(), debugnode.c_str());
-	  }
+      if (vid_in.uid == 0) {
+	XrdOucString debugnode =  opaque.Get("mgm.nodename");
+	XrdOucString debuglevel = opaque.Get("mgm.debuglevel");
+	XrdOucString filterlist = opaque.Get("mgm.filter");
+	
+	XrdMqMessage message("debug");
+	int envlen;
+	XrdOucString body = opaque.Env(envlen);
+	message.SetBody(body.c_str());
+	// filter out several *'s ...
+	int nstars=0;
+	int npos=0;
+	while ( (debugnode.find("*",npos)) != STR_NPOS) {npos++;nstars++;}
+	if (nstars>1) {
+	  stdErr="error: debug level node can only contain one wildcard character (*) !";
+	  retc = EINVAL;
 	} else {
-	  if (debugnode != "") {
-	    // send to the specified list
-	    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
-	      stdErr="error: could not send debug level to nodes mgm.nodename="; stdErr += debugnode;
+	  if ((debugnode == "*") || (debugnode == "") || (debugnode == gOFS->MgmOfsQueue)) {
+	    // this is for us!
+	    int debugval = XrdCommonLogging::GetPriorityByString(debuglevel.c_str());
+	    if (debugval<0) {
+	      stdErr="error: debug level "; stdErr += debuglevel; stdErr+= " is not known!";
 	      retc = EINVAL;
 	    } else {
-	      stdOut="success: switched to mgm.debuglevel="; stdOut += debuglevel; stdOut += " on nodes mgm.nodename="; stdOut += debugnode;
+	      XrdCommonLogging::SetLogPriority(debugval);
+	      stdOut="success: debug level is now <"; stdOut+=debuglevel.c_str();stdOut += ">";
+	      eos_notice("setting debug level to <%s>", debuglevel.c_str());
+	      if (filterlist.length()) {
+		XrdCommonLogging::SetFilter(filterlist.c_str());
+		stdOut+= " filter="; stdOut += filterlist;
+		eos_notice("setting message logid filter to <%s>", filterlist.c_str());
+	      }
+	    }
+	  }
+	  if (debugnode == "*") {
+	    debugnode = "/eos/*/fst";
+	    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+	      stdErr="error: could not send debug level to nodes mgm.nodename="; stdErr += debugnode; stdErr += "\n";
+	      retc = EINVAL;
+	    } else {
+	      stdOut="success: switched to mgm.debuglevel="; stdOut += debuglevel; stdOut += " on nodes mgm.nodename="; stdOut += debugnode; stdOut += "\n";
 	      eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s", debuglevel.c_str(), debugnode.c_str());
+	    }
+	    debugnode = "/eos/*/mgm";
+	    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+	      stdErr+="error: could not send debug level to nodes mgm.nodename="; stdErr += debugnode;
+	      retc = EINVAL;
+	    } else {
+	      stdOut+="success: switched to mgm.debuglevel="; stdOut += debuglevel; stdOut += " on nodes mgm.nodename="; stdOut += debugnode;
+	      eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s", debuglevel.c_str(), debugnode.c_str());
+	    }
+	  } else {
+	    if (debugnode != "") {
+	      // send to the specified list
+	      if (!XrdMgmMessaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+		stdErr="error: could not send debug level to nodes mgm.nodename="; stdErr += debugnode;
+		retc = EINVAL;
+	      } else {
+		stdOut="success: switched to mgm.debuglevel="; stdOut += debuglevel; stdOut += " on nodes mgm.nodename="; stdOut += debugnode;
+		eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s", debuglevel.c_str(), debugnode.c_str());
+	      }
 	    }
 	  }
 	}
-      }
       //      stdOut+="\n==== debug done ====";
+      }  else {
+	retc = EPERM;
+	stdErr = "error: you have to take role 'root' to execute this command";
+      }
     }
-
+    
     if (cmd == "vid") {
       if (subcmd == "ls") {
 	eos_notice("vid ls");
@@ -676,60 +681,65 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	stdErr = "error: you have to take role 'root' to execute this command";
       }
     }
-
+    
     if (cmd == "rtlog") {
-      dosort = 1;
-      // this is just to identify a new queue for reach request
-      static int bccount=0;
-      bccount++;
-      XrdOucString queue = opaque.Get("mgm.rtlog.queue");
-      XrdOucString lines = opaque.Get("mgm.rtlog.lines");
-      XrdOucString tag   = opaque.Get("mgm.rtlog.tag");
-      XrdOucString filter = opaque.Get("mgm.rtlog.filter");
-      if (!filter.length()) filter = " ";
-      if ( (!queue.length()) || (!lines.length()) || (!tag.length()) ) {
-	stdErr = "error: mgm.rtlog.queue, mgm.rtlog.lines, mgm.rtlog.tag have to be given as input paramters!";
-	retc = EINVAL;
-      }  else {
-	if ( (XrdCommonLogging::GetPriorityByString(tag.c_str())) == -1) {
-	  stdErr = "error: mgm.rtlog.tag must be info,debug,err,emerg,alert,crit,warning or notice";
+      if (vid_in.uid == 0) {
+	dosort = 1;
+	// this is just to identify a new queue for reach request
+	static int bccount=0;
+	bccount++;
+	XrdOucString queue = opaque.Get("mgm.rtlog.queue");
+	XrdOucString lines = opaque.Get("mgm.rtlog.lines");
+	XrdOucString tag   = opaque.Get("mgm.rtlog.tag");
+	XrdOucString filter = opaque.Get("mgm.rtlog.filter");
+	if (!filter.length()) filter = " ";
+	if ( (!queue.length()) || (!lines.length()) || (!tag.length()) ) {
+	  stdErr = "error: mgm.rtlog.queue, mgm.rtlog.lines, mgm.rtlog.tag have to be given as input paramters!";
 	  retc = EINVAL;
-	} else {
-	  if ((queue==".") || (queue == "*") || (queue == gOFS->MgmOfsQueue)) {
-	    int logtagindex = XrdCommonLogging::GetPriorityByString(tag.c_str());
-	    for (int j = 0; j<= logtagindex; j++) {
-	      XrdCommonLogging::gMutex.Lock();
-	      for (int i=1; i<= atoi(lines.c_str()); i++) {
-		XrdOucString logline = XrdCommonLogging::gLogMemory[j][(XrdCommonLogging::gLogCircularIndex[j]-i+XrdCommonLogging::gCircularIndexSize)%XrdCommonLogging::gCircularIndexSize].c_str();
-		if (logline.length() && ( (logline.find(filter.c_str())) != STR_NPOS)) {
-		  stdOut += logline;
-		  stdOut += "\n";
+	}  else {
+	  if ( (XrdCommonLogging::GetPriorityByString(tag.c_str())) == -1) {
+	    stdErr = "error: mgm.rtlog.tag must be info,debug,err,emerg,alert,crit,warning or notice";
+	    retc = EINVAL;
+	  } else {
+	    if ((queue==".") || (queue == "*") || (queue == gOFS->MgmOfsQueue)) {
+	      int logtagindex = XrdCommonLogging::GetPriorityByString(tag.c_str());
+	      for (int j = 0; j<= logtagindex; j++) {
+		XrdCommonLogging::gMutex.Lock();
+		for (int i=1; i<= atoi(lines.c_str()); i++) {
+		  XrdOucString logline = XrdCommonLogging::gLogMemory[j][(XrdCommonLogging::gLogCircularIndex[j]-i+XrdCommonLogging::gCircularIndexSize)%XrdCommonLogging::gCircularIndexSize].c_str();
+		  if (logline.length() && ( (logline.find(filter.c_str())) != STR_NPOS)) {
+		    stdOut += logline;
+		    stdOut += "\n";
+		  }
+		  if (!logline.length())
+		    break;
 		}
-		if (!logline.length())
-		  break;
+		XrdCommonLogging::gMutex.UnLock();
 	      }
-	      XrdCommonLogging::gMutex.UnLock();
 	    }
-	  }
-	  if ( (queue == "*") || ((queue != gOFS->MgmOfsQueue) && (queue != "."))) {
-	    XrdOucString broadcastresponsequeue = gOFS->MgmOfsBrokerUrl;
-	    broadcastresponsequeue += "-rtlog-";
-	    broadcastresponsequeue += bccount;
-	    XrdOucString broadcasttargetqueue = gOFS->MgmDefaultReceiverQueue;
-	    if (queue != "*") 
-	      broadcasttargetqueue = queue;
-
-	    int envlen;
-	    XrdOucString msgbody;
-	    msgbody=opaque.Env(envlen);
-
-	    if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,broadcasttargetqueue, msgbody, stdOut, 2)) {
-	      eos_err("failed to broad cast and collect rtlog from [%s]:[%s]", broadcastresponsequeue.c_str(),broadcasttargetqueue.c_str());
-	      stdErr = "error: broadcast failed\n";
-	      retc = EFAULT;
+	    if ( (queue == "*") || ((queue != gOFS->MgmOfsQueue) && (queue != "."))) {
+	      XrdOucString broadcastresponsequeue = gOFS->MgmOfsBrokerUrl;
+	      broadcastresponsequeue += "-rtlog-";
+	      broadcastresponsequeue += bccount;
+	      XrdOucString broadcasttargetqueue = gOFS->MgmDefaultReceiverQueue;
+	      if (queue != "*") 
+		broadcasttargetqueue = queue;
+	      
+	      int envlen;
+	      XrdOucString msgbody;
+	      msgbody=opaque.Env(envlen);
+	      
+	      if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,broadcasttargetqueue, msgbody, stdOut, 2)) {
+		eos_err("failed to broad cast and collect rtlog from [%s]:[%s]", broadcastresponsequeue.c_str(),broadcasttargetqueue.c_str());
+		stdErr = "error: broadcast failed\n";
+		retc = EFAULT;
+	      }
 	    }
 	  }
 	}
+      }  else {
+	retc = EPERM;
+	stdErr = "error: you have to take role 'root' to execute this command";
       }
     }
 
@@ -738,6 +748,86 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
   }
 
   if (userCmd) {
+    if ( cmd == "fuse" ) {
+      XrdOucString path = opaque.Get("mgm.path");
+      resultStream = "inodirlist: retc=";
+      if (!path.length()) {
+	resultStream += EINVAL;
+      } else {
+	XrdMgmOfsDirectory* inodir = (XrdMgmOfsDirectory*)gOFS->newDir((char*)"");
+	if (!inodir) {
+	  resultStream += ENOMEM;
+	  return SFS_ERROR;
+	}
+	
+	if ((retc = inodir->open(path.c_str(),vid,0)) != SFS_OK) {
+	  delete inodir;
+	  return retc;
+	}
+	
+	const char* entry;
+	
+	resultStream += 0;
+	resultStream += " ";
+
+	unsigned long long inode=0;
+
+	char inodestr[256];
+
+	while ( (entry = inodir->nextEntry() ) ) {
+	  XrdOucString whitespaceentry=entry;
+	  whitespaceentry.replace(" ","%20");
+	  resultStream += whitespaceentry;
+	  resultStream += " ";
+	  XrdOucString statpath = path;
+	  statpath += "/"; statpath += entry;
+
+	  // attach MD to get inode number
+	  eos::FileMD* fmd=0;
+	  inode = 0;
+
+	  //-------------------------------------------
+	  gOFS->eosViewMutex.Lock();
+	  try {
+	    fmd = gOFS->eosView->getFile(statpath.c_str());
+	    inode = fmd->getId();
+	  } catch ( eos::MDException &e ) {
+	    errno = e.getErrno();
+	    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	  }
+	  gOFS->eosViewMutex.UnLock();
+	  //-------------------------------------------
+
+	  // check if that is a directory in case
+	  if (!fmd) {
+	    eos::ContainerMD* dir=0;
+	    //-------------------------------------------
+	    gOFS->eosViewMutex.Lock();
+	    try {
+	      dir = gOFS->eosView->getContainer(statpath.c_str());
+	      inode = dir->getId();
+	    } catch( eos::MDException &e ) {
+	      dir = 0;
+	      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	    }
+	    gOFS->eosViewMutex.UnLock();
+	    //-------------------------------------------
+	  }
+	  sprintf(inodestr, "%lld",inode);
+	  resultStream += inodestr;
+	  resultStream += " ";
+	}
+
+	inodir->close();
+	delete inodir;
+	eos_debug("returning resultstream %s", resultStream.c_str());
+	len = resultStream.length();
+	offset = 0;
+	return SFS_OK;
+      }
+    }
+
+
     if ( cmd == "file" ) {
       XrdOucString path = opaque.Get("mgm.path");
       if (!path.length()) {
@@ -1089,6 +1179,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       for (unsigned int i=0; i< vid_in.gid_list.size(); i++) {stdOut += (int)vid_in.gid_list[i]; stdOut += ",";}
       stdOut.erase(stdOut.length()-1);
       stdOut += ")";
+      stdOut += " [authz:"; stdOut += vid.prot; stdOut += "]";
       if (vid_in.sudoer) 
 	stdOut += " sudo*";
 
