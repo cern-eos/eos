@@ -254,6 +254,7 @@ bool XrdMqMessage::Encode() {
   kMessageBuffer+= "=";
   kMessageBuffer+= kMessageBody;
   if (kMonitor) {
+    kMessageBuffer+="&";
     kMessageBuffer+=XMQMONITOR;
     kMessageBuffer+="=1";
   }

@@ -356,7 +356,7 @@ XrdFstOfsStorage::Quota()
     fsMutex.UnLock();
 
     gFmdHandler.Mutex.Lock();
-    google::dense_hash_map<long long, unsigned long long>::const_iterator it;
+    google::dense_hash_map<long long, long long>::const_iterator it;
 
     XrdOucString fullreport="";
     XrdOucString quotareport="";
@@ -365,7 +365,7 @@ XrdFstOfsStorage::Quota()
     
     for(it = gFmdHandler.UserBytes.begin(); it != gFmdHandler.UserBytes.end(); it++) {
       XrdCommonFileSystem::AddQuotaReportString((unsigned long) it->first, it->second, quotareport);
-      eos_debug("USER  BYTES : uid %lld volume=%llu", it->first, it->second);
+      eos_debug("USER  BYTES : uid %lld volume=%lld", it->first, it->second);
     }
     
     fullreport += quotareport; fullreport +="&";
@@ -374,7 +374,7 @@ XrdFstOfsStorage::Quota()
     
     for(it = gFmdHandler.GroupBytes.begin(); it != gFmdHandler.GroupBytes.end(); it++) {
       XrdCommonFileSystem::AddQuotaReportString((unsigned long) it->first, it->second, quotareport);
-      eos_debug("GROUP BYTES : uid %lld volume=%llu", it->first, it->second);
+      eos_debug("GROUP BYTES : uid %lld volume=%lld", it->first, it->second);
     }
     
     fullreport += quotareport; fullreport +="&";
@@ -383,7 +383,7 @@ XrdFstOfsStorage::Quota()
 
     for(it = gFmdHandler.UserFiles.begin(); it != gFmdHandler.UserFiles.end(); it++) {
       XrdCommonFileSystem::AddQuotaReportString((unsigned long) it->first, it->second, quotareport);
-      eos_debug("USER  FILES : uid %lld  files=%llu", it->first, it->second);
+      eos_debug("USER  FILES : uid %lld  files=%lld", it->first, it->second);
     }
 
     fullreport += quotareport; fullreport +="&";
@@ -392,7 +392,7 @@ XrdFstOfsStorage::Quota()
 
     for(it = gFmdHandler.GroupFiles.begin(); it != gFmdHandler.GroupFiles.end(); it++) {
       XrdCommonFileSystem::AddQuotaReportString((unsigned long) it->first, it->second, quotareport);
-      eos_debug("GROUP FILES : uid %lld  files=%llu", it->first, it->second);
+      eos_debug("GROUP FILES : uid %lld  files=%lld", it->first, it->second);
     }
 
     fullreport += quotareport;
@@ -529,24 +529,30 @@ XrdFstOfsStorage::Report()
 {
   // this thread send's report messages from the report queue
   bool failure;
-  
+
+  XrdOucString monitorReceiver = XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue;
+  monitorReceiver.replace("*/mgm", "*/report");
+
   while(1) {
     failure = false;
 
     gOFS.ReportQueueMutex.Lock();
-    if ( gOFS.ReportQueue.size()>0) {
+    while ( gOFS.ReportQueue.size()>0) {
       // send all reports away and dump them into the log
       XrdOucString report = gOFS.ReportQueue.front();
       eos_static_info(report.c_str());
 
+      // this type of messages can have no receiver
       XrdMqMessage message("report");
+      message.MarkAsMonitor();
 
       XrdOucString msgbody;
       message.SetBody(report.c_str());
       
       eos_debug("broadcasting report message: %s", msgbody.c_str());
       
-      if (!XrdMqMessaging::gMessageClient.SendMessage(message)) {
+
+      if (!XrdMqMessaging::gMessageClient.SendMessage(message, monitorReceiver.c_str())) {
 	// display communication error
 	eos_err("cannot send report broadcast");
 	failure = true;
