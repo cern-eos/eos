@@ -35,7 +35,8 @@ uninstall-local:
 EXTRA_DIST =	etc/fuse.conf \
 		etc/init.d/eosd \
 		eos-fuse.spec \
-	        eosfs.start
+	        eosfs.start \
+	        bootstrap.sh
 
 rpm		: dist
 		cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
