@@ -240,10 +240,25 @@ XrdMqOfs::FSctl(const int               cmd,
     XrdOfsFS.ReceivedMessages++;
     return SFS_DATA;
   } else {
+    bool ismonitor=false;
+    if (env->Get(XMQMONITOR)) {
+      ismonitor=true;
+    }
+	
     delete env;
-    XrdOfsFS.UndeliverableMessages++;
-    XrdMqOfs::Emsg(epname, error, EINVAL, "submit message - no listener on requested queue: ", ipath);
-    TRACES("no listener on requeste queue: ");TRACES(ipath);
-    return SFS_ERROR;
+
+    // this is a new hook for special monitoring message, to just accept them and if nobody listens they just go to nirvana
+    if (!ismonitor) {
+      XrdOfsFS.UndeliverableMessages++;
+      XrdMqOfs::Emsg(epname, error, EINVAL, "submit message - no listener on requested queue: ", ipath);
+      TRACES("no listener on requeste queue: ");
+      TRACES(ipath);
+      return SFS_ERROR;
+    } else {
+      const char* result="OK";
+      error.setErrInfo(3,(char*)result);
+      XrdOfsFS.ReceivedMessages++;
+      return SFS_DATA;
+    }
   }
 }

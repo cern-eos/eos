@@ -1,4 +1,3 @@
-
 //          $Id: XrdMqClient.cc,v 1.00 2007/10/04 01:34:19 ajp Exp $
 
 const char *XrdMqMessageCVSID = "$Id: XrdMqMessage.cc,v 1.0.0 2007/10/04 01:34:19 ajp Exp $";
@@ -254,6 +253,10 @@ bool XrdMqMessage::Encode() {
   kMessageBuffer+= XMQBODY;
   kMessageBuffer+= "=";
   kMessageBuffer+= kMessageBody;
+  if (kMonitor) {
+    kMessageBuffer+=XMQMONITOR;
+    kMessageBuffer+="=1";
+  }
 
   return true;
 }
@@ -272,6 +275,12 @@ bool XrdMqMessage::Decode() {
     kMessageBody = hp;
   } else {
     kMessageBody = "";
+  }
+
+  if (decenv.Get(XMQMONITOR)) {
+    kMonitor=true;
+  } else {
+    kMonitor=false;
   }
   return headerdec;
 }
@@ -826,6 +835,7 @@ XrdMqMessage::XrdMqMessage(const char* description, int type) {
   kMessageHeader.kDescription = description;
   NewId();
   kMessageHeader.kType = type;
+  kMonitor=false;
 }
 
 

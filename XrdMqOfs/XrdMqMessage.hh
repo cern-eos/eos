@@ -24,6 +24,8 @@
 
 #define XMQHEADER "xrdmqmessage.header"
 #define XMQBODY   "xrdmqmessage.body"
+#define XMQMONITOR "xrdmqmessage.mon"
+
 #define XMQADVISORYHOST "xrdmqmessage.advisoryhost"
 #define XMQADVISORYSTATE "xrdmqmessage.advisorystate"
 
@@ -81,6 +83,7 @@ protected:
   XrdOucString kMessageBody;
   int errc;
   XrdOucString errmsg;
+  bool         kMonitor;
 
 public:
 
@@ -128,6 +131,9 @@ public:
   
   // retrieves user message information 
   const char* GetBody() { UnSeal(kMessageBody); return kMessageBody.c_str();}
+
+  // mark as monitor message
+  void MarkAsMonitor() { kMonitor=true;}
 
   // static settings and configuration
   static EVP_PKEY* PrivateKey;             // private key for signatures
