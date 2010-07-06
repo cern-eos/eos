@@ -24,7 +24,7 @@ install-exec-local:
 	mkdir -p $(DESTDIR)/etc/sysconfig/
 	$(INSTALL) -m 755 etc/fuse.conf $(DESTDIR)/etc/fuse.conf
 	$(INSTALL) -m 755 etc/init.d/eosd $(DESTDIR)/etc/init.d/eosd
-	$(INSTALL) -m 755 eosfs.start ($DESTDIR)/bin/eosfs.start
+	$(INSTALL) -m 755 eosfs.start $(DESTDIR)/bin/eosfs.start
 
 
 uninstall-local:
