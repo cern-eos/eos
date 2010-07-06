@@ -150,6 +150,9 @@ XrdFstOfsStorage::XrdFstOfsStorage(const char* metadirectory)
   pthread_t tid;
   int rc;
 
+  scrubPattern = new unsigned long long[1024*1024/8];
+  scrubPatternVerify = new unsigned long long[1024*1024/8];
+
   eos_info("starting quota thread");
   if ((rc = XrdSysThread::Run(&tid, XrdFstOfsStorage::StartFsQuota, static_cast<void *>(this),
                               0, "Quota Report"))) {
@@ -413,10 +416,105 @@ XrdFstOfsStorage::Quota()
 void
 XrdFstOfsStorage::Scrub()
 {
+  // create a 1M pattern
+  for (int i=0;i< 1024*1024/16; i+=2) {
+    scrubPattern[i]=0xaaaa5555;
+    scrubPattern[i+1]=0x5555aaaa;
+  }
+
+  scrubPattern[(1024*1024/16)+1] = 0xaaaaffff;
+
   // this thread reads the oldest files and checks their integrity
   while(1) {
     sleep(1);
   }
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdFstOfsStorage::ScrubFs(const char* key, XrdFstOfsFileSystem* filesystem, void* arg) 
+{
+  XrdFstOfsStorage* storage = (XrdFstOfsStorage*) arg;
+
+  int index = 10 - (int) (10.0 *  filesystem->GetStatfs()->GetStatfs()->f_bfree / filesystem->GetStatfs()->GetStatfs()->f_blocks);
+  
+  for ( int fs=1; fs< index; fs++ ) {
+    int fserrors=0;
+
+    // check if test file exists, if not, write it
+    XrdOucString scrubfile[2];
+    scrubfile[0] = filesystem->GetPath();
+    scrubfile[1] = filesystem->GetPath();
+    scrubfile[0] += "/scrub.read."; scrubfile[0] += fs;
+    scrubfile[1] += "/scrub.rewrite."; scrubfile[1] += fs;
+    struct stat buf;
+
+    for (int k = 0; k< 2; k++) {
+      if ( ((k==0) && stat(scrubfile[k].c_str(),&buf)) || ((k==1))) {
+	// ok, create this file once
+	int ff=0;
+	if (k==0)
+	  ff = open(scrubfile[k].c_str(),O_CREAT|O_TRUNC|O_WRONLY|O_DIRECT, S_IRWXU);
+	else
+	  ff = open(scrubfile[k].c_str(),O_WRONLY|O_DIRECT);
+
+	if (ff<0) {
+	  eos_static_crit("Unable to create/wopen scrubfile %s", scrubfile[k].c_str());
+	  break;
+	}
+	// select the pattern randomly
+	int rshift = (int) ( (1.0 *rand()/RAND_MAX)+ 0.5);
+	for (int i=0; i< 1024; i++) {
+	  int nwrite = write(ff, storage->scrubPattern+rshift, 1024 * 1024);
+	  if (nwrite != (1024*1024)) {
+	    eos_static_crit("Unable to write all needed bytes for scrubfile %s", scrubfile[k].c_str());
+	    break;
+	  }
+	  usleep(500000);
+	}
+	close(ff);
+      }
+
+      // do a read verify
+      int ff = open(scrubfile[k].c_str(),O_DIRECT|O_RDONLY);
+      if (ff<0) {
+	eos_static_crit("Unable to open static scrubfile %s", scrubfile[k].c_str());
+      }
+
+      int eberrors=0;
+
+      for (int i=0; i< 1024; i++) {
+	int nread = read(ff, storage->scrubPatternVerify, 1024 * 1024);
+	if (nread != (1024*1024)) {
+	  eos_static_crit("Unable to read all needed bytes from scrubfile %s", scrubfile[k].c_str());
+	  break;
+	}
+	unsigned long long* ref = (unsigned long long*)storage->scrubPattern;
+	unsigned long long* cmp = (unsigned long long*)storage->scrubPatternVerify;
+	// do a quick check
+	for (int b=0; b< 1024*1024/8; b++) {
+	  if ( (*ref != *cmp) ) {
+	    if (*(++ref) == *cmp) {
+	      // ok - pattern shifted
+	    } else {
+	      // this is reaL fatal error 
+	      eberrors++;
+	    }
+	  }
+	}
+	usleep(500000);
+      }
+      if (eberrors) {
+	eos_static_alert("%d block errors on filesystem %lu scrubfile %s", filesystem->GetId(), scrubfile[k].c_str());
+	fserrors++;
+      }
+    }
+    if (fserrors) {
+      // disable this filesystem automatically!
+    }
+  }
+
+  return 0;
 }
 
 /*----------------------------------------------------------------------------*/

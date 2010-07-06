@@ -37,6 +37,10 @@ public:
   void SetStatus(int status) { Status = status;}
   void SetError(int ec, const char* msg) { errc = ec; errmsg = msg;}
 
+  const char* GetPath() {return Path.c_str();}
+  unsigned int GetId()  {return Id;}
+  XrdCommonStatfs* GetStatfs() {return statFs;}
+
   const char* GetEnvString() { 
     Env = "mgm.fsname="; Env += queueName; Env += "&mgm.fsschedgroup="; Env += schedulingGroup;
     Env += "&mgm.fspath="; Env += Path; Env += "&mgm.fsid="; Env += (int)Id; return Env.c_str();
@@ -57,6 +61,8 @@ private:
   XrdSysMutex fsMutex;
   XrdOucString metaDirectory;
 
+  unsigned long long* scrubPattern;
+  unsigned long long* scrubPatternVerify;
 public:
   // fsstat & quota thread
   static void* StartFsQuota(void *pp); 
@@ -80,6 +86,7 @@ public:
 
   XrdOucHash<XrdFstOfsFileSystem> fileSystems;
   static int HasStatfsChanged(const char* key, XrdFstOfsFileSystem* filesystem, void* arg);
+  static int ScrubFs(const char* key, XrdFstOfsFileSystem* filesystem, void* arg);
 
   XrdFstOfsStorage(const char* metadirectory);
   ~XrdFstOfsStorage() {};
