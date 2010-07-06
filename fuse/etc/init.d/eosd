@@ -1,0 +1,115 @@
+#!/bin/bash
+#
+#       /etc/rc.d/init.d/eosd
+#
+# Starts eosd 
+#
+# chkconfig: 345 96 6
+# description: Starts eosd 
+# processname: eosd
+
+# Source function library.
+
+export EOS_ROOT=/opt/eos
+
+. /etc/init.d/functions
+
+
+
+if test ! -x ${EOS_ROOT}/bin/eosd ; then
+  echo Error: ${EOS_ROOT}/bin/eosd does not exist!
+  exit 0
+fi
+
+[ -e /etc/sysconfig/eosd ] && . /etc/sysconfig/eosd
+
+RETVAL=0
+prog="eosd"
+
+start() {
+        # Check if eosd is already running
+	echo
+        eosdpid=`pgrep -f ${EOS_ROOT}/bin/eosd`
+	export EOS_NOACCESS=${EOS_NOACCESS-1}
+	export EOS_KERNELCACHE=${EOS_KERNELCACHE-1}
+        if [ "x$eosdpid" = "x" ]; then
+            echo -n "Starting $prog: "
+	    mkdir -p /var/run/eosd/
+	    cd /var/run/eosd/
+	    mkdir -p ${EOS_MOUNTDIR-/eos/atlas}
+	    chmod -R 755 ${EOS_MOUNTDIR-/eos/atlas}
+	    unset KRB5CCNAME
+	    unset X509_USER_CERT
+	    unset X509_USER_KEY
+	    ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
+	    ulimit -n 65000
+	    modprobe fuse
+            ${EOS_ROOT}/bin/eosd ${EOS_MOUNTDIR-/eos/atlas} -omax_readahead=131072,allow_other,url=root://${EOS_RDRURL-eosatlas.cern.ch}/${EOS_MOUNTDIR-/eos/atlas}// -s >& /dev/null 
+
+
+            RETVAL=$?
+	    [ $RETVAL -eq 0 ] && touch /var/lock/subsys/eosd
+            [ $RETVAL -eq 0 ] && echo_success;
+	    echo
+	    echo "EOS_NOACCESS    : ${EOS_NOACCESS}"
+	    echo "EOS_KERNELCACHE : ${EOS_KERNELCACHE}"
+	else 
+            echo eosd already running. Pid is $eosdpid 
+            echo Stop it first with 'service eosd stop'
+            echo and try again or use directly 'service eosd restart'.
+            RETVAL=1
+	    echo_warning
+        fi
+}
+
+stop() {
+        echo -n "Stopping $prog: "
+	umdir="${EOS_MOUNTDIR-/eos/atlas}";
+	umount -f -l $umdir > /dev/null 2&>1
+        pkill -9 -f ${EOS_ROOT}/bin/eosd
+	rm -f /var/lock/subsys/eosd
+        echo
+	echo_success
+	echo
+	RETVAL=0;
+}
+
+
+restart() {
+        stop
+        start
+}       
+
+reload() {
+        restart
+}       
+
+case "$1" in
+start)
+        start
+        ;;
+stop)
+        stop
+        ;;
+reload|restart)
+        restart
+        ;;
+condrestart)
+        if [ -f /var/lock/subsys/eosd ]; then
+            restart
+        fi
+        ;;
+status)
+	if [ `pgrep -f ${EOS_ROOT}/bin/eosd` ]; then
+	    RETVAL=0
+	else 
+	    echo service eosd is dead.
+	    RETVAL=-1
+	fi
+        ;;
+*)
+        echo $"Usage: $0 {start|stop|restart|reload|condrestart|status}"
+	RETVAL=1
+esac
+
+exit $RETVAL

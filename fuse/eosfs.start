@@ -1,0 +1,11 @@
+#!/bin/bash
+test -r $HOME/.eosfs && source $HOME/.eosfs
+
+if [ ! -e /tmp/krb5cc_$UID ]; then
+    krb5t=`ls /tmp/krb5cc_$UID | tail -1`;
+    if [ -r $krb5t ]; then
+        cp $krb5t /tmp/krb5cc_$UID
+    fi
+fi
+
+/opt/eos/bin/eosfs $*
