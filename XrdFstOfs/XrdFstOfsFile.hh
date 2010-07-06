@@ -72,7 +72,7 @@ public:
   int          truncate(XrdSfsFileOffset   fileOffset);
   int          truncateofs(XrdSfsFileOffset   fileOffset);
 
-  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; XrdCommonLogId(); closed=false; haswrite=false; fMd = 0;checkSum = 0; layOut = 0; isRW= 0;}
+  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; XrdCommonLogId(); closed=false; haswrite=false; fMd = 0;checkSum = 0; layOut = 0; isRW= 0; rBytes=wBytes=srBytes=swBytes=rOffset=wOffset=0; rTime.tv_sec=wTime.tv_sec=lrTime.tv_sec=lwTime.tv_sec=rTime.tv_usec=wTime.tv_usec=lrTime.tv_usec=lwTime.tv_usec=cTime.tv_sec=cTime.tv_usec=0;fileid=0;fsid=0;lid=0;}
   virtual ~XrdFstOfsFile() {
     close();
     if (openOpaque) {delete openOpaque; openOpaque=0;}
@@ -88,13 +88,58 @@ protected:
   XrdOucEnv*   capOpaque;
   XrdOucString fstPath;
   XrdOucString Path;
-  unsigned long fileId;
+  unsigned long long fileid; // file id
+  unsigned long fsid;        // file system id
+  unsigned long lid;         // layout id
+  XrdOucString hostName;
+
   bool         closed;
   bool         haswrite;
   bool         isRW;
   XrdCommonFmd* fMd;
   XrdFstOfsChecksum* checkSum;
   XrdFstOfsLayout*  layOut;
+  
+
+  ///////////////////////////////////////////////////////////
+  // file statistics
+  struct timeval openTime;
+  struct timeval closeTime;
+  struct timezone tz;
+  unsigned long long rBytes; // sum bytes read
+  unsigned long long wBytes; // sum bytes written
+  unsigned long long srBytes;// sum bytes seeked
+  unsigned long long swBytes;// sum bytes seeked
+  unsigned long rCalls;      // number of read calls
+  unsigned long wCalls;      // number of write calls
+  unsigned long long rOffset;// offset since last read operation on this file
+  unsigned long long wOffset;// offset since last write operation on this file
+
+  struct timeval cTime;      // current time
+  struct timeval lrTime;     // last read time
+  struct timeval lwTime;     // last write time
+  struct timeval rTime;      // sum time to serve read requests in ms
+  struct timeval wTime;      // sum time to serve write requests in ms
+  XrdOucString   tIdent;     // tident
+
+  void AddReadTime() {
+    unsigned long long mus = ((lrTime.tv_sec-cTime.tv_sec)*1000000) + lrTime.tv_usec - cTime.tv_usec;
+    rTime.tv_sec  += (mus/1000000);
+    rTime.tv_usec =+ (mus%1000000);
+  }
+
+  void AddWriteTime() {
+    unsigned long long mus = ((lwTime.tv_sec-cTime.tv_sec)*1000000) + lwTime.tv_usec - cTime.tv_usec;
+    wTime.tv_sec  += (mus/1000000);
+    wTime.tv_usec =+ (mus%1000000);
+  }
+  
+  void MakeReportEnv(XrdOucString &reportString) {
+    char report[16384];
+    sprintf(report,"log=%s&ruid=%u&rgid=%u&td=%s&host=%s&lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&&cts=%lu&ctms=%lu&rb=%llu&wb=%llu&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f",this->logId,this->vid.uid,this->vid.gid, tIdent.c_str(), hostName.c_str(),lid, fileid, fsid, openTime.tv_sec, openTime.tv_usec/1000,closeTime.tv_sec,closeTime.tv_usec/1000,rBytes,wBytes,srBytes,swBytes,rCalls, wCalls,((rTime.tv_sec*1000.0)+(rTime.tv_usec/1000.0)), ((wTime.tv_sec*1000.0) + (wTime.tv_usec/1000.0)));
+    reportString = report;
+  }
+
 };
 
 #endif

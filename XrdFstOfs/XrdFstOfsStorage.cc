@@ -184,6 +184,13 @@ XrdFstOfsStorage::XrdFstOfsStorage(const char* metadirectory)
     eos_crit("cannot start pulling thread");
     zombie = true;
   }
+
+  eos_info("starting report thread");
+  if ((rc = XrdSysThread::Run(&tid, XrdFstOfsStorage::StartFsReport, static_cast<void *>(this),
+                              0, "Report Thread"))) {
+    eos_crit("cannot start report thread");
+    zombie = true;
+  }
 }
 
 
@@ -322,6 +329,15 @@ XrdFstOfsStorage::StartFsPulling(void * pp)
 {
   XrdFstOfsStorage* storage = (XrdFstOfsStorage*)pp;
   storage->Pulling();
+  return 0;
+}    
+
+/*----------------------------------------------------------------------------*/
+void*
+XrdFstOfsStorage::StartFsReport(void * pp)
+{
+  XrdFstOfsStorage* storage = (XrdFstOfsStorage*)pp;
+  storage->Report();
   return 0;
 }    
 
@@ -504,5 +520,44 @@ XrdFstOfsStorage::Pulling()
     } while (more);
 
     transferMutex.UnLock();
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdFstOfsStorage::Report()
+{
+  // this thread send's report messages from the report queue
+  bool failure;
+  
+  while(1) {
+    failure = false;
+
+    gOFS.ReportQueueMutex.Lock();
+    if ( gOFS.ReportQueue.size()>0) {
+      // send all reports away and dump them into the log
+      XrdOucString report = gOFS.ReportQueue.front();
+      eos_static_info(report.c_str());
+
+      XrdMqMessage message("report");
+
+      XrdOucString msgbody;
+      message.SetBody(report.c_str());
+      
+      eos_debug("broadcasting report message: %s", msgbody.c_str());
+      
+      if (!XrdMqMessaging::gMessageClient.SendMessage(message)) {
+	// display communication error
+	eos_err("cannot send report broadcast");
+	failure = true;
+	break;
+      }
+      gOFS.ReportQueue.pop();
+    }
+    gOFS.ReportQueueMutex.UnLock();
+    if (failure) 
+      sleep(10);
+    else 
+      sleep(1);
   }
 }

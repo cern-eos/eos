@@ -14,12 +14,14 @@
 #include "XrdFstOfs/XrdFstOfsFile.hh"
 #include "XrdMqOfs/XrdMqMessaging.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/mman.h>
+#include <queue>
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
@@ -139,6 +141,9 @@ public:
   XrdSysMutex OpenFidMutex;
   google::sparse_hash_map<unsigned long, google::sparse_hash_map<unsigned long long, unsigned int> > WOpenFid;
   google::sparse_hash_map<unsigned long, google::sparse_hash_map<unsigned long long, unsigned int> > ROpenFid;
+
+  XrdSysMutex ReportQueueMutex;
+  std::queue <XrdOucString> ReportQueue;
 
   void OpenFidString(unsigned long fsid, XrdOucString &outstring);
 

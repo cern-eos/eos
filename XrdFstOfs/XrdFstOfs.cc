@@ -260,11 +260,16 @@ XrdFstOfsFile::open(const char                *path,
   EPNAME("open");
 
   const char *tident = error.getErrUser();
+  tIdent = error.getErrUser();
+
   char *val=0;
   isRW = false;
   int   retc = SFS_OK;
 
   Path = path;
+  hostName = gOFS.HostName;
+
+  gettimeofday(&openTime,&tz);
 
   XrdOucString stringOpaque = opaque;
   stringOpaque.replace("?","&");
@@ -291,10 +296,10 @@ XrdFstOfsFile::open(const char                *path,
   const char* sfsid=0;
   const char* slid=0;
   const char* smanager=0;
-
-  unsigned long long fileid=0;
-  unsigned long fsid=0;
-  unsigned long lid=0;
+  
+  fileid=0;
+  fsid=0;
+  lid=0;
 
   if (!(localprefix=capOpaque->Get("mgm.localprefix"))) {
     return gOFS.Emsg(epname,error,EINVAL,"open - no local prefix in capability",path);
@@ -573,6 +578,14 @@ XrdFstOfsFile::close()
    }
    gOFS.OpenFidMutex.UnLock();
 
+   gettimeofday(&closeTime,&tz);
+
+   // prepare a report and add to the report queue
+   XrdOucString reportString="";
+   MakeReportEnv(reportString);
+   gOFS.ReportQueueMutex.Lock();
+   gOFS.ReportQueue.push(reportString);
+   gOFS.ReportQueueMutex.UnLock();
  } 
 
  if (checksumerror) {
@@ -665,11 +678,27 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
 {
   //  EPNAME("read");
 
+  gettimeofday(&cTime,&tz);
+  rCalls++;
+
   int rc = layOut->read(fileOffset,buffer,buffer_size);
 
   if ((rc>0) && (checkSum)) {
     checkSum->Add(buffer, buffer_size, fileOffset);
   }
+
+  if (rOffset != (unsigned long long)fileOffset) {
+    srBytes += llabs(rOffset-fileOffset);
+  }
+  
+  if (rc > 0) {
+    rBytes += rc;
+    rOffset += rc;
+  }
+  
+  gettimeofday(&lrTime,&tz);
+
+  AddReadTime();
 
   eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,buffer_size);
   return rc;
@@ -706,13 +735,28 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
 {
   //  EPNAME("write");
 
-  
+  gettimeofday(&cTime,&tz);
+  wCalls++;
+
   int rc = layOut->write(fileOffset,(char*)buffer,buffer_size);
 
   // evt. add checksum
   if ((rc >0) && (checkSum)){
     checkSum->Add(buffer, (size_t) buffer_size, (off_t) fileOffset);
   }
+
+  if (wOffset != (unsigned long long) fileOffset) {
+    swBytes += llabs(wOffset-fileOffset);
+  }
+
+  if (rc > 0) {
+    wBytes += rc;
+    wOffset += rc;
+  }
+
+  gettimeofday(&lwTime,&tz);
+
+  AddWriteTime();
     
   haswrite = true;
   eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,buffer_size);

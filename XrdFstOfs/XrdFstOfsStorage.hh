@@ -64,13 +64,14 @@ public:
   static void* StartFsTrim(void* pp);
   static void* StartFsRemover(void* pp);
   static void* StartFsPulling(void* pp);
+  static void* StartFsReport(void* pp);
 
   void Quota();
   void Scrub();
   void Trim();
   void Remover();
   void Pulling();
-
+  void Report();
 
   XrdSysMutex transferMutex;
   std::vector <XrdFstTransfer> transfers;
