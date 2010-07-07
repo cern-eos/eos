@@ -172,10 +172,10 @@ public:
   google::dense_hash_map<long long, unsigned long long> FmdSize;
 
   // that is all we need for quota
-  google::dense_hash_map<long long, unsigned long long> UserBytes; // the key is encoded as (fsid<<32) | uid 
-  google::dense_hash_map<long long, unsigned long long> GroupBytes;// the key is encoded as (fsid<<32) | gid
-  google::dense_hash_map<long long, unsigned long long> UserFiles; // the key is encoded as (fsid<<32) | uid
-  google::dense_hash_map<long long, unsigned long long> GroupFiles;// the key is encoded as (fsid<<32) | gid
+  google::dense_hash_map<long long, long long> UserBytes; // the key is encoded as (fsid<<32) | uid 
+  google::dense_hash_map<long long, long long> GroupBytes;// the key is encoded as (fsid<<32) | gid
+  google::dense_hash_map<long long, long long> UserFiles; // the key is encoded as (fsid<<32) | uid
+  google::dense_hash_map<long long, long long> GroupFiles;// the key is encoded as (fsid<<32) | gid
 
   // create a new changelog filename in 'dir' (the fsid suffix is not added!)
   const char* CreateChangeLogName(const char* cldir, XrdOucString &clname) {

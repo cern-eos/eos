@@ -10,6 +10,8 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
+#include <vector>
+/*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
 class XrdFstOfsFileSystem : public XrdCommonLogId {
@@ -61,7 +63,7 @@ private:
   XrdSysMutex fsMutex;
   XrdOucString metaDirectory;
 
-  unsigned long long* scrubPattern;
+  unsigned long long* scrubPattern[2];
   unsigned long long* scrubPatternVerify;
 public:
   // fsstat & quota thread
@@ -85,8 +87,10 @@ public:
   std::vector <XrdFstDeletion> deletions;
 
   XrdOucHash<XrdFstOfsFileSystem> fileSystems;
+  std::vector <XrdFstOfsFileSystem*> fileSystemsVector;
+
   static int HasStatfsChanged(const char* key, XrdFstOfsFileSystem* filesystem, void* arg);
-  static int ScrubFs(const char* key, XrdFstOfsFileSystem* filesystem, void* arg);
+  int ScrubFs(const char* path, unsigned long long free, unsigned long long lbocks, unsigned long id);
 
   XrdFstOfsStorage(const char* metadirectory);
   ~XrdFstOfsStorage() {};

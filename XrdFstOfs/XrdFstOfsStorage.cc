@@ -150,8 +150,13 @@ XrdFstOfsStorage::XrdFstOfsStorage(const char* metadirectory)
   pthread_t tid;
   int rc;
 
-  scrubPattern = new unsigned long long[1024*1024/8];
-  scrubPatternVerify = new unsigned long long[1024*1024/8];
+  // we need page aligned addresses for direct IO
+  if (posix_memalign((void**)&scrubPattern[0], sysconf(_SC_PAGESIZE),1024*1024) ||
+      posix_memalign((void**)&scrubPattern[1], sysconf(_SC_PAGESIZE),1024*1024) ||
+      posix_memalign((void**)&scrubPatternVerify, sysconf(_SC_PAGESIZE),1024*1024) ) {
+    eos_crit("cannot allocate memory aligned scrub buffer");
+    exit(-1);
+  }
 
   eos_info("starting quota thread");
   if ((rc = XrdSysThread::Run(&tid, XrdFstOfsStorage::StartFsQuota, static_cast<void *>(this),
@@ -237,6 +242,7 @@ XrdFstOfsStorage::SetFileSystem(XrdOucEnv& env)
   if (!(fs = fileSystems.Find(path)) ) {
     fs = new XrdFstOfsFileSystem(path);
     fileSystems.Add(path,fs);
+    fileSystemsVector.push_back(fs);
   }
 
   fs->SetId(fsid);
@@ -282,6 +288,14 @@ XrdFstOfsStorage::RemoveFileSystem(XrdOucEnv& env)
   
   if ( (fs = fileSystems.Find(path)) ) {
     fileSystems.Del(path);
+    std::vector<XrdFstOfsFileSystem*>::iterator it;
+    for (it = fileSystemsVector.begin(); it != fileSystemsVector.end(); ++it) {
+      if (*it == fs) {
+	fileSystemsVector.erase(it);
+	break;
+      }
+    }
+
     fsMutex.UnLock();
     return true;
   } 
@@ -417,46 +431,86 @@ void
 XrdFstOfsStorage::Scrub()
 {
   // create a 1M pattern
+  eos_static_info("Creating Scrubbing pattern ...");
   for (int i=0;i< 1024*1024/16; i+=2) {
-    scrubPattern[i]=0xaaaa5555;
-    scrubPattern[i+1]=0x5555aaaa;
+    scrubPattern[0][i]=0xaaaa5555aaaa5555;
+    scrubPattern[0][i+1]=0x5555aaaa5555aaaa;
+    scrubPattern[1][i]=0x5555aaaa5555aaaa;
+    scrubPattern[1][i+1]=0xaaaa5555aaaa5555;
   }
 
-  scrubPattern[(1024*1024/16)+1] = 0xaaaaffff;
+
+  eos_static_info("Start Scrubbing ...");
 
   // this thread reads the oldest files and checks their integrity
   while(1) {
-    sleep(1);
+    time_t start = time(0);
+    unsigned int nfs=0;
+    fsMutex.Lock();
+    nfs = fileSystemsVector.size();
+    eos_static_info("FileSystem Vector %u",nfs);
+    fsMutex.UnLock();
+    
+    for (unsigned int i=0; i< nfs; i++) {
+      fsMutex.Lock();
+      if (i< fileSystemsVector.size()) {
+	XrdOucString path = fileSystemsVector[i]->GetPath();
+	if (!fileSystemsVector[i]->GetStatfs()) {
+	  fsMutex.UnLock();
+	  continue;
+	}
+
+	unsigned long long free   = fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_bfree;
+	unsigned long long blocks = fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_blocks;
+	unsigned long id = fileSystemsVector[i]->GetId();
+	fsMutex.UnLock();
+	
+	if (ScrubFs(path.c_str(),free,blocks,id)) {
+	  // filesystem has errors!
+	  
+	}
+      } else {
+	fsMutex.UnLock();
+      }
+    }
+    time_t stop = time(0);
+
+    int nsleep = ( (4*3600)-(stop-start));
+    eos_static_info("Scrubber will pause for %u seconds",nsleep);
+    sleep(nsleep);
   }
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdFstOfsStorage::ScrubFs(const char* key, XrdFstOfsFileSystem* filesystem, void* arg) 
+XrdFstOfsStorage::ScrubFs(const char* path, unsigned long long free, unsigned long long blocks, unsigned long id) 
 {
-  XrdFstOfsStorage* storage = (XrdFstOfsStorage*) arg;
+  int MB = 100; // the test files have 100 MB
 
-  int index = 10 - (int) (10.0 *  filesystem->GetStatfs()->GetStatfs()->f_bfree / filesystem->GetStatfs()->GetStatfs()->f_blocks);
+  int index = 10 - (int) (10.0 * free / blocks);
+
+  eos_static_info("Running Scrubber on filesystem path=%s id=%u free=%llu blocks=%llu index=%d", path, id, free,blocks,index);
+
+  int fserrors=0;
   
-  for ( int fs=1; fs< index; fs++ ) {
-    int fserrors=0;
-
+  for ( int fs=1; fs<= index; fs++ ) {
     // check if test file exists, if not, write it
     XrdOucString scrubfile[2];
-    scrubfile[0] = filesystem->GetPath();
-    scrubfile[1] = filesystem->GetPath();
-    scrubfile[0] += "/scrub.read."; scrubfile[0] += fs;
-    scrubfile[1] += "/scrub.rewrite."; scrubfile[1] += fs;
+    scrubfile[0] = path;
+    scrubfile[1] = path;
+    scrubfile[0] += "/scrub.write-once."; scrubfile[0] += fs;
+    scrubfile[1] += "/scrub.re-write."; scrubfile[1] += fs;
     struct stat buf;
 
     for (int k = 0; k< 2; k++) {
-      if ( ((k==0) && stat(scrubfile[k].c_str(),&buf)) || ((k==1))) {
+      eos_static_info("Scrubbing file %s", scrubfile[k].c_str());
+      if ( ((k==0) && stat(scrubfile[k].c_str(),&buf)) || ((k==0) && (buf.st_size!=(MB*1024*1024))) || ((k==1))) {
 	// ok, create this file once
 	int ff=0;
 	if (k==0)
 	  ff = open(scrubfile[k].c_str(),O_CREAT|O_TRUNC|O_WRONLY|O_DIRECT, S_IRWXU);
 	else
-	  ff = open(scrubfile[k].c_str(),O_WRONLY|O_DIRECT);
+	  ff = open(scrubfile[k].c_str(),O_CREAT|O_WRONLY|O_DIRECT, S_IRWXU);
 
 	if (ff<0) {
 	  eos_static_crit("Unable to create/wopen scrubfile %s", scrubfile[k].c_str());
@@ -464,13 +518,16 @@ XrdFstOfsStorage::ScrubFs(const char* key, XrdFstOfsFileSystem* filesystem, void
 	}
 	// select the pattern randomly
 	int rshift = (int) ( (1.0 *rand()/RAND_MAX)+ 0.5);
-	for (int i=0; i< 1024; i++) {
-	  int nwrite = write(ff, storage->scrubPattern+rshift, 1024 * 1024);
+	eos_static_info("rshift is %d", rshift);
+	for (int i=0; i< MB; i++) {
+	  int nwrite = write(ff, scrubPattern[rshift], 1024 * 1024);
 	  if (nwrite != (1024*1024)) {
 	    eos_static_crit("Unable to write all needed bytes for scrubfile %s", scrubfile[k].c_str());
 	    break;
 	  }
-	  usleep(500000);
+	  if (k!=0) {
+	    usleep(100000);
+	  }
 	}
 	close(ff);
       }
@@ -483,35 +540,37 @@ XrdFstOfsStorage::ScrubFs(const char* key, XrdFstOfsFileSystem* filesystem, void
 
       int eberrors=0;
 
-      for (int i=0; i< 1024; i++) {
-	int nread = read(ff, storage->scrubPatternVerify, 1024 * 1024);
+      for (int i=0; i< MB; i++) {
+	int nread = read(ff, scrubPatternVerify, 1024 * 1024);
 	if (nread != (1024*1024)) {
 	  eos_static_crit("Unable to read all needed bytes from scrubfile %s", scrubfile[k].c_str());
 	  break;
 	}
-	unsigned long long* ref = (unsigned long long*)storage->scrubPattern;
-	unsigned long long* cmp = (unsigned long long*)storage->scrubPatternVerify;
+	unsigned long long* ref = (unsigned long long*)scrubPattern[0];
+	unsigned long long* cmp = (unsigned long long*)scrubPatternVerify;
 	// do a quick check
-	for (int b=0; b< 1024*1024/8; b++) {
+	for (int b=0; b< MB*1024/8; b++) {
 	  if ( (*ref != *cmp) ) {
-	    if (*(++ref) == *cmp) {
+	    ref = (unsigned long long*)scrubPattern[1];
+	    if (*(ref) == *cmp) {
 	      // ok - pattern shifted
 	    } else {
-	      // this is reaL fatal error 
+	      // this is real fatal error 
 	      eberrors++;
 	    }
 	  }
 	}
-	usleep(500000);
+	usleep(100000);
       }
       if (eberrors) {
-	eos_static_alert("%d block errors on filesystem %lu scrubfile %s", filesystem->GetId(), scrubfile[k].c_str());
+	eos_static_alert("%d block errors on filesystem %lu scrubfile %s",id, scrubfile[k].c_str());
 	fserrors++;
       }
     }
-    if (fserrors) {
-      // disable this filesystem automatically!
-    }
+  }
+
+  if (fserrors) {
+    return 1;
   }
 
   return 0;

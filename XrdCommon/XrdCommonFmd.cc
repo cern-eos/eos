@@ -256,10 +256,11 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
   struct stat stbuf; 
 
   // create first empty root entries
-  UserBytes [(((unsigned long long)fsid)<<32) | 0] = 0;
-  GroupBytes[(((unsigned long long)fsid)<<32) | 0] = 0;
-  UserFiles [(((unsigned long long)fsid)<<32) | 0] = 0;
-  GroupFiles[(((unsigned long long)fsid)<<32) | 0] = 0;
+  UserBytes [(((long long)fsid)<<32) | 0] = 0;
+  GroupBytes[(((long long)fsid)<<32) | 0] = 0;
+  UserFiles [(((long long)fsid)<<32) | 0] = 0;
+  GroupFiles[(((long long)fsid)<<32) | 0] = 0;
+
 
   if (::fstat(fdChangeLogRead[fsid], &stbuf)) {
     eos_crit("unable to stat file size of changelog file - errc%d", errno);
@@ -342,28 +343,35 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
       //      eos_debug("fid %lu psize %lld", pMd->fid, FmdSize[pMd->fid]);
       if (exsize>=0) {
 	// substract old size
-	UserBytes [(((unsigned long long)pMd->fsid)<<32) | pMd->uid]  -= exsize;
-	GroupBytes[(((unsigned long long)pMd->fsid)<<32) | pMd->gid]  -= exsize;
-	UserFiles [(((unsigned long long)pMd->fsid)<<32) | pMd->uid]--;
-	GroupFiles[(((unsigned long long)pMd->fsid)<<32) | pMd->gid]--;
+	UserBytes [(((long long)pMd->fsid)<<32) | pMd->uid]  -= exsize;
+	GroupBytes[(((long long)pMd->fsid)<<32) | pMd->gid]  -= exsize;
+	UserFiles [(((long long)pMd->fsid)<<32) | pMd->uid]--;
+	GroupFiles[(((long long)pMd->fsid)<<32) | pMd->gid]--;
       }
       // store new size
       FmdSize[pMd->fid] = pMd->size;
 
       // add new size
-      UserBytes [(pMd->fsid<<32) | pMd->uid]  += pMd->size;
-      GroupBytes[(pMd->fsid<<32) | pMd->gid] += pMd->size;
-      UserFiles [(pMd->fsid<<32) | pMd->uid]++;
-      GroupFiles[(pMd->fsid<<32) | pMd->gid]++;
+      UserBytes [((long long)pMd->fsid<<32) | pMd->uid]  += pMd->size;
+      GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] += pMd->size;
+      UserFiles [((long long)pMd->fsid<<32) | pMd->uid]++;
+      GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]++;
     }
     if (XrdCommonFmd::IsDelete(pMd)) {
       FmdSize[pMd->fid] = 0;
-      UserBytes [(pMd->fsid<<32) | pMd->uid]  -= pMd->size;
-      GroupBytes[(pMd->fsid<<32) | pMd->gid] -= pMd->size;
-      UserFiles [(pMd->fsid<<32) | pMd->uid]--;
-      GroupFiles[(pMd->fsid<<32) | pMd->gid]--;
+      UserBytes [((long long)pMd->fsid<<32) | pMd->uid]  -= pMd->size;
+      GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] -= pMd->size;
+      UserFiles [((long long)pMd->fsid<<32) | pMd->uid]--;
+      GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]--;
     }
-    eos_debug("userbytes %llu groupbytes %llu userfiles %llu groupfiles %llu",  UserBytes [(pMd->fsid<<32) | pMd->uid], GroupBytes[(pMd->fsid<<32) | pMd->gid], UserFiles [(pMd->fsid<<32) | pMd->uid],GroupFiles[(pMd->fsid<<32) | pMd->gid]);
+
+    if (UserBytes[((long long)pMd->fsid<<32) | pMd->uid]  <0) UserBytes[(pMd->fsid<<32)]=0;
+    if (GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] <0) GroupBytes[(pMd->fsid<<32)]=0;
+    if (UserFiles[((long long)pMd->fsid<<32) | pMd->uid]  <0) UserFiles[(pMd->fsid<<32)]=0;
+    if (GroupFiles[((long long)pMd->fsid<<32) | pMd->gid] <0) GroupFiles[(pMd->fsid<<32)]=0;
+
+
+    eos_debug("userbytes %llu groupbytes %llu userfiles %llu groupfiles %llu",  UserBytes [((long long)pMd->fsid<<32) | pMd->uid], GroupBytes[((long long)pMd->fsid<<32) | pMd->gid], UserFiles [((long long)pMd->fsid<<32) | pMd->uid],GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]);
     pMd++;
     changelogstart += sizeof(struct XrdCommonFmd::FMD);
   }
@@ -533,12 +541,12 @@ XrdCommonFmdHandler::Commit(XrdCommonFmd* fmd)
 
   // adjust the quota accounting of the update
   eos_debug("booking %d bytes on quota %d/%d", (fmd->fMd.size-oldsize), fmd->fMd.uid, fmd->fMd.gid);
-  UserBytes [(fmd->fMd.fsid<<32) | fmd->fMd.uid] += (fmd->fMd.size-oldsize);
-  GroupBytes[(fmd->fMd.fsid<<32) | fmd->fMd.gid] += (fmd->fMd.size-oldsize);
+  UserBytes [((long long)fmd->fMd.fsid<<32) | fmd->fMd.uid] += (fmd->fMd.size-oldsize);
+  GroupBytes[((long long)fmd->fMd.fsid<<32) | fmd->fMd.gid] += (fmd->fMd.size-oldsize);
 
   if (fmd->fMd.magic == XRDCOMMONFMDDELETE_MAGIC) {
-    UserFiles [(fmd->fMd.fsid<<32) | fmd->fMd.uid] --;
-    GroupFiles[(fmd->fMd.fsid<<32) | fmd->fMd.gid] --;
+    UserFiles [((long long)fmd->fMd.fsid<<32) | fmd->fMd.uid] --;
+    GroupFiles[((long long)fmd->fMd.fsid<<32) | fmd->fMd.gid] --;
   }
   Mutex.UnLock();
   return true;
