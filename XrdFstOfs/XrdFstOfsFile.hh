@@ -123,15 +123,15 @@ protected:
   XrdOucString   tIdent;     // tident
 
   void AddReadTime() {
-    unsigned long long mus = ((lrTime.tv_sec-cTime.tv_sec)*1000000) + lrTime.tv_usec - cTime.tv_usec;
+    unsigned long mus = ((lrTime.tv_sec-cTime.tv_sec)*1000000) + lrTime.tv_usec - cTime.tv_usec;
     rTime.tv_sec  += (mus/1000000);
-    rTime.tv_usec =+ (mus%1000000);
+    rTime.tv_usec += (mus%1000000);
   }
 
   void AddWriteTime() {
-    unsigned long long mus = ((lwTime.tv_sec-cTime.tv_sec)*1000000) + lwTime.tv_usec - cTime.tv_usec;
+    unsigned long mus = ((lwTime.tv_sec-cTime.tv_sec)*1000000) + lwTime.tv_usec - cTime.tv_usec;
     wTime.tv_sec  += (mus/1000000);
-    wTime.tv_usec =+ (mus%1000000);
+    wTime.tv_usec += (mus%1000000);
   }
   
   void MakeReportEnv(XrdOucString &reportString) {
