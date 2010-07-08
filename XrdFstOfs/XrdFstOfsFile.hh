@@ -136,7 +136,7 @@ protected:
   
   void MakeReportEnv(XrdOucString &reportString) {
     char report[16384];
-    sprintf(report,"log=%s&ruid=%u&rgid=%u&td=%s&host=%s&lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&&cts=%lu&ctms=%lu&rb=%llu&wb=%llu&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f",this->logId,this->vid.uid,this->vid.gid, tIdent.c_str(), hostName.c_str(),lid, fileid, fsid, openTime.tv_sec, openTime.tv_usec/1000,closeTime.tv_sec,closeTime.tv_usec/1000,rBytes,wBytes,srBytes,swBytes,rCalls, wCalls,((rTime.tv_sec*1000.0)+(rTime.tv_usec/1000.0)), ((wTime.tv_sec*1000.0) + (wTime.tv_usec/1000.0)));
+    sprintf(report,"log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&&cts=%lu&ctms=%lu&rb=%llu&wb=%llu&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f",this->logId,Path.c_str(),this->vid.uid,this->vid.gid, tIdent.c_str(), hostName.c_str(),lid, fileid, fsid, openTime.tv_sec, openTime.tv_usec/1000,closeTime.tv_sec,closeTime.tv_usec/1000,rBytes,wBytes,srBytes,swBytes,rCalls, wCalls,((rTime.tv_sec*1000.0)+(rTime.tv_usec/1000.0)), ((wTime.tv_sec*1000.0) + (wTime.tv_usec/1000.0)));
     reportString = report;
   }
 
