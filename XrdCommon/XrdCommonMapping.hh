@@ -158,11 +158,16 @@ public:
     return false;
   }
 
-  static const char* ReduceTident(XrdOucString &tident, XrdOucString &mytident) {
+  static const char* ReduceTident(XrdOucString &tident, XrdOucString &wildcardtident, XrdOucString &mytident) {
     int dotpos = tident.find(".");
     int addpos = tident.find("@");
+    wildcardtident = tident;
     mytident = tident;
     mytident.erase(dotpos,addpos-dotpos);
+    wildcardtident = mytident;
+    addpos = wildcardtident .find("@");
+    wildcardtident.erase(0,addpos);
+    wildcardtident = "*" + wildcardtident;
     return mytident.c_str();
   }
 

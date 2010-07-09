@@ -255,6 +255,7 @@ XrdMqOfs::FSctl(const int               cmd,
       TRACES(ipath);
       return SFS_ERROR;
     } else {
+      ZTRACE(open,"Discarding montor message without receiver");
       const char* result="OK";
       error.setErrInfo(3,(char*)result);
       XrdOfsFS.ReceivedMessages++;

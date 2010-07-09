@@ -10,10 +10,14 @@ lib_LTLIBRARIES = libXrdMqOfs.la libXrdMqClient.la
 
 INCLUDES = -I$(XROOTD_INCDIR) ${OPENSSL_INCDIR} -I../
 
-bin_PROGRAMS = xrdmqclienttest xrdmqclientmaster xrdmqclientworker xrdmqcryptotest
+bin_PROGRAMS = xrdmqclienttest xrdmqclientmaster xrdmqclientworker xrdmqcryptotest xrdmqdumper
 
 xrdmqclienttest_SOURCES = XrdMqClientTest.cc
 xrdmqclienttest_LDADD   = libXrdMqClient.la
+
+xrdmqdumper_SOURCES = XrdMqQueueDumper.cc
+xrdmqdumper_LDADD   = libXrdMqClient.la
+xrdmqdumper_LDFLAGS = -static -export-dynamic
 
 xrdmqclientmaster_SOURCES = XrdMqClientMaster.cc
 xrdmqclientmaster_LDADD   = libXrdMqClient.la

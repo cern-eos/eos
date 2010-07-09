@@ -135,9 +135,13 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
 
   // tident mapping
   XrdOucString mytident="";
-  XrdOucString stident = "tident:"; stident += "\""; stident += ReduceTident(vid.tident, mytident); 
+  XrdOucString wildcardtident="";
+  XrdOucString stident = "tident:"; stident += "\""; stident += ReduceTident(vid.tident, wildcardtident, mytident); 
+  XrdOucString swctident = "tident:"; swctident += "\""; swctident += wildcardtident;
   XrdOucString suidtident = stident; suidtident += "\":uid";
   XrdOucString sgidtident = stident; sgidtident += "\":gid";
+  XrdOucString swcuidtident = swctident; swcuidtident += "\":uid";
+  XrdOucString swcgidtident = swctident; swcgidtident += "\":gid";
 
   if ((gVirtualUidMap.count(suidtident.c_str()))) {
     //    eos_static_debug("tident mapping");
@@ -151,7 +155,48 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
     vid.gid = gVirtualGidMap[sgidtident.c_str()];
     if (!HasGid(vid.gid,vid.gid_list)) vid.gid_list.push_back(vid.gid);
     if (!HasGid(99, vid.gid_list)) vid.gid_list.push_back(99);
+  } 
+
+  // wild card tidents
+  if ((gVirtualUidMap.count(swcuidtident.c_str()))) {
+    if (!gVirtualUidMap[swcuidtident.c_str()]) {
+      eos_static_debug("tident unix uid mapping");
+      XrdCommonMapping::getPhysicalIds(client->name, vid);
+      vid.gid=99;
+      vid.gid_list.clear();
+    } else {
+      eos_static_debug("tident uid forced mapping");
+      // map to the requested id
+      vid.uid_list.clear();
+      vid.uid = gVirtualUidMap[swcuidtident.c_str()];
+      vid.uid_list.push_back(vid.uid);
+      if (vid.uid != 99)
+	vid.uid_list.push_back(99);
+      vid.gid_list.clear();
+      vid.gid = 99;
+      vid.gid_list.push_back(99);
+    }
   }
+
+  if ((gVirtualGidMap.count(swcgidtident.c_str()))) {
+    if (!gVirtualGidMap[swcgidtident.c_str()]) {
+      eos_static_debug("tident unix gid mapping");
+      uid_t uid = vid.uid;
+      XrdCommonMapping::getPhysicalIds(client->name, vid);
+      vid.uid = uid;
+      vid.uid_list.clear();
+      vid.uid_list.push_back(uid);
+      vid.uid_list.push_back(99);
+    } else {
+      eos_static_debug("tident gid forced mapping");
+      // map to the requested id
+      vid.gid_list.clear();
+      vid.gid = gVirtualGidMap[swcgidtident.c_str()];
+      vid.gid_list.push_back(vid.gid);
+    }
+  }
+
+  eos_static_debug("suidtident:%s sgidtident:%s", suidtident.c_str(), sgidtident.c_str());
 
   // the configuration door for localhost clients adds always the adm/adm vid's
   if (suidtident == "tident:\"root@localhost.localdomain\":uid") {

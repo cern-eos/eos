@@ -375,15 +375,19 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
 	break; // leave the for loop inside a scheduling group
       }
     }
-    // rotate to next scheduling group
-    schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
+
     // stop when we have found enough in a scheduling group
-    if (nassigned == nfilesystems)
+    if (nassigned == nfilesystems) {
+      // rotate to next scheduling group if we are at the end of one scheduling group
+      if (schedulingViewPtr[indextag] == schedulingView[schedgroupindex].end()) 
+	schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
       break; // leave the for loop over all scheduling groups
+    }
     else {
       // try in the next scheduling group
       selectedfs.clear();
       nassigned = 0;
+      schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
     }
   }
 
