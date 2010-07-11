@@ -482,8 +482,6 @@ void xrd_rw_env() {
 
   XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,rahead);
   XrdPosixXrootd::setEnv(NAME_READCACHESIZE,rcsize);
-  // disable caching, it is still buggy in xrootd client 11/2008
-  xrd_sync_env();
 }
 
 int xrd_stat(const char *path, struct stat *buf)

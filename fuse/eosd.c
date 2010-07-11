@@ -755,6 +755,12 @@ static void eosfs_ll_open(fuse_req_t req, fuse_ino_t ino,
     fi->keep_cache = 0;
   }
 
+  if (getenv("EOS_DIRECTIO") && (!strcmp(getenv("EOS_DIRECTIO"),"1"))) {
+    fi->direct_io=1;
+  } else {
+    fi->direct_io=0;
+  }
+
   if (!fdbuffermap[fi->fh])
     fdbuffermap[fi->fh] = (char*) malloc(PAGESIZE);
 
