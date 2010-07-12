@@ -19,6 +19,10 @@ libEosNamespace_la_SOURCES = \
 	IContainerMDSvc.hh   \
 	IView.hh             \
 	MDException.hh       \
+	utils/Descriptor.hh   \
+	utils/Descriptor.cc   \
+	utils/SmartPtrs.hh    \
+	utils/PathProcessor.hh \
 	persistency/ChangeLogFile.hh      \
 	persistency/ChangeLogFile.cc      \
 	persistency/Buffer.hh             \

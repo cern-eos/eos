@@ -9,12 +9,13 @@
 #include <string>
 #include <stdint.h>
 #include "Namespace/persistency/Buffer.hh"
+#include "Namespace/utils/Descriptor.hh"
 #include "Namespace/MDException.hh"
 
 namespace eos
 {
   //----------------------------------------------------------------------------
-  //! Interface for the class scanning the logfile
+  //! Interface for a class scanning the logfile
   //----------------------------------------------------------------------------
   class ILogRecordScanner
   {
@@ -35,7 +36,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ChangeLogFile(): pFd( 0 ), pIsOpen( false ), pVersion( 0 ) {};
+      ChangeLogFile(): pIsOpen( false ), pVersion( 0 ) {};
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -76,13 +77,21 @@ namespace eos
       //------------------------------------------------------------------------
       //! Read the record at given offset
       //------------------------------------------------------------------------
-      uint8_t readRecord( uint64_t offset, Buffer &record, bool seek = true )
-                                                            throw( MDException);
+      uint8_t readRecord( uint64_t offset, Buffer &record ) throw( MDException);
 
       //------------------------------------------------------------------------
       //! Scan all the records in the changelog file
       //------------------------------------------------------------------------
       void scanAllRecords( ILogRecordScanner *scanner ) throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Follow a file
+      //!
+      //! @param scanner a listener to be notified about a new record
+      //! @param poll    look for new data every poll microseconds
+      //------------------------------------------------------------------------
+      void follow( ILogRecordScanner* scanner, unsigned poll = 100000 )
+        throw( MDException );
 
     private:
       //------------------------------------------------------------------------

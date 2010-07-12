@@ -17,6 +17,7 @@ class ChangeLogTest: public CppUnit::TestCase
     ChangeLogTest(): CppUnit::TestCase() {}
     virtual ~ChangeLogTest() {}
     void readWriteCorrectness();
+    void followingTest();
     static CppUnit::Test *suite();
 };
 

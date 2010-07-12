@@ -37,7 +37,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      FileMD( id_t id, IFileMDSvc *fileMDSvc = 0 );
+      FileMD( id_t id, IFileMDSvc *fileMDSvc );
 
       //------------------------------------------------------------------------
       //! Get file id
@@ -166,8 +166,8 @@ namespace eos
       //------------------------------------------------------------------------
       void setChecksum( const void *checksum, uint8_t size )
       {
-        pChecksum.resize( size );
-        memcpy( pChecksum.getDataPtr(), checksum, size );
+        pChecksum.clear();
+        pChecksum.putData( checksum, size );
       }
 
       //------------------------------------------------------------------------
@@ -338,7 +338,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Deserialize the class to a buffer
       //------------------------------------------------------------------------
-      void deserialize( Buffer &buffer ) throw( MDException );
+      void deserialize( const Buffer &buffer ) throw( MDException );
 
     protected:
       //------------------------------------------------------------------------

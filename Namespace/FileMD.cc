@@ -154,7 +154,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Deserialize the class to a buffer
   //----------------------------------------------------------------------------
-  void FileMD::deserialize( Buffer &buffer ) throw( MDException )
+  void FileMD::deserialize( const Buffer &buffer ) throw( MDException )
   {
     uint16_t offset = 0;
     offset = buffer.grabData( offset, &pId,          sizeof( pId ) );
