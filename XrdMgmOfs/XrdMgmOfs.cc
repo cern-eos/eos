@@ -1569,7 +1569,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
 
   if (!cmd) {
     // try if that is a file
-
+    errno =0;
     eos::FileMD* fmd = 0; 
     //-------------------------------------------
     gOFS->eosViewMutex.Lock();

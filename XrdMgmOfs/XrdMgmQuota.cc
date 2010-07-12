@@ -332,11 +332,13 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
     selectedfs.clear();
 
     int maxiterations = schedulingView[schedgroupindex].size();
+
+    std::string ptrindextag = "";
     
     // try to get nfilesystems with enough space
     for (int j=0; j < maxiterations; j++) {
+      ptrindextag="";
       // select a scheduling group
-      std::string ptrindextag = "";
       ptrindextag += (int)schedgroupindex;
       ptrindextag += indextag;
       
@@ -344,6 +346,11 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
       if ((schedulingViewPtr.find(ptrindextag)) == schedulingViewPtr.end()) {
 	// place the iterator on the first filesystem in the scheduling group set
 	schedulingViewPtr[ptrindextag] = schedulingView[schedgroupindex].begin();
+	for (unsigned int k=0; k< schedgroupindex; k++) {
+	  schedulingViewPtr[ptrindextag] ++;
+	  if (schedulingViewPtr[ptrindextag] == schedulingView[schedgroupindex].end())
+	    schedulingViewPtr[ptrindextag] = schedulingView[schedgroupindex].begin();
+	}
       }
 
       if (schedulingViewPtr[ptrindextag] == schedulingView[schedgroupindex].end()) {
@@ -370,17 +377,17 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
       }
       schedulingViewPtr[ptrindextag]++;
       if (nassigned >= nfilesystems) {
-	//	// rotate to next scheduling group
-	//	schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
+	// rotate to next scheduling group
+	schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
 	break; // leave the for loop inside a scheduling group
       }
     }
 
     // stop when we have found enough in a scheduling group
-    if (nassigned == nfilesystems) {
+    if (nassigned >= nfilesystems) {
       // rotate to next scheduling group if we are at the end of one scheduling group
-      if (schedulingViewPtr[indextag] == schedulingView[schedgroupindex].end()) 
-	schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
+      //      if (schedulingViewPtr[ptrindextag] == schedulingView[schedgroupindex].begin())
+      //	schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
       break; // leave the for loop over all scheduling groups
     }
     else {
@@ -391,6 +398,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
     }
   }
 
+  eos_static_info("Index is now %u", schedulingViewGroup[indextag]);
   if (nassigned == nfilesystems) {
     //    schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
     return 0;
