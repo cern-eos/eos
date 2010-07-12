@@ -1,0 +1,132 @@
+#!/bin/bash
+#
+# Init file for the Gridftp server
+#
+# chkconfig: 2345 95 15
+# description: Globus gridftp server
+#
+# processname: globus-gridftp-server
+# config: /etc/sysconfig/eos-gridftp-server
+
+
+# source function library
+. /etc/rc.d/init.d/functions
+
+
+# source sysconfig file
+if [ -f /etc/sysconfig/eos-gridftp-server ]; then
+    . /etc/sysconfig/eos-gridftp-server
+fi
+
+export CSEC_MECH=ID
+
+###############  Standard Globus configuration  ######################
+
+if [ -f /etc/sysconfig/globus ]; then
+    . /etc/sysconfig/globus
+fi
+
+GLOBUS_LOCATION=${GLOBUS_LOCATION:-/opt/globus}
+
+if [ ! -d "$GLOBUS_LOCATION" ]; then
+  echo "GLOBUS_LOCATION not found" 
+  exit 1
+fi
+export GLOBUS_LOCATION
+
+if [ -n "$GLOBUS_TCP_PORT_RANGE" ]; then
+  export GLOBUS_TCP_PORT_RANGE
+fi
+
+if [ -n "$GLOBUS_UDP_PORT_RANGE" ]; then
+  export GLOBUS_UDP_PORT_RANGE
+fi
+
+export LD_LIBRARY_PATH=$GLOBUS_LOCATION/lib
+
+######################################################################
+
+RETVAL=0
+
+# Defaults
+
+prog="globus-gridftp-server"
+
+ftpd=/opt/globus/sbin/globus-gridftp-server
+port=${port:-2811}
+log=${log:-/var/log/eos/gridftp/$prog.log}
+pid_file=/var/run/$prog.pid
+lockfile=/var/lock/subsys/$prog
+user=""
+options=""
+
+
+# -S  stand alone mode
+# -p  port number
+# -Z  Globus logging
+#
+# Running as a non-root user:
+#
+# -Q  Don't use pid files since you don't have write access to them ( /var/run )
+# -W  Don't record logins in wtmp (you don't have write permissions)
+#
+
+if [ ! -d "/var/log/eos/gridftp" ]; then
+	mkdir -p /var/log/eos/gridftp
+fi
+
+if [ -z "$options" ]; then
+  options="-dn -S -p $port -Z $log"
+fi
+
+start()
+{
+	echo -n "Starting $prog:"
+        if test "x$user" = "x" ; then
+          daemon "$ftpd $options"
+        else
+          daemon "--user $user $ftpd -Q -W $options"
+        fi
+	RETVAL=$?
+	[ "$RETVAL" = 0 ] && touch $lockfile
+	echo
+}
+
+stop()
+{
+	echo -n "Stopping $prog:"
+	killproc $ftpd -TERM
+	RETVAL=$?
+	[ "$RETVAL" = 0 ] && rm -f $lockfile
+	echo
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart|reload)
+		stop
+		start
+		;;
+	condrestart)
+		if [ -f $lockfile ] ; then
+			stop
+			# avoid race
+			sleep 3
+			start
+		fi
+		;;
+	status)
+		status $ftpd
+		RETVAL=$?
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload|condrestart|status}"
+		RETVAL=1
+esac
+
+exit $RETVAL
