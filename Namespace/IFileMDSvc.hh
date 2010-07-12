@@ -133,6 +133,11 @@ namespace eos
       virtual void removeFile( FileMD::id_t fileId ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
+      //! Get number of files
+      //------------------------------------------------------------------------
+      virtual uint64_t getNumFiles() const = 0;
+
+      //------------------------------------------------------------------------
       //! Visit all the files
       //------------------------------------------------------------------------
       virtual void visit( IFileVisitor *visitor ) = 0;

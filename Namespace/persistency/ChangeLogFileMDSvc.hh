@@ -82,6 +82,14 @@ namespace eos
       virtual void removeFile( FileMD::id_t fileId ) throw( MDException );
 
       //------------------------------------------------------------------------
+      //! Get number of files
+      //------------------------------------------------------------------------
+      virtual uint64_t getNumFiles() const
+      {
+        return pIdMap.size();
+      }
+
+      //------------------------------------------------------------------------
       //! Add file listener that will be notified about all of the changes in
       //! the store
       //------------------------------------------------------------------------

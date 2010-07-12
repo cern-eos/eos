@@ -85,6 +85,14 @@ namespace eos
                                                       throw( MDException );
 
       //------------------------------------------------------------------------
+      //! Get number of containers
+      //------------------------------------------------------------------------
+      virtual uint64_t getNumContainers() const
+      {
+        return pIdMap.size();
+      }
+
+      //------------------------------------------------------------------------
       //! Add file listener that will be notified about all of the changes in
       //! the store
       //------------------------------------------------------------------------
