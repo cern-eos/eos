@@ -92,7 +92,6 @@ void fillFileMD( eos::FileMD &fileMetadata, int i )
 //------------------------------------------------------------------------------
 void checkFileMD( eos::FileMD &fileMetadata, unsigned i )
 {
-  std::cout << "  ====== " << i << std::endl;
   std::ostringstream o;
   o << "filename_" << i;
   uint32_t checkSum = i*423;

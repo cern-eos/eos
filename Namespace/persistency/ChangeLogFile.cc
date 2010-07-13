@@ -124,9 +124,10 @@ namespace eos
       throw ex;
     }
     fdPtr.release();
-    pFd = fd;
-    pIsOpen  = true;
-    pVersion = 1;
+    pFd        = fd;
+    pIsOpen    = true;
+    pVersion   = 1;
+    pSeqNumber = 0;
   }
 
   //----------------------------------------------------------------------------
@@ -158,7 +159,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Store the record in the log
   //----------------------------------------------------------------------------
-  uint64_t ChangeLogFile::storeRecord( char type, const Buffer &record )
+  uint64_t ChangeLogFile::storeRecord( char type, Buffer &record )
     throw( MDException )
   {
     if( !pIsOpen )
@@ -169,27 +170,42 @@ namespace eos
     }
 
     //--------------------------------------------------------------------------
-    // Sum up the size of the record and calculate the checksum
+    // Allign the buffer to 4 bytes and calculate the checksum
     //--------------------------------------------------------------------------
-    uint16_t size = record.size();
-    uint32_t chkSum = 12;
+    uint32_t nsize = record.size();
+    nsize = (nsize+3) >> 2 << 2;
+
+    if( nsize > 65535 )
+    {
+      MDException ex( EFAULT );
+      ex.getMessage() << "Record too big";
+      throw ex;
+    }
+    record.resize( nsize );
+
+    uint16_t size   = record.size();
+    uint32_t chkSum = record.getCRC32();
 
     //--------------------------------------------------------------------------
     // Store the data
     //--------------------------------------------------------------------------
     uint64_t offset = ::lseek( pFd, 0, SEEK_END );
+    uint64_t seq    = 0;
     uint16_t magic  = RECORD_MAGIC;
+    uint32_t opts   = type; // occupy the first byte (little endian)
+                            // the rest is unused for the moment
 
-    iovec vec[6];
+    iovec vec[7];
     vec[0].iov_base = &magic;  vec[0].iov_len = 2;
     vec[1].iov_base = &size;   vec[1].iov_len = 2;
     vec[2].iov_base = &chkSum; vec[2].iov_len = 4;
-    vec[3].iov_base = &type;   vec[3].iov_len = 1;
-    vec[5].iov_base = &chkSum; vec[5].iov_len = 4;
-    vec[4].iov_base = (void*)record.getDataPtr();
-    vec[4].iov_len = record.size();
+    vec[3].iov_base = &seq;    vec[3].iov_len = 8;
+    vec[4].iov_base = &opts;   vec[4].iov_len = 4;
+    vec[5].iov_base = (void*)record.getDataPtr();
+    vec[5].iov_len = record.size();
+    vec[6].iov_base = &chkSum; vec[6].iov_len = 4;
 
-    if( writev( pFd, vec, 6 ) != (unsigned)(13+record.size()) )
+    if( writev( pFd, vec, 7 ) != (unsigned)(24+record.size()) )
     {
       MDException ex( EFAULT );
       ex.getMessage() << "Unable to write the record data at offset 0x";
@@ -210,7 +226,7 @@ namespace eos
     if( !pIsOpen )
     {
       MDException ex( EFAULT );
-      ex.getMessage() << "Changelog file is not open";
+      ex.getMessage() << "Read: Changelog file is not open";
       throw ex;
     }
 
@@ -220,22 +236,23 @@ namespace eos
     uint16_t *magic;
     uint16_t *size;
     uint32_t *chkSum1;
+    uint64_t *seq;
     uint32_t  chkSum2;
     uint8_t  *type;
-    char      buffer[9];
+    char      buffer[20];
 
-
-    if( pread( pFd, buffer, 9, offset ) != 9 )
+    if( pread( pFd, buffer, 20, offset ) != 20 )
     {
       MDException ex( EFAULT );
-      ex.getMessage() << "Error reading at offset: " << offset;
+      ex.getMessage() << "Read: Error reading at offset: " << offset;
       throw ex;
     }
 
     magic   = (uint16_t*)(buffer);
     size    = (uint16_t*)(buffer+2);
     chkSum1 = (uint32_t*)(buffer+4);
-    type    = (uint8_t*) (buffer+8);
+    seq     = (uint64_t*)(buffer+8);
+    type    = (uint8_t*) (buffer+16);
 
     //--------------------------------------------------------------------------
     // Check the consistency
@@ -243,8 +260,7 @@ namespace eos
     if( *magic != RECORD_MAGIC )
     {
       MDException ex( EFAULT );
-      ex.getMessage() << "The record is inconsistent. Perhaps the offset ";
-      ex.getMessage() << "is incorrect.";
+      ex.getMessage() << "Read: Record's magic number is wrong.";
       throw ex;
     }
 
@@ -252,10 +268,10 @@ namespace eos
     // Read the second part of the buffer
     //--------------------------------------------------------------------------
     record.resize( *size+4, 0 );
-    if( pread( pFd, record.getDataPtr(), *size+4, offset+9 ) != *size+4 )
+    if( pread( pFd, record.getDataPtr(), *size+4, offset+20 ) != *size+4 )
     {
       MDException ex( EFAULT );
-      ex.getMessage() << "Error reading at offset: " << offset + 9 << std::endl;
+      ex.getMessage() << "Read: Error reading at offset: " << offset + 9;
       throw ex;
     }
     record.grabData( record.size()-4, &chkSum2, 4 );
@@ -267,8 +283,7 @@ namespace eos
     if( *chkSum1 != chkSum2 )
     {
       MDException ex( EFAULT );
-      ex.getMessage() << "The record is inconsistent. Perhaps the offset ";
-      ex.getMessage() << "is incorrect.";
+      ex.getMessage() << "Read: Record's checksums do not match.";
       throw ex;
     }
 
@@ -284,7 +299,7 @@ namespace eos
     if( !pIsOpen )
     {
       MDException ex( EFAULT );
-      ex.getMessage() << "Changelog file is not open";
+      ex.getMessage() << "Scan: Changelog file is not open";
       throw ex;
     }
 
@@ -296,7 +311,7 @@ namespace eos
     if( offset != 6 )
     {
       MDException ex( EFAULT );
-      ex.getMessage() << "Unable to find the record data at offset 0x";
+      ex.getMessage() << "Scan: Unable to find the record data at offset 0x";
       ex.getMessage() << std::setbase(16) << 6 << "; ";
       ex.getMessage() << strerror( errno );
       throw ex;
@@ -313,7 +328,7 @@ namespace eos
       type = readRecord( offset, data );
       scanner->processRecord( offset, type, data );
       offset += data.size();
-      offset += 13;
+      offset += 24;
     }
   }
 
@@ -329,7 +344,7 @@ namespace eos
     if( !pIsOpen )
     {
       MDException ex( EFAULT );
-      ex.getMessage() << "Changelog file is not open";
+      ex.getMessage() << "Follow: Changelog file is not open";
       throw ex;
     }
 
@@ -341,9 +356,10 @@ namespace eos
     uint16_t    *magic;
     uint16_t    *size;
     uint32_t    *chkSum1;
+    uint64_t    *seq;
     uint32_t     chkSum2;
     uint8_t     *type;
-    char         buffer[9];
+    char         buffer[20];
     Buffer       record;
 
     while( 1 )
@@ -353,12 +369,12 @@ namespace eos
       //------------------------------------------------------------------------
       try
       {
-         fd.offsetReadNonBlocking( buffer, 9, offset, poll );
+         fd.offsetReadNonBlocking( buffer, 20, offset, poll );
       }
       catch( DescriptorException &e )
       {
         MDException ex( EFAULT );
-        ex.getMessage() << "Error reading at offset: " << offset << ": ";
+        ex.getMessage() << "Follow: Error reading at offset: " << offset << ": ";
         ex.getMessage() << e.getMessage().str();
         throw ex;
       }
@@ -366,7 +382,8 @@ namespace eos
       magic   = (uint16_t*)(buffer);
       size    = (uint16_t*)(buffer+2);
       chkSum1 = (uint32_t*)(buffer+4);
-      type    = (uint8_t*) (buffer+8);
+      seq     = (uint64_t*)(buffer+8);
+      type    = (uint8_t*) (buffer+16);
 
       //------------------------------------------------------------------------
       // Check the consistency
@@ -374,24 +391,24 @@ namespace eos
       if( *magic != RECORD_MAGIC )
       {
         MDException ex( EFAULT );
-        ex.getMessage() << "The record is inconsistent. Perhaps the offset ";
-        ex.getMessage() << "is incorrect.";
+        ex.getMessage() << "Follow: Record's magic number is wrong.";
         throw ex;
       }
 
-      //--------------------------------------------------------------------------
+      //------------------------------------------------------------------------
       // Read the second part of the buffer
-      //--------------------------------------------------------------------------
+      //------------------------------------------------------------------------
       record.resize( *size+4, 0 );
       try
       {
-        fd.offsetReadNonBlocking( record.getDataPtr(), *size+4, offset+9, poll );
+        fd.offsetReadNonBlocking( record.getDataPtr(), *size+4, offset+20,
+                                  poll );
       }
       catch( DescriptorException &e )
       {
         MDException ex( EFAULT );
-        ex.getMessage() << "Error reading at offset: " << offset + 9 << ": ";
-        ex.getMessage() << e.getMessage().str();
+        ex.getMessage() << "Follow: Error reading at offset: " << offset + 9;
+        ex.getMessage() << ": " << e.getMessage().str();
         throw ex;
       }
       record.grabData( record.size()-4, &chkSum2, 4 );
@@ -403,8 +420,7 @@ namespace eos
       if( *chkSum1 != chkSum2 )
       {
         MDException ex( EFAULT );
-        ex.getMessage() << "The record is inconsistent. Perhaps the offset ";
-        ex.getMessage() << "is incorrect.";
+        ex.getMessage() << "Follow: Record's checksums do not match.";
         throw ex;
       }
 
@@ -413,7 +429,7 @@ namespace eos
       //------------------------------------------------------------------------
       scanner->processRecord( offset, *type, record );
       offset += record.size();
-      offset += 13;
+      offset += 24;
       record.clear();
     }
   }

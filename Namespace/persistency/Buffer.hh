@@ -100,6 +100,15 @@ namespace eos
         memcpy( ptr, &operator[](offset), dataSize );
         return offset+dataSize;
       }
+
+      //------------------------------------------------------------------------
+      //! Calculate the CRC32 checksum -- dummy for the moment
+      //------------------------------------------------------------------------
+      uint32_t getCRC32() const
+      {
+        return 12;
+      }
+
     protected:
   };
 }

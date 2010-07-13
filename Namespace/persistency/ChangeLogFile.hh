@@ -69,10 +69,13 @@ namespace eos
       //------------------------------------------------------------------------
       //! Store the record in the log
       //!
+      //! @param type   user defined type of record
+      //! @param record a record buffer, it is not const because zeros may be
+      //!               appended to the end to make it aligned to 4 bytes
+      //!
       //! @return the offset in the log
       //------------------------------------------------------------------------
-      uint64_t storeRecord( char type, const Buffer &record )
-                                                           throw( MDException );
+      uint64_t storeRecord( char type, Buffer &record ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Read the record at given offset
@@ -94,12 +97,14 @@ namespace eos
         throw( MDException );
 
     private:
+
       //------------------------------------------------------------------------
       // Data members
       //------------------------------------------------------------------------
-      int     pFd;
-      bool    pIsOpen;
-      uint8_t pVersion;
+      int      pFd;
+      bool     pIsOpen;
+      uint8_t  pVersion;
+      uint64_t pSeqNumber;
   };
 }
 
