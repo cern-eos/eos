@@ -135,6 +135,7 @@ namespace eos
   void ChangeLogFile::close()
   {
     ::close( pFd );
+    pIsOpen = false;
   }
 
   //----------------------------------------------------------------------------
