@@ -26,6 +26,16 @@ namespace eos
   void ChangeLogFile::open( const std::string &name ) throw( MDException )
   {
     //--------------------------------------------------------------------------
+    // Checki fh the file is open already
+    //--------------------------------------------------------------------------
+    if( pIsOpen )
+    {
+      MDException ex( EFAULT );
+      ex.getMessage() << "Changelog file is already open";
+      throw ex;
+    }
+
+    //--------------------------------------------------------------------------
     // Open the try to open the file for reading and writing
     //--------------------------------------------------------------------------
     int fd = ::open( name.c_str(), O_RDWR );
