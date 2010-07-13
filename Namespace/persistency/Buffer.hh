@@ -9,6 +9,7 @@
 #include <cstring>
 #include <vector>
 #include <stdint.h>
+#include <zlib.h>
 
 #include "Namespace/MDException.hh"
 
@@ -102,11 +103,12 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
-      //! Calculate the CRC32 checksum -- dummy for the moment
+      //! Calculate the CRC32 checksum
       //------------------------------------------------------------------------
       uint32_t getCRC32() const
       {
-        return 12;
+        return crc32( crc32( 0L, Z_NULL, 0 ),
+                      (const Bytef*)getDataPtr(), size() );
       }
 
     protected:

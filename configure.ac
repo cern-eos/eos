@@ -117,6 +117,7 @@ AC_CHECK_HEADERS([readline/readline.h], ,
 
 AC_CHECK_LIB(readline, readline, , AC_MSG_ERROR( "Please install lib readline & curses" ) )
 AC_CHECK_LIB(rt, clock_gettime, , AC_MSG_ERROR( "The system does not have clock_gettime" ) )
+AC_CHECK_LIB(z, crc32, , AC_MSG_ERROR( "Please install zlib" ) )
 export LDFLAGS=$LDFLAGS_BUP
 
 # check for cppunit
