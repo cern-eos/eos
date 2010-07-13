@@ -135,6 +135,8 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
 
    eos_info("(opendir) path=%s",dir_path);
 
+   gOFS->MgmStats.Add("OpenDir",vid.uid,vid.gid,1);
+
    // Open the directory
 
    //-------------------------------------------
@@ -230,7 +232,7 @@ int XrdMgmOfsDirectory::close()
 */
 {
   //  static const char *epname = "closedir";
-  
+
   return SFS_OK;
 }
 
@@ -332,6 +334,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   
   // proc filter
   if (XrdMgmProcInterface::IsProcAccess(path)) {
+    gOFS->MgmStats.Add("OpenProc",vid.uid,vid.gid,1);  
     if (!XrdMgmProcInterface::Authorize(path, info, vid, client)) {
       return Emsg(epname, error, EPERM, "execute proc command - you don't have the requested permissions for that operation ", path);      
     } else {
@@ -340,6 +343,8 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       return procCmd->open(path, info, vid, &error);
     }
   }
+
+  gOFS->MgmStats.Add("Open",vid.uid,vid.gid,1);  
 
   eos_debug("authorize start");
 
@@ -418,9 +423,18 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       if (gOFS->_rem(path,error, vid, info)) {
 	return Emsg(epname, error, errno,"remove file for truncation", path);
       }
+      
       // invalidate the record
       fmd = 0;
+      gOFS->MgmStats.Add("OpenWriteTruncate",vid.uid,vid.gid,1);  
+    } else {
+      if (!(fmd) && ((open_flag & O_CREAT)))  {
+	gOFS->MgmStats.Add("OpenWriteCreate",vid.uid,vid.gid,1);  
+      } else {
+	gOFS->MgmStats.Add("OpenWrite",vid.uid,vid.gid,1);  
+      }
     }
+
 
     // write case
     if ((!fmd)) {
@@ -457,6 +471,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   } else {
     if ((!fmd)) 
       return Emsg(epname, error, errno, "open file", path);      
+    gOFS->MgmStats.Add("OpenRead",vid.uid,vid.gid,1);  
   }
   
   // construct capability
@@ -864,6 +879,8 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
   eos::ContainerMD* cmd = 0;
   errno = 0;
 
+  gOFS->MgmStats.Add("Chmod",vid.uid,vid.gid,1);  
+
   eos_info("path=%s mode=%o",path, Mode);
   
   try {
@@ -938,6 +955,9 @@ int XrdMgmOfs::_exists(const char                *path,        // In
 {
   // try if that is directory
 
+  gOFS->MgmStats.Add("Exists",vid.uid,vid.gid,1);  
+
+
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   eos::ContainerMD* cmd = 0;
@@ -999,6 +1019,8 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   Notes:    When failure occurs, 'file_exists' is not modified.
 */
 {
+  gOFS->MgmStats.Add("Exists",vid.uid,vid.gid,1);  
+  
   // try if that is directory
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
@@ -1087,6 +1109,8 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   static const char *epname = "mkdir";
   mode_t acc_mode = (Mode & S_IAMB) | S_IFDIR;
   errno = 0;
+
+  gOFS->MgmStats.Add("Mkdir",vid.uid,vid.gid,1);  
 
   //  const char *tident = error.getErrUser();
 
@@ -1309,6 +1333,9 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
 */
 {
   static const char *epname = "rem";
+
+  gOFS->MgmStats.Add("Rm",vid.uid,vid.gid,1);  
+
   // Perform the actual deletion
   //
   const char *tident = error.getErrUser();
@@ -1399,6 +1426,8 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
    static const char *epname = "remdir";
    errno = 0;
 
+   gOFS->MgmStats.Add("RmDir",vid.uid,vid.gid,1);  
+
    eos::ContainerMD* dh=0;
    
    //-------------------------------------------
@@ -1477,6 +1506,8 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   r1=r2=SFS_OK;
 
 
+  gOFS->MgmStats.Add("Rename",vid.uid,vid.gid,1);  
+
   // check if dest is existing
   XrdSfsFileExistence file_exists;
 
@@ -1551,6 +1582,8 @@ int XrdMgmOfs::_stat(const char              *path,        // In
                      const char              *info)        // In
 {
   static const char *epname = "_stat";
+
+  gOFS->MgmStats.Add("Stat",vid.uid,vid.gid,1);  
   
   // try if that is directory
   eos::ContainerMD* cmd = 0;
@@ -1659,6 +1692,7 @@ int XrdMgmOfs::truncate(const char*,
 			   const char* path)
 {
   static const char *epname = "truncate";
+
   return Emsg(epname, error, EOPNOTSUPP, "truncate", path);
 }
 
@@ -1678,6 +1712,8 @@ int XrdMgmOfs::readlink(const char          *path,        // In
   AUTHORIZE(client,&rl_Env,AOP_Stat,"readlink",path,error);
   
   XrdCommonMapping::IdMap(client,info,tident,vid);
+
+  gOFS->MgmStats.Add("Truncate",vid.uid,vid.gid,1);  
 
   return Emsg(epname, error, EOPNOTSUPP, "readlink", path); 
 }
@@ -1704,6 +1740,8 @@ int XrdMgmOfs::symlink(const char           *path,        // In
 
   XrdCommonMapping::IdMap(client,info,tident,vid);
 
+  gOFS->MgmStats.Add("Symlink",vid.uid,vid.gid,1);  
+
   return Emsg(epname, error, EOPNOTSUPP, "symlink", path); 
 }
 
@@ -1723,6 +1761,8 @@ int XrdMgmOfs::access( const char           *path,        // In
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
 
   XrdCommonMapping::IdMap(client,info,tident,vid);  
+
+  gOFS->MgmStats.Add("Access",vid.uid,vid.gid,1);  
 
   return Emsg(epname, error, EOPNOTSUPP, "access", path); 
 }
@@ -1755,6 +1795,9 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
 {
   bool done=false;
   eos::ContainerMD* cmd=0;
+
+  gOFS->MgmStats.Add("Utimes",vid.uid,vid.gid,1);  
+
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   try {
@@ -1803,6 +1846,8 @@ int XrdMgmOfs::_find(const char       *path,             // In
   eos::ContainerMD* cmd = 0;
   XrdOucString Path = path;
   errno = 0;
+
+  gOFS->MgmStats.Add("Find",vid.uid,vid.gid,1);  
 
   if (!(Path.endswith('/')))
     Path += "/";
@@ -2372,7 +2417,7 @@ XrdMgmOfs::attr_ls(const char             *path,
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
   
   XrdCommonMapping::IdMap(client,info,tident,vid);  
-  
+
   return _attr_ls(path, error,vid,info,map);
 }   
 
@@ -2452,6 +2497,9 @@ XrdMgmOfs::_attr_ls(const char             *path,
   static const char *epname = "attr_ls";  
   eos::ContainerMD *dh=0;
   errno = 0;
+
+  gOFS->MgmStats.Add("AttrLs",vid.uid,vid.gid,1);  
+  
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   try {
@@ -2493,6 +2541,8 @@ XrdMgmOfs::_attr_set(const char             *path,
   static const char *epname = "attr_set";  
   eos::ContainerMD *dh=0;
   errno = 0;
+
+  gOFS->MgmStats.Add("AttrSet",vid.uid,vid.gid,1);  
 
   if ( !key || !value) 
     return  Emsg(epname,error,EINVAL,"set attribute",path);  
@@ -2538,6 +2588,8 @@ XrdMgmOfs::_attr_get(const char             *path,
   eos::ContainerMD *dh=0;
   errno = 0;
 
+  gOFS->MgmStats.Add("AttrGet",vid.uid,vid.gid,1);  
+
   if ( !key) 
     return  Emsg(epname,error,EINVAL,"get attribute",path);  
 
@@ -2581,6 +2633,8 @@ XrdMgmOfs::_attr_rem(const char             *path,
   eos::ContainerMD *dh=0;
   errno = 0;
 
+  gOFS->MgmStats.Add("AttrRm",vid.uid,vid.gid,1);  
+
   if ( !key ) 
     return  Emsg(epname,error,EINVAL,"delete attribute",path);  
 
@@ -2623,6 +2677,8 @@ XrdMgmOfs::_dropstripe(const char             *path,
   eos::ContainerMD *dh=0;
   eos::FileMD *fmd=0;
   errno = 0;
+
+  gOFS->MgmStats.Add("DropStripe",vid.uid,vid.gid,1);  
 
   eos_debug("drop");
   XrdCommonPath cPath(path);
@@ -2704,6 +2760,11 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   eos::ContainerMD *dh=0;
   errno = 0;
   unsigned long long fileId=0;
+  
+  if (dropsource) 
+    gOFS->MgmStats.Add("MoveStripe",vid.uid,vid.gid,1);  
+  else 
+    gOFS->MgmStats.Add("CopyStripe",vid.uid,vid.gid,1);  
 
   XrdCommonPath cPath(path);
 
@@ -2837,6 +2898,17 @@ XrdMgmOfs::StartMgmDeletion(void *pp)
   ofs->Deletion();
   return 0;
 }
+
+
+/*----------------------------------------------------------------------------*/
+void*
+XrdMgmOfs::StartMgmStats(void *pp) 
+{
+  XrdMgmOfs* ofs = (XrdMgmOfs*)pp;
+  ofs->MgmStats.Circulate();
+  return 0;
+}
+
 
 /*----------------------------------------------------------------------------*/
 void

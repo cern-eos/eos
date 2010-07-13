@@ -474,6 +474,13 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     NoGo = 1;
   }
 
+  eos_info("starting statistics thread");
+  if ((XrdSysThread::Run(&tid, XrdMgmOfs::StartMgmStats, static_cast<void *>(this),
+                              0, "Statistics Thread"))) {
+    eos_crit("cannot start statistics thread");
+    NoGo = 1;
+  }
+
   
   return NoGo;
 }

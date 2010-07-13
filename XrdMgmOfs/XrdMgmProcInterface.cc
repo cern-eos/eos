@@ -493,6 +493,22 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       //      stdOut+="\n==== fs done ====";
     }
 
+    if (cmd == "ns") {
+      if (subcmd == "stat") {
+	eos_notice("ns stat");
+	stdOut+="# ------------------------------------------------------------------------------------\n";
+	stdOut+="# Namespace Statistic\n";
+	stdOut+="# ------------------------------------------------------------------------------------\n";
+	char files[1024]; sprintf(files,"%llu" ,(unsigned long long)gOFS->eosFileService->getNumFiles());
+	char dirs[1024];  sprintf(dirs,"%llu"  ,(unsigned long long)gOFS->eosDirectoryService->getNumContainers());
+	stdOut+="Files       := ";stdOut += files; stdOut+="\n";
+	stdOut+="Directories := ";stdOut += dirs;  stdOut+="\n";
+	stdOut+="# ------------------------------------------------------------------------------------\n";
+
+	gOFS->MgmStats.PrintOutTotal(stdOut);
+      }
+    }
+
     if (cmd == "quota") {
       if (subcmd == "ls") {
 	eos_notice("quota ls");

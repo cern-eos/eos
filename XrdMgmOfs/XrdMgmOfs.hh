@@ -9,6 +9,7 @@
 #include "XrdMqOfs/XrdMqMessaging.hh"
 #include "XrdMgmOfs/XrdMgmProcInterface.hh"
 #include "XrdMgmOfs/XrdMgmConfigEngine.hh"
+#include "XrdMgmOfs/XrdMgmOfsStat.hh"
 #include "Namespace/IView.hh"
 #include "Namespace/IFileMDSvc.hh"
 #include "Namespace/IContainerMDSvc.hh"
@@ -169,7 +170,6 @@ class XrdMgmOfs : public XrdSfsFileSystem , public XrdCommonLogId
 {
   friend class XrdMgmOfsFile;
   friend class XrdMgmOfsDirectory;
-  friend class XrdMgmOfsStats;
   friend class XrdMgmProcCommand;
 
 public:
@@ -446,10 +446,13 @@ virtual bool           Init(XrdSysError &);
         eos::FileSystemView *eosFsView;      // -> filesystem view of the namespace
         XrdSysMutex      eosViewMutex;       // -> mutex making the namespace single threaded
         XrdOucString     MgmMetaLogDir;      //  Directory containing the meta data (change) log files
-
+        XrdMgmOfsStat    MgmStats;           //  Mgm Statistics
 
  static void* StartMgmDeletion(void *pp);    //  Deletion Thread Starter
-        void  Deletion();                     // Deletion Function
+        void  Deletion();                    //  Deletion Function
+
+
+ static void* StartMgmStats(void *pp);       // Statistics circular buffer thread
 
 protected:
         char*            HostName;           // -> our hostname as derived in XrdOfs
