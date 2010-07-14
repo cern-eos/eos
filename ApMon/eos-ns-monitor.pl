@@ -197,12 +197,12 @@ while (1) {
 	    my $freefiles = convert($tags[8],$tags[9]);
 
 	    # send info per space
-	    $shortid .= $tags[1];
+	    my $shortid .= $tags[1];
 	    $apm->sendParameters('Quota_Physical', $shortid,
 				 'usedbytes',$usedbytes,
 				 'usedfiles',$usedfiles,
-				 'freebytes',$freebytes,
-				 'freefiles',$freefiles,
+				 'availbytes',$freebytes,
+				 'availfiles',$freefiles,
 				 'volume_usage',$tags[10],
 				 'inodes_usage',$tags[12]
 				 );
@@ -218,8 +218,8 @@ while (1) {
 	    $apm->sendParameters('Quota_Virtual', $tags[1],
 				 'usedbytes',$usedbytes,
 				 'usedfiles',$usedfiles,
-				 'freebytes',$freebytes,
-				 'freefiles',$freefiles,
+				 'availbytes',$freebytes,
+				 'availfiles',$freefiles,
 				 'volume_usage',$tags[10],
 				 );
 	    next;
@@ -239,8 +239,8 @@ while (1) {
             $apm->sendParameters('Quota', $shortid,
                                  'usedbytes',$usedbytes,
                                  'usedfiles',$usedfiles,
-                                 'freebytes',$freebytes,
-                                 'freefiles',$freefiles,
+                                 'availbytes',$freebytes,
+                                 'availfiles',$freefiles,
                                  'volume_usage',$tags[10],
                                  );
 	}
