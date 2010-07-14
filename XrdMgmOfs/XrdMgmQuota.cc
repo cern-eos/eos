@@ -185,9 +185,9 @@ XrdMgmSpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
 
     sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , SpaceName.c_str(), 
 	    XrdCommonFileSystem::GetReadableSizeString(value1, GetQuota(kUserBytesIs,sortuidarray[lid]),"B"), 
-	    XrdCommonFileSystem::GetReadableSizeString(value2, GetQuota(kUserFilesIs,sortuidarray[lid]),""), 
+	    XrdCommonFileSystem::GetReadableSizeString(value2, GetQuota(kUserFilesIs,sortuidarray[lid]),"-"), 
 	    XrdCommonFileSystem::GetReadableSizeString(value3, GetQuota(kUserBytesTarget,sortuidarray[lid]),"B"), 
-	    XrdCommonFileSystem::GetReadableSizeString(value4, GetQuota(kUserFilesTarget,sortuidarray[lid]),""),
+	    XrdCommonFileSystem::GetReadableSizeString(value4, GetQuota(kUserFilesTarget,sortuidarray[lid]),"-"),
 	    GetQuotaPercentage(GetQuota(kUserBytesIs,sortuidarray[lid]), GetQuota(kUserBytesTarget,sortuidarray[lid]), percentage),
 	    GetQuotaStatus(GetQuota(kUserBytesIs,sortuidarray[lid]), GetQuota(kUserBytesTarget,sortuidarray[lid])));
 
@@ -212,9 +212,9 @@ XrdMgmSpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
 
     sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s \n", id.c_str() , SpaceName.c_str(),
 	    XrdCommonFileSystem::GetReadableSizeString(value1, GetQuota(kGroupBytesIs,sortgidarray[lid]),"B"), 
-	    XrdCommonFileSystem::GetReadableSizeString(value2, GetQuota(kGroupFilesIs,sortgidarray[lid]),""), 
+	    XrdCommonFileSystem::GetReadableSizeString(value2, GetQuota(kGroupFilesIs,sortgidarray[lid]),"-"), 
 	    XrdCommonFileSystem::GetReadableSizeString(value3, GetQuota(kGroupBytesTarget,sortgidarray[lid]),"B"), 
-	    XrdCommonFileSystem::GetReadableSizeString(value4, GetQuota(kGroupFilesTarget,sortgidarray[lid]),""),
+	    XrdCommonFileSystem::GetReadableSizeString(value4, GetQuota(kGroupFilesTarget,sortgidarray[lid]),"-"),
 	    GetQuotaPercentage(GetQuota(kGroupBytesIs,sortgidarray[lid]), GetQuota(kGroupBytesTarget,sortgidarray[lid]), percentage),
 	    GetQuotaStatus(GetQuota(kGroupBytesIs,sortgidarray[lid]), GetQuota(kGroupBytesTarget,sortgidarray[lid])));
     output += headerline;
@@ -238,9 +238,9 @@ XrdMgmSpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
     output += headerline;
     sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , SpaceName.c_str(), 
 	    XrdCommonFileSystem::GetReadableSizeString(value1, GetQuota(kAllUserBytesIs,0),"B"), 
-	    XrdCommonFileSystem::GetReadableSizeString(value2, GetQuota(kAllUserFilesIs,0),""), 
+	    XrdCommonFileSystem::GetReadableSizeString(value2, GetQuota(kAllUserFilesIs,0),"-"), 
 	    XrdCommonFileSystem::GetReadableSizeString(value3, GetQuota(kAllUserBytesTarget,0),"B"), 
-	    XrdCommonFileSystem::GetReadableSizeString(value4, GetQuota(kAllUserFilesTarget,0),""),
+	    XrdCommonFileSystem::GetReadableSizeString(value4, GetQuota(kAllUserFilesTarget,0),"-"),
 	    GetQuotaPercentage(GetQuota(kAllUserBytesIs,0), GetQuota(kAllUserBytesTarget,0), percentage),
 	    GetQuotaStatus(GetQuota(kAllUserBytesIs,0), GetQuota(kAllUserBytesTarget,0)));
     output += headerline;
@@ -248,9 +248,9 @@ XrdMgmSpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
     output += headerline;
     sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , SpaceName.c_str(), 
 	    XrdCommonFileSystem::GetReadableSizeString(value1, GetQuota(kAllGroupBytesIs,0),"B"), 
-	    XrdCommonFileSystem::GetReadableSizeString(value2, GetQuota(kAllGroupFilesIs,0),""), 
+	    XrdCommonFileSystem::GetReadableSizeString(value2, GetQuota(kAllGroupFilesIs,0),"-"), 
 	    XrdCommonFileSystem::GetReadableSizeString(value3, GetQuota(kAllGroupBytesTarget,0),"B"), 
-	    XrdCommonFileSystem::GetReadableSizeString(value4, GetQuota(kAllGroupFilesTarget,0),""),
+	    XrdCommonFileSystem::GetReadableSizeString(value4, GetQuota(kAllGroupFilesTarget,0),"-"),
 	    GetQuotaPercentage(GetQuota(kAllGroupBytesIs,0), GetQuota(kAllGroupBytesTarget,0), percentage),
 	    GetQuotaStatus(GetQuota(kAllGroupBytesIs,0), GetQuota(kAllGroupBytesTarget,0)));
     output += headerline;
@@ -261,9 +261,9 @@ XrdMgmSpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
     output+= headerline;
     sprintf(headerline,"PHYS  %-16s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", SpaceName.c_str(),
 	    XrdCommonFileSystem::GetReadableSizeString(value1, PhysicalMaxBytes-PhysicalFreeBytes,"B"), 
-	    XrdCommonFileSystem::GetReadableSizeString(value2, PhysicalMaxFiles-PhysicalFreeFiles,""), 
+	    XrdCommonFileSystem::GetReadableSizeString(value2, PhysicalMaxFiles-PhysicalFreeFiles,"-"), 
 	    XrdCommonFileSystem::GetReadableSizeString(value3, PhysicalMaxBytes,"B"), 
-	    XrdCommonFileSystem::GetReadableSizeString(value4, PhysicalMaxFiles,""),
+	    XrdCommonFileSystem::GetReadableSizeString(value4, PhysicalMaxFiles,"-"),
 	    GetQuotaPercentage(PhysicalMaxBytes-PhysicalFreeBytes,PhysicalMaxBytes, percentage1),
 	    GetQuotaStatus(PhysicalMaxBytes-PhysicalFreeBytes,PhysicalMaxBytes),
 	  GetQuotaPercentage(PhysicalMaxFiles-PhysicalFreeFiles,PhysicalMaxFiles, percentage2),
@@ -671,7 +671,7 @@ XrdMgmQuota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long 
 
     if ( (uid_sel >=0) && (files>=0) ) {
       spacequota->SetQuota(XrdMgmSpaceQuota::kUserFilesTarget, uid_sel, files);
-      sprintf(printline, "success: updated quota for uid=%ld to %s files\n", uid_sel,XrdCommonFileSystem::GetReadableSizeString(sizestring, files,""));
+      sprintf(printline, "success: updated quota for uid=%ld to %s files\n", uid_sel,XrdCommonFileSystem::GetReadableSizeString(sizestring, files,"-"));
       configstring += "uid="; configstring += (int) uid_sel; configstring += ":";
       configstring += XrdMgmSpaceQuota::GetTagAsString(XrdMgmSpaceQuota::kUserFilesTarget);
       sprintf(configvalue,"%llu",files);
@@ -691,7 +691,7 @@ XrdMgmQuota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long 
 
     if ( (gid_sel >=0) && (files>=0) ) {
       spacequota->SetQuota(XrdMgmSpaceQuota::kGroupFilesTarget, gid_sel, files);
-      sprintf(printline, "success: updated quota for gid=%ld to %s files\n", gid_sel,XrdCommonFileSystem::GetReadableSizeString(sizestring, files,""));
+      sprintf(printline, "success: updated quota for gid=%ld to %s files\n", gid_sel,XrdCommonFileSystem::GetReadableSizeString(sizestring, files,"-"));
       configstring += "gid="; configstring += (int) gid_sel; configstring += ":";
       configstring += XrdMgmSpaceQuota::GetTagAsString(XrdMgmSpaceQuota::kGroupFilesTarget);
       sprintf(configvalue,"%llu",files);

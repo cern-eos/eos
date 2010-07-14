@@ -495,17 +495,22 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 
     if (cmd == "ns") {
       if (subcmd == "stat") {
+	XrdOucString option = opaque.Get("mgm.option");
+	bool details=false;
+	if (option == "a") 
+	  details = true;
+
 	eos_notice("ns stat");
 	stdOut+="# ------------------------------------------------------------------------------------\n";
 	stdOut+="# Namespace Statistic\n";
 	stdOut+="# ------------------------------------------------------------------------------------\n";
 	char files[1024]; sprintf(files,"%llu" ,(unsigned long long)gOFS->eosFileService->getNumFiles());
 	char dirs[1024];  sprintf(dirs,"%llu"  ,(unsigned long long)gOFS->eosDirectoryService->getNumContainers());
-	stdOut+="Files       := ";stdOut += files; stdOut+="\n";
-	stdOut+="Directories := ";stdOut += dirs;  stdOut+="\n";
+	stdOut+="ALL      Files                            ";stdOut += files; stdOut+="\n";
+	stdOut+="ALL      Directories                      ";stdOut += dirs;  stdOut+="\n";
 	stdOut+="# ------------------------------------------------------------------------------------\n";
 
-	gOFS->MgmStats.PrintOutTotal(stdOut);
+	gOFS->MgmStats.PrintOutTotal(stdOut, details);
       }
     }
 

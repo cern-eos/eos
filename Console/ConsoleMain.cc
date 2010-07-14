@@ -72,6 +72,7 @@ int com_find PARAMS((char*));
 int com_fs   PARAMS((char*));
 int com_ls PARAMS((char*));
 int com_mkdir PARAMS((char*));
+int com_ns PARAMS((char*));
 int com_role PARAMS((char*));
 int com_rmdir PARAMS((char*));
 int com_rm PARAMS((char*));
@@ -118,6 +119,7 @@ COMMAND commands[] = {
   { (char*)"help",  com_help, (char*)"Display this text" },
   { (char*)"ls", com_ls, (char*)"List a directory" },
   { (char*)"mkdir", com_mkdir, (char*)"Create a directory" },
+  { (char*)"ns", com_ns, (char*)"Namespace Interface" },
   { (char*)"vid", com_vid, (char*) "Virtual ID System Configuration" },
   { (char*)"pwd", com_pwd, (char*)"Print working directory" },
   { (char*)"quit",  com_quit, (char*)"Exit from EOS console" },
@@ -1961,8 +1963,39 @@ com_find (char* arg1) {
   return (0);
 }
 
+/* Namespace Interface */
+int 
+com_ns (char* arg1) {
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString cmd = subtokenizer.GetToken();
+  XrdOucString option = subtokenizer.GetToken();
 
-/* Remove a file */
+  XrdOucString in ="";
+  if ( ( cmd != "stat") ) {
+    goto com_ns_usage;
+  }
+  
+  in = "mgm.cmd=ns&";
+  if (cmd == "stat") {
+    in += "mgm.subcmd=stat";
+  }
+
+  if (option == "-a") {
+    in += "&mgm.option=a";
+  }
+  
+  global_retc = output_result(client_admin_command(in));
+  return (0);
+
+ com_ns_usage:
+  printf("usage: ns stat [-a]                                                  :  print namespace statistics\n");
+  printf("                -a                                                   -  break down by uid/gid\n");
+  return (0);
+}
+
+
+/* Test Interface */
 int
 com_test (char* arg1) {
   // split subcommands

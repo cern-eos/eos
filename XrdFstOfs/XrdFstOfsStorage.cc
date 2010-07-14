@@ -42,6 +42,36 @@ XrdFstOfsFileSystem::BroadcastError(const char* msg)
 
 /*----------------------------------------------------------------------------*/
 void
+XrdFstOfsFileSystem::BroadcastError(int errc, const char* errmsg) 
+{
+  XrdMqMessage message("fst");
+  XrdOucString msgbody;
+  XrdOucEnv env(GetEnvString());
+  XrdCommonFileSystem::GetBootReplyString(msgbody, env, XrdCommonFileSystem::kOpsError);
+  
+  SetStatus(XrdCommonFileSystem::kOpsError);
+
+  XrdOucString response = response += errmsg; response += " "; response += Path;; 
+
+  msgbody += "errmsg=";
+  msgbody += errmsg;
+  msgbody += "&errc="; 
+  msgbody += errc; 
+
+  SetError(errno,response.c_str());
+  
+  message.SetBody(msgbody.c_str());
+
+  eos_debug("broadcasting error message: %s", msgbody.c_str());
+
+  if (!XrdMqMessaging::gMessageClient.SendMessage(message)) {
+    // display communication error
+    eos_err("cannot send error broadcast");
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
 XrdFstOfsFileSystem::BroadcastStatus()
 {
   XrdMqMessage message("fst");
@@ -467,7 +497,11 @@ XrdFstOfsStorage::Scrub()
 	
 	if (ScrubFs(path.c_str(),free,blocks,id)) {
 	  // filesystem has errors!
-	  
+	  fsMutex.Lock();
+	  if (fileSystemsVector[i]) {
+	    fileSystemsVector[i]->BroadcastError(EIO,"filesystem probe error detected");
+	  }
+	  fsMutex.UnLock();
 	}
       } else {
 	fsMutex.UnLock();

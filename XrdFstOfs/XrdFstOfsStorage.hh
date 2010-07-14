@@ -49,6 +49,7 @@ public:
   }
 
   void BroadcastError(const char* msg);
+  void BroadcastError(int errc, const char* errmsg);
   void BroadcastStatus();
 
   XrdCommonStatfs* GetStatfs(bool &changedalot);
