@@ -6,25 +6,24 @@
 #include <cppunit/CompilerOutputter.h>
 #include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
-
 #include <sstream>
 
-#include "OtherTests.hh"
 #include "Namespace/utils/PathProcessor.hh"
 
 //------------------------------------------------------------------------------
-// Generic file md test declaration
+// Declaration
 //------------------------------------------------------------------------------
-CppUnit::Test *OtherTests::suite()
+class OtherTests: public CppUnit::TestCase
 {
-  CppUnit::TestSuite *suiteOfTests
-              = new CppUnit::TestSuite( "OtherTests" );
+  public:
+    CPPUNIT_TEST_SUITE( OtherTests );
+      CPPUNIT_TEST( pathSplitterTest );
+    CPPUNIT_TEST_SUITE_END();
 
-  suiteOfTests->addTest( new CppUnit::TestCaller<OtherTests>( 
-                               "pathSplitterTest", 
-                               &OtherTests::pathSplitterTest ) );
-  return suiteOfTests;
-}
+    void pathSplitterTest();
+};
+
+CPPUNIT_TEST_SUITE_REGISTRATION( OtherTests );
 
 //------------------------------------------------------------------------------
 // Check the path
@@ -80,17 +79,4 @@ void OtherTests::pathSplitterTest()
   elements.clear();
   eos::PathProcessor::splitPath( elements, "" );
   CPPUNIT_ASSERT( elements.size() == 0 );
-
-}
-
-//------------------------------------------------------------------------------
-// Start the show
-//------------------------------------------------------------------------------
-int main( int argc, char **argv)
-{
-  CppUnit::TextUi::TestRunner runner;
-  runner.addTest( OtherTests::suite() );
-  runner.setOutputter( new CppUnit::CompilerOutputter( &runner.result(),
-                                                       std::cerr ) );
-  return !runner.run();
 }

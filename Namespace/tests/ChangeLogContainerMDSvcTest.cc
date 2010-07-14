@@ -6,26 +6,25 @@
 #include <cppunit/CompilerOutputter.h>
 #include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
-#include "ChangeLogContainerMDSvcTest.hh"
-
 #include <stdint.h>
 #include <unistd.h>
 
 #include "Namespace/persistency/ChangeLogContainerMDSvc.hh"
 
 //------------------------------------------------------------------------------
-// Generic file md test declaration
+// Declaration
 //------------------------------------------------------------------------------
-CppUnit::Test *ChangeLogContainerMDSvcTest::suite()
+class ChangeLogContainerMDSvcTest: public CppUnit::TestCase
 {
-  CppUnit::TestSuite *suiteOfTests
-              = new CppUnit::TestSuite( "ChangeLogContainerMDSvcTest" );
+  public:
+    CPPUNIT_TEST_SUITE( ChangeLogContainerMDSvcTest );
+      CPPUNIT_TEST( reloadTest );
+    CPPUNIT_TEST_SUITE_END();
 
-  suiteOfTests->addTest( new CppUnit::TestCaller<ChangeLogContainerMDSvcTest>( 
-                               "reloadTest", 
-                               &ChangeLogContainerMDSvcTest::reloadTest ) );
-  return suiteOfTests;
-}
+    void reloadTest();
+};
+
+CPPUNIT_TEST_SUITE_REGISTRATION( ChangeLogContainerMDSvcTest );
 
 //------------------------------------------------------------------------------
 // Concrete implementation tests
@@ -138,16 +137,4 @@ void ChangeLogContainerMDSvcTest::reloadTest()
   {
     CPPUNIT_ASSERT_MESSAGE( e.getMessage().str(), false );
   }
-}
-
-//------------------------------------------------------------------------------
-// Start the show
-//------------------------------------------------------------------------------
-int main( int argc, char **argv)
-{
-  CppUnit::TextUi::TestRunner runner;
-  runner.addTest( ChangeLogContainerMDSvcTest::suite() );
-  runner.setOutputter( new CppUnit::CompilerOutputter( &runner.result(),
-                                                       std::cerr ) );
-  return !runner.run();
 }

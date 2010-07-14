@@ -6,7 +6,6 @@
 #include <cppunit/CompilerOutputter.h>
 #include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
-#include "HierarchicalViewTest.hh"
 
 #include <stdint.h>
 #include <unistd.h>
@@ -16,18 +15,19 @@
 #include "Namespace/persistency/ChangeLogFileMDSvc.hh"
 
 //------------------------------------------------------------------------------
-// Generic file md test declaration
+// Declaration
 //------------------------------------------------------------------------------
-CppUnit::Test *HierarchicalViewTest::suite()
+class HierarchicalViewTest: public CppUnit::TestCase
 {
-  CppUnit::TestSuite *suiteOfTests
-              = new CppUnit::TestSuite( "HierarchicalViewTest" );
+  public:
+    CPPUNIT_TEST_SUITE( HierarchicalViewTest );
+      CPPUNIT_TEST( reloadTest );
+    CPPUNIT_TEST_SUITE_END();
 
-  suiteOfTests->addTest( new CppUnit::TestCaller<HierarchicalViewTest>( 
-                               "reloadTest",
-                               &HierarchicalViewTest::reloadTest ) );
-  return suiteOfTests;
-}
+    void reloadTest();
+};
+
+CPPUNIT_TEST_SUITE_REGISTRATION( HierarchicalViewTest );
 
 //------------------------------------------------------------------------------
 // Concrete implementation tests
@@ -117,16 +117,4 @@ void HierarchicalViewTest::reloadTest()
   {
     CPPUNIT_ASSERT_MESSAGE( e.getMessage().str(), false );
   }
-}
-
-//------------------------------------------------------------------------------
-// Start the show
-//------------------------------------------------------------------------------
-int main( int argc, char **argv)
-{
-  CppUnit::TextUi::TestRunner runner;
-  runner.addTest( HierarchicalViewTest::suite() );
-  runner.setOutputter( new CppUnit::CompilerOutputter( &runner.result(),
-                                                       std::cerr ) );
-  return !runner.run();
 }

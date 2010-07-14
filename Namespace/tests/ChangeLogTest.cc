@@ -6,7 +6,6 @@
 #include <cppunit/CompilerOutputter.h>
 #include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
-#include "ChangeLogTest.hh"
 
 #include <stdint.h>
 #include <unistd.h>
@@ -20,6 +19,22 @@
 #include "Namespace/IFileMDSvc.hh"
 
 #define NUMTESTFILES 1000
+
+//------------------------------------------------------------------------------
+// Declaration
+//------------------------------------------------------------------------------
+class ChangeLogTest: public CppUnit::TestCase
+{
+  public:
+    CPPUNIT_TEST_SUITE( ChangeLogTest );
+      CPPUNIT_TEST( readWriteCorrectness );
+      CPPUNIT_TEST( followingTest );
+    CPPUNIT_TEST_SUITE_END();
+    void readWriteCorrectness();
+    void followingTest();
+};
+
+CPPUNIT_TEST_SUITE_REGISTRATION( ChangeLogTest );
 
 //------------------------------------------------------------------------------
 // Dummy file MD service
@@ -44,24 +59,6 @@ class DummyFileMDSvc: public eos::IFileMDSvc
     virtual void addChangeListener( eos::IFileMDChangeListener *listener ) {}
     virtual void notifyListeners( eos::IFileMDChangeListener::Event *event ) {}
 };
-
-//------------------------------------------------------------------------------
-// Generic file md test declaration
-//------------------------------------------------------------------------------
-CppUnit::Test *ChangeLogTest::suite()
-{
-  CppUnit::TestSuite *suiteOfTests
-              = new CppUnit::TestSuite( "ChangeLogTest" );
-
-  suiteOfTests->addTest( new CppUnit::TestCaller<ChangeLogTest>(
-                               "readWriteCorrectness",
-                               &ChangeLogTest::readWriteCorrectness ) );
-  suiteOfTests->addTest( new CppUnit::TestCaller<ChangeLogTest>(
-                               "followingTest",
-                               &ChangeLogTest::followingTest ) );
-
-  return suiteOfTests;
-}
 
 //------------------------------------------------------------------------------
 // Fill a file metadata
@@ -287,16 +284,4 @@ void ChangeLogTest::followingTest()
   }
   file.close();
   unlink( "/tmp/test_changelog.dat" );
-}
-
-//------------------------------------------------------------------------------
-// Start the show
-//------------------------------------------------------------------------------
-int main( int argc, char **argv)
-{
-  CppUnit::TextUi::TestRunner runner;
-  runner.addTest( ChangeLogTest::suite() );
-  runner.setOutputter( new CppUnit::CompilerOutputter( &runner.result(),
-                                                       std::cerr ) );
-  return !runner.run();
 }
