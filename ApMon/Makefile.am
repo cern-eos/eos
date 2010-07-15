@@ -36,10 +36,12 @@ uninstall-local :
 		for name in ` find perl -type f | grep -v svn`; do rm $(DESTDIR)/$(prefix)/$$name; done
 	        rm $(DESTDIR)/$(prefix)/perl/eos-ns-monitor.pl
 
-bin_PROGRAMS = eos_apmond
+bin_PROGRAMS = eos_apmond eos_ns_apmond
 
 
-eos_apmond_SOURCES = eosapmond.c
+eos_apmond_SOURCES = eosapmond.c 
+
+eos_ns_apmond_SOURCES= eosnsapmond.c
 
 rpm:    dist
 	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/

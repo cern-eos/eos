@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-#       /etc/rc.d/init.d/eosapmond
+#       /etc/rc.d/init.d/eosnsapmond
 #
 # Starts xrootd 
 #
 # chkconfig: 345 95 5
 # description: Starts apmon to monitor xrootd on EOS
-# processname: ApMon
+# processname: eosnsapmond
 
 # Source function library.
 XRDLOCATION="/opt/eos/"
@@ -19,11 +19,16 @@ XRDUSER="daemon"
 
 
 
+if [[ "${XRD_ROLES}" =~ "mgm" ]] ; then 
+    XRDROLE="mgm";
+    XRDUSER="root"
+fi
+
 
 mkdir -p ${XRDLOGDIR}/${XRDROLE}
 chown -R $XRDUSER ${XRDLOGDIR}
 
-prog="eos_apmond"
+prog="eos_ns_apmond"
 
 if test ! -x ${XRDLOCATION}/bin/$prog ; then
   echo Error: ${XRDLOCATION}/bin/$prog does not exist
@@ -56,42 +61,22 @@ if [ $cmspid="" ]; then
 fi
     
 
-srvMonCmds="\$apm->addJobToMonitor($xrdpid, '', 'xrootd_Services', '$host'); "
-
 MONALISA_HOST=${MONALISAHOST:-"lxbra0301.cern.ch"}
 APMON_DEBUG_LEVEL=${APMON_DEBUG_LEVEL:-"WARNING"}
 destination=${APMON_CONFIG:-"['$MONALISA_HOST']"}
 now=`date`
-exe="use strict;
-use warnings;
-use ApMon;
-my \$apm = new ApMon(0);
-print \"$now\\n\";
-select STDOUT; \$| = 1;
-select STDERR; \$| = 1;
-\$apm->setLogLevel('$APMON_DEBUG_LEVEL');
-\$apm->setDestinations($destination);
-\$apm->setMonitorClusterNode('${host_Group}_Nodes', '$host');
-$srvMonCmds
-
-while(1){
-  \$apm->sendBgMonitoring();
-  sleep(120);
-}
-"
 
  
-EOSAPMONSTARTUPFILE="/tmp/.$prog.startup.pl" 
-echo $exe > ${EOSAPMONSTARTUPFILE}
-
 # if we are a manager we start the namespace monitor
+if [[ "${XRD_ROLES}" =~ "mgm" ]] ; then 
+    EOSAPMONSTARTUPFILE="${XRDLOCATION}/perl/eos-ns-monitor.pl"
+fi
 
 start() {
-        # Check if eosapmond is already running
-        avoid=$$;
+        # Check if eosnsapmond is already running
         if [ ! `pgrep -f -u ${XRDUSER} $prog `  ]; then
             echo -n "Starting $prog: "
-            daemon --user ${XRDUSER} "source /etc/sysconfig/xrd; cd ${XRDCOREDIR}; ulimit -c unlimited; export PERL5LIB=${XRDLOCATION}/perl/ApMon; ${XRDLOCATION}/bin/$prog ${EOSAPMONSTARTUPFILE} ${XRDLOGDIR}/${XRDROLE}/eosapmonlog >& /dev/null < /dev/null" 
+            daemon --user ${XRDUSER} "source /etc/sysconfig/xrd; cd ${XRDCOREDIR}; ulimit -c unlimited; export PERL5LIB=${XRDLOCATION}/perl/ApMon; ${XRDLOCATION}/bin/$prog ${EOSAPMONSTARTUPFILE} ${XRDLOGDIR}/${XRDROLE}/eosnsapmonlog >& /dev/null < /dev/null" 
             RETVAL=$?
 	    [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
             echo
