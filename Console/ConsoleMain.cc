@@ -1929,6 +1929,8 @@ com_find (char* arg1) {
   XrdOucString s1;
   XrdOucString path;
   XrdOucString option="";
+  XrdOucString attribute="";
+  XrdOucString printkey="";
   XrdOucString in = "mgm.cmd=find&"; 
   while ( (s1 = subtokenizer.GetToken()).length() && (s1.beginswith("-")) ) {
     if (s1 == "-d") {
@@ -1942,6 +1944,27 @@ com_find (char* arg1) {
     if (s1.beginswith( "-h" )) {
       goto com_find_usage;
     }
+
+    if (s1 == "-x") {
+      option += "x";
+
+      attribute = subtokenizer.GetToken();
+
+      if (!attribute.length())
+	goto com_find_usage;
+
+      if ((attribute.find("&")) != STR_NPOS)
+	goto com_find_usage;
+    }
+
+    if (s1 == "-p") {
+      option += "p";
+      
+      printkey = subtokenizer.GetToken();
+      
+      if (!printkey.length()) 
+	goto com_find_usage;
+    }
   }
   
   if (s1.length()) {
@@ -1953,12 +1976,22 @@ com_find (char* arg1) {
   in += path;
   in += "&mgm.option=";
   in += option;
-  
+  if (attribute.length()) {
+    in += "&mgm.find.attribute=";
+    in += attribute;
+  }
+  if (printkey.length()) {
+    in += "mgm.find.printkey=";
+    in += printkey;
+  }
+
   global_retc = output_result(client_user_command(in));
   return (0);
 
  com_find_usage:
-  printf("usage: find [-d] [-f] <path>                                                  :  find files(-f) or directories (-d) in <path>\n");
+  printf("usage: find [-d] [-f] [-x <key=<val>] [-p <key>] <path>                       :  find files(-f) or directories (-d) in <path>\n");
+  printf("                                                                              :  find entries(-x) with <key>=<val>\n");
+  printf("                                                                              :  additionally print (-p) the value of <key> for each entry\n");
   printf("                                                                      default :  find files and directories\n");
   return (0);
 }
