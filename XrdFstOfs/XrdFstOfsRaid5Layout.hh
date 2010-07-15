@@ -14,9 +14,13 @@
 
 class XrdFstOfsRaid5Layout : public XrdFstOfsLayout {
 private:
+  off_t lastOffset;
   int nStripes;
   int stripeWidth; // this is given in 1024bytes units
   bool fileDegraded;
+  std::vector<char*> parityBuffer;
+  off_t lastParity;
+
   XrdClient* replicaClient[XrdCommonLayoutId::kSixteenStripe];
   XrdOucString replicaUrl[XrdCommonLayoutId::kSixteenStripe];;
 

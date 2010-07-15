@@ -30,10 +30,10 @@ sub convert {
     my $val=shift;
     my $exp=shift;
 
-    if ($exp eq "K") {$val *= 1000;}
-    if ($exp eq "M") {$val *= 1000000;}
-    if ($exp eq "G") {$val *= 1000000000;}
-    if ($exp eq "T") {$val *= 1000000000000;}
+    if ($exp =~/^K/) {$val *= 1000;}
+    if ($exp =~/^M/) {$val *= 1000000;}
+    if ($exp =~/^G/) {$val *= 1000000000;}
+    if ($exp =~/^T/) {$val *= 1000000000000;}
     return $val;
 }
 

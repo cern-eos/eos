@@ -15,6 +15,8 @@ XrdFstOfsRaid5Layout::XrdFstOfsRaid5Layout(XrdFstOfsFile* thisFile,int lid, XrdO
     replicaUrl[i] = "";
   }
   fileDegraded=false;
+  lastOffset = 0;
+  lastParity = 0;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -37,6 +39,10 @@ XrdFstOfsRaid5Layout::open(const char                *path,
     return gOFS.Emsg("Raid5Open",*error, EIO, "open stripes - stripe width must be atleast 64");
   }
 
+  for (int i=0; i< nStripes; i++) {
+    parityBuffer[i] = new char[stripeWidth];
+  }
+    
   int nmissing = 0;
   // assign stripe urls'
   for (int i=0; i< nStripes; i++) {
@@ -101,33 +107,32 @@ XrdFstOfsRaid5Layout::read(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize
   if (fileDegraded) {
     // rebuild using parity
   } else {
-    size_t plength = length;
-    off_t  poffset = 0;
     // straight forward read - we don't use asynchronous reads here, but we can do that later!
 
     // first read must align to stripe width and read a partial page
-    int nclient = (offset/(stripeWidth))%nStripes;
-    off_t noffset = offset/(nStripes) + offset%(stripeWidth);
-    size_t nread = stripeWidth - noffset;
-    
-    if (!replicaClient[nclient]->Read(buffer, noffset, nread)) {
+    int nclient = (offset/(stripeWidth))%(nStripes-1);
+    int  nread = stripeWidth - (offset %stripeWidth);
+    int aread = 0;
+
+    if ((!(aread=replicaClient[nclient]->Read(buffer, offset, nread))) || (aread != nread)) {
+      // read error!
+      return gOFS.Emsg("Raid5Read",*error, EIO, "read stripe - read failed ", replicaUrl[nclient].c_str());
+    }
+
+    offset += aread;
+    length -= aread;
+    buffer += aread;
+    while (length) {
+      int nread = ((length)> ((size_t)stripeWidth))?stripeWidth:length;
+      int nclient = (offset/(stripeWidth))%(nStripes-1);
+      int aread=0;
+      if ((!(aread = replicaClient[nclient]->Read(buffer, offset, nread))) || (aread != nread)) {
 	// read error!
 	return gOFS.Emsg("Raid5Read",*error, EIO, "read stripe - read failed ", replicaUrl[nclient].c_str());
-    }
-    
-    // now we align to the next full page offset
-    poffset = offset/(nStripes) + (stripeWidth);
-    plength = length - nread;
-
-    while (plength) {
-      int nread = ((plength)> ((size_t)stripeWidth))?stripeWidth:plength;
-      int nclient = (poffset/(stripeWidth))%nStripes;
-      if (!replicaClient[nclient]->Read(buffer+(poffset-offset), poffset, nread)) {
-	// read error!
-return gOFS.Emsg("Raid5Read",*error, EIO, "read stripe - read failed ", replicaUrl[nclient].c_str());
       }
-      plength -= nread;
-      poffset += nread;
+      length -= nread;
+      offset += nread;
+      buffer += nread;
     }
 
     // well, everything read 
@@ -139,6 +144,53 @@ return gOFS.Emsg("Raid5Read",*error, EIO, "read stripe - read failed ", replicaU
 int 
 XrdFstOfsRaid5Layout::write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
 {
+  // currently we support only sequential writes
+  if (offset != lastOffset) {
+    return gOFS.Emsg("Raid5Write",*error, EIO, "write stripe - no sequential write requested ", replicaUrl[0].c_str());
+  }
+
+  if (offset % stripeWidth) {
+    return gOFS.Emsg("Raid5Write",*error, EIO, "write stripe - offset is not stripe width aligned", replicaUrl[0].c_str());
+  }
+  
+  while (length) {
+    int nclient = (offset / stripeWidth) % (nStripes-1);
+    size_t nwrite = (length<stripeWidth)? length: stripeWidth;
+
+    if (!replicaClient[nclient]->Write(buffer, offset, nwrite)) {
+      // write error!
+      return gOFS.Emsg("Raid5Write",*error, EIO, "write stripe - write failed ", replicaUrl[nclient].c_str());
+    }
+    offset += nwrite;
+    length -= nwrite;
+    buffer += nwrite;
+
+    if (offset == (lastParity + ( (nStripes-1) * stripeWidth ))) {
+      // compute parity and commit
+      for (unsigned int i=0; i< (nStripes-1); i++) {
+	int aread =0;
+	if ((!(aread = replicaClient[i]->Read(parityBuffer[i], lastParity + (i*stripeWidth), stripeWidth))) || (aread != stripeWidth)) {
+	  return gOFS.Emsg("Raid5Write",*error, EIO, "read stripe - read for parity computation failed ", replicaUrl[i].c_str());
+	}
+      }
+      // compute parity
+      char* paritybuffer = parityBuffer[nStripes-1];
+      memset(paritybuffer,0,stripeWidth);
+      for (unsigned int s=0; s< (nStripes-1); s++) {
+	for (int i=0; i< stripeWidth; i++) {
+	  *paritybuffer ^= *(parityBuffer[s]+i);
+	}
+      }
+      // write parity
+      if (!replicaClient[nStripes-1]->Write(parityBuffer[nStripes-1], lastParity, stripeWidth)) {
+	return gOFS.Emsg("Raid5Write",*error, EIO, "write parity stripe - write for parity failed ", replicaUrl[nStripes-1].c_str());
+      }
+      lastParity = offset;
+    }
+  }
+  
+  lastOffset = offset;
+
   return 0;
 }
 
@@ -146,17 +198,9 @@ XrdFstOfsRaid5Layout::write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSiz
 int
 XrdFstOfsRaid5Layout::truncate(XrdSfsFileOffset offset)
 {
-  int nclient = (offset / stripeWidth) % nStripes;
   for (int i=0; i< nStripes; i++) {
     if (replicaClient[i]) {
-      off_t newoffset;
-      if (nclient == i) {
-	// this client is responsible for an incomplete page!
-	newoffset = (offset/ nStripes) + offset%(stripeWidth);
-      } else {
-	newoffset = (offset/ nStripes);
-      }
-      if (!replicaClient[i]->Truncate(newoffset)) {
+      if (!replicaClient[i]->Truncate(offset)) {
 	return gOFS.Emsg("Raid5Truncate",*error, EIO, "truncate stripe - truncate failed ", replicaUrl[i].c_str());	
       }
     }
@@ -181,6 +225,37 @@ XrdFstOfsRaid5Layout::sync()
 int
 XrdFstOfsRaid5Layout::close()
 {
+  // write last parity chunk
+  if (lastParity != lastOffset) {
+    // compute last parity chunk
+
+    // compute parity and commit
+    for (unsigned int i=0; i< (nStripes-1); i++) {
+      int aread =0;
+      if (!(aread = replicaClient[i]->Read(parityBuffer[i], lastParity + (i*stripeWidth), stripeWidth))) {
+	return gOFS.Emsg("Raid5Write",*error, EIO, "read stripe - read for parity computation failed ", replicaUrl[i].c_str());
+      }
+      if (aread != stripeWidth) {
+	// memset the rest
+	memset(parityBuffer[i]+aread, 0, stripeWidth-aread);
+      }
+    }
+
+    // compute parity
+    char* paritybuffer = parityBuffer[nStripes-1];
+    memset(paritybuffer,0,stripeWidth);
+    for (unsigned int s=0; s< (nStripes-1); s++) {
+      for (int i=0; i< stripeWidth; i++) {
+	*paritybuffer ^= *(parityBuffer[s]+i);
+      }
+    }
+    // write parity
+    if (!replicaClient[nStripes-1]->Write(parityBuffer[nStripes-1], lastParity, stripeWidth)) {
+      return gOFS.Emsg("Raid5Write",*error, EIO, "write parity stripe - write for parity failed ", replicaUrl[nStripes-1].c_str());
+    }
+    lastParity = lastOffset;
+  }
+  
   for (int i=0; i< nStripes; i++) {
     if (!replicaClient[i]->Close()) {
       return gOFS.Emsg("Raid5Close",*error, EIO, "close stripe - close failed ", replicaUrl[i].c_str());	
