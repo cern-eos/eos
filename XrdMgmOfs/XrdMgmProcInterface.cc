@@ -811,7 +811,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  gOFS->eosViewMutex.Lock();
 	  try {
 	    fmd = gOFS->eosView->getFile(statpath.c_str());
-	    inode = fmd->getId();
+	    inode = fmd->getId() << 28;
 	  } catch ( eos::MDException &e ) {
 	    errno = e.getErrno();
 	    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());

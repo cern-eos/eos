@@ -1143,7 +1143,12 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     //-------------------------------------------
   }
 
-
+  // check permission
+  if (dir && dir->access(vid.uid,vid.gid, X_OK|W_OK)) {
+    errno = EPERM;
+    return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
+  }
+  
   // check if the path exists anyway
   if (Mode & SFS_O_MKPTH) {
     recurse = true;
@@ -1620,7 +1625,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     memset(buf, sizeof(struct stat),0);
     
     buf->st_dev     = 0xcaff;
-    buf->st_ino     = fmd->getId();
+    buf->st_ino     = fmd->getId() << 28;
     buf->st_mode    = S_IFREG;
     buf->st_mode    |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR );
     buf->st_nlink   = 1;
