@@ -40,6 +40,7 @@ make install DESTDIR=$RPM_BUILD_ROOT
 %config(noreplace) /etc/logrotate.d/xrd
 %_sysconfdir/rc.d/init.d/xrd
 %_sysconfdir/rc.d/init.d/cmsd
+%_sysconfdir/rc.d/init.d/eos-gridftp
 
 %clean
 rm -rf $RPM_BUILD_ROOT
