@@ -30,10 +30,11 @@ sub convert {
     my $val=shift;
     my $exp=shift;
 
-    if ($exp =~/^K/) {$val *= 1000;}
-    if ($exp =~/^M/) {$val *= 1000000;}
-    if ($exp =~/^G/) {$val *= 1000000000;}
-    if ($exp =~/^T/) {$val *= 1000000000000;}
+    if ($exp =~/^K/) {$val *= 1000.0;}
+    if ($exp =~/^M/) {$val *= 1000000.0;}
+    if ($exp =~/^G/) {$val *= 1000000000.0;}
+    if ($exp =~/^T/) {$val *= 1000000000000.0;}
+    $val = sprintf("%g", $val);
     return $val;
 }
 

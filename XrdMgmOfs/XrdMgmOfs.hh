@@ -267,7 +267,8 @@ const   char          *getVersion();
 			     XrdOucErrInfo    &out_error,
 			     XrdCommonMapping::VirtualIdentity &vid,
 			     std::vector< std::vector<std::string> > &found_dirs,
-			     std::vector< std::vector<std::string> > &found_files );
+			     std::vector< std::vector<std::string> > &found_files,
+			     const char* key=0, const char* val=0);
    
         int            remdir(const char             *dirName,
                                     XrdOucErrInfo    &out_error,
@@ -373,7 +374,8 @@ const   char          *getVersion();
 				 XrdCommonMapping::VirtualIdentity &vid,
 				 const char             *opaque,
 				 const char             *key,
-				 XrdOucString           &value);
+				 XrdOucString           &value, 
+				 bool                    islocked=false);
 
 
         int            _attr_rem(const char             *path,

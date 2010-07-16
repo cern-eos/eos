@@ -724,6 +724,26 @@ com_attr (char* arg1) {
   if ( subcommand == "set") {
     XrdOucString key   = arg;
     XrdOucString value = subtokenizer.GetToken();
+    
+    if (value.beginswith("\"")) {
+      if (!value.endswith("\"")) {
+	do {
+	  XrdOucString morevalue = subtokenizer.GetToken();
+	  
+	  if (morevalue.endswith("\"")) {
+	    value += " ";
+	    value += morevalue;
+	    break;
+	  }
+	  if (!morevalue.length()) {
+	    goto com_attr_usage;
+	  }
+	  value += " ";
+	  value += morevalue;
+	} while (1);
+      }
+    }
+
     XrdOucString path  = subtokenizer.GetToken();
     if (!key.length() || !value.length() || !path.length()) 
       goto com_attr_usage;
@@ -765,10 +785,10 @@ com_attr (char* arg1) {
   printf("         attr: sys.forced.space=<space>         = enforces to use <space>    [configuration dependend]\n");
   printf("         attr: sys.forced.layout=<layout>       = enforces to use <layout>   [<layout>=(plain,replica,raid5)\n");
   printf("         attr: sys.forced.checksum=<checksum>   = enforces to use <checksum> [<checksum>=(adler,crc32,md5,sha)\n");
-  printf("         attr: sys.forced.nstripes=<n>          = enforces to use <n> stripes[<n>= 1..16\n");
+  printf("         attr: sys.forced.nstripes=<n>          = enforces to use <n> stripes[<n>= 1..16]\n");
   printf("         attr: sys.forced.stripewidth=<w>       = enforces to use a stripe width of <w> kb\n");
   printf("         attr: sys.forced.nouserlayout=1        = disables the user settings with user.forced.<xxx>\n");
-  printf("         attr: sys.forced.nofsselection=1       = disables user defined filesystem selection with environmentvariables for reads\n");
+  printf("         attr: sys.forced.nofsselection=1       = disables user defined filesystem selection with environment variables for reads\n");
   printf("         attr: sys.stall.unavailable=<sec>      = stall clients for <sec> seconds if a needed file system is unavailable\n");
   printf("         User Variables:\n");
   printf("         -----------------------\n");
@@ -777,9 +797,11 @@ com_attr (char* arg1) {
   printf("         attr: user.forced.checksum=<checksum>  = s.a.\n");
   printf("         attr: user.forced.nstripes=<n>         = s.a.\n");
   printf("         attr: user.forced.stripewidth=<n>      = s.a.\n");
-  printf("         attr: user.forced.nouserlayout=1       = disables the user settings with environment variables in the open information\n");
-  printf("         attr: user.forced.nofsselection=1      = disables user defined filesystem selection with environment variables for reads\n");
-  printf("         attr: user.stall.unavailable=<sec>     = stall clients for <sec> seconds if a needed file system is unavailable\n");
+  printf("         attr: user.forced.nouserlayout=1       = s.a.\n");
+  printf("         attr: user.forced.nofsselection=1      = s.a.\n");
+  printf("         attr: user.stall.unavailable=<sec>     = s.a.\n");
+  printf("         attr: user.tag=<tag>                   = - tag to group files for scheduling and flat file distribution\n");
+  printf("                                                  - use this tag to define datasets (if <tag> contains space use tag with quotes)\n");
   return (0);
 }
 
@@ -1981,7 +2003,7 @@ com_find (char* arg1) {
     in += attribute;
   }
   if (printkey.length()) {
-    in += "mgm.find.printkey=";
+    in += "&mgm.find.printkey=";
     in += printkey;
   }
 

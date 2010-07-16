@@ -1839,7 +1839,8 @@ int XrdMgmOfs::_find(const char       *path,             // In
 		     XrdOucErrInfo    &out_error,        // Out
 		     XrdCommonMapping::VirtualIdentity &vid, // In
 		     std::vector< std::vector<std::string> > &found_dirs, // Out
-		     std::vector< std::vector<std::string> > &found_files // Out
+		     std::vector< std::vector<std::string> > &found_files, // Out
+		     const char* key, const char* val
 		     )
 {
   // try if that is directory
@@ -1878,7 +1879,18 @@ int XrdMgmOfs::_find(const char       *path,             // In
 	eos::ContainerMD::ContainerMap::iterator dit;
 	for ( dit = cmd->containersBegin(); dit != cmd->containersEnd(); ++dit) {
 	  std::string fpath = Path.c_str(); fpath += dit->second->getName(); fpath+="/";
-	  found_dirs[deepness+1].push_back(fpath);
+	  // check if we select by tag
+	  if (key) {
+	    std::string sval = val;
+	    XrdOucString attr="";
+	    if(!gOFS->_attr_get(fpath.c_str(), out_error, vid, (const char*) 0, key, attr, true)) {
+	      if (attr == val) {
+		found_dirs[deepness+1].push_back(fpath);
+	      }
+	    }
+	  } else {
+	    found_dirs[deepness+1].push_back(fpath);
+	  }
 	}
 
 	eos::ContainerMD::FileMap::iterator fit;
@@ -2582,7 +2594,8 @@ XrdMgmOfs::_attr_get(const char             *path,
 		     XrdCommonMapping::VirtualIdentity &vid,
 		     const char             *info,
 		     const char             *key,
-		     XrdOucString           &value)
+		     XrdOucString           &value,
+		     bool                    islocked)
 {
   static const char *epname = "attr_set";  
   eos::ContainerMD *dh=0;
@@ -2596,7 +2609,7 @@ XrdMgmOfs::_attr_get(const char             *path,
   value = "";
 
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
+  if(!islocked) gOFS->eosViewMutex.Lock();
   try {
     dh = gOFS->eosView->getContainer(path);
     XrdOucString Key = key;
@@ -2613,7 +2626,7 @@ XrdMgmOfs::_attr_get(const char             *path,
   if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
     if (!errno) errno = EPERM;
   
-  gOFS->eosViewMutex.UnLock();
+  if (!islocked) gOFS->eosViewMutex.UnLock();
   
   if (errno) 
     return  Emsg(epname,error,errno,"list attributes",path);;  

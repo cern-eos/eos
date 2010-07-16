@@ -1212,6 +1212,16 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
     if ( cmd == "find" ) {
       XrdOucString path = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
+      XrdOucString attribute = opaque.Get("mgm.find.attribute");
+      XrdOucString key = attribute;
+      XrdOucString val = attribute;
+      XrdOucString printkey = opaque.Get("mgm.find.printkey");
+
+      if (attribute.length()) {
+	key.erase(attribute.find("="));
+	val.erase(0, attribute.find("=")+1);
+      }
+
       if (!path.length()) {
 	stdErr="error: you have to give a path name to call 'find'";
 	retc = EINVAL;
@@ -1219,12 +1229,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	std::vector< std::vector<std::string> > found_dirs;
 	std::vector< std::vector<std::string> > found_files;
 
-	if (gOFS->_find(path.c_str(), *error, *pVid, found_dirs , found_files)) {
+
+	if (gOFS->_find(path.c_str(), *error, *pVid, found_dirs , found_files, key.c_str(),val.c_str())) {
 	  stdErr += "error: unable to remove file/directory";
 	  retc = errno;
 	}
 
-	if ( ((option.find("f")) != STR_NPOS) || (!option.length())) {
+	if ( ((option.find("f")) != STR_NPOS) || ((option.find("d"))==STR_NPOS)) {
 	  for (unsigned int i = 0 ; i< found_files.size(); i++) {
 	    std::sort(found_files[i].begin(), found_files[i].end());
 	    for (unsigned int j = 0; j< found_files[i].size(); j++) {
@@ -1234,10 +1245,22 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  } 
 	}
 	
-	if ( ((option.find("d")) != STR_NPOS) || (!option.length())){
+	if ( ((option.find("d")) != STR_NPOS) || ((option.find("f"))==STR_NPOS)){
 	  for (unsigned int i = 0; i< found_dirs.size(); i++) {
 	    std::sort(found_dirs[i].begin(), found_dirs[i].end());
 	    for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
+	      XrdOucString attr="";
+	      if (printkey.length()) {
+		gOFS->_attr_get(found_dirs[i][j].c_str(), *error, vid, (const char*) 0, printkey.c_str(), attr);
+	      }
+	      if (printkey.length()) {
+		char pattr[4096];
+		if (!attr.length()) {
+		  attr = "undef";
+		}
+		sprintf(pattr,"%-32s",attr.c_str());
+		stdOut += pattr;
+	      }
 	      stdOut += found_dirs[i][j].c_str();
 	      stdOut += "\n";
 	    }
@@ -1296,11 +1319,18 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		    retc = errno;
 		  } else {
 		    eos::ContainerMD::XAttrMap::const_iterator it;
+		    if ( option == "r" ) {
+		      stdOut += found_dirs[i][j].c_str();
+		      stdOut += ":\n";
+		    }
+
 		    for ( it = map.begin(); it != map.end(); ++it) {
 		      partialStdOut += (it->first).c_str(); partialStdOut += "="; partialStdOut += "\""; partialStdOut += (it->second).c_str(); partialStdOut += "\""; partialStdOut +="\n";
 		    }
 		    XrdMqMessage::Sort(partialStdOut);
 		    stdOut += partialStdOut;
+		    if (option == "r") 
+		      stdOut += "\n";
 		  }
 		}
 		
