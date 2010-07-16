@@ -100,12 +100,8 @@ condrestart)
         fi
         ;;
 status)
-	if [ `pgrep -f ${EOS_ROOT}/bin/eosd` ]; then
-	    RETVAL=0
-	else 
-	    echo service eosd is dead.
-	    RETVAL=-1
-	fi
+        status $prog
+	RETVAL=$?
         ;;
 *)
         echo $"Usage: $0 {start|stop|restart|reload|condrestart|status}"
