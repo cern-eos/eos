@@ -178,8 +178,7 @@ while (1) {
     while (<NS>) {
 
 
-	my @tags = split " ",$_;
-	if ($_ =~ /^USER  SPACE/) {
+	my @tags = split " ",$_;	if ($_ =~ /^USER  SPACE/) {
 	    $id = "uid";
 	} 
 	
@@ -246,8 +245,46 @@ while (1) {
                                  );
 	}
     }
-    
+
     close NS;
+
+    my $host = `hostname -f`;
+    if (open NS, "/var/log/xroot/mq/proc/stats") {
+
+	my @alltags;
+	my $taghash=();
+	while(<NS>) {
+	    while ($_ =~ /  /) {
+		$_ =~ s/  / /g;
+	    }
+	    my @tags = split " ",$_;
+	    if (defined $tags[0] && defined $tags[1]) {
+		my $tag = $tags[0];
+		$tag =~ s/mq.//;
+		$taghash->{$tag} = $tags[1];
+	    }
+	}
+	$apm->sendParameters('Mq', "/eos/$host",
+			     'received',$taghash->{'received'},
+			     'delivered',$taghash->{'delivered'},
+			     'fanout',$taghash->{'fanout'},
+			     'advisory',$taghash->{'advisory'},
+			     'undeliverable',$taghash->{'undeliverable'},
+			     'total',$taghash->{'total'},
+			     'queued',$taghash->{'queued'},
+			     'nqueues',$taghash->{'nqueues'},
+			     'backloghits',$taghash->{'backloghits'},
+			     'in_rate',$taghash->{'in_rate'},
+			     'out_rate',$taghash->{'out_rate'},
+			     'fan_rate',$taghash->{'fan_rate'},
+			     'advisory_rate',$taghash->{'advisory_rate'},
+			     'undeliverable_rate',$taghash->{'undevliverable_rate'},
+			     'total_rate',$taghash->{'total_rate'}
+			     );
+	close NS;
+    }
+    
+    
 
     sleep(10);
 }

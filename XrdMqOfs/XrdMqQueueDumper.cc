@@ -31,6 +31,8 @@ int main (int argc, char* argv[]) {
     if (newmessage) {
       fprintf(stdout,"%s\n",newmessage->GetBody());
       delete newmessage;
+    } else {
+      sleep(1);
     }
   }
 }

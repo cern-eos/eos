@@ -32,7 +32,8 @@ echo rm -rf $RPM_BUILD_ROOT
 
 %files
 /etc/init.d/eosapmond
-/opt/eos/bin/eosapmond
+/opt/eos/bin/eos_apmond
+/opt/eos/bin/eos_ns_apmond
 /opt/eos/perl/ApMon/ApMon.pm
 /opt/eos/perl/ApMon/ApMon/BgMonitor.pm
 /opt/eos/perl/ApMon/ApMon/Common.pm

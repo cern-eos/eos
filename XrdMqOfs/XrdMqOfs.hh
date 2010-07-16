@@ -226,6 +226,8 @@ public:
   long long    BacklogDeferred;
   long long    QueueBacklogHits;
   void         Statistics();
+  XrdOucString StatisticsFile;
+
 private:
   
   static  XrdSysError *eDest;

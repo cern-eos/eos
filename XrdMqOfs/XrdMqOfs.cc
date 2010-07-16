@@ -430,6 +430,9 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
   const char *val;
   int  cfgFD;
 
+  StatisticsFile = "/var/log/xroot/mq/proc/stats";
+
+
   QueuePrefix = "/xmessage/";
   QueueAdvisory = "/xmessage/*";
 
@@ -493,12 +496,22 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
 	    QueueAdvisory += "*";
 	  }
 	}
+
+	if (!strcmp("statfile",var)) {
+	  if (( val = Config.GetWord())) {
+	    StatisticsFile = val;
+	  }
+	}
       }
     }
     
     Config.Close();
   }
  
+  XrdOucString basestats = StatisticsFile;
+  basestats.erase(basestats.rfind("/"));
+  XrdOucString mkdirbasestats="mkdir -p "; mkdirbasestats += basestats; mkdirbasestats += " 2>/dev/null";
+  system(mkdirbasestats.c_str());
   
   BrokerId = "root://";
   BrokerId += ManagerId;
@@ -515,10 +528,55 @@ void
 XrdMqOfs::Statistics() {
   EPNAME("Statistics");
   StatLock.Lock();
+  static bool startup=true;
+  static struct timeval tstart;
+  static struct timeval tstop;
+  static struct timezone tz;
+  if (startup) {
+    tstart.tv_sec=0;
+    tstart.tv_usec=0;
+    startup = false;
+  }
+
+  gettimeofday(&tstop,&tz);
+
+  if (!tstart.tv_sec) {
+    gettimeofday(&tstart,&tz);
+    StatLock.UnLock();
+    return;
+  }
+
   const char* tident="";
   time_t now = time(0);
+  float tdiff = ((tstop.tv_sec - tstart.tv_sec)*1000) + (tstop.tv_usec - tstart.tv_usec)/1000;
+  if (tdiff > (60 * 1000) ) {
+    // every minute
+    XrdOucString tmpfile = StatisticsFile; tmpfile += ".tmp";
+    int fd = open(tmpfile.c_str(),O_CREAT|O_RDWR|O_TRUNC, S_IROTH | S_IRGRP | S_IRUSR);
+    if (fd >=0) {
+      char line[4096];
+      sprintf(line,"mq.received               %lld\n",ReceivedMessages); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.delivered              %lld\n",DeliveredMessages); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.fanout                 %lld\n",FanOutMessages); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.advisory               %lld\n",AdvisoryMessages); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.undeliverable          %lld\n",UndeliverableMessages); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.total                  %lld\n",NoMessages); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.queued                 %d\n",Messages.Num()); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.nqueues                %d\n",QueueOut.Num()); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.backloghits            %lld\n",QueueBacklogHits); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.in_rate                %f\n",(1000.0*ReceivedMessages/(tdiff))); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.out_rate               %f\n",(1000.0*DeliveredMessages/(tdiff))); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.fan_rate               %f\n",(1000.0*FanOutMessages/(tdiff))); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.advisory_rate          %f\n",(1000.0*AdvisoryMessages/(tdiff))); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.undeliverable_rate     %f\n",(1000.0*UndeliverableMessages/(tdiff))); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.total_rate             %f\n",(1000.0*NoMessages/(tdiff))); write(fd,line,strlen(line)+1);
+      close(fd);
+      ::rename(tmpfile.c_str(),StatisticsFile.c_str());
+    }
+    gettimeofday(&tstart,&tz);
+  }
+
   if ((now-LastOutputTime) > 2) {
-    printf("Stats printing\n");
     ZTRACE(getstats,"*****************************************************");
     ZTRACE(getstats,"Received  Messages            : " << ReceivedMessages);
     ZTRACE(getstats,"Delivered Messages            : " << DeliveredMessages);

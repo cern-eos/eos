@@ -8,6 +8,6 @@ xrd.sched mint 16 maxt 1024 idle 128
 xrd.port 1097
 #############################################################
 #get some nice statics in the log file about the queue status
-ofs.trace getstats -login -disc all
+#ofs.trace getstats -login -disc all
 #############################################################
 mq.queue /eos/
