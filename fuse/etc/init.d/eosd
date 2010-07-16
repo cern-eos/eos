@@ -44,7 +44,7 @@ start() {
 	    ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
 	    ulimit -n 65000
 	    modprobe fuse
-            ${EOS_ROOT}/bin/eosd ${EOS_MOUNTDIR-/eos/atlas} -omax_readahead=131072,allow_other,url=root://${EOS_RDRURL-eosatlas.cern.ch}/${EOS_MOUNTDIR-/eos/atlas}// -s >& /dev/null 
+            ${EOS_ROOT}/bin/eosd ${EOS_MOUNTDIR-/eos/atlas} -omax_readahead=131072,allow_other,url=root://${EOS_RDRURL-eosatlas.cern.ch}/${EOS_MOUNTDIR-/eos/atlas}//  >& /dev/null 
 
 
             RETVAL=$?

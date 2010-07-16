@@ -19,12 +19,12 @@ LDADD = -L$(XROOTD_LOCATION)/lib -lXrdPosix -L$(FUSE_LOCATION)/lib -lfuse
 
 
 install-exec-local:
-	mkdir -p $(DESTDIR)/usr/bin/
+	mkdir -p $(DESTDIR)/${prefix}/bin/
 	mkdir -p $(DESTDIR)/etc/init.d/
 	mkdir -p $(DESTDIR)/etc/sysconfig/
 	$(INSTALL) -m 755 etc/fuse.conf $(DESTDIR)/etc/fuse.conf
 	$(INSTALL) -m 755 etc/init.d/eosd $(DESTDIR)/etc/init.d/eosd
-	$(INSTALL) -m 755 eosfs.start $(DESTDIR)/bin/eosfs.start
+	$(INSTALL) -m 755 eosfs.start $(DESTDIR)/${prefix}/bin/eosfs.start
 
 
 uninstall-local:

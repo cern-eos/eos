@@ -46,7 +46,7 @@ XrdSysMutex stringstoremutex;
 char*
 STRINGSTORE(const char* __charptr__) {
   XrdOucString* yourstring;
-  if (!__charptr__ ) return "";
+  if (!__charptr__ ) return (char*)"";
 
   if (yourstring = stringstore->Find(__charptr__)) {
     return (char*)yourstring->c_str();
