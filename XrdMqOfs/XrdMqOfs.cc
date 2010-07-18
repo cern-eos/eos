@@ -532,9 +532,11 @@ XrdMqOfs::Statistics() {
   static struct timeval tstart;
   static struct timeval tstop;
   static struct timezone tz;
+  static long long LastReceivedMessages, LastDeliveredMessages, LastFanOutMessages,LastAdvisoryMessages,LastUndeliverableMessages,LastNoMessages;
   if (startup) {
     tstart.tv_sec=0;
     tstart.tv_usec=0;
+    LastReceivedMessages = LastDeliveredMessages = LastFanOutMessages = LastAdvisoryMessages = LastUndeliverableMessages = LastNoMessages = 0;
     startup = false;
   }
 
@@ -564,16 +566,22 @@ XrdMqOfs::Statistics() {
       sprintf(line,"mq.queued                 %d\n",Messages.Num()); write(fd,line,strlen(line));
       sprintf(line,"mq.nqueues                %d\n",QueueOut.Num()); write(fd,line,strlen(line));
       sprintf(line,"mq.backloghits            %lld\n",QueueBacklogHits); write(fd,line,strlen(line));
-      sprintf(line,"mq.in_rate                %f\n",(1000.0*ReceivedMessages/(tdiff))); write(fd,line,strlen(line));
-      sprintf(line,"mq.out_rate               %f\n",(1000.0*DeliveredMessages/(tdiff))); write(fd,line,strlen(line));
-      sprintf(line,"mq.fan_rate               %f\n",(1000.0*FanOutMessages/(tdiff))); write(fd,line,strlen(line));
-      sprintf(line,"mq.advisory_rate          %f\n",(1000.0*AdvisoryMessages/(tdiff))); write(fd,line,strlen(line));
-      sprintf(line,"mq.undeliverable_rate     %f\n",(1000.0*UndeliverableMessages/(tdiff))); write(fd,line,strlen(line));
-      sprintf(line,"mq.total_rate             %f\n",(1000.0*NoMessages/(tdiff))); write(fd,line,strlen(line));
+      sprintf(line,"mq.in_rate                %f\n",(1000.0*(ReceivedMessages-LastReceivedMessages)/(tdiff))); write(fd,line,strlen(line));
+      sprintf(line,"mq.out_rate               %f\n",(1000.0*(DeliveredMessages-LastDeliveredMessages)/(tdiff))); write(fd,line,strlen(line));
+      sprintf(line,"mq.fan_rate               %f\n",(1000.0*(FanOutMessages-LastFanOutMessages)/(tdiff))); write(fd,line,strlen(line));
+      sprintf(line,"mq.advisory_rate          %f\n",(1000.0*(AdvisoryMessages-LastAdvisoryMessages)/(tdiff))); write(fd,line,strlen(line));
+      sprintf(line,"mq.undeliverable_rate     %f\n",(1000.0*(UndeliverableMessages-LastUndeliverableMessages)/(tdiff))); write(fd,line,strlen(line));
+      sprintf(line,"mq.total_rate             %f\n",(1000.0*(NoMessages-LastNoMessages)/(tdiff))); write(fd,line,strlen(line));
       close(fd);
       ::rename(tmpfile.c_str(),StatisticsFile.c_str());
     }
     gettimeofday(&tstart,&tz);
+    LastReceivedMessages = ReceivedMessages;
+    LastDeliveredMessages = DeliveredMessages;
+    LastFanOutMessages = FanOutMessages;
+    LastAdvisoryMessages = AdvisoryMessages;
+    LastUndeliverableMessages = UndeliverableMessages;
+    LastNoMessages = NoMessages;
   }
 
   if ((now-LastOutputTime) > 2) {
