@@ -555,21 +555,21 @@ XrdMqOfs::Statistics() {
     int fd = open(tmpfile.c_str(),O_CREAT|O_RDWR|O_TRUNC, S_IROTH | S_IRGRP | S_IRUSR);
     if (fd >=0) {
       char line[4096];
-      sprintf(line,"mq.received               %lld\n",ReceivedMessages); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.delivered              %lld\n",DeliveredMessages); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.fanout                 %lld\n",FanOutMessages); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.advisory               %lld\n",AdvisoryMessages); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.undeliverable          %lld\n",UndeliverableMessages); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.total                  %lld\n",NoMessages); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.queued                 %d\n",Messages.Num()); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.nqueues                %d\n",QueueOut.Num()); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.backloghits            %lld\n",QueueBacklogHits); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.in_rate                %f\n",(1000.0*ReceivedMessages/(tdiff))); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.out_rate               %f\n",(1000.0*DeliveredMessages/(tdiff))); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.fan_rate               %f\n",(1000.0*FanOutMessages/(tdiff))); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.advisory_rate          %f\n",(1000.0*AdvisoryMessages/(tdiff))); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.undeliverable_rate     %f\n",(1000.0*UndeliverableMessages/(tdiff))); write(fd,line,strlen(line)+1);
-      sprintf(line,"mq.total_rate             %f\n",(1000.0*NoMessages/(tdiff))); write(fd,line,strlen(line)+1);
+      sprintf(line,"mq.received               %lld\n",ReceivedMessages); write(fd,line,strlen(line));
+      sprintf(line,"mq.delivered              %lld\n",DeliveredMessages); write(fd,line,strlen(line));
+      sprintf(line,"mq.fanout                 %lld\n",FanOutMessages); write(fd,line,strlen(line));
+      sprintf(line,"mq.advisory               %lld\n",AdvisoryMessages); write(fd,line,strlen(line));
+      sprintf(line,"mq.undeliverable          %lld\n",UndeliverableMessages); write(fd,line,strlen(line));
+      sprintf(line,"mq.total                  %lld\n",NoMessages); write(fd,line,strlen(line));
+      sprintf(line,"mq.queued                 %d\n",Messages.Num()); write(fd,line,strlen(line));
+      sprintf(line,"mq.nqueues                %d\n",QueueOut.Num()); write(fd,line,strlen(line));
+      sprintf(line,"mq.backloghits            %lld\n",QueueBacklogHits); write(fd,line,strlen(line));
+      sprintf(line,"mq.in_rate                %f\n",(1000.0*ReceivedMessages/(tdiff))); write(fd,line,strlen(line));
+      sprintf(line,"mq.out_rate               %f\n",(1000.0*DeliveredMessages/(tdiff))); write(fd,line,strlen(line));
+      sprintf(line,"mq.fan_rate               %f\n",(1000.0*FanOutMessages/(tdiff))); write(fd,line,strlen(line));
+      sprintf(line,"mq.advisory_rate          %f\n",(1000.0*AdvisoryMessages/(tdiff))); write(fd,line,strlen(line));
+      sprintf(line,"mq.undeliverable_rate     %f\n",(1000.0*UndeliverableMessages/(tdiff))); write(fd,line,strlen(line));
+      sprintf(line,"mq.total_rate             %f\n",(1000.0*NoMessages/(tdiff))); write(fd,line,strlen(line));
       close(fd);
       ::rename(tmpfile.c_str(),StatisticsFile.c_str());
     }
