@@ -609,15 +609,17 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
 
 	eos_static_debug("spacename is %s", innerfilesystem->GetSpaceName());
 
-	// add physical bytes/files
-	spacequota->AddPhysicalTmpFreeBytes(innerfilesystem->GetStatfs()->f_bfree * 4096ll);
-	spacequota->AddPhysicalTmpMaxBytes (innerfilesystem->GetStatfs()->f_blocks * 4096ll)
-;	spacequota->AddPhysicalTmpFreeFiles(innerfilesystem->GetStatfs()->f_ffree * 1ll);
-	spacequota->AddPhysicalTmpMaxFiles (innerfilesystem->GetStatfs()->f_files * 1ll);
-
 	// we recompute only the same space filessytems
 	if ((strcmp(spacename, innerfilesystem->GetSpaceName()))) 
 	  continue;
+
+	// add physical bytes/files
+	spacequota->AddPhysicalTmpFreeBytes(innerfilesystem->GetStatfs()->f_bfree * 4096ll);
+	spacequota->AddPhysicalTmpMaxBytes (innerfilesystem->GetStatfs()->f_blocks * 4096ll);
+	spacequota->AddPhysicalTmpFreeFiles(innerfilesystem->GetStatfs()->f_ffree * 1ll);
+	spacequota->AddPhysicalTmpMaxFiles (innerfilesystem->GetStatfs()->f_files * 1ll);
+
+
       }
 
       spacequota->PhysicalTmpToFreeBytes();
