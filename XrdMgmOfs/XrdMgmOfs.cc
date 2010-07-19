@@ -1144,7 +1144,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   }
 
   // check permission
-  if (dir && dir->access(vid.uid,vid.gid, X_OK|W_OK)) {
+  if (dir && (!dir->access(vid.uid,vid.gid, X_OK|W_OK))) {
     errno = EPERM;
     return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
   }
