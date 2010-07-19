@@ -74,27 +74,27 @@ sub readMemInfo {
 		while($line = <MEM_INFO>){
 			if($line =~ /^MemFree:/){
 				my (undef, $mem_free) = split(/ +/, $line);
-				$this->{DATA}->{"mem_free"} = $mem_free / 1024.0;
+				$this->{DATA}->{"mem_free"} = $mem_free / (1024.0*1024.0);
 			}
 			if($line =~ /^MemTotal:/){
 				my (undef, $mem_total) = split(/ +/, $line);
-				$this->{DATA}->{"total_mem"} = $mem_total / 1024.0;
+				$this->{DATA}->{"total_mem"} = $mem_total / (1024.0*1024.0);
 			}
 			if($line =~ /^SwapFree:/){
 				my (undef, $swap_free) = split(/ +/, $line);
-				$this->{DATA}->{"swap_free"} = $swap_free / 1024.0;
+				$this->{DATA}->{"swap_free"} = $swap_free / (1024.0*1024.0);
 			}
 			if($line =~ /^SwapTotal:/){
 				my (undef, $swap_total) = split(/ +/, $line);
-				$this->{DATA}->{"total_swap"} = $swap_total / 1024.0;
+				$this->{DATA}->{"total_swap"} = $swap_total / (1024.0*1024.0);
 			}
 			if($line =~ /^Buffers:/){
 				my (undef, $buffers) = split(/ +/, $line);
-				$this->{DATA}->{"mem_buffers"} = $buffers / 1024.0;
+				$this->{DATA}->{"mem_buffers"} = $buffers / (1024.0*1024.0);
 			}
 			if($line =~ /^Cached:/){
 				my (undef, $cached) = split(/ +/, $line);
-				$this->{DATA}->{"mem_cached"} = $cached / 1024.0;
+				$this->{DATA}->{"mem_cached"} = $cached / (1024.0*1024.0);
 			}
 		}
 		close MEM_INFO;
@@ -288,10 +288,31 @@ sub readEosDiskValues {
 	my $all = <IN>;
 	if ($all) {
 	    my @vals = split (" ",$all);
-	    $this->{DATA}->{"eos_disk_space"} = sprintf "%d",$vals[0]/1024.0/1024.0;
-	    $this->{DATA}->{"eos_disk_used"}  = sprintf "%d",$vals[1]/1024.0/1024.0;
-	    $this->{DATA}->{"eos_disk_free"}  = sprintf "%d",$vals[2]/1024.0/1024.0;
+	    $this->{DATA}->{"eos_disk_space"} = sprintf "%.03f",$vals[0]/1024.0/1024.0/1024.0/1024.0;
+	    $this->{DATA}->{"eos_disk_used"}  = sprintf "%.03f",$vals[1]/1024.0/1024.0/1024.0/1024.0;
+	    $this->{DATA}->{"eos_disk_free"}  = sprintf "%.03f",$vals[2]/1024.0/1024.0/1024.0/1024.0;
 	    $this->{DATA}->{"eos_disk_usage"} = sprintf "%d",100.0 *$vals[1]/$vals[0];
+	}
+	close(IN);
+    }
+}
+
+sub readEosRpmValues {
+    my $this = shift;
+    if (open IN, "rpm -qa xrootd-server |") {
+	my $all = <IN>;
+	if ($all) {
+	    $all =~ s/xrootd-server-//;
+	    $this->{DATA}->{"xrootd_rpm_version"} = $all;
+	}
+	close(IN);
+    }
+
+    if (open IN, "rpm -qa eos |") {
+	my $all = <IN>;
+	if ($all) {
+	    $all =~ s/eos-//;
+	    $this->{DATA}->{"eos_rpm_version"} = $all;
 	}
 	close(IN);
     }
@@ -539,7 +560,7 @@ sub readJobDiskUsage {
 		my $line = <DU>;
 		if($line){
 			chomp $line;
-			$this->{JOBS}->{$pid}->{DATA}->{'workdir_size'} = $line / 1024.0;
+			$this->{JOBS}->{$pid}->{DATA}->{'workdir_size'} = $line / (1024.0*1024.0);
 		}else{
 			logger("NOTICE", "ProcInfo: cannot get du output for job $pid");
 		}
@@ -625,7 +646,8 @@ sub computeCummulativeParams {
 		my $param = $1 if($rawParam =~ /raw_(.*)/);
 		if($interval != 0){
 			$dataRef->{$param} = $this->diffWithOverflowCheck($dataRef->{$rawParam}, $prevDataRef->{$rawParam}); # absolute difference
-			$dataRef->{$param} = $dataRef->{$param} / $interval / 1024.0 if($param !~ /_errs$/); # if it's _in or _out, compute in KB/sec
+			$dataRef->{$param} = $dataRef->{$param} / $interval / (1024.0*1024.0) if($param !~ /_errs$/); # if it's _in or _out, compute in KB/sec
+
 		}else{
 			delete $dataRef->{$param};
 		}
@@ -699,6 +721,7 @@ sub update {
 	$this->readNetworkInfo();
 	$this->readNetStat();
 	$this->readEosDiskValues();
+	$this->readEosRpmValues();
 	$this->{DATA}->{TIME} = time;
 	for my $pid (keys %{$this->{JOBS}}) {
 		$this->readJobInfo($pid);

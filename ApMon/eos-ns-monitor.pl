@@ -152,6 +152,7 @@ while (1) {
 
 		$apm->sendParameters('FsFileSystems', $tags[1],
 				     'id', $tags[1],
+				     'queue', $tags[0],
 				     'path', $tags[2],
 				     'schedgroup', $tags[3],
 				     'bootstatus', $tags[4],

@@ -29,7 +29,7 @@ $KSI2K = undef; #kilo spec ints 2k for this machine
 # Default options for background monitoring
 %defaultOptions = (
         'job_monitoring' => 1,          # perform (or not) job monitoring
-        'job_interval' => 60,           # at this interval (in seconds)
+        'job_interval' => 10,           # at this interval (in seconds)
         'job_data_sent' => 0,           # time from Epoch when job information was sent; don't touch!
 
         'job_cpu_time' => 1,            # processor time spent running this job in seconds
@@ -87,6 +87,8 @@ $KSI2K = undef; #kilo spec ints 2k for this machine
         'sys_eos_disk_free' => 1,       # free space on a disk server
         'sys_eos_disk_used' => 1,       # used space on a disk server
         'sys_eos_disk_usage' => 1,      # usage in %
+	'sys_eos_rpm_version' => 1,     # read rpm version
+	'sys_xrootd_rpm_version' => 1,  # read xrootd server version
         'general_info' => 1,            # send (or not) general host information once every 2 $sys_interval seconds
         'general_data_sent' => 0,       # time from Epoch when general information was sent; don't touch!
 
@@ -388,7 +390,7 @@ sub getCpuType {
 			my $level3params = 0;
 			while($line = <CACHE_INFO>){
 				$level3params = 1 if($line =~/Cache level 3/);
-				$cpu_type->{"cpu_cache"} = $1 / 1024 if ($level3params && $line =~ /Size\s+:\s+(\d+)/);
+				$cpu_type->{"cpu_cache"} = $1 / 1 if ($level3params && $line =~ /Size\s+:\s+(\d+)/);
 			}
 			close(CACHE_INFO);
 		}else{
