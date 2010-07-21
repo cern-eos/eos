@@ -76,6 +76,7 @@ start() {
         # Check if eostxapmond is already running
         if [ ! `pgrep -f -u ${XRDUSER} $prog `  ]; then
             echo -n "Starting $prog: "
+	    killall -9 xrdmqdumper 2>/dev/null
             daemon --user ${XRDUSER} "source /etc/sysconfig/xrd; cd ${XRDCOREDIR}; ulimit -c unlimited; export PERL5LIB=${XRDLOCATION}/perl/ApMon; ${XRDLOCATION}/bin/$prog ${EOSAPMONSTARTUPFILE} ${XRDLOGDIR}/${XRDROLE}/eostxapmonlog >& /dev/null < /dev/null" 
             RETVAL=$?
 	    [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
@@ -91,6 +92,7 @@ start() {
 
 stop() {
         echo -n "Stopping $prog: "
+	killall -9 xrdmqdumper 2>/dev/null
         killproc /${XRDLOCATION}/bin/$prog
         RETVAL=$?
         [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog

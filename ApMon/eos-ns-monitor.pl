@@ -8,6 +8,7 @@ select STDOUT; $| = 1;
 select STDERR; $| = 1;
 my $monalisahost = $ENV{MONALISAHOST};
 
+
 if ((!defined $monalisahost) || ( $monalisahost eq "")) {
     $monalisahost = "lxbra0301.cern.ch";
 }
@@ -25,6 +26,7 @@ if ((!defined $apmonconfig) || ($apmonconfig eq "")) {
 
 $apm->setLogLevel($apmonwarninglevel);
 $apm->setDestinations(["$monalisahost"]);
+$apm->setMaxMsgRate(10000);
 
 sub convert {
     my $val=shift;
@@ -132,6 +134,7 @@ while (1) {
 	my @tags = split " ",$_;
 
 	if ( ($_ =~ /online/) || ($_ =~ /offline/) ) {
+	    printf " Sending online for $tags[0]\n";
 	    $infohash = {};
 	    $infohash->{id} = $tags[0];
 	    if ($_ =~ /online/) {
@@ -146,9 +149,48 @@ while (1) {
 				 'offline',$infohash->{offline});
 	} else {
 	    if (defined $tags[0] && $tags[0] =~ /^\/eos/) {
+		printf("Sending Fs Info for $tags[1]\n");
 		my $blocks = convert($tags[7],$tags[8]);
 		my $free   = convert($tags[9],$tags[10]);
 		my $files  = convert($tags[11],$tags[12]);
+		my $bootstat = 5;
+		my $configstat = 3;
+
+		if ($tags[4] eq "booted") {
+		    $bootstat = 1;
+		}
+		if ($tags[4] eq "booting") {
+		    $bootstat = 2;
+		}
+		if ($tags[4] eq "bootsent") {
+		    $bootstat = 3;
+		}
+		if ($tags[4] eq "bootfailure") {
+		    $bootstat = 4;
+		}
+		if ($tags[4] eq "opserror") {
+		    $bootstat = 4;
+		}
+		if ($tags[4] eq "down") {
+		    $bootstat = 4;
+		}
+		
+		if ($tags[6] eq "rw") {
+		    $configstat = 1;
+		}
+		if ($tags[6] eq "wo") {
+		    $configstat = 2;
+		}
+		if ($tags[6] eq "ro") {
+		    $configstat = 3;
+		}
+		if ($tags[6] eq "drain") {
+		    $configstat = 4;
+		}
+		if ($tags[6] eq "off") {
+		    $configstat =5;
+		}
+		
 
 		$apm->sendParameters('FsFileSystems', $tags[1],
 				     'id', $tags[1],
@@ -164,7 +206,9 @@ while (1) {
 				     'ropen', $tags[13],
 				     'wopen', $tags[14],
 				     'ec', $tags[15],
-				     'emsg', $tags[16]);
+				     'emsg', $tags[16],
+				     'bootcode',$bootstat,
+				     'configcode',$configstat);
 		
 	    }
 	}

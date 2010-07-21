@@ -25,6 +25,7 @@ if ((!defined $apmonconfig) || ($apmonconfig eq "")) {
 
 $apm->setLogLevel($apmonwarninglevel);
 $apm->setDestinations(["$monalisahost"]);
+$apm->setMaxMsgRate(10000);
 
 sub convert {
     my $val=shift;
@@ -40,7 +41,9 @@ sub convert {
 
 
 while (1) {
-    my $reporturl = "root://lxbra0302.cern.ch:1097//eos/dumper/report";
+    my $totalhash;
+
+    my $reporturl = "root://lxbra0302.cern.ch:1097";
     my $reporthost = "lxbra0302.cern.ch";
 
     if (defined $ENV{"EOS_REPORT_URL"}) {
@@ -51,8 +54,16 @@ while (1) {
 	$reporthost = $ENV{"EOS_REPORT_HOST"};
     }
 
+    $reporturl .= "//eos/";
+    $reporturl .= "tx-";
+    my $host = `hostname -f`;
+    chomp $host;
+    $reporturl .= $host;
+    $reporturl .= "/report";
+
     printf "Connecting to $reporturl\n";
     if (open NS, "env LD_LIBRARY_PATH=/opt/eos/lib/ /opt/eos/bin/xrdmqdumper $reporturl |") {
+	select((select(NS), $| = 1)[0]);
 	while (<NS>) {
 	    my @tags = split "&",$_;
 	    #log=1ce392f4-9313-11df-b13d-0030489452c6&path=/eos/user/apeters/passwd&ruid=755&rgid=1338&td=apeters.19906:23@128.142.225.5&host=lxfsra26a02.cern.ch&lid=1&fid=243&fsid=116&ots=1279529614&otms=309&&cts=1279529615&ctms=10&rb=0&wb=1637&srb=0&swb=0&nrc=0&nwc=1&rt=0.00&wt=0.02
@@ -69,9 +80,27 @@ while (1) {
 		}
 	    }
 
+
 	    if (defined $infohash->{ruid} && defined $infohash->{rgid} ) {
 		my $reporttag1 = "uid::"; $reporttag1 .= $infohash->{ruid};
 		my $reporttag2 = "gid::"; $reporttag2 .= $infohash->{rgid};
+
+		# integrate
+		my @inttags = ("rb","wb","srb","swb");
+		my $name;
+		foreach $name ( @inttags ) {
+		    if (defined $infohash->{$name} ) {
+			my $intname = "$name"; $intname .= "_int";
+			if (! defined $totalhash->{$intname } ) {
+			    $totalhash->{$intname} = 0;
+			}
+			
+			$totalhash->{$intname} += $infohash->{$name};
+			push @alltags, $intname;
+			push @alltags, $totalhash->{$intname};
+		    }
+		}
+		
 		$apm->sendParameters('Report', $reporttag1,
 				     @alltags);
 		
@@ -82,6 +111,4 @@ while (1) {
     }
 
     close NS;
-
-    sleep(10);
 }
