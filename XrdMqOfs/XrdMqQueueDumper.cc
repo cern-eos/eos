@@ -30,6 +30,7 @@ int main (int argc, char* argv[]) {
 
     if (newmessage) {
       fprintf(stdout,"%s\n",newmessage->GetBody());
+      fflush(stdout);
       delete newmessage;
     } else {
       sleep(1);

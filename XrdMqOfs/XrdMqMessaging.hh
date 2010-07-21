@@ -21,7 +21,7 @@ public:
   
   XrdMqMessaging() {};
   XrdMqMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false);
-  ~XrdMqMessaging();
+  virtual ~XrdMqMessaging();
 
   bool IsZombie() {return zombie;}
 
