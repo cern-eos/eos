@@ -357,16 +357,13 @@ static void eosfs_ll_releasedir (fuse_req_t req, fuse_ino_t ino,
 static void eosfs_ll_statfs(fuse_req_t req, fuse_ino_t ino)
 {
   struct statvfs svfs;
-  svfs.f_bsize=1024;
-  svfs.f_frsize=1024;
-  svfs.f_blocks=1;
-  svfs.f_bfree=1;
-  svfs.f_bavail=1;
-  svfs.f_files=1;
-  svfs.f_ffree=1;
-  svfs.f_favail=1;
-  svfs.f_flag = 2 | 8;
-  
+  svfs.f_bsize=128*1024;
+  svfs.f_blocks=1000000000ll;
+  svfs.f_bfree=1000000000ll;
+  svfs.f_bavail=1000000000ll;
+  svfs.f_files=1000000;
+  svfs.f_ffree=1000000;
+  fprintf(stderr, "calling Statfs \n");
   fuse_reply_statfs(req, &svfs);
 }
 
