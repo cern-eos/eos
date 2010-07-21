@@ -10,6 +10,7 @@ XrdMqOfs/xrdmqclientmaster
 XrdMqOfs/xrdmqclienttest
 XrdMqOfs/xrdmqclientworker
 XrdMqOfs/xrdmqcryptotest
+XrdMqOfs/xrdmqdumper
 aclocal.m4
 autom4te.cache
 config.guess
@@ -26,5 +27,6 @@ missing
 doxy.log
 doxydoc
 *~
-Namespace/tests/*_test
-Namespace/tests/*_tests
+Namespace/tests/text_runner
+valgrind.supp
+
