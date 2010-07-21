@@ -5,7 +5,7 @@ AUTOMAKE_OPTIONS = foreign 1.6
 INCLUDES = -I../ -I. -I$(EOS_INCDIR) -I$(XROOTD_INCDIR) ${OPENSSL_INCDIR}
 
 #-------------------------------------------------------------------------------
-# Libraries and programs
+# The namespace library
 #-------------------------------------------------------------------------------
 lib_LTLIBRARIES = \
         libEosNamespace.la
@@ -38,3 +38,13 @@ libEosNamespace_la_SOURCES = \
 	accounting/FileSystemView.cc
 
 libEosNamespace_la_LIBADD = -lrt
+
+#-------------------------------------------------------------------------------
+# The log checker
+#-------------------------------------------------------------------------------
+bin_PROGRAMS = eos-log-repair
+
+eos_log_repair_SOURCES = progs/EOSLogRepair.cc
+eos_log_repair_CPPFLAGS = $(INCLUDES)
+eos_log_repair_DEPENDENCIES = libEosNamespace.la
+eos_log_repair_LDADD  = libEosNamespace.la
