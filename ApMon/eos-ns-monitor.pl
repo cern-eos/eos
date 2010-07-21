@@ -153,6 +153,15 @@ while (1) {
 		my $blocks = convert($tags[7],$tags[8]);
 		my $free   = convert($tags[9],$tags[10]);
 		my $files  = convert($tags[11],$tags[12]);
+
+		my $errmsg = "";
+		for (my $i=16; $i < 30; $i++) {
+		    if (defined $tags[$i]) {
+			$errmsg .= $tags[$i];
+			$errmsg .= " ";
+		    }
+		}
+
 		my $bootstat = 5;
 		my $configstat = 3;
 
@@ -206,10 +215,9 @@ while (1) {
 				     'ropen', $tags[13],
 				     'wopen', $tags[14],
 				     'ec', $tags[15],
-				     'emsg', $tags[16],
+				     'emsg', $errmsg,
 				     'bootcode',$bootstat,
 				     'configcode',$configstat);
-		
 	    }
 	}
 
