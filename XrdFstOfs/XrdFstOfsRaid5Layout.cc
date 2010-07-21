@@ -123,7 +123,7 @@ XrdFstOfsRaid5Layout::read(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize
     length -= aread;
     buffer += aread;
     while (length) {
-      int nread = ((length)> ((size_t)stripeWidth))?stripeWidth:length;
+      int nread = ((length)> ((XrdSfsXferSize)stripeWidth))?stripeWidth:length;
       int nclient = (offset/(stripeWidth))%(nStripes-1);
       int aread=0;
       if ((!(aread = replicaClient[nclient]->Read(buffer, offset, nread))) || (aread != nread)) {
@@ -167,7 +167,7 @@ XrdFstOfsRaid5Layout::write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSiz
 
     if (offset == (lastParity + ( (nStripes-1) * stripeWidth ))) {
       // compute parity and commit
-      for (unsigned int i=0; i< (nStripes-1); i++) {
+      for (unsigned int i=0; i< (unsigned int)(nStripes-1); i++) {
 	int aread =0;
 	if ((!(aread = replicaClient[i]->Read(parityBuffer[i], lastParity + (i*stripeWidth), stripeWidth))) || (aread != stripeWidth)) {
 	  return gOFS.Emsg("Raid5Write",*error, EIO, "read stripe - read for parity computation failed ", replicaUrl[i].c_str());
@@ -176,7 +176,7 @@ XrdFstOfsRaid5Layout::write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSiz
       // compute parity
       char* paritybuffer = parityBuffer[nStripes-1];
       memset(paritybuffer,0,stripeWidth);
-      for (unsigned int s=0; s< (nStripes-1); s++) {
+      for (unsigned int s=0; s< (unsigned int)(nStripes-1); s++) {
 	for (int i=0; i< stripeWidth; i++) {
 	  *paritybuffer ^= *(parityBuffer[s]+i);
 	}
@@ -230,7 +230,7 @@ XrdFstOfsRaid5Layout::close()
     // compute last parity chunk
 
     // compute parity and commit
-    for (unsigned int i=0; i< (nStripes-1); i++) {
+    for (unsigned int i=0; i< (unsigned int)(nStripes-1); i++) {
       int aread =0;
       if (!(aread = replicaClient[i]->Read(parityBuffer[i], lastParity + (i*stripeWidth), stripeWidth))) {
 	return gOFS.Emsg("Raid5Write",*error, EIO, "read stripe - read for parity computation failed ", replicaUrl[i].c_str());
@@ -244,7 +244,7 @@ XrdFstOfsRaid5Layout::close()
     // compute parity
     char* paritybuffer = parityBuffer[nStripes-1];
     memset(paritybuffer,0,stripeWidth);
-    for (unsigned int s=0; s< (nStripes-1); s++) {
+    for (unsigned int s=0; s< (unsigned int)(nStripes-1); s++) {
       for (int i=0; i< stripeWidth; i++) {
 	*paritybuffer ^= *(parityBuffer[s]+i);
       }
