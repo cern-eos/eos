@@ -7,9 +7,18 @@
 #include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
 
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <ctime>
+#include <cstdlib>
+#include <utility>
+#include <set>
+#include <vector>
+#include <algorithm>
+#include <ext/algorithm>
 
 #define protected public
 #include "Namespace/FileMD.hh"
@@ -29,9 +38,11 @@ class ChangeLogTest: public CppUnit::TestCase
     CPPUNIT_TEST_SUITE( ChangeLogTest );
       CPPUNIT_TEST( readWriteCorrectness );
       CPPUNIT_TEST( followingTest );
+      CPPUNIT_TEST( fsckTest );
     CPPUNIT_TEST_SUITE_END();
     void readWriteCorrectness();
     void followingTest();
+    void fsckTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( ChangeLogTest );
@@ -120,16 +131,16 @@ class FileScanner: public eos::ILogRecordScanner
     virtual void processRecord( uint64_t offset, char type,
                                 const eos::Buffer &buffer )
     {
-      pOffsets.push_back( offset );
+      pRecords.push_back( std::make_pair( offset, buffer.size() ) );
     }
 
-    std::vector<uint64_t> &getOffsets()
+    std::vector<std::pair<uint64_t, uint16_t> > &getRecords()
     {
-      return pOffsets;
+      return pRecords;
     }
 
   private:
-    std::vector<uint64_t> pOffsets;
+    std::vector<std::pair<uint64_t, uint16_t> > pRecords;
 };
 
 //------------------------------------------------------------------------------
@@ -163,53 +174,46 @@ void ChangeLogTest::readWriteCorrectness()
   // Test the file creation
   //----------------------------------------------------------------------------
   eos::ChangeLogFile file;
-  try
+  CPPUNIT_ASSERT_NO_THROW( file.open( "/tmp/test_changelog.dat" ) );
+
+  //----------------------------------------------------------------------------
+  // Store 1000 files
+  //----------------------------------------------------------------------------
+  DummyFileMDSvc fmd;
+  eos::FileMD fileMetadata( 0, &fmd );
+  eos::Buffer buffer;
+
+  std::vector<uint64_t> offsets;
+  for( int i = 0; i < NUMTESTFILES; ++i )
   {
-    file.open( "/tmp/test_changelog.dat" );
-
-    //--------------------------------------------------------------------------
-    // Store 1000 files
-    //--------------------------------------------------------------------------
-    DummyFileMDSvc fmd;
-    eos::FileMD fileMetadata( 0, &fmd );
-    eos::Buffer buffer;
-
-    std::vector<uint64_t> offsets;
-    for( int i = 0; i < NUMTESTFILES; ++i )
-    {
-      buffer.clear();
-      fillFileMD( fileMetadata, i );
-      fileMetadata.serialize( buffer );
-      offsets.push_back( file.storeRecord( eos::UPDATE_RECORD, buffer ) );
-      fileMetadata.clearLocations();
-    }
-
-    //--------------------------------------------------------------------------
-    // Scan the file and compare the offsets
-    //--------------------------------------------------------------------------
-    FileScanner scanner;
-    file.scanAllRecords( &scanner );
-    std::vector<uint64_t> &readOffsets = scanner.getOffsets();
-    CPPUNIT_ASSERT( readOffsets.size() == offsets.size() );
-    for( unsigned i = 0; i < readOffsets.size(); ++i )
-      CPPUNIT_ASSERT( readOffsets[i] == offsets[i] );
-
-    //--------------------------------------------------------------------------
-    // Check the records
-    //--------------------------------------------------------------------------
-    for( unsigned i = 0; i < readOffsets.size(); ++i )
-    {
-      file.readRecord( readOffsets[i], buffer );
-      fileMetadata.deserialize( buffer );
-      checkFileMD( fileMetadata, i );
-      fileMetadata.clearLocations();
-    }
+    buffer.clear();
+    fillFileMD( fileMetadata, i );
+    CPPUNIT_ASSERT_NO_THROW( fileMetadata.serialize( buffer ) );
+    CPPUNIT_ASSERT_NO_THROW( offsets.push_back(
+                              file.storeRecord(
+                                eos::UPDATE_RECORD, buffer ) ) );
+    fileMetadata.clearLocations();
   }
-  catch( eos::MDException e )
+
+  //----------------------------------------------------------------------------
+  // Scan the file and compare the offsets
+  //----------------------------------------------------------------------------
+  FileScanner scanner;
+  CPPUNIT_ASSERT_NO_THROW( file.scanAllRecords( &scanner ) );
+  std::vector<std::pair<uint64_t, uint16_t> > &readRecords = scanner.getRecords();
+  CPPUNIT_ASSERT( readRecords.size() == offsets.size() );
+  for( unsigned i = 0; i < readRecords.size(); ++i )
+    CPPUNIT_ASSERT( readRecords[i].first == offsets[i] );
+
+  //----------------------------------------------------------------------------
+  // Check the records
+  //----------------------------------------------------------------------------
+  for( unsigned i = 0; i < readRecords.size(); ++i )
   {
-    file.close();
-    unlink( "/tmp/test_changelog.dat" );
-    CPPUNIT_ASSERT_MESSAGE( e.getMessage().str(), false );
+    CPPUNIT_ASSERT_NO_THROW( file.readRecord( readRecords[i].first, buffer ) );
+    CPPUNIT_ASSERT_NO_THROW( fileMetadata.deserialize( buffer ) );
+    checkFileMD( fileMetadata, i );
+    fileMetadata.clearLocations();
   }
   file.close();
   unlink( "/tmp/test_changelog.dat" );
@@ -220,18 +224,9 @@ void ChangeLogTest::readWriteCorrectness()
 //------------------------------------------------------------------------------
 void *followerThread( void *data )
 {
-  try
-  {
-    eos::ChangeLogFile &file = *reinterpret_cast<eos::ChangeLogFile*>(data);
-    FileFollower f;
-    file.follow( &f, 100 );
-  }
-  catch( eos::MDException e )
-  {
-    unlink( "/tmp/test_changelog.dat" );
-    CPPUNIT_ASSERT_MESSAGE( e.getMessage().str(), false );
-  }
-
+  eos::ChangeLogFile &file = *reinterpret_cast<eos::ChangeLogFile*>(data);
+  FileFollower f;
+  file.follow( &f, 100 );
   return 0;
 }
 
@@ -244,44 +239,251 @@ void ChangeLogTest::followingTest()
   // Test the file creation
   //----------------------------------------------------------------------------
   eos::ChangeLogFile file;
-  try
+  CPPUNIT_ASSERT_NO_THROW( file.open( "/tmp/test_changelog.dat" ) );
+
+  //----------------------------------------------------------------------------
+  // Spawn a follower thread
+  //----------------------------------------------------------------------------
+  pthread_t thread;
+  CPPUNIT_ASSERT_MESSAGE( "Unable to spawn the follower thread",
+    pthread_create( &thread, 0, followerThread, &file ) == 0 );
+
+  //----------------------------------------------------------------------------
+  // Store 1000 files
+  //----------------------------------------------------------------------------
+  DummyFileMDSvc fmd;
+  eos::FileMD fileMetadata( 0, &fmd );
+  eos::Buffer buffer;
+
+  std::vector<uint64_t> offsets;
+  for( int i = 0; i < 1000; ++i )
   {
-    file.open( "/tmp/test_changelog.dat" );
-
-    //--------------------------------------------------------------------------
-    // Spawn a follower thread
-    //--------------------------------------------------------------------------
-    pthread_t thread;
-    if( pthread_create( &thread, 0, followerThread, &file ) )
-    {
-      CPPUNIT_ASSERT_MESSAGE( "Unable to spawn the follower thread", false );
-    }
-
-    //--------------------------------------------------------------------------
-    // Store 1000 files
-    //--------------------------------------------------------------------------
-    DummyFileMDSvc fmd;
-    eos::FileMD fileMetadata( 0, &fmd );
-    eos::Buffer buffer;
-
-    std::vector<uint64_t> offsets;
-    for( int i = 0; i < 1000; ++i )
-    {
-      buffer.clear();
-      fillFileMD( fileMetadata, i );
-      fileMetadata.serialize( buffer );
-      offsets.push_back( file.storeRecord( eos::UPDATE_RECORD, buffer ) );
-      fileMetadata.clearLocations();
-      usleep( 60000 );
-    }
-    pthread_join( thread, 0 );
+    buffer.clear();
+    fillFileMD( fileMetadata, i );
+    CPPUNIT_ASSERT_NO_THROW( fileMetadata.serialize( buffer ) );
+    CPPUNIT_ASSERT_NO_THROW(
+      offsets.push_back( file.storeRecord( eos::UPDATE_RECORD, buffer ) ) );
+    fileMetadata.clearLocations();
+    usleep( 60000 );
   }
-  catch( eos::MDException e )
-  {
-    file.close();
-    unlink( "/tmp/test_changelog.dat" );
-    CPPUNIT_ASSERT_MESSAGE( e.getMessage().str(), false );
-  }
+  pthread_join( thread, 0 );
+
   file.close();
   unlink( "/tmp/test_changelog.dat" );
+}
+
+//------------------------------------------------------------------------------
+// Create a changelog file with random records
+//------------------------------------------------------------------------------
+static void createRandomLog( const std::string &path, uint64_t numRecords )
+{
+  srandom( time( 0 ) );
+  eos::ChangeLogFile file;
+  eos::Buffer        buffer;
+  file.open( path );
+  for( uint64_t i = 0; i < numRecords; ++i )
+  {
+    uint8_t numBlocks = (random()%254) + 1;
+    buffer.clear();
+    buffer.reserve( numBlocks*4 );
+    for( uint16_t j = 0; j < numBlocks; ++j )
+    {
+      uint32_t block = random();
+      buffer.putData( &block, 4 );
+    }
+    file.storeRecord( 1, buffer );
+  }
+  file.close();
+}
+
+//------------------------------------------------------------------------------
+// Break the record data
+//------------------------------------------------------------------------------
+static void breakRecordData( char *buffer, uint16_t size )
+{
+  uint16_t breakDWord = ((random() % (size-24))+20)/4;
+  uint32_t newDWord   = random();
+  uint32_t *dword = ((uint32_t*)buffer)+breakDWord;
+
+  while( newDWord == *dword )
+    newDWord = random();
+
+  *dword = newDWord;
+}
+
+//------------------------------------------------------------------------------
+// Break one of the checksums
+//------------------------------------------------------------------------------
+static void breakRecordChecksum( char *buffer, uint16_t size )
+{
+  int breakSecond  = random() % 2;
+  uint16_t offset = 4;
+  if( breakSecond )
+    offset = size - 4;
+
+  uint32_t newChkSum = random();
+  uint32_t *dword = (uint32_t*)(buffer+offset);
+
+  while( newChkSum == *dword )
+    newChkSum = random();
+
+  *dword = newChkSum;
+}
+
+//------------------------------------------------------------------------------
+// Break the size
+//------------------------------------------------------------------------------
+static void breakRecordSize( char *buffer, uint16_t size )
+{
+  uint16_t *sz = (uint16_t*)(buffer+2);
+  uint16_t newSize = random();
+
+  while( newSize == *sz )
+    newSize = random();
+
+  *sz = newSize;
+}
+
+//------------------------------------------------------------------------------
+// Break the Magic
+//------------------------------------------------------------------------------
+static void breakRecordMagic( char *buffer, uint16_t size )
+{
+  uint16_t *magic = (uint16_t*)buffer;
+  uint16_t newMagic = random();
+
+  while( newMagic == *magic )
+    newMagic = random();
+
+  *magic = newMagic;
+}
+
+//------------------------------------------------------------------------------
+// Apply breaking function to many records
+//------------------------------------------------------------------------------
+void breakRecordsFunc( int fd,
+                       std::vector<std::pair<uint64_t, uint16_t> > &recRead,
+                       std::vector<size_t>                         &toBreak,
+                       void(*f)( char *, uint16_t ) )
+{
+  std::vector<size_t>::iterator it;
+  for( it = toBreak.begin(); it != toBreak.end(); ++it )
+  {
+    uint32_t size = recRead[*it].second+24;
+    char buffer[size];
+    if( pread( fd, buffer, size, recRead[*it].first ) != size )
+      throw std::string( "Unable to read enough data" );
+
+    f( buffer, size );
+
+    if( pwrite( fd, buffer, size, recRead[*it].first ) != size )
+      throw std::string( "Unable to write the broken data" );
+  }
+}
+
+//------------------------------------------------------------------------------
+// Got throught the log and break things
+//------------------------------------------------------------------------------
+static void breakRecords( const std::string &path, uint64_t numBreak,
+                          eos::LogRepairStats &stats )
+{
+  //----------------------------------------------------------------------------
+  // Read the record offsets and sizes
+  //----------------------------------------------------------------------------
+  eos::ChangeLogFile file;
+  FileScanner        scanner;
+
+  CPPUNIT_ASSERT_NO_THROW( file.open( path ) );
+  CPPUNIT_ASSERT_NO_THROW( file.scanAllRecords( &scanner ) );
+  std::vector<std::pair<uint64_t, uint16_t> > &readRecords = scanner.getRecords();
+  CPPUNIT_ASSERT( readRecords.size() == 10000 );
+  file.close();
+
+  //----------------------------------------------------------------------------
+  // Select some records to break - it's complicated if we want to have an
+  // automatically testable/semi-deterministic result, because the
+  // size correction algorithm depend on the correctness of the magic number
+  // of the following record thus we cannot break the magic of a record
+  // that emmediately follows the on with broken size
+  //----------------------------------------------------------------------------
+  uint64_t partSize  = numBreak*0.25;
+  uint64_t reminder  = numBreak - 3*partSize;
+
+  std::set<size_t> randomBreakRecs;
+  std::set<size_t> randomMagicBreak;
+  std::vector<size_t> dataBreak(partSize);
+  std::vector<size_t> chksumBreak(partSize);
+  std::vector<size_t> sizeBreak(partSize);
+  std::vector<size_t> magicBreak(reminder);
+
+  while( randomBreakRecs.size() != 3*partSize )
+    randomBreakRecs.insert( random() % readRecords.size() );
+
+  std::set<size_t>::iterator itB = randomBreakRecs.begin();
+  std::set<size_t>::iterator itE = randomBreakRecs.begin();
+
+  std::advance( itE, partSize );
+  std::copy( itB, itE, dataBreak.begin() );
+  itB = itE; std::advance( itE, partSize );
+  std::copy( itB, itE, chksumBreak.begin() );
+  itB = itE; std::advance( itE, partSize );
+  std::copy( itB, itE, sizeBreak.begin() );
+
+  while( randomMagicBreak.size() != reminder )
+  {
+    size_t toBreak = (1+random()) % readRecords.size();
+    if( randomBreakRecs.find( toBreak-1 ) == randomBreakRecs.end() &&
+        randomBreakRecs.find( toBreak ) == randomBreakRecs.end() )
+      randomMagicBreak.insert( toBreak );
+  }
+
+  std::copy( randomMagicBreak.begin(), randomMagicBreak.end(),
+             magicBreak.begin() );
+
+  stats.notFixed           = dataBreak.size();
+  stats.fixedWrongSize     = sizeBreak.size();
+  stats.fixedWrongChecksum = chksumBreak.size();
+  stats.fixedWrongMagic    = magicBreak.size();
+
+  //----------------------------------------------------------------------------
+  // Open the changelog file
+  //----------------------------------------------------------------------------
+  int fd = ::open( path.c_str(), O_RDWR );
+  if( fd == -1 )
+    throw std::string( "Unable to open changelog for breaking" );
+
+  //----------------------------------------------------------------------------
+  // Break the records
+  //----------------------------------------------------------------------------
+  breakRecordsFunc( fd, readRecords, dataBreak,   breakRecordData );
+  breakRecordsFunc( fd, readRecords, chksumBreak, breakRecordChecksum );
+  breakRecordsFunc( fd, readRecords, sizeBreak,   breakRecordSize );
+  breakRecordsFunc( fd, readRecords, magicBreak,  breakRecordMagic );
+
+  //----------------------------------------------------------------------------
+  // Cleanup
+  //----------------------------------------------------------------------------
+  ::close( fd );
+}
+//------------------------------------------------------------------------------
+// FSCK test
+//------------------------------------------------------------------------------
+void ChangeLogTest::fsckTest()
+{
+  eos::LogRepairStats stats;
+  eos::LogRepairStats brokenStats;
+
+  createRandomLog( "/tmp/test_log.log", 10000 );
+  breakRecords( "/tmp/test_log.log", 100, brokenStats );
+  eos::ChangeLogFile::repair( "/tmp/test_log.log", "/tmp/test_log_repaired.log",
+                              stats, 0 );
+
+  // stats.scanned may be more than 10000 and it's fine
+  CPPUNIT_ASSERT( stats.scanned == stats.healthy + stats.notFixed );
+  CPPUNIT_ASSERT( stats.fixedWrongMagic    = brokenStats.fixedWrongMagic );
+  CPPUNIT_ASSERT( stats.fixedWrongChecksum = brokenStats.fixedWrongChecksum );
+  CPPUNIT_ASSERT( stats.fixedWrongSize     = brokenStats.fixedWrongSize );
+
+  unlink( "/tmp/test_log.log" );
+  unlink( "/tmp/test_log_repaired.log" );
 }

@@ -8,6 +8,7 @@
 
 #include <string>
 #include <stdint.h>
+#include <ctime>
 #include "Namespace/persistency/Buffer.hh"
 #include "Namespace/utils/Descriptor.hh"
 #include "Namespace/MDException.hh"
@@ -25,6 +26,39 @@ namespace eos
       //------------------------------------------------------------------------
       virtual void processRecord( uint64_t offset, char type,
                                   const Buffer &buffer ) = 0;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Statistics of the repair process
+  //----------------------------------------------------------------------------
+  struct LogRepairStats
+  {
+    LogRepairStats(): fixedWrongMagic(0), fixedWrongSize(0), fixedWrongChecksum(0),
+      notFixed(0), scanned(0), healthy(0), bytesDiscarded(0), bytesAccepted(0),
+      bytesTotal(0), timeElapsed(0) {}
+
+    uint64_t fixedWrongMagic;
+    uint64_t fixedWrongSize;
+    uint64_t fixedWrongChecksum;
+    uint64_t notFixed;
+    uint64_t scanned;
+    uint64_t healthy;
+    uint64_t bytesDiscarded;
+    uint64_t bytesAccepted;
+    uint64_t bytesTotal;
+    time_t   timeElapsed;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Feedback from the changelog reparation process
+  //----------------------------------------------------------------------------
+  class ILogRepairFeedback
+  {
+    public:
+      //------------------------------------------------------------------------
+      //! Called to report progress to the outside world
+      //------------------------------------------------------------------------
+      virtual void reportProgress( LogRepairStats &stats ) = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -96,6 +130,19 @@ namespace eos
       void follow( ILogRecordScanner* scanner, unsigned poll = 100000 )
         throw( MDException );
 
+      //------------------------------------------------------------------------
+      //! Repair a changelog file
+      //!
+      //! @param filename    name of the file to be repaired (read only)
+      //! @param newFilename placeholder for the fixed records
+      //! @param feedback    instance of a feedback class to determine reactions
+      //!                    to problems
+      //! @param stats       placeholder for the statistics
+      //------------------------------------------------------------------------
+      static void repair( const std::string  &filename,
+                          const std::string  &newFilename,
+                          LogRepairStats     &stats,
+                          ILogRepairFeedback *feedback ) throw( MDException );
     private:
 
       //------------------------------------------------------------------------

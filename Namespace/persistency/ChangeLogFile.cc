@@ -20,6 +20,38 @@
 
 namespace eos
 {
+  //----------------------------------------------------------------------------
+  // Check the header - returns flags number
+  //----------------------------------------------------------------------------
+  static uint32_t checkHeader( int fd, const std::string &name )
+  {
+    uint32_t magic;
+    uint32_t flags;
+
+    if( read( fd, &magic, 4 ) != 4 )
+    {
+      MDException ex( errno );
+      ex.getMessage() << "Unable to read the magic number from: " << name;
+      throw ex;
+    }
+
+    if( magic != CHANGELOG_MAGIC )
+    {
+      MDException ex( EFAULT );
+      ex.getMessage() << "Unrecognized file type: " << name;
+      throw ex;
+    }
+
+    if( read( fd, &flags, 4 ) != 4 )
+    {
+      MDException ex( errno );
+      ex.getMessage() << "Unable to read the version number from: " << name;
+      throw ex;
+    }
+
+    return flags;
+  }
+
   //---------------------------------------------------------------------------
   // Open the log file
   //----------------------------------------------------------------------------
@@ -46,31 +78,9 @@ namespace eos
     //--------------------------------------------------------------------------
     if( fd >= 0 )
     {
-      uint32_t magic;
-      uint8_t  version;
+      uint8_t version = checkHeader( fd, name ) & 0x000000ff;
 
-      if( read( fd, &magic, 4 ) != 4 )
-      {
-        MDException ex( EFAULT );
-        ex.getMessage() << "Unable to read the magic number from: " << name;
-        throw ex;
-      }
-
-      if( magic != CHANGELOG_MAGIC )
-      {
-        MDException ex( EFAULT );
-        ex.getMessage() << "Unrecognized file type: " << name;
-        throw ex;
-      }
-
-      if( read( fd, &version, 2 ) != 2 )
-      {
-        MDException ex( EFAULT );
-        ex.getMessage() << "Unable to read the version number from: " << name;
-        throw ex;
-      }
-
-      if( version > 1 )
+      if( version == 0 || version > 1 )
       {
         MDException ex( EFAULT );
         ex.getMessage() << "Unsupported version: " << name;
@@ -111,15 +121,17 @@ namespace eos
     uint32_t magic = CHANGELOG_MAGIC;
     if( write( fd, &magic, 4 ) != 4 )
     {
-      MDException ex( EFAULT );
+      MDException ex( errno );
       ex.getMessage() << "Unable to write magic number: " << name;
       throw ex;
     }
 
-    uint8_t version = 1;
-    if( write( fd, &version, 2 ) != 2 )
+    uint8_t  version = 1;
+    uint32_t flags   = 0;
+    flags |= version;
+    if( write( fd, &flags, 4 ) != 4 )
     {
-      MDException ex( EFAULT );
+      MDException ex( errno );
       ex.getMessage() << "Unable to write version  number: " << name;
       throw ex;
     }
@@ -149,7 +161,7 @@ namespace eos
 
     if( fsync( pFd ) != 0 )
     {
-      MDException ex( EFAULT );
+      MDException ex( errno );
       ex.getMessage() << "Unable to sync the changelog file: ";
       ex.getMessage() << strerror( errno );
       throw ex;
@@ -207,7 +219,7 @@ namespace eos
 
     if( writev( pFd, vec, 7 ) != (unsigned)(24+record.size()) )
     {
-      MDException ex( EFAULT );
+      MDException ex( errno );
       ex.getMessage() << "Unable to write the record data at offset 0x";
       ex.getMessage() << std::setbase(16) << offset << "; ";
       ex.getMessage() << strerror( errno );
@@ -243,7 +255,7 @@ namespace eos
 
     if( pread( pFd, buffer, 20, offset ) != 20 )
     {
-      MDException ex( EFAULT );
+      MDException ex( errno );
       ex.getMessage() << "Read: Error reading at offset: " << offset;
       throw ex;
     }
@@ -270,7 +282,7 @@ namespace eos
     record.resize( *size+4, 0 );
     if( pread( pFd, record.getDataPtr(), *size+4, offset+20 ) != *size+4 )
     {
-      MDException ex( EFAULT );
+      MDException ex( errno );
       ex.getMessage() << "Read: Error reading at offset: " << offset + 9;
       throw ex;
     }
@@ -307,8 +319,8 @@ namespace eos
     // Get the offset information
     //--------------------------------------------------------------------------
     uint64_t end = ::lseek( pFd, 0, SEEK_END );
-    uint64_t offset = ::lseek( pFd, 6, SEEK_SET );
-    if( offset != 6 )
+    uint64_t offset = ::lseek( pFd, 8, SEEK_SET );
+    if( offset != 8 )
     {
       MDException ex( EFAULT );
       ex.getMessage() << "Scan: Unable to find the record data at offset 0x";
@@ -352,7 +364,7 @@ namespace eos
     // Off we go - we only exit if an error occurs
     //--------------------------------------------------------------------------
     Descriptor   fd( pFd );
-    off_t        offset = 6;
+    off_t        offset = 8;
     uint16_t    *magic;
     uint16_t    *size;
     uint32_t    *chkSum1;
@@ -373,7 +385,7 @@ namespace eos
       }
       catch( DescriptorException &e )
       {
-        MDException ex( EFAULT );
+        MDException ex( errno );
         ex.getMessage() << "Follow: Error reading at offset: " << offset << ": ";
         ex.getMessage() << e.getMessage().str();
         throw ex;
@@ -406,7 +418,7 @@ namespace eos
       }
       catch( DescriptorException &e )
       {
-        MDException ex( EFAULT );
+        MDException ex( errno );
         ex.getMessage() << "Follow: Error reading at offset: " << offset + 9;
         ex.getMessage() << ": " << e.getMessage().str();
         throw ex;
@@ -431,6 +443,278 @@ namespace eos
       offset += record.size();
       offset += 24;
       record.clear();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Find the record header starting at offset - the log files are aligned
+  // to 4 bytes so the magic should be at [(offset mod 4) == 0]
+  //----------------------------------------------------------------------------
+  static off_t findRecordMagic( int fd, off_t offset, off_t offsetLimit = 0 )
+  {
+    uint32_t magic = 0;
+    while( 1 )
+    {
+      if( pread( fd, &magic, 4, offset ) != 4 )
+        return -1;
+
+      if( (magic & 0x0000ffff) == RECORD_MAGIC )
+        return offset;
+
+      offset += 4;
+      if( offsetLimit && offset >= offsetLimit )
+        return -1;
+    }
+    return -1;
+  }
+
+  //----------------------------------------------------------------------------
+  // Adjust size
+  //----------------------------------------------------------------------------
+  off_t guessSize( int fd, off_t offset, Buffer &buffer, off_t startHint = 0 )
+  {
+    //--------------------------------------------------------------------------
+    // Find a magic number of the next record
+    //--------------------------------------------------------------------------
+    if( startHint && startHint - offset >= 70000 )
+      return -1;
+
+    if( !startHint )
+      startHint = offset+24;
+
+    off_t newOffset = findRecordMagic( fd, startHint, offset+70000 );
+    if( newOffset == (off_t)-1 )
+      return -1;
+
+    //--------------------------------------------------------------------------
+    // Is the new size correct?
+    //--------------------------------------------------------------------------
+    off_t newSize = newOffset-offset-24;
+    if( newSize > 65535 || newSize < 0 )
+      return -1;
+
+    buffer.resize( newSize );
+    if( pread( fd, buffer.getDataPtr(), newSize, offset+20 ) != newSize )
+      return -1;
+
+    return newSize;
+  }
+
+  //----------------------------------------------------------------------------
+  // Reconstruct record at offset
+  //----------------------------------------------------------------------------
+  static off_t reconstructRecord( int fd, off_t offset,
+                                  off_t fsize, Buffer &buffer, uint8_t &type,
+                                  LogRepairStats &stats )
+  {
+    uint16_t *magic;
+    uint16_t  size;
+    uint32_t *chkSum1;
+    uint64_t *seq;
+    uint32_t  chkSum2;
+    char      buff[20];
+
+    //--------------------------------------------------------------------------
+    // Read the record header data and second checksum
+    //--------------------------------------------------------------------------
+    if( pread( fd, buff, 20, offset ) != 20 )
+      return -1;
+
+    magic   =  (uint16_t*)(buff);
+    size    = *(uint16_t*)(buff+2);
+    chkSum1 =  (uint32_t*)(buff+4);
+    seq     =  (uint64_t*)(buff+8);
+    type    = *(uint8_t*) (buff+16);
+
+    //--------------------------------------------------------------------------
+    // Try to reading the record data - if the read fails then the size
+    // may be incorrect, so try to compensate
+    //--------------------------------------------------------------------------
+    buffer.resize( size );
+    if( pread( fd, buffer.getDataPtr(), size, offset+20 ) != size )
+    {
+      ++stats.fixedWrongSize;
+      off_t offSize;
+      offSize = guessSize( fd, offset, buffer );
+      if( offSize == (off_t)-1 )
+        return -1;
+      size = offSize;
+    }
+
+    if( pread( fd, &chkSum2, 4, offset+20+size ) != 4 )
+      return -1;
+
+    //--------------------------------------------------------------------------
+    // The magic wrong
+    //--------------------------------------------------------------------------
+    bool wrongMagic = false;
+    if( *magic != RECORD_MAGIC )
+      wrongMagic = true;
+
+    //--------------------------------------------------------------------------
+    // Check the sums
+    //--------------------------------------------------------------------------
+    bool okChecksum1 = true;
+    bool okChecksum2 = true;
+    uint32_t crc = buffer.getCRC32();
+
+    if( *chkSum1 != crc )
+      okChecksum1 = false;
+
+    if( chkSum2 != crc )
+      okChecksum2 = false;
+
+    if( okChecksum1 || okChecksum2 )
+    {
+      if( !okChecksum1 || !okChecksum2 )
+        ++stats.fixedWrongChecksum;
+      if( wrongMagic )
+        ++stats.fixedWrongMagic;
+      return offset+size+24;
+    }
+
+    //--------------------------------------------------------------------------
+    // Checksums incorrect - parhaps size is wrong - try to find another
+    // record magic
+    // The first magic we find may not be the right one, so we need to do
+    // it many times
+    //--------------------------------------------------------------------------
+    off_t startHint = offset+24;
+    while( 1 )
+    {
+      //------------------------------------------------------------------------
+      // Estimate new size
+      //------------------------------------------------------------------------
+      off_t offSize;
+      offSize = guessSize( fd, offset, buffer, startHint );
+
+      if( offSize == (off_t)-1 )
+        return -1;
+
+      size = offSize;
+
+      if( pread( fd, &chkSum2, 4, offset+20+size ) != 4 )
+        return -1;
+
+      startHint += size + 4;
+
+      //------------------------------------------------------------------------
+      // Check the checksums
+      //------------------------------------------------------------------------
+      okChecksum1 = true;
+      okChecksum2 = true;
+
+      crc = buffer.getCRC32();
+
+      if( *chkSum1 != crc )
+        okChecksum1 = false;
+
+      if( chkSum2 != crc )
+      okChecksum2 = false;
+
+      if( okChecksum1 || okChecksum2 )
+      {
+        if( !okChecksum1 || !okChecksum2 )
+          ++stats.fixedWrongChecksum;
+        if( wrongMagic )
+          ++stats.fixedWrongMagic;
+
+        ++stats.fixedWrongSize;
+        return offset+size+24;
+      }
+    }
+    return -1;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Repair a changelog
+  //----------------------------------------------------------------------------
+  void ChangeLogFile::repair( const std::string  &filename,
+                              const std::string  &newFilename,
+                              LogRepairStats     &stats,
+                              ILogRepairFeedback *feedback ) throw( MDException )
+  {
+    time_t startTime = time(0);
+
+    //--------------------------------------------------------------------------
+    // Open the input and output files and check out the header
+    //--------------------------------------------------------------------------
+    ChangeLogFile output;
+    output.open( newFilename );
+
+    int fd = ::open( filename.c_str(), O_RDONLY );
+    if( fd == -1 )
+    {
+      MDException ex( errno );
+      ex.getMessage() << "Unrecognized file type: " << filename;
+      throw ex;
+    }
+    FileSmartPtr fdPtr( fd );
+
+    bool headerCorrect = true;
+    try { checkHeader( fd, filename ); }
+    catch( MDException &e ) { headerCorrect = false; }
+
+    //--------------------------------------------------------------------------
+    // Reconstructing...
+    //--------------------------------------------------------------------------
+    Buffer  buff;
+    uint8_t type;
+    off_t   fsize  = ::lseek( fd, 0, SEEK_END );
+    off_t   offset = 8;
+
+    stats.bytesTotal    = fsize;
+    stats.bytesAccepted = 8;  // offset
+
+    while( 1 )
+    {
+      if( offset == fsize )
+        break;
+
+      //------------------------------------------------------------------------
+      // Reconstruct the header at the offset
+      //------------------------------------------------------------------------
+      off_t newOffset = reconstructRecord( fd, offset, fsize, buff, type,
+                                           stats );
+
+      ++stats.scanned;
+
+      //------------------------------------------------------------------------
+      // We were successful
+      //------------------------------------------------------------------------
+      if( newOffset != (off_t)-1 )
+      {
+        ++stats.healthy;
+        stats.bytesAccepted += (newOffset-offset);
+        output.storeRecord( type, buff );
+      }
+
+      //------------------------------------------------------------------------
+      // Unsuccessful for whatever reason - offsets cannot be trusted anymore
+      // so try to find a magic number of a new record
+      //------------------------------------------------------------------------
+      else
+      {
+        ++stats.notFixed;
+        newOffset = findRecordMagic( fd, offset+4 );
+
+        if( newOffset == (off_t)-1 )
+        {
+          stats.bytesDiscarded += (fsize-offset);
+          break;
+        }
+        stats.bytesDiscarded += (newOffset-offset);
+      }
+
+      //------------------------------------------------------------------------
+      // We either successfully reconstructed the previous record or found
+      // an offset of another one
+      //------------------------------------------------------------------------
+      offset = newOffset;
+
+      stats.timeElapsed = time(0) - startTime;
+      if( feedback )
+        feedback->reportProgress( stats );
     }
   }
 }
