@@ -23,7 +23,7 @@ std::string readableTime( time_t t )
 //------------------------------------------------------------------------------
 // Beautify size
 //------------------------------------------------------------------------------
-std::string units[] = {"KB", "MB", "BG" };
+std::string units[] = {"KB", "MB", "GB" };
 
 std::string readableSize( uint64_t size )
 {
@@ -52,7 +52,7 @@ class Feedback: public eos::ILogRepairFeedback
     //--------------------------------------------------------------------------
     // Constructor
     //--------------------------------------------------------------------------
-    Feedback(): pPrevSize( 0 ) {}
+    Feedback(): pPrevSize( 0 ), pLastUpdated( 0 ) {}
 
     //--------------------------------------------------------------------------
     // Report progress
@@ -61,7 +61,10 @@ class Feedback: public eos::ILogRepairFeedback
     {
       uint64_t          sum = stats.bytesAccepted + stats.bytesDiscarded;
       std::stringstream o;
-      std::string       msg;
+
+      if( pLastUpdated == stats.timeElapsed  && sum != stats.bytesTotal )
+        return;
+      pLastUpdated = stats.timeElapsed;
 
       o << "\r";
       o << "Elapsed time: " << readableTime( stats.timeElapsed ) << " ";
@@ -86,7 +89,8 @@ class Feedback: public eos::ILogRepairFeedback
     }
 
   private:
-    int pPrevSize;
+    int    pPrevSize;
+    time_t pLastUpdated;
 };
 
 //------------------------------------------------------------------------------
