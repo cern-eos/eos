@@ -97,7 +97,7 @@ int main( int argc, char **argv)
   CppUnit::TestSuite *selected = new CppUnit::TestSuite( "Selected tests" );
   for( int i = 1; i < argc; ++i )
   {
-    CppUnit::Test *t = findTest( all, argv[i] );
+    CppUnit::Test *t = findTest( all, std::string( argv[i]) );
     if( !t )
     {
       std::cerr << "Unable to find: " << argv[i] << std::endl;
