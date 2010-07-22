@@ -5,6 +5,7 @@
 
 #include "Namespace/persistency/ChangeLogFile.hh"
 #include "Namespace/utils/SmartPtrs.hh"
+#include "Namespace/utils/DataHelper.hh"
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -195,17 +196,25 @@ namespace eos
     }
     record.resize( nsize );
 
+    //--------------------------------------------------------------------------
+    // Initialize the data and calculate the checksum
+    //--------------------------------------------------------------------------
     uint16_t size   = record.size();
-    uint32_t chkSum = record.getCRC32();
-
-    //--------------------------------------------------------------------------
-    // Store the data
-    //--------------------------------------------------------------------------
     uint64_t offset = ::lseek( pFd, 0, SEEK_END );
     uint64_t seq    = 0;
     uint16_t magic  = RECORD_MAGIC;
     uint32_t opts   = type; // occupy the first byte (little endian)
                             // the rest is unused for the moment
+
+    uint32_t chkSum = DataHelper::computeCRC32( &seq, 8 );
+    chkSum = DataHelper::updateCRC32( chkSum, &opts, 4 );
+    chkSum = DataHelper::updateCRC32( chkSum,
+                                      record.getDataPtr(),
+                                      record.getSize() );
+
+    //--------------------------------------------------------------------------
+    // Store the data
+    //--------------------------------------------------------------------------
 
     iovec vec[7];
     vec[0].iov_base = &magic;  vec[0].iov_len = 2;
@@ -526,6 +535,9 @@ namespace eos
     seq     =  (uint64_t*)(buff+8);
     type    = *(uint8_t*) (buff+16);
 
+    uint32_t crcHead = DataHelper::computeCRC32( &seq, 8 );
+    crcHead = DataHelper::updateCRC32( crcHead, (buff+16), 4 ); // opts
+
     //--------------------------------------------------------------------------
     // Try to reading the record data - if the read fails then the size
     // may be incorrect, so try to compensate
@@ -556,7 +568,10 @@ namespace eos
     //--------------------------------------------------------------------------
     bool okChecksum1 = true;
     bool okChecksum2 = true;
-    uint32_t crc = buffer.getCRC32();
+
+    uint32_t crc = DataHelper::updateCRC32( crcHead,
+                                            buffer.getDataPtr(),
+                                            buffer.getSize() );
 
     if( *chkSum1 != crc )
       okChecksum1 = false;
@@ -604,7 +619,10 @@ namespace eos
       okChecksum1 = true;
       okChecksum2 = true;
 
-      crc = buffer.getCRC32();
+
+      crc = DataHelper::updateCRC32( crcHead,
+                                     buffer.getDataPtr(),
+                                     buffer.getSize() );
 
       if( *chkSum1 != crc )
         okChecksum1 = false;
