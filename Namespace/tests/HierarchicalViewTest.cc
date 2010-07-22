@@ -112,6 +112,9 @@ void HierarchicalViewTest::reloadTest()
     unlink( "/tmp/file_log.log" );
 
     delete view;
+    delete contSvc;
+    delete fileSvc;
+
   }
   catch( eos::MDException &e )
   {

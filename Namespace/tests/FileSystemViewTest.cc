@@ -171,9 +171,13 @@ void FileSystemViewTest::fileSystemViewTest()
 
     view->finalize();
     fsView->finalize();
+
     unlink( "/tmp/container_log.log" );
     unlink( "/tmp/file_log.log" );
 
+    delete contSvc;
+    delete fileSvc;
+    delete fsView;
     delete view;
   }
   catch( eos::MDException &e )
