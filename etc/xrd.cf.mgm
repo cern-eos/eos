@@ -1,8 +1,9 @@
 ###########################################################
 xrootd.fslib libXrdMgmOfs.so
 xrootd.seclib libXrdSec.so
+xrootd.async off nosf
 ###########################################################
-xrd.async off
+
 xrd.sched mint 8 maxt 128 idle 64
 ###########################################################
 all.export /
