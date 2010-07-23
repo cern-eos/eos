@@ -1987,6 +1987,10 @@ com_find (char* arg1) {
       if (!printkey.length()) 
 	goto com_find_usage;
     }
+
+    if (s1 == "-b") {
+      option += "b";
+    }
   }
   
   if (s1.length()) {
@@ -2011,9 +2015,10 @@ com_find (char* arg1) {
   return (0);
 
  com_find_usage:
-  printf("usage: find [-d] [-f] [-x <key=<val>] [-p <key>] <path>                       :  find files(-f) or directories (-d) in <path>\n");
+  printf("usage: find [-d] [-f] [-x <key=<val>] [-p <key>] [-b] <path>                  :  find files(-f) or directories (-d) in <path>\n");
   printf("                                                                              :  find entries(-x) with <key>=<val>\n");
   printf("                                                                              :  additionally print (-p) the value of <key> for each entry\n");
+  printf("                                                                              :  query the server balance (-b) of the files found\n");
   printf("                                                                      default :  find files and directories\n");
   return (0);
 }
