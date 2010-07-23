@@ -10,3 +10,11 @@ libXrdFstOfs_la_SOURCES = XrdFstOfsConfig.cc XrdFstOfsConfig.hh XrdFstOfs.cc Xrd
 libXrdFstOfs_la_LIBADD =
 libXrdFstOfs_la_LDFLAGS = -L${XROOTD_LIBDIR}/ -lXrdSys -lXrdOuc -lXrdNet -lXrdOfs -lXrdSec $(top_srcdir)/XrdCommon/libXrdCommon.la $(top_srcdir)/XrdCapability/libXrdCapability.la $(top_srcdir)/XrdMqOfs/libXrdMqClient.la
 
+
+bin_PROGRAMS = eosfstfsck
+
+eosfstfsck_SOURCES = \
+                FsckFst.cc
+
+eosfstfsck_LDFLAGS = -static -export-dynamic
+eosfstfsck_LDADD = -lncurses -lreadline -ltermcap -ldl -L${XROOTD_LIBDIR}/ -lXrdClient $(top_srcdir)/XrdCommon/libXrdCommon.la 
