@@ -301,7 +301,11 @@ namespace eos
     //--------------------------------------------------------------------------
     // Check the checksum
     //--------------------------------------------------------------------------
-    if( *chkSum1 != chkSum2 )
+    uint32_t crc = DataHelper::computeCRC32( seq, 8 );
+    crc = DataHelper::updateCRC32( crc, (buffer+16), 4 ); // opts
+    crc = DataHelper::updateCRC32( crc, record.getDataPtr(), record.getSize() );
+
+    if( *chkSum1 != crc || *chkSum1 != chkSum2 )
     {
       MDException ex( EFAULT );
       ex.getMessage() << "Read: Record's checksums do not match.";
