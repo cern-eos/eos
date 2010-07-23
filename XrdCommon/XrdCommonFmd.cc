@@ -13,7 +13,7 @@ XrdCommonFmdHandler gFmdHandler;
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdCommonFmdHeader::Read(int fd) 
+XrdCommonFmdHeader::Read(int fd, bool ignoreversion) 
 {
   // the header is already in the beginning
   lseek(fd,0,SEEK_SET);
@@ -25,8 +25,12 @@ XrdCommonFmdHeader::Read(int fd)
 
   eos_info("fmd header version %s creation time is %u filesystem id %04d", fmdHeader.version, fmdHeader.ctime, fmdHeader.fsid);
   if (strcmp(fmdHeader.version, VERSION)) {
-    eos_crit("fmd header contains version %s but this is version %s", fmdHeader.version, VERSION);
-    return false;
+    if (!ignoreversion) {
+      eos_crit("fmd header contains version %s but this is version %s", fmdHeader.version, VERSION);
+      return false;
+    } else {
+      eos_warning("fmd header contains version %s but this is version %s", fmdHeader.version, VERSION);
+    }
   }
   if (fmdHeader.magic != XRDCOMMONFMDHEADER_MAGIC) {
     eos_crit("fmd header magic is wrong - found %x", fmdHeader.magic);
@@ -49,6 +53,18 @@ XrdCommonFmdHeader::Write(int fd)
   eos_debug("wrote fmd header version %s creation time %u filesystem id %04d", fmdHeader.version, fmdHeader.ctime, fmdHeader.fsid);
   return true;
 }
+
+/*----------------------------------------------------------------------------*/
+void
+XrdCommonFmdHeader::Dump(struct FMDHEADER* header) 
+{
+  time_t then = (time_t) header->ctime;
+  XrdOucString stime = ctime(&then);
+  stime.erase(stime.length()-1);
+
+  fprintf(stdout,"HEADER: [%s] magic=%llx version=%s ctime=%llu fsid=%d\n",stime.c_str(),header->magic, header->version,header->ctime,header->fsid);
+}
+
 
 /*----------------------------------------------------------------------------*/
 bool 
@@ -76,14 +92,60 @@ XrdCommonFmd::Read(int fd, off_t offset)
   return true;
 }
 
+/*----------------------------------------------------------------------------*/
+void
+XrdCommonFmd::Dump(struct FMD* fmd) {
+  XrdOucString magic="?";
+  XrdOucString checksum="";
+  if (IsCreate(fmd)) {
+    magic = "C";
+  }
+  if (IsDelete(fmd)) {
+    magic = "D";
+  }
+
+  for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
+    char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->checksum[i]));
+    checksum += hb;
+  }
+    
+  fprintf(stderr,"%s %06lu %06llu %06llu %04lu %010lu %010lu %010lu %010lu %08llu %s %03lu %05u %05u %32s %s %06lu %06lu\n",
+	  magic.c_str(),
+	  fmd->sequenceheader,
+	  fmd->fid,
+	  fmd->cid,
+	  fmd->fsid,
+	  fmd->ctime,
+	  fmd->ctime_ns,
+	  fmd->mtime,
+	  fmd->mtime_ns,
+	  fmd->size,
+	  checksum.c_str(),
+	  fmd->lid,
+	  fmd->uid,
+	  fmd->gid,
+	  fmd->name,
+	  fmd->container,
+	  fmd->crc32,
+	  fmd->sequencetrailer);
+}
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdCommonFmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid) 
+XrdCommonFmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid, XrdOucString option) 
 {
+  // option is pass from the fsck executable in XrdFstOfs
+  // this is identified via the option field 'c'
+  // for fsck we don't want to automatically create a new changelog file if the path is not yet existing !
+
   eos_debug("");
   Mutex.Lock();
   bool isNew=false;
+
+  if (!Fmd.count(fsid)) {
+    Fmd[fsid].set_empty_key(0xffffffffe);
+    Fmd[fsid].set_deleted_key(0xffffffff);
+  }
 
   char fsChangeLogFileName[1024];
   sprintf(fsChangeLogFileName,"%s.%04d.mdlog", ChangeLogFileName.c_str(),fsid);
@@ -105,6 +167,15 @@ XrdCommonFmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid)
   if ((access(fsChangeLogFileName,R_OK))) {
     isNew = true;
   }
+
+  if (((option.find("c"))!=STR_NPOS) && isNew) {
+    // we don't want to create a new file and return an error!
+    fdChangeLogWrite[fsid] = fdChangeLogRead[fsid] = -1;
+    eos_err("changelog file is not existing: %s\n", ChangeLogFileName.c_str());
+    Mutex.UnLock();
+    return false;
+  }
+
 
   if ( (fdChangeLogWrite[fsid] = open(fsChangeLogFileName,O_CREAT| O_RDWR, 0600 )) <0) {
     eos_err("unable to open changelog file for writing %s",fsChangeLogFileName);
@@ -137,7 +208,7 @@ XrdCommonFmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid)
     }
   }
 
-  isOpen = ReadChangeLogHash(fsid);
+  isOpen = ReadChangeLogHash(fsid, option);
 
   Mutex.UnLock();
   return isOpen;
@@ -246,15 +317,37 @@ bool XrdCommonFmdHandler::AttachLatestChangeLogFile(const char* changelogdir, in
 }
 
 /*----------------------------------------------------------------------------*/
-bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid) 
+bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid, XrdOucString option) 
 {
   eos_debug("");
-  if (!fmdHeader.Read(fdChangeLogRead[fsid])) {
+
+  struct timeval tv1,tv2;
+  struct timezone tz;
+
+  gettimeofday(&tv1,&tz);
+
+  bool ignoreversion=false;
+  bool dump=false;
+  bool isfsck=false;
+  // force option to read all versions
+
+  if (option.find("f")!=STR_NPOS) 
+    ignoreversion=true;
+  if (option.find("d")!=STR_NPOS)
+    dump=true;
+  if (option.find("c")!=STR_NPOS)
+    isfsck=true;
+
+  
+  if (!fmdHeader.Read(fdChangeLogRead[fsid],ignoreversion)) {
     // failed to read header
     return false;
   }
   struct stat stbuf; 
 
+  if (dump) {
+    XrdCommonFmdHeader::Dump(&fmdHeader.fmdHeader);
+  }
   // create first empty root entries
   UserBytes [(((long long)fsid)<<32) | 0] = 0;
   GroupBytes[(((long long)fsid)<<32) | 0] = 0;
@@ -293,11 +386,16 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
   bool success = true;
   unsigned long sequencenumber=0;
   int retc=0;
-  int nchecked=0;
+  unsigned long long nchecked=0;
+  unsigned long long errormagic=0;
+  unsigned long long errorcrc=0;
+  unsigned long long errorsequence=0;
+  unsigned long long errormismatch=0;
 
   eos_debug("memory mapped changelog file at %lu", changelogstart);
 
   while ( (changelogstart+sizeof(struct XrdCommonFmd::FMD)) <= changelogstop) {
+    bool faulty=false;
     nchecked++;
     if (!(nchecked%1000)) {
       eos_info("checking SEQ# %d # %d", sequencenumber, nchecked);
@@ -313,17 +411,29 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
       // illegal meta data block
       if (retc == EINVAL) {
 	eos_crit("Block is neither creation/update or deletion block %u offset %llu", sequencenumber, ((char*)pMd) - changelogmap);
+	faulty = true;
+	errormagic++;
       }
       if (retc == EILSEQ) {
 	eos_crit("CRC32 error in meta data block sequencenumber %u offset %llu", sequencenumber, ((char*)pMd) - changelogmap);
+	faulty = true;
+	errorcrc++;
       }
       if (retc == EOVERFLOW) {
 	eos_crit("SEQ# error in meta data block sequencenumber %u offset %llu", sequencenumber, ((char*)pMd) - changelogmap);
+	faulty = true;
+	errorsequence++;
       }
       if (retc == EFAULT) {
 	eos_crit("SEQ header/trailer mismatch in meta data block sequencenumber %u/%u offset %llu", pMd->sequenceheader,pMd->sequencetrailer, ((char*)pMd) - changelogmap);
+	faulty = true;
+	errormismatch++;
       }
       success = false;
+    }
+    
+    if (!faulty && dump) {
+      XrdCommonFmd::Dump(pMd);
     }
 
     if (pMd->sequenceheader > (unsigned long long) fdChangeLogSequenceNumber[fsid]) {
@@ -358,12 +468,16 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
       GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]++;
     }
     if (XrdCommonFmd::IsDelete(pMd)) {
-      FmdSize[pMd->fid] = 0;
-      UserBytes [((long long)pMd->fsid<<32) | pMd->uid]  -= pMd->size;
-      GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] -= pMd->size;
-      UserFiles [((long long)pMd->fsid<<32) | pMd->uid]--;
-      GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]--;
-    }
+      if (FmdSize.count(pMd->fid)>0) {
+	FmdSize.erase(pMd->fid);
+	UserBytes [((long long)pMd->fsid<<32) | pMd->uid]  -= pMd->size;
+	GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] -= pMd->size;
+	UserFiles [((long long)pMd->fsid<<32) | pMd->uid]--;
+	GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]--;
+      } else {
+	eos_crit("Double Deletion detected sequencenumber %u fid %llu", sequencenumber, pMd->fid);
+      }
+    } 
 
     if (UserBytes[((long long)pMd->fsid<<32) | pMd->uid]  <0) UserBytes[(pMd->fsid<<32)]=0;
     if (GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] <0) GroupBytes[(pMd->fsid<<32)]=0;
@@ -375,8 +489,27 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid)
     pMd++;
     changelogstart += sizeof(struct XrdCommonFmd::FMD);
   }
+
+  FmdSize.resize(0);
+
   munmap(changelogmap, stbuf.st_size);
   eos_debug("checked %d FMD entries",nchecked);
+
+  gettimeofday(&tv2,&tz);
+
+  if (isfsck) {
+    float rtime  = ( ((tv2.tv_sec -tv1.tv_sec)*1.0) + ((tv2.tv_usec-tv1.tv_usec)/1000000.0));
+    fprintf(stdout,"---------------------------------------\n");
+    fprintf(stdout,"=> FSCK Runtime     : %.02f sec\n", rtime);
+    fprintf(stdout,"=> FMD Entries      : %llu\n", nchecked);
+    fprintf(stdout,"=> Speed            : %.02f\n", nchecked/rtime);
+    fprintf(stdout,"---------------------------------------\n");
+    fprintf(stdout,"=> Error Magic      : %llu\n", errormagic);
+    fprintf(stdout,"=> Error CRC32      : %llu\n", errorcrc);
+    fprintf(stdout,"=> Error Sequence   : %llu\n", errorsequence);
+    fprintf(stdout,"=> Error HT-Mismatch: %llu\n", errormismatch);
+    fprintf(stdout,"---------------------------------------\n");
+  }
   return success;
 }
 
@@ -554,18 +687,25 @@ XrdCommonFmdHandler::Commit(XrdCommonFmd* fmd)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdCommonFmdHandler::TrimLogFile(int fsid) {
+XrdCommonFmdHandler::TrimLogFile(int fsid, XrdOucString option) {
   bool rc=true;
   char newfilename[1024];
   sprintf(newfilename,".%04d.mdlog", fsid);
   XrdOucString NewChangeLogFileName;
   CreateChangeLogName(ChangeLogDir.c_str(),NewChangeLogFileName);
   NewChangeLogFileName += newfilename;
-  XrdOucString NewChangeLogFileNameTmp ="";
+  XrdOucString NewChangeLogFileNameTmp = NewChangeLogFileName;
   NewChangeLogFileNameTmp+= ".tmp";
+
+  struct stat statbefore;
+  struct stat statafter;
+
+  // stat before trim
+  fstat(fdChangeLogRead[fsid], &statbefore);
 
   int newfd = open(NewChangeLogFileNameTmp.c_str(),O_CREAT|O_TRUNC| O_RDWR, 0600);
 
+  eos_static_info("trimming opening new changelog file %s\n", NewChangeLogFileNameTmp.c_str());
   if (!newfd) 
     return false;
 
@@ -679,6 +819,7 @@ XrdCommonFmdHandler::TrimLogFile(int fsid) {
       close(fdChangeLogRead[fsid]);
       fdChangeLogWrite[fsid] = newfd;
       fdChangeLogRead[fsid] = newrfd;
+      ChangeLogFileName = NewChangeLogFileName;
     } else {
       eos_static_crit("cannot move the temporary trim file into active file");
       rc = false;
@@ -688,6 +829,22 @@ XrdCommonFmdHandler::TrimLogFile(int fsid) {
   close(rfd);
 
   Mutex.UnLock();
+
+  // stat after trim
+  fstat(fdChangeLogRead[fsid], &statafter);
+
+  if ((option.find("c"))!=STR_NPOS) {
+    if (rc) {
+      fprintf(stdout,"---------------------------------------\n");
+      fprintf(stdout,"=> Trim CL File     : %s\n", NewChangeLogFileName.c_str());
+      fprintf(stdout,"=> Original Size    : %llu\n", (unsigned long long)statbefore.st_size);
+      fprintf(stdout,"=> Trimmed Size     : %llu\n", (unsigned long long)statafter.st_size);
+      fprintf(stdout,"---------------------------------------\n");
+    } else {
+      fprintf(stderr,"error: trimming failed!\n");
+    }
+
+  }
   return rc;
 }
 

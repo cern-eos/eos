@@ -44,8 +44,10 @@ public:
 
   void SetId(int infsid) { fmdHeader.fsid = infsid;} 
 
-  bool Read(int fd);
+  bool Read(int fd, bool ignoreversion=false);
   bool Write(int fd);
+
+  static void Dump(struct FMDHEADER* header);
 };
 
 
@@ -119,7 +121,9 @@ public:
   bool Read(int fd, off_t offset);
   void MakeCreationBlock() { fMd.magic =  XRDCOMMONFMDCREATE_MAGIC;}
   void MakeDeletionBlock() { fMd.magic =  XRDCOMMONFMDDELETE_MAGIC;}
-
+  
+  static void Dump(struct FMD* fmd);
+  
   XrdOucEnv* FmdToEnv();
   static bool EnvToFmd(XrdOucEnv &env, struct XrdCommonFmd::FMD &fmd);
 
@@ -141,11 +145,11 @@ public:
   XrdSysMutex Mutex;
   XrdCommonFmdHeader fmdHeader;
   
-  bool SetChangeLogFile(const char* changelogfile, int fsid) ;
+  bool SetChangeLogFile(const char* changelogfile, int fsid, XrdOucString option="") ;
   bool AttachLatestChangeLogFile(const char* changelogdir, int fsid) ;
-  bool ReadChangeLogHash(int fsid);
+  bool ReadChangeLogHash(int fsid, XrdOucString option="");
 
-  bool TrimLogFile(int fsid);
+  bool TrimLogFile(int fsid, XrdOucString option="");
 
   // the meta data handling functions
 
