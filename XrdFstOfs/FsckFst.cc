@@ -121,24 +121,61 @@ int main(int argc, char* argv[] ) {
   }
 
   if (searchpath.length()) {
+    XrdCommonLogging::SetLogPriority(LOG_NOTICE);
     XrdOucString findstring = "find "; findstring += searchpath; findstring += " -type f -name \"????????\" ";
     FILE* fp = popen(findstring.c_str(),"r");
+    google::dense_hash_map<long long, bool> DiskFid;
+    DiskFid.set_empty_key(0);
+
     if (!fp) {
       fprintf(stderr,"%s: error: cannot search in path %s !\n",argv[0], searchpath.c_str());
       rc = -4;
     } else {
       char filename[16384];
-      std::vector<unsigned long long> DiskFid;
       while ( (fscanf(fp,"%s\n",filename)) == 1) {
 	XrdCommonPath cPath(filename);
 	XrdOucString bname = cPath.GetName();
-	unsigned long long fid = XrdCommonFileId::Hex2Fid(bname.c_str());
+	long long fid = XrdCommonFileId::Hex2Fid(bname.c_str());
 	//	fprintf(stdout,"%llu\t", fid);
-	DiskFid.push_back(fid);
+	DiskFid.insert(make_pair(fid,1));
       }
       fprintf(stdout,"=> loaded %ld FID's from local path %s \n", DiskFid.size(), searchpath.c_str());
       fclose(fp);
     }
+
+    unsigned long long error_missing_changelog=0;
+    // compare disk vs changelog
+    {
+      google::dense_hash_map<long long, bool>::iterator it;
+      for (it = DiskFid.begin(); it != DiskFid.end(); ++it) {
+	// check if this exists in the meta data log
+	if (gFmd.FmdSize.count(it->first)==1) {
+	  // ok, that's good
+	} else {
+	  // bad, this is missing
+	  eos_static_info("fid %06llu on disk      : missing in changelog file !\n", it->first);
+	  error_missing_changelog++;
+	}
+      }
+    }
+    unsigned long long error_missing_disk=0;
+
+    // compare changelog vs disk
+    {
+      google::dense_hash_map<long long, unsigned long long>::iterator it;
+      for (it = gFmd.FmdSize.begin(); it != gFmd.FmdSize.end(); ++it) {
+	if ((DiskFid.count(it->first))==1) {
+	  // ok, that's good
+	} else {
+	  // bad, this is missing
+	  eos_static_info("fid %06llu on changelog : missing on disk !\n", it->first);
+	  error_missing_disk++;
+	}
+      }
+    }
+    fprintf(stdout,"=> files missing in change log : %llu\n", error_missing_changelog);
+    fprintf(stdout,"=> files missing in data dir   : %llu\n", error_missing_disk);
+
   }
   return rc;
 }
