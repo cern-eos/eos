@@ -1217,6 +1217,22 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       XrdOucString val = attribute;
       XrdOucString printkey = opaque.Get("mgm.find.printkey");
 
+      // this hash is used to calculate the balance of the found files over the filesystems involved
+
+      google::dense_hash_map<unsigned long, unsigned long long> filesystembalance;
+      google::dense_hash_map<std::string, unsigned long long> spacebalance;
+      google::dense_hash_map<std::string, unsigned long long> schedulinggroupbalance;
+
+      filesystembalance.set_empty_key(0);
+      spacebalance.set_empty_key("");
+      schedulinggroupbalance.set_empty_key("");
+      
+      bool calcbalance = false;
+
+      if (option.find("b")!=STR_NPOS) {
+	calcbalance=true;
+      }
+
       if (attribute.length()) {
 	key.erase(attribute.find("="));
 	val.erase(0, attribute.find("=")+1);
@@ -1239,8 +1255,34 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  for (unsigned int i = 0 ; i< found_files.size(); i++) {
 	    std::sort(found_files[i].begin(), found_files[i].end());
 	    for (unsigned int j = 0; j< found_files[i].size(); j++) {
-	      stdOut += found_files[i][j].c_str();
-	      stdOut += "\n";
+	      if (!calcbalance) {
+		stdOut += found_files[i][j].c_str();
+		stdOut += "\n";
+	      } else {
+		// get location
+		//-------------------------------------------
+		gOFS->eosViewMutex.Lock();
+		eos::FileMD* fmd = 0;
+		try {
+		  fmd = gOFS->eosView->getFile(found_files[i][j].c_str());
+		} catch( eos::MDException &e ) {
+		  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+		}
+		//-------------------------------------------
+		for (unsigned int i=0; i< fmd->getNumLocation(); i++) {
+		  int loc = fmd->getLocation(i);
+		  size_t size = fmd->getSize();
+		  filesystembalance[loc]+=size;
+		  XrdMgmFstNode::gMutex.Lock();
+		  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[loc];
+		  if (filesystem) {
+		    spacebalance[filesystem->GetSpaceName()]+=size;
+		    schedulinggroupbalance[filesystem->GetSchedulingGroup()]+=size;
+		  }
+		  XrdMgmFstNode::gMutex.UnLock();
+		}
+		gOFS->eosViewMutex.UnLock();
+	      }
 	    }
 	  } 
 	}
@@ -1266,6 +1308,31 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    }
 	  }
 	}
+      }
+
+      if (calcbalance) {
+	google::dense_hash_map<unsigned long, unsigned long long>::iterator it;
+	for ( it = filesystembalance.begin(); it != filesystembalance.end(); it++) {
+	  char outline[1024];
+	  sprintf(outline,"fsid=%lu \tnbytes=%llu\n",it->first,it->second);
+	  stdOut += outline;
+	}
+
+	google::dense_hash_map<std::string, unsigned long long>::iterator its;
+	for ( its= spacebalance.begin(); its != spacebalance.end(); its++) {
+	  char outline[1024];
+	  sprintf(outline,"space=%s \tnbytes=%llu\n",its->first.c_str(),its->second);
+	  stdOut += outline;
+	}
+
+	google::dense_hash_map<std::string, unsigned long long>::iterator itg;
+	for ( itg= schedulinggroupbalance.begin(); itg != schedulinggroupbalance.end(); itg++) {
+	  char outline[1024];
+	  sprintf(outline,"sched=%s \tnbytes=%llu\n",itg->first.c_str(),itg->second);
+	  stdOut += outline;
+	}
+
+
       }
       MakeResult(1);
       return SFS_OK;
@@ -1460,7 +1527,7 @@ XrdMgmProcCommand::MakeResult(bool dosort)
   resultStream += "&mgm.proc.retc=";
   resultStream += retc;
 
-  fprintf(stderr,"%s\n",resultStream.c_str());
+  //  fprintf(stderr,"%s\n",resultStream.c_str());
   if (retc) {
     eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);
   }

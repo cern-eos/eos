@@ -279,7 +279,7 @@ XrdMgmSpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
 
 /*----------------------------------------------------------------------------*/
 int 
-XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate)
+XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate, int forcedindex)
 {
   unsigned int nfilesystems = XrdCommonLayoutId::GetStripeNumber(lid) + 1; // 0 = 1 replica !
   unsigned int nassigned = 0;
@@ -327,7 +327,13 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
 
   // we can try all scheduling groups but not more 
   for (unsigned int i=0; i< schedulingView.size(); i++) {
-    schedgroupindex = schedulingViewGroup[indextag];
+    // if forcedindex is 0 or positive, we are requested to place into a particular subgroup
+    if (forcedindex<0) {
+      schedgroupindex = schedulingViewGroup[indextag];
+    } else {
+      schedgroupindex = forcedindex;
+    }
+
     eos_static_debug("scheduling group loop %d", schedgroupindex);
     selectedfs.clear();
 
@@ -395,6 +401,11 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
       selectedfs.clear();
       nassigned = 0;
       schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
+    }
+
+    if (forcedindex >=0) {
+      // in this case we leave, the requested one was tried and we finish here
+      break;
     }
   }
 
