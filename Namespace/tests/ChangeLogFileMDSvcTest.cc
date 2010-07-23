@@ -35,7 +35,8 @@ void ChangeLogFileMDSvcTest::reloadTest()
   {
     eos::IFileMDSvc *fileSvc = new eos::ChangeLogFileMDSvc;
     std::map<std::string, std::string> config;
-    config["changelog_path"] = "/tmp/file_log.log";
+    std::string fileName = tempnam( "/tmp", "eosns" );
+    config["changelog_path"] = fileName;
     fileSvc->configure( config );
     fileSvc->initialize();
 
@@ -107,7 +108,7 @@ void ChangeLogFileMDSvcTest::reloadTest()
     fileSvc->finalize();
 
     delete fileSvc;
-    unlink( "/tmp/file_log.log" );
+    unlink( fileName.c_str() );
   }
   catch( eos::MDException &e )
   {

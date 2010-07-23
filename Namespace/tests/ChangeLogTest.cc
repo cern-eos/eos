@@ -19,6 +19,7 @@
 #include <vector>
 #include <algorithm>
 #include <ext/algorithm>
+#include <cstdio>
 
 #define protected public
 #include "Namespace/FileMD.hh"
@@ -174,7 +175,8 @@ void ChangeLogTest::readWriteCorrectness()
   // Test the file creation
   //----------------------------------------------------------------------------
   eos::ChangeLogFile file;
-  CPPUNIT_ASSERT_NO_THROW( file.open( "/tmp/test_changelog.dat" ) );
+  std::string        fileName = tempnam( "/tmp", "eosns" );
+  CPPUNIT_ASSERT_NO_THROW( file.open( fileName ) );
 
   //----------------------------------------------------------------------------
   // Store 1000 files
@@ -216,7 +218,7 @@ void ChangeLogTest::readWriteCorrectness()
     fileMetadata.clearLocations();
   }
   file.close();
-  unlink( "/tmp/test_changelog.dat" );
+  unlink( fileName.c_str() );
 }
 
 //------------------------------------------------------------------------------
@@ -239,7 +241,8 @@ void ChangeLogTest::followingTest()
   // Test the file creation
   //----------------------------------------------------------------------------
   eos::ChangeLogFile file;
-  CPPUNIT_ASSERT_NO_THROW( file.open( "/tmp/test_changelog.dat" ) );
+  std::string        fileName = tempnam( "/tmp", "eosns" );
+  CPPUNIT_ASSERT_NO_THROW( file.open( fileName ) );
 
   //----------------------------------------------------------------------------
   // Spawn a follower thread
@@ -269,7 +272,7 @@ void ChangeLogTest::followingTest()
   pthread_join( thread, 0 );
 
   file.close();
-  unlink( "/tmp/test_changelog.dat" );
+  unlink( fileName.c_str() );
 }
 
 //------------------------------------------------------------------------------
@@ -472,10 +475,11 @@ void ChangeLogTest::fsckTest()
 {
   eos::LogRepairStats stats;
   eos::LogRepairStats brokenStats;
-
-  createRandomLog( "/tmp/test_log.log", 10000 );
-  breakRecords( "/tmp/test_log.log", 100, brokenStats );
-  eos::ChangeLogFile::repair( "/tmp/test_log.log", "/tmp/test_log_repaired.log",
+  std::string        fileNameBroken   = tempnam( "/tmp", "eosns" );
+  std::string        fileNameRepaired = tempnam( "/tmp", "eosns" );
+  createRandomLog( fileNameBroken, 10000 );
+  breakRecords( fileNameBroken, 100, brokenStats );
+  eos::ChangeLogFile::repair( fileNameBroken, fileNameRepaired,
                               stats, 0 );
 
   // stats.scanned may be more than 10000 and it's fine
@@ -484,6 +488,6 @@ void ChangeLogTest::fsckTest()
   CPPUNIT_ASSERT( stats.fixedWrongChecksum = brokenStats.fixedWrongChecksum );
   CPPUNIT_ASSERT( stats.fixedWrongSize     = brokenStats.fixedWrongSize );
 
-  unlink( "/tmp/test_log.log" );
-  unlink( "/tmp/test_log_repaired.log" );
+  unlink( fileNameBroken.c_str() );
+  unlink( fileNameRepaired.c_str() );
 }

@@ -43,8 +43,10 @@ void HierarchicalViewTest::reloadTest()
     std::map<std::string, std::string> fileSettings;
     std::map<std::string, std::string> contSettings;
     std::map<std::string, std::string> settings;
-    contSettings["changelog_path"] = "/tmp/container_log.log";
-    fileSettings["changelog_path"] = "/tmp/file_log.log";
+    std::string fileNameFileMD = tempnam( "/tmp", "eosns" );
+    std::string fileNameContMD = tempnam( "/tmp", "eosns" );
+    contSettings["changelog_path"] = fileNameContMD;
+    fileSettings["changelog_path"] = fileNameFileMD;
 
     fileSvc->configure( contSettings );
     contSvc->configure( fileSettings );
@@ -108,8 +110,8 @@ void HierarchicalViewTest::reloadTest()
     CPPUNIT_ASSERT( view->getFile( "/test/embed/embed1/file3" ) );
     view->finalize();
 
-    unlink( "/tmp/container_log.log" );
-    unlink( "/tmp/file_log.log" );
+    unlink( fileNameFileMD.c_str() );
+    unlink( fileNameContMD.c_str() );
 
     delete view;
     delete contSvc;

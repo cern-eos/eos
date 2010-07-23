@@ -35,7 +35,8 @@ void ChangeLogContainerMDSvcTest::reloadTest()
   {
     eos::IContainerMDSvc *containerSvc = new eos::ChangeLogContainerMDSvc;
     std::map<std::string, std::string> config;
-    config["changelog_path"] = "/tmp/test_changelog.log";
+    std::string fileName = tempnam( "/tmp", "eosns" );
+    config["changelog_path"] = fileName;
     containerSvc->configure( config );
     containerSvc->initialize();
   
@@ -131,7 +132,7 @@ void ChangeLogContainerMDSvcTest::reloadTest()
 
 
     delete containerSvc;
-    unlink( "/tmp/test_changelog.log" );
+    unlink( fileName.c_str() );
   }
   catch( eos::MDException &e )
   {
