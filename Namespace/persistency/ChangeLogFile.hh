@@ -70,7 +70,8 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ChangeLogFile(): pIsOpen( false ), pVersion( 0 ) {};
+      ChangeLogFile(): pIsOpen( false ), pVersion( 0 ), pSeqNumber( 0 ),
+                       pContentFlag( 0 ) {};
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -78,9 +79,17 @@ namespace eos
       virtual ~ChangeLogFile() {};
 
       //------------------------------------------------------------------------
-      //! Open the log file
+      //! Open the log file, create if needed
+      //!
+      //! @param name        name of the file
+      //! @param readOnly    flag indicating if the file should be open in
+      //!                    read-only mode, causes exception to be thrown
+      //!                    if the file does not exist
+      //! @param contentFlag user-defined valriable identifying the content
+      //!                    of the file 0x0000 is reserved for any content
       //------------------------------------------------------------------------
-      void open( const std::string &name ) throw( MDException );
+      void open( const std::string &name, bool readOnly = false, 
+                 uint16_t contentFile = 0x0000 ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Check if the changelog file is opened already
@@ -94,6 +103,22 @@ namespace eos
       //! Close the log
       //------------------------------------------------------------------------
       void close();
+
+      //------------------------------------------------------------------------
+      //! Get version
+      //------------------------------------------------------------------------
+      uint8_t getVersion() const
+      {
+        return pVersion;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get content flag
+      //------------------------------------------------------------------------
+      uint16_t getContentFlag() const
+      {
+        return pContentFlag;
+      }
 
       //------------------------------------------------------------------------
       //! Sync the buffers to disk
@@ -152,6 +177,7 @@ namespace eos
       bool     pIsOpen;
       uint8_t  pVersion;
       uint64_t pSeqNumber;
+      uint16_t pContentFlag;
   };
 }
 

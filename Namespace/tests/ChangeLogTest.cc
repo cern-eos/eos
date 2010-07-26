@@ -176,7 +176,7 @@ void ChangeLogTest::readWriteCorrectness()
   //----------------------------------------------------------------------------
   eos::ChangeLogFile file;
   std::string        fileName = tempnam( "/tmp", "eosns" );
-  CPPUNIT_ASSERT_NO_THROW( file.open( fileName ) );
+  CPPUNIT_ASSERT_NO_THROW( file.open( fileName, false, 0x1212 ) );
 
   //----------------------------------------------------------------------------
   // Store 1000 files
@@ -196,10 +196,13 @@ void ChangeLogTest::readWriteCorrectness()
                                 eos::UPDATE_RECORD, buffer ) ) );
     fileMetadata.clearLocations();
   }
+  file.close();
 
   //----------------------------------------------------------------------------
   // Scan the file and compare the offsets
   //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_NO_THROW( file.open( fileName, false, 0x0000 ) );
+  CPPUNIT_ASSERT( file.getContentFlag() == 0x1212 );
   FileScanner scanner;
   CPPUNIT_ASSERT_NO_THROW( file.scanAllRecords( &scanner ) );
   std::vector<std::pair<uint64_t, uint16_t> > &readRecords = scanner.getRecords();
@@ -475,8 +478,8 @@ void ChangeLogTest::fsckTest()
 {
   eos::LogRepairStats stats;
   eos::LogRepairStats brokenStats;
-  std::string        fileNameBroken   = tempnam( "/tmp", "eosns" );
-  std::string        fileNameRepaired = tempnam( "/tmp", "eosns" );
+  std::string         fileNameBroken   = tempnam( "/tmp", "eosns" );
+  std::string         fileNameRepaired = tempnam( "/tmp", "eosns" );
   createRandomLog( fileNameBroken, 10000 );
   breakRecords( fileNameBroken, 100, brokenStats );
   eos::ChangeLogFile::repair( fileNameBroken, fileNameRepaired,

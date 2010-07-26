@@ -56,7 +56,8 @@ namespace eos
   //---------------------------------------------------------------------------
   // Open the log file
   //----------------------------------------------------------------------------
-  void ChangeLogFile::open( const std::string &name ) throw( MDException )
+  void ChangeLogFile::open( const std::string &name, bool readOnly,
+                            uint16_t contentFlag ) throw( MDException )
   {
     //--------------------------------------------------------------------------
     // Checki fh the file is open already
@@ -79,12 +80,25 @@ namespace eos
     //--------------------------------------------------------------------------
     if( fd >= 0 )
     {
-      uint8_t version = checkHeader( fd, name ) & 0x000000ff;
+      uint32_t flags   = checkHeader( fd, name );
+      uint8_t  version = flags & 0x000000ff;
+      pContentFlag     = (flags >> 8) & 0x0000ffff;
 
       if( version == 0 || version > 1 )
       {
         MDException ex( EFAULT );
         ex.getMessage() << "Unsupported version: " << name;
+        throw ex;
+      }
+
+      if( contentFlag && contentFlag != pContentFlag )
+      {
+        MDException ex( EFAULT );
+        ex.getMessage() << "Log file exists: " << name << " ";
+        ex.getMessage() << "and the requested content flag (0x";
+        ex.getMessage() << std::setbase(16) << contentFlag << ") does not ";
+        ex.getMessage() << "match the one read from file (0x";
+        ex.getMessage() << std::setbase(16) << pContentFlag << ")";
         throw ex;
       }
 
@@ -102,6 +116,12 @@ namespace eos
     //--------------------------------------------------------------------------
     // Create the file
     //--------------------------------------------------------------------------
+    if( readOnly )
+    {
+      MDException ex( EFAULT );
+      ex.getMessage() << "Cannot create a new file in read-only mode: " << name;
+      throw ex;
+    }
     fd = ::open( name.c_str(), O_CREAT | O_EXCL | O_RDWR, 0644 );
     fdPtr.grab( fd );
 
@@ -128,14 +148,21 @@ namespace eos
     }
 
     uint8_t  version = 1;
+    uint32_t tmp;
     uint32_t flags   = 0;
+
+    pContentFlag = contentFlag;
     flags |= version;
+    tmp = contentFlag;
+    flags |= (tmp << 8);
+
     if( write( fd, &flags, 4 ) != 4 )
     {
       MDException ex( errno );
-      ex.getMessage() << "Unable to write version  number: " << name;
+      ex.getMessage() << "Unable to write the flags: " << name;
       throw ex;
     }
+
     fdPtr.release();
     pFd        = fd;
     pIsOpen    = true;
