@@ -9,6 +9,7 @@ libEosNamespaceTests_la_SOURCES =      \
 	ChangeLogContainerMDSvcTest.cc \
 	FileSystemViewTest.cc          \
 	HierarchicalViewTest.cc        \
+	LogCompactingTest.cc           \
 	ChangeLogTest.cc
 
 

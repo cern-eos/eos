@@ -32,6 +32,8 @@ libEosNamespace_la_SOURCES = \
 	persistency/ChangeLogContainerMDSvc.cc \
 	persistency/ChangeLogFileMDSvc.hh      \
 	persistency/ChangeLogFileMDSvc.cc      \
+	persistency/LogManager.hh              \
+	persistency/LogManager.cc              \
 	views/HierarchicalView.hh              \
 	views/HierarchicalView.cc              \
 	accounting/FileSystemView.hh           \
