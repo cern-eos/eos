@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <cerrno>
+#include <cstring>
 
 namespace eos
 {
