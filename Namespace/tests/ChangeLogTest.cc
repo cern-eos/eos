@@ -193,7 +193,7 @@ void ChangeLogTest::readWriteCorrectness()
     CPPUNIT_ASSERT_NO_THROW( fileMetadata.serialize( buffer ) );
     CPPUNIT_ASSERT_NO_THROW( offsets.push_back(
                               file.storeRecord(
-                                eos::UPDATE_RECORD, buffer ) ) );
+                                eos::UPDATE_RECORD_MAGIC, buffer ) ) );
     fileMetadata.clearLocations();
   }
   file.close();
@@ -268,7 +268,7 @@ void ChangeLogTest::followingTest()
     fillFileMD( fileMetadata, i );
     CPPUNIT_ASSERT_NO_THROW( fileMetadata.serialize( buffer ) );
     CPPUNIT_ASSERT_NO_THROW(
-      offsets.push_back( file.storeRecord( eos::UPDATE_RECORD, buffer ) ) );
+      offsets.push_back( file.storeRecord( eos::UPDATE_RECORD_MAGIC, buffer ) ) );
     fileMetadata.clearLocations();
     usleep( 60000 );
   }

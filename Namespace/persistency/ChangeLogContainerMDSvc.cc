@@ -19,7 +19,7 @@ namespace eos
     //--------------------------------------------------------------------------
     // Rescan the changelog
     //--------------------------------------------------------------------------
-    pChangeLog->open( pChangeLogPath );
+    pChangeLog->open( pChangeLogPath, false, CONTAINER_LOG_MAGIC );
     ContainerMDScanner scanner( pIdMap );
     pChangeLog->scanAllRecords( &scanner );
     pFirstFreeId = scanner.getLargestId()+1;
@@ -118,7 +118,8 @@ namespace eos
     //--------------------------------------------------------------------------
     eos::Buffer buffer;
     obj->serialize( buffer );
-    it->second.logOffset = pChangeLog->storeRecord( eos::UPDATE_RECORD, buffer );
+    it->second.logOffset = pChangeLog->storeRecord( eos::UPDATE_RECORD_MAGIC,
+                                                    buffer );
     notifyListeners( obj, IContainerMDChangeListener::Updated );
   }
 
@@ -154,7 +155,7 @@ namespace eos
     //--------------------------------------------------------------------------
     eos::Buffer buffer;
     buffer.putData( &containerId, sizeof( ContainerMD::id_t ) );
-    pChangeLog->storeRecord( eos::DELETE_RECORD, buffer );
+    pChangeLog->storeRecord( eos::DELETE_RECORD_MAGIC, buffer );
     notifyListeners( it->second.ptr, IContainerMDChangeListener::Deleted );
     delete it->second.ptr;
     pIdMap.erase( it );
@@ -214,7 +215,7 @@ namespace eos
     //--------------------------------------------------------------------------
     // Update
     //--------------------------------------------------------------------------
-    if( type == UPDATE_RECORD )
+    if( type == UPDATE_RECORD_MAGIC )
     {
       ContainerMD::id_t id;
       buffer.grabData( 0, &id, sizeof( ContainerMD::id_t ) );
@@ -225,7 +226,7 @@ namespace eos
     //--------------------------------------------------------------------------
     // Deletion
     //--------------------------------------------------------------------------
-    else if( type == DELETE_RECORD )
+    else if( type == DELETE_RECORD_MAGIC )
     {
       ContainerMD::id_t id;
       buffer.grabData( 0, &id, sizeof( ContainerMD::id_t ) );

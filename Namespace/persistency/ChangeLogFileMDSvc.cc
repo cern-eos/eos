@@ -18,7 +18,7 @@ namespace eos
     //--------------------------------------------------------------------------
     // Rescan the changelog
     //--------------------------------------------------------------------------
-    pChangeLog->open( pChangeLogPath );
+    pChangeLog->open( pChangeLogPath, false, FILE_LOG_MAGIC );
     FileMDScanner scanner( pIdMap );
     pChangeLog->scanAllRecords( &scanner );
     pFirstFreeId = scanner.getLargestId()+1;
@@ -120,7 +120,8 @@ namespace eos
     //--------------------------------------------------------------------------
     eos::Buffer buffer;
     obj->serialize( buffer );
-    it->second.logOffset = pChangeLog->storeRecord( eos::UPDATE_RECORD, buffer );
+    it->second.logOffset = pChangeLog->storeRecord( eos::UPDATE_RECORD_MAGIC,
+                                                    buffer );
     IFileMDChangeListener::Event e( obj, IFileMDChangeListener::Updated );
     notifyListeners( &e );
   }
@@ -156,7 +157,7 @@ namespace eos
     //--------------------------------------------------------------------------
     eos::Buffer buffer;
     buffer.putData( &fileId, sizeof( FileMD::id_t ) );
-    pChangeLog->storeRecord( eos::DELETE_RECORD, buffer );
+    pChangeLog->storeRecord( eos::DELETE_RECORD_MAGIC, buffer );
     IFileMDChangeListener::Event e( fileId, IFileMDChangeListener::Deleted );
     notifyListeners( &e );
     delete it->second.ptr;
@@ -190,7 +191,7 @@ namespace eos
     //--------------------------------------------------------------------------
     // Update
     //--------------------------------------------------------------------------
-    if( type == UPDATE_RECORD )
+    if( type == UPDATE_RECORD_MAGIC )
     {
       FileMD::id_t id;
       buffer.grabData( 0, &id, sizeof( FileMD::id_t ) );
@@ -201,7 +202,7 @@ namespace eos
     //--------------------------------------------------------------------------
     // Deletion
     //--------------------------------------------------------------------------
-    else if( type == DELETE_RECORD )
+    else if( type == DELETE_RECORD_MAGIC )
     {
       FileMD::id_t id;
       buffer.grabData( 0, &id, sizeof( FileMD::id_t ) );
