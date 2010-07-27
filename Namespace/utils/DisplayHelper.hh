@@ -8,6 +8,7 @@
 
 #include <sstream>
 #include <string>
+#include <iomanip>
 
 namespace eos
 {
@@ -34,18 +35,27 @@ namespace eos
       static std::string getReadableSize( uint64_t size )
       {
         std::ostringstream o;
-        std::string unit = "B";
+        std::string unit  = "B";
+        uint32_t reminder = 0;
 
-        for( int i = 0; i < 3; ++i )
+        int i;
+        for( i = 0; i < 3; ++i )
         {
           if( size < 1024 )
             break;
 
+          reminder = size % 1024;
           size /= 1024;
           unit = units[i];
         }
 
-        o << size << " " << unit;
+        o << size;
+        if( reminder )
+        {
+          o << "." << std::setw(3) << std::setfill('0');
+          o << reminder*1000/1024;
+        }
+        o << " " << unit;
         return o.str();
       }
   };
