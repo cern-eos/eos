@@ -715,11 +715,8 @@ namespace eos
     stats.bytesTotal    = fsize;
     stats.bytesAccepted = 8;  // offset
 
-    while( 1 )
+    while( offset < fsize )
     {
-      if( offset == fsize )
-        break;
-
       //------------------------------------------------------------------------
       // Reconstruct the header at the offset
       //------------------------------------------------------------------------
