@@ -7,41 +7,7 @@
 #include <sstream>
 #include <string>
 #include "Namespace/persistency/ChangeLogFile.hh"
-
-//------------------------------------------------------------------------------
-// Beautify time
-//------------------------------------------------------------------------------
-std::string readableTime( time_t t )
-{
-  int mins = t / 60;
-  int secs = t % 60;
-  std::ostringstream o;
-  o << mins << " m. " << secs << " s.";
-  return o.str();
-}
-
-//------------------------------------------------------------------------------
-// Beautify size
-//------------------------------------------------------------------------------
-std::string units[] = {"KB", "MB", "GB" };
-
-std::string readableSize( uint64_t size )
-{
-  std::ostringstream o;
-  std::string unit = "B";
-
-  for( int i = 0; i < 3; ++i )
-  {
-    if( size < 1024 )
-      break;
-
-    size /= 1024;
-    unit = units[i];
-  }
-
-  o << size << " " << unit;
-  return o.str();
-}
+#include "Namespace/utils/DisplayHelper.hh"
 
 //------------------------------------------------------------------------------
 // Report feedback from the reparation procedure
@@ -67,9 +33,10 @@ class Feedback: public eos::ILogRepairFeedback
       pLastUpdated = stats.timeElapsed;
 
       o << "\r";
-      o << "Elapsed time: " << readableTime( stats.timeElapsed ) << " ";
-      o << "Progress: " << readableSize( sum ) << " / ";
-      o << readableSize( stats.bytesTotal );
+      o << "Elapsed time: ";
+      o << eos::DisplayHelper::getReadableTime( stats.timeElapsed ) << " ";
+      o << "Progress: " << eos::DisplayHelper::getReadableSize( sum ) << " / ";
+      o << eos::DisplayHelper::getReadableSize( stats.bytesTotal );
 
       //------------------------------------------------------------------------
       // Avoid garbage on the screen by overwriting it with spaces
@@ -138,7 +105,8 @@ int main( int argc, char **argv )
   std::cerr << "Fixed (wrong magic):    " << stats.fixedWrongMagic    << std::endl;
   std::cerr << "Fixed (wrong checksum): " << stats.fixedWrongChecksum << std::endl;
   std::cerr << "Fixed (wrong size):     " << stats.fixedWrongSize     << std::endl;
-  std::cerr << "Elapsed time:           " << readableTime(stats.timeElapsed);
+  std::cerr << "Elapsed time:           ";
+  std::cerr << eos::DisplayHelper::getReadableTime(stats.timeElapsed);
   std::cerr << std::endl;
 
   return 0;
