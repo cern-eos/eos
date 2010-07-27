@@ -119,7 +119,7 @@ namespace eos
     CompactingScanner scanner( map, feedback, stats, startTime );
     map.set_deleted_key( 0 );
     inputFile.scanAllRecords( &scanner );
-    stats.recordsLeft = map.size();
+    stats.recordsKept = map.size();
 
     if( feedback )
       feedback->reportProgress( stats, ILogCompactingFeedback::CopyPreparation );
@@ -133,6 +133,7 @@ namespace eos
     {
       uint8_t type = inputFile.readRecord( it->second, buffer );
       outputFile.storeRecord( type, buffer );
+      ++stats.recordsWritten;
       stats.timeElapsed = time(0) - startTime;
       if( feedback )
         feedback->reportProgress( stats,

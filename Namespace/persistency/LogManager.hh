@@ -19,12 +19,13 @@ namespace eos
   struct LogCompactingStats
   {
     LogCompactingStats(): recordsUpdated(0), recordsDeleted(0), recordsTotal(0),
-      recordsLeft(0), timeElapsed(0) {}
+      recordsKept(0), recordsWritten(0), timeElapsed(0) {}
 
     uint64_t recordsUpdated;
     uint64_t recordsDeleted;
     uint64_t recordsTotal;
-    uint64_t recordsLeft;
+    uint64_t recordsKept;
+    uint64_t recordsWritten;
     time_t   timeElapsed;
   };
 
