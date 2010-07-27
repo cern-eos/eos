@@ -120,7 +120,7 @@ static void createRandomLog( const std::string       &path,
     }
   }
   stats.recordsTotal = stats.recordsUpdated + stats.recordsDeleted;
-  stats.recordsLeft  = numUnique - numDeleted;
+  stats.recordsKept  = numUnique - numDeleted;
   file.close();
 }
 
@@ -140,7 +140,8 @@ void LogCompactingTest::correctnessTest()
   CPPUNIT_ASSERT( stats.recordsTotal   == genStats.recordsTotal );
   CPPUNIT_ASSERT( stats.recordsUpdated == genStats.recordsUpdated );
   CPPUNIT_ASSERT( stats.recordsDeleted == genStats.recordsDeleted );
-  CPPUNIT_ASSERT( stats.recordsLeft    == genStats.recordsLeft );
+  CPPUNIT_ASSERT( stats.recordsKept    == genStats.recordsKept );
+  CPPUNIT_ASSERT( stats.recordsKept    == stats.recordsWritten );
 
   unlink( fileNameOld.c_str() );
   unlink( fileNameCompacted.c_str() );
