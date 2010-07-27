@@ -566,7 +566,7 @@ namespace eos
     seq     =  (uint64_t*)(buff+8);
     type    = *(uint8_t*) (buff+16);
 
-    uint32_t crcHead = DataHelper::computeCRC32( &seq, 8 );
+    uint32_t crcHead = DataHelper::computeCRC32( seq, 8 );
     crcHead = DataHelper::updateCRC32( crcHead, (buff+16), 4 ); // opts
 
     //--------------------------------------------------------------------------
@@ -659,7 +659,7 @@ namespace eos
         okChecksum1 = false;
 
       if( chkSum2 != crc )
-      okChecksum2 = false;
+        okChecksum2 = false;
 
       if( okChecksum1 || okChecksum2 )
       {

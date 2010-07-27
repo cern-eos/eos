@@ -487,9 +487,13 @@ void ChangeLogTest::fsckTest()
 
   // stats.scanned may be more than 10000 and it's fine
   CPPUNIT_ASSERT( stats.scanned == stats.healthy + stats.notFixed );
-  CPPUNIT_ASSERT( stats.fixedWrongMagic    = brokenStats.fixedWrongMagic );
-  CPPUNIT_ASSERT( stats.fixedWrongChecksum = brokenStats.fixedWrongChecksum );
-  CPPUNIT_ASSERT( stats.fixedWrongSize     = brokenStats.fixedWrongSize );
+  uint64_t totalFixed = brokenStats.fixedWrongMagic +
+                        brokenStats.fixedWrongChecksum +
+                        brokenStats.fixedWrongSize;
+  CPPUNIT_ASSERT( stats.healthy == 9900+totalFixed );
+  CPPUNIT_ASSERT( stats.fixedWrongMagic    == brokenStats.fixedWrongMagic );
+  CPPUNIT_ASSERT( stats.fixedWrongChecksum == brokenStats.fixedWrongChecksum );
+  CPPUNIT_ASSERT( stats.fixedWrongSize     == brokenStats.fixedWrongSize );
 
   unlink( fileNameBroken.c_str() );
   unlink( fileNameRepaired.c_str() );
