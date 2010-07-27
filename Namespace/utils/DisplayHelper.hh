@@ -25,7 +25,8 @@ namespace eos
         int mins = t / 60;
         int secs = t % 60;
         std::ostringstream o;
-        o << mins << " m. " << secs << " s.";
+        o << mins << " m. ";
+        o << std::setw(2) << std::setfill('0') << secs << " s.";
         return o.str();
       }
 
