@@ -44,9 +44,14 @@ libEosNamespace_la_LIBADD = -lrt
 #-------------------------------------------------------------------------------
 # The log checker
 #-------------------------------------------------------------------------------
-bin_PROGRAMS = eos-log-repair
+bin_PROGRAMS = eos-log-repair eos-log-compact
 
 eos_log_repair_SOURCES = progs/EOSLogRepair.cc
 eos_log_repair_CPPFLAGS = $(INCLUDES)
 eos_log_repair_DEPENDENCIES = libEosNamespace.la
 eos_log_repair_LDADD  = libEosNamespace.la
+
+eos_log_compact_SOURCES = progs/EOSLogCompact.cc
+eos_log_compact_CPPFLAGS = $(INCLUDES)
+eos_log_compact_DEPENDENCIES = libEosNamespace.la
+eos_log_compact_LDADD  = libEosNamespace.la
