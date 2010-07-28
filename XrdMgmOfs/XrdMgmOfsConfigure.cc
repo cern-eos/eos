@@ -427,9 +427,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
     time_t tstop  = time(0);
     eos_notice("eos view configure stopped after %d seconds", (tstop-tstart));
-  } catch (...) {
+  } catch ( eos::MDException &e ) {
     time_t tstop  = time(0);
     eos_crit("eos view initialization failed after %d seconds", (tstop-tstart));
+    errno = e.getErrno();
+    eos_crit("initialization returnd ec=%d %s\n", e.getErrno(),e.getMessage().str().c_str());
     return 1;
   };
 
