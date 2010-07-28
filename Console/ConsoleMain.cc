@@ -1066,6 +1066,21 @@ com_fs (char* arg1) {
     return (0);
   } 
 
+  if ( subcommand == "dumpmd" ) {
+    XrdOucString arg = subtokenizer.GetToken();
+    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=dumpmd";
+    if (!arg.length()) 
+      goto com_fs_usage;
+    
+    int fsid = atoi(arg.c_str());
+    in += "&mgm.fsid=";
+    in += (int) fsid;
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+
+
   com_fs_usage:
 
   printf("usage: fs ls                                                    : list configured filesystems (or by name or id match\n");
@@ -1084,6 +1099,7 @@ com_fs (char* arg1) {
   printf("       fs dropfiles  <fs-id>                                    : allows to drop all files on <fs-id>\n");
   printf("       fs dissolve   <fs-id> <space>                            : allows to create a new replica of all files on <fs-id> in <space>\n");
   printf("       fs flatten    <space> [<tag>]                            : allows to flatten the file distribution in <space> for files with tag <tag>\n");
+  printf("       fs dumpmd <fs-id>                                        : dump all file meta data on this filesystem in query format\n");
   return (0);
 }
 
