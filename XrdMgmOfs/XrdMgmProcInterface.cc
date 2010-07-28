@@ -214,6 +214,45 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       }
 
       if (adminCmd) {
+	if (subcmd == "dumpmd") {
+	  if (vid_in.uid == 0) {
+	    char* fsidst = opaque.Get("mgm.fsid");
+	    
+	    int fsid = 0;
+	    
+	    if (!fsidst) {
+	      stdErr="error: illegal parameters";
+	      retc = EINVAL;
+	    } else {
+	      fsid = atoi(fsidst);	
+	      //-------------------------------------------
+	      gOFS->eosViewMutex.Lock();
+	      try {
+		eos::FileMD* fmd = 0;
+		eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+		eos::FileSystemView::FileIterator it;
+		for (it = filelist.begin(); it != filelist.end(); ++it) {
+		  std::string env;
+		  fmd = gOFS->eosFileService->getFileMD(*it);
+		  if (fmd) 
+		    fmd->getEnv(env);
+		  
+		  stdOut += env.c_str();
+		  stdOut += "\n";
+		}
+	      } catch ( eos::MDException &e ) {
+		errno = e.getErrno();
+		eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	      }
+	      gOFS->eosViewMutex.UnLock();
+	      //-------------------------------------------
+	    }
+	  } else {
+	    retc = EPERM;
+	    stdErr = "error: you have to take role 'root' to execute this command";
+	  }
+	}
+
 	if (subcmd == "set") {
 	  if (vid_in.uid == 0) {
 	    char* fsname = opaque.Get("mgm.fsname");
