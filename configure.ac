@@ -1,5 +1,5 @@
 AC_PREREQ(2.57)
-AC_INIT(eos,0.0.2,[andreas.joachim.peters@cern.ch])
+AC_INIT(eos,0.0.3,[andreas.joachim.peters@cern.ch])
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 AC_CONFIG_SRCDIR([configure.ac])
@@ -118,7 +118,10 @@ AC_CHECK_HEADERS([readline/readline.h], ,
 AC_CHECK_LIB(readline, readline, , AC_MSG_ERROR( "Please install lib readline & curses" ) )
 AC_CHECK_LIB(rt, clock_gettime, , AC_MSG_ERROR( "The system does not have clock_gettime" ) )
 AC_CHECK_LIB(z, crc32, , AC_MSG_ERROR( "Please install zlib" ) )
-export LDFLAGS=$LDFLAGS_BUP
+AC_CHECK_LIB(termcap, tputs, ,AC_MSG_ERROR( "Please install libtermcap" ) )
+AC_CHECK_LIB(ncurses, wclear, ,AC_MSG_ERROR( "Please install libncurses" ) )
+
+export LDFLAGS=$LDFLAGS_BUP 
 
 # check for cppunit
 ifdef([AM_PATH_CPPUNIT], [AM_PATH_CPPUNIT([1.12.1])], [])
