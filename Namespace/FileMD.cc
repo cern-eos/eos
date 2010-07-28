@@ -108,6 +108,45 @@ namespace eos
     pLocation.clear();
   }
 
+  //------------------------------------------------------------------------
+  //  Env Representation
+  //------------------------------------------------------------------------
+  void FileMD::getEnv( std::string &env ) 
+  {
+    env="";
+    char senv[16384];
+    sprintf(senv,"name=%s&id=%llu&ctime=%llu&ctime_ns=%llu&mtime=%llu&mtime_ns=%llu&size=%llu&cid=%llu&uid=%lu&gid=%lu&lid=%lu"
+	    ,pName.c_str()
+	    ,(unsigned long long) pId
+	    ,(unsigned long long) pCTime.tv_sec
+	    ,(unsigned long long) pCTime.tv_nsec
+	    ,(unsigned long long) pMTime.tv_sec
+	    ,(unsigned long long) pMTime.tv_nsec
+	    ,(unsigned long long) pSize
+	    ,(unsigned long long) pContainerId
+	    ,(unsigned long) pCUid
+	    ,(unsigned long) pCGid
+	    ,(unsigned long) pLayoutId);
+
+    env += senv;
+    env += "&location=";
+    LocationVector::iterator it;
+    for( it = pLocation.begin(); it != pLocation.end(); ++it )
+      {
+	env += (int) *it;
+	env += ",";
+      }
+    
+    env += "&checksum=";
+    uint8_t size = pChecksum.getSize();
+    for ( uint8_t i=0; i < size; i++ ) {
+      char hx[3];
+      sprintf(hx,"%02x",*(pChecksum.getDataPtr()+i));
+      env += hx;
+    }
+  }
+
+
   //----------------------------------------------------------------------------
   // Serialize the object to a buffer
   //----------------------------------------------------------------------------
