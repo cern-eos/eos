@@ -97,7 +97,7 @@ while (1) {
 			
 			$totalhash->{$intname} += $infohash->{$name};
 			push @alltags, $intname;
-			push @alltags, $totalhash->{$intname};
+			push @alltags, ($totalhash->{$intname})/1000000.0;
 		    }
 		}
 		
