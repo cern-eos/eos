@@ -411,6 +411,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   if (!dmd->access(vid.uid, vid.gid, (isRW)?W_OK | X_OK:R_OK | X_OK)) {
     errno = EPERM;
     gOFS->eosViewMutex.UnLock();
+    gOFS->MgmStats.Add("OpenFailedPermission",vid.uid,vid.gid,1);  
     return Emsg(epname, error, errno, "open file", path);      
   }
 
@@ -577,8 +578,10 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     // check if the dir attributes tell us to let clients rebounce
     if (attrmap.count("sys.stall.unavailable")) {
       int stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
+    
       if (stalltime) {
 	// stall the client
+	gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
 	return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
       }
     }
@@ -587,11 +590,14 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       int stalltime = atoi(attrmap["user.stall.unavailable"].c_str());
       if (stalltime) {
 	// stall the client
+	gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
 	return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
       }
     }
     
     XrdMgmFstNode::gMutex.UnLock();
+
+    gOFS->MgmStats.Add("OpenFailedQuota",vid.uid,vid.gid,1);  
     return Emsg(epname, error, retc, "access quota space ", path);
   }
 
