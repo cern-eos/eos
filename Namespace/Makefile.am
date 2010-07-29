@@ -23,6 +23,8 @@ libEosNamespace_la_SOURCES = \
 	utils/Descriptor.cc   \
 	utils/SmartPtrs.hh    \
 	utils/PathProcessor.hh \
+        utils/DataHelper.hh    \
+        utils/DataHelper.cc    \
 	persistency/ChangeLogFile.hh      \
 	persistency/ChangeLogFile.cc      \
 	persistency/Buffer.hh             \

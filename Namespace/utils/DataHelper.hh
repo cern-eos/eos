@@ -8,6 +8,7 @@
 
 #include <zlib.h>
 #include <stdint.h>
+#include "Namespace/MDException.hh"
 
 namespace eos
 {
@@ -23,13 +24,26 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
-      // Update a crc32 checksum
+      //! Update a crc32 checksum
       //------------------------------------------------------------------------
       static uint32_t updateCRC32( uint32_t crc, void *buffer, uint32_t len )
       {
         return crc32( crc, (const Bytef*)buffer, len );
       }
 
+      //------------------------------------------------------------------------
+      //! Copy file ownership information
+      //!
+      //! @param target           target file
+      //! @param source           source file
+      //! @param ignoreWhenNoPerm exit seamlesly when the caller has
+      //!                         insufficient permissions to carry out this
+      //!                         operation
+      //------------------------------------------------------------------------
+      static void copyOwnership( const std::string &target,
+                                 const std::string &source,
+                                 bool ignoreNoPerm = true )
+        throw( MDException );
   };
 }
 

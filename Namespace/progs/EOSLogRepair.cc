@@ -8,6 +8,7 @@
 #include <string>
 #include "Namespace/persistency/ChangeLogFile.hh"
 #include "Namespace/utils/DisplayHelper.hh"
+#include "Namespace/utils/DataHelper.hh"
 
 //------------------------------------------------------------------------------
 // Report feedback from the reparation procedure
@@ -85,6 +86,7 @@ int main( int argc, char **argv )
   try
   {
     eos::ChangeLogFile::repair( argv[1], argv[2], stats, &feedback );
+    eos::DataHelper::copyOwnership( argv[2], argv[1] );
   }
   catch( eos::MDException &e )
   {
