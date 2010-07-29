@@ -2115,7 +2115,7 @@ com_test (char* arg1) {
     }
 
     if (tag == "rmdir") {
-      XrdMqTiming timing("mkdir");   
+      XrdMqTiming timing("rmdir");   
       TIMING("start",&timing);
 
       for (int i=0; i< 10; i++) {
@@ -2151,7 +2151,7 @@ com_test (char* arg1) {
     }
 
     if (tag == "lsla") {
-      XrdMqTiming timing("ls");   
+      XrdMqTiming timing("lsla");   
       TIMING("start",&timing);
 
       for (int i=0; i< 10; i++) {
