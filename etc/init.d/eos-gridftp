@@ -76,7 +76,7 @@ if [ ! -d "/var/log/eos/gridftp" ]; then
 fi
 
 if [ -z "$options" ]; then
-  options="-dn -S -p $port -Z $log"
+  options=" -S -p $port -Z $log"
 fi
 
 start()
