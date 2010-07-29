@@ -30,7 +30,12 @@ XrdCommonLogging::log(const char* func, const char* file, int line, const char* 
       return;
     }
 
-  static char buffer[16384];
+  static char* buffer=0;
+  if (!buffer) {
+    // 1 M print buffer
+    buffer = (char*) malloc(1024*1024);
+  }
+    
   XrdOucString File = file;
 
   if (File.length() > 16) {
