@@ -127,7 +127,8 @@ public:
 
   static unsigned long long GetSizeFromString(XrdOucString sizestring) {
     errno = 0;
-    unsigned long long convfactor=1ll;
+    unsigned long long convfactor;
+    convfactor = 1ll;
     if (!sizestring.length()) {
       errno = EINVAL;
       return 0;
@@ -152,7 +153,8 @@ public:
     if (sizestring.endswith("K") || sizestring.endswith("k")) {
       convfactor = 1000l;
     }
-    sizestring.erase(sizestring.length()-1);
+    if (convfactor >1)
+      sizestring.erase(sizestring.length()-1);
     return (strtoll(sizestring.c_str(),0,10) * convfactor);
   }
 
