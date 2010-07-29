@@ -630,7 +630,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	// filter out several *'s ...
 	int nstars=0;
 	int npos=0;
-	while ( (debugnode.find("*",npos)) != STR_NPOS) {npos++;nstars++;}
+	while ( (npos=debugnode.find("*",npos)) != STR_NPOS) {npos++;nstars++;}
 	if (nstars>1) {
 	  stdErr="error: debug level node can only contain one wildcard character (*) !";
 	  retc = EINVAL;

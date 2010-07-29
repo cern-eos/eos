@@ -56,7 +56,7 @@ XrdMgmVid::Set(const char* value)
 	XrdCommonMapping::gSudoerMap[uid]=1;
 	set = true;
       } else {
-	// this in fact is deltion of the right
+	// this in fact is deletion of the right
 	XrdCommonMapping::gSudoerMap[uid]=0;
 	gOFS->ConfigEngine->DeleteConfigValue("vid",skey.c_str());
 	return true;
