@@ -29,7 +29,7 @@ class XrdFstMessaging : public XrdMqMessaging , public XrdCommonLogId {
 public:
   XrdFstMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus = false, bool advisoryquery = false) : XrdMqMessaging(url,defaultreceiverqueue, advisorystatus, advisoryquery) {}
   virtual ~XrdFstMessaging(){ XrdCommonLogId();}
-
+  
   static void* Start(void *pp);
 
   virtual void Listen();

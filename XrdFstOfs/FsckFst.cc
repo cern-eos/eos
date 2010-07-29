@@ -26,6 +26,8 @@ void usage(const char* name) {
 }
 
 int main(int argc, char* argv[] ) {
+  // change to daemon account
+  setuid(2);
   XrdCommonLogging::Init();
   XrdCommonLogging::SetUnit("eosfstfsck");
   XrdCommonLogging::SetLogPriority(LOG_NOTICE);

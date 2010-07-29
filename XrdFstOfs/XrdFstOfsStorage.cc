@@ -621,11 +621,23 @@ XrdFstOfsStorage::Trim()
     eos_static_info("Trimming Size  %u", gFmdHandler.Fmd.size());
     for ( it = gFmdHandler.Fmd.begin(); it != gFmdHandler.Fmd.end(); ++it) {
       eos_static_info("Trimming fsid=%llu ",it->first);
-      if (!gFmdHandler.TrimLogFile(it->first)) {
-      	eos_static_err("Trimming failed on fsid=%llu",it->first);
+      // stat the size of this logfile
+      struct stat buf;
+      if (fstat(gFmdHandler.fdChangeLogRead[it->first],&buf)) {
+	eos_static_err("Cannot stat the changelog file for fsid=%llu for", it->first);
+      } else {
+	// we trim only if the file reached 1 GB
+	if (buf.st_size > (1000l * 1024 * 1024)) {
+	  if (!gFmdHandler.TrimLogFile(it->first)) {
+	    eos_static_err("Trimming failed on fsid=%llu",it->first);
+	  }
+	} else {
+	  eos_static_info("Trimming skipped ... changelog is < 1GB");
+	}
       }
     }
-    sleep(80000);
+    // check once per day only 
+    sleep(86400);
   }
 }
 
