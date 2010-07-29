@@ -36,7 +36,7 @@ fi
 
 
 cleanup() {
-        if [ "${XRD_ROLES}" = "ost" ]; then
+        if [ "${XRD_ROLES}" = "fst" ]; then
 	    echo ""
 	fi
 }
@@ -49,7 +49,10 @@ start() {
 	# Start xrootd daemons
 	echo
 	for i in ${XRD_ROLES}; do
-
+	        if [ "$i" = "mgm" ]; then
+		    XRD_ROLEFLAG="-r "
+ 	    fi
+	    
 	        # Load the appropriate sysconfig file for the role
 	        if [ -f /etc/sysconfig/$sysconfigfile.$i ]; then
                         . /etc/sysconfig/$sysconfigfile.$i
@@ -186,13 +189,18 @@ restart() {
 # Determine the role
 if [ -n "$2" ]; then
         XRD_ROLES=$2
-	if [ "$XRD_ROLES" = "manager" ]; then
+	if [ "$XRD_ROLES" = "mgm" ]; then
    		XRD_ROLEFLAG="-r "
 	fi
+
+	if [ "$XRD_ROLES" = "mq" ]; then
+   		XRD_ROLEFLAG="-r "
+	fi
+
 elif [ -z "${XRD_ROLES}" ]; then
         # No roles defined in the sysconfig file so lets automatically find out
-        # which role we are. We assume we are a ost to begin with
-        XRD_ROLES="ost"
+        # which role we are. We assume we are a fst to begin with
+        XRD_ROLES="fst"
 	# New lets really see!
 	if [ ! -f "${XRD_CONFIG}" ]; then
 	        echo $"Failed to determine xrootd role - ${XRD_CONFIG}: No such file or directory"
