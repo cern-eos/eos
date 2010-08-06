@@ -200,6 +200,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 
   // create the specific listener class
   FstOfsMessaging = new XrdFstMessaging(XrdFstOfsConfig::gConfig.FstOfsBrokerUrl.c_str(),XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.c_str());
+  if( !FstOfsMessaging->StartListenerThread() ) NoGo = 1;
 
   if ( (!FstOfsMessaging) || (FstOfsMessaging->IsZombie()) ) {
     Eroute.Emsg("Config","cannot create messaging object(thread)");
@@ -810,14 +811,6 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
   if (checkSum) checkSum->Reset();
 
   return layOut->truncate(fileOffset);
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-XrdFstMessaging::Start(void *pp)
-{
-  (dynamic_cast<XrdFstMessaging*>((XrdFstMessaging*)pp))->Listen();
-  return 0;
 }
 
 /*----------------------------------------------------------------------------*/

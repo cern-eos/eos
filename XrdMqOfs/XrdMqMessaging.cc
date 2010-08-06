@@ -15,8 +15,6 @@ XrdMqMessaging::Start(void *pp)
 /*----------------------------------------------------------------------------*/
 XrdMqMessaging::XrdMqMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus, bool advisoryquery ) 
 {
-  pthread_t tid;
-  int rc;
   if (gMessageClient.AddBroker(url, advisorystatus,advisoryquery)) {
     zombie = false;
   } else {
@@ -35,13 +33,23 @@ XrdMqMessaging::XrdMqMessaging(const char* url, const char* defaultreceiverqueue
 
   gMessageClient.Subscribe();
   gMessageClient.SetDefaultReceiverQueue(defaultreceiverqueue);
+}
 
+//------------------------------------------------------------------------------
+// Start the listener thread
+//------------------------------------------------------------------------------
+bool XrdMqMessaging::StartListenerThread()
+{
+  pthread_t tid;
+  int rc;
   XrdMqMessage::Eroute.Say("###### " ,"mq messaging: statring thread ","");
   if ((rc = XrdSysThread::Run(&tid, XrdMqMessaging::Start, static_cast<void *>(this),
                               0, "Messaging Receiver"))) {
     XrdMqMessage::Eroute.Emsg("messaging",rc,"create messaging thread");
     zombie = true;
+    return false;
   }
+  return true;
 }
 
 /*----------------------------------------------------------------------------*/

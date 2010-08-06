@@ -17,6 +17,7 @@ public:
   static void* Start(void *pp);
 
   virtual void Listen()=0;
+  virtual bool StartListenerThread();
   void Connect();
   
   XrdMqMessaging() {};

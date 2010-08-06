@@ -460,6 +460,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   // create the specific listener class
   MgmOfsMessaging = new XrdMgmMessaging(MgmOfsBrokerUrl.c_str(),MgmDefaultReceiverQueue.c_str(), true, true);
+  if( !MgmOfsMessaging->StartListenerThread() ) NoGo = 1;
   MgmOfsMessaging->SetLogId("MgmOfsMessaging");
 
   if ( (!MgmOfsMessaging) || (MgmOfsMessaging->IsZombie()) ) {
