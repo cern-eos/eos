@@ -41,7 +41,6 @@ XrdMgmMessaging::XrdMgmMessaging(const char* url, const char* defaultreceiverque
 void
 XrdMgmMessaging::Listen() 
 {
-  fprintf(stderr,"in listener function\n");
   while(1) {
     XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
     //    if (newmessage) newmessage->Print();  
