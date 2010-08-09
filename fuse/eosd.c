@@ -163,7 +163,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
   if (to_set & FUSE_SET_ATTR_SIZE) {
     if (isdebug) printf("[%s]: set attr size=%d ino=%lld\n", __FUNCTION__,attr->st_size, (long long)ino);
     int fd;
-    if ((fd = xrd_open(fullpath, O_WRONLY | O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
+    if ((fd = xrd_open(fullpath, O_WRONLY , S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
       retc = xrd_truncate(fd,attr->st_size);
       xrd_close(fd);
     } else {
@@ -363,7 +363,6 @@ static void eosfs_ll_statfs(fuse_req_t req, fuse_ino_t ino)
   svfs.f_bavail=1000000000ll;
   svfs.f_files=1000000;
   svfs.f_ffree=1000000;
-  fprintf(stderr, "calling Statfs \n");
   fuse_reply_statfs(req, &svfs);
 }
 

@@ -1219,12 +1219,12 @@ void xrd_init()
     char *nnodes_env;
     memset(fdbuffermap,0,sizeof(fdbuffermap));
 
-    XrdPosixXrootd::setEnv(NAME_DATASERVERCONN_TTL,60);
+    XrdPosixXrootd::setEnv(NAME_DATASERVERCONN_TTL,86400);
     XrdPosixXrootd::setEnv(NAME_LBSERVERCONN_TTL,3600*24);
-    XrdPosixXrootd::setEnv(NAME_REQUESTTIMEOUT,60);
-    EnvPutInt("NAME_MAXREDIRECTCOUNT",4);
+    XrdPosixXrootd::setEnv(NAME_REQUESTTIMEOUT,300);
+    EnvPutInt("NAME_MAXREDIRECTCOUNT",10000);
 
-    setenv("XRDPOSIX_POPEN","1",1);
+    setenv("XRDPOSIX_POPEN","0",1);
     if (getenv("EOS_DEBUG")) {
       XrdPosixXrootd::setEnv(NAME_DEBUG,atoi(getenv("EOS_DEBUG")));
     }
