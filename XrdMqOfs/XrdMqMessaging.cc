@@ -42,7 +42,7 @@ bool XrdMqMessaging::StartListenerThread()
 {
   pthread_t tid;
   int rc;
-  XrdMqMessage::Eroute.Say("###### " ,"mq messaging: statring thread ","");
+  XrdMqMessage::Eroute.Say("###### " ,"mq messaging: starting thread ","");
   if ((rc = XrdSysThread::Run(&tid, XrdMqMessaging::Start, static_cast<void *>(this),
                               0, "Messaging Receiver"))) {
     XrdMqMessage::Eroute.Emsg("messaging",rc,"create messaging thread");

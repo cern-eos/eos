@@ -87,7 +87,7 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
 		   (kXR_char *) message.c_str(),
 		   (kXR_char *) result, result_size);
       if (!admin->LastServerResp()) {
-	//	admin->GetClientConn()->Disconnect(true);
+	Mutex.UnLock();
 	return false;
       }
       switch (admin->LastServerResp()->status) {
