@@ -582,6 +582,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       if (stalltime) {
 	// stall the client
 	gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
+	XrdMgmFstNode::gMutex.UnLock();
 	return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
       }
     }
@@ -591,6 +592,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       if (stalltime) {
 	// stall the client
 	gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
+	XrdMgmFstNode::gMutex.UnLock();
 	return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
       }
     }

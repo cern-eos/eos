@@ -69,14 +69,16 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
   if ( (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage) || (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage) ) {
     XrdAdvisoryMqMessage* advisorymessage = XrdAdvisoryMqMessage::Create(newmessage->GetMessageBuffer());
 
-    eos_debug("queue=%s online=%d",advisorymessage->kQueue.c_str(), advisorymessage->kOnline);
-
-    if (advisorymessage->kQueue.endswith("/fst")) {
-      if (!XrdMgmFstNode::Update(advisorymessage)) {
-	eos_err("cannot update node status for %s", advisorymessage->GetBody());
+    if (advisorymessage) {
+      eos_debug("queue=%s online=%d",advisorymessage->kQueue.c_str(), advisorymessage->kOnline);
+      
+      if (advisorymessage->kQueue.endswith("/fst")) {
+	if (!XrdMgmFstNode::Update(advisorymessage)) {
+	  eos_err("cannot update node status for %s", advisorymessage->GetBody());
+	}
       }
+      delete advisorymessage;
     }
-    delete advisorymessage;
   } else {
     XrdMgmFstNode::gMutex.Lock();
 
