@@ -50,7 +50,7 @@ start() {
 	echo
 	for i in ${XRD_ROLES}; do
 	        if [ "$i" = "mgm" ]; then
-		    XRD_ROLEFLAG="-r "
+		    XRD_ROLEFLAG="-m "
  	    fi
 	    
 	        # Load the appropriate sysconfig file for the role
@@ -190,11 +190,11 @@ restart() {
 if [ -n "$2" ]; then
         XRD_ROLES=$2
 	if [ "$XRD_ROLES" = "mgm" ]; then
-   		XRD_ROLEFLAG="-r "
+   		XRD_ROLEFLAG="-m "
 	fi
 
 	if [ "$XRD_ROLES" = "mq" ]; then
-   		XRD_ROLEFLAG="-r "
+   		XRD_ROLEFLAG="-m "
 	fi
 
 elif [ -z "${XRD_ROLES}" ]; then
@@ -212,7 +212,7 @@ elif [ -z "${XRD_ROLES}" ]; then
 	if [ $? = "0" ]; then
 	        XRD_ROLES="manager"
 		XRD_USER=""
-		XRD_ROLEFLAG="-r "
+		XRD_ROLEFLAG="-m "
 	fi
 
 	grep `hostname -f` ${XRD_CONFIG} | grep "all.manager meta" > /dev/null

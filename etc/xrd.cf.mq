@@ -1,6 +1,8 @@
 ######################### Broker OFS ########################
 xrootd.fslib libXrdMqOfs.so
 all.export /eos/ nolock
+all.role manager
+all.manager localhost 2313
 #############################################################
 #allow upto 1024 threads
 xrd.sched mint 16 maxt 1024 idle 128
