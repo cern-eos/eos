@@ -194,7 +194,7 @@ if [ -n "$2" ]; then
 	fi
 
 	if [ "$XRD_ROLES" = "mq" ]; then
-   		XRD_ROLEFLAG="-m "
+   		XRD_ROLEFLAG=" "
 	fi
 
 elif [ -z "${XRD_ROLES}" ]; then
