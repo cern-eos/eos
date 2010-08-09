@@ -12,8 +12,6 @@ XrdMgmMessaging::Start(void *pp)
 /*----------------------------------------------------------------------------*/
 XrdMgmMessaging::XrdMgmMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus, bool advisoryquery )
 {
-  pthread_t tid;
-  int rc;
   if (gMessageClient.AddBroker(url, advisorystatus,advisoryquery)) {
     zombie = false;
   } else {
