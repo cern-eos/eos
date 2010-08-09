@@ -33,12 +33,6 @@ XrdMgmMessaging::XrdMgmMessaging(const char* url, const char* defaultreceiverque
   gMessageClient.Subscribe();
   gMessageClient.SetDefaultReceiverQueue(defaultreceiverqueue);
 
-  XrdMqMessage::Eroute.Say("###### " ,"mgm/mq messaging: starting thread ","");
-  if ((rc = XrdSysThread::Run(&tid, XrdMgmMessaging::Start, static_cast<void *>(this),
-                              0, "Messaging Receiver"))) {
-    XrdMqMessage::Eroute.Emsg("messaging",rc,"create messaging thread");
-    zombie = true;
-  }
   XrdCommonLogId();
 }
 
