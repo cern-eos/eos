@@ -751,6 +751,9 @@ com_attr (char* arg1) {
     XrdOucString path  = subtokenizer.GetToken();
     if (!key.length() || !value.length() || !path.length()) 
       goto com_attr_usage;
+
+    path = abspath(path.c_str());
+
     in += "&mgm.subcmd=set&mgm.attr.key="; in += key;
     in += "&mgm.attr.value="; in += value;
     in += "&mgm.path="; in += path;
@@ -761,6 +764,7 @@ com_attr (char* arg1) {
     XrdOucString path  = subtokenizer.GetToken();
     if (!key.length() || !path.length())
       goto com_attr_usage;
+    path = abspath(path.c_str());
     in += "&mgm.subcmd=get&mgm.attr.key="; in += key;
     in += "&mgm.path="; in += path;
   }
@@ -770,6 +774,7 @@ com_attr (char* arg1) {
     XrdOucString path  = subtokenizer.GetToken();
     if (!key.length() || !path.length())
       goto com_attr_usage;
+    path = abspath(path.c_str());
     in += "&mgm.subcmd=rm&mgm.attr.key="; in += key;
     in += "&mgm.path="; in += path;
   }
