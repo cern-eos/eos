@@ -207,7 +207,8 @@ EOSConsole_completion (const char *text, int start, int intend) {
   if ( cmd.beginswith("mkdir ") ||
        cmd.beginswith("rmdir ") ||
        cmd.beginswith("find ") ||
-       cmd.beginswith("cd ") ) {
+       cmd.beginswith("cd ") ||
+       cmd.beginswith("attr ") ) {
     // dir completion
     rl_completion_append_character = '\0';
     matches = rl_completion_matches (text, dir_generator);
