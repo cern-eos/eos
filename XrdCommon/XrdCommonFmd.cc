@@ -441,7 +441,10 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
     }
 
     // setup the hash entries
-    Fmd[fsid].insert(make_pair(pMd->fid, (unsigned long long) (changelogstart-changelogmap)));
+    Fmd[fsid][pMd->fid] = (unsigned long long) (changelogstart-changelogmap);
+
+    //    Fmd[fsid].insert(make_pair(pMd->fid, (unsigned long long) (changelogstart-changelogmap)));
+
     // do quota hashs
     if (XrdCommonFmd::IsCreate(pMd)) {
       long long exsize = -1;
