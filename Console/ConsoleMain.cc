@@ -718,6 +718,9 @@ com_attr (char* arg1) {
     XrdOucString path  = arg;
     if (!path.length())
       goto com_attr_usage;
+
+    path = abspath(path.c_str());
+
     in += "&mgm.subcmd=ls";
     in += "&mgm.path=";in += path;
   }
@@ -1441,7 +1444,7 @@ com_vid (char* arg1) {
   printf("                                        -s : show list of sudoers\n");
   printf("                                        -U : show user alias mapping\n");
   printf("                                        -G : show groupalias mapping\n");
-  printf("usage: vid set membership <uid> -uids [<uid1>,<uid2>,...]\n");
+  printf("usage: vid set membership <uid> -uids [<uid1>,<uid2>,.com_attr..]\n");
   printf("       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
   printf("       vid set membership <uid> [+|-]sudo \n");
   printf("       vid set map -krb5|-ssl|-sss|-unix|-tident <pattern> [vuid:<uid>] [vgid:<gid>] \n");
