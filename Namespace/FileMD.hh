@@ -254,6 +254,14 @@ namespace eos
       void unlinkAllLocations();
 
       //------------------------------------------------------------------------
+      //! Get number of unlinked locations
+      //------------------------------------------------------------------------
+      size_t getNumUnlinkedLocation() const
+      {
+        return pUnlinkedLocation.size();
+      }
+
+      //------------------------------------------------------------------------
       //! Clear locations
       //------------------------------------------------------------------------
       void clearLocations()
