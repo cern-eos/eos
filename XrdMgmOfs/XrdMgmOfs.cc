@@ -2262,6 +2262,11 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  eos_debug("removing location %u of fid=%s", fsid,afid);
 	  fmd->removeLocation(fsid);
 	  gOFS->eosView->updateFileStore(fmd);
+
+	  // finally delete the record if all replicas are dropped
+	  if (!fmd->getNumUnlinkedLocation()) {
+	    eosFileService->removeFile(fmd);
+	  }
 	} catch (...) {
 	  eos_err("no meta record exists anymore for fid=%s", afid);
 	};
