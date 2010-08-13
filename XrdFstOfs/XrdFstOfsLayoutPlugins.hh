@@ -7,6 +7,7 @@
 #include "XrdFstOfs/XrdFstOfsLayout.hh"
 #include "XrdFstOfs/XrdFstOfsPlainLayout.hh"
 #include "XrdFstOfs/XrdFstOfsReplicaLayout.hh"
+#include "XrdFstOfs/XrdFstOfsReplicaParLayout.hh"
 #include "XrdFstOfs/XrdFstOfsRaid5Layout.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -21,7 +22,7 @@ public:
       return (XrdFstOfsLayout*)new XrdFstOfsPlainLayout(thisFile, layoutid, error);
     }
     if (XrdCommonLayoutId::GetLayoutType(layoutid) == XrdCommonLayoutId::kReplica) {
-      return (XrdFstOfsLayout*)new XrdFstOfsReplicaLayout(thisFile,layoutid, error);
+      return (XrdFstOfsLayout*)new XrdFstOfsReplicaParLayout(thisFile,layoutid, error);
     }
     if (XrdCommonLayoutId::GetLayoutType(layoutid) == XrdCommonLayoutId::kRaid5) {
       return (XrdFstOfsLayout*)new XrdFstOfsRaid5Layout(thisFile,layoutid, error);

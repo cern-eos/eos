@@ -21,6 +21,7 @@ class XrdFstOfsFile : public XrdOfsFile, public XrdCommonLogId {
   friend class XrdFstOfsLayout;
   friend class XrdFstOfsPlainLayout;
   friend class XrdFstOfsReplicaLayout;
+  friend class XrdFstOfsReplicaParLayout;
   friend class XrdFstOfsRaid5Layout;
 
 public:

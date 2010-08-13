@@ -657,7 +657,8 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   
   // for the moment we redirect only on storage nodes
   redirectionhost+= "&mgm.replicaindex="; redirectionhost += (int)fsIndex;
-  
+  redirectionhost+= "&mgm.replicahead="; redirectionhost += (int)fsIndex;
+
   // always redirect
   ecode = targetport;
   rcode = SFS_REDIRECT;
