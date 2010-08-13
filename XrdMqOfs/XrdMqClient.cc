@@ -19,7 +19,7 @@ bool XrdMqClient::Subscribe(const char* queue) {
     return false;
   }
   for (int i=0;i< kBrokerN;i++) { 
-    if (!GetBrokerXrdClientReceiver(i)->Open(0,0,false)) {    
+    if (!GetBrokerXrdClientReceiver(i)->Open(0,0,false)) {
       // open failed
       continue;
     }
@@ -133,6 +133,9 @@ XrdMqMessage* XrdMqClient::RecvFromInternalBuffer() {
       if (firstmessage>1)
 	kMessageBuffer.erase(0,firstmessage);
     }
+    
+    if (kMessageBuffer.length() < strlen(XMQHEADER))
+      return 0;
 
     nextmessage = kMessageBuffer.find(XMQHEADER,strlen(XMQHEADER));
     char savec=0;

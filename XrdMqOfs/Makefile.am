@@ -52,7 +52,7 @@ libXrdMqClient_la_SOURCES = \
 	XrdMqMessaging.cc \
 	XrdMqMessaging.hh
 
-libXrdMqClient_la_LIBADD = -L$(XROOTD_LIBDIR)/ -lXrdSys -lXrdNet -lXrdOuc -lXrdClient ${OPENSSL_LIBDIR} -lcrypto -luuid -lcurses 
+libXrdMqClient_la_LIBADD = -L$(XROOTD_LIBDIR)/ -lXrdSys -lXrdNet -lXrdOuc -lXrdClient ${OPENSSL_LIBDIR} -lcrypto -luuid -lcurses
 
 rpm:	dist
 	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
