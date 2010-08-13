@@ -3008,7 +3008,7 @@ XrdMgmOfs::Deletion()
 	  idlist += hexfid;
 	  idlist += ",";
 	  
-	  if (ndeleted > 1000) {
+	  if (ndeleted > 1024) {
 	    XrdOucString refcapability = capability;
 	    refcapability += idlist;
 	    XrdOucEnv incapability(refcapability.c_str());
@@ -3021,7 +3021,7 @@ XrdMgmOfs::Deletion()
 	    } else {
 	      int caplen = 0;
 	      msgbody += capabilityenv->Env(caplen);
-	      // we send deletions in bunches of max 1000 for efficiency
+	      // we send deletions in bunches of max 1024 for efficiency
 	      message.SetBody(msgbody.c_str());
 	    }
 	    
@@ -3030,6 +3030,7 @@ XrdMgmOfs::Deletion()
 	    }
 	    idlist = "";
 	    ndeleted = 0;
+	    msgbody = "mgm.cmd=drop";
 	  } 
 	}
 

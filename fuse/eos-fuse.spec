@@ -1,6 +1,6 @@
 Summary: fuse xrootd eos daemon 
 Name: eos-fuse
-Version: 0.0.1
+Version: 0.0.2
 Release: 1
 License: None
 Group: Applications/File
@@ -8,7 +8,7 @@ Group: Applications/File
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 AutoReqProv: no
-Requires: fuse 
+Requires: fuse
 Requires: xrootd-server
 
 

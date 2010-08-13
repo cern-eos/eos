@@ -373,7 +373,7 @@ XrdCommonMapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
     if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp)) 
       return;
     id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
-    gPhysicalUidCache.Add(name, id, 60);
+    gPhysicalUidCache.Add(name, id, 3600);
     eos_static_debug("adding to cache uid=%u gid=%u", id->uid,id->gid);
   };
 
