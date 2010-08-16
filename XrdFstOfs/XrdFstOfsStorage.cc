@@ -600,6 +600,7 @@ XrdFstOfsStorage::ScrubFs(const char* path, unsigned long long free, unsigned lo
 	eos_static_alert("%d block errors on filesystem %lu scrubfile %s",id, scrubfile[k].c_str());
 	fserrors++;
       }
+      close(ff);
     }
   }
 
