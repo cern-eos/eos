@@ -1049,9 +1049,11 @@ XrdFstOfs::SendRtLog(XrdMqMessage* message)
     } else {
       int logtagindex = XrdCommonLogging::GetPriorityByString(tag.c_str());
       for (int j = 0; j<= logtagindex; j++) {
-	XrdCommonLogging::gMutex.Lock();
 	for (int i=1; i<= atoi(lines.c_str()); i++) {
+	  XrdCommonLogging::gMutex.Lock();
 	  XrdOucString logline = XrdCommonLogging::gLogMemory[j][(XrdCommonLogging::gLogCircularIndex[j]-i+XrdCommonLogging::gCircularIndexSize)%XrdCommonLogging::gCircularIndexSize].c_str();
+	  XrdCommonLogging::gMutex.UnLock();
+	
 	  if (logline.length() && ( (logline.find(filter.c_str())) != STR_NPOS)) {
 	    stdOut += logline;
 	    stdOut += "\n";
@@ -1068,7 +1070,6 @@ XrdFstOfs::SendRtLog(XrdMqMessage* message)
 	  if (!logline.length())
 	    break;
 	}
-	XrdCommonLogging::gMutex.UnLock();
       }
     }
   }
@@ -1287,14 +1288,16 @@ XrdFstOfs::OpenFidString(unsigned long fsid, XrdOucString &outstring)
   int nopen = 0;
 
   for (idit = ROpenFid[fsid].begin(); idit != ROpenFid[fsid].end(); ++idit) {
-    nopen += idit->second;
+    if (idit->second >0)
+      nopen += idit->second;
   }
   outstring += "&statfs.ropen=";
   outstring += nopen;
 
   nopen = 0;
   for (idit = WOpenFid[fsid].begin(); idit != WOpenFid[fsid].end(); ++idit) {
-    nopen += idit->second;
+    if (idit->second >0)
+      nopen += idit->second;
   }
   outstring += "&statfs.wopen=";
   outstring += nopen;

@@ -742,8 +742,12 @@ XrdFstOfsStorage::Report()
 
     gOFS.ReportQueueMutex.Lock();
     while ( gOFS.ReportQueue.size()>0) {
+      gOFS.ReportQueueMutex.UnLock();
+
+      gOFS.ReportQueueMutex.Lock();
       // send all reports away and dump them into the log
       XrdOucString report = gOFS.ReportQueue.front();
+      gOFS.ReportQueueMutex.UnLock();
       eos_static_info(report.c_str());
 
       // this type of messages can have no receiver
@@ -760,11 +764,14 @@ XrdFstOfsStorage::Report()
 	// display communication error
 	eos_err("cannot send report broadcast");
 	failure = true;
+	gOFS.ReportQueueMutex.Lock();
 	break;
       }
+      gOFS.ReportQueueMutex.Lock();
       gOFS.ReportQueue.pop();
     }
     gOFS.ReportQueueMutex.UnLock();
+
     if (failure) 
       sleep(10);
     else 
