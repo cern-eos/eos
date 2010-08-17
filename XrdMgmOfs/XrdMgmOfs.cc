@@ -636,6 +636,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       // add replica fsid
       capability += "&mgm.fsid"; capability += i; capability += "="; capability += (int)repfilesystem->GetId();
       capability += "&mgm.localprefix"; capability += i; capability += "=";capability+= repfilesystem->GetPath();
+      eos_debug("Redirection Url %d => %s", i, replicahost.c_str());
     }
   }
   

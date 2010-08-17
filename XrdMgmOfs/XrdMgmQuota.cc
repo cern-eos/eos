@@ -7,7 +7,6 @@
 XrdOucHash<XrdMgmSpaceQuota> XrdMgmQuota::gQuota;
 XrdSysMutex XrdMgmQuota::gQuotaMutex;
 
-
 /*----------------------------------------------------------------------------*/
 void
 XrdMgmSpaceQuota::RmQuota(unsigned long tag, unsigned long id, bool lock) 
@@ -412,6 +411,21 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
   eos_static_info("Index is now %u", schedulingViewGroup[indextag]);
   if (nassigned == nfilesystems) {
     //    schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
+
+    // now we reshuffle the order using a random number
+    unsigned int randomindex;
+    randomindex = (unsigned int) (( 0.999999 * random()* selectedfs.size() )/RAND_MAX);
+
+    std::vector<unsigned int> randomselectedfs;
+    randomselectedfs = selectedfs;
+
+    selectedfs.clear();
+
+    int rrsize=randomselectedfs.size();
+    for (int i=0; i< rrsize; i++) {
+      selectedfs.push_back(randomselectedfs[(randomindex+i)%rrsize]);
+    }
+
     return 0;
   } else {
     selectedfs.clear();
@@ -593,10 +607,11 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
     if ( (filesystem->GetSchedulingGroupIndex()+1) > spacequota->schedulingView.size()) {
       spacequota->schedulingView.resize(filesystem->GetSchedulingGroupIndex()+1);
     }
-
+    
     //    spacequota->schedulingView[filesystem->GetSchedulingGroupIndex()]
     spacequota->schedulingView[filesystem->GetSchedulingGroupIndex()].insert(fsid);
 
+    
     if (spacequota->NeedsRecalculation()) {
       eos_static_debug("space %s needs recomputation",spacename);
       // recalculate and lock everything!
@@ -629,8 +644,6 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
 	spacequota->AddPhysicalTmpMaxBytes (innerfilesystem->GetStatfs()->f_blocks * 4096ll);
 	spacequota->AddPhysicalTmpFreeFiles(innerfilesystem->GetStatfs()->f_ffree * 1ll);
 	spacequota->AddPhysicalTmpMaxFiles (innerfilesystem->GetStatfs()->f_files * 1ll);
-
-
       }
 
       spacequota->PhysicalTmpToFreeBytes();
