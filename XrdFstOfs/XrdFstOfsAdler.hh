@@ -30,7 +30,7 @@ public:
 
   const char* GetHexChecksum() {
     char sadler[1024];
-    sprintf(sadler,"%0x",adler);
+    sprintf(sadler,"%08x",adler);
     Checksum = sadler;
     return Checksum.c_str();
   }

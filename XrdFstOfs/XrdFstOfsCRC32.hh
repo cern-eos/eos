@@ -30,7 +30,7 @@ public:
 
   const char* GetHexChecksum() {
     char scrc32[1024];
-    sprintf(scrc32,"%0x",crcsum);
+    sprintf(scrc32,"%08x",crcsum);
     Checksum = scrc32;
     return Checksum.c_str();
   }
