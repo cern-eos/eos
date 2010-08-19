@@ -23,8 +23,6 @@ XrdCommonFmdHeader::Read(int fd, bool ignoreversion)
     return false;
   }
 
-  // temporary patch
-  ignoreversion = true;
   eos_info("fmd header version %s creation time is %u filesystem id %04d", fmdHeader.version, fmdHeader.ctime, fmdHeader.fsid);
   if (strcmp(fmdHeader.version, VERSION)) {
     if (!ignoreversion) {
