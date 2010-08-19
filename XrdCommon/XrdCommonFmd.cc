@@ -23,6 +23,8 @@ XrdCommonFmdHeader::Read(int fd, bool ignoreversion)
     return false;
   }
 
+  // temporary patch
+  ignoreversion = true;
   eos_info("fmd header version %s creation time is %u filesystem id %04d", fmdHeader.version, fmdHeader.ctime, fmdHeader.fsid);
   if (strcmp(fmdHeader.version, VERSION)) {
     if (!ignoreversion) {
@@ -109,7 +111,7 @@ XrdCommonFmd::Dump(struct FMD* fmd) {
     checksum += hb;
   }
     
-  fprintf(stderr,"%s %06lu %06llu %06llu %04lu %010lu %010lu %010lu %010lu %08llu %s %03lu %05u %05u %32s %s %06lu %06lu\n",
+  fprintf(stderr,"%s %06lu %08llx %06llu %04lu %010lu %010lu %010lu %010lu %08llu %s %03lu %05u %05u %32s %s %06lu %06lu\n",
 	  magic.c_str(),
 	  fmd->sequenceheader,
 	  fmd->fid,
