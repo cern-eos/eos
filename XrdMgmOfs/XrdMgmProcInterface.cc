@@ -933,6 +933,71 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    stdOut += "success: scheduled replication from source fs="; stdOut += sfsidsource; stdOut += " => target fs="; stdOut += sfsidtarget;
 	  }
 	}
+
+	if (subcmd == "place") {
+	  // this returns a file system id to place a file/replica
+	}
+
+	if (subcmd == "getmdlocation") {
+	  // this returns the access urls to query local metadata information
+	  XrdOucString path = opaque.Get("mgm.path");
+	  
+	  if (!path.length()) {
+	    stdErr="error: you have to give a path name to call 'fileinfo'";
+	    retc = EINVAL;
+	  } else {
+	    eos::FileMD* fmd=0;
+	    
+	    //-------------------------------------------
+	    gOFS->eosViewMutex.Lock();
+	    try {
+	      fmd = gOFS->eosView->getFile(path.c_str());
+	    } catch ( eos::MDException &e ) {
+	      errno = e.getErrno();
+	      stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+	      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	    }
+	    gOFS->eosViewMutex.UnLock();
+	    //-------------------------------------------
+
+	    if (!fmd) {
+	      retc = errno;
+	    } else {
+	      XrdOucString sizestring;
+	      
+	      eos::FileMD::LocationVector::const_iterator lociter;
+	      int i=0;
+	      stdOut += "&";
+	      stdOut += "mgm.nrep="; stdOut += (int)fmd->getNumLocation(); stdOut += "&";
+	      stdOut += "mgm.checksumtype=";stdOut += XrdCommonLayoutId::GetChecksumString(fmd->getLayoutId()); stdOut +="&";
+	      stdOut += "mgm.size="; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getSize()); stdOut+="&";
+	      stdOut += "mgm.checksum="; 
+	      for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
+		char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+		stdOut += hb;
+	      }
+	      stdOut += "&";
+
+	      for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+		XrdMgmFstNode::gMutex.Lock();
+		XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
+		if (filesystem) {
+		  XrdOucString host; int port;
+		  XrdOucString hostport="";
+		  filesystem->GetHostPort(host,port);
+		  hostport += host; hostport += ":"; hostport += port;
+		  stdOut += "mgm.replica.url";stdOut += i; stdOut += "="; stdOut += hostport; stdOut +="&";
+		  stdOut += "mgm.fid"; stdOut += i; stdOut += "="; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getId());  stdOut += "&";
+		  stdOut += "mgm.fsid";stdOut += i; stdOut += "="; stdOut += (int) *lociter; stdOut += "&";
+		} else {
+		  stdOut += "NA&";
+		}
+		i++;
+		XrdMgmFstNode::gMutex.UnLock();
+	      }
+	    }						     
+	  }
+	}
       }
       MakeResult(dosort);
       return SFS_OK;
@@ -1566,7 +1631,7 @@ XrdMgmProcCommand::MakeResult(bool dosort)
   resultStream += "&mgm.proc.retc=";
   resultStream += retc;
 
-  //  fprintf(stderr,"%s\n",resultStream.c_str());
+  //    fprintf(stderr,"%s\n",resultStream.c_str());
   if (retc) {
     eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);
   }

@@ -6,6 +6,7 @@
 #include "XrdCommon/XrdCommonMapping.hh"  
 #include "XrdCommon/XrdCommonSymKeys.hh"
 #include "XrdCommon/XrdCommonLogging.hh"
+#include "XrdCommon/XrdCommonClientAdmin.hh"
 #include "XrdMqOfs/XrdMqMessaging.hh"
 #include "XrdMgmOfs/XrdMgmProcInterface.hh"
 #include "XrdMgmOfs/XrdMgmConfigEngine.hh"
@@ -449,6 +450,8 @@ virtual bool           Init(XrdSysError &);
         XrdSysMutex      eosViewMutex;       // -> mutex making the namespace single threaded
         XrdOucString     MgmMetaLogDir;      //  Directory containing the meta data (change) log files
         XrdMgmOfsStat    MgmStats;           //  Mgm Statistics
+
+        XrdCommonClientAdminManager CommonClientAdminManager; // Manager of ClientAdmin's
 
  static void* StartMgmDeletion(void *pp);    //  Deletion Thread Starter
         void  Deletion();                    //  Deletion Function
