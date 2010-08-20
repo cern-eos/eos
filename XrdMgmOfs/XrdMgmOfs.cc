@@ -2193,7 +2193,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	//-------------------------------------------
 	gOFS->eosViewMutex.Lock();
 	try {
-	  fmd = gOFS->eosView->getFile(spath);
+	  fmd = gOFS->eosFileService->getFileMD(fid);
 	} catch( eos::MDException &e ) {
 	  errno = e.getErrno();
 	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
@@ -2210,6 +2210,14 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    eos_notice("commit for fid=%lu but fid=%lu", fmd->getId(), fid);
 	    return Emsg(epname,error, EINVAL,"commit filesize change - file id is wrong", spath);
 	  }
+
+	  // check if this file is already unlinked from the visible namespace
+	  if (!fmd->getContainerId()) {
+	    eos_notice("commit for fid=%lu but file is disconnected from any container", fmd->getId());
+	    return Emsg(epname,error, EIDRM, "commit filesize change - file is already removed","");
+	  }
+
+
 	  fmd->setSize(size);
 	  fmd->addLocation(fsid);
 	  fmd->setChecksum(checksumbuffer);
