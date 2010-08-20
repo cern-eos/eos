@@ -550,6 +550,7 @@ int main(int argc, char* argv[] ) {
 		  XrdCommonFileId::Fid2Hex(rfmd->fMd.fid, hexstring);
 		  XrdCommonFileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
 		  // scan the checksum of that file
+		  eos_static_notice("Scanning checksum of file %s ...", fullpath.c_str());
 		  if (!checksummer->ScanFile(fullpath.c_str())) {
 		    eos_static_crit("cannot scan the checksum of fid %08llx under path %s", rfmd->fMd.fid, fullpath.c_str());
 		    error_xsum_failed++;
