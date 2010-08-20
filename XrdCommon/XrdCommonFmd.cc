@@ -1,5 +1,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdCommon/XrdCommonFmd.hh"
+#include "XrdCommon/XrdCommonClientAdmin.hh"
+#include "XrdCommon/XrdCommonFileId.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 #include <stdio.h>
@@ -22,6 +24,9 @@ XrdCommonFmdHeader::Read(int fd, bool ignoreversion)
     eos_crit("unable to read fmd header");
     return false;
   }
+
+  // temporary patch 
+  ignoreversion = true;
 
   eos_info("fmd header version %s creation time is %u filesystem id %04d", fmdHeader.version, fmdHeader.ctime, fmdHeader.fsid);
   if (strcmp(fmdHeader.version, VERSION)) {
@@ -931,4 +936,77 @@ XrdCommonFmd::EnvToFmd(XrdOucEnv &env, struct XrdCommonFmd::FMD &fmd)
   fmd.sequencetrailer = strtoul(env.Get("mgm.fmd.sequencetrailer"),NULL,0);
    
   return true;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdCommonFmdHandler::GetRemoteFmd(XrdCommonClientAdmin* admin, const char* serverurl, const char* shexfid, const char* sfsid, struct XrdCommonFmd::FMD &fmd)
+{
+  char result[64*1024]; result[0]=0;
+  int  result_size=64*1024;
+
+  XrdOucString fmdquery="/?fst.pcmd=getfmd&fst.getfmd.fid=";fmdquery += shexfid;
+  fmdquery += "&fst.getfmd.fsid="; fmdquery += sfsid;
+
+  if ( (!serverurl) || (!shexfid) || (!sfsid) ) {
+    return EINVAL;
+  }
+
+  int rc=0;
+  admin->Lock();
+  admin->GetAdmin()->Connect();
+  admin->GetAdmin()->GetClientConn()->ClearLastServerError();
+  admin->GetAdmin()->GetClientConn()->SetOpTimeLimit(10);
+  admin->GetAdmin()->Query(kXR_Qopaquf,
+				  (kXR_char *) fmdquery.c_str(),
+				  (kXR_char *) result, result_size);
+  
+  if (!admin->GetAdmin()->LastServerResp()) {
+    eos_static_err("Unable to retrieve meta data from server %s for fid=%s fsid=%s",serverurl, shexfid, sfsid);
+    
+    rc = 1;
+  }
+  switch (admin->GetAdmin()->LastServerResp()->status) {
+  case kXR_ok:
+    eos_static_debug("got replica file meta data from server %s for fid=%s fsid=%s",serverurl, shexfid, sfsid);
+    rc = 0;
+    break;
+    
+  case kXR_error:
+    eos_static_err("Unable to retrieve meta data from server %s for fid=%s fsid=%s",serverurl, shexfid, sfsid);
+    rc = ECOMM;
+    break;
+    
+  default:
+    rc = ECOMM;
+    break;
+  }
+  admin->UnLock();
+
+  if (rc) {
+    return EIO;
+  }
+
+  if (!strncmp(result,"ERROR", 5)) {
+    // remote side couldn't get the record
+    eos_static_err("Unable to retrieve meta data on remote server %s for fid=%s fsid=%s",serverurl, shexfid, sfsid);
+    return ENODATA;
+  }
+  // get the remote file meta data into an env hash
+  XrdOucEnv fmdenv(result);
+
+  if (!XrdCommonFmd::EnvToFmd(fmdenv, fmd)) {
+    int envlen;
+    eos_static_err("Failed to unparse file meta data %s", fmdenv.Env(envlen));
+    return EIO;
+  }
+  // very simple check
+  if (fmd.fid != XrdCommonFileId::Hex2Fid(shexfid)) {
+    eos_static_err("Uups! Received wrong meta data from remote server - fid is %lu instead of %lu !", fmd.fid, XrdCommonFileId::Hex2Fid(shexfid));
+    return EIO;
+  }
+
+  
+
+  return 0;
 }

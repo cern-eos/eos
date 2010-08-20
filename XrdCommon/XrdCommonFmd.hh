@@ -4,6 +4,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdCommon/XrdCommonLogging.hh"
 #include "XrdCommon/XrdCommonSymKeys.hh"
+#include "XrdCommon/XrdCommonClientAdmin.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -186,6 +187,10 @@ public:
     clname = cldir; clname += "/"; clname += "fmd."; char now[1024]; sprintf(now,"%u",(unsigned int) time(0)); clname += now;
     return clname.c_str();
   }
+
+  // remote fmd
+  int GetRemoteFmd(XrdCommonClientAdmin* admin, const char* serverurl, const char* shexfid, const char* sfsid, struct XrdCommonFmd::FMD &fmd);
+
 
   XrdCommonFmdHandler() {
     SetLogId("CommonFmdHandler"); isOpen=false;

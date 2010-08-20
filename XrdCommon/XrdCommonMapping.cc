@@ -416,7 +416,7 @@ XrdCommonMapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
   // add to the cache
   gid_vector* vec = new uid_vector;
   *vec = vid.gid_list;
-  gPhysicalGidCache.Add(name,vec, 60);
+  gPhysicalGidCache.Add(name,vec, 3600);
 
   return ;
 }

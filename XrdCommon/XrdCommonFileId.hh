@@ -19,7 +19,10 @@ public:
 
   // convert a hex decimal string into a fid
   static unsigned long long Hex2Fid(const char* hexstring) {
-    return strtoll(hexstring, 0, 16);
+    if (hexstring)
+      return strtoll(hexstring, 0, 16);
+    else
+      return 0;
   }
 
   // compute a path from a fid and localprefix
