@@ -13,9 +13,7 @@
 int
 XrdFstTransfer::Do() 
 {
-
-  char result[64*1024]; result[0]=0;
-  int  result_size=64*1024;
+  struct XrdCommonFmd::FMD fmd;
 
   XrdOucEnv capOpaque(opaque.c_str());
   
@@ -29,63 +27,13 @@ XrdFstTransfer::Do()
   // ----------------------------------------------------------------------------------------------------------
   // retrieve the file meta data from the remote server
 
-  XrdFstOfsClientAdmin* replicaAdmin = gOFS.FstOfsClientAdminManager.GetAdmin(capOpaque.Get("mgm.sourcehostport"));
-
-  XrdOucString fmdquery="/?fst.pcmd=getfmd&fst.getfmd.fid=";fmdquery += capOpaque.Get("mgm.fid");
-  fmdquery += "&fst.getfmd.fsid="; fmdquery += capOpaque.Get("mgm.fsid");
+  XrdCommonClientAdmin* replicaAdmin = gOFS.CommonClientAdminManager.GetAdmin(capOpaque.Get("mgm.sourcehostport"));
 
   int rc=0;
-  replicaAdmin->Lock();
-  replicaAdmin->GetAdmin()->Connect();
-  replicaAdmin->GetAdmin()->GetClientConn()->ClearLastServerError();
-  replicaAdmin->GetAdmin()->Query(kXR_Qopaquf,
-				  (kXR_char *) fmdquery.c_str(),
-				  (kXR_char *) result, result_size);
-  
-  if (!replicaAdmin->GetAdmin()->LastServerResp()) {
-    eos_static_err("Unable to retrieve meta data from server %s for fid=%s fsid=%s",capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"));
-    
-    rc = SFS_ERROR;
-  }
-  switch (replicaAdmin->GetAdmin()->LastServerResp()->status) {
-  case kXR_ok:
-    eos_static_debug("got replica file meta data from server %s for fid=%s fsid=%s",capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"));
-    rc = SFS_OK;
-    break;
-    
-  case kXR_error:
-    eos_static_err("Unable to retrieve meta data from server %s for fid=%s fsid=%s",capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"));
-    rc = SFS_ERROR;
-    break;
-    
-  default:
-    rc = SFS_OK;
-    break;
-  }
-  replicaAdmin->UnLock();
+  rc = gFmdHandler.GetRemoteFmd(replicaAdmin, capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"),fmd);
 
-  if (rc) 
-    return EIO;
-
-  if (!strncmp(result,"ERROR", 5)) {
-    // remote side couldn't get the record
-    eos_static_err("Unable to retrieve meta data on remote server %s for fid=%s fsid=%s",capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"));
-    return ENODATA;
-  }
-  // get the remote file meta data into an env hash
-  XrdOucEnv fmdenv(result);
-
-  struct XrdCommonFmd::FMD fmd;
-  
-  if (!XrdCommonFmd::EnvToFmd(fmdenv, fmd)) {
-    int envlen;
-    eos_static_err("Failed to unparse file meta data %s", fmdenv.Env(envlen));
-    return EIO;
-  }
-  // very simple check
-  if (fmd.fid != fId) {
-    eos_static_err("Uups! Received wrong meta data from remote server - fid is %lu instead of %lu !", fmd.fid, fId);
-    return EIO;
+  if (rc) {
+    return rc;
   }
   
   // ----------------------------------------------------------------------------------------------------------

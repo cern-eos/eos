@@ -6,7 +6,7 @@ class XrdFstOfsFile;
 /*----------------------------------------------------------------------------*/
 #include "XrdCommon/XrdCommonLogging.hh"
 #include "XrdCommon/XrdCommonFmd.hh"
-#include "XrdFstOfs/XrdFstOfsClientAdmin.hh"
+#include "XrdCommon/XrdCommonClientAdmin.hh"
 #include "XrdFstOfs/XrdFstOfsLayout.hh"
 #include "XrdFstOfs/XrdFstOfsChecksum.hh"
 /*----------------------------------------------------------------------------*/

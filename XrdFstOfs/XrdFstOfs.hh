@@ -6,7 +6,7 @@
 #include "XrdCommon/XrdCommonSymKeys.hh"
 #include "XrdCommon/XrdCommonLogging.hh"
 #include "XrdCommon/XrdCommonFmd.hh"
-#include "XrdFstOfs/XrdFstOfsClientAdmin.hh"
+#include "XrdCommon/XrdCommonClientAdmin.hh"
 #include "XrdFstOfs/XrdFstOfsStorage.hh"
 #include "XrdFstOfs/XrdFstOfsConfig.hh"
 #include "XrdFstOfs/XrdFstOfsChecksumPlugins.hh"
@@ -135,7 +135,7 @@ public:
   void           AutoBoot();
 
  
-  XrdFstOfsClientAdminManager FstOfsClientAdminManager;
+  XrdCommonClientAdminManager CommonClientAdminManager;
   XrdFstMessaging* FstOfsMessaging;      // -> messaging interface class
   XrdFstOfsStorage* FstOfsStorage;       // -> Meta data & filesytem store object
 

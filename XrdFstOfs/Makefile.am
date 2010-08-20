@@ -10,7 +10,7 @@ libXrdFstChecksum_la_LDFLAGS = -L${XROOTD_LIBDIR}/ -lXrdOuc $(top_srcdir)/XrdCom
 
 lib_LTLIBRARIES = libXrdFstOfs.la
 
-libXrdFstOfs_la_SOURCES = XrdFstOfsConfig.cc XrdFstOfsConfig.hh XrdFstOfs.cc XrdFstOfs.hh XrdFstOfsFile.hh XrdFstOfsClientAdmin.hh XrdFstOfsStorage.hh XrdFstOfsStorage.cc \
+libXrdFstOfs_la_SOURCES = XrdFstOfsConfig.cc XrdFstOfsConfig.hh XrdFstOfs.cc XrdFstOfs.hh XrdFstOfsFile.hh XrdFstOfsStorage.hh XrdFstOfsStorage.cc \
 	XrdFstOfsLayout.hh XrdFstOfsPlainLayout.hh XrdFstOfsPlainLayout.cc XrdFstOfsReplicaLayout.hh XrdFstOfsReplicaLayout.cc \
 	XrdFstOfsReplicaParLayout.hh XrdFstOfsReplicaParLayout.cc \
 	XrdFstOfsRaid5Layout.cc XrdFstOfsRaid5Layout.hh \

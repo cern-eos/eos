@@ -608,7 +608,7 @@ XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manag
   char result[8192]; result[0]=0;
   int  result_size=8192;
   
-  XrdFstOfsClientAdmin* admin = gOFS.FstOfsClientAdminManager.GetAdmin(manager);
+  XrdCommonClientAdmin* admin = gOFS.CommonClientAdminManager.GetAdmin(manager);
   if (admin) {
     admin->Lock();
     admin->GetAdmin()->Connect();
@@ -1252,6 +1252,10 @@ XrdFstOfs::FSctl(const int               cmd,
     if (execmd == "getfmd") {
       char* afid   = env.Get("fst.getfmd.fid");
       char* afsid  = env.Get("fst.getfmd.fsid");
+
+      if ((!afid) || (!afsid)) {
+	return  Emsg(epname,error,EINVAL,"execute FSctl command",path.c_str());  
+      }
 
       unsigned long long fileid = XrdCommonFileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
