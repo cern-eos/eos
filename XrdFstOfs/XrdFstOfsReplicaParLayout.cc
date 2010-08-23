@@ -165,7 +165,7 @@ XrdFstOfsReplicaParLayout::read(XrdSfsFileOffset offset, char* buffer, XrdSfsXfe
   if (ioLocal) {
     rc1= ofsFile->readofs(offset, buffer, length);
   } else {
-    if (replicaClient) {
+    if (replicaClient[0]) {
       rc2 = replicaClient[0]->Read(buffer, offset, length);
       if (rc2 != length) {
 	eos_err("Failed to read remote replica - read failed - %llu %llu %s", offset, length, replicaUrl[0].c_str());

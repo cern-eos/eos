@@ -200,7 +200,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 
   // create the specific listener class
   FstOfsMessaging = new XrdFstMessaging(XrdFstOfsConfig::gConfig.FstOfsBrokerUrl.c_str(),XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.c_str());
-  if( !FstOfsMessaging->StartListenerThread() ) NoGo = 1;
+  if( (!FstOfsMessaging) || (!FstOfsMessaging->StartListenerThread()) ) NoGo = 1;
 
   if ( (!FstOfsMessaging) || (FstOfsMessaging->IsZombie()) ) {
     Eroute.Emsg("Config","cannot create messaging object(thread)");
@@ -427,6 +427,7 @@ XrdFstOfsFile::open(const char                *path,
   if( !layOut) {
     int envlen;
     eos_err("unable to handle layout for %s", capOpaque->Env(envlen));
+    delete fMd;
     return gOFS.Emsg(epname,error,EINVAL,"open - illegal layout specified ",capOpaque->Env(envlen));
   }
 
@@ -1114,8 +1115,12 @@ XrdFstOfs::rem(const char             *path,
 
   int envlen;
   //ZTRACE(open,"capability contains: " << capOpaque->Env(envlen));
-  eos_info("path=%s info=%s capability=%s", path, opaque, capOpaque->Env(envlen));
-
+  if (capOpaque) {
+    eos_info("path=%s info=%s capability=%s", path, opaque, capOpaque->Env(envlen));
+  } else {
+    eos_info("path=%s info=%s", path, opaque);
+  }
+  
   int rc =  _rem(path, error, client, capOpaque);
   if (capOpaque) {
     delete capOpaque;
@@ -1273,6 +1278,7 @@ XrdFstOfs::FSctl(const int               cmd,
       int envlen;
       XrdOucString fmdenvstring = fmdenv->Env(envlen);
       delete fmdenv;
+      delete fmd;
       error.setErrInfo(fmdenvstring.length()+1,fmdenvstring.c_str());
       return SFS_DATA;
     }

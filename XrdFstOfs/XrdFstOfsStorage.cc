@@ -181,9 +181,15 @@ XrdFstOfsStorage::XrdFstOfsStorage(const char* metadirectory)
   int rc;
 
   // we need page aligned addresses for direct IO
-  if (posix_memalign((void**)&scrubPattern[0], sysconf(_SC_PAGESIZE),1024*1024) ||
-      posix_memalign((void**)&scrubPattern[1], sysconf(_SC_PAGESIZE),1024*1024) ||
-      posix_memalign((void**)&scrubPatternVerify, sysconf(_SC_PAGESIZE),1024*1024) ) {
+  long pageval = sysconf(_SC_PAGESIZE);
+  if (pageval<0) {
+    eos_crit("cannot get page size");
+    exit(-1);
+  }
+
+  if (posix_memalign((void**)&scrubPattern[0], pageval,1024*1024) ||
+      posix_memalign((void**)&scrubPattern[1], pageval,1024*1024) ||
+      posix_memalign((void**)&scrubPatternVerify, pageval,1024*1024) ) {
     eos_crit("cannot allocate memory aligned scrub buffer");
     exit(-1);
   }
@@ -313,8 +319,10 @@ XrdFstOfsStorage::RemoveFileSystem(XrdOucEnv& env)
   XrdFstOfsFileSystem* fs=0;
   const char* path = env.Get("mgm.fspath");
 
-  if ( (!path) ) 
+  if ( (!path) ) {
+    fsMutex.UnLock();
     return false;
+  }
   
   if ( (fs = fileSystems.Find(path)) ) {
     fileSystems.Del(path);
@@ -570,6 +578,7 @@ XrdFstOfsStorage::ScrubFs(const char* path, unsigned long long free, unsigned lo
       int ff = open(scrubfile[k].c_str(),O_DIRECT|O_RDONLY);
       if (ff<0) {
 	eos_static_crit("Unable to open static scrubfile %s", scrubfile[k].c_str());
+	return 1;
       }
 
       int eberrors=0;

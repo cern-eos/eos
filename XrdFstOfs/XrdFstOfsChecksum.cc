@@ -12,7 +12,7 @@ bool
 XrdFstOfsChecksum::ScanFile(const char* path) 
 {
   int fd = open(path, O_RDONLY);
-  if (!fd) {
+  if (fd<0) {
     return false;
   }
 
@@ -30,5 +30,6 @@ XrdFstOfsChecksum::ScanFile(const char* path)
     offset += nread;
   } while (nread == sizeof(buffer));
   
+  close(fd);
   return true;
 }
