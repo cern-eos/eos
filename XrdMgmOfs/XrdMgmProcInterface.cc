@@ -987,8 +987,11 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		  filesystem->GetHostPort(host,port);
 		  hostport += host; hostport += ":"; hostport += port;
 		  stdOut += "mgm.replica.url";stdOut += i; stdOut += "="; stdOut += hostport; stdOut +="&";
-		  stdOut += "mgm.fid"; stdOut += i; stdOut += "="; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getId());  stdOut += "&";
+		  XrdOucString hexstring="";
+		  XrdCommonFileId::Fid2Hex(fmd->getId(), hexstring);
+		  stdOut += "mgm.fid"; stdOut += i; stdOut += "="; stdOut += hexstring;  stdOut += "&";
 		  stdOut += "mgm.fsid";stdOut += i; stdOut += "="; stdOut += (int) *lociter; stdOut += "&";
+		  stdOut += "mgm.fsbootstat"; stdOut += i; stdOut += "="; stdOut += filesystem->GetBootStatusString();
 		} else {
 		  stdOut += "NA&";
 		}
@@ -1606,7 +1609,7 @@ XrdMgmProcCommand::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen
 int 
 XrdMgmProcCommand::stat(struct stat* buf) 
 {
-  memset(buf, sizeof(struct stat), 0);
+  memset(buf, 0, sizeof(struct stat));
   buf->st_size = len;
 
   return SFS_OK;

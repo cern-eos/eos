@@ -668,6 +668,9 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   eos_info("redirection=%s:%d", redirectionhost.c_str(), ecode);
 
+  if (capabilityenv)
+    delete capabilityenv;
+
   return rcode;
 }
 
@@ -1190,7 +1193,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 
   if (noParent) {
     if (recurse) {
-      unsigned int i,j;
+      int i,j;
       // go the paths up until one exists!
       for (i=cPath.GetSubPathSize()-1;i>=0; i--) {
 	eos_debug("testing path %s", cPath.GetSubPath(i));
@@ -1219,7 +1222,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	return Emsg(epname, error, EPERM, "create parent directory", cPath.GetSubPath(i));
       }
       
-      for (j=i+1; j< cPath.GetSubPathSize(); j++) {
+      for (j=i+1; j< (int)cPath.GetSubPathSize(); j++) {
 	//-------------------------------------------
 	gOFS->eosViewMutex.Lock();
 	try {
@@ -1253,6 +1256,11 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       errno = ENOENT;
       return Emsg(epname,error,errno,"mkdir",path);
     }
+  }
+
+  // this might not be needed, but it is detected by coverty
+  if (!dir) {
+    return Emsg(epname,error,errno,"mkdir",path);
   }
 
     
@@ -1540,13 +1548,13 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
       newn+= sourcebase;
       while (newn.replace("//","/")) {};
     }
-    if (file_exists == XrdSfsFileExistIsFile) {
+    //    if (file_exists == XrdSfsFileExistIsFile) {
       // remove the target file first!
-      int remrc = 0;// _rem(newn.c_str(),error,&mappedclient,infoN);
-      if (remrc) {
-	return remrc;
-      }
-    }
+      //      int remrc = 0;//_rem(newn.c_str(),error,&mappedclient,infoN);
+      //      if (remrc) {
+      //	return remrc;
+      //      }
+    //    }
   }
 
   //  r1 = XrdMgmOfsUFS::Rename(oldn.c_str(), newn.c_str());
@@ -1632,7 +1640,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     if (!fmd) {
       return Emsg(epname, error, errno, "stat", path);
     }
-    memset(buf, sizeof(struct stat),0);
+    memset(buf, 0, sizeof(struct stat));
     
     buf->st_dev     = 0xcaff;
     buf->st_ino     = fmd->getId() << 28;
@@ -1654,7 +1662,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     
     return SFS_OK;
   } else {
-    memset(buf, sizeof(struct stat),0);
+    memset(buf, 0, sizeof(struct stat));
     
     buf->st_dev     = 0xcaff;
     buf->st_ino     = cmd->getId();
@@ -2925,6 +2933,9 @@ XrdMgmOfs::_replicatestripe(const char             *path,
     }
   }
 
+  if (capabilityenv)
+    delete capabilityenv;
+
   if (errno) 
     return  Emsg(epname,error,errno,"replicate stripe",path);  
 
@@ -3045,6 +3056,8 @@ XrdMgmOfs::Deletion()
 	    idlist = "";
 	    ndeleted = 0;
 	    msgbody = "mgm.cmd=drop";
+	    if (capabilityenv)
+	      delete capabilityenv;
 	  } 
 	}
 

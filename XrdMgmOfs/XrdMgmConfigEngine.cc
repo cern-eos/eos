@@ -53,6 +53,7 @@ XrdMgmConfigEngineChangeLog::AddEntry(const char* info)
 
     if ((write(fd, stime.c_str(), stime.length()+1)) != ((int)(stime.length()+1))) {
       eos_err("failed to write config engine changelog entry");
+      Mutex.UnLock();
       return false;
     }
   }
@@ -134,7 +135,7 @@ XrdMgmConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err)
   std::string s;
   XrdOucString allconfig="";
   if (infile.is_open()) {
-    XrdOucString config="";XrdOucEnv env("");
+    XrdOucString config="";
     while (!infile.eof()) {          
       getline(infile, s);
       if (s.length()) {
@@ -280,6 +281,8 @@ XrdMgmConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
   
   if (!allstat) {
       eos_err("cannot allocate sorting array");
+      if (dir)
+	closedir(dir);
       return false;
   }
   
@@ -339,7 +342,11 @@ XrdMgmConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
       }
     }
     free(allstat);
+  } else {
+    if (allstat)
+      free(allstat);
   }
+
   return true;
 }
 
@@ -644,18 +651,18 @@ XrdMgmConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
     while (getline(infile, inputline)) {
       XrdOucString sinputline = inputline.c_str();
       // filter according to user specification
-      bool filter = false;
+      bool filtered = false;
       if ( (pinfo.option.find("v")!=STR_NPOS) && (sinputline.beginswith("vid:")))
-	filter = true;
+	filtered = true;
       if ( (pinfo.option.find("f")!=STR_NPOS) && (sinputline.beginswith("fs:")))
-	filter = true;
+	filtered = true;
       if ( (pinfo.option.find("q")!=STR_NPOS) && (sinputline.beginswith("quota:")))
-	filter = true;
+	filtered = true;
       if ( (pinfo.option.find("c")!=STR_NPOS) && (sinputline.beginswith("comment:")))
-	filter = true;
+	filtered = true;
       if ( (pinfo.option.find("p")!=STR_NPOS) && (sinputline.beginswith("policy:")))
-	filter = true;
-      if (filter) {
+	filtered = true;
+      if (filtered) {
 	out += sinputline;
 	out += "\n";
       }
