@@ -50,11 +50,11 @@ XrdCommonSymKey::Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen
   BIO *b64, *bmem;
   b64 = BIO_new(BIO_f_base64());
 
-  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-
   if (!b64) {
     return false;
   }
+
+  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
 
   unsigned int body64len = in.length();
   bmem = BIO_new_mem_buf((void*)in.c_str(), body64len);

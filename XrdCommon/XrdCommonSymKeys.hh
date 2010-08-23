@@ -36,7 +36,7 @@ public:
     SHA1_Final((unsigned char*)keydigest, &sha1);
     XrdOucString skeydigest64="";
     Base64Encode(keydigest, SHA_DIGEST_LENGTH, skeydigest64);
-    strcpy(keydigest64,skeydigest64.c_str());
+    strncpy(keydigest64,skeydigest64.c_str(),(SHA_DIGEST_LENGTH*2)-1);
   }
   ~XrdCommonSymKey(){}
 

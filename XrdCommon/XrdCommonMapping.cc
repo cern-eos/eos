@@ -21,15 +21,14 @@ XrdOucHash<XrdCommonMapping::gid_vector> XrdCommonMapping::gPhysicalGidCache;
 void 
 XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, XrdCommonMapping::VirtualIdentity &vid)
 {
+  if (!client) 
+    return;
 
   eos_static_debug("name:%s role:%s group:%s", client->name, client->role, client->grps);
 
   // you first are 'nobody'
   Nobody(vid);
   XrdOucEnv Env(env);
-
-  if (!client) 
-    return;
 
   vid.name = client->name;
   vid.tident = tident;

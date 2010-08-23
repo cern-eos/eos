@@ -91,8 +91,8 @@ public:
     fMd.lid   = fmd.lid;
     fMd.uid   = fmd.uid;
     fMd.gid   = fmd.gid;
-    if (fmd.name)strncpy(fMd.name, fmd.name, 255);
-    if (fmd.container)strncpy(fMd.container, fmd.container,255);
+    strncpy(fMd.name, fmd.name, 255);
+    strncpy(fMd.container, fmd.container,255);
   }
 
   static unsigned long ComputeCrc32(char* ptr, unsigned long size) {

@@ -271,6 +271,8 @@ bool XrdCommonFmdHandler::AttachLatestChangeLogFile(const char* changelogdir, in
     allstat = (struct filestat*) malloc(sizeof(struct filestat) * nobjects);
     if (!allstat) {
       eos_err("cannot allocate sorting array");
+      if (dir)
+	closedir(dir);
       return false;
     }
    
@@ -315,6 +317,8 @@ bool XrdCommonFmdHandler::AttachLatestChangeLogFile(const char* changelogdir, in
     // attach a new one
     CreateChangeLogName(changelogfilename.c_str(), changelogfilename);
     eos_info("creating new changelog file %s", changelogfilename.c_str());
+    if (allstat) 
+      free(allstat);
   }
   // initialize sequence number
   fdChangeLogSequenceNumber[fsid]=0;
@@ -530,21 +534,26 @@ XrdCommonFmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid
     if (Fmd[fsid][fid] != 0) {
       // this is to read an existing entry
       XrdCommonFmd* fmd = new XrdCommonFmd();
+      if (!fmd) return 0;
+
       if (!fmd->Read(fdChangeLogRead[fsid],Fmd[fsid][fid])) {
 	eos_crit("unable to read block for fid %d on fs %d", fid, fsid);
 	Mutex.UnLock();
+	delete fmd;
 	return 0;
       }
       if ( fmd->fMd.fid != fid) {
 	// fatal this is somehow a wrong record!
 	eos_crit("unable to get fmd for fid %d on fs %d - file id mismatch in meta data block", fid, fsid);
 	Mutex.UnLock();
+	delete fmd;
 	return 0;
       }
       if ( fmd->fMd.fsid != fsid) {
 	// fatal this is somehow a wrong record!
 	eos_crit("unable to get fmd for fid %d on fs %d - filesystem id mismatch in meta data block", fid, fsid);
 	Mutex.UnLock();
+	delete fmd;
 	return 0;
       }
       // return the new entry
@@ -554,6 +563,9 @@ XrdCommonFmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid
     if (isRW) {
       // make a new record
       XrdCommonFmd* fmd = new XrdCommonFmd(fid, fsid);
+      if (!fmd)
+	return 0;
+
       fmd->MakeCreationBlock();
       
       if (fdChangeLogWrite[fsid]>0) {
@@ -578,6 +590,7 @@ XrdCommonFmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid
 	  // failed to write
 	  eos_crit("failed to write new block for fid %d on fs %d", fid, fsid);
 	  Mutex.UnLock();
+	  delete fmd;
 	  return 0;
 	}
 	// add to the in-memory hashes
@@ -596,6 +609,7 @@ XrdCommonFmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid
       } else {
 	eos_crit("unable to write new block for fid %d on fs %d - no changelog file open for writing", fid, fsid);
 	Mutex.UnLock();
+	delete fmd;
 	return 0;
       }
     } else {
@@ -714,19 +728,22 @@ XrdCommonFmdHandler::TrimLogFile(int fsid, XrdOucString option) {
   int newfd = open(NewChangeLogFileNameTmp.c_str(),O_CREAT|O_TRUNC| O_RDWR, 0600);
 
   eos_static_info("trimming opening new changelog file %s\n", NewChangeLogFileNameTmp.c_str());
-  if (!newfd) 
+  if (newfd<0) 
     return false;
 
   int newrfd = open(NewChangeLogFileNameTmp.c_str(),O_RDONLY);
   
-  if (!newrfd) {
+  if (newrfd<0) {
     close(newfd);
     return false;
   }
 
   // write new header
-  if (!fmdHeader.Write(newfd))
+  if (!fmdHeader.Write(newfd)) {
+    close(newfd);
+    close(newrfd);
     return false;
+  }
 
   std::vector <unsigned long long> alloffsets;
   google::dense_hash_map <unsigned long long, unsigned long long> offsetmapping;
@@ -778,9 +795,9 @@ XrdCommonFmdHandler::TrimLogFile(int fsid, XrdOucString option) {
 
   if (rc) {
     // now we take a lock, copy the latest changes since the trimming to the new file and exchange the current filedescriptor
-    unsigned long long oldtailoffset = lseek(fdChangeLogWrite[fsid],0,SEEK_CUR);
-    unsigned long long newtailoffset = lseek(newfd,0,SEEK_CUR);
-    unsigned long long offset = oldtailoffset;
+    long long oldtailoffset = lseek(fdChangeLogWrite[fsid],0,SEEK_CUR);
+    long long newtailoffset = lseek(newfd,0,SEEK_CUR);
+    long long offset = oldtailoffset;
 
     ssize_t tailchange = oldtailoffset-newtailoffset;
     eos_static_info("tail length is %llu [ %llu %llu %llu ] ", tailchange, oldtailoffset, newtailoffset, offset);
@@ -807,7 +824,7 @@ XrdCommonFmdHandler::TrimLogFile(int fsid, XrdOucString option) {
 
     google::dense_hash_map<unsigned long long, unsigned long long>::iterator it;
     for (it = Fmd[fsid].begin(); it != Fmd[fsid].end(); it++) {
-      if (it->second >= oldtailoffset) {
+      if ((long long)it->second >= oldtailoffset) {
 	// this has just to be adjusted by the trim length
 	it->second -= tailchange;
       } else {
@@ -834,7 +851,9 @@ XrdCommonFmdHandler::TrimLogFile(int fsid, XrdOucString option) {
     }
   }
   eos_static_info("trimming step 6");  
-  close(rfd);
+
+  if (rfd>0) 
+    close(rfd);
 
   Mutex.UnLock();
 

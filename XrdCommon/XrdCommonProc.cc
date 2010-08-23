@@ -90,11 +90,14 @@ XrdCommonProcFile::Read() {
 
 bool 
 XrdCommonProcFile::Read(XrdOucString &str) {
-  char pbuf[1024];
+  char pbuf[1025];
   pbuf[0] = 0;
+  pbuf[1024] = 0;
+
   lseek(fd,0,SEEK_SET);
-  ssize_t rb = read(fd,pbuf,sizeof(pbuf));
+  ssize_t rb = read(fd,pbuf,sizeof(pbuf)-1);
   str = pbuf;
+  
   if (rb<=0)
     return false;
   else
@@ -115,6 +118,8 @@ XrdCommonProc::Handle(const char* name) {
       files.Add(name,phandle);
       return phandle;
     }
+    if (phandle)
+      delete phandle;
   }
   return 0;
 }
