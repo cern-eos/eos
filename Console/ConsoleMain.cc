@@ -1,4 +1,7 @@
 /*----------------------------------------------------------------------------*/
+#include "XrdCommon/XrdCommonLayoutId.hh"
+#include "XrdCommon/XrdCommonFmd.hh"
+#include "XrdCommon/XrdCommonClientAdmin.hh"
 #include "XrdMqOfs/XrdMqMessage.hh"
 #include "XrdMqOfs/XrdMqTiming.hh"
 /*----------------------------------------------------------------------------*/
@@ -40,6 +43,10 @@ int global_retc=0;
 bool silent=false;
 bool timing=false;
 bool debug=false;
+
+XrdOucEnv* CommandEnv=0; // this is a pointer to the result of client_admin... or client_user.... = it get's invalid when the output_result function is called
+
+XrdCommonClientAdminManager CommonClientAdminManager;
 
 // for static linking needed
 /*int
@@ -451,6 +458,26 @@ command_generator (const char *text, int state) {
 /*                                                                  */
 /* **************************************************************** */
 
+void 
+command_result_stdout_to_vector(std::vector<std::string> &string_vector)
+{
+  string_vector.clear();
+  rstdout = CommandEnv->Get("mgm.proc.stdout");
+
+  XrdMqMessage::UnSeal(rstdout);
+
+  XrdOucTokenizer subtokenizer((char*)rstdout.c_str());
+  const char* nextline=0;
+  int i=0;
+  while( (nextline = subtokenizer.GetLine())) {
+    if ((!strlen(nextline)) || (nextline[0] =='\n'))
+      continue;
+    string_vector.resize(i+1);
+    string_vector.push_back(nextline);
+    i++;
+  }
+}
+
 int
 output_result(XrdOucEnv* result) {
   if (!result)
@@ -478,7 +505,8 @@ output_result(XrdOucEnv* result) {
   if (rstderr.length()) {
     fprintf(stderr,"%s (errc=%d) (%s)\n",rstderr.c_str(), retc, strerror(retc));
   }
-  
+
+  CommandEnv=0;
   delete result;
   return retc;
 }
@@ -516,8 +544,9 @@ client_admin_command(XrdOucString &in) {
     TIMING("stop", &mytiming);
     if (timing) 
       mytiming.Print();
-      
-    return new XrdOucEnv(out.c_str());
+
+    CommandEnv = new XrdOucEnv(out.c_str());      
+    return CommandEnv;
   }
   return 0;
 }
@@ -553,7 +582,8 @@ client_user_command(XrdOucString &in) {
     if (timing) 
       mytiming.Print();
 
-    return new XrdOucEnv(out.c_str());
+    CommandEnv = new XrdOucEnv(out.c_str());
+    return CommandEnv;
   }
   return 0;
 }
@@ -1630,6 +1660,11 @@ com_debug (char* arg1) {
   if (level == "this") {
     printf("info: toggling shell debugmode to debug=%d\n",debug);
     debug = !debug;
+    if (debug) {
+      XrdCommonLogging::SetLogPriority(LOG_DEBUG);
+    } else {
+      XrdCommonLogging::SetLogPriority(LOG_NOTICE);
+    }
     return (0);
   }
   if ( level.length() ) {
@@ -1704,7 +1739,7 @@ com_file (char* arg1) {
   path = abspath(path.c_str());
 
   XrdOucString in = "mgm.cmd=file";
-  if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) ) {
+  if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) && (cmd != "check") ) {
     goto com_file_usage;
   }
 
@@ -1733,7 +1768,108 @@ com_file (char* arg1) {
     in += "&mgm.file.sourcefsid="; in += fsid1;
     in += "&mgm.file.targetfsid="; in += fsid2;
   }
-  
+
+  if (cmd == "check") { 
+    if (!path.length())
+      goto com_file_usage;
+
+    in += "&mgm.subcmd=getmdlocation";
+    in += "&mgm.path="; in += path;
+
+    XrdOucString option = fsid1;
+
+    XrdOucEnv* result = client_user_command(in);
+
+    if (!result) {
+      fprintf(stderr,"error: getmdlocation query failed\n");
+      return EINVAL;
+    }    
+    int envlen=0;
+
+    XrdOucEnv* newresult = new XrdOucEnv(result->Env(envlen));
+
+    delete result;
+
+    bool consistencyerror=false;
+      
+    if (!newresult->Get("mgm.proc.stderr")) {
+
+      XrdOucString checksumtype = newresult->Get("mgm.checksumtype");
+      XrdOucString checksum =  newresult->Get("mgm.checksum");
+      XrdOucString size = newresult->Get("mgm.size");
+      
+      if (!silent) printf("path=%-32s fid=%s size=%s nrep=%s checksumtype=%s checksum=%s\n", path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.nrep"), checksumtype.c_str(), newresult->Get("mgm.checksum"));
+      int i=0;
+      for (i=0; i< XrdCommonLayoutId::kSixteenStripe; i++) {
+	XrdOucString repurl  = "mgm.replica.url"; repurl += i;
+	XrdOucString repfid  = "mgm.fid"; repfid += i;
+	XrdOucString repfsid = "mgm.fsid"; repfsid += i;
+	XrdOucString repbootstat = "mgm.fsbootstat"; repbootstat += i;
+
+	if ( newresult->Get(repurl.c_str()) ) {
+	  // Query 
+	  XrdCommonClientAdmin* admin = CommonClientAdminManager.GetAdmin(newresult->Get(repurl.c_str()));
+	  XrdOucString bs = newresult->Get(repbootstat.c_str());
+	  if (bs != "booted") {
+	    // skip machines which are unavailable
+	    consistencyerror = true;
+	  }
+	  if (!admin) {
+	    fprintf(stderr,"error: unable to get admin\n");
+	    return ECOMM;
+	  }
+	  struct XrdCommonFmd::FMD fmd;
+	  int retc=0;
+	  if ((retc=gFmdHandler.GetRemoteFmd(admin, newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()), fmd))) {
+	    fprintf(stderr,"error: unable to retrieve file meta data from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
+	  } else {
+	    XrdOucString cx="";
+	    for (unsigned int k=0; k< SHA_DIGEST_LENGTH; k++) {
+	      // the adler and crc32 functions are not bytewise but derived from int byte order
+	      if ( ((checksumtype == "adler") || (checksumtype == "crc32")) && (k<4) ) {
+		char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd.checksum[3-k]));
+		cx += hb;
+	      } else {
+		char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd.checksum[k]));
+		cx += hb;
+	      }
+	    }
+	    
+	    if ( (option.find("%size"))!= STR_NPOS ) {
+	      char ss[1024]; sprintf(ss,"%llu", fmd.size);
+	      XrdOucString sss = ss;
+	      if (sss != size) {
+		consistencyerror = true;
+	      }
+	    }
+
+	    if ( (option.find("%checksum")) != STR_NPOS ) {
+	      if (cx != checksum) { 
+		consistencyerror = true;
+	      }
+	    }
+
+	    if (!silent)printf("nrep=%02d fsid=%lu size=%llu checksum=%s\n", i, fmd.fsid, fmd.size, cx.c_str());
+	  }
+	} else {
+	  break;
+	}
+
+	if ( (option.find("%nrep")) != STR_NPOS ) {
+	  int nrep = 0; 
+	  if (newresult->Get("mgm.nrep")) { nrep = atoi (newresult->Get("mgm.nrep"));}
+	  if (nrep != i) {
+	    consistencyerror = true;
+	  }
+	}
+      }
+      delete newresult;
+    } else {
+      fprintf(stderr,"error: %s",newresult->Get("mgm.proc.stderr"));
+    }
+    return (consistencyerror);
+  }
+
   global_retc = output_result(client_user_command(in));
   return (0);
 
@@ -1741,6 +1877,10 @@ com_file (char* arg1) {
   printf("usage: file drop <path> <fsid>                                       :  drop the file <path> part on <fsid>\n");
   printf("       file move <path> <fsid1> <fsid2>                              :  move the file <path> part on <fsid1> to <fsid2>\n");
   printf("       file replicate <path> <fsid1> <fsid2>                         :  replicate file <path> part on <fsid1> to <fsid2>\n");
+  printf("       file check <path> [%%size%%checksum%%nrep]                       :  retrieves stat information from the physical replicas and verifies the correctness\n");
+  printf("       - %%size                                                       :  return with an error code if there is a mismatch between the size meta data information\n");
+  printf("       - %%checksum                                                   :  return with an error code if there is a mismatch between the checksum meta data information\n");
+  printf("       - %%nrep                                                       :  return with an error code if there is a mismatch between the layout number of replicas and the existing replicas\n");
   return (0);
 }
 
@@ -1978,8 +2118,14 @@ com_find (char* arg1) {
   XrdOucString option="";
   XrdOucString attribute="";
   XrdOucString printkey="";
+  XrdOucString filter="";
+
   XrdOucString in = "mgm.cmd=find&"; 
   while ( (s1 = subtokenizer.GetToken()).length() && (s1.beginswith("-")) ) {
+    if (s1 == "-s") {
+      option +="s";
+    }
+    
     if (s1 == "-d") {
       option +="d";
     }
@@ -2004,6 +2150,19 @@ com_find (char* arg1) {
 	goto com_find_usage;
     }
 
+    if (s1 == "-c") {
+
+      option += "c";
+      
+      filter = subtokenizer.GetToken();
+      if (!filter.length()) 
+	goto com_find_usage;
+      
+      if ((filter.find("%%")) != STR_NPOS) {
+	goto com_find_usage;
+      }
+    }
+
     if (s1 == "-p") {
       option += "p";
       
@@ -2022,6 +2181,33 @@ com_find (char* arg1) {
     path = s1;
   }
   
+  // the find with consistency check 
+  if ( (option.find("c")) != STR_NPOS ) {
+    XrdOucString subfind = arg1;
+    subfind.replace("-c","-s -f");
+    subfind.replace(filter,"");
+    int rc = com_find((char*)subfind.c_str());
+    std::vector<std::string> files_found;
+    files_found.clear();
+    command_result_stdout_to_vector(files_found);
+    std::vector<std::string>::const_iterator it;
+    int cnt=0;
+    for (unsigned int i=0; i< files_found.size(); i++) {
+      if (!files_found[i].length())
+	continue;
+
+      XrdOucString cline="check "; 
+      cline += files_found[i].c_str();
+      cline += " "; 
+      cline += filter;
+      rc = com_file((char*)cline.c_str());
+      cnt++;
+    }
+    rc = 0;
+    return 0;
+  }
+
+
   path = abspath(path.c_str());
   in += "mgm.path=";
   in += path;
@@ -2036,14 +2222,26 @@ com_find (char* arg1) {
     in += printkey;
   }
 
-  global_retc = output_result(client_user_command(in));
+  XrdOucEnv* result;
+  result = client_user_command(in);
+  if ( ( option.find("s") ) == STR_NPOS) {
+    global_retc = output_result(result);
+  } else {
+    if (result) {
+      global_retc = 0;
+    } else {
+      global_retc = EINVAL;
+    }
+  }
   return (0);
 
  com_find_usage:
-  printf("usage: find [-d] [-f] [-x <key=<val>] [-p <key>] [-b] <path>                  :  find files(-f) or directories (-d) in <path>\n");
+  printf("usage: find [-s] [-d] [-f] [-x <key=<val>] [-p <key>] [-b] [-c %%tags] <path> :  find files(-f) or directories (-d) in <path>\n");
   printf("                                                                              :  find entries(-x) with <key>=<val>\n");
   printf("                                                                              :  additionally print (-p) the value of <key> for each entry\n");
   printf("                                                                              :  query the server balance (-b) of the files found\n");
+  printf("                                                                              :  find all files with inconsistencies (-c) defined by %%tags [ see help of 'file check' command]\n");
+  printf("                                                                              :  run as a subcommand (in silent mode)\n");
   printf("                                                                      default :  find files and directories\n");
   return (0);
 }
@@ -2273,6 +2471,12 @@ int main (int argc, char* argv[]) {
     }
   }
 
+
+  /* configure looging */
+  XrdCommonLogging::Init();
+  XrdCommonLogging::SetUnit("eos");
+  XrdCommonLogging::SetLogPriority(LOG_NOTICE);
+  
 
   /* install a shutdown handler */
   signal (SIGINT,  exit_handler);
