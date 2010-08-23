@@ -24,7 +24,10 @@ int main(int argc, char* argv[]) {
       fprintf(stdout,"%s\n", fout.c_str());
       char* binout =0;
       unsigned int outlen;
-      XrdMqMessage::Base64Decode(fout, binout, outlen);
+      if (!XrdMqMessage::Base64Decode(fout, binout, outlen)) {
+	fprintf(stderr,"error: cannot base64 decode\n");
+	exit(-1);
+      }
       binout[20]=0;
       
       fprintf(stdout,"outlen is %d - %s\n", outlen, binout);

@@ -18,6 +18,10 @@ extern XrdMqOfs   XrdOfsFS;
 int 
 XrdMqOfs::AddToMatch(const char* key, XrdMqMessageOut *Out, void* Arg) {
   EPNAME("AddToMatch");
+
+  if (!Arg)
+    return 0;
+
   const char* tident = ((XrdMqOfsMatches*)Arg)->tident;
   if (Arg) {
     //    char debugline[4096];
@@ -182,11 +186,14 @@ XrdMqOfs::FSctl(const int               cmd,
 
 
   XrdSmartOucEnv* env = new XrdSmartOucEnv(opaque.c_str());
-
+  if (!env)
+    return SFS_ERROR;
+  
   // look into the header
   XrdMqMessageHeader mh;
   if (!mh.Decode(opaque.c_str())) {
     XrdMqOfs::Emsg(epname, error, EINVAL, "decode message header", "");
+    delete env;
     return SFS_ERROR;
   }
   // add the broker ID
@@ -222,6 +229,7 @@ XrdMqOfs::FSctl(const int               cmd,
     backlogmessage += matches.backlogqueues;
     XrdMqOfs::Emsg(epname, error, E2BIG, backlogmessage.c_str(), ipath);
     TRACES(backlogmessage.c_str());
+    delete env;
     return SFS_ERROR;
   }
 
@@ -231,6 +239,7 @@ XrdMqOfs::FSctl(const int               cmd,
     backlogmessage += matches.backlogqueues;
     XrdMqOfs::Emsg(epname, error, ENFILE, backlogmessage.c_str(), ipath);
     TRACES(backlogmessage.c_str());
+    delete env;
     return SFS_ERROR;
   } 
 
@@ -238,6 +247,7 @@ XrdMqOfs::FSctl(const int               cmd,
     const char* result="OK";
     error.setErrInfo(3,(char*)result);
     XrdOfsFS.ReceivedMessages++;
+    delete env;
     return SFS_DATA;
   } else {
     bool ismonitor=false;
@@ -245,21 +255,23 @@ XrdMqOfs::FSctl(const int               cmd,
       ismonitor=true;
     }
 	
-    delete env;
-
     // this is a new hook for special monitoring message, to just accept them and if nobody listens they just go to nirvana
     if (!ismonitor) {
       XrdOfsFS.UndeliverableMessages++;
       XrdMqOfs::Emsg(epname, error, EINVAL, "submit message - no listener on requested queue: ", ipath);
       TRACES("no listener on requeste queue: ");
       TRACES(ipath);
+      delete env;
       return SFS_ERROR;
     } else {
       ZTRACE(open,"Discarding montor message without receiver");
       const char* result="OK";
       error.setErrInfo(3,(char*)result);
       XrdOfsFS.ReceivedMessages++;
+      delete env;
       return SFS_DATA;
     }
   }
+  delete env;
+  return SFS_ERROR;
 }

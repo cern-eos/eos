@@ -52,8 +52,9 @@ int main (int argc, char* argv[]) {
   TIMING("SEND",&mq);
   for (int i=0; i< 1000; i++) {
     XrdMqMessage* newmessage = mqc.RecvMessage();
-    if (i==0) 
-      newmessage->Print();
+    if (i==0) {
+      if (newmessage) newmessage->Print();
+    }
     if (newmessage) 
       delete newmessage;
   }

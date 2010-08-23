@@ -382,6 +382,7 @@ XrdMqMessage::CipherEncrypt(XrdOucString &in, char* &out, unsigned int &outlen, 
   const EVP_CIPHER* cipher = XMQCIPHER();
 
   if (!cipher) {
+    free(encryptptr);
     Eroute.Emsg("CipherEncrypt", EINVAL, "get cipher");
     return false;
   }
@@ -711,7 +712,6 @@ bool XrdMqMessage::Verify() {
     if (!Base64Decode(kMessageHeader.kMessageDigest, encrypteddigest, encrypteddigestlen)) {
       Eroute.Emsg("Verify", EINVAL, "base64 decode encrypted message digest");
       if (encrypteddigest) free (encrypteddigest);
-      if (decrypteddigest) free (decrypteddigest);
       return false;
     }
     
@@ -968,6 +968,9 @@ XrdMqMessage::Configure(const char* ConfigFN) {
 	fullcertpath += (char*)ep->d_name;
 	FILE* fp = fopen(fullcertpath.c_str(),"r");
 	if (!fp) {
+	  if (dp)
+	    closedir(dp);
+	    
 	  return Eroute.Emsg("Config", errno, "open public key file fn=", fullcertpath.c_str());
 	}
 	
@@ -976,11 +979,15 @@ XrdMqMessage::Configure(const char* ConfigFN) {
 	
 	if (x509 == 0) {
 	  ERR_print_errors_fp (stderr);
+	  if (dp)
+	    closedir(dp);
 	  return Eroute.Emsg("Config", EINVAL, "load public key file fn=", fullcertpath.c_str());
 	}
 	EVP_PKEY* pkey = X509_extract_key(x509);
 	if (pkey == 0) {
 	  ERR_print_errors_fp (stderr);
+	  if (dp)
+	    closedir(dp);
 	  return Eroute.Emsg("Config", EINVAL, "extract public key from file fn=", fullcertpath.c_str());
 	}
 	// add to the public key hash
@@ -991,6 +998,8 @@ XrdMqMessage::Configure(const char* ConfigFN) {
       }
       (void) closedir (dp);
     } else {
+      if (dp)
+	closedir(dp);
       return Eroute.Emsg("Config", errno, "open public key directory dn=",  PublicKeyDirectory.c_str());
     }
     kCanVerify = true;

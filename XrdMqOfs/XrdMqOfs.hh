@@ -175,7 +175,7 @@ public:
   int FSctl(int, XrdSfsFSctl&, XrdOucErrInfo&, const XrdSecEntity*);
   
   XrdMqOfs(XrdSysError *lp=0);
-  virtual              ~XrdMqOfs() {}
+  virtual              ~XrdMqOfs() {if (HostName) free(HostName);if (HostPref) free(HostPref);}
   virtual bool Init(XrdSysError &);
   const   char          *getVersion();
   int          Stall(XrdOucErrInfo &error, int stime, const char *msg); 
