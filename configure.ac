@@ -71,7 +71,7 @@ AC_PROG_LIBTOOL
 
 AC_HEADER_STDC
 # Check for xrootd headers
-if ! test -e "${XROOTD}/include/xrootd/XrdOlb/XrdOlbXmi.hh"
+if ! test -e "${XROOTD}/include/xrootd/XrdCms/XrdCmsAdmin.hh"
 then
    AC_MSG_ERROR([xrootd header files could not be found in ${XROOTD}/include/ directory ${XROOTD}])
 fi
