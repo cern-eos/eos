@@ -134,7 +134,7 @@ XrdMqMessage* XrdMqClient::RecvFromInternalBuffer() {
 	kMessageBuffer.erase(0,firstmessage);
     }
     
-    if (kMessageBuffer.length() < strlen(XMQHEADER))
+    if (kMessageBuffer.length() < (int)strlen(XMQHEADER))
       return 0;
 
     nextmessage = kMessageBuffer.find(XMQHEADER,strlen(XMQHEADER));
