@@ -5,6 +5,7 @@
 
 #include "Namespace/FileMD.hh"
 #include "Namespace/IFileMDSvc.hh"
+#include <sstream>
 
 namespace eos
 {
@@ -114,21 +115,15 @@ namespace eos
   void FileMD::getEnv( std::string &env ) 
   {
     env="";
-    char senv[16384];
-    sprintf(senv,"name=%s&id=%llu&ctime=%llu&ctime_ns=%llu&mtime=%llu&mtime_ns=%llu&size=%llu&cid=%llu&uid=%lu&gid=%lu&lid=%lu"
-	    ,pName.c_str()
-	    ,(unsigned long long) pId
-	    ,(unsigned long long) pCTime.tv_sec
-	    ,(unsigned long long) pCTime.tv_nsec
-	    ,(unsigned long long) pMTime.tv_sec
-	    ,(unsigned long long) pMTime.tv_nsec
-	    ,(unsigned long long) pSize
-	    ,(unsigned long long) pContainerId
-	    ,(unsigned long) pCUid
-	    ,(unsigned long) pCGid
-	    ,(unsigned long) pLayoutId);
+    std::ostringstream o;
 
-    env += senv;
+    o << "name=" << pName << "&id=" << pId << "&ctime=" << pCTime.tv_sec;
+    o << "&ctime_ns=" << pCTime.tv_nsec << "&mtime=" << pMTime.tv_sec;
+    o << "&mtime_ns=" << pMTime.tv_nsec << "&size=" << pSize;
+    o << "&cid=" << pContainerId << "&uid=" << pCUid << "&gid=" << pCGid;
+    o << "&lid=" << pLayoutId;
+
+    env += o.str();
     env += "&location=";
     LocationVector::iterator it;
     for( it = pLocation.begin(); it != pLocation.end(); ++it )

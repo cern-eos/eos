@@ -173,8 +173,8 @@ namespace eos
 
     if( gid == pCGid )
     {
-      char gid = convertModetGroup( pMode );
-      return checkPerms( gid, convFlags );
+      char group = convertModetGroup( pMode );
+      return checkPerms( group, convFlags );
     }
 
     char other = convertModetOther( pMode );

@@ -143,6 +143,8 @@ namespace eos
     sockaddr_in         localAddr;
     DescriptorException ex;
 
+    memset( &localAddr, 0, sizeof( localAddr ) );
+
     if( address )
       resolve( address, localAddr );
     else

@@ -25,7 +25,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ChangeLogFileMDSvc(): pChangeLog( 0 )
+      ChangeLogFileMDSvc(): pFirstFreeId( 1 ), pChangeLog( 0 )
       {
         pIdMap.set_deleted_key( 0 );
         pChangeLog = new ChangeLogFile;
@@ -116,7 +116,7 @@ namespace eos
       //------------------------------------------------------------------------
       struct DataInfo
       {
-        DataInfo() {} // for some reason needed by sparse_hash_map::erase
+        DataInfo(): logOffset(0), ptr(0) {} // for some reason needed by sparse_hash_map::erase
         DataInfo( uint64_t logOffset, FileMD *ptr )
         {
           this->logOffset = logOffset;

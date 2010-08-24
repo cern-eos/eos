@@ -22,7 +22,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      HierarchicalView(): pContainerSvc( 0 ), pFileSvc( 0 )
+      HierarchicalView(): pContainerSvc( 0 ), pFileSvc( 0 ), pRoot( 0 )
       {
       }
 

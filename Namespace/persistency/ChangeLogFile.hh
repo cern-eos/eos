@@ -70,7 +70,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ChangeLogFile(): pIsOpen( false ), pVersion( 0 ), pSeqNumber( 0 ),
+      ChangeLogFile(): pFd(-1), pIsOpen( false ), pVersion( 0 ), pSeqNumber( 0 ),
                        pContentFlag( 0 ) {};
 
       //------------------------------------------------------------------------

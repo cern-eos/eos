@@ -104,7 +104,7 @@ namespace eos
       //------------------------------------------------------------------------
       struct DataInfo
       {
-        DataInfo() {} // for some reason needed by sparse_hash_map::erase
+        DataInfo(): logOffset(0), ptr(0) {} // for some reason needed by sparse_hash_map::erase
         DataInfo( uint64_t logOffset, ContainerMD *ptr )
         {
           this->logOffset = logOffset;

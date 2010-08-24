@@ -358,8 +358,16 @@ namespace eos
     //--------------------------------------------------------------------------
     // Get the offset information
     //--------------------------------------------------------------------------
-    uint64_t end = ::lseek( pFd, 0, SEEK_END );
-    uint64_t offset = ::lseek( pFd, 8, SEEK_SET );
+    off_t end = ::lseek( pFd, 0, SEEK_END );
+    if( end == -1 )
+    {
+      MDException ex( EFAULT );
+      ex.getMessage() << "Scan: Unable to find the end of the log file: ";
+      ex.getMessage() << strerror( errno );
+      throw ex;
+    }
+
+    off_t offset = ::lseek( pFd, 8, SEEK_SET );
     if( offset != 8 )
     {
       MDException ex( EFAULT );
