@@ -1791,7 +1791,7 @@ com_file (char* arg1) {
     delete result;
 
     bool consistencyerror=false;
-      
+    bool down=false;
     if (!newresult->Get("mgm.proc.stderr")) {
 
       XrdOucString checksumtype = newresult->Get("mgm.checksumtype");
@@ -1813,43 +1813,52 @@ com_file (char* arg1) {
 	  if (bs != "booted") {
 	    // skip machines which are unavailable
 	    consistencyerror = true;
+	    down = true;
+	  }  else {
+	    down = false;
 	  }
+
 	  if (!admin) {
 	    fprintf(stderr,"error: unable to get admin\n");
 	    return ECOMM;
 	  }
 	  struct XrdCommonFmd::FMD fmd;
 	  int retc=0;
-	  if ((retc=gFmdHandler.GetRemoteFmd(admin, newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()), fmd))) {
-	    fprintf(stderr,"error: unable to retrieve file meta data from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
+
+	  if (down) {
+	    fprintf(stderr,"error: unable to retrieve file meta data from %s [ status=%s ]\n",  newresult->Get(repurl.c_str()),bs.c_str());
 	  } else {
-	    XrdOucString cx="";
-	    for (unsigned int k=0; k< SHA_DIGEST_LENGTH; k++) {
-	      // the adler and crc32 functions are not bytewise but derived from int byte order
-	      if ( ((checksumtype == "adler") || (checksumtype == "crc32")) && (k<4) ) {
-		char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd.checksum[3-k]));
-		cx += hb;
-	      } else {
-		char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd.checksum[k]));
-		cx += hb;
+	    if ((retc=gFmdHandler.GetRemoteFmd(admin, newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()), fmd))) {
+	      fprintf(stderr,"error: unable to retrieve file meta data from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
+	    } else {
+	      XrdOucString cx="";
+	      for (unsigned int k=0; k< SHA_DIGEST_LENGTH; k++) {
+		// the adler and crc32 functions are not bytewise but derived from int byte order
+		if ( ((checksumtype == "adler") || (checksumtype == "crc32")) && (k<4) ) {
+		  char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd.checksum[3-k]));
+		  cx += hb;
+		} else {
+		  char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd.checksum[k]));
+		  cx += hb;
+		}
 	      }
-	    }
-	    
-	    if ( (option.find("%size"))!= STR_NPOS ) {
-	      char ss[1024]; sprintf(ss,"%llu", fmd.size);
-	      XrdOucString sss = ss;
-	      if (sss != size) {
-		consistencyerror = true;
+	      
+	      if ( (option.find("%size"))!= STR_NPOS ) {
+		char ss[1024]; sprintf(ss,"%llu", fmd.size);
+		XrdOucString sss = ss;
+		if (sss != size) {
+		  consistencyerror = true;
+		}
 	      }
-	    }
-
-	    if ( (option.find("%checksum")) != STR_NPOS ) {
-	      if (cx != checksum) { 
-		consistencyerror = true;
+	      
+	      if ( (option.find("%checksum")) != STR_NPOS ) {
+		if (cx != checksum) { 
+		  consistencyerror = true;
+		}
 	      }
+	      
+	      if (!silent)printf("nrep=%02d fsid=%lu size=%llu checksum=%s\n", i, fmd.fsid, fmd.size, cx.c_str());
 	    }
-
-	    if (!silent)printf("nrep=%02d fsid=%lu size=%llu checksum=%s\n", i, fmd.fsid, fmd.size, cx.c_str());
 	  }
 	} else {
 	  break;
