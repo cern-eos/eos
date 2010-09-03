@@ -556,6 +556,7 @@ XrdFstOfsStorage::ScrubFs(const char* path, unsigned long long free, unsigned lo
 
 	if (ff<0) {
 	  eos_static_crit("Unable to create/wopen scrubfile %s", scrubfile[k].c_str());
+	  fserrors = 1;
 	  break;
 	}
 	// select the pattern randomly
@@ -565,6 +566,7 @@ XrdFstOfsStorage::ScrubFs(const char* path, unsigned long long free, unsigned lo
 	  int nwrite = write(ff, scrubPattern[rshift], 1024 * 1024);
 	  if (nwrite != (1024*1024)) {
 	    eos_static_crit("Unable to write all needed bytes for scrubfile %s", scrubfile[k].c_str());
+	    fserrors = 1;
 	    break;
 	  }
 	  if (k!=0) {
@@ -587,6 +589,7 @@ XrdFstOfsStorage::ScrubFs(const char* path, unsigned long long free, unsigned lo
 	int nread = read(ff, scrubPatternVerify, 1024 * 1024);
 	if (nread != (1024*1024)) {
 	  eos_static_crit("Unable to read all needed bytes from scrubfile %s", scrubfile[k].c_str());
+	  fserrors = 1;
 	  break;
 	}
 	unsigned long long* ref = (unsigned long long*)scrubPattern[0];
