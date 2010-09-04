@@ -706,7 +706,7 @@ XrdFstOfsStorage::Pulling()
     sleep(1);
     transferMutex.Lock();
     if (transfers.size()) 
-      eos_static_debug("%u files to delete",transfers.size());
+      eos_static_debug("%u files to transfer",transfers.size());
 
     bool more = false;
 
