@@ -109,14 +109,14 @@ XrdFstOfsReplicaParLayout::open(const char                *path,
 	// local handle
 	if (ofsFile->openofs(path, open_mode, create_mode, client, opaque)) {
 	  eos_err("Failed to open replica - local open failed on ", path);
-	  return gOFS.Emsg("ReplicaOpen",*error, EIO, "open replica - local open failed ", path);
+	  return gOFS.Emsg("ReplicaOpen",*error, EREMOTEIO, "open replica - local open failed ", path);
 	}
       } else {
 	// read case
 	// local handle
 	if (ofsFile->openofs(path, open_mode, create_mode, client, opaque)) {
 	  eos_err("Failed to open replica - local open failed on ", path);
-	  return gOFS.Emsg("ReplicaOpen",*error, EIO, "open replica - local open failed ", path);
+	  return gOFS.Emsg("ReplicaOpen",*error, EREMOTEIO, "open replica - local open failed ", path);
 	}
       }
     } else {
@@ -131,7 +131,7 @@ XrdFstOfsReplicaParLayout::open(const char                *path,
 	  if (!replicaClient[i]->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or, kXR_async | kXR_mkpath | kXR_open_updt | kXR_new, false)) {
 	    // open failed
 	    eos_err("Failed to open stripes - remote open failed on ", replicaUrl[i].c_str());
-	    return gOFS.Emsg("ReplicaParOpen",*error, EIO, "open stripes - remote open failed ", replicaUrl[i].c_str());
+	    return gOFS.Emsg("ReplicaParOpen",*error, EREMOTEIO, "open stripes - remote open failed ", replicaUrl[i].c_str());
 	  }
 	} else {
 	  // read case just uses one replica
@@ -169,7 +169,7 @@ XrdFstOfsReplicaParLayout::read(XrdSfsFileOffset offset, char* buffer, XrdSfsXfe
       rc2 = replicaClient[0]->Read(buffer, offset, length);
       if (rc2 != length) {
 	eos_err("Failed to read remote replica - read failed - %llu %llu %s", offset, length, replicaUrl[0].c_str());
-	return gOFS.Emsg("ReplicaParRead",*error, EIO, "read remote replica - read failed", replicaUrl[0].c_str());
+	return gOFS.Emsg("ReplicaParRead",*error, EREMOTEIO, "read remote replica - read failed", replicaUrl[0].c_str());
       }
     }
   }
@@ -208,7 +208,7 @@ XrdFstOfsReplicaParLayout::write(XrdSfsFileOffset offset, char* buffer, XrdSfsXf
   }
 
   if (!rc2) {
-    return gOFS.Emsg("ReplicaWrite",*error, EIO, "write remote replica - write failed");
+    return gOFS.Emsg("ReplicaWrite",*error, EREMOTEIO, "write remote replica - write failed");
   }
   return rc1;
 
@@ -239,7 +239,7 @@ XrdFstOfsReplicaParLayout::truncate(XrdSfsFileOffset offset)
     return gOFS.Emsg("ReplicaParTruncate",*error, errno, "truncate local replica", replicaUrl[0].c_str());
   }
   if (!rc2) {
-    return gOFS.Emsg("ReplicaParTruncate",*error, EIO, "truncate remote replica");
+    return gOFS.Emsg("ReplicaParTruncate",*error, EREMOTEIO, "truncate remote replica");
   }
   return rc1;
 }
@@ -268,7 +268,7 @@ XrdFstOfsReplicaParLayout::sync()
     return gOFS.Emsg("ReplicaParSync",*error, errno, "sync local replica", replicaUrl[0].c_str());
   }
   if (!rc2) {
-    return gOFS.Emsg("ReplicaParSync",*error, EIO, "sync remote replica");
+    return gOFS.Emsg("ReplicaParSync",*error, EREMOTEIO, "sync remote replica");
   }  
   return rc1;
 }
@@ -299,7 +299,7 @@ XrdFstOfsReplicaParLayout::close()
   }
 
   if (!rc2) {
-    return gOFS.Emsg("ReplicaClose",*error, EIO, "close remote replica", "");
+    return gOFS.Emsg("ReplicaClose",*error, EREMOTEIO, "close remote replica", "");
   }  
   return rc1;
 }
