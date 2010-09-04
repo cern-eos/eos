@@ -225,7 +225,6 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      retc = EINVAL;
 	    } else {
 	      fsid = atoi(fsidst);	
-	      //-------------------------------------------
 	      gOFS->eosViewMutex.Lock();
 	      try {
 		eos::FileMD* fmd = 0;
@@ -934,6 +933,158 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  }
 	}
 
+	if (subcmd == "adjustreplica") {
+	  // only root can do that
+	  if (vid_in.uid==0) {
+	    eos::FileMD* fmd=0;
+	    
+	    if (path.beginswith("fid:")) {
+	      path.replace("fid:","");
+	      unsigned long long fid = strtoull(path.c_str(),0,10);
+	      
+	      // reference by fid+fsid
+	      //-------------------------------------------
+	      gOFS->eosViewMutex.Lock();
+	      try {
+		fmd = gOFS->eosFileService->getFileMD(fid);
+	      } catch ( eos::MDException &e ) {
+		errno = e.getErrno();
+		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+		eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	      }
+	      gOFS->eosViewMutex.UnLock();
+	      //-------------------------------------------
+	    } else {
+	      // reference by path
+	      //-------------------------------------------
+	      gOFS->eosViewMutex.Lock();
+	      try {
+		fmd = gOFS->eosView->getFile(path.c_str());
+	      } catch ( eos::MDException &e ) {
+		errno = e.getErrno();
+		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+		eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	      }
+	      gOFS->eosViewMutex.UnLock();
+	      //-------------------------------------------
+	    }
+	    
+	    XrdOucString space = "default";
+	    unsigned int forcedsubgroup;
+
+	    if (fmd) {
+	      // check if that is a replica layout at all
+	      if (XrdCommonLayoutId::GetLayoutType(fmd->getLayoutId()) == XrdCommonLayoutId::kReplica) {
+		// check the configured and available replicas
+		
+		XrdOucString sizestring;
+		
+		eos::FileMD::LocationVector::const_iterator lociter;
+		int nreplayout = XrdCommonLayoutId::GetStripeNumber(fmd->getLayoutId());
+		int nrep = (int)fmd->getNumLocation();
+		int nreponline=0;
+		
+		for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+		  XrdMgmFstNode::gMutex.Lock();
+		  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
+		  if (filesystem) {
+		    if (filesystem && ((filesystem->GetConfigStatus() >= XrdCommonFileSystem::kDrain)) &&
+			((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
+		      // this is a good accessible one
+		      nreponline++;
+		      // remember the spacename
+		      space = filesystem->GetSpaceName();
+		      forcedsubgroup = filesystem->GetSchedulingGroupIndex();
+		    }
+		  }
+		  XrdMgmFstNode::gMutex.UnLock();
+		}
+		
+		eos_debug("path=%s nrep=%lu nrep-layout=%lu nrep-online=%lu", path.c_str(), nrep, nreplayout, nreponline);
+
+		if (nreplayout > nreponline) {
+		  // we don't have enough replica's online, we trigger asynchronous replication
+		  int nnewreplicas = nreplayout - nreponline; // we have to create that much new replica
+		  
+		  // get the location where we can read that file
+		  XrdMgmSpaceQuota* quotaspace = XrdMgmQuota::GetSpaceQuota(space.c_str(),false);
+		  
+		  if (!quotaspace) {
+		    stdErr = "error: create new replicas => cannot get space: "; stdErr += space; stdErr += "\n";
+		    errno = ENOSPC;
+		  } else {
+		    unsigned long fsIndex; // this defines the fs to use in the selectefs vector
+		    std::vector<unsigned int> selectedfs;
+		    if (!(errno =quotaspace->FileAccess(vid.uid, vid.gid, (unsigned long)0, space.c_str(), (unsigned long)fmd->getLayoutId(), selectedfs, fsIndex, false))) {
+		      // this is now our source filesystem
+		      unsigned int sourcefsid = selectedfs[fsIndex];
+		      // now the just need to ask for <n> targets
+		      int layoutId = XrdCommonLayoutId::GetId(XrdCommonLayoutId::kReplica, XrdCommonLayoutId::kNone, nnewreplicas-1);
+
+		      // we don't know the container tag here, but we don't really care since we are scheduled as root
+		      if (!(errno = quotaspace->FilePlacement(vid.uid, vid.gid, 0 , layoutId, selectedfs, SFS_O_TRUNC, forcedsubgroup))) {
+			// yes we got a new replication vector
+			for (unsigned int i=0; i< selectedfs.size(); i++) {
+			  stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
+			  // add replication here 
+			  if (gOFS->_replicatestripe(fmd,*error, vid, sourcefsid, selectedfs[i])) {
+			    stdErr += "error: unable to replicate stripe "; stdErr += (int) sourcefsid; stdErr += " => "; stdErr += (int) selectedfs[i]; stdErr += "\n";
+			    retc = errno;
+			  } else {
+			    stdOut += "success: scheduled replication from source fs="; stdOut += (int) sourcefsid; stdOut += " => target fs="; stdOut += (int) selectedfs[i]; stdOut +="\n";
+			  }
+			}
+		      } else {
+			stdErr = "error: create new replicas => cannot place replicas: "; stdErr += path; stdErr += "\n";
+		      }
+		    } else {
+		      stdErr = "error: create new replicas => no source availabel: "; stdErr += path; stdErr += "\n";
+		    }
+		  }
+		}
+		
+		if (nreplayout < nreponline) {
+		  // we have too many replica's online, we drop one of the online replicas
+		  for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+		    XrdMgmFstNode::gMutex.Lock();
+		    XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
+		    if (filesystem) {
+		      if (filesystem && ((filesystem->GetConfigStatus() >= XrdCommonFileSystem::kDrain)) &&
+			  ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
+			// this is a good accessible one, let's drop that and terminate the loop
+			
+			unsigned int fsid = filesystem->GetId();
+			XrdMgmFstNode::gMutex.UnLock();
+			
+			if (fmd->hasLocation(fsid)) {
+			  //-------------------------------------------
+			  gOFS->eosViewMutex.Lock();
+			  try {
+			    fmd->unlinkLocation(fsid);
+			    gOFS->eosView->updateFileStore(fmd);
+			    eos_debug("removing location %u", fsid);
+			  } catch ( eos::MDException &e ) {
+			    errno = e.getErrno();
+			    stdErr = "error: drop excess replicas => cannot unlink location - "; stdErr += e.getMessage().str().c_str(); stdErr += "\n";
+			    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+			  }
+			  gOFS->eosViewMutex.UnLock();
+			  
+			  break;
+			} 
+			// go on until we finally drop one
+		      }
+		    }
+		  }
+		}
+	      }
+	    }
+	  } else {
+	    retc = EPERM;
+	    stdErr = "error: you have to take role 'root' to execute this command";
+	  }
+	}
+
 	if (subcmd == "place") {
 	  // this returns a file system id to place a file/replica
 	}
@@ -1020,6 +1171,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	try {
 	  fmd = gOFS->eosView->getFile(path.c_str());
 	} catch ( eos::MDException &e ) {
+	  fmd = 0;
 	  errno = e.getErrno();
 	  stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
 	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
