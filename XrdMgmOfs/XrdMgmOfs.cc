@@ -2808,13 +2808,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   static const char *epname = "replicatestripe";  
   eos::ContainerMD *dh=0;
   errno = 0;
-  unsigned long long fileId=0;
   
-  if (dropsource) 
-    gOFS->MgmStats.Add("MoveStripe",vid.uid,vid.gid,1);  
-  else 
-    gOFS->MgmStats.Add("CopyStripe",vid.uid,vid.gid,1);  
-
   XrdCommonPath cPath(path);
 
   eos_debug("replicating %s from %u=>%u [drop=%d]", path, sourcefsid,targetfsid,dropsource);
@@ -2845,7 +2839,6 @@ XrdMgmOfs::_replicatestripe(const char             *path,
       // this replica does not exist!
       errno = ENODATA;
     }
-    fileId = fmd->getId();
   } catch( eos::MDException &e ) {
     fmd = 0;
     errno = e.getErrno();
@@ -2858,7 +2851,27 @@ XrdMgmOfs::_replicatestripe(const char             *path,
 
   if (errno) 
     return  Emsg(epname,error,errno,"replicate stripe",path);    
-  
+
+  return _replicatestripe(fmd, error, vid, sourcefsid, targetfsid, dropsource);
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd, 
+			    XrdOucErrInfo          &error,
+			    XrdCommonMapping::VirtualIdentity &vid,
+			    unsigned long           sourcefsid,
+			    unsigned long           targetfsid, 
+			    bool                    dropsource)
+{
+  static const char *epname = "replicatestripe";  
+  unsigned long long fileId=fmd->getId();
+
+  if (dropsource) 
+    gOFS->MgmStats.Add("MoveStripe",vid.uid,vid.gid,1);  
+  else 
+    gOFS->MgmStats.Add("CopyStripe",vid.uid,vid.gid,1);  
+ 
   // prepare a replication message
   XrdOucString capability="";
   capability += "mgm.access=read";
@@ -2869,7 +2882,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   capability += "&mgm.rgid=";       capability+=(int)vid.gid;
   capability += "&mgm.uid=";        capability+=(int)vid.uid_list[0]; 
   capability += "&mgm.gid=";        capability+=(int)vid.gid_list[0];
-  capability += "&mgm.path=";       capability += path;
+  capability += "&mgm.path=";       capability += fmd->getName().c_str();
   capability += "&mgm.manager=";    capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";    XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fileId,hexfid);capability += hexfid;
 
@@ -2884,13 +2897,13 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   if (!sourcefilesystem) {
     errno = EINVAL;
     XrdMgmFstNode::gMutex.UnLock();
-    return  Emsg(epname,error,ENOENT,"replicate stripe - source filesystem does not exist",path);  
+    return  Emsg(epname,error,ENOENT,"replicate stripe - source filesystem does not exist",fmd->getName().c_str());  
   }
 
   if (!targetfilesystem) {
     errno = EINVAL;
     XrdMgmFstNode::gMutex.UnLock();
-    return  Emsg(epname,error,ENOENT,"replicate stripe - target filesystem does not exist",path);  
+    return  Emsg(epname,error,ENOENT,"replicate stripe - target filesystem does not exist",fmd->getName().c_str());  
   }
 
   XrdOucString receiver    = targetfilesystem->GetQueue();
@@ -2937,7 +2950,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
     delete capabilityenv;
 
   if (errno) 
-    return  Emsg(epname,error,errno,"replicate stripe",path);  
+    return  Emsg(epname,error,errno,"replicate stripe",fmd->getName().c_str());  
 
   return SFS_OK;
 }

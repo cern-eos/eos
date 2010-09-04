@@ -410,6 +410,14 @@ const   char          *getVersion();
 				   unsigned long         targetfsid, 
 				   bool                  dropstripe=false);
 
+
+        int            _replicatestripe(eos::FileMD* fmd, 
+				   XrdOucErrInfo        &error,
+				   XrdCommonMapping::VirtualIdentity &vid,
+				   unsigned long         sourcefsid,
+				   unsigned long         targetfsid, 
+				   bool                  dropstripe=false);
+
   
 // Common functions
 //
