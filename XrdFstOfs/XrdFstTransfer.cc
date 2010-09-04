@@ -30,14 +30,18 @@ XrdFstTransfer::Do()
   XrdCommonClientAdmin* replicaAdmin = gOFS.CommonClientAdminManager.GetAdmin(capOpaque.Get("mgm.sourcehostport"));
 
   int rc=0;
+  eos_static_debug("GetRemoteFmd %s %s %s",  capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"));
   rc = gFmdHandler.GetRemoteFmd(replicaAdmin, capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"),fmd);
 
   if (rc) {
+    eos_static_err("Failed to get remote fmd from %s [%d]\n", capOpaque.Get("mgm.sourcehostport"), rc);
     return rc;
   }
   
   // ----------------------------------------------------------------------------------------------------------
   // open replica to pull
+
+  bool failed = false; // indicates if the copy failed
 
   XrdClient* replicaClient = new XrdClient(replicaUrl.c_str());
   if (!replicaClient->Open(0,0,false)) {
@@ -47,11 +51,19 @@ XrdFstTransfer::Do()
   } else {
     // open local replica
     XrdOucString fstPath="";
-
+    
     XrdCommonFileId::FidPrefix2FullPath(capOpaque.Get("mgm.fid"),capOpaque.Get("mgm.localprefixtarget"),fstPath);
     
-    int fout = open(fstPath.c_str(), O_CREAT| O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-    if (fout <0) {
+    XrdFstOfsFile* ofsFile = new XrdFstOfsFile(0);
+
+    if (!ofsFile) {
+      eos_static_err("Failed to allocate ofs file %s", fstPath.c_str());
+      delete replicaClient;
+      return ENOMEM;
+    }
+    
+    if (ofsFile->openofs(fstPath.c_str(), SFS_O_TRUNC | SFS_O_RDWR, SFS_O_MKPTH |S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 0,0)) {
+      if (!errno) errno = EIO;
       eos_static_err("Failed to open local replica file %s errno=%u", fstPath.c_str(),errno);
       delete replicaClient;
       return errno;
@@ -66,16 +78,13 @@ XrdFstTransfer::Do()
       delete replicaClient;
       return ENOMEM;
     }
-
-    bool failed = false;
+    
     do {
       int nread = replicaClient->Read(cpbuffer,offset,buffersize);
       if (nread>=0) {
-	int nwrite = write(fout, cpbuffer, nread);
-	if (nwrite != nread) {
+	if (!ofsFile->writeofs(offset, cpbuffer, nread))
 	  failed = true;
-	  break;
-	}
+	break;
       }
       if (nread != buffersize) 
 	break;
@@ -85,7 +94,7 @@ XrdFstTransfer::Do()
 
     // free the copy buffer
     free(cpbuffer);
-    close(fout);
+    ofsFile->closeofs();
     
     if (failed) {
       // in case of failure we drop this entry
@@ -96,6 +105,11 @@ XrdFstTransfer::Do()
 
   delete replicaClient;
 
+  if (failed) {
+    // if the copy failed
+    if (!errno) errno = EIO;
+    return errno;
+  }
   // ----------------------------------------------------------------------------------------------------------
   // commit file meta data locally
 
