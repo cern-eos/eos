@@ -1742,7 +1742,7 @@ com_file (char* arg1) {
   path = abspath(path.c_str());
 
   XrdOucString in = "mgm.cmd=file";
-  if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) && (cmd != "check") ) {
+  if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) && (cmd != "check") && ( cmd != "adjustreplica" )) {
     goto com_file_usage;
   }
 
@@ -1770,6 +1770,14 @@ com_file (char* arg1) {
     in += "&mgm.path="; in += path;
     in += "&mgm.file.sourcefsid="; in += fsid1;
     in += "&mgm.file.targetfsid="; in += fsid2;
+  }
+
+  if (cmd == "adjustreplica") { 
+    if (!path.length())
+      goto com_file_usage;
+
+    in += "&mgm.subcmd=adjustreplica";
+    in += "&mgm.path="; in += path;
   }
 
   if (cmd == "check") { 
@@ -1807,12 +1815,14 @@ com_file (char* arg1) {
 
       int i=0;
       XrdOucString inconsistencylable ="";
+      int nreplicaonline = 0;
+	  
       for (i=0; i< XrdCommonLayoutId::kSixteenStripe; i++) {
 	XrdOucString repurl  = "mgm.replica.url"; repurl += i;
 	XrdOucString repfid  = "mgm.fid"; repfid += i;
 	XrdOucString repfsid = "mgm.fsid"; repfsid += i;
 	XrdOucString repbootstat = "mgm.fsbootstat"; repbootstat += i;
-	
+
 	if ( newresult->Get(repurl.c_str()) ) {
 	  // Query 
 	  XrdCommonClientAdmin* admin = CommonClientAdminManager.GetAdmin(newresult->Get(repurl.c_str()));
@@ -1838,11 +1848,12 @@ com_file (char* arg1) {
 
 	  if ( down && ((option.find("%force"))== STR_NPOS ))  {
 	    consistencyerror = true;
-	    fprintf(stderr,"error: unable to retrieve file meta data from %s [ status=%s ]\n",  newresult->Get(repurl.c_str()),bs.c_str());
+	    if (!silent) fprintf(stderr,"error: unable to retrieve file meta data from %s [ status=%s ]\n",  newresult->Get(repurl.c_str()),bs.c_str());
 	    inconsistencylable ="DOWN";
 	  } else {
+	    //	    fprintf(stderr,"%s %s %s\n",newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()));
 	    if ((retc=gFmdHandler.GetRemoteFmd(admin, newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()), fmd))) {
-	      fprintf(stderr,"error: unable to retrieve file meta data from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
+	      if (!silent)fprintf(stderr,"error: unable to retrieve file meta data from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
 	    } else {
 	      XrdOucString cx="";
 	      for (unsigned int k=0; k< SHA_DIGEST_LENGTH; k++) {
@@ -1871,7 +1882,8 @@ com_file (char* arg1) {
 		  inconsistencylable ="CHECKSUM";
 		}
 	      }
-	      
+	      nreplicaonline++;
+		      
 	      if (!silent)printf("nrep=%02d fsid=%lu size=%llu checksum=%s\n", i, fmd.fsid, fmd.size, cx.c_str());
 	    }
 	  }
@@ -1895,8 +1907,7 @@ com_file (char* arg1) {
       
       if ( (option.find("%output"))!= STR_NPOS ) {
 	if (consistencyerror)
-	  printf("INCONSISTENCY %s path=%-32s fid=%s size=%s nrep=%s nrepavail=%d checksumtype=%s checksum=%s\n", inconsistencylable.c_str(), path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.nrep"), i, checksumtype.c_str(), newresult->Get("mgm.checksum"));
-	silent = true;
+	  printf("INCONSISTENCY %s path=%-32s fid=%s size=%s nrep=%s nrepstored=%d nreponline=%d checksumtype=%s checksum=%s\n", inconsistencylable.c_str(), path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.nrep"), i, nreplicaonline, checksumtype.c_str(), newresult->Get("mgm.checksum"));
       }
 
       delete newresult;
@@ -1913,6 +1924,7 @@ com_file (char* arg1) {
   printf("usage: file drop <path> <fsid>                                       :  drop the file <path> part on <fsid>\n");
   printf("       file move <path> <fsid1> <fsid2>                              :  move the file <path> part on <fsid1> to <fsid2>\n");
   printf("       file replicate <path> <fsid1> <fsid2>                         :  replicate file <path> part on <fsid1> to <fsid2>\n");
+  printf("       file adjustreplica <path>|fid:<fid>                           :  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
   printf("       file check <path> [%%size%%checksum%%nrep%%force%%ouptut%%silent]  :  retrieves stat information from the physical replicas and verifies the correctness\n");
   printf("       - %%size                                                       :  return with an error code if there is a mismatch between the size meta data information\n");
   printf("       - %%checksum                                                   :  return with an error code if there is a mismatch between the checksum meta data information\n");
@@ -2498,7 +2510,7 @@ int main (int argc, char* argv[]) {
       in1 = argv[2];
       argindex = 2;
     } else {
-      if (argc > 5) {
+      if (argc > 4) {
 	if (in1 == "-role") {
 	  urole = argv[2];
 	  grole = argv[3];
