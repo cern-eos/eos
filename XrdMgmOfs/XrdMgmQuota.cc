@@ -280,6 +280,13 @@ XrdMgmSpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
 int 
 XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate, int forcedindex)
 {
+  std::set<unsigned int> fsidavoidlist;
+
+  // fill the avoid list from the selectedfs input vector
+  for (unsigned int i=0; i< selectedfs.size(); i++) {
+    fsidavoidlist.insert(selectedfs[i]);
+  }
+
   unsigned int nfilesystems = XrdCommonLayoutId::GetStripeNumber(lid) + 1; // 0 = 1 replica !
   unsigned int nassigned = 0;
   bool hasquota = false;
@@ -302,18 +309,24 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
   // -> user quota
 
   eos_static_debug("%llu %llu",GetQuota(kUserBytesTarget,uid,false), GetQuota(kUserBytesIs,uid,false));
+
   if ( ( ( (GetQuota(kUserBytesTarget,uid,false)) - (GetQuota(kUserBytesIs,uid,false)) ) > (long long)(1ll*nfilesystems*referencesize) ) &&
        ( ( (GetQuota(kUserFilesTarget,uid,false)) - (GetQuota(kUserFilesIs,uid,false)) ) > (1*nfilesystems ) ) ) {
     // the user has quota here!
     hasquota = true;
   } 
   
-       // -> group quota
+  // -> group quota
   if ( ( ( (GetQuota(kGroupBytesTarget,gid,false)) - (GetQuota(kGroupBytesIs,gid,false)) ) > (long long) (1ll*nfilesystems*referencesize) ) &&
        ( ( (GetQuota(kGroupFilesTarget,gid,false)) - (GetQuota(kGroupFilesIs,gid,false)) ) > (1*nfilesystems)  ) ) {
-    // the user has quota here!
+    // the group has quota here!
     hasquota = true;
   } 
+
+  if (uid==0) {
+    // root does not need any quota
+    hasquota = true;
+  }
 
   if (!hasquota) {
     eos_static_debug("uid=%u git=%u grouptag=%s place filesystems=%u has no quota left!",uid,gid,grouptag, nfilesystems);
@@ -374,7 +387,8 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
 	     ((filesystem->GetStatfs()->f_ffree) > 100 ) &&
 	     ( ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kWO) && truncate) ||
 	       ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kRW)) ) &&
-	     ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
+	     ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted)) && 
+	     ((fsidavoidlist.count(filesystem->GetId()) == 0)) ) {
 	  // ok, that can be used
 	  selectedfs.push_back(currentfs);
 	  nassigned++;
