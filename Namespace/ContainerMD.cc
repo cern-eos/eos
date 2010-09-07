@@ -28,6 +28,32 @@ namespace eos
   }
 
   //----------------------------------------------------------------------------
+  // Copy constructor
+  //----------------------------------------------------------------------------
+  ContainerMD::ContainerMD( const ContainerMD &other )
+  {
+    *this = other;
+  }
+
+  //----------------------------------------------------------------------------
+  // Asignment operator
+  //----------------------------------------------------------------------------
+  ContainerMD &ContainerMD::operator = ( const ContainerMD &other )
+  {
+    pId       = other.pId;
+    pParentId = other.pParentId;
+    pCTime    = other.pCTime;
+    pName     = other.pName;
+    pCUid     = other.pCUid;
+    pCGid     = other.pCGid;
+    pMode     = other.pMode;
+    pACLId    = other.pACLId;
+    pXAttrs   = other.pXAttrs;
+    return *this;
+  }
+
+
+  //----------------------------------------------------------------------------
   // Serialize the object to a buffer
   //----------------------------------------------------------------------------
   void ContainerMD::serialize( Buffer &buffer ) throw( MDException )

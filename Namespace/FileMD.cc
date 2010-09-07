@@ -26,6 +26,29 @@ namespace eos
   }
 
   //----------------------------------------------------------------------------
+  // Copy constructor
+  //----------------------------------------------------------------------------
+  FileMD::FileMD( const FileMD &other )
+  {
+    *this = other;
+  }
+
+  //----------------------------------------------------------------------------
+  // Asignment operator
+  //----------------------------------------------------------------------------
+  FileMD &FileMD::operator = ( const FileMD &other )
+  {
+    pId          = other.pId;
+    pSize        = other.pSize;
+    pContainerId = other.pContainerId;
+    pCUid        = other.pCUid;
+    pCGid        = pCGid;
+    pLayoutId    = other.pLayoutId;
+    pFileMDSvc   = 0;
+    return *this;
+  }
+
+  //----------------------------------------------------------------------------
   // Add location
   //----------------------------------------------------------------------------
   void FileMD::addLocation( location_t location )
@@ -147,6 +170,13 @@ namespace eos
   //----------------------------------------------------------------------------
   void FileMD::serialize( Buffer &buffer ) throw( MDException )
   {
+    if( !pFileMDSvc )
+    {
+      MDException ex( ENOTSUP );
+      ex.getMessage() << "This was supposed to be a read only copy!";
+      throw ex;
+    }
+
     buffer.putData( &pId,          sizeof( pId ) );
     buffer.putData( &pCTime,       sizeof( pCTime ) );
     buffer.putData( &pMTime,       sizeof( pMTime ) );
