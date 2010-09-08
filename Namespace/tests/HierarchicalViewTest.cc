@@ -92,10 +92,32 @@ void HierarchicalViewTest::reloadTest()
     CPPUNIT_ASSERT( view->getFile( "/test/embed/embed1/file2" ) );
     CPPUNIT_ASSERT( view->getFile( "/test/embed/embed1/file3" ) );
 
-    view->removeFile( "/test/embed/embed1/file2" );
+    eos::FileMD *toBeDeleted = view->getFile( "/test/embed/embed1/file2" );
+    toBeDeleted->addLocation( 12 );
 
-    CPPUNIT_ASSERT_THROW( view->getFile( "/test/embed/embed1/file2" ), eos::MDException );
+    //--------------------------------------------------------------------------
+    // This should not succeed since the file should have a replica
+    //--------------------------------------------------------------------------
+    CPPUNIT_ASSERT_THROW( view->removeFile( toBeDeleted ), eos::MDException );
+
+    //--------------------------------------------------------------------------
+    // We unlink the file - at this point the file should not be attached to the
+    // hierarchy bu should still be accessible by id and thus the md pointer
+    // should stay valid
+    //--------------------------------------------------------------------------
+    view->unlinkFile( "/test/embed/embed1/file2" );
+    CPPUNIT_ASSERT_THROW( view->getFile( "/test/embed/embed1/file2" ),
+                          eos::MDException );
     CPPUNIT_ASSERT( cont1->findFile( "file2") == 0 );
+
+    //--------------------------------------------------------------------------
+    // We remove the replicas and the file
+    //--------------------------------------------------------------------------
+    eos::FileMD::id_t id = toBeDeleted->getId();
+    toBeDeleted->removeUnlinkedLocations();
+    CPPUNIT_ASSERT_NO_THROW( view->removeFile( toBeDeleted ) );
+    CPPUNIT_ASSERT_THROW( view->getFileMDSvc()->getFileMD( id ),
+                          eos::MDException );
 
     view->finalize();
 

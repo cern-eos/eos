@@ -159,10 +159,10 @@ namespace eos
   }
 
   //----------------------------------------------------------------------------
-  // Remove the file for given uri
+  // Unlink the file for given uri
   //----------------------------------------------------------------------------
-  void HierarchicalView::removeFile( const std::string &uri )
-                                                            throw( MDException )
+  void HierarchicalView::unlinkFile( const std::string &uri )
+    throw( MDException )
   {
     char uriBuffer[uri.length()+1];
     strcpy( uriBuffer, uri.c_str() );
@@ -184,6 +184,30 @@ namespace eos
     file->setContainerId( 0 );
     file->unlinkAllLocations();
     pFileSvc->updateStore( file );
+  }
+
+  //----------------------------------------------------------------------------
+  // Remove the file
+  //----------------------------------------------------------------------------
+  void HierarchicalView::removeFile( FileMD *file ) throw( MDException )
+  {
+    //--------------------------------------------------------------------------
+    // Check if the file can be removed
+    //--------------------------------------------------------------------------
+    if( file->getNumLocation() != 0 || file->getNumUnlinkedLocation() != 0 )
+    {
+      MDException ex( EBADFD );
+      ex.getMessage() << "Cannot remove the record. Unlinked replicas still ";
+      ex.getMessage() << "still exist";
+      throw ex;
+    }
+
+    if( file->getContainerId() != 0 )
+    {
+      ContainerMD *cont = pContainerSvc->getContainerMD( file->getContainerId() );
+      cont->removeFile( file->getName() );
+    }
+    pFileSvc->removeFile( file );
   }
 
   //----------------------------------------------------------------------------

@@ -95,9 +95,15 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
-      //! Remove the file for given uri
+      //! Unlink the file
       //------------------------------------------------------------------------
-      virtual void removeFile( const std::string &uri ) throw( MDException );
+      virtual void unlinkFile( const std::string &uri )
+        throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Remove the file
+      //------------------------------------------------------------------------
+      virtual void removeFile( FileMD *file ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Get a container (directory)

@@ -79,10 +79,18 @@ namespace eos
                                                       throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
-      //! Remove the file for given uri
+      //! Remove the file - the pointer is not valid any more once the call
+      //! returns
       //------------------------------------------------------------------------
-      virtual void removeFile( const std::string &uri )
-                                                      throw( MDException ) = 0;
+      virtual void removeFile( FileMD *file ) throw( MDException ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Remove the file from the hierarchy so that it won't be accessible
+      //! by path anymore and unlink all of it's replicas. The file needs
+      //! to be manually removed (ie. using removeFile method) once it has
+      //! no valid replicas.
+      //------------------------------------------------------------------------
+      virtual void unlinkFile( const std::string &uri ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Get a container (directory)

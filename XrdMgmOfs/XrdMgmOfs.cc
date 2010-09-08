@@ -1385,7 +1385,7 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   try {
-    gOFS->eosView->removeFile(path);
+    gOFS->eosView->unlinkFile(path);
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
@@ -2281,8 +2281,8 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  gOFS->eosView->updateFileStore(fmd);
 
 	  // finally delete the record if all replicas are dropped
-	  if (!fmd->getNumUnlinkedLocation()) {
-	    eosFileService->removeFile(fmd);
+	  if (!fmd->getNumUnlinkedLocation() && !fmd->getNumLocation()) {
+	    gOFS->eosView->removeFile( fmd );
 	  }
 	} catch (...) {
 	  eos_err("no meta record exists anymore for fid=%s", afid);
