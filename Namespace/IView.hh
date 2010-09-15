@@ -117,6 +117,19 @@ namespace eos
       virtual void removeContainer( const std::string &uri,
                                     bool recursive = false )
                                                         throw( MDException )= 0;
+
+      //------------------------------------------------------------------------
+      //! Get uri for the container
+      //------------------------------------------------------------------------
+      virtual std::string getUri( const ContainerMD *container ) const
+        throw( MDException ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Get uri for the file
+      //------------------------------------------------------------------------
+      virtual std::string getUri( const FileMD *file ) const
+        throw( MDException ) = 0;
+
   };
 };
 

@@ -11,7 +11,6 @@
 
 #include <ctime>
 
-
 namespace eos
 {
   //----------------------------------------------------------------------------
@@ -425,4 +424,70 @@ namespace eos
     ContainerMD *cont = pContSvc->getContainerMD( file->getContainerId() );
     cont->addFile( file );
   }
+
+  //----------------------------------------------------------------------------
+  // Get uri for the container
+  //----------------------------------------------------------------------------
+  std::string HierarchicalView::getUri( const ContainerMD *container ) const
+    throw( MDException )
+  {
+    //--------------------------------------------------------------------------
+    // Check the input
+    //--------------------------------------------------------------------------
+    if( !container )
+    {
+      MDException ex;
+      ex.getMessage() << "Invalid container (zero pointer)";
+      throw ex;
+    }
+
+    //--------------------------------------------------------------------------
+    // Gather the uri elements
+    //--------------------------------------------------------------------------
+    std::vector<std::string> elements;
+    elements.reserve( 10 );
+    const ContainerMD *cursor = container;
+    while( cursor->getId() != 1 )
+    {
+      elements.push_back( cursor->getName() );
+      cursor = pContainerSvc->getContainerMD( cursor->getParentId() );
+    }
+
+    //--------------------------------------------------------------------------
+    // Assemble the uri
+    //--------------------------------------------------------------------------
+    std::string path = "/";
+    std::vector<std::string>::reverse_iterator rit;
+    for( rit = elements.rbegin(); rit != elements.rend(); ++rit )
+    {
+      path += *rit;
+      path += "/";
+    }
+    return path;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get uri for the file
+  //----------------------------------------------------------------------------
+  std::string HierarchicalView::getUri( const FileMD *file ) const
+        throw( MDException )
+  {
+    //--------------------------------------------------------------------------
+    // Check the input
+    //--------------------------------------------------------------------------
+    if( !file )
+    {
+      MDException ex;
+      ex.getMessage() << "Invalid file (zero pointer)";
+      throw ex;
+    }
+
+    //--------------------------------------------------------------------------
+    // Get the uri
+    //--------------------------------------------------------------------------
+    std::string path = getUri( pContainerSvc->getContainerMD(
+                                                    file->getContainerId() ) );
+    return path+file->getName();
+  }
+
 };

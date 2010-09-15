@@ -92,6 +92,16 @@ void HierarchicalViewTest::reloadTest()
     CPPUNIT_ASSERT( view->getFile( "/test/embed/embed1/file2" ) );
     CPPUNIT_ASSERT( view->getFile( "/test/embed/embed1/file3" ) );
 
+    //--------------------------------------------------------------------------
+    // Test the "reverse" lookup
+    //--------------------------------------------------------------------------
+    eos::FileMD      *file = view->getFile( "/test/embed/embed1/file3" );
+    eos::ContainerMD *container = view->getContainer( "/test/embed/embed1" );
+
+    CPPUNIT_ASSERT( view->getUri( container ) == "/test/embed/embed1/" );
+    CPPUNIT_ASSERT( view->getUri( file ) == "/test/embed/embed1/file3" );
+    CPPUNIT_ASSERT_THROW( view->getUri( (eos::FileMD*)0 ), eos::MDException );
+
     eos::FileMD *toBeDeleted = view->getFile( "/test/embed/embed1/file2" );
     toBeDeleted->addLocation( 12 );
 

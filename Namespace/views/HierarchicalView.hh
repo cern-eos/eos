@@ -133,6 +133,19 @@ namespace eos
       virtual void removeContainer( const std::string &uri,
                                     bool recursive = false )
                                                         throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Get uri for the container
+      //------------------------------------------------------------------------
+      virtual std::string getUri( const ContainerMD *container ) const
+        throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Get uri for the file
+      //------------------------------------------------------------------------
+      virtual std::string getUri( const FileMD *file ) const
+        throw( MDException );
+
     private:
       ContainerMD *findLastContainer( std::vector<char*> &elements, size_t end,
                                       size_t &index );
