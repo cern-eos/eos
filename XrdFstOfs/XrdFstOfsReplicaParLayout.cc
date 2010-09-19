@@ -47,6 +47,7 @@ XrdFstOfsReplicaParLayout::open(const char                *path,
     isGateWay = true;
   }
 
+
   const char* head = ofsFile->openOpaque->Get("mgm.replicahead");
   if (head) {
     replicaHead = atoi(head);
@@ -62,6 +63,11 @@ XrdFstOfsReplicaParLayout::open(const char                *path,
   // define the replication head
   if (replicaIndex == replicaHead) {
     isHeadServer = true;
+  }
+  
+  // define if this is the first client contact point
+  if (isGateWay || ( (!isGateWay) && (isHeadServer) )) {
+    isEntryServer = true;
   }
 
   int envlen;

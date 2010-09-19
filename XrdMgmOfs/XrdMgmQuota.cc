@@ -392,6 +392,8 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
 	  // ok, that can be used
 	  selectedfs.push_back(currentfs);
 	  nassigned++;
+	} else {
+	  eos_static_debug("fs %u cannot be selected!", filesystem->GetId());
 	}
       }
       schedulingViewPtr[ptrindextag]++;
@@ -422,7 +424,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
     }
   }
 
-  eos_static_info("Index is now %u", schedulingViewGroup[indextag]);
+  eos_static_info("Index is now %u %u<=>%u", schedulingViewGroup[indextag], nassigned, nfilesystems);
   if (nassigned == nfilesystems) {
     //    schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
 
@@ -521,8 +523,10 @@ int XrdMgmSpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid,
 	if ((currentindex < locationsfs.size()) && (locationsfs[currentindex])) {
 	  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[locationsfs[currentindex]];
 	  // check if filesystem is accessible
+	  eos_static_debug("fs %llu", filesystem);
 	  if (filesystem && ((filesystem->GetConfigStatus() >= XrdCommonFileSystem::kDrain)) &&
 	      ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
+	    eos_static_debug("forced %u current %u", forcedfsid, currentindex);
 	    if ( (forcedfsid == currentindex) || (!forcedfsid) ) {
 	      // we found a good one or the one which was desired by the client
 	      fsindex = currentindex;

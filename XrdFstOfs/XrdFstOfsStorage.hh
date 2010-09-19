@@ -11,6 +11,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <vector>
+#include <list>
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
@@ -83,7 +84,8 @@ public:
   void Report();
 
   XrdSysMutex transferMutex;
-  std::vector <XrdFstTransfer> transfers;
+  std::list <XrdFstTransfer*> transfers;
+  XrdFstTransfer* runningTransfer;
   XrdSysMutex deletionsMutex;
   std::vector <XrdFstDeletion> deletions;
 

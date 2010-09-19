@@ -17,11 +17,12 @@ protected:
   XrdFstOfsFile* ofsFile;
   unsigned int layOutId;
   XrdOucErrInfo* error;
+  bool isEntryServer;
 
 public:
 
   XrdFstOfsLayout(XrdFstOfsFile* thisFile=0){Name = "";ofsFile = thisFile;}
-  XrdFstOfsLayout(XrdFstOfsFile* thisFile,const char* name, int lid, XrdOucErrInfo *outerror){Name = name;ofsFile = thisFile;layOutId = lid; error = outerror;}
+  XrdFstOfsLayout(XrdFstOfsFile* thisFile,const char* name, int lid, XrdOucErrInfo *outerror){Name = name;ofsFile = thisFile;layOutId = lid; error = outerror; isEntryServer=true;}
 
   const char* GetName() {return Name.c_str();}
   unsigned int GetLayOutId() { return layOutId;}
@@ -32,12 +33,14 @@ public:
 		   const XrdSecEntity        *client,
 		   const char                *opaque) = 0;
 
+  virtual bool IsEntryServer() { return isEntryServer; }
+
   virtual int read(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length) = 0;
   virtual int write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length) = 0; 
   virtual int truncate(XrdSfsFileOffset offset) = 0;
   virtual int sync() = 0;
   virtual int close() = 0;
-
+  
   virtual ~XrdFstOfsLayout(){};
 };
 

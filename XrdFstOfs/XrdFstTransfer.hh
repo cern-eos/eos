@@ -77,6 +77,10 @@ public:
     return new XrdFstTransfer(sourcehostport, fileid, fsidsource, fsidtarget, localprefixsource, localprefixtarget, smanager, capOpaque->Env(envlen), capability.c_str());
   }
 
+  void Show(const char* show="") {
+    eos_static_info("Pull File Id=%llu on Fs=%u from Host=%s Fs=%u tried=%u reschedul=%u %s", fId, fsIdTarget, sourceHostPort.c_str(), fsIdSource, tried, nexttrytime, show);
+  }
+
   void Debug() {
     eos_static_debug("Pull File Id=%llu on Fs=%u from Host=%s Fs=%u tried=%u reschedul=%u", fId, fsIdTarget, sourceHostPort.c_str(), fsIdSource, tried, nexttrytime);
   }

@@ -575,28 +575,31 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     retc = quotaspace->FileAccess(vid.uid, vid.gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW);
   }
   if (retc) {
-    // check if the dir attributes tell us to let clients rebounce
-    if (attrmap.count("sys.stall.unavailable")) {
-      int stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
-    
-      if (stalltime) {
-	// stall the client
-	gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
-	XrdMgmFstNode::gMutex.UnLock();
-	return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
+    // if we don't have quota we don't bounce the client back
+    if (retc != ENOSPC) {
+      // check if the dir attributes tell us to let clients rebounce
+      if (attrmap.count("sys.stall.unavailable")) {
+	int stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
+	
+	if (stalltime) {
+	  // stall the client
+	  gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
+	  XrdMgmFstNode::gMutex.UnLock();
+	  return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
+	}
+      }
+      
+      if (attrmap.count("user.stall.unavailable")) {
+	int stalltime = atoi(attrmap["user.stall.unavailable"].c_str());
+	if (stalltime) {
+	  // stall the client
+	  gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
+	  XrdMgmFstNode::gMutex.UnLock();
+	  return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
+	}
       }
     }
-    
-    if (attrmap.count("user.stall.unavailable")) {
-      int stalltime = atoi(attrmap["user.stall.unavailable"].c_str());
-      if (stalltime) {
-	// stall the client
-	gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
-	XrdMgmFstNode::gMutex.UnLock();
-	return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
-      }
-    }
-    
+
     XrdMgmFstNode::gMutex.UnLock();
 
     gOFS->MgmStats.Add("OpenFailedQuota",vid.uid,vid.gid,1);  
@@ -2280,6 +2283,8 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  fmd->removeLocation(fsid);
 	  gOFS->eosView->updateFileStore(fmd);
 
+	  // after update we have get the new address - who knows ....
+	  fmd = eosFileService->getFileMD(XrdCommonFileId::Hex2Fid(afid));
 	  // finally delete the record if all replicas are dropped
 	  if (!fmd->getNumUnlinkedLocation() && !fmd->getNumLocation()) {
 	    gOFS->eosView->removeFile( fmd );

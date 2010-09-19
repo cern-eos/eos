@@ -89,6 +89,49 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
     }
   }
 
+  if ( (vid.prot == "sss") ) {
+    eos_static_debug("sss mapping");
+    if (gVirtualUidMap.count("sss:\"<pwd>\":uid")) {
+      if (gVirtualUidMap["sss:\"<pwd>\":uid"] == 0) {
+	eos_static_debug("sss uid mapping");
+	// use physical mapping for kerberos names
+	XrdCommonMapping::getPhysicalIds(client->name, vid);
+	vid.gid=99;
+	vid.gid_list.clear();
+      } else {
+	eos_static_debug("sss uid forced mapping");
+	// map to the requested id
+	vid.uid_list.clear();
+	vid.uid = gVirtualUidMap["sss:\"<pwd>\":uid"];
+	vid.uid_list.push_back(vid.uid);
+	if (vid.uid != 99)
+	  vid.uid_list.push_back(99);
+	vid.gid_list.clear();
+	vid.gid = 99;
+	vid.gid_list.push_back(99);
+      }
+    }
+    
+    if (gVirtualGidMap.count("sss:\"<pwd>\":gid")) {
+      if (gVirtualGidMap["sss:\"<pwd>\":gid"] == 0) {
+	eos_static_debug("sss gid mapping");
+	// use physical mapping for kerberos names
+	uid_t uid = vid.uid;
+	XrdCommonMapping::getPhysicalIds(client->name, vid);
+	vid.uid = uid;
+	vid.uid_list.clear();
+	vid.uid_list.push_back(uid);
+	vid.uid_list.push_back(99);
+      } else {
+	eos_static_debug("sss forced gid mapping");
+	// map to the requested id
+	vid.gid_list.clear();
+	vid.gid = gVirtualGidMap["sss:\"<pwd>\":gid"];
+	vid.gid_list.push_back(vid.gid);
+      }
+    }
+  }
+
   if ( (vid.prot == "unix") ) {
     eos_static_debug("unix mapping");
     if (gVirtualUidMap.count("unix:\"<pwd>\":uid")) {

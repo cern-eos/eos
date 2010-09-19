@@ -436,6 +436,8 @@ XrdFstOfsFile::open(const char                *path,
   int rc = layOut->open(fstPath.c_str(), open_mode, create_mode, client, stringOpaque.c_str());
 
   if (!rc) {
+    opened = true;
+
     gOFS.OpenFidMutex.Lock();
 
     if (isRW) 
@@ -444,8 +446,23 @@ XrdFstOfsFile::open(const char                *path,
       gOFS.ROpenFid[fsid][fileid]++;
 
     gOFS.OpenFidMutex.UnLock();
+  } else {
+    // if we have local errors in open we might disable ourselfs
+    if ( error.getErrInfo() != EREMOTEIO ) {
+      // we have to get to the fileSystems object from XrdOfsFstStorage ...
+      // TODO: !!!
+    }
+
+    // in any case we just redirect back to the manager if we are the 1st entry point of the client
+
+    if (layOut->IsEntryServer()) {
+      int ecode = 1094;
+      rc = SFS_REDIRECT;
+      error.setErrInfo(ecode,smanager);
+      eos_warning("rebouncing client after open error back to MGM %s:%d", smanager, ecode);
+    }
   }
-    
+
   return rc;
 }
 
@@ -465,7 +482,7 @@ XrdFstOfsFile::close()
  bool checksumerror=false;
  int checksumlen = 0;
        
- if (!closed && fMd) {
+ if ( opened && (!closed) && fMd) {
    eos_info("");
 
    // deal with checksums
@@ -906,16 +923,35 @@ XrdFstMessaging::Process(XrdMqMessage* newmessage)
 	gOFS.FstOfsStorage->transferMutex.Lock();
 
 	if (gOFS.FstOfsStorage->transfers.size() < 1000000) {
-	  gOFS.FstOfsStorage->transfers.push_back(*newtransfer);
+	  gOFS.FstOfsStorage->transfers.push_back(newtransfer);
 	} else {
 	  eos_err("transfer list has already 1 Mio. entries - discarding transfer message");
 	}
-	delete newtransfer;
 	gOFS.FstOfsStorage->transferMutex.UnLock();
       } else {
 	eos_err("Cannot create a transfer entry - illegal opaque information");
       }
     }
+  }
+
+  if (cmd == "droptransfers") {
+    gOFS.FstOfsStorage->transferMutex.Lock();
+    eos_notice("dropping %u transfers", gOFS.FstOfsStorage->transfers.size());
+    gOFS.FstOfsStorage->transfers.clear();
+    gOFS.FstOfsStorage->transferMutex.UnLock();
+  }
+
+  if (cmd == "listtransfers") {
+    gOFS.FstOfsStorage->transferMutex.Lock();
+    std::list<XrdFstTransfer*>::iterator it;
+    for ( it = gOFS.FstOfsStorage->transfers.begin(); it != gOFS.FstOfsStorage->transfers.end(); ++it) {
+      (*it)->Show();
+    }
+    eos_static_notice("%u transfers in transfer queue", gOFS.FstOfsStorage->transfers.size());
+    if (gOFS.FstOfsStorage->runningTransfer) {
+      gOFS.FstOfsStorage->runningTransfer->Show("running");
+    }
+    gOFS.FstOfsStorage->transferMutex.UnLock();
   }
 }
 

@@ -37,7 +37,12 @@ XrdFstTransfer::Do()
     eos_static_err("Failed to get remote fmd from %s [%d]\n", capOpaque.Get("mgm.sourcehostport"), rc);
     return rc;
   }
-  
+
+  // get checksum plugin
+  XrdFstOfsChecksum* checkSum = XrdFstOfsChecksumPlugins::GetChecksumObject(fmd.lid);
+
+  if (checkSum) checkSum->Reset();
+
   // ----------------------------------------------------------------------------------------------------------
   // open replica to pull
 
@@ -82,10 +87,14 @@ XrdFstTransfer::Do()
     do {
       int nread = replicaClient->Read(cpbuffer,offset,buffersize);
       if (nread>=0) {
-	if (!ofsFile->writeofs(offset, cpbuffer, nread))
+	if (!ofsFile->writeofs(offset, cpbuffer, nread)) {
 	  failed = true;
-	break;
+	  break;
+	}
       }
+
+      if (checkSum && (nread>=0)) checkSum->Add(cpbuffer,nread,offset);
+
       if (nread != buffersize) 
 	break;
 
@@ -95,7 +104,8 @@ XrdFstTransfer::Do()
     // free the copy buffer
     free(cpbuffer);
     ofsFile->closeofs();
-    
+    if (checkSum) checkSum->Finalize();
+
     if (failed) {
       // in case of failure we drop this entry
       unlink(fstPath.c_str());
@@ -108,6 +118,7 @@ XrdFstTransfer::Do()
   if (failed) {
     // if the copy failed
     if (!errno) errno = EIO;
+    if (checkSum) delete checkSum;
     return errno;
   }
   // ----------------------------------------------------------------------------------------------------------
@@ -119,10 +130,28 @@ XrdFstTransfer::Do()
 
   if (!gFmdHandler.Commit(newfmd)) {
     delete newfmd;
+    if (checkSum) delete checkSum;
     return EIO;
   }
 
   delete newfmd;
+
+  // ----------------------------------------------------------------------------------------------------------
+  // compare remote and computed checksum
+  int checksumlen;
+  bool checksumerror=false;
+  if (checkSum) {
+    checkSum->GetBinChecksum(checksumlen);
+    for (int i=0; i<checksumlen ; i++) {
+      if (newfmd->fMd.checksum[i] != checkSum->GetBinChecksum(checksumlen)[i]) {
+	checksumerror=true;
+      }
+    }
+  }
+  
+  if (checkSum && checksumerror) {
+    eos_static_err("checksum error during replica of %s fid=%sfrom %s=>%s xsum=%s", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum->GetHexChecksum());
+  }
 
   // ----------------------------------------------------------------------------------------------------------
   // commit file meta data centrally
@@ -143,10 +172,18 @@ XrdFstTransfer::Do()
   
   capOpaqueFile += "&mgm.add.fsid=";
   capOpaqueFile += (int)newfmd->fMd.fsid;
-  
+
+  if (checkSum) {
+    capOpaqueFile += "&mgm.checksum=";
+    capOpaqueFile += checkSum->GetHexChecksum();
+  }
+
   XrdOucErrInfo* error = 0;
 
   rc = gOFS.CallManager(error, capOpaque.Get("mgm.path"),capOpaque.Get("mgm.manager"), capOpaqueFile);
+
+  if (checkSum) delete checkSum;
+
   if (rc) {
     eos_static_err("Unable to commit meta data to central cache");
     return rc;

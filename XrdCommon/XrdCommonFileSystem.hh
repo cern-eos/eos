@@ -69,6 +69,16 @@ public:
     return msgbody.c_str();
   }
   
+  static const char* GetDropTransferRequestString(XrdOucString &msgbody) {
+    msgbody = "mgm.cmd=droptransfers";
+    return msgbody.c_str();
+  }
+
+  static const char* GetListTransferRequestString(XrdOucString &msgbody) {
+    msgbody = "mgm.cmd=listtransfers";
+    return msgbody.c_str();
+  }
+
   static const char* GetRestartRequestString(XrdOucString &msgbody) {
     msgbody = "mgm.cmd=restart"; 
     return msgbody.c_str();

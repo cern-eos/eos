@@ -1025,7 +1025,5 @@ XrdCommonFmdHandler::GetRemoteFmd(XrdCommonClientAdmin* admin, const char* serve
     return EIO;
   }
 
-  
-
   return 0;
 }

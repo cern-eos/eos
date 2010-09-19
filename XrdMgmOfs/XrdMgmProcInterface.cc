@@ -13,6 +13,9 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 
+#include <vector>
+#include <map>
+#include <string>
 
 /*----------------------------------------------------------------------------*/
 XrdMgmProcInterface::XrdMgmProcInterface()
@@ -217,7 +220,17 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	if (subcmd == "dumpmd") {
 	  if (vid_in.uid == 0) {
 	    char* fsidst = opaque.Get("mgm.fsid");
-	    
+	    bool dumppath = false;
+	    bool dumpfid  = false;
+	    XrdOucString dp = opaque.Get("mgm.dumpmd.path");
+	    XrdOucString df = opaque.Get("mgm.dumpmd.fid");
+	    if (dp == "1") {
+	      dumppath = true;
+	    } 
+	    if (df == "1") {
+	      dumpfid = true;
+	    }
+	      
 	    int fsid = 0;
 	    
 	    if (!fsidst) {
@@ -233,11 +246,24 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		for (it = filelist.begin(); it != filelist.end(); ++it) {
 		  std::string env;
 		  fmd = gOFS->eosFileService->getFileMD(*it);
-		  if (fmd) 
-		    fmd->getEnv(env);
-		  
-		  stdOut += env.c_str();
-		  stdOut += "\n";
+		  if (fmd) {
+		    if ( (!dumppath) && (!dumpfid) ) {
+		      fmd->getEnv(env);
+		      stdOut += env.c_str();
+		      stdOut += "\n";
+		    } else {
+		      if (dumppath) {
+			std::string fullpath = gOFS->eosView->getUri(fmd);
+			stdOut += "path="; stdOut += fullpath.c_str(); 
+		      }
+		      if (dumpfid) {
+			if (dumppath) stdOut += " ";
+			char sfid[40]; snprintf(sfid,40, "fid=%llu", (unsigned long long)fmd->getId());
+			stdOut += sfid;
+		      }
+		      stdOut += "\n";
+		    }
+		  }
 		}
 	      } catch ( eos::MDException &e ) {
 		errno = e.getErrno();
@@ -740,6 +766,60 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	stdErr = "error: you have to take role 'root' to execute this command";
       }
     }
+
+    if (cmd == "droptransfers") {
+      if (vid_in.uid == 0) {
+	if (subcmd == "fst") {
+	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
+	  if (( debugnode == "") || (debugnode == "*")) {
+	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
+	    XrdCommonFileSystem::GetDropTransferRequestString(msgbody);
+	    message.SetBody(msgbody.c_str());
+	    
+	    // broadcast a global drop message
+	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
+	      stdOut="success: sent global drop transfer message to all fst nodes"; 
+	    } else {
+	      stdErr="error: could not send global fst drop transfer message!";
+	      retc = EIO;
+	    } 
+	  } else {
+	    stdErr="error: only global fst drop transfer is supported yet!";
+	    retc = EINVAL;
+	  } 
+	}
+      } else {
+	retc = EPERM;
+	stdErr = "error: you have to take role 'root' to execute this command";
+      }
+    }
+
+    if (cmd == "listtransfers") {
+      if (vid_in.uid == 0) {
+	if (subcmd == "fst") {
+	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
+	  if (( debugnode == "") || (debugnode == "*")) {
+	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
+	    XrdCommonFileSystem::GetListTransferRequestString(msgbody);
+	    message.SetBody(msgbody.c_str());
+	    
+	    // broadcast a global list message
+	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
+	      stdOut="success: sent global list transfer message to all fst nodes"; 
+	    } else {
+	      stdErr="error: could not send global fst list transfer message!";
+	      retc = EIO;
+	    } 
+	  } else {
+	    stdErr="error: only global fst list transfer is supported yet!";
+	    retc = EINVAL;
+	  } 
+	}
+      } else {
+	retc = EPERM;
+	stdErr = "error: you have to take role 'root' to execute this command";
+      }
+    }
     
     if (cmd == "rtlog") {
       if (vid_in.uid == 0) {
@@ -904,7 +984,70 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    stdOut += "success: dropped stripe on fs="; stdOut += (int) fsid;
 	  }
 	}
-	
+
+	if (subcmd == "layout") {
+	  XrdOucString stripes    = opaque.Get("mgm.file.layout.stripes");
+	  int newstripenumber = 0;
+	  if (stripes.length()) newstripenumber = atoi(stripes.c_str());
+	  if (!stripes.length() || ((newstripenumber< (XrdCommonLayoutId::kOneStripe+1)) || (newstripenumber > (XrdCommonLayoutId::kSixteenStripe+1)))) {
+	    stdErr="error: you have to give a valid number of stripes as an argument to call 'file layout'";
+	    retc = EINVAL;
+	  } else {
+	    // only root can do that
+	    if (vid_in.uid==0) {
+	      eos::FileMD* fmd=0;
+	      if (path.beginswith("fid:")) {
+		path.replace("fid:","");
+		unsigned long long fid = strtoull(path.c_str(),0,10);
+		
+		// reference by fid+fsid
+		//-------------------------------------------
+		gOFS->eosViewMutex.Lock();
+		try {
+		  fmd = gOFS->eosFileService->getFileMD(fid);
+		} catch ( eos::MDException &e ) {
+		  errno = e.getErrno();
+		  stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+		  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+		}
+	      } else {
+		// reference by path
+		//-------------------------------------------
+		gOFS->eosViewMutex.Lock();
+		try {
+		  fmd = gOFS->eosView->getFile(path.c_str());
+		} catch ( eos::MDException &e ) {
+		  errno = e.getErrno();
+		  stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+		  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+		}
+	      }
+	      
+	      if (fmd) {
+		if (XrdCommonLayoutId::GetLayoutType(fmd->getLayoutId()) == XrdCommonLayoutId::kReplica) {
+		  unsigned long newlayout = XrdCommonLayoutId::GetId(XrdCommonLayoutId::kReplica, XrdCommonLayoutId::GetChecksum(fmd->getLayoutId()), newstripenumber, XrdCommonLayoutId::GetStripeWidth(fmd->getLayoutId()));
+		  fmd->setLayoutId(newlayout);
+		  stdOut += "success: setting new stripe number to "; stdOut += newstripenumber;
+		  // commit new layout
+		  gOFS->eosView->updateFileStore(fmd);
+		} else {
+		  retc = EPERM;
+		  stdErr = "error: you can only change the number of stripes for files with replica layout";
+		}
+	      } else {
+		retc = errno;
+	      }
+
+	      gOFS->eosViewMutex.UnLock();
+	      //-------------------------------------------
+	      
+	    } else {
+	      retc = EPERM;
+	      stdErr = "error: you have to take role 'root' to execute this command";
+	    }
+	  }
+	}
+
 	if (subcmd == "move") {
 	  XrdOucString sfsidsource = opaque.Get("mgm.file.sourcefsid");
 	  unsigned long sourcefsid = (sfsidsource.length())?strtoul(sfsidsource.c_str(),0,10):0;
@@ -937,7 +1080,14 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  // only root can do that
 	  if (vid_in.uid==0) {
 	    eos::FileMD* fmd=0;
-	    
+
+	    XrdOucString creationspace    = opaque.Get("mgm.file.desiredspace");
+	    int icreationsubgroup = -1;
+
+	    if (opaque.Get("mgm.file.desiredsubgroup")) {
+	      icreationsubgroup = atoi(opaque.Get("mgm.file.desiredsubgroup"));
+	    }
+
 	    if (path.beginswith("fid:")) {
 	      path.replace("fid:","");
 	      unsigned long long fid = strtoull(path.c_str(),0,10);
@@ -970,7 +1120,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    }
 	    
 	    XrdOucString space = "default";
-	    unsigned int forcedsubgroup;
+	    unsigned int forcedsubgroup = 0;
 
 	    if (fmd) {
 	      // check if that is a replica layout at all
@@ -980,7 +1130,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		XrdOucString sizestring;
 		
 		eos::FileMD::LocationVector::const_iterator lociter;
-		int nreplayout = XrdCommonLayoutId::GetStripeNumber(fmd->getLayoutId());
+		int nreplayout = XrdCommonLayoutId::GetStripeNumber(fmd->getLayoutId()) + 1;
 		int nrep = (int)fmd->getNumLocation();
 		int nreponline=0;
 		
@@ -988,7 +1138,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		  XrdMgmFstNode::gMutex.Lock();
 		  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
 		  if (filesystem) {
-		    if (filesystem && ((filesystem->GetConfigStatus() >= XrdCommonFileSystem::kDrain)) &&
+		    if (filesystem && ((filesystem->GetConfigStatus() > XrdCommonFileSystem::kDrain)) &&
 			((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
 		      // this is a good accessible one
 		      nreponline++;
@@ -1003,29 +1153,49 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		eos_debug("path=%s nrep=%lu nrep-layout=%lu nrep-online=%lu", path.c_str(), nrep, nreplayout, nreponline);
 
 		if (nreplayout > nreponline) {
+		  // set the desired space & subgroup if provided
+		  if (creationspace.length()) {
+		    space = creationspace;
+		  }
+
+		  if (icreationsubgroup) {
+		    forcedsubgroup = icreationsubgroup;
+		  }
+
+		  // if the space is explicitly set, we don't force into a particular subgroup
+		  if (creationspace.length()) {
+		    forcedsubgroup = -1;
+		  }
+
 		  // we don't have enough replica's online, we trigger asynchronous replication
 		  int nnewreplicas = nreplayout - nreponline; // we have to create that much new replica
 		  
 		  // get the location where we can read that file
 		  XrdMgmSpaceQuota* quotaspace = XrdMgmQuota::GetSpaceQuota(space.c_str(),false);
-		  
+		  eos_debug("creating %d new replicas space=%s subgroup=%d", nnewreplicas, space.c_str(), forcedsubgroup);
+
 		  if (!quotaspace) {
 		    stdErr = "error: create new replicas => cannot get space: "; stdErr += space; stdErr += "\n";
 		    errno = ENOSPC;
 		  } else {
 		    unsigned long fsIndex; // this defines the fs to use in the selectefs vector
 		    std::vector<unsigned int> selectedfs;
-		    if (!(errno =quotaspace->FileAccess(vid.uid, vid.gid, (unsigned long)0, space.c_str(), (unsigned long)fmd->getLayoutId(), selectedfs, fsIndex, false))) {
+		    // fill the existing locations
+		    for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+		      selectedfs.push_back(*lociter);
+		    }
+		    
+		    if (!(errno=quotaspace->FileAccess(vid.uid, vid.gid, (unsigned long)0, space.c_str(), (unsigned long)fmd->getLayoutId(), selectedfs, fsIndex, false))) {
 		      // this is now our source filesystem
 		      unsigned int sourcefsid = selectedfs[fsIndex];
 		      // now the just need to ask for <n> targets
-		      int layoutId = XrdCommonLayoutId::GetId(XrdCommonLayoutId::kReplica, XrdCommonLayoutId::kNone, nnewreplicas-1);
-
+		      int layoutId = XrdCommonLayoutId::GetId(XrdCommonLayoutId::kReplica, XrdCommonLayoutId::kNone, nnewreplicas);
+		      
 		      // we don't know the container tag here, but we don't really care since we are scheduled as root
 		      if (!(errno = quotaspace->FilePlacement(vid.uid, vid.gid, 0 , layoutId, selectedfs, SFS_O_TRUNC, forcedsubgroup))) {
 			// yes we got a new replication vector
 			for (unsigned int i=0; i< selectedfs.size(); i++) {
-			  stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
+			  //			  stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
 			  // add replication here 
 			  if (gOFS->_replicatestripe(fmd,*error, vid, sourcefsid, selectedfs[i])) {
 			    stdErr += "error: unable to replicate stripe "; stdErr += (int) sourcefsid; stdErr += " => "; stdErr += (int) selectedfs[i]; stdErr += "\n";
@@ -1038,42 +1208,152 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 			stdErr = "error: create new replicas => cannot place replicas: "; stdErr += path; stdErr += "\n";
 		      }
 		    } else {
-		      stdErr = "error: create new replicas => no source availabel: "; stdErr += path; stdErr += "\n";
+		      stdErr = "error: create new replicas => no source available: "; stdErr += path; stdErr += "\n";
 		    }
 		  }
 		}
-		
-		if (nreplayout < nreponline) {
-		  // we have too many replica's online, we drop one of the online replicas
+
+		// this is magic code to adjust the number of replicas to the desired policy ;-)
+		if (nreplayout < nrep) {
+		  std::vector<unsigned long> fsid2delete;
+		  unsigned int n2delete = nrep-nreplayout;
+
+		  eos::FileMD::LocationVector locvector;
+		  // we build three views to sort the order of dropping
+
+		  std::multimap <int /*configstate*/, int /*fsid*/> statemap;
+		  std::multimap <std::string /*schedgroup*/, int /*fsid*/> groupmap;
+		  std::multimap <std::string /*space*/, int /*fsid*/> spacemap;
+
+		  // we have too many replica's online, we drop (nrepoonline-nreplayout) replicas starting with the lowest configuration state
+		  XrdMgmFstNode::gMutex.Lock();
+
+		  eos_debug("trying to drop %d replicas space=%s subgroup=%d", n2delete, creationspace.c_str(), icreationsubgroup);
+
+		  // fill the views
 		  for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
-		    XrdMgmFstNode::gMutex.Lock();
 		    XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
 		    if (filesystem) {
-		      if (filesystem && ((filesystem->GetConfigStatus() >= XrdCommonFileSystem::kDrain)) &&
-			  ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
-			// this is a good accessible one, let's drop that and terminate the loop
+		      unsigned int fsid = filesystem->GetId();
+		      statemap.insert(std::pair<int,int>(filesystem->GetConfigStatus(),fsid));
+		      groupmap.insert(std::pair<std::string,int>(filesystem->GetSchedulingGroup(),fsid));
+		      spacemap.insert(std::pair<std::string,int>(filesystem->GetSpaceName(),fsid));
+		    }
+		  }
+		  XrdMgmFstNode::gMutex.UnLock();
+
+		  
+		  if (!creationspace.length()) {
+		    // there is no requirement to keep a certain space
+		    std::multimap <int, int>::const_iterator sit;
+		    for (sit=statemap.begin(); sit!= statemap.end(); ++sit) {
+		      fsid2delete.push_back(sit->second);
+		      // we add to the deletion vector until we have found enough replicas
+		      if (fsid2delete.size() == n2delete)
+			break;
+		    }
+		  } else {
+		    if (!icreationsubgroup) {
+		      // we have only a space requirement no subgroup required
+		      std::multimap <std::string, int>::const_iterator sit;
+		      std::multimap <int,int> limitedstatemap;
+		      
+		      std::string cspace = creationspace.c_str();
+
+		      for (sit=spacemap.begin(); sit != spacemap.end(); ++sit) {
 			
-			unsigned int fsid = filesystem->GetId();
-			XrdMgmFstNode::gMutex.UnLock();
+			// match the space name
+			if (sit->first == cspace) {
+			  continue;
+			}
+
+			// we default to the highest state for safety reasons
+			int state=XrdCommonFileSystem::kRW;
 			
-			if (fmd->hasLocation(fsid)) {
-			  //-------------------------------------------
-			  gOFS->eosViewMutex.Lock();
-			  try {
-			    fmd->unlinkLocation(fsid);
-			    gOFS->eosView->updateFileStore(fmd);
-			    eos_debug("removing location %u", fsid);
-			  } catch ( eos::MDException &e ) {
-			    errno = e.getErrno();
-			    stdErr = "error: drop excess replicas => cannot unlink location - "; stdErr += e.getMessage().str().c_str(); stdErr += "\n";
-			    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+			std::multimap <int,int>::const_iterator stateit;
+			
+			// get the state for each fsid matching
+			for (stateit=statemap.begin(); stateit != statemap.end(); stateit++) {
+			  if (stateit->second == sit->second) {
+			    state = stateit->first;
+			    break;
 			  }
-			  gOFS->eosViewMutex.UnLock();
-			  
-			  break;
-			} 
-			// go on until we finally drop one
+			}
+			
+			// fill the map containing only the candidates
+			limitedstatemap.insert(std::pair<int,int>(state, sit->second));
 		      }
+
+		      std::multimap <int,int>::const_iterator lit;
+
+		      for (lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
+			fsid2delete.push_back(lit->second);
+			if (fsid2delete.size() == n2delete)
+			  break;
+		      }
+		    } else {
+		      // we have a clear requirement on space/subgroup
+		      std::multimap <std::string, int>::const_iterator sit;
+		      std::multimap <int,int> limitedstatemap;
+		      
+		      std::string cspace = creationspace.c_str();
+		      cspace += "."; cspace += icreationsubgroup;
+
+		      for (sit=groupmap.begin(); sit != groupmap.end(); ++sit) {
+			
+			// match the space name
+			if (sit->first == cspace) {
+			  continue;
+			}
+			
+
+			// we default to the highest state for safety reasons
+			int state=XrdCommonFileSystem::kRW;
+
+			std::multimap <int,int>::const_iterator stateit;
+
+			// get the state for each fsid matching
+			for (stateit=statemap.begin(); stateit != statemap.end(); stateit++) {
+			  if (stateit->second == sit->second) {
+			    state = stateit->first;
+			    break;
+			  }
+			}
+			
+			// fill the map containing only the candidates
+			limitedstatemap.insert(std::pair<int,int>(state, sit->second));
+		      }
+		      
+		      std::multimap <int,int>::const_iterator lit;
+
+		      for (lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
+			fsid2delete.push_back(lit->second);
+			if (fsid2delete.size() == n2delete)
+			  break;
+		      }
+		    }
+		  }
+		  
+		  if (fsid2delete.size() != n2delete) {
+		    // add a warning that something does not work as requested ....
+		    stdErr = "warning: cannot adjust replicas according to your requirement: space="; stdErr += creationspace; stdErr += " subgroup="; stdErr += icreationsubgroup; stdErr += "\n";
+		  }
+		  
+		  for (unsigned int i = 0 ; i< fsid2delete.size(); i++) {
+		    if (fmd->hasLocation(fsid2delete[i])) {
+		      //-------------------------------------------
+		      gOFS->eosViewMutex.Lock();
+		      try {
+			fmd->unlinkLocation(fsid2delete[i]);
+			gOFS->eosView->updateFileStore(fmd);
+			eos_debug("removing location %u", fsid2delete[i]);
+			stdOut += "success: dropping replica on fs="; stdOut += (int)fsid2delete[i]; stdOut += "\n";
+		      } catch ( eos::MDException &e ) {
+			errno = e.getErrno();
+			stdErr = "error: drop excess replicas => cannot unlink location - "; stdErr += e.getMessage().str().c_str(); stdErr += "\n";
+			eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+		      }
+		      gOFS->eosViewMutex.UnLock();
 		    }
 		  }
 		}
@@ -1207,8 +1487,8 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    stdOut += hb;
 	  }
 	  stdOut+="\n";
-	  stdOut +  "Layout: "; stdOut += XrdCommonLayoutId::GetLayoutTypeString(fmd->getLayoutId());
-	  stdOut += "*******\n";
+	  stdOut +  "Layout: "; stdOut += XrdCommonLayoutId::GetLayoutTypeString(fmd->getLayoutId()); stdOut += " Stripes: "; stdOut += (int)(XrdCommonLayoutId::GetStripeNumber(fmd->getLayoutId())+1);
+	  stdOut += " *******\n";
 	  stdOut += "  #Rep: "; stdOut += (int)fmd->getNumLocation(); stdOut+="\n";
 
 	  stdOut += "<#> <fs-id> "; stdOut += XrdMgmFstFileSystem::GetInfoHeader();
@@ -1232,6 +1512,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 								     
 	    
 	    XrdMgmFstNode::gMutex.UnLock();
+	    i++;
 	  }
 	  for ( lociter = fmd->unlinkedLocationsBegin(); lociter != fmd->unlinkedLocationsEnd(); ++lociter) {
 	    stdOut += "(undeleted) $ "; stdOut += (int) *lociter; stdOut += "\n";

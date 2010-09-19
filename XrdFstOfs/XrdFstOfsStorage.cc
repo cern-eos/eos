@@ -164,6 +164,8 @@ XrdFstOfsStorage::XrdFstOfsStorage(const char* metadirectory)
 
   SetLogId("FstOfsStorage");
 
+  runningTransfer = 0;
+
   // make metadir
   XrdOucString mkmetalogdir = "mkdir -p "; mkmetalogdir += metadirectory;; mkmetalogdir += " >& /dev/null";
   system(mkmetalogdir.c_str());
@@ -710,25 +712,32 @@ XrdFstOfsStorage::Pulling()
 
     bool more = false;
 
-    std::vector<XrdFstTransfer>::iterator it;
+    std::list<XrdFstTransfer*>::iterator it;
     do {
       more = false;
       for ( it = transfers.begin(); it != transfers.end(); ++it) {
 	int retc=0;
-	it->Debug();
-	if ( it->ShouldRun() ) {
+	(*it)->Debug();
+	if ( (*it)->ShouldRun() ) {
+	  XrdFstTransfer* transfer=*it;
 	  more = true;
+	  // remove it from the list
+	  runningTransfer = transfer;
+	  transfers.erase(it);
 	  transferMutex.UnLock();
-	  retc = it->Do();
+	  retc = transfer->Do();
 	  
 	  // try the transfer here
 	  transferMutex.Lock();
+	  runningTransfer = 0;
 	  if (retc) {
+	    // push it back on the list
+	    transfers.push_back(transfer);
 	    // reschedule
-	    it->Reschedule(300);
-	  } else {
-	    // we have to leave the loop because the iterator get's invalid
-	    transfers.erase(it);
+	    transfer->Reschedule(300);
+	  }  else {
+	    // delete the transfer object
+	    delete transfer;
 	    break;
 	  }
 	}
