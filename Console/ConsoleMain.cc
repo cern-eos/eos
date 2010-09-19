@@ -89,6 +89,7 @@ int com_quota PARAMS((char*));
 int com_restart PARAMS((char*));
 int com_rtlog PARAMS((char*));
 int com_test PARAMS((char*));
+int com_transfers PARAMS((char*));
 int com_silent PARAMS((char*));
 int com_timing PARAMS((char*));
 int com_whoami PARAMS((char*));
@@ -139,6 +140,7 @@ COMMAND commands[] = {
   { (char*)"silent", com_silent, (char*)"Toggle silent flag for stdout" },
   { (char*)"test", com_test, (char*)"Run performance test" },
   { (char*)"timing", com_timing, (char*)"Toggle timing flag for execution time measurement" },
+  { (char*)"transfers",com_transfers,(char*)"Transfer Interface"},
   { (char*)"whoami", com_whoami, (char*)"Determine how we are mapped on server side" },
   { (char*)"?",     com_help, (char*)"Synonym for `help'" },
   { (char*)".q",    com_quit, (char*)"Exit from EOS console" },
@@ -462,6 +464,11 @@ void
 command_result_stdout_to_vector(std::vector<std::string> &string_vector)
 {
   string_vector.clear();
+  if (!CommandEnv) {
+    fprintf(stderr,"error: command env is 0!\n");
+    return;
+  }
+
   rstdout = CommandEnv->Get("mgm.proc.stdout");
   
   if (!rstdout.length())
@@ -1029,15 +1036,38 @@ com_fs (char* arg1) {
     sourceid = subtokenizer.GetToken();    
     XrdOucString targetid;
     targetid = subtokenizer.GetToken();
-    if (!sourceid.length() || !targetid.length()) 
+    if ( (!sourceid.length()) || (!targetid.length()))
       goto com_fs_usage;
 
-    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=clone";
+    XrdOucString subcmd="dumpmd -s "; subcmd += sourceid; subcmd += " -path";
 
-    in += "&mgm.fsidsource="; in += sourceid;
-    in += "&mgm.fsidtarget="; in += targetid;
+    com_fs((char*)subcmd.c_str());
 
-    global_retc = output_result(client_admin_command(in));
+    std::vector<std::string> files_found;
+    files_found.clear();
+    command_result_stdout_to_vector(files_found);
+    std::vector<std::string>::const_iterator it;
+    if (!files_found.size()) {
+      output_result(CommandEnv);
+    } else {
+      if (CommandEnv) {
+	delete CommandEnv; CommandEnv = 0;
+      }
+
+      for (unsigned int i=0; i< files_found.size(); i++) {
+	if (!files_found[i].length())
+	  continue;
+	XrdOucString line = files_found[i].c_str();
+	if (line.beginswith("path=")) {
+	  line.replace("path=","");
+	  fprintf(stdout,"%06d: %s\n", i, line.c_str());
+	  // call the replication command here
+	  subcmd = "replicate "; subcmd += line; subcmd += " ";subcmd += sourceid; subcmd += " "; subcmd += targetid;
+	  com_file( (char*) subcmd.c_str());
+	}
+      }
+    }
+    
     return (0);
   }
 
@@ -1049,12 +1079,66 @@ com_fs (char* arg1) {
     if (!sourceid.length() || !targetid.length()) 
       goto com_fs_usage;
 
-    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=compare";
+    XrdOucString subcmd1="dumpmd -s "; subcmd1 += sourceid; subcmd1 += " -path";
 
-    in += "&mgm.fsidsource="; in += sourceid;
-    in += "&mgm.fsidtarget="; in += targetid;
+    com_fs((char*)subcmd1.c_str());
 
-    global_retc = output_result(client_admin_command(in));
+    std::vector<std::string> files_found1;
+    std::vector<std::string> files_found2;
+    std::vector<std::string> files_miss1;
+
+    files_found1.clear();
+    files_found2.clear();
+    files_miss1.clear();
+
+    command_result_stdout_to_vector(files_found1);
+
+    if (CommandEnv) {
+      delete CommandEnv; CommandEnv = 0;
+    }
+    
+
+    XrdOucString subcmd2="dumpmd -s "; subcmd2 += targetid; subcmd2 += " -path";
+
+    com_fs((char*)subcmd2.c_str());
+
+    command_result_stdout_to_vector(files_found2);
+
+    if ( (!files_found1.size()) && (!files_found2.size())) {
+      output_result(CommandEnv);
+    }
+
+    if (CommandEnv) {
+      delete CommandEnv; CommandEnv = 0;
+    }
+
+    for (unsigned int i = 0 ; i < files_found1.size(); i++) {
+      bool found=false;
+      std::vector<std::string>::iterator it;
+      for (it = files_found2.begin(); it != files_found2.end(); ++it) {
+	if (files_found1[i] == *it) {
+	  files_found2.erase(it);
+	  found = true;
+	  break;
+	}
+      }
+      if (!found) {
+	files_miss1.push_back(files_found1[i]);
+      }
+    }
+    // files_miss1 contains the missing files in 2
+    // files_found2 contains the missing files in 1
+      
+    for (unsigned int i=0; i< files_miss1.size(); i++) {
+      if (files_miss1[i].length())
+	fprintf(stderr,"error: %s => found in %s - missing in %s\n", files_miss1[i].c_str(), sourceid.c_str(), targetid.c_str());
+    }
+    
+    for (unsigned int i=0; i< files_found2.size(); i++) {
+      if (files_found2[i].length())
+	fprintf(stderr,"error: %s => found in %s - missing in %s\n", files_found2[i].c_str(), targetid.c_str(), sourceid.c_str());
+    }
+    
     return (0);
   }
 
@@ -1065,21 +1149,109 @@ com_fs (char* arg1) {
     if (!id.length()) 
       goto com_fs_usage;
 
-    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=dropfiles";
+    XrdOucString subcmd="dumpmd -s "; subcmd += id; subcmd += " -path";
 
-    in += "&mgm.fside="; in += id;
+    com_fs((char*)subcmd.c_str());
 
-    global_retc = output_result(client_admin_command(in));
+    std::vector<std::string> files_found;
+    files_found.clear();
+    command_result_stdout_to_vector(files_found);
+    std::vector<std::string>::const_iterator it;
+    if (!files_found.size()) {
+      output_result(CommandEnv);
+    } else {
+      if (CommandEnv) {
+	delete CommandEnv; CommandEnv = 0;
+      }
+
+      string s;
+      printf("Do you really want to delete ALL %u replica's from filesystem %s ?\n" , (int)files_found.size(), id.c_str());
+      printf("Confirm the deletion by typing => ");
+      XrdOucString confirmation="";
+      for (int i=0; i<10; i++) {
+	confirmation += (int) (9.0 * rand()/RAND_MAX);
+      }
+      printf("%s\n", confirmation.c_str());
+      printf("                               => ");
+      getline( std::cin, s );
+      std::string sconfirmation = confirmation.c_str();
+      if ( s == sconfirmation) {
+	printf("\nDeletion confirmed\n");
+	for (unsigned int i=0; i< files_found.size(); i++) {
+	  if (!files_found[i].length())
+	    continue;
+	  XrdOucString line = files_found[i].c_str();
+	  if (line.beginswith("path=")) {
+	    line.replace("path=","");
+	    fprintf(stdout,"%06d: %s\n", i, line.c_str());
+	    // call the replication command here
+	    subcmd = "drop "; subcmd += line; subcmd += " ";subcmd += id; 
+	    com_file( (char*) subcmd.c_str());
+	  }
+	}
+	printf("=> Deleted %u replicas from filesystem %s\n", (unsigned int) files_found.size(), id.c_str());
+      } else {
+	printf("\nDeletion aborted!\n");
+      }
+    }
+
+   
+
     return (0);
   }
    
-  if ( subcommand == "dissolve" ) {
+  if ( subcommand == "heal" ) {
     XrdOucString sourceid;
     sourceid = subtokenizer.GetToken();    
+    XrdOucString targetspace;
+    targetspace = subtokenizer.GetToken();
+
+    if (!sourceid.length())
+      goto com_fs_usage;
     XrdOucString targetid;
     targetid = subtokenizer.GetToken();
-    if (!sourceid.length() || !targetid.length()) 
-      goto com_fs_usage;
+
+    // check for heal by path
+    if (sourceid.beginswith("/")) {
+      // heal by path
+      XrdOucString subcmd="-s -f "; subcmd += sourceid;
+      com_find((char*)subcmd.c_str());
+    } else {
+      // heal by fsid
+      XrdOucString subcmd="dumpmd -s "; subcmd += sourceid; subcmd += " -path";
+
+      com_fs((char*)subcmd.c_str());
+    }
+
+    std::vector<std::string> files_found;
+    files_found.clear();
+    command_result_stdout_to_vector(files_found);
+    std::vector<std::string>::const_iterator it;
+    if (!files_found.size()) {
+      output_result(CommandEnv);
+    } else {
+      if (CommandEnv) {
+	delete CommandEnv; CommandEnv = 0;
+      }
+
+      for (unsigned int i=0; i< files_found.size(); i++) {
+	if (!files_found[i].length())
+	  continue;
+	XrdOucString line = files_found[i].c_str();
+	if (line.beginswith("path=")) {
+	  line.replace("path=","");
+	}
+	
+	fprintf(stdout,"%06d: %s\n", i, line.c_str());
+	// call the heal command here
+	XrdOucString subcmd = "adjustreplica "; subcmd += line; subcmd += " "; subcmd += " "; 
+	if (targetspace.length())  { subcmd += targetspace; }
+	if (targetid.length())     { subcmd += " "; subcmd += targetid; }
+	com_file( (char*) subcmd.c_str());
+      }
+    }
+
+
 
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=dissolve";
 
@@ -1109,7 +1281,18 @@ com_fs (char* arg1) {
   } 
 
   if ( subcommand == "dumpmd" ) {
+    bool silentcommand=false;
+
     XrdOucString arg = subtokenizer.GetToken();
+    if (arg == "-s") {
+      silentcommand=true;
+      arg = subtokenizer.GetToken();
+    }
+
+
+    XrdOucString option1 = subtokenizer.GetToken();
+    XrdOucString option2 = subtokenizer.GetToken();
+
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=dumpmd";
     if (!arg.length()) 
       goto com_fs_usage;
@@ -1118,7 +1301,31 @@ com_fs (char* arg1) {
     in += "&mgm.fsid=";
     in += (int) fsid;
     
-    global_retc = output_result(client_admin_command(in));
+    if ( (option1 == "-path") || (option2 == "-path") ) {
+      in += "&mgm.dumpmd.path=1";
+    } 
+      
+    if ( (option1 == "-fid") || (option2 == "-fid")) {
+      in += "&mgm.dumpmd.fid=1";
+    } 
+    
+    if ( option1.length() && (option1 != "-path") && (option1 != "-fid") ) 
+      goto com_fs_usage;
+    
+    if ( option2.length() && (option2 != "-path") && (option2 != "-fid") )
+      goto com_fs_usage;
+
+    XrdOucEnv* result = client_admin_command(in);
+    if (!silentcommand) {
+      global_retc = output_result(result);
+    } else {
+      if (result) {
+	global_retc = 0;
+      } else {
+	global_retc = EINVAL;
+      }
+    }
+
     return (0);
   }
 
@@ -1139,9 +1346,12 @@ com_fs (char* arg1) {
   printf("       fs clone <fs-id-src> <fs-id-dst>                         : allows to clone the contents of <fs-id-src> to <fs-id-dst>\n");
   printf("       fs compare <fs-id-src> <fs-id-dst>|<space>               : does a comparison of <fs-id-src> with <fs-id-dst>|<space>\n");
   printf("       fs dropfiles  <fs-id>                                    : allows to drop all files on <fs-id>\n");
-  printf("       fs dissolve   <fs-id> <space>                            : allows to create a new replica of all files on <fs-id> in <space>\n");
+  printf("       fs heal <fs-id-src>|<path> [<space-dst> [<subgroup>]]    : heals replica's of filesystem <fs-id> or path <path> placing/keeping in <space-dst> (+<subgroup>)\n");
   printf("       fs flatten    <space> [<tag>]                            : allows to flatten the file distribution in <space> for files with tag <tag>\n");
-  printf("       fs dumpmd <fs-id>                                        : dump all file meta data on this filesystem in query format\n");
+  printf("       fs dumpmd [-s] <fs-id> [-fid] [-path]                    : dump all file meta data on this filesystem in query format\n");
+  printf("                                                                  -s    : don't printout keep an internal reference\n");
+  printf("                                                                  -fid  : dump only a list of file id's stored on this filesystem\n");
+  printf("                                                                  -path : dump only a list of file names stored on this filesystem\n");
   return (0);
 }
 
@@ -1641,8 +1851,8 @@ com_config (char* arg1) {
   printf("usage: config ls   [-backup]                                             :  list existing configurations\n");
   printf("usage: config dump [-fs] [-vid] [-quota] [-policy] [-comment] [<name>]   :  dump current configuration or configuration with name <name>\n");
 
-  printf("usage: config save [-comment \"<comment>\"] [-f] [<name>]                :  save config (optionally under name)\n");
-  printf("usage: config load [-comment \"<comment>\"] [-f] [<name>]                :  load config (optionally with name)\n");
+  printf("usage: config save <name> [-comment \"<comment>\"] [-f] ]                :  save config (optionally under name)\n");
+  printf("usage: config load <name>                                                :  load config (optionally with name)\n");
   printf("usage: config diff                                                       :  show changes since last load/save operation\n");
   printf("usage: config changelog [-#lines]                                        :  show the last <#> lines from the changelog - default is -10 \n");
   printf("usage: config reset                                                      :  reset all configuration to empty state\n");
@@ -1729,9 +1939,50 @@ com_restart (char* arg1) {
   return (0);
 }
 
+/* Restart System */
+int
+com_transfers (char* arg1) {
+  // split subcommands
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString subcmd = subtokenizer.GetToken();
+  XrdOucString nodes = subtokenizer.GetToken();
+  XrdOucString selection = subtokenizer.GetToken();
+
+  XrdOucString in = "mgm.cmd=";
+
+  if ( (subcmd != "drop") && (subcmd != "ls") ) 
+    goto com_usage_transfers;
+
+  if (subcmd == "drop")
+    in += "droptransfers";
+  if (subcmd == "ls") 
+    in += "listtransfers";
+  
+  in += "&mgm.subcmd=";
+
+  if (nodes.length()) {
+    in += nodes;
+    if (selection.length()) {
+      in += "&mgm.nodename=";
+      in += selection;
+    }
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+  
+ com_usage_transfers:
+  printf("       transfers drop fst *                 : drop transfers on all fst nodes !\n");
+  printf("       transfers ls fst *                   : list transfers on all fst nodes !\n");
+  return (0);
+}
+
 /* File handling */
 int 
 com_file (char* arg1) {
+  XrdOucString arg = arg1;
+
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString cmd = subtokenizer.GetToken();
@@ -1742,13 +1993,21 @@ com_file (char* arg1) {
   path = abspath(path.c_str());
 
   XrdOucString in = "mgm.cmd=file";
-  if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) && (cmd != "check") && ( cmd != "adjustreplica" )) {
+  if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) && (cmd != "check") && ( cmd != "adjustreplica" ) && ( cmd != "info" ) && (cmd != "layout") ) {
     goto com_file_usage;
+  }
+
+  // convenience function
+  if (cmd == "info") {
+    arg.replace("info ","");
+    printf("Calling %s\n", arg.c_str());
+    return com_fileinfo((char*) arg.c_str());
   }
 
   if (cmd == "drop") {
     if ( !path.length() || !fsid1.length()) 
       goto com_file_usage;
+
     in += "&mgm.subcmd=drop";
     in += "&mgm.path="; in += path;
     in += "&mgm.file.fsid="; in += fsid1;
@@ -1778,6 +2037,27 @@ com_file (char* arg1) {
 
     in += "&mgm.subcmd=adjustreplica";
     in += "&mgm.path="; in += path;
+    if (fsid1.length()) {
+      in += "&mgm.file.desiredspace="; in += fsid1;
+      if (fsid2.length()) {
+	in += "&mgm.file.desiredsubgroup="; in += fsid2;
+      }
+    }
+  }
+
+  if (cmd == "layout") {
+    if (!path.length())
+      goto com_file_usage;
+
+    in += "&mgm.subcmd=layout";
+    in += "&mgm.path="; in += path;
+    if (fsid1 != "-stripes")
+      goto com_file_usage;
+    if (!fsid2.length()) 
+      goto com_file_usage;
+
+    in += "&mgm.file.layout.stripes=";
+    in += fsid2;
   }
 
   if (cmd == "check") { 
@@ -1924,7 +2204,7 @@ com_file (char* arg1) {
   printf("usage: file drop <path> <fsid>                                       :  drop the file <path> part on <fsid>\n");
   printf("       file move <path> <fsid1> <fsid2>                              :  move the file <path> part on <fsid1> to <fsid2>\n");
   printf("       file replicate <path> <fsid1> <fsid2>                         :  replicate file <path> part on <fsid1> to <fsid2>\n");
-  printf("       file adjustreplica <path>|fid:<fid>                           :  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
+  printf("       file adjustreplica <path>|fid:<fid> [space [subgroup]]        :  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
   printf("       file check <path> [%%size%%checksum%%nrep%%force%%ouptut%%silent]  :  retrieves stat information from the physical replicas and verifies the correctness\n");
   printf("       - %%size                                                       :  return with an error code if there is a mismatch between the size meta data information\n");
   printf("       - %%checksum                                                   :  return with an error code if there is a mismatch between the checksum meta data information\n");
@@ -1932,6 +2212,8 @@ com_file (char* arg1) {
   printf("       - %%silent                                                     :  suppresses all information for each replic to be printed\n");
   printf("       - %%force                                                      :  forces to get the MD even if the node is down\n");
   printf("       - %%output                                                     :  prints lines with inconsitency information\n");
+  printf("       file info <path>                                              : convenience function aliasing to 'fileinfo' command\n");
+  printf("       file layout <path> -stripes <n>                               : change the number of stripes of a file with replica layout to <n>\n");
   return (0);
 }
 
