@@ -11,7 +11,7 @@ silent:
             -e 's/.*-o  *\([^ ]*\).*/++++ Creating \1 ++++/p' \
             -e '/make/p'
 
-EXTRA_DIST = bootstrap.sh Doxyfile etc/xrd.cf.mgm etc/xrd.cf.fst etc/xrd.cf.mq etc/logrotate.d/xrd etc/init.d/xrd etc/init.d/cmsd etc/sysconfig/xrd.example configure.ac m4 Namespace/tests/*.cc Namespace/tests/Makefile.am Namespace/utils Namespace/views Namespace/persistency
+EXTRA_DIST = bootstrap.sh Doxyfile etc/xrd.cf.mgm etc/xrd.cf.fst etc/xrd.cf.mq etc/logrotate.d/xrd etc/init.d/xrd etc/init.d/cmsd etc/sysconfig/xrd.example configure.ac m4 Namespace/tests/*.cc Namespace/tests/Makefile.am Namespace/utils Namespace/views Namespace/persistency sss/eos-sss.keytab
 
 rpm:    dist
 	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
@@ -47,4 +47,9 @@ install-exec-local:
 	@$(INSTALL) -m 644 $(srcdir)/etc/sysconfig/xrd.example $(DESTDIR)/$(sysconfdir)/sysconfig/xrd.example
 #	@mv  $(DESTDIR)/$(prefix)/bin/eosfstfsck $(DESTDIR)/$(prefix)/bin/eosfstfsck.v${PACKAGE_VERSION}
 #	@ln -s $(DESTDIR)/$(prefix)/bin/eosfstfsck.v${PACAKGE_VERSION} $(DESTDIR)/$(prefix)/bin/eosfstfsck
-
+	@echo "0 u:nobody g:nobody n:eos-test N:5506672669367468033 c:1282122142 e:0 k:9ae1ada78699e0ecd0320060e33d0bfa6b60c5c911e67b9b1b89e01dacf4d5b0" > $(srcdir)/sss/eos-sss.keytab
+	@chmod 600 $(srcdir)/sss/eos-sss.keytab
+	@xrdsssadmin -g daemon -u daemon -k eos-test add $(srcdir)/sss/eos-sss.keytab
+	@mkdir -p $(DESTDIR)/$(prefix)/sss/
+	@test -e $(DESTDIR)/$(prefix)/sss/eos-sss.keytab || $(INSTALL) -m 600 $(srcdir)/sss/eos-sss.keytab $(DESTDIR)/$(prefix)/sss/
+	@chown daemon.daemon $(DESTDIR)/$(prefix)/sss/eos-sss.keytab
