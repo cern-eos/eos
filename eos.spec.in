@@ -31,8 +31,8 @@ make install DESTDIR=$RPM_BUILD_ROOT
 
 
 %files
-%defattr(-,root,root,-)
-/opt/eos/*
+/opt/eos/bin/*
+/opt/eos/lib/*
 %config(noreplace) /etc/xrd.cf.fst
 %config(noreplace) /etc/xrd.cf.mgm
 %config(noreplace) /etc/xrd.cf.mq
@@ -40,6 +40,9 @@ make install DESTDIR=$RPM_BUILD_ROOT
 %config(noreplace) /etc/logrotate.d/xrd
 %_sysconfdir/rc.d/init.d/xrd
 %_sysconfdir/rc.d/init.d/cmsd
+%defattr(-,daemon,daemon,-)
+%config(noreplace) /opt/eos/sss/eos-sss.keytab
+/opt/eos/var/*
 
 %clean
 rm -rf $RPM_BUILD_ROOT
