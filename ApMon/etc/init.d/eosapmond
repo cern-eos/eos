@@ -15,7 +15,7 @@ XRDLOGDIR="/var/log/xroot/"
 XRDROLE="fst"
 XRDUSER="daemon"
 . /etc/init.d/functions
-. /etc/sysconfig/xrd
+test -e /etc/sysconfig/xrd && . /etc/sysconfig/xrd
 
 
 
@@ -91,7 +91,7 @@ start() {
         avoid=$$;
         if [ ! `pgrep -f -u ${XRDUSER} $prog `  ]; then
             echo -n "Starting $prog: "
-            daemon --user ${XRDUSER} "source /etc/sysconfig/xrd; cd ${XRDCOREDIR}; ulimit -c unlimited; export PERL5LIB=${XRDLOCATION}/perl/ApMon; ${XRDLOCATION}/bin/$prog ${EOSAPMONSTARTUPFILE} ${XRDLOGDIR}/${XRDROLE}/eosapmonlog >& /dev/null < /dev/null" 
+            daemon --user ${XRDUSER} "test -e /etc/sysconfig/xrd && source /etc/sysconfig/xrd; cd ${XRDCOREDIR}; ulimit -c unlimited; export PERL5LIB=${XRDLOCATION}/perl/ApMon; ${XRDLOCATION}/bin/$prog ${EOSAPMONSTARTUPFILE} ${XRDLOGDIR}/${XRDROLE}/eosapmonlog >& /dev/null < /dev/null" 
             RETVAL=$?
 	    [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
             echo
