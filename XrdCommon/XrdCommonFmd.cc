@@ -449,55 +449,58 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
       fdChangeLogSequenceNumber[fsid] = pMd->sequenceheader;
     }
 
-    // setup the hash entries
-    Fmd[fsid][pMd->fid] = (unsigned long long) (changelogstart-changelogmap);
 
-    //    Fmd[fsid].insert(make_pair(pMd->fid, (unsigned long long) (changelogstart-changelogmap)));
+    if (!faulty) {
+      // setup the hash entries
+      Fmd[fsid][pMd->fid] = (unsigned long long) (changelogstart-changelogmap);
+      
+      // do quota hashs
+      if (XrdCommonFmd::IsCreate(pMd)) {
 
-    // do quota hashs
-    if (XrdCommonFmd::IsCreate(pMd)) {
-      long long exsize = -1;
-      if (FmdSize.count(pMd->fid)>0) {
-	// exists
-	exsize = FmdSize[pMd->fid];
-      }
-
-      //      eos_debug("fid %lu psize %lld", pMd->fid, FmdSize[pMd->fid]);
-      if (exsize>=0) {
-	// substract old size
-	UserBytes [(((long long)pMd->fsid)<<32) | pMd->uid]  -= exsize;
-	GroupBytes[(((long long)pMd->fsid)<<32) | pMd->gid]  -= exsize;
-	UserFiles [(((long long)pMd->fsid)<<32) | pMd->uid]--;
-	GroupFiles[(((long long)pMd->fsid)<<32) | pMd->gid]--;
-      }
+	long long exsize = -1;
+	if (FmdSize.count(pMd->fid)>0) {
+	  // exists
+	  exsize = FmdSize[pMd->fid];
+	}
+	
+	//      eos_debug("fid %lu psize %lld", pMd->fid, FmdSize[pMd->fid]);
+	if (exsize>=0) {
+	  // substract old size
+	  UserBytes [(((long long)pMd->fsid)<<32) | pMd->uid]  -= exsize;
+	  GroupBytes[(((long long)pMd->fsid)<<32) | pMd->gid]  -= exsize;
+	  UserFiles [(((long long)pMd->fsid)<<32) | pMd->uid]--;
+	  GroupFiles[(((long long)pMd->fsid)<<32) | pMd->gid]--;
+	}
       // store new size
-      FmdSize[pMd->fid] = pMd->size;
-
-      // add new size
-      UserBytes [((long long)pMd->fsid<<32) | pMd->uid]  += pMd->size;
-      GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] += pMd->size;
-      UserFiles [((long long)pMd->fsid<<32) | pMd->uid]++;
-      GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]++;
-    }
-    if (XrdCommonFmd::IsDelete(pMd)) {
-      if (FmdSize.count(pMd->fid)>0) {
-	FmdSize.erase(pMd->fid);
-	UserBytes [((long long)pMd->fsid<<32) | pMd->uid]  -= pMd->size;
-	GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] -= pMd->size;
-	UserFiles [((long long)pMd->fsid<<32) | pMd->uid]--;
-	GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]--;
-      } else {
-	eos_crit("Double Deletion detected sequencenumber %u fid %llu", sequencenumber, pMd->fid);
+	FmdSize[pMd->fid] = pMd->size;
+	
+	// add new size
+	UserBytes [((long long)pMd->fsid<<32) | pMd->uid]  += pMd->size;
+	GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] += pMd->size;
+	UserFiles [((long long)pMd->fsid<<32) | pMd->uid]++;
+	GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]++;
       }
-    } 
+      if (XrdCommonFmd::IsDelete(pMd)) {
+	if (FmdSize.count(pMd->fid)>0) {
+	  FmdSize.erase(pMd->fid);
+	  Fmd[fsid].erase(pMd->fid);
+	  UserBytes [((long long)pMd->fsid<<32) | pMd->uid]  -= pMd->size;
+	  GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] -= pMd->size;
+	  UserFiles [((long long)pMd->fsid<<32) | pMd->uid]--;
+	  GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]--;
+	} else {
+	  eos_crit("Double Deletion detected sequencenumber %u fid %llu", sequencenumber, pMd->fid);
+	}
+      } 
+      
+      if (UserBytes[((long long)pMd->fsid<<32) | pMd->uid]  <0) UserBytes[(pMd->fsid<<32)]=0;
+      if (GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] <0) GroupBytes[(pMd->fsid<<32)]=0;
+      if (UserFiles[((long long)pMd->fsid<<32) | pMd->uid]  <0) UserFiles[(pMd->fsid<<32)]=0;
+      if (GroupFiles[((long long)pMd->fsid<<32) | pMd->gid] <0) GroupFiles[(pMd->fsid<<32)]=0;
+      
 
-    if (UserBytes[((long long)pMd->fsid<<32) | pMd->uid]  <0) UserBytes[(pMd->fsid<<32)]=0;
-    if (GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] <0) GroupBytes[(pMd->fsid<<32)]=0;
-    if (UserFiles[((long long)pMd->fsid<<32) | pMd->uid]  <0) UserFiles[(pMd->fsid<<32)]=0;
-    if (GroupFiles[((long long)pMd->fsid<<32) | pMd->gid] <0) GroupFiles[(pMd->fsid<<32)]=0;
-
-
-    eos_debug("userbytes %llu groupbytes %llu userfiles %llu groupfiles %llu",  UserBytes [((long long)pMd->fsid<<32) | pMd->uid], GroupBytes[((long long)pMd->fsid<<32) | pMd->gid], UserFiles [((long long)pMd->fsid<<32) | pMd->uid],GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]);
+      eos_debug("userbytes %llu groupbytes %llu userfiles %llu groupfiles %llu",  UserBytes [((long long)pMd->fsid<<32) | pMd->uid], GroupBytes[((long long)pMd->fsid<<32) | pMd->gid], UserFiles [((long long)pMd->fsid<<32) | pMd->uid],GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]);
+    }
     pMd++;
     changelogstart += sizeof(struct XrdCommonFmd::FMD);
   }

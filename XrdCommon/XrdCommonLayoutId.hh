@@ -44,6 +44,13 @@ public:
   }
 
   static unsigned long GetChecksum(unsigned long layout)     {return (layout &0xf);}
+  static unsigned long GetChecksumLen(unsigned long layout)     {
+    if ( (layout &0xf) == kAdler) return 4;
+    if ( (layout &0xf) == kCRC32) return 4;
+    if ( (layout &0xf) == kMD5)   return 16;
+    if ( (layout &0xf) == kSHA1)  return 20;
+    return 0;
+  }
   static unsigned long GetLayoutType(unsigned long layout)   {return ( (layout>>4) & 0xf);}
   static unsigned long GetStripeNumber(unsigned long layout) {return ( (layout >>8) & 0xf);}
   static unsigned long GetStripeWidth(unsigned long layout)  {return ( (layout >> 16) & 0xffff);}
