@@ -7,11 +7,13 @@
 #include "XrdCommon/XrdCommonFileSystem.hh"
 #include "XrdFstOfs/XrdFstTransfer.hh"
 #include "XrdFstOfs/XrdFstDeletion.hh"
+#include "XrdFstOfs/XrdFstVerify.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <vector>
 #include <list>
+#include <queue>
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
@@ -59,14 +61,19 @@ public:
 
 /*----------------------------------------------------------------------------*/
 class XrdFstOfsStorage : public XrdCommonLogId {
+  friend class XrdFstOfsFile;
+
 private:
   bool zombie;
 
-  XrdSysMutex fsMutex;
   XrdOucString metaDirectory;
 
   unsigned long long* scrubPattern[2];
   unsigned long long* scrubPatternVerify;
+
+protected:
+  XrdSysMutex fsMutex;
+
 public:
   // fsstat & quota thread
   static void* StartFsQuota(void *pp); 
@@ -75,6 +82,7 @@ public:
   static void* StartFsRemover(void* pp);
   static void* StartFsPulling(void* pp);
   static void* StartFsReport(void* pp);
+  static void* StartFsVerify(void* pp);
 
   void Quota();
   void Scrub();
@@ -82,12 +90,16 @@ public:
   void Remover();
   void Pulling();
   void Report();
+  void Verify();
 
   XrdSysMutex transferMutex;
   std::list <XrdFstTransfer*> transfers;
   XrdFstTransfer* runningTransfer;
   XrdSysMutex deletionsMutex;
   std::vector <XrdFstDeletion> deletions;
+  
+  XrdSysMutex verifiesMutex;
+  std::queue <XrdFstVerify*> verifies;
 
   XrdOucHash<XrdFstOfsFileSystem> fileSystems;
   std::vector <XrdFstOfsFileSystem*> fileSystemsVector;

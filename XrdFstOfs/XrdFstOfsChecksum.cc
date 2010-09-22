@@ -24,12 +24,14 @@ XrdFstOfsChecksum::ScanFile(const char* path)
   do {
     errno = 0;
     nread = read(fd,buffer,sizeof(buffer));
-    if (nread<0) 
+    if (nread<0) {
+      close(fd);
       return false;
+    }
     Add(buffer, nread, offset);
     offset += nread;
   } while (nread == sizeof(buffer));
-  
+  Finalize();  
   close(fd);
   return true;
 }

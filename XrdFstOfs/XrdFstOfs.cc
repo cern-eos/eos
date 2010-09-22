@@ -449,8 +449,21 @@ XrdFstOfsFile::open(const char                *path,
   } else {
     // if we have local errors in open we might disable ourselfs
     if ( error.getErrInfo() != EREMOTEIO ) {
-      // we have to get to the fileSystems object from XrdOfsFstStorage ...
-      // TODO: !!!
+      gOFS.FstOfsStorage->fsMutex.Lock();
+      std::vector <XrdFstOfsFileSystem*>::const_iterator it;
+      for (unsigned int i=0; i< gOFS.FstOfsStorage->fileSystemsVector.size(); i++) {
+	// check if the local prefix matches a filesystem path ...
+	if ( (errno != ENOENT) && (fstPath.beginswith(gOFS.FstOfsStorage->fileSystemsVector[i]->GetPath()))) {
+	  // broadcast error for this FS
+	  eos_crit("disabling filesystem %u after IO error on path %s", gOFS.FstOfsStorage->fileSystemsVector[i]->GetId(), gOFS.FstOfsStorage->fileSystemsVector[i]->GetPath());
+	  XrdOucString s="local IO error";
+	  gOFS.FstOfsStorage->fileSystemsVector[i]->BroadcastError(EIO, s.c_str());
+	  //	  gOFS.FstOfsStorage->fileSystemsVector[i]->BroadcastError(error.getErrInfo(), "local IO error");
+	  break;
+	}
+      }
+      
+      gOFS.FstOfsStorage->fsMutex.UnLock();
     }
 
     // in any case we just redirect back to the manager if we are the 1st entry point of the client
@@ -458,8 +471,13 @@ XrdFstOfsFile::open(const char                *path,
     if (layOut->IsEntryServer()) {
       int ecode = 1094;
       rc = SFS_REDIRECT;
-      error.setErrInfo(ecode,smanager);
-      eos_warning("rebouncing client after open error back to MGM %s:%d", smanager, ecode);
+      XrdOucString rmanager = smanager;
+      int dpos = rmanager.find(":");
+      if (dpos != STR_NPOS) 
+	rmanager.erase(dpos);
+
+      error.setErrInfo(ecode,rmanager.c_str());
+      eos_warning("rebouncing client after open error back to MGM %s:%d", rmanager.c_str(), ecode);
     }
   }
 

@@ -73,6 +73,8 @@ XrdFstOfsReplicaParLayout::open(const char                *path,
   int envlen;
   XrdOucString remoteOpenOpaque = ofsFile->openOpaque->Env(envlen);
 
+  XrdOucString remoteOpenPath = ofsFile->openOpaque->Get("mgm.path");
+
   // only a gateway or head server needs to contact others
   if ( (isGateWay)  || (isHeadServer) ) {
     // assign stripe urls'
@@ -87,6 +89,7 @@ XrdFstOfsReplicaParLayout::open(const char                *path,
       
       // check if the first replica is remote
       replicaUrl[i] = rep;
+      replicaUrl[i] += remoteOpenPath;
       replicaUrl[i] +="?";
       
       // prepare the index for the next target
@@ -115,14 +118,14 @@ XrdFstOfsReplicaParLayout::open(const char                *path,
 	// local handle
 	if (ofsFile->openofs(path, open_mode, create_mode, client, opaque)) {
 	  eos_err("Failed to open replica - local open failed on ", path);
-	  return gOFS.Emsg("ReplicaOpen",*error, EREMOTEIO, "open replica - local open failed ", path);
+	  return gOFS.Emsg("ReplicaOpen",*error, EIO, "open replica - local open failed ", path);
 	}
       } else {
 	// read case
 	// local handle
 	if (ofsFile->openofs(path, open_mode, create_mode, client, opaque)) {
 	  eos_err("Failed to open replica - local open failed on ", path);
-	  return gOFS.Emsg("ReplicaOpen",*error, EREMOTEIO, "open replica - local open failed ", path);
+	  return gOFS.Emsg("ReplicaOpen",*error, EIO, "open replica - local open failed ", path);
 	}
       }
     } else {

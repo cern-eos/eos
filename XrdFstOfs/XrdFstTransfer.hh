@@ -86,6 +86,11 @@ public:
   }
 
   int Do();
+  bool ShouldRetry() {
+    if (tried <3)
+      return true;
+    return false;
+  }
 
   void Reschedule(unsigned int aftersecs) { tried++; nexttrytime=time(NULL) + aftersecs;}
   bool ShouldRun() { 
