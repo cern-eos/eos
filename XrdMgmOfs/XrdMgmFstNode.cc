@@ -129,6 +129,12 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 	long long fsidquota = strtoll(value.c_str(),0,10);
 	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
 	unsigned long uid  = fsiduid & 0xffffffff;
+
+	if (fsid ==0) {
+	  eos_static_err("decoded quota userbytes    : fsid=%lu uid=%lu bytes=%llu", fsid, uid, fsidquota);
+	  continue;
+	}
+
 	eos_static_debug("decoded quota userbytes    : fsid=%lu uid=%lu bytes=%llu", fsid, uid, fsidquota);
 	XrdMgmFstFileSystem* filesystem = 0;
 	if ( (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
@@ -160,9 +166,13 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 	long long fsidquota = strtoll(value.c_str(),0,10);
 	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
 	unsigned long gid  = fsiduid & 0xffffffff;
+	if (fsid ==0) {
+	  eos_static_err("decoded quota groupbytes  : fsid=%lu uid=%lu bytes=%llu", fsid, gid, fsidquota);
+	  continue;
+	}
 	eos_static_debug("decoded quota groupbytes  : fsid=%lu uid=%lu bytes=%llu", fsid, gid, fsidquota);
 	XrdMgmFstFileSystem* filesystem = 0;
-	if ( (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	if ( fsid && (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
 	  // trying to replace the update hint with differential changes
 	  const char* spacename = filesystem->GetSpaceName();
 	  XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(spacename);
@@ -192,9 +202,13 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 	long long fsidquota = strtoll(value.c_str(),0,10);
 	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
 	unsigned long uid  = fsiduid & 0xffffffff;
+	if (fsid==0) {
+	  eos_static_err("decoded quota userfiles: fsid=%lu uid=%lu files=%llu", fsid, uid, fsidquota);
+	  continue;
+	}
 	eos_static_debug("decoded quota userfiles: fsid=%lu uid=%lu files=%llu", fsid, uid, fsidquota);
 	XrdMgmFstFileSystem* filesystem = 0;
-	if ( (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	if ( fsid && (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
 	  // trying to replace the update hint with differential changes
 	  const char* spacename = filesystem->GetSpaceName();
 	  XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(spacename);
@@ -224,9 +238,13 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 	long long fsidquota = strtoll(value.c_str(),0,10);
 	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
 	unsigned long gid  = fsiduid & 0xffffffff;
+	if (fsid==0) {
+	  eos_static_err("decoded quota groupfiles: fsid=%lu uid=%lu files=%llu", fsid, gid, fsidquota);
+	  continue;
+	}
 	eos_static_debug("decoded quota groupfiles: fsid=%lu uid=%lu files=%llu", fsid, gid, fsidquota);
 	XrdMgmFstFileSystem* filesystem = 0;
-	if ( (filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	if ( fsid && (filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[fsid]) ) {
 	  // trying to replace the update hint with differential changes
 	  const char* spacename = filesystem->GetSpaceName();
 	  XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(spacename);
@@ -294,7 +312,7 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
   if (!fs) {
     // create a new filesystem there
     fs = new XrdMgmFstFileSystem(id, fsname.c_str(), nodename.c_str(), schedgroup);
-    if (!fs ) {
+    if ((!id) || (!fs) ) {
       eos_static_err("unable to create filesystem object");
       return false;
     }

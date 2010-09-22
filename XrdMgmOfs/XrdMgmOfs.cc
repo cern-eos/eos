@@ -391,15 +391,20 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     for ( it = dmd->attributesBegin(); it != dmd->attributesEnd(); ++it) {
       attrmap[it->first] = it->second;
     }
+    if (dmd) {
+      fmd = dmd->findFile(cPath.GetName());
+      if (!fmd) {
+	errno = ENOENT;
+      }
+    }
+    else
+      fmd = 0;
+    
   } catch( eos::MDException &e ) {
     dmd = 0;
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   };
-  if (dmd) 
-    fmd = dmd->findFile(cPath.GetName());
-  else
-    fmd = 0;
 
   //-------------------------------------------
   // check permissions
@@ -574,6 +579,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
     retc = quotaspace->FileAccess(vid.uid, vid.gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW);
   }
+
   if (retc) {
     // if we don't have quota we don't bounce the client back
     if (retc != ENOSPC) {
@@ -609,6 +615,10 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   // ************************************************************************************************
   // get the redirection host from the first entry in the vector
 
+  if (!selectedfs[fsIndex]) {
+    eos_err("0 filesystem in selection");
+  }
+
   filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[selectedfs[fsIndex]];
   filesystem->GetHostPort(targethost,targetport);
   redirectionhost= targethost;
@@ -626,6 +636,8 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     XrdMgmFstFileSystem* repfilesystem = 0;
     // put all the replica urls into the capability
     for ( int i = 0; i < (int)selectedfs.size(); i++) {
+      if (!selectedfs[i]) 
+	eos_err("0 filesystem in replica vector");
       repfilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[selectedfs[i]];
       if (!repfilesystem) {
 	XrdMgmFstNode::gMutex.UnLock();
@@ -634,13 +646,14 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       capability += "&mgm.url"; capability += i; capability += "=root://";
       XrdOucString replicahost=""; int replicaport = 0;
       repfilesystem->GetHostPort(replicahost,replicaport);
-      capability += replicahost; capability += ":"; capability += replicaport; capability += "/";
-      capability += path;
+      capability += replicahost; capability += ":"; capability += replicaport; capability += "//";
       // add replica fsid
       capability += "&mgm.fsid"; capability += i; capability += "="; capability += (int)repfilesystem->GetId();
       capability += "&mgm.localprefix"; capability += i; capability += "=";capability+= repfilesystem->GetPath();
       eos_debug("Redirection Url %d => %s", i, replicahost.c_str());
     }
+    capability += "&mgm.path=";
+    capability += path;
   }
   
   XrdMgmFstNode::gMutex.UnLock();
@@ -667,6 +680,11 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   ecode = targetport;
   rcode = SFS_REDIRECT;
   error.setErrInfo(ecode,redirectionhost.c_str());
+
+  if (redirectionhost.length() > (int)XrdOucEI::Max_Error_Len) {
+    return Emsg(epname, error, ENOMEM, "open file - capability exceeds 2kb limit", path);
+  }
+
   //  ZTRACE(open, "Return redirection " << redirectionhost.c_str() << "Targetport: " << ecode);
 
   eos_info("redirection=%s:%d", redirectionhost.c_str(), ecode);
@@ -2895,6 +2913,11 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
     capability += "&mgm.dropsource=1";
   }
 
+  if ( (!sourcefsid) || (!targetfsid) ) {
+    eos_err("illegal fsid sourcefsid=%u targetfsid=%u", sourcefsid, targetfsid);
+    return Emsg(epname,error, EINVAL, "illegal source/target fsid", fmd->getName().c_str());
+  }
+
   XrdMgmFstNode::gMutex.Lock();
   XrdMgmFstFileSystem* sourcefilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[sourcefsid];
   XrdMgmFstFileSystem* targetfilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[targetfsid];
@@ -3022,6 +3045,10 @@ XrdMgmOfs::Deletion()
 	  // loop over all files and emit a deletion message
 	  if (!fs) {
 	    // set the file system only for the first file to relax the mutex contention
+	    if (!fslist[i]) {
+	      eos_err("0 filesystem in deletion list");
+	      continue ;
+	    }
 	    XrdMgmFstNode::gMutex.Lock();
 	    fs = ((XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[ fslist[i] ]);
 

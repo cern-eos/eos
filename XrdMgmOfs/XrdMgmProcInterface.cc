@@ -996,10 +996,16 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    // only root can do that
 	    if (vid_in.uid==0) {
 	      eos::FileMD* fmd=0;
-	      if (path.beginswith("fid:")) {
-		path.replace("fid:","");
-		unsigned long long fid = strtoull(path.c_str(),0,10);
-		
+	      if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
+		unsigned long long fid=0;
+		if (path.beginswith("fid:")) {
+		  path.replace("fid:","");
+		  fid = strtoull(path.c_str(),0,10);
+		}
+		if (path.beginswith("fxid:")) {
+		  path.replace("fxid:","");
+		  fid = strtoull(path.c_str(),0,16);
+		}
 		// reference by fid+fsid
 		//-------------------------------------------
 		gOFS->eosViewMutex.Lock();
@@ -1027,7 +1033,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		if (XrdCommonLayoutId::GetLayoutType(fmd->getLayoutId()) == XrdCommonLayoutId::kReplica) {
 		  unsigned long newlayout = XrdCommonLayoutId::GetId(XrdCommonLayoutId::kReplica, XrdCommonLayoutId::GetChecksum(fmd->getLayoutId()), newstripenumber, XrdCommonLayoutId::GetStripeWidth(fmd->getLayoutId()));
 		  fmd->setLayoutId(newlayout);
-		  stdOut += "success: setting new stripe number to "; stdOut += newstripenumber;
+		  stdOut += "success: setting new stripe number to "; stdOut += newstripenumber; stdOut += " for path="; stdOut += path;
 		  // commit new layout
 		  gOFS->eosView->updateFileStore(fmd);
 		} else {
@@ -1088,9 +1094,16 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      icreationsubgroup = atoi(opaque.Get("mgm.file.desiredsubgroup"));
 	    }
 
-	    if (path.beginswith("fid:")) {
-	      path.replace("fid:","");
-	      unsigned long long fid = strtoull(path.c_str(),0,10);
+	    if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
+	      unsigned long long fid=0;
+	      if (path.beginswith("fid:")) {
+		path.replace("fid:","");
+		fid = strtoull(path.c_str(),0,10);
+	      }
+	      if (path.beginswith("fxid:")) {
+		path.replace("fxid:","");
+		fid = strtoull(path.c_str(),0,16);
+	      }
 	      
 	      // reference by fid+fsid
 	      //-------------------------------------------
@@ -1135,16 +1148,22 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		int nreponline=0;
 		
 		for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+		  // ignore filesystem id 0
+		  if (! (*lociter)) {
+		    eos_err("fsid 0 found");
+		    continue;
+		  }
 		  XrdMgmFstNode::gMutex.Lock();
 		  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
 		  if (filesystem) {
+		    // remember the spacename
+		    space = filesystem->GetSpaceName();
+		    forcedsubgroup = filesystem->GetSchedulingGroupIndex();
+		    
 		    if (filesystem && ((filesystem->GetConfigStatus() > XrdCommonFileSystem::kDrain)) &&
 			((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
 		      // this is a good accessible one
 		      nreponline++;
-		      // remember the spacename
-		      space = filesystem->GetSpaceName();
-		      forcedsubgroup = filesystem->GetSchedulingGroupIndex();
 		    }
 		  }
 		  XrdMgmFstNode::gMutex.UnLock();
@@ -1211,149 +1230,157 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		      stdErr = "error: create new replicas => no source available: "; stdErr += path; stdErr += "\n";
 		    }
 		  }
-		}
+		} else {
+		  // we do this only if we didn't create replicas in the if section before, otherwise we remove replicas which have used before for new replications
 
-		// this is magic code to adjust the number of replicas to the desired policy ;-)
-		if (nreplayout < nrep) {
-		  std::vector<unsigned long> fsid2delete;
-		  unsigned int n2delete = nrep-nreplayout;
-
-		  eos::FileMD::LocationVector locvector;
-		  // we build three views to sort the order of dropping
-
-		  std::multimap <int /*configstate*/, int /*fsid*/> statemap;
-		  std::multimap <std::string /*schedgroup*/, int /*fsid*/> groupmap;
-		  std::multimap <std::string /*space*/, int /*fsid*/> spacemap;
-
-		  // we have too many replica's online, we drop (nrepoonline-nreplayout) replicas starting with the lowest configuration state
-		  XrdMgmFstNode::gMutex.Lock();
-
-		  eos_debug("trying to drop %d replicas space=%s subgroup=%d", n2delete, creationspace.c_str(), icreationsubgroup);
-
-		  // fill the views
-		  for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
-		    XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
-		    if (filesystem) {
-		      unsigned int fsid = filesystem->GetId();
-		      statemap.insert(std::pair<int,int>(filesystem->GetConfigStatus(),fsid));
-		      groupmap.insert(std::pair<std::string,int>(filesystem->GetSchedulingGroup(),fsid));
-		      spacemap.insert(std::pair<std::string,int>(filesystem->GetSpaceName(),fsid));
-		    }
-		  }
-		  XrdMgmFstNode::gMutex.UnLock();
-
-		  
-		  if (!creationspace.length()) {
-		    // there is no requirement to keep a certain space
-		    std::multimap <int, int>::const_iterator sit;
-		    for (sit=statemap.begin(); sit!= statemap.end(); ++sit) {
-		      fsid2delete.push_back(sit->second);
-		      // we add to the deletion vector until we have found enough replicas
-		      if (fsid2delete.size() == n2delete)
-			break;
-		    }
-		  } else {
-		    if (!icreationsubgroup) {
-		      // we have only a space requirement no subgroup required
-		      std::multimap <std::string, int>::const_iterator sit;
-		      std::multimap <int,int> limitedstatemap;
-		      
-		      std::string cspace = creationspace.c_str();
-
-		      for (sit=spacemap.begin(); sit != spacemap.end(); ++sit) {
-			
-			// match the space name
-			if (sit->first == cspace) {
-			  continue;
-			}
-
-			// we default to the highest state for safety reasons
-			int state=XrdCommonFileSystem::kRW;
-			
-			std::multimap <int,int>::const_iterator stateit;
-			
-			// get the state for each fsid matching
-			for (stateit=statemap.begin(); stateit != statemap.end(); stateit++) {
-			  if (stateit->second == sit->second) {
-			    state = stateit->first;
-			    break;
-			  }
-			}
-			
-			// fill the map containing only the candidates
-			limitedstatemap.insert(std::pair<int,int>(state, sit->second));
+		  // this is magic code to adjust the number of replicas to the desired policy ;-)
+		  if (nreplayout < nrep) {
+		    std::vector<unsigned long> fsid2delete;
+		    unsigned int n2delete = nrep-nreplayout;
+		    
+		    eos::FileMD::LocationVector locvector;
+		    // we build three views to sort the order of dropping
+		    
+		    std::multimap <int /*configstate*/, int /*fsid*/> statemap;
+		    std::multimap <std::string /*schedgroup*/, int /*fsid*/> groupmap;
+		    std::multimap <std::string /*space*/, int /*fsid*/> spacemap;
+		    
+		    // we have too many replica's online, we drop (nrepoonline-nreplayout) replicas starting with the lowest configuration state
+		    XrdMgmFstNode::gMutex.Lock();
+		    
+		    eos_debug("trying to drop %d replicas space=%s subgroup=%d", n2delete, creationspace.c_str(), icreationsubgroup);
+		    
+		    // fill the views
+		    for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+		      // ignore filesystem id 0
+		      if (! (*lociter)) {
+			eos_err("fsid 0 found");
+			continue;
 		      }
-
-		      std::multimap <int,int>::const_iterator lit;
-
-		      for (lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
-			fsid2delete.push_back(lit->second);
+		      
+		      XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
+		      if (filesystem) {
+			unsigned int fsid = filesystem->GetId();
+			statemap.insert(std::pair<int,int>(filesystem->GetConfigStatus(),fsid));
+			groupmap.insert(std::pair<std::string,int>(filesystem->GetSchedulingGroup(),fsid));
+			spacemap.insert(std::pair<std::string,int>(filesystem->GetSpaceName(),fsid));
+		      }
+		    }
+		    XrdMgmFstNode::gMutex.UnLock();
+		    
+		    
+		    if (!creationspace.length()) {
+		      // there is no requirement to keep a certain space
+		      std::multimap <int, int>::const_iterator sit;
+		      for (sit=statemap.begin(); sit!= statemap.end(); ++sit) {
+			fsid2delete.push_back(sit->second);
+			// we add to the deletion vector until we have found enough replicas
 			if (fsid2delete.size() == n2delete)
 			  break;
 		      }
 		    } else {
-		      // we have a clear requirement on space/subgroup
-		      std::multimap <std::string, int>::const_iterator sit;
-		      std::multimap <int,int> limitedstatemap;
-		      
-		      std::string cspace = creationspace.c_str();
-		      cspace += "."; cspace += icreationsubgroup;
-
-		      for (sit=groupmap.begin(); sit != groupmap.end(); ++sit) {
+		      if (!icreationsubgroup) {
+			// we have only a space requirement no subgroup required
+			std::multimap <std::string, int>::const_iterator sit;
+			std::multimap <int,int> limitedstatemap;
 			
-			// match the space name
-			if (sit->first == cspace) {
-			  continue;
-			}
+			std::string cspace = creationspace.c_str();
 			
-
-			// we default to the highest state for safety reasons
-			int state=XrdCommonFileSystem::kRW;
-
-			std::multimap <int,int>::const_iterator stateit;
-
-			// get the state for each fsid matching
-			for (stateit=statemap.begin(); stateit != statemap.end(); stateit++) {
-			  if (stateit->second == sit->second) {
-			    state = stateit->first;
-			    break;
+			for (sit=spacemap.begin(); sit != spacemap.end(); ++sit) {
+			  
+			  // match the space name
+			  if (sit->first == cspace) {
+			    continue;
 			  }
+			  
+			  // we default to the highest state for safety reasons
+			  int state=XrdCommonFileSystem::kRW;
+			  
+			  std::multimap <int,int>::const_iterator stateit;
+			  
+			  // get the state for each fsid matching
+			  for (stateit=statemap.begin(); stateit != statemap.end(); stateit++) {
+			    if (stateit->second == sit->second) {
+			      state = stateit->first;
+			      break;
+			    }
+			  }
+			  
+			  // fill the map containing only the candidates
+			  limitedstatemap.insert(std::pair<int,int>(state, sit->second));
 			}
 			
-			// fill the map containing only the candidates
-			limitedstatemap.insert(std::pair<int,int>(state, sit->second));
-		      }
-		      
-		      std::multimap <int,int>::const_iterator lit;
-
-		      for (lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
-			fsid2delete.push_back(lit->second);
-			if (fsid2delete.size() == n2delete)
-			  break;
+			std::multimap <int,int>::const_iterator lit;
+			
+			for (lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
+			  fsid2delete.push_back(lit->second);
+			  if (fsid2delete.size() == n2delete)
+			    break;
+			}
+		      } else {
+			// we have a clear requirement on space/subgroup
+			std::multimap <std::string, int>::const_iterator sit;
+			std::multimap <int,int> limitedstatemap;
+			
+			std::string cspace = creationspace.c_str();
+			cspace += "."; cspace += icreationsubgroup;
+			
+			for (sit=groupmap.begin(); sit != groupmap.end(); ++sit) {
+			  
+			  // match the space name
+			  if (sit->first == cspace) {
+			    continue;
+			  }
+			  
+			  
+			  // we default to the highest state for safety reasons
+			  int state=XrdCommonFileSystem::kRW;
+			  
+			  std::multimap <int,int>::const_iterator stateit;
+			  
+			  // get the state for each fsid matching
+			  for (stateit=statemap.begin(); stateit != statemap.end(); stateit++) {
+			    if (stateit->second == sit->second) {
+			      state = stateit->first;
+			      break;
+			    }
+			  }
+			  
+			  // fill the map containing only the candidates
+			  limitedstatemap.insert(std::pair<int,int>(state, sit->second));
+			}
+			
+			std::multimap <int,int>::const_iterator lit;
+			
+			for (lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
+			  fsid2delete.push_back(lit->second);
+			  if (fsid2delete.size() == n2delete)
+			    break;
+			}
 		      }
 		    }
-		  }
-		  
-		  if (fsid2delete.size() != n2delete) {
-		    // add a warning that something does not work as requested ....
-		    stdErr = "warning: cannot adjust replicas according to your requirement: space="; stdErr += creationspace; stdErr += " subgroup="; stdErr += icreationsubgroup; stdErr += "\n";
-		  }
-		  
-		  for (unsigned int i = 0 ; i< fsid2delete.size(); i++) {
-		    if (fmd->hasLocation(fsid2delete[i])) {
-		      //-------------------------------------------
-		      gOFS->eosViewMutex.Lock();
-		      try {
-			fmd->unlinkLocation(fsid2delete[i]);
-			gOFS->eosView->updateFileStore(fmd);
-			eos_debug("removing location %u", fsid2delete[i]);
-			stdOut += "success: dropping replica on fs="; stdOut += (int)fsid2delete[i]; stdOut += "\n";
-		      } catch ( eos::MDException &e ) {
-			errno = e.getErrno();
-			stdErr = "error: drop excess replicas => cannot unlink location - "; stdErr += e.getMessage().str().c_str(); stdErr += "\n";
-			eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+		    
+		    if (fsid2delete.size() != n2delete) {
+		      // add a warning that something does not work as requested ....
+		      stdErr = "warning: cannot adjust replicas according to your requirement: space="; stdErr += creationspace; stdErr += " subgroup="; stdErr += icreationsubgroup; stdErr += "\n";
+		    }
+		    
+		    for (unsigned int i = 0 ; i< fsid2delete.size(); i++) {
+		      if (fmd->hasLocation(fsid2delete[i])) {
+			//-------------------------------------------
+			gOFS->eosViewMutex.Lock();
+			try {
+			  fmd->unlinkLocation(fsid2delete[i]);
+			  gOFS->eosView->updateFileStore(fmd);
+			  eos_debug("removing location %u", fsid2delete[i]);
+			  stdOut += "success: dropping replica on fs="; stdOut += (int)fsid2delete[i]; stdOut += "\n";
+			} catch ( eos::MDException &e ) {
+			  errno = e.getErrno();
+			  stdErr = "error: drop excess replicas => cannot unlink location - "; stdErr += e.getMessage().str().c_str(); stdErr += "\n";
+			  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+			}
+			gOFS->eosViewMutex.UnLock();
 		      }
-		      gOFS->eosViewMutex.UnLock();
 		    }
 		  }
 		}
@@ -1410,6 +1437,11 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      stdOut += "&";
 
 	      for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+		// ignore filesystem id 0
+		if (! (*lociter)) {
+		  eos_err("fsid 0 found");
+		  continue;
+		}
 		XrdMgmFstNode::gMutex.Lock();
 		XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
 		if (filesystem) {
@@ -1440,21 +1472,48 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 
     if ( cmd == "fileinfo" ) {
       XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString option= opaque.Get("mgm.file.info.option");
+
       if (!path.length()) {
 	stdErr="error: you have to give a path name to call 'fileinfo'";
 	retc = EINVAL;
       } else {
 	eos::FileMD* fmd=0;
 
-	//-------------------------------------------
-	gOFS->eosViewMutex.Lock();
-	try {
-	  fmd = gOFS->eosView->getFile(path.c_str());
-	} catch ( eos::MDException &e ) {
-	  fmd = 0;
-	  errno = e.getErrno();
-	  stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
-	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
+	  unsigned long long fid=0;
+	  if (path.beginswith("fid:")) {
+	    path.replace("fid:","");
+	    fid = strtoull(path.c_str(),0,10);
+	  }
+	  if (path.beginswith("fxid:")) {
+	    path.replace("fxid:","");
+	    fid = strtoull(path.c_str(),0,16);
+	  }
+
+	  // reference by fid+fsid
+	  //-------------------------------------------
+	  gOFS->eosViewMutex.Lock();
+	  try {
+	    fmd = gOFS->eosFileService->getFileMD(fid);
+	    std::string fullpath = gOFS->eosView->getUri(fmd);
+	    path = fullpath.c_str();
+	  } catch ( eos::MDException &e ) {
+	    errno = e.getErrno();
+	    stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+	    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	  }
+	} else {
+	  // reference by path
+	  //-------------------------------------------
+	  gOFS->eosViewMutex.Lock();
+	  try {
+	    fmd = gOFS->eosView->getFile(path.c_str());
+	  } catch ( eos::MDException &e ) {
+	    errno = e.getErrno();
+	    stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+	    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	  }
 	}
 	gOFS->eosViewMutex.UnLock();
 	//-------------------------------------------
@@ -1463,62 +1522,108 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  retc = errno;
 	} else {
 	  XrdOucString sizestring;
-	  char ctimestring[4096];
-	  char mtimestring[4096];
-	  eos::FileMD::ctime_t mtime;
-	  eos::FileMD::ctime_t ctime;
-	  fmd->getCTime(ctime);
-	  fmd->getMTime(mtime);
-	  time_t filectime = (time_t) ctime.tv_sec;
-	  time_t filemtime = (time_t) mtime.tv_sec;
-
-	  stdOut  = "  File: '"; stdOut += path; stdOut += "'";
-	  stdOut += "  Size: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getSize()); stdOut+="\n";
-	  stdOut += "Modify: "; stdOut += ctime_r(&filectime, mtimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += XrdCommonFileSystem::GetSizeString(sizestring, mtime.tv_sec); stdOut += "."; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, mtime.tv_nsec); stdOut += "\n";
-	  stdOut += "Change: "; stdOut += ctime_r(&filemtime, ctimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += XrdCommonFileSystem::GetSizeString(sizestring, ctime.tv_sec); stdOut += "."; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, ctime.tv_nsec);stdOut += "\n";
-	  stdOut += "  CUid: "; stdOut += (int)fmd->getCUid(); stdOut += " CGid: "; stdOut += (int)fmd->getCGid();
 	  
-	  stdOut += "   Fid: "; XrdCommonFileId::Fid2Hex(fmd->getId(),sizestring); stdOut += sizestring; stdOut+=" ";
-	  stdOut += "   Pid: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getContainerId()); stdOut+="\n";
-	  stdOut += "XStype: "; stdOut += XrdCommonLayoutId::GetChecksumString(fmd->getLayoutId());
-	  stdOut += "    XS: "; 
-	  for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
-	    char hb[3]; sprintf(hb,"%02x ", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
-	    stdOut += hb;
+	  if ( (option.find("-path")) != STR_NPOS) {
+	    stdOut += "path:   "; 
+	    stdOut += path;
+	    stdOut+="\n";
 	  }
-	  stdOut+="\n";
-	  stdOut +  "Layout: "; stdOut += XrdCommonLayoutId::GetLayoutTypeString(fmd->getLayoutId()); stdOut += " Stripes: "; stdOut += (int)(XrdCommonLayoutId::GetStripeNumber(fmd->getLayoutId())+1);
-	  stdOut += " *******\n";
-	  stdOut += "  #Rep: "; stdOut += (int)fmd->getNumLocation(); stdOut+="\n";
 
-	  stdOut += "<#> <fs-id> "; stdOut += XrdMgmFstFileSystem::GetInfoHeader();
-	  stdOut += "-------\n";
-	  eos::FileMD::LocationVector::const_iterator lociter;
-	  int i=0;
-	  for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
-	    char fsline[4096];
-	    XrdOucString location="";
-	    XrdOucString si=""; si+= (int) i;
-	    location += (int) *lociter;
-	    sprintf(fsline,"%3s   %5s ",si.c_str(), location.c_str());
-	    stdOut += fsline; 
-	    XrdMgmFstNode::gMutex.Lock();
-	    XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
-	    if (filesystem) {
-	      stdOut += filesystem->GetInfoString();
-	    } else {
-	      stdOut += "NA";
+	  if ( (option.find("-fxid")) != STR_NPOS) {
+	    XrdCommonFileId::Fid2Hex(fmd->getId(),sizestring); 
+	    stdOut += "fxid:   "; 
+	    stdOut += sizestring;
+	    stdOut+="\n";
+	  }
+	  
+	  if ( (option.find("-fid")) != STR_NPOS) {
+	    char fid[32];
+	    snprintf(fid,32,"%llu",(unsigned long long) fmd->getId());
+	    stdOut += "fid:    ";
+	    stdOut += fid;
+	    stdOut+="\n";
+	  }
+
+	  if ( (option.find("-size")) != STR_NPOS) {
+	    stdOut += "size:   ";
+	    stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getSize()); stdOut+="\n";
+	  }
+
+	  if ( (option.find("-checksum")) != STR_NPOS) {
+	    stdOut += "xstype: "; stdOut += XrdCommonLayoutId::GetChecksumString(fmd->getLayoutId());
+	    stdOut += "xs:     ";
+	    for (unsigned int i=0; i< XrdCommonLayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
+	      char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+	      stdOut += hb;
 	    }
-								     
-	    
-	    XrdMgmFstNode::gMutex.UnLock();
-	    i++;
+	    stdOut += "\n";
 	  }
-	  for ( lociter = fmd->unlinkedLocationsBegin(); lociter != fmd->unlinkedLocationsEnd(); ++lociter) {
-	    stdOut += "(undeleted) $ "; stdOut += (int) *lociter; stdOut += "\n";
-	  }
-	  stdOut += "*******";
 
+	  if (!(option.length()) ) {
+	    char ctimestring[4096];
+	    char mtimestring[4096];
+	    eos::FileMD::ctime_t mtime;
+	    eos::FileMD::ctime_t ctime;
+	    fmd->getCTime(ctime);
+	    fmd->getMTime(mtime);
+	    time_t filectime = (time_t) ctime.tv_sec;
+	    time_t filemtime = (time_t) mtime.tv_sec;
+	    char fid[32];
+	    snprintf(fid,32,"%llu",(unsigned long long) fmd->getId());
+
+	    stdOut  = "  File: '"; stdOut += path; stdOut += "'";
+	    stdOut += "  Size: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getSize()); stdOut+="\n";
+	    stdOut += "Modify: "; stdOut += ctime_r(&filectime, mtimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += XrdCommonFileSystem::GetSizeString(sizestring, mtime.tv_sec); stdOut += "."; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, mtime.tv_nsec); stdOut += "\n";
+	    stdOut += "Change: "; stdOut += ctime_r(&filemtime, ctimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += XrdCommonFileSystem::GetSizeString(sizestring, ctime.tv_sec); stdOut += "."; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, ctime.tv_nsec);stdOut += "\n";
+	    stdOut += "  CUid: "; stdOut += (int)fmd->getCUid(); stdOut += " CGid: "; stdOut += (int)fmd->getCGid();
+	    
+	    stdOut += "  Fxid: "; XrdCommonFileId::Fid2Hex(fmd->getId(),sizestring); stdOut += sizestring; stdOut+=" "; stdOut += "Fid: "; stdOut += fid; stdOut += " ";
+	    stdOut += "   Pid: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getContainerId()); stdOut+="\n";
+	    stdOut += "XStype: "; stdOut += XrdCommonLayoutId::GetChecksumString(fmd->getLayoutId());
+	    stdOut += "    XS: "; 
+	    for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
+	      char hb[3]; sprintf(hb,"%02x ", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+	      stdOut += hb;
+	    }
+	    stdOut+="\n";
+	    stdOut +  "Layout: "; stdOut += XrdCommonLayoutId::GetLayoutTypeString(fmd->getLayoutId()); stdOut += " Stripes: "; stdOut += (int)(XrdCommonLayoutId::GetStripeNumber(fmd->getLayoutId())+1);
+	    stdOut += " *******\n";
+	    stdOut += "  #Rep: "; stdOut += (int)fmd->getNumLocation(); stdOut+="\n";
+	    
+	    stdOut += "<#> <fs-id> "; stdOut += XrdMgmFstFileSystem::GetInfoHeader();
+	    stdOut += "-------\n";
+	    eos::FileMD::LocationVector::const_iterator lociter;
+	    int i=0;
+	    for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+	      // ignore filesystem id 0
+	      if (! (*lociter)) {
+		eos_err("fsid 0 found");
+		continue;
+	      }
+	      
+	      char fsline[4096];
+	      XrdOucString location="";
+	      XrdOucString si=""; si+= (int) i;
+	      location += (int) *lociter;
+	      sprintf(fsline,"%3s   %5s ",si.c_str(), location.c_str());
+	      stdOut += fsline; 
+	      XrdMgmFstNode::gMutex.Lock();
+	      XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
+	      if (filesystem) {
+		stdOut += filesystem->GetInfoString();
+	      } else {
+		stdOut += "NA\n";
+	      }
+	      
+	      
+	      XrdMgmFstNode::gMutex.UnLock();
+	      i++;
+	    }
+	    for ( lociter = fmd->unlinkedLocationsBegin(); lociter != fmd->unlinkedLocationsEnd(); ++lociter) {
+	      stdOut += "(undeleted) $ "; stdOut += (int) *lociter; stdOut += "\n";
+	    }
+	    stdOut += "*******";
+	  }
 	}
       }
       MakeResult(dosort);
@@ -1768,9 +1873,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       schedulinggroupbalance.set_empty_key("");
       
       bool calcbalance = false;
-
+      bool findzero = false;
       if (option.find("b")!=STR_NPOS) {
 	calcbalance=true;
+      }
+
+      if (option.find("0")!=STR_NPOS) {
+	findzero = true;
       }
 
       if (attribute.length()) {
@@ -1796,8 +1905,25 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    std::sort(found_files[i].begin(), found_files[i].end());
 	    for (unsigned int j = 0; j< found_files[i].size(); j++) {
 	      if (!calcbalance) {
-		stdOut += found_files[i][j].c_str();
-		stdOut += "\n";
+		if (findzero) {
+		  //-------------------------------------------
+		  gOFS->eosViewMutex.Lock();
+		  eos::FileMD* fmd = 0;
+		  try {
+		    fmd = gOFS->eosView->getFile(found_files[i][j].c_str());
+		    if (!fmd->getSize()) {
+		      stdOut += found_files[i][j].c_str();
+		      stdOut += "\n";
+		    }
+		  } catch( eos::MDException &e ) {
+		    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+		  }
+		  gOFS->eosViewMutex.UnLock();
+		  //-------------------------------------------
+		} else {
+		  stdOut += found_files[i][j].c_str();
+		  stdOut += "\n";
+		}
 	      } else {
 		// get location
 		//-------------------------------------------
@@ -1812,8 +1938,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		for (unsigned int i=0; i< fmd->getNumLocation(); i++) {
 		  int loc = fmd->getLocation(i);
 		  size_t size = fmd->getSize();
+		  if (!loc) {
+		    eos_err("fsid 0 found %s %llu",fmd->getName().c_str(), fmd->getId());
+		    continue;
+		  }
 		  filesystembalance[loc]+=size;
 		  XrdMgmFstNode::gMutex.Lock();
+
 		  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[loc];
 		  if (filesystem) {
 		    spacebalance[filesystem->GetSpaceName()]+=size;

@@ -612,7 +612,10 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
 {
   // get the space this fsid points to ....
   XrdMgmFstFileSystem* filesystem=0;
-  if ((filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[fsid])) {
+  if (!fsid)
+    eos_static_err ("0 fsid found");
+
+  if ( fsid && (filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[fsid])) {
     const char* spacename = filesystem->GetSpaceName();
     eos_static_debug("filesystem for %u %u belongs to space %s", filesystem->GetId(), fsid, spacename);
 
