@@ -2000,7 +2000,6 @@ com_file (char* arg1) {
   // convenience function
   if (cmd == "info") {
     arg.replace("info ","");
-    printf("Calling %s\n", arg.c_str());
     return com_fileinfo((char*) arg.c_str());
   }
 
@@ -2204,7 +2203,8 @@ com_file (char* arg1) {
   printf("usage: file drop <path> <fsid>                                       :  drop the file <path> part on <fsid>\n");
   printf("       file move <path> <fsid1> <fsid2>                              :  move the file <path> part on <fsid1> to <fsid2>\n");
   printf("       file replicate <path> <fsid1> <fsid2>                         :  replicate file <path> part on <fsid1> to <fsid2>\n");
-  printf("       file adjustreplica <path>|fid:<fid> [space [subgroup]]        :  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
+  printf("       file adjustreplica <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]]\n");
+  printf("                                                                     :  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
   printf("       file check <path> [%%size%%checksum%%nrep%%force%%ouptut%%silent]  :  retrieves stat information from the physical replicas and verifies the correctness\n");
   printf("       - %%size                                                       :  return with an error code if there is a mismatch between the size meta data information\n");
   printf("       - %%checksum                                                   :  return with an error code if there is a mismatch between the checksum meta data information\n");
@@ -2213,7 +2213,7 @@ com_file (char* arg1) {
   printf("       - %%force                                                      :  forces to get the MD even if the node is down\n");
   printf("       - %%output                                                     :  prints lines with inconsitency information\n");
   printf("       file info <path>                                              : convenience function aliasing to 'fileinfo' command\n");
-  printf("       file layout <path> -stripes <n>                               : change the number of stripes of a file with replica layout to <n>\n");
+  printf("       file layout <path>|fid:<fid-dex>|fxid:<fid-hex>  -stripes <n> : change the number of stripes of a file with replica layout to <n>\n");
   return (0);
 }
 
@@ -2227,23 +2227,43 @@ com_fileinfo (char* arg1) {
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString path = subtokenizer.GetToken();
-  XrdOucString selection = subtokenizer.GetToken();
+  XrdOucString option = "";
+  do {
+    XrdOucString newoption = subtokenizer.GetToken();
+    if (!newoption.length()) {
+      break;
+    } else {
+      option+= newoption;
+    }
+  } while(1);
 
   XrdOucString in = "mgm.cmd=fileinfo&"; 
   if (!path.length()) {
     goto com_fileinfo_usage;
     
   } else {
-    path = abspath(path.c_str());
+    if ((!path.beginswith("fid:"))&&(!path.beginswith("fxid:")))
+      path = abspath(path.c_str());
     in += "mgm.path=";
     in += path;
-    
+    if (option.length()) {
+      in += "&mgm.file.info.option=";
+      in += option;
+    }
+
     global_retc = output_result(client_user_command(in));
     return (0);
   }
 
  com_fileinfo_usage:
-  printf("usage: fileinfo <path>                                                   :  print file information for <path>\n");
+  printf("usage: fileinfo <path> [-path] [-fxid] [-fid] [-size] [-checksum]        :  print file information for <path>\n");
+  printf("       fileinfo fxid:<fid-hex>                                           :  print file information for fid <fid-hex>\n");
+  printf("       fileinfo fid:<fid-dec>                                            :  print file information for fid <fid-dec>\n");
+  printf("                                                                  -path  :  selects to add the path information to the output\n");
+  printf("                                                                  -fxid  :  selects to add the hex file id information to the output\n");
+  printf("                                                                  -fid   :  selects to add the base10 file id information to the output\n");
+  printf("                                                                  -size  :  selects to add the size information to the output\n");
+  printf("                                                               -checksum :  selects to add the checksum information to the output\n");
   return (0);
 
 }
@@ -2454,6 +2474,7 @@ com_find (char* arg1) {
   XrdOucString attribute="";
   XrdOucString printkey="";
   XrdOucString filter="";
+  XrdOucString stripes="";
 
   XrdOucString in = "mgm.cmd=find&"; 
   while ( (s1 = subtokenizer.GetToken()).length() && (s1.beginswith("-")) ) {
@@ -2469,6 +2490,10 @@ com_find (char* arg1) {
       option +="f";
     }
     
+    if (s1 == "-0") {
+      option +="f0";
+    }
+
     if (s1.beginswith( "-h" )) {
       goto com_find_usage;
     }
@@ -2498,6 +2523,12 @@ com_find (char* arg1) {
       }
     }
 
+    if (s1 == "-layoutstripes") {
+      stripes = subtokenizer.GetToken();
+      if (!stripes.length()) 
+	goto com_find_usage;
+    }
+
     if (s1 == "-p") {
       option += "p";
       
@@ -2515,13 +2546,49 @@ com_find (char* arg1) {
   if (s1.length()) {
     path = s1;
   }
-  
+
+  // the find to change a layout
+  if ( (stripes.length()) ) {
+    XrdOucString subfind = oarg;
+    XrdOucString repstripes= " "; repstripes += stripes; repstripes += " ";
+    subfind.replace("-layoutstripes","");
+    subfind.replace(repstripes," -f -s ");
+    int rc = com_find((char*)subfind.c_str());
+    std::vector<std::string> files_found;
+    files_found.clear();
+    command_result_stdout_to_vector(files_found);
+    std::vector<std::string>::const_iterator it;
+    unsigned long long cnt=0;
+    unsigned long long goodentries=0;
+    unsigned long long badentries=0;
+    for (unsigned int i=0; i< files_found.size(); i++) {
+      if (!files_found[i].length())
+	continue;
+
+      XrdOucString cline="layout "; 
+      cline += files_found[i].c_str();
+      cline += " -stripes "; 
+      cline += stripes;
+      rc = com_file((char*)cline.c_str());
+      if (rc) {
+	badentries++;
+      } else {
+	goodentries++;
+      }
+      cnt++;
+    }
+    rc = 0;
+    if (!silent) {
+      fprintf(stderr,"nentries=%llu good=%llu bad=%llu\n", cnt, goodentries,badentries);
+    }
+    return 0;
+  }
+
   // the find with consistency check 
   if ( (option.find("c")) != STR_NPOS ) {
     XrdOucString subfind = oarg;
     subfind.replace("-c","-s -f");
     subfind.replace(filter,"");
-    printf("calling %s\n", subfind.c_str());
     int rc = com_find((char*)subfind.c_str());
     std::vector<std::string> files_found;
     files_found.clear();
@@ -2582,12 +2649,15 @@ com_find (char* arg1) {
   return (0);
 
  com_find_usage:
-  printf("usage: find [-s] [-d] [-f] [-x <key=<val>] [-p <key>] [-b] [-c %%tags] <path> :  find files(-f) or directories (-d) in <path>\n");
-  printf("                                                                              :  find entries(-x) with <key>=<val>\n");
-  printf("                                                                              :  additionally print (-p) the value of <key> for each entry\n");
-  printf("                                                                              :  query the server balance (-b) of the files found\n");
-  printf("                                                                              :  find all files with inconsistencies (-c) defined by %%tags [ see help of 'file check' command]\n");
-  printf("                                                                              :  (-s) run as a subcommand (in silent mode)\n");
+  printf("usage: find [-s] [-d] [-f] [-0] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
+  printf("                                                                        -f -d :  find files(-f) or directories (-d) in <path>\n");
+  printf("                                                               -x <key>=<val> :  find entries with <key>=<val>\n");
+  printf("                                                                           -0 :  find 0-size files \n");
+  printf("                                                                     -p <key> :  additionally print the value of <key> for each entry\n");
+  printf("                                                                           -b :  query the server balance of the files found\n");
+  printf("                                                                    -c %%tags  :  find all files with inconsistencies defined by %%tags [ see help of 'file check' command]\n");
+  printf("                                                                           -s :  run as a subcommand (in silent mode)\n");
+  printf("                                                           -layoutstripes <n> :  apply new layout with <n> stripes to all files found\n");
   printf("                                                                      default :  find files and directories\n");
   return (0);
 }
