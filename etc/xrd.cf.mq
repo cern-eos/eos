@@ -4,6 +4,11 @@ all.export /eos/ nolock
 all.role manager
 all.manager localhost 2313
 #############################################################
+# SSS authentication
+xrootd.seclib libXrdSec.so
+sec.protocol sss -c /opt/eos/sss/eos-sss.keytab -s /opt/eos/sss/eos-sss.keytab
+sec.protbind * only sss
+#############################################################
 #allow upto 1024 threads
 xrd.sched mint 16 maxt 1024 idle 128
 #run on port 1097

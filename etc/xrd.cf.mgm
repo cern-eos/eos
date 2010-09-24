@@ -14,11 +14,17 @@ oss.fdlimit 16384 32768
 # UNIX authentication
 sec.protocol  unix
 # SSL authentication
-#sec.protocol ssl -d:10 -export:/tmp/proxy/  -cert:/etc/grid-security/hostcert.pem -key:/etc/grid-security/hostkey.pem -mapcernuser:1 -mapnobody:1 -mapguser:1 -mapgroup:1
+sec.protocol ssl -d:10 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -mapcernuser:1 -mapnobody:1 -mapguser:1 
+# SSS authentication
+sec.protocol sss -c /opt/eos/sss/eos-sss.keytab -s /opt/eos/sss/eos-sss.keytab
 # KRB  authentication
 sec.protocol krb5 host/<host>@CERN.CH
 ###########################################################
-sec.protbind * only krb5 unix
+sec.protbind lxfs* only sss
+sec.protbind localhost.localdomain unix
+sec.protbind localhost unix
+sec.protbind lxbra0301 unix
+sec.protbind * only ssl krb5 
 ###########################################################
 mgmofs.fs /
 mgmofs.targetport 1095

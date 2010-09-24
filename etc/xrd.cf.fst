@@ -8,6 +8,7 @@ sec.protocol  unix
 ###########################################################
 all.export / nolock
 all.trace none
+all.manager localhost 2131
 #ofs.trace open
 ###########################################################
 xrd.port 1095
