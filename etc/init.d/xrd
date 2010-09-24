@@ -106,7 +106,6 @@ start() {
 			if [ $RETVAL -eq 0 ]; then
 			        pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 $prog.*$_XRD_OPTIONS\$" | awk '{print $1}'`
 				if [ $USER = "root" ]; then
-				    echo $USER removing pid
 				    rm -f /var/run/$prog.$i.pid
 				fi
 				if [ -n "$pid" ]; then
@@ -191,10 +190,6 @@ if [ -n "$2" ]; then
         XRD_ROLES=$2
 	if [ "$XRD_ROLES" = "mgm" ]; then
    		XRD_ROLEFLAG="-m "
-	fi
-
-	if [ "$XRD_ROLES" = "mq" ]; then
-   		XRD_ROLEFLAG=" "
 	fi
 
 elif [ -z "${XRD_ROLES}" ]; then
