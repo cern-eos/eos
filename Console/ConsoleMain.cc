@@ -839,6 +839,8 @@ com_attr (char* arg1) {
   printf("         attr: sys.forced.nouserlayout=1        = disables the user settings with user.forced.<xxx>\n");
   printf("         attr: sys.forced.nofsselection=1       = disables user defined filesystem selection with environment variables for reads\n");
   printf("         attr: sys.stall.unavailable=<sec>      = stall clients for <sec> seconds if a needed file system is unavailable\n");
+  printf("         attr: sys.heal.unavailable=<tries>     = try to heal an unavailable file for atleast <tries> times - must be >= 3 !!\n");
+  printf("                                                  - the product <heal-tries> * <stall-time> should be bigger than the expect replication time for a given filesize!\n");
   printf("         User Variables:\n");
   printf("         -----------------------\n");
   printf("         attr: user.forced.space=<space>        = s.a.\n");
@@ -1144,10 +1146,16 @@ com_fs (char* arg1) {
 
   if ( subcommand == "dropfiles" ) {
     XrdOucString id;
+    XrdOucString option;
     id = subtokenizer.GetToken();    
+    option = subtokenizer.GetToken();
 
     if (!id.length()) 
       goto com_fs_usage;
+
+    if (option.length() && (option != "-f")) {
+      goto com_fs_usage;
+    }
 
     XrdOucString subcmd="dumpmd -s "; subcmd += id; subcmd += " -path";
 
@@ -1186,6 +1194,9 @@ com_fs (char* arg1) {
 	    fprintf(stdout,"%06d: %s\n", i, line.c_str());
 	    // call the replication command here
 	    subcmd = "drop "; subcmd += line; subcmd += " ";subcmd += id; 
+	    if (option.length()) { 
+	      subcmd += " "; subcmd += option; 
+	    }
 	    com_file( (char*) subcmd.c_str());
 	  }
 	}
@@ -1345,7 +1356,7 @@ com_fs (char* arg1) {
   printf("                    -sched <group>                              : allows to change the scheduling group\n");
   printf("       fs clone <fs-id-src> <fs-id-dst>                         : allows to clone the contents of <fs-id-src> to <fs-id-dst>\n");
   printf("       fs compare <fs-id-src> <fs-id-dst>|<space>               : does a comparison of <fs-id-src> with <fs-id-dst>|<space>\n");
-  printf("       fs dropfiles  <fs-id>                                    : allows to drop all files on <fs-id>\n");
+  printf("       fs dropfiles <fs-id> [-f]                                : allows to drop all files on <fs-id> - force (-f) unlinks/removes files at the time from the NS (you have to cleanup or remove the files from disk) \n");
   printf("       fs heal <fs-id-src>|<path> [<space-dst> [<subgroup>]]    : heals replica's of filesystem <fs-id> or path <path> placing/keeping in <space-dst> (+<subgroup>)\n");
   printf("       fs flatten    <space> [<tag>]                            : allows to flatten the file distribution in <space> for files with tag <tag>\n");
   printf("       fs dumpmd [-s] <fs-id> [-fid] [-path]                    : dump all file meta data on this filesystem in query format\n");
@@ -2010,6 +2021,13 @@ com_file (char* arg1) {
     in += "&mgm.subcmd=drop";
     in += "&mgm.path="; in += path;
     in += "&mgm.file.fsid="; in += fsid1;
+
+    if (fsid2 == "-f") {
+      in += "&mgm.file.force=1";
+    } else {
+      if (fsid2.length()) 
+	goto com_file_usage;
+    }
   }
   
   if (cmd == "move") {
@@ -2200,8 +2218,8 @@ com_file (char* arg1) {
   return (0);
 
  com_file_usage:
-  printf("usage: file drop <path> <fsid>                                       :  drop the file <path> part on <fsid>\n");
-  printf("       file move <path> <fsid1> <fsid2>                              :  move the file <path> part on <fsid1> to <fsid2>\n");
+  printf("usage: file drop <path> <fsid> [-f]                                  :  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
+  printf("       file move <path> <fsid1> <fsid2>                              :  move the file <path> from  <fsid1> to <fsid2>\n");
   printf("       file replicate <path> <fsid1> <fsid2>                         :  replicate file <path> part on <fsid1> to <fsid2>\n");
   printf("       file adjustreplica <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]]\n");
   printf("                                                                     :  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
