@@ -58,14 +58,20 @@ public:
     vid.uid=vid.gid=99; vid.uid_list.clear(); vid.gid_list.clear(); vid.uid_list.push_back(99);vid.gid_list.push_back(99); vid.sudoer =false;
   }
 
+  static void Root(VirtualIdentity &vid) {
+    vid.uid=vid.gid=0; vid.uid_list.clear(); vid.gid_list.clear(); vid.uid_list.push_back(0);vid.gid_list.push_back(0); vid.sudoer =false;
+  }
+
   static void Copy(VirtualIdentity &vidin, VirtualIdentity &vidout) {
     vidout.uid = vidin.uid; vidout.gid = vidin.gid;
     vidout.sudoer = vidin.sudoer;
     vidout.name = vidin.name;
     vidout.tident = vidin.tident;
     vidout.prot = vidin.prot;
+    vidout.uid_list.clear();
+    vidout.gid_list.clear();
     for (unsigned int i=0; i< vidin.uid_list.size(); i++) vidout.uid_list.push_back(vidin.uid_list[i]);
-    for (unsigned int i=0; i< vidin.gid_list.size(); i++) vidout.gid_list.push_back(vidin.uid_list[i]);
+    for (unsigned int i=0; i< vidin.gid_list.size(); i++) vidout.gid_list.push_back(vidin.gid_list[i]);
   }
 
   static void IdMap(const XrdSecEntity* client,const char* env, const char* tident, XrdCommonMapping::VirtualIdentity &vid);
