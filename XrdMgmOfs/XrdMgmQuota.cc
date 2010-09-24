@@ -46,7 +46,9 @@ XrdMgmSpaceQuota::AddQuota(unsigned long tag, unsigned long id, long long value,
 {
   if (lock) Mutex.Lock();
   eos_static_debug("add quota tag=%lu id=%lu value=%llu", tag, id , value);
-  Quota[Index(tag,id)] += value;
+  // fix for avoiding negative numbers
+  if ( ( ((long long)Quota[Index(tag,id)]) + (long long)value) >=0)
+    Quota[Index(tag,id)] += value;
   eos_static_debug("sum quota tag=%lu id=%lu value=%llu", tag, id, Quota[Index(tag,id)]);
   if (lock) Mutex.UnLock();
 }
@@ -392,6 +394,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
 	  // ok, that can be used
 	  selectedfs.push_back(currentfs);
 	  nassigned++;
+	  eos_static_debug("fs %u selected for placement!", filesystem->GetId());
 	} else {
 	  eos_static_debug("fs %u cannot be selected!", filesystem->GetId());
 	}
@@ -515,10 +518,10 @@ int XrdMgmSpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid,
       return 0;
     } else {
       // for read we select one randomly and iterate until we have an available replica
-      unsigned int randomindex = (unsigned int) (( 0.999999 * random()* nfilesystems )/RAND_MAX);
-      eos_static_debug("selected random index for filesystem selection %u [%u]", randomindex, nfilesystems);
-      for (unsigned int i=0; i< nfilesystems; i++) {
-	unsigned int currentindex = (i+randomindex)%nfilesystems;
+      unsigned int randomindex = (unsigned int) (( 0.999999 * random()* locationsfs.size() )/RAND_MAX);
+      eos_static_debug("selected random index for filesystem selection %u [%u]", randomindex, locationsfs.size());
+      for (unsigned int i=0; i< locationsfs.size(); i++) {
+	unsigned int currentindex = (i+randomindex)%locationsfs.size();
 	// we have only a single replica ... so just check the state of the filesystem where that is located
 	if ((currentindex < locationsfs.size()) && (locationsfs[currentindex])) {
 	  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[locationsfs[currentindex]];
@@ -673,7 +676,7 @@ XrdMgmQuota::UpdateHint(unsigned int fsid)
       spacequota->PhysicalTmpToMaxFiles();
 
     } else {
-      eos_static_debug("space %s needs to recomputation",spacename);
+      eos_static_debug("space %s needs no recomputation",spacename);
     }
 
   }

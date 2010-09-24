@@ -389,26 +389,30 @@ const   char          *getVersion();
         int            _dropstripe(const char           *path, 
 				   XrdOucErrInfo        &error,
 				   XrdCommonMapping::VirtualIdentity &vid,
-				   unsigned long         fsid);
+				   unsigned long         fsid, 
+				   bool                  forceRemove=false);
 
         int            _movestripe(const char           *path, 
 				   XrdOucErrInfo        &error,
 				   XrdCommonMapping::VirtualIdentity &vid,
 				   unsigned long         sourcefsid,
-				   unsigned long         targetfsid);
+				   unsigned long         targetfsid,
+                                   bool                  expressflag=false);
 
         int            _copystripe(const char           *path, 
 				   XrdOucErrInfo        &error,
 				   XrdCommonMapping::VirtualIdentity &vid,
 				   unsigned long         sourcefsid,
-				   unsigned long         targetfsid);
+				   unsigned long         targetfsid,
+				   bool                  expressflag=false);
 
         int            _replicatestripe(const char           *path, 
 				   XrdOucErrInfo        &error,
 				   XrdCommonMapping::VirtualIdentity &vid,
 				   unsigned long         sourcefsid,
 				   unsigned long         targetfsid, 
-				   bool                  dropstripe=false);
+ 				   bool                  dropstripe=false,
+				   bool                  expressflag=false);
 
 
         int            _replicatestripe(eos::FileMD* fmd, 
@@ -416,7 +420,8 @@ const   char          *getVersion();
 				   XrdCommonMapping::VirtualIdentity &vid,
 				   unsigned long         sourcefsid,
 				   unsigned long         targetfsid, 
-				   bool                  dropstripe=false);
+				   bool                  dropstripe=false,
+				   bool                  expressflag=false);
 
   
 // Common functions
@@ -458,6 +463,9 @@ virtual bool           Init(XrdSysError &);
         XrdSysMutex      eosViewMutex;       // -> mutex making the namespace single threaded
         XrdOucString     MgmMetaLogDir;      //  Directory containing the meta data (change) log files
         XrdMgmOfsStat    MgmStats;           //  Mgm Statistics
+
+        google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;
+        XrdSysMutex      MgmHealMapMutex;
 
         XrdCommonClientAdminManager CommonClientAdminManager; // Manager of ClientAdmin's
 

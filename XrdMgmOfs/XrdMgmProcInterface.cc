@@ -899,7 +899,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  return SFS_ERROR;
 	}
 	
-	if ((retc = inodir->open(path.c_str(),vid,0)) != SFS_OK) {
+	if ((retc = inodir->open(path.c_str(),vid_in,0)) != SFS_OK) {
 	  delete inodir;
 	  return retc;
 	}
@@ -974,10 +974,16 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	retc = EINVAL;
       } else {
 	if (subcmd == "drop") {
-	  XrdOucString sfsid = opaque.Get("mgm.file.fsid");
+	  XrdOucString sfsid  = opaque.Get("mgm.file.fsid");
+	  XrdOucString sforce = opaque.Get("mgm.file.force");
+	  bool forceRemove=false;
+	  if (sforce.length() && (sforce=="1")) {
+	    forceRemove = true;
+	  }
+	    
 	  unsigned long fsid = (sfsid.length())?strtoul(sfsid.c_str(),0,10):0;
 
-	  if (gOFS->_dropstripe(path.c_str(),*error, vid, fsid)) {
+	  if (gOFS->_dropstripe(path.c_str(),*error, vid_in, fsid, forceRemove)) {
 	    stdErr += "error: unable to drop stripe";
 	    retc = errno;
 	  } else {
@@ -1060,7 +1066,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  XrdOucString sfsidtarget = opaque.Get("mgm.file.targetfsid");
 	  unsigned long targetfsid = (sfsidsource.length())?strtoul(sfsidtarget.c_str(),0,10):0;
 
-	  if (gOFS->_movestripe(path.c_str(),*error, vid, sourcefsid, targetfsid)) {
+	  if (gOFS->_movestripe(path.c_str(),*error, vid_in, sourcefsid, targetfsid)) {
 	    stdErr += "error: unable to move stripe";
 	    retc = errno;
 	  } else {
@@ -1069,12 +1075,16 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	}
 	
 	if (subcmd == "replicate") {
-	  XrdOucString sfsidsource = opaque.Get("mgm.file.sourcefsid");
-	  unsigned long sourcefsid = (sfsidsource.length())?strtoul(sfsidsource.c_str(),0,10):0;
-	  XrdOucString sfsidtarget = opaque.Get("mgm.file.targetfsid");
-	  unsigned long targetfsid = (sfsidtarget.length())?strtoul(sfsidtarget.c_str(),0,10):0;
+	  XrdOucString sfsidsource  = opaque.Get("mgm.file.sourcefsid");
+	  unsigned long sourcefsid  = (sfsidsource.length())?strtoul(sfsidsource.c_str(),0,10):0;
+	  XrdOucString sfsidtarget  = opaque.Get("mgm.file.targetfsid");
+	  unsigned long targetfsid  = (sfsidtarget.length())?strtoul(sfsidtarget.c_str(),0,10):0;
+	  XrdOucString sexpressflag = (opaque.Get("mgm.file.express"));
+	  bool expressflag=false;
+	  if (sexpressflag == "1")
+	    expressflag = 1;
 
-	  if (gOFS->_copystripe(path.c_str(),*error, vid, sourcefsid, targetfsid)) {
+	  if (gOFS->_copystripe(path.c_str(),*error, vid_in, sourcefsid, targetfsid)) {
 	    stdErr += "error: unable to replicate stripe";
 	    retc = errno;
 	  } else {
@@ -1086,6 +1096,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  // only root can do that
 	  if (vid_in.uid==0) {
 	    eos::FileMD* fmd=0;
+
+	    // this flag indicates that the replicate command should queue this transfers on the head of the FST transfer lists
+	    XrdOucString sexpressflag = (opaque.Get("mgm.file.express"));
+	    bool expressflag=false;
+	    if (sexpressflag == "1")
+	      expressflag = 1;
+
 
 	    XrdOucString creationspace    = opaque.Get("mgm.file.desiredspace");
 	    int icreationsubgroup = -1;
@@ -1216,7 +1233,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 			for (unsigned int i=0; i< selectedfs.size(); i++) {
 			  //			  stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
 			  // add replication here 
-			  if (gOFS->_replicatestripe(fmd,*error, vid, sourcefsid, selectedfs[i])) {
+			  if (gOFS->_replicatestripe(fmd,*error, vid_in, sourcefsid, selectedfs[i] , false, expressflag)) {
 			    stdErr += "error: unable to replicate stripe "; stdErr += (int) sourcefsid; stdErr += " => "; stdErr += (int) selectedfs[i]; stdErr += "\n";
 			    retc = errno;
 			  } else {
@@ -1642,7 +1659,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	if (option == "p") {
 	  mode |= SFS_O_MKPTH;
 	}
-	if (gOFS->_mkdir(path.c_str(), mode, *error, *pVid,(const char*)0)) {
+	if (gOFS->_mkdir(path.c_str(), mode, *error, vid_in,(const char*)0)) {
 	  stdErr += "error: unable to create directory";
 	  retc = errno;
 	}
@@ -1657,7 +1674,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	stdErr="error: you have to give a path name to call 'rmdir'";
 	retc = EINVAL;
       } else {
-	if (gOFS->_remdir(path.c_str(), *error, *pVid,(const char*)0)) {
+	if (gOFS->_remdir(path.c_str(), *error, vid_in,(const char*)0)) {
 	  stdErr += "error: unable to remove directory";
 	  retc = errno;
 	}
@@ -1678,13 +1695,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	int listrc=0;
 	XrdOucString filter = "";
 
-	if(gOFS->_stat(path.c_str(),&buf, *error,  *pVid, (const char*) 0)) {
+	if(gOFS->_stat(path.c_str(),&buf, *error,  vid_in, (const char*) 0)) {
 	  stdErr = error->getErrText();
 	  retc = errno;
 	} else {
 	  // if this is a directory open it and list
 	  if (S_ISDIR(buf.st_mode)) {
-	    listrc = dir.open(path.c_str(), *pVid, (const char*) 0);
+	    listrc = dir.open(path.c_str(), vid_in, (const char*) 0);
 	  } else {
 	    // if this is a file, open the parent and set the filter
 	    if (path.endswith("/")) {
@@ -1697,7 +1714,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    } else {
 	      filter.assign(path,rpos+1);
 	      path.erase(rpos);
-	      listrc = dir.open(path.c_str(), *pVid, (const char*) 0);
+	      listrc = dir.open(path.c_str(), vid_in, (const char*) 0);
 	    }
 	  }
 	  
@@ -1735,7 +1752,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		XrdOucString statpath = path; statpath += "/"; statpath += val;
 		while (statpath.replace("//","/")) {}
 		struct stat buf;
-		if (gOFS->_stat(statpath.c_str(),&buf, *error, *pVid, (const char*) 0)) {
+		if (gOFS->_stat(statpath.c_str(),&buf, *error, vid_in, (const char*) 0)) {
 		  stdErr += "error: unable to stat path "; stdErr += statpath; stdErr +="\n";
 		retc = errno;
 		} else {
@@ -1798,7 +1815,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  std::vector< std::vector<std::string> > found_dirs;
 	  std::vector< std::vector<std::string> > found_files;
 	  
-	  if (gOFS->_find(path.c_str(), *error, *pVid, found_dirs , found_files)) {
+	  if (gOFS->_find(path.c_str(), *error, vid_in, found_dirs , found_files)) {
 	    stdErr += "error: unable to remove file/directory";
 	    retc = errno;
 	  } else {
@@ -1806,7 +1823,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    for (int i = found_files.size()-1 ; i>=0; i--) {
 	      std::sort(found_files[i].begin(), found_files[i].end());
 	      for (unsigned int j = 0; j< found_files[i].size(); j++) {
-		if (gOFS->_rem(found_files[i][j].c_str(), *error, *pVid,(const char*)0)) {
+		if (gOFS->_rem(found_files[i][j].c_str(), *error, vid_in,(const char*)0)) {
 		  stdErr += "error: unable to remove file\n";
 		  retc = errno;
 		} 
@@ -1819,7 +1836,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		// don't even try to delete the root directory
 		if (found_dirs[i][j] == "/")
 		  continue;
-		if (gOFS->_remdir(found_dirs[i][j].c_str(), *error, *pVid,(const char*)0)) {
+		if (gOFS->_remdir(found_dirs[i][j].c_str(), *error, vid_in,(const char*)0)) {
 		  stdErr += "error: unable to remove directory";
 		  retc = errno;
 		} 
@@ -1827,7 +1844,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    }
 	  }
 	} else {
-	  if (gOFS->_rem(path.c_str(), *error, *pVid,(const char*)0)) {
+	  if (gOFS->_rem(path.c_str(), *error, vid_in,(const char*)0)) {
 	    stdErr += "error: unable to remove file/directory";
 	    retc = errno;
 	  }
@@ -1895,7 +1912,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	std::vector< std::vector<std::string> > found_files;
 
 
-	if (gOFS->_find(path.c_str(), *error, *pVid, found_dirs , found_files, key.c_str(),val.c_str())) {
+	if (gOFS->_find(path.c_str(), *error, vid_in, found_dirs , found_files, key.c_str(),val.c_str())) {
 	  stdErr += "error: unable to remove file/directory";
 	  retc = errno;
 	}
@@ -2033,7 +2050,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  std::vector< std::vector<std::string> > found_dirs;
 	  std::vector< std::vector<std::string> > found_files;
 	  if (option == "r") {
-	    if (gOFS->_find(path.c_str(), *error, *pVid, found_dirs , found_files)) {
+	    if (gOFS->_find(path.c_str(), *error, vid_in, found_dirs , found_files)) {
 	      stdErr += "error: unable to search in path";
 	      retc = errno;
 	    } 
@@ -2052,7 +2069,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		
 		if (subcmd == "ls") {
 		  XrdOucString partialStdOut = "";
-		  if (gOFS->_attr_ls(found_dirs[i][j].c_str(), *error, *pVid,(const char*)0, map)) {
+		  if (gOFS->_attr_ls(found_dirs[i][j].c_str(), *error, vid_in,(const char*)0, map)) {
 		    stdErr += "error: unable to list attributes in directory "; stdErr += found_dirs[i][j].c_str();
 		    retc = errno;
 		  } else {
@@ -2073,7 +2090,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		}
 		
 		if (subcmd == "set") {
-		  if (gOFS->_attr_set(found_dirs[i][j].c_str(), *error, *pVid,(const char*)0, key.c_str(),val.c_str())) {
+		  if (gOFS->_attr_set(found_dirs[i][j].c_str(), *error, vid_in,(const char*)0, key.c_str(),val.c_str())) {
 		    stdErr += "error: unable to set attribute in directory "; stdErr += found_dirs[i][j].c_str();
 		    retc = errno;
 		  } else {
@@ -2082,7 +2099,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		}
 		
 		if (subcmd == "get") {
-		  if (gOFS->_attr_get(found_dirs[i][j].c_str(), *error, *pVid,(const char*)0, key.c_str(), val)) {
+		  if (gOFS->_attr_get(found_dirs[i][j].c_str(), *error, vid_in,(const char*)0, key.c_str(), val)) {
 		    stdErr += "error: unable to get attribute '"; stdErr += key; stdErr += "' in directory "; stdErr += found_dirs[i][j].c_str();
 		  } else {
 		    stdOut += key; stdOut += "="; stdOut += "\""; stdOut += val; stdOut += "\""; stdOut +="\n"; 
@@ -2090,7 +2107,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		}
 		
 		if (subcmd == "rm") {
-		  if (gOFS->_attr_rem(found_dirs[i][j].c_str(), *error, *pVid,(const char*)0, key.c_str())) {
+		  if (gOFS->_attr_rem(found_dirs[i][j].c_str(), *error, vid_in,(const char*)0, key.c_str())) {
 		    stdErr += "error: unable to remove attribute '"; stdErr += key; stdErr += "' in directory "; stdErr += found_dirs[i][j].c_str();
 		  } else {
 		    stdOut += "success: removed attribute '"; stdOut += key; stdOut +="' from directory "; stdOut += found_dirs[i][j].c_str();stdOut += "\n";
@@ -2117,7 +2134,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	std::vector< std::vector<std::string> > found_dirs;
 	std::vector< std::vector<std::string> > found_files;
 	if (option == "r") {
-	  if (gOFS->_find(path.c_str(), *error, *pVid, found_dirs , found_files)) {
+	  if (gOFS->_find(path.c_str(), *error, vid_in, found_dirs , found_files)) {
 	    stdErr += "error: unable to search in path";
 	    retc = errno;
 	  } 
@@ -2133,7 +2150,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	for (unsigned int i = 0; i< found_dirs.size(); i++) {
 	  std::sort(found_dirs[i].begin(), found_dirs[i].end());
 	  for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
-	    if (gOFS->_chmod(found_dirs[i][j].c_str(), Mode, *error, *pVid, (char*)0)) {
+	    if (gOFS->_chmod(found_dirs[i][j].c_str(), Mode, *error, vid_in, (char*)0)) {
 	      stdErr += "error: unable to chmod of directory "; stdErr += found_dirs[i][j].c_str();
 	      retc = errno;
 	    } else {

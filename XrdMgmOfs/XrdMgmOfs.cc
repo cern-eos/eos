@@ -583,6 +583,56 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   if (retc) {
     // if we don't have quota we don't bounce the client back
     if (retc != ENOSPC) {
+      // check if we should try to heal offline replicas (rw mode only)
+      if (isRW && attrmap.count("sys.heal.unavailable")) {
+	int nmaxheal = atoi(attrmap["sys.heal.unavailable"].c_str());
+	int nheal=0;
+	gOFS->MgmHealMapMutex.Lock();
+	if (gOFS->MgmHealMap.count(fileId)) 
+	  nheal = gOFS->MgmHealMap[fileId];
+	
+	// if there was already a healing
+	if ( nheal >= nmaxheal ) {
+	  // we tried nmaxheal times to heal, so we abort now and return an error to the client
+	  gOFS->MgmHealMap.erase(fileId);
+	  gOFS->MgmHealMap.resize(0);
+	  gOFS->MgmHealMapMutex.UnLock();
+	  gOFS->MgmStats.Add("OpenFailedHeal",vid.uid,vid.gid,1);  
+	  XrdOucString msg = "heal file with inaccesible replica's after "; msg += (int) nmaxheal; msg += " tries - giving up";
+	  XrdMgmFstNode::gMutex.UnLock();
+	  eos_info(msg.c_str());
+	  return Emsg(epname, error, ENOSR, msg.c_str(), path);	    
+	} else {
+	  // increase the heal counter for that file id
+	  gOFS->MgmHealMap[fileId] = nheal+1;
+	  XrdMgmProcCommand* procCmd = new XrdMgmProcCommand();
+	  if (procCmd) {
+	    XrdMgmFstNode::gMutex.UnLock();
+	    // issue the adjustreplica command as root
+	    XrdCommonMapping::VirtualIdentity vidroot;
+	    XrdCommonMapping::Copy(vid, vidroot);
+	    XrdCommonMapping::Root(vidroot);
+	    XrdOucString cmd = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.file.express=1&mgm.path="; cmd += path;
+	    procCmd->open("/proc/user/",cmd.c_str(), vidroot, &error);
+	    procCmd->close();
+	    delete procCmd;
+
+	    int stalltime = 60; // 1 min by default
+	    if (attrmap.count("sys.stall.unavailable")) {
+	      stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
+	    }
+	    gOFS->MgmStats.Add("OpenStalledHeal",vid.uid,vid.gid,1);  
+	    eos_info("[sys] stalling file %s (rw=%d) stalltime=%d nstall=%d", path, isRW, stalltime, nheal);
+	    gOFS->MgmHealMapMutex.UnLock();
+	    return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
+	  } else {
+	    gOFS->MgmHealMapMutex.UnLock();
+	    XrdMgmFstNode::gMutex.UnLock();
+	    return Emsg(epname, error, ENOMEM,  "allocate memory for proc command", path);	    
+	  }
+	}
+      }
+
       // check if the dir attributes tell us to let clients rebounce
       if (attrmap.count("sys.stall.unavailable")) {
 	int stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
@@ -591,6 +641,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	  // stall the client
 	  gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
 	  XrdMgmFstNode::gMutex.UnLock();
+	  eos_info("[sys] stalling file %s (rw=%d) - replica(s) down",path, isRW);
 	  return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
 	}
       }
@@ -601,6 +652,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	  // stall the client
 	  gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
 	  XrdMgmFstNode::gMutex.UnLock();
+	  eos_info("[user] stalling file %s (rw=%d) - replica(s) down",path, isRW);
 	  return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
 	}
       }
@@ -2743,7 +2795,8 @@ int
 XrdMgmOfs::_dropstripe(const char             *path,
 		       XrdOucErrInfo          &error,
 		       XrdCommonMapping::VirtualIdentity &vid,
-		       unsigned long           fsid)
+		       unsigned long           fsid,
+		       bool                    forceRemove)
 {
   static const char *epname = "dropstripe";  
   eos::ContainerMD *dh=0;
@@ -2776,12 +2829,23 @@ XrdMgmOfs::_dropstripe(const char             *path,
   // get the file
   try {
     fmd = gOFS->eosView->getFile(path);
-    if (fmd->hasLocation(fsid)) {
-      fmd->unlinkLocation(fsid);
-      gOFS->eosView->updateFileStore(fmd);
-      eos_debug("removing location %u", fsid);
+    if (!forceRemove) {
+      // we only unlink a location
+      if (fmd->hasLocation(fsid)) {
+	fmd->unlinkLocation(fsid);
+	gOFS->eosView->updateFileStore(fmd);
+	eos_debug("unlinking location %u", fsid);
+      } else {
+	errno = ENOENT;
+      }
     } else {
-      errno = ENOENT;
+      // we unlink and remove a location by force
+      if (fmd->hasLocation(fsid)) {
+	fmd->unlinkLocation(fsid);
+      }
+      fmd->removeLocation(fsid);
+      gOFS->eosView->updateFileStore(fmd);
+      eos_debug("removing/unlinking location %u", fsid);
     }
   } catch( eos::MDException &e ) {
     fmd = 0;
@@ -2803,9 +2867,10 @@ XrdMgmOfs::_movestripe(const char             *path,
 		       XrdOucErrInfo          &error,
 		       XrdCommonMapping::VirtualIdentity &vid,
 		       unsigned long           sourcefsid,
-		       unsigned long           targetfsid)
+		       unsigned long           targetfsid,
+		       bool                    expressflag)
 {
-  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,true);
+  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,true, expressflag);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2814,19 +2879,21 @@ XrdMgmOfs::_copystripe(const char             *path,
 		       XrdOucErrInfo          &error,
 		       XrdCommonMapping::VirtualIdentity &vid,
 		       unsigned long           sourcefsid,
-		       unsigned long           targetfsid)
+		       unsigned long           targetfsid, 
+		       bool                    expressflag)
 {
-  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,false);
+  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,false, expressflag);
 }
 
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_replicatestripe(const char             *path,
-		       XrdOucErrInfo          &error,
-		       XrdCommonMapping::VirtualIdentity &vid,
-		       unsigned long           sourcefsid,
-		       unsigned long           targetfsid, 
-		       bool                    dropsource)
+			    XrdOucErrInfo          &error,
+			    XrdCommonMapping::VirtualIdentity &vid,
+			    unsigned long           sourcefsid,
+			    unsigned long           targetfsid, 
+			    bool                    dropsource,
+			    bool                    expressflag)
 {
   static const char *epname = "replicatestripe";  
   eos::ContainerMD *dh=0;
@@ -2875,7 +2942,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   if (errno) 
     return  Emsg(epname,error,errno,"replicate stripe",path);    
 
-  return _replicatestripe(fmd, error, vid, sourcefsid, targetfsid, dropsource);
+  return _replicatestripe(fmd, error, vid, sourcefsid, targetfsid, dropsource, expressflag);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2885,7 +2952,8 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
 			    XrdCommonMapping::VirtualIdentity &vid,
 			    unsigned long           sourcefsid,
 			    unsigned long           targetfsid, 
-			    bool                    dropsource)
+			    bool                    dropsource,
+			    bool                    expressflag)
 {
   static const char *epname = "replicatestripe";  
   unsigned long long fileId=fmd->getId();
@@ -2911,6 +2979,9 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
 
   if (dropsource) {
     capability += "&mgm.dropsource=1";
+  }
+  if (expressflag) {
+    capability += "&mgm.queueinfront=1";
   }
 
   if ( (!sourcefsid) || (!targetfsid) ) {
