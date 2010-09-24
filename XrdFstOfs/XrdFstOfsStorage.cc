@@ -244,7 +244,7 @@ XrdFstOfsStorage::XrdFstOfsStorage(const char* metadirectory)
 
   eos_info("starting verification thread");
   if ((rc = XrdSysThread::Run(&tid, XrdFstOfsStorage::StartFsVerify, static_cast<void *>(this),
-                              0, "Verify Thread"))) {
+			      0, "Verify Thread"))) {
     eos_crit("cannot start verify thread");
     zombie = true;
   }
@@ -452,9 +452,9 @@ XrdFstOfsStorage::Quota()
     fsMutex.Lock();
     // update the filesystem statfs
     fileSystems.Apply(HasStatfsChanged, &changed);
-
+    
     fsMutex.UnLock();
-
+    
     gFmdHandler.Mutex.Lock();
     google::dense_hash_map<long long, long long>::const_iterator it;
 
@@ -851,102 +851,108 @@ void
 XrdFstOfsStorage::Verify()
 {
   // this thread unlinks stored files
+  fprintf(stderr,"Starting Verify thread\n");
   while(1) {
     sleep(1);
     verifiesMutex.Lock();
-    if (verifies.size()) 
+    if (!verifies.size()) {
       eos_static_debug("%u files to verify",verifies.size());
+      verifiesMutex.UnLock();
+      continue;
+    }
     
-    XrdFstVerify* verify = verifies.front();
-    if (verify) {
+    XrdFstVerify* verifyfile = verifies.front();
+    if (verifyfile) {
+      eos_static_debug("got %llu\n", (unsigned long long) verifyfile);
       verifies.pop();
     } else {
+      eos_static_debug("got nothing");
       verifiesMutex.UnLock();
       continue;
     }
 
     verifiesMutex.UnLock();
-    eos_static_debug("verifying File Id=%llu on Fs=%u", verify->fId, verify->fsId);
-      // verify the file
-      XrdOucString hexstring="";
-      XrdCommonFileId::Fid2Hex(verify->fId,hexstring);
-      XrdOucErrInfo error;
-      
-      XrdOucString fstPath = "";
-      
-      XrdCommonFileId::FidPrefix2FullPath(hexstring.c_str(), verify->localPrefix.c_str(),fstPath);
-      
-      // get current size on disk
-      struct stat statinfo;
-      if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
-	eos_static_err("unable to verify file id=%llu on fs=%u path=%s - stat on local disk failed", verify->fId, verify->fsId, fstPath.c_str());
+    eos_static_debug("verifying File Id=%llu on Fs=%u", verifyfile->fId, verifyfile->fsId);
+    // verify the file
+    XrdOucString hexstring="";
+    XrdCommonFileId::Fid2Hex(verifyfile->fId,hexstring);
+    XrdOucErrInfo error;
+    
+    XrdOucString fstPath = "";
+    
+    XrdCommonFileId::FidPrefix2FullPath(hexstring.c_str(), verifyfile->localPrefix.c_str(),fstPath);
+    
+    // get current size on disk
+    struct stat statinfo;
+    if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
+      eos_static_err("unable to verify file id=%llu on fs=%u path=%s - stat on local disk failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+    } else {
+      // attach meta data
+      XrdCommonFmd* fMd = 0;
+      fMd = gFmdHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, 0);
+      if (!fMd) {
+	eos_static_err("unable to verify id=%llu on fs=%u path=%s - no local MD stored", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
       } else {
-	// attach meta data
-	XrdCommonFmd* fMd = 0;
-	fMd = gFmdHandler.GetFmd(verify->fId, verify->fsId, 0, 0, 0, 0);
-	if (!fMd) {
-	  eos_static_err("unable to verify id=%llu on fs=%u path=%s - no local MD stored", verify->fId, verify->fsId, fstPath.c_str());
+	// update size
+	fMd->fMd.size     = statinfo.st_size;
+	fMd->fMd.mtime    = statinfo.st_mtime;
+	fMd->fMd.mtime_ns = statinfo.st_mtim.tv_nsec;
+	fMd->fMd.lid      = verifyfile->lId;
+	fMd->fMd.cid      = verifyfile->cId;
+	
+	// if set recalculate the checksum
+	XrdFstOfsChecksum* checksummer = XrdFstOfsChecksumPlugins::GetChecksumObject(fMd->fMd.lid);
+	if (!checksummer) {
+	  eos_static_crit("cannot load any checksum plugin");
 	} else {
-	  // update size
-	  fMd->fMd.size     = statinfo.st_size;
-	  fMd->fMd.mtime    = statinfo.st_mtime;
-	  fMd->fMd.mtime_ns = statinfo.st_mtim.tv_nsec;
-	  fMd->fMd.lid      = verify->lId;
-	  fMd->fMd.cid      = verify->cId;
-
-	  // if set recalculate the checksum
-	  XrdFstOfsChecksum* checksummer = XrdFstOfsChecksumPlugins::GetChecksumObject(fMd->fMd.lid);
-	  if (!checksummer) {
-	    eos_static_crit("cannot load any checksum plugin");
+	  if (!checksummer->ScanFile(fstPath.c_str())) {
+	    eos_static_crit("cannot scan file to recalculate the checksum");
 	  } else {
-	    if (!checksummer->ScanFile(fstPath.c_str())) {
-	      eos_static_crit("cannot scan file to recalculate the checksum");
-	    } else {
-	      XrdCommonPath cPath(verify->path.c_str());
-	      if (cPath.GetName())strncpy(fMd->fMd.name,cPath.GetName(),255);
-	      if (verify->container.length()) {
-		strncpy(fMd->fMd.container,verify->container.c_str(),255);
+	    XrdCommonPath cPath(verifyfile->path.c_str());
+	    if (cPath.GetName())strncpy(fMd->fMd.name,cPath.GetName(),255);
+	    if (verifyfile->container.length()) {
+	      strncpy(fMd->fMd.container,verifyfile->container.c_str(),255);
+	      
+	      // commit local
+	      if (!gFmdHandler.Commit(fMd)) {
+		eos_static_err("unable to verify file id=%llu on fs=%u path=%s - commit to local MD storage failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+	      } else {
+		// commit to central mgm cache
+		XrdOucString capOpaqueFile="";
+		XrdOucString mTimeString="";
+		capOpaqueFile += "/?";
+		capOpaqueFile += "&mgm.pcmd=commit";
+		capOpaqueFile += "&mgm.size=";
+		char filesize[1024]; sprintf(filesize,"%llu", fMd->fMd.size);
+		capOpaqueFile += filesize;
+		if (checksummer) {
+		  capOpaqueFile += "&mgm.checksum=";
+		  capOpaqueFile += checksummer->GetHexChecksum();
+		  int checksumlen=0;
+		  checksummer->GetBinChecksum(checksumlen);
+		  memset(fMd->fMd.checksum,0,sizeof(fMd->fMd.checksum));
+		  // copy checksum into meta data
+		  memcpy(fMd->fMd.checksum, checksummer->GetBinChecksum(checksumlen),checksumlen);
+		}
 		
-		// commit local
-		if (!gFmdHandler.Commit(fMd)) {
-		  eos_static_err("unable to verify file id=%llu on fs=%u path=%s - commit to local MD storage failed", verify->fId, verify->fsId, fstPath.c_str());
-		} else {
-		  // commit to central mgm cache
-		  XrdOucString capOpaqueFile="";
-		  XrdOucString mTimeString="";
-		  capOpaqueFile += "/?";
-		  capOpaqueFile += "&mgm.pcmd=commit";
-		  capOpaqueFile += "&mgm.size=";
-		  char filesize[1024]; sprintf(filesize,"%llu", fMd->fMd.size);
-		  capOpaqueFile += filesize;
-		  if (checksummer) {
-		    capOpaqueFile += "&mgm.checksum=";
-		    capOpaqueFile += checksummer->GetHexChecksum();
-		    int checksumlen=0;
-		    checksummer->GetBinChecksum(checksumlen);
-		    memset(fMd->fMd.checksum,0,sizeof(fMd->fMd.checksum));
-		    // copy checksum into meta data
-		    memcpy(fMd->fMd.checksum, checksummer->GetBinChecksum(checksumlen),checksumlen);
-		  }
-
-		  capOpaqueFile += "&mgm.mtime=";
-		  capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fMd->fMd.mtime);
-		  capOpaqueFile += "&mgm.mtime_ns=";
-		  capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fMd->fMd.mtime_ns);
-		  
-		  capOpaqueFile += "&mgm.add.fsid=";
-		  capOpaqueFile += (int)fMd->fMd.fsid;
-		  
-		  int rc = gOFS.CallManager(&error, verify->path.c_str(),verify->managerId.c_str(), capOpaqueFile);
-		  if (rc) {
-		    eos_static_err("unable to verify file id=%s fs=%u at manager %s",hexstring.c_str(), verify->fsId, verify->managerId.c_str()); 
-		  }
+		capOpaqueFile += "&mgm.mtime=";
+		capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fMd->fMd.mtime);
+		capOpaqueFile += "&mgm.mtime_ns=";
+		capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fMd->fMd.mtime_ns);
+		
+		capOpaqueFile += "&mgm.add.fsid=";
+		capOpaqueFile += (int)fMd->fMd.fsid;
+		
+		int rc = gOFS.CallManager(&error, verifyfile->path.c_str(),verifyfile->managerId.c_str(), capOpaqueFile);
+		if (rc) {
+		  eos_static_err("unable to verify file id=%s fs=%u at manager %s",hexstring.c_str(), verifyfile->fsId, verifyfile->managerId.c_str()); 
 		}
 	      }
 	    }
 	  }
-	  delete checksummer;
 	}
+	delete checksummer;
       }
+    }
   }
 }

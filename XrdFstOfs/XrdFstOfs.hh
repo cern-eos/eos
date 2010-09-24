@@ -116,11 +116,11 @@ public:
 			const char             *infoO = 0,
 			const char            *infoN = 0) {return SFS_OK;}
 
-  int            stat(const char             *Name,
-		      struct stat      *buf,
-		      XrdOucErrInfo    &out_error,
-		      const XrdSecEntity     *client,
-                        const char             *opaque = 0) {memset(buf,0,sizeof(struct stat));return SFS_OK;}
+  int            stat(  const char             *path,
+			struct stat      *buf,
+			XrdOucErrInfo    &out_error,
+			const XrdSecEntity     *client,
+			const char             *opaque = 0);
 
   int            CallManager(XrdOucErrInfo *error, const char* path, const char* manager, XrdOucString &capOpaqueFile);
 

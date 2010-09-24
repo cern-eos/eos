@@ -111,7 +111,7 @@ XrdFstTransfer::Do()
     if (checkSum) checkSum->Finalize();
 
     if ( (replicaClient->LastServerError()->errnum) && (replicaClient->LastServerError()->errnum!=kXR_noErrorYet) ) {
-      eos_static_err("transfer error during replica of %s fid=%sfrom %s=>%s xsum=%s ec=%d emsg=%s", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum->GetHexChecksum(), replicaClient->LastServerError()->errnum, replicaClient->LastServerError()->errmsg);
+      eos_static_err("transfer error during replica of %s fid=%sfrom %s=>%s xsum=%s ec=%d emsg=%s", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum?checkSum->GetHexChecksum():"none", replicaClient->LastServerError()->errnum, replicaClient->LastServerError()->errmsg);
       eos_static_err("ile %s errno=%u", fstPath.c_str(),errno);
       failed = true;
     }
@@ -153,11 +153,11 @@ XrdFstTransfer::Do()
   // ----------------------------------------------------------------------------------------------------------
   // compare transfer and FMD size
   if ((long long)offset != newfmd->fMd.size) {
-    eos_static_err("size error during replica of %s fid=%sfrom %s=>%s xsum=%s txsize=%llu fmdsize=%llu", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum->GetHexChecksum(), offset, newfmd->fMd.size);
+    eos_static_err("size error during replica of %s fid=%sfrom %s=>%s xsum=%s txsize=%llu fmdsize=%llu", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum?checkSum->GetHexChecksum():"none", offset, newfmd->fMd.size);
   }
 
   if (checkSum && checksumerror) {
-    eos_static_err("checksum error during replica of %s fid=%sfrom %s=>%s xsum=%s", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum->GetHexChecksum());
+    eos_static_err("checksum error during replica of %s fid=%sfrom %s=>%s xsum=%s", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum?checkSum->GetHexChecksum():"none");
   }
 
   // ----------------------------------------------------------------------------------------------------------
@@ -206,7 +206,7 @@ XrdFstTransfer::Do()
     return rc;
   }
 
-  eos_static_info("successful replica of %s fid=%sfrom %s=>%s xsum=%s txsize=%llu fmdsize=%llu", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum->GetHexChecksum(), offset, newfmd->fMd.size);
+  eos_static_info("successful replica of %s fid=%sfrom %s=>%s xsum=%s txsize=%llu fmdsize=%llu", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum?checkSum->GetHexChecksum():"none", offset, newfmd->fMd.size);
 
   if (checkSum) delete checkSum;
 

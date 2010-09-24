@@ -71,6 +71,12 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   const char *val;
   int  cfgFD;
   int NoGo=0;
+
+  int rc = XrdOfs::Configure(Eroute);
+  if (rc)
+    return rc;
+
+
   XrdFstOfsConfig::gConfig.autoBoot = false;
 
   XrdFstOfsConfig::gConfig.FstOfsBrokerUrl = "root://localhost:1097//eos/";
@@ -233,9 +239,8 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   if (XrdFstOfsConfig::gConfig.autoBoot) {
     XrdFstOfs::AutoBoot();
   }
-  
-  int rc = XrdOfs::Configure(Eroute);
-  return rc;
+
+  return 0;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -635,7 +640,24 @@ XrdFstOfsFile::close()
  return rc;
 }
 
+/*----------------------------------------------------------------------------*/
+int
+XrdFstOfs::stat(  const char             *path,
+		  struct stat            *buf,
+		  XrdOucErrInfo          &out_error,
+		  const XrdSecEntity     *client,
+		  const char             *opaque)
+{
+  EPNAME("stat");
+  memset(buf,0,sizeof(struct stat));
+  if (!XrdOfsOss->Stat(path, buf))
+    return SFS_OK;
+  else
+    return gOFS.Emsg(epname,out_error,errno,"stat file",path);
+}
 
+
+/*----------------------------------------------------------------------------*/
 int
 XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manager, XrdOucString &capOpaqueFile) {
   EPNAME("CallManager");
@@ -941,7 +963,16 @@ XrdFstMessaging::Process(XrdMqMessage* newmessage)
 	gOFS.FstOfsStorage->transferMutex.Lock();
 
 	if (gOFS.FstOfsStorage->transfers.size() < 1000000) {
-	  gOFS.FstOfsStorage->transfers.push_back(newtransfer);
+	  XrdOucString squeuefront = capOpaque->Get("mgm.queueinfront");
+	  if (squeuefront == "1") {
+	    // this is an express transfer to be queued in front of the list
+	    eos_info("scheduling express transfer %llu", capOpaque->Get("mgm.fid"));
+	    gOFS.FstOfsStorage->transfers.insert(gOFS.FstOfsStorage->transfers.begin(), newtransfer);
+	  } else {
+	    // this is a regual transfer to be appended to the end of the list
+	    eos_info("scheduling regular transfer %llu", capOpaque->Get("mgm.fid"));
+	    gOFS.FstOfsStorage->transfers.push_back(newtransfer);
+	  }
 	} else {
 	  eos_err("transfer list has already 1 Mio. entries - discarding transfer message");
 	}
