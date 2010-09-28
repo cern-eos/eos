@@ -90,6 +90,7 @@ int com_restart PARAMS((char*));
 int com_rtlog PARAMS((char*));
 int com_test PARAMS((char*));
 int com_transfers PARAMS((char*));
+int com_verify PARAMS((char*));
 int com_silent PARAMS((char*));
 int com_timing PARAMS((char*));
 int com_whoami PARAMS((char*));
@@ -141,6 +142,7 @@ COMMAND commands[] = {
   { (char*)"test", com_test, (char*)"Run performance test" },
   { (char*)"timing", com_timing, (char*)"Toggle timing flag for execution time measurement" },
   { (char*)"transfers",com_transfers,(char*)"Transfer Interface"},
+  { (char*)"verify",com_verify,(char*)"Verify Interface"},
   { (char*)"whoami", com_whoami, (char*)"Determine how we are mapped on server side" },
   { (char*)"?",     com_help, (char*)"Synonym for `help'" },
   { (char*)".q",    com_quit, (char*)"Exit from EOS console" },
@@ -1211,6 +1213,67 @@ com_fs (char* arg1) {
     return (0);
   }
    
+  if ( subcommand == "verify" ) {
+    XrdOucString id;
+    XrdOucString option="";
+    id = subtokenizer.GetToken();
+    XrdOucString options[5];
+    
+    options[0] = subtokenizer.GetToken();
+    options[1] = subtokenizer.GetToken();
+    options[2] = subtokenizer.GetToken();
+    options[3] = subtokenizer.GetToken();
+    options[4] = subtokenizer.GetToken();
+
+    if (!id.length()) 
+      goto com_fs_usage;
+
+    for (int i=0; i< 5; i++) {
+      if (options[i].length() && 
+	  ( options[i] != "-checksum") && ( options[i] != "-commitchecksum") && (options[i] != "-commitsize") && (options[i] != "-rate")) {
+	goto com_fs_usage;
+      }
+      option += options[i]; option += " ";
+      if (options[i] == "-rate") {
+	option += options[i+1]; option += " ";
+	i++;
+      }
+    }
+
+    XrdOucString subcmd="dumpmd -s "; subcmd += id; subcmd += " -path";
+
+    com_fs((char*)subcmd.c_str());
+
+    std::vector<std::string> files_found;
+    files_found.clear();
+    command_result_stdout_to_vector(files_found);
+    std::vector<std::string>::const_iterator it;
+    if (!files_found.size()) {
+      output_result(CommandEnv);
+    } else {
+      if (CommandEnv) {
+	delete CommandEnv; CommandEnv = 0;
+      }
+
+      for (unsigned int i=0; i< files_found.size(); i++) {
+	if (!files_found[i].length())
+	  continue;
+	XrdOucString line = files_found[i].c_str();
+	if (line.beginswith("path=")) {
+	  line.replace("path=","");
+	  fprintf(stdout,"%06d: %s\n", i, line.c_str());
+	  // call the replication command here
+	  subcmd = "verify "; subcmd += line; subcmd += " "; subcmd += id; subcmd += " ";
+	  if (option.length()) { 
+	    subcmd += option; 
+	  }
+	  com_file( (char*) subcmd.c_str());
+	}
+      }
+    }
+    return (0);
+  }
+
   if ( subcommand == "heal" ) {
     XrdOucString sourceid;
     sourceid = subtokenizer.GetToken();    
@@ -1363,6 +1426,13 @@ com_fs (char* arg1) {
   printf("                                                                  -s    : don't printout keep an internal reference\n");
   printf("                                                                  -fid  : dump only a list of file id's stored on this filesystem\n");
   printf("                                                                  -path : dump only a list of file names stored on this filesystem\n");
+  printf("       fs verify <fs-name>|<fs-id> [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>]\n");
+  printf("                                                                : schedule asynchronous replication [with checksumming] on a filesystem\n");
+  printf("                                                      -checksum : trigger the checksum calculation during the verification process\n");
+  printf("                                                -commitchecksum : commit the computed checksum to the MGM\n");
+  printf("                                                -commitsize     : commit the file size to the MGM\n");
+  printf("                                                -rate <rate>    : restrict the verification speed to <rate> per node\n");
+
   return (0);
 }
 
@@ -1950,7 +2020,7 @@ com_restart (char* arg1) {
   return (0);
 }
 
-/* Restart System */
+/* Transfer Interface */
 int
 com_transfers (char* arg1) {
   // split subcommands
@@ -1989,6 +2059,46 @@ com_transfers (char* arg1) {
   return (0);
 }
 
+
+/* Verify Interface */
+int
+com_verify (char* arg1) {
+  // split subcommands
+  XrdOucTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString subcmd = subtokenizer.GetToken();
+  XrdOucString nodes = subtokenizer.GetToken();
+  XrdOucString selection = subtokenizer.GetToken();
+
+  XrdOucString in = "mgm.cmd=";
+
+  if ( (subcmd != "drop") && (subcmd != "ls") ) 
+    goto com_usage_verify;
+
+  if (subcmd == "drop")
+    in += "dropverifications";
+  if (subcmd == "ls") 
+    in += "listverifications";
+  
+  in += "&mgm.subcmd=";
+
+  if (nodes.length()) {
+    in += nodes;
+    if (selection.length()) {
+      in += "&mgm.nodename=";
+      in += selection;
+    }
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+  
+ com_usage_verify:
+  printf("       verify drop fst *                   : drop transfers on all fst nodes !\n");
+  printf("       verify ls fst *                     : list transfers on all fst nodes !\n");
+  return (0);
+}
+
 /* File handling */
 int 
 com_file (char* arg1) {
@@ -2004,7 +2114,7 @@ com_file (char* arg1) {
   path = abspath(path.c_str());
 
   XrdOucString in = "mgm.cmd=file";
-  if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) && (cmd != "check") && ( cmd != "adjustreplica" ) && ( cmd != "info" ) && (cmd != "layout") ) {
+  if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) && (cmd != "check") && ( cmd != "adjustreplica" ) && ( cmd != "info" ) && (cmd != "layout") && (cmd != "verify")) {
     goto com_file_usage;
   }
 
@@ -2075,6 +2185,64 @@ com_file (char* arg1) {
 
     in += "&mgm.file.layout.stripes=";
     in += fsid2;
+  }
+
+  if (cmd == "verify") {
+    if (!path.length())
+      goto com_file_usage;
+
+    XrdOucString option[5];
+
+    in += "&mgm.subcmd=verify";
+    in += "&mgm.path="; in += path;
+    if (fsid1.length()) {
+      if  ( (fsid1 != "-checksum") && (fsid1 != "-commitchecksum") && (fsid1 != "-commitsize") && (fsid1 != "-rate")) {
+	if (fsid1.beginswith("-"))
+	  goto com_file_usage;
+
+	in += "&mgm.file.verify.filterid="; in += fsid1;
+	if (fsid2.length()) {
+	  option[0] = fsid2;
+	  option[1] = subtokenizer.GetToken();
+	  option[2] = subtokenizer.GetToken();
+	  option[3] = subtokenizer.GetToken();
+	  option[4] = subtokenizer.GetToken();
+	}
+      } else {
+	option[0] = fsid1;
+	option[1] = fsid2;
+	option[2] = subtokenizer.GetToken();
+	option[3] = subtokenizer.GetToken();
+	option[4] = subtokenizer.GetToken();
+      }
+    }
+
+    for (int i=0; i< 5; i++) {
+      if (option[i].length()) {
+	if (option[i] == "-checksum") {
+	  in += "&mgm.file.compute.checksum=1";
+	} else {
+	  if (option[i] == "-commitchecksum") {
+	    in += "&mgm.file.commit.checksum=1";
+	  } else {
+	    if (option[i] == "-commitsize") {
+	      in += "&mgm.file.commit.size=1";
+	    } else {
+	      if (option[i] == "-rate") {
+		in += "&mgm.file.verify.rate=";
+		if (!option[i+1].length())
+		  goto com_file_usage;
+		in += option[i+1];
+		i++;
+		continue;
+	      } else {
+		goto com_file_usage;
+	      }
+	    }
+	  }
+	}
+      }
+    }
   }
 
   if (cmd == "check") { 
@@ -2223,7 +2391,7 @@ com_file (char* arg1) {
   printf("       file replicate <path> <fsid1> <fsid2>                         :  replicate file <path> part on <fsid1> to <fsid2>\n");
   printf("       file adjustreplica <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]]\n");
   printf("                                                                     :  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
-  printf("       file check <path> [%%size%%checksum%%nrep%%force%%ouptut%%silent]  :  retrieves stat information from the physical replicas and verifies the correctness\n");
+  printf("       file check <path> [%%size%%checksum%%nrep%%force%%output%%silent]  :  retrieves stat information from the physical replicas and verifies the correctness\n");
   printf("       - %%size                                                       :  return with an error code if there is a mismatch between the size meta data information\n");
   printf("       - %%checksum                                                   :  return with an error code if there is a mismatch between the checksum meta data information\n");
   printf("       - %%nrep                                                       :  return with an error code if there is a mismatch between the layout number of replicas and the existing replicas\n");
@@ -2231,7 +2399,14 @@ com_file (char* arg1) {
   printf("       - %%force                                                      :  forces to get the MD even if the node is down\n");
   printf("       - %%output                                                     :  prints lines with inconsitency information\n");
   printf("       file info <path>                                              : convenience function aliasing to 'fileinfo' command\n");
-  printf("       file layout <path>|fid:<fid-dex>|fxid:<fid-hex>  -stripes <n> : change the number of stripes of a file with replica layout to <n>\n");
+  printf("       file layout <path>|fid:<fid-dec>|fxid:<fid-hex>  -stripes <n> : change the number of stripes of a file with replica layout to <n>\n");
+  printf("       file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] \n");
+  printf("                                                                     : verify a file against the disk images\n");
+  printf("                                                              <fsid> : verifies only the replica on <fsid>\n");
+  printf("                                                           -checksum : trigger the checksum calculation during the verification process\n");
+  printf("                                                     -commitchecksum : commit the computed checksum to the MGM\n");
+  printf("                                                     -commitsize     : commit the file size to the MGM\n");
+  printf("                                                     -rate <rate>    : restrict the verification speed to <rate> per node\n");
   return (0);
 }
 
