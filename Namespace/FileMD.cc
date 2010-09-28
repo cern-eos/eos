@@ -149,9 +149,12 @@ namespace eos
     env += o.str();
     env += "&location=";
     LocationVector::iterator it;
+    char locs[16];
+
     for( it = pLocation.begin(); it != pLocation.end(); ++it )
       {
-	env += (int) *it;
+	snprintf(locs,sizeof(locs),"%u",*it);
+	env += locs;
 	env += ",";
       }
     
