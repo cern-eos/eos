@@ -38,6 +38,11 @@ XrdFstTransfer::Do()
     return rc;
   }
 
+  if (!gOFS.LockManager.TryLock(fId)) {
+    eos_static_err("File is currently locked for writing - giving up fid %s", capOpaque.Get("mgm.fid"));
+    return EBUSY;
+  }
+
   // get checksum plugin
   XrdFstOfsChecksum* checkSum = XrdFstOfsChecksumPlugins::GetChecksumObject(fmd.lid);
 

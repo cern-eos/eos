@@ -13,6 +13,7 @@
 /*----------------------------------------------------------------------------*/
 class XrdFstVerify {
 public:
+
   unsigned long long fId;
   unsigned long fsId;
   unsigned long cId;
@@ -24,11 +25,15 @@ public:
   XrdOucString container;
   XrdOucString path;
 
-  bool doChecksum;
+  bool computeChecksum;
+  bool commitChecksum;
+  bool commitSize;
 
-  XrdFstVerify(unsigned long long fid, unsigned long fsid, const char* localprefix, const char* managerid, const char* inopaque,const char* incontainer, unsigned long incid, unsigned long inlid, const char* inpath, bool indoChecksum) {
+  unsigned int verifyRate;
+
+  XrdFstVerify(unsigned long long fid, unsigned long fsid, const char* localprefix, const char* managerid, const char* inopaque,const char* incontainer, unsigned long incid, unsigned long inlid, const char* inpath, bool inComputeChecksum, bool inCommitChecksum, bool inCommitSize, unsigned int inVerifyRate) {
     fId = fid;  fsId = fsid; localPrefix = localprefix; managerId = managerid; opaque = inopaque;
-    container = incontainer; cId = incid; path = inpath; doChecksum = indoChecksum; lId = inlid;
+    container = incontainer; cId = incid; path = inpath; lId = inlid; computeChecksum=inComputeChecksum; commitChecksum=inCommitChecksum; commitSize=inCommitSize; verifyRate = inVerifyRate;
   }
 
   static XrdFstVerify* Create(XrdOucEnv* capOpaque) {
@@ -41,7 +46,10 @@ public:
     const char* scid=0;
     const char* layout=0;
     const char* path=0;
-    bool doChecksum=false;
+    bool computeChecksum=false;
+    bool commitChecksum=false;
+    bool commitSize=false;
+
 
     const char* sfsid=0;
     const char* smanager=0;
@@ -50,19 +58,36 @@ public:
     unsigned long fsid=0;
     unsigned long cid=0;
     unsigned long lid=0;
+    
+    unsigned int verifyRate = 0;
+    
+    if (!capOpaque)
+      return 0;
 
     localprefix = capOpaque->Get("mgm.localprefix");
     hexfid      = capOpaque->Get("mgm.fid");
     sfsid       = capOpaque->Get("mgm.fsid");
     smanager    = capOpaque->Get("mgm.manager");
     access      = capOpaque->Get("mgm.access");
-    container   = capOpaque->Get("container");
+    container   = capOpaque->Get("mgm.container");
     scid        = capOpaque->Get("mgm.cid");
     path        = capOpaque->Get("mgm.path");
     layout      = capOpaque->Get("mgm.lid");
 
-    if (capOpaque->Get("mgm.verify.dochecksum")) {
-      doChecksum=true;
+    if (capOpaque->Get("mgm.verify.compute.checksum")) {
+      computeChecksum=atoi(capOpaque->Get("mgm.verify.compute.checksum"));
+    }
+
+    if (capOpaque->Get("mgm.verify.commit.checksum")) {
+      commitChecksum=atoi(capOpaque->Get("mgm.verify.commit.checksum"));
+    }
+
+    if (capOpaque->Get("mgm.verify.commit.size")) {
+      commitSize=atoi(capOpaque->Get("mgm.verify.commit.size"));
+    }
+
+    if (capOpaque->Get("mgm.verify.rate")) { 
+      verifyRate=atoi(capOpaque->Get("mgm.verify.rate"));
     }
 
     // permission check
@@ -80,10 +105,14 @@ public:
 
     fid = XrdCommonFileId::Hex2Fid(hexfid.c_str());	
     fsid   = atoi(sfsid);
-    return new XrdFstVerify(fid, fsid, localprefix, smanager, capOpaque->Env(envlen), container, cid, lid, path, doChecksum);
+    return new XrdFstVerify(fid, fsid, localprefix, smanager, capOpaque->Env(envlen), container, cid, lid, path, computeChecksum,commitChecksum,commitSize, verifyRate);
   };
 
   ~XrdFstVerify() {};
+
+  void Show(const char* show="") {
+    eos_static_info("Verify File Id=%llu on Fs=%u Path=%s ComputeChecksum=%d CommitChecksum=%d CommitSize=%d VerifyRate=%d %s", fId, fsId,path.c_str(),computeChecksum, commitChecksum, commitSize, verifyRate, show);
+  }
 };
 
 

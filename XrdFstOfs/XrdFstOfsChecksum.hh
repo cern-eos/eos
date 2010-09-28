@@ -26,7 +26,7 @@ public:
   const char* GetName() {return Name.c_str();}
   bool NeedsRecalculation() {return needsRecalculation;}
 
-  virtual bool ScanFile(const char* path);
+  virtual bool ScanFile(const char* path, unsigned long long &scansize, float &scantime, int rate=0);
   virtual ~XrdFstOfsChecksum(){};
 
   

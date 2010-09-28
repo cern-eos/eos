@@ -12,6 +12,7 @@
 #include "XrdFstOfs/XrdFstOfsChecksumPlugins.hh"
 #include "XrdFstOfs/XrdFstOfsLayoutPlugins.hh"
 #include "XrdFstOfs/XrdFstOfsFile.hh"
+#include "XrdFstOfs/XrdFstOfsLock.hh"
 #include "XrdMqOfs/XrdMqMessaging.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -59,7 +60,7 @@ public:
  
   int Configure(XrdSysError &error);
 
-  XrdFstOfs() {XrdCommonLogId(); }
+  XrdFstOfs() {XrdCommonLogId();}
 
   XrdSysError*        Eroute;          // used by the 
 
@@ -134,6 +135,7 @@ public:
   void           SendRtLog(XrdMqMessage* message);
   void           AutoBoot();
 
+  XrdFstOfsLockManager LockManager;
  
   XrdCommonClientAdminManager CommonClientAdminManager;
   XrdFstMessaging* FstOfsMessaging;      // -> messaging interface class

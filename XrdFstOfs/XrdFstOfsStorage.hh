@@ -95,11 +95,13 @@ public:
   XrdSysMutex transferMutex;
   std::list <XrdFstTransfer*> transfers;
   XrdFstTransfer* runningTransfer;
+  XrdFstVerify* runningVerify;
+
   XrdSysMutex deletionsMutex;
   std::vector <XrdFstDeletion> deletions;
   
-  XrdSysMutex verifiesMutex;
-  std::queue <XrdFstVerify*> verifies;
+  XrdSysMutex verificationsMutex;
+  std::queue <XrdFstVerify*> verifications;
 
   XrdOucHash<XrdFstOfsFileSystem> fileSystems;
   std::vector <XrdFstOfsFileSystem*> fileSystemsVector;

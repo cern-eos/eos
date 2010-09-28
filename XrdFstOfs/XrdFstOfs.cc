@@ -356,7 +356,8 @@ XrdFstOfsFile::open(const char                *path,
     }
     gOFS.OpenFidMutex.UnLock();
     if (isopenforwrite) {
-      return gOFS.Emsg(epname,error, EBUSY,"open - cannot replicate: file is opened in RW mode",path);
+      eos_err("forbid to open replica - file %s is opened in RW mode");
+      return gOFS.Emsg(epname,error, ENOENT,"open - cannot replicate: file is opened in RW mode",path);
     }
   }
   
@@ -442,11 +443,18 @@ XrdFstOfsFile::open(const char                *path,
 
   if (!rc) {
     opened = true;
-
     gOFS.OpenFidMutex.Lock();
 
-    if (isRW) 
+    if (isRW) {
+      if (gOFS.WOpenFid[fsid][fileid]==0) {
+	// this keeps this thread busy for 10 seconds trying to lock and then rebounces if the lock couldn't be taken
+	if (!gOFS.LockManager.LockTimeout(fileid,10)) {
+	  // bounce the client back
+	}
+      }
+
       gOFS.WOpenFid[fsid][fileid]++;
+    }
     else
       gOFS.ROpenFid[fsid][fileid]++;
 
@@ -511,17 +519,13 @@ XrdFstOfsFile::close()
    // deal with checksums
    if (checkSum) {
      if (checkSum && checkSum->NeedsRecalculation()) {
-       eos_debug("recalculating checksum");
-       // re-scan the complete file
-       char checksumbuf[128 * 1024];
-       checkSum->Reset();
-       XrdSfsFileOffset checkoffset=0;
-       XrdSfsXferSize   checksize=0;
-       XrdSfsFileOffset checklength=0;
-       while ((checksize = read(checkoffset,checksumbuf,sizeof(checksumbuf)))>0) {
-	 checkSum->Add(checksumbuf, checksize, checkoffset);
-	 checklength+= checksize;
-	 checkoffset+= checksize;
+       unsigned long long scansize=0;
+       float scantime = 0; // is ms
+       if (checkSum->ScanFile(fstPath.c_str(), scansize, scantime)) {
+	 XrdOucString sizestring;
+	 eos_info("Rescanned checksum - size=%s time=%.02fms rate=%.02f MB/s", XrdCommonFileSystem::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999));
+       } else {
+	 eos_err("Rescanning of checksum failed");
        }
      } else {
        // this was prefect streaming I/O
@@ -548,6 +552,13 @@ XrdFstOfsFile::close()
        }
      }
    }
+
+   // store the entry server information before closing the layout
+   bool isEntryServer=false;
+   if (layOut->IsEntryServer()) {
+     isEntryServer=true;
+   }
+
 
    if (layOut) {
      rc = layOut->close();
@@ -598,7 +609,11 @@ XrdFstOfsFile::close()
 
      capOpaqueFile += "&mgm.add.fsid=";
      capOpaqueFile += (int)fMd->fMd.fsid;
-     
+
+     if (isEntryServer) {
+       // the entry server commits size and checksum
+       capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
+     }
      rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
    }
    closed = true;
@@ -610,6 +625,8 @@ XrdFstOfsFile::close()
      gOFS.ROpenFid[fMd->fMd.fsid][fMd->fMd.fid]--;
 
    if (gOFS.WOpenFid[fMd->fMd.fsid][fMd->fMd.fid] <= 0) {
+     // if this was a write of the last writer we had the lock and we release it
+     gOFS.LockManager.UnLock(fMd->fMd.fid);
      gOFS.WOpenFid[fMd->fMd.fsid].erase(fMd->fMd.fid);
      gOFS.WOpenFid[fMd->fMd.fsid].resize(0);
    }
@@ -898,7 +915,6 @@ XrdFstMessaging::Process(XrdMqMessage* newmessage)
   XrdOucString cmd    = action.Get("mgm.cmd");
   XrdOucString subcmd = action.Get("mgm.subcmd");
 
-  fprintf(stderr, "process got command %s\n", cmd.c_str());
   if (cmd == "fs" && subcmd == "boot") {
     // boot request
     gOFS.Boot(action);
@@ -983,6 +999,45 @@ XrdFstMessaging::Process(XrdMqMessage* newmessage)
     }
   }
 
+
+  if (cmd == "verify") {
+    eos_info("verify");
+
+    XrdOucEnv* capOpaque=&action;
+    int envlen=0;
+    eos_debug("opaque is %s", capOpaque->Env(envlen));
+    XrdFstVerify* newverify = XrdFstVerify::Create(capOpaque);
+    if (newverify) {
+      gOFS.FstOfsStorage->verificationsMutex.Lock();
+      
+      if (gOFS.FstOfsStorage->verifications.size() < 1000000) {
+	eos_info("scheduling verification %s", capOpaque->Get("mgm.fid"));
+	gOFS.FstOfsStorage->verifications.push(newverify);
+      } else {
+	eos_err("verify list has already 1 Mio. entries - discarding verify message");
+      }
+      gOFS.FstOfsStorage->verificationsMutex.UnLock();
+    } else {
+      eos_err("Cannot create a verify entry - illegal opaque information");
+    }
+  }
+  
+  if (cmd == "dropverifications") {
+    gOFS.FstOfsStorage->verificationsMutex.Lock();
+    eos_notice("dropping %u verifications", gOFS.FstOfsStorage->verifications.size());
+    gOFS.FstOfsStorage->verifications.empty();
+    gOFS.FstOfsStorage->verificationsMutex.UnLock();
+  }
+
+  if (cmd == "listverifications") {
+    gOFS.FstOfsStorage->verificationsMutex.Lock();
+    eos_notice("%u verifications in verify queue", gOFS.FstOfsStorage->verifications.size());
+    if (gOFS.FstOfsStorage->runningVerify) {
+      gOFS.FstOfsStorage->runningVerify->Show("running");
+    }
+    gOFS.FstOfsStorage->verificationsMutex.UnLock();
+  }
+  
   if (cmd == "droptransfers") {
     gOFS.FstOfsStorage->transferMutex.Lock();
     eos_notice("dropping %u transfers", gOFS.FstOfsStorage->transfers.size());
@@ -996,7 +1051,7 @@ XrdFstMessaging::Process(XrdMqMessage* newmessage)
     for ( it = gOFS.FstOfsStorage->transfers.begin(); it != gOFS.FstOfsStorage->transfers.end(); ++it) {
       (*it)->Show();
     }
-    eos_static_notice("%u transfers in transfer queue", gOFS.FstOfsStorage->transfers.size());
+    eos_notice("%u transfers in transfer queue", gOFS.FstOfsStorage->transfers.size());
     if (gOFS.FstOfsStorage->runningTransfer) {
       gOFS.FstOfsStorage->runningTransfer->Show("running");
     }

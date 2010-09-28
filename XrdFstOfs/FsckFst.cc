@@ -551,11 +551,14 @@ int main(int argc, char* argv[] ) {
 		  XrdCommonFileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
 		  // scan the checksum of that file
 		  eos_static_notice("Scanning checksum of file %s ...", fullpath.c_str());
-		  if (!checksummer->ScanFile(fullpath.c_str())) {
+		  unsigned long long scansize=0;
+		  float scantime = 0;
+		  if (!checksummer->ScanFile(fullpath.c_str(), scansize, scantime)) {
 		    eos_static_crit("cannot scan the checksum of fid %08llx under path %s", rfmd->fMd.fid, fullpath.c_str());
 		    error_xsum_failed++;
 		  } else {
-		    eos_static_notice("name=%s path=%s fid=%08llx CX=%s", rfmd->fMd.name, fullpath.c_str(), rfmd->fMd.fid,checksummer->GetHexChecksum());
+		    XrdOucString sizestring;
+		    eos_static_notice("name=%s path=%s fid=%08llx CX=%s size=%s time=%.02fms rate=%.02f MB/s", rfmd->fMd.name, fullpath.c_str(), rfmd->fMd.fid,checksummer->GetHexChecksum() , XrdCommonFileSystem::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999));
 		    int checksumlen;
 		    checksummer->GetBinChecksum(checksumlen);
 		    // copy checksum into meta data entry
