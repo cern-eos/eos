@@ -79,6 +79,16 @@ public:
     return msgbody.c_str();
   }
 
+  static const char* GetDropVerifyRequestString(XrdOucString &msgbody) {
+    msgbody = "mgm.cmd=dropverifications";
+    return msgbody.c_str();
+  }
+
+  static const char* GetListVerifyRequestString(XrdOucString &msgbody) {
+    msgbody = "mgm.cmd=listverifications";
+    return msgbody.c_str();
+  }
+
   static const char* GetRestartRequestString(XrdOucString &msgbody) {
     msgbody = "mgm.cmd=restart"; 
     return msgbody.c_str();
@@ -105,10 +115,10 @@ public:
 
   static const char* GetReadableSizeString(XrdOucString& sizestring, unsigned long long insize, const char* unit = "") {
     char formsize[1024];
-    if (insize > 1000) {
-      if (insize > (1000*1000)) {
-	if (insize > (1000l*1000l*1000l)) {
-	  if (insize > (1000l*1000l*1000l*1000l)) {
+    if (insize >= 1000) {
+      if (insize >= (1000*1000)) {
+	if (insize >= (1000l*1000l*1000l)) {
+	  if (insize >= (1000l*1000l*1000l*1000l)) {
 	    // TB
 	    sprintf(formsize,"%.02f T%s",insize*1.0 / (1000l*1000l*1000l*1000l), unit);
 	  } else {
