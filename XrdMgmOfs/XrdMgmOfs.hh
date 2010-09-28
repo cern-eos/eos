@@ -392,6 +392,12 @@ const   char          *getVersion();
 				   unsigned long         fsid, 
 				   bool                  forceRemove=false);
 
+        int            _verifystripe(const char           *path, 
+				   XrdOucErrInfo        &error,
+				   XrdCommonMapping::VirtualIdentity &vid,
+				   unsigned long         fsid, 
+				   XrdOucString          options);
+
         int            _movestripe(const char           *path, 
 				   XrdOucErrInfo        &error,
 				   XrdCommonMapping::VirtualIdentity &vid,

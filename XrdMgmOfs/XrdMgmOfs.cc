@@ -2240,6 +2240,15 @@ XrdMgmOfs::FSctl(const int               cmd,
       char* afsid  = env.Get("mgm.add.fsid");
       char* amtime =     env.Get("mgm.mtime");
       char* amtimensec = env.Get("mgm.mtime_ns");
+      XrdOucString averifychecksum = env.Get("mgm.verify.checksum");
+      XrdOucString acommitchecksum = env.Get("mgm.commit.checksum");
+      XrdOucString averifysize     = env.Get("mgm.verify.size");
+      XrdOucString acommitsize     = env.Get("mgm.commit.size");
+
+      bool verifychecksum = (averifychecksum=="1");
+      bool commitchecksum = (acommitchecksum=="1");
+      bool verifysize     = (averifysize=="1");
+      bool commitsize     = (acommitsize=="1");
 
       char* checksum = env.Get("mgm.checksum");
       char  binchecksum[SHA_DIGEST_LENGTH];
@@ -2279,29 +2288,61 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  errno = e.getErrno();
 	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
 	}
-	gOFS->eosViewMutex.UnLock();
-	//-------------------------------------------
 
 	if (!fmd) {
+	  gOFS->eosViewMutex.UnLock();
+	  //-------------------------------------------
+
 	  // uups, no such file anymore
 	  return Emsg(epname,error,errno,"commit filesize change",spath);
 	} else {
 	  // check if fsid and fid are ok 
 	  if (fmd->getId() != fid ) {
+	    gOFS->eosViewMutex.UnLock();
+	    //-------------------------------------------
+
 	    eos_notice("commit for fid=%lu but fid=%lu", fmd->getId(), fid);
+	    gOFS->MgmStats.Add("CommitFailedFid",0,0,1);
 	    return Emsg(epname,error, EINVAL,"commit filesize change - file id is wrong", spath);
 	  }
 
 	  // check if this file is already unlinked from the visible namespace
 	  if (!fmd->getContainerId()) {
+	    gOFS->eosViewMutex.UnLock();
+	    //-------------------------------------------
+
 	    eos_notice("commit for fid=%lu but file is disconnected from any container", fmd->getId());
+	    gOFS->MgmStats.Add("CommitFailedUnlinked",0,0,1);  
 	    return Emsg(epname,error, EIDRM, "commit filesize change - file is already removed","");
 	  }
 
+	  if (verifysize) {
+	    // check if we saw a file size change or checksum change
+	    if (fmd->getSize() != size) {
+	      eos_err("commit for fid=%lu gave a file size change after verification on fsid=%llu", fmd->getId(), fsid);
+	    }
+	  }
+	  
+	  if (checksum) {
+	    if (verifychecksum) {
+	      bool cxError=false;
+	      for (int i=0 ; i< SHA_DIGEST_LENGTH; i++) {
+		if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i]) {
+		  cxError=true;
+		}
+	      }
+	      if (cxError) {
+		eos_err("commit for fid=%lu gave a different checksum after verification on fsid=%llu", fmd->getId(), fsid);
+	      }
+	    }
+	  }
 
-	  fmd->setSize(size);
+	  if (commitsize)
+	    fmd->setSize(size);
 	  fmd->addLocation(fsid);
-	  fmd->setChecksum(checksumbuffer);
+	  if (commitchecksum)
+	    fmd->setChecksum(checksumbuffer);
+
 	  //	  fmd->setMTimeNow();
 	  eos::FileMD::ctime_t mt;
 	  mt.tv_sec  = mtime;
@@ -2309,7 +2350,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  fmd->setMTime(mt);
 	  eos_debug("commit: setting size to %llu", fmd->getSize());
 	  //-------------------------------------------
-	  gOFS->eosViewMutex.Lock();
 	  try {
 	    gOFS->eosView->updateFileStore(fmd);
 	  }  catch( eos::MDException &e ) {
@@ -2317,6 +2357,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    std::string errmsg = e.getMessage().str();
 	    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
 	    gOFS->eosViewMutex.UnLock();
+	    gOFS->MgmStats.Add("CommitFailedNamespace",0,0,1);  
 	    return Emsg(epname, error, errno, "commit filesize change", errmsg.c_str());      
 	  }
 	  gOFS->eosViewMutex.UnLock();
@@ -2325,12 +2366,14 @@ XrdMgmOfs::FSctl(const int               cmd,
       } else {
 	int envlen=0;
 	eos_err("commit message does not contain all meta information: %s", env.Env(envlen));
+	gOFS->MgmStats.Add("CommitFailedParameters",0,0,1);  
 	if (spath) {
 	  return  Emsg(epname,error,EINVAL,"commit filesize change - size,fid,fsid,mtime not complete",spath);
 	} else {
 	  return  Emsg(epname,error,EINVAL,"commit filesize change - size,fid,fsid,mtime,path not complete","unknown");
 	}
       }
+      gOFS->MgmStats.Add("Commit",0,0,1);  
       const char* ok = "OK";
       error.setErrInfo(strlen(ok)+1,ok);
       return SFS_DATA;
@@ -2789,6 +2832,128 @@ XrdMgmOfs::_attr_rem(const char             *path,
 }
 
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_verifystripe(const char             *path,
+		       XrdOucErrInfo          &error,
+		       XrdCommonMapping::VirtualIdentity &vid,
+		       unsigned long           fsid,
+		       XrdOucString            option)
+{
+  static const char *epname = "verifystripe";  
+  eos::ContainerMD *dh=0;
+  eos::FileMD *fmd=0;
+  errno = 0;
+  unsigned long long fid=0;
+  int lid=0;
+  unsigned long long cid=0;
+
+  eos::ContainerMD::XAttrMap attrmap;
+
+  gOFS->MgmStats.Add("VerifyStripe",vid.uid,vid.gid,1);  
+
+  eos_debug("verify");
+  XrdCommonPath cPath(path);
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
+  try {
+    dh = gOFS->eosView->getContainer(cPath.GetParentPath());
+    eos::ContainerMD::XAttrMap::const_iterator it;
+    for ( it = dh->attributesBegin(); it != dh->attributesEnd(); ++it) {
+      attrmap[it->first] = it->second;
+    }
+  } catch( eos::MDException &e ) {
+    dh = 0;
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+
+  // check permissions
+  if (dh && (!dh->access(vid.uid,vid.gid, X_OK|W_OK)))
+    if (!errno) errno = EPERM;
+
+  
+  if (errno) {
+    gOFS->eosViewMutex.UnLock();
+    return  Emsg(epname,error,errno,"drop stripe",path);  
+  }
+
+  // get the file
+  try {
+    fmd = gOFS->eosView->getFile(path);
+    // we only unlink a location
+    if (fmd->hasLocation(fsid)) {
+      eos_debug("verifying location %u", fsid);
+      errno = 0;
+    } else {
+      errno = ENOENT;
+    }
+    fid = fmd->getId();
+    lid = fmd->getLayoutId();
+    cid = fmd->getContainerId();
+    
+    
+  } catch( eos::MDException &e ) {
+    fmd = 0;
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+
+  gOFS->eosViewMutex.UnLock();
+  
+  if (!errno) {
+    XrdMgmFstNode::gMutex.Lock();
+    XrdMgmFstFileSystem* verifyfilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid];
+    if (!verifyfilesystem) {
+      errno = EINVAL;
+      XrdMgmFstNode::gMutex.UnLock();
+      return  Emsg(epname,error,ENOENT,"verify stripe - filesystem does not exist",fmd->getName().c_str());  
+    }
+
+    XrdOucString receiver    = verifyfilesystem->GetQueue();
+    
+    XrdMgmFstNode::gMutex.UnLock();
+    
+    XrdOucString opaquestring = "";
+    // build the opaquestring contents
+    opaquestring += "&mgm.localprefix=";       opaquestring += verifyfilesystem->GetPath();
+    opaquestring += "&mgm.fid=";XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fid,hexfid);opaquestring += hexfid;
+    opaquestring += "&mgm.manager=";           opaquestring += gOFS->ManagerId.c_str();
+    opaquestring += "&mgm.access=verify";
+    opaquestring += "&mgm.fsid=";              opaquestring += (int)verifyfilesystem->GetId();
+    if (attrmap.count("user.tag")) {
+      opaquestring += "&mgm.container=";
+      opaquestring += attrmap["user.tag"].c_str();
+    }
+    XrdOucString sizestring="";
+    opaquestring += "&mgm.cid=";               opaquestring += XrdCommonFileSystem::GetSizeString(sizestring,cid);
+    opaquestring += "&mgm.path=";              opaquestring += path;
+    opaquestring += "&mgm.lid=";               opaquestring += lid;
+
+    if (option.length()) {
+      opaquestring += option;
+    }
+
+    XrdMqMessage message("verifycation");
+    XrdOucString msgbody = "mgm.cmd=verify"; 
+
+    msgbody += opaquestring;
+
+    // we send deletions in bunches of max 1000 for efficiency
+    message.SetBody(msgbody.c_str());   
+
+    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+      eos_static_err("unable to send verification message to %s", receiver.c_str());
+      errno = ECOMM;
+    } else {
+      errno = 0;
+    }
+  }
+  
+  if (errno) 
+    return  Emsg(epname,error,errno,"verify stripe",path);  
+
+  return SFS_OK;
+}
 
 /*----------------------------------------------------------------------------*/
 int

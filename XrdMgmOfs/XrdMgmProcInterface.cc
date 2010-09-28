@@ -16,6 +16,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <math.h>
 
 /*----------------------------------------------------------------------------*/
 XrdMgmProcInterface::XrdMgmProcInterface()
@@ -820,6 +821,60 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	stdErr = "error: you have to take role 'root' to execute this command";
       }
     }
+
+    if (cmd == "dropverifications") {
+      if (vid_in.uid == 0) {
+	if (subcmd == "fst") {
+	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
+	  if (( debugnode == "") || (debugnode == "*")) {
+	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
+	    XrdCommonFileSystem::GetDropVerifyRequestString(msgbody);
+	    message.SetBody(msgbody.c_str());
+	    
+	    // broadcast a global drop message
+	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
+	      stdOut="success: sent global drop verify message to all fst nodes"; 
+	    } else {
+	      stdErr="error: could not send global fst drop verifications message!";
+	      retc = EIO;
+	    } 
+	  } else {
+	    stdErr="error: only global fst drop verifications is supported yet!";
+	    retc = EINVAL;
+	  } 
+	}
+      } else {
+	retc = EPERM;
+	stdErr = "error: you have to take role 'root' to execute this command";
+      }
+    }
+
+    if (cmd == "listverifications") {
+      if (vid_in.uid == 0) {
+	if (subcmd == "fst") {
+	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
+	  if (( debugnode == "") || (debugnode == "*")) {
+	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
+	    XrdCommonFileSystem::GetListVerifyRequestString(msgbody);
+	    message.SetBody(msgbody.c_str());
+	    
+	    // broadcast a global list message
+	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
+	      stdOut="success: sent global list verifications message to all fst nodes"; 
+	    } else {
+	      stdErr="error: could not send global fst list verifications message!";
+	      retc = EIO;
+	    } 
+	  } else {
+	    stdErr="error: only global fst list verifications is supported yet!";
+	    retc = EINVAL;
+	  } 
+	}
+      } else {
+	retc = EPERM;
+	stdErr = "error: you have to take role 'root' to execute this command";
+      }
+    }
     
     if (cmd == "rtlog") {
       if (vid_in.uid == 0) {
@@ -1057,6 +1112,106 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      retc = EPERM;
 	      stdErr = "error: you have to take role 'root' to execute this command";
 	    }
+	  }
+	}
+
+	if (subcmd == "verify") {
+	  XrdOucString option="";
+	  XrdOucString computechecksum = opaque.Get("mgm.file.compute.checksum");
+	  XrdOucString commitchecksum = opaque.Get("mgm.file.commit.checksum");
+	  XrdOucString commitsize     = opaque.Get("mgm.file.commit.size");
+	  XrdOucString verifyrate     = opaque.Get("mgm.file.verify.rate");
+
+	  if (computechecksum=="1") {
+	    option += "&mgm.verify.compute.checksum=1";
+	  }
+
+	  if (commitchecksum=="1") {
+	    option += "&mgm.verify.commit.checksum=1";
+	  }
+
+	  if (commitsize=="1") {
+	    option += "&mgm.verify.commit.size=1";
+	  }
+	  
+	  if (verifyrate.length()) {
+	    option += "&mgm.verify.rate="; option += verifyrate;
+	  }
+
+	  XrdOucString fsidfilter  = opaque.Get("mgm.file.verify.filterid");
+	  int acceptfsid=0;
+	  if (fsidfilter.length()) {
+	    acceptfsid = atoi(opaque.Get("mgm.file.verify.filterid"));
+	  }
+
+	  // only root can do that
+	  if (vid_in.uid==0) {
+	    eos::FileMD* fmd=0;
+	    if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
+	      unsigned long long fid=0;
+	      if (path.beginswith("fid:")) {
+		path.replace("fid:","");
+		fid = strtoull(path.c_str(),0,10);
+	      }
+	      if (path.beginswith("fxid:")) {
+		path.replace("fxid:","");
+		fid = strtoull(path.c_str(),0,16);
+	      }
+	      // reference by fid+fsid
+	      //-------------------------------------------
+	      gOFS->eosViewMutex.Lock();
+	      try {
+		fmd = gOFS->eosFileService->getFileMD(fid);
+		std::string fullpath = gOFS->eosView->getUri(fmd);
+		path = fullpath.c_str();
+	      } catch ( eos::MDException &e ) {
+		errno = e.getErrno();
+		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+		eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	      }
+	    } else {
+	      // reference by path
+	      //-------------------------------------------
+	      gOFS->eosViewMutex.Lock();
+	      try {
+		fmd = gOFS->eosView->getFile(path.c_str());
+	      } catch ( eos::MDException &e ) {
+		errno = e.getErrno();
+		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+		eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	      }
+	    }
+
+	    if (fmd) {
+	      // copy out the locations vector
+	      eos::FileMD::LocationVector locations;
+	      eos::FileMD::LocationVector::const_iterator it;
+	      for (it = fmd->locationsBegin(); it != fmd->locationsEnd(); ++it) {
+		locations.push_back(*it);
+	      }
+	      
+	      gOFS->eosViewMutex.UnLock();
+	      
+	      retc = 0;
+	      for (it = locations.begin(); it != locations.end(); ++it) {
+		if (acceptfsid && (acceptfsid != (int) *it)) {
+		  continue;
+		}
+		int lretc = gOFS->_verifystripe(path.c_str(), *error, vid, (unsigned long) *it, option);
+		if (!lretc) {
+		  stdOut += "success: sending verify to fsid= "; stdOut += *it; stdOut += " for path="; stdOut += path; stdOut += "\n";
+		} else {
+		  retc = errno;
+		}
+	      }
+	    }
+	    
+	    //-------------------------------------------
+	    
+	  } else {
+	    gOFS->eosViewMutex.UnLock();
+	    retc = EPERM;
+	    stdErr = "error: you have to take role 'root' to execute this command";
 	  }
 	}
 
@@ -1884,11 +2039,15 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       google::dense_hash_map<unsigned long, unsigned long long> filesystembalance;
       google::dense_hash_map<std::string, unsigned long long> spacebalance;
       google::dense_hash_map<std::string, unsigned long long> schedulinggroupbalance;
+      google::dense_hash_map<int, unsigned long long> sizedistribution;
+      google::dense_hash_map<int, unsigned long long> sizedistributionn;
 
       filesystembalance.set_empty_key(0);
       spacebalance.set_empty_key("");
       schedulinggroupbalance.set_empty_key("");
-      
+      sizedistribution.set_empty_key(-1);
+      sizedistributionn.set_empty_key(-1);
+
       bool calcbalance = false;
       bool findzero = false;
       if (option.find("b")!=STR_NPOS) {
@@ -1907,7 +2066,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       if (!path.length()) {
 	stdErr="error: you have to give a path name to call 'find'";
 	retc = EINVAL;
-      } else {
+     } else {
 	std::vector< std::vector<std::string> > found_dirs;
 	std::vector< std::vector<std::string> > found_files;
 
@@ -1927,8 +2086,9 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		  gOFS->eosViewMutex.Lock();
 		  eos::FileMD* fmd = 0;
 		  try {
+		    unsigned long long filesize=0;
 		    fmd = gOFS->eosView->getFile(found_files[i][j].c_str());
-		    if (!fmd->getSize()) {
+		    if (!(filesize = fmd->getSize())) {
 		      stdOut += found_files[i][j].c_str();
 		      stdOut += "\n";
 		    }
@@ -1961,6 +2121,12 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		  }
 		  filesystembalance[loc]+=size;
 		  XrdMgmFstNode::gMutex.Lock();
+		  
+		  if ( (i==0) && (size) ) {
+		    int bin= (int)log10( (double) size);
+		    sizedistribution[ bin ] += size;
+		    sizedistributionn[ bin ] ++;
+		  }
 
 		  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[loc];
 		  if (filesystem) {
@@ -1999,28 +2165,53 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       }
 
       if (calcbalance) {
+	XrdOucString sizestring="";
 	google::dense_hash_map<unsigned long, unsigned long long>::iterator it;
 	for ( it = filesystembalance.begin(); it != filesystembalance.end(); it++) {
 	  char outline[1024];
-	  sprintf(outline,"fsid=%lu \tnbytes=%llu\n",it->first,it->second);
+	  sprintf(outline,"fsid=%lu \tvolume=%-12s \tnbytes=%llu\n",it->first,XrdCommonFileSystem::GetReadableSizeString(sizestring, it->second,"B"), it->second);
 	  stdOut += outline;
 	}
 
 	google::dense_hash_map<std::string, unsigned long long>::iterator its;
 	for ( its= spacebalance.begin(); its != spacebalance.end(); its++) {
 	  char outline[1024];
-	  sprintf(outline,"space=%s \tnbytes=%llu\n",its->first.c_str(),its->second);
+	  sprintf(outline,"space=%s \tvolume=%-12s \tnbytes=%llu\n",its->first.c_str(),XrdCommonFileSystem::GetReadableSizeString(sizestring, its->second,"B"), its->second);
 	  stdOut += outline;
 	}
 
 	google::dense_hash_map<std::string, unsigned long long>::iterator itg;
 	for ( itg= schedulinggroupbalance.begin(); itg != schedulinggroupbalance.end(); itg++) {
 	  char outline[1024];
-	  sprintf(outline,"sched=%s \tnbytes=%llu\n",itg->first.c_str(),itg->second);
+	  sprintf(outline,"sched=%s \tvolume=%-12s \tnbytes=%llu\n",itg->first.c_str(),XrdCommonFileSystem::GetReadableSizeString(sizestring, itg->second,"B"), itg->second);
 	  stdOut += outline;
 	}
+	
+	google::dense_hash_map<int, unsigned long long>::iterator itsd;
+	for ( itsd= sizedistribution.begin(); itsd != sizedistribution.end(); itsd++) {
+	  char outline[1024];
+	  unsigned long long lowerlimit=0;
+	  unsigned long long upperlimit=0;
+	  if ( ((itsd->first)-1) > 0)
+	    lowerlimit = pow10((itsd->first));
+	  if ( (itsd->first) > 0)
+	    upperlimit = pow10((itsd->first)+1);
 
-
+	  XrdOucString sizestring1;
+	  XrdOucString sizestring2;
+	  XrdOucString sizestring3;
+	  XrdOucString sizestring4;
+	  unsigned long long avgsize = (unsigned long long ) (sizedistributionn[itsd->first]?itsd->second/sizedistributionn[itsd->first]:0);
+	  sprintf(outline,"sizeorder=%02d \trange=[ %-12s ... %-12s ] volume=%-12s \tavgsize=%-12s \tnbyptes=%llu \t avgnbytes=%llu\n", itsd->first
+		  , XrdCommonFileSystem::GetReadableSizeString(sizestring1, lowerlimit,"B")
+		  , XrdCommonFileSystem::GetReadableSizeString(sizestring2, upperlimit,"B")
+		  , XrdCommonFileSystem::GetReadableSizeString(sizestring3, itsd->second,"B")
+		  , XrdCommonFileSystem::GetReadableSizeString(sizestring4, avgsize,"B")
+		  , itsd->second
+		  , avgsize
+		  );
+	  stdOut += outline; 
+	}
       }
       MakeResult(1);
       return SFS_OK;
