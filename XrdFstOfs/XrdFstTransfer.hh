@@ -22,14 +22,16 @@ private:
   XrdOucString opaque;
   XrdOucString capability;
   unsigned int tried;
+  bool         dropSource;
+
   time_t nexttrytime;
 
   
 public:
   struct XrdCommonFmd::FMD fMd;
 
-  XrdFstTransfer(const char* sourcehostport, unsigned long long fid, unsigned long fsidsource, unsigned long fsidtarget, const char* localprefixsource,const char* localprefixtarget, const char* managerid, const char* inopaque, const char* incap) {
-    fId = fid; fsIdSource = fsidsource; fsIdTarget = fsidtarget; localPrefixSource = localprefixsource; localPrefixTarget = localprefixtarget; managerId = managerid; sourceHostPort = sourcehostport; opaque = inopaque; capability = incap; tried=0; nexttrytime=0;
+  XrdFstTransfer(const char* sourcehostport, unsigned long long fid, unsigned long fsidsource, unsigned long fsidtarget, const char* localprefixsource,const char* localprefixtarget, const char* managerid, const char* inopaque, const char* incap, bool dropsource=false) {
+    fId = fid; fsIdSource = fsidsource; fsIdTarget = fsidtarget; localPrefixSource = localprefixsource; localPrefixTarget = localprefixtarget; managerId = managerid; sourceHostPort = sourcehostport; opaque = inopaque; capability = incap; tried=0; nexttrytime=0; dropSource = dropsource;
   }
   ~XrdFstTransfer() {}
 
@@ -40,6 +42,7 @@ public:
     const char* sourcehostport  =0;
     XrdOucString hexfid="";
     XrdOucString access="";
+    XrdOucString drop="";
     const char* sfsidsource=0;
     const char* sfsidtarget=0;
     const char* smanager=0;
@@ -47,6 +50,8 @@ public:
     unsigned long long fileid=0;
     unsigned long fsidsource=0;
     unsigned long fsidtarget=0;
+    
+    bool dropsource;
 
     sourcehostport   = capOpaque->Get("mgm.sourcehostport");
     localprefixsource = capOpaque->Get("mgm.localprefix");
@@ -57,8 +62,11 @@ public:
     sfsidtarget = capOpaque->Get("mgm.fsidtarget");
 
     smanager    = capOpaque->Get("mgm.manager");
-
     access      = capOpaque->Get("mgm.access");
+    drop        = capOpaque->Get("mgm.dropsource");
+
+    if (drop == "1") 
+      dropsource = true;
 
     // permission check
     if (access != "read") 
@@ -74,7 +82,7 @@ public:
     fsidtarget   = atoi(sfsidtarget);
     
     int envlen = 0;
-    return new XrdFstTransfer(sourcehostport, fileid, fsidsource, fsidtarget, localprefixsource, localprefixtarget, smanager, capOpaque->Env(envlen), capability.c_str());
+    return new XrdFstTransfer(sourcehostport, fileid, fsidsource, fsidtarget, localprefixsource, localprefixtarget, smanager, capOpaque->Env(envlen), capability.c_str(), dropsource);
   }
 
   void Show(const char* show="") {

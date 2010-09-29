@@ -193,6 +193,10 @@ XrdFstTransfer::Do()
   
   capOpaqueFile += "&mgm.add.fsid=";
   capOpaqueFile += (int)newfmd->fMd.fsid;
+  if (dropSource) {
+    capOpaqueFile += "&mgm.drop.fsid=";
+    capOpaqueFile += capOpaque.Get("mgm.fsid");
+  }
 
   if (checkSum) {
     capOpaqueFile += "&mgm.checksum=";

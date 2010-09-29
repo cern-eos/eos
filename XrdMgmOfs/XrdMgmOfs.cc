@@ -2239,11 +2239,12 @@ XrdMgmOfs::FSctl(const int               cmd,
       char* afid   = env.Get("mgm.fid");
       char* afsid  = env.Get("mgm.add.fsid");
       char* amtime =     env.Get("mgm.mtime");
-      char* amtimensec = env.Get("mgm.mtime_ns");
+      char* amtimensec = env.Get("mgm.mtime_ns");      
       XrdOucString averifychecksum = env.Get("mgm.verify.checksum");
       XrdOucString acommitchecksum = env.Get("mgm.commit.checksum");
       XrdOucString averifysize     = env.Get("mgm.verify.size");
       XrdOucString acommitsize     = env.Get("mgm.commit.size");
+      XrdOucString adropfsid       = env.Get("mgm.drop.fsid");
 
       bool verifychecksum = (averifychecksum=="1");
       bool commitchecksum = (acommitchecksum=="1");
@@ -2253,7 +2254,11 @@ XrdMgmOfs::FSctl(const int               cmd,
       char* checksum = env.Get("mgm.checksum");
       char  binchecksum[SHA_DIGEST_LENGTH];
       memset(binchecksum, 0, sizeof(binchecksum));
-	
+      unsigned long dropfsid  = 0;
+      if ( adropfsid.length() ) {
+	dropfsid = strtoul(adropfsid.c_str(),0,10);
+      }
+
       if (checksum) {
 	for (unsigned int i=0; i< strlen(checksum); i+=2) {
 	  // hex2binary conversion
@@ -2268,6 +2273,8 @@ XrdMgmOfs::FSctl(const int               cmd,
 	unsigned long fsid      = strtoul (afsid,0,10);
 	unsigned long mtime     = strtoul (amtime,0,10);
 	unsigned long mtimens   = strtoul (amtimensec,0,10);
+
+	
 	eos::Buffer checksumbuffer;
 	checksumbuffer.putData(binchecksum, SHA_DIGEST_LENGTH);
 
@@ -2347,10 +2354,15 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  eos::FileMD::ctime_t mt;
 	  mt.tv_sec  = mtime;
 	  mt.tv_nsec = mtimens;
-	  fmd->setMTime(mt);
+	  fmd->setMTime(mt);	 
+	  if (dropfsid) {
+	    eos_debug("commit: dropping replica on fs %lu", dropfsid);
+	    fmd->unlinkLocation((unsigned short)dropfsid);
+	  }
+	  
 	  eos_debug("commit: setting size to %llu", fmd->getSize());
 	  //-------------------------------------------
-	  try {
+	  try {	    
 	    gOFS->eosView->updateFileStore(fmd);
 	  }  catch( eos::MDException &e ) {
 	    errno = e.getErrno();

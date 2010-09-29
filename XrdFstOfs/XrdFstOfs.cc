@@ -1321,6 +1321,7 @@ XrdFstOfs::_rem(const char             *path,
 
   // attach meta data
   int rc = XrdOfs::rem(fstPath.c_str(),error,client,0);
+  eos_info("rc=%d errno=%d", rc,errno);
 
   if (rc) {
     return rc;
