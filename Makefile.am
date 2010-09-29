@@ -2,7 +2,7 @@ $.NOTPARALLEL:
 
 AUTOMAKE_OPTIONS = foreign 1.6
 
-SUBDIRS = XrdCommon XrdMqOfs XrdCapability XrdFstOfs Namespace XrdMgmOfs Console 
+SUBDIRS = XrdCommon XrdMqOfs XrdCapability XrdFstOfs Namespace XrdMgmOfs Console Sync
 
 .PHONY: doc silent
 
@@ -11,7 +11,7 @@ silent:
             -e 's/.*-o  *\([^ ]*\).*/++++ Creating \1 ++++/p' \
             -e '/make/p'
 
-EXTRA_DIST = bootstrap.sh Doxyfile etc/xrd.cf.mgm etc/xrd.cf.fst etc/xrd.cf.mq etc/cron.d/xrd-logs etc/init.d/xrd etc/init.d/cmsd etc/sysconfig/xrd.example configure.ac m4 Namespace/tests/*.cc Namespace/tests/Makefile.am Namespace/utils Namespace/views Namespace/persistency sss/eos-sss.keytab XrdFstOfs/eosfsttrim
+EXTRA_DIST = bootstrap.sh Doxyfile etc/xrd.cf.mgm etc/xrd.cf.fst etc/xrd.cf.mq etc/xrd.cf.sync etc/cron.d/xrd-logs etc/init.d/xrd etc/init.d/cmsd etc/sysconfig/xrd.example configure.ac m4 Namespace/tests/*.cc Namespace/tests/Makefile.am Namespace/utils Namespace/views Namespace/persistency sss/eos-sss.keytab XrdFstOfs/eosfsttrim
 
 rpm:    dist
 	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
@@ -41,6 +41,7 @@ install-exec-local:
 	@$(INSTALL) -m 644 $(srcdir)/etc/xrd.cf.mgm $(DESTDIR)/$(sysconfdir)/xrd.cf.mgm
 	@$(INSTALL) -m 644 $(srcdir)/etc/xrd.cf.fst $(DESTDIR)/$(sysconfdir)/xrd.cf.fst
 	@$(INSTALL) -m 644 $(srcdir)/etc/xrd.cf.mq  $(DESTDIR)/$(sysconfdir)/xrd.cf.mq
+	@$(INSTALL) -m 644 $(srcdir)/etc/xrd.cf.sync  $(DESTDIR)/$(sysconfdir)/xrd.cf.sync
 	@$(INSTALL) -m 755 $(srcdir)/etc/init.d/xrd $(DESTDIR)/$(sysconfdir)/rc.d/init.d/xrd
 	@$(INSTALL) -m 755 $(srcdir)/etc/init.d/cmsd $(DESTDIR)/$(sysconfdir)/rc.d/init.d/cmsd
 	@$(INSTALL) -m 644 $(srcdir)/etc/cron.d/xrd-logs $(DESTDIR)/$(sysconfdir)/cron.d/xrd-logs

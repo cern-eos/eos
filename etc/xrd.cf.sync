@@ -1,0 +1,14 @@
+###########################################################
+xrootd.async off nosf
+xrd.network keepalive
+###########################################################
+xrootd.seclib libXrdSec.so
+sec.protocol sss -c /opt/eos/sss/eos-sss.keytab -s /opt/eos/sss/eos-sss.keytab
+sec.protocol  sss
+###########################################################
+all.export / nolock
+all.trace none
+all.manager localhost 2131
+ofs.trace open close
+###########################################################
+xrd.port 1096
