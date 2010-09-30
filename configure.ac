@@ -93,6 +93,7 @@ AC_CONFIG_FILES(Makefile
 		XrdMqOfs/Makefile
 		XrdCommon/Makefile
 		Console/Makefile
+		Sync/Makefile
 		eos.spec
 		Namespace/Makefile
 		Namespace/tests/Makefile
