@@ -38,6 +38,7 @@ make install DESTDIR=$RPM_BUILD_ROOT
 %config(noreplace) /etc/xrd.cf.mq
 %config(noreplace) /etc/xrd.cf.sync
 %config(noreplace) /etc/sysconfig/xrd.example
+%config(noreplace) /etc/sysconfig/eossync.example
 %_sysconfdir/cron.d/xrd-logs
 %_sysconfdir/rc.d/init.d/xrd
 %_sysconfdir/rc.d/init.d/cmsd
