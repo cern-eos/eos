@@ -338,6 +338,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
   unsigned int schedgroupindex=0;
   
   unsigned long currentfs=0;
+  unsigned long currentfsrandomoffset=0;
 
   // we can try all scheduling groups but not more 
   for (unsigned int i=0; i< schedulingView.size(); i++) {
@@ -352,6 +353,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
     selectedfs.clear();
 
     int maxiterations = schedulingView[schedgroupindex].size();
+    currentfsrandomoffset = (unsigned long) (( 0.999999 * random()* maxiterations )/RAND_MAX);
 
     std::string ptrindextag = "";
     
@@ -399,6 +401,21 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
 	  eos_static_debug("fs %u cannot be selected!", filesystem->GetId());
 	}
       }
+      // we randomize the start position of the second replica to decouple disks better
+      if (nassigned ==1) {
+	if (currentfsrandomoffset) {
+	  for (unsigned int inc=0; inc < currentfsrandomoffset; inc++) {
+	    currentfsrandomoffset = 0;
+	    schedulingViewPtr[ptrindextag]++;
+	    if (schedulingViewPtr[ptrindextag] == schedulingView[schedgroupindex].end()) {
+	      schedulingViewPtr[ptrindextag] = schedulingView[schedgroupindex].begin();
+	    }
+	  }
+	  // we have to enlarge the loop by one because we could run again over the previous selected one
+	  maxiterations++;
+	}
+      }
+	
       schedulingViewPtr[ptrindextag]++;
       if (nassigned >= nfilesystems) {
 	// rotate to next scheduling group

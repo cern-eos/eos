@@ -369,7 +369,10 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   XrdCommonLogging::gFilter = "Process,AddQuota,UpdateHint,SetQuota,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut";
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,SetQuota,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut");
 
+  // we automatically append the host name to the config dir now !!!
+  MgmConfigDir += HostName;
 
+  XrdOucString makeit="mkdir -p "; makeit+= MgmConfigDir; system(makeit.c_str());
   // check config directory access
   if (::access(MgmConfigDir.c_str(), W_OK|R_OK|X_OK)) {
     Eroute.Emsg("Config","I cannot acccess the configuration directory for r/w!", MgmConfigDir.c_str()); NoGo=1;
@@ -403,8 +406,12 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   contSettings["changelog_path"] = MgmMetaLogDir.c_str();
   fileSettings["changelog_path"] = MgmMetaLogDir.c_str();
-  contSettings["changelog_path"] += "/directories.mdlog";
-  fileSettings["changelog_path"] += "/files.mdlog";
+  contSettings["changelog_path"] += "/directories.";
+  fileSettings["changelog_path"] += "/files.";
+  contSettings["changelog_path"] += HostName;
+  fileSettings["changelog_path"] += HostName;
+  contSettings["changelog_path"] += ".mdlog";
+  fileSettings["changelog_path"] += ".mdlog";
 
   time_t tstart = time(0);
   
