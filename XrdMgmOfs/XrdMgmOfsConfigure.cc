@@ -371,6 +371,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   // we automatically append the host name to the config dir now !!!
   MgmConfigDir += HostName;
+  MgmConfigDir += "/";
 
   XrdOucString makeit="mkdir -p "; makeit+= MgmConfigDir; system(makeit.c_str());
   // check config directory access
@@ -378,7 +379,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     Eroute.Emsg("Config","I cannot acccess the configuration directory for r/w!", MgmConfigDir.c_str()); NoGo=1;
   } else {
     Eroute.Say("=====> mgmofs.configdir: ", MgmConfigDir.c_str(),"");
-    MgmConfigDir = MgmConfigDir.c_str();
   }
 
   // start the config enging
