@@ -1,0 +1,288 @@
+#! /bin/bash
+#
+#****************************************************************************
+#                      eossync.init
+#
+# chkconfig: 345 96 6
+# description: Xrootd Initialisation Script
+#****************************************************************************
+
+# Source function library
+. /etc/rc.d/init.d/functions
+
+# Variables
+prog="eossync"
+sysprog="$prog"
+sysconfigfile="eossync"
+
+# Defaults
+EOS_LOCATION="/opt/eos"
+EOS_MAXFD=65000
+EOS_USER="daemon"
+EOS_LOGDIR="/var/log/xroot/sync"
+EOS_COREDIR="/var/spool/xroot/core"
+EOS_ROLEFLAG=""
+
+FRETVAL=0
+RETVAL=0
+
+USER=`whoami`
+HOST=`hostname -f`
+
+# Source sysconfig file
+if [ -f /etc/sysconfig/$sysconfigfile ]; then
+        . /etc/sysconfig/$sysconfigfile
+fi
+
+mkdir -p ${EOS_LOGDIR}
+chown ${EOS_USER} ${EOS_LOGDIR}
+
+
+cleanup() {
+    echo " "
+}
+
+
+start() {
+    # Run daemon
+    echo  $"Starting $prog: "
+    
+    # Start eosfilesync & eosdirsync processes
+    index=0
+     #loop over all defined master
+
+    
+    fileindex=0
+    NAME=MASTER${index}_${fileindex}
+
+    # file replication loop
+    while test -n "${!NAME}"; do
+	while test -n "${!NAME}"; do
+	  # check if this is our host
+	    match=${!NAME/$HOST//}
+#	    echo match is $s $HOST
+	    if [ "$match" != "${!NAME}" ]; then
+		path=${!NAME}
+		path=${path/root:\/\//};
+		path=${path/$HOST//};
+		path=${path/\/\//};
+		# loop over all targets
+		targetindex=0
+		TNAME=TARGET$targetindex
+		while test -n "${!TNAME}"; do 
+		    echo -n "FILE $fileindex => TARGET ${!TNAME}"
+		    # sync only to the 'other' machines
+		    if [ $targetindex -ne $index ]; then
+			progline="$EOS_LOCATION/bin/eosfilesync $path root://${!TNAME}//$path"
+
+			pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosfilesync.*$progline\$" | awk '{print $1}'`
+			if [ -n "$pid" ]; then
+			    passed
+			else
+			    daemon --user=${EOS_USER} "$progline >& ${EOS_LOGDIR}/xrdlog.file-$index-$fileindex-target-$targetindex.log &" 
+			    RETVAL=$?
+			    if [ $RETVAL -eq 0 ]; then 
+				pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosfilesync.*$progline\$" | awk '{print $1}'`
+				echo $pid > /var/run/eosfilesync-$index-file-$fileindex-target-$targetindex.pid
+			    fi
+			    [ $RETVAL -eq 0 ] && success 
+			    [ $RETVAL -ne 0 ] && failure 
+			fi
+		    else 
+			passed
+		    fi
+		    let targetindex=targetindex+1
+		    TNAME=TARGET$targetindex
+		    echo
+		done
+	    fi
+	    let fileindex=fileindex+1
+	    NAME=MASTER${index}_${fileindex}
+	done
+	let index=index+1
+	fileindex=0
+	NAME=MASTER${index}_${fileindex}
+    done
+
+    # config replication loop  
+    index=0
+    #loop over all defined master
+
+    NAME=MASTER${index}_conf
+    while test -n "${!NAME}"; do
+	path=${!NAME}
+	targetindex=0
+	TNAME=TARGET$targetindex
+	while test -n "${!TNAME}"; do 
+	    if [ $targetindex -ne $index ]; then
+		echo "CONF $INDEX => TARGET ${!TNAME}"
+		progline="$EOS_LOCATION/bin/eosdirsync $path root://${!TNAME}//$path"
+		pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosdirsync.*$progline\$" | awk '{print $1}'`
+		if [ -n "$pid" ]; then
+		    passed
+		else
+		    daemon --user=${EOS_USER} "$progline >& ${EOS_LOGDIR}/xrdlog.dir-$index-target-$targetindex.log &" 
+		    RETVAL=$?
+		    if [ $RETVAL -eq 0 ]; then 
+			pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosdirsync.*$progline\$" | awk '{print $1}'`
+			echo $pid > /var/run/eosdirsync-$index-target-$targetindex.pid
+		    fi
+		    [ $RETVAL -eq 0 ] && success 
+		    [ $RETVAL -ne 0 ] && failure 
+		fi
+	    else 
+		passed
+	    fi
+	    let targetindex=targetindex+1
+	    TNAME=TARGET$targetindex
+	done
+
+	let index=index+1
+	NAME=MASTER${index}_conf
+    done
+
+	
+    echo
+
+    touch /var/lock/subsys/$sysprog
+
+    return $RETVAL
+}
+
+stop() {
+        cleanup
+        echo -n $"Stopping $prog: "
+	killall -9  eosfilesync 2>/dev/null
+	killall -9  eosdirsync 2>/dev/null
+	rm -rf /var/lock/subsys/$sysprog
+	success
+	echo
+        return $RETVAL
+}
+
+status() {
+    # Start eosfilesync & eosdirsync processes
+    index=0
+     #loop over all defined master
+
+    GRETVAL=0;
+    fileindex=0
+    NAME=MASTER${index}_${fileindex}
+
+    # file replication loop
+    while test -n "${!NAME}"; do
+	while test -n "${!NAME}"; do
+	  # check if this is our host
+	    match=${!NAME/$HOST//}
+	    if [ "$match" != "${!NAME}" ]; then
+		path=${!NAME}
+		path=${path/root:\/\//};
+		path=${path/$HOST//};
+		path=${path/\/\//};
+		# loop over all targets
+		targetindex=0
+		TNAME=TARGET$targetindex
+		while test -n "${!TNAME}"; do 
+		    echo -n "FILE $fileindex => TARGET ${!TNAME}"
+		    # sync only to the 'other' machines
+		    if [ $targetindex -ne $index ]; then
+			progline="$EOS_LOCATION/bin/eosfilesync $path root://${!TNAME}//$path"
+			pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosfilesync.*$progline\$" | awk '{print $1}'`
+			if [ -n "$pid" ]; then
+			    RETVAL=0;
+			else
+			    RETVAL=1;
+			    GRETVAL=1;
+			fi
+
+			[ $RETVAL -eq 0 ] && success 
+			[ $RETVAL -ne 0 ] && failure 
+		    else 
+		        passed
+		    fi
+		    let targetindex=targetindex+1
+		    TNAME=TARGET$targetindex
+		    echo
+		done
+	    fi
+	    let fileindex=fileindex+1
+	    NAME=MASTER${index}_${fileindex}
+	done
+	let index=index+1
+	fileindex=0
+	NAME=MASTER${index}_${fileindex}
+    done
+
+    # config replication loop  
+    index=0
+    #loop over all defined master
+
+    NAME=MASTER${index}_conf
+    while test -n "${!NAME}"; do
+	path=${!NAME}
+	targetindex=0
+	TNAME=TARGET$targetindex
+	while test -n "${!TNAME}"; do 
+	    if [ $targetindex -ne $index ]; then
+		echo "CONF $INDEX => TARGET ${!TNAME}"
+		progline="$EOS_LOCATION/bin/eosdirsync $path root://${!TNAME}//$path"
+		pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosdirsync.*$progline\$" | awk '{print $1}'`
+		if [ -n "$pid" ]; then
+		    RETVAL=0;
+		else
+		    RETVAL=1;
+		    GRETVAL=1;
+		fi
+		[ $RETVAL -eq 0 ] && success 
+		[ $RETVAL -ne 0 ] && failure 
+	    else 
+		passed
+	    fi
+	    let targetindex=targetindex+1
+	    TNAME=TARGET$targetindex
+	done
+
+	let index=index+1
+	NAME=MASTER${index}_conf
+    done
+
+    if [ $GRETVAL -eq 1 ]; then
+	[ -f "/var/lock/subsys/$sysprog" ] && echo "$sysprog (partially) dead but subsys locked";
+	[ ! -f "/var/lock/subsys/$sysprog" ] && echo "$sysprog is stopped";
+    else 
+	echo "$sysprog is running..."
+    fi
+
+    return $GRETVAL
+}
+
+restart() {
+        stop $1
+        start $1
+}
+
+
+# See how we were called
+case "$1" in
+
+        start)
+                start $2
+                ;;
+        stop)
+                stop $2
+                ;;
+        status)
+                status
+                ;;
+        restart)
+                restart $2
+                ;;
+        condrestart)
+                [ -f "/var/lock/subsys/$sysprog" ] && restart 
+                ;;
+        *)
+                echo $"Usage: $0 {start|stop|status|restart|condrestart} [role]"
+                exit 1
+esac
+
+exit $RETVAL

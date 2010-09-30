@@ -148,6 +148,8 @@ int main (int argc, char* argv[]) {
     XrdCommonLogging::SetLogPriority(LOG_DEBUG);
   }
 
+  eos_static_notice("starting %s=>%s", argv[1],argv[2]);
+
   XrdOucString sourcedir = argv[1];
   XrdOucString dsturl = argv[2];
   struct stat laststat;

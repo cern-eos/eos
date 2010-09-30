@@ -11,9 +11,10 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientEnv.hh"
+#include "XrdCommon/XrdCommonLogging.hh"\
 
 void usage() {
-  fprintf(stderr,"usage: %s <src-path> <dst-url>\n", PROGNAME);
+  fprintf(stderr,"usage: %s <src-path> <dst-url> [--debug]\n", PROGNAME);
   exit(-1);
 }
 
@@ -21,14 +22,35 @@ void usage() {
 #define PAGESIZE (64*1024ll)
 
 int main (int argc, char* argv[]) {
-  if (argc != 3) {
+  if (argc < 3) {
     usage();
   }
+
+  EnvPutInt(NAME_READCACHESIZE,0);
+  EnvPutInt(NAME_MAXREDIRECTCOUNT,10000);
+  EnvPutInt(NAME_DATASERVERCONN_TTL,3600);
+  EnvPutInt(NAME_FIRSTCONNECTMAXCNT,10000);
   
-  // this is done by the service script
-  //  setuid(2);
-  //  setgid(2);
+  XrdCommonLogging::Init();
+  XrdCommonLogging::SetUnit("eosfilesync");
+  XrdCommonLogging::SetLogPriority(LOG_NOTICE);
+
+  XrdOucString debugstring="";
+
+   if (argc==4) {
+    debugstring = argv[3];
+  }
+ 
+  if ( (debugstring == "--debug") || (debugstring == "-d") ) {
+    XrdCommonLogging::SetLogPriority(LOG_DEBUG);
+  }
   
+  if ( (debugstring == "--debug") || (debugstring == "-d") ) {
+    XrdCommonLogging::SetLogPriority(LOG_DEBUG);
+  }
+  
+  eos_static_notice("starting %s=>%s", argv[1],argv[2]);
+
   off_t localoffset = 0;
   off_t remoteoffset = 0;
 
@@ -52,11 +74,6 @@ int main (int argc, char* argv[]) {
     }
   } while(fd <0 );
 
-  // don't cache!
-  EnvPutInt(NAME_READCACHESIZE,0);
-  EnvPutInt(NAME_MAXREDIRECTCOUNT,10000);
-  EnvPutInt(NAME_DATASERVERCONN_TTL,3600);
-
   XrdClient* client = new XrdClient(dsturl.c_str());
 
   if (!client) {
@@ -67,7 +84,7 @@ int main (int argc, char* argv[]) {
   bool isopen = client->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or , kXR_mkpath | kXR_open_updt , false) || client->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or , kXR_mkpath | kXR_new, false);
 
   if (!isopen) {
-    fprintf(stderr,"Error: cannot open remote file %s\n", dsturl.c_str());
+    eos_static_err("cannot open remote file %s", dsturl.c_str());
   }
 
   struct stat srcstat;
@@ -75,12 +92,14 @@ int main (int argc, char* argv[]) {
 
   do {
     if (fstat(fd, &srcstat)) {
-      fprintf(stderr,"Error: cannot stat source file %s\n", sourcefile.c_str());
-      exit(-1);
+      eos_static_err("cannot stat source file %s - retry in 1 minute ...", sourcefile.c_str());
+      sleep(60);
+      continue;
+      
     }
 
     if (!client->Stat(&dststat, true)) {
-      fprintf(stderr, "Error: cannot stat destination file %s\n", dsturl.c_str());
+      eos_static_crit("cannot stat destination file %s", dsturl.c_str());
       exit(-1);
     }
 
@@ -88,9 +107,9 @@ int main (int argc, char* argv[]) {
     remoteoffset = dststat.size;
 
     if (remoteoffset > localoffset) {
-      fprintf(stderr, "Error: remote file is longer than local file - force truncation\n");
+      eos_static_err("remote file is longer than local file - force truncation\n");
       if (!client->Truncate(0)) {
-	fprintf(stderr,"Error: couldn't truncate remote file\n");
+	eos_static_crit("couldn't truncate remote file");
 	exit(-1);
       }
       remoteoffset = 0;
@@ -110,15 +129,15 @@ int main (int argc, char* argv[]) {
       // sleep 10ms
       usleep(10000);
     } else {
-      fprintf(stderr,"remoteoffset=%llu module=%llu mapoffset=%llu mapsize =%lu\n", (unsigned long long)remoteoffset,(unsigned long long)remoteoffset%PAGESIZE, (unsigned long long)mapoffset, (unsigned long)mapsize);
+      eos_static_debug("remoteoffset=%llu module=%llu mapoffset=%llu mapsize =%lu", (unsigned long long)remoteoffset,(unsigned long long)remoteoffset%PAGESIZE, (unsigned long long)mapoffset, (unsigned long)mapsize);
     
       char* copyptr = (char*) mmap(NULL, mapsize, PROT_READ, MAP_SHARED, fd,mapoffset);
       if (!copyptr) {
-	fprintf(stderr,"Error: cannot map source file at %llu\n", (unsigned long long)remoteoffset);
+	eos_static_crit("cannot map source file at %llu", (unsigned long long)remoteoffset);
 	exit(-1);
       }
       if (!client->Write(copyptr + (remoteoffset %PAGESIZE), remoteoffset, transfersize)) {
-	fprintf(stderr,"Error: cannot write remote block at %llu/%lu\n", (unsigned long long)remoteoffset, (unsigned long)transfersize);
+	eos_static_err("cannot write remote block at %llu/%lu", (unsigned long long)remoteoffset, (unsigned long)transfersize);
 	sleep(60);
       }
       munmap(copyptr,mapsize);
@@ -130,7 +149,7 @@ int main (int argc, char* argv[]) {
     // every 1000 ms we send a sync command
     if (syncperiod > 1000) {
       if (!client->Sync()) {
-	fprintf(stderr,"Error: cannot sync remote file\n");
+	eos_static_crit("cannot sync remote file");
 	exit(-1);
       }
     }
