@@ -60,7 +60,7 @@ start() {
 	while test -n "${!NAME}"; do
 	  # check if this is our host
 	    match=${!NAME/$HOST//}
-#	    echo match is $s $HOST
+#	    echo match is $match ${!NAME}
 	    if [ "$match" != "${!NAME}" ]; then
 		path=${!NAME}
 		path=${path/root:\/\//};
@@ -114,8 +114,16 @@ start() {
 	targetindex=0
 	TNAME=TARGET$targetindex
 	while test -n "${!TNAME}"; do 
-	    if [ $targetindex -ne $index ]; then
+	    match=${!NAME/$HOST//}
+#	    echo match is $match ${!NAME}
+	    if [ "$match" != "${!NAME}" ]; then
 		echo "CONF $INDEX => TARGET ${!TNAME}"
+
+            if [ $targetindex -ne $index ]; then
+		path=${!NAME}
+		path=${path/root:\/\//};
+		path=${path/$HOST//};
+		path=${path/\/\//};
 		progline="$EOS_LOCATION/bin/eosdirsync $path root://${!TNAME}//$path"
 		pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosdirsync.*$progline\$" | awk '{print $1}'`
 		if [ -n "$pid" ]; then
@@ -130,8 +138,9 @@ start() {
 		    [ $RETVAL -eq 0 ] && success 
 		    [ $RETVAL -ne 0 ] && failure 
 		fi
-	    else 
+	    else
 		passed
+	    fi
 	    fi
 	    let targetindex=targetindex+1
 	    TNAME=TARGET$targetindex
@@ -223,9 +232,16 @@ status() {
 	targetindex=0
 	TNAME=TARGET$targetindex
 	while test -n "${!TNAME}"; do 
-	    if [ $targetindex -ne $index ]; then
+	    match=${!NAME/$HOST//}
+#	    echo match is $match ${!NAME}
+	    if [ "$match" != "${!NAME}" ]; then
 		echo "CONF $INDEX => TARGET ${!TNAME}"
-		progline="$EOS_LOCATION/bin/eosdirsync $path root://${!TNAME}//$path"
+            if [ $targetindex -ne $index ]; then
+		path=${!NAME}
+		path=${path/root:\/\//};
+		path=${path/$HOST//};
+		path=${path/\/\//};
+			progline="$EOS_LOCATION/bin/eosdirsync $path root://${!TNAME}//$path"
 		pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosdirsync.*$progline\$" | awk '{print $1}'`
 		if [ -n "$pid" ]; then
 		    RETVAL=0;
@@ -237,6 +253,7 @@ status() {
 		[ $RETVAL -ne 0 ] && failure 
 	    else 
 		passed
+	    fi
 	    fi
 	    let targetindex=targetindex+1
 	    TNAME=TARGET$targetindex

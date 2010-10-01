@@ -1,20 +1,11 @@
 ######################################################################################
-# master section
+export MASTER0_0=root://lxbra0301.cern.ch//var/eos/md/files.lxbra0301.cern.ch.mdlog
+export MASTER0_1=root://lxbra0301.cern.ch//var/eos/md/directories.lxbra0301.cern.ch.mdlog
+export MASTER1_0=root://lxbra0302.cern.ch//var/eos/md/files.lxbra0302.cern.ch.mdlog
+export MASTER1_1=root://lxbra0302.cern.ch//var/eos/md/directories.lxbra0302.cern.ch.mdlog
 ######################################################################################
-# file & dir changelog file replication
-######################################################################################
-export MASTER0_0=root://lxbra0301.cern.ch//var/tmp/eos/md/files.lxbra0301.cern.ch.mdlog
-export MASTER0_1=root://lxbra0301.cern.ch//var/tmp/eos/md/directories.lxbra0301.cern.ch.mdlog
-export MASTER1_0=root://lxbra0302.cern.ch//var/tmp/eos/md/files.lxbra0302.cern.ch.mdlog
-export MASTER1_1=root://lxbra0302.cern.ch//var/tmp/eos/md/directories.lxbra0302.cern.ch.mdlog
-######################################################################################
-# config file directory on each master
-######################################################################################
-export MASTER0_conf=/var/spool/xroot/config/lxbra0301.cern.ch/
-export MASTER1_conf=/var/spool/xroot/config/lxbra0302.cern.ch/
-######################################################################################
-# all receiver machines (including the master)
-# lxfsrd0302 & lxfsrd0304 are RO instances in this example
+export MASTER0_conf=root://lxbra0301.cern.ch//var/eos/config/lxbra0301.cern.ch/
+export MASTER1_conf=root://lxbra0302.cern.ch//var/eos/config/lxbra0302.cern.ch/
 ######################################################################################
 export TARGET0=lxbra0301.cern.ch:1096
 export TARGET1=lxbra0302.cern.ch:1096

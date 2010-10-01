@@ -19,7 +19,7 @@ XRD_LOCATION="/opt/eos"
 XRD_MAXFD=65000
 XRD_USER="daemon"
 XRD_LOGDIR="/var/log/xroot"
-XRD_COREDIR="/var/spool/xroot/core"
+XRD_COREDIR="/var/spool/xroot/"
 XRD_ADMINDIR="/var/spool/xroot/admin"
 XRD_CONFIGDIR="/var/spool/xroot/config"
 XRD_CONFIG="/etc/xrd.cf"
@@ -79,27 +79,29 @@ start() {
 			echo
                 else
 		        # Setup the base xrootd options
-		        _XRD_OPTIONS="-n $i ${XRD_ROLEFLAG}-c ${_XRD_CONFIG} -l ${XRD_LOGDIR}/xrdlog.$i -b -Rdaemon "
+		        _XRD_OPTIONS="-n $i ${XRD_ROLEFLAG}-c ${_XRD_CONFIG} -l ${XRD_LOGDIR}/xrdlog.$i -b "
 			_XRD_OPTIONS=${_XRD_OPTIONS%' '}
 			echo  with ${_XRD_OPTIONS}
 			# Setup xrootd environment
 
                         if [ -z "${XRD_USER}" ]; then 
-			    mkdir -p ${XRD_COREDIR}/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
-			    chown root ${XRD_COREDIR}; 
+			    mkdir -p ${XRD_COREDIR}/core/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
+			    chown -R ${XRD_USER} ${XRD_COREDIR}; 
+			    chmod -R 775 ${XRD_COREDIR}
 			else
-			    mkdir -p ${XRD_COREDIR}/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
+			    mkdir -p ${XRD_COREDIR}/core/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
 			    chown -R ${XRD_USER} ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
-			    chown root ${XRD_COREDIR}; 
+			    chown -R ${XRD_USER} ${XRD_COREDIR}; 
+			    chmod -R 775 ${XRD_COREDIR}
 			fi
 			
-			cd ${XRD_COREDIR}/$i
+			cd ${XRD_COREDIR}/core/$i
 
 			if [ ${XRD_USER} = "$USER" ]; then
-			    daemon env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}
+			    daemon --user ${XRD_USER} "cd ${XRD_COREDIR}/core/$i; env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}"
 			else
 			    ulimit -n ${XRD_MAXFD}
-			    daemon env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}
+			    daemon --user ${XRD_USER} "cd ${XRD_COREDIR}/core/$i; env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}"
 			fi
 
 			# Write the pid to a file

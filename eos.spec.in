@@ -42,6 +42,7 @@ make install DESTDIR=$RPM_BUILD_ROOT
 %_sysconfdir/cron.d/xrd-logs
 %_sysconfdir/rc.d/init.d/xrd
 %_sysconfdir/rc.d/init.d/cmsd
+%_sysconfdir/rc.d/init.d/eossync
 %defattr(-,daemon,daemon,-)
 %config(noreplace) /opt/eos/sss/eos-sss.keytab
 /opt/eos/var/*
