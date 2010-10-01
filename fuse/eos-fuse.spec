@@ -1,7 +1,7 @@
 Summary: fuse xrootd eos daemon 
 Name: eos-fuse
 Version: 0.0.2
-Release: 1
+Release: 2
 License: None
 Group: Applications/File
 #URL: 
@@ -17,7 +17,7 @@ The fuse module to mount an EOS based xrootd filesystem
 %prep
 %setup -q
 ./bootstrap.sh
-./configure --prefix=/opt/eos/ --with-fuse-location=/usr
+./configure --prefix=/opt/eos/ --with-fuse-location=/usr  --sysconfdir=/etc/
 %build
 make
 

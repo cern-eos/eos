@@ -92,7 +92,7 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS([sys/time.h])
 
 # Check for xrootd headers
-if ! test -e "${XROOTD_LOCATION}/include/xrootd/XrdOlb/XrdOlbXmi.hh"
+if ! test -e "${XROOTD_LOCATION}/include/xrootd/XrdOuc/XrdOucString.hh"
 then
    AC_MSG_ERROR([xrootd header files could not be found in prefix directory ${XROOTD_LOCATION}])
 fi
