@@ -209,7 +209,7 @@ XrdMqOfs::stat(const char                *queuename,
   Out->Lock();
   ZTRACE(open, "Grabbing message");
   
-  memset(buf,sizeof(struct stat),0);
+  memset(buf,0,sizeof(struct stat));
   buf->st_blksize= 1024;
   buf->st_dev    = 0;
   buf->st_rdev   = 0;
@@ -395,7 +395,7 @@ XrdMqOfsFile::stat(struct stat *buf) {
     Out->Lock();
     ZTRACE(open, "Grabbing message");
 
-    memset(buf,sizeof(struct stat),0);
+    memset(buf,0,sizeof(struct stat));
     buf->st_blksize= 1024;
     buf->st_dev    = 0;
     buf->st_rdev   = 0;

@@ -85,14 +85,15 @@ start() {
 			# Setup xrootd environment
 
                         if [ -z "${XRD_USER}" ]; then 
-			    mkdir -p ${XRD_USER} ${XRD_COREDIR} ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
+			    mkdir -p ${XRD_COREDIR}/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
 			    chown root ${XRD_COREDIR}; 
 			else
-			    mkdir -p ${XRD_USER} ${XRD_COREDIR} ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
-			    chown -R ${XRD_USER} ${XRD_COREDIR} ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
+			    mkdir -p ${XRD_COREDIR}/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
+			    chown -R ${XRD_USER} ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
+			    chown root ${XRD_COREDIR}; 
 			fi
 			
-			cd ${XRD_COREDIR}
+			cd ${XRD_COREDIR}/$i
 
 			if [ ${XRD_USER} = "$USER" ]; then
 			    daemon env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}

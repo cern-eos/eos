@@ -96,6 +96,7 @@ XrdCommonProcFile::Read(XrdOucString &str) {
 
   lseek(fd,0,SEEK_SET);
   ssize_t rb = read(fd,pbuf,sizeof(pbuf)-1);
+  pbuf[1024] = 0;
   str = pbuf;
   
   if (rb<=0)

@@ -1421,7 +1421,7 @@ com_fs (char* arg1) {
   printf("       fs compare <fs-id-src> <fs-id-dst>|<space>               : does a comparison of <fs-id-src> with <fs-id-dst>|<space>\n");
   printf("       fs dropfiles <fs-id> [-f]                                : allows to drop all files on <fs-id> - force (-f) unlinks/removes files at the time from the NS (you have to cleanup or remove the files from disk) \n");
   printf("       fs heal <fs-id-src>|<path> [<space-dst> [<subgroup>]]    : heals replica's of filesystem <fs-id> or path <path> placing/keeping in <space-dst> (+<subgroup>)\n");
-  printf("       fs flatten    <space> [<tag>]                            : allows to flatten the file distribution in <space> for files with tag <tag>\n");
+  printf("       fs flatten <fs-id>|<path> <space> [<subgroup>]           : allows to flatten the file distribution of files in <fs-id> or under <path> in <space> [and <subgroup>]");
   printf("       fs dumpmd [-s] <fs-id> [-fid] [-path]                    : dump all file meta data on this filesystem in query format\n");
   printf("                                                                  -s    : don't printout keep an internal reference\n");
   printf("                                                                  -fid  : dump only a list of file id's stored on this filesystem\n");
@@ -2191,7 +2191,7 @@ com_file (char* arg1) {
     if (!path.length())
       goto com_file_usage;
 
-    XrdOucString option[5];
+    XrdOucString option[6];
 
     in += "&mgm.subcmd=verify";
     in += "&mgm.path="; in += path;
