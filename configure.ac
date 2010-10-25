@@ -1,5 +1,5 @@
 AC_PREREQ(2.57)
-AC_INIT(eos,0.0.8,[andreas.joachim.peters@cern.ch])
+AC_INIT(eos,0.0.9,[andreas.joachim.peters@cern.ch])
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 AC_CONFIG_SRCDIR([configure.ac])
@@ -10,6 +10,7 @@ AC_PREFIX_DEFAULT(/opt/eos/)
 
 
 export CXXFLAGS="-Wall -Werror -O2 -g $CXXFLAGS"
+#export CXXFLAGS="-Wall -Werror -O0 -ggdb $CXXFLAGS"
 
 case "$target_os" in
    tiger*)
@@ -93,6 +94,7 @@ AC_CONFIG_FILES(Makefile
 		XrdMqOfs/Makefile
 		XrdCommon/Makefile
 		Console/Makefile
+		Console/Commands/Makefile
 		Sync/Makefile
 		eos.spec
 		Namespace/Makefile
