@@ -77,7 +77,7 @@ XrdCommonLogging::log(const char* func, const char* file, int line, const char* 
   char*  ptr = buffer + strlen(buffer);
   vsprintf(ptr, msg, args);
   
-  fprintf(stderr,buffer);
+  fprintf(stderr,"%s",buffer);
   fprintf(stderr,"\n");
   fflush(stderr);
   va_end(args);

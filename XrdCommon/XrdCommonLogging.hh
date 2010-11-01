@@ -44,14 +44,14 @@ class XrdCommonLogId {
 public:
   
   void SetLogId(const char* newlogid, const char* td= "<service>") {
-    sprintf(logId,newlogid);
-    sprintf(cident, td);
+    sprintf(logId,"%s",newlogid);
+    sprintf(cident,"%s", td);
   }
   
   void SetLogId(const char* newlogid, XrdCommonMapping::VirtualIdentity &vid_in, const char* td = "") {
     XrdCommonMapping::Copy(vid_in, vid);
-    sprintf(cident,td);
-    sprintf(logId,newlogid);
+    sprintf(cident,"%s",td);
+    sprintf(logId,"%s",newlogid);
   }
 
 

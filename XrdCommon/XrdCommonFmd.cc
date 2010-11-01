@@ -369,9 +369,9 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
     return false;
   }
 
-  if (stbuf.st_size > (4 * 1000l*1000l*1000l)) {
-    // we don't map more than 4 GB ... should first trim here
-    eos_crit("changelog file exceeds memory limit of 4 GB for boot procedure");
+  if (stbuf.st_size > (6 * 1000l*1000l*1000l)) {
+    // we don't map more than 6 GB ... should first trim here
+    eos_crit("changelog file exceeds memory limit of 6 GB for boot procedure");
     return false;
   }
   

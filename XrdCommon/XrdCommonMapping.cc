@@ -241,7 +241,8 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
   eos_static_debug("suidtident:%s sgidtident:%s", suidtident.c_str(), sgidtident.c_str());
 
   // the configuration door for localhost clients adds always the adm/adm vid's
-  if (suidtident == "tident:\"root@localhost.localdomain\":uid") {
+  if ( ( suidtident == "tident:\"root@localhost.localdomain\":uid") || 
+       ( suidtident == "tident:\"root@localhost\":uid") ) {
     vid.sudoer = true;
     vid.uid = 3;
     vid.gid = 4;
