@@ -134,7 +134,7 @@ while (1) {
 	my @tags = split " ",$_;
 
 	if ( ($_ =~ /online/) || ($_ =~ /offline/) ) {
-	    printf " Sending online for $tags[0]\n";
+#	    printf " Sending online for $tags[0]\n";
 	    $infohash = {};
 	    $infohash->{id} = $tags[0];
 	    if ($_ =~ /online/) {
@@ -149,7 +149,7 @@ while (1) {
 				 'offline',$infohash->{offline});
 	} else {
 	    if (defined $tags[0] && $tags[0] =~ /^\/eos/) {
-		printf("Sending Fs Info for $tags[1]\n");
+#		printf("Sending Fs Info for $tags[1]\n");
 		my $blocks = convert($tags[7],$tags[8]);
 		my $free   = convert($tags[9],$tags[10]);
 		my $files  = convert($tags[11],$tags[12]);

@@ -150,7 +150,7 @@ reload|restart)
         restart
         ;;
 condrestart)
-        if [ -f /var/lock/subsys/eosapmon ]; then
+        if [ -f /var/lock/subsys/$prog ]; then
             restart
         fi
         ;;

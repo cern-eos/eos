@@ -33,9 +33,12 @@ echo rm -rf $RPM_BUILD_ROOT
 %files
 /etc/init.d/eosapmond
 /etc/init.d/eosnsapmond
+/etc/init.d/eostxapmond
+/etc/init.d/eostxlog
 /opt/eos/bin/eos_apmond
 /opt/eos/bin/eos_ns_apmond
 /opt/eos/bin/eos_tx_apmond
+/opt/eos/bin/eos_tx_log
 /opt/eos/perl/ApMon/ApMon.pm
 /opt/eos/perl/ApMon/ApMon/BgMonitor.pm
 /opt/eos/perl/ApMon/ApMon/Common.pm
@@ -46,6 +49,7 @@ echo rm -rf $RPM_BUILD_ROOT
 /opt/eos/perl/ApMon/servMon.sh
 /opt/eos/perl/eos-ns-monitor.pl
 /opt/eos/perl/eos-tx-monitor.pl
+/opt/eos/perl/eos-tx-log.pl
 %defattr(-,root,root)
 
 %changelog

@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-#       /etc/rc.d/init.d/eostxapmond
+#       /etc/rc.d/init.d/eostxlog
 #
 # Starts xrootd 
 #
 # chkconfig: 345 95 5
-# description: Starts apmon to monitor xrootd on EOS
-# processname: eostxapmond
+# description: Starts txlog to record file transactions on EOS
+# processname: eostxlog
 
 # Source function library.
 XRDLOCATION="/opt/eos/"
@@ -28,7 +28,7 @@ fi
 mkdir -p ${XRDLOGDIR}/${XRDROLE}
 chown -R $XRDUSER ${XRDLOGDIR}
 
-prog="eos_tx_apmond"
+prog="eos_tx_log"
 
 if test ! -x ${XRDLOCATION}/bin/$prog ; then
   echo Error: ${XRDLOCATION}/bin/$prog does not exist
@@ -61,23 +61,18 @@ if [ $cmspid="" ]; then
 fi
     
 
-MONALISA_HOST=${MONALISAHOST:-"lxbra0301.cern.ch"}
-APMON_DEBUG_LEVEL=${APMON_DEBUG_LEVEL:-"WARNING"}
-destination=${APMON_CONFIG:-"['$MONALISA_HOST']"}
-now=`date`
-
  
 # if we are a manager we start the namespace monitor
 if [[ "${XRD_ROLES}" =~ "mgm" ]] ; then 
-    EOSAPMONSTARTUPFILE="${XRDLOCATION}/perl/eos-tx-monitor.pl"
+    EOSAPMONSTARTUPFILE="${XRDLOCATION}/perl/eos-tx-log.pl"
 fi
 
 start() {
-        # Check if eostxapmond is already running
+        # Check if eostxlog is already running
         if [ ! `pgrep -f -u ${XRDUSER} $prog `  ]; then
             echo -n "Starting $prog: "
 	    killall -9 xrdmqdumper 2>/dev/null
-            daemon --user ${XRDUSER} "source /etc/sysconfig/xrd; cd ${XRDCOREDIR}; ulimit -c unlimited; export PERL5LIB=${XRDLOCATION}/perl/ApMon; ${XRDLOCATION}/bin/$prog ${EOSAPMONSTARTUPFILE} ${XRDLOGDIR}/${XRDROLE}/eostxapmonlog >& /dev/null < /dev/null" 
+            daemon --user ${XRDUSER} "source /etc/sysconfig/xrd; cd ${XRDCOREDIR}; ulimit -c unlimited; export PERL5LIB=${XRDLOCATION}/perl/ApMon; ${XRDLOCATION}/bin/$prog ${EOSAPMONSTARTUPFILE} ${XRDLOGDIR}/${XRDROLE}/eostxlog >& /dev/null < /dev/null" 
             RETVAL=$?
 	    [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
             echo

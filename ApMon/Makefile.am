@@ -23,7 +23,8 @@ EXTRA_DIST =	etc/init.d/eosapmond \
 		Makefile.am \
 		eos-apmon.spec \
 	        eos-ns-monitor.pl \
-	        eos-tx-monitor.pl
+	        eos-tx-monitor.pl \
+	        eos-tx-log.pl
 
 
 install-exec-local :
@@ -33,14 +34,16 @@ install-exec-local :
 		for name in ` find perl -type f | grep -v svn`; do $(INSTALL) -m 755 $(srcdir)/$$name $(DESTDIR)/$(prefix)/$$name; done
 	        $(INSTALL) -m 755 $(srcdir)/eos-ns-monitor.pl $(DESTDIR)/$(prefix)/perl/eos-ns-monitor.pl
 	        $(INSTALL) -m 755 $(srcdir)/eos-tx-monitor.pl $(DESTDIR)/$(prefix)/perl/eos-tx-monitor.pl
+	        $(INSTALL) -m 755 $(srcdir)/eos-tx-log.pl $(DESTDIR)/$(prefix)/perl/eos-tx-log.pl
 
 uninstall-local :
 		for name in ` find etc -type f | grep -v svn`; do rm $(DESTDIR)/$$name; done
 		for name in ` find perl -type f | grep -v svn`; do rm $(DESTDIR)/$(prefix)/$$name; done
-	        rm $(DESTDIR)/$(prefix)/perl/eos-ns-monitor.pl
+	        rm $(DESTDIR)/$(prefix)/perl/eos-ns-monitor.p
 	        rm $(DESTDIR)/$(prefix)/perl/eos-tx-monitor.pl
+	        rm $(DESTDIR)/$(prefix)/perl/eos-tx-log.pl
 
-bin_PROGRAMS = eos_apmond eos_ns_apmond eos_tx_apmond
+bin_PROGRAMS = eos_apmond eos_ns_apmond eos_tx_apmond eos_tx_log
 
 
 eos_apmond_SOURCES = eosapmond.c 
@@ -48,6 +51,8 @@ eos_apmond_SOURCES = eosapmond.c
 eos_ns_apmond_SOURCES= eosnsapmond.c
 
 eos_tx_apmond_SOURCES= eostxapmond.c
+
+eos_tx_log_SOURCES= eostxlog.c
 
 rpm:    dist
 	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
