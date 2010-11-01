@@ -330,7 +330,7 @@ XrdFstOfsStorage::SetFileSystem(XrdOucEnv& env)
   } else {
     char ssfid[32];
     snprintf(ssfid,32,"%u", fsid);
-    if ( (write(fd,ssfid,strlen(ssfid))) != strlen(ssfid) ) {
+    if ( (write(fd,ssfid,strlen(ssfid))) != (int)strlen(ssfid) ) {
       fs->SetStatus(XrdCommonFileSystem::kBootFailure);
       fs->SetError(errno,"cannot write fs tagfile");
       fsMutex.UnLock();
@@ -684,8 +684,8 @@ XrdFstOfsStorage::Trim()
       if (fstat(gFmdHandler.fdChangeLogRead[it->first],&buf)) {
 	eos_static_err("Cannot stat the changelog file for fsid=%llu for", it->first);
       } else {
-	// we trim only if the file reached 1 GB
-	if (buf.st_size > (1000l * 1024 * 1024)) {
+	// we trim only if the file reached 6 GB
+	if (buf.st_size > (6000l * 1024 * 1024)) {
 	  if (!gFmdHandler.TrimLogFile(it->first)) {
 	    eos_static_err("Trimming failed on fsid=%llu",it->first);
 	  }

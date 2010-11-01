@@ -280,6 +280,7 @@ XrdFstOfsFile::open(const char                *path,
   XrdOucString stringOpaque = opaque;
   stringOpaque.replace("?","&");
   stringOpaque.replace("&&","&");
+  stringOpaque += "&mgm.path="; stringOpaque += path;
 
   openOpaque  = new XrdOucEnv(stringOpaque.c_str());
   int caprc = 0;
@@ -301,11 +302,13 @@ XrdFstOfsFile::open(const char                *path,
   const char* hexfid=0;
   const char* sfsid=0;
   const char* slid=0;
+  const char* scid=0;
   const char* smanager=0;
   
   fileid=0;
   fsid=0;
   lid=0;
+  cid=0;
 
   if (!(localprefix=capOpaque->Get("mgm.localprefix"))) {
     return gOFS.Emsg(epname,error,EINVAL,"open - no local prefix in capability",path);
@@ -334,6 +337,10 @@ XrdFstOfsFile::open(const char                *path,
     return gOFS.Emsg(epname,error, EINVAL,"open - no layout id in capability",path);
   }
 
+  if (!(scid=capOpaque->Get("mgm.cid"))) {
+    return gOFS.Emsg(epname,error, EINVAL,"open - no container id in capability",path);
+  }
+
   if (!(smanager=capOpaque->Get("mgm.manager"))) {
     return gOFS.Emsg(epname,error, EINVAL,"open - no manager name in capability",path);
   }
@@ -344,6 +351,7 @@ XrdFstOfsFile::open(const char                *path,
 
   fsid   = atoi(sfsid);
   lid = atoi(slid);
+  cid = strtoull(scid,0,10);
 
   // check if this is an open for replication
   if (Path.beginswith("/replicate:")) {
@@ -576,6 +584,9 @@ XrdFstOfsFile::close()
        fMd->fMd.size     = statinfo.st_size;
        fMd->fMd.mtime    = statinfo.st_mtime;
        fMd->fMd.mtime_ns = statinfo.st_mtim.tv_nsec;
+       // set the container id
+       fMd->fMd.cid = cid;
+
        XrdCommonPath cPath(capOpaque->Get("mgm.path"));
        if (cPath.GetName())strncpy(fMd->fMd.name,cPath.GetName(),255);
        const char* val =0;
@@ -1025,7 +1036,11 @@ XrdFstMessaging::Process(XrdMqMessage* newmessage)
   if (cmd == "dropverifications") {
     gOFS.FstOfsStorage->verificationsMutex.Lock();
     eos_notice("dropping %u verifications", gOFS.FstOfsStorage->verifications.size());
-    gOFS.FstOfsStorage->verifications.empty();
+
+    while (!gOFS.FstOfsStorage->verifications.empty()) {
+      gOFS.FstOfsStorage->verifications.pop();
+    }
+
     gOFS.FstOfsStorage->verificationsMutex.UnLock();
   }
 

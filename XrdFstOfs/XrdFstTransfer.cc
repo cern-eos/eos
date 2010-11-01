@@ -60,6 +60,7 @@ XrdFstTransfer::Do()
   if (!replicaClient->Open(0,0,false)) {
     eos_static_err("Failed to open replica to pull fid %llu from %s %d=>%d", capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"));
     delete replicaClient;
+    gOFS.LockManager.UnLock(fId);
     return EIO;
   } else {
     // open local replica
@@ -72,6 +73,7 @@ XrdFstTransfer::Do()
     if (!ofsFile) {
       eos_static_err("Failed to allocate ofs file %s", fstPath.c_str());
       delete replicaClient;
+      gOFS.LockManager.UnLock(fId);
       return ENOMEM;
     }
     
@@ -79,6 +81,7 @@ XrdFstTransfer::Do()
       if (!errno) errno = EIO;
       eos_static_err("Failed to open local replica file %s errno=%u", fstPath.c_str(),errno);
       delete replicaClient;
+      gOFS.LockManager.UnLock(fId);
       return errno;
     }
     
@@ -88,6 +91,7 @@ XrdFstTransfer::Do()
     if (!cpbuffer) {
       eos_static_err("Failed to allocate copy buffer");
       delete replicaClient;
+      gOFS.LockManager.UnLock(fId);
       return ENOMEM;
     }
     
@@ -133,6 +137,7 @@ XrdFstTransfer::Do()
     // if the copy failed
     if (!errno) errno = EIO;
     if (checkSum) delete checkSum;
+    gOFS.LockManager.UnLock(fId);
     return errno;
   }
 
@@ -157,7 +162,7 @@ XrdFstTransfer::Do()
   
   // ----------------------------------------------------------------------------------------------------------
   // compare transfer and FMD size
-  if ((long long)offset != newfmd->fMd.size) {
+  if ((long long)offset != (long long)newfmd->fMd.size) {
     eos_static_err("size error during replica of %s fid=%sfrom %s=>%s xsum=%s txsize=%llu fmdsize=%llu", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum?checkSum->GetHexChecksum():"none", offset, newfmd->fMd.size);
   }
 
@@ -171,6 +176,7 @@ XrdFstTransfer::Do()
   if (!gFmdHandler.Commit(newfmd)) {
     delete newfmd;
     if (checkSum) delete checkSum;
+    gOFS.LockManager.UnLock(fId);
     return EIO;
   }
 
@@ -212,6 +218,7 @@ XrdFstTransfer::Do()
     delete newfmd;
     if (checkSum) delete checkSum;
     eos_static_err("Unable to commit meta data to central cache");
+    gOFS.LockManager.UnLock(fId);
     return rc;
   }
 
@@ -220,6 +227,7 @@ XrdFstTransfer::Do()
   if (checkSum) delete checkSum;
 
   delete newfmd;
+  gOFS.LockManager.UnLock(fId);
   return 0;
 }
 
