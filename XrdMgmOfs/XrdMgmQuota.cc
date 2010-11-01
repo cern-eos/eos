@@ -387,7 +387,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
       if (filesystem) {
 	// check that we have atleast 1GB and 100 inodes and that we are in rw mode
 	eos_static_debug("fs info %u %llu %llu %s %s", filesystem->GetId(), filesystem->GetStatfs()->f_bfree, filesystem->GetStatfs()->f_ffree*4096ll, filesystem->GetConfigStatusString(), filesystem->GetBootStatusString());
-	if ( ((filesystem->GetStatfs()->f_bfree *4096ll) > (1024ll*1024ll*1024ll*1)) &&
+	if ( ((filesystem->GetStatfs()->f_bfree *4096ll) > (1024ll*1024ll*1024l*1)) &&
 	     ((filesystem->GetStatfs()->f_ffree) > 100 ) &&
 	     ( ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kWO) && truncate) ||
 	       ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kRW)) ) &&

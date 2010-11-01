@@ -298,7 +298,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   int ecode=0;
   
-
   eos_debug("mode=%x [create=%x truncate=%x]", open_mode, SFS_O_CREAT, SFS_O_TRUNC);
 
   // Set the actual open mode and find mode
@@ -498,7 +497,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   unsigned long layoutId = (isCreation)?XrdCommonLayoutId::kPlain:fmd->getLayoutId();
   unsigned long forcedFsId = 0; // the client can force to read a file on a defined file system
   unsigned long fsIndex = 0; // this is the filesystem defining the client access point in the selection vector - for writes it is always 0, for reads it comes out of the FileAccess function
-
+  unsigned long long cid = fmd->getContainerId();
   XrdOucString space = "default";
 
   unsigned long newlayoutId=0;
@@ -539,8 +538,10 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   capability += "&mgm.manager=";   capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";    XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fileId,hexfid);capability += hexfid;
   capability += "&mgm.lid=";       //capability += XrdCommonLayoutId::kPlain;
-  // test all checksum algorithms
   capability += (int)layoutId;
+
+  XrdOucString sizestring;
+  capability += "&mgm.cid=";       capability += XrdCommonFileSystem::GetSizeString(sizestring,cid);
   
   if (attrmap.count("user.tag")) {
     capability += "&mgm.container="; 
@@ -576,6 +577,14 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       if (loc) 
 	selectedfs.push_back(loc);
     }
+
+    if (! selectedfs.size()) {
+      // this file has not a single existing replica
+      XrdMgmFstNode::gMutex.UnLock();
+      return Emsg(epname, error, ENODEV,  "open - no replica exists", path);	    
+    }
+      
+
 
     retc = quotaspace->FileAccess(vid.uid, vid.gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW);
   }
@@ -656,11 +665,14 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	  return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
 	}
       }
+      gOFS->MgmStats.Add("OpenFileOffline",vid.uid,vid.gid,1);  
+    } else {
+      gOFS->MgmStats.Add("OpenFailedQuota",vid.uid,vid.gid,1);  
     }
 
     XrdMgmFstNode::gMutex.UnLock();
 
-    gOFS->MgmStats.Add("OpenFailedQuota",vid.uid,vid.gid,1);  
+
     return Emsg(epname, error, retc, "access quota space ", path);
   }
 
@@ -704,8 +716,8 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       capability += "&mgm.localprefix"; capability += i; capability += "=";capability+= repfilesystem->GetPath();
       eos_debug("Redirection Url %d => %s", i, replicahost.c_str());
     }
-    capability += "&mgm.path=";
-    capability += path;
+    //    capability += "&mgm.path=";
+    //    capability += path;
   }
   
   XrdMgmFstNode::gMutex.UnLock();
@@ -2856,8 +2868,8 @@ XrdMgmOfs::_verifystripe(const char             *path,
   eos::FileMD *fmd=0;
   errno = 0;
   unsigned long long fid=0;
-  int lid=0;
   unsigned long long cid=0;
+  int lid=0;
 
   eos::ContainerMD::XAttrMap attrmap;
 
@@ -3134,6 +3146,7 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
 {
   static const char *epname = "replicatestripe";  
   unsigned long long fileId=fmd->getId();
+  unsigned long long cid = fmd->getContainerId();
 
   if (dropsource) 
     gOFS->MgmStats.Add("MoveStripe",vid.uid,vid.gid,1);  
@@ -3146,6 +3159,8 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
 
   // replication always assumes movements of a simple single file without structure
   capability += "&mgm.lid="; capability += XrdCommonLayoutId::kPlain;
+  XrdOucString sizestring;
+  capability += "&mgm.cid=";        capability += XrdCommonFileSystem::GetSizeString(sizestring,cid);
   capability += "&mgm.ruid=";       capability+=(int)vid.uid; 
   capability += "&mgm.rgid=";       capability+=(int)vid.gid;
   capability += "&mgm.uid=";        capability+=(int)vid.uid_list[0]; 

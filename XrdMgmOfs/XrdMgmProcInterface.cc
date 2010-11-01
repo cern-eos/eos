@@ -223,15 +223,23 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    char* fsidst = opaque.Get("mgm.fsid");
 	    bool dumppath = false;
 	    bool dumpfid  = false;
+	    bool dumpsize = false;
+
 	    XrdOucString dp = opaque.Get("mgm.dumpmd.path");
 	    XrdOucString df = opaque.Get("mgm.dumpmd.fid");
+	    XrdOucString ds = opaque.Get("mgm.dumpmd.size");
+
 	    if (dp == "1") {
 	      dumppath = true;
 	    } 
 	    if (df == "1") {
 	      dumpfid = true;
 	    }
-	      
+
+	    if (ds == "1") {
+	      dumpsize = true;
+	    }
+
 	    int fsid = 0;
 	    
 	    if (!fsidst) {
@@ -248,7 +256,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		  std::string env;
 		  fmd = gOFS->eosFileService->getFileMD(*it);
 		  if (fmd) {
-		    if ( (!dumppath) && (!dumpfid) ) {
+		    if ( (!dumppath) && (!dumpfid) && (!dumpsize) ) {
 		      fmd->getEnv(env);
 		      stdOut += env.c_str();
 		      stdOut += "\n";
@@ -262,6 +270,12 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 			char sfid[40]; snprintf(sfid,40, "fid=%llu", (unsigned long long)fmd->getId());
 			stdOut += sfid;
 		      }
+		      if (dumpsize) {
+			if (dumppath || dumpfid) stdOut += " ";
+			char ssize[40]; snprintf(ssize,40,"size=%llu", (unsigned long long)fmd->getSize());
+			stdOut += ssize;
+		      }
+
 		      stdOut += "\n";
 		    }
 		  }
@@ -1617,7 +1631,8 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		XrdMgmFstNode::gMutex.Lock();
 		XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
 		if (filesystem) {
-		  XrdOucString host; int port;
+		  XrdOucString host; 
+		  int port=0;
 		  XrdOucString hostport="";
 		  filesystem->GetHostPort(host,port);
 		  hostport += host; hostport += ":"; hostport += port;
@@ -2050,12 +2065,42 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 
       bool calcbalance = false;
       bool findzero = false;
+      bool printsize = false;
+      bool printfid  = false;
+      bool printfs   = false;
+      bool printchecksum = false;
+      bool printctime    = false;
+      bool printmtime    = false;
       if (option.find("b")!=STR_NPOS) {
 	calcbalance=true;
       }
 
       if (option.find("0")!=STR_NPOS) {
 	findzero = true;
+      }
+
+      if (option.find("S")!=STR_NPOS) {
+	printsize = true;
+      }
+
+      if (option.find("F")!=STR_NPOS) {
+	printfid  = true;
+      }
+
+      if (option.find("L")!=STR_NPOS) {
+	printfs = true;
+      }
+
+      if (option.find("X")!=STR_NPOS) {
+	printchecksum = true;
+      }
+
+      if (option.find("C")!=STR_NPOS) {
+	printctime = true;
+      }
+
+      if (option.find("M")!=STR_NPOS) {
+	printmtime = true;
       }
 
       if (attribute.length()) {
@@ -2081,16 +2126,71 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    std::sort(found_files[i].begin(), found_files[i].end());
 	    for (unsigned int j = 0; j< found_files[i].size(); j++) {
 	      if (!calcbalance) {
-		if (findzero) {
+		if (findzero || printsize || printfid ) {
 		  //-------------------------------------------
 		  gOFS->eosViewMutex.Lock();
 		  eos::FileMD* fmd = 0;
 		  try {
 		    unsigned long long filesize=0;
 		    fmd = gOFS->eosView->getFile(found_files[i][j].c_str());
-		    if (!(filesize = fmd->getSize())) {
-		      stdOut += found_files[i][j].c_str();
-		      stdOut += "\n";
+		    if (findzero) {
+		      if (!(filesize = fmd->getSize())) {
+			stdOut += found_files[i][j].c_str();
+			stdOut += "\n";
+		      } 
+		    } else {
+		      if (printsize || printfid || printchecksum || printfs || printctime || printmtime ) {
+			stdOut += "path=";
+			stdOut += found_files[i][j].c_str();
+			XrdOucString sizestring;
+			if (printsize) {
+			  stdOut += " size=";
+			  char psize[40];
+			  snprintf(psize,40,"%llu",(unsigned long long)fmd->getSize());
+			  stdOut += psize;
+			}
+			if (printfid) {
+			  stdOut += " fid=";
+			  char pfid[40];
+			  snprintf(pfid,40,"%llu",(unsigned long long)fmd->getId());
+			  stdOut += pfid;
+			}
+			if (printfs) {
+			  stdOut += " fsid=";
+			  eos::FileMD::LocationVector::const_iterator lociter;
+			  for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+			    if (lociter != fmd->locationsBegin()) {
+			      stdOut += ",";
+			    }
+			    stdOut += (int) *lociter;
+			  }
+			}
+			if (printchecksum) {
+			  stdOut += " checksum=";
+			  for (unsigned int i=0; i< XrdCommonLayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
+			    char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+			    stdOut += hb;
+			  }
+			}
+			if (printctime) {
+			  eos::FileMD::ctime_t ctime;
+			  fmd->getCTime(ctime);
+			  stdOut += " ctime=";
+			  char pctime[40];
+			  snprintf(pctime,40,"%llu.%llu",(unsigned long long)ctime.tv_sec,(unsigned long long)ctime.tv_nsec);
+			  stdOut += pctime;
+			}
+			if (printmtime) {
+			  eos::FileMD::ctime_t mtime;
+			  fmd->getMTime(mtime);
+			  stdOut += " mtime=";
+			  char pmtime[40];
+			  snprintf(pmtime,40,"%llu.%llu",(unsigned long long)mtime.tv_sec,(unsigned long long)mtime.tv_nsec);
+			  stdOut += pmtime;
+			}
+
+			stdOut += "\n";
+		      }
 		    }
 		  } catch( eos::MDException &e ) {
 		    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
