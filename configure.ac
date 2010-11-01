@@ -10,7 +10,7 @@ AC_PREFIX_DEFAULT(/opt/eos/)
 
 
 export CXXFLAGS="-Wall -Werror -O2 -g $CXXFLAGS"
-#export CXXFLAGS="-Wall -Werror -O0 -ggdb $CXXFLAGS"
+#export CXXFLAGS="-Wall -Werror -O0 -g $CXXFLAGS"
 
 case "$target_os" in
    tiger*)
