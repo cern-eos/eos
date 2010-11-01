@@ -322,7 +322,7 @@ XrdMqMessage::Base64Encode(char* in, unsigned int inlen, XrdOucString &out) {
   BIO_get_mem_ptr(b64, &bptr);
 
   out.assign((char*)bptr->data,0, size-1);
-  BIO_free_all(bmem);
+  BIO_free_all(b64);
   return true;
 }
 
@@ -349,7 +349,7 @@ XrdMqMessage::Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen) {
   
   bmem                = BIO_push(b64  , bmem);
   outlen = BIO_read(bmem , encryptionbuffer, body64len);
-  BIO_free_all(bmem);
+  BIO_free_all(b64);
   out = encryptionbuffer;
   return true;
 }

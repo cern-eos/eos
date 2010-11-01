@@ -4,7 +4,6 @@
 #include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
 
-
 int main (int argc, char* argv[]) {
   printf("Starting up ...\n");
 
