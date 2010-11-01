@@ -151,7 +151,9 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
   if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);  
   if (to_set & FUSE_SET_ATTR_MODE) {
     if (isdebug) printf("[%s]: set attr mode ino=%lld\n", __FUNCTION__,(long long)ino);
-    retc = xrd_chmod(fullpath, attr->st_mode);
+    // disable chmod
+    //retc = xrd_chmod(fullpath, attr->st_mode);
+    retc = 0;
   }
   if ( (to_set & FUSE_SET_ATTR_UID) && (to_set & FUSE_SET_ATTR_GID) ) {
     if (isdebug) printf("[%s]: set attr uid  ino=%lld\n", __FUNCTION__,(long long)ino);

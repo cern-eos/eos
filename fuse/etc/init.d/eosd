@@ -29,7 +29,7 @@ prog="eosd"
 start() {
         # Check if eosd is already running
 	echo
-        eosdpid=`pgrep -f ${EOS_ROOT}/bin/eosd`
+        eosdpid=`pgrep -f "${EOS_ROOT}/bin/eosd "`
 	export EOS_NOACCESS=${EOS_NOACCESS-1}
 	export EOS_KERNELCACHE=${EOS_KERNELCACHE-1}
         if [ "x$eosdpid" = "x" ]; then
