@@ -11,6 +11,8 @@
 
 EXTRA_DIST =	etc/init.d/eosapmond \
 	        etc/init.d/eosnsapmond \
+	        etc/init.d/eostxapmond \
+	        etc/init.d/eostxlog \
 		perl/ApMon/ApMon/BgMonitor.pm \
 		perl/ApMon/ApMon/Common.pm \
 		perl/ApMon/ApMon/ConfigLoader.pm \
