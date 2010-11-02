@@ -63,6 +63,7 @@ com_file (char* arg1) {
   XrdOucString path = subtokenizer.GetToken();
   XrdOucString fsid1 = subtokenizer.GetToken();
   XrdOucString fsid2 = subtokenizer.GetToken();
+  XrdOucString label = "";
 
   path = abspath(path.c_str());
 
@@ -100,6 +101,9 @@ com_file (char* arg1) {
     in += "&mgm.path="; in += path;
     in += "&mgm.file.sourcefsid="; in += fsid1;
     in += "&mgm.file.targetfsid="; in += fsid2;
+    label = subtokenizer.GetToken();
+    if (label.length())
+      in += "&mgm.file.label="; in += label;
   }
 
   if (cmd == "replicate") {
@@ -109,6 +113,9 @@ com_file (char* arg1) {
     in += "&mgm.path="; in += path;
     in += "&mgm.file.sourcefsid="; in += fsid1;
     in += "&mgm.file.targetfsid="; in += fsid2;
+    label = subtokenizer.GetToken();
+    if (label.length())
+      in += "&mgm.file.label="; in += label;
   }
 
   if (cmd == "adjustreplica") { 
@@ -340,8 +347,8 @@ com_file (char* arg1) {
 
  com_file_usage:
   printf("usage: file drop <path> <fsid> [-f]                                  :  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
-  printf("       file move <path> <fsid1> <fsid2>                              :  move the file <path> from  <fsid1> to <fsid2>\n");
-  printf("       file replicate <path> <fsid1> <fsid2>                         :  replicate file <path> part on <fsid1> to <fsid2>\n");
+  printf("       file move <path> <fsid1> <fsid2> [label=default]              :  move the file <path> from  <fsid1> to <fsid2> - label is used to tag transfers in the FST queues.\n");
+  printf("       file replicate <path> <fsid1> <fsid2> [label=default]         :  replicate file <path> part on <fsid1> to <fsid2> - label is used to tag transfers in the FST queues.\n");
   printf("       file adjustreplica <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]]\n");
   printf("                                                                     :  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
   printf("       file check <path> [%%size%%checksum%%nrep%%force%%output%%silent]  :  retrieves stat information from the physical replicas and verifies the correctness\n");

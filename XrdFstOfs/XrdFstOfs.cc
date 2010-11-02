@@ -91,7 +91,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
 
   if( !ConfigFN || !*ConfigFN) {
-    // this error will be reported by XrdOfsFS.Configure
+    // this error Opewill be reported by XrdOfsFS.Configure
   } else {
     // Try to open the configuration file.
     //
@@ -1469,4 +1469,27 @@ XrdFstOfs::OpenFidString(unsigned long fsid, XrdOucString &outstring)
   outstring += nopen;
   
   OpenFidMutex.UnLock();
+}
+
+void 
+XrdFstOfs::TransferQueueString(XrdOucString &outstring)
+{
+  std::map<std::string, int> transferbylabel;
+
+  gOFS.FstOfsStorage->transferMutex.Lock();
+  std::list<XrdFstTransfer*>::iterator it;
+  for ( it = gOFS.FstOfsStorage->transfers.begin(); it != gOFS.FstOfsStorage->transfers.end(); ++it) {
+    transferbylabel[(*it)->GetLabel()]++;
+  }
+  gOFS.FstOfsStorage->transferMutex.UnLock();
+  
+  
+  std::map<std::string, int>::const_iterator txit;
+  
+  for (txit = transferbylabel.begin(); txit != transferbylabel.end(); txit++) {
+    outstring += "&transfer.";
+    outstring += txit->first.c_str();
+    outstring += "=";
+    outstring += txit->second;
+  }
 }

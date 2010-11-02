@@ -3057,9 +3057,10 @@ XrdMgmOfs::_movestripe(const char             *path,
 		       XrdCommonMapping::VirtualIdentity &vid,
 		       unsigned long           sourcefsid,
 		       unsigned long           targetfsid,
-		       bool                    expressflag)
+		       bool                    expressflag, 
+		       const char*             label)
 {
-  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,true, expressflag);
+  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,true, expressflag, label);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3069,9 +3070,10 @@ XrdMgmOfs::_copystripe(const char             *path,
 		       XrdCommonMapping::VirtualIdentity &vid,
 		       unsigned long           sourcefsid,
 		       unsigned long           targetfsid, 
-		       bool                    expressflag)
+		       bool                    expressflag,
+		       const char*             label)
 {
-  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,false, expressflag);
+  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,false, expressflag, label);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3082,7 +3084,8 @@ XrdMgmOfs::_replicatestripe(const char             *path,
 			    unsigned long           sourcefsid,
 			    unsigned long           targetfsid, 
 			    bool                    dropsource,
-			    bool                    expressflag)
+			    bool                    expressflag,
+			    const char*             label)
 {
   static const char *epname = "replicatestripe";  
   eos::ContainerMD *dh=0;
@@ -3090,7 +3093,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   
   XrdCommonPath cPath(path);
 
-  eos_debug("replicating %s from %u=>%u [drop=%d]", path, sourcefsid,targetfsid,dropsource);
+  eos_debug("replicating %s from %u=>%u [drop=%d label=%s]", path, sourcefsid,targetfsid,dropsource,label);
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   try {
@@ -3131,7 +3134,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   if (errno) 
     return  Emsg(epname,error,errno,"replicate stripe",path);    
 
-  return _replicatestripe(fmd, error, vid, sourcefsid, targetfsid, dropsource, expressflag);
+  return _replicatestripe(fmd, error, vid, sourcefsid, targetfsid, dropsource, expressflag, label);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3142,7 +3145,8 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
 			    unsigned long           sourcefsid,
 			    unsigned long           targetfsid, 
 			    bool                    dropsource,
-			    bool                    expressflag)
+			    bool                    expressflag,
+			    const char*             label)
 {
   static const char *epname = "replicatestripe";  
   unsigned long long fileId=fmd->getId();
@@ -3175,7 +3179,10 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   if (expressflag) {
     capability += "&mgm.queueinfront=1";
   }
-
+  if (label) {
+    capability += "&mgm.label=";      capability += label;
+  }
+  
   if ( (!sourcefsid) || (!targetfsid) ) {
     eos_err("illegal fsid sourcefsid=%u targetfsid=%u", sourcefsid, targetfsid);
     return Emsg(epname,error, EINVAL, "illegal source/target fsid", fmd->getName().c_str());

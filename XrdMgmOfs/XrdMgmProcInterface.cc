@@ -1234,8 +1234,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  unsigned long sourcefsid = (sfsidsource.length())?strtoul(sfsidsource.c_str(),0,10):0;
 	  XrdOucString sfsidtarget = opaque.Get("mgm.file.targetfsid");
 	  unsigned long targetfsid = (sfsidsource.length())?strtoul(sfsidtarget.c_str(),0,10):0;
+	  XrdOucString sexpressflag = (opaque.Get("mgm.file.express"));
+	  const char* label         = opaque.Get("mgm.file.label");
+	  bool expressflag=false;
+	  if (sexpressflag == "1")
+	    expressflag = 1;
 
-	  if (gOFS->_movestripe(path.c_str(),*error, vid_in, sourcefsid, targetfsid)) {
+	  if (gOFS->_movestripe(path.c_str(),*error, vid_in, sourcefsid, targetfsid, expressflag, label)) {
 	    stdErr += "error: unable to move stripe";
 	    retc = errno;
 	  } else {
@@ -1249,15 +1254,16 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  XrdOucString sfsidtarget  = opaque.Get("mgm.file.targetfsid");
 	  unsigned long targetfsid  = (sfsidtarget.length())?strtoul(sfsidtarget.c_str(),0,10):0;
 	  XrdOucString sexpressflag = (opaque.Get("mgm.file.express"));
+	  const char* label         = opaque.Get("mgm.file.label");
 	  bool expressflag=false;
 	  if (sexpressflag == "1")
 	    expressflag = 1;
 
-	  if (gOFS->_copystripe(path.c_str(),*error, vid_in, sourcefsid, targetfsid)) {
+	  if (gOFS->_copystripe(path.c_str(),*error, vid_in, sourcefsid, targetfsid,expressflag, label)) {
 	    stdErr += "error: unable to replicate stripe";
 	    retc = errno;
 	  } else {
-	    stdOut += "success: scheduled replication from source fs="; stdOut += sfsidsource; stdOut += " => target fs="; stdOut += sfsidtarget;
+	    stdOut += "success: scheduled replication from source fs="; stdOut += sfsidsource; stdOut += " => target fs="; stdOut += sfsidtarget; if (label) {stdOut += " label="; stdOut += label;}
 	  }
 	}
 
@@ -1272,6 +1278,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    if (sexpressflag == "1")
 	      expressflag = 1;
 
+	    const char* label         = opaque.Get("mgm.file.label");
 
 	    XrdOucString creationspace    = opaque.Get("mgm.file.desiredspace");
 	    int icreationsubgroup = -1;
@@ -1402,7 +1409,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 			for (unsigned int i=0; i< selectedfs.size(); i++) {
 			  //			  stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
 			  // add replication here 
-			  if (gOFS->_replicatestripe(fmd,*error, vid_in, sourcefsid, selectedfs[i] , false, expressflag)) {
+			  if (gOFS->_replicatestripe(fmd,*error, vid_in, sourcefsid, selectedfs[i] , false, expressflag, label)) {
 			    stdErr += "error: unable to replicate stripe "; stdErr += (int) sourcefsid; stdErr += " => "; stdErr += (int) selectedfs[i]; stdErr += "\n";
 			    retc = errno;
 			  } else {

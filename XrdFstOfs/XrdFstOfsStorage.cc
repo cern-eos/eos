@@ -91,6 +91,14 @@ XrdFstOfsFileSystem::BroadcastStatus()
   XrdOucString rwstatus="";
   gOFS.OpenFidString(Id, rwstatus);
   msgbody += rwstatus;
+
+  XrdOucString txstatus="";
+  gOFS.TransferQueueString(txstatus);
+  if (txstatus.length()) {
+    msgbody += "&";
+    msgbody += txstatus;
+  }
+
   if (errc) {
     msgbody += "&errmsg=";
     msgbody += errmsg;
