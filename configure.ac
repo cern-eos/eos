@@ -1,5 +1,5 @@
 AC_PREREQ(2.57)
-AC_INIT(eos,0.0.10,[andreas.joachim.peters@cern.ch])
+AC_INIT(eos,0.0.9,[andreas.joachim.peters@cern.ch])
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 AC_CONFIG_SRCDIR([configure.ac])
