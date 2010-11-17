@@ -310,7 +310,8 @@ XrdMqOfsFile::close() {
   {
     XrdMqOfsOutMutex qm; 
     if (Out) {
-      Out->DeletionSem.Wait();
+      // hmm this could create a dead lock
+      //      Out->DeletionSem.Wait();
       Out->Lock();
       XrdOfsFS.QueueOut.Del(QueueName.c_str());
     }
