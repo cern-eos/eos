@@ -31,8 +31,10 @@ mgmofs.targetport 1095
 #mgmofs.authlib libXrdAliceTokenAcc.so
 #mgmofs.authorize 1
 ###########################################################
-mgmofs.symkey MTIzNDU2Nzg5MDEyMzQ1Njc4OTA=
+# this can be overwritten by EOS_SYM_KEY defined in /etc/sysconfig/xrd
+mgmofs.symkey AAAAAAAAAAAAAAAAAAAAAAAAAAA=
 #mgmofs.trace all debug
+# this URL can be overwritten by EOS_BROKER_URL defined /etc/sysconfig/xrd
 mgmofs.broker root://lxbra0301.cern.ch:1097//eos/
 #mgmofs.configdir /var/eos/config
 #mgmofs.metalog /var/eos/md

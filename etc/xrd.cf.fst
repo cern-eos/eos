@@ -15,7 +15,7 @@ xrd.port 1095
 ofs.authlib libXrdCapability.so
 ofs.authorize
 ###########################################################
-fstofs.symkey MTIzNDU2Nzg5MDEyMzQ1Njc4OTA=
+fstofs.symkey AAAAAAAAAAAAAAAAAAAAAAAAAAA=
 fstofs.broker root://lxbra0301.cern.ch:1097//eos/
 #fstofs.trace client
 fstofs.autoboot true
