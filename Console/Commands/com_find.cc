@@ -37,6 +37,10 @@ com_find (char* arg1) {
       option +="f0";
     }
 
+    if (s1 == "-m") {
+      option += "fM";
+    }
+
     if (s1 == "--size") {
       option += "S";
     }
@@ -61,6 +65,22 @@ com_find (char* arg1) {
 
     if (s1 == "--fid") {
       option += "F";
+    }
+
+    if (s1 == "--nrep") {
+      option += "R";
+    }
+
+    if (s1 == "--nunlink") {
+      option += "U";
+    }
+
+    if (s1 == "--stripediff") {
+      option += "D";
+    }
+
+    if (s1 == "-1") {
+      option += "1";
     }
 
     if (s1.beginswith( "-h" )) {
@@ -218,16 +238,19 @@ com_find (char* arg1) {
   return (0);
 
  com_find_usage:
-  printf("usage: find [-s] [-d] [-f] [-0] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
+  printf("usage: find [-s] [-d] [-f] [-0] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
   printf("                                                                        -f -d :  find files(-f) or directories (-d) in <path>\n");
   printf("                                                               -x <key>=<val> :  find entries with <key>=<val>\n");
   printf("                                                                           -0 :  find 0-size files \n");
+  printf("                                                                           -m :  find files with mixed scheduling groups\n");
   printf("                                                                     -p <key> :  additionally print the value of <key> for each entry\n");
   printf("                                                                           -b :  query the server balance of the files found\n");
   printf("                                                                    -c %%tags  :  find all files with inconsistencies defined by %%tags [ see help of 'file check' command]\n");
   printf("                                                                           -s :  run as a subcommand (in silent mode)\n");
   printf("                                                           -layoutstripes <n> :  apply new layout with <n> stripes to all files found\n");
+  printf("                                                                           -1 :  find files which are atleast 1 hour old\n");
+  printf("                                                                  -stripediff :  find files which have not the nominal number of stripes(replicas)\n");
   printf("                                                                      default :  find files and directories\n");
-  printf("       find [--size] [--fid] [--fs] [--checksum] [--ctime] [--mtime] <path>   :  find files and print out the requested meta data as key value pairs\n");              
+  printf("       find [--nrep] [--nunlink] [--size] [--fid] [--fs] [--checksum] [--ctime] [--mtime] <path>   :  find files and print out the requested meta data as key value pairs\n");              
   return (0);
 }

@@ -31,10 +31,13 @@ com_quota (char* arg1) {
 	    in += gid;
 	    arg = subtokenizer.GetToken();
 	  } else 
-	    
-	    if (arg.c_str()) {
-	      in += "&mgm.quota.space=";
-	      in += arg;
+	    if (arg == "-space") {
+	      XrdOucString space = subtokenizer.GetToken();
+	      if (space.c_str()) {
+		in += "&mgm.quota.space=";
+		in += space;
+		arg = subtokenizer.GetToken();
+	      }
 	    } else 
 	      goto com_quota_usage;
       } while (arg.length());

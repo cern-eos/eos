@@ -63,7 +63,6 @@ com_file (char* arg1) {
   XrdOucString path = subtokenizer.GetToken();
   XrdOucString fsid1 = subtokenizer.GetToken();
   XrdOucString fsid2 = subtokenizer.GetToken();
-  XrdOucString label = "";
 
   path = abspath(path.c_str());
 
@@ -101,9 +100,6 @@ com_file (char* arg1) {
     in += "&mgm.path="; in += path;
     in += "&mgm.file.sourcefsid="; in += fsid1;
     in += "&mgm.file.targetfsid="; in += fsid2;
-    label = subtokenizer.GetToken();
-    if (label.length())
-      in += "&mgm.file.label="; in += label;
   }
 
   if (cmd == "replicate") {
@@ -113,9 +109,6 @@ com_file (char* arg1) {
     in += "&mgm.path="; in += path;
     in += "&mgm.file.sourcefsid="; in += fsid1;
     in += "&mgm.file.targetfsid="; in += fsid2;
-    label = subtokenizer.GetToken();
-    if (label.length())
-      in += "&mgm.file.label="; in += label;
   }
 
   if (cmd == "adjustreplica") { 
@@ -323,8 +316,10 @@ com_file (char* arg1) {
 
       if ( (option.find("%nrep")) != STR_NPOS ) {
 	int nrep = 0; 
-	if (newresult->Get("mgm.nrep")) { nrep = atoi (newresult->Get("mgm.nrep"));}
-	if (nrep != i) {
+	int stripes = 0;
+	if (newresult->Get("mgm.stripes")) { stripes = atoi (newresult->Get("mgm.stripes"));}
+	if (newresult->Get("mgm.nrep"))    { nrep = atoi (newresult->Get("mgm.nrep"));}
+	if (nrep != stripes) {
 	  consistencyerror = true;
 	  inconsistencylable ="REPLICA";
 	}
@@ -332,7 +327,7 @@ com_file (char* arg1) {
       
       if ( (option.find("%output"))!= STR_NPOS ) {
 	if (consistencyerror)
-	  printf("INCONSISTENCY %s path=%-32s fid=%s size=%s nrep=%s nrepstored=%d nreponline=%d checksumtype=%s checksum=%s\n", inconsistencylable.c_str(), path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.nrep"), i, nreplicaonline, checksumtype.c_str(), newresult->Get("mgm.checksum"));
+	  printf("INCONSISTENCY %s path=%-32s fid=%s size=%s stripes=%s nrep=%s nrepstored=%d nreponline=%d checksumtype=%s checksum=%s\n", inconsistencylable.c_str(), path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.stripes"), newresult->Get("mgm.nrep"), i, nreplicaonline, checksumtype.c_str(), newresult->Get("mgm.checksum"));
       }
 
       delete newresult;
@@ -347,8 +342,8 @@ com_file (char* arg1) {
 
  com_file_usage:
   printf("usage: file drop <path> <fsid> [-f]                                  :  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
-  printf("       file move <path> <fsid1> <fsid2> [label=default]              :  move the file <path> from  <fsid1> to <fsid2> - label is used to tag transfers in the FST queues.\n");
-  printf("       file replicate <path> <fsid1> <fsid2> [label=default]         :  replicate file <path> part on <fsid1> to <fsid2> - label is used to tag transfers in the FST queues.\n");
+  printf("       file move <path> <fsid1> <fsid2>                              :  move the file <path> from  <fsid1> to <fsid2>\n");
+  printf("       file replicate <path> <fsid1> <fsid2>                         :  replicate file <path> part on <fsid1> to <fsid2>\n");
   printf("       file adjustreplica <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]]\n");
   printf("                                                                     :  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
   printf("       file check <path> [%%size%%checksum%%nrep%%force%%output%%silent]  :  retrieves stat information from the physical replicas and verifies the correctness\n");
