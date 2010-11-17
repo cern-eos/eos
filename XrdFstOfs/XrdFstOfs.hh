@@ -149,7 +149,6 @@ public:
   std::queue <XrdOucString> ReportQueue;
 
   void OpenFidString(unsigned long fsid, XrdOucString &outstring);
-  void TransferQueueString(XrdOucString &outstring);
 
   virtual ~XrdFstOfs() {};
 };

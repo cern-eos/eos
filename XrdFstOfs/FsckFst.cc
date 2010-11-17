@@ -231,8 +231,7 @@ int main(int argc, char* argv[] ) {
 
     XrdOucString findstring = "find "; findstring += searchpath; findstring += " -type f -name \"????????\" ";
     FILE* fp = popen(findstring.c_str(),"r");
-    google::dense_hash_map<long long, std::string> DiskFid;
-    DiskFid.set_empty_key(0);
+    google::sparse_hash_map<long long, std::string> DiskFid;
 
     if (!fp) {
       fprintf(stderr,"%s: error: cannot search in path %s !\n",argv[0], searchpath.c_str());
@@ -255,7 +254,7 @@ int main(int argc, char* argv[] ) {
 
     // compare disk vs changelog
     {
-      google::dense_hash_map<long long, std::string>::iterator it;
+      google::sparse_hash_map<long long, std::string>::iterator it;
       for (it = DiskFid.begin(); it != DiskFid.end(); ++it) {
 	// check if this exists in the meta data log
 	if (gFmd.FmdSize.count(it->first)==1) {
@@ -338,6 +337,7 @@ int main(int argc, char* argv[] ) {
 	}
       }
     }
+    
     fprintf(stdout,"---------------------------------------\n");
     fprintf(stdout,"=> files missing in change log : %llu\n", error_missing_changelog);
     fprintf(stdout,"=> files missing in data dir   : %llu\n", error_missing_disk);
@@ -345,6 +345,7 @@ int main(int argc, char* argv[] ) {
     fprintf(stdout,"=> files with wrong mtime      : %llu\n", warning_wrong_mtime);
     fprintf(stdout,"=> files with wrong ctime      : %llu\n", warning_wrong_ctime);
     fprintf(stdout,"---------------------------------------\n");
+
     if (repairlocal) {
       fprintf(stdout,"=> files repaired              : %llu\n",repaired_files);
       fprintf(stdout,"---------------------------------------\n");

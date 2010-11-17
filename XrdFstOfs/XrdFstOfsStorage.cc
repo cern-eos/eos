@@ -91,14 +91,6 @@ XrdFstOfsFileSystem::BroadcastStatus()
   XrdOucString rwstatus="";
   gOFS.OpenFidString(Id, rwstatus);
   msgbody += rwstatus;
-
-  XrdOucString txstatus="";
-  gOFS.TransferQueueString(txstatus);
-  if (txstatus.length()) {
-    msgbody += "&";
-    msgbody += txstatus;
-  }
-
   if (errc) {
     msgbody += "&errmsg=";
     msgbody += errmsg;
@@ -168,6 +160,38 @@ XrdFstOfsFileSystem::GetStatfs(bool &changed)
 
   return statFs;
 }
+
+
+/*----------------------------------------------------------------------------*/
+bool 
+XrdFstOfsFileSystem::OpenTransaction(unsigned long long fid) {
+  XrdOucString tagfile = GetTransactionDirectory();
+  tagfile += "/";
+  XrdOucString hexstring="";
+  XrdCommonFileId::Fid2Hex(fid, hexstring);
+  tagfile += hexstring;
+  int fd = open(tagfile.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IROTH | S_IRGRP);
+  if (fd > 0) {
+    close (fd);
+    return true;
+  }
+  return false;
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
+XrdFstOfsFileSystem::CloseTransaction(unsigned long long fid) {
+  XrdOucString tagfile = GetTransactionDirectory();
+  tagfile += "/";
+  XrdOucString hexstring="";
+  XrdCommonFileId::Fid2Hex(fid, hexstring);
+  tagfile += hexstring;
+  if (unlink (tagfile.c_str())) 
+    return false;
+  return true;
+}
+
+
 
 /*----------------------------------------------------------------------------*/
 XrdFstOfsStorage::XrdFstOfsStorage(const char* metadirectory)
@@ -300,6 +324,7 @@ XrdFstOfsStorage::SetFileSystem(XrdOucEnv& env)
     fs = new XrdFstOfsFileSystem(path);
     fileSystems.Add(path,fs);
     fileSystemsVector.push_back(fs);
+    fileSystemsMap[fsid] = fs;
   }
 
   fs->SetId(fsid);
@@ -346,9 +371,26 @@ XrdFstOfsStorage::SetFileSystem(XrdOucEnv& env)
       return false;
     }
   }
-  
+
   close(fd);
+
+  // create FS transaction directory
   
+  XrdOucString transactionDirectory="";
+  transactionDirectory = fs->GetPath();
+  transactionDirectory += "/.eostransaction";
+  
+  if (mkdir(transactionDirectory.c_str(), S_IRWXU | S_IRGRP| S_IXGRP | S_IROTH | S_IXOTH)) {
+    if (errno != EEXIST) {
+      fs->SetStatus(XrdCommonFileSystem::kBootFailure);
+      fs->SetError(errno,"cannot create transactiondirectory");
+      fsMutex.UnLock();
+      return false;
+    }
+  }
+
+  fs->SetTransactionDirectory(transactionDirectory.c_str());
+
   fs->SetStatus(XrdCommonFileSystem::kBooted);
   fs->SetError(0,0);
   fsMutex.UnLock();
@@ -373,6 +415,7 @@ XrdFstOfsStorage::RemoveFileSystem(XrdOucEnv& env)
     std::vector<XrdFstOfsFileSystem*>::iterator it;
     for (it = fileSystemsVector.begin(); it != fileSystemsVector.end(); ++it) {
       if (*it == fs) {
+	fileSystemsMap.erase((*it)->GetId());
 	fileSystemsVector.erase(it);
 	break;
       }
@@ -1027,4 +1070,25 @@ XrdFstOfsStorage::Verify()
     gOFS.LockManager.UnLock(verifyfile->fId);
     if (verifyfile) delete verifyfile;
   }
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
+XrdFstOfsStorage::OpenTransaction(unsigned int fsid, unsigned long long fid) {
+  XrdFstOfsFileSystem* fs = fileSystemsMap[fsid];
+  if (fs) {
+    return fs->OpenTransaction(fid);
+  }
+  return false;
+}
+
+
+/*----------------------------------------------------------------------------*/
+bool 
+XrdFstOfsStorage::CloseTransaction(unsigned int fsid, unsigned long long fid) {
+  XrdFstOfsFileSystem* fs = fileSystemsMap[fsid];
+  if (fs) {
+    return fs->CloseTransaction(fid);
+  }
+  return false;
 }

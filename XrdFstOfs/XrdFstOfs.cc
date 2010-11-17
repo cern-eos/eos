@@ -91,7 +91,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
 
   if( !ConfigFN || !*ConfigFN) {
-    // this error Opewill be reported by XrdOfsFS.Configure
+    // this error will be reported by XrdOfsFS.Configure
   } else {
     // Try to open the configuration file.
     //
@@ -111,12 +111,20 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 	    Eroute.Emsg("Config","argument 2 for symkey missing or length!=28");
 	    NoGo=1;
 	  } else {
-	    // this key is valid forever ...
-	    if (!gXrdCommonSymKeyStore.SetKey64(val,0)) {
-	      Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
-	      NoGo=1;
+	    if (getenv("EOS_SYM_KEY")) {
+	      if (!gXrdCommonSymKeyStore.SetKey64(getenv("EOS_SYM_KEY"),0)) {
+		Eroute.Emsg("Config","cannot decode your (sysconfig) key and use it in the sym key store!");
+		NoGo=1;
+	      }
+	      Eroute.Say("=====> fstofs.symkey(sysconfig) : ", getenv("EOS_SYM_KEY"));
+	    } else {
+	      // this key is valid forever ...
+	      if (!gXrdCommonSymKeyStore.SetKey64(val,0)) {
+		Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
+		NoGo=1;
+	      }
+	      Eroute.Say("=====> fstofs.symkey : ", val);
 	    }
-	    Eroute.Say("=====> fstofs.symkey : ", val);
 	  }
 	}
 
@@ -124,7 +132,12 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 	  if (!(val = Config.GetWord())) {
 	    Eroute.Emsg("Config","argument 2 for broker missing. Should be URL like root://<host>/<queue>/"); NoGo=1;
 	  } else {
-	    XrdFstOfsConfig::gConfig.FstOfsBrokerUrl = val;
+	    if (getenv("EOS_BROKER_URL")) {
+	      XrdFstOfsConfig::gConfig.FstOfsBrokerUrl = getenv("EOS_BROKER_URL");
+	    } else {
+	      XrdFstOfsConfig::gConfig.FstOfsBrokerUrl = val;
+	    }
+
 	  }
 	}
 
@@ -331,7 +344,9 @@ XrdFstOfsFile::open(const char                *path,
     if (capOpaque->Get(replicalocalprefixtag.c_str())) 
       localprefix=capOpaque->Get(replicalocalprefixtag.c_str());
   }
-
+  
+  // attention: the localprefix implementation does not work for gateway machines - this needs some modifications
+  localPrefix = localprefix;
 
   if (!(slid=capOpaque->Get("mgm.lid"))) {
     return gOFS.Emsg(epname,error, EINVAL,"open - no layout id in capability",path);
@@ -502,6 +517,14 @@ XrdFstOfsFile::open(const char                *path,
     }
   }
 
+  if (rc == SFS_OK) {
+    // tag this transaction as open
+    if (isRW) {
+      if (!gOFS.FstOfsStorage->OpenTransaction(fsid, fileid)) {
+	eos_crit("cannot open transaction for fsid=%u fid=%llu", fsid, fileid);
+      }
+    }
+  }
   return rc;
 }
 
@@ -626,6 +649,20 @@ XrdFstOfsFile::close()
        capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
      }
      rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
+     if (rc == -EIDRM) {
+       if (!gOFS.FstOfsStorage->CloseTransaction(fsid, fileid)) {
+	 eos_crit("cannot close transaction for fsid=%u fid=%llu", fsid, fileid);
+       }
+       // this file has been deleted in the meanwhile ... we can unlink that immedeatly
+       eos_info("unlinking fid=%08x path=%s - file has been already unlinked from the namespace", fMd->fMd.fid, Path.c_str());
+       int rc =  gOFS._rem(Path.c_str(), error, 0, capOpaque);
+       rc = SFS_ERROR;
+     }
+     
+     if (rc==SFS_OK) {
+       gOFS.FstOfsStorage->CloseTransaction(fsid, fileid);
+     }
+       
    }
    closed = true;
 
@@ -695,6 +732,8 @@ XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manag
   int  result_size=8192;
   
   XrdCommonClientAdmin* admin = gOFS.CommonClientAdminManager.GetAdmin(manager);
+  XrdOucString msg="";
+      
   if (admin) {
     admin->Lock();
     admin->GetAdmin()->Connect();
@@ -716,9 +755,14 @@ XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manag
       break;
       
     case kXR_error:
-      if (error)
+      if (error) {
 	gOFS.Emsg(epname, *error, ECOMM, "commit changed filesize to meta data cache during close of fn=", path);
+      }
+      msg = (admin->GetAdmin()->LastServerError()->errmsg);
       rc = SFS_ERROR;
+
+      if (msg.find("[EIDRM]") !=STR_NPOS)
+	 rc = -EIDRM;
       break;
       
     default:
@@ -1330,14 +1374,20 @@ XrdFstOfs::_rem(const char             *path,
     eos_notice("unable to delete file - file does not exist: %s fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(),fsid, fileid);
     return gOFS.Emsg(epname,error,ENOENT,"delete file - file does not exist",fstPath.c_str());    
   } 
-  // get the identity
-
   eos_info("fstpath=%s", fstPath.c_str());
 
-  // attach meta data
+  // unlink file
+  errno = 0;
   int rc = XrdOfs::rem(fstPath.c_str(),error,client,0);
   eos_info("rc=%d errno=%d", rc,errno);
 
+  // cleanup eventual transactions
+  if (!gOFS.FstOfsStorage->CloseTransaction(fsid, fileid)) {
+    // it should be the normal case that there is no open transaction for that file
+    int rc = 1;
+    rc =1;
+  }
+  
   if (rc) {
     return rc;
   }
@@ -1469,27 +1519,4 @@ XrdFstOfs::OpenFidString(unsigned long fsid, XrdOucString &outstring)
   outstring += nopen;
   
   OpenFidMutex.UnLock();
-}
-
-void 
-XrdFstOfs::TransferQueueString(XrdOucString &outstring)
-{
-  std::map<std::string, int> transferbylabel;
-
-  gOFS.FstOfsStorage->transferMutex.Lock();
-  std::list<XrdFstTransfer*>::iterator it;
-  for ( it = gOFS.FstOfsStorage->transfers.begin(); it != gOFS.FstOfsStorage->transfers.end(); ++it) {
-    transferbylabel[(*it)->GetLabel()]++;
-  }
-  gOFS.FstOfsStorage->transferMutex.UnLock();
-  
-  
-  std::map<std::string, int>::const_iterator txit;
-  
-  for (txit = transferbylabel.begin(); txit != transferbylabel.end(); txit++) {
-    outstring += "&transfer.";
-    outstring += txit->first.c_str();
-    outstring += "=";
-    outstring += txit->second;
-  }
 }
