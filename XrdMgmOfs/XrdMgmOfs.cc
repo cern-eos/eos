@@ -73,10 +73,11 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
   //
   if (!myFS.Init(gMgmOfsEroute) ) return 0;
 
+  gOFS = &myFS;
+
   myFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
   if ( myFS.Configure(gMgmOfsEroute) ) return 0;
 
-  gOFS = &myFS;
 
   // Initialize authorization module ServerAcc
   gOFS->CapabilityEngine = (XrdCapability*) XrdAccAuthorizeObject(lp, configfn, 0);
@@ -2322,7 +2323,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 
 	    eos_notice("commit for fid=%lu but fid=%lu", fmd->getId(), fid);
 	    gOFS->MgmStats.Add("CommitFailedFid",0,0,1);
-	    return Emsg(epname,error, EINVAL,"commit filesize change - file id is wrong", spath);
+	    return Emsg(epname,error, EINVAL,"commit filesize change - file id is wrong [EINVAL]", spath);
 	  }
 
 	  // check if this file is already unlinked from the visible namespace
@@ -2332,7 +2333,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 
 	    eos_notice("commit for fid=%lu but file is disconnected from any container", fmd->getId());
 	    gOFS->MgmStats.Add("CommitFailedUnlinked",0,0,1);  
-	    return Emsg(epname,error, EIDRM, "commit filesize change - file is already removed","");
+	    return Emsg(epname,error, EIDRM, "commit filesize change - file is already removed [EIDRM]","");
 	  }
 
 	  if (verifysize) {
@@ -2904,13 +2905,14 @@ XrdMgmOfs::_verifystripe(const char             *path,
   // get the file
   try {
     fmd = gOFS->eosView->getFile(path);
-    // we only unlink a location
-    if (fmd->hasLocation(fsid)) {
-      eos_debug("verifying location %u", fsid);
-      errno = 0;
-    } else {
-      errno = ENOENT;
-    }
+
+    // we don't check anymore if we know about this location, we just send to the filesystem, because we want to have a method to register a not commited replica
+    //    if (fmd->hasLocation(fsid)) {
+    //      eos_debug("verifying location %u", fsid);
+    //      errno = 0;
+    //    } else {
+    //      errno = ENOENT;
+    //    }
     fid = fmd->getId();
     lid = fmd->getLayoutId();
     cid = fmd->getContainerId();
@@ -3057,10 +3059,9 @@ XrdMgmOfs::_movestripe(const char             *path,
 		       XrdCommonMapping::VirtualIdentity &vid,
 		       unsigned long           sourcefsid,
 		       unsigned long           targetfsid,
-		       bool                    expressflag, 
-		       const char*             label)
+		       bool                    expressflag)
 {
-  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,true, expressflag, label);
+  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,true, expressflag);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3070,10 +3071,9 @@ XrdMgmOfs::_copystripe(const char             *path,
 		       XrdCommonMapping::VirtualIdentity &vid,
 		       unsigned long           sourcefsid,
 		       unsigned long           targetfsid, 
-		       bool                    expressflag,
-		       const char*             label)
+		       bool                    expressflag)
 {
-  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,false, expressflag, label);
+  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,false, expressflag);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3084,8 +3084,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
 			    unsigned long           sourcefsid,
 			    unsigned long           targetfsid, 
 			    bool                    dropsource,
-			    bool                    expressflag,
-			    const char*             label)
+			    bool                    expressflag)
 {
   static const char *epname = "replicatestripe";  
   eos::ContainerMD *dh=0;
@@ -3093,7 +3092,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   
   XrdCommonPath cPath(path);
 
-  eos_debug("replicating %s from %u=>%u [drop=%d label=%s]", path, sourcefsid,targetfsid,dropsource,label);
+  eos_debug("replicating %s from %u=>%u [drop=%d]", path, sourcefsid,targetfsid,dropsource);
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   try {
@@ -3134,7 +3133,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   if (errno) 
     return  Emsg(epname,error,errno,"replicate stripe",path);    
 
-  return _replicatestripe(fmd, error, vid, sourcefsid, targetfsid, dropsource, expressflag, label);
+  return _replicatestripe(fmd, error, vid, sourcefsid, targetfsid, dropsource, expressflag);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3145,8 +3144,7 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
 			    unsigned long           sourcefsid,
 			    unsigned long           targetfsid, 
 			    bool                    dropsource,
-			    bool                    expressflag,
-			    const char*             label)
+			    bool                    expressflag)
 {
   static const char *epname = "replicatestripe";  
   unsigned long long fileId=fmd->getId();
@@ -3179,10 +3177,7 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   if (expressflag) {
     capability += "&mgm.queueinfront=1";
   }
-  if (label) {
-    capability += "&mgm.label=";      capability += label;
-  }
-  
+
   if ( (!sourcefsid) || (!targetfsid) ) {
     eos_err("illegal fsid sourcefsid=%u targetfsid=%u", sourcefsid, targetfsid);
     return Emsg(epname,error, EINVAL, "illegal source/target fsid", fmd->getName().c_str());

@@ -162,11 +162,14 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	if (!(val = Config.GetWord())) {
 	  Eroute.Emsg("Config","argument 2 for broker missing. Should be URL like root://<host>/<queue>/"); NoGo=1;
 	} else {
-	  MgmOfsBrokerUrl = val;
+	  if (getenv("EOS_BROKER_URL")) {
+	    MgmOfsBrokerUrl = getenv("EOS_BROKER_URL");
+	  } else {
+	    MgmOfsBrokerUrl = val;
+	  }
 	}
       }
 	  
-
       if (!strcmp("authlib",var)) {
 	if ((!(val = Config.GetWord())) || (::access(val,R_OK))) {
 	  Eroute.Emsg("Config","I cannot acccess you authorization library!"); NoGo=1;} else {
@@ -194,13 +197,22 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	  NoGo=1;
 	} else {
 	  // this key is valid forever ...
-	  if (!gXrdCommonSymKeyStore.SetKey64(val,0)) {
-	    Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
-	    NoGo=1;
+	  if (getenv("EOS_SYM_KEY")) {
+	    if (!gXrdCommonSymKeyStore.SetKey64(getenv("EOS_SYM_KEY"),0)) {
+	      Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
+	      NoGo=1;
+	    }
+	    Eroute.Say("=====> mgmofs.symkey(sysconfig) : ", getenv("EOS_SYM_KEY"));
+	  } else {
+	    if (!gXrdCommonSymKeyStore.SetKey64(val,0)) {
+	      Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
+	      NoGo=1;
+	    }
+	    Eroute.Say("=====> mgmofs.symkey : ", val);
 	  }
-	  Eroute.Say("=====> mgmofs.symkey : ", val);
 	}
       }
+      
       if (!strcmp("configdir",var)) {
 	if (!(val = Config.GetWord())) {
 	  Eroute.Emsg("Config","argument for configdir invalid.");NoGo=1;
@@ -360,7 +372,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   XrdOucString unit = "mgm@"; unit+= ManagerId;
 
-  XrdCommonLogging::SetLogPriority(LOG_DEBUG);
+  XrdCommonLogging::SetLogPriority(LOG_INFO);
   XrdCommonLogging::SetUnit(unit.c_str());
 
   // this global hash needs to initialize the set empty key function at first place
@@ -384,14 +396,27 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   // start the config enging
   ConfigEngine = new XrdMgmConfigEngine(MgmConfigDir.c_str());
 
-  eos_emerg("%s",(char*)"test emerg");
-  eos_alert("%s",(char*)"test alert");
-  eos_crit("%s", (char*)"test crit");
-  eos_err("%s",  (char*)"test err");
-  eos_warning("%s",(char*)"test warning");
-  eos_notice("%s",(char*)"test notice");
-  eos_info("%s",(char*)"test info");
-  eos_debug("%s",(char*)"test debug");
+  eos_info("autoload config=%s", getenv("EOS_AUTOLOAD_CONFIG"));
+  if (getenv("EOS_AUTOLOAD_CONFIG")) {
+    XrdOucString configloader = "mgm.config.file="; 
+    configloader += getenv("EOS_AUTOLOAD_CONFIG");
+    XrdOucEnv configenv(configloader.c_str());
+    XrdOucString stdErr="";
+    if (!ConfigEngine->LoadConfig(configenv, stdErr)) {
+      eos_crit("Unable to auto-load config %s", getenv("EOS_AUTOLOAD_CONFIG"));
+    } else {
+      eos_info("Successful auto-load config %s", getenv("EOS_AUTOLOAD_CONFIG"));
+    }
+  }
+
+  //  eos_emerg("%s",(char*)"test emerg");
+  //  eos_alert("%s",(char*)"test alert");
+  //  eos_crit("%s", (char*)"test crit");
+  //  eos_err("%s",  (char*)"test err");
+  //  eos_warning("%s",(char*)"test warning");
+  //  eos_notice("%s",(char*)"test notice");
+  //  eos_info("%s",(char*)"test info");
+  //  eos_debug("%s",(char*)"test debug");
 
   // configure the meta data catalog
   eosDirectoryService = new eos::ChangeLogContainerMDSvc;

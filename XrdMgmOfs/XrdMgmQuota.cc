@@ -387,7 +387,18 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
       if (filesystem) {
 	// check that we have atleast 1GB and 100 inodes and that we are in rw mode
 	eos_static_debug("fs info %u %llu %llu %s %s", filesystem->GetId(), filesystem->GetStatfs()->f_bfree, filesystem->GetStatfs()->f_ffree*4096ll, filesystem->GetConfigStatusString(), filesystem->GetBootStatusString());
-	if ( ((filesystem->GetStatfs()->f_bfree *4096ll) > (1024ll*1024ll*1024l*1)) &&
+
+	bool isalreadyselected=false;
+	// check that this one is not already selected
+	for (unsigned int l=0; l< selectedfs.size(); l++) {
+	  if (selectedfs[l] == currentfs) {
+	    isalreadyselected = true;
+	    break;
+	  }
+	}
+
+	if ( (!isalreadyselected) && 
+	     ((filesystem->GetStatfs()->f_bfree *4096ll) > (1024ll*1024ll*1024l*25)) && // request 25 GB of headroom per disk
 	     ((filesystem->GetStatfs()->f_ffree) > 100 ) &&
 	     ( ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kWO) && truncate) ||
 	       ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kRW)) ) &&
@@ -397,26 +408,31 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
 	  selectedfs.push_back(currentfs);
 	  nassigned++;
 	  eos_static_debug("fs %u selected for placement!", filesystem->GetId());
+	  // we randomize the start position of the second replica to decouple disks better
+	  if (nassigned ==1) {
+	    if (currentfsrandomoffset) {
+	      for (unsigned int inc=0; inc < currentfsrandomoffset; inc++) {
+		schedulingViewPtr[ptrindextag]++;
+		if (schedulingViewPtr[ptrindextag] == schedulingView[schedgroupindex].end()) {
+		  schedulingViewPtr[ptrindextag] = schedulingView[schedgroupindex].begin();
+		}
+	      }
+	      currentfsrandomoffset = 0;
+	      
+	      // we have to enlarge the loop by one because we could run again over the previous selected one
+	      maxiterations++;
+	    }
+	  }
 	} else {
 	  eos_static_debug("fs %u cannot be selected!", filesystem->GetId());
 	}
       }
-      // we randomize the start position of the second replica to decouple disks better
-      if (nassigned ==1) {
-	if (currentfsrandomoffset) {
-	  for (unsigned int inc=0; inc < currentfsrandomoffset; inc++) {
-	    currentfsrandomoffset = 0;
-	    schedulingViewPtr[ptrindextag]++;
-	    if (schedulingViewPtr[ptrindextag] == schedulingView[schedgroupindex].end()) {
-	      schedulingViewPtr[ptrindextag] = schedulingView[schedgroupindex].begin();
-	    }
-	  }
-	  // we have to enlarge the loop by one because we could run again over the previous selected one
-	  maxiterations++;
-	}
-      }
 	
       schedulingViewPtr[ptrindextag]++;
+      if (schedulingViewPtr[ptrindextag] == schedulingView[schedgroupindex].end()) {
+	schedulingViewPtr[ptrindextag] = schedulingView[schedgroupindex].begin();
+      }
+
       if (nassigned >= nfilesystems) {
 	// rotate to next scheduling group
 	schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());

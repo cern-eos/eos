@@ -403,16 +403,14 @@ const   char          *getVersion();
 				   XrdCommonMapping::VirtualIdentity &vid,
 				   unsigned long         sourcefsid,
 				   unsigned long         targetfsid,
-                                   bool                  expressflag=false, 
-				   const char*           label="default");
+                                   bool                  expressflag=false);
 
         int            _copystripe(const char           *path, 
 				   XrdOucErrInfo        &error,
 				   XrdCommonMapping::VirtualIdentity &vid,
 				   unsigned long         sourcefsid,
 				   unsigned long         targetfsid,
-				   bool                  expressflag=false,
-				   const char*           label="default");
+				   bool                  expressflag=false);
 
         int            _replicatestripe(const char           *path, 
 				   XrdOucErrInfo        &error,
@@ -420,8 +418,7 @@ const   char          *getVersion();
 				   unsigned long         sourcefsid,
 				   unsigned long         targetfsid, 
  				   bool                  dropstripe=false,
-				   bool                  expressflag=false,
-  				   const char*           label="default");
+				   bool                  expressflag=false);
 
 
         int            _replicatestripe(eos::FileMD* fmd, 
@@ -430,8 +427,7 @@ const   char          *getVersion();
 				   unsigned long         sourcefsid,
 				   unsigned long         targetfsid, 
 				   bool                  dropstripe=false,
-				   bool                  expressflag=false,
-    			           const char*           label="default");
+				   bool                  expressflag=false);
 
   
 // Common functions
