@@ -1,0 +1,4 @@
+*/5 * * * * root [ -f "/etc/sysconfig/xrd" ] && source /etc/sysconfig/xrd ; [ "$XRD_ALIVE" = "1" ] && for i in ${XRD_ROLES}; do service xrd status $i >& /dev/null || ( date; service xrd condrestart $i ; echo "`date` restarted $i on `hostname -f`" | $XRD_NOTIFY ; ) >> /var/log/xroot/xrd-alive.log;  done
+
+
+

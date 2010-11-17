@@ -1,0 +1,172 @@
+#! /bin/bash
+#
+#****************************************************************************
+#                      eoshealth.init
+#
+# chkconfig: 345 96 6
+# description: eos health script - this implements only the status service function
+#****************************************************************************
+
+# Source function library
+. /etc/rc.d/init.d/functions
+
+# Variables
+prog="eoshealth"
+sysprog="$prog"
+sysconfigfile="xrd"
+
+# Defaults
+EOS_LOCATION="/opt/eos"
+EOS_MAXFD=65000
+EOS_USER="root"
+EOS_LOGDIR="/var/log/xroot/health"
+EOS_COREDIR="/var/spool/xroot/core"
+EOS_HEALTH_MGM="root://localhost"
+FRETVAL=0
+RETVAL=0
+
+USER=`whoami`
+HOST=`hostname -f`
+
+# Source sysconfig file
+if [ -f /etc/sysconfig/$sysconfigfile ]; then
+        . /etc/sysconfig/$sysconfigfile
+fi
+
+mkdir -p ${EOS_LOGDIR}
+chown ${EOS_USER} ${EOS_LOGDIR}
+
+
+cleanup() {
+    echo " "
+}
+
+
+start() {
+    if [ -e "/var/lock/subsys/$prog" ]; then
+	echo -n $"- already started"
+	failure
+	echo
+	return 1
+    else
+	touch /var/lock/subsys/$prog
+	success
+	echo
+	return 0
+    fi
+}
+
+stop() {
+    if [ ! -e "/var/lock/subsys/$prog" ]; then
+	echo -n $"- already stopped"
+	failure
+	echo
+	return 1
+    else
+	unlink /var/lock/subsys/$prog
+	success
+	echo
+	return 0
+    fi
+    return 0
+}
+
+status() {
+    if [ "$EOS_HEALTH" != "1" ]; then
+	return 0
+    else 
+    if [ -e /var/lock/subsys/$prog ]; then
+    unlink $EOS_LOGDIR/eos.fs.ls >& /dev/null
+    date > $EOS_LOGDIR/eos.fs.mail
+
+    $EOS_LOCATION/bin/eos $EOS_HEALTH_MGM fs ls >& $EOS_LOGDIR/eos.fs.ls &
+    PID=$!
+    sleeptime=1
+    for name in 1 1 1 1 1 1 1 1 1 1; do
+	alive=`ps --pid $PID | grep $PID`;
+	if [ -z "$alive" ]; then
+	    sleeptime=0
+	fi
+	sleep $sleeptime
+    done
+    
+    if [ $sleeptime = 0 ]; then
+	# fs ls worked in time
+	for fs in `cat $EOS_LOGDIR/eos.fs.ls | grep eos | grep -v online | grep -v offline | grep -v off | awk '{print $2}'`; do
+	    line=`cat $EOS_LOGDIR/eos.fs.ls | grep eos | grep -v online | grep -v offline | grep -v off | grep -w $fs | egrep '(failed|opserror)'`
+	    if [ -n "$line" ]; then 
+		# a filesystem turned into faulty state
+		if [ ! -e $EOS_LOGDIR/eos.faulty.$fs ]; then
+		    line=`cat $EOS_LOGDIR/eos.fs.ls | grep eos | grep -v online | grep -v offline | grep -w $fs | tee -a $EOS_LOGDIR/eos.fs.mail`;
+		    touch $EOS_LOGDIR/eos.faulty.$fs;
+		    echo $line;
+		    failure
+		    echo
+		    result="failure"
+		fi
+	    else
+		# a filesystem comes back from faulty state
+		if [ -e $EOS_LOGDIR/eos.faulty.$fs ]; then
+		    unlink $EOS_LOGDIR/eos.faulty.$fs;
+		    line=`cat $EOS_LOGDIR/eos.fs.ls | grep eos | grep -v online | grep -v offline | grep -w $fs | tee -a $EOS_LOGDIR/eos.fs.mail`;
+		    echo FS $fs not faulty any more | tee -a $EOS_LOGDIR/eos.fs.mail
+		    echo $line
+		    warning
+		    echo
+		    result="warning"
+		fi
+	    fi
+	    
+	done
+	if [ -z "$result" ]; then
+	    success
+	    echo
+	else
+	    if [ -n "$XRD_NOTIFY" ]; then
+		cat $EOS_LOGDIR/eos.fs.mail | $XRD_NOTIFY
+	    fi
+
+	    return 1
+	fi
+    else
+	# fs ls was hanging
+	echo Killing hanging eos shell ...
+	kill -9 $PID
+	failure
+	if [ -n "$XRD_NOTIFY" ]; then
+	    echo eos fs ls timeout | $XRD_NOTIFY
+	fi
+	echo
+	return 1
+    fi
+    fi
+    fi
+}
+
+restart() {
+    echo
+}
+
+
+# See how we were called
+case "$1" in
+
+        start)
+	        start
+                ;;
+        stop)
+	        stop
+                ;;
+        status)
+                status
+                ;;
+        restart)
+                ;;
+        condrestart)
+                ;;
+        *)
+                echo $"Usage: $0 {start|stop|status|restart|condrestart}"
+                exit 1
+esac
+
+exit $RETVAL

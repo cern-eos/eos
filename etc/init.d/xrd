@@ -15,7 +15,8 @@ prog="xrootd"
 sysconfigfile="xrd"
 
 # Defaults
-XRD_LOCATION="/opt/eos"
+XRD_LOCATION="/usr/"
+EOS_LOCATION="/opt/eos"
 XRD_MAXFD=65000
 XRD_USER="daemon"
 XRD_LOGDIR="/var/log/xroot"
@@ -98,10 +99,10 @@ start() {
 			cd ${XRD_COREDIR}/core/$i
 
 			if [ ${XRD_USER} = "$USER" ]; then
-			    daemon --user ${XRD_USER} "cd ${XRD_COREDIR}/core/$i; env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}"
+			    daemon --user ${XRD_USER} "[ -f /etc/sysconfig/$sysconfigfile ] && source /etc/sysconfig/$sysconfigfile ;cd ${XRD_COREDIR}/core/$i; env LD_LIBRARY_PATH=${EOS_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}"
 			else
 			    ulimit -n ${XRD_MAXFD}
-			    daemon --user ${XRD_USER} "cd ${XRD_COREDIR}/core/$i; env LD_LIBRARY_PATH=${XRD_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}"
+			    daemon --user ${XRD_USER} "[ -f /etc/sysconfig/$sysconfigfile ] && source /etc/sysconfig/$sysconfigfile ;cd ${XRD_COREDIR}/core/$i; env LD_LIBRARY_PATH=${EOS_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}"
 			fi
 
 			# Write the pid to a file
