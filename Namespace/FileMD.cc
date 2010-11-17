@@ -44,6 +44,12 @@ namespace eos
     pCUid        = other.pCUid;
     pCGid        = pCGid;
     pLayoutId    = other.pLayoutId;
+    pLocation    = other.pLocation;
+    pUnlinkedLocation = other.pUnlinkedLocation;
+    pCTime       = other.pCTime;
+    pMTime       = other.pMTime;
+    pChecksum    = other.pChecksum;
+
     pFileMDSvc   = 0;
     return *this;
   }
