@@ -476,18 +476,18 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
 	
 	// add new size
 	UserBytes [((long long)pMd->fsid<<32) | pMd->uid]  += pMd->size;
-	GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] += pMd->size;
+	GroupBytes[((long long)pMd->fsid<<32) | pMd->gid]  += pMd->size;
 	UserFiles [((long long)pMd->fsid<<32) | pMd->uid]++;
 	GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]++;
       }
       if (XrdCommonFmd::IsDelete(pMd)) {
 	if (FmdSize.count(pMd->fid)>0) {
-	  FmdSize.erase(pMd->fid);
 	  Fmd[fsid].erase(pMd->fid);
-	  UserBytes [((long long)pMd->fsid<<32) | pMd->uid]  -= pMd->size;
-	  GroupBytes[((long long)pMd->fsid<<32) | pMd->gid] -= pMd->size;
+	  UserBytes [((long long)pMd->fsid<<32) | pMd->uid]  -= FmdSize[pMd->fid];
+	  GroupBytes[((long long)pMd->fsid<<32) | pMd->gid]  -= FmdSize[pMd->fid];
 	  UserFiles [((long long)pMd->fsid<<32) | pMd->uid]--;
 	  GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]--;
+	  FmdSize.erase(pMd->fid);
 	} else {
 	  eos_crit("Double Deletion detected sequencenumber %u fid %llu", sequencenumber, pMd->fid);
 	}
