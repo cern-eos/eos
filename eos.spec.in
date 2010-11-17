@@ -4,7 +4,7 @@
 Summary: eos project
 Name: eos
 Version: @VERSION@
-Release: 1
+Release: 7
 Prefix: /opt/eos
 License: none
 Group: Applications/File
@@ -40,14 +40,21 @@ make install DESTDIR=$RPM_BUILD_ROOT
 %config(noreplace) /etc/sysconfig/xrd.example
 %config(noreplace) /etc/sysconfig/eossync.example
 %_sysconfdir/cron.d/xrd-logs
+%_sysconfdir/cron.d/xrd-alive
+%_sysconfdir/cron.d/eos-health
 %_sysconfdir/rc.d/init.d/xrd
 %_sysconfdir/rc.d/init.d/cmsd
 %_sysconfdir/rc.d/init.d/eossync
+%_sysconfdir/rc.d/init.d/eoshealth
 %defattr(-,daemon,daemon,-)
 %config(noreplace) /opt/eos/sss/eos-sss.keytab
-/opt/eos/var/*
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+
+%post
+mkdir -p -m 600 /var/eos
+chown daemon.daemon /var/eos/
+ 
