@@ -58,6 +58,8 @@ XrdMqOfs::AddToMatch(const char* key, XrdMqMessageOut *Out, void* Arg) {
     int nmatch = Key.matches(((XrdMqOfsMatches*)Arg)->queuename.c_str(),'*');
     if (nmatch == nowildcard.length()) {
       // this is a match
+      ((XrdMqOfsMatches*)Arg)->backlog = false;
+      ((XrdMqOfsMatches*)Arg)->backlogrejected = false;
 
       // check for backlog on this queue and set a warning flag
       if (Out->nQueued > MQOFSMAXQUEUEBACKLOG) {
@@ -74,6 +76,7 @@ XrdMqOfs::AddToMatch(const char* key, XrdMqMessageOut *Out, void* Arg) {
 	((XrdMqOfsMatches*)Arg)->backlogqueues += ":";
 	XrdOfsFS.BacklogDeferred++;
 	TRACES("error: queue " << Out->QueueName << " exceeds max. accepted backlog of " << MQOFSREJECTQUEUEBACKLOG << " message!");
+	return 0;
       }
 
       ((XrdMqOfsMatches*)Arg)->message->AddRefs(1);
