@@ -101,9 +101,12 @@ public:
 		     const char             *info = 0) ;
 
   int            _rem(const char             *path,
-		     XrdOucErrInfo    &out_error,
-		     const XrdSecEntity     *client,
-		     XrdOucEnv              *info = 0) ;
+		     XrdOucErrInfo           &out_error,
+		      const XrdSecEntity     *client,
+ 		      XrdOucEnv              *info = 0, 
+		    const char*               fstPath=0, 
+		      unsigned long long      fid=0,
+		      unsigned long           fsid=0) ;
   
   int            remdir(const char             *dirName,
 			XrdOucErrInfo    &out_error,

@@ -18,13 +18,14 @@
 #include <google/sparse_hash_set>
 
 void usage(const char* name) {
-  fprintf(stderr,"usage: %s <changelogfile> [-f] [--dump] [--trim] [--inplace] [--data=<path>] [--delete-missing-changelog] [--show] [--mgm=<url>] [--repair-local] [--repair-cache] [-h] [--help] [--checksum] [--quiet] [--upload-fid=<hex-fid>] [--delete-enoent] [--delete-deleted]\n", name);
+  fprintf(stderr,"usage: %s <changelogfile> [-f] [--dump] [--trim] [--inplace] [--data=<path>] [--delete-missing-changelog] [--delete-missing-disk] [--show] [--mgm=<url>] [--repair-local] [--repair-cache] [-h] [--help] [--checksum] [--quiet] [--upload-fid=<hex-fid>] [--delete-enoent] [--delete-deleted]\n", name);
   fprintf(stderr,"       -f         : force the reading even if the version does not match\n");
   fprintf(stderr,"    --dump        : dump out the meta data blocks\n");
   fprintf(stderr,"    --trim        : trim this file (erases faulty records)\n");
   fprintf(stderr,"    --inplace     : replace the original file with the trimmed copy\n");
   fprintf(stderr,"    --data=<path> : compare with files in path\n");
   fprintf(stderr,"    --delete-missing-changelog : files which are on disk but not anymore active in the changelog get unlinked - WARNING - this can be VERY dangerous if the data path does not match the changelogfile!\n");
+  fprintf(stderr,"    --delete-missing-disk      : files which are on disk but not anymore active in the changelog get unlinked - WARNING - this can be VERY dangerous if the data path does not match the changelogfile!\n");
   fprintf(stderr,"    --show        : show all inconsistencies\n");
   fprintf(stderr,"    --mgm=<url>   : URL of the management server to do comparison of cached meta data\n");
   fprintf(stderr,"    --repair-local: correct the filesize different from disk size to local changelog size\n");
@@ -70,6 +71,7 @@ int main(int argc, char* argv[] ) {
   bool deleteenoent = false;
   bool deletedeleted = false;
   bool deletemissingchangelog = false;
+  bool deletemissingdisk      = false;
   bool sure = false;
   char managerresult[8192]; managerresult[0]=0;
   int  managerresult_size=8192;
@@ -110,6 +112,9 @@ int main(int argc, char* argv[] ) {
     }
     if (option == "--delete-missing-changelog") {
       deletemissingchangelog = true;
+    }
+    if (option == "--delete-missing-disk") {
+      deletemissingdisk = true;
     }
 
     if (option.beginswith("--mgm=")) {
@@ -251,6 +256,7 @@ int main(int argc, char* argv[] ) {
     unsigned long long error_wrong_filesize=0;
     unsigned long long error_missing_changelog=0;
     unsigned long long files_unlinked_data=0;
+    unsigned long long files_removed_changelog=0;
 
     // compare disk vs changelog
     {
@@ -277,6 +283,11 @@ int main(int argc, char* argv[] ) {
 	      // uncomment that to make the tool 'sharp'
 	      // if (unlink(it->second.c_str())) {eos_static_err("failed to unlink file %s", it->second.c_str());}
 	      files_unlinked_data++;
+	    }
+	  } else {
+	    if (deletemissingdisk) {
+	      gFmd.DeleteFmd(it->first,fsid);
+	      files_removed_changelog++;
 	    }
 	  }
 	}
@@ -352,6 +363,10 @@ int main(int argc, char* argv[] ) {
     }
     if (deletemissingchangelog) {
       fprintf(stdout,"=> files unlinked from disk    : %llu\n",files_unlinked_data);
+      fprintf(stdout,"---------------------------------------\n");
+    }
+    if (deletemissingdisk) {
+      fprintf(stdout,"=> files removed from changelog: %llu\n",files_removed_changelog);
       fprintf(stdout,"---------------------------------------\n");
     }
     if (error_missing_changelog || error_missing_disk || error_wrong_filesize) 

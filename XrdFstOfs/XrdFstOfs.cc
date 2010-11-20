@@ -655,7 +655,7 @@ XrdFstOfsFile::close()
        }
        // this file has been deleted in the meanwhile ... we can unlink that immedeatly
        eos_info("unlinking fid=%08x path=%s - file has been already unlinked from the namespace", fMd->fMd.fid, Path.c_str());
-       int rc =  gOFS._rem(Path.c_str(), error, 0, capOpaque);
+       int rc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
        rc = SFS_ERROR;
      }
      
@@ -1336,7 +1336,10 @@ int
 XrdFstOfs::_rem(const char             *path,
 	       XrdOucErrInfo          &error,
 	       const XrdSecEntity     *client,
-	       XrdOucEnv              *capOpaque) 
+	       XrdOucEnv              *capOpaque, 
+		const char*            fstpath, 
+		unsigned long long     fid,
+		unsigned long          fsid) 
 {
   EPNAME("rem");
   int   retc = SFS_OK;
@@ -1345,33 +1348,35 @@ XrdFstOfs::_rem(const char             *path,
   const char* localprefix=0;
   const char* hexfid=0;
   const char* sfsid=0;
-  unsigned long long fileid=0;
-  unsigned long fsid=0;
 
   eos_debug("");
 
-  if (!(localprefix=capOpaque->Get("mgm.localprefix"))) {
-    return gOFS.Emsg(epname,error,EINVAL,"open - no local prefix in capability",path);
+  if ( (!fstpath) && (!fsid) && (!fid) ) {
+    // standard deletion brings all information via the opaque info
+    if (!(localprefix=capOpaque->Get("mgm.localprefix"))) {
+      return gOFS.Emsg(epname,error,EINVAL,"open - no local prefix in capability",path);
+    }
+    
+    if (!(hexfid=capOpaque->Get("mgm.fid"))) {
+      return gOFS.Emsg(epname,error,EINVAL,"open - no file id in capability",path);
+    }
+    
+    if (!(sfsid=capOpaque->Get("mgm.fsid"))) {
+      return gOFS.Emsg(epname,error, EINVAL,"open - no file system id in capability",path);
+    }
+    XrdCommonFileId::FidPrefix2FullPath(hexfid, localprefix,fstPath);
+
+    fid = XrdCommonFileId::Hex2Fid(hexfid);
+
+    fsid   = atoi(sfsid);
+  } else {
+    // deletion during close provides the local storage path, fid & fsid
+    fstPath = fstpath;
   }
-
-  if (!(hexfid=capOpaque->Get("mgm.fid"))) {
-    return gOFS.Emsg(epname,error,EINVAL,"open - no file id in capability",path);
-  }
-
-  if (!(sfsid=capOpaque->Get("mgm.fsid"))) {
-    return gOFS.Emsg(epname,error, EINVAL,"open - no file system id in capability",path);
-  }
-
-
-  XrdCommonFileId::FidPrefix2FullPath(hexfid, localprefix,fstPath);
-
-  fileid = XrdCommonFileId::Hex2Fid(hexfid);
-
-  fsid   = atoi(sfsid);
 
   struct stat statinfo;
   if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
-    eos_notice("unable to delete file - file does not exist: %s fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(),fsid, fileid);
+    eos_notice("unable to delete file - file does not exist (anymore): %s fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(),fsid, fid);
     return gOFS.Emsg(epname,error,ENOENT,"delete file - file does not exist",fstPath.c_str());    
   } 
   eos_info("fstpath=%s", fstPath.c_str());
@@ -1382,7 +1387,7 @@ XrdFstOfs::_rem(const char             *path,
   eos_info("rc=%d errno=%d", rc,errno);
 
   // cleanup eventual transactions
-  if (!gOFS.FstOfsStorage->CloseTransaction(fsid, fileid)) {
+  if (!gOFS.FstOfsStorage->CloseTransaction(fsid, fid)) {
     // it should be the normal case that there is no open transaction for that file
     int rc = 1;
     rc =1;
@@ -1392,8 +1397,8 @@ XrdFstOfs::_rem(const char             *path,
     return rc;
   }
 
-  if (!gFmdHandler.DeleteFmd(fileid, fsid)) {
-    eos_crit("unable to delete fmd for fileid %llu on filesystem %lu",fileid,fsid);
+  if (!gFmdHandler.DeleteFmd(fid, fsid)) {
+    eos_notice("unable to delete fmd for fid %llu on filesystem %lu",fid,fsid);
     return gOFS.Emsg(epname,error,EIO,"delete file meta data ",fstPath.c_str());
   }
 
