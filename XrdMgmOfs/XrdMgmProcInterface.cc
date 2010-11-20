@@ -967,6 +967,35 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
   }
 
   if (userCmd) {
+    if ( cmd == "df" ) {
+      XrdOucString space = opaque.Get("mgm.space");
+      if (!space.length()) {
+	resultStream = "df: retc=";
+	resultStream += EINVAL;
+      } else {
+	XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(space.c_str());
+	if (!spacequota) {
+	  resultStream = "df: retc=";
+	  resultStream += ENOENT;
+	} else {
+	  resultStream = "df: retc=0";
+	  char val[1025]; 
+	  snprintf(val,1024,"%llu", spacequota->GetPhysicalFreeBytes());
+	  resultStream += " f_avail_bytes="; resultStream += val;
+	  snprintf(val,1024,"%llu", spacequota->GetPhysicalFreeFiles());
+	  resultStream += " f_avail_files="; resultStream += val;
+	  snprintf(val,1024,"%llu", spacequota->GetPhysicalMaxBytes());
+	  resultStream += " f_max_bytes=";   resultStream += val;
+	  snprintf(val,1024,"%llu", spacequota->GetPhysicalMaxFiles());
+	  resultStream += " f_max_files=";   resultStream += val;
+	}
+      }
+      len = resultStream.length();
+      offset = 0;
+      return SFS_OK;
+    }
+
+
     if ( cmd == "fuse" ) {
       XrdOucString path = opaque.Get("mgm.path");
       resultStream = "inodirlist: retc=";

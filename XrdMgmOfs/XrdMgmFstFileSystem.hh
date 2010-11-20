@@ -24,6 +24,8 @@ private:
 
   time_t bootSentTime;
   time_t bootDoneTime;
+  time_t lastHeartBeat;
+
   XrdOucString bootFailureMsg;
   XrdOucString bootString;
 
@@ -96,6 +98,17 @@ public:
   // a space is derived from a scheduling group which has to be defined as <schedgroup> = <space> or <schedgroup> = <space>.<int>
   const char*  GetSpaceName() { int ppos = schedulingGroup.find("."); if (ppos != STR_NPOS) {spaceName.assign(schedulingGroup, 0, ppos-1); return spaceName.c_str();} else return schedulingGroup.c_str();}
 
+  time_t GetLastHeartBeat() { return lastHeartBeat;}
+  void   SetHeartBeatTime(time_t hbt) {lastHeartBeat = hbt;}
+  
+  bool HasHeartBeat() {
+    time_t tdif = time(0)-GetLastHeartBeat();
+    if (tdif < 10)
+      return true;
+    else
+      return false;
+  }
+  
 
   const char* GetBootStatusString()   {if (bootStatus==kBootFailure) return "failed"; if (bootStatus==kDown) return "down"; if (bootStatus==kBootSent) return "sent"; if (bootStatus==kBooting) return "booting"; if (bootStatus==kBooted) return "booted"; if (bootStatus==kOpsError) return "opserror";  return "";}
   const char* GetConfigStatusString() {if (configStatus==kOff) return "off"; if (configStatus==kUnknown) return "?"; if (configStatus==kRO) return "ro"; if (configStatus==kDrain) return "drain"; if (configStatus==kWO) return "wo"; if (configStatus==kRW) return "rw"; return "unknown";}
@@ -143,7 +156,7 @@ public:
   struct statfs* GetStatfs() { return &statFs;}
 
   XrdMgmFstFileSystem(int id, const char* path, const char* queue, const char* schedulinggroup = "default") {
-    Id = id; Path = path; queueName = queue; bootStatus=kDown;configStatus = kUnknown; schedulingGroup = schedulinggroup; ExtractSchedulinGroupIndex();  bootSentTime=0; bootFailureMsg=""; bootDoneTime=0; errc=0; errmsg=""; memset(&statFs,0,sizeof(statFs)); spaceName = ""; 
+    Id = id; Path = path; queueName = queue; bootStatus=kDown;configStatus = kUnknown; schedulingGroup = schedulinggroup; ExtractSchedulinGroupIndex();  bootSentTime=0; bootFailureMsg=""; bootDoneTime=0; errc=0; errmsg=""; memset(&statFs,0,sizeof(statFs)); spaceName = ""; lastHeartBeat=0;
     UserBytes.set_empty_key(-1);
     GroupBytes.set_empty_key(-1);
     UserFiles.set_empty_key(-1);

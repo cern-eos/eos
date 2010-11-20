@@ -207,6 +207,11 @@ public:
   void PhysicalTmpToMaxBytes()  {PhysicalMaxBytes=PhysicalTmpMaxBytes;}
   void PhysicalTmpToMaxFiles()  {PhysicalMaxFiles=PhysicalTmpMaxFiles;}
 
+  unsigned long long GetPhysicalFreeBytes() { return PhysicalFreeBytes;}
+  unsigned long long GetPhysicalFreeFiles() { return PhysicalFreeFiles;}
+  unsigned long long GetPhysicalMaxBytes()  { return PhysicalMaxBytes;}
+  unsigned long long GetPhysicalMaxFiles()  { return PhysicalMaxFiles;}
+
   void RmQuota(unsigned long tag, unsigned long id, bool lock=true);
 
   void ResetQuota(unsigned long tag, unsigned long id, bool lock=true) {

@@ -398,6 +398,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
 	}
 
 	if ( (!isalreadyselected) && 
+	     ((filesystem->HasHeartBeat())) &&
 	     ((filesystem->GetStatfs()->f_bfree *4096ll) > (1024ll*1024ll*1024l*25)) && // request 25 GB of headroom per disk
 	     ((filesystem->GetStatfs()->f_ffree) > 100 ) &&
 	     ( ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kWO) && truncate) ||
@@ -498,6 +499,7 @@ int XrdMgmSpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid,
       // check if filesystem is accessible
       if (isRW) {
 	if (filesystem && ((filesystem->GetConfigStatus() == XrdCommonFileSystem::kRW)) &&
+	    ((filesystem->HasHeartBeat())) &&
 	    ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
 	  // perfect!
 	  fsindex = 0;
@@ -512,6 +514,7 @@ int XrdMgmSpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid,
 	}
       } else {
 	if (filesystem && ((filesystem->GetConfigStatus() >= XrdCommonFileSystem::kDrain)) &&
+	    ((filesystem->HasHeartBeat())) &&
 	    ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
 	  // perfect!
 	  fsindex = 0;
@@ -540,6 +543,7 @@ int XrdMgmSpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid,
 	  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[locationsfs[i]];
 	  // check if filesystem is accessible
 	  if ((!filesystem) || (filesystem && (((filesystem->GetConfigStatus() != XrdCommonFileSystem::kRW)) ||
+					       ((!filesystem->HasHeartBeat())) ||
 					       ((filesystem->GetBootStatus()   != XrdCommonFileSystem::kBooted))))) {     
 	    // that is already too bad, we cannot write since one replica is not accessible
 	    return ENONET;
@@ -561,6 +565,7 @@ int XrdMgmSpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid,
 	  // check if filesystem is accessible
 	  eos_static_debug("fs %llu", filesystem);
 	  if (filesystem && ((filesystem->GetConfigStatus() >= XrdCommonFileSystem::kDrain)) &&
+	      ((filesystem->HasHeartBeat())) &&
 	      ((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
 	    eos_static_debug("forced %u current %u", forcedfsid, currentindex);
 	    if ( (forcedfsid == currentindex) || (!forcedfsid) ) {
