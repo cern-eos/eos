@@ -4,7 +4,7 @@
 Summary: eos project
 Name: eos
 Version: @VERSION@
-Release: 7
+Release: 8
 Prefix: /opt/eos
 License: none
 Group: Applications/File
