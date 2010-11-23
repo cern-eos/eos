@@ -3319,7 +3319,7 @@ XrdMgmOfs::Deletion()
 
 	    if (fs) {
 	      // check the state of the filesystem (if it can actually delete in this moment!)
-	      if ( (fs->GetConfigStatus() <= XrdCommonFileSystem::kOff) && 
+	      if ( (fs->GetConfigStatus() <= XrdCommonFileSystem::kOff) || 
 		   (fs->GetBootStatus()  != XrdCommonFileSystem::kBooted) ) {
 		// we don't need to send messages, this one is anyway down
 		XrdMgmFstNode::gMutex.UnLock();
