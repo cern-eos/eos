@@ -249,7 +249,7 @@ com_find (char* arg1) {
   printf("                                                                           -s :  run as a subcommand (in silent mode)\n");
   printf("                                                           -layoutstripes <n> :  apply new layout with <n> stripes to all files found\n");
   printf("                                                                           -1 :  find files which are atleast 1 hour old\n");
-  printf("                                                                  -stripediff :  find files which have not the nominal number of stripes(replicas)\n");
+  printf("                                                                 --stripediff :  find files which have not the nominal number of stripes(replicas)\n");
   printf("                                                                      default :  find files and directories\n");
   printf("       find [--nrep] [--nunlink] [--size] [--fid] [--fs] [--checksum] [--ctime] [--mtime] <path>   :  find files and print out the requested meta data as key value pairs\n");              
   return (0);
