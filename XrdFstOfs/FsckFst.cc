@@ -25,7 +25,7 @@ void usage(const char* name) {
   fprintf(stderr,"    --inplace     : replace the original file with the trimmed copy\n");
   fprintf(stderr,"    --data=<path> : compare with files in path\n");
   fprintf(stderr,"    --delete-missing-changelog : files which are on disk but not anymore active in the changelog get unlinked - WARNING - this can be VERY dangerous if the data path does not match the changelogfile!\n");
-  fprintf(stderr,"    --delete-missing-disk      : files which are on disk but not anymore active in the changelog get unlinked - WARNING - this can be VERY dangerous if the data path does not match the changelogfile!\n");
+  fprintf(stderr,"    --delete-missing-disk      : files which are not anymore on disk get removed from the changelog!\n");
   fprintf(stderr,"    --show        : show all inconsistencies\n");
   fprintf(stderr,"    --mgm=<url>   : URL of the management server to do comparison of cached meta data\n");
   fprintf(stderr,"    --repair-local: correct the filesize different from disk size to local changelog size\n");
