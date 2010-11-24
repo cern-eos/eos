@@ -1,0 +1,15 @@
+#!/bin/bash
+. /etc/sysconfig/xrd
+
+/etc/init.d/xrd status && echo exit -1
+
+# you can add a --test to just simulate what would happen
+# eosfstclean [--test] 
+
+for fsname in `ls ${EOS_FST_DATA_DISK-/data}??/.eosfsid`; do
+    fsid=`cat $fsname`;
+    data=`dirname $fsname`;
+    mdlog=`ls -1 ${EOS_FST_MD_LOCATION-/var/eos/md}/*.*$fsid.mdlog | sort | tail -1`;
+    ${EOS_LOCATION-/opt/eos}/bin/eosfstfsck $mdlog --data=${data}/ --mgm=${EOS_MGM_URL:root://lxbra0301.cern.ch//} --upload-fid=\* --delete-enoent --delete-deleted $1
+done
+

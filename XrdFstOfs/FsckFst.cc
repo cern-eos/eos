@@ -18,7 +18,7 @@
 #include <google/sparse_hash_set>
 
 void usage(const char* name) {
-  fprintf(stderr,"usage: %s <changelogfile> [-f] [--dump] [--trim] [--inplace] [--data=<path>] [--delete-missing-changelog] [--delete-missing-disk] [--show] [--mgm=<url>] [--repair-local] [--repair-cache] [-h] [--help] [--checksum] [--quiet] [--upload-fid=<hex-fid>] [--delete-enoent] [--delete-deleted]\n", name);
+  fprintf(stderr,"usage: %s <changelogfile> [-f] [--dump] [--trim] [--inplace] [--data=<path>] [--delete-missing-changelog] [--delete-missing-disk] [--show] [--mgm=<url>] [--repair-local] [--repair-cache] [-h] [--help] [--checksum] [--quiet] [--test] [--upload-fid=<hex-fid>] [--delete-enoent] [--delete-deleted] [--clean-transactions]\n", name);
   fprintf(stderr,"       -f         : force the reading even if the version does not match\n");
   fprintf(stderr,"    --dump        : dump out the meta data blocks\n");
   fprintf(stderr,"    --trim        : trim this file (erases faulty records)\n");
@@ -34,8 +34,9 @@ void usage(const char* name) {
   fprintf(stderr,"    -h | --help   : show usage information\n");
   fprintf(stderr,"    --quiet       : don't print error or info messages\n");
   fprintf(stderr,"    --upload-fid=<hex-fid> : force a commit of meta data of fid <hex-fid> - if * is specified all files missing in the central cache are commited\n");
-  fprintf(stderr,"    --delete-enoent : local files get unlinked if the file is not anymore reachable via the cache namespace [combing with --upload-fid=*]\n");
-  fprintf(stderr,"    --delete-deleted: local files get unlinked if the file is unlinked and the local file has to be deleted [combing with --upload-fid=*]\n");
+  fprintf(stderr,"    --delete-enoent : local files get unlinked if the file is not anymore reachable via the cache namespace [combine with --upload-fid=*]\n");
+  fprintf(stderr,"    --delete-deleted: local files get unlinked if the file is unlinked and the local file has to be deleted [combine with --upload-fid=*]\n");
+  fprintf(stderr,"    --test        : do not touch local files/changelog/meta data cache - just provide the numbers of applied corrections (does not apply for trimming)\n");
   exit(-1);
 }
 
@@ -73,6 +74,9 @@ int main(int argc, char* argv[] ) {
   bool deletemissingchangelog = false;
   bool deletemissingdisk      = false;
   bool sure = false;
+  bool testonly = false;
+  bool cleantransactions = false;
+
   char managerresult[8192]; managerresult[0]=0;
   int  managerresult_size=8192;
 
@@ -116,7 +120,9 @@ int main(int argc, char* argv[] ) {
     if (option == "--delete-missing-disk") {
       deletemissingdisk = true;
     }
-
+    if (option == "--test") {
+      testonly = true;
+    }
     if (option.beginswith("--mgm=")) {
       mgmurl = option;
       mgmurl.erase(0,6);
@@ -150,8 +156,15 @@ int main(int argc, char* argv[] ) {
     if (option == "--delete-deleted") {
       deletedeleted=true;
     }
+    if (option == "--clean-transactions") {
+      cleantransactions=true;
+    }
   }
 
+  if (cleantransactions && !searchpath.length()) {
+    fprintf(stderr,"error: you have to give the --data argument to use --clean-transactions\n");
+    exit(-1);
+  }
 
   XrdOucString changelogfile = argv[1];
   XrdOucString sfsid = changelogfile;
@@ -225,8 +238,8 @@ int main(int argc, char* argv[] ) {
   }
 
   if (searchpath.length()) {
-    fprintf(stdout,"---------------------------------------\n")
-;    if (quiet)
+    fprintf(stdout,"---------------------------------------\n");
+    if (quiet)
        XrdCommonLogging::SetLogPriority(LOG_CRIT);
     else 
       if (!show) 
@@ -234,7 +247,40 @@ int main(int argc, char* argv[] ) {
       else
 	XrdCommonLogging::SetLogPriority(LOG_INFO);
 
-    XrdOucString findstring = "find "; findstring += searchpath; findstring += " -type f -name \"????????\" ";
+    if (cleantransactions) {
+      unsigned long long transaction_cleanup_ok=0;
+      unsigned long long transaction_cleanup_failed=0;
+      fprintf(stdout,"---------------------------------------\n");
+      fprintf(stdout,"Cleaning transactions ...\n");
+      XrdOucString tadir=searchpath;
+      tadir += "/"; tadir += ".eostransaction";
+      DIR* dir = opendir(tadir.c_str());
+      if (!dir) {
+	fprintf(stderr,"error: cannot open transactiondirectory %s\n", tadir.c_str());
+	exit(-1);
+      }
+      struct dirent* entry;
+      while ( (entry=readdir(dir))) {
+	if ( (!strcmp(entry->d_name,".")) ||
+	     (!strcmp(entry->d_name,".."))) {
+	  continue;
+	}
+	eos_static_info("transactions directory: cleaning %s", entry->d_name);
+	XrdOucString txname = tadir; txname += "/"; txname += entry->d_name;
+	if ((testonly) || (!unlink(txname.c_str()))) {
+	  transaction_cleanup_ok++;
+	} else {
+	  eos_static_crit("transactions directory: cleanup failed for %s", txname.c_str());
+	  transaction_cleanup_failed++;
+	}
+      }
+      closedir(dir);
+      fprintf(stdout,"=> transactions cleaned ok     : %llu\n", transaction_cleanup_ok);
+      fprintf(stdout,"=> transcations cleaned failed : %llu\n", transaction_cleanup_failed);
+    }
+    
+
+    XrdOucString findstring = "find "; findstring += searchpath; findstring += "/[0-9]* -type f -name \"????????\" ";
     FILE* fp = popen(findstring.c_str(),"r");
     google::sparse_hash_map<long long, std::string> DiskFid;
 
@@ -281,13 +327,10 @@ int main(int argc, char* argv[] ) {
 	    if (sure) {
 	      eos_static_crit("unlinking file %s", it->second.c_str());
 	      // uncomment that to make the tool 'sharp'
-	      // if (unlink(it->second.c_str())) {eos_static_err("failed to unlink file %s", it->second.c_str());}
+	      if (!testonly) {
+		if (unlink(it->second.c_str())) {eos_static_err("failed to unlink file %s", it->second.c_str());}
+	      }
 	      files_unlinked_data++;
-	    }
-	  } else {
-	    if (deletemissingdisk) {
-	      gFmd.DeleteFmd(it->first,fsid);
-	      files_removed_changelog++;
 	    }
 	  }
 	}
@@ -319,8 +362,9 @@ int main(int argc, char* argv[] ) {
 	      if (repairlocal) {
 		// repair the size
 		fmd->fMd.size = buf.st_size;
-		gFmd.FmdSize[it->first] = buf.st_size;
-		if (!gFmd.Commit(fmd)) {
+		if (!testonly)
+		  gFmd.FmdSize[it->first] = buf.st_size;
+		if ((!testonly) && (!gFmd.Commit(fmd))) {
 		  eos_static_err("unable to repair file size in changelog file fo fid %08llx size=%llu", it->first, (unsigned long long) buf.st_size);
 		} else {
 		  repaired_files++;
@@ -332,11 +376,11 @@ int main(int argc, char* argv[] ) {
 	      eos_static_err("fid %08llx - cannot retrieve file meta data from changelog",it->first);
 	    } else {
 	      if ( labs((unsigned long long) buf.st_mtime - fmd->fMd.mtime)>1 ) {
-		eos_static_notice("fid %08llx has mtime=%llu on disk but mtime=%llu in the changelog!", it->first, (unsigned long long)buf.st_mtime, fmd->fMd.mtime);
+		//eos_static_notice("fid %08llx has mtime=%llu on disk but mtime=%llu in the changelog!", it->first, (unsigned long long)buf.st_mtime, fmd->fMd.mtime);
 		warning_wrong_mtime++;
 	      }
 	      if ( (unsigned long long) buf.st_ctime != fmd->fMd.ctime) {
-		eos_static_notice("fid %08llx has ctime=%llu on disk but ctime=%llu in the changelog!", it->first, (unsigned long long)buf.st_ctime, fmd->fMd.ctime);
+		//eos_static_notice("fid %08llx has ctime=%llu on disk but ctime=%llu in the changelog!", it->first, (unsigned long long)buf.st_ctime, fmd->fMd.ctime);
 		warning_wrong_ctime++;
 	      }
 	    }
@@ -345,6 +389,11 @@ int main(int argc, char* argv[] ) {
 	  // bad, this is missing
 	  eos_static_info("fid %08llx on changelog : missing on disk !\n", it->first);
 	  error_missing_disk++;
+	  if (deletemissingdisk) {
+	    if (!testonly)
+	      gFmd.DeleteFmd(it->first,fsid);
+	    files_removed_changelog++;
+	  }
 	}
       }
     }
@@ -582,7 +631,7 @@ int main(int argc, char* argv[] ) {
 		    memcpy(rfmd->fMd.checksum, checksummer->GetBinChecksum(checksumlen),checksumlen);
 		    
 		    if (repairlocal) {
-		      if (!gFmd.Commit(rfmd)) {
+		      if ((!testonly) && (!gFmd.Commit(rfmd))) {
 			eos_static_err("unable to commit checksum update in changelog file fo fid %08llx", rfmd->fMd.fid);
 			failed_update_local++;
 		      } else {
@@ -590,61 +639,66 @@ int main(int argc, char* argv[] ) {
 		      }
 		    }
 		    
+		    
 		    if (repaircache) {
-		      XrdOucString capOpaqueFile="";
-		      XrdOucString mTimeString="";
-		      capOpaqueFile += "/?";
-		      capOpaqueFile += "&mgm.pcmd=commit";
-		      capOpaqueFile += "&mgm.size=";
-		      char filesize[1024]; sprintf(filesize,"%llu", rfmd->fMd.size);
-		      capOpaqueFile += filesize;
-		      capOpaqueFile += "&mgm.checksum=";
-		      capOpaqueFile += checksummer->GetHexChecksum();
-		      
-		      capOpaqueFile += "&mgm.mtime=";
-		      capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, rfmd->fMd.mtime);
-		      capOpaqueFile += "&mgm.mtime_ns=";
-		      capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, rfmd->fMd.mtime_ns);
-		      
-		      capOpaqueFile += "&mgm.add.fsid=";
-		      capOpaqueFile += (int)rfmd->fMd.fsid;
-		      
-		      capOpaqueFile += "&mgm.path=<UNDEF>";
-		      capOpaqueFile += "&mgm.fid=";
-		      XrdOucString hexfid;
-		      XrdCommonFileId::Fid2Hex(rfmd->fMd.fid,hexfid);
-		      capOpaqueFile += hexfid;
-		      
-		      gManager->GetClientConn()->ClearLastServerError();
-		      gManager->GetClientConn()->SetOpTimeLimit(10);
-		      gManager->Query(kXR_Qopaquf,
-				      (kXR_char *) capOpaqueFile.c_str(),
-				      (kXR_char *) managerresult, managerresult_size);
-		      
-		      bool ok=false;
-		      
-		      if (!gManager->LastServerResp()) {
-			eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - manager is unavailable", rfmd->fMd.fid);
-		      } else {
-			switch (gManager->LastServerResp()->status) {
-			case kXR_ok:
-			  eos_static_notice("commited meta data in central cache for fid=%08llx", rfmd->fMd.fid);
-			  ok = true;
-			  break;
-		      case kXR_error:
-			eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - update failed", rfmd->fMd.fid);
-			ok = false;
-			break;
+		      if (!testonly) {
+			XrdOucString capOpaqueFile="";
+			XrdOucString mTimeString="";
+			capOpaqueFile += "/?";
+			capOpaqueFile += "&mgm.pcmd=commit";
+			capOpaqueFile += "&mgm.size=";
+			char filesize[1024]; sprintf(filesize,"%llu", rfmd->fMd.size);
+			capOpaqueFile += filesize;
+			capOpaqueFile += "&mgm.checksum=";
+			capOpaqueFile += checksummer->GetHexChecksum();
 			
-			default:
-			  ok = true;
-			  break;
+			capOpaqueFile += "&mgm.mtime=";
+			capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, rfmd->fMd.mtime);
+			capOpaqueFile += "&mgm.mtime_ns=";
+			capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, rfmd->fMd.mtime_ns);
+			
+			capOpaqueFile += "&mgm.add.fsid=";
+			capOpaqueFile += (int)rfmd->fMd.fsid;
+			
+			capOpaqueFile += "&mgm.path=<UNDEF>";
+			capOpaqueFile += "&mgm.fid=";
+			XrdOucString hexfid;
+			XrdCommonFileId::Fid2Hex(rfmd->fMd.fid,hexfid);
+			capOpaqueFile += hexfid;
+			
+			gManager->GetClientConn()->ClearLastServerError();
+			gManager->GetClientConn()->SetOpTimeLimit(10);
+			gManager->Query(kXR_Qopaquf,
+					(kXR_char *) capOpaqueFile.c_str(),
+					(kXR_char *) managerresult, managerresult_size);
+			
+			bool ok=false;
+			
+			if (!gManager->LastServerResp()) {
+			  eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - manager is unavailable", rfmd->fMd.fid);
+			} else {
+			  switch (gManager->LastServerResp()->status) {
+			  case kXR_ok:
+			    eos_static_notice("commited meta data in central cache for fid=%08llx", rfmd->fMd.fid);
+			    ok = true;
+			    break;
+			  case kXR_error:
+			    eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - update failed", rfmd->fMd.fid);
+			    ok = false;
+			    break;
+			    
+			  default:
+			    ok = true;
+			    break;
+			  }
 			}
-		      }
-		      if (!ok) {
-			failed_update_central++;		      
-		      }
-		      if (ok) {
+			if (!ok) {
+			  failed_update_central++;		      
+			}
+			if (ok) {
+			  repaired_cache_checksum++;
+			}
+		      } else {
 			repaired_cache_checksum++;
 		      }
 		    }
@@ -679,7 +733,7 @@ int main(int argc, char* argv[] ) {
 	    }
 
 	    if ( (rfmd->fMd.ctime != fmd.ctime) || (rfmd->fMd.ctime_ns != fmd.ctime_ns) ) {
-	      eos_static_info("fid %08llx has ctime=%llu.%llu in cache but ctime=%llu.%llu in the changelog!", fmd.fid, fmd.ctime, fmd.ctime_ns,rfmd->fMd.ctime, rfmd->fMd.ctime_ns);
+	      //eos_static_notice("fid %08llx has ctime=%llu.%llu in cache but ctime=%llu.%llu in the changelog!", fmd.fid, fmd.ctime, fmd.ctime_ns,rfmd->fMd.ctime, rfmd->fMd.ctime_ns);
 	    }
 
 	    if (rfmd->fMd.mtime != fmd.mtime) {
@@ -692,7 +746,7 @@ int main(int argc, char* argv[] ) {
 	    }
 
 	    if ( (rfmd->fMd.mtime != fmd.mtime) || (rfmd->fMd.mtime_ns != fmd.mtime_ns) ) {
-	      eos_static_info("fid %08llx has mtime=%llu.%llu in cache but mtime=%llu.%llu in the changelog!", fmd.fid, fmd.mtime, fmd.mtime_ns,rfmd->fMd.mtime, rfmd->fMd.mtime_ns);
+	      //	      eos_static_notice("fid %08llx has mtime=%llu.%llu in cache but mtime=%llu.%llu in the changelog!", fmd.fid, fmd.mtime, fmd.mtime_ns,rfmd->fMd.mtime, rfmd->fMd.mtime_ns);
 	    }
 
 	    if (strncmp(rfmd->fMd.container,fmd.container,255)) {
@@ -786,55 +840,56 @@ int main(int argc, char* argv[] ) {
 	  if (uploadfid == "*") {
 	    XrdCommonFmd* fmd = gFmd.GetFmd(it->first, fsid, 0,0,0);
 	    if (fmd) {
-	      XrdOucString capOpaqueFile="";
-	      XrdOucString mTimeString="";
-	      capOpaqueFile += "/?";
-	      capOpaqueFile += "&mgm.pcmd=commit";
-	      capOpaqueFile += "&mgm.size=";
-	      char filesize[1024]; sprintf(filesize,"%llu", fmd->fMd.size);
-	      capOpaqueFile += filesize;
-	      //	capOpaqueFile += "&mgm.checksum=";
-	      //	capOpaqueFile += checksummer->GetHexChecksum();
-	      
-	      capOpaqueFile += "&mgm.mtime=";
-	      capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fmd->fMd.mtime);
-	      capOpaqueFile += "&mgm.mtime_ns=";
-	      capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fmd->fMd.mtime_ns);
-	      
-	      capOpaqueFile += "&mgm.add.fsid=";
-	      capOpaqueFile += (int)fmd->fMd.fsid;
-	      
-	      capOpaqueFile += "&mgm.path=<UNDEF>";
-	      capOpaqueFile += "&mgm.fid=";
-	      XrdOucString hexfid;
-	      XrdCommonFileId::Fid2Hex(fmd->fMd.fid,hexfid);
-	      capOpaqueFile += hexfid;
-	      
-	      gManager->GetClientConn()->ClearLastServerError();
-	      gManager->GetClientConn()->SetOpTimeLimit(10);
-	      gManager->Query(kXR_Qopaquf,
-			      (kXR_char *) capOpaqueFile.c_str(),
-			      (kXR_char *) managerresult, managerresult_size);
-	      
-	      bool ok=false;
-	      bool isdeleted=false;
-	      bool nosuchfile=false;
-
-	      XrdOucString errtext = "";
-	      if (!gManager->LastServerResp()) {
-		eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - manager is unavailable", fmd->fMd.fid);
-	      } else {
-		switch (gManager->LastServerResp()->status) {
-		case kXR_ok:
-		  eos_static_notice("commited meta data in central cache for fid=%08llx", fmd->fMd.fid);
-		  ok = true;
-		  break;
-		case kXR_error:
-		  errtext = gManager->LastServerError()->errmsg;
+	      if (!testonly) {
+		XrdOucString capOpaqueFile="";
+		XrdOucString mTimeString="";
+		capOpaqueFile += "/?";
+		capOpaqueFile += "&mgm.pcmd=commit";
+		capOpaqueFile += "&mgm.size=";
+		char filesize[1024]; sprintf(filesize,"%llu", fmd->fMd.size);
+		capOpaqueFile += filesize;
+		//	capOpaqueFile += "&mgm.checksum=";
+		//	capOpaqueFile += checksummer->GetHexChecksum();
+		
+		capOpaqueFile += "&mgm.mtime=";
+		capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fmd->fMd.mtime);
+		capOpaqueFile += "&mgm.mtime_ns=";
+		capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fmd->fMd.mtime_ns);
+		
+		capOpaqueFile += "&mgm.add.fsid=";
+		capOpaqueFile += (int)fmd->fMd.fsid;
+		
+		capOpaqueFile += "&mgm.path=<UNDEF>";
+		capOpaqueFile += "&mgm.fid=";
+		XrdOucString hexfid;
+		XrdCommonFileId::Fid2Hex(fmd->fMd.fid,hexfid);
+		capOpaqueFile += hexfid;
+		
+		gManager->GetClientConn()->ClearLastServerError();
+		gManager->GetClientConn()->SetOpTimeLimit(10);
+		gManager->Query(kXR_Qopaquf,
+				(kXR_char *) capOpaqueFile.c_str(),
+				(kXR_char *) managerresult, managerresult_size);
+		
+		bool ok=false;
+		bool isdeleted=false;
+		bool nosuchfile=false;
+		
+		XrdOucString errtext = "";
+		if (!gManager->LastServerResp()) {
+		  eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - manager is unavailable", fmd->fMd.fid);
+		} else {
+		  switch (gManager->LastServerResp()->status) {
+		  case kXR_ok:
+		    eos_static_notice("commited meta data in central cache for fid=%08llx", fmd->fMd.fid);
+		    ok = true;
+		    break;
+		  case kXR_error:
+		    errtext = gManager->LastServerError()->errmsg;
 		  if (errtext.find("file is already removed")!=STR_NPOS) {
 		    isdeleted = true;
 		  } else {
-		  eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - update failed - %d", fmd->fMd.fid, gManager->LastServerError()->errnum);
+		    eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - update failed - %d", fmd->fMd.fid, gManager->LastServerError()->errnum);
 		  }
 		  if (errtext.find("No such file or directory")!=STR_NPOS) {
 		    nosuchfile=true;
@@ -842,82 +897,17 @@ int main(int argc, char* argv[] ) {
 		  ok = false;
 		  break;
 		  
-		default:
-		  ok = true;
-		  break;
-		}
-	      }
-	      
-	      if (!ok) {
-		if (isdeleted) {
-		  eos_static_err("fid=%08llx is already deleted", fmd->fMd.fid);
-		  files_not_uploaded_deleted++;
-		  if (deletedeleted) {
-		    // remove from changelog
-		    gFmd.DeleteFmd(fmd->fMd.fid, fsid);
-		    // unlink on disk
-		    XrdOucString hexstring="";
-		    XrdOucString fullpath="";
-		    XrdCommonFileId::Fid2Hex(fmd->fMd.fid, hexstring);
-		    XrdCommonFileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
-		    eos_static_crit("unlinking %s", fullpath.c_str());
-		    // uncomment that to make the tool 'sharp'
-		    // if (unlink(fullpath.c_str()) {eos_static_err("failed to unlink file %s", fullpath);}
-
-
-		    // drop this replica in the cache
-		    XrdOucString capOpaqueFile="";
-		    capOpaqueFile += "/?";
-		    capOpaqueFile += "&mgm.pcmd=drop";
-		    capOpaqueFile += "&mgm.fsid=";
-		    capOpaqueFile += (int)fmd->fMd.fsid;
-		    capOpaqueFile += "&mgm.fid=";
-		    XrdOucString hexfid;
-		    XrdCommonFileId::Fid2Hex(fmd->fMd.fid,hexfid);
-		    capOpaqueFile += hexfid;
-		    
-		    gManager->GetClientConn()->ClearLastServerError();
-		    gManager->GetClientConn()->SetOpTimeLimit(10);
-		    gManager->Query(kXR_Qopaquf,
-				    (kXR_char *) capOpaqueFile.c_str(),
-				    (kXR_char *) managerresult, managerresult_size);
-		    
-		    bool ok=false;
-		    
-		    if (!gManager->LastServerResp()) {
-		      eos_static_err("unable to drop replica fid=%08llx - manager is unavailable", fmd->fMd.fid);
-		    } else {
-		      switch (gManager->LastServerResp()->status) {
-		      case kXR_ok:
-			eos_static_notice("dropped replica in central cache for fid=%08llx fsid=%d", fmd->fMd.fid,fsid);
-			ok = true;
-			break;
-		      case kXR_error:
-			eos_static_err("unable to drop replica in meta data cache for fid=%08llx - drop failed - %d", fmd->fMd.fid, gManager->LastServerError()->errnum);
-			ok = false;
-			break;
-			
-		      default:
-			ok = true;
-			break;
-		      }
-		    }
-		    if (!ok) {
-		      eos_static_err("unable to drop replica for fid=%08llx", fmd->fMd.fid);
-		      rc = 8;
-		      files_drop_failed++;
-		    }
-		    if (ok) {
-		      rc = 0;
-		      eos_static_info("dropped replica of fid=%08llx fsid=%d", fmd->fMd.fid, fsid);
-		      files_drop_ok++;
-		    }
+		  default:
+		    ok = true;
+		    break;
 		  }
-		} else {
-		  if (nosuchfile) {
-		    files_enoent++;
-
-		    if (deleteenoent) {
+		}
+	      
+		if (!ok) {
+		  if (isdeleted) {
+		    eos_static_err("fid=%08llx is already deleted", fmd->fMd.fid);
+		    files_not_uploaded_deleted++;
+		    if (deletedeleted) {
 		      // remove from changelog
 		      gFmd.DeleteFmd(fmd->fMd.fid, fsid);
 		      // unlink on disk
@@ -926,19 +916,84 @@ int main(int argc, char* argv[] ) {
 		      XrdCommonFileId::Fid2Hex(fmd->fMd.fid, hexstring);
 		      XrdCommonFileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
 		      eos_static_crit("unlinking %s", fullpath.c_str());
-		      files_delete_local++;
+		      if ((!testonly) && (unlink(fullpath.c_str()))) {eos_static_err("failed to unlink file %s", fullpath.c_str());}
+		      
+		      // drop this replica in the cache
+		      XrdOucString capOpaqueFile="";
+		      capOpaqueFile += "/?";
+		      capOpaqueFile += "&mgm.pcmd=drop";
+		      capOpaqueFile += "&mgm.fsid=";
+		      capOpaqueFile += (int)fmd->fMd.fsid;
+		      capOpaqueFile += "&mgm.fid=";
+		      XrdOucString hexfid;
+		      XrdCommonFileId::Fid2Hex(fmd->fMd.fid,hexfid);
+		      capOpaqueFile += hexfid;
+		      
+		      gManager->GetClientConn()->ClearLastServerError();
+		      gManager->GetClientConn()->SetOpTimeLimit(10);
+		      gManager->Query(kXR_Qopaquf,
+				      (kXR_char *) capOpaqueFile.c_str(),
+				      (kXR_char *) managerresult, managerresult_size);
+		      
+		      bool ok=false;
+		      
+		      if (!gManager->LastServerResp()) {
+			eos_static_err("unable to drop replica fid=%08llx - manager is unavailable", fmd->fMd.fid);
+		      } else {
+			switch (gManager->LastServerResp()->status) {
+			case kXR_ok:
+			  eos_static_notice("dropped replica in central cache for fid=%08llx fsid=%d", fmd->fMd.fid,fsid);
+			  ok = true;
+			  break;
+			case kXR_error:
+			  eos_static_err("unable to drop replica in meta data cache for fid=%08llx - drop failed - %d", fmd->fMd.fid, gManager->LastServerError()->errnum);
+			  ok = false;
+			  break;
+			  
+			default:
+			  ok = true;
+			  break;
+			}
+		      }
+		      if (!ok) {
+			eos_static_err("unable to drop replica for fid=%08llx", fmd->fMd.fid);
+			rc = 8;
+			files_drop_failed++;
+		      }
+		      if (ok) {
+			rc = 0;
+			eos_static_info("dropped replica of fid=%08llx fsid=%d", fmd->fMd.fid, fsid);
+			files_drop_ok++;
+		      }
 		    }
 		  } else {
-		    eos_static_err("unable to update file meta data of fid=%08llx", fmd->fMd.fid);
-		    files_upload_failed++;
+		    if (nosuchfile) {
+		      files_enoent++;
+		      
+		      if (deleteenoent) {
+			// remove from changelog
+			gFmd.DeleteFmd(fmd->fMd.fid, fsid);
+			// unlink on disk
+			XrdOucString hexstring="";
+			XrdOucString fullpath="";
+			XrdCommonFileId::Fid2Hex(fmd->fMd.fid, hexstring);
+			XrdCommonFileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
+			eos_static_crit("unlinking %s", fullpath.c_str());
+			if ((!testonly) && (unlink(fullpath.c_str()))) {eos_static_err("failed to unlink file %s", fullpath.c_str());}
+			files_delete_local++;
+		      }
+		    } else {
+		      eos_static_err("unable to update file meta data of fid=%08llx", fmd->fMd.fid);
+		      files_upload_failed++;
+		    }
 		  }
+		  rc = 8;
 		}
-		rc = 8;
-	      }
-	      if (ok) {
-		rc = 0;
-		eos_static_info("updated file meta data of fid=%08llx", fmd->fMd.fid);
-		files_upload_ok++;
+		if (ok) {
+		  rc = 0;
+		  eos_static_info("updated file meta data of fid=%08llx", fmd->fMd.fid);
+		  files_upload_ok++;
+		}
 	      }
 	    } else {
 	      fprintf(stdout,"error: fid %s is not known !", uploadfid.c_str());
@@ -964,63 +1019,65 @@ int main(int argc, char* argv[] ) {
       unsigned long long ufid = strtoull(uploadfid.c_str(),0,16);
       XrdCommonFmd* fmd = gFmd.GetFmd(ufid, fsid, 0,0,0);
       if (fmd) {
-	XrdOucString capOpaqueFile="";
-	XrdOucString mTimeString="";
-	capOpaqueFile += "/?";
-	capOpaqueFile += "&mgm.pcmd=commit";
-	capOpaqueFile += "&mgm.size=";
-	char filesize[1024]; sprintf(filesize,"%llu", fmd->fMd.size);
-	capOpaqueFile += filesize;
-	//	capOpaqueFile += "&mgm.checksum=";
-	//	capOpaqueFile += checksummer->GetHexChecksum();
-		      
-	capOpaqueFile += "&mgm.mtime=";
-	capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fmd->fMd.mtime);
-	capOpaqueFile += "&mgm.mtime_ns=";
-	capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fmd->fMd.mtime_ns);
-	
-	capOpaqueFile += "&mgm.add.fsid=";
-	capOpaqueFile += (int)fmd->fMd.fsid;
-	
-	capOpaqueFile += "&mgm.path=<UNDEF>";
-	capOpaqueFile += "&mgm.fid=";
-	XrdOucString hexfid;
-	XrdCommonFileId::Fid2Hex(fmd->fMd.fid,hexfid);
-	capOpaqueFile += hexfid;
-	
-	gManager->GetClientConn()->ClearLastServerError();
-	gManager->GetClientConn()->SetOpTimeLimit(10);
-	gManager->Query(kXR_Qopaquf,
-			(kXR_char *) capOpaqueFile.c_str(),
-			(kXR_char *) managerresult, managerresult_size);
-	
-	bool ok=false;
-	
-	if (!gManager->LastServerResp()) {
-	  eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - manager is unavailable", fmd->fMd.fid);
-	} else {
-	  switch (gManager->LastServerResp()->status) {
-	  case kXR_ok:
-	    eos_static_notice("commited meta data in central cache for fid=%08llx", fmd->fMd.fid);
-	    ok = true;
-	    break;
-	  case kXR_error:
-	    eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - update failed - %d", fmd->fMd.fid, gManager->LastServerError()->errnum);
-	    ok = false;
-	    break;
-	    
-	  default:
-	    ok = true;
-	    break;
+	if (!testonly) {
+	  XrdOucString capOpaqueFile="";
+	  XrdOucString mTimeString="";
+	  capOpaqueFile += "/?";
+	  capOpaqueFile += "&mgm.pcmd=commit";
+	  capOpaqueFile += "&mgm.size=";
+	  char filesize[1024]; sprintf(filesize,"%llu", fmd->fMd.size);
+	  capOpaqueFile += filesize;
+	  //	capOpaqueFile += "&mgm.checksum=";
+	  //	capOpaqueFile += checksummer->GetHexChecksum();
+	  
+	  capOpaqueFile += "&mgm.mtime=";
+	  capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fmd->fMd.mtime);
+	  capOpaqueFile += "&mgm.mtime_ns=";
+	  capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fmd->fMd.mtime_ns);
+	  
+	  capOpaqueFile += "&mgm.add.fsid=";
+	  capOpaqueFile += (int)fmd->fMd.fsid;
+	  
+	  capOpaqueFile += "&mgm.path=<UNDEF>";
+	  capOpaqueFile += "&mgm.fid=";
+	  XrdOucString hexfid;
+	  XrdCommonFileId::Fid2Hex(fmd->fMd.fid,hexfid);
+	  capOpaqueFile += hexfid;
+	  
+	  gManager->GetClientConn()->ClearLastServerError();
+	  gManager->GetClientConn()->SetOpTimeLimit(10);
+	  gManager->Query(kXR_Qopaquf,
+			  (kXR_char *) capOpaqueFile.c_str(),
+			  (kXR_char *) managerresult, managerresult_size);
+	  
+	  bool ok=false;
+	  
+	  if (!gManager->LastServerResp()) {
+	    eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - manager is unavailable", fmd->fMd.fid);
+	  } else {
+	    switch (gManager->LastServerResp()->status) {
+	    case kXR_ok:
+	      eos_static_notice("commited meta data in central cache for fid=%08llx", fmd->fMd.fid);
+	      ok = true;
+	      break;
+	    case kXR_error:
+	      eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - update failed - %d", fmd->fMd.fid, gManager->LastServerError()->errnum);
+	      ok = false;
+	      break;
+	      
+	    default:
+	      ok = true;
+	      break;
+	    }
 	  }
-	}
-	if (!ok) {
-	  eos_static_err("unable to update file meta data of fid=%08llx", fmd->fMd.fid);
-	  rc = 8;
-	}
-	if (ok) {
-	  rc = 0;
-	  eos_static_info("updated file meta data of fid=%08llx", fmd->fMd.fid);
+	  if (!ok) {
+	    eos_static_err("unable to update file meta data of fid=%08llx", fmd->fMd.fid);
+	    rc = 8;
+	  }
+	  if (ok) {
+	    rc = 0;
+	    eos_static_info("updated file meta data of fid=%08llx", fmd->fMd.fid);
+	  }
 	}
       } else {
 	fprintf(stdout,"error: fid %s is not known !", uploadfid.c_str());
@@ -1029,5 +1086,8 @@ int main(int argc, char* argv[] ) {
     }
   } 
   
+  if (testonly) {
+    fprintf(stdout,"=> TESTMODE ( no modifications done )\n");
+  }
   return rc;
 }
