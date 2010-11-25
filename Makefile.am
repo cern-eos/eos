@@ -57,7 +57,7 @@ install-exec-local:
 	@$(INSTALL) -m 755 $(srcdir)/XrdFstOfs/eosfstmgmsync $(DESTDIR)/$(prefix)/bin/eosfstmgmsync
 	@$(INSTALL) -m 755 $(srcdir)/XrdFstOfs/eosfstclean   $(DESTDIR)/$(prefix)/bin/eosfstclean
 	@$(INSTALL) -m 755 $(srcdir)/XrdFstOfs/eosfstcheck   $(DESTDIR)/$(prefix)/bin/eosfstcheck
-	@$(INSTALL) -m 755 $(srcdir)/srm/eossrmspace   $(DESTDIR)/$(prefix)/bin/eossrmsapce
+	@$(INSTALL) -m 755 $(srcdir)/srm/eossrmspace   $(DESTDIR)/$(prefix)/bin/eossrmspace
 	@echo "0 u:nobody g:nobody n:eos-test N:5506672669367468033 c:1282122142 e:0 k:9ae1ada78699e0ecd0320060e33d0bfa6b60c5c911e67b9b1b89e01dacf4d5b0" > $(srcdir)/sss/eos-sss.keytab
 	@chmod 600 $(srcdir)/sss/eos-sss.keytab
 	@xrdsssadmin -g daemon -u daemon -k eos-test add $(srcdir)/sss/eos-sss.keytab
