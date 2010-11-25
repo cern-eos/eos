@@ -4,13 +4,15 @@
 Summary: eos project
 Name: eos
 Version: @VERSION@
-Release: 9
+Release: gcc@GCCVERSION@.9
 Prefix: /opt/eos
 License: none
 Group: Applications/File
 Source: @PACKAGE_TARNAME@-@PACKAGE_VERSION@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
-AutoReqProv: no
+#AutoReqProv: yes
+
+Requires: xrootd-v3.0.0
 
 %description
 eos project

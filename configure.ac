@@ -8,6 +8,7 @@ AM_INIT_AUTOMAKE(1.6 foreign)
 
 AC_PREFIX_DEFAULT(/opt/eos/)
 
+GCCVERSION=`gcc -dumpversion`
 
 export CXXFLAGS="-Wall -Werror -O2 -g $CXXFLAGS"
 #export CXXFLAGS="-Wall -Werror -O0 -g $CXXFLAGS"
@@ -111,6 +112,7 @@ EOS_INCDIR="${prefix}/include/"
 AC_SUBST(XROOTD_INCDIR)
 AC_SUBST(XROOTD_LIBDIR)
 AC_SUBST(EOS_INCDIR)
+AC_SUBST(GCCVERSION)
 	
 # Check for readline
 export LDFLAGS_BUP=$LDFLAGS
