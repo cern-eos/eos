@@ -21,6 +21,8 @@
 #include <set>
 /*----------------------------------------------------------------------------*/
 
+#define XRDMGMQUOTA_DISKHEADROOM 1024ll*1024ll*1024l*25
+
 class XrdMgmSpaceQuota {
 private:
   XrdSysMutex Mutex;
