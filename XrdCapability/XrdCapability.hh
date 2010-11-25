@@ -22,6 +22,12 @@
 class XrdOucEnv;
 class XrdSecEntity;
 /*----------------------------------------------------------------------------*/
+
+extern "C" XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *lp,
+						  const char   *cfn,
+						  const char   *parm);
+/*----------------------------------------------------------------------------*/
+
 class XrdCapability
 {
 public:
