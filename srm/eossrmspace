@@ -4,15 +4,21 @@
 
 nrep=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} attr get sys.forced.nstripes $1 2>/dev/null | grep sys.forced.nstripes | cut -d "=" -f2 | sed s/\"//g 2>/dev/null`
 
-test -z $nrep && nrep=1
+test -z "$nrep" && nrep=1
 
 space=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} attr get sys.forced.space $1 2>/dev/null | grep sys.forced.space | cut -d "=" -f2 | sed s/\"//g 2>/dev/null`
 
-echo $nrep $space
-
-df=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} quota ls 2>/dev/null | grep PHYS | grep $space | awk '{print $7,$8}' 2>/dev/null`
+df=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} quota ls 2>/dev/null | grep PHYS | grep "$space" | awk '{print $3,$4}' 2>/dev/null`
 val=`echo $df | awk '{print $1}'`
 exp=`echo $df | awk '{print $2}'`
+
+if [ "$val" = "0.00" ]; then
+    val="0";
+fi
+
+if [ $nrep != [0-9]* ]; then
+    nrep=1
+fi
 
 if [ "$exp" = "KB" ]; then
     val=`echo $val | awk '{printf( "%ld\n", $1*1000.0);}'`
@@ -36,7 +42,6 @@ fi
 
 test -z $val && val=0
 echo $val
-
 
 
 
