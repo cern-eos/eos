@@ -12,7 +12,7 @@ Source: @PACKAGE_TARNAME@-@PACKAGE_VERSION@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 #AutoReqProv: yes
 
-Requires: xrootd-v3.0.0
+Requires: xrootd-server-3.0.0
 
 %description
 eos project
