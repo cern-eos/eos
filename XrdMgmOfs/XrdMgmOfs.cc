@@ -55,7 +55,7 @@ XrdMgmOfs::Init(XrdSysError &ep)
 }
 
 /*----------------------------------------------------------------------------*/
-
+extern "C" 
 XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs, 
                                       XrdSysLogger     *lp,
 				      const char       *configfn)

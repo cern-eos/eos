@@ -108,6 +108,7 @@ XrdMqOfs::Init (XrdSysError &ep)
 /*                         G e t F i l e S y s t e m                          */
 /******************************************************************************/
   
+extern "C" 
 XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs, 
                                       XrdSysLogger     *lp,
 				      const char       *configfn)
