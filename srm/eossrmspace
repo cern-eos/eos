@@ -2,6 +2,14 @@
 # input parameter is the path to query e.g. eossrmspace /eos/atlas
 . /etc/sysconfig/xrd
 
+path=`echo .eossrmspace.$1 | sed s/\\\//_/g`;
+cache=`find /tmp/ -cmin 1 -name $path 2>/dev/null`;
+
+if [ -n "$cache" ]; then
+    cat $cache
+    exit;
+fi
+    
 nrep=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} attr get sys.forced.nstripes $1 2>/dev/null | grep sys.forced.nstripes | cut -d "=" -f2 | sed s/\"//g 2>/dev/null`
 
 test -z "$nrep" && nrep=1
@@ -16,7 +24,7 @@ if [ "$val" = "0.00" ]; then
     val="0";
 fi
 
-if [ $nrep != [0-9]* ]; then
+if [[ $nrep != [0-9]* ]]; then
     nrep=1
 fi
 
@@ -41,6 +49,9 @@ if [ $nrep -gt 1 ]; then
 fi
 
 test -z $val && val=0
+
+echo $val > /tmp/$path.tmp
+mv /tmp/$path.tmp /tmp/$path
 echo $val
 
 
