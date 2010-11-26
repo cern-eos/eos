@@ -60,6 +60,7 @@ public:
 
   const char* GetQueue() {return queueName.c_str();}
   time_t GetLastHeartBeat() {return lastHeartBeat;}
+  void   SetLastHeartBeat(time_t hbt);
 
   static const char* GetInfoHeader() {static char infoHeader[1024];sprintf(infoHeader,"%-36s %-4s %-10s %-s\n","QUEUE","HBT","STATUS","#FS");return infoHeader;}
   const char* GetInfoString() {
@@ -104,6 +105,7 @@ public:
   static int                    FindFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg);
   static int                    BootFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg);
   static int                    SetBootStatusFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
+  static int                    SetHeartBeatTimeFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
   static int                    SetConfigStatusFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
   static int                    SetConfigSchedulingGroupFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
 };

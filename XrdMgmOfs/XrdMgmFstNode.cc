@@ -14,6 +14,16 @@ google::dense_hash_map<unsigned int, unsigned long long> XrdMgmFstNode::gFileSys
 
 XrdSysMutex XrdMgmFstNode::gMutex;
 
+
+/*----------------------------------------------------------------------------*/
+void
+XrdMgmFstNode::SetLastHeartBeat(time_t hbt) {
+  lastHeartBeat = hbt;
+  // distribute to filesystems attached
+  fileSystems.Apply(XrdMgmFstNode::SetHeartBeatTimeFileSystem, &hbt);
+  }
+
+
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmFstNode::SetNodeStatus(int status) 
@@ -62,7 +72,7 @@ XrdMgmFstNode::Update(XrdAdvisoryMqMessage* advmsg)
     gFstNodes.Add(advmsg->kQueue.c_str(), node);
   } else {
     // update the one
-    node->lastHeartBeat = advmsg->kMessageHeader.kSenderTime_sec;
+    node->SetLastHeartBeat(advmsg->kMessageHeader.kSenderTime_sec);
     node->SetNodeStatus(advmsg->kOnline);
   }
   gMutex.UnLock();
@@ -522,6 +532,17 @@ XrdMgmFstNode::SetBootStatusFileSystem(const char* key, XrdMgmFstFileSystem* fil
     gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
   }
 
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmFstNode::SetHeartBeatTimeFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg) 
+{
+  time_t* hbt = (time_t*) Arg;
+  if (filesystem) {
+    filesystem->SetHeartBeatTime(*hbt);
+  }
   return 0;
 }
 

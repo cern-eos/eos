@@ -103,6 +103,8 @@ public:
   
   bool HasHeartBeat() {
     time_t tdif = time(0)-GetLastHeartBeat();
+    eos_static_debug("last heartbeat: %u (%u %u)", tdif, time(0), GetLastHeartBeat());
+      
     if (tdif < 10)
       return true;
     else

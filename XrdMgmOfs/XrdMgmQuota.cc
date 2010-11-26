@@ -386,7 +386,7 @@ XrdMgmSpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsi
       XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[currentfs];
       if (filesystem) {
 	// check that we have atleast 1GB and 100 inodes and that we are in rw mode
-	eos_static_debug("fs info %u %llu %llu %s %s", filesystem->GetId(), filesystem->GetStatfs()->f_bfree, filesystem->GetStatfs()->f_ffree*4096ll, filesystem->GetConfigStatusString(), filesystem->GetBootStatusString());
+	eos_static_debug("fs info %u %llu %llu %s %s %d", filesystem->GetId(), filesystem->GetStatfs()->f_bfree * 4096ll, filesystem->GetStatfs()->f_ffree*4096ll, filesystem->GetConfigStatusString(), filesystem->GetBootStatusString(), filesystem->HasHeartBeat());
 
 	bool isalreadyselected=false;
 	// check that this one is not already selected
