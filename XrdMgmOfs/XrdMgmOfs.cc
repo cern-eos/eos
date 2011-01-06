@@ -538,8 +538,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   capability += "&mgm.path=";      capability += path;
   capability += "&mgm.manager=";   capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";    XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fileId,hexfid);capability += hexfid;
-  capability += "&mgm.lid=";       //capability += XrdCommonLayoutId::kPlain;
-  capability += (int)layoutId;
 
   XrdOucString sizestring;
   capability += "&mgm.cid=";       capability += XrdCommonFileSystem::GetSizeString(sizestring,cid);
@@ -584,8 +582,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       XrdMgmFstNode::gMutex.UnLock();
       return Emsg(epname, error, ENODEV,  "open - no replica exists", path);	    
     }
-      
-
 
     retc = quotaspace->FileAccess(vid.uid, vid.gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW);
   }
@@ -688,6 +684,14 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   filesystem->GetHostPort(targethost,targetport);
   redirectionhost= targethost;
   redirectionhost+= "?";
+
+
+  // rebuild the layout ID (for read it should indicate only the number of available stripes for reading);
+  newlayoutId = XrdCommonLayoutId::GetId(XrdCommonLayoutId::GetLayoutType(layoutId), XrdCommonLayoutId::GetChecksum(layoutId), (int)selectedfs.size(), XrdCommonLayoutId::GetStripeWidth(layoutId));
+  capability += "&mgm.lid=";    
+  capability += (int)newlayoutId;
+
+
   
   if ( XrdCommonLayoutId::GetLayoutType(layoutId) == XrdCommonLayoutId::kPlain ) {
     capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
@@ -1505,7 +1509,7 @@ int XrdMgmOfs::remdir(const char             *path,    // In
    const char *tident = error.getErrUser();
    XrdOucEnv remdir_Env(info);
 
-   XrdSecEntity mappedclient;
+   XrdSecEntity mappedclient();
 
    XTRACE(remove, path,"");
 
@@ -1671,7 +1675,7 @@ int XrdMgmOfs::stat(const char              *path,        // In
 {
   static const char *epname = "stat";
   const char *tident = error.getErrUser(); 
-  XrdSecEntity mappedclient;
+  XrdSecEntity mappedclient();
 
   XrdOucEnv Open_Env(info);
   
@@ -3274,7 +3278,7 @@ XrdMgmOfs::Deletion()
 {
   // thread distributing deletions
   while (1) {
-    sleep(10);
+    sleep(300);
     eos_static_debug("running deletion");
     std::vector <unsigned int> fslist;
     // get a list of file Ids

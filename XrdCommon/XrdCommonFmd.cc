@@ -499,7 +499,7 @@ bool XrdCommonFmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
       if (GroupFiles[((long long)pMd->fsid<<32) | pMd->gid] <0) GroupFiles[(pMd->fsid<<32)]=0;
       
 
-      eos_debug("userbytes %llu groupbytes %llu userfiles %llu groupfiles %llu",  UserBytes [((long long)pMd->fsid<<32) | pMd->uid], GroupBytes[((long long)pMd->fsid<<32) | pMd->gid], UserFiles [((long long)pMd->fsid<<32) | pMd->uid],GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]);
+      eos_notice("userbytes %llu groupbytes %llu userfiles %llu groupfiles %llu",  UserBytes [((long long)pMd->fsid<<32) | pMd->uid], GroupBytes[((long long)pMd->fsid<<32) | pMd->gid], UserFiles [((long long)pMd->fsid<<32) | pMd->uid],GroupFiles[((long long)pMd->fsid<<32) | pMd->gid]);
     }
     pMd++;
     changelogstart += sizeof(struct XrdCommonFmd::FMD);

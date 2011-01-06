@@ -1,33 +1,18 @@
 #!/bin/bash
 # input parameter is the path to query e.g. eossrmspace /eos/atlas
 . /etc/sysconfig/xrd
-#echo $* >> /tmp/cmd 
 
-path=`echo .eossrmspace.$1 | sed s/\\\//_/g`;
-cache=`find /tmp/ -cmin 1 -name $path 2>/dev/null`;
+nrep=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} attr get sys.forced.nstripes $1 2>/dev/null | grep sys.forced.nstripes | cut -d "=" -f2 | sed s/\"//g 2>/dev/null`
 
-if [ -n "$cache" ]; then
-    cat $cache
-    exit;
-fi
-    
-nrep=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} attr get sys.forced.nstripes $1/ 2>/dev/null | grep sys.forced.nstripes | cut -d "=" -f2 | sed s/\"//g 2>/dev/null`
+test -z $nrep && nrep=1
 
-test -z "$nrep" && nrep=1
+space=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} attr get sys.forced.space $1 2>/dev/null | grep sys.forced.space | cut -d "=" -f2 | sed s/\"//g 2>/dev/null`
 
-space=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} attr get sys.forced.space $1/ 2>/dev/null | grep sys.forced.space | cut -d "=" -f2 | sed s/\"//g 2>/dev/null`
+echo $nrep $space
 
-df=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} quota ls 2>/dev/null | grep PHYS | grep "$space" | awk '{print $3,$4}' 2>/dev/null`
+df=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} quota ls 2>/dev/null | grep PHYS | grep $space | awk '{print $7,$8}' 2>/dev/null`
 val=`echo $df | awk '{print $1}'`
 exp=`echo $df | awk '{print $2}'`
-
-if [ "$val" = "0.00" ]; then
-    val="0";
-fi
-
-if [[ $nrep != [0-9]* ]]; then
-    nrep=1
-fi
 
 if [ "$exp" = "KB" ]; then
     val=`echo $val | awk '{printf( "%ld\n", $1*1000.0);}'`
@@ -50,10 +35,8 @@ if [ $nrep -gt 1 ]; then
 fi
 
 test -z $val && val=0
-
-echo $val > /tmp/$path.tmp
-mv /tmp/$path.tmp /tmp/$path 2>/dev/null
 echo $val
+
 
 
 

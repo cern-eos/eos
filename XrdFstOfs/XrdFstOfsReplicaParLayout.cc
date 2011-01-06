@@ -129,7 +129,7 @@ XrdFstOfsReplicaParLayout::open(const char                *path,
 	}
       }
     } else {
-      // gateway contats the head, head contacts all
+      // gateway contacts the head, head contacts all
       if ( (isGateWay && i == replicaHead) ||
 	   (isHeadServer && (i != replicaIndex)) ) {
 	if (ofsFile->isRW) {

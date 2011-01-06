@@ -291,9 +291,11 @@ XrdFstOfsFile::open(const char                *path,
   gettimeofday(&openTime,&tz);
 
   XrdOucString stringOpaque = opaque;
-  stringOpaque.replace("?","&");
-  stringOpaque.replace("&&","&");
+  while(stringOpaque.replace("?","&"))  {}
+  while(stringOpaque.replace("&&","&")) {}
   stringOpaque += "&mgm.path="; stringOpaque += path;
+
+  eos_info("path=%s opaque-in=%s opaque-out=%s", path, opaque,stringOpaque.c_str());
 
   openOpaque  = new XrdOucEnv(stringOpaque.c_str());
   int caprc = 0;
