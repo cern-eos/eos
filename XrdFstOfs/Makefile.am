@@ -1,12 +1,18 @@
 INCLUDES = -I$(EOS_INCDIR) -I$(XROOTD_INCDIR) -I../
 
 
-noinst_LTLIBRARIES = libXrdFstChecksum.la
+noinst_LTLIBRARIES = libXrdFstChecksum.la libXrdFstLoad.la
 
 libXrdFstChecksum_la_SOURCES = XrdFstOfsChecksum.hh XrdFstOfsChecksum.cc XrdFstOfsAdler.hh XrdFstOfsCRC32.hh XrdFstOfsMD5.hh XrdFstOfsSHA1.hh XrdFstOfsChecksumPlugins.hh 
 
 libXrdFstChecksum_la_LIBADD =
 libXrdFstChecksum_la_LDFLAGS = -L${XROOTD_LIBDIR}/ -lXrdOuc $(top_srcdir)/XrdCommon/libXrdCommon.la 
+
+
+libXrdFstLoad_la_SOURCES = XrdFstOfsLoad.cc XrdFstOfsLoad.hh
+
+libXrdFstLoad_la_LIBADD = 
+libXrdFstLoad_la_LDFLAGS = -L${XROOTD_LIBDIR}/ -lXrdOuc -lXrdSys
 
 lib_LTLIBRARIES = libXrdFstOfs.la
 
@@ -14,16 +20,23 @@ libXrdFstOfs_la_SOURCES = XrdFstOfsConfig.cc XrdFstOfsConfig.hh XrdFstOfs.cc Xrd
 	XrdFstOfsLayout.hh XrdFstOfsPlainLayout.hh XrdFstOfsPlainLayout.cc XrdFstOfsReplicaLayout.hh XrdFstOfsReplicaLayout.cc \
 	XrdFstOfsReplicaParLayout.hh XrdFstOfsReplicaParLayout.cc \
 	XrdFstOfsRaid5Layout.cc XrdFstOfsRaid5Layout.hh \
-	XrdFstOfsLayoutPlugins.hh XrdFstDeletion.hh XrdFstTransfer.hh XrdFstTransfer.cc XrdFstVerify.hh XrdFstOfsLock.hh
+	XrdFstOfsLayoutPlugins.hh XrdFstDeletion.hh XrdFstTransfer.hh XrdFstTransfer.cc XrdFstVerify.hh XrdFstOfsLock.hh 
 
-libXrdFstOfs_la_LIBADD = libXrdFstChecksum.la
+libXrdFstOfs_la_LIBADD = libXrdFstChecksum.la libXrdFstLoad.la
 libXrdFstOfs_la_LDFLAGS = -L${XROOTD_LIBDIR}/ -lXrdSys -lXrdOuc -lXrdNet -lXrdOfs -lXrdSec $(top_srcdir)/XrdCommon/libXrdCommon.la $(top_srcdir)/XrdCapability/libXrdCapability.la $(top_srcdir)/XrdMqOfs/libXrdMqClient.la 
 
 
-bin_PROGRAMS = eosfstfsck
+bin_PROGRAMS = eosfstfsck eosfstload
 
 eosfstfsck_SOURCES = \
                 FsckFst.cc 
 
 eosfstfsck_LDFLAGS = -static -export-dynamic
-eosfstfsck_LDADD = -lncurses -lreadline -ltermcap -ldl -L${XROOTD_LIBDIR}/ -lXrdClient $(top_srcdir)/XrdCommon/libXrdCommon.la libXrdFstChecksum.la
+eosfstfsck_LDADD   = -lncurses -lreadline -ltermcap -ldl -L${XROOTD_LIBDIR}/ -lXrdClient $(top_srcdir)/XrdCommon/libXrdCommon.la libXrdFstChecksum.la
+
+eosfstload_SOURCES = \
+	FstLoad.cc 
+
+
+eosfstload_LDFLAGS = -static -export-dynamic
+eosfstload_LDADD   = libXrdFstLoad.la -lXrdOuc -lXrdNet -lXrdNetUtil
