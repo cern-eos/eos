@@ -957,6 +957,9 @@ int XrdMgmOfs::chmod(const char                *path,    // In
   const char *tident = error.getErrUser(); 
   //  mode_t acc_mode = Mode & S_IAMB;
 
+  // use a thread private vid
+  XrdCommonMapping::VirtualIdentity vid;
+
   XrdOucEnv chmod_Env(info);
 
   XTRACE(chmod, path,"");
@@ -1021,6 +1024,9 @@ int XrdMgmOfs::exists(const char                *path,        // In
   static const char *epname = "exists";
   const char *tident = error.getErrUser();
 
+  // use a thread private vid
+  XrdCommonMapping::VirtualIdentity vid;
+
   XrdOucEnv exists_Env(info);
 
   XTRACE(exists, path,"");
@@ -1036,7 +1042,7 @@ int XrdMgmOfs::exists(const char                *path,        // In
 int XrdMgmOfs::_exists(const char                *path,        // In
                                XrdSfsFileExistence &file_exists, // Out
                                XrdOucErrInfo       &error,       // Out
-                         const XrdSecEntity    *client,          // In
+                         const XrdSecEntity       *client,       // In
                          const char                *info)        // In
 /*
   Function: Determine if file 'path' actually exists.
@@ -1179,6 +1185,10 @@ int XrdMgmOfs::mkdir(const char             *path,    // In
 {
    static const char *epname = "mkdir";
    const char *tident = error.getErrUser();
+
+   // use a thread private vid
+   XrdCommonMapping::VirtualIdentity vid;
+
    XrdOucEnv mkdir_Env(info);
    
    XTRACE(mkdir, path,"");
@@ -1416,6 +1426,9 @@ int XrdMgmOfs::rem(const char             *path,    // In
    static const char *epname = "rem";
    const char *tident = error.getErrUser();
 
+   // use a thread private vid
+   XrdCommonMapping::VirtualIdentity vid;
+
    XTRACE(remove, path,"");
 
    XrdOucEnv env(info);
@@ -1507,6 +1520,10 @@ int XrdMgmOfs::remdir(const char             *path,    // In
 {
    static const char *epname = "remdir";
    const char *tident = error.getErrUser();
+
+   // use a thread private vid
+   XrdCommonMapping::VirtualIdentity vid;
+
    XrdOucEnv remdir_Env(info);
 
    XrdSecEntity mappedclient();
@@ -1605,6 +1622,9 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   const char *tident = error.getErrUser();
   errno = 0;
 
+  // use a thread private vid
+  XrdCommonMapping::VirtualIdentity vid;
+
   XrdOucString source, destination;
   XrdOucString oldn,newn;
   XrdOucEnv renameo_Env(infoO);
@@ -1675,6 +1695,11 @@ int XrdMgmOfs::stat(const char              *path,        // In
 {
   static const char *epname = "stat";
   const char *tident = error.getErrUser(); 
+
+  
+  // use a thread private vid
+  XrdCommonMapping::VirtualIdentity vid;
+
   XrdSecEntity mappedclient();
 
   XrdOucEnv Open_Env(info);
@@ -1806,6 +1831,10 @@ int XrdMgmOfs::truncate(const char*,
 {
   static const char *epname = "truncate";
 
+  // use a thread private vid
+  XrdCommonMapping::VirtualIdentity vid;
+
+  gOFS->MgmStats.Add("Truncate",vid.uid,vid.gid,1);  
   return Emsg(epname, error, EOPNOTSUPP, "truncate", path);
 }
 
@@ -1820,13 +1849,16 @@ int XrdMgmOfs::readlink(const char          *path,        // In
   const char *tident = error.getErrUser(); 
   XrdOucEnv rl_Env(info);
 
+  // use a thread private vid
+  XrdCommonMapping::VirtualIdentity vid;
+
   XTRACE(fsctl, path,"");
 
   AUTHORIZE(client,&rl_Env,AOP_Stat,"readlink",path,error);
   
   XrdCommonMapping::IdMap(client,info,tident,vid);
 
-  gOFS->MgmStats.Add("Truncate",vid.uid,vid.gid,1);  
+  gOFS->MgmStats.Add("ReadLink",vid.uid,vid.gid,1);  
 
   return Emsg(epname, error, EOPNOTSUPP, "readlink", path); 
 }
@@ -1841,6 +1873,9 @@ int XrdMgmOfs::symlink(const char           *path,        // In
   static const char *epname = "symlink";
   const char *tident = error.getErrUser(); 
   XrdOucEnv sl_Env(info);
+
+  // use a thread private vid
+  XrdCommonMapping::VirtualIdentity vid;
 
   XTRACE(fsctl, path,"");
 
@@ -1890,6 +1925,9 @@ int XrdMgmOfs::utimes(  const char          *path,        // In
   static const char *epname = "utimes";
   const char *tident = error.getErrUser(); 
   XrdOucEnv utimes_Env(info);
+
+  // use a thread private vid
+  XrdCommonMapping::VirtualIdentity vid;
 
   XTRACE(fsctl, path,"");
 
@@ -2483,10 +2521,9 @@ XrdMgmOfs::FSctl(const int               cmd,
       char* smode;
       if ((smode = env.Get("mode"))) {
  	XrdSfsMode newmode = atoi(smode);
-	int retc = _chmod(path.c_str(),
+	int retc =  chmod(path.c_str(),
 			  newmode,
 			  error,
-			  vid,
 			  0);
 	XrdOucString response="chmod: retc=";
 	response += retc;
@@ -2606,6 +2643,8 @@ XrdMgmOfs::attr_ls(const char             *path,
   static const char *epname = "attr_ls";
   const char *tident = error.getErrUser(); 
   XrdOucEnv access_Env(info);
+  // use a thread private vid
+  XrdCommonMapping::VirtualIdentity vid;
 
   XTRACE(fsctl, path,"");
 
@@ -2627,6 +2666,9 @@ XrdMgmOfs::attr_set(const char             *path,
 {
   static const char *epname = "attr_set";
   const char *tident = error.getErrUser(); 
+  // use a thread private vid
+  XrdCommonMapping::VirtualIdentity vid;
+
   XrdOucEnv access_Env(info);
 
   XTRACE(fsctl, path,"");
@@ -2649,6 +2691,9 @@ XrdMgmOfs::attr_get(const char             *path,
 {
   static const char *epname = "attr_get";
   const char *tident = error.getErrUser(); 
+  // use a thread private vid
+  XrdCommonMapping::VirtualIdentity vid;
+
   XrdOucEnv access_Env(info);
 
   XTRACE(fsctl, path,"");
@@ -2670,6 +2715,9 @@ XrdMgmOfs::attr_rem(const char             *path,
 {
   static const char *epname = "attr_rm";
   const char *tident = error.getErrUser(); 
+  // use a thread private vid
+  XrdCommonMapping::VirtualIdentity vid;
+
   XrdOucEnv access_Env(info); 
 
   XTRACE(fsctl, path,"");
