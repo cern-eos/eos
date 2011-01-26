@@ -2,12 +2,15 @@
 #include <XrdMqOfs/XrdMqClient.hh>
 #include <XrdMqOfs/XrdMqTiming.hh>
 #include <XrdSys/XrdSysLogger.hh>
+#include <XrdSys/XrdSysError.hh>
 #include <stdio.h>
 
-#define CRYPTO
+//#define CRYPTO
 
 int main (int argc, char* argv[]) {
   printf("Starting up ...\n");
+
+  XrdMqMessage::Configure("");
 
 #ifdef CRYPTO
   if (!XrdMqMessage::Configure("xrd.mqclient.cf")) {
@@ -18,15 +21,15 @@ int main (int argc, char* argv[]) {
 
   XrdMqClient mqc;
   
-  if (mqc.AddBroker("root://lxbra0301//xmessage/localhost/master", true, true)) {
-    //  if (mqc.AddBroker("root://localhost//xmessage/localhost/master", false, false)) {
+  if (mqc.AddBroker("root://lxbra0301.cern.ch:1097//eos/lxbra0301.cern.ch/master", true, true)) {
+  //  if (mqc.AddBroker("root://localhost//xmessage/localhost/master", false, false)) {
     printf("Added localhost ..\n");
   } else {
     printf("Adding localhost failed 1st time \n");
   }
 
   mqc.Subscribe();
-  mqc.SetDefaultReceiverQueue("/xmessage/*/worker");
+  mqc.SetDefaultReceiverQueue("/eos/*/worker");
 
 
   XrdMqMessage message("HelloWorker");
@@ -57,7 +60,7 @@ int main (int argc, char* argv[]) {
       message.kMessageHeader.kDescription += i;
       (mqc << message);
       
-      for (int j=0; j< 1; j++) {
+      for (int j=0; j< 0; j++) {
 	XrdMqMessage* newmessage = mqc.RecvMessage();
 	if (!newmessage) 
 	  continue;

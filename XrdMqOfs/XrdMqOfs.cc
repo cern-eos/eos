@@ -90,6 +90,7 @@ XrdMqOfs::XrdMqOfs(XrdSysError *ep)
   DeliveredMessages = 0;
   AdvisoryMessages = 0;
   UndeliverableMessages = 0;
+  DiscardedMonitoringMessages = 0;
 }
 
 /******************************************************************************/
@@ -177,11 +178,12 @@ XrdMqOfs::stat(const char                *queuename,
   Statistics();
 
   ZTRACE(open,"stat by buf: "<< queuename);
+  std::string squeue = queuename;
 
   {
     XrdMqOfsOutMutex qm;
-    if (!(Out = XrdOfsFS.QueueOut.Find(queuename))) {
-	return XrdMqOfs::Emsg(epname, error, EINVAL,"check queue - no such queue");
+    if (!(Out = XrdOfsFS.QueueOut[squeue])) {
+      return XrdMqOfs::Emsg(epname, error, EINVAL,"check queue - no such queue");
     }
     Out->DeletionSem.Wait();
   }
@@ -198,9 +200,8 @@ XrdMqOfs::stat(const char                *queuename,
     XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
     XrdMqOfsMatches matches(XrdOfsFS.QueueAdvisory.c_str(), env, tident, XrdMqMessageHeader::kQueryMessage, queuename);
     XrdMqOfsOutMutex qm;
-    env->procmutex.Lock();
-    XrdOfsFS.QueueOut.Apply(XrdOfsFS.AddToMatch,&matches);
-    env->procmutex.UnLock();
+    if (!XrdOfsFS.Deliver(matches))
+      delete env;
   }
 
 
@@ -263,6 +264,7 @@ XrdMqOfsFile::open(const char                *queuename,
   
   XrdMqOfsOutMutex qm;
   QueueName = queuename;
+  std::string squeue = queuename;
 
   //  printf("%s %s %s\n",QueueName.c_str(),XrdOfsFS.QueuePrefix.c_str(),opaque);
   // check if this queue is accepted by the broker
@@ -272,7 +274,7 @@ XrdMqOfsFile::open(const char                *queuename,
   }
   
 
-  if (XrdOfsFS.QueueOut.Find(queuename)) {
+  if (XrdOfsFS.QueueOut.count(squeue)) {
     // this is already open by 'someone'
     return XrdMqOfs::Emsg(epname, error, EBUSY, "connect queue - already connected",queuename);
   }
@@ -295,7 +297,7 @@ XrdMqOfsFile::open(const char                *queuename,
   Out->AdvisoryStatus = advisorystatus;
   Out->AdvisoryQuery  = advisoryquery;
 
-  XrdOfsFS.QueueOut.Add(QueueName.c_str(), Out);
+  XrdOfsFS.QueueOut.insert(std::pair<std::string, XrdMqMessageOut*>(squeue, Out));
 
   ZTRACE(open,"Connected Queue: " << queuename);
   return SFS_OK;
@@ -307,6 +309,7 @@ XrdMqOfsFile::close() {
 
   ZTRACE(close,"Disconnecting Queue: " << QueueName.c_str());
 	 
+  std::string squeue = QueueName.c_str();
 
   {
     XrdMqOfsOutMutex qm; 
@@ -314,7 +317,7 @@ XrdMqOfsFile::close() {
       // hmm this could create a dead lock
       //      Out->DeletionSem.Wait();
       Out->Lock();
-      XrdOfsFS.QueueOut.Del(QueueName.c_str());
+      XrdOfsFS.QueueOut.erase(squeue);
     }
     Out = 0;
   }
@@ -331,9 +334,8 @@ XrdMqOfsFile::close() {
     XrdSmartOucEnv* env =new XrdSmartOucEnv(amg.GetMessageBuffer());
     XrdMqOfsMatches matches(XrdOfsFS.QueueAdvisory.c_str(), env, tident, XrdMqMessageHeader::kStatusMessage, QueueName.c_str());
     XrdMqOfsOutMutex qm;
-    env->procmutex.Lock();
-    XrdOfsFS.QueueOut.Apply(XrdOfsFS.AddToMatch,&matches);
-    env->procmutex.UnLock();
+    if (!XrdOfsFS.Deliver(matches))
+      delete env;
   }
 
   return SFS_OK;
@@ -387,9 +389,8 @@ XrdMqOfsFile::stat(struct stat *buf) {
       XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
       XrdMqOfsMatches matches(XrdOfsFS.QueueAdvisory.c_str(), env, tident, XrdMqMessageHeader::kQueryMessage, QueueName.c_str());
       XrdMqOfsOutMutex qm;
-      env->procmutex.Lock();
-      XrdOfsFS.QueueOut.Apply(XrdOfsFS.AddToMatch,&matches);
-      env->procmutex.UnLock();
+      if (!XrdOfsFS.Deliver(matches))
+	delete env;
     }
 
 
@@ -534,11 +535,11 @@ XrdMqOfs::Statistics() {
   static struct timeval tstart;
   static struct timeval tstop;
   static struct timezone tz;
-  static long long LastReceivedMessages, LastDeliveredMessages, LastFanOutMessages,LastAdvisoryMessages,LastUndeliverableMessages,LastNoMessages;
+  static long long LastReceivedMessages, LastDeliveredMessages, LastFanOutMessages,LastAdvisoryMessages,LastUndeliverableMessages,LastNoMessages, LastDiscardedMonitoringMessages;
   if (startup) {
     tstart.tv_sec=0;
     tstart.tv_usec=0;
-    LastReceivedMessages = LastDeliveredMessages = LastFanOutMessages = LastAdvisoryMessages = LastUndeliverableMessages = LastNoMessages = 0;
+    LastReceivedMessages = LastDeliveredMessages = LastFanOutMessages = LastAdvisoryMessages = LastUndeliverableMessages = LastNoMessages = LastDiscardedMonitoringMessages = 0;
     startup = false;
   }
 
@@ -553,7 +554,7 @@ XrdMqOfs::Statistics() {
   const char* tident="";
   time_t now = time(0);
   float tdiff = ((tstop.tv_sec - tstart.tv_sec)*1000) + (tstop.tv_usec - tstart.tv_usec)/1000;
-  if (tdiff > (60 * 1000) ) {
+  if (tdiff > (10 * 1000) ) {
     // every minute
     XrdOucString tmpfile = StatisticsFile; tmpfile += ".tmp";
     int fd = open(tmpfile.c_str(),O_CREAT|O_RDWR|O_TRUNC, S_IROTH | S_IRGRP | S_IRUSR);
@@ -565,51 +566,54 @@ XrdMqOfs::Statistics() {
       sprintf(line,"mq.fanout                 %lld\n",FanOutMessages); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.advisory               %lld\n",AdvisoryMessages); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.undeliverable          %lld\n",UndeliverableMessages); rc = write(fd,line,strlen(line));
+      sprintf(line,"mq.droppedmonitoring      %lld\n",DiscardedMonitoringMessages); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.total                  %lld\n",NoMessages); rc = write(fd,line,strlen(line));
-      sprintf(line,"mq.queued                 %d\n",Messages.Num()); rc = write(fd,line,strlen(line));
-      sprintf(line,"mq.nqueues                %d\n",QueueOut.Num()); rc = write(fd,line,strlen(line));
+      sprintf(line,"mq.queued                 %d\n",(int)Messages.size()); rc = write(fd,line,strlen(line));
+      sprintf(line,"mq.nqueues                %d\n",(int)QueueOut.size()); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.backloghits            %lld\n",QueueBacklogHits); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.in_rate                %f\n",(1000.0*(ReceivedMessages-LastReceivedMessages)/(tdiff))); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.out_rate               %f\n",(1000.0*(DeliveredMessages-LastDeliveredMessages)/(tdiff))); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.fan_rate               %f\n",(1000.0*(FanOutMessages-LastFanOutMessages)/(tdiff))); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.advisory_rate          %f\n",(1000.0*(AdvisoryMessages-LastAdvisoryMessages)/(tdiff))); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.undeliverable_rate     %f\n",(1000.0*(UndeliverableMessages-LastUndeliverableMessages)/(tdiff))); rc = write(fd,line,strlen(line));
+      sprintf(line,"mq.droppedmonitoring_rate %f\n",(1000.0*(DiscardedMonitoringMessages-LastDiscardedMonitoringMessages)/(tdiff))); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.total_rate             %f\n",(1000.0*(NoMessages-LastNoMessages)/(tdiff))); rc = write(fd,line,strlen(line));
       close(fd);
       ::rename(tmpfile.c_str(),StatisticsFile.c_str());
     }
     gettimeofday(&tstart,&tz);
-    LastReceivedMessages = ReceivedMessages;
-    LastDeliveredMessages = DeliveredMessages;
-    LastFanOutMessages = FanOutMessages;
-    LastAdvisoryMessages = AdvisoryMessages;
-    LastUndeliverableMessages = UndeliverableMessages;
-    LastNoMessages = NoMessages;
-  }
 
-  if ((now-LastOutputTime) > 2) {
     ZTRACE(getstats,"*****************************************************");
     ZTRACE(getstats,"Received  Messages            : " << ReceivedMessages);
     ZTRACE(getstats,"Delivered Messages            : " << DeliveredMessages);
     ZTRACE(getstats,"FanOut    Messages            : " << FanOutMessages);
     ZTRACE(getstats,"Advisory  Messages            : " << AdvisoryMessages);
     ZTRACE(getstats,"Undeliverable Messages        : " << UndeliverableMessages);
+    ZTRACE(getstats,"Discarded Monitoring Messages : " << DiscardedMonitoringMessages);
     ZTRACE(getstats,"No        Messages            : " << NoMessages);
-    ZTRACE(getstats,"Queue     Messages            : " << Messages.Num());
-    ZTRACE(getstats,"#Queues                       : " << QueueOut.Num());
+    ZTRACE(getstats,"Queue     Messages            : " << Messages.size());
+    ZTRACE(getstats,"#Queues                       : " << QueueOut.size());
     ZTRACE(getstats,"Deferred  Messages (backlog)  : " << BacklogDeferred);
     ZTRACE(getstats,"Backlog   Messages Hits       : " << QueueBacklogHits);
     char rates[4096];
-    sprintf(rates, "Rates: IN: %d OUT: %d FAN: %d ADV: %d: UNDEV: %d NOMSG: %d" 
-	    ,(int)(1.0*ReceivedMessages/(now-StartupTime))
-	    ,(int)(1.0*DeliveredMessages/(now-StartupTime))
-	    ,(int)(1.0*FanOutMessages/(now-StartupTime))
-	    ,(int)(1.0*AdvisoryMessages/(now-StartupTime))
-	    ,(int)(1.0*UndeliverableMessages/(now-StartupTime))
-	    ,(int)(1.0*NoMessages/(now-StartupTime)));
+    sprintf(rates, "Rates: IN: %.02f OUT: %.02f FAN: %.02f ADV: %.02f: UNDEV: %.02f DISCMON: %.02f NOMSG: %.02f" 
+	    ,(1000.0*(ReceivedMessages-LastReceivedMessages)/(tdiff))
+	    ,(1000.0*(DeliveredMessages-LastDeliveredMessages)/(tdiff))
+	    ,(1000.0*(FanOutMessages-LastFanOutMessages)/(tdiff))
+	    ,(1000.0*(AdvisoryMessages-LastAdvisoryMessages)/(tdiff))
+	    ,(1000.0*(UndeliverableMessages-LastUndeliverableMessages)/(tdiff))
+	    ,(1000.0*(DiscardedMonitoringMessages-LastDiscardedMonitoringMessages)/(tdiff))
+	    ,(1000.0*(NoMessages-LastNoMessages)/(tdiff)));
     ZTRACE(getstats, rates);
     ZTRACE(getstats,"*****************************************************");
     LastOutputTime = now;
+    LastReceivedMessages = ReceivedMessages;
+    LastDeliveredMessages = DeliveredMessages;
+    LastFanOutMessages = FanOutMessages;
+    LastAdvisoryMessages = AdvisoryMessages;
+    LastUndeliverableMessages = UndeliverableMessages;
+    LastNoMessages = NoMessages;
+
   }
 
   StatLock.UnLock();

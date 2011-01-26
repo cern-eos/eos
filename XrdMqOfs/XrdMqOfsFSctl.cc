@@ -15,91 +15,149 @@ extern XrdMqOfs   XrdOfsFS;
 // Helper Classes & Functions
 /////////////////////////////////////////////////////////////////////////////
 
-int 
-XrdMqOfs::AddToMatch(const char* key, XrdMqMessageOut *Out, void* Arg) {
+bool
+XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
   EPNAME("AddToMatch");
+  
+  const char* tident = Matches.tident;
+  
+  std::string sendername = Matches.sendername.c_str();
 
-  if (Arg) {
-    const char* tident = ((XrdMqOfsMatches*)Arg)->tident;
-    //    char debugline[4096];
+  // here we store all the queues where we need to deliver this message
+  std::vector<XrdMqMessageOut*> MatchedOutputQueues;
+
+  if ( ((Matches.messagetype) == XrdMqMessageHeader::kStatusMessage) || ((Matches.messagetype) == XrdMqMessageHeader::kQueryMessage) ) {
+    //////////////////////////////////////////////////////////////////////////////////////
+    // if we have a status message we have to do a complete loop
+    //////////////////////////////////////////////////////////////////////////////////////
     
-    //    sprintf(debugline,"Matching %s -> %s [%d : %d %d]\n", ((XrdMqOfsMatches*)Arg)->queuename.c_str(), key, (((XrdMqOfsMatches*)Arg)->messagetype), Out->AdvisoryStatus, Out->AdvisoryQuery);
-    //    TRACES(debugline);
-    XrdOucString skey = key;
-
-    // skip status messages if the queue was not asking for them
-    if ((((XrdMqOfsMatches*)Arg)->messagetype) == XrdMqMessageHeader::kStatusMessage) {
-      if (!Out->AdvisoryStatus)
-	return 0;
-      if (skey == ((XrdMqOfsMatches*)Arg)->sendername) {
-	ZTRACE(open,"Loopback message discarded");
-	// we don't do message feedback to the some queue for advisory
-	return 0;
+    std::map<std::string, XrdMqMessageOut*>::const_iterator QueueOutIt;
+    for (QueueOutIt = QueueOut.begin(); QueueOutIt != QueueOut.end(); QueueOutIt++ ) {
+      XrdMqMessageOut* Out = QueueOutIt->second;
+      
+      // if this would be a loop back message we continue
+      if (sendername == QueueOutIt->first) {
+	// avoid feedback to the same queue
+	continue;
       }
+      
+      // if this queue does not take advisory status messages we continue
+      if ( ( Matches.messagetype == XrdMqMessageHeader::kStatusMessage) && (!Out->AdvisoryStatus) )
+	continue;
 
+      // if this queue does not take advisory query messages we continue
+      if ( ( Matches.messagetype == XrdMqMessageHeader::kQueryMessage)  && (!Out->AdvisoryQuery) )
+	continue;
+      
+
+      else {
+	ZTRACE(open,"Adding Advisory Message to Queuename: "<< Out->QueueName.c_str());
+	MatchedOutputQueues.push_back(Out);
+      }
     }
+  } else {
+    //////////////////////////////////////////////////////////////////////////////////////
+    // if we have a wildcard match we have to do a complete loop
+    //////////////////////////////////////////////////////////////////////////////////////
+    if ( ( Matches.queuename.find("*") != STR_NPOS) ) {
+      std::map<std::string, XrdMqMessageOut*>::const_iterator QueueOutIt;
+      for (QueueOutIt = QueueOut.begin(); QueueOutIt != QueueOut.end(); QueueOutIt++ ) {
+	XrdMqMessageOut* Out = QueueOutIt->second;
+	
+	// if this would be a loop back message we continue
+	if (sendername == QueueOutIt->first) {
+	  // avoid feedback to the same queue
+	  continue;
+	}
+	
+	XrdOucString Key = QueueOutIt->first.c_str();
+	XrdOucString nowildcard = Matches.queuename;
+	nowildcard.replace("*","");
+	int nmatch = Key.matches(Matches.queuename.c_str(),'*');
+	if (nmatch == nowildcard.length()) {
+	  // this is a match
+	  ZTRACE(open,"Adding Wildcard matched Message to Queuename: "<< Out->QueueName.c_str());
+	  MatchedOutputQueues.push_back(Out);
+	}
+      }
+    } else {
+      //////////////////////////////////////////////////////////////////////////////////////
+      // we have just to find one named queue
+      //////////////////////////////////////////////////////////////////////////////////////
+
+      std::string queuename = Matches.queuename.c_str();
+
+      XrdMqMessageOut* Out = QueueOut[queuename];
+      if (Out) {
+	ZTRACE(open,"Adding full matched Message to Queuename: "<< Out->QueueName.c_str());
+	MatchedOutputQueues.push_back(Out);
+      }
+    }
+  }
+
+  if (MatchedOutputQueues.size()) {
+    // this is a match
+    Matches.backlog = false;
+    Matches.backlogrejected = false;
     
-    // skip query messages if the queue was not asking for them
-    if ((((XrdMqOfsMatches*)Arg)->messagetype) == XrdMqMessageHeader::kQueryMessage) {
-      if (!Out->AdvisoryQuery)
-	return 0;
-      if (skey == ((XrdMqOfsMatches*)Arg)->sendername) {
-	ZTRACE(open,"Loopback message discarded");
-	// we don't do message feedback to the some queue for advisory
-	return 0;
-      }
+    // lock all matched queues at once
+    for (unsigned int i=0; i< MatchedOutputQueues.size(); i++) {
+      XrdMqMessageOut* Out = MatchedOutputQueues[i];	
+      Out->Lock();
     }
 
-    ZTRACE(open,"Trying to match ...");
-    //    XrdMqOfsMatches* match = (XrdMqOfsMatches*) Arg;
-    XrdOucString Key = key;
-    XrdOucString nowildcard = ((XrdMqOfsMatches*)Arg)->queuename;
-    nowildcard.replace("*","");
-    int nmatch = Key.matches(((XrdMqOfsMatches*)Arg)->queuename.c_str(),'*');
-    if (nmatch == nowildcard.length()) {
-      // this is a match
-      ((XrdMqOfsMatches*)Arg)->backlog = false;
-      ((XrdMqOfsMatches*)Arg)->backlogrejected = false;
+    for (unsigned int i=0; i< MatchedOutputQueues.size(); i++) {
+      XrdMqMessageOut* Out = MatchedOutputQueues[i];
 
       // check for backlog on this queue and set a warning flag
       if (Out->nQueued > MQOFSMAXQUEUEBACKLOG) {
-	((XrdMqOfsMatches*)Arg)->backlog =true;
-	((XrdMqOfsMatches*)Arg)->backlogqueues += Out->QueueName;
-	((XrdMqOfsMatches*)Arg)->backlogqueues += ":";
+	Matches.backlog =true;
+	Matches.backlogqueues += Out->QueueName;
+	Matches.backlogqueues += ":";
 	XrdOfsFS.QueueBacklogHits++;
 	TRACES("warning: queue " << Out->QueueName << " exceeds backlog of " << MQOFSMAXQUEUEBACKLOG << " message!");
       }
-
+    
       if (Out->nQueued > MQOFSREJECTQUEUEBACKLOG) {
-	((XrdMqOfsMatches*)Arg)->backlogrejected =true;
-	((XrdMqOfsMatches*)Arg)->backlogqueues += Out->QueueName;
-	((XrdMqOfsMatches*)Arg)->backlogqueues += ":";
+	Matches.backlogrejected =true;
+	Matches.backlogqueues += Out->QueueName;
+	Matches.backlogqueues += ":";
 	XrdOfsFS.BacklogDeferred++;
 	TRACES("error: queue " << Out->QueueName << " exceeds max. accepted backlog of " << MQOFSREJECTQUEUEBACKLOG << " message!");
-	return 0;
-      }
+      } else {
+	Matches.matches++;
+	if (Matches.matches == 1) {
+	  // add to the message hash 
+	  XrdOfsFS.MessagesMutex.Lock();
+	  std::string messageid = Matches.message->Get(XMQHEADER);
+	  XrdOfsFS.Messages.insert(std::pair<std::string, XrdSmartOucEnv*> (messageid,Matches.message));
+	  XrdOfsFS.MessagesMutex.UnLock();
+	}
 
-      ((XrdMqOfsMatches*)Arg)->message->AddRefs(1);
-      if (!((XrdMqOfsMatches*)Arg)->matches) {
-	// add to the message hash first
-	XrdOfsFS.MessagesMutex.Lock();
-	XrdOfsFS.Messages.Add(((XrdMqOfsMatches*)Arg)->message->Get(XMQHEADER),((XrdMqOfsMatches*)Arg)->message, 0, Hash_keep);
-	XrdOfsFS.MessagesMutex.UnLock();
+	Matches.message->AddRefs(1);
+	
+	ZTRACE(open,"Adding Message to Queuename: "<< Out->QueueName.c_str());
+	Out->MessageQueue.Add((Matches.message));
+	Out->nQueued++;
+	//      Out->MessageSem.Post();
       }
-      
-      ((XrdMqOfsMatches*)Arg)->matches++;
-      
-      Out->Lock();
-      ZTRACE(open,"Adding Message to Queuename: "<< Key.c_str());
-      Out->MessageQueue.Add((((XrdMqOfsMatches*)Arg)->message));
-      Out->nQueued++;
-      //      Out->MessageSem.Post();
+    }
+
+    // unlock all matched queues at once
+    for (unsigned int i=0; i< MatchedOutputQueues.size(); i++) {
+      XrdMqMessageOut* Out = MatchedOutputQueues[i];	
       Out->UnLock();
     }
   }
-  return 0;
-}
 
+
+  if (Matches.matches>0) {
+    return true;
+  } else {
+    return false;
+  }
+}
+						  
 size_t
 XrdMqMessageOut::RetrieveMessages() {
   XrdSmartOucEnv* message;
@@ -107,13 +165,13 @@ XrdMqMessageOut::RetrieveMessages() {
     message->procmutex.Lock();
     int len;
     MessageBuffer += message->Env(len);
-    XrdOfsFS.DeliveredMessages++;
     XrdOfsFS.MessagesMutex.Lock();
+    XrdOfsFS.DeliveredMessages++;
     message->DecRefs();
     if (message->Refs()<=0) {
       // we can delete this message from the queue!
       XrdOucString msg = message->Get(XMQHEADER);
-      XrdOfsFS.Messages.Del(msg.c_str());
+      XrdOfsFS.Messages.erase(msg.c_str());
       message->procmutex.UnLock();
       delete message;
       XrdOfsFS.FanOutMessages++;
@@ -146,7 +204,7 @@ XrdMqOfs::FSctl(const int               cmd,
   }
 
   // check for backlog
-  if (Messages.Num() > MQOFSMAXMESSAGEBACKLOG) {
+  if (Messages.size() > MQOFSMAXMESSAGEBACKLOG) {
     // this is not absolutely threadsafe .... better would lock
     BacklogDeferred++;
     XrdMqOfs::Emsg(epname, error, ENOMEM, "accept message - too many pending messages", "");
@@ -214,16 +272,14 @@ XrdMqOfs::FSctl(const int               cmd,
   int p2 = envstring.find("&",p1+1);
   envstring.erase(p1,p2-1);
   envstring.insert(mh.GetHeaderBuffer(),p1);
-  
+
   delete env;
   env = new XrdSmartOucEnv(envstring.c_str());
 
   XrdMqOfsMatches matches(mh.kReceiverQueue.c_str(), env, tident, mh.kType);
   {
     XrdMqOfsOutMutex qm;
-    env->procmutex.Lock();
-    QueueOut.Apply(AddToMatch,&matches);
-    env->procmutex.UnLock();
+    Deliver(matches);
   }
 
   if (matches.backlogrejected) {
@@ -247,15 +303,20 @@ XrdMqOfs::FSctl(const int               cmd,
   if (matches.matches) {
     const char* result="OK";
     error.setErrInfo(3,(char*)result);
-    XrdOfsFS.ReceivedMessages++;
+
+    if ( ((matches.messagetype) != XrdMqMessageHeader::kStatusMessage) && ((matches.messagetype) != XrdMqMessageHeader::kQueryMessage) ) {
+      XrdOfsFS.ReceivedMessages++;
+    }
+
     return SFS_DATA;
   } else {
     bool ismonitor=false;
     if (env->Get(XMQMONITOR)) {
       ismonitor=true;
     }
-	
-    delete env;
+    
+    if (env)
+      delete env;
 
     // this is a new hook for special monitoring message, to just accept them and if nobody listens they just go to nirvana
     if (!ismonitor) {
@@ -268,7 +329,7 @@ XrdMqOfs::FSctl(const int               cmd,
       ZTRACE(open,"Discarding montor message without receiver");
       const char* result="OK";
       error.setErrInfo(3,(char*)result);
-      XrdOfsFS.ReceivedMessages++;
+      XrdOfsFS.DiscardedMonitoringMessages++;
       return SFS_DATA;
     }
   }

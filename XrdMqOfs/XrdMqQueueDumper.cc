@@ -9,9 +9,15 @@ int main (int argc, char* argv[]) {
   XrdMqClient mqc;
   long long maxdumps = 0;
   long long dumped =0;
-
-  if ( (argc != 2) && (argc != 3) ) {
-    fprintf(stderr, "usage: QueueDumper <brokerurl>/<queue> [n dumps]\n");
+  bool debug=false;
+  long long sleeper = 10000;
+  
+  // we need that to have a sys logger object
+  XrdMqMessage message("");
+  message.Configure(0);
+  
+  if ( (argc < 2) || (argc > 5) ) {
+    fprintf(stderr, "usage: QueueDumper <brokerurl>/<queue> [n dumps] [sleep between grab] [debug]\n");
     exit(-1);
   }
 
@@ -19,6 +25,13 @@ int main (int argc, char* argv[]) {
     maxdumps = strtoll(argv[2],0,10);
   }
 
+  if (argc == 4) {
+    sleeper = strtoll(argv[3],0,10);
+  }
+
+  if (argc == 5) {
+    debug = (strtoll(argv[4],0,10))?true:false;
+  }
 
   XrdOucString broker = argv[1];
   if (!broker.beginswith("root://")) {
@@ -41,7 +54,7 @@ int main (int argc, char* argv[]) {
       fflush(stdout);
       delete newmessage;
     } else {
-      sleep(1);
+      usleep(sleeper);
     }
     // we exit after maxdumps messages
     if (maxdumps && (dumped >= maxdumps)) 

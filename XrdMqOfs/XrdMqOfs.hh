@@ -14,6 +14,9 @@
 #include <stdlib.h>
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <map>
+#include <string>
+#include <vector>
 
 #include <utime.h>
 #include <pwd.h>
@@ -195,11 +198,13 @@ public:
   XrdOucString     QueueAdvisory;      // -> "<queueprefix>/*" for advisory message matches
   XrdOucString     BrokerId;           // -> manger id + queue name as path
 
-  XrdOucHash<XrdMqMessageOut> QueueOut;  // -> hash of all output's connected
+  std::map<std::string, XrdMqMessageOut*> QueueOut;  // -> hash of all output's connected
   XrdSysMutex                 QueueOutMutex;  // -> mutex protecting the output hash
 
-  static int                    AddToMatch(const char* key, XrdMqMessageOut *Out, void* Arg);
-  XrdOucHash<XrdSmartOucEnv>  Messages;  // -> hash with all messages
+  bool             Deliver(XrdMqOfsMatches &Match); // -> delivers a message into matching output queues
+
+  std::map<std::string, XrdSmartOucEnv*> Messages;  // -> hash with all messages
+
   XrdSysMutex                 MessagesMutex;  // -> mutex protecting the message hash
   int              stat(const char               *Name,
 			struct stat              *buf,
@@ -222,6 +227,7 @@ public:
   long long    FanOutMessages;
   long long    AdvisoryMessages;
   long long    UndeliverableMessages;
+  long long    DiscardedMonitoringMessages;
   long long    NoMessages;
   long long    BacklogDeferred;
   long long    QueueBacklogHits;

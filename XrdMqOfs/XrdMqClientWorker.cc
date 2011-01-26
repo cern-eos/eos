@@ -4,9 +4,11 @@
 #include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
 
-#define CRYPTO
+//#define CRYPTO
 
 int main (int argc, char* argv[]) {
+
+  XrdMqMessage::Configure("");
 
 #ifdef CRYPTO
   if (!XrdMqMessage::Configure("xrd.mqclient.cf")) {
@@ -19,7 +21,7 @@ int main (int argc, char* argv[]) {
   if (argc != 2) 
     exit(-1);
 
-  XrdOucString myid= "root://lxbra0301.cern.ch//xmessage/";
+  XrdOucString myid= "root://lxbra0301.cern.ch:1097//eos/";
   myid += argv[1];
   myid += "/worker";
 
@@ -30,7 +32,7 @@ int main (int argc, char* argv[]) {
   }
 
   mqc.Subscribe();
-  mqc.SetDefaultReceiverQueue("/xmessage/*/master");
+  mqc.SetDefaultReceiverQueue("/eos/*/master");
   printf("Subscribed\n");
   XrdMqMessage message("MasterMessage");
    
@@ -54,12 +56,12 @@ int main (int argc, char* argv[]) {
       }
     }
     
-    message.NewId();
-    message.kMessageHeader.kDescription = "Hello Master Test";
+    //    message.NewId();
+    //    message.kMessageHeader.kDescription = "Hello Master Test";
 #ifdef CRYPTO
     message.Sign();
 #endif
-    (mqc << message);
+    //    (mqc << message);
   }
 
   TIMING("SEND+RECV",&mq);
