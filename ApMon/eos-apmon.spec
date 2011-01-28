@@ -7,30 +7,45 @@ Source0: %{name}-%{version}.tar.gz
 License: OpenSource
 Group: Applications/Eos
 BuildRoot: %{_tmppath}/%{name}-root
-#%_enable_debug_packages %{nil}
+
+BuildRequires: autoconf, automake, libtool
 
 %description
 This package contains service scripts for ML monitoring in EOS
 
 The service is started via init.d scripts.
-/etc/init.d/eosapmond start | stop | status | restart  
+/etc/init.d/eosapmond start | stop | status | restart
 
 'eosapmond' service is added to run by default in run level 3,4 and 5.
 
 The initd scripts were done by Andreas-Joachim Peters [CERN] (EMAIL: andreas.joachim.peters@cern.ch).
 
 %prep
-rm -rf $RPM_BUILD_ROOT
 %setup -q
+
 %build
+./bootstrap.sh
 ./configure --prefix=/opt/eos/
-make
+%{__make} %{_smp_mflags}
+
 %install
-make DESTDIR=$RPM_BUILD_ROOT install
+%{__make} install DESTDIR=$RPM_BUILD_ROOT
+
+%post
+/sbin/chkconfig --add eosapmond
+/sbin/service eosapmond condrestart > /dev/null 2>&1 || :
+
+%preun
+if [ "$1" = "0" ] ; then  # last deinstall
+    /sbin/service eosapmond stop > > /dev/null 2>&1 || :
+    /sbin/chkconfig --del eosapmond
+fi
+
 %clean
-echo rm -rf $RPM_BUILD_ROOT
+rm -rf $RPM_BUILD_ROOT
 
 %files
+%defattr(-,root,root)
 /etc/init.d/eosapmond
 /etc/init.d/eosnsapmond
 /etc/init.d/eostxapmond
@@ -50,20 +65,7 @@ echo rm -rf $RPM_BUILD_ROOT
 /opt/eos/perl/eos-ns-monitor.pl
 /opt/eos/perl/eos-tx-monitor.pl
 /opt/eos/perl/eos-tx-log.pl
-%defattr(-,root,root)
 
 %changelog
-* Tue Jul 13 2010 root <peters@pcsmd01.cern.ch>
+* Tue Jul 13 2010 root <peters@pcsmd01.cern.ch> - 1.0.0-3
 - Initial build.
-V1.0.0
-
-%post
-/sbin/chkconfig --add eosapmond
-/sbin/service eosapmond condrestart > /dev/null 2>&1
-
-%preun
-[ -e /etc/init.d/eosapmond ] && /etc/init.d/eosapmond stop
-/sbin/chkconfig --del eosapmond
-%postun
-echo 
-

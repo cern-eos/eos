@@ -31,7 +31,7 @@ EXTRA_DIST =	etc/init.d/eosapmond \
 
 install-exec-local :
 		mkdir -p $(DESTDIR)/$(prefix)/perl/ApMon/ApMon/
-		mkdir -p $(DESTDIR)/etc/logrotate.d/ $(DESTDIR)/etc/init.d $(DESTDIR)/etc/sysconfig/ $(DESTDIR)/var/log/xroot $(DESTDIR)/var/spool/xrootd/adm 
+		mkdir -p $(DESTDIR)/etc/logrotate.d/ $(DESTDIR)/etc/init.d $(DESTDIR)/etc/sysconfig/ $(DESTDIR)/var/log/xroot $(DESTDIR)/var/spool/xrootd/adm
 		for name in ` find etc -type f | grep -v svn`; do $(INSTALL) -m 755 $(srcdir)/$$name $(DESTDIR)/$$name; done
 		for name in ` find perl -type f | grep -v svn`; do $(INSTALL) -m 755 $(srcdir)/$$name $(DESTDIR)/$(prefix)/$$name; done
 	        $(INSTALL) -m 755 $(srcdir)/eos-ns-monitor.pl $(DESTDIR)/$(prefix)/perl/eos-ns-monitor.pl
@@ -48,20 +48,13 @@ uninstall-local :
 bin_PROGRAMS = eos_apmond eos_ns_apmond eos_tx_apmond eos_tx_log
 
 
-eos_apmond_SOURCES = eosapmond.c 
+eos_apmond_SOURCES = eosapmond.c
 
 eos_ns_apmond_SOURCES= eosnsapmond.c
 
 eos_tx_apmond_SOURCES= eostxapmond.c
 
 eos_tx_log_SOURCES= eostxlog.c
-
-rpm:    dist
-	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
-	rpmbuild -bb eos-apmon.spec
-
-
-
 
 
 
