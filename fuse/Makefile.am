@@ -8,9 +8,9 @@ noinst_LTLIBRARIES = libXrdPosixFuse.la
 
 libXrdPosixFuse_la_SOURCES = xrdposix.cc xrdposix.hh
 
-eosd_SOURCES = eosd.c 
+eosd_SOURCES = eosd.c
 
-eosfs_SOURCDES = eosfs.c 
+eosfs_SOURCDES = eosfs.c
 
 eosd_LDADD = -L$(XROOTD_LOCATION)/lib -lXrdPosix ./libXrdPosixFuse.la -L$(FUSE_LOCATION)/lib -lfuse -lstdc++ $(LIBGCCS)
 eosfs_LDADD = -L$(XROOTD_LOCATION)/lib -lXrdPosix ./libXrdPosixFuse.la -L$(FUSE_LOCATION)/lib -lfuse -lstdc++ $(LIBGCCS)
@@ -37,12 +37,6 @@ EXTRA_DIST =	etc/fuse.conf \
 		eos-fuse.spec \
 	        eosfs.start \
 	        bootstrap.sh
-
-rpm		: dist
-		cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
-		rpmbuild -bb eos-fuse.spec
-
-
 
 
 
