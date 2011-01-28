@@ -80,9 +80,7 @@ AC_SUBST(XROOTD_INCDIR)
 AC_SUBST(XROOTD_LIBDIR)
 AC_SUBST(EOS_INCDIR)
 
-dnl
-dnl check for typedefs, structures and compiler characteristics
-dnl
+# check for typedefs, structures and compiler characteristics.
 AC_C_CONST
 
 AC_CHECK_FUNCS([clock_gettime])
@@ -140,7 +138,7 @@ AC_TYPE_UID_T
 AC_TYPE_MODE_T
 AC_TYPE_SIZE_T
 
-# check for required headers and libraries
+# Check for required headers and libraries.
 SAVE_LDFLAGS=$LDFLAGS
 
 AC_CHECK_LIB(rt, clock_gettime, , AC_MSG_ERROR( "The system does not have clock_gettime" ) )
@@ -171,7 +169,7 @@ AC_CHECK_LIB([termcap], [tputs], ,
 
 export LDFLAGS=$LDFLAGS_SAVE
 
-# check for cppunit
+# Check for cppunit.
 ifdef([AM_PATH_CPPUNIT], [AM_PATH_CPPUNIT([1.12.1])], [])
 
 echo "=================================================="
@@ -180,7 +178,7 @@ echo "Include Dir     : $XROOTD_INCDIR"
 echo "Lib Dir         : $XROOTD_LIBDIR"
 echo "=================================================="
 
-# generate output files
+# Generate output files.
 AC_CONFIG_FILES([Makefile                  \
                  XrdCapability/Makefile    \
                  XrdFstOfs/Makefile        \
