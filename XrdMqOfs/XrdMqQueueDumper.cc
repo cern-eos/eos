@@ -21,15 +21,15 @@ int main (int argc, char* argv[]) {
     exit(-1);
   }
 
-  if (argc == 3) {
+  if (argc >= 3) {
     maxdumps = strtoll(argv[2],0,10);
   }
 
-  if (argc == 4) {
+  if (argc >= 4) {
     sleeper = strtoll(argv[3],0,10);
   }
 
-  if (argc == 5) {
+  if (argc >= 5) {
     debug = (strtoll(argv[4],0,10))?true:false;
   }
 
@@ -50,7 +50,11 @@ int main (int argc, char* argv[]) {
 
     if (newmessage) {
       dumped ++;
-      fprintf(stdout,"%s\n",newmessage->GetBody());
+      if (!debug) {
+	fprintf(stdout,"%s\n",newmessage->GetBody());
+      } else {
+	fprintf(stdout,"n: %llu/%llu size: %u\n", dumped,maxdumps, (unsigned int)strlen(newmessage->GetBody()));
+      }
       fflush(stdout);
       delete newmessage;
     } else {

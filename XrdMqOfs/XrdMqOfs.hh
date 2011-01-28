@@ -118,7 +118,7 @@ public:
   XrdSysSemWait MessageSem; 
   XrdSmartOucEnv MessageQueue;
   XrdMqMessageOut(const char* queuename){MessageBuffer="";AdvisoryStatus=false; AdvisoryQuery=false; nQueued=0;QueueName=queuename;};
-  XrdOucString MessageBuffer;
+  std::string MessageBuffer;
   size_t RetrieveMessages();
   virtual ~XrdMqMessageOut(){
     RetrieveMessages();

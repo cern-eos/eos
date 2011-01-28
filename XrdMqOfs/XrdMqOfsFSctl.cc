@@ -5,8 +5,7 @@
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
-#define XRDMQOFS_FSCTLPATHLEN 4096
-#define XRDMQOFS_FSCTLOPAQUELEN 16384
+#define XRDMQOFS_FSCTLPATHLEN 1024
 
 extern XrdOucTrace OfsTrace;
 extern XrdMqOfs   XrdOfsFS;
@@ -190,9 +189,7 @@ XrdMqOfs::FSctl(const int               cmd,
                     XrdSfsFSctl            &args,
                     XrdOucErrInfo          &error,
                     const XrdSecEntity     *client) {
-  char ipath[XRDMQOFS_FSCTLPATHLEN];
-  char iopaque[XRDMQOFS_FSCTLOPAQUELEN];
-
+  char ipath[XRDMQOFS_FSCTLPATHLEN+1];
   static const char *epname = "FSctl";
   const char *tident = error.getErrUser();
 
@@ -222,25 +219,19 @@ XrdMqOfs::FSctl(const int               cmd,
   } else {
     ipath[0] = 0;
   }
-  if (args.Arg2Len) {
-    if (args.Arg2Len <  XRDMQOFS_FSCTLOPAQUELEN ) {
-      strncpy(iopaque,args.Arg2,args.Arg2Len);
-      iopaque[args.Arg2Len] = 0;
-    } else {
-      XrdMqOfs::Emsg(epname, error, EINVAL, "convert opaque argument - string too long", "");
-      return SFS_ERROR;
-    }
-  } else {
-    iopaque[0] = 0;
-  }
 
   // from here on we can deal with XrdOucString which is more 'comfortable' 
   XrdOucString path    = ipath;
-  XrdOucString opaque  = iopaque;
   XrdOucString result  = "";
 
-  ZTRACE(fsctl,ipath);
-  ZTRACE(fsctl,iopaque);
+  XrdOucString opaque  = "";
+
+  if (args.Arg2Len) {
+    opaque.assign(args.Arg2, 0, args.Arg2Len);
+  }
+
+  ZTRACE(fsctl,path.c_str());
+  ZTRACE(fsctl,opaque.c_str());
 
 
   XrdSmartOucEnv* env = new XrdSmartOucEnv(opaque.c_str());

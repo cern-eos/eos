@@ -10,20 +10,25 @@ int main (int argc, char* argv[]) {
   long long maxfeeds = 0;
   long long feeded =0;
   long long sleeper = 0;
+  long long size = 10;
 
-  if ( (argc < 2) || (argc > 4) ) {
-    fprintf(stderr, "usage: QueueDumper <brokerurl>/<queue> [n feed] [sleep in mus after feed]\n");
+  if ( (argc < 2) || (argc > 5) ) {
+    fprintf(stderr, "usage: QueueDumper <brokerurl>/<queue> [n feed] [sleep in mus after feed] [message size]\n");
     exit(-1);
   }
 
-  if (argc == 3) {
+  if (argc >= 3) {
     maxfeeds = strtoll(argv[2],0,10);
   }
 
-  if (argc == 4) {
+  if (argc >= 4) {
     sleeper = strtoll(argv[3],0,10);
   }
     
+  if (argc >= 5) {
+    size = strtoll(argv[4],0,10);
+  }
+
   XrdOucString broker = argv[1];
   if (!broker.beginswith("root://")) {
     fprintf(stderr,"error: <borkerurl> has to be like root://host[:port]/<queue>\n");
@@ -55,12 +60,16 @@ int main (int argc, char* argv[]) {
   mqc.SetDefaultReceiverQueue(queue.c_str());
   XrdMqMessage message("HelloDumper");
   message.Configure(0);
+  XrdOucString body="";
+  for (long long i=0; i< size; i++) {
+    body += "a";
+  }
 
   while(1) {
     message.NewId();
     message.kMessageHeader.kDescription="Hello Dumper";
     message.kMessageHeader.kDescription += (int)feeded;
-    message.SetBody(message.kMessageHeader.kDescription.c_str());
+    message.SetBody(body.c_str());
     feeded ++;
 
     if (!(mqc << message)) {

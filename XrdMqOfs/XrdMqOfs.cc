@@ -317,8 +317,11 @@ XrdMqOfsFile::close() {
       // hmm this could create a dead lock
       //      Out->DeletionSem.Wait();
       Out->Lock();
+      // we have to take away all pending messages
+      Out->RetrieveMessages();
       XrdOfsFS.QueueOut.erase(squeue);
     }
+    delete Out;
     Out = 0;
   }
 
@@ -351,13 +354,14 @@ XrdMqOfsFile::read(XrdSfsFileOffset  fileOffset,
   if (Out) {
     unsigned int mlen = Out->MessageBuffer.length();
     ZTRACE(open,"reading size:" << buffer_size);
-    if ((unsigned long) buffer_size != mlen) {
+    if ((unsigned long) buffer_size < mlen) {
       memcpy(buffer,Out->MessageBuffer.c_str(),buffer_size);
       Out->MessageBuffer.erase(0,buffer_size);
       return buffer_size;
     } else {
       memcpy(buffer,Out->MessageBuffer.c_str(),mlen);
-      Out->MessageBuffer="";
+      Out->MessageBuffer.clear();
+      Out->MessageBuffer.reserve(0);
       return mlen;
     }
   }
