@@ -3,36 +3,47 @@
 
 Summary: eos project
 Name: eos
-Version: @VERSION@
-Release: gcc@GCCVERSION@.9
+Version: 0.0.9
+Release: gcc44
 Prefix: /opt/eos
 License: none
 Group: Applications/File
-Source: @PACKAGE_TARNAME@-@PACKAGE_VERSION@.tar.gz
+Source: eos-0.0.9.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
-#AutoReqProv: yes
 
-Requires: xrootd-server-3.0.0
+BuildRequires: autoconf, automake, libtool
+BuildRequires: xrootd-server >= 3.0.0
+BuildRequires: xrootd-devel  >= 3.0.0
+BuildRequires: readline-devel, ncurses-devel
+BuildRequires: sparsehash
+BuildRequires: gcc44, gcc44-c++
+BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel
+
+Requires: xrootd-server >= 3.0.0
 
 %description
 eos project
 
 %prep
-
-# TODO: change this explicit path
-%setup -n @PACKAGE_TARNAME@-@PACKAGE_VERSION@
+%setup -q
 
 %build
 ./bootstrap.sh
-./configure --sysconfdir=/etc/ --with-xrootd=/usr/ --prefix=/opt/eos/
-make -j 4
-
+CC=/usr/bin/gcc44 CXX=/usr/bin/g++44 ./configure --sysconfdir=/etc/ --with-xrootd=/opt/xrootd --prefix=/opt/eos/
+%{__make} %{_smp_mflags}
 
 %install
-make install DESTDIR=$RPM_BUILD_ROOT
+%{__make} install DESTDIR=$RPM_BUILD_ROOT
 
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%post
+%{__mkdir} -p -m 600 /var/eos
+%{__chown} daemon:daemon /var/eos/
 
 %files
+%defattr(-,root,root-)
 /opt/eos/bin/*
 /opt/eos/lib/*
 %config(noreplace) /etc/xrd.cf.fst
@@ -48,15 +59,3 @@ make install DESTDIR=$RPM_BUILD_ROOT
 %_sysconfdir/rc.d/init.d/cmsd
 %_sysconfdir/rc.d/init.d/eossync
 %_sysconfdir/rc.d/init.d/eoshealth
-%defattr(-,daemon,daemon,-)
-%config(noreplace) /opt/eos/sss/eos-sss.keytab
-
-%clean
-rm -rf $RPM_BUILD_ROOT
-
-%changelog
-
-%post
-mkdir -p -m 600 /var/eos
-chown daemon.daemon /var/eos/
- 
