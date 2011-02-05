@@ -899,7 +899,7 @@ XrdMqMessage::Configure(const char* ConfigFN) {
 
   XrdOucStream Config(&Eroute,"xmessage");
 
-  if (! ConfigFN) 
+  if ( (! ConfigFN) || (!strlen(ConfigFN))) 
     return false;
   
   if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)

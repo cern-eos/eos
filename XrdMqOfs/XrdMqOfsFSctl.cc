@@ -17,13 +17,15 @@ extern XrdMqOfs   XrdOfsFS;
 bool
 XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
   EPNAME("AddToMatch");
-  
+
   const char* tident = Matches.tident;
   
   std::string sendername = Matches.sendername.c_str();
 
   // here we store all the queues where we need to deliver this message
   std::vector<XrdMqMessageOut*> MatchedOutputQueues;
+
+  Matches.message->procmutex.Lock();
 
   if ( ((Matches.messagetype) == XrdMqMessageHeader::kStatusMessage) || ((Matches.messagetype) == XrdMqMessageHeader::kQueryMessage) ) {
     //////////////////////////////////////////////////////////////////////////////////////
@@ -63,6 +65,7 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
       for (QueueOutIt = QueueOut.begin(); QueueOutIt != QueueOut.end(); QueueOutIt++ ) {
 	XrdMqMessageOut* Out = QueueOutIt->second;
 	
+	//	fprintf(stderr,"%s <=> %s\n", sendername.c_str(), QueueOutIt->first.c_str());
 	// if this would be a loop back message we continue
 	if (sendername == QueueOutIt->first) {
 	  // avoid feedback to the same queue
@@ -133,14 +136,17 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
 	  XrdOfsFS.MessagesMutex.UnLock();
 	}
 
-	Matches.message->AddRefs(1);
-	
 	ZTRACE(open,"Adding Message to Queuename: "<< Out->QueueName.c_str());
-	Out->MessageQueue.Add((Matches.message));
+	//	fprintf(stderr, "%s adding message %llu\n", Out->QueueName.c_str(), (unsigned long long)Matches.message);
+	Out->MessageQueue.push_back((Matches.message));
+	Matches.message->AddRefs(1);
+
 	Out->nQueued++;
 	//      Out->MessageSem.Post();
       }
     }
+    
+	
 
     // unlock all matched queues at once
     for (unsigned int i=0; i< MatchedOutputQueues.size(); i++) {
@@ -149,7 +155,8 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
     }
   }
 
-
+  Matches.message->procmutex.UnLock();
+  
   if (Matches.matches>0) {
     return true;
   } else {
@@ -160,8 +167,12 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
 size_t
 XrdMqMessageOut::RetrieveMessages() {
   XrdSmartOucEnv* message;
-  while ((message = (XrdSmartOucEnv*) MessageQueue.Remove())) {
+  while (MessageQueue.size()) {
+    message = MessageQueue.front();
+    MessageQueue.pop_front();
     message->procmutex.Lock();
+    //    fprintf(stderr,"%llu %s Message %llu nref: %d\n", (unsigned long long) &MessageQueue, QueueName.c_str(), (unsigned long long) message, message->Refs());
+
     int len;
     MessageBuffer += message->Env(len);
     XrdOfsFS.MessagesMutex.Lock();
@@ -172,6 +183,7 @@ XrdMqMessageOut::RetrieveMessages() {
       XrdOucString msg = message->Get(XMQHEADER);
       XrdOfsFS.Messages.erase(msg.c_str());
       message->procmutex.UnLock();
+      //      fprintf(stderr,"%s delete %llu \n", QueueName.c_str(), (unsigned long long) message);
       delete message;
       XrdOfsFS.FanOutMessages++;
     } else {
@@ -267,7 +279,7 @@ XrdMqOfs::FSctl(const int               cmd,
   delete env;
   env = new XrdSmartOucEnv(envstring.c_str());
 
-  XrdMqOfsMatches matches(mh.kReceiverQueue.c_str(), env, tident, mh.kType);
+  XrdMqOfsMatches matches(mh.kReceiverQueue.c_str(), env, tident, mh.kType, mh.kSenderId.c_str());
   {
     XrdMqOfsOutMutex qm;
     Deliver(matches);
@@ -277,6 +289,10 @@ XrdMqOfs::FSctl(const int               cmd,
     XrdOucString backlogmessage = "queue message on all receivers - maximum backlog exceeded on queues: ";
     backlogmessage += matches.backlogqueues;
     XrdMqOfs::Emsg(epname, error, E2BIG, backlogmessage.c_str(), ipath);
+    if (backlogmessage.length() > 255) {
+      backlogmessage.erase(255);
+      backlogmessage += "...";
+    }
     TRACES(backlogmessage.c_str());
     delete env;
     return SFS_ERROR;
@@ -286,6 +302,11 @@ XrdMqOfs::FSctl(const int               cmd,
   if (matches.backlog) {
     XrdOucString backlogmessage = "guarantee quick delivery - backlog exceeded on queues: ";
     backlogmessage += matches.backlogqueues;
+    if (backlogmessage.length() > 255) {
+      backlogmessage.erase(255);
+      backlogmessage += "...";
+    }
+
     XrdMqOfs::Emsg(epname, error, ENFILE, backlogmessage.c_str(), ipath);
     TRACES(backlogmessage.c_str());
     return SFS_ERROR;

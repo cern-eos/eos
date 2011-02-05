@@ -308,7 +308,7 @@ bool XrdMqClient::AddBroker(const char* brokerurl, bool advisorystatus, bool adv
 XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl, const char* defaultreceiverid) {
   kBrokerN=0;
   kMessageBuffer="";
-  if (!AddBroker(brokerurl)) {
+  if (brokerurl && (!AddBroker(brokerurl))) {
     fprintf(stderr,"error: cannot add broker %s\n", brokerurl);
   }
   if (defaultreceiverid) {

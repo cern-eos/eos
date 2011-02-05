@@ -17,6 +17,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <deque>
 
 #include <utime.h>
 #include <pwd.h>
@@ -39,8 +40,8 @@
 
 
 // if we have too many messages pending we don't take new ones for the moment
-#define MQOFSMAXMESSAGEBACKLOG 25000
-#define MQOFSMAXQUEUEBACKLOG 1000
+#define MQOFSMAXMESSAGEBACKLOG 100000
+#define MQOFSMAXQUEUEBACKLOG 5000
 #define MQOFSREJECTQUEUEBACKLOG 10000
 
 class XrdSysError;
@@ -49,8 +50,6 @@ class XrdSysLogger;
 class XrdSmartOucEnv : public XrdOucEnv {
 private:
   int nref;
-  XrdSmartOucEnv* lastelement;
-  XrdSmartOucEnv* nextelement;
 public:
   XrdSysMutex procmutex;
   
@@ -59,35 +58,8 @@ public:
   void AddRefs(int nrefs) { ;nref += nrefs;}
   XrdSmartOucEnv(const char *vardata=0, int vardlen=0) : XrdOucEnv(vardata,vardlen) {
     nref = 0;
-    lastelement = 0;
-    nextelement = 0;
   }
 
-  void
-  Add(XrdSmartOucEnv* newelement) {
-    if (lastelement) {
-      lastelement->nextelement = newelement;
-      lastelement = newelement;
-    } else {
-      nextelement = newelement;
-      lastelement = newelement;
-    }
-  }
-    
-
-  XrdSmartOucEnv* Remove() {
-    XrdSmartOucEnv* ptr;
-    ptr = 0;
-    if (nextelement) {
-      ptr = nextelement;
-      nextelement = nextelement->nextelement;
-      if (!nextelement) 
-	lastelement = 0;
-    } 
-      
-    return ptr;
-  }
-      
   virtual ~XrdSmartOucEnv() {}
 };
 
@@ -116,8 +88,8 @@ public:
   XrdOucString QueueName;
   XrdSysSemWait DeletionSem; 
   XrdSysSemWait MessageSem; 
-  XrdSmartOucEnv MessageQueue;
-  XrdMqMessageOut(const char* queuename){MessageBuffer="";AdvisoryStatus=false; AdvisoryQuery=false; nQueued=0;QueueName=queuename;};
+  std::deque<XrdSmartOucEnv*> MessageQueue;
+  XrdMqMessageOut(const char* queuename){MessageBuffer="";AdvisoryStatus=false; AdvisoryQuery=false; nQueued=0;QueueName=queuename;MessageQueue.clear();};
   std::string MessageBuffer;
   size_t RetrieveMessages();
   virtual ~XrdMqMessageOut(){
