@@ -3,12 +3,12 @@
 
 Summary: eos project
 Name: eos
-Version: 0.0.9e
+Version: @VERSION@
 Release: gcc@GCCVERSION@.9
 Prefix: /opt/eos
 License: none
 Group: Applications/File
-Source: eos-0.0.9e.tar.gz
+Source: @PACKAGE_TARNAME@-@PACKAGE_VERSION@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 BuildRequires: autoconf, automake, libtool
@@ -27,11 +27,11 @@ eos project
 %prep
 
 # TODO: change this explicit path
-%setup -n eos-0.0.9e
+%setup -n @PACKAGE_TARNAME@-@PACKAGE_VERSION@
 
 %build
 ./bootstrap.sh
-CC=/usr/bin/gcc44 CXX=/usr/bin/g++44 ./configure --sysconfdir=/etc/ --with-xrootd=/opt/xrootd/ --prefix=/opt/eos/
+CC=/usr/bin/gcc44 CXX=/usr/bin/g++44 ./configure --sysconfdir=/etc/ --with-xrootd=@XROOTD@ --prefix=@prefix@
 %{__make} %{_smp_mflags} 
 
 %install

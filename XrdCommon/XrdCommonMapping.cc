@@ -395,7 +395,7 @@ XrdCommonMapping::Print(XrdOucString &stdOut, XrdOucString option)
 void
 XrdCommonMapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
 {
-  struct group* gr;
+  // temporary removed  struct group* gr;
   struct passwd passwdinfo;
   char buffer[16384];
 
@@ -432,8 +432,10 @@ XrdCommonMapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
     return; 
   }
 
+  /* remove secondary group searches
   eos_static_debug("group lookup");
   gid_t gid = id->gid;
+
 
   setgrent();
 
@@ -455,6 +457,7 @@ XrdCommonMapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
     }
   }
   endgrent();
+  */
 
   // add to the cache
   gid_vector* vec = new uid_vector;

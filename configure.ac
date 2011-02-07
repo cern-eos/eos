@@ -1,5 +1,5 @@
 AC_PREREQ(2.57)
-AC_INIT(eos,0.0.9,[andreas.joachim.peters@cern.ch])
+AC_INIT(eos,0.0.9e,[andreas.joachim.peters@cern.ch])
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 AC_CONFIG_SRCDIR([configure.ac])
@@ -9,6 +9,8 @@ AM_INIT_AUTOMAKE(1.6 foreign)
 AC_PREFIX_DEFAULT(/opt/eos/)
 
 export CXXFLAGS="-Wall -Werror -O2 -g $CXXFLAGS"
+
+rpm -q sparsehash >&/dev/null || ( curl http://google-sparsehash.googlecode.com/files/sparsehash-1.10-1.noarch.rpm -o /tmp/sparsehash.rpm ; rpm -i /tmp/sparsehash.rpm; unlink /tmp/sparsehash.rpm ) >&/dev/null
 
 case "$target_os" in
    tiger*)
@@ -78,6 +80,8 @@ EOS_INCDIR="${prefix}/include/"
 
 AC_SUBST(XROOTD_INCDIR)
 AC_SUBST(XROOTD_LIBDIR)
+AC_SUBST(XROOTD)
+
 AC_SUBST(EOS_INCDIR)
 
 # check for typedefs, structures and compiler characteristics.
@@ -159,6 +163,9 @@ AC_CHECK_LIB([readline], [rl_completion_matches], ,
 AC_CHECK_HEADER([openssl/evp.h], ,
     [AC_MSG_ERROR([missing openssl/evp.h, install openssl-devel])])
 
+AC_CHECK_HEADER([google/sparse_hash_map], ,
+    [AC_MSG_ERROR([missing google sparsehash, install sparsehash])])
+
 AC_CHECK_HEADER([uuid/uuid.h], ,
     [AC_MSG_ERROR([missing uuid/uuid.h, install e2fsprogs-devel])])
 AC_CHECK_LIB([uuid], [uuid_generate], ,
@@ -166,6 +173,7 @@ AC_CHECK_LIB([uuid], [uuid_generate], ,
 
 AC_CHECK_LIB([termcap], [tputs], ,
     [AC_MSG_ERROR([missing tputs() in -ltermcap, install libtermcap-devel])])
+
 
 export LDFLAGS=$LDFLAGS_SAVE
 
@@ -189,5 +197,6 @@ AC_CONFIG_FILES([Makefile                  \
                  Console/Commands/Makefile \
                  Sync/Makefile             \
                  Namespace/Makefile        \
-                 Namespace/tests/Makefile])
+                 Namespace/tests/Makefile  \
+		 eos.spec])
 AC_OUTPUT

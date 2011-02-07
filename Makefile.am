@@ -11,7 +11,11 @@ silent:
             -e 's/.*-o  *\([^ ]*\).*/++++ Creating \1 ++++/p' \
             -e '/make/p'
 
-EXTRA_DIST = bootstrap.sh Doxyfile eos.spec etc/xrd.cf.mgm etc/xrd.cf.fst etc/xrd.cf.mq etc/xrd.cf.sync etc/cron.d/xrd-logs etc/cron.d/xrd-alive etc/cron.d/eos-health etc/init.d/xrd etc/init.d/cmsd etc/init.d/eossync etc/init.d/eoshealth etc/sysconfig/xrd.example etc/sysconfig/eossync.example configure.ac m4 Namespace/tests/*.cc Namespace/tests/Makefile.am Namespace/utils Namespace/views Namespace/persistency XrdFstOfs/eosfsttrim XrdFstOfs/eosfstmgmsync XrdFstOfs/eosfstclean XrdFstOfs/eosfstcheck srm/eossrmspace
+EXTRA_DIST = bootstrap.sh Doxyfile eos.spec eos.spec.in etc/xrd.cf.mgm etc/xrd.cf.fst etc/xrd.cf.mq etc/xrd.cf.sync etc/cron.d/xrd-logs etc/cron.d/xrd-alive etc/cron.d/eos-health etc/init.d/xrd etc/init.d/cmsd etc/init.d/eossync etc/init.d/eoshealth etc/sysconfig/xrd.example etc/sysconfig/eossync.example configure.ac Namespace/tests/*.cc Namespace/tests/Makefile.am Namespace/utils Namespace/views Namespace/persistency XrdFstOfs/eosfsttrim XrdFstOfs/eosfstmgmsync XrdFstOfs/eosfstclean XrdFstOfs/eosfstcheck srm/eossrmspace
+
+rpm:    dist 
+	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
+	rpmbuild -bb eos.spec
 
 doc:
 	@export DOXYGEN=`which doxygen`; \
@@ -46,10 +50,17 @@ install-exec-local:
 	@$(INSTALL) -m 644 $(srcdir)/etc/cron.d/eos-health $(DESTDIR)/$(sysconfdir)/cron.d/eos-health
 	@$(INSTALL) -m 644 $(srcdir)/etc/sysconfig/xrd.example $(DESTDIR)/$(sysconfdir)/sysconfig/xrd.example
 	@$(INSTALL) -m 644 $(srcdir)/etc/sysconfig/eossync.example $(DESTDIR)/$(sysconfdir)/sysconfig/eossync.example
-#	@mv  $(DESTDIR)/$(prefix)/bin/eosfstfsck $(DESTDIR)/$(prefix)/bin/eosfstfsck.v${PACKAGE_VERSION}
-#	@ln -s $(DESTDIR)/$(prefix)/bin/eosfstfsck.v${PACAKGE_VERSION} $(DESTDIR)/$(prefix)/bin/eosfstfsck
 	@$(INSTALL) -m 755 $(srcdir)/XrdFstOfs/eosfsttrim    $(DESTDIR)/$(prefix)/bin/eosfsttrim
 	@$(INSTALL) -m 755 $(srcdir)/XrdFstOfs/eosfstmgmsync $(DESTDIR)/$(prefix)/bin/eosfstmgmsync
 	@$(INSTALL) -m 755 $(srcdir)/XrdFstOfs/eosfstclean   $(DESTDIR)/$(prefix)/bin/eosfstclean
 	@$(INSTALL) -m 755 $(srcdir)/XrdFstOfs/eosfstcheck   $(DESTDIR)/$(prefix)/bin/eosfstcheck
 	@$(INSTALL) -m 755 $(srcdir)/srm/eossrmspace   $(DESTDIR)/$(prefix)/bin/eossrmspace
+
+keytab:
+	mkdir -p $(srcdir)/sss
+	@echo "0 u:nobody g:nobody n:eos-test N:5506672669367468033 c:1282122142 e:0 k:9ae1ada78699e0ecd0320060e33d0bfa6b60c5c911e67b9b1b89e01dacf4d5b0" > $(srcdir)/sss/eos-sss.keytab
+	@chmod 600 $(srcdir)/sss/eos-sss.keytab
+	@xrdsssadmin -g daemon -u daemon -k eos-test add $(srcdir)/sss/eos-sss.keytab
+	@mkdir -p $(DESTDIR)/$(prefix)/sss/
+	@test -e $(DESTDIR)/$(prefix)/sss/eos-sss.keytab || $(INSTALL) -m 600 $(srcdir)/sss/eos-sss.keytab $(DESTDIR)/$(prefix)/sss/
+	@chown daemon.daemon $(DESTDIR)/$(prefix)/sss/eos-sss.keytab
