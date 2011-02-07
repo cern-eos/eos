@@ -4,7 +4,7 @@
 Summary: eos project
 Name: eos
 Version: 0.0.9e
-Release: gcc@GCCVERSION@.9
+Release: gcc4.4
 Prefix: /opt/eos
 License: none
 Group: Applications/File
