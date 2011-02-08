@@ -18,6 +18,10 @@ eosfs_LDADD = -L$(XROOTD_LOCATION)/lib -lXrdPosix ./libXrdPosixFuse.la -L$(FUSE_
 LDADD = -L$(XROOTD_LOCATION)/lib -lXrdPosix -L$(FUSE_LOCATION)/lib -lfuse
 
 
+rpm:    dist
+	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
+	rpmbuild -bb eos-fuse.spec
+
 install-exec-local:
 	mkdir -p $(DESTDIR)/${prefix}/bin/
 	mkdir -p $(DESTDIR)/${sysconfdir}/init.d/

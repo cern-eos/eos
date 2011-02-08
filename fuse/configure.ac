@@ -9,6 +9,8 @@ AC_CONFIG_SRCDIR([eosd.c])
 
 AM_INIT_AUTOMAKE(1.6 foreign)
 
+GCCVERSION=`${CC-gcc} -dumpversion | sed s/\\\./\ /g | cut -d " " -f 1,2 | awk '{printf("%d%d\n", $1,$2);}'`
+
 LIBGCCS="-lgcc_s"
 case "$target_os" in
    tiger*)
@@ -54,7 +56,10 @@ fi
 
 AC_SUBST(LIBGCCS)
 AC_SUBST(MARK64)
-
+AC_SUBST(GCCVERSION)
+AC_SUBST(GCC)
+AC_SUBST(GPP)
+	
 AC_ARG_WITH(xrootd,
           [ --with-xrootd=installation of xrootd version to use],
           [XROOTD_LOCATION=$withval],
@@ -127,5 +132,6 @@ echo "Configuring for .../lib$MARK64 library directories"
 echo "=================================================="
 
 # Generate output files.
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile \
+			  eos-fuse.spec ])
 AC_OUTPUT
