@@ -13,7 +13,30 @@ XrdMqMessaging::Start(void *pp)
 }
 
 /*----------------------------------------------------------------------------*/
-XrdMqMessaging::XrdMqMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus, bool advisoryquery ) 
+void
+XrdMqMessaging::Listen()
+{
+  while(1) {
+    XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
+    //    if (newmessage) newmessage->Print();
+    if (newmessage && SharedObjectManager) {
+      XrdOucString error;
+      bool result = SharedObjectManager->ParseEnvMessage(newmessage,error);
+      if (!result) fprintf(stderr,"XrdMqMessaging::Listen()=>ParseEnvMessage()=>Error %s\n", error.c_str());
+    }
+
+    if (newmessage) {
+      delete newmessage;
+    } else {
+      sleep(1);
+    }
+  }
+}
+    
+
+
+/*----------------------------------------------------------------------------*/
+XrdMqMessaging::XrdMqMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus, bool advisoryquery, XrdMqSharedObjectManager* som) 
 {
   if (gMessageClient.AddBroker(url, advisorystatus,advisoryquery)) {
     zombie = false;
@@ -21,6 +44,7 @@ XrdMqMessaging::XrdMqMessaging(const char* url, const char* defaultreceiverqueue
     zombie = true;
   }
   
+  SharedObjectManager = som;
   XrdOucString clientid=url;
   int spos;
   spos = clientid.find("//");

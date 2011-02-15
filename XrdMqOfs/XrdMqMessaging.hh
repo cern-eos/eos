@@ -3,6 +3,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "XrdMqOfs/XrdMqClient.hh"
+#include "XrdMqOfs/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
@@ -11,17 +12,19 @@ class XrdMqMessaging {
 private:
 protected:
   bool zombie;
+  XrdMqSharedObjectManager* SharedObjectManager;
+
 public:
   static XrdMqClient gMessageClient;
 
   static void* Start(void *pp);
 
-  virtual void Listen()=0;
+  virtual void Listen();
   virtual bool StartListenerThread();
   void Connect();
   
   XrdMqMessaging() {};
-  XrdMqMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false);
+  XrdMqMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false, XrdMqSharedObjectManager* som=0);
   virtual ~XrdMqMessaging();
 
   bool IsZombie() {return zombie;}

@@ -10,7 +10,7 @@ lib_LTLIBRARIES = libXrdMqOfs.la libXrdMqClient.la
 
 INCLUDES = -I$(XROOTD_INCDIR) ${OPENSSL_INCDIR} -I../
 
-bin_PROGRAMS = xrdmqclienttest xrdmqclientmaster xrdmqclientworker xrdmqcryptotest xrdmqdumper xrdmqfeeder
+bin_PROGRAMS = xrdmqclienttest xrdmqclientmaster xrdmqclientworker xrdmqcryptotest xrdmqdumper xrdmqfeeder xrdmqsharedobjectclient xrdmqsharedobjectbroadcastclient
 
 xrdmqclienttest_SOURCES = XrdMqClientTest.cc
 xrdmqclienttest_LDADD   = libXrdMqClient.la
@@ -35,12 +35,21 @@ xrdmqcryptotest_SOURCES = XrdMqCryptoTest.cc
 xrdmqcryptotest_LDADD   = libXrdMqClient.la -lXrdNet
 xrdmqcryptotest_LDFLAGS = -static -export-dynamic -g 
 
+xrdmqsharedobjectclient_SOURCES = XrdMqSharedObjectClient.cc
+xrdmqsharedobjectclient_LDADD   = libXrdMqClient.la
+xrdmqsharedobjectclient_LDFLAGS = -static -export-dynamic -lrt
+
+xrdmqsharedobjectbroadcastclient_SOURCES = XrdMqSharedObjectBroadCastClient.cc
+xrdmqsharedobjectbroadcastclient_LDADD   = libXrdMqClient.la
+xrdmqsharedobjectbroadcastclient_LDFLAGS = -static -export-dynamic -lrt
+
 libXrdMqOfs_la_SOURCES = \
 	XrdMqOfs.cc \
 	XrdMqOfsFSctl.cc \
 	XrdMqOfs.hh \
 	XrdMqMessage.cc \
-	XrdMqMessage.hh
+	XrdMqMessage.hh 
+
 
 libXrdMqOfs_la_LIBADD = -L$(XROOTD_LIBDIR)/ -lXrdSys -lXrdOuc -lXrdClient -lXrdOfs ${OPENSSL_LIBDIR} -lcrypto -luuid -lcurses 
 libXrdMqOfs_la_LDFLAGS = -module
@@ -54,7 +63,10 @@ libXrdMqClient_la_SOURCES = \
 	XrdMqMessage.hh \
 	XrdMqTiming.hh \
 	XrdMqMessaging.cc \
-	XrdMqMessaging.hh
+	XrdMqMessaging.hh \
+	XrdMqRWMutex.hh \
+	XrdMqSharedObject.cc \
+	XrdMqSharedObject.hh
 
 libXrdMqClient_la_LIBADD = -L$(XROOTD_LIBDIR)/ -lXrdSys -lXrdNet -lXrdOuc -lXrdClient ${OPENSSL_LIBDIR} -lcrypto -luuid -lcurses
 

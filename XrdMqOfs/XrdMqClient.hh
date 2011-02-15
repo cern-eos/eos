@@ -42,7 +42,8 @@ public:
   XrdOucString  GetBrokerId(int i);
   XrdClient*      GetBrokerXrdClientReceiver(int i);
   XrdClientAdmin* GetBrokerXrdClientSender(int i);
- 
+  const char*   GetClientId() {return kClientId.c_str();}
+
   bool AddBroker(const char* brokerurl, bool advisorystatus=false, bool advisoryquery=false);
 
 

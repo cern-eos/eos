@@ -24,6 +24,7 @@ const char *XrdMqOfsCVSID = "$Id: XrdMqOfs.cc,v 1.0.0 2007/10/04 01:34:19 ajp Ex
 
 #include <pwd.h>
 #include <grp.h>
+#include <signal.h>
 
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
@@ -39,7 +40,11 @@ XrdOucHash<XrdOucString>*     XrdMqOfs::stringstore;
 
 XrdMqOfs   XrdOfsFS;
 
-
+void
+xrdmqofs_shutdown(int sig) {
+  
+  exit(0);
+}
 
 /******************************************************************************/
 /*                        C o n v i n i e n c e                               */
@@ -91,6 +96,11 @@ XrdMqOfs::XrdMqOfs(XrdSysError *ep)
   AdvisoryMessages = 0;
   UndeliverableMessages = 0;
   DiscardedMonitoringMessages = 0;
+  
+  (void) signal(SIGINT,xrdmqofs_shutdown);
+
+  fprintf(stderr,"Addr::QueueOutMutex        0x%llx\n",(unsigned long long) &XrdOfsFS.QueueOutMutex);
+  fprintf(stderr,"Addr::MessageMutex         0x%llx\n",(unsigned long long) &XrdOfsFS.MessagesMutex);
 }
 
 /******************************************************************************/
@@ -182,7 +192,7 @@ XrdMqOfs::stat(const char                *queuename,
 
   {
     XrdMqOfsOutMutex qm;
-    if (!(Out = XrdOfsFS.QueueOut[squeue])) {
+    if ((!XrdOfsFS.QueueOut.count(squeue)) || (!(Out = XrdOfsFS.QueueOut[squeue]))) {
       return XrdMqOfs::Emsg(epname, error, EINVAL,"check queue - no such queue");
     }
     Out->DeletionSem.Wait();
@@ -313,15 +323,15 @@ XrdMqOfsFile::close() {
 
   {
     XrdMqOfsOutMutex qm; 
-    if (Out) {
+    if ((XrdOfsFS.QueueOut.count(squeue)) && (Out = XrdOfsFS.QueueOut[squeue])) {
       // hmm this could create a dead lock
       //      Out->DeletionSem.Wait();
       Out->Lock();
       // we have to take away all pending messages
       Out->RetrieveMessages();
       XrdOfsFS.QueueOut.erase(squeue);
+      delete Out;
     }
-    delete Out;
     Out = 0;
   }
 
@@ -617,6 +627,7 @@ XrdMqOfs::Statistics() {
     LastAdvisoryMessages = AdvisoryMessages;
     LastUndeliverableMessages = UndeliverableMessages;
     LastNoMessages = NoMessages;
+    LastDiscardedMonitoringMessages = DiscardedMonitoringMessages;
 
   }
 

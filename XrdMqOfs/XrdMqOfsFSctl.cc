@@ -89,7 +89,9 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
 
       std::string queuename = Matches.queuename.c_str();
 
-      XrdMqMessageOut* Out = QueueOut[queuename];
+      XrdMqMessageOut* Out = 0;
+      if (QueueOut.count(queuename))
+	Out = QueueOut[queuename];
       if (Out) {
 	ZTRACE(open,"Adding full matched Message to Queuename: "<< Out->QueueName.c_str());
 	MatchedOutputQueues.push_back(Out);
@@ -294,7 +296,8 @@ XrdMqOfs::FSctl(const int               cmd,
       backlogmessage += "...";
     }
     TRACES(backlogmessage.c_str());
-    delete env;
+    if (!matches.message->Refs())
+      delete env;
     return SFS_ERROR;
   }
 
@@ -326,7 +329,11 @@ XrdMqOfs::FSctl(const int               cmd,
     if (env->Get(XMQMONITOR)) {
       ismonitor=true;
     }
-    
+
+    int envlen;
+
+    std::string c = env->Env(envlen);
+
     if (env)
       delete env;
 
@@ -338,6 +345,7 @@ XrdMqOfs::FSctl(const int               cmd,
       TRACES(ipath);
       return SFS_ERROR;
     } else {
+      fprintf(stderr,"Dropped Monitor message %s\n",c.c_str());
       ZTRACE(open,"Discarding montor message without receiver");
       const char* result="OK";
       error.setErrInfo(3,(char*)result);
