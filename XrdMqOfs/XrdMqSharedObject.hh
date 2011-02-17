@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 #include <set>
+#include <queue>
 
 /*----------------------------------------------------------------------------*/
 #include "XrdMqOfs/XrdMqClient.hh"
@@ -22,6 +23,7 @@
 #define XRDMQSHAREDHASH_PAIRS     "mqsh.pairs"
 #define XRDMQSHAREDHASH_KEYS      "mqsh.keys"
 #define XRDMQSHAREDHASH_REPLY     "mqsh.reply"
+#define XRDMQSHAREDHASH_TYPE      "mqsh.type"
 
 class XrdMqSharedObjectManager;
 
@@ -30,10 +32,11 @@ class XrdMqSharedHashEntry {
 public:
   struct timespec mtime;
   std::string entry;
+  std::string key;
   unsigned long long ChangeId;
   
   
-  XrdMqSharedHashEntry(){entry = ""; UpdateTime();ChangeId=0;}
+  XrdMqSharedHashEntry(){key="";entry = ""; UpdateTime();ChangeId=0;}
 
   ~XrdMqSharedHashEntry(){};
 
@@ -41,7 +44,9 @@ public:
 
   void Set(const char* s)  { entry = s; UpdateTime();ChangeId++;}
   void Set(std::string &s) { entry = s; UpdateTime();ChangeId++;}
-  
+  void SetKey(const char* lkey) {key = lkey;}
+  const char* GetKey() {return key.c_str();}
+
   long long GetAgeInMilliSeconds() { 
     struct timespec ntime; 
     clock_gettime(CLOCK_REALTIME, &ntime);
@@ -66,7 +71,7 @@ public:
 
 class XrdMqSharedHash {
 private:
-
+protected:
   unsigned long long ChangeId;
   std::string BroadCastQueue;
   std::string Subject;
@@ -81,8 +86,11 @@ private:
 
   XrdSysSemWait StoreSem;
 
+  std::string Type;
+
 public:
-  XrdMqSharedHash(const char* subject = "", const char* broadcastqueue = "");
+
+  XrdMqSharedHash(const char* subject = "", const char* broadcastqueue = "") ;
 
   virtual ~XrdMqSharedHash();
 
@@ -96,8 +104,16 @@ public:
     std::string skey = key;
 
     XrdMqRWMutexWriteLock lock(StoreMutex);
+    bool callback=false;
+
+    if (!Store.count(skey)) {
+      callback=true;
+    }
 
     Store[skey].Set(value);
+    if (callback) {
+      CallBackInsert(&Store[skey], skey.c_str());
+    }
 
     if (IsTransaction && broadcast) {
       Transactions.insert(skey);
@@ -130,6 +146,7 @@ public:
     bool deleted = false;
     XrdMqRWMutexWriteLock lock(StoreMutex);
     if (Store.count(key)) {
+      CallBackDelete(&Store[key]);
       Store.erase(key);
       deleted = true;
       if (IsTransaction && broadcast) {
@@ -144,6 +161,7 @@ public:
     XrdMqRWMutexWriteLock lock(StoreMutex);
     std::map<std::string, XrdMqSharedHashEntry>::iterator storeit;
     for (storeit = Store.begin(); storeit != Store.end(); storeit++) {
+      CallBackDelete(&storeit->second);
       if (IsTransaction) {
 	Deletions.insert(storeit->first);
 	Transactions.erase(storeit->first);
@@ -179,6 +197,9 @@ public:
   bool BroadCastEnvString(const char* receiver);
   void Dump(XrdOucString &out);
 
+  virtual void CallBackInsert(XrdMqSharedHashEntry *entry, const char* key) {};
+  virtual void CallBackDelete(XrdMqSharedHashEntry *entry) {};
+
   bool BroadCastRequest(const char* requesttarget = 0); // the queue name which should respond or otherwise the default broad cast queue
 
   unsigned long long GetChangeId() { return ChangeId;}
@@ -189,16 +210,51 @@ public:
 };
 
 
-class XrdMqSharedList {
+class XrdMqSharedQueue : public XrdMqSharedHash  {
+private:
+  std::deque<XrdMqSharedHashEntry*> Queue;
+  unsigned long long LastObjectId;
+
 public:
-  XrdMqSharedList(const char* subject = "", const char* broadcastqueue = "") {}
-  virtual ~XrdMqSharedList(){}
+  XrdMqSharedQueue(const char* subject = "", const char* broadcastqueue = "") : XrdMqSharedHash(subject,broadcastqueue) { Type = "queue"; LastObjectId=0;}
+  virtual ~XrdMqSharedQueue(){}
+
+  virtual void CallBackInsert(XrdMqSharedHashEntry *entry, const char* key);
+  virtual void CallBackDelete(XrdMqSharedHashEntry *entry);
+
+  std::deque<XrdMqSharedHashEntry*>* GetQueue() { return &Queue;}
+
+  bool Delete(XrdMqSharedHashEntry* entry) {
+    if (entry) {
+      std::deque<XrdMqSharedHashEntry*>::iterator it;
+      // remove hash entry ... this has a call back removing it also from the queue ...
+      return XrdMqSharedHash::Delete(entry->GetKey());
+    }
+    return false;
+  }
+
+  bool PushBack(const char* uid, const char* value) {
+    std::string uuid;
+    if (uid) {
+      uuid = uid;
+    } else {
+      char lld[1024]; snprintf(lld, 1023,"%llu", LastObjectId+1);
+      uuid = lld;
+    }
+
+    if (Store.count(uuid)) {
+      return false;
+    } else {
+      Set(uuid.c_str(), value);
+      return true;
+    }
+  }
 };
 
 class XrdMqSharedObjectManager {
 private:
   std::map<std::string, XrdMqSharedHash*> hashsubjects;
-  std::map<std::string, XrdMqSharedList> listsubjects;
+  std::map<std::string, XrdMqSharedQueue> queuesubjects;
   bool debug;
 
 public:
@@ -207,12 +263,34 @@ public:
   
   XrdMqSharedObjectManager();
   ~XrdMqSharedObjectManager();
-  
+
+  bool CreateSharedObject(const char* subject, const char* broadcastqueue, const char* type = "hash") {
+    std::string Type = type;
+    if (Type == "hash") {
+      return CreateSharedHash(subject,broadcastqueue);
+    }
+    if (Type == "queue") {
+      return CreateSharedQueue(subject,broadcastqueue);
+    }
+    return false;
+  }
+
   bool CreateSharedHash(const char* subject, const char* broadcastqueue);
-  bool CreateSharedList(const char* subject, const char* broadcastqueue);
+  bool CreateSharedQueue(const char* subject, const char* broadcastqueue);
   
   bool DeleteSharedHash(const char* subject);
-  bool DeleteSharedList(const char* subject);
+  bool DeleteSharedQueue(const char* subject);
+
+  XrdMqSharedHash* GetObject(const char* subject, const char* type) {
+    std::string Type = type;
+    if (Type == "hash") {
+      return GetHash(subject);
+    }
+    if (Type == "queue") {
+      return GetQueue(subject);
+    }
+    return 0;
+  }
 
   XrdMqSharedHash* GetHash(const char* subject) // don't forget to use the RWMutex for read or write locks
   {
@@ -223,15 +301,15 @@ public:
       return 0;
   }
 
-  XrdMqSharedList* GetList(const char* subject) // don't forget to use the RWMutex for read or write locks
+  XrdMqSharedQueue* GetQueue(const char* subject) // don't forget to use the RWMutex for read or write locks
   {
     std::string ssubject = subject;
-    if (listsubjects.count(ssubject))
-    return &listsubjects[ssubject];
+    if (queuesubjects.count(ssubject))
+    return &queuesubjects[ssubject];
     else 
       return 0;
   }
-  
+
   void DumpSharedObjectList(XrdOucString& out);
 
   bool ParseEnvMessage(XrdMqMessage* message, XrdOucString &error);

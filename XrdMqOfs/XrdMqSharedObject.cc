@@ -44,19 +44,19 @@ XrdMqSharedObjectManager::CreateSharedHash(const char* subject, const char* broa
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMqSharedObjectManager::CreateSharedList(const char* subject, const char* broadcastqueue) 
+XrdMqSharedObjectManager::CreateSharedQueue(const char* subject, const char* broadcastqueue) 
 {
   std::string ss = subject;
 
   ListMutex.LockWrite();
   
-  if (listsubjects.count(ss)>0) {
+  if (queuesubjects.count(ss)>0) {
     ListMutex.UnLockWrite();
     return false;
   } else {
-    XrdMqSharedList newlist(subject, broadcastqueue);
+    XrdMqSharedQueue newlist(subject, broadcastqueue);
 
-    listsubjects.insert( std::pair<std::string, XrdMqSharedList> (ss, newlist));
+    queuesubjects.insert( std::pair<std::string, XrdMqSharedQueue> (ss, newlist));
     
     ListMutex.UnLockWrite();
     return true;
@@ -85,14 +85,14 @@ XrdMqSharedObjectManager::DeleteSharedHash(const char* subject)
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMqSharedObjectManager::DeleteSharedList(const char* subject) 
+XrdMqSharedObjectManager::DeleteSharedQueue(const char* subject) 
 {
   std::string ss = subject;
   
   ListMutex.LockWrite();
   
-  if (listsubjects.count(ss)>0) {
-    listsubjects.erase(ss);
+  if (queuesubjects.count(ss)>0) {
+    queuesubjects.erase(ss);
     ListMutex.UnLockWrite();
     return true;
   } else {
@@ -117,8 +117,8 @@ XrdMqSharedObjectManager::DumpSharedObjectList(XrdOucString& out)
   HashMutex.UnLockRead();
   
   ListMutex.LockRead();
-  std::map<std::string , XrdMqSharedList>::const_iterator it_list;
-  for (it_list=listsubjects.begin(); it_list!= listsubjects.end(); it_list++) {
+  std::map<std::string , XrdMqSharedQueue>::const_iterator it_list;
+  for (it_list=queuesubjects.begin(); it_list!= queuesubjects.end(); it_list++) {
     //    snprintf(formatline,sizeof(formatline)-1,"subject=%32s broadcastqueue=%32s size=%u changeid=%llu\n",it_hash->first.c_str(), it_hash->second.GetBroadCastQueue(),(unsigned int) it_hash->second.GetSize(), it_hash->second.GetChangeId());
     out += formatline;
   }
@@ -132,6 +132,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
   error = "";
   std::string subject = "";
   std::string reply   = "";
+  std::string type = "";
 
   if (!message) {
     error = "no message provided";
@@ -155,33 +156,67 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
     reply = "";
   }
 
+  if (env.Get(XRDMQSHAREDHASH_TYPE)) {
+    type = env.Get(XRDMQSHAREDHASH_TYPE);
+  } else {
+    error = "no hash type in message body";
+    return false;
+  }
+
   if (env.Get(XRDMQSHAREDHASH_CMD)) {
     HashMutex.LockRead();
-    XrdMqSharedHash* sh = GetHash(subject.c_str());
-    // automatically create the subject, if it does not exist
-    if (!sh) {
-      HashMutex.UnLockRead();
-      HashMutex.LockWrite();
-      if (!CreateSharedHash(subject.c_str(),"")) {
-	HashMutex.UnLockWrite();
-	error = "cannot create shared hash for "; error += subject.c_str();
+    XrdMqSharedHash* sh;
+    sh = GetObject(subject.c_str(), type.c_str());
+
+    XrdOucString ftag = XRDMQSHAREDHASH_CMD; ftag += "="; ftag += env.Get(XRDMQSHAREDHASH_CMD);
+
+
+    if ( (ftag == XRDMQSHAREDHASH_BCREQUEST) || (ftag == XRDMQSHAREDHASH_DELETE) ) {
+      // if we don't know the subject, we don't create it with a BCREQUEST
+      if ( ( ftag == XRDMQSHAREDHASH_BCREQUEST) && (reply == "")) {
+	error = "bcrequest: no reply address present";
 	return false;
       }
-      sh = GetHash(subject.c_str());
-      HashMutex.UnLockWrite();
+      
+      HashMutex.LockRead();
+      XrdMqSharedHash* sh;
+      sh = GetObject(subject.c_str(),type.c_str());
+
+      if (!sh) {
+	HashMutex.UnLockRead();
+	if (ftag == XRDMQSHAREDHASH_BCREQUEST) {
+	  error = "bcrequest: don't know this subject";
+	} 
+	if (ftag == XRDMQSHAREDHASH_DELETE) {
+	  error = "delete: don't know this subject";
+	}
+	return false;
+      }
     } else {
-      HashMutex.UnLockRead();
+      // automatically create the subject, if it does not exist
+      if (!sh) {
+	HashMutex.UnLockRead();
+	HashMutex.LockWrite();
+	if (!CreateSharedObject(subject.c_str(),"",type.c_str())) {
+	  HashMutex.UnLockWrite();
+	  error = "cannot create shared object for "; error += subject.c_str(); error += " and type "; error += type.c_str();
+	  return false;
+	}
+	
+	sh = GetObject(subject.c_str(), type.c_str());
+	HashMutex.UnLockWrite();
+      } else {
+	HashMutex.UnLockRead();
+      }
     }
 
     XrdMqRWMutexReadLock lock(HashMutex);
 
     // from here on we have a read lock on 'sh'
 
-    XrdOucString ftag = XRDMQSHAREDHASH_CMD; ftag += "="; ftag += env.Get(XRDMQSHAREDHASH_CMD);
-
     if ( (ftag == XRDMQSHAREDHASH_UPDATE) || (ftag == XRDMQSHAREDHASH_BCREPLY) ) {
       std::string val = (env.Get(XRDMQSHAREDHASH_PAIRS)?env.Get(XRDMQSHAREDHASH_PAIRS):"");
-      if ( val.length() <= strlen(XRDMQSHAREDHASH_PAIRS+1)) {
+      if ( val.length() <=0 ) {
 	error = "no pairs in message body";
 	return false;
       }
@@ -240,19 +275,6 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
     }
 
     if (ftag == XRDMQSHAREDHASH_BCREQUEST) {
-      if (reply == "") {
-	error = "bcrequest: no reply address present";
-	return false;
-      }
-
-      HashMutex.LockRead();
-      XrdMqSharedHash* sh = GetHash(subject.c_str());
-      if (!sh) {
-	HashMutex.UnLockRead();
-	error = "bcrequest: don't know this hash subject";
-	return false;
-      }
-
       return (sh->BroadCastEnvString(reply.c_str()));
     }
     
@@ -300,6 +322,7 @@ XrdMqSharedHash::XrdMqSharedHash(const char* subject, const char* broadcastqueue
   Subject        = subject;
   ChangeId       = 0;
   IsTransaction  = false;
+  Type           = "hash";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -342,6 +365,7 @@ void
 XrdMqSharedHash::MakeBroadCastEnvHeader(XrdOucString &out)
 {
   out = XRDMQSHAREDHASH_BCREPLY; out += "&"; out += XRDMQSHAREDHASH_SUBJECT; out += "="; out += Subject.c_str();
+  out += "&"; out += XRDMQSHAREDHASH_TYPE;    out += "="; out += Type.c_str();
 }
 
 
@@ -350,6 +374,7 @@ void
 XrdMqSharedHash::MakeUpdateEnvHeader(XrdOucString &out)
 {
   out = XRDMQSHAREDHASH_UPDATE; out += "&"; out += XRDMQSHAREDHASH_SUBJECT; out += "="; out += Subject.c_str();
+  out += "&"; out += XRDMQSHAREDHASH_TYPE;    out += "="; out += Type.c_str();
 }
 
 
@@ -358,6 +383,7 @@ void
 XrdMqSharedHash::MakeDeletionEnvHeader(XrdOucString &out)
 {
   out = XRDMQSHAREDHASH_DELETE; out += "&"; out += XRDMQSHAREDHASH_SUBJECT; out += "="; out += Subject.c_str();
+  out += "&"; out += XRDMQSHAREDHASH_TYPE;    out += "="; out += Type.c_str();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -447,8 +473,32 @@ XrdMqSharedHash::BroadCastRequest(const char* requesttarget) {
   out += XRDMQSHAREDHASH_BCREQUEST; 
   out += "&"; out += XRDMQSHAREDHASH_SUBJECT; out += "="; out += Subject.c_str();
   out += "&"; out += XRDMQSHAREDHASH_REPLY;   out += "="; out += XrdMqMessaging::gMessageClient.GetClientId();
+  out += "&"; out += XRDMQSHAREDHASH_TYPE;    out += "="; out += Type.c_str();
   message.SetBody(out.c_str());
   message.MarkAsMonitor();
   return XrdMqMessaging::gMessageClient.SendMessage(message, requesttarget);  
 }
+
+/*----------------------------------------------------------------------------*/
+void
+XrdMqSharedQueue::CallBackInsert(XrdMqSharedHashEntry *entry, const char* key) 
+{
+  entry->SetKey(key);
+  Queue.push_back(entry);
+  LastObjectId++;
+}
+ 
+/*----------------------------------------------------------------------------*/
+void
+XrdMqSharedQueue::CallBackDelete(XrdMqSharedHashEntry *entry)
+{
+  std::deque<XrdMqSharedHashEntry*>::iterator it;
+  for (it = Queue.begin(); it != Queue.end(); it++) {
+    if (*it == entry) {
+      Queue.erase(it);
+      break;
+    }
+  }
+}
+
 /*----------------------------------------------------------------------------*/

@@ -37,8 +37,9 @@ int main (int argc, char* argv[]) {
   for (int i=0; i< nhash; i++) {
     XrdOucString str = "statistics";
     str += i;
-    ObjectManager.CreateSharedHash(str.c_str(),"/eos/*/worker");
+    ObjectManager.CreateSharedObject(str.c_str(),"/eos/*/worker","queue");
   }
+
 
   TIMING("START",&mq);
 
@@ -46,30 +47,29 @@ int main (int argc, char* argv[]) {
     ObjectManager.HashMutex.LockRead();
     for (int v=0; v<nhash; v++) {
       XrdOucString str = "statistics"; str += v;
-      XrdMqSharedHash* hash = ObjectManager.GetObject(str.c_str(),"hash");
+      XrdMqSharedQueue* queue =  dynamic_cast<XrdMqSharedQueue*>( ObjectManager.GetObject(str.c_str(),"queue"));
+      if (!queue) {
+	fprintf(stderr,"error: queue get failed\n");
+	exit(-1);
+      }
 
-      hash->OpenTransaction();
+      if (i==0) {
+	queue->BroadCastRequest("/eos/*/worker");
+	sleep(3);
+      }
+      queue->OpenTransaction();
       
-      for (int j=0; j< 50; j++) {
-	XrdOucString var = "var"; var += j;
-	unsigned long long r= random();
-	fprintf(stderr,"Set %s %s %llu\n", str.c_str(), var.c_str(),r);
-	hash->SetLongLong(var.c_str(), r);
-      }
+      XrdOucString var = "var"; var += v;
+      
+      queue->PushBack(0,var.c_str());
 
-      hash->Set("hostname", hostname.c_str());
-
-      if ( !(rand()%10)) {
-	//	fprintf(stderr,"Clearing Hash!\n");
-	hash->Clear();
-      }
-      hash->CloseTransaction();
+      queue->CloseTransaction();
       XrdOucString out;
       out += "---------------------------\n";
       out += "subject="; out += str.c_str(); out += "\n";
-      //      hash->Dump(out);
-      //      printf("%s", out.c_str());
-      //      sleep(1);
+      queue->Dump(out);
+      printf("%s", out.c_str());
+      sleep(1);
     }
 
     ObjectManager.HashMutex.UnLockRead();

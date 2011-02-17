@@ -119,7 +119,7 @@ public:
   int stat(struct stat *buf);
   
   XrdMqOfsFile(char *user=0) : XrdOfsFile(user) {
-    QueueName = "";envOpaque=0;Out=0;}
+    QueueName = "";envOpaque=0;Out=0;IsOpen = false;}
   
   ~XrdMqOfsFile() { 
     if (envOpaque) delete envOpaque;
@@ -131,6 +131,7 @@ private:
   XrdMqMessageOut*       Out;
   
   XrdOucString           QueueName;
+  bool                   IsOpen;
   
 };
 

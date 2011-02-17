@@ -310,12 +310,17 @@ XrdMqOfsFile::open(const char                *queuename,
   XrdOfsFS.QueueOut.insert(std::pair<std::string, XrdMqMessageOut*>(squeue, Out));
 
   ZTRACE(open,"Connected Queue: " << queuename);
+  IsOpen = true;
+
   return SFS_OK;
 }
 
 int
 XrdMqOfsFile::close() {
   EPNAME("close");
+
+  if (!IsOpen) 
+    return SFS_OK;
 
   ZTRACE(close,"Disconnecting Queue: " << QueueName.c_str());
 	 
