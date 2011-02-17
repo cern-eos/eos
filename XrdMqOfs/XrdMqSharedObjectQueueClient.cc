@@ -69,12 +69,24 @@ int main (int argc, char* argv[]) {
       out += "subject="; out += str.c_str(); out += "\n";
       queue->Dump(out);
       printf("%s", out.c_str());
-      sleep(1);
+
+      ObjectManager.HashMutex.LockRead();
+      std::deque<XrdMqSharedHashEntry*>::iterator it;
+      printf("QUEUE [%d]: \n", (int)queue->GetQueue()->size());
+      for (it=queue->GetQueue()->begin(); it != queue->GetQueue()->end(); it++) {
+	printf("%s ", ((XrdMqSharedHashEntry*)(*it))->GetKey());
+      }
+      printf("\n");
+      ObjectManager.HashMutex.UnLockRead();
+      if (!(i%=10)) {
+	fprintf(stderr,"==>clearing queue\n");
+	queue->Clear();
+      }
     }
 
     ObjectManager.HashMutex.UnLockRead();
     
-    usleep (5000000);
+    usleep (1000000);
   }
   
   TIMING("SEND+RECV",&mq);

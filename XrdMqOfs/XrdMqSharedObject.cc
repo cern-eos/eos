@@ -486,6 +486,7 @@ XrdMqSharedQueue::CallBackInsert(XrdMqSharedHashEntry *entry, const char* key)
   entry->SetKey(key);
   Queue.push_back(entry);
   LastObjectId++;
+  //fprintf(stderr,"XrdMqSharedObjectManager::CallBackInsert=> on %s => LOID=%llu\n", key, LastObjectId);
 }
  
 /*----------------------------------------------------------------------------*/
@@ -499,6 +500,7 @@ XrdMqSharedQueue::CallBackDelete(XrdMqSharedHashEntry *entry)
       break;
     }
   }
+  //fprintf(stderr,"XrdMqSharedObjectManager::CallBackDelete=> on %s \n", entry->GetKey());
 }
 
 /*----------------------------------------------------------------------------*/
