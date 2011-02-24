@@ -983,9 +983,11 @@ XrdFstMessaging::Process(XrdMqMessage* newmessage)
 
   if (cmd == "restart") {
     eos_notice("restarting service");
-    system("unset XRDPROG XRDCONFIGFN XRDINSTANCE XRDEXPORTS XRDHOST XRDOFSLIB XRDPORT XRDADMINPATH XRDOFSEVENTS XRDNAME XRDREDIRECT; /etc/init.d/xrd restart fst >& /dev/null");
+    int rc = system("unset XRDPROG XRDCONFIGFN XRDINSTANCE XRDEXPORTS XRDHOST XRDOFSLIB XRDPORT XRDADMINPATH XRDOFSEVENTS XRDNAME XRDREDIRECT; /etc/init.d/xrd restart fst >& /dev/null");
+    if (rc)
+      eos_err("/etc/init.d/xrd restart fst failed");
   }
-
+  
   if (cmd == "rtlog") {
     gOFS.SendRtLog(newmessage);
   }
