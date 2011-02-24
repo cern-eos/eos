@@ -76,7 +76,11 @@ bool XrdFstOfsLoad_NetStat::Measure() {
     int n=0;
     do {
       garbage[0]=0;
-      fgets(garbage,1024,fd);
+      char* s = fgets(garbage,1024,fd);
+      // that is just for the compiler ....
+      if (s==0)
+	fprintf(stderr,"error: cannot read from /proc/net/dev\n");
+
       char* dpos=0;
       if ((dpos = strchr(garbage,':'))) {
 	*dpos = ' ';
