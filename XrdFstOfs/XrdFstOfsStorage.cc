@@ -204,7 +204,10 @@ XrdFstOfsStorage::XrdFstOfsStorage(const char* metadirectory)
 
   // make metadir
   XrdOucString mkmetalogdir = "mkdir -p "; mkmetalogdir += metadirectory;; mkmetalogdir += " >& /dev/null";
-  system(mkmetalogdir.c_str());
+  int src = system(mkmetalogdir.c_str());
+  if (src) {
+    eos_err("%s returned %d", mkmetalogdir.c_str(), src);
+  }
   metaDirectory = metadirectory;
   
   // check if the meta directory is accessible

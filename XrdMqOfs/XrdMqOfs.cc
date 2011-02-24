@@ -533,7 +533,9 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
   XrdOucString basestats = StatisticsFile;
   basestats.erase(basestats.rfind("/"));
   XrdOucString mkdirbasestats="mkdir -p "; mkdirbasestats += basestats; mkdirbasestats += " 2>/dev/null";
-  system(mkdirbasestats.c_str());
+  int src =system(mkdirbasestats.c_str());
+  if (src)
+    fprintf(stderr,"%s returned %d\n", mkdirbasestats.c_str(), src);
   
   BrokerId = "root://";
   BrokerId += ManagerId;

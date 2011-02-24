@@ -5,6 +5,9 @@
 /* Clear the terminal screen */
 int
 com_clear (char *arg) {
-  system("clear");
+  int src = system("clear");
+  if (src) {
+    src = 0;
+  }
   return (0);
 }

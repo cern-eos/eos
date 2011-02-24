@@ -228,7 +228,10 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	} else {
 	  MgmMetaLogDir = val;
 	  // just try to create it in advance
-	  XrdOucString makeit="mkdir -p "; makeit+= MgmMetaLogDir; system(makeit.c_str());
+	  XrdOucString makeit="mkdir -p "; makeit+= MgmMetaLogDir; int src =system(makeit.c_str()); 
+	  if (src) 
+	    eos_err("%s returned %d", makeit.c_str(), src);
+
 	  if (::access(MgmMetaLogDir.c_str(), W_OK|R_OK|X_OK)) {
 	    Eroute.Emsg("Config","I cannot acccess the meta data changelog directory for r/w!", MgmMetaLogDir.c_str()); NoGo=1;
 	  } else {
@@ -385,7 +388,10 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   MgmConfigDir += HostName;
   MgmConfigDir += "/";
 
-  XrdOucString makeit="mkdir -p "; makeit+= MgmConfigDir; system(makeit.c_str());
+  XrdOucString makeit="mkdir -p "; makeit+= MgmConfigDir; int src = system(makeit.c_str());
+  if (src) 
+    eos_err("%s returned %d", makeit.c_str(), src);
+
   // check config directory access
   if (::access(MgmConfigDir.c_str(), W_OK|R_OK|X_OK)) {
     Eroute.Emsg("Config","I cannot acccess the configuration directory for r/w!", MgmConfigDir.c_str()); NoGo=1;
