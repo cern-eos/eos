@@ -14,6 +14,7 @@ namespace eos
   //----------------------------------------------------------------------------
   ContainerMD::ContainerMD( id_t id ):
     pId( id ),
+    pFlags( 0 ),
     pParentId( 0 ),
     pName( "" ),
     pCUid( 0 ),
@@ -59,6 +60,7 @@ namespace eos
   void ContainerMD::serialize( Buffer &buffer ) throw( MDException )
   {
     buffer.putData( &pId,       sizeof( pId ) );
+    buffer.putData( &pFlags,    sizeof( pFlags ) );
     buffer.putData( &pParentId, sizeof( pParentId ) );
     buffer.putData( &pCTime,    sizeof( pCTime ) );
     buffer.putData( &pCUid,     sizeof( pCUid ) );
@@ -91,6 +93,7 @@ namespace eos
   {
     uint16_t offset = 0;
     offset = buffer.grabData( offset, &pId,       sizeof( pId ) );
+    offset = buffer.grabData( offset, &pFlags,    sizeof( pFlags ) );
     offset = buffer.grabData( offset, &pParentId, sizeof( pParentId ) );
     offset = buffer.grabData( offset, &pCTime,    sizeof( pCTime ) );
     offset = buffer.grabData( offset, &pCUid,     sizeof( pCUid ) );

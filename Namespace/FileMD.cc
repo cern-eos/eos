@@ -14,6 +14,7 @@ namespace eos
   //----------------------------------------------------------------------------
   FileMD::FileMD( id_t id, IFileMDSvc *fileMDSvc ):
     pId( id ),
+    pFlags( 0 ),
     pSize( 0 ),
     pContainerId( 0 ),
     pCUid( 0 ),

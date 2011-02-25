@@ -57,13 +57,29 @@ namespace eos
         return pId;
       }
 
+      ////----------------------------------------------------------------------
+      //! Get the flags
+      //------------------------------------------------------------------------
+      uint16_t &getFlags()
+      {
+        return pFlags;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the flags
+      //------------------------------------------------------------------------
+      uint16_t getFlags() const
+      {
+        return pFlags;
+      }
+
       //------------------------------------------------------------------------
       //! Get creation time
       //------------------------------------------------------------------------
       void getCTime( ctime_t &ctime ) const
       {
         ctime.tv_sec = pCTime.tv_sec;
-	ctime.tv_nsec = pCTime.tv_nsec;
+        ctime.tv_nsec = pCTime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -72,7 +88,7 @@ namespace eos
       void setCTime( ctime_t ctime )
       {
         pCTime.tv_sec = ctime.tv_sec;
-	pCTime.tv_nsec = ctime.tv_nsec;
+        pCTime.tv_nsec = ctime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -80,7 +96,7 @@ namespace eos
       //------------------------------------------------------------------------
       void setCTimeNow()
       {
-	clock_gettime(CLOCK_REALTIME, &pCTime);
+        clock_gettime(CLOCK_REALTIME, &pCTime);
       }
 
 
@@ -90,7 +106,7 @@ namespace eos
       void getMTime( ctime_t &mtime ) const
       {
         mtime.tv_sec = pCTime.tv_sec;
-	mtime.tv_nsec = pCTime.tv_nsec;
+        mtime.tv_nsec = pCTime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -99,7 +115,7 @@ namespace eos
       void setMTime( ctime_t mtime )
       {
         pMTime.tv_sec = mtime.tv_sec;
-	pMTime.tv_nsec = mtime.tv_nsec;
+        pMTime.tv_nsec = mtime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -107,7 +123,7 @@ namespace eos
       //------------------------------------------------------------------------
       void setMTimeNow()
       {
-	clock_gettime(CLOCK_REALTIME, &pMTime);
+        clock_gettime(CLOCK_REALTIME, &pMTime);
       }
 
       //------------------------------------------------------------------------
@@ -201,7 +217,7 @@ namespace eos
       //------------------------------------------------------------------------
       LocationVector::const_iterator locationsBegin() const
       {
-	return pLocation.begin();
+        return pLocation.begin();
       }
 
       //------------------------------------------------------------------------
@@ -209,7 +225,7 @@ namespace eos
       //------------------------------------------------------------------------
       LocationVector::const_iterator locationsEnd() const
       {
-	return pLocation.end();
+        return pLocation.end();
       }
 
       //------------------------------------------------------------------------
@@ -217,7 +233,7 @@ namespace eos
       //------------------------------------------------------------------------ 
       LocationVector::const_iterator unlinkedLocationsBegin() const 
       { 
-	return pUnlinkedLocation.begin(); 
+        return pUnlinkedLocation.begin(); 
       } 
     
       //------------------------------------------------------------------------ 
@@ -225,7 +241,7 @@ namespace eos
       //------------------------------------------------------------------------ 
       LocationVector::const_iterator unlinkedLocationsEnd() const 
       { 
-	return pUnlinkedLocation.end(); 
+        return pUnlinkedLocation.end(); 
       }
 
       //------------------------------------------------------------------------
@@ -238,9 +254,9 @@ namespace eos
       //------------------------------------------------------------------------
       location_t getLocation( unsigned int index )
       {
-	if (index < pLocation.size())
-	  return pLocation[index];
-	return 0; 
+        if (index < pLocation.size())
+          return pLocation[index];
+        return 0; 
       }
 
       //------------------------------------------------------------------------
@@ -376,6 +392,7 @@ namespace eos
       // Data members
       //-----------------------------------------------------------------------0
       id_t               pId;
+      uint16_t           pFlags;
       ctime_t            pCTime;
       ctime_t            pMTime;
       uint64_t           pSize;
