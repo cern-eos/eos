@@ -84,6 +84,7 @@ void fillFileMD( eos::FileMD &fileMetadata, int i )
   std::ostringstream o;
   o << "filename_" << i;
   fileMetadata.pId    = i;
+  fileMetadata.pFlags = i*2;
   fileMetadata.setCTime( time );
   fileMetadata.setSize( i*987 );
   fileMetadata.setContainerId( i*765 );
@@ -108,6 +109,7 @@ void checkFileMD( eos::FileMD &fileMetadata, unsigned i )
 
   fileMetadata.getCTime( time );
   CPPUNIT_ASSERT( fileMetadata.pId == i );
+  CPPUNIT_ASSERT( fileMetadata.pFlags == i*2 );
   CPPUNIT_ASSERT( time.tv_sec == i*1234 );
   CPPUNIT_ASSERT( time.tv_nsec == i*456 );
   CPPUNIT_ASSERT( fileMetadata.getSize() == i*987 );
