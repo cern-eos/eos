@@ -4,7 +4,7 @@ xrootd.seclib libXrdSec.so
 xrootd.async off nosf
 ###########################################################
 
-xrd.sched mint 8 maxt 128 idle 64
+xrd.sched mint 8 maxt 256 idle 64
 ###########################################################
 all.export /
 all.role manager
@@ -19,12 +19,14 @@ sec.protocol ssl -d:10 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/gr
 sec.protocol sss -c /opt/eos/sss/eos-sss.keytab -s /opt/eos/sss/eos-sss.keytab
 # KRB  authentication
 sec.protocol krb5 host/<host>@CERN.CH
+# GSI authentication
+sec.protocol gsi -crl:3 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/hostkey.pem -gridmap:/etc/grid-security/daemon/grid-mapfile -d:0
+
 ###########################################################
 sec.protbind lxfs* only sss
 sec.protbind localhost.localdomain unix
 sec.protbind localhost unix
-sec.protbind lxbra0301 unix
-sec.protbind * only ssl krb5 
+sec.protbind * only ssl gsi krb5 
 ###########################################################
 mgmofs.fs /
 mgmofs.targetport 1095
@@ -35,7 +37,7 @@ mgmofs.targetport 1095
 mgmofs.symkey AAAAAAAAAAAAAAAAAAAAAAAAAAA=
 #mgmofs.trace all debug
 # this URL can be overwritten by EOS_BROKER_URL defined /etc/sysconfig/xrd
-mgmofs.broker root://lxbra0301.cern.ch:1097//eos/
-#mgmofs.configdir /var/eos/config
-#mgmofs.metalog /var/eos/md
-
+mgmofs.broker root://localhost:1097//eos/
+mgmofs.configdir /var/eos/config
+mgmofs.metalog /var/eos/md
+###########################################################

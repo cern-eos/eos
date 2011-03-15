@@ -16,7 +16,7 @@ sysprog="$prog"
 sysconfigfile="eossync"
 
 # Defaults
-EOS_LOCATION="/opt/eos"
+EOS_LOCATION="/usr/"
 EOS_MAXFD=65000
 EOS_USER="daemon"
 EOS_LOGDIR="/var/log/xroot/sync"

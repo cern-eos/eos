@@ -16,7 +16,7 @@ sysconfigfile="xrd"
 
 # Defaults
 XRD_LOCATION="/usr/"
-EOS_LOCATION="/opt/eos"
+EOS_LOCATION="/usr/"
 XRD_MAXFD=65000
 XRD_USER="daemon"
 XRD_LOGDIR="/var/log/xroot"
