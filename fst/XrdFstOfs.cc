@@ -1,10 +1,10 @@
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonFmd.hh"
-#include "XrdCommon/XrdCommonFileId.hh"
-#include "XrdCommon/XrdCommonFileSystem.hh"
-#include "XrdCommon/XrdCommonPath.hh"
-#include "XrdCommon/XrdCommonStatfs.hh"
-#include "XrdFstOfs/XrdFstOfs.hh"
+#include "common/Fmd.hh"
+#include "common/FileId.hh"
+#include "common/FileSystem.hh"
+#include "common/Path.hh"
+#include "common/Statfs.hh"
+#include "fst/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
@@ -19,11 +19,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-class XrdFstOfs;
-
 /*----------------------------------------------------------------------------*/
 // the global OFS handle
-XrdFstOfs gOFS;
+eos::fst::XrdFstOfs eos::fst::gOFS;
 // the client admin table
 // the capability engine
 
@@ -51,18 +49,20 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 
 // Initialize the subsystems
 //
-   gOFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
+   eos::fst::gOFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
 
-   if ( gOFS.Configure(OfsEroute) ) return 0;
+   if ( eos::fst::gOFS.Configure(OfsEroute) ) return 0;
 // Initialize the target storage system
 //
-   if (!(XrdOfsOss = (XrdOssSys*) XrdOssGetSS(lp, configfn, gOFS.OssLib))) return 0;
+   if (!(XrdOfsOss = (XrdOssSys*) XrdOssGetSS(lp, configfn, eos::fst::gOFS.OssLib))) return 0;
 
 // All done, we can return the callout vector to these routines.
 //
-   return &gOFS;
+   return &eos::fst::gOFS;
 }
 }
+
+EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 int XrdFstOfs::Configure(XrdSysError& Eroute) 
@@ -77,16 +77,17 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
     return rc;
 
 
-  XrdFstOfsConfig::gConfig.autoBoot = false;
+  eos::fst::Config::gConfig.autoBoot = false;
 
-  XrdFstOfsConfig::gConfig.FstOfsBrokerUrl = "root://localhost:1097//eos/";
+  eos::fst::Config::gConfig.FstOfsBrokerUrl = "root://localhost:1097//eos/";
 
-  XrdFstOfsConfig::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
+  eos::fst::Config::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
 
-  XrdFstOfsConfig::gConfig.FstQuotaReportInterval = 60;
+  eos::fst::Config::gConfig.FstQuotaReportInterval = 60;
 
   setenv("XrdClientEUSER", "daemon", 1);
 
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // extract the manager from the config file
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
 
@@ -112,14 +113,14 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 	    NoGo=1;
 	  } else {
 	    if (getenv("EOS_SYM_KEY")) {
-	      if (!gXrdCommonSymKeyStore.SetKey64(getenv("EOS_SYM_KEY"),0)) {
+	      if (!eos::common::gSymKeyStore.SetKey64(getenv("EOS_SYM_KEY"),0)) {
 		Eroute.Emsg("Config","cannot decode your (sysconfig) key and use it in the sym key store!");
 		NoGo=1;
 	      }
 	      Eroute.Say("=====> fstofs.symkey(sysconfig) : ", getenv("EOS_SYM_KEY"));
 	    } else {
 	      // this key is valid forever ...
-	      if (!gXrdCommonSymKeyStore.SetKey64(val,0)) {
+	      if (!eos::common::gSymKeyStore.SetKey64(val,0)) {
 		Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
 		NoGo=1;
 	      }
@@ -133,9 +134,9 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 	    Eroute.Emsg("Config","argument 2 for broker missing. Should be URL like root://<host>/<queue>/"); NoGo=1;
 	  } else {
 	    if (getenv("EOS_BROKER_URL")) {
-	      XrdFstOfsConfig::gConfig.FstOfsBrokerUrl = getenv("EOS_BROKER_URL");
+	      eos::fst::Config::gConfig.FstOfsBrokerUrl = getenv("EOS_BROKER_URL");
 	    } else {
-	      XrdFstOfsConfig::gConfig.FstOfsBrokerUrl = val;
+	      eos::fst::Config::gConfig.FstOfsBrokerUrl = val;
 	    }
 
 	  }
@@ -154,7 +155,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 	    Eroute.Emsg("Config","argument 2 for autobootillegal or missing. Must be <true>,<false>,<1> or <0>!"); NoGo=1;
 	  } else {
             if ((!strcmp("true",val) || (!strcmp("1",val)))) {
-              XrdFstOfsConfig::gConfig.autoBoot = true;
+              eos::fst::Config::gConfig.autoBoot = true;
             }
           }
 	}
@@ -163,7 +164,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 	  if (!(val = Config.GetWord())) {
 	    Eroute.Emsg("Config","argument 2 for metalog missing"); NoGo=1;
 	  } else {
-	    XrdFstOfsConfig::gConfig.FstMetaLogDir = val;
+	    eos::fst::Config::gConfig.FstMetaLogDir = val;
 	  }
 	}
 
@@ -171,9 +172,9 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 	  if (!(val = Config.GetWord())) {
 	    Eroute.Emsg("Config","argument 2 for quotainterval missing"); NoGo=1;
 	  } else {
-	    XrdFstOfsConfig::gConfig.FstQuotaReportInterval = atoi(val);
-	    if (XrdFstOfsConfig::gConfig.FstQuotaReportInterval < 10) XrdFstOfsConfig::gConfig.FstQuotaReportInterval = 10;
-	    if (XrdFstOfsConfig::gConfig.FstQuotaReportInterval > 3600) XrdFstOfsConfig::gConfig.FstQuotaReportInterval = 3600;
+	    eos::fst::Config::gConfig.FstQuotaReportInterval = atoi(val);
+	    if (eos::fst::Config::gConfig.FstQuotaReportInterval < 10) eos::fst::Config::gConfig.FstQuotaReportInterval = 10;
+	    if (eos::fst::Config::gConfig.FstQuotaReportInterval > 3600) eos::fst::Config::gConfig.FstQuotaReportInterval = 3600;
 	  }
 	}
       }
@@ -181,75 +182,130 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
     Config.Close();
   }
 
-  if (XrdFstOfsConfig::gConfig.autoBoot) {
+  if (eos::fst::Config::gConfig.autoBoot) {
     Eroute.Say("=====> fstofs.autoboot : true");
   } else {
     Eroute.Say("=====> fstofs.autoboot : false");
   }
 
-  XrdOucString sayquotainterval =""; sayquotainterval += XrdFstOfsConfig::gConfig.FstQuotaReportInterval;
+  XrdOucString sayquotainterval =""; sayquotainterval += eos::fst::Config::gConfig.FstQuotaReportInterval;
   Eroute.Say("=====> fstofs.quotainterval : ",sayquotainterval.c_str());
 
-  if (! XrdFstOfsConfig::gConfig.FstOfsBrokerUrl.endswith("/")) {
-    XrdFstOfsConfig::gConfig.FstOfsBrokerUrl += "/";
+  if (! eos::fst::Config::gConfig.FstOfsBrokerUrl.endswith("/")) {
+    eos::fst::Config::gConfig.FstOfsBrokerUrl += "/";
   }
 
-  XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue = XrdFstOfsConfig::gConfig.FstOfsBrokerUrl;
+  eos::fst::Config::gConfig.FstDefaultReceiverQueue = eos::fst::Config::gConfig.FstOfsBrokerUrl;
 
-  XrdFstOfsConfig::gConfig.FstOfsBrokerUrl += HostName; 
-  XrdFstOfsConfig::gConfig.FstOfsBrokerUrl += ":";
-  XrdFstOfsConfig::gConfig.FstOfsBrokerUrl += myPort;
-  XrdFstOfsConfig::gConfig.FstOfsBrokerUrl += "/fst";
-  Eroute.Say("=====> fstofs.broker : ", XrdFstOfsConfig::gConfig.FstOfsBrokerUrl.c_str(),"");
+  eos::fst::Config::gConfig.FstOfsBrokerUrl += HostName; 
+  eos::fst::Config::gConfig.FstOfsBrokerUrl += ":";
+  eos::fst::Config::gConfig.FstOfsBrokerUrl += myPort;
+  eos::fst::Config::gConfig.FstOfsBrokerUrl += "/fst";
 
+  Eroute.Say("=====> fstofs.broker : ", eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(),"");
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // extract our queue name
+  eos::fst::Config::gConfig.FstQueue = eos::fst::Config::gConfig.FstOfsBrokerUrl;
+  {
+    int pos1 = eos::fst::Config::gConfig.FstQueue.find("//");
+    int pos2 = eos::fst::Config::gConfig.FstQueue.find("//",pos1+2);
+    if (pos2 != STR_NPOS) {
+      eos::fst::Config::gConfig.FstQueue.erase(0, pos2+1);
+    } else {
+      Eroute.Emsg("Config","cannot determin my queue name: ", eos::fst::Config::gConfig.FstQueue.c_str());
+      return 1;
+    }
+  }
+
+  // create our wildcard broadcast name
+  eos::fst::Config::gConfig.FstQueueWildcard =  eos::fst::Config::gConfig.FstQueue;
+  eos::fst::Config::gConfig.FstQueueWildcard+= "/*";
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // create the messaging object(recv thread)
   
-  XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue += "*/mgm";
-  int pos1 = XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.find("//");
-  int pos2 = XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.find("//",pos1+2);
+  eos::fst::Config::gConfig.FstDefaultReceiverQueue += "*/mgm";
+  int pos1 = eos::fst::Config::gConfig.FstDefaultReceiverQueue.find("//");
+  int pos2 = eos::fst::Config::gConfig.FstDefaultReceiverQueue.find("//",pos1+2);
   if (pos2 != STR_NPOS) {
-    XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.erase(0, pos2+1);
+    eos::fst::Config::gConfig.FstDefaultReceiverQueue.erase(0, pos2+1);
   }
 
-  Eroute.Say("=====> fstofs.defaultreceiverqueue : ", XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.c_str(),"");
+  Eroute.Say("=====> fstofs.defaultreceiverqueue : ", eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str(),"");
   // set our Eroute for XrdMqMessage
   XrdMqMessage::Eroute = OfsEroute;
 
-
-
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // create the specific listener class
-  FstOfsMessaging = new XrdFstMessaging(XrdFstOfsConfig::gConfig.FstOfsBrokerUrl.c_str(),XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.c_str());
-  if( (!FstOfsMessaging) || (!FstOfsMessaging->StartListenerThread()) ) NoGo = 1;
+  Messaging = new eos::fst::Messaging(eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(),eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str(),false, false, &ObjectManager);
 
-  if ( (!FstOfsMessaging) || (FstOfsMessaging->IsZombie()) ) {
+  if( (!Messaging) || (!Messaging->StartListenerThread()) ) NoGo = 1;
+
+  if ( (!Messaging) || (Messaging->IsZombie()) ) {
     Eroute.Emsg("Config","cannot create messaging object(thread)");
     NoGo = 1;
   }
   if (NoGo) 
     return NoGo;
 
-
-  // Set Loggin parameters
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Set Logging parameters
   XrdOucString unit = "fst@"; unit+= HostName; unit+=":"; unit+=myPort;
 
   // setup the circular in-memory log buffer
-  XrdCommonLogging::Init();
-  //XrdCommonLogging::SetLogPriority(LOG_DEBUG);
-  XrdCommonLogging::SetLogPriority(LOG_INFO);
-  XrdCommonLogging::SetUnit(unit.c_str());
-  FstOfsMessaging->SetLogId("FstOfsMessaging");
+  eos::common::Logging::Init();
+  //eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  eos::common::Logging::SetLogPriority(LOG_INFO);
+  eos::common::Logging::SetUnit(unit.c_str());
+  Messaging->SetLogId("FstOfsMessaging");
 
   eos_info("logging configured\n");
 
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Attach Storage to the meta log dir
-  FstOfsStorage = XrdFstOfsStorage::Create(XrdFstOfsConfig::gConfig.FstMetaLogDir.c_str());
-  Eroute.Say("=====> fstofs.metalogdir : ", XrdFstOfsConfig::gConfig.FstMetaLogDir.c_str());
-  if (!FstOfsStorage) {
-    Eroute.Emsg("Config","cannot setup meta data storage using directory: ", XrdFstOfsConfig::gConfig.FstMetaLogDir.c_str());
+
+  Storage = eos::fst::Storage::Create(eos::fst::Config::gConfig.FstMetaLogDir.c_str());
+  Eroute.Say("=====> fstofs.metalogdir : ", eos::fst::Config::gConfig.FstMetaLogDir.c_str());
+  if (!Storage) {
+    Eroute.Emsg("Config","cannot setup meta data storage using directory: ", eos::fst::Config::gConfig.FstMetaLogDir.c_str());
     return 1;
   } 
 
-  if (XrdFstOfsConfig::gConfig.autoBoot) {
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  ObjectManager.SetDebug(true);
+
+  // Enable the shared object notification queue
+  ObjectManager.EnableQueue = true;
+  ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
+
+  // Create a wildcard broadcast 
+
+  ObjectManager.CreateSharedHash(eos::fst::Config::gConfig.FstQueueWildcard.c_str(),eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
+  ObjectManager.HashMutex.LockRead();
+  XrdMqSharedHash* hash = ObjectManager.GetHash(eos::fst::Config::gConfig.FstQueueWildcard.c_str());
+
+  if (hash) {
+    // ask for a broadcast
+    hash->BroadCastRequest(eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
+  }
+  ObjectManager.HashMutex.UnLockRead();
+
+  // setup notification subjects
+  ObjectManager.SubjectsMutex.Lock();
+  std::string watch_id = "id";
+  ObjectManager.ModificationWatchKeys.insert(watch_id);
+  ObjectManager.SubjectsMutex.UnLock();
+
+  // start dumper thread
+  XrdOucString dumperfile = eos::fst::Config::gConfig.FstMetaLogDir;
+  dumperfile += "so.fst.dump";
+  ObjectManager.StartDumper(dumperfile.c_str());
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Send Autoboot Request if configured
+
+  if (eos::fst::Config::gConfig.autoBoot) {
     XrdFstOfs::AutoBoot();
   }
 
@@ -291,11 +347,9 @@ XrdFstOfsFile::open(const char                *path,
   gettimeofday(&openTime,&tz);
 
   XrdOucString stringOpaque = opaque;
-  while(stringOpaque.replace("?","&"))  {}
-  while(stringOpaque.replace("&&","&")) {}
+  while(stringOpaque.replace("?","&")){}
+  while(stringOpaque.replace("&&","&")){}
   stringOpaque += "&mgm.path="; stringOpaque += path;
-
-  eos_info("path=%s opaque-in=%s opaque-out=%s", path, opaque,stringOpaque.c_str());
 
   openOpaque  = new XrdOucEnv(stringOpaque.c_str());
   int caprc = 0;
@@ -362,9 +416,9 @@ XrdFstOfsFile::open(const char                *path,
     return gOFS.Emsg(epname,error, EINVAL,"open - no manager name in capability",path);
   }
 
-  XrdCommonFileId::FidPrefix2FullPath(hexfid, localprefix,fstPath);
+  eos::common::FileId::FidPrefix2FullPath(hexfid, localprefix,fstPath);
 
-  fileid = XrdCommonFileId::Hex2Fid(hexfid);
+  fileid = eos::common::FileId::Hex2Fid(hexfid);
 
   fsid   = atoi(sfsid);
   lid = atoi(slid);
@@ -406,8 +460,8 @@ XrdFstOfsFile::open(const char                *path,
 
   // get the identity
 
-  XrdCommonMapping::VirtualIdentity vid;
-  XrdCommonMapping::Nobody(vid);
+  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::Mapping::Nobody(vid);
   
 
   if ((val = capOpaque->Get("mgm.ruid"))) {
@@ -441,7 +495,7 @@ XrdFstOfsFile::open(const char                *path,
   eos_info("fstpath=%s", fstPath.c_str());
 
   // attach meta data
-  fMd = gFmdHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
+  fMd = eos::common::gFmdHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
   if (!fMd) {
     eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
     return gOFS.Emsg(epname,error,EINVAL,"open - unable to get file meta data",path);
@@ -449,11 +503,11 @@ XrdFstOfsFile::open(const char                *path,
 
   // call the checksum factory function with the selected layout
   if (isRW || ( (val = openOpaque->Get("verifychecksum")) && ( (!strcmp(val,"1")) || (!strcmp(val,"yes")) || (!strcmp(val,"true"))) ) )  {
-    checkSum = XrdFstOfsChecksumPlugins::GetChecksumObject(lid);
+    checkSum = eos::fst::ChecksumPlugins::GetChecksumObject(lid);
     eos_debug("checksum requested %d %u", checkSum, lid);
   }
 
-  layOut = XrdFstOfsLayoutPlugins::GetLayoutObject(this, lid, &error);
+  layOut = eos::fst::LayoutPlugins::GetLayoutObject(this, lid, &error);
 
   if( !layOut) {
     int envlen;
@@ -487,21 +541,21 @@ XrdFstOfsFile::open(const char                *path,
   } else {
     // if we have local errors in open we might disable ourselfs
     if ( error.getErrInfo() != EREMOTEIO ) {
-      gOFS.FstOfsStorage->fsMutex.Lock();
-      std::vector <XrdFstOfsFileSystem*>::const_iterator it;
-      for (unsigned int i=0; i< gOFS.FstOfsStorage->fileSystemsVector.size(); i++) {
+      gOFS.Storage->fsMutex.Lock();
+      std::vector <eos::fst::FileSystem*>::const_iterator it;
+      for (unsigned int i=0; i< gOFS.Storage->fileSystemsVector.size(); i++) {
 	// check if the local prefix matches a filesystem path ...
-	if ( (errno != ENOENT) && (fstPath.beginswith(gOFS.FstOfsStorage->fileSystemsVector[i]->GetPath()))) {
+	if ( (errno != ENOENT) && (fstPath.beginswith(gOFS.Storage->fileSystemsVector[i]->GetPath()))) {
 	  // broadcast error for this FS
-	  eos_crit("disabling filesystem %u after IO error on path %s", gOFS.FstOfsStorage->fileSystemsVector[i]->GetId(), gOFS.FstOfsStorage->fileSystemsVector[i]->GetPath());
+	  eos_crit("disabling filesystem %u after IO error on path %s", gOFS.Storage->fileSystemsVector[i]->GetId(), gOFS.Storage->fileSystemsVector[i]->GetPath());
 	  XrdOucString s="local IO error";
-	  gOFS.FstOfsStorage->fileSystemsVector[i]->BroadcastError(EIO, s.c_str());
-	  //	  gOFS.FstOfsStorage->fileSystemsVector[i]->BroadcastError(error.getErrInfo(), "local IO error");
+	  gOFS.Storage->fileSystemsVector[i]->BroadcastError(EIO, s.c_str());
+	  //	  gOFS.Storage->fileSystemsVector[i]->BroadcastError(error.getErrInfo(), "local IO error");
 	  break;
 	}
       }
       
-      gOFS.FstOfsStorage->fsMutex.UnLock();
+      gOFS.Storage->fsMutex.UnLock();
     }
 
     // in any case we just redirect back to the manager if we are the 1st entry point of the client
@@ -522,7 +576,7 @@ XrdFstOfsFile::open(const char                *path,
   if (rc == SFS_OK) {
     // tag this transaction as open
     if (isRW) {
-      if (!gOFS.FstOfsStorage->OpenTransaction(fsid, fileid)) {
+      if (!gOFS.Storage->OpenTransaction(fsid, fileid)) {
 	eos_crit("cannot open transaction for fsid=%u fid=%llu", fsid, fileid);
       }
     }
@@ -556,7 +610,7 @@ XrdFstOfsFile::close()
        float scantime = 0; // is ms
        if (checkSum->ScanFile(fstPath.c_str(), scansize, scantime)) {
 	 XrdOucString sizestring;
-	 eos_info("Rescanned checksum - size=%s time=%.02fms rate=%.02f MB/s", XrdCommonFileSystem::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999));
+	 eos_info("Rescanned checksum - size=%s time=%.02fms rate=%.02f MB/s", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999));
        } else {
 	 eos_err("Rescanning of checksum failed");
        }
@@ -608,11 +662,16 @@ XrdFstOfsFile::close()
        // update size
        fMd->fMd.size     = statinfo.st_size;
        fMd->fMd.mtime    = statinfo.st_mtime;
+#ifdef __APPLE__
+       fMd->fMd.mtime_ns = 0;
+#else
        fMd->fMd.mtime_ns = statinfo.st_mtim.tv_nsec;
+#endif
+
        // set the container id
        fMd->fMd.cid = cid;
 
-       XrdCommonPath cPath(capOpaque->Get("mgm.path"));
+       eos::common::Path cPath(capOpaque->Get("mgm.path"));
        if (cPath.GetName())strncpy(fMd->fMd.name,cPath.GetName(),255);
        const char* val =0;
        if ((val = capOpaque->Get("container"))) {
@@ -621,7 +680,7 @@ XrdFstOfsFile::close()
      }
 
      // commit local
-     if (!gFmdHandler.Commit(fMd))
+     if (!eos::common::gFmdHandler.Commit(fMd))
        rc = gOFS.Emsg(epname,error,EIO,"close - unable to commit meta data",Path.c_str());
 
      // commit to central mgm cache
@@ -639,9 +698,9 @@ XrdFstOfsFile::close()
        capOpaqueFile += checkSum->GetHexChecksum();
      }
      capOpaqueFile += "&mgm.mtime=";
-     capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fMd->fMd.mtime);
+     capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fMd->fMd.mtime);
      capOpaqueFile += "&mgm.mtime_ns=";
-     capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fMd->fMd.mtime_ns);
+     capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fMd->fMd.mtime_ns);
 
      capOpaqueFile += "&mgm.add.fsid=";
      capOpaqueFile += (int)fMd->fMd.fsid;
@@ -652,7 +711,7 @@ XrdFstOfsFile::close()
      }
      rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
      if (rc == -EIDRM) {
-       if (!gOFS.FstOfsStorage->CloseTransaction(fsid, fileid)) {
+       if (!gOFS.Storage->CloseTransaction(fsid, fileid)) {
 	 eos_crit("cannot close transaction for fsid=%u fid=%llu", fsid, fileid);
        }
        // this file has been deleted in the meanwhile ... we can unlink that immedeatly
@@ -662,7 +721,7 @@ XrdFstOfsFile::close()
      }
      
      if (rc==SFS_OK) {
-       gOFS.FstOfsStorage->CloseTransaction(fsid, fileid);
+       gOFS.Storage->CloseTransaction(fsid, fileid);
      }
        
    }
@@ -733,7 +792,7 @@ XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manag
   char result[8192]; result[0]=0;
   int  result_size=8192;
   
-  XrdCommonClientAdmin* admin = gOFS.CommonClientAdminManager.GetAdmin(manager);
+  eos::common::ClientAdmin* admin = gOFS.ClientAdminManager.GetAdmin(manager);
   XrdOucString msg="";
       
   if (admin) {
@@ -947,193 +1006,20 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
 
 /*----------------------------------------------------------------------------*/
 void
-XrdFstMessaging::Listen() 
-{
-  while(1) {
-    XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
-    if (newmessage) newmessage->Print();
-    if (newmessage) {
-      Process(newmessage);
-      delete newmessage;
-    } else {
-      sleep(1);
-    }
-  }
-}
-
-/*----------------------------------------------------------------------------*/
-void
-XrdFstMessaging::Process(XrdMqMessage* newmessage) 
-{
-  XrdOucString saction = newmessage->GetBody();
-
-  XrdOucEnv action(saction.c_str());
-  
-  XrdOucString cmd    = action.Get("mgm.cmd");
-  XrdOucString subcmd = action.Get("mgm.subcmd");
-
-  if (cmd == "fs" && subcmd == "boot") {
-    // boot request
-    gOFS.Boot(action);
-  }
-
-  if (cmd == "debug") {
-    gOFS.SetDebug(action);
-  }
-
-  if (cmd == "restart") {
-    eos_notice("restarting service");
-    int rc = system("unset XRDPROG XRDCONFIGFN XRDINSTANCE XRDEXPORTS XRDHOST XRDOFSLIB XRDPORT XRDADMINPATH XRDOFSEVENTS XRDNAME XRDREDIRECT; /etc/init.d/xrd restart fst >& /dev/null");
-    if (rc)
-      eos_err("/etc/init.d/xrd restart fst failed");
-  }
-  
-  if (cmd == "rtlog") {
-    gOFS.SendRtLog(newmessage);
-  }
-
-  if (cmd == "drop") {
-    eos_info("drop");
-
-    XrdOucEnv* capOpaque=NULL;
-    int caprc = 0;
-    if ((caprc=gCapabilityEngine.Extract(&action, capOpaque))) {
-      // no capability - go away!
-      if (capOpaque) delete capOpaque;
-      eos_err("Cannot extract capability for deletion - errno=%d",caprc);
-    } else {
-      int envlen=0;
-      eos_debug("opaque is %s", capOpaque->Env(envlen));
-      XrdFstDeletion* newdeletion = XrdFstDeletion::Create(capOpaque);
-      if (newdeletion) {
-	gOFS.FstOfsStorage->deletionsMutex.Lock();
-
-	if (gOFS.FstOfsStorage->deletions.size() < 1000) {
-	  gOFS.FstOfsStorage->deletions.push_back(*newdeletion);
-	} else {
-	  eos_err("deletion list has already 1000 entries - discarding deletion message");
-	}
-	delete newdeletion;
-	gOFS.FstOfsStorage->deletionsMutex.UnLock();
-      } else {
-	eos_err("Cannot create a deletion entry - illegal opaque information");
-      }
-    }
-  }
-
-  if (cmd == "pull") {
-    eos_info("pull");
-
-    XrdOucEnv* capOpaque=NULL;
-    int caprc = 0;
-    if ((caprc=gCapabilityEngine.Extract(&action, capOpaque))) {
-      // no capability - go away!
-      if (capOpaque) delete capOpaque;
-      eos_err("Cannot extract capability for transfer - errno=%d",caprc);
-    } else {
-      int envlen=0;
-      eos_debug("opaque is %s", capOpaque->Env(envlen));
-      XrdFstTransfer* newtransfer = XrdFstTransfer::Create(capOpaque, saction);
-      if (newtransfer) {
-	gOFS.FstOfsStorage->transferMutex.Lock();
-
-	if (gOFS.FstOfsStorage->transfers.size() < 1000000) {
-	  XrdOucString squeuefront = capOpaque->Get("mgm.queueinfront");
-	  if (squeuefront == "1") {
-	    // this is an express transfer to be queued in front of the list
-	    eos_info("scheduling express transfer %llu", capOpaque->Get("mgm.fid"));
-	    gOFS.FstOfsStorage->transfers.insert(gOFS.FstOfsStorage->transfers.begin(), newtransfer);
-	  } else {
-	    // this is a regual transfer to be appended to the end of the list
-	    eos_info("scheduling regular transfer %llu", capOpaque->Get("mgm.fid"));
-	    gOFS.FstOfsStorage->transfers.push_back(newtransfer);
-	  }
-	} else {
-	  eos_err("transfer list has already 1 Mio. entries - discarding transfer message");
-	}
-	gOFS.FstOfsStorage->transferMutex.UnLock();
-      } else {
-	eos_err("Cannot create a transfer entry - illegal opaque information");
-      }
-    }
-  }
-
-
-  if (cmd == "verify") {
-    eos_info("verify");
-
-    XrdOucEnv* capOpaque=&action;
-    int envlen=0;
-    eos_debug("opaque is %s", capOpaque->Env(envlen));
-    XrdFstVerify* newverify = XrdFstVerify::Create(capOpaque);
-    if (newverify) {
-      gOFS.FstOfsStorage->verificationsMutex.Lock();
-      
-      if (gOFS.FstOfsStorage->verifications.size() < 1000000) {
-	eos_info("scheduling verification %s", capOpaque->Get("mgm.fid"));
-	gOFS.FstOfsStorage->verifications.push(newverify);
-      } else {
-	eos_err("verify list has already 1 Mio. entries - discarding verify message");
-      }
-      gOFS.FstOfsStorage->verificationsMutex.UnLock();
-    } else {
-      eos_err("Cannot create a verify entry - illegal opaque information");
-    }
-  }
-  
-  if (cmd == "dropverifications") {
-    gOFS.FstOfsStorage->verificationsMutex.Lock();
-    eos_notice("dropping %u verifications", gOFS.FstOfsStorage->verifications.size());
-
-    while (!gOFS.FstOfsStorage->verifications.empty()) {
-      gOFS.FstOfsStorage->verifications.pop();
-    }
-
-    gOFS.FstOfsStorage->verificationsMutex.UnLock();
-  }
-
-  if (cmd == "listverifications") {
-    gOFS.FstOfsStorage->verificationsMutex.Lock();
-    eos_notice("%u verifications in verify queue", gOFS.FstOfsStorage->verifications.size());
-    if (gOFS.FstOfsStorage->runningVerify) {
-      gOFS.FstOfsStorage->runningVerify->Show("running");
-    }
-    gOFS.FstOfsStorage->verificationsMutex.UnLock();
-  }
-  
-  if (cmd == "droptransfers") {
-    gOFS.FstOfsStorage->transferMutex.Lock();
-    eos_notice("dropping %u transfers", gOFS.FstOfsStorage->transfers.size());
-    gOFS.FstOfsStorage->transfers.clear();
-    gOFS.FstOfsStorage->transferMutex.UnLock();
-  }
-
-  if (cmd == "listtransfers") {
-    gOFS.FstOfsStorage->transferMutex.Lock();
-    std::list<XrdFstTransfer*>::iterator it;
-    for ( it = gOFS.FstOfsStorage->transfers.begin(); it != gOFS.FstOfsStorage->transfers.end(); ++it) {
-      (*it)->Show();
-    }
-    eos_notice("%u transfers in transfer queue", gOFS.FstOfsStorage->transfers.size());
-    if (gOFS.FstOfsStorage->runningTransfer) {
-      gOFS.FstOfsStorage->runningTransfer->Show("running");
-    }
-    gOFS.FstOfsStorage->transferMutex.UnLock();
-  }
-}
-
-
-/*----------------------------------------------------------------------------*/
-void
 XrdFstOfs::Boot(XrdOucEnv &env) 
 {
+  /* disabled */
+
+  /*
+
   bool booted=false;
+
   XrdMqMessage message("fst");
   XrdOucString msgbody="";
   // send booting message
   XrdOucString response ="";
       
-  XrdCommonFileSystem::GetBootReplyString(msgbody, env, XrdCommonFileSystem::kBooting);
+  eos::common::FileSystem::GetBootReplyString(msgbody, env, eos::common::FileSystem::kBooting);
   message.SetBody(msgbody.c_str());
   
   if (!XrdMqMessaging::gMessageClient.SendMessage(message)) {
@@ -1146,11 +1032,11 @@ XrdFstOfs::Boot(XrdOucEnv &env)
 
   // send boot end message
   if (booted) {
-    XrdCommonFileSystem::GetBootReplyString(msgbody, env, XrdCommonFileSystem::kBooted);
+    eos::common::FileSystem::GetBootReplyString(msgbody, env, eos::common::FileSystem::kBooted);
     if (response.length()) msgbody+=response;
     eos_info("boot procedure successful!");
   } else {
-    XrdCommonFileSystem::GetBootReplyString(msgbody, env, XrdCommonFileSystem::kBootFailure);
+    eos::common::FileSystem::GetBootReplyString(msgbody, env, eos::common::FileSystem::kBootFailure);
     if (response.length()) msgbody+=response;
     eos_err("boot procedure failed!");
   }
@@ -1162,6 +1048,7 @@ XrdFstOfs::Boot(XrdOucEnv &env)
     // display communication error
     eos_err("cannot send booted message");
   }
+  */
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1171,14 +1058,21 @@ XrdFstOfs::SetDebug(XrdOucEnv &env)
    XrdOucString debugnode =  env.Get("mgm.nodename");
    XrdOucString debuglevel = env.Get("mgm.debuglevel");
    XrdOucString filterlist = env.Get("mgm.filter");
-   int debugval = XrdCommonLogging::GetPriorityByString(debuglevel.c_str());
+   int debugval = eos::common::Logging::GetPriorityByString(debuglevel.c_str());
    if (debugval<0) {
      eos_err("debug level %s is not known!", debuglevel.c_str());
    } else {
-     XrdCommonLogging::SetLogPriority(debugval);
+     // we set the shared hash debug for the lowest 'debug' level
+     if (debuglevel == "debug") {
+         ObjectManager.SetDebug(true);
+     } else {
+       ObjectManager.SetDebug(false);
+     }
+
+     eos::common::Logging::SetLogPriority(debugval);
      eos_notice("setting debug level to <%s>", debuglevel.c_str());
      if (filterlist.length()) {
-       XrdCommonLogging::SetFilter(filterlist.c_str());
+       eos::common::Logging::SetFilter(filterlist.c_str());
        eos_notice("setting message logid filter to <%s>", filterlist.c_str());
      }
    }
@@ -1191,7 +1085,7 @@ XrdFstOfs::AutoBoot()
 {
   bool sent=false;
   do {
-    XrdOucString msgbody=XrdCommonFileSystem::GetAutoBootRequestString();
+    XrdOucString msgbody=eos::common::FileSystem::GetAutoBootRequestString();
     XrdMqMessage message("bootme");
     message.SetBody(msgbody.c_str());
     if (!(sent = XrdMqMessaging::gMessageClient.SendMessage(message))) {
@@ -1200,7 +1094,7 @@ XrdFstOfs::AutoBoot()
       sleep(5);
     } 
   } while(!sent);
-  eos_info("sent autoboot request to %s",  XrdFstOfsConfig::gConfig.FstDefaultReceiverQueue.c_str());
+  eos_info("sent autoboot request to %s",  eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1210,11 +1104,15 @@ XrdFstOfs::BootFs(XrdOucEnv &env, XrdOucString &response)
   eos_info("booting filesystem %s id %s",env.Get("mgm.fspath"), env.Get("mgm.fsid"));
 
   // try to statfs the filesystem
-  XrdCommonStatfs* statfs = XrdCommonStatfs::DoStatfs(env.Get("mgm.fspath"));
+  eos::common::Statfs* statfs = eos::common::Statfs::DoStatfs(env.Get("mgm.fspath"));
   if (!statfs) {
     response += "errmsg=cannot statfs "; response += env.Get("mgm.fspath"); response += " ["; response += strerror(errno); response += "]";response += "&errc="; response += errno; 
     return false;
   }
+
+  // try to own that directory
+  XrdOucString chownline="chown daemon.daemon ";chownline += env.Get("mgm.fspath");
+  system(chownline.c_str());
 
   // test if we have rw access
   struct stat buf;
@@ -1224,7 +1122,7 @@ XrdFstOfs::BootFs(XrdOucEnv &env, XrdOucString &response)
   }
   response = statfs->GetEnv();
 
-  if (!FstOfsStorage->SetFileSystem(env)) {
+  if (!Storage->SetFileSystem(env)) {
     response = "";
     response += "errmsg=cannot configure filesystem [check fst logfile!]"; response += "&errc="; response += EIO;
     return false;
@@ -1248,15 +1146,15 @@ XrdFstOfs::SendRtLog(XrdMqMessage* message)
   if ( (!queue.length()) || (!lines.length()) || (!tag.length()) ) {
     eos_err("illegal parameter queue=%s lines=%s tag=%s", queue.c_str(), lines.c_str(), tag.c_str());
   }  else {
-    if ( (XrdCommonLogging::GetPriorityByString(tag.c_str())) == -1) {
+    if ( (eos::common::Logging::GetPriorityByString(tag.c_str())) == -1) {
       eos_err("mgm.rtlog.tag must be info,debug,err,emerg,alert,crit,warning or notice");
     } else {
-      int logtagindex = XrdCommonLogging::GetPriorityByString(tag.c_str());
+      int logtagindex = eos::common::Logging::GetPriorityByString(tag.c_str());
       for (int j = 0; j<= logtagindex; j++) {
 	for (int i=1; i<= atoi(lines.c_str()); i++) {
-	  XrdCommonLogging::gMutex.Lock();
-	  XrdOucString logline = XrdCommonLogging::gLogMemory[j][(XrdCommonLogging::gLogCircularIndex[j]-i+XrdCommonLogging::gCircularIndexSize)%XrdCommonLogging::gCircularIndexSize].c_str();
-	  XrdCommonLogging::gMutex.UnLock();
+	  eos::common::Logging::gMutex.Lock();
+	  XrdOucString logline = eos::common::Logging::gLogMemory[j][(eos::common::Logging::gLogCircularIndex[j]-i+eos::common::Logging::gCircularIndexSize)%eos::common::Logging::gCircularIndexSize].c_str();
+	  eos::common::Logging::gMutex.UnLock();
 	
 	  if (logline.length() && ( (logline.find(filter.c_str())) != STR_NPOS)) {
 	    stdOut += logline;
@@ -1368,9 +1266,9 @@ XrdFstOfs::_rem(const char             *path,
     if (!(sfsid=capOpaque->Get("mgm.fsid"))) {
       return gOFS.Emsg(epname,error, EINVAL,"open - no file system id in capability",path);
     }
-    XrdCommonFileId::FidPrefix2FullPath(hexfid, localprefix,fstPath);
+    eos::common::FileId::FidPrefix2FullPath(hexfid, localprefix,fstPath);
 
-    fid = XrdCommonFileId::Hex2Fid(hexfid);
+    fid = eos::common::FileId::Hex2Fid(hexfid);
 
     fsid   = atoi(sfsid);
   } else {
@@ -1391,7 +1289,7 @@ XrdFstOfs::_rem(const char             *path,
   eos_info("rc=%d errno=%d", rc,errno);
 
   // cleanup eventual transactions
-  if (!gOFS.FstOfsStorage->CloseTransaction(fsid, fid)) {
+  if (!gOFS.Storage->CloseTransaction(fsid, fid)) {
     // it should be the normal case that there is no open transaction for that file
     int rc = 1;
     rc =1;
@@ -1401,7 +1299,7 @@ XrdFstOfs::_rem(const char             *path,
     return rc;
   }
 
-  if (!gFmdHandler.DeleteFmd(fid, fsid)) {
+  if (!eos::common::gFmdHandler.DeleteFmd(fid, fsid)) {
     eos_notice("unable to delete fmd for fid %llu on filesystem %lu",fid,fsid);
     return gOFS.Emsg(epname,error,EIO,"delete file meta data ",fstPath.c_str());
   }
@@ -1477,10 +1375,10 @@ XrdFstOfs::FSctl(const int               cmd,
 	return  Emsg(epname,error,EINVAL,"execute FSctl command",path.c_str());  
       }
 
-      unsigned long long fileid = XrdCommonFileId::Hex2Fid(afid);
+      unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
 
-      struct XrdCommonFmd* fmd = gFmdHandler.GetFmd(fileid, fsid, 0, 0, 0, false);
+      struct eos::common::Fmd* fmd = eos::common::gFmdHandler.GetFmd(fileid, fsid, 0, 0, 0, false);
 
       if (!fmd) {
 	eos_static_err("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
@@ -1529,3 +1427,6 @@ XrdFstOfs::OpenFidString(unsigned long fsid, XrdOucString &outstring)
   
   OpenFidMutex.UnLock();
 }
+
+EOSFSTNAMESPACE_END
+

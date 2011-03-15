@@ -2,18 +2,23 @@
 #define __XRDFSTOFS_FSTOFS_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "XrdCapability/XrdCapability.hh"
-#include "XrdCommon/XrdCommonSymKeys.hh"
-#include "XrdCommon/XrdCommonLogging.hh"
-#include "XrdCommon/XrdCommonFmd.hh"
-#include "XrdCommon/XrdCommonClientAdmin.hh"
-#include "XrdFstOfs/XrdFstOfsStorage.hh"
-#include "XrdFstOfs/XrdFstOfsConfig.hh"
-#include "XrdFstOfs/XrdFstOfsChecksumPlugins.hh"
-#include "XrdFstOfs/XrdFstOfsLayoutPlugins.hh"
-#include "XrdFstOfs/XrdFstOfsFile.hh"
-#include "XrdFstOfs/XrdFstOfsLock.hh"
-#include "XrdMqOfs/XrdMqMessaging.hh"
+#include "authz/XrdCapability.hh"
+#include "common/SymKeys.hh"
+#include "common/Logging.hh"
+#include "common/Fmd.hh"
+#include "common/ClientAdmin.hh"
+#include "common/StringConversion.hh"
+#include "fst/Namespace.hh"
+#include "fst/storage/Storage.hh"
+#include "fst/Config.hh"
+#include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/layout/LayoutPlugins.hh"
+#include "fst/XrdFstOfsFile.hh"
+#include "fst/Lock.hh"
+#include "fst/Messaging.hh"
+#include "mq/XrdMqMessaging.hh"
+#include "mq/XrdMqSharedObject.hh"
+
 /*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdOfs/XrdOfs.hh"
@@ -25,33 +30,27 @@
 #include <queue>
 /*----------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------------*/
-class XrdFstMessaging : public XrdMqMessaging , public XrdCommonLogId {
-public:
-  XrdFstMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus = false, bool advisoryquery = false) : XrdMqMessaging(url,defaultreceiverqueue, advisorystatus, advisoryquery) {}
-  virtual ~XrdFstMessaging(){ XrdCommonLogId();}
-  
-  static void* Start(void *pp);
+#ifdef __APPLE__
+#define EREMOTEIO 121
+#endif
 
-  virtual void Listen();
-  virtual void Process(XrdMqMessage* message);
-};
+EOSFSTNAMESPACE_BEGIN
 
-class XrdFstOfsDirectory : public XrdOfsDirectory, public XrdCommonLogId {
+class XrdFstOfsDirectory : public XrdOfsDirectory, public eos::common::LogId {
 public:
-  XrdFstOfsDirectory(const char *user) : XrdOfsDirectory(user){XrdCommonLogId();};
+  XrdFstOfsDirectory(const char *user) : XrdOfsDirectory(user){eos::common::LogId();};
   virtual            ~XrdFstOfsDirectory() {}
 };
 
 /*----------------------------------------------------------------------------*/
-class XrdFstOfs : public XrdOfs, public XrdCommonLogId {
+class XrdFstOfs : public XrdOfs, public eos::common::LogId {
   friend class XrdFstOfsDirectory;
   friend class XrdFstOfsFile;
-  friend class XrdFstOfsLayout;
-  friend class XrdFstOfsReplicaLayout;
-  friend class XrdFstOfsReplicaParLayout;
-  friend class XrdFstOfsPlainLayout;
-  friend class XrdFstOfsRaid5Layout;
+  friend class eos::fst::Layout;
+  friend class eos::fst::ReplicaLayout;
+  friend class eos::fst::ReplicaParLayout;
+  friend class eos::fst::PlainLayout;
+  friend class eos::fst::Raid5Layout;
 private:
 
 public:
@@ -60,7 +59,7 @@ public:
  
   int Configure(XrdSysError &error);
 
-  XrdFstOfs() {XrdCommonLogId();}
+  XrdFstOfs() {eos::common::LogId();}
 
   XrdSysError*        Eroute;          // used by the 
 
@@ -138,11 +137,11 @@ public:
   void           SendRtLog(XrdMqMessage* message);
   void           AutoBoot();
 
-  XrdFstOfsLockManager LockManager;
+  eos::fst::LockManager LockManager;
  
-  XrdCommonClientAdminManager CommonClientAdminManager;
-  XrdFstMessaging* FstOfsMessaging;      // -> messaging interface class
-  XrdFstOfsStorage* FstOfsStorage;       // -> Meta data & filesytem store object
+  eos::common::ClientAdminManager ClientAdminManager;
+  eos::fst::Messaging* Messaging;      // -> messaging interface class
+  eos::fst::Storage* Storage;          // -> Meta data & filesytem store object
 
   XrdSysMutex OpenFidMutex;
   google::sparse_hash_map<unsigned long, google::sparse_hash_map<unsigned long long, unsigned int> > WOpenFid;
@@ -150,6 +149,8 @@ public:
 
   XrdSysMutex ReportQueueMutex;
   std::queue <XrdOucString> ReportQueue;
+
+  XrdMqSharedObjectManager ObjectManager;// -> managing shared objects
 
   void OpenFidString(unsigned long fsid, XrdOucString &outstring);
 
@@ -160,6 +161,8 @@ public:
 extern XrdFstOfs gOFS;
 
 /*----------------------------------------------------------------------------*/
+
+EOSFSTNAMESPACE_END
 
 #endif
 

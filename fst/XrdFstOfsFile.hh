@@ -1,14 +1,13 @@
 #ifndef __XRDFSTOFS_FSTOFSFILE_HH__
 #define __XRDFSTOFS_FSTOFSFILE_HH__
 
-class XrdFstOfsFile;
-
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonLogging.hh"
-#include "XrdCommon/XrdCommonFmd.hh"
-#include "XrdCommon/XrdCommonClientAdmin.hh"
-#include "XrdFstOfs/XrdFstOfsLayout.hh"
-#include "XrdFstOfs/XrdFstOfsChecksum.hh"
+#include "common/Logging.hh"
+#include "common/Fmd.hh"
+#include "common/ClientAdmin.hh"
+#include "fst/Namespace.hh"
+#include "fst/layout/Layout.hh"
+#include "fst/checksum/CheckSum.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
@@ -16,13 +15,15 @@ class XrdFstOfsFile;
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
 
+EOSFSTNAMESPACE_BEGIN
+
 /*----------------------------------------------------------------------------*/
-class XrdFstOfsFile : public XrdOfsFile, public XrdCommonLogId {
-  friend class XrdFstOfsLayout;
-  friend class XrdFstOfsPlainLayout;
-  friend class XrdFstOfsReplicaLayout;
-  friend class XrdFstOfsReplicaParLayout;
-  friend class XrdFstOfsRaid5Layout;
+class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId {
+  friend class Layout;
+  friend class PlainLayout;
+  friend class ReplicaLayout;
+  friend class ReplicaParLayout;
+  friend class Raid5Layout;
 
 public:
   int          openofs(const char                *fileName,
@@ -73,7 +74,7 @@ public:
   int          truncate(XrdSfsFileOffset   fileOffset);
   int          truncateofs(XrdSfsFileOffset   fileOffset);
 
-  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; XrdCommonLogId(); closed=false; opened=false; haswrite=false; fMd = 0;checkSum = 0; layOut = 0; isRW= 0; rBytes=wBytes=srBytes=swBytes=rOffset=wOffset=0; rTime.tv_sec=wTime.tv_sec=lrTime.tv_sec=lwTime.tv_sec=rTime.tv_usec=wTime.tv_usec=lrTime.tv_usec=lwTime.tv_usec=cTime.tv_sec=cTime.tv_usec=0;fileid=0;fsid=0;lid=0;cid=0;rCalls=wCalls=0; localPrefix="";}
+  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; eos::common::LogId(); closed=false; opened=false; haswrite=false; fMd = 0;checkSum = 0; layOut = 0; isRW= 0; rBytes=wBytes=srBytes=swBytes=rOffset=wOffset=0; rTime.tv_sec=wTime.tv_sec=lrTime.tv_sec=lwTime.tv_sec=rTime.tv_usec=wTime.tv_usec=lrTime.tv_usec=lwTime.tv_usec=cTime.tv_sec=cTime.tv_usec=0;fileid=0;fsid=0;lid=0;cid=0;rCalls=wCalls=0; localPrefix="";}
   virtual ~XrdFstOfsFile() {
     close();
     if (openOpaque) {delete openOpaque; openOpaque=0;}
@@ -101,9 +102,9 @@ protected:
   bool         opened;
   bool         haswrite;
   bool         isRW;
-  XrdCommonFmd* fMd;
-  XrdFstOfsChecksum* checkSum;
-  XrdFstOfsLayout*  layOut;
+  eos::common::Fmd* fMd;
+  eos::fst::CheckSum* checkSum;
+  eos::fst::Layout*  layOut;
   
 
   ///////////////////////////////////////////////////////////
@@ -141,10 +142,12 @@ protected:
   
   void MakeReportEnv(XrdOucString &reportString) {
     char report[16384];
-    sprintf(report,"log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&&cts=%lu&ctms=%lu&rb=%llu&wb=%llu&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f",this->logId,Path.c_str(),this->vid.uid,this->vid.gid, tIdent.c_str(), hostName.c_str(),lid, fileid, fsid, openTime.tv_sec, openTime.tv_usec/1000,closeTime.tv_sec,closeTime.tv_usec/1000,rBytes,wBytes,srBytes,swBytes,rCalls, wCalls,((rTime.tv_sec*1000.0)+(rTime.tv_usec/1000.0)), ((wTime.tv_sec*1000.0) + (wTime.tv_usec/1000.0)));
+    sprintf(report,"log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&&cts=%lu&ctms=%lu&rb=%llu&wb=%llu&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f",this->logId,Path.c_str(),this->vid.uid,this->vid.gid, tIdent.c_str(), hostName.c_str(),lid, fileid, fsid, openTime.tv_sec, (unsigned long)openTime.tv_usec/1000,closeTime.tv_sec,(unsigned long)closeTime.tv_usec/1000,rBytes,wBytes,srBytes,swBytes,rCalls, wCalls,((rTime.tv_sec*1000.0)+(rTime.tv_usec/1000.0)), ((wTime.tv_sec*1000.0) + (wTime.tv_usec/1000.0)));
     reportString = report;
   }
 
 };
+
+EOSFSTNAMESPACE_END
 
 #endif
