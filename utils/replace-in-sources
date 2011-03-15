@@ -1,0 +1,17 @@
+#!/bin/bash
+# replaces in all .hh and .cc the string $1 with $2
+
+test -n "$1" || exit -1
+test -n "$2" || exit -2
+
+echo "replace $1 => $2"
+
+for name in `find . -name "*.hh"`; do 
+    echo $name
+    perl -pi -e "s/$1/$2/" $name
+done
+
+for name in `find . -name "*.cc"`; do 
+    echo $name
+    perl -pi -e "s/$1/$2/" $name
+done
