@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-#include "XrdCapability/XrdCapability.hh"
+#include "authz/XrdCapability.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -12,6 +12,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+#ifdef __APPLE__
+#define ENOKEY 126
+#define EKEYREJECTED 129
+#endif
 
 /*----------------------------------------------------------------------------*/
 XrdSysError TkEroute(0,"capability");
@@ -69,7 +74,7 @@ XrdCapability::Init()
 
 /*----------------------------------------------------------------------------*/
 int
-XrdCapability::Create(XrdOucEnv *inenv, XrdOucEnv* &outenv, XrdCommonSymKey* key) 
+XrdCapability::Create(XrdOucEnv *inenv, XrdOucEnv* &outenv, eos::common::SymKey* key) 
 {
   outenv = 0;
 
@@ -116,8 +121,8 @@ XrdCapability::Extract(XrdOucEnv *inenv, XrdOucEnv* &outenv)
   if ( (!symkey) || (!symmsg) ) 
     return EINVAL;
   
-  XrdCommonSymKey* key = 0;
-  if (!(key = gXrdCommonSymKeyStore.GetKey(symkey))) {
+  eos::common::SymKey* key = 0;
+  if (!(key = eos::common::gSymKeyStore.GetKey(symkey))) {
     return ENOKEY;
   }
   

@@ -1,8 +1,8 @@
 #ifndef __XRDCAPABILITY_CAPABILITY_HH___
 #define __XRDCAPABILITY_CAPABILITY_HH__
 /*----------------------------------------------------------------------------*/
-#include "XrdMqOfs/XrdMqMessage.hh"
-#include "XrdCommon/XrdCommonSymKeys.hh"
+#include "mq/XrdMqMessage.hh"
+#include "common/SymKeys.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdAcc/XrdAccPrivs.hh"
@@ -72,7 +72,7 @@ public:
 
   XrdCapability(){}
 
-  static int                 Create(XrdOucEnv *inenv, XrdOucEnv* &outenv, XrdCommonSymKey* symkey);
+  static int                 Create(XrdOucEnv *inenv, XrdOucEnv* &outenv, eos::common::SymKey* symkey);
 
   static int                 Extract(XrdOucEnv *inenv, XrdOucEnv* &outenv);
 
