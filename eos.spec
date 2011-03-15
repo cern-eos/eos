@@ -3,7 +3,7 @@
 
 Summary: eos project
 Name: eos
-Version: 0.0.9e
+Version: 0.0.10
 Release: gcc4.4
 Prefix: /opt/eos
 License: none
@@ -30,8 +30,11 @@ eos project
 %setup -n eos-0.0.9e
 
 %build
-./bootstrap.sh
-CC=/usr/bin/gcc44 CXX=/usr/bin/g++44 ./configure --sysconfdir=/etc/ --with-xrootd=/opt/xrootd/ --prefix=/opt/eos/
+export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44 
+mkdir build
+cd build
+cmake ../
+cmake ../
 %{__make} %{_smp_mflags} 
 
 %install
