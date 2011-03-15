@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-#include "XrdMqOfs/XrdMqMessaging.hh"
+#include "mq/XrdMqMessaging.hh"
 /*----------------------------------------------------------------------------*/
 
 XrdMqClient XrdMqMessaging::gMessageClient;

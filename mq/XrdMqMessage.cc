@@ -5,7 +5,7 @@ const char *XrdMqMessageCVSID = "$Id: XrdMqMessage.cc,v 1.0.0 2007/10/04 01:34:1
 /**********************************/
 /* xroot includes                 */
 
-#include <XrdMqOfs/XrdMqMessage.hh>
+#include <mq/XrdMqMessage.hh>
 
 /**********************************/
 /* system includes                */
@@ -120,62 +120,62 @@ XrdMqMessageHeader::Decode(const char* header) {
     if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
       kReplyId.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
       if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-	kSenderId.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-	if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-	  kBrokerId.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-	  if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-	    kReceiverId.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-	    if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-	      kReceiverQueue.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-	      if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-		kDescription.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-		XrdOucString tmpstring;
-		if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-		  tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-		  kSenderTime_sec = (time_t)strtol(tmpstring.c_str(),0,10);
-		  if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-		    tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-		    kSenderTime_nsec = (time_t)strtol(tmpstring.c_str(),0,10);
-		    if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-		      tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-		      kBrokerTime_sec = (time_t)strtol(tmpstring.c_str(),0,10);
-		      if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-			tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-			kBrokerTime_nsec = (time_t)strtol(tmpstring.c_str(),0,10);
-			if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-			  tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-			  kReceiverTime_sec = (time_t)strtol(tmpstring.c_str(),0,10);
-			  if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-			    tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-			    kReceiverTime_nsec = (time_t)strtol(tmpstring.c_str(),0,10);
-			    if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-			      kCertificateHash.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-			      if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-				kMessageSignature.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-				if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-				  kMessageDigest.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-				  if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-				    tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-				    kEncrypted = atoi(tmpstring.c_str());
-				    if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
-				      tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-				    kType = atoi(tmpstring.c_str());
-				    return true;
-				    }
-				  }
-				}
-			      }
-			    }
-			  }
-			}
-		      }
-		    }
-		  }
-		}
-	      }
-	    }
-	  }
-	}
+        kSenderId.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+        if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+          kBrokerId.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+          if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+            kReceiverId.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+            if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+              kReceiverQueue.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+              if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+                kDescription.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+                XrdOucString tmpstring;
+                if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+                  tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+                  kSenderTime_sec = (time_t)strtol(tmpstring.c_str(),0,10);
+                  if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+                    tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+                    kSenderTime_nsec = (time_t)strtol(tmpstring.c_str(),0,10);
+                    if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+                      tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+                      kBrokerTime_sec = (time_t)strtol(tmpstring.c_str(),0,10);
+                      if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+                        tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+                        kBrokerTime_nsec = (time_t)strtol(tmpstring.c_str(),0,10);
+                        if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+                          tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+                          kReceiverTime_sec = (time_t)strtol(tmpstring.c_str(),0,10);
+                          if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+                            tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+                            kReceiverTime_nsec = (time_t)strtol(tmpstring.c_str(),0,10);
+                            if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+                              kCertificateHash.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+                              if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+                                kMessageSignature.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+                                if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+                                  kMessageDigest.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+                                  if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+                                    tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+                                    kEncrypted = atoi(tmpstring.c_str());
+                                    if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
+                                      tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
+                                      kType = atoi(tmpstring.c_str());
+                                      return true;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -912,21 +912,21 @@ XrdMqMessage::Configure(const char* ConfigFN) {
       var += 3;
       
       if (!strcmp("privatekeyfile",var)) {
-	if ((val = Config.GetWord())) {
-	  PrivateKeyFile = val;
-	}
+        if ((val = Config.GetWord())) {
+          PrivateKeyFile = val;
+        }
       }
 
       if (!strcmp("publickeydirectory",var)) {
-	if ((val = Config.GetWord())) {
-	  PublicKeyDirectory = val;
-	}
+        if ((val = Config.GetWord())) {
+          PublicKeyDirectory = val;
+        }
       }
 
       if (!strcmp("publickeyfilehash",var)) {
-	if ((val = Config.GetWord())) {
-	  PublicKeyFileHash = val;
-	}
+        if ((val = Config.GetWord())) {
+          PublicKeyFileHash = val;
+        }
       }
     }
   }
@@ -960,46 +960,46 @@ XrdMqMessage::Configure(const char* ConfigFN) {
     dp = opendir (PublicKeyDirectory.c_str());
     if (dp != 0) {
       while ((ep = readdir (dp))) {
-	if ( (!strncmp(ep->d_name,".",1) ) )
-	  continue;
+        if ( (!strncmp(ep->d_name,".",1) ) )
+          continue;
 
-	XrdOucString fullcertpath = PublicKeyDirectory;
-	fullcertpath += "/";
-	fullcertpath += (char*)ep->d_name;
-	FILE* fp = fopen(fullcertpath.c_str(),"r");
-	if (!fp) {
-	  if (dp)
-	    closedir(dp);
-	    
-	  return Eroute.Emsg("Config", errno, "open public key file fn=", fullcertpath.c_str());
-	}
-	
-	X509* x509 = PEM_read_X509(fp, 0, 0, 0);
-	fclose(fp);
-	
-	if (x509 == 0) {
-	  ERR_print_errors_fp (stderr);
-	  if (dp)
-	    closedir(dp);
-	  return Eroute.Emsg("Config", EINVAL, "load public key file fn=", fullcertpath.c_str());
-	}
-	EVP_PKEY* pkey = X509_extract_key(x509);
-	if (pkey == 0) {
-	  ERR_print_errors_fp (stderr);
-	  if (dp)
-	    closedir(dp);
-	  return Eroute.Emsg("Config", EINVAL, "extract public key from file fn=", fullcertpath.c_str());
-	}
-	// add to the public key hash
-	PublicKeyHash.Add(ep->d_name, pkey);
-	
-	X509_free(x509);
-	x509 = 0;
+        XrdOucString fullcertpath = PublicKeyDirectory;
+        fullcertpath += "/";
+        fullcertpath += (char*)ep->d_name;
+        FILE* fp = fopen(fullcertpath.c_str(),"r");
+        if (!fp) {
+          if (dp)
+            closedir(dp);
+            
+          return Eroute.Emsg("Config", errno, "open public key file fn=", fullcertpath.c_str());
+        }
+        
+        X509* x509 = PEM_read_X509(fp, 0, 0, 0);
+        fclose(fp);
+        
+        if (x509 == 0) {
+          ERR_print_errors_fp (stderr);
+          if (dp)
+            closedir(dp);
+          return Eroute.Emsg("Config", EINVAL, "load public key file fn=", fullcertpath.c_str());
+        }
+        EVP_PKEY* pkey = X509_extract_key(x509);
+        if (pkey == 0) {
+          ERR_print_errors_fp (stderr);
+          if (dp)
+            closedir(dp);
+          return Eroute.Emsg("Config", EINVAL, "extract public key from file fn=", fullcertpath.c_str());
+        }
+        // add to the public key hash
+        PublicKeyHash.Add(ep->d_name, pkey);
+        
+        X509_free(x509);
+        x509 = 0;
       }
       (void) closedir (dp);
     } else {
       if (dp)
-	closedir(dp);
+        closedir(dp);
       return Eroute.Emsg("Config", errno, "open public key directory dn=",  PublicKeyDirectory.c_str());
     }
     kCanVerify = true;
@@ -1016,7 +1016,7 @@ XrdMqMessage::Configure(const char* ConfigFN) {
     Eroute.Say("=====> mq.publickeydirectory :     ",PublicKeyDirectory.c_str(),"");
     XrdOucString nh = ""; nh+= PublicKeyHash.Num();
     Eroute.Say("=====> public keys <#>   :   :     ", nh.c_str(),"");
-   }
+  }
   return 0;
 }
 

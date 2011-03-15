@@ -1,6 +1,6 @@
 #define TRACE_debug 0xffff
-#include <XrdMqOfs/XrdMqClient.hh>
-#include <XrdMqOfs/XrdMqTiming.hh>
+#include <mq/XrdMqClient.hh>
+#include <mq/XrdMqTiming.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
 
@@ -25,8 +25,8 @@ int main(int argc, char* argv[]) {
       char* binout =0;
       unsigned int outlen;
       if (!XrdMqMessage::Base64Decode(fout, binout, outlen)) {
-	fprintf(stderr,"error: cannot base64 decode\n");
-	exit(-1);
+        fprintf(stderr,"error: cannot base64 decode\n");
+        exit(-1);
       }
       binout[20]=0;
       

@@ -1,6 +1,6 @@
 #define TRACE_debug 0xffff
-#include <XrdMqOfs/XrdMqClient.hh>
-#include <XrdMqOfs/XrdMqTiming.hh>
+#include <mq/XrdMqClient.hh>
+#include <mq/XrdMqTiming.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
 

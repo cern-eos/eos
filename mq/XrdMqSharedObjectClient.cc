@@ -1,8 +1,8 @@
 #define TRACE_debug 0xffff
-#include <XrdMqOfs/XrdMqClient.hh>
-#include <XrdMqOfs/XrdMqTiming.hh>
-#include <XrdMqOfs/XrdMqMessaging.hh>
-#include <XrdMqOfs/XrdMqSharedObject.hh>
+#include <mq/XrdMqClient.hh>
+#include <mq/XrdMqTiming.hh>
+#include <mq/XrdMqMessaging.hh>
+#include <mq/XrdMqSharedObject.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
 
@@ -51,17 +51,17 @@ int main (int argc, char* argv[]) {
       hash->OpenTransaction();
       
       for (int j=0; j< 50; j++) {
-	XrdOucString var = "var"; var += j;
-	unsigned long long r= random();
-	fprintf(stderr,"Set %s %s %llu\n", str.c_str(), var.c_str(),r);
-	hash->SetLongLong(var.c_str(), r);
+        XrdOucString var = "var"; var += j;
+        unsigned long long r= random();
+        fprintf(stderr,"Set %s %s %llu\n", str.c_str(), var.c_str(),r);
+        hash->SetLongLong(var.c_str(), r);
       }
 
       hash->Set("hostname", hostname.c_str());
 
       if ( !(rand()%10)) {
-	//	fprintf(stderr,"Clearing Hash!\n");
-	hash->Clear();
+        //      fprintf(stderr,"Clearing Hash!\n");
+        hash->Clear();
       }
       hash->CloseTransaction();
       XrdOucString out;

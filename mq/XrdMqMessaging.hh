@@ -2,8 +2,8 @@
 #define __XRDMQ_MESSAGING_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "XrdMqOfs/XrdMqClient.hh"
-#include "XrdMqOfs/XrdMqSharedObject.hh"
+#include "mq/XrdMqClient.hh"
+#include "mq/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/

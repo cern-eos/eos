@@ -1,6 +1,6 @@
 #define TRACE_debug 0xffff
-#include <XrdMqOfs/XrdMqClient.hh>
-#include <XrdMqOfs/XrdMqTiming.hh>
+#include <mq/XrdMqClient.hh>
+#include <mq/XrdMqTiming.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
 
@@ -51,9 +51,9 @@ int main (int argc, char* argv[]) {
     if (newmessage) {
       dumped ++;
       if (!debug) {
-	fprintf(stdout,"%s\n",newmessage->GetBody());
+        fprintf(stdout,"%s\n",newmessage->GetBody());
       } else {
-	fprintf(stdout,"n: %llu/%llu size: %u\n", dumped,maxdumps, (unsigned int)strlen(newmessage->GetBody()));
+        fprintf(stdout,"n: %llu/%llu size: %u\n", dumped,maxdumps, (unsigned int)strlen(newmessage->GetBody()));
       }
       fflush(stdout);
       delete newmessage;

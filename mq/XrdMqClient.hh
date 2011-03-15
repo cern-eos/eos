@@ -2,12 +2,15 @@
 #ifndef __XMQCLIENT_H__
 #define __XMQCLIENT_H__
 
+#define ENOTBLK 15
+
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdOuc/XrdOucHash.hh>
 #include <XrdClient/XrdClient.hh>
 #include <XrdClient/XrdClientAdmin.hh>
 #include <XrdClient/XrdClientEnv.hh>
-#include <XrdMqOfs/XrdMqMessage.hh>
+#include <mq/XrdMqMessage.hh>
+
 
 class XrdMqClient {
 private:

@@ -1,7 +1,7 @@
 //         $Id: XrdMqOfsFSctl.cc,v 1.00 2007/10/04 01:34:19 abh Exp $
 
-#include "XrdMqOfs/XrdMqOfs.hh"
-#include "XrdMqOfs/XrdMqMessage.hh"
+#include "mq/XrdMqOfs.hh"
+#include "mq/XrdMqMessage.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
@@ -38,22 +38,22 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
       
       // if this would be a loop back message we continue
       if (sendername == QueueOutIt->first) {
-	// avoid feedback to the same queue
-	continue;
+        // avoid feedback to the same queue
+        continue;
       }
       
       // if this queue does not take advisory status messages we continue
       if ( ( Matches.messagetype == XrdMqMessageHeader::kStatusMessage) && (!Out->AdvisoryStatus) )
-	continue;
+        continue;
 
       // if this queue does not take advisory query messages we continue
       if ( ( Matches.messagetype == XrdMqMessageHeader::kQueryMessage)  && (!Out->AdvisoryQuery) )
-	continue;
+        continue;
       
 
       else {
-	ZTRACE(open,"Adding Advisory Message to Queuename: "<< Out->QueueName.c_str());
-	MatchedOutputQueues.push_back(Out);
+        ZTRACE(open,"Adding Advisory Message to Queuename: "<< Out->QueueName.c_str());
+        MatchedOutputQueues.push_back(Out);
       }
     }
   } else {
@@ -63,24 +63,24 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
     if ( ( Matches.queuename.find("*") != STR_NPOS) ) {
       std::map<std::string, XrdMqMessageOut*>::const_iterator QueueOutIt;
       for (QueueOutIt = QueueOut.begin(); QueueOutIt != QueueOut.end(); QueueOutIt++ ) {
-	XrdMqMessageOut* Out = QueueOutIt->second;
-	
-	//	fprintf(stderr,"%s <=> %s\n", sendername.c_str(), QueueOutIt->first.c_str());
-	// if this would be a loop back message we continue
-	if (sendername == QueueOutIt->first) {
-	  // avoid feedback to the same queue
-	  continue;
-	}
-	
-	XrdOucString Key = QueueOutIt->first.c_str();
-	XrdOucString nowildcard = Matches.queuename;
-	nowildcard.replace("*","");
-	int nmatch = Key.matches(Matches.queuename.c_str(),'*');
-	if (nmatch == nowildcard.length()) {
-	  // this is a match
-	  ZTRACE(open,"Adding Wildcard matched Message to Queuename: "<< Out->QueueName.c_str());
-	  MatchedOutputQueues.push_back(Out);
-	}
+        XrdMqMessageOut* Out = QueueOutIt->second;
+        
+        //      fprintf(stderr,"%s <=> %s\n", sendername.c_str(), QueueOutIt->first.c_str());
+        // if this would be a loop back message we continue
+        if (sendername == QueueOutIt->first) {
+          // avoid feedback to the same queue
+          continue;
+        }
+        
+        XrdOucString Key = QueueOutIt->first.c_str();
+        XrdOucString nowildcard = Matches.queuename;
+        nowildcard.replace("*","");
+        int nmatch = Key.matches(Matches.queuename.c_str(),'*');
+        if (nmatch == nowildcard.length()) {
+          // this is a match
+          ZTRACE(open,"Adding Wildcard matched Message to Queuename: "<< Out->QueueName.c_str());
+          MatchedOutputQueues.push_back(Out);
+        }
       }
     } else {
       //////////////////////////////////////////////////////////////////////////////////////
@@ -91,10 +91,10 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
 
       XrdMqMessageOut* Out = 0;
       if (QueueOut.count(queuename))
-	Out = QueueOut[queuename];
+        Out = QueueOut[queuename];
       if (Out) {
-	ZTRACE(open,"Adding full matched Message to Queuename: "<< Out->QueueName.c_str());
-	MatchedOutputQueues.push_back(Out);
+        ZTRACE(open,"Adding full matched Message to Queuename: "<< Out->QueueName.c_str());
+        MatchedOutputQueues.push_back(Out);
       }
     }
   }
@@ -106,7 +106,7 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
     
     // lock all matched queues at once
     for (unsigned int i=0; i< MatchedOutputQueues.size(); i++) {
-      XrdMqMessageOut* Out = MatchedOutputQueues[i];	
+      XrdMqMessageOut* Out = MatchedOutputQueues[i];    
       Out->Lock();
     }
 
@@ -115,44 +115,44 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
 
       // check for backlog on this queue and set a warning flag
       if (Out->nQueued > MQOFSMAXQUEUEBACKLOG) {
-	Matches.backlog =true;
-	Matches.backlogqueues += Out->QueueName;
-	Matches.backlogqueues += ":";
-	XrdOfsFS.QueueBacklogHits++;
-	TRACES("warning: queue " << Out->QueueName << " exceeds backlog of " << MQOFSMAXQUEUEBACKLOG << " message!");
+        Matches.backlog =true;
+        Matches.backlogqueues += Out->QueueName;
+        Matches.backlogqueues += ":";
+        XrdOfsFS.QueueBacklogHits++;
+        TRACES("warning: queue " << Out->QueueName << " exceeds backlog of " << MQOFSMAXQUEUEBACKLOG << " message!");
       }
     
       if (Out->nQueued > MQOFSREJECTQUEUEBACKLOG) {
-	Matches.backlogrejected =true;
-	Matches.backlogqueues += Out->QueueName;
-	Matches.backlogqueues += ":";
-	XrdOfsFS.BacklogDeferred++;
-	TRACES("error: queue " << Out->QueueName << " exceeds max. accepted backlog of " << MQOFSREJECTQUEUEBACKLOG << " message!");
+        Matches.backlogrejected =true;
+        Matches.backlogqueues += Out->QueueName;
+        Matches.backlogqueues += ":";
+        XrdOfsFS.BacklogDeferred++;
+        TRACES("error: queue " << Out->QueueName << " exceeds max. accepted backlog of " << MQOFSREJECTQUEUEBACKLOG << " message!");
       } else {
-	Matches.matches++;
-	if (Matches.matches == 1) {
-	  // add to the message hash 
-	  XrdOfsFS.MessagesMutex.Lock();
-	  std::string messageid = Matches.message->Get(XMQHEADER);
-	  XrdOfsFS.Messages.insert(std::pair<std::string, XrdSmartOucEnv*> (messageid,Matches.message));
-	  XrdOfsFS.MessagesMutex.UnLock();
-	}
+        Matches.matches++;
+        if (Matches.matches == 1) {
+          // add to the message hash 
+          XrdOfsFS.MessagesMutex.Lock();
+          std::string messageid = Matches.message->Get(XMQHEADER);
+          XrdOfsFS.Messages.insert(std::pair<std::string, XrdSmartOucEnv*> (messageid,Matches.message));
+          XrdOfsFS.MessagesMutex.UnLock();
+        }
 
-	ZTRACE(open,"Adding Message to Queuename: "<< Out->QueueName.c_str());
-	//	fprintf(stderr, "%s adding message %llu\n", Out->QueueName.c_str(), (unsigned long long)Matches.message);
-	Out->MessageQueue.push_back((Matches.message));
-	Matches.message->AddRefs(1);
+        ZTRACE(open,"Adding Message to Queuename: "<< Out->QueueName.c_str());
+        //      fprintf(stderr, "%s adding message %llu\n", Out->QueueName.c_str(), (unsigned long long)Matches.message);
+        Out->MessageQueue.push_back((Matches.message));
+        Matches.message->AddRefs(1);
 
-	Out->nQueued++;
-	//      Out->MessageSem.Post();
+        Out->nQueued++;
+        //      Out->MessageSem.Post();
       }
     }
     
-	
+        
 
     // unlock all matched queues at once
     for (unsigned int i=0; i< MatchedOutputQueues.size(); i++) {
-      XrdMqMessageOut* Out = MatchedOutputQueues[i];	
+      XrdMqMessageOut* Out = MatchedOutputQueues[i];    
       Out->UnLock();
     }
   }
@@ -165,7 +165,7 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
     return false;
   }
 }
-						  
+                                                  
 size_t
 XrdMqMessageOut::RetrieveMessages() {
   XrdSmartOucEnv* message;
@@ -200,9 +200,9 @@ XrdMqMessageOut::RetrieveMessages() {
 /////////////////////////////////////////////////////////////////////////////
 int
 XrdMqOfs::FSctl(const int               cmd,
-                    XrdSfsFSctl            &args,
-                    XrdOucErrInfo          &error,
-                    const XrdSecEntity     *client) {
+                XrdSfsFSctl            &args,
+                XrdOucErrInfo          &error,
+                const XrdSecEntity     *client) {
   char ipath[XRDMQOFS_FSCTLPATHLEN+1];
   static const char *epname = "FSctl";
   const char *tident = error.getErrUser();

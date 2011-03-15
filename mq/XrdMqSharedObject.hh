@@ -2,16 +2,17 @@
 #define __XRDMQ_SHAREDHASH_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "XrdMqOfs/XrdMqRWMutex.hh"
+#include "mq/XrdMqRWMutex.hh"
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <map>
 #include <vector>
 #include <set>
 #include <queue>
+#include <sys/time.h>
 
 /*----------------------------------------------------------------------------*/
-#include "XrdMqOfs/XrdMqClient.hh"
+#include "mq/XrdMqClient.hh"
 /*----------------------------------------------------------------------------*/
 
 #define XRDMQSHAREDHASH_CMD       "mqsh.cmd"
@@ -27,20 +28,18 @@
 
 class XrdMqSharedObjectManager;
 
-
 class XrdMqSharedHashEntry {
 public:
-  struct timespec mtime;
+  struct timeval mtime;
   std::string entry;
   std::string key;
   unsigned long long ChangeId;
   
-  
-  XrdMqSharedHashEntry(){key="";entry = ""; UpdateTime();ChangeId=0;}
+  XrdMqSharedHashEntry(){key="";entry = ""; UpdateTime();ChangeId=0;mtime.tv_sec=0;mtime.tv_usec=0;}
 
   ~XrdMqSharedHashEntry(){};
 
-  struct timespec* GetTime() { return &mtime;}
+  struct timeval* GetTime() { return &mtime;}
 
   void Set(const char* s)  { entry = s; UpdateTime();ChangeId++;}
   void Set(std::string &s) { entry = s; UpdateTime();ChangeId++;}
@@ -48,22 +47,22 @@ public:
   const char* GetKey() {return key.c_str();}
 
   long long GetAgeInMilliSeconds() { 
-    struct timespec ntime; 
-    clock_gettime(CLOCK_REALTIME, &ntime);
-    return (((ntime.tv_sec - mtime.tv_sec)*1000) + ((ntime.tv_nsec - mtime.tv_nsec)/1000000));
+    struct timeval ntime; 
+    gettimeofday(&ntime, 0);
+    return (((ntime.tv_sec - mtime.tv_sec)*1000) + ((ntime.tv_usec - mtime.tv_usec)/1000));
   }
   
   double GetAgeInSeconds()      {return GetAgeInMilliSeconds()/1000.0;}
   
   void UpdateTime() {
-    clock_gettime(CLOCK_REALTIME, &mtime);
+    gettimeofday(&mtime, 0);
   }
   
   const char* GetEntry() { return entry.c_str(); }
 
   void Dump(XrdOucString &out) {
     char formatline[1024];
-    snprintf(formatline, sizeof(formatline)-1,"age:%.2f value:%s changeid:%llu", GetAgeInSeconds(), entry.c_str(), ChangeId);
+    snprintf(formatline, sizeof(formatline)-1,"value:%-32s age:%.2f changeid:%llu", entry.c_str(), GetAgeInSeconds(), ChangeId);
     out += formatline;
   }
 };
@@ -87,10 +86,12 @@ protected:
   XrdSysSemWait StoreSem;
 
   std::string Type;
+  
+  XrdMqSharedObjectManager* SOM;
 
 public:
 
-  XrdMqSharedHash(const char* subject = "", const char* broadcastqueue = "") ;
+  XrdMqSharedHash(const char* subject = "", const char* broadcastqueue = "", XrdMqSharedObjectManager* som=0) ;
 
   virtual ~XrdMqSharedHash();
 
@@ -100,26 +101,7 @@ public:
     return Set(key.c_str(),value.c_str(), broadcast);
   }
 
-  bool Set(const char* key, const char* value, bool broadcast=true) {
-    std::string skey = key;
-
-    XrdMqRWMutexWriteLock lock(StoreMutex);
-    bool callback=false;
-
-    if (!Store.count(skey)) {
-      callback=true;
-    }
-
-    Store[skey].Set(value);
-    if (callback) {
-      CallBackInsert(&Store[skey], skey.c_str());
-    }
-
-    if (IsTransaction && broadcast) {
-      Transactions.insert(skey);
-    }
-    return true;
-  }
+  bool Set(const char* key, const char* value, bool broadcast=true);
 
   bool Set(std::map<std::string, std::string> &map) {
     std::map<std::string, std::string>::const_iterator it;
@@ -180,13 +162,17 @@ public:
     std::string get = Get(key); return strtoll(get.c_str(),0,10);
   }
 
+  unsigned int GetUInt(const char* key) {
+    return (unsigned int) GetLongLong(key);
+  }
+
   double      GetDouble(const char* key) {
     std::string get = Get(key); return atof(get.c_str());
   }
 
   unsigned long long GetAgeInMilliSeconds(const char* key) { unsigned long long val=0;XrdMqRWMutexReadLock lock(StoreMutex);val = (Store.count(key))?Store[key].GetAgeInMilliSeconds():0; return val;}
 
-  unsigned long long GetAgeInSeconds(const char* key) { unsigned long long val=0;XrdMqRWMutexReadLock lock(StoreMutex);val = (Store.count(key))?Store[key].GetAgeInSeconds():0; return val;}
+  unsigned long long GetAgeInSeconds(const char* key) { unsigned long long val=0;XrdMqRWMutexReadLock lock(StoreMutex);val = (unsigned long long)(Store.count(key))?(unsigned long long)Store[key].GetAgeInSeconds():(unsigned long long)0; return val;}
 
 
   void MakeBroadCastEnvHeader(XrdOucString &out);
@@ -196,6 +182,8 @@ public:
   void AddDeletionEnvString(XrdOucString &out);
   bool BroadCastEnvString(const char* receiver);
   void Dump(XrdOucString &out);
+
+  void Print(std::string &out, std::string format);
 
   virtual void CallBackInsert(XrdMqSharedHashEntry *entry, const char* key) {};
   virtual void CallBackDelete(XrdMqSharedHashEntry *entry) {};
@@ -216,7 +204,7 @@ private:
   unsigned long long LastObjectId;
 
 public:
-  XrdMqSharedQueue(const char* subject = "", const char* broadcastqueue = "") : XrdMqSharedHash(subject,broadcastqueue) { Type = "queue"; LastObjectId=0;}
+  XrdMqSharedQueue(const char* subject = "", const char* broadcastqueue = "", XrdMqSharedObjectManager* som=0) : XrdMqSharedHash(subject,broadcastqueue) { Type = "queue"; LastObjectId=0; SOM = som;}
   virtual ~XrdMqSharedQueue(){}
 
   virtual void CallBackInsert(XrdMqSharedHashEntry *entry, const char* key);
@@ -251,32 +239,56 @@ public:
   }
 };
 
+
 class XrdMqSharedObjectManager {
 private:
   std::map<std::string, XrdMqSharedHash*> hashsubjects;
   std::map<std::string, XrdMqSharedQueue> queuesubjects;
-  bool debug;
+
+  std::string DumperFile;
+  std::string AutoReplyQueue; // queue which is used to setup the reply queue of hashes which have been broadcasted
+  bool AutoReplyQueueDerive;  // if this is true, the reply queue is derived from the subject e.g. 
+                              // the subject "/eos/<host>/fst/<path>" derives as "/eos/<host>/fst"
 
 public:
+  static bool debug;
+
+  bool EnableQueue; // if this is true, creation/deletionsubjects are filled and SubjectsSem get's posted for every new creation/deletion
+
+  std::deque<std::string> CreationSubjects;
+  std::deque<std::string> DeletionSubjects;
+  std::deque<std::string> ModificationSubjects;    // these are posted as <queue>:<key>
+  std::set<std::string> ModificationWatchKeys;     // set of keys which get posted on the modifications list
+  
+  // semaphore to wait for new creations/deletions/modifications
+  XrdSysSemaphore SubjectsSem;
+
+  // mutex to safeguard the creations/deletions/modifications & watch subjects
+  XrdSysMutex SubjectsMutex;
+ 
+
   XrdMqRWMutex HashMutex;
   XrdMqRWMutex ListMutex;
   
   XrdMqSharedObjectManager();
   ~XrdMqSharedObjectManager();
 
-  bool CreateSharedObject(const char* subject, const char* broadcastqueue, const char* type = "hash") {
+  void SetAutoReplyQueue(const char* queue);
+  void SetAutoReplyQueueDerive(bool val) { AutoReplyQueueDerive = val;}
+  
+  bool CreateSharedObject(const char* subject, const char* broadcastqueue, const char* type = "hash", XrdMqSharedObjectManager* som=0) {
     std::string Type = type;
     if (Type == "hash") {
-      return CreateSharedHash(subject,broadcastqueue);
+      return CreateSharedHash(subject,broadcastqueue, som?som:this);
     }
     if (Type == "queue") {
-      return CreateSharedQueue(subject,broadcastqueue);
+      return CreateSharedQueue(subject,broadcastqueue, som?som:this);
     }
     return false;
   }
 
-  bool CreateSharedHash(const char* subject, const char* broadcastqueue);
-  bool CreateSharedQueue(const char* subject, const char* broadcastqueue);
+  bool CreateSharedHash (const char* subject, const char* broadcastqueue, XrdMqSharedObjectManager* som=0);
+  bool CreateSharedQueue(const char* subject, const char* broadcastqueue, XrdMqSharedObjectManager* som=0);
   
   bool DeleteSharedHash(const char* subject);
   bool DeleteSharedQueue(const char* subject);
@@ -311,10 +323,15 @@ public:
   }
 
   void DumpSharedObjectList(XrdOucString& out);
-
+  void DumpSharedObjects(XrdOucString& out);
+  
   bool ParseEnvMessage(XrdMqMessage* message, XrdOucString &error);
 
   void SetDebug(bool dbg=false) {debug = dbg;}
+
+  void StartDumper(const char* file); // starts a thread which continously dumps all the hashes
+  static void* StartHashDumper(void* pp);
+  void FileDumper();
 };
 
 #endif

@@ -1,6 +1,6 @@
 #define TRACE_debug 0xffff
-#include <XrdMqOfs/XrdMqClient.hh>
-#include <XrdMqOfs/XrdMqTiming.hh>
+#include <mq/XrdMqClient.hh>
+#include <mq/XrdMqTiming.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysError.hh>
 #include <stdio.h>
@@ -22,7 +22,7 @@ int main (int argc, char* argv[]) {
   XrdMqClient mqc;
   
   if (mqc.AddBroker("root://lxbra0301.cern.ch:1097//eos/lxbra0301.cern.ch/master", true, true)) {
-  //  if (mqc.AddBroker("root://localhost//xmessage/localhost/master", false, false)) {
+    //  if (mqc.AddBroker("root://localhost//xmessage/localhost/master", false, false)) {
     printf("Added localhost ..\n");
   } else {
     printf("Adding localhost failed 1st time \n");
@@ -61,32 +61,32 @@ int main (int argc, char* argv[]) {
       (mqc << message);
       
       for (int j=0; j< 0; j++) {
-	XrdMqMessage* newmessage = mqc.RecvMessage();
-	if (!newmessage) 
-	  continue;
+        XrdMqMessage* newmessage = mqc.RecvMessage();
+        if (!newmessage) 
+          continue;
       
-	if ( (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage) || (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage) ) {
-	  XrdAdvisoryMqMessage* advisorymessage = XrdAdvisoryMqMessage::Create(newmessage->GetMessageBuffer());
-	  delete advisorymessage;
-	  //	  advisorymessage->Print();
-	} else {
-	  //      newmessage->Print();
-	}
-	if (newmessage) 
-	  delete newmessage;
-	
-	while ((newmessage = mqc.RecvFromInternalBuffer())) {
-	  if ( (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage) || (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage) ) {
-	    XrdAdvisoryMqMessage* advisorymessage = XrdAdvisoryMqMessage::Create(newmessage->GetMessageBuffer());
-	    //  advisorymessage->Print();
-	    delete advisorymessage;
-	  } else {
-	    //	    newmessage->Print();
-	  }
-	  
-	  if (newmessage) 
-	    delete newmessage;
-	}
+        if ( (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage) || (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage) ) {
+          XrdAdvisoryMqMessage* advisorymessage = XrdAdvisoryMqMessage::Create(newmessage->GetMessageBuffer());
+          delete advisorymessage;
+          //      advisorymessage->Print();
+        } else {
+          //      newmessage->Print();
+        }
+        if (newmessage) 
+          delete newmessage;
+        
+        while ((newmessage = mqc.RecvFromInternalBuffer())) {
+          if ( (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage) || (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage) ) {
+            XrdAdvisoryMqMessage* advisorymessage = XrdAdvisoryMqMessage::Create(newmessage->GetMessageBuffer());
+            //  advisorymessage->Print();
+            delete advisorymessage;
+          } else {
+            //      newmessage->Print();
+          }
+          
+          if (newmessage) 
+            delete newmessage;
+        }
       }
     }
   } while(1);

@@ -2,7 +2,7 @@
 
 const char *XrdMqClientCVSID = "$Id: XrdMqClient.cc,v 1.0.0 2007/10/04 01:34:19 ajp Exp $";
 
-#include <XrdMqOfs/XrdMqClient.hh>
+#include <mq/XrdMqClient.hh>
 #include <XrdNet/XrdNetDNS.hh>
 
 /******************************************************************************/
@@ -84,24 +84,24 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
       admin->GetClientConn()->ClearLastServerError();
       admin->GetClientConn()->SetOpTimeLimit(10);
       admin->Query(kXR_Qopaquf,
-		   (kXR_char *) message.c_str(),
-		   (kXR_char *) result, result_size);
+                   (kXR_char *) message.c_str(),
+                   (kXR_char *) result, result_size);
       if (!admin->LastServerResp()) {
-	Mutex.UnLock();
-	return false;
+        Mutex.UnLock();
+        return false;
       }
       switch (admin->LastServerResp()->status) {
       case kXR_ok:
-	Mutex.UnLock();
-	return true;
+        Mutex.UnLock();
+        return true;
       
       case kXR_error:
-	//	admin->GetClientConn()->Disconnect(true);
-	break;
-	
+        //      admin->GetClientConn()->Disconnect(true);
+        break;
+        
       default:
-	Mutex.UnLock();
-	return true;
+        Mutex.UnLock();
+        return true;
       }
     }
     // we continue until any of the brokers accepts the message
@@ -131,7 +131,7 @@ XrdMqMessage* XrdMqClient::RecvFromInternalBuffer() {
       return 0;
     else {
       if (firstmessage>1)
-	kMessageBuffer.erase(0,firstmessage);
+        kMessageBuffer.erase(0,firstmessage);
     }
     
     if (kMessageBuffer.length() < (int)strlen(XMQHEADER))
@@ -189,12 +189,12 @@ XrdMqMessage* XrdMqClient::RecvMessage() {
     if (recvbufferalloc < stinfo.size) {
       int allocsize = 1024*1024;
       if (stinfo.size > allocsize) {
-	allocsize = stinfo.size + 1;
+        allocsize = stinfo.size + 1;
       }
       recvbuffer = (char*)realloc(recvbuffer,allocsize);
       if (!recvbuffer) {
-	// this is really fatal - we exit !
-	exit(-1);
+        // this is really fatal - we exit !
+        exit(-1);
       }
     }
     // read all messages
@@ -324,7 +324,7 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl, const char
       // truncate the URL away
       int pos = kClientId.find("//",7);
       if (pos!=STR_NPOS) {
-	kClientId.erase(0,pos+1);
+        kClientId.erase(0,pos+1);
       }
     }
   } else {

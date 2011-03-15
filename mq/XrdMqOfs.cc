@@ -18,8 +18,8 @@ const char *XrdMqOfsCVSID = "$Id: XrdMqOfs.cc,v 1.0.0 2007/10/04 01:34:19 ajp Ex
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdNet/XrdNetDNS.hh"
-#include "XrdMqOfs/XrdMqOfs.hh"
-#include "XrdMqOfs/XrdMqMessage.hh"
+#include "mq/XrdMqOfs.hh"
+#include "mq/XrdMqMessage.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 
 #include <pwd.h>
@@ -122,22 +122,22 @@ XrdMqOfs::Init (XrdSysError &ep)
 extern "C" 
 XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs, 
                                       XrdSysLogger     *lp,
-				      const char       *configfn)
+                                      const char       *configfn)
 {
   // Do the herald thing
   //
   OfsEroute.SetPrefix("mqofs_");
   OfsEroute.logger(lp);
   OfsEroute.Say("++++++ (c) 2010 CERN/IT-DSS ",
-		"v 1.0");
+                "v 1.0");
 
-   XrdOfsFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
+  XrdOfsFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
 
-   if ( XrdOfsFS.Configure(OfsEroute) ) return 0;
+  if ( XrdOfsFS.Configure(OfsEroute) ) return 0;
    
-   // All done, we can return the callout vector to these routines.
-   //
-   return &XrdOfsFS;
+  // All done, we can return the callout vector to these routines.
+  //
+  return &XrdOfsFS;
 }
   
 /******************************************************************************/
@@ -151,8 +151,8 @@ const char *XrdMqOfs::getVersion() {return XrdVERSION;}
 /******************************************************************************/
 
 int XrdMqOfs::Stall(XrdOucErrInfo   &error, // Error text & code
-                  int              stime, // Seconds to stall
-                  const char      *msg)   // Message to give
+                    int              stime, // Seconds to stall
+                    const char      *msg)   // Message to give
 {
   XrdOucString smessage = msg;
   smessage += "; come back in ";
@@ -175,10 +175,10 @@ int XrdMqOfs::Stall(XrdOucErrInfo   &error, // Error text & code
 
 int 
 XrdMqOfs::stat(const char                *queuename,
-	       struct stat               *buf,
-	       XrdOucErrInfo             &error,
-	       const XrdSecEntity        *client,
-	       const char                *opaque) {
+               struct stat               *buf,
+               XrdOucErrInfo             &error,
+               const XrdSecEntity        *client,
+               const char                *opaque) {
 
   EPNAME("stat");
   const char *tident = error.getErrUser();
@@ -246,10 +246,10 @@ XrdMqOfs::stat(const char                *queuename,
 
 int 
 XrdMqOfs::stat(const char                *Name,
-	       mode_t                    &mode,
-	       XrdOucErrInfo             &error,
-	       const XrdSecEntity        *client,
-	       const char                *opaque) {
+               mode_t                    &mode,
+               XrdOucErrInfo             &error,
+               const XrdSecEntity        *client,
+               const char                *opaque) {
 
   EPNAME("stat");
   const char *tident = error.getErrUser();
@@ -263,10 +263,10 @@ XrdMqOfs::stat(const char                *Name,
 
 int
 XrdMqOfsFile::open(const char                *queuename,
-		   XrdSfsFileOpenMode   openMode,
-		   mode_t               createMode,
-		   const XrdSecEntity        *client,
-		   const char                *opaque)
+                   XrdSfsFileOpenMode   openMode,
+                   mode_t               createMode,
+                   const XrdSecEntity        *client,
+                   const char                *opaque)
 {
   EPNAME("open");
 
@@ -323,7 +323,7 @@ XrdMqOfsFile::close() {
     return SFS_OK;
 
   ZTRACE(close,"Disconnecting Queue: " << QueueName.c_str());
-	 
+         
   std::string squeue = QueueName.c_str();
 
   {
@@ -362,8 +362,8 @@ XrdMqOfsFile::close() {
 
 XrdSfsXferSize 
 XrdMqOfsFile::read(XrdSfsFileOffset  fileOffset, 
-		    char            *buffer,
-		    XrdSfsXferSize   buffer_size) {
+                   char            *buffer,
+                   XrdSfsXferSize   buffer_size) {
   EPNAME("read");
   ZTRACE(open,"read");
   if (Out) {
@@ -409,7 +409,7 @@ XrdMqOfsFile::stat(struct stat *buf) {
       XrdMqOfsMatches matches(XrdOfsFS.QueueAdvisory.c_str(), env, tident, XrdMqMessageHeader::kQueryMessage, QueueName.c_str());
       XrdMqOfsOutMutex qm;
       if (!XrdOfsFS.Deliver(matches))
-	delete env;
+        delete env;
     }
 
 
@@ -509,21 +509,21 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
     
     while((var = Config.GetMyFirstWord())) {
       if (!strncmp(var, "mq.",3)) {
-	var += 3;
+        var += 3;
 
-	if (!strcmp("queue",var)) {
-	  if (( val = Config.GetWord())) {
-	    QueuePrefix = val;
-	    QueueAdvisory = QueuePrefix;
-	    QueueAdvisory += "*";
-	  }
-	}
+        if (!strcmp("queue",var)) {
+          if (( val = Config.GetWord())) {
+            QueuePrefix = val;
+            QueueAdvisory = QueuePrefix;
+            QueueAdvisory += "*";
+          }
+        }
 
-	if (!strcmp("statfile",var)) {
-	  if (( val = Config.GetWord())) {
-	    StatisticsFile = val;
-	  }
-	}
+        if (!strcmp("statfile",var)) {
+          if (( val = Config.GetWord())) {
+            StatisticsFile = val;
+          }
+        }
       }
     }
     
@@ -533,9 +533,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
   XrdOucString basestats = StatisticsFile;
   basestats.erase(basestats.rfind("/"));
   XrdOucString mkdirbasestats="mkdir -p "; mkdirbasestats += basestats; mkdirbasestats += " 2>/dev/null";
-  int src =system(mkdirbasestats.c_str());
-  if (src)
-    fprintf(stderr,"%s returned %d\n", mkdirbasestats.c_str(), src);
+  system(mkdirbasestats.c_str());
   
   BrokerId = "root://";
   BrokerId += ManagerId;
@@ -618,13 +616,13 @@ XrdMqOfs::Statistics() {
     ZTRACE(getstats,"Backlog   Messages Hits       : " << QueueBacklogHits);
     char rates[4096];
     sprintf(rates, "Rates: IN: %.02f OUT: %.02f FAN: %.02f ADV: %.02f: UNDEV: %.02f DISCMON: %.02f NOMSG: %.02f" 
-	    ,(1000.0*(ReceivedMessages-LastReceivedMessages)/(tdiff))
-	    ,(1000.0*(DeliveredMessages-LastDeliveredMessages)/(tdiff))
-	    ,(1000.0*(FanOutMessages-LastFanOutMessages)/(tdiff))
-	    ,(1000.0*(AdvisoryMessages-LastAdvisoryMessages)/(tdiff))
-	    ,(1000.0*(UndeliverableMessages-LastUndeliverableMessages)/(tdiff))
-	    ,(1000.0*(DiscardedMonitoringMessages-LastDiscardedMonitoringMessages)/(tdiff))
-	    ,(1000.0*(NoMessages-LastNoMessages)/(tdiff)));
+            ,(1000.0*(ReceivedMessages-LastReceivedMessages)/(tdiff))
+            ,(1000.0*(DeliveredMessages-LastDeliveredMessages)/(tdiff))
+            ,(1000.0*(FanOutMessages-LastFanOutMessages)/(tdiff))
+            ,(1000.0*(AdvisoryMessages-LastAdvisoryMessages)/(tdiff))
+            ,(1000.0*(UndeliverableMessages-LastUndeliverableMessages)/(tdiff))
+            ,(1000.0*(DiscardedMonitoringMessages-LastDiscardedMonitoringMessages)/(tdiff))
+            ,(1000.0*(NoMessages-LastNoMessages)/(tdiff)));
     ZTRACE(getstats, rates);
     ZTRACE(getstats,"*****************************************************");
     LastOutputTime = now;

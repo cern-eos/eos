@@ -1,6 +1,6 @@
 #define TRACE_debug 0xffff
-#include <XrdMqOfs/XrdMqClient.hh>
-#include <XrdMqOfs/XrdMqTiming.hh>
+#include <mq/XrdMqClient.hh>
+#include <mq/XrdMqTiming.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
 
@@ -47,12 +47,12 @@ int main (int argc, char* argv[]) {
       XrdMqMessage* newmessage = mqc.RecvMessage();
       if (newmessage) newmessage->Print();
       if (newmessage) 
-	delete newmessage;
+        delete newmessage;
 
       while ((newmessage = mqc.RecvFromInternalBuffer())) {
-	if (newmessage) newmessage->Print();
-	if (newmessage) 
-	  delete newmessage;
+        if (newmessage) newmessage->Print();
+        if (newmessage) 
+          delete newmessage;
       }
     }
     

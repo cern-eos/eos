@@ -1,9 +1,9 @@
 #define TRACE_debug 0xffff
-#include <XrdMqOfs/XrdMqClient.hh>
-#include <XrdMqOfs/XrdMqTiming.hh>
-#include <XrdMqOfs/XrdMqMessaging.hh>
-#include <XrdMqOfs/XrdMqSharedObject.hh>
-#include <XrdSys/XrdSysLogger.hh>
+#include "mq/XrdMqClient.hh"
+#include "mq/XrdMqTiming.hh"
+#include "mq/XrdMqMessaging.hh"
+#include "mq/XrdMqSharedObject.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include <stdio.h>
 
 int main (int argc, char* argv[]) {
@@ -49,13 +49,13 @@ int main (int argc, char* argv[]) {
       XrdOucString str = "statistics"; str += v;
       XrdMqSharedQueue* queue =  dynamic_cast<XrdMqSharedQueue*>( ObjectManager.GetObject(str.c_str(),"queue"));
       if (!queue) {
-	fprintf(stderr,"error: queue get failed\n");
-	exit(-1);
+        fprintf(stderr,"error: queue get failed\n");
+        exit(-1);
       }
 
       if (i==0) {
-	queue->BroadCastRequest("/eos/*/worker");
-	sleep(3);
+        queue->BroadCastRequest("/eos/*/worker");
+        sleep(3);
       }
       queue->OpenTransaction();
       
@@ -74,13 +74,13 @@ int main (int argc, char* argv[]) {
       std::deque<XrdMqSharedHashEntry*>::iterator it;
       printf("QUEUE [%d]: \n", (int)queue->GetQueue()->size());
       for (it=queue->GetQueue()->begin(); it != queue->GetQueue()->end(); it++) {
-	printf("%s ", ((XrdMqSharedHashEntry*)(*it))->GetKey());
+        printf("%s ", ((XrdMqSharedHashEntry*)(*it))->GetKey());
       }
       printf("\n");
       ObjectManager.HashMutex.UnLockRead();
       if (!(i%=10)) {
-	fprintf(stderr,"==>clearing queue\n");
-	queue->Clear();
+        fprintf(stderr,"==>clearing queue\n");
+        queue->Clear();
       }
     }
 
