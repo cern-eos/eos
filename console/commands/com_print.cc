@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-#include "ConsoleMain.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Print out help for ARG, or for all of the commands if ARG is

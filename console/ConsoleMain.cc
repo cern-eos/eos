@@ -17,11 +17,11 @@ bool debug=false;
 
 XrdOucEnv* CommandEnv=0; // this is a pointer to the result of client_admin... or client_user.... = it get's invalid when the output_result function is called
 
-XrdCommonClientAdminManager CommonClientAdminManager;
+eos::common::ClientAdminManager CommonClientAdminManager;
 
 // for static linking needed
 /*int
-XrdOucUtils::makePath(char*, unsigned int) {
+  XrdOucUtils::makePath(char*, unsigned int) {
   return 0;
   }*/
 
@@ -37,36 +37,6 @@ void exit_handler (int a) {
 
 /* The names of functions that actually do the manipulation. */
 
-int com_help PARAMS((char *));
-int com_quit PARAMS((char *));
-int com_attr PARAMS((char*));
-int com_debug PARAMS((char*));
-int com_cd PARAMS((char*));
-int com_clear PARAMS((char*));
-int com_chmod PARAMS((char*));
-int com_config PARAMS((char*));
-int com_file PARAMS((char*));
-int com_fileinfo PARAMS((char*));
-int com_find PARAMS((char*));
-int com_fs   PARAMS((char*));
-int com_ls PARAMS((char*));
-int com_mkdir PARAMS((char*));
-int com_ns PARAMS((char*));
-int com_role PARAMS((char*));
-int com_rmdir PARAMS((char*));
-int com_rm PARAMS((char*));
-int com_vid PARAMS((char*));
-int com_pwd PARAMS((char*));
-int com_quota PARAMS((char*));
-int com_restart PARAMS((char*));
-int com_rtlog PARAMS((char*));
-int com_test PARAMS((char*));
-int com_transfers PARAMS((char*));
-int com_verify PARAMS((char*));
-int com_silent PARAMS((char*));
-int com_timing PARAMS((char*));
-int com_whoami PARAMS((char*));
-
 const char* abspath(const char* in) {
   static XrdOucString inpath;
   inpath = in;
@@ -79,39 +49,39 @@ const char* abspath(const char* in) {
 
 
 COMMAND commands[] = {
-  { (char*)"attr", com_attr, (char*)"Attribute Interface" },
-  { (char*)"clear", com_clear, (char*)"Clear the terminal" },
-  { (char*)"cd", com_cd, (char*)"Change directory" },
-  { (char*)"chmod", com_chmod, (char*)"Mode Interface" },
-  { (char*)"config",com_config,(char*)"Configuration System"},
-  { (char*)"debug", com_debug,(char*)"Set debug level"},
-  { (char*)"exit",  com_quit, (char*)"Exit from EOS console" },
-  { (char*)"file", com_file, (char*)"File Handling" },
+  { (char*)"attr",     com_attr,     (char*)"Attribute Interface" },
+  { (char*)"clear",    com_clear,    (char*)"Clear the terminal" },
+  { (char*)"cd",       com_cd,       (char*)"Change directory" },
+  { (char*)"chmod",    com_chmod,    (char*)"Mode Interface" },
+  { (char*)"config",   com_config,   (char*)"Configuration System"},
+  { (char*)"debug",    com_debug,    (char*)"Set debug level"},
+  { (char*)"exit",     com_quit,     (char*)"Exit from EOS console" },
+  { (char*)"file",     com_file,     (char*)"File Handling" },
   { (char*)"fileinfo", com_fileinfo, (char*)"File Information" },
-  { (char*)"find",  com_find, (char*)"Find files/directories" },
-  { (char*)"fs",    com_fs,   (char*)"File System configuration"},
-  { (char*)"help",  com_help, (char*)"Display this text" },
-  { (char*)"ls", com_ls, (char*)"List a directory" },
-  { (char*)"mkdir", com_mkdir, (char*)"Create a directory" },
-  { (char*)"ns", com_ns, (char*)"Namespace Interface" },
-  { (char*)"vid", com_vid, (char*) "Virtual ID System Configuration" },
-  { (char*)"pwd", com_pwd, (char*)"Print working directory" },
-  { (char*)"quit",  com_quit, (char*)"Exit from EOS console" },
-  { (char*)"quota", com_quota,(char*)"Quota System configuration"},
-  { (char*)"restart",com_restart,(char*)"Restart System"},
-  { (char*)"rmdir", com_rmdir, (char*)"Remove a directory" },
-  { (char*)"rm", com_rm, (char*)"Remove a file" },
-  { (char*)"role", com_role, (char*) "Set the client role" },
-  { (char*)"rtlog", com_rtlog, (char*)"Get realtime log output from mgm & fst servers" },
-  { (char*)"silent", com_silent, (char*)"Toggle silent flag for stdout" },
-  { (char*)"test", com_test, (char*)"Run performance test" },
-  { (char*)"timing", com_timing, (char*)"Toggle timing flag for execution time measurement" },
+  { (char*)"find",     com_find,     (char*)"Find files/directories" },
+  { (char*)"fs",       com_fs,       (char*)"File System configuration"},
+  { (char*)"help",     com_help,     (char*)"Display this text" },
+  { (char*)"ls",       com_ls,       (char*)"List a directory" },
+  { (char*)"mkdir",    com_mkdir,    (char*)"Create a directory" },
+  { (char*)"ns",       com_ns,       (char*)"Namespace Interface" },
+  { (char*)"vid",      com_vid,      (char*)"Virtual ID System Configuration" },
+  { (char*)"pwd",      com_pwd,      (char*)"Print working directory" },
+  { (char*)"quit",     com_quit,     (char*)"Exit from EOS console" },
+  { (char*)"quota",    com_quota,    (char*)"Quota System configuration"},
+  { (char*)"restart",  com_restart,  (char*)"Restart System"},
+  { (char*)"rmdir",    com_rmdir,    (char*)"Remove a directory" },
+  { (char*)"rm",       com_rm,       (char*)"Remove a file" },
+  { (char*)"role",     com_role,     (char*)"Set the client role" },
+  { (char*)"rtlog",    com_rtlog,    (char*)"Get realtime log output from mgm & fst servers" },
+  { (char*)"silent",   com_silent,   (char*)"Toggle silent flag for stdout" },
+  { (char*)"test",     com_test,     (char*)"Run performance test" },
+  { (char*)"timing",   com_timing,   (char*)"Toggle timing flag for execution time measurement" },
   { (char*)"transfers",com_transfers,(char*)"Transfer Interface"},
-  { (char*)"verify",com_verify,(char*)"Verify Interface"},
-  { (char*)"whoami", com_whoami, (char*)"Determine how we are mapped on server side" },
-  { (char*)"?",     com_help, (char*)"Synonym for `help'" },
-  { (char*)".q",    com_quit, (char*)"Exit from EOS console" },
-  { (char *)0, (rl_icpfunc_t *)0, (char *)0 }
+  { (char*)"verify",   com_verify,   (char*)"Verify Interface"},
+  { (char*)"whoami",   com_whoami,   (char*)"Determine how we are mapped on server side" },
+  { (char*)"?",        com_help,     (char*)"Synonym for `help'" },
+  { (char*)".q",       com_quit,    (char*)"Exit from EOS console" },
+  { (char *)0, (int (*)(char*))0,(char *)0 }
 };
 
 /* Forward declarations. */
@@ -151,7 +121,7 @@ dupstr (char *s){
 void initialize_readline ()
 {
   /* Allow conditional parsing of the ~/.inputrc file. */
-  rl_readline_name = "EOS Console";
+  rl_readline_name = (char*) "EOS Console";
 
   /* Tell the completer that we want a crack first. */
   rl_attempted_completion_function = EOSConsole_completion;
@@ -214,7 +184,7 @@ dir_generator (const char *text, int state) {
     }
 
   /* Return the next name which partially matches from the command list. */
-    // create a dirlist
+  // create a dirlist
   std::vector<std::string> dirs;
   dirs.resize(0);
   bool oldsilent=silent;
@@ -230,7 +200,7 @@ dir_generator (const char *text, int state) {
     } else {
       int rpos = inarg.rfind("/");
       if ( (rpos != STR_NPOS) )
-	inarg.erase(rpos+1);
+        inarg.erase(rpos+1);
     }
   } else {
     // relative pathnames
@@ -320,19 +290,19 @@ filedir_generator (const char *text, int state) {
     } else {
       int rpos = inarg.rfind("/");
       if ( (rpos != STR_NPOS) )
-	inarg.erase(rpos+1);
+        inarg.erase(rpos+1);
     }
   } else {
     // relative pathnames
     if ( (!inarg.length()) || (!inarg.endswith("/"))) {
       if (!inarg.length())
-	inarg = "";
+        inarg = "";
       else {
-	int rpos = inarg.rfind("/");
-	if ( (rpos != STR_NPOS) )
-	  inarg.erase(rpos+1);
-	else 
-	  inarg ="";
+        int rpos = inarg.rfind("/");
+        if ( (rpos != STR_NPOS) )
+          inarg.erase(rpos+1);
+        else 
+          inarg ="";
       }
     } else {
       inarg = pwd.c_str(); 
@@ -411,7 +381,7 @@ command_generator (const char *text, int state) {
       list_index++;
 
       if (strncmp (name, text, len) == 0) {
-	XrdOucString withspace = name;
+        XrdOucString withspace = name;
         return (dupstr((char*)withspace.c_str()));
       }
     }
@@ -614,67 +584,67 @@ int main (int argc, char* argv[]) {
       argindex = 2;
     } else {
       if (argc > 4) {
-	if (in1 == "-role") {
-	  urole = argv[2];
-	  grole = argv[3];
-	  in1 = argv[4];
+        if (in1 == "-role") {
+          urole = argv[2];
+          grole = argv[3];
+          in1 = argv[4];
 
-	  // execute the role function
-	  XrdOucString cmdline="role ";
-	  cmdline += urole; cmdline += " ";
-	  cmdline += grole;
-	  execute_line ((char*)cmdline.c_str());
-	} 
-	if (in1.beginswith("root://")) {
-	  serveruri = argv[4];
-	  in1 = argv[5];
-	  argindex = 5;
-	}
+          // execute the role function
+          XrdOucString cmdline="role ";
+          cmdline += urole; cmdline += " ";
+          cmdline += grole;
+          execute_line ((char*)cmdline.c_str());
+        } 
+        if (in1.beginswith("root://")) {
+          serveruri = argv[4];
+          in1 = argv[5];
+          argindex = 5;
+        }
       } else {
-	usage();
-	exit(-1);
+        usage();
+        exit(-1);
       }
     }
 
     if (in1.length()) {
       // check if this is a file
       if (!access(in1.c_str(), R_OK)) {
-	// this is a script file
-	char str[16384];
+        // this is a script file
+        char str[16384];
         fstream file_op(in1.c_str(),ios::in);
-	while(!file_op.eof()) {
-	  file_op.getline(str,16384);
-	  XrdOucString cmdline="";
-	  cmdline = str;
-	  if (!cmdline.length())
-	    break;
-	  while (cmdline.beginswith(" ")) {cmdline.erase(0,1);}
-	  while (cmdline.endswith(" "))   {cmdline.erase(cmdline.length()-1,1);}
-	  execute_line ((char*)cmdline.c_str());
-	}         
+        while(!file_op.eof()) {
+          file_op.getline(str,16384);
+          XrdOucString cmdline="";
+          cmdline = str;
+          if (!cmdline.length())
+            break;
+          while (cmdline.beginswith(" ")) {cmdline.erase(0,1);}
+          while (cmdline.endswith(" "))   {cmdline.erase(cmdline.length()-1,1);}
+          execute_line ((char*)cmdline.c_str());
+        }         
         file_op.close();
-	exit(0);
+        exit(0);
       } else {
-	XrdOucString cmdline="";
-	// this are commands
-	for (int i=argindex; i<argc; i++) {
-	  cmdline += argv[i];
-	  cmdline += " ";
-	}
-	// strip leading and trailing white spaces
-	while (cmdline.beginswith(" ")) {cmdline.erase(0,1);}
-	while (cmdline.endswith(" ")) {cmdline.erase(cmdline.length()-1,1);}
-	execute_line ((char*)cmdline.c_str());
-	exit(0);
+        XrdOucString cmdline="";
+        // this are commands
+        for (int i=argindex; i<argc; i++) {
+          cmdline += argv[i];
+          cmdline += " ";
+        }
+        // strip leading and trailing white spaces
+        while (cmdline.beginswith(" ")) {cmdline.erase(0,1);}
+        while (cmdline.endswith(" ")) {cmdline.erase(cmdline.length()-1,1);}
+        execute_line ((char*)cmdline.c_str());
+        exit(0);
       }
     }
   }
 
 
   /* configure looging */
-  XrdCommonLogging::Init();
-  XrdCommonLogging::SetUnit("eos");
-  XrdCommonLogging::SetLogPriority(LOG_NOTICE);
+  eos::common::Logging::Init();
+  eos::common::Logging::SetUnit("eos");
+  eos::common::Logging::SetLogPriority(LOG_NOTICE);
   
 
   /* install a shutdown handler */
@@ -685,7 +655,7 @@ int main (int argc, char* argv[]) {
 
   progname = argv[0];
 
-  initialize_readline ();	/* Bind our completer. */
+  initialize_readline ();       /* Bind our completer. */
 
   if (getenv("EOS_HISTORY_FILE")) {
     historyfile = getenv("EOS_HISTORY_FILE");
@@ -733,11 +703,11 @@ execute_line (char *line) {
 
   /* Isolate the command word. */
   i = 0;
-  while (line[i] && whitespace (line[i]))
+  while (line[i] && (line[i]==' '))
     i++;
   word = line + i;
 
-  while (line[i] && !whitespace (line[i]))
+  while (line[i] && ((line[i]!= ' ')))
     i++;
 
   if (line[i])
@@ -752,7 +722,7 @@ execute_line (char *line) {
     }
 
   /* Get argument to command, if any. */
-  while (whitespace (line[i]))
+  while (line[i] == ' ')
     i++;
 
   word = line + i;
@@ -780,14 +750,14 @@ char*
 stripwhite (char *string) {
   register char *s, *t;
 
-  for (s = string; whitespace (*s); s++)
+  for (s = string; (*s) == ' '; s++)
     ;
 
   if (*s == 0)
     return (s);
 
   t = s + strlen (s) - 1;
-  while (t > s && whitespace (*t))
+  while (t > s && ((*t)== ' '))
     t--;
   *++t = '\0';
 

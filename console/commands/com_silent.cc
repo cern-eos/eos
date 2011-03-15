@@ -1,10 +1,8 @@
 /*----------------------------------------------------------------------------*/
-#include "ConsoleMain.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
-/* The user wishes to quit using this program.  Just set DONE non-zero. */
-int
-com_quit (char *arg) {
-  done = 1;
+int com_silent (char*) {
+  silent = (!silent);
   return (0);
 }

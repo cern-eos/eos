@@ -1,8 +1,10 @@
 /*----------------------------------------------------------------------------*/
-#include "ConsoleMain.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
-int com_timing PARAMS((char*)) {
-  timing = (!timing);
+/* Clear the terminal screen */
+int
+com_clear (char *arg) {
+  system("clear");
   return (0);
 }

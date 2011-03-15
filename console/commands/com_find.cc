@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-#include "ConsoleMain.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
 
@@ -93,10 +93,10 @@ com_find (char* arg1) {
       attribute = subtokenizer.GetToken();
 
       if (!attribute.length())
-	goto com_find_usage;
+        goto com_find_usage;
 
       if ((attribute.find("&")) != STR_NPOS)
-	goto com_find_usage;
+        goto com_find_usage;
     }
 
     if (s1 == "-c") {
@@ -105,17 +105,17 @@ com_find (char* arg1) {
       
       filter = subtokenizer.GetToken();
       if (!filter.length()) 
-	goto com_find_usage;
+        goto com_find_usage;
       
       if ((filter.find("%%")) != STR_NPOS) {
-	goto com_find_usage;
+        goto com_find_usage;
       }
     }
 
     if (s1 == "-layoutstripes") {
       stripes = subtokenizer.GetToken();
       if (!stripes.length()) 
-	goto com_find_usage;
+        goto com_find_usage;
     }
 
     if (s1 == "-p") {
@@ -124,7 +124,7 @@ com_find (char* arg1) {
       printkey = subtokenizer.GetToken();
       
       if (!printkey.length()) 
-	goto com_find_usage;
+        goto com_find_usage;
     }
 
     if (s1 == "-b") {
@@ -152,7 +152,7 @@ com_find (char* arg1) {
     unsigned long long badentries=0;
     for (unsigned int i=0; i< files_found.size(); i++) {
       if (!files_found[i].length())
-	continue;
+        continue;
 
       XrdOucString cline="layout "; 
       cline += files_found[i].c_str();
@@ -160,9 +160,9 @@ com_find (char* arg1) {
       cline += stripes;
       rc = com_file((char*)cline.c_str());
       if (rc) {
-	badentries++;
+        badentries++;
       } else {
-	goodentries++;
+        goodentries++;
       }
       cnt++;
     }
@@ -188,7 +188,7 @@ com_find (char* arg1) {
     unsigned long long badentries=0;
     for (unsigned int i=0; i< files_found.size(); i++) {
       if (!files_found[i].length())
-	continue;
+        continue;
 
       XrdOucString cline="check "; 
       cline += files_found[i].c_str();
@@ -196,9 +196,9 @@ com_find (char* arg1) {
       cline += filter;
       rc = com_file((char*)cline.c_str());
       if (rc) {
-	badentries++;
+        badentries++;
       } else {
-	goodentries++;
+        goodentries++;
       }
       cnt++;
     }

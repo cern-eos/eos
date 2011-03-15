@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-#include "ConsoleMain.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Configuration System listing, configuration, manipulation */
@@ -15,31 +15,31 @@ com_config (char* arg1) {
     XrdOucString in ="mgm.cmd=config&mgm.subcmd=dump";
     if (arg.length()) { 
       do {
-	if (arg == "-fs") {
-	  in += "&mgm.config.fs=1";
-	  arg = subtokenizer.GetToken();
-	} else 
-	  if (arg == "-vid") {
-	    in += "&mgm.config.vid=1";
-	    arg = subtokenizer.GetToken();
-	  } else 
-	    if (arg == "-quota") {
-	      in += "&mgm.config.quota=1";
-	      arg = subtokenizer.GetToken();
-	    } else 
-	      if (arg == "-comment") {
-		in += "&mgm.config.comment=1";
-		arg = subtokenizer.GetToken();
-	      } else 
-		if (arg == "-policy") {
-		  in += "&mgm.config.policy=1";
-		  arg = subtokenizer.GetToken();
-		} else 
-		  if (!arg.beginswith("-")) {
-		    in += "&mgm.config.file=";
-		    in += arg;
-		    arg = subtokenizer.GetToken();
-		  }
+        if (arg == "-fs") {
+          in += "&mgm.config.fs=1";
+          arg = subtokenizer.GetToken();
+        } else 
+          if (arg == "-vid") {
+            in += "&mgm.config.vid=1";
+            arg = subtokenizer.GetToken();
+          } else 
+            if (arg == "-quota") {
+              in += "&mgm.config.quota=1";
+              arg = subtokenizer.GetToken();
+            } else 
+              if (arg == "-comment") {
+                in += "&mgm.config.comment=1";
+                arg = subtokenizer.GetToken();
+              } else 
+                if (arg == "-policy") {
+                  in += "&mgm.config.policy=1";
+                  arg = subtokenizer.GetToken();
+                } else 
+                  if (!arg.beginswith("-")) {
+                    in += "&mgm.config.file=";
+                    in += arg;
+                    arg = subtokenizer.GetToken();
+                  }
       } while (arg.length());
     }      
     
@@ -80,38 +80,38 @@ com_config (char* arg1) {
     printf("arg is %s\n", arg.c_str());
     do {
       if (arg == "-f") {
-	in += "&mgm.config.force=1";
-	arg = subtokenizer.GetToken();
+        in += "&mgm.config.force=1";
+        arg = subtokenizer.GetToken();
       } else 
-	if (arg == "-comment") {
-	  in += "&mgm.config.comment=";
-	  arg = subtokenizer.GetToken();
-	  if (arg.beginswith("\"")) {
-	    in += arg;
-	    arg = subtokenizer.GetToken();
-	    if (arg.length()) {
-	      do {
-		in += " ";
-		in += arg;
-		arg = subtokenizer.GetToken();
-	      } while (arg.length() && (!arg.endswith("\"")));
-	      if (arg.endswith("\"")) {
-		in += " ";
-		in += arg;
-		arg = subtokenizer.GetToken();
-	      }
-	    }
-	  }
-	} else {
-	  if (!arg.beginswith("-")) {
-	    in += "&mgm.config.file=";
-	    in += arg;
-	    hasfile = true;
-	    arg = subtokenizer.GetToken();
-	  } else {
-	    goto com_config_usage;
-	  }
-	}
+        if (arg == "-comment") {
+          in += "&mgm.config.comment=";
+          arg = subtokenizer.GetToken();
+          if (arg.beginswith("\"")) {
+            in += arg;
+            arg = subtokenizer.GetToken();
+            if (arg.length()) {
+              do {
+                in += " ";
+                in += arg;
+                arg = subtokenizer.GetToken();
+              } while (arg.length() && (!arg.endswith("\"")));
+              if (arg.endswith("\"")) {
+                in += " ";
+                in += arg;
+                arg = subtokenizer.GetToken();
+              }
+            }
+          }
+        } else {
+          if (!arg.beginswith("-")) {
+            in += "&mgm.config.file=";
+            in += arg;
+            hasfile = true;
+            arg = subtokenizer.GetToken();
+          } else {
+            goto com_config_usage;
+          }
+        }
     } while (arg.length());
     
     if (!hasfile) goto com_config_usage;
@@ -134,8 +134,8 @@ com_config (char* arg1) {
     XrdOucString in ="mgm.cmd=config&mgm.subcmd=changelog";
     if (arg.length()) {
       if (arg.beginswith("-")) {
-	// allow -100 and 100 
-	arg.erase(0,1);
+        // allow -100 and 100 
+        arg.erase(0,1);
       }
       in += "&mgm.config.lines="; in+= arg;
     }

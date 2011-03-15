@@ -1,13 +1,10 @@
 /*----------------------------------------------------------------------------*/
-#include "ConsoleMain.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
-/* Clear the terminal screen */
+/* The user wishes to quit using this program.  Just set DONE non-zero. */
 int
-com_clear (char *arg) {
-  int src = system("clear");
-  if (src) {
-    src = 0;
-  }
+com_quit (char *arg) {
+  done = 1;
   return (0);
 }

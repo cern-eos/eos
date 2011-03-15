@@ -1,6 +1,8 @@
 /*----------------------------------------------------------------------------*/
-#include "ConsoleMain.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
+
+using namespace eos::common;
 
 /*----------------------------------------------------------------------------*/
 struct fidpair {
@@ -66,59 +68,59 @@ bool load_fs_ls () {
     
     for (unsigned int i=0; i< files_found.size(); i++) {
       if (!files_found[i].length())
-	continue;
+        continue;
       XrdOucString line = files_found[i].c_str();
       if (line.beginswith("/eos/") && 
-	  ( (line.find("offline")==STR_NPOS) ) &&
-	  ( (line.find("online")== STR_NPOS) )) {
-	XrdOucTokenizer subtokenizer((char*)line.c_str());
-	subtokenizer.GetLine();
-	XrdOucString queue = subtokenizer.GetToken();
-	XrdOucString sfsid  = subtokenizer.GetToken();
-	XrdOucString path  = subtokenizer.GetToken();
-	XrdOucString schedgroup = subtokenizer.GetToken();
-	int sep = schedgroup.find(".");
-	XrdOucString space = schedgroup; space.erase(sep);
-	XrdOucString subgroup = schedgroup; subgroup.erase(0,sep+1);
-	XrdOucString bootstat = subtokenizer.GetToken();
-	XrdOucString boottime = subtokenizer.GetToken();
-	XrdOucString configstat = subtokenizer.GetToken();
-	XrdOucString blocks =subtokenizer.GetToken();
-	XrdOucString blocksunit = subtokenizer.GetToken();
-	XrdOucString freeblocks = subtokenizer.GetToken();
-	XrdOucString freeblocksunit = subtokenizer.GetToken();
+          ( (line.find("offline")==STR_NPOS) ) &&
+          ( (line.find("online")== STR_NPOS) )) {
+        XrdOucTokenizer subtokenizer((char*)line.c_str());
+        subtokenizer.GetLine();
+        XrdOucString queue = subtokenizer.GetToken();
+        XrdOucString sfsid  = subtokenizer.GetToken();
+        XrdOucString path  = subtokenizer.GetToken();
+        XrdOucString schedgroup = subtokenizer.GetToken();
+        int sep = schedgroup.find(".");
+        XrdOucString space = schedgroup; space.erase(sep);
+        XrdOucString subgroup = schedgroup; subgroup.erase(0,sep+1);
+        XrdOucString bootstat = subtokenizer.GetToken();
+        XrdOucString boottime = subtokenizer.GetToken();
+        XrdOucString configstat = subtokenizer.GetToken();
+        XrdOucString blocks =subtokenizer.GetToken();
+        XrdOucString blocksunit = subtokenizer.GetToken();
+        XrdOucString freeblocks = subtokenizer.GetToken();
+        XrdOucString freeblocksunit = subtokenizer.GetToken();
 
-	unsigned long fsid   = strtoul(sfsid.c_str(),0,10);
-	unsigned long sgroup = strtoul(subgroup.c_str(),0,10);
-	float fblocks = strtof(freeblocks.c_str(),NULL);
-	if (blocksunit == "KB") fblocks *= 1000;
-	if (blocksunit == "MB") fblocks *= 1000000;
-	if (blocksunit == "GB") fblocks *= 1000000000;
-	if (blocksunit == "TB") fblocks *= 1000000000000;
+        unsigned long fsid   = strtoul(sfsid.c_str(),0,10);
+        unsigned long sgroup = strtoul(subgroup.c_str(),0,10);
+        float fblocks = strtof(freeblocks.c_str(),NULL);
+        if (blocksunit == "KB") fblocks *= 1000;
+        if (blocksunit == "MB") fblocks *= 1000000;
+        if (blocksunit == "GB") fblocks *= 1000000000;
+        if (blocksunit == "TB") fblocks *= 1000000000000;
 
-	//struct fsinfo {
-	//  unsigned long long usedbytes;
-	//  unsigned long long freebytes;
-	//  std::list <unsigned long long> fids;
-	// };
-	
-	// google::sparse_hash_map< std::string, google::sparse_hash_map <unsigned long long, struct fsinfo > > fshash;
-	std::string sspace = space.c_str();
+        //struct fsinfo {
+        //  unsigned long long usedbytes;
+        //  unsigned long long freebytes;
+        //  std::list <unsigned long long> fids;
+        // };
+        
+        // google::sparse_hash_map< std::string, google::sparse_hash_map <unsigned long long, struct fsinfo > > fshash;
+        std::string sspace = space.c_str();
 
-	fshash[sspace][sgroup][fsid] = new struct fsinfo;
-	fshash[sspace][sgroup][fsid]->usedbytes = 0;
-	fshash[sspace][sgroup][fsid]->freebytes = (unsigned long long) fblocks;
-	fshash[sspace][sgroup][fsid]->space = sspace;
-	fshash[sspace][sgroup][fsid]->group = sgroup;
-	// set a pointer
-	fsptr[fsid] = fshash[sspace][sgroup][fsid];
+        fshash[sspace][sgroup][fsid] = new struct fsinfo;
+        fshash[sspace][sgroup][fsid]->usedbytes = 0;
+        fshash[sspace][sgroup][fsid]->freebytes = (unsigned long long) fblocks;
+        fshash[sspace][sgroup][fsid]->space = sspace;
+        fshash[sspace][sgroup][fsid]->group = sgroup;
+        // set a pointer
+        fsptr[fsid] = fshash[sspace][sgroup][fsid];
 
-	spaceptr[fsid] = sspace;
-	groupptr[fsid] = sgroup;
-	groupfree[sspace][sgroup] += (unsigned long long) fblocks;
+        spaceptr[fsid] = sspace;
+        groupptr[fsid] = sgroup;
+        groupfree[sspace][sgroup] += (unsigned long long) fblocks;
 
-	//	printf("%s %s %s %lu %lu free=%f\n", sfsid.c_str(), space.c_str(), subgroup.c_str(), fsid, sgroup, fblocks);
-	//	printf("%lu %llu free %llu %llu\n", fsid, (unsigned long long) &fsptr[fsid],(unsigned long long) &fsptr[6], (unsigned long long) fsptr[fsid]->freebytes);
+        //      printf("%s %s %s %lu %lu free=%f\n", sfsid.c_str(), space.c_str(), subgroup.c_str(), fsid, sgroup, fblocks);
+        //      printf("%lu %llu free %llu %llu\n", fsid, (unsigned long long) &fsptr[fsid],(unsigned long long) &fsptr[6], (unsigned long long) fsptr[fsid]->freebytes);
       }
     }
   }
@@ -142,9 +144,9 @@ com_fs (char* arg1) {
       global_retc = output_result(result);
     } else {
       if (result) {
-	global_retc = 0;
+        global_retc = 0;
       } else {
-	global_retc = EINVAL;
+        global_retc = EINVAL;
       }
     }
     return (0);
@@ -161,20 +163,20 @@ com_fs (char* arg1) {
       XrdOucString arg = subtokenizer.GetToken();
       
       do {
-	if (arg == "-sched") {
-	  XrdOucString sched = subtokenizer.GetToken();
-	  if (!sched.length()) 
-	    goto com_fs_usage;
-	  
-	  in += "&mgm.fsschedgroup=";
-	  in += sched;
-	  arg = subtokenizer.GetToken();
-	} else {
-	  if (arg == "-force") {
-	    in += "mgm.fsforce=1";
-	  }
-	  arg = subtokenizer.GetToken();
-	} 
+        if (arg == "-sched") {
+          XrdOucString sched = subtokenizer.GetToken();
+          if (!sched.length()) 
+            goto com_fs_usage;
+          
+          in += "&mgm.fsschedgroup=";
+          in += sched;
+          arg = subtokenizer.GetToken();
+        } else {
+          if (arg == "-force") {
+            in += "mgm.fsforce=1";
+          }
+          arg = subtokenizer.GetToken();
+        } 
       } while (arg.length());
 
       global_retc = output_result(client_admin_command(in));
@@ -194,9 +196,9 @@ com_fs (char* arg1) {
       in += "&mgm.fsid=";
     } else {
       if (arg.endswith("/fst"))
-	in += "&mgm.nodename=";
+        in += "&mgm.nodename=";
       else 
-	in += "&mgm.fsname=";
+        in += "&mgm.fsname=";
     }
 
     in += arg;
@@ -242,9 +244,9 @@ com_fs (char* arg1) {
       in += "&mgm.fsid=";
     } else {
       if (arg.endswith("/fst"))
-	in += "&mgm.nodename=";
+        in += "&mgm.nodename=";
       else 
-	in += "&mgm.fsname=";
+        in += "&mgm.fsname=";
     }
     
     in += arg;
@@ -255,14 +257,14 @@ com_fs (char* arg1) {
       sched = subtokenizer.GetToken();
       arg                = subtokenizer.GetToken();
       if (!sched.length() || !arg.length()) 
-	goto com_fs_usage;
+        goto com_fs_usage;
     }
     
     sched = subtokenizer.GetToken();
     if (sched == "-sched") {
       sched = subtokenizer.GetToken();
       if (!sched.length())
-	goto com_fs_usage;
+        goto com_fs_usage;
     }
     
     if (sched.length()) {
@@ -300,20 +302,20 @@ com_fs (char* arg1) {
       output_result(CommandEnv);
     } else {
       if (CommandEnv) {
-	delete CommandEnv; CommandEnv = 0;
+        delete CommandEnv; CommandEnv = 0;
       }
 
       for (unsigned int i=0; i< files_found.size(); i++) {
-	if (!files_found[i].length())
-	  continue;
-	XrdOucString line = files_found[i].c_str();
-	if (line.beginswith("path=")) {
-	  line.replace("path=","");
-	  fprintf(stdout,"%06d: %s\n", i, line.c_str());
-	  // call the replication command here
-	  subcmd = "replicate "; subcmd += line; subcmd += " ";subcmd += sourceid; subcmd += " "; subcmd += targetid;
-	  com_file( (char*) subcmd.c_str());
-	}
+        if (!files_found[i].length())
+          continue;
+        XrdOucString line = files_found[i].c_str();
+        if (line.beginswith("path=")) {
+          line.replace("path=","");
+          fprintf(stdout,"%06d: %s\n", i, line.c_str());
+          // call the replication command here
+          subcmd = "replicate "; subcmd += line; subcmd += " ";subcmd += sourceid; subcmd += " "; subcmd += targetid;
+          com_file( (char*) subcmd.c_str());
+        }
       }
     }
     
@@ -365,14 +367,14 @@ com_fs (char* arg1) {
       bool found=false;
       std::vector<std::string>::iterator it;
       for (it = files_found2.begin(); it != files_found2.end(); ++it) {
-	if (files_found1[i] == *it) {
-	  files_found2.erase(it);
-	  found = true;
-	  break;
-	}
+        if (files_found1[i] == *it) {
+          files_found2.erase(it);
+          found = true;
+          break;
+        }
       }
       if (!found) {
-	files_miss1.push_back(files_found1[i]);
+        files_miss1.push_back(files_found1[i]);
       }
     }
     // files_miss1 contains the missing files in 2
@@ -380,12 +382,12 @@ com_fs (char* arg1) {
       
     for (unsigned int i=0; i< files_miss1.size(); i++) {
       if (files_miss1[i].length())
-	fprintf(stderr,"error: %s => found in %s - missing in %s\n", files_miss1[i].c_str(), sourceid.c_str(), targetid.c_str());
+        fprintf(stderr,"error: %s => found in %s - missing in %s\n", files_miss1[i].c_str(), sourceid.c_str(), targetid.c_str());
     }
     
     for (unsigned int i=0; i< files_found2.size(); i++) {
       if (files_found2[i].length())
-	fprintf(stderr,"error: %s => found in %s - missing in %s\n", files_found2[i].c_str(), targetid.c_str(), sourceid.c_str());
+        fprintf(stderr,"error: %s => found in %s - missing in %s\n", files_found2[i].c_str(), targetid.c_str(), sourceid.c_str());
     }
     
     return (0);
@@ -416,7 +418,7 @@ com_fs (char* arg1) {
       output_result(CommandEnv);
     } else {
       if (CommandEnv) {
-	delete CommandEnv; CommandEnv = 0;
+        delete CommandEnv; CommandEnv = 0;
       }
 
       string s;
@@ -424,32 +426,32 @@ com_fs (char* arg1) {
       printf("Confirm the deletion by typing => ");
       XrdOucString confirmation="";
       for (int i=0; i<10; i++) {
-	confirmation += (int) (9.0 * rand()/RAND_MAX);
+        confirmation += (int) (9.0 * rand()/RAND_MAX);
       }
       printf("%s\n", confirmation.c_str());
       printf("                               => ");
       getline( std::cin, s );
       std::string sconfirmation = confirmation.c_str();
       if ( s == sconfirmation) {
-	printf("\nDeletion confirmed\n");
-	for (unsigned int i=0; i< files_found.size(); i++) {
-	  if (!files_found[i].length())
-	    continue;
-	  XrdOucString line = files_found[i].c_str();
-	  if (line.beginswith("path=")) {
-	    line.replace("path=","");
-	    fprintf(stdout,"%06d: %s\n", i, line.c_str());
-	    // call the replication command here
-	    subcmd = "drop "; subcmd += line; subcmd += " ";subcmd += id; 
-	    if (option.length()) { 
-	      subcmd += " "; subcmd += option; 
-	    }
-	    com_file( (char*) subcmd.c_str());
-	  }
-	}
-	printf("=> Deleted %u replicas from filesystem %s\n", (unsigned int) files_found.size(), id.c_str());
+        printf("\nDeletion confirmed\n");
+        for (unsigned int i=0; i< files_found.size(); i++) {
+          if (!files_found[i].length())
+            continue;
+          XrdOucString line = files_found[i].c_str();
+          if (line.beginswith("path=")) {
+            line.replace("path=","");
+            fprintf(stdout,"%06d: %s\n", i, line.c_str());
+            // call the replication command here
+            subcmd = "drop "; subcmd += line; subcmd += " ";subcmd += id; 
+            if (option.length()) { 
+              subcmd += " "; subcmd += option; 
+            }
+            com_file( (char*) subcmd.c_str());
+          }
+        }
+        printf("=> Deleted %u replicas from filesystem %s\n", (unsigned int) files_found.size(), id.c_str());
       } else {
-	printf("\nDeletion aborted!\n");
+        printf("\nDeletion aborted!\n");
       }
     }
 
@@ -475,13 +477,13 @@ com_fs (char* arg1) {
 
     for (int i=0; i< 5; i++) {
       if (options[i].length() && 
-	  ( options[i] != "-checksum") && ( options[i] != "-commitchecksum") && (options[i] != "-commitsize") && (options[i] != "-rate")) {
-	goto com_fs_usage;
+          ( options[i] != "-checksum") && ( options[i] != "-commitchecksum") && (options[i] != "-commitsize") && (options[i] != "-rate")) {
+        goto com_fs_usage;
       }
       option += options[i]; option += " ";
       if (options[i] == "-rate") {
-	option += options[i+1]; option += " ";
-	i++;
+        option += options[i+1]; option += " ";
+        i++;
       }
     }
 
@@ -497,23 +499,23 @@ com_fs (char* arg1) {
       output_result(CommandEnv);
     } else {
       if (CommandEnv) {
-	delete CommandEnv; CommandEnv = 0;
+        delete CommandEnv; CommandEnv = 0;
       }
 
       for (unsigned int i=0; i< files_found.size(); i++) {
-	if (!files_found[i].length())
-	  continue;
-	XrdOucString line = files_found[i].c_str();
-	if (line.beginswith("path=")) {
-	  line.replace("path=","");
-	  fprintf(stdout,"%06d: %s\n", i, line.c_str());
-	  // call the replication command here
-	  subcmd = "verify "; subcmd += line; subcmd += " "; subcmd += id; subcmd += " ";
-	  if (option.length()) { 
-	    subcmd += option; 
-	  }
-	  com_file( (char*) subcmd.c_str());
-	}
+        if (!files_found[i].length())
+          continue;
+        XrdOucString line = files_found[i].c_str();
+        if (line.beginswith("path=")) {
+          line.replace("path=","");
+          fprintf(stdout,"%06d: %s\n", i, line.c_str());
+          // call the replication command here
+          subcmd = "verify "; subcmd += line; subcmd += " "; subcmd += id; subcmd += " ";
+          if (option.length()) { 
+            subcmd += option; 
+          }
+          com_file( (char*) subcmd.c_str());
+        }
       }
     }
     return (0);
@@ -550,23 +552,23 @@ com_fs (char* arg1) {
       output_result(CommandEnv);
     } else {
       if (CommandEnv) {
-	delete CommandEnv; CommandEnv = 0;
+        delete CommandEnv; CommandEnv = 0;
       }
 
       for (unsigned int i=0; i< files_found.size(); i++) {
-	if (!files_found[i].length())
-	  continue;
-	XrdOucString line = files_found[i].c_str();
-	if (line.beginswith("path=")) {
-	  line.replace("path=","");
-	}
-	
-	fprintf(stdout,"%06d: %s\n", i, line.c_str());
-	// call the heal command here
-	XrdOucString subcmd = "adjustreplica "; subcmd += line; subcmd += " "; subcmd += " "; 
-	if (targetspace.length())  { subcmd += targetspace; }
-	if (targetid.length())     { subcmd += " "; subcmd += targetid; }
-	com_file( (char*) subcmd.c_str());
+        if (!files_found[i].length())
+          continue;
+        XrdOucString line = files_found[i].c_str();
+        if (line.beginswith("path=")) {
+          line.replace("path=","");
+        }
+        
+        fprintf(stdout,"%06d: %s\n", i, line.c_str());
+        // call the heal command here
+        XrdOucString subcmd = "adjustreplica "; subcmd += line; subcmd += " "; subcmd += " "; 
+        if (targetspace.length())  { subcmd += targetspace; }
+        if (targetid.length())     { subcmd += " "; subcmd += targetid; }
+        com_file( (char*) subcmd.c_str());
       }
     }
     return (0);
@@ -610,7 +612,7 @@ com_fs (char* arg1) {
       output_result(CommandEnv);
     } else {    
       if (CommandEnv) {
-	delete CommandEnv; CommandEnv = 0;
+        delete CommandEnv; CommandEnv = 0;
       }
     }
 
@@ -621,90 +623,90 @@ com_fs (char* arg1) {
 
     for (unsigned int i=0; i< files_found.size(); i++) {
       if (files_found[i].length()) {
-	char parser[4096];
-	sprintf(parser,"%s",files_found[i].c_str());
-	XrdOucTokenizer subtokenizer(parser);
-	subtokenizer.GetLine();
-	const char* val=0;
-	unsigned long long size=0;
-	unsigned long long ctime=0;
-	unsigned long long fid=0;
-	std::vector<int> locations;
-	
-	if (!(i%10000)) {
-	  fprintf(stdout,"..  file md %u/%u ...\n", i, (unsigned int)files_found.size());
-	}
+        char parser[4096];
+        sprintf(parser,"%s",files_found[i].c_str());
+        XrdOucTokenizer subtokenizer(parser);
+        subtokenizer.GetLine();
+        const char* val=0;
+        unsigned long long size=0;
+        unsigned long long ctime=0;
+        unsigned long long fid=0;
+        std::vector<int> locations;
+        
+        if (!(i%10000)) {
+          fprintf(stdout,"..  file md %u/%u ...\n", i, (unsigned int)files_found.size());
+        }
 
-	while ( ( val = subtokenizer.GetToken()) ) {
-	  XrdOucString sval = val;
-	  if (sval.beginswith("size=")) {
-	    sval.erase(0,5);
-	    size = strtoull(sval.c_str(),0,10);
-	  }
+        while ( ( val = subtokenizer.GetToken()) ) {
+          XrdOucString sval = val;
+          if (sval.beginswith("size=")) {
+            sval.erase(0,5);
+            size = strtoull(sval.c_str(),0,10);
+          }
 
-	  if (sval.beginswith("fid=")) {
-	    sval.erase(0,4);
-	    fid = strtoull(sval.c_str(),0,10);
-	  }
+          if (sval.beginswith("fid=")) {
+            sval.erase(0,4);
+            fid = strtoull(sval.c_str(),0,10);
+          }
 
 
-	  if (sval.beginswith("fsid=")) {
-	    sval.erase(0,5);
-	    XrdOucString fslist = sval;
-	    int cpos=0;
-	    int cposstart=0;
-	    do {
-	      XrdOucString fsl;
-	      cpos = sval.find(",",cpos);
-	      if (cpos != STR_NPOS) {
-		fsl.assign(fslist,cposstart,cpos-1);
-		int ifs = atoi(fsl.c_str());
-		locations.push_back(ifs);
-		cpos++;
-		cposstart = cpos;
-	      } else {
-		fsl.assign(fslist,cposstart);
-		int ifs = atoi(fsl.c_str());
-		locations.push_back(ifs);
-		break;
-	      }
-	    } while (1);
-	  }
+          if (sval.beginswith("fsid=")) {
+            sval.erase(0,5);
+            XrdOucString fslist = sval;
+            int cpos=0;
+            int cposstart=0;
+            do {
+              XrdOucString fsl;
+              cpos = sval.find(",",cpos);
+              if (cpos != STR_NPOS) {
+                fsl.assign(fslist,cposstart,cpos-1);
+                int ifs = atoi(fsl.c_str());
+                locations.push_back(ifs);
+                cpos++;
+                cposstart = cpos;
+              } else {
+                fsl.assign(fslist,cposstart);
+                int ifs = atoi(fsl.c_str());
+                locations.push_back(ifs);
+                break;
+              }
+            } while (1);
+          }
 
-	  if (sval.beginswith("ctime=")) {
-	    sval.erase(0,6);
-	    ctime = strtoull(sval.c_str(),0,10);
-	  }
+          if (sval.beginswith("ctime=")) {
+            sval.erase(0,6);
+            ctime = strtoull(sval.c_str(),0,10);
+          }
 
-	}
-	// space => subgroup => fsid => fsinfo
-	google::sparse_hash_map< std::string, google::sparse_hash_map <unsigned long , google::sparse_hash_map < unsigned long , struct fsinfo > > > fshash;
+        }
+        // space => subgroup => fsid => fsinfo
+        google::sparse_hash_map< std::string, google::sparse_hash_map <unsigned long , google::sparse_hash_map < unsigned long , struct fsinfo > > > fshash;
 
-	std::vector<int>::const_iterator it;
+        std::vector<int>::const_iterator it;
 
-	if (locations.size()) {
-	  for ( it = locations.begin(); it != locations.end(); it++) {
-	    if (*it) {
-	      if (fsptr.count(*it)) {
-		fsptr[*it]->usedbytes  += size;
-		struct fidpair* fp = new struct fidpair;
-		fp->fid  = fid;
-		fp->size = size;
-		fp->nrep = locations.size();
-		fsptr[*it]->files.insert(pair<unsigned long long, struct fidpair*>(ctime, fp));
-		spaceptr[*it];
-		groupptr[*it];
-		groupusage[(spaceptr[*it])][(groupptr[*it])] += size;
-		spaceusage[spaceptr[*it]] += size;
-		fidptr.insert(pair<unsigned long long, unsigned long> (fid,*it));
-	      }
-	    } else {
-	      unassignedfsentries++;
-	    }
-	  } 
-	} else {
-	  zeroentries++;
-	}
+        if (locations.size()) {
+          for ( it = locations.begin(); it != locations.end(); it++) {
+            if (*it) {
+              if (fsptr.count(*it)) {
+                fsptr[*it]->usedbytes  += size;
+                struct fidpair* fp = new struct fidpair;
+                fp->fid  = fid;
+                fp->size = size;
+                fp->nrep = locations.size();
+                fsptr[*it]->files.insert(pair<unsigned long long, struct fidpair*>(ctime, fp));
+                spaceptr[*it];
+                groupptr[*it];
+                groupusage[(spaceptr[*it])][(groupptr[*it])] += size;
+                spaceusage[spaceptr[*it]] += size;
+                fidptr.insert(pair<unsigned long long, unsigned long> (fid,*it));
+              }
+            } else {
+              unassignedfsentries++;
+            }
+          } 
+        } else {
+          zeroentries++;
+        }
       }
     }
     fprintf(stdout,"==> loaded %u entries - (zero-location=%llu , unassigned-fs=%llu)\n", (unsigned int) files_found.size(), zeroentries, unassignedfsentries);
@@ -728,15 +730,15 @@ com_fs (char* arg1) {
     for (sit = spaceusage.begin(); sit != spaceusage.end(); sit++) {
       google::sparse_hash_map < unsigned long, unsigned long long>::const_iterator git;
       for (git = groupusage[sit->first].begin(); git != groupusage[sit->first].end(); git++) {
-	groupavg[sit->first] += git->second;
+        groupavg[sit->first] += git->second;
 
-	google::sparse_hash_map < unsigned long, struct fsinfo*> ::const_iterator fit;
+        google::sparse_hash_map < unsigned long, struct fsinfo*> ::const_iterator fit;
 
-	for (fit = fshash[sit->first][git->first].begin(); fit != fshash[sit->first][git->first].end(); fit++) {
-	  fsavg[sit->first][git->first] += fit->second->usedbytes;
-	  groupusage[sit->first][git->first] += fit->second->freebytes;
-	}
-	fsavg[sit->first][git->first] /= fshash[sit->first][git->first].size();
+        for (fit = fshash[sit->first][git->first].begin(); fit != fshash[sit->first][git->first].end(); fit++) {
+          fsavg[sit->first][git->first] += fit->second->usedbytes;
+          groupusage[sit->first][git->first] += fit->second->freebytes;
+        }
+        fsavg[sit->first][git->first] /= fshash[sit->first][git->first].size();
       }
       groupavg[sit->first] /= groupusage[sit->first].size();
     }
@@ -745,17 +747,17 @@ com_fs (char* arg1) {
     for (sit = spaceusage.begin(); sit != spaceusage.end(); sit++) {
       google::sparse_hash_map < unsigned long, unsigned long long>::const_iterator git;
       for (git = groupusage[sit->first].begin(); git != groupusage[sit->first].end(); git++) {
-	groupstddev[sit->first] += (git->second - groupavg[sit->first] ) * (git->second - groupavg[sit->first]);
+        groupstddev[sit->first] += (git->second - groupavg[sit->first] ) * (git->second - groupavg[sit->first]);
 
-	google::sparse_hash_map < unsigned long, struct fsinfo*> ::const_iterator fit;
+        google::sparse_hash_map < unsigned long, struct fsinfo*> ::const_iterator fit;
 
-	fsperspace[sit->first] += fshash[sit->first][git->first].size();
+        fsperspace[sit->first] += fshash[sit->first][git->first].size();
 
-	for (fit = fshash[sit->first][git->first].begin(); fit != fshash[sit->first][git->first].end(); fit++) {
-	  fsstddev[sit->first][git->first] += (fit->second->usedbytes - fsavg[sit->first][git->first]) * (fit->second->usedbytes - fsavg[sit->first][git->first]);
-	}
-	fsstddev[sit->first][git->first] /= fshash[sit->first][git->first].size();
-	fsstddev[sit->first][git->first] = (unsigned long long) sqrt((double) 	fsstddev[sit->first][git->first]);
+        for (fit = fshash[sit->first][git->first].begin(); fit != fshash[sit->first][git->first].end(); fit++) {
+          fsstddev[sit->first][git->first] += (fit->second->usedbytes - fsavg[sit->first][git->first]) * (fit->second->usedbytes - fsavg[sit->first][git->first]);
+        }
+        fsstddev[sit->first][git->first] /= fshash[sit->first][git->first].size();
+        fsstddev[sit->first][git->first] = (unsigned long long) sqrt((double)   fsstddev[sit->first][git->first]);
       }
       groupstddev[sit->first] /= groupusage[sit->first].size();
       groupstddev[sit->first] = (unsigned long long)sqrt((double)groupstddev[sit->first]);
@@ -764,20 +766,20 @@ com_fs (char* arg1) {
     
     
     for (sit = spaceusage.begin(); sit != spaceusage.end(); sit++) {
-      fprintf(stdout,"::> space=%16s \t         \t bytes=%llu \t volume=%10s \t avg-grp-volume=%10s +- %10s\n", sit->first.c_str(), sit->second, XrdCommonFileSystem::GetReadableSizeString(sizestring1,sit->second,"B"), XrdCommonFileSystem::GetReadableSizeString(sizestring2,groupavg[sit->first],"B"), XrdCommonFileSystem::GetReadableSizeString(sizestring3,groupstddev[sit->first],"B"));
+      fprintf(stdout,"::> space=%16s \t         \t bytes=%llu \t volume=%10s \t avg-grp-volume=%10s +- %10s\n", sit->first.c_str(), sit->second, StringConversion::GetReadableSizeString(sizestring1,sit->second,"B"), StringConversion::GetReadableSizeString(sizestring2,groupavg[sit->first],"B"), StringConversion::GetReadableSizeString(sizestring3,groupstddev[sit->first],"B"));
       fprintf(stdout,"# --------------------------------------------------------------------------------------------------------------------------------------\n");
       google::sparse_hash_map < unsigned long, unsigned long long>::const_iterator git;
       for (git = groupusage[sit->first].begin(); git != groupusage[sit->first].end(); git++) {
-	fprintf(stdout,"::> space=%16s \t group=%lu \t bytes=%llu \t volume=%10s \t  avg-fs-volume=%10s +- %10s\n", sit->first.c_str(), git->first, git->second, XrdCommonFileSystem::GetReadableSizeString(sizestring1,git->second,"B"), XrdCommonFileSystem::GetReadableSizeString(sizestring2, fsavg[sit->first][git->first],"B"), XrdCommonFileSystem::GetReadableSizeString(sizestring3, fsstddev[sit->first][git->first],"B"));
+        fprintf(stdout,"::> space=%16s \t group=%lu \t bytes=%llu \t volume=%10s \t  avg-fs-volume=%10s +- %10s\n", sit->first.c_str(), git->first, git->second, StringConversion::GetReadableSizeString(sizestring1,git->second,"B"), StringConversion::GetReadableSizeString(sizestring2, fsavg[sit->first][git->first],"B"), StringConversion::GetReadableSizeString(sizestring3, fsstddev[sit->first][git->first],"B"));
       }
       fprintf(stdout,"# --------------------------------------------------------------------------------------------------------------------------------------\n");
     }
 
     if (space.length()) {
       if (subgroup.length()) {
-	fprintf(stdout,"==> restricting balancing to space %s group %s\n", space.c_str(), subgroup.c_str());
+        fprintf(stdout,"==> restricting balancing to space %s group %s\n", space.c_str(), subgroup.c_str());
       } else {
-	fprintf(stdout,"==> restricting balancing to space %s\n", space.c_str());
+        fprintf(stdout,"==> restricting balancing to space %s\n", space.c_str());
       }
     } else {
       fprintf(stdout,"==> balancing all spaces\n");
@@ -789,105 +791,105 @@ com_fs (char* arg1) {
     for (sit = spaceusage.begin(); sit != spaceusage.end(); sit++) {
       XrdOucString sspace = sit->first.c_str();
       if ( (!space.length()) || (space == sspace) ) {
-	unsigned long long desiredfsusage = sit->second/fsperspace[sit->first];
-	if (subgroup.length()) {
-	  desiredfsusage = groupusage[sit->first][isubgroup] / fshash[sit->first][isubgroup].size() ;
-	}
+        unsigned long long desiredfsusage = sit->second/fsperspace[sit->first];
+        if (subgroup.length()) {
+          desiredfsusage = groupusage[sit->first][isubgroup] / fshash[sit->first][isubgroup].size() ;
+        }
 
-	fprintf(stdout,"==> space=%16s := optimizing towards %s per file system\n",sit->first.c_str(), XrdCommonFileSystem::GetReadableSizeString(sizestring1, desiredfsusage,"B"));
-	
+        fprintf(stdout,"==> space=%16s := optimizing towards %s per file system\n",sit->first.c_str(), StringConversion::GetReadableSizeString(sizestring1, desiredfsusage,"B"));
+        
 
-	// create a list of target groups
-	std::vector<unsigned long> targetgroup;
+        // create a list of target groups
+        std::vector<unsigned long> targetgroup;
 
-	google::sparse_hash_map < unsigned long, unsigned long long>::const_iterator git;
-	// loop over all filesystems in a space
-	for (git = groupusage[sit->first].begin(); git != groupusage[sit->first].end(); git++) {
-	  targetgroup.push_back(git->first);
-	}	  
+        google::sparse_hash_map < unsigned long, unsigned long long>::const_iterator git;
+        // loop over all filesystems in a space
+        for (git = groupusage[sit->first].begin(); git != groupusage[sit->first].end(); git++) {
+          targetgroup.push_back(git->first);
+        }         
 
-	unsigned long currentgroup=0;
-	unsigned long currentfs=0;
+        unsigned long currentgroup=0;
+        unsigned long currentfs=0;
 
-	if (!subgroup.length()) {
-	  google::sparse_hash_map < unsigned long, unsigned long long>::const_iterator git;
-	  // loop over all filesystems in a space
-	  for (git = groupusage[sit->first].begin(); git != groupusage[sit->first].end(); git++) {
-	    google::sparse_hash_map < unsigned long, struct fsinfo*> ::const_iterator fit;
-	    // classify group as a receiver or donator group
-	    bool issource;
-	    if (git->second > groupavg[sit->first]) {
-	      issource = true;
-	    } else {
-	      issource = false;
-	    }
+        if (!subgroup.length()) {
+          google::sparse_hash_map < unsigned long, unsigned long long>::const_iterator git;
+          // loop over all filesystems in a space
+          for (git = groupusage[sit->first].begin(); git != groupusage[sit->first].end(); git++) {
+            google::sparse_hash_map < unsigned long, struct fsinfo*> ::const_iterator fit;
+            // classify group as a receiver or donator group
+            bool issource;
+            if (git->second > groupavg[sit->first]) {
+              issource = true;
+            } else {
+              issource = false;
+            }
 
-	    for (fit = fshash[sit->first][git->first].begin(); fit != fshash[sit->first][git->first].end(); fit++) {
-	      // fit->first is the fsid
-	      long long bytediff = desiredfsusage - fit->second->usedbytes;
-	      XrdOucString sign ="+";
-	      if (bytediff <0)
-		sign ="-";
+            for (fit = fshash[sit->first][git->first].begin(); fit != fshash[sit->first][git->first].end(); fit++) {
+              // fit->first is the fsid
+              long long bytediff = desiredfsusage - fit->second->usedbytes;
+              XrdOucString sign ="+";
+              if (bytediff <0)
+                sign ="-";
 
-	      fprintf(stdout,"==> fs %lu needs correction of %s%s\n",  fit->first,  sign.c_str(), XrdCommonFileSystem::GetReadableSizeString(sizestring1, llabs(bytediff),"B"));
+              fprintf(stdout,"==> fs %lu needs correction of %s%s\n",  fit->first,  sign.c_str(), StringConversion::GetReadableSizeString(sizestring1, llabs(bytediff),"B"));
 
-	      // move files away
-	      std::multimap <unsigned long long, struct fidpair*>::const_iterator fileit;
-	      
-	      if (issource) {
-		// loop over all files
-		for (fileit = fit->second->files.begin(); fileit != fit->second->files.end(); fileit++) {
-		  // check if this fid was already moved
-		  if (movelist.count(fileit->second->fid)) {
-		    fprintf(stdout,"file %llu already moved\n", fileit->second->fid);
-		    continue;
-		  }
-		  
-		  // take one  file ID and count all the copies
+              // move files away
+              std::multimap <unsigned long long, struct fidpair*>::const_iterator fileit;
+              
+              if (issource) {
+                // loop over all files
+                for (fileit = fit->second->files.begin(); fileit != fit->second->files.end(); fileit++) {
+                  // check if this fid was already moved
+                  if (movelist.count(fileit->second->fid)) {
+                    fprintf(stdout,"file %llu already moved\n", fileit->second->fid);
+                    continue;
+                  }
+                  
+                  // take one  file ID and count all the copies
 
-		  pair<std::multimap<unsigned long long, unsigned long>::iterator, std::multimap<unsigned long long, unsigned long>::iterator> findit = fidptr.equal_range(fileit->second->fid);
+                  pair<std::multimap<unsigned long long, unsigned long>::iterator, std::multimap<unsigned long long, unsigned long>::iterator> findit = fidptr.equal_range(fileit->second->fid);
 
-		  std::multimap<unsigned long long, unsigned long>::const_iterator findresult;
+                  std::multimap<unsigned long long, unsigned long>::const_iterator findresult;
 
-		  int nrep=0;
-		  
-		  unsigned long long transfersize = fileit->second->nrep*fileit->second->size;
+                  int nrep=0;
+                  
+                  unsigned long long transfersize = fileit->second->nrep*fileit->second->size;
 
-		  
-		  while ( (groupusage[sit->first][targetgroup[currentgroup]] > groupavg[sit->first] ) || ( ((long long)groupfree[sit->first][targetgroup[currentgroup]]) - (100ll*1024*1024*1024) ) < (long long)(transfersize)) {
-		    fprintf(stderr,"Condition: %ld %llu %llu %llu %llu\n", currentgroup, (groupusage[sit->first][targetgroup[currentgroup]]), groupavg[sit->first],((long long)groupfree[sit->first][targetgroup[currentgroup]]),  (long long)(transfersize));
-		    currentgroup++;
-		    if (currentgroup > targetgroup.size()) {
-		      fprintf(stderr,"*** Fatal: there is no space left in any group to place this file");
-		      exit(-1);
-		    }
-		  }
+                  
+                  while ( (groupusage[sit->first][targetgroup[currentgroup]] > groupavg[sit->first] ) || ( ((long long)groupfree[sit->first][targetgroup[currentgroup]]) - (100ll*1024*1024*1024) ) < (long long)(transfersize)) {
+                    fprintf(stderr,"Condition: %ld %llu %llu %llu %llu\n", currentgroup, (groupusage[sit->first][targetgroup[currentgroup]]), groupavg[sit->first],((long long)groupfree[sit->first][targetgroup[currentgroup]]),  (long long)(transfersize));
+                    currentgroup++;
+                    if (currentgroup > targetgroup.size()) {
+                      fprintf(stderr,"*** Fatal: there is no space left in any group to place this file");
+                      exit(-1);
+                    }
+                  }
 
-		  for (findresult = findit.first; findresult != findit.second; findresult++) {
-		    nrep++;
-		    fprintf(stderr,"replica for %llu on %lu\n", fileit->second->fid, findresult->second);
-		    // substract from the source here
-		    //		    fsptr[findresult->second]
-		  }
-		  
-		  
-		  currentfs = currentfs;
-		  fprintf(stdout,"==> moving fsid=%lu fid=%llu size=%llu into group %lu\n", fit->first, fileit->second->fid, fileit->second->size,  targetgroup[currentgroup]);
-		  
-		  groupfree[sit->first][targetgroup[currentgroup]]  -= transfersize;
-		  groupusage[sit->first][targetgroup[currentgroup]] += transfersize;
-		  fprintf(stdout," %llu / %llu => %llu %lu\n",  groupfree[sit->first][targetgroup[currentgroup]], groupusage[sit->first][targetgroup[currentgroup]] ,groupavg[sit->first], currentgroup);
-		  movelist.insert(fileit->second->fid);
-		  
-		  // add the loop termination condition once we have migrated enough away from this group
-		}
-	      } else {
-		fprintf(stdout,"==> skipping fsid=%lu (target) \n", fit->first);
-	      }
-	    }
-	  }
-	}
-	
+                  for (findresult = findit.first; findresult != findit.second; findresult++) {
+                    nrep++;
+                    fprintf(stderr,"replica for %llu on %lu\n", fileit->second->fid, findresult->second);
+                    // substract from the source here
+                    //              fsptr[findresult->second]
+                  }
+                  
+                  
+                  currentfs = currentfs;
+                  fprintf(stdout,"==> moving fsid=%lu fid=%llu size=%llu into group %lu\n", fit->first, fileit->second->fid, fileit->second->size,  targetgroup[currentgroup]);
+                  
+                  groupfree[sit->first][targetgroup[currentgroup]]  -= transfersize;
+                  groupusage[sit->first][targetgroup[currentgroup]] += transfersize;
+                  fprintf(stdout," %llu / %llu => %llu %lu\n",  groupfree[sit->first][targetgroup[currentgroup]], groupusage[sit->first][targetgroup[currentgroup]] ,groupavg[sit->first], currentgroup);
+                  movelist.insert(fileit->second->fid);
+                  
+                  // add the loop termination condition once we have migrated enough away from this group
+                }
+              } else {
+                fprintf(stdout,"==> skipping fsid=%lu (target) \n", fit->first);
+              }
+            }
+          }
+        }
+        
       }
     }
     
@@ -942,9 +944,9 @@ com_fs (char* arg1) {
       global_retc = output_result(result);
     } else {
       if (result) {
-	global_retc = 0;
+        global_retc = 0;
       } else {
-	global_retc = EINVAL;
+        global_retc = EINVAL;
       }
     }
 
@@ -952,7 +954,7 @@ com_fs (char* arg1) {
   }
 
 
-  com_fs_usage:
+ com_fs_usage:
 
   printf("usage: fs ls                                                    : list configured filesystems (or by name or id match\n");
   printf("       fs set   <fs-name> <fs-id> [-sched <group> ] [-force]    : configure filesystem with name and id\n");

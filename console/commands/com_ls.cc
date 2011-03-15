@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-#include "ConsoleMain.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
 /* List a directory */
@@ -20,7 +20,7 @@ com_ls (char* arg1) {
     if (param.beginswith("-")) {
       option+= param;
       if ( (option.find("&")) != STR_NPOS) {
-	goto com_ls_usage;
+        goto com_ls_usage;
       }
     } else {
       path = param;

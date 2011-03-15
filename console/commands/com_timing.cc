@@ -1,8 +1,8 @@
 /*----------------------------------------------------------------------------*/
-#include "ConsoleMain.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
-int com_silent PARAMS((char*)) {
-  silent = (!silent);
+int com_timing (char*) {
+  timing = (!timing);
   return (0);
 }

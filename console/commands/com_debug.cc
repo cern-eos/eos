@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-#include "ConsoleMain.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Debug Level Setting */
@@ -16,9 +16,9 @@ com_debug (char* arg1) {
     printf("info: toggling shell debugmode to debug=%d\n",debug);
     debug = !debug;
     if (debug) {
-      XrdCommonLogging::SetLogPriority(LOG_DEBUG);
+      eos::common::Logging::SetLogPriority(LOG_DEBUG);
     } else {
-      XrdCommonLogging::SetLogPriority(LOG_NOTICE);
+      eos::common::Logging::SetLogPriority(LOG_NOTICE);
     }
     return (0);
   }
@@ -27,15 +27,15 @@ com_debug (char* arg1) {
 
     if (nodequeue.length()) {
       if (nodequeue == "-filter") {
-	filterlist = subtokenizer.GetToken();
-	in += "&mgm.filter="; in += filterlist;
+        filterlist = subtokenizer.GetToken();
+        in += "&mgm.filter="; in += filterlist;
       } else {
-	in += "&mgm.nodename="; in += nodequeue;
-	nodequeue = subtokenizer.GetToken();
-	if (nodequeue == "-filter") {
-	  filterlist = subtokenizer.GetToken();
-	  in += "&mgm.filter="; in += filterlist;
-	}
+        in += "&mgm.nodename="; in += nodequeue;
+        nodequeue = subtokenizer.GetToken();
+        if (nodequeue == "-filter") {
+          filterlist = subtokenizer.GetToken();
+          in += "&mgm.filter="; in += filterlist;
+        }
       }
     } 
     

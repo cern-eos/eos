@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-#include "ConsoleMain.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Attribute ls, get, set rm */
@@ -44,20 +44,20 @@ com_attr (char* arg1) {
     
     if (value.beginswith("\"")) {
       if (!value.endswith("\"")) {
-	do {
-	  XrdOucString morevalue = subtokenizer.GetToken();
-	  
-	  if (morevalue.endswith("\"")) {
-	    value += " ";
-	    value += morevalue;
-	    break;
-	  }
-	  if (!morevalue.length()) {
-	    goto com_attr_usage;
-	  }
-	  value += " ";
-	  value += morevalue;
-	} while (1);
+        do {
+          XrdOucString morevalue = subtokenizer.GetToken();
+          
+          if (morevalue.endswith("\"")) {
+            value += " ";
+            value += morevalue;
+            break;
+          }
+          if (!morevalue.length()) {
+            goto com_attr_usage;
+          }
+          value += " ";
+          value += morevalue;
+        } while (1);
       }
     }
 

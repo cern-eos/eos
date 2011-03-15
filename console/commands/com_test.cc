@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-#include "ConsoleMain.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
 
@@ -29,18 +29,18 @@ com_test (char* arg1) {
       TIMING("start",&timing);
 
       for (int i=0; i< 10; i++) {
-	char dname[1024];
-	sprintf(dname,"/test/%02d", i);
-	XrdOucString cmd = ""; cmd += dname;
-	//	printf("===> %s\n", cmd.c_str());
-	com_mkdir((char*)cmd.c_str());
+        char dname[1024];
+        sprintf(dname,"/test/%02d", i);
+        XrdOucString cmd = ""; cmd += dname;
+        //      printf("===> %s\n", cmd.c_str());
+        com_mkdir((char*)cmd.c_str());
 
-	for (int j=0; j< n/10; j++) {
-	  sprintf(dname,"/test/%02d/%05d", i,j);
-	  XrdOucString cmd = ""; cmd += dname;
-	  //	  printf("===> %s\n", cmd.c_str());
-	  com_mkdir((char*)cmd.c_str());
-	}
+        for (int j=0; j< n/10; j++) {
+          sprintf(dname,"/test/%02d/%05d", i,j);
+          XrdOucString cmd = ""; cmd += dname;
+          //      printf("===> %s\n", cmd.c_str());
+          com_mkdir((char*)cmd.c_str());
+        }
       }
       TIMING("stop",&timing);
       timing.Print();
@@ -51,18 +51,18 @@ com_test (char* arg1) {
       TIMING("start",&timing);
 
       for (int i=0; i< 10; i++) {
-	char dname[1024];
-	sprintf(dname,"/test/%02d", i);
-	XrdOucString cmd = ""; cmd += dname;
-	//printf("===> %s\n", cmd.c_str());
+        char dname[1024];
+        sprintf(dname,"/test/%02d", i);
+        XrdOucString cmd = ""; cmd += dname;
+        //printf("===> %s\n", cmd.c_str());
 
-	for (int j=0; j< n/10; j++) {
-	  sprintf(dname,"/test/%02d/%05d", i,j);
-	  XrdOucString cmd = ""; cmd += dname;
-	  //printf("===> %s\n", cmd.c_str());
-	  com_rmdir((char*)cmd.c_str());
-	}
-	com_rmdir((char*)cmd.c_str());
+        for (int j=0; j< n/10; j++) {
+          sprintf(dname,"/test/%02d/%05d", i,j);
+          XrdOucString cmd = ""; cmd += dname;
+          //printf("===> %s\n", cmd.c_str());
+          com_rmdir((char*)cmd.c_str());
+        }
+        com_rmdir((char*)cmd.c_str());
       }
       TIMING("stop",&timing);
       timing.Print();
@@ -73,10 +73,10 @@ com_test (char* arg1) {
       TIMING("start",&timing);
 
       for (int i=0; i< 10; i++) {
-	char dname[1024];
-	sprintf(dname,"/test/%02d", i);
-	XrdOucString cmd = ""; cmd += dname;
-	com_ls((char*)cmd.c_str());
+        char dname[1024];
+        sprintf(dname,"/test/%02d", i);
+        XrdOucString cmd = ""; cmd += dname;
+        com_ls((char*)cmd.c_str());
       }
       TIMING("stop",&timing);
       timing.Print();
@@ -87,10 +87,10 @@ com_test (char* arg1) {
       TIMING("start",&timing);
 
       for (int i=0; i< 10; i++) {
-	char dname[1024];
-	sprintf(dname,"/test/%02d", i);
-	XrdOucString cmd = "-la "; cmd += dname;
-	com_ls((char*)cmd.c_str());
+        char dname[1024];
+        sprintf(dname,"/test/%02d", i);
+        XrdOucString cmd = "-la "; cmd += dname;
+        com_ls((char*)cmd.c_str());
       }
       TIMING("stop",&timing);
       timing.Print();
