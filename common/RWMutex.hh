@@ -1,0 +1,69 @@
+#ifndef __EOSCOMMON_RWMUTEX_HH__
+#define __EOSCOMMON_RWMUTEX_HH__
+
+/*----------------------------------------------------------------------------*/
+#include "common/Namespace.hh"
+/*----------------------------------------------------------------------------*/
+#include "XrdSys/XrdSysPthread.hh"
+/*----------------------------------------------------------------------------*/
+#include <stdio.h>
+#define _MULTI_THREADED
+#include <pthread.h>
+/*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+/* THIS CLASS IMPLEMENTS A FAIR RW MUTEX                                      */
+/*----------------------------------------------------------------------------*/
+
+EOSCOMMONNAMESPACE_BEGIN
+
+class RWMutex  
+{
+private:
+  pthread_rwlock_t       rwlock;
+
+public:
+  RWMutex() {if (pthread_rwlock_init(&rwlock, NULL)) {throw "pthread_rwlock_init failed";}}
+  ~RWMutex() {}
+
+  void LockRead() {
+    if (pthread_rwlock_rdlock(&rwlock)) { throw "pthread_rwlock_rdlock failed";}
+  }
+  
+  void UnLockRead() { 
+    if (pthread_rwlock_unlock(&rwlock)) { throw "pthread_rwlock_unlock failed";}
+  }
+  
+  void LockWrite() {
+    if (pthread_rwlock_wrlock(&rwlock)) { throw "pthread_rwlock_wrlock failed";}
+  }
+  
+  void UnLockWrite() { 
+    if (pthread_rwlock_unlock(&rwlock)) { throw "pthread_rwlock_unlock failed";}
+  }
+};
+
+
+class RWMutexWriteLock
+{
+private:
+  RWMutex* Mutex;
+
+public:
+  RWMutexWriteLock(RWMutex &mutex) { Mutex = &mutex; Mutex->LockWrite();}
+  ~RWMutexWriteLock() { Mutex->UnLockWrite();}
+};
+
+class RWMutexReadLock
+{
+private:
+  RWMutex* Mutex;
+
+public:
+  RWMutexReadLock(RWMutex &mutex) { Mutex = &mutex; Mutex->LockRead();}
+  ~RWMutexReadLock() { Mutex->UnLockRead();}
+};
+
+EOSCOMMONNAMESPACE_END
+
+#endif

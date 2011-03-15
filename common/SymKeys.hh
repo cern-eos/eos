@@ -1,21 +1,25 @@
-#ifndef __XRDCOMMON_SYMKEYS__HH__
-#define __XRDCOMMON_SYMKEYS__HH__
+#ifndef __EOSCOMMON_SYMKEYS__HH__
+#define __EOSCOMMON_SYMKEYS__HH__
 
 /*----------------------------------------------------------------------------*/
-#include <openssl/rsa.h>
-#include <openssl/x509.h>
-
-#include <time.h>
-#include <string.h>
+#include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include <XrdOuc/XrdOucHash.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdSys/XrdSysPthread.hh>
 /*----------------------------------------------------------------------------*/
-#define XRDCOMMONSYMKEYS_GRACEPERIOD 5
-#define XRDCOMMONSYMKEYS_DELETIONOFFSET 60
+#include <openssl/rsa.h>
+#include <openssl/x509.h>
+#include <time.h>
+#include <string.h>
 /*----------------------------------------------------------------------------*/
-class XrdCommonSymKey {
+#define EOSCOMMONSYMKEYS_GRACEPERIOD 5
+#define EOSCOMMONSYMKEYS_DELETIONOFFSET 60
+/*----------------------------------------------------------------------------*/
+
+EOSCOMMONNAMESPACE_BEGIN
+
+class SymKey {
 private:
   char key[SHA_DIGEST_LENGTH+1];
   char keydigest[SHA_DIGEST_LENGTH+1];
@@ -27,7 +31,7 @@ public:
   static bool Base64Encode(char* in, unsigned int inlen, XrdOucString &out);
   static bool Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen);
 
-  XrdCommonSymKey(const char* inkey, time_t invalidity) {
+  SymKey(const char* inkey, time_t invalidity) {
     memcpy(key,inkey,SHA_DIGEST_LENGTH);
     validity = invalidity;
     SHA_CTX sha1;
@@ -38,7 +42,7 @@ public:
     Base64Encode(keydigest, SHA_DIGEST_LENGTH, skeydigest64);
     strncpy(keydigest64,skeydigest64.c_str(),(SHA_DIGEST_LENGTH*2)-1);
   }
-  ~XrdCommonSymKey(){}
+  ~SymKey(){}
 
   void Print() {
     fprintf(stderr,"symkey: ");
@@ -67,34 +71,35 @@ public:
     if (!validity)
       return true;
     else
-      return ((time(0)+XRDCOMMONSYMKEYS_GRACEPERIOD) > validity);
+      return ((time(0)+EOSCOMMONSYMKEYS_GRACEPERIOD) > validity);
   }
 
-  static XrdCommonSymKey* Create(const char* inkey, time_t validity) {
-    return new XrdCommonSymKey(inkey, validity);
+  static SymKey* Create(const char* inkey, time_t validity) {
+    return new SymKey(inkey, validity);
   }
   
 };
 
 /*----------------------------------------------------------------------------*/
-class XrdCommonSymKeyStore {
+class SymKeyStore {
 private:
   XrdSysMutex Mutex;
-  XrdOucHash<XrdCommonSymKey> Store;
-  XrdCommonSymKey* currentKey;
+  XrdOucHash<SymKey> Store;
+  SymKey* currentKey;
 public:
-  XrdCommonSymKeyStore();
-  ~XrdCommonSymKeyStore();
+  SymKeyStore();
+  ~SymKeyStore();
 
-  XrdCommonSymKey* SetKey(const char* key, time_t validity);     // set binary key
-  XrdCommonSymKey* SetKey64(const char* key64, time_t validity); // set key in base64 format
-  XrdCommonSymKey* GetKey(const char* keydigest64);              // get key by b64 encoded digest
-  XrdCommonSymKey* GetCurrentKey();                              // get last added valid key
+  SymKey* SetKey(const char* key, time_t validity);     // set binary key
+  SymKey* SetKey64(const char* key64, time_t validity); // set key in base64 format
+  SymKey* GetKey(const char* keydigest64);              // get key by b64 encoded digest
+  SymKey* GetCurrentKey();                              // get last added valid key
 };
 
 /*----------------------------------------------------------------------------*/
-extern XrdCommonSymKeyStore gXrdCommonSymKeyStore;
+extern SymKeyStore gSymKeyStore;
 /*----------------------------------------------------------------------------*/
 
+EOSCOMMONNAMESPACE_END
 
 #endif

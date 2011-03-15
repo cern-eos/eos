@@ -1,13 +1,19 @@
-#include "XrdCommon/XrdCommonSymKeys.hh"
+/*----------------------------------------------------------------------------*/
+#include "common/Namespace.hh"
+#include "common/SymKeys.hh"
+/*----------------------------------------------------------------------------*/
+
+
+EOSCOMMONNAMESPACE_BEGIN
 
 // create a singleton for this store
-XrdCommonSymKeyStore gXrdCommonSymKeyStore;
+SymKeyStore gSymKeyStore;
 
 /*----------------------------------------------------------------------------*/
 /* Base64 Encoding                                                            */
 /*----------------------------------------------------------------------------*/
 bool
-XrdCommonSymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString &out) {
+SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString &out) {
   BIO *bmem, *b64;
   BUF_MEM *bptr;
 
@@ -46,7 +52,7 @@ XrdCommonSymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString &out) {
 /* Base64 Decoding                                                            */
 /*----------------------------------------------------------------------------*/
 bool
-XrdCommonSymKey::Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen) {
+SymKey::Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen) {
   BIO *b64, *bmem;
   b64 = BIO_new(BIO_f_base64());
 
@@ -72,18 +78,18 @@ XrdCommonSymKey::Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen
 }
 
 /*----------------------------------------------------------------------------*/
-XrdCommonSymKeyStore::XrdCommonSymKeyStore() 
+SymKeyStore::SymKeyStore() 
 {
 }
 
 /*----------------------------------------------------------------------------*/
-XrdCommonSymKeyStore::~XrdCommonSymKeyStore()
+SymKeyStore::~SymKeyStore()
 {
 }
 
 /*----------------------------------------------------------------------------*/
-XrdCommonSymKey* 
-XrdCommonSymKeyStore::SetKey64(const char* inkey64, time_t invalidity) 
+SymKey* 
+SymKeyStore::SetKey64(const char* inkey64, time_t invalidity) 
 {
   if (!inkey64)
     return 0;
@@ -91,7 +97,7 @@ XrdCommonSymKeyStore::SetKey64(const char* inkey64, time_t invalidity)
   char* binarykey = 0;
   unsigned int outlen = 0;
   XrdOucString s64=inkey64;
-  if (!XrdCommonSymKey::Base64Decode(s64, binarykey, outlen)) {
+  if (!SymKey::Base64Decode(s64, binarykey, outlen)) {
     return 0;
   }
   if (outlen != SHA_DIGEST_LENGTH) 
@@ -101,25 +107,25 @@ XrdCommonSymKeyStore::SetKey64(const char* inkey64, time_t invalidity)
 }
 
 /*----------------------------------------------------------------------------*/
-XrdCommonSymKey* 
-XrdCommonSymKeyStore::SetKey(const char* inkey, time_t invalidity) 
+SymKey* 
+SymKeyStore::SetKey(const char* inkey, time_t invalidity) 
 {
   if (!inkey)
     return 0;
 
   Mutex.Lock();
-  XrdCommonSymKey* key = XrdCommonSymKey::Create(inkey,invalidity);
+  SymKey* key = SymKey::Create(inkey,invalidity);
   if (!key) {
     return 0;
   }
   // check if it exists
-  XrdCommonSymKey* existkey = Store.Find(key->GetDigest64());
+  SymKey* existkey = Store.Find(key->GetDigest64());
   // if it exists we remove it add it with the new validity time
   if (existkey) {
     Store.Del(existkey->GetDigest64());
   }
 
-  Store.Add(key->GetDigest64(),key, invalidity?(invalidity + XRDCOMMONSYMKEYS_DELETIONOFFSET):0);
+  Store.Add(key->GetDigest64(),key, invalidity?(invalidity + EOSCOMMONSYMKEYS_DELETIONOFFSET):0);
   // point the current key to last added
   currentKey = key;
   Mutex.UnLock();
@@ -127,19 +133,19 @@ XrdCommonSymKeyStore::SetKey(const char* inkey, time_t invalidity)
 }
 
 /*----------------------------------------------------------------------------*/
-XrdCommonSymKey*
-XrdCommonSymKeyStore::GetKey(const char* inkeydigest64) 
+SymKey*
+SymKeyStore::GetKey(const char* inkeydigest64) 
 {
   Mutex.Lock();
-  XrdCommonSymKey* key = Store.Find(inkeydigest64);
+  SymKey* key = Store.Find(inkeydigest64);
   // if it exists we remove it add it with the new validity time
   Mutex.UnLock();
   return key;
 }
 
 /*----------------------------------------------------------------------------*/
-XrdCommonSymKey*
-XrdCommonSymKeyStore::GetCurrentKey() 
+SymKey*
+SymKeyStore::GetCurrentKey() 
 {
   if (currentKey) {
     if (currentKey->IsValid())
@@ -147,4 +153,7 @@ XrdCommonSymKeyStore::GetCurrentKey()
   }
   return 0;
 }
+
+EOSCOMMONNAMESPACE_END
+
 

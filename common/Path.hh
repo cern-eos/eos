@@ -1,11 +1,18 @@
-#ifndef __XRDCOMMON_PATH__
-#define __XRDCOMMON_PATH__
+#ifndef __EOSCOMMON_PATH__
+#define __EOSCOMMON_PATH__
 
+/*----------------------------------------------------------------------------*/
+#include "common/Namespace.hh"
+/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
+/*----------------------------------------------------------------------------*/
 #include <vector>
 #include <string>
+/*----------------------------------------------------------------------------*/
 
-class XrdCommonPath {
+EOSCOMMONNAMESPACE_BEGIN
+
+class Path {
 private:
   XrdOucString fullPath;
   XrdOucString parentPath;
@@ -19,7 +26,7 @@ public:
   const char* GetSubPath(unsigned int i) { if (i<subPath.size()) return subPath[i].c_str(); else return 0; }
   unsigned int GetSubPathSize()          { return subPath.size();  }
 
-  XrdCommonPath(const char* path){
+  Path(const char* path){
     fullPath = path;
     if (fullPath.endswith('/')) 
       fullPath.erase(fullPath.length()-1);
@@ -39,8 +46,10 @@ public:
     lastPath.assign(fullPath,lastpos+1);
   }
   
-  ~XrdCommonPath(){};
+  ~Path(){};
 };
+
+EOSCOMMONNAMESPACE_END
 
 #endif
 

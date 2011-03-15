@@ -1,12 +1,16 @@
-#ifndef __XRDCOMMON_LAYOUTID__HH__
-#define __XRDCOMMON_LAYOUTID__HH__
+#ifndef __EOSCOMMON_LAYOUTID__HH__
+#define __EOSCOMMON_LAYOUTID__HH__
 
+/*----------------------------------------------------------------------------*/
+#include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
 
-class XrdCommonLayoutId {
+EOSCOMMONNAMESPACE_BEGIN
+
+class LayoutId {
 public:
   // a layout id is constructed as an xor of the following three enums shifted by 4 bits up
   enum eChecksum     {
@@ -63,9 +67,11 @@ public:
   static unsigned long GetLayoutFromEnv(XrdOucEnv &env)      {const char* val=0; if ( (val=env.Get("eos.layout.type")) ) { XrdOucString typ=val; if (typ == "replica") return kReplica; if (typ == "raid5") return kRaid5;} return kPlain;}
   static unsigned long GetStripeNumberFromEnv(XrdOucEnv &env){const char* val=0; if ( (val=env.Get("eos.layout.nstripes"))) { int n = atoi(val); if ( ((n-1)>= kOneStripe) && ( (n-1) <= kSixteenStripe)) return (n);} return (kOneStripe+1);}
   static unsigned long GetStripeWidthFromEnv(XrdOucEnv &env) {const char* val=0; if ( (val=env.Get("eos.layout.stripewidth"))) { unsigned int n = (unsigned int)atoi(val); return n;} return 0;}
-  XrdCommonLayoutId();
-  ~XrdCommonLayoutId();
+  LayoutId();
+  ~LayoutId();
 };
 /*----------------------------------------------------------------------------*/
+
+EOSCOMMONNAMESPACE_END
 
 #endif

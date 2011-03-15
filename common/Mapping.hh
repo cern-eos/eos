@@ -1,8 +1,9 @@
-#ifndef __XRDCOMMON_MAPPING__
-#define __XRDCOMMON_MAPPING__
+#ifndef __EOSCOMMON_MAPPING__
+#define __EOSCOMMON_MAPPING__
 
 /*----------------------------------------------------------------------------*/
-
+#include "common/Namespace.hh"
+#include "common/RWMutex.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -17,21 +18,21 @@
 #include <map>
 #include <vector>
 #include <string>
-
-#include <google/sparse_hash_map>
-
 /*----------------------------------------------------------------------------*/
-class XrdCommonMapping {
+
+EOSCOMMONNAMESPACE_BEGIN
+
+class Mapping {
 private:
 public:
 
   typedef std::vector<uid_t> uid_vector;
   typedef std::vector<gid_t> gid_vector;
-  typedef google::sparse_hash_map<uid_t, uid_vector > UserRoleMap;
-  typedef google::sparse_hash_map<uid_t, gid_vector > GroupRoleMap;
-  typedef google::sparse_hash_map<std::string, uid_t> VirtualUserMap;
-  typedef google::sparse_hash_map<std::string, gid_t> VirtualGroupMap;
-  typedef google::sparse_hash_map<uid_t, bool > SudoerMap;
+  typedef std::map<uid_t, uid_vector > UserRoleMap_t;
+  typedef std::map<uid_t, gid_vector > GroupRoleMap_t;
+  typedef std::map<std::string, uid_t> VirtualUserMap_t;
+  typedef std::map<std::string, gid_t> VirtualGroupMap_t;
+  typedef std::map<uid_t, bool > SudoerMap_t;
 
   class id_pair {
   public:
@@ -74,20 +75,22 @@ public:
     for (unsigned int i=0; i< vidin.gid_list.size(); i++) vidout.gid_list.push_back(vidin.gid_list[i]);
   }
 
-  static void IdMap(const XrdSecEntity* client,const char* env, const char* tident, XrdCommonMapping::VirtualIdentity &vid);
+  static void IdMap(const XrdSecEntity* client,const char* env, const char* tident, Mapping::VirtualIdentity &vid);
 
-  static UserRoleMap  gUserRoleVector;  // describes which virtual user roles  a user with uid has
-  static GroupRoleMap gGroupRoleVector; // describes which virtual group roles a user with uid has
+  static UserRoleMap_t  gUserRoleVector;  // describes which virtual user roles  a user with uid has
+  static GroupRoleMap_t gGroupRoleVector; // describes which virtual group roles a user with uid has
 
-  static VirtualUserMap  gVirtualUidMap;
-  static VirtualGroupMap gVirtualGidMap;
+  static VirtualUserMap_t  gVirtualUidMap;
+  static VirtualGroupMap_t gVirtualGidMap;
 
-  static SudoerMap gSudoerMap;
+  static SudoerMap_t gSudoerMap;
 
   static XrdOucHash<id_pair>    gPhysicalUidCache;
   static XrdOucHash<gid_vector> gPhysicalGidCache;
-  
-  static  XrdSysMutex gMapMutex; // protects all global vector & maps
+
+  static RWMutex gPhysicalIdMutex; // protects the physical ID cache
+
+  static RWMutex gMapMutex;        // protects all global map hashes
 
   static  void KommaListToUidVector(const char* list, std::vector<uid_t> &vector_list) {
     XrdOucString slist = list;
@@ -178,5 +181,7 @@ public:
   }
 
 };
+
+EOSCOMMONNAMESPACE_END
 
 #endif

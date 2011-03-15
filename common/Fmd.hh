@@ -1,10 +1,11 @@
-#ifndef __XRDCOMMON_FMD_HH__
-#define __XRDCOMMON_FMD_HH__
+#ifndef __EOSCOMMON_FMD_HH__
+#define __EOSCOMMON_FMD_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonLogging.hh"
-#include "XrdCommon/XrdCommonSymKeys.hh"
-#include "XrdCommon/XrdCommonClientAdmin.hh"
+#include "common/Namespace.hh"
+#include "common/Logging.hh"
+#include "common/SymKeys.hh"
+#include "common/ClientAdmin.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -12,6 +13,7 @@
 // this is needed because of some openssl definition conflict!
 #undef des_set_key
 #include <google/dense_hash_map>
+#include <google/sparse_hash_map>
 #include <google/sparsehash/densehashtable.h>
 #include <sys/time.h>
 #include <string.h>
@@ -22,13 +24,20 @@
 #include <zlib.h>
 #include <openssl/sha.h>
 
-/*----------------------------------------------------------------------------*/
-#define XRDCOMMONFMDHEADER_MAGIC 0xabcdabcdabcdabcd
-#define XRDCOMMONFMDCREATE_MAGIC 0xffffffffffffffff
-#define XRDCOMMONFMDDELETE_MAGIC 0xdddddddddddddddd
+
+#ifdef __APPLE__
+#define ECOMM 70
+#endif
+
+EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-class XrdCommonFmdHeader : public XrdCommonLogId {
+#define EOSCOMMONFMDHEADER_MAGIC 0xabcdabcdabcdabcd
+#define EOSCOMMONFMDCREATE_MAGIC 0xffffffffffffffff
+#define EOSCOMMONFMDDELETE_MAGIC 0xdddddddddddddddd
+
+/*----------------------------------------------------------------------------*/
+class FmdHeader : public LogId {
 public:
   struct FMDHEADER {
     unsigned long long magic;
@@ -40,8 +49,8 @@ public:
 
   struct FMDHEADER fmdHeader;
 
-  XrdCommonFmdHeader() {fmdHeader.magic = XRDCOMMONFMDHEADER_MAGIC; strncpy(fmdHeader.version,VERSION,10); fmdHeader.ctime=time(0);}
-  ~XrdCommonFmdHeader() {};
+  FmdHeader() {fmdHeader.magic = EOSCOMMONFMDHEADER_MAGIC; strncpy(fmdHeader.version,VERSION,10); fmdHeader.ctime=time(0);}
+  ~FmdHeader() {};
 
   void SetId(int infsid) { fmdHeader.fsid = infsid;} 
 
@@ -52,11 +61,11 @@ public:
 };
 
 
-class XrdCommonFmd : public XrdCommonLogId {
+class Fmd : public LogId {
 
 public:
   struct FMD {
-    unsigned long long magic;     // XRDCOMMONFMDCREATE_MAGIC | XRDCOMMONFMDDELETE_MAGIC
+    unsigned long long magic;     // EOSCOMMONFMDCREATE_MAGIC | EOSCOMMONFMDDELETE_MAGIC
     unsigned long sequenceheader; // must be equal to sequencetrailer
     unsigned long long fid;       // fileid
     unsigned long long cid;       // container id (e.g. directory id)
@@ -101,10 +110,10 @@ public:
   }
 
   static bool IsCreate(struct FMD* pMd) {
-    return (pMd->magic == XRDCOMMONFMDCREATE_MAGIC);
+    return (pMd->magic == EOSCOMMONFMDCREATE_MAGIC);
   }
   static bool IsDelete(struct FMD* pMd) {
-    return (pMd->magic == XRDCOMMONFMDDELETE_MAGIC);
+    return (pMd->magic == EOSCOMMONFMDDELETE_MAGIC);
   }
 
   static int IsValid(struct FMD* pMd, unsigned long &sequencenumber) {
@@ -120,20 +129,20 @@ public:
   bool Write(int fd);
   bool ReWrite(int fd);
   bool Read(int fd, off_t offset);
-  void MakeCreationBlock() { fMd.magic =  XRDCOMMONFMDCREATE_MAGIC;}
-  void MakeDeletionBlock() { fMd.magic =  XRDCOMMONFMDDELETE_MAGIC;}
+  void MakeCreationBlock() { fMd.magic =  EOSCOMMONFMDCREATE_MAGIC;}
+  void MakeDeletionBlock() { fMd.magic =  EOSCOMMONFMDDELETE_MAGIC;}
   
   static void Dump(struct FMD* fmd);
   
   XrdOucEnv* FmdToEnv();
-  static bool EnvToFmd(XrdOucEnv &env, struct XrdCommonFmd::FMD &fmd);
+  static bool EnvToFmd(XrdOucEnv &env, struct Fmd::FMD &fmd);
 
-  XrdCommonFmd(int fid=0, int fsid=0) {memset(&fMd,0, sizeof(struct FMD)); XrdCommonLogId();fMd.fid=fid; fMd.fsid=fsid;fMd.cid=0;};
-  ~XrdCommonFmd() {};
+  Fmd(int fid=0, int fsid=0) {memset(&fMd,0, sizeof(struct FMD)); LogId();fMd.fid=fid; fMd.fsid=fsid;fMd.cid=0;};
+  ~Fmd() {};
 };
 
 /*----------------------------------------------------------------------------*/
-class XrdCommonFmdHandler : public XrdCommonLogId {
+class FmdHandler : public LogId {
 private:
   bool isOpen;
 public:
@@ -144,7 +153,7 @@ public:
   XrdOucString ChangeLogFileName;
   XrdOucString ChangeLogDir;
   XrdSysMutex Mutex;
-  XrdCommonFmdHeader fmdHeader;
+  FmdHeader fmdHeader;
   
   bool SetChangeLogFile(const char* changelogfile, int fsid, XrdOucString option="") ;
   bool AttachLatestChangeLogFile(const char* changelogdir, int fsid) ;
@@ -155,32 +164,26 @@ public:
   // the meta data handling functions
 
   // attach or create a fmd record
-  XrdCommonFmd* GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid, gid_t gid, unsigned int layoutid, bool isRW=false);
+  Fmd* GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid, gid_t gid, unsigned int layoutid, bool isRW=false);
 
   // create a deletion fmd record
   bool DeleteFmd(unsigned long long fid, unsigned int fsid);
 
   // commit a modified fmd record
-  bool Commit(XrdCommonFmd* fmd);
+  bool Commit(Fmd* fmd);
 
   // initialize the changelog hash
   void Reset(int fsid) {
-    Fmd[fsid].clear();
+    FmdMap[fsid].clear();
   }
     
   static int CompareMtime(const void* a, const void *b);
 
   // that is all we need for meta data handling
   // hash map pointing from fid to offset in changelog file
-  google::sparse_hash_map<unsigned long long, google::dense_hash_map<unsigned long long, unsigned long long> > Fmd;
+  google::sparse_hash_map<unsigned long long, google::dense_hash_map<unsigned long long, unsigned long long> > FmdMap;
   // hash map with fid file sizes
   google::dense_hash_map<long long, unsigned long long> FmdSize;
-
-  // that is all we need for quota
-  google::dense_hash_map<long long, long long> UserBytes; // the key is encoded as (fsid<<32) | uid 
-  google::dense_hash_map<long long, long long> GroupBytes;// the key is encoded as (fsid<<32) | gid
-  google::dense_hash_map<long long, long long> UserFiles; // the key is encoded as (fsid<<32) | uid
-  google::dense_hash_map<long long, long long> GroupFiles;// the key is encoded as (fsid<<32) | gid
 
   // create a new changelog filename in 'dir' (the fsid suffix is not added!)
   const char* CreateChangeLogName(const char* cldir, XrdOucString &clname) {
@@ -189,30 +192,24 @@ public:
   }
 
   // remote fmd
-  int GetRemoteFmd(XrdCommonClientAdmin* admin, const char* serverurl, const char* shexfid, const char* sfsid, struct XrdCommonFmd::FMD &fmd);
+  int GetRemoteFmd(ClientAdmin* admin, const char* serverurl, const char* shexfid, const char* sfsid, struct Fmd::FMD &fmd);
 
 
-  XrdCommonFmdHandler() {
+  FmdHandler() {
     SetLogId("CommonFmdHandler"); isOpen=false;
     FmdSize.set_empty_key(0xfffffffe);
     FmdSize.set_deleted_key(0xffffffff);
-    UserBytes.set_empty_key(-1);
-    GroupBytes.set_empty_key(-1);
-    UserFiles.set_empty_key(-1);
-    GroupFiles.set_empty_key(-1);
-
-    //    fdChangeLogRead.set_empty_key(0);
-    //    fdChangeLogWrite.set_empty_key(0);
-    //    fdChangeLogSequenceNumber.set_empty_key(0);
     ChangeLogFileName="";
     ChangeLogDir="";
   }
-  ~XrdCommonFmdHandler() {};
+  ~FmdHandler() {};
 
 };
 
 
 /*----------------------------------------------------------------------------*/
-extern XrdCommonFmdHandler gFmdHandler;
+extern FmdHandler gFmdHandler;
+
+EOSCOMMONNAMESPACE_END
 
 #endif

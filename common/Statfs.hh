@@ -1,25 +1,34 @@
-#ifndef __XRDCOMMON_STATFS_HH__
-#define __XRDCOMMON_STATFS_HH__
+#ifndef __EOSCOMMON_STATFS_HH__
+#define __EOSCOMMON_STATFS_HH__
 
+/*----------------------------------------------------------------------------*/
+#include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
+#ifndef __APPLE__
 #include <sys/vfs.h>
-
+#else
+#include <sys/param.h>
+#include <sys/mount.h>
+#endif
 /*----------------------------------------------------------------------------*/
-class XrdCommonStatfs {
+
+EOSCOMMONNAMESPACE_BEGIN
+
+class Statfs {
   struct statfs statFs;
   XrdOucString path;
   XrdOucString env;
   
 public:
   static XrdSysMutex gMutex;
-  static XrdOucHash<XrdCommonStatfs> gStatfs;
-  static XrdCommonStatfs* GetStatfs(const char* path) {
+  static XrdOucHash<Statfs> gStatfs;
+  static Statfs* GetStatfs(const char* path) {
     gMutex.Lock();
-    XrdCommonStatfs* sfs = gStatfs.Find(path);
+    Statfs* sfs = gStatfs.Find(path);
     gMutex.UnLock();
     return sfs;
   }
@@ -30,24 +39,24 @@ public:
 
   int DoStatfs() {
     env ="";
-    int retc=statfs(path.c_str(), (struct statfs*) &statFs);
+    int retc=::statfs(path.c_str(), (struct statfs*) &statFs);
     if (!retc) {
       char s[1024];    
-      sprintf(s,"statfs.type=%ld&statfs.bsize=%ld&statfs.blocks=%ld&statfs.bfree=%ld&statfs.bavail=%ld&statfs.files=%ld&statfs.ffree=%ld&stat.namelen=%ld", statFs.f_type,statFs.f_bsize,statFs.f_blocks,statFs.f_bfree,statFs.f_bavail,statFs.f_files,statFs.f_ffree,statFs.f_namelen);
+      sprintf(s,"statfs.type=%ld&statfs.bsize=%ld&statfs.blocks=%ld&statfs.bfree=%ld&statfs.bavail=%ld&statfs.files=%ld&statfs.ffree=%ld", (long)statFs.f_type,(long)statFs.f_bsize,(long)statFs.f_blocks,(long)statFs.f_bfree,(long)statFs.f_bavail,(long)statFs.f_files,(long)statFs.f_ffree);
       env = s;
     }
     return retc;
   }
 
   
-  XrdCommonStatfs(const char* inpath) {
+  Statfs(const char* inpath) {
     path = inpath;
   }
   
-  ~XrdCommonStatfs(){}
+  ~Statfs(){}
   
-  static XrdCommonStatfs* DoStatfs(const char* path) {
-    XrdCommonStatfs* sfs = new XrdCommonStatfs(path);
+  static Statfs* DoStatfs(const char* path) {
+    Statfs* sfs = new Statfs(path);
     if (!sfs->DoStatfs()) {
       gMutex.Lock();
       gStatfs.Rep(path, sfs);
@@ -59,5 +68,7 @@ public:
     }   
   }
 };
+
+EOSCOMMONNAMESPACE_END
 
 #endif

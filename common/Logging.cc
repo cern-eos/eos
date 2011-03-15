@@ -1,25 +1,28 @@
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonLogging.hh"
+#include "common/Namespace.hh"
+#include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 
-int XrdCommonLogging::gLogMask=0;
-int XrdCommonLogging::gPriorityLevel=0;
+EOSCOMMONNAMESPACE_BEGIN
 
-XrdCommonLogging::LogArray         XrdCommonLogging::gLogMemory;
-XrdCommonLogging::LogCircularIndex XrdCommonLogging::gLogCircularIndex;
-unsigned long                      XrdCommonLogging::gCircularIndexSize;
-XrdSysMutex XrdCommonLogging::gMutex;
-XrdOucString XrdCommonLogging::gUnit="none";
-XrdOucString XrdCommonLogging::gFilter="";
+int Logging::gLogMask=0;
+int Logging::gPriorityLevel=0;
 
-XrdCommonMapping::VirtualIdentity XrdCommonLogging::gZeroVid;
+Logging::LogArray         Logging::gLogMemory;
+Logging::LogCircularIndex Logging::gLogCircularIndex;
+unsigned long                      Logging::gCircularIndexSize;
+XrdSysMutex Logging::gMutex;
+XrdOucString Logging::gUnit="none";
+XrdOucString Logging::gFilter="";
+
+Mapping::VirtualIdentity Logging::gZeroVid;
 
 
 /*----------------------------------------------------------------------------*/
 void
-XrdCommonLogging::log(const char* func, const char* file, int line, const char* logid, const XrdCommonMapping::VirtualIdentity &vid, const char* cident, int priority, const char *msg, ...) 
+Logging::log(const char* func, const char* file, int line, const char* logid, const Mapping::VirtualIdentity &vid, const char* cident, int priority, const char *msg, ...) 
 {
   if (!((LOG_MASK(priority) & gLogMask)))
     return;
@@ -87,14 +90,17 @@ XrdCommonLogging::log(const char* func, const char* file, int line, const char* 
 
 /*----------------------------------------------------------------------------*/
 void
-XrdCommonLogging::Init() 
+Logging::Init() 
 {
   // initialize the log array and sets the log circular size
   gLogCircularIndex.resize(LOG_DEBUG+1);
   gLogMemory.resize(LOG_DEBUG+1);
-  gCircularIndexSize=XRDCOMMONLOGGING_CIRCULARINDEXSIZE;
+  gCircularIndexSize=EOSCOMMONLOGGING_CIRCULARINDEXSIZE;
   for (int i = 0; i<= LOG_DEBUG; i++ ) {
     gLogCircularIndex[i] = 0;
     gLogMemory[i].resize(gCircularIndexSize);
   }
 }
+
+EOSCOMMONNAMESPACE_END
+

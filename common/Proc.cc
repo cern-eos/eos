@@ -1,10 +1,14 @@
-//          $Id: XrdCommonProc.cc,v 1.1 2008/09/15 10:04:02 apeters Exp $
-
-#include "XrdCommon/XrdCommonProc.hh"
+/*----------------------------------------------------------------------------*/
+#include "common/Namespace.hh"
+#include "common/Proc.hh"
 #include <string.h>
+/*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+
+EOSCOMMONNAMESPACE_BEGIN
 
 bool
-XrdCommonProcFile::Open() {
+ProcFile::Open() {
   if (procsync) {
     fd = open(fname.c_str(),O_CREAT| O_SYNC|O_RDWR, S_IRWXU | S_IROTH | S_IRGRP );
   } else {
@@ -18,21 +22,21 @@ XrdCommonProcFile::Open() {
 }
 
 bool 
-XrdCommonProcFile::Write(long long val, int writedelay) {
+ProcFile::Write(long long val, int writedelay) {
   char pbuf[1024];
   sprintf(pbuf,"%lld\n",val);
   return Write(pbuf,writedelay);
 }
 
 bool 
-XrdCommonProcFile::Write(double val, int writedelay) {
+ProcFile::Write(double val, int writedelay) {
   char pbuf[1024];
   sprintf(pbuf,"%.02f\n",val);
   return Write(pbuf,writedelay);
 }
 
 bool 
-XrdCommonProcFile::Write(const char* pbuf, int writedelay) {
+ProcFile::Write(const char* pbuf, int writedelay) {
   time_t now = time(0);
   if (writedelay) { 
 
@@ -53,13 +57,13 @@ XrdCommonProcFile::Write(const char* pbuf, int writedelay) {
 }
 
 bool
-XrdCommonProcFile::WriteKeyVal(const char* key, unsigned long long value, int writedelay, bool dotruncate) {
+ProcFile::WriteKeyVal(const char* key, unsigned long long value, int writedelay, bool dotruncate) {
   if (dotruncate) {
     time_t now = time(0);
     if (writedelay) {
       
       if (now-lastwrite <writedelay) {
-	return false;
+        return false;
       }
     }
 
@@ -78,7 +82,7 @@ XrdCommonProcFile::WriteKeyVal(const char* key, unsigned long long value, int wr
 }
 
 long long
-XrdCommonProcFile::Read() {
+ProcFile::Read() {
   char pbuf[1024];
   lseek(fd,0,SEEK_SET);
   ssize_t rb = read(fd,pbuf,sizeof(pbuf));
@@ -89,7 +93,7 @@ XrdCommonProcFile::Read() {
 }
 
 bool 
-XrdCommonProcFile::Read(XrdOucString &str) {
+ProcFile::Read(XrdOucString &str) {
   char pbuf[1025];
   pbuf[0] = 0;
   pbuf[1024] = 0;
@@ -105,16 +109,16 @@ XrdCommonProcFile::Read(XrdOucString &str) {
     return true;
 }
 
-XrdCommonProcFile*
-XrdCommonProc::Handle(const char* name) {
-  XrdCommonProcFile* phandle=0;
+ProcFile*
+Proc::Handle(const char* name) {
+  ProcFile* phandle=0;
   if (( phandle = files.Find(name))) {
     return phandle;
   } else {
     XrdOucString pfname=procdirectory;
     pfname += "/";
     pfname += name;
-    phandle = new XrdCommonProcFile(pfname.c_str());
+    phandle = new ProcFile(pfname.c_str());
     if (phandle && phandle->Open()) {
       files.Add(name,phandle);
       return phandle;
@@ -124,5 +128,9 @@ XrdCommonProc::Handle(const char* name) {
   }
   return 0;
 }
+
+EOSCOMMONNAMESPACE_END
+
+
 
 

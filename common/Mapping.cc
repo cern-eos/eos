@@ -1,25 +1,32 @@
-#include "XrdCommon/XrdCommonMapping.hh"
-#include "XrdCommon/XrdCommonStringStore.hh"
-#include "XrdCommon/XrdCommonLogging.hh"
+/*----------------------------------------------------------------------------*/
+#include "common/Namespace.hh"
+#include "common/Mapping.hh"
+#include "common/StringStore.hh"
+#include "common/Logging.hh"
+/*----------------------------------------------------------------------------*/
+
+EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-XrdSysMutex                       XrdCommonMapping::gMapMutex;
-XrdCommonMapping::UserRoleMap     XrdCommonMapping::gUserRoleVector;
-XrdCommonMapping::GroupRoleMap    XrdCommonMapping::gGroupRoleVector;
-XrdCommonMapping::VirtualUserMap  XrdCommonMapping::gVirtualUidMap;
-XrdCommonMapping::VirtualGroupMap XrdCommonMapping::gVirtualGidMap;
-XrdCommonMapping::SudoerMap       XrdCommonMapping::gSudoerMap;
+RWMutex                    Mapping::gMapMutex;
+RWMutex                    Mapping::gPhysicalIdMutex;
+ 
+Mapping::UserRoleMap_t     Mapping::gUserRoleVector;
+Mapping::GroupRoleMap_t    Mapping::gGroupRoleVector;
+Mapping::VirtualUserMap_t  Mapping::gVirtualUidMap;
+Mapping::VirtualGroupMap_t Mapping::gVirtualGidMap;
+Mapping::SudoerMap_t       Mapping::gSudoerMap;
 
 
-XrdOucHash<XrdCommonMapping::id_pair>    XrdCommonMapping::gPhysicalUidCache;
-XrdOucHash<XrdCommonMapping::gid_vector> XrdCommonMapping::gPhysicalGidCache;
+XrdOucHash<Mapping::id_pair>    Mapping::gPhysicalUidCache;
+XrdOucHash<Mapping::gid_vector> Mapping::gPhysicalGidCache;
 
 /*----------------------------------------------------------------------------*/
 
 
 /*----------------------------------------------------------------------------*/
 void 
-XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, XrdCommonMapping::VirtualIdentity &vid)
+Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, Mapping::VirtualIdentity &vid)
 {
   if (!client) 
     return;
@@ -44,8 +51,7 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
   useralias += "uid";
   groupalias+= "gid";
 
-
-  gMapMutex.Lock();
+  RWMutexReadLock lock(gMapMutex);
   
   vid.prot = client->prot;
 
@@ -53,7 +59,7 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
     eos_static_debug("krb5 mapping");
     if (gVirtualUidMap.count("krb5:\"<pwd>\":uid")) {
       // use physical mapping for kerberos names
-      XrdCommonMapping::getPhysicalIds(client->name, vid);
+      Mapping::getPhysicalIds(client->name, vid);
       vid.gid=99;
       vid.gid_list.clear();
     }
@@ -61,7 +67,7 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
     if (gVirtualGidMap.count("krb5:\"<pwd>\":gid")) {
       // use physical mapping for kerberos names
       uid_t uid = vid.uid;
-      XrdCommonMapping::getPhysicalIds(client->name, vid);
+      Mapping::getPhysicalIds(client->name, vid);
       vid.uid = uid;
       vid.uid_list.clear();
       vid.uid_list.push_back(uid);
@@ -72,16 +78,36 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
   if ( (vid.prot == "ssl") ) {
     eos_static_debug("ssl mapping");
     if (gVirtualUidMap.count("ssl:\"<pwd>\":uid")) {
-      // use physical mapping for kerberos names
-      XrdCommonMapping::getPhysicalIds(client->name, vid);
+      // use physical mapping for ssl names
+      Mapping::getPhysicalIds(client->name, vid);
       vid.gid=99;
       vid.gid_list.clear();
     }
     
     if (gVirtualGidMap.count("ssl:\"<pwd>\":gid")) {
-      // use physical mapping for kerberos names
+      // use physical mapping for ssl names
       uid_t uid = vid.uid;
-      XrdCommonMapping::getPhysicalIds(client->name, vid);
+      Mapping::getPhysicalIds(client->name, vid);
+      vid.uid = uid;
+      vid.uid_list.clear();
+      vid.uid_list.push_back(uid);
+      vid.uid_list.push_back(99);
+    }
+  }
+
+  if ( (vid.prot == "gsi") ) {
+    eos_static_debug("gsi mapping");
+    if (gVirtualUidMap.count("gsi:\"<pwd>\":uid")) {
+      // use physical mapping for gsi names
+      Mapping::getPhysicalIds(client->name, vid);
+      vid.gid=99;
+      vid.gid_list.clear();
+    }
+    
+    if (gVirtualGidMap.count("gsi:\"<pwd>\":gid")) {
+      // use physical mapping for gsi names
+      uid_t uid = vid.uid;
+      Mapping::getPhysicalIds(client->name, vid);
       vid.uid = uid;
       vid.uid_list.clear();
       vid.uid_list.push_back(uid);
@@ -93,41 +119,41 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
     eos_static_debug("sss mapping");
     if (gVirtualUidMap.count("sss:\"<pwd>\":uid")) {
       if (gVirtualUidMap["sss:\"<pwd>\":uid"] == 0) {
-	eos_static_debug("sss uid mapping");
-	// use physical mapping for kerberos names
-	XrdCommonMapping::getPhysicalIds(client->name, vid);
-	vid.gid=99;
-	vid.gid_list.clear();
+        eos_static_debug("sss uid mapping");
+        // use physical mapping for kerberos names
+        Mapping::getPhysicalIds(client->name, vid);
+        vid.gid=99;
+        vid.gid_list.clear();
       } else {
-	eos_static_debug("sss uid forced mapping");
-	// map to the requested id
-	vid.uid_list.clear();
-	vid.uid = gVirtualUidMap["sss:\"<pwd>\":uid"];
-	vid.uid_list.push_back(vid.uid);
-	if (vid.uid != 99)
-	  vid.uid_list.push_back(99);
-	vid.gid_list.clear();
-	vid.gid = 99;
-	vid.gid_list.push_back(99);
+        eos_static_debug("sss uid forced mapping");
+        // map to the requested id
+        vid.uid_list.clear();
+        vid.uid = gVirtualUidMap["sss:\"<pwd>\":uid"];
+        vid.uid_list.push_back(vid.uid);
+        if (vid.uid != 99)
+          vid.uid_list.push_back(99);
+        vid.gid_list.clear();
+        vid.gid = 99;
+        vid.gid_list.push_back(99);
       }
     }
     
     if (gVirtualGidMap.count("sss:\"<pwd>\":gid")) {
       if (gVirtualGidMap["sss:\"<pwd>\":gid"] == 0) {
-	eos_static_debug("sss gid mapping");
-	// use physical mapping for kerberos names
-	uid_t uid = vid.uid;
-	XrdCommonMapping::getPhysicalIds(client->name, vid);
-	vid.uid = uid;
-	vid.uid_list.clear();
-	vid.uid_list.push_back(uid);
-	vid.uid_list.push_back(99);
+        eos_static_debug("sss gid mapping");
+        // use physical mapping for kerberos names
+        uid_t uid = vid.uid;
+        Mapping::getPhysicalIds(client->name, vid);
+        vid.uid = uid;
+        vid.uid_list.clear();
+        vid.uid_list.push_back(uid);
+        vid.uid_list.push_back(99);
       } else {
-	eos_static_debug("sss forced gid mapping");
-	// map to the requested id
-	vid.gid_list.clear();
-	vid.gid = gVirtualGidMap["sss:\"<pwd>\":gid"];
-	vid.gid_list.push_back(vid.gid);
+        eos_static_debug("sss forced gid mapping");
+        // map to the requested id
+        vid.gid_list.clear();
+        vid.gid = gVirtualGidMap["sss:\"<pwd>\":gid"];
+        vid.gid_list.push_back(vid.gid);
       }
     }
   }
@@ -136,41 +162,41 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
     eos_static_debug("unix mapping");
     if (gVirtualUidMap.count("unix:\"<pwd>\":uid")) {
       if (gVirtualUidMap["unix:\"<pwd>\":uid"] == 0) {
-	eos_static_debug("unix uid mapping");
-	// use physical mapping for kerberos names
-	XrdCommonMapping::getPhysicalIds(client->name, vid);
-	vid.gid=99;
-	vid.gid_list.clear();
+        eos_static_debug("unix uid mapping");
+        // use physical mapping for kerberos names
+        Mapping::getPhysicalIds(client->name, vid);
+        vid.gid=99;
+        vid.gid_list.clear();
       } else {
-	eos_static_debug("unix uid forced mapping");
-	// map to the requested id
-	vid.uid_list.clear();
-	vid.uid = gVirtualUidMap["unix:\"<pwd>\":uid"];
-	vid.uid_list.push_back(vid.uid);
-	if (vid.uid != 99)
-	  vid.uid_list.push_back(99);
-	vid.gid_list.clear();
-	vid.gid = 99;
-	vid.gid_list.push_back(99);
+        eos_static_debug("unix uid forced mapping");
+        // map to the requested id
+        vid.uid_list.clear();
+        vid.uid = gVirtualUidMap["unix:\"<pwd>\":uid"];
+        vid.uid_list.push_back(vid.uid);
+        if (vid.uid != 99)
+          vid.uid_list.push_back(99);
+        vid.gid_list.clear();
+        vid.gid = 99;
+        vid.gid_list.push_back(99);
       }
     }
     
     if (gVirtualGidMap.count("unix:\"<pwd>\":gid")) {
       if (gVirtualGidMap["unix:\"<pwd>\":gid"] == 0) {
-	eos_static_debug("unix gid mapping");
-	// use physical mapping for kerberos names
-	uid_t uid = vid.uid;
-	XrdCommonMapping::getPhysicalIds(client->name, vid);
-	vid.uid = uid;
-	vid.uid_list.clear();
-	vid.uid_list.push_back(uid);
-	vid.uid_list.push_back(99);
+        eos_static_debug("unix gid mapping");
+        // use physical mapping for kerberos names
+        uid_t uid = vid.uid;
+        Mapping::getPhysicalIds(client->name, vid);
+        vid.uid = uid;
+        vid.uid_list.clear();
+        vid.uid_list.push_back(uid);
+        vid.uid_list.push_back(99);
       } else {
-	eos_static_debug("unix forced gid mapping");
-	// map to the requested id
-	vid.gid_list.clear();
-	vid.gid = gVirtualGidMap["unix:\"<pwd>\":gid"];
-	vid.gid_list.push_back(vid.gid);
+        eos_static_debug("unix forced gid mapping");
+        // map to the requested id
+        vid.gid_list.clear();
+        vid.gid = gVirtualGidMap["unix:\"<pwd>\":gid"];
+        vid.gid_list.push_back(vid.gid);
       }
     }
   }
@@ -203,7 +229,7 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
   if ((gVirtualUidMap.count(swcuidtident.c_str()))) {
     if (!gVirtualUidMap[swcuidtident.c_str()]) {
       eos_static_debug("tident unix uid mapping");
-      XrdCommonMapping::getPhysicalIds(client->name, vid);
+      Mapping::getPhysicalIds(client->name, vid);
       vid.gid=99;
       vid.gid_list.clear();
     } else {
@@ -213,7 +239,7 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
       vid.uid = gVirtualUidMap[swcuidtident.c_str()];
       vid.uid_list.push_back(vid.uid);
       if (vid.uid != 99)
-	vid.uid_list.push_back(99);
+        vid.uid_list.push_back(99);
       vid.gid_list.clear();
       vid.gid = 99;
       vid.gid_list.push_back(99);
@@ -224,7 +250,7 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
     if (!gVirtualGidMap[swcgidtident.c_str()]) {
       eos_static_debug("tident unix gid mapping");
       uid_t uid = vid.uid;
-      XrdCommonMapping::getPhysicalIds(client->name, vid);
+      Mapping::getPhysicalIds(client->name, vid);
       vid.uid = uid;
       vid.uid_list.clear();
       vid.uid_list.push_back(uid);
@@ -316,16 +342,14 @@ XrdCommonMapping::IdMap(const XrdSecEntity* client,const char* env, const char* 
   }
 
   eos_static_debug("selected %d %d [%s %s]", vid.uid,vid.gid, ruid.c_str(),rgid.c_str());
-  
-  gMapMutex.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
 void
-XrdCommonMapping::Print(XrdOucString &stdOut, XrdOucString option)
+Mapping::Print(XrdOucString &stdOut, XrdOucString option)
 {
   if ((!option.length()) || ( (option.find("u"))!=STR_NPOS)) {
-    UserRoleMap::const_iterator it;
+    UserRoleMap_t::const_iterator it;
     for ( it = gUserRoleVector.begin(); it != gUserRoleVector.end(); ++it) {
       char iuid[4096];
       sprintf(iuid,"%d", it->first);
@@ -334,16 +358,16 @@ XrdCommonMapping::Print(XrdOucString &stdOut, XrdOucString option)
       stdOut += "membership uid: ";stdOut += suid;
       stdOut += " => uids(";
       for ( unsigned int i=0; i< (it->second).size(); i++) {
-	stdOut += (int) (it->second)[i];
-	if (i < ((it->second).size()-1))
-	  stdOut += ",";
+        stdOut += (int) (it->second)[i];
+        if (i < ((it->second).size()-1))
+          stdOut += ",";
       }
       stdOut += ")\n";
     }
   }
 
   if ((!option.length()) || ( (option.find("g"))!=STR_NPOS)) {
-    UserRoleMap::const_iterator it;
+    UserRoleMap_t::const_iterator it;
     for ( it = gGroupRoleVector.begin(); it != gGroupRoleVector.end(); ++it) {
       char iuid[4096];
       sprintf(iuid,"%d", it->first);
@@ -352,22 +376,22 @@ XrdCommonMapping::Print(XrdOucString &stdOut, XrdOucString option)
       stdOut += "membership uid: ";stdOut += suid;
       stdOut += " => gids(";
       for ( unsigned int i=0; i< (it->second).size(); i++) {
-	stdOut += (int) (it->second)[i];
-	if (i < ((it->second).size()-1))
-	  stdOut += ",";
+        stdOut += (int) (it->second)[i];
+        if (i < ((it->second).size()-1))
+          stdOut += ",";
       }
       stdOut += ")\n";
     }
   }
 
   if ((!option.length()) || ( (option.find("s"))!=STR_NPOS)) {
-    SudoerMap::const_iterator it;
+    SudoerMap_t::const_iterator it;
     // print sudoer line
     stdOut += "sudoer                 => uids(";
     for ( it = gSudoerMap.begin() ;it != gSudoerMap.end(); ++it) {  
       if (it->second) {
-	stdOut += (int) (it->first);
-	stdOut += ",";
+        stdOut += (int) (it->first);
+        stdOut += ",";
       }
     }
     if (stdOut.endswith(",")) {
@@ -377,14 +401,14 @@ XrdCommonMapping::Print(XrdOucString &stdOut, XrdOucString option)
   }
 
   if ((!option.length()) || ( (option.find("U"))!=STR_NPOS)) {
-    VirtualUserMap::const_iterator it;
+    VirtualUserMap_t::const_iterator it;
     for ( it = gVirtualUidMap.begin(); it != gVirtualUidMap.end(); ++it) {
       stdOut += it->first.c_str(); stdOut += " => "; stdOut += (int)it->second; stdOut += "\n";
     }
   }
 
   if ((!option.length()) || ( (option.find("G"))!=STR_NPOS)) {
-    VirtualGroupMap::const_iterator it;
+    VirtualGroupMap_t::const_iterator it;
     for ( it = gVirtualGidMap.begin(); it != gVirtualGidMap.end(); ++it) {
       stdOut += it->first.c_str(); stdOut += " => "; stdOut += (int)it->second; stdOut += "\n";
     }
@@ -393,9 +417,8 @@ XrdCommonMapping::Print(XrdOucString &stdOut, XrdOucString option)
 
 /*----------------------------------------------------------------------------*/
 void
-XrdCommonMapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
+Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
 {
-  // temporary removed  struct group* gr;
   struct passwd passwdinfo;
   char buffer[16384];
 
@@ -403,21 +426,28 @@ XrdCommonMapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
     return;
 
   memset(&passwdinfo,0, sizeof(passwdinfo))
-;
+    ;
   gid_vector* gv;
   id_pair* id;
 
   eos_static_debug("find in uid cache");
+
+  gPhysicalIdMutex.LockRead();
+
   // cache short cut's
   if (!(id = gPhysicalUidCache.Find(name))) {
+    gPhysicalIdMutex.UnLockRead();
     eos_static_debug("not found in uid cache");
     struct passwd *pwbufp=0;
     
     if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp)) 
       return;
     id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
+    gPhysicalIdMutex.LockWrite();
     gPhysicalUidCache.Add(name, id, 3600);
+    gPhysicalIdMutex.UnLockWrite();
     eos_static_debug("adding to cache uid=%u gid=%u", id->uid,id->gid);
+    gPhysicalIdMutex.LockRead();
   };
 
   vid.uid = id->uid;
@@ -429,40 +459,51 @@ XrdCommonMapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
     vid.uid = id->uid;
     vid.gid = id->gid;
     eos_static_debug("returning uid=%u gid=%u", id->uid,id->gid);
+    gPhysicalIdMutex.UnLockRead();
     return; 
   }
 
-  /* remove secondary group searches
-  eos_static_debug("group lookup");
-  gid_t gid = id->gid;
 
+  /* remove secondary searches in the database -> LDAP assertion
+     struct group* gr;
+  
+     eos_static_debug("group lookup");
+     gid_t gid = id->gid;
 
-  setgrent();
+     setgrent();
 
-  while( (gr = getgrent() ) ) {
-    int cnt;
-    cnt=0;
-    if (gr->gr_gid == gid) {
-      if (!vid.gid_list.size()) {
-	vid.gid_list.push_back(gid);
-	vid.gid = gid;
-      }
-    }
+     while( (gr = getgrent() ) ) {
+     int cnt;
+     cnt=0;
+     if (gr->gr_gid == gid) {
+     if (!vid.gid_list.size()) {
+     vid.gid_list.push_back(gid);
+     vid.gid = gid;
+     }
+     }
 
-    while (gr->gr_mem[cnt]) {
-      if (!strcmp(gr->gr_mem[cnt],name)) {
-	vid.gid_list.push_back(gr->gr_gid);
-      }
-      cnt++;
-    }
-  }
-  endgrent();
+     while (gr->gr_mem[cnt]) {
+     if (!strcmp(gr->gr_mem[cnt],name)) {
+     vid.gid_list.push_back(gr->gr_gid);
+     }
+     cnt++;
+     }
+     }
+     endgrent();
+
   */
 
   // add to the cache
   gid_vector* vec = new uid_vector;
   *vec = vid.gid_list;
+
+  gPhysicalIdMutex.UnLockRead();
+  RWMutexWriteLock lock(gPhysicalIdMutex);
+
   gPhysicalGidCache.Add(name,vec, 3600);
 
   return ;
 }
+
+EOSCOMMONNAMESPACE_END
+

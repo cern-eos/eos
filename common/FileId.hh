@@ -1,14 +1,18 @@
-#ifndef __XRDCOMMON_FILEID__HH__
-#define __XRDCOMMON_FILEID__HH__
+#ifndef __EOSCOMMON_FILEID__HH__
+#define __EOSCOMMON_FILEID__HH__
 
+/*----------------------------------------------------------------------------*/
+#include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
 
-class XrdCommonFileId {
+EOSCOMMONNAMESPACE_BEGIN
+
+class FileId {
 public:
-  XrdCommonFileId();
-  ~XrdCommonFileId();
+  FileId();
+  ~FileId();
 
   // convert a fid into a hex decimal string
   static void Fid2Hex(unsigned long long fid, XrdOucString &hexstring) {
@@ -40,6 +44,9 @@ public:
 };
 
 /*----------------------------------------------------------------------------*/
+
+EOSCOMMONNAMESPACE_END
+
 #endif
 
   

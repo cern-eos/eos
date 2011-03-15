@@ -1,17 +1,22 @@
-//         $Id: XrdCommonProc.hh,v 1.1 2008/09/15 10:04:02 apeters Exp $
+#ifndef __EOSCOMMON_PROC__
+#define __EOSCOMMON_PROC__
 
-#ifndef __XRDCOMMON_PROC__
-#define __XRDCOMMON_PROC__
-
+/*----------------------------------------------------------------------------*/
+#include "common/Namespace.hh"
+/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
-
+/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
+/*----------------------------------------------------------------------------*/
 
-class XrdCommonProcFile
+
+EOSCOMMONNAMESPACE_BEGIN
+
+class ProcFile
 {
 private:
   int fd;
@@ -30,22 +35,22 @@ public:
   bool Read(XrdOucString &str);
   
 
-  XrdCommonProcFile(const char* name, bool syncit=false){fname = name;fd=0;procsync = syncit;lastwrite=0;};
-  virtual ~XrdCommonProcFile() {Close();};
+  ProcFile(const char* name, bool syncit=false){fname = name;fd=0;procsync = syncit;lastwrite=0;};
+  virtual ~ProcFile() {Close();};
 };
 
-class XrdCommonProc
+class Proc
 {
 private:
   bool procsync;
   XrdOucString procdirectory;
-  XrdOucHash<XrdCommonProcFile> files;
+  XrdOucHash<ProcFile> files;
 
 public:
   
-  XrdCommonProcFile* Handle(const char* name);
+  ProcFile* Handle(const char* name);
 
-  XrdCommonProc(const char* procdir, bool syncit) { 
+  Proc(const char* procdir, bool syncit) { 
     procdirectory = procdir; 
     procsync = syncit;
   };
@@ -66,7 +71,10 @@ public:
     }
   }
 
-  virtual ~XrdCommonProc() {};
+  virtual ~Proc() {};
 };
+
+EOSCOMMONNAMESPACE_END
+
 #endif
 
