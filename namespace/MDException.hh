@@ -3,8 +3,8 @@
 // desc:   Metadata exception
 //------------------------------------------------------------------------------
 
-#ifndef EOS_MD_EXCEPTION_HH
-#define EOS_MD_EXCEPTION_HH
+#ifndef EOS_NS_MD_EXCEPTION_HH
+#define EOS_NS_MD_EXCEPTION_HH
 
 #include <stdexcept>
 #include <sstream>
@@ -88,4 +88,4 @@ namespace eos
   };
 }
 
-#endif // EOS_MD_EXCEPTION_HH
+#endif // EOS_NS_MD_EXCEPTION_HH

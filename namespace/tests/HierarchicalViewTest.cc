@@ -10,9 +10,9 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include "Namespace/views/HierarchicalView.hh"
-#include "Namespace/persistency/ChangeLogContainerMDSvc.hh"
-#include "Namespace/persistency/ChangeLogFileMDSvc.hh"
+#include "namespace/views/HierarchicalView.hh"
+#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/persistency/ChangeLogFileMDSvc.hh"
 
 //------------------------------------------------------------------------------
 // Declaration

@@ -3,13 +3,13 @@
 // desc:   Change log based ContainerMD service
 //------------------------------------------------------------------------------
 
-#ifndef EOS_CHANGE_LOG_CONTAINER_MD_SVC_HH
-#define EOS_CHANGE_LOG_CONTAINER_MD_SVC_HH
+#ifndef EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH
+#define EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH
 
-#include "Namespace/ContainerMD.hh"
-#include "Namespace/MDException.hh"
-#include "Namespace/IContainerMDSvc.hh"
-#include "Namespace/persistency/ChangeLogFile.hh"
+#include "namespace/ContainerMD.hh"
+#include "namespace/MDException.hh"
+#include "namespace/IContainerMDSvc.hh"
+#include "namespace/persistency/ChangeLogFile.hh"
 
 #include <list>
 #include <map>
@@ -163,4 +163,4 @@ namespace eos
   };
 }
 
-#endif // EOS_CHANGE_LOG_FILE_MD_SVC_HH
+#endif // EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH

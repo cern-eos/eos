@@ -4,7 +4,7 @@
 // File:   Descriptor.cc
 //------------------------------------------------------------------------------
 
-#include "Namespace/utils/Descriptor.hh"
+#include "namespace/utils/Descriptor.hh"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -24,16 +24,25 @@ static void resolve( const char *address, sockaddr_in &addr )
     //--------------------------------------------------------------------------
     // Get the ip address
     //--------------------------------------------------------------------------
-    hostent  hostbuf;
     hostent *hp;
-    size_t   hstbuflen = 1024;
-    char    *tmphstbuf = (char*)malloc( hstbuflen );
-    int      res;
-    int      herr;
 
     //--------------------------------------------------------------------------
     // Enlarge the buffer until the call succeeds
     //--------------------------------------------------------------------------
+
+#ifdef __APPLE__ 
+    hp = gethostbyname( address );
+    if (!hp) {
+      ex.getMessage() << "Socket: get host by name failed";
+      throw ex;
+    }
+#else
+    hostent  hostbuf;
+    size_t   hstbuflen = 1024;
+    int      herr;
+    int      res;
+    char    *tmphstbuf = (char*)malloc( hstbuflen );
+
     while( (res = gethostbyname_r( address, &hostbuf, tmphstbuf, hstbuflen,
                                    &hp, &herr ) ) == ERANGE)
     {
@@ -47,6 +56,7 @@ static void resolve( const char *address, sockaddr_in &addr )
       ex.getMessage() << "Socket: get host by name failed";
       throw ex;
     }
+#endif
 
     if( hp->h_addr_list == 0 )
     {
@@ -61,7 +71,9 @@ static void resolve( const char *address, sockaddr_in &addr )
     }
 
     memcpy( &addr.sin_addr.s_addr, hp->h_addr_list[0], sizeof( in_addr ) );
+#ifndef __APPLE__
     free( tmphstbuf );
+#endif
 }
 
 namespace eos

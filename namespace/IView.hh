@@ -3,15 +3,15 @@
 // desc:   View service interface
 //------------------------------------------------------------------------------
 
-#ifndef EOS_I_VIEW_HH
-#define EOS_I_VIEW_HH
+#ifndef EOS_NS_I_VIEW_HH
+#define EOS_NS_I_VIEW_HH
 
 #include <map>
 #include <string>
-#include "Namespace/IFileMDSvc.hh"
-#include "Namespace/IContainerMDSvc.hh"
-#include "Namespace/MDException.hh"
-#include "Namespace/ContainerMD.hh"
+#include "namespace/IFileMDSvc.hh"
+#include "namespace/IContainerMDSvc.hh"
+#include "namespace/MDException.hh"
+#include "namespace/ContainerMD.hh"
 
 namespace eos
 {
@@ -133,4 +133,4 @@ namespace eos
   };
 };
 
-#endif // EOS_I_VIEW_HH
+#endif // EOS_NS_I_VIEW_HH

@@ -3,13 +3,13 @@
 // desc:   Hierarchical namespace implementation
 //------------------------------------------------------------------------------
 
-#ifndef EOS_HIERARHICAL_VIEW_HH
-#define EOS_HIERARHICAL_VIEW_HH
+#ifndef EOS_NS_HIERARHICAL_VIEW_HH
+#define EOS_NS_HIERARHICAL_VIEW_HH
 
-#include "Namespace/IView.hh"
-#include "Namespace/IContainerMDSvc.hh"
-#include "Namespace/IFileMDSvc.hh"
-#include "Namespace/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/IView.hh"
+#include "namespace/IContainerMDSvc.hh"
+#include "namespace/IFileMDSvc.hh"
+#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 
 namespace eos
 {
@@ -172,4 +172,4 @@ namespace eos
   };
 };
 
-#endif // EOS_HIERARCHICAL_VIEW_HH
+#endif // EOS_NS_HIERARCHICAL_VIEW_HH

@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include "Namespace/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 
 //------------------------------------------------------------------------------
 // Declaration

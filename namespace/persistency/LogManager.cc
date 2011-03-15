@@ -3,9 +3,9 @@
 // desc:   Manager for change log files
 //------------------------------------------------------------------------------
 
-#include "Namespace/persistency/LogManager.hh"
-#include "Namespace/persistency/ChangeLogFile.hh"
-#include "Namespace/persistency/ChangeLogConstants.hh"
+#include "namespace/persistency/LogManager.hh"
+#include "namespace/persistency/ChangeLogFile.hh"
+#include "namespace/persistency/ChangeLogConstants.hh"
 #include <google/sparse_hash_map>
 #include <iomanip>
 

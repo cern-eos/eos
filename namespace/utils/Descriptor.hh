@@ -4,8 +4,8 @@
 // File:   Descriptor.hh
 //------------------------------------------------------------------------------
 
-#ifndef EOS_DESCRIPTOR_HH
-#define EOS_DESCRIPTOR_HH
+#ifndef EOS_NS_DESCRIPTOR_HH
+#define EOS_NS_DESCRIPTOR_HH
 
 #include <exception>
 #include <sstream>
@@ -231,4 +231,4 @@ namespace eos
   };
 };
 
-#endif // EOS_DESCRIPTOR_HH
+#endif // EOS_NS_DESCRIPTOR_HH

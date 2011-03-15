@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <cerrno>
-#include "Namespace/utils/DataHelper.hh"
+#include "namespace/utils/DataHelper.hh"
 
 namespace eos
 {

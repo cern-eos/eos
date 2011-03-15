@@ -3,11 +3,11 @@
 // desc:   Class representing the file metadata
 //------------------------------------------------------------------------------
 
-#ifndef EOS_FILE_MD_HH
-#define EOS_FILE_MD_HH
+#ifndef EOS_NS_FILE_MD_HH
+#define EOS_NS_FILE_MD_HH
 
-#include "Namespace/persistency/Buffer.hh"
-#include "Namespace/ContainerMD.hh"
+#include "namespace/persistency/Buffer.hh"
+#include "namespace/ContainerMD.hh"
 
 #include <stdint.h>
 #include <cstring>
@@ -15,6 +15,14 @@
 #include <vector>
 
 #include <sys/time.h>
+
+/*#ifdef __APPLE__
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+#endif
+*/
 
 namespace eos
 {
@@ -57,29 +65,13 @@ namespace eos
         return pId;
       }
 
-      ////----------------------------------------------------------------------
-      //! Get the flags
-      //------------------------------------------------------------------------
-      uint16_t &getFlags()
-      {
-        return pFlags;
-      }
-
-      //------------------------------------------------------------------------
-      //! Get the flags
-      //------------------------------------------------------------------------
-      uint16_t getFlags() const
-      {
-        return pFlags;
-      }
-
       //------------------------------------------------------------------------
       //! Get creation time
       //------------------------------------------------------------------------
       void getCTime( ctime_t &ctime ) const
       {
         ctime.tv_sec = pCTime.tv_sec;
-        ctime.tv_nsec = pCTime.tv_nsec;
+	ctime.tv_nsec = pCTime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -88,7 +80,7 @@ namespace eos
       void setCTime( ctime_t ctime )
       {
         pCTime.tv_sec = ctime.tv_sec;
-        pCTime.tv_nsec = ctime.tv_nsec;
+	pCTime.tv_nsec = ctime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -96,7 +88,14 @@ namespace eos
       //------------------------------------------------------------------------
       void setCTimeNow()
       {
-        clock_gettime(CLOCK_REALTIME, &pCTime);
+#ifdef __APPLE__
+        struct timeval tv;
+        gettimeofday(&tv, 0);
+        pCTime.tv_sec = tv.tv_sec;
+        pCTime.tv_nsec = tv.tv_usec * 1000;
+#else
+	clock_gettime(CLOCK_REALTIME, &pCTime);
+#endif
       }
 
 
@@ -106,7 +105,7 @@ namespace eos
       void getMTime( ctime_t &mtime ) const
       {
         mtime.tv_sec = pCTime.tv_sec;
-        mtime.tv_nsec = pCTime.tv_nsec;
+	mtime.tv_nsec = pCTime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -115,7 +114,7 @@ namespace eos
       void setMTime( ctime_t mtime )
       {
         pMTime.tv_sec = mtime.tv_sec;
-        pMTime.tv_nsec = mtime.tv_nsec;
+	pMTime.tv_nsec = mtime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -123,7 +122,14 @@ namespace eos
       //------------------------------------------------------------------------
       void setMTimeNow()
       {
-        clock_gettime(CLOCK_REALTIME, &pMTime);
+#ifdef __APPLE__
+        struct timeval tv;
+        gettimeofday(&tv, 0);
+        pMTime.tv_sec = tv.tv_sec;
+        pMTime.tv_nsec = tv.tv_usec * 1000;
+#else
+	clock_gettime(CLOCK_REALTIME, &pMTime);
+#endif
       }
 
       //------------------------------------------------------------------------
@@ -217,7 +223,7 @@ namespace eos
       //------------------------------------------------------------------------
       LocationVector::const_iterator locationsBegin() const
       {
-        return pLocation.begin();
+	return pLocation.begin();
       }
 
       //------------------------------------------------------------------------
@@ -225,7 +231,7 @@ namespace eos
       //------------------------------------------------------------------------
       LocationVector::const_iterator locationsEnd() const
       {
-        return pLocation.end();
+	return pLocation.end();
       }
 
       //------------------------------------------------------------------------
@@ -233,7 +239,7 @@ namespace eos
       //------------------------------------------------------------------------ 
       LocationVector::const_iterator unlinkedLocationsBegin() const 
       { 
-        return pUnlinkedLocation.begin(); 
+	return pUnlinkedLocation.begin(); 
       } 
     
       //------------------------------------------------------------------------ 
@@ -241,7 +247,7 @@ namespace eos
       //------------------------------------------------------------------------ 
       LocationVector::const_iterator unlinkedLocationsEnd() const 
       { 
-        return pUnlinkedLocation.end(); 
+	return pUnlinkedLocation.end(); 
       }
 
       //------------------------------------------------------------------------
@@ -254,9 +260,9 @@ namespace eos
       //------------------------------------------------------------------------
       location_t getLocation( unsigned int index )
       {
-        if (index < pLocation.size())
-          return pLocation[index];
-        return 0; 
+	if (index < pLocation.size())
+	  return pLocation[index];
+	return 0; 
       }
 
       //------------------------------------------------------------------------
@@ -392,7 +398,6 @@ namespace eos
       // Data members
       //-----------------------------------------------------------------------0
       id_t               pId;
-      uint16_t           pFlags;
       ctime_t            pCTime;
       ctime_t            pMTime;
       uint64_t           pSize;
@@ -408,4 +413,4 @@ namespace eos
   };
 }
 
-#endif // EOS_FILE_MD_HH
+#endif // EOS_NS_FILE_MD_HH

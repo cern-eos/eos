@@ -3,9 +3,9 @@
 // desc:   ChangeLog like store
 //------------------------------------------------------------------------------
 
-#include "Namespace/persistency/ChangeLogFile.hh"
-#include "Namespace/utils/SmartPtrs.hh"
-#include "Namespace/utils/DataHelper.hh"
+#include "namespace/persistency/ChangeLogFile.hh"
+#include "namespace/utils/SmartPtrs.hh"
+#include "namespace/utils/DataHelper.hh"
 
 #include <fcntl.h>
 #include <sys/stat.h>

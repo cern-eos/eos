@@ -3,8 +3,8 @@
 // desc:   Class representing the container metadata
 //------------------------------------------------------------------------------
 
-#ifndef EOS_CONTAINER_MD_HH
-#define EOS_CONTAINER_MD_HH
+#ifndef EOS_NS_CONTAINER_MD_HH
+#define EOS_NS_CONTAINER_MD_HH
 
 #include <stdint.h>
 #include <unistd.h>
@@ -15,7 +15,15 @@
 #include <map>
 #include <sys/time.h>
 
-#include "Namespace/persistency/Buffer.hh"
+#include "namespace/persistency/Buffer.hh"
+
+/*#ifdef __APPLE__
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+#endif
+*/
 
 namespace eos
 {
@@ -61,22 +69,6 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
-      //! Get the flags
-      //------------------------------------------------------------------------
-      uint16_t &getFlags()
-      {
-        return pFlags;
-      }
-
-      //------------------------------------------------------------------------
-      //! Get the flags
-      //------------------------------------------------------------------------
-      uint16_t getFlags() const
-      {
-        return pFlags;
-      }
-
-      //------------------------------------------------------------------------
       //! Get parent id
       //------------------------------------------------------------------------
       id_t getParentId() const
@@ -98,7 +90,7 @@ namespace eos
       void setCTime( ctime_t ctime)
       {
         pCTime.tv_sec = ctime.tv_sec;
-        pCTime.tv_nsec = ctime.tv_nsec;
+	pCTime.tv_nsec = ctime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -106,7 +98,14 @@ namespace eos
       //------------------------------------------------------------------------
       void setCTimeNow()
       {
-        clock_gettime(CLOCK_REALTIME, &pCTime);
+#ifdef __APPLE__
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	pCTime.tv_sec = tv.tv_sec;
+	pCTime.tv_nsec = tv.tv_usec * 1000;
+#else
+	clock_gettime(CLOCK_REALTIME, &pCTime);
+#endif
       }
 
       //------------------------------------------------------------------------
@@ -115,7 +114,7 @@ namespace eos
       void getCTime( ctime_t &ctime) const
       {
         ctime.tv_sec = pCTime.tv_sec;
-        ctime.tv_nsec = pCTime.tv_nsec;
+	ctime.tv_nsec = pCTime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -385,9 +384,8 @@ namespace eos
 
       //------------------------------------------------------------------------
       // Data members
-      //------------------------------------------------------------------------
+      //-----------------------------------------------------------------------0
       id_t         pId;
-      uint16_t     pFlags;
       id_t         pParentId;
       ctime_t      pCTime;
       std::string  pName;
@@ -401,4 +399,4 @@ namespace eos
   };
 }
 
-#endif // EOS_CONTAINER_MD_HH
+#endif // EOS_NS_CONTAINER_MD_HH

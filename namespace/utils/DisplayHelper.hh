@@ -3,8 +3,8 @@
 // desc:   A couple of small functions that help displaying data
 //------------------------------------------------------------------------------
 
-#ifndef EOS_DISPLAY_HELPER_HH
-#define EOS_DISPLAY_HELPER_HH
+#ifndef EOS_NS_DISPLAY_HELPER_HH
+#define EOS_NS_DISPLAY_HELPER_HH
 
 #include <sstream>
 #include <string>
@@ -62,4 +62,4 @@ namespace eos
   };
 }
 
-#endif // EOS_DISPLAY_HELPER_HH
+#endif // EOS_NS_DISPLAY_HELPER_HH

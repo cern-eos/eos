@@ -3,12 +3,12 @@
 // desc:   Checksumming, data conversion and other stuff
 //------------------------------------------------------------------------------
 
-#ifndef EOS_DATA_HELPER_HH
-#define EOS_DATA_HELPER_HH
+#ifndef EOS_NS_DATA_HELPER_HH
+#define EOS_NS_DATA_HELPER_HH
 
 #include <zlib.h>
 #include <stdint.h>
-#include "Namespace/MDException.hh"
+#include "namespace/MDException.hh"
 
 namespace eos
 {
@@ -47,4 +47,4 @@ namespace eos
   };
 }
 
-#endif // EOS_DATA_HELPER_HH
+#endif // EOS_NS_DATA_HELPER_HH

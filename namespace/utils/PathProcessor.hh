@@ -3,8 +3,8 @@
 // desc:   ChangeLog like store
 //------------------------------------------------------------------------------
 
-#ifndef EOS_PATH_PROCESSOR_HH
-#define EOS_PATH_PROCESSOR_HH
+#ifndef EOS_NS_PATH_PROCESSOR_HH
+#define EOS_NS_PATH_PROCESSOR_HH
 
 #include <cstring>
 #include <vector>
@@ -67,4 +67,4 @@ namespace eos
   };
 }
 
-#endif // EOS_PATH_PROCESSOR_HH
+#endif // EOS_NS_PATH_PROCESSOR_HH

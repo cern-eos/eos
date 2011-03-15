@@ -3,13 +3,13 @@
 // desc:   Change log based FileMD service
 //------------------------------------------------------------------------------
 
-#ifndef EOS_CHANGE_LOG_FILE_MD_SVC_HH
-#define EOS_CHANGE_LOG_FILE_MD_SVC_HH
+#ifndef EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH
+#define EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH
 
-#include "Namespace/FileMD.hh"
-#include "Namespace/MDException.hh"
-#include "Namespace/IFileMDSvc.hh"
-#include "Namespace/persistency/ChangeLogFile.hh"
+#include "namespace/FileMD.hh"
+#include "namespace/MDException.hh"
+#include "namespace/IFileMDSvc.hh"
+#include "namespace/persistency/ChangeLogFile.hh"
 
 #include <google/sparse_hash_map>
 #include <list>
@@ -159,4 +159,4 @@ namespace eos
   };
 }
 
-#endif // EOS_CHANGE_LOG_FILE_MD_SVC_HH
+#endif // EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH

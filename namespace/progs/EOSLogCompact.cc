@@ -6,9 +6,9 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include "Namespace/persistency/LogManager.hh"
-#include "Namespace/utils/DisplayHelper.hh"
-#include "Namespace/utils/DataHelper.hh"
+#include "namespace/persistency/LogManager.hh"
+#include "namespace/utils/DisplayHelper.hh"
+#include "namespace/utils/DataHelper.hh"
 
 //------------------------------------------------------------------------------
 // Report feedback from the compacting procedure

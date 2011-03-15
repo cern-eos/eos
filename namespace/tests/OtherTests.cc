@@ -8,7 +8,7 @@
 #include <cppunit/extensions/HelperMacros.h>
 #include <sstream>
 
-#include "Namespace/utils/PathProcessor.hh"
+#include "namespace/utils/PathProcessor.hh"
 
 //------------------------------------------------------------------------------
 // Declaration

@@ -3,15 +3,15 @@
 // desc:   ChangeLog like store
 //------------------------------------------------------------------------------
 
-#ifndef EOS_CHANGE_LOG_FILE_HH
-#define EOS_CHANGE_LOG_FILE_HH
+#ifndef EOS_NS_CHANGE_LOG_FILE_HH
+#define EOS_NS_CHANGE_LOG_FILE_HH
 
 #include <string>
 #include <stdint.h>
 #include <ctime>
-#include "Namespace/persistency/Buffer.hh"
-#include "Namespace/utils/Descriptor.hh"
-#include "Namespace/MDException.hh"
+#include "namespace/persistency/Buffer.hh"
+#include "namespace/utils/Descriptor.hh"
+#include "namespace/MDException.hh"
 
 namespace eos
 {
@@ -181,4 +181,4 @@ namespace eos
   };
 }
 
-#endif // EOS_CHANGE_LOG_FILE_HH
+#endif // EOS_NS_CHANGE_LOG_FILE_HH

@@ -3,12 +3,12 @@
 // desc:   The filesystem view over the stored files
 //------------------------------------------------------------------------------
 
-#ifndef EOS_FILESYSTEM_VIEW_HH
-#define EOS_FILESYSTEM_VIEW_HH
+#ifndef EOS_NS_FILESYSTEM_VIEW_HH
+#define EOS_NS_FILESYSTEM_VIEW_HH
 
-#include "Namespace/IFileMDSvc.hh"
-#include "Namespace/FileMD.hh"
-#include "Namespace/MDException.hh"
+#include "namespace/IFileMDSvc.hh"
+#include "namespace/FileMD.hh"
+#include "namespace/MDException.hh"
 #include <utility>
 #include <list>
 #include <deque>
@@ -94,4 +94,4 @@ namespace eos
   };
 }
 
-#endif // EOS_FILESYSTEM_VIEW_HH
+#endif // EOS_NS_FILESYSTEM_VIEW_HH

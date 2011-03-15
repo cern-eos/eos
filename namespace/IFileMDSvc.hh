@@ -3,11 +3,11 @@
 // desc:   FileMD interface
 //------------------------------------------------------------------------------
 
-#ifndef EOS_I_FILE_MD_SVC_HH
-#define EOS_I_FILE_MD_SVC_HH
+#ifndef EOS_NS_I_FILE_MD_SVC_HH
+#define EOS_NS_I_FILE_MD_SVC_HH
 
-#include "Namespace/FileMD.hh"
-#include "Namespace/MDException.hh"
+#include "namespace/FileMD.hh"
+#include "namespace/MDException.hh"
 
 #include <map>
 #include <string>
@@ -155,4 +155,4 @@ namespace eos
   };
 }
 
-#endif // EOS_I_FILE_MD_SVC_HH
+#endif // EOS_NS_I_FILE_MD_SVC_HH

@@ -3,15 +3,15 @@
 // desc:   Data Buffer
 //------------------------------------------------------------------------------
 
-#ifndef EOS_BUFFER_HH
-#define EOS_BUFFER_HH
+#ifndef EOS_NS_BUFFER_HH
+#define EOS_NS_BUFFER_HH
 
 #include <cstring>
 #include <vector>
 #include <stdint.h>
 #include <zlib.h>
 
-#include "Namespace/MDException.hh"
+#include "namespace/MDException.hh"
 
 namespace eos
 {
@@ -115,4 +115,4 @@ namespace eos
   };
 }
 
-#endif // EOS_BUFFER_HH
+#endif // EOS_NS_BUFFER_HH

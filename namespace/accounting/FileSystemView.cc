@@ -3,7 +3,7 @@
 // desc:   The filesystem view over the stored files
 //------------------------------------------------------------------------------
 
-#include "Namespace/accounting/FileSystemView.hh"
+#include "namespace/accounting/FileSystemView.hh"
 #include <iostream>
 
 namespace eos

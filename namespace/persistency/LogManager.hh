@@ -3,10 +3,10 @@
 // desc:   Manager for change log files
 //------------------------------------------------------------------------------
 
-#ifndef EOS_LOG_MANAGER_HH
-#define EOS_LOG_MANAGER_HH
+#ifndef EOS_NS_LOG_MANAGER_HH
+#define EOS_NS_LOG_MANAGER_HH
 
-#include "Namespace/MDException.hh"
+#include "namespace/MDException.hh"
 #include <string>
 #include <ctime>
 #include <stdint.h>
@@ -78,4 +78,4 @@ namespace eos
   };
 }
 
-#endif // EOS_LOG_MANAGER_HH
+#endif // EOS_NS_LOG_MANAGER_HH

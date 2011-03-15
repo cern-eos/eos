@@ -3,8 +3,8 @@
 // desc:   ChangeLog like store
 //------------------------------------------------------------------------------
 
-#ifndef EOS_SMART_PTRS_HH
-#define EOS_SMART_PTRS_HH
+#ifndef EOS_NS_SMART_PTRS_HH
+#define EOS_NS_SMART_PTRS_HH
 
 #include <unistd.h>
 #include <cstdlib>
@@ -66,4 +66,4 @@ namespace eos
   };
 }
 
-#endif // EOS_CHANGE_LOG_FILE_HH
+#endif // EOS_NS_CHANGE_LOG_FILE_HH

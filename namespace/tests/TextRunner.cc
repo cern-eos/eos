@@ -6,7 +6,7 @@
 #include <cppunit/CompilerOutputter.h>
 #include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
-#include "Namespace/utils/PathProcessor.hh"
+#include "namespace/utils/PathProcessor.hh"
 
 //------------------------------------------------------------------------------
 // Print all the tests present in the test suite

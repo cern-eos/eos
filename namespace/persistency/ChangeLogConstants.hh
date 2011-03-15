@@ -3,8 +3,8 @@
 // desc:   Some constants concerning the change log data
 //------------------------------------------------------------------------------
 
-#ifndef EOS_CHANGELOG_CONSTANTS_HH
-#define EOS_CHANGELOG_CONSTANTS_HH
+#ifndef EOS_NS_CHANGELOG_CONSTANTS_HH
+#define EOS_NS_CHANGELOG_CONSTANTS_HH
 
 #include <stdint.h>
 
@@ -16,4 +16,4 @@ namespace eos
   extern const uint16_t CONTAINER_LOG_MAGIC;
 }
 
-#endif // EOS_CHANGELOG_CONSTANTS_HH
+#endif // EOS_NS_CHANGELOG_CONSTANTS_HH

@@ -3,13 +3,17 @@
 // desc:   Hierarchical view implementation
 //------------------------------------------------------------------------------
 
-#include "Namespace/views/HierarchicalView.hh"
-#include "Namespace/utils/PathProcessor.hh"
-#include "Namespace/IContainerMDSvc.hh"
-#include "Namespace/IFileMDSvc.hh"
+#include "namespace/views/HierarchicalView.hh"
+#include "namespace/utils/PathProcessor.hh"
+#include "namespace/IContainerMDSvc.hh"
+#include "namespace/IFileMDSvc.hh"
 #include <errno.h>
 
 #include <ctime>
+
+#ifdef __APPLE__
+#define EBADFD 77
+#endif
 
 namespace eos
 {

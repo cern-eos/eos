@@ -3,8 +3,8 @@
 // desc:   Class representing the file metadata
 //------------------------------------------------------------------------------
 
-#include "Namespace/FileMD.hh"
-#include "Namespace/IFileMDSvc.hh"
+#include "namespace/FileMD.hh"
+#include "namespace/IFileMDSvc.hh"
 #include <sstream>
 
 namespace eos
@@ -14,7 +14,6 @@ namespace eos
   //----------------------------------------------------------------------------
   FileMD::FileMD( id_t id, IFileMDSvc *fileMDSvc ):
     pId( id ),
-    pFlags( 0 ),
     pSize( 0 ),
     pContainerId( 0 ),
     pCUid( 0 ),
@@ -188,7 +187,6 @@ namespace eos
     }
 
     buffer.putData( &pId,          sizeof( pId ) );
-    buffer.putData( &pFlags,       sizeof( pFlags ) );
     buffer.putData( &pCTime,       sizeof( pCTime ) );
     buffer.putData( &pMTime,       sizeof( pMTime ) );
     buffer.putData( &pSize,        sizeof( pSize ) );
@@ -233,7 +231,6 @@ namespace eos
   {
     uint16_t offset = 0;
     offset = buffer.grabData( offset, &pId,          sizeof( pId ) );
-    offset = buffer.grabData( offset, &pFlags,       sizeof( pFlags ) );
     offset = buffer.grabData( offset, &pCTime,       sizeof( pCTime ) );
     offset = buffer.grabData( offset, &pMTime,       sizeof( pMTime ) );
     offset = buffer.grabData( offset, &pSize,        sizeof( pSize ) );

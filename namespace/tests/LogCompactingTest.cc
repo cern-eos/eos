@@ -12,9 +12,9 @@
 #include <set>
 #include <utility>
 
-#include "Namespace/persistency/LogManager.hh"
-#include "Namespace/persistency/ChangeLogFile.hh"
-#include "Namespace/persistency/ChangeLogConstants.hh"
+#include "namespace/persistency/LogManager.hh"
+#include "namespace/persistency/ChangeLogFile.hh"
+#include "namespace/persistency/ChangeLogConstants.hh"
 
 //------------------------------------------------------------------------------
 // Declaration
