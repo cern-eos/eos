@@ -1,10 +1,10 @@
-#ifndef __XRDMGMOFS__MGMOFSTRACE_H__
-#define __XRDMGMOFS__MGMOFSTRACE_H__
+#ifndef __EOSFST__MGMOFSTRACE_H__
+#define __EOSFST__MGMOFSTRACE_H__
 
 #ifndef NODEBUG
 
 #include <iostream>
-#include "XrdMgmOfs/XrdMgmOfs.hh"
+#include "mgm/XrdMgmOfs.hh"
 
 #define GTRACE(act)         gMgmOfsTrace.What & TRACE_ ## act
 

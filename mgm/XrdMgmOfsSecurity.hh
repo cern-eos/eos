@@ -1,5 +1,5 @@
-#ifndef ___XRDMGMOFS_SECURITY_H__
-#define ___XRDMGMOFS_SECURITY_H__
+#ifndef ___EOSFST_SECURITY_H__
+#define ___EOSFST_SECURITY_H__
 
 #include "XrdAcc/XrdAccAuthorize.hh"
 

@@ -1,20 +1,20 @@
-#ifndef __XRDMGMOFS_MGMOFS__HH__
-#define __XRDMGMOFS_MGMOFS__HH__
+#ifndef __EOSFST_MGMOFS__HH__
+#define __EOSFST_MGMOFS__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "XrdCapability/XrdCapability.hh"
-#include "XrdCommon/XrdCommonMapping.hh"  
-#include "XrdCommon/XrdCommonSymKeys.hh"
-#include "XrdCommon/XrdCommonLogging.hh"
-#include "XrdCommon/XrdCommonClientAdmin.hh"
-#include "XrdMqOfs/XrdMqMessaging.hh"
-#include "XrdMgmOfs/XrdMgmProcInterface.hh"
-#include "XrdMgmOfs/XrdMgmConfigEngine.hh"
-#include "XrdMgmOfs/XrdMgmOfsStat.hh"
-#include "Namespace/IView.hh"
-#include "Namespace/IFileMDSvc.hh"
-#include "Namespace/IContainerMDSvc.hh"
-#include "Namespace/accounting/FileSystemView.hh"
+#include "authz/XrdCapability.hh"
+#include "common/Mapping.hh"  
+#include "common/SymKeys.hh"
+#include "common/Logging.hh"
+#include "common/ClientAdmin.hh"
+#include "mq/XrdMqMessaging.hh"
+#include "mgm/ProcInterface.hh"
+#include "mgm/ConfigEngine.hh"
+#include "mgm/Stat.hh"
+#include "namespace/IView.hh"
+#include "namespace/IFileMDSvc.hh"
+#include "namespace/IContainerMDSvc.hh"
+#include "namespace/accounting/FileSystemView.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCms/XrdCmsFinder.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -28,11 +28,11 @@
 /*----------------------------------------------------------------------------*/
 #include <dirent.h>
 /*----------------------------------------------------------------------------*/
-class XrdMgmMessaging : public XrdMqMessaging, public XrdCommonLogId {
+class Messaging : public XrdMqMessaging, public eos::common::LogId {
 public:
   // we have to clone the base class constructore otherwise we cannot run inside valgrind
-  XrdMgmMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false);
-  virtual ~XrdMgmMessaging(){}
+  Messaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false);
+  virtual ~Messaging(){}
   
   virtual void Listen();
   virtual void Process(XrdMqMessage* newmessage);
@@ -43,7 +43,7 @@ public:
 
 
 /*----------------------------------------------------------------------------*/
-class XrdMgmOfsDirectory : public XrdSfsDirectory , public XrdCommonLogId
+class XrdMgmOfsDirectory : public XrdSfsDirectory , public eos::common::LogId
 {
 public:
 
@@ -52,7 +52,7 @@ public:
                          const char              *opaque = 0);
 
         int         open(const char              *dirName,
-			 XrdCommonMapping::VirtualIdentity &vid,
+			 eos::common::Mapping::VirtualIdentity &vid,
                          const char              *opaque = 0);
 
         const char *nextEntry();
@@ -65,8 +65,8 @@ const   char       *FName() {return (const char *)fname;}
 
                     XrdMgmOfsDirectory(char *user=0) : XrdSfsDirectory(user)
                                 {ateof = 0; fname = 0;
-				 d_pnt = &dirent_full.d_entry; XrdCommonMapping::Nobody(vid);
-				 XrdCommonLogId();dh =0;
+				 d_pnt = &dirent_full.d_entry; eos::common::Mapping::Nobody(vid);
+				 eos::common::LogId();dh =0;
                                 }
 
                    ~XrdMgmOfsDirectory() {}
@@ -82,7 +82,7 @@ private:
   
   struct dirent *d_pnt;
   
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 
   eos::ContainerMD* dh;
   eos::ContainerMD::FileMap::iterator dh_files;
@@ -91,7 +91,7 @@ private:
 
 /*----------------------------------------------------------------------------*/
 class XrdSfsAio;
-class XrdMgmOfsFile : public XrdSfsFile ,  XrdCommonLogId
+class XrdMgmOfsFile : public XrdSfsFile ,  eos::common::LogId
 {
 public:
 
@@ -142,7 +142,7 @@ public:
                             const char *y="");
 
                        XrdMgmOfsFile(char *user=0) : XrdSfsFile(user)
-                                          {oh = 0; fname = 0; openOpaque=0;XrdCommonMapping::Nobody(vid);fileId=0; procCmd=0; XrdCommonLogId();fmd=0;}
+                                          {oh = 0; fname = 0; openOpaque=0;eos::common::Mapping::Nobody(vid);fileId=0; procCmd=0; eos::common::LogId();fmd=0;}
                       ~XrdMgmOfsFile() {
 			if (oh) close();
 			if (openOpaque) {delete openOpaque; openOpaque = 0;}
@@ -158,20 +158,20 @@ private:
   XrdOucEnv *openOpaque;
   unsigned long fileId;
 
-  XrdMgmProcCommand* procCmd;
+  ProcCommand* procCmd;
 
   eos::FileMD* fmd;
 
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 };
 
 /*----------------------------------------------------------------------------*/
 
-class XrdMgmOfs : public XrdSfsFileSystem , public XrdCommonLogId
+class XrdMgmOfs : public XrdSfsFileSystem , public eos::common::LogId
 {
   friend class XrdMgmOfsFile;
   friend class XrdMgmOfsDirectory;
-  friend class XrdMgmProcCommand;
+  friend class ProcCommand;
 
 public:
 
@@ -194,7 +194,7 @@ public:
         int            _chmod(const char             *Name,
                                    XrdSfsMode        Mode,
                                    XrdOucErrInfo    &out_error,
-			           XrdCommonMapping::VirtualIdentity &vid,
+			           eos::common::Mapping::VirtualIdentity &vid,
                              const char             *opaque = 0);
 
         int            exists(const char                *fileName,
@@ -212,7 +212,7 @@ public:
         int            _exists(const char                *fileName,
                                     XrdSfsFileExistence &exists_flag,
                                     XrdOucErrInfo       &out_error,
-			            XrdCommonMapping::VirtualIdentity &vid,
+			            eos::common::Mapping::VirtualIdentity &vid,
                               const char                *opaque = 0);
 
   enum eFSCTL { kFsctlMgmOfsOffset= 40000};
@@ -242,7 +242,7 @@ const   char          *getVersion();
         int            _mkdir(const char             *dirName,
 			      XrdSfsMode        Mode,
 			      XrdOucErrInfo    &out_error,
-			      XrdCommonMapping::VirtualIdentity &vid,
+			      eos::common::Mapping::VirtualIdentity &vid,
 			      const char             *opaque = 0);
 
         int       stageprepare(const char           *path, 
@@ -261,12 +261,12 @@ const   char          *getVersion();
 
         int            _rem(const char             *path,
 			    XrdOucErrInfo    &out_error,
-			    XrdCommonMapping::VirtualIdentity &vid,
+			    eos::common::Mapping::VirtualIdentity &vid,
 			    const char             *opaque = 0);
 
         int            _find(const char             *path,
 			     XrdOucErrInfo    &out_error,
-			     XrdCommonMapping::VirtualIdentity &vid,
+			     eos::common::Mapping::VirtualIdentity &vid,
 			     std::vector< std::vector<std::string> > &found_dirs,
 			     std::vector< std::vector<std::string> > &found_files,
 			     const char* key=0, const char* val=0);
@@ -278,7 +278,7 @@ const   char          *getVersion();
 
         int            _remdir(const char             *dirName,
 			       XrdOucErrInfo    &out_error,
-			       XrdCommonMapping::VirtualIdentity &vid,
+			       eos::common::Mapping::VirtualIdentity &vid,
 			       const char             *opaque = 0);
 
         int            rename(const char             *oldFileName,
@@ -297,7 +297,7 @@ const   char          *getVersion();
         int            _stat(const char             *Name,
                                   struct stat      *buf,
                                   XrdOucErrInfo    &out_error,
- 			          XrdCommonMapping::VirtualIdentity &vid,
+ 			          eos::common::Mapping::VirtualIdentity &vid,
                             const char             *opaque = 0);
 
 
@@ -328,7 +328,7 @@ const   char          *getVersion();
         int            access(const char*, int mode, XrdOucErrInfo&, const XrdSecEntity*, const char*);
 
         int            utimes(const char*, struct timespec *tvp, XrdOucErrInfo&, const XrdSecEntity*, const char*);
-        int            _utimes(const char*, struct timespec *tvp, XrdOucErrInfo&,  XrdCommonMapping::VirtualIdentity &vid, const char* opaque=0);
+        int            _utimes(const char*, struct timespec *tvp, XrdOucErrInfo&,  eos::common::Mapping::VirtualIdentity &vid, const char* opaque=0);
 
         int            attr_ls(const char             *path,
 			       XrdOucErrInfo    &out_error,
@@ -359,20 +359,20 @@ const   char          *getVersion();
   
         int            _attr_ls(const char             *path,
 				XrdOucErrInfo    &out_error,
-				XrdCommonMapping::VirtualIdentity &vid,
+				eos::common::Mapping::VirtualIdentity &vid,
 				const char             *opaque,
 				eos::ContainerMD::XAttrMap &map);   
 
         int            _attr_set(const char             *path,
 				 XrdOucErrInfo    &out_error,
-				 XrdCommonMapping::VirtualIdentity &vid,
+				 eos::common::Mapping::VirtualIdentity &vid,
 				 const char             *opaque,
 				 const char             *key,
 				 const char             *value);
 
         int            _attr_get(const char             *path,
 				 XrdOucErrInfo    &out_error,
-				 XrdCommonMapping::VirtualIdentity &vid,
+				 eos::common::Mapping::VirtualIdentity &vid,
 				 const char             *opaque,
 				 const char             *key,
 				 XrdOucString           &value, 
@@ -381,40 +381,40 @@ const   char          *getVersion();
 
         int            _attr_rem(const char             *path,
 				 XrdOucErrInfo    &out_error,
-				 XrdCommonMapping::VirtualIdentity &vid,
+				 eos::common::Mapping::VirtualIdentity &vid,
 				 const char             *opaque,
 				 const char             *key);
 				 
   
         int            _dropstripe(const char           *path, 
 				   XrdOucErrInfo        &error,
-				   XrdCommonMapping::VirtualIdentity &vid,
+				   eos::common::Mapping::VirtualIdentity &vid,
 				   unsigned long         fsid, 
 				   bool                  forceRemove=false);
 
         int            _verifystripe(const char           *path, 
 				   XrdOucErrInfo        &error,
-				   XrdCommonMapping::VirtualIdentity &vid,
+				   eos::common::Mapping::VirtualIdentity &vid,
 				   unsigned long         fsid, 
 				   XrdOucString          options);
 
         int            _movestripe(const char           *path, 
 				   XrdOucErrInfo        &error,
-				   XrdCommonMapping::VirtualIdentity &vid,
+				   eos::common::Mapping::VirtualIdentity &vid,
 				   unsigned long         sourcefsid,
 				   unsigned long         targetfsid,
                                    bool                  expressflag=false);
 
         int            _copystripe(const char           *path, 
 				   XrdOucErrInfo        &error,
-				   XrdCommonMapping::VirtualIdentity &vid,
+				   eos::common::Mapping::VirtualIdentity &vid,
 				   unsigned long         sourcefsid,
 				   unsigned long         targetfsid,
 				   bool                  expressflag=false);
 
         int            _replicatestripe(const char           *path, 
 				   XrdOucErrInfo        &error,
-				   XrdCommonMapping::VirtualIdentity &vid,
+				   eos::common::Mapping::VirtualIdentity &vid,
 				   unsigned long         sourcefsid,
 				   unsigned long         targetfsid, 
  				   bool                  dropstripe=false,
@@ -423,7 +423,7 @@ const   char          *getVersion();
 
         int            _replicatestripe(eos::FileMD* fmd, 
 				   XrdOucErrInfo        &error,
-				   XrdCommonMapping::VirtualIdentity &vid,
+				   eos::common::Mapping::VirtualIdentity &vid,
 				   unsigned long         sourcefsid,
 				   unsigned long         targetfsid, 
 				   bool                  dropstripe=false,
@@ -447,11 +447,11 @@ virtual bool           Init(XrdSysError &);
   
         char          *ConfigFN;       
   
-        XrdMgmConfigEngine* ConfigEngine;    // storing/restoring configuration
-        XrdCapability*  CapabilityEngine;    // -> authorization module for token encryption/decryption
+        ConfigEngine*    ConfEngine;         // storing/restoring configuration
+        XrdCapability*   CapabilityEngine;   // -> authorization module for token encryption/decryption
   
         XrdOucString     MgmOfsBrokerUrl;    // -> Url of the message broker
-        XrdMgmMessaging* MgmOfsMessaging;    // -> messaging interface class
+        Messaging*       MgmOfsMessaging;    // -> messaging interface class
         XrdOucString     MgmDefaultReceiverQueue; // -> Queue where we are sending to by default
         XrdOucString     MgmOfsName;         // -> mount point of the filesystem
         XrdOucString     MgmOfsTargetPort;   // -> xrootd port where redirections go on the OSTs -default is 1094
@@ -468,12 +468,12 @@ virtual bool           Init(XrdSysError &);
         eos::FileSystemView *eosFsView;      // -> filesystem view of the namespace
         XrdSysMutex      eosViewMutex;       // -> mutex making the namespace single threaded
         XrdOucString     MgmMetaLogDir;      //  Directory containing the meta data (change) log files
-        XrdMgmOfsStat    MgmStats;           //  Mgm Statistics
+        Stat             MgmStats;           //  Mgm Statistics
 
         google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;
         XrdSysMutex      MgmHealMapMutex;
 
-        XrdCommonClientAdminManager CommonClientAdminManager; // Manager of ClientAdmin's
+        eos::common::ClientAdminManager CommonClientAdminManager; // Manager of ClientAdmin's
 
  static void* StartMgmDeletion(void *pp);    //  Deletion Thread Starter
         void  Deletion();                    //  Deletion Function
@@ -488,7 +488,7 @@ protected:
 
 private:
   static  XrdSysError *eDest;
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 };
 /*----------------------------------------------------------------------------*/
 extern XrdMgmOfs* gOFS;

@@ -1,10 +1,18 @@
 include_directories( ../ /usr/include/xrootd/ /usr/include/ )
 
 add_library (XrdEosMgm MODULE
-	    XrdEosMgm.cc
+	    ConfigEngine.cc
+	    FstNode.cc
+	    Messaging.cc
+	    Policy.cc  
+	    ProcInterface.cc
+	    Quota.cc
+	    Vid.cc
+	    XrdMgmOfsConfigure.cc
+	    XrdMgmOfs.cc
 	    )
 
-target_link_libraries (XrdEosMgm XrdSys XrdOuc XrdNet eosCommon)
+target_link_libraries (XrdEosMgm XrdSys XrdOuc XrdNet XrdOfs eosCommon eosNamespace-Static eosCapability)
 
 if (Linux)
   set_target_properties (XrdEosMgm PROPERTIES
