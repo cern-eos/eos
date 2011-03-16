@@ -1,5 +1,5 @@
-#ifndef __EOSFST_CONFIGENGINE__HH__
-#define __EOSFST_CONFIGENGINE__HH__
+#ifndef __EOSMGM_CONFIGENGINE__HH__
+#define __EOSMGM_CONFIGENGINE__HH__
 
 /*----------------------------------------------------------------------------*/
 // this is needed because of some openssl definition conflict!
@@ -8,6 +8,7 @@
 #include <google/dense_hash_map>
 #include <google/sparsehash/densehashtable.h>
 /*----------------------------------------------------------------------------*/
+#include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "mgm/FstFileSystem.hh"
 #include "mq/XrdMqMessage.hh"
@@ -22,10 +23,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
-
 /*----------------------------------------------------------------------------*/
 
-#define XRDMGMCONFIGENGINE_EOS_SUFFIX ".eoscf"
+
+EOSMGMNAMESPACE_BEGIN
+
+#define EOSMGMCONFIGENGINE_EOS_SUFFIX ".eoscf"
 
 class ConfigEngineChangeLog : public eos::common::LogId {
 private:
@@ -144,3 +147,4 @@ public:
 
 #endif
 
+EOSMGMNAMESPACE_END

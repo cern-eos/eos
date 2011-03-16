@@ -23,6 +23,7 @@
 extern XrdOucTrace gMgmOfsTrace;
 /*----------------------------------------------------------------------------*/
 
+USE_EOSMGMNAMESPACE
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::Configure(XrdSysError &Eroute) 

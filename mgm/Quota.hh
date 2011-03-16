@@ -1,5 +1,5 @@
-#ifndef __EOSFST_QUOTA__HH__
-#define __EOSFST_QUOTA__HH__
+#ifndef __EOSMGM_QUOTA__HH__
+#define __EOSMGM_QUOTA__HH__
 
 /*----------------------------------------------------------------------------*/
 // this is needed because of some openssl definition conflict!
@@ -8,6 +8,7 @@
 #include <google/dense_hash_map>
 #include <google/sparsehash/densehashtable.h>
 /*----------------------------------------------------------------------------*/
+#include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "mgm/FstFileSystem.hh"
@@ -21,7 +22,10 @@
 #include <set>
 /*----------------------------------------------------------------------------*/
 
-#define XRDMGMQUOTA_DISKHEADROOM 1024ll*1024ll*1024l*25
+
+EOSMGMNAMESPACE_BEGIN
+
+#define EOSMGMQUOTA_DISKHEADROOM 1024ll*1024ll*1024l*25
 
 class SpaceQuota {
 private:
@@ -260,5 +264,7 @@ public:
 
 
 };
+
+EOSMGMNAMESPACE_END
 
 #endif

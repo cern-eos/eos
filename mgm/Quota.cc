@@ -5,6 +5,9 @@
 /*----------------------------------------------------------------------------*/
 #include <errno.h>
 /*----------------------------------------------------------------------------*/
+
+EOSMGMNAMESPACE_BEGIN
+
 XrdOucHash<SpaceQuota> Quota::gQuota;
 XrdSysMutex Quota::gQuotaMutex;
 
@@ -404,7 +407,7 @@ SpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned l
 
 	if ( (!isalreadyselected) && 
 	     ((filesystem->HasHeartBeat())) &&
-	     ((filesystem->GetStatfs()->f_bfree *4096ll) > (XRDMGMQUOTA_DISKHEADROOM)) && // request 25 GB of headroom per disk
+	     ((filesystem->GetStatfs()->f_bfree *4096ll) > (EOSMGMQUOTA_DISKHEADROOM)) && // request 25 GB of headroom per disk
 	     ((filesystem->GetStatfs()->f_ffree) > 100 ) &&
 	     ( ((filesystem->GetConfigStatus() == eos::common::FileSystem::kWO) && truncate) ||
 	       ((filesystem->GetConfigStatus() == eos::common::FileSystem::kRW)) ) &&
@@ -710,9 +713,9 @@ Quota::UpdateHint(unsigned int fsid)
 	unsigned long long addbytes = innerfilesystem->GetStatfs()->f_bfree*4096ll;
 
 	// we substract the DISKHEADROOM which we reserve on every disk
-	if ( (innerfilesystem->GetStatfs()->f_blocks * 4096ll) > XRDMGMQUOTA_DISKHEADROOM) {
-	  if (addbytes > XRDMGMQUOTA_DISKHEADROOM)
-	    addbytes -= XRDMGMQUOTA_DISKHEADROOM;
+	if ( (innerfilesystem->GetStatfs()->f_blocks * 4096ll) > EOSMGMQUOTA_DISKHEADROOM) {
+	  if (addbytes > EOSMGMQUOTA_DISKHEADROOM)
+	    addbytes -= EOSMGMQUOTA_DISKHEADROOM;
 	  else 
 	    addbytes = 0;
 	}
@@ -872,3 +875,5 @@ Quota::RmQuota(XrdOucString space, long uid_sel, long gid_sel, XrdOucString &msg
   }
 }
 /*----------------------------------------------------------------------------*/
+
+EOSMGMNAMESPACE_END

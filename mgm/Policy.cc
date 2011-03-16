@@ -8,6 +8,8 @@
 /*----------------------------------------------------------------------------*/
 
 
+EOSMGMNAMESPACE_BEGIN
+
 /*----------------------------------------------------------------------------*/
 void
 Policy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &attrmap, const eos::common::Mapping::VirtualIdentity &vid, unsigned long &layoutId, XrdOucString &space, XrdOucEnv &env, unsigned long &forcedfsid) 
@@ -186,3 +188,5 @@ const char*
 Policy::Get(const char* key) {
   return 0;
 }
+
+EOSMGMNAMESPACE_END

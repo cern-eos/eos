@@ -1,5 +1,5 @@
-#ifndef __EOSFST_FSTNODES__HH__
-#define __EOSFST_FSTNODES__HH__
+#ifndef __EOSMGM_FSTNODES__HH__
+#define __EOSMGM_FSTNODES__HH__
 
 /*----------------------------------------------------------------------------*/
 // this is needed because of some openssl definition conflict!
@@ -8,6 +8,7 @@
 #include <google/sparsehash/densehashtable.h>
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
+#include "mgm/Namespace.hh"
 #include "mgm/FstFileSystem.hh"
 #include "mq/XrdMqMessage.hh"
 /*----------------------------------------------------------------------------*/
@@ -17,7 +18,7 @@
 /*----------------------------------------------------------------------------*/
 
 
-class FstNode;
+EOSMGMNAMESPACE_BEGIN
 
 class FstNode  {
   friend class ProcCommand;
@@ -109,6 +110,8 @@ public:
   static int                    SetConfigStatusFileSystem(const char* key ,FstFileSystem* filesystem, void *Arg);
   static int                    SetConfigSchedulingGroupFileSystem(const char* key ,FstFileSystem* filesystem, void *Arg);
 };
+
+EOSMGMNAMESPACE_END
 
 #endif
 

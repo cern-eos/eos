@@ -1,5 +1,5 @@
-#ifndef __EOSFST_VID__HH__
-#define __EOSFST_VID__HH__
+#ifndef __EOSMGM_VID__HH__
+#define __EOSMGM_VID__HH__
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
@@ -9,6 +9,8 @@
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 /*----------------------------------------------------------------------------*/
+
+EOSMGMNAMESPACE_BEGIN
 
 class Vid {
 public:
@@ -23,5 +25,6 @@ public:
   static const char* Get(const char* key);
 };
 
+EOSMGMNAMESPACE_END
 
 #endif

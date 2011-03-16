@@ -1,7 +1,8 @@
-#ifndef __EOSFST_POLICY__HH__
-#define __EOSFST_POLICY__HH__
+#ifndef __EOSMGM_POLICY__HH__
+#define __EOSMGM_POLICY__HH__
 
 /*----------------------------------------------------------------------------*/
+#include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
 #include "Namespace/ContainerMD.hh"
 /*----------------------------------------------------------------------------*/
@@ -10,6 +11,8 @@
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 /*----------------------------------------------------------------------------*/
+
+EOSMGMNAMESPACE_BEGIN
 
 class Policy {
 public:
@@ -25,5 +28,7 @@ public:
 
   static const char* Get(const char* key);
 };
+
+EOSMGMNAMESPACE_END
 
 #endif

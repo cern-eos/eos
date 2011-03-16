@@ -1,7 +1,8 @@
-#ifndef __EOSFST_PROCINTERFACE__HH__
-#define __EOSFST_PROCINTERFACE__HH__
+#ifndef __EOSMGM_PROCINTERFACE__HH__
+#define __EOSMGM_PROCINTERFACE__HH__
 
 /*----------------------------------------------------------------------------*/
+#include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
 /*----------------------------------------------------------------------------*/
@@ -9,6 +10,8 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSec/XrdSecEntity.hh"
 /*----------------------------------------------------------------------------*/
+
+EOSMGMNAMESPACE_BEGIN
 
 class ProcCommand : public eos::common::LogId {
 private:
@@ -54,5 +57,7 @@ public:
   ProcInterface();
   ~ProcInterface();
 };
+
+EOSMGMNAMESPACE_END
 
 #endif

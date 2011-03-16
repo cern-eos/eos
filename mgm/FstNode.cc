@@ -7,6 +7,8 @@
 #include "XrdOuc/XrdOucTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
+EOSMGMNAMESPACE_BEGIN
+
 XrdOucHash<FstNode> FstNode::gFstNodes;
 google::dense_hash_map<unsigned int, unsigned long long> FstNode::gFileSystemById;
 
@@ -583,3 +585,5 @@ FstNode::SetConfigSchedulingGroupFileSystem(const char* key, FstFileSystem* file
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
+
+EOSMGMNAMESPACE_END

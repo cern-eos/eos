@@ -1,13 +1,16 @@
-#ifndef __EOSFST_FSTFILESYSTEM__HH__
-#define __EOSFST_FSTFILESYSTEM__HH__
+#ifndef __EOSMGM_FSTFILESYSTEM__HH__
+#define __EOSMGM_FSTFILESYSTEM__HH__
 
 /*----------------------------------------------------------------------------*/
+#include "mgm/Namespace.hh"
 #include "common/StringConversion.hh"
 #include "common/Statfs.hh"
 #include "common/FileSystem.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
+
+EOSMGMNAMESPACE_BEGIN
 
 class FstFileSystem : public eos::common::FileSystem {
 private:
@@ -172,6 +175,7 @@ public:
 
 }; 
 
+EOSMGMNAMESPACE_END
 
 #endif
 

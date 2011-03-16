@@ -1,7 +1,8 @@
-#ifndef __EOSFST_MGMOFSSTAT__HH__
-#define __EOSFST_MGMOFSSTAT__HH__
+#ifndef __EOSMGM_MGMOFSSTAT__HH__
+#define __EOSMGM_MGMOFSSTAT__HH__
 
-
+/*----------------------------------------------------------------------------*/
+#include "mgm/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -11,6 +12,8 @@
 #include <vector>
 #include <map>
 #include <string>
+
+EOSMGMNAMESPACE_BEGIN
 
 class StatAvg {
 public:
@@ -282,5 +285,7 @@ public:
   }
 
 };
+
+EOSMGMNAMESPACE_END
 
 #endif

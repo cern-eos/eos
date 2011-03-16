@@ -1,5 +1,5 @@
-#ifndef __EOSFST__MGMOFSTRACE_H__
-#define __EOSFST__MGMOFSTRACE_H__
+#ifndef __EOSMGM__MGMOFSTRACE_H__
+#define __EOSMGM__MGMOFSTRACE_H__
 
 #ifndef NODEBUG
 

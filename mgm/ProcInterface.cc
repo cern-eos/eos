@@ -23,6 +23,8 @@
 #include <string>
 #include <math.h>
 
+EOSMGMNAMESPACE_BEGIN
+
 /*----------------------------------------------------------------------------*/
 ProcInterface::ProcInterface()
 
@@ -2712,3 +2714,5 @@ ProcCommand::MakeResult(bool dosort)
 }
 
 /*----------------------------------------------------------------------------*/
+
+EOSMGMNAMESPACE_END

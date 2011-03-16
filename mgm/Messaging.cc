@@ -1,6 +1,10 @@
 /*----------------------------------------------------------------------------*/
+
+#include "mgm/Messaging.hh"
 #include "mgm/FstNode.hh"
 #include "mgm/XrdMgmOfs.hh"
+
+EOSMGMNAMESPACE_BEGIN
 
 void*
 Messaging::Start(void *pp)
@@ -121,4 +125,5 @@ void Messaging::Process(XrdMqMessage* newmessage)
   }
 }
 
+EOSMGMNAMESPACE_END
 

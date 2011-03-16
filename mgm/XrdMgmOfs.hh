@@ -1,5 +1,5 @@
-#ifndef __EOSFST_MGMOFS__HH__
-#define __EOSFST_MGMOFS__HH__
+#ifndef __EOSMGM_MGMOFS__HH__
+#define __EOSMGM_MGMOFS__HH__
 
 /*----------------------------------------------------------------------------*/
 #include "authz/XrdCapability.hh"
@@ -11,6 +11,7 @@
 #include "mgm/ProcInterface.hh"
 #include "mgm/ConfigEngine.hh"
 #include "mgm/Stat.hh"
+#include "mgm/Messaging.hh"
 #include "namespace/IView.hh"
 #include "namespace/IFileMDSvc.hh"
 #include "namespace/IContainerMDSvc.hh"
@@ -28,19 +29,8 @@
 /*----------------------------------------------------------------------------*/
 #include <dirent.h>
 /*----------------------------------------------------------------------------*/
-class Messaging : public XrdMqMessaging, public eos::common::LogId {
-public:
-  // we have to clone the base class constructore otherwise we cannot run inside valgrind
-  Messaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false);
-  virtual ~Messaging(){}
-  
-  virtual void Listen();
-  virtual void Process(XrdMqMessage* newmessage);
 
-  // listener thread startup
-  static void* Start(void*);
-};
-
+USE_EOSMGMNAMESPACE
 
 /*----------------------------------------------------------------------------*/
 class XrdMgmOfsDirectory : public XrdSfsDirectory , public eos::common::LogId

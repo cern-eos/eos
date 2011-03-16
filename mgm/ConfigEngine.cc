@@ -9,9 +9,10 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+/*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 ConfigEngineChangeLog::ConfigEngineChangeLog()
@@ -121,7 +122,7 @@ ConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err)
 
   XrdOucString fullpath = configDir;
   fullpath += name;
-  fullpath += XRDMGMCONFIGENGINE_EOS_SUFFIX;
+  fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
 
   if (::access(fullpath.c_str(),R_OK)) {
     err = "error: unable to open config file ";
@@ -202,7 +203,7 @@ ConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
   fullpath += name;
   halfpath += name;
 
-  fullpath += XRDMGMCONFIGENGINE_EOS_SUFFIX;
+  fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
 
   if ( !::access(fullpath.c_str(),R_OK)) {
     if (!force) {
@@ -211,7 +212,7 @@ ConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
       return false;
     }  else {
       char backupfile[4096];
-      sprintf(backupfile,"%s.backup.%lu%s",halfpath.c_str(),time(0),XRDMGMCONFIGENGINE_EOS_SUFFIX);
+      sprintf(backupfile,"%s.backup.%lu%s",halfpath.c_str(),time(0),EOSMGMCONFIGENGINE_EOS_SUFFIX);
       if (rename(fullpath.c_str(),backupfile)) {
 	err = "error: unable to move existing config file to backup version!";
 	return false;
@@ -271,7 +272,7 @@ ConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
   
   while ((dp = readdir (dir)) != 0) {
     FileName = dp->d_name;
-    if ( (!strcmp(dp->d_name,".")) || (!strcmp(dp->d_name,"..")) || (!FileName.endswith(XRDMGMCONFIGENGINE_EOS_SUFFIX)))
+    if ( (!strcmp(dp->d_name,".")) || (!strcmp(dp->d_name,"..")) || (!FileName.endswith(EOSMGMCONFIGENGINE_EOS_SUFFIX)))
       continue;
     
     nobjects++;
@@ -291,7 +292,7 @@ ConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
   int i=0;
   while ((dp = readdir (dir)) != 0) {
     FileName = dp->d_name;
-    if ( (!strcmp(dp->d_name,".")) || (!strcmp(dp->d_name,"..")) || (!FileName.endswith(XRDMGMCONFIGENGINE_EOS_SUFFIX)))
+    if ( (!strcmp(dp->d_name,".")) || (!strcmp(dp->d_name,"..")) || (!FileName.endswith(EOSMGMCONFIGENGINE_EOS_SUFFIX)))
       continue;
     
     char fullpath[8192];
@@ -314,7 +315,7 @@ ConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
       time_t modified = allstat[j].buf.st_mtime;
       
       XrdOucString fn = allstat[j].filename;
-      fn.replace(XRDMGMCONFIGENGINE_EOS_SUFFIX,"");
+      fn.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX,"");
       
       if (fn == currentConfigFile) {
 	if (changeLog.configChanges.length()) {
@@ -327,13 +328,13 @@ ConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
       } 
 
       fn += allstat[j].filename;
-      fn.replace(XRDMGMCONFIGENGINE_EOS_SUFFIX,"");
+      fn.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX,"");
 
       sprintf(outline,"created: %s name: %s", ctime(&modified), fn.c_str());
       XrdOucString removelinefeed = outline;
       while(removelinefeed.replace('\n',"")) {}
       // remove  suffix
-      removelinefeed.replace(XRDMGMCONFIGENGINE_EOS_SUFFIX,"");
+      removelinefeed.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX,"");
       if ( (!showbackup) &&  (removelinefeed.find(".backup.") != STR_NPOS)) {
 	// don't show this ones
       } else {
@@ -644,7 +645,7 @@ ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
     // dump from stored config file
     XrdOucString fullpath = configDir;
     fullpath += name;
-    fullpath += XRDMGMCONFIGENGINE_EOS_SUFFIX;
+    fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
 
     std::ifstream infile(fullpath.c_str());
     std::string inputline;
@@ -670,3 +671,5 @@ ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
   }
   return true;
 }
+
+EOSMGMNAMESPACE_END
