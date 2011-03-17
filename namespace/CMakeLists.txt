@@ -81,6 +81,10 @@ add_executable ( eos-log-repair  progs/EOSLogRepair.cc )
 target_link_libraries ( eos-log-compact eosNamespace-Static )
 target_link_libraries ( eos-log-repair eosNamespace-Static )
 
+if (Linux)
+  set_target_properties ( eosNamespace-Static PROPERTIES COMPILE_FLAGS -fPIC)
+endif (Linux)
+
 #set_target_properties (eosNamespace XrdMqOfs PROPERTIES
 #  VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
 #  SOVERSION ${VERSION_MAJOR}

@@ -14,7 +14,7 @@ add_library (XrdEosFst MODULE
 	    XrdFstOfs.cc
 	    )
 
-target_link_libraries (XrdEosFst eosCapability eosCommon XrdSys XrdOuc XrdNet XrdOfs XrdOss )
+target_link_libraries (XrdEosFst eosCapability-Static eosCommon-Static XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNet XrdOfs XrdOss crypto uuid curses pthread dl z)
 
 if (Linux)
   set_target_properties (XrdEosFst PROPERTIES
