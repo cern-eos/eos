@@ -12,7 +12,7 @@ add_library (XrdEosMgm MODULE
 	    XrdMgmOfs.cc
 	    )
 
-target_link_libraries (XrdEosMgm XrdClient XrdSys XrdOuc XrdNet XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z)
+target_link_libraries (XrdEosMgm XrdClient XrdSys XrdOuc XrdNet XrdNetUtil XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z)
 
 if (Linux)
   set_target_properties (XrdEosMgm PROPERTIES
