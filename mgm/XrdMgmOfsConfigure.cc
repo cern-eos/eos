@@ -9,9 +9,9 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/FstNode.hh"
-#include "Namespace/persistency/ChangeLogContainerMDSvc.hh"
-#include "Namespace/persistency/ChangeLogFileMDSvc.hh"
-#include "Namespace/views/HierarchicalView.hh"
+#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/persistency/ChangeLogFileMDSvc.hh"
+#include "namespace/views/HierarchicalView.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucStream.hh"
