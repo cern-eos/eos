@@ -1,37 +1,39 @@
 /*----------------------------------------------------------------------------*/
-#include "XrdMqOfs/XrdMqMessaging.hh"
-#include "XrdMgmOfs/XrdMgmFstNode.hh"
-#include "XrdMgmOfs/XrdMgmQuota.hh"
-#include "XrdMgmOfs/XrdMgmOfs.hh"
+#include "mq/XrdMqMessaging.hh"
+#include "mgm/FstNode.hh"
+#include "mgm/Quota.hh"
+#include "mgm/XrdMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
-XrdOucHash<XrdMgmFstNode> XrdMgmFstNode::gFstNodes;
-google::dense_hash_map<unsigned int, unsigned long long> XrdMgmFstNode::gFileSystemById;
+EOSMGMNAMESPACE_BEGIN
+
+XrdOucHash<FstNode> FstNode::gFstNodes;
+google::dense_hash_map<unsigned int, unsigned long long> FstNode::gFileSystemById;
 
 //google::dense_hash_map<long, unsigned long long> gFstIndex;
 
-XrdSysMutex XrdMgmFstNode::gMutex;
+XrdSysMutex FstNode::gMutex;
 
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmFstNode::SetLastHeartBeat(time_t hbt) {
+FstNode::SetLastHeartBeat(time_t hbt) {
   lastHeartBeat = hbt;
   // distribute to filesystems attached
-  fileSystems.Apply(XrdMgmFstNode::SetHeartBeatTimeFileSystem, &hbt);
+  fileSystems.Apply(FstNode::SetHeartBeatTimeFileSystem, &hbt);
   }
 
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmFstNode::SetNodeStatus(int status) 
+FstNode::SetNodeStatus(int status) 
 {
   if (status == kOffline) {
-    int fsstatus = XrdMgmFstFileSystem::kDown;
+    int fsstatus = FstFileSystem::kDown;
     // disable the filesystems here!
-    fileSystems.Apply(XrdMgmFstNode::SetBootStatusFileSystem, &fsstatus);    
+    fileSystems.Apply(FstNode::SetBootStatusFileSystem, &fsstatus);    
   }
   nodeStatus = status;
   return true;
@@ -39,32 +41,32 @@ XrdMgmFstNode::SetNodeStatus(int status)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmFstNode::SetNodeConfigStatus(int status) 
+FstNode::SetNodeConfigStatus(int status) 
 {
-  fileSystems.Apply(XrdMgmFstNode::SetConfigStatusFileSystem, &status);    
+  fileSystems.Apply(FstNode::SetConfigStatusFileSystem, &status);    
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMgmFstNode::SetNodeConfigSchedulingGroup(const char* schedgroup)
+FstNode::SetNodeConfigSchedulingGroup(const char* schedgroup)
 {
-  fileSystems.Apply(XrdMgmFstNode::SetConfigSchedulingGroupFileSystem, (void*)schedgroup);
+  fileSystems.Apply(FstNode::SetConfigSchedulingGroupFileSystem, (void*)schedgroup);
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmFstNode::Update(XrdAdvisoryMqMessage* advmsg) 
+FstNode::Update(XrdAdvisoryMqMessage* advmsg) 
 {
   if (!advmsg)
     return false;
 
   gMutex.Lock();
-  XrdMgmFstNode* node = gFstNodes.Find(advmsg->kQueue.c_str());
+  FstNode* node = gFstNodes.Find(advmsg->kQueue.c_str());
   if (!node) {
     // create one
-    node = new XrdMgmFstNode(advmsg->kQueue.c_str());
+    node = new FstNode(advmsg->kQueue.c_str());
     node->hostPortName = advmsg->kQueue.c_str();
     int pos = node->hostPortName.find("/",2);
     if (pos != STR_NPOS) 
@@ -81,7 +83,7 @@ XrdMgmFstNode::Update(XrdAdvisoryMqMessage* advmsg)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmFstNode::Update(XrdOucEnv &config) 
+FstNode::Update(XrdOucEnv &config) 
 {
   XrdOucString infsname     = config.Get("mgm.fsname");
   XrdOucString sid          = config.Get("mgm.fsid");
@@ -103,7 +105,7 @@ XrdMgmFstNode::Update(XrdOucEnv &config)
   if (!id) 
     return false;
   
-  int statusid = XrdCommonFileSystem::GetStatusFromString(fsstatus.c_str());
+  int statusid = eos::common::FileSystem::GetStatusFromString(fsstatus.c_str());
 
   return Update(infsname.c_str(), id, schedgroup.c_str(),statusid, &config, errc, errmsg.c_str());
 }
@@ -111,7 +113,7 @@ XrdMgmFstNode::Update(XrdOucEnv &config)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config) 
+FstNode::UpdateQuotaStatus(XrdOucEnv &config) 
 {
   // get the quota values
   XrdOucString userbytes  = config.Get("fst.quota.userbytes");
@@ -134,7 +136,7 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
       XrdOucString keyval = val;
       XrdOucString key="";
       XrdOucString value="";
-      if (XrdCommonFileSystem::SplitKeyValue(keyval, key, value)) {
+      if (eos::common::StringConversion::SplitKeyValue(keyval, key, value)) {
 	long long fsiduid   = strtoll(key.c_str(),0,10);
 	long long fsidquota = strtoll(value.c_str(),0,10);
 	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
@@ -146,13 +148,13 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 	}
 
 	eos_static_debug("decoded quota userbytes    : fsid=%lu uid=%lu bytes=%llu", fsid, uid, fsidquota);
-	XrdMgmFstFileSystem* filesystem = 0;
-	if ( (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	FstFileSystem* filesystem = 0;
+	if ( (filesystem = (FstFileSystem*)FstNode::gFileSystemById[fsid]) ) {
 	  const char* spacename = filesystem->GetSpaceName();
-	  XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(spacename);
+	  SpaceQuota* spacequota = Quota::GetSpaceQuota(spacename);
 	  if (spacequota) {
-	    spacequota->AddQuota(XrdMgmSpaceQuota::kUserBytesIs, uid, fsidquota-filesystem->UserBytes[uid]);
-	    spacequota->AddQuota(XrdMgmSpaceQuota::kAllUserBytesIs, uid, fsidquota-filesystem->UserBytes[uid]);
+	    spacequota->AddQuota(SpaceQuota::kUserBytesIs, uid, fsidquota-filesystem->UserBytes[uid]);
+	    spacequota->AddQuota(SpaceQuota::kAllUserBytesIs, uid, fsidquota-filesystem->UserBytes[uid]);
 	  }
 	  filesystem->UserBytes[uid] = fsidquota;
 	}
@@ -171,7 +173,7 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
       XrdOucString keyval = val;
       XrdOucString key="";
       XrdOucString value="";
-      if (XrdCommonFileSystem::SplitKeyValue(keyval, key, value)) {
+      if (eos::common::StringConversion::SplitKeyValue(keyval, key, value)) {
 	long long fsiduid   = strtoll(key.c_str(),0,10);
 	long long fsidquota = strtoll(value.c_str(),0,10);
 	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
@@ -181,14 +183,14 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 	  continue;
 	}
 	eos_static_debug("decoded quota groupbytes  : fsid=%lu uid=%lu bytes=%llu", fsid, gid, fsidquota);
-	XrdMgmFstFileSystem* filesystem = 0;
-	if ( fsid && (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	FstFileSystem* filesystem = 0;
+	if ( fsid && (filesystem = (FstFileSystem*)FstNode::gFileSystemById[fsid]) ) {
 	  // trying to replace the update hint with differential changes
 	  const char* spacename = filesystem->GetSpaceName();
-	  XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(spacename);
+	  SpaceQuota* spacequota = Quota::GetSpaceQuota(spacename);
 	  if (spacequota) {
-	    spacequota->AddQuota(XrdMgmSpaceQuota::kGroupBytesIs, gid, fsidquota-filesystem->GroupBytes[gid]);
-	    spacequota->AddQuota(XrdMgmSpaceQuota::kAllGroupBytesIs, gid, fsidquota-filesystem->GroupBytes[gid]);
+	    spacequota->AddQuota(SpaceQuota::kGroupBytesIs, gid, fsidquota-filesystem->GroupBytes[gid]);
+	    spacequota->AddQuota(SpaceQuota::kAllGroupBytesIs, gid, fsidquota-filesystem->GroupBytes[gid]);
 	  }
 	  filesystem->GroupBytes[gid] = fsidquota;
 	}
@@ -207,7 +209,7 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
       XrdOucString keyval = val;
       XrdOucString key="";
       XrdOucString value="";
-      if (XrdCommonFileSystem::SplitKeyValue(keyval, key, value)) {
+      if (eos::common::StringConversion::SplitKeyValue(keyval, key, value)) {
 	long long fsiduid   = strtoll(key.c_str(),0,10);
 	long long fsidquota = strtoll(value.c_str(),0,10);
 	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
@@ -217,14 +219,14 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 	  continue;
 	}
 	eos_static_debug("decoded quota userfiles: fsid=%lu uid=%lu files=%llu", fsid, uid, fsidquota);
-	XrdMgmFstFileSystem* filesystem = 0;
-	if ( fsid && (filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	FstFileSystem* filesystem = 0;
+	if ( fsid && (filesystem = (FstFileSystem*)FstNode::gFileSystemById[fsid]) ) {
 	  // trying to replace the update hint with differential changes
 	  const char* spacename = filesystem->GetSpaceName();
-	  XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(spacename);
+	  SpaceQuota* spacequota = Quota::GetSpaceQuota(spacename);
 	  if (spacequota) {
-	    spacequota->AddQuota(XrdMgmSpaceQuota::kUserFilesIs, uid, fsidquota-filesystem->UserFiles[uid]);
-	    spacequota->AddQuota(XrdMgmSpaceQuota::kAllUserFilesIs, uid, fsidquota-filesystem->UserFiles[uid]);
+	    spacequota->AddQuota(SpaceQuota::kUserFilesIs, uid, fsidquota-filesystem->UserFiles[uid]);
+	    spacequota->AddQuota(SpaceQuota::kAllUserFilesIs, uid, fsidquota-filesystem->UserFiles[uid]);
 	  }
 	  filesystem->UserFiles[uid] = fsidquota;
 	}
@@ -243,7 +245,7 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
       XrdOucString keyval = val;
       XrdOucString key="";
       XrdOucString value="";
-      if (XrdCommonFileSystem::SplitKeyValue(keyval, key, value)) {
+      if (eos::common::StringConversion::SplitKeyValue(keyval, key, value)) {
 	long long fsiduid   = strtoll(key.c_str(),0,10);
 	long long fsidquota = strtoll(value.c_str(),0,10);
 	unsigned long fsid = (fsiduid>>32) & 0xffffffff;
@@ -253,14 +255,14 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 	  continue;
 	}
 	eos_static_debug("decoded quota groupfiles: fsid=%lu uid=%lu files=%llu", fsid, gid, fsidquota);
-	XrdMgmFstFileSystem* filesystem = 0;
-	if ( fsid && (filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[fsid]) ) {
+	FstFileSystem* filesystem = 0;
+	if ( fsid && (filesystem = (FstFileSystem*) FstNode::gFileSystemById[fsid]) ) {
 	  // trying to replace the update hint with differential changes
 	  const char* spacename = filesystem->GetSpaceName();
-	  XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(spacename);
+	  SpaceQuota* spacequota = Quota::GetSpaceQuota(spacename);
 	  if (spacequota) {
-	    spacequota->AddQuota(XrdMgmSpaceQuota::kGroupFilesIs, gid, fsidquota-filesystem->GroupFiles[gid]);
-	    spacequota->AddQuota(XrdMgmSpaceQuota::kAllGroupFilesIs, gid, fsidquota-filesystem->GroupFiles[gid]);
+	    spacequota->AddQuota(SpaceQuota::kGroupFilesIs, gid, fsidquota-filesystem->GroupFiles[gid]);
+	    spacequota->AddQuota(SpaceQuota::kAllGroupFilesIs, gid, fsidquota-filesystem->GroupFiles[gid]);
 	  }
 	  filesystem->GroupFiles[gid] = fsidquota;
 	}
@@ -276,7 +278,7 @@ XrdMgmFstNode::UpdateQuotaStatus(XrdOucEnv &config)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int bootstatus, XrdOucEnv* env , int errc, const char* errmsg, bool configchangelog) 
+FstNode::Update(const char* infsname, int id, const char* schedgroup, int bootstatus, XrdOucEnv* env , int errc, const char* errmsg, bool configchangelog) 
 {
   if (!infsname) 
     return false;
@@ -306,10 +308,10 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
   fsname.erase(0,spos+4);
 
   // get the node
-  XrdMgmFstNode* node = gFstNodes.Find(nodename.c_str());
+  FstNode* node = gFstNodes.Find(nodename.c_str());
   if (!node) {
     // create one
-    node = new XrdMgmFstNode(nodename.c_str());
+    node = new FstNode(nodename.c_str());
     node->hostPortName = fsname.c_str();
     int pos = node->hostPortName.find("/",2);
     if (pos != STR_NPOS) 
@@ -318,10 +320,11 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
   } 
 
   // get the filesystem
-  XrdMgmFstFileSystem* fs = node->fileSystems.Find(fsname.c_str());
+  FstFileSystem* fs = node->fileSystems.Find(fsname.c_str());
   if (!fs) {
     // create a new filesystem there
-    fs = new XrdMgmFstFileSystem(id, fsname.c_str(), nodename.c_str(), schedgroup);
+    //    fs = new FstFileSystem(id, fsname.c_str(), nodename.c_str(), schedgroup);
+    fs = 0;
     if ((!id) || (!fs) ) {
       eos_static_err("unable to create filesystem object");
       return false;
@@ -330,8 +333,8 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
     node->fileSystems.Add(fsname.c_str(),fs);
     gFileSystemById[id]=(unsigned long long)fs;
     // create the quota space entry in the hash to be able to set quota on the empty space
-    XrdMgmQuota::GetSpaceQuota(fs->GetSpaceName());
-    XrdMgmQuota::UpdateHint(fs->GetId());
+    Quota::GetSpaceQuota(fs->GetSpaceName());
+    Quota::UpdateHint(fs->GetId());
   } else {
     if (fs->GetId()>0) {
       // invalidate the old entry
@@ -343,14 +346,14 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
     if (schedgroup && (strcmp(fs->GetSchedulingGroup(),schedgroup)) ) {
       // scheduling group changed
       // create the quota space entry in the hash to be able to set quota on the empty space
-      XrdMgmQuota::GetSpaceQuota(fs->GetSpaceName());
+      Quota::GetSpaceQuota(fs->GetSpaceName());
     }
 
     
     if (fsname.length())    fs->SetPath(fsname.c_str());
     if (strlen(schedgroup)) fs->SetSchedulingGroup(schedgroup);
 
-    if (bootstatus!= XrdCommonFileSystem::kDown) 
+    if (bootstatus!= eos::common::FileSystem::kDown) 
       fs->SetBootStatus(bootstatus);
 
   }
@@ -359,36 +362,36 @@ XrdMgmFstNode::Update(const char* infsname, int id, const char* schedgroup, int 
   fs->SetError(errc, errmsg);
   fs->SetStatfsEnv(env);
   
-  XrdMgmQuota::UpdateHint(fs->GetId());
+  Quota::UpdateHint(fs->GetId());
 
   // change config
-  gOFS->ConfigEngine->SetConfigValue("fs", fs->GetQueuePath(), fs->GetBootString(), configchangelog );
+  gOFS->ConfEngine->SetConfigValue("fs", fs->GetQueuePath(), fs->GetBootString(), configchangelog );
 
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
-XrdMgmFstNode*
-XrdMgmFstNode::GetNode(const char* queue) 
+FstNode*
+FstNode::GetNode(const char* queue) 
 {
   
   gMutex.Lock();
-  XrdMgmFstNode* node = gFstNodes.Find(queue);
+  FstNode* node = gFstNodes.Find(queue);
   gMutex.UnLock();
   return node;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmFstNode::ListNodes(const char* key, XrdMgmFstNode* node, void* Arg)  
+FstNode::ListNodes(const char* key, FstNode* node, void* Arg)  
 {
   std::map<std::string,std::string> *nodeOutput = (std::map<std::string,std::string>*) Arg;
   std::map<std::string,std::string> fileSysOutput;
   XrdOucString listing="";
   listing += node->GetInfoString();
-  listing += XrdMgmFstFileSystem::GetInfoHeader();
+  listing += FstFileSystem::GetInfoHeader();
   
-  node->fileSystems.Apply(XrdMgmFstNode::ListFileSystems, &fileSysOutput);
+  node->fileSystems.Apply(FstNode::ListFileSystems, &fileSysOutput);
 
   //  std::sort(fileSysOutput.begin(), fileSysOutput.end());
   std::map<std::string,std::string>::const_iterator i;
@@ -401,7 +404,7 @@ XrdMgmFstNode::ListNodes(const char* key, XrdMgmFstNode* node, void* Arg)
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmFstNode::ListFileSystems(const char* key, XrdMgmFstFileSystem* filesystem, void* Arg)
+FstNode::ListFileSystems(const char* key, FstFileSystem* filesystem, void* Arg)
 {
   std::map<std::string,std::string>* fileSysOutput = (std::map<std::string,std::string>*) Arg;
   XrdOucString sid ="";
@@ -412,19 +415,19 @@ XrdMgmFstNode::ListFileSystems(const char* key, XrdMgmFstFileSystem* filesystem,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmFstNode::ExistsNodeFileSystemId(const char* key, XrdMgmFstNode* node, void* Arg)  
+FstNode::ExistsNodeFileSystemId(const char* key, FstNode* node, void* Arg)  
 {
   unsigned int* listing = (unsigned int*) Arg;
 
   if (*listing) {
-    node->fileSystems.Apply(XrdMgmFstNode::ExistsFileSystemId, Arg);
+    node->fileSystems.Apply(FstNode::ExistsFileSystemId, Arg);
   }
   return 0;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmFstNode::ExistsFileSystemId(const char* key, XrdMgmFstFileSystem* filesystem, void* Arg)
+FstNode::ExistsFileSystemId(const char* key, FstFileSystem* filesystem, void* Arg)
 {
   unsigned int* listing = (unsigned int*) Arg;
 
@@ -438,11 +441,11 @@ XrdMgmFstNode::ExistsFileSystemId(const char* key, XrdMgmFstFileSystem* filesyst
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmFstNode::FindNodeFileSystem(const char* key, XrdMgmFstNode* node, void* Arg)  
+FstNode::FindNodeFileSystem(const char* key, FstNode* node, void* Arg)  
 {
   struct FindStruct* finder = (struct FindStruct*) Arg;
   if (!finder->found) {
-    node->fileSystems.Apply(XrdMgmFstNode::FindFileSystem, Arg);
+    node->fileSystems.Apply(FstNode::FindFileSystem, Arg);
     if (finder->found) {
       finder->nodename = node->GetQueue();
       return 1;
@@ -453,20 +456,20 @@ XrdMgmFstNode::FindNodeFileSystem(const char* key, XrdMgmFstNode* node, void* Ar
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmFstNode::BootNode(const char* key, XrdMgmFstNode* node, void* Arg)  
+FstNode::BootNode(const char* key, FstNode* node, void* Arg)  
 {
   XrdOucString* bootfs = (XrdOucString*) Arg;
   (*bootfs)+="mgm.nodename=";(*bootfs)+= node->GetQueue();
   (*bootfs)+="\t";
   (*bootfs)+=" mgm.fsnames=";
-  node->fileSystems.Apply(XrdMgmFstNode::BootFileSystem, Arg);
+  node->fileSystems.Apply(FstNode::BootFileSystem, Arg);
   (*bootfs)+="\n";
   return 0;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmFstNode::FindFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void* Arg)
+FstNode::FindFileSystem(const char* key, FstFileSystem* filesystem, void* Arg)
 {
   struct FindStruct* finder = (struct FindStruct*) Arg;
 
@@ -494,13 +497,15 @@ XrdMgmFstNode::FindFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, 
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmFstNode::BootFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg)
+FstNode::BootFileSystem(const char* key, FstFileSystem* filesystem, void *Arg)
 {
   XrdOucString* bootfs = (XrdOucString*) Arg;
   XrdMqMessage message("mgm"); XrdOucString msgbody="";
   XrdOucEnv config(filesystem->GetBootString());
 
-  XrdCommonFileSystem::GetBootRequestString(msgbody,config);
+  //  eos::common::FileSystem::GetBootRequestString(msgbody,config);
+
+  return 0;
 
   message.SetBody(msgbody.c_str());
   XrdOucString lastchar = bootfs->c_str()+bootfs->length()-1;
@@ -522,14 +527,14 @@ XrdMgmFstNode::BootFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, 
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmFstNode::SetBootStatusFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg)
+FstNode::SetBootStatusFileSystem(const char* key, FstFileSystem* filesystem, void *Arg)
 {
   int* status = (int*) Arg;
 
   if (filesystem) {
     filesystem->SetBootStatus(*status);
     // add to config
-    gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
+    gOFS->ConfEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
   }
 
   return 0;
@@ -537,7 +542,7 @@ XrdMgmFstNode::SetBootStatusFileSystem(const char* key, XrdMgmFstFileSystem* fil
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmFstNode::SetHeartBeatTimeFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg) 
+FstNode::SetHeartBeatTimeFileSystem(const char* key, FstFileSystem* filesystem, void *Arg) 
 {
   time_t* hbt = (time_t*) Arg;
   if (filesystem) {
@@ -548,14 +553,14 @@ XrdMgmFstNode::SetHeartBeatTimeFileSystem(const char* key, XrdMgmFstFileSystem* 
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmFstNode::SetConfigStatusFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg)
+FstNode::SetConfigStatusFileSystem(const char* key, FstFileSystem* filesystem, void *Arg)
 {
   int* status = (int*) Arg;
   if (filesystem) {
     filesystem->SetConfigStatus(*status);
     eos_static_info("%s %s", filesystem->GetQueue(), filesystem->GetConfigStatusString());
       
-    gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
+    gOFS->ConfEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
   }
 
   return 0;
@@ -563,14 +568,14 @@ XrdMgmFstNode::SetConfigStatusFileSystem(const char* key, XrdMgmFstFileSystem* f
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmFstNode::SetConfigSchedulingGroupFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg)
+FstNode::SetConfigSchedulingGroupFileSystem(const char* key, FstFileSystem* filesystem, void *Arg)
 {
   const char* group = (const char*) Arg;
   if (filesystem) {
     filesystem->SetSchedulingGroup(group);
     eos_static_info("%s %s", filesystem->GetQueue(), filesystem->GetSchedulingGroup());
       
-    gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
+    gOFS->ConfEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
   }
 
   return 0;
@@ -580,3 +585,5 @@ XrdMgmFstNode::SetConfigSchedulingGroupFileSystem(const char* key, XrdMgmFstFile
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
+
+EOSMGMNAMESPACE_END

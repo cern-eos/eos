@@ -1,5 +1,5 @@
-#ifndef __XRDMGMOFS_QUOTA__HH__
-#define __XRDMGMOFS_QUOTA__HH__
+#ifndef __EOSMGM_QUOTA__HH__
+#define __EOSMGM_QUOTA__HH__
 
 /*----------------------------------------------------------------------------*/
 // this is needed because of some openssl definition conflict!
@@ -8,10 +8,11 @@
 #include <google/dense_hash_map>
 #include <google/sparsehash/densehashtable.h>
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonLogging.hh"
-#include "XrdCommon/XrdCommonLayoutId.hh"
-#include "XrdMgmOfs/XrdMgmFstFileSystem.hh"
-#include "XrdMqOfs/XrdMqMessage.hh"
+#include "mgm/Namespace.hh"
+#include "common/Logging.hh"
+#include "common/LayoutId.hh"
+#include "mgm/FstFileSystem.hh"
+#include "mq/XrdMqMessage.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -21,9 +22,12 @@
 #include <set>
 /*----------------------------------------------------------------------------*/
 
-#define XRDMGMQUOTA_DISKHEADROOM 1024ll*1024ll*1024l*25
 
-class XrdMgmSpaceQuota {
+EOSMGMNAMESPACE_BEGIN
+
+#define EOSMGMQUOTA_DISKHEADROOM 1024ll*1024ll*1024l*25
+
+class SpaceQuota {
 private:
   XrdSysMutex Mutex;
   XrdOucString SpaceName;
@@ -129,7 +133,7 @@ public:
   void UpdateTargetSums();
 
 
-  XrdMgmSpaceQuota(const char* name) {
+  SpaceQuota(const char* name) {
     Quota.set_empty_key(-1);
     Quota.set_deleted_key(-2);
     schedulingViewPtr.set_empty_key("");
@@ -141,7 +145,7 @@ public:
     PhysicalTmpFreeBytes = PhysicalTmpFreeFiles = PhysicalTmpMaxBytes = PhysicalTmpMaxFiles = 0;
   }
 
-  ~XrdMgmSpaceQuota() {}
+  ~SpaceQuota() {}
 
   google::dense_hash_map<long long, unsigned long long>::const_iterator Begin() { return Quota.begin();}
   google::dense_hash_map<long long, unsigned long long>::const_iterator End()   { return Quota.end();}
@@ -233,24 +237,24 @@ public:
 
 };
 
-class XrdMgmQuota : XrdCommonLogId {
+class Quota : eos::common::LogId {
 private:
   
 public:
-  static XrdOucHash<XrdMgmSpaceQuota> gQuota;
+  static XrdOucHash<SpaceQuota> gQuota;
   static XrdSysMutex gQuotaMutex;
 
-  static XrdMgmSpaceQuota* GetSpaceQuota(const char* name, bool nocreate=false);
+  static SpaceQuota* GetSpaceQuota(const char* name, bool nocreate=false);
   
-  XrdMgmQuota() {}
-  ~XrdMgmQuota() {};
+  Quota() {}
+  ~Quota() {};
 
   void   Recalculate();
 
   static void   UpdateHint(unsigned int fsid);
 
   // builds a list with the names of all spaces
-  static int GetSpaceNameList(const char* key, XrdMgmSpaceQuota* spacequota, void *Arg);
+  static int GetSpaceNameList(const char* key, SpaceQuota* spacequota, void *Arg);
 
   static void PrintOut(const char* space, XrdOucString &output, long uid_sel=-1, long gid_sel=-1);
   
@@ -260,5 +264,7 @@ public:
 
 
 };
+
+EOSMGMNAMESPACE_END
 
 #endif

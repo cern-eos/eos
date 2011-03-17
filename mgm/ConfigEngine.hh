@@ -1,5 +1,5 @@
-#ifndef __XRDMGMOFS_CONFIGENGINE__HH__
-#define __XRDMGMOFS_CONFIGENGINE__HH__
+#ifndef __EOSMGM_CONFIGENGINE__HH__
+#define __EOSMGM_CONFIGENGINE__HH__
 
 /*----------------------------------------------------------------------------*/
 // this is needed because of some openssl definition conflict!
@@ -8,9 +8,10 @@
 #include <google/dense_hash_map>
 #include <google/sparsehash/densehashtable.h>
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonLogging.hh"
-#include "XrdMgmOfs/XrdMgmFstFileSystem.hh"
-#include "XrdMqOfs/XrdMqMessage.hh"
+#include "mgm/Namespace.hh"
+#include "common/Logging.hh"
+#include "mgm/FstFileSystem.hh"
+#include "mq/XrdMqMessage.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -22,20 +23,22 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
-
 /*----------------------------------------------------------------------------*/
 
-#define XRDMGMCONFIGENGINE_EOS_SUFFIX ".eoscf"
 
-class XrdMgmConfigEngineChangeLog : public XrdCommonLogId {
+EOSMGMNAMESPACE_BEGIN
+
+#define EOSMGMCONFIGENGINE_EOS_SUFFIX ".eoscf"
+
+class ConfigEngineChangeLog : public eos::common::LogId {
 private:
   XrdSysMutex Mutex;
   int fd;
 public:
   XrdOucString configChanges;
 
-  XrdMgmConfigEngineChangeLog();
-  ~XrdMgmConfigEngineChangeLog();
+  ConfigEngineChangeLog();
+  ~ConfigEngineChangeLog();
 
   void Init(const char* changelogfile);
 
@@ -45,13 +48,13 @@ public:
 
 
 
-class XrdMgmConfigEngine : public XrdCommonLogId {
+class ConfigEngine : public eos::common::LogId {
 private:
   XrdOucString configDir;
   XrdSysMutex Mutex;
   XrdOucString currentConfigFile;
 
-  XrdMgmConfigEngineChangeLog changeLog;
+  ConfigEngineChangeLog changeLog;
 
   XrdOucHash<XrdOucString> configDefinitionsFile;
   XrdOucHash<XrdOucString> configDefinitions;
@@ -69,7 +72,7 @@ public:
 
   static int DeleteConfigByMatch(const char* key, XrdOucString* def, void* Arg);
 
-  XrdMgmConfigEngine(const char* configdir) {
+  ConfigEngine(const char* configdir) {
     configDir = configdir;
     changeLog.configChanges = "";
     currentConfigFile = "default.eoscf";
@@ -78,7 +81,7 @@ public:
     changeLog.Init(changeLogFile.c_str());
   }
 
-  XrdMgmConfigEngineChangeLog* GetChangeLog() { return &changeLog;}
+  ConfigEngineChangeLog* GetChangeLog() { return &changeLog;}
 
   bool LoadConfig(XrdOucEnv& env, XrdOucString &err);
   bool SaveConfig(XrdOucEnv& env, XrdOucString &err);
@@ -144,3 +147,4 @@ public:
 
 #endif
 
+EOSMGMNAMESPACE_END

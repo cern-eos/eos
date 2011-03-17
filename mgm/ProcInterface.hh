@@ -1,19 +1,22 @@
-#ifndef __XRDMGMOFS_PROCINTERFACE__HH__
-#define __XRDMGMOFS_PROCINTERFACE__HH__
+#ifndef __EOSMGM_PROCINTERFACE__HH__
+#define __EOSMGM_PROCINTERFACE__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonLogging.hh"
-#include "XrdCommon/XrdCommonMapping.hh"
+#include "mgm/Namespace.hh"
+#include "common/Logging.hh"
+#include "common/Mapping.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSec/XrdSecEntity.hh"
 /*----------------------------------------------------------------------------*/
 
-class XrdMgmProcCommand : public XrdCommonLogId {
+EOSMGMNAMESPACE_BEGIN
+
+class ProcCommand : public eos::common::LogId {
 private:
   XrdOucString path;
-  XrdCommonMapping::VirtualIdentity* pVid;
+  eos::common::Mapping::VirtualIdentity* pVid;
   XrdOucString cmd;
   XrdOucString subcmd;
   XrdOucString args;
@@ -34,25 +37,27 @@ private:
 
 public:
 
-  int open(const char* path, const char* info, XrdCommonMapping::VirtualIdentity &vid, XrdOucErrInfo *error);
+  int open(const char* path, const char* info, eos::common::Mapping::VirtualIdentity &vid, XrdOucErrInfo *error);
   int read(XrdSfsFileOffset offset, char *buff, XrdSfsXferSize blen);
   int stat(struct stat* buf);
   int close();
 
-  XrdMgmProcCommand();
-  ~XrdMgmProcCommand();
+  ProcCommand();
+  ~ProcCommand();
 }; 
 
-class XrdMgmProcInterface {
+class ProcInterface {
 private:
 
 public:
 
   static bool IsProcAccess(const char* path);
-  static bool Authorize(const char* path, const char* info, XrdCommonMapping::VirtualIdentity &vid, const XrdSecEntity* entity);
+  static bool Authorize(const char* path, const char* info, eos::common::Mapping::VirtualIdentity &vid, const XrdSecEntity* entity);
 
-  XrdMgmProcInterface();
-  ~XrdMgmProcInterface();
+  ProcInterface();
+  ~ProcInterface();
 };
+
+EOSMGMNAMESPACE_END
 
 #endif

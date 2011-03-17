@@ -1,15 +1,18 @@
-#ifndef __XRDMGMOFS_FSTFILESYSTEM__HH__
-#define __XRDMGMOFS_FSTFILESYSTEM__HH__
+#ifndef __EOSMGM_FSTFILESYSTEM__HH__
+#define __EOSMGM_FSTFILESYSTEM__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonFileSystem.hh"
+#include "mgm/Namespace.hh"
+#include "common/StringConversion.hh"
+#include "common/Statfs.hh"
+#include "common/FileSystem.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
-#include <sys/vfs.h>
-/*----------------------------------------------------------------------------*/
 
-class XrdMgmFstFileSystem : public XrdCommonFileSystem {
+EOSMGMNAMESPACE_BEGIN
+
+class FstFileSystem : public eos::common::FileSystem {
 private:
   char infoString[1024];
   unsigned int Id;
@@ -115,7 +118,7 @@ public:
   const char* GetBootStatusString()   {if (bootStatus==kBootFailure) return "failed"; if (bootStatus==kDown) return "down"; if (bootStatus==kBootSent) return "sent"; if (bootStatus==kBooting) return "booting"; if (bootStatus==kBooted) return "booted"; if (bootStatus==kOpsError) return "opserror";  return "";}
   const char* GetConfigStatusString() {if (configStatus==kOff) return "off"; if (configStatus==kUnknown) return "?"; if (configStatus==kRO) return "ro"; if (configStatus==kDrain) return "drain"; if (configStatus==kWO) return "wo"; if (configStatus==kRW) return "rw"; return "unknown";}
   static const char* GetInfoHeader() {static char infoHeader[1024];sprintf(infoHeader,"%-36s %-4s %-24s %-16s %-10s %-4s %-10s %-8s %-8s %-8s %-5s %-5s %-3s %s\n","QUEUE","FSID","PATH","SCHEDGROUP","BOOTSTAT","BT", "CONFIGSTAT","BLOCKS", "FREE", "FILES", "ROPEN", "WOPEN", "EC ", "EMSG"); return infoHeader;}
-  const char* GetInfoString()         {XrdOucString sizestring,freestring,filesstring; sprintf(infoString,"%-36s %04u %-24s %-16s %-10s %04lu %-10s %-8s %-8s %-8s %05d %05d %03d %s\n",GetQueue(),GetId(),GetPath(),GetSchedulingGroup(),GetBootStatusString(),GetBootDoneTime()?(GetBootDoneTime()-GetBootSentTime()):(GetBootSentTime()?(time(0)-GetBootSentTime()):0) , GetConfigStatusString(), XrdCommonFileSystem::GetReadableSizeString(sizestring,statFs.f_blocks * 4096ll,"B"), XrdCommonFileSystem::GetReadableSizeString(freestring, statFs.f_bfree * 4096ll,"B"), XrdCommonFileSystem::GetReadableSizeString(filesstring, (statFs.f_files-statFs.f_ffree) *1ll,"-"), ropen, wopen, errc, errmsg.c_str());return infoString;}
+  const char* GetInfoString()         {XrdOucString sizestring,freestring,filesstring; sprintf(infoString,"%-36s %04u %-24s %-16s %-10s %04lu %-10s %-8s %-8s %-8s %05d %05d %03d %s\n",GetQueue(),GetId(),GetPath(),GetSchedulingGroup(),GetBootStatusString(),GetBootDoneTime()?(GetBootDoneTime()-GetBootSentTime()):(GetBootSentTime()?(time(0)-GetBootSentTime()):0) , GetConfigStatusString(), eos::common::StringConversion::GetReadableSizeString(sizestring,statFs.f_blocks * 4096ll,"B"), eos::common::StringConversion::GetReadableSizeString(freestring, statFs.f_bfree * 4096ll,"B"), eos::common::StringConversion::GetReadableSizeString(filesstring, (statFs.f_files-statFs.f_ffree) *1ll,"-"), ropen, wopen, errc, errmsg.c_str());return infoString;}
 
   void SetDown()    {bootStatus   = kDown;}   
   void SetBootSent(){bootStatus   = kBootSent;bootSentTime = time(0);bootDoneTime = 0;}
@@ -141,7 +144,6 @@ public:
     if (( val = env->Get("statfs.bavail"))){statFs.f_bavail = strtol(val,0,10);}
     if (( val = env->Get("statfs.files"))) {statFs.f_files = strtol(val,0,10);}
     if (( val = env->Get("statfs.ffree"))) {statFs.f_ffree = strtol(val,0,10);}
-    if (( val = env->Get("statfs.namelen"))){statFs.f_namelen = strtol(val,0,10);}
     if (( val = env->Get("statfs.ropen"))) {ropen = strtol(val,0,10);}
     if (( val = env->Get("statfs.wopen"))) {wopen = strtol(val,0,10);}
   }
@@ -157,7 +159,9 @@ public:
 
   struct statfs* GetStatfs() { return &statFs;}
 
-  XrdMgmFstFileSystem(int id, const char* path, const char* queue, const char* schedulinggroup = "default") {
+  FstFileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som) : eos::common::FileSystem(queuepath,queue,som){};
+
+  /*  FstFileSystem(int id, const char* path, const char* queue, const char* schedulinggroup = "default") {
     Id = id; Path = path; queueName = queue; bootStatus=kDown;configStatus = kUnknown; schedulingGroup = schedulinggroup; ExtractSchedulinGroupIndex();  bootSentTime=0; bootFailureMsg=""; bootDoneTime=0; errc=0; errmsg=""; memset(&statFs,0,sizeof(statFs)); spaceName = ""; lastHeartBeat=0;
     UserBytes.set_empty_key(-1);
     GroupBytes.set_empty_key(-1);
@@ -165,12 +169,13 @@ public:
     GroupFiles.set_empty_key(-1);
     ropen = 0;
     wopen = 0;
-  };
+    };*/
 
-  ~XrdMgmFstFileSystem() {};
+  ~FstFileSystem() {};
 
 }; 
 
+EOSMGMNAMESPACE_END
 
 #endif
 

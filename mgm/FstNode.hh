@@ -1,5 +1,5 @@
-#ifndef __XRDMGMOFS_FSTNODES__HH__
-#define __XRDMGMOFS_FSTNODES__HH__
+#ifndef __EOSMGM_FSTNODES__HH__
+#define __EOSMGM_FSTNODES__HH__
 
 /*----------------------------------------------------------------------------*/
 // this is needed because of some openssl definition conflict!
@@ -7,9 +7,10 @@
 #include <google/dense_hash_map>
 #include <google/sparsehash/densehashtable.h>
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonLogging.hh"
-#include "XrdMgmFstFileSystem.hh"
-#include "XrdMqOfs/XrdMqMessage.hh"
+#include "common/Logging.hh"
+#include "mgm/Namespace.hh"
+#include "mgm/FstFileSystem.hh"
+#include "mq/XrdMqMessage.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -17,11 +18,11 @@
 /*----------------------------------------------------------------------------*/
 
 
-class XrdMgmFstNode;
+EOSMGMNAMESPACE_BEGIN
 
-class XrdMgmFstNode  {
-  friend class XrdMgmProcCommand;
-  friend class XrdMgmMessaging;
+class FstNode  {
+  friend class ProcCommand;
+  friend class Messaging;
 private:
   char infoString[1024];
   XrdOucString queueName;
@@ -31,7 +32,7 @@ private:
 
 protected:
 
-  XrdOucHash<XrdMgmFstFileSystem> fileSystems;
+  XrdOucHash<FstFileSystem> fileSystems;
 
 
 public:
@@ -40,21 +41,21 @@ public:
   const char* GetNodeStatusString() {if (nodeStatus==kHeartBeatLow) return "lowhb"; if (nodeStatus==kOffline) return "offline"; if (nodeStatus==kOnline) return "online"; return "";}
   enum eNodeStatus { kHeartBeatLow=-1, kOffline=0, kOnline=1}; 
 
-  static google::dense_hash_map<unsigned int, unsigned long long> gFileSystemById;  // the value points to the address of a XrdMgmFstFileSystem object. Doing so saves a lot of hassle
+  static google::dense_hash_map<unsigned int, unsigned long long> gFileSystemById;  // the value points to the address of a FstFileSystem object. Doing so saves a lot of hassle
 
   static bool Update(XrdAdvisoryMqMessage* advmsg);
   static bool Update(XrdOucEnv &config);
   static bool UpdateQuotaStatus(XrdOucEnv &config);
-  static bool Update(const char* infsname, int id, const char* schedgroup = "default", int bootstatus=XrdCommonFileSystem::kDown, XrdOucEnv* env=0, int errc=0, const char* errmsg=0, bool configchangelog=false);
+  static bool Update(const char* infsname, int id, const char* schedgroup = "default", int bootstatus=eos::common::FileSystem::kDown, XrdOucEnv* env=0, int errc=0, const char* errmsg=0, bool configchangelog=false);
 
   bool SetNodeStatus(int status); 
   bool SetNodeConfigStatus(int status); 
   bool SetNodeConfigSchedulingGroup(const char* schedgroup);
 
-  static XrdMgmFstNode* GetNode(const char* queue);
+  static FstNode* GetNode(const char* queue);
    
-  XrdMgmFstNode(const char* queue){queueName = queue; nodeStatus = kOffline;lastHeartBeat = 0; }
-  ~XrdMgmFstNode(){}
+  FstNode(const char* queue){queueName = queue; nodeStatus = kOffline;lastHeartBeat = 0; }
+  ~FstNode(){}
 
   unsigned int GetNumberOfFileSystems() {return fileSystems.Num();}
 
@@ -70,7 +71,7 @@ public:
     } else {
       sprintf(infoString,"\n%-36s ---- %-10s %02d\n", GetQueue(), GetNodeStatusString(), GetNumberOfFileSystems()); return infoString;}
   }
-  static XrdOucHash<XrdMgmFstNode> gFstNodes;  
+  static XrdOucHash<FstNode> gFstNodes;  
   //  static google::dense_hash_map<long, unsigned long long> gFstIndex;
 
   
@@ -79,12 +80,12 @@ public:
 
 
   // to do listings
-  static int                    ListNodes(const char* key, XrdMgmFstNode* node, void* Arg);
-  static int                    ListFileSystems(const char* key, XrdMgmFstFileSystem* filesystem, void* Arg);
+  static int                    ListNodes(const char* key, FstNode* node, void* Arg);
+  static int                    ListFileSystems(const char* key, FstFileSystem* filesystem, void* Arg);
   
   // to check if an id is already in use
-  static int                    ExistsNodeFileSystemId(const char* key, XrdMgmFstNode* node, void *Arg);
-  static int                    ExistsFileSystemId(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg);
+  static int                    ExistsNodeFileSystemId(const char* key, FstNode* node, void *Arg);
+  static int                    ExistsFileSystemId(const char* key, FstFileSystem* filesystem, void *Arg);
   
   // to remove by id
   struct FindStruct {
@@ -99,16 +100,18 @@ public:
   };
 
   // returns the node + filesystem names of an id
-  static int                    FindNodeFileSystem(const char* key, XrdMgmFstNode* node, void *Arg);
-  static int                    BootNode(const char* key, XrdMgmFstNode* node, void *Arg);
+  static int                    FindNodeFileSystem(const char* key, FstNode* node, void *Arg);
+  static int                    BootNode(const char* key, FstNode* node, void *Arg);
 
-  static int                    FindFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg);
-  static int                    BootFileSystem(const char* key, XrdMgmFstFileSystem* filesystem, void *Arg);
-  static int                    SetBootStatusFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
-  static int                    SetHeartBeatTimeFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
-  static int                    SetConfigStatusFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
-  static int                    SetConfigSchedulingGroupFileSystem(const char* key ,XrdMgmFstFileSystem* filesystem, void *Arg);
+  static int                    FindFileSystem(const char* key, FstFileSystem* filesystem, void *Arg);
+  static int                    BootFileSystem(const char* key, FstFileSystem* filesystem, void *Arg);
+  static int                    SetBootStatusFileSystem(const char* key ,FstFileSystem* filesystem, void *Arg);
+  static int                    SetHeartBeatTimeFileSystem(const char* key ,FstFileSystem* filesystem, void *Arg);
+  static int                    SetConfigStatusFileSystem(const char* key ,FstFileSystem* filesystem, void *Arg);
+  static int                    SetConfigSchedulingGroupFileSystem(const char* key ,FstFileSystem* filesystem, void *Arg);
 };
+
+EOSMGMNAMESPACE_END
 
 #endif
 

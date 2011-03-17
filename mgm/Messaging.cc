@@ -1,16 +1,20 @@
 /*----------------------------------------------------------------------------*/
-#include "XrdMgmOfs/XrdMgmFstNode.hh"
-#include "XrdMgmOfs/XrdMgmOfs.hh"
+
+#include "mgm/Messaging.hh"
+#include "mgm/FstNode.hh"
+#include "mgm/XrdMgmOfs.hh"
+
+EOSMGMNAMESPACE_BEGIN
 
 void*
-XrdMgmMessaging::Start(void *pp)
+Messaging::Start(void *pp)
 {
-  ((XrdMgmMessaging*)pp)->Listen();
+  ((Messaging*)pp)->Listen();
   return 0;
 }
 
 /*----------------------------------------------------------------------------*/
-XrdMgmMessaging::XrdMgmMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus, bool advisoryquery )
+Messaging::Messaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus, bool advisoryquery )
 {
   if (gMessageClient.AddBroker(url, advisorystatus,advisoryquery)) {
     zombie = false;
@@ -31,7 +35,7 @@ XrdMgmMessaging::XrdMgmMessaging(const char* url, const char* defaultreceiverque
   gMessageClient.Subscribe();
   gMessageClient.SetDefaultReceiverQueue(defaultreceiverqueue);
 
-  XrdCommonLogId();
+  eos::common::LogId();
 }
 
 
@@ -39,7 +43,7 @@ XrdMgmMessaging::XrdMgmMessaging(const char* url, const char* defaultreceiverque
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmMessaging::Listen() 
+Messaging::Listen() 
 {
   while(1) {
     XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
@@ -55,7 +59,7 @@ XrdMgmMessaging::Listen()
 }
 
 /*----------------------------------------------------------------------------*/
-void XrdMgmMessaging::Process(XrdMqMessage* newmessage) 
+void Messaging::Process(XrdMqMessage* newmessage) 
 {
   if ( (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage) || (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage) ) {
     XrdAdvisoryMqMessage* advisorymessage = XrdAdvisoryMqMessage::Create(newmessage->GetMessageBuffer());
@@ -64,14 +68,14 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
       eos_debug("queue=%s online=%d",advisorymessage->kQueue.c_str(), advisorymessage->kOnline);
       
       if (advisorymessage->kQueue.endswith("/fst")) {
-	if (!XrdMgmFstNode::Update(advisorymessage)) {
+	if (!FstNode::Update(advisorymessage)) {
 	  eos_err("cannot update node status for %s", advisorymessage->GetBody());
 	}
       }
       delete advisorymessage;
     }
   } else {
-    XrdMgmFstNode::gMutex.Lock();
+    FstNode::gMutex.Lock();
 
     XrdOucString saction = newmessage->GetBody();
     //    newmessage->Print();
@@ -83,7 +87,7 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
     if (cmd == "fs") {
       if (subcmd == "set") {
 	eos_debug("fs set %s\n", saction.c_str());
-	if (!XrdMgmFstNode::Update(action)) {
+	if (!FstNode::Update(action)) {
 	  // error cannot set this filesystem information
 	  eos_err("fs set failed for %s", saction.c_str());
 	} else {
@@ -95,7 +99,7 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
     if (cmd == "quota") {
       if (subcmd == "setstatus") {
 	eos_debug("quota setstatus %s\n", saction.c_str());
-	if (!XrdMgmFstNode::UpdateQuotaStatus(action)) {
+	if (!FstNode::UpdateQuotaStatus(action)) {
 	  eos_err("quota setstatus failed for %s", saction.c_str());
 	} else {
 	  // ok !
@@ -107,18 +111,19 @@ void XrdMgmMessaging::Process(XrdMqMessage* newmessage)
       eos_notice("bootrequest received");
       XrdOucString nodename = newmessage->kMessageHeader.kSenderId;
       //      fprintf(stderr,"nodename is %s\n", nodename.c_str());
-      XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(nodename.c_str());
+      FstNode* node = FstNode::gFstNodes.Find(nodename.c_str());
       if (node) {
 	XrdOucString bootfs="";
 	// node found
-	node->fileSystems.Apply(XrdMgmFstNode::BootFileSystem, &bootfs);
+	node->fileSystems.Apply(FstNode::BootFileSystem, &bootfs);
 	eos_notice("sent boot message to node/fs %s", bootfs.c_str());
       } else {
 	eos_err("cannot boot node - no node configured with nodename %s", nodename.c_str());
       }
     }
-    XrdMgmFstNode::gMutex.UnLock();
+    FstNode::gMutex.UnLock();
   }
 }
 
+EOSMGMNAMESPACE_END
 

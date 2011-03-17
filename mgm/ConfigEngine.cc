@@ -1,24 +1,25 @@
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonMapping.hh"
-#include "XrdMgmOfs/XrdMgmConfigEngine.hh"
-#include "XrdMgmOfs/XrdMgmFstNode.hh"
-#include "XrdMgmOfs/XrdMgmQuota.hh"
-#include "XrdMgmOfs/XrdMgmVid.hh"
+#include "common/Mapping.hh"
+#include "mgm/ConfigEngine.hh"
+#include "mgm/FstNode.hh"
+#include "mgm/Quota.hh"
+#include "mgm/Vid.hh"
 
 /*----------------------------------------------------------------------------*/
 #include <iostream>
 #include <fstream>
 #include <sstream>
-
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
+EOSMGMNAMESPACE_BEGIN
+
 /*----------------------------------------------------------------------------*/
-XrdMgmConfigEngineChangeLog::XrdMgmConfigEngineChangeLog()
+ConfigEngineChangeLog::ConfigEngineChangeLog()
 {
 }
 
-void XrdMgmConfigEngineChangeLog::Init(const char* changelogfile) 
+void ConfigEngineChangeLog::Init(const char* changelogfile) 
 {
   fd = open(changelogfile, O_CREAT | O_APPEND | O_RDWR, 0644);
   if (fd<0) {
@@ -29,7 +30,7 @@ void XrdMgmConfigEngineChangeLog::Init(const char* changelogfile)
 
 
 /*----------------------------------------------------------------------------*/
-XrdMgmConfigEngineChangeLog::~XrdMgmConfigEngineChangeLog() 
+ConfigEngineChangeLog::~ConfigEngineChangeLog() 
 {
   if (fd>0) 
     close(fd);
@@ -37,7 +38,7 @@ XrdMgmConfigEngineChangeLog::~XrdMgmConfigEngineChangeLog()
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMgmConfigEngineChangeLog::AddEntry(const char* info) 
+ConfigEngineChangeLog::AddEntry(const char* info) 
 {
   
   time_t now = time(0);
@@ -66,7 +67,7 @@ XrdMgmConfigEngineChangeLog::AddEntry(const char* info)
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMgmConfigEngineChangeLog::Tail(unsigned int nlines, XrdOucString &tail) 
+ConfigEngineChangeLog::Tail(unsigned int nlines, XrdOucString &tail) 
 {
   Mutex.Lock();
   unsigned int nfeed=0;
@@ -108,7 +109,7 @@ XrdMgmConfigEngineChangeLog::Tail(unsigned int nlines, XrdOucString &tail)
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMgmConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err) 
+ConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err) 
 {
   const char* name = env.Get("mgm.config.file");
   eos_notice("loading name=%s ", name);
@@ -121,7 +122,7 @@ XrdMgmConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err)
 
   XrdOucString fullpath = configDir;
   fullpath += name;
-  fullpath += XRDMGMCONFIGENGINE_EOS_SUFFIX;
+  fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
 
   if (::access(fullpath.c_str(),R_OK)) {
     err = "error: unable to open config file ";
@@ -169,7 +170,7 @@ XrdMgmConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
+ConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
 {
   const char* name = env.Get("mgm.config.file");
   bool force = (bool)env.Get("mgm.config.force");
@@ -202,7 +203,7 @@ XrdMgmConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
   fullpath += name;
   halfpath += name;
 
-  fullpath += XRDMGMCONFIGENGINE_EOS_SUFFIX;
+  fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
 
   if ( !::access(fullpath.c_str(),R_OK)) {
     if (!force) {
@@ -211,7 +212,7 @@ XrdMgmConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
       return false;
     }  else {
       char backupfile[4096];
-      sprintf(backupfile,"%s.backup.%lu%s",halfpath.c_str(),time(0),XRDMGMCONFIGENGINE_EOS_SUFFIX);
+      sprintf(backupfile,"%s.backup.%lu%s",halfpath.c_str(),time(0),EOSMGMCONFIGENGINE_EOS_SUFFIX);
       if (rename(fullpath.c_str(),backupfile)) {
 	err = "error: unable to move existing config file to backup version!";
 	return false;
@@ -243,7 +244,7 @@ XrdMgmConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
+ConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
 {
   struct filestat {
     struct stat buf;
@@ -271,7 +272,7 @@ XrdMgmConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
   
   while ((dp = readdir (dir)) != 0) {
     FileName = dp->d_name;
-    if ( (!strcmp(dp->d_name,".")) || (!strcmp(dp->d_name,"..")) || (!FileName.endswith(XRDMGMCONFIGENGINE_EOS_SUFFIX)))
+    if ( (!strcmp(dp->d_name,".")) || (!strcmp(dp->d_name,"..")) || (!FileName.endswith(EOSMGMCONFIGENGINE_EOS_SUFFIX)))
       continue;
     
     nobjects++;
@@ -291,7 +292,7 @@ XrdMgmConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
   int i=0;
   while ((dp = readdir (dir)) != 0) {
     FileName = dp->d_name;
-    if ( (!strcmp(dp->d_name,".")) || (!strcmp(dp->d_name,"..")) || (!FileName.endswith(XRDMGMCONFIGENGINE_EOS_SUFFIX)))
+    if ( (!strcmp(dp->d_name,".")) || (!strcmp(dp->d_name,"..")) || (!FileName.endswith(EOSMGMCONFIGENGINE_EOS_SUFFIX)))
       continue;
     
     char fullpath[8192];
@@ -306,7 +307,7 @@ XrdMgmConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
   }
   closedir(dir);
   // do the sorting
-  qsort(allstat,nobjects,sizeof(struct filestat),XrdMgmConfigEngine::CompareCtime);
+  qsort(allstat,nobjects,sizeof(struct filestat),ConfigEngine::CompareCtime);
 
   if (allstat && (nobjects >0)) {
     for (int j=0; j< i; j++) {
@@ -314,7 +315,7 @@ XrdMgmConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
       time_t modified = allstat[j].buf.st_mtime;
       
       XrdOucString fn = allstat[j].filename;
-      fn.replace(XRDMGMCONFIGENGINE_EOS_SUFFIX,"");
+      fn.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX,"");
       
       if (fn == currentConfigFile) {
 	if (changeLog.configChanges.length()) {
@@ -327,13 +328,13 @@ XrdMgmConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
       } 
 
       fn += allstat[j].filename;
-      fn.replace(XRDMGMCONFIGENGINE_EOS_SUFFIX,"");
+      fn.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX,"");
 
       sprintf(outline,"created: %s name: %s", ctime(&modified), fn.c_str());
       XrdOucString removelinefeed = outline;
       while(removelinefeed.replace('\n',"")) {}
       // remove  suffix
-      removelinefeed.replace(XRDMGMCONFIGENGINE_EOS_SUFFIX,"");
+      removelinefeed.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX,"");
       if ( (!showbackup) &&  (removelinefeed.find(".backup.") != STR_NPOS)) {
 	// don't show this ones
       } else {
@@ -352,7 +353,7 @@ XrdMgmConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmConfigEngine::BroadCastConfig() 
+ConfigEngine::BroadCastConfig() 
 {
 
   return true;
@@ -360,54 +361,54 @@ XrdMgmConfigEngine::BroadCastConfig()
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmConfigEngine::ResetConfig() 
+ConfigEngine::ResetConfig() 
 {
 
   XrdOucString cl = "reset  config ";
   changeLog.AddEntry(cl.c_str());
   changeLog.configChanges = "";
   currentConfigFile = "";
-  XrdMgmFstNode::gMutex.Lock();
-  XrdMgmFstNode::gFileSystemById.clear();
-  XrdMgmFstNode::gFstNodes.Purge();
+  FstNode::gMutex.Lock();
+  FstNode::gFileSystemById.clear();
+  FstNode::gFstNodes.Purge();
 
-  XrdMgmQuota::gQuotaMutex.Lock();
-  XrdMgmQuota::gQuota.Purge();
-  XrdMgmQuota::gQuotaMutex.UnLock();
+  Quota::gQuotaMutex.Lock();
+  Quota::gQuota.Purge();
+  Quota::gQuotaMutex.UnLock();
 
-  XrdCommonMapping::gMapMutex.Lock();
-  XrdCommonMapping::gUserRoleVector.clear();
-  XrdCommonMapping::gGroupRoleVector.clear();
-  XrdCommonMapping::gVirtualUidMap.clear();
-  XrdCommonMapping::gVirtualGidMap.clear();
-  XrdCommonMapping::gMapMutex.UnLock();
+  eos::common::Mapping::gMapMutex.LockWrite();
+  eos::common::Mapping::gUserRoleVector.clear();
+  eos::common::Mapping::gGroupRoleVector.clear();
+  eos::common::Mapping::gVirtualUidMap.clear();
+  eos::common::Mapping::gVirtualGidMap.clear();
+  eos::common::Mapping::gMapMutex.UnLockWrite();
 
   Mutex.Lock();
   configDefinitions.Purge();
   Mutex.UnLock();
-  XrdMgmFstNode::gMutex.UnLock();
+  FstNode::gMutex.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmConfigEngine::ApplyConfig(XrdOucString &err) 
+ConfigEngine::ApplyConfig(XrdOucString &err) 
 {
   err = "";
 
-  XrdMgmFstNode::gMutex.Lock();
-  XrdMgmFstNode::gFileSystemById.clear();
-  XrdMgmFstNode::gFstNodes.Purge();
+  FstNode::gMutex.Lock();
+  FstNode::gFileSystemById.clear();
+  FstNode::gFstNodes.Purge();
 
-  XrdMgmQuota::gQuotaMutex.Lock();
-  XrdMgmQuota::gQuota.Purge();
-  XrdMgmQuota::gQuotaMutex.UnLock();
+  Quota::gQuotaMutex.Lock();
+  Quota::gQuota.Purge();
+  Quota::gQuotaMutex.UnLock();
 
-  XrdCommonMapping::gMapMutex.Lock();
-  XrdCommonMapping::gUserRoleVector.clear();
-  XrdCommonMapping::gGroupRoleVector.clear();
-  XrdCommonMapping::gVirtualUidMap.clear();
-  XrdCommonMapping::gVirtualGidMap.clear();
-  XrdCommonMapping::gMapMutex.UnLock();
+  eos::common::Mapping::gMapMutex.LockWrite();
+  eos::common::Mapping::gUserRoleVector.clear();
+  eos::common::Mapping::gGroupRoleVector.clear();
+  eos::common::Mapping::gVirtualUidMap.clear();
+  eos::common::Mapping::gVirtualGidMap.clear();
+  eos::common::Mapping::gMapMutex.UnLockWrite();
 
   Mutex.Lock();
   XrdOucHash<XrdOucString> configDefinitionsCopy;
@@ -415,7 +416,7 @@ XrdMgmConfigEngine::ApplyConfig(XrdOucString &err)
   configDefinitions.Apply(ApplyEachConfig, &err);
   Mutex.UnLock();
 
-  XrdMgmFstNode::gMutex.UnLock();
+  FstNode::gMutex.UnLock();
 
   if (err.length()) {
     errno = EINVAL;
@@ -426,7 +427,7 @@ XrdMgmConfigEngine::ApplyConfig(XrdOucString &err)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmConfigEngine::ParseConfig(XrdOucString &inconfig, XrdOucString &err)
+ConfigEngine::ParseConfig(XrdOucString &inconfig, XrdOucString &err)
 {
   err = "";
   Mutex.Lock();
@@ -465,7 +466,7 @@ XrdMgmConfigEngine::ParseConfig(XrdOucString &inconfig, XrdOucString &err)
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmConfigEngine::DeleteConfigByMatch(const char* key, XrdOucString* def, void* Arg)
+ConfigEngine::DeleteConfigByMatch(const char* key, XrdOucString* def, void* Arg)
 {
   XrdOucString* matchstring = (XrdOucString*) Arg;
   XrdOucString skey = key;
@@ -479,7 +480,7 @@ XrdMgmConfigEngine::DeleteConfigByMatch(const char* key, XrdOucString* def, void
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
+ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
 {
   XrdOucString* err = (XrdOucString*) Arg;
 
@@ -496,7 +497,7 @@ XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Ar
   if (skey.beginswith("fs:")) {
     // set a filesystem definition
     skey.erase(0,3);
-    if (!XrdMgmFstNode::Update(envdev)) {
+    if (!FstNode::Update(envdev)) {
       *err += "error: unable to update config "; *err += key, *err += " => "; *err += def->c_str(); *err +="\n";
       return 0;
     }
@@ -528,14 +529,14 @@ XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Ar
     ug.assign(skey,ugoffset+1, ugequaloffset-1);
     ugid.assign(skey,ugequaloffset+1, tagoffset-1);
     tag.assign(skey,tagoffset+1);
-    XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(space.c_str());
+    SpaceQuota* spacequota = Quota::GetSpaceQuota(space.c_str());
 
     unsigned long long value = strtoll(def->c_str(),0,10);
     long id = strtol(ugid.c_str(),0,10);
 
     if (spacequota) {
       if (id>0 || (ugid == "0")) {
-	spacequota->SetQuota(XrdMgmSpaceQuota::GetTagFromString(tag), id, value, false);
+	spacequota->SetQuota(SpaceQuota::GetTagFromString(tag), id, value, false);
       } else {
 	*err += "error: illegal id found: "; *err += ugid;
 	eos_static_err("config id is negative");
@@ -551,7 +552,7 @@ XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Ar
   if (skey.beginswith("vid:")) {
     int envlen;
     // set a policy
-    if (!XrdMgmVid::Set(envdev.Env(envlen))) {
+    if (!Vid::Set(envdev.Env(envlen))) {
       eos_static_err("cannot apply config line key: |%s| => |%s|",skey.c_str(), def->c_str());
       *err += "error: cannot apply config line key: "; *err += skey.c_str();
     } 
@@ -566,7 +567,7 @@ XrdMgmConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Ar
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmConfigEngine::PrintEachConfig(const char* key, XrdOucString* def, void* Arg)
+ConfigEngine::PrintEachConfig(const char* key, XrdOucString* def, void* Arg)
 {
   if (Arg == NULL)
     eos_static_info("%s => %s", key, def->c_str());
@@ -607,7 +608,7 @@ XrdMgmConfigEngine::PrintEachConfig(const char* key, XrdOucString* def, void* Ar
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
+ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
 {
   struct PrintInfo pinfo;
 
@@ -644,7 +645,7 @@ XrdMgmConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
     // dump from stored config file
     XrdOucString fullpath = configDir;
     fullpath += name;
-    fullpath += XRDMGMCONFIGENGINE_EOS_SUFFIX;
+    fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
 
     std::ifstream infile(fullpath.c_str());
     std::string inputline;
@@ -670,3 +671,5 @@ XrdMgmConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
   }
   return true;
 }
+
+EOSMGMNAMESPACE_END

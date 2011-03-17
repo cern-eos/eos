@@ -1,23 +1,25 @@
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonLogging.hh"
-#include "XrdCommon/XrdCommonLayoutId.hh"
-#include "XrdCommon/XrdCommonMapping.hh"
-#include "XrdMgmOfs/XrdMgmPolicy.hh"
-#include "XrdMgmOfs/XrdMgmOfs.hh"
+#include "common/Logging.hh"
+#include "common/LayoutId.hh"
+#include "common/Mapping.hh"
+#include "mgm/Policy.hh"
+#include "mgm/XrdMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
+
+EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmPolicy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &attrmap, const XrdCommonMapping::VirtualIdentity &vid, unsigned long &layoutId, XrdOucString &space, XrdOucEnv &env, unsigned long &forcedfsid) 
+Policy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &attrmap, const eos::common::Mapping::VirtualIdentity &vid, unsigned long &layoutId, XrdOucString &space, XrdOucEnv &env, unsigned long &forcedfsid) 
 
 {
   // this is for the moment only defaulting or manual selection
-  unsigned long layout      = XrdCommonLayoutId::GetLayoutFromEnv(env);
-  unsigned long xsum        = XrdCommonLayoutId::GetChecksumFromEnv(env);
-  unsigned long stripes     = XrdCommonLayoutId::GetStripeNumberFromEnv(env);
-  unsigned long stripewidth = XrdCommonLayoutId::GetStripeWidthFromEnv(env);
+  unsigned long layout      = eos::common::LayoutId::GetLayoutFromEnv(env);
+  unsigned long xsum        = eos::common::LayoutId::GetChecksumFromEnv(env);
+  unsigned long stripes     = eos::common::LayoutId::GetStripeNumberFromEnv(env);
+  unsigned long stripewidth = eos::common::LayoutId::GetStripeWidthFromEnv(env);
 
   
   const char* val=0;
@@ -37,7 +39,7 @@ XrdMgmPolicy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &at
     XrdOucString layoutstring = "eos.layout.type="; layoutstring += attrmap["sys.forced.layout"].c_str();
     XrdOucEnv layoutenv(layoutstring.c_str());
     // we force to use a specified layout in this directory even if the user wants something else
-    layout = XrdCommonLayoutId::GetLayoutFromEnv(layoutenv);
+    layout = eos::common::LayoutId::GetLayoutFromEnv(layoutenv);
     eos_static_debug("sys.forced.layout in %s",path);
   }
 
@@ -45,14 +47,14 @@ XrdMgmPolicy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &at
     XrdOucString layoutstring = "eos.layout.checksum="; layoutstring += attrmap["sys.forced.checksum"].c_str();
     XrdOucEnv layoutenv(layoutstring.c_str());
     // we force to use a specified checksumming in this directory even if the user wants something else
-    xsum = XrdCommonLayoutId::GetChecksumFromEnv(layoutenv);
+    xsum = eos::common::LayoutId::GetChecksumFromEnv(layoutenv);
     eos_static_debug("sys.forced.checksum in %s",path);
   }
   if (attrmap.count("sys.forced.nstripes")) {
     XrdOucString layoutstring = "eos.layout.nstripes="; layoutstring += attrmap["sys.forced.nstripes"].c_str();
     XrdOucEnv layoutenv(layoutstring.c_str());
     // we force to use a specified stripe number in this directory even if the user wants something else
-    stripes = XrdCommonLayoutId::GetStripeNumberFromEnv(layoutenv);
+    stripes = eos::common::LayoutId::GetStripeNumberFromEnv(layoutenv);
     eos_static_debug("sys.forced.nstripes in %s",path);
   }
 
@@ -60,7 +62,7 @@ XrdMgmPolicy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &at
     XrdOucString layoutstring = "eos.layout.stripewidth="; layoutstring += attrmap["sys.forced.stripewidth"].c_str();
     XrdOucEnv layoutenv(layoutstring.c_str());
     // we force to use a specified stripe width in this directory even if the user wants something else
-    stripewidth = XrdCommonLayoutId::GetStripeWidthFromEnv(layoutenv);
+    stripewidth = eos::common::LayoutId::GetStripeWidthFromEnv(layoutenv);
     eos_static_debug("sys.forced.stripewidth in %s",path);
   }
 
@@ -77,7 +79,7 @@ XrdMgmPolicy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &at
       XrdOucString layoutstring = "eos.layout.type="; layoutstring += attrmap["user.forced.layout"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
       // we force to use a specified layout in this directory even if the user wants something else
-      layout = XrdCommonLayoutId::GetLayoutFromEnv(layoutenv);
+      layout = eos::common::LayoutId::GetLayoutFromEnv(layoutenv);
       eos_static_debug("user.forced.layout in %s",path);
     }
     
@@ -85,14 +87,14 @@ XrdMgmPolicy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &at
       XrdOucString layoutstring = "eos.layout.checksum="; layoutstring += attrmap["user.forced.checksum"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
       // we force to use a specified checksumming in this directory even if the user wants something else
-      xsum = XrdCommonLayoutId::GetChecksumFromEnv(layoutenv);
+      xsum = eos::common::LayoutId::GetChecksumFromEnv(layoutenv);
       eos_static_debug("user.forced.checksum in %s",path);
     }
     if (attrmap.count("user.forced.nstripes")) {
       XrdOucString layoutstring = "eos.layout.nstripes="; layoutstring += attrmap["user.forced.nstripes"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
       // we force to use a specified stripe number in this directory even if the user wants something else
-      stripes = XrdCommonLayoutId::GetStripeNumberFromEnv(layoutenv);
+      stripes = eos::common::LayoutId::GetStripeNumberFromEnv(layoutenv);
       eos_static_debug("user.forced.nstripes in %s",path);
     }
     
@@ -100,7 +102,7 @@ XrdMgmPolicy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &at
       XrdOucString layoutstring = "eos.layout.stripewidth="; layoutstring += attrmap["user.forced.stripewidth"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
       // we force to use a specified stripe width in this directory even if the user wants something else
-      stripewidth = XrdCommonLayoutId::GetStripeWidthFromEnv(layoutenv);
+      stripewidth = eos::common::LayoutId::GetStripeWidthFromEnv(layoutenv);
       eos_static_debug("user.forced.stripewidth in %s",path);
     }
   }
@@ -116,14 +118,14 @@ XrdMgmPolicy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &at
       forcedfsid = 0;
     }
   }
-  layoutId = XrdCommonLayoutId::GetId(layout, xsum, stripes, stripewidth);
+  layoutId = eos::common::LayoutId::GetId(layout, xsum, stripes, stripewidth);
   return; 
 }
 
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMgmPolicy::Set(const char* value) 
+Policy::Set(const char* value) 
 {
   XrdOucEnv env(value);
   XrdOucString policy=env.Get("mgm.policy");
@@ -147,7 +149,7 @@ XrdMgmPolicy::Set(const char* value)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmPolicy::Set(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
+Policy::Set(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 {
   int envlen;
   // no '&' are allowed into stdOut !
@@ -169,20 +171,22 @@ XrdMgmPolicy::Set(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString 
 
 /*----------------------------------------------------------------------------*/
 void 
-XrdMgmPolicy::Ls(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
+Policy::Ls(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 {
   
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmPolicy::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
+Policy::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 {
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
 const char* 
-XrdMgmPolicy::Get(const char* key) {
+Policy::Get(const char* key) {
   return 0;
 }
+
+EOSMGMNAMESPACE_END

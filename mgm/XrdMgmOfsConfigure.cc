@@ -6,9 +6,9 @@
 #include <dirent.h>
 #include <string.h>
 /*----------------------------------------------------------------------------*/
-#include "XrdMgmOfs/XrdMgmOfs.hh"
-#include "XrdMgmOfs/XrdMgmOfsTrace.hh"
-#include "XrdMgmOfs/XrdMgmFstNode.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/XrdMgmOfsTrace.hh"
+#include "mgm/FstNode.hh"
 #include "Namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "Namespace/persistency/ChangeLogFileMDSvc.hh"
 #include "Namespace/views/HierarchicalView.hh"
@@ -23,6 +23,7 @@
 extern XrdOucTrace gMgmOfsTrace;
 /*----------------------------------------------------------------------------*/
 
+USE_EOSMGMNAMESPACE
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::Configure(XrdSysError &Eroute) 
@@ -198,13 +199,13 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	} else {
 	  // this key is valid forever ...
 	  if (getenv("EOS_SYM_KEY")) {
-	    if (!gXrdCommonSymKeyStore.SetKey64(getenv("EOS_SYM_KEY"),0)) {
+	    if (!eos::common::gSymKeyStore.SetKey64(getenv("EOS_SYM_KEY"),0)) {
 	      Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
 	      NoGo=1;
 	    }
 	    Eroute.Say("=====> mgmofs.symkey(sysconfig) : ", getenv("EOS_SYM_KEY"));
 	  } else {
-	    if (!gXrdCommonSymKeyStore.SetKey64(val,0)) {
+	    if (!eos::common::gSymKeyStore.SetKey64(val,0)) {
 	      Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
 	      NoGo=1;
 	    }
@@ -313,9 +314,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   MgmOfsQueue = "/eos/"; MgmOfsQueue += ManagerId; MgmOfsQueue += "/mgm";
 
   // setup the circular in-memory logging buffer
-  XrdCommonLogging::Init();
+  eos::common::Logging::Init();
 
-  XrdCommonLogging::SetUnit(MgmOfsBrokerUrl.c_str());
+  eos::common::Logging::SetUnit(MgmOfsBrokerUrl.c_str());
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(),"");
 
@@ -375,13 +376,13 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   XrdOucString unit = "mgm@"; unit+= ManagerId;
 
-  XrdCommonLogging::SetLogPriority(LOG_INFO);
-  XrdCommonLogging::SetUnit(unit.c_str());
+  eos::common::Logging::SetLogPriority(LOG_INFO);
+  eos::common::Logging::SetUnit(unit.c_str());
 
   // this global hash needs to initialize the set empty key function at first place
-  XrdMgmFstNode::gFileSystemById.set_empty_key(0);
+  FstNode::gFileSystemById.set_empty_key(0);
 
-  XrdCommonLogging::gFilter = "Process,AddQuota,UpdateHint,SetQuota,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut";
+  eos::common::Logging::gFilter = "Process,AddQuota,UpdateHint,SetQuota,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut";
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,SetQuota,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut");
 
   // we automatically append the host name to the config dir now !!!
@@ -400,7 +401,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   }
 
   // start the config enging
-  ConfigEngine = new XrdMgmConfigEngine(MgmConfigDir.c_str());
+  ConfEngine = new ConfigEngine(MgmConfigDir.c_str());
 
   eos_info("autoload config=%s", getenv("EOS_AUTOLOAD_CONFIG"));
   if (getenv("EOS_AUTOLOAD_CONFIG")) {
@@ -408,7 +409,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     configloader += getenv("EOS_AUTOLOAD_CONFIG");
     XrdOucEnv configenv(configloader.c_str());
     XrdOucString stdErr="";
-    if (!ConfigEngine->LoadConfig(configenv, stdErr)) {
+    if (!ConfEngine->LoadConfig(configenv, stdErr)) {
       eos_crit("Unable to auto-load config %s", getenv("EOS_AUTOLOAD_CONFIG"));
     } else {
       eos_info("Successful auto-load config %s", getenv("EOS_AUTOLOAD_CONFIG"));
@@ -498,7 +499,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   //-------------------------------------------
 
   // create the specific listener class
-  MgmOfsMessaging = new XrdMgmMessaging(MgmOfsBrokerUrl.c_str(),MgmDefaultReceiverQueue.c_str(), true, true);
+  MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),MgmDefaultReceiverQueue.c_str(), true, true);
   if( !MgmOfsMessaging->StartListenerThread() ) NoGo = 1;
   MgmOfsMessaging->SetLogId("MgmOfsMessaging");
 

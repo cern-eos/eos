@@ -1,14 +1,14 @@
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonMapping.hh"
-#include "XrdCommon/XrdCommonFileId.hh"
-#include "XrdCommon/XrdCommonLayoutId.hh"
-#include "XrdCommon/XrdCommonPath.hh"
-#include "XrdMgmOfs/XrdMgmFstNode.hh"
-#include "XrdMgmOfs/XrdMgmOfs.hh"
-#include "XrdMgmOfs/XrdMgmOfsTrace.hh"
-#include "XrdMgmOfs/XrdMgmOfsSecurity.hh"
-#include "XrdMgmOfs/XrdMgmPolicy.hh"
-#include "XrdMgmOfs/XrdMgmQuota.hh"
+#include "common/Mapping.hh"
+#include "common/FileId.hh"
+#include "common/LayoutId.hh"
+#include "common/Path.hh"
+#include "mgm/FstNode.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/XrdMgmOfsTrace.hh"
+#include "mgm/XrdMgmOfsSecurity.hh"
+#include "mgm/Policy.hh"
+#include "mgm/Quota.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdVersion.hh"
 #include "XrdClient/XrdClientAdmin.hh"
@@ -26,6 +26,10 @@
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
+#ifdef __APPLE__
+#define ECOMM 70
+#endif
+
 #ifndef S_IAMB
 #define S_IAMB  0x1FF
 #endif
@@ -43,7 +47,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError *ep)
 {
   eDest = ep;
   ConfigFN  = 0;  
-  XrdCommonLogId();
+  eos::common::LogId();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -111,14 +115,14 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
 
    AUTHORIZE(client,&Open_Env,AOP_Readdir,"open directory",dir_path,error);
 
-   XrdCommonMapping::IdMap(client,info,tident, vid);
+   eos::common::Mapping::IdMap(client,info,tident, vid);
 
    return open(dir_path, vid, info);
 }
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfsDirectory::open(const char              *dir_path, // In
-			     XrdCommonMapping::VirtualIdentity &vid, // In
+			     eos::common::Mapping::VirtualIdentity &vid, // In
 			     const char              *info)     // In
 /*
   Function: Open the directory `path' and prepare for reading.
@@ -272,7 +276,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   SetLogId(logId, tident);
   eos_info("path=%s info=%s",path,info);
 
-  XrdCommonMapping::IdMap(client,info,tident,vid);
+  eos::common::Mapping::IdMap(client,info,tident,vid);
 
   SetLogId(logId, vid, tident);
 
@@ -333,12 +337,12 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     }
   
   // proc filter
-  if (XrdMgmProcInterface::IsProcAccess(path)) {
+  if (ProcInterface::IsProcAccess(path)) {
     gOFS->MgmStats.Add("OpenProc",vid.uid,vid.gid,1);  
-    if (!XrdMgmProcInterface::Authorize(path, info, vid, client)) {
+    if (!ProcInterface::Authorize(path, info, vid, client)) {
       return Emsg(epname, error, EPERM, "execute proc command - you don't have the requested permissions for that operation ", path);      
     } else {
-      procCmd = new XrdMgmProcCommand();
+      procCmd = new ProcCommand();
       procCmd->SetLogId(logId,vid, tident);
       return procCmd->open(path, info, vid, &error);
     }
@@ -356,7 +360,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   eos_debug("authorize done");
 
-  XrdCommonPath cPath(path);
+  eos::common::Path cPath(path);
 
   // check if we have to create the full path
   if (Mode & SFS_O_MKPTH) {
@@ -495,7 +499,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     capability += "&mgm.access=read";
   }
  
-  unsigned long layoutId = (isCreation)?XrdCommonLayoutId::kPlain:fmd->getLayoutId();
+  unsigned long layoutId = (isCreation)?eos::common::LayoutId::kPlain:fmd->getLayoutId();
   unsigned long forcedFsId = 0; // the client can force to read a file on a defined file system
   unsigned long fsIndex = 0; // this is the filesystem defining the client access point in the selection vector - for writes it is always 0, for reads it comes out of the FileAccess function
   unsigned long long cid = fmd->getContainerId();
@@ -503,7 +507,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   unsigned long newlayoutId=0;
   // select space and layout according to policies
-  XrdMgmPolicy::GetLayoutAndSpace(path, attrmap, vid, newlayoutId, space, *openOpaque, forcedFsId);
+  Policy::GetLayoutAndSpace(path, attrmap, vid, newlayoutId, space, *openOpaque, forcedFsId);
 
   if (isCreation || ( (open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation()))) {
     layoutId = newlayoutId;
@@ -524,7 +528,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     //-------------------------------------------
   }
   
-  XrdMgmSpaceQuota* quotaspace = XrdMgmQuota::GetSpaceQuota(space.c_str(),false);
+  SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(),false);
 
   if (!quotaspace) {
     return Emsg(epname, error, EINVAL, "get quota space ", space.c_str());
@@ -537,10 +541,10 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   capability += "&mgm.gid=";      capability+=(int)vid.gid_list[0];
   capability += "&mgm.path=";      capability += path;
   capability += "&mgm.manager=";   capability += gOFS->ManagerId.c_str();
-  capability += "&mgm.fid=";    XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fileId,hexfid);capability += hexfid;
+  capability += "&mgm.fid=";    XrdOucString hexfid; eos::common::FileId::Fid2Hex(fileId,hexfid);capability += hexfid;
 
   XrdOucString sizestring;
-  capability += "&mgm.cid=";       capability += XrdCommonFileSystem::GetSizeString(sizestring,cid);
+  capability += "&mgm.cid=";       capability += eos::common::StringConversion::GetSizeString(sizestring,cid);
   
   if (attrmap.count("user.tag")) {
     capability += "&mgm.container="; 
@@ -550,12 +554,12 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   // this will be replaced with the scheduling call
 
 
-  XrdMgmFstFileSystem* filesystem = 0;
+  FstFileSystem* filesystem = 0;
 
   std::vector<unsigned int> selectedfs;
   std::vector<unsigned int>::const_iterator sfs;
 
-  XrdMgmFstNode::gMutex.Lock();
+  FstNode::gMutex.Lock();
   int retc = 0;
     // ************************************************************************************************
   if (isCreation || ( (open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation()))) {
@@ -579,7 +583,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
     if (! selectedfs.size()) {
       // this file has not a single existing replica
-      XrdMgmFstNode::gMutex.UnLock();
+      FstNode::gMutex.UnLock();
       return Emsg(epname, error, ENODEV,  "open - no replica exists", path);	    
     }
 
@@ -605,19 +609,19 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	  gOFS->MgmHealMapMutex.UnLock();
 	  gOFS->MgmStats.Add("OpenFailedHeal",vid.uid,vid.gid,1);  
 	  XrdOucString msg = "heal file with inaccesible replica's after "; msg += (int) nmaxheal; msg += " tries - giving up";
-	  XrdMgmFstNode::gMutex.UnLock();
+	  FstNode::gMutex.UnLock();
 	  eos_info(msg.c_str());
 	  return Emsg(epname, error, ENOSR, msg.c_str(), path);	    
 	} else {
 	  // increase the heal counter for that file id
 	  gOFS->MgmHealMap[fileId] = nheal+1;
-	  XrdMgmProcCommand* procCmd = new XrdMgmProcCommand();
+	  ProcCommand* procCmd = new ProcCommand();
 	  if (procCmd) {
-	    XrdMgmFstNode::gMutex.UnLock();
+	    FstNode::gMutex.UnLock();
 	    // issue the adjustreplica command as root
-	    XrdCommonMapping::VirtualIdentity vidroot;
-	    XrdCommonMapping::Copy(vid, vidroot);
-	    XrdCommonMapping::Root(vidroot);
+	    eos::common::Mapping::VirtualIdentity vidroot;
+	    eos::common::Mapping::Copy(vid, vidroot);
+	    eos::common::Mapping::Root(vidroot);
 	    XrdOucString cmd = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.file.express=1&mgm.path="; cmd += path;
 	    procCmd->open("/proc/user/",cmd.c_str(), vidroot, &error);
 	    procCmd->close();
@@ -633,7 +637,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	    return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
 	  } else {
 	    gOFS->MgmHealMapMutex.UnLock();
-	    XrdMgmFstNode::gMutex.UnLock();
+	    FstNode::gMutex.UnLock();
 	    return Emsg(epname, error, ENOMEM,  "allocate memory for proc command", path);	    
 	  }
 	}
@@ -646,7 +650,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	if (stalltime) {
 	  // stall the client
 	  gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
-	  XrdMgmFstNode::gMutex.UnLock();
+	  FstNode::gMutex.UnLock();
 	  eos_info("[sys] stalling file %s (rw=%d) - replica(s) down",path, isRW);
 	  return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
 	}
@@ -657,7 +661,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	if (stalltime) {
 	  // stall the client
 	  gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
-	  XrdMgmFstNode::gMutex.UnLock();
+	  FstNode::gMutex.UnLock();
 	  eos_info("[user] stalling file %s (rw=%d) - replica(s) down",path, isRW);
 	  return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
 	}
@@ -667,7 +671,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       gOFS->MgmStats.Add("OpenFailedQuota",vid.uid,vid.gid,1);  
     }
 
-    XrdMgmFstNode::gMutex.UnLock();
+    FstNode::gMutex.UnLock();
 
 
     return Emsg(epname, error, retc, "access quota space ", path);
@@ -680,36 +684,36 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     eos_err("0 filesystem in selection");
   }
 
-  filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[selectedfs[fsIndex]];
+  filesystem = (FstFileSystem*)FstNode::gFileSystemById[selectedfs[fsIndex]];
   filesystem->GetHostPort(targethost,targetport);
   redirectionhost= targethost;
   redirectionhost+= "?";
 
 
   // rebuild the layout ID (for read it should indicate only the number of available stripes for reading);
-  newlayoutId = XrdCommonLayoutId::GetId(XrdCommonLayoutId::GetLayoutType(layoutId), XrdCommonLayoutId::GetChecksum(layoutId), (int)selectedfs.size(), XrdCommonLayoutId::GetStripeWidth(layoutId));
+  newlayoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::GetLayoutType(layoutId), eos::common::LayoutId::GetChecksum(layoutId), (int)selectedfs.size(), eos::common::LayoutId::GetStripeWidth(layoutId));
   capability += "&mgm.lid=";    
   capability += (int)newlayoutId;
 
 
   
-  if ( XrdCommonLayoutId::GetLayoutType(layoutId) == XrdCommonLayoutId::kPlain ) {
+  if ( eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kPlain ) {
     capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
     capability += "&mgm.localprefix="; capability+= filesystem->GetPath();
   }
 
-  if ( XrdCommonLayoutId::GetLayoutType(layoutId) == XrdCommonLayoutId::kReplica ) {
+  if ( eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReplica ) {
     capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
     capability += "&mgm.localprefix="; capability+= filesystem->GetPath();
     
-    XrdMgmFstFileSystem* repfilesystem = 0;
+    FstFileSystem* repfilesystem = 0;
     // put all the replica urls into the capability
     for ( int i = 0; i < (int)selectedfs.size(); i++) {
       if (!selectedfs[i]) 
 	eos_err("0 filesystem in replica vector");
-      repfilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[selectedfs[i]];
+      repfilesystem = (FstFileSystem*)FstNode::gFileSystemById[selectedfs[i]];
       if (!repfilesystem) {
-	XrdMgmFstNode::gMutex.UnLock();
+	FstNode::gMutex.UnLock();
 	return Emsg(epname, error, EINVAL, "get replica filesystem information",path);
       }
       capability += "&mgm.url"; capability += i; capability += "=root://";
@@ -725,12 +729,12 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     //    capability += path;
   }
   
-  XrdMgmFstNode::gMutex.UnLock();
+  FstNode::gMutex.UnLock();
 
   // encrypt capability
   XrdOucEnv  incapability(capability.c_str());
   XrdOucEnv* capabilityenv = 0;
-  XrdCommonSymKey* symkey = gXrdCommonSymKeyStore.GetCurrentKey();
+  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 
   int caprc=0;
   if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
@@ -958,7 +962,7 @@ int XrdMgmOfs::chmod(const char                *path,    // In
   //  mode_t acc_mode = Mode & S_IAMB;
 
   // use a thread private vid
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 
   XrdOucEnv chmod_Env(info);
 
@@ -966,7 +970,7 @@ int XrdMgmOfs::chmod(const char                *path,    // In
 
   AUTHORIZE(client,&chmod_Env,AOP_Chmod,"chmod",path,error);
 
-  XrdCommonMapping::IdMap(client,info,tident,vid);
+  eos::common::Mapping::IdMap(client,info,tident,vid);
   
   return _chmod(path,Mode, error,vid,info);
 }
@@ -975,7 +979,7 @@ int XrdMgmOfs::chmod(const char                *path,    // In
 int XrdMgmOfs::_chmod(const char               *path,    // In
                               XrdSfsMode        Mode,    // In
                               XrdOucErrInfo    &error,   // Out
-	       XrdCommonMapping::VirtualIdentity &vid,   // In
+	       eos::common::Mapping::VirtualIdentity &vid,   // In
                         const char             *info)    // In
 
 {
@@ -1025,7 +1029,7 @@ int XrdMgmOfs::exists(const char                *path,        // In
   const char *tident = error.getErrUser();
 
   // use a thread private vid
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 
   XrdOucEnv exists_Env(info);
 
@@ -1033,7 +1037,7 @@ int XrdMgmOfs::exists(const char                *path,        // In
 
   AUTHORIZE(client,&exists_Env,AOP_Stat,"execute exists",path,error);
 
-  XrdCommonMapping::IdMap(client,info,tident,vid);
+  eos::common::Mapping::IdMap(client,info,tident,vid);
   
   return _exists(path,file_exists,error,vid,info);
 }
@@ -1108,7 +1112,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
 int XrdMgmOfs::_exists(const char                *path,        // In
                                XrdSfsFileExistence &file_exists, // Out
                                XrdOucErrInfo       &error,       // Out
-		       XrdCommonMapping::VirtualIdentity &vid,   // In
+		       eos::common::Mapping::VirtualIdentity &vid,   // In
                          const char                *info)        // In
 /*
   Function: Determine if file 'path' actually exists.
@@ -1172,7 +1176,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
 /*----------------------------------------------------------------------------*/
 const char *XrdMgmOfs::getVersion() {
   static XrdOucString FullVersion = XrdVERSION;
-  FullVersion += " MgmOfs "; FullVersion += PACKAGE_VERSION;
+  FullVersion += " MgmOfs "; FullVersion += VERSION;
   return FullVersion.c_str();
 }
 
@@ -1187,7 +1191,7 @@ int XrdMgmOfs::mkdir(const char             *path,    // In
    const char *tident = error.getErrUser();
 
    // use a thread private vid
-   XrdCommonMapping::VirtualIdentity vid;
+   eos::common::Mapping::VirtualIdentity vid;
 
    XrdOucEnv mkdir_Env(info);
    
@@ -1195,7 +1199,7 @@ int XrdMgmOfs::mkdir(const char             *path,    // In
 
    eos_info("path=%s",path);
 
-   XrdCommonMapping::IdMap(client,info,tident,vid);
+   eos::common::Mapping::IdMap(client,info,tident,vid);
 
    return  _mkdir(path,Mode,error,vid,info);
 }
@@ -1204,7 +1208,7 @@ int XrdMgmOfs::mkdir(const char             *path,    // In
 int XrdMgmOfs::_mkdir(const char            *path,    // In
 		      XrdSfsMode             Mode,    // In
 		      XrdOucErrInfo         &error,   // Out
-		      XrdCommonMapping::VirtualIdentity &vid, // In
+		      eos::common::Mapping::VirtualIdentity &vid, // In
 		      const char            *info)    // In
 /*
   Function: Create a directory entry.
@@ -1236,7 +1240,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 
   bool recurse = false;
   
-  XrdCommonPath cPath(path);
+  eos::common::Path cPath(path);
   bool noParent=false;
 
   eos::ContainerMD* dir=0;
@@ -1427,7 +1431,7 @@ int XrdMgmOfs::rem(const char             *path,    // In
    const char *tident = error.getErrUser();
 
    // use a thread private vid
-   XrdCommonMapping::VirtualIdentity vid;
+   eos::common::Mapping::VirtualIdentity vid;
 
    XTRACE(remove, path,"");
 
@@ -1437,7 +1441,7 @@ int XrdMgmOfs::rem(const char             *path,    // In
 
    XTRACE(remove, path,"");
 
-   XrdCommonMapping::IdMap(client,info,tident,vid);
+   eos::common::Mapping::IdMap(client,info,tident,vid);
 
    return _rem(path,error,vid,info);
 }
@@ -1445,7 +1449,7 @@ int XrdMgmOfs::rem(const char             *path,    // In
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::_rem(   const char             *path,    // In
 		       XrdOucErrInfo          &error,   // Out
-		       XrdCommonMapping::VirtualIdentity &vid, //In
+		       eos::common::Mapping::VirtualIdentity &vid, //In
 		       const char             *info)    // In
 /*
   Function: Delete a file from the namespace.
@@ -1522,7 +1526,7 @@ int XrdMgmOfs::remdir(const char             *path,    // In
    const char *tident = error.getErrUser();
 
    // use a thread private vid
-   XrdCommonMapping::VirtualIdentity vid;
+   eos::common::Mapping::VirtualIdentity vid;
 
    XrdOucEnv remdir_Env(info);
 
@@ -1532,7 +1536,7 @@ int XrdMgmOfs::remdir(const char             *path,    // In
 
    AUTHORIZE(client,&remdir_Env,AOP_Delete,"remove",path, error);
 
-   XrdCommonMapping::IdMap(client,info,tident,vid);
+   eos::common::Mapping::IdMap(client,info,tident,vid);
 
    return _remdir(path,error,vid,info);
 }
@@ -1540,7 +1544,7 @@ int XrdMgmOfs::remdir(const char             *path,    // In
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::_remdir(const char             *path,    // In
 		       XrdOucErrInfo          &error,   // Out
-		       XrdCommonMapping::VirtualIdentity &vid, // In
+		       eos::common::Mapping::VirtualIdentity &vid, // In
 		       const char             *info)    // In
 /*
   Function: Delete a directory from the namespace.
@@ -1623,7 +1627,7 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   errno = 0;
 
   // use a thread private vid
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 
   XrdOucString source, destination;
   XrdOucString oldn,newn;
@@ -1633,7 +1637,7 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   AUTHORIZE(client,&renameo_Env,AOP_Update,"rename",old_name, error);
   AUTHORIZE(client,&renamen_Env,AOP_Update,"rename",new_name, error);
 
-  XrdCommonMapping::IdMap(client,infoO,tident,vid);
+  eos::common::Mapping::IdMap(client,infoO,tident,vid);
   int r1,r2;
   
   r1=r2=SFS_OK;
@@ -1698,7 +1702,7 @@ int XrdMgmOfs::stat(const char              *path,        // In
 
   
   // use a thread private vid
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 
   XrdSecEntity mappedclient();
 
@@ -1708,7 +1712,7 @@ int XrdMgmOfs::stat(const char              *path,        // In
 
   AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",path,error);
 
-  XrdCommonMapping::IdMap(client,info,tident,vid);
+  eos::common::Mapping::IdMap(client,info,tident,vid);
   return _stat(path, buf, error, vid, info);
 }
 
@@ -1716,7 +1720,7 @@ int XrdMgmOfs::stat(const char              *path,        // In
 int XrdMgmOfs::_stat(const char              *path,        // In
                            struct stat       *buf,         // Out
                            XrdOucErrInfo     &error,       // Out
-		     XrdCommonMapping::VirtualIdentity &vid,  // In
+		     eos::common::Mapping::VirtualIdentity &vid,  // In
                      const char              *info)        // In
 {
   static const char *epname = "_stat";
@@ -1832,7 +1836,7 @@ int XrdMgmOfs::truncate(const char*,
   static const char *epname = "truncate";
 
   // use a thread private vid
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 
   gOFS->MgmStats.Add("Truncate",vid.uid,vid.gid,1);  
   return Emsg(epname, error, EOPNOTSUPP, "truncate", path);
@@ -1850,13 +1854,13 @@ int XrdMgmOfs::readlink(const char          *path,        // In
   XrdOucEnv rl_Env(info);
 
   // use a thread private vid
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 
   XTRACE(fsctl, path,"");
 
   AUTHORIZE(client,&rl_Env,AOP_Stat,"readlink",path,error);
   
-  XrdCommonMapping::IdMap(client,info,tident,vid);
+  eos::common::Mapping::IdMap(client,info,tident,vid);
 
   gOFS->MgmStats.Add("ReadLink",vid.uid,vid.gid,1);  
 
@@ -1875,7 +1879,7 @@ int XrdMgmOfs::symlink(const char           *path,        // In
   XrdOucEnv sl_Env(info);
 
   // use a thread private vid
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 
   XTRACE(fsctl, path,"");
 
@@ -1886,7 +1890,7 @@ int XrdMgmOfs::symlink(const char           *path,        // In
   // we only need to map absolut links
   source = path;
 
-  XrdCommonMapping::IdMap(client,info,tident,vid);
+  eos::common::Mapping::IdMap(client,info,tident,vid);
 
   gOFS->MgmStats.Add("Symlink",vid.uid,vid.gid,1);  
 
@@ -1908,7 +1912,7 @@ int XrdMgmOfs::access( const char           *path,        // In
 
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
 
-  XrdCommonMapping::IdMap(client,info,tident,vid);  
+  eos::common::Mapping::IdMap(client,info,tident,vid);  
 
   gOFS->MgmStats.Add("Access",vid.uid,vid.gid,1);  
 
@@ -1927,13 +1931,13 @@ int XrdMgmOfs::utimes(  const char          *path,        // In
   XrdOucEnv utimes_Env(info);
 
   // use a thread private vid
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 
   XTRACE(fsctl, path,"");
 
   AUTHORIZE(client,&utimes_Env,AOP_Update,"set utimes",path,error);
 
-  XrdCommonMapping::IdMap(client,info,tident,vid);  
+  eos::common::Mapping::IdMap(client,info,tident,vid);  
   return _utimes(path,tvp, error, vid, info);
 }
 
@@ -1941,7 +1945,7 @@ int XrdMgmOfs::utimes(  const char          *path,        // In
 int XrdMgmOfs::_utimes(  const char          *path,        // In
 			struct timespec      *tvp,         // In
 			 XrdOucErrInfo       &error,       // Out
-			 XrdCommonMapping::VirtualIdentity &vid, // In
+			 eos::common::Mapping::VirtualIdentity &vid, // In
 			 const char          *info)        // In
 {
   bool done=false;
@@ -1988,7 +1992,7 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::_find(const char       *path,             // In 
 		     XrdOucErrInfo    &out_error,        // Out
-		     XrdCommonMapping::VirtualIdentity &vid, // In
+		     eos::common::Mapping::VirtualIdentity &vid, // In
 		     std::vector< std::vector<std::string> > &found_dirs, // Out
 		     std::vector< std::vector<std::string> > &found_files, // Out
 		     const char* key, const char* val
@@ -2458,13 +2462,13 @@ XrdMgmOfs::FSctl(const int               cmd,
 	//-------------------------------------------
 	gOFS->eosViewMutex.Lock();
 	try { 
-	  eos::FileMD* fmd = eosFileService->getFileMD(XrdCommonFileId::Hex2Fid(afid));
+	  eos::FileMD* fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
 	  eos_debug("removing location %u of fid=%s", fsid,afid);
 	  fmd->removeLocation(fsid);
 	  gOFS->eosView->updateFileStore(fmd);
 
 	  // after update we have get the new address - who knows ....
-	  fmd = eosFileService->getFileMD(XrdCommonFileId::Hex2Fid(afid));
+	  fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
 	  // finally delete the record if all replicas are dropped
 	  if (!fmd->getNumUnlinkedLocation() && !fmd->getNumLocation()) {
 	    gOFS->eosView->removeFile( fmd );
@@ -2644,13 +2648,13 @@ XrdMgmOfs::attr_ls(const char             *path,
   const char *tident = error.getErrUser(); 
   XrdOucEnv access_Env(info);
   // use a thread private vid
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 
   XTRACE(fsctl, path,"");
 
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
   
-  XrdCommonMapping::IdMap(client,info,tident,vid);  
+  eos::common::Mapping::IdMap(client,info,tident,vid);  
 
   return _attr_ls(path, error,vid,info,map);
 }   
@@ -2667,7 +2671,7 @@ XrdMgmOfs::attr_set(const char             *path,
   static const char *epname = "attr_set";
   const char *tident = error.getErrUser(); 
   // use a thread private vid
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 
   XrdOucEnv access_Env(info);
 
@@ -2675,7 +2679,7 @@ XrdMgmOfs::attr_set(const char             *path,
 
   AUTHORIZE(client,&access_Env,AOP_Update,"update",path,error);
   
-  XrdCommonMapping::IdMap(client,info,tident,vid);  
+  eos::common::Mapping::IdMap(client,info,tident,vid);  
   
   return _attr_set(path, error,vid,info,key,value);
 }
@@ -2692,7 +2696,7 @@ XrdMgmOfs::attr_get(const char             *path,
   static const char *epname = "attr_get";
   const char *tident = error.getErrUser(); 
   // use a thread private vid
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 
   XrdOucEnv access_Env(info);
 
@@ -2700,7 +2704,7 @@ XrdMgmOfs::attr_get(const char             *path,
 
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
   
-  XrdCommonMapping::IdMap(client,info,tident,vid);  
+  eos::common::Mapping::IdMap(client,info,tident,vid);  
   
   return _attr_get(path, error,vid,info,key,value);
 }
@@ -2716,7 +2720,7 @@ XrdMgmOfs::attr_rem(const char             *path,
   static const char *epname = "attr_rm";
   const char *tident = error.getErrUser(); 
   // use a thread private vid
-  XrdCommonMapping::VirtualIdentity vid;
+  eos::common::Mapping::VirtualIdentity vid;
 
   XrdOucEnv access_Env(info); 
 
@@ -2724,7 +2728,7 @@ XrdMgmOfs::attr_rem(const char             *path,
 
   AUTHORIZE(client,&access_Env,AOP_Delete,"delete",path,error);
   
-  XrdCommonMapping::IdMap(client,info,tident,vid);  
+  eos::common::Mapping::IdMap(client,info,tident,vid);  
   
   return _attr_rem(path, error,vid,info,key);
 }
@@ -2733,7 +2737,7 @@ XrdMgmOfs::attr_rem(const char             *path,
 int
 XrdMgmOfs::_attr_ls(const char             *path,
 		   XrdOucErrInfo    &error,
-		   XrdCommonMapping::VirtualIdentity &vid,
+		   eos::common::Mapping::VirtualIdentity &vid,
 		   const char             *info,
 		   eos::ContainerMD::XAttrMap &map)
 {
@@ -2776,7 +2780,7 @@ XrdMgmOfs::_attr_ls(const char             *path,
 int
 XrdMgmOfs::_attr_set(const char             *path,
 		     XrdOucErrInfo    &error,
-		     XrdCommonMapping::VirtualIdentity &vid,
+		     eos::common::Mapping::VirtualIdentity &vid,
 		     const char             *info,
 		     const char             *key,
 		     const char             *value)
@@ -2822,7 +2826,7 @@ XrdMgmOfs::_attr_set(const char             *path,
 int
 XrdMgmOfs::_attr_get(const char             *path,
 		     XrdOucErrInfo    &error,
-		     XrdCommonMapping::VirtualIdentity &vid,
+		     eos::common::Mapping::VirtualIdentity &vid,
 		     const char             *info,
 		     const char             *key,
 		     XrdOucString           &value,
@@ -2869,7 +2873,7 @@ XrdMgmOfs::_attr_get(const char             *path,
 int
 XrdMgmOfs::_attr_rem(const char             *path,
 				 XrdOucErrInfo    &error,
-		     XrdCommonMapping::VirtualIdentity &vid,
+		     eos::common::Mapping::VirtualIdentity &vid,
 		     const char             *info,
 		     const char             *key)
 {
@@ -2912,7 +2916,7 @@ XrdMgmOfs::_attr_rem(const char             *path,
 int
 XrdMgmOfs::_verifystripe(const char             *path,
 		       XrdOucErrInfo          &error,
-		       XrdCommonMapping::VirtualIdentity &vid,
+		       eos::common::Mapping::VirtualIdentity &vid,
 		       unsigned long           fsid,
 		       XrdOucString            option)
 {
@@ -2929,7 +2933,7 @@ XrdMgmOfs::_verifystripe(const char             *path,
   gOFS->MgmStats.Add("VerifyStripe",vid.uid,vid.gid,1);  
 
   eos_debug("verify");
-  XrdCommonPath cPath(path);
+  eos::common::Path cPath(path);
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   try {
@@ -2979,22 +2983,22 @@ XrdMgmOfs::_verifystripe(const char             *path,
   gOFS->eosViewMutex.UnLock();
   
   if (!errno) {
-    XrdMgmFstNode::gMutex.Lock();
-    XrdMgmFstFileSystem* verifyfilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[fsid];
+    FstNode::gMutex.Lock();
+    FstFileSystem* verifyfilesystem = (FstFileSystem*)FstNode::gFileSystemById[fsid];
     if (!verifyfilesystem) {
       errno = EINVAL;
-      XrdMgmFstNode::gMutex.UnLock();
+      FstNode::gMutex.UnLock();
       return  Emsg(epname,error,ENOENT,"verify stripe - filesystem does not exist",fmd->getName().c_str());  
     }
 
     XrdOucString receiver    = verifyfilesystem->GetQueue();
     
-    XrdMgmFstNode::gMutex.UnLock();
+    FstNode::gMutex.UnLock();
     
     XrdOucString opaquestring = "";
     // build the opaquestring contents
     opaquestring += "&mgm.localprefix=";       opaquestring += verifyfilesystem->GetPath();
-    opaquestring += "&mgm.fid=";XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fid,hexfid);opaquestring += hexfid;
+    opaquestring += "&mgm.fid=";XrdOucString hexfid; eos::common::FileId::Fid2Hex(fid,hexfid);opaquestring += hexfid;
     opaquestring += "&mgm.manager=";           opaquestring += gOFS->ManagerId.c_str();
     opaquestring += "&mgm.access=verify";
     opaquestring += "&mgm.fsid=";              opaquestring += (int)verifyfilesystem->GetId();
@@ -3003,7 +3007,7 @@ XrdMgmOfs::_verifystripe(const char             *path,
       opaquestring += attrmap["user.tag"].c_str();
     }
     XrdOucString sizestring="";
-    opaquestring += "&mgm.cid=";               opaquestring += XrdCommonFileSystem::GetSizeString(sizestring,cid);
+    opaquestring += "&mgm.cid=";               opaquestring += eos::common::StringConversion::GetSizeString(sizestring,cid);
     opaquestring += "&mgm.path=";              opaquestring += path;
     opaquestring += "&mgm.lid=";               opaquestring += lid;
 
@@ -3019,7 +3023,7 @@ XrdMgmOfs::_verifystripe(const char             *path,
     // we send deletions in bunches of max 1000 for efficiency
     message.SetBody(msgbody.c_str());   
 
-    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+    if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
       eos_static_err("unable to send verification message to %s", receiver.c_str());
       errno = ECOMM;
     } else {
@@ -3037,7 +3041,7 @@ XrdMgmOfs::_verifystripe(const char             *path,
 int
 XrdMgmOfs::_dropstripe(const char             *path,
 		       XrdOucErrInfo          &error,
-		       XrdCommonMapping::VirtualIdentity &vid,
+		       eos::common::Mapping::VirtualIdentity &vid,
 		       unsigned long           fsid,
 		       bool                    forceRemove)
 {
@@ -3049,7 +3053,7 @@ XrdMgmOfs::_dropstripe(const char             *path,
   gOFS->MgmStats.Add("DropStripe",vid.uid,vid.gid,1);  
 
   eos_debug("drop");
-  XrdCommonPath cPath(path);
+  eos::common::Path cPath(path);
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   try {
@@ -3108,7 +3112,7 @@ XrdMgmOfs::_dropstripe(const char             *path,
 int
 XrdMgmOfs::_movestripe(const char             *path,
 		       XrdOucErrInfo          &error,
-		       XrdCommonMapping::VirtualIdentity &vid,
+		       eos::common::Mapping::VirtualIdentity &vid,
 		       unsigned long           sourcefsid,
 		       unsigned long           targetfsid,
 		       bool                    expressflag)
@@ -3120,7 +3124,7 @@ XrdMgmOfs::_movestripe(const char             *path,
 int
 XrdMgmOfs::_copystripe(const char             *path,
 		       XrdOucErrInfo          &error,
-		       XrdCommonMapping::VirtualIdentity &vid,
+		       eos::common::Mapping::VirtualIdentity &vid,
 		       unsigned long           sourcefsid,
 		       unsigned long           targetfsid, 
 		       bool                    expressflag)
@@ -3132,7 +3136,7 @@ XrdMgmOfs::_copystripe(const char             *path,
 int
 XrdMgmOfs::_replicatestripe(const char             *path,
 			    XrdOucErrInfo          &error,
-			    XrdCommonMapping::VirtualIdentity &vid,
+			    eos::common::Mapping::VirtualIdentity &vid,
 			    unsigned long           sourcefsid,
 			    unsigned long           targetfsid, 
 			    bool                    dropsource,
@@ -3142,7 +3146,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   eos::ContainerMD *dh=0;
   errno = 0;
   
-  XrdCommonPath cPath(path);
+  eos::common::Path cPath(path);
 
   eos_debug("replicating %s from %u=>%u [drop=%d]", path, sourcefsid,targetfsid,dropsource);
   //-------------------------------------------
@@ -3192,7 +3196,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
 int
 XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd, 
 			    XrdOucErrInfo          &error,
-			    XrdCommonMapping::VirtualIdentity &vid,
+			    eos::common::Mapping::VirtualIdentity &vid,
 			    unsigned long           sourcefsid,
 			    unsigned long           targetfsid, 
 			    bool                    dropsource,
@@ -3212,16 +3216,16 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   capability += "mgm.access=read";
 
   // replication always assumes movements of a simple single file without structure
-  capability += "&mgm.lid="; capability += XrdCommonLayoutId::kPlain;
+  capability += "&mgm.lid="; capability += eos::common::LayoutId::kPlain;
   XrdOucString sizestring;
-  capability += "&mgm.cid=";        capability += XrdCommonFileSystem::GetSizeString(sizestring,cid);
+  capability += "&mgm.cid=";        capability += eos::common::StringConversion::GetSizeString(sizestring,cid);
   capability += "&mgm.ruid=";       capability+=(int)vid.uid; 
   capability += "&mgm.rgid=";       capability+=(int)vid.gid;
   capability += "&mgm.uid=";        capability+=(int)vid.uid_list[0]; 
   capability += "&mgm.gid=";        capability+=(int)vid.gid_list[0];
   capability += "&mgm.path=";       capability += fmd->getName().c_str();
   capability += "&mgm.manager=";    capability += gOFS->ManagerId.c_str();
-  capability += "&mgm.fid=";    XrdOucString hexfid; XrdCommonFileId::Fid2Hex(fileId,hexfid);capability += hexfid;
+  capability += "&mgm.fid=";    XrdOucString hexfid; eos::common::FileId::Fid2Hex(fileId,hexfid);capability += hexfid;
 
   if (dropsource) {
     capability += "&mgm.dropsource=1";
@@ -3235,25 +3239,25 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
     return Emsg(epname,error, EINVAL, "illegal source/target fsid", fmd->getName().c_str());
   }
 
-  XrdMgmFstNode::gMutex.Lock();
-  XrdMgmFstFileSystem* sourcefilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[sourcefsid];
-  XrdMgmFstFileSystem* targetfilesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[targetfsid];
+  FstNode::gMutex.Lock();
+  FstFileSystem* sourcefilesystem = (FstFileSystem*)FstNode::gFileSystemById[sourcefsid];
+  FstFileSystem* targetfilesystem = (FstFileSystem*)FstNode::gFileSystemById[targetfsid];
 
   if (!sourcefilesystem) {
     errno = EINVAL;
-    XrdMgmFstNode::gMutex.UnLock();
+    FstNode::gMutex.UnLock();
     return  Emsg(epname,error,ENOENT,"replicate stripe - source filesystem does not exist",fmd->getName().c_str());  
   }
 
   if (!targetfilesystem) {
     errno = EINVAL;
-    XrdMgmFstNode::gMutex.UnLock();
+    FstNode::gMutex.UnLock();
     return  Emsg(epname,error,ENOENT,"replicate stripe - target filesystem does not exist",fmd->getName().c_str());  
   }
 
   XrdOucString receiver    = targetfilesystem->GetQueue();
 
-  XrdMgmFstNode::gMutex.UnLock();
+  FstNode::gMutex.UnLock();
 
   // build the capability contents
   capability += "&mgm.localprefix=";       capability += sourcefilesystem->GetPath();
@@ -3268,7 +3272,7 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   // issue a capability
   XrdOucEnv incapability(capability.c_str());
   XrdOucEnv* capabilityenv = 0;
-  XrdCommonSymKey* symkey = gXrdCommonSymKeyStore.GetCurrentKey();
+  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 
   int caprc=0;
   if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
@@ -3283,7 +3287,7 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
     msgbody += capabilityenv->Env(caplen);
     // we send deletions in bunches of max 1000 for efficiency
     message.SetBody(msgbody.c_str());   
-    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+    if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
       eos_static_err("unable to send deletion message to %s", receiver.c_str());
       errno = ECOMM;
     } else {
@@ -3330,12 +3334,12 @@ XrdMgmOfs::Deletion()
     eos_static_debug("running deletion");
     std::vector <unsigned int> fslist;
     // get a list of file Ids
-    XrdMgmFstNode::gMutex.Lock();
+    FstNode::gMutex.Lock();
     google::dense_hash_map<unsigned int, unsigned long long>::const_iterator it;
-    for (it= XrdMgmFstNode::gFileSystemById.begin() ; it != XrdMgmFstNode::gFileSystemById.end(); ++it) {
+    for (it= FstNode::gFileSystemById.begin() ; it != FstNode::gFileSystemById.end(); ++it) {
       fslist.push_back(it->first);
     }
-    XrdMgmFstNode::gMutex.UnLock();
+    FstNode::gMutex.UnLock();
     
     for (unsigned int i=0 ; i< fslist.size(); i++) {
       // loop over all file systems
@@ -3349,7 +3353,7 @@ XrdMgmOfs::Deletion()
 	eos::FileSystemView::FileIterator it;
 	int ndeleted=0;
 
-	XrdMgmFstFileSystem* fs = 0;
+	FstFileSystem* fs = 0;
 	XrdOucString receiver="";
 	XrdOucString msgbody = "mgm.cmd=drop"; 
 	XrdOucString capability ="";
@@ -3366,15 +3370,15 @@ XrdMgmOfs::Deletion()
 	      eos_err("0 filesystem in deletion list");
 	      continue ;
 	    }
-	    XrdMgmFstNode::gMutex.Lock();
-	    fs = ((XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[ fslist[i] ]);
+	    FstNode::gMutex.Lock();
+	    fs = ((FstFileSystem*)FstNode::gFileSystemById[ fslist[i] ]);
 
 	    if (fs) {
 	      // check the state of the filesystem (if it can actually delete in this moment!)
-	      if ( (fs->GetConfigStatus() <= XrdCommonFileSystem::kOff) || 
-		   (fs->GetBootStatus()  != XrdCommonFileSystem::kBooted) ) {
+	      if ( (fs->GetConfigStatus() <= eos::common::FileSystem::kOff) || 
+		   (fs->GetBootStatus()  != eos::common::FileSystem::kBooted) ) {
 		// we don't need to send messages, this one is anyway down
-		XrdMgmFstNode::gMutex.UnLock();
+		FstNode::gMutex.UnLock();
 		break;
 	      }
 
@@ -3387,11 +3391,11 @@ XrdMgmOfs::Deletion()
 	      capability += "&mgm.fids=";
 	      receiver    = fs->GetQueue();
 	    }
-	    XrdMgmFstNode::gMutex.UnLock();
+	    FstNode::gMutex.UnLock();
 	  }
 	  
 	  XrdOucString sfid="";
-	  XrdOucString hexfid=""; XrdCommonFileId::Fid2Hex(*it,hexfid);
+	  XrdOucString hexfid=""; eos::common::FileId::Fid2Hex(*it,hexfid);
 	  idlist += hexfid;
 	  idlist += ",";
 	  
@@ -3400,7 +3404,7 @@ XrdMgmOfs::Deletion()
 	    refcapability += idlist;
 	    XrdOucEnv incapability(refcapability.c_str());
 	    XrdOucEnv* capabilityenv = 0;
-	    XrdCommonSymKey* symkey = gXrdCommonSymKeyStore.GetCurrentKey();
+	    eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 	    
 	    int caprc=0;
 	    if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
@@ -3412,7 +3416,7 @@ XrdMgmOfs::Deletion()
 	      message.SetBody(msgbody.c_str());
 	    }
 	    
-	    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+	    if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
 	      eos_static_err("unable to send deletion message to %s", receiver.c_str());
 	    }
 	    idlist = "";
@@ -3429,7 +3433,7 @@ XrdMgmOfs::Deletion()
 	  refcapability += idlist;
 	  XrdOucEnv incapability(refcapability.c_str());
 	  XrdOucEnv* capabilityenv = 0;
-	  XrdCommonSymKey* symkey = gXrdCommonSymKeyStore.GetCurrentKey();
+	  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 	  
 	  int caprc=0;
 	  if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
@@ -3439,7 +3443,7 @@ XrdMgmOfs::Deletion()
 	    msgbody += capabilityenv->Env(caplen);
 	    // we send deletions in bunches of max 1000 for efficiency
 	    message.SetBody(msgbody.c_str());
-	    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+	    if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
 	      eos_static_err("unable to send deletion message to %s", receiver.c_str());
 	    }
 	  }

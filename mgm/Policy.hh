@@ -1,8 +1,9 @@
-#ifndef __XRDMGMOFS_POLICY__HH__
-#define __XRDMGMOFS_POLICY__HH__
+#ifndef __EOSMGM_POLICY__HH__
+#define __EOSMGM_POLICY__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonMapping.hh"
+#include "mgm/Namespace.hh"
+#include "common/Mapping.hh"
 #include "Namespace/ContainerMD.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -11,12 +12,14 @@
 #include <sys/types.h>
 /*----------------------------------------------------------------------------*/
 
-class XrdMgmPolicy {
-public:
-  XrdMgmPolicy(){};
-  ~XrdMgmPolicy(){};
+EOSMGMNAMESPACE_BEGIN
 
-  static void GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &map, const XrdCommonMapping::VirtualIdentity &vid , unsigned long &layoutId, XrdOucString &space, XrdOucEnv &env, unsigned long &forcedfsid);
+class Policy {
+public:
+  Policy(){};
+  ~Policy(){};
+
+  static void GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &map, const eos::common::Mapping::VirtualIdentity &vid , unsigned long &layoutId, XrdOucString &space, XrdOucEnv &env, unsigned long &forcedfsid);
 
   static bool Set(const char* value);
   static bool Set(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
@@ -25,5 +28,7 @@ public:
 
   static const char* Get(const char* key);
 };
+
+EOSMGMNAMESPACE_END
 
 #endif

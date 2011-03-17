@@ -1,7 +1,8 @@
-#ifndef __XRDMGMOFS_MGMOFSSTAT__HH__
-#define __XRDMGMOFS_MGMOFSSTAT__HH__
+#ifndef __EOSMGM_MGMOFSSTAT__HH__
+#define __EOSMGM_MGMOFSSTAT__HH__
 
-
+/*----------------------------------------------------------------------------*/
+#include "mgm/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -12,21 +13,23 @@
 #include <map>
 #include <string>
 
-class XrdMgmOfsStatAvg {
+EOSMGMNAMESPACE_BEGIN
+
+class StatAvg {
 public:
   unsigned long avg3600[3600];
   unsigned long avg300[300];
   unsigned long avg60[60];
   unsigned long avg5[5];
 
-  XrdMgmOfsStatAvg() {
+  StatAvg() {
     memset(avg3600,0, sizeof(avg3600));
     memset(avg300,0,sizeof(avg300));
     memset(avg60,0,sizeof(avg60));
     memset(avg5,0,sizeof(avg5));
   }
 
-  ~XrdMgmOfsStatAvg(){};
+  ~StatAvg(){};
 
   void Add(unsigned long val) {
     unsigned int bin3600 = (time(0) % 3600);
@@ -89,15 +92,15 @@ public:
   }
 };
 
-class XrdMgmOfsStat {
+class Stat {
 public:
   XrdSysMutex Mutex;
 
   // first is name of value, then the map
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> > StatsUid;
   google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, unsigned long long> > StatsGid;
-  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, XrdMgmOfsStatAvg> > StatAvgUid;
-  google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, XrdMgmOfsStatAvg> > StatAvgGid;
+  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg> > StatAvgUid;
+  google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatAvg> > StatAvgGid;
 
   void Add(const char* tag, uid_t uid, gid_t gid, unsigned long val) {
     Mutex.Lock();
@@ -121,7 +124,7 @@ public:
 
   // warning: you have to lock the mutex if directly used
   double GetTotalAvg3600(const char* tag) {
-    google::sparse_hash_map<uid_t, XrdMgmOfsStatAvg>::iterator it;
+    google::sparse_hash_map<uid_t, StatAvg>::iterator it;
     double val = 0;
     if (!StatAvgUid.count(tag))
       return 0;
@@ -133,7 +136,7 @@ public:
 
   // warning: you have to lock the mutex if directly used
   double GetTotalAvg300(const char* tag)  {
-    google::sparse_hash_map<uid_t, XrdMgmOfsStatAvg>::iterator it;
+    google::sparse_hash_map<uid_t, StatAvg>::iterator it;
     double val = 0;
     if (!StatAvgUid.count(tag))
       return 0;
@@ -145,7 +148,7 @@ public:
 
   // warning: you have to lock the mutex if directly used
   double GetTotalAvg60(const char* tag)   {
-    google::sparse_hash_map<uid_t, XrdMgmOfsStatAvg>::iterator it;
+    google::sparse_hash_map<uid_t, StatAvg>::iterator it;
 
     double val = 0;
     if (!StatAvgUid.count(tag))
@@ -158,7 +161,7 @@ public:
   
   // warning: you have to lock the mutex if directly used
   double GetTotalAvg5(const char* tag)    {
-    google::sparse_hash_map<uid_t, XrdMgmOfsStatAvg>::iterator it;
+    google::sparse_hash_map<uid_t, StatAvg>::iterator it;
     double val = 0;
     if (!StatAvgUid.count(tag))
       return 0;
@@ -204,14 +207,14 @@ public:
     }
     if (details) {
       out +="# ------------------------------------------------------------------------------------\n";
-      google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, XrdMgmOfsStatAvg > >::iterator tuit;
-      google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, XrdMgmOfsStatAvg > >::iterator tgit;
+      google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg > >::iterator tuit;
+      google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatAvg > >::iterator tgit;
 
       std::vector <std::string> uidout;
       std::vector <std::string> gidout;
 
       for (tuit = StatAvgUid.begin(); tuit != StatAvgUid.end(); tuit++) {
-	google::sparse_hash_map<uid_t, XrdMgmOfsStatAvg>::iterator it;
+	google::sparse_hash_map<uid_t, StatAvg>::iterator it;
 	for (it = tuit->second.begin(); it != tuit->second.end(); ++it) {
 	  char a5[1024];
 	  char a60[1024];
@@ -232,7 +235,7 @@ public:
 
       out +="# ------------------------------------------------------------------------------------\n";
       for (tgit = StatAvgGid.begin(); tgit != StatAvgGid.end(); tgit++) {
-	google::sparse_hash_map<gid_t, XrdMgmOfsStatAvg>::iterator it;
+	google::sparse_hash_map<gid_t, StatAvg>::iterator it;
 	for (it = tgit->second.begin(); it != tgit->second.end(); ++it) {
 	  char a5[1024];
 	  char a60[1024];
@@ -260,11 +263,11 @@ public:
     while(1) {
       usleep(512345);
       Mutex.Lock();
-      google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, XrdMgmOfsStatAvg> >::iterator tit;
+      google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg> >::iterator tit;
       // loop over tags
       for (tit = StatAvgUid.begin(); tit != StatAvgUid.end(); ++tit) {
 	// loop over vids
-	google::sparse_hash_map<uid_t, XrdMgmOfsStatAvg>::iterator it;
+	google::sparse_hash_map<uid_t, StatAvg>::iterator it;
 	for (it = tit->second.begin(); it != tit->second.end(); ++it) {
 	  it->second.StampZero();
 	}
@@ -272,7 +275,7 @@ public:
 
       for (tit = StatAvgGid.begin(); tit != StatAvgGid.end(); ++tit) {
 	// loop over vids
-	google::sparse_hash_map<uid_t, XrdMgmOfsStatAvg>::iterator it;
+	google::sparse_hash_map<uid_t, StatAvg>::iterator it;
 	for (it = tit->second.begin(); it != tit->second.end(); ++it) {
 	  it->second.StampZero();
 	}
@@ -282,5 +285,7 @@ public:
   }
 
 };
+
+EOSMGMNAMESPACE_END
 
 #endif

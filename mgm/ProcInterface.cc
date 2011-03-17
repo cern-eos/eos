@@ -1,32 +1,39 @@
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonStringStore.hh"
-#include "XrdCommon/XrdCommonLayoutId.hh"
-#include "XrdCommon/XrdCommonFileId.hh"
-#include "XrdMgmOfs/XrdMgmPolicy.hh"
-#include "XrdMgmOfs/XrdMgmVid.hh"
-#include "XrdMgmOfs/XrdMgmProcInterface.hh"
-#include "XrdMgmOfs/XrdMgmFstNode.hh"
-#include "XrdMgmOfs/XrdMgmOfs.hh"
-#include "XrdMgmOfs/XrdMgmQuota.hh"
-#include "XrdMgmOfs/XrdMgmFstFileSystem.hh"
+#include "common/StringStore.hh"
+#include "common/LayoutId.hh"
+#include "common/FileId.hh"
+#include "common/StringConversion.hh"
+#include "mgm/Policy.hh"
+#include "mgm/Vid.hh"
+#include "mgm/ProcInterface.hh"
+#include "mgm/FstNode.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Quota.hh"
+#include "mgm/FstFileSystem.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
+
+#ifdef __APPLE__
+#define pow10( x ) pow( (float)10, (int)(x) )
+#endif
 
 #include <vector>
 #include <map>
 #include <string>
 #include <math.h>
 
+EOSMGMNAMESPACE_BEGIN
+
 /*----------------------------------------------------------------------------*/
-XrdMgmProcInterface::XrdMgmProcInterface()
+ProcInterface::ProcInterface()
 
 {  
 
 }
 
 /*----------------------------------------------------------------------------*/
-XrdMgmProcInterface::~XrdMgmProcInterface() 
+ProcInterface::~ProcInterface() 
 {
 
 }
@@ -34,7 +41,7 @@ XrdMgmProcInterface::~XrdMgmProcInterface()
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMgmProcInterface::IsProcAccess(const char* path) 
+ProcInterface::IsProcAccess(const char* path) 
 {
   XrdOucString inpath = path;
   if (inpath.beginswith("/proc/")) {
@@ -45,13 +52,13 @@ XrdMgmProcInterface::IsProcAccess(const char* path)
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMgmProcInterface::Authorize(const char* path, const char* info, XrdCommonMapping::VirtualIdentity &vid , const XrdSecEntity* entity) {
+ProcInterface::Authorize(const char* path, const char* info, eos::common::Mapping::VirtualIdentity &vid , const XrdSecEntity* entity) {
   XrdOucString inpath = path;
 
   // administrator access
   if (inpath.beginswith("/proc/admin/")) {
     // one has to be part of the virtual users 3(adm)/4(adm)
-    return ( (XrdCommonMapping::HasUid(3, vid.uid_list)) || (XrdCommonMapping::HasGid(4, vid.gid_list)) );
+    return ( (eos::common::Mapping::HasUid(3, vid.uid_list)) || (eos::common::Mapping::HasGid(4, vid.gid_list)) );
   }
 
   // user access
@@ -69,7 +76,7 @@ XrdMgmProcInterface::Authorize(const char* path, const char* info, XrdCommonMapp
 
 
 /*----------------------------------------------------------------------------*/
-XrdMgmProcCommand::XrdMgmProcCommand()
+ProcCommand::ProcCommand()
 {
   stdOut = "";
   stdErr = "";
@@ -83,13 +90,13 @@ XrdMgmProcCommand::XrdMgmProcCommand()
 }
 
 /*----------------------------------------------------------------------------*/
-XrdMgmProcCommand::~XrdMgmProcCommand()
+ProcCommand::~ProcCommand()
 {
 }
 
 /*----------------------------------------------------------------------------*/
 int 
-XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping::VirtualIdentity &vid_in, XrdOucErrInfo   *error) 
+ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::VirtualIdentity &vid_in, XrdOucErrInfo   *error) 
 {
   pVid = &vid_in;
 
@@ -122,7 +129,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	XrdOucString listing="";
 	bool showbackup = (bool)opaque.Get("mgm.config.showbackup");
 	
-	if (!(gOFS->ConfigEngine->ListConfigs(listing, showbackup))) {
+	if (!(gOFS->ConfEngine->ListConfigs(listing, showbackup))) {
 	  stdErr += "error: listing of existing configs failed!";
 	  retc = errno;
 	} else {
@@ -134,7 +141,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       if (subcmd == "load") {
 	if (vid_in.uid==0) {
 	  eos_notice("config load: %s", opaque.Env(envlen));
-	  if (!gOFS->ConfigEngine->LoadConfig(opaque, stdErr)) {
+	  if (!gOFS->ConfEngine->LoadConfig(opaque, stdErr)) {
 	    retc = errno;
 	  } else {
 	    stdOut = "success: configuration successfully loaded!";
@@ -148,7 +155,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       if (subcmd == "save") {
 	eos_notice("config save: %s", opaque.Env(envlen));
 	if (vid_in.uid == 0) {
-	  if (!gOFS->ConfigEngine->SaveConfig(opaque, stdErr)) {
+	  if (!gOFS->ConfEngine->SaveConfig(opaque, stdErr)) {
 	    retc = errno;
 	  } else {
 	    stdOut = "success: configuration successfully saved!";
@@ -162,7 +169,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       if (subcmd == "reset") {
 	eos_notice("config reset");
 	if (vid_in.uid == 0) {
-	  gOFS->ConfigEngine->ResetConfig();
+	  gOFS->ConfEngine->ResetConfig();
 	  stdOut = "success: configuration has been reset(cleaned)!";
 	} else {
 	  retc = EPERM;
@@ -173,7 +180,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       if (subcmd == "dump") {
 	eos_notice("config dump");
 	XrdOucString dump="";
-	if (!gOFS->ConfigEngine->DumpConfig(dump, opaque)) {
+	if (!gOFS->ConfEngine->DumpConfig(dump, opaque)) {
 	  stdErr += "error: listing of existing configs failed!";
 	  retc = errno;
 	} else {
@@ -184,7 +191,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 
       if (subcmd == "diff") {
 	eos_notice("config diff");
-	gOFS->ConfigEngine->Diffs(stdOut);
+	gOFS->ConfEngine->Diffs(stdOut);
       }
 
       if (subcmd == "changelog") {
@@ -194,7 +201,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  nlines = atoi(val);
 	  if (nlines <1) nlines=1;
 	}
-	gOFS->ConfigEngine->GetChangeLog()->Tail(nlines, stdOut);
+	gOFS->ConfEngine->GetChangeLog()->Tail(nlines, stdOut);
 	eos_notice("config changelog");
       }
 
@@ -205,18 +212,18 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 
     if (cmd == "fs") {
       if (subcmd == "ls") {
-	XrdMgmFstNode::gMutex.Lock();
+	FstNode::gMutex.Lock();
 
-	stdOut += XrdMgmFstNode::GetInfoHeader();
+	stdOut += FstNode::GetInfoHeader();
 	std::map<std::string,std::string> nodeOutput;
-	XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::ListNodes, &nodeOutput);
+	FstNode::gFstNodes.Apply(FstNode::ListNodes, &nodeOutput);
 	//std::sort(nodeOutput.begin(),nodeOutput.end());
 	std::map<std::string,std::string>::const_iterator i;
 	for (i=nodeOutput.begin(); i!=nodeOutput.end(); ++i) {
 	  stdOut += i->second.c_str();
 	}
 
-	XrdMgmFstNode::gMutex.UnLock();
+	FstNode::gMutex.UnLock();
       }
 
       if (adminCmd) {
@@ -320,21 +327,21 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		stdErr="error: filesystem id="; stdErr += fsidst; stdErr += " is not a positive number! "; stdErr += fsidst;
 		retc = EINVAL;
 	      } else {
-		XrdMgmFstNode::gMutex.Lock();
+		FstNode::gMutex.Lock();
 
-		XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::ExistsNodeFileSystemId, &fsid);
+		FstNode::gFstNodes.Apply(FstNode::ExistsNodeFileSystemId, &fsid);
 		if (!fsid) {
 		  stdErr="error: filesystem id="; stdErr += fsidst; stdErr += " is already in use!";
 		  retc = EBUSY;
 		} else {
-		  if (!XrdMgmFstNode::Update(fsname, fsid, fssched, XrdCommonFileSystem::kDown, 0,0,0,true)) {
+		  if (!FstNode::Update(fsname, fsid, fssched, eos::common::FileSystem::kDown, 0,0,0,true)) {
 		    stdErr="error: cannot set the filesystem information to mgm.fsname="; stdErr += fsname; stdErr += " mgm.fsid=", stdErr += fsidst; stdErr += " mgm.fsschedgroup=" ; stdErr += fssched;
 		    retc = EINVAL;
 		  } else {
 		    stdOut="success: added/set mgm.fsname="; stdOut += fsname; stdOut += " mgm.fsid=", stdOut += fsidst; stdOut += " mgm.fsschedgroup=" ; stdOut += fssched;
 		  }
 		}
-		XrdMgmFstNode::gMutex.UnLock();
+		FstNode::gMutex.UnLock();
 	      }
 	    }
 	  } else {
@@ -371,22 +378,22 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    }
 	  }	
 
-	  XrdMgmFstNode::gMutex.Lock();
+	  FstNode::gMutex.Lock();
 	  
 	  if (nodename) {
 	    // delete by node
-	    XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(nodename);
+	    FstNode* node = FstNode::gFstNodes.Find(nodename);
 	    if (node) {
 	      if (!fspath) {
 		// delete complete node
-		XrdMgmFstNode::gFstNodes.Del(nodename);
+		FstNode::gFstNodes.Del(nodename);
 		stdOut="success: deleted node mgm.nodename="; stdOut += nodename;
 	      } else {
 		// delete filesystem of a certain node
 		if (!node->fileSystems.Del(fspath)) {
 		  // success
 		  stdOut="success: deleted filesystem from node mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem mgm.fsname="; stdOut += fsname;
-		  gOFS->ConfigEngine->DeleteConfigValue("fs",fsname);
+		  gOFS->ConfEngine->DeleteConfigValue("fs",fsname);
 		} else {
 		  // failed
 		  stdErr="error: cannot delete filesystem - no filesystem with name mgm.fsname="; stdErr += fsname; stdErr += " at node mgm.nodename="; stdErr += nodename;	
@@ -401,10 +408,10 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    if (fsidst) {
 	      unsigned int fsid = atoi(fsidst);
 	      // delete by fs id
-	      XrdMgmFstNode::FindStruct fsfinder(fsid,"");
-	      XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::FindNodeFileSystem,&fsfinder);
+	      FstNode::FindStruct fsfinder(fsid,"");
+	      FstNode::gFstNodes.Apply(FstNode::FindNodeFileSystem,&fsfinder);
 	      if (fsfinder.found) {
-		XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(fsfinder.nodename.c_str());
+		FstNode* node = FstNode::gFstNodes.Find(fsfinder.nodename.c_str());
 		if (node && (!node->fileSystems.Del(fsfinder.fsname.c_str()))) {
 		  // success
 		  stdOut="success: deleted filesystem from node mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem id mgm.fsid="; stdOut += fsidst;
@@ -416,7 +423,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      }
 	    } 
 	  }
-	  XrdMgmFstNode::gMutex.UnLock();
+	  FstNode::gMutex.UnLock();
 	} else {
 	  retc = EPERM;
 	  stdErr = "error: you have to take role 'root' to execute this command";
@@ -432,11 +439,11 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  char* fssched= opaque.Get("mgm.fsschedgroup");
 
 	  const char* fspath   =  0;
-	  int configstatus = XrdCommonFileSystem::kUnknown;
+	  int configstatus = eos::common::FileSystem::kUnknown;
 	  if (fsconfig)
-	    configstatus = XrdCommonFileSystem::GetConfigStatusFromString(fsconfig);
+	    configstatus = eos::common::FileSystem::GetConfigStatusFromString(fsconfig);
 	  
-	  if (configstatus == XrdCommonFileSystem::kUnknown) {
+	  if (configstatus == eos::common::FileSystem::kUnknown) {
 	    stdErr="error: cannot set the configuration status to the requested status: "; stdErr += fsconfig; ; stdErr += " - this status must be 'rw','wo', 'ro','drain','off'";
 	    retc = EINVAL;
 	  } else {
@@ -459,10 +466,10 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      }
 	    }	
 
-	    XrdMgmFstNode::gMutex.Lock();
+	    FstNode::gMutex.Lock();
 	    if (nodename) {
 	      // set by node
-	      XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(nodename);
+	      FstNode* node = FstNode::gFstNodes.Find(nodename);
 	      if (node) {
 		if (!fspath) {
 		  // set status to all filesystems of a complete node
@@ -472,12 +479,12 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		  stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at node "; stdOut += nodename;
 		} else {
 		  // set status for one filesystem of a certain node
-		  XrdMgmFstFileSystem* filesystem = node->fileSystems.Find(fspath);
+		  FstFileSystem* filesystem = node->fileSystems.Find(fspath);
 		  if (filesystem) {
 		    filesystem->SetConfigStatus(configstatus);
 		    if (fssched)
 		      filesystem->SetSchedulingGroup(fssched);
-		    gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
+		    gOFS->ConfEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
 		    // success
 		    stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at filesystem ";stdOut += fsname;
 		  } else {
@@ -493,18 +500,18 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      if (fsidst) {
 		unsigned int fsid = atoi(fsidst);
 		// set by fs id
-		XrdMgmFstNode::FindStruct fsfinder(fsid,"");
-		XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::FindNodeFileSystem,&fsfinder);
+		FstNode::FindStruct fsfinder(fsid,"");
+		FstNode::gFstNodes.Apply(FstNode::FindNodeFileSystem,&fsfinder);
 		if (fsfinder.found) {
-		  XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(fsfinder.nodename.c_str());
-		  XrdMgmFstFileSystem* filesystem = 0;
+		  FstNode* node = FstNode::gFstNodes.Find(fsfinder.nodename.c_str());
+		  FstFileSystem* filesystem = 0;
 		  if (node) filesystem  = node->fileSystems.Find(fsfinder.fsname.c_str());
 		  
 		  if (node && filesystem) {
 		    filesystem->SetConfigStatus(configstatus);
 		    if (fssched)
 		      filesystem->SetSchedulingGroup(fssched);
-		    gOFS->ConfigEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
+		    gOFS->ConfEngine->SetConfigValue("fs", filesystem->GetQueuePath(), filesystem->GetBootString());
 		    // success
 		    stdOut="success: set config status "; stdOut += fsconfig; stdOut += " at filesystem ";stdOut += fsname;
 		  } else {
@@ -515,7 +522,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		}
 	      } 
 	    }
-	    XrdMgmFstNode::gMutex.UnLock();
+	    FstNode::gMutex.UnLock();
 	  }
 	} else {
 	  retc = EPERM;
@@ -525,24 +532,24 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 
       if (subcmd == "boot") {
 	if (vid_in.uid == 0) {
-	  XrdMgmFstNode::gMutex.Lock();
+	  FstNode::gMutex.Lock();
 
 	  const char* nodename =  opaque.Get("mgm.nodename");
 	  const char* fsidst   =  opaque.Get("mgm.fsid");
 	  if (nodename && (!strcmp(nodename,"*"))) {
 	    XrdOucString bootfs="";
 	    // boot all!
-	    XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::BootNode, &bootfs);
+	    FstNode::gFstNodes.Apply(FstNode::BootNode, &bootfs);
 	    stdOut="success: sent boot message to: \n";stdOut += bootfs;
 	  } else {
 	    if (nodename) {
 	      // boot by node
-	      XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(nodename);
+	      FstNode* node = FstNode::gFstNodes.Find(nodename);
 	      
 	      if (node) {
 		XrdOucString bootfs="";
 		// node found
-		node->fileSystems.Apply(XrdMgmFstNode::BootFileSystem, &bootfs);
+		node->fileSystems.Apply(FstNode::BootFileSystem, &bootfs);
 		stdOut="success: sent boot message to mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem mgm.fsname="; stdOut += bootfs;
 	      } else {
 		// not found
@@ -554,14 +561,14 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		// boot by fs id
 		unsigned int fsid = atoi(fsidst);
 		// delete by fs id
-		XrdMgmFstNode::FindStruct fsfinder(fsid,"");
-		XrdMgmFstNode::gFstNodes.Apply(XrdMgmFstNode::FindNodeFileSystem,&fsfinder);
+		FstNode::FindStruct fsfinder(fsid,"");
+		FstNode::gFstNodes.Apply(FstNode::FindNodeFileSystem,&fsfinder);
 		if (fsfinder.found) {
-		  XrdMgmFstNode* node = XrdMgmFstNode::gFstNodes.Find(fsfinder.nodename.c_str());
-		  XrdMgmFstFileSystem* filesystem=0;
+		  FstNode* node = FstNode::gFstNodes.Find(fsfinder.nodename.c_str());
+		  FstFileSystem* filesystem=0;
 		  if (node && (filesystem = node->fileSystems.Find(fsfinder.fsname.c_str()))) {
 		    XrdOucString bootfs="";
-		    XrdMgmFstNode::BootFileSystem(fsfinder.fsname.c_str(), filesystem, &bootfs);
+		    FstNode::BootFileSystem(fsfinder.fsname.c_str(), filesystem, &bootfs);
 		    stdOut="success: sent boot message to mgm.nodename="; stdOut += node->GetQueue(); stdOut+= " mgm.fsid="; stdOut += bootfs;
 		  } else {
 		    stdErr="error: cannot boot filesystem - no filesystem with id mgm.fsid="; stdErr += fsidst; 
@@ -574,7 +581,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      }
 	    }
 	  }
-	  XrdMgmFstNode::gMutex.UnLock();
+	  FstNode::gMutex.UnLock();
 	}  else {
 	  retc = EPERM;
 	  stdErr = "error: you have to take role 'root' to execute this command";
@@ -611,7 +618,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
 	XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
 	
-	XrdMgmQuota::PrintOut(space.c_str(), stdOut , uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1);
+	Quota::PrintOut(space.c_str(), stdOut , uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1);
       }
 
       if (subcmd == "set") {
@@ -626,12 +633,12 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  stdErr="error: you either specify a uid or a gid - not both!";
 	  retc = EINVAL;
 	} else {
-	  unsigned long long size   = XrdCommonFileSystem::GetSizeFromString(svolume);
+	  unsigned long long size   = eos::common::StringConversion::GetSizeFromString(svolume);
 	  if ((svolume.length()) && (errno == EINVAL)) {
 	    stdErr="error: the size you specified is not a valid number!";
 	    retc = EINVAL;
 	  } else {
-	    unsigned long long inodes = XrdCommonFileSystem::GetSizeFromString(sinodes);
+	    unsigned long long inodes = eos::common::StringConversion::GetSizeFromString(sinodes);
 	    if ((sinodes.length()) && (errno == EINVAL)) {
 	      stdErr="error: the inodes you specified are not a valid number!";
 	      retc = EINVAL;
@@ -641,7 +648,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		retc = EINVAL;
 	      } else {
 		XrdOucString msg ="";
-		if (!XrdMgmQuota::SetQuota(space, uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, svolume.length()?size:-1, sinodes.length()?inodes:-1, msg, retc)) {
+		if (!Quota::SetQuota(space, uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, svolume.length()?size:-1, sinodes.length()?inodes:-1, msg, retc)) {
 		stdErr = msg;
 		} else {
 		  stdOut = msg;
@@ -659,7 +666,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
 
 	XrdOucString msg ="";
-	if (!XrdMgmQuota::RmQuota(space, uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, msg, retc)) {
+	if (!Quota::RmQuota(space, uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, msg, retc)) {
 	  stdErr = msg;
 	} else {
 	  stdOut = msg;
@@ -688,16 +695,16 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	} else {
 	  if ((debugnode == "*") || (debugnode == "") || (debugnode == gOFS->MgmOfsQueue)) {
 	    // this is for us!
-	    int debugval = XrdCommonLogging::GetPriorityByString(debuglevel.c_str());
+	    int debugval = eos::common::Logging::GetPriorityByString(debuglevel.c_str());
 	    if (debugval<0) {
 	      stdErr="error: debug level "; stdErr += debuglevel; stdErr+= " is not known!";
 	      retc = EINVAL;
 	    } else {
-	      XrdCommonLogging::SetLogPriority(debugval);
+	      eos::common::Logging::SetLogPriority(debugval);
 	      stdOut="success: debug level is now <"; stdOut+=debuglevel.c_str();stdOut += ">";
 	      eos_notice("setting debug level to <%s>", debuglevel.c_str());
 	      if (filterlist.length()) {
-		XrdCommonLogging::SetFilter(filterlist.c_str());
+		eos::common::Logging::SetFilter(filterlist.c_str());
 		stdOut+= " filter="; stdOut += filterlist;
 		eos_notice("setting message logid filter to <%s>", filterlist.c_str());
 	      }
@@ -705,7 +712,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  }
 	  if (debugnode == "*") {
 	    debugnode = "/eos/*/fst";
-	    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+	    if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
 	      stdErr="error: could not send debug level to nodes mgm.nodename="; stdErr += debugnode; stdErr += "\n";
 	      retc = EINVAL;
 	    } else {
@@ -713,7 +720,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s", debuglevel.c_str(), debugnode.c_str());
 	    }
 	    debugnode = "/eos/*/mgm";
-	    if (!XrdMgmMessaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+	    if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
 	      stdErr+="error: could not send debug level to nodes mgm.nodename="; stdErr += debugnode;
 	      retc = EINVAL;
 	    } else {
@@ -723,7 +730,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  } else {
 	    if (debugnode != "") {
 	      // send to the specified list
-	      if (!XrdMgmMessaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+	      if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
 		stdErr="error: could not send debug level to nodes mgm.nodename="; stdErr += debugnode;
 		retc = EINVAL;
 	      } else {
@@ -743,7 +750,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
     if (cmd == "vid") {
       if (subcmd == "ls") {
 	eos_notice("vid ls");
-	XrdMgmVid::Ls(opaque, retc, stdOut, stdErr);
+	Vid::Ls(opaque, retc, stdOut, stdErr);
 	dosort = true;
       } 
 
@@ -751,13 +758,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	if (vid_in.uid == 0) {
 	  if (subcmd == "set") {
 	    eos_notice("vid set");
-	    XrdMgmVid::Set(opaque, retc, stdOut,stdErr);
+	    Vid::Set(opaque, retc, stdOut,stdErr);
 	  }
 	  
 	  
 	  if (subcmd == "rm") {
 	    eos_notice("vid rm");
-	    XrdMgmVid::Rm(opaque, retc, stdOut, stdErr);
+	    Vid::Rm(opaque, retc, stdOut, stdErr);
 	  }
 	} else {
 	  retc = EPERM;
@@ -766,140 +773,141 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
       }
     }
 
-    if (cmd == "restart") {
-      if (vid_in.uid == 0) {
-	if (subcmd == "fst") {
-	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
-	  if (( debugnode == "") || (debugnode == "*")) {
-	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
-	    XrdCommonFileSystem::GetRestartRequestString(msgbody);
-	    message.SetBody(msgbody.c_str());
+
+    //    if (cmd == "restart") {
+    //      if (vid_in.uid == 0) {
+    //	if (subcmd == "fst") {
+    //	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
+    //	  if (( debugnode == "") || (debugnode == "*")) {
+    //	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
+    //	    eos::common::FileSystem::GetRestartRequestString(msgbody);
+    //	    message.SetBody(msgbody.c_str());
 	    
 	    // broadcast a global restart message
-	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
-	      stdOut="success: sent global service restart message to all fst nodes"; 
-	    } else {
-	      stdErr="error: could not send global fst restart message!";
-	      retc = EIO;
-	    } 
-	  } else {
-	    stdErr="error: only global fst restart is supported yet!";
-	    retc = EINVAL;
-	  } 
-	}
-      } else {
-	retc = EPERM;
-	stdErr = "error: you have to take role 'root' to execute this command";
-      }
-    }
+    //	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
+    //	      stdOut="success: sent global service restart message to all fst nodes"; 
+    //	    } else {
+    //	      stdErr="error: could not send global fst restart message!";
+    //	      retc = EIO;
+    //	    } 
+    //	  } else {
+    //	    stdErr="error: only global fst restart is supported yet!";
+    //	    retc = EINVAL;
+    //	  } 
+    //	}
+    //      } else {
+    //	retc = EPERM;
+    //	stdErr = "error: you have to take role 'root' to execute this command";
+    //      }
+    //    } 
 
-    if (cmd == "droptransfers") {
-      if (vid_in.uid == 0) {
-	if (subcmd == "fst") {
-	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
-	  if (( debugnode == "") || (debugnode == "*")) {
-	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
-	    XrdCommonFileSystem::GetDropTransferRequestString(msgbody);
-	    message.SetBody(msgbody.c_str());
-	    
-	    // broadcast a global drop message
-	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
-	      stdOut="success: sent global drop transfer message to all fst nodes"; 
-	    } else {
-	      stdErr="error: could not send global fst drop transfer message!";
-	      retc = EIO;
-	    } 
-	  } else {
-	    stdErr="error: only global fst drop transfer is supported yet!";
-	    retc = EINVAL;
-	  } 
-	}
-      } else {
-	retc = EPERM;
-	stdErr = "error: you have to take role 'root' to execute this command";
-      }
-    }
+    //    if (cmd == "droptransfers") {
+      //      if (vid_in.uid == 0) {
+      //	if (subcmd == "fst") {
+      //	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
+      //	  if (( debugnode == "") || (debugnode == "*")) {
+      //	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
+      //	    eos::common::FileSystem::GetDropTransferRequestString(msgbody);
+      //	    message.SetBody(msgbody.c_str());
+      //	    
+      	    // broadcast a global drop message
+      //    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
+      //	      stdOut="success: sent global drop transfer message to all fst nodes"; 
+      //	    } else {
+      //	      stdErr="error: could not send global fst drop transfer message!";
+      //	      retc = EIO;
+      //	    } 
+      //	  } else {
+      //	    stdErr="error: only global fst drop transfer is supported yet!";
+      //	    retc = EINVAL;
+      //	  } 
+      //	}
+      //      } else {
+      //	retc = EPERM;
+      //	stdErr = "error: you have to take role 'root' to execute this command";
+      //      }
+      //    }
 
-    if (cmd == "listtransfers") {
-      if (vid_in.uid == 0) {
-	if (subcmd == "fst") {
-	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
-	  if (( debugnode == "") || (debugnode == "*")) {
-	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
-	    XrdCommonFileSystem::GetListTransferRequestString(msgbody);
-	    message.SetBody(msgbody.c_str());
-	    
-	    // broadcast a global list message
-	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
-	      stdOut="success: sent global list transfer message to all fst nodes"; 
-	    } else {
-	      stdErr="error: could not send global fst list transfer message!";
-	      retc = EIO;
-	    } 
-	  } else {
-	    stdErr="error: only global fst list transfer is supported yet!";
-	    retc = EINVAL;
-	  } 
-	}
-      } else {
-	retc = EPERM;
-	stdErr = "error: you have to take role 'root' to execute this command";
-      }
-    }
-
-    if (cmd == "dropverifications") {
-      if (vid_in.uid == 0) {
-	if (subcmd == "fst") {
-	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
-	  if (( debugnode == "") || (debugnode == "*")) {
-	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
-	    XrdCommonFileSystem::GetDropVerifyRequestString(msgbody);
-	    message.SetBody(msgbody.c_str());
-	    
-	    // broadcast a global drop message
-	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
-	      stdOut="success: sent global drop verify message to all fst nodes"; 
-	    } else {
-	      stdErr="error: could not send global fst drop verifications message!";
-	      retc = EIO;
-	    } 
-	  } else {
-	    stdErr="error: only global fst drop verifications is supported yet!";
-	    retc = EINVAL;
-	  } 
-	}
-      } else {
-	retc = EPERM;
-	stdErr = "error: you have to take role 'root' to execute this command";
-      }
-    }
-
-    if (cmd == "listverifications") {
-      if (vid_in.uid == 0) {
-	if (subcmd == "fst") {
-	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
-	  if (( debugnode == "") || (debugnode == "*")) {
-	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
-	    XrdCommonFileSystem::GetListVerifyRequestString(msgbody);
-	    message.SetBody(msgbody.c_str());
+    //    if (cmd == "listtransfers") {
+    //      if (vid_in.uid == 0) {
+    //	if (subcmd == "fst") {
+    //  XrdOucString debugnode =  opaque.Get("mgm.nodename");
+    //    if (( debugnode == "") || (debugnode == "*")) {
+    //	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
+    //	    eos::common::FileSystem::GetListTransferRequestString(msgbody);
+    //      message.SetBody(msgbody.c_str());
 	    
 	    // broadcast a global list message
-	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
-	      stdOut="success: sent global list verifications message to all fst nodes"; 
-	    } else {
-	      stdErr="error: could not send global fst list verifications message!";
-	      retc = EIO;
-	    } 
-	  } else {
-	    stdErr="error: only global fst list verifications is supported yet!";
-	    retc = EINVAL;
-	  } 
-	}
-      } else {
-	retc = EPERM;
-	stdErr = "error: you have to take role 'root' to execute this command";
-      }
-    }
+    //	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
+    //	      stdOut="success: sent global list transfer message to all fst nodes"; 
+    //	    } else {
+    //	      stdErr="error: could not send global fst list transfer message!";
+    //	      retc = EIO;
+    //	    } 
+    //	  } else {
+    //	    stdErr="error: only global fst list transfer is supported yet!";
+    //	    retc = EINVAL;
+    //	  } 
+    //	}
+    //      } else {
+    //	retc = EPERM;
+    //	stdErr = "error: you have to take role 'root' to execute this command";
+    //      }
+    //    }
+
+    //    if (cmd == "dropverifications") {
+    //      if (vid_in.uid == 0) {
+    //	if (subcmd == "fst") {
+    //	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
+    //	  if (( debugnode == "") || (debugnode == "*")) {
+    //	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
+    //	    eos::common::FileSystem::GetDropVerifyRequestString(msgbody);
+    //	    message.SetBody(msgbody.c_str());
+	    
+	    // broadcast a global drop message
+    //	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
+    //	      stdOut="success: sent global drop verify message to all fst nodes"; 
+    //	    } else {
+    //	      stdErr="error: could not send global fst drop verifications message!";
+    //	      retc = EIO;
+    //	    } 
+    //	  } else {
+    //	    stdErr="error: only global fst drop verifications is supported yet!";
+    //	    retc = EINVAL;
+    //	  } 
+    //	}
+    //      } else {
+    //	retc = EPERM;
+    //	stdErr = "error: you have to take role 'root' to execute this command";
+    //      }
+    //    }
+
+    //    if (cmd == "listverifications") {
+    //      if (vid_in.uid == 0) {
+    //	if (subcmd == "fst") {
+    //	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
+    //	  if (( debugnode == "") || (debugnode == "*")) {
+    //	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
+    //	    eos::common::FileSystem::GetListVerifyRequestString(msgbody);
+    //	    message.SetBody(msgbody.c_str());
+	    
+	    // broadcast a global list message
+    //	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
+    //	      stdOut="success: sent global list verifications message to all fst nodes"; 
+    //	    } else {
+    //	      stdErr="error: could not send global fst list verifications message!";
+    //	      retc = EIO;
+    //	    } 
+    //	  } else {
+    //	    stdErr="error: only global fst list verifications is supported yet!";
+    //	    retc = EINVAL;
+    //	  } 
+    //	}
+    //      } else {
+    //	retc = EPERM;
+    //	stdErr = "error: you have to take role 'root' to execute this command";
+    //      }
+    //    }
     
     if (cmd == "rtlog") {
       if (vid_in.uid == 0) {
@@ -916,16 +924,16 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  stdErr = "error: mgm.rtlog.queue, mgm.rtlog.lines, mgm.rtlog.tag have to be given as input paramters!";
 	  retc = EINVAL;
 	}  else {
-	  if ( (XrdCommonLogging::GetPriorityByString(tag.c_str())) == -1) {
+	  if ( (eos::common::Logging::GetPriorityByString(tag.c_str())) == -1) {
 	    stdErr = "error: mgm.rtlog.tag must be info,debug,err,emerg,alert,crit,warning or notice";
 	    retc = EINVAL;
 	  } else {
 	    if ((queue==".") || (queue == "*") || (queue == gOFS->MgmOfsQueue)) {
-	      int logtagindex = XrdCommonLogging::GetPriorityByString(tag.c_str());
+	      int logtagindex = eos::common::Logging::GetPriorityByString(tag.c_str());
 	      for (int j = 0; j<= logtagindex; j++) {
-		XrdCommonLogging::gMutex.Lock();
+		eos::common::Logging::gMutex.Lock();
 		for (int i=1; i<= atoi(lines.c_str()); i++) {
-		  XrdOucString logline = XrdCommonLogging::gLogMemory[j][(XrdCommonLogging::gLogCircularIndex[j]-i+XrdCommonLogging::gCircularIndexSize)%XrdCommonLogging::gCircularIndexSize].c_str();
+		  XrdOucString logline = eos::common::Logging::gLogMemory[j][(eos::common::Logging::gLogCircularIndex[j]-i+eos::common::Logging::gCircularIndexSize)%eos::common::Logging::gCircularIndexSize].c_str();
 		  if (logline.length() && ( (logline.find(filter.c_str())) != STR_NPOS)) {
 		    stdOut += logline;
 		    stdOut += "\n";
@@ -933,7 +941,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		  if (!logline.length())
 		    break;
 		}
-		XrdCommonLogging::gMutex.UnLock();
+		eos::common::Logging::gMutex.UnLock();
 	      }
 	    }
 	    if ( (queue == "*") || ((queue != gOFS->MgmOfsQueue) && (queue != "."))) {
@@ -973,7 +981,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	resultStream = "df: retc=";
 	resultStream += EINVAL;
       } else {
-	XrdMgmSpaceQuota* spacequota = XrdMgmQuota::GetSpaceQuota(space.c_str());
+	SpaceQuota* spacequota = Quota::GetSpaceQuota(space.c_str());
 	if (!spacequota) {
 	  resultStream = "df: retc=";
 	  resultStream += ENOENT;
@@ -1104,7 +1112,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  XrdOucString stripes    = opaque.Get("mgm.file.layout.stripes");
 	  int newstripenumber = 0;
 	  if (stripes.length()) newstripenumber = atoi(stripes.c_str());
-	  if (!stripes.length() || ((newstripenumber< (XrdCommonLayoutId::kOneStripe+1)) || (newstripenumber > (XrdCommonLayoutId::kSixteenStripe+1)))) {
+	  if (!stripes.length() || ((newstripenumber< (eos::common::LayoutId::kOneStripe+1)) || (newstripenumber > (eos::common::LayoutId::kSixteenStripe+1)))) {
 	    stdErr="error: you have to give a valid number of stripes as an argument to call 'file layout'";
 	    retc = EINVAL;
 	  } else {
@@ -1145,8 +1153,8 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      }
 	      
 	      if (fmd) {
-		if (XrdCommonLayoutId::GetLayoutType(fmd->getLayoutId()) == XrdCommonLayoutId::kReplica) {
-		  unsigned long newlayout = XrdCommonLayoutId::GetId(XrdCommonLayoutId::kReplica, XrdCommonLayoutId::GetChecksum(fmd->getLayoutId()), newstripenumber, XrdCommonLayoutId::GetStripeWidth(fmd->getLayoutId()));
+		if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica) {
+		  unsigned long newlayout = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::GetChecksum(fmd->getLayoutId()), newstripenumber, eos::common::LayoutId::GetStripeWidth(fmd->getLayoutId()));
 		  fmd->setLayoutId(newlayout);
 		  stdOut += "success: setting new stripe number to "; stdOut += newstripenumber; stdOut += " for path="; stdOut += path;
 		  // commit new layout
@@ -1385,13 +1393,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 
 	    if (fmd) {
 	      // check if that is a replica layout at all
-	      if (XrdCommonLayoutId::GetLayoutType(fmd->getLayoutId()) == XrdCommonLayoutId::kReplica) {
+	      if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica) {
 		// check the configured and available replicas
 		
 		XrdOucString sizestring;
 		
 		eos::FileMD::LocationVector::const_iterator lociter;
-		int nreplayout = XrdCommonLayoutId::GetStripeNumber(fmd->getLayoutId()) + 1;
+		int nreplayout = eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1;
 		int nrep = (int)fmd->getNumLocation();
 		int nreponline=0;
 		int ngroupmix=0;
@@ -1401,8 +1409,8 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		    eos_err("fsid 0 found fid=%lld", fmd->getId());
 		    continue;
 		  }
-		  XrdMgmFstNode::gMutex.Lock();
-		  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
+		  FstNode::gMutex.Lock();
+		  FstFileSystem* filesystem = (FstFileSystem*) FstNode::gFileSystemById[(int) *lociter];
 		  if (filesystem) {
 		    // remember the spacename
 		    space = filesystem->GetSpaceName();
@@ -1416,13 +1424,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 
 		    forcedsubgroup = filesystem->GetSchedulingGroupIndex();
 		    
-		    if (filesystem && ((filesystem->GetConfigStatus() > XrdCommonFileSystem::kDrain)) &&
-			((filesystem->GetBootStatus()   == XrdCommonFileSystem::kBooted))) {
+		    if (filesystem && ((filesystem->GetConfigStatus() > eos::common::FileSystem::kDrain)) &&
+			((filesystem->GetBootStatus()   == eos::common::FileSystem::kBooted))) {
 		      // this is a good accessible one
 		      nreponline++;
 		    }
 		  }
-		  XrdMgmFstNode::gMutex.UnLock();
+		  FstNode::gMutex.UnLock();
 		}
 		
 		eos_debug("path=%s nrep=%lu nrep-layout=%lu nrep-online=%lu", path.c_str(), nrep, nreplayout, nreponline);
@@ -1447,7 +1455,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		  
 		  eos_debug("forcedsubgroup=%d icreationsubgroup=%d", forcedsubgroup, icreationsubgroup);
 		  // get the location where we can read that file
-		  XrdMgmSpaceQuota* quotaspace = XrdMgmQuota::GetSpaceQuota(space.c_str(),false);
+		  SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(),false);
 		  eos_debug("creating %d new replicas space=%s subgroup=%d", nnewreplicas, space.c_str(), forcedsubgroup);
 
 		  if (!quotaspace) {
@@ -1465,7 +1473,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		      // this is now our source filesystem
 		      unsigned int sourcefsid = selectedfs[fsIndex];
 		      // now the just need to ask for <n> targets
-		      int layoutId = XrdCommonLayoutId::GetId(XrdCommonLayoutId::kReplica, XrdCommonLayoutId::kNone, nnewreplicas);
+		      int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::kNone, nnewreplicas);
 		      
 		      // we don't know the container tag here, but we don't really care since we are scheduled as root
 		      if (!(errno = quotaspace->FilePlacement(vid.uid, vid.gid, 0 , layoutId, selectedfs, SFS_O_TRUNC, forcedsubgroup))) {
@@ -1503,7 +1511,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		    std::multimap <std::string /*space*/, int /*fsid*/> spacemap;
 		    
 		    // we have too many replica's online, we drop (nrepoonline-nreplayout) replicas starting with the lowest configuration state
-		    XrdMgmFstNode::gMutex.Lock();
+		    FstNode::gMutex.Lock();
 		    
 		    eos_debug("trying to drop %d replicas space=%s subgroup=%d", n2delete, creationspace.c_str(), icreationsubgroup);
 		    
@@ -1515,7 +1523,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 			continue;
 		      }
 		      
-		      XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
+		      FstFileSystem* filesystem = (FstFileSystem*) FstNode::gFileSystemById[(int) *lociter];
 		      if (filesystem) {
 			unsigned int fsid = filesystem->GetId();
 			statemap.insert(std::pair<int,int>(filesystem->GetConfigStatus(),fsid));
@@ -1523,7 +1531,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 			spacemap.insert(std::pair<std::string,int>(filesystem->GetSpaceName(),fsid));
 		      }
 		    }
-		    XrdMgmFstNode::gMutex.UnLock();
+		    FstNode::gMutex.UnLock();
 		    
 		    
 		    if (!creationspace.length()) {
@@ -1551,7 +1559,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 			  }
 			  
 			  // we default to the highest state for safety reasons
-			  int state=XrdCommonFileSystem::kRW;
+			  int state=eos::common::FileSystem::kRW;
 			  
 			  std::multimap <int,int>::const_iterator stateit;
 			  
@@ -1591,7 +1599,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 			  
 			  
 			  // we default to the highest state for safety reasons
-			  int state=XrdCommonFileSystem::kRW;
+			  int state=eos::common::FileSystem::kRW;
 			  
 			  std::multimap <int,int>::const_iterator stateit;
 			  
@@ -1684,15 +1692,15 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      int i=0;
 	      stdOut += "&";
 	      stdOut += "mgm.nrep="; stdOut += (int)fmd->getNumLocation(); stdOut += "&";
-	      stdOut += "mgm.checksumtype=";stdOut += XrdCommonLayoutId::GetChecksumString(fmd->getLayoutId()); stdOut +="&";
-	      stdOut += "mgm.size="; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getSize()); stdOut+="&";
+	      stdOut += "mgm.checksumtype=";stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()); stdOut +="&";
+	      stdOut += "mgm.size="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getSize()); stdOut+="&";
 	      stdOut += "mgm.checksum="; 
 	      for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
 		char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
 		stdOut += hb;
 	      }
 	      stdOut += "&";
-	      stdOut += "mgm.stripes="; stdOut += (int)(XrdCommonLayoutId::GetStripeNumber(fmd->getLayoutId())+1);
+	      stdOut += "mgm.stripes="; stdOut += (int)(eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1);
 	      stdOut += "&";
 
 	      for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
@@ -1701,8 +1709,8 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		  eos_err("fsid 0 found fid=%lld", fmd->getId());
 		  continue;
 		}
-		XrdMgmFstNode::gMutex.Lock();
-		XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
+		FstNode::gMutex.Lock();
+		FstFileSystem* filesystem = (FstFileSystem*) FstNode::gFileSystemById[(int) *lociter];
 		if (filesystem) {
 		  XrdOucString host; 
 		  int port=0;
@@ -1711,7 +1719,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		  hostport += host; hostport += ":"; hostport += port;
 		  stdOut += "mgm.replica.url";stdOut += i; stdOut += "="; stdOut += hostport; stdOut +="&";
 		  XrdOucString hexstring="";
-		  XrdCommonFileId::Fid2Hex(fmd->getId(), hexstring);
+		  eos::common::FileId::Fid2Hex(fmd->getId(), hexstring);
 		  stdOut += "mgm.fid"; stdOut += i; stdOut += "="; stdOut += hexstring;  stdOut += "&";
 		  stdOut += "mgm.fsid";stdOut += i; stdOut += "="; stdOut += (int) *lociter; stdOut += "&";
 		  stdOut += "mgm.fsbootstat"; stdOut += i; stdOut += "="; stdOut += filesystem->GetBootStatusString(); stdOut += "&";
@@ -1719,7 +1727,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		  stdOut += "NA&";
 		}
 		i++;
-		XrdMgmFstNode::gMutex.UnLock();
+		FstNode::gMutex.UnLock();
 	      }
 	    }						     
 	  }
@@ -1799,7 +1807,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  }
 
 	  if ( (option.find("-fxid")) != STR_NPOS) {
-	    XrdCommonFileId::Fid2Hex(fmd->getId(),sizestring); 
+	    eos::common::FileId::Fid2Hex(fmd->getId(),sizestring); 
 	    stdOut += "fxid:   "; 
 	    stdOut += sizestring;
 	    stdOut+="\n";
@@ -1815,13 +1823,13 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 
 	  if ( (option.find("-size")) != STR_NPOS) {
 	    stdOut += "size:   ";
-	    stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getSize()); stdOut+="\n";
+	    stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getSize()); stdOut+="\n";
 	  }
 
 	  if ( (option.find("-checksum")) != STR_NPOS) {
-	    stdOut += "xstype: "; stdOut += XrdCommonLayoutId::GetChecksumString(fmd->getLayoutId());
+	    stdOut += "xstype: "; stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
 	    stdOut += "xs:     ";
-	    for (unsigned int i=0; i< XrdCommonLayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
+	    for (unsigned int i=0; i< eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
 	      char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
 	      stdOut += hb;
 	    }
@@ -1841,25 +1849,25 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	    snprintf(fid,32,"%llu",(unsigned long long) fmd->getId());
 
 	    stdOut  = "  File: '"; stdOut += path; stdOut += "'";
-	    stdOut += "  Size: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getSize()); stdOut+="\n";
-	    stdOut += "Modify: "; stdOut += ctime_r(&filectime, mtimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += XrdCommonFileSystem::GetSizeString(sizestring, mtime.tv_sec); stdOut += "."; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, mtime.tv_nsec); stdOut += "\n";
-	    stdOut += "Change: "; stdOut += ctime_r(&filemtime, ctimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += XrdCommonFileSystem::GetSizeString(sizestring, ctime.tv_sec); stdOut += "."; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, ctime.tv_nsec);stdOut += "\n";
+	    stdOut += "  Size: "; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getSize()); stdOut+="\n";
+	    stdOut += "Modify: "; stdOut += ctime_r(&filectime, mtimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mtime.tv_sec); stdOut += "."; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mtime.tv_nsec); stdOut += "\n";
+	    stdOut += "Change: "; stdOut += ctime_r(&filemtime, ctimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)ctime.tv_sec); stdOut += "."; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)ctime.tv_nsec);stdOut += "\n";
 	    stdOut += "  CUid: "; stdOut += (int)fmd->getCUid(); stdOut += " CGid: "; stdOut += (int)fmd->getCGid();
 	    
-	    stdOut += "  Fxid: "; XrdCommonFileId::Fid2Hex(fmd->getId(),sizestring); stdOut += sizestring; stdOut+=" "; stdOut += "Fid: "; stdOut += fid; stdOut += " ";
-	    stdOut += "   Pid: "; stdOut += XrdCommonFileSystem::GetSizeString(sizestring, fmd->getContainerId()); stdOut+="\n";
-	    stdOut += "XStype: "; stdOut += XrdCommonLayoutId::GetChecksumString(fmd->getLayoutId());
+	    stdOut += "  Fxid: "; eos::common::FileId::Fid2Hex(fmd->getId(),sizestring); stdOut += sizestring; stdOut+=" "; stdOut += "Fid: "; stdOut += fid; stdOut += " ";
+	    stdOut += "   Pid: "; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getContainerId()); stdOut+="\n";
+	    stdOut += "XStype: "; stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
 	    stdOut += "    XS: "; 
 	    for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
 	      char hb[3]; sprintf(hb,"%02x ", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
 	      stdOut += hb;
 	    }
 	    stdOut+="\n";
-	    stdOut +  "Layout: "; stdOut += XrdCommonLayoutId::GetLayoutTypeString(fmd->getLayoutId()); stdOut += " Stripes: "; stdOut += (int)(XrdCommonLayoutId::GetStripeNumber(fmd->getLayoutId())+1);
+	    stdOut +  "Layout: "; stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId()); stdOut += " Stripes: "; stdOut += (int)(eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1);
 	    stdOut += " *******\n";
 	    stdOut += "  #Rep: "; stdOut += (int)fmd->getNumLocation(); stdOut+="\n";
 	    
-	    stdOut += "<#> <fs-id> "; stdOut += XrdMgmFstFileSystem::GetInfoHeader();
+	    stdOut += "<#> <fs-id> "; stdOut += FstFileSystem::GetInfoHeader();
 	    stdOut += "-------\n";
 	    eos::FileMD::LocationVector::const_iterator lociter;
 	    int i=0;
@@ -1876,14 +1884,14 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	      location += (int) *lociter;
 	      sprintf(fsline,"%3s   %5s ",si.c_str(), location.c_str());
 	      stdOut += fsline; 
-	      XrdMgmFstNode::gMutex.Lock();
-	      XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
+	      FstNode::gMutex.Lock();
+	      FstFileSystem* filesystem = (FstFileSystem*) FstNode::gFileSystemById[(int) *lociter];
 	      if (filesystem) {
 		stdOut += filesystem->GetInfoString();
 	      } else {
 		stdOut += "NA\n";
 	      }
-	      XrdMgmFstNode::gMutex.UnLock();
+	      FstNode::gMutex.UnLock();
 	      i++;
 	    }
 	    for ( lociter = fmd->unlinkedLocationsBegin(); lociter != fmd->unlinkedLocationsEnd(); ++lociter) {
@@ -2031,7 +2039,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		    dirmarker="";
 
 		  sprintf(lsline,"%s %3d %-8.8s %-8.8s %12s %s %s%s\n", modestr,(int)buf.st_nlink,
-			  suid.c_str(),sgid.c_str(),XrdCommonFileSystem::GetSizeString(sizestring,buf.st_size),t_creat, val, dirmarker.c_str());
+			  suid.c_str(),sgid.c_str(),eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)buf.st_size),t_creat, val, dirmarker.c_str());
 		  if ((option.find("l"))!=STR_NPOS) 
 		    stdOut += lsline;
 		  else {
@@ -2276,14 +2284,14 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 			    continue;
 			  }
 
-			  XrdMgmFstNode::gMutex.Lock();
-			  XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*) XrdMgmFstNode::gFileSystemById[(int) *lociter];
+			  FstNode::gMutex.Lock();
+			  FstFileSystem* filesystem = (FstFileSystem*) FstNode::gFileSystemById[(int) *lociter];
 			  if (filesystem) {
 			    sGroup = filesystem->GetSchedulingGroup();
 			  } else {
 			    sGroup = "none";
 			  }
-			  XrdMgmFstNode::gMutex.UnLock();
+			  FstNode::gMutex.UnLock();
 			  
 			  if (sGroupRef.length()) {
 			    if (sGroup != sGroupRef) {
@@ -2304,7 +2312,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 			XrdOucString sizestring;
 			bool printed = true;
 			if (selectrepdiff) {
-                          if (fmd->getNumLocation() != (XrdCommonLayoutId::GetStripeNumber(fmd->getLayoutId())+1)) {
+                          if (fmd->getNumLocation() != (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1)) {
 			    printed = true;
 			  } else {
 			    printed = false;
@@ -2339,7 +2347,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 			  }
 			  if (printchecksum) {
 			    stdOut += " checksum=";
-			    for (unsigned int i=0; i< XrdCommonLayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
+			    for (unsigned int i=0; i< eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
 			      char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
 			      stdOut += hb;
 			    }
@@ -2408,7 +2416,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		      continue;
 		    }
 		    filesystembalance[loc]+=size;
-		    XrdMgmFstNode::gMutex.Lock();
+		    FstNode::gMutex.Lock();
 		    
 		    if ( (i==0) && (size) ) {
 		      int bin= (int)log10( (double) size);
@@ -2416,12 +2424,12 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 		      sizedistributionn[ bin ] ++;
 		    }
 
-		    XrdMgmFstFileSystem* filesystem = (XrdMgmFstFileSystem*)XrdMgmFstNode::gFileSystemById[loc];
+		    FstFileSystem* filesystem = (FstFileSystem*)FstNode::gFileSystemById[loc];
 		    if (filesystem) {
 		      spacebalance[filesystem->GetSpaceName()]+=size;
 		      schedulinggroupbalance[filesystem->GetSchedulingGroup()]+=size;
 		    }
-		    XrdMgmFstNode::gMutex.UnLock();
+		    FstNode::gMutex.UnLock();
 		  }
 		} else {
 		  gOFS->eosViewMutex.UnLock();
@@ -2460,21 +2468,21 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	google::dense_hash_map<unsigned long, unsigned long long>::iterator it;
 	for ( it = filesystembalance.begin(); it != filesystembalance.end(); it++) {
 	  char outline[1024];
-	  sprintf(outline,"fsid=%lu \tvolume=%-12s \tnbytes=%llu\n",it->first,XrdCommonFileSystem::GetReadableSizeString(sizestring, it->second,"B"), it->second);
+	  sprintf(outline,"fsid=%lu \tvolume=%-12s \tnbytes=%llu\n",it->first,eos::common::StringConversion::GetReadableSizeString(sizestring, it->second,"B"), it->second);
 	  stdOut += outline;
 	}
 
 	google::dense_hash_map<std::string, unsigned long long>::iterator its;
 	for ( its= spacebalance.begin(); its != spacebalance.end(); its++) {
 	  char outline[1024];
-	  sprintf(outline,"space=%s \tvolume=%-12s \tnbytes=%llu\n",its->first.c_str(),XrdCommonFileSystem::GetReadableSizeString(sizestring, its->second,"B"), its->second);
+	  sprintf(outline,"space=%s \tvolume=%-12s \tnbytes=%llu\n",its->first.c_str(),eos::common::StringConversion::GetReadableSizeString(sizestring, its->second,"B"), its->second);
 	  stdOut += outline;
 	}
 
 	google::dense_hash_map<std::string, unsigned long long>::iterator itg;
 	for ( itg= schedulinggroupbalance.begin(); itg != schedulinggroupbalance.end(); itg++) {
 	  char outline[1024];
-	  sprintf(outline,"sched=%s \tvolume=%-12s \tnbytes=%llu\n",itg->first.c_str(),XrdCommonFileSystem::GetReadableSizeString(sizestring, itg->second,"B"), itg->second);
+	  sprintf(outline,"sched=%s \tvolume=%-12s \tnbytes=%llu\n",itg->first.c_str(),eos::common::StringConversion::GetReadableSizeString(sizestring, itg->second,"B"), itg->second);
 	  stdOut += outline;
 	}
 	
@@ -2494,10 +2502,10 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 	  XrdOucString sizestring4;
 	  unsigned long long avgsize = (unsigned long long ) (sizedistributionn[itsd->first]?itsd->second/sizedistributionn[itsd->first]:0);
 	  sprintf(outline,"sizeorder=%02d \trange=[ %-12s ... %-12s ] volume=%-12s \tavgsize=%-12s \tnbyptes=%llu \t avgnbytes=%llu\n", itsd->first
-		  , XrdCommonFileSystem::GetReadableSizeString(sizestring1, lowerlimit,"B")
-		  , XrdCommonFileSystem::GetReadableSizeString(sizestring2, upperlimit,"B")
-		  , XrdCommonFileSystem::GetReadableSizeString(sizestring3, itsd->second,"B")
-		  , XrdCommonFileSystem::GetReadableSizeString(sizestring4, avgsize,"B")
+		  , eos::common::StringConversion::GetReadableSizeString(sizestring1, lowerlimit,"B")
+		  , eos::common::StringConversion::GetReadableSizeString(sizestring2, upperlimit,"B")
+		  , eos::common::StringConversion::GetReadableSizeString(sizestring3, itsd->second,"B")
+		  , eos::common::StringConversion::GetReadableSizeString(sizestring4, avgsize,"B")
 		  , itsd->second
 		  , avgsize
 		  );
@@ -2657,7 +2665,7 @@ XrdMgmProcCommand::open(const char* inpath, const char* ininfo, XrdCommonMapping
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmProcCommand::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen) 
+ProcCommand::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen) 
 {
   if ( ((unsigned int)blen <= (len - offset)) ) {
     memcpy(buff, resultStream.c_str() + offset, blen);
@@ -2670,7 +2678,7 @@ XrdMgmProcCommand::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen
 
 /*----------------------------------------------------------------------------*/
 int 
-XrdMgmProcCommand::stat(struct stat* buf) 
+ProcCommand::stat(struct stat* buf) 
 {
   memset(buf, 0, sizeof(struct stat));
   buf->st_size = len;
@@ -2680,14 +2688,14 @@ XrdMgmProcCommand::stat(struct stat* buf)
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmProcCommand::close() 
+ProcCommand::close() 
 {
   return retc;
 }
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmProcCommand::MakeResult(bool dosort) 
+ProcCommand::MakeResult(bool dosort) 
 {
   resultStream =  "mgm.proc.stdout=";
   XrdMqMessage::Sort(stdOut,dosort);
@@ -2706,3 +2714,5 @@ XrdMgmProcCommand::MakeResult(bool dosort)
 }
 
 /*----------------------------------------------------------------------------*/
+
+EOSMGMNAMESPACE_END

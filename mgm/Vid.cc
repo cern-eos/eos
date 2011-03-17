@@ -1,15 +1,17 @@
 /*----------------------------------------------------------------------------*/
-#include "XrdCommon/XrdCommonLogging.hh"
-#include "XrdCommon/XrdCommonLayoutId.hh"
-#include "XrdCommon/XrdCommonMapping.hh"
-#include "XrdMgmOfs/XrdMgmVid.hh"
-#include "XrdMgmOfs/XrdMgmOfs.hh"
+#include "common/Logging.hh"
+#include "common/LayoutId.hh"
+#include "common/Mapping.hh"
+#include "mgm/Vid.hh"
+#include "mgm/XrdMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
+EOSMGMNAMESPACE_BEGIN
+
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMgmVid::Set(const char* value) 
+Vid::Set(const char* value) 
 {
   XrdOucEnv env(value);
   XrdOucString skey=env.Get("mgm.vid.key");
@@ -37,15 +39,15 @@ XrdMgmVid::Set(const char* value)
     
     if ((val=env.Get("mgm.vid.target.uid"))) {
       // fill uid target list
-      XrdCommonMapping::gUserRoleVector[uid].clear();
-      XrdCommonMapping::KommaListToUidVector(val, XrdCommonMapping::gUserRoleVector[uid]);
+      eos::common::Mapping::gUserRoleVector[uid].clear();
+      eos::common::Mapping::KommaListToUidVector(val, eos::common::Mapping::gUserRoleVector[uid]);
       set = true;
     }
     
     if ((val=env.Get("mgm.vid.target.gid"))) {
       // fill gid target list
-      XrdCommonMapping::gGroupRoleVector[uid].clear();
-      XrdCommonMapping::KommaListToGidVector(val, XrdCommonMapping::gGroupRoleVector[uid]);
+      eos::common::Mapping::gGroupRoleVector[uid].clear();
+      eos::common::Mapping::KommaListToGidVector(val, eos::common::Mapping::gGroupRoleVector[uid]);
       set = true;
     }
     
@@ -53,12 +55,12 @@ XrdMgmVid::Set(const char* value)
       // fill sudoer list
       XrdOucString setting = val;
       if (setting == "true") {	
-	XrdCommonMapping::gSudoerMap[uid]=1;
+	eos::common::Mapping::gSudoerMap[uid]=1;
 	set = true;
       } else {
 	// this in fact is deletion of the right
-	XrdCommonMapping::gSudoerMap[uid]=0;
-	gOFS->ConfigEngine->DeleteConfigValue("vid",skey.c_str());
+	eos::common::Mapping::gSudoerMap[uid]=0;
+	gOFS->ConfEngine->DeleteConfigValue("vid",skey.c_str());
 	return true;
       }
     }
@@ -104,13 +106,13 @@ XrdMgmVid::Set(const char* value)
 	return false;
       }
       skey += ":"; skey += "uid";
-      XrdCommonMapping::gVirtualUidMap[skey.c_str()] = muid;
+      eos::common::Mapping::gVirtualUidMap[skey.c_str()] = muid;
       set = true;
       
       // no '&' are allowed here
       XrdOucString svalue = value;
       while(svalue.replace("&"," ")) {};
-      gOFS->ConfigEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
+      gOFS->ConfEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
     }
 
     skey = auth; 
@@ -124,13 +126,13 @@ XrdMgmVid::Set(const char* value)
 	return false;
       }
       skey += ":"; skey += "gid";
-      XrdCommonMapping::gVirtualGidMap[skey.c_str()] = mgid;
+      eos::common::Mapping::gVirtualGidMap[skey.c_str()] = mgid;
       set = true;
 
       // no '&' are allowed here
       XrdOucString svalue = value;
       while(svalue.replace("&"," ")) {};
-      gOFS->ConfigEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
+      gOFS->ConfEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
     }
   }
 
@@ -139,7 +141,7 @@ XrdMgmVid::Set(const char* value)
     // no '&' are allowed here
     XrdOucString svalue = value;
     while(svalue.replace("&"," ")) {};
-    gOFS->ConfigEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
+    gOFS->ConfEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
   }
   
   return set;
@@ -147,7 +149,7 @@ XrdMgmVid::Set(const char* value)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmVid::Set(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
+Vid::Set(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 {
   int envlen;
   // no '&' are allowed into stdOut !
@@ -169,15 +171,15 @@ XrdMgmVid::Set(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &st
 
 /*----------------------------------------------------------------------------*/
 void 
-XrdMgmVid::Ls(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
+Vid::Ls(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 {
-  XrdCommonMapping::Print(stdOut, env.Get("mgm.vid.option"));
+  eos::common::Mapping::Print(stdOut, env.Get("mgm.vid.option"));
   retc = 0;
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmVid::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
+Vid::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 {
   
   return true;
@@ -185,6 +187,8 @@ XrdMgmVid::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &std
 
 /*----------------------------------------------------------------------------*/
 const char* 
-XrdMgmVid::Get(const char* key) {
+Vid::Get(const char* key) {
   return 0;
 }
+
+EOSMGMNAMESPACE_END
