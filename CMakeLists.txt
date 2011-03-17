@@ -102,6 +102,6 @@ ADD_DEPENDENCIES(rpm dist)
 # google sparse hash
 find_package(SparseHash REQUIRED)
 find_package(OpenSSL REQUIRED)
-
-
-
+find_package(uuid REQUIRED)
+find_package(z REQUIRED)
+find_package(cppunit REQUIRED)
