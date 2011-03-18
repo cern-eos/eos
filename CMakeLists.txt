@@ -17,6 +17,16 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 # include some generic functions
 include(EosUtils)
 
+#-------------------------------------------------------------------------------
+# Search for dependencies
+#-------------------------------------------------------------------------------
+find_package(SparseHash REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(uuid REQUIRED)
+find_package(z REQUIRED)
+find_package(cppunit REQUIRED)
+find_package(XRootD REQUIRED)
+
 ######################################################################################################################
 # Platform Specific
 EOS_defineOperatingSystem()
@@ -43,8 +53,8 @@ add_subdirectory (console)
 add_subdirectory (namespace)
 add_subdirectory (etc)
 
-include_directories( ../ /usr/include/xrootd/ /usr/include/ )
-link_directories(/usr/${LIB_INSTALL_DIR}/)
+include_directories( ../ /usr/includeye/xrootd/ /usr/include/ )
+link_directories( /usr/${LIB_INSTALL_DIR}/)
 
 set(SYSCONFDIR "/etc" CACHE PATH "Directory for system configuration files" )
 
@@ -100,9 +110,3 @@ ADD_DEPENDENCIES(rpm dist)
 ######################################################################################################################
 
 # google sparse hash
-find_package(SparseHash REQUIRED)
-find_package(OpenSSL REQUIRED)
-find_package(uuid REQUIRED)
-find_package(z REQUIRED)
-find_package(cppunit REQUIRED)
-find_package(xrd REQUIRED)

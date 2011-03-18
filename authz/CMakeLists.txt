@@ -1,4 +1,5 @@
-include_directories( ../ /usr/include/xrootd/ /usr/include/ )
+include_directories( ../ ${XROOTD_INCLUDE_DIR} )
+link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
 
 add_library (XrdEosAuth MODULE
 	    XrdCapability.cc
