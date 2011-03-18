@@ -10,24 +10,7 @@ add_library (eosCommon SHARED
 	    Statfs.cc
 	    StringStore.cc
 	    SymKeys.cc
-	    ClientAdmin.hh
-	    Exception.hh
-	    FileId.hh
-	    FileSystem.hh
-	    Fmd.hh
-	    LayoutId.hh
-	    Logging.hh
-	    Mapping.hh
-	    Path.hh
-	    Proc.hh
-	    RWMutex.hh
-	    Statfs.hh
-	    StringConversion.hh
-	    StringStore.hh
-	    SymKeys.hh
-	    Timing.hh
-	    ClientLock.hh
-	    Namespace.hh
+	    GlobalConfig.cc
 	    )
 
 add_library (eosCommon-Static STATIC
@@ -40,24 +23,7 @@ add_library (eosCommon-Static STATIC
 	    Statfs.cc
 	    StringStore.cc
 	    SymKeys.cc
-	    ClientAdmin.hh
-	    Exception.hh
-	    FileId.hh
-	    FileSystem.hh
-	    Fmd.hh
-	    LayoutId.hh
-	    Logging.hh
-	    Mapping.hh
-	    Path.hh
-	    Proc.hh
-	    RWMutex.hh
-	    Statfs.hh
-	    StringConversion.hh
-	    StringStore.hh
-	    SymKeys.hh
-	    Timing.hh
-	    ClientLock.hh
-	    Namespace.hh
+	    GlobalConfig.cc
 )
 
 

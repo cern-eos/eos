@@ -42,6 +42,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   MgmOfsTargetPort = "1094";
   MgmOfsName = "";
   MgmOfsBrokerUrl = "root://localhost:1097//eos/";
+  MgmOfsInstanceName = "testinstance";
 
   MgmConfigDir = "/var/tmp/";
   MgmMetaLogDir = "/var/tmp/eos/md/";
@@ -104,7 +105,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	    Eroute.Emsg("Config","argument for all.role missing.");NoGo=1;
 	  } else {
 	    XrdOucString lrole = val;
-
+	    
 	    if ((val = Config.GetWord())) {
 	      if (!strcmp(val,"if")) {
 		if ((val = Config.GetWord())) {
@@ -119,7 +120,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 		role = lrole;
 	      }
 	    } else {
-		role = lrole;
+	      role = lrole;
 	    }
 	  }
 	}
@@ -142,163 +143,177 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	    MgmOfsTargetPort = val;
 	  }
 	}
-      }
-      if (!strcmp("capability",var)) {
-	if (!(val = Config.GetWord())) {
-	  Eroute.Emsg("Config","argument 2 for capbility missing. Can be true/lazy/1 or false/0"); NoGo=1;
-	} else {
-	  if ( (!(strcmp(val,"true"))) || (!(strcmp(val,"1"))) || (!(strcmp(val,"lazy")))) {
-	    IssueCapability = true;
+	
+	if (!strcmp("capability",var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument 2 for capbility missing. Can be true/lazy/1 or false/0"); NoGo=1;
 	  } else {
-	    if ( (!(strcmp(val,"false"))) || (!(strcmp(val,"0")))) {
-	      IssueCapability = false;
+	    if ( (!(strcmp(val,"true"))) || (!(strcmp(val,"1"))) || (!(strcmp(val,"lazy")))) {
+	      IssueCapability = true;
 	    } else {
-	      Eroute.Emsg("Config","argument 2 for capbility invalid. Can be <true>/1 or <false>/0"); NoGo=1;
+	      if ( (!(strcmp(val,"false"))) || (!(strcmp(val,"0")))) {
+		IssueCapability = false;
+	      } else {
+		Eroute.Emsg("Config","argument 2 for capbility invalid. Can be <true>/1 or <false>/0"); NoGo=1;
+	      }
 	    }
 	  }
 	}
-      }
-
-      if (!strcmp("broker",var)) {
-	if (!(val = Config.GetWord())) {
-	  Eroute.Emsg("Config","argument 2 for broker missing. Should be URL like root://<host>/<queue>/"); NoGo=1;
-	} else {
-	  if (getenv("EOS_BROKER_URL")) {
-	    MgmOfsBrokerUrl = getenv("EOS_BROKER_URL");
+	
+	if (!strcmp("broker",var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument 2 for broker missing. Should be URL like root://<host>/<queue>/"); NoGo=1;
 	  } else {
-	    MgmOfsBrokerUrl = val;
+	    if (getenv("EOS_BROKER_URL")) {
+	      MgmOfsBrokerUrl = getenv("EOS_BROKER_URL");
+	    } else {
+	      MgmOfsBrokerUrl = val;
+	    }
 	  }
 	}
-      }
-	  
-      if (!strcmp("authlib",var)) {
-	if ((!(val = Config.GetWord())) || (::access(val,R_OK))) {
-	  Eroute.Emsg("Config","I cannot acccess you authorization library!"); NoGo=1;} else {
+	
+	if (!strcmp("instance", var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument 2 for instance missing. Should be the name of the EOS cluster"); NoGo=1;
+	  } else {
+	    if (getenv("EOS_INSTANCE_NAME")) {
+	      MgmOfsInstanceName = getenv("EOS_INSTANCE_NAME");
+	    } else {
+	      MgmOfsInstanceName = val;
+	    }
+	  }
+	  Eroute.Say("=====> mgmofs.instance : ", MgmOfsInstanceName.c_str(),"");
+	}
+
+	if (!strcmp("authlib",var)) {
+	  if ((!(val = Config.GetWord())) || (::access(val,R_OK))) {
+	    Eroute.Emsg("Config","I cannot acccess you authorization library!"); NoGo=1;} else {
 	    AuthLib=val;
 	  }
-	Eroute.Say("=====> mgmofs.authlib : ", AuthLib.c_str());
-      }
-
-      if (!strcmp("authorize",var)) {
-	if ((!(val = Config.GetWord())) || (strcmp("true",val) && strcmp("false",val) && strcmp("1",val) && strcmp("0",val))) {
-	  Eroute.Emsg("Config","argument 2 for authorize illegal or missing. Must be <true>,<false>,<1> or <0>!"); NoGo=1;} else {
+	  Eroute.Say("=====> mgmofs.authlib : ", AuthLib.c_str());
+	}
+	
+	if (!strcmp("authorize",var)) {
+	  if ((!(val = Config.GetWord())) || (strcmp("true",val) && strcmp("false",val) && strcmp("1",val) && strcmp("0",val))) {
+	    Eroute.Emsg("Config","argument 2 for authorize illegal or missing. Must be <true>,<false>,<1> or <0>!"); NoGo=1;} else {
 	    if ((!strcmp("true",val) || (!strcmp("1",val)))) {
 	      authorize = true;
 	    }
 	  }
-	if (authorize)
-	  Eroute.Say("=====> mgmofs.authorize : true");
-	else
-	  Eroute.Say("=====> mgmofs.authorize : false");
-      }
-
-      if (!strcmp("symkey",var)) {
-	if ((!(val = Config.GetWord())) || (strlen(val)!=28)) {
-	  Eroute.Emsg("Config","argument 2 for symkey missing or length!=28");
-	  NoGo=1;
-	} else {
-	  // this key is valid forever ...
-	  if (getenv("EOS_SYM_KEY")) {
-	    if (!eos::common::gSymKeyStore.SetKey64(getenv("EOS_SYM_KEY"),0)) {
-	      Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
-	      NoGo=1;
-	    }
-	    Eroute.Say("=====> mgmofs.symkey(sysconfig) : ", getenv("EOS_SYM_KEY"));
+	  if (authorize)
+	    Eroute.Say("=====> mgmofs.authorize : true");
+	  else
+	    Eroute.Say("=====> mgmofs.authorize : false");
+	}
+	
+	if (!strcmp("symkey",var)) {
+	  if ((!(val = Config.GetWord())) || (strlen(val)!=28)) {
+	    Eroute.Emsg("Config","argument 2 for symkey missing or length!=28");
+	    NoGo=1;
 	  } else {
-	    if (!eos::common::gSymKeyStore.SetKey64(val,0)) {
-	      Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
-	      NoGo=1;
-	    }
-	    Eroute.Say("=====> mgmofs.symkey : ", val);
-	  }
-	}
-      }
-      
-      if (!strcmp("configdir",var)) {
-	if (!(val = Config.GetWord())) {
-	  Eroute.Emsg("Config","argument for configdir invalid.");NoGo=1;
-	} else {
-	  MgmConfigDir = val;
-	  if (!MgmConfigDir.endswith("/")) 
-	    MgmConfigDir += "/";
-	}
-      }
-      if (!strcmp("metalog",var)) {
-	if (!(val = Config.GetWord())) {
-	  Eroute.Emsg("Config","argument 2 for metalog missing"); NoGo=1;
-	} else {
-	  MgmMetaLogDir = val;
-	  // just try to create it in advance
-	  XrdOucString makeit="mkdir -p "; makeit+= MgmMetaLogDir; int src =system(makeit.c_str()); 
-	  if (src) 
-	    eos_err("%s returned %d", makeit.c_str(), src);
-
-	  if (::access(MgmMetaLogDir.c_str(), W_OK|R_OK|X_OK)) {
-	    Eroute.Emsg("Config","I cannot acccess the meta data changelog directory for r/w!", MgmMetaLogDir.c_str()); NoGo=1;
-	  } else {
-	    Eroute.Say("=====> mgmofs.metalog: ", MgmMetaLogDir.c_str(),"");
-	  }
-	}
-      }
-      if (!strcmp("trace",var)) {
-	static struct traceopts {const char *opname; int opval;} tropts[] =
-								   {
-								     {"aio",      TRACE_aio},
-								     {"all",      TRACE_ALL},
-								     {"chmod",    TRACE_chmod},
-								     {"close",    TRACE_close},
-								     {"closedir", TRACE_closedir},
-								     {"debug",    TRACE_debug},
-								     {"delay",    TRACE_delay},
-								     {"dir",      TRACE_dir},
-								     {"exists",   TRACE_exists},
-								     {"getstats", TRACE_getstats},
-								     {"fsctl",    TRACE_fsctl},
-								     {"io",       TRACE_IO},
-								     {"mkdir",    TRACE_mkdir},
-								     {"most",     TRACE_MOST},
-								     {"open",     TRACE_open},
-								     {"opendir",  TRACE_opendir},
-								     {"qscan",    TRACE_qscan},
-								     {"read",     TRACE_read},
-								     {"readdir",  TRACE_readdir},
-								     {"redirect", TRACE_redirect},
-								     {"remove",   TRACE_remove},
-								     {"rename",   TRACE_rename},
-								     {"sync",     TRACE_sync},
-								     {"truncate", TRACE_truncate},
-								     {"write",    TRACE_write},
-								     {"authorize",TRACE_authorize},
-								     {"map",      TRACE_map},
-								     {"role",     TRACE_role},
-								     {"access",   TRACE_access},
-								     {"attributes",TRACE_attributes},
-								     {"allows",   TRACE_allows}
-								   };
-	int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
-
-	if (!(val = Config.GetWord())) {
-	  Eroute.Emsg("Config", "trace option not specified"); return 1;
-	}
-
-	while (val) {
-	  Eroute.Say("=====> mgmofs.trace: ", val,"");
-	  if (!strcmp(val, "off")) trval = 0;
-	  else {if ((neg = (val[0] == '-' && val[1]))) val++;
-	    for (i = 0; i < numopts; i++)
-	      {if (!strcmp(val, tropts[i].opname))
-		  {if (neg) trval &= ~tropts[i].opval;
-		    else  trval |=  tropts[i].opval;
-		    break;
-		  }
+	    // this key is valid forever ...
+	    if (getenv("EOS_SYM_KEY")) {
+	      if (!eos::common::gSymKeyStore.SetKey64(getenv("EOS_SYM_KEY"),0)) {
+		Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
+		NoGo=1;
 	      }
-	    if (i >= numopts)
-	      Eroute.Say("Config warning: ignoring invalid trace option '",val,"'.");
+	      Eroute.Say("=====> mgmofs.symkey(sysconfig) : ", getenv("EOS_SYM_KEY"));
+	    } else {
+	      if (!eos::common::gSymKeyStore.SetKey64(val,0)) {
+		Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
+		NoGo=1;
+	      }
+	      Eroute.Say("=====> mgmofs.symkey : ", val);
+	    }
 	  }
-          val = Config.GetWord();
 	}
-
-	gMgmOfsTrace.What = trval;
+	
+	if (!strcmp("configdir",var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument for configdir invalid.");NoGo=1;
+	  } else {
+	    MgmConfigDir = val;
+	    if (!MgmConfigDir.endswith("/")) 
+	      MgmConfigDir += "/";
+	  }
+	}
+	if (!strcmp("metalog",var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument 2 for metalog missing"); NoGo=1;
+	  } else {
+	    MgmMetaLogDir = val;
+	    // just try to create it in advance
+	    XrdOucString makeit="mkdir -p "; makeit+= MgmMetaLogDir; int src =system(makeit.c_str()); 
+	    if (src) 
+	      eos_err("%s returned %d", makeit.c_str(), src);
+	    
+	    if (::access(MgmMetaLogDir.c_str(), W_OK|R_OK|X_OK)) {
+	      Eroute.Emsg("Config","I cannot acccess the meta data changelog directory for r/w!", MgmMetaLogDir.c_str()); NoGo=1;
+	    } else {
+	      Eroute.Say("=====> mgmofs.metalog: ", MgmMetaLogDir.c_str(),"");
+	    }
+	  }
+	}
+	if (!strcmp("trace",var)) {
+	  static struct traceopts {const char *opname; int opval;} tropts[] =
+								     {
+								       {"aio",      TRACE_aio},
+								       {"all",      TRACE_ALL},
+								       {"chmod",    TRACE_chmod},
+								       {"close",    TRACE_close},
+								       {"closedir", TRACE_closedir},
+								       {"debug",    TRACE_debug},
+								       {"delay",    TRACE_delay},
+								       {"dir",      TRACE_dir},
+								       {"exists",   TRACE_exists},
+								       {"getstats", TRACE_getstats},
+								       {"fsctl",    TRACE_fsctl},
+								       {"io",       TRACE_IO},
+								       {"mkdir",    TRACE_mkdir},
+								       {"most",     TRACE_MOST},
+								       {"open",     TRACE_open},
+								       {"opendir",  TRACE_opendir},
+								       {"qscan",    TRACE_qscan},
+								       {"read",     TRACE_read},
+								       {"readdir",  TRACE_readdir},
+								       {"redirect", TRACE_redirect},
+								       {"remove",   TRACE_remove},
+								       {"rename",   TRACE_rename},
+								       {"sync",     TRACE_sync},
+								       {"truncate", TRACE_truncate},
+								       {"write",    TRACE_write},
+								       {"authorize",TRACE_authorize},
+								       {"map",      TRACE_map},
+								       {"role",     TRACE_role},
+								     {"access",   TRACE_access},
+								       {"attributes",TRACE_attributes},
+								       {"allows",   TRACE_allows}
+								     };
+	  int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
+	  
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config", "trace option not specified"); return 1;
+	  }
+	  
+	  while (val) {
+	    Eroute.Say("=====> mgmofs.trace: ", val,"");
+	    if (!strcmp(val, "off")) trval = 0;
+	    else {if ((neg = (val[0] == '-' && val[1]))) val++;
+	      for (i = 0; i < numopts; i++)
+		{if (!strcmp(val, tropts[i].opname))
+		    {if (neg) trval &= ~tropts[i].opval;
+		      else  trval |=  tropts[i].opval;
+		      break;
+		    }
+		}
+	      if (i >= numopts)
+		Eroute.Say("Config warning: ignoring invalid trace option '",val,"'.");
+	    }
+	    val = Config.GetWord();
+	  }
+	  
+	  gMgmOfsTrace.What = trval;
+	}
       }
     }
   }
@@ -403,8 +418,8 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   // start the config enging
   ConfEngine = new ConfigEngine(MgmConfigDir.c_str());
 
-  eos_info("autoload config=%s", getenv("EOS_AUTOLOAD_CONFIG"));
   if (getenv("EOS_AUTOLOAD_CONFIG")) {
+    eos_info("autoload config=%s", getenv("EOS_AUTOLOAD_CONFIG"));
     XrdOucString configloader = "mgm.config.file="; 
     configloader += getenv("EOS_AUTOLOAD_CONFIG");
     XrdOucEnv configenv(configloader.c_str());

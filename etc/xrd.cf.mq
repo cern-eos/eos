@@ -6,8 +6,10 @@ all.manager localhost 2313
 #############################################################
 # SSS authentication
 xrootd.seclib libXrdSec.so
-sec.protocol sss -c /opt/eos/sss/eos-sss.keytab -s /opt/eos/sss/eos-sss.keytab
-sec.protbind * only sss
+#sec.protocol sss -c /opt/eos/sss/eos-sss.keytab -s /opt/eos/sss/eos-sss.keytab
+#sec.protbind * only sss
+sec.protocol unix
+sec.protbind * only unix
 
 #############################################################
 #allow upto 1024 threads

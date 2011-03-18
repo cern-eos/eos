@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 #include <stdio.h>
+#include <errno.h>
+#include <string.h>
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -103,6 +105,16 @@ public:
     if (convfactor >1)
       sizestring.erase(sizestring.length()-1);
     return (strtoll(sizestring.c_str(),0,10) * convfactor);
+  }
+
+  /*----------------------------------------------------------------------------*/
+  static const char* 
+  GetReadableSizeString(std::string& sizestring, unsigned long long insize, const char* unit) {
+    const char* ptr=0;
+    XrdOucString oucsizestring="";
+    ptr = GetReadableSizeString(oucsizestring, insize, unit);
+    sizestring = oucsizestring.c_str();
+    return ptr;
   }
   
   /*----------------------------------------------------------------------------*/

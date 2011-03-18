@@ -8,11 +8,19 @@ add_library (XrdEosMgm MODULE
 	    ProcInterface.cc
 	    Quota.cc
 	    Vid.cc
+	    FsView.cc
 	    XrdMgmOfsConfigure.cc
 	    XrdMgmOfs.cc
 	    )
 
 target_link_libraries (XrdEosMgm XrdClient XrdSys XrdOuc XrdNet XrdNetUtil XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z)
+
+add_executable ( testmgmview
+	         FsView.cc
+	         test/MgmViewTest.cc
+)
+
+target_link_libraries ( testmgmview XrdClient XrdSys XrdOuc XrdNet XrdNetUtil eosCommon-Static XrdMqClient-Static crypto uuid curses pthread dl z)
 
 if (Linux)
   set_target_properties (XrdEosMgm PROPERTIES

@@ -446,6 +446,7 @@ virtual bool           Init(XrdSysError &);
         XrdOucString     MgmOfsName;         // -> mount point of the filesystem
         XrdOucString     MgmOfsTargetPort;   // -> xrootd port where redirections go on the OSTs -default is 1094
         XrdOucString     MgmOfsQueue;        // -> our mgm queue name
+        XrdOucString     MgmOfsInstanceName; // -> name of the EOS instance
         XrdOucString     MgmConfigDir;       // Directory where config files are stored
         XrdOucString     AuthLib;            // -> path to a possible authorizationn library
         bool             authorize;          // -> determins if the autorization should be applied or not
