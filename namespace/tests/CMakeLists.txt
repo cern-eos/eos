@@ -13,7 +13,7 @@ add_library (eosNamespaceTests SHARED
 target_link_libraries( eosNamespaceTests ${CPPUNIT_LIBRARIES} eosNamespace)
 
 add_executable(text-runner TextRunner.cc)
-target_link_libraries( text-runner eosNamespaceTests )
+target_link_libraries( text-runner eosNamespaceTests dl)
 
 
 if (Linux)

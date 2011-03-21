@@ -604,7 +604,6 @@ void usage() {
   fprintf(stderr,"           => run <cmd> in eos shell\n");
   fprintf(stderr,"usage: eos [-r|--role <uid> <gid>] <mgm-url> <filename>\n");
   fprintf(stderr,"           =. run script <filename> in eos shell\n");
-  fprintf(stderr," hint => role selection has to be before batch mode flags on the command line!\n");
 }
 
 int main (int argc, char* argv[]) {
@@ -617,7 +616,6 @@ int main (int argc, char* argv[]) {
   
   XrdOucString urole="";
   XrdOucString grole="";
-  bool accepted = false;
   bool selectedrole= false;
   int argindex=1;
 
@@ -633,11 +631,26 @@ int main (int argc, char* argv[]) {
   if (argc>1) {
     XrdOucString in1 = argv[argindex];
 
+    if (in1.beginswith("-")) {
+      if ( (in1 != "--help")  &&
+	   (in1 != "--batch") &&
+	   (in1 != "--role")  &&
+	   (in1 != "-h")      &&
+	   (in1 != "-b")      &&
+	   (in1 != "-r")) {
+	usage();
+	exit(-1);
+      }
+    }
+    if ( (in1 == "--help") || (in1 == "-h") ) {
+      usage();
+      exit(-1);
+    }
+
     if ( (in1 == "--batch") || (in1 == "-b") ) {
       interactive = false;
       global_highlighting = false;
       argindex++;
-      accepted = true;
       in1 = argv[argindex];
     }
 
@@ -653,7 +666,6 @@ int main (int argc, char* argv[]) {
       if (!interactive)silent = true;
       execute_line ((char*)cmdline.c_str());
       if (!interactive)silent = false;
-      accepted = true;
       selectedrole = true;
       in1 = argv[argindex];
     } 
@@ -661,7 +673,6 @@ int main (int argc, char* argv[]) {
     if ( (in1 == "--batch") || (in1 == "-b") ) {
       interactive = false;
       argindex++;
-      accepted = true;
       in1 = argv[argindex];
     }
 
@@ -669,12 +680,6 @@ int main (int argc, char* argv[]) {
       serveruri = argv[argindex];
       argindex++;
       in1 = argv[argindex];
-      accepted = true;
-    }
-
-    if (!accepted) {
-      usage();
-      exit(-1);
     }
 
     if (in1.length()) {

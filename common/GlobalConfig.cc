@@ -39,7 +39,7 @@ GlobalConfig::AddConfigQueue(const char* configqueue, const char* broadcastqueue
     if (! (lHash = mSom->GetObject(lConfigQueue.c_str(),"hash")) ) {
       mSom->HashMutex.UnLockRead();
       // create the hash object
-      if (mSom->CreateSharedHash(lConfigQueue.c_str(), lConfigQueue.c_str(),mSom)) {
+      if (mSom->CreateSharedHash(lConfigQueue.c_str(), lBroadCastQueue.c_str(),mSom)) {
 	mSom->HashMutex.LockRead();
 	lHash = mSom->GetObject(lConfigQueue.c_str(),"hash");
 	mBroadCastQueueMap[lConfigQueue] = lBroadCastQueue;
