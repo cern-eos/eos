@@ -2,6 +2,37 @@
 #include "ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
+extern int com_attr (char*);
+extern int com_cd (char*);
+extern int com_chmod (char*);
+extern int com_clear (char*);
+extern int com_config (char*);
+extern int com_debug (char*);
+extern int com_file (char*);
+extern int com_fileinfo (char*);
+extern int com_find (char*);
+extern int com_fs   (char*);
+extern int com_help (char *);
+extern int com_ls (char*);
+extern int com_mkdir (char*);
+extern int com_node (char*);
+extern int com_ns (char*);
+extern int com_pwd (char*);
+extern int com_quit (char *);
+extern int com_quota (char*);
+extern int com_restart (char*);
+extern int com_rm (char*);
+extern int com_rmdir (char*);
+extern int com_role (char*);
+extern int com_rtlog (char*);
+extern int com_silent (char*);
+extern int com_test (char*);
+extern int com_timing (char*);
+extern int com_transfers (char*);
+extern int com_verify (char*);
+extern int com_vid (char*);
+extern int com_whoami (char*);
+
 XrdOucString serveruri="";
 XrdOucString historyfile="";
 XrdOucString pwd="/";
@@ -11,6 +42,8 @@ XrdOucString user_role="";
 XrdOucString group_role="";
 
 int global_retc=0;
+bool global_highlighting=true;
+bool interactive=true;
 bool silent=false;
 bool timing=false;
 bool debug=false;
@@ -63,6 +96,7 @@ COMMAND commands[] = {
   { (char*)"help",     com_help,     (char*)"Display this text" },
   { (char*)"ls",       com_ls,       (char*)"List a directory" },
   { (char*)"mkdir",    com_mkdir,    (char*)"Create a directory" },
+  { (char*)"node",     com_node,     (char*)"Node configuration" },
   { (char*)"ns",       com_ns,       (char*)"Namespace Interface" },
   { (char*)"vid",      com_vid,      (char*)"Virtual ID System Configuration" },
   { (char*)"pwd",      com_pwd,      (char*)"Print working directory" },
@@ -425,7 +459,7 @@ command_result_stdout_to_vector(std::vector<std::string> &string_vector)
 }
 
 int
-output_result(XrdOucEnv* result) {
+output_result(XrdOucEnv* result, bool highlighting) {
   if (!result)
     return EINVAL;
 
@@ -435,13 +469,16 @@ output_result(XrdOucEnv* result) {
   XrdMqMessage::UnSeal(rstdout);
   XrdMqMessage::UnSeal(rstderr);
 
-  // color replacements
-  rstdout.replace("online","\033[1monline\033[0m");
-  rstdout.replace("offline","\033[47;31m\e[5moffline\033[0m");
+  if (highlighting && global_highlighting) {
+    // color replacements
+    rstdout.replace("online","\033[1monline\033[0m");
+    rstdout.replace("offline","\033[47;31m\e[5moffline\033[0m");
+    
+    rstdout.replace("OK","\033[49;32mOK\033[0m");
+    rstdout.replace("WARNING","\033[49;33mWARNING\033[0m");
+    rstdout.replace("EXCEEDED","\033[49;31mEXCEEDED\033[0m");
+  }
 
-  rstdout.replace("OK","\033[49;32mOK\033[0m");
-  rstdout.replace("WARNING","\033[49;33mWARNING\033[0m");
-  rstdout.replace("EXCEEDED","\033[49;31mEXCEEDED\033[0m");
   int retc = EFAULT;
   if (result->Get("mgm.proc.retc")) {
     retc = atoi(result->Get("mgm.proc.retc"));
@@ -561,49 +598,83 @@ std::string textbold("\033[1m");
 std::string textunbold("\033[0m");
 
 void usage() {
-  fprintf(stderr,"usage: eos [-role <uid> <gid>] <mgm-url> <cmd> [<argN>]\n");
-  fprintf(stderr,"usage: eos [-role <uid> <gid>] <mgm-url> <filename>\n");
+  fprintf(stderr,"usage: eos [-r|--role <uid> <gid>] [-b|--batch] <mgm-url>\n");
+  fprintf(stderr,"           => run eos shell. Use -b for batch mode without colour output and syntax highlighting\n");
+  fprintf(stderr,"usage: eos [-r|--role <uid> <gid>] <mgm-url> <cmd> [<argN>]\n");
+  fprintf(stderr,"           => run <cmd> in eos shell\n");
+  fprintf(stderr,"usage: eos [-r|--role <uid> <gid>] <mgm-url> <filename>\n");
+  fprintf(stderr,"           =. run script <filename> in eos shell\n");
+  fprintf(stderr," hint => role selection has to be before batch mode flags on the command line!\n");
 }
 
 int main (int argc, char* argv[]) {
   char *line, *s;
   serveruri = (char*)"root://";
   XrdOucString HostName      = XrdNetDNS::getHostName();
-  serveruri += HostName;
-  serveruri += ":1094";
+  // serveruri += HostName;
+  // serveruri += ":1094";
+  serveruri += "localhost";
   
   XrdOucString urole="";
   XrdOucString grole="";
-
+  bool accepted = false;
+  bool selectedrole= false;
   int argindex=1;
-  if (argc>1) {
-    XrdOucString in1 = argv[1];
-    if (in1.beginswith("root://")) {
-      serveruri = argv[1];
-      in1 = argv[2];
-      argindex = 2;
-    } else {
-      if (argc > 4) {
-        if (in1 == "-role") {
-          urole = argv[2];
-          grole = argv[3];
-          in1 = argv[4];
 
-          // execute the role function
-          XrdOucString cmdline="role ";
-          cmdline += urole; cmdline += " ";
-          cmdline += grole;
-          execute_line ((char*)cmdline.c_str());
-        } 
-        if (in1.beginswith("root://")) {
-          serveruri = argv[4];
-          in1 = argv[5];
-          argindex = 5;
-        }
-      } else {
-        usage();
-        exit(-1);
-      }
+  int retc = system("test -t 0 && test -t 1");
+  if (!retc) {
+    global_highlighting = true;
+    interactive = true;
+  } else {
+    global_highlighting = false;
+    interactive = false;
+  }
+
+  if (argc>1) {
+    XrdOucString in1 = argv[argindex];
+
+    if ( (in1 == "--batch") || (in1 == "-b") ) {
+      interactive = false;
+      global_highlighting = false;
+      argindex++;
+      accepted = true;
+      in1 = argv[argindex];
+    }
+
+    if ( (in1 == "--role") || (in1 == "-r") ) {
+      urole = argv[argindex+1];
+      grole = argv[argindex+2];
+      in1 = argv[argindex+3];
+      argindex+=3;
+      // execute the role function
+      XrdOucString cmdline="role ";
+      cmdline += urole; cmdline += " ";
+      cmdline += grole;
+      if (!interactive)silent = true;
+      execute_line ((char*)cmdline.c_str());
+      if (!interactive)silent = false;
+      accepted = true;
+      selectedrole = true;
+      in1 = argv[argindex];
+    } 
+
+    if ( (in1 == "--batch") || (in1 == "-b") ) {
+      interactive = false;
+      argindex++;
+      accepted = true;
+      in1 = argv[argindex];
+    }
+
+    if (in1.beginswith("root://")) {
+      serveruri = argv[argindex];
+      argindex++;
+      in1 = argv[argindex];
+      accepted = true;
+    }
+
+    if (!accepted) {
+      usage();
+      exit(-1);
     }
 
     if (in1.length()) {
@@ -640,6 +711,15 @@ int main (int argc, char* argv[]) {
     }
   }
 
+  /* by default select the root role if we are root@localhost */
+
+  if ( (!selectedrole) && (!getuid()) && (serveruri.beginswith("root://localhost"))) {
+    // we are root, we always select also the root role by default
+    XrdOucString cmdline="role 0 0 ";
+    if (!interactive)silent = true;
+    execute_line ((char*)cmdline.c_str());
+    if (!interactive)silent = false;
+  }
 
   /* configure looging */
   eos::common::Logging::Init();
@@ -649,6 +729,19 @@ int main (int argc, char* argv[]) {
 
   /* install a shutdown handler */
   signal (SIGINT,  exit_handler);
+
+  if (!interactive) {
+    textnormal    = "";
+    textblack     = "";
+    textred       = "";
+    textrederror  = "";
+    textblueerror = "";
+    textgreen     = "";
+    textyellow    = "";
+    textblue      = "";
+    textbold      = "";
+    textunbold    = "";
+  }
 
   char prompt[4096];
   sprintf(prompt,"%sEOS Console%s [%s%s%s] |> ", textbold.c_str(),textunbold.c_str(),textred.c_str(),serveruri.c_str(),textnormal.c_str());

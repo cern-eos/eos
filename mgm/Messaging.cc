@@ -14,8 +14,10 @@ Messaging::Start(void *pp)
 }
 
 /*----------------------------------------------------------------------------*/
-Messaging::Messaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus, bool advisoryquery )
+Messaging::Messaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus, bool advisoryquery ,XrdMqSharedObjectManager* som)
 {
+  SharedObjectManager = som;
+  
   if (gMessageClient.AddBroker(url, advisorystatus,advisoryquery)) {
     zombie = false;
   } else {
@@ -75,6 +77,21 @@ void Messaging::Process(XrdMqMessage* newmessage)
       delete advisorymessage;
     }
   } else {
+    // deal with shared object exchange messages
+    if (SharedObjectManager) {
+      // parse as shared object manager message
+      XrdOucString error="";
+      bool result = SharedObjectManager->ParseEnvMessage(newmessage, error);
+      if (!result) {
+        newmessage->Print();
+        if (error != "no subject in message body")
+          eos_err(error.c_str());
+        return;
+      } else {
+        return;
+      }
+    }
+
     FstNode::gMutex.Lock();
 
     XrdOucString saction = newmessage->GetBody();

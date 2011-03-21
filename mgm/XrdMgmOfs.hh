@@ -7,7 +7,9 @@
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
 #include "common/ClientAdmin.hh"
+#include "common/GlobalConfig.hh"
 #include "mq/XrdMqMessaging.hh"
+#include "mq/XrdMqSharedObject.hh"
 #include "mgm/ProcInterface.hh"
 #include "mgm/ConfigEngine.hh"
 #include "mgm/Stat.hh"
@@ -438,6 +440,9 @@ virtual bool           Init(XrdSysError &);
         char          *ConfigFN;       
   
         ConfigEngine*    ConfEngine;         // storing/restoring configuration
+
+        eos::common::GlobalConfig GlobalConfig; // global visible configuration parameters
+
         XrdCapability*   CapabilityEngine;   // -> authorization module for token encryption/decryption
   
         XrdOucString     MgmOfsBrokerUrl;    // -> Url of the message broker
@@ -449,6 +454,16 @@ virtual bool           Init(XrdSysError &);
         XrdOucString     MgmOfsInstanceName; // -> name of the EOS instance
         XrdOucString     MgmConfigDir;       // Directory where config files are stored
         XrdOucString     AuthLib;            // -> path to a possible authorizationn library
+
+        XrdOucString     MgmConfigQueue;     // -> name of the mgm-wide broadcasted shared hash 
+        XrdOucString     AllConfigQueue;     // -> name of the cluster-wide broadcasted shared hash
+        XrdOucString     FstConfigQueue;     // -> name of the fst-wide broadcasted shared hash
+
+        XrdOucString     SpaceConfigQueuePrefix;     // -> name of the prefix for space configuration
+        XrdOucString     NodeConfigQueuePrefix ;     // -> name of the prefix for node configuration
+        XrdOucString     GroupConfigQueuePrefix;     // -> name of the prefix for group configuration
+  
+  
         bool             authorize;          // -> determins if the autorization should be applied or not
         XrdAccAuthorize *Authorization;      // -> Authorization   Service
         bool             IssueCapability;    // -> defines if the Mgm issues capabilities
@@ -465,6 +480,8 @@ virtual bool           Init(XrdSysError &);
         XrdSysMutex      MgmHealMapMutex;
 
         eos::common::ClientAdminManager CommonClientAdminManager; // Manager of ClientAdmin's
+
+        XrdMqSharedObjectManager ObjectManager; // -> Shared Hash/Queue ObjectManager
 
  static void* StartMgmDeletion(void *pp);    //  Deletion Thread Starter
         void  Deletion();                    //  Deletion Function

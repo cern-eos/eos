@@ -2,6 +2,9 @@
 #include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
+extern int com_mkdir (char*);
+extern int com_rmdir (char*);
+extern int com_ls    (char*);
 
 /* Test Interface */
 int

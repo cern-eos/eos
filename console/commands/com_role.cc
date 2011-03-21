@@ -9,7 +9,8 @@ com_role (char *arg) {
   subtokenizer.GetLine();
   user_role = subtokenizer.GetToken();
   group_role = subtokenizer.GetToken();
-  printf("=> selected user role ruid=<%s> and group role rgid=<%s>\n", user_role.c_str(), group_role.c_str());
+  if (!silent) 
+    printf("=> selected user role ruid=<%s> and group role rgid=<%s>\n", user_role.c_str(), group_role.c_str());
 
   if (user_role.beginswith("-"))
     goto com_role_usage;

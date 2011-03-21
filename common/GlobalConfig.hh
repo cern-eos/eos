@@ -22,7 +22,7 @@ private:
   std::map<std::string, std::string> mBroadCastQueueMap; // stores which config queue get's broadcasted where ...
 
 public:
-  bool AddConfigQueue(const char* configqueue, char* broadcastqueue);
+  bool AddConfigQueue(const char* configqueue, const char* broadcastqueue);
 
   XrdMqSharedHash* Get(const char* configqueue); 
 
@@ -30,6 +30,8 @@ public:
   
   GlobalConfig();
   ~GlobalConfig(){};
+
+  static std::string QueuePrefixName(const char* prefix, const char* queuename);
 
   void SetSOM(XrdMqSharedObjectManager* som);
   static GlobalConfig gConfig; // singleton for convenience

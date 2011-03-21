@@ -246,6 +246,10 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	    XrdOucString makeit="mkdir -p "; makeit+= MgmMetaLogDir; int src =system(makeit.c_str()); 
 	    if (src) 
 	      eos_err("%s returned %d", makeit.c_str(), src);
+	    XrdOucString chownit="chown -R "; chownit += (int) geteuid(); chownit += " "; chownit += MgmMetaLogDir;
+	    src = system(chownit.c_str());
+	    if (src)
+	      eos_err("%s returned %d", chownit.c_str(), src);
 	    
 	    if (::access(MgmMetaLogDir.c_str(), W_OK|R_OK|X_OK)) {
 	      Eroute.Emsg("Config","I cannot acccess the meta data changelog directory for r/w!", MgmMetaLogDir.c_str()); NoGo=1;
@@ -408,6 +412,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   if (src) 
     eos_err("%s returned %d", makeit.c_str(), src);
 
+  XrdOucString chownit="chown -R "; chownit += (int) geteuid(); chownit += " "; chownit += MgmConfigDir;
+  src = system(chownit.c_str());
+  if (src)
+    eos_err("%s returned %d", chownit.c_str(), src);
+  
   // check config directory access
   if (::access(MgmConfigDir.c_str(), W_OK|R_OK|X_OK)) {
     Eroute.Emsg("Config","I cannot acccess the configuration directory for r/w!", MgmConfigDir.c_str()); NoGo=1;
@@ -431,6 +440,38 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     }
   }
 
+  // create global visible configuration parameters
+  // we create 3 queues
+  // "/eos/<instance>/
+  XrdOucString configbasequeue = "/eos/";
+  configbasequeue += MgmOfsInstanceName.c_str();
+
+  MgmConfigQueue = configbasequeue; MgmConfigQueue += "/mgm/config";
+  AllConfigQueue = configbasequeue; AllConfigQueue += "/all/config";
+  FstConfigQueue = configbasequeue; FstConfigQueue += "/fst/config";
+
+  SpaceConfigQueuePrefix = configbasequeue; SpaceConfigQueuePrefix += "/space/";
+  NodeConfigQueuePrefix  = configbasequeue; NodeConfigQueuePrefix  += "/node/";
+  GroupConfigQueuePrefix = configbasequeue; GroupConfigQueuePrefix += "/group/";
+
+
+  // we need to set the shared object manager to be used
+  GlobalConfig.SetSOM(&ObjectManager);
+
+  if (!GlobalConfig.AddConfigQueue(MgmConfigQueue.c_str(), "/eos/*/mgm")) {
+    eos_crit("Cannot add global config queue %s\n", MgmConfigQueue.c_str());
+  }
+  if (!GlobalConfig.AddConfigQueue(AllConfigQueue.c_str(), "/eos/*")) {
+    eos_crit("Cannot add global config queue %s\n", AllConfigQueue.c_str());
+  }
+  if (!GlobalConfig.AddConfigQueue(FstConfigQueue.c_str(), "/eos/*/fst")) {
+    eos_crit("Cannot add global config queue %s\n", FstConfigQueue.c_str());
+  }
+  
+  std::string out ="";
+  GlobalConfig.PrintBroadCastMap(out);
+  fprintf(stderr,"%s",out.c_str());
+  
   //  eos_emerg("%s",(char*)"test emerg");
   //  eos_alert("%s",(char*)"test alert");
   //  eos_crit("%s", (char*)"test crit");
@@ -514,7 +555,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   //-------------------------------------------
 
   // create the specific listener class
-  MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),MgmDefaultReceiverQueue.c_str(), true, true);
+  MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),MgmDefaultReceiverQueue.c_str(), true, true, &ObjectManager);
   if( !MgmOfsMessaging->StartListenerThread() ) NoGo = 1;
   MgmOfsMessaging->SetLogId("MgmOfsMessaging");
 
@@ -522,6 +563,23 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     Eroute.Emsg("Config","cannot create messaging object(thread)");
     return NoGo;
   }
+  
+  ObjectManager.CreateSharedHash("/eos/*","/eos/*/fst");
+  ObjectManager.HashMutex.LockRead();
+  XrdMqSharedHash* hash = ObjectManager.GetHash("/eos/*");
+
+  if (hash) {
+    // ask for a broadcast from fst's
+    hash->BroadCastRequest("/eos/*/fst");
+  }
+
+  ObjectManager.HashMutex.UnLockRead();
+
+  XrdOucString dumperfile = MgmMetaLogDir ;
+  dumperfile += "/so.mgm.dump";
+
+  ObjectManager.StartDumper(dumperfile.c_str());
+  ObjectManager.SetAutoReplyQueueDerive(true);
 
   // create deletion thread
   pthread_t tid;
@@ -538,7 +596,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     eos_crit("cannot start statistics thread");
     NoGo = 1;
   }
-
   
   return NoGo;
 }

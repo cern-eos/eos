@@ -2,6 +2,7 @@
 #include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
+extern int com_file (char*);
 
 /* Find files/directories */
 int

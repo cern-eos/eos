@@ -24,7 +24,7 @@ void GlobalConfig::SetSOM(XrdMqSharedObjectManager* som)
 
 /*----------------------------------------------------------------------------*/
 bool 
-GlobalConfig::AddConfigQueue(const char* configqueue, char* broadcastqueue)
+GlobalConfig::AddConfigQueue(const char* configqueue, const char* broadcastqueue)
 {
   //----------------------------------------------------------------
   //! adds a global configuration hash and it's broad cast queue ... dont' MUTEX!
@@ -69,7 +69,7 @@ GlobalConfig::PrintBroadCastMap(std::string &out)
 
   for (it = mBroadCastQueueMap.begin(); it != mBroadCastQueueMap.end(); it++) {
     char line[1024];
-    snprintf(line, sizeof(line)-1,"# config [%-32s] == broad cast ==> [%s]", it->first.c_str(), it->second.c_str());
+    snprintf(line, sizeof(line)-1,"# config [%-32s] == broad cast ==> [%s]\n", it->first.c_str(), it->second.c_str());
     out += line;
   }
 }
@@ -86,6 +86,18 @@ GlobalConfig::Get(const char* configqueue)
 
   return mSom->GetObject(lConfigQueue.c_str(),"hash");
 }
+
+std::string 
+GlobalConfig::QueuePrefixName(const char* prefix, const char*queuename)
+{
+  //----------------------------------------------------------------
+  //! joins the prefix with the hostport name extracted from the queue e.g /eos/eostest/space + /eos/host1:port1/fst = /eos/eostest/space/host1:port1
+  //----------------------------------------------------------------
+  std::string out=prefix;
+  out += eos::common::StringConversion::GetHostPortFromQueue(queuename).c_str();
+  return out;
+}
+
 
 /*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END

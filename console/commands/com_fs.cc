@@ -2,6 +2,10 @@
 #include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
+extern int com_file (char*);
+extern int com_fs   (char*);
+extern int com_find (char*);
+
 using namespace eos::common;
 
 /*----------------------------------------------------------------------------*/

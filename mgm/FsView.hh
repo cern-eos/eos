@@ -22,22 +22,60 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------
 
 class BaseView : public std::set<eos::common::FileSystem::fsid_t> {
+private:
+  time_t      mHeartBeat;
+  std::string mHeartBeatString;
+  std::string mHeartBeatDeltaString;
+  std::string mStatus;
+  std::string mSize;
+  
 public:
   std::string mName;
   std::string mType;
+  
   BaseView(){};
   ~BaseView(){};
-
+  
   void Print(std::string &out, std::string headerformat, std::string listformat);
-
+  
   virtual std::string GetMember(std::string member) {
     if (member == "name")
       return mName;
     if (member == "type")
       return mType;
+    if (member == "nofs") {
+      char line[1024];
+      snprintf(line, sizeof(line)-1, "%llu", (unsigned long long) size());
+      mSize = line;
+      return mSize;
+    }
+    
+    if (member == "heartbeat") {
+      char line[1024];
+      snprintf(line, sizeof(line)-1, "%llu", (unsigned long long) mHeartBeat);
+      mHeartBeatString = line;
+      return mHeartBeatString;
+    }
+    
+    if (member == "heartbeatdelta") {
+      char line[1024];
+      snprintf(line, sizeof(line)-1, "%llu", (unsigned long long) (time(NULL)-mHeartBeat));
+      mHeartBeatDeltaString = line;
+      return mHeartBeatDeltaString;
+    }
+
+    if (member == "status") {
+      return mStatus;
+    }
 
     return "";
   }
+
+  void SetHeartBeat(time_t hb)       { mHeartBeat = hb;       }
+  void SetStatus(const char* status) { mStatus = status;      }
+  const char* GetStatus()            { return mStatus.c_str();}
+  time_t      GetHeartBeat()         { return mHeartBeat;     }
+
 
   long long SumLongLong(const char* param); // calculates the sum of <param> as long long
   double SumDouble(const char* param);      // calculates the sum of <param> as double

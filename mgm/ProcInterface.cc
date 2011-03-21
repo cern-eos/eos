@@ -10,6 +10,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/FstFileSystem.hh"
+#include "mgm/FsView.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
@@ -110,10 +111,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
   }
 
   XrdOucEnv opaque(ininfo);
-  
+
+  XrdOucString outformat="";
+
   cmd    = opaque.Get("mgm.cmd");
   subcmd = opaque.Get("mgm.subcmd");
-    
+  outformat = opaque.Get("mgm.outformat");
+
   stdOut = "";
   stdErr = "";
   retc = 0;
@@ -208,6 +212,23 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       //      stdOut+="\n==== config done ====";
       MakeResult(dosort);
       return SFS_OK;
+    }
+
+    if (cmd == "node") {
+      if (subcmd == "ls") {
+	{ 
+	  std::string output="";
+	  std::string format="";
+	  
+	  if (outformat == "mon") {
+	    format="member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=status:width=1:format=os|sep= |member=heartbeatdelta:width=1:format=os|sep= |member=nofs:width=1:format=os";
+	  } else {
+	    format="header=1:member=type:width=10:format=-s|sep=   |member=name:width=32:format=s|sep=   |member=status:width=10:format=s|sep=   |member=heartbeatdelta:width=16:format=s|sep=   |member=nofs:width=5:format=s";
+	  }
+	  FsView::gFsView.PrintNodes(output, format, "");
+	  stdOut += output.c_str();
+	}
+      }
     }
 
     if (cmd == "fs") {
@@ -700,6 +721,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      stdErr="error: debug level "; stdErr += debuglevel; stdErr+= " is not known!";
 	      retc = EINVAL;
 	    } else {
+	      if (debuglevel == "debug") {
+		gOFS->ObjectManager.SetDebug(true);
+              } else {
+		gOFS->ObjectManager.SetDebug(false);
+              }
 	      eos::common::Logging::SetLogPriority(debugval);
 	      stdOut="success: debug level is now <"; stdOut+=debuglevel.c_str();stdOut += ">";
 	      eos_notice("setting debug level to <%s>", debuglevel.c_str());

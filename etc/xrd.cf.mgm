@@ -16,7 +16,7 @@ sec.protocol  unix
 # SSL authentication
 #sec.protocol ssl -d:10 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -mapcernuser:1 -mapnobody:1 -mapguser:1 
 # SSS authentication
-sec.protocol sss -c /opt/eos/sss/eos-sss.keytab -s /opt/eos/sss/eos-sss.keytab
+sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
 # KRB  authentication
 sec.protocol krb5 host/<host>@CERN.CH
 # GSI authentication

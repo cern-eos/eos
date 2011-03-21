@@ -15,6 +15,7 @@ add_executable ( eos
 		 commands/com_fs.cc 
 		 commands/com_ls.cc 
 		 commands/com_mkdir.cc 
+		 commands/com_node.cc
 		 commands/com_ns.cc    
 		 commands/com_print.cc 
 		 commands/com_pwd.cc 
