@@ -63,7 +63,10 @@ Messaging::Process(XrdMqMessage* newmessage)
 
   if (cmd == "restart") {
     eos_notice("restarting service");
-    system("unset XRDPROG XRDCONFIGFN XRDINSTANCE XRDEXPORTS XRDHOST XRDOFSLIB XRDPORT XRDADMINPATH XRDOFSEVENTS XRDNAME XRDREDIRECT; /etc/init.d/xrd restart fst >& /dev/null");
+    int rc = system("unset XRDPROG XRDCONFIGFN XRDINSTANCE XRDEXPORTS XRDHOST XRDOFSLIB XRDPORT XRDADMINPATH XRDOFSEVENTS XRDNAME XRDREDIRECT; /etc/init.d/xrd restart fst >& /dev/null");
+    if (rc) {
+      rc=0;
+    }
   }
 
   if (cmd == "rtlog") {
