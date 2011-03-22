@@ -125,6 +125,45 @@ static void createRandomLog( const std::string       &path,
 }
 
 //------------------------------------------------------------------------------
+// Count the compacting stamps
+//------------------------------------------------------------------------------
+class StampsScanner: public eos::ILogRecordScanner
+{
+  public:
+    //--------------------------------------------------------------------------
+    // Constructor
+    //--------------------------------------------------------------------------
+    StampsScanner():
+      pStampCount( 0 ), pStampLast( false ) {}
+
+    //--------------------------------------------------------------------------
+    // Go through the records
+    //--------------------------------------------------------------------------
+    virtual void processRecord( uint64_t offset, char type,
+                                const eos::Buffer &buffer )
+    {
+      if( type == eos::COMPACT_STAMP_RECORD_MAGIC )
+      {
+        ++pStampCount;
+        pStampLast = true;
+      }
+      else
+        pStampLast = false;
+    }
+
+    //--------------------------------------------------------------------------
+    // Accessors
+    //--------------------------------------------------------------------------
+    bool isStampLast() const { return pStampLast; }
+    uint64_t stampCount() const { return pStampCount; }
+
+  private:
+    uint64_t pStampCount;
+    bool     pStampLast;
+};
+
+
+//------------------------------------------------------------------------------
 // compacting correctness test
 //------------------------------------------------------------------------------
 void LogCompactingTest::correctnessTest()
@@ -142,6 +181,14 @@ void LogCompactingTest::correctnessTest()
   CPPUNIT_ASSERT( stats.recordsDeleted == genStats.recordsDeleted );
   CPPUNIT_ASSERT( stats.recordsKept    == genStats.recordsKept );
   CPPUNIT_ASSERT( stats.recordsKept    == stats.recordsWritten );
+
+  eos::ChangeLogFile file;
+  StampsScanner      stampScanner;
+  CPPUNIT_ASSERT_NO_THROW( file.open( fileNameCompacted, true, eos::FILE_LOG_MAGIC ) );
+  CPPUNIT_ASSERT_NO_THROW( file.scanAllRecords( &stampScanner ) );
+  CPPUNIT_ASSERT( stampScanner.stampCount() == 1 );
+  CPPUNIT_ASSERT( stampScanner.isStampLast() );
+  file.close();
 
   unlink( fileNameOld.c_str() );
   unlink( fileNameCompacted.c_str() );
