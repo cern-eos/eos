@@ -238,7 +238,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	} else {
 	  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
 	  if (!FsView::gFsView.mNodeView.count(nodename)) {
-	    stdErr="info : creating node '"; stdErr += nodename.c_str(); stdErr += "'";
+	    stdOut="info: creating node '"; stdOut += nodename.c_str(); stdOut += "'";
 	    
 	    //	    stdErr="error: no such node '"; stdErr += nodename.c_str(); stdErr += "'";
 	    //retc = ENOENT;
@@ -333,60 +333,62 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       
       if (subcmd == "set") {
 	std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
-	std::string status   = (opaque.Get("mgm.space.state"))?opaque.Get("mgm.space.state"):"";
-	if ( (!spacename.length()) || (!status.length()) ) {
+	std::string groupsize   = (opaque.Get("mgm.space.groupsize"))?opaque.Get("mgm.space.groupsize"):"";
+	std::string groupmod    = (opaque.Get("mgm.space.groupmod"))?opaque.Get("mgm.space.groupmod"):"";
+
+	int gsize = atoi(groupsize.c_str());
+	int gmod  = atoi(groupmod.c_str());
+	char line[1024]; 
+	snprintf(line, sizeof(line)-1, "%d", gsize);
+	std::string sgroupsize = line;
+	snprintf(line, sizeof(line)-1, "%d", gmod);
+	std::string sgroupmod = line;
+
+	if ((!spacename.length()) || (!groupsize.length()) 
+	    || (groupsize != sgroupsize) || (gsize <0) || (gsize > 1024)
+	    || (groupmod != sgroupmod) || (gmod <0) || (gmod > 1024)) {
 	  stdErr="error: illegal parameters";
 	  retc = EINVAL;
+	  if ((groupsize != sgroupsize) || (gsize <0) || (gsize > 1024)) {
+	    stdErr = "error: <groupsize> must be a positive integer (<=1024)!";
+	    retc = EINVAL;
+	  }
+	  if ((groupmod != sgroupmod) || (gmod <0) || (gmod > 256)) {
+	    stdErr = "error: <groupmod> must be a positive integer (<=256)!";
+	    retc = EINVAL;
+	  }
 	} else {
 	  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
 	  if (!FsView::gFsView.mSpaceView.count(spacename)) {
-	    stdErr="info : creating space '"; stdErr += spacename.c_str(); stdErr += "'";
-	    
-	    //	    stdErr="error: no such space '"; stdErr += spacename.c_str(); stdErr += "'";
-	    //retc = ENOENT;
+	    stdOut="info: creating space '"; stdOut += spacename.c_str(); stdOut += "'";
 	    
 	    if (FsView::gFsView.RegisterSpace(spacename.c_str())) {
 	      std::string spaceconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->SpaceConfigQueuePrefix.c_str(), spacename.c_str());
 	      
 	      if (!eos::common::GlobalConfig::gConfig.Get(spaceconfigname.c_str())) {
-		if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(spaceconfigname.c_str(), spacename.c_str())) {
+		if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(spaceconfigname.c_str(), "/eos/*/mgm")) {
 		  eos_crit("cannot add space config queue %s", spaceconfigname.c_str());
 		  stdErr="error: cannot add space config queue '"; stdErr += spaceconfigname.c_str(); stdErr += "'";
 		  retc = EIO;
 		}
-	      }
-	      if (!retc) {
-		// set this new space to offline
-		FsView::gFsView.mSpaceView[spacename]->SetStatus("offline");
 	      }
 	    }
 	  } else {
 	    // we have a space but we have to check if we have a config
 	    std::string spaceconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->SpaceConfigQueuePrefix.c_str(), spacename.c_str());
 	    if (!eos::common::GlobalConfig::gConfig.Get(spaceconfigname.c_str())) {
-	      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(spaceconfigname.c_str(), spacename.c_str())) {
+	      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(spaceconfigname.c_str(), "/eos/*/mgm")) {
 		eos_crit("cannot add space config queue %s", spaceconfigname.c_str());
 		stdErr="error: cannot add space config queue '"; stdErr += spaceconfigname.c_str(); stdErr += "'";
 		retc = EIO;
 	      }
-	      if (!retc) {
-		// set this new space to offline
-		FsView::gFsView.mSpaceView[spacename]->SetStatus("offline");
-	      }
 	    }
 	  }
 
-
 	  if (!retc) {
-	    XrdMqRWMutexWriteLock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-	    std::string spaceconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsSpace::sGetConfigQueuePrefix(), spacename.c_str());
-	    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(spaceconfigname.c_str());
-	    if (!hash) {
-	      stdErr="error: unable to set status of space '"; stdErr += spacename.c_str(); stdErr += ";";
-	      retc = EIO;
-	    } else {
-	      hash->Set("status",status);
-	    }
+	    // set this new space parameters
+	    FsView::gFsView.mSpaceView[spacename]->SetConfigMember(std::string("groupsize"), groupsize);
+	    FsView::gFsView.mSpaceView[spacename]->SetConfigMember(std::string("groupmod"), groupmod);
 	  }
 	}
       }
@@ -442,7 +444,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	} else {
 	  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
 	  if (!FsView::gFsView.mGroupView.count(groupname)) {
-	    stdErr="info : creating group '"; stdErr += groupname.c_str(); stdErr += "'";
+	    stdOut="info: creating group '"; stdOut += groupname.c_str(); stdOut += "'";
 	    
 	    //	    stdErr="error: no such group '"; stdErr += groupname.c_str(); stdErr += "'";
 	    //retc = ENOENT;
@@ -551,24 +553,73 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    if (fs) {
 	      fs->SetId(fsid);
 	      fs->SetString("uuid",uuid.c_str());
-	      fs->SetString("schedgroup", space.c_str());
+	      
+	      std::string splitspace="";
+	      std::string splitgroup="";
 
-	      if (!FsView::gFsView.Register(fs)) {
-		// remove mapping
-		if (FsView::gFsView.RemoveMapping(fsid,uuid)) {
-		  // ok
-		  stdOut += "\nsuccess: unmapped '"; stdOut += uuid.c_str() ; stdOut += "' <!> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
-		} else {
-		  stdErr="error: cannot remove mapping - this can be fatal!\n";
+	      unsigned int groupsize = 0;
+	      unsigned int groupmod  = 0;
+	      unsigned int subgroup  = 0;
+
+	      {
+		// logic to automatically adjust scheduling subgroups
+		eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+		eos::common::StringConversion::SplitByPoint(space, splitspace, splitgroup);
+		
+		groupsize = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupsize")).c_str());
+		groupmod  = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupmod")).c_str());
+		
+		if (splitgroup.length()) {
+		  // we have to check if the desired group is already full, in case we add to the next group by increasing the number by <groupmod>
+		  subgroup = atoi(splitgroup.c_str());
+		  int j=0;
+		  for (j=0; j< 1000; j++) {
+		    char newgroup[1024];
+		    snprintf(newgroup,sizeof(newgroup)-1, "%s.%u", splitspace.c_str(), subgroup);
+		    if (!FsView::gFsView.mGroupView.count(std::string(newgroup))) {
+		      // great, this is still empty
+		      splitgroup = newgroup;
+		      break;
+		    } else {
+		      if ( ((FsView::gFsView.mGroupView[std::string(newgroup)]->size()) < groupsize)) {
+			// great, there is still space here
+			splitgroup = newgroup;
+			break;
+		      } else {
+			// the group is full, let's got the next one
+			subgroup += groupmod;
+		      }
+		    }
+		  }
+
+		  if (j== 1000) {
+		    eos_crit("infinite loop detected finding available scheduling group!");
+		    stdErr = "error: infinite loop detected finding available scheduling group!";
+		    retc = EFAULT;
+		  }
 		}
-		// remove filesystem object
-		delete fs;
-		stdErr+="error: cannot register filesystem - check for path duplication!";
-		retc = EINVAL;
-	      }	      
-	    } else {
-	      stdErr="error: cannot allocate filesystem object";
-	      retc = ENOMEM;
+	      }
+	      
+	      if (!retc) {
+		fs->SetString("schedgroup", splitgroup.c_str());
+		
+		if (!FsView::gFsView.Register(fs)) {
+		  // remove mapping
+		  if (FsView::gFsView.RemoveMapping(fsid,uuid)) {
+		    // ok
+		    stdOut += "\nsuccess: unmapped '"; stdOut += uuid.c_str() ; stdOut += "' <!> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
+		  } else {
+		    stdErr="error: cannot remove mapping - this can be fatal!\n";
+		  }
+		  // remove filesystem object
+		  delete fs;
+		  stdErr+="error: cannot register filesystem - check for path duplication!";
+		  retc = EINVAL;
+		}	      
+	      } else {
+		stdErr="error: cannot allocate filesystem object";
+		retc = ENOMEM;
+	      }
 	    }
 	  }
 	}

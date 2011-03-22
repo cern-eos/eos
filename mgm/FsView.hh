@@ -41,7 +41,7 @@ public:
   void Print(std::string &out, std::string headerformat, std::string listformat);
   
   virtual std::string GetMember(std::string member);
-
+  virtual bool SetConfigMember(std::string key, string value);
 
   void SetHeartBeat(time_t hb)       { mHeartBeat = hb;       }
   void SetStatus(const char* status) { mStatus = status;      }

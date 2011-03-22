@@ -48,6 +48,32 @@ com_space (char* arg1) {
     } while(option.length());
   }
 
+  if ( subcommand == "set" ) {
+    in ="mgm.cmd=space&mgm.subcmd=set";
+    XrdOucString nodename = subtokenizer.GetToken();
+    XrdOucString groupsize= subtokenizer.GetToken();
+    XrdOucString groupmod = subtokenizer.GetToken();
+
+    if (groupsize == "") {
+      groupsize = "0";
+    }
+
+    if (groupmod == "") {
+      groupmod = 24;
+    }
+
+    if (!nodename.length())
+      printusage=true;
+
+    in += "&mgm.space=";
+    in += nodename;
+    in += "&mgm.space.groupsize=";
+    in += groupsize;
+    in += "&mgm.space.groupmod=";
+    in += groupmod;
+    ok = true;
+  }
+
   if ( subcommand == "rm" ) {
     in ="mgm.cmd=space&mgm.subcmd=rm";
     XrdOucString spacename = subtokenizer.GetToken();
@@ -84,6 +110,9 @@ com_space (char* arg1) {
   printf("                                                                  -s : silent mode\n");
   printf("                                                                  -m : monitoring key=value output format\n");
   printf("                                                                  -l : long output - list also file systems after each space\n");
+  printf("       space set <space-name> [<groupsize> [<groupmod>]]             : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
+  printf("                                                                       => <groupsize>=0 means, that no groups are built within a space\n");
+  printf("                                                                       => <groupmod> defines the maximum number of filesystems per node [default=24]\n");
   printf("       space rm <space-name>                                         : remove space\n");
   return (0);
 }

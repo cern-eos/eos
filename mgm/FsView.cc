@@ -53,15 +53,15 @@ std::string
 FsView::GetSpaceFormat(std::string option) {
   if (option == "m") {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os";
+    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=cfg.groupsize:width=1:format=os";
   }
 
   if (option == "l") {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|sep=   |member=name:width=32:format=s";
+    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.groupsize:width=16:format=s";
   }
 
-  return "header=1:member=type:width=10:format=-s|sep=   |member=name:width=32:format=s";
+  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.groupsize:width=16:format=s";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -468,6 +468,21 @@ BaseView::GetMember(std::string member) {
     return val;
   }
   return "";
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
+BaseView::SetConfigMember(std::string key, std::string value)
+{
+  bool success=false;
+  eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
+  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
+  if (hash) {
+    success = hash->Set(key, value);
+  }
+  eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
+  return success;
 }
 
 /*----------------------------------------------------------------------------*/

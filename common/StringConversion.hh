@@ -180,6 +180,20 @@ public:
     return hostport;
   }
 
+  static void
+  SplitByPoint(std::string in, std::string &pre, std::string &post) {
+    std::string::size_type dpos=0;
+    pre = in;
+    post = in;
+    if ( ( dpos = in.find(".") ) != std::string::npos) {
+      std::string s = in;
+      post.erase(0,dpos+1);
+      pre.erase(dpos);
+    } else {
+      post = "";
+    }
+  }
+
   
   StringConversion() {};
   ~StringConversion() {};
