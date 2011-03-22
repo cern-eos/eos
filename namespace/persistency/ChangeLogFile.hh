@@ -86,7 +86,8 @@ namespace eos
       //!                    read-only mode, causes exception to be thrown
       //!                    if the file does not exist
       //! @param contentFlag user-defined valriable identifying the content
-      //!                    of the file 0x0000 is reserved for any content
+      //!                    of the file 0x0000 is reserved for undefined
+      //!                    content
       //------------------------------------------------------------------------
       void open( const std::string &name, bool readOnly = false, 
                  uint16_t contentFile = 0x0000 ) throw( MDException );
