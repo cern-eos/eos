@@ -4,9 +4,9 @@
 
 using namespace eos::common;
 
-/* Node listing, configuration, manipulation */
+/* Group listing, configuration, manipulation */
 int
-com_node (char* arg1) {
+com_group (char* arg1) {
   XrdOucString in = "";
   bool silent=false;
   bool printusage=false;
@@ -20,7 +20,7 @@ com_node (char* arg1) {
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
   if ( subcommand == "ls" ) {
-    in ="mgm.cmd=node&mgm.subcmd=ls";
+    in ="mgm.cmd=group&mgm.subcmd=ls";
     option="";
 
     do {
@@ -48,44 +48,20 @@ com_node (char* arg1) {
     } while(option.length());
   }
 
-  if ( subcommand == "set" ) {
-    in ="mgm.cmd=node&mgm.subcmd=set";
-    XrdOucString nodename = subtokenizer.GetToken();
-    XrdOucString active= subtokenizer.GetToken();
-
-    if ( (active != "on") && (active != "off") ) {
-      printusage=true;
-    }
-    if (!nodename.beginswith("/eos/")) {
-      nodename.insert("/eos/",0);
-      nodename.append("/fst");
-    }
-    if (!nodename.length())
-      printusage=true;
-    in += "&mgm.node=";
-    in += nodename;
-    in += "&mgm.node.state=";
-    in += active;
-    ok = true;
-  }
-  
   if ( subcommand == "rm" ) {
-    in ="mgm.cmd=node&mgm.subcmd=rm";
-    XrdOucString nodename = subtokenizer.GetToken();
-        if (!nodename.beginswith("/eos/")) {
-      nodename.insert("/eos/",0);
-      nodename.append("/fst");
-    }
-    if (!nodename.length())
+    in ="mgm.cmd=group&mgm.subcmd=rm";
+    XrdOucString groupname = subtokenizer.GetToken();
+
+    if (!groupname.length())
       printusage=true;
-    in += "&mgm.node=";
-    in += nodename;
+    in += "&mgm.group=";
+    in += groupname;
     ok = true;
   }
     
 
   if (printusage ||  (!ok))
-    goto com_node_usage;
+    goto com_group_usage;
 
   result = client_admin_command(in);
   
@@ -101,14 +77,13 @@ com_node (char* arg1) {
   
   return (0);
 
- com_node_usage:
+ com_group_usage:
 
-  printf("usage: node ls                                                  : list nodes\n");
-  printf("usage: node ls [-s] [-m|-l]                                        : list nodes\n");
+  printf("usage: group ls                                                  : list groups\n");
+  printf("usage: group ls [-s] [-m|-l]                                        : list groups\n");
   printf("                                                                  -s : silent mode\n");
   printf("                                                                  -m : monitoring key=value output format\n");
-  printf("                                                                  -l : long output - list also file systems after each node\n");
-  printf("       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
-  printf("       node rm  <queue-name>|<host:port>                        : remove a node\n");
+  printf("                                                                  -l : long output - list also file systems after each group\n");
+  printf("       group rm <group-name>                                         : remove group\n");
   return (0);
 }

@@ -13,6 +13,7 @@ add_executable ( eos
 		 commands/com_file.cc 
 		 commands/com_find.cc 
 		 commands/com_fs.cc 
+		 commands/com_group.cc
 		 commands/com_ls.cc 
 		 commands/com_mkdir.cc 
 		 commands/com_node.cc
@@ -27,6 +28,7 @@ add_executable ( eos
 		 commands/com_role.cc 
 		 commands/com_rtlog.cc 
 		 commands/com_silent.cc 
+		 commands/com_space.cc
 		 commands/com_test.cc 
 		 commands/com_timing.cc
 		 commands/com_transfers.cc 

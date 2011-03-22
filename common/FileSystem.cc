@@ -25,9 +25,24 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
         mSom->HashMutex.LockRead();
         mHash = mSom->GetObject(mQueuePath.c_str(),"hash");
         if (mHash) {
+	  mHash->OpenTransaction();
           mHash->Set("queue",mQueue);
           mHash->Set("queuepath",mQueuePath);
           mHash->Set("path",mPath);
+	  std::string hostport = eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
+	  size_t ppos=hostport.find(":");
+	  std::string host = hostport;
+	  std::string port = hostport;
+	  if (ppos != std::string::npos) {
+	    host.erase(ppos);
+	    port.erase(0,ppos+1);
+	  } else {
+	    port = "1094";
+	  }
+	  mHash->Set("hostport",hostport);
+	  mHash->Set("host",host);
+	  mHash->Set("port",port);
+	  mHash->CloseTransaction();
         }           
         
         mSom->HashMutex.UnLockRead();
@@ -39,6 +54,15 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
     }
   } else {
     mHash = 0;
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+FileSystem::~FileSystem()
+{
+  // remove the shared hash of this file system
+  if (mSom) {
+    mSom->DeleteSharedHash(mQueuePath.c_str());
   }
 }
 
@@ -115,6 +139,11 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs) {
     fs.mQueue         = mQueue;
     fs.mQueuePath     = mQueuePath;
     fs.mGroup         = mHash->Get("schedgroup");
+    fs.mUuid          = mHash->Get("uuid");
+    fs.mHost          = mHash->Get("host");
+    fs.mHostPort      = mHash->Get("hostport");
+    fs.mPort          = mHash->Get("port");
+
     std::string::size_type dpos=0;
     if ( ( dpos = fs.mGroup.find(".") ) != std::string::npos) {
       std::string s = fs.mGroup;
@@ -124,7 +153,8 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs) {
       fs.mGroupIndex  = 0;
     }
     fs.mSpace         = fs.mGroup;
-    fs.mSpace.erase(dpos);
+    if (dpos != std::string::npos)
+      fs.mSpace.erase(dpos);
     fs.mPath          = mPath;
     fs.mErrMsg        = mHash->Get("errmsg");
     fs.mStatus        = mHash->GetLongLong("status");
@@ -156,6 +186,10 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs) {
     fs.mQueue         = "";
     fs.mQueuePath     = "";
     fs.mPath          = "";
+    fs.mUuid          = "";
+    fs.mHost          = "";
+    fs.mHostPort      = "";
+    fs.mPort          = "";
     fs.mErrMsg        = "";
     fs.mStatus        = 0;
     fs.mConfigStatus  = 0;

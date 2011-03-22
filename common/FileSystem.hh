@@ -39,6 +39,10 @@ public:
     std::string mPath;
     std::string mErrMsg;
     std::string mGroup;
+    std::string mUuid;
+    std::string mHost;
+    std::string mHostPort;
+    std::string mPort;
     int         mGroupIndex;
     std::string mSpace;
     int         mStatus;
@@ -71,6 +75,8 @@ public:
   //------------------------------------------------------------------------
 
   FileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som);
+
+  ~FileSystem();
 
   //------------------------------------------------------------------------
   // Enums
@@ -173,6 +179,14 @@ public:
 
   fsid_t GetId() {
     return (fsid_t) GetLongLong("id");
+  }
+
+  std::string GetQueuePath() {
+    return mQueuePath;
+  }
+
+  std::string GetQueue() {
+    return mQueue;
   }
 
   //------------------------------------------------------------------------

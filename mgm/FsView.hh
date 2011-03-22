@@ -6,6 +6,7 @@
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
 #include "common/Logging.hh"
+#include "common/GlobalConfig.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
@@ -28,7 +29,6 @@ private:
   std::string mHeartBeatDeltaString;
   std::string mStatus;
   std::string mSize;
-  
 public:
   std::string mName;
   std::string mType;
@@ -36,40 +36,12 @@ public:
   BaseView(){};
   ~BaseView(){};
   
+  virtual const char* GetConfigQueuePrefix() { return "";}
+
   void Print(std::string &out, std::string headerformat, std::string listformat);
   
-  virtual std::string GetMember(std::string member) {
-    if (member == "name")
-      return mName;
-    if (member == "type")
-      return mType;
-    if (member == "nofs") {
-      char line[1024];
-      snprintf(line, sizeof(line)-1, "%llu", (unsigned long long) size());
-      mSize = line;
-      return mSize;
-    }
-    
-    if (member == "heartbeat") {
-      char line[1024];
-      snprintf(line, sizeof(line)-1, "%llu", (unsigned long long) mHeartBeat);
-      mHeartBeatString = line;
-      return mHeartBeatString;
-    }
-    
-    if (member == "heartbeatdelta") {
-      char line[1024];
-      snprintf(line, sizeof(line)-1, "%llu", (unsigned long long) (time(NULL)-mHeartBeat));
-      mHeartBeatDeltaString = line;
-      return mHeartBeatDeltaString;
-    }
+  virtual std::string GetMember(std::string member);
 
-    if (member == "status") {
-      return mStatus;
-    }
-
-    return "";
-  }
 
   void SetHeartBeat(time_t hb)       { mHeartBeat = hb;       }
   void SetStatus(const char* status) { mStatus = status;      }
@@ -88,6 +60,10 @@ public:
 
   FsSpace(const char* name) {mName = name; mType = "spaceview";}
   ~FsSpace() {};
+
+  static std::string gConfigQueuePrefix;
+  virtual const char* GetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
+  static const char* sGetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
 };
 
 //------------------------------------------------------------------------
@@ -96,6 +72,10 @@ public:
 
   FsGroup(const char* name) {mName = name; mType="groupview";}
   ~FsGroup(){};
+
+  static std::string gConfigQueuePrefix;
+  virtual const char* GetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
+  static const char* sGetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
 };
 
 //------------------------------------------------------------------------
@@ -104,6 +84,10 @@ public:
 
   FsNode(const char* name) {mName = name; mType="nodesview";}
   ~FsNode(){};
+
+  static std::string gConfigQueuePrefix;
+  virtual const char* GetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
+  static const char* sGetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
 };
 
 //------------------------------------------------------------------------
@@ -122,6 +106,12 @@ public:
   bool RegisterNode   (const char* nodequeue);            // this adds or modifies an fst node
   bool UnRegisterNode (const char* nodequeue);            // this removes an fst node
 
+  bool RegisterSpace  (const char* spacename);            // this adds or modifies a space 
+  bool UnRegisterSpace(const char* spacename);            // this remove a space
+
+  bool RegisterGroup   (const char* groupname);            // this adds or modifies a group
+  bool UnRegisterGroup (const char* groupname);            // this removes a group
+
   eos::common::RWMutex ViewMutex;  // protecting all xxxView variables
   eos::common::RWMutex MapMutex;   // protecting all xxxMap varables
 
@@ -134,17 +124,29 @@ public:
 
   // filesystem mapping functions
   eos::common::FileSystem::fsid_t CreateMapping(std::string fsuuid);
-  bool                        ProvideMapping(std::string fsuuid, eos::common::FileSystem::fsid_t fsid);
+  bool                            ProvideMapping(std::string fsuuid, eos::common::FileSystem::fsid_t fsid);
   eos::common::FileSystem::fsid_t GetMapping(std::string fsuuid);
-  std::string GetMapping(fsid_t fsuuid);
+  std::string GetMapping(eos::common::FileSystem::fsid_t fsuuid);
+  bool        RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid);
 
   void PrintSpaces(std::string &out, std::string headerformat, std::string listformat);
   void PrintGroups(std::string &out, std::string headerformat, std::string listformat);
   void PrintNodes (std::string &out, std::string headerformat, std::string listformat);
+  
+  static std::string GetNodeFormat       (std::string option);
+  static std::string GetGroupFormat      (std::string option);
+  static std::string GetSpaceFormat      (std::string option);
+  static std::string GetFileSystemFormat (std::string option);
+
 
   FsView() {};
   ~FsView() {};
 
+  void SetConfigQueues(const char* nodeconfigqueue, const char* groupconfigqueue, const char* spaceconfigqueue) {
+    FsSpace::gConfigQueuePrefix = spaceconfigqueue;
+    FsGroup::gConfigQueuePrefix = groupconfigqueue;
+    FsNode::gConfigQueuePrefix  = nodeconfigqueue;
+  }
   static FsView gFsView; // singleton
 };
 

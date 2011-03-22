@@ -26,6 +26,8 @@ public:
 
   XrdMqSharedHash* Get(const char* configqueue); 
 
+  XrdMqSharedObjectManager* SOM() { return mSom;}
+
   void PrintBroadCastMap(std::string &out);
   
   GlobalConfig();

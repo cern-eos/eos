@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <string.h>
 /*----------------------------------------------------------------------------*/
+#include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/FstNode.hh"
@@ -443,33 +444,33 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   // create global visible configuration parameters
   // we create 3 queues
   // "/eos/<instance>/
-  XrdOucString configbasequeue = "/eos/";
+  XrdOucString configbasequeue = "/config/";
   configbasequeue += MgmOfsInstanceName.c_str();
 
-  MgmConfigQueue = configbasequeue; MgmConfigQueue += "/mgm/config";
-  AllConfigQueue = configbasequeue; AllConfigQueue += "/all/config";
-  FstConfigQueue = configbasequeue; FstConfigQueue += "/fst/config";
+  MgmConfigQueue = configbasequeue; MgmConfigQueue += "/mgm/";
+  AllConfigQueue = configbasequeue; AllConfigQueue += "/all/";
+  FstConfigQueue = configbasequeue; FstConfigQueue += "/fst/";
 
   SpaceConfigQueuePrefix = configbasequeue; SpaceConfigQueuePrefix += "/space/";
   NodeConfigQueuePrefix  = configbasequeue; NodeConfigQueuePrefix  += "/node/";
   GroupConfigQueuePrefix = configbasequeue; GroupConfigQueuePrefix += "/group/";
 
-
+  FsView::gFsView.SetConfigQueues(NodeConfigQueuePrefix.c_str(), GroupConfigQueuePrefix.c_str(), SpaceConfigQueuePrefix.c_str());
   // we need to set the shared object manager to be used
-  GlobalConfig.SetSOM(&ObjectManager);
+  eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
 
-  if (!GlobalConfig.AddConfigQueue(MgmConfigQueue.c_str(), "/eos/*/mgm")) {
+  if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(MgmConfigQueue.c_str(), "/eos/*/mgm")) {
     eos_crit("Cannot add global config queue %s\n", MgmConfigQueue.c_str());
   }
-  if (!GlobalConfig.AddConfigQueue(AllConfigQueue.c_str(), "/eos/*")) {
+  if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(AllConfigQueue.c_str(), "/eos/*")) {
     eos_crit("Cannot add global config queue %s\n", AllConfigQueue.c_str());
   }
-  if (!GlobalConfig.AddConfigQueue(FstConfigQueue.c_str(), "/eos/*/fst")) {
+  if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(FstConfigQueue.c_str(), "/eos/*/fst")) {
     eos_crit("Cannot add global config queue %s\n", FstConfigQueue.c_str());
   }
   
   std::string out ="";
-  GlobalConfig.PrintBroadCastMap(out);
+  eos::common::GlobalConfig::gConfig.PrintBroadCastMap(out);
   fprintf(stderr,"%s",out.c_str());
   
   //  eos_emerg("%s",(char*)"test emerg");

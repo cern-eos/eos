@@ -67,10 +67,10 @@ FstNode::Update(XrdAdvisoryMqMessage* advmsg)
   std::string nodequeue = advmsg->kQueue.c_str();
 
   if (FsView::gFsView.RegisterNode(advmsg->kQueue.c_str())) {
-    std::string nodeconfigname = gOFS->GlobalConfig.QueuePrefixName(gOFS->NodeConfigQueuePrefix.c_str(), advmsg->kQueue.c_str());
+    std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->NodeConfigQueuePrefix.c_str(), advmsg->kQueue.c_str());
     
-    if (!gOFS->GlobalConfig.Get(nodeconfigname.c_str())) {
-      if (!gOFS->GlobalConfig.AddConfigQueue(nodeconfigname.c_str(), advmsg->kQueue.c_str())) {
+    if (!eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str())) {
+      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(), advmsg->kQueue.c_str())) {
 	eos_static_crit("cannot add node config queue %s", nodeconfigname.c_str());
       }
     }

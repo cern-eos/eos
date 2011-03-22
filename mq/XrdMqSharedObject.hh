@@ -20,6 +20,7 @@
 #define XRDMQSHAREDHASH_BCREQUEST "mqsh.cmd=bcrequest"
 #define XRDMQSHAREDHASH_BCREPLY   "mqsh.cmd=bcreply"
 #define XRDMQSHAREDHASH_DELETE    "mqsh.cmd=delete"
+#define XRDMQSHAREDHASH_REMOVE    "mqsh.cmd=remove"
 #define XRDMQSHAREDHASH_SUBJECT   "mqsh.subject"
 #define XRDMQSHAREDHASH_PAIRS     "mqsh.pairs"
 #define XRDMQSHAREDHASH_KEYS      "mqsh.keys"
@@ -178,6 +179,7 @@ public:
   void MakeBroadCastEnvHeader(XrdOucString &out);
   void MakeUpdateEnvHeader(XrdOucString &out);
   void MakeDeletionEnvHeader(XrdOucString &out);
+  void MakeRemoveEnvHeader(XrdOucString &out);
   void AddTransactionEnvString(XrdOucString &out);
   void AddDeletionEnvString(XrdOucString &out);
   bool BroadCastEnvString(const char* receiver);
@@ -286,12 +288,23 @@ public:
     }
     return false;
   }
+  
+  bool DeleteSharedObject(const char* subject, const char* type, bool broadcast = true) {
+    std::string Type = type;
+    if (Type == "hash") {
+      return DeleteSharedHash(subject,broadcast);
+    }
+    if (Type == "queue") {
+      return DeleteSharedQueue(subject,broadcast);
+    }
+    return false;
+  }
 
   bool CreateSharedHash (const char* subject, const char* broadcastqueue, XrdMqSharedObjectManager* som=0);
   bool CreateSharedQueue(const char* subject, const char* broadcastqueue, XrdMqSharedObjectManager* som=0);
   
-  bool DeleteSharedHash(const char* subject);
-  bool DeleteSharedQueue(const char* subject);
+  bool DeleteSharedHash(const char* subject, bool broadcast = true);
+  bool DeleteSharedQueue(const char* subject , bool broadcast = true);
 
   XrdMqSharedHash* GetObject(const char* subject, const char* type) {
     std::string Type = type;

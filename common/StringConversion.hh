@@ -164,6 +164,22 @@ public:
     }
     return hostport;
   }
+
+  static std::string
+  GetStringHostPortFromQueue(const char* queue) {
+    // extracts only host:port from queue names like /eos/<host>:<port>/<role>
+    std::string hostport = queue;
+    int pos = hostport.find("/",2);
+    if (pos != STR_NPOS) {
+      hostport.erase(0, pos+1);
+      pos = hostport.find("/");
+      if (pos != STR_NPOS) {
+	hostport.erase(pos);
+      }
+    }
+    return hostport;
+  }
+
   
   StringConversion() {};
   ~StringConversion() {};

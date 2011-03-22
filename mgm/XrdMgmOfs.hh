@@ -441,8 +441,6 @@ virtual bool           Init(XrdSysError &);
   
         ConfigEngine*    ConfEngine;         // storing/restoring configuration
 
-        eos::common::GlobalConfig GlobalConfig; // global visible configuration parameters
-
         XrdCapability*   CapabilityEngine;   // -> authorization module for token encryption/decryption
   
         XrdOucString     MgmOfsBrokerUrl;    // -> Url of the message broker

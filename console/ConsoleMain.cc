@@ -12,6 +12,7 @@ extern int com_file (char*);
 extern int com_fileinfo (char*);
 extern int com_find (char*);
 extern int com_fs   (char*);
+extern int com_group (char*);
 extern int com_help (char *);
 extern int com_ls (char*);
 extern int com_mkdir (char*);
@@ -26,6 +27,7 @@ extern int com_rmdir (char*);
 extern int com_role (char*);
 extern int com_rtlog (char*);
 extern int com_silent (char*);
+extern int com_space (char*);
 extern int com_test (char*);
 extern int com_timing (char*);
 extern int com_transfers (char*);
@@ -93,6 +95,7 @@ COMMAND commands[] = {
   { (char*)"fileinfo", com_fileinfo, (char*)"File Information" },
   { (char*)"find",     com_find,     (char*)"Find files/directories" },
   { (char*)"fs",       com_fs,       (char*)"File System configuration"},
+  { (char*)"group",    com_group,    (char*)"Group configuration" },
   { (char*)"help",     com_help,     (char*)"Display this text" },
   { (char*)"ls",       com_ls,       (char*)"List a directory" },
   { (char*)"mkdir",    com_mkdir,    (char*)"Create a directory" },
@@ -108,6 +111,7 @@ COMMAND commands[] = {
   { (char*)"role",     com_role,     (char*)"Set the client role" },
   { (char*)"rtlog",    com_rtlog,    (char*)"Get realtime log output from mgm & fst servers" },
   { (char*)"silent",   com_silent,   (char*)"Toggle silent flag for stdout" },
+  { (char*)"space",    com_space,    (char*)"Space configuration" },
   { (char*)"test",     com_test,     (char*)"Run performance test" },
   { (char*)"timing",   com_timing,   (char*)"Toggle timing flag for execution time measurement" },
   { (char*)"transfers",com_transfers,(char*)"Transfer Interface"},
@@ -711,7 +715,14 @@ int main (int argc, char* argv[]) {
         while (cmdline.beginswith(" ")) {cmdline.erase(0,1);}
         while (cmdline.endswith(" ")) {cmdline.erase(cmdline.length()-1,1);}
         execute_line ((char*)cmdline.c_str());
-        exit(0);
+	if ( (!selectedrole) && (!getuid()) && (serveruri.beginswith("root://localhost"))) {
+	  // we are root, we always select also the root role by default
+	  XrdOucString cmdline="role 0 0 ";
+	  if (!interactive)silent = true;
+	  execute_line ((char*)cmdline.c_str());
+	  if (!interactive)silent = false;
+	}
+        exit(global_retc);
       }
     }
   }

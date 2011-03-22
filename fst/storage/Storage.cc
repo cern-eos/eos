@@ -1033,7 +1033,7 @@ Storage::Communicator()
       gOFS.ObjectManager.CreationSubjects.pop_front();
       XrdOucString s = newsubject.c_str();
       if (! s.beginswith(Config::gConfig.FstQueue)) {
-	eos_static_err("illegal subject found in creation list <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
+	eos_static_debug("no action on creation of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
 	continue;
       } else {
 	s.replace(Config::gConfig.FstQueue.c_str(),"");

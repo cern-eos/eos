@@ -93,13 +93,22 @@ XrdMqSharedObjectManager::CreateSharedQueue(const char* subject, const char* bro
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMqSharedObjectManager::DeleteSharedHash(const char* subject) 
+XrdMqSharedObjectManager::DeleteSharedHash(const char* subject, bool broadcast) 
 {
   std::string ss = subject;
   
   HashMutex.LockWrite();
   
-  if (hashsubjects.count(ss)>0) {
+  if ((hashsubjects.count(ss)>0)) {
+    if (broadcast) {
+      XrdOucString txmessage="";
+      hashsubjects[ss]->MakeRemoveEnvHeader(txmessage);
+      XrdMqMessage message("XrdMqSharedHashMessage");
+      message.SetBody(txmessage.c_str());
+      message.MarkAsMonitor();
+      XrdMqMessaging::gMessageClient.SendMessage(message);
+    }
+    
     delete (hashsubjects[ss]);
     hashsubjects.erase(ss);
     HashMutex.UnLockWrite();
@@ -109,7 +118,7 @@ XrdMqSharedObjectManager::DeleteSharedHash(const char* subject)
       DeletionSubjects.push_back(ss);
       SubjectsMutex.UnLock();
       SubjectsSem.Post();
-    }
+    }    
 
     return true;
   } else {
@@ -120,13 +129,22 @@ XrdMqSharedObjectManager::DeleteSharedHash(const char* subject)
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMqSharedObjectManager::DeleteSharedQueue(const char* subject) 
+XrdMqSharedObjectManager::DeleteSharedQueue(const char* subject, bool broadcast) 
 {
   std::string ss = subject;
   
   ListMutex.LockWrite();
   
-  if (queuesubjects.count(ss)>0) {
+  if ((queuesubjects.count(ss)>0)) {
+    if (broadcast) {
+      XrdOucString txmessage="";
+      hashsubjects[ss]->MakeRemoveEnvHeader(txmessage);
+      XrdMqMessage message("XrdMqSharedHashMessage");
+      message.SetBody(txmessage.c_str());
+      message.MarkAsMonitor();
+      XrdMqMessaging::gMessageClient.SendMessage(message);
+    }
+
     queuesubjects.erase(ss);
     ListMutex.UnLockWrite();
 
@@ -307,7 +325,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
     if (subjectlist.size()>0)
       sh = GetObject(subjectlist[0].c_str(),type.c_str());
 
-    if ( (ftag == XRDMQSHAREDHASH_BCREQUEST) || (ftag == XRDMQSHAREDHASH_DELETE) ) {
+    if ( (ftag == XRDMQSHAREDHASH_BCREQUEST) || (ftag == XRDMQSHAREDHASH_DELETE) || (ftag == XRDMQSHAREDHASH_REMOVE) ) {
       // if we don't know the subject, we don't create it with a BCREQUEST
       if ( ( ftag == XRDMQSHAREDHASH_BCREQUEST) && (reply == "")) {
         HashMutex.UnLockRead();
@@ -323,6 +341,9 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
         if (ftag == XRDMQSHAREDHASH_DELETE) {
           error = "delete: don't know this subject";
         }
+	if (ftag == XRDMQSHAREDHASH_REMOVE) {
+	  error = "remove: don't know this subject";
+	}
         return false;
       } else {
         HashMutex.UnLockRead();
@@ -361,117 +382,128 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
       }
     }
 
-    XrdMqRWMutexReadLock lock(HashMutex);
+    {
+      XrdMqRWMutexReadLock lock(HashMutex);
+      // from here on we have a read lock on 'sh'
+      
+      if ( (ftag == XRDMQSHAREDHASH_UPDATE) || (ftag == XRDMQSHAREDHASH_BCREPLY) ) {
+	std::string val = (env.Get(XRDMQSHAREDHASH_PAIRS)?env.Get(XRDMQSHAREDHASH_PAIRS):"");
+	if ( val.length() <=0 ) {
+	  error = "no pairs in message body";
+	  return false;
+	}
+	
+	if (ftag == XRDMQSHAREDHASH_BCREPLY) {
+	  sh->Clear();
+	}
+	
+	std::string key;
+	std::string value;
+	std::string cid;
+	std::vector<int> keystart;
+	std::vector<int> valuestart;
+	std::vector<int> cidstart;
+	for (unsigned int i=0; i< val.length(); i++) {
+	  if (val.c_str()[i] == '|') {
+	    keystart.push_back(i);
+	  }
+	  if (val.c_str()[i] == '~') {
+	    valuestart.push_back(i);
+	  }
+	  if (val.c_str()[i] == '%') {
+	    cidstart.push_back(i);
+	  }
+	}
+	
+	if (keystart.size() != valuestart.size()) {
+	  error = "update: parsing error in pairs tag";
+	  return false;
+	}
+	
+	if (keystart.size() != cidstart.size()) {
+	  error = "update: parsing error in pairs tag";
+	  return false;
+	}
+	
+	std::string sstr;
+	
+	XrdSysMutexHelper(TransactionMutex);
+	for (unsigned int i=0 ; i< keystart.size(); i++) {
+	  sstr = val.substr(keystart[i]+1, valuestart[i]-1 - (keystart[i]));
+	  key = sstr;
+	  sstr = val.substr(valuestart[i]+1, cidstart[i]-1 - (valuestart[i]));
+	  value = sstr;
+	  if (i == (keystart.size()-1)) {
+	    sstr = val.substr(cidstart[i]+1);
+	  } else {
+	    sstr = val.substr(cidstart[i]+1,keystart[i+1]-1 - (cidstart[i]));
+	  }
+	  cid = sstr;
+	  if (debug)fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Setting [%s] %s=>%s\n", subject.c_str(),key.c_str(), value.c_str());
+	  sh->Set(key, value, false);
 
-    // from here on we have a read lock on 'sh'
-
-    if ( (ftag == XRDMQSHAREDHASH_UPDATE) || (ftag == XRDMQSHAREDHASH_BCREPLY) ) {
-      std::string val = (env.Get(XRDMQSHAREDHASH_PAIRS)?env.Get(XRDMQSHAREDHASH_PAIRS):"");
-      if ( val.length() <=0 ) {
-        error = "no pairs in message body";
-        return false;
-      }
-
-      if (ftag == XRDMQSHAREDHASH_BCREPLY) {
-        sh->Clear();
-      }
-
-      std::string key;
-      std::string value;
-      std::string cid;
-      std::vector<int> keystart;
-      std::vector<int> valuestart;
-      std::vector<int> cidstart;
-      for (unsigned int i=0; i< val.length(); i++) {
-        if (val.c_str()[i] == '|') {
-          keystart.push_back(i);
-        }
-        if (val.c_str()[i] == '~') {
-          valuestart.push_back(i);
-        }
-        if (val.c_str()[i] == '%') {
-          cidstart.push_back(i);
-        }
-      }
-
-      if (keystart.size() != valuestart.size()) {
-        error = "update: parsing error in pairs tag";
-        return false;
-      }
-
-      if (keystart.size() != cidstart.size()) {
-        error = "update: parsing error in pairs tag";
-        return false;
-      }
-
-      std::string sstr;
-
-      XrdSysMutexHelper(TransactionMutex);
-      for (unsigned int i=0 ; i< keystart.size(); i++) {
-        sstr = val.substr(keystart[i]+1, valuestart[i]-1 - (keystart[i]));
-        key = sstr;
-        sstr = val.substr(valuestart[i]+1, cidstart[i]-1 - (valuestart[i]));
-        value = sstr;
-        if (i == (keystart.size()-1)) {
-          sstr = val.substr(cidstart[i]+1);
-        } else {
-          sstr = val.substr(cidstart[i]+1,keystart[i+1]-1 - (cidstart[i]));
-        }
-        cid = sstr;
-        if (debug)fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Setting [%s] %s=>%s\n", subject.c_str(),key.c_str(), value.c_str());
-        sh->Set(key, value, false);
-
-      }
-      return true;
-    }
-
-    if (ftag == XRDMQSHAREDHASH_BCREQUEST) {
-      bool success = true;
-      for (unsigned int l=0; l< subjectlist.size(); l++) {
-        // try 'queue' and 'hash' to have wildcard broadcasts for both
-        sh = GetObject(subjectlist[l].c_str(), "hash");
-        if (!sh) {
-          sh = GetObject(subjectlist[l].c_str(),"queue");
-        }
-        
-        if (sh) {
-          success *= sh->BroadCastEnvString(reply.c_str());
-        }
-      }
-      return success;
-    }
-    
-    if (ftag == XRDMQSHAREDHASH_DELETE) {
-      std::string val = (env.Get(XRDMQSHAREDHASH_KEYS)?env.Get(XRDMQSHAREDHASH_KEYS):"");
-      if ( val.length() <= strlen(XRDMQSHAREDHASH_KEYS+1)) {
-        error = "no keys in message body";
-        return false;
+	}
+	return true;
       }
       
-      std::string key;
-      std::vector<int> keystart;
-
-      for (unsigned int i=0; i< val.length(); i++) {
-        if (val.c_str()[i] == '|') {
+      if (ftag == XRDMQSHAREDHASH_BCREQUEST) {
+	bool success = true;
+	for (unsigned int l=0; l< subjectlist.size(); l++) {
+	  // try 'queue' and 'hash' to have wildcard broadcasts for both
+	  sh = GetObject(subjectlist[l].c_str(), "hash");
+	  if (!sh) {
+	    sh = GetObject(subjectlist[l].c_str(),"queue");
+	  }
+	  
+	  if (sh) {
+	    success *= sh->BroadCastEnvString(reply.c_str());
+	  }
+	}
+	return success;
+      }
+      
+      if (ftag == XRDMQSHAREDHASH_DELETE) {
+	std::string val = (env.Get(XRDMQSHAREDHASH_KEYS)?env.Get(XRDMQSHAREDHASH_KEYS):"");
+	if ( val.length() <= strlen(XRDMQSHAREDHASH_KEYS+1)) {
+	  error = "no keys in message body";
+	  return false;
+	}
+      
+	std::string key;
+	std::vector<int> keystart;
+	
+	for (unsigned int i=0; i< val.length(); i++) {
+	  if (val.c_str()[i] == '|') {
           keystart.push_back(i);
-        }
+	  }
+	}
+	
+	XrdSysMutexHelper(TransactionMutex);
+	std::string sstr;
+	for (unsigned int i=0 ; i< keystart.size(); i++) {
+	  if (i < (keystart.size()-1)) 
+	    sstr = val.substr(keystart[i]+1, keystart[i+1]-1 - (keystart[i]));
+	  else 
+	    sstr = val.substr(keystart[i]+1);
+	  
+	  key = sstr;
+	  if (debug)fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Deleting [%s] %s\n", subject.c_str(),key.c_str());
+	  sh->Delete(key.c_str(), false);
+	  
+	}
       }
+    } // end of read mutex on HashMutex
 
-      XrdSysMutexHelper(TransactionMutex);
-      std::string sstr;
-      for (unsigned int i=0 ; i< keystart.size(); i++) {
-        if (i < (keystart.size()-1)) 
-          sstr = val.substr(keystart[i]+1, keystart[i+1]-1 - (keystart[i]));
-        else 
-          sstr = val.substr(keystart[i]+1);
-
-        key = sstr;
-        if (debug)fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Deleting [%s] %s\n", subject.c_str(),key.c_str());
-        sh->Delete(key.c_str(), false);
-
+    if (ftag == XRDMQSHAREDHASH_REMOVE) {
+      for (unsigned int l=0; l< subjectlist.size(); l++) {
+	if (!DeleteSharedObject(subjectlist[l].c_str(),type.c_str(),false)) {
+	  error = "cannot delete subject "; error += subjectlist[l].c_str();
+	  return false;
+	}
       }
-      return true;
     }
+    return true;
+
   }
   error="unknown message: ";error += message->GetBody();
   return false;
@@ -547,6 +579,14 @@ void
 XrdMqSharedHash::MakeDeletionEnvHeader(XrdOucString &out)
 {
   out = XRDMQSHAREDHASH_DELETE; out += "&"; out += XRDMQSHAREDHASH_SUBJECT; out += "="; out += Subject.c_str();
+  out += "&"; out += XRDMQSHAREDHASH_TYPE;    out += "="; out += Type.c_str();
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdMqSharedHash::MakeRemoveEnvHeader(XrdOucString &out)
+{
+  out = XRDMQSHAREDHASH_REMOVE; out += "&"; out += XRDMQSHAREDHASH_SUBJECT; out += "="; out += Subject.c_str();
   out += "&"; out += XRDMQSHAREDHASH_TYPE;    out += "="; out += Type.c_str();
 }
 
@@ -655,36 +695,46 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast)
     return false;
   
   std::string skey = key;
-  
-  XrdMqRWMutexWriteLock lock(StoreMutex);
-  bool callback=false;
-  
-  if (!Store.count(skey)) {
-    callback=true;
-  }
-  
-  Store[skey].Set(value);
-  if (callback) {
-    CallBackInsert(&Store[skey], skey.c_str());
-  }
-  
-  if (IsTransaction && broadcast) {
-    Transactions.insert(skey);
-  }
-  
-  // check if we have to do posts for this subject
-  if (SOM) {
-    SOM->SubjectsMutex.Lock();
-    if (SOM->ModificationWatchKeys.size()) {
-      if (SOM->ModificationWatchKeys.count(skey)) {
-        std::string fkey = Subject.c_str();
-        fkey += ";" ; fkey+= skey;
-        if (XrdMqSharedObjectManager::debug)fprintf(stderr,"XrdMqSharedObjectManager::Set=>[%s:%s]=>%s notified\n", Subject.c_str(),skey.c_str(),value);
-        SOM->ModificationSubjects.push_back(fkey);
-      }
+
+  {
+    XrdMqRWMutexWriteLock lock(StoreMutex);
+    bool callback=false;
+    
+    if (!Store.count(skey)) {
+      callback=true;
     }
-    SOM->SubjectsMutex.UnLock();
+    
+    Store[skey].Set(value);
+    if (callback) {
+      CallBackInsert(&Store[skey], skey.c_str());
+    }
+    
+    // we emulate a transaction for a single Set
+    if (broadcast && (!IsTransaction) ) {
+      TransactionMutex.Lock(); Transactions.clear();
+    }
+    
+    if (broadcast) {
+      Transactions.insert(skey);
+    } 
+    
+    // check if we have to do posts for this subject
+    if (SOM) {
+      SOM->SubjectsMutex.Lock();
+      if (SOM->ModificationWatchKeys.size()) {
+	if (SOM->ModificationWatchKeys.count(skey)) {
+	  std::string fkey = Subject.c_str();
+	  fkey += ";" ; fkey+= skey;
+	  if (XrdMqSharedObjectManager::debug)fprintf(stderr,"XrdMqSharedObjectManager::Set=>[%s:%s]=>%s notified\n", Subject.c_str(),skey.c_str(),value);
+	  SOM->ModificationSubjects.push_back(fkey);
+	}
+      }
+      SOM->SubjectsMutex.UnLock();
+    }
   }
+
+  if (broadcast && (!IsTransaction))
+    CloseTransaction();
   
   return true;
 }

@@ -109,14 +109,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
   if ( path.beginswith ("/proc/user")) {
     userCmd = true;
   }
-
+ 
   XrdOucEnv opaque(ininfo);
 
   XrdOucString outformat="";
 
-  cmd    = opaque.Get("mgm.cmd");
-  subcmd = opaque.Get("mgm.subcmd");
-  outformat = opaque.Get("mgm.outformat");
+  cmd          = opaque.Get("mgm.cmd");
+  subcmd       = opaque.Get("mgm.subcmd");
+  outformat    = opaque.Get("mgm.outformat");
 
   stdOut = "";
   stdErr = "";
@@ -219,32 +219,370 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	{ 
 	  std::string output="";
 	  std::string format="";
+	  std::string listformat="";
+	  format=FsView::GetNodeFormat(std::string(outformat.c_str()));
+	  if (outformat != "m") 
+	    listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
 	  
-	  if (outformat == "mon") {
-	    format="member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=status:width=1:format=os|sep= |member=heartbeatdelta:width=1:format=os|sep= |member=nofs:width=1:format=os";
-	  } else {
-	    format="header=1:member=type:width=10:format=-s|sep=   |member=name:width=32:format=s|sep=   |member=status:width=10:format=s|sep=   |member=heartbeatdelta:width=16:format=s|sep=   |member=nofs:width=5:format=s";
-	  }
-	  FsView::gFsView.PrintNodes(output, format, "");
+	  FsView::gFsView.PrintNodes(output, format, listformat);
 	  stdOut += output.c_str();
+	}
+      }
+
+      if (subcmd == "set") {
+	std::string nodename = (opaque.Get("mgm.node"))?opaque.Get("mgm.node"):"";
+	std::string status   = (opaque.Get("mgm.node.state"))?opaque.Get("mgm.node.state"):"";
+	if ( (!nodename.length()) || (!status.length()) ) {
+	  stdErr="error: illegal parameters";
+	  retc = EINVAL;
+	} else {
+	  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	  if (!FsView::gFsView.mNodeView.count(nodename)) {
+	    stdErr="info : creating node '"; stdErr += nodename.c_str(); stdErr += "'";
+	    
+	    //	    stdErr="error: no such node '"; stdErr += nodename.c_str(); stdErr += "'";
+	    //retc = ENOENT;
+	    
+	    if (FsView::gFsView.RegisterNode(nodename.c_str())) {
+	      std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->NodeConfigQueuePrefix.c_str(), nodename.c_str());
+	      
+	      if (!eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str())) {
+		if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(), nodename.c_str())) {
+		  eos_crit("cannot add node config queue %s", nodeconfigname.c_str());
+		  stdErr="error: cannot add node config queue '"; stdErr += nodeconfigname.c_str(); stdErr += "'";
+		  retc = EIO;
+		}
+	      }
+	      if (!retc) {
+		// set this new node to offline
+		FsView::gFsView.mNodeView[nodename]->SetStatus("offline");
+	      }
+	    }
+	  } else {
+	    // we have a node but we have to check if we have a config
+	    std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->NodeConfigQueuePrefix.c_str(), nodename.c_str());
+	    if (!eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str())) {
+	      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(), nodename.c_str())) {
+		eos_crit("cannot add node config queue %s", nodeconfigname.c_str());
+		stdErr="error: cannot add node config queue '"; stdErr += nodeconfigname.c_str(); stdErr += "'";
+		retc = EIO;
+	      }
+	      if (!retc) {
+		// set this new node to offline
+		FsView::gFsView.mNodeView[nodename]->SetStatus("offline");
+	      }
+	    }
+	  }
+
+
+	  if (!retc) {
+	    XrdMqRWMutexWriteLock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+	    std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsNode::sGetConfigQueuePrefix(), nodename.c_str());
+	    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
+	    if (!hash) {
+	      stdErr="error: unable to set status of node '"; stdErr += nodename.c_str(); stdErr += ";";
+	      retc = EIO;
+	    } else {
+	      hash->Set("status",status);
+	    }
+	  }
+	}
+      }
+      
+      if (subcmd == "rm") {
+	std::string nodename = (opaque.Get("mgm.node"))?opaque.Get("mgm.node"):"";
+	if ( (!nodename.length() ) ) {
+	  stdErr="error: illegal parameters";
+	  retc = EINVAL;
+	} else {
+	  eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+	  if (!FsView::gFsView.mNodeView.count(nodename)) {
+	    stdErr="error: no such node '"; stdErr += nodename.c_str(); stdErr += "'";
+	    retc = ENOENT;
+	  } else {
+	    std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsNode::sGetConfigQueuePrefix(), nodename.c_str());
+	    if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(nodeconfigname.c_str())) {
+	      stdErr="error: unable to remove config of node '"; stdErr += nodename.c_str(); stdErr += "'";
+	      retc = EIO;
+	    } else {
+	      if (FsView::gFsView.UnRegisterNode(nodename.c_str())) {
+		stdOut="success: removed node '"; stdOut += nodename.c_str(); stdOut += "'";
+	      } else {
+		stdErr="error: unable to unregister node '"; stdErr += nodename.c_str(); stdErr += "'";
+	      }
+	    }
+	  }
 	}
       }
     }
 
-    if (cmd == "fs") {
+    if (cmd == "space") {
       if (subcmd == "ls") {
-	FstNode::gMutex.Lock();
-
-	stdOut += FstNode::GetInfoHeader();
-	std::map<std::string,std::string> nodeOutput;
-	FstNode::gFstNodes.Apply(FstNode::ListNodes, &nodeOutput);
-	//std::sort(nodeOutput.begin(),nodeOutput.end());
-	std::map<std::string,std::string>::const_iterator i;
-	for (i=nodeOutput.begin(); i!=nodeOutput.end(); ++i) {
-	  stdOut += i->second.c_str();
+	{ 
+	  std::string output="";
+	  std::string format="";
+	  std::string listformat="";
+	  format=FsView::GetSpaceFormat(std::string(outformat.c_str()));
+	  if (outformat != "m") 
+	    listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
+	  
+	  FsView::gFsView.PrintSpaces(output, format, listformat);
+	  stdOut += output.c_str();
 	}
+      }
+      
+      if (subcmd == "set") {
+	std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
+	std::string status   = (opaque.Get("mgm.space.state"))?opaque.Get("mgm.space.state"):"";
+	if ( (!spacename.length()) || (!status.length()) ) {
+	  stdErr="error: illegal parameters";
+	  retc = EINVAL;
+	} else {
+	  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	  if (!FsView::gFsView.mSpaceView.count(spacename)) {
+	    stdErr="info : creating space '"; stdErr += spacename.c_str(); stdErr += "'";
+	    
+	    //	    stdErr="error: no such space '"; stdErr += spacename.c_str(); stdErr += "'";
+	    //retc = ENOENT;
+	    
+	    if (FsView::gFsView.RegisterSpace(spacename.c_str())) {
+	      std::string spaceconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->SpaceConfigQueuePrefix.c_str(), spacename.c_str());
+	      
+	      if (!eos::common::GlobalConfig::gConfig.Get(spaceconfigname.c_str())) {
+		if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(spaceconfigname.c_str(), spacename.c_str())) {
+		  eos_crit("cannot add space config queue %s", spaceconfigname.c_str());
+		  stdErr="error: cannot add space config queue '"; stdErr += spaceconfigname.c_str(); stdErr += "'";
+		  retc = EIO;
+		}
+	      }
+	      if (!retc) {
+		// set this new space to offline
+		FsView::gFsView.mSpaceView[spacename]->SetStatus("offline");
+	      }
+	    }
+	  } else {
+	    // we have a space but we have to check if we have a config
+	    std::string spaceconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->SpaceConfigQueuePrefix.c_str(), spacename.c_str());
+	    if (!eos::common::GlobalConfig::gConfig.Get(spaceconfigname.c_str())) {
+	      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(spaceconfigname.c_str(), spacename.c_str())) {
+		eos_crit("cannot add space config queue %s", spaceconfigname.c_str());
+		stdErr="error: cannot add space config queue '"; stdErr += spaceconfigname.c_str(); stdErr += "'";
+		retc = EIO;
+	      }
+	      if (!retc) {
+		// set this new space to offline
+		FsView::gFsView.mSpaceView[spacename]->SetStatus("offline");
+	      }
+	    }
+	  }
 
-	FstNode::gMutex.UnLock();
+
+	  if (!retc) {
+	    XrdMqRWMutexWriteLock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+	    std::string spaceconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsSpace::sGetConfigQueuePrefix(), spacename.c_str());
+	    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(spaceconfigname.c_str());
+	    if (!hash) {
+	      stdErr="error: unable to set status of space '"; stdErr += spacename.c_str(); stdErr += ";";
+	      retc = EIO;
+	    } else {
+	      hash->Set("status",status);
+	    }
+	  }
+	}
+      }
+      
+      if (subcmd == "rm") {
+	std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
+	if ( (!spacename.length() ) ) {
+	  stdErr="error: illegal parameters";
+	  retc = EINVAL;
+	} else {
+	  eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+	  if (!FsView::gFsView.mSpaceView.count(spacename)) {
+	    stdErr="error: no such space '"; stdErr += spacename.c_str(); stdErr += "'";
+	    retc = ENOENT;
+	  } else {
+	    std::string spaceconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsSpace::sGetConfigQueuePrefix(), spacename.c_str());
+	    if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(spaceconfigname.c_str())) {
+	      stdErr="error: unable to remove config of space '"; stdErr += spacename.c_str(); stdErr += "'";
+	      retc = EIO;
+	    } else {
+	      if (FsView::gFsView.UnRegisterSpace(spacename.c_str())) {
+		stdOut="success: removed space '"; stdOut += spacename.c_str(); stdOut += "'";
+	      } else {
+		stdErr="error: unable to unregister space '"; stdErr += spacename.c_str(); stdErr += "'";
+	      }
+	    }
+	  }
+	}
+      }
+    }
+
+    if (cmd == "group") {
+      if (subcmd == "ls") {
+	{ 
+	  std::string output="";
+	  std::string format="";
+	  std::string listformat="";
+	  format=FsView::GetGroupFormat(std::string(outformat.c_str()));
+	  if (outformat != "m") 
+	    listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
+	  
+	  FsView::gFsView.PrintGroups(output, format, listformat);
+	  stdOut += output.c_str();
+	}
+      }
+      
+      if (subcmd == "set") {
+	std::string groupname = (opaque.Get("mgm.group"))?opaque.Get("mgm.group"):"";
+	std::string status   = (opaque.Get("mgm.group.state"))?opaque.Get("mgm.group.state"):"";
+	if ( (!groupname.length()) || (!status.length()) ) {
+	  stdErr="error: illegal parameters";
+	  retc = EINVAL;
+	} else {
+	  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	  if (!FsView::gFsView.mGroupView.count(groupname)) {
+	    stdErr="info : creating group '"; stdErr += groupname.c_str(); stdErr += "'";
+	    
+	    //	    stdErr="error: no such group '"; stdErr += groupname.c_str(); stdErr += "'";
+	    //retc = ENOENT;
+	    
+	    if (FsView::gFsView.RegisterGroup(groupname.c_str())) {
+	      std::string groupconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->GroupConfigQueuePrefix.c_str(), groupname.c_str());
+	      
+	      if (!eos::common::GlobalConfig::gConfig.Get(groupconfigname.c_str())) {
+		if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(groupconfigname.c_str(), groupname.c_str())) {
+		  eos_crit("cannot add group config queue %s", groupconfigname.c_str());
+		  stdErr="error: cannot add group config queue '"; stdErr += groupconfigname.c_str(); stdErr += "'";
+		  retc = EIO;
+		}
+	      }
+	      if (!retc) {
+		// set this new group to offline
+		FsView::gFsView.mGroupView[groupname]->SetStatus("offline");
+	      }
+	    }
+	  } else {
+	    // we have a group but we have to check if we have a config
+	    std::string groupconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->GroupConfigQueuePrefix.c_str(), groupname.c_str());
+	    if (!eos::common::GlobalConfig::gConfig.Get(groupconfigname.c_str())) {
+	      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(groupconfigname.c_str(), groupname.c_str())) {
+		eos_crit("cannot add group config queue %s", groupconfigname.c_str());
+		stdErr="error: cannot add group config queue '"; stdErr += groupconfigname.c_str(); stdErr += "'";
+		retc = EIO;
+	      }
+	      if (!retc) {
+		// set this new group to offline
+		FsView::gFsView.mGroupView[groupname]->SetStatus("offline");
+	      }
+	    }
+	  }
+
+
+	  if (!retc) {
+	    XrdMqRWMutexWriteLock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+	    std::string groupconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsGroup::sGetConfigQueuePrefix(), groupname.c_str());
+	    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(groupconfigname.c_str());
+	    if (!hash) {
+	      stdErr="error: unable to set status of group '"; stdErr += groupname.c_str(); stdErr += ";";
+	      retc = EIO;
+	    } else {
+	      hash->Set("status",status);
+	    }
+	  }
+	}
+      }
+      
+      if (subcmd == "rm") {
+	std::string groupname = (opaque.Get("mgm.group"))?opaque.Get("mgm.group"):"";
+	if ( (!groupname.length() ) ) {
+	  stdErr="error: illegal parameters";
+	  retc = EINVAL;
+	} else {
+	  eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+	  if (!FsView::gFsView.mGroupView.count(groupname)) {
+	    stdErr="error: no such group '"; stdErr += groupname.c_str(); stdErr += "'";
+	    retc = ENOENT;
+	  } else {
+	    std::string groupconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsGroup::sGetConfigQueuePrefix(), groupname.c_str());
+	    if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(groupconfigname.c_str())) {
+	      stdErr="error: unable to remove config of group '"; stdErr += groupname.c_str(); stdErr += "'";
+	      retc = EIO;
+	    } else {
+	      if (FsView::gFsView.UnRegisterGroup(groupname.c_str())) {
+		stdOut="success: removed group '"; stdOut += groupname.c_str(); stdOut += "'";
+	      } else {
+		stdErr="error: unable to unregister group '"; stdErr += groupname.c_str(); stdErr += "'";
+	      }
+	    }
+	  }
+	}
+      }
+    }
+
+
+    if (cmd == "fs") {
+      if (subcmd == "add") {
+	std::string uuid         = (opaque.Get("mgm.fs.uuid"))?opaque.Get("mgm.fs.uuid"):"";
+	std::string nodename     = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
+	std::string mountpoint   = (opaque.Get("mgm.fs.mountpoint"))?opaque.Get("mgm.fs.mountpoint"):"";
+	std::string space        = (opaque.Get("mgm.fs.space"))?opaque.Get("mgm.fs.space"):"";
+	std::string configstatus = (opaque.Get("mgm.fs.configstatus"))?opaque.Get("mgm.fs.configstatus"):"";
+
+	if ( (!nodename.length()) || (!mountpoint.length()) || (!space.length()) || (!configstatus.length()) ||
+	     (configstatus.length() && ( eos::common::FileSystem::GetConfigStatusFromString(configstatus.c_str()) < eos::common::FileSystem::kOff) ) ) {
+	  stdErr="error: illegal parameters";
+	  retc = EINVAL;
+	} else {
+	  // queuepath = /eos/<host:port><path>
+	  std::string queuepath = nodename;
+	  queuepath += mountpoint;
+	  // check if there is a mapping for 'uuid'
+	  eos::common::RWMutexWriteLock(FsView::gFsView.MapMutex);
+	  if (FsView::gFsView.GetMapping(uuid)) {
+	    stdErr="error: filesystem identified by '"; stdErr += uuid.c_str(); stdErr += "' already exists!";
+	    retc = EEXIST;
+	  } else {
+	    eos::common::FileSystem::fsid_t fsid = FsView::gFsView.CreateMapping(uuid);
+	    eos::common::FileSystem* fs = new eos::common::FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
+	    XrdOucString sizestring;
+
+	    stdOut += "success:   mapped '"; stdOut += uuid.c_str() ; stdOut += "' <=> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
+	    if (fs) {
+	      fs->SetId(fsid);
+	      fs->SetString("uuid",uuid.c_str());
+	      fs->SetString("schedgroup", space.c_str());
+
+	      if (!FsView::gFsView.Register(fs)) {
+		// remove mapping
+		if (FsView::gFsView.RemoveMapping(fsid,uuid)) {
+		  // ok
+		  stdOut += "\nsuccess: unmapped '"; stdOut += uuid.c_str() ; stdOut += "' <!> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
+		} else {
+		  stdErr="error: cannot remove mapping - this can be fatal!\n";
+		}
+		// remove filesystem object
+		delete fs;
+		stdErr+="error: cannot register filesystem - check for path duplication!";
+		retc = EINVAL;
+	      }	      
+	    } else {
+	      stdErr="error: cannot allocate filesystem object";
+	      retc = ENOMEM;
+	    }
+	  }
+	}
+      }
+
+      if (subcmd == "ls") {
+	std::string output="";
+	std::string format="";
+	std::string listformat="";
+
+	listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
+
+	FsView::gFsView.PrintSpaces(output, format, listformat);
+	stdOut += output.c_str();
       }
 
       if (adminCmd) {
@@ -632,6 +970,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
     }
 
+
+    /*
     if (cmd == "quota") {
       if (subcmd == "ls") {
 	eos_notice("quota ls");
@@ -695,6 +1035,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
       //      stdOut+="\n==== quota done ====";
     }
+
+    */
 
     if (cmd == "debug") {
       if (vid_in.uid == 0) {
@@ -1116,576 +1458,578 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	stdErr="error: you have to give a path name to call 'file'";
 	retc = EINVAL;
       } else {
-	if (subcmd == "drop") {
-	  XrdOucString sfsid  = opaque.Get("mgm.file.fsid");
-	  XrdOucString sforce = opaque.Get("mgm.file.force");
-	  bool forceRemove=false;
-	  if (sforce.length() && (sforce=="1")) {
-	    forceRemove = true;
-	  }
+// 	if (subcmd == "drop") {
+// 	  XrdOucString sfsid  = opaque.Get("mgm.file.fsid");
+// 	  XrdOucString sforce = opaque.Get("mgm.file.force");
+// 	  bool forceRemove=false;
+// 	  if (sforce.length() && (sforce=="1")) {
+// 	    forceRemove = true;
+// 	  }
 	    
-	  unsigned long fsid = (sfsid.length())?strtoul(sfsid.c_str(),0,10):0;
+// 	  unsigned long fsid = (sfsid.length())?strtoul(sfsid.c_str(),0,10):0;
 
-	  if (gOFS->_dropstripe(path.c_str(),*error, vid_in, fsid, forceRemove)) {
-	    stdErr += "error: unable to drop stripe";
-	    retc = errno;
-	  } else {
-	    stdOut += "success: dropped stripe on fs="; stdOut += (int) fsid;
-	  }
-	}
+// 	  if (gOFS->_dropstripe(path.c_str(),*error, vid_in, fsid, forceRemove)) {
+// 	    stdErr += "error: unable to drop stripe";
+// 	    retc = errno;
+// 	  } else {
+// 	    stdOut += "success: dropped stripe on fs="; stdOut += (int) fsid;
+// 	  }
+// 	}
 
-	if (subcmd == "layout") {
-	  XrdOucString stripes    = opaque.Get("mgm.file.layout.stripes");
-	  int newstripenumber = 0;
-	  if (stripes.length()) newstripenumber = atoi(stripes.c_str());
-	  if (!stripes.length() || ((newstripenumber< (eos::common::LayoutId::kOneStripe+1)) || (newstripenumber > (eos::common::LayoutId::kSixteenStripe+1)))) {
-	    stdErr="error: you have to give a valid number of stripes as an argument to call 'file layout'";
-	    retc = EINVAL;
-	  } else {
-	    // only root can do that
-	    if (vid_in.uid==0) {
-	      eos::FileMD* fmd=0;
-	      if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
-		unsigned long long fid=0;
-		if (path.beginswith("fid:")) {
-		  path.replace("fid:","");
-		  fid = strtoull(path.c_str(),0,10);
-		}
-		if (path.beginswith("fxid:")) {
-		  path.replace("fxid:","");
-		  fid = strtoull(path.c_str(),0,16);
-		}
-		// reference by fid+fsid
-		//-------------------------------------------
-		gOFS->eosViewMutex.Lock();
-		try {
-		  fmd = gOFS->eosFileService->getFileMD(fid);
-		} catch ( eos::MDException &e ) {
-		  errno = e.getErrno();
-		  stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
-		  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-		}
-	      } else {
-		// reference by path
-		//-------------------------------------------
-		gOFS->eosViewMutex.Lock();
-		try {
-		  fmd = gOFS->eosView->getFile(path.c_str());
-		} catch ( eos::MDException &e ) {
-		  errno = e.getErrno();
-		  stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
-		  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-		}
-	      }
-	      
-	      if (fmd) {
-		if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica) {
-		  unsigned long newlayout = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::GetChecksum(fmd->getLayoutId()), newstripenumber, eos::common::LayoutId::GetStripeWidth(fmd->getLayoutId()));
-		  fmd->setLayoutId(newlayout);
-		  stdOut += "success: setting new stripe number to "; stdOut += newstripenumber; stdOut += " for path="; stdOut += path;
-		  // commit new layout
-		  gOFS->eosView->updateFileStore(fmd);
-		} else {
-		  retc = EPERM;
-		  stdErr = "error: you can only change the number of stripes for files with replica layout";
-		}
-	      } else {
-		retc = errno;
-	      }
 
-	      gOFS->eosViewMutex.UnLock();
-	      //-------------------------------------------
-	      
-	    } else {
-	      retc = EPERM;
-	      stdErr = "error: you have to take role 'root' to execute this command";
-	    }
-	  }
-	}
-
-	if (subcmd == "verify") {
-	  XrdOucString option="";
-	  XrdOucString computechecksum = opaque.Get("mgm.file.compute.checksum");
-	  XrdOucString commitchecksum = opaque.Get("mgm.file.commit.checksum");
-	  XrdOucString commitsize     = opaque.Get("mgm.file.commit.size");
-	  XrdOucString verifyrate     = opaque.Get("mgm.file.verify.rate");
-
-	  if (computechecksum=="1") {
-	    option += "&mgm.verify.compute.checksum=1";
-	  }
-
-	  if (commitchecksum=="1") {
-	    option += "&mgm.verify.commit.checksum=1";
-	  }
-
-	  if (commitsize=="1") {
-	    option += "&mgm.verify.commit.size=1";
-	  }
-	  
-	  if (verifyrate.length()) {
-	    option += "&mgm.verify.rate="; option += verifyrate;
-	  }
-
-	  XrdOucString fsidfilter  = opaque.Get("mgm.file.verify.filterid");
-	  int acceptfsid=0;
-	  if (fsidfilter.length()) {
-	    acceptfsid = atoi(opaque.Get("mgm.file.verify.filterid"));
-	  }
-
-	  // only root can do that
-	  if (vid_in.uid==0) {
-	    eos::FileMD* fmd=0;
-	    if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
-	      unsigned long long fid=0;
-	      if (path.beginswith("fid:")) {
-		path.replace("fid:","");
-		fid = strtoull(path.c_str(),0,10);
-	      }
-	      if (path.beginswith("fxid:")) {
-		path.replace("fxid:","");
-		fid = strtoull(path.c_str(),0,16);
-	      }
-	      // reference by fid+fsid
-	      //-------------------------------------------
-	      gOFS->eosViewMutex.Lock();
-	      try {
-		fmd = gOFS->eosFileService->getFileMD(fid);
-		std::string fullpath = gOFS->eosView->getUri(fmd);
-		path = fullpath.c_str();
-	      } catch ( eos::MDException &e ) {
-		errno = e.getErrno();
-		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
-		eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-	      }
-	    } else {
-	      // reference by path
-	      //-------------------------------------------
-	      gOFS->eosViewMutex.Lock();
-	      try {
-		fmd = gOFS->eosView->getFile(path.c_str());
-	      } catch ( eos::MDException &e ) {
-		errno = e.getErrno();
-		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
-		eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-	      }
-	    }
-
-	    if (fmd) {
-	      // copy out the locations vector
-	      eos::FileMD::LocationVector locations;
-	      eos::FileMD::LocationVector::const_iterator it;
-	      for (it = fmd->locationsBegin(); it != fmd->locationsEnd(); ++it) {
-		locations.push_back(*it);
-	      }
-	      
-	      gOFS->eosViewMutex.UnLock();
-	      
-	      retc = 0;
-	      bool acceptfound=false;
-
-	      for (it = locations.begin(); it != locations.end(); ++it) {
-		if (acceptfsid && (acceptfsid != (int) *it)) {
-		  continue;
-		}
-		if (acceptfsid) 
-		  acceptfound=true;
-
-		int lretc = gOFS->_verifystripe(path.c_str(), *error, vid, (unsigned long) *it, option);
-		if (!lretc) {
-		  stdOut += "success: sending verify to fsid= "; stdOut += *it; stdOut += " for path="; stdOut += path; stdOut += "\n";
-		} else {
-		  retc = errno;
-		}
-	      }
-
-	      // we want to be able to force the registration and verification of a not registered replica
-	      if (acceptfsid && (!acceptfound)) {
-		int lretc = gOFS->_verifystripe(path.c_str(), *error, vid, (unsigned long) acceptfsid, option);
-                if (!lretc) {
-                  stdOut += "success: sending forced verify to fsid= "; stdOut += acceptfsid; stdOut += " for path="; stdOut += path; stdOut += "\n";
-                } else {
-                  retc = errno;
-                }
-	      }
-	    } else {
-	      gOFS->eosViewMutex.UnLock();
-	    }
-	    
-	    //-------------------------------------------
-	    
-	  } else {
-	    retc = EPERM;
-	    stdErr = "error: you have to take role 'root' to execute this command";
-	  }
-	}
-
-	if (subcmd == "move") {
-	  XrdOucString sfsidsource = opaque.Get("mgm.file.sourcefsid");
-	  unsigned long sourcefsid = (sfsidsource.length())?strtoul(sfsidsource.c_str(),0,10):0;
-	  XrdOucString sfsidtarget = opaque.Get("mgm.file.targetfsid");
-	  unsigned long targetfsid = (sfsidsource.length())?strtoul(sfsidtarget.c_str(),0,10):0;
-
-	  if (gOFS->_movestripe(path.c_str(),*error, vid_in, sourcefsid, targetfsid)) {
-	    stdErr += "error: unable to move stripe";
-	    retc = errno;
-	  } else {
-	    stdOut += "success: scheduled move from source fs="; stdOut += sfsidsource; stdOut += " => target fs="; stdOut += sfsidtarget;
-	  }
-	}
 	
-	if (subcmd == "replicate") {
-	  XrdOucString sfsidsource  = opaque.Get("mgm.file.sourcefsid");
-	  unsigned long sourcefsid  = (sfsidsource.length())?strtoul(sfsidsource.c_str(),0,10):0;
-	  XrdOucString sfsidtarget  = opaque.Get("mgm.file.targetfsid");
-	  unsigned long targetfsid  = (sfsidtarget.length())?strtoul(sfsidtarget.c_str(),0,10):0;
-	  XrdOucString sexpressflag = (opaque.Get("mgm.file.express"));
-	  bool expressflag=false;
-	  if (sexpressflag == "1")
-	    expressflag = 1;
-
-	  if (gOFS->_copystripe(path.c_str(),*error, vid_in, sourcefsid, targetfsid)) {
-	    stdErr += "error: unable to replicate stripe";
-	    retc = errno;
-	  } else {
-	    stdOut += "success: scheduled replication from source fs="; stdOut += sfsidsource; stdOut += " => target fs="; stdOut += sfsidtarget;
-	  }
-	}
-
-	if (subcmd == "adjustreplica") {
-	  // only root can do that
-	  if (vid_in.uid==0) {
-	    eos::FileMD* fmd=0;
-
-	    // this flag indicates that the replicate command should queue this transfers on the head of the FST transfer lists
-	    XrdOucString sexpressflag = (opaque.Get("mgm.file.express"));
-	    bool expressflag=false;
-	    if (sexpressflag == "1")
-	      expressflag = 1;
-
-	    bool groupmixflag=false;
-	    
-	    XrdOucString sgroupmixflag = (opaque.Get("mgm.file.nogroupmix"));
-	    if (sgroupmixflag == "1") 
-	      groupmixflag = 1;
-
-	    XrdOucString creationspace    = opaque.Get("mgm.file.desiredspace");
-	    int icreationsubgroup = -1;
-
-	    if (opaque.Get("mgm.file.desiredsubgroup")) {
-	      icreationsubgroup = atoi(opaque.Get("mgm.file.desiredsubgroup"));
-	    }
-
-	    if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
-	      unsigned long long fid=0;
-	      if (path.beginswith("fid:")) {
-		path.replace("fid:","");
-		fid = strtoull(path.c_str(),0,10);
-	      }
-	      if (path.beginswith("fxid:")) {
-		path.replace("fxid:","");
-		fid = strtoull(path.c_str(),0,16);
-	      }
+// 	if (subcmd == "layout") {
+// 	  XrdOucString stripes    = opaque.Get("mgm.file.layout.stripes");
+// 	  int newstripenumber = 0;
+// 	  if (stripes.length()) newstripenumber = atoi(stripes.c_str());
+// 	  if (!stripes.length() || ((newstripenumber< (eos::common::LayoutId::kOneStripe+1)) || (newstripenumber > (eos::common::LayoutId::kSixteenStripe+1)))) {
+// 	    stdErr="error: you have to give a valid number of stripes as an argument to call 'file layout'";
+// 	    retc = EINVAL;
+// 	  } else {
+// 	    // only root can do that
+// 	    if (vid_in.uid==0) {
+// 	      eos::FileMD* fmd=0;
+// 	      if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
+// 		unsigned long long fid=0;
+// 		if (path.beginswith("fid:")) {
+// 		  path.replace("fid:","");
+// 		  fid = strtoull(path.c_str(),0,10);
+// 		}
+// 		if (path.beginswith("fxid:")) {
+// 		  path.replace("fxid:","");
+// 		  fid = strtoull(path.c_str(),0,16);
+// 		}
+// 		// reference by fid+fsid
+// 		//-------------------------------------------
+// 		gOFS->eosViewMutex.Lock();
+// 		try {
+// 		  fmd = gOFS->eosFileService->getFileMD(fid);
+// 		} catch ( eos::MDException &e ) {
+// 		  errno = e.getErrno();
+// 		  stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+// 		  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+// 		}
+// 	      } else {
+// 		// reference by path
+// 		//-------------------------------------------
+// 		gOFS->eosViewMutex.Lock();
+// 		try {
+// 		  fmd = gOFS->eosView->getFile(path.c_str());
+// 		} catch ( eos::MDException &e ) {
+// 		  errno = e.getErrno();
+// 		  stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+// 		  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+// 		}
+// 	      }
 	      
-	      // reference by fid+fsid
-	      //-------------------------------------------
-	      gOFS->eosViewMutex.Lock();
-	      try {
-		fmd = gOFS->eosFileService->getFileMD(fid);
-	      } catch ( eos::MDException &e ) {
-		errno = e.getErrno();
-		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
-		eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-	      }
-	      gOFS->eosViewMutex.UnLock();
-	      //-------------------------------------------
-	    } else {
-	      // reference by path
-	      //-------------------------------------------
-	      gOFS->eosViewMutex.Lock();
-	      try {
-		fmd = gOFS->eosView->getFile(path.c_str());
-	      } catch ( eos::MDException &e ) {
-		errno = e.getErrno();
-		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
-		eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-	      }
-	      gOFS->eosViewMutex.UnLock();
-	      //-------------------------------------------
-	    }
+// 	      if (fmd) {
+// 		if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica) {
+// 		  unsigned long newlayout = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::GetChecksum(fmd->getLayoutId()), newstripenumber, eos::common::LayoutId::GetStripeWidth(fmd->getLayoutId()));
+// 		  fmd->setLayoutId(newlayout);
+// 		  stdOut += "success: setting new stripe number to "; stdOut += newstripenumber; stdOut += " for path="; stdOut += path;
+// 		  // commit new layout
+// 		  gOFS->eosView->updateFileStore(fmd);
+// 		} else {
+// 		  retc = EPERM;
+// 		  stdErr = "error: you can only change the number of stripes for files with replica layout";
+// 		}
+// 	      } else {
+// 		retc = errno;
+// 	      }
+
+// 	      gOFS->eosViewMutex.UnLock();
+// 	      //-------------------------------------------
+	      
+// 	    } else {
+// 	      retc = EPERM;
+// 	      stdErr = "error: you have to take role 'root' to execute this command";
+// 	    }
+// 	  }
+// 	}
+
+// 	if (subcmd == "verify") {
+// 	  XrdOucString option="";
+// 	  XrdOucString computechecksum = opaque.Get("mgm.file.compute.checksum");
+// 	  XrdOucString commitchecksum = opaque.Get("mgm.file.commit.checksum");
+// 	  XrdOucString commitsize     = opaque.Get("mgm.file.commit.size");
+// 	  XrdOucString verifyrate     = opaque.Get("mgm.file.verify.rate");
+
+// 	  if (computechecksum=="1") {
+// 	    option += "&mgm.verify.compute.checksum=1";
+// 	  }
+
+// 	  if (commitchecksum=="1") {
+// 	    option += "&mgm.verify.commit.checksum=1";
+// 	  }
+
+// 	  if (commitsize=="1") {
+// 	    option += "&mgm.verify.commit.size=1";
+// 	  }
+	  
+// 	  if (verifyrate.length()) {
+// 	    option += "&mgm.verify.rate="; option += verifyrate;
+// 	  }
+
+// 	  XrdOucString fsidfilter  = opaque.Get("mgm.file.verify.filterid");
+// 	  int acceptfsid=0;
+// 	  if (fsidfilter.length()) {
+// 	    acceptfsid = atoi(opaque.Get("mgm.file.verify.filterid"));
+// 	  }
+
+// 	  // only root can do that
+// 	  if (vid_in.uid==0) {
+// 	    eos::FileMD* fmd=0;
+// 	    if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
+// 	      unsigned long long fid=0;
+// 	      if (path.beginswith("fid:")) {
+// 		path.replace("fid:","");
+// 		fid = strtoull(path.c_str(),0,10);
+// 	      }
+// 	      if (path.beginswith("fxid:")) {
+// 		path.replace("fxid:","");
+// 		fid = strtoull(path.c_str(),0,16);
+// 	      }
+// 	      // reference by fid+fsid
+// 	      //-------------------------------------------
+// 	      gOFS->eosViewMutex.Lock();
+// 	      try {
+// 		fmd = gOFS->eosFileService->getFileMD(fid);
+// 		std::string fullpath = gOFS->eosView->getUri(fmd);
+// 		path = fullpath.c_str();
+// 	      } catch ( eos::MDException &e ) {
+// 		errno = e.getErrno();
+// 		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+// 		eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+// 	      }
+// 	    } else {
+// 	      // reference by path
+// 	      //-------------------------------------------
+// 	      gOFS->eosViewMutex.Lock();
+// 	      try {
+// 		fmd = gOFS->eosView->getFile(path.c_str());
+// 	      } catch ( eos::MDException &e ) {
+// 		errno = e.getErrno();
+// 		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+// 		eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+// 	      }
+// 	    }
+
+// 	    if (fmd) {
+// 	      // copy out the locations vector
+// 	      eos::FileMD::LocationVector locations;
+// 	      eos::FileMD::LocationVector::const_iterator it;
+// 	      for (it = fmd->locationsBegin(); it != fmd->locationsEnd(); ++it) {
+// 		locations.push_back(*it);
+// 	      }
+	      
+// 	      gOFS->eosViewMutex.UnLock();
+	      
+// 	      retc = 0;
+// 	      bool acceptfound=false;
+
+// 	      for (it = locations.begin(); it != locations.end(); ++it) {
+// 		if (acceptfsid && (acceptfsid != (int) *it)) {
+// 		  continue;
+// 		}
+// 		if (acceptfsid) 
+// 		  acceptfound=true;
+
+// 		int lretc = gOFS->_verifystripe(path.c_str(), *error, vid, (unsigned long) *it, option);
+// 		if (!lretc) {
+// 		  stdOut += "success: sending verify to fsid= "; stdOut += *it; stdOut += " for path="; stdOut += path; stdOut += "\n";
+// 		} else {
+// 		  retc = errno;
+// 		}
+// 	      }
+
+// 	      // we want to be able to force the registration and verification of a not registered replica
+// 	      if (acceptfsid && (!acceptfound)) {
+// 		int lretc = gOFS->_verifystripe(path.c_str(), *error, vid, (unsigned long) acceptfsid, option);
+//                 if (!lretc) {
+//                   stdOut += "success: sending forced verify to fsid= "; stdOut += acceptfsid; stdOut += " for path="; stdOut += path; stdOut += "\n";
+//                 } else {
+//                   retc = errno;
+//                 }
+// 	      }
+// 	    } else {
+// 	      gOFS->eosViewMutex.UnLock();
+// 	    }
 	    
-	    XrdOucString space = "default";
-	    XrdOucString refspace = "";
-	    unsigned int forcedsubgroup = 0;
+// 	    //-------------------------------------------
+	    
+// 	  } else {
+// 	    retc = EPERM;
+// 	    stdErr = "error: you have to take role 'root' to execute this command";
+// 	  }
+// 	}
 
-	    if (fmd) {
-	      // check if that is a replica layout at all
-	      if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica) {
-		// check the configured and available replicas
-		
-		XrdOucString sizestring;
-		
-		eos::FileMD::LocationVector::const_iterator lociter;
-		int nreplayout = eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1;
-		int nrep = (int)fmd->getNumLocation();
-		int nreponline=0;
-		int ngroupmix=0;
-		for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
-		  // ignore filesystem id 0
-		  if (! (*lociter)) {
-		    eos_err("fsid 0 found fid=%lld", fmd->getId());
-		    continue;
-		  }
-		  FstNode::gMutex.Lock();
-		  FstFileSystem* filesystem = (FstFileSystem*) FstNode::gFileSystemById[(int) *lociter];
-		  if (filesystem) {
-		    // remember the spacename
-		    space = filesystem->GetSpaceName();
-		    if (!refspace.length()) {
-		      refspace = space;
-		    } else {
-		      if (space != refspace) {
-			ngroupmix++;
-		      }
-		    }
+// 	if (subcmd == "move") {
+// 	  XrdOucString sfsidsource = opaque.Get("mgm.file.sourcefsid");
+// 	  unsigned long sourcefsid = (sfsidsource.length())?strtoul(sfsidsource.c_str(),0,10):0;
+// 	  XrdOucString sfsidtarget = opaque.Get("mgm.file.targetfsid");
+// 	  unsigned long targetfsid = (sfsidsource.length())?strtoul(sfsidtarget.c_str(),0,10):0;
 
-		    forcedsubgroup = filesystem->GetSchedulingGroupIndex();
+// 	  if (gOFS->_movestripe(path.c_str(),*error, vid_in, sourcefsid, targetfsid)) {
+// 	    stdErr += "error: unable to move stripe";
+// 	    retc = errno;
+// 	  } else {
+// 	    stdOut += "success: scheduled move from source fs="; stdOut += sfsidsource; stdOut += " => target fs="; stdOut += sfsidtarget;
+// 	  }
+// 	}
+	
+// 	if (subcmd == "replicate") {
+// 	  XrdOucString sfsidsource  = opaque.Get("mgm.file.sourcefsid");
+// 	  unsigned long sourcefsid  = (sfsidsource.length())?strtoul(sfsidsource.c_str(),0,10):0;
+// 	  XrdOucString sfsidtarget  = opaque.Get("mgm.file.targetfsid");
+// 	  unsigned long targetfsid  = (sfsidtarget.length())?strtoul(sfsidtarget.c_str(),0,10):0;
+// 	  XrdOucString sexpressflag = (opaque.Get("mgm.file.express"));
+// 	  bool expressflag=false;
+// 	  if (sexpressflag == "1")
+// 	    expressflag = 1;
+
+// 	  if (gOFS->_copystripe(path.c_str(),*error, vid_in, sourcefsid, targetfsid)) {
+// 	    stdErr += "error: unable to replicate stripe";
+// 	    retc = errno;
+// 	  } else {
+// 	    stdOut += "success: scheduled replication from source fs="; stdOut += sfsidsource; stdOut += " => target fs="; stdOut += sfsidtarget;
+// 	  }
+// 	}
+
+// 	if (subcmd == "adjustreplica") {
+// 	  // only root can do that
+// 	  if (vid_in.uid==0) {
+// 	    eos::FileMD* fmd=0;
+
+// 	    // this flag indicates that the replicate command should queue this transfers on the head of the FST transfer lists
+// 	    XrdOucString sexpressflag = (opaque.Get("mgm.file.express"));
+// 	    bool expressflag=false;
+// 	    if (sexpressflag == "1")
+// 	      expressflag = 1;
+
+// 	    bool groupmixflag=false;
+	    
+// 	    XrdOucString sgroupmixflag = (opaque.Get("mgm.file.nogroupmix"));
+// 	    if (sgroupmixflag == "1") 
+// 	      groupmixflag = 1;
+
+// 	    XrdOucString creationspace    = opaque.Get("mgm.file.desiredspace");
+// 	    int icreationsubgroup = -1;
+
+// 	    if (opaque.Get("mgm.file.desiredsubgroup")) {
+// 	      icreationsubgroup = atoi(opaque.Get("mgm.file.desiredsubgroup"));
+// 	    }
+
+// 	    if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
+// 	      unsigned long long fid=0;
+// 	      if (path.beginswith("fid:")) {
+// 		path.replace("fid:","");
+// 		fid = strtoull(path.c_str(),0,10);
+// 	      }
+// 	      if (path.beginswith("fxid:")) {
+// 		path.replace("fxid:","");
+// 		fid = strtoull(path.c_str(),0,16);
+// 	      }
+	      
+// 	      // reference by fid+fsid
+// 	      //-------------------------------------------
+// 	      gOFS->eosViewMutex.Lock();
+// 	      try {
+// 		fmd = gOFS->eosFileService->getFileMD(fid);
+// 	      } catch ( eos::MDException &e ) {
+// 		errno = e.getErrno();
+// 		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+// 		eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+// 	      }
+// 	      gOFS->eosViewMutex.UnLock();
+// 	      //-------------------------------------------
+// 	    } else {
+// 	      // reference by path
+// 	      //-------------------------------------------
+// 	      gOFS->eosViewMutex.Lock();
+// 	      try {
+// 		fmd = gOFS->eosView->getFile(path.c_str());
+// 	      } catch ( eos::MDException &e ) {
+// 		errno = e.getErrno();
+// 		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
+// 		eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+// 	      }
+// 	      gOFS->eosViewMutex.UnLock();
+// 	      //-------------------------------------------
+// 	    }
+	    
+// 	    XrdOucString space = "default";
+// 	    XrdOucString refspace = "";
+// 	    unsigned int forcedsubgroup = 0;
+
+// 	    if (fmd) {
+// 	      // check if that is a replica layout at all
+// 	      if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica) {
+// 		// check the configured and available replicas
+		
+// 		XrdOucString sizestring;
+		
+// 		eos::FileMD::LocationVector::const_iterator lociter;
+// 		int nreplayout = eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1;
+// 		int nrep = (int)fmd->getNumLocation();
+// 		int nreponline=0;
+// 		int ngroupmix=0;
+// 		for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+// 		  // ignore filesystem id 0
+// 		  if (! (*lociter)) {
+// 		    eos_err("fsid 0 found fid=%lld", fmd->getId());
+// 		    continue;
+// 		  }
+// 		  FstNode::gMutex.Lock();
+// 		  FstFileSystem* filesystem = (FstFileSystem*) FstNode::gFileSystemById[(int) *lociter];
+// 		  if (filesystem) {
+// 		    // remember the spacename
+// 		    space = filesystem->GetSpaceName();
+// 		    if (!refspace.length()) {
+// 		      refspace = space;
+// 		    } else {
+// 		      if (space != refspace) {
+// 			ngroupmix++;
+// 		      }
+// 		    }
+
+// 		    forcedsubgroup = filesystem->GetSchedulingGroupIndex();
 		    
-		    if (filesystem && ((filesystem->GetConfigStatus() > eos::common::FileSystem::kDrain)) &&
-			((filesystem->GetBootStatus()   == eos::common::FileSystem::kBooted))) {
-		      // this is a good accessible one
-		      nreponline++;
-		    }
-		  }
-		  FstNode::gMutex.UnLock();
-		}
+// 		    if (filesystem && ((filesystem->GetConfigStatus() > eos::common::FileSystem::kDrain)) &&
+// 			((filesystem->GetBootStatus()   == eos::common::FileSystem::kBooted))) {
+// 		      // this is a good accessible one
+// 		      nreponline++;
+// 		    }
+// 		  }
+// 		  FstNode::gMutex.UnLock();
+// 		}
 		
-		eos_debug("path=%s nrep=%lu nrep-layout=%lu nrep-online=%lu", path.c_str(), nrep, nreplayout, nreponline);
+// 		eos_debug("path=%s nrep=%lu nrep-layout=%lu nrep-online=%lu", path.c_str(), nrep, nreplayout, nreponline);
 
-		if (nreplayout > nreponline) {
-		  // set the desired space & subgroup if provided
-		  if (creationspace.length()) {
-		    space = creationspace;
-		  }
+// 		if (nreplayout > nreponline) {
+// 		  // set the desired space & subgroup if provided
+// 		  if (creationspace.length()) {
+// 		    space = creationspace;
+// 		  }
 
-		  if (icreationsubgroup!=-1) {
-		    forcedsubgroup = icreationsubgroup;
-		  }
+// 		  if (icreationsubgroup!=-1) {
+// 		    forcedsubgroup = icreationsubgroup;
+// 		  }
 
-		  // if the space is explicitly set, we don't force into a particular subgroup
-		  if (creationspace.length()) {
-		    forcedsubgroup = -1;
-		  }
+// 		  // if the space is explicitly set, we don't force into a particular subgroup
+// 		  if (creationspace.length()) {
+// 		    forcedsubgroup = -1;
+// 		  }
 
-		  // we don't have enough replica's online, we trigger asynchronous replication
-		  int nnewreplicas = nreplayout - nreponline; // we have to create that much new replica
+// 		  // we don't have enough replica's online, we trigger asynchronous replication
+// 		  int nnewreplicas = nreplayout - nreponline; // we have to create that much new replica
 		  
-		  eos_debug("forcedsubgroup=%d icreationsubgroup=%d", forcedsubgroup, icreationsubgroup);
-		  // get the location where we can read that file
-		  SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(),false);
-		  eos_debug("creating %d new replicas space=%s subgroup=%d", nnewreplicas, space.c_str(), forcedsubgroup);
+// 		  eos_debug("forcedsubgroup=%d icreationsubgroup=%d", forcedsubgroup, icreationsubgroup);
+// 		  // get the location where we can read that file
+// 		  SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(),false);
+// 		  eos_debug("creating %d new replicas space=%s subgroup=%d", nnewreplicas, space.c_str(), forcedsubgroup);
 
-		  if (!quotaspace) {
-		    stdErr = "error: create new replicas => cannot get space: "; stdErr += space; stdErr += "\n";
-		    errno = ENOSPC;
-		  } else {
-		    unsigned long fsIndex; // this defines the fs to use in the selectefs vector
-		    std::vector<unsigned int> selectedfs;
-		    // fill the existing locations
-		    for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
-		      selectedfs.push_back(*lociter);
-		    }
+// 		  if (!quotaspace) {
+// 		    stdErr = "error: create new replicas => cannot get space: "; stdErr += space; stdErr += "\n";
+// 		    errno = ENOSPC;
+// 		  } else {
+// 		    unsigned long fsIndex; // this defines the fs to use in the selectefs vector
+// 		    std::vector<unsigned int> selectedfs;
+// 		    // fill the existing locations
+// 		    for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+// 		      selectedfs.push_back(*lociter);
+// 		    }
 		    
-		    if (!(errno=quotaspace->FileAccess(vid.uid, vid.gid, (unsigned long)0, space.c_str(), (unsigned long)fmd->getLayoutId(), selectedfs, fsIndex, false))) {
-		      // this is now our source filesystem
-		      unsigned int sourcefsid = selectedfs[fsIndex];
-		      // now the just need to ask for <n> targets
-		      int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::kNone, nnewreplicas);
+// 		    if (!(errno=quotaspace->FileAccess(vid.uid, vid.gid, (unsigned long)0, space.c_str(), (unsigned long)fmd->getLayoutId(), selectedfs, fsIndex, false))) {
+// 		      // this is now our source filesystem
+// 		      unsigned int sourcefsid = selectedfs[fsIndex];
+// 		      // now the just need to ask for <n> targets
+// 		      int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::kNone, nnewreplicas);
 		      
-		      // we don't know the container tag here, but we don't really care since we are scheduled as root
-		      if (!(errno = quotaspace->FilePlacement(vid.uid, vid.gid, 0 , layoutId, selectedfs, SFS_O_TRUNC, forcedsubgroup))) {
-			// yes we got a new replication vector
-			for (unsigned int i=0; i< selectedfs.size(); i++) {
-			  //			  stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
-			  // add replication here 
-			  if (gOFS->_replicatestripe(fmd,*error, vid_in, sourcefsid, selectedfs[i] , false, expressflag)) {
-			    stdErr += "error: unable to replicate stripe "; stdErr += (int) sourcefsid; stdErr += " => "; stdErr += (int) selectedfs[i]; stdErr += "\n";
-			    retc = errno;
-			  } else {
-			    stdOut += "success: scheduled replication from source fs="; stdOut += (int) sourcefsid; stdOut += " => target fs="; stdOut += (int) selectedfs[i]; stdOut +="\n";
-			  }
-			}
-		      } else {
-			stdErr = "error: create new replicas => cannot place replicas: "; stdErr += path; stdErr += "\n";
-		      }
-		    } else {
-		      stdErr = "error: create new replicas => no source available: "; stdErr += path; stdErr += "\n";
-		    }
-		  }
-		} else {
-		  // we do this only if we didn't create replicas in the if section before, otherwise we remove replicas which have used before for new replications
+// 		      // we don't know the container tag here, but we don't really care since we are scheduled as root
+// 		      if (!(errno = quotaspace->FilePlacement(vid.uid, vid.gid, 0 , layoutId, selectedfs, SFS_O_TRUNC, forcedsubgroup))) {
+// 			// yes we got a new replication vector
+// 			for (unsigned int i=0; i< selectedfs.size(); i++) {
+// 			  //			  stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
+// 			  // add replication here 
+// 			  if (gOFS->_replicatestripe(fmd,*error, vid_in, sourcefsid, selectedfs[i] , false, expressflag)) {
+// 			    stdErr += "error: unable to replicate stripe "; stdErr += (int) sourcefsid; stdErr += " => "; stdErr += (int) selectedfs[i]; stdErr += "\n";
+// 			    retc = errno;
+// 			  } else {
+// 			    stdOut += "success: scheduled replication from source fs="; stdOut += (int) sourcefsid; stdOut += " => target fs="; stdOut += (int) selectedfs[i]; stdOut +="\n";
+// 			  }
+// 			}
+// 		      } else {
+// 			stdErr = "error: create new replicas => cannot place replicas: "; stdErr += path; stdErr += "\n";
+// 		      }
+// 		    } else {
+// 		      stdErr = "error: create new replicas => no source available: "; stdErr += path; stdErr += "\n";
+// 		    }
+// 		  }
+// 		} else {
+// 		  // we do this only if we didn't create replicas in the if section before, otherwise we remove replicas which have used before for new replications
 
-		  // this is magic code to adjust the number of replicas to the desired policy ;-)
-		  if (nreplayout < nrep) {
-		    std::vector<unsigned long> fsid2delete;
-		    unsigned int n2delete = nrep-nreplayout;
+// 		  // this is magic code to adjust the number of replicas to the desired policy ;-)
+// 		  if (nreplayout < nrep) {
+// 		    std::vector<unsigned long> fsid2delete;
+// 		    unsigned int n2delete = nrep-nreplayout;
 		    
-		    eos::FileMD::LocationVector locvector;
-		    // we build three views to sort the order of dropping
+// 		    eos::FileMD::LocationVector locvector;
+// 		    // we build three views to sort the order of dropping
 		    
-		    std::multimap <int /*configstate*/, int /*fsid*/> statemap;
-		    std::multimap <std::string /*schedgroup*/, int /*fsid*/> groupmap;
-		    std::multimap <std::string /*space*/, int /*fsid*/> spacemap;
+// 		    std::multimap <int /*configstate*/, int /*fsid*/> statemap;
+// 		    std::multimap <std::string /*schedgroup*/, int /*fsid*/> groupmap;
+// 		    std::multimap <std::string /*space*/, int /*fsid*/> spacemap;
 		    
-		    // we have too many replica's online, we drop (nrepoonline-nreplayout) replicas starting with the lowest configuration state
-		    FstNode::gMutex.Lock();
+// 		    // we have too many replica's online, we drop (nrepoonline-nreplayout) replicas starting with the lowest configuration state
+// 		    FstNode::gMutex.Lock();
 		    
-		    eos_debug("trying to drop %d replicas space=%s subgroup=%d", n2delete, creationspace.c_str(), icreationsubgroup);
+// 		    eos_debug("trying to drop %d replicas space=%s subgroup=%d", n2delete, creationspace.c_str(), icreationsubgroup);
 		    
-		    // fill the views
-		    for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
-		      // ignore filesystem id 0
-		      if (! (*lociter)) {
-			eos_err("fsid 0 found fid=%lld", fmd->getId());
-			continue;
-		      }
+// 		    // fill the views
+// 		    for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+// 		      // ignore filesystem id 0
+// 		      if (! (*lociter)) {
+// 			eos_err("fsid 0 found fid=%lld", fmd->getId());
+// 			continue;
+// 		      }
 		      
-		      FstFileSystem* filesystem = (FstFileSystem*) FstNode::gFileSystemById[(int) *lociter];
-		      if (filesystem) {
-			unsigned int fsid = filesystem->GetId();
-			statemap.insert(std::pair<int,int>(filesystem->GetConfigStatus(),fsid));
-			groupmap.insert(std::pair<std::string,int>(filesystem->GetSchedulingGroup(),fsid));
-			spacemap.insert(std::pair<std::string,int>(filesystem->GetSpaceName(),fsid));
-		      }
-		    }
-		    FstNode::gMutex.UnLock();
+// 		      FstFileSystem* filesystem = (FstFileSystem*) FstNode::gFileSystemById[(int) *lociter];
+// 		      if (filesystem) {
+// 			unsigned int fsid = filesystem->GetId();
+// 			statemap.insert(std::pair<int,int>(filesystem->GetConfigStatus(),fsid));
+// 			groupmap.insert(std::pair<std::string,int>(filesystem->GetSchedulingGroup(),fsid));
+// 			spacemap.insert(std::pair<std::string,int>(filesystem->GetSpaceName(),fsid));
+// 		      }
+// 		    }
+// 		    FstNode::gMutex.UnLock();
 		    
 		    
-		    if (!creationspace.length()) {
-		      // there is no requirement to keep a certain space
-		      std::multimap <int, int>::const_iterator sit;
-		      for (sit=statemap.begin(); sit!= statemap.end(); ++sit) {
-			fsid2delete.push_back(sit->second);
-			// we add to the deletion vector until we have found enough replicas
-			if (fsid2delete.size() == n2delete)
-			  break;
-		      }
-		    } else {
-		      if (!icreationsubgroup) {
-			// we have only a space requirement no subgroup required
-			std::multimap <std::string, int>::const_iterator sit;
-			std::multimap <int,int> limitedstatemap;
+// 		    if (!creationspace.length()) {
+// 		      // there is no requirement to keep a certain space
+// 		      std::multimap <int, int>::const_iterator sit;
+// 		      for (sit=statemap.begin(); sit!= statemap.end(); ++sit) {
+// 			fsid2delete.push_back(sit->second);
+// 			// we add to the deletion vector until we have found enough replicas
+// 			if (fsid2delete.size() == n2delete)
+// 			  break;
+// 		      }
+// 		    } else {
+// 		      if (!icreationsubgroup) {
+// 			// we have only a space requirement no subgroup required
+// 			std::multimap <std::string, int>::const_iterator sit;
+// 			std::multimap <int,int> limitedstatemap;
 			
-			std::string cspace = creationspace.c_str();
+// 			std::string cspace = creationspace.c_str();
 			
-			for (sit=spacemap.begin(); sit != spacemap.end(); ++sit) {
+// 			for (sit=spacemap.begin(); sit != spacemap.end(); ++sit) {
 			  
-			  // match the space name
-			  if (sit->first == cspace) {
-			    continue;
-			  }
+// 			  // match the space name
+// 			  if (sit->first == cspace) {
+// 			    continue;
+// 			  }
 			  
-			  // we default to the highest state for safety reasons
-			  int state=eos::common::FileSystem::kRW;
+// 			  // we default to the highest state for safety reasons
+// 			  int state=eos::common::FileSystem::kRW;
 			  
-			  std::multimap <int,int>::const_iterator stateit;
+// 			  std::multimap <int,int>::const_iterator stateit;
 			  
-			  // get the state for each fsid matching
-			  for (stateit=statemap.begin(); stateit != statemap.end(); stateit++) {
-			    if (stateit->second == sit->second) {
-			      state = stateit->first;
-			      break;
-			    }
-			  }
+// 			  // get the state for each fsid matching
+// 			  for (stateit=statemap.begin(); stateit != statemap.end(); stateit++) {
+// 			    if (stateit->second == sit->second) {
+// 			      state = stateit->first;
+// 			      break;
+// 			    }
+// 			  }
 			  
-			  // fill the map containing only the candidates
-			  limitedstatemap.insert(std::pair<int,int>(state, sit->second));
-			}
+// 			  // fill the map containing only the candidates
+// 			  limitedstatemap.insert(std::pair<int,int>(state, sit->second));
+// 			}
 			
-			std::multimap <int,int>::const_iterator lit;
+// 			std::multimap <int,int>::const_iterator lit;
 			
-			for (lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
-			  fsid2delete.push_back(lit->second);
-			  if (fsid2delete.size() == n2delete)
-			    break;
-			}
-		      } else {
-			// we have a clear requirement on space/subgroup
-			std::multimap <std::string, int>::const_iterator sit;
-			std::multimap <int,int> limitedstatemap;
+// 			for (lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
+// 			  fsid2delete.push_back(lit->second);
+// 			  if (fsid2delete.size() == n2delete)
+// 			    break;
+// 			}
+// 		      } else {
+// 			// we have a clear requirement on space/subgroup
+// 			std::multimap <std::string, int>::const_iterator sit;
+// 			std::multimap <int,int> limitedstatemap;
 			
-			std::string cspace = creationspace.c_str();
-			cspace += "."; cspace += icreationsubgroup;
+// 			std::string cspace = creationspace.c_str();
+// 			cspace += "."; cspace += icreationsubgroup;
 			
-			for (sit=groupmap.begin(); sit != groupmap.end(); ++sit) {
+// 			for (sit=groupmap.begin(); sit != groupmap.end(); ++sit) {
 			  
-			  // match the space name
-			  if (sit->first == cspace) {
-			    continue;
-			  }
+// 			  // match the space name
+// 			  if (sit->first == cspace) {
+// 			    continue;
+// 			  }
 			  
 			  
-			  // we default to the highest state for safety reasons
-			  int state=eos::common::FileSystem::kRW;
+// 			  // we default to the highest state for safety reasons
+// 			  int state=eos::common::FileSystem::kRW;
 			  
-			  std::multimap <int,int>::const_iterator stateit;
+// 			  std::multimap <int,int>::const_iterator stateit;
 			  
-			  // get the state for each fsid matching
-			  for (stateit=statemap.begin(); stateit != statemap.end(); stateit++) {
-			    if (stateit->second == sit->second) {
-			      state = stateit->first;
-			      break;
-			    }
-			  }
+// 			  // get the state for each fsid matching
+// 			  for (stateit=statemap.begin(); stateit != statemap.end(); stateit++) {
+// 			    if (stateit->second == sit->second) {
+// 			      state = stateit->first;
+// 			      break;
+// 			    }
+// 			  }
 			  
-			  // fill the map containing only the candidates
-			  limitedstatemap.insert(std::pair<int,int>(state, sit->second));
-			}
+// 			  // fill the map containing only the candidates
+// 			  limitedstatemap.insert(std::pair<int,int>(state, sit->second));
+// 			}
 			
-			std::multimap <int,int>::const_iterator lit;
+// 			std::multimap <int,int>::const_iterator lit;
 			
-			for (lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
-			  fsid2delete.push_back(lit->second);
-			  if (fsid2delete.size() == n2delete)
-			    break;
-			}
-		      }
-		    }
+// 			for (lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
+// 			  fsid2delete.push_back(lit->second);
+// 			  if (fsid2delete.size() == n2delete)
+// 			    break;
+// 			}
+// 		      }
+// 		    }
 		    
-		    if (fsid2delete.size() != n2delete) {
-		      // add a warning that something does not work as requested ....
-		      stdErr = "warning: cannot adjust replicas according to your requirement: space="; stdErr += creationspace; stdErr += " subgroup="; stdErr += icreationsubgroup; stdErr += "\n";
-		    }
+// 		    if (fsid2delete.size() != n2delete) {
+// 		      // add a warning that something does not work as requested ....
+// 		      stdErr = "warning: cannot adjust replicas according to your requirement: space="; stdErr += creationspace; stdErr += " subgroup="; stdErr += icreationsubgroup; stdErr += "\n";
+// 		    }
 		    
-		    for (unsigned int i = 0 ; i< fsid2delete.size(); i++) {
-		      if (fmd->hasLocation(fsid2delete[i])) {
-			//-------------------------------------------
-			gOFS->eosViewMutex.Lock();
-			try {
-			  fmd->unlinkLocation(fsid2delete[i]);
-			  gOFS->eosView->updateFileStore(fmd);
-			  eos_debug("removing location %u", fsid2delete[i]);
-			  stdOut += "success: dropping replica on fs="; stdOut += (int)fsid2delete[i]; stdOut += "\n";
-			} catch ( eos::MDException &e ) {
-			  errno = e.getErrno();
-			  stdErr = "error: drop excess replicas => cannot unlink location - "; stdErr += e.getMessage().str().c_str(); stdErr += "\n";
-			  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-			}
-			gOFS->eosViewMutex.UnLock();
-		      }
-		    }
-		  }
-		}
-	      }
-	    }
-	  } else {
-	    retc = EPERM;
-	    stdErr = "error: you have to take role 'root' to execute this command";
-	  }
-	}
+// 		    for (unsigned int i = 0 ; i< fsid2delete.size(); i++) {
+// 		      if (fmd->hasLocation(fsid2delete[i])) {
+// 			//-------------------------------------------
+// 			gOFS->eosViewMutex.Lock();
+// 			try {
+// 			  fmd->unlinkLocation(fsid2delete[i]);
+// 			  gOFS->eosView->updateFileStore(fmd);
+// 			  eos_debug("removing location %u", fsid2delete[i]);
+// 			  stdOut += "success: dropping replica on fs="; stdOut += (int)fsid2delete[i]; stdOut += "\n";
+// 			} catch ( eos::MDException &e ) {
+// 			  errno = e.getErrno();
+// 			  stdErr = "error: drop excess replicas => cannot unlink location - "; stdErr += e.getMessage().str().c_str(); stdErr += "\n";
+// 			  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+// 			}
+// 			gOFS->eosViewMutex.UnLock();
+// 		      }
+// 		    }
+// 		  }
+// 		}
+// 	      }
+// 	    }
+// 	  } else {
+// 	    retc = EPERM;
+// 	    stdErr = "error: you have to take role 'root' to execute this command";
+// 	  }
+// 	}
 
-	if (subcmd == "place") {
-	  // this returns a file system id to place a file/replica
-	}
+// 	if (subcmd == "place") {
+// 	  // this returns a file system id to place a file/replica
+// 	}
 
 	if (subcmd == "getmdlocation") {
 	  // this returns the access urls to query local metadata information
