@@ -14,6 +14,9 @@ std::string FsSpace::gConfigQueuePrefix;
 std::string FsGroup::gConfigQueuePrefix;
 std::string FsNode::gConfigQueuePrefix;
 
+#ifndef EOSMGMFSVIEWTEST
+ConfigEngine* FsView::ConfEngine=0;
+#endif
 
 /*----------------------------------------------------------------------------*/
 std::string
@@ -175,6 +178,16 @@ FsView::Register (eos::common::FileSystem* fs)
       eos_debug("creating/inserting into space view %s<=>%u %x",snapshot.mSpace.c_str(), snapshot.mId,fs);
     }    
   }
+
+#ifndef EOSMGMFSVIEWTEST
+  // register in the configuration engine
+  std::string key;
+  std::string val;
+  fs->CreateConfig(key,val);
+  if (FsView::ConfEngine)
+    FsView::ConfEngine->SetConfigValue("fs", key.c_str(), val.c_str());
+#endif
+
   return true;
 }
 
@@ -417,6 +430,51 @@ FsView::UnRegisterGroup(const char* groupname)
 }
 
 /*----------------------------------------------------------------------------*/
+void 
+FsView::Reset()
+{
+  // remove all filesystems by erasing all spaces
+  std::map<std::string , FsSpace* >::iterator it;
+
+  while (mSpaceView.size()) {
+    UnRegisterSpace(mSpaceView.begin()->first.c_str());
+  }
+
+
+  eos::common::RWMutexWriteLock maplock(MapMutex);
+  eos::common::RWMutexWriteLock viewlock(ViewMutex);
+
+  // remove all mappins
+  Fs2UuidMap.clear();
+  Uuid2FsMap.clear();
+  
+  SetNextFsId(0);
+
+  // although this shouldn't be necessary, better run an additional cleanup
+  mSpaceView.clear();
+  mGroupView.clear();
+  mNodeView.clear();
+
+  mIdView.clear();
+  mFileSystemView.clear();
+}
+
+/*----------------------------------------------------------------------------*/
+void
+FsView::SetNextFsId(eos::common::FileSystem::fsid_t fsid) 
+{
+  NextFsId = fsid;
+
+  // we need to store this in the shared hash between MGMs
+  XrdMqRWMutexReadLock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(MgmConfigQueueName.c_str());
+  if (hash) {
+    hash->SetLongLong("nextfsid",(long long)fsid);
+  }
+}
+
+
+/*----------------------------------------------------------------------------*/
 std::string 
 BaseView::GetMember(std::string member) {
   if (member == "name")
@@ -482,6 +540,17 @@ BaseView::SetConfigMember(std::string key, std::string value)
     success = hash->Set(key, value);
   }
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
+
+#ifndef EOSMGMFSVIEWTEST
+  // register in the configuration engine
+  if (FsView::ConfEngine) {
+    nodeconfigname+=":";
+    nodeconfigname+=key;
+    std::string confval = value;
+    FsView::ConfEngine->SetConfigValue("global", nodeconfigname.c_str(), confval.c_str());
+  }
+#endif
+    
   return success;
 }
 
@@ -493,10 +562,12 @@ FsView::CreateMapping(std::string fsuuid)
   if (Uuid2FsMap.count(fsuuid)) {
     return Uuid2FsMap[fsuuid];
   } else {
-    if (!NextFsId) NextFsId++; // we don't use 0 as fsid!
+    if (!NextFsId) 
+      SetNextFsId(1);
     while (Fs2UuidMap.count(NextFsId)) {
-      NextFsId++;
+      SetNextFsId(NextFsId+1);
     }
+    
     Uuid2FsMap[fsuuid]=NextFsId;
     Fs2UuidMap[NextFsId] = fsuuid;
     return NextFsId;

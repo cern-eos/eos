@@ -153,6 +153,8 @@ public:
     Store.clear();
   }
 
+  std::string StoreAsString(const char* notprefix=""); // serializes like 'key1=val1 key2=val2 ... keyn=keyn' and return's it if key does not start with <notprefix>
+
   bool OpenTransaction() {TransactionMutex.Lock(); Transactions.clear();IsTransaction= true; return true;}
   
   bool CloseTransaction();
@@ -345,6 +347,8 @@ public:
   void StartDumper(const char* file); // starts a thread which continously dumps all the hashes
   static void* StartHashDumper(void* pp);
   void FileDumper();
+
+  void Clear(); // calls clear on each managed hash and queue
 };
 
 #endif

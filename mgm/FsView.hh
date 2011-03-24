@@ -3,6 +3,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
+
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
 #include "common/Logging.hh"
@@ -13,6 +14,10 @@
 #include <sys/vfs.h>
 #include <map>
 #include <set>
+
+#ifndef EOSMGMFSVIEWTEST
+#include "mgm/ConfigEngine.hh"
+#endif
 
 /*----------------------------------------------------------------------------*/
 
@@ -97,8 +102,13 @@ private:
   eos::common::FileSystem::fsid_t NextFsId;
   std::map<eos::common::FileSystem::fsid_t , std::string> Fs2UuidMap;
   std::map<std::string, eos::common::FileSystem::fsid_t>  Uuid2FsMap;
+  std::string  MgmConfigQueueName;
 
 public:
+
+#ifndef EOSMGMFSVIEWTEST
+  static ConfigEngine* ConfEngine;
+#endif
 
   bool Register   (eos::common::FileSystem* fs); // this adds or modifies a filesystem
   bool UnRegister (eos::common::FileSystem* fs); // this removes a filesystem
@@ -138,15 +148,31 @@ public:
   static std::string GetSpaceFormat      (std::string option);
   static std::string GetFileSystemFormat (std::string option);
 
+  void Reset(); // clears all mappings and filesystem objects
 
-  FsView() {};
+  FsView() { 
+    MgmConfigQueueName="";
+
+#ifndef EOSMGMFSVIEWTEST
+    ConfEngine = 0;
+#endif
+
+  }
   ~FsView() {};
 
-  void SetConfigQueues(const char* nodeconfigqueue, const char* groupconfigqueue, const char* spaceconfigqueue) {
+  void SetConfigQueues(const char* mgmconfigqueue, const char* nodeconfigqueue, const char* groupconfigqueue, const char* spaceconfigqueue) {
     FsSpace::gConfigQueuePrefix = spaceconfigqueue;
     FsGroup::gConfigQueuePrefix = groupconfigqueue;
     FsNode::gConfigQueuePrefix  = nodeconfigqueue;
+    MgmConfigQueueName = mgmconfigqueue;
   }
+
+#ifndef EOSMGMFSVIEWTEST
+  void SetConfigEngine(ConfigEngine* engine) {ConfEngine = engine;}
+#endif
+
+  void SetNextFsId(eos::common::FileSystem::fsid_t fsid);
+
   static FsView gFsView; // singleton
 };
 

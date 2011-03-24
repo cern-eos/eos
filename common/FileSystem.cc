@@ -61,7 +61,7 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
 FileSystem::~FileSystem()
 {
   // remove the shared hash of this file system
-  if (mSom) {
+ if (mSom) {
     mSom->DeleteSharedHash(mQueuePath.c_str());
   }
 }
@@ -129,6 +129,18 @@ FileSystem::GetAutoBootRequestString()
   return "mgm.cmd=bootreq";
 }
 
+/*----------------------------------------------------------------------------*/
+void
+FileSystem::CreateConfig(std::string &key, std::string &val)
+{
+  key = val ="";
+  fs_snapshot_t fs;
+
+  XrdMqRWMutexReadLock lock(mSom->HashMutex);
+
+  key = mQueuePath;
+  val = mHash->StoreAsString("stat.");
+}
 
 /*----------------------------------------------------------------------------*/
 bool 
@@ -156,28 +168,28 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs) {
     if (dpos != std::string::npos)
       fs.mSpace.erase(dpos);
     fs.mPath          = mPath;
-    fs.mErrMsg        = mHash->Get("errmsg");
+    fs.mErrMsg        = mHash->Get("stat.errmsg");
     fs.mStatus        = mHash->GetLongLong("status");
     fs.mConfigStatus  = mHash->GetLongLong("configstatus");
     fs.mDrainStatus   = mHash->GetLongLong("drainstatus");
-    fs.mErrCode       = (unsigned int)mHash->GetLongLong("errc");
-    fs.mBootSentTime  = (time_t) mHash->GetLongLong("bootsenttime");
-    fs.mBootDoneTime  = (time_t) mHash->GetLongLong("bootdonetime");
-    fs.mHeartBeatTime = (time_t) mHash->GetLongLong("heartbeattime");
-    fs.mDiskLoad      = mHash->GetDouble("diskload");
-    fs.mNetLoad         = mHash->GetDouble("netload");
-    fs.mDiskWriteRateMb = mHash->GetDouble("diskwriteratemb");
-    fs.mDiskReadRateMb  = mHash->GetDouble("diskreadratemb");
-    fs.mDiskType        = (long) mHash->GetLongLong("statfs.type");
-    fs.mDiskBsize       = (long) mHash->GetLongLong("statfs.bsize");
-    fs.mDiskBlocks      = (long) mHash->GetLongLong("statfs.blocks");
-    fs.mDiskBfree       = (long) mHash->GetLongLong("statfs.bfree");
-    fs.mDiskBavail      = (long) mHash->GetLongLong("statfs.bavail");
-    fs.mDiskFiles       = (long) mHash->GetLongLong("statfs.files");
-    fs.mDiskFfree       = (long) mHash->GetLongLong("statfs.ffree");
-    fs.mDiskNameLen     = (long) mHash->GetLongLong("statfs.namelen");
-    fs.mDiskRopen       = (long) mHash->GetLongLong("ropen");
-    fs.mDiskWopen       = (long) mHash->GetLongLong("wopen");
+    fs.mErrCode       = (unsigned int)mHash->GetLongLong("stat.errc");
+    fs.mBootSentTime  = (time_t) mHash->GetLongLong("stat.bootsenttime");
+    fs.mBootDoneTime  = (time_t) mHash->GetLongLong("stat.bootdonetime");
+    fs.mHeartBeatTime = (time_t) mHash->GetLongLong("stat.heartbeattime");
+    fs.mDiskLoad      = mHash->GetDouble("stat.diskload");
+    fs.mNetLoad         = mHash->GetDouble("stat.netload");
+    fs.mDiskWriteRateMb = mHash->GetDouble("stat.diskwriteratemb");
+    fs.mDiskReadRateMb  = mHash->GetDouble("stat.diskreadratemb");
+    fs.mDiskType        = (long) mHash->GetLongLong("stat.statfs.type");
+    fs.mDiskBsize       = (long) mHash->GetLongLong("stat.statfs.bsize");
+    fs.mDiskBlocks      = (long) mHash->GetLongLong("stat.statfs.blocks");
+    fs.mDiskBfree       = (long) mHash->GetLongLong("stat.statfs.bfree");
+    fs.mDiskBavail      = (long) mHash->GetLongLong("stat.statfs.bavail");
+    fs.mDiskFiles       = (long) mHash->GetLongLong("stat.statfs.files");
+    fs.mDiskFfree       = (long) mHash->GetLongLong("stat.statfs.ffree");
+    fs.mDiskNameLen     = (long) mHash->GetLongLong("stat.statfs.namelen");
+    fs.mDiskRopen       = (long) mHash->GetLongLong("stat.ropen");
+    fs.mDiskWopen       = (long) mHash->GetLongLong("stat.wopen");
     fs.mWeightRead      = 1.0;
     fs.mWeightWrite     = 1.0;
     return true;

@@ -23,6 +23,8 @@ add_executable ( testmgmview
 
 target_link_libraries ( testmgmview XrdClient XrdSys XrdOuc XrdNet XrdNetUtil eosCommon-Static XrdMqClient-Static crypto uuid curses pthread dl z)
 
+set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )
+
 if (Linux)
   set_target_properties (XrdEosMgm PROPERTIES
     VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}

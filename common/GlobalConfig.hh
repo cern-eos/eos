@@ -29,7 +29,9 @@ public:
   XrdMqSharedObjectManager* SOM() { return mSom;}
 
   void PrintBroadCastMap(std::string &out);
-  
+
+  void Reset();
+
   GlobalConfig();
   ~GlobalConfig(){};
 

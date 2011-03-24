@@ -1,6 +1,7 @@
 #include "mq/XrdMqSharedObject.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/FsView.hh"
+#include "mgm/ConfigEngine.hh"
 
 using namespace eos::common;
 using namespace eos::mgm;

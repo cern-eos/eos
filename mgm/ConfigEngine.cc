@@ -2,9 +2,10 @@
 #include "common/Mapping.hh"
 #include "mgm/ConfigEngine.hh"
 #include "mgm/FstNode.hh"
+#include "mgm/FsView.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Vid.hh"
-
+#include "mq/XrdMqMessage.hh"
 /*----------------------------------------------------------------------------*/
 #include <iostream>
 #include <fstream>
@@ -13,6 +14,9 @@
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
+
+XrdOucHash<XrdOucString> ConfigEngine::configDefinitionsFile;
+XrdOucHash<XrdOucString> ConfigEngine::configDefinitions;
 
 /*----------------------------------------------------------------------------*/
 ConfigEngineChangeLog::ConfigEngineChangeLog()
@@ -174,9 +178,15 @@ ConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
 {
   const char* name = env.Get("mgm.config.file");
   bool force = (bool)env.Get("mgm.config.force");
+  bool autosave = (bool)env.Get("mgm.config.autosave");
   const char* comment = env.Get("mgm.config.comment");
 
-  XrdOucString cl = "saved  config "; cl += name; cl += " "; if (force) cl += "(force)";
+  XrdOucString cl = "";
+  if (autosave)
+    cl += "autosaved  config "; 
+  else
+    cl += "saved config";
+  cl += name; cl += " "; if (force) cl += "(force)";
   eos_notice("saving config name=%s comment=%s force=%d", name, comment, force);
 
   if (!name) {
@@ -212,7 +222,13 @@ ConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
       return false;
     }  else {
       char backupfile[4096];
-      sprintf(backupfile,"%s.backup.%lu%s",halfpath.c_str(),time(0),EOSMGMCONFIGENGINE_EOS_SUFFIX);
+      struct stat st;
+      if (stat(fullpath.c_str(), &st)) {
+	err = "error: cannot stat the config file with name \""; err += name ; err += "\"";
+	return false;
+      }
+      
+      sprintf(backupfile,"%s.backup.%lu%s",halfpath.c_str(),st.st_mtime,EOSMGMCONFIGENGINE_EOS_SUFFIX);
       if (rename(fullpath.c_str(),backupfile)) {
 	err = "error: unable to move existing config file to backup version!";
 	return false;
@@ -223,19 +239,41 @@ ConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
   std::ofstream outfile(fullpath.c_str());
   if (outfile.is_open()) {
     XrdOucString config="";XrdOucEnv env("");
-    DumpConfig(config, env);
     if (comment) {
-      config+= "comment: => "; config += comment;
+      // we store comments as "<unix-tst> <date> <comment>"
+      XrdOucString esccomment = comment;
+      XrdOucString configkey="";
+      time_t now = time(0);
+      char dtime[1024]; sprintf(dtime, "%lu ", now);
+      XrdOucString stime = dtime; stime += ctime(&now);
+      stime.erase(stime.length()-1);
+      stime += " ";
+      while (esccomment.replace("\"","")) {}
+      esccomment.insert(stime.c_str(),0);
+      esccomment.insert("\"",0);
+      esccomment.append("\"");
+
+      configkey += "comment-";
+      configkey += dtime; 
+      configkey += ":";
+
+      configDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));
     }
-			     
+
+    DumpConfig(config, env);
+
+    // sort the config file
+    XrdMqMessage::Sort(config,true);
+    
     outfile << config.c_str();
     outfile.close();
   } else {
     err = "error: failed to save configuration file with name \""; err += name; err += "\"!";
     return false;
   }
- 
+  
   cl += " successfully";
+  cl += " ["; cl += comment; cl += " ]";
   changeLog.AddEntry(cl.c_str());  
   changeLog.configChanges ="";
   currentConfigFile = name;
@@ -383,6 +421,8 @@ ConfigEngine::ResetConfig()
   eos::common::Mapping::gVirtualGidMap.clear();
   eos::common::Mapping::gMapMutex.UnLockWrite();
 
+  FsView::gFsView.Reset();
+  eos::common::GlobalConfig::gConfig.Reset();
   Mutex.Lock();
   configDefinitions.Purge();
   Mutex.UnLock();
@@ -558,10 +598,6 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
     } 
   }
   
-  if (skey.beginswith("comment:")) {
-    // nothing to do
-  }
-  
   return 0;
 }
 
@@ -595,13 +631,17 @@ ConfigEngine::PrintEachConfig(const char* key, XrdOucString* def, void* Arg)
 	filter = true;
     }
     if (option.find("c")!=STR_NPOS) {
-      if (skey.beginswith("comment:"))
+      if (skey.beginswith("comment-"))
+	filter = true;
+    }
+    if (option.find("g")!=STR_NPOS) {
+      if (skey.beginswith("global:"))
 	filter = true;
     }
     
     if (filter) {
       (*outstring) += key; (*outstring) += " => "; (*outstring) += def->c_str(); (*outstring) += "\n";
-    }
+  }
   }
   return 0;
 }
@@ -615,9 +655,9 @@ ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
   const char* name = filter.Get("mgm.config.file");
 
   pinfo.out = &out;
-  pinfo.option = "vfqc";
+  pinfo.option = "vfqcg";
   
-  if (filter.Get("mgm.config.vid") || (filter.Get("mgm.config.fs")) || (filter.Get("mgm.config.quota")) || (filter.Get("mgm.config.comment")  || (filter.Get("mgm.config.policy"))))
+  if (filter.Get("mgm.config.vid") || (filter.Get("mgm.config.fs")) || (filter.Get("mgm.config.quota")) || (filter.Get("mgm.config.comment")  || (filter.Get("mgm.config.policy")) || (filter.Get("mgm.config.global"))))
     pinfo.option = "";
   
   if (filter.Get("mgm.config.vid")) {
@@ -634,6 +674,9 @@ ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
   }
   if (filter.Get("mgm.config.comment")) {
     pinfo.option += "c";
+  }
+  if (filter.Get("mgm.config.global")) {
+    pinfo.option += "g";
   }
   
   if (name == 0) {
@@ -659,10 +702,13 @@ ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
 	filtered = true;
       if ( (pinfo.option.find("q")!=STR_NPOS) && (sinputline.beginswith("quota:")))
 	filtered = true;
-      if ( (pinfo.option.find("c")!=STR_NPOS) && (sinputline.beginswith("comment:")))
+      if ( (pinfo.option.find("c")!=STR_NPOS) && (sinputline.beginswith("comment-")))
 	filtered = true;
       if ( (pinfo.option.find("p")!=STR_NPOS) && (sinputline.beginswith("policy:")))
 	filtered = true;
+      if ( (pinfo.option.find("g")!=STR_NPOS) && (sinputline.beginswith("global:")))
+	filtered =true;
+
       if (filtered) {
 	out += sinputline;
 	out += "\n";

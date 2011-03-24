@@ -509,6 +509,22 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
   return false;
 }
 
+/*----------------------------------------------------------------------------*/
+void
+XrdMqSharedObjectManager::Clear() 
+{
+  HashMutex.LockRead();
+  std::map<std::string , XrdMqSharedHash*>::iterator it_hash;
+  for (it_hash=hashsubjects.begin(); it_hash!= hashsubjects.end(); it_hash++) {
+    it_hash->second->Clear();
+  }
+  std::map<std::string , XrdMqSharedQueue>::iterator it_queue;
+  for (it_queue=queuesubjects.begin(); it_queue!= queuesubjects.end(); it_queue++) {
+    it_queue->second.Clear();
+  }
+  HashMutex.UnLockRead();
+
+}
 
 /*----------------------------------------------------------------------------*/
 XrdMqSharedHash::XrdMqSharedHash(const char* subject, const char* broadcastqueue, XrdMqSharedObjectManager* som) 
@@ -526,6 +542,25 @@ XrdMqSharedHash::~XrdMqSharedHash()
 {
 
 }
+
+/*----------------------------------------------------------------------------*/
+std::string 
+XrdMqSharedHash::StoreAsString(const char* notprefix)
+{
+  std::string s="";
+  StoreMutex.LockRead();
+  std::map<std::string, XrdMqSharedHashEntry>::iterator it;
+  for (it=Store.begin(); it!= Store.end(); it++) {
+    XrdOucString key = it->first.c_str();
+    if ( (!notprefix) || (notprefix && (!strlen(notprefix))) || (!key.beginswith(notprefix))) {
+      s+= it->first.c_str(); s+= "=";
+      s+= it->second.GetEntry(); s+= " ";
+    }
+  }
+  StoreMutex.UnLockRead();
+  return s;
+}
+
 
 /*----------------------------------------------------------------------------*/
 bool

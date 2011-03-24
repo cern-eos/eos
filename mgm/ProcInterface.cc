@@ -565,9 +565,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		// logic to automatically adjust scheduling subgroups
 		eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
 		eos::common::StringConversion::SplitByPoint(space, splitspace, splitgroup);
-		
-		groupsize = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupsize")).c_str());
-		groupmod  = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupmod")).c_str());
+		if (FsView::gFsView.mSpaceView.count(splitspace)) {
+		  groupsize = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupsize")).c_str());
+		  groupmod  = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupmod")).c_str());
+		}
 		
 		if (splitgroup.length()) {
 		  // we have to check if the desired group is already full, in case we add to the next group by increasing the number by <groupmod>
@@ -581,7 +582,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		      splitgroup = newgroup;
 		      break;
 		    } else {
-		      if ( ((FsView::gFsView.mGroupView[std::string(newgroup)]->size()) < groupsize)) {
+		      if ( ((FsView::gFsView.mGroupView[std::string(newgroup)]->size()) < groupsize) || (groupsize==0)) {
 			// great, there is still space here
 			splitgroup = newgroup;
 			break;
@@ -615,7 +616,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  delete fs;
 		  stdErr+="error: cannot register filesystem - check for path duplication!";
 		  retc = EINVAL;
-		}	      
+		} 
 	      } else {
 		stdErr="error: cannot allocate filesystem object";
 		retc = ENOMEM;

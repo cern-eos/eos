@@ -49,6 +49,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   MgmMetaLogDir = "/var/tmp/eos/md/";
   MgmHealMap.set_deleted_key(0);
 
+  bool ConfigAutoSave = false;
+  XrdOucString ConfigAutoLoad = "";
+
   long myPort=0;
 
   if (getenv("XRDDEBUG")) gMgmOfsTrace.What = TRACE_MOST | TRACE_debug;
@@ -238,6 +241,32 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	      MgmConfigDir += "/";
 	  }
 	}
+	
+	if (!strcmp("autosaveconfig", var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument 2 for autosaveconfig missing. Can be true/1 or false/0"); NoGo=1;
+	  } else {
+	    if ( (!(strcmp(val,"true"))) || (!(strcmp(val,"1")))) {
+	      ConfigAutoSave = true;
+	    } else {
+	      if ( (!(strcmp(val,"false"))) || (!(strcmp(val,"0")))) {
+		ConfigAutoSave = false;
+	      } else {
+		Eroute.Emsg("Config","argument 2 for autosaveconfig invalid. Can be <true>/1 or <false>/0"); NoGo=1;
+	      }
+	    }
+	  }
+	}
+
+	if (!strcmp("autoloadconfig", var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument for autoloadconfig invalid.");NoGo=1;
+	  } else {
+	    ConfigAutoLoad = val;
+	  }
+	}
+
+
 	if (!strcmp("metalog",var)) {
 	  if (!(val = Config.GetWord())) {
 	    Eroute.Emsg("Config","argument 2 for metalog missing"); NoGo=1;
@@ -428,16 +457,22 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   // start the config enging
   ConfEngine = new ConfigEngine(MgmConfigDir.c_str());
 
-  if (getenv("EOS_AUTOLOAD_CONFIG")) {
-    eos_info("autoload config=%s", getenv("EOS_AUTOLOAD_CONFIG"));
-    XrdOucString configloader = "mgm.config.file="; 
-    configloader += getenv("EOS_AUTOLOAD_CONFIG");
-    XrdOucEnv configenv(configloader.c_str());
-    XrdOucString stdErr="";
-    if (!ConfEngine->LoadConfig(configenv, stdErr)) {
-      eos_crit("Unable to auto-load config %s", getenv("EOS_AUTOLOAD_CONFIG"));
+  if (ConfigAutoSave && (!getenv("EOS_AUTOSAVE_CONFIG"))) {
+    Eroute.Say("=====> mgmofs.autosaveconfig: true","");
+    ConfEngine->SetAutoSave(true);
+  } else {
+    if (getenv("EOS_AUTOSAVE_CONFIG")) {
+      eos_info("autosave config=%s", getenv("EOS_AUTOSAVE_CONFIG"));
+      XrdOucString autosave = getenv("EOS_AUTOSAVE_CONFIG");
+      if ( (autosave == "1") || (autosave == "true") ) {
+	Eroute.Say("=====> mgmofs.autosaveconfig: true","");
+	ConfEngine->SetAutoSave(true);
+      } else {
+	Eroute.Say("=====> mgmofs.autosaveconfig: false","");
+	ConfEngine->SetAutoSave(false);
+      }
     } else {
-      eos_info("Successful auto-load config %s", getenv("EOS_AUTOLOAD_CONFIG"));
+      Eroute.Say("=====> mgmofs.autosaveconfig: false","");
     }
   }
 
@@ -455,7 +490,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   NodeConfigQueuePrefix  = configbasequeue; NodeConfigQueuePrefix  += "/node/";
   GroupConfigQueuePrefix = configbasequeue; GroupConfigQueuePrefix += "/group/";
 
-  FsView::gFsView.SetConfigQueues(NodeConfigQueuePrefix.c_str(), GroupConfigQueuePrefix.c_str(), SpaceConfigQueuePrefix.c_str());
+  FsView::gFsView.SetConfigQueues(MgmConfigQueue.c_str(), NodeConfigQueuePrefix.c_str(), GroupConfigQueuePrefix.c_str(), SpaceConfigQueuePrefix.c_str());
+  FsView::gFsView.SetConfigEngine(ConfEngine);
+
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
 
@@ -472,7 +509,25 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   std::string out ="";
   eos::common::GlobalConfig::gConfig.PrintBroadCastMap(out);
   fprintf(stderr,"%s",out.c_str());
-  
+
+  // eventuall autoload a configuration 
+  if (getenv("EOS_AUTOLOAD_CONFIG")) {
+    ConfigAutoLoad = getenv("EOS_AUTOLOAD_CONFIG");
+  }
+
+  if (ConfigAutoLoad.length()) {
+    eos_info("autoload config=%s", ConfigAutoLoad.c_str());
+    XrdOucString configloader = "mgm.config.file="; 
+    configloader += ConfigAutoLoad;
+    XrdOucEnv configenv(configloader.c_str());
+    XrdOucString stdErr="";
+    if (!ConfEngine->LoadConfig(configenv, stdErr)) {
+      eos_crit("Unable to auto-load config %s", ConfigAutoLoad.c_str());
+    } else {
+      eos_info("Successful auto-load config %s", ConfigAutoLoad.c_str());
+    }
+  }
+
   //  eos_emerg("%s",(char*)"test emerg");
   //  eos_alert("%s",(char*)"test alert");
   //  eos_crit("%s", (char*)"test crit");

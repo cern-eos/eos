@@ -203,6 +203,12 @@ public:
       mHash->Print(out, listformat);
     }
   }
+
+  //------------------------------------------------------------------------
+  //! Create Config
+  //! - this creates the config string representation of this file system
+  //------------------------------------------------------------------------
+  void CreateConfig(std::string &key, std::string &val);
 };
 
 EOSCOMMONNAMESPACE_END

@@ -55,11 +55,12 @@ private:
   XrdOucString currentConfigFile;
 
   ConfigEngineChangeLog changeLog;
-
-  XrdOucHash<XrdOucString> configDefinitionsFile;
-  XrdOucHash<XrdOucString> configDefinitions;
+  bool autosave;
 
 public:
+
+  static XrdOucHash<XrdOucString> configDefinitionsFile;
+  static XrdOucHash<XrdOucString> configDefinitions;
 
   struct PrintInfo {
     XrdOucString* out;
@@ -79,6 +80,7 @@ public:
     XrdOucString changeLogFile = configDir;
     changeLogFile += "/config.changelog";
     changeLog.Init(changeLogFile.c_str());
+    autosave=false;
   }
 
   ConfigEngineChangeLog* GetChangeLog() { return &changeLog;}
@@ -116,6 +118,8 @@ public:
     Mutex.UnLock();
   }
 
+  void SetAutoSave(bool val) {autosave = val;}
+
   void SetConfigValue(const char* prefix, const char* fsname, const char* def, bool tochangelog = true) {
     XrdOucString cl = "set config "; cl+= prefix; cl += ":"; cl += fsname; cl+= " => "; cl += def;
     if (tochangelog)
@@ -125,6 +129,17 @@ public:
     configname += fsname;
     configDefinitions.Rep(configname.c_str(),sdef);
     eos_static_debug("%s => %s", fsname, def);
+
+    if (autosave && currentConfigFile.length()) {
+      XrdOucString envstring = "mgm.config.file=";envstring += currentConfigFile;
+      envstring += "&mgm.config.force=1";
+      envstring += "&mgm.config.autosave=1";
+      XrdOucEnv env(envstring.c_str());
+      XrdOucString err="";
+      if (!SaveConfig(env, err)) {
+	eos_static_err("%s\n", err.c_str());
+      }
+    }
   }
 
   void DeleteConfigValue(const char* prefix, const char* fsname) {
@@ -143,8 +158,11 @@ public:
     configDefinitions.Apply(DeleteConfigByMatch, &smatch);
     Mutex.UnLock();
   }
+
+  void FlagGlobalDirty();
 };
+
+EOSMGMNAMESPACE_END
 
 #endif
 
-EOSMGMNAMESPACE_END
