@@ -110,23 +110,31 @@ com_fs (char* arg1) {
 
   if ( subcommand == "rm" ) {
     XrdOucString arg = subtokenizer.GetToken();
+    if (!arg.c_str()) {
+      goto com_fs_usage;
+    }
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=rm";
     int fsid = atoi(arg.c_str());
     char r1fsid[128]; sprintf(r1fsid,"%d", fsid);
     char r2fsid[128]; sprintf(r2fsid,"%04d", fsid);
     if ( (arg == r1fsid) || (arg == r2fsid) ) {
       // boot by fsid
-      in += "&mgm.fsid=";
+      in += "&mgm.fs.id=";
+      in += arg;
     } else {
-      if (arg.endswith("/fst"))
-        in += "&mgm.nodename=";
-      else 
-        in += "&mgm.fsname=";
+      XrdOucString mountpoint = subtokenizer.GetToken();
+      in += "&mgm.fs.hostport=";
+      in += arg;
+      if (!(arg.find(":")!= STR_NPOS)) {
+	in += ":1095";
+      }
+      in += "&mgm.fs.mountpoint=";
+      if (!mountpoint.length())
+	goto com_fs_usage;
+      in += mountpoint;
     }
 
-    in += arg;
     global_retc = output_result(client_admin_command(in));
-    return (0);
     return (0);
   }
 

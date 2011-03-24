@@ -524,108 +524,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 
     if (cmd == "fs") {
-      if (subcmd == "add") {
-	std::string uuid         = (opaque.Get("mgm.fs.uuid"))?opaque.Get("mgm.fs.uuid"):"";
-	std::string nodename     = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
-	std::string mountpoint   = (opaque.Get("mgm.fs.mountpoint"))?opaque.Get("mgm.fs.mountpoint"):"";
-	std::string space        = (opaque.Get("mgm.fs.space"))?opaque.Get("mgm.fs.space"):"";
-	std::string configstatus = (opaque.Get("mgm.fs.configstatus"))?opaque.Get("mgm.fs.configstatus"):"";
-
-	if ( (!nodename.length()) || (!mountpoint.length()) || (!space.length()) || (!configstatus.length()) ||
-	     (configstatus.length() && ( eos::common::FileSystem::GetConfigStatusFromString(configstatus.c_str()) < eos::common::FileSystem::kOff) ) ) {
-	  stdErr="error: illegal parameters";
-	  retc = EINVAL;
-	} else {
-	  // queuepath = /eos/<host:port><path>
-	  std::string queuepath = nodename;
-	  queuepath += mountpoint;
-	  // check if there is a mapping for 'uuid'
-	  eos::common::RWMutexWriteLock(FsView::gFsView.MapMutex);
-	  if (FsView::gFsView.GetMapping(uuid)) {
-	    stdErr="error: filesystem identified by '"; stdErr += uuid.c_str(); stdErr += "' already exists!";
-	    retc = EEXIST;
-	  } else {
-	    eos::common::FileSystem::fsid_t fsid = FsView::gFsView.CreateMapping(uuid);
-	    eos::common::FileSystem* fs = new eos::common::FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
-	    XrdOucString sizestring;
-
-	    stdOut += "success:   mapped '"; stdOut += uuid.c_str() ; stdOut += "' <=> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
-	    if (fs) {
-	      fs->SetId(fsid);
-	      fs->SetString("uuid",uuid.c_str());
-	      
-	      std::string splitspace="";
-	      std::string splitgroup="";
-
-	      unsigned int groupsize = 0;
-	      unsigned int groupmod  = 0;
-	      unsigned int subgroup  = 0;
-
-	      {
-		// logic to automatically adjust scheduling subgroups
-		eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
-		eos::common::StringConversion::SplitByPoint(space, splitspace, splitgroup);
-		if (FsView::gFsView.mSpaceView.count(splitspace)) {
-		  groupsize = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupsize")).c_str());
-		  groupmod  = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupmod")).c_str());
-		}
-		
-		if (splitgroup.length()) {
-		  // we have to check if the desired group is already full, in case we add to the next group by increasing the number by <groupmod>
-		  subgroup = atoi(splitgroup.c_str());
-		  int j=0;
-		  for (j=0; j< 1000; j++) {
-		    char newgroup[1024];
-		    snprintf(newgroup,sizeof(newgroup)-1, "%s.%u", splitspace.c_str(), subgroup);
-		    if (!FsView::gFsView.mGroupView.count(std::string(newgroup))) {
-		      // great, this is still empty
-		      splitgroup = newgroup;
-		      break;
-		    } else {
-		      if ( ((FsView::gFsView.mGroupView[std::string(newgroup)]->size()) < groupsize) || (groupsize==0)) {
-			// great, there is still space here
-			splitgroup = newgroup;
-			break;
-		      } else {
-			// the group is full, let's got the next one
-			subgroup += groupmod;
-		      }
-		    }
-		  }
-
-		  if (j== 1000) {
-		    eos_crit("infinite loop detected finding available scheduling group!");
-		    stdErr = "error: infinite loop detected finding available scheduling group!";
-		    retc = EFAULT;
-		  }
-		}
-	      }
-	      
-	      if (!retc) {
-		fs->SetString("schedgroup", splitgroup.c_str());
-		
-		if (!FsView::gFsView.Register(fs)) {
-		  // remove mapping
-		  if (FsView::gFsView.RemoveMapping(fsid,uuid)) {
-		    // ok
-		    stdOut += "\nsuccess: unmapped '"; stdOut += uuid.c_str() ; stdOut += "' <!> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
-		  } else {
-		    stdErr="error: cannot remove mapping - this can be fatal!\n";
-		  }
-		  // remove filesystem object
-		  delete fs;
-		  stdErr+="error: cannot register filesystem - check for path duplication!";
-		  retc = EINVAL;
-		} 
-	      } else {
-		stdErr="error: cannot allocate filesystem object";
-		retc = ENOMEM;
-	      }
-	    }
-	  }
-	}
-      }
-
       if (subcmd == "ls") {
 	std::string output="";
 	std::string format="";
@@ -638,6 +536,112 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
 
       if (adminCmd) {
+	if (subcmd == "add") {
+	  std::string uuid         = (opaque.Get("mgm.fs.uuid"))?opaque.Get("mgm.fs.uuid"):"";
+	  std::string nodename     = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
+	  std::string mountpoint   = (opaque.Get("mgm.fs.mountpoint"))?opaque.Get("mgm.fs.mountpoint"):"";
+	  std::string space        = (opaque.Get("mgm.fs.space"))?opaque.Get("mgm.fs.space"):"";
+	  std::string configstatus = (opaque.Get("mgm.fs.configstatus"))?opaque.Get("mgm.fs.configstatus"):"";
+	  
+	  if ( (!nodename.length()) || (!mountpoint.length()) || (!space.length()) || (!configstatus.length()) ||
+	       (configstatus.length() && ( eos::common::FileSystem::GetConfigStatusFromString(configstatus.c_str()) < eos::common::FileSystem::kOff) ) ) {
+	    stdErr="error: illegal parameters";
+	    retc = EINVAL;
+	  } else {
+	    // queuepath = /eos/<host:port><path>
+	    std::string queuepath = nodename;
+	    queuepath += mountpoint;
+	    // check if there is a mapping for 'uuid'
+	    eos::common::RWMutexWriteLock(FsView::gFsView.MapMutex);
+	    if (FsView::gFsView.GetMapping(uuid)) {
+	      stdErr="error: filesystem identified by '"; stdErr += uuid.c_str(); stdErr += "' already exists!";
+	      retc = EEXIST;
+	    } else {
+	      eos::common::FileSystem::fsid_t fsid = FsView::gFsView.CreateMapping(uuid);
+	      eos::common::FileSystem* fs = new eos::common::FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
+	      XrdOucString sizestring;
+	      
+	      stdOut += "success:   mapped '"; stdOut += uuid.c_str() ; stdOut += "' <=> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
+	      if (fs) {
+		fs->SetId(fsid);
+		fs->SetString("uuid",uuid.c_str());
+		
+		std::string splitspace="";
+		std::string splitgroup="";
+		
+		unsigned int groupsize = 0;
+		unsigned int groupmod  = 0;
+		unsigned int subgroup  = 0;
+		
+		{
+		  // logic to automatically adjust scheduling subgroups
+		  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+		  eos::common::StringConversion::SplitByPoint(space, splitspace, splitgroup);
+		  if (FsView::gFsView.mSpaceView.count(splitspace)) {
+		    groupsize = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupsize")).c_str());
+		    groupmod  = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupmod")).c_str());
+		  }
+		  
+		  if (splitgroup.length()) {
+		    // we have to check if the desired group is already full, in case we add to the next group by increasing the number by <groupmod>
+		    subgroup = atoi(splitgroup.c_str());
+		    int j=0;
+		    for (j=0; j< 1000; j++) {
+		      char newgroup[1024];
+		      snprintf(newgroup,sizeof(newgroup)-1, "%s.%u", splitspace.c_str(), subgroup);
+		      if (!FsView::gFsView.mGroupView.count(std::string(newgroup))) {
+			// great, this is still empty
+			splitgroup = newgroup;
+			break;
+		      } else {
+			if ( ((FsView::gFsView.mGroupView[std::string(newgroup)]->size()) < groupsize) || (groupsize==0)) {
+			  // great, there is still space here
+			  splitgroup = newgroup;
+			  break;
+			} else {
+			  // the group is full, let's got the next one
+			  subgroup += groupmod;
+			}
+		      }
+		    }
+		    
+		    if (j== 1000) {
+		      eos_crit("infinite loop detected finding available scheduling group!");
+		      stdErr = "error: infinite loop detected finding available scheduling group!";
+		      retc = EFAULT;
+		    }
+		  }
+		}
+		
+		if (!retc) {
+		  fs->SetString("schedgroup", splitgroup.c_str());
+		  
+		  eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+
+		  if (!FsView::gFsView.Register(fs)) {
+		    // remove mapping
+		    if (FsView::gFsView.RemoveMapping(fsid,uuid)) {
+		      // ok
+		      stdOut += "\nsuccess: unmapped '"; stdOut += uuid.c_str() ; stdOut += "' <!> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
+		    } else {
+		      stdErr="error: cannot remove mapping - this can be fatal!\n";
+		    }
+		    // remove filesystem object
+		    delete fs;
+		    stdErr+="error: cannot register filesystem - check for path duplication!";
+		    retc = EINVAL;
+		  } 
+		} else {
+		  stdErr="error: cannot allocate filesystem object";
+		  retc = ENOMEM;
+		}
+	      }
+	    }
+	  }
+	}
+
+
+
 	if (subcmd == "dumpmd") {
 	  if (vid_in.uid == 0) {
 	    char* fsidst = opaque.Get("mgm.fsid");
@@ -760,84 +764,52 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    stdErr = "error: you have to take role 'root' to execute this command";
 	  }
 	}
-      }
-
-      if (subcmd == "rm") {
-	if (vid_in.uid == 0) {
-	  const char* nodename =  opaque.Get("mgm.nodename");
-	  const char* fsname   =  opaque.Get("mgm.fsname");
-	  const char* fsidst   =  opaque.Get("mgm.fsid");
-	  
-	  const char* fspath   =  0;
-	  
-	  XrdOucString splitpathname="";
-	  XrdOucString splitnodename="";
-	  
-	  if (fsname) {
-	    XrdOucString q = fsname;
-	    int spos = q.find("/fst/");
-	    if (spos != STR_NPOS) {
-	      splitpathname.assign(q,spos+4);
-	      splitnodename.assign(q,0,spos+3);
+	
+	if (subcmd == "rm") {
+	  if (vid_in.uid == 0) {
+	    std::string hostport     =  opaque.Get("mgm.fs.hostport")?opaque.Get("mgm.fs.hostport"):"";
+	    std::string mountpoint   =  opaque.Get("mgm.fs.mountpoint")?opaque.Get("mgm.fs.mountpoint"):"";
+	    std::string id           =  opaque.Get("mgm.fs.id")?opaque.Get("mgm.fs.id"):"";
+	    eos::common::FileSystem::fsid_t fsid = 0;
+	    
+	    if (id.length()) 
+	      fsid = atoi(id.c_str());
+	    
+	    
+	    eos::common::FileSystem* fs=0;
+	    eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
 	      
-	      if (!splitpathname.endswith("/")) {
-		splitpathname+= "/";
-	      }
-	      
-	      fspath = splitpathname.c_str();
-	      nodename = splitnodename.c_str();
-	    }
-	  }	
-
-	  FstNode::gMutex.Lock();
-	  
-	  if (nodename) {
-	    // delete by node
-	    FstNode* node = FstNode::gFstNodes.Find(nodename);
-	    if (node) {
-	      if (!fspath) {
-		// delete complete node
-		FstNode::gFstNodes.Del(nodename);
-		stdOut="success: deleted node mgm.nodename="; stdOut += nodename;
-	      } else {
-		// delete filesystem of a certain node
-		if (!node->fileSystems.Del(fspath)) {
-		  // success
-		  stdOut="success: deleted filesystem from node mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem mgm.fsname="; stdOut += fsname;
-		  gOFS->ConfEngine->DeleteConfigValue("fs",fsname);
-		} else {
-		  // failed
-		  stdErr="error: cannot delete filesystem - no filesystem with name mgm.fsname="; stdErr += fsname; stdErr += " at node mgm.nodename="; stdErr += nodename;	
-		  retc = ENOENT;
-		}
+	    if (id.length()) {
+	      // find by id
+	      if (FsView::gFsView.mIdView.count(fsid)) {
+		fs = FsView::gFsView.mIdView[fsid];
 	      }
 	    } else {
-	      stdErr="error: cannot delete node - no node with name mgm.nodename="; stdErr += nodename;
+	      if (mountpoint.length() && hostport.length()) {
+		std::string queuepath="/eos/";queuepath+= hostport; queuepath+= "/fst"; queuepath += mountpoint;
+		fs = FsView::gFsView.FindByQueuePath(queuepath);
+	      }
+	    }
+	    
+	    if (fs ) {
+	      if (!FsView::gFsView.RemoveMapping(fsid)) {
+		stdErr = "error: couldn't remove mapping of filesystem defined by ";stdErr += hostport.c_str(); stdErr += "/";stdErr += mountpoint.c_str(); stdErr+="/"; stdErr += id.c_str(); stdErr+= " ";
+	      }
+	      
+	      if (! FsView::gFsView.UnRegister(fs)) {
+		stdErr = "error: couldn't unregister the filesystem "; stdErr += hostport.c_str(); stdErr += " ";stdErr += mountpoint.c_str(); stdErr+=" "; stdErr += id.c_str(); stdErr+= "from the FsView";
+		retc = EFAULT;
+	      } else {
+		stdOut = "success: unregistered ";stdOut += hostport.c_str(); stdOut += " ";stdOut += mountpoint.c_str(); stdOut+=" "; stdOut += id.c_str(); stdOut+= " from the FsView";
+	      }
+	    } else {
+	      stdErr = "error: there is no filesystem defined by ";  stdErr += hostport.c_str(); stdErr += " ";stdErr += mountpoint.c_str(); stdErr+=" "; stdErr += id.c_str(); stdErr+= " ";
 	      retc = EINVAL;
 	    }
 	  } else {
-	    if (fsidst) {
-	      unsigned int fsid = atoi(fsidst);
-	      // delete by fs id
-	      FstNode::FindStruct fsfinder(fsid,"");
-	      FstNode::gFstNodes.Apply(FstNode::FindNodeFileSystem,&fsfinder);
-	      if (fsfinder.found) {
-		FstNode* node = FstNode::gFstNodes.Find(fsfinder.nodename.c_str());
-		if (node && (!node->fileSystems.Del(fsfinder.fsname.c_str()))) {
-		  // success
-		  stdOut="success: deleted filesystem from node mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem id mgm.fsid="; stdOut += fsidst;
-		} else {
-		  // failed
-		  stdErr="error: cannot delete filesystem - no filesystem with id mgm.fsid="; stdErr += fsidst; stdErr += " at node mgm.nodename="; stdErr += nodename;		
-		  retc = ENOENT;
-		}
-	      }
-	    } 
+	    retc = EPERM;
+	    stdErr = "error: you have to take role 'root' to execute this command";
 	  }
-	  FstNode::gMutex.UnLock();
-	} else {
-	  retc = EPERM;
-	  stdErr = "error: you have to take role 'root' to execute this command";
 	}
       }
 

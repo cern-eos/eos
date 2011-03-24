@@ -132,12 +132,16 @@ public:
   std::map<eos::common::FileSystem::fsid_t, eos::common::FileSystem*> mIdView;
   std::map<eos::common::FileSystem*, eos::common::FileSystem::fsid_t> mFileSystemView;
 
+  // find filesystem
+  eos::common::FileSystem* FindByQueuePath(std::string &queuepath); // this requires that YOU lock the ViewMap beforehand
+
   // filesystem mapping functions
   eos::common::FileSystem::fsid_t CreateMapping(std::string fsuuid);
   bool                            ProvideMapping(std::string fsuuid, eos::common::FileSystem::fsid_t fsid);
   eos::common::FileSystem::fsid_t GetMapping(std::string fsuuid);
   std::string GetMapping(eos::common::FileSystem::fsid_t fsuuid);
   bool        RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid);
+  bool        RemoveMapping(eos::common::FileSystem::fsid_t fsid);
 
   void PrintSpaces(std::string &out, std::string headerformat, std::string listformat);
   void PrintGroups(std::string &out, std::string headerformat, std::string listformat);
@@ -169,6 +173,8 @@ public:
 
 #ifndef EOSMGMFSVIEWTEST
   void SetConfigEngine(ConfigEngine* engine) {ConfEngine = engine;}
+  bool ApplyFsConfig(const char* key, std::string &val);
+  bool ApplyGlobalConfig(const char* key, std::string &val);
 #endif
 
   void SetNextFsId(eos::common::FileSystem::fsid_t fsid);

@@ -90,7 +90,7 @@ FstNode::Update(XrdAdvisoryMqMessage* advmsg)
   }
 
 
-  gMutex.Lock();
+  /*  gMutex.Lock();
   FstNode* node = gFstNodes.Find(advmsg->kQueue.c_str());
   if (!node) {
     // create one
@@ -105,7 +105,7 @@ FstNode::Update(XrdAdvisoryMqMessage* advmsg)
     node->SetLastHeartBeat(advmsg->kMessageHeader.kSenderTime_sec);
     node->SetNodeStatus(advmsg->kOnline);
   }
-  gMutex.UnLock();
+  gMutex.UnLock();*/
   return true;
 }
 

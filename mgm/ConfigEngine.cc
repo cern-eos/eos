@@ -155,6 +155,8 @@ ConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err)
 
     if (!ApplyConfig(err)) {
       cl += " with failure";
+      cl += " : "; 
+      cl += err;
       changeLog.AddEntry(cl.c_str());
       return false;
     } else {
@@ -227,8 +229,12 @@ ConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
 	err = "error: cannot stat the config file with name \""; err += name ; err += "\"";
 	return false;
       }
-      
-      sprintf(backupfile,"%s.backup.%lu%s",halfpath.c_str(),st.st_mtime,EOSMGMCONFIGENGINE_EOS_SUFFIX);
+      if (autosave) {
+	sprintf(backupfile,"%s.autosave.%lu%s",halfpath.c_str(),st.st_mtime,EOSMGMCONFIGENGINE_EOS_SUFFIX);
+      } else {
+	sprintf(backupfile,"%s.backup.%lu%s",halfpath.c_str(),st.st_mtime,EOSMGMCONFIGENGINE_EOS_SUFFIX);
+      }
+
       if (rename(fullpath.c_str(),backupfile)) {
 	err = "error: unable to move existing config file to backup version!";
 	return false;
@@ -373,7 +379,7 @@ ConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
       while(removelinefeed.replace('\n',"")) {}
       // remove  suffix
       removelinefeed.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX,"");
-      if ( (!showbackup) &&  (removelinefeed.find(".backup.") != STR_NPOS)) {
+      if ( (!showbackup) &&  ( (removelinefeed.find(".backup.") != STR_NPOS) || (removelinefeed.find(".autosave.") != STR_NPOS))) {
 	// don't show this ones
       } else {
 	configlist += removelinefeed;
@@ -530,6 +536,8 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
   XrdOucString toenv = def->c_str();
   while(toenv.replace(" ", "&")) {}
   XrdOucEnv envdev(toenv.c_str());
+  
+  std::string sdef = def->c_str();
 
   eos_static_debug("key=%s def=%s", key, def->c_str());
   XrdOucString skey = key;
@@ -537,8 +545,16 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
   if (skey.beginswith("fs:")) {
     // set a filesystem definition
     skey.erase(0,3);
-    if (!FstNode::Update(envdev)) {
-      *err += "error: unable to update config "; *err += key, *err += " => "; *err += def->c_str(); *err +="\n";
+    if (!FsView::gFsView.ApplyFsConfig(skey.c_str(),sdef)) {
+      *err += "error: unable to apply config "; *err += key, *err += " => "; *err += def->c_str(); *err +="\n";
+      return 0;
+    }
+  }
+  
+  if (skey.beginswith("global:")) {
+    skey.erase(0,7);
+    if (!FsView::gFsView.ApplyGlobalConfig(skey.c_str(),sdef)) {
+      *err += "error: unable to apply config "; *err += key, *err += " => "; *err += def->c_str(); *err +="\n";
       return 0;
     }
   }

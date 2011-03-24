@@ -30,7 +30,7 @@ public:
   //------------------------------------------------------------------------
   // Struct & Type definitions
   //------------------------------------------------------------------------
-  typedef uint16_t fsid_t;
+  typedef uint32_t fsid_t;
 
   typedef struct fs_snapshot {
     fsid_t mId;

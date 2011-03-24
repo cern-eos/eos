@@ -142,14 +142,30 @@ public:
     }
   }
 
-  void DeleteConfigValue(const char* prefix, const char* fsname) {
-    Mutex.Lock();  
+  void DeleteConfigValue(const char* prefix, const char* fsname, bool tochangelog = true) {
+    XrdOucString cl = "del config "; cl+= prefix; cl += ":"; cl += fsname; 
 
     XrdOucString configname = prefix; configname+=":"; configname += fsname;
-    configDefinitions.Del(fsname);  XrdOucString currentConfig;
 
-    eos_static_debug("%s", fsname);
+    Mutex.Lock();  
+    configDefinitions.Del(configname.c_str()); 
     Mutex.UnLock();
+
+    if (tochangelog)
+      changeLog.AddEntry(cl.c_str());
+
+    if (autosave && currentConfigFile.length()) {
+      XrdOucString envstring = "mgm.config.file=";envstring += currentConfigFile;
+      envstring += "&mgm.config.force=1";
+      envstring += "&mgm.config.autosave=1";
+      XrdOucEnv env(envstring.c_str());
+      XrdOucString err="";
+      if (!SaveConfig(env, err)) {
+	eos_static_err("%s\n", err.c_str());
+      }
+    }
+    eos_static_debug("%s", fsname);
+
   }
   
   void DeleteConfigValueByMatch(const char* prefix, const char* match) {

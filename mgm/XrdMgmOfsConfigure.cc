@@ -515,19 +515,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     ConfigAutoLoad = getenv("EOS_AUTOLOAD_CONFIG");
   }
 
-  if (ConfigAutoLoad.length()) {
-    eos_info("autoload config=%s", ConfigAutoLoad.c_str());
-    XrdOucString configloader = "mgm.config.file="; 
-    configloader += ConfigAutoLoad;
-    XrdOucEnv configenv(configloader.c_str());
-    XrdOucString stdErr="";
-    if (!ConfEngine->LoadConfig(configenv, stdErr)) {
-      eos_crit("Unable to auto-load config %s", ConfigAutoLoad.c_str());
-    } else {
-      eos_info("Successful auto-load config %s", ConfigAutoLoad.c_str());
-    }
-  }
-
   //  eos_emerg("%s",(char*)"test emerg");
   //  eos_alert("%s",(char*)"test alert");
   //  eos_crit("%s", (char*)"test crit");
@@ -651,6 +638,19 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
                               0, "Statistics Thread"))) {
     eos_crit("cannot start statistics thread");
     NoGo = 1;
+  }
+
+  if (ConfigAutoLoad.length()) {
+    eos_info("autoload config=%s", ConfigAutoLoad.c_str());
+    XrdOucString configloader = "mgm.config.file="; 
+    configloader += ConfigAutoLoad;
+    XrdOucEnv configenv(configloader.c_str());
+    XrdOucString stdErr="";
+    if (!ConfEngine->LoadConfig(configenv, stdErr)) {
+      eos_crit("Unable to auto-load config %s", ConfigAutoLoad.c_str());
+    } else {
+      eos_info("Successful auto-load config %s", ConfigAutoLoad.c_str());
+    }
   }
   
   return NoGo;
