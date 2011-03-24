@@ -31,7 +31,7 @@ namespace eos
       //------------------------------------------------------------------------
       typedef struct timespec      ctime_t;
       typedef uint64_t             id_t;
-      typedef uint16_t             location_t;
+      typedef uint32_t             location_t;
       typedef std::vector<location_t> LocationVector;
 
       //------------------------------------------------------------------------
