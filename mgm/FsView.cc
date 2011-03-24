@@ -90,8 +90,6 @@ FsView::Register (eos::common::FileSystem* fs)
   if (!fs)
     return false;
 
-  eos::common::RWMutexWriteLock lock(ViewMutex);
-
   // create a snapshot of the current variables of the fs
   eos::common::FileSystem::fs_snapshot snapshot;
   
@@ -106,7 +104,6 @@ FsView::Register (eos::common::FileSystem* fs)
       // loop over all attached filesystems and compare the queue path
       std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
       for (it=mNodeView[snapshot.mQueue]->begin(); it != mNodeView[snapshot.mQueue]->end(); it++) {
-	fprintf(stderr,"Comparing %s = %s\n", FsView::gFsView.mIdView[*it]->GetQueuePath().c_str(), snapshot.mQueuePath.c_str());
 	if (FsView::gFsView.mIdView[*it]->GetQueuePath() == snapshot.mQueuePath) {
 	  // this queue path was already existing, we cannot register
 	  return false;
@@ -198,7 +195,16 @@ FsView::UnRegister(eos::common::FileSystem* fs)
   if (!fs)
     return false;
   
-  eos::common::RWMutexWriteLock lock(ViewMutex);
+#ifndef EOSMGMFSVIEWTEST
+  // delete in the configuration engine
+  std::string key;
+  std::string val;
+  fs->CreateConfig(key,val);
+  if (FsView::ConfEngine)
+    FsView::ConfEngine->DeleteConfigValue("fs", key.c_str());
+#endif
+
+
 
   // create a snapshot of the current variables of the fs
   eos::common::FileSystem::fs_snapshot snapshot;
@@ -267,6 +273,7 @@ FsView::UnRegister(eos::common::FileSystem* fs)
 
     return true;
   }
+
   return false;
 }
 
@@ -359,6 +366,7 @@ FsView::UnRegisterSpace(const char* spacename)
   bool hasfs= false;
   if (mSpaceView.count(spacename)) {
     while (mSpaceView.count(spacename) && (mSpaceView[spacename]->begin()!= mSpaceView[spacename]->end())) {
+      std::map<eos::common::FileSystem::fsid_t, eos::common::FileSystem*>::iterator it;
       eos::common::FileSystem::fsid_t fsid = *(mSpaceView[spacename]->begin());
       eos::common::FileSystem* fs = mIdView[fsid];
       if (fs) {
@@ -369,6 +377,7 @@ FsView::UnRegisterSpace(const char* spacename)
     }
     if (!hasfs) {
       // we have to explicitly remove the space from the view here because no fs was removed
+      eos::common::RWMutexWriteLock maplock(MapMutex);
       retc = (mSpaceView.erase(spacename)?true:false);
     }
   }
@@ -436,13 +445,13 @@ FsView::Reset()
   // remove all filesystems by erasing all spaces
   std::map<std::string , FsSpace* >::iterator it;
 
+  eos::common::RWMutexWriteLock viewlock(ViewMutex);
+
   while (mSpaceView.size()) {
     UnRegisterSpace(mSpaceView.begin()->first.c_str());
   }
 
-
   eos::common::RWMutexWriteLock maplock(MapMutex);
-  eos::common::RWMutexWriteLock viewlock(ViewMutex);
 
   // remove all mappins
   Fs2UuidMap.clear();
@@ -471,8 +480,30 @@ FsView::SetNextFsId(eos::common::FileSystem::fsid_t fsid)
   if (hash) {
     hash->SetLongLong("nextfsid",(long long)fsid);
   }
+#ifndef EOSMGMFSVIEWTEST
+  // register in the configuration engine
+  std::string key=MgmConfigQueueName.c_str();
+  key += ":nextfsid";
+  char line[1024];
+  snprintf(line,sizeof(line)-1,"%llu", (unsigned long long) fsid);
+  std::string val = line;
+  if (FsView::ConfEngine)
+    FsView::ConfEngine->SetConfigValue("global", key.c_str(), val.c_str());
+#endif
 }
 
+/*----------------------------------------------------------------------------*/
+eos::common::FileSystem* 
+FsView::FindByQueuePath(std::string &queuepath)
+{
+  // needs an external ViewMutex lock !!!!
+  std::map<eos::common::FileSystem::fsid_t, eos::common::FileSystem*>::iterator it;
+  for (it = mIdView.begin(); it != mIdView.end(); it++) {
+    if (it->second->GetQueuePath() == queuepath)
+      return it->second;
+  }
+  return 0;
+}
 
 /*----------------------------------------------------------------------------*/
 std::string 
@@ -603,6 +634,25 @@ FsView::GetMapping(std::string fsuuid)
   }
 }
 
+bool 
+FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid) 
+{
+  eos::common::RWMutexWriteLock lock(MapMutex);
+  bool removed=false;
+  std::string fsuuid;
+  if (Fs2UuidMap.count(fsid)) {
+    fsuuid = Fs2UuidMap[fsid];
+    Fs2UuidMap.erase(fsid);
+    removed = true;
+  }
+  
+  if (Uuid2FsMap.count(fsuuid)) {
+    Uuid2FsMap.erase(fsuuid);
+    removed = true;
+  }
+  return removed;
+}
+
 bool        
 FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid) 
 {
@@ -663,6 +713,87 @@ FsView::PrintNodes(std::string &out, std::string headerformat, std::string listf
     }
   }
 }
+
+#ifndef EOSMGMFSVIEWTEST
+/*----------------------------------------------------------------------------*/
+bool 
+FsView::ApplyFsConfig(const char* inkey, std::string &val)
+{
+  if (!inkey) 
+    return false;
+
+  // convert to map
+  std::string key = inkey;
+  std::map<std::string,std::string> configmap;
+  std::vector<std::string> tokens;
+  eos::common::StringConversion::Tokenize(val, tokens);
+  for (size_t i=0; i< tokens.size(); i++) {
+    std::vector<std::string> keyval;
+    std::string delimiter="=";
+    eos::common::StringConversion::Tokenize(tokens[i], keyval,delimiter);
+    configmap[keyval[0]] = keyval[1];
+  }
+  
+  if ( (!configmap.count("queuepath")) || (!configmap.count("queue")) || (!configmap.count("id"))) {
+    eos_static_err("config definitions missing ...");
+    return false;
+  }
+
+  eos::common::RWMutexWriteLock viewlock(ViewMutex);
+  eos::common::FileSystem::fsid_t fsid = atoi(configmap["id"].c_str());
+  eos::common::FileSystem* fs = new eos::common::FileSystem(configmap["queuepath"].c_str(), configmap["queue"].c_str(), eos::common::GlobalConfig::gConfig.SOM());
+       
+  if (fs) {
+    fs->SetId(fsid);
+    fs->SetString("uuid",configmap["uuid"].c_str());
+    std::map<std::string,std::string>::iterator it;
+    for (it = configmap.begin(); it!= configmap.end(); it++) {
+      // set config parameters
+      fs->SetString(it->first.c_str(), it->second.c_str());
+    }
+    if (!FsView::gFsView.Register(fs)) {
+      eos_static_err("cannot register filesystem name=%s from configuration", configmap["queuepath"].c_str());
+      return false;
+    }
+    // insert into the mapping
+    FsView::gFsView.ProvideMapping(configmap["uuid"], fsid);
+    
+
+    return true;
+  }
+  return false;
+}
+
+
+/*----------------------------------------------------------------------------*/
+bool 
+FsView::ApplyGlobalConfig(const char* key, std::string &val)
+{
+  // global variables are stored like key='<queuename>:<variable>' val='<val>'
+  std::string configqueue = key; 
+  std::vector<std::string> tokens;
+  std::string delimiter=":";
+  eos::common::StringConversion::Tokenize(configqueue, tokens, delimiter); 
+  bool success = false;
+
+  if (tokens.size() != 2) {
+    eos_static_err("the key definition of config <%s> is invalid", key);
+    return false;
+  }
+  
+  eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(tokens[0].c_str());
+  
+  if (hash) {
+    success = hash->Set(tokens[1].c_str(), val.c_str());
+  } else {
+    eos_static_err("there is no global config for queue <%s>", tokens[0].c_str());
+  }
+  eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
+  
+  return success;
+}
+#endif
 
 /*----------------------------------------------------------------------------*/
 long long
