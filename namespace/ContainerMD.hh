@@ -17,14 +17,6 @@
 
 #include "namespace/persistency/Buffer.hh"
 
-/*#ifdef __APPLE__
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
-};
-#endif
-*/
-
 namespace eos
 {
   class FileMD;

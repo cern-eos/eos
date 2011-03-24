@@ -16,14 +16,6 @@
 
 #include <sys/time.h>
 
-/*#ifdef __APPLE__
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
-};
-#endif
-*/
-
 namespace eos
 {
   class IFileMDSvc;
