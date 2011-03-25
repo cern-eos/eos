@@ -158,15 +158,16 @@ namespace eos
     char locs[16];
 
     for( it = pLocation.begin(); it != pLocation.end(); ++it )
-      {
-	snprintf(locs,sizeof(locs),"%u",*it);
-	env += locs;
-	env += ",";
-      }
+    {
+      snprintf(locs,sizeof(locs),"%u",*it);
+      env += locs;
+      env += ",";
+    }
     
     env += "&checksum=";
     uint8_t size = pChecksum.getSize();
-    for ( uint8_t i=0; i < size; i++ ) {
+    for ( uint8_t i=0; i < size; i++ )
+    {
       char hx[3];
       sprintf(hx,"%02x",*((unsigned char*)(pChecksum.getDataPtr()+i)));
       env += hx;
