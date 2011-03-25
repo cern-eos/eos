@@ -63,7 +63,7 @@ namespace eos
       void getCTime( ctime_t &ctime ) const
       {
         ctime.tv_sec = pCTime.tv_sec;
-	ctime.tv_nsec = pCTime.tv_nsec;
+        ctime.tv_nsec = pCTime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -72,7 +72,7 @@ namespace eos
       void setCTime( ctime_t ctime )
       {
         pCTime.tv_sec = ctime.tv_sec;
-	pCTime.tv_nsec = ctime.tv_nsec;
+        pCTime.tv_nsec = ctime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -86,7 +86,7 @@ namespace eos
         pCTime.tv_sec = tv.tv_sec;
         pCTime.tv_nsec = tv.tv_usec * 1000;
 #else
-	clock_gettime(CLOCK_REALTIME, &pCTime);
+        clock_gettime(CLOCK_REALTIME, &pCTime);
 #endif
       }
 
@@ -97,7 +97,7 @@ namespace eos
       void getMTime( ctime_t &mtime ) const
       {
         mtime.tv_sec = pCTime.tv_sec;
-	mtime.tv_nsec = pCTime.tv_nsec;
+        mtime.tv_nsec = pCTime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -106,7 +106,7 @@ namespace eos
       void setMTime( ctime_t mtime )
       {
         pMTime.tv_sec = mtime.tv_sec;
-	pMTime.tv_nsec = mtime.tv_nsec;
+        pMTime.tv_nsec = mtime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -120,7 +120,7 @@ namespace eos
         pMTime.tv_sec = tv.tv_sec;
         pMTime.tv_nsec = tv.tv_usec * 1000;
 #else
-	clock_gettime(CLOCK_REALTIME, &pMTime);
+        clock_gettime(CLOCK_REALTIME, &pMTime);
 #endif
       }
 
@@ -215,7 +215,7 @@ namespace eos
       //------------------------------------------------------------------------
       LocationVector::const_iterator locationsBegin() const
       {
-	return pLocation.begin();
+        return pLocation.begin();
       }
 
       //------------------------------------------------------------------------
@@ -223,7 +223,7 @@ namespace eos
       //------------------------------------------------------------------------
       LocationVector::const_iterator locationsEnd() const
       {
-	return pLocation.end();
+        return pLocation.end();
       }
 
       //------------------------------------------------------------------------
@@ -231,7 +231,7 @@ namespace eos
       //------------------------------------------------------------------------ 
       LocationVector::const_iterator unlinkedLocationsBegin() const 
       { 
-	return pUnlinkedLocation.begin(); 
+        return pUnlinkedLocation.begin();
       } 
     
       //------------------------------------------------------------------------ 
@@ -239,7 +239,7 @@ namespace eos
       //------------------------------------------------------------------------ 
       LocationVector::const_iterator unlinkedLocationsEnd() const 
       { 
-	return pUnlinkedLocation.end(); 
+        return pUnlinkedLocation.end();
       }
 
       //------------------------------------------------------------------------
@@ -252,9 +252,9 @@ namespace eos
       //------------------------------------------------------------------------
       location_t getLocation( unsigned int index )
       {
-	if (index < pLocation.size())
-	  return pLocation[index];
-	return 0; 
+        if (index < pLocation.size())
+          return pLocation[index];
+        return 0;
       }
 
       //------------------------------------------------------------------------
