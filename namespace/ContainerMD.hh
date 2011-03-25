@@ -77,12 +77,28 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
+      //! Get the flags
+      //------------------------------------------------------------------------
+      uint16_t &getFlags()
+      {
+        return pFlags;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the flags
+      //------------------------------------------------------------------------
+      uint16_t getFlags() const
+      {
+        return pFlags;
+      }
+
+      //------------------------------------------------------------------------
       //! Set creation time
       //------------------------------------------------------------------------
       void setCTime( ctime_t ctime)
       {
         pCTime.tv_sec = ctime.tv_sec;
-	pCTime.tv_nsec = ctime.tv_nsec;
+        pCTime.tv_nsec = ctime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -91,12 +107,12 @@ namespace eos
       void setCTimeNow()
       {
 #ifdef __APPLE__
-	struct timeval tv;
-	gettimeofday(&tv, 0);
-	pCTime.tv_sec = tv.tv_sec;
-	pCTime.tv_nsec = tv.tv_usec * 1000;
+        struct timeval tv;
+        gettimeofday(&tv, 0);
+        pCTime.tv_sec = tv.tv_sec;
+        pCTime.tv_nsec = tv.tv_usec * 1000;
 #else
-	clock_gettime(CLOCK_REALTIME, &pCTime);
+        clock_gettime(CLOCK_REALTIME, &pCTime);
 #endif
       }
 
@@ -106,7 +122,7 @@ namespace eos
       void getCTime( ctime_t &ctime) const
       {
         ctime.tv_sec = pCTime.tv_sec;
-	ctime.tv_nsec = pCTime.tv_nsec;
+        ctime.tv_nsec = pCTime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -379,6 +395,7 @@ namespace eos
       //-----------------------------------------------------------------------0
       id_t         pId;
       id_t         pParentId;
+      uint16_t     pFlags;
       ctime_t      pCTime;
       std::string  pName;
       uid_t        pCUid;
