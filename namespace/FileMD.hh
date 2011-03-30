@@ -29,9 +29,10 @@ namespace eos
       //------------------------------------------------------------------------
       // Type definitions
       //------------------------------------------------------------------------
-      typedef struct timespec      ctime_t;
-      typedef uint64_t             id_t;
-      typedef uint32_t             location_t;
+      typedef struct timespec         ctime_t;
+      typedef uint64_t                id_t;
+      typedef uint32_t                location_t;
+      typedef uint32_t                layoutId_t;
       typedef std::vector<location_t> LocationVector;
 
       //------------------------------------------------------------------------
@@ -355,17 +356,17 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
-      //! Get name
+      //! Get layout
       //------------------------------------------------------------------------
-      uint32_t getLayoutId() const
+      layoutId_t getLayoutId() const
       {
         return pLayoutId;
       }
 
       //------------------------------------------------------------------------
-      //! Set name
+      //! Set layout
       //------------------------------------------------------------------------
-      void setLayoutId( uint32_t layoutId )
+      void setLayoutId( layoutId_t layoutId )
       {
         pLayoutId = layoutId;
       }

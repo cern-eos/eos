@@ -7,6 +7,7 @@
 #include "namespace/utils/PathProcessor.hh"
 #include "namespace/IContainerMDSvc.hh"
 #include "namespace/IFileMDSvc.hh"
+#include "namespace/Constants.hh"
 #include <errno.h>
 
 #include <ctime>
@@ -494,4 +495,80 @@ namespace eos
     return path+file->getName();
   }
 
+  //----------------------------------------------------------------------------
+  // Get quota node id concerning given container
+  //----------------------------------------------------------------------------
+  QuotaNode *HierarchicalView::getQuotaNode( const ContainerMD *container )
+    throw( MDException )
+  {
+    //--------------------------------------------------------------------------
+    // Initial sanity check
+    //--------------------------------------------------------------------------
+    if( !container )
+    {
+      MDException ex;
+      ex.getMessage() << "Invalid container (zero pointer)";
+      throw ex;
+    }
+
+    if( !pQuotaStats )
+    {
+      MDException ex;
+      ex.getMessage() << "No QuotaStats placeholder registered";
+      throw ex;
+    }
+
+    //--------------------------------------------------------------------------
+    // Search for the node
+    //--------------------------------------------------------------------------
+    const ContainerMD *current = container;
+    while( current != pRoot && (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
+      current = pContainerSvc->getContainerMD( current->getParentId() );
+
+    //--------------------------------------------------------------------------
+    // We have either found a quota node or reached root without finding one
+    // so we need to double check whether the current container has an
+    // associated quota node
+    //--------------------------------------------------------------------------
+    if( (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
+      return 0;
+
+    return pQuotaStats->getQuotaNode( current->getId() );
+  }
+
+  //----------------------------------------------------------------------------
+  // Register the container to be a quota node
+  //----------------------------------------------------------------------------
+  QuotaNode *HierarchicalView::registerQuotaNode( ContainerMD *container )
+    throw( MDException )
+  {
+    //--------------------------------------------------------------------------
+    // Initial sanity check
+    //--------------------------------------------------------------------------
+    if( !container )
+    {
+      MDException ex;
+      ex.getMessage() << "Invalid container (zero pointer)";
+      throw ex;
+    }
+
+    if( !pQuotaStats )
+    {
+      MDException ex;
+      ex.getMessage() << "No QuotaStats placeholder registered";
+      throw ex;
+    }
+
+    if( container->getFlags() & QUOTA_NODE_FLAG )
+    {
+      MDException ex;
+      ex.getMessage() << "Already a quota node: " << container->getId();
+      throw ex;
+    }
+
+    QuotaNode *node = pQuotaStats->registerNewNode( container->getId() );
+    container->getFlags() |= QUOTA_NODE_FLAG;
+
+    return node;
+  }
 };

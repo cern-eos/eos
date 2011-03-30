@@ -15,6 +15,9 @@
 
 namespace eos
 {
+  class QuotaNode;
+  class QuotaStats;
+
   //----------------------------------------------------------------------------
   //! Interface for the component responsible for the namespace.
   //! A concrete implementation could handle a hierarchical namespace,
@@ -130,6 +133,28 @@ namespace eos
       virtual std::string getUri( const FileMD *file ) const
         throw( MDException ) = 0;
 
+      //------------------------------------------------------------------------
+      //! Get quota node id concerning given container
+      //------------------------------------------------------------------------
+      virtual QuotaNode *getQuotaNode( const ContainerMD *container )
+        throw( MDException ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Register the container to be a quota node
+      //------------------------------------------------------------------------
+      virtual QuotaNode *registerQuotaNode( ContainerMD *container )
+        throw( MDException ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Get the quota stats placeholder
+      //------------------------------------------------------------------------
+      virtual QuotaStats *getQuotaStats() = 0;
+
+      //------------------------------------------------------------------------
+      //! Set the quota stats placeholder, currently associated object (if any)
+      //! won't beX deleted.
+      //------------------------------------------------------------------------
+      virtual void setQuotaStats( QuotaStats *quotaStats ) = 0;
   };
 };
 

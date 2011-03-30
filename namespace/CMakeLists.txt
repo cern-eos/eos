@@ -12,6 +12,8 @@ add_library (eosNamespace SHARED
 	    IFileMDSvc.hh
 	    IView.hh
 	    MDException.hh
+            Constants.hh
+            Constants.cc
 	    persistency/Buffer.hh
 	    persistency/ChangeLogConstants.hh
 	    persistency/ChangeLogContainerMDSvc.hh
@@ -36,6 +38,8 @@ add_library (eosNamespace SHARED
 	    utils/DataHelper.cc
 	    utils/Descriptor.cc
 	    views/HierarchicalView.cc
+	    accounting/QuotaStats.hh
+	    accounting/QuotaStats.cc
 	    )
 
 add_library (eosNamespace-Static STATIC
@@ -46,6 +50,8 @@ add_library (eosNamespace-Static STATIC
 	    IFileMDSvc.hh
 	    IView.hh
 	    MDException.hh
+            Constants.hh
+            Constants.cc
 	    persistency/Buffer.hh
 	    persistency/ChangeLogConstants.hh
 	    persistency/ChangeLogContainerMDSvc.hh
@@ -72,6 +78,8 @@ add_library (eosNamespace-Static STATIC
 	    utils/DataHelper.cc
 	    utils/Descriptor.cc
 	    views/HierarchicalView.cc
+	    accounting/QuotaStats.hh
+	    accounting/QuotaStats.cc
 )
 
 target_link_libraries( eosNamespace pthread z rt )

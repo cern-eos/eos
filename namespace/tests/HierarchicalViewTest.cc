@@ -9,8 +9,10 @@
 
 #include <stdint.h>
 #include <unistd.h>
+#include <sstream>
 
 #include "namespace/views/HierarchicalView.hh"
+#include "namespace/accounting/QuotaStats.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
 
@@ -22,9 +24,11 @@ class HierarchicalViewTest: public CppUnit::TestCase
   public:
     CPPUNIT_TEST_SUITE( HierarchicalViewTest );
       CPPUNIT_TEST( reloadTest );
+      CPPUNIT_TEST( quotaTest );
     CPPUNIT_TEST_SUITE_END();
 
     void reloadTest();
+    void quotaTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( HierarchicalViewTest );
@@ -154,4 +158,151 @@ void HierarchicalViewTest::reloadTest()
   {
     CPPUNIT_ASSERT_MESSAGE( e.getMessage().str(), false );
   }
+}
+
+//------------------------------------------------------------------------------
+// File size mapping function
+//------------------------------------------------------------------------------
+static uint64_t mapSize( const eos::FileMD *file )
+{
+  eos::FileMD::layoutId_t lid = file->getLayoutId();
+  if( lid > 3 )
+  {
+    eos::MDException e( ENOENT );
+    e.getMessage() << "Location does not exist" << std::endl;
+    throw( e );
+  }
+  return lid*file->getSize();
+}
+
+//------------------------------------------------------------------------------
+// Create files at given path
+//------------------------------------------------------------------------------
+static void createFiles( const std::string         &path,
+                         eos::IView                *view,
+                         std::map<uid_t, uint64_t> &users,
+                         std::map<gid_t, uint64_t> &groups )
+{
+  eos::QuotaNode *node = view->getQuotaNode( view->getContainer( path ) );
+  for( int i = 0; i < 1000; ++i )
+  {
+    std::ostringstream p;
+    p << path << "file" << i;
+    eos::FileMD *file = view->createFile( p.str() );
+    file->setCUid( random()%10+1 );
+    file->setCGid( random()%3+1 );
+    file->setSize( random()%1000000+1 );
+    file->setLayoutId( random()%3+1 );
+    view->updateFileStore( file );
+    node->addFile( file );
+    users[file->getCUid()]  += mapSize( file );
+    groups[file->getCGid()] += mapSize( file );
+  }
+}
+
+//------------------------------------------------------------------------------
+// Quota test
+//------------------------------------------------------------------------------
+void HierarchicalViewTest::quotaTest()
+{
+  srandom( time( 0 ) );
+
+  //----------------------------------------------------------------------------
+  // Initialize the system
+  //----------------------------------------------------------------------------
+  eos::IContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
+  eos::IFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
+  eos::IView           *view    = new eos::HierarchicalView;
+
+  std::map<std::string, std::string> fileSettings;
+  std::map<std::string, std::string> contSettings;
+  std::map<std::string, std::string> settings;
+  std::string fileNameFileMD = tempnam( "/tmp", "eosns" );
+  std::string fileNameContMD = tempnam( "/tmp", "eosns" );
+  contSettings["changelog_path"] = fileNameContMD;
+  fileSettings["changelog_path"] = fileNameFileMD;
+
+  fileSvc->configure( contSettings );
+  contSvc->configure( fileSettings );
+
+  view->setContainerMDSvc( contSvc );
+  view->setFileMDSvc( fileSvc );
+
+  view->configure( settings );
+
+  view->getQuotaStats()->registerSizeMapper( mapSize );
+
+  CPPUNIT_ASSERT_NO_THROW( view->initialize() );
+
+  //----------------------------------------------------------------------------
+  // Create some structures, insert quota nodes and test their correctness
+  //----------------------------------------------------------------------------
+  eos::ContainerMD *cont1 = view->createContainer( "/test/embed/embed1", true );
+  eos::ContainerMD *cont2 = view->createContainer( "/test/embed/embed2", true );
+  eos::ContainerMD *cont3 = view->createContainer( "/test/embed/embed3", true );
+  eos::ContainerMD *cont4 = view->getContainer( "/test/embed" );
+  eos::ContainerMD *cont5 = view->getContainer( "/test" );
+
+  eos::QuotaNode *qnCreated1 = view->registerQuotaNode( cont1 );
+  eos::QuotaNode *qnCreated2 = view->registerQuotaNode( cont3 );
+  eos::QuotaNode *qnCreated3 = view->registerQuotaNode( cont5 );
+
+  CPPUNIT_ASSERT_THROW( view->registerQuotaNode( cont1 ), eos::MDException );
+
+  CPPUNIT_ASSERT( qnCreated1 );
+  CPPUNIT_ASSERT( qnCreated2 );
+  CPPUNIT_ASSERT( qnCreated3 );
+
+  eos::QuotaNode *qn1 = view->getQuotaNode( cont1 );
+  eos::QuotaNode *qn2 = view->getQuotaNode( cont2 );
+  eos::QuotaNode *qn3 = view->getQuotaNode( cont3 );
+  eos::QuotaNode *qn4 = view->getQuotaNode( cont4 );
+  eos::QuotaNode *qn5 = view->getQuotaNode( cont5 );
+
+  CPPUNIT_ASSERT( qn1 );
+  CPPUNIT_ASSERT( qn2 );
+  CPPUNIT_ASSERT( qn3 );
+  CPPUNIT_ASSERT( qn4 );
+  CPPUNIT_ASSERT( qn5 );
+
+  CPPUNIT_ASSERT( qn2 == qn5 );
+  CPPUNIT_ASSERT( qn4 == qn5 );
+  CPPUNIT_ASSERT( qn1 != qn5 );
+  CPPUNIT_ASSERT( qn3 != qn5 );
+  CPPUNIT_ASSERT( qn3 != qn2 );
+
+  //----------------------------------------------------------------------------
+  // Create some files
+  //----------------------------------------------------------------------------
+  std::map<uid_t, uint64_t> users1;
+  std::map<gid_t, uint64_t> groups1;
+  std::string path1 = "/test/embed/embed1/";
+  createFiles( path1, view, users1, groups1 );
+
+  std::map<uid_t, uint64_t> users2;
+  std::map<gid_t, uint64_t> groups2;
+  std::string path2 = "/test/embed/embed2/";
+  createFiles( path2, view, users2, groups2 );
+
+  //----------------------------------------------------------------------------
+  // Verify correctness
+  //----------------------------------------------------------------------------
+  eos::QuotaNode *node1 = view->getQuotaNode( view->getContainer( path1 ) );
+  eos::QuotaNode *node2 = view->getQuotaNode( view->getContainer( path2 ) );
+
+  for( int i = 1; i<= 10; ++i )
+  {
+    CPPUNIT_ASSERT( node1->getOccupancyByUser( i ) == users1[i] );
+    CPPUNIT_ASSERT( node2->getOccupancyByUser( i ) == users2[i] );
+  }
+
+  for( int i = 1; i<= 3; ++i )
+  {
+    CPPUNIT_ASSERT( node1->getOccupancyByGroup( i ) == groups1[i] );
+    CPPUNIT_ASSERT( node2->getOccupancyByGroup( i ) == groups2[i] );
+  }
+
+  CPPUNIT_ASSERT_NO_THROW( view->finalize() );
+  unlink( fileNameFileMD.c_str() );
+  unlink( fileNameContMD.c_str() );
 }

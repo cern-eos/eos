@@ -7,6 +7,7 @@
 #define EOS_NS_HIERARHICAL_VIEW_HH
 
 #include "namespace/IView.hh"
+#include "namespace/accounting/QuotaStats.hh"
 #include "namespace/IContainerMDSvc.hh"
 #include "namespace/IFileMDSvc.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
@@ -24,6 +25,15 @@ namespace eos
       //------------------------------------------------------------------------
       HierarchicalView(): pContainerSvc( 0 ), pFileSvc( 0 ), pRoot( 0 )
       {
+        pQuotaStats = new QuotaStats;
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~HierarchicalView()
+      {
+        delete pQuotaStats;
       }
 
       //------------------------------------------------------------------------
@@ -146,6 +156,35 @@ namespace eos
       virtual std::string getUri( const FileMD *file ) const
         throw( MDException );
 
+      //------------------------------------------------------------------------
+      //! Get quota node id concerning given container
+      //------------------------------------------------------------------------
+      virtual QuotaNode *getQuotaNode( const ContainerMD *container )
+        throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Register the container to be a quota node
+      //------------------------------------------------------------------------
+      virtual QuotaNode *registerQuotaNode( ContainerMD *container )
+        throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Get the quota stats placeholder
+      //------------------------------------------------------------------------
+      virtual QuotaStats *getQuotaStats()
+      {
+        return pQuotaStats;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set the quota stats placeholder, currently associated object (if any)
+      //! won't beX deleted.
+      //------------------------------------------------------------------------
+      virtual void setQuotaStats( QuotaStats *quotaStats )
+      {
+        pQuotaStats = quotaStats;
+      }
+
     private:
       ContainerMD *findLastContainer( std::vector<char*> &elements, size_t end,
                                       size_t &index );
@@ -168,6 +207,7 @@ namespace eos
       //------------------------------------------------------------------------
       IContainerMDSvc *pContainerSvc;
       IFileMDSvc      *pFileSvc;
+      QuotaStats      *pQuotaStats;
       ContainerMD     *pRoot;
   };
 };
