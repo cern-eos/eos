@@ -129,13 +129,20 @@ public:
     configname += fsname;
     configDefinitions.Rep(configname.c_str(),sdef);
     eos_static_debug("%s => %s", fsname, def);
-
     if (autosave && currentConfigFile.length()) {
+      int aspos=0;
+      if ( (aspos = currentConfigFile.find(".autosave")) != STR_NPOS) {
+	currentConfigFile.erase(aspos);
+      }
+      if ( (aspos = currentConfigFile.find(".backup")) != STR_NPOS) {
+	currentConfigFile.erase(aspos);
+      }
       XrdOucString envstring = "mgm.config.file=";envstring += currentConfigFile;
       envstring += "&mgm.config.force=1";
       envstring += "&mgm.config.autosave=1";
       XrdOucEnv env(envstring.c_str());
       XrdOucString err="";
+
       if (!SaveConfig(env, err)) {
 	eos_static_err("%s\n", err.c_str());
       }
@@ -155,6 +162,13 @@ public:
       changeLog.AddEntry(cl.c_str());
 
     if (autosave && currentConfigFile.length()) {
+      int aspos=0;
+      if ( (aspos = currentConfigFile.find(".autosave")) != STR_NPOS) {
+	currentConfigFile.erase(aspos);
+      }
+      if ( (aspos = currentConfigFile.find(".backup")) != STR_NPOS) {
+	currentConfigFile.erase(aspos);
+      }
       XrdOucString envstring = "mgm.config.file=";envstring += currentConfigFile;
       envstring += "&mgm.config.force=1";
       envstring += "&mgm.config.autosave=1";

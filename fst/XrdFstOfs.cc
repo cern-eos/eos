@@ -1,10 +1,10 @@
 /*----------------------------------------------------------------------------*/
+#include "fst/XrdFstOfs.hh"
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
 #include "common/Statfs.hh"
-#include "fst/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <errno.h>
 
 /*----------------------------------------------------------------------------*/
 // the global OFS handle
@@ -294,20 +295,15 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   // setup notification subjects
   ObjectManager.SubjectsMutex.Lock();
   std::string watch_id = "id";
+  std::string watch_bootsenttime = "bootsenttime";
   ObjectManager.ModificationWatchKeys.insert(watch_id);
+  ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
   ObjectManager.SubjectsMutex.UnLock();
 
   // start dumper thread
   XrdOucString dumperfile = eos::fst::Config::gConfig.FstMetaLogDir;
   dumperfile += "so.fst.dump";
   ObjectManager.StartDumper(dumperfile.c_str());
-
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // Send Autoboot Request if configured
-
-  if (eos::fst::Config::gConfig.autoBoot) {
-    XrdFstOfs::AutoBoot();
-  }
 
   return 0;
 }
@@ -541,21 +537,19 @@ XrdFstOfsFile::open(const char                *path,
   } else {
     // if we have local errors in open we might disable ourselfs
     if ( error.getErrInfo() != EREMOTEIO ) {
-      gOFS.Storage->fsMutex.Lock();
+      eos::common::RWMutexReadLock(gOFS.Storage->fsMutex);
       std::vector <eos::fst::FileSystem*>::const_iterator it;
       for (unsigned int i=0; i< gOFS.Storage->fileSystemsVector.size(); i++) {
 	// check if the local prefix matches a filesystem path ...
-	if ( (errno != ENOENT) && (fstPath.beginswith(gOFS.Storage->fileSystemsVector[i]->GetPath()))) {
+	if ( (errno != ENOENT) && (fstPath.beginswith(gOFS.Storage->fileSystemsVector[i]->GetPath().c_str()))) {
 	  // broadcast error for this FS
-	  eos_crit("disabling filesystem %u after IO error on path %s", gOFS.Storage->fileSystemsVector[i]->GetId(), gOFS.Storage->fileSystemsVector[i]->GetPath());
-	  XrdOucString s="local IO error";
+	  eos_crit("disabling filesystem %u after IO error on path %s", gOFS.Storage->fileSystemsVector[i]->GetId(), gOFS.Storage->fileSystemsVector[i]->GetPath().c_str());
+ 	  XrdOucString s="local IO error";
 	  gOFS.Storage->fileSystemsVector[i]->BroadcastError(EIO, s.c_str());
 	  //	  gOFS.Storage->fileSystemsVector[i]->BroadcastError(error.getErrInfo(), "local IO error");
 	  break;
 	}
       }
-      
-      gOFS.Storage->fsMutex.UnLock();
     }
 
     // in any case we just redirect back to the manager if we are the 1st entry point of the client
@@ -1006,53 +1000,6 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
 
 /*----------------------------------------------------------------------------*/
 void
-XrdFstOfs::Boot(XrdOucEnv &env) 
-{
-  /* disabled */
-
-  /*
-
-  bool booted=false;
-
-  XrdMqMessage message("fst");
-  XrdOucString msgbody="";
-  // send booting message
-  XrdOucString response ="";
-      
-  eos::common::FileSystem::GetBootReplyString(msgbody, env, eos::common::FileSystem::kBooting);
-  message.SetBody(msgbody.c_str());
-  
-  if (!XrdMqMessaging::gMessageClient.SendMessage(message)) {
-    // display communication error
-    eos_err("cannot send booting message");
-  } else {
-    // do boot procedure here
-    booted = BootFs(env, response);
-  }
-
-  // send boot end message
-  if (booted) {
-    eos::common::FileSystem::GetBootReplyString(msgbody, env, eos::common::FileSystem::kBooted);
-    if (response.length()) msgbody+=response;
-    eos_info("boot procedure successful!");
-  } else {
-    eos::common::FileSystem::GetBootReplyString(msgbody, env, eos::common::FileSystem::kBootFailure);
-    if (response.length()) msgbody+=response;
-    eos_err("boot procedure failed!");
-  }
-
-  message.NewId();
-  message.SetBody(msgbody.c_str());
-
-  if (!XrdMqMessaging::gMessageClient.SendMessage(message)) {
-    // display communication error
-    eos_err("cannot send booted message");
-  }
-  */
-}
-
-/*----------------------------------------------------------------------------*/
-void
 XrdFstOfs::SetDebug(XrdOucEnv &env) 
 {
    XrdOucString debugnode =  env.Get("mgm.nodename");
@@ -1079,56 +1026,6 @@ XrdFstOfs::SetDebug(XrdOucEnv &env)
    fprintf(stderr,"Setting debug to %s\n", debuglevel.c_str());
 }
 
-/*----------------------------------------------------------------------------*/
-void
-XrdFstOfs::AutoBoot() 
-{
-  bool sent=false;
-  do {
-    XrdOucString msgbody=eos::common::FileSystem::GetAutoBootRequestString();
-    XrdMqMessage message("bootme");
-    message.SetBody(msgbody.c_str());
-    if (!(sent = XrdMqMessaging::gMessageClient.SendMessage(message))) {
-      // display communication error
-      eos_warning("failed to send auto boot request message - probably no master online ... retry in 5s ...");
-      sleep(5);
-    } 
-  } while(!sent);
-  eos_info("sent autoboot request to %s",  eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
-}
-
-/*----------------------------------------------------------------------------*/
-bool
-XrdFstOfs::BootFs(XrdOucEnv &env, XrdOucString &response) 
-{
-  eos_info("booting filesystem %s id %s",env.Get("mgm.fspath"), env.Get("mgm.fsid"));
-
-  // try to statfs the filesystem
-  eos::common::Statfs* statfs = eos::common::Statfs::DoStatfs(env.Get("mgm.fspath"));
-  if (!statfs) {
-    response += "errmsg=cannot statfs "; response += env.Get("mgm.fspath"); response += " ["; response += strerror(errno); response += "]";response += "&errc="; response += errno; 
-    return false;
-  }
-
-  // try to own that directory
-  XrdOucString chownline="chown daemon.daemon ";chownline += env.Get("mgm.fspath");
-  system(chownline.c_str());
-
-  // test if we have rw access
-  struct stat buf;
-  if ( ::stat(env.Get("mgm.fspath"), &buf) || (buf.st_uid != geteuid()) || ( (buf.st_mode & S_IRWXU ) != S_IRWXU) ) {
-    response += "errmsg=cannot access "; response += env.Get("mgm.fspath"); response += " [no rwx permissions]"; response += "&errc="; response += errno;
-    return false;
-  }
-  response = statfs->GetEnv();
-
-  if (!Storage->SetFileSystem(env)) {
-    response = "";
-    response += "errmsg=cannot configure filesystem [check fst logfile!]"; response += "&errc="; response += EIO;
-    return false;
-  }
-  return true;
-}
 
 /*----------------------------------------------------------------------------*/
 void

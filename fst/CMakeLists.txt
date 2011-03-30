@@ -25,6 +25,9 @@ if (Linux)
   )
 endif(Linux)
 
+#INSTALL_PROGRAMS( sbin tools/eosfstregister tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync)
+INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync)
+
 install ( TARGETS XrdEosFst
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
           RUNTIME DESTINATION bin

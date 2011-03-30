@@ -58,6 +58,11 @@ ProcInterface::Authorize(const char* path, const char* info, eos::common::Mappin
 
   // administrator access
   if (inpath.beginswith("/proc/admin/")) {
+    // hosts with 'sss' authentication can run 'admin' commands
+    std::string protocol = entity?entity->prot:"";
+    if (protocol == "sss")
+      return true;
+
     // one has to be part of the virtual users 3(adm)/4(adm)
     return ( (eos::common::Mapping::HasUid(3, vid.uid_list)) || (eos::common::Mapping::HasGid(4, vid.gid_list)) );
   }
@@ -290,32 +295,37 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
       
       if (subcmd == "rm") {
-	std::string nodename = (opaque.Get("mgm.node"))?opaque.Get("mgm.node"):"";
-	if ( (!nodename.length() ) ) {
-	  stdErr="error: illegal parameters";
-	  retc = EINVAL;
-	} else {
-	  eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
-	  if (!FsView::gFsView.mNodeView.count(nodename)) {
-	    stdErr="error: no such node '"; stdErr += nodename.c_str(); stdErr += "'";
-	    retc = ENOENT;
+	if (vid_in.uid==0) {
+	  std::string nodename = (opaque.Get("mgm.node"))?opaque.Get("mgm.node"):"";
+	  if ( (!nodename.length() ) ) {
+	    stdErr="error: illegal parameters";
+	    retc = EINVAL;
 	  } else {
-	    std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsNode::sGetConfigQueuePrefix(), nodename.c_str());
-	    if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(nodeconfigname.c_str())) {
-	      stdErr="error: unable to remove config of node '"; stdErr += nodename.c_str(); stdErr += "'";
-	      retc = EIO;
+	    eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+	    if (!FsView::gFsView.mNodeView.count(nodename)) {
+	      stdErr="error: no such node '"; stdErr += nodename.c_str(); stdErr += "'";
+	      retc = ENOENT;
 	    } else {
-	      if (FsView::gFsView.UnRegisterNode(nodename.c_str())) {
-		stdOut="success: removed node '"; stdOut += nodename.c_str(); stdOut += "'";
+	      std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsNode::sGetConfigQueuePrefix(), nodename.c_str());
+	      if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(nodeconfigname.c_str())) {
+		stdErr="error: unable to remove config of node '"; stdErr += nodename.c_str(); stdErr += "'";
+		retc = EIO;
 	      } else {
-		stdErr="error: unable to unregister node '"; stdErr += nodename.c_str(); stdErr += "'";
+		if (FsView::gFsView.UnRegisterNode(nodename.c_str())) {
+		  stdOut="success: removed node '"; stdOut += nodename.c_str(); stdOut += "'";
+		} else {
+		  stdErr="error: unable to unregister node '"; stdErr += nodename.c_str(); stdErr += "'";
+		}
 	      }
 	    }
 	  }
+	} else {
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
 	}
       }
     }
-
+    
     if (cmd == "space") {
       if (subcmd == "ls") {
 	{ 
@@ -394,28 +404,33 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
       
       if (subcmd == "rm") {
-	std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
-	if ( (!spacename.length() ) ) {
-	  stdErr="error: illegal parameters";
-	  retc = EINVAL;
-	} else {
-	  eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
-	  if (!FsView::gFsView.mSpaceView.count(spacename)) {
-	    stdErr="error: no such space '"; stdErr += spacename.c_str(); stdErr += "'";
-	    retc = ENOENT;
+	if (vid_in.uid == 0) {
+	  std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
+	  if ( (!spacename.length() ) ) {
+	    stdErr="error: illegal parameters";
+	    retc = EINVAL;
 	  } else {
-	    std::string spaceconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsSpace::sGetConfigQueuePrefix(), spacename.c_str());
-	    if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(spaceconfigname.c_str())) {
-	      stdErr="error: unable to remove config of space '"; stdErr += spacename.c_str(); stdErr += "'";
-	      retc = EIO;
+	    eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+	    if (!FsView::gFsView.mSpaceView.count(spacename)) {
+	      stdErr="error: no such space '"; stdErr += spacename.c_str(); stdErr += "'";
+	      retc = ENOENT;
 	    } else {
-	      if (FsView::gFsView.UnRegisterSpace(spacename.c_str())) {
-		stdOut="success: removed space '"; stdOut += spacename.c_str(); stdOut += "'";
+	      std::string spaceconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsSpace::sGetConfigQueuePrefix(), spacename.c_str());
+	      if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(spaceconfigname.c_str())) {
+		stdErr="error: unable to remove config of space '"; stdErr += spacename.c_str(); stdErr += "'";
+		retc = EIO;
 	      } else {
-		stdErr="error: unable to unregister space '"; stdErr += spacename.c_str(); stdErr += "'";
+		if (FsView::gFsView.UnRegisterSpace(spacename.c_str())) {
+		  stdOut="success: removed space '"; stdOut += spacename.c_str(); stdOut += "'";
+		} else {
+		  stdErr="error: unable to unregister space '"; stdErr += spacename.c_str(); stdErr += "'";
+		}
 	      }
 	    }
 	  }
+	} else {
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
 	}
       }
     }
@@ -496,28 +511,33 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
       
       if (subcmd == "rm") {
-	std::string groupname = (opaque.Get("mgm.group"))?opaque.Get("mgm.group"):"";
-	if ( (!groupname.length() ) ) {
-	  stdErr="error: illegal parameters";
-	  retc = EINVAL;
-	} else {
-	  eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
-	  if (!FsView::gFsView.mGroupView.count(groupname)) {
-	    stdErr="error: no such group '"; stdErr += groupname.c_str(); stdErr += "'";
-	    retc = ENOENT;
+	if (vid_in.uid == 0) {
+	  std::string groupname = (opaque.Get("mgm.group"))?opaque.Get("mgm.group"):"";
+	  if ( (!groupname.length() ) ) {
+	    stdErr="error: illegal parameters";
+	    retc = EINVAL;
 	  } else {
-	    std::string groupconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsGroup::sGetConfigQueuePrefix(), groupname.c_str());
-	    if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(groupconfigname.c_str())) {
-	      stdErr="error: unable to remove config of group '"; stdErr += groupname.c_str(); stdErr += "'";
-	      retc = EIO;
+	    eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+	    if (!FsView::gFsView.mGroupView.count(groupname)) {
+	      stdErr="error: no such group '"; stdErr += groupname.c_str(); stdErr += "'";
+	      retc = ENOENT;
 	    } else {
-	      if (FsView::gFsView.UnRegisterGroup(groupname.c_str())) {
-		stdOut="success: removed group '"; stdOut += groupname.c_str(); stdOut += "'";
+	      std::string groupconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsGroup::sGetConfigQueuePrefix(), groupname.c_str());
+	      if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(groupconfigname.c_str())) {
+		stdErr="error: unable to remove config of group '"; stdErr += groupname.c_str(); stdErr += "'";
+		retc = EIO;
 	      } else {
-		stdErr="error: unable to unregister group '"; stdErr += groupname.c_str(); stdErr += "'";
-	      }
+		if (FsView::gFsView.UnRegisterGroup(groupname.c_str())) {
+		  stdOut="success: removed group '"; stdOut += groupname.c_str(); stdOut += "'";
+		} else {
+		  stdErr="error: unable to unregister group '"; stdErr += groupname.c_str(); stdErr += "'";
+		}
+	    }
 	    }
 	  }
+	} else {
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
 	}
       }
     }
@@ -565,7 +585,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      if (fs) {
 		fs->SetId(fsid);
 		fs->SetString("uuid",uuid.c_str());
-		
+		fs->SetString("configstatus", configstatus.c_str());
+		fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
 		std::string splitspace="";
 		std::string splitgroup="";
 		
@@ -610,6 +631,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		      stdErr = "error: infinite loop detected finding available scheduling group!";
 		      retc = EFAULT;
 		    }
+		  } else {
+		    splitgroup = splitspace;
 		  }
 		}
 		
@@ -915,52 +938,65 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
       if (subcmd == "boot") {
 	if (vid_in.uid == 0) {
-	  FstNode::gMutex.Lock();
+	  std::string node  = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
+	  std::string fsids = (opaque.Get("mgm.fs.id"))?opaque.Get("mgm.fs.id"):"";
 
-	  const char* nodename =  opaque.Get("mgm.nodename");
-	  const char* fsidst   =  opaque.Get("mgm.fsid");
-	  if (nodename && (!strcmp(nodename,"*"))) {
-	    XrdOucString bootfs="";
-	    // boot all!
-	    FstNode::gFstNodes.Apply(FstNode::BootNode, &bootfs);
-	    stdOut="success: sent boot message to: \n";stdOut += bootfs;
+	  eos::common::FileSystem::fsid_t fsid = atoi(fsids.c_str());
+
+	  if (node == "*") {
+	    // boot all filesystems
+	    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+
+	    std::map<eos::common::FileSystem::fsid_t, eos::common::FileSystem*>::iterator it;
+	    stdOut += "success: boot message send to";
+	    for (it = FsView::gFsView.mIdView.begin(); it!= FsView::gFsView.mIdView.end(); it++) {
+	      it->second->SetLongLong("bootsenttime",(unsigned long long)time(NULL));
+	      stdOut += " ";
+	      stdOut += it->second->GetString("host").c_str();
+	      stdOut += ":";
+	      stdOut += it->second->GetString("path").c_str();
+	    }
 	  } else {
-	    if (nodename) {
-	      // boot by node
-	      FstNode* node = FstNode::gFstNodes.Find(nodename);
-	      
-	      if (node) {
-		XrdOucString bootfs="";
-		// node found
-		node->fileSystems.Apply(FstNode::BootFileSystem, &bootfs);
-		stdOut="success: sent boot message to mgm.nodename=";stdOut += nodename;  stdOut += " and filesystem mgm.fsname="; stdOut += bootfs;
+	    if (node.length()) {
+	      eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	      if (!FsView::gFsView.mNodeView.count(node)) {
+		stdErr="error: cannot boot node - no node with name="; stdErr += node.c_str();
+		retc= ENOENT;		
 	      } else {
-		// not found
-		stdErr="error: cannot boot node - no node with name mgm.nodename="; stdErr += nodename;
-		retc= ENOENT;
-	      }
-	    } else {
-	      if (fsidst) {
-		// boot by fs id
-		unsigned int fsid = atoi(fsidst);
-		// delete by fs id
-		FstNode::FindStruct fsfinder(fsid,"");
-		FstNode::gFstNodes.Apply(FstNode::FindNodeFileSystem,&fsfinder);
-		if (fsfinder.found) {
-		  FstNode* node = FstNode::gFstNodes.Find(fsfinder.nodename.c_str());
-		  FstFileSystem* filesystem=0;
-		  if (node && (filesystem = node->fileSystems.Find(fsfinder.fsname.c_str()))) {
-		    XrdOucString bootfs="";
-		    FstNode::BootFileSystem(fsfinder.fsname.c_str(), filesystem, &bootfs);
-		    stdOut="success: sent boot message to mgm.nodename="; stdOut += node->GetQueue(); stdOut+= " mgm.fsid="; stdOut += bootfs;
-		  } else {
-		    stdErr="error: cannot boot filesystem - no filesystem with id mgm.fsid="; stdErr += fsidst; 
-		    retc = ENOENT;
+		stdOut += "success: boot message send to";
+		std::set<eos::common::FileSystem::fsid_t>::iterator it;
+		for (it = FsView::gFsView.mNodeView[node]->begin(); it != FsView::gFsView.mNodeView[node]->end(); it++) {
+
+		  eos::common::FileSystem* fs = 0;
+		  if (FsView::gFsView.mIdView.count(*it)) 
+		    fs = FsView::gFsView.mIdView[*it];
+		  
+		  if (fs) {
+		    fs->SetLongLong("bootsenttime",(unsigned long long)time(NULL));
+		    stdOut += " ";
+		    stdOut += fs->GetString("host").c_str();
+		    stdOut += ":";
+		    stdOut += fs->GetString("path").c_str();
 		  }
-		} else {
-		  stdErr="error: cannot boot filesystem - no filesystem with id mgm.fsid="; stdErr += fsidst; 
-		  retc = ENOENT;
 		}
+	      }
+	    }
+	    
+	    if (fsid) {
+	      eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	      if (FsView::gFsView.mIdView.count(fsid)) {
+		stdOut += "success: boot message send to";
+		eos::common::FileSystem* fs = FsView::gFsView.mIdView[fsid];
+		if (fs) {
+		  fs->SetLongLong("bootsenttime",(unsigned long long)time(NULL));
+		  stdOut += " ";
+		  stdOut += fs->GetString("host").c_str();
+		  stdOut += ":";
+		  stdOut += fs->GetString("path").c_str();
+		}
+	      } else {
+		stdErr="error: cannot boot filesystem - no filesystem with fsid="; stdErr += fsids.c_str(); 
+		retc = ENOENT;
 	      }
 	    }
 	  }

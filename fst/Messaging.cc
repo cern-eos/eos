@@ -52,11 +52,6 @@ Messaging::Process(XrdMqMessage* newmessage)
   }
   /* ********************************************************************** */
 
-  if (cmd == "fs" && subcmd == "boot") {
-    // boot request                                                                                                                                               
-    gOFS.Boot(action);
-  }
-
   if (cmd == "debug") {
     gOFS.SetDebug(action);
   }

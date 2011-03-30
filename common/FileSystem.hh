@@ -25,12 +25,14 @@ private:
 
   XrdMqSharedHash* mHash;  // before usage mSom needs a read lock and mHash has to be validated to avoid race conditions in deletion
   XrdMqSharedObjectManager* mSom;
+  XrdSysMutex constructorLock;
 
 public:
   //------------------------------------------------------------------------
   // Struct & Type definitions
   //------------------------------------------------------------------------
   typedef uint32_t fsid_t;
+  typedef int32_t fsstatus_t;
 
   typedef struct fs_snapshot {
     fsid_t mId;
@@ -45,9 +47,9 @@ public:
     std::string mPort;
     int         mGroupIndex;
     std::string mSpace;
-    int         mStatus;
-    int         mConfigStatus;
-    int         mDrainStatus;
+    fsstatus_t  mStatus;
+    fsstatus_t  mConfigStatus;
+    fsstatus_t  mDrainStatus;
     unsigned int mErrCode;
     time_t mBootSentTime;
     time_t mBootDoneTime;
@@ -76,7 +78,7 @@ public:
 
   FileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som);
 
-  ~FileSystem();
+  virtual ~FileSystem();
 
   //------------------------------------------------------------------------
   // Enums
@@ -91,6 +93,7 @@ public:
   //------------------------------------------------------------------------
   static const char* GetStatusAsString(int status);
   static const char* GetDrainStatusAsString(int status);
+  static const char* GetConfigStatusAsString(int status);
   static         int GetStatusFromString(const char* ss);
   static         int GetDrainStatusFromString(const char* ss);
   static         int GetConfigStatusFromString(const char* ss);
@@ -140,6 +143,19 @@ public:
     }
   }
 
+  bool SetStatus(fsstatus_t status) {
+    
+    return SetString("status", GetStatusAsString(status));
+  }
+
+  bool SetDrainStatus(fsstatus_t status) {
+    return SetString("drainstatus", GetDrainStatusAsString(status));
+  }
+
+  bool SetConfigStatus(fsstatus_t status) {
+    return SetString("configstatus", GetConfigStatusAsString(status));
+  }
+
   //------------------------------------------------------------------------
   //! Getter Functions throwing exceptions
   //------------------------------------------------------------------------  
@@ -187,6 +203,18 @@ public:
 
   std::string GetQueue() {
     return mQueue;
+  }
+
+  fsstatus_t GetStatus() {
+    return GetStatusFromString(GetString("status").c_str());
+  }
+  
+  fsstatus_t GetDrainStatus() {
+    return GetDrainStatusFromString(GetString("drainstatus").c_str());
+  }
+
+  fsstatus_t GetConfigStatus() { 
+    return GetConfigStatusFromString(GetString("configstatus").c_str());
   }
 
   //------------------------------------------------------------------------

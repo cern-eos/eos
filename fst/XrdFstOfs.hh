@@ -131,11 +131,8 @@ public:
   // this function deals with plugin calls
   int            FSctl(int, XrdSfsFSctl&, XrdOucErrInfo&, const XrdSecEntity*);
 
-  void           Boot(XrdOucEnv &env);
-  bool           BootFs(XrdOucEnv &env, XrdOucString &response);
   void           SetDebug(XrdOucEnv &env);
   void           SendRtLog(XrdMqMessage* message);
-  void           AutoBoot();
 
   eos::fst::LockManager LockManager;
  
@@ -144,8 +141,8 @@ public:
   eos::fst::Storage* Storage;          // -> Meta data & filesytem store object
 
   XrdSysMutex OpenFidMutex;
-  google::sparse_hash_map<unsigned long, google::sparse_hash_map<unsigned long long, unsigned int> > WOpenFid;
-  google::sparse_hash_map<unsigned long, google::sparse_hash_map<unsigned long long, unsigned int> > ROpenFid;
+  google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > WOpenFid;
+  google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > ROpenFid;
 
   XrdSysMutex ReportQueueMutex;
   std::queue <XrdOucString> ReportQueue;

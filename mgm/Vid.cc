@@ -68,7 +68,7 @@ Vid::Set(const char* value)
 
   if (vidcmd == "map") {
     XrdOucString auth = env.Get("mgm.vid.auth");
-    if ( (auth != "ssl") && (auth != "krb5") && (auth != "sss") && (auth!="unix") && (auth!="tident")) {
+    if ( (auth != "ssl") && (auth != "krb5") && (auth != "sss") && (auth!="unix") && (auth!="tident") && (auth!="gsi") ) {
       eos_static_err("invalid auth mode");
       return false;
     }
@@ -181,7 +181,35 @@ Vid::Ls(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 bool
 Vid::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 {
+  XrdOucString skey=env.Get("mgm.vid.key");
+  XrdOucString vidcmd = env.Get("mgm.vid.cmd");
+  int envlen=0;
+  XrdOucString inenv = env.Env(envlen);
+  while(inenv.replace("&"," ")) {};
   
+  if (!skey.length()) {
+    stdErr += "error: failed to rm vid [ "; stdErr += inenv ; stdErr += "] - key missing";
+    errno = EINVAL;
+    retc = EINVAL;    
+    return false;
+  }
+
+  if (vidcmd != "unmap") {
+    stdErr += "error: failed to rm vid [ "; stdErr += inenv ; stdErr += "] - wrong command to unmap";
+    errno = EINVAL;
+    retc = EINVAL;
+    return false;
+  }
+  
+  stdOut += "success: rm vid [ "; stdOut += inenv; stdOut += "]";
+  errno = 0;
+  retc = 0;
+
+  eos::common::Mapping::gVirtualUidMap.erase(skey.c_str());
+  eos::common::Mapping::gVirtualGidMap.erase(skey.c_str());
+
+  gOFS->ConfEngine->DeleteConfigValue("vid",skey.c_str());
+
   return true;
 }
 

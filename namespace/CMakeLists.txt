@@ -82,8 +82,13 @@ add_library (eosNamespace-Static STATIC
 	    accounting/QuotaStats.cc
 )
 
+if (Linux)
 target_link_libraries( eosNamespace pthread z rt )
 target_link_libraries( eosNamespace-Static pthread z rt )
+else (Linux)
+target_link_libraries( eosNamespace pthread z )
+target_link_libraries( eosNamespace-Static pthread z )
+endif (Linux)
 
 add_executable ( eos-log-compact progs/EOSLogCompact.cc )
 add_executable ( eos-log-repair  progs/EOSLogRepair.cc )

@@ -172,8 +172,9 @@ com_config (char* arg1) {
   printf("                                                                            -p : dump only policy config\n");
   printf("                                                                            -g : dump only global config\n");
 
-  printf("usage: config save <name> [--comment|-c \"<comment>\"] [-f] ]            :  save config (optionally under name)\n");
+  printf("usage: config save [-f] [<name>] [--comment|-c \"<comment>\"] ]          :  save config (optionally under name)\n");
   printf("                                                                            -f : overwrite existing config name and create a timestamped backup\n");
+  printf("                                                                            =>   if no name is specified the current config file is overwritten \n");
   printf("usage: config load <name>                                                :  load config (optionally with name)\n");
   printf("usage: config diff                                                       :  show changes since last load/save operation\n");
   printf("usage: config changelog [-#lines]                                        :  show the last <#> lines from the changelog - default is -10 \n");

@@ -104,6 +104,10 @@ com_vid (char* arg1) {
         in += "&mgm.vid.auth=ssl";
         hastype=true;
       }
+      if ( (type == "-gsi") ) {
+        in += "&mgm.vid.auth=gsi";
+        hastype=true;
+      }
       if ( (type == "-sss") ) {
         in += "&mgm.vid.auth=sss";
         hastype=true;
@@ -179,8 +183,108 @@ com_vid (char* arg1) {
     }
   }
 
+  if ( (subcommand == "enable") || (subcommand == "disable") ) {
+    XrdOucString in    = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=map";
+    XrdOucString disableu ="mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
+    XrdOucString disableg ="mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
+    XrdOucString type   = subtokenizer.GetToken();
+    if (!type.length()) 
+      goto com_vid_usage;
+
+    bool hastype=false;
+    if ( (type == "krb5") )  {     
+      in += "&mgm.vid.auth=krb5";
+      disableu +="krb5:\"<pwd>\":uid";
+      disableg +="krb5:\"<pwd>\":gid";
+      hastype=true;
+    }
+    if ( (type == "ssl") ) {
+      in += "&mgm.vid.auth=ssl";
+      disableu +="ssl:\"<pwd>\":uid";
+      disableg +="ssl:\"<pwd>\":gid";
+      hastype=true;
+    }
+    if ( (type == "sss") ) {
+      in += "&mgm.vid.auth=sss";
+      disableu +="sss:\"<pwd>\":uid";
+      disableg +="sss:\"<pwd>\":guid";
+      hastype=true;
+    }
+    if ( (type == "gsi") ) {
+      in += "&mgm.vid.auth=gsi";
+      disableu +="gsi:\"<pwd>\":uid";
+      disableg +="gsi:\"<pwd>\":gid";
+      hastype=true;
+    }
+    if ( (type == "unix") ) {
+      in += "&mgm.vid.auth=unix";
+      disableu +="unix\"<pwd>\":uid";
+      disableg +="unix\"<pwd>\":gid";
+      hastype=true;
+    }
+    if ( (type == "tident") ) {
+      in += "&mgm.vid.auth=tident";
+      disableu +="tident\"<pwd>\":uid";
+      disableg +="tident\"<pwd>\":gid";
+      hastype=true;
+    }
+    if (!hastype) 
+      goto com_vid_usage;
+
+   in += "&mgm.vid.pattern=<pwd>";
+    if (type != "unix") {
+      in += "&mgm.vid.uid=0";
+      in += "&mgm.vid.gid=0";
+    } else {
+      in += "&mgm.vid.uid=99";
+      in += "&mgm.vid.gid=99";
+    }
+
+    in += "&mgm.vid.key="; in += "<key>";
+    
+    if ( (subcommand == "enable") )
+      global_retc = output_result(client_admin_command(in));
+    
+    if ( (subcommand == "disable") ) {
+      global_retc = output_result(client_admin_command(disableu));
+      global_retc |= output_result(client_admin_command(disableg));
+    }
+    return (0);    
+  }
+
+  if ( (subcommand == "add") || (subcommand == "remove") ) {
+    XrdOucString gw   = subtokenizer.GetToken();
+    if (gw != "gateway") 
+      goto com_vid_usage;
+    XrdOucString host = subtokenizer.GetToken();
+    if (!host.length()) 
+      goto com_vid_usage;
+
+    XrdOucString in    = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=map";
+    XrdOucString disableu ="mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
+    XrdOucString disableg ="mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
+    
+    in += "&mgm.vid.auth=tident";
+    in += "&mgm.vid.pattern=\"*@";in += host; in += "\"";
+    in += "&mgm.vid.uid=0";
+    in += "&mgm.vid.gid=0";
+    disableu +="tident:\"*@";disableu += host; disableu += "\":uid";
+    disableg +="tident:\"*@";disableg += host; disableg += "\":gid";
+
+    in += "&mgm.vid.key="; in += "<key>";    
+
+    if ( (subcommand == "add") )
+      global_retc = output_result(client_admin_command(in));
+    
+    if ( (subcommand == "remove") ) {
+      global_retc = output_result(client_admin_command(disableu));
+      global_retc |= output_result(client_admin_command(disableg));
+    }
+    return (0);
+  }
+
   if ( subcommand == "rm" ) {
-    XrdOucString in ="mgm.cmd=quota&mgm.subcmd=rm";
+    XrdOucString in ="mgm.cmd=vid&mgm.subcmd=rm";
     XrdOucString key   = subtokenizer.GetToken();
     if ( (!key.length()) ) 
       goto com_vid_usage;
@@ -197,11 +301,20 @@ com_vid (char* arg1) {
   printf("                                        -s : show list of sudoers\n");
   printf("                                        -U : show user alias mapping\n");
   printf("                                        -G : show groupalias mapping\n");
-  printf("usage: vid set membership <uid> -uids [<uid1>,<uid2>,.com_attr..]\n");
+  printf("\n");
+  printf("       vid set membership <uid> -uids [<uid1>,<uid2>,.com_attr..]\n");
   printf("       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
   printf("       vid set membership <uid> [+|-]sudo \n");
   printf("       vid set map -krb5|-ssl|-sss|-unix|-tident <pattern> [vuid:<uid>] [vgid:<gid>] \n");
-  printf("usage: vid rm <key>                                                                                 : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
+  printf("\n");
+  printf("       vid rm <key>                                                                                 : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
+  printf("\n");
+  printf("       vid enable|disable krb5|ssl|sss|unix\n");
+  printf("                                           : enable/disables the default mapping via password database\n");
+  printf("\n");
+  printf("       vid add|remove gateway <hostname>\n");
+  printf("                                             adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
+
 
   return (0);
 }

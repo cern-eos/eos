@@ -23,106 +23,34 @@ EOSFSTNAMESPACE_BEGIN
 void
 FileSystem::BroadcastError(const char* msg) 
 {
-  XrdMqMessage message("fst");
-  XrdOucString msgbody;
-  XrdOucEnv env(GetEnvString());
-
-  /* disabled */
-  // eos::common::FileSystem::GetBootReplyString(msgbody, env, eos::common::FileSystem::kOpsError);
-  
   SetStatus(eos::common::FileSystem::kOpsError);
+  SetError(errno,msg);
 
-  XrdOucString response;
-  response = msg; response += " "; response += Path;; response += " ["; response += strerror(errno); response += "]";
-
-  msgbody += "errmsg=";
-  msgbody += response;
-  msgbody += "&errc="; 
-  msgbody += errno; 
-
-  SetError(errno,response.c_str());
-  
-  message.SetBody(msgbody.c_str());
-
-  eos_debug("broadcasting error message: %s", msgbody.c_str());
-
-  if (!XrdMqMessaging::gMessageClient.SendMessage(message)) {
-    // display communication error
-    eos_err("cannot send error broadcast");
-  }
+  //  eos_debug("broadcasting error message: %s", msgbody.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
 void
 FileSystem::BroadcastError(int errc, const char* errmsg) 
 {
-  XrdMqMessage message("fst");
-  XrdOucString msgbody;
-  XrdOucEnv env(GetEnvString());
-
-  /* disabled */
-  // eos::common::FileSystem::GetBootReplyString(msgbody, env, eos::common::FileSystem::kOpsError);
-
   SetStatus(eos::common::FileSystem::kOpsError);
-
-  XrdOucString response;
-  response = errmsg; response += " "; response += Path;; 
-
-  msgbody += "errmsg=";
-  msgbody += errmsg;
-  msgbody += "&errc="; 
-  msgbody += errc; 
-  SetError(errno,response.c_str());
+  SetError(errno,errmsg);
   
-  message.SetBody(msgbody.c_str());
-
-  eos_debug("broadcasting error message: %s", msgbody.c_str());
-
-  if (!XrdMqMessaging::gMessageClient.SendMessage(message)) {
-    // display communication error
-    eos_err("cannot send error broadcast");
-  }
+  //  eos_debug("broadcasting error message: %s", msgbody.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
 void
 FileSystem::BroadcastStatus()
 {
-  XrdMqMessage message("fst");
-  XrdOucString msgbody;
-  XrdOucEnv env(GetEnvString());
-  
-  /* disabled */
-  // eos::common::FileSystem::GetBootReplyString(msgbody, env, Status);
 
-  XrdOucString response = statFs->GetEnv();
-
-  msgbody += response;
-
-  XrdOucString rwstatus="";
-  XrdOucString loadstatus="";
-
-  gOFS.OpenFidString(Id, rwstatus);
-  GetLoadString(loadstatus);
-  msgbody += rwstatus;
-  msgbody += "&";
-  msgbody += loadstatus;
-
-  if (errc) {
-    msgbody += "&errmsg=";
-    msgbody += errmsg;
-    msgbody += "&errc=";
-    msgbody += errc;
-  }
-  
-  message.SetBody(msgbody.c_str());
-
-  eos_debug("broadcasting status message: %s", msgbody.c_str());
-
-  if (!XrdMqMessaging::gMessageClient.SendMessage(message)) {
-    // display communication error
-    eos_err("cannot send status broadcast");
-  }
+  //  SetStatFs
+  //  gOFS.OpenFidString(Id, rwstatus);
+  //  GetLoadString(loadstatus);
+  //  msgbody += rwstatus;
+  //  msgbody += "&";
+  //  msgbody += loadstatus;
+  //  eos_debug("broadcasting status message: %s", msgbody.c_str());
 }
 
 
@@ -131,7 +59,7 @@ eos::common::Statfs*
 FileSystem::GetStatfs(bool &changed) 
 { 
 
-  statFs = eos::common::Statfs::DoStatfs(Path.c_str());
+  statFs = eos::common::Statfs::DoStatfs(GetPath().c_str());
   if (!statFs) {
     BroadcastError("cannot statfs");
     return 0;
@@ -139,10 +67,10 @@ FileSystem::GetStatfs(bool &changed)
 
   //  if (!last_blocks_free) last_blocks_free = statFs->GetStatfs()->f_bfree;
 
-  eos_debug("statfs on filesystem %s id %d - %lu => %lu", queueName.c_str(),Id,last_blocks_free,statFs->GetStatfs()->f_bfree  );
+  eos_debug("statfs on filesystem %s id %d - %lu => %lu", GetQueue().c_str(),GetId(),last_blocks_free,statFs->GetStatfs()->f_bfree  );
   // define significant change here as 256MB change
   if ( (last_blocks_free == 0) || (( labs(last_blocks_free - statFs->GetStatfs()->f_bfree)) > (256*1000*1000l) )) {
-    eos_debug("filesystem change on filesystem %s id %d", queueName.c_str(), Id);
+    eos_debug("filesystem change on filesystem %s id %d", GetQueue().c_str(), GetId());
     changed = true;
     last_blocks_free = statFs->GetStatfs()->f_bfree;
     // since it changed a lot we broadcast the information to mgm's
@@ -308,131 +236,206 @@ Storage::HasStatfsChanged(const char* key, FileSystem* filesystem, void* arg)
   }*/
 
 /*----------------------------------------------------------------------------*/
-bool 
-Storage::SetFileSystem(XrdOucEnv& env)
+void 
+Storage::Boot(FileSystem *fs)
 {
-  fsMutex.Lock();
-  FileSystem* fs=0;
-  const char* path = env.Get("mgm.fspath");
-  const char* sfsid = env.Get("mgm.fsid");
-  if ( (!path) || (!sfsid)) {
-    fsMutex.UnLock();
-    return false;
+  fs->SetStatus(eos::common::FileSystem::kBooting);
+
+  if ( !fs) {
+    return;
   }
 
-  unsigned int fsid = atoi(sfsid);
+  eos::common::FileSystem::fsid_t fsid = fs->GetId();
+  std::string uuid = fs->GetString("uuid");
 
-  if (!(fileSystems.count(path)) ) {
-    fs = new FileSystem(path);
-    fileSystems[path] = fs;
-    fileSystemsVector.push_back(fs);
-  } else {
-    fs = fileSystems[path];
+  eos_info("booting filesystem %s id=%u uuid=%s",fs->GetQueuePath().c_str(), (unsigned int)fsid, uuid.c_str());
+   
+  // try to statfs the filesystem
+  eos::common::Statfs* statfs = eos::common::Statfs::DoStatfs(fs->GetPath().c_str());
+  if (!statfs) {
+    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetError(errno,"cannot statfs filesystem");
+    return;
   }
 
-  fileSystemsMap[fsid] = fs;
-
-  fs->SetId(fsid);
-  const char* val=0;
+  // try to own that directory
+  XrdOucString chownline="chown daemon.daemon ";chownline += fs->GetPath().c_str();
+  system(chownline.c_str());
+  
+  // test if we have rw access
+  struct stat buf;
+  if ( ::stat( fs->GetPath().c_str(), &buf) || (buf.st_uid != geteuid()) || ( (buf.st_mode & S_IRWXU ) != S_IRWXU) ) {
+    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetError(errno, "cannot have <rw> access");
+    return;
+  }
+  
   if (!gOFS.ROpenFid.count(fsid)) {
     gOFS.ROpenFid[fsid].set_deleted_key(0);
   }
   if (!gOFS.WOpenFid.count(fsid)) {
     gOFS.WOpenFid[fsid].set_deleted_key(0);
   }
-
-  if (( val = env.Get("mgm.fsschedgroup"))) {
-    fs->SetSchedulingGroup(val);
-  }
   
-  if (( val = env.Get("mgm.fsname"))) {
-    fs->SetQueue(val);
-  }
-
   if (!eos::common::gFmdHandler.AttachLatestChangeLogFile(metaDirectory.c_str(), fsid)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(EFAULT,"cannot attach to latest change log file - see the fst logfile for details");
-    fsMutex.UnLock();
-    return false;
+    return;
   }
 
-  // write FS tag file
-  XrdOucString tagfile = fs->GetPath();
-  tagfile += "/.eosfsid";
-  int fd = open(tagfile.c_str(),O_TRUNC|O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
-  if (fd < 0) {
+  // check if there is a lable on the disk and if the configuration shows the same fsid + uuid
+  if (!CheckLabel(fs->GetPath(),fsid,uuid)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
-    fs->SetError(errno,"cannot open fs tagfile");
-    fsMutex.UnLock();
-    return false;
-  } else {
-    char ssfid[32];
-    snprintf(ssfid,32,"%u", fsid);
-    if ( (write(fd,ssfid,strlen(ssfid))) != (int)strlen(ssfid) ) {
-      fs->SetStatus(eos::common::FileSystem::kBootFailure);
-      fs->SetError(errno,"cannot write fs tagfile");
-      fsMutex.UnLock();
-      close(fd);
-      return false;
-    }
-  }
+    fs->SetError(EFAULT,"the filesystem has a different label (fsid+uuid) than the configuration");
+    return;
+  } 
 
-  close(fd);
+  if (!FsLabel(fs->GetPath(),fsid,uuid)) {
+    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetError(EFAULT,"cannot write the filesystem label (fsid+uuid) - please check filesystem state/permissions");
+    return;
+  }
 
   // create FS transaction directory
-  
-  XrdOucString transactionDirectory="";
-  transactionDirectory = fs->GetPath();
+  std::string transactionDirectory = fs->GetPath();
   transactionDirectory += "/.eostransaction";
   
   if (mkdir(transactionDirectory.c_str(), S_IRWXU | S_IRGRP| S_IXGRP | S_IROTH | S_IXOTH)) {
     if (errno != EEXIST) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
       fs->SetError(errno,"cannot create transactiondirectory");
-      fsMutex.UnLock();
-      return false;
+      return;
     }
+  }
+
+  if (chown(transactionDirectory.c_str(), geteuid(),getegid())) {
+    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetError(errno,"cannot change ownership of transactiondirectory");
+    return;
   }
 
   fs->SetTransactionDirectory(transactionDirectory.c_str());
 
+  fs->SetLongLong("stat.bootdonetime", (unsigned long long) time(NULL));
   fs->SetStatus(eos::common::FileSystem::kBooted);
-  fs->SetError(0,0);
-  fsMutex.UnLock();
+  fs->SetError(0,"");
+  return;
+}
+
+bool 
+Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid)
+{
+  //----------------------------------------------------------------
+  //! writes file system label files .eosfsid .eosuuid according to config (if they didn't exist!)
+  //----------------------------------------------------------------
+
+  XrdOucString fsidfile = path.c_str();
+  fsidfile += "/.eosfsid";
+ 
+  struct stat buf;
+
+  if (stat(fsidfile.c_str(), &buf)) {
+    int fd = open(fsidfile.c_str(),O_TRUNC|O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+    if (fd < 0) {
+      return false;
+    } else {
+      char ssfid[32];
+      snprintf(ssfid,32,"%u", fsid);
+      if ( (write(fd,ssfid,strlen(ssfid))) != (int)strlen(ssfid) ) {
+	close(fd);
+	return false;
+      }
+    }
+    close(fd);
+  }
+
+  std::string uuidfile = path;
+  uuidfile += "/.eosfsuuid";
+
+  if (stat(uuidfile.c_str(), &buf)) {
+    int fd = open(uuidfile.c_str(),O_TRUNC|O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+    if (fd < 0) {
+      return false;
+    } else {
+      if ( (write(fd,uuid.c_str(),strlen(uuid.c_str())+1)) != (int)(strlen(uuid.c_str())+1)) {
+	close(fd);
+	return false;
+      }
+    }
+    close(fd);
+  }
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
 bool 
-Storage::RemoveFileSystem(XrdOucEnv& env)
+Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid) 
 {
-  fsMutex.Lock();
-  FileSystem* fs=0;
-  const char* path = env.Get("mgm.fspath");
+  //----------------------------------------------------------------
+  //! checks that the label on the filesystem is the same as the configuration
+  //----------------------------------------------------------------
 
-  if ( (!path) ) {
-    fsMutex.UnLock();
-    return false;
-  }
+  XrdOucString fsidfile = path.c_str();
+  fsidfile += "/.eosfsid";
   
-  if ( (fileSystems.count(path)) ) {
-    fs = fileSystems[path];
-    fileSystems.erase(path);
-    std::vector<FileSystem*>::iterator it;
-    for (it = fileSystemsVector.begin(); it != fileSystemsVector.end(); ++it) {
-      if (*it == fs) {
-	fileSystemsMap.erase((*it)->GetId());
-	fileSystemsVector.erase(it);
-	break;
-      }
-    }
+  struct stat buf;
 
-    fsMutex.UnLock();
-    return true;
+  std::string ckuuid=uuid;
+  eos::common::FileSystem::fsid_t ckfsid=fsid;
+
+  if (!stat(fsidfile.c_str(), &buf)) {
+    int fd = open(fsidfile.c_str(),O_RDONLY);
+    if (fd < 0) {
+      return false;
+    } else {
+      char ssfid[32];
+      int nread = read(fd,ssfid,sizeof(ssfid)-1);
+      if (nread<0) {
+	close(fd);
+	return false;
+      }
+      close(fd);
+      // for safety
+      if (nread < (int)(sizeof(ssfid)-1)) 
+	ssfid[nread]=0;
+      else
+	ssfid[31]=0;
+      ckfsid = atoi(ssfid);
+    }
   } 
 
-  fsMutex.UnLock();
-  return false;
+  // write FS uuid file
+  std::string uuidfile = path;
+  uuidfile += "/.eosfsuuid";
+
+  if (!stat(uuidfile.c_str(), &buf)) {
+    int fd = open(uuidfile.c_str(),O_RDONLY);
+    if (fd < 0) {
+      return false;
+    } else {
+      char suuid[4096];
+      int nread = read(fd,suuid,sizeof(suuid));
+      if (nread <0) {
+	close(fd);
+	return false;
+      }
+      close(fd);
+      // for protection
+      suuid[4095]=0;
+      // remove \n 
+      if (suuid[strlen(suuid)-1] == '\n')
+	suuid[strlen(suuid)-1] = 0;
+
+      ckuuid = suuid;
+    }
+  } 
+
+  fprintf(stderr,"%d <=> %d %s <=> %s\n", fsid, ckfsid, ckuuid.c_str(), uuid.c_str());
+  if ( (fsid != ckfsid) || (ckuuid != uuid) ) {
+    return false;
+  }
+
+  return true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -518,35 +521,36 @@ Storage::Scrub()
   while(1) {
     time_t start = time(0);
     unsigned int nfs=0;
-    fsMutex.Lock();
-    nfs = fileSystemsVector.size();
-    eos_static_info("FileSystem Vector %u",nfs);
-    fsMutex.UnLock();
-    
+    {
+      eos::common::RWMutexReadLock lock (fsMutex);
+      nfs = fileSystemsVector.size();
+      eos_static_info("FileSystem Vector %u",nfs);
+    }    
     for (unsigned int i=0; i< nfs; i++) {
-      fsMutex.Lock();
+      fsMutex.LockRead();
+
       if (i< fileSystemsVector.size()) {
-	XrdOucString path = fileSystemsVector[i]->GetPath();
+	std::string path = fileSystemsVector[i]->GetPath();
 	if (!fileSystemsVector[i]->GetStatfs()) {
-	  fsMutex.UnLock();
+	  fsMutex.UnLockRead();
 	  continue;
 	}
 
 	unsigned long long free   = fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_bfree;
 	unsigned long long blocks = fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_blocks;
 	unsigned long id = fileSystemsVector[i]->GetId();
-	fsMutex.UnLock();
+	fsMutex.UnLockRead();
 	
 	if (ScrubFs(path.c_str(),free,blocks,id)) {
 	  // filesystem has errors!
-	  fsMutex.Lock();
+	  fsMutex.LockRead();
 	  if (fileSystemsVector[i]) {
 	    fileSystemsVector[i]->BroadcastError(EIO,"filesystem probe error detected");
 	  }
-	  fsMutex.UnLock();
+	  fsMutex.UnLockRead();
 	}
       } else {
-	fsMutex.UnLock();
+	fsMutex.UnLockRead();
       }
     }
     time_t stop = time(0);
@@ -666,22 +670,28 @@ Storage::Trim()
     sleep(10);
     google::sparse_hash_map<unsigned long long, google::dense_hash_map<unsigned long long, unsigned long long> >::const_iterator it;
     eos_static_info("Trimming Size  %u", eos::common::gFmdHandler.FmdMap.size());
+    eos::common::gFmdHandler.Mutex.Lock();
     for ( it = eos::common::gFmdHandler.FmdMap.begin(); it != eos::common::gFmdHandler.FmdMap.end(); ++it) {
       eos_static_info("Trimming fsid=%llu ",it->first);
+      int fsid = it->first;
+
       // stat the size of this logfile
       struct stat buf;
-      if (fstat(eos::common::gFmdHandler.fdChangeLogRead[it->first],&buf)) {
+      if (fstat(eos::common::gFmdHandler.fdChangeLogRead[fsid],&buf)) {
+	eos::common::gFmdHandler.Mutex.UnLock();
 	eos_static_err("Cannot stat the changelog file for fsid=%llu for", it->first);
       } else {
+	eos::common::gFmdHandler.Mutex.UnLock();
 	// we trim only if the file reached 6 GB
 	if (buf.st_size > (6000l * 1024 * 1024)) {
-	  if (!eos::common::gFmdHandler.TrimLogFile(it->first)) {
+	  if (!eos::common::gFmdHandler.TrimLogFile(fsid)) {
 	    eos_static_err("Trimming failed on fsid=%llu",it->first);
 	  }
 	} else {
 	  eos_static_info("Trimming skipped ... changelog is < 1GB");
 	}
       }
+      eos::common::gFmdHandler.Mutex.UnLock();
     }
     // check once per day only 
     sleep(86400);
@@ -1018,104 +1028,180 @@ Storage::Communicator()
   // this thread retrieves changes on the ObjectManager queue and maintains associated filesystem objects
   eos_static_info("Communicator activated ...");  
 
-
   while (1) {
     // wait for new filesystem definitions
     gOFS.ObjectManager.SubjectsSem.Wait();
-
+    bool unlocked;
+    
     eos_static_debug("received shared object notification ...");
 
-    gOFS.ObjectManager.SubjectsMutex.Lock();
+    /////////////////////////////////////////////////////////////////////////////////////
+    // => implements the creation of filesystem objects
+    /////////////////////////////////////////////////////////////////////////////////////
 
-    // implements the creation of filesystem objects
+    unlocked = false;
+    gOFS.ObjectManager.SubjectsMutex.Lock(); // here we have to take care that we lock this only to retrieve the subject ... to create a new queue we have to free the lock
+    
     while (gOFS.ObjectManager.CreationSubjects.size()) {
       std::string newsubject = gOFS.ObjectManager.CreationSubjects.front();
       gOFS.ObjectManager.CreationSubjects.pop_front();
-      XrdOucString s = newsubject.c_str();
-      if (! s.beginswith(Config::gConfig.FstQueue)) {
-	eos_static_debug("no action on creation of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
+      gOFS.ObjectManager.SubjectsMutex.UnLock();
+      unlocked = true;
+
+      XrdOucString queue = newsubject.c_str();
+
+      if (queue == Config::gConfig.FstQueueWildcard)
+	continue;
+
+      if (! queue.beginswith(Config::gConfig.FstQueue)) {
+	eos_static_info("no action on creation of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
 	continue;
       } else {
-	s.replace(Config::gConfig.FstQueue.c_str(),"");
+	eos_static_info("received creation notification of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
       }
       
-      fsMutex.Lock();
+      eos::common::RWMutexWriteLock lock(fsMutex);
       FileSystem* fs = 0;
 
-      if (!(fileSystems.count(s.c_str()))) {
-	fs = new FileSystem(s.c_str());
-	fileSystems[s.c_str()] = fs;
+      if (!(fileSystems.count(queue.c_str()))) {
+	fs = new FileSystem(queue.c_str(),Config::gConfig.FstQueue.c_str(), &gOFS.ObjectManager);
+	fileSystems[queue.c_str()] = fs;
 	fileSystemsVector.push_back(fs);
-	eos_static_info("setting up filesystem %s", s.c_str());
+	fileSystemsMap[fs->GetId()] = fs;
+	eos_static_info("setting up filesystem %s", queue.c_str());
+	fs->SetStatus(eos::common::FileSystem::kDown);
       }
-
-      fsMutex.UnLock();
     }
+
+    if (!unlocked) {
+      gOFS.ObjectManager.SubjectsMutex.UnLock();
+      unlocked = true;
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////
+    // => implements the deletion of filesystem objects
+    /////////////////////////////////////////////////////////////////////////////////////    
+
+    unlocked = false;
+    gOFS.ObjectManager.SubjectsMutex.Lock(); // here we have to take care that we lock this only to retrieve the subject ... to create a new queue we have to free the lock
 
     // implements the deletion of filesystem objects
     while (gOFS.ObjectManager.DeletionSubjects.size()) {
       std::string newsubject = gOFS.ObjectManager.DeletionSubjects.front();
       gOFS.ObjectManager.DeletionSubjects.pop_front();
+      gOFS.ObjectManager.SubjectsMutex.UnLock();
+      unlocked=true;
 
-      XrdOucString s = newsubject.c_str();
-      if (! s.beginswith(Config::gConfig.FstQueue)) {
+      XrdOucString queue = newsubject.c_str();
+      if (! queue.beginswith(Config::gConfig.FstQueue)) {
 	eos_static_err("illegal subject found in deletion list <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
 	continue;
       } else {
-	s.replace(Config::gConfig.FstQueue.c_str(),"");
+	eos_static_info("received deletion notification of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
       }
 
-      fsMutex.Lock();
-      if ((fileSystems.count(s.c_str()))) {
-	delete fileSystems[s.c_str()];
-	fileSystems.erase(s.c_str());
-	eos_static_info("deleting filesystem %s", s.c_str());
+      eos::common::RWMutexWriteLock lock(fsMutex);
+      if ((fileSystems.count(queue.c_str()))) {
+	if (fileSystems.count(queue.c_str())) {
+	  std::map<eos::common::FileSystem::fsid_t , FileSystem*>::iterator mit;
+
+	  for (mit = fileSystemsMap.begin(); mit != fileSystemsMap.end(); mit++) {
+	    if (mit->second == fileSystems[queue.c_str()]) {
+	      fileSystemsMap.erase(mit);
+	      break;
+	    }
+	  }
+
+	  std::vector <FileSystem*>::iterator it;
+	  for (it=fileSystemsVector.begin(); it!=fileSystemsVector.end(); it++) {
+	    if (*it == fileSystems[queue.c_str()]) {
+	      fileSystemsVector.erase(it);
+	      break;
+	    }
+	  }
+	  delete fileSystems[queue.c_str()];
+	  fileSystems.erase(queue.c_str());
+	}
+	eos_static_info("deleting filesystem %s", queue.c_str());
       }
-      fsMutex.UnLock();
     }
+
+    if (!unlocked) {
+      gOFS.ObjectManager.SubjectsMutex.UnLock();
+      unlocked = true;
+    }
+
+
+    /////////////////////////////////////////////////////////////////////////////////////
+    // => implements the modification notification of filesystem objects
+    /////////////////////////////////////////////////////////////////////////////////////    
+
+    unlocked = false;
+    gOFS.ObjectManager.SubjectsMutex.Lock(); // here we have to take care that we lock this only to retrieve the subject ... to create a new queue we have to free the lock
     
     // listens on modifications on filesystem objects
-    while (gOFS.ObjectManager.ModificationSubjects.size()) {
+    if (gOFS.ObjectManager.ModificationSubjects.size()) {
       std::string newsubject = gOFS.ObjectManager.ModificationSubjects.front();
       gOFS.ObjectManager.ModificationSubjects.pop_front();
+      gOFS.ObjectManager.SubjectsMutex.UnLock();
+      unlocked=true;
 
-      XrdOucString s = newsubject.c_str();
-      if (! s.beginswith(Config::gConfig.FstQueue)) {
+      XrdOucString queue = newsubject.c_str();
+      if (! queue.beginswith(Config::gConfig.FstQueue)) {
 	eos_static_err("illegal subject found in modification list <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
-	continue;
+	break;
       } else {
-	s.replace(Config::gConfig.FstQueue.c_str(),"");
+	eos_static_info("received modification notification of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
       }
 
       // seperate <path> from <key>
-      XrdOucString key=s;
+      XrdOucString key=queue;
       int dpos = 0;
-      if ((dpos = s.find(";"))!= STR_NPOS){
+      if ((dpos = queue.find(";"))!= STR_NPOS){
 	key.erase(0,dpos+1);
-	s.erase(dpos);
+	queue.erase(dpos);
       }
-      fsMutex.Lock();
-      if ((fileSystems.count(s.c_str()))) {
-	eos_static_info("got modification on <subqueue>=%s <key>=%s", s.c_str(),key.c_str());
-	if (key == "id") {
-	  eos_static_info("getting object %s\n", newsubject.c_str());
-	  gOFS.ObjectManager.HashMutex.LockRead();
-	  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(newsubject.c_str(),"hash");
-	  if (hash) {
+
+      eos::common::RWMutexReadLock lock(fsMutex);
+      if ((fileSystems.count(queue.c_str()))) {
+	eos_static_info("got modification on <subqueue>=%s <key>=%s", queue.c_str(),key.c_str());
+	
+	gOFS.ObjectManager.HashMutex.LockRead();
+
+	XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(),"hash");
+	if (hash) {
+	  if (key == "id") {
 	    unsigned int fsid= hash->GetUInt(key.c_str());
+	    gOFS.ObjectManager.HashMutex.UnLockRead();
+
 	    // setup the reverse lookup by id
-	    fileSystemsMap[fsid] = fileSystems[s.c_str()];
+	    fileSystemsMap[fsid] = fileSystems[queue.c_str()];
 	    eos_static_info("setting reverse lookup for fsid %u", fsid);
+	    // check if we are autobooting
+	    if (eos::fst::Config::gConfig.autoBoot && (fileSystems[queue.c_str()]->GetStatus() <= eos::common::FileSystem::kDown)) {
+	      Boot(fileSystems[queue.c_str()]);
+	    }
+	    gOFS.ObjectManager.HashMutex.LockRead();
 	  }
-	  gOFS.ObjectManager.HashMutex.UnLockRead();
+	  if (key == "bootsenttime") {
+	    // this is a request to (re-)boot a filesystem
+	    if (fileSystems.count(queue.c_str())) {
+	      Boot(fileSystems[queue.c_str()]);
+	    } else {
+	      eos_static_err("got boot time update on not existant filesystem %s", queue.c_str());
+	    }
+	  }
 	}
+	gOFS.ObjectManager.HashMutex.UnLockRead();
       } else {
-	eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", s.c_str(),key.c_str());
+	eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", queue.c_str(),key.c_str());
       }
-      fsMutex.UnLock();
     }
 
-    gOFS.ObjectManager.SubjectsMutex.UnLock();
+    if (!unlocked) {
+      gOFS.ObjectManager.SubjectsMutex.UnLock();
+      unlocked = true;
+    }
   }
 }
 

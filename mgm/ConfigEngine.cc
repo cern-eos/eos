@@ -192,10 +192,16 @@ ConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
   eos_notice("saving config name=%s comment=%s force=%d", name, comment, force);
 
   if (!name) {
-    err = "error: you have to specify a configuration file name";
-    return false;
+    if (currentConfigFile.length()) {
+      name = currentConfigFile.c_str();
+      force = true;
+    } else {
+      err = "error: you have to specify a configuration file name";
+      return false;
+    }
   }
 
+      
   XrdOucString sname = name;
 
   if ( (sname.find("..")) != STR_NPOS) {

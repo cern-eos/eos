@@ -1,0 +1,149 @@
+#!/usr/bin/perl
+use POSIX ":sys_wait_h";
+use Time::HiRes qw( usleep );
+
+my $eosowner = "daemon";
+
+print "###########################\n";
+print "# <eosfstregister> v1.0.0\n";
+print "###########################\n";
+sub usage() {
+    printf STDERR  "usage: eosfstregister [-i] <mount-prefix> [<space1>:<nfilesystems1>] [<space2>:<nfilesystems2>] [-h|--help]\n";
+    printf STDERR  "                       -i : ignore if one of the filesystems has already a filesystem id stored and continue\n";
+}
+
+my $hostname = `hostname -f`;
+chomp $hostname;
+my $ignoreerrors=0;
+
+for ( my $arg = 0; $arg < $#ARGV+1; $arg++) {
+    if ( ($ARGV[$arg] =~ /^-h/ ) ||
+	 ($ARGV[$arg] =~ /^--h/ )) {
+	usage();
+	exit(-1);
+    }
+    if ( ($ARGV[$arg] =~ /-i/ ) ) {
+	$ignoreerrors = 1;
+	splice (@ARGV, $arg,1);
+    }
+#    print "$ARGV[$arg]\n";
+}
+       
+
+my $mountprefix = shift @ARGV;
+
+if ($mountprefix =~ /\/$/) {
+    chop $mountprefix;
+}
+
+my $policy;
+my $npfsdefined=0;
+my $phash;
+
+my @spacearray;
+do {
+    $policy = (shift @ARGV or "");
+    $policy =~ /(\w*):(\d*)/;
+    my $space=$1;
+    my $nspace=$2;
+    if ( ($policy ne "") && (($space eq "") || ($nspace eq "") ) ) {
+	printf STDERR "error: policy definition seems illegal!\n";
+	usage();
+	exit(-3);
+    }
+    $npfsdefined += int($nspace);
+    for (my $i=0; $i < $nspace; $i++) {
+	push @spacearray, "$space";
+    }
+} while($policy ne "");
+
+
+if ( $mountprefix eq "") {
+    printf STDERR "error: you have to provide a mountprefix as the first argument!\n";
+    usage();
+    exit(-1);
+}
+
+#print "Listing mount prefix <$mountprefix> ...\n";
+
+my @filesystems;
+
+open IN, "ls -1 $mountprefix| ";
+
+while (<IN>) {
+    chomp $_;
+    if ("$_" eq "lost+found") {
+	next;
+    }
+
+    if ( ! -d "$mountprefix/$_" ) {
+	next;
+    }
+
+    if ( $_ =~ /^\./ ) {
+	next;
+    }
+#    print "Registering: $mountprefix/$_\n";
+    push @filesystems, "$mountprefix/$_";
+}
+
+if ($#filesystems <0) {
+    printf STDERR "error: I didn't see any directory inside your mount prefix [ $#filesystems ]!\n";
+    exit(-2);
+}
+
+my $nfilesystems = $#filesystems+1;
+
+if ("$nfilesystems" ne "$npfsdefined") {
+    printf STDERR "error: Your policy definitions don't match the number of file systems I have found [ #filesystem = $nfilesystems #fspolicies = $npfsdefined ]\n";
+    usage();
+    exit(-1);
+}
+
+my $cnt=0;
+foreach ( @filesystems ) {
+    my $uuid="";
+    my $fsid=0;
+    if ( ! -e "$_/.eosfsuuid" ) {
+	$uuid = `uuidgen`;
+	chomp $uuid;
+	system("echo $uuid > $_/.eosfsuuid; chown $eosowner.$eosowner $_/.eosfsuuid");
+    } else {
+	$uuid = `cat $_/.eosfsuuid`;
+	chomp $uuid;
+    }
+
+    if ( ! -e "$_/.eosfsid" ) {
+	$fsid="undef";
+    } else {
+	$fsid = `cat $_/.eosfsid`;
+	chomp $fsid;
+    }
+
+    if ($fsid ne "undef") {
+	printf STDERR "error: filesystem $_ is already labeled with fsid=$fsid - remove the file $_/.eosfsid if you want to register with new fsid\n";
+	if (!$ignoreerrors) {
+	    exit(-4);
+	}
+    }
+    printf "$_ : uuid=$uuid fsid=$fsid\n";
+    
+    my $cmd=0;
+    if (!($cmd=fork())) {
+#	system("echo eos -b fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
+	system("eos -b fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
+	exit(0);
+    }
+
+    for (my $i=0; $i< 40; $i++) {
+	waitpid(-1, WNOHANG);
+	if ( kill 0, $cmd ) {
+	    usleep(250000);
+	}
+    }
+
+    $cnt++;
+}
+    
+
+

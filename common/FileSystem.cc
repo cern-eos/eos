@@ -11,6 +11,7 @@ EOSCOMMONNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som)
 {
+  constructorLock.Lock();
   mQueuePath = queuepath;
   mQueue     = queue;
   mPath      = queuepath;
@@ -55,15 +56,18 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
   } else {
     mHash = 0;
   }
+  constructorLock.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
 FileSystem::~FileSystem()
 {
+  constructorLock.Lock();
   // remove the shared hash of this file system
- if (mSom) {
+  if (mSom) {
     mSom->DeleteSharedHash(mQueuePath.c_str());
   }
+  constructorLock.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/

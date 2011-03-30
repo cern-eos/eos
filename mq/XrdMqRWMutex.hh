@@ -16,28 +16,43 @@
 class XrdMqRWMutex  
 {
 private:
- pthread_rwlock_t       rwlock;
-
+  pthread_rwlock_t       rwlock;
+  pthread_rwlockattr_t   attr;
+  int retc; 
+  
 public:
-  XrdMqRWMutex() { if (pthread_rwlock_init(&rwlock, NULL)) {throw "pthread_rwlock_init failed";} }
+  XrdMqRWMutex() { 
+
+    pthread_rwlockattr_init(&attr);
+    if (pthread_rwlockattr_setkind_np(&attr,PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP)) { throw "pthread_rwlockattr_setkind_np failed";}
+    if (pthread_rwlockattr_setpshared(&attr,PTHREAD_PROCESS_SHARED)){ throw "pthread_rwlockattr_setpshared failed";}
+    if ((retc=pthread_rwlock_init(&rwlock, &attr))) {fprintf(stderr,"LockInit: retc=%d\n", retc);throw "pthread_rwlock_init failed";} }
   ~XrdMqRWMutex() {}
 
   void LockRead() {
-    if (pthread_rwlock_rdlock(&rwlock)) { throw "pthread_rwlock_rdlock failed";}
+    if ((retc=pthread_rwlock_rdlock(&rwlock))) { fprintf(stderr,"LockRead: retc=%d\n", retc);throw "pthread_rwlock_rdlock failed";}
+    //    else 
+    //      fprintf(stderr,"+++R %llu\n", (unsigned long long) this);
+
   }
   
   void UnLockRead() { 
-    if (pthread_rwlock_unlock(&rwlock)) { throw "pthread_rwlock_unlock failed";}
+    if ((retc=pthread_rwlock_unlock(&rwlock))) { fprintf(stderr,"UnLockRead: retc=%d\n", retc);throw "pthread_rwlock_unlock failed";}
+    //   else 
+    //    fprintf(stderr,"---R %llu\n", (unsigned long long) this);
   }
-  
+
   void LockWrite() {
-    if (pthread_rwlock_wrlock(&rwlock)) { throw "pthread_rwlock_wrlock failed";}
+    if ((retc=pthread_rwlock_wrlock(&rwlock))) { fprintf(stderr,"LockWrite: retc=%d\n", retc);throw "pthread_rwlock_wrlock failed";}
+    //   else 
+    //    fprintf(stderr,"+++W %llu\n", (unsigned long long) this);
   }
   
   void UnLockWrite() { 
-    if (pthread_rwlock_unlock(&rwlock)) { throw "pthread_rwlock_unlock failed";}
+    if ((retc=pthread_rwlock_unlock(&rwlock))) { fprintf(stderr,"UnLockWrite: retc=%d\n", retc);throw "pthread_rwlock_unlock failed";}
+    //   else 
+    //    fprintf(stderr,"---W %llu\n", (unsigned long long) this);
   }
-
 };
 
 

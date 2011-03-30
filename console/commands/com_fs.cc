@@ -148,9 +148,9 @@ com_fs (char* arg1) {
     char r2fsid[128]; sprintf(r2fsid,"%04d", fsid);
     if ( (arg == r1fsid) || (arg == r2fsid) ) {
       // boot by fsid
-      in += "&mgm.fsid=";
+      in += "&mgm.fs.id=";
     } else {
-      in += "&mgm.nodename=";
+      in += "&mgm.fs.node=";
     }
 
     in += arg;

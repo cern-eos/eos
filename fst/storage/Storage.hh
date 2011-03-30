@@ -5,6 +5,7 @@
 #include "common/Logging.hh"
 #include "common/Statfs.hh"
 #include "common/FileSystem.hh"
+#include "common/RWMutex.hh"
 #include "fst/transfer/Transfer.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
@@ -21,49 +22,30 @@
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-class FileSystem : public eos::common::LogId {
+class FileSystem : public eos::common::FileSystem, eos::common::LogId {
 private:
-  XrdOucString Path;
-  unsigned int Id;
-  XrdOucString queueName;
-  XrdOucString schedulingGroup;
-  XrdOucString  Env;
-  int          Status;
-  int          errc;
-  XrdOucString errmsg;
   XrdOucString transactionDirectory;
 
   eos::common::Statfs* statFs;         // the owner of the object is a global hash in eos::common::Statfs - this are just references
   unsigned long last_blocks_free;  
-  time_t last_status_broadcast;
+  time_t        last_status_broadcast;
 
 public:
-  FileSystem(const char* inpath) {Path = inpath; Id = 0; queueName =""; schedulingGroup=""; statFs = 0; last_blocks_free=0;last_status_broadcast=0;Status = eos::common::FileSystem::kDown; errc = 0; errmsg = "";transactionDirectory="";}
+  FileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som) : eos::common::FileSystem(queuepath,queue,som) {
+    last_blocks_free=0;
+    last_status_broadcast=0;
+    transactionDirectory="";
+  }
+
   ~FileSystem() {}
 
-  void SetId(unsigned int id) {Id = id;}
-  void SetSchedulingGroup(const char* inschedgroup) { schedulingGroup = inschedgroup;}
-  void SetQueue(const char* inqueue) { queueName = inqueue;}
-  void SetStatus(int status) { Status = status;}
-  void SetError(int ec, const char* msg) { errc = ec; errmsg = msg;}
   void SetTransactionDirectory(const char* tx) { transactionDirectory= tx;}
 
-  const char* GetPath() {return Path.c_str();}
-  unsigned int GetId()  {return Id;}
+  std::string  GetPath() {return GetString("path");}
+
   eos::common::Statfs* GetStatfs() {return statFs;}
+
   const char* GetTransactionDirectory() {return transactionDirectory.c_str();}
-
-  const char* GetEnvString() { 
-    Env = "mgm.fsname="; Env += queueName; Env += "&mgm.fsschedgroup="; Env += schedulingGroup;
-    Env += "&mgm.fspath="; Env += Path; Env += "&mgm.fsid="; Env += (int)Id; return Env.c_str();
-  }
-
-  void GetLoadString(XrdOucString &loadstring) {
-    loadstring  = "statfs.disk.load"; loadstring += "1.0";
-    loadstring += "&statfs.disk.in";   loadstring += "100.0";
-    loadstring += "&statfs.disk.out";  loadstring += "100.0"; 
-    loadstring += "&statfs.net.load"; loadstring  += "1.0";
-  }
 
   void BroadcastError(const char* msg);
   void BroadcastError(int errc, const char* errmsg);
@@ -72,6 +54,18 @@ public:
   bool OpenTransaction(unsigned long long fid);
   bool CloseTransaction(unsigned long long fid);
 
+  void SetError(int errc, const char* errmsg) {
+    if (errc) {
+      eos_static_err("setting errc=%d errmsg=%s", errc, errmsg?errmsg:"");
+    }
+    if (!SetLongLong("stat.errc",errc)) {
+      eos_static_err("cannot set errcode for filesystem %s", GetQueuePath().c_str());
+    }
+    if (!SetString("stat.errmsg",errmsg)) {
+      eos_static_err("cannot set errmsg for filesystem %s", GetQueuePath().c_str());
+    }
+  }
+  
   eos::common::Statfs* GetStatfs(bool &changedalot);
 }; 
 
@@ -90,7 +84,7 @@ private:
   unsigned long long* scrubPatternVerify;
 
 protected:
-  XrdSysMutex fsMutex;
+  eos::common::RWMutex fsMutex;
 
 public:
   // fsstat & quota thread
@@ -109,6 +103,8 @@ public:
   void Report();
   void Verify();
   void Communicator();
+  
+  void Boot(FileSystem* fs);
 
   XrdSysMutex transferMutex;
   std::list <Transfer*> transfers;
@@ -123,7 +119,7 @@ public:
 
   std::map<std::string, FileSystem*> fileSystems;
   std::vector <FileSystem*> fileSystemsVector;
-  std::map<unsigned int, FileSystem*> fileSystemsMap;
+  std::map<eos::common::FileSystem::fsid_t , FileSystem*> fileSystemsMap;
 
   //  static int HasStatfsChanged(const char* key, FileSystem* filesystem, void* arg);
   int ScrubFs(const char* path, unsigned long long free, unsigned long long lbocks, unsigned long id);
@@ -135,13 +131,15 @@ public:
 
   void BroadcastQuota(XrdOucString &quotareport);
 
-  bool SetFileSystem(XrdOucEnv &env);
-  bool RemoveFileSystem(XrdOucEnv &env);
+  bool BootFileSystem(XrdOucEnv &env);
 
   bool IsZombie() {return zombie;}
   
-  bool OpenTransaction(unsigned int fsid, unsigned long long fid);
-  bool CloseTransaction(unsigned int fsid, unsigned long long fid);
+  bool OpenTransaction (eos::common::FileSystem::fsid_t fsid, unsigned long long fid);
+  bool CloseTransaction(eos::common::FileSystem::fsid_t fsid, unsigned long long fid);
+
+  bool FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid);
+  bool CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid);
 };
 
 EOSFSTNAMESPACE_END

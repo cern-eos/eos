@@ -98,11 +98,11 @@ public:
 
   void SetBroadCastQueue(const char* broadcastqueue) { BroadCastQueue = broadcastqueue;}
   
-  bool Set(std::string key, std::string value, bool broadcast=true) {
+  bool Set(std::string key, std::string value, bool broadcast=true, bool tempmodsubjects=false) {
     return Set(key.c_str(),value.c_str(), broadcast);
   }
 
-  bool Set(const char* key, const char* value, bool broadcast=true);
+  bool Set(const char* key, const char* value, bool broadcast=true, bool tempmodsubjects=false);
 
   bool Set(std::map<std::string, std::string> &map) {
     std::map<std::string, std::string>::const_iterator it;
@@ -262,10 +262,14 @@ public:
   std::deque<std::string> CreationSubjects;
   std::deque<std::string> DeletionSubjects;
   std::deque<std::string> ModificationSubjects;    // these are posted as <queue>:<key>
+  std::deque<std::string> ModificationTempSubjects;// these are posted as <queue>:<key>
   std::set<std::string> ModificationWatchKeys;     // set of keys which get posted on the modifications list
   
+  // clean the bulk modification subject list
+  
+  void PostModificationTempSubjects();             
   // semaphore to wait for new creations/deletions/modifications
-  XrdSysSemaphore SubjectsSem;
+  XrdSysSemWait SubjectsSem;
 
   // mutex to safeguard the creations/deletions/modifications & watch subjects
   XrdSysMutex SubjectsMutex;
