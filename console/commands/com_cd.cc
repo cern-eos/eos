@@ -36,5 +36,12 @@ com_cd (char *arg) {
   if (!pwd.endswith("/")) 
     pwd += "/";
 
+  // check if this exists, otherwise go back to oldpwd
+
+  XrdOucString lsminuss = "mgm.cmd=ls&mgm.path="; lsminuss += pwd;lsminuss+= "&mgm.option=s";
+  global_retc = output_result(client_user_command(lsminuss));
+  if (global_retc) { 
+    pwd = oldpwd;
+  }
   return (0);
 }

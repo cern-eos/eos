@@ -42,6 +42,10 @@ com_ls (char* arg1) {
   return (0);
 
  com_ls_usage:
-  printf("usage: ls <path>                                                       :  list directory <path>\n");
+  printf("usage: ls [-lan] <path>                                                  :  list directory <path>\n");
+  printf("                    -l : show long listing\n");
+  printf("                    -a : show hidden files\n");
+  printf("                    -n : show numerical user/group ids\n");
+  printf("                    -s : checks only if the directory exists without listing\n");
   return (0);
 }

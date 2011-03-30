@@ -2514,6 +2514,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       return SFS_OK;
     }
 
+   
     if ( cmd == "ls" ) {
       XrdOucString path = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
@@ -2549,6 +2550,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    }
 	  }
 	  
+	  bool translateids=true;
+	  if ((option.find("n"))!=STR_NPOS) {
+	    translateids=false;
+	  }
+
+	  if ((option.find("s"))!=STR_NPOS) {
+	    // just return '0' if this is a directory
+	    MakeResult(1);
+	    return SFS_OK;
+	  }
 	  if (!listrc) {
 	    const char* val;
 	    while ((val=dir.nextEntry())) {
@@ -2602,6 +2613,35 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  if ( S_ISUID & buf.st_mode ) modestr[3] = 's';
 		  if ( S_ISGID & buf.st_mode ) modestr[6] = 's';
 		  
+		  if (translateids) {
+		    {
+		      // try to translate with password database
+		      char buffer[16384];
+		      int buflen = sizeof(buffer);
+		      struct passwd pwbuf;
+		      struct passwd *pwbufp=0;
+		      
+		      if (!getpwuid_r(buf.st_uid, &pwbuf, buffer, buflen, &pwbufp)) {
+			char uidlimit[16];
+			snprintf(uidlimit,8,"%s",pwbuf.pw_name);
+			suid = uidlimit;
+		      } 
+		    }
+
+		    {
+		      // try to translate with password database
+		      char buffer[16384];
+		      int buflen = sizeof(buffer);
+		      struct group grbuf;
+		      struct group *grbufp=0;
+		      
+		      if (!getgrgid_r(buf.st_gid, &grbuf, buffer, buflen, &grbufp)) {
+			char gidlimit[16];
+			snprintf(gidlimit,8,"%s",grbuf.gr_name);
+			sgid = gidlimit;
+		      } 
+		    }
+		  }
 		  
 		  strftime(t_creat,13,"%b %d %H:%M",t_tm);
 		  char lsline[4096];
