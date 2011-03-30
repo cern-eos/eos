@@ -1440,6 +1440,106 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	stdErr = "error: you have to take role 'root' to execute this command";
       }
     }
+    
+    if ( cmd == "chown" ) {
+      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString option = opaque.Get("mgm.chown.option");
+      XrdOucString owner   = opaque.Get("mgm.chown.owner");
+
+      if ( (!path.length()) || (!owner.length())) {
+	stdErr = "error: you have to provide a path and the owner to set!\n";
+	retc = EINVAL;
+      } else {
+	// find everything to be modified
+	std::vector< std::vector<std::string> > found_dirs;
+	std::vector< std::vector<std::string> > found_files;
+	if (option == "r") {
+	  if (gOFS->_find(path.c_str(), *error, vid_in, found_dirs , found_files)) {
+	    stdErr += "error: unable to search in path";
+	    retc = errno;
+	  } 
+	} else {
+	  // the single dir case
+	  found_dirs.resize(1);
+	  found_dirs[0].push_back(path.c_str());
+	}
+	
+	std::string uid=owner.c_str();
+	std::string gid=owner.c_str();
+	bool failure=false;
+
+	uid_t uidt;
+	gid_t gidt;
+
+	int dpos=0;
+
+	if ( (dpos = owner.find(":")) != STR_NPOS) {
+	  uid.erase(dpos);
+	  gid.erase(0, dpos+1);
+	}else {
+	  gid = "0";
+	}
+
+	uidt = (uid_t) atoi(uid.c_str());
+	gidt = (gid_t) atoi(gid.c_str());
+
+	if ( (uid!="0") && (!uidt)) {
+	  // try to translate with password database
+	  char buffer[16384];
+	  int buflen = sizeof(buffer);
+	  struct passwd pwbuf;
+	  struct passwd *pwbufp=0;
+
+	  if (getpwnam_r(uid.c_str(), &pwbuf, buffer, buflen, &pwbufp)) {
+	    // cannot translate this name
+	    stdErr = "error: I cannot translate your uid string using the pwd database";
+	    retc = EINVAL;
+	    failure=true;
+	  } else {
+	    uidt = pwbuf.pw_uid;
+	  }
+	}
+
+	if (! atoi(gid.c_str())) {
+	  // try to translate with password database
+	  char buffer[16384];
+	  int buflen = sizeof(buffer);
+	  struct group grbuf;
+	  struct group *grbufp=0;
+
+	  if (getgrnam_r(gid.c_str(), &grbuf, buffer, buflen, &grbufp)) {
+	    // cannot translate this name
+	    stdErr = "error: I cannot translate your gid string using the pwd database";
+	    retc = EINVAL;
+	    failure=true;
+	  } else {
+	    gidt = grbuf.gr_gid;
+	  }
+	}
+
+	if (vid.uid && ( (!uidt) || (!gidt) ) ) {
+	  stdErr = "error: you are mapped to uid/gid=0 but you are not root!";
+	  retc = EPERM;
+	  failure=true;
+	}
+
+	if (!failure) {
+	  for (unsigned int i = 0; i< found_dirs.size(); i++) {
+	    std::sort(found_dirs[i].begin(), found_dirs[i].end());
+	    for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
+	      if (gOFS->_chown(found_dirs[i][j].c_str(), uidt , gidt, *error, vid_in, (char*)0)) {
+		stdErr += "error: unable to chmod of directory "; stdErr += found_dirs[i][j].c_str();
+		retc = errno;
+	      } else {
+		stdOut += "success: owner of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid.uid) {stdOut += " gid="; stdOut += gid.c_str();}
+	      }
+	    }
+	  }
+	}
+	MakeResult(dosort);
+	return SFS_OK;
+      }
+    }
 
     MakeResult(dosort);
     return SFS_OK;
@@ -3107,18 +3207,25 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  found_dirs[0].push_back(path.c_str());
 	}
 
-	XrdSfsMode Mode = (XrdSfsMode) strtoul(mode.c_str(),0,8);
-	 
-	
-	for (unsigned int i = 0; i< found_dirs.size(); i++) {
-	  std::sort(found_dirs[i].begin(), found_dirs[i].end());
-	  for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
-	    if (gOFS->_chmod(found_dirs[i][j].c_str(), Mode, *error, vid_in, (char*)0)) {
-	      stdErr += "error: unable to chmod of directory "; stdErr += found_dirs[i][j].c_str();
-	      retc = errno;
-	    } else {
-	      stdOut += "success: mode of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now '"; stdOut += mode; stdOut += "'";
-	    }
+	char modecheck[1024]; snprintf(modecheck,sizeof(modecheck)-1, "%llu", (unsigned long long) strtoul(mode.c_str(),0,10));
+	XrdOucString ModeCheck = modecheck;
+	if (ModeCheck != mode) {
+	  stdErr = "error: mode has to be an octal number like 777, 2777, 755, 644 ...";
+	  retc = EINVAL;
+	} else {
+	  XrdSfsMode Mode = (XrdSfsMode) strtoul(mode.c_str(),0,8);
+	  
+	  
+	  for (unsigned int i = 0; i< found_dirs.size(); i++) {
+	    std::sort(found_dirs[i].begin(), found_dirs[i].end());
+	    for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
+	      if (gOFS->_chmod(found_dirs[i][j].c_str(), Mode, *error, vid_in, (char*)0)) {
+		stdErr += "error: unable to chmod of directory "; stdErr += found_dirs[i][j].c_str();
+		retc = errno;
+	      } else {
+		stdOut += "success: mode of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now '"; stdOut += mode; stdOut += "'";
+	      }
+	  }
 	  }
 	}
 	MakeResult(dosort);

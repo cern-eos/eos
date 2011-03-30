@@ -5,6 +5,7 @@
 extern int com_attr (char*);
 extern int com_cd (char*);
 extern int com_chmod (char*);
+extern int com_chown (char*);
 extern int com_clear (char*);
 extern int com_config (char*);
 extern int com_debug (char*);
@@ -88,6 +89,7 @@ COMMAND commands[] = {
   { (char*)"clear",    com_clear,    (char*)"Clear the terminal" },
   { (char*)"cd",       com_cd,       (char*)"Change directory" },
   { (char*)"chmod",    com_chmod,    (char*)"Mode Interface" },
+  { (char*)"chown",    com_chown,    (char*)"Chown Interface" },
   { (char*)"config",   com_config,   (char*)"Configuration System"},
   { (char*)"debug",    com_debug,    (char*)"Set debug level"},
   { (char*)"exit",     com_quit,     (char*)"Exit from EOS console" },

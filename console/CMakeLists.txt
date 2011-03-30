@@ -7,6 +7,7 @@ add_executable ( eos
 	         commands/com_attr.cc
 		 commands/com_cd.cc
 		 commands/com_chmod.cc 
+		 commands/com_chown.cc 
 		 commands/com_clear.cc         
 		 commands/com_config.cc 
 		 commands/com_debug.cc 

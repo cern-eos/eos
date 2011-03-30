@@ -1018,6 +1018,51 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
 }
 
 /*----------------------------------------------------------------------------*/
+int XrdMgmOfs::_chown(const char               *path,    // In
+  		              uid_t             uid,     // In
+  		              gid_t             gid,     // In
+                              XrdOucErrInfo    &error,   // Out
+	       eos::common::Mapping::VirtualIdentity &vid,   // In
+                        const char             *info)    // In
+
+{
+  static const char *epname = "chown";
+  //-------------------------------------------
+  gOFS->eosViewMutex.Lock();
+  eos::ContainerMD* cmd = 0;
+  errno = 0;
+
+  gOFS->MgmStats.Add("Chown",vid.uid,vid.gid,1);  
+
+  eos_info("path=%s uid=%u gid=%u",path, uid,gid);
+  
+  try {
+    cmd = gOFS->eosView->getContainer(path);
+    if ( (vid.uid) && !cmd->access(vid.uid,vid.gid,W_OK)) {
+      errno = EPERM;
+    } else {
+      // change the owner
+      cmd->setCUid(uid);
+      if ((!vid.uid) && gid) {
+	// change the group
+	cmd->setCGid(gid);
+      }
+      eosView->updateContainerStore(cmd);
+    }
+  } catch ( eos::MDException &e ) {
+    errno = e.getErrno();
+  };
+  
+  gOFS->eosViewMutex.UnLock();
+  //-------------------------------------------
+
+  if (cmd  && (!errno))
+    return SFS_OK;
+  
+  return Emsg(epname, error, errno, "chown", path);
+}
+
+/*----------------------------------------------------------------------------*/
 int XrdMgmOfs::exists(const char                *path,        // In
                                XrdSfsFileExistence &file_exists, // Out
                                XrdOucErrInfo       &error,       // Out

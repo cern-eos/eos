@@ -189,6 +189,13 @@ public:
 			           eos::common::Mapping::VirtualIdentity &vid,
                              const char             *opaque = 0);
 
+        int            _chown(const char             *Name,
+ 			           uid_t              uid,
+			           gid_t              gid,
+                                   XrdOucErrInfo    &out_error,
+			           eos::common::Mapping::VirtualIdentity &vid,
+                             const char             *opaque = 0);
+
         int            exists(const char                *fileName,
                                     XrdSfsFileExistence &exists_flag,
                                     XrdOucErrInfo       &out_error,
