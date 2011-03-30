@@ -40,7 +40,7 @@ FsView::GetFileSystemFormat(std::string option) {
   
   if (option == "m") {
     // monitoring format
-    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=status:width=1:format=os|sep= |key=configstatus:width=1:format=os";
+    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=stat.boot:width=1:format=os|sep= |key=configstatus:width=1:format=os";
   }
 
   if (option == "l") {
@@ -48,7 +48,7 @@ FsView::GetFileSystemFormat(std::string option) {
     return "header=1:key=host:width=24:format=-s|sep= |key=port:width=5:format=s|sep= |key=id:width=6:format=s|sep= |key=uuid:width=36:format=s|sep= |key=path:width=16:format=s|key=schedgroup:width=16:format=s";
   }
   
-  return "header=1:key=host:width=24:format=s|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=status:width=10:format=s|sep= |key=configstatus:width=12:format=s|sep= |key=drainstatus:width=12:format=s";
+  return "header=1:key=host:width=24:format=s|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -176,17 +176,28 @@ FsView::Register (eos::common::FileSystem* fs)
     }    
   }
 
-#ifndef EOSMGMFSVIEWTEST
-  // register in the configuration engine
-  std::string key;
-  std::string val;
-  fs->CreateConfig(key,val);
-  if (FsView::ConfEngine)
-    FsView::ConfEngine->SetConfigValue("fs", key.c_str(), val.c_str());
-#endif
+  StoreFsConfig(fs);
 
   return true;
 }
+
+/*----------------------------------------------------------------------------*/
+void
+FsView::StoreFsConfig(eos::common::FileSystem* fs) 
+{
+#ifndef EOSMGMFSVIEWTEST
+  if (fs) {
+    // register in the configuration engine
+    std::string key;
+    std::string val;
+    fs->CreateConfig(key,val);
+    if (FsView::ConfEngine)
+      FsView::ConfEngine->SetConfigValue("fs", key.c_str(), val.c_str());
+  }
+#endif
+  return;
+}
+
 
 /*----------------------------------------------------------------------------*/
 bool 

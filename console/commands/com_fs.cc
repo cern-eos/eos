@@ -1,5 +1,6 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 
 extern int com_file (char*);
@@ -17,7 +18,7 @@ com_fs (char* arg1) {
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
-
+  
   if ( subcommand == "add" ) {
     XrdOucString in ="mgm.cmd=fs&mgm.subcmd=add";
     XrdOucString uuid        = subtokenizer.GetToken();
@@ -25,13 +26,13 @@ com_fs (char* arg1) {
     XrdOucString mountpoint  = subtokenizer.GetToken();
     XrdOucString space       = subtokenizer.GetToken();
     XrdOucString configstatus = subtokenizer.GetToken();
-
+    
     if (!uuid.length())
       goto com_fs_usage;
-
+    
     if (!hostport.length())
       goto com_fs_usage;
-
+    
     if (!hostport.beginswith("/eos/")) {
       hostport.insert("/eos/",0);
       hostport.append("/fst");
@@ -41,23 +42,23 @@ com_fs (char* arg1) {
     
     if (!space.length())
       space = "default";
-
+    
     if (!configstatus.length()) 
       configstatus = "off";
-
+    
     in += "&mgm.fs.uuid=";        in += uuid;
     in += "&mgm.fs.node=";        in += hostport;
     in += "&mgm.fs.mountpoint=";  in += mountpoint;
     in += "&mgm.fs.space=";       in += space;
     in += "&mgm.fs.configstatus=";in += configstatus;
-
+    
     XrdOucEnv* result = client_admin_command(in);
     global_retc = output_result(result);
-
+    
     return (0);
   }
-
-
+  
+  
   if ( subcommand == "ls" ) {
     XrdOucString in ="mgm.cmd=fs&mgm.subcmd=ls";
     XrdOucString silent = subtokenizer.GetToken();
@@ -74,39 +75,37 @@ com_fs (char* arg1) {
     }
     return (0);
   }
+  
+  if ( subcommand == "config" ) {
+    XrdOucString identifier = subtokenizer.GetToken();
+    XrdOucString keyval   = subtokenizer.GetToken();
 
-  if ( subcommand == "set" ) {
-    XrdOucString fsname = subtokenizer.GetToken();
-    XrdOucString fsid   = subtokenizer.GetToken();
-    if (fsname.length() && fsid.length()) {
-      XrdOucString in = "mgm.cmd=fs&mgm.subcmd=set&mgm.fsid=";
-      in += fsid;
-      in += "&mgm.fsname=";
-      in += fsname;
-      XrdOucString arg = subtokenizer.GetToken();
-      
-      do {
-        if (arg == "-sched") {
-          XrdOucString sched = subtokenizer.GetToken();
-          if (!sched.length()) 
-            goto com_fs_usage;
-          
-          in += "&mgm.fsschedgroup=";
-          in += sched;
-          arg = subtokenizer.GetToken();
-        } else {
-          if (arg == "-force") {
-            in += "mgm.fsforce=1";
-          }
-          arg = subtokenizer.GetToken();
-        } 
-      } while (arg.length());
-
-      global_retc = output_result(client_admin_command(in));
-      // boot by fsid
-      return (0);
+    if ( (!identifier.length()) || (!keyval.length()) ) {
+      goto com_fs_usage;
     }
+    
+    if ( (keyval.find("=")) == STR_NPOS) {
+      // not like <key>=<val>
+      goto com_fs_usage;
+    }
+
+    std::string is = keyval.c_str();
+    std::vector<std::string> token;
+    std::string delimiter = "=";
+    eos::common::StringConversion::Tokenize(is, token, delimiter);
+    
+    if (token.size() != 2) 
+      goto com_fs_usage;
+    
+    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=config&mgm.fs.identifier=";
+    in += identifier;
+    in += "&mgm.fs.key="; in += token[0].c_str();
+    in += "&mgm.fs.value="; in += token[1].c_str();
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
   }
+
 
   if ( subcommand == "rm" ) {
     XrdOucString arg = subtokenizer.GetToken();
@@ -157,61 +156,6 @@ com_fs (char* arg1) {
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
-
-  if ( subcommand == "config" ) {
-    XrdOucString arg;
-    arg = subtokenizer.GetToken();
-    XrdOucString sched;
-    sched ="";
-    if (!arg.length())
-      goto com_fs_usage;
-
-    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=config";
-    int fsid = atoi(arg.c_str());
-    char r1fsid[128]; sprintf(r1fsid,"%d", fsid);
-    char r2fsid[128]; sprintf(r2fsid,"%04d", fsid);
-    if ( (arg == r1fsid) || (arg == r2fsid) ) {
-      // config by fsid
-      in += "&mgm.fsid=";
-    } else {
-      if (arg.endswith("/fst"))
-        in += "&mgm.nodename=";
-      else 
-        in += "&mgm.fsname=";
-    }
-    
-    in += arg;
-
-    arg = subtokenizer.GetToken();
-
-    if (arg == "-sched") {
-      sched = subtokenizer.GetToken();
-      arg                = subtokenizer.GetToken();
-      if (!sched.length() || !arg.length()) 
-        goto com_fs_usage;
-    }
-    
-    sched = subtokenizer.GetToken();
-    if (sched == "-sched") {
-      sched = subtokenizer.GetToken();
-      if (!sched.length())
-        goto com_fs_usage;
-    }
-    
-    if (sched.length()) {
-      in += "&mgm.fsschedgroup=";
-      in += sched;
-    }
-
-    if (!arg.length())     
-      goto com_fs_usage;
-
-    in += "&mgm.fsconfig=";
-    in += arg;
-    global_retc = output_result(client_admin_command(in));
-    return (0);
-  }
-
 
   if ( subcommand == "clone" ) {
     XrdOucString sourceid;
@@ -514,15 +458,16 @@ com_fs (char* arg1) {
   printf("usage: fs ls                                                    : list configured filesystems (or by name or id match\n");
   printf("       fs add <uuid> <node-queue>|<host:port> <mountpoint> [<schedgroup>] [<status]\n");
   printf("                                                                : add a filesystem and dynamically assign a filesystem id based on the unique identifier for the disk <uuid>\n");
-  printf("       fs set   <fs-name> <fs-id> [-sched <group> ] [-force]    : configure filesystem with name and id\n");
-  printf("       fs rm    <fs-name>|<fs-id>                               : remove filesystem configuration by name or id\n");
-  printf("       fs boot  <fs-id>|<node-queue>                            : boot filesystem/node ['fs boot *' to boot all]  \n");
-  printf("       fs config <fs-id>|<node-queue> <status> [-sched <group>] : set filesystem configuration status\n");
+  printf("       fs config <host>:<port><path>|<fsid>|<uuid> <key>=<value>: configure filesystem parameter for a single filesystem identified by host:port/path, filesystem id or filesystem UUID.\n");
+  printf("         => fs config <...> configstatus=rw|wo|ro|drain|off\n");
   printf("                    <status> can be := rw                       : filesystem is in read write mode\n");
   printf("                                    := wo                       : filesystem is in write-once mode\n");
   printf("                                    := ro                       : filesystem is in read-only mode\n");
   printf("                                    := drain                    : filesystem is in drain mode\n");
   printf("                                    := off                      : filesystem is disabled\n"); 
+
+  printf("       fs rm    <fs-name>|<fs-id>                               : remove filesystem configuration by name or id\n");
+  printf("       fs boot  <fs-id>|<node-queue>                            : boot filesystem/node ['fs boot *' to boot all]  \n");
   printf("                    -sched <group>                              : allows to change the scheduling group\n");
   printf("       fs clone <fs-id-src> <fs-id-dst>                         : allows to clone the contents of <fs-id-src> to <fs-id-dst>\n");
   printf("       fs compare <fs-id-src> <fs-id-dst>|<space>               : does a comparison of <fs-id-src> with <fs-id-dst>|<space>\n");

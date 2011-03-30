@@ -116,8 +116,9 @@ public:
   static ConfigEngine* ConfEngine;
 #endif
 
-  bool Register   (eos::common::FileSystem* fs); // this adds or modifies a filesystem
-  bool UnRegister (eos::common::FileSystem* fs); // this removes a filesystem
+  bool Register   (eos::common::FileSystem* fs);  // this adds or modifies a filesystem
+  void StoreFsConfig(eos::common::FileSystem* fs);// this stores the filesystem configuration into the config engine and should be called whenever a filesystem wide parameters is changed
+  bool UnRegister (eos::common::FileSystem* fs);  // this removes a filesystem
 
   bool RegisterNode   (const char* nodequeue);            // this adds or modifies an fst node
   bool UnRegisterNode (const char* nodequeue);            // this removes an fst node
@@ -125,8 +126,8 @@ public:
   bool RegisterSpace  (const char* spacename);            // this adds or modifies a space 
   bool UnRegisterSpace(const char* spacename);            // this remove a space
 
-  bool RegisterGroup   (const char* groupname);            // this adds or modifies a group
-  bool UnRegisterGroup (const char* groupname);            // this removes a group
+  bool RegisterGroup   (const char* groupname);           // this adds or modifies a group
+  bool UnRegisterGroup (const char* groupname);           // this removes a group
 
   eos::common::RWMutex ViewMutex;  // protecting all xxxView variables
   eos::common::RWMutex MapMutex;   // protecting all xxxMap varables

@@ -145,11 +145,11 @@ public:
 
   bool SetStatus(fsstatus_t status) {
     
-    return SetString("status", GetStatusAsString(status));
+    return SetString("stat.boot", GetStatusAsString(status));
   }
 
   bool SetDrainStatus(fsstatus_t status) {
-    return SetString("drainstatus", GetDrainStatusAsString(status));
+    return SetString("stat.drain", GetDrainStatusAsString(status));
   }
 
   bool SetConfigStatus(fsstatus_t status) {
@@ -205,12 +205,16 @@ public:
     return mQueue;
   }
 
+  std::string GetPath() {
+    return mPath;
+  }
+
   fsstatus_t GetStatus() {
-    return GetStatusFromString(GetString("status").c_str());
+    return GetStatusFromString(GetString("stat.boot").c_str());
   }
   
   fsstatus_t GetDrainStatus() {
-    return GetDrainStatusFromString(GetString("drainstatus").c_str());
+    return GetDrainStatusFromString(GetString("stat.drain").c_str());
   }
 
   fsstatus_t GetConfigStatus() { 

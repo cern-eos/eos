@@ -173,9 +173,9 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs) {
       fs.mSpace.erase(dpos);
     fs.mPath          = mPath;
     fs.mErrMsg        = mHash->Get("stat.errmsg");
-    fs.mStatus        = mHash->GetLongLong("status");
+    fs.mStatus        = mHash->GetLongLong("stat.boot");
     fs.mConfigStatus  = mHash->GetLongLong("configstatus");
-    fs.mDrainStatus   = mHash->GetLongLong("drainstatus");
+    fs.mDrainStatus   = mHash->GetLongLong("stat.drain");
     fs.mErrCode       = (unsigned int)mHash->GetLongLong("stat.errc");
     fs.mBootSentTime  = (time_t) mHash->GetLongLong("stat.bootsenttime");
     fs.mBootDoneTime  = (time_t) mHash->GetLongLong("stat.bootdonetime");

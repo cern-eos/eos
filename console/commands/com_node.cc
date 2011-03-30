@@ -56,10 +56,7 @@ com_node (char* arg1) {
     if ( (active != "on") && (active != "off") ) {
       printusage=true;
     }
-    if (!nodename.beginswith("/eos/")) {
-      nodename.insert("/eos/",0);
-      nodename.append("/fst");
-    }
+
     if (!nodename.length())
       printusage=true;
     in += "&mgm.node=";
@@ -72,10 +69,7 @@ com_node (char* arg1) {
   if ( subcommand == "rm" ) {
     in ="mgm.cmd=node&mgm.subcmd=rm";
     XrdOucString nodename = subtokenizer.GetToken();
-        if (!nodename.beginswith("/eos/")) {
-      nodename.insert("/eos/",0);
-      nodename.append("/fst");
-    }
+
     if (!nodename.length())
       printusage=true;
     in += "&mgm.node=";
@@ -83,7 +77,37 @@ com_node (char* arg1) {
     ok = true;
   }
     
-
+  if ( subcommand == "config" ) {
+    XrdOucString nodename = subtokenizer.GetToken();
+    XrdOucString keyval   = subtokenizer.GetToken();
+    
+    if ( (!nodename.length()) || (!keyval.length()) ) {
+      goto com_node_usage;
+    }
+    
+    if ( (keyval.find("=")) == STR_NPOS) {
+      // not like <key>=<val>
+      goto com_node_usage;
+    }
+    
+    std::string is = keyval.c_str();
+    std::vector<std::string> token;
+    std::string delimiter = "=";
+    eos::common::StringConversion::Tokenize(is, token, delimiter);
+    
+    if (token.size() != 2) 
+      goto com_node_usage;
+    
+    XrdOucString in = "mgm.cmd=node&mgm.subcmd=config&mgm.node.name=";
+    in += nodename;
+    in += "&mgm.node.key="; in += token[0].c_str();
+    in += "&mgm.node.value="; in += token[1].c_str();
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+  
+  
   if (printusage ||  (!ok))
     goto com_node_usage;
 
@@ -103,11 +127,11 @@ com_node (char* arg1) {
 
  com_node_usage:
 
-  printf("usage: node ls                                                  : list nodes\n");
-  printf("usage: node ls [-s] [-m|-l]                                        : list nodes\n");
+  printf("usage: node ls [-s] [-m|-l]                                     : list nodes\n");
   printf("                                                                  -s : silent mode\n");
   printf("                                                                  -m : monitoring key=value output format\n");
   printf("                                                                  -l : long output - list also file systems after each node\n");
+  printf("       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node (see help of 'fs config' for details)\n");
   printf("       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
   printf("       node rm  <queue-name>|<host:port>                        : remove a node\n");
   return (0);

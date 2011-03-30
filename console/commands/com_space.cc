@@ -85,6 +85,35 @@ com_space (char* arg1) {
     ok = true;
   }
     
+  if ( subcommand == "config" ) {
+    XrdOucString spacename = subtokenizer.GetToken();
+    XrdOucString keyval   = subtokenizer.GetToken();
+    
+    if ( (!spacename.length()) || (!keyval.length()) ) {
+      goto com_space_usage;
+    }
+    
+    if ( (keyval.find("=")) == STR_NPOS) {
+      // not like <key>=<val>
+      goto com_space_usage;
+    }
+    
+    std::string is = keyval.c_str();
+    std::vector<std::string> token;
+    std::string delimiter = "=";
+    eos::common::StringConversion::Tokenize(is, token, delimiter);
+    
+    if (token.size() != 2) 
+      goto com_space_usage;
+    
+    XrdOucString in = "mgm.cmd=space&mgm.subcmd=config&mgm.space.name=";
+    in += spacename;
+    in += "&mgm.space.key="; in += token[0].c_str();
+    in += "&mgm.space.value="; in += token[1].c_str();
+    
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
 
   if (printusage ||  (!ok))
     goto com_space_usage;
@@ -110,6 +139,7 @@ com_space (char* arg1) {
   printf("                                                                  -s : silent mode\n");
   printf("                                                                  -m : monitoring key=value output format\n");
   printf("                                                                  -l : long output - list also file systems after each space\n");
+  printf("       space config <host:port> <key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
   printf("       space set <space-name> [<groupsize> [<groupmod>]]             : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
   printf("                                                                       => <groupsize>=0 means, that no groups are built within a space\n");
   printf("                                                                       => <groupmod> defines the maximum number of filesystems per node [default=24]\n");
