@@ -39,6 +39,16 @@ namespace eos
   }
 
   //----------------------------------------------------------------------------
+  // Destructor
+  //----------------------------------------------------------------------------
+  QuotaStats::~QuotaStats()
+  {
+    NodeMap::iterator it;
+    for( it = pNodeMap.begin(); it != pNodeMap.end(); ++it )
+      delete it->second;
+  }
+
+  //----------------------------------------------------------------------------
   // Register a new quota node
   //----------------------------------------------------------------------------
   QuotaNode *QuotaStats::registerNewNode( ContainerMD::id_t nodeId )
