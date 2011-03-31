@@ -3,13 +3,12 @@
 // desc:   ChangeLog test
 //------------------------------------------------------------------------------
 
-#include <cppunit/CompilerOutputter.h>
-#include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
 #include <stdint.h>
 #include <unistd.h>
 
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/tests/TestHelpers.hh"
 
 //------------------------------------------------------------------------------
 // Declaration
@@ -35,7 +34,7 @@ void ChangeLogContainerMDSvcTest::reloadTest()
   {
     eos::IContainerMDSvc *containerSvc = new eos::ChangeLogContainerMDSvc;
     std::map<std::string, std::string> config;
-    std::string fileName = tempnam( "/tmp", "eosns" );
+    std::string fileName = getTempName( "/tmp", "eosns" );
     config["changelog_path"] = fileName;
     containerSvc->configure( config );
     containerSvc->initialize();

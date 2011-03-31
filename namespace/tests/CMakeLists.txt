@@ -8,6 +8,8 @@ add_library (eosNamespaceTests SHARED
       HierarchicalViewTest.cc
       LogCompactingTest.cc
       OtherTests.cc
+      TestHelpers.hh
+      TestHelpers.cc
 )
 
 target_link_libraries( eosNamespaceTests ${CPPUNIT_LIBRARIES} eosNamespace)

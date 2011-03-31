@@ -3,8 +3,6 @@
 // desc:   ChangeLog compacting test
 //------------------------------------------------------------------------------
 
-#include <cppunit/CompilerOutputter.h>
-#include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
 
 #include <cstdlib>
@@ -15,6 +13,7 @@
 #include "namespace/persistency/LogManager.hh"
 #include "namespace/persistency/ChangeLogFile.hh"
 #include "namespace/persistency/ChangeLogConstants.hh"
+#include "namespace/tests/TestHelpers.hh"
 
 //------------------------------------------------------------------------------
 // Declaration
@@ -170,8 +169,8 @@ void LogCompactingTest::correctnessTest()
 {
   eos::LogCompactingStats stats;
   eos::LogCompactingStats genStats;
-  std::string             fileNameOld       = tempnam( "/tmp", "eosns" );
-  std::string             fileNameCompacted = tempnam( "/tmp", "eosns" );
+  std::string             fileNameOld       = getTempName( "/tmp", "eosns" );
+  std::string             fileNameCompacted = getTempName( "/tmp", "eosns" );
 
   createRandomLog( fileNameOld, 100000, 10000, 10, genStats );
   eos::LogManager::compactLog( fileNameOld, fileNameCompacted, stats, 0 );

@@ -3,8 +3,6 @@
 // desc:   HierarchicalView test
 //------------------------------------------------------------------------------
 
-#include <cppunit/CompilerOutputter.h>
-#include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
 
 #include <stdint.h>
@@ -15,6 +13,7 @@
 #include "namespace/accounting/QuotaStats.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
+#include "namespace/tests/TestHelpers.hh"
 
 //------------------------------------------------------------------------------
 // Declaration
@@ -47,8 +46,8 @@ void HierarchicalViewTest::reloadTest()
     std::map<std::string, std::string> fileSettings;
     std::map<std::string, std::string> contSettings;
     std::map<std::string, std::string> settings;
-    std::string fileNameFileMD = tempnam( "/tmp", "eosns" );
-    std::string fileNameContMD = tempnam( "/tmp", "eosns" );
+    std::string fileNameFileMD = getTempName( "/tmp", "eosns" );
+    std::string fileNameContMD = getTempName( "/tmp", "eosns" );
     contSettings["changelog_path"] = fileNameContMD;
     fileSettings["changelog_path"] = fileNameFileMD;
 
@@ -217,8 +216,8 @@ void HierarchicalViewTest::quotaTest()
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
   std::map<std::string, std::string> settings;
-  std::string fileNameFileMD = tempnam( "/tmp", "eosns" );
-  std::string fileNameContMD = tempnam( "/tmp", "eosns" );
+  std::string fileNameFileMD = getTempName( "/tmp", "eosns" );
+  std::string fileNameContMD = getTempName( "/tmp", "eosns" );
   contSettings["changelog_path"] = fileNameContMD;
   fileSettings["changelog_path"] = fileNameFileMD;
 

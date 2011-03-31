@@ -3,12 +3,11 @@
 // desc:   Other tests
 //------------------------------------------------------------------------------
 
-#include <cppunit/CompilerOutputter.h>
-#include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
 #include <sstream>
 
 #include "namespace/utils/PathProcessor.hh"
+#include "namespace/tests/TestHelpers.hh"
 
 //------------------------------------------------------------------------------
 // Declaration

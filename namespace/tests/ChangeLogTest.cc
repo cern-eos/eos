@@ -3,8 +3,6 @@
 // desc:   ChangeLog test
 //------------------------------------------------------------------------------
 
-#include <cppunit/CompilerOutputter.h>
-#include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
 
 #include <sys/stat.h>
@@ -27,6 +25,8 @@
 #include "namespace/persistency/ChangeLogConstants.hh"
 #include "namespace/persistency/ChangeLogFile.hh"
 #include "namespace/IFileMDSvc.hh"
+
+#include "namespace/tests/TestHelpers.hh"
 
 #define NUMTESTFILES 1000
 
@@ -175,7 +175,7 @@ void ChangeLogTest::readWriteCorrectness()
   // Test the file creation
   //----------------------------------------------------------------------------
   eos::ChangeLogFile file;
-  std::string        fileName = tempnam( "/tmp", "eosns" );
+  std::string        fileName = getTempName( "/tmp", "eosns" );
   CPPUNIT_ASSERT_NO_THROW( file.open( fileName, false, 0x1212 ) );
 
   //----------------------------------------------------------------------------
@@ -244,7 +244,7 @@ void ChangeLogTest::followingTest()
   // Test the file creation
   //----------------------------------------------------------------------------
   eos::ChangeLogFile file;
-  std::string        fileName = tempnam( "/tmp", "eosns" );
+  std::string        fileName = getTempName( "/tmp", "eosns" );
   CPPUNIT_ASSERT_NO_THROW( file.open( fileName ) );
 
   //----------------------------------------------------------------------------
@@ -478,8 +478,8 @@ void ChangeLogTest::fsckTest()
 {
   eos::LogRepairStats stats;
   eos::LogRepairStats brokenStats;
-  std::string         fileNameBroken   = tempnam( "/tmp", "eosns" );
-  std::string         fileNameRepaired = tempnam( "/tmp", "eosns" );
+  std::string         fileNameBroken   = getTempName( "/tmp", "eosns" );
+  std::string         fileNameRepaired = getTempName( "/tmp", "eosns" );
   createRandomLog( fileNameBroken, 10000 );
   breakRecords( fileNameBroken, 100, brokenStats );
   eos::ChangeLogFile::repair( fileNameBroken, fileNameRepaired,
