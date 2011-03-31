@@ -142,7 +142,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get a quota node associated to the container id
       //------------------------------------------------------------------------
-      QuotaNode *getQuotaNode( ContainerMD::id_t nodeId ) throw( MDException );
+      QuotaNode *getQuotaNode( ContainerMD::id_t nodeId );
 
       //------------------------------------------------------------------------
       //! Register a new quota node

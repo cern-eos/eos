@@ -64,7 +64,7 @@ namespace eos
     // Scan all the files to reattach them to containers - THIS SHOULD NOT
     // BE DONE! THE INFO NEEDS TO BE STORED WITH CONTAINERS
     //--------------------------------------------------------------------------
-    FileVisitor visitor( pContainerSvc );
+    FileVisitor visitor( pContainerSvc, pQuotaStats, this );
     pFileSvc->visit( &visitor );
   }
 
@@ -428,6 +428,10 @@ namespace eos
       return;
     ContainerMD *cont = pContSvc->getContainerMD( file->getContainerId() );
     cont->addFile( file );
+
+    QuotaNode *node = pView->getQuotaNode( cont );
+    if( node )
+      node->addFile( file );
   }
 
   //----------------------------------------------------------------------------
@@ -533,7 +537,11 @@ namespace eos
     if( (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
       return 0;
 
-    return pQuotaStats->getQuotaNode( current->getId() );
+    QuotaNode *node = pQuotaStats->getQuotaNode( current->getId() );
+    if( node )
+      return node;
+
+    return pQuotaStats->registerNewNode( current->getId() );
   }
 
   //----------------------------------------------------------------------------
@@ -568,6 +576,7 @@ namespace eos
 
     QuotaNode *node = pQuotaStats->registerNewNode( container->getId() );
     container->getFlags() |= QUOTA_NODE_FLAG;
+    updateContainerStore( container );
 
     return node;
   }

@@ -31,15 +31,10 @@ namespace eos
   // Get a quota node associated to the container id
   //----------------------------------------------------------------------------
   QuotaNode *QuotaStats::getQuotaNode( ContainerMD::id_t nodeId )
-    throw( MDException )
   {
     NodeMap::iterator it = pNodeMap.find( nodeId );
     if( it == pNodeMap.end() )
-    {
-      MDException e;
-      e.getMessage() << "Quota node does not exist: " << nodeId;
-      throw e;
-    }
+      return 0;
     return it->second;
   }
 

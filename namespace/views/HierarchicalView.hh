@@ -196,10 +196,14 @@ namespace eos
       class FileVisitor: public IFileVisitor
       {
         public:
-          FileVisitor( IContainerMDSvc *contSvc ): pContSvc( contSvc ) {}
+          FileVisitor( IContainerMDSvc *contSvc, QuotaStats *quotaStats,
+                       IView *view ):
+            pContSvc( contSvc ), pQuotaStats( quotaStats ), pView( view ) {}
           virtual void visitFile( FileMD *file );
         private:
           IContainerMDSvc *pContSvc;
+          QuotaStats      *pQuotaStats;
+          IView           *pView;
       };
 
       //------------------------------------------------------------------------
