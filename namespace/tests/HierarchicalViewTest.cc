@@ -302,7 +302,40 @@ void HierarchicalViewTest::quotaTest()
     CPPUNIT_ASSERT( node2->getOccupancyByGroup( i ) == groups2[i] );
   }
 
+  //----------------------------------------------------------------------------
+  // Restart and check if the quota stats are reloaded correctly
+  //----------------------------------------------------------------------------
   CPPUNIT_ASSERT_NO_THROW( view->finalize() );
+  delete view->getQuotaStats();
+  view->setQuotaStats( new eos::QuotaStats );
+  view->getQuotaStats()->registerSizeMapper( mapSize );
+
+  CPPUNIT_ASSERT_NO_THROW( view->initialize() );
+
+  node1 = view->getQuotaNode( view->getContainer( path1 ) );
+  node2 = view->getQuotaNode( view->getContainer( path2 ) );
+
+  CPPUNIT_ASSERT( node1 );
+  CPPUNIT_ASSERT( node2 );
+
+  for( int i = 1; i<= 10; ++i )
+  {
+    CPPUNIT_ASSERT( node1->getOccupancyByUser( i ) == users1[i] );
+    CPPUNIT_ASSERT( node2->getOccupancyByUser( i ) == users2[i] );
+  }
+
+  for( int i = 1; i<= 3; ++i )
+  {
+    CPPUNIT_ASSERT( node1->getOccupancyByGroup( i ) == groups1[i] );
+    CPPUNIT_ASSERT( node2->getOccupancyByGroup( i ) == groups2[i] );
+  }
+
+  CPPUNIT_ASSERT_NO_THROW( view->finalize() );
+
   unlink( fileNameFileMD.c_str() );
   unlink( fileNameContMD.c_str() );
+
+  delete view;
+  delete contSvc;
+  delete fileSvc;
 }
