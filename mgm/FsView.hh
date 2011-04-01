@@ -127,7 +127,8 @@ public:
   bool Register   (eos::common::FileSystem* fs);  // this adds or modifies a filesystem
   void StoreFsConfig(eos::common::FileSystem* fs);// this stores the filesystem configuration into the config engine and should be called whenever a filesystem wide parameters is changed
   bool UnRegister (eos::common::FileSystem* fs);  // this removes a filesystem
-
+  bool ExistsQueue(std::string queue, std::string queuepath); // check's if a queue+path exists already
+  
   bool RegisterNode   (const char* nodequeue);            // this adds or modifies an fst node
   bool UnRegisterNode (const char* nodequeue);            // this removes an fst node
 

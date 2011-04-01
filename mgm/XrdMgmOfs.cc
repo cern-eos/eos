@@ -475,6 +475,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     } else {
       // we attached to an existing file
       if (fmd && (open_flag & O_EXCL))  {
+	gOFS->MgmStats.Add("OpenFailedExists",vid.uid,vid.gid,1);  
 	return Emsg(epname, error, EEXIST, "create file", path);
       }
     }

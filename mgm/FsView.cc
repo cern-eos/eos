@@ -294,6 +294,27 @@ FsView::UnRegister(eos::common::FileSystem* fs)
 }
 
 /*----------------------------------------------------------------------------*/
+bool
+FsView::ExistsQueue(std::string queue, std::string queuepath) 
+{
+  //----------------------------------------------------------------
+  //! checks if a node has already a filesystem registered 
+  //----------------------------------------------------------------
+
+  if (mNodeView.count(queue)) {
+    // loop over all attached filesystems and compare the queue path
+    std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
+    for (it=mNodeView[queue]->begin(); it != mNodeView[queue]->end(); it++) {
+      if (FsView::gFsView.mIdView[*it]->GetQueuePath() == queuepath) {
+	// this queue path was already existing, we cannot register
+	return true;
+      }
+    }
+  }
+  return false;
+}
+
+/*----------------------------------------------------------------------------*/
 bool 
 FsView::RegisterNode(const char* nodename)
 {
@@ -458,7 +479,10 @@ FsView::UnRegisterGroup(const char* groupname)
 void 
 FsView::Reset()
 {
-  // remove all filesystems by erasing all spaces
+  //----------------------------------------------------------------
+  //! remove all filesystems by erasing all spaces
+  //----------------------------------------------------------------
+
   std::map<std::string , FsSpace* >::iterator it;
 
   eos::common::RWMutexWriteLock viewlock(ViewMutex);
@@ -488,6 +512,9 @@ FsView::Reset()
 void
 FsView::SetNextFsId(eos::common::FileSystem::fsid_t fsid) 
 {
+  //----------------------------------------------------------------
+  //! stores the next fsid into the global config
+  //----------------------------------------------------------------
   NextFsId = fsid;
 
   // we need to store this in the shared hash between MGMs
@@ -512,6 +539,10 @@ FsView::SetNextFsId(eos::common::FileSystem::fsid_t fsid)
 eos::common::FileSystem* 
 FsView::FindByQueuePath(std::string &queuepath)
 {
+  //----------------------------------------------------------------
+  //! find a filesystem specifying a queuepath
+  //----------------------------------------------------------------
+
   // needs an external ViewMutex lock !!!!
   std::map<eos::common::FileSystem::fsid_t, eos::common::FileSystem*>::iterator it;
   for (it = mIdView.begin(); it != mIdView.end(); it++) {
@@ -524,6 +555,10 @@ FsView::FindByQueuePath(std::string &queuepath)
 /*----------------------------------------------------------------------------*/
 std::string 
 BaseView::GetMember(std::string member) {
+  //----------------------------------------------------------------
+  //! return a view member variable
+  //----------------------------------------------------------------
+
   if (member == "name")
       return mName;
   if (member == "type")
@@ -579,6 +614,10 @@ BaseView::GetMember(std::string member) {
 bool 
 BaseView::SetConfigMember(std::string key, std::string value, bool create, std::string broadcastqueue)
 {
+  //----------------------------------------------------------------
+  //! set a configuration member variable (stored in the config engine)
+  //----------------------------------------------------------------
+
   bool success=false;
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
   std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
@@ -614,6 +653,10 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create, std::
 std::string
 BaseView::GetConfigMember(std::string key)
 {
+  //----------------------------------------------------------------
+  //! get a configuration member variable (stored in the config engine)
+  //----------------------------------------------------------------
+
   XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
   std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
@@ -627,6 +670,10 @@ BaseView::GetConfigMember(std::string key)
 eos::common::FileSystem::fsid_t 
 FsView::CreateMapping(std::string fsuuid)
 {
+  //----------------------------------------------------------------
+  //! creates a new filesystem id based on a uuid
+  //----------------------------------------------------------------
+
   eos::common::RWMutexWriteLock lock(MapMutex);
   if (Uuid2FsMap.count(fsuuid)) {
     return Uuid2FsMap[fsuuid];
@@ -647,6 +694,10 @@ FsView::CreateMapping(std::string fsuuid)
 bool 
 FsView::ProvideMapping(std::string fsuuid, eos::common::FileSystem::fsid_t fsid)
 {
+  //----------------------------------------------------------------
+  //! adds a fsid=uuid pair to the mapping
+  //----------------------------------------------------------------
+
   eos::common::RWMutexWriteLock lock(MapMutex);  
   if (Uuid2FsMap.count(fsuuid)) {
     if (Uuid2FsMap[fsuuid] == fsid) 
@@ -664,6 +715,10 @@ FsView::ProvideMapping(std::string fsuuid, eos::common::FileSystem::fsid_t fsid)
 eos::common::FileSystem::fsid_t 
 FsView::GetMapping(std::string fsuuid)
 {
+  //----------------------------------------------------------------
+  //! returns an fsid for a uuid
+  //----------------------------------------------------------------
+
   eos::common::RWMutexReadLock lock(MapMutex);
   if (Uuid2FsMap.count(fsuuid)) {
     return Uuid2FsMap[fsuuid];
@@ -675,6 +730,10 @@ FsView::GetMapping(std::string fsuuid)
 bool 
 FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid) 
 {
+  //----------------------------------------------------------------
+  //! removes a mapping entry by fsid
+  //----------------------------------------------------------------
+
   eos::common::RWMutexWriteLock lock(MapMutex);
   bool removed=false;
   std::string fsuuid;
@@ -694,6 +753,10 @@ FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid)
 bool        
 FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid) 
 {
+  //----------------------------------------------------------------
+  //! removes a mapping entry by providing fsid + uuid
+  //----------------------------------------------------------------
+
   eos::common::RWMutexWriteLock lock(MapMutex);
   bool removed=false;
   if (Uuid2FsMap.count(fsuuid)) {
@@ -711,6 +774,10 @@ FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid)
 void
 FsView::PrintSpaces(std::string &out, std::string headerformat, std::string listformat)
 {
+  //----------------------------------------------------------------
+  //! print space information to out
+  //----------------------------------------------------------------
+
   std::map<std::string , FsSpace* >::iterator it;
   bool first=true;
   for (it = mSpaceView.begin(); it != mSpaceView.end(); it++) {
@@ -726,6 +793,10 @@ FsView::PrintSpaces(std::string &out, std::string headerformat, std::string list
 void
 FsView::PrintGroups(std::string &out, std::string headerformat, std::string listformat)
 {
+  //----------------------------------------------------------------
+  //! print group information to out
+  //----------------------------------------------------------------
+
   std::map<std::string , FsGroup* >::iterator it;
   bool first=true;
   for (it = mGroupView.begin(); it != mGroupView.end(); it++) {
@@ -741,6 +812,10 @@ FsView::PrintGroups(std::string &out, std::string headerformat, std::string list
 void
 FsView::PrintNodes(std::string &out, std::string headerformat, std::string listformat)
 {
+  //----------------------------------------------------------------
+  //! print node information to out
+  //----------------------------------------------------------------
+
   std::map<std::string , FsNode* >::iterator it;
   bool first=true;
   for (it = mNodeView.begin(); it != mNodeView.end(); it++) {
@@ -757,6 +832,10 @@ FsView::PrintNodes(std::string &out, std::string headerformat, std::string listf
 bool 
 FsView::ApplyFsConfig(const char* inkey, std::string &val)
 {
+  //----------------------------------------------------------------
+  //! converts a config engine definition for a filesystem into the FsView representation
+  //----------------------------------------------------------------
+
   if (!inkey) 
     return false;
 
@@ -807,6 +886,10 @@ FsView::ApplyFsConfig(const char* inkey, std::string &val)
 bool 
 FsView::ApplyGlobalConfig(const char* key, std::string &val)
 {
+  //----------------------------------------------------------------
+  //! converts a config engine definition of a global variable into the FsView representation
+  //----------------------------------------------------------------
+
   // global variables are stored like key='<queuename>:<variable>' val='<val>'
   std::string configqueue = key; 
   std::vector<std::string> tokens;
@@ -861,6 +944,10 @@ FsView::ApplyGlobalConfig(const char* key, std::string &val)
 long long
 BaseView::SumLongLong(const char* param)
 {
+  //----------------------------------------------------------------
+  //! computes the sum for <param> as long
+  //----------------------------------------------------------------
+
   eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
   
   long long sum = 0;
@@ -875,6 +962,10 @@ BaseView::SumLongLong(const char* param)
 double 
 BaseView::SumDouble(const char* param) 
 {
+  //----------------------------------------------------------------
+  //! computes the sum for <param> as double
+  //----------------------------------------------------------------
+
   eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
   
   double sum = 0;
@@ -889,6 +980,10 @@ BaseView::SumDouble(const char* param)
 double
 BaseView::AverageDouble(const char* param)
 {
+  //----------------------------------------------------------------
+  //! computes the average for <param>
+  //----------------------------------------------------------------
+
   eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
   
   double sum = 0;
@@ -906,6 +1001,10 @@ double
 BaseView::SigmaDouble(const char* param)
 
 {  
+  //----------------------------------------------------------------
+  //! computes the sigma for <param>
+  //----------------------------------------------------------------
+
   eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
   
   double avg = AverageDouble(param);;
@@ -926,6 +1025,10 @@ BaseView::SigmaDouble(const char* param)
 void
 BaseView::Print(std::string &out, std::string headerformat, std::string listformat) 
 {
+  //----------------------------------------------------------------
+  //! print userdefined format to out
+  //----------------------------------------------------------------
+
   //-------------------------------------------------------------------------------
   // headerformat
   //-------------------------------------------------------------------------------

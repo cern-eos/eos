@@ -669,94 +669,101 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    // queuepath = /eos/<host:port><path>
 	    std::string queuepath = nodename;
 	    queuepath += mountpoint;
-	    // check if there is a mapping for 'uuid'
-	    eos::common::RWMutexWriteLock(FsView::gFsView.MapMutex);
-	    if (FsView::gFsView.GetMapping(uuid)) {
-	      stdErr="error: filesystem identified by '"; stdErr += uuid.c_str(); stdErr += "' already exists!";
-	      retc = EEXIST;
-	    } else {
-	      eos::common::FileSystem::fsid_t fsid = FsView::gFsView.CreateMapping(uuid);
-	      eos::common::FileSystem* fs = new eos::common::FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
-	      XrdOucString sizestring;
-	      
-	      stdOut += "success:   mapped '"; stdOut += uuid.c_str() ; stdOut += "' <=> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
-	      if (fs) {
-		fs->SetId(fsid);
-		fs->SetString("uuid",uuid.c_str());
-		fs->SetString("configstatus", configstatus.c_str());
-		fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
-		std::string splitspace="";
-		std::string splitgroup="";
+
+	    // check if this filesystem exists already ....
+	    if (!FsView::gFsView.ExistsQueue(nodename,queuepath)) {
+	      // check if there is a mapping for 'uuid'
+	      eos::common::RWMutexWriteLock(FsView::gFsView.MapMutex);
+	      if (FsView::gFsView.GetMapping(uuid)) {
+		stdErr="error: filesystem identified by '"; stdErr += uuid.c_str(); stdErr += "' already exists!";
+		retc = EEXIST;
+	      } else {
+		eos::common::FileSystem::fsid_t fsid = FsView::gFsView.CreateMapping(uuid);
+		eos::common::FileSystem* fs = new eos::common::FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
+		XrdOucString sizestring;
 		
-		unsigned int groupsize = 0;
-		unsigned int groupmod  = 0;
-		unsigned int subgroup  = 0;
-		
-		{
-		  // logic to automatically adjust scheduling subgroups
-		  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
-		  eos::common::StringConversion::SplitByPoint(space, splitspace, splitgroup);
-		  if (FsView::gFsView.mSpaceView.count(splitspace)) {
-		    groupsize = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupsize")).c_str());
-		    groupmod  = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupmod")).c_str());
-		  }
+		stdOut += "success:   mapped '"; stdOut += uuid.c_str() ; stdOut += "' <=> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
+		if (fs) {
+		  fs->SetId(fsid);
+		  fs->SetString("uuid",uuid.c_str());
+		  fs->SetString("configstatus", configstatus.c_str());
+		  fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
+		  std::string splitspace="";
+		  std::string splitgroup="";
 		  
-		  if (splitgroup.length()) {
-		    // we have to check if the desired group is already full, in case we add to the next group by increasing the number by <groupmod>
-		    subgroup = atoi(splitgroup.c_str());
-		    int j=0;
-		    for (j=0; j< 1000; j++) {
-		      char newgroup[1024];
-		      snprintf(newgroup,sizeof(newgroup)-1, "%s.%u", splitspace.c_str(), subgroup);
-		      if (!FsView::gFsView.mGroupView.count(std::string(newgroup))) {
-			// great, this is still empty
-			splitgroup = newgroup;
-			break;
-		      } else {
-			if ( ((FsView::gFsView.mGroupView[std::string(newgroup)]->size()) < groupsize) || (groupsize==0)) {
-			  // great, there is still space here
+		  unsigned int groupsize = 0;
+		  unsigned int groupmod  = 0;
+		  unsigned int subgroup  = 0;
+		  
+		  {
+		    // logic to automatically adjust scheduling subgroups
+		    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+		    eos::common::StringConversion::SplitByPoint(space, splitspace, splitgroup);
+		    if (FsView::gFsView.mSpaceView.count(splitspace)) {
+		      groupsize = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupsize")).c_str());
+		      groupmod  = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(std::string("cfg.groupmod")).c_str());
+		    }
+		    
+		    if (splitgroup.length()) {
+		      // we have to check if the desired group is already full, in case we add to the next group by increasing the number by <groupmod>
+		      subgroup = atoi(splitgroup.c_str());
+		      int j=0;
+		      for (j=0; j< 1000; j++) {
+			char newgroup[1024];
+			snprintf(newgroup,sizeof(newgroup)-1, "%s.%u", splitspace.c_str(), subgroup);
+			if (!FsView::gFsView.mGroupView.count(std::string(newgroup))) {
+			  // great, this is still empty
 			  splitgroup = newgroup;
 			  break;
 			} else {
-			  // the group is full, let's got the next one
-			  subgroup += groupmod;
+			  if ( ((FsView::gFsView.mGroupView[std::string(newgroup)]->size()) < groupsize) || (groupsize==0)) {
+			    // great, there is still space here
+			    splitgroup = newgroup;
+			    break;
+			  } else {
+			    // the group is full, let's got the next one
+			    subgroup += groupmod;
+			  }
 			}
 		      }
+		      
+		      if (j== 1000) {
+			eos_crit("infinite loop detected finding available scheduling group!");
+			stdErr = "error: infinite loop detected finding available scheduling group!";
+			retc = EFAULT;
+		      }
+		    } else {
+		      splitgroup = splitspace;
 		    }
+		  }
+		  
+		  if (!retc) {
+		    fs->SetString("schedgroup", splitgroup.c_str());
 		    
-		    if (j== 1000) {
-		      eos_crit("infinite loop detected finding available scheduling group!");
-		      stdErr = "error: infinite loop detected finding available scheduling group!";
-		      retc = EFAULT;
-		    }
+		    eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+		    
+		    if (!FsView::gFsView.Register(fs)) {
+		      // remove mapping
+		      if (FsView::gFsView.RemoveMapping(fsid,uuid)) {
+			// ok
+			stdOut += "\nsuccess: unmapped '"; stdOut += uuid.c_str() ; stdOut += "' <!> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
+		      } else {
+			stdErr="error: cannot remove mapping - this can be fatal!\n";
+		      }
+		      // remove filesystem object
+		      //delete fs;
+		      stdErr+="error: cannot register filesystem - check for path duplication!";
+		      retc = EINVAL;
+		    } 
 		  } else {
-		    splitgroup = splitspace;
+		    stdErr="error: cannot allocate filesystem object";
+		    retc = ENOMEM;
 		  }
 		}
-		
-		if (!retc) {
-		  fs->SetString("schedgroup", splitgroup.c_str());
-		  
-		  eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
-
-		  if (!FsView::gFsView.Register(fs)) {
-		    // remove mapping
-		    if (FsView::gFsView.RemoveMapping(fsid,uuid)) {
-		      // ok
-		      stdOut += "\nsuccess: unmapped '"; stdOut += uuid.c_str() ; stdOut += "' <!> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
-		    } else {
-		      stdErr="error: cannot remove mapping - this can be fatal!\n";
-		    }
-		    // remove filesystem object
-		    delete fs;
-		    stdErr+="error: cannot register filesystem - check for path duplication!";
-		    retc = EINVAL;
-		  } 
-		} else {
-		  stdErr="error: cannot allocate filesystem object";
-		  retc = ENOMEM;
-		}
 	      }
+	    } else {
+	      stdErr+="error: cannot register filesystem - is already existing!";
+	      retc = EEXIST;	      
 	    }
 	  }
 	}

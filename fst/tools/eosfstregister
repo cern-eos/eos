@@ -121,6 +121,7 @@ my $cnt=0;
 foreach ( @filesystems ) {
     my $uuid="";
     my $fsid=0;
+    print $_;
     if ( ! -e "$_/.eosfsuuid" ) {
 	$uuid = `uuidgen`;
 	chomp $uuid;

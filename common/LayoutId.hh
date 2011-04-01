@@ -61,7 +61,7 @@ public:
   
   static const char* GetChecksumString(unsigned long layout) { if (GetChecksum(layout)==kNone) return "none"; if (GetChecksum(layout)==kAdler) return "adler"; if (GetChecksum(layout)==kCRC32) return "crd32"; if (GetChecksum(layout)==kMD5) return "md5"; if (GetChecksum(layout)==kSHA1) return "sha"; return "none";}
 
-  static const char* GetLayoutTypeString(unsigned long layout) { if (GetLayoutType(layout) == kPlain) return "plain"; if (GetLayoutType(layout) == kReplica) return "replica"; if (GetLayoutType(layout) == kRaid5) return "raid5"; return "plain";}
+  static const char* GetLayoutTypeString(unsigned long layout) { if (GetLayoutType(layout) == kReplica) return "replica"; if (GetLayoutType(layout) == kRaid5) return "raid5"; return "plain";}
   static unsigned long GetChecksumFromEnv(XrdOucEnv &env)    {const char* val=0; if ( (val=env.Get("eos.layout.checksum")) ) { XrdOucString xsum=val; if (xsum == "adler") return kAdler; if (xsum == "crc32") return kCRC32; if (xsum == "md5") return kMD5; if (xsum == "sha") return kSHA1;} return kNone;}
 
   static unsigned long GetLayoutFromEnv(XrdOucEnv &env)      {const char* val=0; if ( (val=env.Get("eos.layout.type")) ) { XrdOucString typ=val; if (typ == "replica") return kReplica; if (typ == "raid5") return kRaid5;} return kPlain;}

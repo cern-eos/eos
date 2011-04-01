@@ -680,6 +680,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("Mkdir",0,0,0);
   gOFS->MgmStats.Add("MoveStripe",0,0,0);
   gOFS->MgmStats.Add("OpenDir",0,0,0);
+  gOFS->MgmStats.Add("OpenFailedExists",0,0,0);
   gOFS->MgmStats.Add("OpenFailedHeal",0,0,0);
   gOFS->MgmStats.Add("OpenFailedPermission",0,0,0);
   gOFS->MgmStats.Add("OpenFailedQuota",0,0,0);

@@ -622,6 +622,62 @@ SpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned l
 /*----------------------------------------------------------------------------*/
 int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW)
 {
+  // the caller routing has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) !!!
+
+  if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kPlain) {
+    // we have only a single replica ... so just check the state of the filesystem where that is located
+    if (locationsfs.size() && locationsfs[0]) {
+      eos::common::FileSystem* filesystem = 0;
+      if (FsView::gFsView.mIdView.count(locationsfs[0])){
+	filesystem = FsView::gFsView.mIdView[locationsfs[0]];
+      }
+      if (!filesystem)
+	return ENODATA;
+
+      // take filesystem snapshot
+      eos::common::FileSystem::fs_snapshot_t snapshot;
+      // we are already in a locked section
+      FsView::gFsView.mIdView[locationsfs[0]]->SnapShotFileSystem(snapshot,false);
+
+      if (isRW) {
+	// FIX ME!
+	if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
+	     (snapshot.mConfigStatus == eos::common::FileSystem::kRW) && 
+	     (snapshot.mErrCode      == 0 ) && // this we probably don't need 
+	     (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status") == "on") && 
+	     (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") ) {
+          // perfect!
+          fsindex = 0;
+          eos_static_debug("selected plain file access via filesystem %u",locationsfs[0]);
+          return 0;
+        } else {
+
+	  // FIX ME!
+          // check if we are in any kind of no-update mode
+	  if (0) {
+            return EROFS;
+          }
+
+          // we are off the wire
+          return ENONET;
+        }
+      } else {
+	if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
+	     (snapshot.mConfigStatus >= eos::common::FileSystem::kRO) && 
+	     (snapshot.mErrCode      == 0 ) && // this we probably don't need 
+	     (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status") == "on") && 
+	     (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") ) {
+          // perfect!
+          fsindex = 0;
+          return 0;
+        } else {
+          return ENONET;
+        }
+      }
+    } else {
+      return ENODATA;
+    }
+  }
   return EINVAL;
 }
 

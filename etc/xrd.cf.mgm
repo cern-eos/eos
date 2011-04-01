@@ -44,6 +44,6 @@ mgmofs.configdir /var/eos/config
 mgmofs.metalog /var/eos/md
 # this defines the default config to load
 mgmofs.autoloadconfig eosdev
-# this enables that every change get's immedeatly stored to the active configuration
+# this enables that every change get's immedeatly stored to the active configuration - can be overwritte by EOS_AUTOSAVE_CONFIG defined in /etc/sysconfig/xrd
 mgmofs.autosaveconfig true
 ###########################################################
