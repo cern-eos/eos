@@ -132,7 +132,7 @@ namespace eos
       // Type definitions
       //------------------------------------------------------------------------
       typedef uint64_t (*SizeMapper)( const FileMD *file );
-      typedef google::sparse_hash_map<ContainerMD::id_t, QuotaNode*> NodeMap;
+      typedef std::map<ContainerMD::id_t, QuotaNode*> NodeMap;
 
       //------------------------------------------------------------------------
       //! Constructor
@@ -176,6 +176,30 @@ namespace eos
         }
         return (*pSizeMapper)( file );
       }
+
+      //------------------------------------------------------------------------
+      // Iterate over the quota nodes
+      //------------------------------------------------------------------------
+      NodeMap::iterator nodesBegin()
+      {
+        return pNodeMap.begin();
+      }
+
+      NodeMap::iterator nodesEnd()
+      {
+        return pNodeMap.end();
+      }
+
+      const NodeMap::const_iterator nodesBegin() const
+      {
+        return pNodeMap.begin();
+      }
+
+      const NodeMap::const_iterator nodesEnd() const
+      {
+        return pNodeMap.end();
+      }
+
 
     private:
       SizeMapper pSizeMapper;
