@@ -652,6 +652,57 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
       eos_info("Successful auto-load config %s", ConfigAutoLoad.c_str());
     }
   }
+
+  // add all stat entries with 0
+  gOFS->MgmStats.Add("Access",0,0,0);
+  gOFS->MgmStats.Add("AttrGet",0,0,0);
+  gOFS->MgmStats.Add("AttrLs",0,0,0);
+  gOFS->MgmStats.Add("AttrRm",0,0,0);
+  gOFS->MgmStats.Add("AttrSet",0,0,0);
+  gOFS->MgmStats.Add("Chmod",0,0,0);
+  gOFS->MgmStats.Add("Chown",0,0,0);
+  gOFS->MgmStats.Add("Commit",0,0,0);
+  gOFS->MgmStats.Add("CommitFailedFid",0,0,0);
+  gOFS->MgmStats.Add("CommitFailedNamespace",0,0,0);
+  gOFS->MgmStats.Add("CommitFailedParameters",0,0,0);
+  gOFS->MgmStats.Add("CommitFailedUnlinked",0,0,0);
+  gOFS->MgmStats.Add("CopyStripe",0,0,0);
+  gOFS->MgmStats.Add("Df",0,0,0);
+  gOFS->MgmStats.Add("DropStripe",0,0,0);
+  gOFS->MgmStats.Add("Exists",0,0,0);
+  gOFS->MgmStats.Add("Exists",0,0,0);
+  gOFS->MgmStats.Add("FileInfo",0,0,0);
+  gOFS->MgmStats.Add("FindEntries",0,0,0);
+  gOFS->MgmStats.Add("Find",0,0,0);
+  gOFS->MgmStats.Add("Fuse",0,0,0);
+  gOFS->MgmStats.Add("GetMdLocation",0,0,0);
+  gOFS->MgmStats.Add("Ls",0,0,0);
+  gOFS->MgmStats.Add("Mkdir",0,0,0);
+  gOFS->MgmStats.Add("MoveStripe",0,0,0);
+  gOFS->MgmStats.Add("OpenDir",0,0,0);
+  gOFS->MgmStats.Add("OpenFailedHeal",0,0,0);
+  gOFS->MgmStats.Add("OpenFailedPermission",0,0,0);
+  gOFS->MgmStats.Add("OpenFailedQuota",0,0,0);
+  gOFS->MgmStats.Add("OpenFileOffline",0,0,0);
+  gOFS->MgmStats.Add("OpenProc",0,0,0);
+  gOFS->MgmStats.Add("OpenRead",0,0,0);
+  gOFS->MgmStats.Add("OpenStalledHeal",0,0,0);
+  gOFS->MgmStats.Add("OpenStalled",0,0,0);
+  gOFS->MgmStats.Add("OpenStalled",0,0,0);
+  gOFS->MgmStats.Add("Open",0,0,0);
+  gOFS->MgmStats.Add("OpenWriteCreate",0,0,0);
+  gOFS->MgmStats.Add("OpenWriteTruncate",0,0,0);
+  gOFS->MgmStats.Add("OpenWrite",0,0,0);
+  gOFS->MgmStats.Add("ReadLink",0,0,0);
+  gOFS->MgmStats.Add("Rename",0,0,0);
+  gOFS->MgmStats.Add("RmDir",0,0,0);
+  gOFS->MgmStats.Add("Rm",0,0,0);
+  gOFS->MgmStats.Add("Stat",0,0,0);
+  gOFS->MgmStats.Add("Symlink",0,0,0);
+  gOFS->MgmStats.Add("Truncate",0,0,0);
+  gOFS->MgmStats.Add("Utimes",0,0,0);
+  gOFS->MgmStats.Add("VerifyStripe",0,0,0);
+  gOFS->MgmStats.Add("WhoAmI",0,0,0);
   
   return NoGo;
 }

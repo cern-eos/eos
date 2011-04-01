@@ -226,7 +226,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  std::string format="";
 	  std::string listformat="";
 	  format=FsView::GetNodeFormat(std::string(outformat.c_str()));
-	  if (outformat != "m") 
+	  if (outformat == "l")
 	    listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
 	  
 	  FsView::gFsView.PrintNodes(output, format, listformat);
@@ -237,6 +237,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       if (subcmd == "set") {
 	std::string nodename = (opaque.Get("mgm.node"))?opaque.Get("mgm.node"):"";
 	std::string status   = (opaque.Get("mgm.node.state"))?opaque.Get("mgm.node.state"):"";
+	std::string key = "status";
+
 	if ( (!nodename.length()) || (!status.length()) ) {
 	  stdErr="error: illegal parameters";
 	  retc = EINVAL;
@@ -256,47 +258,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    //	    stdErr="error: no such node '"; stdErr += nodename.c_str(); stdErr += "'";
 	    //retc = ENOENT;
 	    
-	    if (FsView::gFsView.RegisterNode(nodename.c_str())) {
-	      std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->NodeConfigQueuePrefix.c_str(), nodename.c_str());
-	      
-	      if (!eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str())) {
-		if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(), nodename.c_str())) {
-		  eos_crit("cannot add node config queue %s", nodeconfigname.c_str());
-		  stdErr="error: cannot add node config queue '"; stdErr += nodeconfigname.c_str(); stdErr += "'";
-		  retc = EIO;
-		}
-	      }
-	      if (!retc) {
-		// set this new node to offline
-		FsView::gFsView.mNodeView[nodename]->SetStatus("offline");
-	      }
+	    if (!FsView::gFsView.RegisterNode(nodename.c_str())) {
+	      stdErr = "error: cannot register node <"; stdErr += nodename.c_str(); stdErr += ">";
+	      retc = EIO;
 	    }
-	  } else {
-	    // we have a node but we have to check if we have a config
-	    std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->NodeConfigQueuePrefix.c_str(), nodename.c_str());
-	    if (!eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str())) {
-	      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(), nodename.c_str())) {
-		eos_crit("cannot add node config queue %s", nodeconfigname.c_str());
-		stdErr="error: cannot add node config queue '"; stdErr += nodeconfigname.c_str(); stdErr += "'";
-		retc = EIO;
-	      }
-	      if (!retc) {
-		// set this new node to offline
-		FsView::gFsView.mNodeView[nodename]->SetStatus("offline");
-	      }
-	    }
-	  }
-
+	  } 
 
 	  if (!retc) {
-	    XrdMqRWMutexWriteLock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-	    std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsNode::sGetConfigQueuePrefix(), nodename.c_str());
-	    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
-	    if (!hash) {
-	      stdErr="error: unable to set status of node '"; stdErr += nodename.c_str(); stdErr += ";";
+	    if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true, nodename.c_str())) {
 	      retc = EIO;
-	    } else {
-	      hash->Set("stat.boot",status);
+	      stdErr = "error: cannot set node config value";
 	    }
 	  }
 	}
@@ -402,7 +373,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  std::string format="";
 	  std::string listformat="";
 	  format=FsView::GetSpaceFormat(std::string(outformat.c_str()));
-	  if (outformat != "m") 
+	  if (outformat == "l") 
 	    listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
 	  
 	  FsView::gFsView.PrintSpaces(output, format, listformat);
@@ -411,6 +382,32 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
       
       if (subcmd == "set") {
+	std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
+	std::string status    = (opaque.Get("mgm.space.state"))?opaque.Get("mgm.space.state"):"";
+	
+	if ( (!spacename.length()) || (!status.length()) ) {
+	  stdErr="error: illegal parameters";
+	  retc = EINVAL;
+	} else {
+	  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	  if (!FsView::gFsView.mSpaceView.count(spacename)) {
+	    stdErr="error: no such space - define one using 'space define' or add a filesystem under that space!";
+	    retc = EINVAL;
+	  } else {
+	    std::string key = "status";
+	    // loop over all groups
+	    std::map<std::string , FsGroup*>::const_iterator it;
+	    for ( it = FsView::gFsView.mGroupView.begin(); it != FsView::gFsView.mGroupView.end(); it++) {
+	      if (!it->second->SetConfigMember(key, status, true,"/eos/*/mgm")) {
+		stdErr+="error: cannot set status in group <"; stdErr += it->first.c_str(); stdErr += ">\n";
+		retc = EIO;
+	      }
+	    }
+	  }
+	}
+      }
+
+      if (subcmd == "define") {
 	std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
 	std::string groupsize   = (opaque.Get("mgm.space.groupsize"))?opaque.Get("mgm.space.groupsize"):"";
 	std::string groupmod    = (opaque.Get("mgm.space.groupmod"))?opaque.Get("mgm.space.groupmod"):"";
@@ -441,33 +438,19 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  if (!FsView::gFsView.mSpaceView.count(spacename)) {
 	    stdOut="info: creating space '"; stdOut += spacename.c_str(); stdOut += "'";
 	    
-	    if (FsView::gFsView.RegisterSpace(spacename.c_str())) {
-	      std::string spaceconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->SpaceConfigQueuePrefix.c_str(), spacename.c_str());
-	      
-	      if (!eos::common::GlobalConfig::gConfig.Get(spaceconfigname.c_str())) {
-		if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(spaceconfigname.c_str(), "/eos/*/mgm")) {
-		  eos_crit("cannot add space config queue %s", spaceconfigname.c_str());
-		  stdErr="error: cannot add space config queue '"; stdErr += spaceconfigname.c_str(); stdErr += "'";
-		  retc = EIO;
-		}
-	      }
-	    }
-	  } else {
-	    // we have a space but we have to check if we have a config
-	    std::string spaceconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->SpaceConfigQueuePrefix.c_str(), spacename.c_str());
-	    if (!eos::common::GlobalConfig::gConfig.Get(spaceconfigname.c_str())) {
-	      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(spaceconfigname.c_str(), "/eos/*/mgm")) {
-		eos_crit("cannot add space config queue %s", spaceconfigname.c_str());
-		stdErr="error: cannot add space config queue '"; stdErr += spaceconfigname.c_str(); stdErr += "'";
-		retc = EIO;
-	      }
+	    if (!FsView::gFsView.RegisterSpace(spacename.c_str())) {
+	      stdErr = "error: cannot register space <"; stdErr += spacename.c_str(); stdErr += ">";
+	      retc = EIO;
 	    }
 	  }
 
 	  if (!retc) {
 	    // set this new space parameters
-	    FsView::gFsView.mSpaceView[spacename]->SetConfigMember(std::string("groupsize"), groupsize);
-	    FsView::gFsView.mSpaceView[spacename]->SetConfigMember(std::string("groupmod"), groupmod);
+	    if ( (!FsView::gFsView.mSpaceView[spacename]->SetConfigMember(std::string("groupsize"), groupsize,true, "/eos/*/mgm")) ||
+                 (!FsView::gFsView.mSpaceView[spacename]->SetConfigMember(std::string("groupmod"), groupmod,true, "/eos/*/mgm")) ) {
+	      retc = EIO;
+	      stdErr = "error: cannot set space config value";
+	    }
 	  }
 	}
       }
@@ -519,6 +502,32 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	} 
       }
       
+      if (subcmd == "quota") {
+	std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
+	std::string onoff = (opaque.Get("mgm.space.quota"))?opaque.Get("mgm.space.quota"):"";
+	std::string key = "quota";
+	
+	if (vid_in.uid == 0) {
+	  if ( (!spacename.length() ) || (!onoff.length()) || ((onoff != "on") && (onoff != "off")) ) {
+	    stdErr="error: illegal parameters";
+	    retc = EINVAL;
+	  } else {
+	    if (FsView::gFsView.mSpaceView.count(spacename)) {
+	      if (!FsView::gFsView.mSpaceView[spacename]->SetConfigMember(key, onoff, true, "/eos/*/mgm")) {
+		retc = EIO;
+		stdErr = "error: cannot set space config value";
+	      }
+	    } else {
+	      retc = EINVAL;
+	      stdErr = "error: no such space defined";
+	      }
+	  }
+	} else {
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
+	}
+      }
+
       if (subcmd == "rm") {
 	if (vid_in.uid == 0) {
 	  std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
@@ -558,7 +567,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  std::string format="";
 	  std::string listformat="";
 	  format=FsView::GetGroupFormat(std::string(outformat.c_str()));
-	  if (outformat != "m") 
+	  if (outformat == "l") 
 	    listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
 	  
 	  FsView::gFsView.PrintGroups(output, format, listformat);
@@ -569,6 +578,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       if (subcmd == "set") {
 	std::string groupname = (opaque.Get("mgm.group"))?opaque.Get("mgm.group"):"";
 	std::string status   = (opaque.Get("mgm.group.state"))?opaque.Get("mgm.group.state"):"";
+	std::string key = "status";
+
 	if ( (!groupname.length()) || (!status.length()) ) {
 	  stdErr="error: illegal parameters";
 	  retc = EINVAL;
@@ -580,47 +591,18 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    //	    stdErr="error: no such group '"; stdErr += groupname.c_str(); stdErr += "'";
 	    //retc = ENOENT;
 	    
-	    if (FsView::gFsView.RegisterGroup(groupname.c_str())) {
+	    if (!FsView::gFsView.RegisterGroup(groupname.c_str())) {
 	      std::string groupconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->GroupConfigQueuePrefix.c_str(), groupname.c_str());
-	      
-	      if (!eos::common::GlobalConfig::gConfig.Get(groupconfigname.c_str())) {
-		if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(groupconfigname.c_str(), groupname.c_str())) {
-		  eos_crit("cannot add group config queue %s", groupconfigname.c_str());
-		  stdErr="error: cannot add group config queue '"; stdErr += groupconfigname.c_str(); stdErr += "'";
-		  retc = EIO;
-		}
-	      }
-	      if (!retc) {
-		// set this new group to offline
-		FsView::gFsView.mGroupView[groupname]->SetStatus("offline");
-	      }
+	      retc= EIO;
+	      stdErr = "error: cannot register group <"; stdErr += groupname.c_str(); stdErr += ">";
 	    }
-	  } else {
-	    // we have a group but we have to check if we have a config
-	    std::string groupconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->GroupConfigQueuePrefix.c_str(), groupname.c_str());
-	    if (!eos::common::GlobalConfig::gConfig.Get(groupconfigname.c_str())) {
-	      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(groupconfigname.c_str(), groupname.c_str())) {
-		eos_crit("cannot add group config queue %s", groupconfigname.c_str());
-		stdErr="error: cannot add group config queue '"; stdErr += groupconfigname.c_str(); stdErr += "'";
-		retc = EIO;
-	      }
-	      if (!retc) {
-		// set this new group to offline
-		FsView::gFsView.mGroupView[groupname]->SetStatus("offline");
-	      }
-	    }
-	  }
-
+	  } 
 
 	  if (!retc) {
-	    XrdMqRWMutexWriteLock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-	    std::string groupconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsGroup::sGetConfigQueuePrefix(), groupname.c_str());
-	    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(groupconfigname.c_str());
-	    if (!hash) {
-	      stdErr="error: unable to set status of group '"; stdErr += groupname.c_str(); stdErr += ";";
+	    // set this new group to offline
+	    if (!FsView::gFsView.mGroupView[groupname]->SetConfigMember(key, status, true, "/eos/*/mgm")) {
+	      stdErr="error: cannto set config status";
 	      retc = EIO;
-	    } else {
-	      hash->Set("stat.boot",status);
 	    }
 	  }
 	}
@@ -1056,33 +1038,44 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       if (subcmd == "stat") {
 	XrdOucString option = opaque.Get("mgm.option");
 	bool details=false;
-	if (option == "a") 
+	bool monitoring=false;
+	if ((option.find("a")!=STR_NPOS)) 
 	  details = true;
+	if ((option.find("m")!=STR_NPOS))
+	  monitoring = true;
 
 	eos_notice("ns stat");
-	stdOut+="# ------------------------------------------------------------------------------------\n";
-	stdOut+="# Namespace Statistic\n";
-	stdOut+="# ------------------------------------------------------------------------------------\n";
 	char files[1024]; sprintf(files,"%llu" ,(unsigned long long)gOFS->eosFileService->getNumFiles());
 	char dirs[1024];  sprintf(dirs,"%llu"  ,(unsigned long long)gOFS->eosDirectoryService->getNumContainers());
-	stdOut+="ALL      Files                            ";stdOut += files; stdOut+="\n";
-	stdOut+="ALL      Directories                      ";stdOut += dirs;  stdOut+="\n";
-	stdOut+="# ------------------------------------------------------------------------------------\n";
 
-	gOFS->MgmStats.PrintOutTotal(stdOut, details);
+	if (!monitoring) {
+	  stdOut+="# ------------------------------------------------------------------------------------\n";
+	  stdOut+="# Namespace Statistic\n";
+	  stdOut+="# ------------------------------------------------------------------------------------\n";
+	  stdOut+="ALL      Files                            ";stdOut += files; stdOut+="\n";
+	  stdOut+="ALL      Directories                      ";stdOut += dirs;  stdOut+="\n";
+	  stdOut+="# ------------------------------------------------------------------------------------\n";
+	} else {
+	  stdOut += "all ns.total.files="; stdOut += files; stdOut += " ";
+	  stdOut += "all ns.total.directories="; stdOut += dirs; stdOut += "\n";
+	}
+	gOFS->MgmStats.PrintOutTotal(stdOut, details, monitoring);
       }
     }
 
 
-    /*
     if (cmd == "quota") {
       if (subcmd == "ls") {
 	eos_notice("quota ls");
 	XrdOucString space = opaque.Get("mgm.quota.space");
 	XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
 	XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
-	
-	Quota::PrintOut(space.c_str(), stdOut , uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1);
+	XrdOucString monitoring = opaque.Get("mgm.quota.format");
+	bool monitor = false;
+	if (monitoring == "m") {
+	  monitor = true;
+	}
+	Quota::PrintOut(space.c_str(), stdOut , uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, monitor);
       }
 
       if (subcmd == "set") {
@@ -1138,8 +1131,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
       //      stdOut+="\n==== quota done ====";
     }
-
-    */
 
     if (cmd == "debug") {
       if (vid_in.uid == 0) {
@@ -1546,7 +1537,22 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
   }
 
   if (userCmd) {
+    if (cmd == "quota") {
+      if (subcmd == "ls") {
+	eos_notice("quota ls");
+	XrdOucString out1="";
+	XrdOucString out2="";
+	Quota::PrintOut(0, out1 , vid.uid, -1);
+	Quota::PrintOut(0, out2 , -1, vid.gid);
+	stdOut += out1;
+	stdOut += out2;
+	MakeResult(0);
+	return SFS_OK;
+      }
+    }
+      
     if ( cmd == "df" ) {
+      gOFS->MgmStats.Add("Df",vid.uid,vid.gid,1);
       XrdOucString space = opaque.Get("mgm.space");
       if (!space.length()) {
 	resultStream = "df: retc=";
@@ -1576,6 +1582,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 
     if ( cmd == "fuse" ) {
+      gOFS->MgmStats.Add("Fuse",vid.uid,vid.gid,1);
       XrdOucString path = opaque.Get("mgm.path");
       resultStream = "inodirlist: retc=";
       if (!path.length()) {
@@ -2235,6 +2242,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 // 	}
 
 	if (subcmd == "getmdlocation") {
+	  gOFS->MgmStats.Add("GetMdLocation",vid.uid,vid.gid,1);
 	  // this returns the access urls to query local metadata information
 	  XrdOucString path = opaque.Get("mgm.path");
 	  
@@ -2282,25 +2290,24 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  eos_err("fsid 0 found fid=%lld", fmd->getId());
 		  continue;
 		}
-		FstNode::gMutex.Lock();
-		FstFileSystem* filesystem = (FstFileSystem*) FstNode::gFileSystemById[(int) *lociter];
+		eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+		eos::common::FileSystem* filesystem = 0;
+		if (FsView::gFsView.mIdView.count(*lociter)) {
+		  filesystem = FsView::gFsView.mIdView[*lociter];
+		}
 		if (filesystem) {
 		  XrdOucString host; 
-		  int port=0;
-		  XrdOucString hostport="";
-		  filesystem->GetHostPort(host,port);
-		  hostport += host; hostport += ":"; hostport += port;
-		  stdOut += "mgm.replica.url";stdOut += i; stdOut += "="; stdOut += hostport; stdOut +="&";
+		  std::string hostport = filesystem->GetString("hostport");
+		  stdOut += "mgm.replica.url";stdOut += i; stdOut += "="; stdOut += hostport.c_str(); stdOut +="&";
 		  XrdOucString hexstring="";
 		  eos::common::FileId::Fid2Hex(fmd->getId(), hexstring);
 		  stdOut += "mgm.fid"; stdOut += i; stdOut += "="; stdOut += hexstring;  stdOut += "&";
 		  stdOut += "mgm.fsid";stdOut += i; stdOut += "="; stdOut += (int) *lociter; stdOut += "&";
-		  stdOut += "mgm.fsbootstat"; stdOut += i; stdOut += "="; stdOut += filesystem->GetBootStatusString(); stdOut += "&";
+		  stdOut += "mgm.fsbootstat"; stdOut += i; stdOut += "="; stdOut += filesystem->GetString("stat.boot").c_str(); stdOut += "&";
 		} else {
 		  stdOut += "NA&";
 		}
 		i++;
-		FstNode::gMutex.UnLock();
 	      }
 	    }						     
 	  }
@@ -2312,6 +2319,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 
     if ( cmd == "fileinfo" ) {
+      gOFS->MgmStats.Add("FileInfo",vid.uid,vid.gid,1);
       XrdOucString path = opaque.Get("mgm.path");
       XrdOucString option= opaque.Get("mgm.file.info.option");
 
@@ -2440,8 +2448,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    stdOut += " *******\n";
 	    stdOut += "  #Rep: "; stdOut += (int)fmd->getNumLocation(); stdOut+="\n";
 	    
-	    stdOut += "<#> <fs-id> "; stdOut += FstFileSystem::GetInfoHeader();
-	    stdOut += "-------\n";
+
 	    eos::FileMD::LocationVector::const_iterator lociter;
 	    int i=0;
 	    for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
@@ -2453,15 +2460,32 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      
 	      char fsline[4096];
 	      XrdOucString location="";
-	      XrdOucString si=""; si+= (int) i;
 	      location += (int) *lociter;
-	      sprintf(fsline,"%3s   %5s ",si.c_str(), location.c_str());
-	      stdOut += fsline; 
-	      FstNode::gMutex.Lock();
-	      FstFileSystem* filesystem = (FstFileSystem*) FstNode::gFileSystemById[(int) *lociter];
+
+	      XrdOucString si=""; si+= (int) i;
+	      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+	      eos::common::FileSystem* filesystem = 0;
+	      if (FsView::gFsView.mIdView.count(*lociter)) {
+		filesystem = FsView::gFsView.mIdView[*lociter];
+	      }
 	      if (filesystem) {
-		stdOut += filesystem->GetInfoString();
+		if (i==0) {
+		  std::string out="";
+		  stdOut += "<#> <fs-id> ";
+		  std::string format="header=1|indent=12|headeronly=1|key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
+		  filesystem->Print(out, format);
+		  stdOut += out.c_str();
+		}
+		sprintf(fsline,"%3s   %5s ",si.c_str(), location.c_str());
+		stdOut += fsline; 
+		
+		std::string out="";
+		std::string format="key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
+		filesystem->Print(out, format);
+		stdOut += out.c_str();
 	      } else {
+		sprintf(fsline,"%3s   %5s ",si.c_str(), location.c_str());
+		stdOut += fsline; 
 		stdOut += "NA\n";
 	      }
 	      FstNode::gMutex.UnLock();
@@ -2516,6 +2540,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
    
     if ( cmd == "ls" ) {
+      gOFS->MgmStats.Add("Ls",vid.uid,vid.gid,1);
       XrdOucString path = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
       if (!path.length()) {
@@ -2726,6 +2751,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
 
     if (cmd == "whoami") {
+      gOFS->MgmStats.Add("WhoAmI",vid.uid,vid.gid,1);
       stdOut += "Virtual Identity: uid=";stdOut += (int)vid_in.uid; stdOut+= " (";
       for (unsigned int i=0; i< vid_in.uid_list.size(); i++) {stdOut += (int)vid_in.uid_list[i]; stdOut += ",";}
       stdOut.erase(stdOut.length()-1);
@@ -2848,10 +2874,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  retc = errno;
 	}
 
+	int cnt=0;
 	if ( ((option.find("f")) != STR_NPOS) || ((option.find("d"))==STR_NPOS)) {
 	  for (unsigned int i = 0 ; i< found_files.size(); i++) {
 	    std::sort(found_files[i].begin(), found_files[i].end());
 	    for (unsigned int j = 0; j< found_files[i].size(); j++) {
+	      cnt++;
 	      if (!calcbalance) {
 		if (findgroupmix || findzero || printsize || printfid || printchecksum || printctime || printmtime || printrep  || printunlink || selectrepdiff || selectonehour) {
 		  //-------------------------------------------
@@ -3051,6 +3079,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      }
 	    }
 	  } 
+	  gOFS->MgmStats.Add("FindEntries",vid.uid,vid.gid,cnt);
 	}
 	
 	if ( ((option.find("d")) != STR_NPOS) || ((option.find("f"))==STR_NPOS)){

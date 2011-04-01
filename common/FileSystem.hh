@@ -226,9 +226,12 @@ public:
   //! - this creates a copy of the present state into a snapshot struct
   //------------------------------------------------------------------------
   
-  bool SnapShotFileSystem(FileSystem::fs_snapshot_t &fs);
+  bool SnapShotFileSystem(FileSystem::fs_snapshot_t &fs, bool dolock=true);
 
   //------------------------------------------------------------------------
+  //! Dump Function
+  //------------------------------------------------------------------------
+
   void Print(std::string &out, std::string listformat) {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
     if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
@@ -241,6 +244,8 @@ public:
   //! - this creates the config string representation of this file system
   //------------------------------------------------------------------------
   void CreateConfig(std::string &key, std::string &val);
+
+
 };
 
 EOSCOMMONNAMESPACE_END

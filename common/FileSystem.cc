@@ -127,6 +127,19 @@ FileSystem::GetConfigStatusFromString(const char* ss)
 }
 
 /*----------------------------------------------------------------------------*/
+int
+FileSystem::GetDrainStatusFromString(const char* ss) 
+{
+  if (!ss) 
+    return kNoDrain;
+  
+  if (!strcmp(ss,"nodrain")) return kNoDrain;
+  if (!strcmp(ss,"draining")) return kDraining;
+  if (!strcmp(ss,"drained")) return kDrained;
+  return kNoDrain;
+}
+
+/*----------------------------------------------------------------------------*/
 const char*
 FileSystem::GetAutoBootRequestString() 
 {
@@ -148,8 +161,10 @@ FileSystem::CreateConfig(std::string &key, std::string &val)
 
 /*----------------------------------------------------------------------------*/
 bool 
-FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs) {
-  XrdMqRWMutexReadLock lock(mSom->HashMutex);
+FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs, bool dolock) {
+  if (dolock) {
+    mSom->HashMutex.LockRead();
+  }
   if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
     fs.mId = (fsid_t) mHash->GetUInt("id");
     fs.mQueue         = mQueue;
@@ -173,9 +188,9 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs) {
       fs.mSpace.erase(dpos);
     fs.mPath          = mPath;
     fs.mErrMsg        = mHash->Get("stat.errmsg");
-    fs.mStatus        = mHash->GetLongLong("stat.boot");
-    fs.mConfigStatus  = mHash->GetLongLong("configstatus");
-    fs.mDrainStatus   = mHash->GetLongLong("stat.drain");
+    fs.mStatus        = GetStatusFromString(mHash->Get("stat.boot").c_str());
+    fs.mConfigStatus  = GetConfigStatusFromString(mHash->Get("configstatus").c_str());
+    fs.mDrainStatus   = GetDrainStatusFromString(mHash->Get("stat.drain").c_str());
     fs.mErrCode       = (unsigned int)mHash->GetLongLong("stat.errc");
     fs.mBootSentTime  = (time_t) mHash->GetLongLong("stat.bootsenttime");
     fs.mBootDoneTime  = (time_t) mHash->GetLongLong("stat.bootdonetime");
@@ -196,11 +211,18 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs) {
     fs.mDiskWopen       = (long) mHash->GetLongLong("stat.wopen");
     fs.mWeightRead      = 1.0;
     fs.mWeightWrite     = 1.0;
+    if (dolock) {
+      mSom->HashMutex.UnLockRead();
+    }
     return true;
   } else {
+    if (dolock) {
+      mSom->HashMutex.UnLockRead();
+    }
     fs.mId = 0;
     fs.mQueue         = "";
     fs.mQueuePath     = "";
+    fs.mGroup         = "";
     fs.mPath          = "";
     fs.mUuid          = "";
     fs.mHost          = "";

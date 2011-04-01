@@ -91,7 +91,7 @@ SpaceQuota::UpdateTargetSums()
 
 /*----------------------------------------------------------------------------*/
 void
-SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
+SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool monitoring)
 {
   char headerline[4096];
   eos_static_debug("called");
@@ -116,169 +116,243 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
   sortuidhash.set_empty_key(-1);
   sortgidhash.set_empty_key(-1);
 
-  output+="# ====================================================================================\n";
-  sprintf(headerline,"# ==> Space: %-16s\n", SpaceName.c_str());
-  output+= headerline;
-
-  for (it=Begin(); it != End(); it++) {
-    if ( (UnIndex(it->first) >= kUserBytesIs) && (UnIndex(it->first) <= kUserFilesTarget)) {
-      eos_static_debug("adding %llx to print list ", UnIndex(it->first));
-      unsigned long ugid = (it->first)&0xffff;
-      // uid selection filter
-      if (uid_sel>=0) 
-	if (ugid != (unsigned long)uid_sel) 
-	  continue;
-
-      // we don't print the users if a gid is selected
-      if (gid_sel>=0)
-	continue;
+  if (!SpaceName.beginswith("/")) {
+    if ( (uid_sel <0) && (gid_sel <0)) {
+      XrdOucString value1="";
+      XrdOucString value2="";
+      XrdOucString value3="";
+      XrdOucString value4="";
       
-      sortuidhash[ugid] = ugid;
-    }
+      XrdOucString percentage1="";
+      XrdOucString percentage2="";
 
-    if ( (UnIndex(it->first) >= kGroupBytesIs) && (UnIndex(it->first) <= kGroupFilesTarget)) {
-      unsigned long ugid = (it->first)&0xffff;
-      // uid selection filter
-      if (gid_sel>=0) 
-	if (ugid != (unsigned long)gid_sel) 
+      // this is a virtual quota node
+      if (!monitoring) {
+	output+="# ====================================================================================\n";
+	sprintf(headerline,"# ==> Space     : %-16s\n", SpaceName.c_str());
+	output+= headerline;
+output+="# ------------------------------------------------------------------------------------\n";
+	output+="# ==> Physical\n";
+	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s \n", GetTagCategory(kGroupBytesIs), "SPACE", GetTagName(kGroupBytesIs), GetTagName(kGroupBytesIs+2), GetTagName(kGroupBytesIs+1), GetTagName(kGroupBytesIs+3), "VOLUME[%]", "STATUS-VOL", "INODES[%]","STATUS-INO"); 
+	output+= headerline;
+	sprintf(headerline,"PHYS  %-16s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", SpaceName.c_str(),
+		eos::common::StringConversion::GetReadableSizeString(value1, PhysicalMaxBytes-PhysicalFreeBytes,"B"), 
+	      eos::common::StringConversion::GetReadableSizeString(value2, PhysicalMaxFiles-PhysicalFreeFiles,"-"), 
+		eos::common::StringConversion::GetReadableSizeString(value3, PhysicalMaxBytes,"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value4, PhysicalMaxFiles,"-"),
+		GetQuotaPercentage(PhysicalMaxBytes-PhysicalFreeBytes,PhysicalMaxBytes, percentage1),
+		GetQuotaStatus(PhysicalMaxBytes-PhysicalFreeBytes,PhysicalMaxBytes),
+		GetQuotaPercentage(PhysicalMaxFiles-PhysicalFreeFiles,PhysicalMaxFiles, percentage2),
+		GetQuotaStatus(PhysicalMaxFiles-PhysicalFreeFiles,PhysicalMaxFiles));
+	output+= headerline;
+	output+="# ------------------------------------------------------------------------------------------------------------\n";
+      } else {
+	sprintf(headerline,"quota=phys space=%s usedbytes=%llu usedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s percentageusedfiles=%s statusfiles=%s\n", SpaceName.c_str(),
+		PhysicalMaxBytes-PhysicalFreeBytes,
+		PhysicalMaxFiles-PhysicalFreeFiles,
+		PhysicalMaxBytes,
+		PhysicalMaxFiles,
+		GetQuotaPercentage(PhysicalMaxBytes-PhysicalFreeBytes,PhysicalMaxBytes, percentage1),
+		GetQuotaStatus(PhysicalMaxBytes-PhysicalFreeBytes,PhysicalMaxBytes),
+		GetQuotaPercentage(PhysicalMaxFiles-PhysicalFreeFiles,PhysicalMaxFiles, percentage2),
+		GetQuotaStatus(PhysicalMaxFiles-PhysicalFreeFiles,PhysicalMaxFiles));
+	output+= headerline;
+      }
+    }    
+  } else {
+    // this is a virtual quota node
+    if (!monitoring) {
+      output+="# ====================================================================================\n";
+      sprintf(headerline,"# ==> Quota Node: %-16s\n", SpaceName.c_str());
+      output+= headerline;
+      output+="# ------------------------------------------------------------------------------------\n";
+    }
+    for (it=Begin(); it != End(); it++) {
+      if ( (UnIndex(it->first) >= kUserBytesIs) && (UnIndex(it->first) <= kUserFilesTarget)) {
+	eos_static_debug("adding %llx to print list ", UnIndex(it->first));
+	unsigned long ugid = (it->first)&0xffff;
+	// uid selection filter
+	if (uid_sel>=0) 
+	  if (ugid != (unsigned long)uid_sel) 
+	    continue;
+	
+	// we don't print the users if a gid is selected
+	if (gid_sel>=0)
 	  continue;
-      // we don't print the group if a uid is selected
-      if (uid_sel>=0)
-	continue;
-      sortgidhash[ugid] = ugid;
+	
+	sortuidhash[ugid] = ugid;
+      }
+      
+      if ( (UnIndex(it->first) >= kGroupBytesIs) && (UnIndex(it->first) <= kGroupFilesTarget)) {
+	unsigned long ugid = (it->first)&0xffff;
+	// uid selection filter
+	if (gid_sel>=0) 
+	  if (ugid != (unsigned long)gid_sel) 
+	    continue;
+	// we don't print the group if a uid is selected
+	if (uid_sel>=0)
+	  continue;
+	sortgidhash[ugid] = ugid;
+      }
     }
-  }
-  
-
-  for (sortit=sortuidhash.begin(); sortit != sortuidhash.end(); sortit++) {
-    sortuidarray[userentries] = (sortit->first);
-    eos_static_debug("loop %d %d", userentries, sortuidarray[userentries]);
-    userentries++;
-  }
-
-  for (sortit=sortgidhash.begin(); sortit != sortgidhash.end(); sortit++) {
-    // sort only based on the user bytes entries
-    sortgidarray[groupentries] = (sortit->first);
-    eos_static_debug("loop %d %d", groupentries, sortgidarray[groupentries]);
-    groupentries++;
-  }
-
-  sort(sortuidarray,sortuidarray+userentries);
-  sort(sortgidarray,sortgidarray+groupentries);
-  
-  eos_static_debug("sorted");
-  for (int k=0; k< userentries; k++) {
-    eos_static_debug("sort %d %d", k, sortuidarray[k]);
-  }
-  
-  for (int k=0; k< groupentries; k++) {
-    eos_static_debug("sort %d %d", k, sortgidarray[k]);
-  }
-  
-
-  if (userentries) {
-    // user loop
-    sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kUserBytesIs), "SPACE", GetTagName(kUserBytesIs), GetTagName(kUserBytesIs+2), GetTagName(kUserBytesIs+1), GetTagName(kUserBytesIs+3), "FILLED[%]", "STATUS");
-    output+= headerline;
-  }
     
-  for (int lid = 0; lid < userentries; lid++) {
-    eos_static_debug("loop with id=%d",lid);
-    XrdOucString value1="";
-    XrdOucString value2="";
-    XrdOucString value3="";
-    XrdOucString value4="";
+    for (sortit=sortuidhash.begin(); sortit != sortuidhash.end(); sortit++) {
+      sortuidarray[userentries] = (sortit->first);
+      eos_static_debug("loop %d %d", userentries, sortuidarray[userentries]);
+      userentries++;
+    }
     
-    XrdOucString id=""; id += sortuidarray[lid];
-    XrdOucString percentage="";
+    for (sortit=sortgidhash.begin(); sortit != sortgidhash.end(); sortit++) {
+      // sort only based on the user bytes entries
+      sortgidarray[groupentries] = (sortit->first);
+      eos_static_debug("loop %d %d", groupentries, sortgidarray[groupentries]);
+      groupentries++;
+    }
+    
+    sort(sortuidarray,sortuidarray+userentries);
+    sort(sortgidarray,sortgidarray+groupentries);
+    
+    eos_static_debug("sorted");
+    for (int k=0; k< userentries; k++) {
+      eos_static_debug("sort %d %d", k, sortuidarray[k]);
+    }
+    
+    for (int k=0; k< groupentries; k++) {
+      eos_static_debug("sort %d %d", k, sortgidarray[k]);
+    }
+    
+    
+    if (userentries) {
+      // user loop
+      if (!monitoring) {
+	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kUserBytesIs), "SPACE", GetTagName(kUserBytesIs), GetTagName(kUserBytesIs+2), GetTagName(kUserBytesIs+1), GetTagName(kUserBytesIs+3), "FILLED[%]", "STATUS");
+	output+= headerline;
+      }
+    }
+    
+    for (int lid = 0; lid < userentries; lid++) {
+      eos_static_debug("loop with id=%d",lid);
+      XrdOucString value1="";
+      XrdOucString value2="";
+      XrdOucString value3="";
+      XrdOucString value4="";
+      
+      XrdOucString id=""; id += sortuidarray[lid];
+      XrdOucString percentage="";
+      if (!monitoring) {
+	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , SpaceName.c_str(), 
+		eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kUserBytesIs,sortuidarray[lid]),"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kUserFilesIs,sortuidarray[lid]),"-"), 
+		eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kUserBytesTarget,sortuidarray[lid]),"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kUserFilesTarget,sortuidarray[lid]),"-"),
+		GetQuotaPercentage(GetQuota(kUserBytesIs,sortuidarray[lid]), GetQuota(kUserBytesTarget,sortuidarray[lid]), percentage),
+		GetQuotaStatus(GetQuota(kUserBytesIs,sortuidarray[lid]), GetQuota(kUserBytesTarget,sortuidarray[lid])));
+      } else {
+	sprintf(headerline,"quota=node uid=%s space=%s usedbytes=%llu usedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s\n", id.c_str() , SpaceName.c_str(), 
+		GetQuota(kUserBytesIs,sortuidarray[lid]),
+		GetQuota(kUserFilesIs,sortuidarray[lid]),
+		GetQuota(kUserBytesTarget,sortuidarray[lid]),
+		GetQuota(kUserFilesTarget,sortuidarray[lid]),
+		GetQuotaPercentage(GetQuota(kUserBytesIs,sortuidarray[lid]), GetQuota(kUserBytesTarget,sortuidarray[lid]), percentage),
+		GetQuotaStatus(GetQuota(kUserBytesIs,sortuidarray[lid]), GetQuota(kUserBytesTarget,sortuidarray[lid])));
+      }
+      
+      output += headerline;
+    }
+    
+    if (groupentries) {
+      // group loop
+      if (!monitoring) {
+	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kGroupBytesIs), "SPACE", GetTagName(kGroupBytesIs), GetTagName(kGroupBytesIs+2), GetTagName(kGroupBytesIs+1), GetTagName(kGroupBytesIs+3), "FILLED[%]", "STATUS");
+	output+= headerline;
+      }
+    }
+    
+    for (int lid = 0; lid < groupentries; lid++) {
+      eos_static_debug("loop with id=%d",lid);
+      XrdOucString value1="";
+      XrdOucString value2="";
+      XrdOucString value3="";
+      XrdOucString value4="";
+      
+      XrdOucString id=""; id += sortgidarray[lid];
+      XrdOucString percentage="";
+      if (!monitoring) {
+	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s \n", id.c_str() , SpaceName.c_str(),
+		eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kGroupBytesIs,sortgidarray[lid]),"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kGroupFilesIs,sortgidarray[lid]),"-"), 
+		eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kGroupBytesTarget,sortgidarray[lid]),"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kGroupFilesTarget,sortgidarray[lid]),"-"),
+		GetQuotaPercentage(GetQuota(kGroupBytesIs,sortgidarray[lid]), GetQuota(kGroupBytesTarget,sortgidarray[lid]), percentage),
+		GetQuotaStatus(GetQuota(kGroupBytesIs,sortgidarray[lid]), GetQuota(kGroupBytesTarget,sortgidarray[lid])));
+      } else {
+	sprintf(headerline,"quota=node gid=%s space=%s usedbytes=%llu usedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s\n", id.c_str() , SpaceName.c_str(),
+		GetQuota(kGroupBytesIs,sortgidarray[lid]),
+		GetQuota(kGroupFilesIs,sortgidarray[lid]),
+		GetQuota(kGroupBytesTarget,sortgidarray[lid]),
+		GetQuota(kGroupFilesTarget,sortgidarray[lid]),
+		GetQuotaPercentage(GetQuota(kGroupBytesIs,sortgidarray[lid]), GetQuota(kGroupBytesTarget,sortgidarray[lid]), percentage),
+		GetQuotaStatus(GetQuota(kGroupBytesIs,sortgidarray[lid]), GetQuota(kGroupBytesTarget,sortgidarray[lid])));
+      }
+      output += headerline;
+    }
+    
+    if ( (uid_sel <0) && (gid_sel <0)) {
+      if (!monitoring) {
+	output+="# ------------------------------------------------------------------------------------\n";
+	output+="# ==> Summary\n";
+      }
 
-    sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , SpaceName.c_str(), 
-	    eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kUserBytesIs,sortuidarray[lid]),"B"), 
-	    eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kUserFilesIs,sortuidarray[lid]),"-"), 
-	    eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kUserBytesTarget,sortuidarray[lid]),"B"), 
-	    eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kUserFilesTarget,sortuidarray[lid]),"-"),
-	    GetQuotaPercentage(GetQuota(kUserBytesIs,sortuidarray[lid]), GetQuota(kUserBytesTarget,sortuidarray[lid]), percentage),
-	    GetQuotaStatus(GetQuota(kUserBytesIs,sortuidarray[lid]), GetQuota(kUserBytesTarget,sortuidarray[lid])));
+      XrdOucString value1="";
+      XrdOucString value2="";
+      XrdOucString value3="";
+      XrdOucString value4="";
+      
+      XrdOucString id="ALL";
+      XrdOucString percentage="";
+      
+      if (!monitoring) {
+	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kAllUserBytesIs), "SPACE", GetTagName(kAllUserBytesIs), GetTagName(kAllUserBytesIs+2), GetTagName(kAllUserBytesIs+1), GetTagName(kAllUserBytesIs+3), "FILLED[%]", "STATUS");
+	output += headerline;
+	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , SpaceName.c_str(), 
+		eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kAllUserBytesIs,0),"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kAllUserFilesIs,0),"-"), 
+		eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kAllUserBytesTarget,0),"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kAllUserFilesTarget,0),"-"),
+		GetQuotaPercentage(GetQuota(kAllUserBytesIs,0), GetQuota(kAllUserBytesTarget,0), percentage),
+		GetQuotaStatus(GetQuota(kAllUserBytesIs,0), GetQuota(kAllUserBytesTarget,0)));
+      } else {
+	sprintf(headerline,"quota=node uid=%s space=%s usedbytes=%llu usedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s\n", id.c_str() , SpaceName.c_str(), 
+		GetQuota(kAllUserBytesIs,0),
+		GetQuota(kAllUserFilesIs,0),
+		GetQuota(kAllUserBytesTarget,0),
+		GetQuota(kAllUserFilesTarget,0),
+		GetQuotaPercentage(GetQuota(kAllUserBytesIs,0), GetQuota(kAllUserBytesTarget,0), percentage),
+		GetQuotaStatus(GetQuota(kAllUserBytesIs,0), GetQuota(kAllUserBytesTarget,0)));
+      }
+      output += headerline;
 
-    output += headerline;
-  }
-  
-  if (groupentries) {
-    // group loop
-    sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kGroupBytesIs), "SPACE", GetTagName(kGroupBytesIs), GetTagName(kGroupBytesIs+2), GetTagName(kGroupBytesIs+1), GetTagName(kGroupBytesIs+3), "FILLED[%]", "STATUS");
-    output+= headerline;
-  }
-
-  for (int lid = 0; lid < groupentries; lid++) {
-    eos_static_debug("loop with id=%d",lid);
-    XrdOucString value1="";
-    XrdOucString value2="";
-    XrdOucString value3="";
-    XrdOucString value4="";
-    
-    XrdOucString id=""; id += sortgidarray[lid];
-    XrdOucString percentage="";
-
-    sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s \n", id.c_str() , SpaceName.c_str(),
-	    eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kGroupBytesIs,sortgidarray[lid]),"B"), 
-	    eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kGroupFilesIs,sortgidarray[lid]),"-"), 
-	    eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kGroupBytesTarget,sortgidarray[lid]),"B"), 
-	    eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kGroupFilesTarget,sortgidarray[lid]),"-"),
-	    GetQuotaPercentage(GetQuota(kGroupBytesIs,sortgidarray[lid]), GetQuota(kGroupBytesTarget,sortgidarray[lid]), percentage),
-	    GetQuotaStatus(GetQuota(kGroupBytesIs,sortgidarray[lid]), GetQuota(kGroupBytesTarget,sortgidarray[lid])));
-    output += headerline;
-  }
-
-  if ( (uid_sel <0) && (gid_sel <0)) {
-    output+="# ------------------------------------------------------------------------------------\n";
-    output+="# ==> Summary\n";
-    
-    XrdOucString value1="";
-    XrdOucString value2="";
-    XrdOucString value3="";
-    XrdOucString value4="";
-    
-    XrdOucString id="ALL";
-    XrdOucString percentage="";
-    XrdOucString percentage1="";
-    XrdOucString percentage2="";
-    
-    sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kAllUserBytesIs), "SPACE", GetTagName(kAllUserBytesIs), GetTagName(kAllUserBytesIs+2), GetTagName(kAllUserBytesIs+1), GetTagName(kAllUserBytesIs+3), "FILLED[%]", "STATUS");
-    output += headerline;
-    sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , SpaceName.c_str(), 
-	    eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kAllUserBytesIs,0),"B"), 
-	    eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kAllUserFilesIs,0),"-"), 
-	    eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kAllUserBytesTarget,0),"B"), 
-	    eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kAllUserFilesTarget,0),"-"),
-	    GetQuotaPercentage(GetQuota(kAllUserBytesIs,0), GetQuota(kAllUserBytesTarget,0), percentage),
-	    GetQuotaStatus(GetQuota(kAllUserBytesIs,0), GetQuota(kAllUserBytesTarget,0)));
-    output += headerline;
-    sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kAllGroupBytesIs), "SPACE", GetTagName(kAllGroupBytesIs), GetTagName(kAllGroupBytesIs+2), GetTagName(kAllGroupBytesIs+1), GetTagName(kAllGroupBytesIs+3), "FILLED[%]", "STATUS");
-    output += headerline;
-    sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , SpaceName.c_str(), 
-	    eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kAllGroupBytesIs,0),"B"), 
-	    eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kAllGroupFilesIs,0),"-"), 
-	    eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kAllGroupBytesTarget,0),"B"), 
-	    eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kAllGroupFilesTarget,0),"-"),
-	    GetQuotaPercentage(GetQuota(kAllGroupBytesIs,0), GetQuota(kAllGroupBytesTarget,0), percentage),
-	    GetQuotaStatus(GetQuota(kAllGroupBytesIs,0), GetQuota(kAllGroupBytesTarget,0)));
-    output += headerline;
-    
-    output+="# ------------------------------------------------------------------------------------\n";
-    output+="# ==> Physical\n";
-    sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s \n", GetTagCategory(kGroupBytesIs), "SPACE", GetTagName(kGroupBytesIs), GetTagName(kGroupBytesIs+2), GetTagName(kGroupBytesIs+1), GetTagName(kGroupBytesIs+3), "VOLUME[%]", "STATUS-VOL", "INODES[%]","STATUS-INO"); 
-    output+= headerline;
-    sprintf(headerline,"PHYS  %-16s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", SpaceName.c_str(),
-	    eos::common::StringConversion::GetReadableSizeString(value1, PhysicalMaxBytes-PhysicalFreeBytes,"B"), 
-	    eos::common::StringConversion::GetReadableSizeString(value2, PhysicalMaxFiles-PhysicalFreeFiles,"-"), 
-	    eos::common::StringConversion::GetReadableSizeString(value3, PhysicalMaxBytes,"B"), 
-	    eos::common::StringConversion::GetReadableSizeString(value4, PhysicalMaxFiles,"-"),
-	    GetQuotaPercentage(PhysicalMaxBytes-PhysicalFreeBytes,PhysicalMaxBytes, percentage1),
-	    GetQuotaStatus(PhysicalMaxBytes-PhysicalFreeBytes,PhysicalMaxBytes),
-	  GetQuotaPercentage(PhysicalMaxFiles-PhysicalFreeFiles,PhysicalMaxFiles, percentage2),
-	    GetQuotaStatus(PhysicalMaxFiles-PhysicalFreeFiles,PhysicalMaxFiles));
-    output+= headerline;
-    output+="# ------------------------------------------------------------------------------------------------------------\n";
+      if (!monitoring) {
+	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kAllGroupBytesIs), "SPACE", GetTagName(kAllGroupBytesIs), GetTagName(kAllGroupBytesIs+2), GetTagName(kAllGroupBytesIs+1), GetTagName(kAllGroupBytesIs+3), "FILLED[%]", "STATUS");
+	output += headerline;
+	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , SpaceName.c_str(), 
+		eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kAllGroupBytesIs,0),"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kAllGroupFilesIs,0),"-"), 
+		eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kAllGroupBytesTarget,0),"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kAllGroupFilesTarget,0),"-"),
+		GetQuotaPercentage(GetQuota(kAllGroupBytesIs,0), GetQuota(kAllGroupBytesTarget,0), percentage),
+		GetQuotaStatus(GetQuota(kAllGroupBytesIs,0), GetQuota(kAllGroupBytesTarget,0)));
+      } else {
+	sprintf(headerline,"quota=node gid=%s space=%s usedbytes=%llu usedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s\n", id.c_str() , SpaceName.c_str(), 
+		GetQuota(kAllGroupBytesIs,0),
+		GetQuota(kAllGroupFilesIs,0),
+		GetQuota(kAllGroupBytesTarget,0),
+		GetQuota(kAllGroupFilesTarget,0),
+		GetQuotaPercentage(GetQuota(kAllGroupBytesIs,0), GetQuota(kAllGroupBytesTarget,0), percentage),
+		GetQuotaStatus(GetQuota(kAllGroupBytesIs,0), GetQuota(kAllGroupBytesTarget,0)));
+      }
+      output += headerline;
+    }
   }
   free(sortuidarray);
   free(sortgidarray);
@@ -290,7 +364,9 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel)
 int 
 SpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate, int forcedindex)
 {
-  std::set<unsigned int> fsidavoidlist;
+  // the caller routing has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) !!!
+  std::set<eos::common::FileSystem::fsid_t> fsidavoidlist;
+  std::map<eos::common::FileSystem::fsid_t, float> availablefs;
 
   // fill the avoid list from the selectedfs input vector
   for (unsigned int i=0; i< selectedfs.size(); i++) {
@@ -320,173 +396,221 @@ SpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned l
 
   eos_static_debug("%llu %llu",GetQuota(kUserBytesTarget,uid,false), GetQuota(kUserBytesIs,uid,false));
 
-  if ( ( ( (GetQuota(kUserBytesTarget,uid,false)) - (GetQuota(kUserBytesIs,uid,false)) ) > (long long)(1ll*nfilesystems*referencesize) ) &&
-       ( ( (GetQuota(kUserFilesTarget,uid,false)) - (GetQuota(kUserFilesIs,uid,false)) ) > (1*nfilesystems ) ) ) {
-    // the user has quota here!
-    hasquota = true;
+  if (Enabled()) {
+    if ( ( ( (GetQuota(kUserBytesTarget,uid,false)) - (GetQuota(kUserBytesIs,uid,false)) ) > (long long)(1ll*nfilesystems*referencesize) ) &&
+	 ( ( (GetQuota(kUserFilesTarget,uid,false)) - (GetQuota(kUserFilesIs,uid,false)) ) > (1*nfilesystems ) ) ) {
+      // the user has quota here!
+      hasquota = true;
+    } 
+    
+    // -> group quota
+    if ( ( ( (GetQuota(kGroupBytesTarget,gid,false)) - (GetQuota(kGroupBytesIs,gid,false)) ) > (long long) (1ll*nfilesystems*referencesize) ) &&
+	 ( ( (GetQuota(kGroupFilesTarget,gid,false)) - (GetQuota(kGroupFilesIs,gid,false)) ) > (1*nfilesystems)  ) ) {
+      // the group has quota here!
+      hasquota = true;
+    } 
+    
+    if (uid==0) {
+      // root does not need any quota
+      hasquota = true;
+    }
+    
+    if (!hasquota) {
+      eos_static_debug("uid=%u git=%u grouptag=%s place filesystems=%u has no quota left!",uid,gid,grouptag, nfilesystems);
+      return ENOSPC;
+    }
   } 
   
-  // -> group quota
-  if ( ( ( (GetQuota(kGroupBytesTarget,gid,false)) - (GetQuota(kGroupBytesIs,gid,false)) ) > (long long) (1ll*nfilesystems*referencesize) ) &&
-       ( ( (GetQuota(kGroupFilesTarget,gid,false)) - (GetQuota(kGroupFilesIs,gid,false)) ) > (1*nfilesystems)  ) ) {
-    // the group has quota here!
-    hasquota = true;
-  } 
+  unsigned int currentfsrandomoffset=0;
 
-  if (uid==0) {
-    // root does not need any quota
-    hasquota = true;
-  }
+  std::string spacename = SpaceName.c_str();
+  
+  std::set<FsGroup*>::const_iterator git;
 
-  if (!hasquota) {
-    eos_static_debug("uid=%u git=%u grouptag=%s place filesystems=%u has no quota left!",uid,gid,grouptag, nfilesystems);
+  // protects that filesystems don't change during this operation
+  if (!FsView::gFsView.mSpaceGroupView.count(spacename)) {
+    // there is no filesystem in that space
+    selectedfs.clear();
     return ENOSPC;
   }
   
-  unsigned int schedgroupindex=0;
-  
-  unsigned long currentfs=0;
-  unsigned long currentfsrandomoffset=0;
-
-  // we can try all scheduling groups but not more 
-  for (unsigned int i=0; i< schedulingView.size(); i++) {
-    // if forcedindex is 0 or positive, we are requested to place into a particular subgroup
-    if (forcedindex<0) {
-      schedgroupindex = schedulingViewGroup[indextag];
-    } else {
-      schedgroupindex = forcedindex;
+  // place the group iterator
+  if (forcedindex>=0) {
+    for (git = FsView::gFsView.mSpaceGroupView[spacename].begin(); git != FsView::gFsView.mSpaceGroupView[spacename].end(); git++) {
+      if ((*git)->GetIndex() == (unsigned int)forcedindex)
+	break;
     }
-
-    eos_static_debug("scheduling group loop %d", schedgroupindex);
+    if ((*git)->GetIndex() != (unsigned int)forcedindex) {
+      selectedfs.clear();
+      return ENOSPC;
+    }
+  } else {
+    if (schedulingGroup.count(indextag)) {
+      git = FsView::gFsView.mSpaceGroupView[spacename].find(schedulingGroup[indextag]);
+    } else {
+      git = FsView::gFsView.mSpaceGroupView[spacename].begin();
+      schedulingGroup[indextag] = *git;
+    }
+  }
+  
+  // we can loop over all existing scheduling views
+  for (unsigned int groupindex=0; groupindex < FsView::gFsView.mSpaceGroupView[spacename].size(); groupindex++) {
+    eos_static_debug("scheduling group loop %d", forcedindex);
     selectedfs.clear();
-
-    int maxiterations = schedulingView[schedgroupindex].size();
-    currentfsrandomoffset = (unsigned long) (( 0.999999 * random()* maxiterations )/RAND_MAX);
-
-    std::string ptrindextag = "";
     
-    // try to get nfilesystems with enough space
-    for (int j=0; j < maxiterations; j++) {
-      ptrindextag="";
-      // select a scheduling group
-      ptrindextag += (int)schedgroupindex;
-      ptrindextag += indextag;
+    std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
+    eos::common::FileSystem::fsid_t fsid=0;
+    // create the string map key for this group/index pair
+    XrdOucString fsindextag="";
+    fsindextag += (int)(*git)->GetIndex();
+    // place the filesystem iterator
+    fsindextag += "|";
+    fsindextag += indextag.c_str();
+    std::string sfsindextag = fsindextag.c_str();
+    
+    if (schedulingFileSystem.count(sfsindextag)) {
+      //
+      fsid = schedulingFileSystem[sfsindextag];
+      fsit = (*git)->find(fsid);
+      if (fsit == (*git)->end()) {
+	// this filesystem is not anymore there, we start with the first one
+	fsit = (*git)->begin();
+	fsid = *fsit;
+      }
+    } else {
+      fsit = (*git)->begin();
+      fsid = *fsit;
+    }
+    
+    // fake weight
+    double weight = 1.0;
+
+    currentfsrandomoffset = (unsigned int) (( 0.999999 * random()* (*git)->size() )/RAND_MAX);
+    
+    // we loop over all filesystems in that group
+    for (unsigned int fsindex=0; fsindex < (*git)->size(); fsindex++) {
+      eos_static_debug("checking scheduling group %d filesystem %d", (*git)->GetIndex(), *fsit);	
+
+      // take filesystem snapshot
+      eos::common::FileSystem::fs_snapshot_t snapshot;
+      // we are already in a locked section
+      FsView::gFsView.mIdView[fsid]->SnapShotFileSystem(snapshot,false);
       
-      // points to a scheduling group index
-      if ((schedulingViewPtr.find(ptrindextag)) == schedulingViewPtr.end()) {
-	// place the iterator on the first filesystem in the scheduling group set
-	schedulingViewPtr[ptrindextag] = schedulingView[schedgroupindex].begin();
-	for (unsigned int k=0; k< schedgroupindex; k++) {
-	  schedulingViewPtr[ptrindextag] ++;
-	  if (schedulingViewPtr[ptrindextag] == schedulingView[schedgroupindex].end())
-	    schedulingViewPtr[ptrindextag] = schedulingView[schedgroupindex].begin();
-	}
-      }
-
-      if (schedulingViewPtr[ptrindextag] == schedulingView[schedgroupindex].end()) {
-	schedulingViewPtr[ptrindextag] = schedulingView[schedgroupindex].begin();
-      }
-
+      // check if this filesystem can be used (online, enough space etc...)
+      if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
+	   (snapshot.mConfigStatus == eos::common::FileSystem::kRW) && 
+	   (snapshot.mErrCode      == 0 ) && // this we probably don't need 
+	   (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status") == "on") && 
+	   (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") ) {
 	
-      currentfs = *schedulingViewPtr[ptrindextag];
-      eos_static_debug("checking scheduling group %d filesystem %d", schedgroupindex, currentfs);
-      // check if we have enough space
-      FstFileSystem* filesystem = (FstFileSystem*)FstNode::gFileSystemById[currentfs];
-      if (filesystem) {
-	// check that we have atleast 1GB and 100 inodes and that we are in rw mode
-	eos_static_debug("fs info %u %llu %llu %s %s %d", filesystem->GetId(), filesystem->GetStatfs()->f_bfree * 4096ll, filesystem->GetStatfs()->f_ffree*4096ll, filesystem->GetConfigStatusString(), filesystem->GetBootStatusString(), filesystem->HasHeartBeat());
-
-	bool isalreadyselected=false;
-	// check that this one is not already selected
-	for (unsigned int l=0; l< selectedfs.size(); l++) {
-	  if (selectedfs[l] == currentfs) {
-	    isalreadyselected = true;
-	    break;
-	  }
+	if (!fsidavoidlist.count(fsid)) {
+	  availablefs[fsid] = weight;
 	}
-
-	if ( (!isalreadyselected) && 
-	     ((filesystem->HasHeartBeat())) &&
-	     ((filesystem->GetStatfs()->f_bfree *4096ll) > (EOSMGMQUOTA_DISKHEADROOM)) && // request 25 GB of headroom per disk
-	     ((filesystem->GetStatfs()->f_ffree) > 100 ) &&
-	     ( ((filesystem->GetConfigStatus() == eos::common::FileSystem::kWO) && truncate) ||
-	       ((filesystem->GetConfigStatus() == eos::common::FileSystem::kRW)) ) &&
-	     ((filesystem->GetBootStatus()   == eos::common::FileSystem::kBooted)) && 
-	     ((fsidavoidlist.count(filesystem->GetId()) == 0)) ) {
-	  // ok, that can be used
-	  selectedfs.push_back(currentfs);
-	  nassigned++;
-	  eos_static_debug("fs %u selected for placement!", filesystem->GetId());
-	  // we randomize the start position of the second replica to decouple disks better
-	  if (nassigned ==1) {
-	    if (currentfsrandomoffset) {
-	      for (unsigned int inc=0; inc < currentfsrandomoffset; inc++) {
-		schedulingViewPtr[ptrindextag]++;
-		if (schedulingViewPtr[ptrindextag] == schedulingView[schedgroupindex].end()) {
-		  schedulingViewPtr[ptrindextag] = schedulingView[schedgroupindex].begin();
-		}
-	      }
-	      currentfsrandomoffset = 0;
-	      
-	      // we have to enlarge the loop by one because we could run again over the previous selected one
-	      maxiterations++;
-	    }
+      } else {
+	eos_static_err("%d %d %d\n", (snapshot.mStatus), (snapshot.mConfigStatus), (snapshot.mErrCode      == 0 ));
+      }
+      fsit++;
+      schedulingFileSystem[sfsindextag] = *fsit;
+      // create cycling
+      if (fsit == (*git)->end()) {
+	fsit = (*git)->begin();
+      }
+      fsid = *fsit;
+      // evt. this has to be commented
+      if ( (availablefs.size()>= nfilesystems) && (availablefs.size() > ((*git)->size()/2)) ) {
+	// we stop if we have found enough ... atleast half of the scheduling group
+	break;
+      }
+    }
+    
+    std::map<eos::common::FileSystem::fsid_t,float>::const_iterator ait=availablefs.begin();
+    
+    // check if there are atlast <nfilesystems> in the available map
+    if (availablefs.size() >= nfilesystems) {
+      for (unsigned int loop = 0; loop < 1000; loop++) {
+	// we cycle over the available filesystems
+	float randomacceptor = (0.999999 * random()/RAND_MAX);
+	eos_static_debug("fs %u acceptor %f/%f for %d. replica [loop=%d] [avail=%d]", ait->first, randomacceptor, ait->second, nassigned+1, loop, availablefs.size());
+	
+	if ( (nassigned==0) ) {
+	  if (ait->first<randomacceptor) {
+	    ait++;
+	    if (ait==availablefs.end())
+	      ait = availablefs.begin();
+	  } else {
+            // push it on the selection list
+	    selectedfs.push_back(ait->first);
+	    eos_static_debug("fs %u selected for %d. replica", ait->first, nassigned+1);
+	    
+	    // remove it from the selection map
+	    availablefs.erase(ait->first);
+	    
+	    // rotate scheduling view ptr
+	    nassigned++;
 	  }
 	} else {
-	  eos_static_debug("fs %u cannot be selected!", filesystem->GetId());
+	  // we select a random one
+	  unsigned int randomindex;
+	  randomindex = (unsigned int) (( 0.999999 * random()* availablefs.size() )/RAND_MAX);
+	  eos_static_debug("trying random index %d", randomindex);
+	  
+	  for (unsigned int i=0; i< randomindex; i++) {
+	    ait++;
+	    if (ait == availablefs.end())
+	      ait = availablefs.begin();
+	  }
+	  
+	  if (ait->second>randomacceptor) {
+	    // push it on the selection list
+	    selectedfs.push_back(ait->first);
+	    eos_static_debug("fs %u selected for %d. replica", ait->first, nassigned+1);
+	    
+	    // remove it from the selection map
+	    availablefs.erase(ait->first);
+	    nassigned++;
+	  }
 	}
-      }
-	
-      schedulingViewPtr[ptrindextag]++;
-      if (schedulingViewPtr[ptrindextag] == schedulingView[schedgroupindex].end()) {
-	schedulingViewPtr[ptrindextag] = schedulingView[schedgroupindex].begin();
-      }
-
-      if (nassigned >= nfilesystems) {
-	// rotate to next scheduling group
-	schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
-	break; // leave the for loop inside a scheduling group
-      }
+	if (nassigned >= nfilesystems)
+	  break;
+      } // leave the <loop> where filesystems get selected by weight
+    } 
+    
+    git++;
+    if ( git ==  FsView::gFsView.mSpaceGroupView[spacename].end() ) {
+      git = FsView::gFsView.mSpaceGroupView[spacename].begin();
     }
 
-    // stop when we have found enough in a scheduling group
+    // remember the last group for that indextag
+    schedulingGroup[indextag] = *git;
+
     if (nassigned >= nfilesystems) {
-      // rotate to next scheduling group if we are at the end of one scheduling group
-      //      if (schedulingViewPtr[ptrindextag] == schedulingView[schedgroupindex].begin())
-      //	schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
-      break; // leave the for loop over all scheduling groups
+      // leave the group loop - we got enough
+      break;
     }
-    else {
-      // try in the next scheduling group
-      selectedfs.clear();
-      nassigned = 0;
-      schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
-    }
-
+    
+    selectedfs.clear();
+    nassigned = 0;
+    
     if (forcedindex >=0) {
       // in this case we leave, the requested one was tried and we finish here
       break;
-    }
+      }
   }
-
-  eos_static_info("Index is now %u %u<=>%u", schedulingViewGroup[indextag], nassigned, nfilesystems);
+  
   if (nassigned == nfilesystems) {
-    //    schedulingViewGroup[indextag] = ((++schedgroupindex)%schedulingView.size());
-
     // now we reshuffle the order using a random number
     unsigned int randomindex;
     randomindex = (unsigned int) (( 0.999999 * random()* selectedfs.size() )/RAND_MAX);
-
+    
     std::vector<unsigned int> randomselectedfs;
     randomselectedfs = selectedfs;
-
+    
     selectedfs.clear();
-
+    
     int rrsize=randomselectedfs.size();
     for (int i=0; i< rrsize; i++) {
       selectedfs.push_back(randomselectedfs[(randomindex+i)%rrsize]);
     }
-
     return 0;
   } else {
     selectedfs.clear();
@@ -498,98 +622,6 @@ SpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned l
 /*----------------------------------------------------------------------------*/
 int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW)
 {
-  eos_static_debug("uid=%u gid=%u force=%u space=%s layout=%lu isrw=%u",uid,gid,forcedfsid,forcedspace,lid, isRW);
-
-  if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kPlain) {
-    // we have only a single replica ... so just check the state of the filesystem where that is located
-    if (locationsfs.size() && locationsfs[0]) {
-      FstFileSystem* filesystem = (FstFileSystem*)FstNode::gFileSystemById[locationsfs[0]];
-      // check if filesystem is accessible
-      if (isRW) {
-	if (filesystem && ((filesystem->GetConfigStatus() == eos::common::FileSystem::kRW)) &&
-	    ((filesystem->HasHeartBeat())) &&
-	    ((filesystem->GetBootStatus()   == eos::common::FileSystem::kBooted))) {
-	  // perfect!
-	  fsindex = 0;
-	  eos_static_debug("selected plain file access via filesystem %u",locationsfs[0]);
-	  return 0;
-	} else {
-	  // check if we are draining or read-only
-	  if (filesystem && ( (filesystem->GetConfigStatus() == eos::common::FileSystem::kWO) || (filesystem->GetConfigStatus() == eos::common::FileSystem::kRO) || (filesystem->GetConfigStatus() == eos::common::FileSystem::kDrain)) )
-	    return EROFS;
-	  // we are off the wire
-	  return ENONET;
-	}
-      } else {
-	if (filesystem && ((filesystem->GetConfigStatus() >= eos::common::FileSystem::kDrain)) &&
-	    ((filesystem->HasHeartBeat())) &&
-	    ((filesystem->GetBootStatus()   == eos::common::FileSystem::kBooted))) {
-	  // perfect!
-	  fsindex = 0;
-	  return 0;
-	} else {
-	  return ENONET;
-	}
-      }
-    } else {
-      return ENODATA;
-    }
-  }
-
-  if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
-    unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(lid) + 1; // 0 = 1 replica !
-
-    if (isRW) {
-      if (locationsfs.size() != nfilesystems) {
-	eos_static_debug("we need %u filesystems but only %u are in the meta data", nfilesystems, locationsfs.size());
-	return EFAULT;
-      }
-
-      // write case all have to be available ! 
-      for (unsigned int i=0; i< nfilesystems; i++) {
-	if ((i < locationsfs.size()) && locationsfs[i]) {
-	  FstFileSystem* filesystem = (FstFileSystem*)FstNode::gFileSystemById[locationsfs[i]];
-	  // check if filesystem is accessible
-	  if ((!filesystem) || (filesystem && (((filesystem->GetConfigStatus() != eos::common::FileSystem::kRW)) ||
-					       ((!filesystem->HasHeartBeat())) ||
-					       ((filesystem->GetBootStatus()   != eos::common::FileSystem::kBooted))))) {     
-	    // that is already too bad, we cannot write since one replica is not accessible
-	    return ENONET;
-	  }
-	}
-      }
-      // if we get here all filesystems are available :-)
-      eos_static_debug("selected replica file access with all filesystems available");
-      return 0;
-    } else {
-      // for read we select one randomly and iterate until we have an available replica
-      unsigned int randomindex = (unsigned int) (( 0.999999 * random()* locationsfs.size() )/RAND_MAX);
-      eos_static_debug("selected random index for filesystem selection %u [%u]", randomindex, locationsfs.size());
-      for (unsigned int i=0; i< locationsfs.size(); i++) {
-	unsigned int currentindex = (i+randomindex)%locationsfs.size();
-	// we have only a single replica ... so just check the state of the filesystem where that is located
-	if ((currentindex < locationsfs.size()) && (locationsfs[currentindex])) {
-	  FstFileSystem* filesystem = (FstFileSystem*)FstNode::gFileSystemById[locationsfs[currentindex]];
-	  // check if filesystem is accessible
-	  eos_static_debug("fs %llu", filesystem);
-	  if (filesystem && ((filesystem->GetConfigStatus() >= eos::common::FileSystem::kDrain)) &&
-	      ((filesystem->HasHeartBeat())) &&
-	      ((filesystem->GetBootStatus()   == eos::common::FileSystem::kBooted))) {
-	    eos_static_debug("forced %u current %u", forcedfsid, currentindex);
-	    if ( (forcedfsid == currentindex) || (!forcedfsid) ) {
-	      // we found a good one or the one which was desired by the client
-	      fsindex = currentindex;
-	      eos_static_debug("selected replica file access via filesystem %u",locationsfs[currentindex]);
-	      return 0;
-	    }
-	  } 
-	}
-      } 
-      // if we get here none of the filesystems was available :-(
-      return ENONET;
-    } 
-  }
-  
   return EINVAL;
 }
 
@@ -629,114 +661,40 @@ Quota::GetSpaceNameList(const char* key, SpaceQuota* spacequota, void *Arg)
 
 /*----------------------------------------------------------------------------*/
 void
-Quota::PrintOut(const char* space, XrdOucString &output, long uid_sel, long gid_sel)
+Quota::PrintOut(const char* space, XrdOucString &output, long uid_sel, long gid_sel, bool monitoring)
 {
   output="";
   XrdOucString spacenames="";
   gQuota.Apply(GetSpaceNameList, &spacenames);
   int kommapos=0;
   int spos=0;
+  std::set<std::string> spacevector;
+
   eos_static_debug("space=%s spacenames=%s",space, spacenames.c_str());
   if (space ==0) {
     while ((kommapos = spacenames.find(",", spos)) != STR_NPOS) {
       XrdOucString spacename;
       spacename.assign(spacenames,spos,kommapos-1);
-      SpaceQuota* spacequota = GetSpaceQuota(spacename.c_str(),true);
-      if (spacequota) {
-	spacequota->PrintOut(output, uid_sel, gid_sel);
-      }
+      std::string sspacename = spacename.c_str();
+      spacevector.insert(sspacename);
       spos = kommapos+1;
+    }
+    
+    std::set<std::string>::iterator it;
+    for (it = spacevector.begin(); it != spacevector.end(); it++) {
+      SpaceQuota* spacequota = GetSpaceQuota(it->c_str(),true);
+      if (spacequota) {
+	spacequota->PrintOut(output, uid_sel, gid_sel, monitoring);
+      }
     }
   } else {
     SpaceQuota* spacequota = GetSpaceQuota(space, true);
     if (spacequota) {
-      spacequota->PrintOut(output, uid_sel, gid_sel);
+      spacequota->PrintOut(output, uid_sel, gid_sel, monitoring);
     }
   }
 }
 
-/*----------------------------------------------------------------------------*/
-void 
-Quota::UpdateHint(unsigned int fsid) 
-{
-  // get the space this fsid points to ....
-  FstFileSystem* filesystem=0;
-  if (!fsid)
-    eos_static_err ("0 fsid found");
-
-  if ( fsid && (filesystem = (FstFileSystem*) FstNode::gFileSystemById[fsid])) {
-    const char* spacename = filesystem->GetSpaceName();
-    eos_static_debug("filesystem for %u %u belongs to space %s", filesystem->GetId(), fsid, spacename);
-
-    SpaceQuota* spacequota = GetSpaceQuota(spacename);
-
-    // add fsid to SchedulingView
-    eos_static_debug("scheduling index is %d", filesystem->GetSchedulingGroupIndex());
-
-    // resize the number of scheduling groups
-    if ( (filesystem->GetSchedulingGroupIndex()+1) > spacequota->schedulingView.size()) {
-      spacequota->schedulingView.resize(filesystem->GetSchedulingGroupIndex()+1);
-    }
-    
-    //    spacequota->schedulingView[filesystem->GetSchedulingGroupIndex()]
-    spacequota->schedulingView[filesystem->GetSchedulingGroupIndex()].insert(fsid);
-
-    
-    if (spacequota->NeedsRecalculation()) {
-      eos_static_debug("space %s needs recomputation",spacename);
-      // recalculate and lock everything!
-
-      google::dense_hash_map<unsigned int, unsigned long long>::const_iterator it;
-      
-      spacequota->ResetPhysicalTmpFreeBytes();
-      spacequota->ResetPhysicalTmpMaxBytes();
-      spacequota->ResetPhysicalTmpFreeFiles();
-      spacequota->ResetPhysicalTmpMaxFiles();
-
-      for(it = FstNode::gFileSystemById.begin(); it != FstNode::gFileSystemById.end(); it++) {
-
-	eos_static_debug("looping over all nodes fsid %lu %llu",(it->first), (it->second));
-	// loop over all filesystems
-	google::dense_hash_map<long, unsigned long long>::const_iterator idit;
-	FstFileSystem* innerfilesystem = (FstFileSystem*)(it->second);
-
-	if (!innerfilesystem)
-	  continue;
-
-	eos_static_debug("spacename is %s", innerfilesystem->GetSpaceName());
-
-	// we recompute only the same space filessytems
-	if ((strcmp(spacename, innerfilesystem->GetSpaceName()))) 
-	  continue;
-
-	// add physical bytes/files
-	unsigned long long addbytes = innerfilesystem->GetStatfs()->f_bfree*4096ll;
-
-	// we substract the DISKHEADROOM which we reserve on every disk
-	if ( (innerfilesystem->GetStatfs()->f_blocks * 4096ll) > EOSMGMQUOTA_DISKHEADROOM) {
-	  if (addbytes > EOSMGMQUOTA_DISKHEADROOM)
-	    addbytes -= EOSMGMQUOTA_DISKHEADROOM;
-	  else 
-	    addbytes = 0;
-	}
-
-	spacequota->AddPhysicalTmpFreeBytes(addbytes);
-	spacequota->AddPhysicalTmpMaxBytes (innerfilesystem->GetStatfs()->f_blocks * 4096ll);
-	spacequota->AddPhysicalTmpFreeFiles(innerfilesystem->GetStatfs()->f_ffree * 1ll);
-	spacequota->AddPhysicalTmpMaxFiles (innerfilesystem->GetStatfs()->f_files * 1ll);
-      }
-
-      spacequota->PhysicalTmpToFreeBytes();
-      spacequota->PhysicalTmpToMaxBytes();
-      spacequota->PhysicalTmpToFreeFiles();
-      spacequota->PhysicalTmpToMaxFiles();
-
-    } else {
-      eos_static_debug("space %s needs no recomputation",spacename);
-    }
-
-  }
-}
 
 /*----------------------------------------------------------------------------*/
 bool 
@@ -747,17 +705,18 @@ Quota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long bytes,
   SpaceQuota* spacequota = 0;
 
   XrdOucString configstring="";
+  XrdOucString configstringheader="";
   char configvalue[1024];
 
   if (!space.length()) {
-    spacequota = GetSpaceQuota("default", true);
-    configstring += "default";
+    spacequota = GetSpaceQuota("/eos",false);
+    configstringheader += "/eos";
   } else {
-    spacequota = GetSpaceQuota(space.c_str(), true);
-    configstring += space.c_str();
+    spacequota = GetSpaceQuota(space.c_str(),false);
+    configstringheader += space.c_str();
   }
   
-  configstring += ":";
+  configstringheader += ":";
   
   retc =  EINVAL;
 	
@@ -766,48 +725,59 @@ Quota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long bytes,
     XrdOucString sizestring;
     msg="";
     if ( (uid_sel >=0) && (bytes>=0) ) {
+      configstring = configstringheader;
       spacequota->SetQuota(SpaceQuota::kUserBytesTarget, uid_sel, bytes);
       sprintf(printline, "success: updated quota for uid=%ld to %s\n", uid_sel,eos::common::StringConversion::GetReadableSizeString(sizestring, bytes,"B"));
       configstring += "uid="; configstring += (int) uid_sel; configstring += ":";
       configstring += SpaceQuota::GetTagAsString(SpaceQuota::kUserBytesTarget);
       sprintf(configvalue,"%llu",bytes);
       msg+= printline;
+      // store the setting into the config table
+      gOFS->ConfEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
+     
       retc = 0;
     } 
 
     if ( (uid_sel >=0) && (files>=0) ) {
+      configstring = configstringheader;
       spacequota->SetQuota(SpaceQuota::kUserFilesTarget, uid_sel, files);
       sprintf(printline, "success: updated quota for uid=%ld to %s files\n", uid_sel,eos::common::StringConversion::GetReadableSizeString(sizestring, files,"-"));
       configstring += "uid="; configstring += (int) uid_sel; configstring += ":";
       configstring += SpaceQuota::GetTagAsString(SpaceQuota::kUserFilesTarget);
       sprintf(configvalue,"%llu",files);
       msg+= printline;
+      // store the setting into the config table
+      gOFS->ConfEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
       retc = 0;
     }
 
     if ( (gid_sel >=0) && (bytes>=0) ) {
+      configstring = configstringheader;
       spacequota->SetQuota(SpaceQuota::kGroupBytesTarget, gid_sel, bytes);
       sprintf(printline, "success: updated quota for gid=%ld to %s\n", gid_sel,eos::common::StringConversion::GetReadableSizeString(sizestring, bytes,"B"));
       configstring += "gid="; configstring += (int) gid_sel; configstring += ":";
       configstring += SpaceQuota::GetTagAsString(SpaceQuota::kGroupBytesTarget);
       sprintf(configvalue,"%llu",bytes);
       msg+= printline;
+      // store the setting into the config table
+      gOFS->ConfEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
       retc = 0;
     }
 
     if ( (gid_sel >=0) && (files>=0) ) {
+      configstring = configstringheader;
       spacequota->SetQuota(SpaceQuota::kGroupFilesTarget, gid_sel, files);
       sprintf(printline, "success: updated quota for gid=%ld to %s files\n", gid_sel,eos::common::StringConversion::GetReadableSizeString(sizestring, files,"-"));
       configstring += "gid="; configstring += (int) gid_sel; configstring += ":";
       configstring += SpaceQuota::GetTagAsString(SpaceQuota::kGroupFilesTarget);
       sprintf(configvalue,"%llu",files);
       msg+= printline;
+      // store the setting into the config table
+      gOFS->ConfEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
       retc = 0;
     }
 
     spacequota->UpdateTargetSums();
-    // store the setting into the config table
-    gOFS->ConfEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
     return true;
   } else {
     msg = "error: no space defined with name ";msg += space;

@@ -807,6 +807,8 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
   // "key=<key>:width=<width>:format=[+][-][slfo]:unit=<unit>"  -> to print a key of the attached children
   // "sep=<seperator>"                                          -> to put a seperator
   // "header=1"                                                 -> to put a header with description on top! This must be the first format tag!
+  // "indent=<n>"                                               -> indent the output
+  // "headeronly=1"                                             -> only prints the header and nothnig else
   // the formats are:
   // 's' : print as string
   // 'l' : print as long long
@@ -820,9 +822,11 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
 
   std::vector<std::string> formattoken;
   bool buildheader=false;
+  std::string indent="";
 
   std::string header="";
   std::string body = "";
+  bool headeronly=false;
 
   XrdMqStringConversion::Tokenize(format, formattoken, "|");
 
@@ -849,6 +853,16 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
       // add the desired seperator
       if (formattags.count("header") == 1) {
         buildheader=true;
+      }
+    }
+
+    if (formattags.count("headeronly") ) {
+      headeronly=true;
+    }
+
+    if (formattags.count("indent") ) {
+      for (int i=0; i< atoi(formattags["indent"].c_str()); i++) {
+	indent+= " ";
       }
     }
     
@@ -903,7 +917,7 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
 
         snprintf(line,sizeof(line)-1,lenformat,tmpline);
       }
-      
+      body += indent;
       if ( (formattags["format"].find("o")!= std::string::npos) ) {
         char keyval[4096];
         buildheader = false; // auto disable header
@@ -940,9 +954,13 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
     }
     line += "\n";
     out += line;
+    out += indent;
     out += header; out += "\n";
+    out += indent;
     out += line;
-    out += body;
+    if (!headeronly) {
+      out += body;
+    }
   } else {
     out += body;
   }

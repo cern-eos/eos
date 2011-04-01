@@ -159,6 +159,8 @@ public:
   
   bool CloseTransaction();
 
+  std::string Get(std::string key) {std::string get=""; XrdMqRWMutexReadLock lock(StoreMutex);if (Store.count(key.c_str())) get = Store[key.c_str()].GetEntry(); return get;}
+
   std::string Get(const char* key) {std::string get=""; XrdMqRWMutexReadLock lock(StoreMutex);if (Store.count(key)) get = Store[key].GetEntry(); return get;}
 
   long long   GetLongLong(const char* key) {

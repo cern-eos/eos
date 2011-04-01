@@ -554,13 +554,15 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   // this will be replaced with the scheduling call
 
 
-  FstFileSystem* filesystem = 0;
+  eos::common::FileSystem* filesystem = 0;
 
   std::vector<unsigned int> selectedfs;
   std::vector<unsigned int>::const_iterator sfs;
 
-  FstNode::gMutex.Lock();
   int retc = 0;
+
+  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+
     // ************************************************************************************************
   if (isCreation || ( (open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation()))) {
     // ************************************************************************************************
@@ -583,7 +585,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
     if (! selectedfs.size()) {
       // this file has not a single existing replica
-      FstNode::gMutex.UnLock();
       return Emsg(epname, error, ENODEV,  "open - no replica exists", path);	    
     }
 
@@ -617,7 +618,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	  gOFS->MgmHealMap[fileId] = nheal+1;
 	  ProcCommand* procCmd = new ProcCommand();
 	  if (procCmd) {
-	    FstNode::gMutex.UnLock();
 	    // issue the adjustreplica command as root
 	    eos::common::Mapping::VirtualIdentity vidroot;
 	    eos::common::Mapping::Copy(vid, vidroot);
@@ -637,7 +637,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	    return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
 	  } else {
 	    gOFS->MgmHealMapMutex.UnLock();
-	    FstNode::gMutex.UnLock();
 	    return Emsg(epname, error, ENOMEM,  "allocate memory for proc command", path);	    
 	  }
 	}
@@ -650,7 +649,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	if (stalltime) {
 	  // stall the client
 	  gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
-	  FstNode::gMutex.UnLock();
 	  eos_info("[sys] stalling file %s (rw=%d) - replica(s) down",path, isRW);
 	  return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
 	}
@@ -661,7 +659,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	if (stalltime) {
 	  // stall the client
 	  gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
-	  FstNode::gMutex.UnLock();
 	  eos_info("[user] stalling file %s (rw=%d) - replica(s) down",path, isRW);
 	  return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
 	}
@@ -670,9 +667,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     } else {
       gOFS->MgmStats.Add("OpenFailedQuota",vid.uid,vid.gid,1);  
     }
-
-    FstNode::gMutex.UnLock();
-
 
     return Emsg(epname, error, retc, "access quota space ", path);
   }
@@ -684,8 +678,12 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     eos_err("0 filesystem in selection");
   }
 
-  filesystem = (FstFileSystem*)FstNode::gFileSystemById[selectedfs[fsIndex]];
-  filesystem->GetHostPort(targethost,targetport);
+  
+  filesystem = FsView::gFsView.mIdView[selectedfs[fsIndex]];
+
+  targethost = filesystem->GetString("host").c_str();
+  targetport = atoi(filesystem->GetString("port").c_str());
+  
   redirectionhost= targethost;
   redirectionhost+= "?";
 
@@ -699,30 +697,32 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   
   if ( eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kPlain ) {
     capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
-    capability += "&mgm.localprefix="; capability+= filesystem->GetPath();
+    capability += "&mgm.localprefix="; capability+= filesystem->GetPath().c_str();
   }
 
   if ( eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReplica ) {
     capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
-    capability += "&mgm.localprefix="; capability+= filesystem->GetPath();
+    capability += "&mgm.localprefix="; capability+= filesystem->GetPath().c_str();
     
-    FstFileSystem* repfilesystem = 0;
+    eos::common::FileSystem* repfilesystem = 0;
     // put all the replica urls into the capability
     for ( int i = 0; i < (int)selectedfs.size(); i++) {
       if (!selectedfs[i]) 
 	eos_err("0 filesystem in replica vector");
-      repfilesystem = (FstFileSystem*)FstNode::gFileSystemById[selectedfs[i]];
+      repfilesystem = FsView::gFsView.mIdView[selectedfs[i]];
       if (!repfilesystem) {
 	FstNode::gMutex.UnLock();
 	return Emsg(epname, error, EINVAL, "get replica filesystem information",path);
       }
       capability += "&mgm.url"; capability += i; capability += "=root://";
       XrdOucString replicahost=""; int replicaport = 0;
-      repfilesystem->GetHostPort(replicahost,replicaport);
+      replicahost = repfilesystem->GetString("host").c_str();
+      replicaport = atoi(repfilesystem->GetString("port").c_str());
+
       capability += replicahost; capability += ":"; capability += replicaport; capability += "//";
       // add replica fsid
       capability += "&mgm.fsid"; capability += i; capability += "="; capability += (int)repfilesystem->GetId();
-      capability += "&mgm.localprefix"; capability += i; capability += "=";capability+= repfilesystem->GetPath();
+      capability += "&mgm.localprefix"; capability += i; capability += "=";capability+= repfilesystem->GetPath().c_str();
       eos_debug("Redirection Url %d => %s", i, replicahost.c_str());
     }
     //    capability += "&mgm.path=";
@@ -3028,21 +3028,20 @@ XrdMgmOfs::_verifystripe(const char             *path,
   gOFS->eosViewMutex.UnLock();
   
   if (!errno) {
-    FstNode::gMutex.Lock();
-    FstFileSystem* verifyfilesystem = (FstFileSystem*)FstNode::gFileSystemById[fsid];
+    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+    eos::common::FileSystem* verifyfilesystem = 0;
+    if (FsView::gFsView.mIdView.count(fsid)) {
+      verifyfilesystem = FsView::gFsView.mIdView[fsid];
+    }
     if (!verifyfilesystem) {
       errno = EINVAL;
-      FstNode::gMutex.UnLock();
       return  Emsg(epname,error,ENOENT,"verify stripe - filesystem does not exist",fmd->getName().c_str());  
     }
 
-    XrdOucString receiver    = verifyfilesystem->GetQueue();
-    
-    FstNode::gMutex.UnLock();
-    
+    XrdOucString receiver    = verifyfilesystem->GetQueue().c_str();
     XrdOucString opaquestring = "";
     // build the opaquestring contents
-    opaquestring += "&mgm.localprefix=";       opaquestring += verifyfilesystem->GetPath();
+    opaquestring += "&mgm.localprefix=";       opaquestring += verifyfilesystem->GetPath().c_str();
     opaquestring += "&mgm.fid=";XrdOucString hexfid; eos::common::FileId::Fid2Hex(fid,hexfid);opaquestring += hexfid;
     opaquestring += "&mgm.manager=";           opaquestring += gOFS->ManagerId.c_str();
     opaquestring += "&mgm.access=verify";
@@ -3285,8 +3284,16 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   }
 
   FstNode::gMutex.Lock();
-  FstFileSystem* sourcefilesystem = (FstFileSystem*)FstNode::gFileSystemById[sourcefsid];
-  FstFileSystem* targetfilesystem = (FstFileSystem*)FstNode::gFileSystemById[targetfsid];
+  eos::common::FileSystem* sourcefilesystem = 0;
+  eos::common::FileSystem* targetfilesystem = 0;
+
+  if (FsView::gFsView.mIdView.count(sourcefsid)) {
+    sourcefilesystem = FsView::gFsView.mIdView[sourcefsid];
+  }
+
+  if (FsView::gFsView.mIdView.count(targetfsid)) {
+    targetfilesystem = FsView::gFsView.mIdView[targetfsid];
+  }
 
   if (!sourcefilesystem) {
     errno = EINVAL;
@@ -3300,17 +3307,18 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
     return  Emsg(epname,error,ENOENT,"replicate stripe - target filesystem does not exist",fmd->getName().c_str());  
   }
 
-  XrdOucString receiver    = targetfilesystem->GetQueue();
+  XrdOucString receiver    = targetfilesystem->GetQueue().c_str();
 
   FstNode::gMutex.UnLock();
 
   // build the capability contents
-  capability += "&mgm.localprefix=";       capability += sourcefilesystem->GetPath();
-  capability += "&mgm.localprefixtarget="; capability += targetfilesystem->GetPath();
+  capability += "&mgm.localprefix=";       capability += sourcefilesystem->GetPath().c_str();
+  capability += "&mgm.localprefixtarget="; capability += targetfilesystem->GetPath().c_str();
   capability += "&mgm.fsid=";              capability += (int)sourcefilesystem->GetId();
   capability += "&mgm.fsidtarget=";        capability += (int)targetfilesystem->GetId();
   XrdOucString sourcehost; int sourceport;
-  sourcefilesystem->GetHostPort(sourcehost, sourceport);
+  sourcehost = sourcefilesystem->GetString("host").c_str();
+  sourceport = atoi(sourcefilesystem->GetString("port").c_str());
   XrdOucString hostport = sourcehost; hostport += ":"; hostport += sourceport;
   capability += "&mgm.sourcehostport=";    capability += hostport;
 
@@ -3379,12 +3387,17 @@ XrdMgmOfs::Deletion()
     eos_static_debug("running deletion");
     std::vector <unsigned int> fslist;
     // get a list of file Ids
-    FstNode::gMutex.Lock();
-    google::dense_hash_map<unsigned int, unsigned long long>::const_iterator it;
-    for (it= FstNode::gFileSystemById.begin() ; it != FstNode::gFileSystemById.end(); ++it) {
-      fslist.push_back(it->first);
+
+    std::map<eos::common::FileSystem::fsid_t, eos::common::FileSystem*>::const_iterator it;
+
+    {
+      // lock the filesystem view for reading
+      eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+      
+      for (it= FsView::gFsView.mIdView.begin() ; it != FsView::gFsView.mIdView.end(); ++it) {
+	fslist.push_back(it->first);
+      }
     }
-    FstNode::gMutex.UnLock();
     
     for (unsigned int i=0 ; i< fslist.size(); i++) {
       // loop over all file systems
@@ -3398,7 +3411,7 @@ XrdMgmOfs::Deletion()
 	eos::FileSystemView::FileIterator it;
 	int ndeleted=0;
 
-	FstFileSystem* fs = 0;
+	eos::common::FileSystem* fs = 0;
 	XrdOucString receiver="";
 	XrdOucString msgbody = "mgm.cmd=drop"; 
 	XrdOucString capability ="";
@@ -3415,28 +3428,31 @@ XrdMgmOfs::Deletion()
 	      eos_err("0 filesystem in deletion list");
 	      continue ;
 	    }
-	    FstNode::gMutex.Lock();
-	    fs = ((FstFileSystem*)FstNode::gFileSystemById[ fslist[i] ]);
+
+	    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	    if (FsView::gFsView.mIdView.count(fslist[i])) {
+	      fs = FsView::gFsView.mIdView[fslist[i]];
+	    } else {
+	      fs = 0;
+	    }
 
 	    if (fs) {
 	      // check the state of the filesystem (if it can actually delete in this moment!)
-	      if ( (fs->GetConfigStatus() <= eos::common::FileSystem::kOff) || 
-		   (fs->GetBootStatus()  != eos::common::FileSystem::kBooted) ) {
-		// we don't need to send messages, this one is anyway down
-		FstNode::gMutex.UnLock();
-		break;
-	      }
+	      //	      if ( (fs->GetConfigStatus() <= eos::common::FileSystem::kOff) || 
+	      //		   (fs->GetBootStatus()  != eos::common::FileSystem::kBooted) ) {
+	      //		// we don't need to send messages, this one is anyway down
+	      //		break;
+	      //	      }
 
 	      capability += "&mgm.access=delete";
 	      capability += "&mgm.manager=" ; capability += gOFS->ManagerId.c_str();
 	      capability += "&mgm.fsid="; 
 	      capability += (int) fs->GetId();
 	      capability += "&mgm.localprefix=";
-	      capability += fs->GetPath();
+	      capability += fs->GetPath().c_str();
 	      capability += "&mgm.fids=";
-	      receiver    = fs->GetQueue();
+	      receiver    = fs->GetQueue().c_str();
 	    }
-	    FstNode::gMutex.UnLock();
 	  }
 	  
 	  XrdOucString sfid="";

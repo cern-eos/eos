@@ -48,8 +48,8 @@ com_space (char* arg1) {
     } while(option.length());
   }
 
-  if ( subcommand == "set" ) {
-    in ="mgm.cmd=space&mgm.subcmd=set";
+  if ( subcommand == "define" ) {
+    in ="mgm.cmd=space&mgm.subcmd=define";
     XrdOucString nodename = subtokenizer.GetToken();
     XrdOucString groupsize= subtokenizer.GetToken();
     XrdOucString groupmod = subtokenizer.GetToken();
@@ -74,6 +74,25 @@ com_space (char* arg1) {
     ok = true;
   }
 
+  if ( subcommand == "set" ) {
+    in ="mgm.cmd=space&mgm.subcmd=set";
+    XrdOucString nodename = subtokenizer.GetToken();
+    XrdOucString active   = subtokenizer.GetToken();
+
+    if ( (!nodename.length()) || (!active.length()) ) 
+      printusage=true;
+
+    if ( (active != "on") && (active != "off") ) {
+      printusage=true;
+    }
+    
+    in += "&mgm.space=";
+    in += nodename;
+    in += "&mgm.space.state=";
+    in += active;
+    ok = true;
+  }
+
   if ( subcommand == "rm" ) {
     in ="mgm.cmd=space&mgm.subcmd=rm";
     XrdOucString spacename = subtokenizer.GetToken();
@@ -82,6 +101,19 @@ com_space (char* arg1) {
       printusage=true;
     in += "&mgm.space=";
     in += spacename;
+    ok = true;
+  }
+  
+  if ( subcommand == "quota" ) {
+    in ="mgm.cmd=space&mgm.subcmd=quota";
+    XrdOucString spacename = subtokenizer.GetToken();
+    XrdOucString onoff = subtokenizer.GetToken();
+    if ((!spacename.length()) || (!onoff.length()) ) {
+      goto com_space_usage;
+    }
+
+    in += "&mgm.space=";in += spacename;
+    in += "&mgm.space.quota="; in += onoff;
     ok = true;
   }
     
@@ -140,9 +172,15 @@ com_space (char* arg1) {
   printf("                                                                  -m : monitoring key=value output format\n");
   printf("                                                                  -l : long output - list also file systems after each space\n");
   printf("       space config <host:port> <key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
-  printf("       space set <space-name> [<groupsize> [<groupmod>]]             : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
+  printf("\n");
+  printf("       space define <space-name> [<groupsize> [<groupmod>]]             : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
+  printf("\n");
+  printf("       space set <space-name> on|off                                    : enables/disabels all groups under that space ( not the nodes !) \n");
   printf("                                                                       => <groupsize>=0 means, that no groups are built within a space\n");
   printf("                                                                       => <groupmod> defines the maximum number of filesystems per node [default=24]\n");
+  printf("\n");
   printf("       space rm <space-name>                                         : remove space\n");
+  printf("\n");
+  printf("       space quota <space-name> on|off                               : enable/disable quota\n");
   return (0);
 }

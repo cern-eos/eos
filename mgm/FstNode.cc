@@ -362,7 +362,6 @@ FstNode::Update(const char* infsname, int id, const char* schedgroup, int bootst
     gFileSystemById[id]=(unsigned long long)fs;
     // create the quota space entry in the hash to be able to set quota on the empty space
     Quota::GetSpaceQuota(fs->GetSpaceName());
-    Quota::UpdateHint(fs->GetId());
   } else {
     if (fs->GetId()>0) {
       // invalidate the old entry
@@ -390,8 +389,6 @@ FstNode::Update(const char* infsname, int id, const char* schedgroup, int bootst
   fs->SetError(errc, errmsg);
   fs->SetStatfsEnv(env);
   
-  Quota::UpdateHint(fs->GetId());
-
   // change config
   gOFS->ConfEngine->SetConfigValue("fs", fs->GetQueuePath(), fs->GetBootString(), configchangelog );
 

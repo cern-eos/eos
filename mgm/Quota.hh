@@ -9,8 +9,11 @@
 #include <google/sparsehash/densehashtable.h>
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
+#include "mgm/FsView.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
+#include "common/GlobalConfig.hh"
 #include "mgm/FstFileSystem.hh"
 #include "mq/XrdMqMessage.hh"
 /*----------------------------------------------------------------------------*/
@@ -32,6 +35,28 @@ private:
   XrdSysMutex Mutex;
   XrdOucString SpaceName;
   time_t LastCalculationTime;
+  time_t LastEnableCheck;
+  bool On;
+
+  bool Enabled() {
+    time_t now = time(NULL);
+    if ( now > (LastEnableCheck+5) ) {
+      std::string spacename = SpaceName.c_str();
+      std::string key="quota";
+      if (FsView::gFsView.mSpaceView.count(spacename)) {
+	std::string ison = FsView::gFsView.mSpaceView[spacename]->GetConfigMember(key);
+	if (ison == "on") {
+	  On = true;
+	} else {
+	  On = false;
+	}
+      } else {
+	On = false;
+      }
+      LastEnableCheck = now;
+    }
+    return On;
+  }
 
   // one hash map for user view! depending on eQuota Tag id is either uid or gid!
 
@@ -136,11 +161,9 @@ public:
   SpaceQuota(const char* name) {
     Quota.set_empty_key(-1);
     Quota.set_deleted_key(-2);
-    schedulingViewPtr.set_empty_key("");
-    schedulingViewGroup.set_empty_key("");
-
     SpaceName = name;
     LastCalculationTime = 0;
+    LastEnableCheck = 0;
     PhysicalFreeBytes = PhysicalFreeFiles = PhysicalMaxBytes = PhysicalMaxFiles = 0; 
     PhysicalTmpFreeBytes = PhysicalTmpFreeFiles = PhysicalTmpMaxBytes = PhysicalTmpMaxFiles = 0;
   }
@@ -152,20 +175,15 @@ public:
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////////
   // Scheduling Filesystem Vector/Hashs
+
+
+  // std::string = <grouptag>|<uid>:<gid> 
+  std::map<std::string, FsGroup*> schedulingGroup;
+  // std::string = <schedulinggroupindex>:<grouptag>|<uid>:<gid>
+  std::map<std::string, eos::common::FileSystem::fsid_t > schedulingFileSystem;
+
   
   // First index is the scheduling group index f.e. if we have default.0,default.1,default.2 .... SchedulingView[0] points to the array with all file system IDs in scheduling group default.0 ... if we have only default all filesystem are in index 0
-
-  std::vector< std::set<unsigned int> > schedulingView; 
-
-  // This hash points to the iterator in a scheduling group for a certain 
-  // uid/gid pair or group tag 
-  // - the string has to be constructed as <schedulinggroupindex>:<grouptag> 
-  // - if there is no <grouptag> defined, it is replaced by <uid>:<gid>
-
-  google::dense_hash_map<std::string, std::set<unsigned int>::const_iterator> schedulingViewPtr; 
-  // This hash points to the next scheduling group to use
-  // - the string has to be constructed as <grouptag> | <uid>:<gid>
-  google::dense_hash_map<std::string, unsigned int> schedulingViewGroup;
 
   const char* GetSpaceName() { return SpaceName.c_str();}
 
@@ -223,7 +241,7 @@ public:
   void ResetQuota(unsigned long tag, unsigned long id, bool lock=true) {
     return SetQuota(tag, id, 0, lock);
   }
-  void PrintOut(XrdOucString& output, long uid_sel=-1, long gid_sel=-1);
+  void PrintOut(XrdOucString& output, long uid_sel=-1, long gid_sel=-1, bool monitoring=false);
 
 
   unsigned long long Index(unsigned long tag, unsigned long id) { unsigned long long fulltag = tag; fulltag <<=32; fulltag |= id; return fulltag;}
@@ -251,12 +269,10 @@ public:
 
   void   Recalculate();
 
-  static void   UpdateHint(unsigned int fsid);
-
   // builds a list with the names of all spaces
   static int GetSpaceNameList(const char* key, SpaceQuota* spacequota, void *Arg);
 
-  static void PrintOut(const char* space, XrdOucString &output, long uid_sel=-1, long gid_sel=-1);
+  static void PrintOut(const char* space, XrdOucString &output, long uid_sel=-1, long gid_sel=-1, bool monitoring = false);
   
   static bool SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long bytes, long long files, XrdOucString &msg, int &retc); // -1 means it is not set for all long/long long values
 

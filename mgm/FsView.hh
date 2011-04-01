@@ -52,7 +52,8 @@ public:
   void Print(std::string &out, std::string headerformat, std::string listformat);
   
   virtual std::string GetMember(std::string member);
-  virtual bool SetConfigMember(std::string key, string value);
+  virtual bool SetConfigMember(std::string key, string value, bool create=false, std::string broadcastqueue="");
+  virtual std::string GetConfigMember(std::string key);
 
   void SetHeartBeat(time_t hb)       { mHeartBeat = hb;       }
   void SetStatus(const char* status) { mStatus = status;      }
@@ -79,10 +80,17 @@ public:
 
 //------------------------------------------------------------------------
 class FsGroup : public BaseView {
+  friend class FsView;
+
+protected:
+  unsigned int mIndex;
+  
 public:
 
   FsGroup(const char* name) {mName = name; mType="groupview";}
   ~FsGroup(){};
+
+  unsigned int GetIndex() { return mIndex; }
 
   static std::string gConfigQueuePrefix;
   virtual const char* GetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
@@ -131,6 +139,8 @@ public:
 
   eos::common::RWMutex ViewMutex;  // protecting all xxxView variables
   eos::common::RWMutex MapMutex;   // protecting all xxxMap varables
+
+  std::map<std::string , std::set<FsGroup*> > mSpaceGroupView; // this contains a map from space name => FsGroup (list of fsid's in a subgroup)
 
   std::map<std::string , FsSpace* > mSpaceView;
   std::map<std::string , FsGroup* > mGroupView;

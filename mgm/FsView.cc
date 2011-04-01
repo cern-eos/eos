@@ -56,15 +56,15 @@ std::string
 FsView::GetSpaceFormat(std::string option) {
   if (option == "m") {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=cfg.groupsize:width=1:format=os|sep= |member=nofs:width=1:format=os";
+    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=cfg.groupsize:width=1:format=os|sep= |member=cfg.groupmod:width=1|sep= |member=nofs:width=1:format=os|sep= |member=cfg.quota:width=1";
   }
 
   if (option == "l") {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=nofs:width=5:format=s";
+    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=cfg.groupmod:width=16:format=s|sep= |member=nofs:width=5:format=s|sep=   |member=cfg.quota:width=10:format=s";
   }
   
-  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=nofs:width=5:format=s";
+  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=cfg.groupmod:width=16:format=s|sep= |member=nofs:width=5:format=s|sep=   |member=cfg.quota:width=10:format=s";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -72,15 +72,15 @@ std::string
 FsView::GetGroupFormat(std::string option) {
   if (option == "m") {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os";
+    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=nofs:width=1:format=os";
   }
 
   if (option == "l") {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|sep=   |member=name:width=32:format=s";
+    return "header=1:member=type:width=10:format=-s|sep=   |member=name:width=32:format=s|sep=   |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
   }
 
-  return "header=1:member=type:width=10:format=-s|sep=   |member=name:width=32:format=s";
+  return "header=1:member=type:width=10:format=-s|sep=   |member=name:width=32:format=s|sep=   |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -148,7 +148,7 @@ FsView::Register (eos::common::FileSystem* fs)
     //----------------------------------------------------------------
     //! align view by groupname
     //----------------------------------------------------------------
-    
+
     // check if we have already a group view
     if (mGroupView.count(snapshot.mGroup)) {
       mGroupView[snapshot.mGroup]->insert(snapshot.mId);
@@ -157,8 +157,12 @@ FsView::Register (eos::common::FileSystem* fs)
       FsGroup* group = new FsGroup(snapshot.mGroup.c_str());
       mGroupView[snapshot.mGroup] = group;
       group->insert(snapshot.mId);
+      group->mIndex = snapshot.mGroupIndex;
       eos_debug("creating/inserting into group view %s<=>%u",snapshot.mGroup.c_str(), snapshot.mId,fs);
     }
+
+    
+    mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
 
     //----------------------------------------------------------------
     //! align view by spacename
@@ -253,6 +257,7 @@ FsView::UnRegister(eos::common::FileSystem* fs)
       group->erase(snapshot.mId);
       eos_debug("unregister group %s from group view", group->GetMember("name").c_str());
       if (!group->size()) {
+	mSpaceGroupView[snapshot.mSpace].erase(mGroupView[snapshot.mGroup]);
 	mGroupView.erase(snapshot.mGroup);
 	delete group;
       }
@@ -494,7 +499,7 @@ FsView::SetNextFsId(eos::common::FileSystem::fsid_t fsid)
 #ifndef EOSMGMFSVIEWTEST
   // register in the configuration engine
   std::string key=MgmConfigQueueName.c_str();
-  key += ":nextfsid";
+  key += "#nextfsid";
   char line[1024];
   snprintf(line,sizeof(line)-1,"%llu", (unsigned long long) fsid);
   std::string val = line;
@@ -572,12 +577,21 @@ BaseView::GetMember(std::string member) {
 
 /*----------------------------------------------------------------------------*/
 bool 
-BaseView::SetConfigMember(std::string key, std::string value)
+BaseView::SetConfigMember(std::string key, std::string value, bool create, std::string broadcastqueue)
 {
   bool success=false;
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
   std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
+  if (!hash && create) {
+    eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
+    if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(), broadcastqueue.c_str())) {
+      success = false;
+    }
+    eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
+    hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
+  }
+      
   if (hash) {
     success = hash->Set(key, value);
   }
@@ -586,7 +600,7 @@ BaseView::SetConfigMember(std::string key, std::string value)
 #ifndef EOSMGMFSVIEWTEST
   // register in the configuration engine
   if (FsView::ConfEngine) {
-    nodeconfigname+=":";
+    nodeconfigname+="#";
     nodeconfigname+=key;
     std::string confval = value;
     FsView::ConfEngine->SetConfigValue("global", nodeconfigname.c_str(), confval.c_str());
@@ -594,6 +608,19 @@ BaseView::SetConfigMember(std::string key, std::string value)
 #endif
     
   return success;
+}
+
+/*----------------------------------------------------------------------------*/
+std::string
+BaseView::GetConfigMember(std::string key)
+{
+  XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
+  if (hash) {
+    return hash->Get(key);
+  }
+  return "#EINVAL";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -783,18 +810,42 @@ FsView::ApplyGlobalConfig(const char* key, std::string &val)
   // global variables are stored like key='<queuename>:<variable>' val='<val>'
   std::string configqueue = key; 
   std::vector<std::string> tokens;
-  std::string delimiter=":";
+  std::vector<std::string> paths;
+  std::string delimiter="#";
+  std::string pathdelimiter="/";
   eos::common::StringConversion::Tokenize(configqueue, tokens, delimiter); 
+  eos::common::StringConversion::Tokenize(configqueue, paths, pathdelimiter); 
   bool success = false;
 
   if (tokens.size() != 2) {
     eos_static_err("the key definition of config <%s> is invalid", key);
     return false;
   }
-  
+
+  if (paths.size() <1) {
+    eos_static_err("the queue name does not contain any /");
+    return false; 
+  }
+
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(tokens[0].c_str());
+  if (!hash) {
+    eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
   
+    // create a global config queue
+    if ( (tokens[0].find("/node/")) != std::string::npos ) {
+      std::string broadcast = "/eos/"; broadcast += paths[paths.size()-1]; broadcast += "/fst";
+      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(tokens[0].c_str(),broadcast.c_str())) {
+	eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
+      }
+    } else {
+      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(tokens[0].c_str(),"/eos/*/mgm")) {
+	eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
+      }
+    }
+    eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
+    hash = eos::common::GlobalConfig::gConfig.Get(tokens[0].c_str());
+  }
   if (hash) {
     success = hash->Set(tokens[1].c_str(), val.c_str());
   } else {

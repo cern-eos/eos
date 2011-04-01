@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 use POSIX ":sys_wait_h";
 use Time::HiRes qw( usleep );
+use File::Basename;
 
 my $eosowner = "daemon";
 
@@ -10,6 +11,8 @@ print "###########################\n";
 sub usage() {
     printf STDERR  "usage: eosfstregister [-i] <mount-prefix> [<space1>:<nfilesystems1>] [<space2>:<nfilesystems2>] [-h|--help]\n";
     printf STDERR  "                       -i : ignore if one of the filesystems has already a filesystem id stored and continue\n";
+    printf STDERR  " hint: if <mount-prefix> ends with '/' subdirectories are scanned in this directory, \n";
+    printf STDERR  "       if <mount-prefix> does not end with '/' directories starting with <mount-prefix> are scanned ( e.g. /data* )\n";
 }
 
 my $hostname = `hostname -f`;
@@ -32,13 +35,11 @@ for ( my $arg = 0; $arg < $#ARGV+1; $arg++) {
 
 my $mountprefix = shift @ARGV;
 
-if ($mountprefix =~ /\/$/) {
-    chop $mountprefix;
-}
 
 my $policy;
 my $npfsdefined=0;
 my $phash;
+my $grep = "";
 
 my @spacearray;
 do {
@@ -53,7 +54,7 @@ do {
     }
     $npfsdefined += int($nspace);
     for (my $i=0; $i < $nspace; $i++) {
-	push @spacearray, "$space";
+	push @spacearray, "$space.$i";
     }
 } while($policy ne "");
 
@@ -67,6 +68,15 @@ if ( $mountprefix eq "") {
 #print "Listing mount prefix <$mountprefix> ...\n";
 
 my @filesystems;
+
+if (!($mountprefix =~ /\/$/)) {
+    $grep = basename($mountprefix);
+    $mountprefix = dirname($mountprefix);
+}
+
+if (($mountprefix ne "/") && ($mountprefix =~ /\/$/)) {
+    chop $mountprefix;
+}
 
 open IN, "ls -1 $mountprefix| ";
 
@@ -83,6 +93,13 @@ while (<IN>) {
     if ( $_ =~ /^\./ ) {
 	next;
     }
+
+    if ($grep ne "") {
+	if (!($_ =~ /^$grep/)) {
+	    next;
+	}
+    }
+
 #    print "Registering: $mountprefix/$_\n";
     push @filesystems, "$mountprefix/$_";
 }

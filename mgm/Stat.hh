@@ -171,7 +171,7 @@ public:
     return val;
   }
 
-  void PrintOutTotal(XrdOucString &out, bool details=false) {
+  void PrintOutTotal(XrdOucString &out, bool details=false, bool monitoring=false) {
     Mutex.Lock();
     std::vector<std::string> tags;
     std::vector<std::string>::iterator it;
@@ -183,12 +183,15 @@ public:
     }
 
     std::sort(tags.begin(),tags.end());
-
+    
     char outline[1024];
-    sprintf(outline,"%-8s %-32s %-7s %8s %8s %8s %8s","who", "command","sum","5s","1min","5min","1h");
-    out += outline;
-    out += "\n";
-    out +="# ------------------------------------------------------------------------------------\n";
+
+    if (!monitoring) {
+      sprintf(outline,"%-8s %-32s %-7s %8s %8s %8s %8s","who", "command","sum","5s","1min","5min","1h");
+      out += outline;
+      out += "\n";
+      out +="# ------------------------------------------------------------------------------------\n";
+    }
     for (it = tags.begin(); it!= tags.end(); ++it) {
 
       const char* tag = it->c_str();
@@ -201,12 +204,17 @@ public:
       sprintf(a60,"%3.02f", GetTotalAvg60(tag));
       sprintf(a300,"%3.02f", GetTotalAvg300(tag));
       sprintf(a3600,"%3.02f", GetTotalAvg3600(tag));
-
-      sprintf(outline,"ALL      %-32s %07llu %8s %8s %8s %8s\n",tag, GetTotal(tag),a5,a60,a300,a3600);
+      if (!monitoring) {
+	sprintf(outline,"ALL      %-32s %07llu %8s %8s %8s %8s\n",tag, GetTotal(tag),a5,a60,a300,a3600);
+      } else {
+	sprintf(outline,"all cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",tag, GetTotal(tag),a5,a60,a300,a3600);
+      }
       out += outline;
     }
     if (details) {
-      out +="# ------------------------------------------------------------------------------------\n";
+      if (!monitoring) {
+	out +="# ------------------------------------------------------------------------------------\n";
+      }
       google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg > >::iterator tuit;
       google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatAvg > >::iterator tgit;
 
@@ -224,7 +232,12 @@ public:
 	  sprintf(a60,"%3.02f", it->second.GetAvg60());
 	  sprintf(a300,"%3.02f", it->second.GetAvg300());
 	  sprintf(a3600,"%3.02f", it->second.GetAvg3600());
-	  sprintf(outline,"uid=%04d %-32s %07llu %8s %8s %8s %8s\n",it->first, tuit->first.c_str(),StatsUid[tuit->first.c_str()][it->first],a5,a60,a300,a3600);
+	  if (!monitoring) {
+	    sprintf(outline,"uid=%04d %-32s %07llu %8s %8s %8s %8s\n",it->first, tuit->first.c_str(),StatsUid[tuit->first.c_str()][it->first],a5,a60,a300,a3600);
+	  } else {
+	    sprintf(outline,"uid=%04d cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",it->first, tuit->first.c_str(),StatsUid[tuit->first.c_str()][it->first],a5,a60,a300,a3600);
+	  }
+
 	  uidout.push_back(outline);
 	}
       }
@@ -232,8 +245,10 @@ public:
       std::vector<std::string>::iterator sit;
       for (sit = uidout.begin(); sit != uidout.end(); sit++) 
 	out += sit->c_str();
-
-      out +="# ------------------------------------------------------------------------------------\n";
+      
+      if (!monitoring) {
+	out +="# ------------------------------------------------------------------------------------\n";
+      }
       for (tgit = StatAvgGid.begin(); tgit != StatAvgGid.end(); tgit++) {
 	google::sparse_hash_map<gid_t, StatAvg>::iterator it;
 	for (it = tgit->second.begin(); it != tgit->second.end(); ++it) {
@@ -245,15 +260,21 @@ public:
 	  sprintf(a60,"%3.02f", it->second.GetAvg60());
 	  sprintf(a300,"%3.02f", it->second.GetAvg300());
 	  sprintf(a3600,"%3.02f", it->second.GetAvg3600());
-	  
-	  sprintf(outline,"gid=%04d %-32s %07llu %8s %8s %8s %8s\n",it->first, tgit->first.c_str(),StatsGid[tgit->first.c_str()][it->first],a5,a60,a300,a3600);
+	  if (!monitoring) {
+	    sprintf(outline,"gid=%04d %-32s %07llu %8s %8s %8s %8s\n",it->first, tgit->first.c_str(),StatsGid[tgit->first.c_str()][it->first],a5,a60,a300,a3600);
+	  } else {
+	    sprintf(outline,"gid=%04d cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",it->first, tgit->first.c_str(),StatsUid[tgit->first.c_str()][it->first],a5,a60,a300,a3600);
+		    
+	  }
 	  gidout.push_back(outline);
 	}
       }
       std::sort(gidout.begin(),gidout.end());
       for (sit = gidout.begin(); sit != gidout.end(); sit++) 
 	out += sit->c_str();
-      out +="# ------------------------------------------------------------------------------------\n";
+      if (!monitoring) {
+	out +="# ------------------------------------------------------------------------------------\n";
+      }
     }
     Mutex.UnLock();
   }

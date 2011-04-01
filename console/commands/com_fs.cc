@@ -61,11 +61,39 @@ com_fs (char* arg1) {
   
   if ( subcommand == "ls" ) {
     XrdOucString in ="mgm.cmd=fs&mgm.subcmd=ls";
-    XrdOucString silent = subtokenizer.GetToken();
+    XrdOucString option="";
+    bool highlighting=true;
+    bool ok;
+
+    do {
+      subtokenizer.GetLine();
+      option = subtokenizer.GetToken();
+      if (option.length()) {
+	if (option == "-m") {
+	  in += "&mgm.outformat=m";
+	  ok=true;
+	  highlighting=false;
+	} 
+	if (option == "-l") {
+	  in += "&mgm.outformat=l";
+	  ok=true;
+	}
+	if (option == "-s") {
+	  silent=true;
+	  ok=true;
+	}
+	
+      } else {
+	ok=true;
+      }
+    } while(option.length());
+
+    if (!ok) 
+      goto com_fs_usage;
 
     XrdOucEnv* result = client_admin_command(in);
-    if (silent != "-s") {
-      global_retc = output_result(result);
+    if (!silent) {
+      global_retc = output_result(result, highlighting);
     } else {
       if (result) {
         global_retc = 0;

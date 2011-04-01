@@ -48,6 +48,24 @@ com_group (char* arg1) {
     } while(option.length());
   }
 
+  if ( subcommand == "set" ) {
+    in ="mgm.cmd=group&mgm.subcmd=set";
+    XrdOucString nodename = subtokenizer.GetToken();
+    XrdOucString active= subtokenizer.GetToken();
+
+    if ( (active != "on") && (active != "off") ) {
+      printusage=true;
+    }
+
+    if (!nodename.length())
+      printusage=true;
+    in += "&mgm.group=";
+    in += nodename;
+    in += "&mgm.group.state=";
+    in += active;
+    ok = true;
+  }
+
   if ( subcommand == "rm" ) {
     in ="mgm.cmd=group&mgm.subcmd=rm";
     XrdOucString groupname = subtokenizer.GetToken();
@@ -79,11 +97,12 @@ com_group (char* arg1) {
 
  com_group_usage:
 
-  printf("usage: group ls                                                  : list groups\n");
-  printf("usage: group ls [-s] [-m|-l]                                        : list groups\n");
+  printf("usage: group ls                                                      : list groups\n");
+  printf("usage: group ls [-s] [-m|-l]                                         : list groups\n");
   printf("                                                                  -s : silent mode\n");
   printf("                                                                  -m : monitoring key=value output format\n");
   printf("                                                                  -l : long output - list also file systems after each group\n");
   printf("       group rm <group-name>                                         : remove group\n");
+  printf("       group set <group-name> on|off                                 : activate/deactivate group\n");
   return (0);
 }
