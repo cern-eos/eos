@@ -1589,6 +1589,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	resultStream = "df: retc=";
 	resultStream += EINVAL;
       } else {
+	eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+
 	SpaceQuota* spacequota = Quota::GetSpaceQuota(space.c_str());
 	if (!spacequota) {
 	  resultStream = "df: retc=";

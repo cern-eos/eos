@@ -552,8 +552,14 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     capability += attrmap["user.tag"].c_str();
   }
 
-  // this will be replaced with the scheduling call
+  unsigned long long bookingsize; // the size which will be reserved with a placement of one replica for that file
 
+  if (attrmap.count("sys.forced.bookingsize")) {
+    // we allow only a system attribute not to get fooled by a user
+    bookingsize = strtoull(attrmap["sys.forced.bookingsize"].c_str(),0,10);
+  }  else {
+    bookingsize = 1024*1024*1024ll;
+  }
 
   eos::common::FileSystem* filesystem = 0;
 
@@ -572,7 +578,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     if (attrmap.count("user.tag")) {
       containertag = attrmap["user.tag"].c_str();
     }
-    retc = quotaspace->FilePlacement(vid.uid, vid.gid, containertag, layoutId, selectedfs, open_mode & SFS_O_TRUNC);
+    retc = quotaspace->FilePlacement(vid.uid, vid.gid, containertag, layoutId, selectedfs, open_mode & SFS_O_TRUNC, -1, bookingsize);
   } else {
     // ************************************************************************************************
     // access existing file
@@ -1537,6 +1543,41 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
 
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
+
+  // free the booked quota
+  eos::FileMD* fmd=0;
+  eos::ContainerMD* container=0;
+
+  try { 
+    fmd = gOFS->eosView->getFile(path);
+  } catch ( eos::MDException &e) {
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+
+  if (fmd) {
+    try {
+      container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+    } catch ( eos::MDException &e ) {
+      container = 0;
+    }
+    
+    if (container) {
+      eos::QuotaNode* quotanode = 0;
+      try {
+	eos_info("found quota node\n");
+	quotanode = gOFS->eosView->getQuotaNode(container);
+      } catch ( eos::MDException &e ) {
+	quotanode = 0;
+      }
+      
+      // free previous quota
+      if (quotanode) {
+	quotanode->removeFile(fmd);
+      }		
+    }
+  }
+
   try {
     gOFS->eosView->unlinkFile(path);
   } catch( eos::MDException &e ) {
@@ -2388,10 +2429,11 @@ XrdMgmOfs::FSctl(const int               cmd,
 	} else {
 	  eos_debug("commit: path=%s size=%s fid=%s fsid=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, amtime, amtimensec);
 	}
-
+	
 	// get the file meta data if exists
 	eos::FileMD *fmd = 0;
-
+	eos::ContainerMD::id_t cid=0;
+	
 	//-------------------------------------------
 	gOFS->eosViewMutex.Lock();
 	try {
@@ -2404,7 +2446,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	if (!fmd) {
 	  gOFS->eosViewMutex.UnLock();
 	  //-------------------------------------------
-
+	  
 	  // uups, no such file anymore
 	  return Emsg(epname,error,errno,"commit filesize change",spath);
 	} else {
@@ -2412,17 +2454,17 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  if (fmd->getId() != fid ) {
 	    gOFS->eosViewMutex.UnLock();
 	    //-------------------------------------------
-
+	    
 	    eos_notice("commit for fid=%lu but fid=%lu", fmd->getId(), fid);
 	    gOFS->MgmStats.Add("CommitFailedFid",0,0,1);
 	    return Emsg(epname,error, EINVAL,"commit filesize change - file id is wrong [EINVAL]", spath);
 	  }
-
+	  
 	  // check if this file is already unlinked from the visible namespace
-	  if (!fmd->getContainerId()) {
+	  if (!(cid=fmd->getContainerId())) {
 	    gOFS->eosViewMutex.UnLock();
 	    //-------------------------------------------
-
+		
 	    eos_notice("commit for fid=%lu but file is disconnected from any container", fmd->getId());
 	    gOFS->MgmStats.Add("CommitFailedUnlinked",0,0,1);  
 	    return Emsg(epname,error, EIDRM, "commit filesize change - file is already removed [EIDRM]","");
@@ -2448,9 +2490,34 @@ XrdMgmOfs::FSctl(const int               cmd,
 	      }
 	    }
 	  }
+	  
+	  if (commitsize) {
+	    eos::ContainerMD* container=0;
+	    try {
+	      container = gOFS->eosDirectoryService->getContainerMD(cid);
+	    } catch ( eos::MDException &e ) {
+	      container = 0;
+	    }
+	    if (container) {
+	      eos::QuotaNode* quotanode = 0;
+	      try {
+		quotanode = gOFS->eosView->getQuotaNode(container);
+	      } catch ( eos::MDException &e ) {
+		quotanode = 0;
+	      }
 
-	  if (commitsize)
-	    fmd->setSize(size);
+	      // free previous quota
+	      if (quotanode) {
+		quotanode->removeFile(fmd);
+	      }		
+	      fmd->setSize(size);
+	      // add new quota
+	      if (quotanode) {
+		quotanode->addFile(fmd);
+	      }
+	    }
+	  }
+
 	  fmd->addLocation(fsid);
 	  if (commitchecksum)
 	    fmd->setChecksum(checksumbuffer);

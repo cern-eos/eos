@@ -96,6 +96,7 @@ protected:
   unsigned long fsid;        // file system id
   unsigned long lid;         // layout id
   unsigned long long cid;    // container id
+
   XrdOucString hostName;
 
   bool         closed;

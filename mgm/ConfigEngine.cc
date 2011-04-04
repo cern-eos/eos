@@ -422,9 +422,9 @@ ConfigEngine::ResetConfig()
   FstNode::gFileSystemById.clear();
   FstNode::gFstNodes.Purge();
 
-  Quota::gQuotaMutex.Lock();
+  Quota::gQuotaMutex.LockWrite();
   Quota::gQuota.Purge();
-  Quota::gQuotaMutex.UnLock();
+  Quota::gQuotaMutex.UnLockWrite();
 
   eos::common::Mapping::gMapMutex.LockWrite();
   eos::common::Mapping::gUserRoleVector.clear();
@@ -439,6 +439,11 @@ ConfigEngine::ResetConfig()
   configDefinitions.Purge();
   Mutex.UnLock();
   FstNode::gMutex.UnLock();
+
+  // load all the quota nodes from the namespace
+  Quota::LoadNodes();
+  // fill the current accounting
+  Quota:: NodesToSpaceQuota();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -451,9 +456,9 @@ ConfigEngine::ApplyConfig(XrdOucString &err)
   FstNode::gFileSystemById.clear();
   FstNode::gFstNodes.Purge();
 
-  Quota::gQuotaMutex.Lock();
+  Quota::gQuotaMutex.LockWrite();
   Quota::gQuota.Purge();
-  Quota::gQuotaMutex.UnLock();
+  Quota::gQuotaMutex.UnLockWrite();
 
   eos::common::Mapping::gMapMutex.LockWrite();
   eos::common::Mapping::gUserRoleVector.clear();
@@ -591,6 +596,9 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
     ug.assign(skey,ugoffset+1, ugequaloffset-1);
     ugid.assign(skey,ugequaloffset+1, tagoffset-1);
     tag.assign(skey,tagoffset+1);
+
+    eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+
     SpaceQuota* spacequota = Quota::GetSpaceQuota(space.c_str());
 
     unsigned long long value = strtoll(def->c_str(),0,10);

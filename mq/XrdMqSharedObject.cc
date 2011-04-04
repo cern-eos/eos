@@ -659,6 +659,7 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
   XrdOucString txmessage="";
   MakeBroadCastEnvHeader(txmessage);
   AddTransactionEnvString(txmessage);
+  IsTransaction = false;
   TransactionMutex.UnLock();
 
   XrdMqMessage message("XrdMqSharedHashMessage");

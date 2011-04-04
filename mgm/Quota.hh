@@ -14,8 +14,10 @@
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/GlobalConfig.hh"
+#include "common/RWMutex.hh"
 #include "mgm/FstFileSystem.hh"
 #include "mq/XrdMqMessage.hh"
+#include "namespace/accounting/QuotaStats.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -23,6 +25,7 @@
 /*----------------------------------------------------------------------------*/
 #include <vector>
 #include <set>
+#include <stdint.h>
 /*----------------------------------------------------------------------------*/
 
 
@@ -37,6 +40,7 @@ private:
   time_t LastCalculationTime;
   time_t LastEnableCheck;
   bool On;
+  eos::QuotaNode* QuotaNode;
 
   bool Enabled() {
     time_t now = time(NULL);
@@ -134,7 +138,9 @@ public:
     if (tag == kAllGroupFilesTarget){ return "AVAL-FILES";}
     return "---- -----";
   }
-    
+
+  eos::QuotaNode* GetQuotaNode() { return QuotaNode; }
+  
   const char* GetQuotaStatus(unsigned long long is, unsigned long long avail) {
     double p = (avail)?(100.0 * is /avail): 100.0;
     if (p < 90) {
@@ -156,19 +162,11 @@ public:
   bool NeedsRecalculation() { if ( (time(NULL) - LastCalculationTime) > 10 ) return true; else return false;}
 
   void UpdateTargetSums();
+  void UpdateIsSums();
 
 
-  SpaceQuota(const char* name) {
-    Quota.set_empty_key(-1);
-    Quota.set_deleted_key(-2);
-    SpaceName = name;
-    LastCalculationTime = 0;
-    LastEnableCheck = 0;
-    PhysicalFreeBytes = PhysicalFreeFiles = PhysicalMaxBytes = PhysicalMaxFiles = 0; 
-    PhysicalTmpFreeBytes = PhysicalTmpFreeFiles = PhysicalTmpMaxBytes = PhysicalTmpMaxFiles = 0;
-  }
-
-  ~SpaceQuota() {}
+  SpaceQuota(const char* name);
+  ~SpaceQuota();
 
   google::dense_hash_map<long long, unsigned long long>::const_iterator Begin() { return Quota.begin();}
   google::dense_hash_map<long long, unsigned long long>::const_iterator End()   { return Quota.end();}
@@ -248,7 +246,7 @@ public:
   unsigned long UnIndex(unsigned long long reindex) {return (reindex>>32) & 0xffff;}
 
   // the write placement routine
-  int FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate=false, int forcedindex=-1);
+  int FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate=false, int forcedindex=-1, unsigned long long bookingsize=1024*1024*1024ll);
 
   // the access routine
   int FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW);
@@ -260,7 +258,7 @@ private:
   
 public:
   static XrdOucHash<SpaceQuota> gQuota;
-  static XrdSysMutex gQuotaMutex;
+  static eos::common::RWMutex gQuotaMutex;
 
   static SpaceQuota* GetSpaceQuota(const char* name, bool nocreate=false);
   
@@ -278,6 +276,17 @@ public:
 
   static bool RmQuota(XrdOucString space, long uid_sel, long gid_sel, XrdOucString &msg, int &retc); // -1 means it is not set for all long/long long values
 
+  // callback function for the namespace implementation to calculate the size a file occupies
+  static uint64_t MapSizeCB(const eos::FileMD *file);
+
+  // load function to initialize all SpaceQuota's with the quota node definition from the namespace
+  static void LoadNodes();
+
+  // inserts the current state of the quota nodes into SpaceQuota's
+  static void NodesToSpaceQuota();
+
+  // insert current state of a single quota node into a SpaceQuota
+  static void NodeToSpaceQuota(const char* name, bool lock=true);
 
 };
 

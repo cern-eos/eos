@@ -10,6 +10,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/FstNode.hh"
+#include "mgm/Quota.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
 #include "namespace/views/HierarchicalView.hh"
@@ -425,14 +426,14 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   XrdOucString unit = "mgm@"; unit+= ManagerId;
 
-  eos::common::Logging::SetLogPriority(LOG_INFO);
+  eos::common::Logging::SetLogPriority(LOG_DEBUG);
   eos::common::Logging::SetUnit(unit.c_str());
 
   // this global hash needs to initialize the set empty key function at first place
   FstNode::gFileSystemById.set_empty_key(0);
 
-  eos::common::Logging::gFilter = "Process,AddQuota,UpdateHint,SetQuota,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut";
-  Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,SetQuota,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut");
+  eos::common::Logging::gFilter = "Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode";
+  Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode");
 
   // we automatically append the host name to the config dir now !!!
   MgmConfigDir += HostName;
@@ -560,9 +561,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
     eosFileService->addChangeListener( eosFsView );
 
+    eosView->getQuotaStats()->registerSizeMapper( Quota::MapSizeCB );
     eosView->initialize();
     eosFsView->initialize();
-
 
     time_t tstop  = time(0);
     eos_notice("eos view configure stopped after %d seconds", (tstop-tstart));
@@ -579,7 +580,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   try {
     rootmd = eosView->getContainer("/");
   } catch ( eos::MDException &e ) {
-    Eroute.Emsg("Config","cannto get the / directory meta data");
+    Eroute.Emsg("Config","cannot get the / directory meta data");
     eos_crit("eos view cannot retrieve the / directory");
     return 1;
   }
@@ -595,6 +596,32 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     }
   }
   eos_info("/ permissions are %o", rootmd->getMode());
+
+  // create /eos
+  eos::ContainerMD* eosmd=0;
+  try {
+    eosmd = eosView->getContainer("/eos/");
+  } catch ( eos::MDException &e ) {
+    // nothing in this case
+    eosmd = 0;
+  }
+  
+  if (!eosmd) {
+    try {
+      eosmd = eosView->createContainer( "/eos/", true );
+      // set attribute inheritance
+      eosmd->setMode(S_IFDIR| S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP| S_IWGRP| S_IXGRP | S_ISGID);
+      // set default checksum 'adler'
+      eosmd->setAttribute("sys.forced.checksum", "adler");
+      eosView->updateContainerStore(eosmd);
+      eos_info("/eos permissions are %o checksum is set <adler>", eosmd->getMode());
+    } catch ( eos::MDException &e ) {
+      Eroute.Emsg("Config","cannot set the /eos/ directory mode to inital mode");
+      eos_crit("cannot set the /eos/ directory mode to 755");
+      return 1;
+    }
+  }
+
   //-------------------------------------------
 
   // create the specific listener class
@@ -652,6 +679,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
       eos_info("Successful auto-load config %s", ConfigAutoLoad.c_str());
     }
   }
+
+  // load all the quota nodes from the namespace
+  Quota::LoadNodes();
+  // fill the current accounting
+  Quota:: NodesToSpaceQuota();
 
   // add all stat entries with 0
   gOFS->MgmStats.Add("Access",0,0,0);
