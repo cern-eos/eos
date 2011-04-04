@@ -22,7 +22,7 @@ XRD_USER="daemon"
 XRD_LOGDIR="/var/log/eos"
 XRD_COREDIR="/var/spool/eos/"
 XRD_ADMINDIR="/var/spool/eos/admin"
-XRD_CONFIGDIR="/var/spool/eos/config"
+XRD_CONFIGDIR="/var/eos/"
 XRD_CONFIG="/etc/xrd.cf"
 XRD_ROLEFLAG=""
 
@@ -99,10 +99,12 @@ start() {
 			cd ${XRD_COREDIR}/core/$i
 
 			if [ ${XRD_USER} = "$USER" ]; then
-			    [ -f /etc/sysconfig/$sysconfigfile ] && source /etc/sysconfig/$sysconfigfile ;cd ${XRD_COREDIR}/core/$i; env LD_LIBRARY_PATH=${EOS_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}
+			    ulimit -c ${DAEMON_COREFILE_LIMIT-unlimited}
+			    [ -f /etc/sysconfig/$sysconfigfile ] && source /etc/sysconfig/$sysconfigfile ;cd ${XRD_COREDIR}/core/; env LD_LIBRARY_PATH=${EOS_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}
 			else
 			    ulimit -n ${XRD_MAXFD}
-			    [ -f /etc/sysconfig/$sysconfigfile ] && source /etc/sysconfig/$sysconfigfile ;cd ${XRD_COREDIR}/core/$i; env LD_LIBRARY_PATH=${EOS_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}
+			    ulimit -c ${DAEMON_COREFILE_LIMIT-unlimited}
+			    [ -f /etc/sysconfig/$sysconfigfile ] && source /etc/sysconfig/$sysconfigfile ;cd ${XRD_COREDIR}/core/; env LD_LIBRARY_PATH=${EOS_LOCATION}/lib:${LD_LIBRARY_PATH} ${XRD_LOCATION}/bin/$prog ${_XRD_OPTIONS}
 			fi
 
 			# Write the pid to a file
