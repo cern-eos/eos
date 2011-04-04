@@ -102,6 +102,6 @@ endif (Linux)
 
 install ( TARGETS eos-log-compact eos-log-repair
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-          RUNTIME DESTINATION bin
+          RUNTIME DESTINATION sbin
           ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
 )
