@@ -177,10 +177,10 @@ static uint64_t mapSize( const eos::FileMD *file )
 //------------------------------------------------------------------------------
 // Create files at given path
 //------------------------------------------------------------------------------
-static void createFiles( const std::string         &path,
-                         eos::IView                *view,
-                         std::map<uid_t, uint64_t> &users,
-                         std::map<gid_t, uint64_t> &groups )
+static void createFiles( const std::string                          &path,
+                         eos::IView                                 *view,
+                         std::map<uid_t, eos::QuotaNode::UsageInfo> &users,
+                         std::map<gid_t, eos::QuotaNode::UsageInfo> &groups )
 {
   eos::QuotaNode *node = view->getQuotaNode( view->getContainer( path ) );
   for( int i = 0; i < 1000; ++i )
@@ -194,8 +194,13 @@ static void createFiles( const std::string         &path,
     file->setLayoutId( random()%3+1 );
     view->updateFileStore( file );
     node->addFile( file );
-    users[file->getCUid()]  += mapSize( file );
-    groups[file->getCGid()] += mapSize( file );
+    uint64_t size = mapSize( file );
+    eos::QuotaNode::UsageInfo &user  = users[file->getCUid()];
+    eos::QuotaNode::UsageInfo &group = groups[file->getCGid()];
+    user.space += size;
+    user.files++;
+    group.space += size;
+    group.files++;
   }
 }
 
@@ -273,13 +278,13 @@ void HierarchicalViewTest::quotaTest()
   //----------------------------------------------------------------------------
   // Create some files
   //----------------------------------------------------------------------------
-  std::map<uid_t, uint64_t> users1;
-  std::map<gid_t, uint64_t> groups1;
+  std::map<uid_t, eos::QuotaNode::UsageInfo> users1;
+  std::map<gid_t, eos::QuotaNode::UsageInfo> groups1;
   std::string path1 = "/test/embed/embed1/";
   createFiles( path1, view, users1, groups1 );
 
-  std::map<uid_t, uint64_t> users2;
-  std::map<gid_t, uint64_t> groups2;
+  std::map<uid_t, eos::QuotaNode::UsageInfo> users2;
+  std::map<gid_t, eos::QuotaNode::UsageInfo> groups2;
   std::string path2 = "/test/embed/embed2/";
   createFiles( path2, view, users2, groups2 );
 
@@ -291,14 +296,19 @@ void HierarchicalViewTest::quotaTest()
 
   for( int i = 1; i<= 10; ++i )
   {
-    CPPUNIT_ASSERT( node1->getOccupancyByUser( i ) == users1[i] );
-    CPPUNIT_ASSERT( node2->getOccupancyByUser( i ) == users2[i] );
+    CPPUNIT_ASSERT( node1->getUsedSpaceByUser( i ) == users1[i].space );
+    CPPUNIT_ASSERT( node2->getUsedSpaceByUser( i ) == users2[i].space );
+    CPPUNIT_ASSERT( node1->getNumFilesByUser( i )  == users1[i].files );
+    CPPUNIT_ASSERT( node2->getNumFilesByUser( i )  == users2[i].files );
+
   }
 
   for( int i = 1; i<= 3; ++i )
   {
-    CPPUNIT_ASSERT( node1->getOccupancyByGroup( i ) == groups1[i] );
-    CPPUNIT_ASSERT( node2->getOccupancyByGroup( i ) == groups2[i] );
+    CPPUNIT_ASSERT( node1->getUsedSpaceByGroup( i ) == groups1[i].space );
+    CPPUNIT_ASSERT( node2->getUsedSpaceByGroup( i ) == groups2[i].space );
+    CPPUNIT_ASSERT( node1->getNumFilesByGroup( i )  == groups1[i].files );
+    CPPUNIT_ASSERT( node2->getNumFilesByGroup( i )  == groups2[i].files );
   }
 
   //----------------------------------------------------------------------------
@@ -319,14 +329,18 @@ void HierarchicalViewTest::quotaTest()
 
   for( int i = 1; i<= 10; ++i )
   {
-    CPPUNIT_ASSERT( node1->getOccupancyByUser( i ) == users1[i] );
-    CPPUNIT_ASSERT( node2->getOccupancyByUser( i ) == users2[i] );
+    CPPUNIT_ASSERT( node1->getUsedSpaceByUser( i ) == users1[i].space );
+    CPPUNIT_ASSERT( node2->getUsedSpaceByUser( i ) == users2[i].space );
+    CPPUNIT_ASSERT( node1->getNumFilesByUser( i )  == users1[i].files );
+    CPPUNIT_ASSERT( node2->getNumFilesByUser( i )  == users2[i].files );
   }
 
   for( int i = 1; i<= 3; ++i )
   {
-    CPPUNIT_ASSERT( node1->getOccupancyByGroup( i ) == groups1[i] );
-    CPPUNIT_ASSERT( node2->getOccupancyByGroup( i ) == groups2[i] );
+    CPPUNIT_ASSERT( node1->getUsedSpaceByGroup( i ) == groups1[i].space );
+    CPPUNIT_ASSERT( node2->getUsedSpaceByGroup( i ) == groups2[i].space );
+    CPPUNIT_ASSERT( node1->getNumFilesByGroup( i )  == groups1[i].files );
+    CPPUNIT_ASSERT( node2->getNumFilesByGroup( i )  == groups2[i].files );
   }
 
   CPPUNIT_ASSERT_NO_THROW( view->finalize() );
