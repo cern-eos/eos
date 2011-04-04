@@ -20,8 +20,14 @@ namespace eos
   class QuotaNode
   {
     public:
-      typedef std::map<uid_t, uint64_t> UserMap;
-      typedef std::map<gid_t, uint64_t> GroupMap;
+      struct UsageInfo
+      {
+        UsageInfo(): space(0), files(0) {}
+        uint64_t space;
+        uint64_t files;
+      };
+      typedef std::map<uid_t, UsageInfo> UserMap;
+      typedef std::map<gid_t, UsageInfo> GroupMap;
 
       //------------------------------------------------------------------------
       //! Constructor
@@ -31,79 +37,95 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get the amount of space occupied by the given user
       //------------------------------------------------------------------------
-      uint64_t getOccupancyByUser( uid_t uid ) throw( MDException )
+      uint64_t getUsedSpaceByUser( uid_t uid ) throw( MDException )
       {
-        return pUserOccupancy[uid];
+        return pUserUsage[uid].space;
       }
 
       //------------------------------------------------------------------------
       //! Get the amount of space occupied by the given group
       //------------------------------------------------------------------------
-      uint64_t getOccupancyByGroup( gid_t gid ) throw( MDException )
+      uint64_t getUsedSpaceByGroup( gid_t gid ) throw( MDException )
       {
-        return pGroupOccupancy[gid];
+        return pGroupUsage[gid].space;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the amount of space occupied by the given user
+      //------------------------------------------------------------------------
+      uint64_t getNumFilesByUser( uid_t uid ) throw( MDException )
+      {
+        return pUserUsage[uid].files;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the amount of space occupied by the given group
+      //------------------------------------------------------------------------
+      uint64_t getNumFilesByGroup( gid_t gid ) throw( MDException )
+      {
+        return pGroupUsage[gid].files;
       }
 
       //------------------------------------------------------------------------
       //! Change the amount of space occupied by the given user
       //------------------------------------------------------------------------
-      void changeOccupancyUser( uid_t uid, int64_t delta ) throw( MDException )
+      void changeSpaceUser( uid_t uid, int64_t delta ) throw( MDException )
       {
-        pUserOccupancy[uid] += delta;
+        pUserUsage[uid].space += delta;
       }
 
       //------------------------------------------------------------------------
       //! Change the amount of space occpied by the given group
       //------------------------------------------------------------------------
-      void changeOccupancyGroup( gid_t gid, int64_t delta ) throw( MDException )
+      void changeSpaceGroup( gid_t gid, int64_t delta ) throw( MDException )
       {
-        pGroupOccupancy[gid] += delta;
+        pGroupUsage[gid].space += delta;
       }
 
       //------------------------------------------------------------------------
       // Iterate over the usage of known users
       //------------------------------------------------------------------------
-      UserMap::iterator userOccupancyBegin()
+      UserMap::iterator userUsageBegin()
       {
-        return pUserOccupancy.begin();
+        return pUserUsage.begin();
       }
 
-      UserMap::iterator userOccupencyEnd()
+      UserMap::iterator userUsageEnd()
       {
-        return pUserOccupancy.end();
+        return pUserUsage.end();
       }
 
-      UserMap::const_iterator userOccupancyBegin() const
+      UserMap::const_iterator userUsageBegin() const
       {
-        return pUserOccupancy.begin();
+        return pUserUsage.begin();
       }
 
-      UserMap::const_iterator userOccupancyEnd() const
+      UserMap::const_iterator userUsageEnd() const
       {
-        return pUserOccupancy.end();
+        return pUserUsage.end();
       }
 
       //------------------------------------------------------------------------
       // Iterate over the usage of known groups
       //------------------------------------------------------------------------
-      GroupMap::iterator groupOccupancyBegin()
+      GroupMap::iterator groupUsageBegin()
       {
-        return pGroupOccupancy.begin();
+        return pGroupUsage.begin();
       }
 
-      GroupMap::iterator groupOccupancyEnd()
+      GroupMap::iterator groupUsageEnd()
       {
-        return pGroupOccupancy.end();
+        return pGroupUsage.end();
       }
 
-      const GroupMap::const_iterator groupOccupancyBegin() const
+      const GroupMap::const_iterator groupUsageBegin() const
       {
-        return pGroupOccupancy.begin();
+        return pGroupUsage.begin();
       }
 
-      const GroupMap::const_iterator groupOccupancyEnd() const
+      const GroupMap::const_iterator groupUsageEnd() const
       {
-        return pGroupOccupancy.end();
+        return pGroupUsage.end();
       }
 
       //------------------------------------------------------------------------
@@ -117,8 +139,8 @@ namespace eos
       void removeFile( const FileMD *file );
 
     private:
-      UserMap     pUserOccupancy;
-      GroupMap    pGroupOccupancy;
+      UserMap     pUserUsage;
+      GroupMap    pGroupUsage;
       QuotaStats *pQuotaStats;
   };
 

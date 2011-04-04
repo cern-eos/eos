@@ -13,8 +13,12 @@ namespace eos
   void QuotaNode::addFile( const FileMD *file )
   {
     uint64_t size = pQuotaStats->getPhysicalSize( file );
-    pUserOccupancy[file->getCUid()]  += size;
-    pGroupOccupancy[file->getCGid()] += size;
+    UsageInfo &user  = pUserUsage[file->getCUid()];
+    UsageInfo &group = pGroupUsage[file->getCGid()];
+    user.space  += size;
+    group.space += size;
+    user.files++;
+    group.files++;
   }
 
   //----------------------------------------------------------------------------
@@ -23,8 +27,12 @@ namespace eos
   void QuotaNode::removeFile( const FileMD *file )
   {
     uint64_t size = pQuotaStats->getPhysicalSize( file );
-    pUserOccupancy[file->getCUid()]  -= size;
-    pGroupOccupancy[file->getCGid()] -= size;
+    UsageInfo &user  = pUserUsage[file->getCUid()];
+    UsageInfo &group = pGroupUsage[file->getCGid()];
+    user.space  -= size;
+    group.space -= size;
+    user.files--;
+    group.files--;
   }
 
   //----------------------------------------------------------------------------
