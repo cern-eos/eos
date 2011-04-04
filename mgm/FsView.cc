@@ -24,14 +24,14 @@ FsView::GetNodeFormat(std::string option) {
 
   if (option == "m") {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=status:width=1:format=os|sep= |member=cfg.status:width=1:format=os|sep= |member=heartbeatdelta:width=1:format=os|sep= |member=nofs:width=1:format=os";
+    return "member=type:width=1:format=os|sep= |member=host:width=1:format=os|sep=:|member=port:width=1:format=os|sep= |member=status:width=1:format=os|sep= |member=cfg.status:width=1:format=os|sep= |member=heartbeatdelta:width=1:format=os|sep= |member=nofs:width=1:format=os";
   }
 
   if (option == "l") {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|sep=   |member=name:width=32:format=s|sep=   |member=status:width=10:format=s|sep=   |member=cfg.status:width=12:format=s|sep=   |member=heartbeatdelta:width=16:format=s|sep=   |member=nofs:width=5:format=s"; 
+    return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s"; 
   }
-  return "header=1:member=type:width=10:format=-s|sep=   |member=name:width=32:format=s|sep=   |member=status:width=10:format=s|sep=   |member=cfg.status:width=12:format=s|sep=   |member=heartbeatdelta:width=16:format=s|sep=   |member=nofs:width=5:format=s"; 
+  return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s"; 
 }
 
 /*----------------------------------------------------------------------------*/
@@ -61,10 +61,10 @@ FsView::GetSpaceFormat(std::string option) {
 
   if (option == "l") {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=cfg.groupmod:width=16:format=s|sep= |member=nofs:width=5:format=s|sep=   |member=cfg.quota:width=10:format=s";
+    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=cfg.groupmod:width=16:format=s|sep= |member=nofs:width=5:format=s|sep= |member=cfg.quota:width=10:format=s";
   }
   
-  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=cfg.groupmod:width=16:format=s|sep= |member=nofs:width=5:format=s|sep=   |member=cfg.quota:width=10:format=s";
+  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=cfg.groupmod:width=16:format=s|sep= |member=nofs:width=5:format=s|sep= |member=cfg.quota:width=10:format=s";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -77,10 +77,10 @@ FsView::GetGroupFormat(std::string option) {
 
   if (option == "l") {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|sep=   |member=name:width=32:format=s|sep=   |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
+    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
   }
 
-  return "header=1:member=type:width=10:format=-s|sep=   |member=name:width=32:format=s|sep=   |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
+  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -608,6 +608,17 @@ BaseView::GetMember(std::string member) {
     return val;
   }
   return "";
+}
+
+/*----------------------------------------------------------------------------*/
+std::string 
+FsNode::GetMember(std::string member) {
+  if (member == "hostport") {
+    std::string hostport = eos::common::StringConversion::GetStringHostPortFromQueue(mName.c_str());
+    return hostport;
+  } else {
+    return BaseView::GetMember(member);
+  }
 }
 
 /*----------------------------------------------------------------------------*/

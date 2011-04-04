@@ -38,7 +38,7 @@ add_executable ( eos
 		 commands/com_whoami.cc   
 )
 
-target_link_libraries ( eos eosCommon readline )
+target_link_libraries ( eos eosCommon-Static XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNetUtil XrdNet XrdOuc pthread dl  XrdSys XrdNetUtil crypto uuid curses z readline )
 
 install ( TARGETS eos
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}

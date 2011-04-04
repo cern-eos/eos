@@ -9,7 +9,7 @@ print "###########################\n";
 print "# <eosfstregister> v1.0.0\n";
 print "###########################\n";
 sub usage() {
-    printf STDERR  "usage: eosfstregister [-i] <mount-prefix> [<space1>:<nfilesystems1>] [<space2>:<nfilesystems2>] [-h|--help]\n";
+    printf STDERR  "usage: eosfstregister [-i] <host[:port]> <mount-prefix> [<space1>:<nfilesystems1>] [<space2>:<nfilesystems2>] [-h|--help]\n";
     printf STDERR  "                       -i : ignore if one of the filesystems has already a filesystem id stored and continue\n";
     printf STDERR  " hint: if <mount-prefix> ends with '/' subdirectories are scanned in this directory, \n";
     printf STDERR  "       if <mount-prefix> does not end with '/' directories starting with <mount-prefix> are scanned ( e.g. /data* )\n";
@@ -33,6 +33,7 @@ for ( my $arg = 0; $arg < $#ARGV+1; $arg++) {
 }
        
 
+my $hostport    = shift @ARGV;
 my $mountprefix = shift @ARGV;
 
 
@@ -58,6 +59,12 @@ do {
     }
 } while($policy ne "");
 
+
+if ( $hostport eq "") {
+    printf STDERR "error: you have to provide a manager name <host>[:<port>]\n";
+    usage();
+    exit(-1);
+}
 
 if ( $mountprefix eq "") {
     printf STDERR "error: you have to provide a mountprefix as the first argument!\n";
@@ -101,7 +108,11 @@ while (<IN>) {
     }
 
 #    print "Registering: $mountprefix/$_\n";
-    push @filesystems, "$mountprefix/$_";
+    if ($mountprefix eq "/") {
+	push @filesystems, "/$_";
+    } else {
+	push @filesystems, "$mountprefix/$_";
+    }
 }
 
 if ($#filesystems <0) {
@@ -148,8 +159,8 @@ foreach ( @filesystems ) {
     
     my $cmd=0;
     if (!($cmd=fork())) {
-#	system("echo eos -b fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
-	system("eos -b fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
+#	system("echo eos -b root://$hostport fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
+	system("eos -b root://$hostport fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
 	exit(0);
     }
 

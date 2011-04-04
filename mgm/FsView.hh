@@ -101,6 +101,8 @@ public:
 class FsNode : public BaseView {
 public:
 
+  virtual std::string GetMember(std::string name);
+
   FsNode(const char* name) {mName = name; mType="nodesview";}
   ~FsNode(){};
 
