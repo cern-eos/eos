@@ -22,7 +22,7 @@ namespace eos
     public:
       struct UsageInfo
       {
-        UsageInfo(): space(0), files(0) {}
+        UsageInfo(): space(0), physicalSpace(0), files(0) {}
         uint64_t space;
         uint64_t physicalSpace;
         uint64_t files;
