@@ -21,12 +21,12 @@ ConfigEngine* FsView::ConfEngine=0;
 /*----------------------------------------------------------------------------*/
 std::string
 FsView::GetNodeFormat(std::string option) {
-
+  
   if (option == "m") {
     // monitoring format
     return "member=type:width=1:format=os|sep= |member=host:width=1:format=os|sep=:|member=port:width=1:format=os|sep= |member=status:width=1:format=os|sep= |member=cfg.status:width=1:format=os|sep= |member=heartbeatdelta:width=1:format=os|sep= |member=nofs:width=1:format=os";
   }
-
+  
   if (option == "l") {
     // long output formag
     return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s"; 
@@ -45,15 +45,15 @@ FsView::GetFileSystemFormat(std::string option) {
 
   if (option == "l") {
     // long format
-    return "header=1:key=host:width=24:format=-s|sep= |key=port:width=5:format=s|sep= |key=id:width=6:format=s|sep= |key=uuid:width=36:format=s|sep= |key=path:width=16:format=s|key=schedgroup:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
+    return "header=1:key=host:width=24:format=-s|sep= |key=port:width=5:format=s|sep= |key=id:width=6:format=s|sep= |key=uuid:width=36:format=s|sep= |key=path:width=16:format=s|key=schedgroup:width=16:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
   }
   
   if (option == "e") {
     // error format
-    return "header=1:key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=path:width=10:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.errc:width=3:format=s|sep= |key=stat.errmsg:width=-64:format=s";
+    return "header=1:key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=path:width=10:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.errc:width=3:format=s|sep= |key=stat.errmsg:width=0:format=s";
   }
   
-  return "header=1:key=host:width=24:format=s|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
+  return "header=1:key=host:width=24:format=s|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -933,7 +933,13 @@ FsView::ApplyGlobalConfig(const char* key, std::string &val)
   
     // create a global config queue
     if ( (tokens[0].find("/node/")) != std::string::npos ) {
-      std::string broadcast = "/eos/"; broadcast += paths[paths.size()-1]; broadcast += "/fst";
+      std::string broadcast = "/eos/"; broadcast += paths[paths.size()-1]; 
+      size_t dashpos=0;
+      // remote the #<variable> 
+      if ( (dashpos = broadcast.find("#")) != std::string::npos) {
+	broadcast.erase(dashpos);
+      }
+      broadcast += "/fst";
       if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(tokens[0].c_str(),broadcast.c_str())) {
 	eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
       }

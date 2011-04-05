@@ -886,11 +886,18 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
       if ((formattags["format"].find("f"))!= std::string::npos)
         snprintf(lformat,sizeof(lformat)-1, "%%.02f");
       
-      
-      if (alignleft) {
-        snprintf(lenformat,sizeof(lenformat)-1, "%%-%ds",width);
+      if (width==0) {
+        if (alignleft) {
+          snprintf(lenformat, sizeof(lenformat)-1, "%%-s");
+        } else {
+          snprintf(lenformat, sizeof(lenformat)-1, "%%s");
+        }
       } else {
-        snprintf(lenformat,sizeof(lenformat)-1, "%%%ds",width);
+        if (alignleft) {
+          snprintf(lenformat,sizeof(lenformat)-1, "%%-%ds",width);
+        } else {
+          snprintf(lenformat,sizeof(lenformat)-1, "%%%ds",width);
+        }
       }
       
       // normal member printout
@@ -928,9 +935,11 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
         body += keyval;
       }  else {
         std::string sline = line;
-        if (sline.length() > width) {
-          sline.erase(0, ((sline.length()-width+3)>0)?(sline.length()-width+3):0);
-          sline.insert(0,"...");
+        if (width) {
+          if (sline.length() > width) {
+            sline.erase(0, ((sline.length()-width+3)>0)?(sline.length()-width+3):0);
+            sline.insert(0,"...");
+          }
         }
         body += sline;
       }
