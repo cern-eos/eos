@@ -24,7 +24,7 @@ namespace eos
       {
         UsageInfo(): space(0), files(0) {}
         uint64_t space;
-	uint64_t physical_space;
+        uint64_t physicalSpace;
         uint64_t files;
       };
       typedef std::map<uid_t, UsageInfo> UserMap;
@@ -56,7 +56,7 @@ namespace eos
       //------------------------------------------------------------------------
       uint64_t getPhysicalSpaceByUser( uid_t uid ) throw( MDException )
       {
-        return pUserUsage[uid].physical_space;
+        return pUserUsage[uid].physicalSpace;
       }
 
       //------------------------------------------------------------------------
@@ -64,7 +64,7 @@ namespace eos
       //------------------------------------------------------------------------
       uint64_t getPhysicalSpaceByGroup( gid_t gid ) throw( MDException )
       {
-        return pGroupUsage[gid].physical_space;
+        return pGroupUsage[gid].physicalSpace;
       }
 
       //------------------------------------------------------------------------
@@ -104,7 +104,7 @@ namespace eos
       //------------------------------------------------------------------------
       void changePhysicalSpaceUser( uid_t uid, int64_t delta ) throw( MDException )
       {
-        pUserUsage[uid].physical_space += delta;
+        pUserUsage[uid].physicalSpace += delta;
       }
 
       //------------------------------------------------------------------------
@@ -112,7 +112,7 @@ namespace eos
       //------------------------------------------------------------------------
       void changePhysicalSpaceGroup( gid_t gid, int64_t delta ) throw( MDException )
       {
-        pGroupUsage[gid].physical_space += delta;
+        pGroupUsage[gid].physicalSpace += delta;
       }
 
       //------------------------------------------------------------------------
