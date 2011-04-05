@@ -1117,12 +1117,12 @@ Quota::NodeToSpaceQuota(const char* name, bool lock)
     eos::QuotaNode::GroupMap::const_iterator itg;
     // loop over user
     for (itu = spacequota->GetQuotaNode()->userUsageBegin(); itu != spacequota->GetQuotaNode()->userUsageEnd(); itu++) {
-      spacequota->SetQuota(SpaceQuota::kUserBytesIs, itu->first, itu->second.physical_space);
+      spacequota->SetQuota(SpaceQuota::kUserBytesIs, itu->first, itu->second.physicalSpace);
       spacequota->SetQuota(SpaceQuota::kUserFilesIs, itu->first, itu->second.files);
       spacequota->SetQuota(SpaceQuota::kUserLogicalBytesIs, itu->first, itu->second.space);
     }
     for (itg = spacequota->GetQuotaNode()->groupUsageBegin(); itg != spacequota->GetQuotaNode()->groupUsageEnd(); itg++) {
-      spacequota->SetQuota(SpaceQuota::kGroupBytesIs, itg->first, itg->second.physical_space);
+      spacequota->SetQuota(SpaceQuota::kGroupBytesIs, itg->first, itg->second.physicalSpace);
       spacequota->SetQuota(SpaceQuota::kGroupFilesIs, itg->first, itg->second.files);
       spacequota->SetQuota(SpaceQuota::kGroupLogicalBytesIs, itg->first, itg->second.space);
     }
