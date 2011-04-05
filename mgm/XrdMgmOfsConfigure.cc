@@ -638,10 +638,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   ObjectManager.HashMutex.LockRead();
   XrdMqSharedHash* hash = ObjectManager.GetHash("/eos/*");
 
-  if (hash) {
-    // ask for a broadcast from fst's
-    hash->BroadCastRequest("/eos/*/fst");
-  }
 
   ObjectManager.HashMutex.UnLockRead();
 
@@ -736,6 +732,12 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("Utimes",0,0,0);
   gOFS->MgmStats.Add("VerifyStripe",0,0,0);
   gOFS->MgmStats.Add("WhoAmI",0,0,0);
+
+  usleep(1500000);
+  if (hash) {
+    // ask for a broadcast from fst's
+    hash->BroadCastRequest("/eos/*/fst");
+  }
   
   return NoGo;
 }

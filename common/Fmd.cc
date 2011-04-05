@@ -28,16 +28,13 @@ FmdHeader::Read(int fd, bool ignoreversion)
     return false;
   }
 
-  // temporary patch 
-  ignoreversion = true;
-
   eos_info("fmd header version %s creation time is %u filesystem id %04d", fmdHeader.version, fmdHeader.ctime, fmdHeader.fsid);
-  if (strcmp(fmdHeader.version, VERSION)) {
+  if (strcmp(fmdHeader.version, FMDVERSION)) {
     if (!ignoreversion) {
-      eos_crit("fmd header contains version %s but this is version %s", fmdHeader.version, VERSION);
+      eos_crit("fmd header contains version %s but this is version %s", fmdHeader.version, FMDVERSION);
       return false;
     } else {
-      eos_warning("fmd header contains version %s but this is version %s", fmdHeader.version, VERSION);
+      eos_warning("fmd header contains version %s but this is version %s", fmdHeader.version, FMDVERSION);
     }
   }
   if (fmdHeader.magic != EOSCOMMONFMDHEADER_MAGIC) {

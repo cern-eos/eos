@@ -80,7 +80,7 @@ private:
 public:
   XrdSysMutex OpMutex;
 
-  enum eQuotaTag {kUserBytesIs=1, kUserBytesTarget=2, kUserFilesIs=3, kUserFilesTarget=4, kGroupBytesIs=5, kGroupBytesTarget=6, kGroupFilesIs=7, kGroupFilesTarget=8, kAllUserBytesIs=9, kAllUserBytesTarget=10, kAllGroupBytesIs=11, kAllGroupBytesTarget=12, kAllUserFilesIs=13, kAllUserFilesTarget=14, kAllGroupFilesIs=15, kAllGroupFilesTarget=16};
+  enum eQuotaTag {kUserBytesIs=1, kUserLogicalBytesIs=2, kUserBytesTarget=3, kUserFilesIs=4, kUserFilesTarget=5, kGroupBytesIs=6, kGroupLogicalBytesIs=7,kGroupBytesTarget=8, kGroupFilesIs=9, kGroupFilesTarget=10, kAllUserBytesIs=11, kAllUserLogicalBytesIs=12, kAllUserBytesTarget=13, kAllGroupBytesIs=14, kAllGroupLogicalBytesIs=15, kAllGroupBytesTarget=16, kAllUserFilesIs=17, kAllUserFilesTarget=18, kAllGroupFilesIs=19, kAllGroupFilesTarget=20};
 
 
   static const char* GetTagAsString(int tag) {
@@ -109,33 +109,37 @@ public:
 
   const char* GetTagCategory(int tag) {
 
-    if ( ( tag == kUserBytesIs) || ( tag == kUserBytesTarget) ||
-	 ( tag == kUserFilesIs) || ( tag == kUserFilesTarget) ) return "USER ";
-    if ( ( tag == kGroupBytesIs)|| ( tag == kGroupBytesTarget) ||
-	 ( tag == kGroupFilesIs)|| ( tag == kGroupFilesTarget) ) return "GROUP";
+    if ( ( tag == kUserBytesIs) || ( tag == kUserBytesTarget) || (tag == kUserLogicalBytesIs) ||
+	 ( tag == kUserFilesIs) || ( tag == kUserFilesTarget) ) return "user ";
+    if ( ( tag == kGroupBytesIs)|| ( tag == kGroupBytesTarget) || (tag == kGroupLogicalBytesIs) ||
+	 ( tag == kGroupFilesIs)|| ( tag == kGroupFilesTarget) ) return "group";
     if ( ( tag == kAllUserBytesIs) || ( tag == kAllUserBytesTarget) ||
-	 ( tag == kAllUserFilesIs) || ( tag == kAllUserFilesTarget) ) return "USER ";
+	 ( tag == kAllUserFilesIs) || ( tag == kAllUserFilesTarget) ) return "user ";
     if ( ( tag == kAllGroupBytesIs)|| ( tag == kAllGroupBytesTarget) ||
-	 ( tag == kAllGroupFilesIs)|| ( tag == kAllGroupFilesTarget) ) return "GROUP";
+	 ( tag == kAllGroupFilesIs)|| ( tag == kAllGroupFilesTarget) ) return "group";
     return "-----";
   }
   const char* GetTagName(int tag) {
-    if (tag == kUserBytesIs)     { return "USED-BYTES";}
-    if (tag == kUserBytesTarget) { return "AVAL-BYTES";} 
-    if (tag == kUserFilesIs)     { return "USED-FILES";}
-    if (tag == kUserFilesTarget) { return "AVAL-FILES";}
-    if (tag == kGroupBytesIs)    { return "USED-BYTES";}
-    if (tag == kGroupBytesTarget){ return "AVAL-BYTES";}
-    if (tag == kGroupFilesIs)    { return "USED-FILES";}
-    if (tag == kGroupFilesTarget){ return "AVAL-FILES";}
-    if (tag == kAllUserBytesIs)     { return "USED-BYTES";}
-    if (tag == kAllUserBytesTarget) { return "AVAL-BYTES";}
-    if (tag == kAllUserFilesIs)     { return "USED-FILES";}
-    if (tag == kAllUserFilesTarget) { return "AVAL-FILES";}
-    if (tag == kAllGroupBytesIs)    { return "USED-BYTES";}
-    if (tag == kAllGroupBytesTarget){ return "AVAL-BYTES";}
-    if (tag == kAllGroupFilesIs)    { return "USED-FILES";}
-    if (tag == kAllGroupFilesTarget){ return "AVAL-FILES";}
+    if (tag == kUserBytesIs)     { return "used bytes";}
+    if (tag == kUserLogicalBytesIs)     { return "logi bytes";}
+    if (tag == kUserBytesTarget) { return "aval bytes";} 
+    if (tag == kUserFilesIs)     { return "used files";}
+    if (tag == kUserFilesTarget) { return "aval files";}
+    if (tag == kGroupBytesIs)    { return "used bytes";}
+    if (tag == kGroupLogicalBytesIs)    { return "logi bytes";}
+    if (tag == kGroupBytesTarget){ return "aval bytes";}
+    if (tag == kGroupFilesIs)    { return "used files";}
+    if (tag == kGroupFilesTarget){ return "aval files";}
+    if (tag == kAllUserBytesIs)     { return "used bytes";}
+    if (tag == kAllUserLogicalBytesIs)     { return "logi bytes";}
+    if (tag == kAllUserBytesTarget) { return "aval bytes";}
+    if (tag == kAllUserFilesIs)     { return "used files";}
+    if (tag == kAllUserFilesTarget) { return "aval files";}
+    if (tag == kAllGroupBytesIs)    { return "used bytes";}
+    if (tag == kAllGroupLogicalBytesIs)    { return "logi bytes";}
+    if (tag == kAllGroupBytesTarget){ return "aval bytes";}
+    if (tag == kAllGroupFilesIs)    { return "used files";}
+    if (tag == kAllGroupFilesTarget){ return "aval files";}
     return "---- -----";
   }
 
@@ -144,12 +148,12 @@ public:
   const char* GetQuotaStatus(unsigned long long is, unsigned long long avail) {
     double p = (avail)?(100.0 * is /avail): 100.0;
     if (p < 90) {
-      return "OK";
+      return "ok";
     }
     if (p < 99) {
-      return  "WARNING";
+      return  "warning";
     }
-    return "EXCEEDED";
+    return "exceeded";
   }
   
   const char* GetQuotaPercentage(unsigned long long is, unsigned long long avail, XrdOucString &spercentage) {
@@ -239,7 +243,7 @@ public:
   void ResetQuota(unsigned long tag, unsigned long id, bool lock=true) {
     return SetQuota(tag, id, 0, lock);
   }
-  void PrintOut(XrdOucString& output, long uid_sel=-1, long gid_sel=-1, bool monitoring=false);
+  void PrintOut(XrdOucString& output, long uid_sel=-1, long gid_sel=-1, bool monitoring=false, bool translateids=false);
 
 
   unsigned long long Index(unsigned long tag, unsigned long id) { unsigned long long fulltag = tag; fulltag <<=32; fulltag |= id; return fulltag;}
@@ -270,7 +274,7 @@ public:
   // builds a list with the names of all spaces
   static int GetSpaceNameList(const char* key, SpaceQuota* spacequota, void *Arg);
 
-  static void PrintOut(const char* space, XrdOucString &output, long uid_sel=-1, long gid_sel=-1, bool monitoring = false);
+  static void PrintOut(const char* space, XrdOucString &output, long uid_sel=-1, long gid_sel=-1, bool monitoring = false, bool translateids = false);
   
   static bool SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long bytes, long long files, XrdOucString &msg, int &retc); // -1 means it is not set for all long/long long values
 

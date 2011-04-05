@@ -15,8 +15,10 @@ namespace eos
     uint64_t size = pQuotaStats->getPhysicalSize( file );
     UsageInfo &user  = pUserUsage[file->getCUid()];
     UsageInfo &group = pGroupUsage[file->getCGid()];
-    user.space  += size;
-    group.space += size;
+    user.physical_space  += size;
+    group.physical_space += size;
+    user.space   += file->getSize();
+    group.space  += file->getSize();
     user.files++;
     group.files++;
   }
@@ -29,8 +31,10 @@ namespace eos
     uint64_t size = pQuotaStats->getPhysicalSize( file );
     UsageInfo &user  = pUserUsage[file->getCUid()];
     UsageInfo &group = pGroupUsage[file->getCGid()];
-    user.space  -= size;
-    group.space -= size;
+    user.physical_space  -= size;
+    group.physical_space -= size;
+    user.space   -= file->getSize();
+    group.space  -= file->getSize();
     user.files--;
     group.files--;
   }

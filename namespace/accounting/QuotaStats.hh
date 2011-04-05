@@ -24,6 +24,7 @@ namespace eos
       {
         UsageInfo(): space(0), files(0) {}
         uint64_t space;
+	uint64_t physical_space;
         uint64_t files;
       };
       typedef std::map<uid_t, UsageInfo> UserMap;
@@ -48,6 +49,22 @@ namespace eos
       uint64_t getUsedSpaceByGroup( gid_t gid ) throw( MDException )
       {
         return pGroupUsage[gid].space;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the amount of space occupied by the given user
+      //------------------------------------------------------------------------
+      uint64_t getPhysicalSpaceByUser( uid_t uid ) throw( MDException )
+      {
+        return pUserUsage[uid].physical_space;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the amount of space occupied by the given group
+      //------------------------------------------------------------------------
+      uint64_t getPhysicalSpaceByGroup( gid_t gid ) throw( MDException )
+      {
+        return pGroupUsage[gid].physical_space;
       }
 
       //------------------------------------------------------------------------
@@ -80,6 +97,22 @@ namespace eos
       void changeSpaceGroup( gid_t gid, int64_t delta ) throw( MDException )
       {
         pGroupUsage[gid].space += delta;
+      }
+
+      //------------------------------------------------------------------------
+      //! Change the amount of space occupied by the given user
+      //------------------------------------------------------------------------
+      void changePhysicalSpaceUser( uid_t uid, int64_t delta ) throw( MDException )
+      {
+        pUserUsage[uid].physical_space += delta;
+      }
+
+      //------------------------------------------------------------------------
+      //! Change the amount of space occpied by the given group
+      //------------------------------------------------------------------------
+      void changePhysicalSpaceGroup( gid_t gid, int64_t delta ) throw( MDException )
+      {
+        pGroupUsage[gid].physical_space += delta;
       }
 
       //------------------------------------------------------------------------

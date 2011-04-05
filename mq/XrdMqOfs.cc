@@ -452,7 +452,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
   const char *val;
   int  cfgFD;
 
-  StatisticsFile = "/var/log/xroot/mq/proc/stats";
+  StatisticsFile = "/var/log/eos/mq/proc/stats";
 
 
   QueuePrefix = "/xmessage/";

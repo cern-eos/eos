@@ -82,6 +82,10 @@ com_fs (char* arg1) {
 	  silent=true;
 	  ok=true;
 	}
+	if (option == "-e") {
+	  in += "&mgm.outformat=e";
+	  ok=true;
+	}
 	
       } else {
 	ok=true;
@@ -483,7 +487,10 @@ com_fs (char* arg1) {
 
  com_fs_usage:
 
-  printf("usage: fs ls                                                    : list configured filesystems (or by name or id match\n");
+  printf("usage: fs ls  [-m] [-l] [-e] -s                                 : list configured filesystems (or by name or id match\n");
+  printf("                                                                  -m : display monitoring format <key>=<value>\n");
+  printf("                                                                  -l : display long format\n");
+  printf("                                                                  -e : display format with error information\n");
   printf("       fs add <uuid> <node-queue>|<host:port> <mountpoint> [<schedgroup>] [<status]\n");
   printf("                                                                : add a filesystem and dynamically assign a filesystem id based on the unique identifier for the disk <uuid>\n");
   printf("       fs config <host>:<port><path>|<fsid>|<uuid> <key>=<value>: configure filesystem parameter for a single filesystem identified by host:port/path, filesystem id or filesystem UUID.\n");

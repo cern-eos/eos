@@ -36,6 +36,8 @@ EOSCOMMONNAMESPACE_BEGIN
 #define EOSCOMMONFMDCREATE_MAGIC 0xffffffffffffffff
 #define EOSCOMMONFMDDELETE_MAGIC 0xdddddddddddddddd
 
+#define FMDVERSION "1.0.0"
+
 /*----------------------------------------------------------------------------*/
 class FmdHeader : public LogId {
 public:
@@ -49,7 +51,7 @@ public:
 
   struct FMDHEADER fmdHeader;
 
-  FmdHeader() {fmdHeader.magic = EOSCOMMONFMDHEADER_MAGIC; strncpy(fmdHeader.version,VERSION,10); fmdHeader.ctime=time(0);}
+  FmdHeader() {fmdHeader.magic = EOSCOMMONFMDHEADER_MAGIC; strncpy(fmdHeader.version,FMDVERSION,10); fmdHeader.ctime=time(0);}
   ~FmdHeader() {};
 
   void SetId(int infsid) { fmdHeader.fsid = infsid;} 

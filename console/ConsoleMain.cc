@@ -480,9 +480,9 @@ output_result(XrdOucEnv* result, bool highlighting) {
     rstdout.replace("online","\033[1monline\033[0m");
     rstdout.replace("offline","\033[47;31m\e[5moffline\033[0m");
     
-    rstdout.replace("OK","\033[49;32mOK\033[0m");
-    rstdout.replace("WARNING","\033[49;33mWARNING\033[0m");
-    rstdout.replace("EXCEEDED","\033[49;31mEXCEEDED\033[0m");
+    rstdout.replace(" ok","\033[49;32m ok\033[0m");
+    rstdout.replace("warning","\033[49;33mwarning\033[0m");
+    rstdout.replace("exceeded","\033[49;31mexceeded\033[0m");
   }
 
   int retc = EFAULT;

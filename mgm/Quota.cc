@@ -155,10 +155,14 @@ SpaceQuota::UpdateIsSums()
   for (it=Begin(); it != End(); it++) {
     if ( (UnIndex(it->first) == kUserBytesIs)) 
       AddQuota(kAllUserBytesIs,0, it->second, false);
+    if ( (UnIndex(it->first) == kUserLogicalBytesIs)) 
+      AddQuota(kAllUserLogicalBytesIs,0, it->second, false);
     if ( (UnIndex(it->first) == kUserFilesIs)) 
       AddQuota(kAllUserFilesIs,0, it->second, false);
     if ( (UnIndex(it->first) == kGroupBytesIs)) 
       AddQuota(kAllGroupBytesIs,0, it->second, false);
+    if ( (UnIndex(it->first) == kGroupLogicalBytesIs)) 
+      AddQuota(kAllGroupLogicalBytesIs,0, it->second, false);
     if ( (UnIndex(it->first) == kGroupFilesIs)) 
       AddQuota(kAllGroupFilesIs,0, it->second, false);
   }
@@ -168,7 +172,7 @@ SpaceQuota::UpdateIsSums()
 
 /*----------------------------------------------------------------------------*/
 void
-SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool monitoring)
+SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool monitoring, bool translateids)
 {
   char headerline[4096];
   eos_static_debug("called");
@@ -207,16 +211,16 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
 
       // this is a virtual quota node
       if (!monitoring) {
-	output+="# ====================================================================================\n";
+	output+="# __________________________________________________________________________________________\n";
 	sprintf(headerline,"# ==> Space     : %-16s\n", SpaceName.c_str());
 	output+= headerline;
-output+="# ------------------------------------------------------------------------------------\n";
+	output+="# ------------------------------------------------------------------------------------------\n";
 	output+="# ==> Physical\n";
-	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s \n", GetTagCategory(kGroupBytesIs), "SPACE", GetTagName(kGroupBytesIs), GetTagName(kGroupBytesIs+2), GetTagName(kGroupBytesIs+1), GetTagName(kGroupBytesIs+3), "VOLUME[%]", "STATUS-VOL", "INODES[%]","STATUS-INO"); 
+	sprintf(headerline,"     %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s \n", GetTagName(kGroupBytesIs), GetTagName(kGroupFilesIs), GetTagName(kGroupBytesTarget), GetTagName(kGroupFilesTarget), "volume[%]", "status-vol", "inodes[%]","status-ino"); 
 	output+= headerline;
-	sprintf(headerline,"PHYS  %-16s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", SpaceName.c_str(),
+	sprintf(headerline,"PHYS %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
 		eos::common::StringConversion::GetReadableSizeString(value1, PhysicalMaxBytes-PhysicalFreeBytes,"B"), 
-	      eos::common::StringConversion::GetReadableSizeString(value2, PhysicalMaxFiles-PhysicalFreeFiles,"-"), 
+  	        eos::common::StringConversion::GetReadableSizeString(value2, PhysicalMaxFiles-PhysicalFreeFiles,"-"), 
 		eos::common::StringConversion::GetReadableSizeString(value3, PhysicalMaxBytes,"B"), 
 		eos::common::StringConversion::GetReadableSizeString(value4, PhysicalMaxFiles,"-"),
 		GetQuotaPercentage(PhysicalMaxBytes-PhysicalFreeBytes,PhysicalMaxBytes, percentage1),
@@ -224,7 +228,7 @@ output+="# ---------------------------------------------------------------------
 		GetQuotaPercentage(PhysicalMaxFiles-PhysicalFreeFiles,PhysicalMaxFiles, percentage2),
 		GetQuotaStatus(PhysicalMaxFiles-PhysicalFreeFiles,PhysicalMaxFiles));
 	output+= headerline;
-	output+="# ------------------------------------------------------------------------------------------------------------\n";
+	output+="# ..........................................................................................\n";
       } else {
 	sprintf(headerline,"quota=phys space=%s usedbytes=%llu usedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s percentageusedfiles=%s statusfiles=%s\n", SpaceName.c_str(),
 		PhysicalMaxBytes-PhysicalFreeBytes,
@@ -241,10 +245,10 @@ output+="# ---------------------------------------------------------------------
   } else {
     // this is a virtual quota node
     if (!monitoring) {
-      output+="# ====================================================================================\n";
+      output+="# ____________________________________________________________________________________\n";
       sprintf(headerline,"# ==> Quota Node: %-16s\n", SpaceName.c_str());
       output+= headerline;
-      output+="# ------------------------------------------------------------------------------------\n";
+      output+="# ____________________________________________________________________________________\n";
     }
     for (it=Begin(); it != End(); it++) {
       if ( (UnIndex(it->first) >= kUserBytesIs) && (UnIndex(it->first) <= kUserFilesTarget)) {
@@ -304,7 +308,7 @@ output+="# ---------------------------------------------------------------------
     if (userentries) {
       // user loop
       if (!monitoring) {
-	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kUserBytesIs), "SPACE", GetTagName(kUserBytesIs), GetTagName(kUserBytesIs+2), GetTagName(kUserBytesIs+1), GetTagName(kUserBytesIs+3), "FILLED[%]", "STATUS");
+	sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kUserBytesIs), GetTagName(kUserBytesIs), GetTagName(kUserLogicalBytesIs), GetTagName(kUserFilesIs),GetTagName(kUserBytesTarget), GetTagName(kUserFilesTarget), "filled[%]", "status");
 	output+= headerline;
       }
     }
@@ -317,18 +321,35 @@ output+="# ---------------------------------------------------------------------
       XrdOucString value4="";
       
       XrdOucString id=""; id += sortuidarray[lid];
+
+      if (translateids) {
+	// try to translate with password database
+	char buffer[16384];
+	int buflen = sizeof(buffer);
+	struct passwd pwbuf;
+	struct passwd *pwbufp=0;
+	
+	if (!getpwuid_r(sortuidarray[lid], &pwbuf, buffer, buflen, &pwbufp)) {
+	  char uidlimit[16];
+	  snprintf(uidlimit,8,"%s",pwbuf.pw_name);
+	  id = uidlimit;
+	}
+      }
+
       XrdOucString percentage="";
       if (!monitoring) {
-	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , SpaceName.c_str(), 
+	sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() ,
 		eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kUserBytesIs,sortuidarray[lid]),"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kUserLogicalBytesIs,sortuidarray[lid]),"B"), 
 		eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kUserFilesIs,sortuidarray[lid]),"-"), 
 		eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kUserBytesTarget,sortuidarray[lid]),"B"), 
 		eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kUserFilesTarget,sortuidarray[lid]),"-"),
 		GetQuotaPercentage(GetQuota(kUserBytesIs,sortuidarray[lid]), GetQuota(kUserBytesTarget,sortuidarray[lid]), percentage),
 		GetQuotaStatus(GetQuota(kUserBytesIs,sortuidarray[lid]), GetQuota(kUserBytesTarget,sortuidarray[lid])));
       } else {
-	sprintf(headerline,"quota=node uid=%s space=%s usedbytes=%llu usedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s\n", id.c_str() , SpaceName.c_str(), 
+	sprintf(headerline,"quota=node uid=%s space=%s usedbytes=%llu usedlogicalbytes=%lluusedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s\n", id.c_str() , SpaceName.c_str(), 
 		GetQuota(kUserBytesIs,sortuidarray[lid]),
+		GetQuota(kUserLogicalBytesIs,sortuidarray[lid]),
 		GetQuota(kUserFilesIs,sortuidarray[lid]),
 		GetQuota(kUserBytesTarget,sortuidarray[lid]),
 		GetQuota(kUserFilesTarget,sortuidarray[lid]),
@@ -342,7 +363,8 @@ output+="# ---------------------------------------------------------------------
     if (groupentries) {
       // group loop
       if (!monitoring) {
-	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kGroupBytesIs), "SPACE", GetTagName(kGroupBytesIs), GetTagName(kGroupBytesIs+2), GetTagName(kGroupBytesIs+1), GetTagName(kGroupBytesIs+3), "FILLED[%]", "STATUS");
+	output+="# ....................................................................................\n";
+	sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kGroupBytesIs), GetTagName(kGroupBytesIs), GetTagName(kGroupLogicalBytesIs), GetTagName(kGroupBytesIs+2), GetTagName(kGroupBytesIs+1), GetTagName(kGroupBytesIs+3), "filled[%]", "status");
 	output+= headerline;
       }
     }
@@ -355,18 +377,35 @@ output+="# ---------------------------------------------------------------------
       XrdOucString value4="";
       
       XrdOucString id=""; id += sortgidarray[lid];
+
+      if (translateids) {
+	// try to translate with password database
+	char buffer[16384];
+	int buflen = sizeof(buffer);
+	struct group grbuf;
+	struct group *grbufp=0;
+	
+	if (!getgrgid_r(sortgidarray[lid], &grbuf, buffer, buflen, &grbufp)) {
+	  char gidlimit[16];
+	  snprintf(gidlimit,8,"%s",grbuf.gr_name);
+	  id = gidlimit;
+	}
+      }
+
       XrdOucString percentage="";
       if (!monitoring) {
-	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s \n", id.c_str() , SpaceName.c_str(),
+	sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s \n", id.c_str() ,
 		eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kGroupBytesIs,sortgidarray[lid]),"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kGroupLogicalBytesIs,sortgidarray[lid]),"B"), 
 		eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kGroupFilesIs,sortgidarray[lid]),"-"), 
 		eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kGroupBytesTarget,sortgidarray[lid]),"B"), 
 		eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kGroupFilesTarget,sortgidarray[lid]),"-"),
 		GetQuotaPercentage(GetQuota(kGroupBytesIs,sortgidarray[lid]), GetQuota(kGroupBytesTarget,sortgidarray[lid]), percentage),
 		GetQuotaStatus(GetQuota(kGroupBytesIs,sortgidarray[lid]), GetQuota(kGroupBytesTarget,sortgidarray[lid])));
       } else {
-	sprintf(headerline,"quota=node gid=%s space=%s usedbytes=%llu usedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s\n", id.c_str() , SpaceName.c_str(),
+	sprintf(headerline,"quota=node gid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu usedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s\n", id.c_str() , SpaceName.c_str(),
 		GetQuota(kGroupBytesIs,sortgidarray[lid]),
+		GetQuota(kGroupLogicalBytesIs,sortgidarray[lid]),
 		GetQuota(kGroupFilesIs,sortgidarray[lid]),
 		GetQuota(kGroupBytesTarget,sortgidarray[lid]),
 		GetQuota(kGroupFilesTarget,sortgidarray[lid]),
@@ -391,18 +430,20 @@ output+="# ---------------------------------------------------------------------
       XrdOucString percentage="";
       
       if (!monitoring) {
-	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kAllUserBytesIs), "SPACE", GetTagName(kAllUserBytesIs), GetTagName(kAllUserBytesIs+2), GetTagName(kAllUserBytesIs+1), GetTagName(kAllUserBytesIs+3), "FILLED[%]", "STATUS");
+	sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kAllUserBytesIs), GetTagName(kAllUserBytesIs), GetTagName(kAllUserLogicalBytesIs), GetTagName(kAllUserFilesIs), GetTagName(kAllUserBytesTarget), GetTagName(kAllUserFilesTarget), "filled[%]", "status");
 	output += headerline;
-	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , SpaceName.c_str(), 
+	sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() ,
 		eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kAllUserBytesIs,0),"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kAllUserLogicalBytesIs,0),"B"), 
 		eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kAllUserFilesIs,0),"-"), 
 		eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kAllUserBytesTarget,0),"B"), 
 		eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kAllUserFilesTarget,0),"-"),
 		GetQuotaPercentage(GetQuota(kAllUserBytesIs,0), GetQuota(kAllUserBytesTarget,0), percentage),
 		GetQuotaStatus(GetQuota(kAllUserBytesIs,0), GetQuota(kAllUserBytesTarget,0)));
       } else {
-	sprintf(headerline,"quota=node uid=%s space=%s usedbytes=%llu usedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s\n", id.c_str() , SpaceName.c_str(), 
+	sprintf(headerline,"quota=node uid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu usedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s\n", id.c_str() , SpaceName.c_str(), 
 		GetQuota(kAllUserBytesIs,0),
+		GetQuota(kAllUserLogicalBytesIs,0),
 		GetQuota(kAllUserFilesIs,0),
 		GetQuota(kAllUserBytesTarget,0),
 		GetQuota(kAllUserFilesTarget,0),
@@ -412,18 +453,20 @@ output+="# ---------------------------------------------------------------------
       output += headerline;
 
       if (!monitoring) {
-	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kAllGroupBytesIs), "SPACE", GetTagName(kAllGroupBytesIs), GetTagName(kAllGroupBytesIs+2), GetTagName(kAllGroupBytesIs+1), GetTagName(kAllGroupBytesIs+3), "FILLED[%]", "STATUS");
+	sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kAllGroupBytesIs), GetTagName(kAllGroupBytesIs), GetTagName(kAllGroupLogicalBytesIs), GetTagName(kAllGroupFilesIs), GetTagName(kAllGroupBytesTarget), GetTagName(kAllGroupFilesTarget), "filled[%]", "status");
 	output += headerline;
-	sprintf(headerline,"%-5s %-16s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , SpaceName.c_str(), 
+	sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , 
 		eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kAllGroupBytesIs,0),"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kAllGroupLogicalBytesIs,0),"B"), 
 		eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kAllGroupFilesIs,0),"-"), 
 		eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kAllGroupBytesTarget,0),"B"), 
 		eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kAllGroupFilesTarget,0),"-"),
 		GetQuotaPercentage(GetQuota(kAllGroupBytesIs,0), GetQuota(kAllGroupBytesTarget,0), percentage),
 		GetQuotaStatus(GetQuota(kAllGroupBytesIs,0), GetQuota(kAllGroupBytesTarget,0)));
       } else {
-	sprintf(headerline,"quota=node gid=%s space=%s usedbytes=%llu usedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s\n", id.c_str() , SpaceName.c_str(), 
+	sprintf(headerline,"quota=node gid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu usedfiles=%llu maxbytes=%llu maxfiles=%llu percentageusedbytes=%s statusbytes=%s\n", id.c_str() , SpaceName.c_str(), 
 		GetQuota(kAllGroupBytesIs,0),
+		GetQuota(kAllGroupLogicalBytesIs,0),
 		GetQuota(kAllGroupFilesIs,0),
 		GetQuota(kAllGroupBytesTarget,0),
 		GetQuota(kAllGroupFilesTarget,0),
@@ -797,7 +840,7 @@ Quota::GetSpaceNameList(const char* key, SpaceQuota* spacequota, void *Arg)
 
 /*----------------------------------------------------------------------------*/
 void
-Quota::PrintOut(const char* space, XrdOucString &output, long uid_sel, long gid_sel, bool monitoring)
+Quota::PrintOut(const char* space, XrdOucString &output, long uid_sel, long gid_sel, bool monitoring, bool translateids)
 {
   output="";
   XrdOucString spacenames="";
@@ -823,13 +866,13 @@ Quota::PrintOut(const char* space, XrdOucString &output, long uid_sel, long gid_
     for (it = spacevector.begin(); it != spacevector.end(); it++) {
       SpaceQuota* spacequota = GetSpaceQuota(it->c_str(),true);
       if (spacequota) {
-	spacequota->PrintOut(output, uid_sel, gid_sel, monitoring);
+	spacequota->PrintOut(output, uid_sel, gid_sel, monitoring, translateids);
       }
     }
   } else {
     SpaceQuota* spacequota = GetSpaceQuota(space, true);
     if (spacequota) {
-      spacequota->PrintOut(output, uid_sel, gid_sel, monitoring);
+      spacequota->PrintOut(output, uid_sel, gid_sel, monitoring, translateids);
     }
   }
 }
@@ -1000,19 +1043,18 @@ Quota::MapSizeCB(const eos::FileMD *file)
   if (!file)
     return 0;
 
-  // we just count namespace quota
-  unsigned long long size=file->getSize();
+  unsigned long long size=0;
 
   // plain layout
-  //  eos::FileMD::layoutId_t lid = file->getLayoutId();
-  //  if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kPlain) {
-  //    size = file->getSize();
-  //  }
+  eos::FileMD::layoutId_t lid = file->getLayoutId();
+  if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kPlain) {
+    size = file->getSize();
+  }
 
   // replica layout
-  //  if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
-  //    size = (file->getSize() * (file->getNumLocation()));
-  //  }
+  if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
+    size = (file->getSize() * (file->getNumLocation()));
+  }
   
   return size;
 }
@@ -1074,12 +1116,15 @@ Quota::NodeToSpaceQuota(const char* name, bool lock)
     eos::QuotaNode::UserMap::const_iterator itu;
     eos::QuotaNode::GroupMap::const_iterator itg;
     // loop over user
-    for (itu = spacequota->GetQuotaNode()->userOccupancyBegin(); itu != spacequota->GetQuotaNode()->userOccupancyEnd(); itu++) {
-      eos_static_info("Setting space=%s UserBytesIs(%u)=%llu", name, itu->first, itu->second);
-      spacequota->SetQuota(SpaceQuota::kUserBytesIs, itu->first, itu->second);
+    for (itu = spacequota->GetQuotaNode()->userUsageBegin(); itu != spacequota->GetQuotaNode()->userUsageEnd(); itu++) {
+      spacequota->SetQuota(SpaceQuota::kUserBytesIs, itu->first, itu->second.physical_space);
+      spacequota->SetQuota(SpaceQuota::kUserFilesIs, itu->first, itu->second.files);
+      spacequota->SetQuota(SpaceQuota::kUserLogicalBytesIs, itu->first, itu->second.space);
     }
-    for (itg = spacequota->GetQuotaNode()->groupOccupancyBegin(); itg != spacequota->GetQuotaNode()->groupOccupancyEnd(); itg++) {
-      spacequota->SetQuota(SpaceQuota::kGroupBytesIs, itg->first, itg->second);
+    for (itg = spacequota->GetQuotaNode()->groupUsageBegin(); itg != spacequota->GetQuotaNode()->groupUsageEnd(); itg++) {
+      spacequota->SetQuota(SpaceQuota::kGroupBytesIs, itg->first, itg->second.physical_space);
+      spacequota->SetQuota(SpaceQuota::kGroupFilesIs, itg->first, itg->second.files);
+      spacequota->SetQuota(SpaceQuota::kGroupLogicalBytesIs, itg->first, itg->second.space);
     }
   } else {
     eos_static_crit("Cannot get quota node extract quota map");

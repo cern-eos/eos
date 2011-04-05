@@ -1102,11 +1102,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
 	XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
 	XrdOucString monitoring = opaque.Get("mgm.quota.format");
+	XrdOucString printid = opaque.Get("mgm.quota.printid");
 	bool monitor = false;
+	bool translate = true;
 	if (monitoring == "m") {
 	  monitor = true;
 	}
-	Quota::PrintOut(space.c_str(), stdOut , uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, monitor);
+	if (printid == "n") {
+	  translate = false;
+	}
+	Quota::PrintOut(space.c_str(), stdOut , uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, monitor, translate);
       }
 
       if (subcmd == "set") {
@@ -1573,9 +1578,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	eos_notice("quota ls");
 	XrdOucString out1="";
 	XrdOucString out2="";
-	Quota::PrintOut(0, out1 , vid.uid, -1);
-	Quota::PrintOut(0, out2 , -1, vid.gid);
+	stdOut += "By user ...\n";
+	Quota::PrintOut(0, out1 , vid.uid, -1,false, true);
 	stdOut += out1;
+	stdOut += "By group ...\n";
+	Quota::PrintOut(0, out2 , -1, vid.gid, false, true);
 	stdOut += out2;
 	MakeResult(0);
 	return SFS_OK;

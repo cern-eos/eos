@@ -50,7 +50,11 @@ com_quota (char* arg1) {
 		arg = subtokenizer.GetToken();
 		highlighting = false;
 	      } else 
-		goto com_quota_usage;
+		if ((arg == "-n")) {
+		  in += "&mgm.quota.printid=n";
+		  arg = subtokenizer.GetToken();
+		} else 
+		  goto com_quota_usage;
       } while (arg.length());
     
     
@@ -149,14 +153,15 @@ com_quota (char* arg1) {
   
  com_quota_usage:
   printf("usage: quota                                                                                         : show personal quota\n");
-  printf("       quota ls [-m] -u <uid> [-s <space> ]                                                          : list configured quota and used space\n");
-  printf("       quota ls [-m] --uid <uid> [--space <space>]                                                   : list configured quota and used space\n");
-  printf("       quota ls [-m] -g <gid> [-s <space> ]                                                          : list configured quota and used space\n");
-  printf("       quota ls [-m] --gid <gid> [--space <space>]                                                   : list configured quota and used space\n");
+  printf("       quota ls [-n] [-m] -u <uid> [-s <space> ]                                                     : list configured quota and used space\n");
+  printf("       quota ls [-n] [-m] --uid <uid> [--space <space>]                                              : list configured quota and used space\n");
+  printf("       quota ls [-n] [-m] -g <gid> [-s <space> ]                                                     : list configured quota and used space\n");
+  printf("       quota ls [-n] [-m] --gid <gid> [--space <space>]                                              : list configured quota and used space\n");
   printf("       quota set -u <uid>|-g <gid> -s <space>   [-v <bytes>] [-i <inodes>]                           : set volume and/or inode quota by uid or gid \n");
   printf("       quota set --uid <uid>|--gid <gid> -s|--space <space> [--volume <bytes>] [--inodes <inodes>]   : set volume and/or inode quota by uid or gid \n");
   printf("       quota rm  --uid <uid>|--gid <gid> -s|--space <space>                                          : remove configured quota for uid/gid in space\n");
   printf("                                                 -m                  : print information in monitoring <key>=<value> format\n");
+  printf("                                                 -n                  : don't translate ids, print uid+gid number\n");
   printf("                                                 -u/--uid <uid>      : print information only for uid <uid>\n");
   printf("                                                 -g/-gid <gid>       : print information only for gid <gid>\n");
   printf("                                                 -s/--space <space>  : print information only for space <space>\n");

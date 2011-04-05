@@ -1565,7 +1565,6 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
     if (container) {
       eos::QuotaNode* quotanode = 0;
       try {
-	eos_info("found quota node\n");
 	quotanode = gOFS->eosView->getQuotaNode(container);
       } catch ( eos::MDException &e ) {
 	quotanode = 0;
@@ -2490,35 +2489,36 @@ XrdMgmOfs::FSctl(const int               cmd,
 	      }
 	    }
 	  }
-	  
-	  if (commitsize) {
-	    eos::ContainerMD* container=0;
-	    try {
-	      container = gOFS->eosDirectoryService->getContainerMD(cid);
-	    } catch ( eos::MDException &e ) {
-	      container = 0;
-	    }
-	    if (container) {
-	      eos::QuotaNode* quotanode = 0;
-	      try {
-		quotanode = gOFS->eosView->getQuotaNode(container);
-	      } catch ( eos::MDException &e ) {
-		quotanode = 0;
-	      }
 
-	      // free previous quota
-	      if (quotanode) {
-		quotanode->removeFile(fmd);
-	      }		
+	  eos::ContainerMD* container=0;
+	  try {
+	    container = gOFS->eosDirectoryService->getContainerMD(cid);
+	  } catch ( eos::MDException &e ) {
+	    container = 0;
+	  }
+	  if (container) {
+	    eos::QuotaNode* quotanode = 0;
+	    try {
+	      quotanode = gOFS->eosView->getQuotaNode(container);
+	    } catch ( eos::MDException &e ) {
+	      quotanode = 0;
+	    }
+	    
+	    // free previous quota
+	    if (quotanode) {
+	      quotanode->removeFile(fmd);
+	    }		
+	    fmd->addLocation(fsid);
+	    if (commitsize) {
 	      fmd->setSize(size);
-	      // add new quota
-	      if (quotanode) {
-		quotanode->addFile(fmd);
-	      }
+	    }
+	    // add new quota
+	    if (quotanode) {
+	      quotanode->addFile(fmd);
 	    }
 	  }
+	   
 
-	  fmd->addLocation(fsid);
 	  if (commitchecksum)
 	    fmd->setChecksum(checksumbuffer);
 
@@ -2574,17 +2574,51 @@ XrdMgmOfs::FSctl(const int               cmd,
 	
 	//-------------------------------------------
 	gOFS->eosViewMutex.Lock();
+	eos::FileMD* fmd = 0;
+	eos::ContainerMD* container = 0;
+	eos::QuotaNode* quotanode = 0;
+
 	try { 
-	  eos::FileMD* fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
+	  fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
+	} catch (...) {
+	  eos_err("no meta record exists anymore for fid=%s", afid);
+	  fmd = 0;
+	}
+
+	if (fmd) {
+	  try {
+	    container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+	  } catch ( eos::MDException &e ) {
+	    container = 0;
+	  }
+	}
+
+	if (container) {
+	  try {
+	    quotanode = gOFS->eosView->getQuotaNode(container);
+	  } catch ( eos::MDException &e ) {
+	    quotanode = 0;
+	  }
+	  
+	  // free previous quota
+	  if (quotanode) {
+	    quotanode->removeFile(fmd);
+	  }		
+	}
+	
+	try {
 	  eos_debug("removing location %u of fid=%s", fsid,afid);
 	  fmd->removeLocation(fsid);
 	  gOFS->eosView->updateFileStore(fmd);
-
-	  // after update we have get the new address - who knows ....
+	  
+	  // after update we have get the new address - who knows ...
 	  fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
 	  // finally delete the record if all replicas are dropped
 	  if (!fmd->getNumUnlinkedLocation() && !fmd->getNumLocation()) {
 	    gOFS->eosView->removeFile( fmd );
+	  } else {
+	    if (quotanode) 
+	      quotanode->addFile(fmd);
 	  }
 	} catch (...) {
 	  eos_err("no meta record exists anymore for fid=%s", afid);

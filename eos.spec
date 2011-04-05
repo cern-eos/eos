@@ -1,6 +1,6 @@
 %define _unpackaged_files_terminate_build 0
 %define __os_install_post       /bin/true
-
+%define debug_package {nil} 
 Summary: The EOS server installation.
 Name: eos-server
 Version: 0.1.0
