@@ -197,9 +197,11 @@ static void createFiles( const std::string                          &path,
     uint64_t size = mapSize( file );
     eos::QuotaNode::UsageInfo &user  = users[file->getCUid()];
     eos::QuotaNode::UsageInfo &group = groups[file->getCGid()];
-    user.space += size;
+    user.space += file->getSize();
+    user.physicalSpace += size;
     user.files++;
-    group.space += size;
+    group.space += file->getSize();
+    group.physicalSpace += size;
     group.files++;
   }
 }
@@ -296,15 +298,18 @@ void HierarchicalViewTest::quotaTest()
 
   for( int i = 1; i<= 10; ++i )
   {
+    CPPUNIT_ASSERT( node1->getPhysicalSpaceByUser( i ) == users1[i].physicalSpace );
+    CPPUNIT_ASSERT( node2->getPhysicalSpaceByUser( i ) == users2[i].physicalSpace );
     CPPUNIT_ASSERT( node1->getUsedSpaceByUser( i ) == users1[i].space );
     CPPUNIT_ASSERT( node2->getUsedSpaceByUser( i ) == users2[i].space );
     CPPUNIT_ASSERT( node1->getNumFilesByUser( i )  == users1[i].files );
     CPPUNIT_ASSERT( node2->getNumFilesByUser( i )  == users2[i].files );
-
   }
 
   for( int i = 1; i<= 3; ++i )
   {
+    CPPUNIT_ASSERT( node1->getPhysicalSpaceByGroup( i ) == groups1[i].physicalSpace );
+    CPPUNIT_ASSERT( node2->getPhysicalSpaceByGroup( i ) == groups2[i].physicalSpace );
     CPPUNIT_ASSERT( node1->getUsedSpaceByGroup( i ) == groups1[i].space );
     CPPUNIT_ASSERT( node2->getUsedSpaceByGroup( i ) == groups2[i].space );
     CPPUNIT_ASSERT( node1->getNumFilesByGroup( i )  == groups1[i].files );
@@ -329,6 +334,8 @@ void HierarchicalViewTest::quotaTest()
 
   for( int i = 1; i<= 10; ++i )
   {
+    CPPUNIT_ASSERT( node1->getPhysicalSpaceByUser( i ) == users1[i].physicalSpace );
+    CPPUNIT_ASSERT( node2->getPhysicalSpaceByUser( i ) == users2[i].physicalSpace );
     CPPUNIT_ASSERT( node1->getUsedSpaceByUser( i ) == users1[i].space );
     CPPUNIT_ASSERT( node2->getUsedSpaceByUser( i ) == users2[i].space );
     CPPUNIT_ASSERT( node1->getNumFilesByUser( i )  == users1[i].files );
@@ -337,6 +344,8 @@ void HierarchicalViewTest::quotaTest()
 
   for( int i = 1; i<= 3; ++i )
   {
+    CPPUNIT_ASSERT( node1->getPhysicalSpaceByGroup( i ) == groups1[i].physicalSpace );
+    CPPUNIT_ASSERT( node2->getPhysicalSpaceByGroup( i ) == groups2[i].physicalSpace );
     CPPUNIT_ASSERT( node1->getUsedSpaceByGroup( i ) == groups1[i].space );
     CPPUNIT_ASSERT( node2->getUsedSpaceByGroup( i ) == groups2[i].space );
     CPPUNIT_ASSERT( node1->getNumFilesByGroup( i )  == groups1[i].files );
