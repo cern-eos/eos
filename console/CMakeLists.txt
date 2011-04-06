@@ -36,6 +36,7 @@ add_executable ( eos
 		 commands/com_verify.cc 
 		 commands/com_vid.cc 
 		 commands/com_whoami.cc   
+                 commands/com_who.cc
 )
 
 target_link_libraries ( eos eosCommon-Static XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNetUtil XrdNet XrdOuc pthread dl  XrdSys XrdNetUtil crypto uuid curses z readline )

@@ -17,12 +17,32 @@ Mapping::VirtualUserMap_t  Mapping::gVirtualUidMap;
 Mapping::VirtualGroupMap_t Mapping::gVirtualGidMap;
 Mapping::SudoerMap_t       Mapping::gSudoerMap;
 
+XrdSysMutex                Mapping::ActiveLock;
+std::map<std::string, time_t> Mapping::ActiveTidents;
 
 XrdOucHash<Mapping::id_pair>    Mapping::gPhysicalUidCache;
 XrdOucHash<Mapping::gid_vector> Mapping::gPhysicalGidCache;
 
 /*----------------------------------------------------------------------------*/
-
+void 
+Mapping::ActiveExpire(int interval) 
+{
+  time_t now = time(NULL);
+  // expire tidents older than interval
+  Mapping::ActiveLock.Lock();
+  std::map<std::string, time_t>::iterator it1;
+  std::map<std::string, time_t>::iterator it2;
+  for (it1 = Mapping::ActiveTidents.begin(); it1 != Mapping::ActiveTidents.end();) {
+    if ((now-it1->second) > interval) {
+      it2=it1;
+      it1++;
+      Mapping::ActiveTidents.erase(it2);
+    } else {
+      it1++;
+    }
+  }
+  Mapping::ActiveLock.UnLock();
+}
 
 /*----------------------------------------------------------------------------*/
 void 
@@ -340,6 +360,21 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     vid.uid = sel_uid;
     vid.gid = sel_gid;
   }
+
+  time_t now = time(NULL);
+
+  ActiveLock.Lock();
+  // safty measures not to exceed memory by 'nasty' clients
+  if (ActiveTidents.size() > 100000) {
+    ActiveExpire();
+  }
+  if (ActiveTidents.size() < 1000000) {
+    char actident[1024];
+    snprintf(actident, sizeof(actident)-1, "%d:%s:%s",vid.uid, mytident.c_str(), vid.prot.c_str());
+    std::string intident = actident;
+    ActiveTidents[intident] = now;
+  }
+  ActiveLock.UnLock();
 
   eos_static_debug("selected %d %d [%s %s]", vid.uid,vid.gid, ruid.c_str(),rgid.c_str());
 }

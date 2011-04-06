@@ -3,6 +3,7 @@
 #include "common/LayoutId.hh"
 #include "common/FileId.hh"
 #include "common/StringConversion.hh"
+#include "common/Mapping.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Vid.hh"
 #include "mgm/ProcInterface.hh"
@@ -1544,11 +1545,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 	if ( (uid!="0") && (!uidt)) {
 	  // try to translate with password database
-	  char buffer[16384];
-	  int buflen = sizeof(buffer);
-	  struct passwd pwbuf;
-	  struct passwd *pwbufp=0;
-
+          char buffer[16384];
+          int buflen = sizeof(buffer);
+          struct passwd pwbuf;
+          struct passwd *pwbufp=0;
 	  if (getpwnam_r(uid.c_str(), &pwbuf, buffer, buflen, &pwbufp)) {
 	    // cannot translate this name
 	    stdErr = "error: I cannot translate your uid string using the pwd database";
@@ -1620,7 +1620,119 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	return SFS_OK;
       }
     }
+    
+    if (cmd == "who") {
+      std::map<std::string, int> usernamecount;
+      std::map<std::string, int> authcount;
+      std::vector<std::string> tokens;
+      std::string delimiter=":";
+      std::string option = (opaque.Get("mgm.option"))?opaque.Get("mgm.option"):"";
+      bool monitoring = false;
+      bool translate  = true;
+      bool showclients = false;
+      bool showall     = false;
+      bool showauth    = false;
+
+      eos::common::Mapping::ActiveLock.Lock();
+      std::map<std::string, time_t>::const_iterator it;
+      if ( (option.find("m")) != std::string::npos ) {
+        monitoring = true;
+      }
+      if ( (option.find("n")) != std::string::npos ) {
+        translate = false;
+      }
+      if ( (option.find("c")) != std::string::npos ) {
+        showclients = true;
+      }
+      if ( (option.find("z")) != std::string::npos ) {
+        showauth = true;
+      }
+      if ( (option.find("a")) != std::string::npos ) {
+        showall = true;
+      }
+
+      for (it = eos::common::Mapping::ActiveTidents.begin(); it != eos::common::Mapping::ActiveTidents.end(); it++) {
+        char buffer[16384];
+        int buflen = sizeof(buffer);
+        struct passwd pwbuf;
+        struct passwd *pwbufp=0;
+        std::string username="";
+        
+        tokens.clear();
+        eos::common::StringConversion::Tokenize(it->first, tokens, delimiter);
+        uid_t uid = atoi(tokens[0].c_str());
+        if (translate && (!getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp))) {
+          username = pwbuf.pw_name;
+        } else {
+          username = tokens[0];
+        }
+        usernamecount[username]++;
+        authcount[tokens[2]]++;
+      }
       
+      eos::common::Mapping::ActiveLock.UnLock();
+
+      if (showauth || showall ) {
+        std::map<std::string, int>::const_iterator it;
+        for ( it = authcount.begin(); it != authcount.end(); it++ ) {
+          char formatline[1024];
+          if (!monitoring) {
+            snprintf(formatline,sizeof(formatline)-1, "auth   : %-24s := %d sessions\n", it->first.c_str(), it->second);
+          } else {
+            snprintf(formatline,sizeof(formatline)-1, "auth=%s nsessions=%d\n", it->first.c_str(), it->second);
+          }
+          stdOut += formatline;
+        }
+      }      
+      
+      if (!showclients || showall) {
+        std::map<std::string, int>::const_iterator ituname;
+        std::map<uid_t, int>::const_iterator ituid;
+        for ( ituname = usernamecount.begin(); ituname != usernamecount.end(); ituname++) {
+          char formatline[1024];
+          if (!monitoring) {
+            snprintf(formatline,sizeof(formatline)-1, "user   : %-24s := %d sessions\n", ituname->first.c_str(), ituname->second);
+          } else {
+            snprintf(formatline,sizeof(formatline)-1, "uid=%s nsessions=%d\n", ituname->first.c_str(), ituname->second);
+          }
+          stdOut += formatline;
+        }
+      } 
+
+      eos::common::Mapping::ActiveLock.Lock();
+      if (showclients || showall) {
+        for (it = eos::common::Mapping::ActiveTidents.begin(); it != eos::common::Mapping::ActiveTidents.end(); it++) {
+          char buffer[16384];
+          int buflen = sizeof(buffer);
+          struct passwd pwbuf;
+          struct passwd *pwbufp=0;
+          std::string username="";
+          
+          tokens.clear();
+          eos::common::StringConversion::Tokenize(it->first, tokens, delimiter);
+          uid_t uid = atoi(tokens[0].c_str());
+
+          if (translate && (!getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp))) {
+            username = pwbuf.pw_name;
+          } else {
+            username = tokens[0];
+          }
+
+          char formatline[1024];
+          time_t now = time(NULL);
+          if (!monitoring) {
+            snprintf(formatline,sizeof(formatline)-1, "client : %-10s               := %-30s (%4s) %lds idle time\n", username.c_str(), tokens[1].c_str(), tokens[2].c_str(), now-it->second);
+          } else {
+            snprintf(formatline,sizeof(formatline)-1, "client=%s uid=%s auth=%s idle=%ld\n", tokens[1].c_str(),username.c_str(), tokens[2].c_str(), now-it->second);
+          }
+          stdOut += formatline;
+        }
+      }
+      eos::common::Mapping::ActiveLock.UnLock();
+      MakeResult(0);
+      return SFS_OK;
+    }
+
     if ( cmd == "df" ) {
       gOFS->MgmStats.Add("Df",vid.uid,vid.gid,1);
       XrdOucString space = opaque.Get("mgm.space");

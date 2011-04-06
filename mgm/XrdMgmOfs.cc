@@ -38,7 +38,7 @@
 #define MAYSTALL { if (gOFS->IsStall) {                                \
       XrdOucString stallmsg="";                                        \
       int stalltime=0;                                                 \
-      if (gOFS->ShouldStall(__FUNCTION__, stalltime, stallmsg))        \
+      if (gOFS->ShouldStall(__FUNCTION__,vid, stalltime, stallmsg))    \
         return gOFS->Stall(error,stalltime, stallmsg.c_str());         \
     }                                                                  \
   }
@@ -46,7 +46,7 @@
 #define MAYREDIRECT { if (gOFS->IsRedirect) {                           \
       int port=0;                                                       \
       XrdOucString host="";                                             \
-      if (gOFS->ShouldRedirect(__FUNCTION__, host,port))                \
+      if (gOFS->ShouldRedirect(__FUNCTION__,vid, host,port))		\
         return gOFS->Redirect(error, host.c_str(), port);               \
     }                                                                   \
   }
@@ -113,13 +113,13 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMgmOfs::ShouldStall(const char* function, int &stalltime, XrdOucString &stallmsg) 
+XrdMgmOfs::ShouldStall(const char* function,  eos::common::Mapping::VirtualIdentity &vid,int &stalltime, XrdOucString &stallmsg) 
 {
   return false;
 }
 
 bool
-XrdMgmOfs::ShouldRedirect(const char* function, XrdOucString &host, int &port)
+XrdMgmOfs::ShouldRedirect(const char* function,  eos::common::Mapping::VirtualIdentity &vid,XrdOucString &host, int &port)
 {
   return false;
 }
@@ -141,9 +141,6 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
    static const char *epname = "opendir";
    const char *tident = error.getErrUser();
    
-   MAYSTALL;
-   MAYREDIRECT;
-
    XrdOucEnv Open_Env(info);
 
    eos_info("path=%s",dir_path);
@@ -151,6 +148,9 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
    AUTHORIZE(client,&Open_Env,AOP_Readdir,"open directory",dir_path,error);
 
    eos::common::Mapping::IdMap(client,info,tident, vid);
+
+   MAYSTALL;
+   MAYREDIRECT;
 
    return open(dir_path, vid, info);
 }
@@ -308,8 +308,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   const char *tident = error.getErrUser();
   errno = 0;
 
-  MAYSTALL;
-  MAYREDIRECT;
   
   SetLogId(logId, tident);
   
@@ -318,6 +316,9 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
   SetLogId(logId, vid, tident);
+
+  MAYSTALL;
+  MAYREDIRECT;
 
   openOpaque = new XrdOucEnv(info);
   //  const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
@@ -1007,9 +1008,6 @@ int XrdMgmOfs::chmod(const char                *path,    // In
   const char *tident = error.getErrUser(); 
   //  mode_t acc_mode = Mode & S_IAMB;
   
-  MAYSTALL;
-  MAYREDIRECT;
-
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
@@ -1020,6 +1018,9 @@ int XrdMgmOfs::chmod(const char                *path,    // In
   AUTHORIZE(client,&chmod_Env,AOP_Chmod,"chmod",path,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
+
+  MAYSTALL;
+  MAYREDIRECT;
   
   return _chmod(path,Mode, error,vid,info);
 }
@@ -1124,8 +1125,6 @@ int XrdMgmOfs::exists(const char                *path,        // In
   static const char *epname = "exists";
   const char *tident = error.getErrUser();
 
-  MAYSTALL;
-  MAYREDIRECT;
 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
@@ -1137,6 +1136,9 @@ int XrdMgmOfs::exists(const char                *path,        // In
   AUTHORIZE(client,&exists_Env,AOP_Stat,"execute exists",path,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
+
+  MAYSTALL;
+  MAYREDIRECT;
   
   return _exists(path,file_exists,error,vid,info);
 }
@@ -1288,8 +1290,6 @@ int XrdMgmOfs::mkdir(const char             *path,    // In
 {
   static const char *epname = "mkdir";
   const char *tident = error.getErrUser();
-  MAYSTALL;
-  MAYREDIRECT;
   
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
@@ -1301,6 +1301,9 @@ int XrdMgmOfs::mkdir(const char             *path,    // In
   eos_info("path=%s",path);
   
   eos::common::Mapping::IdMap(client,info,tident,vid);
+
+  MAYSTALL;
+  MAYREDIRECT;
   
   return  _mkdir(path,Mode,error,vid,info);
 }
@@ -1510,6 +1513,8 @@ int XrdMgmOfs::prepare( XrdSfsPrep       &pargs,
   //  static const char *epname = "prepare";
   //const char *tident = error.getErrUser();  
 
+  eos::common::Mapping::VirtualIdentity vid;
+
   MAYSTALL;
   MAYREDIRECT;
 
@@ -1534,11 +1539,7 @@ int XrdMgmOfs::rem(const char             *path,    // In
 {
   static const char *epname = "rem";
   const char *tident = error.getErrUser();
-  
-  MAYSTALL;
-  MAYREDIRECT;
-  
-  
+    
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
   
@@ -1551,6 +1552,9 @@ int XrdMgmOfs::rem(const char             *path,    // In
   XTRACE(remove, path,"");
   
   eos::common::Mapping::IdMap(client,info,tident,vid);
+
+  MAYSTALL;
+  MAYREDIRECT;
   
   return _rem(path,error,vid,info);
 }
@@ -1667,11 +1671,7 @@ int XrdMgmOfs::remdir(const char             *path,    // In
 {
   static const char *epname = "remdir";
   const char *tident = error.getErrUser();
-  
-  MAYSTALL;
-  MAYREDIRECT;
-  
-  
+      
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
   
@@ -1685,6 +1685,9 @@ int XrdMgmOfs::remdir(const char             *path,    // In
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
   
+  MAYSTALL;
+  MAYREDIRECT;
+
   return _remdir(path,error,vid,info);
 }
 
@@ -1773,9 +1776,6 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   const char *tident = error.getErrUser();
   errno = 0;
 
-  MAYSTALL;
-  MAYREDIRECT;
-
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
@@ -1788,6 +1788,10 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   AUTHORIZE(client,&renamen_Env,AOP_Update,"rename",new_name, error);
 
   eos::common::Mapping::IdMap(client,infoO,tident,vid);
+
+  MAYSTALL;
+  MAYREDIRECT;
+
   int r1,r2;
   
   r1=r2=SFS_OK;
@@ -1850,9 +1854,6 @@ int XrdMgmOfs::stat(const char              *path,        // In
   static const char *epname = "stat";
   const char *tident = error.getErrUser(); 
 
-  MAYSTALL;
-  MAYREDIRECT;
-
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
@@ -1865,6 +1866,10 @@ int XrdMgmOfs::stat(const char              *path,        // In
   AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",path,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
+
+  MAYSTALL;
+  MAYREDIRECT;
+
   return _stat(path, buf, error, vid, info);  
 }
 
@@ -1987,11 +1992,11 @@ int XrdMgmOfs::truncate(const char*,
 {
   static const char *epname = "truncate";
 
-  MAYSTALL;
-  MAYREDIRECT;
-
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
+
+  MAYSTALL;
+  MAYREDIRECT;
 
   gOFS->MgmStats.Add("Truncate",vid.uid,vid.gid,1);  
   return Emsg(epname, error, EOPNOTSUPP, "truncate", path);
@@ -2021,6 +2026,9 @@ int XrdMgmOfs::readlink(const char          *path,        // In
   
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  MAYSTALL;
+  MAYREDIRECT;
+
   gOFS->MgmStats.Add("ReadLink",vid.uid,vid.gid,1);  
 
   return Emsg(epname, error, EOPNOTSUPP, "readlink", path); 
@@ -2035,9 +2043,6 @@ int XrdMgmOfs::symlink(const char           *path,        // In
 {
   static const char *epname = "symlink";
   const char *tident = error.getErrUser(); 
-
-  MAYSTALL;
-  MAYREDIRECT;
 
   XrdOucEnv sl_Env(info);
 
@@ -2055,6 +2060,9 @@ int XrdMgmOfs::symlink(const char           *path,        // In
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  MAYSTALL;
+  MAYREDIRECT;
+
   gOFS->MgmStats.Add("Symlink",vid.uid,vid.gid,1);  
 
   return Emsg(epname, error, EOPNOTSUPP, "symlink", path); 
@@ -2070,9 +2078,6 @@ int XrdMgmOfs::access( const char           *path,        // In
   static const char *epname = "access";
   const char *tident = error.getErrUser(); 
 
-  MAYSTALL;
-  MAYREDIRECT;
-
   XrdOucEnv access_Env(info);
 
   XTRACE(fsctl, path,"");
@@ -2080,6 +2085,9 @@ int XrdMgmOfs::access( const char           *path,        // In
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);  
+
+  MAYSTALL;
+  MAYREDIRECT;
 
   gOFS->MgmStats.Add("Access",vid.uid,vid.gid,1);  
 
@@ -2096,9 +2104,6 @@ int XrdMgmOfs::utimes(  const char          *path,        // In
   static const char *epname = "utimes";
   const char *tident = error.getErrUser(); 
 
-  MAYSTALL;
-  MAYREDIRECT;
-
   XrdOucEnv utimes_Env(info);
 
   // use a thread private vid
@@ -2109,6 +2114,10 @@ int XrdMgmOfs::utimes(  const char          *path,        // In
   AUTHORIZE(client,&utimes_Env,AOP_Update,"set utimes",path,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);  
+
+  MAYSTALL;
+  MAYREDIRECT;
+
   return _utimes(path,tvp, error, vid, info);
 }
 
@@ -2422,6 +2431,10 @@ XrdMgmOfs::FSctl(const int               cmd,
   
   static const char *epname = "FSctl";
   const char *tident = error.getErrUser();
+
+  eos::common::Mapping::VirtualIdentity vid;
+
+  eos::common::Mapping::IdMap(client,"",tident,vid);  
 
   MAYSTALL;
   MAYREDIRECT;

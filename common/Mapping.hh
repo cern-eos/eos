@@ -92,6 +92,11 @@ public:
 
   static RWMutex gMapMutex;        // protects all global map hashes
 
+  static XrdSysMutex ActiveLock;
+  static void ActiveExpire(int interval=24*3600);
+  static std::map<std::string, time_t> ActiveTidents;
+
+
   static  void KommaListToUidVector(const char* list, std::vector<uid_t> &vector_list) {
     XrdOucString slist = list;
     XrdOucString number="";
@@ -174,7 +179,7 @@ public:
     mytident = tident;
     mytident.erase(dotpos,addpos-dotpos);
     wildcardtident = mytident;
-    addpos = wildcardtident .find("@");
+    addpos = wildcardtident.find("@");
     wildcardtident.erase(0,addpos);
     wildcardtident = "*" + wildcardtident;
     return mytident.c_str();

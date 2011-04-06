@@ -35,6 +35,7 @@ extern int com_transfers (char*);
 extern int com_verify (char*);
 extern int com_vid (char*);
 extern int com_whoami (char*);
+extern int com_who (char*);
 
 XrdOucString serveruri="";
 XrdOucString historyfile="";
@@ -119,6 +120,7 @@ COMMAND commands[] = {
   { (char*)"transfers",com_transfers,(char*)"Transfer Interface"},
   { (char*)"verify",   com_verify,   (char*)"Verify Interface"},
   { (char*)"whoami",   com_whoami,   (char*)"Determine how we are mapped on server side" },
+  { (char*)"who",      com_who,      (char*)"Statistics about connected users"},
   { (char*)"?",        com_help,     (char*)"Synonym for `help'" },
   { (char*)".q",       com_quit,    (char*)"Exit from EOS console" },
   { (char *)0, (int (*)(char*))0,(char *)0 }

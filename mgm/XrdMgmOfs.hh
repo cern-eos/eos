@@ -444,8 +444,8 @@ virtual int            Configure(XrdSysError &);
 virtual bool           Init(XrdSysError &);
         int            Stall(XrdOucErrInfo &error, int stime, const char *msg);
         int            Redirect(XrdOucErrInfo &error, const char* host, int &port);
-        bool           ShouldStall(const char* function, int &stalltime, XrdOucString &stallmsg);
-        bool           ShouldRedirect(const char* function, XrdOucString &host, int &port);
+        bool           ShouldStall(const char* function,   eos::common::Mapping::VirtualIdentity &vid, int &stalltime, XrdOucString &stallmsg);
+        bool           ShouldRedirect(const char* function, eos::common::Mapping::VirtualIdentity &vid, XrdOucString &host, int &port);
 
         char          *ConfigFN;       
   
