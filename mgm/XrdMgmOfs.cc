@@ -34,6 +34,25 @@
 #define S_IAMB  0x1FF
 #endif
 
+
+#define MAYSTALL { if (gOFS->IsStall) {                                \
+      XrdOucString stallmsg="";                                        \
+      int stalltime=0;                                                 \
+      if (gOFS->ShouldStall(__FUNCTION__, stalltime, stallmsg))        \
+        return gOFS->Stall(error,stalltime, stallmsg.c_str());         \
+    }                                                                  \
+  }
+
+#define MAYREDIRECT { if (gOFS->IsRedirect) {                           \
+      int port=0;                                                       \
+      XrdOucString host="";                                             \
+      if (gOFS->ShouldRedirect(__FUNCTION__, host,port))                \
+        return gOFS->Redirect(error, host.c_str(), port);               \
+    }                                                                   \
+  }
+
+
+
 /*----------------------------------------------------------------------------*/
 XrdSysError     gMgmOfsEroute(0);  
 XrdSysError    *XrdMgmOfs::eDest;
@@ -93,6 +112,19 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 }
 
 /*----------------------------------------------------------------------------*/
+bool 
+XrdMgmOfs::ShouldStall(const char* function, int &stalltime, XrdOucString &stallmsg) 
+{
+  return false;
+}
+
+bool
+XrdMgmOfs::ShouldRedirect(const char* function, XrdOucString &host, int &port)
+{
+  return false;
+}
+
+/*----------------------------------------------------------------------------*/
 int XrdMgmOfsDirectory::open(const char              *dir_path, // In
                                 const XrdSecEntity  *client,   // In
                                 const char              *info)     // In
@@ -108,6 +140,9 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
 {
    static const char *epname = "opendir";
    const char *tident = error.getErrUser();
+   
+   MAYSTALL;
+   MAYREDIRECT;
 
    XrdOucEnv Open_Env(info);
 
@@ -272,8 +307,12 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   static const char *epname = "open";
   const char *tident = error.getErrUser();
   errno = 0;
+
+  MAYSTALL;
+  MAYREDIRECT;
   
   SetLogId(logId, tident);
+  
   eos_info("path=%s info=%s",path,info);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
@@ -578,7 +617,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     if (attrmap.count("user.tag")) {
       containertag = attrmap["user.tag"].c_str();
     }
-    retc = quotaspace->FilePlacement(vid.uid, vid.gid, containertag, layoutId, selectedfs, open_mode & SFS_O_TRUNC, -1, bookingsize);
+    retc = quotaspace->FilePlacement(path, vid.uid, vid.gid, containertag, layoutId, selectedfs, open_mode & SFS_O_TRUNC, -1, bookingsize);
   } else {
     // ************************************************************************************************
     // access existing file
@@ -967,6 +1006,9 @@ int XrdMgmOfs::chmod(const char                *path,    // In
   static const char *epname = "chmod";
   const char *tident = error.getErrUser(); 
   //  mode_t acc_mode = Mode & S_IAMB;
+  
+  MAYSTALL;
+  MAYREDIRECT;
 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
@@ -991,6 +1033,7 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
 
 {
   static const char *epname = "chmod";
+
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   eos::ContainerMD* cmd = 0;
@@ -1034,6 +1077,7 @@ int XrdMgmOfs::_chown(const char               *path,    // In
 
 {
   static const char *epname = "chown";
+
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   eos::ContainerMD* cmd = 0;
@@ -1079,6 +1123,9 @@ int XrdMgmOfs::exists(const char                *path,        // In
 {
   static const char *epname = "exists";
   const char *tident = error.getErrUser();
+
+  MAYSTALL;
+  MAYREDIRECT;
 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
@@ -1239,21 +1286,23 @@ int XrdMgmOfs::mkdir(const char             *path,    // In
                         const XrdSecEntity     *client,  // In
                         const char             *info)    // In
 {
-   static const char *epname = "mkdir";
-   const char *tident = error.getErrUser();
-
-   // use a thread private vid
-   eos::common::Mapping::VirtualIdentity vid;
-
-   XrdOucEnv mkdir_Env(info);
-   
-   XTRACE(mkdir, path,"");
-
-   eos_info("path=%s",path);
-
-   eos::common::Mapping::IdMap(client,info,tident,vid);
-
-   return  _mkdir(path,Mode,error,vid,info);
+  static const char *epname = "mkdir";
+  const char *tident = error.getErrUser();
+  MAYSTALL;
+  MAYREDIRECT;
+  
+  // use a thread private vid
+  eos::common::Mapping::VirtualIdentity vid;
+  
+  XrdOucEnv mkdir_Env(info);
+  
+  XTRACE(mkdir, path,"");
+  
+  eos_info("path=%s",path);
+  
+  eos::common::Mapping::IdMap(client,info,tident,vid);
+  
+  return  _mkdir(path,Mode,error,vid,info);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1460,6 +1509,10 @@ int XrdMgmOfs::prepare( XrdSfsPrep       &pargs,
 {
   //  static const char *epname = "prepare";
   //const char *tident = error.getErrUser();  
+
+  MAYSTALL;
+  MAYREDIRECT;
+
   return SFS_OK;
 }
 
@@ -1479,23 +1532,27 @@ int XrdMgmOfs::rem(const char             *path,    // In
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
 {
-   static const char *epname = "rem";
-   const char *tident = error.getErrUser();
-
-   // use a thread private vid
-   eos::common::Mapping::VirtualIdentity vid;
-
-   XTRACE(remove, path,"");
-
-   XrdOucEnv env(info);
-   
-   AUTHORIZE(client,&env,AOP_Delete,"remove",path,error);
-
-   XTRACE(remove, path,"");
-
-   eos::common::Mapping::IdMap(client,info,tident,vid);
-
-   return _rem(path,error,vid,info);
+  static const char *epname = "rem";
+  const char *tident = error.getErrUser();
+  
+  MAYSTALL;
+  MAYREDIRECT;
+  
+  
+  // use a thread private vid
+  eos::common::Mapping::VirtualIdentity vid;
+  
+  XTRACE(remove, path,"");
+  
+  XrdOucEnv env(info);
+  
+  AUTHORIZE(client,&env,AOP_Delete,"remove",path,error);
+  
+  XTRACE(remove, path,"");
+  
+  eos::common::Mapping::IdMap(client,info,tident,vid);
+  
+  return _rem(path,error,vid,info);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1608,23 +1665,27 @@ int XrdMgmOfs::remdir(const char             *path,    // In
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
 {
-   static const char *epname = "remdir";
-   const char *tident = error.getErrUser();
+  static const char *epname = "remdir";
+  const char *tident = error.getErrUser();
+  
+  MAYSTALL;
+  MAYREDIRECT;
+  
+  
+  // use a thread private vid
+  eos::common::Mapping::VirtualIdentity vid;
+  
+  XrdOucEnv remdir_Env(info);
+  
+  XrdSecEntity mappedclient();
+  
+  XTRACE(remove, path,"");
+  
+  AUTHORIZE(client,&remdir_Env,AOP_Delete,"remove",path, error);
 
-   // use a thread private vid
-   eos::common::Mapping::VirtualIdentity vid;
-
-   XrdOucEnv remdir_Env(info);
-
-   XrdSecEntity mappedclient();
-
-   XTRACE(remove, path,"");
-
-   AUTHORIZE(client,&remdir_Env,AOP_Delete,"remove",path, error);
-
-   eos::common::Mapping::IdMap(client,info,tident,vid);
-
-   return _remdir(path,error,vid,info);
+  eos::common::Mapping::IdMap(client,info,tident,vid);
+  
+  return _remdir(path,error,vid,info);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1712,6 +1773,9 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   const char *tident = error.getErrUser();
   errno = 0;
 
+  MAYSTALL;
+  MAYREDIRECT;
+
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
@@ -1786,7 +1850,9 @@ int XrdMgmOfs::stat(const char              *path,        // In
   static const char *epname = "stat";
   const char *tident = error.getErrUser(); 
 
-  
+  MAYSTALL;
+  MAYREDIRECT;
+
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
@@ -1799,7 +1865,7 @@ int XrdMgmOfs::stat(const char              *path,        // In
   AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",path,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
-  return _stat(path, buf, error, vid, info);
+  return _stat(path, buf, error, vid, info);  
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1921,6 +1987,9 @@ int XrdMgmOfs::truncate(const char*,
 {
   static const char *epname = "truncate";
 
+  MAYSTALL;
+  MAYREDIRECT;
+
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
@@ -1937,6 +2006,10 @@ int XrdMgmOfs::readlink(const char          *path,        // In
 {
   static const char *epname = "readlink";
   const char *tident = error.getErrUser(); 
+
+  MAYSTALL;
+  MAYREDIRECT;
+
   XrdOucEnv rl_Env(info);
 
   // use a thread private vid
@@ -1962,6 +2035,10 @@ int XrdMgmOfs::symlink(const char           *path,        // In
 {
   static const char *epname = "symlink";
   const char *tident = error.getErrUser(); 
+
+  MAYSTALL;
+  MAYREDIRECT;
+
   XrdOucEnv sl_Env(info);
 
   // use a thread private vid
@@ -1992,6 +2069,10 @@ int XrdMgmOfs::access( const char           *path,        // In
 {
   static const char *epname = "access";
   const char *tident = error.getErrUser(); 
+
+  MAYSTALL;
+  MAYREDIRECT;
+
   XrdOucEnv access_Env(info);
 
   XTRACE(fsctl, path,"");
@@ -2014,6 +2095,10 @@ int XrdMgmOfs::utimes(  const char          *path,        // In
 {
   static const char *epname = "utimes";
   const char *tident = error.getErrUser(); 
+
+  MAYSTALL;
+  MAYREDIRECT;
+
   XrdOucEnv utimes_Env(info);
 
   // use a thread private vid
@@ -2277,6 +2362,25 @@ int XrdMgmOfs::Stall(XrdOucErrInfo   &error, // Error text & code
   return stime;
 }
 
+/*----------------------------------------------------------------------------*/
+int XrdMgmOfs::Redirect(XrdOucErrInfo   &error, // Error text & code
+                        const char* host,
+                        int &port)
+{
+  EPNAME("Redirect");
+  const char *tident = error.getErrUser();
+  
+  ZTRACE(delay, "Redirect " <<host <<":" << port);
+
+  // Place the error message in the error object and return
+  //
+  error.setErrInfo(port,host);
+  
+  // All done
+  //
+  return SFS_REDIRECT;
+}
+
 
 int       
 XrdMgmOfs::fsctl(const int               cmd,
@@ -2318,6 +2422,9 @@ XrdMgmOfs::FSctl(const int               cmd,
   
   static const char *epname = "FSctl";
   const char *tident = error.getErrUser();
+
+  MAYSTALL;
+  MAYREDIRECT;
   
   if (args.Arg1Len) {
     if (args.Arg1Len < 16384) {
@@ -2490,23 +2597,15 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    }
 	  }
 
-	  eos::ContainerMD* container=0;
-	  try {
-	    container = gOFS->eosDirectoryService->getContainerMD(cid);
-	  } catch ( eos::MDException &e ) {
-	    container = 0;
-	  }
-	  if (container) {
-	    eos::QuotaNode* quotanode = 0;
-	    try {
-	      quotanode = gOFS->eosView->getQuotaNode(container);
-	    } catch ( eos::MDException &e ) {
-	      quotanode = 0;
-	    }
-	    
-	    // free previous quota
-	    if (quotanode) {
-	      quotanode->removeFile(fmd);
+          {
+            eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+            SpaceQuota* space = Quota::GetResponsibleSpaceQuota(spath);
+            eos::QuotaNode* quotanode = 0;
+            if (space) {
+              quotanode = space->GetQuotaNode();
+              // free previous quota
+	      if (fmd->getNumLocation()) 
+		quotanode->removeFile(fmd);
 	    }		
 	    fmd->addLocation(fsid);
 	    if (commitsize) {
@@ -2517,8 +2616,8 @@ XrdMgmOfs::FSctl(const int               cmd,
 	      quotanode->addFile(fmd);
 	    }
 	  }
-	   
-
+          
+          
 	  if (commitchecksum)
 	    fmd->setChecksum(checksumbuffer);
 
@@ -2605,24 +2704,27 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    quotanode->removeFile(fmd);
 	  }		
 	}
-	
-	try {
-	  eos_debug("removing location %u of fid=%s", fsid,afid);
-	  fmd->removeLocation(fsid);
-	  gOFS->eosView->updateFileStore(fmd);
-	  
-	  // after update we have get the new address - who knows ...
-	  fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
-	  // finally delete the record if all replicas are dropped
-	  if (!fmd->getNumUnlinkedLocation() && !fmd->getNumLocation()) {
-	    gOFS->eosView->removeFile( fmd );
-	  } else {
-	    if (quotanode) 
-	      quotanode->addFile(fmd);
-	  }
-	} catch (...) {
-	  eos_err("no meta record exists anymore for fid=%s", afid);
-	};
+
+	if (fmd) {
+	  try {
+	    eos_debug("removing location %u of fid=%s", fsid,afid);
+	    fmd->removeLocation(fsid);
+	    gOFS->eosView->updateFileStore(fmd);
+	    
+	    // after update we have get the new address - who knows ...
+	    fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
+	    // finally delete the record if all replicas are dropped
+	    if (!fmd->getNumUnlinkedLocation() && !fmd->getNumLocation()) {
+	      gOFS->eosView->removeFile( fmd );
+	    } else {
+	      if (quotanode) 
+		quotanode->addFile(fmd);
+	    }
+	  } catch (...) {
+	    eos_err("no meta record exists anymore for fid=%s", afid);
+	  };
+	}
+
 	gOFS->eosViewMutex.UnLock();
 	//-------------------------------------------
 	

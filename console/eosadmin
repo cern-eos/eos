@@ -1,0 +1,12 @@
+#!/bin/bash
+test -r /etc/sysconfig/eos && . /etc/sysconfig/eos
+test -r /etc/quattor_install_info && . /etc/quattor_install_info
+
+# set the redirector name like the quattor cluster name
+if [ "x$EOS_MGM_URL" = "x" ]; then
+        EOS_MGM_URL=root://$CDB_CLUSTER
+fi
+
+eos $*
+
+

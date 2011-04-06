@@ -9,7 +9,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-XrdOucHash<SpaceQuota> Quota::gQuota;
+std::map<std::string, SpaceQuota*> Quota::gQuota;
 eos::common::RWMutex Quota::gQuotaMutex;
 
 #ifdef __APPLE__
@@ -18,8 +18,6 @@ eos::common::RWMutex Quota::gQuotaMutex;
 
 /*----------------------------------------------------------------------------*/
 SpaceQuota::SpaceQuota(const char* name) {
-  Quota.set_empty_key(-1);
-  Quota.set_deleted_key(-2);
   SpaceName = name;
   LastCalculationTime = 0;
   LastEnableCheck = 0;
@@ -28,34 +26,43 @@ SpaceQuota::SpaceQuota(const char* name) {
 
   gOFS->eosViewMutex.Lock();
   eos::ContainerMD *quotadir=0;
-  try {
-    quotadir = gOFS->eosView->getContainer(name );
-  } catch( eos::MDException &e ) {
-    quotadir = 0;
-  }
-  if (!quotadir) {
-    try {
-      quotadir = gOFS->eosView->createContainer(name, true );
-    } catch( eos::MDException &e ) {
-      eos_static_crit("Cannot create quota directory %s", name);
-    }
-  }
 
-  if (quotadir) {
+  std::string path = name;
+
+  if (path[0] == '/') {
     try {
-      QuotaNode = gOFS->eosView->getQuotaNode(quotadir);
+      quotadir = gOFS->eosView->getContainer(name );
     } catch( eos::MDException &e ) {
-      QuotaNode = 0;
+      quotadir = 0;
     }
-    if (!QuotaNode) {
+    if (!quotadir) {
       try {
-	QuotaNode = gOFS->eosView->registerQuotaNode( quotadir );
-      } catch ( eos::MDException &e ) {
-	QuotaNode = 0;
-	eos_static_crit("Cannot register quota node %s", name);
+	quotadir = gOFS->eosView->createContainer(name, true );
+      } catch( eos::MDException &e ) {
+	eos_static_crit("Cannot create quota directory %s", name);
       }
     }
+    
+    if (quotadir) {
+      try {
+	QuotaNode = gOFS->eosView->getQuotaNode(quotadir, false);
+      } catch( eos::MDException &e ) {
+	QuotaNode = 0;
+      }
+      
+      if (!QuotaNode) {
+	try {
+	  QuotaNode = gOFS->eosView->registerQuotaNode( quotadir );
+	} catch ( eos::MDException &e ) {
+	QuotaNode = 0;
+	eos_static_crit("Cannot register quota node %s", name);
+	}
+      }
+    }
+  } else {
+    QuotaNode = 0;
   }
+
   gOFS->eosViewMutex.UnLock();
 }
 
@@ -122,7 +129,7 @@ SpaceQuota::UpdateTargetSums()
   ResetQuota(kAllGroupBytesTarget,0, false);
   ResetQuota(kAllGroupFilesTarget,0, false);
 
-  google::dense_hash_map<long long, unsigned long long>::const_iterator it;
+  std::map<long long, unsigned long long>::const_iterator it;
 
   for (it=Begin(); it != End(); it++) {
     if ( (UnIndex(it->first) == kUserBytesTarget)) 
@@ -150,7 +157,7 @@ SpaceQuota::UpdateIsSums()
   ResetQuota(kAllGroupBytesIs,0, false);
   ResetQuota(kAllGroupFilesIs,0, false);
 
-  google::dense_hash_map<long long, unsigned long long>::const_iterator it;
+  std::map<long long, unsigned long long>::const_iterator it;
 
   for (it=Begin(); it != End(); it++) {
     if ( (UnIndex(it->first) == kUserBytesIs)) 
@@ -172,12 +179,29 @@ SpaceQuota::UpdateIsSums()
 
 /*----------------------------------------------------------------------------*/
 void
+SpaceQuota::UpdateFromQuotaNode(uid_t uid, gid_t gid) 
+{
+  Mutex.Lock();
+  eos_static_debug("updating uid/gid values from quota node");
+  if (QuotaNode) {
+    SetQuota(kAllUserBytesIs        ,uid,QuotaNode->getPhysicalSpaceByUser(uid),false);
+    SetQuota(kAllUserLogicalBytesIs ,uid,QuotaNode->getUsedSpaceByUser(uid),false);
+    SetQuota(kAllUserFilesIs        ,uid,QuotaNode->getNumFilesByUser(uid),false);
+    SetQuota(kAllGroupBytesIs       ,gid,QuotaNode->getPhysicalSpaceByGroup(gid),false);
+    SetQuota(kAllGroupLogicalBytesIs,gid,QuotaNode->getUsedSpaceByUser(gid),false);
+    SetQuota(kAllGroupFilesIs       ,gid,QuotaNode->getNumFilesByGroup(gid),false);
+  }
+  Mutex.UnLock();
+}
+
+/*----------------------------------------------------------------------------*/
+void
 SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool monitoring, bool translateids)
 {
   char headerline[4096];
   eos_static_debug("called");
 
-  google::dense_hash_map<long long, unsigned long long>::const_iterator it;
+  std::map<long long, unsigned long long>::const_iterator it;
 
   UpdateIsSums();
   Quota::NodeToSpaceQuota(SpaceName.c_str(), true);
@@ -188,16 +212,11 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
   int userentries=0;
   int groupentries=0;
 
-  Quota.rehash(0);
-
   // make a map containing once all the defined uid's+gid's
-  google::dense_hash_map<unsigned long, unsigned long > sortuidhash;
-  google::dense_hash_map<unsigned long, unsigned long > sortgidhash;
+  std::map<unsigned long, unsigned long > sortuidhash;
+  std::map<unsigned long, unsigned long > sortgidhash;
 
-  google::dense_hash_map<unsigned long, unsigned long >::const_iterator sortit;
-
-  sortuidhash.set_empty_key(-1);
-  sortgidhash.set_empty_key(-1);
+  std::map<unsigned long, unsigned long >::const_iterator sortit;
 
   if (!SpaceName.beginswith("/")) {
     if ( (uid_sel <0) && (gid_sel <0)) {
@@ -481,10 +500,38 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
 }
 
 
+bool 
+SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desiredspace, unsigned int inodes) 
+{
+  bool hasquota = false;
+
+  // copy info from namespace Quota Node ...
+  UpdateFromQuotaNode(uid,gid);
+  eos_static_info("uid=%d gid=%d size=%llu quota=%llu", uid, gid, desiredspace, GetQuota(kUserBytesTarget,uid,false));
+  if ( ( ( (GetQuota(kUserBytesTarget,uid,false)) - (GetQuota(kUserBytesIs,uid,false)) ) > (long long)(desiredspace) ) &&
+       ( ( (GetQuota(kUserFilesTarget,uid,false)) - (GetQuota(kUserFilesIs,uid,false)) ) > (inodes ) ) ) {
+    // the user has quota here!
+    hasquota = true;
+  } 
+  
+  // -> group quota
+  if ( ( ( (GetQuota(kGroupBytesTarget,gid,false)) - (GetQuota(kGroupBytesIs,gid,false)) ) > (long long) (desiredspace) ) &&
+       ( ( (GetQuota(kGroupFilesTarget,gid,false)) - (GetQuota(kGroupFilesIs,gid,false)) ) > (inodes)  ) ) {
+    // the group has quota here!
+    hasquota = true;
+  } 
+  
+  if (uid==0) {
+    // root does not need any quota
+    hasquota = true;
+  }
+  
+  return hasquota;
+}
 
 /*----------------------------------------------------------------------------*/
 int 
-SpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate, int forcedindex, unsigned long long bookingsize)
+SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate, int forcedindex, unsigned long long bookingsize)
 {
   // the caller routing has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) !!!
   std::set<eos::common::FileSystem::fsid_t> fsidavoidlist;
@@ -512,31 +559,18 @@ SpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned l
   }
   
   // check if the uid/gid has enough quota configured to place in this space !
-  // -> user quota
-
-  eos_static_debug("%llu %llu",GetQuota(kUserBytesTarget,uid,false), GetQuota(kUserBytesIs,uid,false));
 
   if (Enabled()) {
-    if ( ( ( (GetQuota(kUserBytesTarget,uid,false)) - (GetQuota(kUserBytesIs,uid,false)) ) > (long long)(1ll*nfilesystems*bookingsize) ) &&
-	 ( ( (GetQuota(kUserFilesTarget,uid,false)) - (GetQuota(kUserFilesIs,uid,false)) ) > (1*nfilesystems ) ) ) {
-      // the user has quota here!
-      hasquota = true;
-    } 
-    
-    // -> group quota
-    if ( ( ( (GetQuota(kGroupBytesTarget,gid,false)) - (GetQuota(kGroupBytesIs,gid,false)) ) > (long long) (1ll*nfilesystems*bookingsize) ) &&
-	 ( ( (GetQuota(kGroupFilesTarget,gid,false)) - (GetQuota(kGroupFilesIs,gid,false)) ) > (1*nfilesystems)  ) ) {
-      // the group has quota here!
-      hasquota = true;
-    } 
-    
-    if (uid==0) {
-      // root does not need any quota
-      hasquota = true;
-    }
-    
-    if (!hasquota) {
-      eos_static_debug("uid=%u git=%u grouptag=%s place filesystems=%u has no quota left!",uid,gid,grouptag, nfilesystems);
+    // we have physical spacequota and namespace spacequota
+    SpaceQuota* namespacequota = Quota::GetResponsibleSpaceQuota(path);
+    if (namespacequota) {
+      hasquota = namespacequota->CheckWriteQuota(uid, gid,1ll * nfilesystems * bookingsize, nfilesystems);
+      if (!hasquota) {
+	eos_static_debug("uid=%u git=%u grouptag=%s place filesystems=%u has no quota left!",uid,gid,grouptag, nfilesystems);
+	return ENOSPC;
+      }
+    } else {
+      eos_static_err("no namespace quota found for path=%s", path);
       return ENOSPC;
     }
   } 
@@ -547,7 +581,6 @@ SpaceQuota::FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned l
   
   std::set<FsGroup*>::const_iterator git;
 
-  // protects that filesystems don't change during this operation
   if (!FsView::gFsView.mSpaceGroupView.count(spacename)) {
     // there is no filesystem in that space
     selectedfs.clear();
@@ -808,8 +841,9 @@ Quota::GetSpaceQuota(const char* name, bool nocreate)
 {
   // the caller has to Readlock gQuotaMutex
   SpaceQuota* spacequota=0;
-  
-  if ( (spacequota = gQuota.Find(name)) ) {
+  std::string sname = name;
+
+  if ( (gQuota.count(sname)) && (spacequota = gQuota[sname]) ) {
     
   } else {
     if (nocreate) {
@@ -819,14 +853,33 @@ Quota::GetSpaceQuota(const char* name, bool nocreate)
       gQuotaMutex.UnLockRead();
       gQuotaMutex.LockWrite();    
       spacequota = new SpaceQuota(name);
-      gQuota.Add(name,spacequota);
+      gQuota[sname]=spacequota;
       gQuotaMutex.UnLockWrite();    
       gQuotaMutex.LockRead();
-    } while (! (spacequota = gQuota.Find(name)));
+    } while ((!gQuota.count(sname) && (! (spacequota = gQuota[sname]))));
   }
   
   return spacequota;
 }
+
+/*----------------------------------------------------------------------------*/
+SpaceQuota* 
+Quota::GetResponsibleSpaceQuota(const char* path)
+{
+  // the caller has to Readlock gQuotaMutex
+  SpaceQuota* spacequota=0;
+  XrdOucString matchpath = path;
+  std::map<std::string, SpaceQuota*>::const_iterator it;
+  for (it=gQuota.begin(); it!=gQuota.end();it++) {
+    if (matchpath.beginswith(it->second->GetSpaceName())) {
+      if ( (!spacequota) || ( (strlen(it->second->GetSpaceName()) > strlen(spacequota->GetSpaceName())) ) ) {
+        spacequota = it->second;
+      }
+    }
+  }
+  return spacequota;
+}
+
 
 /*----------------------------------------------------------------------------*/
 int 
@@ -842,34 +895,25 @@ Quota::GetSpaceNameList(const char* key, SpaceQuota* spacequota, void *Arg)
 void
 Quota::PrintOut(const char* space, XrdOucString &output, long uid_sel, long gid_sel, bool monitoring, bool translateids)
 {
+  eos::common::RWMutexReadLock lock(gQuotaMutex);
   output="";
   XrdOucString spacenames="";
-  gQuota.Apply(GetSpaceNameList, &spacenames);
-  int kommapos=0;
-  int spos=0;
-  std::set<std::string> spacevector;
-
-  eos_static_debug("space=%s spacenames=%s",space, spacenames.c_str());
-
-  eos::common::RWMutexReadLock lock(gQuotaMutex);
-
   if (space ==0) {
-    while ((kommapos = spacenames.find(",", spos)) != STR_NPOS) {
-      XrdOucString spacename;
-      spacename.assign(spacenames,spos,kommapos-1);
-      std::string sspacename = spacename.c_str();
-      spacevector.insert(sspacename);
-      spos = kommapos+1;
+    // make sure all configured spaces exist In the quota views
+    std::map<std::string, FsSpace*>::const_iterator sit;
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+    for (sit = FsView::gFsView.mSpaceView.begin(); sit != FsView::gFsView.mSpaceView.end(); sit++) {
+      Quota::GetSpaceQuota(sit->second->GetMember("name").c_str());
     }
+
+    std::map<std::string, SpaceQuota*>::const_iterator it;
     
-    std::set<std::string>::iterator it;
-    for (it = spacevector.begin(); it != spacevector.end(); it++) {
-      SpaceQuota* spacequota = GetSpaceQuota(it->c_str(),true);
-      if (spacequota) {
-	spacequota->PrintOut(output, uid_sel, gid_sel, monitoring, translateids);
-      }
+    for (it = gQuota.begin(); it != gQuota.end(); it++) {
+      it->second->PrintOut(output, uid_sel, gid_sel, monitoring, translateids);
     }
   } else {
+    std::string sspace=space;
     SpaceQuota* spacequota = GetSpaceQuota(space, true);
     if (spacequota) {
       spacequota->PrintOut(output, uid_sel, gid_sel, monitoring, translateids);
@@ -1126,8 +1170,6 @@ Quota::NodeToSpaceQuota(const char* name, bool lock)
       spacequota->SetQuota(SpaceQuota::kGroupFilesIs, itg->first, itg->second.files);
       spacequota->SetQuota(SpaceQuota::kGroupLogicalBytesIs, itg->first, itg->second.space);
     }
-  } else {
-    eos_static_crit("Cannot get quota node extract quota map");
   }
   if (lock)
     gOFS->eosViewMutex.UnLock();

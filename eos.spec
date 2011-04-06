@@ -20,6 +20,7 @@ BuildRequires: gcc44, gcc44-c++
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel
 
 Requires: xrootd-server >= 3.0.0
+Requires: eos-client
 
 %description
 The EOS server installation containing MGM, FST & MQ service.
@@ -68,6 +69,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eosfstcheck
 /usr/sbin/eosfstclean
 /usr/sbin/eosfstmgmsync
+/usr/sbin/eosadmin
 /usr/lib64/libXrdEosMgm.so.0.1.0
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so

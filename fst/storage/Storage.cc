@@ -61,6 +61,7 @@ FileSystem::GetStatfs(bool &changed)
 
   statFs = eos::common::Statfs::DoStatfs(GetPath().c_str());
   if (!statFs) {
+    eos_err("cannot statfs");
     BroadcastError("cannot statfs");
     return 0;
   }
@@ -531,11 +532,13 @@ Storage::Scrub()
 
       if (i< fileSystemsVector.size()) {
 	std::string path = fileSystemsVector[i]->GetPath();
-	if (!fileSystemsVector[i]->GetStatfs()) {
+        
+        bool ignoreme;
+	if (!fileSystemsVector[i]->GetStatfs(ignoreme)) {
+          eos_static_info("GetStatfs failed");
 	  fsMutex.UnLockRead();
 	  continue;
 	}
-
 	unsigned long long free   = fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_bfree;
 	unsigned long long blocks = fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_blocks;
 	unsigned long id = fileSystemsVector[i]->GetId();

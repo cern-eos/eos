@@ -35,6 +35,7 @@ public:
     last_blocks_free=0;
     last_status_broadcast=0;
     transactionDirectory="";
+    statFs = 0;
   }
 
   ~FileSystem() {}
@@ -43,9 +44,9 @@ public:
 
   std::string  GetPath() {return GetString("path");}
 
-  eos::common::Statfs* GetStatfs() {return statFs;}
-
   const char* GetTransactionDirectory() {return transactionDirectory.c_str();}
+
+  eos::common::Statfs* GetStatfs() {return statFs;}
 
   void BroadcastError(const char* msg);
   void BroadcastError(int errc, const char* errmsg);

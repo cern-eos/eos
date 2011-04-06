@@ -502,7 +502,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Get quota node id concerning given container
   //----------------------------------------------------------------------------
-  QuotaNode *HierarchicalView::getQuotaNode( const ContainerMD *container )
+  QuotaNode *HierarchicalView::getQuotaNode( const ContainerMD *container , bool search )
     throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -526,8 +526,11 @@ namespace eos
     // Search for the node
     //--------------------------------------------------------------------------
     const ContainerMD *current = container;
-    while( current != pRoot && (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
-      current = pContainerSvc->getContainerMD( current->getParentId() );
+
+    if (search) {
+      while( current != pRoot && (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
+        current = pContainerSvc->getContainerMD( current->getParentId() );
+    }
 
     //--------------------------------------------------------------------------
     // We have either found a quota node or reached root without finding one

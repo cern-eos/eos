@@ -21,7 +21,23 @@ com_fs (char* arg1) {
   
   if ( subcommand == "add" ) {
     XrdOucString in ="mgm.cmd=fs&mgm.subcmd=add";
-    XrdOucString uuid        = subtokenizer.GetToken();
+    XrdOucString uuid="";
+    XrdOucString manual      = subtokenizer.GetToken();
+    XrdOucString fsid        = "";
+    if ( (manual == "-m") || (manual == "--manual") ) {
+      fsid = subtokenizer.GetToken();
+      if (fsid.length()) {
+	int ifsid= atoi(fsid.c_str());  
+	if (ifsid == 0)
+	  goto com_fs_usage;
+	uuid = subtokenizer.GetToken();
+      } else {
+	goto com_fs_usage;
+      }
+    } else {
+      uuid = manual;
+    }
+
     XrdOucString hostport    = subtokenizer.GetToken();
     XrdOucString mountpoint  = subtokenizer.GetToken();
     XrdOucString space       = subtokenizer.GetToken();
@@ -46,6 +62,11 @@ com_fs (char* arg1) {
     if (!configstatus.length()) 
       configstatus = "off";
     
+    if (fsid.length()) {
+      in += "&mgm.fs.fsid=";
+      in += fsid;
+    }
+
     in += "&mgm.fs.uuid=";        in += uuid;
     in += "&mgm.fs.node=";        in += hostport;
     in += "&mgm.fs.mountpoint=";  in += mountpoint;
@@ -491,8 +512,9 @@ com_fs (char* arg1) {
   printf("                                                                  -m : display monitoring format <key>=<value>\n");
   printf("                                                                  -l : display long format\n");
   printf("                                                                  -e : display format with error information\n");
-  printf("       fs add <uuid> <node-queue>|<host:port> <mountpoint> [<schedgroup>] [<status]\n");
+  printf("       fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host:port> <mountpoint> [<schedgroup>] [<status]\n");
   printf("                                                                : add a filesystem and dynamically assign a filesystem id based on the unique identifier for the disk <uuid>\n");
+  printf("                                             --manual -m <fsid> : user specified <fsid> and <schedgroup> - no automatic assignment\n");
   printf("       fs config <host>:<port><path>|<fsid>|<uuid> <key>=<value>: configure filesystem parameter for a single filesystem identified by host:port/path, filesystem id or filesystem UUID.\n");
   printf("         => fs config <...> configstatus=rw|wo|ro|drain|off\n");
   printf("                    <status> can be := rw                       : filesystem is in read write mode\n");

@@ -159,7 +159,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get quota node id concerning given container
       //------------------------------------------------------------------------
-      virtual QuotaNode *getQuotaNode( const ContainerMD *container )
+      virtual QuotaNode *getQuotaNode( const ContainerMD *container , bool search=true )
         throw( MDException );
 
       //------------------------------------------------------------------------

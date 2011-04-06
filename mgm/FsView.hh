@@ -44,7 +44,7 @@ public:
   std::string mName;
   std::string mType;
   
-  BaseView(){};
+  BaseView(){mStatus="unknown";}
   ~BaseView(){};
   
   virtual const char* GetConfigQueuePrefix() { return "";}
@@ -159,7 +159,7 @@ public:
   eos::common::FileSystem::fsid_t CreateMapping(std::string fsuuid);
   bool                            ProvideMapping(std::string fsuuid, eos::common::FileSystem::fsid_t fsid);
   eos::common::FileSystem::fsid_t GetMapping(std::string fsuuid);
-  std::string GetMapping(eos::common::FileSystem::fsid_t fsuuid);
+  bool        HasMapping(eos::common::FileSystem::fsid_t fsid) { return (Fs2UuidMap.count(fsid)>0)?true:false;}
   bool        RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid);
   bool        RemoveMapping(eos::common::FileSystem::fsid_t fsid);
 

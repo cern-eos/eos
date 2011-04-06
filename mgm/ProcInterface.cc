@@ -666,26 +666,29 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
 
       if (adminCmd) {
+	std::string tident = vid.tident.c_str();
+	size_t addpos = 0;
+	if ( ( addpos = tident.find("@") ) != std::string::npos) {
+	  tident.erase(0,addpos+1);
+	}
+
 	if (subcmd == "add") {
-	  // rough check that the filesystem is added from a host with the same tident ... anyway we should have configured 'sss' security
-	  std::string tident = vid.tident.c_str();
-	  size_t addpos = 0;
-	  if ( ( addpos = tident.find("@") ) != std::string::npos) {
-	    tident.erase(0,addpos+1);
-	  }
-	  
+	  std::string sfsid        = (opaque.Get("mgm.fs.fsid"))?opaque.Get("mgm.fs.fsid"):"0";
 	  std::string uuid         = (opaque.Get("mgm.fs.uuid"))?opaque.Get("mgm.fs.uuid"):"";
 	  std::string nodename     = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
 	  std::string mountpoint   = (opaque.Get("mgm.fs.mountpoint"))?opaque.Get("mgm.fs.mountpoint"):"";
 	  std::string space        = (opaque.Get("mgm.fs.space"))?opaque.Get("mgm.fs.space"):"";
 	  std::string configstatus = (opaque.Get("mgm.fs.configstatus"))?opaque.Get("mgm.fs.configstatus"):"";
 	  
+	  eos::common::FileSystem::fsid_t fsid = atoi(sfsid.c_str());
+
 	  if ( (!nodename.length()) || (!mountpoint.length()) || (!space.length()) || (!configstatus.length()) ||
 	       (configstatus.length() && ( eos::common::FileSystem::GetConfigStatusFromString(configstatus.c_str()) < eos::common::FileSystem::kOff) ) ) {
 	    stdErr="error: illegal parameters";
 	    retc = EINVAL;
 	  } else {
-	    if ( (!vid_in.uid==0) && ( (vid_in.prot != "sss") || tident.compare(0, tident.length(), nodename, 5, tident.length()) )) {
+	    // rough check that the filesystem is added from a host with the same tident ... anyway we should have configured 'sss' security
+	    if ( (vid_in.uid!=0) && ( (vid_in.prot != "sss") || tident.compare(0, tident.length(), nodename, 5, tident.length()) )) {
 	      stdErr="error: filesystems can only be added as 'root' or from the server mounting them using sss protocol\n";
 	      retc = EPERM;
 	    } else {
@@ -697,12 +700,28 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      if (!FsView::gFsView.ExistsQueue(nodename,queuepath)) {
 		// check if there is a mapping for 'uuid'
 		eos::common::RWMutexWriteLock(FsView::gFsView.MapMutex);
-		if (FsView::gFsView.GetMapping(uuid)) {
-		  stdErr="error: filesystem identified by '"; stdErr += uuid.c_str(); stdErr += "' already exists!";
+		if (FsView::gFsView.GetMapping(uuid) || ( (fsid>0) && (FsView::gFsView.HasMapping(fsid)))) {
+		  if (fsid) {
+		    stdErr="error: filesystem identified by uuid='"; stdErr += uuid.c_str(); stdErr += "' id='"; stdErr += sfsid.c_str(); stdErr += "' already exists!";
+		  } else {
+		    stdErr="error: filesystem identified by '"; stdErr += uuid.c_str(); stdErr += "' already exists!";
+		  }
 		  retc = EEXIST;
 		} else {
-		  eos::common::FileSystem::fsid_t fsid = FsView::gFsView.CreateMapping(uuid);
-		  eos::common::FileSystem* fs = new eos::common::FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
+		  eos::common::FileSystem* fs = 0;
+
+		  if (fsid) {
+		    if (!FsView::gFsView.ProvideMapping(uuid, fsid)) {
+		      stdErr = "error: conflict adding your uuid & id mapping";
+		      retc = EINVAL;
+		    } else {
+		      fs = new eos::common::FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
+		    }
+		  } else {
+		    fsid = FsView::gFsView.CreateMapping(uuid);
+		    fs = new eos::common::FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
+		  }
+		  
 		  XrdOucString sizestring;
 		  
 		  stdOut += "success:   mapped '"; stdOut += uuid.c_str() ; stdOut += "' <=> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
@@ -710,7 +729,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		    fs->SetId(fsid);
 		    fs->SetString("uuid",uuid.c_str());
 		    fs->SetString("configstatus", configstatus.c_str());
-		    fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
+		    //		    fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
 		    std::string splitspace="";
 		    std::string splitgroup="";
 		    
@@ -869,106 +888,122 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  }
 	}
 
-	if (subcmd == "config") {
-	  if (vid_in.uid == 0) {
-	    std::string identifier = (opaque.Get("mgm.fs.identifier"))?opaque.Get("mgm.fs.identifier"):"";
-	    std::string key        = (opaque.Get("mgm.fs.key"))?opaque.Get("mgm.fs.key"):"";
-	    std::string value      = (opaque.Get("mgm.fs.value"))?opaque.Get("mgm.fs.value"):"";
+	if (subcmd == "config") {	  
+	  std::string identifier = (opaque.Get("mgm.fs.identifier"))?opaque.Get("mgm.fs.identifier"):"";
+	  std::string key        = (opaque.Get("mgm.fs.key"))?opaque.Get("mgm.fs.key"):"";
+	  std::string value      = (opaque.Get("mgm.fs.value"))?opaque.Get("mgm.fs.value"):"";
+	  
+	  eos::common::FileSystem::fsid_t fsid = atoi(identifier.c_str());
+	  if (!identifier.length() || !key.length() || !value.length()) {
+	    stdErr="error: illegal parameters";
+	    retc = EINVAL;
+	  } else {	
+	    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
 	    
-	    eos::common::FileSystem::fsid_t fsid = atoi(identifier.c_str());
-	    if (!identifier.length() || !key.length() || !value.length()) {
-	      stdErr="error: illegal parameters";
-	      retc = EINVAL;
-	    } else {	
-	      eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
-
-	      eos::common::FileSystem* fs = 0;
-	      if ( fsid && FsView::gFsView.mIdView.count(fsid)) {
-		// by filesystem id
-		fs = FsView::gFsView.mIdView[fsid];
+	    eos::common::FileSystem* fs = 0;
+	    if ( fsid && FsView::gFsView.mIdView.count(fsid)) {
+	      // by filesystem id
+	      fs = FsView::gFsView.mIdView[fsid];
+	    } else {
+	      eos::common::RWMutexReadLock(FsView::gFsView.MapMutex);
+	      // by filesystem uuid
+	      if (FsView::gFsView.GetMapping(identifier)) {
+		if (FsView::gFsView.mIdView.count(FsView::gFsView.GetMapping(identifier))) {
+		  fs = FsView::gFsView.mIdView[FsView::gFsView.GetMapping(identifier)];
+		}
 	      } else {
-		eos::common::RWMutexReadLock(FsView::gFsView.MapMutex);
-		// by filesystem uuid
-		if (FsView::gFsView.GetMapping(identifier)) {
-		  if (FsView::gFsView.mIdView.count(FsView::gFsView.GetMapping(identifier))) {
-		    fs = FsView::gFsView.mIdView[FsView::gFsView.GetMapping(identifier)];
+		// by host:port:data name
+		std::string path = identifier;
+		unsigned int slashpos = identifier.find("/");
+		if ( slashpos != std::string::npos) {
+		  path.erase(0, slashpos);
+		  identifier.erase(slashpos);
+		  if ( (identifier.find(":") == std::string::npos) ) {
+		    identifier += ":1095"; // default eos fst port
 		  }
-		} else {
-		  // by host:port:data name
-		  std::string path = identifier;
-		  unsigned int slashpos = identifier.find("/");
-		  if ( slashpos != std::string::npos) {
-		    path.erase(0, slashpos);
-		    identifier.erase(slashpos);
-		    if ( (identifier.find(":") == std::string::npos) ) {
-		      identifier += ":1095"; // default eos fst port
-		    }
-		    if ((identifier.find("/eos/") == std::string::npos)) {
-		      identifier.insert(0,"/eos/");
-		      identifier.append("/fst");
-		    }
+		  if ((identifier.find("/eos/") == std::string::npos)) {
+		    identifier.insert(0,"/eos/");
+		    identifier.append("/fst");
+		  }
 		  
-		    if (FsView::gFsView.mNodeView.count(identifier)) {
-		      std::set<eos::common::FileSystem::fsid_t>::iterator it;
-		      for (it = FsView::gFsView.mNodeView[identifier]->begin(); it != FsView::gFsView.mNodeView[identifier]->end();  it++) {
-			if ( FsView::gFsView.mIdView.count(*it)) {
-			  if ( FsView::gFsView.mIdView[*it]->GetPath() == path) {
-			    // this is the filesystem
-			    fs = FsView::gFsView.mIdView[*it];
-			  } 
-			}
+		  if (FsView::gFsView.mNodeView.count(identifier)) {
+		    std::set<eos::common::FileSystem::fsid_t>::iterator it;
+		    for (it = FsView::gFsView.mNodeView[identifier]->begin(); it != FsView::gFsView.mNodeView[identifier]->end();  it++) {
+		      if ( FsView::gFsView.mIdView.count(*it)) {
+			if ( FsView::gFsView.mIdView[*it]->GetPath() == path) {
+			  // this is the filesystem
+			  fs = FsView::gFsView.mIdView[*it];
+			} 
 		      }
 		    }
 		  }
 		}
 	      }
-	      if (fs) {
-		// check the allowed strings
-		if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ) ) ) {
+	    }
+	    if (fs) {
+	      // check the allowed strings
+	      if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ) ) ) {
+		std::string nodename = fs->GetString("host");
+		size_t dpos=0;
+
+		if ( (dpos = nodename.find(".")) != std::string::npos) {
+		  nodename.erase(dpos);
+		}
+
+		if ( (vid_in.uid!=0) && ( (vid_in.prot != "sss") || tident.compare(0, tident.length(), nodename, 0, tident.length()) )) {
+		  stdErr="error: filesystems can only be configured as 'root' or from the server mounting them using sss protocol\n";
+		  retc = EPERM;
+		} else {
 		  fs->SetString(key.c_str(),value.c_str());
 		  FsView::gFsView.StoreFsConfig(fs);
-		} else {
-		  stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">";
-		  retc = EINVAL;
 		}
 	      } else {
-		stdErr += "error: cannot identify the filesystem by <"; stdErr += identifier.c_str(); stdErr += ">";
+		stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">";
 		retc = EINVAL;
 	      }
+	    } else {
+	      stdErr += "error: cannot identify the filesystem by <"; stdErr += identifier.c_str(); stdErr += ">";
+	      retc = EINVAL;
 	    }
-	  } else {
-	    retc = EPERM;
-	    stdErr = "error: you have to take role 'root' to execute this command";
-	  } 
+	  }	  
 	} 
 	
 	if (subcmd == "rm") {
-	  if (vid_in.uid == 0) {
-	    std::string hostport     =  opaque.Get("mgm.fs.hostport")?opaque.Get("mgm.fs.hostport"):"";
-	    std::string mountpoint   =  opaque.Get("mgm.fs.mountpoint")?opaque.Get("mgm.fs.mountpoint"):"";
-	    std::string id           =  opaque.Get("mgm.fs.id")?opaque.Get("mgm.fs.id"):"";
-	    eos::common::FileSystem::fsid_t fsid = 0;
-	    
-	    if (id.length()) 
-	      fsid = atoi(id.c_str());
-	    
-	    
-	    eos::common::FileSystem* fs=0;
-	    eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
-	      
-	    if (id.length()) {
-	      // find by id
-	      if (FsView::gFsView.mIdView.count(fsid)) {
-		fs = FsView::gFsView.mIdView[fsid];
-	      }
-	    } else {
-	      if (mountpoint.length() && hostport.length()) {
-		std::string queuepath="/eos/";queuepath+= hostport; queuepath+= "/fst"; queuepath += mountpoint;
-		fs = FsView::gFsView.FindByQueuePath(queuepath);
-	      }
+	  std::string hostport     =  opaque.Get("mgm.fs.hostport")?opaque.Get("mgm.fs.hostport"):"";
+	  std::string mountpoint   =  opaque.Get("mgm.fs.mountpoint")?opaque.Get("mgm.fs.mountpoint"):"";
+	  std::string id           =  opaque.Get("mgm.fs.id")?opaque.Get("mgm.fs.id"):"";
+	  eos::common::FileSystem::fsid_t fsid = 0;
+	  
+	  if (id.length()) 
+	    fsid = atoi(id.c_str());
+	  
+	  
+	  eos::common::FileSystem* fs=0;
+	  eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+	  
+	  if (id.length()) {
+	    // find by id
+	    if (FsView::gFsView.mIdView.count(fsid)) {
+	      fs = FsView::gFsView.mIdView[fsid];
 	    }
+	  } else {
+	    if (mountpoint.length() && hostport.length()) {
+	      std::string queuepath="/eos/";queuepath+= hostport; queuepath+= "/fst"; queuepath += mountpoint;
+	      fs = FsView::gFsView.FindByQueuePath(queuepath);
+	    }
+	  }
+	  
+	  if (fs ) {
+	    std::string nodename = fs->GetString("host");
+	    size_t dpos=0;
 	    
-	    if (fs ) {
+	    if ( (dpos = nodename.find(".")) != std::string::npos) {
+	      nodename.erase(dpos);
+	    }
+	    if ( (vid_in.uid!=0) && ( (vid_in.prot != "sss") || tident.compare(0, tident.length(), nodename, 0, tident.length()) )) {
+	      stdErr="error: filesystems can only be removed as 'root' or from the server mounting them using sss protocol\n";
+	      retc = EPERM;
+	    } else {
 	      if (!FsView::gFsView.RemoveMapping(fsid)) {
 		stdErr = "error: couldn't remove mapping of filesystem defined by ";stdErr += hostport.c_str(); stdErr += "/";stdErr += mountpoint.c_str(); stdErr+="/"; stdErr += id.c_str(); stdErr+= " ";
 	      }
@@ -979,15 +1014,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      } else {
 		stdOut = "success: unregistered ";stdOut += hostport.c_str(); stdOut += " ";stdOut += mountpoint.c_str(); stdOut+=" "; stdOut += id.c_str(); stdOut+= " from the FsView";
 	      }
-	    } else {
-	      stdErr = "error: there is no filesystem defined by ";  stdErr += hostport.c_str(); stdErr += " ";stdErr += mountpoint.c_str(); stdErr+=" "; stdErr += id.c_str(); stdErr+= " ";
-	      retc = EINVAL;
 	    }
 	  } else {
-	    retc = EPERM;
-	    stdErr = "error: you have to take role 'root' to execute this command";
+	    stdErr = "error: there is no filesystem defined by ";  stdErr += hostport.c_str(); stdErr += " ";stdErr += mountpoint.c_str(); stdErr+=" "; stdErr += id.c_str(); stdErr+= " ";
+	    retc = EINVAL;
 	  }
-	}
+	} 
       }
 
       if (subcmd == "boot") {

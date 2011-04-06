@@ -64,7 +64,7 @@ private:
 
   // one hash map for user view! depending on eQuota Tag id is either uid or gid!
 
-  google::dense_hash_map<long long, unsigned long long> Quota; // the key is (eQuotaTag<<32) | id
+  std::map<long long, unsigned long long> Quota; // the key is (eQuotaTag<<32) | id
 
   unsigned long long PhysicalFreeBytes; // this is coming from the statfs calls on all file systems
   unsigned long long PhysicalFreeFiles; // this is coming from the statfs calls on all file systems
@@ -167,13 +167,13 @@ public:
 
   void UpdateTargetSums();
   void UpdateIsSums();
-
+  void UpdateFromQuotaNode(uid_t uid, gid_t gid);
 
   SpaceQuota(const char* name);
   ~SpaceQuota();
 
-  google::dense_hash_map<long long, unsigned long long>::const_iterator Begin() { return Quota.begin();}
-  google::dense_hash_map<long long, unsigned long long>::const_iterator End()   { return Quota.end();}
+  std::map<long long, unsigned long long>::const_iterator Begin() { return Quota.begin();}
+  std::map<long long, unsigned long long>::const_iterator End()   { return Quota.end();}
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////////
   // Scheduling Filesystem Vector/Hashs
@@ -249,8 +249,10 @@ public:
   unsigned long long Index(unsigned long tag, unsigned long id) { unsigned long long fulltag = tag; fulltag <<=32; fulltag |= id; return fulltag;}
   unsigned long UnIndex(unsigned long long reindex) {return (reindex>>32) & 0xffff;}
 
+  bool CheckWriteQuota(uid_t, gid_t, long long desiredspace, unsigned int inodes);
+
   // the write placement routine
-  int FilePlacement(uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate=false, int forcedindex=-1, unsigned long long bookingsize=1024*1024*1024ll);
+  int FilePlacement(const char* path, uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate=false, int forcedindex=-1, unsigned long long bookingsize=1024*1024*1024ll);
 
   // the access routine
   int FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW);
@@ -261,11 +263,11 @@ class Quota : eos::common::LogId {
 private:
   
 public:
-  static XrdOucHash<SpaceQuota> gQuota;
+  static std::map<std::string, SpaceQuota*> gQuota;
   static eos::common::RWMutex gQuotaMutex;
 
   static SpaceQuota* GetSpaceQuota(const char* name, bool nocreate=false);
-  
+  static SpaceQuota* GetResponsibleSpaceQuota(const char*path);                 // returns a space (+quota node), which is responsible for <path>
   Quota() {}
   ~Quota() {};
 

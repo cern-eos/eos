@@ -443,7 +443,10 @@ virtual               ~XrdMgmOfs() {}
 virtual int            Configure(XrdSysError &);
 virtual bool           Init(XrdSysError &);
         int            Stall(XrdOucErrInfo &error, int stime, const char *msg);
-  
+        int            Redirect(XrdOucErrInfo &error, const char* host, int &port);
+        bool           ShouldStall(const char* function, int &stalltime, XrdOucString &stallmsg);
+        bool           ShouldRedirect(const char* function, XrdOucString &host, int &port);
+
         char          *ConfigFN;       
   
         ConfigEngine*    ConfEngine;         // storing/restoring configuration
@@ -467,8 +470,11 @@ virtual bool           Init(XrdSysError &);
         XrdOucString     SpaceConfigQueuePrefix;     // -> name of the prefix for space configuration
         XrdOucString     NodeConfigQueuePrefix ;     // -> name of the prefix for node configuration
         XrdOucString     GroupConfigQueuePrefix;     // -> name of the prefix for group configuration
-  
-  
+      
+        bool             IsReadOnly;         // -> true if this is a read-only redirector 
+        bool             IsRedirect;         // -> true if the Redirect function should be called to redirect
+        bool             IsStall;            // -> true if the Stall function should be called to send a wait
+
         bool             authorize;          // -> determins if the autorization should be applied or not
         XrdAccAuthorize *Authorization;      // -> Authorization   Service
         bool             IssueCapability;    // -> defines if the Mgm issues capabilities

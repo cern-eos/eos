@@ -423,7 +423,7 @@ ConfigEngine::ResetConfig()
   FstNode::gFstNodes.Purge();
 
   Quota::gQuotaMutex.LockWrite();
-  Quota::gQuota.Purge();
+  while(Quota::gQuota.begin() != Quota::gQuota.end()) {delete Quota::gQuota.begin()->second;Quota::gQuota.erase(Quota::gQuota.begin());}
   Quota::gQuotaMutex.UnLockWrite();
 
   eos::common::Mapping::gMapMutex.LockWrite();
@@ -457,7 +457,7 @@ ConfigEngine::ApplyConfig(XrdOucString &err)
   FstNode::gFstNodes.Purge();
 
   Quota::gQuotaMutex.LockWrite();
-  Quota::gQuota.Purge();
+  while(Quota::gQuota.begin() != Quota::gQuota.end()) {delete Quota::gQuota.begin()->second;Quota::gQuota.erase(Quota::gQuota.begin());}
   Quota::gQuotaMutex.UnLockWrite();
 
   eos::common::Mapping::gMapMutex.LockWrite();

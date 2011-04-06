@@ -40,6 +40,8 @@ add_executable ( eos
 
 target_link_libraries ( eos eosCommon-Static XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNetUtil XrdNet XrdOuc pthread dl  XrdSys XrdNetUtil crypto uuid curses z readline )
 
+INSTALL_PROGRAMS( /sbin FILES eosadmin )
+
 install ( TARGETS eos
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
           RUNTIME DESTINATION bin

@@ -479,6 +479,7 @@ output_result(XrdOucEnv* result, bool highlighting) {
     // color replacements
     rstdout.replace("online","\033[1monline\033[0m");
     rstdout.replace("offline","\033[47;31m\e[5moffline\033[0m");
+    rstdout.replace("unknown","\033[47;31m\e[5munknown\033[0m");
     
     rstdout.replace(" ok","\033[49;32m ok\033[0m");
     rstdout.replace("warning","\033[49;33mwarning\033[0m");
@@ -727,6 +728,10 @@ int main (int argc, char* argv[]) {
         exit(global_retc);
       }
     }
+  }
+  
+  if (getenv("EOS_MGM_URL")) {
+    serveruri = getenv("EOS_MGM_URL");
   }
 
   /* by default select the root role if we are root@localhost */
