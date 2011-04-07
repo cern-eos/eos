@@ -1,0 +1,248 @@
+#!/usr/bin/perl
+use strict;
+use Socket;
+use Sys::Hostname;
+my $host = hostname();
+
+#set to simulate the failover
+#$host = "lxbra0301.cern.ch";
+
+#usage eoshapl manager-node1 manager-node2 alias failovertime [debug]
+
+$| = 1;
+
+my $target1 = (shift @ARGV) or exit -1;
+my $target2 = (shift @ARGV) or exit -1;
+my $aliasname = (shift @ARGV) or exit -1;
+my $failovertime = (shift @ARGV) or exit -1;
+my $debug = (shift @ARGV or 0);
+
+my $mgmstatus="";
+my $mqstatus="";
+my $mastermgm=0;
+my $mastermq=0;
+my $confdir="";
+my $metadir="";
+my $md1file = "";
+my $md2file = "";
+my $md1dirfile = "";
+my $md2dirfile = "";
+my $md1confdir = "";
+my $md2confdir = "";
+my $configname = "";
+
+my $now;
+sub now {
+    $now = `date`;
+    chomp $now;
+    $now .= " ";
+    $now .= `date +%s`;
+    chomp $now;
+}
+
+sub getconfig {
+    $confdir = `cat /etc/xrd.cf.mgm | grep -v "^#" | grep mgmofs.configdir | awk '{print \$2}' 2>/dev/null`;
+    $metadir = `cat /etc/xrd.cf.mgm | grep -v "^#" | grep mgmofs.metalog   | awk '{print \$2}' 2>/dev/null`;
+    $configname = `cat /etc/xrd.cf.mgm | grep -v "^#" | grep mgmofs.autoloadconfig | awk '{print \$2}' 2>/dev/null`;
+
+    if ( $ENV{'EOS_AUTOLOAD_CONFIG'} ne "" ) {
+        $configname = $ENV{'EOS_AUTOLOAD_CONFIG'};
+    }
+    chomp $confdir;
+    chomp $metadir;
+    chomp $configname;
+
+    if ($confdir eq "") {
+        $confdir = "/var/eos/config/";
+    }
+    
+    if ($metadir eq "") {
+        $metadir = "/var/eos/md/";
+    }
+    
+    now();
+    
+    $md1file = "$metadir/files.$target1.mdlog";
+    $md2file = "$metadir/files.$target2.mdlog";
+    $md1dirfile = "$metadir/directories.$target1.mdlog";
+    $md2dirfile = "$metadir/directories.$target2.mdlog";
+    $md1confdir = "$confdir/$target1/";
+    $md2confdir = "$confdir/$target2/";
+}
+
+
+my $cnt=0;
+printf "$now ===================================================================\n";
+printf "$now Started EOSHA - EOS High Availability\n";
+printf "$now ___________________________________________________________________\n";
+
+while(1) {
+    now();
+
+
+    if ($cnt ==0) {
+        getconfig();
+        print "$now MGM1-METALOG: fmd=$md1file dmd=$md1dirfile cfg=$md1confdir\n";
+        print "$now MGM2-METALOG: fmd=$md2file dmd=$md2dirfile cfg=$md2confdir\n";
+    }
+
+    $mastermgm =system("/etc/init.d/eos status mgm >&/dev/null");
+    $mastermq  =system("/etc/init.d/eos status mq >&/dev/null");
+    $mastermgm = ($mastermgm >> 8);
+    $mastermq  = ($mastermq >> 8);
+
+    if (!$mastermgm) {
+        $mgmstatus="<up>";
+    } else {
+        $mgmstatus="<down>";
+    }
+
+    if (!$mastermq) {
+        $mqstatus="<up>";
+    } else {
+        $mqstatus="<down>";
+    }
+
+    if ($debug || (!$cnt)) {print "$now MGM status is $mgmstatus - MQ status is $mqstatus\n";}
+    my ($name,$aliases, $addrtype, $length, @addrs) =  gethostbyname("$aliasname");
+    if ($debug || (!$cnt)) {print "$now hostname=$host aliastarget=$name aliases=$aliases\n";}
+
+    if ("$host" ne "$name") {
+        if (!$mastermq) {
+            now();
+            printf "$now ===================================================================\n";
+            printf "$now shut down running MQ ...\n";
+            printf "$now ___________________________________________________________________\n";
+            getconfig();
+            
+            my $shutdownmq  = system("/etc/init.d/eos stop mq");
+        }
+
+        if (!$mastermgm) {
+            now();
+            printf "$now ===================================================================\n";
+            printf "$now shut down running mgm ...\n";
+            printf "$now ___________________________________________________________________\n";           
+            my $shutdownmgm = system("/etc/init.d/eos stop mgm");
+            printf "$now ___________________________________________________________________\n";
+            printf "$now Finished FAILOVER procedure ... $host(me) is now the SLAVE ...\n";
+            printf "$now ===================================================================\n";
+        } 
+    } else {
+        if ( ($mastermgm == 2) || ($mastermq == 2) ) {
+            now();
+            printf "$now ===================================================================\n";
+            printf "$now Initiaing FAILOVER procedure ... becoming MASTER ...\n";
+            printf "$now ___________________________________________________________________\n";
+            getconfig();
+
+            my $stime = `date +%s`; chomp $stime;
+
+            ###################### CONFIGURATION FAILOVER ############################
+            # create backup name
+            my $backupconfigname = $configname;
+            my $backupconfigname = "$configname.failover.$stime";
+
+            printf("backupname = $backupconfigname\n");
+            if ( "$host" eq "$target1" ) {
+                now();
+                printf("$now backup config and copy from $target2 ...\n");
+                printf "____________________________________________________________________________________________________________\n";
+                system("mv -v $md1confdir/$configname.eoscf $md1confdir/$backupconfigname.eoscf");
+                system("cp -v $md2confdir/$configname.eoscf $md1confdir/$configname.eoscf");
+            }
+            if ( "$host" eq "$target2" ) {
+                now();
+                printf("$now backup config and copy from $target1 ...\n");
+                printf "____________________________________________________________________________________________________________\n";
+                system("mv -v $md2confdir/$configname.eoscf $md2confdir/$backupconfigname.eoscf");
+                system("cp -v $md1confdir/$configname.eoscf $md2confdir/$configname.eoscf");
+            }
+
+            # shutdown sync
+            # system("service eossync stop");
+            ###################### METADATA -  FAILOVER ############################
+            if ( "$host" eq "$target1" ) {
+                now();
+                printf "____________________________________________________________________________________________________________\n";
+                system("mv -v $md1file $md1file.failover.$stime");
+                system("bzip2 -v $md1file.failover.$stime");
+                printf "____________________________________________________________________________________________________________\n";
+                system("echo := eos-log-compact $md2file $md1file ; eos-log-compact $md2file $md1file");
+                printf "____________________________________________________________________________________________________________\n";
+                system("mv -v $md1dirfile $md1dirfile.failover.$stime");
+                system("bzip2 -v $md1dirfile.failover.$stime");
+                printf "____________________________________________________________________________________________________________\n";
+                system("echo := eos-log-compact $md2dirfile $md1dirfile; eos-log-compact $md2dirfile $md1dirfile");
+                printf "____________________________________________________________________________________________________________\n";
+            }
+
+            if ( "$host" eq "$target2" ) {
+                printf "____________________________________________________________________________________________________________\n";
+                system("mv -v $md2file $md2file.failover.$stime");
+                system("bzip2 -v $md2file.failover.$stime");
+                printf "____________________________________________________________________________________________________________\n";
+                system("echo := eos-log-compact $md1file $md2file; eos-log-compact $md1file $md2file");
+                printf "____________________________________________________________________________________________________________\n";
+                system("mv -v $md2dirfile $md2dirfile.failover.$stime");
+                system("bzip2 -v $md2dirfile.failover.$stime");
+                printf "____________________________________________________________________________________________________________\n";
+                system("echo := eos-log-compact $md1dirfile $md2dirfile; eos-log-compact $md1dirfile $md2dirfile");
+                printf "____________________________________________________________________________________________________________\n";
+            }
+
+            my $ttime = `date +%s`; chomp $ttime;
+            $ttime = int($ttime);
+            $stime = int($stime);
+
+            print "$ttime $stime $failovertime\n";
+            if ( ($ttime - $stime) < $failovertime) {
+                print "$ttime $stime $failovertime\n";
+                for (my $i=0; $i< ($failovertime-($ttime-$stime)); $i+=10) {
+                    now();
+                    printf "$now ... starting service in %d seconds ...\n", $failovertime - $i;
+                    sleep 10;
+                }
+            }
+
+            printf("\n");
+            print "$now Bring up MGM + MQ\n";
+            my $startupmq  = system("/etc/init.d/eos start mq");
+            my $startupmgm = system("/etc/init.d/eos start mgm");
+            
+            sleep 5;
+            $mastermgm =system("/etc/init.d/eos status mgm >&/dev/null");
+            $mastermq  =system("/etc/init.d/eos status mq >&/dev/null");
+            $mastermgm = ($mastermgm >> 8);
+            $mastermq  = ($mastermq >> 8);
+            
+            if ( (!$mastermgm) && (!$mastermq) ) {
+                now();
+                printf "$now ___________________________________________________________________\n";
+                printf "$now Finished FAILOVER procedure ... $host(me) is now the MASTER ...\n";
+                printf "$now ===================================================================\n";
+            } 
+            # restart sync
+            # system("service eossync start");
+        }
+        if ( $mastermgm && ($mastermgm != 2)) {
+            now();
+            printf "$now ===================================================================\n";
+            printf("$now restart dead MGM ...\n");
+            printf "$now ___________________________________________________________________\n";
+            # service dead ... let's restart
+            my $startupmgm = system("/etc/init.d/eos restart mgm");
+        }
+        if ( $mastermq && ($mastermq != 2)) {
+            now();
+            printf "$now ===================================================================\n";
+            printf("$now restart dead MQ ...\n");
+            printf "$now ___________________________________________________________________\n";
+            # service dead ... let's restart
+            my $startupmq = system("/etc/init.d/eos restart mq");
+        }
+    }
+
+    sleep(5);
+    $cnt++;
+}

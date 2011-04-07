@@ -22,9 +22,15 @@ add_executable ( testmgmview
 	         test/MgmViewTest.cc
 )
 
+add_executable ( eosha
+                 tools/eosha.cc
+)
+
 target_link_libraries ( testmgmview XrdClient XrdSys XrdOuc XrdNet XrdNetUtil eosCommon-Static XrdMqClient-Static crypto uuid curses pthread dl z)
 
 set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )
+
+INSTALL_PROGRAMS( /sbin FILES tools/eoshapl )
 
 if (Linux)
   set_target_properties (XrdEosMgm PROPERTIES
@@ -34,7 +40,7 @@ if (Linux)
   )
 endif(Linux)
 
-install ( TARGETS XrdEosMgm
+install ( TARGETS XrdEosMgm eosha
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
           RUNTIME DESTINATION bin
           ARCHIVE DESTINATION ${LIB_INSTALL_DIR}

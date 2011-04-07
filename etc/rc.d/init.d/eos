@@ -177,10 +177,11 @@ status() {
                         # See if /var/lock/subsys/$prog.$i exists
                         if [ -f /var/lock/subsys/$prog.$i ]; then
                                 echo $"$prog for role: $i dead but subsys locked"
+                                RETVAL=1
                         else
                                 echo $"$prog for role: $i is stopped"
+                                RETVAL=2
                         fi
-                        RETVAL=1
                 fi                        
         done
         return $RETVAL

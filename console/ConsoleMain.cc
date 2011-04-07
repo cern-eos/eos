@@ -838,6 +838,7 @@ execute_line (char *line) {
   if (!command)
     {
       fprintf (stderr, "%s: No such command for EOS Console.\n", word);
+      global_retc=-1;
       return (-1);
     }
 
