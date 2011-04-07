@@ -3,10 +3,10 @@ xrootd.async off nosf
 xrd.network keepalive
 ###########################################################
 xrootd.seclib libXrdSec.so
-sec.protocol sss -c /opt/eos/sss/eos-sss.keytab -s /opt/eos/sss/eos-sss.keytab
+sec.protocol sss -c /etc/eos.keytab -s /eos.keytab
 sec.protocol sss
 ###########################################################
-all.export / nolock
+all.export /var/eos/ nolock
 all.trace none
 ofs.trace open close
 ###########################################################

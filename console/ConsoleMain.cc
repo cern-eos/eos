@@ -2,6 +2,7 @@
 #include "ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
+extern int com_access (char*);
 extern int com_attr (char*);
 extern int com_cd (char*);
 extern int com_chmod (char*);
@@ -86,6 +87,7 @@ const char* abspath(const char* in) {
 
 
 COMMAND commands[] = {
+  { (char*)"access",   com_access,   (char*)"Access Interface" },
   { (char*)"attr",     com_attr,     (char*)"Attribute Interface" },
   { (char*)"clear",    com_clear,    (char*)"Clear the terminal" },
   { (char*)"cd",       com_cd,       (char*)"Change directory" },

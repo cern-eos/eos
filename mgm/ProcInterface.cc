@@ -1,9 +1,10 @@
 /*----------------------------------------------------------------------------*/
-#include "common/StringStore.hh"
-#include "common/LayoutId.hh"
+#include "common/Access.hh"
 #include "common/FileId.hh"
-#include "common/StringConversion.hh"
+#include "common/LayoutId.hh"
 #include "common/Mapping.hh"
+#include "common/StringConversion.hh"
+#include "common/StringStore.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Vid.hh"
 #include "mgm/ProcInterface.hh"
@@ -133,6 +134,180 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
   // admin command section
   if (adminCmd) {
+    if (cmd == "access") {
+      std::string user="";
+      std::string group="";
+      std::string host="";
+      std::string option="";
+      bool monitoring = false;
+      bool translate  = true;
+      user  = opaque.Get("mgm.access.user")?opaque.Get("mgm.access.user"):"";
+      group = opaque.Get("mgm.access.group")?opaque.Get("mgm.access.group"):"";
+      host  = opaque.Get("mgm.access.host")?opaque.Get("mgm.access.host"):"";
+      option = opaque.Get("mgm.access.option")?opaque.Get("mgm.access.option"):"";
+
+      if ( (option.find("m"))!=std::string::npos)
+	monitoring = true;
+      if ( (option.find("n"))!=std::string::npos)
+	translate = false;
+
+      if (subcmd == "ban") {
+	eos::common::RWMutexWriteLock lock(eos::common::Access::gAccessMutex);
+	if (user.length()) {
+	  int errc=0;
+	  uid_t uid = eos::common::Mapping::UserNameToUid(user, errc);
+	  if (!errc) {
+	    eos::common::Access::gBannedUsers.insert(uid);
+	    stdOut = "success: ban user '", stdOut += user.c_str(); stdOut += "'";
+	    retc = 0;
+	  } else {
+	    stdErr = "error: no such user - cannot ban '"; stdErr += user.c_str(); stdErr += "'";
+	    retc = EINVAL;
+	  }
+	}
+	if (group.length()) {
+	  int errc=0;
+	  gid_t gid = eos::common::Mapping::GroupNameToGid(group, errc);
+	  if (!errc) {
+	    eos::common::Access::gBannedGroups.insert(gid);
+	    stdOut = "success: ban group '", stdOut += group.c_str(); stdOut += "'";
+	    retc = 0;
+	  } else {
+	    stdErr = "error: no such group - cannot ban '"; stdErr += group.c_str(); stdErr += "'";
+	    retc = EINVAL;
+	  }
+	}
+	if (host.length()) {
+	  eos::common::Access::gBannedHosts.insert(host);
+	  stdOut = "success: ban host '"; stdOut += host.c_str(); stdOut += "'";
+	  retc = 0;
+	}
+      }
+
+      if (subcmd == "unban") {
+	eos::common::RWMutexWriteLock lock(eos::common::Access::gAccessMutex);
+	if (user.length()) {
+	  int errc=0;
+	  uid_t uid = eos::common::Mapping::UserNameToUid(user, errc);
+	  if (!errc) {
+	    if ( eos::common::Access::gBannedUsers.count(uid) ) {
+	      eos::common::Access::gBannedUsers.erase(uid);
+	      stdOut = "success: unban user '", stdOut += user.c_str(); stdOut += "'";
+	      retc = 0;
+	    } else {
+	      stdErr = "error: user '"; stdErr += user.c_str(); stdErr += "' is not banned anyway!"; 
+	      retc = ENOENT;
+	    }
+	  } else {
+	    stdErr = "error: no such user - cannot ban '"; stdErr += user.c_str(); stdErr += "'";
+	    retc = EINVAL;
+	  }
+	}
+	if (group.length()) {
+	  int errc=0;
+	  gid_t gid = eos::common::Mapping::GroupNameToGid(group, errc);
+	  if (!errc) {
+	    if ( eos::common::Access::gBannedGroups.count(gid) ) {
+	      eos::common::Access::gBannedGroups.erase(gid);
+	      stdOut = "success: unban group '", stdOut += group.c_str(); stdOut += "'";
+	      retc = 0;
+	    } else {
+	      stdErr = "error: group '"; stdErr += group.c_str(); stdErr += "' is not banned anyway!"; 
+	      retc = ENOENT;
+	    }
+	  } else {
+	    stdErr = "error: no such group - cannot ban '"; stdErr += group.c_str(); stdErr += "'";
+	    retc = EINVAL;
+	  }
+	}
+	if (host.length()) {
+	  if (eos::common::Access::gBannedHosts.count(host)) {
+	    eos::common::Access::gBannedHosts.insert(host);
+	    stdOut = "success: banning host '"; stdOut += host.c_str(); stdOut += "'";
+	    retc = 0;
+	  } else {
+	    stdErr = "error: host '"; stdErr += host.c_str(); stdErr += "' is not banned anyway!"; 
+	    retc = ENOENT;
+	  }
+
+	}
+      }
+      if (subcmd == "ls") {
+	eos::common::RWMutexReadLock lock(eos::common::Access::gAccessMutex);
+	std::set<uid_t>::const_iterator ituid;
+	std::set<gid_t>::const_iterator itgid;
+	std::set<std::string>::const_iterator ithost;
+	int cnt;
+	if (!monitoring) {
+	  stdOut += "# ....................................................................................\n";
+	  stdOut += "# Banned Users ...\n";
+	  stdOut += "# ....................................................................................\n";
+	}
+  
+	cnt=0;
+	for (ituid = eos::common::Access::gBannedUsers.begin(); ituid != eos::common::Access::gBannedUsers.end(); ituid++) {
+	  cnt ++;
+	  if (monitoring) 
+	    stdOut += "user.banned=";
+	  else {
+	    char counter[16]; snprintf(counter,sizeof(counter)-1, "%02d",cnt);
+	    stdOut += "[ "; stdOut += counter ; stdOut += " ] " ;
+	  } 
+	  if (!translate) {
+	    stdOut += eos::common::Mapping::UidAsString(*ituid).c_str();
+	  } else {
+	    int terrc=0;
+	    stdOut += eos::common::Mapping::UidToUserName(*ituid,terrc).c_str();
+	  }
+	  stdOut += "\n";
+	}
+
+	if (!monitoring) {
+	  stdOut += "# ....................................................................................\n";
+	  stdOut += "# Banned Groups...\n";
+	  stdOut += "# ....................................................................................\n";
+	}
+	
+	cnt=0;
+	for (itgid = eos::common::Access::gBannedGroups.begin(); itgid != eos::common::Access::gBannedGroups.end(); itgid++) {
+	  cnt++;
+	  if (monitoring) 
+	    stdOut += "group.banned=";
+	  else {
+	    char counter[16]; snprintf(counter,sizeof(counter)-1, "%02d",cnt);
+	    stdOut += "[ "; stdOut += counter ; stdOut += " ] " ;
+	  }
+
+	  if (!translate) {
+	    stdOut += eos::common::Mapping::GidAsString(*itgid).c_str();
+	  } else {
+	    int terrc=0;
+	    stdOut += eos::common::Mapping::GidToGroupName(*itgid,terrc).c_str();
+	  }
+	  stdOut += "\n";
+	}
+
+	if (!monitoring) {
+	  stdOut += "# ....................................................................................\n";
+	  stdOut += "# Banned Hosts ...\n";
+	  stdOut += "# ....................................................................................\n";
+	}
+	
+	cnt=0;
+	for (ithost = eos::common::Access::gBannedHosts.begin(); ithost != eos::common::Access::gBannedHosts.end(); ithost++) {
+	  cnt++;
+	  if (monitoring) 
+	    stdOut += "host.banned=";
+	  else {
+	    char counter[16]; snprintf(counter,sizeof(counter)-1, "%02d",cnt);
+	    stdOut += "[ "; stdOut += counter ; stdOut += " ] " ;
+	  }
+	  stdOut += ithost->c_str();
+	  stdOut += "\n";
+	}
+      }
+    }
+
     if (cmd == "config") {
       if (subcmd == "ls") {
 	eos_notice("config ls");
@@ -1544,35 +1719,25 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	gidt = (gid_t) atoi(gid.c_str());
 
 	if ( (uid!="0") && (!uidt)) {
-	  // try to translate with password database
-          char buffer[16384];
-          int buflen = sizeof(buffer);
-          struct passwd pwbuf;
-          struct passwd *pwbufp=0;
-	  if (getpwnam_r(uid.c_str(), &pwbuf, buffer, buflen, &pwbufp)) {
-	    // cannot translate this name
+	  int terrc=0;
+	  uidt = eos::common::Mapping::UserNameToUid(uid, terrc);
+
+	  if (terrc) {
 	    stdErr = "error: I cannot translate your uid string using the pwd database";
-	    retc = EINVAL;
+	    retc = terrc;
 	    failure=true;
-	  } else {
-	    uidt = pwbuf.pw_uid;
-	  }
+	  } 
 	}
 
 	if (! atoi(gid.c_str())) {
 	  // try to translate with password database
-	  char buffer[16384];
-	  int buflen = sizeof(buffer);
-	  struct group grbuf;
-	  struct group *grbufp=0;
-
-	  if (getgrnam_r(gid.c_str(), &grbuf, buffer, buflen, &grbufp)) {
+	  int terrc = 0;
+	  gidt = eos::common::Mapping::GroupNameToGid(gid, terrc);	  
+	  if (terrc) {
 	    // cannot translate this name
 	    stdErr = "error: I cannot translate your gid string using the pwd database";
-	    retc = EINVAL;
+	    retc = terrc;
 	    failure=true;
-	  } else {
-	    gidt = grbuf.gr_gid;
 	  }
 	}
 
@@ -1652,20 +1817,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
 
       for (it = eos::common::Mapping::ActiveTidents.begin(); it != eos::common::Mapping::ActiveTidents.end(); it++) {
-        char buffer[16384];
-        int buflen = sizeof(buffer);
-        struct passwd pwbuf;
-        struct passwd *pwbufp=0;
         std::string username="";
         
         tokens.clear();
         eos::common::StringConversion::Tokenize(it->first, tokens, delimiter);
         uid_t uid = atoi(tokens[0].c_str());
-        if (translate && (!getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp))) {
-          username = pwbuf.pw_name;
-        } else {
-          username = tokens[0];
-        }
+	int terrc=0;
+	username = eos::common::Mapping::UidToUserName(uid, terrc);
         usernamecount[username]++;
         authcount[tokens[2]]++;
       }
@@ -1702,21 +1860,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       eos::common::Mapping::ActiveLock.Lock();
       if (showclients || showall) {
         for (it = eos::common::Mapping::ActiveTidents.begin(); it != eos::common::Mapping::ActiveTidents.end(); it++) {
-          char buffer[16384];
-          int buflen = sizeof(buffer);
-          struct passwd pwbuf;
-          struct passwd *pwbufp=0;
           std::string username="";
           
           tokens.clear();
           eos::common::StringConversion::Tokenize(it->first, tokens, delimiter);
           uid_t uid = atoi(tokens[0].c_str());
-
-          if (translate && (!getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp))) {
-            username = pwbuf.pw_name;
-          } else {
-            username = tokens[0];
-          }
+	  int terrc=0;
+	  username = eos::common::Mapping::UidToUserName(uid,terrc);
 
           char formatline[1024];
           time_t now = time(NULL);
@@ -2825,28 +2975,24 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  if (translateids) {
 		    {
 		      // try to translate with password database
-		      char buffer[16384];
-		      int buflen = sizeof(buffer);
-		      struct passwd pwbuf;
-		      struct passwd *pwbufp=0;
-		      
-		      if (!getpwuid_r(buf.st_uid, &pwbuf, buffer, buflen, &pwbufp)) {
+		      int terrc=0;
+		      std::string username="";
+		      username = eos::common::Mapping::UidToUserName(buf.st_uid, terrc);
+		      if (!terrc) {
 			char uidlimit[16];
-			snprintf(uidlimit,8,"%s",pwbuf.pw_name);
+			snprintf(uidlimit,8,"%s",username.c_str());
 			suid = uidlimit;
 		      } 
 		    }
 
 		    {
 		      // try to translate with password database
-		      char buffer[16384];
-		      int buflen = sizeof(buffer);
-		      struct group grbuf;
-		      struct group *grbufp=0;
-		      
-		      if (!getgrgid_r(buf.st_gid, &grbuf, buffer, buflen, &grbufp)) {
+		      std::string groupname="";
+		      int terrc=0;
+		      groupname = eos::common::Mapping::GidToGroupName(buf.st_gid, terrc);
+		      if (!terrc) {
 			char gidlimit[16];
-			snprintf(gidlimit,8,"%s",grbuf.gr_name);
+			snprintf(gidlimit,8,"%s",groupname.c_str());
 			sgid = gidlimit;
 		      } 
 		    }
@@ -2947,6 +3093,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       if (vid_in.sudoer) 
 	stdOut += " sudo*";
 
+      stdOut += " host="; stdOut += vid.host.c_str();
       MakeResult(0);
       return SFS_OK;
     }

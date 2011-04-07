@@ -50,6 +50,7 @@ public:
     XrdOucString tident;
     XrdOucString name;
     XrdOucString prot;
+    std::string host;
     bool sudoer;
   };
 
@@ -71,6 +72,8 @@ public:
     vidout.prot = vidin.prot;
     vidout.uid_list.clear();
     vidout.gid_list.clear();
+    vidout.host = vidin.host;
+
     for (unsigned int i=0; i< vidin.uid_list.size(); i++) vidout.uid_list.push_back(vidin.uid_list[i]);
     for (unsigned int i=0; i< vidin.gid_list.size(); i++) vidout.gid_list.push_back(vidin.gid_list[i]);
   }
@@ -172,17 +175,44 @@ public:
     return false;
   }
 
-  static const char* ReduceTident(XrdOucString &tident, XrdOucString &wildcardtident, XrdOucString &mytident) {
+  static const char* ReduceTident(XrdOucString &tident, XrdOucString &wildcardtident, XrdOucString &mytident, XrdOucString &myhost) {
     int dotpos = tident.find(".");
     int addpos = tident.find("@");
     wildcardtident = tident;
     mytident = tident;
     mytident.erase(dotpos,addpos-dotpos);
+    myhost = mytident;
+    dotpos = mytident.find("@");
+    myhost.erase(0,dotpos+1);
     wildcardtident = mytident;
     addpos = wildcardtident.find("@");
     wildcardtident.erase(0,addpos);
     wildcardtident = "*" + wildcardtident;
     return mytident.c_str();
+  }
+
+  static std::string UidToUserName(uid_t uid, int &errc);
+
+  static std::string GidToGroupName(uid_t gid, int &errc);
+
+  static uid_t UserNameToUid(std::string &username, int &errc);
+  
+  static gid_t GroupNameToGid(std::string &groupname, int &errc);
+
+  static std::string UidAsString(uid_t uid) {
+    std::string uidstring="";
+    char suid[1024];
+    snprintf(suid, sizeof(suid)-1,"%u", uid);
+    uidstring = suid;
+    return uidstring;
+  }
+
+  static std::string GidAsString(gid_t gid) {
+    std::string gidstring="";
+    char sgid[1024];
+    snprintf(sgid, sizeof(sgid)-1,"%u", gid);
+    gidstring = sgid;
+    return gidstring;
   }
 
 };

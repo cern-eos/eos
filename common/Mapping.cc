@@ -224,7 +224,8 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
   // tident mapping
   XrdOucString mytident="";
   XrdOucString wildcardtident="";
-  XrdOucString stident = "tident:"; stident += "\""; stident += ReduceTident(vid.tident, wildcardtident, mytident); 
+  XrdOucString host="";
+  XrdOucString stident = "tident:"; stident += "\""; stident += ReduceTident(vid.tident, wildcardtident, mytident, host); 
   XrdOucString swctident = "tident:"; swctident += "\""; swctident += wildcardtident;
   XrdOucString suidtident = stident; suidtident += "\":uid";
   XrdOucString sgidtident = stident; sgidtident += "\":gid";
@@ -360,6 +361,8 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     vid.uid = sel_uid;
     vid.gid = sel_gid;
   }
+
+  vid.host = host.c_str();
 
   time_t now = time(NULL);
 
@@ -540,5 +543,98 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
   return ;
 }
 
+/*----------------------------------------------------------------------------*/
+
+std::string 
+Mapping::UidToUserName(uid_t uid, int &errc)
+{
+  char buffer[16384];
+  int buflen = sizeof(buffer);
+  std::string uid_string="";
+  struct passwd pwbuf;
+  struct passwd *pwbufp=0;
+  if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp)) {
+    char suid[1024];
+    snprintf(suid,sizeof(suid)-1,"%u", uid);
+    uid_string = suid;
+    errc = EINVAL;
+  } else {
+    uid_string = pwbuf.pw_name;
+    errc = 0;
+  }
+  return uid_string;
+}
+
+/*----------------------------------------------------------------------------*/
+std::string 
+Mapping::GidToGroupName(gid_t gid, int &errc)
+{
+  char buffer[16384];
+  int buflen = sizeof(buffer);
+  struct group grbuf;
+  struct group *grbufp=0;
+  std::string gid_string="";
+  
+  if (getgrgid_r(gid, &grbuf, buffer, buflen, &grbufp)) {
+    // cannot translate this name
+    char sgid[1024];
+    snprintf(sgid,sizeof(sgid)-1,"%u", gid);
+    gid_string = sgid;
+    errc = EINVAL;
+  } else {
+    gid_string= grbuf.gr_name;
+    errc = 0;
+  }
+  return gid_string;
+}
+
+/*----------------------------------------------------------------------------*/
+uid_t 
+Mapping::UserNameToUid(std::string &username, int &errc)
+{
+ char buffer[16384];
+  int buflen = sizeof(buffer);
+  uid_t uid=99;
+  struct passwd pwbuf;
+  struct passwd *pwbufp=0;
+  if (getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp)) {
+    uid = atoi(username.c_str());
+    if (uid!=0) 
+      errc = 0;
+    else
+      errc = EINVAL;
+  } else {
+    uid = pwbuf.pw_uid;
+    errc = 0;
+  }
+  return uid;
+}
+
+/*----------------------------------------------------------------------------*/
+gid_t 
+Mapping::GroupNameToGid(std::string &groupname, int &errc)
+{
+  char buffer[16384];
+  int buflen = sizeof(buffer);
+  struct group grbuf;
+  struct group *grbufp=0;
+  gid_t gid=99;
+  
+  if (getgrnam_r(groupname.c_str(), &grbuf, buffer, buflen, &grbufp)) {
+    // cannot translate this name
+    gid = atoi(groupname.c_str());
+    if (gid!=0) 
+      errc = 0;
+    else
+      errc = EINVAL;
+  } else {
+    gid = grbuf.gr_gid;
+    errc = 0;
+  }
+  return gid;
+}
+
+
+/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 

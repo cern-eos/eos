@@ -1,4 +1,5 @@
 /*----------------------------------------------------------------------------*/
+#include "common/Access.hh"
 #include "common/Mapping.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
@@ -98,6 +99,10 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 
   gOFS = &myFS;
 
+  // by default enable stalling and redirection
+  gOFS->IsStall    = true;
+  gOFS->IsRedirect = true;
+
   myFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
   if ( myFS.Configure(gMgmOfsEroute) ) return 0;
 
@@ -115,6 +120,17 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 bool 
 XrdMgmOfs::ShouldStall(const char* function,  eos::common::Mapping::VirtualIdentity &vid,int &stalltime, XrdOucString &stallmsg) 
 {
+  // check for user, group or host banning
+  eos::common::RWMutexReadLock lock(eos::common::Access::gAccessMutex);
+  if ( eos::common::Access::gBannedUsers.count(vid.uid) ||
+       eos::common::Access::gBannedGroups.count(vid.gid) ||
+       eos::common::Access::gBannedHosts.count(vid.host) ) {
+    stalltime = 300;
+    stallmsg="Attention: you are currently banned in this instance and each request is stalled for 5 minutes";
+    eos_static_info("denying access to uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
+    return true;
+  } 
+  eos_static_info("allowing access to uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
   return false;
 }
 

@@ -3,7 +3,8 @@ link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
 
 add_executable ( eos
 	         ConsoleMain.cc
-		 ConsoleMain.hh
+		 ConsoleMain.hh	
+		 commands/com_access.cc
 	         commands/com_attr.cc
 		 commands/com_cd.cc
 		 commands/com_chmod.cc 
