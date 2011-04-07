@@ -1,10 +1,10 @@
 /*----------------------------------------------------------------------------*/
-#include "common/Access.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
 #include "common/StringConversion.hh"
 #include "common/StringStore.hh"
+#include "mgm/Access.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Vid.hh"
 #include "mgm/ProcInterface.hh"
@@ -152,14 +152,19 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	translate = false;
 
       if (subcmd == "ban") {
-	eos::common::RWMutexWriteLock lock(eos::common::Access::gAccessMutex);
+	eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
 	if (user.length()) {
 	  int errc=0;
 	  uid_t uid = eos::common::Mapping::UserNameToUid(user, errc);
 	  if (!errc) {
-	    eos::common::Access::gBannedUsers.insert(uid);
-	    stdOut = "success: ban user '", stdOut += user.c_str(); stdOut += "'";
-	    retc = 0;
+	    Access::gBannedUsers.insert(uid);
+	    if (Access::StoreAccessConfig()) {
+	      stdOut = "success: ban user '", stdOut += user.c_str(); stdOut += "'";
+	      retc = 0;
+	    } else {
+	      stdErr = "error: unable to store access configuration";
+	      retc = EIO;
+	    }
 	  } else {
 	    stdErr = "error: no such user - cannot ban '"; stdErr += user.c_str(); stdErr += "'";
 	    retc = EINVAL;
@@ -169,31 +174,51 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  int errc=0;
 	  gid_t gid = eos::common::Mapping::GroupNameToGid(group, errc);
 	  if (!errc) {
-	    eos::common::Access::gBannedGroups.insert(gid);
-	    stdOut = "success: ban group '", stdOut += group.c_str(); stdOut += "'";
-	    retc = 0;
+	    Access::gBannedGroups.insert(gid);
+	    if (Access::StoreAccessConfig()) {
+	      stdOut = "success: ban group '", stdOut += group.c_str(); stdOut += "'";
+	      retc = 0;
+	    } else {
+	      stdErr = "error: unable to store access configuration";
+	      retc = EIO;
+	    }
 	  } else {
 	    stdErr = "error: no such group - cannot ban '"; stdErr += group.c_str(); stdErr += "'";
 	    retc = EINVAL;
 	  }
 	}
 	if (host.length()) {
-	  eos::common::Access::gBannedHosts.insert(host);
-	  stdOut = "success: ban host '"; stdOut += host.c_str(); stdOut += "'";
-	  retc = 0;
+	  if (Access::StoreAccessConfig()) {
+	    Access::gBannedHosts.insert(host);
+	    stdOut = "success: ban host '"; stdOut += host.c_str(); stdOut += "'";
+	    retc = 0;
+	  } else {
+	    stdErr = "error: unable to store access configuration";
+	    retc = EIO;
+	  }
 	}
       }
 
       if (subcmd == "unban") {
-	eos::common::RWMutexWriteLock lock(eos::common::Access::gAccessMutex);
+	eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
 	if (user.length()) {
 	  int errc=0;
 	  uid_t uid = eos::common::Mapping::UserNameToUid(user, errc);
 	  if (!errc) {
-	    if ( eos::common::Access::gBannedUsers.count(uid) ) {
-	      eos::common::Access::gBannedUsers.erase(uid);
-	      stdOut = "success: unban user '", stdOut += user.c_str(); stdOut += "'";
-	      retc = 0;
+	    if ( Access::gBannedUsers.count(uid) ) {
+	      if (Access::StoreAccessConfig()) {
+		Access::gBannedUsers.erase(uid);
+		if (Access::StoreAccessConfig()) {
+		  stdOut = "success: unban user '", stdOut += user.c_str(); stdOut += "'";
+		  retc = 0;
+		} else {
+		  stdErr = "error: unable to store access configuration";
+		  retc = EIO;
+		}
+	      } else {
+		stdErr = "error: unable to store access configuration";
+		retc = EIO;
+	      }
 	    } else {
 	      stdErr = "error: user '"; stdErr += user.c_str(); stdErr += "' is not banned anyway!"; 
 	      retc = ENOENT;
@@ -207,10 +232,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  int errc=0;
 	  gid_t gid = eos::common::Mapping::GroupNameToGid(group, errc);
 	  if (!errc) {
-	    if ( eos::common::Access::gBannedGroups.count(gid) ) {
-	      eos::common::Access::gBannedGroups.erase(gid);
-	      stdOut = "success: unban group '", stdOut += group.c_str(); stdOut += "'";
-	      retc = 0;
+	    if ( Access::gBannedGroups.count(gid) ) {
+	      Access::gBannedGroups.erase(gid);
+	      if (Access::StoreAccessConfig()) {
+		stdOut = "success: unban group '", stdOut += group.c_str(); stdOut += "'";
+		retc = 0;
+	      } else {
+		stdErr = "error: unable to store access configuration";
+		retc = EIO;
+	      }
 	    } else {
 	      stdErr = "error: group '"; stdErr += group.c_str(); stdErr += "' is not banned anyway!"; 
 	      retc = ENOENT;
@@ -221,10 +251,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  }
 	}
 	if (host.length()) {
-	  if (eos::common::Access::gBannedHosts.count(host)) {
-	    eos::common::Access::gBannedHosts.insert(host);
-	    stdOut = "success: banning host '"; stdOut += host.c_str(); stdOut += "'";
-	    retc = 0;
+	  if (Access::gBannedHosts.count(host)) {
+	    Access::gBannedHosts.insert(host);
+	    if (Access::StoreAccessConfig()) {
+	      stdOut = "success: banning host '"; stdOut += host.c_str(); stdOut += "'";
+	      retc = 0;
+	    } else {
+	      stdErr = "error: unable to store access configuration";
+	      retc = EIO;
+	    }
 	  } else {
 	    stdErr = "error: host '"; stdErr += host.c_str(); stdErr += "' is not banned anyway!"; 
 	    retc = ENOENT;
@@ -233,7 +268,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
       }
       if (subcmd == "ls") {
-	eos::common::RWMutexReadLock lock(eos::common::Access::gAccessMutex);
+	eos::common::RWMutexReadLock lock(Access::gAccessMutex);
 	std::set<uid_t>::const_iterator ituid;
 	std::set<gid_t>::const_iterator itgid;
 	std::set<std::string>::const_iterator ithost;
@@ -245,7 +280,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
   
 	cnt=0;
-	for (ituid = eos::common::Access::gBannedUsers.begin(); ituid != eos::common::Access::gBannedUsers.end(); ituid++) {
+	for (ituid = Access::gBannedUsers.begin(); ituid != Access::gBannedUsers.end(); ituid++) {
 	  cnt ++;
 	  if (monitoring) 
 	    stdOut += "user.banned=";
@@ -269,7 +304,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
 	
 	cnt=0;
-	for (itgid = eos::common::Access::gBannedGroups.begin(); itgid != eos::common::Access::gBannedGroups.end(); itgid++) {
+	for (itgid = Access::gBannedGroups.begin(); itgid != Access::gBannedGroups.end(); itgid++) {
 	  cnt++;
 	  if (monitoring) 
 	    stdOut += "group.banned=";
@@ -294,7 +329,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
 	
 	cnt=0;
-	for (ithost = eos::common::Access::gBannedHosts.begin(); ithost != eos::common::Access::gBannedHosts.end(); ithost++) {
+	for (ithost = Access::gBannedHosts.begin(); ithost != Access::gBannedHosts.end(); ithost++) {
 	  cnt++;
 	  if (monitoring) 
 	    stdOut += "host.banned=";

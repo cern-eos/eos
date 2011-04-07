@@ -195,6 +195,11 @@ public:
   void SetConfigEngine(ConfigEngine* engine) {ConfEngine = engine;}
   bool ApplyFsConfig(const char* key, std::string &val);
   bool ApplyGlobalConfig(const char* key, std::string &val);
+
+  // set/return fields from 
+  bool SetGlobalConfig(std::string key, std::string value);
+  std::string GetGlobalConfig(std::string key);
+
 #endif
 
   void SetNextFsId(eos::common::FileSystem::fsid_t fsid);

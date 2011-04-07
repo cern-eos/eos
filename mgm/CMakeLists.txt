@@ -2,6 +2,7 @@ include_directories( ../ ${XROOTD_INCLUDE_DIR} )
 link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
 
 add_library (XrdEosMgm MODULE
+            Access.cc         
 	    ConfigEngine.cc
 	    FstNode.cc
 	    Messaging.cc

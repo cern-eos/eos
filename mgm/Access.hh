@@ -2,7 +2,7 @@
 #define __EOSCOMMON_ACCESS__
 
 /*----------------------------------------------------------------------------*/
-#include "common/Namespace.hh"
+#include "mgm/Namespace.hh"
 #include "common/RWMutex.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -13,12 +13,15 @@
 #include <string>
 /*----------------------------------------------------------------------------*/
 
-EOSCOMMONNAMESPACE_BEGIN
+EOSMGMNAMESPACE_BEGIN
 
 class Access {
 private:
 public:
 
+  static const char* gUserKey;
+  static const char* gGroupKey;
+  static const char* gHostKey;
   static std::set<uid_t> gBannedUsers;
   static std::set<gid_t> gBannedGroups;
   static std::set<std::string> gBannedHosts;
@@ -29,9 +32,17 @@ public:
   static std::map<uid_t, std::string> gUserRedirection;
   static std::map<gid_t, std::string> gGroupRedirection;
 
-  static RWMutex gAccessMutex; // protects all static set's and maps in Access
+  static eos::common::RWMutex gAccessMutex; // protects all static set's and maps in Access
+
+  static bool SetConfig(std::string key, std::string value);
+  static std::string GetConfig(std::string key);
+
+
+  static void Reset();
+  static void ApplyAccessConfig(); // retrieves the config from the global shared hash/config engine and fills the static hashes
+  static bool StoreAccessConfig(); // pushed the static hashes into the global shared hash/config engine
 };
 
-EOSCOMMONNAMESPACE_END
+EOSMGMNAMESPACE_END
 
 #endif

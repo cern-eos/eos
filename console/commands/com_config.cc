@@ -39,13 +39,17 @@ com_config (char* arg1) {
 		    in += "&mgm.config.global=1";
 		    arg = subtokenizer.GetToken();
 		  } else 
-		    if (!arg.beginswith("-")) {
-		      in += "&mgm.config.file=";
-		      in += arg;
+		    if ((arg == "--access") || (arg == "-a")) {
+		      in += "mgm.config.access=1";
 		      arg = subtokenizer.GetToken();
-		    } else {
-		      goto com_config_usage;
-		    }
+		    } else 
+		      if (!arg.beginswith("-")) {
+			in += "&mgm.config.file=";
+			in += arg;
+			arg = subtokenizer.GetToken();
+		      } else {
+			goto com_config_usage;
+		      }
       } while (arg.length());
     }      
     
@@ -164,13 +168,14 @@ com_config (char* arg1) {
   
  com_config_usage:
   printf("usage: config ls   [--backup|-b]                                         :  list existing configurations\n");
-  printf("usage: config dump [--fs|-f] [--vid|-v] [--quota|-q] [--policy|-p] [--comment|-c] [--global|-g] [<name>]\n");
+  printf("usage: config dump [--fs|-f] [--vid|-v] [--quota|-q] [--policy|-p] [--comment|-c] [--global|-g] [--access|-a] [<name>]\n");
   printf("                                                                         :  dump current configuration or configuration with name <name>\n");
   printf("                                                                            -f : dump only file system config\n");
   printf("                                                                            -v : dump only virtual id config\n");
   printf("                                                                            -q : dump only quota config\n");
   printf("                                                                            -p : dump only policy config\n");
   printf("                                                                            -g : dump only global config\n");
+  printf("                                                                            -a : dump only access config\n");
 
   printf("usage: config save [-f] [<name>] [--comment|-c \"<comment>\"] ]          :  save config (optionally under name)\n");
   printf("                                                                            -f : overwrite existing config name and create a timestamped backup\n");

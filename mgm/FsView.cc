@@ -522,21 +522,15 @@ FsView::SetNextFsId(eos::common::FileSystem::fsid_t fsid)
   //----------------------------------------------------------------
   NextFsId = fsid;
 
-  // we need to store this in the shared hash between MGMs
-  XrdMqRWMutexReadLock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(MgmConfigQueueName.c_str());
-  if (hash) {
-    hash->SetLongLong("nextfsid",(long long)fsid);
-  }
+  std::string key ="nextfsid";
+  char value[1024];
+  snprintf(value,sizeof(value)-1,"%llu", (unsigned long long) fsid);
+  std::string svalue = value;
+
 #ifndef EOSMGMFSVIEWTEST
-  // register in the configuration engine
-  std::string key=MgmConfigQueueName.c_str();
-  key += "#nextfsid";
-  char line[1024];
-  snprintf(line,sizeof(line)-1,"%llu", (unsigned long long) fsid);
-  std::string val = line;
-  if (FsView::ConfEngine)
-    FsView::ConfEngine->SetConfigValue("global", key.c_str(), val.c_str());
+  if (!SetGlobalConfig(key, value)) {
+    eos_static_err("unable to set nextfsid in global config");
+  }
 #endif
 }
 
@@ -556,6 +550,44 @@ FsView::FindByQueuePath(std::string &queuepath)
   }
   return 0;
 }
+
+#ifndef EOSMGMFSVIEWTEST
+/*----------------------------------------------------------------------------*/
+bool
+FsView::SetGlobalConfig(std::string key, std::string value)
+{
+  // we need to store this in the shared hash between MGMs
+  XrdMqRWMutexReadLock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(MgmConfigQueueName.c_str());
+  if (hash) {
+    hash->Set(key, value);
+  }
+#ifndef EOSMGMFSVIEWTEST
+  // register in the configuration engine
+  std::string ckey=MgmConfigQueueName.c_str();
+  ckey += "#";
+  ckey += key;
+
+  if (FsView::ConfEngine)
+    FsView::ConfEngine->SetConfigValue("global",ckey.c_str(), value.c_str());
+#endif
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+std::string
+FsView::GetGlobalConfig(std::string key)
+{
+  XrdMqRWMutexReadLock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(MgmConfigQueueName.c_str());
+
+  if (hash) {
+    return hash->Get(key);
+  }
+  return "";
+}
+
+#endif
 
 /*----------------------------------------------------------------------------*/
 std::string 

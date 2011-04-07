@@ -1,5 +1,6 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Mapping.hh"
+#include "mgm/Access.hh"
 #include "mgm/ConfigEngine.hh"
 #include "mgm/FstNode.hh"
 #include "mgm/FsView.hh"
@@ -433,6 +434,8 @@ ConfigEngine::ResetConfig()
   eos::common::Mapping::gVirtualGidMap.clear();
   eos::common::Mapping::gMapMutex.UnLockWrite();
 
+  Access::Reset();
+
   FsView::gFsView.Reset();
   eos::common::GlobalConfig::gConfig.Reset();
   Mutex.Lock();
@@ -467,6 +470,8 @@ ConfigEngine::ApplyConfig(XrdOucString &err)
   eos::common::Mapping::gVirtualGidMap.clear();
   eos::common::Mapping::gMapMutex.UnLockWrite();
 
+  Access::Reset();
+
   Mutex.Lock();
   XrdOucHash<XrdOucString> configDefinitionsCopy;
 
@@ -474,6 +479,8 @@ ConfigEngine::ApplyConfig(XrdOucString &err)
   Mutex.UnLock();
 
   FstNode::gMutex.UnLock();
+
+  Access::ApplyAccessConfig();
 
   if (err.length()) {
     errno = EINVAL;
@@ -621,13 +628,13 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
 
   if (skey.beginswith("vid:")) {
     int envlen;
-    // set a policy
+    // set a virutal Identity
     if (!Vid::Set(envdev.Env(envlen))) {
       eos_static_err("cannot apply config line key: |%s| => |%s|",skey.c_str(), def->c_str());
       *err += "error: cannot apply config line key: "; *err += skey.c_str();
     } 
   }
-  
+
   return 0;
 }
 
@@ -687,7 +694,7 @@ ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
   pinfo.out = &out;
   pinfo.option = "vfqcg";
   
-  if (filter.Get("mgm.config.vid") || (filter.Get("mgm.config.fs")) || (filter.Get("mgm.config.quota")) || (filter.Get("mgm.config.comment")  || (filter.Get("mgm.config.policy")) || (filter.Get("mgm.config.global"))))
+  if (filter.Get("mgm.config.vid") || (filter.Get("mgm.config.fs")) || (filter.Get("mgm.config.quota")) || (filter.Get("mgm.config.comment")  || (filter.Get("mgm.config.policy")) || (filter.Get("mgm.config.global") )))
     pinfo.option = "";
   
   if (filter.Get("mgm.config.vid")) {
