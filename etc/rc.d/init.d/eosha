@@ -1,0 +1,55 @@
+#!/bin/bash
+#
+# chkconfig: 35 95 12
+# description: eosha - eos HA daemon
+#
+
+# Get function from functions library
+. /etc/init.d/functions
+. /etc/sysconfig/eos
+
+# Start the eosha service
+start() {
+        echo -n "Starting eosha: "
+        [ -z "${EOS_MGM_MASTER1}" ] && failure && echo "Env EOS_MGM_MASTER1 undefined!" && exit -1;
+        [ -z "${EOS_MGM_MASTER2}" ] && failure && echo "Env EOS_MGM_MASTER2 undefined!" && exit -1;
+        [ -z "${EOS_MGM_ALIAS}"   ] && failure && echo "Env EOS_MGM_ALIAS undefined!"  && exit -1;
+        
+        echo eosha ${EOS_LOGDIR-/var/log/eos/}/eosha.log ${EOS_MGM_MASTER1} ${EOS_MGM_MASTER2} ${EOS_MGM_ALIAS} ${EOS_MGM_FAILOVERTIME-120}
+        eosha ${EOS_LOGDIR-/var/log/eos/}/eosha.log ${EOS_MGM_MASTER1} ${EOS_MGM_MASTER2} ${EOS_MGM_ALIAS} ${EOS_MGM_FAILOVERTIME-120}
+        ### Create the lock file ###
+        touch /var/lock/subsys/eosha
+        success $"eosha has been started."
+        echo
+}
+
+# Stop the eosha service
+stop() {
+        echo -n "Stopping eosha: "
+        killproc eosha
+        ### Now, delete the lock file ###
+        rm -f /var/lock/subsys/eosha
+        echo
+}
+
+### main logic ###
+case "$1" in
+  start)
+        start
+        ;;
+  stop)
+        stop
+        ;;
+  status)
+        status eosha
+        ;;
+  restart|reload|condrestart)
+        stop
+        start
+        ;;
+  *)
+        echo $"Usage: $0 {start|stop|restart|reload|status}"
+        exit 1
+esac
+
+exit 0
