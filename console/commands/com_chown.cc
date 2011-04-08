@@ -24,6 +24,9 @@ com_chown (char* arg1) {
 
   if ( !path.length() || !owner.length() ) 
     goto com_chown_usage;
+
+  path = abspath(path.c_str());
+
   in += "&mgm.path="; in += path;
   in += "&mgm.chown.owner="; in += owner;
 

@@ -23,6 +23,9 @@ com_chmod (char* arg1) {
   XrdOucString path = subtokenizer.GetToken();
   if ( !path.length() || !mode.length() ) 
     goto com_chmod_usage;
+
+  path = abspath(path.c_str());
+
   in += "&mgm.path="; in += path;
   in += "&mgm.chmod.mode="; in += mode;
 

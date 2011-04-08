@@ -197,6 +197,8 @@ EOSConsole_completion (const char *text, int start, int intend) {
        cmd.beginswith("rmdir ") ||
        cmd.beginswith("find ") ||
        cmd.beginswith("cd ") ||
+       cmd.beginswith("chown ") ||
+       cmd.beginswith("chmod ") ||
        cmd.beginswith("attr ") ) {
     // dir completion
     rl_completion_append_character = '\0';
