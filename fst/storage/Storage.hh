@@ -9,6 +9,7 @@
 #include "fst/transfer/Transfer.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
+#include "fst/Load.hh"
 #include "mq/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
@@ -127,6 +128,8 @@ public:
 
   Storage(const char* metadirectory);
   ~Storage() {};
+  
+  Load fstLoad;
 
   static Storage* Create(const char* metadirectory);
 

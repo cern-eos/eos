@@ -17,6 +17,13 @@ add_library (XrdEosFst MODULE
 
 target_link_libraries (XrdEosFst eosCapability-Static eosCommon-Static XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNet XrdNetUtil XrdOfs XrdOss crypto uuid curses pthread dl z)
 
+add_executable ( FstLoad
+                 Load.cc
+                 tools/FstLoad.cc
+)
+
+target_link_libraries ( FstLoad XrdSys XrdOuc XrdNetUtil dl )
+
 if (Linux)
   set_target_properties (XrdEosFst PROPERTIES
     VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}

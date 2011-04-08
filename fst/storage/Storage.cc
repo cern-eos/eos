@@ -199,6 +199,9 @@ Storage::Storage(const char* metadirectory)
     eos_crit("cannot start publisher thread");
     zombie = true;
   }
+
+  eos_info("enabling net/io load monitor");
+  fstLoad.Monitor();
 }
 
 
@@ -1216,6 +1219,7 @@ Storage::Publish()
       if (!gOFS.ObjectManager.OpenMuxTransaction()) {
         eos_static_err("cannot open mux transaction");
       } else {
+        // copy out statfs info
         for (size_t i=0; i<fileSystemsVector.size(); i++) {
           eos::common::Statfs* statfs = 0;
           if ( (statfs= fileSystemsVector[i]->GetStatfs()) ) {
@@ -1223,6 +1227,17 @@ Storage::Publish()
             if (!fileSystemsVector[i]->SetStatfs(statfs->GetStatfs())) {
               eos_static_err("cannot SetStatfs on filesystem %s", fileSystemsVector[i]->GetPath().c_str());
             }
+          }
+          
+          bool success = true;
+          // copy out net info 
+          // TODO: take care of eth0 only ..
+          
+          success &= fileSystemsVector[i]->SetDouble("stat.net.inratemib", fstLoad.GetNetRate("eth0","rxbytes")/1024.0/1024.0);
+          success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib", fstLoad.GetNetRate("eth0","txbytes")/1024.0/1024.0);
+          
+          if (!success) {
+            eos_static_err("cannot set net parameterson filesystem %s", fileSystemsVector[i]->GetPath().c_str());
           }
         }
       }

@@ -195,10 +195,12 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs, bool dolock) {
     fs.mBootSentTime  = (time_t) mHash->GetLongLong("stat.bootsenttime");
     fs.mBootDoneTime  = (time_t) mHash->GetLongLong("stat.bootdonetime");
     fs.mHeartBeatTime = (time_t) mHash->GetLongLong("stat.heartbeattime");
-    fs.mDiskLoad      = mHash->GetDouble("stat.diskload");
-    fs.mNetLoad         = mHash->GetDouble("stat.netload");
-    fs.mDiskWriteRateMb = mHash->GetDouble("stat.diskwriteratemb");
-    fs.mDiskReadRateMb  = mHash->GetDouble("stat.diskreadratemb");
+    fs.mDiskLoad      = mHash->GetDouble("stat.disk.load");
+    fs.mNetLoad         = mHash->GetDouble("stat.net.load");
+    fs.mNetInRateMiB    = mHash->GetDouble("stat.net.inratemib");
+    fs.mNetOutRateMiB   = mHash->GetDouble("stat.net.outratemib");
+    fs.mDiskWriteRateMb = mHash->GetDouble("stat.disk.writeratemb");
+    fs.mDiskReadRateMb  = mHash->GetDouble("stat.disk.readratemb");
     fs.mDiskType        = (long) mHash->GetLongLong("stat.statfs.type");
     fs.mDiskBsize       = (long) mHash->GetLongLong("stat.statfs.bsize");
     fs.mDiskBlocks      = (long) mHash->GetLongLong("stat.statfs.blocks");
@@ -238,6 +240,8 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs, bool dolock) {
     fs.mHeartBeatTime = 0;
     fs.mDiskLoad      = 0;
     fs.mNetLoad         = 0;
+    fs.mNetInRateMiB    = 0;
+    fs.mNetOutRateMiB    = 0;
     fs.mDiskWriteRateMb = 0;
     fs.mDiskReadRateMb  = 0;
     fs.mDiskType        = 0;

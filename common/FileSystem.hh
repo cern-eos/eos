@@ -59,6 +59,8 @@ public:
     double mDiskWriteRateMb;
     double mDiskReadRateMb;
     double mNetLoad;
+    double mNetInRateMiB;
+    double mNetOutRateMiB;
     double mWeightRead;
     double mWeightWrite;
     long   mDiskType;

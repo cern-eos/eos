@@ -140,7 +140,7 @@ public:
   void SetNetBandWidth (unsigned long long bw) {fNetStat.SetBandWidth(bw);}
 
 
-  Load(unsigned int ival=5) {
+  Load(unsigned int ival=1) {
     tid=0;
     interval = ival;
     if (interval==0)
