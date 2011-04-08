@@ -56,7 +56,7 @@ FileSystem::BroadcastStatus()
 
 /*----------------------------------------------------------------------------*/
 eos::common::Statfs*
-FileSystem::GetStatfs(bool &changed) 
+FileSystem::GetStatfs() 
 { 
 
   statFs = eos::common::Statfs::DoStatfs(GetPath().c_str());
@@ -65,24 +65,6 @@ FileSystem::GetStatfs(bool &changed)
     BroadcastError("cannot statfs");
     return 0;
   }
-
-  //  if (!last_blocks_free) last_blocks_free = statFs->GetStatfs()->f_bfree;
-
-  eos_debug("statfs on filesystem %s id %d - %lu => %lu", GetQueue().c_str(),GetId(),last_blocks_free,statFs->GetStatfs()->f_bfree  );
-  // define significant change here as 256MB change
-  if ( (last_blocks_free == 0) || (( labs(last_blocks_free - statFs->GetStatfs()->f_bfree)) > (256*1000*1000l) )) {
-    eos_debug("filesystem change on filesystem %s id %d", GetQueue().c_str(), GetId());
-    changed = true;
-    last_blocks_free = statFs->GetStatfs()->f_bfree;
-    // since it changed a lot we broadcast the information to mgm's
-    BroadcastStatus();
-    last_status_broadcast = time(0);
-    return statFs;
-  }
-
-  // within the quota report interval we send a broad cast in any case!
-  if ((time(0) - last_status_broadcast) > Config::gConfig.FstQuotaReportInterval) 
-    BroadcastStatus();
 
   return statFs;
 }
@@ -210,6 +192,13 @@ Storage::Storage(const char* metadirectory)
     eos_crit("cannot start communicator thread");
     zombie = true;
   }
+
+  eos_info("starting filesystem publishing thread");
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsPublisher, static_cast<void *>(this),
+			      0, "Publisher Thread"))) {
+    eos_crit("cannot start publisher thread");
+    zombie = true;
+  }
 }
 
 
@@ -225,16 +214,6 @@ Storage::Create(const char* metadirectory)
   return storage;
 }
 
-/*----------------------------------------------------------------------------*/
-
-/*int
-Storage::HasStatfsChanged(const char* key, FileSystem* filesystem, void* arg) 
-{
-  bool* changed = (bool*) arg;
-  // get a fresh statfs
-  filesystem->GetStatfs(*changed);
-  return 0;
-  }*/
 
 /*----------------------------------------------------------------------------*/
 void 
@@ -503,6 +482,15 @@ Storage::StartFsCommunicator(void * pp)
 }    
 
 /*----------------------------------------------------------------------------*/
+void*
+Storage::StartFsPublisher(void * pp)
+{
+  Storage* storage = (Storage*)pp;
+  storage->Publish();
+  return 0;
+}    
+
+/*----------------------------------------------------------------------------*/
 void
 Storage::Scrub()
 {
@@ -533,8 +521,7 @@ Storage::Scrub()
       if (i< fileSystemsVector.size()) {
 	std::string path = fileSystemsVector[i]->GetPath();
         
-        bool ignoreme;
-	if (!fileSystemsVector[i]->GetStatfs(ignoreme)) {
+	if (!fileSystemsVector[i]->GetStatfs()) {
           eos_static_info("GetStatfs failed");
 	  fsMutex.UnLockRead();
 	  continue;
@@ -1208,6 +1195,50 @@ Storage::Communicator()
   }
 }
 
+/*----------------------------------------------------------------------------*/
+void
+Storage::Publish()
+{
+  eos_static_info("Publisher activated ...");  
+  struct timeval tv1, tv2; 
+  struct timezone tz;
+
+  while (1) {
+    gettimeofday(&tv1, &tz);
+
+    // TODO: derive this from a global variable
+    unsigned int lReportIntervalMilliSeconds = 1000;
+
+    {
+      // run through our defined filesystems and publish with a MuxTransaction all changes
+      eos::common::RWMutexReadLock lock (fsMutex);
+      
+      if (!gOFS.ObjectManager.OpenMuxTransaction()) {
+        eos_static_err("cannot open mux transaction");
+      } else {
+        for (size_t i=0; i<fileSystemsVector.size(); i++) {
+          eos::common::Statfs* statfs = 0;
+          if ( (statfs= fileSystemsVector[i]->GetStatfs()) ) {
+            // call the update function which stores into the filesystem shared hash
+            if (!fileSystemsVector[i]->SetStatfs(statfs->GetStatfs())) {
+              eos_static_err("cannot SetStatfs on filesystem %s", fileSystemsVector[i]->GetPath().c_str());
+            }
+          }
+        }
+      }
+      
+      gOFS.ObjectManager.CloseMuxTransaction();
+    }
+    gettimeofday(&tv2, &tz);
+    int lCycleDuration = (int)( (tv2.tv_sec*1000.0)-(tv1.tv_sec*1000.0) + (tv2.tv_usec/1000.0) - (tv1.tv_usec/1000.0) );
+    int lSleepTime = lReportIntervalMilliSeconds - lCycleDuration;
+    if (lSleepTime < 0) {
+      eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds", lReportIntervalMilliSeconds,lCycleDuration);
+    } else {
+      usleep(1000*lSleepTime);
+    }
+  }
+}
 
 /*----------------------------------------------------------------------------*/
 bool 

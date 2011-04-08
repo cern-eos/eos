@@ -46,8 +46,6 @@ public:
 
   const char* GetTransactionDirectory() {return transactionDirectory.c_str();}
 
-  eos::common::Statfs* GetStatfs() {return statFs;}
-
   void BroadcastError(const char* msg);
   void BroadcastError(int errc, const char* errmsg);
   void BroadcastStatus();
@@ -67,7 +65,7 @@ public:
     }
   }
   
-  eos::common::Statfs* GetStatfs(bool &changedalot);
+  eos::common::Statfs* GetStatfs();
 }; 
 
 
@@ -96,6 +94,7 @@ public:
   static void* StartFsPulling(void* pp);
   static void* StartFsReport(void* pp);
   static void* StartFsVerify(void* pp);
+  static void* StartFsPublisher(void* pp);
 
   void Scrub();
   void Trim();
@@ -104,7 +103,8 @@ public:
   void Report();
   void Verify();
   void Communicator();
-  
+  void Publish();
+
   void Boot(FileSystem* fs);
 
   XrdSysMutex transferMutex;

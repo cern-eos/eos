@@ -5,6 +5,7 @@
 #include "common/Namespace.hh"
 #include "common/Exception.hh"
 #include "common/StringConversion.hh"
+#include "common/Statfs.hh"
 #include "mq/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -155,6 +156,8 @@ public:
   bool SetConfigStatus(fsstatus_t status) {
     return SetString("configstatus", GetConfigStatusAsString(status));
   }
+
+  bool SetStatfs(struct statfs* statfs);
 
   //------------------------------------------------------------------------
   //! Getter Functions throwing exceptions

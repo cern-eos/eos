@@ -17,6 +17,8 @@ XrdMqSharedObjectManager::XrdMqSharedObjectManager()
   DumperFile     = "";
   AutoReplyQueue = "";
   AutoReplyQueueDerive = false;
+  IsMuxTransaction = false;
+  MuxTransactions.clear();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -281,7 +283,9 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
   XrdOucEnv env(message->GetBody());
 
   int envlen;
-  if (debug)fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=> %s\n", env.Env(envlen));
+  env.Env(envlen);
+  if (debug){env.Env(envlen);fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=> size=%d text=%s\n",envlen, env.Env(envlen));}
+
   if (env.Get(XRDMQSHAREDHASH_SUBJECT)) {
     subject = env.Get(XRDMQSHAREDHASH_SUBJECT);
   } else {
@@ -332,7 +336,9 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
         }
       }
     } else {
-      subjectlist.push_back(subject);
+      std::string delimiter = "%";
+      // we support also multiplexed subject updates and split the list
+      XrdMqStringConversion::Tokenize(subject,subjectlist,delimiter);
     }
 
     XrdOucString ftag = XRDMQSHAREDHASH_CMD; ftag += "="; ftag += env.Get(XRDMQSHAREDHASH_CMD);
@@ -386,9 +392,12 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
           }
         }
 
-        if (!CreateSharedObject(subject.c_str(),AutoReplyQueue.c_str() ,type.c_str())) {
-          error = "cannot create shared object for "; error += subject.c_str(); error += " and type "; error += type.c_str();
-          return false;
+        // create the list of subjects
+        for (size_t i=0; i< subjectlist.size(); i++ ) {
+          if (!CreateSharedObject(subjectlist[i].c_str(),AutoReplyQueue.c_str() ,type.c_str())) {
+            error = "cannot create shared object for "; error += subject.c_str(); error += " and type "; error += type.c_str();
+            return false;
+          }
         }
 
 	{
@@ -414,55 +423,73 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
 	if (ftag == XRDMQSHAREDHASH_BCREPLY) {
 	  sh->Clear();
 	}
-	
-	std::string key;
-	std::string value;
-	std::string cid;
-	std::vector<int> keystart;
-	std::vector<int> valuestart;
-	std::vector<int> cidstart;
-	for (unsigned int i=0; i< val.length(); i++) {
-	  if (val.c_str()[i] == '|') {
-	    keystart.push_back(i);
-	  }
-	  if (val.c_str()[i] == '~') {
-	    valuestart.push_back(i);
-	  }
-	  if (val.c_str()[i] == '%') {
-	    cidstart.push_back(i);
-	  }
-	}
-	
-	if (keystart.size() != valuestart.size()) {
-	  error = "update: parsing error in pairs tag";
-	  return false;
-	}
-	
-	if (keystart.size() != cidstart.size()) {
-	  error = "update: parsing error in pairs tag";
-	  return false;
-	}
-	
-	std::string sstr;
-	
-	XrdSysMutexHelper(TransactionMutex);
-	for (unsigned int i=0 ; i< keystart.size(); i++) {
-	  sstr = val.substr(keystart[i]+1, valuestart[i]-1 - (keystart[i]));
-	  key = sstr;
-	  sstr = val.substr(valuestart[i]+1, cidstart[i]-1 - (valuestart[i]));
-	  value = sstr;
-	  if (i == (keystart.size()-1)) {
-	    sstr = val.substr(cidstart[i]+1);
-	  } else {
-	    sstr = val.substr(cidstart[i]+1,keystart[i+1]-1 - (cidstart[i]));
-	  }
-	  cid = sstr;
-	  if (debug)fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Setting [%s] %s=>%s\n", subject.c_str(),key.c_str(), value.c_str());
-	  sh->Set(key, value, false, true);
 
-	}
-	PostModificationTempSubjects();
-	return true;
+
+        for (size_t s=0; s< subjectlist.size(); s++) {
+          sh = GetObject(subjectlist[s].c_str(),type.c_str());	
+          if (!sh) {
+            error = "update: subject does not exist (FATAL!)";
+            return false;
+          }          
+          
+          std::string key;
+          std::string value;
+          std::string cid;
+          std::vector<int> keystart;
+          std::vector<int> valuestart;
+          std::vector<int> cidstart;
+          for (unsigned int i=0; i< val.length(); i++) {
+            if (val.c_str()[i] == '|') {
+              keystart.push_back(i);
+            }
+            if (val.c_str()[i] == '~') {
+              valuestart.push_back(i);
+            }
+            if (val.c_str()[i] == '%') {
+              cidstart.push_back(i);
+            }
+          }
+          
+          if (keystart.size() != valuestart.size()) {
+            error = "update: parsing error in pairs tag";
+            return false;
+          }
+          
+          if (keystart.size() != cidstart.size()) {
+            error = "update: parsing error in pairs tag";
+            return false;
+          }
+          
+          std::string sstr;
+          
+          XrdSysMutexHelper(TransactionMutex);
+          for (unsigned int i=0 ; i< keystart.size(); i++) {
+            sstr = val.substr(keystart[i]+1, valuestart[i]-1 - (keystart[i]));
+            key = sstr;
+            sstr = val.substr(valuestart[i]+1, cidstart[i]-1 - (valuestart[i]));
+            value = sstr;
+            if (i == (keystart.size()-1)) {
+              sstr = val.substr(cidstart[i]+1);
+            } else {
+              sstr = val.substr(cidstart[i]+1,keystart[i+1]-1 - (cidstart[i]));
+            }
+            cid = sstr;
+            if (debug)fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Setting [%s] %s=>%s\n", subject.c_str(),key.c_str(), value.c_str());
+            if (subjectlist.size()>1) {
+              // this is a multiplexed update, where we have to remove the subject from the key if there is a match with the current subject
+              if (key.compare(0, subjectlist[s].length(), subjectlist[s])) {
+                // this is the right key for the subject we are dealing with
+                key.replace(0, subjectlist[s].length(), "");
+              } else {
+                continue;
+              }
+            }
+            sh->Set(key, value, false, true);
+            
+          }
+          PostModificationTempSubjects();
+        }
+        return true;
       }
       
       if (ftag == XRDMQSHAREDHASH_BCREQUEST) {
@@ -544,6 +571,82 @@ XrdMqSharedObjectManager::Clear()
 }
 
 /*----------------------------------------------------------------------------*/
+bool
+XrdMqSharedObjectManager::CloseMuxTransaction() 
+{
+  // Mux Transactions can only update values with the same broadcastqueue, no deletions of subjects
+
+  if (MuxTransactions.size()) {
+    XrdOucString txmessage="";
+    MakeMuxUpdateEnvHeader(txmessage);
+    AddMuxTransactionEnvString(txmessage);
+    XrdMqMessage message("XrdMqSharedHashMessage");
+    message.SetBody(txmessage.c_str());
+    message.MarkAsMonitor();
+    XrdMqMessaging::gMessageClient.SendMessage(message, MuxTransactionBroadCastQueue.c_str());
+  }
+
+  IsMuxTransaction = false;
+  MuxTransactions.clear();
+  MuxTransactionMutex.UnLock();
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdMqSharedObjectManager::MakeMuxUpdateEnvHeader(XrdOucString &out)
+{
+  std::string subjects="";
+  std::map<std::string,std::set <std::string> >::const_iterator it;
+  for (it = MuxTransactions.begin(); it != MuxTransactions.end(); it++) {
+    subjects += it->first;
+    subjects += "%";
+  }
+  // remove trailing '%'
+  if (subjects.length() > 0)
+    subjects.erase(subjects.length()-1,1);
+  
+  out = XRDMQSHAREDHASH_UPDATE; out += "&"; out += XRDMQSHAREDHASH_SUBJECT; out += "="; out += subjects.c_str();
+  out += "&"; out += XRDMQSHAREDHASH_TYPE;    out += "="; out += MuxTransactionType.c_str();
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdMqSharedObjectManager::AddMuxTransactionEnvString(XrdOucString &out)
+{
+  // encoding works as "mysh.pairs=|<key1>~<value1>%<changeid1>|<key2>~<value2>%<changeid2 ...."
+  out += "&"; out += XRDMQSHAREDHASH_PAIRS; out += "=";
+  std::map< std::string, std::set<std::string> >::const_iterator subjectit;
+  
+
+  for (subjectit = MuxTransactions.begin(); subjectit != MuxTransactions.end(); subjectit++) {
+    // loop over subjects
+    std::set<std::string>::const_iterator it;
+
+    XrdMqSharedHash* hash = GetObject(subjectit->first.c_str(), MuxTransactionType.c_str());
+
+    if (hash) {
+      XrdMqRWMutexReadLock lock(hash->StoreMutex);
+      for (it = subjectit->second.begin(); it != subjectit->second.end(); it++) {
+        // loop over variables
+        
+        if ( (hash->Store.count(it->c_str() ))) {
+          out += "|";
+          out += subjectit->first.c_str();
+          out += it->c_str();
+          out += "~";
+          out += hash->Store[it->c_str()].entry.c_str();
+          out += "%";
+          char cid[1024];snprintf(cid,sizeof(cid)-1,"%llu",hash->Store[it->c_str()].ChangeId);
+          out += cid;
+        }
+      }
+    }
+  }
+}
+
+
+/*----------------------------------------------------------------------------*/
 XrdMqSharedHash::XrdMqSharedHash(const char* subject, const char* broadcastqueue, XrdMqSharedObjectManager* som) 
 {
   BroadCastQueue = broadcastqueue;
@@ -578,6 +681,27 @@ XrdMqSharedHash::StoreAsString(const char* notprefix)
   return s;
 }
 
+/*----------------------------------------------------------------------------*/
+bool 
+XrdMqSharedObjectManager::OpenMuxTransaction(const char* type, const char* broadcastqueue) {
+  MuxTransactionType = type;
+  if (MuxTransactionType != "hash") {
+    return false;
+  }
+  if (!broadcastqueue) {
+    if (AutoReplyQueue.length())
+      MuxTransactionBroadCastQueue=AutoReplyQueue;
+    else
+      return false;
+  } else {
+    MuxTransactionBroadCastQueue = broadcastqueue;
+  }
+  MuxTransactionMutex.Lock();
+  MuxTransactions.clear();
+  
+  IsMuxTransaction= true;
+  return true;
+}
 
 /*----------------------------------------------------------------------------*/
 bool
@@ -762,14 +886,20 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast, bool te
       CallBackInsert(&Store[skey], skey.c_str());
     }
     
-    // we emulate a transaction for a single Set
-    if (broadcast && (!IsTransaction) ) {
-      TransactionMutex.Lock(); Transactions.clear();
-    }
     
     if (broadcast) {
-      Transactions.insert(skey);
-    } 
+      if (SOM->IsMuxTransaction) {
+        SOM->MuxTransactions[Subject].insert(skey);
+      } else {
+        // we emulate a transaction for a single Set
+        if (!IsTransaction) {
+          TransactionMutex.Lock(); 
+          Transactions.clear();
+        }
+        
+        Transactions.insert(skey);
+      } 
+    }
     
     // check if we have to do posts for this subject
     if (SOM) {
@@ -791,8 +921,11 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast, bool te
     }
   }
 
-  if (broadcast && (!IsTransaction))
-    CloseTransaction();
+  if (broadcast) {
+    if (!SOM->IsMuxTransaction)
+      if (!IsTransaction)
+        CloseTransaction();
+  }
   
   return true;
 }

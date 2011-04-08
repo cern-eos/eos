@@ -17,6 +17,7 @@
 
 #define XRDMQSHAREDHASH_CMD       "mqsh.cmd"
 #define XRDMQSHAREDHASH_UPDATE    "mqsh.cmd=update"
+#define XRDMQSHAREDHASH_MUXUPDATE "mqsh.cmd=muxupdate"
 #define XRDMQSHAREDHASH_BCREQUEST "mqsh.cmd=bcrequest"
 #define XRDMQSHAREDHASH_BCREPLY   "mqsh.cmd=bcreply"
 #define XRDMQSHAREDHASH_DELETE    "mqsh.cmd=delete"
@@ -70,6 +71,8 @@ public:
 
 
 class XrdMqSharedHash {
+  friend class XrdMqSharedObjectManager;
+
 private:
 protected:
   unsigned long long ChangeId;
@@ -205,6 +208,8 @@ public:
 
 
 class XrdMqSharedQueue : public XrdMqSharedHash  {
+  friend class XrdMqSharedObjectManager;
+
 private:
   std::deque<XrdMqSharedHashEntry*> Queue;
   unsigned long long LastObjectId;
@@ -247,6 +252,9 @@ public:
 
 
 class XrdMqSharedObjectManager {
+  friend class XrdMqSharedHash;
+  friend class XrdMqSharedQueue;
+
 private:
   std::map<std::string, XrdMqSharedHash*> hashsubjects;
   std::map<std::string, XrdMqSharedQueue> queuesubjects;
@@ -254,7 +262,16 @@ private:
   std::string DumperFile;
   std::string AutoReplyQueue; // queue which is used to setup the reply queue of hashes which have been broadcasted
   bool AutoReplyQueueDerive;  // if this is true, the reply queue is derived from the subject e.g. 
+
                               // the subject "/eos/<host>/fst/<path>" derives as "/eos/<host>/fst"
+
+protected:
+  XrdSysMutex MuxTransactionMutex;
+  std::string MuxTransactionType;
+  std::string MuxTransactionBroadCastQueue;
+
+  bool IsMuxTransaction;
+  std::map<std::string, std::set<std::string> > MuxTransactions;
 
 public:
   static bool debug;
@@ -355,6 +372,15 @@ public:
   void FileDumper();
 
   void Clear(); // calls clear on each managed hash and queue
+
+  // multiplexed transactions doing a compound transaction for transactions on several hashes
+
+  bool OpenMuxTransaction(const char* type="hash", const char* broadcastqueue=0);
+
+  bool CloseMuxTransaction();
+
+  void MakeMuxUpdateEnvHeader(XrdOucString &out);
+  void AddMuxTransactionEnvString(XrdOucString &out);
 };
 
 #endif
