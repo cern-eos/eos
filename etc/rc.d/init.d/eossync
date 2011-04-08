@@ -19,8 +19,8 @@ sysconfigfile="eossync"
 EOS_LOCATION="/usr/"
 EOS_MAXFD=65000
 EOS_USER="daemon"
-EOS_LOGDIR="/var/log/xroot/sync"
-EOS_COREDIR="/var/spool/xroot/core"
+EOS_LOGDIR="/var/log/eos/sync"
+EOS_COREDIR="/var/spool/eos/core"
 EOS_ROLEFLAG=""
 
 FRETVAL=0
@@ -29,9 +29,27 @@ RETVAL=0
 USER=`whoami`
 HOST=`hostname -f`
 
+# Source eos sysconfig file
+
+if [ -f /etc/sysconfig/eos ]; then
+    . /etc/sysconfig/eos
+fi
+
+# Setup the default MASTER<=>MASTER replication which can be overwritten in /etc/sysconfig/eossync
+if [ -n "${EOS_MGM_MASTER1} && -n "${EOS_MGM_MASTER2} ]; then
+    export MASTER0_0=root://${EOS_MGM_MASTER1}//var/eos/md/files.${EOS_MGM_MASTER1}.mdlog
+    export MASTER0_1=root://${EOS_MGM_MASTER1}//var/eos/md/directories.${EOS_MGM_MASTER1}.mdlog
+    export MASTER1_0=root://${EOS_MGM_MASTER2}//var/eos/md/files.${EOS_MGM_MASTER2}.mdlog
+    export MASTER1_1=root://${EOS_MGM_MASTER2}//var/eos/md/directories.${EOS_MGM_MASTER2}.mdlog
+    export MASTER0_conf=root://${EOS_MGM_MASTER1}//var/eos/config/${EOS_MGM_MASTER1}/
+    export MASTER1_conf=root://${EOS_MGM_MASTER2}//var/eos/config/${EOS_MGM_MASTER2}/
+    export TARGET0=${EOS_MGM_MASTER1}:1096
+    export TARGET1=${EOS_MGM_MASTER2}:1096
+fi
+
 # Source sysconfig file
 if [ -f /etc/sysconfig/$sysconfigfile ]; then
-        . /etc/sysconfig/$sysconfigfile
+    . /etc/sysconfig/$sysconfigfile
 fi
 
 mkdir -p ${EOS_LOGDIR}
@@ -73,7 +91,7 @@ start() {
 		    echo -n "FILE $fileindex => TARGET ${!TNAME}"
 		    # sync only to the 'other' machines
 		    if [ $targetindex -ne $index ]; then
-			progline="$EOS_LOCATION/bin/eosfilesync $path root://${!TNAME}//$path"
+			progline="$EOS_LOCATION/sbin/eosfilesync $path root://${!TNAME}//$path"
 
 			pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosfilesync.*$progline\$" | awk '{print $1}'`
 			if [ -n "$pid" ]; then
@@ -124,7 +142,7 @@ start() {
 		path=${path/root:\/\//};
 		path=${path/$HOST//};
 		path=${path/\/\//};
-		progline="$EOS_LOCATION/bin/eosdirsync $path root://${!TNAME}//$path"
+		progline="$EOS_LOCATION/sbin/eosdirsync $path root://${!TNAME}//$path"
 		pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosdirsync.*$progline\$" | awk '{print $1}'`
 		if [ -n "$pid" ]; then
 		    passed
@@ -195,7 +213,7 @@ status() {
 		    echo -n "FILE $fileindex => TARGET ${!TNAME}"
 		    # sync only to the 'other' machines
 		    if [ $targetindex -ne $index ]; then
-			progline="$EOS_LOCATION/bin/eosfilesync $path root://${!TNAME}//$path"
+			progline="$EOS_LOCATION/sbin/eosfilesync $path root://${!TNAME}//$path"
 			pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosfilesync.*$progline\$" | awk '{print $1}'`
 			if [ -n "$pid" ]; then
 			    RETVAL=0;
@@ -241,7 +259,7 @@ status() {
 		path=${path/root:\/\//};
 		path=${path/$HOST//};
 		path=${path/\/\//};
-			progline="$EOS_LOCATION/bin/eosdirsync $path root://${!TNAME}//$path"
+			progline="$EOS_LOCATION/sbin/eosdirsync $path root://${!TNAME}//$path"
 		pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosdirsync.*$progline\$" | awk '{print $1}'`
 		if [ -n "$pid" ]; then
 		    RETVAL=0;

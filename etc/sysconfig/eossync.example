@@ -1,3 +1,8 @@
+##################################################################################################################
+# in a two master setup, this configuration file is obsolete and automatically setup by the eossync startup script
+# see /etc/sysconfig/eos.examplt how to setup the two master hostnames
+##################################################################################################################
+
 ######################################################################################
 export MASTER0_0=root://lxbra0301.cern.ch//var/eos/md/files.lxbra0301.cern.ch.mdlog
 export MASTER0_1=root://lxbra0301.cern.ch//var/eos/md/directories.lxbra0301.cern.ch.mdlog

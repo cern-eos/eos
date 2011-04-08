@@ -13,7 +13,7 @@
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientAdmin.hh"
 #include "XrdClient/XrdClientEnv.hh"
-#include "XrdCommon/XrdCommonLogging.hh"
+#include "common/Logging.hh"
 
 void usage() {
   fprintf(stderr,"usage: %s <src-dir> <dst-url-dir> [--debug]\n", PROGNAME);
@@ -135,9 +135,9 @@ int main (int argc, char* argv[]) {
     usage();
   }
   
-  XrdCommonLogging::Init();
-  XrdCommonLogging::SetUnit("eosdirsync");
-  XrdCommonLogging::SetLogPriority(LOG_NOTICE);
+  eos::common::Logging::Init();
+  eos::common::Logging::SetUnit("eosdirsync");
+  eos::common::Logging::SetLogPriority(LOG_NOTICE);
   XrdOucString debugstring="";
 
   if (argc==4) {
@@ -145,7 +145,7 @@ int main (int argc, char* argv[]) {
   }
   
   if ( (debugstring == "--debug") || (debugstring == "-d") ) {
-    XrdCommonLogging::SetLogPriority(LOG_DEBUG);
+    eos::common::Logging::SetLogPriority(LOG_DEBUG);
   }
 
   eos_static_notice("starting %s=>%s", argv[1],argv[2]);

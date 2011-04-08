@@ -11,7 +11,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientEnv.hh"
-#include "XrdCommon/XrdCommonLogging.hh"\
+#include "common/Logging.hh"
 
 void usage() {
   fprintf(stderr,"usage: %s <src-path> <dst-url> [--debug]\n", PROGNAME);
@@ -31,9 +31,9 @@ int main (int argc, char* argv[]) {
   EnvPutInt(NAME_DATASERVERCONN_TTL,3600);
   EnvPutInt(NAME_FIRSTCONNECTMAXCNT,10000);
   
-  XrdCommonLogging::Init();
-  XrdCommonLogging::SetUnit("eosfilesync");
-  XrdCommonLogging::SetLogPriority(LOG_NOTICE);
+  eos::common::Logging::Init();
+  eos::common::Logging::SetUnit("eosfilesync");
+  eos::common::Logging::SetLogPriority(LOG_NOTICE);
 
   XrdOucString debugstring="";
 
@@ -42,11 +42,11 @@ int main (int argc, char* argv[]) {
   }
  
   if ( (debugstring == "--debug") || (debugstring == "-d") ) {
-    XrdCommonLogging::SetLogPriority(LOG_DEBUG);
+    eos::common::Logging::SetLogPriority(LOG_DEBUG);
   }
   
   if ( (debugstring == "--debug") || (debugstring == "-d") ) {
-    XrdCommonLogging::SetLogPriority(LOG_DEBUG);
+    eos::common::Logging::SetLogPriority(LOG_DEBUG);
   }
   
   eos_static_notice("starting %s=>%s", argv[1],argv[2]);

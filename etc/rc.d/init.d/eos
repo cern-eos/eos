@@ -50,6 +50,7 @@ start() {
 	# Start xrootd daemons
 	echo
 	for i in ${XRD_ROLES}; do
+            XRD_ROLEFLAG="";
 	        if [ "$i" = "mgm" ]; then
 		    XRD_ROLEFLAG="-m "
  	    fi

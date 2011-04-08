@@ -56,8 +56,10 @@ rm -rf $RPM_BUILD_ROOT
 /usr/lib64/libXrdMqOfs.so.0
 /usr/lib64/libXrdMqOfs.so
 /usr/bin/xrdmqdumper
-/usr/bin/eosha
+/usr/sbin/eosha
 /usr/sbin/eoshapl
+/usr/sbin/eosfilesync
+/usr/sbin/eosdirsync
 /usr/lib64/libeosCommon.so.0.1.0
 /usr/lib64/libeosCommon.so.0
 /usr/lib64/libeosCommon.so
@@ -89,6 +91,7 @@ rm -rf $RPM_BUILD_ROOT
 #%_sysconfdir/cron.d/eos-health
 %_sysconfdir/rc.d/init.d/eos
 %_sysconfdir/rc.d/init.d/eosha
+%_sysconfdir/rc.d/init.d/eossync
 #%_sysconfdir/rc.d/init.d/cmsd
 #%_sysconfdir/rc.d/init.d/eossync
 #%_sysconfdir/rc.d/init.d/eoshealth

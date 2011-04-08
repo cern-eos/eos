@@ -19,8 +19,13 @@ my $debug = (shift @ARGV or 0);
 
 my $mgmstatus="";
 my $mqstatus="";
+my $syncstatus="";
+my $eossyncstatus="";
+
 my $mastermgm=0;
 my $mastermq=0;
+my $mastersync=0;
+my $eossync=0;
 my $confdir="";
 my $metadir="";
 my $md1file = "";
@@ -86,10 +91,14 @@ while(1) {
         print "$now MGM2-METALOG: fmd=$md2file dmd=$md2dirfile cfg=$md2confdir\n";
     }
 
-    $mastermgm =system("/etc/init.d/eos status mgm >&/dev/null");
-    $mastermq  =system("/etc/init.d/eos status mq >&/dev/null");
+    $mastermgm =system("service eos status mgm >&/dev/null");
+    $mastermq  =system("service eos status mq >&/dev/null");
+    $mastersync=system("service eos status sync >&/dev/null");
+    $eossync=system("service eossync status >&/dev/null");
     $mastermgm = ($mastermgm >> 8);
     $mastermq  = ($mastermq >> 8);
+    $mastersync= ($mastersync >> 8);
+    $eossync= ($eossync >> 8);
 
     if (!$mastermgm) {
         $mgmstatus="<up>";
@@ -103,11 +112,41 @@ while(1) {
         $mqstatus="<down>";
     }
 
-    if ($debug || (!$cnt)) {print "$now MGM status is $mgmstatus - MQ status is $mqstatus\n";}
+    if (!$mastersync) {
+        $syncstatus="<up>";
+    } else {
+        $syncstatus="<down>";
+    }
+
+    if (!$eossync) {
+        $eossyncstatus="<up>";
+    } else {
+        $eossyncstatus="<down>";
+    }
+
+    if ($debug || (!$cnt)) {print "$now MGM status is $mgmstatus - MQ status is $mqstatus - SYNC status is $syncstatus\n - EOSSYNC status is $eossyncstatus";}
     my ($name,$aliases, $addrtype, $length, @addrs) =  gethostbyname("$aliasname");
     if ($debug || (!$cnt)) {print "$now hostname=$host aliastarget=$name aliases=$aliases\n";}
 
     if ("$host" ne "$name") {
+        if ( $mastersync ) {
+            now();
+            printf "$now ===================================================================\n";
+            printf("$now (re-)start SYNC ...\n");
+            printf "$now ___________________________________________________________________\n";
+            # service dead ... let's restart
+            my $startupsync = system("service eos restart sync");
+        }
+
+        if ( $eossync ) {
+            now();
+            printf "$now ===================================================================\n";
+            printf("$now (re-)start EOS SYNC ...\n");
+            printf "$now ___________________________________________________________________\n";
+            # service dead ... let's restart
+            my $startupsync = system("service eossync restart");
+        }  
+
         if (!$mastermq) {
             now();
             printf "$now ===================================================================\n";
@@ -115,7 +154,7 @@ while(1) {
             printf "$now ___________________________________________________________________\n";
             getconfig();
             
-            my $shutdownmq  = system("/etc/init.d/eos stop mq");
+            my $shutdownmq  = system("service eos stop mq");
         }
 
         if (!$mastermgm) {
@@ -123,10 +162,14 @@ while(1) {
             printf "$now ===================================================================\n";
             printf "$now shut down running mgm ...\n";
             printf "$now ___________________________________________________________________\n";           
-            my $shutdownmgm = system("/etc/init.d/eos stop mgm");
+            my $shutdownmgm = system("service eos stop mgm");
             printf "$now ___________________________________________________________________\n";
             printf "$now Finished FAILOVER procedure ... $host(me) is now the SLAVE ...\n";
             printf "$now ===================================================================\n";
+            if ( $ENV{'EOS_NOTIFY'} ne "" ) {
+                system("echo $now Finished FAILOVER procedure ... $host\\(me\\) is now the SLAVE ... | $ENV{EOS_NOTIFY}");
+            }
+
         } 
     } else {
         if ( ($mastermgm == 2) || ($mastermq == 2) ) {
@@ -160,7 +203,7 @@ while(1) {
             }
 
             # shutdown sync
-            # system("service eossync stop");
+            system("service eossync stop");
             ###################### METADATA -  FAILOVER ############################
             if ( "$host" eq "$target1" ) {
                 now();
@@ -168,12 +211,45 @@ while(1) {
                 system("mv -v $md1file $md1file.failover.$stime");
                 system("bzip2 -v $md1file.failover.$stime");
                 printf "____________________________________________________________________________________________________________\n";
-                system("echo := eos-log-compact $md2file $md1file ; eos-log-compact $md2file $md1file");
+                my $retc = system("echo := eos-log-compact $md2file $md1file ; eos-log-compact $md2file $md1file");
+                $retc = ($retc >> 8);
+                if ($retc) {
+                    printf("$now WARNING : eos-log-compact failed - trying eos-log-repair\n");
+                    my $retrepair = system("echo := eos-log-repair $md2file $md1file ; eos-log-repair $md2file $md1file");
+                    $retrepair = ($retrepair >> 8);
+                    if ($retrepair) {
+                        # oh oh, that is quite fatal
+                        printf("$now FATAL cannot repair changelog\n");
+                        # we stop ourself and send an emergency email
+                        if ( $ENV{'EOS_NOTIFY'} ne "" ) {
+                            system("echo $now Failed FAILOVER procedure ... $host\\(me\\) is now the MASTER ... but eos-log-repair failed | $ENV{'EOS_NOTIFY'}");                    
+                            system("service eosha stop");
+                        }
+                    }
+                }
+                
+
                 printf "____________________________________________________________________________________________________________\n";
                 system("mv -v $md1dirfile $md1dirfile.failover.$stime");
                 system("bzip2 -v $md1dirfile.failover.$stime");
                 printf "____________________________________________________________________________________________________________\n";
-                system("echo := eos-log-compact $md2dirfile $md1dirfile; eos-log-compact $md2dirfile $md1dirfile");
+                $retc = system("echo := eos-log-compact $md2dirfile $md1dirfile; eos-log-compact $md2dirfile $md1dirfile");
+                $retc = ($retc >> 8);
+                if ($retc) {
+                    printf("$now WARNING : eos-log-compact failed - trying eos-log-repair\n");
+                    my $retrepair = system("echo := eos-log-repair $md2dirfile $md1dirfile ; eos-log-repair $md2dirfile $md1dirfile");
+                    $retrepair = ($retrepair >> 8);
+                    if ($retrepair) {
+                        # oh oh, that is quite fatal
+                        printf("$now FATAL cannot repair changelog\n");
+                        # we stop ourself and send an emergency email
+                        if ( $ENV{'EOS_NOTIFY'} ne "" ) {
+                            system("echo $now Failed FAILOVER procedure ... $host\\(me\\) is now the MASTER ... but eos-log-repair failed | $ENV{'EOS_NOTIFY'}");                    
+                            system("service eosha stop");
+                        }
+                    }
+                }
+
                 printf "____________________________________________________________________________________________________________\n";
             }
 
@@ -182,12 +258,44 @@ while(1) {
                 system("mv -v $md2file $md2file.failover.$stime");
                 system("bzip2 -v $md2file.failover.$stime");
                 printf "____________________________________________________________________________________________________________\n";
-                system("echo := eos-log-compact $md1file $md2file; eos-log-compact $md1file $md2file");
+                my $retc = system("echo := eos-log-compact $md1file $md2file; eos-log-compact $md1file $md2file");
+                $retc = ($retc >> 8);
+                if ($retc) {
+                    printf("$now WARNING : eos-log-compact failed - trying eos-log-repair\n");
+                    my $retrepair = system("echo := eos-log-repair $md1file $md2file ; eos-log-repair $md1file $md2file");
+                    $retrepair = ($retrepair >> 8);
+                    if ($retrepair) {
+                        # oh oh, that is quite fatal
+                        printf("$now FATAL cannot repair changelog\n");
+                        # we stop ourself and send an emergency email
+                        if ( $ENV{'EOS_NOTIFY'} ne "" ) {
+                            system("echo $now Failed FAILOVER procedure ... $host\\(me\\) is now the MASTER ... but eos-log-repair failed | $ENV{'EOS_NOTIFY'}");                    
+                            system("service eosha stop");
+                        }
+                    }
+                }
+
                 printf "____________________________________________________________________________________________________________\n";
                 system("mv -v $md2dirfile $md2dirfile.failover.$stime");
                 system("bzip2 -v $md2dirfile.failover.$stime");
                 printf "____________________________________________________________________________________________________________\n";
-                system("echo := eos-log-compact $md1dirfile $md2dirfile; eos-log-compact $md1dirfile $md2dirfile");
+                $retc = system("echo := eos-log-compact $md1dirfile $md2dirfile; eos-log-compact $md1dirfile $md2dirfile");
+                $retc = ($retc >> 8);
+                if ($retc) {
+                    printf("$now WARNING : eos-log-compact failed - trying eos-log-repair\n");
+                    my $retrepair = system("echo := eos-log-repair $md1dirfile $md2dirfile ; eos-log-repair $md1dirfile $md2dirfile");
+                    $retrepair = ($retrepair >> 8);
+                    if ($retrepair) {
+                        # oh oh, that is quite fatal
+                        printf("$now FATAL cannot repair changelog\n");
+                        # we stop ourself and send an emergency email
+                        if ( $ENV{'EOS_NOTIFY'} ne "" ) {
+                            system("echo $now Failed FAILOVER procedure ... $host\\(me\\) is now the MASTER ... but eos-log-repair failed | $ENV{'EOS_NOTIFY'}");                    
+                            system("service eosha stop");
+                        }
+                    }
+                }
+
                 printf "____________________________________________________________________________________________________________\n";
             }
 
@@ -207,23 +315,32 @@ while(1) {
 
             printf("\n");
             print "$now Bring up MGM + MQ\n";
-            my $startupmq  = system("/etc/init.d/eos start mq");
-            my $startupmgm = system("/etc/init.d/eos start mgm");
+            my $startupmq  = system("service eos start mq");
+            my $startupmgm = system("service eos start mgm");
             
             sleep 5;
-            $mastermgm =system("/etc/init.d/eos status mgm >&/dev/null");
-            $mastermq  =system("/etc/init.d/eos status mq >&/dev/null");
+
+            # restart sync
+            system("service eossync start");
+
+            $mastermgm =system("service eos status mgm >&/dev/null");
+            $mastermq  =system("service eos status mq >&/dev/null");
+            $mastersync=system("service eos status sync >&/dev/null");
+            $eossync=system("service eossync status >&/dev/null");
             $mastermgm = ($mastermgm >> 8);
             $mastermq  = ($mastermq >> 8);
+            $mastersync= ($mastersync >>8);
+            $eossync = ($eossync >>8);
             
-            if ( (!$mastermgm) && (!$mastermq) ) {
+            if ( (!$mastermgm) && (!$mastermq) &&(!$mastersync) ) {
                 now();
                 printf "$now ___________________________________________________________________\n";
                 printf "$now Finished FAILOVER procedure ... $host(me) is now the MASTER ...\n";
                 printf "$now ===================================================================\n";
-            } 
-            # restart sync
-            # system("service eossync start");
+                if ( $ENV{'EOS_NOTIFY'} ne "" ) {
+                    system("echo $now Finished FAILOVER procedure ... $host\\(me\\) is now the MASTER ... | $ENV{'EOS_NOTIFY'}");                    
+                }
+            }
         }
         if ( $mastermgm && ($mastermgm != 2)) {
             now();
@@ -231,7 +348,7 @@ while(1) {
             printf("$now restart dead MGM ...\n");
             printf "$now ___________________________________________________________________\n";
             # service dead ... let's restart
-            my $startupmgm = system("/etc/init.d/eos restart mgm");
+            my $startupmgm = system("service eos restart mgm");
         }
         if ( $mastermq && ($mastermq != 2)) {
             now();
@@ -239,8 +356,25 @@ while(1) {
             printf("$now restart dead MQ ...\n");
             printf "$now ___________________________________________________________________\n";
             # service dead ... let's restart
-            my $startupmq = system("/etc/init.d/eos restart mq");
+            my $startupmq = system("service eos restart mq");
         }
+        if ( $mastersync ) {
+            now();
+            printf "$now ===================================================================\n";
+            printf("$now (re-)start SYNC ...\n");
+            printf "$now ___________________________________________________________________\n";
+            # service dead ... let's restart
+            my $startupsync = system("service eos restart sync");
+        }
+
+        if ( $eossync ) {
+            now();
+            printf "$now ===================================================================\n";
+            printf("$now (re-)start EOS SYNC ...\n");
+            printf "$now ___________________________________________________________________\n";
+            # service dead ... let's restart
+            my $startupsync = system("service eossync restart");
+         }  
     }
 
     sleep(5);

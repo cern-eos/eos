@@ -52,6 +52,7 @@ add_subdirectory (mgm)
 add_subdirectory (console)
 add_subdirectory (namespace)
 add_subdirectory (etc)
+add_subdirectory (sync)
 
 include_directories( ../ /usr/includeye/xrootd/ /usr/include/ )
 link_directories( /usr/${LIB_INSTALL_DIR}/)
