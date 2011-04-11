@@ -141,8 +141,11 @@ public:
   eos::fst::Storage* Storage;          // -> Meta data & filesytem store object
 
   XrdSysMutex OpenFidMutex;
+  //  std::map<eos::common::FileSystem::fsid_t, std::map<unsigned long long, unsigned int> > WOpenFid;
+  //  std::map<eos::common::FileSystem::fsid_t, std::map<unsigned long long, unsigned int> > ROpenFId;
   google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > WOpenFid;
   google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > ROpenFid;
+
 
   XrdSysMutex ReportQueueMutex;
   std::queue <XrdOucString> ReportQueue;

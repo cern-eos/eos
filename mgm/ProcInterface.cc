@@ -11,7 +11,6 @@
 #include "mgm/FstNode.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
-#include "mgm/FstFileSystem.hh"
 #include "mgm/FsView.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -1299,7 +1298,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      }
 	    }
 	  }
-	  FstNode::gMutex.UnLock();
 	}  else {
 	  retc = EPERM;
 	  stdErr = "error: you have to take role 'root' to execute this command";
@@ -1442,7 +1440,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      stdErr="error: debug level "; stdErr += debuglevel; stdErr+= " is not known!";
 	      retc = EINVAL;
 	    } else {
-	      if (debuglevel == "debug") {
+	      if (debuglevel == "debug" && ( filterlist.find("SharedHash") == STR_NPOS)) {
 		gOFS->ObjectManager.SetDebug(true);
               } else {
 		gOFS->ObjectManager.SetDebug(false);
@@ -2863,7 +2861,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		stdOut += fsline; 
 		stdOut += "NA\n";
 	      }
-	      FstNode::gMutex.UnLock();
 	      i++;
 	    }
 	    for ( lociter = fmd->unlinkedLocationsBegin(); lociter != fmd->unlinkedLocationsEnd(); ++lociter) {
@@ -3297,14 +3294,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 			    continue;
 			  }
 
-			  FstNode::gMutex.Lock();
-			  FstFileSystem* filesystem = (FstFileSystem*) FstNode::gFileSystemById[(int) *lociter];
+                          eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+                          eos::common::FileSystem* filesystem = 0;
+                          if (FsView::gFsView.mIdView.count(*lociter)) {
+                            filesystem = FsView::gFsView.mIdView[*lociter];
+                          }
 			  if (filesystem) {
-			    sGroup = filesystem->GetSchedulingGroup();
+			    sGroup = filesystem->GetString("schedgroup").c_str();
 			  } else {
 			    sGroup = "none";
-			  }
-			  FstNode::gMutex.UnLock();
+			  }			  
 			  
 			  if (sGroupRef.length()) {
 			    if (sGroup != sGroupRef) {
@@ -3428,8 +3427,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		      eos_err("fsid 0 found %s %llu",fmd->getName().c_str(), fmd->getId());
 		      continue;
 		    }
-		    filesystembalance[loc]+=size;
-		    FstNode::gMutex.Lock();
+		    filesystembalance[loc]+=size;		   
 		    
 		    if ( (i==0) && (size) ) {
 		      int bin= (int)log10( (double) size);
@@ -3437,12 +3435,19 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		      sizedistributionn[ bin ] ++;
 		    }
 
-		    FstFileSystem* filesystem = (FstFileSystem*)FstNode::gFileSystemById[loc];
-		    if (filesystem) {
-		      spacebalance[filesystem->GetSpaceName()]+=size;
-		      schedulinggroupbalance[filesystem->GetSchedulingGroup()]+=size;
+                    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+                    eos::common::FileSystem* filesystem = 0;
+                    if (FsView::gFsView.mIdView.count(loc)) {
+                      filesystem = FsView::gFsView.mIdView[loc];
+                    }
+                    	
+                    if (filesystem) {
+                      eos::common::FileSystem::fs_snapshot_t fs;
+                      if (filesystem->SnapShotFileSystem(fs, true)) {
+                        spacebalance[fs.mSpace.c_str()]+=size;
+                        schedulinggroupbalance[fs.mGroup.c_str()]+=size;
+                      }
 		    }
-		    FstNode::gMutex.UnLock();
 		  }
 		} else {
 		  gOFS->eosViewMutex.UnLock();

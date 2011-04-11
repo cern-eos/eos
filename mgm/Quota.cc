@@ -606,12 +606,14 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
       return ENOSPC;
     }
   } else {
+    schedulingMutex.Lock();
     if (schedulingGroup.count(indextag)) {
       git = FsView::gFsView.mSpaceGroupView[spacename].find(schedulingGroup[indextag]);
     } else {
       git = FsView::gFsView.mSpaceGroupView[spacename].begin();
       schedulingGroup[indextag] = *git;
     }
+    schedulingMutex.UnLock();
   }
   
   // we can loop over all existing scheduling views
@@ -629,6 +631,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
     fsindextag += indextag.c_str();
     std::string sfsindextag = fsindextag.c_str();
     
+    schedulingMutex.Lock();
     if (schedulingFileSystem.count(sfsindextag)) {
       //
       fsid = schedulingFileSystem[sfsindextag];
@@ -642,7 +645,8 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
       fsit = (*git)->begin();
       fsid = *fsit;
     }
-    
+    schedulingMutex.UnLock();
+
     // fake weight
     double weight = 1.0;
 
@@ -671,7 +675,9 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
 	eos_static_err("%d %d %d\n", (snapshot.mStatus), (snapshot.mConfigStatus), (snapshot.mErrCode      == 0 ));
       }
       fsit++;
+      schedulingMutex.Lock();
       schedulingFileSystem[sfsindextag] = *fsit;
+      schedulingMutex.UnLock();
       // create cycling
       if (fsit == (*git)->end()) {
 	fsit = (*git)->begin();
@@ -742,7 +748,9 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
     }
 
     // remember the last group for that indextag
+    schedulingMutex.Lock();
     schedulingGroup[indextag] = *git;
+    schedulingMutex.UnLock();
 
     if (nassigned >= nfilesystems) {
       // leave the group loop - we got enough

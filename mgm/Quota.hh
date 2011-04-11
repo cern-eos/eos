@@ -179,6 +179,8 @@ public:
   // Scheduling Filesystem Vector/Hashs
 
 
+  XrdSysMutex schedulingMutex;
+
   // std::string = <grouptag>|<uid>:<gid> 
   std::map<std::string, FsGroup*> schedulingGroup;
   // std::string = <schedulinggroupindex>:<grouptag>|<uid>:<gid>

@@ -3,6 +3,7 @@
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
+#include "common/Timing.hh"
 #include "mgm/Access.hh"
 #include "mgm/FstNode.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -324,7 +325,10 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   const char *tident = error.getErrUser();
   errno = 0;
 
-  
+  eos::common::Timing opentiming("mgm::open");
+
+  TIMING(gMgmOfsTrace,"START",&opentiming);
+
   SetLogId(logId, tident);
   
   eos_info("path=%s info=%s",path,info);
@@ -674,7 +678,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	  gOFS->MgmHealMapMutex.UnLock();
 	  gOFS->MgmStats.Add("OpenFailedHeal",vid.uid,vid.gid,1);  
 	  XrdOucString msg = "heal file with inaccesible replica's after "; msg += (int) nmaxheal; msg += " tries - giving up";
-	  FstNode::gMutex.UnLock();
 	  eos_info(msg.c_str());
 	  return Emsg(epname, error, ENOSR, msg.c_str(), path);	    
 	} else {
@@ -775,7 +778,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	eos_err("0 filesystem in replica vector");
       repfilesystem = FsView::gFsView.mIdView[selectedfs[i]];
       if (!repfilesystem) {
-	FstNode::gMutex.UnLock();
 	return Emsg(epname, error, EINVAL, "get replica filesystem information",path);
       }
       capability += "&mgm.url"; capability += i; capability += "=root://";
@@ -793,8 +795,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     //    capability += path;
   }
   
-  FstNode::gMutex.UnLock();
-
   // encrypt capability
   XrdOucEnv  incapability(capability.c_str());
   XrdOucEnv* capabilityenv = 0;
@@ -829,6 +829,8 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   if (capabilityenv)
     delete capabilityenv;
 
+  TIMING(gMgmOfsTrace,"DONE",&opentiming);
+  opentiming.Print(gMgmOfsTrace);
   return rcode;
 }
 
@@ -2723,6 +2725,8 @@ XrdMgmOfs::FSctl(const int               cmd,
 	}
 
 	if (container) {
+          gOFS->MgmStats.Add("Drop",vid.uid,vid.gid,1);  
+
 	  try {
 	    quotanode = gOFS->eosView->getQuotaNode(container);
 	  } catch ( eos::MDException &e ) {
@@ -3518,7 +3522,6 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
     return Emsg(epname,error, EINVAL, "illegal source/target fsid", fmd->getName().c_str());
   }
 
-  FstNode::gMutex.Lock();
   eos::common::FileSystem* sourcefilesystem = 0;
   eos::common::FileSystem* targetfilesystem = 0;
 
@@ -3532,19 +3535,15 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
 
   if (!sourcefilesystem) {
     errno = EINVAL;
-    FstNode::gMutex.UnLock();
     return  Emsg(epname,error,ENOENT,"replicate stripe - source filesystem does not exist",fmd->getName().c_str());  
   }
 
   if (!targetfilesystem) {
     errno = EINVAL;
-    FstNode::gMutex.UnLock();
     return  Emsg(epname,error,ENOENT,"replicate stripe - target filesystem does not exist",fmd->getName().c_str());  
   }
 
   XrdOucString receiver    = targetfilesystem->GetQueue().c_str();
-
-  FstNode::gMutex.UnLock();
 
   // build the capability contents
   capability += "&mgm.localprefix=";       capability += sourcefilesystem->GetPath().c_str();

@@ -180,10 +180,10 @@ com_space (char* arg1) {
   printf("\n");
   printf("       space define <space-name> [<groupsize> [<groupmod>]]             : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
   printf("\n");
-  printf("       space set <space-name> on|off                                    : enables/disabels all groups under that space ( not the nodes !) \n");
   printf("                                                                       => <groupsize>=0 means, that no groups are built within a space\n");
   printf("                                                                       => <groupmod> defines the maximum number of filesystems per node [default=24]\n");
   printf("\n");
+  printf("       space set <space-name> on|off                                    : enables/disabels all groups under that space ( not the nodes !) \n");
   printf("       space rm <space-name>                                         : remove space\n");
   printf("\n");
   printf("       space quota <space-name> on|off                               : enable/disable quota\n");

@@ -438,9 +438,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   eos::common::Logging::SetLogPriority(LOG_DEBUG);
   eos::common::Logging::SetUnit(unit.c_str());
 
-  // this global hash needs to initialize the set empty key function at first place
-  FstNode::gFileSystemById.set_empty_key(0);
-
   eos::common::Logging::gFilter = "Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode";
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode");
 

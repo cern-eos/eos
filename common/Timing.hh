@@ -5,23 +5,26 @@
 
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTrace.hh"
+#include "common/Namespace.hh"
 #include <sys/time.h>
 
-class eos::common::Timing {
+EOSCOMMONNAMESPACE_BEGIN
+
+class Timing {
 public:
   struct timeval tv;
   XrdOucString tag;
   XrdOucString maintag;
-  eos::common::Timing* next;
-  eos::common::Timing* ptr;
+  Timing* next;
+  Timing* ptr;
 
-  eos::common::Timing(const char* name, struct timeval &i_tv) {
+  Timing(const char* name, struct timeval &i_tv) {
     memcpy(&tv, &i_tv, sizeof(struct timeval));
     tag = name;
     next = 0;
     ptr  = this;
   }
-  eos::common::Timing(const char* i_maintag) {
+  Timing(const char* i_maintag) {
     tag = "BEGIN";
     next = 0;
     ptr  = this;
@@ -32,8 +35,8 @@ public:
     char msg[512];
     if (!(trace.What & 0x8000)) 
       return;
-    eos::common::Timing* p = this->next;
-    eos::common::Timing* n; 
+    Timing* p = this->next;
+    Timing* n; 
     trace.Beg("Timing");
 
     cerr << std::endl;
@@ -50,7 +53,7 @@ public:
     trace.End();
   }
 
-  virtual ~eos::common::Timing(){eos::common::Timing* n = next; if (n) delete n;};
+  virtual ~Timing(){Timing* n = next; if (n) delete n;};
 };
 
 #define TIMING(__trace__, __ID__,__LIST__)                              \
@@ -59,8 +62,10 @@ do {                                                                    \
      struct timeval tp;                                                 \
      struct timezone tz;                                                \
      gettimeofday(&tp, &tz);                                            \
-     (__LIST__)->ptr->next=new eos::common::Timing(__ID__,tp);             \
+     (__LIST__)->ptr->next=new eos::common::Timing(__ID__,tp);          \
      (__LIST__)->ptr = (__LIST__)->ptr->next;                           \
 } while(0);                                                             \
+
+EOSCOMMONNAMESPACE_END
  
 #endif

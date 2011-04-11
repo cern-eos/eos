@@ -419,9 +419,6 @@ ConfigEngine::ResetConfig()
   changeLog.AddEntry(cl.c_str());
   changeLog.configChanges = "";
   currentConfigFile = "";
-  FstNode::gMutex.Lock();
-  FstNode::gFileSystemById.clear();
-  FstNode::gFstNodes.Purge();
 
   Quota::gQuotaMutex.LockWrite();
   while(Quota::gQuota.begin() != Quota::gQuota.end()) {delete Quota::gQuota.begin()->second;Quota::gQuota.erase(Quota::gQuota.begin());}
@@ -441,7 +438,6 @@ ConfigEngine::ResetConfig()
   Mutex.Lock();
   configDefinitions.Purge();
   Mutex.UnLock();
-  FstNode::gMutex.UnLock();
 
   // load all the quota nodes from the namespace
   Quota::LoadNodes();
@@ -454,10 +450,6 @@ bool
 ConfigEngine::ApplyConfig(XrdOucString &err) 
 {
   err = "";
-
-  FstNode::gMutex.Lock();
-  FstNode::gFileSystemById.clear();
-  FstNode::gFstNodes.Purge();
 
   Quota::gQuotaMutex.LockWrite();
   while(Quota::gQuota.begin() != Quota::gQuota.end()) {delete Quota::gQuota.begin()->second;Quota::gQuota.erase(Quota::gQuota.begin());}
@@ -477,8 +469,6 @@ ConfigEngine::ApplyConfig(XrdOucString &err)
 
   configDefinitions.Apply(ApplyEachConfig, &err);
   Mutex.UnLock();
-
-  FstNode::gMutex.UnLock();
 
   Access::ApplyAccessConfig();
 

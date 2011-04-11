@@ -232,7 +232,10 @@ Storage::Boot(FileSystem *fs)
   std::string uuid = fs->GetString("uuid");
 
   eos_info("booting filesystem %s id=%u uuid=%s",fs->GetQueuePath().c_str(), (unsigned int)fsid, uuid.c_str());
-   
+
+  if (!fsid) 
+    return;
+  
   // try to statfs the filesystem
   eos::common::Statfs* statfs = eos::common::Statfs::DoStatfs(fs->GetPath().c_str());
   if (!statfs) {
@@ -253,13 +256,15 @@ Storage::Boot(FileSystem *fs)
     return;
   }
   
-  if (!gOFS.ROpenFid.count(fsid)) {
-    gOFS.ROpenFid[fsid].set_deleted_key(0);
-  }
-  if (!gOFS.WOpenFid.count(fsid)) {
-    gOFS.WOpenFid[fsid].set_deleted_key(0);
-  }
-  
+  gOFS.OpenFidMutex.Lock();
+  gOFS.ROpenFid.clear_deleted_key();
+  gOFS.ROpenFid[fsid].clear_deleted_key();
+  gOFS.WOpenFid[fsid].clear_deleted_key();
+  gOFS.ROpenFid.set_deleted_key(0);
+  gOFS.ROpenFid[fsid].set_deleted_key(0);
+  gOFS.WOpenFid[fsid].set_deleted_key(0);
+  gOFS.OpenFidMutex.UnLock();
+
   if (!eos::common::gFmdHandler.AttachLatestChangeLogFile(metaDirectory.c_str(), fsid)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(EFAULT,"cannot attach to latest change log file - see the fst logfile for details");
