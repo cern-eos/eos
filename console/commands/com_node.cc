@@ -36,6 +36,10 @@ com_node (char* arg1) {
 	  in += "&mgm.outformat=l";
 	  ok=true;
 	}
+	if (option == "--io") {
+	  in += "&mgm.outformat=io";
+	  ok=true;
+	}
 	if (option == "-s") {
 	  silent=true;
 	  ok=true;
@@ -127,10 +131,11 @@ com_node (char* arg1) {
 
  com_node_usage:
 
-  printf("usage: node ls [-s] [-m|-l]                                     : list nodes\n");
+  printf("usage: node ls [-s] [-m|-l|--io]                                : list nodes\n");
   printf("                                                                  -s : silent mode\n");
   printf("                                                                  -m : monitoring key=value output format\n");
   printf("                                                                  -l : long output - list also file systems after each node\n");
+  printf("                                                                --io : print IO statistics\n");
   printf("       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node (see help of 'fs config' for details)\n");
   printf("       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
   printf("       node rm  <queue-name>|<host:port>                        : remove a node\n");

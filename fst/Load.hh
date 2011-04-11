@@ -140,7 +140,7 @@ public:
   void SetNetBandWidth (unsigned long long bw) {fNetStat.SetBandWidth(bw);}
 
 
-  Load(unsigned int ival=1) {
+  Load(unsigned int ival=15) {
     tid=0;
     interval = ival;
     if (interval==0)
@@ -184,8 +184,10 @@ public:
   const char* DevMap(const char* devpath) {
     static time_t loadtime = 0;
     static std::map<std::string, std::string> devicemap;
-    static XrdOucString mapdev = devpath;
-    static XrdOucString mappath = "";
+    static XrdOucString mapdev;
+    mapdev = devpath;
+    static XrdOucString mappath;
+    mappath = "";
     if (mapdev.beginswith("/")) {
       mapdev = "";
       struct stat stbuf;
@@ -201,11 +203,11 @@ public:
 	    if ((sscanf(line,"%s %s %s %s %s %s\n", val[0],val[1],val[2],val[3],val[4],val[5]))==6) {
 	      XrdOucString sdev  = val[0];
 	      XrdOucString spath = val[1];
-	      //	      printf("%s => %s\n", sdev.c_str(), spath.c_str());
+              //fprintf(stderr,"%s => %s\n", sdev.c_str(), spath.c_str());
 	      if (sdev.beginswith("/dev/")) {
 		sdev.erase(0,5);
 		devicemap[sdev.c_str()] = spath.c_str();
-		//		printf("=> %s %s\n", sdev.c_str(),spath.c_str());
+                //fprintf(stderr,"=> %s %s\n", sdev.c_str(),spath.c_str());
 	      }
 	    }
 	  }
@@ -218,11 +220,12 @@ public:
 	XrdOucString match = devpath;
 	XrdOucString itstr = devicemapit->second.c_str();
 	match.erase(devicemapit->second.length());
-	//	printf("%s <=> %s\n",match.c_str(),itstr.c_str());
+        //        fprintf(stderr,"%s <=> %s\n",match.c_str(),itstr.c_str());
 	if (match == itstr) {
 	  if ((int)devicemapit->second.length() > (int)mappath.length()) {
 	    mapdev = devicemapit->first.c_str();
 	    mappath = devicemapit->second.c_str();
+            //fprintf(stderr,"Setting up mapping %s=>%s\n", mapdev.c_str(), mappath.c_str());
 	  }
 	}
       }
@@ -236,7 +239,7 @@ public:
 
   double GetDiskRate(const char* devpath, const char* tag) { 
     const char* dev = DevMap(devpath);
-	  
+    //fprintf(stderr,"**** Device is %s\n", dev);
     Mutex.Lock();
     double val = fDiskStat.GetRate(dev,tag);
     Mutex.UnLock();

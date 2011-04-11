@@ -99,6 +99,10 @@ com_fs (char* arg1) {
 	  in += "&mgm.outformat=l";
 	  ok=true;
 	}
+	if (option == "--io") {
+	  in += "&mgm.outformat=io";
+	  ok=true;
+        }
 	if (option == "-s") {
 	  silent=true;
 	  ok=true;
@@ -508,10 +512,11 @@ com_fs (char* arg1) {
 
  com_fs_usage:
 
-  printf("usage: fs ls  [-m] [-l] [-e] -s                                 : list configured filesystems (or by name or id match\n");
+  printf("usage: fs ls  [-m] [-l] [-e] [--io] -s                              : list configured filesystems (or by name or id match\n");
   printf("                                                                  -m : display monitoring format <key>=<value>\n");
   printf("                                                                  -l : display long format\n");
   printf("                                                                  -e : display format with error information\n");
+  printf("                                                                --io : display IO statistics\n");
   printf("       fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host:port> <mountpoint> [<schedgroup>] [<status]\n");
   printf("                                                                : add a filesystem and dynamically assign a filesystem id based on the unique identifier for the disk <uuid>\n");
   printf("                                             --manual -m <fsid> : user specified <fsid> and <schedgroup> - no automatic assignment\n");

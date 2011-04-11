@@ -40,7 +40,7 @@ bool DiskStat::Measure() {
 	    if (tdif> 0) {
 	      rates[devname][tags[i]] = 1000.0* (strtoll(values_t2[devname][tags[i]].c_str(),0,10) - strtoll(values_t1[devname][tags[i]].c_str(),0,10)) / tdif;
 	      //	      if (!strncmp(devname.c_str(),"md2",3))
-	      //		printf("%s %s %f\n", devname.c_str(), tags[i].c_str(),  rates[devname][tags[i]]);
+              //              fprintf(stderr,"%s %s %f\n", devname.c_str(), tags[i].c_str(),  rates[devname][tags[i]]);
 	    } else {
 	      rates[devname][tags[i]] = 0.0;
 	    }

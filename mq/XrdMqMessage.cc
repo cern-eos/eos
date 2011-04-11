@@ -873,9 +873,17 @@ XrdMqMessage::~XrdMqMessage() {
 void
 XrdMqMessage::Print() {
   kMessageHeader.Print();
-  std::cerr << "kMessageBody           : " << kMessageBody << std::endl;
+  if (kMessageBody.length() > 256) {
+    std::cerr << "kMessageBody           : (...) too long" << std::endl;
+  } else {
+    std::cerr << "kMessageBody           : " << kMessageBody << std::endl;
+  }
   std::cerr << "-----------------------------------------------------" << std::endl;
+  if (kMessageBuffer.length() > 256) {
+    std::cerr << "kMessageBuffer         : (...) too long" << std::endl;
+  } else {
   std::cerr << "kMessageBuffer         : " << kMessageBuffer << std::endl;
+  }
   std::cerr << "-----------------------------------------------------" << std::endl;
 }
 

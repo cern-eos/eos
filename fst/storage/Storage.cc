@@ -372,6 +372,7 @@ Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std:
       return false;
     } else {
       char ssfid[32];
+      memset(ssfid,0,sizeof(ssfid));
       int nread = read(fd,ssfid,sizeof(ssfid)-1);
       if (nread<0) {
 	close(fd);
@@ -383,6 +384,9 @@ Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std:
 	ssfid[nread]=0;
       else
 	ssfid[31]=0;
+      if (ssfid[strnlen(ssfid,sizeof(ssfid))-1] == '\n') {
+        ssfid[strnlen(ssfid, sizeof(ssfid))-1] = 0;
+      }
       ckfsid = atoi(ssfid);
     }
   } 
@@ -397,6 +401,7 @@ Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std:
       return false;
     } else {
       char suuid[4096];
+      memset(suuid,0,sizeof(suuid));
       int nread = read(fd,suuid,sizeof(suuid));
       if (nread <0) {
 	close(fd);
@@ -406,8 +411,8 @@ Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std:
       // for protection
       suuid[4095]=0;
       // remove \n 
-      if (suuid[strlen(suuid)-1] == '\n')
-	suuid[strlen(suuid)-1] = 0;
+      if (suuid[strnlen(suuid,sizeof(suuid))-1] == '\n')
+	suuid[strnlen(suuid,sizeof(suuid))-1] = 0;
 
       ckuuid = suuid;
     }
@@ -1232,12 +1237,27 @@ Storage::Publish()
           bool success = true;
           // copy out net info 
           // TODO: take care of eth0 only ..
-          
-          success &= fileSystemsVector[i]->SetDouble("stat.net.inratemib", fstLoad.GetNetRate("eth0","rxbytes")/1024.0/1024.0);
+          // somethimg has to tell us if we are 1GBit, or 10GBit ... we assume 1GBit now as the default
+          success &= fileSystemsVector[i]->SetDouble("stat.net.ethratemib", 1000000000/(8*1024*1024));
+          success &= fileSystemsVector[i]->SetDouble("stat.net.inratemib",  fstLoad.GetNetRate("eth0","rxbytes")/1024.0/1024.0);
           success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib", fstLoad.GetNetRate("eth0","txbytes")/1024.0/1024.0);
-          
+          eos_static_info("Path is %s %f\n", fileSystemsVector[i]->GetPath().c_str(), fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
+          success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"readSectors")*512.0/1000000.0);
+          success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
+          success &= fileSystemsVector[i]->SetDouble("stat.disk.load", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"millisIO")/1000.0);
+          gOFS.OpenFidMutex.Lock();
+          success &= fileSystemsVector[i]->SetLongLong("stat.ropen", (long long)gOFS.ROpenFid[fileSystemsVector[i]->GetId()].size());
+          success &= fileSystemsVector[i]->SetLongLong("stat.wopen", (long long)gOFS.WOpenFid[fileSystemsVector[i]->GetId()].size());
+          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.freebytes",  fileSystemsVector[i]->GetLongLong("stat.statfs.bfree")*fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
+          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.usedbytes", (fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")-fileSystemsVector[i]->GetLongLong("stat.statfs.bfree"))*fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
+          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.capacity",   fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")*fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
+          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.fused",     (fileSystemsVector[i]->GetLongLong("stat.statfs.files")-fileSystemsVector[i]->GetLongLong("stat.statfs.ffree"))*fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
+          success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (eos::common::gFmdHandler.FmdMap.count(fileSystemsVector[i]->GetId())?eos::common::gFmdHandler.FmdMap[fileSystemsVector[i]->GetId()].size():0));
+                                                       
+          success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetString("stat.boot").c_str());
+          gOFS.OpenFidMutex.UnLock();
           if (!success) {
-            eos_static_err("cannot set net parameterson filesystem %s", fileSystemsVector[i]->GetPath().c_str());
+            eos_static_err("cannot set net parameters on filesystem %s", fileSystemsVector[i]->GetPath().c_str());
           }
         }
       }

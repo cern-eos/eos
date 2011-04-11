@@ -437,7 +437,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  std::string format="";
 	  std::string listformat="";
 	  format=FsView::GetNodeFormat(std::string(outformat.c_str()));
-	  if (outformat == "l")
+	  if ((outformat == "l")) 
 	    listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
 	  
 	  FsView::gFsView.PrintNodes(output, format, listformat);
@@ -584,7 +584,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  std::string format="";
 	  std::string listformat="";
 	  format=FsView::GetSpaceFormat(std::string(outformat.c_str()));
-	  if (outformat == "l") 
+	  if ((outformat == "l"))
 	    listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
 	  
 	  FsView::gFsView.PrintSpaces(output, format, listformat);
@@ -790,7 +790,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  std::string format="";
 	  std::string listformat="";
 	  format=FsView::GetGroupFormat(std::string(outformat.c_str()));
-	  if (outformat == "l") 
+	  if ((outformat == "l"))
 	    listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
 	  
 	  FsView::gFsView.PrintGroups(output, format, listformat);

@@ -36,6 +36,10 @@ com_space (char* arg1) {
 	  in += "&mgm.outformat=l";
 	  ok=true;
 	}
+        if (option == "--io") {
+          in += "&mgm.outformat=io";
+          ok=true;
+        }
 	if (option == "-s") {
 	  silent=true;
 	  ok=true;
@@ -167,10 +171,11 @@ com_space (char* arg1) {
  com_space_usage:
 
   printf("usage: space ls                                                  : list spaces\n");
-  printf("usage: space ls [-s] [-m|-l]                                        : list spaces\n");
+  printf("usage: space ls [-s] [-m|-l|--io]                                 : list spaces\n");
   printf("                                                                  -s : silent mode\n");
   printf("                                                                  -m : monitoring key=value output format\n");
   printf("                                                                  -l : long output - list also file systems after each space\n");
+  printf("                                                                --io : print IO satistics\n");
   printf("       space config <space-name> <key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
   printf("\n");
   printf("       space define <space-name> [<groupsize> [<groupmod>]]             : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");

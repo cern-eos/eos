@@ -477,7 +477,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
             if (debug)fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Setting [%s] %s=>%s\n", subject.c_str(),key.c_str(), value.c_str());
             if (subjectlist.size()>1) {
               // this is a multiplexed update, where we have to remove the subject from the key if there is a match with the current subject
-              if (key.compare(0, subjectlist[s].length(), subjectlist[s])) {
+              if (!key.compare(0, subjectlist[s].length(), subjectlist[s])) {
                 // this is the right key for the subject we are dealing with
                 key.replace(0, subjectlist[s].length(), "");
               } else {
@@ -938,7 +938,7 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
   // listformat
   //-------------------------------------------------------------------------------
   // format has to be provided as a chain (separated by "|" ) of the following tags
-  // "key=<key>:width=<width>:format=[+][-][slfo]:unit=<unit>"  -> to print a key of the attached children
+  // "key=<key>:width=<width>:format=[+][-][slfo]:unit=<unit>:tag=<tag>"  -> to print a key of the attached children
   // "sep=<seperator>"                                          -> to put a seperator
   // "header=1"                                                 -> to put a header with description on top! This must be the first format tag!
   // "indent=<n>"                                               -> indent the output
@@ -953,6 +953,7 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
   // the unit is appended to every number:
   // e.g. 1500 with unit=B would end up as '1.5 kB'
   // the command only appends to <out> and DOES NOT initialize it
+  // "tag=<tag>"                                                  -> use <tag> instead of the variable name to print the header
 
   std::vector<std::string> formattoken;
   bool buildheader=false;
@@ -1012,10 +1013,10 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
       if ((formattags["format"].find("s"))!= std::string::npos) 
         snprintf(lformat,sizeof(lformat)-1, "%%s");
       
-      if ((formattags["format"].find("l"))!= std::string::npos)
+      if ((formattags["format"].find("l"))!= std::string::npos) {
         snprintf(lformat,sizeof(lformat)-1, "%%lld");
-      
-      
+      }
+
       if ((formattags["format"].find("f"))!= std::string::npos)
         snprintf(lformat,sizeof(lformat)-1, "%%.02f");
       
@@ -1037,8 +1038,15 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
       if (formattags.count("key")) {
         if ((formattags["format"].find("s"))!= std::string::npos) 
           snprintf(tmpline,sizeof(tmpline)-1,lformat,Get(formattags["key"].c_str()).c_str());
-        if ((formattags["format"].find("l"))!= std::string::npos) 
-          snprintf(tmpline,sizeof(tmpline)-1,lformat,GetLongLong(formattags["key"].c_str()));
+        if ((formattags["format"].find("l"))!= std::string::npos) {
+          if ( ((formattags["format"].find("+")) != std::string::npos) ) {
+            std::string ssize;
+            XrdMqStringConversion::GetReadableSizeString(ssize,(unsigned long long)GetLongLong(formattags["key"].c_str()), formattags["unit"].c_str());
+            snprintf(tmpline,sizeof(tmpline)-1,"%s", ssize.c_str());
+          } else {
+            snprintf(tmpline,sizeof(tmpline)-1,lformat,GetLongLong(formattags["key"].c_str()));
+          }
+        }
         if ((formattags["format"].find("f"))!= std::string::npos) 
           snprintf(tmpline,sizeof(tmpline)-1,lformat,GetDouble(formattags["key"].c_str()));
 
@@ -1046,7 +1054,14 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
           char headline[1024];
           char lenformat[1024];
           snprintf(lenformat, sizeof(lenformat)-1, "%%%ds", width-1);
-          snprintf(headline,sizeof(headline)-1, lenformat,formattags["key"].c_str());
+          XrdOucString name=formattags["key"].c_str();
+          name.replace("stat.","");
+          name.replace("stat.statfs.","");
+          if (formattags.count("tag")) {
+            name = formattags["tag"].c_str();
+          }
+
+          snprintf(headline,sizeof(headline)-1, lenformat,name.c_str());
           std::string sline = headline;
           if (sline.length() > (width-1)) {
             sline.erase(0, ((sline.length()-width+1+3)>0)?(sline.length()-width+1+3):0);

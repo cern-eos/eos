@@ -55,21 +55,26 @@ public:
     time_t mBootSentTime;
     time_t mBootDoneTime;
     time_t mHeartBeatTime;
-    double mDiskLoad;
+    double mDiskUtilization;
     double mDiskWriteRateMb;
     double mDiskReadRateMb;
-    double mNetLoad;
+    double mNetEthRateMiB;
     double mNetInRateMiB;
     double mNetOutRateMiB;
     double mWeightRead;
     double mWeightWrite;
+    long long mDiskCapacity;
+    long long mDiskFreeBytes;
     long   mDiskType;
     long   mDiskBsize;
     long   mDiskBlocks;
+    long   mDiskBused;
     long   mDiskBfree;
     long   mDiskBavail;
     long   mDiskFiles;
+    long   mDiskFused;
     long   mDiskFfree;
+    long   mFiles;
     long   mDiskNameLen;
     long   mDiskRopen;
     long   mDiskWopen;
@@ -166,6 +171,10 @@ public:
   //------------------------------------------------------------------------  
 
   std::string GetString(const char* key) {
+    std::string skey=key;
+    if (skey == "<n>") {
+      return std::string("1");
+    }
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
     if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
       return mHash->Get(key);
@@ -177,6 +186,11 @@ public:
   }
   
   long long GetLongLong(const char* key) {
+    std::string skey=key;
+    if (skey == "<n>") {
+      return 1;
+    }
+
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
     if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
       return mHash->GetLongLong(key);
