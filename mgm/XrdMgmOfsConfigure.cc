@@ -43,6 +43,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   MgmOfsTargetPort = "1094";
   MgmOfsName = "";
+  MgmOfsAlias = "";
   MgmOfsBrokerUrl = "root://localhost:1097//eos/";
   MgmOfsInstanceName = "testinstance";
 
@@ -267,6 +268,14 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	  }
 	}
 
+	if (!strcmp("alias", var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument for alias missing.");NoGo=1;
+	  } else {
+	    MgmOfsAlias = val;
+	  }
+	}
+
 
 	if (!strcmp("metalog",var)) {
 	  if (!(val = Config.GetWord())) {
@@ -475,6 +484,17 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     } else {
       Eroute.Say("=====> mgmofs.autosaveconfig: false","");
     }
+  }
+
+  if (getenv("EOS_MGM_ALIAS")) {
+    MgmOfsAlias = getenv("EOS_MGM_ALIAS");
+  }
+
+  if (MgmOfsAlias.length()) {
+    Eroute.Say("=====> mgmofs.alias: ",MgmOfsAlias.c_str());
+    ManagerId=MgmOfsAlias;
+    ManagerId+= ":";
+    ManagerId+= (int)myPort;
   }
 
   // create global visible configuration parameters

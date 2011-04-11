@@ -457,6 +457,7 @@ virtual bool           Init(XrdSysError &);
         Messaging*       MgmOfsMessaging;    // -> messaging interface class
         XrdOucString     MgmDefaultReceiverQueue; // -> Queue where we are sending to by default
         XrdOucString     MgmOfsName;         // -> mount point of the filesystem
+        XrdOucString     MgmOfsAlias;        // -> alias of this MGM instance
         XrdOucString     MgmOfsTargetPort;   // -> xrootd port where redirections go on the OSTs -default is 1094
         XrdOucString     MgmOfsQueue;        // -> our mgm queue name
         XrdOucString     MgmOfsInstanceName; // -> name of the EOS instance

@@ -585,6 +585,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     //-------------------------------------------
   }
   
+  eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
   SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(),false);
 
   if (!quotaspace) {
@@ -3276,7 +3277,8 @@ XrdMgmOfs::_verifystripe(const char             *path,
     // build the opaquestring contents
     opaquestring += "&mgm.localprefix=";       opaquestring += verifyfilesystem->GetPath().c_str();
     opaquestring += "&mgm.fid=";XrdOucString hexfid; eos::common::FileId::Fid2Hex(fid,hexfid);opaquestring += hexfid;
-    opaquestring += "&mgm.manager=";           opaquestring += gOFS->ManagerId.c_str();
+    opaquestring += "&mgm.manager=";           
+    opaquestring += gOFS->ManagerId.c_str();
     opaquestring += "&mgm.access=verify";
     opaquestring += "&mgm.fsid=";              opaquestring += (int)verifyfilesystem->GetId();
     if (attrmap.count("user.tag")) {
