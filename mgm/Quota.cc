@@ -38,6 +38,9 @@ SpaceQuota::SpaceQuota(const char* name) {
     if (!quotadir) {
       try {
 	quotadir = gOFS->eosView->createContainer(name, true );
+	quotadir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH );
+	gOFS->eosView->updateContainerStore(quotadir);
+
       } catch( eos::MDException &e ) {
 	eos_static_crit("Cannot create quota directory %s", name);
       }
@@ -219,6 +222,11 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
   std::map<unsigned long, unsigned long >::const_iterator sortit;
 
   if (!SpaceName.beginswith("/")) {
+    free(sortuidarray);
+    free(sortgidarray);
+    // we don't show them right now ... maybe if we put quota on physical spaces we will
+    return ;
+
     if ( (uid_sel <0) && (gid_sel <0)) {
       XrdOucString value1="";
       XrdOucString value2="";
@@ -936,9 +944,13 @@ Quota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long bytes,
   XrdOucString configstringheader="";
   char configvalue[1024];
 
+  if (!space.endswith("/")) {
+    space += "/";
+  }
+
   if (!space.length()) {
-    spacequota = GetSpaceQuota("/eos",false);
-    configstringheader += "/eos";
+    spacequota = GetSpaceQuota("/eos/",false);
+    configstringheader += "/eos/";
   } else {
     spacequota = GetSpaceQuota(space.c_str(),false);
     configstringheader += space.c_str();

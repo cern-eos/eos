@@ -28,7 +28,7 @@ FsView::GetNodeFormat(std::string option) {
   }
  
   if (option == "io") {
-    return "header=1:member=hostport:width=30:format=s|sep= |avg=stat.disk.load:width=15:format=f|sep= |sig=stat.disk.load:width=15:format=f|sep= |sum=stat.disk.readratemb:width=21:format=+l|sep= |sum=stat.disk.writeratemb:width=22:format=+l|sep= |sum=stat.net.ethratemib:width=20:format=l|sep= |sum=stat.net.inratemib:width=19:format=l|sep= |sum=stat.net.outratemib:width=20:format=l|sep= |sum=stat.ropen:width=11:format=+l|sep= |sum=stat.wopen:width=11:format=+l|sep= |sum=stat.statfs.usedbytes:width=16:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.usedfiles:width=11:format=+l|sep= |sum=stat.statfs.files:width=11:format=+l";
+    return "header=1:member=hostport:width=24:format=s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+l:tag=max-files";
   }
 
   if (option == "l") {
@@ -44,11 +44,11 @@ FsView::GetFileSystemFormat(std::string option) {
   
   if (option == "m") {
     // monitoring format
-    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=stat.boot:width=1:format=os|sep= |key=configstatus:width=1:format=os|sep= |key=stat.errc:width=1:format=os|sep= |key=stat.errmsg:width=1:format=os|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sum=stat.statfs.fused:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol";
+    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=stat.boot:width=1:format=os|sep= |key=configstatus:width=1:format=os|sep= |key=stat.errc:width=1:format=os|sep= |key=stat.errmsg:width=1:format=os|sep= |key=stat.disk.load:width=1:format=of|sep= |key=stat.disk.readratemb:width=1:format=ol|sep= |key=stat.disk.writeratemb:width=1:format=ol|sep= |key=stat.net.ethratemib:width=1:format=ol|sep= |key=stat.net.inratemib:width=1:format=ol|sep= |key=stat.net.outratemib:width=1:format=ol|sep= |key=stat.ropen:width=1:format=ol|sep= |key=stat.wopen:width=1:format=ol|sep= |key=stat.statfs.freebytes:width=1:format=ol|sep= |key=stat.statfs.usedbytes:width=1:format=ol|sep= |key=stat.statfs.capacity:width=1:format=ol|sep= |key=stat.usedfiles:width=1:format=ol|sep= |key=stat.statfs.ffree:width=1:format=ol|key=stat.statfs.fused:width=1:format=ol|sep= |key=stat.statfs.files:width=1:format=ol";
   }
 
   if (option == "io") {
-    return "header=1:key=hostport:width=30:format=s|sep= |key=id:width=5z:format=s|sep= |key=stat.disk.load:width=15:format=f|sep= |key=stat.disk.load:width=15:format=f|sep= |key=stat.disk.readratemb:width=21:format=+l|sep= |key=stat.disk.writeratemb:width=22:format=+l|sep= |key=stat.net.ethratemib:width=20:format=l|sep= |key=stat.net.inratemib:width=19:format=l|sep= |key=stat.net.outratemib:width=20:format=l|sep= |key=stat.ropen:width=11:format=+l|sep= |key=stat.wopen:width=11:format=+l|sep= |key=stat.statfs.usedbytes:width=16:format=+l|sep= |key=stat.statfs.capacity:width=14:format=+l|sep= |key=stat.usedfiles:width=11:format=+l|sep= |key=stat.statfs.files:width=11:format=+l";
+    return "header=1:key=hostport:width=30:format=s|sep= |key=id:width=5:format=s|sep= |key=stat.disk.load:width=10:format=f:tag=diskload|sep= |key=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |key=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |key=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |key=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |key=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |key=stat.ropen:width=6:format=l:tag=ropen|sep= |key=stat.wopen:width=6:format=l:tag=wopen|sep= |key=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |key=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |key=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |key=stat.statfs.files:width=11:format=+l:tag=max-files";
   }
 
   if (option == "l") {
@@ -73,7 +73,7 @@ FsView::GetSpaceFormat(std::string option) {
   }
 
   if (option == "io") {
-    return "header=1:member=name:width=30:format=s|sep= |avg=stat.disk.load:width=15:format=f|sep= |sig=stat.disk.load:width=15:format=f|sep= |sum=stat.disk.readratemb:width=21:format=+l|sep= |sum=stat.disk.writeratemb:width=22:format=+l|sep= |sum=stat.net.ethratemib:width=20:format=l|sep= |sum=stat.net.inratemib:width=19:format=l|sep= |sum=stat.net.outratemib:width=20:format=l|sep= |sum=stat.ropen:width=11:format=+l|sep= |sum=stat.wopen:width=11:format=+l|sep= |sum=stat.statfs.usedbytes:width=16:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.usedfiles:width=11:format=+l|sep= |sum=stat.statfs.files:width=11:format=+l";
+    return "header=1:member=name:width=10:format=s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+l:tag=max-files";
   }
 
   if (option == "l") {
@@ -93,15 +93,15 @@ FsView::GetGroupFormat(std::string option) {
   }
 
   if (option == "io") {
-    return "header=1:member=name:width=30:format=s|sep= |avg=stat.disk.load:width=15:format=f|sep= |sig=stat.disk.load:width=15:format=f|sep= |sum=stat.disk.readratemb:width=21:format=+l|sep= |sum=stat.disk.writeratemb:width=22:format=+l|sep= |sum=stat.net.ethratemib:width=20:format=l|sep= |sum=stat.net.inratemib:width=19:format=l|sep= |sum=stat.net.outratemib:width=20:format=l|sep= |sum=stat.ropen:width=11:format=+l|sep= |sum=stat.wopen:width=11:format=+l|sep= |sum=stat.statfs.usedbytes:width=16:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.usedfiles:width=11:format=+l|sep= |sum=stat.statfs.files:width=11:format=+l";
+    return "header=1:member=name:width=16:format=-s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+l:tag=max-files";
   }
 
   if (option == "l") {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
+    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
   }
 
-  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
+  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
 }
 
 /*----------------------------------------------------------------------------*/

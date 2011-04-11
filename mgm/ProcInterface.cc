@@ -1384,7 +1384,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		retc = EINVAL;
 	      } else {
 		XrdOucString msg ="";
-		if (!Quota::SetQuota(space, uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, svolume.length()?size:-1, sinodes.length()?inodes:-1, msg, retc)) {
+		std::string suid = (uid_sel.length())?uid_sel.c_str():"0";
+		std::string sgid = (gid_sel.length())?gid_sel.c_str():"0";
+		int errc;
+		long uid = eos::common::Mapping::UserNameToUid(suid,errc);
+		long gid = eos::common::Mapping::GroupNameToGid(sgid,errc);
+		
+		if (!Quota::SetQuota(space, uid_sel.length()?uid:-1, gid_sel.length()?gid:-1, svolume.length()?size:-1, sinodes.length()?inodes:-1, msg, retc)) {
 		stdErr = msg;
 		} else {
 		  stdOut = msg;

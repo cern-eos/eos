@@ -159,6 +159,7 @@ com_quota (char* arg1) {
   printf("       quota ls [-n] [-m] --gid <gid> [--space <space>]                                              : list configured quota and used space\n");
   printf("       quota set -u <uid>|-g <gid> -s <space>   [-v <bytes>] [-i <inodes>]                           : set volume and/or inode quota by uid or gid \n");
   printf("       quota set --uid <uid>|--gid <gid> -s|--space <space> [--volume <bytes>] [--inodes <inodes>]   : set volume and/or inode quota by uid or gid \n");
+  printf("       quota rm  -u <uid>|-g <gid> -s|--space <space>                                                : remove configured quota for uid/gid in space\n");
   printf("       quota rm  --uid <uid>|--gid <gid> -s|--space <space>                                          : remove configured quota for uid/gid in space\n");
   printf("                                                 -m                  : print information in monitoring <key>=<value> format\n");
   printf("                                                 -n                  : don't translate ids, print uid+gid number\n");
@@ -167,7 +168,7 @@ com_quota (char* arg1) {
   printf("                                                 -s/--space <space>  : print information only for space <space>\n");
   printf("                                                 -v/--volume <bytes> : set the volume limit to <bytes>\n");
   printf("                                                 -i/--inodes <inodes>: set the inodes limit to <inodes>\n");
-  printf("     => you have to specify either the user or the group id\n");
+  printf("     => you have to specify either the user or the group identified by the unix id or the user/group name\n");
   printf("     => the space argument is by default assumed as 'default'\n");
   printf("     => you have to specify at least a volume or an inode limit to set quota\n");
 
