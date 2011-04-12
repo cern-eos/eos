@@ -40,6 +40,16 @@ com_access (char* arg1) {
     ok = true;
   }
 
+  if (subcmd == "set") {
+    in += "&mgm.subcmd=set";
+    ok = true;
+  }
+
+  if (subcmd == "rm") {
+    in += "&mgm.subcmd=rm";
+    ok = true;
+  }
+
   if (ok) {
     ok = false;
     XrdOucString type = "";
@@ -78,6 +88,25 @@ com_access (char* arg1) {
 	ok = true;
       }
     }
+
+    if ( (subcmd == "set") || (subcmd == "rm") ) {
+      type = maybeoption;
+      XrdOucString id   = subtokenizer.GetToken();
+      if ((subcmd != "rm") && ((!type.length()) || (!id.length())))
+	goto com_access_usage;
+      
+      if (!id.length()) {
+	id = "dummy";
+      }
+      if (type == "redirect") {
+	in += "&mgm.access.redirect="; in += id;
+	ok = true;
+      }
+      if (type == "stall") {
+	in += "&mgm.access.stall="; in += id;
+	ok = true;
+      }
+    }
     if (!ok) 
       goto com_access_usage;
   } else {
@@ -97,6 +126,11 @@ com_access (char* arg1) {
   printf("       access allow user|group|host <identifier>                    : allows this user,group or host access\n");
   printf("       access unallow user|group|host <identifier>                  : unallows this user,group or host access\n");
   printf("hint:  if you add any 'allow' the instance allows only the listed users. A banned identifier will still overrule an allowed identifier!\n");
+  printf("\n");
+  printf("       access set redirect <target-host>                            : allows to set a global redirection to <target-host>\n");
+  printf("       access rm  redirect                                          : removes global redirection\n");
+  printf("       access set stall <stall-time>                                : allows to set a global stall time\n");
+  printf("       access rm  stall                                             : removes global stall time\n");
   printf("\n");
   printf("       access ls [-m] [-n]                                          : print banned,unbanned user,group, hosts\n");
   printf("                                                                      -m : output in monitoring format with <key>=<value>\n");

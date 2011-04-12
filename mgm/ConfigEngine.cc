@@ -2,7 +2,6 @@
 #include "common/Mapping.hh"
 #include "mgm/Access.hh"
 #include "mgm/ConfigEngine.hh"
-#include "mgm/FstNode.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Vid.hh"

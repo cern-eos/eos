@@ -1,6 +1,5 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Quota.hh"
-#include "mgm/FstNode.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "namespace/accounting/QuotaStats.hh"
 /*----------------------------------------------------------------------------*/
@@ -544,6 +543,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
   // the caller routing has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) !!!
   std::set<eos::common::FileSystem::fsid_t> fsidavoidlist;
   std::map<eos::common::FileSystem::fsid_t, float> availablefs;
+  std::vector<eos::common::FileSystem::fsid_t> availablevector;
 
   // fill the avoid list from the selectedfs input vector
   for (unsigned int i=0; i< selectedfs.size(); i++) {
@@ -647,12 +647,10 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
     }
     schedulingMutex.UnLock();
 
-    // fake weight
-    double weight = 1.0;
-
+		
     currentfsrandomoffset = (unsigned int) (( 0.999999 * random()* (*git)->size() )/RAND_MAX);
     
-    // we loop over all filesystems in that group
+    // we loop over some filesystems in that group
     for (unsigned int fsindex=0; fsindex < (*git)->size(); fsindex++) {
       eos_static_debug("checking scheduling group %d filesystem %d", (*git)->GetIndex(), *fsit);	
 
@@ -661,6 +659,11 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
       // we are already in a locked section
       FsView::gFsView.mIdView[fsid]->SnapShotFileSystem(snapshot,false);
       
+      // the weight is given mainly by the disk performance and the network load has a weaker impact (sqrt)
+      double weight    = (1.0 - snapshot.mDiskUtilization);
+      double netweight = (1.0- (snapshot.mNetEthRateMiB)?(snapshot.mNetInRateMiB/snapshot.mNetEthRateMiB):0.0);
+      weight          *= ((netweight>0)?sqrt(netweight):0);
+
       // check if this filesystem can be used (online, enough space etc...)
       if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
 	   (snapshot.mConfigStatus == eos::common::FileSystem::kRW) && 
@@ -670,14 +673,19 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
 	
 	if (!fsidavoidlist.count(fsid)) {
 	  availablefs[fsid] = weight;
+	  availablevector.push_back(fsid);
 	}
       } else {
 	eos_static_err("%d %d %d\n", (snapshot.mStatus), (snapshot.mConfigStatus), (snapshot.mErrCode      == 0 ));
       }
       fsit++;
-      schedulingMutex.Lock();
-      schedulingFileSystem[sfsindextag] = *fsit;
-      schedulingMutex.UnLock();
+      if (fsindex==0) {
+	// we move the iterator only by one position
+	schedulingMutex.Lock();
+	schedulingFileSystem[sfsindextag] = *fsit;
+	schedulingMutex.UnLock();
+      }
+
       // create cycling
       if (fsit == (*git)->end()) {
 	fsit = (*git)->begin();
@@ -690,27 +698,33 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
       }
     }
     
-    std::map<eos::common::FileSystem::fsid_t,float>::const_iterator ait=availablefs.begin();
-    
     // check if there are atlast <nfilesystems> in the available map
     if (availablefs.size() >= nfilesystems) {
+      std::vector<eos::common::FileSystem::fsid_t>::iterator ait;
+      ait = availablevector.begin();
+
       for (unsigned int loop = 0; loop < 1000; loop++) {
 	// we cycle over the available filesystems
 	float randomacceptor = (0.999999 * random()/RAND_MAX);
-	eos_static_debug("fs %u acceptor %f/%f for %d. replica [loop=%d] [avail=%d]", ait->first, randomacceptor, ait->second, nassigned+1, loop, availablefs.size());
+	eos_static_debug("fs %u acceptor %f/%f for %d. replica [loop=%d] [avail=%d]", *ait, randomacceptor, availablefs[*ait], nassigned+1, loop, availablevector.size());
 	
 	if ( (nassigned==0) ) {
-	  if (ait->first<randomacceptor) {
+	  if (availablefs[*ait]<randomacceptor) {
 	    ait++;
-	    if (ait==availablefs.end())
-	      ait = availablefs.begin();
+	    if (ait == availablevector.end()) 
+	      ait = availablevector.begin();
+	    continue;
 	  } else {
             // push it on the selection list
-	    selectedfs.push_back(ait->first);
-	    eos_static_debug("fs %u selected for %d. replica", ait->first, nassigned+1);
+	    selectedfs.push_back(*ait);
+	    eos_static_debug("fs %u selected for %d. replica", *ait, nassigned+1);
 	    
 	    // remove it from the selection map
-	    availablefs.erase(ait->first);
+	    availablefs.erase(*ait);
+	    availablevector.erase(ait);
+	    ait++;
+	    if (ait == availablevector.end()) 
+	      ait = availablevector.begin();
 	    
 	    // rotate scheduling view ptr
 	    nassigned++;
@@ -723,17 +737,19 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
 	  
 	  for (unsigned int i=0; i< randomindex; i++) {
 	    ait++;
-	    if (ait == availablefs.end())
-	      ait = availablefs.begin();
+	    if (ait == availablevector.end())
+	      ait = availablevector.begin();
 	  }
 	  
-	  if (ait->second>randomacceptor) {
+	  if (availablefs[*ait]>randomacceptor) {
 	    // push it on the selection list
-	    selectedfs.push_back(ait->first);
-	    eos_static_debug("fs %u selected for %d. replica", ait->first, nassigned+1);
+	    selectedfs.push_back(*ait);
+	    eos_static_debug("fs %u selected for %d. replica", *ait, nassigned+1);
 	    
 	    // remove it from the selection map
-	    availablefs.erase(ait->first);
+	    availablefs.erase(*ait);
+	    availablevector.erase(ait);
+	    ait++;
 	    nassigned++;
 	  }
 	}

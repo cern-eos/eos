@@ -5,7 +5,6 @@
 #include "common/Path.hh"
 #include "common/Timing.hh"
 #include "mgm/Access.hh"
-#include "mgm/FstNode.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/XrdMgmOfsSecurity.hh"
@@ -132,15 +131,22 @@ XrdMgmOfs::ShouldStall(const char* function,  eos::common::Mapping::VirtualIdent
 {
   // check for user, group or host banning
   eos::common::RWMutexReadLock lock(Access::gAccessMutex);
-  if ( (vid.uid > 3) && (
-       Access::gBannedUsers.count(vid.uid) ||
-       Access::gBannedGroups.count(vid.gid) ||
-       Access::gBannedHosts.count(vid.host) || 
-       (Access::gAllowedUsers.size()  && Access::gAllowedUsers.count(vid.uid)) ||
-       (Access::gAllowedGroups.size() && Access::gAllowedGroups.count(vid.gid)) ||
-       (Access::gAllowedHosts.size()  && Access::gAllowedHosts.count(vid.host)) )) {
-    stalltime = 300;
-    stallmsg="Attention: you are currently banned in this instance and each request is stalled for 5 minutes";
+  if ( (vid.uid > 3) && 
+       ( Access::gBannedUsers.count(vid.uid) ||
+         Access::gBannedGroups.count(vid.gid) ||
+         Access::gBannedHosts.count(vid.host) || 
+	 (Access::gAllowedUsers.size()  && Access::gAllowedUsers.count(vid.uid)) ||
+	 (Access::gAllowedGroups.size() && Access::gAllowedGroups.count(vid.gid)) ||
+	 (Access::gAllowedHosts.size()  && Access::gAllowedHosts.count(vid.host)) || 
+	 (Access::gStallRules.size() && (Access::gStallRules.count(std::string("*"))))
+	 )) {
+    if (Access::gStallRules.size()) {
+      stalltime = atoi(Access::gStallRules[std::string("*")].c_str());
+    } else {
+      stalltime = 300;
+    }
+    stallmsg="Attention: you are currently banned in this instance and each request is stalled for ";
+    stallmsg += (int) stalltime; stallmsg += " seconds ...";
     eos_static_info("denying access to uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
     return true;
   } 
@@ -151,6 +157,27 @@ XrdMgmOfs::ShouldStall(const char* function,  eos::common::Mapping::VirtualIdent
 bool
 XrdMgmOfs::ShouldRedirect(const char* function,  eos::common::Mapping::VirtualIdentity &vid,XrdOucString &host, int &port)
 {
+  if ( (vid.host == "localhost")  || (vid.uid==0))
+    return false;
+    
+  if (Access::gRedirectionRules.size()) {
+    if (Access::gRedirectionRules.count(std::string("*"))) {
+      // redirect
+      std::string delimiter=":";
+      std::vector<std::string> tokens;
+      eos::common::StringConversion::Tokenize(Access::gRedirectionRules[std::string("*")],tokens,delimiter);
+      if (tokens.size() == 1) {
+	host = tokens[0].c_str();
+	port = 1094;
+      } else {
+	host = tokens[0].c_str();
+	port = atoi(tokens[1].c_str());
+	if (port == 0)
+	  port = 1094;
+      }
+      return true;
+    }
+  }
   return false;
 }
 

@@ -18,6 +18,7 @@ public:
   Messaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false ,XrdMqSharedObjectManager* som=0);
   virtual ~Messaging(){}
 
+  virtual bool Update(XrdAdvisoryMqMessage* advmsg);
   virtual void Listen();
   virtual void Process(XrdMqMessage* newmessage);
 

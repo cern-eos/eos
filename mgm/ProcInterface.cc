@@ -8,7 +8,6 @@
 #include "mgm/Policy.hh"
 #include "mgm/Vid.hh"
 #include "mgm/ProcInterface.hh"
-#include "mgm/FstNode.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/FsView.hh"
@@ -139,12 +138,17 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       std::string group="";
       std::string host="";
       std::string option="";
+      std::string redirect="";
+      std::string stall="";
+
       bool monitoring = false;
       bool translate  = true;
       user  = opaque.Get("mgm.access.user")?opaque.Get("mgm.access.user"):"";
       group = opaque.Get("mgm.access.group")?opaque.Get("mgm.access.group"):"";
       host  = opaque.Get("mgm.access.host")?opaque.Get("mgm.access.host"):"";
       option = opaque.Get("mgm.access.option")?opaque.Get("mgm.access.option"):"";
+      redirect=opaque.Get("mgm.access.redirect")?opaque.Get("mgm.access.redirect"):"";
+      stall  = opaque.Get("mgm.access.stall")?opaque.Get("mgm.access.stall"):"";
 
       if ( (option.find("m"))!=std::string::npos)
 	monitoring = true;
@@ -385,11 +389,59 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
       }
 
+      if (subcmd == "set") {
+	eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+	if (redirect.length()) {
+	  Access::gRedirectionRules[std::string("*")] = redirect;
+	  stdOut = "success: setting global redirection to '"; stdOut += redirect.c_str(); stdOut += "'";
+	} else {
+	  if (stall.length()) {
+	    if (atoi(stall.c_str()) >0) {
+	      Access::gStallRules[std::string("*")] = stall;
+	      stdOut += "success: setting global stall to "; stdOut += stall.c_str(); stdOut += " seconds";
+	    } else {
+	      stdErr = "error: <stalltime> has to be > 0";
+	      retc = EINVAL;
+	    }
+	  } else {
+	    stdErr = "error: redirect or stall has to be defined";
+	    retc = EINVAL;
+	  }
+	}
+      }
+
+      if (subcmd == "rm") {
+	eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+	if (redirect.length()) {
+	  if (Access::gRedirectionRules.count(std::string("*"))) {
+	    stdOut = "success: removing global redirection from '"; stdOut += redirect.c_str(); stdOut += "'";
+	    Access::gRedirectionRules.erase(std::string("*"));
+	  } else {
+	    stdErr = "error: there is no global redirection defined";
+	    retc = EINVAL;
+	  }
+	} else {
+	  if (stall.length()) {
+	    if (Access::gStallRules.count(std::string("*"))) {
+	      stdOut = "success: removing global stall time of "; stdOut += stall.c_str(); stdOut += " seconds";
+	      Access::gStallRules.erase(std::string("*"));
+	    } else {
+	      stdErr = "error: there is no global stall time defined";
+	      retc = EINVAL;
+	    }
+	  } else {
+	    stdErr = "error: redirect or stall has to be defined";
+	    retc = EINVAL;
+	  }
+	}
+      }
+
       if (subcmd == "ls") {
 	eos::common::RWMutexReadLock lock(Access::gAccessMutex);
 	std::set<uid_t>::const_iterator ituid;
 	std::set<gid_t>::const_iterator itgid;
 	std::set<std::string>::const_iterator ithost;
+	std::map<std::string, std::string>::const_iterator itred;
 	int cnt;
 
 	if (Access::gBannedUsers.size()) {
@@ -536,6 +588,54 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      stdOut += "[ "; stdOut += counter ; stdOut += " ] " ;
 	    }
 	    stdOut += ithost->c_str();
+	    stdOut += "\n";
+	  }
+	}
+
+	if (Access::gRedirectionRules.size()) {
+	  if (!monitoring) {
+	    stdOut += "# ....................................................................................\n";
+	    stdOut += "# Redirection Rules ...\n";
+	    stdOut += "# ....................................................................................\n";
+	  }
+	  
+	  cnt=0;
+	  for (itred = Access::gRedirectionRules.begin(); itred != Access::gRedirectionRules.end(); itred++) {
+	    cnt++;
+	    if (monitoring) {
+	      stdOut += "redirect.";
+	      stdOut += itred->first.c_str();
+	      stdOut += "=";
+	    } else {
+	      char counter[1024]; snprintf(counter,sizeof(counter)-1, "[ %02d ] %32s => ",cnt, itred->first.c_str());
+	      stdOut += counter;
+	    }
+	    
+	    stdOut += itred->second.c_str();
+	    stdOut += "\n";
+	  }
+	}
+
+	if (Access::gStallRules.size()) {
+	  if (!monitoring) {
+	    stdOut += "# ....................................................................................\n";
+	    stdOut += "# Stall Rules ...\n";
+	    stdOut += "# ....................................................................................\n";
+	  }
+	  
+	  cnt=0;
+	  for (itred = Access::gStallRules.begin(); itred != Access::gStallRules.end(); itred++) {
+	    cnt++;
+	    if (monitoring) {
+	      stdOut += "stall.";
+	      stdOut += itred->first.c_str();
+	      stdOut += "=";
+	    } else {
+	      char counter[1024]; snprintf(counter,sizeof(counter)-1, "[ %02d ] %32s => ",cnt, itred->first.c_str());
+	      stdOut += counter;
+	    }
+	    
+	    stdOut += itred->second.c_str();
 	    stdOut += "\n";
 	  }
 	}
@@ -1641,11 +1741,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      stdErr="error: debug level "; stdErr += debuglevel; stdErr+= " is not known!";
 	      retc = EINVAL;
 	    } else {
-	      if (debuglevel == "debug" && ( filterlist.find("SharedHash") == STR_NPOS)) {
-		gOFS->ObjectManager.SetDebug(true);
-              } else {
-		gOFS->ObjectManager.SetDebug(false);
-              }
 	      eos::common::Logging::SetLogPriority(debugval);
 	      stdOut="success: debug level is now <"; stdOut+=debuglevel.c_str();stdOut += ">";
 	      eos_notice("setting debug level to <%s>", debuglevel.c_str());
@@ -1654,6 +1749,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		stdOut+= " filter="; stdOut += filterlist;
 		eos_notice("setting message logid filter to <%s>", filterlist.c_str());
 	      }
+	      if (debuglevel == "debug" && ( eos::common::Logging::gFilter.find("SharedHash") == STR_NPOS)) {
+		gOFS->ObjectManager.SetDebug(true);
+              } else {
+		gOFS->ObjectManager.SetDebug(false);
+              }
 	    }
 	  }
 	  if (debugnode == "*") {

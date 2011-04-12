@@ -9,7 +9,6 @@
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
-#include "mgm/FstNode.hh"
 #include "mgm/Quota.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
@@ -438,7 +437,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   eos::common::Logging::SetLogPriority(LOG_CRIT);
   eos::common::Logging::SetUnit(unit.c_str());
 
-  eos::common::Logging::gFilter = "Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode";
+  eos::common::Logging::gFilter = "Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode");
 
   // we automatically append the host name to the config dir now !!!
