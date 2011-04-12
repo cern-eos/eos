@@ -992,27 +992,52 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    eos::common::FileSystem* fs = 0;
 	    // by host:port name
 	    std::string path = identifier;
-
+	    
 	    if (FsView::gFsView.mSpaceView.count(identifier)) {
-	      std::set<eos::common::FileSystem::fsid_t>::iterator it;
-	      for (it = FsView::gFsView.mSpaceView[identifier]->begin(); it != FsView::gFsView.mSpaceView[identifier]->end();  it++) {
-		if ( FsView::gFsView.mIdView.count(*it)) {
-		  fs = FsView::gFsView.mIdView[*it];
-		  if (fs) {
-		    // check the allowed strings
-		    if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ) ) ) {
-		      fs->SetString(key.c_str(),value.c_str());
-		      FsView::gFsView.StoreFsConfig(fs);
-		    } else {
-		      stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
-		      retc = EINVAL;
+	      // set a space related parameter
+	      if (!key.compare(0,6,"space.")) {
+		key.erase(0,6);
+		if (key == "nominalsize") {
+		  unsigned long long size   = eos::common::StringConversion::GetSizeFromString(value.c_str());
+		  if (size) {
+		    char ssize[1024];
+		    snprintf(ssize,sizeof(ssize)-1,"%llu", size);
+		    value = ssize;
+		    if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key,value, true, "/eos/*/mgm")) {
+		      retc = EIO;
+		      stdErr = "error: cannot set space config value";
 		    }
 		  } else {
-		    stdErr += "error: cannot identify the filesystem by <"; stdErr += identifier.c_str(); stdErr += ">\n";
 		    retc = EINVAL;
+		    stdErr = "error: value has to be positiva number";
 		  }
-		}
-	      } 
+		} 
+	      }
+	      
+	      // set a filesystem related parameter
+	      if (!key.compare(0,3,"fs.")) {
+		key.erase(0,3);
+		
+		std::set<eos::common::FileSystem::fsid_t>::iterator it;
+		for (it = FsView::gFsView.mSpaceView[identifier]->begin(); it != FsView::gFsView.mSpaceView[identifier]->end();  it++) {
+		  if ( FsView::gFsView.mIdView.count(*it)) {
+		    fs = FsView::gFsView.mIdView[*it];
+		    if (fs) {
+		      // check the allowed strings
+		      if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ) ) ) {
+			fs->SetString(key.c_str(),value.c_str());
+			FsView::gFsView.StoreFsConfig(fs);
+		      } else {
+			stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
+			retc = EINVAL;
+		      }
+		    } else {
+		      stdErr += "error: cannot identify the filesystem by <"; stdErr += identifier.c_str(); stdErr += ">\n";
+		      retc = EINVAL;
+		    }
+		  }
+		} 
+	      }
 	    } else {
 	      retc = EINVAL;
 	      stdErr = "error: cannot find space <"; stdErr += identifier.c_str(); stdErr += ">";
@@ -1024,8 +1049,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	} 
       }
       
-      if (subcmd == "quota") {
-        gOFS->MgmStats.Add("Quota",vid.uid,vid.gid,1);
+      if (subcmd == "quota") {      
 	std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
 	std::string onoff = (opaque.Get("mgm.space.quota"))?opaque.Get("mgm.space.quota"):"";
 	std::string key = "quota";
@@ -1035,6 +1059,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    stdErr="error: illegal parameters";
 	    retc = EINVAL;
 	  } else {
+	    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
 	    if (FsView::gFsView.mSpaceView.count(spacename)) {
 	      if (!FsView::gFsView.mSpaceView[spacename]->SetConfigMember(key, onoff, true, "/eos/*/mgm")) {
 		retc = EIO;
@@ -1043,7 +1068,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    } else {
 	      retc = EINVAL;
 	      stdErr = "error: no such space defined";
-	      }
+	    }
 	  }
 	} else {
 	  retc = EPERM;

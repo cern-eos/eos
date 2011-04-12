@@ -276,11 +276,11 @@ public:
     if (!monitoring) {
       sprintf(outline,"%-8s %-32s %3.02f +- %3.02f\n","ALL", "Execution Time", avg,sig);
       out += outline;
-      out +="# ---------------------------------------------------------------------------------------------------------\n";
-      sprintf(outline,"%-8s %-32s %-7s %8s %8s %8s %8s %-8s +- %-10s","who", "command","sum","5s","1min","5min","1h","exec(ms)","sigma(ms)");
+      out +="# -----------------------------------------------------------------------------------------------------------\n";
+      sprintf(outline,"%-8s %-32s %-9s %8s %8s %8s %8s %-8s +- %-10s","who", "command","sum","5s","1min","5min","1h","exec(ms)","sigma(ms)");
       out += outline;
       out += "\n";
-      out +="# ---------------------------------------------------------------------------------------------------------\n";
+      out +="# -----------------------------------------------------------------------------------------------------------\n";
     } else {
       sprintf(outline,"total.exec.avg=%.02f total.exec.sigma=%.02f\n", avg,sig);
       out += outline;
@@ -312,7 +312,7 @@ public:
 	sprintf(aexecsig,"-NA-");
 
       if (!monitoring) {
-	sprintf(outline,"ALL      %-32s %07llu %8s %8s %8s %8s %8s +- %-10s\n",tag, GetTotal(tag),a5,a60,a300,a3600, aexec, aexecsig);
+	sprintf(outline,"ALL      %-32s %09llu %8s %8s %8s %8s %8s +- %-10s\n",tag, GetTotal(tag),a5,a60,a300,a3600, aexec, aexecsig);
       } else {
 	sprintf(outline,"uid=all gid=all cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s exec=%f execsig=%f\n",tag, GetTotal(tag),a5,a60,a300,a3600,avg,sig);
       }
@@ -320,7 +320,7 @@ public:
     }
     if (details) {
       if (!monitoring) {
-	out +="# ---------------------------------------------------------------------------------------------------------\n";
+	out +="# -----------------------------------------------------------------------------------------------------------\n";
       }
       google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg > >::iterator tuit;
       google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatAvg > >::iterator tgit;
@@ -342,7 +342,7 @@ public:
 	  sprintf(a3600,"%3.02f", it->second.GetAvg3600());
 
 	  if (!monitoring) {
-	    sprintf(outline,"uid=%04d %-32s %07llu %8s %8s %8s %8s\n",it->first, tuit->first.c_str(),StatsUid[tuit->first.c_str()][it->first],a5,a60,a300,a3600);
+	    sprintf(outline,"uid=%04d %-32s %09llu %8s %8s %8s %8s\n",it->first, tuit->first.c_str(),StatsUid[tuit->first.c_str()][it->first],a5,a60,a300,a3600);
 	  } else {
 	    sprintf(outline,"uid=%04d cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",it->first, tuit->first.c_str(),StatsUid[tuit->first.c_str()][it->first],a5,a60,a300,a3600);
 	  }
@@ -356,7 +356,7 @@ public:
 	out += sit->c_str();
       
       if (!monitoring) {
-	out +="# ------------------------------------------------------------------------------------\n";
+	out +="# --------------------------------------------------------------------------------------\n";
       }
       for (tgit = StatAvgGid.begin(); tgit != StatAvgGid.end(); tgit++) {
 	google::sparse_hash_map<gid_t, StatAvg>::iterator it;
@@ -372,7 +372,7 @@ public:
 	  sprintf(a3600,"%3.02f", it->second.GetAvg3600());
 
 	  if (!monitoring) {
-	    sprintf(outline,"gid=%04d %-32s %07llu %8s %8s %8s %8s\n",it->first, tgit->first.c_str(),StatsGid[tgit->first.c_str()][it->first],a5,a60,a300,a3600);
+	    sprintf(outline,"gid=%04d %-32s %09llu %8s %8s %8s %8s\n",it->first, tgit->first.c_str(),StatsGid[tgit->first.c_str()][it->first],a5,a60,a300,a3600);
 	  } else {
 	    sprintf(outline,"gid=%04d cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",it->first, tgit->first.c_str(),StatsUid[tgit->first.c_str()][it->first],a5,a60,a300,a3600);
 		    
@@ -384,7 +384,7 @@ public:
       for (sit = gidout.begin(); sit != gidout.end(); sit++) 
 	out += sit->c_str();
       if (!monitoring) {
-	out +="# ------------------------------------------------------------------------------------\n";
+	out +="# --------------------------------------------------------------------------------------\n";
       }
     }
     Mutex.UnLock();

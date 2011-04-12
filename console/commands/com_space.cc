@@ -176,14 +176,15 @@ com_space (char* arg1) {
   printf("                                                                  -m : monitoring key=value output format\n");
   printf("                                                                  -l : long output - list also file systems after each space\n");
   printf("                                                                --io : print IO satistics\n");
-  printf("       space config <space-name> <key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
+  printf("       space config <space-name> space.nominalsize=<value>           : configure the nominal size for this space\n");
+  printf("       space config <space-name> fs.<key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
   printf("\n");
   printf("       space define <space-name> [<groupsize> [<groupmod>]]             : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
   printf("\n");
   printf("                                                                       => <groupsize>=0 means, that no groups are built within a space\n");
   printf("                                                                       => <groupmod> defines the maximum number of filesystems per node [default=24]\n");
   printf("\n");
-  printf("       space set <space-name> on|off                                    : enables/disabels all groups under that space ( not the nodes !) \n");
+  printf("       space set <space-name> on|off                                 : enables/disabels all groups under that space ( not the nodes !) \n");
   printf("       space rm <space-name>                                         : remove space\n");
   printf("\n");
   printf("       space quota <space-name> on|off                               : enable/disable quota\n");

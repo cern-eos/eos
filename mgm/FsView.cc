@@ -69,7 +69,7 @@ std::string
 FsView::GetSpaceFormat(std::string option) {
   if (option == "m") {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=cfg.groupsize:width=1:format=os|sep= |member=cfg.groupmod:width=1|sep= |member=nofs:width=1:format=os|sep= |member=cfg.quota:width=1|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffiles:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.statfs.capacity?configstatus@rw:width=1:format=ol|sep= |sum=<n>?configstatus@rw:width=1:format=ol";
+    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=cfg.groupsize:width=1:format=os|sep= |member=cfg.groupmod:width=1|sep= |member=nofs:width=1:format=os|sep= |member=cfg.quota:width=1|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffiles:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.statfs.capacity?configstatus@rw:width=1:format=ol|sep= |sum=<n>?configstatus@rw:width=1:format=ol|sep= |member=cfg.quota:width=1:format=os|sep= |member=cfg.nominalsize:width=1:format=os";
   }
 
   if (option == "io") {
@@ -78,10 +78,10 @@ FsView::GetSpaceFormat(std::string option) {
 
   if (option == "l") {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=32:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=cfg.groupmod:width=16:format=s|sep= |member=nofs:width=5:format=s|sep= |member=cfg.quota:width=10:format=s";
+    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=cfg.groupmod:width=16:format=s|sep= |member=nofs:width=6:format=s:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s";
   }
   
-  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=cfg.groupmod:width=16:format=s|sep= |member=nofs:width=6:format=s:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.quota:width=6:format=s";
+  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=cfg.groupmod:width=16:format=s|sep= |member=nofs:width=6:format=s:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1237,8 +1237,15 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
       
       // normal member printout
       if (formattags.count("member")) {
-	snprintf(tmpline,sizeof(tmpline)-1,lformat,GetMember(formattags["member"]).c_str());
-	snprintf(line,sizeof(line)-1,lenformat,tmpline);
+
+	if ( ((formattags["format"].find("+")) != std::string::npos) ) {
+	  std::string ssize;
+	  eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)(strtoll(GetMember(formattags["member"]).c_str(),0,10)), formattags["unit"].c_str());
+	  snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
+	} else {
+	  snprintf(tmpline,sizeof(tmpline)-1,lformat,GetMember(formattags["member"]).c_str());
+	  snprintf(line,sizeof(line)-1,lenformat,tmpline);
+	}
 
 	if (buildheader) {
 	  char headline[1024];
