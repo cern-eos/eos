@@ -25,6 +25,16 @@ com_access (char* arg1) {
     ok = true;
   }
 
+  if (subcmd == "allow") {
+    in += "&mgm.subcmd=allow";
+    ok = true;
+  }
+
+  if (subcmd == "unallow") {
+    in += "&mgm.subcmd=unallow";
+    ok = true;
+  }
+
   if (subcmd == "ls") {
     in += "&mgm.subcmd=ls";
     ok = true;
@@ -49,7 +59,7 @@ com_access (char* arg1) {
       ok = true;
     }
 
-    if ( (subcmd == "ban") || (subcmd == "unban") ) {
+    if ( (subcmd == "ban") || (subcmd == "unban") || (subcmd == "allow") || (subcmd == "unallow")) {
       type = maybeoption;
       XrdOucString id   = subtokenizer.GetToken();
       if ((!type.length()) || (!id.length())) 
@@ -83,6 +93,11 @@ com_access (char* arg1) {
  com_access_usage:
   printf("usage: access ban user|group|host <identifier>                      : ban user,group or host with identifier <identifier>\n");
   printf("       access unban user|group|host <identifier>                    : unban user,group or host with identifier <identifier>\n");
+  printf("\n");
+  printf("       access allow user|group|host <identifier>                    : allows this user,group or host access\n");
+  printf("       access unallow user|group|host <identifier>                  : unallows this user,group or host access\n");
+  printf("hint:  if you add any 'allow' the instance allows only the listed users. A banned identifier will still overrule an allowed identifier!\n");
+  printf("\n");
   printf("       access ls [-m] [-n]                                          : print banned,unbanned user,group, hosts\n");
   printf("                                                                      -m : output in monitoring format with <key>=<value>\n");
   printf("                                                                      -n : don't translate uid/gids to names\n");

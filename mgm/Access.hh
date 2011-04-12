@@ -22,10 +22,16 @@ public:
   static const char* gUserKey;
   static const char* gGroupKey;
   static const char* gHostKey;
+  static const char* gAllowedUserKey;
+  static const char* gAllowedGroupKey;
+  static const char* gAllowedHostKey;
   static std::set<uid_t> gBannedUsers;
   static std::set<gid_t> gBannedGroups;
+  static std::set<uid_t> gAllowedUsers;
+  static std::set<gid_t> gAllowedGroups;
   static std::set<std::string> gBannedHosts;
-  
+  static std::set<std::string> gAllowedHosts;
+
   static std::map<std::string, std::string> gRedirectionRules;
   static std::map<std::string, std::string> gStallRules;
 

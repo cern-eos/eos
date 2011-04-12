@@ -132,15 +132,19 @@ XrdMgmOfs::ShouldStall(const char* function,  eos::common::Mapping::VirtualIdent
 {
   // check for user, group or host banning
   eos::common::RWMutexReadLock lock(Access::gAccessMutex);
-  if ( Access::gBannedUsers.count(vid.uid) ||
+  if ( (vid.uid > 3) && (
+       Access::gBannedUsers.count(vid.uid) ||
        Access::gBannedGroups.count(vid.gid) ||
-       Access::gBannedHosts.count(vid.host) ) {
+       Access::gBannedHosts.count(vid.host) || 
+       (Access::gAllowedUsers.size()  && Access::gAllowedUsers.count(vid.uid)) ||
+       (Access::gAllowedGroups.size() && Access::gAllowedGroups.count(vid.gid)) ||
+       (Access::gAllowedHosts.size()  && Access::gAllowedHosts.count(vid.host)) )) {
     stalltime = 300;
     stallmsg="Attention: you are currently banned in this instance and each request is stalled for 5 minutes";
     eos_static_info("denying access to uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
     return true;
   } 
-  eos_static_info("allowing access to uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
+  eos_static_debug("allowing access to uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
   return false;
 }
 

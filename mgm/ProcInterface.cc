@@ -246,15 +246,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      retc = ENOENT;
 	    }
 	  } else {
-	    stdErr = "error: no such group - cannot ban '"; stdErr += group.c_str(); stdErr += "'";
+	    stdErr = "error: no such group - cannot unban '"; stdErr += group.c_str(); stdErr += "'";
 	    retc = EINVAL;
 	  }
 	}
 	if (host.length()) {
 	  if (Access::gBannedHosts.count(host)) {
-	    Access::gBannedHosts.insert(host);
+	    Access::gBannedHosts.erase(host);
 	    if (Access::StoreAccessConfig()) {
-	      stdOut = "success: banning host '"; stdOut += host.c_str(); stdOut += "'";
+	      stdOut = "success: unban host '"; stdOut += host.c_str(); stdOut += "'";
 	      retc = 0;
 	    } else {
 	      stdErr = "error: unable to store access configuration";
@@ -267,78 +267,277 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 	}
       }
+
+      if (subcmd == "allow") {
+	eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+	if (user.length()) {
+	  int errc=0;
+	  uid_t uid = eos::common::Mapping::UserNameToUid(user, errc);
+	  if (!errc) {
+	    Access::gAllowedUsers.insert(uid);
+	    if (Access::StoreAccessConfig()) {
+	      stdOut = "success: allow user '", stdOut += user.c_str(); stdOut += "'";
+	      retc = 0;
+	    } else {
+	      stdErr = "error: unable to store access configuration";
+	      retc = EIO;
+	    }
+	  } else {
+	    stdErr = "error: no such user - cannot allow '"; stdErr += user.c_str(); stdErr += "'";
+	    retc = EINVAL;
+	  }
+	}
+	if (group.length()) {
+	  int errc=0;
+	  gid_t gid = eos::common::Mapping::GroupNameToGid(group, errc);
+	  if (!errc) {
+	    Access::gAllowedGroups.insert(gid);
+	    if (Access::StoreAccessConfig()) {
+	      stdOut = "success: allow group '", stdOut += group.c_str(); stdOut += "'";
+	      retc = 0;
+	    } else {
+	      stdErr = "error: unable to store access configuration";
+	      retc = EIO;
+	    }
+	  } else {
+	    stdErr = "error: no such group - cannot allow '"; stdErr += group.c_str(); stdErr += "'";
+	    retc = EINVAL;
+	  }
+	}
+	if (host.length()) {
+	  if (Access::StoreAccessConfig()) {
+	    Access::gAllowedHosts.insert(host);
+	    stdOut = "success: allow host '"; stdOut += host.c_str(); stdOut += "'";
+	    retc = 0;
+	  } else {
+	    stdErr = "error: unable to store access configuration";
+	    retc = EIO;
+	  }
+	}
+      }
+
+      if (subcmd == "unallow") {
+	eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+	if (user.length()) {
+	  int errc=0;
+	  uid_t uid = eos::common::Mapping::UserNameToUid(user, errc);
+	  if (!errc) {
+	    if ( Access::gAllowedUsers.count(uid) ) {
+	      if (Access::StoreAccessConfig()) {
+		Access::gAllowedUsers.erase(uid);
+		if (Access::StoreAccessConfig()) {
+		  stdOut = "success: unallow user '", stdOut += user.c_str(); stdOut += "'";
+		  retc = 0;
+		} else {
+		  stdErr = "error: unable to store access configuration";
+		  retc = EIO;
+		}
+	      } else {
+		stdErr = "error: unable to store access configuration";
+		retc = EIO;
+	      }
+	    } else {
+	      stdErr = "error: user '"; stdErr += user.c_str(); stdErr += "' is not allowed anyway!"; 
+	      retc = ENOENT;
+	    }
+	  } else {
+	    stdErr = "error: no such user - cannot unallow '"; stdErr += user.c_str(); stdErr += "'";
+	    retc = EINVAL;
+	  }
+	}
+	if (group.length()) {
+	  int errc=0;
+	  gid_t gid = eos::common::Mapping::GroupNameToGid(group, errc);
+	  if (!errc) {
+	    if ( Access::gAllowedGroups.count(gid) ) {
+	      Access::gAllowedGroups.erase(gid);
+	      if (Access::StoreAccessConfig()) {
+		stdOut = "success: unallow group '", stdOut += group.c_str(); stdOut += "'";
+		retc = 0;
+	      } else {
+		stdErr = "error: unable to store access configuration";
+		retc = EIO;
+	      }
+	    } else {
+	      stdErr = "error: group '"; stdErr += group.c_str(); stdErr += "' is not allowed anyway!"; 
+	      retc = ENOENT;
+	    }
+	  } else {
+	    stdErr = "error: no such group - cannot unallow '"; stdErr += group.c_str(); stdErr += "'";
+	    retc = EINVAL;
+	  }
+	}
+	if (host.length()) {
+	  if (Access::gAllowedHosts.count(host)) {
+	    Access::gAllowedHosts.erase(host);
+	    if (Access::StoreAccessConfig()) {
+	      stdOut = "success: unallow host '"; stdOut += host.c_str(); stdOut += "'";
+	      retc = 0;
+	    } else {
+	      stdErr = "error: unable to store access configuration";
+	      retc = EIO;
+	    }
+	  } else {
+	    stdErr = "error: host '"; stdErr += host.c_str(); stdErr += "' is not banned anyway!"; 
+	    retc = ENOENT;
+	  }
+
+	}
+      }
+
       if (subcmd == "ls") {
 	eos::common::RWMutexReadLock lock(Access::gAccessMutex);
 	std::set<uid_t>::const_iterator ituid;
 	std::set<gid_t>::const_iterator itgid;
 	std::set<std::string>::const_iterator ithost;
 	int cnt;
-	if (!monitoring) {
-	  stdOut += "# ....................................................................................\n";
-	  stdOut += "# Banned Users ...\n";
-	  stdOut += "# ....................................................................................\n";
-	}
-  
-	cnt=0;
-	for (ituid = Access::gBannedUsers.begin(); ituid != Access::gBannedUsers.end(); ituid++) {
-	  cnt ++;
-	  if (monitoring) 
-	    stdOut += "user.banned=";
-	  else {
-	    char counter[16]; snprintf(counter,sizeof(counter)-1, "%02d",cnt);
-	    stdOut += "[ "; stdOut += counter ; stdOut += " ] " ;
-	  } 
-	  if (!translate) {
-	    stdOut += eos::common::Mapping::UidAsString(*ituid).c_str();
-	  } else {
-	    int terrc=0;
-	    stdOut += eos::common::Mapping::UidToUserName(*ituid,terrc).c_str();
+
+	if (Access::gBannedUsers.size()) {
+	  if (!monitoring) {
+	    stdOut += "# ....................................................................................\n";
+	    stdOut += "# Banned Users ...\n";
+	    stdOut += "# ....................................................................................\n";
 	  }
-	  stdOut += "\n";
+	  
+	  cnt=0;
+	  for (ituid = Access::gBannedUsers.begin(); ituid != Access::gBannedUsers.end(); ituid++) {
+	    cnt ++;
+	    if (monitoring) 
+	      stdOut += "user.banned=";
+	    else {
+	      char counter[16]; snprintf(counter,sizeof(counter)-1, "%02d",cnt);
+	      stdOut += "[ "; stdOut += counter ; stdOut += " ] " ;
+	    } 
+	    if (!translate) {
+	      stdOut += eos::common::Mapping::UidAsString(*ituid).c_str();
+	    } else {
+	      int terrc=0;
+	      stdOut += eos::common::Mapping::UidToUserName(*ituid,terrc).c_str();
+	    }
+	    stdOut += "\n";
+	  }
 	}
 
-	if (!monitoring) {
-	  stdOut += "# ....................................................................................\n";
-	  stdOut += "# Banned Groups...\n";
-	  stdOut += "# ....................................................................................\n";
-	}
-	
-	cnt=0;
-	for (itgid = Access::gBannedGroups.begin(); itgid != Access::gBannedGroups.end(); itgid++) {
-	  cnt++;
-	  if (monitoring) 
-	    stdOut += "group.banned=";
-	  else {
-	    char counter[16]; snprintf(counter,sizeof(counter)-1, "%02d",cnt);
-	    stdOut += "[ "; stdOut += counter ; stdOut += " ] " ;
+	if (Access::gBannedGroups.size()) {
+	  if (!monitoring) {
+	    stdOut += "# ....................................................................................\n";
+	    stdOut += "# Banned Groups...\n";
+	    stdOut += "# ....................................................................................\n";
 	  }
+	  
+	  cnt=0;
+	  for (itgid = Access::gBannedGroups.begin(); itgid != Access::gBannedGroups.end(); itgid++) {
+	    cnt++;
+	    if (monitoring) 
+	      stdOut += "group.banned=";
+	    else {
+	      char counter[16]; snprintf(counter,sizeof(counter)-1, "%02d",cnt);
+	      stdOut += "[ "; stdOut += counter ; stdOut += " ] " ;
+	    }
+	    
+	    if (!translate) {
+	      stdOut += eos::common::Mapping::GidAsString(*itgid).c_str();
+	    } else {
+	      int terrc=0;
+	      stdOut += eos::common::Mapping::GidToGroupName(*itgid,terrc).c_str();
+	    }
+	    stdOut += "\n";
+	  }
+	}
 
-	  if (!translate) {
-	    stdOut += eos::common::Mapping::GidAsString(*itgid).c_str();
-	  } else {
-	    int terrc=0;
-	    stdOut += eos::common::Mapping::GidToGroupName(*itgid,terrc).c_str();
+	if (Access::gBannedHosts.size()) {
+	  if (!monitoring) {
+	    stdOut += "# ....................................................................................\n";
+	    stdOut += "# Banned Hosts ...\n";
+	    stdOut += "# ....................................................................................\n";
 	  }
-	  stdOut += "\n";
+	  
+	  cnt=0;
+	  for (ithost = Access::gBannedHosts.begin(); ithost != Access::gBannedHosts.end(); ithost++) {
+	    cnt++;
+	    if (monitoring) 
+	      stdOut += "host.banned=";
+	    else {
+	      char counter[16]; snprintf(counter,sizeof(counter)-1, "%02d",cnt);
+	      stdOut += "[ "; stdOut += counter ; stdOut += " ] " ;
+	    }
+	    stdOut += ithost->c_str();
+	    stdOut += "\n";
+	  }
 	}
 
-	if (!monitoring) {
-	  stdOut += "# ....................................................................................\n";
-	  stdOut += "# Banned Hosts ...\n";
-	  stdOut += "# ....................................................................................\n";
-	}
-	
-	cnt=0;
-	for (ithost = Access::gBannedHosts.begin(); ithost != Access::gBannedHosts.end(); ithost++) {
-	  cnt++;
-	  if (monitoring) 
-	    stdOut += "host.banned=";
-	  else {
-	    char counter[16]; snprintf(counter,sizeof(counter)-1, "%02d",cnt);
-	    stdOut += "[ "; stdOut += counter ; stdOut += " ] " ;
+	if (Access::gAllowedUsers.size()) {
+	  if (!monitoring) {
+	    stdOut += "# ....................................................................................\n";
+	    stdOut += "# Allowd Users ...\n";
+	    stdOut += "# ....................................................................................\n";
 	  }
-	  stdOut += ithost->c_str();
-	  stdOut += "\n";
+	  
+	  cnt=0;
+	  for (ituid = Access::gAllowedUsers.begin(); ituid != Access::gAllowedUsers.end(); ituid++) {
+	    cnt ++;
+	    if (monitoring) 
+	      stdOut += "user.allowed=";
+	    else {
+	      char counter[16]; snprintf(counter,sizeof(counter)-1, "%02d",cnt);
+	      stdOut += "[ "; stdOut += counter ; stdOut += " ] " ;
+	    } 
+	    if (!translate) {
+	      stdOut += eos::common::Mapping::UidAsString(*ituid).c_str();
+	    } else {
+	      int terrc=0;
+	      stdOut += eos::common::Mapping::UidToUserName(*ituid,terrc).c_str();
+	    }
+	    stdOut += "\n";
+	  }
+	}
+
+	if (Access::gAllowedGroups.size()) {
+	  if (!monitoring) {
+	    stdOut += "# ....................................................................................\n";
+	    stdOut += "# Allowed Groups...\n";
+	    stdOut += "# ....................................................................................\n";
+	  }
+	  
+	  cnt=0;
+	  for (itgid = Access::gAllowedGroups.begin(); itgid != Access::gAllowedGroups.end(); itgid++) {
+	    cnt++;
+	    if (monitoring) 
+	      stdOut += "group.allowed=";
+	    else {
+	      char counter[16]; snprintf(counter,sizeof(counter)-1, "%02d",cnt);
+	      stdOut += "[ "; stdOut += counter ; stdOut += " ] " ;
+	    }
+	    
+	    if (!translate) {
+	      stdOut += eos::common::Mapping::GidAsString(*itgid).c_str();
+	    } else {
+	      int terrc=0;
+	      stdOut += eos::common::Mapping::GidToGroupName(*itgid,terrc).c_str();
+	    }
+	    stdOut += "\n";
+	  }
+	}
+
+	if (Access::gAllowedHosts.size()) {
+	  if (!monitoring) {
+	    stdOut += "# ....................................................................................\n";
+	    stdOut += "# Allowed Hosts ...\n";
+	    stdOut += "# ....................................................................................\n";
+	  }
+	  
+	  cnt=0;
+	  for (ithost = Access::gAllowedHosts.begin(); ithost != Access::gAllowedHosts.end(); ithost++) {
+	    cnt++;
+	    if (monitoring) 
+	      stdOut += "host.allowed=";
+	    else {
+	      char counter[16]; snprintf(counter,sizeof(counter)-1, "%02d",cnt);
+	      stdOut += "[ "; stdOut += counter ; stdOut += " ] " ;
+	    }
+	    stdOut += ithost->c_str();
+	    stdOut += "\n";
+	  }
 	}
       }
     }
