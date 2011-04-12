@@ -435,7 +435,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   XrdOucString unit = "mgm@"; unit+= ManagerId;
 
-  eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  eos::common::Logging::SetLogPriority(LOG_CRIT);
   eos::common::Logging::SetUnit(unit.c_str());
 
   eos::common::Logging::gFilter = "Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode";

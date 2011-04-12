@@ -64,11 +64,20 @@ XrdOucTrace     gMgmOfsTrace(&gMgmOfsEroute);
 XrdMgmOfs* gOFS=0;
 
 /*----------------------------------------------------------------------------*/
+void
+xrdmgmofs_shutdown(int sig) {
+  // handler to shutdown the daemon for valgrinding
+  exit(0);
+}
+
+
+/*----------------------------------------------------------------------------*/
 XrdMgmOfs::XrdMgmOfs(XrdSysError *ep)
 {
   eDest = ep;
   ConfigFN  = 0;  
   eos::common::LogId();
+  (void) signal(SIGINT,xrdmgmofs_shutdown);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -189,6 +198,8 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
    static const char *epname = "opendir";
    XrdOucEnv Open_Env(info);
    errno = 0;
+   
+   EXEC_TIMING_BEGIN("OpenDir");
 
    eos_info("(opendir) path=%s",dir_path);
 
@@ -233,7 +244,8 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
 
    dh_files = dh->filesBegin();
    dh_dirs  = dh->containersBegin();
-   
+
+   EXEC_TIMING_END("OpenDir");   
    return  SFS_OK;
 }
 
@@ -325,10 +337,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   const char *tident = error.getErrUser();
   errno = 0;
 
-  eos::common::Timing opentiming("mgm::open");
-
-  TIMING(gMgmOfsTrace,"START",&opentiming);
-
+  EXEC_TIMING_BEGIN("Open");
   SetLogId(logId, tident);
   
   eos_info("path=%s info=%s",path,info);
@@ -829,8 +838,8 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   if (capabilityenv)
     delete capabilityenv;
 
-  TIMING(gMgmOfsTrace,"DONE",&opentiming);
-  opentiming.Print(gMgmOfsTrace);
+  EXEC_TIMING_END("Open");
+
   return rcode;
 }
 
@@ -1054,6 +1063,8 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
 {
   static const char *epname = "chmod";
 
+  EXEC_TIMING_BEGIN("Chmod");
+
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   eos::ContainerMD* cmd = 0;
@@ -1081,8 +1092,10 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
 
-  if (cmd  && (!errno))
+  if (cmd  && (!errno)) {
+    EXEC_TIMING_END("Chmod");
     return SFS_OK;
+  }
   
   return Emsg(epname, error, errno, "chmod", path);
 }
@@ -1097,6 +1110,8 @@ int XrdMgmOfs::_chown(const char               *path,    // In
 
 {
   static const char *epname = "chown";
+
+  EXEC_TIMING_BEGIN("Chown");
 
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
@@ -1127,8 +1142,10 @@ int XrdMgmOfs::_chown(const char               *path,    // In
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
 
-  if (cmd  && (!errno))
+  if (cmd  && (!errno)) {
+    EXEC_TIMING_END("Chmod");
     return SFS_OK;
+  }
   
   return Emsg(epname, error, errno, "chown", path);
 }
@@ -1187,6 +1204,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
 */
 {
   // try if that is directory
+  EXEC_TIMING_BEGIN("Exists");
 
   gOFS->MgmStats.Add("Exists",vid.uid,vid.gid,1);  
 
@@ -1223,7 +1241,8 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   } else {
     file_exists = XrdSfsFileExistIsDirectory;
   }
-  
+
+  EXEC_TIMING_END("Exists");  
   return SFS_OK;
 }
 
@@ -1252,6 +1271,8 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   Notes:    When failure occurs, 'file_exists' is not modified.
 */
 {
+  EXEC_TIMING_BEGIN("Exists");
+
   gOFS->MgmStats.Add("Exists",vid.uid,vid.gid,1);  
   
   // try if that is directory
@@ -1288,7 +1309,8 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   } else {
     file_exists = XrdSfsFileExistIsDirectory;
   }
-  
+
+  EXEC_TIMING_END("Exists");  
   return SFS_OK;
 }
 
@@ -1350,6 +1372,8 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   mode_t acc_mode = (Mode & S_IAMB) | S_IFDIR;
   errno = 0;
 
+  EXEC_TIMING_BEGIN("Mkdir");
+
   gOFS->MgmStats.Add("Mkdir",vid.uid,vid.gid,1);  
 
   //  const char *tident = error.getErrUser();
@@ -1410,6 +1434,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       //-------------------------------------------
       if (fulldir) {
 	eos_info("this directory exists!",path);
+	EXEC_TIMING_END("Exists");
 	return SFS_OK;
       }
     }
@@ -1521,6 +1546,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     return Emsg(epname,error,errno,"mkdir",path);
   }
 
+  EXEC_TIMING_END("Mkdir");
   return SFS_OK;
 }
 
@@ -1595,6 +1621,8 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
 */
 {
   static const char *epname = "rem";
+  
+  EXEC_TIMING_BEGIN("Rm");
 
   gOFS->MgmStats.Add("Rm",vid.uid,vid.gid,1);  
 
@@ -1666,6 +1694,8 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
 
+  EXEC_TIMING_END("Rm");
+
   if (errno) 
     return Emsg(epname, error, errno, "remove", path);
   else 
@@ -1729,6 +1759,8 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
    static const char *epname = "remdir";
    errno = 0;
 
+   EXEC_TIMING_BEGIN("RmDir");
+
    gOFS->MgmStats.Add("RmDir",vid.uid,vid.gid,1);  
 
    eos::ContainerMD* dh=0;
@@ -1764,6 +1796,8 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
    gOFS->eosViewMutex.UnLock();
    //-------------------------------------------
 
+   EXEC_TIMING_END("RmDir");
+
    if (errno) {
      return Emsg(epname, error, errno, "rmdir", path);
    } else {
@@ -1795,6 +1829,8 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   const char *tident = error.getErrUser();
   errno = 0;
 
+  EXEC_TIMING_BEGIN("Rename");
+   
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
@@ -1849,6 +1885,8 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   //  if (r1) 
   //    return Emsg(epname, error, serrno, "rename", oldn.c_str());
 
+  EXEC_TIMING_END("Rename");
+
   return Emsg(epname, error, EOPNOTSUPP, "rename", oldn.c_str());
 }
 
@@ -1900,6 +1938,8 @@ int XrdMgmOfs::_stat(const char              *path,        // In
                      const char              *info)        // In
 {
   static const char *epname = "_stat";
+
+  EXEC_TIMING_BEGIN("Stat");
 
   gOFS->MgmStats.Add("Stat",vid.uid,vid.gid,1);  
   
@@ -1954,7 +1994,8 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     fmd->getMTime(atime);
     buf->st_mtime   = atime.tv_sec;
     buf->st_atime   = atime.tv_sec;
-    
+
+    EXEC_TIMING_END("Stat");    
     return SFS_OK;
   } else {
     memset(buf, 0, sizeof(struct stat));
@@ -1975,6 +2016,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     buf->st_mtime   = atime.tv_sec;
     buf->st_ctime   = atime.tv_sec;
     
+    EXEC_TIMING_END("Stat");    
     return SFS_OK;
   }
 }
@@ -2149,6 +2191,8 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
 {
   bool done=false;
   eos::ContainerMD* cmd=0;
+ 
+  EXEC_TIMING_BEGIN("Utimes");    
 
   gOFS->MgmStats.Add("Utimes",vid.uid,vid.gid,1);  
 
@@ -2180,7 +2224,9 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
   }
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
-  
+
+  EXEC_TIMING_END("Utimes");      
+
   if (!done) {
     return Emsg("utimes", error, errno, "set utimes", path);
   }
@@ -2201,6 +2247,8 @@ int XrdMgmOfs::_find(const char       *path,             // In
   eos::ContainerMD* cmd = 0;
   XrdOucString Path = path;
   errno = 0;
+
+  EXEC_TIMING_BEGIN("Find");      
 
   gOFS->MgmStats.Add("Find",vid.uid,vid.gid,1);  
 
@@ -2259,6 +2307,7 @@ int XrdMgmOfs::_find(const char       *path,             // In
   } while (found_dirs[deepness].size());
   //-------------------------------------------  
 
+  EXEC_TIMING_END("Find");      
   return SFS_OK;
 }
 
@@ -2518,6 +2567,9 @@ XrdMgmOfs::FSctl(const int               cmd,
     XrdOucString execmd = scmd;
 
     if (execmd == "commit") {
+
+      EXEC_TIMING_BEGIN("Commit");      
+
       char* asize  = env.Get("mgm.size");
       char* spath  = env.Get("mgm.path");
       char* afid   = env.Get("mgm.fid");
@@ -2691,10 +2743,12 @@ XrdMgmOfs::FSctl(const int               cmd,
       gOFS->MgmStats.Add("Commit",0,0,1);  
       const char* ok = "OK";
       error.setErrInfo(strlen(ok)+1,ok);
+      EXEC_TIMING_END("Commit");      
       return SFS_DATA;
     }
     
     if (execmd == "drop") {
+      EXEC_TIMING_BEGIN("Drop");      
       // drops a replica
       int envlen;
       eos_debug("drop request for %s",env.Env(envlen));
@@ -2764,6 +2818,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	
 	const char* ok = "OK";
 	error.setErrInfo(strlen(ok)+1,ok);
+	EXEC_TIMING_END("Drop");      
 	return SFS_DATA;
       }
     }
@@ -3027,6 +3082,8 @@ XrdMgmOfs::_attr_ls(const char             *path,
   static const char *epname = "attr_ls";  
   eos::ContainerMD *dh=0;
   errno = 0;
+  
+  EXEC_TIMING_BEGIN("AttrLs");      
 
   gOFS->MgmStats.Add("AttrLs",vid.uid,vid.gid,1);  
   
@@ -3053,9 +3110,11 @@ XrdMgmOfs::_attr_ls(const char             *path,
 
   gOFS->eosViewMutex.UnLock();
 
+  EXEC_TIMING_END("AttrLs");      
+
   if (errno) 
     return  Emsg(epname,error,errno,"list attributes",path);  
-  
+
   return SFS_OK;
 }   
 
@@ -3071,6 +3130,8 @@ XrdMgmOfs::_attr_set(const char             *path,
   static const char *epname = "attr_set";  
   eos::ContainerMD *dh=0;
   errno = 0;
+
+  EXEC_TIMING_BEGIN("AttrSet");      
 
   gOFS->MgmStats.Add("AttrSet",vid.uid,vid.gid,1);  
 
@@ -3098,7 +3159,9 @@ XrdMgmOfs::_attr_set(const char             *path,
     if (!errno) errno = EPERM;
   
   gOFS->eosViewMutex.UnLock();
-  
+
+  EXEC_TIMING_END("AttrSet");      
+ 
   if (errno) 
     return  Emsg(epname,error,errno,"list attributes",path);  
 
@@ -3118,6 +3181,8 @@ XrdMgmOfs::_attr_get(const char             *path,
   static const char *epname = "attr_set";  
   eos::ContainerMD *dh=0;
   errno = 0;
+
+  EXEC_TIMING_BEGIN("AttrGet");      
 
   gOFS->MgmStats.Add("AttrGet",vid.uid,vid.gid,1);  
 
@@ -3145,7 +3210,9 @@ XrdMgmOfs::_attr_get(const char             *path,
     if (!errno) errno = EPERM;
   
   if (!islocked) gOFS->eosViewMutex.UnLock();
-  
+
+  EXEC_TIMING_END("AttrGet");        
+
   if (errno) 
     return  Emsg(epname,error,errno,"list attributes",path);;  
 
@@ -3163,6 +3230,8 @@ XrdMgmOfs::_attr_rem(const char             *path,
   static const char *epname = "attr_rm";  
   eos::ContainerMD *dh=0;
   errno = 0;
+
+  EXEC_TIMING_BEGIN("AttrRm");      
 
   gOFS->MgmStats.Add("AttrRm",vid.uid,vid.gid,1);  
 
@@ -3188,6 +3257,8 @@ XrdMgmOfs::_attr_rem(const char             *path,
     if (!errno) errno = EPERM;
   
   gOFS->eosViewMutex.UnLock();
+
+  EXEC_TIMING_END("AttrRm");      
   
   if (errno) 
     return  Emsg(epname,error,errno,"remove attribute",path);  
@@ -3206,6 +3277,9 @@ XrdMgmOfs::_verifystripe(const char             *path,
   static const char *epname = "verifystripe";  
   eos::ContainerMD *dh=0;
   eos::FileMD *fmd=0;
+
+  EXEC_TIMING_BEGIN("VerifyStripe");      
+
   errno = 0;
   unsigned long long fid=0;
   unsigned long long cid=0;
@@ -3313,6 +3387,8 @@ XrdMgmOfs::_verifystripe(const char             *path,
       errno = 0;
     }
   }
+
+  EXEC_TIMING_END("VerifyStripe");      
   
   if (errno) 
     return  Emsg(epname,error,errno,"verify stripe",path);  
@@ -3332,6 +3408,8 @@ XrdMgmOfs::_dropstripe(const char             *path,
   eos::ContainerMD *dh=0;
   eos::FileMD *fmd=0;
   errno = 0;
+
+  EXEC_TIMING_BEGIN("DropStripe");
 
   gOFS->MgmStats.Add("DropStripe",vid.uid,vid.gid,1);  
 
@@ -3384,6 +3462,8 @@ XrdMgmOfs::_dropstripe(const char             *path,
   }
   
   gOFS->eosViewMutex.UnLock();
+
+  EXEC_TIMING_END("DropStripe");
   
   if (errno) 
     return  Emsg(epname,error,errno,"drop stripe",path);  
@@ -3400,7 +3480,10 @@ XrdMgmOfs::_movestripe(const char             *path,
 		       unsigned long           targetfsid,
 		       bool                    expressflag)
 {
-  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,true, expressflag);
+  EXEC_TIMING_BEGIN("MoveStripe");    
+  int retc = _replicatestripe(path, error,vid,sourcefsid,targetfsid,true, expressflag);
+  EXEC_TIMING_END("MoveStripe");    
+  return retc;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3412,7 +3495,10 @@ XrdMgmOfs::_copystripe(const char             *path,
 		       unsigned long           targetfsid, 
 		       bool                    expressflag)
 {
-  return _replicatestripe(path, error,vid,sourcefsid,targetfsid,false, expressflag);
+  EXEC_TIMING_BEGIN("CopyStripe");    
+  int retc =  _replicatestripe(path, error,vid,sourcefsid,targetfsid,false, expressflag);
+  EXEC_TIMING_END("CopyStripe");    
+  return retc;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3428,6 +3514,8 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   static const char *epname = "replicatestripe";  
   eos::ContainerMD *dh=0;
   errno = 0;
+  
+  EXEC_TIMING_BEGIN("ReplicateStripe");
   
   eos::common::Path cPath(path);
 
@@ -3468,11 +3556,16 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
 
-
+  
   if (errno) 
     return  Emsg(epname,error,errno,"replicate stripe",path);    
 
-  return _replicatestripe(fmd, error, vid, sourcefsid, targetfsid, dropsource, expressflag);
+  int retc =  _replicatestripe(fmd, error, vid, sourcefsid, targetfsid, dropsource, expressflag);
+
+  EXEC_TIMING_END("ReplicateStripe");
+
+  return retc;
+
 }
 
 /*----------------------------------------------------------------------------*/

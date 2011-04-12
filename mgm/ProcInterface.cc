@@ -134,6 +134,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
   // admin command section
   if (adminCmd) {
     if (cmd == "access") {
+      gOFS->MgmStats.Add("AccessControl",vid.uid,vid.gid,1);
       std::string user="";
       std::string group="";
       std::string host="";
@@ -725,6 +726,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
       
       if (subcmd == "quota") {
+        gOFS->MgmStats.Add("Quota",vid.uid,vid.gid,1);
 	std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
 	std::string onoff = (opaque.Get("mgm.space.quota"))?opaque.Get("mgm.space.quota"):"";
 	std::string key = "quota";
@@ -1810,6 +1812,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
   if (userCmd) {
     if (cmd == "quota") {
+      gOFS->MgmStats.Add("Quota",vid.uid,vid.gid,1);
       if (subcmd == "ls") {
 	eos_notice("quota ls");
 	XrdOucString out1="";
@@ -1826,6 +1829,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
     
     if (cmd == "who") {
+      gOFS->MgmStats.Add("Df",vid.uid,vid.gid,1);
       std::map<std::string, int> usernamecount;
       std::map<std::string, int> authcount;
       std::vector<std::string> tokens;
