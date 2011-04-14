@@ -56,15 +56,17 @@ public:
   int GetCheckSumLen() { return sizeof(unsigned int);}
 
   void Reset() {
-    checksum::crc32cInit();
+    crcsum = checksum::crc32cInit();
     crc32coffset = 0; 
     needsRecalculation=0;
     finalized = false;
   }
 
   void Finalize() {
-    checksum::crc32cFinish(crcsum);
-    finalized = true;
+    if (!finalized) {
+      checksum::crc32cFinish(crcsum);
+      finalized = true;
+    }
   }
   virtual ~CRC32C(){};
 

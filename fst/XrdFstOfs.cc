@@ -976,7 +976,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
     if (!fstBlockXS->CheckBlockSum(fileOffset, buffer, buffer_size)) {
       int envlen=0;
       eos_crit("block-xs error offset=%llu len=%llu file=%s",(unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());
-      return gOFS.Emsg("readofs", error, ENXIO, "read file - wrong block checksum fn=", FName());
+      return gOFS.Emsg("readofs", error, EIO, "read file - wrong block checksum fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
     }
   }
   return retc;
@@ -1028,9 +1028,6 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
 
   if (rc < 0) {
     // here we might take some other action
-    if (error.getErrInfo() == ENXIO) {
-      error.setErrCode(EIO);
-    }
     int envlen=0;
     eos_crit("block-read error=%d offset=%llu len=%llu file=%s",error.getErrInfo(), (unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());      
   }

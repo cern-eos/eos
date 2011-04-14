@@ -79,6 +79,9 @@ public:
   virtual unsigned long long GetXSBlocksWrittenHoles() { return nXSBlocksWrittenHoles;}
   virtual ~CheckSum(){};
 
+  virtual void Print() {
+    fprintf(stderr,"%s\n",GetHexChecksum());
+  }
   
 };
 
