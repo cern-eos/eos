@@ -73,7 +73,7 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
   message += msg.GetMessageBuffer();
 
   XrdClientAdmin* admin=0;
-  msg.Print();
+  //  msg.Print();
   for (int i=0 ;i< kBrokerN; i++) {
     admin = GetBrokerXrdClientSender(i);
     if (admin) {

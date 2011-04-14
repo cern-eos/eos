@@ -474,16 +474,23 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
               sstr = val.substr(cidstart[i]+1,keystart[i+1]-1 - (cidstart[i]));
             }
             cid = sstr;
-            if (debug)fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Setting [%s] %s=>%s\n", subject.c_str(),key.c_str(), value.c_str());
+            if (debug)fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Setting [%s] %s=> %s\n", subject.c_str(),key.c_str(), value.c_str());
             if (subjectlist.size()>1) {
               // this is a multiplexed update, where we have to remove the subject from the key if there is a match with the current subject
               if (!key.compare(0, subjectlist[s].length(), subjectlist[s])) {
                 // this is the right key for the subject we are dealing with
-                key.replace(0, subjectlist[s].length(), "");
+                key.erase(0, subjectlist[s].length());
               } else {
                 continue;
               }
+            } else {
+              // this can be the case for a single multiplexed message, so we have also to remove the prefix in that case
+              if (!key.compare(0, subjectlist[s].length(), subjectlist[s])) {
+                // this is the right key for the subject we are dealing with
+                key.erase(0, subjectlist[s].length());
+              }
             }
+
             sh->Set(key, value, false, true);
             
           }
