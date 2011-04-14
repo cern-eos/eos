@@ -21,6 +21,8 @@ private:
 public:
   CRC32() : CheckSum("crc32") {Reset();}
 
+  off_t GetLastOffset() {return crc32offset;}
+
   bool Add(const char* buffer, size_t length, off_t offset) {
     if (offset != crc32offset) {
       needsRecalculation = true;
@@ -42,6 +44,8 @@ public:
     len = sizeof(unsigned int);
     return (char*) &crcsum;
   }
+
+  int GetCheckSumLen() { return sizeof(unsigned int);}
 
   void Reset() {
     crc32offset = 0; crcsum = crc32(0L, Z_NULL,0);needsRecalculation=0;

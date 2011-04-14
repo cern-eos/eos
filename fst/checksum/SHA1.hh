@@ -23,6 +23,8 @@ private:
 public:
   SHA1() : CheckSum("sha1") {Reset();}
 
+  off_t GetLastOffset() {return sha1offset;}
+
   bool Add(const char* buffer, size_t length, off_t offset) {
     if (offset != sha1offset) {
       needsRecalculation = true;
@@ -47,6 +49,8 @@ public:
     len = SHA_DIGEST_LENGTH;
     return (char*) &sha1;
   }
+
+  int GetCheckSumLen() { return SHA_DIGEST_LENGTH;}
 
   void Finalize() {
     SHA1_Final(sha1, &ctx);

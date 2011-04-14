@@ -40,6 +40,19 @@ PlainLayout::truncate(XrdSfsFileOffset offset)
 
 /*----------------------------------------------------------------------------*/
 int
+PlainLayout::fallocate(XrdSfsXferSize length)
+{
+  XrdOucErrInfo error;
+  if(ofsFile->fctl(SFS_FCTL_GETFD,0,error)) 
+    return -1;
+  int fd = error.getErrInfo();
+  if (fd>0)
+    return posix_fallocate(fd,0,length);
+  return -1;
+}
+
+/*----------------------------------------------------------------------------*/
+int
 PlainLayout::sync() 
 {
   return ofsFile->syncofs();

@@ -21,6 +21,8 @@ private:
 public:
   Adler() : CheckSum("adler") {Reset();}
 
+  off_t GetLastOffset() {return adleroffset;}
+
   bool Add(const char* buffer, size_t length, off_t offset) {
     if (offset != adleroffset) {
       needsRecalculation = true;
@@ -42,6 +44,8 @@ public:
     len = sizeof(unsigned int);
     return (char*) &adler;
   }
+
+  int GetCheckSumLen() { return sizeof(unsigned int);}
 
   void Reset() {
     adleroffset = 0; adler = adler32(0L, Z_NULL,0); needsRecalculation=0;

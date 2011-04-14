@@ -13,6 +13,8 @@ add_library (XrdEosFst MODULE
 	    Load.cc
 	    Messaging.cc
 	    XrdFstOfs.cc
+            ../checksum/crc32c.cc
+            ../checksum/crc32ctables.cc
 	    )
 
 target_link_libraries (XrdEosFst eosCapability-Static eosCommon-Static XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNet XrdNetUtil XrdOfs XrdOss crypto uuid curses pthread dl z)

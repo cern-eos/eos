@@ -22,6 +22,8 @@ private:
 public:
   MD5() : CheckSum("md5") {Reset();}
 
+  off_t GetLastOffset() {return md5offset;}
+
   bool Add(const char* buffer, size_t length, off_t offset) {
     if (offset != md5offset) {
       needsRecalculation = true;
@@ -46,6 +48,8 @@ public:
     len = MD5_DIGEST_LENGTH;
     return (char*) &md5;
   }
+
+  int GetCheckSumLen() { return MD5_DIGEST_LENGTH;}
 
   void Finalize() {
     MD5_Final(md5, &ctx);

@@ -18,8 +18,9 @@ Policy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &attrmap,
   // this is for the moment only defaulting or manual selection
   unsigned long layout      = eos::common::LayoutId::GetLayoutFromEnv(env);
   unsigned long xsum        = eos::common::LayoutId::GetChecksumFromEnv(env);
+  unsigned long bxsum       = eos::common::LayoutId::GetBlockChecksumFromEnv(env);
   unsigned long stripes     = eos::common::LayoutId::GetStripeNumberFromEnv(env);
-  unsigned long stripewidth = eos::common::LayoutId::GetStripeWidthFromEnv(env);
+  unsigned long blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(env);
 
   
   const char* val=0;
@@ -50,6 +51,15 @@ Policy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &attrmap,
     xsum = eos::common::LayoutId::GetChecksumFromEnv(layoutenv);
     eos_static_debug("sys.forced.checksum in %s",path);
   }
+
+  if (attrmap.count("sys.forced.blockchecksum")) {
+    XrdOucString layoutstring = "eos.layout.blockchecksum="; layoutstring += attrmap["sys.forced.blockchecksum"].c_str();
+    XrdOucEnv layoutenv(layoutstring.c_str());
+    // we force to use a specified checksumming in this directory even if the user wants something else
+    bxsum = eos::common::LayoutId::GetBlockChecksumFromEnv(layoutenv);
+    eos_static_debug("sys.forced.blockchecksum in %s %x",path, bxsum);
+  }
+
   if (attrmap.count("sys.forced.nstripes")) {
     XrdOucString layoutstring = "eos.layout.nstripes="; layoutstring += attrmap["sys.forced.nstripes"].c_str();
     XrdOucEnv layoutenv(layoutstring.c_str());
@@ -58,12 +68,12 @@ Policy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &attrmap,
     eos_static_debug("sys.forced.nstripes in %s",path);
   }
 
-  if (attrmap.count("sys.forced.stripewidth")) {
-    XrdOucString layoutstring = "eos.layout.stripewidth="; layoutstring += attrmap["sys.forced.stripewidth"].c_str();
+  if (attrmap.count("sys.forced.blocksize")) {
+    XrdOucString layoutstring = "eos.layout.blocksize="; layoutstring += attrmap["sys.forced.blocksize"].c_str();
     XrdOucEnv layoutenv(layoutstring.c_str());
     // we force to use a specified stripe width in this directory even if the user wants something else
-    stripewidth = eos::common::LayoutId::GetStripeWidthFromEnv(layoutenv);
-    eos_static_debug("sys.forced.stripewidth in %s",path);
+    blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(layoutenv);
+    eos_static_debug("sys.forced.blocksize in %s",path);
   }
 
   if ( ((!attrmap.count("sys.forced.nouserlayout")) || (attrmap["sys.forced.nouserlayout"] != "1")) &&
@@ -90,6 +100,15 @@ Policy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &attrmap,
       xsum = eos::common::LayoutId::GetChecksumFromEnv(layoutenv);
       eos_static_debug("user.forced.checksum in %s",path);
     }
+
+    if (attrmap.count("user.forced.blockchecksum")) {
+      XrdOucString layoutstring = "eos.layout.blockchecksum="; layoutstring += attrmap["user.forced.blockchecksum"].c_str();
+      XrdOucEnv layoutenv(layoutstring.c_str());
+      // we force to use a specified checksumming in this directory even if the user wants something else
+      xsum = eos::common::LayoutId::GetBlockChecksumFromEnv(layoutenv);
+      eos_static_debug("user.forced.blockchecksum in %s",path);
+    }
+
     if (attrmap.count("user.forced.nstripes")) {
       XrdOucString layoutstring = "eos.layout.nstripes="; layoutstring += attrmap["user.forced.nstripes"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
@@ -98,12 +117,12 @@ Policy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &attrmap,
       eos_static_debug("user.forced.nstripes in %s",path);
     }
     
-    if (attrmap.count("user.forced.stripewidth")) {
-      XrdOucString layoutstring = "eos.layout.stripewidth="; layoutstring += attrmap["user.forced.stripewidth"].c_str();
+    if (attrmap.count("user.forced.blocksize")) {
+      XrdOucString layoutstring = "eos.layout.blocksize="; layoutstring += attrmap["user.forced.blocksize"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
       // we force to use a specified stripe width in this directory even if the user wants something else
-      stripewidth = eos::common::LayoutId::GetStripeWidthFromEnv(layoutenv);
-      eos_static_debug("user.forced.stripewidth in %s",path);
+      blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(layoutenv);
+      eos_static_debug("user.forced.blocksize in %s",path);
     }
   }
 
@@ -118,7 +137,7 @@ Policy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &attrmap,
       forcedfsid = 0;
     }
   }
-  layoutId = eos::common::LayoutId::GetId(layout, xsum, stripes, stripewidth);
+  layoutId = eos::common::LayoutId::GetId(layout, xsum, stripes, blocksize, bxsum);
   return; 
 }
 

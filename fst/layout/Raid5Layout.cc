@@ -10,7 +10,7 @@ EOSFSTNAMESPACE_BEGIN
 Raid5Layout::Raid5Layout(XrdFstOfsFile* thisFile,int lid, XrdOucErrInfo *outerror) : Layout(thisFile, "replica", lid, outerror)
 {
   nStripes = eos::common::LayoutId::GetStripeNumber(lid) + 1; // this 1=0x0 16=0xf :-)
-  stripeWidth = eos::common::LayoutId::GetStripeWidth(lid) * 1024; // this were kb units
+  stripeWidth = eos::common::LayoutId::GetBlocksize(lid);
  
   for (int i=0; i< eos::common::LayoutId::kSixteenStripe; i++) {
     replicaClient[i] = 0;

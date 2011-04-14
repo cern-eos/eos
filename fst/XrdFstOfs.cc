@@ -336,23 +336,34 @@ XrdFstOfsFile::open(const char                *path,
   char *val=0;
   isRW = false;
   int   retc = SFS_OK;
-
   Path = path;
   hostName = gOFS.HostName;
 
   gettimeofday(&openTime,&tz);
 
   XrdOucString stringOpaque = opaque;
+  XrdOucString opaqueBlockCheckSum="";
+  XrdOucString opaqueCheckSum = "";
+
   while(stringOpaque.replace("?","&")){}
   while(stringOpaque.replace("&&","&")){}
   stringOpaque += "&mgm.path="; stringOpaque += path;
 
   openOpaque  = new XrdOucEnv(stringOpaque.c_str());
-  int caprc = 0;
   
   if ((val = openOpaque->Get("mgm.logid"))) {
     SetLogId(val, tident);
   }
+
+  if ((val = openOpaque->Get("mgm.blockchecksum"))) {
+    opaqueBlockCheckSum = val;
+  } 
+
+  if ((val = openOpaque->Get("eos.checksum"))) {
+    opaqueCheckSum = val;
+  }
+
+  int caprc = 0;
 
   if ((caprc=gCapabilityEngine.Extract(openOpaque, capOpaque))) {
     // no capability - go away!
@@ -369,7 +380,10 @@ XrdFstOfsFile::open(const char                *path,
   const char* slid=0;
   const char* scid=0;
   const char* smanager=0;
-  
+  const char* sbookingsize=0;
+
+  off_t bookingsize = 0;
+
   fileid=0;
   fsid=0;
   lid=0;
@@ -385,6 +399,12 @@ XrdFstOfsFile::open(const char                *path,
 
   if (!(sfsid=capOpaque->Get("mgm.fsid"))) {
     return gOFS.Emsg(epname,error, EINVAL,"open - no file system id in capability",path);
+  }
+
+  if (!(sbookingsize=capOpaque->Get("mgm.bookingsize"))) {
+    return gOFS.Emsg(epname,error, EINVAL,"open - no booking size in capability",path);
+  } else {
+    bookingsize = atoi(capOpaque->Get("mgm.bookingsize")) * 1024*1024; // this is in MB
   }
 
   // if we open a replica we have to take the right filesystem id and filesystem prefix for that replica
@@ -412,6 +432,11 @@ XrdFstOfsFile::open(const char                *path,
     return gOFS.Emsg(epname,error, EINVAL,"open - no manager name in capability",path);
   }
 
+  RedirectManager = smanager;
+  int dpos = RedirectManager.find(":");
+  if (dpos != STR_NPOS) 
+    RedirectManager.erase(dpos);
+
   eos::common::FileId::FidPrefix2FullPath(hexfid, localprefix,fstPath);
 
   fileid = eos::common::FileId::Hex2Fid(hexfid);
@@ -419,6 +444,9 @@ XrdFstOfsFile::open(const char                *path,
   fsid   = atoi(sfsid);
   lid = atoi(slid);
   cid = strtoull(scid,0,10);
+
+  // extract blocksize from the layout
+  fstBlockSize = eos::common::LayoutId::GetBlocksize(lid);
 
   // check if this is an open for replication
   if (Path.beginswith("/replicate:")) {
@@ -449,11 +477,35 @@ XrdFstOfsFile::open(const char                *path,
   if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
     // file does not exist, keep the create lfag
     haswrite = true;
+    isCreation = true;
+    openSize = 0;
   } else {
     if (open_mode & SFS_O_CREAT) 
       open_mode -= SFS_O_CREAT;
+    openSize = statinfo.st_size;
   }
 
+  // ------------------------------------------------------------------------
+  // Code dealing with block checksums
+  // ------------------------------------------------------------------------
+
+  eos_info("blocksize=%llu layoutid=%x oxs=<%s>", fstBlockSize,lid, opaqueBlockCheckSum.c_str());
+  // create a block checksum object if blocksize is defined and the feature is not explicitly disabled by the client
+  if ((opaqueBlockCheckSum != "ignore"))
+    fstBlockXS = ChecksumPlugins::GetChecksumObject(lid, true);
+  else
+    fstBlockXS = 0;
+
+  if (fstBlockXS) {
+    eos_info("created/got blocklevel checksum\n");
+    XrdOucString fstXSPath = fstBlockXS->MakeBlockXSPath(fstPath.c_str(), eos::common::LayoutId::GetBlockChecksumString(lid));
+
+    if (!fstBlockXS->OpenMap(fstXSPath.c_str(), isCreation?bookingsize:statinfo.st_size,fstBlockSize, isRW)) {
+      eos_err("unable to create block checksum file");
+      return gOFS.Emsg(epname,error, EIO,"open - cannot create/get block checksum file",fstXSPath.c_str());
+    }
+  } 
+  
   // get the identity
 
   eos::common::Mapping::VirtualIdentity vid;
@@ -498,7 +550,9 @@ XrdFstOfsFile::open(const char                *path,
   }
 
   // call the checksum factory function with the selected layout
-  if (isRW || ( (val = openOpaque->Get("verifychecksum")) && ( (!strcmp(val,"1")) || (!strcmp(val,"yes")) || (!strcmp(val,"true"))) ) )  {
+
+  if (isRW || (opaqueCheckSum != "ignore")) {
+    // we always do checksums for reads if it was not explicitly switched off
     checkSum = eos::fst::ChecksumPlugins::GetChecksumObject(lid);
     eos_debug("checksum requested %d %u", checkSum, lid);
   }
@@ -516,6 +570,10 @@ XrdFstOfsFile::open(const char                *path,
 
   int rc = layOut->open(fstPath.c_str(), open_mode, create_mode, client, stringOpaque.c_str());
 
+  if ( (!rc) && isCreation && bookingsize) {
+    rc = layOut->fallocate(bookingsize);
+    eos_debug("file allocation gave return code %d for allocation of size=%llu" , rc, bookingsize);
+  }
   if (!rc) {
     opened = true;
     gOFS.OpenFidMutex.Lock();
@@ -555,15 +613,10 @@ XrdFstOfsFile::open(const char                *path,
     // in any case we just redirect back to the manager if we are the 1st entry point of the client
 
     if (layOut->IsEntryServer()) {
-      int ecode = 1094;
       rc = SFS_REDIRECT;
-      XrdOucString rmanager = smanager;
-      int dpos = rmanager.find(":");
-      if (dpos != STR_NPOS) 
-	rmanager.erase(dpos);
-
-      error.setErrInfo(ecode,rmanager.c_str());
-      eos_warning("rebouncing client after open error back to MGM %s:%d", rmanager.c_str(), ecode);
+      int ecode=1094;
+      error.setErrInfo(ecode,RedirectManager.c_str());
+      eos_warning("rebouncing client after open error back to MGM %s:%d",RedirectManager.c_str(), ecode);
     }
   }
 
@@ -582,7 +635,105 @@ XrdFstOfsFile::open(const char                *path,
 int
 XrdFstOfsFile::closeofs()
 {
-  return XrdOfsFile::close();
+  EPNAME("closeofs");
+  int rc = 0;
+
+  // ------------------------------------------------------------------------
+  // Code dealing with block checksums
+  // ------------------------------------------------------------------------
+  if (fstBlockXS) {
+    struct stat statinfo;
+    if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
+      rc = gOFS.Emsg(epname,error, EIO, "close - cannot stat closed file to determine file size",Path.c_str());
+    } else {
+      if (isRW) {
+	if (!fstBlockXS->ChangeMap(statinfo.st_size, true)) {
+	  eos_err("unable to change block checksum map");
+	  rc = SFS_ERROR;
+	}
+      }
+
+      {
+        XrdOucErrInfo error;
+        if(!fctl(SFS_FCTL_GETFD,0,error)) {
+          int fd = error.getErrInfo();
+          if (!fstBlockXS->AddBlockSumHoles(fd)) {
+            eos_err("unable to fill holes of block checksum map");
+          }
+        }
+      }
+
+      eos_info("block-xs wblocks=%llu rblocks=%llu wholes=%llu", fstBlockXS->GetXSBlocksWritten(), fstBlockXS->GetXSBlocksChecked(), fstBlockXS->GetXSBlocksWrittenHoles());
+      if (!fstBlockXS->CloseMap()) {
+	eos_err("unable to close block checksum map");
+	rc = SFS_ERROR;
+      }
+    }
+  }
+    
+  rc |= XrdOfsFile::close();
+  return rc;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+XrdFstOfsFile::verifychecksum()
+{
+  bool checksumerror = false;
+  int checksumlen = 0;
+
+  // deal with checksums
+  if (checkSum) {
+    if (!isRW) {
+      // for read's we don't scan the whole file if the file was not read upto the end - we skip checksumming for large files > 64M
+      if ( (checkSum->GetLastOffset() != openSize) && ( openSize > (1024*1024*64)) ) {
+        eos_info("Skipping checksum (re-scan) for files > 64M ...");
+        // remove the checksum object
+        delete checkSum;
+        checkSum=0;
+        return true;
+      }
+    }
+
+
+    if (checkSum && checkSum->NeedsRecalculation()) {
+      unsigned long long scansize=0;
+      float scantime = 0; // is ms
+      if (checkSum->ScanFile(fstPath.c_str(), scansize, scantime)) {
+        XrdOucString sizestring;
+        eos_info("Rescanned checksum - size=%s time=%.02fms rate=%.02f MB/s", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999));
+      } else {
+        eos_err("Rescanning of checksum failed");
+      }
+    } else {
+      // this was prefect streaming I/O
+      checkSum->Finalize();
+    }
+  }
+  
+  if (checkSum) {
+    if (isRW) {
+      if (haswrite) {
+        eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
+        checkSum->GetBinChecksum(checksumlen);
+	 // copy checksum into meta data
+        memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
+      }
+    } else {
+      // this is a read with checksum check, compare with fMD
+      eos_info("(read)  checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
+      checkSum->GetBinChecksum(checksumlen);
+      for (int i=0; i<checksumlen ; i++) {
+        if (fMd->fMd.checksum[i] != checkSum->GetBinChecksum(checksumlen)[i]) {
+          checksumerror=true;
+        }
+      }
+    }
+  }
+  // remove the checksum object
+  delete checkSum;
+  checkSum=0;
+  return checksumerror;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -592,47 +743,17 @@ XrdFstOfsFile::close()
  EPNAME("close");
  int rc = 0;;
  bool checksumerror=false;
- int checksumlen = 0;
-       
  if ( opened && (!closed) && fMd) {
    eos_info("");
 
-   // deal with checksums
-   if (checkSum) {
-     if (checkSum && checkSum->NeedsRecalculation()) {
-       unsigned long long scansize=0;
-       float scantime = 0; // is ms
-       if (checkSum->ScanFile(fstPath.c_str(), scansize, scantime)) {
-	 XrdOucString sizestring;
-	 eos_info("Rescanned checksum - size=%s time=%.02fms rate=%.02f MB/s", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999));
-       } else {
-	 eos_err("Rescanning of checksum failed");
-       }
-     } else {
-       // this was prefect streaming I/O
-       checkSum->Finalize();
+   if (isCreation) {
+     // if we had space allocation we have to truncate the allocated space to the real size of the file
+     if (layOut) {
+       layOut->truncate(maxOffsetWritten);
      }
    }
 
-   if (checkSum) {
-     if (isRW) {
-       if (haswrite) {
-	 eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
-	 checkSum->GetBinChecksum(checksumlen);
-	 // copy checksum into meta data
-	 memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
-       }
-     } else {
-       // this is a read with checksum check, compare with fMD
-       eos_info("(read)  checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
-       checkSum->GetBinChecksum(checksumlen);
-       for (int i=0; i<checksumlen ; i++) {
-	 if (fMd->fMd.checksum[i] != checkSum->GetBinChecksum(checksumlen)[i]) {
-	   checksumerror=true;
-	 }
-       }
-     }
-   }
+   checksumerror = verifychecksum();
 
    // store the entry server information before closing the layout
    bool isEntryServer=false;
@@ -712,6 +833,11 @@ XrdFstOfsFile::close()
        eos_info("unlinking fid=%08x path=%s - file has been already unlinked from the namespace", fMd->fMd.fid, Path.c_str());
        int rc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
        rc = SFS_ERROR;
+
+       if (fstBlockXS) {
+         // delete also the block checksum file
+         fstBlockXS->UnlinkXSPath();
+       }
      }
      
      if (rc==SFS_OK) {
@@ -754,7 +880,12 @@ XrdFstOfsFile::close()
    rc = SFS_ERROR;
    gOFS.Emsg(epname, error, EIO, "verify checksum - checksum error for file fn=", capOpaque->Get("mgm.path"));   
    int envlen=0;
-   eos_crit("checksum error for %s", capOpaque->Env(envlen));
+   eos_crit("file-xs error file=%s", capOpaque->Env(envlen));
+ }
+
+ if (fstBlockXS) {
+   delete fstBlockXS;
+   fstBlockXS=0;
  }
 
  return rc;
@@ -839,7 +970,16 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
 		       char              *buffer,
 		       XrdSfsXferSize     buffer_size)
 {
-  return XrdOfsFile::read(fileOffset,buffer,buffer_size);
+  int retc = XrdOfsFile::read(fileOffset,buffer,buffer_size);
+
+  if (fstBlockXS) {
+    if (!fstBlockXS->CheckBlockSum(fileOffset, buffer, buffer_size)) {
+      int envlen=0;
+      eos_crit("block-xs error offset=%llu len=%llu file=%s",(unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());
+      return gOFS.Emsg("readofs", error, ENXIO, "read file - wrong block checksum fn=", FName());
+    }
+  }
+  return retc;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -850,9 +990,9 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
   //  EPNAME("read");
 
   int rc = XrdOfsFile::read(fileOffset,amount);
-
+  
   eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,amount);
-
+  
   return rc;
 }
 
@@ -886,7 +1026,23 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
 
   AddReadTime();
 
+  if (rc < 0) {
+    // here we might take some other action
+    if (error.getErrInfo() == ENXIO) {
+      error.setErrCode(EIO);
+    }
+    int envlen=0;
+    eos_crit("block-read error=%d offset=%llu len=%llu file=%s",error.getErrInfo(), (unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());      
+  }
+
   eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,buffer_size);
+
+  if ( (fileOffset + buffer_size) >= openSize) {
+    // if this is a read request and it exceeds the limit, we call close ...
+    if (verifychecksum()) 
+      return gOFS.Emsg("read", error, EIO, "read file - wrong file checksum fn=", FName());      
+  }
+
   return rc;
 }
 
@@ -909,6 +1065,10 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset   fileOffset,
 		     const char        *buffer,
 		     XrdSfsXferSize     buffer_size)
 {
+  if (fstBlockXS) {
+    fstBlockXS->AddBlockSum(fileOffset, buffer, buffer_size);
+  }
+  
   return XrdOfsFile::write(fileOffset,buffer,buffer_size);
 }
 
@@ -938,6 +1098,10 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
   if (rc > 0) {
     wBytes += rc;
     wOffset += rc;
+
+    if ( (unsigned long long)(fileOffset + buffer_size)> (unsigned long long)maxOffsetWritten)
+    maxOffsetWritten = (fileOffset + buffer_size);
+
   }
 
   gettimeofday(&lwTime,&tz);
@@ -946,6 +1110,11 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
     
   haswrite = true;
   eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,buffer_size);
+
+  if (rc <0) {
+    int envlen=0;
+    eos_crit("block-write error=%d offset=%llu len=%llu file=%s",error.getErrInfo(), (unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());      
+  }
 
   return rc;
 }
@@ -1184,6 +1353,18 @@ XrdFstOfs::_rem(const char             *path,
   errno = 0;
   int rc = XrdOfs::rem(fstPath.c_str(),error,client,0);
   eos_info("rc=%d errno=%d", rc,errno);
+
+  // unlink block checksum files
+  {
+    // this is not the 'best' solution, but we don't have any info about block checksumsa
+    Adler xs; // the type does not matter here
+    for (int i=eos::common::LayoutId::kNone+1; i <eos::common::LayoutId::kXSmax; i++) {
+      const char* path = xs.MakeBlockXSPath(fstPath.c_str(), eos::common::LayoutId::GetBlockChecksumString(eos::common::LayoutId::MakeBlockChecksum(i)));
+      if (!xs.UnlinkXSPath()) {
+        eos_info("removed block-xs: %s", path);
+      }
+    }
+  }
 
   // cleanup eventual transactions
   if (!gOFS.Storage->CloseTransaction(fsid, fid)) {
