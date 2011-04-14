@@ -44,8 +44,18 @@ cmake ../
 rm -rf $RPM_BUILD_ROOT
 
 %post
+/sbin/chkconfig --add eos
+/sbin/service eos condrestart > /dev/null 2>&1 || :
 %{__mkdir} -p -m 700 /var/eos
 %{__chown} daemon:daemon /var/eos/
+%{__mkdir} -p -m 700 /var/log/eos
+%{__chown} daemon:daemon /var/log/eos/
+
+%preun
+if [ $1 = 0 ]; then
+        /sbin/service eos stop > /dev/null 2>&1 || :
+        /sbin/chkconfig --del eos
+fi
 
 %files
 %defattr(-,root,root)

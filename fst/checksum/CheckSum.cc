@@ -83,20 +83,24 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
   struct stat buf;
   eos::common::Path cPath(mapfilepath);
   // check if the directory exists
-  if (stat(cPath.GetParentPath(),&buf)) {
-    return false;
+  if (::stat(cPath.GetParentPath(),&buf)) {
+    if (::mkdir(cPath.GetParentPath(),S_IRWXU | S_IRGRP | S_IXGRP |S_IROTH | S_IXOTH)) {
+      return false;
+    }
+    if (::chown(cPath.GetParentPath(), geteuid(),getegid()))
+      return false;
   }
 
   BlockSize = blocksize;
-
+  
   if (isRW) {
-    ChecksumMapFd = open(mapfilepath, O_RDWR | O_CREAT, (mode_t) 0600);
+    ChecksumMapFd = ::open(mapfilepath, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR |S_IRGRP|S_IROTH);
   } else {
-    ChecksumMapFd = open(mapfilepath, O_RDONLY);
+    ChecksumMapFd = ::open(mapfilepath, O_RDONLY);
   }
 
+  //  fprintf(stderr,"rw=%d u=%d g=%d errno=%d\n", isRW, geteuid(), getegid(), errno);
   if (ChecksumMapFd <0) {
-    //    fprintf(stderr,"open map failed\n");
     return false;
   }
 
