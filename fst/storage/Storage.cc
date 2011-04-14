@@ -673,7 +673,7 @@ Storage::Trim()
     sleep(10);
     google::sparse_hash_map<unsigned long long, google::dense_hash_map<unsigned long long, unsigned long long> >::const_iterator it;
     eos_static_info("Trimming Size  %u", eos::common::gFmdHandler.FmdMap.size());
-    eos::common::gFmdHandler.Mutex.Lock();
+    eos::common::RWMutexWriteLock (eos::common::gFmdHandler.Mutex);
     for ( it = eos::common::gFmdHandler.FmdMap.begin(); it != eos::common::gFmdHandler.FmdMap.end(); ++it) {
       eos_static_info("Trimming fsid=%llu ",it->first);
       int fsid = it->first;
@@ -681,10 +681,8 @@ Storage::Trim()
       // stat the size of this logfile
       struct stat buf;
       if (fstat(eos::common::gFmdHandler.fdChangeLogRead[fsid],&buf)) {
-	eos::common::gFmdHandler.Mutex.UnLock();
 	eos_static_err("Cannot stat the changelog file for fsid=%llu for", it->first);
       } else {
-	eos::common::gFmdHandler.Mutex.UnLock();
 	// we trim only if the file reached 6 GB
 	if (buf.st_size > (6000l * 1024 * 1024)) {
 	  if (!eos::common::gFmdHandler.TrimLogFile(fsid)) {
@@ -694,7 +692,6 @@ Storage::Trim()
 	  eos_static_info("Trimming skipped ... changelog is < 1GB");
 	}
       }
-      eos::common::gFmdHandler.Mutex.UnLock();
     }
     // check once per day only 
     sleep(86400);
@@ -1246,7 +1243,7 @@ Storage::Publish()
           success &= fileSystemsVector[i]->SetDouble("stat.net.ethratemib", 1000000000/(8*1024*1024));
           success &= fileSystemsVector[i]->SetDouble("stat.net.inratemib",  fstLoad.GetNetRate("eth0","rxbytes")/1024.0/1024.0);
           success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib", fstLoad.GetNetRate("eth0","txbytes")/1024.0/1024.0);
-          eos_static_info("Path is %s %f\n", fileSystemsVector[i]->GetPath().c_str(), fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
+          //          eos_static_debug("Path is %s %f\n", fileSystemsVector[i]->GetPath().c_str(), fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
           success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"readSectors")*512.0/1000000.0);
           success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
           success &= fileSystemsVector[i]->SetDouble("stat.disk.load", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"millisIO")/1000.0);
