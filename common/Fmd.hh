@@ -154,7 +154,7 @@ public:
 
   XrdOucString ChangeLogFileName;
   XrdOucString ChangeLogDir;
-  XrdSysMutex Mutex;
+  RWMutex Mutex;
   FmdHeader fmdHeader;
   
   bool SetChangeLogFile(const char* changelogfile, int fsid, XrdOucString option="") ;

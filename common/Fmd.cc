@@ -144,7 +144,9 @@ FmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid, XrdOucStri
   // for fsck we don't want to automatically create a new changelog file if the path is not yet existing !
 
   eos_debug("");
-  Mutex.Lock();
+
+  RWMutexWriteLock lock(Mutex);
+
   bool isNew=false;
 
   if (!FmdMap.count(fsid)) {
@@ -177,7 +179,6 @@ FmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid, XrdOucStri
     // we don't want to create a new file and return an error!
     fdChangeLogWrite[fsid] = fdChangeLogRead[fsid] = -1;
     eos_err("changelog file is not existing: %s\n", ChangeLogFileName.c_str());
-    Mutex.UnLock();
     return false;
   }
 
@@ -185,7 +186,6 @@ FmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid, XrdOucStri
   if ( (fdChangeLogWrite[fsid] = open(fsChangeLogFileName,O_CREAT| O_RDWR, 0600 )) <0) {
     eos_err("unable to open changelog file for writing %s",fsChangeLogFileName);
     fdChangeLogWrite[fsid] = fdChangeLogRead[fsid] = -1;
-    Mutex.UnLock();
     return false;
   }
 
@@ -196,7 +196,6 @@ FmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid, XrdOucStri
     eos_err("unable to open changelog file for writing %s",fsChangeLogFileName);
     close(fdChangeLogWrite[fsid]);
     fdChangeLogWrite[fsid] = fdChangeLogRead[fsid] = -1;
-    Mutex.UnLock();
     return false;
   }
   eos_info("opened changelog file %s for filesystem %04d", fsChangeLogFileName, fsid);
@@ -208,14 +207,12 @@ FmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid, XrdOucStri
     if (!fmdHeader.Write(fdChangeLogWrite[fsid])) {
       // cannot write the header 
       isOpen=false;
-      Mutex.UnLock();
       return isOpen;
     }
   }
 
   isOpen = ReadChangeLogHash(fsid, option);
 
-  Mutex.UnLock();
   return isOpen;
 }
 
@@ -501,7 +498,7 @@ bool FmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
 Fmd*
 FmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid, gid_t gid, unsigned int layoutid, bool isRW) 
 {
-  Mutex.Lock();
+  RWMutexWriteLock lock(Mutex);
   if (fdChangeLogRead[fsid]>0) {
     if (FmdMap[fsid][fid] != 0) {
       // this is to read an existing entry
@@ -510,26 +507,22 @@ FmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid, gid_t g
 
       if (!fmd->Read(fdChangeLogRead[fsid],FmdMap[fsid][fid])) {
         eos_crit("unable to read block for fid %d on fs %d", fid, fsid);
-        Mutex.UnLock();
         delete fmd;
         return 0;
       }
       if ( fmd->fMd.fid != fid) {
         // fatal this is somehow a wrong record!
         eos_crit("unable to get fmd for fid %d on fs %d - file id mismatch in meta data block", fid, fsid);
-        Mutex.UnLock();
         delete fmd;
         return 0;
       }
       if ( fmd->fMd.fsid != fsid) {
         // fatal this is somehow a wrong record!
         eos_crit("unable to get fmd for fid %d on fs %d - filesystem id mismatch in meta data block", fid, fsid);
-        Mutex.UnLock();
         delete fmd;
         return 0;
       }
       // return the new entry
-      Mutex.UnLock();   
       return fmd;
     }
     if (isRW) {
@@ -561,7 +554,6 @@ FmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid, gid_t g
         if (!fmd->Write(fdChangeLogWrite[fsid])) {
           // failed to write
           eos_crit("failed to write new block for fid %d on fs %d", fid, fsid);
-          Mutex.UnLock();
           delete fmd;
           return 0;
         }
@@ -571,22 +563,18 @@ FmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid, gid_t g
 
         eos_debug("returning meta data block for fid %d on fs %d", fid, fsid);
         // return the mmaped meta data block
-        Mutex.UnLock();
         return fmd;
       } else {
         eos_crit("unable to write new block for fid %d on fs %d - no changelog file open for writing", fid, fsid);
-        Mutex.UnLock();
         delete fmd;
         return 0;
       }
     } else {
       eos_err("unable to get fmd for fid %d on fs %d - record not found", fid, fsid);
-      Mutex.UnLock();
       return 0;
     }
   } else {
     eos_crit("unable to get fmd for fid %d on fs %d - there is no changelog file open for that file system id", fid, fsid);
-    Mutex.UnLock();
     return 0;
   }
 }
@@ -609,12 +597,11 @@ FmdHandler::DeleteFmd(unsigned long long fid, unsigned int fsid)
   }
 
   // erase the has entries
-  Mutex.Lock();
+  RWMutexWriteLock lock(Mutex);
     
   FmdMap[fsid].erase(fid);
   FmdSize.erase(fid);
 
-  Mutex.UnLock();
   return rc;
 }
 
@@ -629,7 +616,7 @@ FmdHandler::Commit(Fmd* fmd)
   int fsid = fmd->fMd.fsid;
   int fid  = fmd->fMd.fid;
 
-  Mutex.Lock();
+  RWMutexWriteLock lock(Mutex);
   
   // get file position
   off_t position = lseek(fdChangeLogWrite[fsid],0,SEEK_CUR);
@@ -650,7 +637,6 @@ FmdHandler::Commit(Fmd* fmd)
   if (!fmd->Write(fdChangeLogWrite[fsid])) {
     // failed to write
     eos_crit("failed to write commit block for fid %d on fs %d", fid, fsid);
-    Mutex.UnLock();
     return false;
   }
 
@@ -659,7 +645,6 @@ FmdHandler::Commit(Fmd* fmd)
   FmdMap[fsid][fid]     = position;
   FmdSize[fid] = fmd->fMd.size;
 
-  Mutex.UnLock();
   return true;
 }
 
@@ -706,7 +691,6 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option) {
   offsetmapping.set_empty_key(0xffffffff);
 
   eos_static_info("trimming step 1");
-  Mutex.Lock();
 
   google::dense_hash_map<unsigned long long, unsigned long long>::const_iterator it;
   for (it = FmdMap[fsid].begin(); it != FmdMap[fsid].end(); ++it) {
@@ -810,8 +794,6 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option) {
 
   if (rfd>0) 
     close(rfd);
-
-  Mutex.UnLock();
 
   // stat after trim
   fstat(fdChangeLogRead[fsid], &statafter);
