@@ -599,6 +599,9 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   } else {
     capability += "&mgm.access=read";
   }
+
+  // forward some allowed user opaque tags
+
  
   unsigned long layoutId = (isCreation)?eos::common::LayoutId::kPlain:fmd->getLayoutId();
   unsigned long forcedFsId = 0; // the client can force to read a file on a defined file system
@@ -796,10 +799,11 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
 
   // rebuild the layout ID (for read it should indicate only the number of available stripes for reading);
-  newlayoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::GetLayoutType(layoutId), eos::common::LayoutId::GetChecksum(layoutId), (int)selectedfs.size(), eos::common::LayoutId::GetStripeWidth(layoutId));
+  newlayoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::GetLayoutType(layoutId), eos::common::LayoutId::GetChecksum(layoutId), (int)selectedfs.size(), eos::common::LayoutId::GetBlocksize(layoutId), eos::common::LayoutId::GetBlockChecksum(layoutId));
   capability += "&mgm.lid=";    
   capability += (int)newlayoutId;
-
+  capability += "&mgm.bookingsize=";
+  capability += (int)(bookingsize/1024/1024); // this is in MB
 
   
   if ( eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kPlain ) {
@@ -848,7 +852,16 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   int caplen=0;
   redirectionhost+=capabilityenv->Env(caplen);
   redirectionhost+= "&mgm.logid="; redirectionhost+=this->logId;
-  
+  if (openOpaque->Get("eos.blockchecksum")) {
+    redirectionhost += "&mgm.blockchecksum=";
+    redirectionhost += openOpaque->Get("eos.blockchecksum");
+  }
+  if (openOpaque->Get("eos.checksum")) {
+    redirectionhost += "&mgm.checksum=";
+    redirectionhost += openOpaque->Get("eos.checksum");
+  }
+
+
   // for the moment we redirect only on storage nodes
   redirectionhost+= "&mgm.replicaindex="; redirectionhost += (int)fsIndex;
   redirectionhost+= "&mgm.replicahead="; redirectionhost += (int)fsIndex;
