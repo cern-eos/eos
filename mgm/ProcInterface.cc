@@ -1024,12 +1024,18 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		    fs = FsView::gFsView.mIdView[*it];
 		    if (fs) {
 		      // check the allowed strings
-		      if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ) ) ) {
+		      if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ))) {
+
 			fs->SetString(key.c_str(),value.c_str());
 			FsView::gFsView.StoreFsConfig(fs);
 		      } else {
-			stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
-			retc = EINVAL;
+                        if ((key == "headroom") && ( eos::common::StringConversion::GetSizeFromString(value.c_str()) > 0)) {
+                          fs->SetLongLong(key.c_str(), eos::common::StringConversion::GetSizeFromString(value.c_str()));
+                          FsView::gFsView.StoreFsConfig(fs);
+                        } else {
+                          stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
+                          retc = EINVAL;
+                        }
 		      }
 		    } else {
 		      stdErr += "error: cannot identify the filesystem by <"; stdErr += identifier.c_str(); stdErr += ">\n";
@@ -1490,8 +1496,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  stdErr="error: filesystems can only be configured as 'root' or from the server mounting them using sss protocol\n";
 		  retc = EPERM;
 		} else {
-		  fs->SetString(key.c_str(),value.c_str());
-		  FsView::gFsView.StoreFsConfig(fs);
+                  if ((key == "headroom") && ( eos::common::StringConversion::GetSizeFromString(value.c_str()) > 0)) {
+                    fs->SetLongLong(key.c_str(), eos::common::StringConversion::GetSizeFromString(value.c_str()));
+                    FsView::gFsView.StoreFsConfig(fs);
+                  } else {
+                    fs->SetString(key.c_str(),value.c_str());
+                    FsView::gFsView.StoreFsConfig(fs);
+                  }
 		}
 	      } else {
 		stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">";
@@ -2961,12 +2972,18 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
 	      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
 	    }
-	    gOFS->eosViewMutex.UnLock();
-	    //-------------------------------------------
 
 	    if (!fmd) {
 	      retc = errno;
+              gOFS->eosViewMutex.UnLock();
+              //-------------------------------------------
+
 	    } else {
+              eos::FileMD fmdCopy(*fmd);
+              fmd = &fmdCopy;
+              gOFS->eosViewMutex.UnLock();
+              //-------------------------------------------
+
 	      XrdOucString sizestring;
 	      
 	      eos::FileMD::LocationVector::const_iterator lociter;

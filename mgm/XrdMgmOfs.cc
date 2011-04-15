@@ -402,6 +402,8 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   int targetport = atoi(gOFS->MgmOfsTargetPort.c_str());
 
   int ecode=0;
+  unsigned long fmdlid=0;
+  unsigned long long cid = 0;
   
   eos_debug("mode=%x [create=%x truncate=%x]", open_mode, SFS_O_CREAT, SFS_O_TRUNC);
 
@@ -499,6 +501,10 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       fmd = dmd->findFile(cPath.GetName());
       if (!fmd) {
 	errno = ENOENT;
+      } else {
+        fileId = fmd->getId();
+        fmdlid = fmd->getLayoutId();
+        cid    = fmd->getContainerId();
       }
     }
     else
@@ -558,6 +564,9 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	gOFS->eosViewMutex.Lock();
 	try {
 	  fmd = gOFS->eosView->createFile(path, vid.uid, vid.gid);
+          fileId = fmd->getId();
+          fmdlid = fmd->getLayoutId();
+          cid    = fmd->getContainerId();
 	} catch( eos::MDException &e ) {
 	  fmd = 0;
 	  errno = e.getErrno();
@@ -588,8 +597,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   // construct capability
   XrdOucString capability = "";
 
-  fileId = fmd->getId();
-  
   if (isRW) {
     if (isRewrite) {
       capability += "&mgm.access=update";
@@ -603,10 +610,9 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   // forward some allowed user opaque tags
 
  
-  unsigned long layoutId = (isCreation)?eos::common::LayoutId::kPlain:fmd->getLayoutId();
+  unsigned long layoutId = (isCreation)?eos::common::LayoutId::kPlain:fmdlid;
   unsigned long forcedFsId = 0; // the client can force to read a file on a defined file system
   unsigned long fsIndex = 0; // this is the filesystem defining the client access point in the selection vector - for writes it is always 0, for reads it comes out of the FileAccess function
-  unsigned long long cid = fmd->getContainerId();
   XrdOucString space = "default";
 
   unsigned long newlayoutId=0;
@@ -709,7 +715,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       return Emsg(epname, error, ENODEV,  "open - no replica exists", path);	    
     }
 
-    retc = quotaspace->FileAccess(vid.uid, vid.gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW);
+    retc = quotaspace->FileAccess(vid.uid, vid.gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW, fmd->getSize());
   }
 
   if (retc) {
@@ -2020,6 +2026,8 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     gOFS->eosViewMutex.Lock();
     try {
       fmd = gOFS->eosView->getFile(path);
+      eos::FileMD fmdCopy(*fmd);
+      fmd = &fmdCopy;
     } catch( eos::MDException &e ) {
       errno = e.getErrno();
       eos_debug("check for file - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());

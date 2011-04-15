@@ -657,7 +657,8 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
       // take filesystem snapshot
       eos::common::FileSystem::fs_snapshot_t snapshot;
       // we are already in a locked section
-      FsView::gFsView.mIdView[fsid]->SnapShotFileSystem(snapshot,false);
+      eos::common::FileSystem* fs = FsView::gFsView.mIdView[fsid];
+      fs->SnapShotFileSystem(snapshot,false);
       
       // the weight is given mainly by the disk performance and the network load has a weaker impact (sqrt)
       double weight    = (1.0 - snapshot.mDiskUtilization);
@@ -668,8 +669,10 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
       if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
 	   (snapshot.mConfigStatus == eos::common::FileSystem::kRW) && 
 	   (snapshot.mErrCode      == 0 ) && // this we probably don't need 
+           (fs->HasHeartBeat(snapshot)) && 
 	   (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status") == "on") && 
-	   (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") ) {
+	   (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") &&
+           (fs->ReserveSpace(snapshot,bookingsize)) ) {
 	
 	if (!fsidavoidlist.count(fsid)) {
 	  availablefs[fsid] = weight;
@@ -805,7 +808,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
 
 
 /*----------------------------------------------------------------------------*/
-int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW)
+int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW, unsigned long long bookingsize)
 {
   // the caller routing has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) !!!
 
@@ -822,15 +825,19 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
       // take filesystem snapshot
       eos::common::FileSystem::fs_snapshot_t snapshot;
       // we are already in a locked section
-      FsView::gFsView.mIdView[locationsfs[0]]->SnapShotFileSystem(snapshot,false);
+
+      eos::common::FileSystem* fs = FsView::gFsView.mIdView[locationsfs[0]];
+      fs->SnapShotFileSystem(snapshot,false);
 
       if (isRW) {
 	// FIX ME!
 	if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
 	     (snapshot.mConfigStatus == eos::common::FileSystem::kRW) && 
 	     (snapshot.mErrCode      == 0 ) && // this we probably don't need 
+             (fs->HasHeartBeat(snapshot)) && 
 	     (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status") == "on") && 
-	     (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") ) {
+	     (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") &&
+             (fs->ReserveSpace(snapshot,bookingsize)) ) { 
           // perfect!
           fsindex = 0;
           eos_static_debug("selected plain file access via filesystem %u",locationsfs[0]);
@@ -850,6 +857,7 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
 	if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
 	     (snapshot.mConfigStatus >= eos::common::FileSystem::kRO) && 
 	     (snapshot.mErrCode      == 0 ) && // this we probably don't need 
+             (fs->HasHeartBeat(snapshot)) && 
 	     (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status") == "on") && 
 	     (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") ) {
           // perfect!

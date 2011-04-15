@@ -191,6 +191,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs, bool dolock) {
     fs.mStatus        = GetStatusFromString(mHash->Get("stat.boot").c_str());
     fs.mConfigStatus  = GetConfigStatusFromString(mHash->Get("configstatus").c_str());
     fs.mDrainStatus   = GetDrainStatusFromString(mHash->Get("stat.drain").c_str());
+    fs.mHeadRoom      = mHash->GetLongLong("headroom");
     fs.mErrCode       = (unsigned int)mHash->GetLongLong("stat.errc");
     fs.mBootSentTime  = (time_t) mHash->GetLongLong("stat.bootsenttime");
     fs.mBootDoneTime  = (time_t) mHash->GetLongLong("stat.bootdonetime");
@@ -239,6 +240,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs, bool dolock) {
     fs.mStatus        = 0;
     fs.mConfigStatus  = 0;
     fs.mDrainStatus   = 0;
+    fs.mHeadRoom      = 0;
     fs.mErrCode       = 0;
     fs.mBootSentTime  = 0;
     fs.mBootDoneTime  = 0;
@@ -284,6 +286,37 @@ FileSystem::SetStatfs(struct statfs* statfs)
   success &= SetLongLong("stat.statfs.namelen", statfs->f_namelen);
 
   return success;
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
+FileSystem::ReserveSpace(fs_snapshot_t &fs, unsigned long long bookingsize) 
+{
+  long long headroom  = fs.mHeadRoom;
+  long long freebytes = fs.mDiskFreeBytes;
+  long long prebooked = GetPrebookedSpace();
+
+  // guarantee that we don't overbook the filesystem and we keep <headroom> free
+  if ( (freebytes-prebooked) > headroom ) {
+    // there is enough space
+    return true;
+  } else {
+    return false;
+  }
+}
+
+
+/*----------------------------------------------------------------------------*/
+bool
+FileSystem::HasHeartBeat(fs_snapshot_t &fs)
+{
+  time_t now = time(NULL);
+  time_t hb  = fs.mHeartBeatTime;
+  if ( (now - hb) < 10) {
+    // we allow some time drift plus overload delay of 10 seconds
+    return true;
+  }
+  return false;
 }
 
 /*----------------------------------------------------------------------------*/

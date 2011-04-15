@@ -72,7 +72,14 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
 	FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
       }
       eos_static_info("Setting heart beat to %llu\n", (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec);
+
       FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(advmsg->kMessageHeader.kSenderTime_sec);
+
+      // propagate into filesystems
+      std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
+      for (it =  FsView::gFsView.mNodeView[nodequeue]->begin(); it != FsView::gFsView.mNodeView[nodequeue]->end(); it++) {
+        FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime",(long long)advmsg->kMessageHeader.kSenderTime_sec);
+      }
     }
   }
 

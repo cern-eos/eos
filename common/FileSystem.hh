@@ -51,6 +51,7 @@ public:
     fsstatus_t  mStatus;
     fsstatus_t  mConfigStatus;
     fsstatus_t  mDrainStatus;
+    long long   mHeadRoom;
     unsigned int mErrCode;
     time_t mBootSentTime;
     time_t mBootDoneTime;
@@ -211,6 +212,16 @@ public:
       throw ex;
     }
   }
+
+  long long GetPrebookedSpace() {
+    // this is dummy for the moment, but will later return 'scheduled' used space
+    return 0;
+  }
+
+  bool HasHeartBeat(fs_snapshot_t &fs);
+
+
+  bool ReserveSpace(fs_snapshot_t &fs, unsigned long long bookingsize);
 
   fsid_t GetId() {
     return (fsid_t) GetLongLong("id");
