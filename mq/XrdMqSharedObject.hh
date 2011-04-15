@@ -116,16 +116,16 @@ public:
     return success;
   }
 
-  bool SetLongLong(const char* key, long long value) {
+  bool SetLongLong(const char* key, long long value, bool broadcast=true) {
     char convert[1024];
     snprintf(convert, sizeof(convert)-1,"%lld", value);
-    return Set(key, convert);
+    return Set(key, convert, broadcast);
   }
 
-  bool SetDouble(const char* key, double &value) {
+  bool SetDouble(const char* key, double &value, bool broadcast=true) {
     char convert[1024];
     snprintf(convert, sizeof(convert)-1,"%f", value);
-    return Set(key, convert);
+    return Set(key, convert, broadcast);
   }
 
   bool Delete(const char* key, bool broadcast=true) {

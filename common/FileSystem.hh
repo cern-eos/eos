@@ -122,30 +122,30 @@ public:
     }
   }
 
-  bool SetString(const char* key, const char* str) {
+  bool SetString(const char* key, const char* str, bool broadcast=true) {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
     if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
-      mHash->Set(key,str);
+      mHash->Set(key,str,broadcast);
       return true;
     } else {
       return false;
     }
   }
 
-  bool SetDouble(const char* key, double f) {
+  bool SetDouble(const char* key, double f, bool broadcast=true) {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
     if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
-      mHash->SetDouble(key,f);
+      mHash->SetDouble(key,f, broadcast);
       return true;
     } else {
       return false;
     }
   }
 
-  bool SetLongLong(const char* key, long long l) {
+  bool SetLongLong(const char* key, long long l, bool broadcast=true) {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
     if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
-      mHash->SetLongLong(key,l);
+      mHash->SetLongLong(key,l, broadcast);
       return true;
     } else {
       return false;

@@ -40,8 +40,19 @@ com_attr (char* arg1) {
 
   if ( subcommand == "set") {
     XrdOucString key   = arg;
-    XrdOucString value = subtokenizer.GetToken();
-    
+    XrdOucString value = "";
+    int epos = key.find("=");
+    if (epos != STR_NPOS) {
+      value = key;
+      value.erase(0,epos+1);
+      key.erase(epos);
+    } else {
+      value = "";
+    }
+
+    if (!value.length() )
+      goto com_attr_usage;
+
     if (value.beginswith("\"")) {
       if (!value.endswith("\"")) {
         do {
@@ -97,7 +108,7 @@ com_attr (char* arg1) {
 
  com_attr_usage:
   printf("usage: attr [-r] ls <path>                                  : list attributes of path (-r recursive)\n");  
-  printf("usage: attr [-r] set <key> <value> <path>                   : set attributes of path (-r recursive)\n");
+  printf("usage: attr [-r] set <key>=<value> <path>                   : set attributes of path (-r recursive)\n");
   printf("usage: attr [-r] get <key> <path>                           : get attributes of path (-r recursive)\n");
   printf("usage: attr [-r] rm  <key> <path>                           : delete attributes of path (-r recursive)\n\n");
   printf("Help:    If <key> starts with 'sys.' you have to be member of the sudoer to see this attributes or modify\n");

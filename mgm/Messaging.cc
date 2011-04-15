@@ -78,7 +78,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
       // propagate into filesystems
       std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
       for (it =  FsView::gFsView.mNodeView[nodequeue]->begin(); it != FsView::gFsView.mNodeView[nodequeue]->end(); it++) {
-        FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime",(long long)advmsg->kMessageHeader.kSenderTime_sec);
+        FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime",(long long)advmsg->kMessageHeader.kSenderTime_sec, false);
       }
     }
   }

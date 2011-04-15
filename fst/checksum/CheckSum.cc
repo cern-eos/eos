@@ -168,6 +168,9 @@ CheckSum::ChangeMap(size_t newsize, bool shrink)
   if ((!shrink) && (ChecksumMapSize > newsize))
     return true;
 
+  if ( (newsize - ChecksumMapSize) < (1024*1024))
+    newsize = ChecksumMapSize + (1024*1024);// to avoid to many msync's here we increase the disired value by 1M
+  
   if (!SyncMap()) {
     //    fprintf(stderr,"CheckSum:ChangeMap sync failed\n");
     return false;
