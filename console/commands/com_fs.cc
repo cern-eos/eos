@@ -527,7 +527,9 @@ com_fs (char* arg1) {
   printf("                                    := ro                       : filesystem is in read-only mode\n");
   printf("                                    := drain                    : filesystem is in drain mode\n");
   printf("                                    := off                      : filesystem is disabled\n"); 
-
+  printf("         => fs config <...> headeroom=<size>\n");
+  printf("                    <size> can be   := (>0)[BMGT]               : the headroom to keep per filesystem (e.g. you can write '1G' for 1 GB)\n");
+  printf("\n");
   printf("       fs rm    <fs-name>|<fs-id>                               : remove filesystem configuration by name or id\n");
   printf("       fs boot  <fs-id>|<node-queue>                            : boot filesystem/node ['fs boot *' to boot all]  \n");
   printf("                    -sched <group>                              : allows to change the scheduling group\n");
