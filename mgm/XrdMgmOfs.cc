@@ -662,7 +662,17 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     // we allow only a system attribute not to get fooled by a user
     bookingsize = strtoull(attrmap["sys.forced.bookingsize"].c_str(),0,10);
   }  else {
-    bookingsize = 1024*1024ll;
+    if (attrmap.count("user.forced.bookingsize")) {
+      bookingsize = strtoull(attrmap["user.forced.bookingsize"].c_str(),0,10);
+    } else {
+      bookingsize = 1024*1024ll; // 1M by default
+      if (openOpaque->Get("eos.bookingsize")) {
+        bookingsize = strtoull(openOpaque->Get("eos.bookingsize"),0,10);
+      } 
+      if (openOpaque->Get("oss.asize")) {
+        bookingsize = strtoull(openOpaque->Get("eos.bookingsize"),0,10);
+      }
+    }
   }
 
   eos::common::FileSystem* filesystem = 0;

@@ -597,12 +597,15 @@ Mapping::UserNameToUid(std::string &username, int &errc)
   uid_t uid=99;
   struct passwd pwbuf;
   struct passwd *pwbufp=0;
-  if (getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp)) {
+  getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp);
+  if (!pwbufp) {
     uid = atoi(username.c_str());
     if (uid!=0) 
       errc = 0;
-    else
+    else {
       errc = EINVAL;
+      uid = 99;
+    }
   } else {
     uid = pwbuf.pw_uid;
     errc = 0;
@@ -620,13 +623,16 @@ Mapping::GroupNameToGid(std::string &groupname, int &errc)
   struct group *grbufp=0;
   gid_t gid=99;
   
-  if (getgrnam_r(groupname.c_str(), &grbuf, buffer, buflen, &grbufp)) {
+  getgrnam_r(groupname.c_str(), &grbuf, buffer, buflen, &grbufp);
+  if (!grbufp) {
     // cannot translate this name
     gid = atoi(groupname.c_str());
     if (gid!=0) 
       errc = 0;
-    else
+    else {
       errc = EINVAL;
+      gid=99;
+    }
   } else {
     gid = grbuf.gr_gid;
     errc = 0;
