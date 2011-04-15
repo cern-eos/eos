@@ -19,6 +19,8 @@ class XrdFstOfsFile;
 class Layout : public eos::common::LogId {
 protected:
   XrdOucString Name;
+  XrdOucString LocalReplicaPath;
+
   XrdFstOfsFile* ofsFile;
   unsigned int layOutId;
   XrdOucErrInfo* error;
@@ -31,9 +33,12 @@ public:
   Layout(XrdFstOfsFile* thisFile,const char* name, int lid, XrdOucErrInfo *outerror){
     Name = name; ofsFile = thisFile; layOutId = lid; error = outerror; isEntryServer=true;
     blockChecksum=eos::common::LayoutId::GetBlockChecksum(lid);
+    LocalReplicaPath = "";
   }
 
   const char* GetName() {return Name.c_str();}
+  const char* GetLocalReplicaPath() { return LocalReplicaPath.c_str();}
+
   unsigned int GetLayOutId() { return layOutId;}
 
   virtual int open(const char                *path,

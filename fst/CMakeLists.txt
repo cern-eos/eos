@@ -17,7 +17,7 @@ add_library (XrdEosFst MODULE
             ../checksum/crc32ctables.cc
 	    )
 
-target_link_libraries (XrdEosFst eosCapability-Static eosCommon-Static XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNet XrdNetUtil XrdOfs XrdOss crypto uuid curses pthread dl z)
+target_link_libraries (XrdEosFst eosCapability-Static eosCommon-Static XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNet XrdNetUtil XrdOfs XrdOss crypto uuid curses pthread dl z attr)
 
 add_executable ( FstLoad
                  Load.cc

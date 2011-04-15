@@ -4,6 +4,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "common/LayoutId.hh"
+#include "common/Attr.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
@@ -56,12 +57,10 @@ public:
   virtual bool AddBlockSum(off_t offset, const char* buffer, size_t buffersize); // this only calculates the checksum on full blocks, not matching edge is not calculated
   virtual bool CheckBlockSum(off_t offset, const char* buffer, size_t buffersizem); // this only verifies the checksum on full blocks, not matching edge is not calculated
   virtual bool AddBlockSumHoles(int fd);
-  virtual const char* MakeBlockXSPath(const char *filepath, const char* xs) {
-    if ((!filepath) || (!xs))
+  virtual const char* MakeBlockXSPath(const char *filepath) {
+    if ((!filepath))
       return 0;
     BlockXSPath = filepath;
-    BlockXSPath += ".";
-    BlockXSPath += xs;
     BlockXSPath += ".xsmap";
     return BlockXSPath.c_str();
   }

@@ -662,7 +662,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     // we allow only a system attribute not to get fooled by a user
     bookingsize = strtoull(attrmap["sys.forced.bookingsize"].c_str(),0,10);
   }  else {
-    bookingsize = 1024*1024*1024ll;
+    bookingsize = 1024*1024ll;
   }
 
   eos::common::FileSystem* filesystem = 0;

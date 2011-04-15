@@ -12,6 +12,7 @@ add_library (eosCommon SHARED
 	    StringStore.cc
 	    SymKeys.cc
 	    GlobalConfig.cc
+            Attr.cc
 	    )
 
 add_library (eosCommon-Static STATIC
@@ -25,10 +26,11 @@ add_library (eosCommon-Static STATIC
 	    StringStore.cc
 	    SymKeys.cc
 	    GlobalConfig.cc
+            Attr.cc
 )
 
 
-target_link_libraries (eosCommon XrdMqClient XrdSys XrdNetUtil XrdOuc XrdClient crypto uuid curses z)
+target_link_libraries (eosCommon XrdMqClient XrdSys XrdNetUtil XrdOuc XrdClient crypto uuid curses z attr)
 
 target_link_libraries (eosCommon-Static )
 #depends on XrdMqClient-Static libcrypto.a libuuid.a libcurses.a pthread dl z)

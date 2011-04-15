@@ -92,17 +92,32 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
   }
 
   BlockSize = blocksize;
-  
-  if (isRW) {
-    ChecksumMapFd = ::open(mapfilepath, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR |S_IRGRP|S_IROTH);
-  } else {
-    ChecksumMapFd = ::open(mapfilepath, O_RDONLY);
-  }
+
+  // we always open for rw mode
+  ChecksumMapFd = ::open(mapfilepath, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR |S_IRGRP|S_IROTH);
 
   //  fprintf(stderr,"rw=%d u=%d g=%d errno=%d\n", isRW, geteuid(), getegid(), errno);
   if (ChecksumMapFd <0) {
     return false;
   }
+
+  // tag the map file with attributes
+  eos::common::Attr* attr = eos::common::Attr::OpenAttr(mapfilepath);
+  if (!attr) {
+    return false;
+  } else {
+    char sblocksize[1024];
+    snprintf(sblocksize, sizeof(sblocksize)-1, "%llu", (unsigned long long) blocksize);
+    std::string sBlockSize = sblocksize;
+    std::string sBlockCheckSum = Name.c_str();
+    if ((!attr->Set(std::string("user.eos.blocksize"),sBlockSize)) || (!attr->Set(std::string("user.eos.blockchecksum"),sBlockCheckSum))) {
+      fprintf(stderr,"CheckSum::OpenMap => cannot set extended attributes errno=%d!\n", errno);
+      delete attr;
+      close(ChecksumMapFd);
+      return false;
+    }
+  }
+  
 
   ChecksumMapSize = ((maxfilesize / blocksize)+1) * (GetCheckSumLen());
   if (isRW) {

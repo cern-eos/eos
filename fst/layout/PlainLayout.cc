@@ -13,6 +13,7 @@ PlainLayout::open(const char                *path,
 			   const XrdSecEntity        *client,
 			   const char                *opaque)
 {
+  LocalReplicaPath = path;
   return ofsFile->openofs(path, open_mode, create_mode, client, opaque);
 }
 

@@ -115,6 +115,7 @@ ReplicaParLayout::open(const char                *path,
     // local IO 
     if ( (ioLocal) && (i == replicaIndex) )  {
       // only the referenced entry URL does local IO
+      LocalReplicaPath = path;
       if (ofsFile->isRW) {
 	// write case
 	// local handle

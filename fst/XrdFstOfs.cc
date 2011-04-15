@@ -5,6 +5,7 @@
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
 #include "common/Statfs.hh"
+#include "common/Attr.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
@@ -498,7 +499,7 @@ XrdFstOfsFile::open(const char                *path,
 
   if (fstBlockXS) {
     eos_info("created/got blocklevel checksum\n");
-    XrdOucString fstXSPath = fstBlockXS->MakeBlockXSPath(fstPath.c_str(), eos::common::LayoutId::GetBlockChecksumString(lid));
+    XrdOucString fstXSPath = fstBlockXS->MakeBlockXSPath(fstPath.c_str());
 
     if (!fstBlockXS->OpenMap(fstXSPath.c_str(), isCreation?bookingsize:statinfo.st_size,fstBlockSize, isRW)) {
       eos_err("unable to create block checksum file");
@@ -574,6 +575,16 @@ XrdFstOfsFile::open(const char                *path,
     rc = layOut->fallocate(bookingsize);
     eos_debug("file allocation gave return code %d for allocation of size=%llu" , rc, bookingsize);
   }
+
+  // set the eos lfn as extended attribute
+  eos::common::Attr* attr = eos::common::Attr::OpenAttr(layOut->GetLocalReplicaPath());
+  if (attr) {
+    if (!attr->Set(std::string("user.eos.lfn"), std::string(path))) {
+      eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
+    }
+    delete attr;
+  }
+
   if (!rc) {
     opened = true;
     gOFS.OpenFidMutex.Lock();
@@ -718,6 +729,18 @@ XrdFstOfsFile::verifychecksum()
         checkSum->GetBinChecksum(checksumlen);
 	 // copy checksum into meta data
         memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
+
+        // set the eos checksum extended attributes
+        eos::common::Attr* attr = eos::common::Attr::OpenAttr(fstPath.c_str());
+        if (attr) {
+          if (!attr->Set(std::string("user.eos.checksumtype"), std::string(checkSum->GetName()))) {
+            eos_err("unable to set extended attribute <eos.checksumtype> errno=%d", errno);
+          }
+          if (!attr->Set("user.eos.checksum",checkSum->GetBinChecksum(checksumlen), checksumlen)) {
+            eos_err("unable to set extended attribute <eos.checksum> errno=%d", errno);
+          }
+          delete attr;
+        }
       }
     } else {
       // this is a read with checksum check, compare with fMD
@@ -1355,11 +1378,9 @@ XrdFstOfs::_rem(const char             *path,
   {
     // this is not the 'best' solution, but we don't have any info about block checksumsa
     Adler xs; // the type does not matter here
-    for (int i=eos::common::LayoutId::kNone+1; i <eos::common::LayoutId::kXSmax; i++) {
-      const char* path = xs.MakeBlockXSPath(fstPath.c_str(), eos::common::LayoutId::GetBlockChecksumString(eos::common::LayoutId::MakeBlockChecksum(i)));
-      if (!xs.UnlinkXSPath()) {
-        eos_info("removed block-xs: %s", path);
-      }
+    const char* path = xs.MakeBlockXSPath(fstPath.c_str());
+    if (!xs.UnlinkXSPath()) {
+      eos_info("removed block-xs: %s", path);
     }
   }
 
