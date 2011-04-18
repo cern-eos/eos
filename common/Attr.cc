@@ -72,9 +72,11 @@ Attr::Get(const char* name, char* value, size_t &size)
   if ((!name) || (!value))
     return -1;
 
-  size = lgetxattr (fName.c_str(), name, value,size);
-  if (size>=0) 
+  int retc = lgetxattr (fName.c_str(), name, value,size);
+  if (retc!=-1) {
+    size = retc;
     return true;
+  }
 
   return false;
 }

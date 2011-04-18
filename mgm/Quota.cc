@@ -754,6 +754,8 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
 	    availablevector.erase(ait);
 	    ait++;
 	    nassigned++;
+	    if (ait == availablevector.end()) 
+	      ait = availablevector.begin();
 	  }
 	}
 	if (nassigned >= nfilesystems)
