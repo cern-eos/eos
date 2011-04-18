@@ -662,7 +662,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
       
       // the weight is given mainly by the disk performance and the network load has a weaker impact (sqrt)
       double weight    = (1.0 - snapshot.mDiskUtilization);
-      double netweight = (1.0- (snapshot.mNetEthRateMiB)?(snapshot.mNetInRateMiB/snapshot.mNetEthRateMiB):0.0);
+      double netweight = (1.0- ((snapshot.mNetEthRateMiB)?(snapshot.mNetInRateMiB/snapshot.mNetEthRateMiB):0.0));
       weight          *= ((netweight>0)?sqrt(netweight):0);
 
       // check if this filesystem can be used (online, enough space etc...)
@@ -812,13 +812,20 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
 {
   // the caller routing has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) !!!
 
+  // --------------------------------------------------------------------------------
+  // ! PLAIN Layout Scheduler
+  // --------------------------------------------------------------------------------
+
   if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kPlain) {
-    // we have only a single replica ... so just check the state of the filesystem where that is located
+    // we have one or more replica's ... find the best place to schedule this IO
     if (locationsfs.size() && locationsfs[0]) {
       eos::common::FileSystem* filesystem = 0;
       if (FsView::gFsView.mIdView.count(locationsfs[0])){
 	filesystem = FsView::gFsView.mIdView[locationsfs[0]];
       }
+
+      std::set<eos::common::FileSystem::fsid_t> availablefs;
+
       if (!filesystem)
 	return ENODATA;
 
@@ -830,7 +837,6 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
       fs->SnapShotFileSystem(snapshot,false);
 
       if (isRW) {
-	// FIX ME!
 	if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
 	     (snapshot.mConfigStatus == eos::common::FileSystem::kRW) && 
 	     (snapshot.mErrCode      == 0 ) && // this we probably don't need 
@@ -843,10 +849,9 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
           eos_static_debug("selected plain file access via filesystem %u",locationsfs[0]);
           return 0;
         } else {
-
-	  // FIX ME!
           // check if we are in any kind of no-update mode
-	  if (0) {
+          if ( (snapshot.mConfigStatus == eos::common::FileSystem::kRO) || 
+               (snapshot.mConfigStatus == eos::common::FileSystem::kWO) ) {
             return EROFS;
           }
 
@@ -871,6 +876,176 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
       return ENODATA;
     }
   }
+
+  // --------------------------------------------------------------------------------
+  // ! REPLICA Layout Scheduler
+  // --------------------------------------------------------------------------------
+
+  if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
+    std::set<eos::common::FileSystem::fsid_t> availablefs;
+    std::multimap<double, eos::common::FileSystem::fsid_t> availablefsweightsort;
+
+    double renorm = 0; // this is the sum of all weights, we renormalize each weight in the selection with this sum
+
+    // -----------------------------------------------------------------------
+    // check all the locations - for write we need all - for read atleast on
+    // -----------------------------------------------------------------------
+    for (size_t i=0; i< locationsfs.size();i++) {
+      eos::common::FileSystem* filesystem = 0;
+
+      if (FsView::gFsView.mIdView.count(locationsfs[i])){
+	filesystem = FsView::gFsView.mIdView[locationsfs[i]];
+      }
+      if (!filesystem) {
+        if (isRW)
+          return ENONET;
+        else
+          continue;
+      }
+
+      // take filesystem snapshot
+      eos::common::FileSystem::fs_snapshot_t snapshot;
+      // we are already in a locked section
+
+      eos::common::FileSystem* fs = FsView::gFsView.mIdView[locationsfs[i]];
+      fs->SnapShotFileSystem(snapshot,false);
+
+      if (isRW) {
+	if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
+	     (snapshot.mConfigStatus == eos::common::FileSystem::kRW) && 
+	     (snapshot.mErrCode      == 0 ) && // this we probably don't need 
+             (fs->HasHeartBeat(snapshot)) && 
+	     (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status") == "on") && 
+	     (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") &&
+             (fs->ReserveSpace(snapshot,bookingsize)) ) { 
+          // perfect!
+          availablefs.insert(snapshot.mId);
+
+          // the weight is given mainly by the disk performance and the network load has a weaker impact (sqrt)
+          double weight    = (1.0 - snapshot.mDiskUtilization);
+          double netweight = (1.0- ((snapshot.mNetEthRateMiB)?(snapshot.mNetInRateMiB/snapshot.mNetEthRateMiB):0.0));
+          weight          *= ((netweight>0)?sqrt(netweight):0);
+
+          availablefsweightsort.insert(std::pair<double,eos::common::FileSystem::fsid_t> (weight, snapshot.mId));
+          renorm += weight;
+        } else {
+          // check if we are in any kind of no-update mode
+          if ( (snapshot.mConfigStatus == eos::common::FileSystem::kRO) || 
+               (snapshot.mConfigStatus == eos::common::FileSystem::kWO) ) {
+            return EROFS;
+          }
+          
+          // we are off the wire
+          return ENONET;
+        }
+      } else {
+	if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
+	     (snapshot.mConfigStatus >= eos::common::FileSystem::kRO) && 
+	     (snapshot.mErrCode      == 0 ) && // this we probably don't need 
+             (fs->HasHeartBeat(snapshot)) && 
+	     (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status") == "on") && 
+	     (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") ) {
+          availablefs.insert(snapshot.mId);
+          
+          // the weight is given mainly by the disk performance and the network load has a weaker impact (sqrt)
+          double weight    = (1.0 - snapshot.mDiskUtilization);
+          double netweight = (1.0- ((snapshot.mNetEthRateMiB)?(snapshot.mNetOutRateMiB/snapshot.mNetEthRateMiB):0.0));
+          weight          *= ((netweight>0)?sqrt(netweight):0);
+          availablefsweightsort.insert(std::pair<double,eos::common::FileSystem::fsid_t> (weight, snapshot.mId));          
+          renorm += weight;
+          eos_static_debug("weight = %f netweight = %f renorm = %f %d=>%f\n", weight, netweight, renorm, snapshot.mId, snapshot.mDiskUtilization);
+        } 
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // for write we can just return if they are all available, otherwise we would never go here ....
+    // -----------------------------------------------------------------------
+    if (isRW) {
+      fsindex = 0;
+      return 0;
+    }
+    
+    // -----------------------------------------------------------------------
+    // if there was a forced one, see if it is there
+    // -----------------------------------------------------------------------
+    if (forcedfsid>0) {
+      if (availablefs.count(forcedfsid)==1) {
+        for (size_t i=0; i< locationsfs.size();i++) {
+          if (locationsfs[i] == forcedfsid) {
+            fsindex = i;
+            return 0;
+          }
+        }
+        // uuh! - this should NEVER happen!
+        eos_static_crit("fatal inconsistency in scheduling - file system missing after selection of forced fsid");
+        return EIO;
+      }
+      return ENONET;
+    }
+
+    if (!renorm) {
+      renorm = 1.0;
+    }
+    
+    // -----------------------------------------------------------------------
+    // if there was none available, return
+    // -----------------------------------------------------------------------
+    if (!availablefs.size()) {
+      return ENONET;
+    }
+    
+    // -----------------------------------------------------------------------
+    // if there was only one available, use that one
+    // -----------------------------------------------------------------------
+    if (availablefs.size()==1) {
+      for (size_t i=0; i< locationsfs.size();i++) {
+        if (locationsfs[i] == *(availablefs.begin())) {
+          fsindex = i;
+          return 0;
+        }
+      }
+      // uuh! - this should NEVER happen!
+      eos_static_crit("fatal inconsistency in scheduling - file system missing after selection of single replica");
+      return EIO;
+    }
+    
+    // -----------------------------------------------------------------------
+    // now start with the one with the highest weight, but still use probabilty to select it
+      // -----------------------------------------------------------------------
+      std::multimap<double, eos::common::FileSystem::fsid_t>::reverse_iterator wit;
+      for (wit = availablefsweightsort.rbegin(); wit != availablefsweightsort.rend(); wit++) {
+        float randomacceptor = (0.999999 * random()/RAND_MAX);
+        eos_static_debug("random acceptor=%.02f norm=%.02f weight=%.02f normweight=%.02f fsid=%u", randomacceptor, renorm, wit->first, wit->first/renorm, wit->second);
+
+        if ( (wit->first/renorm)> randomacceptor) {
+          // take this
+          for (size_t i=0; i< locationsfs.size();i++) {
+            if (locationsfs[i] == wit->second) {
+              fsindex = i;
+              return 0;
+            }
+          }
+          // uuh! - this should NEVER happen!
+          eos_static_crit("fatal inconsistency in scheduling - file system missing after selection in randomacceptor");
+          return EIO;
+        }
+      }
+      // -----------------------------------------------------------------------
+      // if we don't succeed by the randomized weight, we return the one with the highest weight
+      // -----------------------------------------------------------------------
+
+      for (size_t i=0; i< locationsfs.size();i++) {
+        if (locationsfs[i] == availablefsweightsort.begin()->second) {
+          fsindex = i;
+          return 0;
+        }
+      }
+      // uuh! - this should NEVER happen!
+      eos_static_crit("fatal inconsistency in scheduling - file system missing after selection");
+      return EIO;
+  }
+
   return EINVAL;
 }
 

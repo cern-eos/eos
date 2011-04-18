@@ -3189,7 +3189,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		if (i==0) {
 		  std::string out="";
 		  stdOut += "<#> <fs-id> ";
-		  std::string format="header=1|indent=12|headeronly=1|key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
+		  std::string format="header=1|indent=12|headeronly=1|key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
 		  filesystem->Print(out, format);
 		  stdOut += out.c_str();
 		}
@@ -3197,7 +3197,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		stdOut += fsline; 
 		
 		std::string out="";
-		std::string format="key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
+		std::string format="key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
 		filesystem->Print(out, format);
 		stdOut += out.c_str();
 	      } else {

@@ -196,7 +196,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs, bool dolock) {
     fs.mBootSentTime  = (time_t) mHash->GetLongLong("stat.bootsenttime");
     fs.mBootDoneTime  = (time_t) mHash->GetLongLong("stat.bootdonetime");
     fs.mHeartBeatTime = (time_t) mHash->GetLongLong("stat.heartbeattime");
-    fs.mDiskUtilization = mHash->GetDouble("stat.disk.utilization");
+    fs.mDiskUtilization = mHash->GetDouble("stat.disk.load");
     fs.mNetEthRateMiB   = mHash->GetDouble("stat.net.ethmib");
     fs.mNetInRateMiB    = mHash->GetDouble("stat.net.inratemib");
     fs.mNetOutRateMiB   = mHash->GetDouble("stat.net.outratemib");
