@@ -992,7 +992,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
   int retc = XrdOfsFile::read(fileOffset,buffer,buffer_size);
 
   if (fstBlockXS) {
-    if (!fstBlockXS->CheckBlockSum(fileOffset, buffer, buffer_size)) {
+    if ((retc>0) && (!fstBlockXS->CheckBlockSum(fileOffset, buffer, retc))) {
       int envlen=0;
       eos_crit("block-xs error offset=%llu len=%llu file=%s",(unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());
       return gOFS.Emsg("readofs", error, EIO, "read file - wrong block checksum fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
