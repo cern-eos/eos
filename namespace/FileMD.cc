@@ -42,7 +42,7 @@ namespace eos
     pSize        = other.pSize;
     pContainerId = other.pContainerId;
     pCUid        = other.pCUid;
-    pCGid        = pCGid;
+    pCGid        = other.pCGid;
     pLayoutId    = other.pLayoutId;
     pLocation    = other.pLocation;
     pUnlinkedLocation = other.pUnlinkedLocation;

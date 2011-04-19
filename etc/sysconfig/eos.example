@@ -14,9 +14,20 @@ export EOS_MGM_MASTER1=lxbra0301.cern.ch
 # The fully qualified hostname of MGM master2
 export EOS_MGM_MASTER2=lxbra0302.cern.ch
 
-# The alias which selectets master 1 or 2
+# The alias which selects master 1 or 2
 export EOS_MGM_ALIAS=eosatlas.cern.ch
 
 # The mail notification in case of fail-over
 export EOS_MAIL_CC="apeters@mail.cern.ch"
 export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
+
+# ------------------------------------------------------------------
+# FUSE Configuration
+# ------------------------------------------------------------------
+
+# The mount directory for 'eosd' 
+export EOS_FUSE_MOUNTDIR=/eos/atlas/
+
+# The MGM host from where to do the inital mount
+export EOS_FUSE_MGM_ALIAS=eosatlas.cern.ch
+

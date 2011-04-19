@@ -36,15 +36,15 @@ start() {
             echo -n "Starting $prog: "
 	    mkdir -p /var/run/eosd/
 	    cd /var/run/eosd/
-	    mkdir -p ${EOS_MOUNTDIR-/eos/atlas}
-	    chmod -R 755 ${EOS_MOUNTDIR-/eos/atlas}
+	    mkdir -p ${EOS_FUSE_MOUNTDIR-/eos/}
+	    chmod -R 755 ${EOS_MOUNTDIR-/eos/}
 	    unset KRB5CCNAME
 	    unset X509_USER_CERT
 	    unset X509_USER_KEY
 	    ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
 	    ulimit -n 65000
 	    modprobe fuse
-            ${EOS_ROOT}/sbin/eosd ${EOS_MOUNTDIR-/eos/} -omax_readahead=131072,max_write=4194304,allow_other,url=root://${EOS_RDRURL-eosdev.cern.ch}/${EOS_MOUNTDIR-/eos/}//  >& /dev/null 
+            ${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -omax_readahead=131072,max_write=4194304,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch}/${EOS_FUSE_MOUNTDIR-/eos/}//  >& /dev/null 
 
 
             RETVAL=$?
@@ -64,7 +64,7 @@ start() {
 
 stop() {
         echo -n "Stopping $prog: "
-	umdir="${EOS_MOUNTDIR-/eos/}";
+	umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
 	umount -f -l $umdir > /dev/null 2>&1
         pkill -9 -f ${EOS_ROOT}/sbin/eosd
 	rm -f /var/lock/subsys/eosd
