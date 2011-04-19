@@ -39,7 +39,7 @@ endif(MacOSX)
 
 EOS_CheckOutOfSourceBuild()
 
-set(CMAKE_CXX_FLAGS "-g -Wall -O2 -msse4.2 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" ")
+set(CMAKE_CXX_FLAGS "-g -Wall -O2 -msse4.2 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -D_FILE_OFFSET_BITS=64")
 
 #set(SOFLAGS  "-m64 -dynamiclib -undefined dynamic_lookup -single_module")
 #set(CMAKE_SHARED_LINKER_FLAGS ${SOFLAGS}) 
@@ -53,6 +53,7 @@ add_subdirectory (console)
 add_subdirectory (namespace)
 add_subdirectory (etc)
 add_subdirectory (sync)
+add_subdirectory (fuse)
 
 include_directories( ../ /usr/includeye/xrootd/ /usr/include/ )
 link_directories( /usr/${LIB_INSTALL_DIR}/)
@@ -87,7 +88,7 @@ set(CPACK_SOURCE_GENERATOR "TGZ")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME
   "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
 set(CPACK_SOURCE_IGNORE_FILES
-  "/build/;/.bzr/;~$;.o$;/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;ApMon;fuse;build;install_manifest.txt;lib;/.git/;${CPACK_SOURCE_IGNORE_FILES}")
+  "/build/;/.bzr/;~$;.o$;/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;ApMon;build;install_manifest.txt;lib;/.git/;${CPACK_SOURCE_IGNORE_FILES}")
 include(CPack)
 
 add_custom_target(gitdist

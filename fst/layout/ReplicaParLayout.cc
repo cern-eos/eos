@@ -222,7 +222,7 @@ ReplicaParLayout::write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize le
   if (!rc2) {
     return gOFS.Emsg("ReplicaWrite",*error, EREMOTEIO, "write remote replica - write failed");
   }
-  return rc1;
+  return length;
 
 }
 

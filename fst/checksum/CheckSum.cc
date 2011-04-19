@@ -395,7 +395,6 @@ CheckSum::AddBlockSumHoles(int fd)
 
           if (!AddBlockSum( i*BlockSize, buffer, nrbytes)) {
             //            fprintf(stderr,"AddBlockSumHoles: checksumming failed\n");
-            
             free(buffer);
             return false;
           }

@@ -365,6 +365,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     MgmOfsBrokerUrl += "/";
   }
 
+  if (! MgmOfsBrokerUrl.endswith("//eos/")) {
+    Eroute.Say("Config error: the broker url has to be of the form <rood://<hostname>[:<port>]//eos");
+    return 1;
+  }
+  
   MgmDefaultReceiverQueue = MgmOfsBrokerUrl; MgmDefaultReceiverQueue += "*/fst";  
 
   MgmOfsBrokerUrl += ManagerId; MgmOfsBrokerUrl += "/mgm";

@@ -14,6 +14,7 @@ extern int com_file (char*);
 extern int com_fileinfo (char*);
 extern int com_find (char*);
 extern int com_fs   (char*);
+extern int com_fuse (char*);
 extern int com_group (char*);
 extern int com_help (char *);
 extern int com_ls (char*);
@@ -100,6 +101,7 @@ COMMAND commands[] = {
   { (char*)"fileinfo", com_fileinfo, (char*)"File Information" },
   { (char*)"find",     com_find,     (char*)"Find files/directories" },
   { (char*)"fs",       com_fs,       (char*)"File System configuration"},
+  { (char*)"fuse",     com_fuse,     (char*)"Fuse Mounting"},
   { (char*)"group",    com_group,    (char*)"Group configuration" },
   { (char*)"help",     com_help,     (char*)"Display this text" },
   { (char*)"ls",       com_ls,       (char*)"List a directory" },

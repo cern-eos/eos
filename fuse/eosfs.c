@@ -529,7 +529,6 @@ int main(int argc, char *argv[])
 	  *(spos-1) = 0;
 	}
 	setenv("EOSFS_RDRURL",spos+4,1);
-	setenv("LD_LIBRARY_PATH","/opt/xrootd/lib",1);
       }
     }
   }

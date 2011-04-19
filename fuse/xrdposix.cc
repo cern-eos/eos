@@ -48,8 +48,8 @@ STRINGSTORE(const char* __charptr__) {
   XrdOucString* yourstring;
   if (!__charptr__ ) return (char*)"";
 
-  if (yourstring = stringstore->Find(__charptr__)) {
-    return (char*)yourstring->c_str();
+  if ((yourstring = stringstore->Find(__charptr__))) {
+    return ((char*)yourstring->c_str());
   } else {
     XrdOucString* newstring = new XrdOucString(__charptr__);
     stringstoremutex.Lock();
@@ -111,6 +111,7 @@ public:
     }
     entrylist[nUsed] = new XrdPosixDirEntry(name,ino);
     nUsed++;
+    return true;
   }
 
   ~XrdPosixDirList() {
@@ -214,15 +215,15 @@ public:
   void SetOffset(off_t offs) {offset = offs;}
   void SetLastOffset(off_t offs) {lastoffset = offs;}
   void SetNbytes(size_t nb) {
-    nbytes = nb;
+    nbytes = nb;    
 #ifdef XWCDEBUG
-    printf("**** [XWC:SetNbytes] [page=%u] nbytes = %d\n",this,nbytes);
+    printf("**** [XWC:SetNbytes] [page=%llu] nbytes = %llu\n",(unsigned long long)this,(unsigned long long)nbytes);
 #endif
   }
   void SetPageStart(size_t nb) {
     pagestart = nb;
 #ifdef XWCDEBUG
-    printf("**** [XWC:SetPageStart] [page=%u] pagestart = %d\n",this,pagestart);
+    printf("**** [XWC:SetPageStart] [page=%llu] pagestart = %llu\n",(unsigned long long)this,(unsigned long long)pagestart);
 #endif
   }
 
@@ -309,8 +310,9 @@ public:
 #endif
     if (pages) {
       int retc = XrdPosixXrootd::Pwrite(fildes, pages->buffer + pages->pagestart, pages->nbytes, (long long) pages->offset + pages->pagestart);
+      retc = 0;
 #ifdef XWCDEBUG
-      printf("**** [XWC:Flush] Write [page=%u] buf=%u bytes=%u start=%u offset=%u\n",pages,pages->buffer,pages->nbytes,pages->pagestart,pages->offset);
+      printf("**** [XWC:Flush] Write [page=%llu] buf=%llu bytes=%llu start=%llu offset=%llu\n",(unsigned long long)pages,(unsigned long long)pages->buffer,(unsigned long long)pages->nbytes,(unsigned long long)pages->pagestart,(unsigned long long)pages->offset);
 #endif
       Pool->ReleasePage(pages);
       pages = 0;
@@ -346,13 +348,14 @@ public:
       printf("**** [XWC:Flush] no buckets\n");
 #endif
     }
+    return 0;
   }
 
   XrdWriteCache(int blen) {
     bucketlen = blen;
     // we create a page pool for 4 files with bucketlen * OSPAGESIZE byte pages
 #ifdef XWCDEBUG
-    printf("Creating pool with %d pages and %d bytes\n",4,bucketlen * OSPAGESIZE);
+    printf("Creating pool with %d pages and %llu bytes\n",4,(unsigned long long)(bucketlen * OSPAGESIZE));
 #endif
     Pool = new XrdWriteCachePagePool(4, bucketlen * OSPAGESIZE);
   }
@@ -361,7 +364,7 @@ public:
     if ((nbyte != OSPAGESIZE)){
       Flush(fildes);
 #ifdef XWCDEBUG       
-      printf("**** [XWC:PWrite] no page match %d %u %u %u\n",fildes,buf,nbyte,offset);
+      printf("**** [XWC:PWrite] no page match %d %llu %llu %llu\n",fildes,(unsigned long long)buf,(unsigned long long)nbyte,(unsigned long long)offset);
 #endif
       return XrdPosixXrootd::Pwrite(fildes, buf, nbyte, (long long) offset);
     }
@@ -374,7 +377,7 @@ public:
     XrdOucString fname = "";
     fname += fildes;
     char soffset[OSPAGESIZE];
-    sprintf(soffset,"%llu",offset);
+    sprintf(soffset,"%llu",(unsigned long long)offset);
     XrdOucString oname = soffset;
 
     XrdWriteCacheBucket* bucket;
@@ -397,13 +400,13 @@ public:
       // there was a seek
       Flush(fildes);
 #ifdef XWCDEBUG
-      printf("**** [XWC:PWrite] lastoffset %d %u %u %u\n",fildes,buf,nbyte,offset);
+      printf("**** [XWC:PWrite] lastoffset %d %llu %llu %llu\n",fildes,(unsigned long long)buf,(unsigned long long)nbyte,(unsigned long long)offset);
 #endif
       return XrdPosixXrootd::Pwrite(fildes, buf, nbyte, (long long) offset);
     }
 
 #ifdef XWCDEBUG
-    printf("**** [XWC:Write] %d %u %u %u [page=%u]\n",fildes,buf,nbyte,offset,page);
+    printf("**** [XWC:Write] %d %llu %llu %llu [page=%llu]\n",fildes,(unsigned long long)buf,(unsigned long long)nbyte,(unsigned long long)offset,(unsigned long long)page);
 #endif
     
     page->SetOffset(offset / (bucketlen * 4 * 1024) * (bucketlen * 4 * 1024));
@@ -417,11 +420,11 @@ public:
     }
     page->SetNbytes( (offset%(bucketlen*4*1024)) + nbyte - page->pagestart);
 #ifdef XWCDEBUG
-    printf("**** [XWC:Write] did memcpy %u -> %u [%u] %u\n", page->buffer + (offset%(bucketlen * 4 * 1024)), buf, nbyte,offset%(bucketlen*4*1024));
+    printf("**** [XWC:Write] did memcpy %llu -> %llu [%llu] %llu\n", (unsigned long long)(page->buffer + (offset%(bucketlen * 4 * 1024))),(unsigned long long) buf, (unsigned long long)nbyte,(unsigned long long)(offset%(bucketlen*4*1024)));
 #endif
     bucket->Updated();
 #ifdef XWCDEBUG
-    printf("**** [XWC:Write] returning %d\n",nbyte);
+    printf("**** [XWC:Write] returning %llu\n",(unsigned long long)nbyte);
 #endif
     return nbyte;
   }
@@ -498,14 +501,14 @@ int xrd_stat(const char *path, struct stat *buf)
 
   long long dostat = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
   TIMING("GETPLUGIN",&stattiming);
-  fprintf(stderr,"returned %s %d\n",value, dostat);
+  fprintf(stderr,"returned %s %lld\n",value, dostat);
   if (dostat >= 0) {
     unsigned long long sval[10];
     unsigned int ival[3];
     char tag[1024];
-
+    
     // parse the stat output
-    int items = sscanf(value,"%s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",tag, &sval[0],&sval[1],&sval[2],&sval[3],&sval[4],&sval[5],&sval[6],&sval[7],&sval[8],&sval[9],&ival[0],&ival[1],&ival[2]);
+    int items = sscanf(value,"%s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",tag, (unsigned long long*)&sval[0],(unsigned long long*)&sval[1],(unsigned long long*)&sval[2],(unsigned long long*)&sval[3],(unsigned long long*)&sval[4],(unsigned long long*)&sval[5],(unsigned long long*)&sval[6],(unsigned long long*)&sval[7],(unsigned long long*)&sval[8],(unsigned long long*)&sval[9],(unsigned long long*)&ival[0],(unsigned long long*)&ival[1],(unsigned long long*)&ival[2]);
     if ((items != 14) || (strcmp(tag,"stat:"))) {
       errno = ENOENT;
       return EFAULT;
@@ -554,8 +557,8 @@ xrd_chmod(const char* path, mode_t mode)
 
   if (dochmod>=0) {
     char tag[1024];
-    int retc;
-    if (!value) {
+    int retc=0;
+    if (!value[0]) {
       return -EFAULT;
     }
     // parse the stat output
@@ -690,16 +693,16 @@ xrd_utimes(const char* path, struct timespec *tvp) {
   request += "?";
   request += "mgm.pcmd=utimes&tv1_sec=";
   char lltime[1024];
-  sprintf(lltime,"%llu",tvp[0].tv_sec);
+  sprintf(lltime,"%llu",(unsigned long long)tvp[0].tv_sec);
   request += lltime;
   request += "&tv1_nsec=";
-  sprintf(lltime,"%llu",tvp[0].tv_nsec);
+  sprintf(lltime,"%llu",(unsigned long long)tvp[0].tv_nsec);
   request += lltime;
   request += "&tv2_sec=";
-  sprintf(lltime,"%llu",tvp[1].tv_sec);
+  sprintf(lltime,"%llu",(unsigned long long)tvp[1].tv_sec);
   request += lltime;
   request += "&tv2_nsec=";
-  sprintf(lltime,"%llu",tvp[1].tv_nsec);
+  sprintf(lltime,"%llu",(unsigned long long)tvp[1].tv_nsec);
   request += lltime;
   long long doutimes = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
 
@@ -821,8 +824,6 @@ int xrd_inodirlist(unsigned long long dirinode, const char *path)
   
   TIMING("PARSESTSTREAM",&inodirtiming);    
   if (nbytes>= 0) {
-    unsigned long long sval[10];
-    unsigned int ival[3];
     char dirpath[4096];
     unsigned long long inode;
     char tag[128];
@@ -1021,7 +1022,7 @@ void xrd_store_inode(long long inode, const char* name) {
   sprintf(nodename,"%lld",inode);
 
   inodestoremutex.Lock();
-  if ( node = inodestore->Find(nodename) ) {
+  if ( (node = inodestore->Find(nodename) ) ) {
     inodestore->Rep(nodename, new XrdOucString(name));
     inodestoremutex.UnLock();
   } else {
@@ -1032,7 +1033,6 @@ void xrd_store_inode(long long inode, const char* name) {
 
 void xrd_forget_inode(long long inode) 
 {
-  XrdOucString* node;
   char nodename[4096];
   sprintf(nodename,"%lld",inode);
   
@@ -1058,7 +1058,6 @@ const char* xrd_mapuser(uid_t uid) {
   struct passwd* pw;
   XrdOucString sid = "";
   XrdOucString* spw=NULL;
-  XrdOucString* sss=NULL;
   sid += (int) (uid);
   passwdstoremutex.Lock();
   if (!(spw = passwdstore->Find(sid.c_str()))) {
@@ -1210,13 +1209,12 @@ struct dirbuf* xrd_inodirlist_getbuffer(unsigned long long dirinode) {
   }
 }
 
-const char* xrd_get_dir(DIR* dp, int entry) {}
+const char* xrd_get_dir(DIR* dp, int entry) { return 0;}
 
 
 #define MAX_NUM_NODES 63 /* max number of data nodes in a cluster */
 void xrd_init()
 {
-    char *nnodes_env;
     memset(fdbuffermap,0,sizeof(fdbuffermap));
 
     XrdPosixXrootd::setEnv(NAME_DATASERVERCONN_TTL,86400);
@@ -1243,3 +1241,5 @@ void xrd_init()
     readopenstore = new XrdOucHash<XrdOpenPosixFile> ();
 }
         
+
+//  LocalWords:  xrdposix XCFS

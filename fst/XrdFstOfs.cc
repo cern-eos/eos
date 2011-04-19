@@ -705,8 +705,7 @@ XrdFstOfsFile::verifychecksum()
         return true;
       }
     }
-
-
+    
     if (checkSum && checkSum->NeedsRecalculation()) {
       unsigned long long scansize=0;
       float scantime = 0; // is ms
@@ -720,27 +719,23 @@ XrdFstOfsFile::verifychecksum()
       // this was prefect streaming I/O
       checkSum->Finalize();
     }
-  }
-  
-  if (checkSum) {
-    if (isRW) {
-      if (haswrite) {
-        eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
-        checkSum->GetBinChecksum(checksumlen);
-	 // copy checksum into meta data
-        memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
 
-        // set the eos checksum extended attributes
-        eos::common::Attr* attr = eos::common::Attr::OpenAttr(fstPath.c_str());
-        if (attr) {
-          if (!attr->Set(std::string("user.eos.checksumtype"), std::string(checkSum->GetName()))) {
-            eos_err("unable to set extended attribute <eos.checksumtype> errno=%d", errno);
-          }
-          if (!attr->Set("user.eos.checksum",checkSum->GetBinChecksum(checksumlen), checksumlen)) {
-            eos_err("unable to set extended attribute <eos.checksum> errno=%d", errno);
-          }
-          delete attr;
+    if (isRW) {
+      eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
+      checkSum->GetBinChecksum(checksumlen);
+      // copy checksum into meta data
+      memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
+      
+      // set the eos checksum extended attributes
+      eos::common::Attr* attr = eos::common::Attr::OpenAttr(fstPath.c_str());
+      if (attr) {
+        if (!attr->Set(std::string("user.eos.checksumtype"), std::string(checkSum->GetName()))) {
+          eos_err("unable to set extended attribute <eos.checksumtype> errno=%d", errno);
         }
+        if (!attr->Set("user.eos.checksum",checkSum->GetBinChecksum(checksumlen), checksumlen)) {
+          eos_err("unable to set extended attribute <eos.checksum> errno=%d", errno);
+        }
+        delete attr;
       }
     } else {
       // this is a read with checksum check, compare with fMD
@@ -753,9 +748,6 @@ XrdFstOfsFile::verifychecksum()
       }
     }
   }
-  // remove the checksum object
-  delete checkSum;
-  checkSum=0;
   return checksumerror;
 }
 
@@ -791,6 +783,9 @@ XrdFstOfsFile::close()
      rc = closeofs();
    }
 
+   // first we assume that, if we have writes, we update it
+   closeSize = openSize;
+
    if (haswrite) {
      // commit meta data
      struct stat statinfo;
@@ -798,6 +793,7 @@ XrdFstOfsFile::close()
        rc = gOFS.Emsg(epname,error, EIO, "close - cannot stat closed file to determine file size",Path.c_str());
      } else {
        // update size
+       closeSize = statinfo.st_size;
        fMd->fMd.size     = statinfo.st_size;
        fMd->fMd.mtime    = statinfo.st_mtime;
 #ifdef __APPLE__
@@ -1108,7 +1104,11 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
 
   // evt. add checksum
   if ((rc >0) && (checkSum)){
+    fprintf(stderr,"Adding %d bytes to checksum \n", rc);
     checkSum->Add(buffer, (size_t) buffer_size, (off_t) fileOffset);
+    fprintf(stderr,"(write) checksum type: %s checksum hex: %s\n", checkSum->GetName(), checkSum->GetHexChecksum());
+  } else {
+    fprintf(stderr,"Write without checksumming\n");
   }
 
   if (wOffset != (unsigned long long) fileOffset) {
@@ -1182,7 +1182,14 @@ XrdFstOfsFile::truncateofs(XrdSfsFileOffset   fileOffset)
 int          
 XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
 {
-  if (checkSum) checkSum->Reset();
+  fprintf(stderr,"truncate called %llu\n", fileOffset);
+
+  if (checkSum) {
+    if (checkSum->GetLastOffset() != fileOffset) {
+      checkSum->Reset();
+      checkSum->SetDirty();
+    }
+  }
 
   return layOut->truncate(fileOffset);
 }

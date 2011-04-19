@@ -75,15 +75,15 @@ public:
   int          truncate(XrdSfsFileOffset   fileOffset);
   int          truncateofs(XrdSfsFileOffset   fileOffset);
 
-  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; fstBlockXS=0; fstBlockSize=0; eos::common::LogId(); closed=false; opened=false; haswrite=false; fMd = 0;checkSum = 0; layOut = 0; isRW= 0; isCreation = 0; rBytes=wBytes=srBytes=swBytes=rOffset=wOffset=0; rTime.tv_sec=wTime.tv_sec=lrTime.tv_sec=lwTime.tv_sec=rTime.tv_usec=wTime.tv_usec=lrTime.tv_usec=lwTime.tv_usec=cTime.tv_sec=cTime.tv_usec=0;fileid=0;fsid=0;lid=0;cid=0;rCalls=wCalls=0; localPrefix="";maxOffsetWritten=0;openSize=0;}
+  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; fstBlockXS=0; fstBlockSize=0; eos::common::LogId(); closed=false; opened=false; haswrite=false; fMd = 0;checkSum = 0; layOut = 0; isRW= 0; isCreation = 0; rBytes=wBytes=srBytes=swBytes=rOffset=wOffset=0; rTime.tv_sec=wTime.tv_sec=lrTime.tv_sec=lwTime.tv_sec=rTime.tv_usec=wTime.tv_usec=lrTime.tv_usec=lwTime.tv_usec=cTime.tv_sec=cTime.tv_usec=0;fileid=0;fsid=0;lid=0;cid=0;rCalls=wCalls=0; localPrefix="";maxOffsetWritten=0;openSize=0;closeSize=0;}
   virtual ~XrdFstOfsFile() {
     close();
     if (openOpaque) {delete openOpaque; openOpaque=0;}
     if (capOpaque)  {delete capOpaque;  capOpaque =0;}
     // unmap the MD record
     if (fMd) {delete fMd; fMd = 0;}
-    if (checkSum) { delete checkSum;}
-    if (layOut) { delete layOut;}
+    if (checkSum) { delete checkSum; checkSum = 0;}
+    if (layOut) { delete layOut; layOut = 0;}
   }
 
 protected:
@@ -118,6 +118,7 @@ protected:
   unsigned long long maxOffsetWritten; // largest byte position written of a new created file
 
   off_t        openSize;
+  off_t        closeSize;
 
   ///////////////////////////////////////////////////////////
   // file statistics
@@ -154,7 +155,7 @@ protected:
   
   void MakeReportEnv(XrdOucString &reportString) {
     char report[16384];
-    sprintf(report,"log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&&cts=%lu&ctms=%lu&rb=%llu&wb=%llu&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f&osize=%llu",this->logId,Path.c_str(),this->vid.uid,this->vid.gid, tIdent.c_str(), hostName.c_str(),lid, fileid, fsid, openTime.tv_sec, (unsigned long)openTime.tv_usec/1000,closeTime.tv_sec,(unsigned long)closeTime.tv_usec/1000,rBytes,wBytes,srBytes,swBytes,rCalls, wCalls,((rTime.tv_sec*1000.0)+(rTime.tv_usec/1000.0)), ((wTime.tv_sec*1000.0) + (wTime.tv_usec/1000.0)), (unsigned long long) openSize);
+    sprintf(report,"log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&&cts=%lu&ctms=%lu&rb=%llu&wb=%llu&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f&osize=%llu&csize=%llu",this->logId,Path.c_str(),this->vid.uid,this->vid.gid, tIdent.c_str(), hostName.c_str(),lid, fileid, fsid, openTime.tv_sec, (unsigned long)openTime.tv_usec/1000,closeTime.tv_sec,(unsigned long)closeTime.tv_usec/1000,rBytes,wBytes,srBytes,swBytes,rCalls, wCalls,((rTime.tv_sec*1000.0)+(rTime.tv_usec/1000.0)), ((wTime.tv_sec*1000.0) + (wTime.tv_usec/1000.0)), (unsigned long long) openSize, (unsigned long long) closeSize);
     reportString = report;
   }
 

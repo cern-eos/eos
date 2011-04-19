@@ -3,6 +3,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
+#include "fst/Load.hh"
 #include "common/LayoutId.hh"
 #include "common/Attr.hh"
 /*----------------------------------------------------------------------------*/
@@ -34,6 +35,10 @@ public:
   virtual bool Add(const char* buffer, size_t length, off_t offset) = 0;
   virtual void Finalize() {};
   virtual void Reset() = 0;
+  virtual void SetDirty() {
+    needsRecalculation = true;
+  }
+
   virtual const char* GetHexChecksum() = 0;
   virtual const char* GetBinChecksum(int &len) = 0;
   virtual off_t GetLastOffset() = 0;
@@ -43,7 +48,6 @@ public:
   bool NeedsRecalculation() {return needsRecalculation;}
 
   virtual bool ScanFile(const char* path, unsigned long long &scansize, float &scantime, int rate=0);
-
   virtual bool SetXSMap(off_t offset);
   virtual bool VerifyXSMap(off_t offset);
 

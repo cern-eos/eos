@@ -18,6 +18,7 @@ BuildRequires: readline-devel, ncurses-devel
 BuildRequires: sparsehash
 BuildRequires: gcc44, gcc44-c++
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel
+BuildRequires: fuse-devel, fuse
 
 Requires: xrootd-server >= 3.0.0
 Requires: eos-client
@@ -47,8 +48,10 @@ rm -rf $RPM_BUILD_ROOT
 /sbin/chkconfig --add eos
 /sbin/service eos condrestart > /dev/null 2>&1 || :
 %{__mkdir} -p -m 700 /var/eos
+%{__chmod} -R 700 /var/eos
 %{__chown} daemon:daemon /var/eos/
 %{__mkdir} -p -m 700 /var/log/eos
+%{__chmod} -R 755 /var/log/eos
 %{__chown} daemon:daemon /var/log/eos/
 
 %preun
@@ -118,4 +121,23 @@ The EOS shell client.
 %files -n eos-client
 /usr/bin/eos
 
+
+#######################################################################################
+# the fuse client package 
+#######################################################################################
+%package -n eos-fuse
+#######################################################################################
+Summary: The EOS fuse client
+Group: Applications/File
+
+Requires: xrootd-client >= 3.0.0
+Requires: eos-client
+
+%description -n eos-fuse
+The EOS fuse client.
+%files -n eos-fuse
+/usr/bin/eosfsd
+/usr/sbin/eosd
+/etc/fuse.conf
+/etc/rc.d/init.d/eosd
 %changelog

@@ -10,18 +10,18 @@
 
 # Source function library.
 
-export EOS_ROOT=/opt/eos
+export EOS_ROOT=/usr
 
 . /etc/init.d/functions
 
 
 
-if test ! -x ${EOS_ROOT}/bin/eosd ; then
-  echo Error: ${EOS_ROOT}/bin/eosd does not exist!
+if test ! -x ${EOS_ROOT}/sbin/eosd ; then
+  echo Error: ${EOS_ROOT}/sbin/eosd does not exist!
   exit 0
 fi
 
-[ -e /etc/sysconfig/eosd ] && . /etc/sysconfig/eosd
+[ -e /etc/sysconfig/eos ] && . /etc/sysconfig/eos
 
 RETVAL=0
 prog="eosd"
@@ -29,7 +29,7 @@ prog="eosd"
 start() {
         # Check if eosd is already running
 	echo
-        eosdpid=`pgrep -f "${EOS_ROOT}/bin/eosd "`
+        eosdpid=`pgrep -f "${EOS_ROOT}/sbin/eosd "`
 	export EOS_NOACCESS=${EOS_NOACCESS-1}
 	export EOS_KERNELCACHE=${EOS_KERNELCACHE-1}
         if [ "x$eosdpid" = "x" ]; then
@@ -44,7 +44,7 @@ start() {
 	    ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
 	    ulimit -n 65000
 	    modprobe fuse
-            ${EOS_ROOT}/bin/eosd ${EOS_MOUNTDIR-/eos/atlas} -omax_readahead=131072,max_write=4194304,allow_other,url=root://${EOS_RDRURL-eosatlas.cern.ch}/${EOS_MOUNTDIR-/eos/atlas}//  >& /dev/null 
+            ${EOS_ROOT}/sbin/eosd ${EOS_MOUNTDIR-/eos/} -omax_readahead=131072,max_write=4194304,allow_other,url=root://${EOS_RDRURL-eosdev.cern.ch}/${EOS_MOUNTDIR-/eos/}//  >& /dev/null 
 
 
             RETVAL=$?
@@ -64,9 +64,9 @@ start() {
 
 stop() {
         echo -n "Stopping $prog: "
-	umdir="${EOS_MOUNTDIR-/eos/atlas}";
+	umdir="${EOS_MOUNTDIR-/eos/}";
 	umount -f -l $umdir > /dev/null 2>&1
-        pkill -9 -f ${EOS_ROOT}/bin/eosd
+        pkill -9 -f ${EOS_ROOT}/sbin/eosd
 	rm -f /var/lock/subsys/eosd
         echo
 	echo_success

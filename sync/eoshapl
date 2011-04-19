@@ -208,14 +208,14 @@ while(1) {
             if ( "$host" eq "$target1" ) {
                 now();
                 printf "____________________________________________________________________________________________________________\n";
-                system("mv -v $md1file $md1file.failover.$stime");
-                system("bzip2 -v $md1file.failover.$stime");
+                system("test -e $md1file && mv -v $md1file $md1file.failover.$stime");
+                system("test -e $md1file.failover.$stime && bzip2 -v $md1file.failover.$stime");
                 printf "____________________________________________________________________________________________________________\n";
-                my $retc = system("echo := eos-log-compact $md2file $md1file ; eos-log-compact $md2file $md1file");
+                my $retc = system("echo := eos-log-compact $md2file $md1file ; test -e $md2file && eos-log-compact $md2file $md1file");
                 $retc = ($retc >> 8);
-                if ($retc) {
+                if ( -e "$md2file" && $retc) {
                     printf("$now WARNING : eos-log-compact failed - trying eos-log-repair\n");
-                    my $retrepair = system("echo := eos-log-repair $md2file $md1file ; eos-log-repair $md2file $md1file");
+                    my $retrepair = system("echo := eos-log-repair $md2file $md1file ; test -e $md2file && eos-log-repair $md2file $md1file");
                     $retrepair = ($retrepair >> 8);
                     if ($retrepair) {
                         # oh oh, that is quite fatal
@@ -227,17 +227,16 @@ while(1) {
                         }
                     }
                 }
-                
 
                 printf "____________________________________________________________________________________________________________\n";
-                system("mv -v $md1dirfile $md1dirfile.failover.$stime");
-                system("bzip2 -v $md1dirfile.failover.$stime");
+                system("test -e $md1dirfile && mv -v $md1dirfile $md1dirfile.failover.$stime");
+                system("test -e $md1dirfile.failover.$stime && bzip2 -v $md1dirfile.failover.$stime");
                 printf "____________________________________________________________________________________________________________\n";
                 $retc = system("echo := eos-log-compact $md2dirfile $md1dirfile; eos-log-compact $md2dirfile $md1dirfile");
                 $retc = ($retc >> 8);
-                if ($retc) {
+                if ( -e "$md2dirfile" && $retc) {
                     printf("$now WARNING : eos-log-compact failed - trying eos-log-repair\n");
-                    my $retrepair = system("echo := eos-log-repair $md2dirfile $md1dirfile ; eos-log-repair $md2dirfile $md1dirfile");
+                    my $retrepair = system("echo := eos-log-repair $md2dirfile $md1dirfile ; test -e $md2dirfile && eos-log-repair $md2dirfile $md1dirfile");
                     $retrepair = ($retrepair >> 8);
                     if ($retrepair) {
                         # oh oh, that is quite fatal
@@ -245,8 +244,8 @@ while(1) {
                         # we stop ourself and send an emergency email
                         if ( $ENV{'EOS_NOTIFY'} ne "" ) {
                             system("echo $now Failed FAILOVER procedure ... $host\\(me\\) is now the MASTER ... but eos-log-repair failed | $ENV{'EOS_NOTIFY'}");                    
-                            system("service eosha stop");
                         }
+                        system("service eosha stop");
                     }
                 }
 
@@ -255,14 +254,14 @@ while(1) {
 
             if ( "$host" eq "$target2" ) {
                 printf "____________________________________________________________________________________________________________\n";
-                system("mv -v $md2file $md2file.failover.$stime");
-                system("bzip2 -v $md2file.failover.$stime");
+                system("test -e $md2file && mv -v $md2file $md2file.failover.$stime");
+                system("test -e $md2file.failover.$stime && bzip2 -v $md2file.failover.$stime");
                 printf "____________________________________________________________________________________________________________\n";
-                my $retc = system("echo := eos-log-compact $md1file $md2file; eos-log-compact $md1file $md2file");
+                my $retc = system("echo := eos-log-compact $md1file $md2file; test -e $md1file eos-log-compact $md1file $md2file");
                 $retc = ($retc >> 8);
-                if ($retc) {
+                if ( -e "$md1file" && $retc) {
                     printf("$now WARNING : eos-log-compact failed - trying eos-log-repair\n");
-                    my $retrepair = system("echo := eos-log-repair $md1file $md2file ; eos-log-repair $md1file $md2file");
+                    my $retrepair = system("echo := eos-log-repair $md1file $md2file ; test -e $md1file && eos-log-repair $md1file $md2file");
                     $retrepair = ($retrepair >> 8);
                     if ($retrepair) {
                         # oh oh, that is quite fatal
@@ -270,20 +269,20 @@ while(1) {
                         # we stop ourself and send an emergency email
                         if ( $ENV{'EOS_NOTIFY'} ne "" ) {
                             system("echo $now Failed FAILOVER procedure ... $host\\(me\\) is now the MASTER ... but eos-log-repair failed | $ENV{'EOS_NOTIFY'}");                    
-                            system("service eosha stop");
                         }
+                        system("service eosha stop");
                     }
                 }
 
                 printf "____________________________________________________________________________________________________________\n";
-                system("mv -v $md2dirfile $md2dirfile.failover.$stime");
-                system("bzip2 -v $md2dirfile.failover.$stime");
+                system("test -e $md2dirfile && mv -v $md2dirfile $md2dirfile.failover.$stime");
+                system("test -e $md2dirfile.failover.$stime && bzip2 -v $md2dirfile.failover.$stime");
                 printf "____________________________________________________________________________________________________________\n";
-                $retc = system("echo := eos-log-compact $md1dirfile $md2dirfile; eos-log-compact $md1dirfile $md2dirfile");
+                $retc = system("echo := eos-log-compact $md1dirfile $md2dirfile; test -e $md1dirfile && eos-log-compact $md1dirfile $md2dirfile");
                 $retc = ($retc >> 8);
-                if ($retc) {
+                if ( -e "$md1dirfile" && $retc) {
                     printf("$now WARNING : eos-log-compact failed - trying eos-log-repair\n");
-                    my $retrepair = system("echo := eos-log-repair $md1dirfile $md2dirfile ; eos-log-repair $md1dirfile $md2dirfile");
+                    my $retrepair = system("echo := eos-log-repair $md1dirfile $md2dirfile ; test -e $md1dirfile && eos-log-repair $md1dirfile $md2dirfile");
                     $retrepair = ($retrepair >> 8);
                     if ($retrepair) {
                         # oh oh, that is quite fatal
@@ -291,8 +290,8 @@ while(1) {
                         # we stop ourself and send an emergency email
                         if ( $ENV{'EOS_NOTIFY'} ne "" ) {
                             system("echo $now Failed FAILOVER procedure ... $host\\(me\\) is now the MASTER ... but eos-log-repair failed | $ENV{'EOS_NOTIFY'}");                    
-                            system("service eosha stop");
                         }
+                        system("service eosha stop");
                     }
                 }
 

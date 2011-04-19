@@ -26,7 +26,7 @@ sec.protocol krb5 host/<host>@CERN.CH
 sec.protbind lxfs* only sss
 sec.protbind localhost.localdomain unix
 sec.protbind localhost unix
-sec.protbind * only krb5 
+sec.protbind * only krb5 unix
 ###########################################################
 mgmofs.fs /
 mgmofs.targetport 1095
