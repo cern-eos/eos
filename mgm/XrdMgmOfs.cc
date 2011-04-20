@@ -1902,6 +1902,9 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   AUTHORIZE(client,&renameo_Env,AOP_Update,"rename",old_name, error);
   AUTHORIZE(client,&renamen_Env,AOP_Update,"rename",new_name, error);
 
+  oldn = old_name;
+  newn = new_name;
+
   eos::common::Mapping::IdMap(client,infoO,tident,vid);
 
   MAYSTALL;
@@ -1915,30 +1918,30 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   gOFS->MgmStats.Add("Rename",vid.uid,vid.gid,1);  
 
   // check if dest is existing
-  XrdSfsFileExistence file_exists;
+  //  XrdSfsFileExistence file_exists;
 
-  if (!_exists(newn.c_str(),file_exists,error,vid,infoN)) {
-    // it exists
-    if (file_exists == XrdSfsFileExistIsDirectory) {
-      // we have to path the destination name since the target is a directory
-      XrdOucString sourcebase = oldn.c_str();
-      int npos = oldn.rfind("/");
-      if (npos == STR_NPOS) {
-	return Emsg(epname, error, EINVAL, "rename", oldn.c_str());
-      }
-      sourcebase.assign(oldn, npos);
-      newn+= "/";
-      newn+= sourcebase;
-      while (newn.replace("//","/")) {};
-    }
-    //    if (file_exists == XrdSfsFileExistIsFile) {
-      // remove the target file first!
-      //      int remrc = 0;//_rem(newn.c_str(),error,&mappedclient,infoN);
-      //      if (remrc) {
-      //	return remrc;
-      //      }
-    //    }
-  }
+  //  if (!_exists(newn.c_str(),file_exists,error,vid,infoN)) {
+  //    // it exists
+  //    if (file_exists == XrdSfsFileExistIsDirectory) {
+  //      // we have to path the destination name since the target is a directory
+  //      XrdOucString sourcebase = oldn.c_str();
+  //      int npos = oldn.rfind("/");
+  //      if (npos == STR_NPOS) {
+  //	return Emsg(epname, error, EINVAL, "rename", oldn.c_str());
+  //      }
+  //      sourcebase.assign(oldn, npos);
+  //      newn+= "/";
+  //      newn+= sourcebase;
+  //      while (newn.replace("//","/")) {};
+  //    }
+  //    if (file_exists == XrdSfsFileExistIsFile) {
+  // remove the target file first!
+  //      int remrc = 0;//_rem(newn.c_str(),error,&mappedclient,infoN);
+  //      if (remrc) {
+  //	return remrc;
+  //      }
+  //    }
+  //  }
 
   //  r1 = XrdMgmOfsUFS::Rename(oldn.c_str(), newn.c_str());
 

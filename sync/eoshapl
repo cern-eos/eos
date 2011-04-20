@@ -191,14 +191,14 @@ while(1) {
                 now();
                 printf("$now backup config and copy from $target2 ...\n");
                 printf "____________________________________________________________________________________________________________\n";
-                system("mv -v $md1confdir/$configname.eoscf $md1confdir/$backupconfigname.eoscf");
+                system("cp -v $md1confdir/$configname.eoscf $md1confdir/$backupconfigname.eoscf");
                 system("cp -v $md2confdir/$configname.eoscf $md1confdir/$configname.eoscf");
             }
             if ( "$host" eq "$target2" ) {
                 now();
                 printf("$now backup config and copy from $target1 ...\n");
                 printf "____________________________________________________________________________________________________________\n";
-                system("mv -v $md2confdir/$configname.eoscf $md2confdir/$backupconfigname.eoscf");
+                system("cp -v $md2confdir/$configname.eoscf $md2confdir/$backupconfigname.eoscf");
                 system("cp -v $md1confdir/$configname.eoscf $md2confdir/$configname.eoscf");
             }
 

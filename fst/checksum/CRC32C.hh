@@ -64,7 +64,7 @@ public:
 
   void Finalize() {
     if (!finalized) {
-      checksum::crc32cFinish(crcsum);
+      crcsum = checksum::crc32cFinish(crcsum);
       finalized = true;
     }
   }

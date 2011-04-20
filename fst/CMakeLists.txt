@@ -24,7 +24,15 @@ add_executable ( FstLoad
                  tools/FstLoad.cc
 )
 
+add_executable ( eos-check-blockxs
+                 tools/CheckBlockXS.cc
+                 checksum/CheckSum.cc
+                 ../checksum/crc32c.cc
+                 ../checksum/crc32ctables.cc
+)
+
 target_link_libraries ( FstLoad XrdSys XrdOuc XrdNetUtil dl )
+target_link_libraries ( eos-check-blockxs eosCommon )
 
 if (Linux)
   set_target_properties (XrdEosFst PROPERTIES
@@ -35,7 +43,7 @@ if (Linux)
 endif(Linux)
 
 #INSTALL_PROGRAMS( sbin tools/eosfstregister tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync)
-INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync)
+INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync eos-check-blockxs)
 
 install ( TARGETS XrdEosFst
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}

@@ -68,6 +68,16 @@ public:
     return 0;
   }
 
+  static int BlockSizeEnum(unsigned long blocksize) {
+    if (blocksize == (4*1024))   return k4k;
+    if (blocksize == (64*1024))  return k64k;
+    if (blocksize == (128*1024)) return k128k;
+    if (blocksize == (256*1024)) return k256k;
+    if (blocksize == (512*1024)) return k512k;
+    if (blocksize == (1024*1024)) return k1M;
+    return 0;
+  }
+
   static unsigned long GetChecksum(unsigned long layout)     {return (layout &0xf);}
   static unsigned long GetChecksumLen(unsigned long layout)     {
     if ( (layout &0xf) == kAdler) return 4;

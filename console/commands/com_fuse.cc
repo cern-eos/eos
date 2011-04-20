@@ -12,18 +12,15 @@ extern XrdOucString serveruri;
 int
 com_fuse (char* arg1) {
   // split subcommands
+  XrdOucString mountpoint="";
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString cmd = subtokenizer.GetToken();
-  XrdOucString mountpoint=subtokenizer.GetToken();
   XrdOucString option="";
   XrdOucString params="kernel_cache,attr_timeout=30,entry_timeout=30,max_readahead=131072,max_write=4194304";
   XrdOucString logfile="";
   
   if ( (cmd != "mount") && (cmd != "umount") )
-    goto com_fuse_usage;
-  
-  if (!mountpoint.length()) 
     goto com_fuse_usage;
   
   do {
@@ -34,13 +31,20 @@ com_fuse (char* arg1) {
       params = subtokenizer.GetToken();
       if (!params.length())
         goto com_fuse_usage;
-    }
-    if (option.beginswith("-l")) {
-      logfile = subtokenizer.GetToken();
-      if (!logfile.length()) 
-        goto com_fuse_usage;
+    } else {
+      if (option.beginswith("-l")) {
+        logfile = subtokenizer.GetToken();
+        if (!logfile.length()) 
+          goto com_fuse_usage;
+      } else {
+        break;
+      }
     }
   } while(1);
+
+  mountpoint = option;
+  if (!mountpoint.length()) 
+    goto com_fuse_usage;
 
   if (cmd == "mount") {
     struct stat buf;
@@ -60,11 +64,7 @@ com_fuse (char* arg1) {
       fprintf(stderr,"OK\n");
     }
     
-    if (params.length()) {
-      params += ",url="; params += serveruri.c_str(); params += "//eos/";
-    } else {
-      params += "url="; params += serveruri.c_str(); params += "//eos/";
-    }
+    params += " ";params += serveruri.c_str(); params += "//eos/";
 
     fprintf(stderr,"===> Mountpoint   : %s\n", mountpoint.c_str());
     fprintf(stderr,"===> Fuse-Options : %s\n", params.c_str());
@@ -74,12 +74,14 @@ com_fuse (char* arg1) {
     
     XrdOucString mount="eosfsd "; mount += mountpoint.c_str(); mount += " -o"; mount += params;
     if (logfile.length()) {
-      mount += " -d >& "; mount += logfile;
+      mount += " -d >& "; mount += logfile; mount += " &";
+      system(mount.c_str());
+      sleep(1);
     } else {
-      mount += " -s >& /dev/null";
+      mount += " -s >& /dev/null ";
+      system(mount.c_str());
     }
 
-    system(mount.c_str());
 
     if ((stat(mountpoint.c_str(),&buf2) || (buf2.st_ino == buf.st_ino))) {
       fprintf(stderr,"error: mount failed at %s\n", mountpoint.c_str());

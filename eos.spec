@@ -87,6 +87,7 @@ fi
 /usr/sbin/eosfstclean
 /usr/sbin/eosfstmgmsync
 /usr/sbin/eosadmin
+/usr/sbin/eos-check-blockxs
 /usr/lib64/libXrdEosMgm.so.0.1.0
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so

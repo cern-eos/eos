@@ -366,9 +366,11 @@ static int eosdfs_read(const char *path, char *buf, size_t size, off_t offset,
   eosatime = time(0);    
   fd = (int) fi->fh;
   res = xrd_pread(fd, buf, size, offset);
-  if (res == -1)
+  if (res == -1) {
+    if (errno == ENOSYS)
+      errno = EIO;
     res = -errno;
-  
+  }
   return res;
 }
 
@@ -514,25 +516,54 @@ static struct fuse_operations eosdfs_oper = {
 #endif
 };
 
+void
+usage() {
+  fprintf(stderr,"usage: eosfs <mountpoint> [-o<fuseoptionlist] [<mgm-url>]\n");
+  exit(-1);
+}
+
 int main(int argc, char *argv[])
 {
   char* spos=0;
   char* epos=0;
   int i;
   eosatime=time(0);
+  char rdrurl[1024];
+  char path[1024];
+  char* ordr=0;
+  char copy[1024];
+
+  if (argc <2) {
+    usage;
+  }
+
+  fprintf(stderr,"argc = %d", argc);
+
   for (i=0; i< argc; i++) {
-    if ( (spos=strstr(argv[i],"url=root://"))) {
-      if ( (epos=strstr(spos+11,"//" )) ) {
-	*(epos+2) = 0;
-	*(spos) = 0;
-	if (*(spos-1) == ',') {
-	  *(spos-1) = 0;
-	}
-	setenv("EOSFS_RDRURL",spos+4,1);
-      }
+    if (!strncmp(argv[i],"root://", 7)) {
+      // this is the url where to go
+      ordr = strdup(argv[i]);
+      argv[i]=0;
+      argc = i-1;
+      break;
     }
   }
-  rdr = getenv("EOSFS_RDRURL");
+  
+
+  if (getenv("EOS_FUSE_MGM_URL")) {
+    snprintf(rdrurl,sizeof(rdrurl)-1,"%s", getenv("EOS_FUSE_MGM_URL"));
+  } else {
+    if (ordr) {
+      snprintf(rdrurl,sizeof(rdrurl)-1,"%s", ordr);
+    } else {
+      fprintf(stderr,"error: no host defined via env:EOS_FUSE_MGM_ALIAS and no url given as mount option");
+      usage();
+      exit(-1);
+    }
+  }
+  
+  rdr = rdrurl;
+  
   if (! rdr) {
     fprintf(stderr,"error: EOSFS_RDRURL is not defined or add root://<host>// to the options argument\n");
     exit(-1);

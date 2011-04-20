@@ -773,6 +773,10 @@ static void eosfs_ll_read(fuse_req_t req, fuse_ino_t ino, size_t size,
     if (isdebug) printf("[%s]: inode=%lld size=%d off=%lld buf=%d fh=%d\n", __FUNCTION__,(long long)ino,size,off,buf,fi->fh);
     int res = xrd_pread(fi->fh, buf, size, off);
     if (res == -1) {
+      // map file system errors to IO errors!
+      if (errno == ENOSYS)
+        errno = EIO;
+
       fuse_reply_err(req, errno);
       return;
     }

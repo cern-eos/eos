@@ -661,7 +661,9 @@ XrdFstOfsFile::closeofs()
 	if (!fstBlockXS->ChangeMap(statinfo.st_size, true)) {
 	  eos_err("unable to change block checksum map");
 	  rc = SFS_ERROR;
-	}
+	} else {
+          eos_info("adjusting block XS map to %llu\n", statinfo.st_size);
+        }
       }
 
       {
@@ -1029,7 +1031,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
   int rc = layOut->read(fileOffset,buffer,buffer_size);
 
   if ((rc>0) && (checkSum)) {
-    checkSum->Add(buffer, buffer_size, fileOffset);
+    checkSum->Add(buffer, rc, fileOffset);
   }
 
   if (rOffset != (unsigned long long)fileOffset) {
@@ -1051,10 +1053,10 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
     eos_crit("block-read error=%d offset=%llu len=%llu file=%s",error.getErrInfo(), (unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());      
   }
 
-  eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,buffer_size);
+  eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,(unsigned long long) buffer_size);
 
   if ( (fileOffset + buffer_size) >= openSize) {
-    // if this is a read request and it exceeds the limit, we call close ...
+    // if this is a read request and it exceeds the limit, we call verify checksum
     if (verifychecksum()) 
       return gOFS.Emsg("read", error, EIO, "read file - wrong file checksum fn=", FName());      
   }
@@ -1104,11 +1106,11 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
 
   // evt. add checksum
   if ((rc >0) && (checkSum)){
-    fprintf(stderr,"Adding %d bytes to checksum \n", rc);
-    checkSum->Add(buffer, (size_t) buffer_size, (off_t) fileOffset);
-    fprintf(stderr,"(write) checksum type: %s checksum hex: %s\n", checkSum->GetName(), checkSum->GetHexChecksum());
+    //    fprintf(stderr,"Adding %d bytes to checksum \n", rc);
+    checkSum->Add(buffer, (size_t) rc, (off_t) fileOffset);
+    //    fprintf(stderr,"(write) checksum type: %s checksum hex: %s\n", checkSum->GetName(), checkSum->GetHexChecksum());
   } else {
-    fprintf(stderr,"Write without checksumming\n");
+    //    fprintf(stderr,"Write without checksumming\n");
   }
 
   if (wOffset != (unsigned long long) fileOffset) {
@@ -1129,7 +1131,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
   AddWriteTime();
     
   haswrite = true;
-  eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,buffer_size);
+  eos_debug("rc=%d offset=%lu size=%lu",rc, fileOffset,(unsigned long)buffer_size);
 
   if (rc <0) {
     int envlen=0;
@@ -1182,7 +1184,7 @@ XrdFstOfsFile::truncateofs(XrdSfsFileOffset   fileOffset)
 int          
 XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
 {
-  fprintf(stderr,"truncate called %llu\n", fileOffset);
+  //  fprintf(stderr,"truncate called %llu\n", fileOffset);
 
   if (checkSum) {
     if (checkSum->GetLastOffset() != fileOffset) {

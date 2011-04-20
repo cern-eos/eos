@@ -168,8 +168,8 @@ CheckSum::ChangeMap(size_t newsize, bool shrink)
   if ((!shrink) && (ChecksumMapSize > newsize))
     return true;
 
-  if ( (newsize - ChecksumMapSize) < (1024*1024))
-    newsize = ChecksumMapSize + (1024*1024);// to avoid to many msync's here we increase the disired value by 1M
+  if ( (!shrink) && ((newsize - ChecksumMapSize) < (1024*1024)))
+    newsize = ChecksumMapSize + (1024*1024);// to avoid to many msync's here we increase the desired value by 1M
   
   if (!SyncMap()) {
     //    fprintf(stderr,"CheckSum:ChangeMap sync failed\n");
@@ -258,6 +258,30 @@ CheckSum::AddBlockSum(off_t offset, const char* buffer, size_t len)
 
   off_t aligned_offset;
   size_t aligned_len;
+
+  // -----------------------------------------------------------------------------
+  // first wipe out the concerned pages (set to 0)
+  // -----------------------------------------------------------------------------
+
+  AlignBlockExpand(offset, len, aligned_offset, aligned_len);
+  if (aligned_len) {
+    off_t endoffset = aligned_offset + aligned_len;
+    off_t position=offset;
+    const char* bufferptr=buffer + (aligned_offset-offset);
+    // loop over all blocks
+    for (position = aligned_offset; position < endoffset; position += BlockSize) {
+      Reset(); 
+      Finalize();
+      if (!SetXSMap(position))
+        return false;
+      bufferptr += BlockSize;
+    }
+  }
+  
+
+  // -----------------------------------------------------------------------------
+  // write the inner matching page
+  // -----------------------------------------------------------------------------
 
   AlignBlockShrink(offset, len, aligned_offset, aligned_len);
 

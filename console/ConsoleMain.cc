@@ -722,10 +722,6 @@ int main (int argc, char* argv[]) {
           cmdline += argv[i];
           cmdline += " ";
         }
-        // strip leading and trailing white spaces
-        while (cmdline.beginswith(" ")) {cmdline.erase(0,1);}
-        while (cmdline.endswith(" ")) {cmdline.erase(cmdline.length()-1,1);}
-        execute_line ((char*)cmdline.c_str());
 	if ( (!selectedrole) && (!getuid()) && (serveruri.beginswith("root://localhost"))) {
 	  // we are root, we always select also the root role by default
 	  XrdOucString cmdline="role 0 0 ";
@@ -733,6 +729,11 @@ int main (int argc, char* argv[]) {
 	  execute_line ((char*)cmdline.c_str());
 	  if (!interactive)silent = false;
 	}
+
+        // strip leading and trailing white spaces
+        while (cmdline.beginswith(" ")) {cmdline.erase(0,1);}
+        while (cmdline.endswith(" ")) {cmdline.erase(cmdline.length()-1,1);}
+        execute_line ((char*)cmdline.c_str());
         exit(global_retc);
       }
     }

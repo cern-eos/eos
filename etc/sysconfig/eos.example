@@ -6,7 +6,7 @@ DAEMON_COREFILE_LIMIT=unlimited
 # e.g. /etc/sysconfig/xrd.<role>. The role based mechanism allows for
 # multiple xrd's running with different options to be controlled via
 # the same initd script
-XRD_ROLES="mgm fst mq sync"
+XRD_ROLES="fst mq sync mgm"
 
 # The fully qualified hostname of MGM master1
 export EOS_MGM_MASTER1=lxbra0301.cern.ch

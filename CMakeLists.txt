@@ -39,7 +39,8 @@ endif(MacOSX)
 
 EOS_CheckOutOfSourceBuild()
 
-set(CMAKE_CXX_FLAGS "-g -Wall -O2 -msse4.2 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -D_FILE_OFFSET_BITS=64")
+set(CMAKE_CXX_FLAGS "-g -Wall -O2 -msse4.2 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\"" )
+#-D_LARGEFILE_SOURCE=1 -D_FILE_OFFSET_BITS=64")
 
 #set(SOFLAGS  "-m64 -dynamiclib -undefined dynamic_lookup -single_module")
 #set(CMAKE_SHARED_LINKER_FLAGS ${SOFLAGS}) 

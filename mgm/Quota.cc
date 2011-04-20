@@ -206,6 +206,7 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
   std::map<long long, unsigned long long>::const_iterator it;
 
   UpdateIsSums();
+  UpdateTargetSums();
   Quota::NodeToSpaceQuota(SpaceName.c_str(), true);
 
   int* sortuidarray = (int*) malloc ( sizeof(int) * (Quota.size()+1));
