@@ -3033,6 +3033,52 @@ XrdMgmOfs::FSctl(const int               cmd,
       }
     }
     
+    if (execmd == "statvfs") {
+      gOFS->MgmStats.Add("Statvfs",vid.uid,vid.gid,1);
+      XrdOucString space = env.Get("path");
+      unsigned long long freebytes = 0;
+      unsigned long long freefiles = 0;
+      unsigned long long maxbytes  = 0;
+      unsigned long long maxfiles  = 0;
+      XrdOucString response ="";
+
+      if (!space.length()) {
+	response = "df: retc=";
+	response += EINVAL;
+      } else {
+	eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+        SpaceQuota* spacequota = Quota::GetResponsibleSpaceQuota(space.c_str());
+        
+	if (!spacequota) {
+          // take the sum's from all file systems in 'default'
+          if (FsView::gFsView.mSpaceView.count("default")) {
+            eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+            freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
+            freefiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree");
+
+            maxbytes  = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
+            maxfiles  = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files");
+          } 
+	} else {
+          freebytes = spacequota->GetPhysicalFreeBytes();
+          freefiles = spacequota->GetPhysicalFreeFiles();
+          maxbytes  = spacequota->GetPhysicalMaxBytes();
+          maxfiles  = spacequota->GetPhysicalMaxFiles();
+	}
+        response = "statvfs: retc=0";
+        char val[1025]; 
+        snprintf(val,1024,"%llu", freebytes);
+        response += " f_avail_bytes="; response += val;
+        snprintf(val,1024,"%llu", freefiles);
+        response += " f_avail_files="; response += val;
+        snprintf(val,1024,"%llu", maxbytes);
+        response += " f_max_bytes=";   response += val;
+        snprintf(val,1024,"%llu", maxfiles);
+        response += " f_max_files=";   response += val;
+        error.setErrInfo(response.length()+1,response.c_str());
+      }
+      return SFS_DATA;
+    }
   }
 
   return  Emsg(epname,error,EINVAL,"execute FSctl command",path.c_str());  

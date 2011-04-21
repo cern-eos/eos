@@ -716,7 +716,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("CommitFailedParameters",0,0,0);
   gOFS->MgmStats.Add("CommitFailedUnlinked",0,0,0);
   gOFS->MgmStats.Add("CopyStripe",0,0,0);
-  gOFS->MgmStats.Add("Df",0,0,0);
+  gOFS->MgmStats.Add("Statvfs",0,0,0);
   gOFS->MgmStats.Add("DropStripe",0,0,0);
   gOFS->MgmStats.Add("Exists",0,0,0);
   gOFS->MgmStats.Add("Exists",0,0,0);

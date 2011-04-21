@@ -538,6 +538,55 @@ int xrd_stat(const char *path, struct stat *buf)
 }
 
 int 
+xrd_statfs(const char* url, const char* path, struct statvfs *stbuf) 
+{
+  XrdPosixTiming statfstiming("xrd_statfs");
+  TIMING("START",&statfstiming);
+
+  char value[4096]; value[0] = 0;;
+  XrdOucString request;
+  request = url;
+  request += "?";
+  request += "mgm.pcmd=statvfs&";
+  request += "path=";
+  request += path;
+
+  fprintf(stderr,"Query %s\n", request.c_str());
+  long long dostatfs = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
+  
+  TIMING("END",&statfstiming);
+  statfstiming.Print();
+  
+  if (dostatfs>=0) {
+    char tag[1024];
+    int retc=0;
+    unsigned long long a1,a2,a3,a4;
+
+    if (!value[0]) {
+      return -EFAULT;
+    }
+    // parse the stat output
+    int items = sscanf(value,"%s retc=%d f_avail_bytes=%llu f_avail_files=%llu f_max_bytes=%llu f_max_files=%llu",tag, &retc, &a1, &a2, &a3, &a4);
+    if ((items != 6) || (strcmp(tag,"statvfs:"))) {
+      
+      return -EFAULT;
+    }
+    
+    stbuf->f_bsize  = 4096;
+    stbuf->f_frsize = 4096;
+    stbuf->f_blocks = a3 /4096;
+    stbuf->f_bfree  = a1 /4096;
+    stbuf->f_bavail = a1 /4096;
+    stbuf->f_files  = a4;
+    stbuf->f_ffree  = a2;
+
+    return retc;
+  } else {
+    return -EFAULT;
+  }
+}
+
+int 
 xrd_chmod(const char* path, mode_t mode) 
 {
   XrdPosixTiming chmodtiming("xrd_chmod");
@@ -704,6 +753,7 @@ xrd_utimes(const char* path, struct timespec *tvp) {
   request += "&tv2_nsec=";
   sprintf(lltime,"%llu",(unsigned long long)tvp[1].tv_nsec);
   request += lltime;
+
   long long doutimes = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
 
   TIMING("END",&utimestiming);

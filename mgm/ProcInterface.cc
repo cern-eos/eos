@@ -2163,7 +2163,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
     
     if (cmd == "who") {
-      gOFS->MgmStats.Add("Df",vid.uid,vid.gid,1);
+      gOFS->MgmStats.Add("Who",vid.uid,vid.gid,1);
       std::map<std::string, int> usernamecount;
       std::map<std::string, int> authcount;
       std::vector<std::string> tokens;
@@ -2259,38 +2259,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       MakeResult(0);
       return SFS_OK;
     }
-
-    if ( cmd == "df" ) {
-      gOFS->MgmStats.Add("Df",vid.uid,vid.gid,1);
-      XrdOucString space = opaque.Get("mgm.space");
-      if (!space.length()) {
-	resultStream = "df: retc=";
-	resultStream += EINVAL;
-      } else {
-	eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-
-	SpaceQuota* spacequota = Quota::GetSpaceQuota(space.c_str());
-	if (!spacequota) {
-	  resultStream = "df: retc=";
-	  resultStream += ENOENT;
-	} else {
-	  resultStream = "df: retc=0";
-	  char val[1025]; 
-	  snprintf(val,1024,"%llu", spacequota->GetPhysicalFreeBytes());
-	  resultStream += " f_avail_bytes="; resultStream += val;
-	  snprintf(val,1024,"%llu", spacequota->GetPhysicalFreeFiles());
-	  resultStream += " f_avail_files="; resultStream += val;
-	  snprintf(val,1024,"%llu", spacequota->GetPhysicalMaxBytes());
-	  resultStream += " f_max_bytes=";   resultStream += val;
-	  snprintf(val,1024,"%llu", spacequota->GetPhysicalMaxFiles());
-	  resultStream += " f_max_files=";   resultStream += val;
-	}
-      }
-      len = resultStream.length();
-      offset = 0;
-      return SFS_OK;
-    }
-
 
     if ( cmd == "fuse" ) {
       gOFS->MgmStats.Add("Fuse",vid.uid,vid.gid,1);

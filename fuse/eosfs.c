@@ -396,15 +396,16 @@ static int eosdfs_write(const char *path, const char *buf, size_t size,
 static int eosdfs_statfs(const char *path, struct statvfs *stbuf)
 {
   int res;
-  eosatime = time(0);     
-  res = statvfs(path, stbuf);
+  eosatime = time(0);   
+  char rootpath[4096];
+  eosatime = time(0);  
+  rootpath[0]='\0';
+  strcat(rootpath,rdr);
+  strcat(rootpath,"/");
+  
+  res = xrd_statfs(rootpath, path, stbuf);
   if (res == -1)
     return -errno;
-  
-  stbuf->f_bsize = 16384;
-  stbuf->f_blocks = 1048576;
-  stbuf->f_bfree = stbuf->f_blocks * 1.0;
-  stbuf->f_bavail = stbuf->f_bfree;
   
   return 0;
 }
@@ -533,18 +534,19 @@ int main(int argc, char *argv[])
   char* ordr=0;
   char copy[1024];
 
+  int margc=argc;
+
   if (argc <2) {
     usage;
   }
 
-  fprintf(stderr,"argc = %d", argc);
 
   for (i=0; i< argc; i++) {
     if (!strncmp(argv[i],"root://", 7)) {
       // this is the url where to go
       ordr = strdup(argv[i]);
       argv[i]=0;
-      argc = i-1;
+      margc = argc-2;
       break;
     }
   }
@@ -556,7 +558,7 @@ int main(int argc, char *argv[])
     if (ordr) {
       snprintf(rdrurl,sizeof(rdrurl)-1,"%s", ordr);
     } else {
-      fprintf(stderr,"error: no host defined via env:EOS_FUSE_MGM_ALIAS and no url given as mount option");
+      fprintf(stderr,"error: no host defined via env:EOS_FUSE_MGM_URL and no url given as mount option");
       usage();
       exit(-1);
     }
@@ -571,5 +573,5 @@ int main(int argc, char *argv[])
   xrd_init();
   
   umask(0);
-  return fuse_main(argc, argv, &eosdfs_oper, NULL);
+  return fuse_main(margc, argv, &eosdfs_oper, NULL);
 }

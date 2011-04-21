@@ -17,6 +17,7 @@
 #include <sys/param.h>
 #include <sys/resource.h>
 #include <sys/uio.h>
+#include <sys/vfs.h>
 #include <unistd.h>
 #include <pwd.h>
 
@@ -33,6 +34,7 @@ struct dirbuf {
 #endif
 
 int            xrd_stat(const char *file_name, struct stat *buf);
+    int            xrd_statfs(const char *url, const char* path, struct statvfs *stbuf);
 
 DIR           *xrd_opendir(const char *dirname);
 struct dirent *xrd_readdir(DIR *dirp);

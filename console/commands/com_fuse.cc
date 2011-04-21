@@ -17,8 +17,11 @@ com_fuse (char* arg1) {
   subtokenizer.GetLine();
   XrdOucString cmd = subtokenizer.GetToken();
   XrdOucString option="";
-  XrdOucString params="kernel_cache,attr_timeout=30,entry_timeout=30,max_readahead=131072,max_write=4194304";
   XrdOucString logfile="";
+  XrdOucString fsname = serveruri;
+  fsname.replace("root://","");
+  XrdOucString params="kernel_cache,attr_timeout=30,entry_timeout=30,max_readahead=131072,max_write=4194304,fsname=";
+  params += fsname;
   
   if ( (cmd != "mount") && (cmd != "umount") )
     goto com_fuse_usage;
@@ -64,7 +67,10 @@ com_fuse (char* arg1) {
       fprintf(stderr,"OK\n");
     }
     
-    params += " ";params += serveruri.c_str(); params += "//eos/";
+    params += " ";params += serveruri.c_str(); 
+    if ((params.find("//eos/")==STR_NPOS)) {
+      params += "//eos/";
+    }
 
     fprintf(stderr,"===> Mountpoint   : %s\n", mountpoint.c_str());
     fprintf(stderr,"===> Fuse-Options : %s\n", params.c_str());
@@ -72,7 +78,27 @@ com_fuse (char* arg1) {
       fprintf(stderr,"===> Log File     : %s\n", logfile.c_str());
     }
     
-    XrdOucString mount="eosfsd "; mount += mountpoint.c_str(); mount += " -o"; mount += params;
+    XrdOucString env="env";
+    if (getenv("EOS_READAHEADSIZE")) {
+      env += " EOS_READAHEADSIZE=";
+      env += getenv("EOS_READAHEADSIZE");
+    } else {
+      setenv("EOS_READAHEADSIZE","4000000",1);
+      env += " EOS_READAHEADSIZE=4000000";
+    }
+
+    if (getenv("EOS_READCACHESIZE")) {
+      env += " EOS_READCACHESIZE=";
+      env += getenv("EOS_READCACHESIZE");
+    } else {
+      setenv("EOS_READCACHESIZE","16000000",1);
+      env += " EOS_READCACHESIZE=16000000";
+    }
+    
+    fprintf(stderr,"===> xrootd ra    : %s\n", getenv("EOS_READAHEADSIZE"));
+    fprintf(stderr,"===> xrootd cache : %s\n", getenv("EOS_READCACHESIZE"));
+
+    XrdOucString mount=env; mount += " eosfsd "; mount += mountpoint.c_str(); mount += " -o"; mount += params;
     if (logfile.length()) {
       mount += " -d >& "; mount += logfile; mount += " &";
       system(mount.c_str());
