@@ -2104,7 +2104,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  } 
 	}
 
-	if (! atoi(gid.c_str())) {
+	if ( (gid!="0") && (!gidt)) {
 	  // try to translate with password database
 	  int terrc = 0;
 	  gidt = eos::common::Mapping::GroupNameToGid(gid, terrc);	  
@@ -2130,7 +2130,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		stdErr += "error: unable to chmod of directory "; stdErr += found_dirs[i][j].c_str();
 		retc = errno;
 	      } else {
-		stdOut += "success: owner of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid.uid) {stdOut += " gid="; stdOut += gid.c_str();}
+		stdOut += "success: owner of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();}}
 	      }
 	    }
 	  }
