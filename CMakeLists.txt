@@ -45,6 +45,11 @@ set(CMAKE_CXX_FLAGS "-g -Wall -O2 -msse4.2 -DVERSION=\\\"${VERSION_MAJOR}.${VERS
 #set(SOFLAGS  "-m64 -dynamiclib -undefined dynamic_lookup -single_module")
 #set(CMAKE_SHARED_LINKER_FLAGS ${SOFLAGS}) 
 
+######################################################################################################################
+# install targets
+######################################################################################################################
+set(CMAKE_INSTALL_PREFIX /usr/)
+
 add_subdirectory (mq)
 add_subdirectory (common)
 add_subdirectory (authz)
@@ -56,15 +61,11 @@ add_subdirectory (etc)
 add_subdirectory (sync)
 add_subdirectory (fuse)
 
-include_directories( ../ /usr/includeye/xrootd/ /usr/include/ )
+include_directories( ../ /usr/include/xrootd/ /usr/include/ )
 link_directories( /usr/${LIB_INSTALL_DIR}/)
 
 set(SYSCONFDIR "/etc" CACHE PATH "Directory for system configuration files" )
 
-######################################################################################################################
-# install targets
-######################################################################################################################
-set(CMAKE_INSTALL_PREFIX /usr/)
 
 ######################################################################################################################
 # uninstall target
