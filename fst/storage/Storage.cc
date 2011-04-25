@@ -71,6 +71,19 @@ FileSystem::GetStatfs()
 
 
 /*----------------------------------------------------------------------------*/
+void
+FileSystem::RunScanner(Load* fstLoad, time_t interval) 
+{ 
+  if (scanDir) {
+    delete scanDir;
+  }
+
+  // create the object running the scanner thread
+  scanDir = new ScanDir(GetPath().c_str(),fstLoad, true, interval);
+  eos_info("Started 'ScanDir' thread with interval time of %u seconds", (unsigned long) interval);
+}
+
+/*----------------------------------------------------------------------------*/
 bool 
 FileSystem::OpenTransaction(unsigned long long fid) {
   XrdOucString tagfile = GetTransactionDirectory();
@@ -1191,7 +1204,15 @@ Storage::Communicator()
 	      eos_static_err("got boot time update on not existant filesystem %s", queue.c_str());
 	    }
 	  }
-
+          if (key == "scaninterval") {
+            gOFS.ObjectManager.HashMutex.UnLockRead();
+            if (fileSystems.count(queue.c_str())) {
+              time_t interval = (time_t) fileSystems[queue.c_str()]->GetLongLong("scaninterval");
+              if (interval>0) {
+                fileSystems[queue.c_str()]->RunScanner(&fstLoad, interval);
+              }
+            }
+          }
 	}
       } else {
 	eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", queue.c_str(),key.c_str());

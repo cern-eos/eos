@@ -1033,8 +1033,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                           fs->SetLongLong(key.c_str(), eos::common::StringConversion::GetSizeFromString(value.c_str()));
                           FsView::gFsView.StoreFsConfig(fs);
                         } else {
-                          stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
-                          retc = EINVAL;
+                          if (( key == "scaninterval") && ( eos::common::StringConversion::GetSizeFromString(value.c_str()) > 0)) {
+                            fs->SetLongLong(key.c_str(), eos::common::StringConversion::GetSizeFromString(value.c_str()));
+                            FsView::gFsView.StoreFsConfig(fs);
+                          } else {
+                            stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
+                            retc = EINVAL;
+                          }
                         }
 		      }
 		    } else {

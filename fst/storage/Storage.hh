@@ -10,6 +10,7 @@
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/Load.hh"
+#include "fst/ScanDir.hh"
 #include "mq/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
@@ -28,6 +29,7 @@ private:
   XrdOucString transactionDirectory;
 
   eos::common::Statfs* statFs;         // the owner of the object is a global hash in eos::common::Statfs - this are just references
+  eos::fst::ScanDir*      scanDir;               // the class scanning checksum on a filesystem
   unsigned long last_blocks_free;  
   time_t        last_status_broadcast;
 
@@ -37,11 +39,17 @@ public:
     last_status_broadcast=0;
     transactionDirectory="";
     statFs = 0;
+    scanDir = 0;
   }
 
-  ~FileSystem() {}
+  ~FileSystem() {
+    if (scanDir) {
+      delete scanDir;
+    }
+  }
 
   void SetTransactionDirectory(const char* tx) { transactionDirectory= tx;}
+  void RunScanner(Load* fstLoad, time_t interval);
 
   std::string  GetPath() {return GetString("path");}
 

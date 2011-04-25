@@ -249,7 +249,8 @@ void* ScanDir::ThreadProc(void)
     noTotalFiles = 0;
     
     if (bgThread) {
-      sleep(testInterval/2);
+      // run every 4 hours
+      sleep(4 * 3600);
     }
 
     gettimeofday(&tv_start, &tz);

@@ -297,8 +297,10 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   ObjectManager.SubjectsMutex.Lock();
   std::string watch_id = "id";
   std::string watch_bootsenttime = "bootsenttime";
+  std::string watch_scaninterval = "scaninterval";
   ObjectManager.ModificationWatchKeys.insert(watch_id);
   ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
+  ObjectManager.ModificationWatchKeys.insert(watch_scaninterval);
   ObjectManager.SubjectsMutex.UnLock();
 
   // start dumper thread

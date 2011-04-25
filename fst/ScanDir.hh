@@ -1,14 +1,14 @@
-#ifndef __EOSFST_SCANMOUNTPOINT_HH__
-#define __EOSFST_SCANMOUNTPOINT_HH__
+#ifndef __EOSFST_SCANDIR_HH__
+#define __EOSFST_SCANDIR_HH__
 /*----------------------------------------------------------------------------*/
 #include <pthread.h>
 /*----------------------------------------------------------------------------*/
 #include "fst/Load.hh"
-#include "fst/XrdFstOfs.hh"
 #include "fst/Namespace.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 /*----------------------------------------------------------------------------*/
+#include <syslog.h>
 /*----------------------------------------------------------------------------*/
 
 
