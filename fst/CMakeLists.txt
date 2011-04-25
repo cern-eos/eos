@@ -11,6 +11,7 @@ add_library (XrdEosFst MODULE
 	    storage/Storage.cc
 	    Config.cc
 	    Load.cc
+            ScanDir.cc
 	    Messaging.cc
 	    XrdFstOfs.cc
             ../checksum/crc32c.cc
@@ -31,8 +32,26 @@ add_executable ( eos-check-blockxs
                  ../checksum/crc32ctables.cc
 )
 
+add_executable ( eos-compute-blockxs
+                 tools/ComputeBlockXS.cc
+                 checksum/CheckSum.cc
+                 ../checksum/crc32c.cc
+                 ../checksum/crc32ctables.cc
+)
+
+add_executable( eos-scan-fs 
+                ScanDir.cc
+                tools/ScanXS.cc
+                checksum/CheckSum.cc
+                ../checksum/crc32c.cc
+                ../checksum/crc32ctables.cc
+                Load.cc
+)
+
 target_link_libraries ( FstLoad XrdSys XrdOuc XrdNetUtil dl )
 target_link_libraries ( eos-check-blockxs eosCommon )
+target_link_libraries ( eos-compute-blockxs eosCommon )
+target_link_libraries ( eos-scan-fs eosCommon ) 
 
 if (Linux)
   set_target_properties (XrdEosFst PROPERTIES
@@ -43,7 +62,7 @@ if (Linux)
 endif(Linux)
 
 #INSTALL_PROGRAMS( sbin tools/eosfstregister tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync)
-INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync eos-check-blockxs)
+INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync eos-check-blockxs eos-compute-blockxs eos-scan-fs)
 
 install ( TARGETS XrdEosFst
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}

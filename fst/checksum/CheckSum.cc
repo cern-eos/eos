@@ -116,6 +116,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
       close(ChecksumMapFd);
       return false;
     }
+    delete attr;
   }
   
 
@@ -123,7 +124,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
   if (isRW) {
     if (posix_fallocate(ChecksumMapFd, 0, ChecksumMapSize)) {
       close(ChecksumMapFd);
-      //      fprintf(stderr,"posix allocate failed\n");
+      //      fprintf(stderr,"posix allocate failed\n")
       return false;
     }
     ChecksumMap = (char*)mmap(0, ChecksumMapSize, PROT_READ | PROT_WRITE, MAP_SHARED, ChecksumMapFd, 0);
@@ -143,6 +144,9 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
 bool 
 CheckSum::SyncMap() 
 {
+  return true;
+
+  // let's try if this boosts the performance
   if (ChecksumMapFd) {
     if (ChecksumMap) {
       if (!msync(ChecksumMap, ChecksumMapSize,MS_SYNC)) {
@@ -168,8 +172,8 @@ CheckSum::ChangeMap(size_t newsize, bool shrink)
   if ((!shrink) && (ChecksumMapSize > newsize))
     return true;
 
-  if ( (!shrink) && ((newsize - ChecksumMapSize) < (1024*1024)))
-    newsize = ChecksumMapSize + (1024*1024);// to avoid to many msync's here we increase the desired value by 1M
+  if ( (!shrink) && ((newsize - ChecksumMapSize) < (128*1024)))
+    newsize = ChecksumMapSize + (128*1024);// to avoid to many truncs/msync's here we increase the desired value by 1M
   
   if (!SyncMap()) {
     //    fprintf(stderr,"CheckSum:ChangeMap sync failed\n");
@@ -347,7 +351,7 @@ CheckSum::SetXSMap(off_t offset)
 
   off_t mapoffset = (offset / BlockSize) * GetCheckSumLen();
   
-  int len;
+  int len=0;
   const char* cks = GetBinChecksum(len);
   for (int i=0; i < len; i++) {
     ChecksumMap[i+mapoffset] = cks[i];
@@ -363,10 +367,10 @@ CheckSum::VerifyXSMap(off_t offset)
     return false;
   off_t mapoffset = (offset / BlockSize) * GetCheckSumLen();
   
-  int len;
+  int len=0;
   const char* cks = GetBinChecksum(len);
   for (int i=0; i < len; i++) {
-    if (ChecksumMap[i+mapoffset] && (ChecksumMap[i+mapoffset] != cks[i]))
+    if ( (ChecksumMap[i+mapoffset]) && ((ChecksumMap[i+mapoffset] != cks[i])))
       return false;
   }
   return true;

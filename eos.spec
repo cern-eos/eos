@@ -4,7 +4,7 @@
 Summary: The EOS server installation.
 Name: eos-server
 Version: 0.1.0
-Release: rc1
+Release: rc3
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -142,3 +142,20 @@ The EOS fuse client.
 /etc/fuse.conf
 /etc/rc.d/init.d/eosd
 %changelog
+
+#######################################################################################
+# the srm scripts package 
+#######################################################################################
+%package -n eos-srm
+#######################################################################################
+Summary: The EOS srm script package for checksumming and space
+Group: Applications/File
+
+Requires: eos-client
+
+%description -n eos-srm
+The EOS srm package.
+%files -n eos-srm
+/usr/sbin/eossrmspace
+/usr/sbin/eossrmchecksum
+

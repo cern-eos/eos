@@ -1,9 +1,9 @@
 #!/bin/bash
-# input parameter is the path to query e.g. eossrmspace /eos/atlas
-. /etc/sysconfig/xrd
-#echo $* >> /tmp/cmd 
+# input parameter is the path to query e.g. eossrmspace /eos/atlas/
+. /etc/sysconfig/eos
+my $dirpath = "${1%/}/"
 
-path=`echo .eossrmspace.$1 | sed s/\\\//_/g`;
+path=`echo .eossrmspace.$dirpath | sed s/\\\//_/g`;
 cache=`find /tmp/ -cmin 1 -name $path 2>/dev/null`;
 
 if [ -n "$cache" ]; then
@@ -11,41 +11,13 @@ if [ -n "$cache" ]; then
     exit;
 fi
     
-nrep=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} attr get sys.forced.nstripes $1/ 2>/dev/null | grep sys.forced.nstripes | cut -d "=" -f2 | sed s/\"//g 2>/dev/null`
+nrep=`eos -role 0 0 ${EOS_MGM_URL-root://eosdev.cern.ch//} attr get sys.forced.nstripes $dirpath/ 2>/dev/null | grep sys.forced.nstripes | cut -d "=" -f2 | sed s/\"//g 2>/dev/null`
 
 test -z "$nrep" && nrep=1
 
-space=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} attr get sys.forced.space $1/ 2>/dev/null | grep sys.forced.space | cut -d "=" -f2 | sed s/\"//g 2>/dev/null`
+export `eos -b quota ls -m -s $dirpath | grep "uid=ALL"`
 
-df=`${EOS_LOCATION-/opt/eos}/bin/eos -role 0 0 ${EOS_MGM_URL-root://lxbra0301.cern.ch//} quota ls 2>/dev/null | grep PHYS | grep "$space" | awk '{print $3,$4}' 2>/dev/null`
-val=`echo $df | awk '{print $1}'`
-exp=`echo $df | awk '{print $2}'`
-
-if [ "$val" = "0.00" ]; then
-    val="0";
-fi
-
-if [[ $nrep != [0-9]* ]]; then
-    nrep=1
-fi
-
-if [ "$exp" = "KB" ]; then
-    val=`echo $val | awk '{printf( "%ld\n", $1*1000.0);}'`
-fi
-
-if [ "$exp" = "MB" ]; then
-    val=`echo $val | awk '{printf("%ld\n", $1*1000000.0);}'`
-fi
-
-if [ "$exp" = "GB" ]; then
-    val=`echo $val | awk '{printf("%ld\n", $1*1000000000.0);}'`
-fi
-
-if [ "$exp" = "TB" ]; then
-#    val=`echo $val | awk '{printf("%ld\n", $1*1000000000000.0);}'`
-     val=`echo $val | awk '{printf("%ld\n", $1*1025000000000.0);}'`
-
-fi
+my $val = $usedbytes
 
 if [ $nrep -gt 1 ]; then 
     let val/=$nrep

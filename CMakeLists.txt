@@ -68,6 +68,7 @@ add_subdirectory (namespace)
 add_subdirectory (etc)
 add_subdirectory (sync)
 add_subdirectory (fuse)
+add_subdirectory (srm)
 endif (FUSECLIENT)
 
 include_directories( ../ /usr/include/xrootd/ /usr/include/ )
