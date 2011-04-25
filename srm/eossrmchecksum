@@ -1,0 +1,11 @@
+#!/bin/bash
+. /etc/sysconfig/eos
+
+if [ "x$1" = "x" ] ; then
+# input parameter is the path to query e.g. eossrmschecksum <file-path>
+    echo "usage: eossrmchecksum <filepath>"
+    exit -1;
+fi
+
+chksum=`eos -r 0 0 ${EOS_MGM_URL-root://eosatlas.cern.ch//} file info $1 -checksum | grep xstype | awk '{print $3}' 2>/dev/null`
+echo $chksum
