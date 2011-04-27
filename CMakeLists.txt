@@ -57,6 +57,7 @@ set(CMAKE_INSTALL_PREFIX /usr/)
 
 if (CLIENT)
 add_subdirectory (fuse)
+add_subdirectory (console)
 else (CLIENT)
 add_subdirectory (mq)
 add_subdirectory (common)

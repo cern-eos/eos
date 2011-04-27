@@ -4,6 +4,9 @@ link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
 add_executable ( eos
 	         ConsoleMain.cc
 		 ConsoleMain.hh	
+                 ../common/Logging.cc
+                 ../common/Fmd.cc
+                 ../common/SymKeys.cc
 		 commands/com_access.cc
 	         commands/com_attr.cc
 		 commands/com_cd.cc
@@ -41,7 +44,7 @@ add_executable ( eos
                  commands/com_who.cc
 )
 
-target_link_libraries ( eos eosCommon-Static XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNetUtil XrdNet XrdOuc pthread dl  XrdSys XrdNetUtil crypto uuid curses z readline )
+target_link_libraries ( eos XrdClient XrdSys XrdOuc XrdNetUtil XrdNet XrdOuc pthread dl  XrdSys XrdNetUtil crypto uuid curses z readline )
 
 INSTALL_PROGRAMS( /sbin FILES eosadmin )
 
