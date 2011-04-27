@@ -12,6 +12,8 @@ add_library (XrdEosMgm MODULE
 	    FsView.cc
 	    XrdMgmOfsConfigure.cc
 	    XrdMgmOfs.cc
+            DrainJob.cc
+            FileSystem.cc
 	    )
 
 target_link_libraries (XrdEosMgm XrdClient XrdSys XrdOuc XrdNet XrdNetUtil XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z)

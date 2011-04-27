@@ -15,7 +15,6 @@
 #include "common/LayoutId.hh"
 #include "common/GlobalConfig.hh"
 #include "common/RWMutex.hh"
-#include "mgm/FstFileSystem.hh"
 #include "mq/XrdMqMessage.hh"
 #include "namespace/accounting/QuotaStats.hh"
 /*----------------------------------------------------------------------------*/

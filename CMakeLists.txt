@@ -21,16 +21,16 @@ include(EosUtils)
 # Search for dependencies
 #-------------------------------------------------------------------------------
 
-if (FUSECLIENT)
+if (CLIENT)
 find_package(XRootD REQUIRED)
-else (FUSECLIENT)
+else (CLIENT)
 find_package(SparseHash REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(uuid REQUIRED)
 find_package(z REQUIRED)
 find_package(CPPUnit)
 find_package(XRootD REQUIRED)
-endif (FUSECLIENT)
+endif (CLIENT)
 
 ######################################################################################################################
 # Platform Specific
@@ -55,9 +55,9 @@ set(CMAKE_CXX_FLAGS "-g -Wall -O2 -msse4.2 -DVERSION=\\\"${VERSION_MAJOR}.${VERS
 ######################################################################################################################
 set(CMAKE_INSTALL_PREFIX /usr/)
 
-if (FUSECLIENT)
+if (CLIENT)
 add_subdirectory (fuse)
-else (FUSECLIENT)
+else (CLIENT)
 add_subdirectory (mq)
 add_subdirectory (common)
 add_subdirectory (authz)
@@ -69,7 +69,7 @@ add_subdirectory (etc)
 add_subdirectory (sync)
 add_subdirectory (fuse)
 add_subdirectory (srm)
-endif (FUSECLIENT)
+endif (CLIENT)
 
 include_directories( ../ /usr/include/xrootd/ /usr/include/ )
 link_directories( /usr/${LIB_INSTALL_DIR}/)

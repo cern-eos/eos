@@ -3,8 +3,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
-
-#include "common/FileSystem.hh"
+#include "mgm/FileSystem.hh"
 #include "common/RWMutex.hh"
 #include "common/Logging.hh"
 #include "common/GlobalConfig.hh"
@@ -126,9 +125,9 @@ public:
   static ConfigEngine* ConfEngine;
 #endif
 
-  bool Register   (eos::common::FileSystem* fs);  // this adds or modifies a filesystem
-  void StoreFsConfig(eos::common::FileSystem* fs);// this stores the filesystem configuration into the config engine and should be called whenever a filesystem wide parameters is changed
-  bool UnRegister (eos::common::FileSystem* fs);  // this removes a filesystem
+  bool Register   (FileSystem* fs);  // this adds or modifies a filesystem
+  void StoreFsConfig(FileSystem* fs);// this stores the filesystem configuration into the config engine and should be called whenever a filesystem wide parameters is changed
+  bool UnRegister (FileSystem* fs);  // this removes a filesystem
   bool ExistsQueue(std::string queue, std::string queuepath); // check's if a queue+path exists already
   
   bool RegisterNode   (const char* nodequeue);            // this adds or modifies an fst node
@@ -149,11 +148,11 @@ public:
   std::map<std::string , FsGroup* > mGroupView;
   std::map<std::string , FsNode* >  mNodeView;
 
-  std::map<eos::common::FileSystem::fsid_t, eos::common::FileSystem*> mIdView;
-  std::map<eos::common::FileSystem*, eos::common::FileSystem::fsid_t> mFileSystemView;
+  std::map<eos::common::FileSystem::fsid_t, FileSystem*> mIdView;
+  std::map<FileSystem*, eos::common::FileSystem::fsid_t> mFileSystemView;
 
   // find filesystem
-  eos::common::FileSystem* FindByQueuePath(std::string &queuepath); // this requires that YOU lock the ViewMap beforehand
+  FileSystem* FindByQueuePath(std::string &queuepath); // this requires that YOU lock the ViewMap beforehand
 
   // filesystem mapping functions
   eos::common::FileSystem::fsid_t CreateMapping(std::string fsuuid);

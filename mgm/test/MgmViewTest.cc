@@ -54,8 +54,8 @@ int main() {
       hash->Set("errmsg","");
       hash->Set("errc",0);
       hash->SetLongLong("errc",0);
-      hash->SetLongLong("status",FileSystem::kDown);
-      hash->SetLongLong("configstatus",FileSystem::kUnknown);
+      hash->SetLongLong("status",eos::mgm::FileSystem::kDown);
+      hash->SetLongLong("configstatus",eos::mgm::FileSystem::kUnknown);
       hash->SetLongLong("bootSentTime",0);
       hash->SetLongLong("bootDoneTime",0);
       hash->SetLongLong("lastHeartBeat",0);
@@ -75,7 +75,7 @@ int main() {
       hash->SetLongLong("statfs.wopen",0);
       hash->CloseTransaction();
 
-      FileSystem* fs = new FileSystem(queuepath.c_str(),queue.c_str(), &ObjectManager);
+      eos::mgm::FileSystem* fs = new eos::mgm::FileSystem(queuepath.c_str(),queue.c_str(), &ObjectManager);
       FsView::gFsView.Register(fs);
     }
   }
@@ -134,7 +134,7 @@ int main() {
       //      printf("Setting up %s\n", queuepath.c_str());
       unsigned int fsid= (i*iloop) + j;
       FsView::gFsView.ViewMutex.LockRead();
-      FileSystem* fs = FsView::gFsView.mIdView[fsid];
+      eos::mgm::FileSystem* fs = FsView::gFsView.mIdView[fsid];
       FsView::gFsView.ViewMutex.UnLockRead();
       if (fs) {
 	FsView::gFsView.UnRegister(fs);

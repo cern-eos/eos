@@ -94,8 +94,8 @@ public:
   //------------------------------------------------------------------------
 
   enum eBootStatus   { kOpsError=-2, kBootFailure=-1, kDown=0, kBootSent, kBooting=2, kBooted=3};
-  enum eConfigStatus { kUnknown=-1, kOff=0, kDrain, kRO, kWO, kRW};
-  enum eDrainStatus  { kNoDrain=0,     kDraining=1, kDrained=1};
+  enum eConfigStatus { kUnknown=-1, kOff=0, kDrainDead, kDrain, kRO, kWO, kRW};
+  enum eDrainStatus  { kNoDrain=0, kDrainPrepare=1, kDrainWait=2,  kDraining=3, kDrained=4};
 
   //------------------------------------------------------------------------
   //! Conversion Functions
@@ -161,6 +161,13 @@ public:
     return SetString("stat.drain", GetDrainStatusAsString(status));
   }
 
+  bool SetDrainProgress(int percent) {
+    if ( (percent < 0) || (percent>100) )
+      return false;
+    
+    return SetLongLong("stat.drainprogress", (long long)percent );
+  }
+  
   bool SetConfigStatus(fsstatus_t status) {
     return SetString("configstatus", GetConfigStatusAsString(status));
   }

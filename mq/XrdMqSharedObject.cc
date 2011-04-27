@@ -945,7 +945,7 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
   // listformat
   //-------------------------------------------------------------------------------
   // format has to be provided as a chain (separated by "|" ) of the following tags
-  // "key=<key>:width=<width>:format=[+][-][slfo]:unit=<unit>:tag=<tag>"  -> to print a key of the attached children
+  // "key=<key>:width=<width>:format=[+][-][slfo]:unit=<unit>:tag=<tag>:condition=<key>=<val>" -> to print a key of the attached children
   // "sep=<seperator>"                                          -> to put a seperator
   // "header=1"                                                 -> to put a header with description on top! This must be the first format tag!
   // "indent=<n>"                                               -> indent the output
@@ -968,6 +968,9 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
 
   std::string header="";
   std::string body = "";
+
+  std::string conditionkey="";
+  std::string conditionval="";
   bool headeronly=false;
 
   XrdMqStringConversion::Tokenize(format, formattoken, "|");
@@ -980,7 +983,12 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
     for (unsigned int j=0; j< tagtoken.size(); j++) {
       std::vector<std::string> keyval;
       XrdMqStringConversion::Tokenize(tagtoken[j], keyval,"=");
-      formattags[keyval[0]] = keyval[1];
+      if (keyval.size()==3) {
+        conditionkey=keyval[1];
+        conditionval=keyval[2];
+      } else {
+        formattags[keyval[0]] = keyval[1];
+      }
     }
 
     //---------------------------------------------------------------------------------------
@@ -1111,6 +1119,25 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
 
   body += "\n";
 
+  bool accepted = true;
+
+  // here we can match an EXACT condition or the beginning if '*' is 
+  if (conditionkey!="") {
+    XrdOucString condval = conditionval.c_str();
+    XrdOucString condisval = "";
+    if (condval.endswith("*")) {
+      condval.erase(condval.length()-1);
+      condisval = Get(conditionkey.c_str()).c_str();
+      if (!(condisval.beginswith(condval)))
+        accepted = false;
+    } else {
+      if ( Get(conditionkey.c_str()) != conditionval) {
+        accepted = false;
+      }
+    }
+  }
+
+
   if (buildheader) {
     std::string line ="";
     line += "#";
@@ -1123,11 +1150,13 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
     out += header; out += "\n";
     out += indent;
     out += line;
-    if (!headeronly) {
+    if (!headeronly && accepted) {
       out += body;
     }
   } else {
-    out += body;
+    if (accepted) {
+      out += body;
+    }
   }
 }
 

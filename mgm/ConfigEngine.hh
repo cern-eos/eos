@@ -10,7 +10,6 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
-#include "mgm/FstFileSystem.hh"
 #include "mq/XrdMqMessage.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"

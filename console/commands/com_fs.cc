@@ -103,6 +103,10 @@ com_fs (char* arg1) {
 	  in += "&mgm.outformat=io";
 	  ok=true;
         }
+        if ( (option == "--drain") || (option == "-d")) {
+          in += "&mgm.outformat=d";
+          ok=true;
+        }
 	if (option == "-s") {
 	  silent=true;
 	  ok=true;
@@ -512,23 +516,26 @@ com_fs (char* arg1) {
 
  com_fs_usage:
 
-  printf("usage: fs ls  [-m] [-l] [-e] [--io] -s                              : list configured filesystems (or by name or id match\n");
+  printf("usage: fs ls  [-m] [-l] [-e] [--io] [-d|--drain] -s                  : list configured filesystems (or by name or id match\n");
   printf("                                                                  -m : display monitoring format <key>=<value>\n");
   printf("                                                                  -l : display long format\n");
   printf("                                                                  -e : display format with error information\n");
   printf("                                                                --io : display IO statistics\n");
+  printf("                                                          -d|--drain : display drain progress and statistics\n");
+
   printf("       fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host:port> <mountpoint> [<schedgroup>] [<status]\n");
   printf("                                                                : add a filesystem and dynamically assign a filesystem id based on the unique identifier for the disk <uuid>\n");
   printf("                                             --manual -m <fsid> : user specified <fsid> and <schedgroup> - no automatic assignment\n");
   printf("       fs config <host>:<port><path>|<fsid>|<uuid> <key>=<value>: configure filesystem parameter for a single filesystem identified by host:port/path, filesystem id or filesystem UUID.\n");
-  printf("         => fs config <...> configstatus=rw|wo|ro|drain|off\n");
+  printf("         => fs config <fsid> configstatus=rw|wo|ro|drain|off\n");
   printf("                    <status> can be := rw                       : filesystem is in read write mode\n");
   printf("                                    := wo                       : filesystem is in write-once mode\n");
   printf("                                    := ro                       : filesystem is in read-only mode\n");
   printf("                                    := drain                    : filesystem is in drain mode\n");
   printf("                                    := off                      : filesystem is disabled\n"); 
-  printf("         => fs config <...> headeroom=<size>\n");
+  printf("         => fs config <fsid> headeroom=<size>\n");
   printf("                    <size> can be   := (>0)[BMGT]               : the headroom to keep per filesystem (e.g. you can write '1G' for 1 GB)\n");
+  printf("         => fs config <fsid> scaninterval=<seconds>\n           : configures a scanner thread on each FST to recheck the file & block checksums of all stored files every <seconds> seconds. 0 disables the scanning.\n");
   printf("\n");
   printf("       fs rm    <fs-name>|<fs-id>                               : remove filesystem configuration by name or id\n");
   printf("       fs boot  <fs-id>|<node-queue>                            : boot filesystem/node ['fs boot *' to boot all]  \n");

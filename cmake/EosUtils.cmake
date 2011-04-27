@@ -43,7 +43,7 @@ macro(EOS_CheckOutOfSourceBuild)
   
   #Check for in-source builds
   if(${srcdir} STREQUAL ${bindir})
-    message(FATAL_ERROR "AliRoot cannot be built in-source! Please run cmake $ALICE_ROOT outside the source directory")
+    message(FATAL_ERROR "EOS cannot be built in-source! Please run cmake <src-dir> outside the source directory")
   endif(${srcdir} STREQUAL ${bindir})
 
 endmacro(EOS_CheckOutOfSourceBuild)

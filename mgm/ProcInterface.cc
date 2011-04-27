@@ -5,6 +5,7 @@
 #include "common/StringConversion.hh"
 #include "common/StringStore.hh"
 #include "mgm/Access.hh"
+#include "mgm/FileSystem.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Vid.hh"
 #include "mgm/ProcInterface.hh"
@@ -834,7 +835,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  } else {	
 	    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
 	    
-	    eos::common::FileSystem* fs = 0;
+	    FileSystem* fs = 0;
 	    // by host:port name
 	    std::string path = identifier;
 	    if ( (identifier.find(":") == std::string::npos) ) {
@@ -989,7 +990,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  } else {	
 	    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
 	    
-	    eos::common::FileSystem* fs = 0;
+	    FileSystem* fs = 0;
 	    // by host:port name
 	    std::string path = identifier;
 	    
@@ -1255,18 +1256,18 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  }
 		  retc = EEXIST;
 		} else {
-		  eos::common::FileSystem* fs = 0;
+		  FileSystem* fs = 0;
 
 		  if (fsid) {
 		    if (!FsView::gFsView.ProvideMapping(uuid, fsid)) {
 		      stdErr = "error: conflict adding your uuid & id mapping";
 		      retc = EINVAL;
 		    } else {
-		      fs = new eos::common::FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
+		      fs = new FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
 		    }
 		  } else {
 		    fsid = FsView::gFsView.CreateMapping(uuid);
-		    fs = new eos::common::FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
+		    fs = new FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
 		  }
 		  
 		  XrdOucString sizestring;
@@ -1447,7 +1448,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  } else {	
 	    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
 	    
-	    eos::common::FileSystem* fs = 0;
+	    FileSystem* fs = 0;
 	    if ( fsid && FsView::gFsView.mIdView.count(fsid)) {
 	      // by filesystem id
 	      fs = FsView::gFsView.mIdView[fsid];
@@ -1530,7 +1531,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    fsid = atoi(id.c_str());
 	  
 	  
-	  eos::common::FileSystem* fs=0;
+	  FileSystem* fs=0;
 	  eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
 	  
 	  if (id.length()) {
@@ -1585,7 +1586,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    // boot all filesystems
 	    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
 
-	    std::map<eos::common::FileSystem::fsid_t, eos::common::FileSystem*>::iterator it;
+	    std::map<eos::common::FileSystem::fsid_t, FileSystem*>::iterator it;
 	    stdOut += "success: boot message send to";
 	    for (it = FsView::gFsView.mIdView.begin(); it!= FsView::gFsView.mIdView.end(); it++) {
 	      if ( (it->second->GetConfigStatus() > eos::common::FileSystem::kOff) ) {
@@ -1607,7 +1608,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		std::set<eos::common::FileSystem::fsid_t>::iterator it;
 		for (it = FsView::gFsView.mNodeView[node]->begin(); it != FsView::gFsView.mNodeView[node]->end(); it++) {
 
-		  eos::common::FileSystem* fs = 0;
+		  FileSystem* fs = 0;
 		  if (FsView::gFsView.mIdView.count(*it)) 
 		    fs = FsView::gFsView.mIdView[*it];
 		  
@@ -1626,7 +1627,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
 	      if (FsView::gFsView.mIdView.count(fsid)) {
 		stdOut += "success: boot message send to";
-		eos::common::FileSystem* fs = FsView::gFsView.mIdView[fsid];
+		FileSystem* fs = FsView::gFsView.mIdView[fsid];
 		if (fs) {
 		  fs->SetLongLong("bootsenttime",(unsigned long long)time(NULL));
 		  stdOut += " ";

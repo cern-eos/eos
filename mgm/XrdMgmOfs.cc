@@ -5,6 +5,7 @@
 #include "common/Path.hh"
 #include "common/Timing.hh"
 #include "mgm/Access.hh"
+#include "mgm/FileSystem.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/XrdMgmOfsSecurity.hh"
@@ -681,7 +682,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     }
   }
 
-  eos::common::FileSystem* filesystem = 0;
+  eos::mgm::FileSystem* filesystem = 0;
 
   std::vector<unsigned int> selectedfs;
   std::vector<unsigned int>::const_iterator sfs;
@@ -831,7 +832,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
     capability += "&mgm.localprefix="; capability+= filesystem->GetPath().c_str();
     
-    eos::common::FileSystem* repfilesystem = 0;
+    eos::mgm::FileSystem* repfilesystem = 0;
     // put all the replica urls into the capability
     for ( int i = 0; i < (int)selectedfs.size(); i++) {
       if (!selectedfs[i]) 
@@ -3452,7 +3453,7 @@ XrdMgmOfs::_verifystripe(const char             *path,
   
   if (!errno) {
     eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
-    eos::common::FileSystem* verifyfilesystem = 0;
+    eos::mgm::FileSystem* verifyfilesystem = 0;
     if (FsView::gFsView.mIdView.count(fsid)) {
       verifyfilesystem = FsView::gFsView.mIdView[fsid];
     }
@@ -3726,8 +3727,8 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
     return Emsg(epname,error, EINVAL, "illegal source/target fsid", fmd->getName().c_str());
   }
 
-  eos::common::FileSystem* sourcefilesystem = 0;
-  eos::common::FileSystem* targetfilesystem = 0;
+  eos::mgm::FileSystem* sourcefilesystem = 0;
+  eos::mgm::FileSystem* targetfilesystem = 0;
 
   if (FsView::gFsView.mIdView.count(sourcefsid)) {
     sourcefilesystem = FsView::gFsView.mIdView[sourcefsid];
@@ -3826,7 +3827,7 @@ XrdMgmOfs::Deletion()
     std::vector <unsigned int> fslist;
     // get a list of file Ids
 
-    std::map<eos::common::FileSystem::fsid_t, eos::common::FileSystem*>::const_iterator it;
+    std::map<eos::common::FileSystem::fsid_t, eos::mgm::FileSystem*>::const_iterator it;
 
     {
       // lock the filesystem view for reading
@@ -3849,7 +3850,7 @@ XrdMgmOfs::Deletion()
 	eos::FileSystemView::FileIterator it;
 	int ndeleted=0;
 
-	eos::common::FileSystem* fs = 0;
+	eos::mgm::FileSystem* fs = 0;
 	XrdOucString receiver="";
 	XrdOucString msgbody = "mgm.cmd=drop"; 
 	XrdOucString capability ="";

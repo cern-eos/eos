@@ -88,8 +88,24 @@ const char*
 FileSystem::GetDrainStatusAsString(int status)
 {
   if (status == kNoDrain) return "nodrain";
+  if (status == kDrainPrepare) return "prepare";
+  if (status == kDrainWait) return "waiting";
   if (status == kDraining) return "draining";
   if (status == kDrained) return "drained";
+  return "unknown";
+}
+
+/*----------------------------------------------------------------------------*/
+const char*
+FileSystem::GetConfigStatusAsString(int status)
+{
+  if (status == kUnknown) return "unknown";
+  if (status == kOff) return "off";
+  if (status == kDrainDead) return "draindead";
+  if (status == kDrain) return "drain";
+  if (status == kRO) return "ro";
+  if (status == kWO) return "wo";
+  if (status == kRW) return "rw";
   return "unknown";
 }
 
@@ -119,6 +135,7 @@ FileSystem::GetConfigStatusFromString(const char* ss)
   
   if (!strcmp(ss,"unknown")) return kUnknown;
   if (!strcmp(ss,"off")) return kOff;
+  if (!strcmp(ss,"draindead")) return kDrainDead;
   if (!strcmp(ss,"drain")) return kDrain;
   if (!strcmp(ss,"ro")) return kRO;
   if (!strcmp(ss,"wo")) return kWO;
@@ -134,8 +151,11 @@ FileSystem::GetDrainStatusFromString(const char* ss)
     return kNoDrain;
   
   if (!strcmp(ss,"nodrain")) return kNoDrain;
-  if (!strcmp(ss,"draining")) return kDraining;
+  if (!strcmp(ss,"prepare")) return kDrainPrepare;
+  if (!strcmp(ss,"wait"))    return kDrainWait;
+  if (!strcmp(ss,"draining"))return kDraining;
   if (!strcmp(ss,"drained")) return kDrained;
+
   return kNoDrain;
 }
 

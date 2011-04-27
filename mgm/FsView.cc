@@ -51,6 +51,10 @@ FsView::GetFileSystemFormat(std::string option) {
     return "header=1:key=hostport:width=30:format=s|sep= |key=id:width=5:format=s|sep= |key=stat.disk.load:width=10:format=f:tag=diskload|sep= |key=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |key=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |key=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |key=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |key=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |key=stat.ropen:width=6:format=l:tag=ropen|sep= |key=stat.wopen:width=6:format=l:tag=wopen|sep= |key=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |key=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |key=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |key=stat.statfs.files:width=11:format=+l:tag=max-files";
   }
 
+  if (option == "d") {
+    return "header=1:key=host:width=24:format=s:condition=configstatus=drain*|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.drain:width=12:format=s|key=stat.drainprogress:width=12:format=l:tag=progress|sep= |key=stat.drainfiles:width=12:format=+l:unit=B:tag=files|sep= |key=stat.drainlostfiles:width=12:format=l:tag=lost-files|sep= |key=stat.drainbytesleft:width=12:format=+l:tag=left|";
+
+  }
   if (option == "l") {
     // long format
     return "header=1:key=host:width=24:format=-s|sep= |key=port:width=5:format=s|sep= |key=id:width=6:format=s|sep= |key=uuid:width=36:format=s|sep= |key=path:width=16:format=s|key=schedgroup:width=16:format=s|sep= |key=headroom:width=10:format=+l|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
@@ -106,7 +110,7 @@ FsView::GetGroupFormat(std::string option) {
 
 /*----------------------------------------------------------------------------*/
 bool 
-FsView::Register (eos::common::FileSystem* fs) 
+FsView::Register (FileSystem* fs) 
 {
   if (!fs)
     return false;
@@ -208,7 +212,7 @@ FsView::Register (eos::common::FileSystem* fs)
 
 /*----------------------------------------------------------------------------*/
 void
-FsView::StoreFsConfig(eos::common::FileSystem* fs) 
+FsView::StoreFsConfig(FileSystem* fs) 
 {
 #ifndef EOSMGMFSVIEWTEST
   if (fs) {
@@ -226,7 +230,7 @@ FsView::StoreFsConfig(eos::common::FileSystem* fs)
 
 /*----------------------------------------------------------------------------*/
 bool 
-FsView::UnRegister(eos::common::FileSystem* fs) 
+FsView::UnRegister(FileSystem* fs) 
 {
   if (!fs)
     return false;
@@ -372,7 +376,7 @@ FsView::UnRegisterNode(const char* nodename)
   if (mNodeView.count(nodename)) {
     while (mNodeView.count(nodename) && (mNodeView[nodename]->begin()!= mNodeView[nodename]->end())) {
       eos::common::FileSystem::fsid_t fsid = *(mNodeView[nodename]->begin());
-      eos::common::FileSystem* fs = mIdView[fsid];
+      FileSystem* fs = mIdView[fsid];
       if (fs) {
 	hasfs = true;
 	eos_static_debug("Unregister filesystem fsid=%llu node=%s queue=%s", (unsigned long long) fsid, nodename, fs->GetQueue().c_str());
@@ -424,9 +428,9 @@ FsView::UnRegisterSpace(const char* spacename)
   bool hasfs= false;
   if (mSpaceView.count(spacename)) {
     while (mSpaceView.count(spacename) && (mSpaceView[spacename]->begin()!= mSpaceView[spacename]->end())) {
-      std::map<eos::common::FileSystem::fsid_t, eos::common::FileSystem*>::iterator it;
+      std::map<eos::common::FileSystem::fsid_t, FileSystem*>::iterator it;
       eos::common::FileSystem::fsid_t fsid = *(mSpaceView[spacename]->begin());
-      eos::common::FileSystem* fs = mIdView[fsid];
+      FileSystem* fs = mIdView[fsid];
       if (fs) {
 	hasfs = true;
 	eos_static_debug("Unregister filesystem fsid=%llu space=%s queue=%s", (unsigned long long) fsid, spacename, fs->GetQueue().c_str());
@@ -480,7 +484,7 @@ FsView::UnRegisterGroup(const char* groupname)
   if (mGroupView.count(groupname)) {
     while (mGroupView.count(groupname) && (mGroupView[groupname]->begin()!= mGroupView[groupname]->end())) {
       eos::common::FileSystem::fsid_t fsid = *(mGroupView[groupname]->begin());
-      eos::common::FileSystem* fs = mIdView[fsid];
+      FileSystem* fs = mIdView[fsid];
       if (fs) {
 	hasfs = true;
 	eos_static_debug("Unregister filesystem fsid=%llu group=%s queue=%s", (unsigned long long) fsid, groupname, fs->GetQueue().c_str());
@@ -551,7 +555,7 @@ FsView::SetNextFsId(eos::common::FileSystem::fsid_t fsid)
 }
 
 /*----------------------------------------------------------------------------*/
-eos::common::FileSystem* 
+FileSystem* 
 FsView::FindByQueuePath(std::string &queuepath)
 {
   //----------------------------------------------------------------
@@ -559,7 +563,7 @@ FsView::FindByQueuePath(std::string &queuepath)
   //----------------------------------------------------------------
 
   // needs an external ViewMutex lock !!!!
-  std::map<eos::common::FileSystem::fsid_t, eos::common::FileSystem*>::iterator it;
+  std::map<eos::common::FileSystem::fsid_t, FileSystem*>::iterator it;
   for (it = mIdView.begin(); it != mIdView.end(); it++) {
     if (it->second->GetQueuePath() == queuepath)
       return it->second;
@@ -922,7 +926,7 @@ FsView::ApplyFsConfig(const char* inkey, std::string &val)
 
   eos::common::RWMutexWriteLock viewlock(ViewMutex);
   eos::common::FileSystem::fsid_t fsid = atoi(configmap["id"].c_str());
-  eos::common::FileSystem* fs = new eos::common::FileSystem(configmap["queuepath"].c_str(), configmap["queue"].c_str(), eos::common::GlobalConfig::gConfig.SOM());
+  FileSystem* fs = new FileSystem(configmap["queuepath"].c_str(), configmap["queue"].c_str(), eos::common::GlobalConfig::gConfig.SOM());
        
   if (fs) {
     fs->SetId(fsid);
