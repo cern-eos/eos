@@ -37,7 +37,7 @@ start() {
 	    mkdir -p /var/run/eosd/
 	    cd /var/run/eosd/
 	    mkdir -p ${EOS_FUSE_MOUNTDIR-/eos/}
-	    chmod -R 755 ${EOS_MOUNTDIR-/eos/}
+	    chmod -R 755 ${EOS_FUSE_MOUNTDIR-/eos/}
 	    unset KRB5CCNAME
 	    unset X509_USER_CERT
 	    unset X509_USER_KEY
