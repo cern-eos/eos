@@ -172,10 +172,57 @@ while(1) {
 
         } 
     } else {
-        if ( ($mastermgm == 2) || ($mastermq == 2) ) {
+        my $isfailover=0;
+        # check if this is really a failover case or just a startup after a complete shutdown
+        # for this we compare the timestamps of the files changelog files
+        getconfig();
+        my ($dev1,$ino1,$mode1,$nlink1,$uid1,$gid1,$rdev1,$size1,$atime1,$mtime1,$ctime1,$blksize1,$blocks1) = stat($md1file);
+        my ($dev2,$ino2,$mode2,$nlink2,$uid2,$gid2,$rdev2,$size2,$atime2,$mtime2,$ctime2,$blksize2,$blocks2) = stat($md2file);
+
+        if ( "$host" eq "$target1" ) {
+            # the remote master has never written anything, we don't need to do a failover operation
+            if ( $mtime2 eq "") {
+                $isfailover=0;
+            }
+            # the local master is uninitialized, the remote master is not - this is a failover situation
+            if ( ($mtime1 eq "") && ($mtime2 ne "")) {
+                $isfailover=1;
+            }
+            # local and remote master have a changelog file, so let's judge by the modification time of the synced files
+            if ( ($mtime1 ne "") && ($mtime2 ne "") && ($mtime1 <= $mtime2)) {
+                $isfailover=1;
+            }
+        }
+
+        if ( "$host" eq "$target2" ) {
+            # the remote master has never written anything, we don't need to do a failover operation
+            if ( $mtime1 eq "") {
+                $isfailover=0;
+            }
+            # the local master is uninitalized, the remote master is not - this is a failover situation
+            if ( ($mtime1 eq "") && ($mtime1 ne "")) {
+                $isfailover=1;
+            }
+            # local and remote master have a changelog file, so let's judge by the modification time of the synced files
+            if ( ($mtime2 ne "") && ($mtime1 ne "") && ($mtime2 <= $mtime1)) {
+                $isfailover=1;
+            }
+        }
+
+        if ( (!$isfailover) && (($mastermgm ==2) || ($mastermq == 2)) ) {
             now();
             printf "$now ===================================================================\n";
-            printf "$now Initiaing FAILOVER procedure ... becoming MASTER ...\n";
+            printf "$now Skipping FAILOVER procedure (probably we have been the master before or the system is new) ... starting MASTER ...\n";
+            printf "$now ___________________________________________________________________\n";
+            my $startupmq  = system("service eos start mq");
+            my $startupmq  = system("service eos start mgm");
+            my $startupmq  = system("service eos start sync");
+        }
+            
+        if ( ($isfailover) && (($mastermgm == 2) || ($mastermq == 2)) ) {
+            now();
+            printf "$now ===================================================================\n";
+            printf "$now Initiating FAILOVER procedure ... becoming MASTER ...\n";
             printf "$now ___________________________________________________________________\n";
             getconfig();
 
