@@ -501,6 +501,9 @@ virtual bool           Init(XrdSysError &);
 
  static void* StartMgmStats(void *pp);       // Statistics circular buffer thread
 
+ static void* StartMgmFsListener(void *pp);  //  Listener Thread Starter
+        void  FsListener();                  //  Listens on filesystem errors
+
 protected:
         char*            HostName;           // -> our hostname as derived in XrdOfs
         char*            HostPref;           // -> our hostname as derived in XrdOfs without domain

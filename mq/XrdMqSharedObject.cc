@@ -1131,8 +1131,18 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
       if (!(condisval.beginswith(condval)))
         accepted = false;
     } else {
-      if ( Get(conditionkey.c_str()) != conditionval) {
-        accepted = false;
+      if (condval.beginswith("!")) {
+        condisval = Get(conditionkey.c_str()).c_str();
+        condval.erase(0,1);
+        if (!condisval.length())
+          accepted = false;
+        if ((condisval == condval)) {
+          accepted = false;
+        }
+      } else {
+        if ( Get(conditionkey.c_str()) != conditionval) {
+          accepted = false;
+        }
       }
     }
   }

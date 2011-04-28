@@ -27,6 +27,8 @@ public:
 
   bool SetString(const char* key, const char* str, bool broadcast=true); // see above
 
+  bool StartDrainJob(); // starts a drain job with the opserror flag - this is triggered by stat.errc!= 0 via the FsListener Thread
+  bool StopDrainJob();  // stops  a drain job with the opserror flag - this is triggered by stat.errc = 0 via the FsListener Thread
 };
 
 EOSMGMNAMESPACE_END

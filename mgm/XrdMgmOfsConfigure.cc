@@ -439,7 +439,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   XrdOucString unit = "mgm@"; unit+= ManagerId;
 
-  eos::common::Logging::SetLogPriority(LOG_CRIT);
+  eos::common::Logging::SetLogPriority(LOG_INFO);
   eos::common::Logging::SetUnit(unit.c_str());
 
   eos::common::Logging::gFilter = "Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
@@ -517,6 +517,13 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
+  
+  // setup the modifications which the fs listener thread is waiting for
+  ObjectManager.SubjectsMutex.Lock();
+  std::string watch_errc = "stat.errc";
+  ObjectManager.ModificationWatchKeys.insert(watch_errc);
+  ObjectManager.SubjectsMutex.UnLock();
+
 
   if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(MgmConfigQueue.c_str(), "/eos/*/mgm")) {
     eos_crit("Cannot add global config queue %s\n", MgmConfigQueue.c_str());
@@ -681,6 +688,13 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   if ((XrdSysThread::Run(&tid, XrdMgmOfs::StartMgmStats, static_cast<void *>(this),
                               0, "Statistics Thread"))) {
     eos_crit("cannot start statistics thread");
+    NoGo = 1;
+  }
+
+  eos_info("starting fs listener thread");
+  if ((XrdSysThread::Run(&tid, XrdMgmOfs::StartMgmFsListener, static_cast<void *>(this),
+                              0, "FsListener Thread"))) {
+    eos_crit("cannot start fs listener thread");
     NoGo = 1;
   }
 

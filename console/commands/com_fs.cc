@@ -519,7 +519,7 @@ com_fs (char* arg1) {
   printf("usage: fs ls  [-m] [-l] [-e] [--io] [-d|--drain] -s                  : list configured filesystems (or by name or id match\n");
   printf("                                                                  -m : display monitoring format <key>=<value>\n");
   printf("                                                                  -l : display long format\n");
-  printf("                                                                  -e : display format with error information\n");
+  printf("                                                                  -e : display format with error information for filesystems in error state\n");
   printf("                                                                --io : display IO statistics\n");
   printf("                                                          -d|--drain : display drain progress and statistics\n");
 
@@ -536,6 +536,7 @@ com_fs (char* arg1) {
   printf("         => fs config <fsid> headeroom=<size>\n");
   printf("                    <size> can be   := (>0)[BMGT]               : the headroom to keep per filesystem (e.g. you can write '1G' for 1 GB)\n");
   printf("         => fs config <fsid> scaninterval=<seconds>\n           : configures a scanner thread on each FST to recheck the file & block checksums of all stored files every <seconds> seconds. 0 disables the scanning.\n");
+  printf("         => fs config <fsid> graceperiod=<seconds>\n            : grace period before a filesystem with an operation error get's automatically drained\n");
   printf("\n");
   printf("       fs rm    <fs-name>|<fs-id>                               : remove filesystem configuration by name or id\n");
   printf("       fs boot  <fs-id>|<node-queue>                            : boot filesystem/node ['fs boot *' to boot all]  \n");

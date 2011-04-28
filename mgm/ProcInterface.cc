@@ -1030,17 +1030,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 			fs->SetString(key.c_str(),value.c_str());
 			FsView::gFsView.StoreFsConfig(fs);
 		      } else {
-                        if ((key == "headroom") && ( eos::common::StringConversion::GetSizeFromString(value.c_str()) > 0)) {
+                        if ( ( (key == "headroom") || ( key == "scaninterval" ) || ( key == "graceperiod" ) )&& ( eos::common::StringConversion::GetSizeFromString(value.c_str()) > 0)) {
                           fs->SetLongLong(key.c_str(), eos::common::StringConversion::GetSizeFromString(value.c_str()));
                           FsView::gFsView.StoreFsConfig(fs);
                         } else {
-                          if (( key == "scaninterval") && ( eos::common::StringConversion::GetSizeFromString(value.c_str()) > 0)) {
-                            fs->SetLongLong(key.c_str(), eos::common::StringConversion::GetSizeFromString(value.c_str()));
-                            FsView::gFsView.StoreFsConfig(fs);
-                          } else {
-                            stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
-                            retc = EINVAL;
-                          }
+                          stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
+                          retc = EINVAL;
                         }
 		      }
 		    } else {
@@ -1490,19 +1485,21 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    }
 	    if (fs) {
 	      // check the allowed strings
-	      if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ) ) ) {
+	      if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ) ) ||
+                   (((key == "headroom") || (key == "scaninterval") || (key == "graceperiod")) && (eos::common::StringConversion::GetSizeFromString(value.c_str()) > 0) ) ) {
+                
 		std::string nodename = fs->GetString("host");
 		size_t dpos=0;
-
+                
 		if ( (dpos = nodename.find(".")) != std::string::npos) {
 		  nodename.erase(dpos);
 		}
-
+                
 		if ( (vid_in.uid!=0) && ( (vid_in.prot != "sss") || tident.compare(0, tident.length(), nodename, 0, tident.length()) )) {
 		  stdErr="error: filesystems can only be configured as 'root' or from the server mounting them using sss protocol\n";
 		  retc = EPERM;
 		} else {
-                  if ((key == "headroom") && ( eos::common::StringConversion::GetSizeFromString(value.c_str()) > 0)) {
+                  if ((key == "headroom") || (key == "scaninterval") || (key == "graceperiod") ) {
                     fs->SetLongLong(key.c_str(), eos::common::StringConversion::GetSizeFromString(value.c_str()));
                     FsView::gFsView.StoreFsConfig(fs);
                   } else {

@@ -18,13 +18,15 @@ class DrainJob {
   // ---------------------------------------------------------------------------
 private:
   eos::common::FileSystem::fsid_t fsid;
+  bool onOpsError;
   pthread_t thread;
   sem_t semaphore;
   
 public:
 
-  DrainJob(eos::common::FileSystem::fsid_t ifsid) {
+  DrainJob(eos::common::FileSystem::fsid_t ifsid, bool opserror=false) {
     fsid = ifsid;
+    onOpsError=opserror;
     sem_init(&semaphore, 0, 0);   
     pthread_create(&thread, NULL, &DrainJob::StaticThreadProc, this);
   }

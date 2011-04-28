@@ -131,9 +131,10 @@ void Messaging::Process(XrdMqMessage* newmessage)
       XrdOucString error="";
       bool result = SharedObjectManager->ParseEnvMessage(newmessage, error);
       if (!result) {
-        newmessage->Print();
-        if (error != "no subject in message body")
+        if (error != "no subject in message body") {
+          //          newmessage->Print();
           eos_err(error.c_str());
+        }
         return;
       } else {
         return;

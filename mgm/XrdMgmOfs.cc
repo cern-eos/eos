@@ -3815,6 +3815,15 @@ XrdMgmOfs::StartMgmStats(void *pp)
   return 0;
 }
 
+/*----------------------------------------------------------------------------*/
+void*
+XrdMgmOfs::StartMgmFsListener(void *pp) 
+{
+  XrdMgmOfs* ofs = (XrdMgmOfs*)pp;
+  ofs->FsListener();
+  return 0;
+}
+
 
 /*----------------------------------------------------------------------------*/
 void
@@ -3956,4 +3965,73 @@ XrdMgmOfs::Deletion()
       //-------------------------------------------
     }
   }
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdMgmOfs::FsListener() 
+{
+  sleep(5);
+  // thread listening on filesystem errors
+  do {
+    sleep(1);
+    gOFS->ObjectManager.SubjectsMutex.Lock(); 
+    // listens on modifications on filesystem objects
+    while (gOFS->ObjectManager.ModificationSubjects.size()) {
+      std::string newsubject = gOFS->ObjectManager.ModificationSubjects.front();
+      eos_static_info("received modification on subject %s\n", newsubject.c_str());
+      gOFS->ObjectManager.ModificationSubjects.pop_front();
+      gOFS->ObjectManager.SubjectsMutex.UnLock();
+      // if this is an error status on a file system, check if the filesystem is > drained state and in this case launch a drain job with
+      // the opserror flag by calling StartDrainJob
+      // We use directly the ObjectManager Interface because it is more handy with the available information we have at this point
+
+      std::string key   = newsubject;
+      std::string queue = newsubject;
+      size_t dpos = 0;
+      if ((dpos = queue.find(";"))!= std::string::npos){
+        key.erase(0,dpos+1);
+        queue.erase(dpos);
+      }
+      eos::common::FileSystem::fsid_t fsid=0;
+      FileSystem* fs = 0;
+      long long errc = 0;
+      std::string configstatus="";
+      std::string bootstatus="";
+      int cfgstatus=0;
+      int bstatus=0;
+
+      // read the id from the hash and the current error value
+      gOFS->ObjectManager.HashMutex.LockRead();
+      XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(),"hash");
+      if (hash) {
+        fsid = (eos::common::FileSystem::fsid_t) hash->GetLongLong("id");
+        errc = (int)hash->GetLongLong("stat.errc");
+        configstatus = hash->Get("configstatus");
+        bootstatus   = hash->Get("stat.boot");
+        cfgstatus = eos::common::FileSystem::GetConfigStatusFromString(configstatus.c_str());
+        bstatus   = eos::common::FileSystem::GetStatusFromString(bootstatus.c_str());
+      }
+      gOFS->ObjectManager.HashMutex.UnLockRead();
+
+      if (fsid && errc && (cfgstatus >= eos::common::FileSystem::kRO)) {
+        // this is the case we take action and explicitly ask to start a drain job
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        fs = FsView::gFsView.mIdView[fsid];
+        if (fs) {
+          fs->StartDrainJob();
+        }
+      }
+      if (fsid && (!errc)) {
+        // make sure there is no drain job triggered by a previous filesystem errc!=0
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        fs = FsView::gFsView.mIdView[fsid];
+        if (fs) {
+          fs->StopDrainJob();
+        }
+      }
+      gOFS->ObjectManager.SubjectsMutex.Lock(); 
+    }
+    gOFS->ObjectManager.SubjectsMutex.UnLock();
+  } while (1);
 }

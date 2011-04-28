@@ -6,6 +6,43 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 bool
+FileSystem::StartDrainJob() 
+{
+  //----------------------------------------------------------------
+  //! start a drain job after stat.errc!=0 (e.g. opserror)
+  //----------------------------------------------------------------
+
+  // check if there is already a drainjob
+  if (drainJob) 
+    return false;
+
+  // no drain job
+  drainJob = new DrainJob(GetId(),true);
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+FileSystem::StopDrainJob()
+{
+  eos::common::FileSystem::fsstatus_t isstatus = GetConfigStatus();
+
+  if ( (isstatus == kDrainDead) || (isstatus == kDrain) ) {
+    // if this is in drain mode, we leave the drain job
+    return false;
+  }
+
+  if (drainJob) {
+    delete drainJob;
+    drainJob = 0;
+    SetDrainStatus(eos::common::FileSystem::kNoDrain);
+    return true;
+  }
+  return false;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
 FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status)
 {
   //----------------------------------------------------------------
