@@ -20,6 +20,6 @@ xrd.network keepalive
 xrd.timeout idle 120
 #############################################################
 #get some nice statics in the log file about the queue status
-ofs.trace getstats -login -disc all
+ofs.trace getstats -login -disc
 #############################################################
 mq.queue /eos/
