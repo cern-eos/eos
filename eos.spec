@@ -4,7 +4,7 @@
 Summary: The EOS server installation.
 Name: eos-server
 Version: 0.1.0
-Release: rc4
+Release: rc5
 Prefix: /usr
 License: none
 Group: Applications/File
