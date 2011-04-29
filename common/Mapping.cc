@@ -468,7 +468,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
   gid_vector* gv;
   id_pair* id;
 
-  eos_static_debug("find in uid cache");
+  eos_static_debug("find in uid cache %s", name);
 
   gPhysicalIdMutex.LockRead();
 

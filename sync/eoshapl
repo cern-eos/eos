@@ -4,8 +4,13 @@ use Socket;
 use Sys::Hostname;
 my $host = hostname();
 
-#set to simulate the failover
-#$host = "lxbra0301.cern.ch";
+my $phost_ip =  gethostbyname($host);
+my $host_ip;
+if (defined $phost_ip) {
+    $host_ip = inet_ntoa($phost_ip);
+} else {
+    $host_ip = "";
+}
 
 #usage eoshapl manager-node1 manager-node2 alias failovertime [debug]
 
@@ -125,10 +130,18 @@ while(1) {
     }
 
     if ($debug || (!$cnt)) {print "$now MGM status is $mgmstatus - MQ status is $mqstatus - SYNC status is $syncstatus\n - EOSSYNC status is $eossyncstatus";}
-    my ($name,$aliases, $addrtype, $length, @addrs) =  gethostbyname("$aliasname");
-    if ($debug || (!$cnt)) {print "$now hostname=$host aliastarget=$name aliases=$aliases\n";}
 
-    if ("$host" ne "$name") {
+    my $palias_ip =  gethostbyname("$aliasname");
+    my $alias_ip;
+    if (defined $palias_ip) {
+        $alias_ip = inet_ntoa($palias_ip);
+    } else {
+        $alias_ip = "-undef-";
+    }
+
+    if ($debug || (!$cnt)) {print "$now hostname=$host [$host_ip]  aliastarget=$alias_ip aliases=$aliasname\n";}
+
+    if ("$host_ip" ne "$alias_ip") {
         if ( $mastersync ) {
             now();
             printf "$now ===================================================================\n";

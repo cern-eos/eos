@@ -226,12 +226,16 @@ elif [ -z "${XRD_ROLES}" ]; then
 
 fi
 
+if [ -t 0 ]; then 
+if [ -t 1 ]; then 
 if [ "$1" != "status" ]; then
     service eosha status 2>&1 | grep running >& /dev/null
     if [ $? = "0" ]; then
         echo "Stop eosha to do that (service eosha stop)"
         exit -1;
     fi
+fi
+fi
 fi
 
 # See how we were called

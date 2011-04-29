@@ -358,14 +358,42 @@ static void eosfs_ll_releasedir (fuse_req_t req, fuse_ino_t ino,
 
 static void eosfs_ll_statfs(fuse_req_t req, fuse_ino_t ino)
 {
-  struct statvfs svfs;
-  svfs.f_bsize=128*1024;
-  svfs.f_blocks=1000000000ll;
-  svfs.f_bfree=1000000000ll;
-  svfs.f_bavail=1000000000ll;
-  svfs.f_files=1000000;
-  svfs.f_ffree=1000000;
-  fuse_reply_statfs(req, &svfs);
+  struct statvfs svfs,svfs2;
+
+  const char* path=NULL;
+  char rootpath[16384];
+  
+  path = xrd_get_name_for_inode(ino);
+  if (ino ==1) {
+    path = "/";
+  }
+
+  if (!path) {
+    svfs.f_bsize=128*1024;
+    svfs.f_blocks=1000000000ll;
+    svfs.f_bfree=1000000000ll;
+    svfs.f_bavail=1000000000ll;
+    svfs.f_files=1000000;
+    svfs.f_ffree=1000000;
+    fuse_reply_statfs(req, &svfs);
+    return;
+  }
+
+  sprintf(rootpath,"root://%s@%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix);
+
+  int res = xrd_statfs(rootpath, path, &svfs2);
+  if (res == -1) {
+    svfs.f_bsize=128*1024;
+    svfs.f_blocks=1000000000ll;
+    svfs.f_bfree=1000000000ll;
+    svfs.f_bavail=1000000000ll;
+    svfs.f_files=1000000;
+    svfs.f_ffree=1000000;
+    fuse_reply_statfs(req, &svfs);
+  } else {
+    fuse_reply_statfs(req, &svfs2);
+  }
+  return;
 }
 
 
