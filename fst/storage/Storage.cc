@@ -1065,6 +1065,11 @@ Storage::Communicator()
 
       if (queue == Config::gConfig.FstQueueWildcard)
 	continue;
+      
+      if ( (queue.find("/txqueue/")!= STR_NPOS) ) {
+        // this is a transfer queue we, don't need to take action
+        continue;
+      }
 
       if (! queue.beginswith(Config::gConfig.FstQueue)) {
 	eos_static_info("no action on creation of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
@@ -1106,6 +1111,12 @@ Storage::Communicator()
       unlocked=true;
 
       XrdOucString queue = newsubject.c_str();
+
+      if ( (queue.find("/txqueue/")!= STR_NPOS) ) {
+        // this is a transfer queue we, don't need to take action
+        continue;
+      }
+
       if (! queue.beginswith(Config::gConfig.FstQueue)) {
 	eos_static_err("illegal subject found in deletion list <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
 	continue;

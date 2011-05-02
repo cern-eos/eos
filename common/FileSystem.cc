@@ -9,7 +9,7 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som)
+FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som, bool bc2mgm)
 {
   constructorLock.Lock();
   mQueuePath = queuepath;
@@ -53,8 +53,14 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
     } else {
       mSom->HashMutex.UnLockRead();
     }
+    mDrainQueue   = new TransferQueue(mQueuePath.c_str(),"drainq"  ,this, mSom, bc2mgm );
+    mBalanceQueue = new TransferQueue(mQueuePath.c_str(),"balanceq",this, mSom, bc2mgm );
+    mExternQueue  = new TransferQueue(mQueuePath.c_str(),"externq" ,this, mSom, bc2mgm );
   } else {
     mHash = 0;
+    mDrainQueue   = 0;
+    mBalanceQueue = 0;
+    mExternQueue  = 0;
   }
   constructorLock.UnLock();
 }
@@ -67,6 +73,14 @@ FileSystem::~FileSystem()
   if (mSom) {
     mSom->DeleteSharedHash(mQueuePath.c_str());
   }
+
+  if (mDrainQueue) 
+    delete mDrainQueue;
+  if (mBalanceQueue)
+    delete mBalanceQueue;
+  if (mExternQueue)
+    delete mExternQueue;
+
   constructorLock.UnLock();
 }
 

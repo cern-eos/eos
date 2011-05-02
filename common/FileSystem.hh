@@ -6,6 +6,7 @@
 #include "common/Exception.hh"
 #include "common/StringConversion.hh"
 #include "common/Statfs.hh"
+#include "common/TransferQueue.hh"
 #include "mq/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -18,6 +19,8 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+class TransferQueue; 
+
 class FileSystem {
 private:
   std::string mQueuePath;  // = <queue> + <path> e.g. /eos/<host>/fst/data01
@@ -27,6 +30,10 @@ private:
   XrdMqSharedHash* mHash;  // before usage mSom needs a read lock and mHash has to be validated to avoid race conditions in deletion
   XrdMqSharedObjectManager* mSom;
   XrdSysMutex constructorLock;
+
+  TransferQueue* mDrainQueue;
+  TransferQueue* mBalanceQueue;
+  TransferQueue* mExternQueue;
 
 public:
   //------------------------------------------------------------------------
@@ -85,7 +92,7 @@ public:
   //! Constructor
   //------------------------------------------------------------------------
 
-  FileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som);
+  FileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som, bool bc2mgm=false);
 
   virtual ~FileSystem();
 

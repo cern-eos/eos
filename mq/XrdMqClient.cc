@@ -177,6 +177,12 @@ XrdMqMessage* XrdMqClient::RecvMessage() {
       return 0;
     }
     struct XrdClientStatInfo stinfo;
+
+    if (!client->IsOpen()) {
+      // re-open the file
+      client->Open(0,0,false);
+    }
+
     if (!client->Stat(&stinfo,true)) {
       return 0;
     }

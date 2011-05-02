@@ -64,8 +64,12 @@ ProcInterface::Authorize(const char* path, const char* info, eos::common::Mappin
     if (protocol == "sss")
       return true;
 
-    // one has to be part of the virtual users 3(adm)/4(adm)
-    return ( (eos::common::Mapping::HasUid(3, vid.uid_list)) || (eos::common::Mapping::HasGid(4, vid.gid_list)) );
+    // root can do it
+    if (!vid.uid) 
+      return true;
+      
+    // one has to be part of the virtual users 2(daemon) || 3(adm)/4(adm) 
+    return ( (eos::common::Mapping::HasUid(2, vid.uid_list)) || (eos::common::Mapping::HasUid(3, vid.uid_list)) || (eos::common::Mapping::HasGid(4, vid.gid_list)) );
   }
 
   // user access

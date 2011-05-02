@@ -7,5 +7,5 @@ if [ "x$1" = "x" ] ; then
     exit -1;
 fi
 
-chksum=`eos -r 0 0 ${EOS_MGM_URL-root://eosatlas.cern.ch//} file info $1 -checksum | grep xstype | awk '{print $4}' 2>/dev/null`
+chksum=`eos ${EOS_MGM_URL-root://eosatlas.cern.ch//} file info $1 -checksum | grep xstype | awk '{print $4}' 2>/dev/null`
 echo $chksum

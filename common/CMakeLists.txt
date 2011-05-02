@@ -13,6 +13,7 @@ add_library (eosCommon SHARED
 	    SymKeys.cc
 	    GlobalConfig.cc
             Attr.cc
+            TransferQueue.cc
 	    )
 
 add_library (eosCommon-Static STATIC
@@ -27,6 +28,7 @@ add_library (eosCommon-Static STATIC
 	    SymKeys.cc
 	    GlobalConfig.cc
             Attr.cc
+            TransferQueue.cc
 )
 
 

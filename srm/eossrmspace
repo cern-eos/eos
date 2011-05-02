@@ -11,13 +11,13 @@ if [ -n "$cache" ]; then
     exit;
 fi
     
-nrep=`eos -role 0 0 -b ${EOS_MGM_URL-root://eosdev.cern.ch//} attr get sys.forced.nstripes $dirpath/ 2>/dev/null | grep sys.forced.nstripes | cut -d "=" -f2 | sed s/\"//g 2>/dev/null`
+nrep=`eos -b root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch}// attr get sys.forced.nstripes $dirpath/ 2>/dev/null | grep sys.forced.nstripes | cut -d "=" -f2 | sed s/\"//g 2>/dev/null`
 
 test -z "$nrep" && nrep=1
 
-export `eos -b ${EOS_MGM_URL-root://eosdev.cern.ch//} quota ls -m -s $dirpath | grep "uid=ALL"`
+export `eos -b root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch//}// quota ls -m -s $dirpath | grep "gid=ALL"`
 
-my $val = $usedbytes
+val=$usedbytes
 
 if [ $nrep -gt 1 ]; then 
     let val/=$nrep

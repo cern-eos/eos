@@ -305,11 +305,11 @@ com_vid (char* arg1) {
   printf("       vid set membership <uid> -uids [<uid1>,<uid2>,.com_attr..]\n");
   printf("       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
   printf("       vid set membership <uid> [+|-]sudo \n");
-  printf("       vid set map -krb5|-ssl|-sss|-unix|-tident <pattern> [vuid:<uid>] [vgid:<gid>] \n");
+  printf("       vid set map -krb5|-gsi|-ssl|-sss|-unix|-tident <pattern> [vuid:<uid>] [vgid:<gid>] \n");
   printf("\n");
   printf("       vid rm <key>                                                                                 : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
   printf("\n");
-  printf("       vid enable|disable krb5|ssl|sss|unix\n");
+  printf("       vid enable|disable krb5|gsi|ssl|sss|unix\n");
   printf("                                           : enable/disables the default mapping via password database\n");
   printf("\n");
   printf("       vid add|remove gateway <hostname>\n");

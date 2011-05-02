@@ -544,7 +544,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
   // the caller routing has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) !!!
   std::set<eos::common::FileSystem::fsid_t> fsidavoidlist;
   std::map<eos::common::FileSystem::fsid_t, float> availablefs;
-  std::vector<eos::common::FileSystem::fsid_t> availablevector;
+  std::list<eos::common::FileSystem::fsid_t> availablevector;
 
   // fill the avoid list from the selectedfs input vector
   for (unsigned int i=0; i< selectedfs.size(); i++) {
@@ -704,7 +704,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
     
     // check if there are atlast <nfilesystems> in the available map
     if (availablefs.size() >= nfilesystems) {
-      std::vector<eos::common::FileSystem::fsid_t>::iterator ait;
+      std::list<eos::common::FileSystem::fsid_t>::iterator ait;
       ait = availablevector.begin();
 
       for (unsigned int loop = 0; loop < 1000; loop++) {
@@ -725,8 +725,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
 	    
 	    // remove it from the selection map
 	    availablefs.erase(*ait);
-	    availablevector.erase(ait);
-	    ait++;
+	    ait = availablevector.erase(ait);
 	    if (ait == availablevector.end()) 
 	      ait = availablevector.begin();
 	    
@@ -752,8 +751,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
 	    
 	    // remove it from the selection map
 	    availablefs.erase(*ait);
-	    availablevector.erase(ait);
-	    ait++;
+	    ait = availablevector.erase(ait);
 	    nassigned++;
 	    if (ait == availablevector.end()) 
 	      ait = availablevector.begin();

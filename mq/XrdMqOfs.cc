@@ -533,7 +533,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
   XrdOucString basestats = StatisticsFile;
   basestats.erase(basestats.rfind("/"));
   XrdOucString mkdirbasestats="mkdir -p "; mkdirbasestats += basestats; mkdirbasestats += " 2>/dev/null";
-  system(mkdirbasestats.c_str());
+  int rc = system(mkdirbasestats.c_str());
   
   BrokerId = "root://";
   BrokerId += ManagerId;
@@ -542,7 +542,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
 
   Eroute.Say("=====> mq.queue: ", QueuePrefix.c_str());
   Eroute.Say("=====> mq.brokerid: ", BrokerId.c_str());
-  int rc = XrdOfs::Configure(Eroute);
+  rc = XrdOfs::Configure(Eroute);
   return rc;
 }
 
