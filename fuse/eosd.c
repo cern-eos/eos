@@ -798,7 +798,7 @@ static void eosfs_ll_read(fuse_req_t req, fuse_ino_t ino, size_t size,
 {
   if (fi->fh) {
     char* buf = fdbuffermap[fi->fh];
-    if (isdebug) printf("[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)size,(long long)off,buf,(long long)fi->fh);
+    if (isdebug) printf("[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)size,(long long)off,(long long)buf,(long long)fi->fh);
     int res = xrd_pread(fi->fh, buf, size, off);
     if (res == -1) {
       // map file system errors to IO errors!
@@ -820,7 +820,7 @@ static void eosfs_ll_write(fuse_req_t req, fuse_ino_t ino, const char *buf, size
 			    off_t off, struct fuse_file_info *fi)
 {
   if (fi->fh) {
-    if (isdebug) printf("[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)size,(long long)off,buf,(long long)fi->fh);
+    if (isdebug) printf("[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)size,(long long)off,(long long)buf,(long long)fi->fh);
     int res = xrd_pwrite(fi->fh, buf, size, off);
     if (res == -1) {
       fuse_reply_err(req, errno);
