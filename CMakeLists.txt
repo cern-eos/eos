@@ -23,6 +23,7 @@ include(EosUtils)
 
 if (CLIENT)
 find_package(XRootD REQUIRED)
+find_package(fuse REQUIRED)
 else (CLIENT)
 find_package(SparseHash REQUIRED)
 find_package(OpenSSL REQUIRED)
@@ -30,6 +31,8 @@ find_package(uuid REQUIRED)
 find_package(z REQUIRED)
 find_package(CPPUnit)
 find_package(XRootD REQUIRED)
+find_package(fuse REQUIRED)
+find_package(attr REQUIRED)
 endif (CLIENT)
 
 ######################################################################################################################
