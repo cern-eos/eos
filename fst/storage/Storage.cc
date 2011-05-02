@@ -1245,6 +1245,9 @@ Storage::Publish()
   struct timeval tv1, tv2; 
   struct timezone tz;
 
+  // give some time before publishing
+  sleep(3);
+
   while (1) {
     gettimeofday(&tv1, &tz);
 
@@ -1260,6 +1263,13 @@ Storage::Publish()
       } else {
         // copy out statfs info
         for (size_t i=0; i<fileSystemsVector.size(); i++) {
+
+          if (!fileSystemsVector[i]->GetId()) {
+            // during the boot phase we can find a filesystem without ID
+            continue;
+          }
+
+
           eos::common::Statfs* statfs = 0;
           if ( (statfs= fileSystemsVector[i]->GetStatfs()) ) {
             // call the update function which stores into the filesystem shared hash

@@ -163,7 +163,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     //    return;
   }
   if (to_set & FUSE_SET_ATTR_SIZE) {
-    if (isdebug) printf("[%s]: set attr size=%d ino=%lld\n", __FUNCTION__,attr->st_size, (long long)ino);
+    if (isdebug) printf("[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__,(long long)attr->st_size, (long long)ino);
     int fd;
     if ((fd = xrd_open(fullpath, O_WRONLY , S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
       retc = xrd_truncate(fd,attr->st_size);
@@ -178,8 +178,8 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     tvp[0].tv_nsec = 0;
     tvp[1].tv_sec = attr->st_mtime;
     tvp[1].tv_nsec = 0;
-    if (isdebug) printf("[%s]: set attr atime ino=%lld time=%u\n", __FUNCTION__,(long long)ino, attr->st_atime);
-    if (isdebug) printf("[%s]: set attr mtime ino=%lld time=%u\n", __FUNCTION__,(long long)ino, attr->st_mtime);
+    if (isdebug) printf("[%s]: set attr atime ino=%lld time=%ld\n", __FUNCTION__,(long long)ino, (long)attr->st_atime);
+    if (isdebug) printf("[%s]: set attr mtime ino=%lld time=%ld\n", __FUNCTION__,(long long)ino, (long)attr->st_mtime);
     retc = xrd_utimes(fullpath, tvp);
   }
   struct stat newattr;
@@ -303,7 +303,7 @@ static void eosfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
   }
   
   sprintf(fullpath,"root://%s@%s//proc/user/?mgm.cmd=fuse&mgm.subcmd=inodirlist&mgm.path=%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
-  if (isdebug) printf("[%s]: inode=%lld path=%s size=%d off=%d\n", __FUNCTION__,(long long)ino,fullpath,size,off);
+  if (isdebug) printf("[%s]: inode=%lld path=%s size=%lld off=%lld\n", __FUNCTION__,(long long)ino,fullpath,(long long)size,(long long)off);
 
   int retc = 0;
 
@@ -339,7 +339,7 @@ static void eosfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
     b = xrd_inodirlist_getbuffer(ino);
   }
   
-  if (isdebug) printf("[%s]: return size=%d ptr=%d\n", __FUNCTION__,b->size,b->p);
+  if (isdebug) printf("[%s]: return size=%lld ptr=%lld\n", __FUNCTION__,(long long)b->size,(long long)b->p);
   reply_buf_limited(req,b->p,b->size,off,size);
 
 }
@@ -798,7 +798,7 @@ static void eosfs_ll_read(fuse_req_t req, fuse_ino_t ino, size_t size,
 {
   if (fi->fh) {
     char* buf = fdbuffermap[fi->fh];
-    if (isdebug) printf("[%s]: inode=%lld size=%d off=%lld buf=%d fh=%d\n", __FUNCTION__,(long long)ino,size,off,buf,fi->fh);
+    if (isdebug) printf("[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)size,(long long)off,buf,(long long)fi->fh);
     int res = xrd_pread(fi->fh, buf, size, off);
     if (res == -1) {
       // map file system errors to IO errors!
@@ -820,7 +820,7 @@ static void eosfs_ll_write(fuse_req_t req, fuse_ino_t ino, const char *buf, size
 			    off_t off, struct fuse_file_info *fi)
 {
   if (fi->fh) {
-    if (isdebug) printf("[%s]: inode=%lld size=%d off=%lld buf=%d fh=%d\n", __FUNCTION__,(long long)ino,size,off,buf,fi->fh);
+    if (isdebug) printf("[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)size,(long long)off,buf,(long long)fi->fh);
     int res = xrd_pwrite(fi->fh, buf, size, off);
     if (res == -1) {
       fuse_reply_err(req, errno);
@@ -836,7 +836,7 @@ static void eosfs_ll_release(fuse_req_t req, fuse_ino_t ino,
 			    struct fuse_file_info *fi)
 {
   if (fi->fh) {
-    if (isdebug) printf("[%s]: inode=%lld fh=%d\n", __FUNCTION__,(long long)ino,fi->fh);
+    if (isdebug) printf("[%s]: inode=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)fi->fh);
     int fd = (int)fi->fh;
 
     if (fdbuffermap[fi->fh]) {
@@ -867,7 +867,7 @@ static void eosfs_ll_fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 			    struct fuse_file_info *fi)
 {
   if (fi->fh) {
-    if (isdebug) printf("[%s]: inode=%lld fh=%d\n", __FUNCTION__,(long long)ino,fi->fh);
+    if (isdebug) printf("[%s]: inode=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)fi->fh);
     int res = xrd_fsync(fi->fh);
     if (res == -1) {
       fuse_reply_err(req, errno);
