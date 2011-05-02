@@ -1034,7 +1034,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 			fs->SetString(key.c_str(),value.c_str());
 			FsView::gFsView.StoreFsConfig(fs);
 		      } else {
-                        if ( ( (key == "headroom") || ( key == "scaninterval" ) || ( key == "graceperiod" ) )&& ( eos::common::StringConversion::GetSizeFromString(value.c_str()) > 0)) {
+                        if ( ( (key == "headroom") || ( key == "scaninterval" ) || ( key == "graceperiod" ) )&& ( eos::common::StringConversion::GetSizeFromString(value.c_str()) >= 0)) {
                           fs->SetLongLong(key.c_str(), eos::common::StringConversion::GetSizeFromString(value.c_str()));
                           FsView::gFsView.StoreFsConfig(fs);
                         } else {
@@ -1490,7 +1490,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    if (fs) {
 	      // check the allowed strings
 	      if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ) ) ||
-                   (((key == "headroom") || (key == "scaninterval") || (key == "graceperiod")) && (eos::common::StringConversion::GetSizeFromString(value.c_str()) > 0) ) ) {
+                   (((key == "headroom") || (key == "scaninterval") || (key == "graceperiod")) && (eos::common::StringConversion::GetSizeFromString(value.c_str()) >= 0) ) ) {
                 
 		std::string nodename = fs->GetString("host");
 		size_t dpos=0;
