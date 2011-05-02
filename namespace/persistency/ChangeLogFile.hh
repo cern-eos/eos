@@ -59,6 +59,14 @@ namespace eos
       //! Called to report progress to the outside world
       //------------------------------------------------------------------------
       virtual void reportProgress( LogRepairStats &stats ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Report the log header status
+      //------------------------------------------------------------------------
+      virtual void reportHeaderStatus( bool               isOk,
+                                       const std::string &message,
+                                       uint8_t            version,
+                                       uint16_t           contentFlag ) = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -170,6 +178,16 @@ namespace eos
                           LogRepairStats     &stats,
                           ILogRepairFeedback *feedback ) throw( MDException );
     private:
+
+      //------------------------------------------------------------------------
+      // Decode the header flags of the log file
+      //------------------------------------------------------------------------
+      static void decodeHeaderFlags( uint32_t flags, uint8_t &version,
+                                     uint16_t &contentFlag )
+      {
+        version     = flags & 0x000000ff;
+        contentFlag = (flags >> 8) & 0x0000ffff;
+      }
 
       //------------------------------------------------------------------------
       // Data members
