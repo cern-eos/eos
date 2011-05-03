@@ -129,6 +129,13 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     }
     ChecksumMap = (char*)mmap(0, ChecksumMapSize, PROT_READ | PROT_WRITE, MAP_SHARED, ChecksumMapFd, 0);
   } else {
+    // make sure the file on disk is large enough
+    if (ftruncate(ChecksumMapFd, maxfilesize)) {
+      ChecksumMapSize = 0;
+      //    fprintf(stderr,"CheckSum:ChangeMap ftruncate failed\n");
+      return false;
+    }
+
     ChecksumMap = (char*)mmap(0, ChecksumMapSize, PROT_READ, MAP_SHARED, ChecksumMapFd, 0);
   }
 

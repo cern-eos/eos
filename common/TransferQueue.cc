@@ -45,6 +45,8 @@ TransferQueue::TransferQueue(const char* queue, const char* subqueue, FileSystem
         mHashQueue = 0;
       }
     } else {
+      // remove all scheduled objects
+      mHashQueue->Clear();
       mSom->HashMutex.UnLockRead();
     }
   } else {

@@ -232,8 +232,11 @@ public:
     return 0;
   }
 
-  bool HasHeartBeat(fs_snapshot_t &fs);
+  TransferQueue* GetDrainQueue  () { return mDrainQueue;   }
+  TransferQueue* GetBalanceQueue() { return mBalanceQueue; }
+  TransferQueue* GetExternQueue () { return mExternQueue; }
 
+  bool HasHeartBeat(fs_snapshot_t &fs);
 
   bool ReserveSpace(fs_snapshot_t &fs, unsigned long long bookingsize);
 

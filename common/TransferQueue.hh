@@ -6,6 +6,7 @@
 #include "common/StringConversion.hh"
 #include "common/FileSystem.hh"
 #include "common/TransferJob.hh"
+#include "mq/XrdMqRWMutex.hh"
 #include "mq/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -38,7 +39,21 @@ public:
 
   bool Add   (eos::common::TransferJob* job);
   bool Remove(eos::common::TransferJob* job);
-  bool Clear () {
+  
+  size_t Size() {
+    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(),"queue");
+    if (mHashQueue) {
+      if (mHashQueue->GetQueue()) {
+        return mHashQueue->GetQueue()->size();
+      }
+    }
+    return 0;
+  }
+
+  bool Clear () {    
+    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(),"queue");
     if (mHashQueue) {
       if (mHashQueue->GetQueue()) {
         mHashQueue->GetQueue()->clear();

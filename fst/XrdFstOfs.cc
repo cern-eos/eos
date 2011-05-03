@@ -706,7 +706,7 @@ XrdFstOfsFile::verifychecksum()
         // remove the checksum object
         delete checkSum;
         checkSum=0;
-        return true;
+        return false;
       }
     }
     

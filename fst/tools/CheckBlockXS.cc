@@ -73,6 +73,7 @@ int main(int argc, const char* argv[]) {
           memset(buffer+nread, 0, blockSize-nread);
         }
         checksum->Reset();
+        //        fprintf(stderr,"checking %lld %lld\n", offset, blockSize);
         if (!checksum->CheckBlockSum(offset, buffer, blockSize)) {
           fprintf(stderr,"block-XS error => offset %llu\n", (unsigned long long)offset);
           nerr++;

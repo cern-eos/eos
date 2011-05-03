@@ -38,7 +38,8 @@ DrainJob::Drain(void)
   FileSystem* fs = 0;
   int valSem = 0;
   eos_static_notice("Starting Drain Job for fs=%u onOpsError=%d", fsid,onOpsError);
-  
+  std::string group="";
+
   {
     // set status to 'prepare'
     eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
@@ -49,6 +50,7 @@ DrainJob::Drain(void)
     }
     
     fs->SetDrainStatus(eos::common::FileSystem::kDrainPrepare);
+    group = fs->GetString("schedgroup");
   }
 
   // check if we should abort
@@ -77,7 +79,7 @@ DrainJob::Drain(void)
         totalbytes+= fmd->getSize();
         totalfiles++;
         // insert into the drainqueue
-        //        fids.insert((unsigned long long)fmd->getId());
+        fids.push_back((unsigned long long)fmd->getId());
       }
     }
   } catch ( eos::MDException &e ) {
@@ -169,6 +171,51 @@ DrainJob::Drain(void)
     fs->SetDrainStatus(eos::common::FileSystem::kDraining);
   }
   // start scheduling into the queues
+  // do {
+//     {
+//       // do one loop over the scheduling group and check how many files are still scheduled
+//       eos::common::RWMutexReadLock viewlock(FsView::gFsView::ViewMutex);
+//       std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
+//       if (FsView::gFsView::mGroupView.count(group)) {
+//         for (it = FsView::gFsView.mGroupView[group]; it != FsView::gFsView.mGroupView[group]; it++) {
+//           eos::common::FileSystem::fs_snapshot_t snapshot;
+//           FileSystem* afs = FsView::gFsView::mIdView[it];
+//           fs->SnapShotFileSystem(snapshot,false);
+          
+//           if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
+//                (snapshot.mConfigStatus == eos::common::FileSystem::kRW)     &&
+//                (snapshot.mErrCode      == 0 ) &&
+//                (fs->HasHeartBeat(snapshot)) &&
+//                (FsView::gFsView::mNodeView[snapshot.mQueue]->GetConfigMember("status")  == "on") &&
+//                (FsView::gFsView::mGroupView[snapshot.mQueue]->GetConfigMember("status") == "on") &&
+//                ) {
+//             // this is a healthy filesystem
+//             TransferQueue* queue = 0;
+//             if ( (queue = fs->GetDrainQueue())) {
+//               int n2submit = 100 - Size();
+//               if (n2submit>0) {
+//                 // submit n2submit jobs
+//                 eos_static_info("submitting %d new transfer jobs", n2submit);
+//                 for (int nsubmit = 0; nsubmit < n2submit; nsubmit++) {
+//                   if (fids.size()==0) 
+//                     break;
+                    
+//                   unsigned long long fid = fids.front();
+//                   fids.pop_front();
+//                   TransferJob* txjob = new TranfserJob("fid=0001");
+//                   queue->Add(txjob);
+//                 }
+//               }
+//             }
+//           }
+//         }
+//       }
+//       if (fids.size()==0) 
+//         break;
+//       sleep(1);
+//     }
+//   } while (1);
+
   
   sleep(1);
   // set status to 'drained'
