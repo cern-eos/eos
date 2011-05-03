@@ -76,6 +76,8 @@ DrainJob::Drain(void)
         //      }
         totalbytes+= fmd->getSize();
         totalfiles++;
+        // insert into the drainqueue
+        //        fids.insert((unsigned long long)fmd->getId());
       }
     }
   } catch ( eos::MDException &e ) {
@@ -167,6 +169,7 @@ DrainJob::Drain(void)
     fs->SetDrainStatus(eos::common::FileSystem::kDraining);
   }
   // start scheduling into the queues
+  
   sleep(1);
   // set status to 'drained'
   // return if over

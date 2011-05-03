@@ -5,6 +5,7 @@
 #include "common/Namespace.hh"
 #include "common/StringConversion.hh"
 #include "common/FileSystem.hh"
+#include "common/TransferJob.hh"
 #include "mq/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -35,8 +36,8 @@ public:
 
   TransferQueue(const char* queue, const char* subqueue, eos::common::FileSystem* fs, XrdMqSharedObjectManager* som, bool bc2mgm=false);
 
-  bool Add   (const char* capability);
-  bool Remove(const char* capability);
+  bool Add   (eos::common::TransferJob* job);
+  bool Remove(eos::common::TransferJob* job);
   bool Clear () {
     if (mHashQueue) {
       if (mHashQueue->GetQueue()) {

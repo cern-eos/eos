@@ -556,11 +556,14 @@ Storage::Scrub()
 	unsigned long long blocks = fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_blocks;
 	unsigned long id = fileSystemsVector[i]->GetId();
 	fsMutex.UnLockRead();
-	
+        
+        if (!id) 
+          continue;
+
 	if (ScrubFs(path.c_str(),free,blocks,id)) {
 	  // filesystem has errors!
 	  fsMutex.LockRead();
-	  if (fileSystemsVector[i]) {
+	  if ((i < fileSystemsVector.size()) && fileSystemsVector[i]) {
 	    fileSystemsVector[i]->BroadcastError(EIO,"filesystem probe error detected");
 	  }
 	  fsMutex.UnLockRead();
@@ -571,7 +574,7 @@ Storage::Scrub()
     }
     time_t stop = time(0);
 
-    int nsleep = ( (4*3600)-(stop-start));
+    int nsleep = ( (300)-(stop-start));
     eos_static_info("Scrubber will pause for %u seconds",nsleep);
     sleep(nsleep);
   }
@@ -581,7 +584,7 @@ Storage::Scrub()
 int
 Storage::ScrubFs(const char* path, unsigned long long free, unsigned long long blocks, unsigned long id) 
 {
-  int MB = 100; // the test files have 100 MB
+  int MB = 1; // the test files have 1 MB
 
   int index = 10 - (int) (10.0 * free / blocks);
 
@@ -1263,6 +1266,10 @@ Storage::Publish()
       } else {
         // copy out statfs info
         for (size_t i=0; i<fileSystemsVector.size(); i++) {
+          if (!fileSystemsVector[i]) {
+            eos_static_err("found 0 vector in filesystems vector %u", i);
+            continue;
+          }
 
           if (!fileSystemsVector[i]->GetId()) {
             // during the boot phase we can find a filesystem without ID

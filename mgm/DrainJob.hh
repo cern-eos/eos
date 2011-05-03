@@ -7,6 +7,7 @@
 #include "mgm/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "semaphore.h"
+#include <queue>
 /*----------------------------------------------------------------------------*/
 
 
@@ -21,7 +22,9 @@ private:
   bool onOpsError;
   pthread_t thread;
   sem_t semaphore;
-  
+
+  std::deque<unsigned long long> fids;
+
 public:
 
   DrainJob(eos::common::FileSystem::fsid_t ifsid, bool opserror=false) {
