@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <string>
 #include "namespace/persistency/ChangeLogFile.hh"
@@ -54,6 +55,25 @@ class Feedback: public eos::ILogRepairFeedback
       //------------------------------------------------------------------------
       if( sum == stats.bytesTotal )
         std::cerr << std::endl;
+    }
+
+    //--------------------------------------------------------------------------
+    // Check the header
+    //--------------------------------------------------------------------------
+    virtual void reportHeaderStatus( bool               isOk,
+                                     const std::string &message,
+                                     uint8_t            version,
+                                     uint16_t           contentFlag )
+    {
+      std::cerr << "Header status: ";
+      if( isOk )
+      {
+        std::cerr << "OK (version: 0x" << std::setbase(16) << (int)version;
+        std::cerr << ", content: 0x" << std::setbase(16) << contentFlag;
+        std::cerr << ")" << std::setbase(10) << std::endl;
+      }
+      else
+        std::cerr << "broken (" << message << ")" << std::endl;
     }
 
   private:

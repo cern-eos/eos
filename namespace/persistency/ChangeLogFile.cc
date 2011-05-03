@@ -81,8 +81,8 @@ namespace eos
     if( fd >= 0 )
     {
       uint32_t flags   = checkHeader( fd, name );
-      uint8_t  version = flags & 0x000000ff;
-      pContentFlag     = (flags >> 8) & 0x0000ffff;
+      uint8_t  version = 0;
+      decodeHeaderFlags( flags, version, pContentFlag );
 
       if( version == 0 || version > 1 )
       {
@@ -696,9 +696,6 @@ namespace eos
     //--------------------------------------------------------------------------
     // Open the input and output files and check out the header
     //--------------------------------------------------------------------------
-    ChangeLogFile output;
-    output.open( newFilename );
-
     int fd = ::open( filename.c_str(), O_RDONLY );
     if( fd == -1 )
     {
@@ -708,9 +705,23 @@ namespace eos
     }
     FileSmartPtr fdPtr( fd );
 
-    bool headerCorrect = true;
-    try { checkHeader( fd, filename ); }
-    catch( MDException &e ) { headerCorrect = false; }
+    uint16_t contentFlag = 0;
+    try
+    {
+      uint32_t headerFlags = checkHeader( fd, filename );
+      uint8_t  version     = 0;
+      decodeHeaderFlags( headerFlags, version, contentFlag );
+      if( feedback )
+        feedback->reportHeaderStatus( true, "", version, contentFlag );
+    }
+    catch( MDException &e )
+    {
+      if( feedback )
+        feedback->reportHeaderStatus( false, e.getMessage().str(), 0, 0 );
+    }
+
+    ChangeLogFile output;
+    output.open( newFilename, false, contentFlag );
 
     //--------------------------------------------------------------------------
     // Reconstructing...
