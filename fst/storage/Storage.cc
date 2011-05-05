@@ -555,11 +555,23 @@ Storage::Scrub()
 	unsigned long long free   = fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_bfree;
 	unsigned long long blocks = fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_blocks;
 	unsigned long id = fileSystemsVector[i]->GetId();
+        eos::common::FileSystem::fsstatus_t bootstatus = fileSystemsVector[i]->GetStatus();
+        eos::common::FileSystem::fsstatus_t configstatus = fileSystemsVector[i]->GetConfigStatus();
+
 	fsMutex.UnLockRead();
         
         if (!id) 
           continue;
 
+        // don't scrub on filesystems which are not in writable mode!
+        if (configstatus < eos::common::FileSystem::kWO) 
+          continue;
+
+        if (bootstatus != eos::common::FileSystem::kBooted) 
+          continue;
+
+        // don't scrub on filesystems which are not booted
+        
 	if (ScrubFs(path.c_str(),free,blocks,id)) {
 	  // filesystem has errors!
 	  fsMutex.LockRead();
