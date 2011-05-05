@@ -238,9 +238,9 @@ public:
   }
 
   double GetDiskRate(const char* devpath, const char* tag) { 
+    Mutex.Lock();
     const char* dev = DevMap(devpath);
     //fprintf(stderr,"**** Device is %s\n", dev);
-    Mutex.Lock();
     double val = fDiskStat.GetRate(dev,tag);
     Mutex.UnLock();
     return val;

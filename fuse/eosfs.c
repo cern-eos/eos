@@ -1,3 +1,4 @@
+
 /************************************************************************/
 /* eosd.c                                                            */
 /*                                                                      */
@@ -540,17 +541,24 @@ int main(int argc, char *argv[])
     usage;
   }
 
+  int shift = 0;
 
   for (i=0; i< argc; i++) {
     if (!strncmp(argv[i],"root://", 7)) {
       // this is the url where to go
       ordr = strdup(argv[i]);
-      argv[i]=0;
-      margc = argc-2;
-      break;
+      margc = argc-1;
+      shift = 1;
+    } else {
+      if (shift) {
+        argv[i-1]=argv[i];
+      }
     }
   }
   
+  for (i=0; i < margc; i++ ) {
+    printf("%d: %s\n", i, argv[i]);
+  }
 
   if (getenv("EOS_FUSE_MGM_URL")) {
     snprintf(rdrurl,sizeof(rdrurl)-1,"%s", getenv("EOS_FUSE_MGM_URL"));
