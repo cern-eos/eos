@@ -11,6 +11,12 @@ extern XrdOucString serveruri;
 /* mount/umount via fuse */
 int
 com_fuse (char* arg1) {
+  if (interactive) {
+    fprintf(stderr,"error: don't call <fuse> from an interactive shell - call via 'eos fuse ...'!\n");
+    global_retc = -1;
+    return 0;
+  }
+    
   // split subcommands
   XrdOucString mountpoint="";
   XrdOucTokenizer subtokenizer(arg1);

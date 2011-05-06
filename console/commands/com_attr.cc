@@ -126,7 +126,18 @@ com_attr (char* arg1) {
   printf("         attr: sys.forced.bookingsize=<bytes>      = set's the number of bytes which get for each new created replica\n");
   printf("         attr: sys.stall.unavailable=<sec>         = stall clients for <sec> seconds if a needed file system is unavailable\n");
   printf("         attr: sys.heal.unavailable=<tries>        = try to heal an unavailable file for atleast <tries> times - must be >= 3 !!\n");
-  printf("                                                     - the product <heal-tries> * <stall-time> should be bigger than the expect replication time for a given filesize!\n");
+  printf("                                                     - the product <heal-tries> * <stall-time> should be bigger than the expect replication time for a given filesize!\n\n");
+  printf("         attr: sys.redirect.enoent=<host[:port]>   = redirect clients opening non existing files to <host[:port]>\n");
+  printf("               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public \n\n");
+  printf("         attr: sys.acl=<acllist>                   = set's an ACL which is honoured for open,rm & rmdir operations\n");
+  printf("               => <acllist> = <rule1>,<rule2>...<ruleN> is a comma separated list of rules\n");
+  printf("               => <rule> = u|g|egroup:<name>:{rwo} \n\n");
+  printf("               Example: u:300:rw,g:400:rwo:egroup:eos-dev:rw\n\n");
+  printf("               => user id 300 can read + write\n");
+  printf("               => group id 400 can read + write-once (create new files but can't delete)\n");
+  printf("               => members of egroup 'eos-dev' can read & write\n");
+ 
+  
   printf("         User Variables:\n");
   printf("         -----------------------\n");
   printf("         attr: user.forced.space=<space>           = s.a.\n");
@@ -138,6 +149,7 @@ com_attr (char* arg1) {
   printf("         attr: user.forced.nouserlayout=1          = s.a.\n");
   printf("         attr: user.forced.nofsselection=1         = s.a.\n");
   printf("         attr: user.stall.unavailable=<sec>        = s.a.\n");
+  printf("         attr: user.acl=<acllist>                  = s.a.\n");
   printf("         attr: user.tag=<tag>                      = - tag to group files for scheduling and flat file distribution\n");
   printf("                                                     - use this tag to define datasets (if <tag> contains space use tag with quotes)\n");
   return (0);

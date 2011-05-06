@@ -4,6 +4,7 @@
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "common/Timing.hh"
+#include "common/StringConversion.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -11,6 +12,7 @@
 #include "mgm/XrdMgmOfsSecurity.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Quota.hh"
+#include "mgm/Acl.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdVersion.hh"
 #include "XrdClient/XrdClientAdmin.hh"
@@ -521,21 +523,96 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   // check permissions
 
   if (!dmd) {
-    gOFS->eosViewMutex.UnLock();
+    if (cPath.GetSubPath(2)) {
+      eos_info("checking l2 path %s", cPath.GetSubPath(2));
+      //-------------------------------------------
+      // check if we have a redirection setting at level 2 in the namespace
+      //-------------------------------------------
+      try {
+        dmd = gOFS->eosView->getContainer(cPath.GetSubPath(2));
+        // get the attributes out
+        eos::ContainerMD::XAttrMap::const_iterator it;
+        for ( it = dmd->attributesBegin(); it != dmd->attributesEnd(); ++it) {
+          attrmap[it->first] = it->second;
+        }
+      } catch( eos::MDException &e ) {
+        dmd = 0;
+        errno = e.getErrno();
+        eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      };
+      
+      gOFS->eosViewMutex.UnLock();
+      
+      //-------------------------------------------
+      if (attrmap.count("sys.redirect.enoent")) {
+      // there is a redirection setting here
+        redirectionhost = "";
+        redirectionhost = attrmap["sys.redirect.enoent"].c_str();
+        int portpos = 0;
+        if ( (portpos = redirectionhost.find(":")) != STR_NPOS) {
+          XrdOucString port = redirectionhost;
+          port.erase(0,portpos+1);
+          ecode = atoi(port.c_str());
+          redirectionhost.erase(portpos);
+        } else {
+          ecode = 1094;
+        }
+        rcode = SFS_REDIRECT;
+        error.setErrInfo(ecode, redirectionhost.c_str());
+        gOFS->MgmStats.Add("RedirectENOENT",0,0,0);
+        eos_info("redirecting to %s:%d", redirectionhost.c_str(), ecode);
+        return rcode;
+      }
+    }
+    
     return Emsg(epname, error, errno, "open file", path);
+  } else {
+    gOFS->eosViewMutex.UnLock();
   }
-  if (!dmd->access(vid.uid, vid.gid, (isRW)?W_OK | X_OK:R_OK | X_OK)) {
+
+
+  // ACL and permission check
+  Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
+
+  eos_info("acl=%d r=%d w=%d wo=%d egroup=%d", acl.HasAcl(),acl.CanRead(),acl.CanWrite(),acl.CanWriteOnce(), acl.HasEgroup());
+  bool stdpermcheck=false;
+  if (acl.HasAcl()) {
+    if (isRW) {
+      // write case
+      if ( (!acl.CanWrite()) && (!acl.CanWriteOnce()) ) {
+        // we have to check the standard permissions
+        stdpermcheck = true;
+      }
+    } else {
+      // read case
+      if ( (!acl.CanRead()) ) {
+        // we have to check the standard permissions
+        stdpermcheck = true;
+      } 
+    }
+  } else {
+    stdpermcheck = true;
+  }
+
+  if (stdpermcheck && (!dmd->access(vid.uid, vid.gid, (isRW)?W_OK | X_OK:R_OK | X_OK))) {
     errno = EPERM;
     gOFS->eosViewMutex.UnLock();
     gOFS->MgmStats.Add("OpenFailedPermission",vid.uid,vid.gid,1);  
     return Emsg(epname, error, errno, "open file", path);      
   }
+  
 
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
   
   if (isRW) {
     if ((open_mode & SFS_O_TRUNC) && fmd) {
+      // check if this directory is write-once for the mapped user
+      if (acl.CanWriteOnce()) {
+        // this is a write once user
+        return Emsg(epname, error, EEXIST,"overwrite existing file - you are write-once user");
+      }
+
       // drop the old file and create a new truncated one
       if (gOFS->_rem(path,error, vid, info)) {
 	return Emsg(epname, error, errno,"remove file for truncation", path);
@@ -590,6 +667,24 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       }
     }
   } else {
+    if ((!fmd) && (attrmap.count("sys.redirect.enoent"))) {
+      // there is a redirection setting here
+      redirectionhost = "";
+      redirectionhost = attrmap["sys.redirect.enoent"].c_str();
+      int portpos = 0;
+      if ( (portpos = redirectionhost.find(":")) != STR_NPOS) {
+        XrdOucString port = redirectionhost;
+        port.erase(0,portpos+1);
+        ecode = atoi(port.c_str());
+        redirectionhost.erase(portpos);
+      } else {
+        ecode = 1094;
+      }
+      rcode = SFS_REDIRECT;
+      error.setErrInfo(ecode, redirectionhost.c_str());
+      gOFS->MgmStats.Add("RedirectENOENT",0,0,0);
+      return rcode;
+    }
     if ((!fmd)) 
       return Emsg(epname, error, errno, "open file", path);      
     gOFS->MgmStats.Add("OpenRead",vid.uid,vid.gid,1);  
@@ -1717,6 +1812,9 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   eos::FileMD* fmd=0;
   eos::ContainerMD* container=0;
 
+  eos::ContainerMD::XAttrMap attrmap;
+  Acl acl;
+
   try { 
     fmd = gOFS->eosView->getFile(path);
   } catch ( eos::MDException &e) {
@@ -1727,11 +1825,40 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   if (fmd) {
     try {
       container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+      // get the attributes out
+      eos::ContainerMD::XAttrMap::const_iterator it;
+      for ( it = container->attributesBegin(); it != container->attributesEnd(); ++it) {
+        attrmap[it->first] = it->second;
+      }
     } catch ( eos::MDException &e ) {
       container = 0;
     }
+
+    // ACL and permission check
+    acl.Set(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
+    bool stdpermcheck=false;
+    if (acl.HasAcl()) {
+      if ( (!acl.CanWrite()) && (!acl.CanWriteOnce()) ) {
+        // we have to check the standard permissions
+        stdpermcheck = true;
+      }
+    } else {
+      stdpermcheck = true;
+    }
     
     if (container) {
+      if (stdpermcheck && (!container->access(vid.uid, vid.gid, W_OK | X_OK))) {
+        errno = EPERM;
+        gOFS->eosViewMutex.UnLock();
+        return Emsg(epname, error, errno, "remove file", path);      
+      }
+      
+      // check if this directory is write-once for the mapped user
+      if (acl.CanWriteOnce()) {
+        // this is a write once user
+        return Emsg(epname, error, EPERM,"remove existing file - you are write-once user");
+      }
+    
       eos::QuotaNode* quotanode = 0;
       try {
 	quotanode = gOFS->eosView->getQuotaNode(container);

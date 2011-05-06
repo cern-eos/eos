@@ -758,6 +758,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("OpenWriteTruncate",0,0,0);
   gOFS->MgmStats.Add("OpenWrite",0,0,0);
   gOFS->MgmStats.Add("ReadLink",0,0,0);
+  gOFS->MgmStats.Add("RedirectENOENT",0,0,0);
   gOFS->MgmStats.Add("Rename",0,0,0);
   gOFS->MgmStats.Add("RmDir",0,0,0);
   gOFS->MgmStats.Add("Rm",0,0,0);
