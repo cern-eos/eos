@@ -3328,7 +3328,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  for (i=0; i<9; i++) if (fmode_v[i] & buf.st_mode) modestr[i+1] = fmode[i];
 		  if ( S_ISUID & buf.st_mode ) modestr[3] = 's';
 		  if ( S_ISGID & buf.st_mode ) modestr[6] = 's';
-		  
+                  if ( S_ISVTX & buf.st_mode ) modestr[9] = '+';
 		  if (translateids) {
 		    {
 		      // try to translate with password database

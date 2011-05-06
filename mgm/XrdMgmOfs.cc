@@ -2196,6 +2196,9 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     buf->st_dev     = 0xcaff;
     buf->st_ino     = cmd->getId();
     buf->st_mode    = cmd->getMode();
+    if (cmd->attributesBegin() != cmd->attributesEnd()) {
+      buf->st_mode |= S_ISVTX;
+    }
     buf->st_nlink   = 0;
     buf->st_uid     = cmd->getCUid();
     buf->st_gid     = cmd->getCGid();
@@ -4141,7 +4144,7 @@ XrdMgmOfs::FsListener()
       }
       gOFS->ObjectManager.HashMutex.UnLockRead();
 
-      if (fsid && errc && (cfgstatus >= eos::common::FileSystem::kRO)) {
+      if (fsid && errc && (cfgstatus >= eos::common::FileSystem::kRO) && (bstatus != eos::common::FileSystem::kBootFailure) ) {
         // this is the case we take action and explicitly ask to start a drain job
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         fs = FsView::gFsView.mIdView[fsid];
