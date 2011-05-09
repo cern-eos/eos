@@ -119,6 +119,28 @@ public:
   //! Setter Functions
   //------------------------------------------------------------------------
 
+  bool OpenTransaction() {
+    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
+      mHash->OpenTransaction();
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  bool CloseTransaction() {
+    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
+      mHash->CloseTransaction();
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+
+
   bool SetId(fsid_t fsid) {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
     if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {

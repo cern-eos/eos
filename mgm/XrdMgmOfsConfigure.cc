@@ -650,6 +650,57 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     }
   }
 
+  // create /eos/proc
+  eosmd=0;
+  try {
+    XrdOucErrInfo error;
+    XrdSfsFileExistence file_exists;
+    eosmd = eosView->getContainer("/eos/proc");
+    eos::common::Mapping::VirtualIdentity vid;
+    eos::common::Mapping::Root(vid);
+    eos::FileMD* fmd=0;
+    if ((!gOFS->_exists("/eos/proc/whoami",file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
+      fmd = gOFS->eosView->createFile("/eos/proc/whoami",0,0);
+    if (fmd) {
+      fmd->setSize(4096);
+      gOFS->eosView->updateFileStore(fmd);
+    }
+    if ((!gOFS->_exists("/eos/proc/who",file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
+      fmd = gOFS->eosView->createFile("/eos/proc/who",0,0);
+    if (fmd) {
+      fmd->setSize(4096);
+      gOFS->eosView->updateFileStore(fmd);
+    }
+    if ((!gOFS->_exists("/eos/proc/quota",file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
+      fmd = gOFS->eosView->createFile("/eos/proc/quota",0,0);
+    if (fmd) {
+      fmd->setSize(4096);
+      gOFS->eosView->updateFileStore(fmd);
+    }
+    if ((!gOFS->_exists("/eos/proc/reconnect",file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
+      fmd = gOFS->eosView->createFile("/eos/proc/reconnect",0,0);
+    if (fmd) {
+      fmd->setSize(4096);
+      gOFS->eosView->updateFileStore(fmd);
+    }
+  } catch ( eos::MDException &e ) {
+    // nothing in this case
+    eosmd = 0;
+  }
+  
+  if (!eosmd) {
+    try {
+      eosmd = eosView->createContainer( "/eos/proc", true );
+      // set attribute inheritance
+      eosmd->setMode(S_IFDIR| S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP);
+      eosView->updateContainerStore(eosmd);
+    } catch ( eos::MDException &e ) {
+      Eroute.Emsg("Config","cannot set the /eos/proc directory mode to inital mode");
+      eos_crit("cannot set the /eos/proc directory mode to 755");
+      return 1;
+    }
+  }
+
   //-------------------------------------------
 
   // create the specific listener class

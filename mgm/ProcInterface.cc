@@ -127,6 +127,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
   cmd          = opaque.Get("mgm.cmd");
   subcmd       = opaque.Get("mgm.subcmd");
   outformat    = opaque.Get("mgm.outformat");
+  bool fuseformat = false;
+  XrdOucString format = opaque.Get("mgm.format"); // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line feed in the end
+
+  if (format == "fuse") {
+    fuseformat = true;
+  }
+
 
   stdOut = "";
   stdErr = "";
@@ -1268,7 +1275,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		    fsid = FsView::gFsView.CreateMapping(uuid);
 		    fs = new FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
 		  }
-		  
+
+                  // we want one atomic update with all the parameters defined
+                  fs->OpenTransaction();
+
 		  XrdOucString sizestring;
 		  
 		  stdOut += "success:   mapped '"; stdOut += uuid.c_str() ; stdOut += "' <=> fsid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
@@ -1348,6 +1358,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		      stdErr="error: cannot allocate filesystem object";
 		      retc = ENOMEM;
 		    }
+                    fs->CloseTransaction(); // close all the definitions and broadcast
 		  }
 		}
 	      } else {
@@ -2164,7 +2175,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	stdOut += "By group ...\n";
 	Quota::PrintOut(0, out2 , -1, vid.gid, false, true);
 	stdOut += out2;
-	MakeResult(0);
+	MakeResult(0,fuseformat);
 	return SFS_OK;
       }
     }
@@ -2263,7 +2274,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         }
       }
       eos::common::Mapping::ActiveLock.UnLock();
-      MakeResult(0);
+      MakeResult(0,fuseformat);
       return SFS_OK;
     }
 
@@ -3451,7 +3462,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	stdOut += " sudo*";
 
       stdOut += " host="; stdOut += vid.host.c_str();
-      MakeResult(0);
+      MakeResult(0, fuseformat);
       return SFS_OK;
     }
 
@@ -4040,16 +4051,24 @@ ProcCommand::close()
 
 /*----------------------------------------------------------------------------*/
 void
-ProcCommand::MakeResult(bool dosort) 
+ProcCommand::MakeResult(bool dosort, bool fuseformat) 
 {
-  resultStream =  "mgm.proc.stdout=";
+  resultStream = "";
+  if (!fuseformat)
+    resultStream =  "mgm.proc.stdout=";
   XrdMqMessage::Sort(stdOut,dosort);
   resultStream += XrdMqMessage::Seal(stdOut);
-  resultStream += "&mgm.proc.stderr=";
+  if (!fuseformat)
+    resultStream += "&mgm.proc.stderr=";
   resultStream += XrdMqMessage::Seal(stdErr);
-  resultStream += "&mgm.proc.retc=";
-  resultStream += retc;
-
+  
+  if (!fuseformat) {
+    resultStream += "&mgm.proc.retc=";
+    resultStream += retc;
+  }
+  if (!resultStream.endswith('\n')) {
+    resultStream += "\n";
+  }
   //    fprintf(stderr,"%s\n",resultStream.c_str());
   if (retc) {
     eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);

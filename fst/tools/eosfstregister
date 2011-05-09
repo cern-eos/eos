@@ -5,9 +5,17 @@ use File::Basename;
 
 my $eosowner = "daemon";
 
+#my $fst=`service eos status fst >& /dev/null`;
+
 print "###########################\n";
 print "# <eosfstregister> v1.0.0\n";
 print "###########################\n";
+
+#if (!$fst) {
+#    printf STDERR "warning: stopping your fst service first ...\n";
+#    my $fststop=`service eos stop fst>& /dev/null`;
+#}
+
 sub usage() {
     printf STDERR  "usage: eosfstregister [-i] <host[:port]> <mount-prefix> [<space1>:<nfilesystems1>] [<space2>:<nfilesystems2>] [-h|--help]\n";
     printf STDERR  "                       -i : ignore if one of the filesystems has already a filesystem id stored and continue\n";

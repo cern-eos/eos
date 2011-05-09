@@ -51,6 +51,24 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
         mHash = 0;
       }
     } else {
+      mHash->OpenTransaction();
+      mHash->Set("queue",mQueue);
+      mHash->Set("queuepath",mQueuePath);
+      mHash->Set("path",mPath);
+      std::string hostport = eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
+      size_t ppos=hostport.find(":");
+      std::string host = hostport;
+      std::string port = hostport;
+      if (ppos != std::string::npos) {
+        host.erase(ppos);
+        port.erase(0,ppos+1);
+      } else {
+        port = "1094";
+      }
+      mHash->Set("hostport",hostport);
+      mHash->Set("host",host);
+      mHash->Set("port",port);
+      mHash->CloseTransaction();
       mSom->HashMutex.UnLockRead();
     }
     mDrainQueue   = new TransferQueue(mQueuePath.c_str(),"drainq"  ,this, mSom, bc2mgm );

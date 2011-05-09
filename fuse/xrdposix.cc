@@ -1,4 +1,4 @@
-/************************************************************************/
+//************************************************************************/
 /* xrdposix.cc                                                          */
 /*                                                                      */
 /* Auther: Wei Yang (Stanford Linear Accelerator Center, 2007)          */
@@ -947,7 +947,13 @@ int xrd_open(const char *path, int oflags, mode_t mode)
 {
   XrdOucString spath=path;
   printf("Spath is %s\n",spath.c_str());
-  if (spath.find("/proc/")!=STR_NPOS) {
+  int t0;
+  if ((t0=spath.find("/proc/"))!=STR_NPOS) {
+    // clean the path
+    int t1 = spath.find("//");
+    int t2 = spath.find("//", t1+2);
+    spath.erase(t2+2,t0-t2-2);
+    while (spath.replace("///","//")){};
     // force a reauthentication to the head node
     if (spath.endswith("/proc/reconnect")) {
       XrdClientAdmin* client = new XrdClientAdmin(path);
@@ -964,15 +970,35 @@ int xrd_open(const char *path, int oflags, mode_t mode)
     }
     // return the 'whoami' information in that file
     if (spath.endswith("/proc/whoami")) {
-      spath += rand();
-      spath += "?fscmd=whoami";
-      printf("Opening %s\n",spath.c_str());
+      spath.replace("/proc/whoami","/proc/user/");
+      spath += "?mgm.cmd=whoami&mgm.format=fuse";
       OpenMutex.Lock();
       xrd_sync_env();
       int retc = XrdPosixXrootd::Open(spath.c_str(), oflags, mode);
       OpenMutex.UnLock();
       return retc;
     }
+
+    if (spath.endswith("/proc/who")) {
+      spath.replace("/proc/who","/proc/user/");
+      spath += "?mgm.cmd=who&mgm.format=fuse";
+      OpenMutex.Lock();
+      xrd_sync_env();
+      int retc = XrdPosixXrootd::Open(spath.c_str(), oflags, mode);
+      OpenMutex.UnLock();
+      return retc;
+    }
+
+    if (spath.endswith("/proc/quota")) {
+      spath.replace("/proc/quota","/proc/user/");
+      spath += "?mgm.cmd=quota&mgm.format=fuse";
+      OpenMutex.Lock();
+      xrd_sync_env();
+      int retc = XrdPosixXrootd::Open(spath.c_str(), oflags, mode);
+      OpenMutex.UnLock();
+      return retc;
+    }
+
     errno = EOPNOTSUPP;
     return -1;
   }

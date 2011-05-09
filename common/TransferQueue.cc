@@ -7,6 +7,7 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
 TransferQueue::TransferQueue(const char* queue, const char* subqueue, FileSystem* fs, XrdMqSharedObjectManager* som, bool bc2mgm) {
   //------------------------------------------------------------------------
   //! Constructor
@@ -55,8 +56,32 @@ TransferQueue::TransferQueue(const char* queue, const char* subqueue, FileSystem
   constructorLock.UnLock();
 }
 
+/*----------------------------------------------------------------------------*/
 TransferQueue::~TransferQueue() {
 }
+
+/*----------------------------------------------------------------------------*/
+bool 
+TransferQueue::Add(eos::common::TransferJob* job)
+{
+  bool retc=false;
+  if (mSom) {
+    mSom->HashMutex.LockRead();
+    if ((mHashQueue =(XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(),"queue")) ) {
+      retc = mHashQueue->PushBack(0,job->GetEnv());
+    }
+    mSom->HashMutex.UnLockRead();
+  }
+  return retc;
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
+TransferQueue::Remove(eos::common::TransferJob* job)
+{
+  return false;
+}
+
 
 EOSCOMMONNAMESPACE_END
 

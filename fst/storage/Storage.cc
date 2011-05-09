@@ -60,7 +60,7 @@ FileSystem::GetStatfs()
 { 
 
   statFs = eos::common::Statfs::DoStatfs(GetPath().c_str());
-  if (!statFs) {
+  if ((!statFs) && GetPath().length()) {
     eos_err("cannot statfs");
     BroadcastError("cannot statfs");
     return 0;

@@ -4144,7 +4144,7 @@ XrdMgmOfs::FsListener()
       }
       gOFS->ObjectManager.HashMutex.UnLockRead();
 
-      if (fsid && errc && (cfgstatus >= eos::common::FileSystem::kRO) && (bstatus != eos::common::FileSystem::kBootFailure) ) {
+      if (fsid && errc && (cfgstatus >= eos::common::FileSystem::kRO) && (bstatus == eos::common::FileSystem::kOpsError) ) {
         // this is the case we take action and explicitly ask to start a drain job
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         fs = FsView::gFsView.mIdView[fsid];

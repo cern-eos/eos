@@ -65,7 +65,7 @@ start() {
 stop() {
         echo -n "Stopping $prog: "
 	umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
-	umount -f -l $umdir > /dev/null 2>&1
+	umount -f -l $umdir >& /dev/null
         pkill -9 -f ${EOS_ROOT}/sbin/eosd
 	rm -f /var/lock/subsys/eosd
         echo
