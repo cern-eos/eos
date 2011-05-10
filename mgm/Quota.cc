@@ -585,15 +585,17 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
   // first figure out how many filesystems we need
   eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u",uid,gid,grouptag, nfilesystems);
   
-  std::string indextag = "";
+  XrdOucString lindextag = "";
   if (grouptag) {
-    indextag = grouptag;
+    lindextag = grouptag;
   } else {
-    indextag += uid; 
-    indextag += ":";
-    indextag += gid;
+    lindextag += (int)uid; 
+    lindextag += ":";
+    lindextag += (int)gid;
   }
   
+  std::string indextag = lindextag.c_str();
+
   // check if the uid/gid has enough quota configured to place in this space !
 
   if (Enabled()) {
@@ -651,6 +653,8 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
     
     std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
     eos::common::FileSystem::fsid_t fsid=0;
+    eos::common::FileSystem::fsid_t first_fsid=0;
+
     // create the string map key for this group/index pair
     XrdOucString fsindextag="";
     fsindextag += (int)(*git)->GetIndex();
@@ -675,7 +679,11 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
     }
     schedulingMutex.UnLock();
 
-		
+    eos_static_info("Enter %s points to %d", sfsindextag.c_str(), *fsit);
+
+    // remember the one we started with ...
+    first_fsid = fsid;
+
     currentfsrandomoffset = (unsigned int) (( 0.999999 * random()* (*git)->size() )/RAND_MAX);
     
     // we loop over some filesystems in that group
@@ -710,17 +718,21 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
 	eos_static_err("%d %d %d\n", (snapshot.mStatus), (snapshot.mConfigStatus), (snapshot.mErrCode      == 0 ));
       }
       fsit++;
-      if (fsindex==0) {
-	// we move the iterator only by one position
-	schedulingMutex.Lock();
-	schedulingFileSystem[sfsindextag] = *fsit;
-	schedulingMutex.UnLock();
-      }
 
       // create cycling
       if (fsit == (*git)->end()) {
 	fsit = (*git)->begin();
       }
+
+      if (fsindex==0) {
+	// we move the iterator only by one position
+	schedulingMutex.Lock();
+	schedulingFileSystem[sfsindextag] = *fsit;
+        eos_static_info("Exit %s points to %d", sfsindextag.c_str(), *fsit);
+	schedulingMutex.UnLock();
+      }
+
+
       fsid = *fsit;
       // evt. this has to be commented
       if ( (availablefs.size()>= nfilesystems) && (availablefs.size() > ((*git)->size()/2)) ) {
