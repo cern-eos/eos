@@ -172,12 +172,21 @@ XrdMqSharedObjectManager::DumpSharedObjects(XrdOucString& out)
 
   XrdMqRWMutexReadLock lock(HashMutex);
   std::map<std::string , XrdMqSharedHash*>::iterator it_hash;
+  std::map<std::string , XrdMqSharedQueue>::iterator it_queue;
   for (it_hash=hashsubjects.begin(); it_hash!= hashsubjects.end(); it_hash++) {
     out += "===================================================\n";
-    out += it_hash->first.c_str(); out += " [ "; out += it_hash->second->GetBroadCastQueue();
+    out += it_hash->first.c_str(); out += " [ hash=>  "; out += it_hash->second->GetBroadCastQueue();
     out += " ]\n";
     out += "---------------------------------------------------\n";
     it_hash->second->Dump(out);
+  }
+
+  for (it_queue=queuesubjects.begin(); it_queue!= queuesubjects.end(); it_queue++) {
+    out += "===================================================\n";
+    out += it_queue->first.c_str(); out += " [ queue=> "; out += it_queue->second.GetBroadCastQueue();
+    out += " ]\n";
+    out += "---------------------------------------------------\n";
+    it_queue->second.Dump(out);
   }
 }
 
@@ -317,7 +326,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
     if ((wpos = subject.find("/*")) != STR_NPOS) {
       XrdOucString wmatch = subject.c_str();
       wmatch.erase(wpos);
-      if (type == "hash") {
+      {
         std::map<std::string, XrdMqSharedHash*>::iterator it;
         for (it=hashsubjects.begin(); it != hashsubjects.end(); it++) {
           XrdOucString hs = it->first.c_str();
@@ -326,7 +335,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
           }
         }
       }
-      if (type == "queue") {
+      {
         std::map<std::string, XrdMqSharedQueue>::iterator it;
         for (it=queuesubjects.begin(); it != queuesubjects.end(); it++) {
           XrdOucString hs = it->first.c_str();
@@ -438,6 +447,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
           std::vector<int> keystart;
           std::vector<int> valuestart;
           std::vector<int> cidstart;
+
           for (unsigned int i=0; i< val.length(); i++) {
             if (val.c_str()[i] == '|') {
               keystart.push_back(i);
