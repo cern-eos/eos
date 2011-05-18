@@ -70,7 +70,7 @@ static void createRandomLog( const std::string       &path,
   //----------------------------------------------------------------------------
   // Write the records
   //----------------------------------------------------------------------------
-  file.open( path, false, eos::FILE_LOG_MAGIC );
+  file.open( path, eos::ChangeLogFile::Create, eos::FILE_LOG_MAGIC );
   while( !mods.empty() )
   {
     //--------------------------------------------------------------------------
@@ -173,7 +173,7 @@ void LogCompactingTest::correctnessTest()
   std::string             fileNameCompacted = getTempName( "/tmp", "eosns" );
 
   createRandomLog( fileNameOld, 100000, 10000, 10, genStats );
-  eos::LogManager::compactLog( fileNameOld, fileNameCompacted, stats, 0 );
+  CPPUNIT_ASSERT_NO_THROW( eos::LogManager::compactLog( fileNameOld, fileNameCompacted, stats, 0 ) );
 
   CPPUNIT_ASSERT( stats.recordsTotal   == genStats.recordsTotal );
   CPPUNIT_ASSERT( stats.recordsUpdated == genStats.recordsUpdated );
@@ -183,7 +183,7 @@ void LogCompactingTest::correctnessTest()
 
   eos::ChangeLogFile file;
   StampsScanner      stampScanner;
-  CPPUNIT_ASSERT_NO_THROW( file.open( fileNameCompacted, true, eos::FILE_LOG_MAGIC ) );
+  CPPUNIT_ASSERT_NO_THROW( file.open( fileNameCompacted, eos::ChangeLogFile::ReadOnly, eos::FILE_LOG_MAGIC ) );
   CPPUNIT_ASSERT_NO_THROW( file.scanAllRecords( &stampScanner ) );
   CPPUNIT_ASSERT( stampScanner.stampCount() == 1 );
   CPPUNIT_ASSERT( stampScanner.isStampLast() );

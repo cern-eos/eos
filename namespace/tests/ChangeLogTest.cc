@@ -176,7 +176,8 @@ void ChangeLogTest::readWriteCorrectness()
   //----------------------------------------------------------------------------
   eos::ChangeLogFile file;
   std::string        fileName = getTempName( "/tmp", "eosns" );
-  CPPUNIT_ASSERT_NO_THROW( file.open( fileName, false, 0x1212 ) );
+  CPPUNIT_ASSERT_NO_THROW( file.open( fileName, eos::ChangeLogFile::Create,
+                                      0x1212 ) );
 
   //----------------------------------------------------------------------------
   // Store 1000 files
@@ -201,7 +202,8 @@ void ChangeLogTest::readWriteCorrectness()
   //----------------------------------------------------------------------------
   // Scan the file and compare the offsets
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT_NO_THROW( file.open( fileName, false, 0x0000 ) );
+  CPPUNIT_ASSERT_NO_THROW( file.open( fileName, eos::ChangeLogFile::ReadOnly,
+                           0x0000 ) );
   CPPUNIT_ASSERT( file.getContentFlag() == 0x1212 );
   FileScanner scanner;
   CPPUNIT_ASSERT_NO_THROW( file.scanAllRecords( &scanner ) );
@@ -480,10 +482,10 @@ void ChangeLogTest::fsckTest()
   eos::LogRepairStats brokenStats;
   std::string         fileNameBroken   = getTempName( "/tmp", "eosns" );
   std::string         fileNameRepaired = getTempName( "/tmp", "eosns" );
-  createRandomLog( fileNameBroken, 10000 );
-  breakRecords( fileNameBroken, 100, brokenStats );
-  eos::ChangeLogFile::repair( fileNameBroken, fileNameRepaired,
-                              stats, 0 );
+  CPPUNIT_ASSERT_NO_THROW( createRandomLog( fileNameBroken, 10000 ) );
+  CPPUNIT_ASSERT_NO_THROW( breakRecords( fileNameBroken, 100, brokenStats ) );
+  CPPUNIT_ASSERT_NO_THROW( eos::ChangeLogFile::repair( fileNameBroken, fileNameRepaired,
+                                                       stats, 0 ) );
 
   // stats.scanned may be more than 10000 and it's fine
   CPPUNIT_ASSERT( stats.scanned == stats.healthy + stats.notFixed );
