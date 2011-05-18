@@ -18,7 +18,9 @@ namespace eos
     //--------------------------------------------------------------------------
     // Rescan the changelog
     //--------------------------------------------------------------------------
-    pChangeLog->open( pChangeLogPath, false, FILE_LOG_MAGIC );
+    pChangeLog->open( pChangeLogPath,
+                      ChangeLogFile::Create | ChangeLogFile::Append,
+                      FILE_LOG_MAGIC );
     FileMDScanner scanner( pIdMap );
     pChangeLog->scanAllRecords( &scanner );
     pFirstFreeId = scanner.getLargestId()+1;

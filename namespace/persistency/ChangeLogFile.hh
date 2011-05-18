@@ -76,6 +76,17 @@ namespace eos
   {
     public:
       //------------------------------------------------------------------------
+      //! Open flags
+      //------------------------------------------------------------------------
+      enum OpenFlags
+      {
+        ReadOnly = 0x01, //!< Read only
+        Truncate = 0x02, //!< Truncate if possible
+        Create   = 0x04, //!< Create if does not exist
+        Append   = 0x08  //!< Append  to the existing file
+      };
+
+      //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
       ChangeLogFile(): pFd(-1), pIsOpen( false ), pVersion( 0 ), pSeqNumber( 0 ),
@@ -90,14 +101,12 @@ namespace eos
       //! Open the log file, create if needed
       //!
       //! @param name        name of the file
-      //! @param readOnly    flag indicating if the file should be open in
-      //!                    read-only mode, causes exception to be thrown
-      //!                    if the file does not exist
+      //! @param flags       flags the mode for opening the file (OpenFlags)
       //! @param contentFlag user-defined valriable identifying the content
       //!                    of the file 0x0000 is reserved for undefined
       //!                    content
       //------------------------------------------------------------------------
-      void open( const std::string &name, bool readOnly = false, 
+      void open( const std::string &name, int flags = Create | Append,
                  uint16_t contentFile = 0x0000 ) throw( MDException );
 
       //------------------------------------------------------------------------

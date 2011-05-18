@@ -99,8 +99,8 @@ namespace eos
     //--------------------------------------------------------------------------
     ChangeLogFile inputFile;
     ChangeLogFile outputFile;
-    inputFile.open( oldLogName, true );
-    outputFile.open( newLogName, false, inputFile.getContentFlag() );
+    inputFile.open( oldLogName,  ChangeLogFile::ReadOnly );
+    outputFile.open( newLogName, ChangeLogFile::Create, inputFile.getContentFlag() );
 
     if( inputFile.getContentFlag() != FILE_LOG_MAGIC &&
         inputFile.getContentFlag() != CONTAINER_LOG_MAGIC )

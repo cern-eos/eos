@@ -8,6 +8,7 @@
 #include "namespace/utils/DataHelper.hh"
 
 #include <fcntl.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <stdint.h>
@@ -56,11 +57,11 @@ namespace eos
   //---------------------------------------------------------------------------
   // Open the log file
   //----------------------------------------------------------------------------
-  void ChangeLogFile::open( const std::string &name, bool readOnly,
+  void ChangeLogFile::open( const std::string &name, int flags,
                             uint16_t contentFlag ) throw( MDException )
   {
     //--------------------------------------------------------------------------
-    // Checki fh the file is open already
+    // Check if the file is open already
     //--------------------------------------------------------------------------
     if( pIsOpen )
     {
@@ -70,9 +71,29 @@ namespace eos
     }
 
     //--------------------------------------------------------------------------
-    // Open the try to open the file for reading and writing
+    // Check if the open flags are conflicting
     //--------------------------------------------------------------------------
-    int fd = ::open( name.c_str(), O_RDWR );
+    if( (flags & ReadOnly) &&
+        ((flags & Append) || (flags & Truncate) || (flags & Create)))
+    {
+      MDException ex( EFAULT );
+      ex.getMessage() << "Conflicting open flags";
+      throw ex;
+    }
+
+    //--------------------------------------------------------------------------
+    // Check open flags
+    //--------------------------------------------------------------------------
+    int openFlags = 0;
+    if( flags & ReadOnly )
+      openFlags = O_RDONLY;
+    else
+      openFlags = O_RDWR;
+
+    //--------------------------------------------------------------------------
+    // Try to open the file
+    //--------------------------------------------------------------------------
+    int fd = ::open( name.c_str(), openFlags );
     FileSmartPtr fdPtr( fd );
 
     //--------------------------------------------------------------------------
@@ -80,9 +101,9 @@ namespace eos
     //--------------------------------------------------------------------------
     if( fd >= 0 )
     {
-      uint32_t flags   = checkHeader( fd, name );
-      uint8_t  version = 0;
-      decodeHeaderFlags( flags, version, pContentFlag );
+      uint32_t fileFlags = checkHeader( fd, name );
+      uint8_t  version   = 0;
+      decodeHeaderFlags( fileFlags, version, pContentFlag );
 
       if( version == 0 || version > 1 )
       {
@@ -103,6 +124,28 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
+      // Can we append?
+      //------------------------------------------------------------------------
+      if( !(flags & Append) && !(flags & ReadOnly) )
+      {
+        MDException ex( EFAULT );
+        ex.getMessage() << "The log file exists: " << name << ": ";
+        ex.getMessage() << "but neither Append nor ReadOnly flag is specified";
+        throw ex;
+      }
+
+      //------------------------------------------------------------------------
+      // Truncate if needed
+      //------------------------------------------------------------------------
+      if( (flags & Truncate) && ::ftruncate( fd, 8 ) != 0 )
+      {
+        MDException ex( EFAULT );
+        ex.getMessage() << "Unable to truncate: " << name << ": ";
+        ex.getMessage() << strerror( errno );
+        throw ex;
+      }
+
+      //------------------------------------------------------------------------
       // Move to the end
       //------------------------------------------------------------------------
       lseek( fd, 0, SEEK_END );
@@ -114,14 +157,15 @@ namespace eos
     }
 
     //--------------------------------------------------------------------------
-    // Create the file
+    // Create the file if need be
     //--------------------------------------------------------------------------
-    if( readOnly )
+    if( !(flags & Create) )
     {
       MDException ex( EFAULT );
-      ex.getMessage() << "Cannot create a new file in read-only mode: " << name;
+      ex.getMessage() << "File does not exist and Create flag is absent: " << name;
       throw ex;
     }
+
     fd = ::open( name.c_str(), O_CREAT | O_EXCL | O_RDWR, 0644 );
     fdPtr.grab( fd );
 
@@ -149,14 +193,14 @@ namespace eos
 
     uint8_t  version = 1;
     uint32_t tmp;
-    uint32_t flags   = 0;
+    uint32_t fileFlags = 0;
 
     pContentFlag = contentFlag;
-    flags |= version;
+    fileFlags |= version;
     tmp = contentFlag;
-    flags |= (tmp << 8);
+    fileFlags |= (tmp << 8);
 
-    if( write( fd, &flags, 4 ) != 4 )
+    if( write( fd, &fileFlags, 4 ) != 4 )
     {
       MDException ex( errno );
       ex.getMessage() << "Unable to write the flags: " << name;
@@ -721,7 +765,7 @@ namespace eos
     }
 
     ChangeLogFile output;
-    output.open( newFilename, false, contentFlag );
+    output.open( newFilename, Create, contentFlag );
 
     //--------------------------------------------------------------------------
     // Reconstructing...
