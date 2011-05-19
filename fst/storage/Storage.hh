@@ -11,6 +11,8 @@
 #include "fst/Verify.hh"
 #include "fst/Load.hh"
 #include "fst/ScanDir.hh"
+#include "fst/txqueue/TransferQueue.hh"
+#include "fst/txqueue/TransferMultiplexer.hh"
 #include "mq/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
@@ -33,20 +35,16 @@ private:
   unsigned long last_blocks_free;  
   time_t        last_status_broadcast;
 
-public:
-  FileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som) : eos::common::FileSystem(queuepath,queue,som) {
-    last_blocks_free=0;
-    last_status_broadcast=0;
-    transactionDirectory="";
-    statFs = 0;
-    scanDir = 0;
-  }
+  TransferQueue* mTxDrainQueue;
+  TransferQueue* mTxBalanceQueue;
+  TransferQueue* mTxExternQueue;
 
-  ~FileSystem() {
-    if (scanDir) {
-      delete scanDir;
-    }
-  }
+  TransferMultiplexer mTxMultiplexer;
+
+public:
+  FileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som);
+
+  ~FileSystem();
 
   void SetTransactionDirectory(const char* tx) { transactionDirectory= tx;}
   void RunScanner(Load* fstLoad, time_t interval);
@@ -58,7 +56,7 @@ public:
   void BroadcastError(const char* msg);
   void BroadcastError(int errc, const char* errmsg);
   void BroadcastStatus();
-
+  
   bool OpenTransaction(unsigned long long fid);
   bool CloseTransaction(unsigned long long fid);
 
@@ -151,7 +149,7 @@ public:
   bool CloseTransaction(eos::common::FileSystem::fsid_t fsid, unsigned long long fid);
 
   bool FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid);
-  bool CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid);
+  bool CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid, bool failenoent=false);
 };
 
 EOSFSTNAMESPACE_END

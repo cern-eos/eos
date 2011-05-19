@@ -78,6 +78,9 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   if (rc)
     return rc;
 
+  TransferScheduler = new XrdScheduler(8, 128, 60);
+
+  TransferScheduler->Start();
 
   eos::fst::Config::gConfig.autoBoot = false;
 
@@ -362,7 +365,7 @@ XrdFstOfsFile::open(const char                *path,
     opaqueBlockCheckSum = val;
   } 
 
-  if ((val = openOpaque->Get("eos.checksum"))) {
+  if ((val = openOpaque->Get("mgm.checksum"))) {
     opaqueCheckSum = val;
   }
 
@@ -402,12 +405,6 @@ XrdFstOfsFile::open(const char                *path,
 
   if (!(sfsid=capOpaque->Get("mgm.fsid"))) {
     return gOFS.Emsg(epname,error, EINVAL,"open - no file system id in capability",path);
-  }
-
-  if (!(sbookingsize=capOpaque->Get("mgm.bookingsize"))) {
-    return gOFS.Emsg(epname,error, EINVAL,"open - no booking size in capability",path);
-  } else {
-    bookingsize = atoi(capOpaque->Get("mgm.bookingsize")) * 1024*1024; // this is in MB
   }
 
   // if we open a replica we have to take the right filesystem id and filesystem prefix for that replica
@@ -476,6 +473,7 @@ XrdFstOfsFile::open(const char                *path,
 		     SFS_O_CREAT  | SFS_O_TRUNC) ) != 0) 
     isRW = true;
 
+
   struct stat statinfo;
   if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
     // file does not exist, keep the create lfag
@@ -487,6 +485,17 @@ XrdFstOfsFile::open(const char                *path,
       open_mode -= SFS_O_CREAT;
     openSize = statinfo.st_size;
   }
+
+
+  // bookingsize is only need for file creation
+  if (isRW && isCreation) {
+    if (!(sbookingsize=capOpaque->Get("mgm.bookingsize"))) {
+      return gOFS.Emsg(epname,error, EINVAL,"open - no booking size in capability",path);
+    } else {
+      bookingsize = strtoull(capOpaque->Get("mgm.bookingsize"),0,0); // this is in MB
+    }
+  }
+
 
   // ------------------------------------------------------------------------
   // Code dealing with block checksums
@@ -580,7 +589,7 @@ XrdFstOfsFile::open(const char                *path,
 
   // set the eos lfn as extended attribute
   eos::common::Attr* attr = eos::common::Attr::OpenAttr(layOut->GetLocalReplicaPath());
-  if (attr) {
+  if (attr && isRW) {
     if (!attr->Set(std::string("user.eos.lfn"), std::string(path))) {
       eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
     }
@@ -659,15 +668,6 @@ XrdFstOfsFile::closeofs()
     if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
       rc = gOFS.Emsg(epname,error, EIO, "close - cannot stat closed file to determine file size",Path.c_str());
     } else {
-      if (isRW) {
-	if (!fstBlockXS->ChangeMap(statinfo.st_size, true)) {
-	  eos_err("unable to change block checksum map");
-	  rc = SFS_ERROR;
-	} else {
-          eos_info("adjusting block XS map to %llu\n", statinfo.st_size);
-        }
-      }
-
       {
         XrdOucErrInfo error;
         if(!fctl(SFS_FCTL_GETFD,0,error)) {
@@ -678,7 +678,16 @@ XrdFstOfsFile::closeofs()
         }
       }
 
-      eos_info("block-xs wblocks=%llu rblocks=%llu wholes=%llu", fstBlockXS->GetXSBlocksWritten(), fstBlockXS->GetXSBlocksChecked(), fstBlockXS->GetXSBlocksWrittenHoles());
+      if (isRW) {
+	if (!fstBlockXS->ChangeMap(statinfo.st_size, true)) {
+	  eos_err("unable to change block checksum map");
+	  rc = SFS_ERROR;
+	} else {
+          eos_info("adjusting block XS map to %llu\n", statinfo.st_size);
+        }
+      }
+
+      eos_info("block-xs wblocks=%llu rblocks=%llu holes=%llu", fstBlockXS->GetXSBlocksWritten(), fstBlockXS->GetXSBlocksChecked(), fstBlockXS->GetXSBlocksWrittenHoles());
       if (!fstBlockXS->CloseMap()) {
 	eos_err("unable to close block checksum map");
 	rc = SFS_ERROR;
@@ -715,7 +724,7 @@ XrdFstOfsFile::verifychecksum()
       float scantime = 0; // is ms
       if (checkSum->ScanFile(fstPath.c_str(), scansize, scantime)) {
         XrdOucString sizestring;
-        eos_info("Rescanned checksum - size=%s time=%.02fms rate=%.02f MB/s", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999));
+        eos_info("Rescanned checksum - size=%s time=%.02fms rate=%.02f MB %x/s", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999), checkSum->GetHexChecksum());
       } else {
         eos_err("Rescanning of checksum failed");
       }
@@ -843,6 +852,12 @@ XrdFstOfsFile::close()
      capOpaqueFile += "&mgm.add.fsid=";
      capOpaqueFile += (int)fMd->fMd.fsid;
 
+     // if <drainfsid> is set, we can issue a drop replica 
+     if (capOpaque->Get("mgm.drainfsid")) {
+       capOpaqueFile += "&mgm.drop.fsid=";
+       capOpaqueFile += capOpaque->Get("mgm.drainfsid");
+     }
+    
      if (isEntryServer) {
        // the entry server commits size and checksum
        capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";

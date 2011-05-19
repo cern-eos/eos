@@ -17,6 +17,7 @@ extern int com_fs   (char*);
 extern int com_fuse (char*);
 extern int com_group (char*);
 extern int com_help (char *);
+extern int com_io (char *);
 extern int com_license (char*);
 extern int com_ls (char*);
 extern int com_mkdir (char*);
@@ -105,6 +106,7 @@ COMMAND commands[] = {
   { (char*)"fuse",     com_fuse,     (char*)"Fuse Mounting"},
   { (char*)"group",    com_group,    (char*)"Group configuration" },
   { (char*)"help",     com_help,     (char*)"Display this text" },
+  { (char*)"io",       com_io,       (char*)"IO Interface" }, 
   { (char*)"license",  com_license,  (char*)"Display Software License" },
   { (char*)"ls",       com_ls,       (char*)"List a directory" },
   { (char*)"mkdir",    com_mkdir,    (char*)"Create a directory" },

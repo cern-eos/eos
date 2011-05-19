@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
   // reopen stdout to the logfile name
   FILE* fstdout;
   
-  if ((!(fstdout=freopen(argv[1], "w", stdout)))) {
+  if ((!(fstdout=freopen(argv[1], "a+", stdout)))) {
     fprintf(stderr,"ERROR: cannot stream stdout into %s\n",argv[2]);
     exit(-1);
   }
@@ -41,5 +41,5 @@ int main(int argc, char* argv[]) {
     fprintf(stderr,"ERROR: failed to create new session (setsid())\n");
     exit(-1);
   }
-  execlp("/usr/bin/perl","eosha", "/usr/sbin/eoshapl",argv[2],argv[3],argv[4],argv[5],NULL);
+  execlp("/usr/bin/perl","eosha", "/usr/sbin/eoshapl",argv[1], argv[2],argv[3],argv[4],argv[5],NULL);
 }

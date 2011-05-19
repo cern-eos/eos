@@ -370,6 +370,8 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     return 1;
   }
   
+  MgmOfsBroker = MgmOfsBrokerUrl;
+
   MgmDefaultReceiverQueue = MgmOfsBrokerUrl; MgmDefaultReceiverQueue += "*/fst";  
 
   MgmOfsBrokerUrl += ManagerId; MgmOfsBrokerUrl += "/mgm";

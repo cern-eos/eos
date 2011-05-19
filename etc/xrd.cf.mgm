@@ -43,7 +43,7 @@ mgmofs.instance eostest
 mgmofs.configdir /var/eos/config
 mgmofs.metalog /var/eos/md
 # this defines the default config to load
-mgmofs.autoloadconfig eosdev
+mgmofs.autoloadconfig default
 # this enables that every change get's immedeatly stored to the active configuration - can be overwritten by EOS_AUTOSAVE_CONFIG defined in /etc/sysconfig/eos
 mgmofs.autosaveconfig true
 # this has to be defined if we have a failover configuration via alias - can be overwritten by EOS_MGM_ALIAS in /etc/sysconfig/eos

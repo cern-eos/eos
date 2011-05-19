@@ -5,6 +5,7 @@
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
+#include "proc/proc_fs.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSfs/XrdSfsInterface.hh"

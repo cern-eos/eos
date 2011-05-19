@@ -8,6 +8,15 @@ DAEMON_COREFILE_LIMIT=unlimited
 # the same initd script
 XRD_ROLES="fst mq sync mgm"
 
+# The EOS instance name
+export EOS_INSTANCE_NAME=eosdev
+
+# The EOS configuration to load after daemon start
+export EOS_AUTOLOAD_CONFIG=default
+
+# The EOS broker URL 
+export EOS_BROKER_URL=root://eosdev.cern.ch:1097//eos/
+
 # The fully qualified hostname of MGM master1
 export EOS_MGM_MASTER1=lxbra0301.cern.ch
 

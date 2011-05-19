@@ -16,6 +16,9 @@ add_library (XrdEosFst MODULE
 	    XrdFstOfs.cc
             ../checksum/crc32c.cc
             ../checksum/crc32ctables.cc
+            txqueue/TransferMultiplexer.cc
+            txqueue/TransferJob.cc
+            txqueue/TransferQueue.cc
 	    )
 
 target_link_libraries (XrdEosFst eosCapability-Static eosCommon-Static XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNet XrdNetUtil XrdOfs XrdOss crypto uuid curses pthread dl z attr)
@@ -48,10 +51,15 @@ add_executable( eos-scan-fs
                 Load.cc
 )
 
+add_executable( eosfstcp 
+                txqueue/eosfstcp.cc
+)
+
 target_link_libraries ( FstLoad XrdSys XrdOuc XrdNetUtil dl )
 target_link_libraries ( eos-check-blockxs eosCommon )
 target_link_libraries ( eos-compute-blockxs eosCommon )
 target_link_libraries ( eos-scan-fs eosCommon ) 
+target_link_libraries ( eosfstcp XrdPosix )
 
 if (Linux)
   set_target_properties (XrdEosFst PROPERTIES
@@ -62,9 +70,9 @@ if (Linux)
 endif(Linux)
 
 #INSTALL_PROGRAMS( sbin tools/eosfstregister tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync)
-INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync eos-check-blockxs eos-compute-blockxs eos-scan-fs)
+INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync eos-check-blockxs eos-compute-blockxs eos-scan-fs )
 
-install ( TARGETS XrdEosFst
+install ( TARGETS XrdEosFst eosfstcp
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
           RUNTIME DESTINATION bin
           ARCHIVE DESTINATION ${LIB_INSTALL_DIR}

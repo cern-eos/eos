@@ -14,7 +14,7 @@ com_group (char* arg1) {
   XrdOucString option="";
   XrdOucEnv* result=0;
   bool ok=false;
-
+  bool sel=false;
   // split subcommands
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
@@ -24,6 +24,7 @@ com_group (char* arg1) {
     option="";
 
     do {
+      ok=false;
       subtokenizer.GetLine();
       option = subtokenizer.GetToken();
       if (option.length()) {
@@ -44,6 +45,14 @@ com_group (char* arg1) {
 	  silent=true;
 	  ok=true;
 	}
+        if (!option.beginswith("-")) {
+          in += "&mgm.selection=";
+          in += option;
+          if (!sel) 
+            ok=true;
+          sel=true;
+        }
+
 	if (!ok) 
 	  printusage=true;
       } else {
@@ -102,7 +111,7 @@ com_group (char* arg1) {
  com_group_usage:
 
   printf("usage: group ls                                                      : list groups\n");
-  printf("usage: group ls [-s] [-m|-l|--io]                                    : list groups\n");
+  printf("usage: group ls [-s] [-m|-l|--io] [<group>]                          : list groups or only <group>\n");
   printf("                                                                  -s : silent mode\n");
   printf("                                                                  -m : monitoring key=value output format\n");
   printf("                                                                  -l : long output - list also file systems after each group\n");

@@ -2,8 +2,8 @@
 . /etc/sysconfig/eos
 
 if [ "x$1" = "x" ] ; then
-# input parameter is the path to query e.g. eossrmschecksum <file-path>
-    echo "usage: eossrmchecksum <filepath>"
+# input parameter is the path to query e.g. eos-srm-checksum <file-path>
+    echo "usage: eos-srm-checksum <filepath>"
     exit -1;
 fi
 

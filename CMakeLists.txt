@@ -73,6 +73,7 @@ add_subdirectory (etc)
 add_subdirectory (sync)
 add_subdirectory (fuse)
 add_subdirectory (srm)
+add_subdirectory (var)
 endif (CLIENT)
 
 include_directories( ../ /usr/include/xrootd/ /usr/include/ )

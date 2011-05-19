@@ -451,6 +451,39 @@ Mapping::Print(XrdOucString &stdOut, XrdOucString option)
       stdOut += it->first.c_str(); stdOut += " => "; stdOut += (int)it->second; stdOut += "\n";
     }
   }
+
+  if (( (option.find("y"))!=STR_NPOS)) {
+    VirtualUserMap_t::const_iterator it;
+    for ( it = gVirtualUidMap.begin(); it != gVirtualUidMap.end(); ++it) {
+      if (!it->second) {
+        XrdOucString authmethod = it->first.c_str();
+        if (!authmethod.beginswith("tident:"))
+          continue;
+        int dpos = authmethod.find("@");
+        authmethod.erase(0,dpos+1);
+        dpos = authmethod.find("\"");
+        authmethod.erase(dpos);
+        stdOut += "gateway=";
+        stdOut += authmethod; 
+        stdOut += "\n";
+      }
+    }
+  }
+
+  if (( (option.find("a"))!=STR_NPOS)) {
+    VirtualUserMap_t::const_iterator it;
+    for ( it = gVirtualUidMap.begin(); it != gVirtualUidMap.end(); ++it) {
+      if (!it->second) {
+        XrdOucString authmethod = it->first.c_str();
+        if (authmethod.beginswith("tident:"))
+          continue;
+        int dpos = authmethod.find(":");
+        authmethod.erase(dpos);
+        stdOut += "auth=";
+        stdOut +=authmethod; stdOut += "\n";
+      }
+    }
+  }
 }
 
 /*----------------------------------------------------------------------------*/

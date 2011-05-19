@@ -4,7 +4,7 @@
 Summary: The EOS server installation.
 Name: eos-server
 Version: 0.1.0
-Release: rc8
+Release: rc11
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -47,15 +47,9 @@ rm -rf $RPM_BUILD_ROOT
 %post
 /sbin/chkconfig --add eos
 /sbin/service eos condrestart > /dev/null 2>&1 || :
-%{__mkdir} -p -m 700 /var/eos
-%{__chmod} -R 700 /var/eos
-%{__chown} daemon:daemon /var/eos/
-%{__mkdir} -p -m 700 /var/log/eos
-%{__chmod} -R 755 /var/log/eos
-%{__chown} daemon:daemon /var/log/eos/
-
 %preun
 if [ $1 = 0 ]; then
+        /sbin/service eosha stop > /dev/null 2>&1 
         /sbin/service eos stop > /dev/null 2>&1 || :
         /sbin/chkconfig --del eos
 fi
@@ -69,6 +63,7 @@ fi
 /usr/lib64/libXrdMqOfs.so.0
 /usr/lib64/libXrdMqOfs.so
 /usr/bin/xrdmqdumper
+/usr/bin/eosfstcp
 /usr/sbin/eosha
 /usr/sbin/eoshapl
 /usr/sbin/eosfilesync
@@ -95,6 +90,8 @@ fi
 /usr/lib64/libXrdEosMgm.so
 /usr/sbin/eos-log-compact
 /usr/sbin/eos-log-repair
+%attr(700,daemon,daemon) /var/eos
+%attr(755,daemon,daemon) /var/log/eos/
 %config(noreplace) /etc/xrd.cf.fst
 %config(noreplace) /etc/xrd.cf.mgm
 %config(noreplace) /etc/xrd.cf.mq
@@ -158,6 +155,7 @@ Requires: eos-client
 %description -n eos-srm
 The EOS srm package.
 %files -n eos-srm
-/usr/sbin/eossrmspace
-/usr/sbin/eossrmchecksum
+/usr/sbin/eos-srm-used-bytes
+/usr/sbin/eos-srm-max-bytes
+/usr/sbin/eos-srm-checksum
 

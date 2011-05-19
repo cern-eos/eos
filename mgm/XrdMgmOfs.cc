@@ -564,12 +564,9 @@ int XrdMgmOfsFile::open(const char          *path,      // In
         return rcode;
       }
     }
-    
     return Emsg(epname, error, errno, "open file", path);
-  } else {
-    gOFS->eosViewMutex.UnLock();
-  }
-
+  } 
+  
 
   // ACL and permission check
   Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
@@ -915,7 +912,8 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   capability += "&mgm.lid=";    
   capability += (int)newlayoutId;
   capability += "&mgm.bookingsize=";
-  capability += (int)(bookingsize/1024/1024); // this is in MB
+
+  capability += eos::common::StringConversion::GetSizeString(sizestring,bookingsize);
 
   
   if ( eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kPlain ) {
@@ -1547,6 +1545,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   bool noParent=false;
 
   eos::ContainerMD* dir=0;
+  eos::ContainerMD::XAttrMap attrmap;
     
   // check for the parent directory
   if (spath != "/") {
@@ -1554,6 +1553,10 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     gOFS->eosViewMutex.Lock();
     try {
       dir = eosView->getContainer(cPath.GetParentPath());
+      eos::ContainerMD::XAttrMap::const_iterator it;
+      for ( it = dir->attributesBegin(); it != dir->attributesEnd(); ++it) {
+        attrmap[it->first] = it->second;
+      }
     } catch( eos::MDException &e ) {
       dir = 0;
       eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
@@ -1564,9 +1567,25 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   }
 
   // check permission
-  if (dir && (!dir->access(vid.uid,vid.gid, X_OK|W_OK))) {
-    errno = EPERM;
-    return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
+  if (dir ) {
+    // ACL and permission check
+    Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
+    
+    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d", acl.HasAcl(),acl.CanRead(),acl.CanWrite(),acl.CanWriteOnce(), acl.HasEgroup());
+    bool stdpermcheck=false;
+    if (acl.HasAcl()) {
+      if ( (!acl.CanWrite()) && (!acl.CanWriteOnce()) ) {
+        // we have to check the standard permissions
+        stdpermcheck = true;
+      }
+    } else {
+      stdpermcheck = true;
+    }
+    
+    if (stdpermcheck && (!dir->access(vid.uid,vid.gid, X_OK|W_OK))) {
+      errno = EPERM;
+      return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
+    }
   }
   
   // check if the path exists anyway
@@ -1604,11 +1623,16 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       int i,j;
       // go the paths up until one exists!
       for (i=cPath.GetSubPathSize()-1;i>=0; i--) {
+        attrmap.clear();
 	eos_debug("testing path %s", cPath.GetSubPath(i));
 	//-------------------------------------------
 	gOFS->eosViewMutex.Lock();
 	try {
 	  dir = eosView->getContainer(cPath.GetSubPath(i));
+          eos::ContainerMD::XAttrMap::const_iterator it;
+          for ( it = dir->attributesBegin(); it != dir->attributesEnd(); ++it) {
+            attrmap[it->first] = it->second;
+          }
 	} catch( eos::MDException &e ) {
 	  dir = 0;
 	}
@@ -1623,12 +1647,26 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	errno = ENODATA;
 	return Emsg(epname, error, ENODATA, "create directory", cPath.GetSubPath(i));
       }
+   
+      // ACL and permission check
+      Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
       
-      // check that we can actually create something here
-      if (!dir->access(vid.uid,vid.gid, X_OK|W_OK)) {
-	errno = EPERM;
-	return Emsg(epname, error, EPERM, "create parent directory", cPath.GetSubPath(i));
+      eos_info("acl=%d r=%d w=%d wo=%d egroup=%d", acl.HasAcl(),acl.CanRead(),acl.CanWrite(),acl.CanWriteOnce(), acl.HasEgroup());
+      bool stdpermcheck=false;
+      if (acl.HasAcl()) {
+        if ( (!acl.CanWrite()) && (!acl.CanWriteOnce()) ) {
+          // we have to check the standard permissions
+          stdpermcheck = true;
+        }
+      } else {
+        stdpermcheck = true;
       }
+      
+      if (stdpermcheck && (!dir->access(vid.uid,vid.gid, X_OK|W_OK))) {
+        errno = EPERM;
+        return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
+      }
+   
       
       for (j=i+1; j< (int)cPath.GetSubPathSize(); j++) {
 	//-------------------------------------------
@@ -1856,6 +1894,7 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
       // check if this directory is write-once for the mapped user
       if (acl.CanWriteOnce()) {
         // this is a write once user
+        gOFS->eosViewMutex.UnLock();
         return Emsg(epname, error, EPERM,"remove existing file - you are write-once user");
       }
     
@@ -2771,7 +2810,8 @@ XrdMgmOfs::FSctl(const int               cmd,
       char* afid   = env.Get("mgm.fid");
       char* afsid  = env.Get("mgm.add.fsid");
       char* amtime =     env.Get("mgm.mtime");
-      char* amtimensec = env.Get("mgm.mtime_ns");      
+      char* amtimensec = env.Get("mgm.mtime_ns"); 
+     
       XrdOucString averifychecksum = env.Get("mgm.verify.checksum");
       XrdOucString acommitchecksum = env.Get("mgm.commit.checksum");
       XrdOucString averifysize     = env.Get("mgm.verify.size");
@@ -2884,7 +2924,7 @@ XrdMgmOfs::FSctl(const int               cmd,
             if (space) {
               quotanode = space->GetQuotaNode();
               // free previous quota
-	      if (fmd->getNumLocation()) 
+	      if (quotanode && fmd->getNumLocation()) 
 		quotanode->removeFile(fmd);
 	    }		
 	    fmd->addLocation(fsid);
@@ -2997,13 +3037,17 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    
 	    // after update we have get the new address - who knows ...
 	    fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
+            if (quotanode) 
+              quotanode->addFile(fmd);
+
 	    // finally delete the record if all replicas are dropped
-	    if (!fmd->getNumUnlinkedLocation() && !fmd->getNumLocation()) {
+	    if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())) {
 	      gOFS->eosView->removeFile( fmd );
-	    } else {
-	      if (quotanode) 
-		quotanode->addFile(fmd);
-	    }
+              if (quotanode) {
+                // if we were still attached to a container, we can now detach and count the file as removed
+                quotanode->removeFile(fmd);
+              }
+            }
 	  } catch (...) {
 	    eos_err("no meta record exists anymore for fid=%s", afid);
 	  };

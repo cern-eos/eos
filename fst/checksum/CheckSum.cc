@@ -398,7 +398,7 @@ CheckSum::AddBlockSumHoles(int fd)
     return false;
   } else {
 
-    if (!ChangeMap(buf.st_size)) {
+    if (!ChangeMap(buf.st_size, true)) {
       //      fprintf(stderr,"AddBlockSumHoles: changemap failed %llu\n", buf.st_size);
       return false;
     }

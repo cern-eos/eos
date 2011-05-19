@@ -22,14 +22,17 @@ EOSCOMMONNAMESPACE_BEGIN
 class TransferQueue; 
 
 class FileSystem {
-private:
+protected:
   std::string mQueuePath;  // = <queue> + <path> e.g. /eos/<host>/fst/data01
   std::string mQueue;      // = <queue>          e.g. /eos/<host>/fst
   std::string mPath;       // = <queuepath> - <queue> e.g. /data01
 
+  bool BroadCastDeletion;  // if this filesystem get's destroyed we should broad cast only from MGMs
+
   XrdMqSharedHash* mHash;  // before usage mSom needs a read lock and mHash has to be validated to avoid race conditions in deletion
   XrdMqSharedObjectManager* mSom;
   XrdSysMutex constructorLock;
+
 
   TransferQueue* mDrainQueue;
   TransferQueue* mBalanceQueue;
@@ -102,7 +105,7 @@ public:
 
   enum eBootStatus   { kOpsError=-2, kBootFailure=-1, kDown=0, kBootSent, kBooting=2, kBooted=3};
   enum eConfigStatus { kUnknown=-1, kOff=0, kDrainDead, kDrain, kRO, kWO, kRW};
-  enum eDrainStatus  { kNoDrain=0, kDrainPrepare=1, kDrainWait=2,  kDraining=3, kDrained=4};
+  enum eDrainStatus  { kNoDrain=0, kDrainPrepare=1, kDrainWait=2,  kDraining=3, kDrained=4, kDrainStalling=5, kDrainExpired=6, kDrainLostFiles=7};
 
   //------------------------------------------------------------------------
   //! Conversion Functions
@@ -216,9 +219,8 @@ public:
     if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
       return mHash->Get(key);
     } else {
-      Exception ex( ENODATA );
-      ex.getMessage() << "no string data stored for this key";
-      throw ex;
+      skey="";
+      return skey; 
     }
   }
   
@@ -232,9 +234,7 @@ public:
     if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
       return mHash->GetLongLong(key);
     } else {
-      Exception ex( ENODATA );
-      ex.getMessage() << "no long long data stored for this key";
-      throw ex;
+      return 0;
     }
   }
 
@@ -243,9 +243,7 @@ public:
     if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
       return mHash->GetDouble(key);
     } else {
-      Exception ex( ENODATA );
-      ex.getMessage() << "no double data stored for this key";
-      throw ex;
+      return 0;
     }
   }
 

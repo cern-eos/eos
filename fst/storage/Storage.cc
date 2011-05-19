@@ -19,6 +19,48 @@ EOSFSTNAMESPACE_BEGIN
 #ifdef __APPLE__ 
 #define O_DIRECT 0
 #endif
+
+/*----------------------------------------------------------------------------*/
+FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som) : eos::common::FileSystem(queuepath,queue,som, true) 
+{
+  last_blocks_free=0;
+  last_status_broadcast=0;
+  transactionDirectory="";
+  statFs = 0;
+  scanDir = 0;
+  std::string n1 = queuepath; n1 += "/drain";
+  std::string n2 = queuepath; n2 += "/balance";
+  std::string n3 = queuepath; n3 += "/extern";
+  mTxDrainQueue   = new TransferQueue   (&mDrainQueue, n1.c_str());
+  mTxBalanceQueue = new TransferQueue (&mBalanceQueue, n2.c_str());
+  mTxExternQueue  = new TransferQueue  (&mExternQueue, n3.c_str());
+
+  mTxMultiplexer.Add(mTxDrainQueue);
+  mTxMultiplexer.Add(mTxBalanceQueue);
+  mTxMultiplexer.Add(mTxExternQueue);
+  mTxMultiplexer.Run();
+}
+
+/*----------------------------------------------------------------------------*/
+FileSystem::~FileSystem() {
+  if (scanDir) {
+    delete scanDir;
+  }
+
+  // FIXME !!!
+  // we accept this tiny memory leak to be able to let running transfers callback their queue
+  // -> we don't delete them here!
+  //  if (mTxDrainQueue) {
+  //    delete mTxDrainQueue;
+  //  }
+  //  if (mTxBalanceQueue) {
+  //    delete mTxBalanceQueue;
+  //  }
+  //  if (mTxExternQueue) {
+  //    delete mTxExternQueue;
+  //  }
+}
+
 /*----------------------------------------------------------------------------*/
 void
 FileSystem::BroadcastError(const char* msg) 
@@ -370,7 +412,7 @@ Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::st
 
 /*----------------------------------------------------------------------------*/
 bool 
-Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid) 
+Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid, bool failenoent) 
 {
   //----------------------------------------------------------------
   //! checks that the label on the filesystem is the same as the configuration
@@ -407,7 +449,10 @@ Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std:
       }
       ckfsid = atoi(ssfid);
     }
-  } 
+  } else {
+    if (failenoent) 
+      return false;
+  }
 
   // write FS uuid file
   std::string uuidfile = path;
@@ -434,9 +479,12 @@ Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std:
 
       ckuuid = suuid;
     }
-  } 
-
-  fprintf(stderr,"%d <=> %d %s <=> %s\n", fsid, ckfsid, ckuuid.c_str(), uuid.c_str());
+  } else {
+    if (failenoent) 
+      return false;
+  }
+  
+  //  fprintf(stderr,"%d <=> %d %s <=> %s\n", fsid, ckfsid, ckuuid.c_str(), uuid.c_str());
   if ( (fsid != ckfsid) || (ckuuid != uuid) ) {
     return false;
   }
@@ -552,6 +600,8 @@ Storage::Scrub()
 	  fsMutex.UnLockRead();
 	  continue;
 	}
+
+        
 	unsigned long long free   = fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_bfree;
 	unsigned long long blocks = fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_blocks;
 	unsigned long id = fileSystemsVector[i]->GetId();
@@ -562,6 +612,15 @@ Storage::Scrub()
         
         if (!id) 
           continue;
+
+        // check if there is a lable on the disk and if the configuration shows the same fsid
+        if ( (bootstatus == eos::common::FileSystem::kBooted) &&
+             (configstatus >= eos::common::FileSystem::kRO) &&
+             ( !CheckLabel(fileSystemsVector[i]->GetPath(),fileSystemsVector[i]->GetId(),fileSystemsVector[i]->GetString("uuid"),true)) ) {
+          fileSystemsVector[i]->BroadcastError(EIO,"filesystem seems to be not mounted anymore");
+          continue;
+        } 
+        
 
         // don't scrub on filesystems which are not in writable mode!
         if (configstatus < eos::common::FileSystem::kWO) 
@@ -1267,7 +1326,7 @@ Storage::Publish()
     gettimeofday(&tv1, &tz);
 
     // TODO: derive this from a global variable
-    unsigned int lReportIntervalMilliSeconds = 1000;
+    unsigned int lReportIntervalMilliSeconds = 10000;
 
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes

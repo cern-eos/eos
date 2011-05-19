@@ -295,12 +295,14 @@ com_vid (char* arg1) {
   }
   
  com_vid_usage:
-  printf("usage: vid ls [-u] [-g] [s] [-U] [-G]                                                               : list configured policies\n");
+  printf("usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a]                                                    : list configured policies\n");
   printf("                                        -u : show only user role mappings\n");
   printf("                                        -g : show only group role mappings\n");
   printf("                                        -s : show list of sudoers\n");
-  printf("                                        -U : show user alias mapping\n");
-  printf("                                        -G : show groupalias mapping\n");
+  printf("                                        -U : show user  alias mapping\n");
+  printf("                                        -G : show group alias mapping\n");
+  printf("                                        -y : show configured gateways\n");
+  printf("                                        -a : show authentication\n");
   printf("\n");
   printf("       vid set membership <uid> -uids [<uid1>,<uid2>,.com_attr..]\n");
   printf("       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");

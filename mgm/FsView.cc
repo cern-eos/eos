@@ -44,7 +44,7 @@ FsView::GetFileSystemFormat(std::string option) {
   
   if (option == "m") {
     // monitoring format
-    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=stat.boot:width=1:format=os|sep= |key=configstatus:width=1:format=os|sep= |key=headroom:width=1:format=os|key=stat.errc:width=1:format=os|sep= |key=stat.errmsg:width=1:format=os|sep= |key=stat.disk.load:width=1:format=of|sep= |key=stat.disk.readratemb:width=1:format=ol|sep= |key=stat.disk.writeratemb:width=1:format=ol|sep= |key=stat.net.ethratemib:width=1:format=ol|sep= |key=stat.net.inratemib:width=1:format=ol|sep= |key=stat.net.outratemib:width=1:format=ol|sep= |key=stat.ropen:width=1:format=ol|sep= |key=stat.wopen:width=1:format=ol|sep= |key=stat.statfs.freebytes:width=1:format=ol|sep= |key=stat.statfs.usedbytes:width=1:format=ol|sep= |key=stat.statfs.capacity:width=1:format=ol|sep= |key=stat.usedfiles:width=1:format=ol|sep= |key=stat.statfs.ffree:width=1:format=ol|sep= |key=stat.statfs.fused:width=1:format=ol|sep= |key=stat.statfs.files:width=1:format=ol";
+    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=schedgroup:width=1:format=os|sep= |key=stat.boot:width=1:format=os|sep= |key=configstatus:width=1:format=os|sep= |key=headroom:width=1:format=os|key=stat.errc:width=1:format=os|sep= |key=stat.errmsg:width=1:format=os|sep= |key=stat.disk.load:width=1:format=of|sep= |key=stat.disk.readratemb:width=1:format=ol|sep= |key=stat.disk.writeratemb:width=1:format=ol|sep= |key=stat.net.ethratemib:width=1:format=ol|sep= |key=stat.net.inratemib:width=1:format=ol|sep= |key=stat.net.outratemib:width=1:format=ol|sep= |key=stat.ropen:width=1:format=ol|sep= |key=stat.wopen:width=1:format=ol|sep= |key=stat.statfs.freebytes:width=1:format=ol|sep= |key=stat.statfs.usedbytes:width=1:format=ol|sep= |key=stat.statfs.capacity:width=1:format=ol|sep= |key=stat.usedfiles:width=1:format=ol|sep= |key=stat.statfs.ffree:width=1:format=ol|sep= |key=stat.statfs.fused:width=1:format=ol|sep= |key=stat.statfs.files:width=1:format=ol";
   }
 
   if (option == "io") {
@@ -52,7 +52,7 @@ FsView::GetFileSystemFormat(std::string option) {
   }
 
   if (option == "d") {
-    return "header=1:key=host:width=24:format=s:condition=stat.drain=!nodrain|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.drain:width=12:format=s|key=stat.drainprogress:width=12:format=l:tag=progress|sep= |key=stat.drainfiles:width=12:format=+l:unit=B:tag=files|sep= |key=stat.drainlostfiles:width=12:format=l:tag=lost-files|sep= |key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left|sep= |key=graceperiod:width=13:format=l|sep= |key=stat.timeleft:width=11:format=l:tag=timeleft|";
+    return "header=1:key=host:width=24:format=s:condition=stat.drain=!nodrain|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.drain:width=12:format=s|key=stat.drainprogress:width=12:format=l:tag=progress|sep= |key=stat.drainfiles:width=12:format=+l:unit=B:tag=files|sep= |key=stat.drainlostfiles:width=12:format=l:tag=lost-files|sep= |key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left|sep= |key=stat.drainscheduledfiles:width=12:format=+l:tag=sched-files|sep= |key=stat.drainscheduledbytes:width=12:format=+l:tag=sched-bytes|sep= |key=graceperiod:width=13:format=l|sep= |key=stat.timeleft:width=11:format=l:tag=timeleft|";
 
   }
   if (option == "l") {
@@ -227,6 +227,76 @@ FsView::StoreFsConfig(FileSystem* fs)
   return;
 }
 
+/*----------------------------------------------------------------------------*/
+bool
+FsView::MoveGroup(FileSystem* fs, std::string group)
+{
+  if (!fs)
+    return false;
+
+  eos::common::FileSystem::fs_snapshot snapshot1;
+  eos::common::FileSystem::fs_snapshot snapshot;
+  if (fs->SnapShotFileSystem(snapshot1)) {
+#ifndef EOSMGMFSVIEWTEST
+    fs->SetString("schedgroup",group.c_str());
+#endif
+    if (fs->SnapShotFileSystem(snapshot)) {
+      // remove from the original space
+      if (mSpaceView.count(snapshot1.mSpace)) {
+        FsSpace* space = mSpaceView[snapshot1.mSpace];
+        space->erase(snapshot1.mId);
+        eos_debug("unregister space %s from space view", space->GetMember("name").c_str());
+        if (!space->size()) {
+          mSpaceView.erase(snapshot1.mSpace);
+          delete space;
+        }
+      }
+
+      // remove from the original group
+      if (mGroupView.count(snapshot1.mGroup)) {
+        FsGroup* group = mGroupView[snapshot1.mGroup];
+        group->erase(snapshot1.mId);
+        eos_debug("unregister group %s from group view", group->GetMember("name").c_str());
+        if (!group->size()) {
+          mSpaceGroupView[snapshot1.mSpace].erase(mGroupView[snapshot1.mGroup]);
+          mGroupView.erase(snapshot1.mGroup);
+          delete group;
+        }
+      }
+      
+      // check if we have already a group view
+      if (mGroupView.count(snapshot.mGroup)) {
+        mGroupView[snapshot.mGroup]->insert(snapshot.mId);
+        eos_debug("inserting into group view %s<=>%u",snapshot.mGroup.c_str(), snapshot.mId,fs);
+      } else {
+        FsGroup* group = new FsGroup(snapshot.mGroup.c_str());
+        mGroupView[snapshot.mGroup] = group;
+        group->insert(snapshot.mId);
+        group->mIndex = snapshot.mGroupIndex;
+        eos_debug("creating/inserting into group view %s<=>%u",snapshot.mGroup.c_str(), snapshot.mId,fs);
+      }
+      
+      
+      mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
+      
+      // check if we have already a space view
+      if (mSpaceView.count(snapshot.mSpace)) {
+        mSpaceView[snapshot.mSpace]->insert(snapshot.mId);
+        eos_debug("inserting into space view %s<=>%u %x",snapshot.mSpace.c_str(), snapshot.mId,fs);
+      } else {
+        FsSpace* space = new FsSpace(snapshot.mSpace.c_str());
+        mSpaceView[snapshot.mSpace] = space;
+        space->insert(snapshot.mId);
+        eos_debug("creating/inserting into space view %s<=>%u %x",snapshot.mSpace.c_str(), snapshot.mId,fs);
+      }
+
+      StoreFsConfig(fs);
+
+      return true;
+    }
+  }
+  return false;
+}
 
 /*----------------------------------------------------------------------------*/
 bool 
@@ -237,9 +307,8 @@ FsView::UnRegister(FileSystem* fs)
   
 #ifndef EOSMGMFSVIEWTEST
   // delete in the configuration engine
-  std::string key;
-  std::string val;
-  fs->CreateConfig(key,val);
+  std::string key = fs->GetQueuePath();
+
   if (FsView::ConfEngine)
     FsView::ConfEngine->DeleteConfigValue("fs", key.c_str());
 #endif
@@ -840,7 +909,7 @@ FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid)
 
 /*----------------------------------------------------------------------------*/
 void
-FsView::PrintSpaces(std::string &out, std::string headerformat, std::string listformat)
+FsView::PrintSpaces(std::string &out, std::string headerformat, std::string listformat, const char* selection)
 {
   //----------------------------------------------------------------
   //! print space information to out
@@ -849,6 +918,10 @@ FsView::PrintSpaces(std::string &out, std::string headerformat, std::string list
   std::map<std::string , FsSpace* >::iterator it;
   bool first=true;
   for (it = mSpaceView.begin(); it != mSpaceView.end(); it++) {
+    if (selection) {
+      if ( (it->second->mName.find(selection)) == std::string::npos)
+        continue;
+    }
     it->second->Print(out, headerformat,listformat);
     first = false;
     if ( !listformat.length() && ((headerformat.find("header=1:")) == 0)) {
@@ -859,7 +932,7 @@ FsView::PrintSpaces(std::string &out, std::string headerformat, std::string list
 
 /*----------------------------------------------------------------------------*/
 void
-FsView::PrintGroups(std::string &out, std::string headerformat, std::string listformat)
+FsView::PrintGroups(std::string &out, std::string headerformat, std::string listformat, const char* selection)
 {
   //----------------------------------------------------------------
   //! print group information to out
@@ -868,6 +941,10 @@ FsView::PrintGroups(std::string &out, std::string headerformat, std::string list
   std::map<std::string , FsGroup* >::iterator it;
   bool first=true;
   for (it = mGroupView.begin(); it != mGroupView.end(); it++) {
+    if (selection) {
+      if ( (it->second->mName.find(selection)) == std::string::npos)
+        continue;
+    }
     it->second->Print(out, headerformat,listformat);
     first = false;
     if ( !listformat.length() && ((headerformat.find("header=1:")) == 0)) {
@@ -878,7 +955,7 @@ FsView::PrintGroups(std::string &out, std::string headerformat, std::string list
 
 /*----------------------------------------------------------------------------*/
 void
-FsView::PrintNodes(std::string &out, std::string headerformat, std::string listformat)
+FsView::PrintNodes(std::string &out, std::string headerformat, std::string listformat, const char* selection)
 {
   //----------------------------------------------------------------
   //! print node information to out
@@ -887,6 +964,10 @@ FsView::PrintNodes(std::string &out, std::string headerformat, std::string listf
   std::map<std::string , FsNode* >::iterator it;
   bool first=true;
   for (it = mNodeView.begin(); it != mNodeView.end(); it++) {
+    if (selection) {
+      if ( (it->second->mName.find(selection)) == std::string::npos)
+        continue;
+    }
     it->second->Print(out, headerformat,listformat);
     first = false;
     if ( !listformat.length() && ((headerformat.find("header=1:")) == 0)) {
@@ -1030,6 +1111,7 @@ BaseView::SumLongLong(const char* param)
   size_t qpos = 0;
   std::string key="";
   std::string value="";
+  bool isquery=false;
 
   if ( (qpos = sparam.find("?")) != std::string::npos) {
     std::string query=sparam;
@@ -1040,13 +1122,24 @@ BaseView::SumLongLong(const char* param)
     eos::common::StringConversion::Tokenize(query,token,delimiter);
     key   = token[0];
     value = token[1];
+    isquery = true;
   }
 
   std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
   for (it=begin(); it != end(); it++) {
 
+    eos::common::FileSystem::fs_snapshot snapshot;
+    FsView::gFsView.mIdView[*it]->SnapShotFileSystem(snapshot);
 
-    if ((!key.length()) || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value)) {
+    // for query sum's we always fold in that a group and host has to be enabled
+    if  ((!key.length()) || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value) ) {
+      if (isquery && (
+                    (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") != "on") ||
+                    (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status")  != "on") 
+                    )
+          )
+        continue;
+
       sum += FsView::gFsView.mIdView[*it]->GetLongLong(sparam.c_str());
     }
   }
@@ -1054,15 +1147,15 @@ BaseView::SumLongLong(const char* param)
   // we have to rescale the stat.net parameters because they arrive for each filesystem
   if (!sparam.compare(0,8,"stat.net")) {
     if (mType == "spaceview") {
-      // divide by the number of "cfg.groupsize"
+      // divide by the number of "cfg.groupmod"
       std::string gsize="";
-      long long groupsize=1;
-      gsize = GetMember("cfg.groupsize");
+      long long groupmod=1;
+      gsize = GetMember("cfg.groupmod");
       if (gsize.length()) {
-        groupsize=strtoll(gsize.c_str(),0,10);
+        groupmod=strtoll(gsize.c_str(),0,10);
       }
-      if (groupsize) {
-        sum/=groupsize;
+      if (groupmod) {
+        sum/=groupmod;
       }
     }
     if ((mType == "nodesview")) {

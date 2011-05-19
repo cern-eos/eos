@@ -16,11 +16,22 @@ if (defined $phost_ip) {
 
 $| = 1;
 
+my $logfile = (shift @ARGV) or exit -1;
 my $target1 = (shift @ARGV) or exit -1;
 my $target2 = (shift @ARGV) or exit -1;
 my $aliasname = (shift @ARGV) or exit -1;
 my $failovertime = (shift @ARGV) or exit -1;
 my $debug = (shift @ARGV or 0);
+
+sub HUP_handler {
+    close STDOUT;
+    close STDIN;
+    open STDOUT, ">& $logfile";
+    open STDERR, ">& $logfile";
+    $SIG{'HUP'} = 'HUP_handler';
+}
+
+$SIG{'HUP'} = 'HUP_handler';
 
 my $mgmstatus="";
 my $mqstatus="";

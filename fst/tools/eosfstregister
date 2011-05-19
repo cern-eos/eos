@@ -21,6 +21,7 @@ sub usage() {
     printf STDERR  "                       -i : ignore if one of the filesystems has already a filesystem id stored and continue\n";
     printf STDERR  " hint: if <mount-prefix> ends with '/' subdirectories are scanned in this directory, \n";
     printf STDERR  "       if <mount-prefix> does not end with '/' directories starting with <mount-prefix> are scanned ( e.g. /data* )\n";
+    printf STDERR  "       if <space>='spare' all filesystems will be registered without scheduling group and you can move them in to production via 'fs mv spare <prod-space>'\n";
 }
 
 my $hostname = `hostname -f`;
@@ -63,7 +64,11 @@ do {
     }
     $npfsdefined += int($nspace);
     for (my $i=0; $i < $nspace; $i++) {
-	push @spacearray, "$space.$i";
+        if ($space eq "spare" ) {
+            push @spacearray, "$space";
+        } else {
+            push @spacearray, "$space.$i";
+        }
     }
 } while($policy ne "");
 

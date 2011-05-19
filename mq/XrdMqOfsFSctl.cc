@@ -345,7 +345,7 @@ XrdMqOfs::FSctl(const int               cmd,
       TRACES(ipath);
       return SFS_ERROR;
     } else {
-      fprintf(stderr,"Dropped Monitor message %s\n",c.c_str());
+      //      fprintf(stderr,"Dropped Monitor message %s\n",c.c_str());
       ZTRACE(open,"Discarding montor message without receiver");
       const char* result="OK";
       error.setErrInfo(3,(char*)result);

@@ -78,15 +78,30 @@ com_fs (char* arg1) {
     
     return (0);
   }
-  
+
+  if ( subcommand == "mv" ) {
+    XrdOucString in ="mgm.cmd=fs&mgm.subcmd=mv";
+    XrdOucString fsid        = subtokenizer.GetToken();
+    XrdOucString space       = subtokenizer.GetToken();
+    if ( (!fsid.length()) || (!space.length()) )
+      goto com_fs_usage;
+    in += "&mgm.fs.id="; in += fsid;
+    in += "&mgm.space="; in += space;
+
+    XrdOucEnv* result = client_admin_command(in);
+    global_retc = output_result(result);
+    return (0);
+  }  
   
   if ( subcommand == "ls" ) {
     XrdOucString in ="mgm.cmd=fs&mgm.subcmd=ls";
     XrdOucString option="";
     bool highlighting=true;
     bool ok;
+    bool sel=false;
 
     do {
+      ok=false;
       subtokenizer.GetLine();
       option = subtokenizer.GetToken();
       if (option.length()) {
@@ -115,14 +130,21 @@ com_fs (char* arg1) {
 	  in += "&mgm.outformat=e";
 	  ok=true;
 	}
-	
+        if (!option.beginswith("-")) {
+          in += "&mgm.selection=";
+          in += option;
+          if (!sel)
+            ok=true;
+          sel=true;
+        }
       } else {
 	ok=true;
       }
-    } while(option.length());
+      
+      if (!ok) 
+        goto com_fs_usage;
 
-    if (!ok) 
-      goto com_fs_usage;
+    } while(option.length());
 
     XrdOucEnv* result = client_admin_command(in);
     if (!silent) {
@@ -183,11 +205,21 @@ com_fs (char* arg1) {
       in += arg;
     } else {
       XrdOucString mountpoint = subtokenizer.GetToken();
+      XrdOucString hostport = arg;
       in += "&mgm.fs.hostport=";
       in += arg;
       if (!(arg.find(":")!= STR_NPOS)) {
 	in += ":1095";
+        hostport += ":1095";
       }
+
+      if (!hostport.beginswith("/eos/")) {
+        hostport.insert("/eos/",0);
+        hostport.append("/fst");
+      }
+      in += "&mgm.node=";
+      in += hostport;
+
       in += "&mgm.fs.mountpoint=";
       if (!mountpoint.length())
 	goto com_fs_usage;
@@ -526,6 +558,8 @@ com_fs (char* arg1) {
   printf("       fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host:port> <mountpoint> [<schedgroup>] [<status]\n");
   printf("                                                                : add a filesystem and dynamically assign a filesystem id based on the unique identifier for the disk <uuid>\n");
   printf("                                             --manual -m <fsid> : user specified <fsid> and <schedgroup> - no automatic assignment\n");
+  printf("       fs mv <fsid> <schedgroup>                                : move a filesystem into a different scheduling group\n");
+
   printf("       fs config <host>:<port><path>|<fsid>|<uuid> <key>=<value>: configure filesystem parameter for a single filesystem identified by host:port/path, filesystem id or filesystem UUID.\n");
   printf("         => fs config <fsid> configstatus=rw|wo|ro|drain|off\n");
   printf("                    <status> can be := rw                       : filesystem is in read write mode\n");
@@ -537,6 +571,7 @@ com_fs (char* arg1) {
   printf("                    <size> can be   := (>0)[BMGT]               : the headroom to keep per filesystem (e.g. you can write '1G' for 1 GB)\n");
   printf("         => fs config <fsid> scaninterval=<seconds>\n           : configures a scanner thread on each FST to recheck the file & block checksums of all stored files every <seconds> seconds. 0 disables the scanning.\n");
   printf("         => fs config <fsid> graceperiod=<seconds>\n            : grace period before a filesystem with an operation error get's automatically drained\n");
+  printf("         => fs config <fsid> drainperiod=<seconds>\n            : drain period a drain job is waiting to finish the drain procedure\n");
   printf("\n");
   printf("       fs rm    <fs-name>|<fs-id>                               : remove filesystem configuration by name or id\n");
   printf("       fs boot  <fs-id>|<node-queue>                            : boot filesystem/node ['fs boot *' to boot all]  \n");

@@ -188,9 +188,27 @@ status() {
         return $RETVAL
 }
 
+condrestart() {
+    if [ -z "$1" ]; then
+        for i in ${XRD_ROLES}; do
+            condrestart $i;
+        done;
+    else
+        if [ -f /var/lock/subsys/$prog.$1 ]; then
+            restart $1;
+        fi
+    fi
+}
+
 restart() {
-        stop $1
-        start $1
+    if [ "$eoshaoff" = "1" ]; then
+        service eosha stop 
+    fi
+    stop $1
+    start $1
+    if [ "$eoshaoff" = "1" ]; then
+        service eosha start 
+    fi
 }
 
 # Determine the role
@@ -226,13 +244,21 @@ elif [ -z "${XRD_ROLES}" ]; then
 
 fi
 
+eoshaoff=0
+
 if [ -t 0 ]; then 
 if [ -t 1 ]; then 
 if [ "$1" != "status" ]; then
     service eosha status 2>&1 | grep running >& /dev/null
-    if [ $? = "0" ]; then
-        echo "Stop eosha to do that (service eosha stop)"
-        exit -1;
+    eoshastatus=$?
+    if [ $eoshastatus = "0" ]; then
+        if [ "$1" != "restart" ] && [ "$1" != "condrestart" ]; then 
+
+            echo "Stop eosha to do that (service eosha stop) - you can do only restart while eosha is active"
+            exit -1;
+        else
+            eoshaoff=1
+        fi
     fi
 fi
 fi
@@ -254,8 +280,7 @@ case "$1" in
                 restart $2
                 ;;
         condrestart)
-                [ -n "$2" -a -f /var/lock/subsys/$prog.$2 ] && restart $2 || :
-                [ -z "$2" ] && restart || :
+                condrestart $2
                 ;;
         *)
                 echo $"Usage: $0 {start|stop|status|restart|condrestart} [role]"

@@ -13,6 +13,7 @@
 #include "mgm/ProcInterface.hh"
 #include "mgm/ConfigEngine.hh"
 #include "mgm/Stat.hh"
+#include "mgm/Iostat.hh"
 #include "mgm/Messaging.hh"
 #include "namespace/IView.hh"
 #include "namespace/IFileMDSvc.hh"
@@ -164,7 +165,6 @@ class XrdMgmOfs : public XrdSfsFileSystem , public eos::common::LogId
   friend class XrdMgmOfsFile;
   friend class XrdMgmOfsDirectory;
   friend class ProcCommand;
-
 public:
 
 // Object Allocation Functions
@@ -453,7 +453,8 @@ virtual bool           Init(XrdSysError &);
 
         XrdCapability*   CapabilityEngine;   // -> authorization module for token encryption/decryption
   
-        XrdOucString     MgmOfsBrokerUrl;    // -> Url of the message broker
+        XrdOucString     MgmOfsBroker;       // -> Url of the message broker without MGM subject
+        XrdOucString     MgmOfsBrokerUrl;    // -> Url of the message broker with MGM subject 
         Messaging*       MgmOfsMessaging;    // -> messaging interface class
         XrdOucString     MgmDefaultReceiverQueue; // -> Queue where we are sending to by default
         XrdOucString     MgmOfsName;         // -> mount point of the filesystem
@@ -486,8 +487,8 @@ virtual bool           Init(XrdSysError &);
         eos::FileSystemView *eosFsView;      // -> filesystem view of the namespace
         XrdSysMutex      eosViewMutex;       // -> mutex making the namespace single threaded
         XrdOucString     MgmMetaLogDir;      //  Directory containing the meta data (change) log files
-        Stat             MgmStats;           //  Mgm Statistics
-
+        Stat             MgmStats;           //  Mgm Namespace Statistics
+        Iostat           IoStats;            //  Mgm IO Statistics
         google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;
         XrdSysMutex      MgmHealMapMutex;
 
@@ -504,10 +505,11 @@ virtual bool           Init(XrdSysError &);
  static void* StartMgmFsListener(void *pp);  //  Listener Thread Starter
         void  FsListener();                  //  Listens on filesystem errors
 
+        XrdOucString     ManagerId;          // -> manager id in <host>:<port> format
+
 protected:
         char*            HostName;           // -> our hostname as derived in XrdOfs
         char*            HostPref;           // -> our hostname as derived in XrdOfs without domain
-        XrdOucString     ManagerId;          // -> manager id in <host>:<port> format
 
 private:
   static  XrdSysError *eDest;

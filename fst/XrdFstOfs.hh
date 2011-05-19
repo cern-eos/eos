@@ -25,6 +25,7 @@
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "Xrd/XrdScheduler.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/mman.h>
 #include <queue>
@@ -153,6 +154,9 @@ public:
   XrdMqSharedObjectManager ObjectManager;// -> managing shared objects
 
   void OpenFidString(unsigned long fsid, XrdOucString &outstring);
+
+  XrdScheduler* TransferScheduler;      // -> TransferScheduler
+  XrdSysMutex   TransferSchedulerMutex; // -> protecting the TransferScheduler
 
   virtual ~XrdFstOfs() {};
 };

@@ -17,6 +17,8 @@ EOSCOMMONNAMESPACE_BEGIN
 class TransferJob {
 private:
   XrdOucEnv* mJob;
+  XrdOucString mEncodedEnv;
+  
 public:
   //------------------------------------------------------------------------
   //! Constructor
@@ -25,9 +27,15 @@ public:
   TransferJob(const char* description);
   virtual ~TransferJob();
 
-  const char* GetEnv(); // returns the env string
+  const char* GetSealed(); // returns the sealed env string
   
-  const char* AddSignature(const char* signature); // adds the env signature to the internal mJob representation
+  static TransferJob* Create(const char* sealeddescription);
+
+  XrdOucEnv* GetEnv() ; // return XrdOucEnv object
+
+  void Replace(const char* description); // this is used to replace the job content with a decoded capability
+
+  void PrintOut(XrdOucString &out);
 };
 
 EOSCOMMONNAMESPACE_END

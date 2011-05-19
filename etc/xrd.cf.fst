@@ -4,7 +4,8 @@ xrootd.async off nosf
 xrd.network keepalive
 ###########################################################
 xrootd.seclib libXrdSec.so
-sec.protocol  unix sss
+sec.protocol unix
+sec.protbind * only unix
 ###########################################################
 all.export / nolock
 all.trace none

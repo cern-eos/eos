@@ -56,7 +56,7 @@ ConfigEngineChangeLog::AddEntry(const char* info)
   if (fd>0) {
     lseek(fd,0,SEEK_END);
 
-    if ((write(fd, stime.c_str(), stime.length()+1)) != ((int)(stime.length()+1))) {
+    if ((write(fd, stime.c_str(), stime.length())) != ((int)(stime.length()))) {
       eos_err("failed to write config engine changelog entry");
       Mutex.UnLock();
       return false;

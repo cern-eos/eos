@@ -1,0 +1,26 @@
+#!/bin/bash
+# input parameter is the path to query e.g. eos-srm-used-bytes /eos/user/
+. /etc/sysconfig/eos
+dirpath="${1%/}/"
+
+path=`echo .eos-srm-used-bytes.$dirpath | sed s/\\\//_/g`;
+cache=`find /var/tmp/ -cmin 1 -name $path 2>/dev/null`;
+
+if [ -n "$cache" ]; then
+    cat $cache
+    exit;
+fi
+    
+export `eos -b root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch//}// quota ls -m -s $dirpath | grep "gid=ALL"`
+
+val=$usedlogicalbytes
+
+test -z $val && val=0
+
+echo $val > /var/tmp/$path.tmp
+mv /var/tmp/$path.tmp /var/tmp/$path 2>/dev/null
+echo $val
+
+
+
+

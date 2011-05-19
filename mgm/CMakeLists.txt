@@ -7,6 +7,7 @@ add_library (XrdEosMgm MODULE
 	    Messaging.cc
 	    Policy.cc  
 	    ProcInterface.cc
+            proc/proc_fs.cc
 	    Quota.cc
 	    Vid.cc
 	    FsView.cc
@@ -16,6 +17,7 @@ add_library (XrdEosMgm MODULE
             FileSystem.cc
             Egroup.cc
             Acl.cc
+            Iostat.cc
 	    )
 
 target_link_libraries (XrdEosMgm XrdClient XrdSys XrdOuc XrdNet XrdNetUtil XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z)

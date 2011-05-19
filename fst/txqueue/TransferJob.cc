@@ -1,0 +1,155 @@
+/* ------------------------------------------------------------------------- */
+#include "common/Logging.hh"
+#include "fst/txqueue/TransferJob.hh"
+/* ------------------------------------------------------------------------- */
+#include <fstream>
+#include <sstream>
+#include <cstdio>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <uuid/uuid.h>
+/* ------------------------------------------------------------------------- */
+
+EOSFSTNAMESPACE_BEGIN
+
+
+/*----------------------------------------------------------------------------*/
+template <class T>
+inline std::string ToString(const T& t){
+  std::ostringstream oss;
+  oss << t;
+  return oss.str();
+}
+
+TransferJob::TransferJob(TransferQueue* queue, eos::common::TransferJob* job,  int bw, int timeout){
+  mQueue = queue;
+  mBandWidth = bw;
+  mTimeOut   = timeout;
+  mJob = job;
+  mSourceUrl = "";
+  mTargetUrl = "";
+}
+
+/* ------------------------------------------------------------------------- */
+TransferJob::~TransferJob()
+{
+  if (mJob) {
+    delete mJob;
+  }
+}
+
+
+/* ------------------------------------------------------------------------- */
+std::string TransferJob::NewUuid() {
+  // create message ID;
+  std::string sTmp;
+  char uuidstring[40];
+  uuid_t uuid;
+  uuid_generate_time(uuid);
+  uuid_unparse(uuid,uuidstring);
+  sTmp = uuidstring;
+  return sTmp;
+}
+
+/* ------------------------------------------------------------------------- */
+const char*
+TransferJob::GetSourceUrl() 
+{
+  if ((!mJob) || (!mJob->GetEnv()))
+    return 0;
+  mSourceUrl = mJob->GetEnv()->Get("source.url");
+  mSourceUrl += "?";
+  mSourceUrl += "cap.sym=";
+  mSourceUrl += mJob->GetEnv()->Get("source.cap.sym");
+  mSourceUrl += "&cap.msg=";
+  mSourceUrl += mJob->GetEnv()->Get("source.cap.msg");
+  return mSourceUrl.c_str();
+}
+
+/* ------------------------- ------------------------------------------------ */
+const char*
+TransferJob::GetTargetUrl()  
+{ 
+  if ((!mJob) || (!mJob->GetEnv()))
+    return 0;
+  mTargetUrl = mJob->GetEnv()->Get("target.url");
+  mTargetUrl += "?";
+  mTargetUrl += "cap.sym=";
+  mTargetUrl += mJob->GetEnv()->Get("target.cap.sym");
+  mTargetUrl += "&cap.msg=";
+  mTargetUrl += mJob->GetEnv()->Get("target.cap.msg");
+  return mTargetUrl.c_str();
+}
+
+/* ------------------------------------------------------------------------- */
+void TransferJob::DoIt(){
+  std::string fileName = "/tmp/", sTmp, strBand;
+  
+  std::stringstream command, ss;
+  std::string fileOutput = fileName + NewUuid();
+  std::string fileResult = fileName + NewUuid() + ".ok";
+  
+  ss << "#!/bin/bash" << std::endl;
+  ss << "SCRIPTNAME=$0" << std::endl;
+  ss << "SOURCE=$1" << std::endl;
+  ss << "DEST=$2" << std::endl;
+  ss << "TOTALTIME=$3" << std::endl;
+  ss << "BANDWIDTH=$4" << std::endl;
+  ss << "FILEOUTPUT=$5" << std::endl;
+  ss << "FILERETURN=$6" << std::endl;
+  ss << "BEFORE=$(date +%s)" << std::endl;
+  ss << "[ -f $FILEOUTPUT ] && rm $FILEOUTPUT" << std::endl;
+  ss << "[ -f $FILERETURN ] && rm $FILERETURN" << std::endl;
+  ss << "eosfstcp -u 2 -g 2 -R -n -p -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+  ss << "PID=$!" << std::endl;
+  ss << "AFTER=$(date +%s)" << std::endl;
+  ss << "DIFFTIME=$(( $AFTER - $BEFORE ))" << std::endl;
+  ss << "while kill -0 $PID 2>/dev/null && [[ $DIFFTIME -lt $TOTALTIME ]]; do" << std::endl;
+  ss << "sleep 1" << std::endl;
+  ss << "AFTER=$(date +%s)" << std::endl;
+  ss << "DIFFTIME=$(( $AFTER - $BEFORE ))" << std::endl;
+  ss << "done" << std::endl;
+  ss << "if kill -0 $PID 2>/dev/null " << std::endl;
+  ss << "then" << std::endl;
+  ss << "kill -9 $PID 2> /dev/null " << std::endl;
+  ss << "fi" << std::endl;
+  ss << "rm -rf $SCRIPTNAME" << std::endl;
+  ss << "if [ -e $FILERETURN ] " << std::endl;
+  ss << "then" << std::endl;
+  ss << "rm -rf $FILERETURN "<< std::endl;
+  ss << "exit 0; " << std::endl;
+  ss << "else " << std::endl;
+  ss << "exit 255; " << std::endl;
+  ss << "fi" << std::endl;
+   
+  fileName = fileName + NewUuid() + ".sh";
+  std::ofstream file;
+  file.open(fileName.c_str());
+  file << ss.str();
+  file.close();
+  
+  std::string mSource      = GetSourceUrl();
+  std::string mDestination = GetTargetUrl();
+
+  command << "/bin/sh ";  command << fileName + " \"";
+  command << mSource + "\" \"";    
+  command << mDestination + "\" ";
+  command << ToString(mTimeOut) + " ";
+  command << ToString(mBandWidth) + " ";
+  command << fileOutput + " ";
+  command << fileResult + " ";
+
+  eos_static_debug("executing %s", command.str().c_str());
+  int rc = system(command.str().c_str());
+
+  eos_static_debug("copy returned with retc=%d", WEXITSTATUS(rc));
+  //delete the result files
+  remove(fileOutput.c_str());
+  remove(fileResult.c_str());
+
+  // we are over running
+  mQueue->DecRunning();
+}
+  
+EOSFSTNAMESPACE_END

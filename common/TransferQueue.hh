@@ -25,6 +25,7 @@ private:
   std::string mFullQueue;  // = <fullqueue>          e.g. /eos/<host>/fst/<mntpoint>/txqueue/<txqueue>
   std::string mTxQueue;    // = <txqueue>
   FileSystem* mFileSystem; // -> pointer to parent object
+  bool        mSlave;      // -> this is a queue slave, it won't clear the queue on deletion
 
   XrdMqSharedQueue* mHashQueue;  // before usage mSom needs a read lock and mHash has to be validated to avoid race conditions in deletion
   XrdMqSharedObjectManager* mSom;
@@ -35,34 +36,65 @@ public:
   //! Constructor
   //------------------------------------------------------------------------
 
-  TransferQueue(const char* queue, const char* subqueue, eos::common::FileSystem* fs, XrdMqSharedObjectManager* som, bool bc2mgm=false);
+  TransferQueue(const char* queue, const char* queuepath, const char* subqueue, eos::common::FileSystem* fs, XrdMqSharedObjectManager* som, bool bc2mgm=false);
 
   bool Add   (eos::common::TransferJob* job);
+  eos::common::TransferJob* Get();
   bool Remove(eos::common::TransferJob* job);
-  
+
   size_t Size() {
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(),"queue");
-    if (mHashQueue) {
-      if (mHashQueue->GetQueue()) {
-        return mHashQueue->GetQueue()->size();
+    if (mSom) {
+      XrdMqRWMutexReadLock lock(mSom->HashMutex);
+      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(),"queue");
+      if (mHashQueue) {
+        if (mHashQueue->GetQueue()) {
+          return mHashQueue->GetQueue()->size();
+        }
       }
     }
     return 0;
   }
 
   bool Clear () {    
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(),"queue");
-    if (mHashQueue) {
-      if (mHashQueue->GetQueue()) {
-        mHashQueue->GetQueue()->clear();
-        return true;
+    if (mSom) {
+      XrdMqRWMutexReadLock lock(mSom->HashMutex);
+      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(),"queue");
+      if (mHashQueue) {
+        if (mHashQueue->GetQueue()) {
+          mHashQueue->Clear();
+          return true;
+        }
       }
     }
     return false;
   };
 
+  bool OpenTransaction () {
+    if (mSom) {
+      XrdMqRWMutexReadLock lock(mSom->HashMutex);
+      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(),"queue");
+      if (mHashQueue) {
+        if (mHashQueue->GetQueue()) {
+          return mHashQueue->OpenTransaction();
+        }
+      }
+    }
+    return false;
+  }
+
+  bool CloseTransaction () {
+    if (mSom) {
+      XrdMqRWMutexReadLock lock(mSom->HashMutex);
+      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(),"queue");
+      if (mHashQueue) {
+        if (mHashQueue->GetQueue()) {
+          return mHashQueue->CloseTransaction();
+        }
+      }
+    }
+    return false;
+  }
+  
   virtual ~TransferQueue();
 };
 

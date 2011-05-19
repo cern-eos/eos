@@ -14,7 +14,7 @@ com_node (char* arg1) {
   XrdOucString option="";
   XrdOucEnv* result=0;
   bool ok=false;
-
+  bool sel=false;
   // split subcommands
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
@@ -24,6 +24,7 @@ com_node (char* arg1) {
     option="";
 
     do {
+      ok=false;
       subtokenizer.GetLine();
       option = subtokenizer.GetToken();
       if (option.length()) {
@@ -44,6 +45,14 @@ com_node (char* arg1) {
 	  silent=true;
 	  ok=true;
 	}
+        if (!option.beginswith("-")) {
+          in += "&mgm.selection=";
+          in += option;
+          if (!sel)
+            ok=true;
+          sel=true;
+        }
+
 	if (!ok) 
 	  printusage=true;
       } else {
@@ -131,7 +140,7 @@ com_node (char* arg1) {
 
  com_node_usage:
 
-  printf("usage: node ls [-s] [-m|-l|--io]                                : list nodes\n");
+  printf("usage: node ls [-s] [-m|-l|--io] [<node>]                            : list all nodes or only <node>\n");
   printf("                                                                  -s : silent mode\n");
   printf("                                                                  -m : monitoring key=value output format\n");
   printf("                                                                  -l : long output - list also file systems after each node\n");

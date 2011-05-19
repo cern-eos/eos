@@ -2,3 +2,4 @@ INSTALL ( FILES eos.keytab DESTINATION ${SYSCONFDIR}/ PERMISSIONS OWNER_READ OWN
 INSTALL ( FILES xrd.cf.fst xrd.cf.mgm xrd.cf.mq xrd.cf.sync fuse.conf DESTINATION ${SYSCONFDIR}/ )
 INSTALL ( FILES rc.d/init.d/eos rc.d/init.d/eosha rc.d/init.d/eossync rc.d/init.d/eosd DESTINATION ${SYSCONFDIR}/rc.d/init.d PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 INSTALL ( FILES sysconfig/eos.example DESTINATION ${SYSCONFDIR}/sysconfig/ )
+

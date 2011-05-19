@@ -93,6 +93,13 @@ public:
   static unsigned long GetBlockChecksum(unsigned long layout) { return ( (layout>>20) & 0xf);}
   static unsigned long MakeBlockChecksum(unsigned long xs) { return (xs<<20);}
   static unsigned long GetBlockChecksumLen(unsigned long layout) { return GetChecksumLen((layout>>20)& 0xf);}
+
+  static double GetSizeFactor(unsigned long layout) {
+    if (GetLayoutType(layout) == kPlain)   return 1.0;
+    if (GetLayoutType(layout) == kReplica) return 1.0 * (GetStripeNumber(layout)+1);
+    if (GetLayoutType(layout) == kRaid5)   return (1.0 * (GetStripeNumber(layout)+1) / ( GetStripeNumber(layout)?GetStripeNumber(layout):1));
+    return 1.0;
+  }
   
   static const char* GetChecksumString(unsigned long layout) { if (GetChecksum(layout)==kNone) return "none"; if (GetChecksum(layout)==kAdler) return "adler"; if (GetChecksum(layout)==kCRC32) return "crc32"; if (GetChecksum(layout)==kCRC32C) return "crc32c"; if (GetChecksum(layout)==kMD5) return "md5"; if (GetChecksum(layout)==kSHA1) return "sha"; return "none";}
   static const char* GetBlockChecksumString(unsigned long layout) { if (GetBlockChecksum(layout)==kNone) return "none"; if (GetBlockChecksum(layout)==kAdler) return "adler"; if (GetBlockChecksum(layout)==kCRC32) return "crc32"; if (GetBlockChecksum(layout)==kCRC32C) return "crc32c"; if (GetBlockChecksum(layout)==kMD5) return "md5"; if (GetBlockChecksum(layout)==kSHA1) return "sha"; return "none";}

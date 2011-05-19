@@ -17,12 +17,16 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
   mPath      = queuepath;
   mPath.erase(0, mQueue.length());
   mSom       = som;
+  std::string broadcast = queue;
+  if (bc2mgm)
+    broadcast = "/eos/*/mgm";
+
   if (mSom) {
     mSom->HashMutex.LockRead();
     if (! (mHash = mSom->GetObject(mQueuePath.c_str(),"hash")) ) {
       mSom->HashMutex.UnLockRead();
       // create the hash object
-      if (mSom->CreateSharedHash(mQueuePath.c_str(), mQueue.c_str(),som)) {
+      if (mSom->CreateSharedHash(mQueuePath.c_str(), broadcast.c_str(),som)) {
         mSom->HashMutex.LockRead();
         mHash = mSom->GetObject(mQueuePath.c_str(),"hash");
         if (mHash) {
@@ -71,9 +75,9 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
       mHash->CloseTransaction();
       mSom->HashMutex.UnLockRead();
     }
-    mDrainQueue   = new TransferQueue(mQueuePath.c_str(),"drainq"  ,this, mSom, bc2mgm );
-    mBalanceQueue = new TransferQueue(mQueuePath.c_str(),"balanceq",this, mSom, bc2mgm );
-    mExternQueue  = new TransferQueue(mQueuePath.c_str(),"externq" ,this, mSom, bc2mgm );
+    mDrainQueue   = new TransferQueue(mQueue.c_str(),mQueuePath.c_str(),"drainq"  ,this, mSom, bc2mgm );
+    mBalanceQueue = new TransferQueue(mQueue.c_str(),mQueuePath.c_str(),"balanceq",this, mSom, bc2mgm );
+    mExternQueue  = new TransferQueue(mQueue.c_str(),mQueuePath.c_str(),"externq" ,this, mSom, bc2mgm );
   } else {
     mHash = 0;
     mDrainQueue   = 0;
@@ -81,6 +85,10 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
     mExternQueue  = 0;
   }
   constructorLock.UnLock();
+  if (bc2mgm) 
+    BroadCastDeletion=false;
+  else
+    BroadCastDeletion=true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -89,7 +97,7 @@ FileSystem::~FileSystem()
   constructorLock.Lock();
   // remove the shared hash of this file system
   if (mSom) {
-    mSom->DeleteSharedHash(mQueuePath.c_str());
+    mSom->DeleteSharedHash(mQueuePath.c_str(),BroadCastDeletion);
   }
 
   if (mDrainQueue) 
@@ -124,6 +132,9 @@ FileSystem::GetDrainStatusAsString(int status)
   if (status == kDrainWait) return "waiting";
   if (status == kDraining) return "draining";
   if (status == kDrained) return "drained";
+  if (status == kDrainStalling) return "stalling";
+  if (status == kDrainExpired) return "expired";
+  if (status == kDrainLostFiles) return "lostfiles";
   return "unknown";
 }
 
@@ -186,7 +197,10 @@ FileSystem::GetDrainStatusFromString(const char* ss)
   if (!strcmp(ss,"prepare")) return kDrainPrepare;
   if (!strcmp(ss,"wait"))    return kDrainWait;
   if (!strcmp(ss,"draining"))return kDraining;
+  if (!strcmp(ss,"stalling"))return kDrainStalling;
   if (!strcmp(ss,"drained")) return kDrained;
+  if (!strcmp(ss,"expired")) return kDrainExpired;
+  if (!strcmp(ss,"lostfiles")) return kDrainLostFiles;
 
   return kNoDrain;
 }

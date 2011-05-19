@@ -126,6 +126,7 @@ public:
 #endif
 
   bool Register   (FileSystem* fs);  // this adds or modifies a filesystem
+  bool MoveGroup(FileSystem* fs, std::string group);
   void StoreFsConfig(FileSystem* fs);// this stores the filesystem configuration into the config engine and should be called whenever a filesystem wide parameters is changed
   bool UnRegister (FileSystem* fs);  // this removes a filesystem
   bool ExistsQueue(std::string queue, std::string queuepath); // check's if a queue+path exists already
@@ -162,9 +163,9 @@ public:
   bool        RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid);
   bool        RemoveMapping(eos::common::FileSystem::fsid_t fsid);
 
-  void PrintSpaces(std::string &out, std::string headerformat, std::string listformat);
-  void PrintGroups(std::string &out, std::string headerformat, std::string listformat);
-  void PrintNodes (std::string &out, std::string headerformat, std::string listformat);
+  void PrintSpaces(std::string &out, std::string headerformat, std::string listformat, const char* selection=0);
+  void PrintGroups(std::string &out, std::string headerformat, std::string listformat, const char* selection=0);
+  void PrintNodes (std::string &out, std::string headerformat, std::string listformat, const char* selection=0);
   
   static std::string GetNodeFormat       (std::string option);
   static std::string GetGroupFormat      (std::string option);

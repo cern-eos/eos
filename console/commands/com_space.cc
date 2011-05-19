@@ -14,7 +14,7 @@ com_space (char* arg1) {
   XrdOucString option="";
   XrdOucEnv* result=0;
   bool ok=false;
-
+  bool sel=false;
   // split subcommands
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
@@ -24,6 +24,7 @@ com_space (char* arg1) {
     option="";
 
     do {
+      ok=false;
       subtokenizer.GetLine();
       option = subtokenizer.GetToken();
       if (option.length()) {
@@ -44,6 +45,14 @@ com_space (char* arg1) {
 	  silent=true;
 	  ok=true;
 	}
+        if (!option.beginswith("-")) {
+          in += "&mgm.selection=";
+          in += option;
+          if (!sel)
+            ok=true;
+          sel=true;
+        }
+          
 	if (!ok) 
 	  printusage=true;
       } else {
@@ -171,7 +180,7 @@ com_space (char* arg1) {
  com_space_usage:
 
   printf("usage: space ls                                                  : list spaces\n");
-  printf("usage: space ls [-s] [-m|-l|--io]                                 : list spaces\n");
+  printf("usage: space ls [-s] [-m|-l|--io] [<space>]                          : list in all spaces or select only <space>\n");
   printf("                                                                  -s : silent mode\n");
   printf("                                                                  -m : monitoring key=value output format\n");
   printf("                                                                  -l : long output - list also file systems after each space\n");
@@ -181,8 +190,8 @@ com_space (char* arg1) {
   printf("\n");
   printf("       space define <space-name> [<groupsize> [<groupmod>]]             : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
   printf("\n");
-  printf("                                                                       => <groupsize>=0 means, that no groups are built within a space\n");
-  printf("                                                                       => <groupmod> defines the maximum number of filesystems per node [default=24]\n");
+  printf("                                                                       => <groupsize>=0 means, that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n");
+  printf("                                                                       => <groupmod> defines the maximun number of filesystems per node\n");
   printf("\n");
   printf("       space set <space-name> on|off                                 : enables/disabels all groups under that space ( not the nodes !) \n");
   printf("       space rm <space-name>                                         : remove space\n");

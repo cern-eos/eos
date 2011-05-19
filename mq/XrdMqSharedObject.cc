@@ -110,7 +110,6 @@ XrdMqSharedObjectManager::DeleteSharedHash(const char* subject, bool broadcast)
       message.MarkAsMonitor();
       XrdMqMessaging::gMessageClient.SendMessage(message);
     }
-    
     delete (hashsubjects[ss]);
     hashsubjects.erase(ss);
     HashMutex.UnLockWrite();
@@ -527,8 +526,9 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
       
       if (ftag == XRDMQSHAREDHASH_DELETE) {
 	std::string val = (env.Get(XRDMQSHAREDHASH_KEYS)?env.Get(XRDMQSHAREDHASH_KEYS):"");
-	if ( val.length() <= strlen(XRDMQSHAREDHASH_KEYS+1)) {
-	  error = "no keys in message body";
+	if ( val.length() <=1 ) {
+	  error = "no keys in message body : ";
+          error += env.Env(envlen);
 	  return false;
 	}
       
@@ -898,7 +898,7 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast, bool te
       callback=true;
     }
     
-    Store[skey].Set(value);
+    Store[skey].Set(value,key);
     if (callback) {
       CallBackInsert(&Store[skey], skey.c_str());
     }
@@ -1186,9 +1186,11 @@ void
 XrdMqSharedQueue::CallBackInsert(XrdMqSharedHashEntry *entry, const char* key) 
 {
   entry->SetKey(key);
+  QueueMutex.Lock();
   Queue.push_back(entry);
+  QueueMutex.UnLock();
   LastObjectId++;
-  //fprintf(stderr,"XrdMqSharedObjectManager::CallBackInsert=> on %s => LOID=%llu\n", key, LastObjectId);
+  //  fprintf(stderr,"XrdMqSharedObjectManager::CallBackInsert=> on %s => LOID=%llu\n", key, LastObjectId);
 }
  
 /*----------------------------------------------------------------------------*/
@@ -1196,12 +1198,14 @@ void
 XrdMqSharedQueue::CallBackDelete(XrdMqSharedHashEntry *entry)
 {
   std::deque<XrdMqSharedHashEntry*>::iterator it;
+  QueueMutex.Lock();
   for (it = Queue.begin(); it != Queue.end(); it++) {
     if (*it == entry) {
       Queue.erase(it);
       break;
     }
   }
+  QueueMutex.UnLock();
   //fprintf(stderr,"XrdMqSharedObjectManager::CallBackDelete=> on %s \n", entry->GetKey());
 }
 

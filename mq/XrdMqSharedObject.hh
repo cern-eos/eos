@@ -43,7 +43,7 @@ public:
 
   struct timeval* GetTime() { return &mtime;}
 
-  void Set(const char* s)  { entry = s; UpdateTime();ChangeId++;}
+  void Set(const char* s, const char* k=0)  { entry = s; UpdateTime();ChangeId++;if (k) key=k;}
   void Set(std::string &s) { entry = s; UpdateTime();ChangeId++;}
   void SetKey(const char* lkey) {key = lkey;}
   const char* GetKey() {return key.c_str();}
@@ -215,6 +215,8 @@ private:
   unsigned long long LastObjectId;
 
 public:
+  XrdSysMutex QueueMutex;
+
   XrdMqSharedQueue(const char* subject = "", const char* broadcastqueue = "", XrdMqSharedObjectManager* som=0) : XrdMqSharedHash(subject,broadcastqueue) { Type = "queue"; LastObjectId=0; SOM = som;}
   virtual ~XrdMqSharedQueue(){}
 
@@ -227,7 +229,8 @@ public:
     if (entry) {
       std::deque<XrdMqSharedHashEntry*>::iterator it;
       // remove hash entry ... this has a call back removing it also from the queue ...
-      return XrdMqSharedHash::Delete(entry->GetKey());
+      std::string key = entry->GetKey();
+      return XrdMqSharedHash::Delete(key.c_str());
     }
     return false;
   }
@@ -314,7 +317,7 @@ public:
     return false;
   }
   
-  bool DeleteSharedObject(const char* subject, const char* type, bool broadcast = true) {
+  bool DeleteSharedObject(const char* subject, const char* type, bool broadcast) {
     std::string Type = type;
     if (Type == "hash") {
       return DeleteSharedHash(subject,broadcast);
