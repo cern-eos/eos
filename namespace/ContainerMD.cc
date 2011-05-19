@@ -19,7 +19,7 @@ namespace eos
     pName( "" ),
     pCUid( 0 ),
     pCGid( 0 ),
-    pMode( 0 ),
+    pMode( 040755 ),
     pACLId( 0 )
   {
     pSubContainers.set_deleted_key( "" );
