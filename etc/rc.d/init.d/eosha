@@ -29,6 +29,7 @@ stop() {
         killproc eosha
         ### Now, delete the lock file ###
         rm -f /var/lock/subsys/eosha
+        rm -f /var/run/eosha.pid
         echo
 }
 

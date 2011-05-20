@@ -200,17 +200,24 @@ Vid::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
     retc = EINVAL;
     return false;
   }
-  
-  stdOut += "success: rm vid [ "; stdOut += inenv; stdOut += "]";
-  errno = 0;
-  retc = 0;
 
-  eos::common::Mapping::gVirtualUidMap.erase(skey.c_str());
-  eos::common::Mapping::gVirtualGidMap.erase(skey.c_str());
+  int nerased=0;
+  nerased += eos::common::Mapping::gVirtualUidMap.erase(skey.c_str());
+  nerased += eos::common::Mapping::gVirtualGidMap.erase(skey.c_str());
 
-  gOFS->ConfEngine->DeleteConfigValue("vid",skey.c_str());
+  gOFS->ConfEngine->DeleteConfigValue("vid",skey.c_str());  
 
-  return true;
+  if (nerased) {
+    stdOut += "success: rm vid [ "; stdOut += inenv; stdOut += "]";
+    errno = 0;
+    retc = 0;
+    return true;
+  } else {
+    stdErr += "error: nothing has been removed";
+    errno = EINVAL;
+    retc = EINVAL;
+    return false;
+  }
 }
 
 /*----------------------------------------------------------------------------*/

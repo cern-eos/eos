@@ -15,6 +15,7 @@ add_library (eosCommon SHARED
             Attr.cc
             TransferQueue.cc
             TransferJob.cc
+            Report.cc
 	    )
 
 add_library (eosCommon-Static STATIC
@@ -31,6 +32,7 @@ add_library (eosCommon-Static STATIC
             Attr.cc
             TransferQueue.cc
             TransferJob.cc
+            Report.cc
 )
 
 

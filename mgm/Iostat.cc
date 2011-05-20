@@ -1,4 +1,5 @@
 /*----------------------------------------------------------------------------*/
+#include "common/Report.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/XrdMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
@@ -75,10 +76,23 @@ Iostat::Receive(void)
   while (1) {
     XrdMqMessage* newmessage = 0;
     while ( (newmessage = mClient.RecvMessage()) ) {
-      newmessage->Print();
+      XrdOucString body = newmessage->GetBody();
+      while (body.replace("&&","&")) {}
+      XrdOucEnv ioreport(body.c_str());
+      eos::common::Report* report = new eos::common::Report(ioreport);
+      Add("bytes read",    report->uid, report->gid, report->rb,report->ots, report->cts);
+      Add("bytes written", report->uid, report->gid, report->wb,report->ots, report->cts);
+      Add("read  calls", report->uid, report->gid, report->nrc,report->ots, report->cts);
+      Add("write calls", report->uid, report->gid, report->nwc,report->ots, report->cts);
+      Add("bytes rseek",  report->uid, report->gid, report->srb,report->ots, report->cts);
+      Add("bytes wseek",    report->uid, report->gid, report->swb,report->ots, report->cts);
+      Add("disk time read",  report->uid, report->gid, (unsigned long long)report->rt,report->ots, report->cts);
+      Add("disk time write",  report->uid, report->gid, (unsigned long long)report->wt,report->ots, report->cts);
+
       delete newmessage;
     }
-    usleep(10000000);
+    usleep(1000000);
+    Circulate();
     XrdSysThread::CancelPoint();
   }
   return 0;
@@ -88,7 +102,52 @@ Iostat::Receive(void)
 void 
 Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring)
 {
+   Mutex.Lock();
+   std::vector<std::string> tags;
+   std::vector<std::string>::iterator it;
+   
+   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator tit;
+   
+   for (tit = IostatUid.begin(); tit != IostatUid.end(); tit++) {
+     tags.push_back(tit->first);
+   }
+   
+   std::sort(tags.begin(),tags.end());
 
+   char outline[1024];
+      
+   if (!monitoring) {
+     out +="# -----------------------------------------------------------------------------------------------------------\n";
+     sprintf(outline,"%-8s %-32s %-9s %8s %8s %8s","who", "command","sum","1min","5min","1h");
+     out += outline;
+     out += "\n";
+     out +="# -----------------------------------------------------------------------------------------------------------\n";
+   }
+
+   for (it = tags.begin(); it!= tags.end(); ++it) {
+     
+     const char* tag = it->c_str();
+     
+     char a60[1024];
+     char a300[1024];
+     char a3600[1024];
+
+     sprintf(a60,"%3.02f", GetTotalAvg60(tag));
+     sprintf(a300,"%3.02f", GetTotalAvg300(tag));
+     sprintf(a3600,"%3.02f", GetTotalAvg3600(tag));
+
+     if (!monitoring) {
+       XrdOucString sizestring;
+       XrdOucString sa1;
+       XrdOucString sa2;
+       XrdOucString sa3;
+       sprintf(outline,"ALL      %-32s %10s %8s %8s %8s\n",tag, eos::common::StringConversion::GetReadableSizeString(sizestring,GetTotal(tag),""),eos::common::StringConversion::GetReadableSizeString(sizestring,GetTotalAvg60(tag),""),eos::common::StringConversion::GetReadableSizeString(sizestring,GetTotalAvg300(tag),""),eos::common::StringConversion::GetReadableSizeString(sizestring,GetTotalAvg3600(tag),""));
+     } else {
+       sprintf(outline,"uid=all gid=all cmd=%s total=%llu 60s=%s 300s=%s 3600s=%s\n",tag, GetTotal(tag),a60,a300,a3600);
+     }
+     out += outline;
+   }
+   Mutex.UnLock();
 }
 
 EOSMGMNAMESPACE_END

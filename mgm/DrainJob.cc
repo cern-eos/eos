@@ -532,8 +532,10 @@ DrainJob::Drain(void)
       eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
       return 0 ;
     }
-    
-    fs->SetDrainStatus(eos::common::FileSystem::kDrained);
+    if (totallostfiles) 
+      fs->SetDrainStatus(eos::common::FileSystem::kDrainLostFiles);
+    else 
+      fs->SetDrainStatus(eos::common::FileSystem::kDrained);
   }
   return 0;
 }

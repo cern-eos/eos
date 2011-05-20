@@ -1035,6 +1035,18 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		key.erase(0,3);
 		
 		std::set<eos::common::FileSystem::fsid_t>::iterator it;
+                
+                // store these as a global parameter of the space
+                if ( ( (key == "headroom") || ( key == "scaninterval" ) || ( key == "graceperiod" ) || ( key == "drainperiod" ) )&& ( eos::common::StringConversion::GetSizeFromString(value.c_str()) >= 0)) {
+                  if ( (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value,true, "/eos/*/mgm"))) {
+                    stdErr += "error: failed to set space parameter <"; stdErr += key.c_str(); stdErr += ">\n";
+                    retc = EINVAL;
+                  }
+                } else {
+                  stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
+                  retc = EINVAL;
+                }
+                
 		for (it = FsView::gFsView.mSpaceView[identifier]->begin(); it != FsView::gFsView.mSpaceView[identifier]->end();  it++) {
 		  if ( FsView::gFsView.mIdView.count(*it)) {
 		    fs = FsView::gFsView.mIdView[*it];

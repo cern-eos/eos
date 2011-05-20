@@ -16,6 +16,8 @@ if (defined $phost_ip) {
 
 $| = 1;
 
+system("echo $$ >& /var/run/eosha.pid");
+
 my $logfile = (shift @ARGV) or exit -1;
 my $target1 = (shift @ARGV) or exit -1;
 my $target2 = (shift @ARGV) or exit -1;
@@ -23,12 +25,19 @@ my $aliasname = (shift @ARGV) or exit -1;
 my $failovertime = (shift @ARGV) or exit -1;
 my $debug = (shift @ARGV or 0);
 
+my $now;
+
 sub HUP_handler {
     close STDOUT;
-    close STDIN;
-    open STDOUT, ">& $logfile";
-    open STDERR, ">& $logfile";
+    close STDERR;
+
+    open STDOUT, ">> $logfile";
+    open STDERR,  ">> $logfile";
+
     $SIG{'HUP'} = 'HUP_handler';
+    now();
+    printf STDOUT "$now log rotated ...";
+
 }
 
 $SIG{'HUP'} = 'HUP_handler';
@@ -52,13 +61,13 @@ my $md1confdir = "";
 my $md2confdir = "";
 my $configname = "";
 
-my $now;
 sub now {
     $now = `date`;
     chomp $now;
     $now .= " ";
     $now .= `date +%s`;
     chomp $now;
+    return $now;
 }
 
 sub getconfig {
@@ -159,7 +168,7 @@ while(1) {
             printf("$now (re-)start SYNC ...\n");
             printf "$now ___________________________________________________________________\n";
             # service dead ... let's restart
-            my $startupsync = system("service eos restart sync");
+            my $startupsync = system("service eos restart sync >> $logfile 2>&1 ");
         }
 
         if ( $eossync ) {
@@ -168,7 +177,7 @@ while(1) {
             printf("$now (re-)start EOS SYNC ...\n");
             printf "$now ___________________________________________________________________\n";
             # service dead ... let's restart
-            my $startupsync = system("service eossync restart");
+            my $startupsync = system("service eossync restart >> $logfile 2>&1 ");
         }  
 
         if (!$mastermq) {
@@ -178,7 +187,7 @@ while(1) {
             printf "$now ___________________________________________________________________\n";
             getconfig();
             
-            my $shutdownmq  = system("service eos stop mq");
+            my $shutdownmq  = system("service eos stop mq >> $logfile 2>&1 ");
         }
 
         if (!$mastermgm) {
@@ -238,9 +247,9 @@ while(1) {
             printf "$now ===================================================================\n";
             printf "$now Skipping FAILOVER procedure (probably we have been the master before or the system is new) ... starting MASTER ...\n";
             printf "$now ___________________________________________________________________\n";
-            my $startupmq  = system("service eos start mq");
-            my $startupmq  = system("service eos start mgm");
-            my $startupmq  = system("service eos start sync");
+            my $startupmq  = system("service eos start mq >> $logfile 2>&1 ");
+            my $startupmq  = system("service eos start mgm >> $logfile 2>&1 ");
+            my $startupmq  = system("service eos restart sync >> $logfile 2>&1 ");
         }
             
         if ( ($isfailover) && (($mastermgm == 2) || ($mastermq == 2)) ) {
@@ -262,31 +271,31 @@ while(1) {
                 now();
                 printf("$now backup config and copy from $target2 ...\n");
                 printf "____________________________________________________________________________________________________________\n";
-                system("cp -v $md1confdir/$configname.eoscf $md1confdir/$backupconfigname.eoscf");
-                system("cp -v $md2confdir/$configname.eoscf $md1confdir/$configname.eoscf");
+                system("cp -v $md1confdir/$configname.eoscf $md1confdir/$backupconfigname.eoscf >> $logfile 2>&1 ");
+                system("cp -v $md2confdir/$configname.eoscf $md1confdir/$configname.eoscf >> $logfile 2>&1 ");
             }
             if ( "$host" eq "$target2" ) {
                 now();
                 printf("$now backup config and copy from $target1 ...\n");
                 printf "____________________________________________________________________________________________________________\n";
-                system("cp -v $md2confdir/$configname.eoscf $md2confdir/$backupconfigname.eoscf");
-                system("cp -v $md1confdir/$configname.eoscf $md2confdir/$configname.eoscf");
+                system("cp -v $md2confdir/$configname.eoscf $md2confdir/$backupconfigname.eoscf >> $logfile 2>&1 ");
+                system("cp -v $md1confdir/$configname.eoscf $md2confdir/$configname.eoscf >> $logfile 2>&1 ");
             }
 
             # shutdown sync
-            system("service eossync stop");
+            system("service eossync stop >> $logfile 2>&1 ");
             ###################### METADATA -  FAILOVER ############################
             if ( "$host" eq "$target1" ) {
                 now();
                 printf "____________________________________________________________________________________________________________\n";
-                system("test -e $md1file && mv -v $md1file $md1file.failover.$stime");
-                system("test -e $md1file.failover.$stime && bzip2 -v $md1file.failover.$stime");
+                system("test -e $md1file && mv -v $md1file $md1file.failover.$stime >> $logfile 2>&1 ");
+                system("test -e $md1file.failover.$stime && bzip2 -v $md1file.failover.$stime >> $logfile 2>&1 ");
                 printf "____________________________________________________________________________________________________________\n";
-                my $retc = system("echo := eos-log-compact $md2file $md1file ; test -e $md2file && eos-log-compact $md2file $md1file");
+                my $retc = system("echo := eos-log-compact $md2file $md1file ; test -e $md2file && eos-log-compact $md2file $md1file >> $logfile 2>&1 ");
                 $retc = ($retc >> 8);
                 if ( -e "$md2file" && $retc) {
                     printf("$now WARNING : eos-log-compact failed - trying eos-log-repair\n");
-                    my $retrepair = system("echo := eos-log-repair $md2file $md1file ; test -e $md2file && eos-log-repair $md2file $md1file");
+                    my $retrepair = system("echo := eos-log-repair $md2file $md1file >> $logfile 2>&1 ; test -e $md2file && eos-log-repair $md2file $md1file >> $logfile 2>&1 ");
                     $retrepair = ($retrepair >> 8);
                     if ($retrepair) {
                         # oh oh, that is quite fatal
@@ -294,20 +303,20 @@ while(1) {
                         # we stop ourself and send an emergency email
                         if ( $ENV{'EOS_NOTIFY'} ne "" ) {
                             system("echo $now Failed FAILOVER procedure ... $host\\(me\\) is now the MASTER ... but eos-log-repair failed | $ENV{'EOS_NOTIFY'}");                    
-                            system("service eosha stop");
+                            system("service eosha stop >> $logfile 2>&1 ");
                         }
                     }
                 }
 
                 printf "____________________________________________________________________________________________________________\n";
-                system("test -e $md1dirfile && mv -v $md1dirfile $md1dirfile.failover.$stime");
-                system("test -e $md1dirfile.failover.$stime && bzip2 -v $md1dirfile.failover.$stime");
+                system("test -e $md1dirfile && mv -v $md1dirfile $md1dirfile.failover.$stime >> $logfile 2>&1 ");
+                system("test -e $md1dirfile.failover.$stime && bzip2 -v $md1dirfile.failover.$stime >> $logfile 2>&1 ");
                 printf "____________________________________________________________________________________________________________\n";
-                $retc = system("echo := eos-log-compact $md2dirfile $md1dirfile; eos-log-compact $md2dirfile $md1dirfile");
+                $retc = system("echo := eos-log-compact $md2dirfile $md1dirfile >> $logfile 2>&1  ; eos-log-compact $md2dirfile $md1dirfile >> $logfile 2>&1 ");
                 $retc = ($retc >> 8);
                 if ( -e "$md2dirfile" && $retc) {
                     printf("$now WARNING : eos-log-compact failed - trying eos-log-repair\n");
-                    my $retrepair = system("echo := eos-log-repair $md2dirfile $md1dirfile ; test -e $md2dirfile && eos-log-repair $md2dirfile $md1dirfile");
+                    my $retrepair = system("echo := eos-log-repair $md2dirfile $md1dirfile >> $logfile 2>&1 ; test -e $md2dirfile && eos-log-repair $md2dirfile $md1dirfile >> $logfile 2>&1 ");
                     $retrepair = ($retrepair >> 8);
                     if ($retrepair) {
                         # oh oh, that is quite fatal
@@ -316,7 +325,7 @@ while(1) {
                         if ( $ENV{'EOS_NOTIFY'} ne "" ) {
                             system("echo $now Failed FAILOVER procedure ... $host\\(me\\) is now the MASTER ... but eos-log-repair failed | $ENV{'EOS_NOTIFY'}");                    
                         }
-                        system("service eosha stop");
+                        system("service eosha stop >> $logfile 2>&1 ");
                     }
                 }
 
@@ -325,14 +334,14 @@ while(1) {
 
             if ( "$host" eq "$target2" ) {
                 printf "____________________________________________________________________________________________________________\n";
-                system("test -e $md2file && mv -v $md2file $md2file.failover.$stime");
-                system("test -e $md2file.failover.$stime && bzip2 -v $md2file.failover.$stime");
+                system("test -e $md2file && mv -v $md2file $md2file.failover.$stime >> $logfile 2>&1 ");
+                system("test -e $md2file.failover.$stime && bzip2 -v $md2file.failover.$stime >> $logfile 2>&1 ");
                 printf "____________________________________________________________________________________________________________\n";
-                my $retc = system("echo := eos-log-compact $md1file $md2file; test -e $md1file eos-log-compact $md1file $md2file");
+                my $retc = system("echo := eos-log-compact $md1file $md2file >> $logfile 2>&1 ; test -e $md1file eos-log-compact $md1file $md2file >> $logfile 2>&1 ");
                 $retc = ($retc >> 8);
                 if ( -e "$md1file" && $retc) {
                     printf("$now WARNING : eos-log-compact failed - trying eos-log-repair\n");
-                    my $retrepair = system("echo := eos-log-repair $md1file $md2file ; test -e $md1file && eos-log-repair $md1file $md2file");
+                    my $retrepair = system("echo := eos-log-repair $md1file $md2file >> $logfile 2>&1  ; test -e $md1file && eos-log-repair $md1file $md2file >> $logfile 2>&1 ");
                     $retrepair = ($retrepair >> 8);
                     if ($retrepair) {
                         # oh oh, that is quite fatal
@@ -341,19 +350,19 @@ while(1) {
                         if ( $ENV{'EOS_NOTIFY'} ne "" ) {
                             system("echo $now Failed FAILOVER procedure ... $host\\(me\\) is now the MASTER ... but eos-log-repair failed | $ENV{'EOS_NOTIFY'}");                    
                         }
-                        system("service eosha stop");
+                        system("service eosha stop >> $logfile 2>&1 ");
                     }
                 }
 
                 printf "____________________________________________________________________________________________________________\n";
-                system("test -e $md2dirfile && mv -v $md2dirfile $md2dirfile.failover.$stime");
-                system("test -e $md2dirfile.failover.$stime && bzip2 -v $md2dirfile.failover.$stime");
+                system("test -e $md2dirfile && mv -v $md2dirfile $md2dirfile.failover.$stime >> $logfile 2>&1 ");
+                system("test -e $md2dirfile.failover.$stime && bzip2 -v $md2dirfile.failover.$stime >> $logfile 2>&1 ");
                 printf "____________________________________________________________________________________________________________\n";
-                $retc = system("echo := eos-log-compact $md1dirfile $md2dirfile; test -e $md1dirfile && eos-log-compact $md1dirfile $md2dirfile");
+                $retc = system("echo := eos-log-compact $md1dirfile $md2dirfile >> $logfile 2>&1 ; test -e $md1dirfile && eos-log-compact $md1dirfile $md2dirfile >> $logfile 2>&1 ");
                 $retc = ($retc >> 8);
                 if ( -e "$md1dirfile" && $retc) {
                     printf("$now WARNING : eos-log-compact failed - trying eos-log-repair\n");
-                    my $retrepair = system("echo := eos-log-repair $md1dirfile $md2dirfile ; test -e $md1dirfile && eos-log-repair $md1dirfile $md2dirfile");
+                    my $retrepair = system("echo := eos-log-repair $md1dirfile $md2dirfile >> $logfile 2>&1 ; test -e $md1dirfile && eos-log-repair $md1dirfile $md2dirfile >> $logfile 2>&1 ");
                     $retrepair = ($retrepair >> 8);
                     if ($retrepair) {
                         # oh oh, that is quite fatal
@@ -362,7 +371,7 @@ while(1) {
                         if ( $ENV{'EOS_NOTIFY'} ne "" ) {
                             system("echo $now Failed FAILOVER procedure ... $host\\(me\\) is now the MASTER ... but eos-log-repair failed | $ENV{'EOS_NOTIFY'}");                    
                         }
-                        system("service eosha stop");
+                        system("service eosha stop >> $logfile 2>&1 ");
                     }
                 }
 
@@ -385,13 +394,13 @@ while(1) {
 
             printf("\n");
             print "$now Bring up MGM + MQ\n";
-            my $startupmq  = system("service eos start mq");
-            my $startupmgm = system("service eos start mgm");
+            my $startupmq  = system("service eos start mq >> $logfile 2>&1 ");
+            my $startupmgm = system("service eos start mgm >> $logfile 2>&1 ");
             
             sleep 5;
 
             # restart sync
-            system("service eossync start");
+            system("service eossync start >> $logfile 2>&1 ");
 
             $mastermgm =system("service eos status mgm >&/dev/null");
             $mastermq  =system("service eos status mq >&/dev/null");
@@ -418,7 +427,7 @@ while(1) {
             printf("$now restart dead MGM ...\n");
             printf "$now ___________________________________________________________________\n";
             # service dead ... let's restart
-            my $startupmgm = system("service eos restart mgm");
+            my $startupmgm = system("service eos restart mgm >> $logfile 2>&1 ");
         }
         if ( $mastermq && ($mastermq != 2)) {
             now();
@@ -426,7 +435,7 @@ while(1) {
             printf("$now restart dead MQ ...\n");
             printf "$now ___________________________________________________________________\n";
             # service dead ... let's restart
-            my $startupmq = system("service eos restart mq");
+            my $startupmq = system("service eos restart mq >> $logfile 2>&1 ");
         }
         if ( $mastersync ) {
             now();
@@ -434,7 +443,7 @@ while(1) {
             printf("$now (re-)start SYNC ...\n");
             printf "$now ___________________________________________________________________\n";
             # service dead ... let's restart
-            my $startupsync = system("service eos restart sync");
+            my $startupsync = system("service eos restart sync >> $logfile 2>&1 ");
         }
 
         if ( $eossync ) {
@@ -443,7 +452,7 @@ while(1) {
             printf("$now (re-)start EOS SYNC ...\n");
             printf "$now ___________________________________________________________________\n";
             # service dead ... let's restart
-            my $startupsync = system("service eossync restart");
+            my $startupsync = system("service eossync restart >> $logfile 2>&1 ");
          }  
     }
 
