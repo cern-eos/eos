@@ -36,7 +36,9 @@ public:
 
     if (toff < 3600) {
       // if the measurements was done in the last 3600 seconds
-      float mbins = tdiff / 60; // number of bins the measurement was hitting
+      unsigned int mbins = tdiff / 60; // number of bins the measurement was hitting
+      if (mbins==0)
+        mbins=1;
       unsigned long norm_val = mbins?(1.0*val/mbins):val;
 
       for (size_t bins = 0; bins < mbins; bins++) {
@@ -47,8 +49,10 @@ public:
     }
 
     if (toff < 300) {
-      // if the measurements was done in the last 3600 seconds
-      float mbins = tdiff / 5; // number of bins the measurement was hitting
+      // if the measurements was done in the last 300 seconds
+      unsigned int mbins = tdiff / 5; // number of bins the measurement was hitting
+      if (mbins==0)
+        mbins=1;
       unsigned long norm_val = mbins?(1.0*val/mbins):val;
 
       for (size_t bins = 0; bins < mbins; bins++) {
@@ -59,10 +63,11 @@ public:
     }
 
     if (toff < 60) {
-      // if the measurements was done in the last 3600 seconds
-      float mbins = tdiff / 1 ; // number of bins the measurement was hitting
+      // if the measurements was done in the last 60 seconds
+      unsigned int mbins = tdiff / 1 ; // number of bins the measurement was hitting
+      if (mbins==0)
+        mbins=1;
       unsigned long norm_val = mbins?(1.0*val/mbins):val;
-
       for (size_t bins = 0; bins < mbins; bins++) {
         unsigned int bin60 = ( ((stoptime-(bins*1))/1)% 60);
         avg60[bin60] += norm_val;
@@ -75,7 +80,7 @@ public:
     unsigned int bin3600 = (time(0) / 60);
     unsigned int bin300  = (time(0) / 5);
     unsigned int bin60   = (time(0) / 1);
-
+    
     avg3600[(bin3600+1)%60] = 0;
     avg300[(bin300+1)%60] = 0;
     avg60[(bin60+1)%60] = 0;
@@ -121,6 +126,7 @@ private:
 
 public:
   pthread_t thread;
+  pthread_t cthread;
   bool mRunning;
   bool mInit;
   XrdMqClient mClient;
@@ -134,6 +140,7 @@ public:
   void PrintOut(XrdOucString &out, bool details, bool monitoring);
 
   static void* StaticReceive(void*);
+  static void* StaticCirculate(void*);
   void* Receive();
 
   // stats collection
@@ -194,27 +201,33 @@ public:
     return val;
   }
 
-  void Circulate() {
+  void* Circulate() {
+    XrdSysThread::SetCancelOn();
     // empty the circular buffer 
-    Mutex.Lock();
-    google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatAvg> >::iterator tit;
-    // loop over tags
-    for (tit = IostatAvgUid.begin(); tit != IostatAvgUid.end(); ++tit) {
-      // loop over vids
-      google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
-      for (it = tit->second.begin(); it != tit->second.end(); ++it) {
-        it->second.StampZero();
+    while(1) {
+      usleep(512345);
+      Mutex.Lock();
+      google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatAvg> >::iterator tit;
+      // loop over tags
+      for (tit = IostatAvgUid.begin(); tit != IostatAvgUid.end(); ++tit) {
+        // loop over vids
+        google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
+        for (it = tit->second.begin(); it != tit->second.end(); ++it) {
+          it->second.StampZero();
+        }
       }
+      
+      for (tit = IostatAvgGid.begin(); tit != IostatAvgGid.end(); ++tit) {
+        // loop over vids
+        google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
+        for (it = tit->second.begin(); it != tit->second.end(); ++it) {
+          it->second.StampZero();
+        }
+      }
+      Mutex.UnLock();
+      XrdSysThread::CancelPoint();
     }
-    
-    for (tit = IostatAvgGid.begin(); tit != IostatAvgGid.end(); ++tit) {
-      // loop over vids
-      google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
-      for (it = tit->second.begin(); it != tit->second.end(); ++it) {
-        it->second.StampZero();
-      }
-      }
-    Mutex.UnLock();
+    return 0;
   }
 };
 

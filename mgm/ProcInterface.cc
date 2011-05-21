@@ -753,7 +753,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  if ((outformat == "l")) 
 	    listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
 	  
-	  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	  FsView::gFsView.PrintNodes(output, format, listformat, selection);
 	  stdOut += output.c_str();
 	}
@@ -776,7 +776,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    nodename.append("/fst");
 	  }
 
-	  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	  if (!FsView::gFsView.mNodeView.count(nodename)) {
 	    stdOut="info: creating node '"; stdOut += nodename.c_str(); stdOut += "'";
 	    
@@ -813,7 +813,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      nodename.append("/fst");
 	    }
 
-	    eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+	    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 	    if (!FsView::gFsView.mNodeView.count(nodename)) {
 	      stdErr="error: no such node '"; stdErr += nodename.c_str(); stdErr += "'";
 	      retc = ENOENT;
@@ -847,7 +847,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    stdErr="error: illegal parameters";
 	    retc = EINVAL;
 	  } else {	
-	    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	    
 	    FileSystem* fs = 0;
 	    // by host:port name
@@ -901,7 +901,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  if ((outformat == "l"))
 	    listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
 	  
-	  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	  FsView::gFsView.PrintSpaces(output, format, listformat, selection);
 	  stdOut += output.c_str();
 	}
@@ -915,7 +915,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  stdErr="error: illegal parameters";
 	  retc = EINVAL;
 	} else {
-	  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	  if (!FsView::gFsView.mSpaceView.count(spacename)) {
 	    stdErr="error: no such space - define one using 'space define' or add a filesystem under that space!";
 	    retc = EINVAL;
@@ -972,7 +972,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    retc = EINVAL;
 	  }
 	} else {
-	  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	  if (!FsView::gFsView.mSpaceView.count(spacename)) {
 	    stdOut="info: creating space '"; stdOut += spacename.c_str(); stdOut += "'";
 	    
@@ -1003,7 +1003,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    stdErr="error: illegal parameters";
 	    retc = EINVAL;
 	  } else {	
-	    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	    
 	    FileSystem* fs = 0;
 	    // by host:port name
@@ -1093,7 +1093,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    stdErr="error: illegal parameters";
 	    retc = EINVAL;
 	  } else {
-	    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	    if (FsView::gFsView.mSpaceView.count(spacename)) {
 	      if (!FsView::gFsView.mSpaceView[spacename]->SetConfigMember(key, onoff, true, "/eos/*/mgm")) {
 		retc = EIO;
@@ -1117,7 +1117,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    stdErr="error: illegal parameters";
 	    retc = EINVAL;
 	  } else {
-	    eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+	    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 	    if (!FsView::gFsView.mSpaceView.count(spacename)) {
 	      stdErr="error: no such space '"; stdErr += spacename.c_str(); stdErr += "'";
 	      retc = ENOENT;
@@ -1152,7 +1152,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  if ((outformat == "l"))
 	    listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
 
-          eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+          eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	  FsView::gFsView.PrintGroups(output, format, listformat, selection);
 	  stdOut += output.c_str();
 	}
@@ -1167,7 +1167,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  stdErr="error: illegal parameters";
 	  retc = EINVAL;
 	} else {
-	  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	  if (!FsView::gFsView.mGroupView.count(groupname)) {
 	    stdOut="info: creating group '"; stdOut += groupname.c_str(); stdOut += "'";
 	    
@@ -1198,7 +1198,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    stdErr="error: illegal parameters";
 	    retc = EINVAL;
 	  } else {
-	    eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+	    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 	    if (!FsView::gFsView.mGroupView.count(groupname)) {
 	      stdErr="error: no such group '"; stdErr += groupname.c_str(); stdErr += "'";
 	      retc = ENOENT;
@@ -1232,7 +1232,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 	listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
 
-        eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	FsView::gFsView.PrintSpaces(output, format, listformat, selection);
 	stdOut += output.c_str();
       }
@@ -1253,8 +1253,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  std::string space        = (opaque.Get("mgm.fs.space"))?opaque.Get("mgm.fs.space"):"";
 	  std::string configstatus = (opaque.Get("mgm.fs.configstatus"))?opaque.Get("mgm.fs.configstatus"):"";
 
-          eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
-          eos::common::RWMutexWriteLock(FsView::gFsView.MapMutex);
+          eos::common::RWMutexWriteLock vlock(FsView::gFsView.ViewMutex);
+          eos::common::RWMutexWriteLock mlock(FsView::gFsView.MapMutex);
           retc = proc_fs_add(sfsid, uuid, nodename, mountpoint, space, configstatus, stdOut, stdErr, tident, vid_in);
 	}
 
@@ -1262,7 +1262,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  std::string sfsid        = (opaque.Get("mgm.fs.id"))?opaque.Get("mgm.fs.id"):"";
           std::string space        = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
 
-          eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+          eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
           retc = proc_fs_mv(sfsid, space, stdOut, stdErr, tident, vid_in);
 	}
 
@@ -1291,7 +1291,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  std::string nodename     = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
 	  std::string mountpoint   =  opaque.Get("mgm.fs.mountpoint")?opaque.Get("mgm.fs.mountpoint"):"";
 	  std::string id           =  opaque.Get("mgm.fs.id")?opaque.Get("mgm.fs.id"):"";
-          eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);  
+          eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);  
           retc = proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, tident, vid_in);
         }
       }
@@ -1305,7 +1305,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 	  if (node == "*") {
 	    // boot all filesystems
-	    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
 	    std::map<eos::common::FileSystem::fsid_t, FileSystem*>::iterator it;
 	    stdOut += "success: boot message send to";
@@ -1320,7 +1320,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    }
 	  } else {
 	    if (node.length()) {
-	      eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	      if (!FsView::gFsView.mNodeView.count(node)) {
 		stdErr="error: cannot boot node - no node with name="; stdErr += node.c_str();
 		retc= ENOENT;		
@@ -1345,7 +1345,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    }
 	    
 	    if (fsid) {
-	      eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	      if (FsView::gFsView.mIdView.count(fsid)) {
 		stdOut += "success: boot message send to";
 		FileSystem* fs = FsView::gFsView.mIdView[fsid];
@@ -3375,7 +3375,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 			    continue;
 			  }
 
-                          eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+                          eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
                           eos::common::FileSystem* filesystem = 0;
                           if (FsView::gFsView.mIdView.count(*lociter)) {
                             filesystem = FsView::gFsView.mIdView[*lociter];
@@ -3516,7 +3516,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		      sizedistributionn[ bin ] ++;
 		    }
 
-                    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+                    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
                     eos::common::FileSystem* filesystem = 0;
                     if (FsView::gFsView.mIdView.count(loc)) {
                       filesystem = FsView::gFsView.mIdView[loc];

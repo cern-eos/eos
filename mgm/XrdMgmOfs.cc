@@ -781,7 +781,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   int retc = 0;
 
-  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
 
     // ************************************************************************************************
   if (isCreation || ( (open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation()))) {
@@ -3227,7 +3227,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	if (!spacequota) {
           // take the sum's from all file systems in 'default'
           if (FsView::gFsView.mSpaceView.count("default")) {
-            eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+            eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
             freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
             freefiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree");
 
@@ -3626,7 +3626,7 @@ XrdMgmOfs::_verifystripe(const char             *path,
   gOFS->eosViewMutex.UnLock();
   
   if (!errno) {
-    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     eos::mgm::FileSystem* verifyfilesystem = 0;
     if (FsView::gFsView.mIdView.count(fsid)) {
       verifyfilesystem = FsView::gFsView.mIdView[fsid];
@@ -4014,7 +4014,7 @@ XrdMgmOfs::Deletion()
 
     {
       // lock the filesystem view for reading
-      eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
       
       for (it= FsView::gFsView.mIdView.begin() ; it != FsView::gFsView.mIdView.end(); ++it) {
 	fslist.push_back(it->first);
@@ -4051,7 +4051,7 @@ XrdMgmOfs::Deletion()
 	      continue ;
 	    }
 
-	    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+	    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	    if (FsView::gFsView.mIdView.count(fslist[i])) {
 	      fs = FsView::gFsView.mIdView[fslist[i]];
 	    } else {

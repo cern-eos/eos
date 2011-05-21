@@ -64,7 +64,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
   }
   
   { // lock for write
-    eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
     if (FsView::gFsView.mNodeView[nodequeue]) {
       if (advmsg->kOnline) {
 	FsView::gFsView.mNodeView[nodequeue]->SetStatus("online");

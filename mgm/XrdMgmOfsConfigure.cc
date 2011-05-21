@@ -822,11 +822,15 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("VerifyStripe",0,0,0);
   gOFS->MgmStats.Add("WhoAmI",0,0,0);
 
-  usleep(1500000);
+  // start IO accounting
+  gOFS->IoStats.Start();
+
   if (hash) {
     // ask for a broadcast from fst's
     hash->BroadCastRequest("/eos/*/fst");
   }
+
+  usleep(2000000);
   
   return NoGo;
 }

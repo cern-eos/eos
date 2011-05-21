@@ -15,6 +15,7 @@ Iostat::Iostat()
 {
   mRunning = false;
   mInit = false;
+  XrdSysThread::Run(&cthread, Iostat::StaticCirculate, static_cast<void *>(this),0, "Report Circulation Thread");
 }
 
 /* ------------------------------------------------------------------------- */
@@ -59,12 +60,20 @@ Iostat::~Iostat()
 {
   if (mRunning)
     Stop();
+  XrdSysThread::Cancel(cthread);
+  XrdSysThread::Join(cthread,NULL);
 }
 
 /* ------------------------------------------------------------------------- */
 void* 
 Iostat::StaticReceive(void* arg){
   return reinterpret_cast<Iostat*>(arg)->Receive();
+}
+
+/* ------------------------------------------------------------------------- */
+void* 
+Iostat::StaticCirculate(void* arg){
+  return reinterpret_cast<Iostat*>(arg)->Circulate();
 }
 
 
@@ -92,7 +101,6 @@ Iostat::Receive(void)
       delete newmessage;
     }
     usleep(1000000);
-    Circulate();
     XrdSysThread::CancelPoint();
   }
   return 0;
@@ -141,7 +149,7 @@ Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring)
        XrdOucString sa1;
        XrdOucString sa2;
        XrdOucString sa3;
-       sprintf(outline,"ALL      %-32s %10s %8s %8s %8s\n",tag, eos::common::StringConversion::GetReadableSizeString(sizestring,GetTotal(tag),""),eos::common::StringConversion::GetReadableSizeString(sizestring,GetTotalAvg60(tag),""),eos::common::StringConversion::GetReadableSizeString(sizestring,GetTotalAvg300(tag),""),eos::common::StringConversion::GetReadableSizeString(sizestring,GetTotalAvg3600(tag),""));
+       sprintf(outline,"ALL      %-32s %10s %8s %8s %8s\n",tag, eos::common::StringConversion::GetReadableSizeString(sizestring,GetTotal(tag),""),eos::common::StringConversion::GetReadableSizeString(sa1,GetTotalAvg60(tag),""),eos::common::StringConversion::GetReadableSizeString(sa2,GetTotalAvg300(tag),""),eos::common::StringConversion::GetReadableSizeString(sa3,GetTotalAvg3600(tag),""));
      } else {
        sprintf(outline,"uid=all gid=all cmd=%s total=%llu 60s=%s 300s=%s 3600s=%s\n",tag, GetTotal(tag),a60,a300,a3600);
      }

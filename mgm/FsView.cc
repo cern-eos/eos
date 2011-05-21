@@ -646,7 +646,7 @@ bool
 FsView::SetGlobalConfig(std::string key, std::string value)
 {
   // we need to store this in the shared hash between MGMs
-  XrdMqRWMutexReadLock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+  XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(MgmConfigQueueName.c_str());
   if (hash) {
     hash->Set(key, value);
@@ -667,7 +667,7 @@ FsView::SetGlobalConfig(std::string key, std::string value)
 std::string
 FsView::GetGlobalConfig(std::string key)
 {
-  XrdMqRWMutexReadLock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+  XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(MgmConfigQueueName.c_str());
 
   if (hash) {
@@ -1104,7 +1104,7 @@ BaseView::SumLongLong(const char* param)
   //! param="<param>[?<key>=<value] allows to select with matches
   //----------------------------------------------------------------
 
-  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   
   long long sum = 0;
   std::string sparam = param;
@@ -1175,7 +1175,7 @@ BaseView::SumDouble(const char* param)
   //! computes the sum for <param> as double
   //----------------------------------------------------------------
 
-  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   
   double sum = 0;
   std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
@@ -1193,7 +1193,7 @@ BaseView::AverageDouble(const char* param)
   //! computes the average for <param>
   //----------------------------------------------------------------
 
-  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   
   double sum = 0;
   int cnt=0;
@@ -1214,7 +1214,7 @@ BaseView::SigmaDouble(const char* param)
   //! computes the sigma for <param>
   //----------------------------------------------------------------
 
-  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   
   double avg = AverageDouble(param);;
   double sumsquare=0;
