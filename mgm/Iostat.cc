@@ -89,14 +89,14 @@ Iostat::Receive(void)
       while (body.replace("&&","&")) {}
       XrdOucEnv ioreport(body.c_str());
       eos::common::Report* report = new eos::common::Report(ioreport);
-      Add("bytes read",    report->uid, report->gid, report->rb,report->ots, report->cts);
-      Add("bytes written", report->uid, report->gid, report->wb,report->ots, report->cts);
-      Add("read  calls", report->uid, report->gid, report->nrc,report->ots, report->cts);
-      Add("write calls", report->uid, report->gid, report->nwc,report->ots, report->cts);
-      Add("bytes rseek",  report->uid, report->gid, report->srb,report->ots, report->cts);
-      Add("bytes wseek",    report->uid, report->gid, report->swb,report->ots, report->cts);
-      Add("disk time read",  report->uid, report->gid, (unsigned long long)report->rt,report->ots, report->cts);
-      Add("disk time write",  report->uid, report->gid, (unsigned long long)report->wt,report->ots, report->cts);
+      Add("bytes_read",    report->uid, report->gid, report->rb,report->ots, report->cts);
+      Add("bytes_written", report->uid, report->gid, report->wb,report->ots, report->cts);
+      Add("read_calls", report->uid, report->gid, report->nrc,report->ots, report->cts);
+      Add("write_calls", report->uid, report->gid, report->nwc,report->ots, report->cts);
+      Add("bytes_rseek",  report->uid, report->gid, report->srb,report->ots, report->cts);
+      Add("bytes_wseek",    report->uid, report->gid, report->swb,report->ots, report->cts);
+      Add("disk_time_read",  report->uid, report->gid, (unsigned long long)report->rt,report->ots, report->cts);
+      Add("disk_time_write",  report->uid, report->gid, (unsigned long long)report->wt,report->ots, report->cts);
 
       delete newmessage;
     }
