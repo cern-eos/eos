@@ -17,6 +17,7 @@ add_library (XrdEosMgm MODULE
             FileSystem.cc
             Egroup.cc
             Acl.cc
+            Stat.cc
             Iostat.cc
 	    )
 

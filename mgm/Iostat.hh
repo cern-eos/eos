@@ -15,11 +15,13 @@
 EOSMGMNAMESPACE_BEGIN
 class IostatAvg {
 public:
+  unsigned long avg86400[60];
   unsigned long avg3600[60];
   unsigned long avg300[60];
   unsigned long avg60[60];
 
   IostatAvg() {
+    memset(avg86400,0, sizeof(avg86400));
     memset(avg3600,0, sizeof(avg3600));
     memset(avg300,0,sizeof(avg300));
     memset(avg60,0,sizeof(avg60));
@@ -33,6 +35,20 @@ public:
     size_t tdiff = stoptime-starttime;
 
     size_t toff  = now - stoptime;
+
+    if (toff < 86400) {
+      // if the measurements was done in the last 86400 seconds
+      unsigned int mbins = tdiff / 1440; // number of bins the measurement was hitting
+      if (mbins==0)
+        mbins=1;
+      unsigned long norm_val = mbins?(1.0*val/mbins):val;
+
+      for (size_t bins = 0; bins < mbins; bins++) {
+        unsigned int bin86400 = ( ((stoptime-(bins*1440))/1440)% 60);
+        avg86400[bin86400] += norm_val;
+      }
+      avg86400[((stoptime/60)+1)%60] = 0;
+    }
 
     if (toff < 3600) {
       // if the measurements was done in the last 3600 seconds
@@ -77,21 +93,28 @@ public:
   }
 
   void StampZero() {
+    unsigned int bin86400 = (time(0) / 1440);
     unsigned int bin3600 = (time(0) / 60);
     unsigned int bin300  = (time(0) / 5);
     unsigned int bin60   = (time(0) / 1);
     
+    avg86400[(bin86400+1)%60] = 0;
     avg3600[(bin3600+1)%60] = 0;
     avg300[(bin300+1)%60] = 0;
     avg60[(bin60+1)%60] = 0;
   }
 
+  double GetAvg86400() {
+    double sum=0;
+    for (int i=0; i< 60; i++) 
+      sum += avg86400[i];
+    return sum;
+  }
 
   double GetAvg3600() {
     double sum=0;
     for (int i=0; i< 60; i++) 
       sum += avg3600[i];
-    //    return (sum / 59);
     return sum;
   }
 
@@ -99,7 +122,6 @@ public:
     double sum=0;
     for (int i=0; i< 60; i++) 
       sum += avg300[i];
-    //    return (sum / 59);
     return sum;
   }
 
@@ -107,7 +129,6 @@ public:
     double sum=0;
     for (int i=0; i< 60; i++) 
       sum += avg60[i];
-    // return (sum / 59);
     return sum;
   }
 };
@@ -137,7 +158,7 @@ public:
   bool Start();
   bool Stop();
 
-  void PrintOut(XrdOucString &out, bool details, bool monitoring);
+  void PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical=false);
 
   static void* StaticReceive(void*);
   static void* StaticCirculate(void*);
@@ -160,6 +181,18 @@ public:
       return 0;
     for (it=IostatUid[tag].begin(); it!= IostatUid[tag].end(); ++it) {
       val += it->second;
+    }
+    return val;
+  }
+
+  // warning: you have to lock the mutex if directly used
+  double GetTotalAvg86400(const char* tag) {
+    google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
+    double val = 0;
+    if (!IostatAvgUid.count(tag))
+      return 0;
+    for (it=IostatAvgUid[tag].begin(); it!= IostatAvgUid[tag].end(); ++it) {
+      val += it->second.GetAvg86400();
     }
     return val;
   }

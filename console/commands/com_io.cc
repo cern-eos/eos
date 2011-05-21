@@ -38,8 +38,12 @@ com_io (char* arg1) {
     } else {
       if (option == "-m") {
 	options += "m";
-      } else {
-	goto com_io_usage;
+      }  else {
+        if (option == "-n") {
+          options += "n";
+        } else {
+          goto com_io_usage;
+        }
       }
     }
   } while(1);
@@ -52,9 +56,10 @@ com_io (char* arg1) {
   return (0);
 
  com_io_usage:
-  printf("usage: io stat [-a] [-m]                                          :  print io statistics\n");
+  printf("usage: io stat [-a] [-m] [-n]                                     :  print io statistics\n");
   printf("                -a                                                   -  break down by uid/gid\n");
   printf("                -m                                                   -  print in <key>=<val> monitoring format\n");
+  printf("                -n                                                   -  print numerical uid/gids\n");
   printf("       io enable                                                  :  enable collection of io statistics\n");
   printf("       io disable                                                 :  disable collection of io statistics\n");
   return (0);

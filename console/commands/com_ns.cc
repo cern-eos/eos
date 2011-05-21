@@ -31,7 +31,11 @@ com_ns (char* arg1) {
       if (option == "-m") {
 	options += "m";
       } else {
-	goto com_ns_usage;
+        if (option == "-n") {
+          options += "n";
+        } else {
+          goto com_ns_usage;
+        }
       }
     }
   } while(1);
@@ -44,8 +48,9 @@ com_ns (char* arg1) {
   return (0);
 
  com_ns_usage:
-  printf("usage: ns stat [-a] [-m]                                          :  print namespace statistics\n");
+  printf("usage: ns stat [-a] [-m] [-n]                                     :  print namespace statistics\n");
   printf("                -a                                                   -  break down by uid/gid\n");
   printf("                -m                                                   -  print in <key>=<val> monitoring format\n");
+  printf("                -n                                                   -  print numerical uid/gids\n");
   return (0);
 }

@@ -1375,10 +1375,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	XrdOucString option = opaque.Get("mgm.option");
 	bool details=false;
 	bool monitoring=false;
+        bool numerical=false;
 	if ((option.find("a")!=STR_NPOS)) 
 	  details = true;
 	if ((option.find("m")!=STR_NPOS))
 	  monitoring = true;
+        if ((option.find("n")!=STR_NPOS))
+          numerical = true;
 
 	eos_info("ns stat");
 	char files[1024]; sprintf(files,"%llu" ,(unsigned long long)gOFS->eosFileService->getNumFiles());
@@ -1395,7 +1398,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  stdOut += "all ns.total.files="; stdOut += files; stdOut += " ";
 	  stdOut += "all ns.total.directories="; stdOut += dirs; stdOut += "\n";
 	}
-	gOFS->MgmStats.PrintOutTotal(stdOut, details, monitoring);
+	gOFS->MgmStats.PrintOutTotal(stdOut, details, monitoring,numerical);
       }
     }
 
@@ -1422,14 +1425,17 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	XrdOucString option = opaque.Get("mgm.option");
 	bool details=false;
 	bool monitoring=false;
+        bool numerical=false;
 	if ((option.find("a")!=STR_NPOS)) 
 	  details = true;
 	if ((option.find("m")!=STR_NPOS))
 	  monitoring = true;
+        if ((option.find("n")!=STR_NPOS))
+          numerical = true;
 
 	eos_info("io stat");
 
-	gOFS->IoStats.PrintOut(stdOut, details, monitoring);
+	gOFS->IoStats.PrintOut(stdOut, details, monitoring, numerical);
       }
     }
 
