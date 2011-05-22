@@ -822,6 +822,20 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("VerifyStripe",0,0,0);
   gOFS->MgmStats.Add("WhoAmI",0,0,0);
 
+  // set IO accounting file
+  XrdOucString ioaccounting = MgmMetaLogDir ;
+  ioaccounting += "/iostat.";
+  ioaccounting += HostName;
+  ioaccounting += ".dump";
+
+  eos_notice("Setting IO dump store file to %s", ioaccounting.c_str());
+  if (!gOFS->IoStats.SetStoreFileName(ioaccounting.c_str())) {
+    eos_warning("couldn't load anything from the io stat dump file %s", ioaccounting.c_str());
+  } else {
+    eos_notice("loaded io stat dump file %s", ioaccounting.c_str());
+  }
+  // start IO ciruclate thread
+  gOFS->IoStats.StartCirculate();
   // start IO accounting
   gOFS->IoStats.Start();
 

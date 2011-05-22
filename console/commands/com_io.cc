@@ -42,7 +42,11 @@ com_io (char* arg1) {
         if (option == "-n") {
           options += "n";
         } else {
-          goto com_io_usage;
+          if ( option == "-t") {
+            options += "t";
+          } else {
+            goto com_io_usage;
+          }
         }
       }
     }
@@ -60,6 +64,7 @@ com_io (char* arg1) {
   printf("                -a                                                   -  break down by uid/gid\n");
   printf("                -m                                                   -  print in <key>=<val> monitoring format\n");
   printf("                -n                                                   -  print numerical uid/gids\n");
+  printf("                -t                                                   -  print top user stats\n");
   printf("       io enable                                                  :  enable collection of io statistics\n");
   printf("       io disable                                                 :  disable collection of io statistics\n");
   return (0);

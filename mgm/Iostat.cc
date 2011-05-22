@@ -15,6 +15,14 @@ Iostat::Iostat()
 {
   mRunning = false;
   mInit = false;
+  mStoreFileName="";
+}
+
+/* ------------------------------------------------------------------------- */
+void
+Iostat::StartCirculate()
+{
+  // we have to do after the name of the dump file was set, therefore the StartCirculate is an extra call
   XrdSysThread::Run(&cthread, Iostat::StaticCirculate, static_cast<void *>(this),0, "Report Circulation Thread");
 }
 
@@ -108,7 +116,7 @@ Iostat::Receive(void)
 
 /* ------------------------------------------------------------------------- */
 void 
-Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical)
+Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical, bool top)
 {
    Mutex.Lock();
    std::vector<std::string> tags;
@@ -266,7 +274,173 @@ Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerica
        out +="# --------------------------------------------------------------------------------------\n";
      }
    }
+
+   if (top) {
+     for (it = tags.begin(); it!= tags.end(); ++it) {
+
+       if (!monitoring) {
+         out +="# --------------------------------------------------------------------------------------\n";
+         out +="# top IO list by user name: "; out += it->c_str();out+= "\n";
+         out +="# --------------------------------------------------------------------------------------\n";
+         
+         std::vector <std::string> uidout;
+         std::vector <std::string> gidout;
+         std::vector<std::string>::reverse_iterator sit;
+         google::sparse_hash_map<uid_t, unsigned long long>::iterator tuit;         
+         for (tuit = IostatUid[*it].begin(); tuit != IostatUid[*it].end(); tuit++) {
+           sprintf(outline,"%020llu|%u\n", tuit->second, tuit->first);
+           uidout.push_back(outline);
+         }
+         std::sort(uidout.begin(),uidout.end());
+         int topplace=0;
+         for (sit = uidout.rbegin(); sit != uidout.rend(); sit++) {
+           topplace++;
+           std::string counter=sit->c_str();
+           std::string suid = sit->c_str();
+
+           
+           XrdOucString stopplace="";
+           XrdOucString sizestring="";
+           stopplace += (int)topplace;
+           counter.erase(sit->find("|"));
+           suid.erase(0, sit->find("|")+1);
+
+           uid_t uid = atoi(suid.c_str());
+
+           char identifier[1024];
+           if (numerical) {
+             snprintf(identifier, 1023, "uid=%d", uid);
+           } else {
+             int terrc=0;
+             std::string username = eos::common::Mapping::UidToUserName(uid, terrc);
+             snprintf(identifier, 1023, "%s", username.c_str());
+           }
+
+           sprintf(outline,"[ %-16s ] %4s. %-10s %s\n", it->c_str(),stopplace.c_str(), identifier, eos::common::StringConversion::GetReadableSizeString(sizestring, strtoull(counter.c_str(),0,10),""));
+           out += outline;
+         }
+
+         // by gid name
+
+         out +="# --------------------------------------------------------------------------------------\n";
+         out +="# top IO list by group name: "; out += it->c_str();out+= "\n";
+         out +="# --------------------------------------------------------------------------------------\n";
+         
+         google::sparse_hash_map<gid_t, unsigned long long>::iterator tgit;         
+         for (tgit = IostatGid[*it].begin(); tgit != IostatGid[*it].end(); tgit++) {
+           sprintf(outline,"%020llu|%u\n", tgit->second, tgit->first);
+           gidout.push_back(outline);
+         }
+         std::sort(gidout.begin(),gidout.end());
+         topplace=0;
+         for (sit = gidout.rbegin(); sit != gidout.rend(); sit++) {
+           topplace++;
+           std::string counter=sit->c_str();
+           std::string suid = sit->c_str();
+
+           
+           XrdOucString stopplace="";
+           XrdOucString sizestring="";
+           stopplace += (int)topplace;
+           counter.erase(sit->find("|"));
+           suid.erase(0, sit->find("|")+1);
+
+           uid_t uid = atoi(suid.c_str());
+
+           char identifier[1024];
+           if (numerical) {
+             snprintf(identifier, 1023, "gid=%d", uid);
+           } else {
+             int terrc=0;
+             std::string groupname = eos::common::Mapping::GidToGroupName(uid, terrc);
+             snprintf(identifier, 1023, "%s", groupname.c_str());
+           }
+
+           sprintf(outline,"[ %-16s ] %4s. %-10s %s\n", it->c_str(),stopplace.c_str(), identifier, eos::common::StringConversion::GetReadableSizeString(sizestring, strtoull(counter.c_str(),0,10),""));
+           out += outline;
+         }
+       } else {
+
+       }
+     }
+   }
    Mutex.UnLock();
+}
+
+/* ------------------------------------------------------------------------- */
+bool 
+Iostat::Store() 
+{
+  // ---------------------------------------------------------------------------
+  // ! save current uid/gid counters to a dump file
+  // ---------------------------------------------------------------------------
+  XrdOucString tmpname = mStoreFileName;
+  if (!mStoreFileName.length())
+    return false;
+
+  tmpname += ".tmp";
+  FILE* fout = fopen(tmpname.c_str(),"w+");
+  if (!fout)
+    return false;
+
+  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator tuit;
+  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator tgit;
+  Mutex.Lock();
+  // store user counters
+  for (tuit = IostatUid.begin(); tuit != IostatUid.end(); tuit++) {
+    google::sparse_hash_map<uid_t, unsigned long long>::iterator it;
+    for (it = tuit->second.begin(); it != tuit->second.end(); ++it) {
+      fprintf(fout,"tag=%s&uid=%u&val=%llu\n", tuit->first.c_str(), it->first, it->second);
+    }
+  }
+  // store group counter
+  for (tgit = IostatGid.begin(); tgit != IostatGid.end(); tgit++) {
+    google::sparse_hash_map<uid_t, unsigned long long>::iterator it;
+    for (it = tgit->second.begin(); it != tgit->second.end(); ++it) {
+      fprintf(fout,"tag=%s&gid=%u&val=%llu\n", tgit->first.c_str(), it->first, it->second);
+    }
+  }
+  Mutex.UnLock();
+  
+  fclose(fout);
+  return (rename(tmpname.c_str(), mStoreFileName.c_str())?false:true);
+}
+
+/* ------------------------------------------------------------------------- */
+bool 
+Iostat::Restore() 
+{
+  // ---------------------------------------------------------------------------
+  // ! load current uid/gid counters from a dump file
+  // ---------------------------------------------------------------------------
+  if (!mStoreFileName.length())
+    return false;
+  
+  FILE* fin = fopen(mStoreFileName.c_str(),"r");
+  if (!fin)
+    return false;
+
+  Mutex.Lock();
+  int item =0;
+  char line[16384];
+  while ((item = fscanf(fin, "%s\n", line))==1) {
+    XrdOucEnv env(line);
+    if (env.Get("tag") && env.Get("uid") && env.Get("val")) {
+      std::string tag = env.Get("tag");
+      uid_t uid = atoi(env.Get("uid"));
+      unsigned long long val = strtoull(env.Get("val"),0,10);
+      IostatUid[tag][uid] = val;
+    }
+    if (env.Get("tag") && env.Get("gid") && env.Get("val")) {
+      std::string tag = env.Get("tag");
+      gid_t gid = atoi(env.Get("gid"));
+      unsigned long long val = strtoull(env.Get("val"),0,10);
+      IostatGid[tag][gid] = val;
+    }
+  }
+  Mutex.UnLock();
+  fclose(fin);
+  return true;
 }
 
 EOSMGMNAMESPACE_END

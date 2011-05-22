@@ -4,6 +4,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "mq/XrdMqClient.hh"
+#include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
@@ -145,6 +146,8 @@ private:
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatAvg> > IostatAvgUid;
   google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, IostatAvg> > IostatAvgGid;
 
+  XrdOucString mStoreFileName; // file name where a dump is loaded/saved in Restore/Store
+
 public:
   pthread_t thread;
   pthread_t cthread;
@@ -155,10 +158,19 @@ public:
   Iostat();
   ~Iostat();
 
+  bool SetStoreFileName(const char* storefilename) {
+    mStoreFileName = storefilename;
+    return Restore();
+  }
+
+  bool Store();
+  bool Restore();
+
+  void StartCirculate();
   bool Start();
   bool Stop();
 
-  void PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical=false);
+  void PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical=false, bool top=false);
 
   static void* StaticReceive(void*);
   static void* StaticCirculate(void*);
@@ -235,9 +247,18 @@ public:
   }
 
   void* Circulate() {
+    unsigned long long sc = 0 ;
     XrdSysThread::SetCancelOn();
     // empty the circular buffer 
     while(1) {
+      // we store once per minute the current statistics 
+      if (!(sc%117)) {
+        // save the current state ~ every minute
+        if (!Store()) {
+          eos_static_err("failed store io stat dump file <%s>",mStoreFileName.c_str());
+        }
+      }
+      sc++;
       usleep(512345);
       Mutex.Lock();
       google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatAvg> >::iterator tit;
