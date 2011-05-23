@@ -170,7 +170,7 @@ public:
   bool Start();
   bool Stop();
 
-  void PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical=false, bool top=false);
+  void PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical=false, bool top=false, XrdOucString option="");
 
   static void* StaticReceive(void*);
   static void* StaticCirculate(void*);

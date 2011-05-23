@@ -1438,7 +1438,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 	eos_info("io stat");
 
-	gOFS->IoStats.PrintOut(stdOut, details, monitoring, numerical, top);
+	gOFS->IoStats.PrintOut(stdOut, details, monitoring, numerical, top, option);
       }
     }
 

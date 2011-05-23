@@ -34,6 +34,7 @@ Iostat::Start()
     XrdOucString queue = gOFS->MgmOfsBroker;
     queue += gOFS->ManagerId;
     queue += "/report";
+    queue.replace("root://","root://root@");
     mClient.AddBroker(queue.c_str());
     mInit = true;
   }
@@ -116,7 +117,7 @@ Iostat::Receive(void)
 
 /* ------------------------------------------------------------------------- */
 void 
-Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical, bool top)
+Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical, bool top, XrdOucString option)
 {
    Mutex.Lock();
    std::vector<std::string> tags;

@@ -46,8 +46,18 @@ public:
       if (insize >= (1000*1000)) {
 	if (insize >= (1000l*1000l*1000l)) {
 	  if (insize >= (1000l*1000l*1000l*1000l)) {
-	    // TB
-	    sprintf(formsize,"%.02f T%s",insize*1.0 / (1000l*1000l*1000l*1000l), unit);
+            if (insize >= (1000l*1000l*1000l*1000l*1000l)) {
+              if (insize >= (1000l*1000l*1000l*1000l*1000l*1000l)) {
+                // EB
+                sprintf(formsize,"%.02f E%s",insize*1.0 / (1000l*1000l*1000l*1000l*1000l*1000l), unit);
+              } else {
+                // PB
+                sprintf(formsize,"%.02f P%s",insize*1.0 / (1000l*1000l*1000l*1000l*1000l), unit);
+              }
+            } else {
+              // TB
+              sprintf(formsize,"%.02f T%s",insize*1.0 / (1000l*1000l*1000l*1000l), unit);
+            }
 	  } else {
 	    // GB
 	    sprintf(formsize,"%.02f G%s",insize*1.0 / (1000l*1000l*1000l), unit);
@@ -86,7 +96,15 @@ public:
     if (sizestring.endswith("B") || sizestring.endswith("b")) {
       sizestring.erase(sizestring.length()-1);
     }
-    
+ 
+    if (sizestring.endswith("E") || sizestring.endswith("e")) {
+      convfactor = 1000l*1000l*1000l*1000l*1000l*1000l;
+    }
+   
+    if (sizestring.endswith("P") || sizestring.endswith("p")) {
+      convfactor = 1000l*1000l*1000l*1000l*1000l;
+    }
+
     if (sizestring.endswith("T") || sizestring.endswith("t")) {
       convfactor = 1000l*1000l*1000l*1000l;
     }

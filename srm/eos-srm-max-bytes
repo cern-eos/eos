@@ -11,7 +11,7 @@ if [ -n "$cache" ]; then
     exit;
 fi
     
-export `eos -b root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch//}// quota ls -m -s $dirpath | grep "gid=ALL"`
+export `eos -b root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch//}// quota ls -m | grep "$dirpath" | grep "gid=ALL"`
 
 val=$maxlogicalbytes
 
