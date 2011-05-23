@@ -23,7 +23,8 @@ private:
   int kBrokerN;
   XrdOucString                kClientId;
   XrdOucString                kDefaultReceiverQueue;
-
+  char*                       kRecvBuffer;
+  int                         kRecvBufferAlloc;
 public:
 
   bool Subscribe(const char* queue = 0);

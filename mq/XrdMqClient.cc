@@ -159,8 +159,6 @@ XrdMqMessage* XrdMqClient::RecvFromInternalBuffer() {
 
 
 XrdMqMessage* XrdMqClient::RecvMessage() {
-  static char* recvbuffer=0;
-  static int   recvbufferalloc=0;
 
   if (kBrokerN == 1) {
     // single broker case
@@ -192,23 +190,24 @@ XrdMqMessage* XrdMqClient::RecvMessage() {
     }
 
     // mantain a receiver buffer which fits the need
-    if (recvbufferalloc < stinfo.size) {
+    if (kRecvBufferAlloc < stinfo.size) {
       int allocsize = 1024*1024;
       if (stinfo.size > allocsize) {
         allocsize = stinfo.size + 1;
       }
-      recvbuffer = (char*)realloc(recvbuffer,allocsize);
-      if (!recvbuffer) {
+      kRecvBuffer = (char*)realloc(kRecvBuffer,allocsize);
+      if (!kRecvBuffer) {
         // this is really fatal - we exit !
         exit(-1);
       }
+      kRecvBufferAlloc = allocsize;
     }
     // read all messages
-    size_t nread = client->Read(recvbuffer, 0, stinfo.size);
+    size_t nread = client->Read(kRecvBuffer, 0, stinfo.size);
     if (nread>0) {
-      recvbuffer[nread] = 0;
+      kRecvBuffer[nread] = 0;
       // add to the internal message buffer
-      kMessageBuffer += recvbuffer;
+      kMessageBuffer += kRecvBuffer;
     }
     return RecvFromInternalBuffer();
     // ...
@@ -314,6 +313,8 @@ bool XrdMqClient::AddBroker(const char* brokerurl, bool advisorystatus, bool adv
 XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl, const char* defaultreceiverid) {
   kBrokerN=0;
   kMessageBuffer="";
+  kRecvBuffer=0;
+  kRecvBufferAlloc=0;
   if (brokerurl && (!AddBroker(brokerurl))) {
     fprintf(stderr,"error: cannot add broker %s\n", brokerurl);
   }

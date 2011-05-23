@@ -47,6 +47,7 @@ rm -rf $RPM_BUILD_ROOT
 %post
 /sbin/chkconfig --add eos
 /sbin/service eos condrestart > /dev/null 2>&1 || :
+/sbin/service eosd condrestart > /dev/null 2>&1 || :
 %preun
 if [ $1 = 0 ]; then
         /sbin/service eosha stop > /dev/null 2>&1 
