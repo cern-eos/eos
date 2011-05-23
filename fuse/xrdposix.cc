@@ -1296,7 +1296,8 @@ void xrd_init()
     XrdPosixXrootd::setEnv(NAME_DATASERVERCONN_TTL,86400);
     XrdPosixXrootd::setEnv(NAME_LBSERVERCONN_TTL,3600*24);
     XrdPosixXrootd::setEnv(NAME_REQUESTTIMEOUT,300);
-    EnvPutInt("NAME_MAXREDIRECTCOUNT",10000);
+    EnvPutInt("NAME_MAXREDIRECTCOUNT",5);
+    EnvPutInt("NAME_RECONNECTWAIT", 10);
 
     setenv("XRDPOSIX_POPEN","0",1);
     if (getenv("EOS_DEBUG")) {

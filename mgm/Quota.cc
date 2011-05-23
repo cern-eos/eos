@@ -555,8 +555,8 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
 		eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kAllGroupLogicalBytesIs,0),"B"), 
 		eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kAllGroupFilesIs,0),"-"), 
 		eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kAllGroupBytesTarget,0),"B"), 
-		eos::common::StringConversion::GetReadableSizeString(value4, GetQuota(kAllGroupLogicalBytesTarget,0),"B"), 
-		eos::common::StringConversion::GetReadableSizeString(value5, GetQuota(kAllGroupFilesTarget,0),"-"),
+		eos::common::StringConversion::GetReadableSizeString(value5, GetQuota(kAllGroupLogicalBytesTarget,0),"B"), 
+		eos::common::StringConversion::GetReadableSizeString(value6, GetQuota(kAllGroupFilesTarget,0),"-"),
 		GetQuotaPercentage(GetQuota(kAllGroupBytesIs,0), GetQuota(kAllGroupBytesTarget,0), percentage),
 		GetQuotaStatus(GetQuota(kAllGroupBytesIs,0), GetQuota(kAllGroupBytesTarget,0)));
       } else {

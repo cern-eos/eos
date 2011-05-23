@@ -24,7 +24,7 @@ void usage() {
 
 bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
   EnvPutInt(NAME_READCACHESIZE,0);
-  EnvPutInt(NAME_MAXREDIRECTCOUNT,10000);
+  EnvPutInt(NAME_MAXREDIRECTCOUNT,5);
   EnvPutInt(NAME_DATASERVERCONN_TTL,3600);
 
   XrdClient* client = new XrdClient(destfilename.c_str());

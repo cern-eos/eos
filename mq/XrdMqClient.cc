@@ -290,7 +290,7 @@ bool XrdMqClient::AddBroker(const char* brokerurl, bool advisorystatus, bool adv
     kBrokerUrls.Add(brokern.c_str(), new XrdOucString(newBrokerUrl.c_str()));
     kBrokerXrdClientSender.Add(GetBrokerId(kBrokerN).c_str(), new XrdClientAdmin(newBrokerUrl.c_str()));
     EnvPutInt(NAME_READCACHESIZE,0);
-    EnvPutInt(NAME_MAXREDIRECTCOUNT,30000);
+    EnvPutInt(NAME_MAXREDIRECTCOUNT,2);
     EnvPutInt(NAME_CONNECTTIMEOUT,10);
     EnvPutInt(NAME_REQUESTTIMEOUT,300);
     kBrokerXrdClientReceiver.Add(GetBrokerId(kBrokerN).c_str(), new XrdClient(newBrokerUrl.c_str()));

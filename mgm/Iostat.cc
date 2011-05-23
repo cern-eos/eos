@@ -283,85 +283,101 @@ Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerica
          out +="# --------------------------------------------------------------------------------------\n";
          out +="# top IO list by user name: "; out += it->c_str();out+= "\n";
          out +="# --------------------------------------------------------------------------------------\n";
+       }
+
          
-         std::vector <std::string> uidout;
-         std::vector <std::string> gidout;
-         std::vector<std::string>::reverse_iterator sit;
-         google::sparse_hash_map<uid_t, unsigned long long>::iterator tuit;         
-         for (tuit = IostatUid[*it].begin(); tuit != IostatUid[*it].end(); tuit++) {
-           sprintf(outline,"%020llu|%u\n", tuit->second, tuit->first);
-           uidout.push_back(outline);
-         }
-         std::sort(uidout.begin(),uidout.end());
-         int topplace=0;
-         for (sit = uidout.rbegin(); sit != uidout.rend(); sit++) {
-           topplace++;
-           std::string counter=sit->c_str();
-           std::string suid = sit->c_str();
-
-           
-           XrdOucString stopplace="";
-           XrdOucString sizestring="";
-           stopplace += (int)topplace;
-           counter.erase(sit->find("|"));
-           suid.erase(0, sit->find("|")+1);
-
-           uid_t uid = atoi(suid.c_str());
-
-           char identifier[1024];
-           if (numerical) {
+       std::vector <std::string> uidout;
+       std::vector <std::string> gidout;
+       std::vector<std::string>::reverse_iterator sit;
+       google::sparse_hash_map<uid_t, unsigned long long>::iterator tuit;         
+       for (tuit = IostatUid[*it].begin(); tuit != IostatUid[*it].end(); tuit++) {
+         sprintf(outline,"%020llu|%u\n", tuit->second, tuit->first);
+         uidout.push_back(outline);
+       }
+       std::sort(uidout.begin(),uidout.end());
+       int topplace=0;
+       for (sit = uidout.rbegin(); sit != uidout.rend(); sit++) {
+         topplace++;
+         std::string counter=sit->c_str();
+         std::string suid = sit->c_str();
+         
+         
+         XrdOucString stopplace="";
+         XrdOucString sizestring="";
+         stopplace += (int)topplace;
+         counter.erase(sit->find("|"));
+         suid.erase(0, sit->find("|")+1);
+         
+         uid_t uid = atoi(suid.c_str());
+         
+         char identifier[1024];
+         if (numerical) {
+           if (!monitoring)
              snprintf(identifier, 1023, "uid=%d", uid);
-           } else {
-             int terrc=0;
-             std::string username = eos::common::Mapping::UidToUserName(uid, terrc);
-             snprintf(identifier, 1023, "%s", username.c_str());
-           }
-
+           else
+             snprintf(identifier, 1023, "%d", uid);
+         } else {
+           int terrc=0;
+           std::string username = eos::common::Mapping::UidToUserName(uid, terrc);
+           snprintf(identifier, 1023, "%s", username.c_str());
+         }
+         
+         if (!monitoring) {
            sprintf(outline,"[ %-16s ] %4s. %-10s %s\n", it->c_str(),stopplace.c_str(), identifier, eos::common::StringConversion::GetReadableSizeString(sizestring, strtoull(counter.c_str(),0,10),""));
-           out += outline;
+         } else {
+           sprintf(outline,"measurement=%s rank=%d uid=%s counter=%s\n",it->c_str(), topplace, identifier, counter.c_str());
          }
 
-         // by gid name
-
+         out += outline;
+       }
+       
+       // by gid name
+       
+       if (!monitoring) {
          out +="# --------------------------------------------------------------------------------------\n";
          out +="# top IO list by group name: "; out += it->c_str();out+= "\n";
          out +="# --------------------------------------------------------------------------------------\n";
+       }
+
+       google::sparse_hash_map<gid_t, unsigned long long>::iterator tgit;         
+       for (tgit = IostatGid[*it].begin(); tgit != IostatGid[*it].end(); tgit++) {
+         sprintf(outline,"%020llu|%u\n", tgit->second, tgit->first);
+         gidout.push_back(outline);
+       }
+       std::sort(gidout.begin(),gidout.end());
+       topplace=0;
+       for (sit = gidout.rbegin(); sit != gidout.rend(); sit++) {
+         topplace++;
+         std::string counter=sit->c_str();
+         std::string suid = sit->c_str();
          
-         google::sparse_hash_map<gid_t, unsigned long long>::iterator tgit;         
-         for (tgit = IostatGid[*it].begin(); tgit != IostatGid[*it].end(); tgit++) {
-           sprintf(outline,"%020llu|%u\n", tgit->second, tgit->first);
-           gidout.push_back(outline);
-         }
-         std::sort(gidout.begin(),gidout.end());
-         topplace=0;
-         for (sit = gidout.rbegin(); sit != gidout.rend(); sit++) {
-           topplace++;
-           std::string counter=sit->c_str();
-           std::string suid = sit->c_str();
-
-           
-           XrdOucString stopplace="";
-           XrdOucString sizestring="";
-           stopplace += (int)topplace;
-           counter.erase(sit->find("|"));
-           suid.erase(0, sit->find("|")+1);
-
-           uid_t uid = atoi(suid.c_str());
-
-           char identifier[1024];
-           if (numerical) {
+         
+         XrdOucString stopplace="";
+         XrdOucString sizestring="";
+         stopplace += (int)topplace;
+         counter.erase(sit->find("|"));
+         suid.erase(0, sit->find("|")+1);
+         
+         uid_t uid = atoi(suid.c_str());
+         
+         char identifier[1024];
+         if (numerical) {
+           if (!monitoring)
              snprintf(identifier, 1023, "gid=%d", uid);
-           } else {
-             int terrc=0;
-             std::string groupname = eos::common::Mapping::GidToGroupName(uid, terrc);
-             snprintf(identifier, 1023, "%s", groupname.c_str());
-           }
-
-           sprintf(outline,"[ %-16s ] %4s. %-10s %s\n", it->c_str(),stopplace.c_str(), identifier, eos::common::StringConversion::GetReadableSizeString(sizestring, strtoull(counter.c_str(),0,10),""));
-           out += outline;
+           else
+             snprintf(identifier, 1023, "%d", uid);
+         } else {
+           int terrc=0;
+           std::string groupname = eos::common::Mapping::GidToGroupName(uid, terrc);
+           snprintf(identifier, 1023, "%s", groupname.c_str());
          }
-       } else {
-
+         
+         if (!monitoring) {
+           sprintf(outline,"[ %-16s ] %4s. %-10s %s\n", it->c_str(),stopplace.c_str(), identifier, eos::common::StringConversion::GetReadableSizeString(sizestring, strtoull(counter.c_str(),0,10),""));
+         } else {
+           sprintf(outline,"measurement=%s rank=%d gid=%s counter=%s\n",it->c_str(), topplace, identifier, counter.c_str());
+         }
+         out += outline;
        }
      }
    }
