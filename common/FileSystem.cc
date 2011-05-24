@@ -1,6 +1,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/FileSystem.hh"
+#include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -26,53 +27,60 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
     if (! (mHash = mSom->GetObject(mQueuePath.c_str(),"hash")) ) {
       mSom->HashMutex.UnLockRead();
       // create the hash object
-      if (mSom->CreateSharedHash(mQueuePath.c_str(), broadcast.c_str(),som)) {
-        mSom->HashMutex.LockRead();
-        mHash = mSom->GetObject(mQueuePath.c_str(),"hash");
-        if (mHash) {
-	  mHash->OpenTransaction();
-          mHash->Set("queue",mQueue);
-          mHash->Set("queuepath",mQueuePath);
-          mHash->Set("path",mPath);
-	  std::string hostport = eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
-	  size_t ppos=hostport.find(":");
-	  std::string host = hostport;
-	  std::string port = hostport;
-	  if (ppos != std::string::npos) {
-	    host.erase(ppos);
-	    port.erase(0,ppos+1);
-	  } else {
-	    port = "1094";
-	  }
-	  mHash->Set("hostport",hostport);
-	  mHash->Set("host",host);
-	  mHash->Set("port",port);
-	  mHash->CloseTransaction();
-        }           
-        
-        mSom->HashMutex.UnLockRead();
-      } else {
-        mHash = 0;
-      }
+      mSom->CreateSharedHash(mQueuePath.c_str(), broadcast.c_str(),som);
+      mSom->HashMutex.LockRead();
+      mHash = mSom->GetObject(mQueuePath.c_str(),"hash");
+      if (mHash) {
+        mHash->OpenTransaction();
+        mHash->Set("queue",mQueue);
+        mHash->Set("queuepath",mQueuePath);
+        mHash->Set("path",mPath);
+        std::string hostport = eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
+        if (hostport.length()) {
+          size_t ppos=hostport.find(":");
+          std::string host = hostport;
+            std::string port = hostport;
+            if (ppos != std::string::npos) {
+              host.erase(ppos);
+              port.erase(0,ppos+1);
+            } else {
+              port = "1094";
+            }
+            mHash->Set("hostport",hostport);
+            mHash->Set("host",host);
+            mHash->Set("port",port);
+            mHash->Set("configstatus","down");
+        } else {
+          eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
+        }
+        mHash->CloseTransaction();
+      }           
+      mSom->HashMutex.UnLockRead();
     } else {
+      mHash->SetBroadCastQueue(broadcast.c_str());
       mHash->OpenTransaction();
       mHash->Set("queue",mQueue);
       mHash->Set("queuepath",mQueuePath);
       mHash->Set("path",mPath);
       std::string hostport = eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
-      size_t ppos=hostport.find(":");
-      std::string host = hostport;
-      std::string port = hostport;
-      if (ppos != std::string::npos) {
-        host.erase(ppos);
-        port.erase(0,ppos+1);
+      if (hostport.length()) {
+        size_t ppos=hostport.find(":");
+        std::string host = hostport;
+        std::string port = hostport;
+        if (ppos != std::string::npos) {
+          host.erase(ppos);
+          port.erase(0,ppos+1);
+        } else {
+          port = "1094";
+        }
+        mHash->Set("hostport",hostport);
+        mHash->Set("host",host);
+        mHash->Set("port",port);
       } else {
-        port = "1094";
+        eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
       }
-      mHash->Set("hostport",hostport);
-      mHash->Set("host",host);
-      mHash->Set("port",port);
       mHash->CloseTransaction();
+
       mSom->HashMutex.UnLockRead();
     }
     mDrainQueue   = new TransferQueue(mQueue.c_str(),mQueuePath.c_str(),"drainq"  ,this, mSom, bc2mgm );
@@ -84,11 +92,11 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
     mBalanceQueue = 0;
     mExternQueue  = 0;
   }
-  constructorLock.UnLock();
   if (bc2mgm) 
     BroadCastDeletion=false;
   else
     BroadCastDeletion=true;
+  constructorLock.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/

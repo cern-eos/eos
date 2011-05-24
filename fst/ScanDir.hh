@@ -39,8 +39,7 @@ private:
   char* buffer;
 
   pthread_t thread;
-  sem_t semaphore;
-  
+
   bool bgThread;
 public:
 
@@ -55,14 +54,13 @@ public:
     bufferSize = 256 * alignment;
  
     if (posix_memalign((void**)&buffer, alignment, bufferSize)){
-      fprintf(stderr, "error: error calling posix_memaling. \n");
-      throw 0;
+      fprintf(stderr, "error: error calling posix_memaling on dirpath=%s. \n",dirPath.c_str());
+      return;
     }
 
-    sem_init(&semaphore, 0, 0);   
     if (bgthread) {
       openlog("scandir", LOG_PID | LOG_NDELAY, LOG_USER);
-      pthread_create(&thread, NULL, &ScanDir::StaticThreadProc, this);
+      XrdSysThread::Run(&thread, ScanDir::StaticThreadProc, static_cast<void *>(this),0, "ScanDir Thread");
     } 
   };
 

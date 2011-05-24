@@ -92,7 +92,7 @@ protected:
   std::string Type;
   
   XrdMqSharedObjectManager* SOM;
-
+  
 public:
 
   XrdMqSharedHash(const char* subject = "", const char* broadcastqueue = "", XrdMqSharedObjectManager* som=0) ;
@@ -275,6 +275,8 @@ protected:
 
   bool IsMuxTransaction;
   std::map<std::string, std::set<std::string> > MuxTransactions;
+  bool ClearOnBroadCast;
+  bool DeletionBroadCast;   // if not set, deletions are never broadcasted
 
 public:
   static bool debug;
@@ -286,9 +288,13 @@ public:
   std::deque<std::string> ModificationSubjects;    // these are posted as <queue>:<key>
   std::deque<std::string> ModificationTempSubjects;// these are posted as <queue>:<key>
   std::set<std::string> ModificationWatchKeys;     // set of keys which get posted on the modifications list
-  
+
+ 
+  // one can en-/disable if the hash contents is cleared before a BCREPLY is applied
+  void SetClearOnBroadCast(bool clear) { ClearOnBroadCast = clear;}
+  void SetDeletionBroadCast(bool bc)   { DeletionBroadCast = bc;}
+ 
   // clean the bulk modification subject list
-  
   void PostModificationTempSubjects();             
   // semaphore to wait for new creations/deletions/modifications
   XrdSysSemWait SubjectsSem;

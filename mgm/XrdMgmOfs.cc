@@ -895,10 +895,13 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 
   if (!selectedfs[fsIndex]) {
     eos_err("0 filesystem in selection");
+    return Emsg(epname, error, ENONET,  "received filesystem id 0", path);	    
   }
 
-  
-  filesystem = FsView::gFsView.mIdView[selectedfs[fsIndex]];
+  if (FsView::gFsView.mIdView.count(selectedfs[fsIndex]))
+    filesystem = FsView::gFsView.mIdView[selectedfs[fsIndex]];
+  else
+    return Emsg(epname, error, ENONET,  "received non-existnat filesystem", path);	    
 
   targethost = filesystem->GetString("host").c_str();
   targetport = atoi(filesystem->GetString("port").c_str());
@@ -930,7 +933,11 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     for ( int i = 0; i < (int)selectedfs.size(); i++) {
       if (!selectedfs[i]) 
 	eos_err("0 filesystem in replica vector");
-      repfilesystem = FsView::gFsView.mIdView[selectedfs[i]];
+      if (FsView::gFsView.mIdView.count(selectedfs[i]))
+        repfilesystem = FsView::gFsView.mIdView[selectedfs[i]];
+      else
+        repfilesystem = 0;
+
       if (!repfilesystem) {
 	return Emsg(epname, error, EINVAL, "get replica filesystem information",path);
       }
@@ -4191,7 +4198,10 @@ XrdMgmOfs::FsListener()
       if (fsid && errc && (cfgstatus >= eos::common::FileSystem::kRO) && (bstatus == eos::common::FileSystem::kOpsError) ) {
         // this is the case we take action and explicitly ask to start a drain job
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        fs = FsView::gFsView.mIdView[fsid];
+        if (FsView::gFsView.mIdView.count(fsid))
+          fs = FsView::gFsView.mIdView[fsid];
+        else 
+          fs = 0;
         if (fs) {
           fs->StartDrainJob();
         }
@@ -4199,7 +4209,10 @@ XrdMgmOfs::FsListener()
       if (fsid && (!errc)) {
         // make sure there is no drain job triggered by a previous filesystem errc!=0
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        fs = FsView::gFsView.mIdView[fsid];
+        if (FsView::gFsView.mIdView.count(fsid))
+          fs = FsView::gFsView.mIdView[fsid];
+        else
+          fs = 0;
         if (fs) {
           fs->StopDrainJob();
         }

@@ -20,34 +20,54 @@ EOSFSTNAMESPACE_BEGIN
 ScanDir::~ScanDir()
 { 
   if ((bgThread && thread)) {
-    sem_post(&semaphore);
-    pthread_join(thread, NULL);                
+    XrdSysThread::Cancel(thread);
+    XrdSysThread::Join(thread,NULL);
     closelog(); 
   }
   if (buffer) {
-  free(buffer);
+    free(buffer);
   }
 }
 
+/*----------------------------------------------------------------------------*/
+void scandir_cleanup_paths(void *arg) 
+{
+  char **paths = (char**)arg;
+  if (paths)
+    free (paths);
+}
+
+/*----------------------------------------------------------------------------*/
+void scandir_cleanup_fts(void *arg) 
+{
+  FTS *tree = (FTS*)arg;
+  if (tree)
+    fts_close(tree);
+}
 
 /*----------------------------------------------------------------------------*/
 void ScanDir::ScanFiles()
 {
-  int valSem = -1;
   char **paths = (char**) calloc(2, sizeof(char*));
   if (!paths) {
     return ;
   }
 
+  pthread_cleanup_push(scandir_cleanup_paths, paths);
+
   paths[0] = (char*) dirPath.c_str();
   paths[1] = 0;
 
   FTS *tree = fts_open(paths, FTS_NOCHDIR, 0);
+
   if (!tree){
     fprintf(stderr, "error: fts_open failed! \n");
     free(paths);
     return;
   }
+
+  pthread_cleanup_push(scandir_cleanup_fts, tree);
+
   
   FTSENT *node;
   while ((node = fts_read(tree))) {
@@ -62,16 +82,15 @@ void ScanDir::ScanFiles()
             CheckFile(filePath.c_str());
           }
         }
-    }
-    sem_getvalue(&semaphore, &valSem);
-    if (valSem > 0) {
-      break;    
-    }
+    }    
+    XrdSysThread::CancelPoint();
   }
   if (fts_close(tree)){
     fprintf(stderr, "error: fts_close failed \n");
   }  
   free(paths);
+  pthread_cleanup_pop(0);
+  pthread_cleanup_pop(0);
 }
 
 
@@ -237,8 +256,9 @@ void* ScanDir::StaticThreadProc(void* arg)
 /*----------------------------------------------------------------------------*/
 void* ScanDir::ThreadProc(void)
 {
+  XrdSysThread::SetCancelOn();
   do {
-    int valSem = -1;
+
     struct timezone tz;
     struct timeval tv_start, tv_end;
     
@@ -250,7 +270,10 @@ void* ScanDir::ThreadProc(void)
     
     if (bgThread) {
       // run every 4 hours
-      sleep(4 * 3600);
+      for (size_t s=0; s < (4*3600); s++) {
+        XrdSysThread::CancelPoint();
+        sleep(1);
+      }
     }
 
     gettimeofday(&tv_start, &tz);
@@ -264,14 +287,10 @@ void* ScanDir::ThreadProc(void)
       fprintf(stderr,"[ScanDir] Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB] scannedfiles=%li  corruptedfiles=%li skippedfiles=%li\n", dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles,noNoCheckumFiles);
     }
 
-    sem_getvalue(&semaphore, &valSem);
-
     if (!bgThread)
       break;
 
-    if (valSem > 0) {
-      break;    
-    }
+    XrdSysThread::CancelPoint();
   }  while(1);
   return NULL;
 }
@@ -281,7 +300,6 @@ void* ScanDir::ThreadProc(void)
 bool ScanDir::ScanFileLoadAware(const char* path, unsigned long long &scansize, float &scantime, std::string checksumVal, unsigned long layoutid, const char* lfn)
 {
   double load;
-  int valSem = -1;
   bool retVal, corruptBlockXS = false;
   int len, currentRate = rateBandwidth;
   std::string filePath, fileXSPath, checksumComp;
@@ -317,16 +335,6 @@ bool ScanDir::ScanFileLoadAware(const char* path, unsigned long long &scansize, 
   off_t offset = 0;
 
   do {
-    // to interrupt quickly the thread
-    sem_getvalue(&semaphore, &valSem);
-    if (valSem > 0) {
-      delete normalXS;
-      if (blockXS) {
-        blockXS->CloseMap();
-        delete blockXS;
-      }
-      return false;
-    }
     errno = 0;
     nread = read(fd,buffer,bufferSize);
     if (nread<0) {
@@ -405,6 +413,8 @@ bool ScanDir::ScanFileLoadAware(const char* path, unsigned long long &scansize, 
 
   delete normalXS;
   close(fd);
+
+  XrdSysThread::CancelPoint();
   return retVal;
 }
 

@@ -14,6 +14,8 @@ add_library (XrdEosMgm MODULE
 	    XrdMgmOfsConfigure.cc
 	    XrdMgmOfs.cc
             DrainJob.cc
+            BalanceJob.cc
+            Balancer.cc
             FileSystem.cc
             Egroup.cc
             Acl.cc

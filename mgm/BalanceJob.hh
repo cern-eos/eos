@@ -1,5 +1,5 @@
-#ifndef __EOSMGM_DRAINJOB_HH__
-#define __EOSMGM_DRAINJOB_HH__
+#ifndef __EOSMGM_BALANCEJOB_HH__
+#define __EOSMGM_BALANCEJOB_HH__
 /*----------------------------------------------------------------------------*/
 #include <pthread.h>
 /*----------------------------------------------------------------------------*/
@@ -13,9 +13,9 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-class DrainJob {
+class BalanceJob {
   // ---------------------------------------------------------------------------
-  //! This class implements the drain procedure of a filesystem
+  //! This class implements the balance procedure of a group
   // ---------------------------------------------------------------------------
 private:
   eos::common::FileSystem::fsid_t fsid;
@@ -26,16 +26,16 @@ private:
 
 public:
 
-  DrainJob(eos::common::FileSystem::fsid_t ifsid, bool opserror=false) {
+  BalanceJob(eos::common::FileSystem::fsid_t ifsid, bool opserror=false) {
     fsid = ifsid;
     onOpsError=opserror;
-    XrdSysThread::Run(&thread, DrainJob::StaticThreadProc, static_cast<void *>(this),0, "DrainJob Thread");
+    XrdSysThread::Run(&thread, BalanceJob::StaticThreadProc, static_cast<void *>(this),0, "BalanceJob Thread");
   }
 
   static void* StaticThreadProc(void*);
-  void* Drain(); // the function scheduling from the drain map into shared queues
+  void* Balance(); // the function scheduling from the balance map into shared queues
   
-  virtual ~DrainJob();
+  virtual ~BalanceJob();
 };
 
 EOSMGMNAMESPACE_END

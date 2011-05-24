@@ -53,16 +53,20 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
   // register the node to the global view and config
   std::string nodequeue = advmsg->kQueue.c_str();
   
-  if (FsView::gFsView.RegisterNode(advmsg->kQueue.c_str())) {
-    std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->NodeConfigQueuePrefix.c_str(), advmsg->kQueue.c_str());
-    
-    if (!eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str())) {
-      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(), advmsg->kQueue.c_str())) {
-	eos_static_crit("cannot add node config queue %s", nodeconfigname.c_str());
+  {    
+    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+    if (FsView::gFsView.RegisterNode(advmsg->kQueue.c_str())) {
+      std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->NodeConfigQueuePrefix.c_str(), advmsg->kQueue.c_str());
+      
+      if (!eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str())) {
+        if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(), advmsg->kQueue.c_str())) {
+          eos_static_crit("cannot add node config queue %s", nodeconfigname.c_str());
+        }
       }
     }
+    
   }
-  
+
   { // lock for write
     eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
     if (FsView::gFsView.mNodeView[nodequeue]) {
@@ -131,9 +135,11 @@ void Messaging::Process(XrdMqMessage* newmessage)
       XrdOucString error="";
       bool result = SharedObjectManager->ParseEnvMessage(newmessage, error);
       if (!result) {
-        if (error != "no subject in message body") {
+        if ( (error != "no subject in message body") && (error != "no pairs in message body")) {
           //          newmessage->Print();
           eos_err(error.c_str());
+        } else {
+          eos_debug(error.c_str());
         }
         return;
       } else {

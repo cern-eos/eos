@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-#include "mgm/DrainJob.hh"
+#include "mgm/BalanceJob.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -14,36 +14,36 @@
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-DrainJob::~DrainJob() {
+BalanceJob::~BalanceJob() {
   //----------------------------------------------------------------
   //! destructor stops the draining thread 
   //----------------------------------------------------------------
   eos_static_info("waiting for join ...");
   XrdSysThread::Cancel(thread);
   XrdSysThread::Join(thread,NULL);
-  eos_static_notice("Stopping Drain Job for fs=%u", fsid);
+  eos_static_notice("Stopping Balance Job for fs=%u", fsid);
 }
 
 
 /*----------------------------------------------------------------------------*/
 void* 
-DrainJob::StaticThreadProc(void* arg)
+BalanceJob::StaticThreadProc(void* arg)
 {
   //----------------------------------------------------------------
-  //! static thread startup function calling Drain
+  //! static thread startup function calling Balance
   //----------------------------------------------------------------
-  return reinterpret_cast<DrainJob*>(arg)->Drain();
+  return reinterpret_cast<BalanceJob*>(arg)->Balance();
 }
 
 /*----------------------------------------------------------------------------*/
 void*
-DrainJob::Drain(void)
+BalanceJob::Balance(void)
 {
   FileSystem* fs = 0;
 
   XrdSysThread::SetCancelOn();
 
-  eos_static_notice("Starting Drain Job for fs=%u onOpsError=%d", fsid,onOpsError);
+  eos_static_notice("Starting Balance Job for fs=%u onOpsError=%d", fsid,onOpsError);
   std::string group="";
   time_t drainstart = time(NULL);
   time_t drainperiod = 0;
@@ -216,7 +216,7 @@ DrainJob::Drain(void)
 
             // this is a healthy filesystem and can be used
             eos::common::TransferQueue* queue = 0;
-            if ( (queue = target_fs->GetDrainQueue())) {
+            if ( (queue = target_fs->GetBalanceQueue())) {
               int n2submit = 10 - queue->Size();
               if (n2submit>0) {
                 // submit n2submit jobs

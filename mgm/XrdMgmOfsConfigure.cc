@@ -517,6 +517,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   FsView::gFsView.SetConfigQueues(MgmConfigQueue.c_str(), NodeConfigQueuePrefix.c_str(), GroupConfigQueuePrefix.c_str(), SpaceConfigQueuePrefix.c_str());
   FsView::gFsView.SetConfigEngine(ConfEngine);
 
+  // disable clear on broadcast
+  ObjectManager.SetClearOnBroadCast(false);
+
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
   
@@ -525,8 +528,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   std::string watch_errc = "stat.errc";
   ObjectManager.ModificationWatchKeys.insert(watch_errc);
   ObjectManager.SubjectsMutex.UnLock();
-
-
+  
   if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(MgmConfigQueue.c_str(), "/eos/*/mgm")) {
     eos_crit("Cannot add global config queue %s\n", MgmConfigQueue.c_str());
   }

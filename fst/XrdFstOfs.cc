@@ -280,6 +280,9 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   ObjectManager.SetDebug(true);
 
+  // Disable broadcasting of key deletions
+  ObjectManager.SetDeletionBroadCast(false);
+
   // Enable the shared object notification queue
   ObjectManager.EnableQueue = true;
   ObjectManager.SetAutoReplyQueue("/eos/*/mgm");

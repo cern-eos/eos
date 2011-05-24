@@ -758,7 +758,12 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
       // take filesystem snapshot
       eos::common::FileSystem::fs_snapshot_t snapshot;
       // we are already in a locked section
-      FileSystem* fs = FsView::gFsView.mIdView[fsid];
+      FileSystem* fs = 0;
+      if (FsView::gFsView.mIdView.count(fsid))
+        fs = FsView::gFsView.mIdView[fsid];
+      else
+        continue;
+
       fs->SnapShotFileSystem(snapshot,false);
       
       // the weight is given mainly by the disk performance and the network load has a weaker impact (sqrt)
@@ -780,7 +785,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
 	  availablevector.push_back(fsid);
 	}
       } else {
-	eos_static_err("%d %d %d\n", (snapshot.mStatus), (snapshot.mConfigStatus), (snapshot.mErrCode      == 0 ));
+        //	eos_static_err("%d %d %d\n", (snapshot.mStatus), (snapshot.mConfigStatus), (snapshot.mErrCode      == 0 ));
       }
       fsit++;
 
@@ -939,6 +944,7 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
       // we are already in a locked section
 
       FileSystem* fs = FsView::gFsView.mIdView[locationsfs[0]];
+
       fs->SnapShotFileSystem(snapshot,false);
 
       if (isRW) {

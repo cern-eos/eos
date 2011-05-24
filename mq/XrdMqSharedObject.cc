@@ -19,6 +19,8 @@ XrdMqSharedObjectManager::XrdMqSharedObjectManager()
   AutoReplyQueueDerive = false;
   IsMuxTransaction = false;
   MuxTransactions.clear();
+  ClearOnBroadCast = true;
+  DeletionBroadCast = true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -102,7 +104,7 @@ XrdMqSharedObjectManager::DeleteSharedHash(const char* subject, bool broadcast)
   HashMutex.LockWrite();
   
   if ((hashsubjects.count(ss)>0)) {
-    if (broadcast) {
+    if (broadcast && DeletionBroadCast) {
       XrdOucString txmessage="";
       hashsubjects[ss]->MakeRemoveEnvHeader(txmessage);
       XrdMqMessage message("XrdMqSharedHashMessage");
@@ -429,7 +431,8 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
 	}
 	
 	if (ftag == XRDMQSHAREDHASH_BCREPLY) {
-	  sh->Clear();
+          if (ClearOnBroadCast) 
+            sh->Clear();
 	}
 
 

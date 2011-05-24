@@ -81,6 +81,7 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
       int  result_size=8192;
       Mutex.Lock();
       admin->Connect();
+      //      admin->GetClientConn()->GoBackToRedirector();
       admin->GetClientConn()->ClearLastServerError();
       admin->GetClientConn()->SetOpTimeLimit(10);
       admin->Query(kXR_Qopaquf,
@@ -96,8 +97,8 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
         return true;
       
       case kXR_error:
-        //      admin->GetClientConn()->Disconnect(true);
-        break;
+        Mutex.UnLock();
+        return false;
         
       default:
         Mutex.UnLock();
@@ -176,12 +177,16 @@ XrdMqMessage* XrdMqClient::RecvMessage() {
     }
     struct XrdClientStatInfo stinfo;
 
+    //    client->GetClientConn()->GoBackToRedirector();
+
     if (!client->IsOpen()) {
       // re-open the file
       client->Open(0,0,false);
     }
 
     if (!client->Stat(&stinfo,true)) {
+      client->Close();
+      client->Open(0,0,false);
       return 0;
     }
 
@@ -290,7 +295,8 @@ bool XrdMqClient::AddBroker(const char* brokerurl, bool advisorystatus, bool adv
     kBrokerUrls.Add(brokern.c_str(), new XrdOucString(newBrokerUrl.c_str()));
     kBrokerXrdClientSender.Add(GetBrokerId(kBrokerN).c_str(), new XrdClientAdmin(newBrokerUrl.c_str()));
     EnvPutInt(NAME_READCACHESIZE,0);
-    EnvPutInt(NAME_MAXREDIRECTCOUNT,2);
+    EnvPutInt(NAME_MAXREDIRECTCOUNT,32000);
+    EnvPutInt(NAME_RECONNECTWAIT,10);
     EnvPutInt(NAME_CONNECTTIMEOUT,10);
     EnvPutInt(NAME_REQUESTTIMEOUT,300);
     kBrokerXrdClientReceiver.Add(GetBrokerId(kBrokerN).c_str(), new XrdClient(newBrokerUrl.c_str()));
