@@ -41,8 +41,8 @@
 
 // if we have too many messages pending we don't take new ones for the moment
 #define MQOFSMAXMESSAGEBACKLOG 100000
-#define MQOFSMAXQUEUEBACKLOG 25000
-#define MQOFSREJECTQUEUEBACKLOG 50000
+#define MQOFSMAXQUEUEBACKLOG 10000
+#define MQOFSREJECTQUEUEBACKLOG 25000
 
 class XrdSysError;
 class XrdSysLogger;

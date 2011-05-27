@@ -128,28 +128,16 @@ public:
     return Set(key, convert, broadcast);
   }
 
-  bool Delete(const char* key, bool broadcast=true) {
-    bool deleted = false;
-    XrdMqRWMutexWriteLock lock(StoreMutex);
-    if (Store.count(key)) {
-      CallBackDelete(&Store[key]);
-      Store.erase(key);
-      deleted = true;
-      if (IsTransaction && broadcast) {
-	Deletions.insert(key);
-	Transactions.erase(key);
-      }
-    }
-    return deleted;
-  }
+  bool Delete(const char* key, bool broadcast=true);
 
-  void Clear() {
+  void Clear(bool broadcast=true) {
     XrdMqRWMutexWriteLock lock(StoreMutex);
     std::map<std::string, XrdMqSharedHashEntry>::iterator storeit;
     for (storeit = Store.begin(); storeit != Store.end(); storeit++) {
       CallBackDelete(&storeit->second);
       if (IsTransaction) {
-	Deletions.insert(storeit->first);
+        if (broadcast)
+          Deletions.insert(storeit->first);
 	Transactions.erase(storeit->first);
       }
     }
@@ -275,8 +263,6 @@ protected:
 
   bool IsMuxTransaction;
   std::map<std::string, std::set<std::string> > MuxTransactions;
-  bool ClearOnBroadCast;
-  bool DeletionBroadCast;   // if not set, deletions are never broadcasted
 
 public:
   static bool debug;
@@ -289,10 +275,6 @@ public:
   std::deque<std::string> ModificationTempSubjects;// these are posted as <queue>:<key>
   std::set<std::string> ModificationWatchKeys;     // set of keys which get posted on the modifications list
 
- 
-  // one can en-/disable if the hash contents is cleared before a BCREPLY is applied
-  void SetClearOnBroadCast(bool clear) { ClearOnBroadCast = clear;}
-  void SetDeletionBroadCast(bool bc)   { DeletionBroadCast = bc;}
  
   // clean the bulk modification subject list
   void PostModificationTempSubjects();             

@@ -2,8 +2,11 @@
 #define __EOSMGM_FSVIEW__HH__
 
 /*----------------------------------------------------------------------------*/
+#include "mgm/Balancer.hh"
+#include "mgm/BalanceJob.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
+#include "mgm/FsView.hh"
 #include "common/RWMutex.hh"
 #include "common/Logging.hh"
 #include "common/GlobalConfig.hh"
@@ -28,6 +31,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+class BalanceJob;
+
 //------------------------------------------------------------------------
 //! Classes providing views on filesystems by space,group,node
 //------------------------------------------------------------------------
@@ -51,7 +56,7 @@ public:
   void Print(std::string &out, std::string headerformat, std::string listformat);
   
   virtual std::string GetMember(std::string member);
-  virtual bool SetConfigMember(std::string key, string value, bool create=false, std::string broadcastqueue="");
+  virtual bool SetConfigMember(std::string key, string value, bool create=false, std::string broadcastqueue="", bool isstatus=false);
   virtual std::string GetConfigMember(std::string key);
 
   void SetHeartBeat(time_t hb)       { mHeartBeat = hb;       }
@@ -60,17 +65,37 @@ public:
   time_t      GetHeartBeat()         { return mHeartBeat;     }
 
 
-  long long SumLongLong(const char* param); // calculates the sum of <param> as long long
+  long long SumLongLong(const char* param, bool lock=true); // calculates the sum of <param> as long long
   double SumDouble(const char* param);      // calculates the sum of <param> as double
   double AverageDouble(const char* param);  // calculates the average of <param> as double
+  double MaxDeviation(const char* param);   // calculates the maximum deviation from the average in a group
   double SigmaDouble(const char* param);    // calculates the standard deviation of <param> as double
 };
 
 class FsSpace : public BaseView {
 public:
+#ifndef EOSMGMFSVIEWTEST
+  Balancer* mBalancer;
+#endif
 
-  FsSpace(const char* name) {mName = name; mType = "spaceview";}
-  ~FsSpace() {};
+
+  FsSpace(const char* name) {
+    mName = name; mType = "spaceview"; 
+#ifndef EOSMGMFSVIEWTEST
+    mBalancer = new Balancer(name);
+    // set default balancing variables
+    if (GetConfigMember("balancer")== "")
+      SetConfigMember("balancer","off"); // enable balancing by default
+    if (GetConfigMember("balancer.threshold")=="") 
+      SetConfigMember("balancer.threshold","50000000000"); // set deviation treshold
+#endif
+
+  }
+  ~FsSpace() { 
+#ifndef EOSMGMFSVIEWTEST
+    if (mBalancer) delete mBalancer;
+#endif
+  };
 
   static std::string gConfigQueuePrefix;
   virtual const char* GetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
@@ -81,12 +106,30 @@ public:
 class FsGroup : public BaseView {
   friend class FsView;
 
+#ifndef EOSMGMFSVIEWTEST
+  BalanceJob* mBalanceJob;
+#endif
+
 protected:
   unsigned int mIndex;
   
 public:
 
-  FsGroup(const char* name) {mName = name; mType="groupview";}
+#ifndef EOSMGMFSVIEWTEST
+  XrdSysMutex BalancerLock;
+  bool StartBalancerJob();
+  bool StopBalancerJob();
+  void DetachBalancerJob();
+#endif
+
+
+  FsGroup(const char* name) {
+    mName = name; 
+    mType="groupview";
+#ifndef EOSMGMFSVIEWTEST
+    mBalanceJob=0;
+#endif
+}
   ~FsGroup(){};
 
   unsigned int GetIndex() { return mIndex; }
@@ -174,15 +217,25 @@ public:
 
   void Reset(); // clears all mappings and filesystem objects
 
+  pthread_t hbthread;
+
+  static void* StaticHeartBeatCheck(void*);
+  void* HeartBeatCheck();
+
   FsView() { 
     MgmConfigQueueName="";
-
+    
 #ifndef EOSMGMFSVIEWTEST
     ConfEngine = 0;
 #endif
-
+    XrdSysThread::Run(&hbthread, FsView::StaticHeartBeatCheck, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "HeartBeat Thread");
   }
-  ~FsView() {};
+
+  ~FsView() {
+    // this currently never happens
+    XrdSysThread::Cancel(hbthread);
+    XrdSysThread::Join(hbthread,0);
+  };
 
   void SetConfigQueues(const char* mgmconfigqueue, const char* nodeconfigqueue, const char* groupconfigqueue, const char* spaceconfigqueue) {
     FsSpace::gConfigQueuePrefix = spaceconfigqueue;

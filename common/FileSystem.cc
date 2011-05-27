@@ -214,6 +214,17 @@ FileSystem::GetDrainStatusFromString(const char* ss)
 }
 
 /*----------------------------------------------------------------------------*/
+FileSystem::fsactive_t 
+FileSystem::GetActiveStatusFromString(const char* ss)
+{
+  if (!ss)
+    return kOffline;
+  if (!strcmp(ss,"online")) return kOnline;
+  if (!strcmp(ss,"offline")) return kOffline;
+  return kOffline;
+}
+
+/*----------------------------------------------------------------------------*/
 const char*
 FileSystem::GetAutoBootRequestString() 
 {
@@ -265,6 +276,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs, bool dolock) {
     fs.mStatus        = GetStatusFromString(mHash->Get("stat.boot").c_str());
     fs.mConfigStatus  = GetConfigStatusFromString(mHash->Get("configstatus").c_str());
     fs.mDrainStatus   = GetDrainStatusFromString(mHash->Get("stat.drain").c_str());
+    fs.mActiveStatus  = GetActiveStatusFromString(mHash->Get("stat.active").c_str());
     fs.mHeadRoom      = mHash->GetLongLong("headroom");
     fs.mErrCode       = (unsigned int)mHash->GetLongLong("stat.errc");
     fs.mBootSentTime  = (time_t) mHash->GetLongLong("stat.bootsenttime");

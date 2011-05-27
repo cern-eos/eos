@@ -13,11 +13,15 @@ FileSystem::StartDrainJob()
   //----------------------------------------------------------------
 
   // check if there is already a drainjob
-  if (drainJob) 
+  drainJobMutex.Lock();
+  if (drainJob) {
+    drainJobMutex.UnLock();
     return false;
+  }
 
   // no drain job
   drainJob = new DrainJob(GetId(),true);
+  drainJobMutex.UnLock();
   return true;
 }
 
@@ -31,13 +35,16 @@ FileSystem::StopDrainJob()
     // if this is in drain mode, we leave the drain job
     return false;
   }
-
+  
+  drainJobMutex.Lock();
   if (drainJob) {
     delete drainJob;
     drainJob = 0;
     SetDrainStatus(eos::common::FileSystem::kNoDrain);
+    drainJobMutex.UnLock();
     return true;
   }
+  drainJobMutex.UnLock();
   return false;
 }
 
@@ -54,16 +61,20 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status)
 
   if ( (isstatus == kDrainDead) || (isstatus == kDrain) ) {
     // stop draining
+    drainJobMutex.Lock();
     if (drainJob) {
       delete drainJob;
       drainJob = 0;
+      drainJobMutex.UnLock();
       SetDrainStatus(eos::common::FileSystem::kNoDrain);
     }
   }
 
   if ( (status == kDrain) || (status == kDrainDead) ) {
     // create a drain job
+    drainJobMutex.Lock();
     drainJob = new DrainJob(GetId());
+    drainJobMutex.UnLock();
   } else {
     SetDrainStatus(eos::common::FileSystem::kNoDrain);
   }

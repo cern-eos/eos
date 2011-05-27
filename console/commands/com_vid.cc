@@ -304,7 +304,7 @@ com_vid (char* arg1) {
   printf("                                        -y : show configured gateways\n");
   printf("                                        -a : show authentication\n");
   printf("\n");
-  printf("       vid set membership <uid> -uids [<uid1>,<uid2>,.com_attr..]\n");
+  printf("       vid set membership <uid> -uids [<uid1>,<uid2>,...]\n");
   printf("       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
   printf("       vid set membership <uid> [+|-]sudo \n");
   printf("       vid set map -krb5|-gsi|-ssl|-sss|-unix|-tident <pattern> [vuid:<uid>] [vgid:<gid>] \n");

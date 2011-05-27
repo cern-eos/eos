@@ -129,7 +129,6 @@ void ScanDir::CheckFile(const char* filepath)
 	layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain, checksumtype);
 	if (!ScanFileLoadAware(filePath.c_str(), scansize, scantime, checksumVal, layoutid,logicalFileName.c_str())){
           if ( (! stat(filePath.c_str(), &buf2)) && (buf1.st_mtime == buf2.st_mtime)) {
-            noCorruptFiles++;
             if (bgThread)
               syslog(LOG_ERR,"corrupted  file checksum: localpath=%slfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
             else
@@ -396,10 +395,10 @@ bool ScanDir::ScanFileLoadAware(const char* path, unsigned long long &scansize, 
     else
       fprintf(stderr,"[ScanDir] corrupted block checksum: localpath=%s blockxspath=%s lfn=%s\n", path,fileXSPath.c_str(),lfn);
 
-    retVal = false;
+    retVal &= false;
   }
   else {
-    retVal = true;
+    retVal &= true;
   }
 
   //collect statistics

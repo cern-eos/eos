@@ -48,7 +48,6 @@ public:
         unsigned int bin86400 = ( ((stoptime-(bins*1440))/1440)% 60);
         avg86400[bin86400] += norm_val;
       }
-      avg86400[((stoptime/60)+1)%60] = 0;
     }
 
     if (toff < 3600) {
@@ -62,7 +61,6 @@ public:
         unsigned int bin3600 = ( ((stoptime-(bins*60))/60)% 60);
         avg3600[bin3600] += norm_val;
       }
-      avg3600[((stoptime/60)+1)%60] = 0;
     }
 
     if (toff < 300) {
@@ -76,7 +74,6 @@ public:
         unsigned int bin300 = ( ((stoptime-(bins*5))/5)% 60);
         avg300[bin300] += norm_val;
       }
-      avg300[((stoptime/5)+1)%60] = 0;
     }
 
     if (toff < 60) {
@@ -89,7 +86,6 @@ public:
         unsigned int bin60 = ( ((stoptime-(bins*1))/1)% 60);
         avg60[bin60] += norm_val;
       }
-      avg60[((stoptime/1)+1)%60] = 0;
     }
   }
 

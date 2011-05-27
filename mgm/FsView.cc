@@ -44,7 +44,7 @@ FsView::GetFileSystemFormat(std::string option) {
   
   if (option == "m") {
     // monitoring format
-    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=schedgroup:width=1:format=os|sep= |key=stat.boot:width=1:format=os|sep= |key=configstatus:width=1:format=os|sep= |key=headroom:width=1:format=os|key=stat.errc:width=1:format=os|sep= |key=stat.errmsg:width=1:format=os|sep= |key=stat.disk.load:width=1:format=of|sep= |key=stat.disk.readratemb:width=1:format=ol|sep= |key=stat.disk.writeratemb:width=1:format=ol|sep= |key=stat.net.ethratemib:width=1:format=ol|sep= |key=stat.net.inratemib:width=1:format=ol|sep= |key=stat.net.outratemib:width=1:format=ol|sep= |key=stat.ropen:width=1:format=ol|sep= |key=stat.wopen:width=1:format=ol|sep= |key=stat.statfs.freebytes:width=1:format=ol|sep= |key=stat.statfs.usedbytes:width=1:format=ol|sep= |key=stat.statfs.capacity:width=1:format=ol|sep= |key=stat.usedfiles:width=1:format=ol|sep= |key=stat.statfs.ffree:width=1:format=ol|sep= |key=stat.statfs.fused:width=1:format=ol|sep= |key=stat.statfs.files:width=1:format=ol";
+    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=schedgroup:width=1:format=os|sep= |key=stat.boot:width=1:format=os|sep= |key=configstatus:width=1:format=os|sep= |key=headroom:width=1:format=os|key=stat.errc:width=1:format=os|sep= |key=stat.errmsg:width=1:format=os|sep= |key=stat.disk.load:width=1:format=of|sep= |key=stat.disk.readratemb:width=1:format=ol|sep= |key=stat.disk.writeratemb:width=1:format=ol|sep= |key=stat.net.ethratemib:width=1:format=ol|sep= |key=stat.net.inratemib:width=1:format=ol|sep= |key=stat.net.outratemib:width=1:format=ol|sep= |key=stat.ropen:width=1:format=ol|sep= |key=stat.wopen:width=1:format=ol|sep= |key=stat.statfs.freebytes:width=1:format=ol|sep= |key=stat.statfs.usedbytes:width=1:format=ol|sep= |key=stat.statfs.capacity:width=1:format=ol|sep= |key=stat.usedfiles:width=1:format=ol|sep= |key=stat.statfs.ffree:width=1:format=ol|sep= |key=stat.statfs.fused:width=1:format=ol|sep= |key=stat.statfs.files:width=1:format=ol|sep= |key=stat.drain:width=1:format=os|sep= |key=stat.drainprogress:width=1:format=ol:tag=progress|sep= |key=stat.drainfiles:width=1:format=ol|sep= |key=stat.drainlostfiles:width=1:format=ol|sep= |key=stat.drainbytesleft:width=1:format=ol|sep= |key=stat.drainscheduledfiles:width=1:format=ol:|sep= |key=stat.drainscheduledbytes:width=1:format=ol|sep= |key=graceperiod:width=1:format=ol|sep= |key=stat.timeleft:width=1:format=ol|sep= |key=stat.active:width=1:format=os|sep= |key=scaninterval:width=1:format=os";
   }
 
   if (option == "io") {
@@ -52,12 +52,12 @@ FsView::GetFileSystemFormat(std::string option) {
   }
 
   if (option == "d") {
-    return "header=1:key=host:width=24:format=s:condition=stat.drain=!nodrain|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.drain:width=12:format=s|key=stat.drainprogress:width=12:format=l:tag=progress|sep= |key=stat.drainfiles:width=12:format=+l:unit=B:tag=files|sep= |key=stat.drainlostfiles:width=12:format=l:tag=lost-files|sep= |key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left|sep= |key=stat.drainscheduledfiles:width=12:format=+l:tag=sched-files|sep= |key=stat.drainscheduledbytes:width=12:format=+l:tag=sched-bytes|sep= |key=graceperiod:width=13:format=l|sep= |key=stat.timeleft:width=11:format=l:tag=timeleft|";
+    return "header=1:key=host:width=24:format=s:condition=stat.drain=!nodrain|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.drainprogress:width=12:format=l:tag=progress|sep= |key=stat.drainfiles:width=12:format=+l:unit=B:tag=files|sep= |key=stat.drainlostfiles:width=12:format=l:tag=lost-files|sep= |key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left|sep= |key=stat.drainscheduledfiles:width=12:format=+l:tag=sched-files|sep= |key=stat.drainscheduledbytes:width=12:format=+l:tag=sched-bytes|sep= |key=graceperiod:width=13:format=l|sep= |key=stat.timeleft:width=11:format=l:tag=timeleft|";
 
   }
   if (option == "l") {
     // long format
-    return "header=1:key=host:width=24:format=-s|sep= |key=port:width=5:format=s|sep= |key=id:width=6:format=s|sep= |key=uuid:width=36:format=s|sep= |key=path:width=16:format=s|key=schedgroup:width=16:format=s|sep= |key=headroom:width=10:format=+l|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
+    return "header=1:key=host:width=24:format=-s|sep= |key=port:width=5:format=s|sep= |key=id:width=6:format=s|sep= |key=uuid:width=36:format=s|sep= |key=path:width=16:format=s|key=schedgroup:width=16:format=s|sep= |key=headroom:width=10:format=+l|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|key=scaninterval:width=14:format=s";
   }
   
   if (option == "e") {
@@ -65,7 +65,7 @@ FsView::GetFileSystemFormat(std::string option) {
     return "header=1:key=host:width=24:format=s:condition=stat.errc=!0|sep= |key=id:width=6:format=s|sep= |key=path:width=10:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.errc:width=3:format=s|sep= |key=stat.errmsg:width=0:format=s";
   }
   
-  return "header=1:key=host:width=24:format=s|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
+  return "header=1:key=host:width=24:format=s|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -73,7 +73,7 @@ std::string
 FsView::GetSpaceFormat(std::string option) {
   if (option == "m") {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=cfg.groupsize:width=1:format=os|sep= |member=cfg.groupmod:width=1|sep= |member=nofs:width=1:format=os|sep= |member=cfg.quota:width=1|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffiles:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.statfs.capacity?configstatus@rw:width=1:format=ol|sep= |sum=<n>?configstatus@rw:width=1:format=ol|sep= |member=cfg.quota:width=1:format=os|sep= |member=cfg.nominalsize:width=1:format=os";
+    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=cfg.groupsize:width=1:format=os|sep= |member=cfg.groupmod:width=1|sep= |member=nofs:width=1:format=os|sep= |member=cfg.quota:width=1|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffiles:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.statfs.capacity?configstatus@rw:width=1:format=ol|sep= |sum=<n>?configstatus@rw:width=1:format=ol|sep= |member=cfg.quota:width=1:format=os|sep= |member=cfg.nominalsize:width=1:format=os|sep= |member=cfg.balancer:width=1:format=os|sep= |cfg.balancer.threshold:width=1:format=ol";
   }
 
   if (option == "io") {
@@ -82,10 +82,10 @@ FsView::GetSpaceFormat(std::string option) {
 
   if (option == "l") {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=cfg.groupmod:width=16:format=s|sep= |member=nofs:width=6:format=s:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s";
+    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.groupsize:width=12:format=s|sep= |member=cfg.groupmod:width=12:format=s|sep= |member=nofs:width=6:format=s:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s";
   }
   
-  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.groupsize:width=16:format=s|sep= |member=cfg.groupmod:width=16:format=s|sep= |member=nofs:width=6:format=s:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s";
+  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.groupsize:width=12:format=s|sep= |member=cfg.groupmod:width=12:format=s|sep= |member=nofs:width=6:format=s:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s|sep= |member=cfg.balancer:width=10:format=s:tag=balancing|sep= |member=cfg.balancer.threshold:width=10:format=+l:tag=threshold";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -93,7 +93,7 @@ std::string
 FsView::GetGroupFormat(std::string option) {
   if (option == "m") {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=nofs:width=1:format=os|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol";
+    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=nofs:width=1:format=os|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |maxdev=stat.statfs.usedbytes:width=1:format=of|sep= |avg=stat.statfs.usedbytes:width=1:format=of|sep= |sig=stat.statfs.usedbytes:width=1:format=of|member=cfg.stat.balancing:width=1:format=os:tag=stat.balancing";
   }
 
   if (option == "io") {
@@ -105,7 +105,7 @@ FsView::GetGroupFormat(std::string option) {
     return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
   }
 
-  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
+  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=-s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s|sep= |maxdev=stat.statfs.usedbytes:width=16:format=+l:unit=B|sep= |avg=stat.statfs.usedbytes:width=16:format=+l:unit=B|sep= |sig=stat.statfs.usedbytes:width=16:format=+l:unit=B|sep= |member=cfg.stat.balancing:width=10:format=-s";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -679,6 +679,57 @@ FsView::GetGlobalConfig(std::string key)
 #endif
 
 /*----------------------------------------------------------------------------*/
+void*
+FsView::StaticHeartBeatCheck(void* arg)
+{
+  //----------------------------------------------------------------
+  //! static thread startup function calling HeartBeatCheck
+  //----------------------------------------------------------------
+  return reinterpret_cast<FsView*>(arg)->HeartBeatCheck();
+}
+
+/*----------------------------------------------------------------------------*/
+void*
+FsView::HeartBeatCheck()
+{
+  //----------------------------------------------------------------
+  //! heart beat checker set's filesystem to down if the heart beat is missing
+  //----------------------------------------------------------------
+  
+  XrdSysThread::SetCancelOn();
+  while (1) {
+    {
+      // quickly go through all heartbeats
+      eos::common::RWMutexReadLock lock(ViewMutex);
+      std::map<eos::common::FileSystem::fsid_t, FileSystem*>::const_iterator it;
+      // iterator over all filesystems
+      for (it = mIdView.begin(); it != mIdView.end(); it++) {
+        eos::common::FileSystem::fs_snapshot_t snapshot;
+        snapshot.mHeartBeatTime = (time_t) it->second->GetLongLong("stat.heartbeattime");
+        std::string queue = it->second->GetString("queue");
+        std::string group = it->second->GetString("schedgroup");
+
+        if (!it->second->HasHeartBeat(snapshot)) {
+          // mark as offline
+          it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
+        } else {
+          if ( (FsView::gFsView.mNodeView[queue]->GetConfigMember("status") == "on") && 
+               (FsView::gFsView.mGroupView[group]->GetConfigMember("status") == "on") ) {
+            it->second->SetActiveStatus(eos::common::FileSystem::kOnline);
+          } else {
+            it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
+          }
+        }
+      }
+    }
+    sleep(1);
+    XrdSysThread::CancelPoint();
+  }
+  
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
 std::string 
 BaseView::GetMember(std::string member) {
   //----------------------------------------------------------------
@@ -731,8 +782,15 @@ BaseView::GetMember(std::string member) {
       val = hash->Get(member.c_str());
     }
     eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
+
+    // it's otherwise hard to get the default into place
+    if ( ((val == "") || (val == "???")) && (member=="stat.balancing")) {
+      val = "idle";
+    }
+
     return val;
   }
+
   return "";
 }
 
@@ -749,10 +807,12 @@ FsNode::GetMember(std::string member) {
 
 /*----------------------------------------------------------------------------*/
 bool 
-BaseView::SetConfigMember(std::string key, std::string value, bool create, std::string broadcastqueue)
+BaseView::SetConfigMember(std::string key, std::string value, bool create, std::string broadcastqueue, bool isstatus)
 {
   //----------------------------------------------------------------
   //! set a configuration member variable (stored in the config engine)
+  //! - if 'isstatus'=true we just store the value in the shared hash but don't flush it into the configuration engine 
+  //!   => is used to set status variables on config queues (baseview queues)
   //----------------------------------------------------------------
 
   bool success=false;
@@ -775,7 +835,7 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create, std::
 
 #ifndef EOSMGMFSVIEWTEST
   // register in the configuration engine
-  if (FsView::ConfEngine) {
+  if ((!isstatus) && (FsView::ConfEngine)) {
     nodeconfigname+="#";
     nodeconfigname+=key;
     std::string confval = value;
@@ -1097,14 +1157,14 @@ FsView::ApplyGlobalConfig(const char* key, std::string &val)
 
 /*----------------------------------------------------------------------------*/
 long long
-BaseView::SumLongLong(const char* param)
+BaseView::SumLongLong(const char* param, bool lock)
 {
   //----------------------------------------------------------------
   //! computes the sum for <param> as long
   //! param="<param>[?<key>=<value] allows to select with matches
   //----------------------------------------------------------------
 
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  if (lock) {FsView::gFsView.ViewMutex.LockRead();}
   
   long long sum = 0;
   std::string sparam = param;
@@ -1133,10 +1193,7 @@ BaseView::SumLongLong(const char* param)
 
     // for query sum's we always fold in that a group and host has to be enabled
     if  ((!key.length()) || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value) ) {
-      if (isquery && (
-                    (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") != "on") ||
-                    (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status")  != "on") 
-                    )
+      if (isquery && (!snapshot.mActiveStatus)
           )
         continue;
 
@@ -1146,7 +1203,7 @@ BaseView::SumLongLong(const char* param)
 
   // we have to rescale the stat.net parameters because they arrive for each filesystem
   if (!sparam.compare(0,8,"stat.net")) {
-    if (mType == "spaceview") {
+   if (mType == "spaceview") {
       // divide by the number of "cfg.groupmod"
       std::string gsize="";
       long long groupmod=1;
@@ -1164,6 +1221,7 @@ BaseView::SumLongLong(const char* param)
         sum /= size();
     }
   }
+  if (lock) {FsView::gFsView.ViewMutex.UnLockRead();}
   return sum;
 }
 
@@ -1199,10 +1257,52 @@ BaseView::AverageDouble(const char* param)
   int cnt=0;
   std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
   for (it=begin(); it != end(); it++) {
-    cnt++;
-    sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
+    bool consider=true;
+    if (mType == "groupview") {
+      // we only count filesystem which are >=kRO and booted for averages in the group view
+      if ( (FsView::gFsView.mIdView[*it]->GetConfigStatus()< eos::common::FileSystem::kRO) ||
+           (FsView::gFsView.mIdView[*it]->GetStatus()      != eos::common::FileSystem::kBooted) )
+        consider=false;
+    }
+
+    if (consider) {
+      cnt++;
+      sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
+    }
   }
   return (double)(1.0*sum/cnt);
+}
+
+double
+BaseView::MaxDeviation(const char* param)
+{
+  //----------------------------------------------------------------
+  //! computes the maximum deviation of <param> from the avg of <param>
+  //----------------------------------------------------------------
+
+  double avg = AverageDouble(param);
+
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  
+  double maxdev = 0;
+  double dev = 0;
+
+  std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
+  for (it=begin(); it != end(); it++) {
+    bool consider=true;
+    if (mType == "groupview") {
+      // we only count filesystem which are >=kRO and booted for averages in the group view
+      if ( (FsView::gFsView.mIdView[*it]->GetConfigStatus()< eos::common::FileSystem::kRO) ||
+           (FsView::gFsView.mIdView[*it]->GetStatus()      != eos::common::FileSystem::kBooted) )
+        consider=false;
+    }
+    dev = fabs(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
+    if (consider) {
+      if (dev > maxdev)
+        maxdev = dev;
+    }
+  }
+  return (double)(maxdev);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1221,8 +1321,17 @@ BaseView::SigmaDouble(const char* param)
   int cnt=0;
   std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
   for (it=begin(); it != end(); it++) {
-    cnt++;
-    sumsquare += pow( (avg-FsView::gFsView.mIdView[*it]->GetDouble(param)),2);
+    bool consider=true;
+    if (mType == "groupview") {
+      // we only count filesystem which are >=kRO and booted for averages in the group view
+      if ( (FsView::gFsView.mIdView[*it]->GetConfigStatus()< eos::common::FileSystem::kRO) ||
+           (FsView::gFsView.mIdView[*it]->GetStatus()      != eos::common::FileSystem::kBooted) )
+        consider=false;
+    }
+    if (consider) {
+      cnt++;
+      sumsquare += pow( (avg-FsView::gFsView.mIdView[*it]->GetDouble(param)),2);
+    }
   }
 
   sumsquare = sqrt(sumsquare/cnt);
@@ -1246,6 +1355,7 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
   // "avg=<key>:width=<width>:format=[fo]"                      -> to print the average 
   // "sum=<key>:width=<width>:format=[lo]                       -> to print a sum
   // "sig=<key>:width=<width>:format=[lo]                       -> to print the standard deviation
+  // "maxdev=<key>:width=<width>;format=[lo]                       -> to print the maxdeviation
   // "sep=<seperator>"                                          -> to put a seperator
   // "tag=<tag>"                                                -> use tag as header not the variable name
   // "header=1"                                                 -> put a header with description on top! This must be the first format tag!!!
@@ -1493,6 +1603,47 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
 	}
       }
 
+      if (formattags.count("maxdev")) {
+	snprintf(tmpline,sizeof(tmpline)-1,lformat,MaxDeviation(formattags["maxdev"].c_str()));
+	
+	if ( (formattags["format"].find("+")!= std::string::npos) ) {
+	  std::string ssize;
+	  eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)MaxDeviation(formattags["maxdev"].c_str()), formattags["unit"].c_str());
+	  snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
+	} else {
+	  snprintf(line,sizeof(line)-1,lenformat,tmpline);
+	}
+	if (buildheader) {
+	  char headline[1024];
+	  char lenformat[1024];
+          XrdOucString pkey= formattags["maxdev"].c_str();
+          pkey.replace("stat.statfs.","");
+          pkey.replace("stat.","");
+          pkey.replace("cfg.","");
+          if (formattags.count("tag")) {
+            pkey=formattags["tag"].c_str();
+            width += 5;
+          }
+
+	  snprintf(lenformat, sizeof(lenformat)-1, "%%%ds", width-6);
+	  snprintf(headline,sizeof(headline)-1, lenformat,pkey.c_str());
+	  std::string sline = headline;
+	  if (sline.length() != (width-6)) {
+	    sline.erase(0, ((sline.length()-width+6+3)>0)?(sline.length()-width+6+3):0);
+	    sline.insert(0,"...");
+	  }
+          if (!formattags.count("tag")) {
+            header += "#";
+            header += "dev(";
+            header += sline;
+            header += ")";
+          } else {
+            header += "#";
+            header += sline;
+          }
+	}
+      }
+
       if ( (formattags["format"].find("o")!= std::string::npos) ) {
 	char keyval[4096];
 	buildheader = false; // auto disable header
@@ -1507,6 +1658,9 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
 	}
 	if (formattags.count("sig")) {
 	  snprintf(keyval,sizeof(keyval)-1,"sig.%s=%s", formattags["sig"].c_str(), line);
+	}
+	if (formattags.count("maxdev")) {
+	  snprintf(keyval,sizeof(keyval)-1,"dev.%s=%s", formattags["maxdev"].c_str(), line);
 	}
 	body += keyval;
       }  else {
@@ -1562,5 +1716,51 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
     out += body;
   }
 }
+
+#ifndef EOSMGMFSVIEWTEST
+/*----------------------------------------------------------------------------*/
+bool
+FsGroup::StartBalancerJob()
+{
+  bool retc=false;
+  BalancerLock.Lock();
+
+  if (!mBalanceJob) {
+    mBalanceJob = new BalanceJob(this);
+    retc=true;
+  } else {
+    if (mBalanceJob->ReActivate())
+      retc=true;
+  }
+  BalancerLock.UnLock();
+  return retc;
+}
+
+
+/*----------------------------------------------------------------------------*/
+bool
+FsGroup::StopBalancerJob()
+{
+  bool retc=false;
+  BalancerLock.Lock();
+  if (mBalanceJob) {
+    delete mBalanceJob;
+    mBalanceJob=0;
+    retc=true;
+  }
+  BalancerLock.UnLock();
+  return retc;
+}
+
+/*----------------------------------------------------------------------------*/
+void
+FsGroup::DetachBalancerJob()
+{
+  BalancerLock.Lock();
+  mBalanceJob=0;
+  BalancerLock.UnLock();
+}
+
+#endif
 
 EOSMGMNAMESPACE_END

@@ -19,8 +19,6 @@ XrdMqSharedObjectManager::XrdMqSharedObjectManager()
   AutoReplyQueueDerive = false;
   IsMuxTransaction = false;
   MuxTransactions.clear();
-  ClearOnBroadCast = true;
-  DeletionBroadCast = true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -104,7 +102,7 @@ XrdMqSharedObjectManager::DeleteSharedHash(const char* subject, bool broadcast)
   HashMutex.LockWrite();
   
   if ((hashsubjects.count(ss)>0)) {
-    if (broadcast && DeletionBroadCast) {
+    if (broadcast) {
       XrdOucString txmessage="";
       hashsubjects[ss]->MakeRemoveEnvHeader(txmessage);
       XrdMqMessage message("XrdMqSharedHashMessage");
@@ -431,8 +429,8 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
 	}
 	
 	if (ftag == XRDMQSHAREDHASH_BCREPLY) {
-          if (ClearOnBroadCast) 
-            sh->Clear();
+          // we don't have to broad cast this clear => it is a broad cast reply
+          sh->Clear(false);
 	}
 
 
@@ -553,7 +551,8 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
 	    sstr = val.substr(keystart[i]+1);
 	  
 	  key = sstr;
-	  if (debug)fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Deleting [%s] %s\n", subject.c_str(),key.c_str());
+          message->Print();
+	  fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Deleting [%s] %s\n", subject.c_str(),key.c_str());
 	  sh->Delete(key.c_str(), false);
 	  
 	}
@@ -796,10 +795,12 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
 
   std::map<std::string, XrdMqSharedHashEntry>::iterator it;
 
+  StoreMutex.LockRead();
   for (it=Store.begin(); it!=Store.end(); it++) {
     Transactions.insert(it->first);
   }
-  
+  StoreMutex.UnLockRead();
+
   XrdOucString txmessage="";
   MakeBroadCastEnvHeader(txmessage);
   AddTransactionEnvString(txmessage);
@@ -948,6 +949,24 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast, bool te
   }
   
   return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
+XrdMqSharedHash::Delete(const char* key, bool broadcast)
+{
+  bool deleted = false;
+  XrdMqRWMutexWriteLock lock(StoreMutex);
+  if (Store.count(key)) {
+    CallBackDelete(&Store[key]);
+    Store.erase(key);
+    deleted = true;
+    if (IsTransaction && broadcast) {
+      Deletions.insert(key);
+      Transactions.erase(key);
+    }
+  }
+  return deleted;
 }
 
 /*----------------------------------------------------------------------------*/

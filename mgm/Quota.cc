@@ -744,7 +744,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
     }
     schedulingMutex.UnLock();
 
-    eos_static_info("Enter %s points to %d", sfsindextag.c_str(), *fsit);
+    eos_static_debug("Enter %s points to %d", sfsindextag.c_str(), *fsit);
 
     // remember the one we started with ...
     first_fsid = fsid;
@@ -775,9 +775,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
       if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
 	   (snapshot.mConfigStatus == eos::common::FileSystem::kRW) && 
 	   (snapshot.mErrCode      == 0 ) && // this we probably don't need 
-           (fs->HasHeartBeat(snapshot)) && 
-	   (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status") == "on") && 
-	   (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") &&
+           (fs->GetActiveStatus(snapshot)) && // this checks the heartbeat and the group & node are enabled
            (fs->ReserveSpace(snapshot,bookingsize)) ) {
 	
 	if (!fsidavoidlist.count(fsid)) {
@@ -798,7 +796,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
 	// we move the iterator only by one position
 	schedulingMutex.Lock();
 	schedulingFileSystem[sfsindextag] = *fsit;
-        eos_static_info("Exit %s points to %d", sfsindextag.c_str(), *fsit);
+        eos_static_debug("Exit %s points to %d", sfsindextag.c_str(), *fsit);
 	schedulingMutex.UnLock();
       }
 
@@ -951,9 +949,7 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
 	if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
 	     (snapshot.mConfigStatus >= eos::common::FileSystem::kWO) && 
 	     (snapshot.mErrCode      == 0 ) && // this we probably don't need 
-             (fs->HasHeartBeat(snapshot)) && 
-	     (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status") == "on") && 
-	     (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") &&
+             (fs->GetActiveStatus(snapshot)) && // this checks the heartbeat and the group & node are enabled
              (fs->ReserveSpace(snapshot,bookingsize)) ) { 
           // perfect!
           fsindex = 0;
@@ -973,9 +969,8 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
 	if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
 	     (snapshot.mConfigStatus >= min_fsstatus) && 
 	     (snapshot.mErrCode      == 0 ) && // this we probably don't need 
-             (fs->HasHeartBeat(snapshot)) && 
-	     (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status") == "on") && 
-	     (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") ) {
+             (fs->GetActiveStatus(snapshot)) ) {
+          
           // perfect!
           fsindex = 0;
           return 0;
@@ -1025,9 +1020,7 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
 	if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
 	     (snapshot.mConfigStatus >= eos::common::FileSystem::kWO) && 
 	     (snapshot.mErrCode      == 0 ) && // this we probably don't need 
-             (fs->HasHeartBeat(snapshot)) && 
-	     (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status") == "on") && 
-	     (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") &&
+             (fs->GetActiveStatus(snapshot)) && // this checks the heartbeat and the group & node are enabled
              (fs->ReserveSpace(snapshot,bookingsize)) ) { 
           // perfect!
           availablefs.insert(snapshot.mId);
@@ -1053,9 +1046,7 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
 	if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
 	     (snapshot.mConfigStatus >= min_fsstatus) && 
 	     (snapshot.mErrCode      == 0 ) && // this we probably don't need 
-             (fs->HasHeartBeat(snapshot)) && 
-	     (FsView::gFsView.mNodeView[snapshot.mQueue]->GetConfigMember("status") == "on") && 
-	     (FsView::gFsView.mGroupView[snapshot.mGroup]->GetConfigMember("status") == "on") ) {
+             (snapshot.mActiveStatus) ) {
           availablefs.insert(snapshot.mId);
           
           // the weight is given mainly by the disk performance and the network load has a weaker impact (sqrt)

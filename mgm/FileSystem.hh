@@ -11,16 +11,19 @@ EOSMGMNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 class FileSystem : public eos::common::FileSystem {
 private:
+  XrdSysMutex drainJobMutex;
   DrainJob* drainJob;
 public:
   FileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som) : eos::common::FileSystem(queuepath,queue,som) {
     drainJob=0;
   }
   virtual ~FileSystem() {
+    drainJobMutex.Lock();
     if (drainJob) {
       delete drainJob;
       drainJob=0;
     }
+    drainJobMutex.UnLock();
   }
 
   bool SetConfigStatus(eos::common::FileSystem::fsstatus_t status); // this method is overwritten to catch any status change to/from 'drain' or 'draindead'

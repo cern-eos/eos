@@ -103,7 +103,6 @@ int proc_fs_config(std::string &identifier, std::string &key, std::string &value
       // by filesystem id
       fs = FsView::gFsView.mIdView[fsid];
     } else {
-      eos::common::RWMutexReadLock(FsView::gFsView.MapMutex);
       // by filesystem uuid
       if (FsView::gFsView.GetMapping(identifier)) {
         if (FsView::gFsView.mIdView.count(FsView::gFsView.GetMapping(identifier))) {
@@ -239,8 +238,6 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
 
             bool dorandom = false;
 
-            eos::common::RWMutexWriteLock(FsView::gFsView.ViewMutex);
-            
             {
               // logic to automatically adjust scheduling subgroups
               eos::common::StringConversion::SplitByPoint(space, splitspace, splitgroup);
@@ -424,7 +421,7 @@ proc_fs_target(std::string target_group)
       // this group is not in our space
       continue;
     }
-    int groupfilesystems = it->second->SumLongLong("<n>?configstatus@rw");
+    int groupfilesystems = it->second->SumLongLong("<n>?configstatus@rw", false);
     if (groupfilesystems < minfs) {
       mingroups.clear();
       mingroups.push_back(it->first);

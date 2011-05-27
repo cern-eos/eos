@@ -5,6 +5,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/FileSystem.hh"
 #include "mgm/Namespace.hh"
+#include "mgm/FsView.hh"
 /*----------------------------------------------------------------------------*/
 #include "semaphore.h"
 #include <queue>
@@ -13,24 +14,28 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+class FsGroup;
+
 class BalanceJob {
   // ---------------------------------------------------------------------------
   //! This class implements the balance procedure of a group
   // ---------------------------------------------------------------------------
 private:
-  eos::common::FileSystem::fsid_t fsid;
-  bool onOpsError;
+  FsGroup* mGroup;
+  std::string mName;
   pthread_t thread;
+  XrdSysMutex mThreadRunningLock;
+  bool mThreadRunning;
 
-  std::deque<unsigned long long> fids;
+  std::map<eos::common::FileSystem::fsid_t, std::set<unsigned long long > >    SourceFidMap;
+  std::map<eos::common::FileSystem::fsid_t, unsigned long long>                SourceSizeMap;
+  std::map<eos::common::FileSystem::fsid_t, unsigned long long>                TargetSizeMap;
+
 
 public:
 
-  BalanceJob(eos::common::FileSystem::fsid_t ifsid, bool opserror=false) {
-    fsid = ifsid;
-    onOpsError=opserror;
-    XrdSysThread::Run(&thread, BalanceJob::StaticThreadProc, static_cast<void *>(this),0, "BalanceJob Thread");
-  }
+  BalanceJob(FsGroup* group);
+  bool ReActivate();
 
   static void* StaticThreadProc(void*);
   void* Balance(); // the function scheduling from the balance map into shared queues

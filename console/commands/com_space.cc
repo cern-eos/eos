@@ -186,6 +186,10 @@ com_space (char* arg1) {
   printf("                                                                  -l : long output - list also file systems after each space\n");
   printf("                                                                --io : print IO satistics\n");
   printf("       space config <space-name> space.nominalsize=<value>           : configure the nominal size for this space\n");
+  printf("       space config <space-name> space.balancer=on|off               : enable/disable the space balancer [default=on]\n");
+  printf("       space config <space-name> space.balancer.threshold=<size>     : configure the used bytes deviation which triggers balancing [ default=50G ] \n");
+  printf("                                                                       => size can be given also like 10T, 20G, 2P ... without space before the unit \n");
+  printf("\n");
   printf("       space config <space-name> fs.<key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
   printf("\n");
   printf("       space define <space-name> [<groupsize> [<groupmod>]]             : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");

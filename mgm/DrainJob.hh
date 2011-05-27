@@ -21,16 +21,18 @@ private:
   eos::common::FileSystem::fsid_t fsid;
   bool onOpsError;
   pthread_t thread;
-
   std::deque<unsigned long long> fids;
 
 public:
 
   DrainJob(eos::common::FileSystem::fsid_t ifsid, bool opserror=false) {
+    thread=0;
     fsid = ifsid;
     onOpsError=opserror;
-    XrdSysThread::Run(&thread, DrainJob::StaticThreadProc, static_cast<void *>(this),0, "DrainJob Thread");
+    XrdSysThread::Run(&thread, DrainJob::StaticThreadProc, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "DrainJob Thread");
   }
+
+  void ResetCounter(bool lockit=true);
 
   static void* StaticThreadProc(void*);
   void* Drain(); // the function scheduling from the drain map into shared queues

@@ -4,6 +4,7 @@
 /* ------------------------------------------------------------------------- */
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
+#include "common/FileSystem.hh"
 /* ------------------------------------------------------------------------- */
 #include "XrdSys/XrdSysPthread.hh"
 /* ------------------------------------------------------------------------- */
@@ -16,6 +17,10 @@
 EOSMGMNAMESPACE_BEGIN
 
 class Balancer {
+  // --------------------------------------------------------------------------------------------
+  // !this class run's as singleton per space on the MGM and checks all existing groups if it is unbalanced
+  // !incase there is an inbalance, it starts a balancing job on the group
+  // --------------------------------------------------------------------------------------------
 
 private:
   pthread_t thread;

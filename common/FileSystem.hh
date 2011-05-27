@@ -44,6 +44,7 @@ public:
   //------------------------------------------------------------------------
   typedef uint32_t fsid_t;
   typedef int32_t fsstatus_t;
+  typedef int32_t fsactive_t;
 
   typedef struct fs_snapshot {
     fsid_t mId;
@@ -61,6 +62,7 @@ public:
     fsstatus_t  mStatus;
     fsstatus_t  mConfigStatus;
     fsstatus_t  mDrainStatus;
+    fsactive_t  mActiveStatus;
     long long   mHeadRoom;
     unsigned int mErrCode;
     time_t mBootSentTime;
@@ -103,10 +105,10 @@ public:
   // Enums
   //------------------------------------------------------------------------
 
-  enum eBootStatus   { kOpsError=-2, kBootFailure=-1, kDown=0, kBootSent, kBooting=2, kBooted=3};
+  enum eBootStatus   { kOpsError=-2, kBootFailure=-1, kDown=0, kBootSent=1, kBooting=2, kBooted=3};
   enum eConfigStatus { kUnknown=-1, kOff=0, kDrainDead, kDrain, kRO, kWO, kRW};
   enum eDrainStatus  { kNoDrain=0, kDrainPrepare=1, kDrainWait=2,  kDraining=3, kDrained=4, kDrainStalling=5, kDrainExpired=6, kDrainLostFiles=7};
-
+  enum eActiveStatus { kOffline=0, kOnline=1};
   //------------------------------------------------------------------------
   //! Conversion Functions
   //------------------------------------------------------------------------
@@ -116,6 +118,7 @@ public:
   static         int GetStatusFromString(const char* ss);
   static         int GetDrainStatusFromString(const char* ss);
   static         int GetConfigStatusFromString(const char* ss);
+  static  fsactive_t GetActiveStatusFromString(const char* ss);
   static const char* GetAutoBootRequestString();
 
   //------------------------------------------------------------------------
@@ -187,6 +190,24 @@ public:
   bool SetStatus(fsstatus_t status) {
     
     return SetString("stat.boot", GetStatusAsString(status));
+  }
+
+  bool SetActiveStatus(fsactive_t active) {
+    if (active == kOnline)
+      return SetString("stat.active", "online", false);
+    else
+      return SetString("stat.active", "offline", false);
+  }
+
+  fsactive_t GetActiveStatus() {
+    if (GetLongLong("stat.active"))
+      return kOnline;
+    else
+      return kOffline;
+  }
+
+  fsactive_t GetActiveStatus(fs_snapshot_t snapshot) {
+    return snapshot.mActiveStatus;
   }
 
   bool SetDrainStatus(fsstatus_t status) {

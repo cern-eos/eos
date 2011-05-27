@@ -792,40 +792,45 @@ Storage::Remover()
 {
   // this thread unlinks stored files
   while(1) {
-    sleep(1);
+    // since we use vector and erase from the beginning, this is not really a perfect choice, but we don't have any performance issues here
     deletionsMutex.Lock();
-    if (deletions.size()) 
+    if (deletions.size()) {
       eos_static_debug("%u files to delete",deletions.size());
-    for (unsigned int i=0; i< deletions.size(); i++) {
-      for (unsigned int j=0; j< deletions[i].fIdVector.size(); j++) {
-	eos_static_debug("Deleting File Id=%llu on Fs=%u", deletions[i].fIdVector[j], deletions[i].fsId);
-	// delete the file
-	XrdOucString hexstring="";
-	eos::common::FileId::Fid2Hex(deletions[i].fIdVector[j],hexstring);
-	XrdOucErrInfo error;
+      Deletion todelete =  deletions[0];
+      deletionsMutex.UnLock();
 
-	XrdOucString capOpaqueString="/?mgm.pcmd=drop";
-	XrdOucString OpaqueString = "";
-	OpaqueString+="&mgm.fsid="; OpaqueString += (int)deletions[i].fsId;
-	OpaqueString+="&mgm.fid=";  OpaqueString += hexstring;
-	OpaqueString+="&mgm.localprefix="; OpaqueString += deletions[i].localPrefix;
-	XrdOucEnv Opaque(OpaqueString.c_str());
-	capOpaqueString += OpaqueString;
-	
-	if ( (gOFS._rem("/DELETION",error, (const XrdSecEntity*)0, &Opaque)!= SFS_OK)) {
-	  eos_static_err("unable to remove fid %s fsid %lu localprefix=%s",hexstring.c_str(), deletions[i].fsId, deletions[i].localPrefix.c_str());
-	} 
-
-	// update the manager
-	int rc = gOFS.CallManager(0, 0, deletions[i].managerId.c_str(), capOpaqueString);
-	if (rc) {
-	  eos_static_err("unable to drop file id %s fsid %u at manager %s",hexstring.c_str(), deletions[i].fsId, deletions[i].managerId.c_str()); 
-	}
+      for (unsigned int j=0; j< todelete.fIdVector.size(); j++) {
+        eos_static_debug("Deleting File Id=%llu on Fs=%u", todelete.fIdVector[j], todelete.fsId);
+        // delete the file
+        XrdOucString hexstring="";
+        eos::common::FileId::Fid2Hex(todelete.fIdVector[j],hexstring);
+        XrdOucErrInfo error;
+        
+        XrdOucString capOpaqueString="/?mgm.pcmd=drop";
+        XrdOucString OpaqueString = "";
+        OpaqueString+="&mgm.fsid="; OpaqueString += (int)todelete.fsId;
+        OpaqueString+="&mgm.fid=";  OpaqueString += hexstring;
+        OpaqueString+="&mgm.localprefix="; OpaqueString += todelete.localPrefix;
+        XrdOucEnv Opaque(OpaqueString.c_str());
+        capOpaqueString += OpaqueString;
+        
+        if ( (gOFS._rem("/DELETION",error, (const XrdSecEntity*)0, &Opaque)!= SFS_OK)) {
+          eos_static_err("unable to remove fid %s fsid %lu localprefix=%s",hexstring.c_str(), todelete.fsId, todelete.localPrefix.c_str());
+        } 
+        
+        // update the manager
+        int rc = gOFS.CallManager(0, 0, todelete.managerId.c_str(), capOpaqueString);
+        if (rc) {
+          eos_static_err("unable to drop file id %s fsid %u at manager %s",hexstring.c_str(), todelete.fsId, todelete.managerId.c_str()); 
+        }
       }
+      deletionsMutex.Lock();
+      deletions.erase(deletions.begin());
+      deletionsMutex.UnLock();
+    } else {
+      deletionsMutex.UnLock();
+      usleep(100000);
     }
-
-    deletions.clear();
-    deletionsMutex.UnLock();
   }
 }
 

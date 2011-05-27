@@ -445,7 +445,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   eos::common::Logging::SetUnit(unit.c_str());
 
   eos::common::Logging::gFilter = "Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
-  Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode");
+  Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash");
 
   // we automatically append the host name to the config dir now !!!
   MgmConfigDir += HostName;
@@ -516,9 +516,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   FsView::gFsView.SetConfigQueues(MgmConfigQueue.c_str(), NodeConfigQueuePrefix.c_str(), GroupConfigQueuePrefix.c_str(), SpaceConfigQueuePrefix.c_str());
   FsView::gFsView.SetConfigEngine(ConfEngine);
-
-  // disable clear on broadcast
-  ObjectManager.SetClearOnBroadCast(false);
 
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);

@@ -241,9 +241,27 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   // set our Eroute for XrdMqMessage
   XrdMqMessage::Eroute = OfsEroute;
 
+  // Enable the shared object notification queue
+  ObjectManager.EnableQueue = true;
+  ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
+
+  // setup notification subjects
+  ObjectManager.SubjectsMutex.Lock();
+  std::string watch_id = "id";
+  std::string watch_bootsenttime = "bootsenttime";
+  std::string watch_scaninterval = "scaninterval";
+  ObjectManager.ModificationWatchKeys.insert(watch_id);
+  ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
+  ObjectManager.ModificationWatchKeys.insert(watch_scaninterval);
+  ObjectManager.SubjectsMutex.UnLock();
+
+
+
+
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // create the specific listener class
   Messaging = new eos::fst::Messaging(eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(),eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str(),false, false, &ObjectManager);
+  Messaging->SetLogId("FstOfsMessaging");
 
   if( (!Messaging) || (!Messaging->StartListenerThread()) ) NoGo = 1;
 
@@ -254,7 +272,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   if (NoGo) 
     return NoGo;
 
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
   // Set Logging parameters
   XrdOucString unit = "fst@"; unit+= HostName; unit+=":"; unit+=myPort;
 
@@ -263,7 +281,6 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   //eos::common::Logging::SetLogPriority(LOG_DEBUG);
   eos::common::Logging::SetLogPriority(LOG_INFO);
   eos::common::Logging::SetUnit(unit.c_str());
-  Messaging->SetLogId("FstOfsMessaging");
 
   eos_info("logging configured\n");
 
@@ -277,18 +294,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
     return 1;
   } 
 
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  ObjectManager.SetDebug(true);
-
-  // Disable broadcasting of key deletions
-  ObjectManager.SetDeletionBroadCast(false);
-
-  // Enable the shared object notification queue
-  ObjectManager.EnableQueue = true;
-  ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
-
   // Create a wildcard broadcast 
-
   ObjectManager.CreateSharedHash(eos::fst::Config::gConfig.FstQueueWildcard.c_str(),eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
   ObjectManager.HashMutex.LockRead();
   XrdMqSharedHash* hash = ObjectManager.GetHash(eos::fst::Config::gConfig.FstQueueWildcard.c_str());
@@ -299,15 +305,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   }
   ObjectManager.HashMutex.UnLockRead();
 
-  // setup notification subjects
-  ObjectManager.SubjectsMutex.Lock();
-  std::string watch_id = "id";
-  std::string watch_bootsenttime = "bootsenttime";
-  std::string watch_scaninterval = "scaninterval";
-  ObjectManager.ModificationWatchKeys.insert(watch_id);
-  ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
-  ObjectManager.ModificationWatchKeys.insert(watch_scaninterval);
-  ObjectManager.SubjectsMutex.UnLock();
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   // start dumper thread
   XrdOucString dumperfile = eos::fst::Config::gConfig.FstMetaLogDir;
@@ -593,8 +591,18 @@ XrdFstOfsFile::open(const char                *path,
   // set the eos lfn as extended attribute
   eos::common::Attr* attr = eos::common::Attr::OpenAttr(layOut->GetLocalReplicaPath());
   if (attr && isRW) {
-    if (!attr->Set(std::string("user.eos.lfn"), std::string(path))) {
-      eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
+    if (Path.beginswith("/replicate:")) {
+      if (capOpaque->Get("mgm.lfn")) {
+        if (!attr->Set(std::string("user.eos.lfn"), std::string(capOpaque->Get("mgm.lfn")))) {
+          eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
+        }
+      } else {
+        eos_err("no lfn in replication capability");
+      }
+    } else {
+      if (!attr->Set(std::string("user.eos.lfn"), std::string(path))) {
+        eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
+      }
     }
     delete attr;
   }

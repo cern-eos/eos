@@ -712,14 +712,32 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, newlayoutId, space, *openOpaque, forcedFsId);
 
+  eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+  SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(),false);
+
+  if (!quotaspace) {
+    return Emsg(epname, error, EINVAL, "get quota space ", space.c_str());
+  }
+
+
   if (isCreation || ( (open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation()))) {
     layoutId = newlayoutId;
     // set the layout and commit new meta data 
     fmd->setLayoutId(layoutId);
+    fmd->setSize(0);
     //-------------------------------------------
     gOFS->eosViewMutex.Lock();
     try {
       gOFS->eosView->updateFileStore(fmd);
+
+      SpaceQuota* space = Quota::GetResponsibleSpaceQuota(path);
+      if (space) {
+        eos::QuotaNode* quotanode = 0;
+        quotanode = space->GetQuotaNode();
+        if (quotanode) {
+          quotanode->addFile(fmd);
+        }
+      }
     } catch( eos::MDException &e ) {
       errno = e.getErrno();
       std::string errmsg = e.getMessage().str();
@@ -731,14 +749,6 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     //-------------------------------------------
   }
   
-  eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-  SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(),false);
-
-  if (!quotaspace) {
-    return Emsg(epname, error, EINVAL, "get quota space ", space.c_str());
-  }
-
-
   capability += "&mgm.ruid=";       capability+=(int)vid.uid; 
   capability += "&mgm.rgid=";       capability+=(int)vid.gid;
   capability += "&mgm.uid=";      capability+=(int)vid.uid_list[0]; 
@@ -1997,20 +2007,57 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
 
    gOFS->MgmStats.Add("RmDir",vid.uid,vid.gid,1);  
 
+   eos::ContainerMD* dhpar=0;
    eos::ContainerMD* dh=0;
+
+   eos::common::Path cPath(path);
+   eos::ContainerMD::XAttrMap attrmap;
+
    
    //-------------------------------------------
    gOFS->eosViewMutex.Lock();
    try {
+     dhpar = gOFS->eosView->getContainer(cPath.GetParentPath());
+     eos::ContainerMD::XAttrMap::const_iterator it;
+     for ( it = dhpar->attributesBegin(); it != dhpar->attributesEnd(); ++it) {
+       attrmap[it->first] = it->second;
+      }
      dh = gOFS->eosView->getContainer(path);
    } catch( eos::MDException &e ) {
-     dh = 0;
+     dhpar = 0;
+     dh=0;
      errno = e.getErrno();
      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
    }
+
+   Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
+   
+   bool stdpermcheck=false;
+   bool aclok=false;
+   if (acl.HasAcl()) {
+     if ( (!acl.CanWrite()) ) {
+       // we have to check the standard permissions
+       stdpermcheck = true;
+     } else {
+       aclok=true;
+     }
+   } else {
+     stdpermcheck = true;
+   }
+   
+   
    // check permissions
-   bool permok = dh?(dh->access(vid.uid,vid.gid, X_OK|W_OK)): false;
+   bool permok = stdpermcheck?(dhpar?(dhpar->access(vid.uid,vid.gid, X_OK|W_OK)): false):aclok;
+   
    gOFS->eosViewMutex.UnLock();
+   //-------------------------------------------
+
+   // check existence
+
+   if (!dh) {
+     errno = ENOENT;
+     return Emsg(epname, error, errno, "rmdir", path);
+   }
    
    if (!permok) {
      errno = EPERM;
@@ -2931,7 +2978,7 @@ XrdMgmOfs::FSctl(const int               cmd,
             if (space) {
               quotanode = space->GetQuotaNode();
               // free previous quota
-	      if (quotanode && fmd->getNumLocation()) 
+	      if (quotanode)
 		quotanode->removeFile(fmd);
 	    }		
 	    fmd->addLocation(fsid);
@@ -4160,7 +4207,7 @@ XrdMgmOfs::FsListener()
     // listens on modifications on filesystem objects
     while (gOFS->ObjectManager.ModificationSubjects.size()) {
       std::string newsubject = gOFS->ObjectManager.ModificationSubjects.front();
-      eos_static_info("received modification on subject %s\n", newsubject.c_str());
+      eos_static_debug("received modification on subject %s\n", newsubject.c_str());
       gOFS->ObjectManager.ModificationSubjects.pop_front();
       gOFS->ObjectManager.SubjectsMutex.UnLock();
       // if this is an error status on a file system, check if the filesystem is > drained state and in this case launch a drain job with

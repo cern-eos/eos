@@ -1013,20 +1013,40 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      // set a space related parameter
 	      if (!key.compare(0,6,"space.")) {
 		key.erase(0,6);
-		if (key == "nominalsize") {
-		  unsigned long long size   = eos::common::StringConversion::GetSizeFromString(value.c_str());
-		  if (size) {
-		    char ssize[1024];
-		    snprintf(ssize,sizeof(ssize)-1,"%llu", size);
-		    value = ssize;
-		    if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key,value, true, "/eos/*/mgm")) {
-		      retc = EIO;
-		      stdErr = "error: cannot set space config value";
-		    }
-		  } else {
-		    retc = EINVAL;
-		    stdErr = "error: value has to be positiva number";
-		  }
+		if ( (key == "nominalsize") ||
+                     (key == "balancer") || 
+                     (key == "balancer.threshold") ) {
+
+                  if (key == "balancer") {
+                    if ( (value != "on") && (value != "off") ) {
+                      retc = EINVAL;
+                      stdErr = "error: value has to either on or off";
+                    } else {
+                      if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key,value, true, "/eos/*/mgm")) {
+                        retc = EIO;
+                        stdErr = "error: cannot set space config value";
+                      } else {
+                        if (value == "on") 
+                          stdOut += "success: balancer is enabled!";
+                        else
+                          stdOut += "success: balancer is disabled!";
+                      }
+                    }
+                  } else {
+                    unsigned long long size   = eos::common::StringConversion::GetSizeFromString(value.c_str());
+                    if (size) {
+                      char ssize[1024];
+                      snprintf(ssize,sizeof(ssize)-1,"%llu", size);
+                      value = ssize;
+                      if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key,value, true, "/eos/*/mgm")) {
+                        retc = EIO;
+                        stdErr = "error: cannot set space config value";
+                      }
+                    } else {
+                      retc = EINVAL;
+                      stdErr = "error: value has to be positiva number";
+                    }
+                  }
 		} 
 	      }
 	      
@@ -1246,25 +1266,34 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
         
 	if (subcmd == "add") {
-	  std::string sfsid        = (opaque.Get("mgm.fs.fsid"))?opaque.Get("mgm.fs.fsid"):"0";
-	  std::string uuid         = (opaque.Get("mgm.fs.uuid"))?opaque.Get("mgm.fs.uuid"):"";
-	  std::string nodename     = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
-	  std::string mountpoint   = (opaque.Get("mgm.fs.mountpoint"))?opaque.Get("mgm.fs.mountpoint"):"";
-	  std::string space        = (opaque.Get("mgm.fs.space"))?opaque.Get("mgm.fs.space"):"";
-	  std::string configstatus = (opaque.Get("mgm.fs.configstatus"))?opaque.Get("mgm.fs.configstatus"):"";
-
-          eos::common::RWMutexWriteLock vlock(FsView::gFsView.ViewMutex);
-          eos::common::RWMutexWriteLock mlock(FsView::gFsView.MapMutex);
-          retc = proc_fs_add(sfsid, uuid, nodename, mountpoint, space, configstatus, stdOut, stdErr, tident, vid_in);
-	}
+          if (vid_in.uid == 0) {
+            std::string sfsid        = (opaque.Get("mgm.fs.fsid"))?opaque.Get("mgm.fs.fsid"):"0";
+            std::string uuid         = (opaque.Get("mgm.fs.uuid"))?opaque.Get("mgm.fs.uuid"):"";
+            std::string nodename     = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
+            std::string mountpoint   = (opaque.Get("mgm.fs.mountpoint"))?opaque.Get("mgm.fs.mountpoint"):"";
+            std::string space        = (opaque.Get("mgm.fs.space"))?opaque.Get("mgm.fs.space"):"";
+            std::string configstatus = (opaque.Get("mgm.fs.configstatus"))?opaque.Get("mgm.fs.configstatus"):"";
+            
+            eos::common::RWMutexWriteLock vlock(FsView::gFsView.ViewMutex);
+            retc = proc_fs_add(sfsid, uuid, nodename, mountpoint, space, configstatus, stdOut, stdErr, tident, vid_in);
+          } else {
+            retc = EPERM;
+	    stdErr = "error: you have to take role 'root' to execute this command";
+	  }
+	}   
 
 	if (subcmd == "mv") {
-	  std::string sfsid        = (opaque.Get("mgm.fs.id"))?opaque.Get("mgm.fs.id"):"";
-          std::string space        = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
-
-          eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-          retc = proc_fs_mv(sfsid, space, stdOut, stdErr, tident, vid_in);
-	}
+          if (vid_in.uid == 0) {
+            std::string sfsid        = (opaque.Get("mgm.fs.id"))?opaque.Get("mgm.fs.id"):"";
+            std::string space        = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
+            
+            eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+            retc = proc_fs_mv(sfsid, space, stdOut, stdErr, tident, vid_in);
+          } else {
+            retc = EPERM;
+	    stdErr = "error: you have to take role 'root' to execute this command";
+	  }
+	}   
 
 	if (subcmd == "dumpmd") {
 	  if (vid_in.uid == 0) {
@@ -1280,19 +1309,29 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
 
 	if (subcmd == "config") {	  
-	  std::string identifier = (opaque.Get("mgm.fs.identifier"))?opaque.Get("mgm.fs.identifier"):"";
-	  std::string key        = (opaque.Get("mgm.fs.key"))?opaque.Get("mgm.fs.key"):"";
-	  std::string value      = (opaque.Get("mgm.fs.value"))?opaque.Get("mgm.fs.value"):"";
-	 
-          retc = proc_fs_config(identifier,key, value, stdOut, stdErr, tident, vid_in);	 
-	} 
+          if (vid_in.uid == 0) {
+            std::string identifier = (opaque.Get("mgm.fs.identifier"))?opaque.Get("mgm.fs.identifier"):"";
+            std::string key        = (opaque.Get("mgm.fs.key"))?opaque.Get("mgm.fs.key"):"";
+            std::string value      = (opaque.Get("mgm.fs.value"))?opaque.Get("mgm.fs.value"):"";
+            
+            retc = proc_fs_config(identifier,key, value, stdOut, stdErr, tident, vid_in);	 
+          } else {
+	    retc = EPERM;
+	    stdErr = "error: you have to take role 'root' to execute this command";
+          }
+        }
 	
 	if (subcmd == "rm") {
-	  std::string nodename     = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
-	  std::string mountpoint   =  opaque.Get("mgm.fs.mountpoint")?opaque.Get("mgm.fs.mountpoint"):"";
-	  std::string id           =  opaque.Get("mgm.fs.id")?opaque.Get("mgm.fs.id"):"";
-          eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);  
-          retc = proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, tident, vid_in);
+          if (vid_in.uid == 0) {
+            std::string nodename     = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
+            std::string mountpoint   =  opaque.Get("mgm.fs.mountpoint")?opaque.Get("mgm.fs.mountpoint"):"";
+            std::string id           =  opaque.Get("mgm.fs.id")?opaque.Get("mgm.fs.id"):"";
+            eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);  
+            retc = proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, tident, vid_in);
+          } else {
+	    retc = EPERM;
+	    stdErr = "error: you have to take role 'root' to execute this command";
+	  }
         }
       }
 

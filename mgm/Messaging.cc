@@ -49,31 +49,63 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
 {
   if (!advmsg)
     return false;
-  
-  // register the node to the global view and config
+
   std::string nodequeue = advmsg->kQueue.c_str();
   
-  {    
-    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-    if (FsView::gFsView.RegisterNode(advmsg->kQueue.c_str())) {
-      std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->NodeConfigQueuePrefix.c_str(), advmsg->kQueue.c_str());
-      
-      if (!eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str())) {
-        if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(), advmsg->kQueue.c_str())) {
-          eos_static_crit("cannot add node config queue %s", nodeconfigname.c_str());
+  // new implementations uses mainly read locks
+  FsView::gFsView.ViewMutex.LockRead();            // =========| LockRead
+
+  if (!FsView::gFsView.mNodeView.count(nodequeue.c_str())) {
+    // -----------------------------------------------------
+    // rare case where a node is not yet known
+    // -----------------------------------------------------
+    FsView::gFsView.ViewMutex.UnLockRead();        // |========= UnLockRead
+    
+    // register the node to the global view and config
+    {    
+      // =========| LockWrite
+
+      eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+      if (FsView::gFsView.RegisterNode(advmsg->kQueue.c_str())) {
+        std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->NodeConfigQueuePrefix.c_str(), advmsg->kQueue.c_str());
+        
+        if (!eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str())) {
+          if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(), advmsg->kQueue.c_str())) {
+            eos_static_crit("cannot add node config queue %s", nodeconfigname.c_str());
+          }
         }
       }
+      if (FsView::gFsView.mNodeView.count(nodequeue)) {
+        if (advmsg->kOnline) {
+          FsView::gFsView.mNodeView[nodequeue]->SetStatus("online");
+        } else {
+          FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
+          // propagate into filesystem states
+          std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
+          for (it =  FsView::gFsView.mNodeView[nodequeue]->begin(); it != FsView::gFsView.mNodeView[nodequeue]->end(); it++) {
+            FsView::gFsView.mIdView[*it]->SetStatus(eos::common::FileSystem::kDown);
+          }
+        }
+        eos_static_info("Setting heart beat to %llu\n", (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec);
+        
+        FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(advmsg->kMessageHeader.kSenderTime_sec);
+        
+        // propagate into filesystems
+        std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
+        for (it =  FsView::gFsView.mNodeView[nodequeue]->begin(); it != FsView::gFsView.mNodeView[nodequeue]->end(); it++) {
+          FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime",(long long)advmsg->kMessageHeader.kSenderTime_sec, false);
+        }
+      }
+      // =========| UnLockWrite
     }
-    
-  }
-
-  { // lock for write
-    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-    if (FsView::gFsView.mNodeView[nodequeue]) {
+    return true;
+  } else {
+    // here we can go just with a read lock
+    if (FsView::gFsView.mNodeView.count(nodequeue)) {
       if (advmsg->kOnline) {
-	FsView::gFsView.mNodeView[nodequeue]->SetStatus("online");
+        FsView::gFsView.mNodeView[nodequeue]->SetStatus("online");
       } else {
-	FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
+        FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
         // propagate into filesystem states
         std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
         for (it =  FsView::gFsView.mNodeView[nodequeue]->begin(); it != FsView::gFsView.mNodeView[nodequeue]->end(); it++) {
@@ -81,18 +113,18 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
         }
       }
       eos_static_info("Setting heart beat to %llu\n", (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec);
-
+      
       FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(advmsg->kMessageHeader.kSenderTime_sec);
-
+      
       // propagate into filesystems
       std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
       for (it =  FsView::gFsView.mNodeView[nodequeue]->begin(); it != FsView::gFsView.mNodeView[nodequeue]->end(); it++) {
         FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime",(long long)advmsg->kMessageHeader.kSenderTime_sec, false);
       }
     }
+    FsView::gFsView.ViewMutex.UnLockRead(); // |========= UnLockRead
+    return true;
   }
-
-  return true;
 }
 
 /*----------------------------------------------------------------------------*/

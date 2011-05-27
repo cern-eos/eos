@@ -632,6 +632,11 @@ int main (int argc, char* argv[]) {
   // serveruri += HostName;
   // serveruri += ":1094";
   serveruri += "localhost";
+
+
+  if (getenv("EOS_MGM_URL")) {
+    serveruri = getenv("EOS_MGM_URL");
+  }
   
   XrdOucString urole="";
   XrdOucString grole="";
@@ -743,9 +748,6 @@ int main (int argc, char* argv[]) {
     }
   }
   
-  if (getenv("EOS_MGM_URL")) {
-    serveruri = getenv("EOS_MGM_URL");
-  }
 
   /* by default select the root role if we are root@localhost */
 

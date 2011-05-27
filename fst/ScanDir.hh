@@ -46,6 +46,7 @@ public:
   ScanDir(const char* dirpath, eos::fst::Load* fstload, bool bgthread=true, long int testinterval = 10, int ratebandwidth = 100): 
     fstLoad(fstload),dirPath(dirpath), testInterval(testinterval), rateBandwidth(ratebandwidth)
   {
+    thread = 0;
     noNoCheckumFiles = 0;
     noTotalFiles     = 0;
     bgThread = bgthread;
@@ -60,7 +61,7 @@ public:
 
     if (bgthread) {
       openlog("scandir", LOG_PID | LOG_NDELAY, LOG_USER);
-      XrdSysThread::Run(&thread, ScanDir::StaticThreadProc, static_cast<void *>(this),0, "ScanDir Thread");
+      XrdSysThread::Run(&thread, ScanDir::StaticThreadProc, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "ScanDir Thread");
     } 
   };
 
