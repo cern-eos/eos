@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------------------------------------------------------------------------
-// (C) 2011 CERN, Switzerland
+// Copyright (C) 2011 CERN, Switzerland
 // --------------------
 // Except as expressly stated otherwise, the copyright and all other rights related to the EOS Software are held by CERN.
 // The rights granted herein are limited to CERN's property rights in the EOS Software and do not include any other patents or intellectual property rights.
@@ -11,5 +11,5 @@
 // or severe physical or environmental damage.
 // ---------------------------------------------------------------------------------------------------------------------------------------------
 
-const char* license="\nCopyright Statement:\n--------------------\n\nExcept as expressly stated otherwise, the copyright and all other rights related to the EOS Software are held by CERN.\n\nThe rights granted herein are limited to CERN's property rights in the EOS Software and do not include any other patents or intellectual property rights.\nRedistribution and use in source and binary forms are not permitted unless explicitly granted.\nCERN provides no express or implied warranties of any kind for the EOS sofware, including but not limited to those of merchantability, fitness for a particular purpose and non-infringement of the proprietary rights, such as copyrights, patents and trade secrets, of third parties. CERN accepts no liability for the EOS software including any third party material.\nThe software is not intended for use in which the failure of the software could lead to death, personal injury, or severe physical or environmental damage.\n\n(C) 2011 CERN, Switzerland\n\n";
+const char* license="Copyright (C) 2011 CERN, Switzerland\n\nExcept as expressly stated otherwise, the copyright and all other rights related to the EOS Software are held by CERN.\n\nThe rights granted herein are limited to CERN's property rights in the EOS Software and do not include any other patents or intellectual property rights.\nRedistribution and use in source and binary forms are not permitted unless explicitly granted.\nCERN provides no express or implied warranties of any kind for the EOS sofware, including but not limited to those of merchantability, fitness for a particular purpose and non-infringement of the proprietary rights, such as copyrights, patents and trade secrets, of third parties. CERN accepts no liability for the EOS software including any third party material.\nThe software is not intended for use in which the failure of the software could lead to death, personal injury, or severe physical or environmental damage.\n";
 

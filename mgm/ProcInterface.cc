@@ -1266,21 +1266,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
         
 	if (subcmd == "add") {
-          if (vid_in.uid == 0) {
-            std::string sfsid        = (opaque.Get("mgm.fs.fsid"))?opaque.Get("mgm.fs.fsid"):"0";
-            std::string uuid         = (opaque.Get("mgm.fs.uuid"))?opaque.Get("mgm.fs.uuid"):"";
-            std::string nodename     = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
-            std::string mountpoint   = (opaque.Get("mgm.fs.mountpoint"))?opaque.Get("mgm.fs.mountpoint"):"";
-            std::string space        = (opaque.Get("mgm.fs.space"))?opaque.Get("mgm.fs.space"):"";
-            std::string configstatus = (opaque.Get("mgm.fs.configstatus"))?opaque.Get("mgm.fs.configstatus"):"";
-            
-            eos::common::RWMutexWriteLock vlock(FsView::gFsView.ViewMutex);
-            retc = proc_fs_add(sfsid, uuid, nodename, mountpoint, space, configstatus, stdOut, stdErr, tident, vid_in);
-          } else {
-            retc = EPERM;
-	    stdErr = "error: you have to take role 'root' to execute this command";
-	  }
-	}   
+          std::string sfsid        = (opaque.Get("mgm.fs.fsid"))?opaque.Get("mgm.fs.fsid"):"0";
+          std::string uuid         = (opaque.Get("mgm.fs.uuid"))?opaque.Get("mgm.fs.uuid"):"";
+          std::string nodename     = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
+          std::string mountpoint   = (opaque.Get("mgm.fs.mountpoint"))?opaque.Get("mgm.fs.mountpoint"):"";
+          std::string space        = (opaque.Get("mgm.fs.space"))?opaque.Get("mgm.fs.space"):"";
+          std::string configstatus = (opaque.Get("mgm.fs.configstatus"))?opaque.Get("mgm.fs.configstatus"):"";
+          
+          eos::common::RWMutexWriteLock vlock(FsView::gFsView.ViewMutex);
+          retc = proc_fs_add(sfsid, uuid, nodename, mountpoint, space, configstatus, stdOut, stdErr, tident, vid_in);
+        }
 
 	if (subcmd == "mv") {
           if (vid_in.uid == 0) {

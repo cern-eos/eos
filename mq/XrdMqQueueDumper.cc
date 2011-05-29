@@ -16,8 +16,6 @@ int main (int argc, char* argv[]) {
   XrdMqMessage message("");
   message.Configure(0);
 
-  EnvPutInt( NAME_DEBUG, 3);
-  
   if ( (argc < 2) || (argc > 5) ) {
     fprintf(stderr, "usage: QueueDumper <brokerurl>/<queue> [n dumps] [sleep between grab] [debug]\n");
     exit(-1);

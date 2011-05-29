@@ -584,7 +584,7 @@ com_fs (char* arg1) {
   printf("                                                                  -fid  : dump only a list of file id's stored on this filesystem\n");
   printf("                                                                  -path : dump only a list of file names stored on this filesystem\n");
   printf("       fs verify <fs-name>|<fs-id> [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>]\n");
-  printf("                                                                : schedule asynchronous replication [with checksumming] on a filesystem\n");
+  printf("                                                                : schedule asynchronous verification [with checksumming] on a filesystem\n");
   printf("                                                      -checksum : trigger the checksum calculation during the verification process\n");
   printf("                                                -commitchecksum : commit the computed checksum to the MGM\n");
   printf("                                                -commitsize     : commit the file size to the MGM\n");

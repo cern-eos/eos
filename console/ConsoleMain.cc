@@ -1,5 +1,6 @@
 /*----------------------------------------------------------------------------*/
 #include "ConsoleMain.hh"
+#include "../License"
 /*----------------------------------------------------------------------------*/
 
 extern int com_access (char*);
@@ -617,12 +618,32 @@ std::string textbold("\033[1m");
 std::string textunbold("\033[0m");
 
 void usage() {
-  fprintf(stderr,"usage: eos [-r|--role <uid> <gid>] [-b|--batch] <mgm-url>\n");
-  fprintf(stderr,"           => run eos shell. Use -b for batch mode without colour output and syntax highlighting\n");
-  fprintf(stderr,"usage: eos [-r|--role <uid> <gid>] <mgm-url> <cmd> [<argN>]\n");
-  fprintf(stderr,"           => run <cmd> in eos shell\n");
-  fprintf(stderr,"usage: eos [-r|--role <uid> <gid>] <mgm-url> <filename>\n");
-  fprintf(stderr,"           =. run script <filename> in eos shell\n");
+  fprintf(stderr,"`eos' is the command line interface (CLI) of the EOS storage system.\n");
+  fprintf(stderr,"Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
+  fprintf(stderr,"            -r, --role <uid> <gid>              : select user role <uid> and group role <gid>\n");
+  fprintf(stderr,"            -b, --batch                         : run in batch mode without colour and syntax highlighting\n");
+  fprintf(stderr,"            -h, --help                          : print help text\n");
+  fprintf(stderr,"            -v, --version                       : print version information\n");
+  fprintf(stderr,"            <mgm-url>                           : xroot URL of the management server e.g. root://<hostname>[:<port>]\n");
+  fprintf(stderr,"            <cmd>                               : eos shell command (use 'eos help' to see available commands)\n");
+  fprintf(stderr,"            {<argN>}                            : single or list of arguments for the eos shell command <cmd>\n");
+  fprintf(stderr,"            <filename>.eosh                     : eos script file name ending with .eosh suffix\n\n");
+  fprintf(stderr,"Environment Variables: \n");
+  fprintf(stderr,"            EOS_MGM_URL                         : set's the redirector URL\n");
+  fprintf(stderr,"            EOS_HISTORY_FILE                    : set's the command history file - by default '$HOME/.eos_history' is used\n\n");
+  fprintf(stderr,"Return Value: \n");
+  fprintf(stderr,"            The return code of the last executed command is returned. 0 is returned in case of success otherwise <errno> (!=0).\n\n");
+  fprintf(stderr, "Examples:\n");
+  fprintf(stderr,"            eos                                 : start the interactive eos shell client connected to localhost or URL defined in environment variabel EOS_MGM_URL\n");
+  fprintf(stderr,"            eos -r 0 0                          : as before but take role root/root [only numeric IDs are supported]\n");
+  fprintf(stderr,"            eos root://myeos                    : start the interactive eos shell connecting to MGM host 'myeos'\n");
+  fprintf(stderr,"            eos -b whoami                       : run the eos shell command 'whoami' in batch mode without syntax highlighting\n");
+  fprintf(stderr,"            eos space ls --io                   : run the eos shell command 'space' with arguments 'ls --io'\n");
+  fprintf(stderr,"            eos --version                       : print version information\n");
+  fprintf(stderr,"            eos -b eosscript.eosh               : run the eos shell script 'eosscript.eosh'. This script has to contain linewise commands which are understood by the eos interactive shell.\n");
+  
+
+  fprintf(stderr,"Report bugs to eos-dev@cern.ch\n");
 }
 
 int main (int argc, char* argv[]) {
@@ -657,10 +678,12 @@ int main (int argc, char* argv[]) {
 
     if (in1.beginswith("-")) {
       if ( (in1 != "--help")  &&
+           (in1 != "--version") &&
 	   (in1 != "--batch") &&
 	   (in1 != "--role")  &&
 	   (in1 != "-h")      &&
 	   (in1 != "-b")      &&
+           (in1 != "-v")      &&
 	   (in1 != "-r")) {
 	usage();
 	exit(-1);
@@ -670,7 +693,14 @@ int main (int argc, char* argv[]) {
       usage();
       exit(-1);
     }
-
+    
+    if ( (in1 == "--version") || (in1 == "-v") ) {
+      fprintf(stderr,"EOS %s (CERN)\n\n", VERSION);
+      fprintf(stderr,"%s\n", license);
+      fprintf(stderr,"Written by CERN-IT-DSS (Andreas-Joachim Peters, Lukasz Janyst & Elvin Sindrilaru)\n");
+      exit(-1);
+    }
+    
     if ( (in1 == "--batch") || (in1 == "-b") ) {
       interactive = false;
       global_highlighting = false;
@@ -708,7 +738,7 @@ int main (int argc, char* argv[]) {
 
     if (in1.length()) {
       // check if this is a file
-      if (!access(in1.c_str(), R_OK)) {
+      if ((in1.endswith(".eosh")) && (!access(in1.c_str(), R_OK))) {
         // this is a script file
         char str[16384];
         fstream file_op(in1.c_str(),ios::in);

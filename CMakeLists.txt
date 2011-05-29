@@ -61,6 +61,7 @@ set(CMAKE_INSTALL_PREFIX /usr/)
 if (CLIENT)
 add_subdirectory (fuse)
 add_subdirectory (console)
+add_subdirectory (man)
 else (CLIENT)
 add_subdirectory (mq)
 add_subdirectory (common)
@@ -74,13 +75,14 @@ add_subdirectory (sync)
 add_subdirectory (fuse)
 add_subdirectory (srm)
 add_subdirectory (var)
+add_subdirectory (man)
 endif (CLIENT)
 
 include_directories( ../ /usr/include/xrootd/ /usr/include/ )
 link_directories( /usr/${LIB_INSTALL_DIR}/)
 
 set(SYSCONFDIR "/etc" CACHE PATH "Directory for system configuration files" )
-
+set(MANDIR "/usr/share/man/man1" CACHE PATH "Directory where man pages get installed" ) 
 
 ######################################################################################################################
 # uninstall target

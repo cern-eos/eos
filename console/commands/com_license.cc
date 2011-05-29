@@ -2,7 +2,7 @@
 #include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
-#include "../../License"
+extern char* license;
 
 /* Display License File*/
 int
