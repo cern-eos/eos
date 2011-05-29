@@ -1,0 +1,5 @@
+Manual pages are (re-)created with the script:
+create_man.sh
+
+Man pages get commited to the repository and ARE NOT rebuild on the fly everytime the RPM is build!
+
