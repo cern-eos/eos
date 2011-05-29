@@ -98,17 +98,11 @@ fi
 %config(noreplace) /etc/xrd.cf.mq
 %config(noreplace) /etc/xrd.cf.sync
 %config(noreplace) /etc/sysconfig/eos.example
-#%config(noreplace) /etc/sysconfig/eossync.example
 %attr(-,daemon,daemon) %_sysconfdir/eos.keytab
-#%_sysconfdir/cron.d/xrd-logs
-#%_sysconfdir/cron.d/xrd-alive
-#%_sysconfdir/cron.d/eos-health
 %_sysconfdir/rc.d/init.d/eos
 %_sysconfdir/rc.d/init.d/eosha
 %_sysconfdir/rc.d/init.d/eossync
-#%_sysconfdir/rc.d/init.d/cmsd
-#%_sysconfdir/rc.d/init.d/eossync
-#%_sysconfdir/rc.d/init.d/eoshealth
+
 
 #######################################################################################
 # the shell client package 
@@ -121,6 +115,9 @@ Group: Applications/File
 The EOS shell client.
 %files -n eos-client
 /usr/bin/eos
+############################
+# documentation
+%doc %_mandir/man1/eos.1.gz
 
 
 #######################################################################################
