@@ -98,7 +98,7 @@ fi
 %config(noreplace) /etc/xrd.cf.mq
 %config(noreplace) /etc/xrd.cf.sync
 %config(noreplace) /etc/sysconfig/eos.example
-%attr(-,daemon,daemon) %_sysconfdir/eos.keytab
+%config(noreplace) %attr(-,daemon,daemon) %_sysconfdir/eos.keytab
 %_sysconfdir/rc.d/init.d/eos
 %_sysconfdir/rc.d/init.d/eosha
 %_sysconfdir/rc.d/init.d/eossync

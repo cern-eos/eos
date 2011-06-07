@@ -17,7 +17,8 @@ print "###########################\n";
 #}
 
 sub usage() {
-    printf STDERR  "usage: eosfstregister [-i] <host[:port]> <mount-prefix> [<space1>:<nfilesystems1>] [<space2>:<nfilesystems2>] [-h|--help]\n";
+    printf STDERR  "usage: eosfstregister [-i] [-r] [<host[:port]>] <mount-prefix> [<space1>:<nfilesystems1>] [<space2>:<nfilesystems2>] [-h|--help]\n";
+    printf STDERR  "                       -r : allows to register file systems mounted on the root partition\n";
     printf STDERR  "                       -i : ignore if one of the filesystems has already a filesystem id stored and continue\n";
     printf STDERR  " hint: if <mount-prefix> ends with '/' subdirectories are scanned in this directory, \n";
     printf STDERR  "       if <mount-prefix> does not end with '/' directories starting with <mount-prefix> are scanned ( e.g. /data* )\n";
@@ -27,6 +28,7 @@ sub usage() {
 my $hostname = `hostname -f`;
 chomp $hostname;
 my $ignoreerrors=0;
+my $allowroot=0;
 
 for ( my $arg = 0; $arg < $#ARGV+1; $arg++) {
     if ( ($ARGV[$arg] =~ /^-h/ ) ||
@@ -38,13 +40,38 @@ for ( my $arg = 0; $arg < $#ARGV+1; $arg++) {
 	$ignoreerrors = 1;
 	splice (@ARGV, $arg,1);
     }
+    if (( $ARGV[$arg] =~ /-r/ ) ) {
+        $allowroot = 1;
+	splice (@ARGV, $arg,1);
+    }
 #    print "$ARGV[$arg]\n";
 }
        
 
-my $hostport    = shift @ARGV;
-my $mountprefix = shift @ARGV;
+my $mgmurl    = shift @ARGV;
+my $mountprefix;
 
+if ( $mgmurl =~/^\// ) {
+    my $redirector=`test -r /etc/sysconfig/eos && . /etc/sysconfig/eos && echo \$EOS_MGM_URL`;
+    if ($redirector eq "") {
+        $redirector=`test -r /etc/quattor_install_info && . /etc/quattor_install_info && echo \$CDB_CLUSTER`;
+        if ($redirector ne "") {
+            $redirector = "root://" . $redirector;
+        } else {
+            printf STDERR "error: cannot automatically determine to which MGM I should connect - set it via EOS_MGM_URL in /etc/sysconfig/eos or CDB_CLUSTER variable in /etc/quattor_install_info!\n";
+        }
+    }
+
+    #automatic host configuration
+    $mountprefix = $mgmurl;
+    $mgmurl = $redirector;
+} else {
+    $mgmurl = "root://" . $mgmurl;
+    $mountprefix = shift @ARGV;
+}
+
+chomp $mgmurl;
+chomp $mountprefix;
 
 my $policy;
 my $npfsdefined=0;
@@ -73,7 +100,7 @@ do {
 } while($policy ne "");
 
 
-if ( $hostport eq "") {
+if ( $mgmurl eq "") {
     printf STDERR "error: you have to provide a manager name <host>[:<port>]\n";
     usage();
     exit(-1);
@@ -143,6 +170,16 @@ if ("$nfilesystems" ne "$npfsdefined") {
 
 my $cnt=0;
 foreach ( @filesystems ) {
+
+    my ($root_dev,$root_ino,$root_mode,$root_nlink,$root_uid,$root_gid,$root_rdev,$root_size, $root_atime,$root_mtime,$root_ctime,$root_blksize,$root_blocks) = stat("/");
+    my ($reg_dev,$reg_ino,$reg_mode,$reg_nlink,$reg_uid,$reg_gid,$reg_rdev,$reg_size, $reg_atime,$reg_mtime,$reg_ctime,$reg_blksize,$reg_blocks) = stat("$_");
+    if (!$allowroot) {
+        if ( "$root_dev" eq "$reg_dev" ) {
+            printf STDERR "error: filesystem $_ is on the root parition ... use '-r' if you really want to register it\n";
+            next;
+        }
+    }
+
     my $uuid="";
     my $fsid=0;
     print $_;
@@ -172,8 +209,8 @@ foreach ( @filesystems ) {
     
     my $cmd=0;
     if (!($cmd=fork())) {
-#	system("echo eos -b root://$hostport fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
-	system("eos -b root://$hostport fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
+#	system("echo eos -b $mgmurl fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
+	system("unset EOS_MGM_URL; eos -b $mgmurl fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
 	exit(0);
     }
 

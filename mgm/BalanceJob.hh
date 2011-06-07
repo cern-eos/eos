@@ -4,6 +4,7 @@
 #include <pthread.h>
 /*----------------------------------------------------------------------------*/
 #include "common/FileSystem.hh"
+#include "common/TransferQueue.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/FsView.hh"
 /*----------------------------------------------------------------------------*/
@@ -30,7 +31,7 @@ private:
   std::map<eos::common::FileSystem::fsid_t, std::set<unsigned long long > >    SourceFidMap;
   std::map<eos::common::FileSystem::fsid_t, unsigned long long>                SourceSizeMap;
   std::map<eos::common::FileSystem::fsid_t, unsigned long long>                TargetSizeMap;
-
+  std::map<eos::common::FileSystem::fsid_t, eos::common::TransferQueue* >      TargetQueues;
 
 public:
 

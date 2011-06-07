@@ -7,6 +7,8 @@ if [ "x$EOS_MGM_URL" = "x" ]; then
         EOS_MGM_URL=root://$CDB_CLUSTER
 fi
 
+export EOS_MGM_URL
+
 eos $*
 
 

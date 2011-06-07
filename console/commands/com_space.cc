@@ -188,6 +188,10 @@ com_space (char* arg1) {
   printf("       space config <space-name> space.nominalsize=<value>           : configure the nominal size for this space\n");
   printf("       space config <space-name> space.balancer=on|off               : enable/disable the space balancer [default=on]\n");
   printf("       space config <space-name> space.balancer.threshold=<size>     : configure the used bytes deviation which triggers balancing [ default=50G ] \n");
+  printf("       space config <space-name> space.headroom=<size>               : configure the default disk headroom if not defined on a filesystem (see fs for details)\n");
+  printf("       space config <space-name> space.scaninterval=<sec>            : configure the default scan interval if not defined on a afilesystem( see fs for details)\n");
+  printf("       space config <space-name> space.drainperiod=<sec>             : configure the default drain period if not defined on a afilesystem( see fs for details)\n");
+  printf("       space config <space-name> space.graceperiod=<sec>             : configure the default grace period if not defined on a afilesystem( see fs for details)\n");
   printf("                                                                       => size can be given also like 10T, 20G, 2P ... without space before the unit \n");
   printf("\n");
   printf("       space config <space-name> fs.<key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");

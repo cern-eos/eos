@@ -29,7 +29,7 @@ private:
 
 public: 
 
-  TransferQueue(eos::common::TransferQueue** queue, const char* name, int slots=5, int band=100);
+  TransferQueue(eos::common::TransferQueue** queue, const char* name, int slots=2, int band=100);
   ~TransferQueue();
 
   eos::common::TransferQueue* GetQueue() { return *mQueue;}

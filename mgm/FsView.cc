@@ -48,7 +48,7 @@ FsView::GetFileSystemFormat(std::string option) {
   }
 
   if (option == "io") {
-    return "header=1:key=hostport:width=30:format=s|sep= |key=id:width=5:format=s|sep= |key=stat.disk.load:width=10:format=f:tag=diskload|sep= |key=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |key=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |key=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |key=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |key=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |key=stat.ropen:width=6:format=l:tag=ropen|sep= |key=stat.wopen:width=6:format=l:tag=wopen|sep= |key=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |key=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |key=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |key=stat.statfs.files:width=11:format=+l:tag=max-files";
+    return "header=1:key=hostport:width=30:format=s|sep= |key=id:width=5:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=stat.disk.load:width=10:format=f:tag=diskload|sep= |key=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |key=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |key=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |key=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |key=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |key=stat.ropen:width=6:format=l:tag=ropen|sep= |key=stat.wopen:width=6:format=l:tag=wopen|sep= |key=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |key=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |key=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |key=stat.statfs.files:width=11:format=+l:tag=max-files";
   }
 
   if (option == "d") {
@@ -57,7 +57,7 @@ FsView::GetFileSystemFormat(std::string option) {
   }
   if (option == "l") {
     // long format
-    return "header=1:key=host:width=24:format=-s|sep= |key=port:width=5:format=s|sep= |key=id:width=6:format=s|sep= |key=uuid:width=36:format=s|sep= |key=path:width=16:format=s|key=schedgroup:width=16:format=s|sep= |key=headroom:width=10:format=+l|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|key=scaninterval:width=14:format=s";
+    return "header=1:key=host:width=24:format=-s|sep= |key=port:width=5:format=s|sep= |key=id:width=6:format=s|sep= |key=uuid:width=36:format=s|sep= |key=path:width=16:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=headroom:width=10:format=+l|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|key=scaninterval:width=14:format=s";
   }
   
   if (option == "e") {
@@ -65,7 +65,7 @@ FsView::GetFileSystemFormat(std::string option) {
     return "header=1:key=host:width=24:format=s:condition=stat.errc=!0|sep= |key=id:width=6:format=s|sep= |key=path:width=10:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.errc:width=3:format=s|sep= |key=stat.errmsg:width=0:format=s";
   }
   
-  return "header=1:key=host:width=24:format=s|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s";
+  return "header=1:key=host:width=24:format=s|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -93,7 +93,7 @@ std::string
 FsView::GetGroupFormat(std::string option) {
   if (option == "m") {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=nofs:width=1:format=os|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |maxdev=stat.statfs.usedbytes:width=1:format=of|sep= |avg=stat.statfs.usedbytes:width=1:format=of|sep= |sig=stat.statfs.usedbytes:width=1:format=of|member=cfg.stat.balancing:width=1:format=os:tag=stat.balancing";
+    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=nofs:width=1:format=os|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |maxdev=stat.statfs.usedbytes:width=1:format=of|sep= |avg=stat.statfs.usedbytes:width=1:format=of|sep= |sig=stat.statfs.usedbytes:width=1:format=of|member=cfg.stat.balancing:width=1:format=os:tag=stat.balancing|sep= |member=cfg.stat.balancing.queued:width=1:format=os:tag=stat.balancing.queued";
   }
 
   if (option == "io") {
@@ -105,7 +105,7 @@ FsView::GetGroupFormat(std::string option) {
     return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
   }
 
-  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=-s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s|sep= |maxdev=stat.statfs.usedbytes:width=16:format=+l:unit=B|sep= |avg=stat.statfs.usedbytes:width=16:format=+l:unit=B|sep= |sig=stat.statfs.usedbytes:width=16:format=+l:unit=B|sep= |member=cfg.stat.balancing:width=10:format=-s";
+  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=-s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s|sep= |maxdev=stat.statfs.usedbytes:width=16:format=+l:unit=B|sep= |avg=stat.statfs.usedbytes:width=16:format=+l:unit=B|sep= |sig=stat.statfs.usedbytes:width=16:format=+l:unit=B|sep= |member=cfg.stat.balancing:width=10:format=-s|sep= |member=cfg.stat.balancing.queued:width=10:format=+l:tag=queued";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -521,7 +521,7 @@ bool
 FsView::RegisterGroup(const char* groupname)
 {
   //----------------------------------------------------------------
-  //! add view by groupname (= MQ queue) e.g. /eos/<host>:<port>/fst
+  //! add view by groupname  e.g. default or default.0
   //----------------------------------------------------------------
   
   std::string groupqueue = groupname;
@@ -543,7 +543,7 @@ bool
 FsView::UnRegisterGroup(const char* groupname)
 {
   //----------------------------------------------------------------
-  //! remove view by groupname (= MQ queue) e.g. /eos/<host>:<port>/fst
+  //! remove view by groupname e.g. default or default.0
   //----------------------------------------------------------------
 
   // we have to remove all the connected filesystems via UnRegister(fs) to keep group, group, group view in sync
@@ -1261,7 +1261,8 @@ BaseView::AverageDouble(const char* param)
     if (mType == "groupview") {
       // we only count filesystem which are >=kRO and booted for averages in the group view
       if ( (FsView::gFsView.mIdView[*it]->GetConfigStatus()< eos::common::FileSystem::kRO) ||
-           (FsView::gFsView.mIdView[*it]->GetStatus()      != eos::common::FileSystem::kBooted) )
+           (FsView::gFsView.mIdView[*it]->GetStatus()      != eos::common::FileSystem::kBooted) ||
+           (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline))
         consider=false;
     }
 
@@ -1270,7 +1271,7 @@ BaseView::AverageDouble(const char* param)
       sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
     }
   }
-  return (double)(1.0*sum/cnt);
+  return (cnt)?(double)(1.0*sum/cnt):0;
 }
 
 double
@@ -1293,7 +1294,8 @@ BaseView::MaxDeviation(const char* param)
     if (mType == "groupview") {
       // we only count filesystem which are >=kRO and booted for averages in the group view
       if ( (FsView::gFsView.mIdView[*it]->GetConfigStatus()< eos::common::FileSystem::kRO) ||
-           (FsView::gFsView.mIdView[*it]->GetStatus()      != eos::common::FileSystem::kBooted) )
+           (FsView::gFsView.mIdView[*it]->GetStatus()      != eos::common::FileSystem::kBooted) ||
+           (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline) ) 
         consider=false;
     }
     dev = fabs(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
@@ -1316,7 +1318,7 @@ BaseView::SigmaDouble(const char* param)
 
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   
-  double avg = AverageDouble(param);;
+  double avg = AverageDouble(param);
   double sumsquare=0;
   int cnt=0;
   std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
@@ -1325,7 +1327,8 @@ BaseView::SigmaDouble(const char* param)
     if (mType == "groupview") {
       // we only count filesystem which are >=kRO and booted for averages in the group view
       if ( (FsView::gFsView.mIdView[*it]->GetConfigStatus()< eos::common::FileSystem::kRO) ||
-           (FsView::gFsView.mIdView[*it]->GetStatus()      != eos::common::FileSystem::kBooted) )
+           (FsView::gFsView.mIdView[*it]->GetStatus()      != eos::common::FileSystem::kBooted) ||
+           (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline) ) 
         consider=false;
     }
     if (consider) {
@@ -1334,7 +1337,7 @@ BaseView::SigmaDouble(const char* param)
     }
   }
 
-  sumsquare = sqrt(sumsquare/cnt);
+  sumsquare = (cnt)?sqrt(sumsquare/cnt):0;
 
   return sumsquare;
 }
@@ -1759,6 +1762,45 @@ FsGroup::DetachBalancerJob()
   BalancerLock.Lock();
   mBalanceJob=0;
   BalancerLock.UnLock();
+}
+
+
+/*----------------------------------------------------------------------------*/
+void
+FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs)
+{
+  // -----------------------------------------
+  // ! if a filesystem has not yet these parameters defined, we inherit them from the space configuration
+  // ! this function has to be called with the a read lock on the View Mutex !
+  // -----------------------------------------
+  
+  if (!fs)
+    return ;
+
+  eos::common::FileSystem::fs_snapshot_t snapshot;
+  if (fs->SnapShotFileSystem(snapshot, false)) {
+    if (!snapshot.mScanInterval) {
+      // try to apply the default
+      if (GetConfigMember("scaninterval").length()) {
+        fs->SetString("scaninterval", GetConfigMember("scaninterval").c_str());
+        FsView::gFsView.StoreFsConfig(fs);
+      }
+    }
+    if (!snapshot.mGracePeriod) {
+      // try to apply the default
+      if (GetConfigMember("graceperiod").length()) {
+        fs->SetString("graceperiod", GetConfigMember("graceperiod").c_str());
+        FsView::gFsView.StoreFsConfig(fs);
+      }
+    }
+    if (!snapshot.mDrainPeriod) {
+      // try to apply the default
+      if (GetConfigMember("drainperiod").length()) {
+        fs->SetString("drainperiod", GetConfigMember("drainperiod").c_str());
+        FsView::gFsView.StoreFsConfig(fs);
+      }
+    }
+  }
 }
 
 #endif

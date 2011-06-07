@@ -567,7 +567,7 @@ com_fs (char* arg1) {
   printf("                                    := ro                       : filesystem is in read-only mode\n");
   printf("                                    := drain                    : filesystem is in drain mode\n");
   printf("                                    := off                      : filesystem is disabled\n"); 
-  printf("         => fs config <fsid> headeroom=<size>\n");
+  printf("         => fs config <fsid> headroom=<size>\n");
   printf("                    <size> can be   := (>0)[BMGT]               : the headroom to keep per filesystem (e.g. you can write '1G' for 1 GB)\n");
   printf("         => fs config <fsid> scaninterval=<seconds>\n           : configures a scanner thread on each FST to recheck the file & block checksums of all stored files every <seconds> seconds. 0 disables the scanning.\n");
   printf("         => fs config <fsid> graceperiod=<seconds>\n            : grace period before a filesystem with an operation error get's automatically drained\n");

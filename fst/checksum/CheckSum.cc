@@ -141,7 +141,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
 
   if (ChecksumMap == MAP_FAILED) {
     close(ChecksumMapFd);
-    //    fprintf(stderr,"mmap failed\n");
+    fprintf(stderr,"Fatal: mmap failed\n");
     return false;
   }
   return true;
@@ -187,15 +187,19 @@ CheckSum::ChangeMap(size_t newsize, bool shrink)
     return false;
   }
 
+  //  fprintf(stderr,"truncating %d to %llu\n", ChecksumMapFd, newsize);
   if (ftruncate(ChecksumMapFd, newsize)) {
     ChecksumMapSize = 0;
     //    fprintf(stderr,"CheckSum:ChangeMap ftruncate failed\n");
     return false;
   }
 
+  //  fprintf(stderr,"remapping %llu %llu %llu\n", ChecksumMap, ChecksumMapSize, newsize);
   ChecksumMap = (char*)mremap(ChecksumMap, ChecksumMapSize, newsize, MREMAP_MAYMOVE);
   if (ChecksumMap == MAP_FAILED) {
+    fprintf(stderr,"mremap errno is %d\n", errno);
     ChecksumMapSize = 0;
+    ChecksumMap = 0;
     return false;
   }
 

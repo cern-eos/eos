@@ -91,6 +91,9 @@ public:
     long   mDiskNameLen;
     long   mDiskRopen;
     long   mDiskWopen;
+    time_t mScanInterval;
+    time_t mGracePeriod;
+    time_t mDrainPeriod;
   } fs_snapshot_t;
 
   //------------------------------------------------------------------------
@@ -120,6 +123,7 @@ public:
   static         int GetConfigStatusFromString(const char* ss);
   static  fsactive_t GetActiveStatusFromString(const char* ss);
   static const char* GetAutoBootRequestString();
+
 
   //------------------------------------------------------------------------
   //! Setter Functions
@@ -200,7 +204,8 @@ public:
   }
 
   fsactive_t GetActiveStatus() {
-    if (GetLongLong("stat.active"))
+    std::string active = GetString("stat.active");
+    if (active == "online") 
       return kOnline;
     else
       return kOffline;

@@ -4059,7 +4059,7 @@ XrdMgmOfs::Deletion()
 {
   // thread distributing deletions
   while (1) {
-    sleep(300);
+    sleep(60);
     eos_static_debug("running deletion");
     std::vector <unsigned int> fslist;
     // get a list of file Ids

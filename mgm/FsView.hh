@@ -85,7 +85,7 @@ public:
     mBalancer = new Balancer(name);
     // set default balancing variables
     if (GetConfigMember("balancer")== "")
-      SetConfigMember("balancer","off"); // enable balancing by default
+      SetConfigMember("balancer","off"); // disable balancing by default
     if (GetConfigMember("balancer.threshold")=="") 
       SetConfigMember("balancer.threshold","50000000000"); // set deviation treshold
 #endif
@@ -100,6 +100,9 @@ public:
   static std::string gConfigQueuePrefix;
   virtual const char* GetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
   static const char* sGetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
+
+  
+  void ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs);
 };
 
 //------------------------------------------------------------------------

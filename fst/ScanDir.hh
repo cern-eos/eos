@@ -31,7 +31,7 @@ private:
   float durationScan;
   long long int totalScanSize;
   long long int bufferSize;
-  long int noNoCheckumFiles;
+  long int noNoChecksumFiles;
   long int noTotalFiles;
 
   int rateBandwidth;     // MB/s
@@ -47,7 +47,7 @@ public:
     fstLoad(fstload),dirPath(dirpath), testInterval(testinterval), rateBandwidth(ratebandwidth)
   {
     thread = 0;
-    noNoCheckumFiles = 0;
+    noNoChecksumFiles = 0;
     noTotalFiles     = 0;
     bgThread = bgthread;
 

@@ -12,8 +12,14 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/FsView.hh"
+#include "namespace/persistency/LogManager.hh"
+#include "namespace/utils/DataHelper.hh"
+#include "namespace/views/HierarchicalView.hh"
+#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/persistency/ChangeLogFileMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
+/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
@@ -61,7 +67,8 @@ ProcInterface::Authorize(const char* path, const char* info, eos::common::Mappin
   if (inpath.beginswith("/proc/admin/")) {
     // hosts with 'sss' authentication can run 'admin' commands
     std::string protocol = entity?entity->prot:"";
-    if (protocol == "sss")
+    // we allow sss only with the daemon login is admin
+    if ( (protocol == "sss") && (eos::common::Mapping::HasUid(2, vid.uid_list)) )
       return true;
 
     // root can do it
@@ -1014,6 +1021,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      if (!key.compare(0,6,"space.")) {
 		key.erase(0,6);
 		if ( (key == "nominalsize") ||
+                     (key == "headroom") || 
+                     (key == "scaninterval") ||
+                     (key == "graceperiod") ||
+                     (key == "drainperiod") ||
                      (key == "balancer") || 
                      (key == "balancer.threshold") ) {
 
@@ -1041,6 +1052,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                       if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key,value, true, "/eos/*/mgm")) {
                         retc = EIO;
                         stdErr = "error: cannot set space config value";
+                      } else {
+                        stdOut = "success: setting "; stdOut += key.c_str(); stdOut += "="; stdOut += value.c_str();
                       }
                     } else {
                       retc = EINVAL;
@@ -1172,6 +1185,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  if ((outformat == "l"))
 	    listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
 
+	  if ((outformat == "IO")) {
+	    listformat = FsView::GetFileSystemFormat(std::string("io"));
+            outformat = "io";
+          }
+          
           eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	  FsView::gFsView.PrintGroups(output, format, listformat, selection);
 	  stdOut += output.c_str();
@@ -1317,16 +1335,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         }
 	
 	if (subcmd == "rm") {
-          if (vid_in.uid == 0) {
-            std::string nodename     = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
-            std::string mountpoint   =  opaque.Get("mgm.fs.mountpoint")?opaque.Get("mgm.fs.mountpoint"):"";
-            std::string id           =  opaque.Get("mgm.fs.id")?opaque.Get("mgm.fs.id"):"";
-            eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);  
-            retc = proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, tident, vid_in);
-          } else {
-	    retc = EPERM;
-	    stdErr = "error: you have to take role 'root' to execute this command";
-	  }
+          std::string nodename     = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
+          std::string mountpoint   =  opaque.Get("mgm.fs.mountpoint")?opaque.Get("mgm.fs.mountpoint"):"";
+          std::string id           =  opaque.Get("mgm.fs.id")?opaque.Get("mgm.fs.id"):"";
+          eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);  
+          retc = proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, tident, vid_in);
         }
       }
 
@@ -1405,34 +1418,200 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
 
     if (cmd == "ns") {
+      XrdOucString option = opaque.Get("mgm.option");
+      bool details=false;
+      bool monitoring=false;
+      bool numerical=false;
+      if ((option.find("a")!=STR_NPOS)) 
+        details = true;
+      if ((option.find("m")!=STR_NPOS))
+        monitoring = true;
+      if ((option.find("n")!=STR_NPOS))
+        numerical = true;
+      
+      eos_info("ns stat");
+      unsigned long long f = (unsigned long long)gOFS->eosFileService->getNumFiles();
+      unsigned long long d = (unsigned long long)gOFS->eosDirectoryService->getNumContainers();
+      char files[1024]; sprintf(files,"%llu" ,f);
+      char dirs[1024];  sprintf(dirs,"%llu"  ,d);
+      
+      // stat the size of the changelog files
+      struct stat statf;
+      struct stat statd;
+      memset(&statf, 0, sizeof(struct stat));
+      memset(&statd, 0, sizeof(struct stat));
+      XrdOucString clfsize="";
+      XrdOucString cldsize="";
+      XrdOucString clfratio="";
+      XrdOucString cldratio="";
+
+      // statistic for the changelog files
+      if ( (!::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &statf)) && (!::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &statd)) ) {
+        eos::common::StringConversion::GetReadableSizeString(clfsize,(unsigned long long)statf.st_size,"B");
+        eos::common::StringConversion::GetReadableSizeString(cldsize,(unsigned long long)statd.st_size,"B");
+        eos::common::StringConversion::GetReadableSizeString(clfratio,(unsigned long long) f?(1.0*statf.st_size)/f:0 ,"B");
+        eos::common::StringConversion::GetReadableSizeString(cldratio,(unsigned long long) d?(1.0*statd.st_size)/d:0 ,"B");
+      }
+      
+      if (!monitoring) {
+        stdOut+="# ------------------------------------------------------------------------------------\n";
+        stdOut+="# Namespace Statistic\n";
+        stdOut+="# ------------------------------------------------------------------------------------\n";
+        stdOut+="ALL      Files                            ";stdOut += files; stdOut+="\n";
+        stdOut+="ALL      Directories                      ";stdOut += dirs;  stdOut+="\n";
+        stdOut+="# ....................................................................................\n";
+        stdOut+="ALL      File Changelog Size              ";stdOut += clfsize; stdOut += "\n";
+        stdOut+="ALL      Dir  Changelog Size              ";stdOut += cldsize; stdOut += "\n";
+        stdOut+="# ....................................................................................\n";
+        stdOut+="ALL      avg. File Entry Size             ";stdOut += clfratio; stdOut += "\n";
+        stdOut+="ALL      avg. Dir  Entry Size             ";stdOut += cldratio; stdOut += "\n";
+        stdOut+="# ------------------------------------------------------------------------------------\n";
+      } else {
+        stdOut += "all ns.total.files=";       stdOut += files; stdOut += " ";
+        stdOut += "all ns.total.directories="; stdOut += dirs;  stdOut += "\n";
+        stdOut += "all ns.total.files.changelog.size=";       stdOut += eos::common::StringConversion::GetSizeString(clfsize, (unsigned long long)statf.st_size); stdOut += "\n";
+        stdOut += "all ns.total.directories.changelog.size="; stdOut += eos::common::StringConversion::GetSizeString(cldsize, (unsigned long long)statd.st_size); stdOut += "\n";
+        stdOut += "all ns.total.files.changelog.avg_entry_size=";       stdOut += eos::common::StringConversion::GetSizeString(clfratio, (unsigned long long) f?(1.0*statf.st_size)/f:0); stdOut += "\n";
+        stdOut += "all ns.total.directories.changelog.avg_entry_size="; stdOut += eos::common::StringConversion::GetSizeString(cldratio, (unsigned long long) d?(1.0*statd.st_size)/d:0); stdOut += "\n";
+      }
+
       if (subcmd == "stat") {
-	XrdOucString option = opaque.Get("mgm.option");
-	bool details=false;
-	bool monitoring=false;
-        bool numerical=false;
-	if ((option.find("a")!=STR_NPOS)) 
-	  details = true;
-	if ((option.find("m")!=STR_NPOS))
-	  monitoring = true;
-        if ((option.find("n")!=STR_NPOS))
-          numerical = true;
+        gOFS->MgmStats.PrintOutTotal(stdOut, details, monitoring,numerical);
+      }
 
-	eos_info("ns stat");
-	char files[1024]; sprintf(files,"%llu" ,(unsigned long long)gOFS->eosFileService->getNumFiles());
-	char dirs[1024];  sprintf(dirs,"%llu"  ,(unsigned long long)gOFS->eosDirectoryService->getNumContainers());
+      if (subcmd == "compact") {
+        XrdOucString sizestring="";
 
-	if (!monitoring) {
-	  stdOut+="# ------------------------------------------------------------------------------------\n";
-	  stdOut+="# Namespace Statistic\n";
-	  stdOut+="# ------------------------------------------------------------------------------------\n";
-	  stdOut+="ALL      Files                            ";stdOut += files; stdOut+="\n";
-	  stdOut+="ALL      Directories                      ";stdOut += dirs;  stdOut+="\n";
-	  stdOut+="# ------------------------------------------------------------------------------------\n";
-	} else {
-	  stdOut += "all ns.total.files="; stdOut += files; stdOut += " ";
-	  stdOut += "all ns.total.directories="; stdOut += dirs; stdOut += "\n";
-	}
-	gOFS->MgmStats.PrintOutTotal(stdOut, details, monitoring,numerical);
+        if (vid_in.uid==0) {
+          XrdOucString NewNsFileChangeLogFile = gOFS->MgmNsFileChangeLogFile;
+          XrdOucString NewNsDirChangeLogFile  = gOFS->MgmNsDirChangeLogFile;
+          XrdOucString BackupNsFileChangeLogFile = gOFS->MgmNsFileChangeLogFile;
+          XrdOucString BackupNsDirChangeLogFile  = gOFS->MgmNsDirChangeLogFile;
+
+          BackupNsFileChangeLogFile += ".compact.";
+          BackupNsFileChangeLogFile += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long) time(NULL));
+          BackupNsDirChangeLogFile += ".compact.";
+          BackupNsDirChangeLogFile += sizestring;
+
+          XrdOucString sizestring;
+          NewNsFileChangeLogFile += ".compact";
+          NewNsDirChangeLogFile += ".compact";          
+
+          // remove evt. existing temporary .compact files ...
+          unlink(NewNsFileChangeLogFile.c_str());
+          unlink(NewNsDirChangeLogFile.c_str());
+          
+          stdOut+="# ------------------------------------------------------------------------------------\n";
+          stdOut+="# Compacting directory namespace changelog file ...\n";
+          stdOut+="# ------------------------------------------------------------------------------------\n";
+          // compact the dirs
+          {
+            eos::LogCompactingStats stats;
+            
+            try {
+              eos::LogManager::compactLog(gOFS->MgmNsDirChangeLogFile.c_str(), NewNsDirChangeLogFile.c_str(), stats, 0);
+              eos::DataHelper::copyOwnership( NewNsDirChangeLogFile.c_str(), gOFS->MgmNsDirChangeLogFile.c_str()  );
+              stdOut += "# Records updated         "; stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring,(unsigned long long)stats.recordsUpdated,""); stdOut += "\n";
+              stdOut += "# Records deleted:        "; stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring,(unsigned long long)stats.recordsDeleted,""); stdOut += "\n";
+              stdOut += "# Records total:          "; stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring,(unsigned long long)stats.recordsTotal,"");   stdOut += "\n";
+              stdOut += "# Records kept:           "; stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring,(unsigned long long)stats.recordsKept,"");    stdOut += "\n";
+              stdOut += "# Records written:        "; stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring,(unsigned long long)stats.recordsWritten,""); stdOut += "\n";
+              
+            } catch( eos::MDException &e ) {
+              retc = EFAULT;
+              stdErr += e.what();
+            }
+          }
+
+          stdOut+="# ------------------------------------------------------------------------------------\n";
+          stdOut+="# Compacting file namespace changelog file ...\n";
+          stdOut+="# ------------------------------------------------------------------------------------\n";
+          // compact the files
+          {
+            eos::LogCompactingStats stats;
+            
+            try {
+              eos::LogManager::compactLog(gOFS->MgmNsFileChangeLogFile.c_str(), NewNsFileChangeLogFile.c_str(), stats, 0);
+              eos::DataHelper::copyOwnership( NewNsFileChangeLogFile.c_str(), gOFS->MgmNsFileChangeLogFile.c_str()  );
+              stdOut += "# Records updated         "; stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring,(unsigned long long)stats.recordsUpdated,""); stdOut += "\n";
+              stdOut += "# Records deleted:        "; stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring,(unsigned long long)stats.recordsDeleted,""); stdOut += "\n";
+              stdOut += "# Records total:          "; stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring,(unsigned long long)stats.recordsTotal,"");   stdOut += "\n";
+              stdOut += "# Records kept:           "; stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring,(unsigned long long)stats.recordsKept,"");    stdOut += "\n";
+              stdOut += "# Records written:        "; stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring,(unsigned long long)stats.recordsWritten,""); stdOut += "\n";
+              
+            } catch( eos::MDException &e ) {
+              retc = EFAULT;
+              stdErr += e.what();
+            }
+          }
+
+          bool rerror=false;
+          // now lock the namespace, create bzipped backups files, compact the namespace and reload it
+          if (rename(gOFS->MgmNsFileChangeLogFile.c_str(),BackupNsFileChangeLogFile.c_str())) {
+            eos_crit("failed to rename %s=>%s", gOFS->MgmNsFileChangeLogFile.c_str(),BackupNsFileChangeLogFile.c_str());
+            rerror = true;
+          }
+          
+          if (rename(gOFS->MgmNsDirChangeLogFile.c_str(),BackupNsDirChangeLogFile.c_str())) {
+            eos_crit("failed to rename %s=>%s", gOFS->MgmNsDirChangeLogFile.c_str(),BackupNsDirChangeLogFile.c_str());
+            rerror = true;
+          }
+          
+          if (rename(NewNsFileChangeLogFile.c_str(), gOFS->MgmNsFileChangeLogFile.c_str())) {
+            eos_crit("failed to rename %s=>%s", NewNsFileChangeLogFile.c_str(), gOFS->MgmNsFileChangeLogFile.c_str());
+            rerror = true;
+          }
+          
+          if (rename(NewNsDirChangeLogFile.c_str() , gOFS->MgmNsDirChangeLogFile.c_str())) {
+            eos_crit("failed to rename %s=>%s", NewNsDirChangeLogFile.c_str() , gOFS->MgmNsDirChangeLogFile.c_str());
+            rerror = true;
+          }
+
+          {
+            std::string cmdline1="bzip2 "; cmdline1 += BackupNsFileChangeLogFile.c_str(); cmdline1 += " >& /dev/null &";
+            std::string cmdline2="bzip2 "; cmdline2 += BackupNsDirChangeLogFile.c_str(); cmdline2 += " >& /dev/null &";
+            system(cmdline1.c_str());
+            system(cmdline2.c_str());
+
+            stdOut += "# launched 'bzip2' job to archive "; stdOut += BackupNsFileChangeLogFile.c_str(); stdOut += "\n";
+            stdOut += "# launched 'bzip2' job to archive "; stdOut += BackupNsDirChangeLogFile.c_str();  stdOut += "\n";
+          }
+          
+
+          if (!rerror) {
+            //-------------------------------------------
+            gOFS->eosViewMutex.Lock();
+
+            time_t tstart = time(0);
+            
+            //-------------------------------------------
+            try {
+              gOFS->eosView->finalize();
+              gOFS->eosFsView->finalize();
+              gOFS->eosView->initialize();
+              gOFS->eosFsView->initialize();
+              
+              time_t tstop  = time(0);
+              eos_notice("eos view configure stopped after %d seconds", (tstop-tstart));
+              stdOut += "# eos view configured after "; stdOut += (int) (tstop-tstart); stdOut += " seconds!";
+            } catch ( eos::MDException &e ) {
+              time_t tstop  = time(0);
+              eos_crit("eos view initialization failed after %d seconds", (tstop-tstart));
+              errno = e.getErrno();
+              eos_crit("initialization returnd ec=%d %s\n", e.getErrno(),e.getMessage().str().c_str());
+              stdErr += "error: initialization returnd ec="; stdErr += (int) e.getErrno(); stdErr += " msg='"; stdErr += e.getMessage().str().c_str();stdErr += "'";
+            }
+            
+            gOFS->eosViewMutex.UnLock();                 
+            //-------------------------------------------
+          } else {
+            retc = EFAULT;
+            stdErr = "error: renaming failed - this can be fatal - please check manually!";
+          }
+        } else {
+          retc = EPERM;
+          stdErr = "error: you have to take role 'root' to execute this command";
+        }
       }
     }
 

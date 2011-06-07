@@ -12,13 +12,17 @@ com_ns (char* arg1) {
   XrdOucString options="";
 
   XrdOucString in ="";
-  if ( ( cmd != "stat") ) {
+  if ( ( cmd != "stat")  && ( cmd != "" ) && ( cmd != "compact" ) ) {
     goto com_ns_usage;
   }
   
   in = "mgm.cmd=ns&";
   if (cmd == "stat") {
     in += "mgm.subcmd=stat";
+  }
+
+  if (cmd == "compact") {
+    in += "mgm.subcmd=compact";
   }
 
   do {
@@ -48,9 +52,11 @@ com_ns (char* arg1) {
   return (0);
 
  com_ns_usage:
-  printf("usage: ns stat [-a] [-m] [-n]                                     :  print namespace statistics\n");
+  printf("Usage: ns                                                         :  print basic namespace parameters\n");
+  printf("       ns stat [-a] [-m] [-n]                                     :  print namespace statistics\n");
   printf("                -a                                                   -  break down by uid/gid\n");
   printf("                -m                                                   -  print in <key>=<val> monitoring format\n");
   printf("                -n                                                   -  print numerical uid/gids\n");
+  printf("       ns compact                                                    -  compact the current changelogfile and reload the namespace\n");
   return (0);
 }

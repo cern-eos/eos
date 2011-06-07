@@ -111,7 +111,7 @@ int proc_fs_config(std::string &identifier, std::string &key, std::string &value
       } else {
         // by host:port:data name
         std::string path = identifier;
-        unsigned int slashpos = identifier.find("/");
+        size_t slashpos = identifier.find("/");
         if ( slashpos != std::string::npos) {
           path.erase(0, slashpos);
           identifier.erase(slashpos);
@@ -184,8 +184,17 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
     stdErr+="error: illegal parameters";
     retc = EINVAL;
   } else {
+    // node name comes as /eos/<host>..../, we just need <host> without domain
+    std::string rnodename = nodename;
+    rnodename.erase(0,5);
+    size_t dpos;
+    
+    if ( (dpos = rnodename.find(".")) != std::string::npos) {
+      rnodename.erase(dpos);
+    }
+    
     // rough check that the filesystem is added from a host with the same tident ... anyway we should have configured 'sss' security
-    if ( (vid_in.uid!=0) && ( (vid_in.prot != "sss") || tident.compare(0, tident.length(), nodename, 5, tident.length()) )) {
+    if ( (vid_in.uid!=0) && ( (vid_in.prot != "sss") || tident.compare(0, tident.length(), rnodename, 0, tident.length()) )) {
       stdErr+="error: filesystems can only be added as 'root' or from the server mounting them using sss protocol\n";
       retc = EPERM;
     } else {
@@ -324,6 +333,11 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
                 stdErr+="error: cannot register filesystem - check for path duplication!";
                 retc = EINVAL;
               } 
+              // set all the space related default parameters
+              if (FsView::gFsView.mSpaceView.count(space)) {
+                FsView::gFsView.mSpaceView[space]->ApplySpaceDefaultParameters(fs);
+              }
+
             } else {
               stdErr+="error: cannot allocate filesystem object";
               retc = ENOMEM;
@@ -432,6 +446,9 @@ proc_fs_target(std::string target_group)
     }
   }
 
+  if (!mingroups.size())
+    return target_group;
+
   int randomgroup = ((1.0 * random())/ RAND_MAX) * mingroups.size();
   return mingroups[randomgroup];
 }
@@ -512,8 +529,7 @@ int proc_fs_mv(std::string &sfsid, std::string &space, XrdOucString &stdOut, Xrd
     space = proc_fs_target(space);
     
     // now we look for a fitting source filesystem
-    fs = proc_fs_source(sfsid,space);
-
+    fs = proc_fs_source(sfsid,space);   
   } else {
     // get this filesystem
     if (FsView::gFsView.mIdView.count(fsid)) {
@@ -535,6 +551,18 @@ int proc_fs_mv(std::string &sfsid, std::string &space, XrdOucString &stdOut, Xrd
       stdErr = "error: filesystem is already in space="; stdErr += snapshot.mSpace.c_str();
       retc = EINVAL;
     } else {
+      std::string rspace = space;
+      size_t dpos=0;
+      // before 'space' is a group, so we remove the group specific part
+      if ( (dpos = rspace.find(".")) != std::string::npos) {
+        rspace.erase(dpos);
+      }
+
+      // set all the space related default parameters
+      if (FsView::gFsView.mSpaceView.count(rspace)) {
+        FsView::gFsView.mSpaceView[space]->ApplySpaceDefaultParameters(fs);
+      }
+      
       if (FsView::gFsView.MoveGroup(fs, space)) {
         retc = 0;
         stdOut = "success: moved filesystem "; stdOut += sfsid.c_str(); stdOut += " into space "; stdOut += space.c_str();

@@ -39,8 +39,10 @@ fi
 if [ -n "${EOS_MGM_MASTER1} && -n "${EOS_MGM_MASTER2} ]; then
     export MASTER0_0=root://${EOS_MGM_MASTER1}//var/eos/md/files.${EOS_MGM_MASTER1}.mdlog
     export MASTER0_1=root://${EOS_MGM_MASTER1}//var/eos/md/directories.${EOS_MGM_MASTER1}.mdlog
+    export MASTER0_2=root://${EOS_MGM_MASTER1}//var/eos/md/iostat.${EOS_MGM_MASTER1}.dump
     export MASTER1_0=root://${EOS_MGM_MASTER2}//var/eos/md/files.${EOS_MGM_MASTER2}.mdlog
     export MASTER1_1=root://${EOS_MGM_MASTER2}//var/eos/md/directories.${EOS_MGM_MASTER2}.mdlog
+    export MASTER1_2=root://${EOS_MGM_MASTER2}//var/eos/md/iostat.${EOS_MGM_MASTER2}.dump
     export MASTER0_conf=root://${EOS_MGM_MASTER1}//var/eos/config/${EOS_MGM_MASTER1}/
     export MASTER1_conf=root://${EOS_MGM_MASTER2}//var/eos/config/${EOS_MGM_MASTER2}/
     export TARGET0=${EOS_MGM_MASTER1}:1096

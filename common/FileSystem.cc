@@ -305,6 +305,11 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs, bool dolock) {
     fs.mDiskWopen       = (long) mHash->GetLongLong("stat.wopen");
     fs.mWeightRead      = 1.0;
     fs.mWeightWrite     = 1.0;
+
+    fs.mScanInterval    = (time_t) mHash->GetLongLong("scaninterval");
+    fs.mGracePeriod     = (time_t) mHash->GetLongLong("graceperiod");
+    fs.mDrainPeriod     = (time_t) mHash->GetLongLong("drainperiod");
+
     if (dolock) {
       mSom->HashMutex.UnLockRead();
     }

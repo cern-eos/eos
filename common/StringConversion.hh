@@ -137,6 +137,15 @@ public:
   
   /*----------------------------------------------------------------------------*/
   static const char*
+  GetSizeString(std::string& sizestring, unsigned long long insize) {
+    char buffer[1024];
+    sprintf(buffer,"%llu", insize);
+    sizestring = buffer;
+    return sizestring.c_str();
+  }
+
+  /*----------------------------------------------------------------------------*/
+  static const char*
   GetSizeString(XrdOucString& sizestring, unsigned long long insize) {
     char buffer[1024];
     sprintf(buffer,"%llu", insize);

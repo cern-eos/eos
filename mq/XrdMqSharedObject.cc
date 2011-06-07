@@ -551,8 +551,8 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
 	    sstr = val.substr(keystart[i]+1);
 	  
 	  key = sstr;
-          message->Print();
-	  fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Deleting [%s] %s\n", subject.c_str(),key.c_str());
+          //          message->Print();
+          //	  fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Deleting [%s] %s\n", subject.c_str(),key.c_str());
 	  sh->Delete(key.c_str(), false);
 	  
 	}

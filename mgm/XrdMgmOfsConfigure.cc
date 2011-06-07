@@ -563,7 +563,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
   std::map<std::string, std::string> settings;
-  std::map<std::string, std::string> fileFsSettings;
 
   contSettings["changelog_path"] = MgmMetaLogDir.c_str();
   fileSettings["changelog_path"] = MgmMetaLogDir.c_str();
@@ -573,6 +572,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   fileSettings["changelog_path"] += HostName;
   contSettings["changelog_path"] += ".mdlog";
   fileSettings["changelog_path"] += ".mdlog";
+
+  MgmNsFileChangeLogFile = fileSettings["changelog_path"].c_str();
+  MgmNsDirChangeLogFile  = contSettings["changelog_path"].c_str();
 
   time_t tstart = time(0);
   

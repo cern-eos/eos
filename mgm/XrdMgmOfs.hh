@@ -464,7 +464,8 @@ virtual bool           Init(XrdSysError &);
         XrdOucString     MgmOfsInstanceName; // -> name of the EOS instance
         XrdOucString     MgmConfigDir;       // Directory where config files are stored
         XrdOucString     AuthLib;            // -> path to a possible authorizationn library
-
+        XrdOucString     MgmNsFileChangeLogFile; // -> path to namespace changelog file for files
+        XrdOucString     MgmNsDirChangeLogFile;  // -> path to namespace changelog file for directories
         XrdOucString     MgmConfigQueue;     // -> name of the mgm-wide broadcasted shared hash 
         XrdOucString     AllConfigQueue;     // -> name of the cluster-wide broadcasted shared hash
         XrdOucString     FstConfigQueue;     // -> name of the fst-wide broadcasted shared hash

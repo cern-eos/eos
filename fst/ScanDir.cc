@@ -146,7 +146,7 @@ void ScanDir::CheckFile(const char* filepath)
 	  fprintf(stderr, "error: [CheckFile] Can not set extended attrbutes to file. \n");
         }
       } else {
-        noNoCheckumFiles++;
+        noNoChecksumFiles++;
       }
     }
     delete attr;
@@ -264,7 +264,7 @@ void* ScanDir::ThreadProc(void)
     noScanFiles = 0;
     totalScanSize = 0;
     noCorruptFiles = 0;
-    noNoCheckumFiles = 0;
+    noNoChecksumFiles = 0;
     noTotalFiles = 0;
     
     if (bgThread) {
@@ -281,9 +281,9 @@ void* ScanDir::ThreadProc(void)
     
     durationScan = ((tv_end.tv_sec - tv_start.tv_sec) * 1000.0) + ((tv_end.tv_usec - tv_start.tv_usec) / 1000.0);
     if (bgThread) {
-      syslog(LOG_ERR,"Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB] scannedfiles=%li  corruptedfiles=%li skippedfiles=%li\n", dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles,noNoCheckumFiles);
+      syslog(LOG_ERR,"Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li skippedfiles=%li\n", dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles,noNoChecksumFiles);
     } else {
-      fprintf(stderr,"[ScanDir] Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB] scannedfiles=%li  corruptedfiles=%li skippedfiles=%li\n", dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles,noNoCheckumFiles);
+      fprintf(stderr,"[ScanDir] Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li skippedfiles=%li\n", dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles,noNoChecksumFiles);
     }
 
     if (!bgThread)

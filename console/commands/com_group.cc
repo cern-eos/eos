@@ -40,6 +40,10 @@ com_group (char* arg1) {
 	if (option == "--io") {
 	  in += "&mgm.outformat=io";
 	  ok=true;
+        }	
+	if (option == "--IO") {
+	  in += "&mgm.outformat=IO";
+	  ok=true;
 	}
 	if (option == "-s") {
 	  silent=true;
@@ -115,7 +119,8 @@ com_group (char* arg1) {
   printf("                                                                  -s : silent mode\n");
   printf("                                                                  -m : monitoring key=value output format\n");
   printf("                                                                  -l : long output - list also file systems after each group\n");
-  printf("                                                                --io : print IO statistics\n");
+  printf("                                                                --io : print IO statistics for the group\n");
+  printf("                                                                --IO : print IO statistics for each filesystem\n");
   printf("       group rm <group-name>                                         : remove group\n");
   printf("       group set <group-name> on|off                                 : activate/deactivate group\n");
   return (0);

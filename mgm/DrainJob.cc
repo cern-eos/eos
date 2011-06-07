@@ -92,8 +92,8 @@ DrainJob::Drain(void)
     drainendtime = drainstart + drainperiod;
   }
 
-  // now we wait 1 second ...
-  for (int k=0; k< 10; k++) {
+  // now we wait 10 seconds ...
+  for (int k=0; k< 100; k++) {
     usleep(100000);
     XrdSysThread::CancelPoint();
   }
@@ -202,7 +202,6 @@ DrainJob::Drain(void)
 
   // set status to 'draining'
   {
-    // set status to 'prepare'
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     fs = FsView::gFsView.mIdView[fsid];
     if (!fs) {
@@ -402,6 +401,10 @@ DrainJob::Drain(void)
                         bool sub = queue->Add(txjob);
                         eos_static_info("Submitted %d %s\n", sub, fullcapability.c_str());
                         delete txjob;
+                        if (source_capabilityenv)
+                          delete source_capabilityenv;
+                        if (target_capabilityenv)
+                          delete target_capabilityenv;
                       }
                       last_scheduled = time(NULL);
                     }
