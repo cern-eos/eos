@@ -53,8 +53,10 @@ my $mountprefix;
 
 if ( $mgmurl =~/^\// ) {
     my $redirector=`test -r /etc/sysconfig/eos && . /etc/sysconfig/eos && echo \$EOS_MGM_URL`;
+    chomp $redirector;
     if ($redirector eq "") {
         $redirector=`test -r /etc/quattor_install_info && . /etc/quattor_install_info && echo \$CDB_CLUSTER`;
+        chomp $redirector;
         if ($redirector ne "") {
             $redirector = "root://" . $redirector;
         } else {

@@ -1415,6 +1415,118 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
       }
       //      stdOut+="\n==== fs done ====";
+      
+      if (subcmd == "status") {
+	if ((vid_in.uid == 0) || (vid_in.prot=="sss")) {
+	  std::string fsids = (opaque.Get("mgm.fs.id"))?opaque.Get("mgm.fs.id"):"";
+
+	  eos::common::FileSystem::fsid_t fsid = atoi(fsids.c_str());
+          if (fsid) {
+            eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+            if (FsView::gFsView.mIdView.count(fsid)) {
+              FileSystem* fs = FsView::gFsView.mIdView[fsid];
+              if (fs) {
+                stdOut += "# ------------------------------------------------------------------------------------\n";
+                stdOut += "# FileSystem Variables\n";
+                stdOut += "# ....................................................................................\n";
+                std::vector<std::string> keylist;
+                fs->GetKeys(keylist);
+                std::sort(keylist.begin(), keylist.end());
+                for (size_t i=0; i< keylist.size(); i++) {
+                  char line[1024];
+                  snprintf(line,sizeof(line)-1,"%-32s := %s\n",keylist[i].c_str(),fs->GetString(keylist[i].c_str()).c_str());
+                  stdOut += line;
+                }
+
+                stdOut += "# ....................................................................................\n";
+                stdOut += "# Risk Analysis\n";
+                stdOut += "# ....................................................................................\n";
+                
+                // get some statistics about the filesystem
+                //-------------------------------------------
+                unsigned long long nfids = 0;
+                unsigned long long nfids_healthy =0;
+                unsigned long long nfids_risky   =0;
+                unsigned long long nfids_inaccessible =0;
+
+                gOFS->eosViewMutex.Lock();
+                try {
+                  eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+                  nfids = (unsigned long long) filelist.size();
+                  eos::FileSystemView::FileIterator it;
+                  for (it = filelist.begin(); it != filelist.end(); ++it) {
+                    eos::FileMD* fmd=0;
+                    fmd = gOFS->eosFileService->getFileMD(*it);
+                    if (fmd) {
+                      eos::FileMD::LocationVector::const_iterator lociter;
+                      size_t nloc = fmd->getNumLocation();
+                      size_t nloc_ok = 0;
+                      for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+                        if (*lociter) {
+                          if (FsView::gFsView.mIdView.count(*lociter)) {
+                            FileSystem* repfs = FsView::gFsView.mIdView[*lociter];
+                            eos::common::FileSystem::fs_snapshot_t snapshot;
+                            repfs->SnapShotFileSystem(snapshot,false);
+                            if ( (snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
+                                 (snapshot.mConfigStatus == eos::common::FileSystem::kRW) && 
+                                 (snapshot.mErrCode      == 0 ) && // this we probably don't need 
+                                 (fs->GetActiveStatus(snapshot))) {
+                              nloc_ok++;
+                            }
+                          }
+                        }
+                      }
+                      if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica) {
+                        if (nloc_ok == nloc) {
+                          nfids_healthy++;
+                        } else {
+                          if (nloc_ok == 0) {
+                            nfids_inaccessible++;
+                          } else {
+                            if (nloc_ok < nloc) {
+                              nfids_risky++;
+                            }
+                          }
+                        }
+                      }
+                      if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kPlain) {
+                        if (nloc_ok != nloc) {
+                          nfids_inaccessible++;
+                        }
+                      }
+                    }
+                  }
+
+                  XrdOucString sizestring;
+                  char line[1024];
+                  snprintf(line,sizeof(line)-1,"%-32s := %10s (%.02f%%)\n","number of files", eos::common::StringConversion::GetSizeString(sizestring, nfids), 100.0);
+                  stdOut += line;
+                  snprintf(line,sizeof(line)-1,"%-32s := %10s (%.02f%%)\n","files healthy", eos::common::StringConversion::GetSizeString(sizestring, nfids_healthy), nfids?(100.0*nfids_healthy)/nfids:100.0);
+                  stdOut += line;
+                  snprintf(line,sizeof(line)-1,"%-32s := %10s (%.02f%%)\n","files at risk", eos::common::StringConversion::GetSizeString(sizestring, nfids_risky), nfids?(100.0*nfids_risky)/nfids:100.0);
+                  stdOut += line;
+                  snprintf(line,sizeof(line)-1,"%-32s := %10s (%.02f%%)\n","files inaccessbile", eos::common::StringConversion::GetSizeString(sizestring, nfids_inaccessible), nfids?(100.0*nfids_inaccessible)/nfids:100.0);
+                  stdOut += line;
+
+                  stdOut += "# ------------------------------------------------------------------------------------\n";
+                } catch ( eos::MDException &e ) {
+                  errno = e.getErrno();
+                  eos_static_err("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+                }
+                gOFS->eosViewMutex.UnLock();
+                //-------------------------------------------
+                retc=0;
+              }
+            } else {
+              stdErr="error: cannot find filesystem - no filesystem with fsid="; stdErr += fsids.c_str(); 
+              retc = ENOENT;
+            }
+          }
+        } else {
+          retc = EPERM;
+          stdErr = "error: you have to take role 'root' to execute this command or connect via sss";
+        }
+      }
     }
 
     if (cmd == "ns") {

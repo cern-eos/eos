@@ -236,6 +236,16 @@ public:
   //! Getter Functions throwing exceptions
   //------------------------------------------------------------------------  
 
+  bool GetKeys(std::vector<std::string> &keys) {
+    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
+      mHash->GetKeys(keys);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   std::string GetString(const char* key) {
     std::string skey=key;
     if (skey == "<n>") {

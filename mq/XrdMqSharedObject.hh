@@ -144,6 +144,15 @@ public:
     Store.clear();
   }
 
+  void GetKeys(std::vector<std::string> &keys) {
+    XrdMqRWMutexWriteLock lock(StoreMutex);
+    std::map<std::string, XrdMqSharedHashEntry>::iterator storeit;
+    for (storeit = Store.begin(); storeit != Store.end(); storeit++) {
+      keys.push_back(storeit->first);
+    }
+    return;
+  }
+
   std::string StoreAsString(const char* notprefix=""); // serializes like 'key1=val1 key2=val2 ... keyn=keyn' and return's it if key does not start with <notprefix>
 
   bool OpenTransaction() {TransactionMutex.Lock(); Transactions.clear();IsTransaction= true; return true;}

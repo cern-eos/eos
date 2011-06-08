@@ -250,6 +250,26 @@ com_fs (char* arg1) {
     return (0);
   }
 
+  if ( subcommand == "status" ) {
+    XrdOucString arg = subtokenizer.GetToken();
+    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=status";
+    if (!arg.length()) 
+      goto com_fs_usage;
+    int fsid = atoi(arg.c_str());
+    char r1fsid[128]; sprintf(r1fsid,"%d", fsid);
+    char r2fsid[128]; sprintf(r2fsid,"%04d", fsid);
+    if ( (arg == r1fsid) || (arg == r2fsid) ) {
+      // boot by fsid
+      in += "&mgm.fs.id=";
+    } else {
+      goto com_fs_usage;
+    }
+
+    in += arg;
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+
   if ( subcommand == "clone" ) {
     XrdOucString sourceid;
     sourceid = subtokenizer.GetToken();    
@@ -575,11 +595,13 @@ com_fs (char* arg1) {
   printf("\n");
   printf("       fs rm    <fs-name>|<fs-id>                               : remove filesystem configuration by name or id\n");
   printf("       fs boot  <fs-id>|<node-queue>                            : boot filesystem/node ['fs boot *' to boot all]  \n");
-  printf("                    -sched <group>                              : allows to change the scheduling group\n");
   printf("       fs clone <fs-id-src> <fs-id-dst>                         : allows to clone the contents of <fs-id-src> to <fs-id-dst>\n");
   printf("       fs compare <fs-id-src> <fs-id-dst>|<space>               : does a comparison of <fs-id-src> with <fs-id-dst>|<space>\n");
   printf("       fs dropfiles <fs-id> [-f]                                : allows to drop all files on <fs-id> - force (-f) unlinks/removes files at the time from the NS (you have to cleanup or remove the files from disk) \n");
   printf("       fs dumpmd [-s] <fs-id> [-fid] [-path]                    : dump all file meta data on this filesystem in query format\n");
+  printf("\n");
+  printf("       fs status <fs-id>                                        : returns all status variables of a filesystem and calculates the risk of data loss if this filesystem get's removed\n");
+
   printf("                                                                  -s    : don't printout keep an internal reference\n");
   printf("                                                                  -fid  : dump only a list of file id's stored on this filesystem\n");
   printf("                                                                  -path : dump only a list of file names stored on this filesystem\n");
