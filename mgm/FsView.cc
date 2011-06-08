@@ -258,7 +258,9 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
         group->erase(snapshot1.mId);
         eos_debug("unregister group %s from group view", group->GetMember("name").c_str());
         if (!group->size()) {
-          mSpaceGroupView[snapshot1.mSpace].erase(mGroupView[snapshot1.mGroup]);
+          if (mSpaceGroupView.count(snapshot1.mSpace)) {
+            mSpaceGroupView[snapshot1.mSpace].erase(mGroupView[snapshot1.mGroup]);
+          }
           mGroupView.erase(snapshot1.mGroup);
           delete group;
         }
@@ -275,7 +277,6 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
         group->mIndex = snapshot.mGroupIndex;
         eos_debug("creating/inserting into group view %s<=>%u",snapshot.mGroup.c_str(), snapshot.mId,fs);
       }
-      
       
       mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
       
@@ -561,8 +562,17 @@ FsView::UnRegisterGroup(const char* groupname)
       }
     }
     if (!hasfs) {
+      std::string sgroupname = groupname;
+      std::string spacename="";
+      std::string index="";
+
+      // remove the direct group reference here
+      if (mSpaceGroupView.count(spacename)) {
+        mSpaceGroupView[spacename].erase(mGroupView[groupname]);
+      }
       // we have to explicitly remove the group from the view here because no fs was removed
       retc = (mGroupView.erase(groupname)?true:false);
+      eos::common::StringConversion::SplitByPoint(groupname, spacename, index);
     }
   }
 
