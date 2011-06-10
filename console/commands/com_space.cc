@@ -116,6 +116,18 @@ com_space (char* arg1) {
     in += spacename;
     ok = true;
   }
+
+
+  if ( subcommand == "status" ) {
+    in ="mgm.cmd=space&mgm.subcmd=status";
+    XrdOucString spacename = subtokenizer.GetToken();
+
+    if (!spacename.length())
+      printusage=true;
+    in += "&mgm.space=";
+    in += spacename;
+    ok = true;
+  }
   
   if ( subcommand == "quota" ) {
     in ="mgm.cmd=space&mgm.subcmd=quota";
@@ -201,6 +213,7 @@ com_space (char* arg1) {
   printf("                                                                       => <groupsize>=0 means, that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n");
   printf("                                                                       => <groupmod> defines the maximun number of filesystems per node\n");
   printf("\n");
+  printf("       space status <space-name>                                     : print's all defined variables for space\n");
   printf("       space set <space-name> on|off                                 : enables/disabels all groups under that space ( not the nodes !) \n");
   printf("       space rm <space-name>                                         : remove space\n");
   printf("\n");

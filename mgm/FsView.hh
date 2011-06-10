@@ -58,6 +58,7 @@ public:
   virtual std::string GetMember(std::string member);
   virtual bool SetConfigMember(std::string key, string value, bool create=false, std::string broadcastqueue="", bool isstatus=false);
   virtual std::string GetConfigMember(std::string key);
+  bool GetConfigKeys(std::vector<std::string> &keys);
 
   void SetHeartBeat(time_t hb)       { mHeartBeat = hb;       }
   void SetStatus(const char* status) { mStatus = status;      }

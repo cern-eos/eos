@@ -568,49 +568,101 @@ com_fs (char* arg1) {
 
  com_fs_usage:
 
-  printf("usage: fs ls  [-m] [-l] [-e] [--io] [-d|--drain] -s                  : list configured filesystems (or by name or id match\n");
-  printf("                                                                  -m : display monitoring format <key>=<value>\n");
-  printf("                                                                  -l : display long format\n");
-  printf("                                                                  -e : display format with error information for filesystems in error state\n");
-  printf("                                                                --io : display IO statistics\n");
-  printf("                                                          -d|--drain : display drain progress and statistics\n");
 
-  printf("       fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host:port> <mountpoint> [<schedgroup>] [<status]\n");
-  printf("                                                                : add a filesystem and dynamically assign a filesystem id based on the unique identifier for the disk <uuid>\n");
-  printf("                                             --manual -m <fsid> : user specified <fsid> and <schedgroup> - no automatic assignment\n");
-  printf("       fs mv <fsid> <schedgroup>                                : move a filesystem into a different scheduling group\n");
+  printf("'[eos] fs ..' provides the filesystem interface of EOS.\n");
+  printf("Usage: fs add|boot|config|dropfiles|dumpmd|mv|ls|rm|status [OPTIONS]\n");
+  printf("Options:\n");
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+  printf("fs ls [-m] [-l] [-e] [--io] [-d|--drain] [-s]\n");
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+  printf("                                                : list all filesystems in default output format\n");
+  printf("........................................................................\n");
+  printf("            -m                                  : list all filesystem parameters in monitoring format\n");
+  printf("            -l                                  : display all filesystem parameters in long format\n");
+  printf("            -e                                  : display all filesystems in error state\n");
+  printf("            --io                                : display all filesystems in IO output format\n");
+  printf("            -d,--drain                          : display all filesystems in drain or draindead status with drain progress and statistics\n");
 
-  printf("       fs config <host>:<port><path>|<fsid>|<uuid> <key>=<value>: configure filesystem parameter for a single filesystem identified by host:port/path, filesystem id or filesystem UUID.\n");
-  printf("         => fs config <fsid> configstatus=rw|wo|ro|drain|off\n");
-  printf("                    <status> can be := rw                       : filesystem is in read write mode\n");
-  printf("                                    := wo                       : filesystem is in write-once mode\n");
-  printf("                                    := ro                       : filesystem is in read-only mode\n");
-  printf("                                    := drain                    : filesystem is in drain mode\n");
-  printf("                                    := off                      : filesystem is disabled\n"); 
-  printf("         => fs config <fsid> headroom=<size>\n");
-  printf("                    <size> can be   := (>0)[BMGT]               : the headroom to keep per filesystem (e.g. you can write '1G' for 1 GB)\n");
-  printf("         => fs config <fsid> scaninterval=<seconds>\n           : configures a scanner thread on each FST to recheck the file & block checksums of all stored files every <seconds> seconds. 0 disables the scanning.\n");
-  printf("         => fs config <fsid> graceperiod=<seconds>\n            : grace period before a filesystem with an operation error get's automatically drained\n");
-  printf("         => fs config <fsid> drainperiod=<seconds>\n            : drain period a drain job is waiting to finish the drain procedure\n");
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+  printf("fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host>[:<port>] <mountpoint> [<schedgroup>] [<status] :\n");
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+  printf("                                                : add a filesystem and dynamically assign a filesystem id based on the unique identifier for the disk <uuid>\n");
+  printf("........................................................................\n");
+  printf("            -m,--manual <fsid>                  : add with user specified <fsid> and <schedgroup> - no automatic assignment\n");
+  printf("            <fsid>                              : numeric filesystem id 1..65535\n");
+  printf("            <uuid>                              : arbitrary string unique to this particular filesystem\n");
+  printf("            <node-queue>                        : internal EOS identifier for a node,port,mountpoint description ... /eos/<host>:<port>/fst e.g. /eos/myhost.cern.ch:1095/fst [you should prefer the host:port syntax]\n");
+  printf("            <host>                              : fully qualified hostname where the filesystem is mounted\n");
+  printf("            <port>                              : port where xrootd is running on the FST [normally 1095]\n");
+  printf("            <mountpoint>                        : local path of the mounted filesystem e.g. /data\n");
+  printf("            <schedgroup>                        : scheduling group where the filesystem should be inserted ... default is 'default'\n");
+  printf("            <status>                            : file system status after the insert ... default is 'off', in most cases should be 'rw'\n");
+
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+  printf("fs mv <src-fsid|src-space> <dst-schedgroup|dst-space>\n");
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+  printf("                                                : move a filesystem into a different scheduling group\n");
+  printf("........................................................................\n");
+  printf("            <src-fsid>                          : source filesystem id\n");
+  printf("            <src-space>                         : source space\n");
+  printf("            <dst-schedgroup>                    : destination scheduling group\n");
+  printf("            <dst-space>                         : destination space\n");
+  printf("If the source is a <space> a filesystem will be chosen to fit into the destionation group or space.\n");
+  printf("If the target is a <space> : a scheduling group is auto-selected where the filesystem can be placed.\n\n");
+
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+
+  printf("fs config <host>:<port><path>|<fsid>|<uuid> <key>=<value>\n");
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+  printf("                                                 : configure filesystem parameter for a single filesystem identified by host:port/path, filesystem id or filesystem UUID.\n");
+  printf("........................................................................\n");
+
+  printf("         fs config <fsid> configstatus=rw|wo|ro|drain|off\n");
+  printf("                    <status> can be \n");
+  printf("                                    rw          : filesystem set in read write mode\n");
+  printf("                                    wo          : filesystem set in write-once mode\n");
+  printf("                                    ro          : filesystem set in read-only mode\n");
+  printf("                                    drain       : filesystem set in drain mode\n");
+  printf("                                    off         : filesystem set disabled\n"); 
+  printf("         fs config <fsid> headroom=<size>\n");
+  printf("                    <size> can be (>0)[BMGT]    : the headroom to keep per filesystem (e.g. you can write '1G' for 1 GB)\n");
+  printf("         fs config <fsid> scaninterval=<seconds>: configures a scanner thread on each FST to recheck the file & block checksums of all stored files every <seconds> seconds. 0 disables the scanning.\n");
+  printf("         fs config <fsid> graceperiod=<seconds> : grace period before a filesystem with an operation error get's automatically drained\n");
+  printf("         fs config <fsid> drainperiod=<seconds> : drain period a drain job is waiting to finish the drain procedure\n");
   printf("\n");
-  printf("       fs rm    <fs-name>|<fs-id>                               : remove filesystem configuration by name or id\n");
-  printf("       fs boot  <fs-id>|<node-queue>                            : boot filesystem/node ['fs boot *' to boot all]  \n");
-  printf("       fs clone <fs-id-src> <fs-id-dst>                         : allows to clone the contents of <fs-id-src> to <fs-id-dst>\n");
-  printf("       fs compare <fs-id-src> <fs-id-dst>|<space>               : does a comparison of <fs-id-src> with <fs-id-dst>|<space>\n");
-  printf("       fs dropfiles <fs-id> [-f]                                : allows to drop all files on <fs-id> - force (-f) unlinks/removes files at the time from the NS (you have to cleanup or remove the files from disk) \n");
-  printf("       fs dumpmd [-s] <fs-id> [-fid] [-path]                    : dump all file meta data on this filesystem in query format\n");
-  printf("\n");
-  printf("       fs status <fs-id>                                        : returns all status variables of a filesystem and calculates the risk of data loss if this filesystem get's removed\n");
-
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+  printf("       fs rm    <fs-id>|<node-queue> \n");
+  printf("........................................................................\n");
+  printf("                                                : remove filesystem configuration by name or id\n");
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+  printf("       fs boot  <fs-id>|<node-queue>\n");
+  printf("........................................................................\n");
+  printf("                                                : boot filesystem/node ['fs boot *' to boot all]  \n");
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+  printf("       fs dropfiles <fs-id> [-f]\n");
+  printf("........................................................................\n");
+  printf("                                                : allows to drop all files on <fs-id> - force (-f) unlinks/removes files at the time from the NS (you have to cleanup or remove the files from disk) \n");
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+  printf("       fs dumpmd [-s] <fs-id> [-fid] [-path]\n");
+  printf("........................................................................\n");
+  printf("                                                : dump all file meta data on this filesystem in query format\n");
   printf("                                                                  -s    : don't printout keep an internal reference\n");
   printf("                                                                  -fid  : dump only a list of file id's stored on this filesystem\n");
   printf("                                                                  -path : dump only a list of file names stored on this filesystem\n");
-  printf("       fs verify <fs-name>|<fs-id> [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>]\n");
-  printf("                                                                : schedule asynchronous verification [with checksumming] on a filesystem\n");
-  printf("                                                      -checksum : trigger the checksum calculation during the verification process\n");
-  printf("                                                -commitchecksum : commit the computed checksum to the MGM\n");
-  printf("                                                -commitsize     : commit the file size to the MGM\n");
-  printf("                                                -rate <rate>    : restrict the verification speed to <rate> per node\n");
 
+
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+  printf("\n");
+  printf("       fs status <fs-id>\n");
+  printf("........................................................................\n");
+  printf("                                                : returns all status variables of a filesystem and calculates the risk of data loss if this filesystem get's removed\n");
+  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n\n");
+  printf("Examples:\n");
+  printf("  fs ls --io             List all filesystems with IO statistics\n\n");
+  printf("  fs boot *              Send boot request to all filesystems\n");
+  printf("  fs dumpmd 100 -path    Dump all logical path names on filesystem 100\n\n");
+  printf("  fs mv spare default    Move one filesystem from the sapre space into the default space. If default has subgroups the smallest subgroup is selected.\n\n");
+  printf("  fs mv 100 default.0    Move filesystem 100 into scheduling group default.0\n\n");
+  printf("Report bugs to eos-dev@cern.ch.\n");
   return (0);
 }

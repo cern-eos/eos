@@ -874,6 +874,19 @@ BaseView::GetConfigMember(std::string key)
 }
 
 /*----------------------------------------------------------------------------*/
+bool 
+BaseView::GetConfigKeys(std::vector<std::string> &keys) {
+  XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
+  if (hash) {
+    hash->GetKeys(keys);
+    return true;
+  }
+  return false;
+}
+
+/*----------------------------------------------------------------------------*/
 eos::common::FileSystem::fsid_t 
 FsView::CreateMapping(std::string fsuuid)
 {

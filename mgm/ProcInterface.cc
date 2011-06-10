@@ -914,6 +914,35 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
       }
       
+      if (subcmd == "status") {
+        std::string space = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      
+        if (FsView::gFsView.mSpaceView.count(space)) {
+          stdOut += "# ------------------------------------------------------------------------------------\n";
+          stdOut += "# Space Variables\n";
+          stdOut += "# ....................................................................................\n";
+          std::vector<std::string> keylist;
+          FsView::gFsView.mSpaceView[space]->GetConfigKeys(keylist);
+          std::sort(keylist.begin(), keylist.end());
+          for (size_t i=0; i< keylist.size(); i++) {
+            char line[1024];
+            if ( (keylist[i] == "balancer.threshold") ||
+                 (keylist[i] == "nominalsize") ) {
+              XrdOucString sizestring;
+              // size printout
+              snprintf(line,sizeof(line)-1,"%-32s := %s\n",keylist[i].c_str(),eos::common::StringConversion::GetReadableSizeString(sizestring,strtoull(FsView::gFsView.mSpaceView[space]->GetConfigMember(keylist[i].c_str()).c_str(),0,10),"B"));
+            } else {
+              snprintf(line,sizeof(line)-1,"%-32s := %s\n",keylist[i].c_str(),FsView::gFsView.mSpaceView[space]->GetConfigMember(keylist[i].c_str()).c_str());
+            }
+            stdOut += line;
+          }
+        } else {
+          stdErr="error: cannot find space - no space with name="; stdErr += space.c_str();
+          retc = ENOENT;
+        }
+      }
+
       if (subcmd == "set") {
 	std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
 	std::string status    = (opaque.Get("mgm.space.state"))?opaque.Get("mgm.space.state"):"";
