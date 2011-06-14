@@ -2272,8 +2272,8 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     buf->st_gid     = fmd->getCGid();
     buf->st_rdev    = 0;     /* device type (if inode device) */
     buf->st_size    = fmd->getSize();
-    buf->st_blksize = 4096;
-    buf->st_blocks  = fmd->getSize() / 4096;
+    buf->st_blksize = 512;
+    buf->st_blocks  = fmd->getSize() / 512;
     eos::FileMD::ctime_t atime;
     fmd->getCTime(atime);
     buf->st_ctime   = atime.tv_sec;

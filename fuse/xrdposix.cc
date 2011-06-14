@@ -827,22 +827,22 @@ int xrd_inodirlist(unsigned long long dirinode, const char *path)
 
   int doinodirlist=-1;
   int retc;
-  OpenMutex.Lock();
+  //  OpenMutex.Lock();
   xrd_sync_env();
   XrdClient* listclient = new XrdClient(request.c_str());
   
   if (!listclient) {
-    OpenMutex.UnLock();
+    //    OpenMutex.UnLock();
     return EFAULT;
   }
 
   if (!listclient->Open(0,0,true)) {
-    OpenMutex.UnLock();
+    //    OpenMutex.UnLock();
     delete listclient;
     return ENOENT;
   }
 
-  OpenMutex.UnLock();
+  //  OpenMutex.UnLock();
 
   // start to read
   value = (char*) malloc(PAGESIZE+1);
@@ -972,30 +972,30 @@ int xrd_open(const char *path, int oflags, mode_t mode)
     if (spath.endswith("/proc/whoami")) {
       spath.replace("/proc/whoami","/proc/user/");
       spath += "?mgm.cmd=whoami&mgm.format=fuse";
-      OpenMutex.Lock();
+      //      OpenMutex.Lock();
       xrd_sync_env();
       int retc = XrdPosixXrootd::Open(spath.c_str(), oflags, mode);
-      OpenMutex.UnLock();
+      //      OpenMutex.UnLock();
       return retc;
     }
 
     if (spath.endswith("/proc/who")) {
       spath.replace("/proc/who","/proc/user/");
       spath += "?mgm.cmd=who&mgm.format=fuse";
-      OpenMutex.Lock();
+      //      OpenMutex.Lock();
       xrd_sync_env();
       int retc = XrdPosixXrootd::Open(spath.c_str(), oflags, mode);
-      OpenMutex.UnLock();
+      //      OpenMutex.UnLock();
       return retc;
     }
 
     if (spath.endswith("/proc/quota")) {
       spath.replace("/proc/quota","/proc/user/");
       spath += "?mgm.cmd=quota&mgm.format=fuse";
-      OpenMutex.Lock();
+      //      OpenMutex.Lock();
       xrd_sync_env();
       int retc = XrdPosixXrootd::Open(spath.c_str(), oflags, mode);
-      OpenMutex.UnLock();
+      //      OpenMutex.UnLock();
       return retc;
     }
 
@@ -1003,7 +1003,7 @@ int xrd_open(const char *path, int oflags, mode_t mode)
     return -1;
   }
 
-  OpenMutex.Lock();
+  //  OpenMutex.Lock();
   if (oflags & O_WRONLY) {
     xrd_wo_env();
   } else if (oflags & O_RDWR) {
@@ -1012,7 +1012,7 @@ int xrd_open(const char *path, int oflags, mode_t mode)
     xrd_ro_env();
   }
   int retc = XrdPosixXrootd::Open(path, oflags, mode);
-  OpenMutex.UnLock();
+  //  OpenMutex.UnLock();
   return retc;
 }
 
@@ -1148,6 +1148,17 @@ const char* xrd_mapuser(uid_t uid) {
     }
   }
   passwdstoremutex.UnLock();
+
+  // ----------------------------------------------------------------------------------
+  // setup the default locations for GSI authentication and KRB5 Authentication
+  XrdOucString userproxy  = "/tmp/x509up_u";
+  XrdOucString krb5ccname = "/tmp/krb5cc_";
+  userproxy  += (int) uid;
+  krb5ccname += (int) uid;
+  setenv("X509_USER_PROXY",  userproxy.c_str(),1);
+  setenv("KRB5CCNAME", krb5ccname.c_str(),1);
+  // ----------------------------------------------------------------------------------
+
   return STRINGSTORE(spw->c_str());
 }
 
@@ -1299,7 +1310,7 @@ void xrd_init()
     EnvPutInt("NAME_MAXREDIRECTCOUNT",32000);
     EnvPutInt("NAME_RECONNECTWAIT", 10);
 
-    setenv("XRDPOSIX_POPEN","0",1);
+    setenv("XRDPOSIX_POPEN","1",1);
     if (getenv("EOS_DEBUG")) {
       XrdPosixXrootd::setEnv(NAME_DEBUG,atoi(getenv("EOS_DEBUG")));
     }

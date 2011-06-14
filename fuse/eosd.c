@@ -161,13 +161,17 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     //    return;
   }
   if (to_set & FUSE_SET_ATTR_SIZE) {
-    if (isdebug) printf("[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__,(long long)attr->st_size, (long long)ino);
-    int fd;
-    if ((fd = xrd_open(fullpath, O_WRONLY , S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
-      retc = xrd_truncate(fd,attr->st_size);
-      xrd_close(fd);
+    if (fi->fh) {
+      retc = xrd_truncate(fi->fh,attr->st_size);
     } else {
-      retc = -1;
+      if (isdebug) printf("[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__,(long long)attr->st_size, (long long)ino);
+      int fd;
+      if ((fd = xrd_open(fullpath, O_WRONLY , S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
+        retc = xrd_truncate(fd,attr->st_size);
+        xrd_close(fd);
+      } else {
+        retc = -1;
+      }
     }
   }
   if ( (to_set & FUSE_SET_ATTR_ATIME) && (to_set & FUSE_SET_ATTR_MTIME) ) {  

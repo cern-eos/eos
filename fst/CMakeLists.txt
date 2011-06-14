@@ -69,7 +69,6 @@ if (Linux)
   )
 endif(Linux)
 
-#INSTALL_PROGRAMS( sbin tools/eosfstregister tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync)
 INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstinfo tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync eos-check-blockxs eos-compute-blockxs eos-scan-fs )
 
 install ( TARGETS XrdEosFst eosfstcp
