@@ -3157,10 +3157,34 @@ XrdMgmOfs::FSctl(const int               cmd,
       char* smode;
       if ((smode = env.Get("mode"))) {
  	XrdSfsMode newmode = atoi(smode);
-	int retc =  chmod(path.c_str(),
+	int retc =  _chmod(path.c_str(),
 			  newmode,
 			  error,
-			  0);
+			  vid);
+	XrdOucString response="chmod: retc=";
+	response += retc;
+	error.setErrInfo(response.length()+1,response.c_str());
+	return SFS_DATA;
+      } else {
+	XrdOucString response="chmod: retc=";
+	response += EINVAL;
+	error.setErrInfo(response.length()+1,response.c_str());
+	return SFS_DATA;
+      }
+    }
+
+    if (execmd == "chown") {
+      char* suid;
+      char* sgid;
+      if ((suid = env.Get("uid")) && (sgid = env.Get("gid"))) {
+        uid_t uid = atoi(suid);
+        gid_t gid = atoi(sgid);
+
+	int retc =  _chown(path.c_str(),
+                          uid,
+                          gid,
+			  error,
+			  vid);
 	XrdOucString response="chmod: retc=";
 	response += retc;
 	error.setErrInfo(response.length()+1,response.c_str());
@@ -3261,7 +3285,38 @@ XrdMgmOfs::FSctl(const int               cmd,
 	return SFS_DATA;
       }
     }
-    
+
+    if (execmd == "checksum") {
+      // get the checksum 
+      XrdOucString checksum="";
+      eos::FileMD* fmd=0;
+      int retc=0;
+      //-------------------------------------------
+      gOFS->eosViewMutex.Lock();
+      try {
+        fmd = gOFS->eosView->getFile(path.c_str());
+        for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
+          char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+          checksum += hb;
+        }
+      } catch ( eos::MDException &e ) {
+        errno = e.getErrno();
+        eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      }
+
+      if (!fmd) {
+        retc = errno;
+      } else {
+        retc = 0;
+      }
+      gOFS->eosViewMutex.UnLock();
+      //-------------------------------------------
+      XrdOucString response="checksum: "; response += checksum;
+      response += " retc="; response += retc;
+      error.setErrInfo(response.length()+1, response.c_str());
+      return SFS_DATA;
+    }
+
     if (execmd == "statvfs") {
       gOFS->MgmStats.Add("Statvfs",vid.uid,vid.gid,1);
       XrdOucString space = env.Get("path");

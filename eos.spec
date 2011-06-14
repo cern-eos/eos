@@ -4,7 +4,7 @@
 Summary: The EOS server installation.
 Name: eos-server
 Version: 0.1.0
-Release: rc16
+Release: rc18
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -79,6 +79,7 @@ fi
 /usr/lib64/libXrdEosFst.so.0
 /usr/lib64/libXrdEosFst.so
 /usr/sbin/eosfstregister
+/usr/sbin/eosfstinfo
 /usr/sbin/eosfstcheck
 /usr/sbin/eosfstclean
 /usr/sbin/eosfstmgmsync

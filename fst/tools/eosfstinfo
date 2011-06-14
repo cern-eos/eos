@@ -1,0 +1,82 @@
+#!/usr/bin/perl
+use POSIX ":sys_wait_h";
+use Time::HiRes qw( usleep );
+use File::Basename;
+
+my $eosowner = "daemon";
+
+print "###########################\n";
+print "# <eosfstinfo> v1.0.0\n";
+print "###########################\n";
+
+sub usage() {
+    printf STDERR  "usage: eosfstinfo [<host>[:<port>]] <mount-point>\n";
+}
+
+my $hostname = `hostname -f`;
+chomp $hostname;
+my $ignoreerrors=0;
+my $allowroot=0;
+
+for ( my $arg = 0; $arg < $#ARGV+1; $arg++) {
+    if ( ($ARGV[$arg] =~ /^-h/ ) ||
+	 ($ARGV[$arg] =~ /^--h/ )) {
+	usage();
+	exit(-1);
+    }
+}
+       
+
+my $mgmurl    = shift @ARGV;
+my $mountprefix="";
+
+if ( $mgmurl =~/^\// ) {
+    my $redirector=`test -r /etc/sysconfig/eos && . /etc/sysconfig/eos && echo \$EOS_MGM_URL`;
+    chomp $redirector;
+    if ($redirector eq "") {
+        $redirector=`test -r /etc/quattor_install_info && . /etc/quattor_install_info && echo \$CDB_CLUSTER`;
+        chomp $redirector;
+        if ($redirector ne "") {
+            $redirector = "root://" . $redirector;
+        } else {
+            printf STDERR "error: cannot automatically determine to which MGM I should connect - set it via EOS_MGM_URL in /etc/sysconfig/eos or CDB_CLUSTER variable in /etc/quattor_install_info!\n";
+        }
+    }
+
+    #automatic host configuration
+    $mountprefix = $mgmurl;
+    $mgmurl = $redirector;
+} else {
+    $mgmurl = "root://" . $mgmurl;
+    $mountprefix = shift @ARGV;
+}
+
+chomp $mgmurl;
+chomp $mountprefix;
+
+# determine the filesystem id
+my $fsid=`cat $mountprefix/.eosfsid`;
+chomp $fsid;
+
+if ( $fsid eq "" ) {
+    printf STDERR "error: cannot get the filesystem id from $mountprefix\n";
+    usage();
+    exit(-1);
+}
+
+if ( $mgmurl eq "") {
+    printf STDERR "error: you have to provide a manager name <host>[:<port>]\n";
+    usage();
+    exit(-1);
+}
+
+if ( $mountprefix eq "") {
+    printf STDERR "error: you have to provide a mountprefix as the first argument!\n";
+    usage();
+    exit(-1);
+}
+
+system("unset EOS_MGM_URL; eos -b $mgmurl fs status $fsid");
+    
+
+
