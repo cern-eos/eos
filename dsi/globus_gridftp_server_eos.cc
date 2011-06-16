@@ -110,7 +110,6 @@ extern "C" {
 
     // uncomment that, if you want to add debug printouts
     //freopen("/tmp/xrdlog.gsiftp","a+", stderr);
-    }
   }
 
   /*************************************************************************
