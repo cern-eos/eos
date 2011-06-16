@@ -84,7 +84,6 @@ extern "C" {
   void
   globus_l_gfs_eos_start(globus_gfs_operation_t op,
                                   globus_gfs_session_info_t *session_info) {
-    static bool first=true;
     globus_l_gfs_eos_handle_t *eos_handle;
     globus_gfs_finished_info_t finished_info;
     const char *func="globus_l_gfs_eos_start";
@@ -109,9 +108,8 @@ extern "C" {
 
     globus_gridftp_server_operation_finished(op, GLOBUS_SUCCESS, &finished_info);
 
-    if (first) {
-      freopen("/tmp/xrdlog.gsiftp","a+", stderr);
-      //      first = false;
+    // uncomment that, if you want to add debug printouts
+    //freopen("/tmp/xrdlog.gsiftp","a+", stderr);
     }
   }
 
@@ -278,7 +276,6 @@ globus_l_gfs_eos_stat(
     GlobusGFSName(globus_l_gfs_eos_stat);
     PathName=stat_info->pathname;
 
-    fprintf(stderr,"doing stat on %s\n", PathName);
     fflush(stderr);
    /* 
       If we do stat_info->pathname++, it will cause third-party transfer
@@ -449,66 +446,6 @@ error_stat1:
 /*    GlobusGFSFileDebugExitWithError();  */
 }
 
-
-
-
-  /*************************************************************************
-   *  stat
-   *  ----
-   *  This interface function is called whenever the server needs
-   *  information about a given file or resource.  It is called then an
-   *  LIST is sent by the client, when the server needs to verify that
-   *  a file exists and has the proper permissions, etc.
-   ************************************************************************/
-  /*  static void globus_l_gfs_eos_stat(globus_gfs_operation_t op,
-                                             globus_gfs_stat_info_t *stat_info,
-                                             void *user_arg) {
-    globus_gfs_stat_t *stat_array;
-    int stat_count;
-    globus_l_gfs_eos_handle_t *eos_handle;
-
-    const char *func = "globus_l_gfs_eos_stat";
-    struct stat statbuf;
-    int status = 0;
-    globus_result_t result;
-    char *pathname;
-
-    GlobusGFSName(globus_l_gfs_eos_stat);
-    eos_handle = (globus_l_gfs_eos_handle_t *) user_arg;
-
-    pathname = strdup(stat_info->pathname);
-
-    globus_gfs_log_message(GLOBUS_GFS_LOG_DUMP,
-                           "%s: pathname: %s\n",
-                           func,strdup(pathname));
-    status=XrdPosix_Stat(pathname,&statbuf);
-    if(status!=0) {
-      result=globus_l_gfs_make_error("XrdPosix_Stat", errno);
-      globus_gridftp_server_finished_stat(op,result,NULL, 0);
-      return;
-    }
-
-    globus_gfs_log_message(GLOBUS_GFS_LOG_DUMP,
-                           "%s: stat for the file: %s\n",
-                           func,pathname);
-    stat_array = (globus_gfs_stat_t *)
-      globus_calloc(1, sizeof(globus_gfs_stat_t));
-    if(stat_array==NULL) {
-      result=GlobusGFSErrorGeneric("error: memory allocation failed");
-      globus_gridftp_server_finished_stat(op,result,NULL, 0);
-      return;
-    }
-    stat_count=1;
-    fill_stat_array(&(stat_array[0]),statbuf,pathname);
-    globus_gridftp_server_finished_stat(op, GLOBUS_SUCCESS,
-                                        stat_array, stat_count);
-    free_stat_array(stat_array, stat_count);
-    globus_free(stat_array);
-    return;
-  }
-
-  */
-
   /*************************************************************************
    *  command
    *  -------
@@ -550,7 +487,6 @@ error_stat1:
 	PathName++;
       }
 
-    fprintf(stderr,"Running command on %s %d %d\n", PathName, cmd_info->command, GLOBUS_GFS_CMD_CKSM);
     fflush(stderr);
     rc = GLOBUS_SUCCESS;
     switch(cmd_info->command)
@@ -592,7 +528,6 @@ error_stat1:
 	  char tag[4096];
 	  int retc=0;
 	  int items = sscanf(response,"%s retc=%d",tag, &retc);
-          fprintf(stderr,"response=%s\n", response);
           fflush(stderr);
 	  if (retc || (items != 2) || (strcmp(tag,"chmod:"))) {
 	    // error
@@ -602,7 +537,6 @@ error_stat1:
 	}
 	break;
       case GLOBUS_GFS_CMD_CKSM:
-        fprintf(stderr,"Running checksum command with alg %s\n", cmd_info->cksm_alg);
         fflush(stderr);
 	if (!strcmp(cmd_info->cksm_alg, "adler32") || 
             !strcmp(cmd_info->cksm_alg, "ADLER32")) {
@@ -613,7 +547,6 @@ error_stat1:
 	  // put 0 terminated hex string in cmd_data
 	  long long result;
           result = XrdPosixXrootd::QueryOpaque(request,response,4096);
-          fprintf(stderr,"Doing Query Opaque with %s\n", request);
           fflush(stderr);
 	  if (result>0) {
 	    if ( (strstr(response,"retc=0") && (strlen(response)> 10))) {
