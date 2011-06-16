@@ -2292,7 +2292,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     if (cmd->attributesBegin() != cmd->attributesEnd()) {
       buf->st_mode |= S_ISVTX;
     }
-    buf->st_nlink   = 0;
+    buf->st_nlink   = cmd->getNumContainers() + cmd->getNumFiles() + 1;
     buf->st_uid     = cmd->getCUid();
     buf->st_gid     = cmd->getCGid();
     buf->st_rdev    = 0;     /* device type (if inode device) */

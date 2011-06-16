@@ -4,7 +4,7 @@
 Summary: The EOS server installation.
 Name: eos-server
 Version: 0.1.0
-Release: rc18
+Release: rc19
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -12,15 +12,15 @@ Source: eos-0.1.0.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 BuildRequires: autoconf, automake, libtool
-BuildRequires: xrootd-server >= 3.0.0
-BuildRequires: xrootd-devel  >= 3.0.0
+BuildRequires: xrootd-server >= 3.0.4
+BuildRequires: xrootd-devel  >= 3.0.4
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: sparsehash
 BuildRequires: gcc44, gcc44-c++
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel
 BuildRequires: fuse-devel, fuse
 
-Requires: xrootd-server >= 3.0.0
+Requires: xrootd-server >= 3.0.4
 Requires: eos-client
 
 %description
