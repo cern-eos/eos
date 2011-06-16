@@ -1,6 +1,6 @@
 %define _unpackaged_files_terminate_build 0
 %define __os_install_post       /bin/true
-%define debug_package {nil} 
+%define debug_package %{nil} 
 Summary: The EOS server installation.
 Name: eos-server
 Version: 0.1.0
@@ -13,7 +13,7 @@ BuildRoot: %{_tmppath}/%{name}-root
 
 BuildRequires: autoconf, automake, libtool
 BuildRequires: xrootd-server >= 3.0.4
-BuildRequires: xrootd-devel  >= 3.0.4
+BuildRequires: xrootd-server-devel  >= 3.0.4
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: sparsehash
 BuildRequires: gcc44, gcc44-c++

@@ -128,8 +128,12 @@ static void eosfs_ll_getattr(fuse_req_t req, fuse_ino_t ino,
   if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);
 
   int retc = xrd_stat(fullpath,&stbuf);
- 
-  fuse_reply_attr(req, &stbuf, attrcachetime);
+
+  if (!retc) {
+    fuse_reply_attr(req, &stbuf, attrcachetime);
+  } else {
+    fuse_reply_err(req, EIO);
+  }
 }
 
 static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
@@ -272,7 +276,11 @@ static void eosfs_ll_opendir(fuse_req_t req, fuse_ino_t ino,
   dir = xrd_opendir(fullpath);
   fi->fh = (uint64_t) dir;
 
-  fuse_reply_open(req, fi);
+  if (dir) {
+    fuse_reply_open(req, fi);
+  } else {
+    fuse_reply_err(req, EIO);
+  }
 }
 
 static void dirbuf_add(fuse_req_t req, struct dirbuf *b, const char *name,
