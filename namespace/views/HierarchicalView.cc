@@ -426,9 +426,43 @@ namespace eos
   {
     if( file->getContainerId() == 0 )
       return;
-    ContainerMD *cont = pContSvc->getContainerMD( file->getContainerId() );
-    cont->addFile( file );
 
+    //--------------------------------------------------------------------------
+    // Try to attach the file to it's parent container
+    //--------------------------------------------------------------------------
+    ContainerMD *cont = 0;
+    try
+    {
+      cont = pContSvc->getContainerMD( file->getContainerId() );
+      cont->addFile( file );
+    }
+    catch( MDException &e )
+    {
+    }
+
+    //--------------------------------------------------------------------------
+    // Attaching failed, create an appropriate lost+found directory
+    //--------------------------------------------------------------------------
+    if( !cont )
+    {
+      std::ostringstream s;
+      s << "/lost+found/" << file->getContainerId();
+      try
+      {
+        cont = pView->createContainer( s.str(), true );
+      }
+      catch( MDException &e )
+      {
+        if( e.getErrno() != EEXIST )
+          throw;
+      }
+      cont = pView->getContainer( s.str() );
+      cont->addFile( file );
+    }
+
+    //--------------------------------------------------------------------------
+    // Update quota stats
+    //--------------------------------------------------------------------------
     QuotaNode *node = pView->getQuotaNode( cont );
     if( node )
       node->addFile( file );
