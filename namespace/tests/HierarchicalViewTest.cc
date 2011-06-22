@@ -24,10 +24,12 @@ class HierarchicalViewTest: public CppUnit::TestCase
     CPPUNIT_TEST_SUITE( HierarchicalViewTest );
       CPPUNIT_TEST( reloadTest );
       CPPUNIT_TEST( quotaTest );
+      CPPUNIT_TEST( lostContainerTest );
     CPPUNIT_TEST_SUITE_END();
 
     void reloadTest();
     void quotaTest();
+    void lostContainerTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( HierarchicalViewTest );
@@ -357,6 +359,87 @@ void HierarchicalViewTest::quotaTest()
   unlink( fileNameFileMD.c_str() );
   unlink( fileNameContMD.c_str() );
 
+  delete view;
+  delete contSvc;
+  delete fileSvc;
+}
+
+//------------------------------------------------------------------------------
+// Lost container test
+//------------------------------------------------------------------------------
+void HierarchicalViewTest::lostContainerTest()
+{
+  //----------------------------------------------------------------------------
+  // Initializer
+  //----------------------------------------------------------------------------
+  eos::IContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
+  eos::IFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
+  eos::IView           *view    = new eos::HierarchicalView;
+
+  std::map<std::string, std::string> fileSettings;
+  std::map<std::string, std::string> contSettings;
+  std::map<std::string, std::string> settings;
+  std::string fileNameFileMD = getTempName( "/tmp", "eosns" );
+  std::string fileNameContMD = getTempName( "/tmp", "eosns" );
+  contSettings["changelog_path"] = fileNameContMD;
+  fileSettings["changelog_path"] = fileNameFileMD;
+
+  fileSvc->configure( contSettings );
+  contSvc->configure( fileSettings );
+
+  view->setContainerMDSvc( contSvc );
+  view->setFileMDSvc( fileSvc );
+
+  view->configure( settings );
+  view->initialize();
+
+  eos::ContainerMD *cont1 = view->createContainer( "/test/embed/embed1", true );
+  eos::ContainerMD *cont2 = view->createContainer( "/test/embed/embed2", true );
+  eos::ContainerMD *cont3 = view->createContainer( "/test/embed/embed3", true );
+
+  //----------------------------------------------------------------------------
+  // Create some files
+  //----------------------------------------------------------------------------
+  for( int i = 0; i < 1000; ++i )
+  {
+    std::ostringstream s1; s1 << "/test/embed/embed1/file" << i;
+    std::ostringstream s2; s2 << "/test/embed/embed2/file" << i;
+    std::ostringstream s3; s3 << "/test/embed/embed3/file" << i;
+    view->createFile( s1.str() );
+    view->createFile( s2.str() );
+    view->createFile( s3.str() );
+  }
+
+  //----------------------------------------------------------------------------
+  // Remove one of the container keeping the files register with it to
+  // simulate directory metadata loss
+  //----------------------------------------------------------------------------
+  eos::ContainerMD::id_t removedId = cont1->getId();
+  view->getContainerMDSvc()->removeContainer( cont1 );
+
+  //----------------------------------------------------------------------------
+  // Reboot
+  //----------------------------------------------------------------------------
+  view->finalize();
+  view->initialize();
+
+  //----------------------------------------------------------------------------
+  // Check the containers
+  //----------------------------------------------------------------------------
+  std::ostringstream s; s << "/lost+found/" << removedId;
+  CPPUNIT_ASSERT_NO_THROW( cont1 = view->getContainer( s.str() ) );
+  CPPUNIT_ASSERT_NO_THROW( cont2 = view->getContainer( "/test/embed/embed2" ) );
+  CPPUNIT_ASSERT_NO_THROW( cont3 = view->getContainer( "/test/embed/embed3" ) );
+  CPPUNIT_ASSERT( cont1->getNumFiles() == 1000 );
+  CPPUNIT_ASSERT( cont2->getNumFiles() == 1000 );
+  CPPUNIT_ASSERT( cont3->getNumFiles() == 1000 );
+
+  //----------------------------------------------------------------------------
+  // Cleanup
+  //----------------------------------------------------------------------------
+  view->finalize();
+  unlink( fileNameFileMD.c_str() );
+  unlink( fileNameContMD.c_str() );
   delete view;
   delete contSvc;
   delete fileSvc;
