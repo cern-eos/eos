@@ -58,11 +58,16 @@ int main (int argc, char* argv[]) {
   struct timeval sync1;
   struct timeval sync2;
 
+  bool isdumpfile=false; // dump files are not 'follower' files in append mode, they need to be resynchroned completely
+
   gettimeofday(&sync1,&tz);
 
   XrdOucString sourcefile = argv[1];
   XrdOucString dsturl = argv[2];
 
+  if (sourcefile.endswith(".dump")) {
+    isdumpfile = true;
+  }
 
   int fd =0; 
 
@@ -106,15 +111,23 @@ int main (int argc, char* argv[]) {
     localoffset = srcstat.st_size;
     remoteoffset = dststat.size;
 
-    if (remoteoffset > localoffset) {
-      eos_static_err("remote file is longer than local file - force truncation\n");
+    if (isdumpfile) {
       if (!client->Truncate(0)) {
 	eos_static_crit("couldn't truncate remote file");
 	exit(-1);
       }
       remoteoffset = 0;
+    } else {
+      if (remoteoffset > localoffset) {
+        eos_static_err("remote file is longer than local file - force truncation\n");
+        if (!client->Truncate(0)) {
+          eos_static_crit("couldn't truncate remote file");
+          exit(-1);
+        }
+        remoteoffset = 0;
+      }
     }
-    
+
     size_t transfersize=0;
     if ( (localoffset - remoteoffset) > TRANSFERBLOCKSIZE) 
       transfersize = TRANSFERBLOCKSIZE;
@@ -152,6 +165,10 @@ int main (int argc, char* argv[]) {
 	eos_static_crit("cannot sync remote file");
 	exit(-1);
       }
+    }
+    if (isdumpfile) {
+      // update the file every 5 seconds
+      sleep (5);
     }
   } while (1);
 }

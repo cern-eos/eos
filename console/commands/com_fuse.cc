@@ -62,8 +62,11 @@ com_fuse (char* arg1) {
       XrdOucString createdir="mkdir -p ";
       createdir += mountpoint;
       createdir += " >& /dev/null";
-      system(createdir.c_str());
       fprintf(stderr,".... trying to create ... %s\n",mountpoint.c_str());
+      int rc = system(createdir.c_str());
+      if (WEXITSTATUS(rc)) {
+        fprintf(stderr,"error: creation of mountpoint failed");
+      }
     }
     
     if (stat(mountpoint.c_str(),&buf)) {
@@ -107,11 +110,17 @@ com_fuse (char* arg1) {
     XrdOucString mount=env; mount += " eosfsd "; mount += mountpoint.c_str(); mount += " -o"; mount += params;
     if (logfile.length()) {
       mount += " -d >& "; mount += logfile; mount += " &";
-      system(mount.c_str());
+      int rc = system(mount.c_str());
+      if (WEXITSTATUS(rc)) {
+        fprintf(stderr,"error: mount failed");
+      }
       sleep(1);
     } else {
       mount += " -s >& /dev/null ";
-      system(mount.c_str());
+      int rc = system(mount.c_str());
+      if (WEXITSTATUS(rc)) {
+        fprintf(stderr,"error: mount failed");
+      }
     }
 
 
@@ -132,7 +141,10 @@ com_fuse (char* arg1) {
     }
     
     XrdOucString umount = "fusermount -z -u "; umount += mountpoint.c_str(); umount += ">& /dev/null";
-    system(umount.c_str());
+    int rc = system(umount.c_str());
+    if (WEXITSTATUS(rc)) {
+      fprintf(stderr,"error: mount failed");
+    }
     if ((stat(mountpoint.c_str(),&buf2))) {
       fprintf(stderr,"error: mount directoy disappeared from %s\n", mountpoint.c_str());
       exit(-1);

@@ -12,9 +12,7 @@ all.role manager
 oss.fdlimit 16384 32768
 ###########################################################
 # UNIX authentication
-sec.protocol  unix
-# SSL authentication
-#sec.protocol ssl -d:10 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -mapcernuser:1 -mapnobody:1 -mapguser:1 
+sec.protocol unix
 # SSS authentication
 sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
 # KRB  authentication
@@ -23,10 +21,9 @@ sec.protocol krb5 host/<host>@CERN.CH
 sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2
 
 ###########################################################
-sec.protbind lxfs* only sss
 sec.protbind localhost.localdomain unix
 sec.protbind localhost unix
-sec.protbind * only krb5 gsi unix
+sec.protbind * only krb5 gsi sss unix
 ###########################################################
 mgmofs.fs /
 mgmofs.targetport 1095
@@ -35,17 +32,26 @@ mgmofs.targetport 1095
 ###########################################################
 # this can be overwritten by EOS_SYM_KEY defined in /etc/sysconfig/eos
 mgmofs.symkey AAAAAAAAAAAAAAAAAAAAAAAAAAA=
+
 #mgmofs.trace all debug
 # this URL can be overwritten by EOS_BROKER_URL defined in /etc/sysconfig/eos
+
 mgmofs.broker root://localhost:1097//eos/
 # this name can be overwritten by EOS_INSTANCE_NAME defined in /etc/sysconfig/eos
-mgmofs.instance eostest
+
+mgmofs.instance eosdev
+
+# configuration and namespace location
 mgmofs.configdir /var/eos/config
 mgmofs.metalog /var/eos/md
+
 # this defines the default config to load
 mgmofs.autoloadconfig default
+
 # this enables that every change get's immedeatly stored to the active configuration - can be overwritten by EOS_AUTOSAVE_CONFIG defined in /etc/sysconfig/eos
 mgmofs.autosaveconfig true
+
 # this has to be defined if we have a failover configuration via alias - can be overwritten by EOS_MGM_ALIAS in /etc/sysconfig/eos
-#mgmofs.alias eostest.cern.ch
+#mgmofs.alias eosdev.cern.ch
+
 ###########################################################

@@ -89,6 +89,15 @@ public:
       SetConfigMember("balancer","off"); // disable balancing by default
     if (GetConfigMember("balancer.threshold")=="") 
       SetConfigMember("balancer.threshold","50000000000"); // set deviation treshold
+    if (GetConfigMember("graceperiod")=="")
+      SetConfigMember("graceperiod","86400");
+    if (GetConfigMember("drainperiod")=="")
+      SetConfigMember("drainperiod","86400");
+    if (GetConfigMember("scaninterval")=="")
+      SetConfigMember("scaninterval","604800");
+    if (GetConfigMember("quota")=="") 
+      SetConfigMember("quota", "off");
+    
 #endif
 
   }

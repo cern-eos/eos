@@ -44,7 +44,7 @@ FsView::GetFileSystemFormat(std::string option) {
   
   if (option == "m") {
     // monitoring format
-    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=schedgroup:width=1:format=os|sep= |key=stat.boot:width=1:format=os|sep= |key=configstatus:width=1:format=os|sep= |key=headroom:width=1:format=os|key=stat.errc:width=1:format=os|sep= |key=stat.errmsg:width=1:format=os|sep= |key=stat.disk.load:width=1:format=of|sep= |key=stat.disk.readratemb:width=1:format=ol|sep= |key=stat.disk.writeratemb:width=1:format=ol|sep= |key=stat.net.ethratemib:width=1:format=ol|sep= |key=stat.net.inratemib:width=1:format=ol|sep= |key=stat.net.outratemib:width=1:format=ol|sep= |key=stat.ropen:width=1:format=ol|sep= |key=stat.wopen:width=1:format=ol|sep= |key=stat.statfs.freebytes:width=1:format=ol|sep= |key=stat.statfs.usedbytes:width=1:format=ol|sep= |key=stat.statfs.capacity:width=1:format=ol|sep= |key=stat.usedfiles:width=1:format=ol|sep= |key=stat.statfs.ffree:width=1:format=ol|sep= |key=stat.statfs.fused:width=1:format=ol|sep= |key=stat.statfs.files:width=1:format=ol|sep= |key=stat.drain:width=1:format=os|sep= |key=stat.drainprogress:width=1:format=ol:tag=progress|sep= |key=stat.drainfiles:width=1:format=ol|sep= |key=stat.drainlostfiles:width=1:format=ol|sep= |key=stat.drainbytesleft:width=1:format=ol|sep= |key=stat.drainscheduledfiles:width=1:format=ol:|sep= |key=stat.drainscheduledbytes:width=1:format=ol|sep= |key=graceperiod:width=1:format=ol|sep= |key=stat.timeleft:width=1:format=ol|sep= |key=stat.active:width=1:format=os|sep= |key=scaninterval:width=1:format=os";
+    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=schedgroup:width=1:format=os|sep= |key=stat.boot:width=1:format=os|sep= |key=configstatus:width=1:format=os|sep= |key=headroom:width=1:format=os|key=stat.errc:width=1:format=os|sep= |key=stat.errmsg:width=1:format=os|sep= |key=stat.disk.load:width=1:format=of|sep= |key=stat.disk.readratemb:width=1:format=ol|sep= |key=stat.disk.writeratemb:width=1:format=ol|sep= |key=stat.net.ethratemib:width=1:format=ol|sep= |key=stat.net.inratemib:width=1:format=ol|sep= |key=stat.net.outratemib:width=1:format=ol|sep= |key=stat.ropen:width=1:format=ol|sep= |key=stat.wopen:width=1:format=ol|sep= |key=stat.statfs.freebytes:width=1:format=ol|sep= |key=stat.statfs.usedbytes:width=1:format=ol|sep= |key=stat.statfs.capacity:width=1:format=ol|sep= |key=stat.usedfiles:width=1:format=ol|sep= |key=stat.statfs.ffree:width=1:format=ol|sep= |key=stat.statfs.fused:width=1:format=ol|sep= |key=stat.statfs.files:width=1:format=ol|sep= |key=stat.drain:width=1:format=os|sep= |key=stat.drainprogress:width=1:format=ol:tag=progress|sep= |key=stat.drainfiles:width=1:format=ol|sep= |key=stat.drainlostfiles:width=1:format=ol|sep= |key=stat.drainbytesleft:width=1:format=ol|sep= |key=stat.drainscheduledfiles:width=1:format=ol:|sep= |key=stat.drainscheduledbytes:width=1:format=ol|sep= |key=stat.drainretry:width=1:format=ol|sep= |key=graceperiod:width=1:format=ol|sep= |key=stat.timeleft:width=1:format=ol|sep= |key=stat.active:width=1:format=os|sep= |key=scaninterval:width=1:format=os";
   }
 
   if (option == "io") {
@@ -52,7 +52,7 @@ FsView::GetFileSystemFormat(std::string option) {
   }
 
   if (option == "d") {
-    return "header=1:key=host:width=24:format=s:condition=stat.drain=!nodrain|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.drainprogress:width=12:format=l:tag=progress|sep= |key=stat.drainfiles:width=12:format=+l:unit=B:tag=files|sep= |key=stat.drainlostfiles:width=12:format=l:tag=lost-files|sep= |key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left|sep= |key=stat.drainscheduledfiles:width=12:format=+l:tag=sched-files|sep= |key=stat.drainscheduledbytes:width=12:format=+l:tag=sched-bytes|sep= |key=graceperiod:width=13:format=l|sep= |key=stat.timeleft:width=11:format=l:tag=timeleft|";
+    return "header=1:key=host:width=24:format=s:condition=stat.drain=!nodrain|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.drainprogress:width=12:format=l:tag=progress|sep= |key=stat.drainfiles:width=12:format=+l:unit=B:tag=files|sep= |key=stat.drainlostfiles:width=12:format=l:tag=lost-files|sep= |key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left|sep= |key=stat.drainscheduledfiles:width=12:format=+l:tag=sched-files|sep= |key=stat.drainscheduledbytes:width=12:format=+l:tag=sched-bytes|sep= |key=graceperiod:width=13:format=l|sep= |key=stat.timeleft:width=11:format=l:tag=timeleft|sep= |key=stat.drainretry:width=4:format=l:tag=retry";
 
   }
   if (option == "l") {
@@ -716,18 +716,24 @@ FsView::HeartBeatCheck()
       for (it = mIdView.begin(); it != mIdView.end(); it++) {
         eos::common::FileSystem::fs_snapshot_t snapshot;
         snapshot.mHeartBeatTime = (time_t) it->second->GetLongLong("stat.heartbeattime");
-        std::string queue = it->second->GetString("queue");
-        std::string group = it->second->GetString("schedgroup");
 
         if (!it->second->HasHeartBeat(snapshot)) {
           // mark as offline
-          it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
-        } else {
-          if ( (FsView::gFsView.mNodeView[queue]->GetConfigMember("status") == "on") && 
-               (FsView::gFsView.mGroupView[group]->GetConfigMember("status") == "on") ) {
-            it->second->SetActiveStatus(eos::common::FileSystem::kOnline);
-          } else {
+          if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline)
             it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
+        } else {
+          std::string queue = it->second->GetString("queue");
+          std::string group = it->second->GetString("schedgroup");
+          
+          if ( (FsView::gFsView.mNodeView.count(queue) ) &&
+               (FsView::gFsView.mGroupView.count(group) ) &&
+               (FsView::gFsView.mNodeView[queue]->GetConfigMember("status") == "on") && 
+               (FsView::gFsView.mGroupView[group]->GetConfigMember("status") == "on") ) {
+            if (it->second->GetActiveStatus() != eos::common::FileSystem::kOnline)
+              it->second->SetActiveStatus(eos::common::FileSystem::kOnline);
+          } else {
+            if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline)
+              it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
           }
         }
       }
@@ -1093,6 +1099,7 @@ FsView::ApplyFsConfig(const char* inkey, std::string &val)
   FileSystem* fs = new FileSystem(configmap["queuepath"].c_str(), configmap["queue"].c_str(), eos::common::GlobalConfig::gConfig.SOM());
        
   if (fs) {
+    fs->OpenTransaction();
     fs->SetId(fsid);
     fs->SetString("uuid",configmap["uuid"].c_str());
     std::map<std::string,std::string>::iterator it;
@@ -1100,6 +1107,7 @@ FsView::ApplyFsConfig(const char* inkey, std::string &val)
       // set config parameters
       fs->SetString(it->first.c_str(), it->second.c_str());
     }
+    fs->CloseTransaction();
     if (!FsView::gFsView.Register(fs)) {
       eos_static_err("cannot register filesystem name=%s from configuration", configmap["queuepath"].c_str());
       return false;
@@ -1216,8 +1224,7 @@ BaseView::SumLongLong(const char* param, bool lock)
 
     // for query sum's we always fold in that a group and host has to be enabled
     if  ((!key.length()) || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value) ) {
-      if (isquery && (!snapshot.mActiveStatus)
-          )
+      if (isquery && ( (!snapshot.mActiveStatus) || ( snapshot.mStatus != eos::common::FileSystem::kBooted)))
         continue;
 
       sum += FsView::gFsView.mIdView[*it]->GetLongLong(sparam.c_str());

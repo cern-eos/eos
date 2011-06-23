@@ -84,10 +84,11 @@ bool NetStat::Measure() {
     int n=0;
     do {
       garbage[0]=0;
-      fgets(garbage,1024,fd);
-      char* dpos=0;
-      if ((dpos = strchr(garbage,':'))) {
-	*dpos = ' ';
+      if (fgets(garbage,1024,fd)) {
+        char* dpos=0;
+        if ((dpos = strchr(garbage,':'))) {
+          *dpos = ' ';
+        }
       }
 	   
       if (n>=2) {

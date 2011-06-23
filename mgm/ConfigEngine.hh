@@ -118,7 +118,29 @@ public:
   }
 
   void SetAutoSave(bool val) {autosave = val;}
+  bool GetAutoSave() {return autosave;}
 
+  void AutoSave() {
+    if (autosave && currentConfigFile.length()) {
+      int aspos=0;
+      if ( (aspos = currentConfigFile.find(".autosave")) != STR_NPOS) {
+	currentConfigFile.erase(aspos);
+      }
+      if ( (aspos = currentConfigFile.find(".backup")) != STR_NPOS) {
+	currentConfigFile.erase(aspos);
+      }
+      XrdOucString envstring = "mgm.config.file=";envstring += currentConfigFile;
+      envstring += "&mgm.config.force=1";
+      envstring += "&mgm.config.autosave=1";
+      XrdOucEnv env(envstring.c_str());
+      XrdOucString err="";
+      
+      if (!SaveConfig(env, err)) {
+	eos_static_err("%s\n", err.c_str());
+      }
+    }
+  }
+  
   void SetConfigValue(const char* prefix, const char* fsname, const char* def, bool tochangelog = true) {
     XrdOucString cl = "set config "; cl+= prefix; cl += ":"; cl += fsname; cl+= " => "; cl += def;
     if (tochangelog)

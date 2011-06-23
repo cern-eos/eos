@@ -102,10 +102,11 @@ public:
   void SetBroadCastQueue(const char* broadcastqueue) { BroadCastQueue = broadcastqueue;}
   
   bool Set(std::string key, std::string value, bool broadcast=true, bool tempmodsubjects=false) {
-    return Set(key.c_str(),value.c_str(), broadcast);
+    return Set(key.c_str(),value.c_str(), broadcast, tempmodsubjects);
   }
 
   bool Set(const char* key, const char* value, bool broadcast=true, bool tempmodsubjects=false);
+  bool SetNoLockNoBroadCast(const char* key, const char* value, bool tempmodsubjects);
 
   bool Set(std::map<std::string, std::string> &map) {
     std::map<std::string, std::string>::const_iterator it;
@@ -159,9 +160,9 @@ public:
   
   bool CloseTransaction();
 
-  std::string Get(std::string key) {std::string get=""; XrdMqRWMutexReadLock lock(StoreMutex);if (Store.count(key.c_str())) get = Store[key.c_str()].GetEntry(); return get;}
+  std::string Get(std::string key) {GetCounter++;std::string get=""; XrdMqRWMutexReadLock lock(StoreMutex);if (Store.count(key.c_str())) get = Store[key.c_str()].GetEntry(); return get;}
 
-  std::string Get(const char* key) {std::string get=""; XrdMqRWMutexReadLock lock(StoreMutex);if (Store.count(key)) get = Store[key].GetEntry(); return get;}
+  std::string Get(const char* key) {GetCounter++;std::string get=""; XrdMqRWMutexReadLock lock(StoreMutex);if (Store.count(key)) get = Store[key].GetEntry(); return get;}
 
   long long   GetLongLong(const char* key) {
     std::string get = Get(key); return strtoll(get.c_str(),0,10);
@@ -201,6 +202,9 @@ public:
   const char*  GetBroadCastQueue() { return BroadCastQueue.c_str();}
   unsigned int        GetSize()    { XrdMqRWMutexReadLock lock(StoreMutex);unsigned int val = (unsigned int) Store.size(); return val; }
 
+  static unsigned long long SetCounter;
+  static unsigned long long SetNLCounter;
+  static unsigned long long GetCounter;
 };
 
 

@@ -4,6 +4,7 @@
 #include "common/Mapping.hh"
 #include "common/StringConversion.hh"
 #include "common/StringStore.hh"
+#include "common/Path.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/Policy.hh"
@@ -677,6 +678,31 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
       }
 
+      if (subcmd == "autosave") {
+        eos_notice("config autosave");
+        XrdOucString onoff = opaque.Get("mgm.config.state")?opaque.Get("mgm.config.state"):"";
+        if (!onoff.length()) {
+          if (gOFS->ConfEngine->GetAutoSave()) {
+            stdOut += "<autosave> is enabled\n";
+            retc = 0;
+          } else {
+            stdOut += "<autosave> is disabled\n";
+            retc = 0;
+          }
+        } else {
+          if ( (onoff != "on") || (onoff != "off") ) {
+            stdErr += "error: state must be either 'on' or 'off' or empty to read the current setting!\n";
+            retc = EINVAL;
+          } else {
+            if ( onoff == "on" ) {
+              gOFS->ConfEngine->SetAutoSave(true);
+            } else {
+              gOFS->ConfEngine->SetAutoSave(false);
+            }
+          }
+        }
+      }
+
       int envlen;
       if (subcmd == "load") {
 	if (vid_in.uid==0) {
@@ -1096,6 +1122,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      if (!key.compare(0,3,"fs.")) {
 		key.erase(0,3);
 		
+                // we disable the autosave, do all the updates and then switch back to autosave and evt. save all changes
+                bool autosave=gOFS->ConfEngine->GetAutoSave();
+                gOFS->ConfEngine->SetAutoSave(false);
+
 		std::set<eos::common::FileSystem::fsid_t>::iterator it;
                 
                 // store these as a global parameter of the space
@@ -1132,7 +1162,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		      retc = EINVAL;
 		    }
 		  }
-		} 
+		}
+                gOFS->ConfEngine->SetAutoSave(autosave);
+                gOFS->ConfEngine->AutoSave();
 	      }
 	    } else {
 	      retc = EINVAL;
@@ -1320,7 +1352,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           std::string space        = (opaque.Get("mgm.fs.space"))?opaque.Get("mgm.fs.space"):"";
           std::string configstatus = (opaque.Get("mgm.fs.configstatus"))?opaque.Get("mgm.fs.configstatus"):"";
           
-          eos::common::RWMutexWriteLock vlock(FsView::gFsView.ViewMutex);
+          //          eos::common::RWMutexWriteLock vlock(FsView::gFsView.ViewMutex); => moving into the routine to do it more clever(shorted)
           retc = proc_fs_add(sfsid, uuid, nodename, mountpoint, space, configstatus, stdOut, stdErr, tident, vid_in);
         }
 
@@ -2427,6 +2459,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  XrdOucString statpath = path;
 	  statpath += "/"; statpath += entry;
 
+          eos::common::Path cPath(statpath.c_str());
+
 	  // attach MD to get inode number
 	  eos::FileMD* fmd=0;
 	  inode = 0;
@@ -2434,7 +2468,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  //-------------------------------------------
 	  gOFS->eosViewMutex.Lock();
 	  try {
-	    fmd = gOFS->eosView->getFile(statpath.c_str());
+	    fmd = gOFS->eosView->getFile(cPath.GetPath());
 	    inode = fmd->getId() << 28;
 	  } catch ( eos::MDException &e ) {
 	    errno = e.getErrno();
@@ -2449,7 +2483,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    //-------------------------------------------
 	    gOFS->eosViewMutex.Lock();
 	    try {
-	      dir = gOFS->eosView->getContainer(statpath.c_str());
+	      dir = gOFS->eosView->getContainer(cPath.GetPath());
 	      inode = dir->getId();
 	    } catch( eos::MDException &e ) {
 	      dir = 0;

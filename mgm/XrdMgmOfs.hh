@@ -59,7 +59,7 @@ const   char       *FName() {return (const char *)fname;}
                     XrdMgmOfsDirectory(char *user=0) : XrdSfsDirectory(user)
                                 {ateof = 0; fname = 0;
 				 d_pnt = &dirent_full.d_entry; eos::common::Mapping::Nobody(vid);
-				 eos::common::LogId();dh =0;
+				 eos::common::LogId();dh =0;retDot=retDotDot=false;
                                 }
 
                    ~XrdMgmOfsDirectory() {}
@@ -68,7 +68,9 @@ private:
   char           ateof;
   char          *fname;
   XrdOucString   entry;
-  
+  bool           retDot;
+  bool           retDotDot;
+
   struct {struct dirent d_entry;
     char   pad[MAXNAMLEN];   // This is only required for Solaris!
   } dirent_full;

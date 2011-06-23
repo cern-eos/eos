@@ -28,8 +28,24 @@ public:
 
   Path(const char* path){
     fullPath = path;
+
     if (fullPath.endswith('/')) 
       fullPath.erase(fullPath.length()-1);
+    
+    // remove  /.$
+    if (fullPath.endswith("/.")) {
+      fullPath.erase(fullPath.length()-2);
+    }
+
+    // reassign /..
+    if (fullPath.endswith("/..")) {
+      fullPath.erase(fullPath.length()-3);
+      int spos = fullPath.rfind("/");
+      if (spos != STR_NPOS) {
+        fullPath.erase(spos);
+      }
+    }
+
     int lastpos=0;
     int pos=0;
     do {

@@ -881,6 +881,7 @@ XrdMqMessage::Print() {
   std::cerr << "-----------------------------------------------------" << std::endl;
   if (kMessageBuffer.length() > 256) {
     std::cerr << "kMessageBuffer         : (...) too long" << std::endl;
+    std::cerr << "Length                 : " << kMessageBuffer.length() << std::endl;
   } else {
   std::cerr << "kMessageBuffer         : " << kMessageBuffer << std::endl;
   }

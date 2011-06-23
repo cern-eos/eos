@@ -3,6 +3,8 @@
 const char *XrdMqClientCVSID = "$Id: XrdMqClient.cc,v 1.0.0 2007/10/04 01:34:19 ajp Exp $";
 
 #include <mq/XrdMqClient.hh>
+#include <mq/XrdMqTiming.hh>
+
 #include <XrdNet/XrdNetDNS.hh>
 
 /******************************************************************************/
@@ -121,52 +123,63 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
 /* RecvMessage                                                                */
 /*----------------------------------------------------------------------------*/
 XrdMqMessage* XrdMqClient::RecvFromInternalBuffer() {
-  if (kMessageBuffer.length()) {
+  if ( (kMessageBuffer.length()-kInternalBufferPosition) > 0) {
+    //    fprintf(stderr,"Message Buffer %ld\n", kMessageBuffer.length());
     // there is still a message in the buffer
     int nextmessage;
     int firstmessage;
 
-    firstmessage = kMessageBuffer.find(XMQHEADER);
+    //    fprintf(stderr,"#### %ld Entering at position %ld %ld\n", time(NULL),kInternalBufferPosition, kMessageBuffer.length());
+    firstmessage = kMessageBuffer.find(XMQHEADER,kInternalBufferPosition);
 
     if (firstmessage == STR_NPOS)
       return 0;
     else {
-      if (firstmessage>1)
+      if ( (firstmessage>0) && ((size_t)firstmessage > kInternalBufferPosition)) {
         kMessageBuffer.erase(0,firstmessage);
+        kInternalBufferPosition=0;
+      }
     }
     
-    if (kMessageBuffer.length() < (int)strlen(XMQHEADER))
+    if ( (kMessageBuffer.length()+kInternalBufferPosition) < (int)strlen(XMQHEADER))
       return 0;
 
-    nextmessage = kMessageBuffer.find(XMQHEADER,strlen(XMQHEADER));
+    nextmessage = kMessageBuffer.find(XMQHEADER,kInternalBufferPosition+strlen(XMQHEADER));
     char savec=0;
     if (nextmessage != STR_NPOS) {savec = kMessageBuffer.c_str()[nextmessage]; ((char*)kMessageBuffer.c_str())[nextmessage] = 0;}
-    XrdMqMessage* message = XrdMqMessage::Create(kMessageBuffer.c_str());
-    if (!message) 
+    XrdMqMessage* message = XrdMqMessage::Create(kMessageBuffer.c_str()+kInternalBufferPosition);
+    if (!message) {
+      fprintf(stderr,"couldn't get any message\n");
       return 0;
+    }
     XrdMqMessageHeader::GetTime(message->kMessageHeader.kReceiverTime_sec,message->kMessageHeader.kReceiverTime_nsec);
     if (nextmessage != STR_NPOS) ((char*)kMessageBuffer.c_str())[nextmessage] = savec;
     if (nextmessage == STR_NPOS) {
       // last message
       kMessageBuffer="";
+      kInternalBufferPosition=0;
     } else {
-      // remove one 
-      kMessageBuffer.erase(0,nextmessage);
+      // move forward
+      //kMessageBuffer.erase(0,nextmessage);
+      kInternalBufferPosition = nextmessage;
     }
     return message;
+  } else {
+    kMessageBuffer="";
+    kInternalBufferPosition=0;
   }
   return 0;
 }
 
 
 XrdMqMessage* XrdMqClient::RecvMessage() {
-
   if (kBrokerN == 1) {
     // single broker case
-
     // try if there is still a buffered message
     XrdMqMessage* message;
+
     message = RecvFromInternalBuffer();
+
     if (message) return message;
 
     XrdClient* client = GetBrokerXrdClientReceiver(0);
@@ -212,7 +225,8 @@ XrdMqMessage* XrdMqClient::RecvMessage() {
     if (nread>0) {
       kRecvBuffer[nread] = 0;
       // add to the internal message buffer
-      kMessageBuffer += kRecvBuffer;
+      kInternalBufferPosition=0;
+      kMessageBuffer = kRecvBuffer;
     }
     return RecvFromInternalBuffer();
     // ...

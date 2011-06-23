@@ -5,7 +5,8 @@ xrd.network keepalive
 ###########################################################
 xrootd.seclib libXrdSec.so
 sec.protocol unix
-sec.protbind * only unix
+sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
+sec.protbind * only unix sss
 ###########################################################
 all.export / nolock
 all.trace none

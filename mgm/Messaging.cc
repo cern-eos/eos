@@ -3,6 +3,7 @@
 #include "mgm/Messaging.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
+#include "mq/XrdMqTiming.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -83,7 +84,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
           // propagate into filesystem states
           std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
           for (it =  FsView::gFsView.mNodeView[nodequeue]->begin(); it != FsView::gFsView.mNodeView[nodequeue]->end(); it++) {
-            FsView::gFsView.mIdView[*it]->SetStatus(eos::common::FileSystem::kDown);
+            FsView::gFsView.mIdView[*it]->SetStatus(eos::common::FileSystem::kDown, false);
           }
         }
         eos_static_info("Setting heart beat to %llu\n", (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec);
@@ -109,7 +110,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
         // propagate into filesystem states
         std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
         for (it =  FsView::gFsView.mNodeView[nodequeue]->begin(); it != FsView::gFsView.mNodeView[nodequeue]->end(); it++) {
-          FsView::gFsView.mIdView[*it]->SetStatus(eos::common::FileSystem::kDown);
+          FsView::gFsView.mIdView[*it]->SetStatus(eos::common::FileSystem::kDown, false);
         }
       }
       eos_static_info("Setting heart beat to %llu\n", (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec);
@@ -139,7 +140,7 @@ Messaging::Listen()
       Process(newmessage);
       delete newmessage;
     } else {
-      sleep(1);
+      usleep(1000000);
     }
   }
 }
@@ -147,7 +148,12 @@ Messaging::Listen()
 /*----------------------------------------------------------------------------*/
 void Messaging::Process(XrdMqMessage* newmessage) 
 {
+  static bool discardmode=false;
   if ( (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage) || (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage) ) {
+    if (discardmode) {
+      return;
+    }
+
     XrdAdvisoryMqMessage* advisorymessage = XrdAdvisoryMqMessage::Create(newmessage->GetMessageBuffer());
 
     if (advisorymessage) {
@@ -161,11 +167,34 @@ void Messaging::Process(XrdMqMessage* newmessage)
       delete advisorymessage;
     }
   } else {
+    //    XrdMqTiming somTiming("ParseEnvMessage");;
+    //    TIMING("ParseEnv-Start",&somTiming);
+    //    somTiming.Print();
     // deal with shared object exchange messages
     if (SharedObjectManager) {
+      // do a cut on the maximum allowed delay for shared object messages
+      if ( (!discardmode) && 
+           ((newmessage->kMessageHeader.kReceiverTime_sec - newmessage->kMessageHeader.kBrokerTime_sec) > 60) ) {
+        eos_crit("dropping shared object message because of message delays of %d seconds", (newmessage->kMessageHeader.kReceiverTime_sec - newmessage->kMessageHeader.kBrokerTime_sec));
+        discardmode = true;
+        return;
+      } else {
+        // we accept when we catched up
+        if ((newmessage->kMessageHeader.kReceiverTime_sec - newmessage->kMessageHeader.kBrokerTime_sec) <= 5 ) {
+          discardmode = false;
+        } else {
+          if (discardmode) {
+            eos_crit("dropping shared object message because of message delays of %d seconds", (newmessage->kMessageHeader.kReceiverTime_sec - newmessage->kMessageHeader.kBrokerTime_sec));
+            return;
+          }
+        }
+      }
+
       // parse as shared object manager message
       XrdOucString error="";
       bool result = SharedObjectManager->ParseEnvMessage(newmessage, error);
+      //      TIMING("ParseEnv-Stop",&somTiming);
+      //      somTiming.Print();
       if (!result) {
         if ( (error != "no subject in message body") && (error != "no pairs in message body")) {
           //          newmessage->Print();

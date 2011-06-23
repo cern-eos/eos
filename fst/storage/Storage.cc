@@ -1331,7 +1331,8 @@ Storage::Publish()
     gettimeofday(&tv1, &tz);
 
     // TODO: derive this from a global variable
-    unsigned int lReportIntervalMilliSeconds = 10000;
+    // smear the publishing cycle around 5+-5 seconds
+    unsigned int lReportIntervalMilliSeconds = 5000 + (unsigned int)(10000.0*rand()/RAND_MAX);
 
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes

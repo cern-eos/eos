@@ -177,6 +177,7 @@ int proc_fs_config(std::string &identifier, std::string &key, std::string &value
 int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, std::string &mountpoint, std::string &space, std::string &configstatus, XrdOucString &stdOut, XrdOucString  &stdErr, std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in) 
 {
   int retc=0;
+  bool ViewHasWriteLock=false;
   eos::common::FileSystem::fsid_t fsid = atoi(sfsid.c_str());
 
   if ( (!nodename.length()) || (!mountpoint.length()) || (!space.length()) || (!configstatus.length()) ||
@@ -192,6 +193,9 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
     if ( (dpos = rnodename.find(".")) != std::string::npos) {
       rnodename.erase(dpos);
     }
+
+    // ========> ViewMutex READLOCK
+    FsView::gFsView.ViewMutex.LockRead();
     
     // rough check that the filesystem is added from a host with the same tident ... anyway we should have configured 'sss' security
     if ( (vid_in.uid!=0) && ( (vid_in.prot != "sss") || tident.compare(0, tident.length(), rnodename, 0, tident.length()) )) {
@@ -319,7 +323,12 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
             
             if (!retc) {
               fs->SetString("schedgroup", splitgroup.c_str());
-              
+
+              // ========> ViewMutex READUNLOCK
+              FsView::gFsView.ViewMutex.UnLockRead();
+              // ========> ViewMutex WRITELOCK
+              ViewHasWriteLock=true;
+              FsView::gFsView.ViewMutex.LockWrite();
               if (!FsView::gFsView.Register(fs)) {
                 // remove mapping
                 if (FsView::gFsView.RemoveMapping(fsid,uuid)) {
@@ -350,6 +359,15 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
         retc = EEXIST;	      
       }
     }
+  }
+
+
+  if (ViewHasWriteLock) {
+    // ========> ViewMutex WRITEUnLOCK
+    FsView::gFsView.ViewMutex.UnLockWrite();
+  } else {
+    // ========> ViewMutex READUNLOCK
+    FsView::gFsView.ViewMutex.UnLockRead();
   }
   return retc;
 }
@@ -506,7 +524,9 @@ proc_fs_source(std::string source_group, std::string target_group)
         if (sourcequeue == targetqueue) 
           exists = true;
       }
-      if (!exists)
+      // check if this filesystem is in RW mode (this we have to streamline with the query tags to apply to ro,wo & rw !
+      bool isRW = (FsView::gFsView.mIdView[*its]->GetConfigStatus() >= eos::common::FileSystem::kRW)?true:false;
+      if ( (!exists) && (isRW) )
         return FsView::gFsView.mIdView[*its];
     }
   }

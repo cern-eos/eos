@@ -191,9 +191,9 @@ public:
     }
   }
 
-  bool SetStatus(fsstatus_t status) {
+  bool SetStatus(fsstatus_t status, bool broadcast=true) {
     
-    return SetString("stat.boot", GetStatusAsString(status));
+    return SetString("stat.boot", GetStatusAsString(status), broadcast);
   }
 
   bool SetActiveStatus(fsactive_t active) {

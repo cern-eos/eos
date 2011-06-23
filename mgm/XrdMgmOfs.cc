@@ -235,7 +235,9 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
    
    EXEC_TIMING_BEGIN("OpenDir");
 
-   eos_info("(opendir) path=%s",dir_path);
+   eos::common::Path cPath(dir_path);
+   
+   eos_info("(opendir) path=%s",cPath.GetPath());
 
    gOFS->MgmStats.Add("OpenDir",vid.uid,vid.gid,1);
 
@@ -244,7 +246,7 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
    //-------------------------------------------
    gOFS->eosViewMutex.Lock();
    try {
-     dh = gOFS->eosView->getContainer(dir_path);
+     dh = gOFS->eosView->getContainer(cPath.GetPath());
    } catch( eos::MDException &e ) {
      dh = 0;
      errno = e.getErrno();
@@ -263,22 +265,27 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
    //
    if (!dh) 
      return Emsg(epname, error, errno, 
-		 "open directory", dir_path);
+		 "open directory", cPath.GetPath());
    
    if (!permok) {
      errno = EPERM;
      return Emsg(epname, error, errno, 
-		 "open directory", dir_path);
+		 "open directory", cPath.GetPath());
    }
    
    // Set up values for this directory object
    //
    ateof = 0;
-   fname = strdup(dir_path);
+   fname = strdup(cPath.GetPath());
 
    dh_files = dh->filesBegin();
    dh_dirs  = dh->containersBegin();
 
+   if ( (dh_files == dh->filesEnd()) && 
+        (dh_dirs  == dh->containersEnd()) ) {
+     // there are no files, return '.' and evt. '..'
+     retDot = true;
+   }
    EXEC_TIMING_END("OpenDir");   
    return  SFS_OK;
 }
@@ -299,7 +306,7 @@ const char *XrdMgmOfsDirectory::nextEntry()
     static const char *epname = "nextEntry";
     //    int retc;
 
-// Lock the direcrtory and do any required tracing
+// Lock the directory and do any required tracing
 //
    if (!dh) 
       {Emsg(epname,error,EBADF,"read directory",fname);
@@ -316,7 +323,21 @@ const char *XrdMgmOfsDirectory::nextEntry()
        // there are more dirs
        entry = dh_dirs->first.c_str();
        dh_dirs++;
+       if (dh_dirs == dh->containersEnd()) {
+         retDot = true;
+       }
      } else {
+       if (retDot) {
+         retDotDot=true;
+         retDot=false;
+         return ".";
+       }
+       if (strcmp(fname,"/")) {
+         if (retDotDot) {
+           retDotDot=false;
+           return "..";
+         }
+       }
        return (const char*) 0;
      }
    }
@@ -374,11 +395,11 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   EXEC_TIMING_BEGIN("Open");
   SetLogId(logId, tident);
   
-  eos_info("path=%s info=%s",path,info);
-
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
   SetLogId(logId, vid, tident);
+
+  eos_info("path=%s info=%s",path,info);
 
   MAYSTALL;
   MAYREDIRECT;
@@ -774,12 +795,13 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     if (attrmap.count("user.forced.bookingsize")) {
       bookingsize = strtoull(attrmap["user.forced.bookingsize"].c_str(),0,10);
     } else {
-      bookingsize = 1024*1024ll; // 1M by default
+      bookingsize = 1024*1024ll; // 1M as default
       if (openOpaque->Get("eos.bookingsize")) {
         bookingsize = strtoull(openOpaque->Get("eos.bookingsize"),0,10);
-      } 
-      if (openOpaque->Get("oss.asize")) {
-        bookingsize = strtoull(openOpaque->Get("eos.bookingsize"),0,10);
+      } else {
+        if (openOpaque->Get("oss.asize")) {
+          bookingsize = strtoull(openOpaque->Get("eos.bookingsize"),0,10);
+        }
       }
     }
   }
@@ -2231,10 +2253,12 @@ int XrdMgmOfs::_stat(const char              *path,        // In
   eos::ContainerMD* cmd = 0;
   errno = 0;
 
+  eos::common::Path cPath(path);
+
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   try {
-    cmd = gOFS->eosView->getContainer(path);
+    cmd = gOFS->eosView->getContainer(cPath.GetPath());
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
     eos_debug("check for directory - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
@@ -2249,7 +2273,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     //-------------------------------------------
     gOFS->eosViewMutex.Lock();
     try {
-      fmd = gOFS->eosView->getFile(path);
+      fmd = gOFS->eosView->getFile(cPath.GetPath());
       eos::FileMD fmdCopy(*fmd);
       fmd = &fmdCopy;
     } catch( eos::MDException &e ) {
@@ -2259,7 +2283,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     gOFS->eosViewMutex.UnLock();
     //-------------------------------------------
     if (!fmd) {
-      return Emsg(epname, error, errno, "stat", path);
+      return Emsg(epname, error, errno, "stat", cPath.GetPath());
     }
     memset(buf, 0, sizeof(struct stat));
     
@@ -2275,11 +2299,22 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     buf->st_blksize = 512;
     buf->st_blocks  = fmd->getSize() / 512;
     eos::FileMD::ctime_t atime;
+
+    // adding also nanosecond to stat struct
     fmd->getCTime(atime);
     buf->st_ctime   = atime.tv_sec;
+    buf->st_ctim.tv_sec   = atime.tv_sec;
+    buf->st_ctim.tv_nsec   = atime.tv_nsec;
+
     fmd->getMTime(atime);
     buf->st_mtime   = atime.tv_sec;
+    buf->st_mtim.tv_sec   = atime.tv_sec;
+    buf->st_mtim.tv_nsec   = atime.tv_nsec;
+
     buf->st_atime   = atime.tv_sec;
+    buf->st_atim.tv_sec   = atime.tv_sec;
+    buf->st_atim.tv_nsec  = atime.tv_nsec;
+
 
     EXEC_TIMING_END("Stat");    
     return SFS_OK;
@@ -2304,6 +2339,13 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     buf->st_atime   = atime.tv_sec;
     buf->st_mtime   = atime.tv_sec;
     buf->st_ctime   = atime.tv_sec;
+
+    buf->st_atim.tv_sec   = atime.tv_sec;
+    buf->st_mtim.tv_sec   = atime.tv_sec;
+    buf->st_ctim.tv_sec   = atime.tv_sec;
+    buf->st_atim.tv_nsec   = atime.tv_nsec;
+    buf->st_mtim.tv_nsec   = atime.tv_nsec;
+    buf->st_ctim.tv_nsec   = atime.tv_nsec;
     
     EXEC_TIMING_END("Stat");    
     return SFS_OK;
@@ -3069,8 +3111,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 	}
 
 	if (container) {
-          gOFS->MgmStats.Add("Drop",vid.uid,vid.gid,1);  
-
 	  try {
 	    quotanode = gOFS->eosView->getQuotaNode(container);
 	  } catch ( eos::MDException &e ) {
@@ -3107,6 +3147,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  };
 	}
 
+        gOFS->MgmStats.Add("Drop",vid.uid,vid.gid,1);  
 	gOFS->eosViewMutex.UnLock();
 	//-------------------------------------------
 	
@@ -3129,7 +3170,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       if (retc == SFS_OK) {
 	char statinfo[16384];
 	// convert into a char stream
-	sprintf(statinfo,"stat: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
+	sprintf(statinfo,"stat: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
 		(unsigned long long) buf.st_dev,
 		(unsigned long long) buf.st_ino,
 		(unsigned long long) buf.st_mode,
@@ -3142,7 +3183,11 @@ XrdMgmOfs::FSctl(const int               cmd,
 		(unsigned long long) buf.st_blocks,
 		(unsigned long long) buf.st_atime,
 		(unsigned long long) buf.st_mtime,
-		(unsigned long long) buf.st_ctime);
+		(unsigned long long) buf.st_ctime,
+		(unsigned long long) buf.st_atim.tv_nsec,
+		(unsigned long long) buf.st_mtim.tv_nsec,
+		(unsigned long long) buf.st_ctim.tv_nsec);
+
 	error.setErrInfo(strlen(statinfo)+1,statinfo);
 	return SFS_DATA;
       } else {

@@ -55,6 +55,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   long myPort=0;
 
+  setenv("XrdSecPROTOCOL","sss",1);
+  Eroute.Say("=====> mgmofs enforces SSS authentication for XROOT clients");
+
   if (getenv("XRDDEBUG")) gMgmOfsTrace.What = TRACE_MOST | TRACE_debug;
 
   {
@@ -771,6 +774,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   Quota:: NodesToSpaceQuota();
 
   // add all stat entries with 0
+
+  gOFS->MgmStats.Add("HashSet",0,0,0);
+  gOFS->MgmStats.Add("HashSetNoLock",0,0,0);
+  gOFS->MgmStats.Add("HashGet",0,0,0);
+
   gOFS->MgmStats.Add("Access",0,0,0);
   gOFS->MgmStats.Add("AttrGet",0,0,0);
   gOFS->MgmStats.Add("AttrLs",0,0,0);

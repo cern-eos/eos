@@ -1,6 +1,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Mapping.hh"
 #include "mgm/Stat.hh"
+#include "mq/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
@@ -338,10 +339,30 @@ Stat::PrintOutTotal(XrdOucString &out, bool details, bool monitoring, bool numer
 void 
 Stat::Circulate() 
 {
-  // empty the circular buffer 
+  unsigned long long l1=0;
+  unsigned long long l2=0;
+  unsigned long long l3=0;
+  unsigned long long l1tmp,l2tmp,l3tmp;
+  // empty the circular buffer and extract some Mq statistic values
   while(1) {
     usleep(512345);
+    // --------------------------------------------
+    // mq statistics extraction
+    l1tmp = XrdMqSharedHash::SetCounter;
+    l2tmp = XrdMqSharedHash::SetNLCounter;
+    l3tmp = XrdMqSharedHash::GetCounter;
+
+    Add("HashSet"  ,0,0,l1tmp-l1);
+    Add("HashSetNoLock",0,0,l2tmp-l2);
+    Add("HashGet"  ,0,0,l3tmp-l3);
+
+    l1 = l1tmp;
+    l2 = l2tmp;
+    l3 = l3tmp;
+    // --------------------------------------------
+
     Mutex.Lock();
+
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg> >::iterator tit;
     // loop over tags
     for (tit = StatAvgUid.begin(); tit != StatAvgUid.end(); ++tit) {
@@ -359,6 +380,7 @@ Stat::Circulate()
 	  it->second.StampZero();
 	}
     }
+
     Mutex.UnLock();
   }
 }

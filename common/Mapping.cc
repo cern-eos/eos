@@ -16,6 +16,7 @@ Mapping::GroupRoleMap_t    Mapping::gGroupRoleVector;
 Mapping::VirtualUserMap_t  Mapping::gVirtualUidMap;
 Mapping::VirtualGroupMap_t Mapping::gVirtualGidMap;
 Mapping::SudoerMap_t       Mapping::gSudoerMap;
+bool                       Mapping::gRootSquash = true;
 
 XrdSysMutex                Mapping::ActiveLock;
 std::map<std::string, time_t> Mapping::ActiveTidents;
@@ -249,10 +250,20 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
   // wild card tidents
   if ((gVirtualUidMap.count(swcuidtident.c_str()))) {
     if (!gVirtualUidMap[swcuidtident.c_str()]) {
-      eos_static_debug("tident unix uid mapping");
-      Mapping::getPhysicalIds(client->name, vid);
-      vid.gid=99;
-      vid.gid_list.clear();
+      if ( gRootSquash && (host != "localhost") && (vid.name == "root") ) {
+        eos_static_debug("tident unix root uid squash");
+        vid.uid_list.clear();
+        vid.uid_list.push_back(99);
+        vid.uid=99;
+        vid.gid_list.clear();
+        vid.gid=99;
+        vid.gid_list.push_back(99);
+      } else {
+        eos_static_debug("tident unix uid mapping");
+        Mapping::getPhysicalIds(client->name, vid);
+        vid.gid=99;
+        vid.gid_list.clear();
+      }
     } else {
       eos_static_debug("tident uid forced mapping");
       // map to the requested id
@@ -269,13 +280,20 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
 
   if ((gVirtualGidMap.count(swcgidtident.c_str()))) {
     if (!gVirtualGidMap[swcgidtident.c_str()]) {
-      eos_static_debug("tident unix gid mapping");
-      uid_t uid = vid.uid;
-      Mapping::getPhysicalIds(client->name, vid);
-      vid.uid = uid;
-      vid.uid_list.clear();
-      vid.uid_list.push_back(uid);
-      vid.uid_list.push_back(99);
+      if ( gRootSquash && (host != "localhost") && (vid.name == "root") ) {
+        eos_static_debug("tident unix root gid squash");
+        vid.gid_list.clear();
+        vid.gid_list.push_back(99);
+        vid.gid=99;
+      } else {
+        eos_static_debug("tident unix gid mapping");
+        uid_t uid = vid.uid;
+        Mapping::getPhysicalIds(client->name, vid);
+        vid.uid = uid;
+        vid.uid_list.clear();
+        vid.uid_list.push_back(uid);
+        vid.uid_list.push_back(99);
+      }
     } else {
       eos_static_debug("tident gid forced mapping");
       // map to the requested id

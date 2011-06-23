@@ -25,6 +25,7 @@ private:
   XrdOucString                kDefaultReceiverQueue;
   char*                       kRecvBuffer;
   int                         kRecvBufferAlloc;
+  size_t                      kInternalBufferPosition;
 public:
 
   bool Subscribe(const char* queue = 0);

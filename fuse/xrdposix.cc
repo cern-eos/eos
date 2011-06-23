@@ -504,12 +504,12 @@ int xrd_stat(const char *path, struct stat *buf)
   fprintf(stderr,"returned %s %lld\n",value, dostat);
   if (dostat >= 0) {
     unsigned long long sval[10];
-    unsigned int ival[3];
+    unsigned long long ival[6];
     char tag[1024];
     
     // parse the stat output
-    int items = sscanf(value,"%s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",tag, (unsigned long long*)&sval[0],(unsigned long long*)&sval[1],(unsigned long long*)&sval[2],(unsigned long long*)&sval[3],(unsigned long long*)&sval[4],(unsigned long long*)&sval[5],(unsigned long long*)&sval[6],(unsigned long long*)&sval[7],(unsigned long long*)&sval[8],(unsigned long long*)&sval[9],(unsigned long long*)&ival[0],(unsigned long long*)&ival[1],(unsigned long long*)&ival[2]);
-    if ((items != 14) || (strcmp(tag,"stat:"))) {
+    int items = sscanf(value,"%s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",tag, (unsigned long long*)&sval[0],(unsigned long long*)&sval[1],(unsigned long long*)&sval[2],(unsigned long long*)&sval[3],(unsigned long long*)&sval[4],(unsigned long long*)&sval[5],(unsigned long long*)&sval[6],(unsigned long long*)&sval[7],(unsigned long long*)&sval[8],(unsigned long long*)&sval[9],(unsigned long long*)&ival[0],(unsigned long long*)&ival[1],(unsigned long long*)&ival[2], (unsigned long long*)&ival[3], (unsigned long long*)&ival[4], (unsigned long long*)&ival[5]);
+    if ((items != 17) || (strcmp(tag,"stat:"))) {
       errno = ENOENT;
       return EFAULT;
     } else {
@@ -526,6 +526,12 @@ int xrd_stat(const char *path, struct stat *buf)
       buf->st_atime = (time_t) ival[0];
       buf->st_mtime = (time_t) ival[1];
       buf->st_ctime = (time_t) ival[2];
+      buf->st_atim.tv_sec = (time_t) ival[0];
+      buf->st_mtim.tv_sec = (time_t) ival[1];
+      buf->st_ctim.tv_sec = (time_t) ival[2];
+      buf->st_atim.tv_nsec = (time_t) ival[3];
+      buf->st_mtim.tv_nsec = (time_t) ival[4];
+      buf->st_ctim.tv_nsec = (time_t) ival[5];
       dostat = 0;
     } 
   }

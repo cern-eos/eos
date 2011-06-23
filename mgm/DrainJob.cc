@@ -37,6 +37,7 @@ DrainJob::ResetCounter(bool lockit)
   FileSystem* fs = 0;
   fs = FsView::gFsView.mIdView[fsid];
   if (fs) {
+    //    fs->OpenTransaction();
     fs->SetLongLong("stat.drainbytesleft", 0);
     fs->SetLongLong("stat.drainfiles",     0);
     fs->SetLongLong("stat.drainscheduledfiles",   0);
@@ -44,6 +45,8 @@ DrainJob::ResetCounter(bool lockit)
     fs->SetLongLong("stat.drainlostfiles", 0);
     fs->SetLongLong("stat.timeleft", 0);
     fs->SetLongLong("stat.drainprogress",0);
+    fs->SetLongLong("stat.drainretry", 0);
+    //    fs->CloseTransaction();
   }
   if (lockit) FsView::gFsView.ViewMutex.UnLockRead();
 }
@@ -61,14 +64,23 @@ DrainJob::StaticThreadProc(void* arg)
 /*----------------------------------------------------------------------------*/
 void*
 DrainJob::Drain(void)
-{
+{  
   XrdSysThread::SetCancelOn();
   XrdSysThread::SetCancelDeferred();
+
+  // the retry is currently hardcoded to 3 e.g. the maximum time for a drain operation is 3 x <drainperiod>
+  int maxtry=3;
+  int ntried=0;
+
+ retry:
+  ntried++;
+
+  eos_static_notice("Starting Drain Job for fs=%u onOpsError=%d try=%d", fsid,onOpsError, ntried);
 
   FileSystem* fs = 0;
   ResetCounter();
 
-  eos_static_notice("Starting Drain Job for fs=%u onOpsError=%d", fsid,onOpsError);
+
   std::string group="";
   time_t drainstart = time(NULL);
   time_t drainperiod = 0;
@@ -85,6 +97,8 @@ DrainJob::Drain(void)
     }
     
     fs->SetDrainStatus(eos::common::FileSystem::kDrainPrepare);
+    fs->SetLongLong("stat.drainretry", ntried-1);
+
     group = fs->GetString("schedgroup");
 
     fs->SnapShotFileSystem(drain_snapshot,false);
@@ -92,8 +106,8 @@ DrainJob::Drain(void)
     drainendtime = drainstart + drainperiod;
   }
 
-  // now we wait 10 seconds ...
-  for (int k=0; k< 100; k++) {
+  // now we wait 60 seconds ...
+  for (int k=0; k< 600; k++) {
     usleep(100000);
     XrdSysThread::CancelPoint();
   }
@@ -123,6 +137,7 @@ DrainJob::Drain(void)
         //      }
         totalbytes+= fmd->getSize();
         totalfiles++;
+
         // insert into the drainqueue
         fids.push_back((unsigned long long)fmd->getId());
       }
@@ -134,6 +149,9 @@ DrainJob::Drain(void)
   gOFS->eosViewMutex.UnLock();
   //------------------------------------
 
+  if (!totalfiles) {
+    goto nofilestodrain;
+  }
 
   // set the shared object counter
   {
@@ -212,7 +230,8 @@ DrainJob::Drain(void)
     fs->SetDrainStatus(eos::common::FileSystem::kDraining);
   }
 
-  time_t last_scheduled = time(NULL);
+  time_t last_scheduled;
+  last_scheduled = time(NULL);
 
   // start scheduling into the queues
 
@@ -536,8 +555,15 @@ DrainJob::Drain(void)
         }
         
         fs->SetDrainStatus(eos::common::FileSystem::kDrainExpired);
-        return 0;
+
+        // retry logic
+        if (ntried <=maxtry) {
+          // trigger retry; 
+        } else {
+          return 0;
+        }
       }
+      goto retry;
     }
     
     for (int k=0; k< 10; k++) {
@@ -553,6 +579,7 @@ DrainJob::Drain(void)
   } while (1);
 
 
+ nofilestodrain:
 
   // set status to 'drained'
   {
@@ -566,6 +593,7 @@ DrainJob::Drain(void)
       fs->SetDrainStatus(eos::common::FileSystem::kDrainLostFiles);
     else 
       fs->SetDrainStatus(eos::common::FileSystem::kDrained);
+    fs->SetLongLong("stat.drainprogress",  100);
   }
   return 0;
 }

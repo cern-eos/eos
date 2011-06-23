@@ -78,6 +78,13 @@ com_config (char* arg1) {
     return (0);
   }
 
+  if ( subcommand == "autosave") {
+    XrdOucString in ="mgm.cmd=config&mgm.subcmd=autosave&mgm.config.state=";
+    in += arg;
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+
   if ( subcommand == "reset") {
     XrdOucString in ="mgm.cmd=config&mgm.subcmd=reset";
     global_retc = output_result(client_admin_command(in));
@@ -184,6 +191,7 @@ com_config (char* arg1) {
   printf("usage: config diff                                                       :  show changes since last load/save operation\n");
   printf("usage: config changelog [-#lines]                                        :  show the last <#> lines from the changelog - default is -10 \n");
   printf("usage: config reset                                                      :  reset all configuration to empty state\n");
+  printf("usage: config autosave [on|off]                                          :  without on/off just prints the state otherwise set's autosave to on or off\n");
 
   return (0);
 }

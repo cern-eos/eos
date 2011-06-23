@@ -75,6 +75,12 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   int NoGo=0;
 
   int rc = XrdOfs::Configure(Eroute);
+
+  // enforcing 'sss' authentication for all communications
+
+  setenv("XrdSecPROTOCOL","sss",1);
+  Eroute.Say("=====> fstofs enforces SSS authentication for XROOT clients");
+
   if (rc)
     return rc;
 
@@ -476,11 +482,13 @@ XrdFstOfsFile::open(const char                *path,
 
 
   struct stat statinfo;
+
   if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
     // file does not exist, keep the create lfag
     haswrite = true;
     isCreation = true;
     openSize = 0;
+    statinfo.st_mtime=0; // this we use to indicate if a file was written in the meanwhile by someone else
   } else {
     if (open_mode & SFS_O_CREAT) 
       open_mode -= SFS_O_CREAT;
@@ -493,7 +501,7 @@ XrdFstOfsFile::open(const char                *path,
     if (!(sbookingsize=capOpaque->Get("mgm.bookingsize"))) {
       return gOFS.Emsg(epname,error, EINVAL,"open - no booking size in capability",path);
     } else {
-      bookingsize = strtoull(capOpaque->Get("mgm.bookingsize"),0,0); // this is in MB
+      bookingsize = strtoull(capOpaque->Get("mgm.bookingsize"),0,0); 
     }
   }
 
@@ -788,7 +796,8 @@ XrdFstOfsFile::close()
    if (isCreation) {
      // if we had space allocation we have to truncate the allocated space to the real size of the file
      if (layOut) {
-       layOut->truncate(maxOffsetWritten);
+       if ( (long long)maxOffsetWritten>(long long)openSize)
+         layOut->truncate(maxOffsetWritten);
      }
    }
 
@@ -810,7 +819,7 @@ XrdFstOfsFile::close()
    // first we assume that, if we have writes, we update it
    closeSize = openSize;
 
-   if (haswrite) {
+   if (haswrite || isCreation) {
      // commit meta data
      struct stat statinfo;
      if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
@@ -1205,6 +1214,8 @@ XrdFstOfsFile::sync(XrdSfsAio *aiop)
 int          
 XrdFstOfsFile::truncateofs(XrdSfsFileOffset   fileOffset)
 {
+  // truncation moves the max offset written 
+  maxOffsetWritten = fileOffset;
   return XrdOfsFile::truncate(fileOffset);
 }
 

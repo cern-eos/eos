@@ -4,7 +4,7 @@
 Summary: The EOS server installation.
 Name: eos-server
 Version: 0.1.0
-Release: rc19
+Release: rc20
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -119,6 +119,7 @@ The EOS shell client.
 ############################
 # documentation
 %doc %_mandir/man1/eos.1.gz
+%doc %_mandir/man1/eos::fs.1.gz
 
 
 #######################################################################################
