@@ -33,7 +33,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %build
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
 export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44 
-mkdir build
+mkdir -p build
 cd build
 cmake ../
 cmake ../

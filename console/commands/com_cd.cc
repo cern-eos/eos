@@ -5,8 +5,23 @@
 /* Change working directory &*/
 int
 com_cd (char *arg) {
+  static XrdOucString opwd="/";
+  // cd -
+  if (!strcmp(arg,"-")) {
+    arg = (char*) opwd.c_str();
+    fprintf(stderr,"setting arg to %s\n", arg);
+  }
+  opwd=pwd;
+
   XrdOucString newpath=abspath(arg);
   XrdOucString oldpwd = pwd;
+
+  // cd ~ (home)
+  if (!arg || (!strlen(arg)) || (!strcmp(arg,"~"))) {
+    if (getenv("EOS_HOME")) {
+      newpath = abspath(getenv("EOS_HOME"));
+    }
+  }
 
   pwd = newpath;
 
