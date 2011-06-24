@@ -169,6 +169,12 @@ namespace eos
         throw( MDException );
 
       //------------------------------------------------------------------------
+      //! Remove the quota node
+      //------------------------------------------------------------------------
+      virtual void removeQuotaNode( ContainerMD *container )
+        throw( MDException );
+
+      //------------------------------------------------------------------------
       //! Get the quota stats placeholder
       //------------------------------------------------------------------------
       virtual QuotaStats *getQuotaStats()

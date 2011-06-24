@@ -617,4 +617,50 @@ namespace eos
 
     return node;
   }
+
+  //----------------------------------------------------------------------------
+  // Remove the quota node
+  //----------------------------------------------------------------------------
+  void HierarchicalView::removeQuotaNode( ContainerMD *container )
+        throw( MDException )
+  {
+    //--------------------------------------------------------------------------
+    // Sanity checks
+    //--------------------------------------------------------------------------
+    if( !container )
+    {
+      MDException ex;
+      ex.getMessage() << "Invalid container (zero pointer)";
+      throw ex;
+    }
+
+    if( !pQuotaStats )
+    {
+      MDException ex;
+      ex.getMessage() << "No QuotaStats placeholder registered";
+      throw ex;
+    }
+
+    if( !(container->getFlags() & QUOTA_NODE_FLAG) )
+    {
+      MDException ex;
+      ex.getMessage() << "Not a quota node: " << container->getId();
+      throw ex;
+    }
+
+    //--------------------------------------------------------------------------
+    // Get the quota node and meld it with the parent node if present
+    //--------------------------------------------------------------------------
+    QuotaNode *node   = getQuotaNode( container );
+    QuotaNode *parent = 0;
+    if( container != pRoot )
+      parent = getQuotaNode( pContainerSvc->getContainerMD( container->getParentId() ), true );
+
+    container->getFlags() &= ~QUOTA_NODE_FLAG;
+    updateContainerStore( container );
+    if( parent )
+      parent->meld( node );
+
+    pQuotaStats->removeNode( container->getId() );
+  }
 };

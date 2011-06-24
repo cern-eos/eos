@@ -23,6 +23,13 @@ namespace eos
       struct UsageInfo
       {
         UsageInfo(): space(0), physicalSpace(0), files(0) {}
+        UsageInfo &operator += ( const UsageInfo &other )
+        {
+          space         += other.space;
+          physicalSpace += other.physicalSpace;
+          files         += other.files;
+          return *this;
+        }
         uint64_t space;
         uint64_t physicalSpace;
         uint64_t files;
@@ -116,6 +123,22 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
+      //! Change the number of files owned by the given user
+      //------------------------------------------------------------------------
+      uint64_t changeNumFilesUser( uid_t uid, uint64_t delta ) throw( MDException )
+      {
+        return pUserUsage[uid].files += delta;
+      }
+
+      //------------------------------------------------------------------------
+      //! Change the number of files owned by the given group
+      //------------------------------------------------------------------------
+      uint64_t changeNumFilesGroup( gid_t gid, uint64_t delta ) throw( MDException )
+      {
+        return pGroupUsage[gid].files += delta;
+      }
+
+      //------------------------------------------------------------------------
       // Iterate over the usage of known users
       //------------------------------------------------------------------------
       UserMap::iterator userUsageBegin()
@@ -171,6 +194,11 @@ namespace eos
       //------------------------------------------------------------------------
       void removeFile( const FileMD *file );
 
+      //------------------------------------------------------------------------
+      //! Meld in another quota node
+      //------------------------------------------------------------------------
+      void meld( const QuotaNode *node );
+
     private:
       UserMap     pUserUsage;
       GroupMap    pGroupUsage;
@@ -208,6 +236,11 @@ namespace eos
       //! Register a new quota node
       //------------------------------------------------------------------------
       QuotaNode *registerNewNode( ContainerMD::id_t nodeId ) throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Remove quota node
+      //------------------------------------------------------------------------
+      void removeNode( ContainerMD::id_t nodeId ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Register a mapping function used to calculate the physical

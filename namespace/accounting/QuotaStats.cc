@@ -40,6 +40,20 @@ namespace eos
   }
 
   //----------------------------------------------------------------------------
+  // Meld in another quota node
+  //----------------------------------------------------------------------------
+  void QuotaNode::meld( const QuotaNode *node )
+  {
+    UserMap::const_iterator it1 = node->pUserUsage.begin();
+    for( ; it1 != node->pUserUsage.end(); ++it1 )
+      pUserUsage[it1->first] += it1->second;
+
+    GroupMap::const_iterator it2 = node->pGroupUsage.begin();
+    for( ; it2 != node->pGroupUsage.end(); ++it2 )
+      pGroupUsage[it2->first] += it2->second;
+  }
+
+  //----------------------------------------------------------------------------
   // Get a quota node associated to the container id
   //----------------------------------------------------------------------------
   QuotaNode *QuotaStats::getQuotaNode( ContainerMD::id_t nodeId )
@@ -76,4 +90,22 @@ namespace eos
     pNodeMap[nodeId] = node;
     return node;
   }
+
+  //----------------------------------------------------------------------------
+  // Remove quota node
+  //----------------------------------------------------------------------------
+  void QuotaStats::removeNode( ContainerMD::id_t nodeId )
+    throw( MDException )
+  {
+    NodeMap::iterator it = pNodeMap.find( nodeId );
+    if( it == pNodeMap.end() )
+    {
+      MDException e;
+      e.getMessage() << "Quota node does not exist: " << nodeId;
+      throw e;
+    }
+    QuotaNode *node = new QuotaNode( this );
+    pNodeMap[nodeId] = node;
+  }
+
 }
