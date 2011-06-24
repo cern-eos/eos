@@ -10,6 +10,7 @@
 
 # Start the eosha service
 start() {
+        [ -e /var/lock/subsys/eosha ] && failure && echo "eosha is already running!" && exit -1;
         echo -n "Starting eosha: "
         [ -z "${EOS_MGM_MASTER1}" ] && failure && echo "Env EOS_MGM_MASTER1 undefined!" && exit -1;
         [ -z "${EOS_MGM_MASTER2}" ] && failure && echo "Env EOS_MGM_MASTER2 undefined!" && exit -1;

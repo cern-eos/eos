@@ -57,6 +57,11 @@ my $md1file = "";
 my $md2file = "";
 my $md1dirfile = "";
 my $md2dirfile = "";
+my $md1failoverfile = "";
+my $md2failoverfile = "";
+my $md1failoverdirfile = "";
+my $md2failoverdirfile = "";
+my $mdfailoverdir = "";
 my $md1confdir = "";
 my $md2confdir = "";
 my $configname = "";
@@ -94,8 +99,15 @@ sub getconfig {
     
     $md1file = "$metadir/files.$target1.mdlog";
     $md2file = "$metadir/files.$target2.mdlog";
+    $md1failoverfile = "$metadir/failover/files.$target1.mdlog";
+    $md2failoverfile = "$metadir/failover/files.$target2.mdlog";
+
     $md1dirfile = "$metadir/directories.$target1.mdlog";
     $md2dirfile = "$metadir/directories.$target2.mdlog";
+    $md1failoverdirfile = "$metadir/failover/directories.$target1.mdlog";
+    $md2failoverdirfile = "$metadir/failover/directories.$target2.mdlog";
+    $mdfailoverdir = "$metadir/failover";
+
     $md1confdir = "$confdir/$target1/";
     $md2confdir = "$confdir/$target2/";
 }
@@ -149,7 +161,7 @@ while(1) {
         $eossyncstatus="<down>";
     }
 
-    if ($debug || (!$cnt)) {print "$now MGM status is $mgmstatus - MQ status is $mqstatus - SYNC status is $syncstatus\n - EOSSYNC status is $eossyncstatus";}
+    if ($debug || (!$cnt)) {print "$now MGM status is $mgmstatus - MQ status is $mqstatus - SYNC status is $syncstatus - EOSSYNC status is $eossyncstatus\n";}
 
     my $palias_ip =  gethostbyname("$aliasname");
     my $alias_ip;
@@ -233,7 +245,7 @@ while(1) {
                 $isfailover=0;
             }
             # the local master is uninitalized, the remote master is not - this is a failover situation
-            if ( ($mtime1 eq "") && ($mtime1 ne "")) {
+            if ( ($mtime2 eq "") && ($mtime1 ne "")) {
                 $isfailover=1;
             }
             # local and remote master have a changelog file, so let's judge by the modification time of the synced files
@@ -265,20 +277,23 @@ while(1) {
             # create backup name
             my $backupconfigname = $configname;
             my $backupconfigname = "$configname.failover.$stime";
+            system("mkdir -p $md1confdir/backup");
+            system("mkdir -p $md2confdir/backup");
+            system("mkdir -p $mdfailoverdir");
 
             printf("backupname = $backupconfigname\n");
             if ( "$host" eq "$target1" ) {
                 now();
                 printf("$now backup config and copy from $target2 ...\n");
                 printf "____________________________________________________________________________________________________________\n";
-                system("cp -v $md1confdir/$configname.eoscf $md1confdir/$backupconfigname.eoscf >> $logfile 2>&1 ");
+                system("cp -v $md1confdir/$configname.eoscf $md1confdir/backup/$backupconfigname.eoscf >> $logfile 2>&1 ");
                 system("cp -v $md2confdir/$configname.eoscf $md1confdir/$configname.eoscf >> $logfile 2>&1 ");
             }
             if ( "$host" eq "$target2" ) {
                 now();
                 printf("$now backup config and copy from $target1 ...\n");
                 printf "____________________________________________________________________________________________________________\n";
-                system("cp -v $md2confdir/$configname.eoscf $md2confdir/$backupconfigname.eoscf >> $logfile 2>&1 ");
+                system("cp -v $md2confdir/$configname.eoscf $md2confdir/backup/$backupconfigname.eoscf >> $logfile 2>&1 ");
                 system("cp -v $md1confdir/$configname.eoscf $md2confdir/$configname.eoscf >> $logfile 2>&1 ");
             }
 
@@ -288,8 +303,8 @@ while(1) {
             if ( "$host" eq "$target1" ) {
                 now();
                 printf "____________________________________________________________________________________________________________\n";
-                system("test -e $md1file && mv -v $md1file $md1file.failover.$stime >> $logfile 2>&1 ");
-                system("test -e $md1file.failover.$stime && bzip2 -v $md1file.failover.$stime >> $logfile 2>&1 ");
+                system("test -e $md1file && mv -v $md1file $md1failoverfile.$stime >> $logfile 2>&1 ");
+                system("test -e $md1failoverfile.$stime && bzip2 -v $md1failoverfile.$stime >> $logfile 2>&1 ");
                 printf "____________________________________________________________________________________________________________\n";
                 my $retc = system("echo := eos-log-compact $md2file $md1file ; test -e $md2file && eos-log-compact $md2file $md1file >> $logfile 2>&1 ");
                 $retc = ($retc >> 8);
@@ -309,8 +324,8 @@ while(1) {
                 }
 
                 printf "____________________________________________________________________________________________________________\n";
-                system("test -e $md1dirfile && mv -v $md1dirfile $md1dirfile.failover.$stime >> $logfile 2>&1 ");
-                system("test -e $md1dirfile.failover.$stime && bzip2 -v $md1dirfile.failover.$stime >> $logfile 2>&1 ");
+                system("test -e $md1dirfile && mv -v $md1dirfile $md1failoverdirfile.$stime >> $logfile 2>&1 ");
+                system("test -e $md1failoverdirfile.$stime && bzip2 -v $md1failoverdirfile.$stime >> $logfile 2>&1 ");
                 printf "____________________________________________________________________________________________________________\n";
                 $retc = system("echo := eos-log-compact $md2dirfile $md1dirfile >> $logfile 2>&1  ; eos-log-compact $md2dirfile $md1dirfile >> $logfile 2>&1 ");
                 $retc = ($retc >> 8);
@@ -334,10 +349,10 @@ while(1) {
 
             if ( "$host" eq "$target2" ) {
                 printf "____________________________________________________________________________________________________________\n";
-                system("test -e $md2file && mv -v $md2file $md2file.failover.$stime >> $logfile 2>&1 ");
-                system("test -e $md2file.failover.$stime && bzip2 -v $md2file.failover.$stime >> $logfile 2>&1 ");
+                system("test -e $md2file && mv -v $md2file $md2failoverfile.$stime >> $logfile 2>&1 ");
+                system("test -e $md2failoverfile.$stime && bzip2 -v $md2failoverfile.$stime >> $logfile 2>&1 ");
                 printf "____________________________________________________________________________________________________________\n";
-                my $retc = system("echo := eos-log-compact $md1file $md2file >> $logfile 2>&1 ; test -e $md1file eos-log-compact $md1file $md2file >> $logfile 2>&1 ");
+                my $retc = system("echo := eos-log-compact $md1file $md2file >> $logfile 2>&1 ; test -e $md1file && eos-log-compact $md1file $md2file >> $logfile 2>&1 ");
                 $retc = ($retc >> 8);
                 if ( -e "$md1file" && $retc) {
                     printf("$now WARNING : eos-log-compact failed - trying eos-log-repair\n");
@@ -355,8 +370,8 @@ while(1) {
                 }
 
                 printf "____________________________________________________________________________________________________________\n";
-                system("test -e $md2dirfile && mv -v $md2dirfile $md2dirfile.failover.$stime >> $logfile 2>&1 ");
-                system("test -e $md2dirfile.failover.$stime && bzip2 -v $md2dirfile.failover.$stime >> $logfile 2>&1 ");
+                system("test -e $md2dirfile && mv -v $md2dirfile $md2failoverdirfile.$stime >> $logfile 2>&1 ");
+                system("test -e $md2failoverdirfile.$stime && bzip2 -v $md2failoverdirfile.$stime >> $logfile 2>&1 ");
                 printf "____________________________________________________________________________________________________________\n";
                 $retc = system("echo := eos-log-compact $md1dirfile $md2dirfile >> $logfile 2>&1 ; test -e $md1dirfile && eos-log-compact $md1dirfile $md2dirfile >> $logfile 2>&1 ");
                 $retc = ($retc >> 8);
