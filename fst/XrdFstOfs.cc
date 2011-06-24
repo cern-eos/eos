@@ -485,7 +485,6 @@ XrdFstOfsFile::open(const char                *path,
 
   if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
     // file does not exist, keep the create lfag
-    haswrite = true;
     isCreation = true;
     openSize = 0;
     statinfo.st_mtime=0; // this we use to indicate if a file was written in the meanwhile by someone else
@@ -819,90 +818,93 @@ XrdFstOfsFile::close()
    // first we assume that, if we have writes, we update it
    closeSize = openSize;
 
-   if (haswrite || isCreation) {
+   if (haswrite || isCreation ) {
      // commit meta data
      struct stat statinfo;
      if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
        rc = gOFS.Emsg(epname,error, EIO, "close - cannot stat closed file to determine file size",Path.c_str());
      } else {
-       // update size
-       closeSize = statinfo.st_size;
-       fMd->fMd.size     = statinfo.st_size;
-       fMd->fMd.mtime    = statinfo.st_mtime;
+       if ( (statinfo.st_size==0) || haswrite) {
+         // update size
+         closeSize = statinfo.st_size;
+         fMd->fMd.size     = statinfo.st_size;
+         fMd->fMd.mtime    = statinfo.st_mtime;
 #ifdef __APPLE__
-       fMd->fMd.mtime_ns = 0;
+         fMd->fMd.mtime_ns = 0;
 #else
-       fMd->fMd.mtime_ns = statinfo.st_mtim.tv_nsec;
+         fMd->fMd.mtime_ns = statinfo.st_mtim.tv_nsec;
 #endif
-
-       // set the container id
-       fMd->fMd.cid = cid;
-
-       eos::common::Path cPath(capOpaque->Get("mgm.path"));
-       if (cPath.GetName())strncpy(fMd->fMd.name,cPath.GetName(),255);
-       const char* val =0;
-       if ((val = capOpaque->Get("container"))) {
-	 strncpy(fMd->fMd.container,val,255);
-       }
-     }
-
-     // commit local
-     if (!eos::common::gFmdHandler.Commit(fMd))
-       rc = gOFS.Emsg(epname,error,EIO,"close - unable to commit meta data",Path.c_str());
-
-     // commit to central mgm cache
-     int envlen=0;
-     XrdOucString capOpaqueFile="";
-     XrdOucString mTimeString="";
-     capOpaqueFile += "/?";
-     capOpaqueFile += capOpaque->Env(envlen);
-     capOpaqueFile += "&mgm.pcmd=commit";
-     capOpaqueFile += "&mgm.size=";
-     char filesize[1024]; sprintf(filesize,"%llu", fMd->fMd.size);
-     capOpaqueFile += filesize;
-     if (checkSum) {
-       capOpaqueFile += "&mgm.checksum=";
-       capOpaqueFile += checkSum->GetHexChecksum();
-     }
-     capOpaqueFile += "&mgm.mtime=";
-     capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fMd->fMd.mtime);
-     capOpaqueFile += "&mgm.mtime_ns=";
-     capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fMd->fMd.mtime_ns);
-
-     capOpaqueFile += "&mgm.add.fsid=";
-     capOpaqueFile += (int)fMd->fMd.fsid;
-
-     // if <drainfsid> is set, we can issue a drop replica 
-     if (capOpaque->Get("mgm.drainfsid")) {
-       capOpaqueFile += "&mgm.drop.fsid=";
-       capOpaqueFile += capOpaque->Get("mgm.drainfsid");
-     }
-    
-     if (isEntryServer) {
-       // the entry server commits size and checksum
-       capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
-     }
-     rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
-     if (rc == -EIDRM) {
-       if (!gOFS.Storage->CloseTransaction(fsid, fileid)) {
-	 eos_crit("cannot close transaction for fsid=%u fid=%llu", fsid, fileid);
-       }
-       // this file has been deleted in the meanwhile ... we can unlink that immedeatly
-       eos_info("unlinking fid=%08x path=%s - file has been already unlinked from the namespace", fMd->fMd.fid, Path.c_str());
-       int rc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
-       rc = SFS_ERROR;
-
-       if (fstBlockXS) {
-         // delete also the block checksum file
-         fstBlockXS->UnlinkXSPath();
-       }
-     }
-     
+         
+         // set the container id
+         fMd->fMd.cid = cid;
+         
+         eos::common::Path cPath(capOpaque->Get("mgm.path"));
+         if (cPath.GetName())strncpy(fMd->fMd.name,cPath.GetName(),255);
+         const char* val =0;
+         if ((val = capOpaque->Get("container"))) {
+           strncpy(fMd->fMd.container,val,255);
+         }
+         
+         // commit local
+         if (!eos::common::gFmdHandler.Commit(fMd))
+           rc = gOFS.Emsg(epname,error,EIO,"close - unable to commit meta data",Path.c_str());
+         
+         // commit to central mgm cache
+         int envlen=0;
+         XrdOucString capOpaqueFile="";
+         XrdOucString mTimeString="";
+         capOpaqueFile += "/?";
+         capOpaqueFile += capOpaque->Env(envlen);
+         capOpaqueFile += "&mgm.pcmd=commit";
+         capOpaqueFile += "&mgm.size=";
+         char filesize[1024]; sprintf(filesize,"%llu", fMd->fMd.size);
+         capOpaqueFile += filesize;
+         if (checkSum) {
+           capOpaqueFile += "&mgm.checksum=";
+           capOpaqueFile += checkSum->GetHexChecksum();
+         }
+         capOpaqueFile += "&mgm.mtime=";
+         capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fMd->fMd.mtime);
+         capOpaqueFile += "&mgm.mtime_ns=";
+         capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fMd->fMd.mtime_ns);
+         
+         capOpaqueFile += "&mgm.add.fsid=";
+         capOpaqueFile += (int)fMd->fMd.fsid;
+         
+         // if <drainfsid> is set, we can issue a drop replica 
+         if (capOpaque->Get("mgm.drainfsid")) {
+           capOpaqueFile += "&mgm.drop.fsid=";
+           capOpaqueFile += capOpaque->Get("mgm.drainfsid");
+         }
+         
+         if (isEntryServer) {
+           // the entry server commits size and checksum
+           capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
+         }
+         rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
+         if (rc == -EIDRM) {
+           if (!gOFS.Storage->CloseTransaction(fsid, fileid)) {
+             eos_crit("cannot close transaction for fsid=%u fid=%llu", fsid, fileid);
+           }
+           // this file has been deleted in the meanwhile ... we can unlink that immedeatly
+           eos_info("unlinking fid=%08x path=%s - file has been already unlinked from the namespace", fMd->fMd.fid, Path.c_str());
+           int rc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
+           rc = SFS_ERROR;
+           
+           if (fstBlockXS) {
+             // delete also the block checksum file
+             fstBlockXS->UnlinkXSPath();
+           }
+         }
+       }    
+     } 
+   }
+   if (isRW) {
      if (rc==SFS_OK) {
        gOFS.Storage->CloseTransaction(fsid, fileid);
      }
-       
    }
+   
    closed = true;
 
    gOFS.OpenFidMutex.Lock();
