@@ -243,6 +243,81 @@ void HierarchicalViewTest::quotaTest()
   CPPUNIT_ASSERT_NO_THROW( view->initialize() );
 
   //----------------------------------------------------------------------------
+  // Test quota node melding
+  //----------------------------------------------------------------------------
+  std::map<uid_t, eos::QuotaNode::UsageInfo> users;
+  std::map<gid_t, eos::QuotaNode::UsageInfo> groups;
+  std::map<uid_t, eos::QuotaNode::UsageInfo>::iterator userIt;
+  std::map<gid_t, eos::QuotaNode::UsageInfo>::iterator groupIt;
+  eos::QuotaNode *meldNode1 = new eos::QuotaNode(0);
+  eos::QuotaNode *meldNode2 = new eos::QuotaNode(0);
+  for( int i = 0; i < 10000; ++i )
+  {
+    uid_t uid = random();
+    gid_t gid = random();
+    eos::QuotaNode::UsageInfo &user  = users[uid];
+    eos::QuotaNode::UsageInfo &group = groups[gid];
+
+    uint64_t userSpace          = random()%100000;
+    uint64_t userPhysicalSpace  = random()%100000;
+    uint64_t userFiles          = random()%1000;
+    uint64_t groupSpace         = random()%100000;
+    uint64_t groupPhysicalSpace = random()%100000;
+    uint64_t groupFiles         = random()%1000;
+
+    if( random() % 3 )
+    {
+      meldNode1->changeSpaceUser( uid, userSpace );
+      meldNode1->changePhysicalSpaceUser( uid, userPhysicalSpace );
+      meldNode1->changeNumFilesUser( uid, userFiles );
+      user.space          += userSpace;
+      user.physicalSpace  += userPhysicalSpace;
+      user.files          += userFiles;
+      meldNode1->changeSpaceGroup( gid, groupSpace );
+      meldNode1->changePhysicalSpaceGroup( gid, groupPhysicalSpace );
+      meldNode1->changeNumFilesGroup( gid, groupFiles );
+      group.space         += groupSpace;
+      group.physicalSpace += groupPhysicalSpace;
+      group.files         += groupFiles;
+    }
+
+    if( random() % 3 )
+    {
+      meldNode2->changeSpaceUser( uid, userSpace );
+      meldNode2->changePhysicalSpaceUser( uid, userPhysicalSpace );
+      meldNode2->changeNumFilesUser( uid, userFiles );
+      user.space          += userSpace;
+      user.physicalSpace  += userPhysicalSpace;
+      user.files          += userFiles;
+      meldNode2->changeSpaceGroup( gid, groupSpace );
+      meldNode2->changePhysicalSpaceGroup( gid, groupPhysicalSpace );
+      meldNode2->changeNumFilesGroup( gid, groupFiles );
+      group.space         += groupSpace;
+      group.physicalSpace += groupPhysicalSpace;
+      group.files         += groupFiles;
+    }
+  }
+
+  meldNode1->meld( meldNode2 );
+
+  for( userIt = users.begin(); userIt != users.end(); ++userIt )
+  {
+    CPPUNIT_ASSERT( userIt->second.space == meldNode1->getUsedSpaceByUser( userIt->first ) );
+    CPPUNIT_ASSERT( userIt->second.physicalSpace == meldNode1->getPhysicalSpaceByUser( userIt->first ) );
+    CPPUNIT_ASSERT( userIt->second.files == meldNode1->getNumFilesByUser( userIt->first ) );
+  }
+
+  for( groupIt = groups.begin(); groupIt != groups.end(); ++groupIt )
+  {
+    CPPUNIT_ASSERT( groupIt->second.space == meldNode1->getUsedSpaceByGroup( groupIt->first ) );
+    CPPUNIT_ASSERT( groupIt->second.physicalSpace == meldNode1->getPhysicalSpaceByGroup( groupIt->first ) );
+    CPPUNIT_ASSERT( groupIt->second.files == meldNode1->getNumFilesByGroup( groupIt->first ) );
+  }
+
+  delete meldNode1;
+  delete meldNode2;
+
+  //----------------------------------------------------------------------------
   // Create some structures, insert quota nodes and test their correctness
   //----------------------------------------------------------------------------
   eos::ContainerMD *cont1 = view->createContainer( "/test/embed/embed1", true );
@@ -291,6 +366,11 @@ void HierarchicalViewTest::quotaTest()
   std::map<gid_t, eos::QuotaNode::UsageInfo> groups2;
   std::string path2 = "/test/embed/embed2/";
   createFiles( path2, view, users2, groups2 );
+
+  std::map<uid_t, eos::QuotaNode::UsageInfo> users3;
+  std::map<gid_t, eos::QuotaNode::UsageInfo> groups3;
+  std::string path3 = "/test/embed/embed3/";
+  createFiles( path3, view, users3, groups3 );
 
   //----------------------------------------------------------------------------
   // Verify correctness
@@ -352,6 +432,54 @@ void HierarchicalViewTest::quotaTest()
     CPPUNIT_ASSERT( node2->getUsedSpaceByGroup( i ) == groups2[i].space );
     CPPUNIT_ASSERT( node1->getNumFilesByGroup( i )  == groups1[i].files );
     CPPUNIT_ASSERT( node2->getNumFilesByGroup( i )  == groups2[i].files );
+  }
+
+
+  //----------------------------------------------------------------------------
+  // Remove the quota nodes on /test/embed/embed1 and /dest/embed/embed2
+  // and check if the on /test has been updated
+  //----------------------------------------------------------------------------
+  eos::QuotaNode *parentNode = 0;
+  CPPUNIT_ASSERT_NO_THROW(
+    parentNode = view->getQuotaNode( view->getContainer( "/test" ) ) );
+
+  CPPUNIT_ASSERT_NO_THROW( view->removeQuotaNode( view->getContainer( path1 ) ) );
+
+  for( int i = 1; i <= 10; ++i )
+  {
+    CPPUNIT_ASSERT( parentNode->getPhysicalSpaceByUser( i )  == users1[i].physicalSpace + users2[i].physicalSpace );
+    CPPUNIT_ASSERT( parentNode->getUsedSpaceByUser( i )      == users1[i].space         + users2[i].space );
+    CPPUNIT_ASSERT( parentNode->getNumFilesByUser( i )       == users1[i].files         + users2[i].files );
+  }
+
+  for( int i = 1; i <= 3; ++i )
+  {
+    CPPUNIT_ASSERT( parentNode->getPhysicalSpaceByGroup( i ) == groups1[i].physicalSpace + groups2[i].physicalSpace );
+    CPPUNIT_ASSERT( parentNode->getUsedSpaceByGroup( i )     == groups1[i].space + groups2[i].space );
+    CPPUNIT_ASSERT( parentNode->getNumFilesByGroup( i )      == groups1[i].files + groups2[i].files );
+  }
+
+  CPPUNIT_ASSERT_NO_THROW( view->removeQuotaNode( view->getContainer( path3 ) ) );
+  CPPUNIT_ASSERT_THROW( view->removeQuotaNode( view->getContainer( path3 ) ), eos::MDException );
+
+  for( int i = 1; i <= 10; ++i )
+  {
+    CPPUNIT_ASSERT( parentNode->getPhysicalSpaceByUser( i )  ==
+                      users1[i].physicalSpace + users2[i].physicalSpace + users3[i].physicalSpace );
+    CPPUNIT_ASSERT( parentNode->getUsedSpaceByUser( i )      ==
+                      users1[i].space + users2[i].space + users3[i].space );
+    CPPUNIT_ASSERT( parentNode->getNumFilesByUser( i )       ==
+                      users1[i].files + users2[i].files + users3[i].files );
+  }
+
+  for( int i = 1; i <= 3; ++i )
+  {
+    CPPUNIT_ASSERT( parentNode->getPhysicalSpaceByGroup( i )  ==
+                      groups1[i].physicalSpace + groups2[i].physicalSpace + groups3[i].physicalSpace );
+    CPPUNIT_ASSERT( parentNode->getUsedSpaceByGroup( i )      ==
+                      groups1[i].space + groups2[i].space + groups3[i].space );
+    CPPUNIT_ASSERT( parentNode->getNumFilesByGroup( i )       ==
+                      groups1[i].files + groups2[i].files + groups3[i].files );
   }
 
   CPPUNIT_ASSERT_NO_THROW( view->finalize() );
