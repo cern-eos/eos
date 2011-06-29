@@ -546,6 +546,28 @@ int xrd_stat(const char *path, struct stat *buf)
 int 
 xrd_statfs(const char* url, const char* path, struct statvfs *stbuf) 
 {
+
+  static unsigned long long a1=0;
+  static unsigned long long a2=0;
+  static unsigned long long a3=0;
+  static unsigned long long a4=0;
+    
+  static XrdSysMutex statmutex;
+  static time_t laststat=0;
+  statmutex.Lock();
+  
+  if ( (time(NULL) - laststat) < ( (15 + (int)5.0*rand()/RAND_MAX)) ) {
+    stbuf->f_bsize  = 4096;
+    stbuf->f_frsize = 4096;
+    stbuf->f_blocks = a3 /4096;
+    stbuf->f_bfree  = a1 /4096;
+    stbuf->f_bavail = a1 /4096;
+    stbuf->f_files  = a4;
+    stbuf->f_ffree  = a2;
+    statmutex.UnLock();
+    return 0;
+  }
+
   XrdPosixTiming statfstiming("xrd_statfs");
   TIMING("START",&statfstiming);
 
@@ -566,18 +588,21 @@ xrd_statfs(const char* url, const char* path, struct statvfs *stbuf)
   if (dostatfs>=0) {
     char tag[1024];
     int retc=0;
-    unsigned long long a1,a2,a3,a4;
 
     if (!value[0]) {
+      statmutex.UnLock();
       return -EFAULT;
     }
     // parse the stat output
     int items = sscanf(value,"%s retc=%d f_avail_bytes=%llu f_avail_files=%llu f_max_bytes=%llu f_max_files=%llu",tag, &retc, &a1, &a2, &a3, &a4);
     if ((items != 6) || (strcmp(tag,"statvfs:"))) {
-      
+      statmutex.UnLock();
       return -EFAULT;
     }
-    
+
+    laststat = time(NULL);
+
+    statmutex.UnLock();
     stbuf->f_bsize  = 4096;
     stbuf->f_frsize = 4096;
     stbuf->f_blocks = a3 /4096;
@@ -588,6 +613,7 @@ xrd_statfs(const char* url, const char* path, struct statvfs *stbuf)
 
     return retc;
   } else {
+    statmutex.UnLock();
     return -EFAULT;
   }
 }
@@ -997,16 +1023,13 @@ int xrd_open(const char *path, int oflags, mode_t mode)
 
     if (spath.endswith("/proc/quota")) {
       spath.replace("/proc/quota","/proc/user/");
-      spath += "?mgm.cmd=quota&mgm.format=fuse";
+      spath += "?mgm.cmd=quota&mgm.subcmd=ls&mgm.format=fuse";
       //      OpenMutex.Lock();
       xrd_sync_env();
       int retc = XrdPosixXrootd::Open(spath.c_str(), oflags, mode);
       //      OpenMutex.UnLock();
       return retc;
     }
-
-    errno = EOPNOTSUPP;
-    return -1;
   }
 
   //  OpenMutex.Lock();

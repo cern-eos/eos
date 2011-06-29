@@ -656,47 +656,21 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     }
   }
 
-  // create /eos/proc
-  eosmd=0;
+  XrdOucString procpath = "/eos/";
+  XrdOucString subpath = MgmOfsInstanceName ;
+  if (subpath.beginswith("eos")) {subpath.replace("eos","");}
+  procpath += subpath;
+  procpath += "/proc";
+
   try {
-    XrdOucErrInfo error;
-    XrdSfsFileExistence file_exists;
-    eosmd = eosView->getContainer("/eos/proc");
-    eos::common::Mapping::VirtualIdentity vid;
-    eos::common::Mapping::Root(vid);
-    eos::FileMD* fmd=0;
-    if ((!gOFS->_exists("/eos/proc/whoami",file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
-      fmd = gOFS->eosView->createFile("/eos/proc/whoami",0,0);
-    if (fmd) {
-      fmd->setSize(4096);
-      gOFS->eosView->updateFileStore(fmd);
-    }
-    if ((!gOFS->_exists("/eos/proc/who",file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
-      fmd = gOFS->eosView->createFile("/eos/proc/who",0,0);
-    if (fmd) {
-      fmd->setSize(4096);
-      gOFS->eosView->updateFileStore(fmd);
-    }
-    if ((!gOFS->_exists("/eos/proc/quota",file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
-      fmd = gOFS->eosView->createFile("/eos/proc/quota",0,0);
-    if (fmd) {
-      fmd->setSize(4096);
-      gOFS->eosView->updateFileStore(fmd);
-    }
-    if ((!gOFS->_exists("/eos/proc/reconnect",file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
-      fmd = gOFS->eosView->createFile("/eos/proc/reconnect",0,0);
-    if (fmd) {
-      fmd->setSize(4096);
-      gOFS->eosView->updateFileStore(fmd);
-    }
+    eosmd = eosView->getContainer(procpath.c_str());
   } catch ( eos::MDException &e ) {
-    // nothing in this case
-    eosmd = 0;
+    eosmd =0;
   }
-  
+
   if (!eosmd) {
     try {
-      eosmd = eosView->createContainer( "/eos/proc", true );
+      eosmd = eosView->createContainer(procpath.c_str(), true );
       // set attribute inheritance
       eosmd->setMode(S_IFDIR| S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP);
       eosView->updateContainerStore(eosmd);
@@ -707,6 +681,47 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     }
   }
 
+  // create ../proc/<x> files
+  XrdOucString procpathwhoami = procpath; procpathwhoami+= "/whoami";
+  XrdOucString procpathwho    = procpath; procpathwho   += "/who";
+  XrdOucString procpathquota  = procpath; procpathquota += "/quota";
+  XrdOucString procpathreconnect = procpath; procpathreconnect += "/reconnect";
+
+  try {
+    XrdOucErrInfo error;
+    XrdSfsFileExistence file_exists;
+    eos::common::Mapping::VirtualIdentity vid;
+    eos::common::Mapping::Root(vid);
+    eos::FileMD* fmd=0;
+    if ((!gOFS->_exists(procpathwhoami.c_str(),file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
+      fmd = gOFS->eosView->createFile(procpathwhoami.c_str(),0,0);
+    if (fmd) {
+      fmd->setSize(4096);
+      gOFS->eosView->updateFileStore(fmd);
+    }
+    if ((!gOFS->_exists(procpathwho.c_str(),file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
+      fmd = gOFS->eosView->createFile(procpathwho.c_str(),0,0);
+    if (fmd) {
+      fmd->setSize(4096);
+      gOFS->eosView->updateFileStore(fmd);
+    }
+    if ((!gOFS->_exists(procpathquota.c_str(),file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
+      fmd = gOFS->eosView->createFile(procpathquota.c_str(),0,0);
+    if (fmd) {
+      fmd->setSize(4096);
+      gOFS->eosView->updateFileStore(fmd);
+    }
+    if ((!gOFS->_exists(procpathreconnect.c_str(),file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
+      fmd = gOFS->eosView->createFile(procpathreconnect.c_str(),0,0);
+    if (fmd) {
+      fmd->setSize(4096);
+      gOFS->eosView->updateFileStore(fmd);
+    }
+  } catch ( eos::MDException &e ) {
+    // nothing in this case
+    eosmd = 0;
+  }
+  
   //-------------------------------------------
 
   // create the specific listener class

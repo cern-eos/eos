@@ -233,7 +233,7 @@ Stat::PrintOutTotal(XrdOucString &out, bool details, bool monitoring, bool numer
       sprintf(aexecsig,"-NA-");
     
     if (!monitoring) {
-	sprintf(outline,"ALL        %-32s %09llu %8s %8s %8s %8s %8s +- %-10s\n",tag, GetTotal(tag),a5,a60,a300,a3600, aexec, aexecsig);
+	sprintf(outline,"ALL        %-32s %12llu %8s %8s %8s %8s %8s +- %-10s\n",tag, GetTotal(tag),a5,a60,a300,a3600, aexec, aexecsig);
     } else {
       sprintf(outline,"uid=all gid=all cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s exec=%f execsig=%f\n",tag, GetTotal(tag),a5,a60,a300,a3600,avg,sig);
     }
@@ -275,7 +275,7 @@ Stat::PrintOutTotal(XrdOucString &out, bool details, bool monitoring, bool numer
         }
         
         if (!monitoring) {
-          sprintf(outline,"%-10s %-32s %09llu %8s %8s %8s %8s\n",identifier, tuit->first.c_str(),StatsUid[tuit->first.c_str()][it->first],a5,a60,a300,a3600);
+          sprintf(outline,"%-10s %-32s %12llu %8s %8s %8s %8s\n",identifier, tuit->first.c_str(),StatsUid[tuit->first.c_str()][it->first],a5,a60,a300,a3600);
         } else {
           sprintf(outline,"%s cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",identifier, tuit->first.c_str(),StatsUid[tuit->first.c_str()][it->first],a5,a60,a300,a3600);
         }
@@ -317,7 +317,7 @@ Stat::PrintOutTotal(XrdOucString &out, bool details, bool monitoring, bool numer
         }
 
         if (!monitoring) {
-          sprintf(outline,"%-10s %-32s %09llu %8s %8s %8s %8s\n",identifier, tgit->first.c_str(),StatsGid[tgit->first.c_str()][it->first],a5,a60,a300,a3600);
+          sprintf(outline,"%-10s %-32s %12llu %8s %8s %8s %8s\n",identifier, tgit->first.c_str(),StatsGid[tgit->first.c_str()][it->first],a5,a60,a300,a3600);
         } else {
           sprintf(outline,"%s cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",identifier, tgit->first.c_str(),StatsUid[tgit->first.c_str()][it->first],a5,a60,a300,a3600);
           

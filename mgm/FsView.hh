@@ -85,17 +85,17 @@ public:
 #ifndef EOSMGMFSVIEWTEST
     mBalancer = new Balancer(name);
     // set default balancing variables
-    if (GetConfigMember("balancer")== "")
+    if (GetConfigMember("balancer")== "#EINVAL")
       SetConfigMember("balancer","off"); // disable balancing by default
-    if (GetConfigMember("balancer.threshold")=="") 
+    if (GetConfigMember("balancer.threshold")=="#EINVAL") 
       SetConfigMember("balancer.threshold","50000000000"); // set deviation treshold
-    if (GetConfigMember("graceperiod")=="")
+    if (GetConfigMember("graceperiod")=="#EINVAL")
       SetConfigMember("graceperiod","86400");
-    if (GetConfigMember("drainperiod")=="")
+    if (GetConfigMember("drainperiod")=="#EINVAL")
       SetConfigMember("drainperiod","86400");
-    if (GetConfigMember("scaninterval")=="")
+    if (GetConfigMember("scaninterval")=="#EINVAL")
       SetConfigMember("scaninterval","604800");
-    if (GetConfigMember("quota")=="") 
+    if (GetConfigMember("quota")=="#EINVAL") 
       SetConfigMember("quota", "off");
     
 #endif

@@ -21,15 +21,32 @@ if test ! -x ${EOS_ROOT}/sbin/eosd ; then
   exit 0
 fi
 
-[ -e /etc/sysconfig/eos ] && . /etc/sysconfig/eos
+[ -f /etc/sysconfig/eos ] && . /etc/sysconfig/eos
 
 RETVAL=0
 prog="eosd"
 
+[ -z "${EOS_FUSE_MOUNTS}" ] && EOS_FUSE_MOUNTS="main";
+
 start() {
+    for i in ${EOS_FUSE_MOUNTS}; do
+        if [ "$i" = "main" ]; then
+            [ -f /etc/sysconfig/eos ] && . /etc/sysconfig/eos
+        else 
+            if [ -f /etc/sysconfig/eos.$i ]; then
+                . /etc/sysconfig/eos.$i
+            else
+                echo -n "Skipping fuse mount for instance $i - no /etc/sysconfig/eos.$i configuration file"
+                echo 
+                echo_warning
+                echo 
+                continue;
+            fi
+        fi
+
         # Check if eosd is already running
 	echo
-        eosdpid=`pgrep -f "${EOS_ROOT}/sbin/eosd "`
+        eosdpid=`pgrep -f "${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/}"`
 	export EOS_NOACCESS=${EOS_NOACCESS-1}
 	export EOS_KERNELCACHE=${EOS_KERNELCACHE-1}
         if [ "x$eosdpid" = "x" ]; then
@@ -44,12 +61,15 @@ start() {
 	    ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
 	    ulimit -n 65000
 	    modprobe fuse
-            ${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -omax_readahead=131072,max_write=4194304,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch}/${EOS_FUSE_MOUNTDIR-/eos/}//  >& /dev/null 
-
-
-            RETVAL=$?
-	    [ $RETVAL -eq 0 ] && touch /var/lock/subsys/eosd
-            [ $RETVAL -eq 0 ] && echo_success;
+            ${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -omax_readahead=131072,max_write=4194304,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch}/${EOS_FUSE_MOUNTDIR-/eos/}//  >& /dev/null 
+            
+            
+            SRETVAL=$?
+	    [ $SRETVAL -eq 0 ] && touch /var/lock/subsys/eosd
+            [ $SRETVAL -eq 0 ] && echo_success;
+            if [ $SRETVAL -gt 0 ]; then
+                RETVAL=$SRETVAL; 
+            fi
 	    echo
 	    echo "EOS_NOACCESS    : ${EOS_NOACCESS}"
 	    echo "EOS_KERNELCACHE : ${EOS_KERNELCACHE}"
@@ -60,52 +80,71 @@ start() {
             RETVAL=1
 	    echo_warning
         fi
+    done
 }
 
 stop() {
+    for i in ${EOS_FUSE_MOUNTS}; do
+        if [ "$i" = "main" ]; then
+            [ -f /etc/sysconfig/eos ] && . /etc/sysconfig/eos
+        else 
+            if [ -f /etc/sysconfig/eos.$i ]; then
+                . /etc/sysconfig/eos.$i
+            else
+                echo -n "Skipping fuse mount for instance $i - no /etc/sysconfig/eos.$i configuration file"
+                echo 
+                echo_warning
+                echo 
+                continue;
+            fi
+        fi
         echo -n "Stopping $prog: "
-	umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
-	umount -f -l $umdir >& /dev/null
+        umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
+        umount -f -l $umdir >& /dev/null
         pkill -9 -f ${EOS_ROOT}/sbin/eosd
-	rm -f /var/lock/subsys/eosd
+        rm -f /var/lock/subsys/eosd
         echo
-	echo_success
-	echo
-	RETVAL=0;
+        echo_success
+        echo
+        RETVAL=0;
+    done
 }
 
 
 restart() {
-        stop
-        start
+    stop
+    start
 }       
 
 reload() {
-        restart
-}       
+    restart
+}
 
 case "$1" in
-start)
-        start
-        ;;
-stop)
-        stop
-        ;;
-reload|restart)
+    start)
+    start
+    ;;
+    stop)
+    stop
+    ;;
+    reload|restart)
+    restart
+    ;;
+    condrestart)
+    
+    if [ -f /var/lock/subsys/eosd ]; then
         restart
-        ;;
-condrestart)
-        if [ -f /var/lock/subsys/eosd ]; then
-            restart
-        fi
-        ;;
-status)
-        status $prog
-	RETVAL=$?
-        ;;
-*)
-        echo $"Usage: $0 {start|stop|restart|reload|condrestart|status}"
-	RETVAL=1
+    fi
+    ;;
+    status)
+    
+    status $prog
+    RETVAL=$?
+    ;;
+    *)
+    
+    echo $"Usage: $0 {start|stop|restart|reload|condrestart|status}"
+    RETVAL=1
 esac
 
 exit $RETVAL

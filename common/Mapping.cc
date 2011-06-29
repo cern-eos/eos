@@ -529,7 +529,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
     eos_static_debug("not found in uid cache");
     struct passwd *pwbufp=0;
     
-    if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp)) 
+    if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) 
       return;
     id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
     gPhysicalIdMutex.LockWrite();
@@ -604,7 +604,7 @@ Mapping::UidToUserName(uid_t uid, int &errc)
   std::string uid_string="";
   struct passwd pwbuf;
   struct passwd *pwbufp=0;
-  if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp)) {
+  if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp) || (!pwbufp)) {
     char suid[1024];
     snprintf(suid,sizeof(suid)-1,"%u", uid);
     uid_string = suid;
@@ -626,7 +626,7 @@ Mapping::GidToGroupName(gid_t gid, int &errc)
   struct group *grbufp=0;
   std::string gid_string="";
   
-  if (getgrgid_r(gid, &grbuf, buffer, buflen, &grbufp)) {
+  if (getgrgid_r(gid, &grbuf, buffer, buflen, &grbufp)|| (!grbufp)) {
     // cannot translate this name
     char sgid[1024];
     snprintf(sgid,sizeof(sgid)-1,"%u", gid);

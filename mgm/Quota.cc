@@ -413,11 +413,13 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
 	int buflen = sizeof(buffer);
 	struct passwd pwbuf;
 	struct passwd *pwbufp=0;
-	
+        memset(&pwbuf, 0, sizeof(pwbuf)); 
 	if (!getpwuid_r(sortuidarray[lid], &pwbuf, buffer, buflen, &pwbufp)) {
 	  char uidlimit[16];
-	  snprintf(uidlimit,8,"%s",pwbuf.pw_name);
-	  id = uidlimit;
+          if (pwbuf.pw_name) {
+            snprintf(uidlimit,8,"%s",pwbuf.pw_name);
+            id = uidlimit;
+          }
 	}
       }
 

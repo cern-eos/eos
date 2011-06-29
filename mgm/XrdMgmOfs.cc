@@ -3365,35 +3365,46 @@ XrdMgmOfs::FSctl(const int               cmd,
     if (execmd == "statvfs") {
       gOFS->MgmStats.Add("Statvfs",vid.uid,vid.gid,1);
       XrdOucString space = env.Get("path");
-      unsigned long long freebytes = 0;
-      unsigned long long freefiles = 0;
-      unsigned long long maxbytes  = 0;
-      unsigned long long maxfiles  = 0;
-      XrdOucString response ="";
+      static XrdSysMutex statvfsmutex;
+      static unsigned long long freebytes = 0;
+      static unsigned long long freefiles = 0;
+      static unsigned long long maxbytes  = 0;
+      static unsigned long long maxfiles  = 0;
+     
+      static time_t laststat = 0;
 
+      XrdOucString response ="";
+      
       if (!space.length()) {
 	response = "df: retc=";
 	response += EINVAL;
       } else {
-	eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-        SpaceQuota* spacequota = Quota::GetResponsibleSpaceQuota(space.c_str());
-        
-	if (!spacequota) {
-          // take the sum's from all file systems in 'default'
-          if (FsView::gFsView.mSpaceView.count("default")) {
-            eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-            freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
-            freefiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree");
+        statvfsmutex.Lock();
 
-            maxbytes  = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
-            maxfiles  = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files");
-          } 
-	} else {
-          freebytes = spacequota->GetPhysicalFreeBytes();
-          freefiles = spacequota->GetPhysicalFreeFiles();
-          maxbytes  = spacequota->GetPhysicalMaxBytes();
-          maxfiles  = spacequota->GetPhysicalMaxFiles();
-	}
+        // here we put some cache to avoid too heavy space recomputations
+        if (  (time(NULL) - laststat) > ( 10 + (int)rand()/RAND_MAX) ) {
+          eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+          SpaceQuota* spacequota = Quota::GetResponsibleSpaceQuota(space.c_str());
+          
+          if (!spacequota) {
+            // take the sum's from all file systems in 'default'
+            if (FsView::gFsView.mSpaceView.count("default")) {
+              eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+              freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
+              freefiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree");
+              
+              maxbytes  = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
+              maxfiles  = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files");
+            } 
+          } else {
+            freebytes = spacequota->GetPhysicalFreeBytes();
+            freefiles = spacequota->GetPhysicalFreeFiles();
+            maxbytes  = spacequota->GetPhysicalMaxBytes();
+            maxfiles  = spacequota->GetPhysicalMaxFiles();
+          }
+          laststat = time(NULL);
+        }
+        statvfsmutex.UnLock();
         response = "statvfs: retc=0";
         char val[1025]; 
         snprintf(val,1024,"%llu", freebytes);

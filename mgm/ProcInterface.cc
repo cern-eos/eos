@@ -3496,7 +3496,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		      username = eos::common::Mapping::UidToUserName(buf.st_uid, terrc);
 		      if (!terrc) {
 			char uidlimit[16];
-			snprintf(uidlimit,8,"%s",username.c_str());
+			snprintf(uidlimit,12,"%s",username.c_str());
 			suid = uidlimit;
 		      } 
 		    }
@@ -3508,7 +3508,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		      groupname = eos::common::Mapping::GidToGroupName(buf.st_gid, terrc);
 		      if (!terrc) {
 			char gidlimit[16];
-			snprintf(gidlimit,8,"%s",groupname.c_str());
+			snprintf(gidlimit,12,"%s",groupname.c_str());
 			sgid = gidlimit;
 		      } 
 		    }

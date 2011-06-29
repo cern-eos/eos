@@ -75,7 +75,7 @@ public:
   ConfigEngine(const char* configdir) {
     configDir = configdir;
     changeLog.configChanges = "";
-    currentConfigFile = "default.eoscf";
+    currentConfigFile = "default";
     XrdOucString changeLogFile = configDir;
     changeLogFile += "/config.changelog";
     changeLog.Init(changeLogFile.c_str());
