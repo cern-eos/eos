@@ -76,7 +76,7 @@ if ( $mountprefix eq "") {
     exit(-1);
 }
 
-system("unset EOS_MGM_URL; eos -b $mgmurl fs status $fsid");
+system("unset EOS_MGM_URL; env XrdSecPROTOCOL=sss eos -b $mgmurl fs status $fsid");
     
 
 
