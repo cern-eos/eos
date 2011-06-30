@@ -164,20 +164,32 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     //    fuse_reply_err(req,EPERM);
     //    return;
   }
+
   if (to_set & FUSE_SET_ATTR_SIZE) {
-    if (fi->fh) {
-      retc = xrd_truncate(fi->fh,attr->st_size);
+    if (fi) {
+      if (isdebug) printf("[%s]: truncate\n",__FUNCTION__);
+      if (fi->fh) {
+        retc = xrd_truncate(fi->fh,attr->st_size);
+      } else {
+        if (isdebug) printf("[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__,(long long)attr->st_size, (long long)ino);
+        int fd;
+        if ((fd = xrd_open(fullpath, O_WRONLY , S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
+          retc = xrd_truncate(fd,attr->st_size);
+          xrd_close(fd);
+        } else {
+          retc = -1;
+        }
+      }
     } else {
       if (isdebug) printf("[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__,(long long)attr->st_size, (long long)ino);
       int fd;
       if ((fd = xrd_open(fullpath, O_WRONLY , S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
         retc = xrd_truncate(fd,attr->st_size);
         xrd_close(fd);
-      } else {
-        retc = -1;
       }
     }
   }
+
   if ( (to_set & FUSE_SET_ATTR_ATIME) && (to_set & FUSE_SET_ATTR_MTIME) ) {  
     struct timespec tvp[2];
     tvp[0].tv_sec = attr->st_atime;
@@ -188,6 +200,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     if (isdebug) printf("[%s]: set attr mtime ino=%lld time=%ld\n", __FUNCTION__,(long long)ino, (long)attr->st_mtime);
     retc = xrd_utimes(fullpath, tvp);
   }
+  if (isdebug) printf("[%s]: return code =%d\n",__FUNCTION__, retc);
   struct stat newattr;
   memset(&newattr,0,sizeof(struct stat));
   if (!retc) {
@@ -657,7 +670,7 @@ static void eosfs_ll_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
     fuse_reply_err(req,0);
     return;
   } else {
-    fuse_reply_err(req,0);
+    fuse_reply_err(req,EOPNOTSUPP);
     return;
   }
 }

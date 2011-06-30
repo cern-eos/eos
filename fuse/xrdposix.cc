@@ -501,7 +501,7 @@ int xrd_stat(const char *path, struct stat *buf)
 
   long long dostat = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
   TIMING("GETPLUGIN",&stattiming);
-  fprintf(stderr,"returned %s %lld\n",value, dostat);
+  //  fprintf(stderr,"returned %s %lld\n",value, dostat);
   if (dostat >= 0) {
     unsigned long long sval[10];
     unsigned long long ival[6];
@@ -564,6 +564,8 @@ xrd_statfs(const char* url, const char* path, struct statvfs *stbuf)
     stbuf->f_bavail = a1 /4096;
     stbuf->f_files  = a4;
     stbuf->f_ffree  = a2;
+    stbuf->f_fsid     = 0xcafe;
+    stbuf->f_namemax  = 256;
     statmutex.UnLock();
     return 0;
   }
@@ -579,7 +581,7 @@ xrd_statfs(const char* url, const char* path, struct statvfs *stbuf)
   request += "path=";
   request += path;
 
-  fprintf(stderr,"Query %s\n", request.c_str());
+  //  fprintf(stderr,"Query %s\n", request.c_str());
   long long dostatfs = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
   
   TIMING("END",&statfstiming);
@@ -1333,10 +1335,10 @@ void xrd_init()
 {
     memset(fdbuffermap,0,sizeof(fdbuffermap));
 
-    XrdPosixXrootd::setEnv(NAME_DATASERVERCONN_TTL,86400);
+    XrdPosixXrootd::setEnv(NAME_DATASERVERCONN_TTL,300);
     XrdPosixXrootd::setEnv(NAME_LBSERVERCONN_TTL,3600*24);
-    XrdPosixXrootd::setEnv(NAME_REQUESTTIMEOUT,300);
-    EnvPutInt("NAME_MAXREDIRECTCOUNT",32000);
+    XrdPosixXrootd::setEnv(NAME_REQUESTTIMEOUT,30);
+    EnvPutInt("NAME_MAXREDIRECTCOUNT",3);
     EnvPutInt("NAME_RECONNECTWAIT", 10);
 
     setenv("XRDPOSIX_POPEN","1",1);
