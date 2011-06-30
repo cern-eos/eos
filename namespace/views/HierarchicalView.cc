@@ -156,6 +156,7 @@ namespace eos
     file->setCGid( gid );
     file->setCTimeNow();
     file->setMTimeNow();
+    file->clearChecksum();
     cont->addFile( file );
     pFileSvc->updateStore( file );
     

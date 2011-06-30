@@ -97,8 +97,8 @@ namespace eos
       //------------------------------------------------------------------------
       void getMTime( ctime_t &mtime ) const
       {
-        mtime.tv_sec = pCTime.tv_sec;
-        mtime.tv_nsec = pCTime.tv_nsec;
+        mtime.tv_sec = pMTime.tv_sec;
+        mtime.tv_nsec = pMTime.tv_nsec;
       }
 
       //------------------------------------------------------------------------
@@ -181,6 +181,16 @@ namespace eos
       void setChecksum( const Buffer &checksum )
       {
         pChecksum = checksum;
+      }
+
+      //------------------------------------------------------------------------
+      //! Clear checksum
+      //------------------------------------------------------------------------
+      void clearChecksum(uint8_t size=64)
+      {
+        char zero=0;
+        for ( uint8_t i=0; i< size; i++ ) 
+          pChecksum.putData (&zero,1);
       }
 
       //------------------------------------------------------------------------
