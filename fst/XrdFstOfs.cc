@@ -737,7 +737,7 @@ XrdFstOfsFile::verifychecksum()
       }
     }
     
-    if (checkSum && checkSum->NeedsRecalculation()) {
+    if (checkSum->NeedsRecalculation()) {
       unsigned long long scansize=0;
       float scantime = 0; // is ms
       if (checkSum->ScanFile(fstPath.c_str(), scansize, scantime)) {
@@ -1226,14 +1226,15 @@ int
 XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
 {
   //  fprintf(stderr,"truncate called %llu\n", fileOffset);
-
-  if (checkSum) {
-    if (checkSum->GetLastOffset() != fileOffset) {
+  eos_info("(truncate)  openSize=%llu fileOffset=%llu", openSize, fileOffset);
+  if (fileOffset != openSize) {
+    haswrite = true;
+    if (checkSum) {
       checkSum->Reset();
       checkSum->SetDirty();
     }
   }
-
+  
   return layOut->truncate(fileOffset);
 }
 

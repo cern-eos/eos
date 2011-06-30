@@ -130,11 +130,19 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     ChecksumMap = (char*)mmap(0, ChecksumMapSize, PROT_READ | PROT_WRITE, MAP_SHARED, ChecksumMapFd, 0);
   } else {
     // make sure the file on disk is large enough
-    if (ftruncate(ChecksumMapFd, ChecksumMapSize)) {
-      ChecksumMapSize = 0;
-      //    fprintf(stderr,"CheckSum:ChangeMap ftruncate failed\n");
-      return false;
+    struct stat xsstat;
+    xsstat.st_size=0;
+    fstat(ChecksumMapFd,&xsstat); // don't need to check the rc, it is covered by the logic afterwards
+    if ( xsstat.st_size < (off_t)ChecksumMapSize) {
+      if (ftruncate(ChecksumMapFd, (ChecksumMapSize))) {
+        ChecksumMapSize = 0;
+        //    fprintf(stderr,"CheckSum:ChangeMap ftruncate failed\n");
+        return false;
+      }
+    } else {
+      ChecksumMapSize = xsstat.st_size;
     }
+
 
     ChecksumMap = (char*)mmap(0, ChecksumMapSize, PROT_READ | PROT_WRITE, MAP_SHARED, ChecksumMapFd, 0);
   }

@@ -147,6 +147,9 @@ public:
   google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > WOpenFid;
   google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > ROpenFid;
 
+  XrdSysMutex XSLockFidMutex;
+  google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > XSLockFid;
+
 
   XrdSysMutex ReportQueueMutex;
   std::queue <XrdOucString> ReportQueue;

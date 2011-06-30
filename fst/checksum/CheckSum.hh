@@ -80,6 +80,7 @@ public:
   virtual unsigned long long GetXSBlocksChecked() { return nXSBlocksChecked;}
   virtual unsigned long long GetXSBlocksWritten() { return nXSBlocksWritten;}
   virtual unsigned long long GetXSBlocksWrittenHoles() { return nXSBlocksWrittenHoles;}
+
   virtual ~CheckSum(){};
 
   virtual void Print() {
