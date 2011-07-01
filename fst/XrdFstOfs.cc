@@ -977,24 +977,24 @@ XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manag
   char result[8192]; result[0]=0;
   int  result_size=8192;
   
-  eos::common::ClientAdmin* admin = gOFS.ClientAdminManager.GetAdmin(manager);
+  XrdOucString url = "root://"; url += manager; url += "//dummy";
+  XrdClientAdmin* admin = new XrdClientAdmin(url.c_str());
   XrdOucString msg="";
       
   if (admin) {
-    admin->Lock();
-    admin->GetAdmin()->Connect();
-    admin->GetAdmin()->GetClientConn()->ClearLastServerError();
-    admin->GetAdmin()->GetClientConn()->SetOpTimeLimit(10);
-    admin->GetAdmin()->Query(kXR_Qopaquf,
+    admin->Connect();
+    admin->GetClientConn()->ClearLastServerError();
+    admin->GetClientConn()->SetOpTimeLimit(10);
+    admin->Query(kXR_Qopaquf,
 			     (kXR_char *) capOpaqueFile.c_str(),
 			     (kXR_char *) result, result_size);
     
-    if (!admin->GetAdmin()->LastServerResp()) {
+    if (!admin->LastServerResp()) {
       if (error)
 	gOFS.Emsg(epname, *error, ECOMM, "commit changed filesize to meta data cache for fn=", path);
       rc = SFS_ERROR;
     }
-    switch (admin->GetAdmin()->LastServerResp()->status) {
+    switch (admin->LastServerResp()->status) {
     case kXR_ok:
       eos_debug("commited meta data to cache - %s", capOpaqueFile.c_str());
       rc = SFS_OK;
@@ -1004,7 +1004,7 @@ XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manag
       if (error) {
 	gOFS.Emsg(epname, *error, ECOMM, "commit changed filesize to meta data cache during close of fn=", path);
       }
-      msg = (admin->GetAdmin()->LastServerError()->errmsg);
+      msg = (admin->LastServerError()->errmsg);
       rc = SFS_ERROR;
 
       if (msg.find("[EIDRM]") !=STR_NPOS)
@@ -1015,12 +1015,12 @@ XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manag
       rc = SFS_OK;
       break;
     }
-    admin->UnLock();
   } else {
     eos_crit("cannot get client admin to execute commit");
     if (error)
       gOFS.Emsg(epname, *error, ENOMEM, "allocate client admin object during close of fn=", path);
   }
+  delete admin;
   return rc;
 }
 
