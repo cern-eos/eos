@@ -6,10 +6,24 @@ const char *XrdMqClientCVSID = "$Id: XrdMqClient.cc,v 1.0.0 2007/10/04 01:34:19 
 #include <mq/XrdMqTiming.hh>
 
 #include <XrdNet/XrdNetDNS.hh>
+#include <XrdClient/XrdClientUrlSet.hh>
 
 /******************************************************************************/
 /*                        X r d M q C l i e n t                               */
 /******************************************************************************/
+
+
+/*----------------------------------------------------------------------------*/
+/* SetXrootVariables                                                          */
+/*----------------------------------------------------------------------------*/
+void XrdMqClient::SetXrootVariables() {
+  EnvPutInt(NAME_READCACHESIZE,0);
+  EnvPutInt(NAME_MAXREDIRECTCOUNT,2);
+  EnvPutInt(NAME_RECONNECTWAIT,10);
+  EnvPutInt(NAME_CONNECTTIMEOUT,10);
+  EnvPutInt(NAME_REQUESTTIMEOUT,300);
+}
+
 
 /*----------------------------------------------------------------------------*/
 /* Subscribe                                                                  */
@@ -51,6 +65,8 @@ bool XrdMqClient::Unsubscribe(const char* queue) {
 /* SendMessage                                                                */
 /*----------------------------------------------------------------------------*/
 bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool sign, bool encrypt) {
+  bool rc = true;
+  int i=0;
   // tag the sender
   msg.kMessageHeader.kSenderId = kClientId;
   // tag the send time
@@ -76,47 +92,52 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
 
   XrdClientAdmin* admin=0;
   //  msg.Print();
-  for (int i=0 ;i< kBrokerN; i++) {
+  for (i=0 ;i< kBrokerN; i++) {
+    CheckBrokerXrdClientSender(i);
     admin = GetBrokerXrdClientSender(i);
     if (admin) {
-      char result[8192]; result[0]=0;
-      int  result_size=8192;
+      char result[16384];
+      size_t result_size=0;
       Mutex.Lock();
       admin->Connect();
-      //      admin->GetClientConn()->GoBackToRedirector();
       admin->GetClientConn()->ClearLastServerError();
       admin->GetClientConn()->SetOpTimeLimit(10);
       admin->Query(kXR_Qopaquf,
                    (kXR_char *) message.c_str(),
                    (kXR_char *) result, result_size);
       if (!admin->LastServerResp()) {
-        Mutex.UnLock();
-        return false;
+        rc = false;
       }
       switch (admin->LastServerResp()->status) {
       case kXR_ok:
-        Mutex.UnLock();
-        return true;
-      
+        rc = true;
+        break;
       case kXR_error:
-        Mutex.UnLock();
-        return false;
-        
+        rc = false;
+        break;
       default:
-        Mutex.UnLock();
-        return true;
+        rc = false;
+        break;
+      
       }
     }
     // we continue until any of the brokers accepts the message
   }
   Mutex.UnLock();
-  //  XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "send message to all brokers");  
-  if (admin) {
-    XrdMqMessage::Eroute.Emsg("SendMessage", admin->LastServerError()->errnum, admin->LastServerError()->errmsg);
-  } else {
-    XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "no broker available");
+
+  if (!rc) {
+    //  XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "send message to all brokers");  
+    if (admin) {
+      XrdMqMessage::Eroute.Emsg("SendMessage", admin->LastServerError()->errnum, admin->LastServerError()->errmsg);
+    } else {
+      XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "no broker available");
+    }
   }
-  return false;
+
+  if (!rc) {
+    ReNewBrokerXrdClientSender(i);
+  }
+  return true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -172,15 +193,18 @@ XrdMqMessage* XrdMqClient::RecvFromInternalBuffer() {
 }
 
 
-XrdMqMessage* XrdMqClient::RecvMessage() {
+XrdMqMessage* 
+XrdMqClient::RecvMessage() {
   if (kBrokerN == 1) {
     // single broker case
     // try if there is still a buffered message
     XrdMqMessage* message;
-
+    
     message = RecvFromInternalBuffer();
-
+    
     if (message) return message;
+    
+    CheckBrokerXrdClientReceiver(0);
 
     XrdClient* client = GetBrokerXrdClientReceiver(0);
     if (!client) {
@@ -189,20 +213,13 @@ XrdMqMessage* XrdMqClient::RecvMessage() {
       return 0;
     }
     struct XrdClientStatInfo stinfo;
-
-    //    client->GetClientConn()->GoBackToRedirector();
-
-    if (!client->IsOpen()) {
-      // re-open the file
-      client->Open(0,0,false);
+    
+    while (!client->Stat(&stinfo,true)) {
+      ReNewBrokerXrdClientReceiver(0);
+      client = GetBrokerXrdClientReceiver(0);
+      sleep(1);
     }
-
-    if (!client->Stat(&stinfo,true)) {
-      client->Close();
-      client->Open(0,0,false);
-      return 0;
-    }
-
+    
     if (!stinfo.size) {
       return 0;
     }
@@ -284,6 +301,94 @@ XrdMqClient::GetBrokerXrdClientSender(int i) {
   return kBrokerXrdClientSender.Find(GetBrokerId(i).c_str());
 }
 
+
+/*----------------------------------------------------------------------------*/
+/* ReNewBrokerXrdClientSender                                                 */
+/*----------------------------------------------------------------------------*/
+
+void XrdMqClient::ReNewBrokerXrdClientSender(int i) {
+  fprintf(stderr,"XrdMqClient::ReNewBorkerXrdClientSender %d", i);
+  kBrokerXrdClientSender.Del(GetBrokerId(i).c_str());
+  SetXrootVariables();
+  kBrokerXrdClientSender.Add(GetBrokerId(i).c_str(), new XrdClientAdmin(GetBrokerUrl(i)->c_str()));
+  GetBrokerXrdClientSender(i)->Connect();
+}
+
+/*----------------------------------------------------------------------------*/
+/* ReNewBrokerXrdClientReceiver                                               */
+/*----------------------------------------------------------------------------*/
+
+void XrdMqClient::ReNewBrokerXrdClientReceiver(int i) {
+  fprintf(stderr,"XrdMqClient::ReNewBorkerXrdClientReceiver %d", i);
+  kBrokerXrdClientReceiver.Del(GetBrokerId(i).c_str());
+  SetXrootVariables();
+  
+  kBrokerXrdClientReceiver.Add(GetBrokerId(i).c_str(), new XrdClient(GetBrokerUrl(i)->c_str()));
+  if (!GetBrokerXrdClientReceiver(i)->Open(0,0,false)) {
+    fprintf(stderr,"XrdMqClient::Reopening of new alias failed ...\n");
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+/* CheckBrokerXrdClientSender                                                 */
+/*----------------------------------------------------------------------------*/
+
+void XrdMqClient::CheckBrokerXrdClientSender(int i) {
+  Mutex.Lock();
+  XrdClientAdmin* client = GetBrokerXrdClientSender(i);
+  if (i < 256) {
+    if (kBrokerXrdClientSenderAliasTimeStamp[i] &&
+        ( (time(NULL) - kBrokerXrdClientSenderAliasTimeStamp[i]) < 10 ) ) {
+      // do nothing
+    } else {
+      XrdClientUrlSet alias(GetBrokerUrl(i)->c_str());
+      alias.Rewind();
+      XrdClientUrlInfo* currentalias = alias.GetNextUrl();
+      if (currentalias->GetUrl() != client->GetClientConn()->GetCurrentUrl().GetUrl()) {
+        fprintf(stderr,"XrdMqClient::CheckBrokerXrdClientSender => Broker alias changed from %s => %s\n", client->GetClientConn()->GetCurrentUrl().GetUrl().c_str(), currentalias->GetUrl().c_str());
+        // the alias has been switched, del the client and create a new one to connect to the new alias
+        ReNewBrokerXrdClientSender(i);
+        // get the new client object
+        GetBrokerXrdClientSender(i);
+        kBrokerXrdClientSenderAliasTimeStamp[i] = time(NULL);
+      }
+    }
+  }
+  Mutex.UnLock();
+}
+   
+/*----------------------------------------------------------------------------*/
+/* CheckBrokerXrdClientReceiver                                               */
+/*----------------------------------------------------------------------------*/
+ 
+void XrdMqClient::CheckBrokerXrdClientReceiver(int i) {
+  Mutex.Lock();
+  XrdClient* client = GetBrokerXrdClientReceiver(i);
+  if (i < 256) {
+    if (kBrokerXrdClientReceiverAliasTimeStamp[i] &&
+        ( (time(NULL) - kBrokerXrdClientReceiverAliasTimeStamp[i]) < 10 ) ) {
+      // do nothing
+    } else {
+      XrdClientUrlSet alias(GetBrokerUrl(i)->c_str());
+      alias.Rewind();
+      XrdClientUrlInfo* currentalias = alias.GetNextUrl();
+      if (currentalias->GetUrl() != client->GetClientConn()->GetCurrentUrl().GetUrl()) {
+        fprintf(stderr,"XrdMqClient::CheckBrokerXrdClientReceiver => Broker alias changed from %s => %s\n", client->GetClientConn()->GetCurrentUrl().GetUrl().c_str(), currentalias->GetUrl().c_str());
+
+        ReNewBrokerXrdClientReceiver(i);
+        // get the new client object
+        GetBrokerXrdClientReceiver(i);
+        // the alias has been switched, del the client and create a new one to connect to the new alias
+
+        kBrokerXrdClientReceiverAliasTimeStamp[i] = time(NULL);
+      }
+    }
+  }
+
+  Mutex.UnLock();
+}
+
+
 /*----------------------------------------------------------------------------*/
 /* AddBroker                                                                  */
 /*----------------------------------------------------------------------------*/
@@ -308,11 +413,9 @@ bool XrdMqClient::AddBroker(const char* brokerurl, bool advisorystatus, bool adv
     XrdOucString brokern = GetBrokerId(kBrokerN);
     kBrokerUrls.Add(brokern.c_str(), new XrdOucString(newBrokerUrl.c_str()));
     kBrokerXrdClientSender.Add(GetBrokerId(kBrokerN).c_str(), new XrdClientAdmin(newBrokerUrl.c_str()));
-    EnvPutInt(NAME_READCACHESIZE,0);
-    EnvPutInt(NAME_MAXREDIRECTCOUNT,32000);
-    EnvPutInt(NAME_RECONNECTWAIT,10);
-    EnvPutInt(NAME_CONNECTTIMEOUT,10);
-    EnvPutInt(NAME_REQUESTTIMEOUT,300);
+
+    SetXrootVariables();
+
     kBrokerXrdClientReceiver.Add(GetBrokerId(kBrokerN).c_str(), new XrdClient(newBrokerUrl.c_str()));
 
     if (!GetBrokerXrdClientSender(kBrokerN)->Connect()) {
@@ -335,6 +438,10 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl, const char
   kMessageBuffer="";
   kRecvBuffer=0;
   kRecvBufferAlloc=0;
+  
+  memset(kBrokerXrdClientReceiverAliasTimeStamp,0,sizeof(int) * 256);
+  memset(kBrokerXrdClientSenderAliasTimeStamp  ,0,sizeof(int) * 256);
+
   if (brokerurl && (!AddBroker(brokerurl))) {
     fprintf(stderr,"error: cannot add broker %s\n", brokerurl);
   }

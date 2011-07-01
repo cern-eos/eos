@@ -18,7 +18,9 @@ private:
   XrdOucHash <XrdOucString>   kBrokerUrls;
   XrdOucHash <XrdClient>      kBrokerXrdClientReceiver;
   XrdOucHash <XrdClientAdmin> kBrokerXrdClientSender;
-  
+  time_t                      kBrokerXrdClientReceiverAliasTimeStamp[256];
+  time_t                      kBrokerXrdClientSenderAliasTimeStamp[256];
+
   XrdOucString                kMessageBuffer;
   int kBrokerN;
   XrdOucString                kClientId;
@@ -30,6 +32,8 @@ public:
 
   bool Subscribe(const char* queue = 0);
   bool Unsubscribe(const char* queue = 0);
+
+  void SetXrootVariables(); 
 
   bool        SendMessage(XrdMqMessage &msg, const char* receiverid=0, bool sign=false, bool encrypt=false );
   bool        ReplyMessage(XrdMqMessage &replymsg, XrdMqMessage &inmsg, bool sign=false, bool encrypt=false ) {
@@ -48,6 +52,12 @@ public:
   XrdClient*      GetBrokerXrdClientReceiver(int i);
   XrdClientAdmin* GetBrokerXrdClientSender(int i);
   const char*   GetClientId() {return kClientId.c_str();}
+  
+  void ReNewBrokerXrdClientReceiver(int i);
+  void ReNewBrokerXrdClientSender(int i);
+
+  void CheckBrokerXrdClientReceiver(int i);
+  void CheckBrokerXrdClientSender(int i);
 
   bool AddBroker(const char* brokerurl, bool advisorystatus=false, bool advisoryquery=false);
 
