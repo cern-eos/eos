@@ -91,7 +91,12 @@ int main (int argc, char* argv[]) {
   if (!isopen) {
     eos_static_err("cannot open remote file %s", dsturl.c_str());
   }
-
+  
+  if (!client->Truncate(0)) {
+    eos_static_crit("couldn't truncate remote file");
+    exit(-1);
+  }
+  
   struct stat srcstat;
   XrdClientStatInfo dststat;
 
