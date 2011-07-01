@@ -3201,11 +3201,30 @@ XrdMgmOfs::FSctl(const int               cmd,
     if (execmd == "chmod") {
       char* smode;
       if ((smode = env.Get("mode"))) {
+        struct stat buf;
+
+        // check if it is a file or directory ....
+        int retc = lstat(path.c_str(),
+                         &buf,  
+                         error, 
+                         client,
+                         0);
+
+        // if it is a file ....
+        if (!retc && S_ISREG(buf.st_mode)) {
+          // since we don't have permissions on files, we just acknoledge as ok
+          XrdOucString response="chmod: retc=0";
+          error.setErrInfo(response.length()+1,response.c_str());
+          return SFS_DATA;
+        }
+
+
  	XrdSfsMode newmode = atoi(smode);
-	int retc =  _chmod(path.c_str(),
-			  newmode,
-			  error,
-			  vid);
+        retc =  _chmod(path.c_str(),
+                       newmode,
+                       error,
+                       vid);
+
 	XrdOucString response="chmod: retc=";
 	response += retc;
 	error.setErrInfo(response.length()+1,response.c_str());
@@ -3419,6 +3438,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       }
       return SFS_DATA;
     }
+    eos_err("No implementation for %s", execmd.c_str());
   }
 
   return  Emsg(epname,error,EINVAL,"execute FSctl command",path.c_str());  
