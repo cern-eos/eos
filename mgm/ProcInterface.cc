@@ -690,7 +690,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             retc = 0;
           }
         } else {
-          if ( (onoff != "on") || (onoff != "off") ) {
+          if ( (onoff != "on") && (onoff != "off") ) {
             stdErr += "error: state must be either 'on' or 'off' or empty to read the current setting!\n";
             retc = EINVAL;
           } else {

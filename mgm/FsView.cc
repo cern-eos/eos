@@ -714,6 +714,8 @@ FsView::HeartBeatCheck()
       std::map<eos::common::FileSystem::fsid_t, FileSystem*>::const_iterator it;
       // iterator over all filesystems
       for (it = mIdView.begin(); it != mIdView.end(); it++) {
+        if (!it->second)
+          continue;
         eos::common::FileSystem::fs_snapshot_t snapshot;
         snapshot.mHeartBeatTime = (time_t) it->second->GetLongLong("stat.heartbeattime");
 
@@ -876,7 +878,7 @@ BaseView::GetConfigMember(std::string key)
   if (hash) {
     return hash->Get(key);
   }
-  return "#EINVAL";
+  return "";
 }
 
 /*----------------------------------------------------------------------------*/

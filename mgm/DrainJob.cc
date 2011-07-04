@@ -35,18 +35,20 @@ DrainJob::ResetCounter(bool lockit)
 
   if (lockit) FsView::gFsView.ViewMutex.LockRead();
   FileSystem* fs = 0;
-  fs = FsView::gFsView.mIdView[fsid];
-  if (fs) {
-    //    fs->OpenTransaction();
-    fs->SetLongLong("stat.drainbytesleft", 0);
-    fs->SetLongLong("stat.drainfiles",     0);
-    fs->SetLongLong("stat.drainscheduledfiles",   0);
-    fs->SetLongLong("stat.drainscheduledbytes",   0);
-    fs->SetLongLong("stat.drainlostfiles", 0);
-    fs->SetLongLong("stat.timeleft", 0);
-    fs->SetLongLong("stat.drainprogress",0);
-    fs->SetLongLong("stat.drainretry", 0);
-    //    fs->CloseTransaction();
+  if (FsView::gFsView.mIdView.count(fsid)) {
+    fs = FsView::gFsView.mIdView[fsid];
+    if (fs) {
+      //    fs->OpenTransaction();
+      fs->SetLongLong("stat.drainbytesleft", 0);
+      fs->SetLongLong("stat.drainfiles",     0);
+      fs->SetLongLong("stat.drainscheduledfiles",   0);
+      fs->SetLongLong("stat.drainscheduledbytes",   0);
+      fs->SetLongLong("stat.drainlostfiles", 0);
+      fs->SetLongLong("stat.timeleft", 0);
+      fs->SetLongLong("stat.drainprogress",0);
+      fs->SetLongLong("stat.drainretry", 0);
+      //    fs->CloseTransaction();
+    }
   }
   if (lockit) FsView::gFsView.ViewMutex.UnLockRead();
 }
@@ -90,7 +92,9 @@ DrainJob::Drain(void)
   {
     // set status to 'prepare'
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    fs = FsView::gFsView.mIdView[fsid];
+    fs = 0;
+    if (FsView::gFsView.mIdView.count(fsid)) 
+      fs = FsView::gFsView.mIdView[fsid];
     if (!fs) {
       eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
       return 0 ;
@@ -156,7 +160,9 @@ DrainJob::Drain(void)
   // set the shared object counter
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    fs = FsView::gFsView.mIdView[fsid];
+    fs = 0;
+    if (FsView::gFsView.mIdView.count(fsid)) 
+      fs = FsView::gFsView.mIdView[fsid];
     if (!fs) {
       eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
       return 0 ;
@@ -178,7 +184,9 @@ DrainJob::Drain(void)
     {
       // set status to 'waiting'
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      fs = FsView::gFsView.mIdView[fsid];
+      fs = 0;
+      if (FsView::gFsView.mIdView.count(fsid)) 
+        fs = FsView::gFsView.mIdView[fsid];
       if (!fs) {
         eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
         return 0 ;
@@ -200,7 +208,9 @@ DrainJob::Drain(void)
       if (now > waitreporttime) {
         // update stat.timeleft
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        fs = FsView::gFsView.mIdView[fsid];
+        fs = 0;
+        if (FsView::gFsView.mIdView.count(fsid)) 
+          fs = FsView::gFsView.mIdView[fsid];
         if (!fs) {
           eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
           return 0 ;
@@ -221,7 +231,9 @@ DrainJob::Drain(void)
   // set status to 'draining'
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    fs = FsView::gFsView.mIdView[fsid];
+    fs = 0;
+    if (FsView::gFsView.mIdView.count(fsid)) 
+      fs = FsView::gFsView.mIdView[fsid];
     if (!fs) {
       eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
       return 0 ;
@@ -336,7 +348,9 @@ DrainJob::Drain(void)
                       eos_static_crit("File fid=%lu [%d] is lost - no replica accessible during drain operation errno=%d\n", fid, locationfs.size(),retc);
 
                       //                      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                      fs = FsView::gFsView.mIdView[fsid];
+                      fs = 0;
+                      if (FsView::gFsView.mIdView.count(fsid)) 
+                        fs = FsView::gFsView.mIdView[fsid];
                       if (!fs) {
                         eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
                         return 0 ;
@@ -445,7 +459,9 @@ DrainJob::Drain(void)
     if ( (fids_start != fids_stop) || stalled ) {
       {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        fs = FsView::gFsView.mIdView[fsid];
+        fs = 0;
+        if (FsView::gFsView.mIdView.count(fsid)) 
+          fs = FsView::gFsView.mIdView[fsid];
         if (!fs) {
           eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
           return 0 ;
@@ -516,7 +532,9 @@ DrainJob::Drain(void)
     //------------------------------------
 
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    fs = FsView::gFsView.mIdView[fsid];
+    fs = 0;
+    if (FsView::gFsView.mIdView.count(fsid)) 
+      fs = FsView::gFsView.mIdView[fsid];
     if (!fs) {
       eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
       return 0 ;
@@ -529,13 +547,15 @@ DrainJob::Drain(void)
     {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
       int progress = (int)(totalfiles)?(100.0*(totalfiles-filesleft+totallostfiles)/totalfiles):100;
-      fs->SetLongLong("stat.drainprogress",  progress);
-
-      fs = FsView::gFsView.mIdView[fsid];
+      fs = 0;
+      if (FsView::gFsView.mIdView.count(fsid)) 
+        fs = FsView::gFsView.mIdView[fsid];
       if (!fs) {
         eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
         return 0 ;
       }
+      fs->SetLongLong("stat.drainprogress",  progress);
+      
       if ( (drainendtime-time(NULL)) >0) {
         fs->SetLongLong("stat.timeleft", drainendtime-time(NULL));
       } else {
@@ -548,7 +568,9 @@ DrainJob::Drain(void)
       // set status to 'drainexpired'
       {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        fs = FsView::gFsView.mIdView[fsid];
+        fs = 0;
+        if (FsView::gFsView.mIdView.count(fsid)) 
+          fs = FsView::gFsView.mIdView[fsid];
         if (!fs) {
           eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
           return 0 ;
@@ -584,7 +606,9 @@ DrainJob::Drain(void)
   // set status to 'drained'
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    fs = FsView::gFsView.mIdView[fsid];
+    fs = 0;
+    if (FsView::gFsView.mIdView.count(fsid)) 
+      fs = FsView::gFsView.mIdView[fsid];
     if (!fs) {
       eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
       return 0 ;

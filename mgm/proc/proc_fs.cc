@@ -359,15 +359,14 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
         retc = EEXIST;	      
       }
     }
-  }
-
-
-  if (ViewHasWriteLock) {
-    // ========> ViewMutex WRITEUnLOCK
-    FsView::gFsView.ViewMutex.UnLockWrite();
-  } else {
-    // ========> ViewMutex READUNLOCK
-    FsView::gFsView.ViewMutex.UnLockRead();
+    
+    if (ViewHasWriteLock) {
+      // ========> ViewMutex WRITEUnLOCK
+      FsView::gFsView.ViewMutex.UnLockWrite();
+    } else {
+      // ========> ViewMutex READUNLOCK
+      FsView::gFsView.ViewMutex.UnLockRead();
+    }
   }
   return retc;
 }

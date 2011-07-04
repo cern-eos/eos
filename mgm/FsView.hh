@@ -85,18 +85,22 @@ public:
 #ifndef EOSMGMFSVIEWTEST
     mBalancer = new Balancer(name);
     // set default balancing variables
-    if (GetConfigMember("balancer")== "#EINVAL")
-      SetConfigMember("balancer","off"); // disable balancing by default
-    if (GetConfigMember("balancer.threshold")=="#EINVAL") 
-      SetConfigMember("balancer.threshold","50000000000"); // set deviation treshold
-    if (GetConfigMember("graceperiod")=="#EINVAL")
-      SetConfigMember("graceperiod","86400");
-    if (GetConfigMember("drainperiod")=="#EINVAL")
-      SetConfigMember("drainperiod","86400");
-    if (GetConfigMember("scaninterval")=="#EINVAL")
-      SetConfigMember("scaninterval","604800");
-    if (GetConfigMember("quota")=="#EINVAL") 
-      SetConfigMember("quota", "off");
+    if (GetConfigMember("balancer")== "")
+      SetConfigMember("balancer","off",true,"/eos/*/mgm"); // disable balancing by default
+    if (GetConfigMember("balancer.threshold")=="") 
+      SetConfigMember("balancer.threshold","50000000000",true,"/eos/*/mgm"); // set deviation treshold
+    if (GetConfigMember("graceperiod")=="")
+      SetConfigMember("graceperiod","86400",true,"/eos/*/mgm");
+    if (GetConfigMember("drainperiod")=="")
+      SetConfigMember("drainperiod","86400",true,"/eos/*/mgm");
+    if (GetConfigMember("scaninterval")=="")
+      SetConfigMember("scaninterval","604800",true,"/eos/*/mgm");
+    if (GetConfigMember("quota")=="") 
+      SetConfigMember("quota", "off",true,"/eos/*/mgm");
+    if (GetConfigMember("groupmod")=="") 
+      SetConfigMember("groupmod", "0",true,"/eos/*/mgm");
+    if (GetConfigMember("groupsize")=="") 
+      SetConfigMember("groupsize", "0",true,"/eos/*/mgm");
     
 #endif
 
