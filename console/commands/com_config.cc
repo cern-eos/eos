@@ -174,24 +174,36 @@ com_config (char* arg1) {
   }
   
  com_config_usage:
-  printf("usage: config ls   [--backup|-b]                                         :  list existing configurations\n");
-  printf("usage: config dump [--fs|-f] [--vid|-v] [--quota|-q] [--policy|-p] [--comment|-c] [--global|-g] [--access|-a] [<name>]\n");
-  printf("                                                                         :  dump current configuration or configuration with name <name>\n");
-  printf("                                                                            -f : dump only file system config\n");
-  printf("                                                                            -v : dump only virtual id config\n");
-  printf("                                                                            -q : dump only quota config\n");
-  printf("                                                                            -p : dump only policy config\n");
-  printf("                                                                            -g : dump only global config\n");
-  printf("                                                                            -a : dump only access config\n");
+  printf("Usage: config ls|dump|load|save|diff|changelog|reset|autosave [OPTIONS]\n");
+  printf("'[eos] config' provides the configuration interface to EOS.\n\n");
+  printf("Options:\n");
+  printf("config ls   [--backup|-b] :\n");
+  printf("                                                  list existing configurations\n");
+  printf("            --backup|-b : show also backup & autosave files\n");
 
-  printf("usage: config save [-f] [<name>] [--comment|-c \"<comment>\"] ]          :  save config (optionally under name)\n");
-  printf("                                                                            -f : overwrite existing config name and create a timestamped backup\n");
-  printf("                                                                            =>   if no name is specified the current config file is overwritten \n");
-  printf("usage: config load <name>                                                :  load config (optionally with name)\n");
-  printf("usage: config diff                                                       :  show changes since last load/save operation\n");
-  printf("usage: config changelog [-#lines]                                        :  show the last <#> lines from the changelog - default is -10 \n");
-  printf("usage: config reset                                                      :  reset all configuration to empty state\n");
-  printf("usage: config autosave [on|off]                                          :  without on/off just prints the state otherwise set's autosave to on or off\n");
+  printf("config dump [--fs|-f] [--vid|-v] [--quota|-q] [--policy|-p] [--comment|-c] [--global|-g] [--access|-a] [<name>]: \n");
+  printf("                                                  dump current configuration or configuration with name <name>\n");
+  printf("            -f : dump only file system config\n");
+  printf("            -v : dump only virtual id config\n");
+  printf("            -q : dump only quota config\n");
+  printf("            -p : dump only policy config\n");
+  printf("            -g : dump only global config\n");
+  printf("            -a : dump only access config\n");
+
+  printf("config save [-f] [<name>] [--comment|-c \"<comment>\"] ] :\n");
+  printf("                                                  save config (optionally under name)\n");
+  printf("            -f : overwrite existing config name and create a timestamped backup\n");
+  printf("=>   if no name is specified the current config file is overwritten\n\n");
+  printf("config load <name> :\n");
+  printf("                                                  load config (optionally with name)\n");
+  printf("config diff :\n");
+  printf("                                                  show changes since last load/save operation\n");
+  printf("config changelog [-#lines] :\n");
+  printf("                                                  show the last <#> lines from the changelog - default is -10 \n");
+  printf("config reset :\n");
+  printf("                                                  reset all configuration to empty state\n");
+  printf("config autosave [on|off] :\n");
+  printf("                                                  without on/off just prints the state otherwise set's autosave to on or off\n");
 
   return (0);
 }

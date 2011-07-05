@@ -120,6 +120,14 @@ The EOS shell client.
 # documentation
 %doc %_mandir/man1/eos.1.gz
 %doc %_mandir/man1/eos::fs.1.gz
+%doc %_mandir/man1/eos::access.1.gz
+%doc %_mandir/man1/eos::attr.1.gz
+%doc %_mandir/man1/eos::cd.1.gz
+%doc %_mandir/man1/eos::chown.1.gz
+%doc %_mandir/man1/eos::clear.1.gz
+%doc %_mandir/man1/eos::config.1.gz
+%doc %_mandir/man1/eos::debug.1.gz
+%doc %_mandir/man1/eos::file.1.gz
 
 
 #######################################################################################

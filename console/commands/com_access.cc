@@ -120,20 +120,42 @@ com_access (char* arg1) {
   return (0);
 
  com_access_usage:
-  printf("usage: access ban user|group|host <identifier>                      : ban user,group or host with identifier <identifier>\n");
-  printf("       access unban user|group|host <identifier>                    : unban user,group or host with identifier <identifier>\n");
-  printf("\n");
-  printf("       access allow user|group|host <identifier>                    : allows this user,group or host access\n");
-  printf("       access unallow user|group|host <identifier>                  : unallows this user,group or host access\n");
-  printf("hint:  if you add any 'allow' the instance allows only the listed users. A banned identifier will still overrule an allowed identifier!\n");
-  printf("\n");
-  printf("       access set redirect <target-host>                            : allows to set a global redirection to <target-host>\n");
-  printf("       access rm  redirect                                          : removes global redirection\n");
-  printf("       access set stall <stall-time>                                : allows to set a global stall time\n");
-  printf("       access rm  stall                                             : removes global stall time\n");
-  printf("\n");
-  printf("       access ls [-m] [-n]                                          : print banned,unbanned user,group, hosts\n");
-  printf("                                                                      -m : output in monitoring format with <key>=<value>\n");
-  printf("                                                                      -n : don't translate uid/gids to names\n");
+  printf("'[eos] access ..' provides the access interface of EOS to allow/disallow hosts and/or users\n");
+  printf("Usage: access ban|unban|allow|unallow|set|rm|ls ...\n\n");
+  printf("Options:\n");
+  printf("access ban user|group|host <identifier> : \n");
+  
+  printf("                                                  ban user,group or host with identifier <identifier>\n");
+  printf("                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP \n");
+  printf("access unban user|group|host <identifier> :\n");
+  printf("                                                  unban user,group or host with identifier <identifier>\n");
+  printf("                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP \n");
+  printf("access allow user|group|host <identifier> :\n");
+  printf("                                                  allows this user,group or host access\n");
+  printf("                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP \n");
+  printf("access unallow user|group|host <identifier> :\n");
+  printf("                                                  unallows this user,group or host access\n");
+  printf("                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP \n");
+  printf("HINT:  if you add any 'allow' the instance allows only the listed users.\nA banned identifier will still overrule an allowed identifier!\n\n");
+  printf("access set redirect <target-host> :\n");
+  printf("                                                  allows to set a global redirection to <target-host>\n");
+  printf("                                  <target-host> : hostname to which all requests get redirected\n");
+  printf("access rm  redirect :\n");
+  printf("                                                  removes global redirection\n");
+  printf("access set stall <stall-time> :\n");
+  printf("                                                  allows to set a global stall time\n");
+  printf("                                   <stall-time> : time in seconds after which clients should rebounce\n");
+  printf("access rm  stall :\n");
+  printf("                                                  removes global stall time\n");
+  printf("access ls [-m] [-n] :\n");
+  printf("                                                  print banned,unbanned user,group, hosts\n");
+  printf("                                                                  -m    : output in monitoring format with <key>=<value>\n");
+  printf("                                                                  -n    : don't translate uid/gids to names\n");
+  printf("Examples:\n");
+  printf("  access ban foo           Ban host foo\n");
+  printf("  access set redirect foo  Redirect all requests to host foo\n");
+  printf("  access rm redirect       Remove redirection to previously defined host foo\n");
+  printf("  access set stall 60      Stall all clients by 60 seconds\n");
+  printf("  access ls                Print all defined access rules\n");
   return (0);
 }

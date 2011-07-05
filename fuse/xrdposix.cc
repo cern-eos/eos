@@ -437,6 +437,13 @@ static XrdWriteCache* XWC;
 
 XrdSysMutex OpenMutex;
 
+void xrd_socks4(const char* host, const char* port) {
+  EnvPutString( NAME_SOCKS4HOST, host);
+  EnvPutString( NAME_SOCKS4PORT, port);
+  XrdPosixXrootd::setEnv(NAME_SOCKS4HOST,host);
+  XrdPosixXrootd::setEnv(NAME_SOCKS4PORT,port);
+}
+
 void xrd_ro_env() {
   int rahead = 0; //97*1024;
   int rcsize = 0; //512*1024;

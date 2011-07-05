@@ -98,14 +98,35 @@ int main (int argc, char* argv[]) {
   }
   
   struct stat srcstat;
+
   XrdClientStatInfo dststat;
 
   do {
+    struct stat src_curr_stat;
+
     if (fstat(fd, &srcstat)) {
       eos_static_err("cannot stat source file %s - retry in 1 minute ...", sourcefile.c_str());
       sleep(60);
       continue;
       
+    }
+    
+    if (!stat(sourcefile.c_str(), &src_curr_stat)) {
+      if (src_curr_stat.st_ino != srcstat.st_ino) {
+        eos_static_notice("source file has been replaced");
+        close(fd);
+        do {
+          fd= open (sourcefile.c_str(),O_RDONLY);
+          if (fd<0) {
+            sleep(1);
+          }
+        } while(fd <0 );
+        eos_static_notice("re-opened source file");
+        if (!client->Truncate(0)) {
+          eos_static_crit("couldn't truncate remote file");
+          exit(-1);
+        }
+      }
     }
 
     if (!client->Stat(&dststat, true)) {

@@ -7,7 +7,6 @@ add_library (XrdEosFst MODULE
 	    layout/ReplicaLayout.cc
 	    layout/ReplicaParLayout.cc
 	    checksum/CheckSum.cc
-	    transfer/Transfer.cc
 	    storage/Storage.cc
 	    Config.cc
 	    Load.cc

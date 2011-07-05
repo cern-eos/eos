@@ -981,6 +981,12 @@ int main(int argc, char *argv[])
     }
   }
 
+  if (getenv("EOS_SOCKS4_HOST") && getenv("EOS_SOCKS4_PORT")) {
+    fprintf(stdout,"EOS_SOCKS4_HOST=%s\n", getenv("EOS_SOCKS4_HOST"));
+    fprintf(stdout,"EOS_SOCKS4_PORT=%s\n", getenv("EOS_SOCKS4_PORT"));
+    xrd_socks4(getenv("EOS_SOCKS4_HOST"),getenv("EOS_SOCKS4_PORT"));
+  }
+
   xcfsatime=time(NULL);
   for (i=0; i< argc; i++) {
     if ( (spos=strstr(argv[i],"url=root://"))) {

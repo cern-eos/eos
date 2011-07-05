@@ -33,6 +33,8 @@ struct dirbuf {
   extern "C" {
 #endif
 
+void           xrd_socks4(const char* host, const char* port);
+
 int            xrd_stat(const char *file_name, struct stat *buf);
     int            xrd_statfs(const char *url, const char* path, struct statvfs *stbuf);
 

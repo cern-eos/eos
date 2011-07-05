@@ -6,20 +6,33 @@
 int
 com_cd (char *arg) {
   static XrdOucString opwd="/";
+  static XrdOucString oopwd="/";
+  XrdOucString lsminuss;
+  XrdOucString newpath;
+  XrdOucString oldpwd;
+
+  if (!strcmp(arg,"--help") || !strcmp(arg,"-h"))
+    goto com_cd_usage;
+
+    
   // cd -
   if (!strcmp(arg,"-")) {
+    oopwd = opwd;
     arg = (char*) opwd.c_str();
-    fprintf(stderr,"setting arg to %s\n", arg);
   }
+
   opwd=pwd;
 
-  XrdOucString newpath=abspath(arg);
-  XrdOucString oldpwd = pwd;
+  newpath =abspath(arg);
+  oldpwd = pwd;
 
   // cd ~ (home)
   if (!arg || (!strlen(arg)) || (!strcmp(arg,"~"))) {
     if (getenv("EOS_HOME")) {
       newpath = abspath(getenv("EOS_HOME"));
+    } else {
+      fprintf(stderr,"warning: there is no home directory defined via EOS_HOME\n");
+      newpath = opwd;
     }
   }
 
@@ -31,7 +44,8 @@ com_cd (char *arg) {
   // filter "/./";
   while (pwd.replace("/./","/")) {}
   // filter "..";
-  int dppos=0;
+  int dppos;
+  dppos=0;
   while ( (dppos=pwd.find("/../")) != STR_NPOS) {
     if (dppos==0) {
       pwd = oldpwd;
@@ -53,10 +67,24 @@ com_cd (char *arg) {
 
   // check if this exists, otherwise go back to oldpwd
 
-  XrdOucString lsminuss = "mgm.cmd=ls&mgm.path="; lsminuss += pwd;lsminuss+= "&mgm.option=s";
+  lsminuss = "mgm.cmd=cd&mgm.path="; lsminuss += pwd;lsminuss+= "&mgm.option=s";
   global_retc = output_result(client_user_command(lsminuss));
   if (global_retc) { 
     pwd = oldpwd;
   }
+  return (0);
+
+ com_cd_usage:
+  printf("'[eos] cd ...' provides the namespace change directory command in EOS.\n");
+  printf("Usage: cd <dir>|-|..|~\n");
+  printf("Options:\n");
+  printf("cd <dir> :\n");
+  printf("                                                  change into direcotry <dir>. If it does not exist, the current directory will stay as before!\n");
+  printf("cd - :\n");
+  printf("                                                  change into the previous directory\n");
+  printf("cd .. :\n");
+  printf("                                                  change into the directory one level up\n");
+  printf("cd ~ :\n");
+  printf("                                                  change into the directory defined via the environment variable EOS_HOME\n");
   return (0);
 }

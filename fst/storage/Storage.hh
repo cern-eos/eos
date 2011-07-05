@@ -6,7 +6,6 @@
 #include "common/Statfs.hh"
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
-#include "fst/transfer/Transfer.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/Load.hh"
@@ -98,7 +97,6 @@ public:
   static void* StartFsScrub(void * pp);
   static void* StartFsTrim(void* pp);
   static void* StartFsRemover(void* pp);
-  static void* StartFsPulling(void* pp);
   static void* StartFsReport(void* pp);
   static void* StartFsVerify(void* pp);
   static void* StartFsPublisher(void* pp);
@@ -106,7 +104,6 @@ public:
   void Scrub();
   void Trim();
   void Remover();
-  void Pulling();
   void Report();
   void Verify();
   void Communicator();
@@ -114,9 +111,6 @@ public:
 
   void Boot(FileSystem* fs);
 
-  XrdSysMutex transferMutex;
-  std::list <Transfer*> transfers;
-  Transfer* runningTransfer;
   eos::fst::Verify* runningVerify;
 
   XrdSysMutex deletionsMutex;

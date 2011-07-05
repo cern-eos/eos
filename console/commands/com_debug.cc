@@ -12,46 +12,55 @@ com_debug (char* arg1) {
   XrdOucString nodequeue = subtokenizer.GetToken();
   XrdOucString filterlist="";
 
-  if (level == "this") {
-    printf("info: toggling shell debugmode to debug=%d\n",debug);
-    debug = !debug;
-    if (debug) {
-      eos::common::Logging::SetLogPriority(LOG_DEBUG);
-    } else {
-      eos::common::Logging::SetLogPriority(LOG_NOTICE);
-    }
-    return (0);
-  }
-  if ( level.length() ) {
-    XrdOucString in = "mgm.cmd=debug&mgm.debuglevel="; in += level; 
-
-    if (nodequeue.length()) {
-      if (nodequeue == "-filter") {
-        filterlist = subtokenizer.GetToken();
-        in += "&mgm.filter="; in += filterlist;
+  if ( (level != "-h") && (level != "--help") ) {
+    
+    if (level == "this") {
+      printf("info: toggling shell debugmode to debug=%d\n",debug);
+      debug = !debug;
+      if (debug) {
+        eos::common::Logging::SetLogPriority(LOG_DEBUG);
       } else {
-        in += "&mgm.nodename="; in += nodequeue;
-        nodequeue = subtokenizer.GetToken();
+        eos::common::Logging::SetLogPriority(LOG_NOTICE);
+      }
+      return (0);
+    }
+    if ( level.length() ) {
+      XrdOucString in = "mgm.cmd=debug&mgm.debuglevel="; in += level; 
+      
+      if (nodequeue.length()) {
         if (nodequeue == "-filter") {
           filterlist = subtokenizer.GetToken();
           in += "&mgm.filter="; in += filterlist;
+        } else {
+          in += "&mgm.nodename="; in += nodequeue;
+          nodequeue = subtokenizer.GetToken();
+          if (nodequeue == "-filter") {
+            filterlist = subtokenizer.GetToken();
+            in += "&mgm.filter="; in += filterlist;
+          }
         }
-      }
-    } 
-    
-
-
-    global_retc = output_result(client_admin_command(in));
-    return (0);
+      } 
+      
+      
+      
+      global_retc = output_result(client_admin_command(in));
+      return (0);
+    }
   }
-
-  printf("       debug  <level> [-filter <unitlist>]                : set the mgm where this console is connected to into debug level <level>\n");
-  printf("       debug  <node-queue> <level> [-filter <unitlist>]   : set the <node-queue> into debug level <level>\n");
-  printf("               <unitlist> is a string list of units which should be filtered out in the message log !");
-  printf("               Examples: > debug info *\n");
-  printf("                         > debug info /eos/*/fst\n");
-  printf("                         > debug info /eos/*/mgm\n");
-  printf("                         > debug debug -filter MgmOfsMessage\n");
-  printf("       debug  this                                        : toggle the debug flag for the shell itself\n");
+  
+  printf("Usage: debug [node-queue] this|<level> [-filter <unitlist>]\n");
+  printf("'[eos] debug ...' allows to modify the verbosity of the EOS log files in MGM and FST services.\n\n");
+  printf("Options:\n");
+  printf("debug  <level> [-filter <unitlist>] :\n");
+  printf("                                                  set the MGM where the console is connected to into debug level <level>\n");
+  printf("debug  <node-queue> <level> [-filter <unitlist>] :\n");
+  printf("                                                  set the <node-queue> into debug level <level>. <node-queue> are internal EOS names e.g. '/eos/<hostname>:<port>/fst'\n");
+  printf("     <unitlist> : a comma seperated list of strings of software units which should be filtered out in the message log ! The default filter list is 'Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash'.\n\n");
+  printf("The allowed debug levels are: debug info warning notice err crit alert emerg\n\n");
+  printf("Examples:\n");
+  printf("  debug info *                        set MGM & all FSTs into debug mode 'info'\n\n");
+  printf("  debug err /eos/*/fst                set all FSTs into debug mode 'info'\n\n");
+  printf("  debug crit /eos/*/mgm               set MGM into debug mode 'crit'\n\n");
+  printf("  debug debug -filter MgmOfsMessage   set MGM into debug mode 'debug' and filter only messages comming from unit 'MgmOfsMessage'.\n\n");
   return (0);
 }

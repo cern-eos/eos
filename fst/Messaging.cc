@@ -2,7 +2,6 @@
 #include "fst/Messaging.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
-#include "fst/transfer/Transfer.hh"
 #include "fst/XrdFstOfs.hh"
 
 /*----------------------------------------------------------------------------*/
@@ -97,44 +96,6 @@ Messaging::Process(XrdMqMessage* newmessage)
     }
   }
 
-  if (cmd == "pull") {
-    eos_info("pull");
-
-    XrdOucEnv* capOpaque=NULL;
-    int caprc = 0;
-    if ((caprc=gCapabilityEngine.Extract(&action, capOpaque))) {
-      // no capability - go away!                                                                                                                                 
-      if (capOpaque) delete capOpaque;
-      eos_err("Cannot extract capability for transfer - errno=%d",caprc);
-    } else {
-      int envlen=0;
-      eos_debug("opaque is %s", capOpaque->Env(envlen));
-      Transfer* newtransfer = Transfer::Create(capOpaque, saction);
-      if (newtransfer) {
-        gOFS.Storage->transferMutex.Lock();
-
-        if (gOFS.Storage->transfers.size() < 1000000) {
-          XrdOucString squeuefront = capOpaque->Get("mgm.queueinfront");
-          if (squeuefront == "1") {
-            // this is an express transfer to be queued in front of the list                                                                                      
-            eos_info("scheduling express transfer %llu", capOpaque->Get("mgm.fid"));
-            gOFS.Storage->transfers.insert(gOFS.Storage->transfers.begin(), newtransfer);
-          } else {
-            // this is a regual transfer to be appended to the end of the list                                                                                    
-            eos_info("scheduling regular transfer %llu", capOpaque->Get("mgm.fid"));
-            gOFS.Storage->transfers.push_back(newtransfer);
-          }
-        } else {
-          eos_err("transfer list has already 1 Mio. entries - discarding transfer message");
-        }
-        gOFS.Storage->transferMutex.UnLock();
-      } else {
-        eos_err("Cannot create a transfer entry - illegal opaque information");
-      }
-    }
-  }
-
-
   if (cmd == "verify") {
     eos_info("verify");
 
@@ -186,26 +147,6 @@ Messaging::Process(XrdMqMessage* newmessage)
       gOFS.Storage->runningVerify->Show("running");
     }
     gOFS.Storage->verificationsMutex.UnLock();
-  }
-
-  if (cmd == "droptransfers") {
-    gOFS.Storage->transferMutex.Lock();
-    eos_notice("dropping %u transfers", gOFS.Storage->transfers.size());
-    gOFS.Storage->transfers.clear();
-    gOFS.Storage->transferMutex.UnLock();
-  }
-
-  if (cmd == "listtransfers") {
-    gOFS.Storage->transferMutex.Lock();
-    std::list<eos::fst::Transfer*>::iterator it;
-    for ( it = gOFS.Storage->transfers.begin(); it != gOFS.Storage->transfers.end(); ++it) {
-      (*it)->Show();
-    }
-    eos_notice("%u transfers in transfer queue", gOFS.Storage->transfers.size());
-    if (gOFS.Storage->runningTransfer) {
-      gOFS.Storage->runningTransfer->Show("running");
-    }
-    gOFS.Storage->transferMutex.UnLock();
   }
 }
 

@@ -161,8 +161,6 @@ Storage::Storage(const char* metadirectory)
 {
   SetLogId("FstOfsStorage");
 
-  runningTransfer = 0;
-
   // make metadir
   XrdOucString mkmetalogdir = "mkdir -p "; mkmetalogdir += metadirectory;  mkmetalogdir += " >& /dev/null";
   system(mkmetalogdir.c_str());
@@ -217,13 +215,6 @@ Storage::Storage(const char* metadirectory)
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsRemover, static_cast<void *>(this),
                               0, "Data Store Remover"))) {
     eos_crit("cannot start deletion theread");
-    zombie = true;
-  }
-
-  eos_info("starting replication thread");
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsPulling, static_cast<void *>(this),
-                              0, "Data Pulling Thread"))) {
-    eos_crit("cannot start pulling thread");
     zombie = true;
   }
 
@@ -516,15 +507,6 @@ Storage::StartFsRemover(void * pp)
 {
   Storage* storage = (Storage*)pp;
   storage->Remover();
-  return 0;
-}    
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartFsPulling(void * pp)
-{
-  Storage* storage = (Storage*)pp;
-  storage->Pulling();
   return 0;
 }    
 
@@ -831,58 +813,6 @@ Storage::Remover()
       deletionsMutex.UnLock();
       usleep(100000);
     }
-  }
-}
-
-/*----------------------------------------------------------------------------*/
-void
-Storage::Pulling()
-{
-  // this thread pulls files from other nodes
-  while(1) {
-    sleep(1);
-    transferMutex.Lock();
-    if (transfers.size()) 
-      eos_static_debug("%u files to transfer",transfers.size());
-
-    bool more = false;
-
-    std::list<Transfer*>::iterator it;
-    do {
-      more = false;
-      for ( it = transfers.begin(); it != transfers.end(); ++it) {
-	int retc=0;
-	(*it)->Debug();
-	if ( (*it)->ShouldRun() ) {
-	  Transfer* transfer=*it;
-	  more = true;
-	  // remove it from the list
-	  runningTransfer = transfer;
-	  transfers.erase(it);
-	  transferMutex.UnLock();
-	  retc = transfer->Do();
-	  
-	  // try the transfer here
-	  transferMutex.Lock();
-	  runningTransfer = 0;
-	  if (retc) {
-	    if (transfer->ShouldRetry()) {
-	      // reschedule
-	      transfer->Reschedule(300);
-	      // push it back on the list
-	      transfers.push_back(transfer);
-	    }
-	    break;
-	  }  else {
-	    // delete the transfer object
-	    delete transfer;
-	    break;
-	  }
-	}
-      }
-    } while (more);
-
-    transferMutex.UnLock();
   }
 }
 

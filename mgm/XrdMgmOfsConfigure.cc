@@ -799,6 +799,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("AttrLs",0,0,0);
   gOFS->MgmStats.Add("AttrRm",0,0,0);
   gOFS->MgmStats.Add("AttrSet",0,0,0);
+  gOFS->MgmStats.Add("Cd",0,0,0);
   gOFS->MgmStats.Add("Chmod",0,0,0);
   gOFS->MgmStats.Add("Chown",0,0,0);
   gOFS->MgmStats.Add("Commit",0,0,0);

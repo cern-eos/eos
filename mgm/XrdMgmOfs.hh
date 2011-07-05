@@ -423,6 +423,7 @@ const   char          *getVersion();
 
 
         int            _replicatestripe(eos::FileMD* fmd, 
+                                   const char* path,
 				   XrdOucErrInfo        &error,
 				   eos::common::Mapping::VirtualIdentity &vid,
 				   unsigned long         sourcefsid,

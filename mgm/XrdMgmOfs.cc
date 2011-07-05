@@ -4023,15 +4023,21 @@ XrdMgmOfs::_replicatestripe(const char             *path,
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   }
+  
+  if (errno) {
+    gOFS->eosViewMutex.UnLock();
+    //-------------------------------------------
+    return  Emsg(epname,error,errno,"replicate stripe",path);    
+  }
+
+  // make a copy of the file meta data to release the lock
+  eos::FileMD fmdCopy(*fmd);
+  fmd = &fmdCopy;
 
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
 
-  
-  if (errno) 
-    return  Emsg(epname,error,errno,"replicate stripe",path);    
-
-  int retc =  _replicatestripe(fmd, error, vid, sourcefsid, targetfsid, dropsource, expressflag);
+  int retc =  _replicatestripe(fmd, path, error, vid, sourcefsid, targetfsid, dropsource, expressflag);
 
   EXEC_TIMING_END("ReplicateStripe");
 
@@ -4042,6 +4048,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd, 
+                            const char*             path,
 			    XrdOucErrInfo          &error,
 			    eos::common::Mapping::VirtualIdentity &vid,
 			    unsigned long           sourcefsid,
@@ -4050,37 +4057,16 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
 			    bool                    expressflag)
 {
   static const char *epname = "replicatestripe";  
-  unsigned long long fileId=fmd->getId();
+  unsigned long long fid = fmd->getId();
   unsigned long long cid = fmd->getContainerId();
+  long unsigned int  lid = fmd->getLayoutId();
+  unsigned long long size = fmd->getSize();
 
   if (dropsource) 
     gOFS->MgmStats.Add("MoveStripe",vid.uid,vid.gid,1);  
   else 
     gOFS->MgmStats.Add("CopyStripe",vid.uid,vid.gid,1);  
  
-  // prepare a replication message
-  XrdOucString capability="";
-  capability += "mgm.access=read";
-
-  // replication always assumes movements of a simple single file without structure
-  capability += "&mgm.lid="; capability += eos::common::LayoutId::kPlain;
-  XrdOucString sizestring;
-  capability += "&mgm.cid=";        capability += eos::common::StringConversion::GetSizeString(sizestring,cid);
-  capability += "&mgm.ruid=";       capability+=(int)vid.uid; 
-  capability += "&mgm.rgid=";       capability+=(int)vid.gid;
-  capability += "&mgm.uid=";        capability+=(int)vid.uid_list[0]; 
-  capability += "&mgm.gid=";        capability+=(int)vid.gid_list[0];
-  capability += "&mgm.path=";       capability += fmd->getName().c_str();
-  capability += "&mgm.manager=";    capability += gOFS->ManagerId.c_str();
-  capability += "&mgm.fid=";    XrdOucString hexfid; eos::common::FileId::Fid2Hex(fileId,hexfid);capability += hexfid;
-
-  if (dropsource) {
-    capability += "&mgm.dropsource=1";
-  }
-  if (expressflag) {
-    capability += "&mgm.queueinfront=1";
-  }
-
   if ( (!sourcefsid) || (!targetfsid) ) {
     eos_err("illegal fsid sourcefsid=%u targetfsid=%u", sourcefsid, targetfsid);
     return Emsg(epname,error, EINVAL, "illegal source/target fsid", fmd->getName().c_str());
@@ -4089,6 +4075,8 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   eos::mgm::FileSystem* sourcefilesystem = 0;
   eos::mgm::FileSystem* targetfilesystem = 0;
 
+  
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   if (FsView::gFsView.mIdView.count(sourcefsid)) {
     sourcefilesystem = FsView::gFsView.mIdView[sourcefsid];
   }
@@ -4107,48 +4095,111 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
     return  Emsg(epname,error,ENOENT,"replicate stripe - target filesystem does not exist",fmd->getName().c_str());  
   }
 
-  XrdOucString receiver    = targetfilesystem->GetQueue().c_str();
+  // snapshot the filesystems
+  eos::common::FileSystem::fs_snapshot source_snapshot;
+  eos::common::FileSystem::fs_snapshot target_snapshot;
+  sourcefilesystem->SnapShotFileSystem(source_snapshot);
+  targetfilesystem->SnapShotFileSystem(target_snapshot);
+  
+  // build a transfer capability
+  XrdOucString source_capability="";
+  XrdOucString sizestring;
+  source_capability += "mgm.access=read";
+  source_capability += "&mgm.lid=";        source_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)lid&0xffffff0f);
+  // make's it a plain replica
+  source_capability += "&mgm.cid=";        source_capability += eos::common::StringConversion::GetSizeString(sizestring,cid);
+  source_capability += "&mgm.ruid=";       source_capability+=(int)1;
+  source_capability += "&mgm.rgid=";       source_capability+=(int)1;
+  source_capability += "&mgm.uid=";        source_capability+=(int)1;
+  source_capability += "&mgm.gid=";        source_capability+=(int)1;
+  source_capability += "&mgm.path=";       source_capability += path;
+  source_capability += "&mgm.manager=";    source_capability += gOFS->ManagerId.c_str();
+  source_capability += "&mgm.fid=";
+  XrdOucString hexfid; eos::common::FileId::Fid2Hex(fid,hexfid);source_capability += hexfid;
 
-  // build the capability contents
-  capability += "&mgm.localprefix=";       capability += sourcefilesystem->GetPath().c_str();
-  capability += "&mgm.localprefixtarget="; capability += targetfilesystem->GetPath().c_str();
-  capability += "&mgm.fsid=";              capability += (int)sourcefilesystem->GetId();
-  capability += "&mgm.fsidtarget=";        capability += (int)targetfilesystem->GetId();
-  XrdOucString sourcehost; int sourceport;
-  sourcehost = sourcefilesystem->GetString("host").c_str();
-  sourceport = atoi(sourcefilesystem->GetString("port").c_str());
-  XrdOucString hostport = sourcehost; hostport += ":"; hostport += sourceport;
-  capability += "&mgm.sourcehostport=";    capability += hostport;
-
-  // issue a capability
-  XrdOucEnv incapability(capability.c_str());
-  XrdOucEnv* capabilityenv = 0;
+  // this is a move of a replica
+  if (dropsource) {
+    source_capability += "&mgm.drainfsid=";  source_capability += (int)source_snapshot.mId;
+  }
+  
+  // build the source_capability contents
+  source_capability += "&mgm.localprefix=";       source_capability += source_snapshot.mPath.c_str();
+  source_capability += "&mgm.fsid=";              source_capability += (int)source_snapshot.mId;
+  source_capability += "&mgm.sourcehostport=";    source_capability += source_snapshot.mHostPort.c_str();
+  source_capability += "&mgm.lfn=";               source_capability += path;
+  
+  XrdOucString target_capability="";
+  target_capability += "mgm.access=write";
+  target_capability += "&mgm.lid=";        target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid&0xffffff0f); 
+  // make's it a plain replica
+  target_capability += "&mgm.cid=";        target_capability += eos::common::StringConversion::GetSizeString(sizestring,cid);
+  target_capability += "&mgm.ruid=";       target_capability+=(int)1;
+  target_capability += "&mgm.rgid=";       target_capability+=(int)1;
+  target_capability += "&mgm.uid=";        target_capability+=(int)1;
+  target_capability += "&mgm.gid=";        target_capability+=(int)1;
+  target_capability += "&mgm.path=";       target_capability += path;
+  target_capability += "&mgm.manager=";    target_capability += gOFS->ManagerId.c_str();
+  target_capability += "&mgm.fid=";
+  target_capability += hexfid; 
+  if (dropsource) {
+    target_capability += "&mgm.drainfsid=";  target_capability += (int)source_snapshot.mId;
+  }
+  
+  // build the target_capability contents
+  target_capability += "&mgm.localprefix=";       target_capability += target_snapshot.mPath.c_str();
+  target_capability += "&mgm.fsid=";              target_capability += (int)target_snapshot.mId;
+  target_capability += "&mgm.targethostport=";    target_capability += target_snapshot.mHostPort.c_str();
+  target_capability += "&mgm.lfn=";               target_capability += path;
+  target_capability += "&mgm.bookingsize=";       target_capability += eos::common::StringConversion::GetSizeString(sizestring, size);
+  // issue a source_capability
+  XrdOucEnv insource_capability(source_capability.c_str());
+  XrdOucEnv intarget_capability(target_capability.c_str());
+  XrdOucEnv* source_capabilityenv = 0;
+  XrdOucEnv* target_capabilityenv = 0;
+  XrdOucString fullcapability="";
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-
+  
   int caprc=0;
-  if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
-    eos_static_err("unable to create capability - errno=%u", caprc);
+  if ((caprc=gCapabilityEngine.Create(&insource_capability, source_capabilityenv, symkey)) ||
+      (caprc=gCapabilityEngine.Create(&intarget_capability, target_capabilityenv, symkey))){
+    eos_err("unable to create source/target capability - errno=%u", caprc);
     errno = caprc;
   } else {
     errno = 0;
-    XrdMqMessage message("replication");
-    XrdOucString msgbody = "mgm.cmd=pull"; 
-
     int caplen = 0;
-    msgbody += capabilityenv->Env(caplen);
-    // we send deletions in bunches of max 1000 for efficiency
-    message.SetBody(msgbody.c_str());   
-    if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
-      eos_static_err("unable to send deletion message to %s", receiver.c_str());
-      errno = ECOMM;
-    } else {
-      errno = 0;
+    XrdOucString source_cap = source_capabilityenv->Env(caplen);
+    XrdOucString target_cap = target_capabilityenv->Env(caplen);
+    source_cap.replace("cap.sym","source.cap.sym");
+    target_cap.replace("cap.sym","target.cap.sym");
+    source_cap.replace("cap.msg","source.cap.msg");
+    target_cap.replace("cap.msg","target.cap.msg");
+    source_cap += "&source.url=root://"; source_cap += source_snapshot.mHostPort.c_str();source_cap += "//replicate:"; source_cap += hexfid;
+    target_cap += "&target.url=root://"; target_cap += target_snapshot.mHostPort.c_str();target_cap += "//replicate:"; target_cap += hexfid;
+    fullcapability += source_cap;
+    fullcapability += target_cap;
+    
+    eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
+    
+    bool sub = targetfilesystem->GetExternQueue()->Add(txjob);
+    eos_info("Submitted %d %s %llu %s\n", sub, hexfid.c_str(), fid, fullcapability.c_str());
+
+    if (!sub) 
+      errno = ENXIO;
+
+    if (txjob)
+      delete txjob;
+    else {
+      eos_err("Couldn't create transfer job to replicate stripe of %s", path);
+      errno = ENOMEM;
     }
+
+    if (source_capabilityenv)
+      delete source_capabilityenv;
+    if (target_capabilityenv)
+      delete target_capabilityenv;
   }
-
-  if (capabilityenv)
-    delete capabilityenv;
-
+  
+  
   if (errno) 
     return  Emsg(epname,error,errno,"replicate stripe",fmd->getName().c_str());  
 
