@@ -2044,60 +2044,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     //      }
     //    } 
 
-    //    if (cmd == "droptransfers") {
-      //      if (vid_in.uid == 0) {
-      //	if (subcmd == "fst") {
-      //	  XrdOucString debugnode =  opaque.Get("mgm.nodename");
-      //	  if (( debugnode == "") || (debugnode == "*")) {
-      //	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
-      //	    eos::common::FileSystem::GetDropTransferRequestString(msgbody);
-      //	    message.SetBody(msgbody.c_str());
-      //	    
-      	    // broadcast a global drop message
-      //    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
-      //	      stdOut="success: sent global drop transfer message to all fst nodes"; 
-      //	    } else {
-      //	      stdErr="error: could not send global fst drop transfer message!";
-      //	      retc = EIO;
-      //	    } 
-      //	  } else {
-      //	    stdErr="error: only global fst drop transfer is supported yet!";
-      //	    retc = EINVAL;
-      //	  } 
-      //	}
-      //      } else {
-      //	retc = EPERM;
-      //	stdErr = "error: you have to take role 'root' to execute this command";
-      //      }
-      //    }
-
-    //    if (cmd == "listtransfers") {
-    //      if (vid_in.uid == 0) {
-    //	if (subcmd == "fst") {
-    //  XrdOucString debugnode =  opaque.Get("mgm.nodename");
-    //    if (( debugnode == "") || (debugnode == "*")) {
-    //	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
-    //	    eos::common::FileSystem::GetListTransferRequestString(msgbody);
-    //      message.SetBody(msgbody.c_str());
-	    
-	    // broadcast a global list message
-    //	    if (XrdMqMessaging::gMessageClient.SendMessage(message, "/eos/*/fst")) {
-    //	      stdOut="success: sent global list transfer message to all fst nodes"; 
-    //	    } else {
-    //	      stdErr="error: could not send global fst list transfer message!";
-    //	      retc = EIO;
-    //	    } 
-    //	  } else {
-    //	    stdErr="error: only global fst list transfer is supported yet!";
-    //	    retc = EINVAL;
-    //	  } 
-    //	}
-    //      } else {
-    //	retc = EPERM;
-    //	stdErr = "error: you have to take role 'root' to execute this command";
-    //      }
-    //    }
-
     //    if (cmd == "dropverifications") {
     //      if (vid_in.uid == 0) {
     //	if (subcmd == "fst") {
