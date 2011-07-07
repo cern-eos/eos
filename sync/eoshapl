@@ -204,6 +204,7 @@ while(1) {
 
         if (!$mastermgm) {
             now();
+            print "$now hostname=$host [$host_ip]  aliastarget=$alias_ip aliases=$aliasname\n";
             printf "$now ===================================================================\n";
             printf "$now shut down running mgm ...\n";
             printf "$now ___________________________________________________________________\n";           
