@@ -493,6 +493,10 @@ virtual bool           Init(XrdSysError &);
         XrdOucString     MgmMetaLogDir;      //  Directory containing the meta data (change) log files
         Stat             MgmStats;           //  Mgm Namespace Statistics
         Iostat           IoStats;            //  Mgm IO Statistics
+        bool             IoReportStore;      //  Mgm IO Reports get stored by default into /var/tmp/eos/report
+        bool             IoReportNamespace;  //  Mgm IO Reports get stored in a fake namespace attaching each report to a namespace file in <IoReportStorePath>
+        XrdOucString     IoReportStorePath;  //  Mgm IO Report store path by default is /var/tmp/eos/report
+
         google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;
         XrdSysMutex      MgmHealMapMutex;
 

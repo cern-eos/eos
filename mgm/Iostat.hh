@@ -172,6 +172,8 @@ public:
   static void* StaticCirculate(void*);
   void* Receive();
 
+  static bool NamespaceReport(const char* path, XrdOucString &stdOut, XrdOucString &stdErr);
+
   // stats collection
   void Add(const char* tag, uid_t uid, gid_t gid, unsigned long val, time_t starttime, time_t stoptime) {
     Mutex.Lock();

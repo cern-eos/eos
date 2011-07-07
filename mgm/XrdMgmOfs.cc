@@ -914,6 +914,25 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	  return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
 	}
       }
+
+      if ((attrmap.count("sys.redirect.enonet"))) {
+        // there is a redirection setting here if files are unaccessible
+        redirectionhost = "";
+        redirectionhost = attrmap["sys.redirect.enonet"].c_str();
+        int portpos = 0;
+        if ( (portpos = redirectionhost.find(":")) != STR_NPOS) {
+          XrdOucString port = redirectionhost;
+          port.erase(0,portpos+1);
+          ecode = atoi(port.c_str());
+          redirectionhost.erase(portpos);
+        } else {
+          ecode = 1094;
+        }
+        rcode = SFS_REDIRECT;
+        error.setErrInfo(ecode, redirectionhost.c_str());
+        gOFS->MgmStats.Add("RedirectENONET",0,0,0);
+        return rcode;
+      }
       gOFS->MgmStats.Add("OpenFileOffline",vid.uid,vid.gid,1);  
     } else {
       gOFS->MgmStats.Add("OpenFailedQuota",vid.uid,vid.gid,1);  
@@ -933,7 +952,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   if (FsView::gFsView.mIdView.count(selectedfs[fsIndex]))
     filesystem = FsView::gFsView.mIdView[selectedfs[fsIndex]];
   else
-    return Emsg(epname, error, ENONET,  "received non-existnat filesystem", path);	    
+    return Emsg(epname, error, ENONET,  "received non-existent filesystem", path);	    
 
   targethost = filesystem->GetString("host").c_str();
   targetport = atoi(filesystem->GetString("port").c_str());

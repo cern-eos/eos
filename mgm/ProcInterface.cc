@@ -1791,18 +1791,72 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
     if (cmd == "io") {
       if (vid_in.uid == 0) {
-        if (subcmd == "enable") {
-          if (gOFS->IoStats.Start()) {
-            stdOut += "success: enabled IO report collection";
+        if (subcmd == "report") {
+          XrdOucString path = opaque.Get("mgm.io.path");
+          retc = Iostat::NamespaceReport(path.c_str(), stdOut, stdErr);
+        } else {
+          XrdOucString option = opaque.Get("mgm.option");
+          bool reports   = false;
+          bool reportnamespace = false;
+          
+          if ((option.find("r")!=STR_NPOS)) 
+            reports = true;
+          
+          if ((option.find("n")!=STR_NPOS))
+            reportnamespace = true;
+          
+          if ( (!reports) && (!reportnamespace) ) {
+            if (subcmd == "enable") {
+              if (gOFS->IoStats.Start()) {
+                stdOut += "success: enabled IO report collection";
+              } else {
+                stdErr += "error: IO report collection already enabled";;
+              }
+            }
+            if (subcmd == "disable") {
+              if (gOFS->IoStats.Stop()) {
+                stdOut += "success: disabled IO report collection";
+              } else {
+                stdErr += "error: IO report collection was already disabled";
+              }
+            }
           } else {
-            stdErr += "error: IO report collection already enabled";;
-          }
-        }
-        if (subcmd == "disable") {
-          if (gOFS->IoStats.Stop()) {
-            stdOut += "success: disabled IO report collection";
-          } else {
-            stdErr += "error: IO report collection was already disabled";
+            if (reports) {
+              if (subcmd == "enable") {
+                if (gOFS->IoReportStore) {
+                  stdErr += "error: IO report store already enabled";;
+                } else {
+                  stdOut += "success: enabled IO report store";
+                  gOFS->IoReportStore=true;
+                }
+              }
+              if (subcmd == "disable") {
+                if (!gOFS->IoReportStore) {
+                  stdErr += "error: IO report store already disabled";;
+                } else {
+                  stdOut += "success: disabled IO report store";
+                  gOFS->IoReportStore=false;
+                }
+              }
+            }
+            if (reportnamespace) {
+              if (subcmd == "enable") {
+                if (gOFS->IoReportNamespace) {
+                  stdErr += "error: IO report namespace already enabled";;
+                } else {
+                  stdOut += "success: enabled IO report namespace";
+                  gOFS->IoReportNamespace=true;
+                }
+              }
+              if (subcmd == "disable") {
+                if (!gOFS->IoReportNamespace) {
+                  stdErr += "error: IO report namespace already disabled";;
+                } else {
+                  stdOut += "success: disabled IO report namespace";
+                  gOFS->IoReportNamespace=false;
+                }
+              }
+            }
           }
         }
       }

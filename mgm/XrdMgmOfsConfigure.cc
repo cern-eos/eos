@@ -50,6 +50,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   MgmMetaLogDir = "/var/tmp/eos/md/";
   MgmHealMap.set_deleted_key(0);
 
+  IoReportStore=false;
+  IoReportNamespace=false;
+  IoReportStorePath="/var/tmp/eos/report";
+  
+  
   bool ConfigAutoSave = false;
   XrdOucString ConfigAutoLoad = "";
 
@@ -300,6 +305,62 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	    }
 	  }
 	}
+
+	if (!strcmp("reportstore", var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument 2 for reportstore missing. Can be true/1 or false/0"); NoGo=1;
+	  } else {
+	    if ( (!(strcmp(val,"true"))) || (!(strcmp(val,"1")))) {
+	      IoReportStore = true;
+	    } else {
+	      if ( (!(strcmp(val,"false"))) || (!(strcmp(val,"0")))) {
+		IoReportStore = false;
+	      } else {
+		Eroute.Emsg("Config","argument 2 for reportstore invalid. Can be <true>/1 or <false>/0"); NoGo=1;
+	      }
+	    }
+	  }
+	}
+
+	if (!strcmp("reportnamespace", var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument 2 for reportnamespace missing. Can be true/1 or false/0"); NoGo=1;
+	  } else {
+	    if ( (!(strcmp(val,"true"))) || (!(strcmp(val,"1")))) {
+	      IoReportNamespace = true;
+	    } else {
+	      if ( (!(strcmp(val,"false"))) || (!(strcmp(val,"0")))) {
+		IoReportNamespace = false;
+	      } else {
+		Eroute.Emsg("Config","argument 2 for reportstore invalid. Can be <true>/1 or <false>/0"); NoGo=1;
+	      }
+	    }
+	  }
+	}
+
+        if (!strcmp("reportstorepath",var)) {
+	  if (!(val = Config.GetWord())) {
+	    Eroute.Emsg("Config","argument 2 for reportstorepath missing"); NoGo=1;
+	  } else {
+	    IoReportStorePath = val;
+	    // just try to create it in advance
+	    XrdOucString makeit="mkdir -p "; makeit+= IoReportStorePath; int src =system(makeit.c_str()); 
+	    if (src) 
+	      eos_err("%s returned %d", makeit.c_str(), src);
+	    XrdOucString chownit="chown -R "; chownit += (int) geteuid(); chownit += " "; chownit += IoReportStorePath;
+	    src = system(chownit.c_str());
+	    if (src)
+	      eos_err("%s returned %d", chownit.c_str(), src);
+	    
+	    if (::access(IoReportStorePath.c_str(), W_OK|R_OK|X_OK)) {
+	      Eroute.Emsg("Config","I cannot acccess the reportstore directory for r/w!", IoReportStorePath.c_str()); NoGo=1;
+	    } else {
+	      Eroute.Say("=====> mgmofs.reportstorepath: ", IoReportStorePath.c_str(),"");
+	    }
+	  }
+          
+        }
+        
 	if (!strcmp("trace",var)) {
 	  static struct traceopts {const char *opname; int opval;} tropts[] =
 								     {
@@ -407,6 +468,18 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   } else {
     Eroute.Say("=====> mgmofs.fs: ",MgmOfsName.c_str(),"");
   } 
+
+  if (IoReportStore) {
+    Eroute.Say("=====> mgmofs.reportstore: enabled","");
+  } else {
+    Eroute.Say("=====> mgmofs.reportstore: disabled","");
+  }
+
+  if (IoReportNamespace) {
+    Eroute.Say("=====> mgmofs.reportnamespace: enabled","");
+  } else {
+    Eroute.Say("=====> mgmofs.reportnamespace: disabled","");
+  }
 
   // we need to specify this if the server was not started with the explicit manager option ... e.g. see XrdOfs
   
@@ -837,6 +910,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("OpenWrite",0,0,0);
   gOFS->MgmStats.Add("ReadLink",0,0,0);
   gOFS->MgmStats.Add("RedirectENOENT",0,0,0);
+  gOFS->MgmStats.Add("RedirectENONET",0,0,0);
   gOFS->MgmStats.Add("Rename",0,0,0);
   gOFS->MgmStats.Add("RmDir",0,0,0);
   gOFS->MgmStats.Add("Rm",0,0,0);

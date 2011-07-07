@@ -1,8 +1,12 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Report.hh"
+#include "common/Path.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/XrdMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
+
+#include <iostream>
+#include <fstream>
 
 /*----------------------------------------------------------------------------*/
 
@@ -106,7 +110,66 @@ Iostat::Receive(void)
       Add("bytes_wseek",    report->uid, report->gid, report->swb,report->ots, report->cts);
       Add("disk_time_read",  report->uid, report->gid, (unsigned long long)report->rt,report->ots, report->cts);
       Add("disk_time_write",  report->uid, report->gid, (unsigned long long)report->wt,report->ots, report->cts);
+      
+      if (gOFS->IoReportStore) {
+        // add the record to a daily report log file
 
+        static XrdOucString openreportfile="";
+        static FILE* openreportfd=0;
+        time_t now = time(NULL);
+        struct tm nowtm;
+        XrdOucString reportfile="";
+
+        if (localtime_r(&now, &nowtm)) {
+          static char logfile[4096];
+          snprintf(logfile,sizeof(logfile) -1, "%s/%04u/%02u/%04u%02u%02u.eosreport",gOFS->IoReportStorePath.c_str(), 
+                  1900+nowtm.tm_year,
+                  nowtm.tm_mon,
+                  1900+nowtm.tm_year,
+                  nowtm.tm_mon,
+                  nowtm.tm_mday);
+
+          reportfile = logfile;
+          
+          if (reportfile == openreportfile) {
+            // just add it here;
+            if (openreportfd) {
+              fprintf(openreportfd,"%s\n", body.c_str());
+              fflush(openreportfd);
+            }
+          } else {
+            if (openreportfd) 
+              fclose(openreportfd);
+
+            eos::common::Path cPath(reportfile.c_str());
+            if (cPath.MakeParentPath(S_IRWXU)) {
+              openreportfd = fopen(reportfile.c_str(),"a+");
+              if (openreportfd) {
+                fprintf(openreportfd,"%s\n", body.c_str());
+                fflush(openreportfd);
+              }
+              openreportfile = reportfile;
+            }
+          }
+        }
+      }
+      
+      if (gOFS->IoReportNamespace) {
+        // add the record into the report namespace file
+        char path[4096];
+        snprintf(path,sizeof(path)-1,"%s/%s", gOFS->IoReportStorePath.c_str(), report->path.c_str());
+        eos::common::Path cPath(path);
+        
+        if (cPath.MakeParentPath(S_IRWXU)) {
+          FILE* freport = fopen(path,"a+");
+          if (freport) {
+            fprintf(freport,"%s\n", body.c_str());
+            fclose(freport);
+          }
+        }
+      }
+
+      delete report;
       delete newmessage;
     }
     usleep(1000000);
@@ -457,6 +520,55 @@ Iostat::Restore()
   }
   Mutex.UnLock();
   fclose(fin);
+  return true;
+}
+
+/* ------------------------------------------------------------------------- */
+bool 
+Iostat::NamespaceReport(const char* path, XrdOucString &stdOut, XrdOucString &stdErr)
+{
+  // ---------------------------------------------------------------------------
+  // ! print a report on the activity recorded in the namespace on the given path
+  // ---------------------------------------------------------------------------
+
+  XrdOucString reportFile;
+
+  reportFile = gOFS->IoReportStorePath.c_str();
+  reportFile += "/";
+  reportFile += path;
+  
+  std::ifstream inFile(reportFile.c_str());
+  std::string reportLine;
+  
+  unsigned long long totalreadbytes  = 0;
+  unsigned long long totalwritebytes = 0;
+  double totalreadtime  = 0;
+  double totalwritetime = 0;
+  unsigned long long rcount  = 0;
+  unsigned long long wcount  = 0;
+
+  while(std::getline(inFile, reportLine)) {
+    XrdOucEnv ioreport(reportLine.c_str());
+    eos::common::Report* report = new eos::common::Report(ioreport);
+    report->Dump(stdOut);
+    if(!report->wb) {
+      rcount++;
+      totalreadtime   += ((report->cts - report->ots) + (1.0 * (report->ctms - report->otms) / 1000000 ));    
+      totalreadbytes  += report->rb;
+    } else {
+      wcount++;
+      totalwritetime   += ((report->cts - report->ots) + (1.0 * (report->ctms - report->otms) / 1000000 ));
+      totalwritebytes += report->wb;
+    }
+    delete report;
+  }
+  stdOut += "----------------------- SUMMARY -------------------\n";
+  char summaryline[4096];
+  XrdOucString sizestring1, sizestring2;
+
+  snprintf(summaryline, sizeof(summaryline) -1 ,"| avg. readd: %.02f MB/s | avg. write: %.02f  MB/s | total read: %s | total write: %s | times read: %llu | times written: %llu |\n", totalreadtime?(totalreadbytes/totalreadtime / 1000000.0):0, totalwritetime?(totalwritebytes/totalwritetime / 1000000.0):0, eos::common::StringConversion::GetReadableSizeString(sizestring1, totalreadbytes,"B"),eos::common::StringConversion::GetReadableSizeString(sizestring2, totalwritebytes,"B"), rcount, wcount);
+  stdOut += summaryline;
+
   return true;
 }
 
