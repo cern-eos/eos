@@ -51,7 +51,9 @@ rm -rf $RPM_BUILD_ROOT
 %preun
 if [ $1 = 0 ]; then
         /sbin/service eosha stop > /dev/null 2>&1 
+        /sbin/service eosd stop > /dev/null 2>&1 
         /sbin/service eos stop > /dev/null 2>&1 || :
+        /sbin/service eossync stop > /dev/null 2>&1 
         /sbin/chkconfig --del eos
 fi
 
@@ -99,11 +101,10 @@ fi
 %config(noreplace) /etc/xrd.cf.mq
 %config(noreplace) /etc/xrd.cf.sync
 %config(noreplace) /etc/sysconfig/eos.example
-%config(noreplace) %attr(-,daemon,daemon) %_sysconfdir/eos.keytab
 %_sysconfdir/rc.d/init.d/eos
 %_sysconfdir/rc.d/init.d/eosha
 %_sysconfdir/rc.d/init.d/eossync
-
+%_sysconfdir/cron.d/eos-logs
 
 #######################################################################################
 # the shell client package 
@@ -167,3 +168,18 @@ The EOS srm package.
 /usr/sbin/eos-srm-max-bytes
 /usr/sbin/eos-srm-checksum
 
+
+#######################################################################################
+# the keytab test package 
+#######################################################################################
+%package -n eos-testkeytab
+#######################################################################################
+Summary: The EOS testkeytab package
+Group: Applications/File
+
+Requires: eos-server
+
+%description -n eos-testkeytab
+Contains an example keytab file.
+%files -n eos-testkeytab
+%config(noreplace) %attr(-,daemon,daemon) %_sysconfdir/eos.keytab
