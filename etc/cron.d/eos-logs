@@ -1,0 +1,2 @@
+30 0 * * * root  find /var/log/eos  -name "xrdlog.*.????????" -exec gzip -9 \{\} \; ; find /var/log/eos  -name "xrdlog.*.????????.gz" -mtime +90 -exec rm \{\} \;
+

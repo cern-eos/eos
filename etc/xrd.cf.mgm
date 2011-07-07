@@ -45,6 +45,14 @@ mgmofs.instance eosdev
 mgmofs.configdir /var/eos/config
 mgmofs.metalog /var/eos/md
 
+# report store path
+mgmofs.reportstorepath /var/eos/report
+# record store is enabled by default
+mgmofs.reportstore true
+
+# record namespace is disabled by default - can be enabled on the fly with the 'io' command
+mgmofs.reportnamespace false
+
 # this defines the default config to load
 mgmofs.autoloadconfig default
 
@@ -53,5 +61,6 @@ mgmofs.autosaveconfig true
 
 # this has to be defined if we have a failover configuration via alias - can be overwritten by EOS_MGM_ALIAS in /etc/sysconfig/eos
 #mgmofs.alias eosdev.cern.ch
+
 
 ###########################################################
