@@ -10,9 +10,9 @@ com_io (char* arg1) {
   XrdOucString cmd = subtokenizer.GetToken();
   XrdOucString option="";
   XrdOucString options="";
-
+  XrdOucString path="";
   XrdOucString in ="";
-  if ( ( cmd != "stat") && ( cmd != "enable" ) && ( cmd != "disable") ) {
+  if ( ( cmd != "stat") && ( cmd != "enable" ) && ( cmd != "disable") && ( cmd != "report" ) ) {
     goto com_io_usage;
   }
   
@@ -29,28 +29,46 @@ com_io (char* arg1) {
     in += "mgm.subcmd=stat";
   }
 
-  do {
-    option = subtokenizer.GetToken();
-    if (!option.length())
-      break;
-    if (option == "-a") {
-      options += "a";
-    } else {
-      if (option == "-m") {
-	options += "m";
-      }  else {
-        if (option == "-n") {
-          options += "n";
-        } else {
-          if ( option == "-t") {
-            options += "t";
+  if (cmd == "report") {
+    in += "mgm.subcmd=report";
+    path = subtokenizer.GetToken();
+
+    if (!path.length()) 
+      goto com_io_usage;
+    in += "&mgm.io.path=";
+    in += path;
+  }  else {
+    do {
+      option = subtokenizer.GetToken();
+      if (!option.length())
+        break;
+      if (option == "-a") {
+        options += "a";
+      } else {
+        if (option == "-m") {
+          options += "m";
+        }  else {
+          if (option == "-n") {
+            options += "n";
           } else {
-            goto com_io_usage;
+            if ( option == "-t") {
+              options += "t";
+            } else {
+              if ( option == "-r") {
+                options += "r";
+              } else {
+                if ( option == "-n") {
+                  options += "n";
+                } else {
+                  goto com_io_usage;
+                }
+              }
+            }
           }
         }
       }
-    }
-  } while(1);
+    } while(1);
+  }
        
   if (options.length()) {
     in += "&mgm.option="; in += options;
@@ -65,7 +83,12 @@ com_io (char* arg1) {
   printf("                -m                                                   -  print in <key>=<val> monitoring format\n");
   printf("                -n                                                   -  print numerical uid/gids\n");
   printf("                -t                                                   -  print top user stats\n");
-  printf("       io enable                                                  :  enable collection of io statistics\n");
-  printf("       io disable                                                 :  disable collection of io statistics\n");
+  printf("       io enable [-r] [-n]                                        :  enable collection of io statistics\n");
+  printf("                                                               -r    enable collection of io reports\n");
+  printf("                                                               -n    enable report namespace\n");
+  printf("       io disable [-r] [-n]                                       :  disable collection of io statistics\n");
+  printf("                                                               -r    disable collection of io reports\n");
+  printf("                                                               -n    disable report namespace\n");
+  printf("       io report <path>                                           :  show contents of report namespace for <path>\n");
   return (0);
 }

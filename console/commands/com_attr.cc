@@ -143,6 +143,8 @@ com_attr (char* arg1) {
   printf("                                                     - the product <heal-tries> * <stall-time> should be bigger than the expect replication time for a given filesize!\n\n");
   printf("         sys.redirect.enoent=<host[:port]>     : redirect clients opening non existing files to <host[:port]>\n");
   printf("               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public \n\n");
+  printf("         sys.redirect.enonet=<host[:port]>     : redirect clients opening unaccessible files to <host[:port]>\n");
+  printf("               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public \n\n");
   printf("         sys.acl=<acllist>                     : set's an ACL which is honoured for open,rm & rmdir operations\n");
   printf("               => <acllist> = <rule1>,<rule2>...<ruleN> is a comma separated list of rules\n");
   printf("               => <rule> = u:<uid|username>>|g:<gid|groupname>|egroup:<name>:{rwo} \n\n");
