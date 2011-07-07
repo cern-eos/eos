@@ -558,6 +558,10 @@ XrdFstOfsFile::open(const char                *path,
     return gOFS.Emsg(epname,error,EINVAL,"open - sec gid missing",path);
   }
 
+  if ((val = capOpaque->Get("mgm.logid"))) {
+    snprintf(logId,sizeof(logId)-1,"%s", val);
+  }
+
   SetLogId(logId, vid, tident);
 
   eos_info("fstpath=%s", fstPath.c_str());
