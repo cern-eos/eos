@@ -118,7 +118,6 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
       default:
         rc = false;
         break;
-      
       }
     }
     // we continue until any of the brokers accepts the message
@@ -135,7 +134,10 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
   }
 
   if (!rc) {
-    ReNewBrokerXrdClientSender(i);
+    Mutex.Lock();
+    // TODO: does not work if there would be several broker !!
+    ReNewBrokerXrdClientSender(0);
+    Mutex.UnLock();
   }
   return true;
 }
