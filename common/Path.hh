@@ -8,6 +8,9 @@
 /*----------------------------------------------------------------------------*/
 #include <vector>
 #include <string>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -60,6 +63,29 @@ public:
     } while (pos!=STR_NPOS);
     parentPath.assign(fullPath,0,lastpos);
     lastPath.assign(fullPath,lastpos+1);
+  }
+
+
+  bool MakeParentPath(mode_t mode) {
+    int retc=0;
+    struct stat buf;
+        
+    if (stat(GetParentPath(),&buf)) {
+      for (int i=GetSubPathSize(); i>=0; i--) {
+        // go backwards until the directory exists
+        if (!stat(GetSubPath(i), &buf)) {
+          // this exists
+          for (int j=i+1 ;  j < (int)GetSubPathSize(); j++) {
+            retc |= mkdir(GetSubPath(j), mode);
+          }
+          break;
+        }
+      }
+    }
+    
+    if (retc)
+      return false;
+    return true;
   }
   
   ~Path(){};

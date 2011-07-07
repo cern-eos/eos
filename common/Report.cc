@@ -31,5 +31,14 @@ Report::Report(XrdOucEnv &report)
     osize  = strtoull(report.Get("osize")?report.Get("osize"):"0",0,10);
     csize  = strtoull(report.Get("csize")?report.Get("csize"):"0",0,10);
 }
+
+void
+Report::Dump(XrdOucString &out)
+{
+  char dumpline[16384];
+  snprintf(dumpline,sizeof(dumpline)-1,"uid=%d gid=%d rb=%llu wb=%llu srb=%llu swb=%llu nrc=%llu nwc=%llu rt=%.02f wt=%.02f osize=%llu csize=%llu ots=%llu.%llu cts=%llu.%llu td=%s host=%s logid=%s\n", uid, gid, rb, wb, srb, swb, nrc,nwc, rt,wt,osize,csize, ots,otms, cts,ctms, td.c_str(),host.c_str(), logid.c_str());
+  out+=dumpline;
+}
+
 EOSCOMMONNAMESPACE_END
 

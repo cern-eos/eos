@@ -46,14 +46,16 @@ class LogId {
 public:
   
   void SetLogId(const char* newlogid, const char* td= "<service>") {
-    snprintf(logId,sizeof(logId)-1,"%s",newlogid);
+    if (newlogid != logId)
+      snprintf(logId,sizeof(logId)-1,"%s",newlogid);
     snprintf(cident,sizeof(cident)-1,"%s", td);
   }
   
   void SetLogId(const char* newlogid, Mapping::VirtualIdentity &vid_in, const char* td = "") {
     Mapping::Copy(vid_in, vid);
     snprintf(cident,sizeof(cident)-1,"%s",td);
-    snprintf(logId,sizeof(logId)-1,"%s",newlogid);
+    if (newlogid != logId)
+      snprintf(logId,sizeof(logId)-1,"%s",newlogid);
   }
 
 
