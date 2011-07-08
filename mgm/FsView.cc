@@ -14,6 +14,8 @@ std::string FsSpace::gConfigQueuePrefix;
 std::string FsGroup::gConfigQueuePrefix;
 std::string FsNode::gConfigQueuePrefix;
 
+bool FsSpace::gDisableDefaults=false;
+
 #ifndef EOSMGMFSVIEWTEST
 ConfigEngine* FsView::ConfEngine=0;
 #endif
@@ -874,7 +876,9 @@ BaseView::GetConfigMember(std::string key)
 
   XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
   std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
+
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
+
   if (hash) {
     return hash->Get(key);
   }

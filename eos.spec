@@ -4,7 +4,7 @@
 Summary: The EOS server installation.
 Name: eos-server
 Version: 0.1.0
-Release: rc22
+Release: rc22b
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -46,10 +46,12 @@ rm -rf $RPM_BUILD_ROOT
 
 %post
 /sbin/chkconfig --add eos
+echo Starting conditional services
 /sbin/service eos condrestart > /dev/null 2>&1 || :
 /sbin/service eosd condrestart > /dev/null 2>&1 || :
 %preun
 if [ $1 = 0 ]; then
+        echo Stopping services
         /sbin/service eosha stop > /dev/null 2>&1 
         /sbin/service eosd stop > /dev/null 2>&1 
         /sbin/service eos stop > /dev/null 2>&1 || :

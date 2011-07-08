@@ -204,6 +204,7 @@ while(1) {
 
         if (!$mastermgm) {
             now();
+            my $stime = `date +%s`; chomp $stime;
             print "$now hostname=$host [$host_ip]  aliastarget=$alias_ip aliases=$aliasname\n";
             printf "$now ===================================================================\n";
             printf "$now shut down running mgm ...\n";
@@ -216,6 +217,19 @@ while(1) {
                 system("echo $now Finished FAILOVER procedure ... $host\\(me\\) is now the SLAVE ... | $ENV{EOS_NOTIFY}");
             }
 
+            my $ttime = `date +%s`; chomp $ttime;
+            $ttime = int($ttime);
+            $stime = int($stime);
+
+            print "$ttime $stime $failovertime\n";
+            if ( ($ttime - $stime) < $failovertime) {
+                print "$ttime $stime $failovertime\n";
+                for (my $i=0; $i< ($failovertime-($ttime-$stime)); $i+=10) {
+                    now();
+                    printf "$now ... allowing to become master again in %d seconds ...\n", $failovertime - $i;
+                    sleep 10;
+                }
+            }
         } 
     } else {
         my $isfailover=0;

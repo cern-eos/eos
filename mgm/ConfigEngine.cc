@@ -466,7 +466,13 @@ ConfigEngine::ApplyConfig(XrdOucString &err)
   Mutex.Lock();
   XrdOucHash<XrdOucString> configDefinitionsCopy;
 
+  // disable the defaults in FsSpace
+  FsSpace::gDisableDefaults=true;
+
   configDefinitions.Apply(ApplyEachConfig, &err);
+
+  // enable the defaults in FsSpace
+  FsSpace::gDisableDefaults=false;
   Mutex.UnLock();
 
   Access::ApplyAccessConfig();

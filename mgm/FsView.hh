@@ -79,28 +79,33 @@ public:
   Balancer* mBalancer;
 #endif
 
+  // this variable is set when a configuration get's loaded to avoid overwriting of the loaded values by default values
+  static bool gDisableDefaults;
 
   FsSpace(const char* name) {
     mName = name; mType = "spaceview"; 
 #ifndef EOSMGMFSVIEWTEST
     mBalancer = new Balancer(name);
-    // set default balancing variables
-    if (GetConfigMember("balancer")== "")
-      SetConfigMember("balancer","off",true,"/eos/*/mgm"); // disable balancing by default
-    if (GetConfigMember("balancer.threshold")=="") 
-      SetConfigMember("balancer.threshold","50000000000",true,"/eos/*/mgm"); // set deviation treshold
-    if (GetConfigMember("graceperiod")=="")
-      SetConfigMember("graceperiod","86400",true,"/eos/*/mgm");
-    if (GetConfigMember("drainperiod")=="")
-      SetConfigMember("drainperiod","86400",true,"/eos/*/mgm");
-    if (GetConfigMember("scaninterval")=="")
-      SetConfigMember("scaninterval","604800",true,"/eos/*/mgm");
-    if (GetConfigMember("quota")=="") 
-      SetConfigMember("quota", "off",true,"/eos/*/mgm");
-    if (GetConfigMember("groupmod")=="") 
-      SetConfigMember("groupmod", "0",true,"/eos/*/mgm");
-    if (GetConfigMember("groupsize")=="") 
-      SetConfigMember("groupsize", "0",true,"/eos/*/mgm");
+
+    if (!gDisableDefaults) {
+      // set default balancing variables
+      if (GetConfigMember("balancer")== "") 
+        SetConfigMember("balancer","off",true,"/eos/*/mgm"); // disable balancing by default
+      if (GetConfigMember("balancer.threshold")=="") 
+        SetConfigMember("balancer.threshold","50000000000",true,"/eos/*/mgm"); // set deviation treshold
+      if (GetConfigMember("graceperiod")=="")
+        SetConfigMember("graceperiod","86400",true,"/eos/*/mgm");
+      if (GetConfigMember("drainperiod")=="")
+        SetConfigMember("drainperiod","86400",true,"/eos/*/mgm");
+      if (GetConfigMember("scaninterval")=="")
+        SetConfigMember("scaninterval","604800",true,"/eos/*/mgm");
+      if (GetConfigMember("quota")=="") 
+        SetConfigMember("quota", "off",true,"/eos/*/mgm");
+      if (GetConfigMember("groupmod")=="") 
+        SetConfigMember("groupmod", "0",true,"/eos/*/mgm");
+      if (GetConfigMember("groupsize")=="") 
+        SetConfigMember("groupsize", "0",true,"/eos/*/mgm");
+    }
     
 #endif
 

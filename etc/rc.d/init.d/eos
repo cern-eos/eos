@@ -191,7 +191,7 @@ status() {
 condrestart() {
     if [ -z "$1" ]; then
         for i in ${XRD_ROLES}; do
-            condrestart $i;
+            service eos condrestart $i
         done;
     else
         if [ -f /var/lock/subsys/$prog.$1 ]; then
