@@ -41,7 +41,7 @@ PlainLayout::truncate(XrdSfsFileOffset offset)
 
 /*----------------------------------------------------------------------------*/
 int
-PlainLayout::fallocate(XrdSfsXferSize length)
+PlainLayout::fallocate(XrdSfsFileOffset length)
 {
   XrdOucErrInfo error;
   if(ofsFile->fctl(SFS_FCTL_GETFD,0,error)) 
