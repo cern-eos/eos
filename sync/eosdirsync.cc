@@ -120,8 +120,8 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
 	      success = false;
 	      break;
 	    }
-	    munmap(copyptr,srcstat.st_size);
 	  }
+	  munmap(copyptr,srcstat.st_size);
 	}
       }
     }
