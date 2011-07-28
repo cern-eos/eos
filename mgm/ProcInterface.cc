@@ -3712,7 +3712,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	findzero = true;
       }
 
-      if (option.find("M")!=STR_NPOS) {
+      if (option.find("G")!=STR_NPOS) {
 	findgroupmix = true;
       }
 

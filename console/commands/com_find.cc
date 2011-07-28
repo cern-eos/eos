@@ -39,7 +39,7 @@ com_find (char* arg1) {
     }
 
     if (s1 == "-m") {
-      option += "fM";
+      option += "fG";
     }
 
     if (s1 == "--size") {
@@ -243,7 +243,7 @@ com_find (char* arg1) {
   printf("                                                                        -f -d :  find files(-f) or directories (-d) in <path>\n");
   printf("                                                               -x <key>=<val> :  find entries with <key>=<val>\n");
   printf("                                                                           -0 :  find 0-size files \n");
-  printf("                                                                           -m :  find files with mixed scheduling groups\n");
+  printf("                                                                           -g :  find files with mixed scheduling groups\n");
   printf("                                                                     -p <key> :  additionally print the value of <key> for each entry\n");
   printf("                                                                           -b :  query the server balance of the files found\n");
   printf("                                                                    -c %%tags  :  find all files with inconsistencies defined by %%tags [ see help of 'file check' command]\n");
