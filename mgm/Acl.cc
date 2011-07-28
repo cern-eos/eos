@@ -89,8 +89,7 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
         canWrite = true;
         hasAcl = true;
       }
-      if ((entry[2].find("wo"))!= std::string::npos) {
-        canWrite = false;
+      if ((!canWrite) && ((entry[2].find("wo"))!= std::string::npos)) {
         canWriteOnce = true;
         hasAcl = true;
       }
