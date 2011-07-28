@@ -954,7 +954,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           for (size_t i=0; i< keylist.size(); i++) {
             char line[1024];
             if ( (keylist[i] == "balancer.threshold") ||
-                 (keylist[i] == "nominalsize") ) {
+                 (keylist[i] == "nominalsize") || 
+		 (keylist[i] == "headroom")) {
               XrdOucString sizestring;
               // size printout
               snprintf(line,sizeof(line)-1,"%-32s := %s\n",keylist[i].c_str(),eos::common::StringConversion::GetReadableSizeString(sizestring,strtoull(FsView::gFsView.mSpaceView[space]->GetConfigMember(keylist[i].c_str()).c_str(),0,10),"B"));
