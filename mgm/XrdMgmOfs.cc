@@ -580,7 +580,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
         }
         rcode = SFS_REDIRECT;
         error.setErrInfo(ecode, redirectionhost.c_str());
-        gOFS->MgmStats.Add("RedirectENOENT",0,0,0);
+        gOFS->MgmStats.Add("RedirectENOENT",vid.uid,vid.gid,1);  
         eos_info("redirecting to %s:%d", redirectionhost.c_str(), ecode);
         return rcode;
       }
@@ -700,7 +700,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       }
       rcode = SFS_REDIRECT;
       error.setErrInfo(ecode, redirectionhost.c_str());
-      gOFS->MgmStats.Add("RedirectENOENT",0,0,0);
+      gOFS->MgmStats.Add("RedirectENOENT",vid.uid,vid.gid,1);
       return rcode;
     }
     if ((!fmd)) 
@@ -930,7 +930,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
         }
         rcode = SFS_REDIRECT;
         error.setErrInfo(ecode, redirectionhost.c_str());
-        gOFS->MgmStats.Add("RedirectENONET",0,0,0);
+        gOFS->MgmStats.Add("RedirectENONET",vid.uid,vid.gid,1);  
         return rcode;
       }
       gOFS->MgmStats.Add("OpenFileOffline",vid.uid,vid.gid,1);  
@@ -2590,7 +2590,7 @@ int XrdMgmOfs::_find(const char       *path,             // In
 		     eos::common::Mapping::VirtualIdentity &vid, // In
 		     std::vector< std::vector<std::string> > &found_dirs, // Out
 		     std::vector< std::vector<std::string> > &found_files, // Out
-		     const char* key, const char* val
+		     const char* key, const char* val, bool nofiles
 		     )
 {
   // try if that is directory
@@ -2645,10 +2645,12 @@ int XrdMgmOfs::_find(const char       *path,             // In
 	  }
 	}
 
-	eos::ContainerMD::FileMap::iterator fit;
-	for ( fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit) {
-	  std::string fpath = Path.c_str(); fpath += fit->second->getName(); 
-	  found_files[deepness].push_back(fpath);
+	if (!nofiles) {
+	  eos::ContainerMD::FileMap::iterator fit;
+	  for ( fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit) {
+	    std::string fpath = Path.c_str(); fpath += fit->second->getName(); 
+	    found_files[deepness].push_back(fpath);
+	  }
 	}
       }
       gOFS->eosViewMutex.UnLock();
