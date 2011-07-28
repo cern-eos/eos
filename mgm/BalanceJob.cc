@@ -28,7 +28,10 @@ BalanceJob::BalanceJob(FsGroup* group)
   } else {
     mName = "undef";
   }
-  XrdSysThread::Run(&thread, BalanceJob::StaticThreadProc, static_cast<void *>(this),0, "BalanceJob Thread");
+  mThreadRunningLock.Lock();
+  XrdSysThread::Run(&thread, BalanceJob::StaticThreadProc, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "BalanceJob Thread");
+  mThreadRunning=true;
+  mThreadRunningLock.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -44,8 +47,8 @@ BalanceJob::ReActivate()
   mThreadRunningLock.UnLock();
   if (!isrunning) {
     if (thread) {
-      //      XrdSysThread::Cancel(thread);
-      //      XrdSysThread::Join(thread,NULL);
+      XrdSysThread::Cancel(thread);
+      XrdSysThread::Join(thread,NULL);
       thread=0;
     }
     eos_static_notice("re-activating balancejob on %s", mName.c_str());
@@ -80,12 +83,8 @@ BalanceJob::StaticThreadProc(void* arg)
 void*
 BalanceJob::Balance(void)
 {
-  mThreadRunningLock.Lock();
-  mThreadRunning=true;
-  mThreadRunningLock.UnLock();
-
   unsigned long long nscheduled=0;
-  //  XrdSysThread::SetCancelOn();
+  XrdSysThread::SetCancelOn();
 
   // clear all maps
   SourceFidMap.clear();
@@ -93,7 +92,10 @@ BalanceJob::Balance(void)
   TargetSizeMap.clear();
   TargetQueues.clear();
 
-  sleep(120);
+  for (int i=0; i< 120 ; i++) {
+    sleep(1);
+    XrdSysThread::CancelPoint();
+  }
 
   eos_static_notice("Started balancing on group %s", mName.c_str());
   // set status to 'active'
@@ -101,6 +103,8 @@ BalanceJob::Balance(void)
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     mGroup->SetConfigMember("stat.balancing","scheduling",false, "", true);
   }
+
+  XrdSysThread::CancelPoint();
 
   // look into all our group members how much they are off the avg
   {
@@ -180,6 +184,8 @@ BalanceJob::Balance(void)
     }
   }
 
+
+  XrdSysThread::CancelPoint();
 
   std::map<eos::common::FileSystem::fsid_t, unsigned long long >::const_iterator source_it;
   std::map<eos::common::FileSystem::fsid_t, unsigned long long >::const_iterator target_it;
@@ -396,6 +402,8 @@ BalanceJob::Balance(void)
       TargetQueues[target_it->first]->CloseTransaction();
     }
   }
+
+  XrdSysThread::CancelPoint();
   
   eos_static_info("Finished balancing on group %s", mName.c_str());
 
@@ -430,7 +438,10 @@ BalanceJob::Balance(void)
       mGroup->SetConfigMember("stat.balancing.queued",squeued,false, "", true);
     }
 
-    sleep(10);
+    for (int i=0; i< 10;i++) {
+      sleep(1);
+      XrdSysThread::CancelPoint();
+    }
 
     time_t diff = time(NULL) - lastchange;
     if ( (diff > 60) ) {
@@ -455,7 +466,10 @@ BalanceJob::Balance(void)
   
   
   if (abort) {
-    sleep(60);
+    for (int i=0; i< 60; i++) {
+      sleep(1);
+      XrdSysThread::CancelPoint();
+    }
   }
 
   {
@@ -463,7 +477,10 @@ BalanceJob::Balance(void)
     mGroup->SetConfigMember("stat.balancing","cooldown",false, "", true);
   }
 
-  sleep(120);
+  for (int i=0; i< 120; i++) {
+    sleep(1);
+    XrdSysThread::CancelPoint();
+  }
 
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
