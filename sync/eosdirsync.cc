@@ -26,7 +26,6 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
   EnvPutInt(NAME_READCACHESIZE,0);
   EnvPutInt(NAME_MAXREDIRECTCOUNT,5);
   EnvPutInt(NAME_DATASERVERCONN_TTL,3600);
-
   XrdClient* client = new XrdClient(destfilename.c_str());
 
   if (!client) {
@@ -89,12 +88,14 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
       if (!client->Stat(&dststat, true)) {
 	eos_static_err("cannot stat destination file %s", destfilename.c_str());
 	delete client;
+	close(fd);
 	return false;
       }
 
       if (dststat.size == srcstat.st_size) {
 	// if the file exists already with the correct size we don't need to copoy
 	delete client;
+	close(fd);
 	return true;
       }
 
@@ -126,6 +127,7 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
       }
     }
   }
+  close(fd);
   delete client;
   return success;
 }

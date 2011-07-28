@@ -297,6 +297,15 @@ Storage::Boot(FileSystem *fs)
   // test if we have rw access
   struct stat buf;
   if ( ::stat( fs->GetPath().c_str(), &buf) || (buf.st_uid != geteuid()) || ( (buf.st_mode & S_IRWXU ) != S_IRWXU) ) {
+
+    if ( (buf.st_mode & S_IRWXU ) != S_IRWXU) {
+      errno = EPERM;
+    }
+
+    if (buf.st_uid != geteuid()) {
+      errno = ENOTCONN;
+    }
+    
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(errno, "cannot have <rw> access");
     return;

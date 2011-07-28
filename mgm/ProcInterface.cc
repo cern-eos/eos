@@ -3246,6 +3246,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  //-------------------------------------------
 
 	  XrdOucString sizestring;
+	  XrdOucString hexfidstring;
+	  
+	  eos::common::FileId::Fid2Hex(fmd->getId(),hexfidstring); 
 	  
 	  if ( (option.find("-path")) != STR_NPOS) {
 	    stdOut += "path:   "; 
@@ -3254,9 +3257,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  }
 
 	  if ( (option.find("-fxid")) != STR_NPOS) {
-	    eos::common::FileId::Fid2Hex(fmd->getId(),sizestring); 
 	    stdOut += "fxid:   "; 
-	    stdOut += sizestring;
+	    stdOut += hexfidstring;
 	    stdOut+="\n";
 	  }
 	  
@@ -3283,7 +3285,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    stdOut += "\n";
 	  }
 
-	  if (!(option.length()) ) {
+	  if ((!(option.length())) || (option=="--fullpath") ) {
 	    char ctimestring[4096];
 	    char mtimestring[4096];
 	    eos::FileMD::ctime_t mtime;
@@ -3301,7 +3303,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    stdOut += "Change: "; stdOut += ctime_r(&filemtime, ctimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)ctime.tv_sec); stdOut += "."; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)ctime.tv_nsec);stdOut += "\n";
 	    stdOut += "  CUid: "; stdOut += (int)fmd->getCUid(); stdOut += " CGid: "; stdOut += (int)fmd->getCGid();
 	    
-	    stdOut += "  Fxid: "; eos::common::FileId::Fid2Hex(fmd->getId(),sizestring); stdOut += sizestring; stdOut+=" "; stdOut += "Fid: "; stdOut += fid; stdOut += " ";
+	    stdOut += "  Fxid: "; stdOut += hexfidstring; stdOut+=" "; stdOut += "Fid: "; stdOut += fid; stdOut += " ";
 	    stdOut += "   Pid: "; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getContainerId()); stdOut+="\n";
 	    stdOut += "XStype: "; stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
 	    stdOut += "    XS: "; 
@@ -3349,6 +3351,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		std::string format="key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
 		filesystem->Print(out, format);
 		stdOut += out.c_str();
+		if ( (option.find("-fullpath")) != STR_NPOS) {
+		  // for the fullpath option we output the full storage path for each replica
+		  XrdOucString fullpath;
+		  eos::common::FileId::FidPrefix2FullPath(hexfidstring.c_str(),filesystem->GetPath().c_str(),fullpath);
+		  stdOut.erase(stdOut.length()-1);
+		  stdOut += " ";
+		  stdOut += fullpath;
+		  stdOut += "\n";
+		}
 	      } else {
 		sprintf(fsline,"%3s   %5s ",si.c_str(), location.c_str());
 		stdOut += fsline; 

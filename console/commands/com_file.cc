@@ -43,14 +43,15 @@ com_fileinfo (char* arg1) {
   }
 
  com_fileinfo_usage:
-  printf("usage: fileinfo <path> [-path] [-fxid] [-fid] [-size] [-checksum]        :  print file information for <path>\n");
+  printf("usage: fileinfo <path> [--path] [--fxid] [--fid] [--size] [--checksum] [--fullpath]       :  print file information for <path>\n");
   printf("       fileinfo fxid:<fid-hex>                                           :  print file information for fid <fid-hex>\n");
   printf("       fileinfo fid:<fid-dec>                                            :  print file information for fid <fid-dec>\n");
-  printf("                                                                  -path  :  selects to add the path information to the output\n");
-  printf("                                                                  -fxid  :  selects to add the hex file id information to the output\n");
-  printf("                                                                  -fid   :  selects to add the base10 file id information to the output\n");
-  printf("                                                                  -size  :  selects to add the size information to the output\n");
-  printf("                                                               -checksum :  selects to add the checksum information to the output\n");
+  printf("                                                                 --path  :  selects to add the path information to the output\n");
+  printf("                                                                 --fxid  :  selects to add the hex file id information to the output\n");
+  printf("                                                                 --fid   :  selects to add the base10 file id information to the output\n");
+  printf("                                                                 --size  :  selects to add the size information to the output\n");
+  printf("                                                              --checksum :  selects to add the checksum information to the output\n");
+  printf("                                                              --fullpath :  selects to add the full path information to each replica\n");
   return (0);
 
 }
