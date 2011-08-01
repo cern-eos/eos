@@ -34,9 +34,10 @@ com_chown (char* arg1) {
   return (0);
 
  com_chown_usage:
-  printf("Usage: chown [-r] <owner>[:<group>] <dir-path>\n");
+  printf("Usage: chown [-r] <owner>[:<group>] <path>\n");
   printf("'[eos] chown ..' provides the change owner interface of EOS.\n");
-  printf("<dir-path> is the directory to modify, <owner> has to be a user id or user name. <group> is optional and has to be a group id or group name. Remark: EOS has no ownership on file level!\n\n");
+  printf("<path> is the file/directory to modify, <owner> has to be a user id or user name. <group> is optional and has to be a group id or group name.\n");
+  printf("Remark: EOS does access control on directory level - the '-r' option only applies to directories! It is not possible to set uid!=0 and gid=0!\n\n");
   printf("Options:\n");
   printf("                  -r : recursive\n");
   return (0);
