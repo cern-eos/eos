@@ -267,10 +267,12 @@ const   char          *getVersion();
 
         int            _find(const char             *path,
 			     XrdOucErrInfo    &out_error,
+			     XrdOucString &stdErr,
 			     eos::common::Mapping::VirtualIdentity &vid,
 			     std::vector< std::vector<std::string> > &found_dirs,
 			     std::vector< std::vector<std::string> > &found_files,
 			     const char* key=0, const char* val=0, bool nofiles=false);
+
    
         int            remdir(const char             *dirName,
                                     XrdOucErrInfo    &out_error,
