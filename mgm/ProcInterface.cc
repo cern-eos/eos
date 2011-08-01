@@ -155,7 +155,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
   // admin command section
   if (adminCmd) {
     if (cmd == "access") {
-      gOFS->MgmStats.Add("AccessControl",vid.uid,vid.gid,1);
+      gOFS->MgmStats.Add("AccessControl",vid_in.uid,vid_in.gid,1);
       std::string user="";
       std::string group="";
       std::string host="";
@@ -809,7 +809,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    nodename.append("/fst");
 	  }
 
-	  std::string tident = vid.tident.c_str();
+	  std::string tident = vid_in.tident.c_str();
 	  std::string rnodename = nodename;
 	  { 
 	    // for sss + node identification
@@ -1380,7 +1380,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
 
       if (adminCmd) {
-	std::string tident = vid.tident.c_str();
+	std::string tident = vid_in.tident.c_str();
 	size_t addpos = 0;
 	if ( ( addpos = tident.find("@") ) != std::string::npos) {
 	  tident.erase(0,addpos+1);
@@ -2326,7 +2326,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  }
 	}
 
-	if (vid.uid && ( (!uidt) || (!gidt) ) ) {
+	if (vid_in.uid && ( (!uidt) || (!gidt) ) ) {
 	  stdErr = "error: you are mapped to uid/gid=0 but you are not root!";
 	  retc = EPERM;
 	  failure=true;
@@ -2337,10 +2337,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    std::sort(found_dirs[i].begin(), found_dirs[i].end());
 	    for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
 	      if (gOFS->_chown(found_dirs[i][j].c_str(), uidt , gidt, *error, vid_in, (char*)0)) {
-		stdErr += "error: unable to chmod of directory "; stdErr += found_dirs[i][j].c_str();
+		stdErr += "error: unable to chown of directory "; stdErr += found_dirs[i][j].c_str();
 		retc = errno;
 	      } else {
-		stdOut += "success: owner of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();}}
+		stdOut += "success: owner of file/directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid_in.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();}}
 	      }
 	    }
 	  }
@@ -2356,16 +2356,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
   if (userCmd) {
     if (cmd == "quota") {
-      gOFS->MgmStats.Add("Quota",vid.uid,vid.gid,1);
+      gOFS->MgmStats.Add("Quota",vid_in.uid,vid_in.gid,1);
       if (subcmd == "ls") {
 	eos_notice("quota ls");
 	XrdOucString out1="";
 	XrdOucString out2="";
 	stdOut += "By user ...\n";
-	Quota::PrintOut(0, out1 , vid.uid, -1,false, true);
+	Quota::PrintOut(0, out1 , vid_in.uid, -1,false, true);
 	stdOut += out1;
 	stdOut += "By group ...\n";
-	Quota::PrintOut(0, out2 , -1, vid.gid, false, true);
+	Quota::PrintOut(0, out2 , -1, vid_in.gid, false, true);
 	stdOut += out2;
 	MakeResult(0,fuseformat);
 	return SFS_OK;
@@ -2373,7 +2373,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
     
     if (cmd == "who") {
-      gOFS->MgmStats.Add("Who",vid.uid,vid.gid,1);
+      gOFS->MgmStats.Add("Who",vid_in.uid,vid_in.gid,1);
       std::map<std::string, int> usernamecount;
       std::map<std::string, int> authcount;
       std::vector<std::string> tokens;
@@ -2473,7 +2473,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
 
     if ( cmd == "fuse" ) {
-      gOFS->MgmStats.Add("Fuse",vid.uid,vid.gid,1);
+      gOFS->MgmStats.Add("Fuse",vid_in.uid,vid_in.gid,1);
       XrdOucString path = opaque.Get("mgm.path");
       resultStream = "inodirlist: retc=";
       if (!path.length()) {
@@ -2953,14 +2953,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		      selectedfs.push_back(*lociter);
 		    }
 		    
-		    if (!(errno=quotaspace->FileAccess(vid.uid, vid.gid, (unsigned long)0, space.c_str(), (unsigned long)fmd->getLayoutId(), selectedfs, fsIndex, false, (long long unsigned) 0))) {
+		    if (!(errno=quotaspace->FileAccess(vid_in.uid, vid_in.gid, (unsigned long)0, space.c_str(), (unsigned long)fmd->getLayoutId(), selectedfs, fsIndex, false, (long long unsigned) 0))) {
 		      // this is now our source filesystem
 		      unsigned int sourcefsid = selectedfs[fsIndex];
 		      // now the just need to ask for <n> targets
 		      int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::kNone, nnewreplicas);
 		      
 		      // we don't know the container tag here, but we don't really care since we are scheduled as root
-		      if (!(errno = quotaspace->FilePlacement(path.c_str(), vid.uid, vid.gid, 0 , layoutId, selectedfs, SFS_O_TRUNC, forcedsubgroup, fmd->getSize()))) {
+		      if (!(errno = quotaspace->FilePlacement(path.c_str(), vid_in.uid, vid_in.gid, 0 , layoutId, selectedfs, SFS_O_TRUNC, forcedsubgroup, fmd->getSize()))) {
 			// yes we got a new replication vector
 			for (unsigned int i=0; i< selectedfs.size(); i++) {
 			  //			  stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
@@ -3150,7 +3150,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
 
 	if (subcmd == "getmdlocation") {
-	  gOFS->MgmStats.Add("GetMdLocation",vid.uid,vid.gid,1);
+	  gOFS->MgmStats.Add("GetMdLocation",vid_in.uid,vid_in.gid,1);
 	  // this returns the access urls to query local metadata information
 	  XrdOucString path = opaque.Get("mgm.path");
 	  
@@ -3233,7 +3233,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 
     if ( cmd == "fileinfo" ) {
-      gOFS->MgmStats.Add("FileInfo",vid.uid,vid.gid,1);
+      gOFS->MgmStats.Add("FileInfo",vid_in.uid,vid_in.gid,1);
       XrdOucString path = opaque.Get("mgm.path");
       XrdOucString option= opaque.Get("mgm.file.info.option");
 
@@ -3463,7 +3463,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
 
     if ( cmd == "cd" ) {
-      gOFS->MgmStats.Add("Cd",vid.uid,vid.gid,1);
+      gOFS->MgmStats.Add("Cd",vid_in.uid,vid_in.gid,1);
       XrdOucString path = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
       if (!path.length()) {
@@ -3490,7 +3490,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
    
     if ( cmd == "ls" ) {
-      gOFS->MgmStats.Add("Ls",vid.uid,vid.gid,1);
+      gOFS->MgmStats.Add("Ls",vid_in.uid,vid_in.gid,1);
       XrdOucString path = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
       if (!path.length()) {
@@ -3697,7 +3697,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
 
     if (cmd == "whoami") {
-      gOFS->MgmStats.Add("WhoAmI",vid.uid,vid.gid,1);
+      gOFS->MgmStats.Add("WhoAmI",vid_in.uid,vid_in.gid,1);
       stdOut += "Virtual Identity: uid=";stdOut += (int)vid_in.uid; stdOut+= " (";
       for (unsigned int i=0; i< vid_in.uid_list.size(); i++) {stdOut += (int)vid_in.uid_list[i]; stdOut += ",";}
       stdOut.erase(stdOut.length()-1);
@@ -3705,11 +3705,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       for (unsigned int i=0; i< vid_in.gid_list.size(); i++) {stdOut += (int)vid_in.gid_list[i]; stdOut += ",";}
       stdOut.erase(stdOut.length()-1);
       stdOut += ")";
-      stdOut += " [authz:"; stdOut += vid.prot; stdOut += "]";
+      stdOut += " [authz:"; stdOut += vid_in.prot; stdOut += "]";
       if (vid_in.sudoer) 
 	stdOut += " sudo*";
 
-      stdOut += " host="; stdOut += vid.host.c_str();
+      stdOut += " host="; stdOut += vid_in.host.c_str();
       MakeResult(0, fuseformat);
       return SFS_OK;
     }
@@ -3835,7 +3835,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    dosort = false;
 
 	  for (unsigned int i = 0 ; i< found_files.size(); i++) {
-	    //	    std::sort(found_files[i].begin(), found_files[i].end());
+	    std::sort(found_files[i].begin(), found_files[i].end());
 	    for (unsigned int j = 0; j< found_files[i].size(); j++) {
 	      cnt++;
 	      if (!calcbalance) {
@@ -4048,14 +4048,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  }
 	  //	  found_files.resize(0);
 	    
-	  gOFS->MgmStats.Add("FindEntries",vid.uid,vid.gid,cnt);
+	  gOFS->MgmStats.Add("FindEntries",vid_in.uid,vid_in.gid,cnt);
 	}
 
 	
 	if ( (option.find("d")) != STR_NPOS ) {
 	  dosort = false;
 	  for (unsigned int i = 0; i< found_dirs.size(); i++) {
-	    //	    std::sort(found_dirs[i].begin(), found_dirs[i].end());
+	    std::sort(found_dirs[i].begin(), found_dirs[i].end());
 	    for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
 	      // print directories
 	      XrdOucString attr="";

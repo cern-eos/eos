@@ -659,6 +659,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
 	//-------------------------------------------
 	gOFS->eosViewMutex.Lock();
 	try {
+	  // we create files with the uid/gid of the parent directory
 	  fmd = gOFS->eosView->createFile(path, vid.uid, vid.gid);
           fileId = fmd->getId();
           fmdlid = fmd->getLayoutId();
@@ -1328,12 +1329,14 @@ int XrdMgmOfs::_chown(const char               *path,    // In
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   eos::ContainerMD* cmd = 0;
+  eos::FileMD* fmd = 0;
   errno = 0;
 
   gOFS->MgmStats.Add("Chown",vid.uid,vid.gid,1);  
 
   eos_info("path=%s uid=%u gid=%u",path, uid,gid);
   
+  // try as a directory
   try {
     cmd = gOFS->eosView->getContainer(path);
     if ( (vid.uid) && !cmd->access(vid.uid,vid.gid,W_OK)) {
@@ -1351,6 +1354,39 @@ int XrdMgmOfs::_chown(const char               *path,    // In
     errno = e.getErrno();
   };
   
+  if (!cmd) {
+    errno = 0;
+    try {
+      // try as a file
+      eos::common::Path cPath(path);
+      fprintf(stderr,"checking dir %s\n", cPath.GetParentPath());
+
+      cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+      if ( (vid.uid) && !cmd->access(vid.uid,vid.gid,W_OK)) {
+	errno = EPERM;
+      } else {
+	fprintf(stderr,"get file %s\n", path);
+	fmd = gOFS->eosView->getFile(path);
+	// change the owner
+	fmd->setCUid(uid);
+
+	if (!vid.uid) {
+	  if (gid) {
+	    // change the group
+	    fmd->setCGid(gid);
+	  } else {
+	    if (!uid)
+	      fmd->setCGid(uid);
+	  }
+	}
+
+	eosView->updateFileStore(fmd);
+      }
+    } catch ( eos::MDException &e ) {
+    errno = e.getErrno();
+    };
+  }
+
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
 
