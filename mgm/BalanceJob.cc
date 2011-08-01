@@ -86,6 +86,10 @@ BalanceJob::Balance(void)
   unsigned long long nscheduled=0;
   XrdSysThread::SetCancelOn();
 
+  mThreadRunningLock.Lock();
+  mThreadRunning=true;
+  mThreadRunningLock.UnLock();
+
   // clear all maps
   SourceFidMap.clear();
   SourceSizeMap.clear();
