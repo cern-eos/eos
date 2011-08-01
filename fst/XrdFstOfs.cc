@@ -233,6 +233,17 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   eos::fst::Config::gConfig.FstQueueWildcard =  eos::fst::Config::gConfig.FstQueue;
   eos::fst::Config::gConfig.FstQueueWildcard+= "/*";
 
+  // Set Logging parameters
+  XrdOucString unit = "fst@"; unit+= HostName; unit+=":"; unit+=myPort;
+
+  // setup the circular in-memory log buffer
+  eos::common::Logging::Init();
+  //eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  eos::common::Logging::SetLogPriority(LOG_INFO);
+  eos::common::Logging::SetUnit(unit.c_str());
+
+  eos_info("logging configured\n");
+
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // create the messaging object(recv thread)
   
@@ -277,18 +288,6 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   }
   if (NoGo) 
     return NoGo;
-
-
-  // Set Logging parameters
-  XrdOucString unit = "fst@"; unit+= HostName; unit+=":"; unit+=myPort;
-
-  // setup the circular in-memory log buffer
-  eos::common::Logging::Init();
-  //eos::common::Logging::SetLogPriority(LOG_DEBUG);
-  eos::common::Logging::SetLogPriority(LOG_INFO);
-  eos::common::Logging::SetUnit(unit.c_str());
-
-  eos_info("logging configured\n");
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Attach Storage to the meta log dir

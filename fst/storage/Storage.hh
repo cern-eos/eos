@@ -98,6 +98,7 @@ public:
   static void* StartFsTrim(void* pp);
   static void* StartFsRemover(void* pp);
   static void* StartFsReport(void* pp);
+  static void* StartFsErrorReport(void* pp);
   static void* StartFsVerify(void* pp);
   static void* StartFsPublisher(void* pp);
 
@@ -105,6 +106,7 @@ public:
   void Trim();
   void Remover();
   void Report();
+  void ErrorReport();
   void Verify();
   void Communicator();
   void Publish();

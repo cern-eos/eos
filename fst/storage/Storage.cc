@@ -225,6 +225,13 @@ Storage::Storage(const char* metadirectory)
     zombie = true;
   }
 
+  eos_info("starting error report thread");
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsErrorReport, static_cast<void *>(this),
+                              0, "Error Report Thread"))) {
+    eos_crit("cannot start error report thread");
+    zombie = true;
+  }
+
   eos_info("starting verification thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsVerify, static_cast<void *>(this),
 			      0, "Verify Thread"))) {
@@ -525,6 +532,15 @@ Storage::StartFsReport(void * pp)
 {
   Storage* storage = (Storage*)pp;
   storage->Report();
+  return 0;
+}    
+
+/*----------------------------------------------------------------------------*/
+void*
+Storage::StartFsErrorReport(void * pp)
+{
+  Storage* storage = (Storage*)pp;
+  storage->ErrorReport();
   return 0;
 }    
 
@@ -879,10 +895,89 @@ Storage::Report()
 
 /*----------------------------------------------------------------------------*/
 void
+Storage::ErrorReport()
+{
+  // this thread send's error report messages from the error queue
+  bool failure;
+
+  XrdOucString errorReceiver = Config::gConfig.FstDefaultReceiverQueue;
+  errorReceiver.replace("*/mgm", "*/errorreport");
+  
+  eos::common::Logging::LogCircularIndex localCircularIndex;
+  localCircularIndex.resize(LOG_DEBUG+1);
+
+  // initialize with the current positions of the circular index
+  for (size_t i=LOG_EMERG; i<= LOG_DEBUG; i++) {
+    localCircularIndex[i] = eos::common::Logging::gLogCircularIndex[i];
+  }
+  
+  while(1) {
+    failure = false;
+
+    // push messages from the circular buffers to the error queue
+    for (size_t i=LOG_EMERG; i <= LOG_ERR; i++) {
+      eos::common::Logging::gMutex.Lock();
+      size_t endpos = eos::common::Logging::gLogCircularIndex[i];
+      eos::common::Logging::gMutex.UnLock();
+	
+      if (endpos > localCircularIndex[i] ) {
+	// we have to follow the messages and add them to the queue
+	gOFS.ErrorReportQueueMutex.Lock();
+	for (size_t j = localCircularIndex[i]; j < endpos; j++) {
+	  // copy the messages to the queue
+	  eos::common::Logging::gMutex.Lock();
+	  gOFS.ErrorReportQueue.push(eos::common::Logging::gLogMemory[i][j%eos::common::Logging::gCircularIndexSize]);
+	  eos::common::Logging::gMutex.UnLock();
+	}
+	localCircularIndex[i] = endpos;
+	gOFS.ErrorReportQueueMutex.UnLock();
+	
+      }
+    }
+
+    gOFS.ErrorReportQueueMutex.Lock();
+    while ( gOFS.ErrorReportQueue.size()>0) {
+      gOFS.ErrorReportQueueMutex.UnLock();
+
+      gOFS.ErrorReportQueueMutex.Lock();
+      // send all reports away and dump them into the log
+      XrdOucString report = gOFS.ErrorReportQueue.front().c_str();
+      gOFS.ErrorReportQueueMutex.UnLock();
+
+      // this type of messages can have no receiver
+      XrdMqMessage message("errorreport");
+      message.MarkAsMonitor();
+
+      XrdOucString msgbody;
+      message.SetBody(report.c_str());
+      
+      eos_debug("broadcasting errorreport message: %s", msgbody.c_str());
+      
+
+      if (!XrdMqMessaging::gMessageClient.SendMessage(message, errorReceiver.c_str())) {
+	// display communication error
+	eos_err("cannot send errorreport broadcast");
+	failure = true;
+	gOFS.ErrorReportQueueMutex.Lock();
+	break;
+      }
+      gOFS.ErrorReportQueueMutex.Lock();
+      gOFS.ErrorReportQueue.pop();
+    }
+    gOFS.ErrorReportQueueMutex.UnLock();
+
+    if (failure) 
+      sleep(10);
+    else 
+      sleep(1);
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
 Storage::Verify()
 {
   // this thread unlinks stored files
-  fprintf(stderr,"Starting Verify thread\n");
   while(1) {
      verificationsMutex.Lock();
     if (!verifications.size()) {

@@ -154,6 +154,9 @@ public:
   XrdSysMutex ReportQueueMutex;
   std::queue <XrdOucString> ReportQueue;
 
+  XrdSysMutex ErrorReportQueueMutex;
+  std::queue <std::string> ErrorReportQueue;
+
   XrdMqSharedObjectManager ObjectManager;// -> managing shared objects
 
   void OpenFidString(unsigned long fsid, XrdOucString &outstring);
