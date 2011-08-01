@@ -4209,7 +4209,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		    stdErr += "error: unable to get attribute '"; stdErr += key; stdErr += "' in directory "; stdErr += found_dirs[i][j].c_str();
                     retc = errno;
 		  } else {
-		    stdOut += key; stdOut += "="; stdOut += "\""; stdOut += val; stdOut += "\""; stdOut +="\n"; 
+		    stdOut += key; stdOut += "="; stdOut += val; stdOut +="\n"; 
 		  }
 		}
 		

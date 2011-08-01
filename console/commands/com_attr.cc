@@ -9,12 +9,14 @@ com_attr (char* arg1) {
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
   XrdOucString option="";
+  XrdOucString optionstring="";
   XrdOucString in = "mgm.cmd=attr";
   XrdOucString arg = "";
 
   if (subcommand.beginswith("-")) {
     option = subcommand;
     option.erase(0,1);
+    optionstring += subcommand; optionstring += " ";
     subcommand = subtokenizer.GetToken();
     arg = subtokenizer.GetToken();
     in += "&mgm.option=";
@@ -81,6 +83,19 @@ com_attr (char* arg1) {
     in += "&mgm.subcmd=set&mgm.attr.key="; in += key;
     in += "&mgm.attr.value="; in += value;
     in += "&mgm.path="; in += path;
+
+    if (key=="default") {
+      if (value == "replica") {
+	XrdOucString d1 = "set "; d1 += optionstring; d1 += "sys.forced.blocksize=4k ";   d1 += path;
+	XrdOucString d2 = "set "; d2 += optionstring; d2 += "sys.forced.checksum=adler "; d2 += path;
+	XrdOucString d3 = "set "; d3 += optionstring; d3 += "sys.forced.layout=replica "; d3 += path;
+	XrdOucString d4 = "set "; d4 += optionstring; d4 += "sys.forced.nstripes=2 ";     d4 += path;
+	XrdOucString d5 = "set "; d5 += optionstring; d5 += "sys.forced.space=default ";  d5 += path;
+	global_retc = com_attr((char*)d1.c_str()) || com_attr((char*)d2.c_str()) || com_attr((char*)d3.c_str()) || com_attr((char*)d4.c_str()) || com_attr((char*)d5.c_str());
+	return (0);
+      } 
+      goto com_attr_usage;
+    }
   }
 
   if ( subcommand == "get") {
@@ -116,6 +131,9 @@ com_attr (char* arg1) {
   printf(" -r : list recursive on all directory children\n");
   printf("attr [-r] set <key>=<value> <path> :\n");
   printf("                                                : set attributes of path (-r recursive)\n");
+  printf("attr [-r] set default=replica <path> :\n");
+  printf("                                                : set attributes of path (-r recursive) to the EOS defaults for replicas.\n");
+
   printf(" -r : set recursive on all directory children\n");
   printf("attr [-r] get <key> <path> :\n");
   printf("                                                : get attributes of path (-r recursive)\n");
