@@ -388,7 +388,7 @@ FileSystem::ReserveSpace(fs_snapshot_t &fs, unsigned long long bookingsize)
   long long prebooked = GetPrebookedSpace();
 
   // guarantee that we don't overbook the filesystem and we keep <headroom> free
-  if ( (freebytes-prebooked) > (headroom+bookingsize) ) {
+  if ( (unsigned long long)(freebytes-prebooked) > ((unsigned long long)headroom+bookingsize) ) {
     // there is enough space
     return true;
   } else {
