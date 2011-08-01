@@ -46,12 +46,12 @@ rm -rf $RPM_BUILD_ROOT
 
 %post
 /sbin/chkconfig --add eos
-echo Starting conditional services
+echo Starting conditional EOS services
 /sbin/service eos condrestart > /dev/null 2>&1 || :
 /sbin/service eosd condrestart > /dev/null 2>&1 || :
 %preun
 if [ $1 = 0 ]; then
-        echo Stopping services
+        echo Stopping EOS services
         /sbin/service eosha stop > /dev/null 2>&1 
         /sbin/service eosd stop > /dev/null 2>&1 
         /sbin/service eos stop > /dev/null 2>&1 || :
