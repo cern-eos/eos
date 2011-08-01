@@ -792,7 +792,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
       }
 
-      if (subcmd == "set") {
+      if (subcmd == "set") {	  
 	std::string nodename = (opaque.Get("mgm.node"))?opaque.Get("mgm.node"):"";
 	std::string status   = (opaque.Get("mgm.node.state"))?opaque.Get("mgm.node.state"):"";
 	std::string key = "status";
@@ -809,19 +809,46 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    nodename.append("/fst");
 	  }
 
-	  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-	  if (!FsView::gFsView.mNodeView.count(nodename)) {
-	    stdOut="info: creating node '"; stdOut += nodename.c_str(); stdOut += "'";
+	  std::string tident = vid.tident.c_str();
+	  std::string rnodename = nodename;
+	  { 
+	    // for sss + node identification
 	    
-	    //	    stdErr="error: no such node '"; stdErr += nodename.c_str(); stdErr += "'";
-	    //retc = ENOENT;
+	    rnodename.erase(0,5);
+	    size_t dpos;
 	    
-	    if (!FsView::gFsView.RegisterNode(nodename.c_str())) {
-	      stdErr = "error: cannot register node <"; stdErr += nodename.c_str(); stdErr += ">";
-	      retc = EIO;
+	    if ( (dpos = rnodename.find(":")) != std::string::npos) {
+	      rnodename.erase(dpos);
 	    }
-	  } 
-
+	  
+	    if ( (dpos = rnodename.find(".")) != std::string::npos) {
+	      rnodename.erase(dpos);
+	    }
+	    
+	    size_t addpos = 0;
+	    if ( ( addpos = tident.find("@") ) != std::string::npos) {
+	      tident.erase(0,addpos+1);
+	    }
+	  }
+	  
+	  if ( (vid_in.uid!=0) && ( (vid_in.prot != "sss") || tident.compare(0, tident.length(), rnodename, 0, tident.length()) )) {
+	    stdErr+="error: nodes can only be configured as 'root' or from the node itself them using sss protocol\n";
+	    retc = EPERM;
+	  }  else {
+	    
+	    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+	    if (!FsView::gFsView.mNodeView.count(nodename)) {
+	      stdOut="info: creating node '"; stdOut += nodename.c_str(); stdOut += "'";
+	      
+	      //	    stdErr="error: no such node '"; stdErr += nodename.c_str(); stdErr += "'";
+	      //retc = ENOENT;
+	      
+	      if (!FsView::gFsView.RegisterNode(nodename.c_str())) {
+		stdErr = "error: cannot register node <"; stdErr += nodename.c_str(); stdErr += ">";
+		retc = EIO;
+	      }
+	    } 
+	  }
 	  if (!retc) {
 	    if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true, nodename.c_str())) {
 	      retc = EIO;
@@ -971,88 +998,98 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
 
       if (subcmd == "set") {
-	std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
-	std::string status    = (opaque.Get("mgm.space.state"))?opaque.Get("mgm.space.state"):"";
-	
-	if ( (!spacename.length()) || (!status.length()) ) {
-	  stdErr="error: illegal parameters";
-	  retc = EINVAL;
-	} else {
-	  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-	  if (!FsView::gFsView.mSpaceView.count(spacename)) {
-	    stdErr="error: no such space - define one using 'space define' or add a filesystem under that space!";
+	if (vid_in.uid == 0) {
+	  std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
+	  std::string status    = (opaque.Get("mgm.space.state"))?opaque.Get("mgm.space.state"):"";
+	  
+	  if ( (!spacename.length()) || (!status.length()) ) {
+	    stdErr="error: illegal parameters";
 	    retc = EINVAL;
 	  } else {
-	    std::string key = "status";
-	    {
-	      // loop over all groups
-	      std::map<std::string , FsGroup*>::const_iterator it;
-	      for ( it = FsView::gFsView.mGroupView.begin(); it != FsView::gFsView.mGroupView.end(); it++) {
-		if (!it->second->SetConfigMember(key, status, true,"/eos/*/mgm")) {
-		  stdErr+="error: cannot set status in group <"; stdErr += it->first.c_str(); stdErr += ">\n";
-		  retc = EIO;
+	    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+	    if (!FsView::gFsView.mSpaceView.count(spacename)) {
+	      stdErr="error: no such space - define one using 'space define' or add a filesystem under that space!";
+	      retc = EINVAL;
+	    } else {
+	      std::string key = "status";
+	      {
+		// loop over all groups
+		std::map<std::string , FsGroup*>::const_iterator it;
+		for ( it = FsView::gFsView.mGroupView.begin(); it != FsView::gFsView.mGroupView.end(); it++) {
+		  if (!it->second->SetConfigMember(key, status, true,"/eos/*/mgm")) {
+		    stdErr+="error: cannot set status in group <"; stdErr += it->first.c_str(); stdErr += ">\n";
+		    retc = EIO;
+		  }
 		}
 	      }
-	    }
-	    {
-	      // loop over all nodes
-	      std::map<std::string , FsNode*>::const_iterator it;
-	      for ( it = FsView::gFsView.mNodeView.begin(); it != FsView::gFsView.mNodeView.end(); it++) {
-		if (!it->second->SetConfigMember(key, status, true,"/eos/*/mgm")) {
-		  stdErr+="error: cannot set status for node <"; stdErr += it->first.c_str(); stdErr += ">\n";
-		  retc = EIO;
+	      {
+		// loop over all nodes
+		std::map<std::string , FsNode*>::const_iterator it;
+		for ( it = FsView::gFsView.mNodeView.begin(); it != FsView::gFsView.mNodeView.end(); it++) {
+		  if (!it->second->SetConfigMember(key, status, true,"/eos/*/mgm")) {
+		    stdErr+="error: cannot set status for node <"; stdErr += it->first.c_str(); stdErr += ">\n";
+		    retc = EIO;
+		  }
 		}
 	      }
 	    }
 	  }
+	} else {
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
 	}
       }
 
       if (subcmd == "define") {
-	std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
-	std::string groupsize   = (opaque.Get("mgm.space.groupsize"))?opaque.Get("mgm.space.groupsize"):"";
-	std::string groupmod    = (opaque.Get("mgm.space.groupmod"))?opaque.Get("mgm.space.groupmod"):"";
-
-	int gsize = atoi(groupsize.c_str());
-	int gmod  = atoi(groupmod.c_str());
-	char line[1024]; 
-	snprintf(line, sizeof(line)-1, "%d", gsize);
-	std::string sgroupsize = line;
-	snprintf(line, sizeof(line)-1, "%d", gmod);
-	std::string sgroupmod = line;
-
-	if ((!spacename.length()) || (!groupsize.length()) 
-	    || (groupsize != sgroupsize) || (gsize <0) || (gsize > 1024)
-	    || (groupmod != sgroupmod) || (gmod <0) || (gmod > 1024)) {
-	  stdErr="error: illegal parameters";
-	  retc = EINVAL;
-	  if ((groupsize != sgroupsize) || (gsize <0) || (gsize > 1024)) {
-	    stdErr = "error: <groupsize> must be a positive integer (<=1024)!";
+	if (vid_in.uid == 0) {
+	  std::string spacename = (opaque.Get("mgm.space"))?opaque.Get("mgm.space"):"";
+	  std::string groupsize   = (opaque.Get("mgm.space.groupsize"))?opaque.Get("mgm.space.groupsize"):"";
+	  std::string groupmod    = (opaque.Get("mgm.space.groupmod"))?opaque.Get("mgm.space.groupmod"):"";
+	  
+	  int gsize = atoi(groupsize.c_str());
+	  int gmod  = atoi(groupmod.c_str());
+	  char line[1024]; 
+	  snprintf(line, sizeof(line)-1, "%d", gsize);
+	  std::string sgroupsize = line;
+	  snprintf(line, sizeof(line)-1, "%d", gmod);
+	  std::string sgroupmod = line;
+	  
+	  if ((!spacename.length()) || (!groupsize.length()) 
+	      || (groupsize != sgroupsize) || (gsize <0) || (gsize > 1024)
+	      || (groupmod != sgroupmod) || (gmod <0) || (gmod > 1024)) {
+	    stdErr="error: illegal parameters";
 	    retc = EINVAL;
-	  }
-	  if ((groupmod != sgroupmod) || (gmod <0) || (gmod > 256)) {
-	    stdErr = "error: <groupmod> must be a positive integer (<=256)!";
-	    retc = EINVAL;
+	    if ((groupsize != sgroupsize) || (gsize <0) || (gsize > 1024)) {
+	      stdErr = "error: <groupsize> must be a positive integer (<=1024)!";
+	      retc = EINVAL;
+	    }
+	    if ((groupmod != sgroupmod) || (gmod <0) || (gmod > 256)) {
+	      stdErr = "error: <groupmod> must be a positive integer (<=256)!";
+	      retc = EINVAL;
+	    }
+	  } else {
+	    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+	    if (!FsView::gFsView.mSpaceView.count(spacename)) {
+	      stdOut="info: creating space '"; stdOut += spacename.c_str(); stdOut += "'";
+	      
+	      if (!FsView::gFsView.RegisterSpace(spacename.c_str())) {
+		stdErr = "error: cannot register space <"; stdErr += spacename.c_str(); stdErr += ">";
+		retc = EIO;
+	      }
+	    }
+	    
+	    if (!retc) {
+	      // set this new space parameters
+	      if ( (!FsView::gFsView.mSpaceView[spacename]->SetConfigMember(std::string("groupsize"), groupsize,true, "/eos/*/mgm")) ||
+		   (!FsView::gFsView.mSpaceView[spacename]->SetConfigMember(std::string("groupmod"), groupmod,true, "/eos/*/mgm")) ) {
+		retc = EIO;
+		stdErr = "error: cannot set space config value";
+	      }
+	    }
 	  }
 	} else {
-	  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-	  if (!FsView::gFsView.mSpaceView.count(spacename)) {
-	    stdOut="info: creating space '"; stdOut += spacename.c_str(); stdOut += "'";
-	    
-	    if (!FsView::gFsView.RegisterSpace(spacename.c_str())) {
-	      stdErr = "error: cannot register space <"; stdErr += spacename.c_str(); stdErr += ">";
-	      retc = EIO;
-	    }
-	  }
-
-	  if (!retc) {
-	    // set this new space parameters
-	    if ( (!FsView::gFsView.mSpaceView[spacename]->SetConfigMember(std::string("groupsize"), groupsize,true, "/eos/*/mgm")) ||
-                 (!FsView::gFsView.mSpaceView[spacename]->SetConfigMember(std::string("groupmod"), groupmod,true, "/eos/*/mgm")) ) {
-	      retc = EIO;
-	      stdErr = "error: cannot set space config value";
-	    }
-	  }
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
 	}
       }
 
@@ -1259,35 +1296,40 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
       
       if (subcmd == "set") {
-	std::string groupname = (opaque.Get("mgm.group"))?opaque.Get("mgm.group"):"";
-	std::string status   = (opaque.Get("mgm.group.state"))?opaque.Get("mgm.group.state"):"";
-	std::string key = "status";
-
-	if ( (!groupname.length()) || (!status.length()) ) {
-	  stdErr="error: illegal parameters";
-	  retc = EINVAL;
-	} else {
-	  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-	  if (!FsView::gFsView.mGroupView.count(groupname)) {
-	    stdOut="info: creating group '"; stdOut += groupname.c_str(); stdOut += "'";
+	if (vid_in.uid == 0) {
+	  std::string groupname = (opaque.Get("mgm.group"))?opaque.Get("mgm.group"):"";
+	  std::string status   = (opaque.Get("mgm.group.state"))?opaque.Get("mgm.group.state"):"";
+	  std::string key = "status";
+	  
+	  if ( (!groupname.length()) || (!status.length()) ) {
+	    stdErr="error: illegal parameters";
+	    retc = EINVAL;
+	  } else {
+	    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+	    if (!FsView::gFsView.mGroupView.count(groupname)) {
+	      stdOut="info: creating group '"; stdOut += groupname.c_str(); stdOut += "'";
+	      
+	      //	    stdErr="error: no such group '"; stdErr += groupname.c_str(); stdErr += "'";
+	      //retc = ENOENT;
+	      
+	      if (!FsView::gFsView.RegisterGroup(groupname.c_str())) {
+		std::string groupconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->GroupConfigQueuePrefix.c_str(), groupname.c_str());
+		retc= EIO;
+		stdErr = "error: cannot register group <"; stdErr += groupname.c_str(); stdErr += ">";
+	      }
+	    } 
 	    
-	    //	    stdErr="error: no such group '"; stdErr += groupname.c_str(); stdErr += "'";
-	    //retc = ENOENT;
-	    
-	    if (!FsView::gFsView.RegisterGroup(groupname.c_str())) {
-	      std::string groupconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->GroupConfigQueuePrefix.c_str(), groupname.c_str());
-	      retc= EIO;
-	      stdErr = "error: cannot register group <"; stdErr += groupname.c_str(); stdErr += ">";
-	    }
-	  } 
-
-	  if (!retc) {
-	    // set this new group to offline
-	    if (!FsView::gFsView.mGroupView[groupname]->SetConfigMember(key, status, true, "/eos/*/mgm")) {
-	      stdErr="error: cannto set config status";
-	      retc = EIO;
+	    if (!retc) {
+	      // set this new group to offline
+	      if (!FsView::gFsView.mGroupView[groupname]->SetConfigMember(key, status, true, "/eos/*/mgm")) {
+		stdErr="error: cannto set config status";
+		retc = EIO;
+	      }
 	    }
 	  }
+	} else {
+	  retc = EPERM;
+	  stdErr = "error: you have to take role 'root' to execute this command";
 	}
       }
       
@@ -1384,16 +1426,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
 
 	if (subcmd == "config") {	  
-          if (vid_in.uid == 0) {
-            std::string identifier = (opaque.Get("mgm.fs.identifier"))?opaque.Get("mgm.fs.identifier"):"";
-            std::string key        = (opaque.Get("mgm.fs.key"))?opaque.Get("mgm.fs.key"):"";
-            std::string value      = (opaque.Get("mgm.fs.value"))?opaque.Get("mgm.fs.value"):"";
-            
-            retc = proc_fs_config(identifier,key, value, stdOut, stdErr, tident, vid_in);	 
-          } else {
-	    retc = EPERM;
-	    stdErr = "error: you have to take role 'root' to execute this command";
-          }
+	  std::string identifier = (opaque.Get("mgm.fs.identifier"))?opaque.Get("mgm.fs.identifier"):"";
+	  std::string key        = (opaque.Get("mgm.fs.key"))?opaque.Get("mgm.fs.key"):"";
+	  std::string value      = (opaque.Get("mgm.fs.value"))?opaque.Get("mgm.fs.value"):"";
+          
+	  retc = proc_fs_config(identifier,key, value, stdOut, stdErr, tident, vid_in);	 
         }
 	
 	if (subcmd == "rm") {
@@ -1904,65 +1941,75 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
 
       if (subcmd == "set") {
-	eos_notice("quota set");
-	XrdOucString space = opaque.Get("mgm.quota.space");
-	XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
-	XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
-	XrdOucString svolume = opaque.Get("mgm.quota.maxbytes");
-	XrdOucString sinodes = opaque.Get("mgm.quota.maxinodes");
-
-	if (uid_sel.length() && gid_sel.length()) {
-	  stdErr="error: you either specify a uid or a gid - not both!";
-	  retc = EINVAL;
-	} else {
-	  unsigned long long size   = eos::common::StringConversion::GetSizeFromString(svolume);
-	  if ((svolume.length()) && (errno == EINVAL)) {
-	    stdErr="error: the size you specified is not a valid number!";
+	if (vid_in.prot != "sss") {
+	  eos_notice("quota set");
+	  XrdOucString space = opaque.Get("mgm.quota.space");
+	  XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
+	  XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
+	  XrdOucString svolume = opaque.Get("mgm.quota.maxbytes");
+	  XrdOucString sinodes = opaque.Get("mgm.quota.maxinodes");
+	  
+	  if (uid_sel.length() && gid_sel.length()) {
+	    stdErr="error: you either specify a uid or a gid - not both!";
 	    retc = EINVAL;
 	  } else {
-	    unsigned long long inodes = eos::common::StringConversion::GetSizeFromString(sinodes);
-	    if ((sinodes.length()) && (errno == EINVAL)) {
-	      stdErr="error: the inodes you specified are not a valid number!";
+	    unsigned long long size   = eos::common::StringConversion::GetSizeFromString(svolume);
+	    if ((svolume.length()) && (errno == EINVAL)) {
+	      stdErr="error: the size you specified is not a valid number!";
 	      retc = EINVAL;
 	    } else {
-	      if ( (!svolume.length())&&(!sinodes.length())  ) {
-		stdErr="error: quota set - max. bytes or max. inodes have to be defined!";
+	      unsigned long long inodes = eos::common::StringConversion::GetSizeFromString(sinodes);
+	      if ((sinodes.length()) && (errno == EINVAL)) {
+		stdErr="error: the inodes you specified are not a valid number!";
 		retc = EINVAL;
 	      } else {
-		XrdOucString msg ="";
-		std::string suid = (uid_sel.length())?uid_sel.c_str():"0";
-		std::string sgid = (gid_sel.length())?gid_sel.c_str():"0";
-		int errc;
-		long uid = eos::common::Mapping::UserNameToUid(suid,errc);
-		long gid = eos::common::Mapping::GroupNameToGid(sgid,errc);
-		if (!Quota::SetQuota(space, uid_sel.length()?uid:-1, gid_sel.length()?gid:-1, svolume.length()?size:-1, sinodes.length()?inodes:-1, msg, retc)) {
-		stdErr = msg;
+		if ( (!svolume.length())&&(!sinodes.length())  ) {
+		  stdErr="error: quota set - max. bytes or max. inodes have to be defined!";
+		  retc = EINVAL;
 		} else {
-		  stdOut = msg;
+		  XrdOucString msg ="";
+		  std::string suid = (uid_sel.length())?uid_sel.c_str():"0";
+		  std::string sgid = (gid_sel.length())?gid_sel.c_str():"0";
+		  int errc;
+		  long uid = eos::common::Mapping::UserNameToUid(suid,errc);
+		  long gid = eos::common::Mapping::GroupNameToGid(sgid,errc);
+		  if (!Quota::SetQuota(space, uid_sel.length()?uid:-1, gid_sel.length()?gid:-1, svolume.length()?size:-1, sinodes.length()?inodes:-1, msg, retc)) {
+		    stdErr = msg;
+		  } else {
+		    stdOut = msg;
+		  }
 		}
 	      }
 	    }
 	  }
+	} else {
+	  retc = EPERM;
+	  stdErr = "error: you cannot set quota from storage node with 'sss' authentication!";
 	}
       }
 
       if (subcmd == "rm") {
 	eos_notice("quota rm");
-	XrdOucString space = opaque.Get("mgm.quota.space");
-	XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
-	XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
-
-        std::string suid = (uid_sel.length())?uid_sel.c_str():"0";
-        std::string sgid = (gid_sel.length())?gid_sel.c_str():"0";
-        int errc;
-        long uid = eos::common::Mapping::UserNameToUid(suid,errc);
-        long gid = eos::common::Mapping::GroupNameToGid(sgid,errc);
-
-	XrdOucString msg ="";
-	if (!Quota::RmQuota(space, uid_sel.length()?uid:-1, gid_sel.length()?gid:-1, msg, retc)) {
-	  stdErr = msg;
-	} else {
+	if (vid_in.prot != "sss") {
+	  XrdOucString space = opaque.Get("mgm.quota.space");
+	  XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
+	  XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
+	  
+	  std::string suid = (uid_sel.length())?uid_sel.c_str():"0";
+	  std::string sgid = (gid_sel.length())?gid_sel.c_str():"0";
+	  int errc;
+	  long uid = eos::common::Mapping::UserNameToUid(suid,errc);
+	  long gid = eos::common::Mapping::GroupNameToGid(sgid,errc);
+	  
+	  XrdOucString msg ="";
+	  if (!Quota::RmQuota(space, uid_sel.length()?uid:-1, gid_sel.length()?gid:-1, msg, retc)) {
+	    stdErr = msg;
+	  } else {
 	  stdOut = msg;
+	  }
+	} else {
+	  retc = EPERM;
+	  stdErr = "error: you cannot remove quota from storage node with 'sss' authentication!";
 	}
       }
       //      stdOut+="\n==== quota done ====";
@@ -2227,7 +2274,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	std::vector< std::vector<std::string> > found_dirs;
 	std::vector< std::vector<std::string> > found_files;
 	if (option == "r") {
-	  if (gOFS->_find(path.c_str(), *error, vid_in, found_dirs , found_files)) {
+	  if (gOFS->_find(path.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
 	    stdErr += "error: unable to search in path";
 	    retc = errno;
 	  } 
@@ -3610,7 +3657,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  std::vector< std::vector<std::string> > found_dirs;
 	  std::vector< std::vector<std::string> > found_files;
 	  
-	  if (gOFS->_find(path.c_str(), *error, vid_in, found_dirs , found_files)) {
+	  if (gOFS->_find(path.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
 	    stdErr += "error: unable to remove file/directory";
 	    retc = errno;
 	  } else {
@@ -3669,6 +3716,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 	
     if ( cmd == "find" ) {
+      dosort = true;
       XrdOucString path = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
       XrdOucString attribute = opaque.Get("mgm.find.attribute");
@@ -3767,17 +3815,27 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
      } else {
 	std::vector< std::vector<std::string> > found_dirs;
 	std::vector< std::vector<std::string> > found_files;
+	
+	bool nofiles=false;
 
+	if ( ((option.find("d")) != STR_NPOS) && ((option.find("f"))==STR_NPOS)){
+	  nofiles = true;
+	}
 
-	if (gOFS->_find(path.c_str(), *error, vid_in, found_dirs , found_files, key.c_str(),val.c_str())) {
+	if (gOFS->_find(path.c_str(), *error, stdErr, vid_in, found_dirs , found_files, key.c_str(),val.c_str(), nofiles)) {
 	  stdErr += "error: unable to remove file/directory";
 	  retc = errno;
 	}
 
 	int cnt=0;
+
 	if ( ((option.find("f")) != STR_NPOS) || ((option.find("d"))==STR_NPOS)) {
+	  // we don't need to sort files alone ...
+	  if (option.find("d") == STR_NPOS)
+	    dosort = false;
+
 	  for (unsigned int i = 0 ; i< found_files.size(); i++) {
-	    std::sort(found_files[i].begin(), found_files[i].end());
+	    //	    std::sort(found_files[i].begin(), found_files[i].end());
 	    for (unsigned int j = 0; j< found_files[i].size(); j++) {
 	      cnt++;
 	      if (!calcbalance) {
@@ -3787,7 +3845,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  eos::FileMD* fmd = 0;
 		  try {
 		    bool selected = true;
-
+  
 		    unsigned long long filesize=0;
 		    fmd = gOFS->eosView->getFile(found_files[i][j].c_str());
 		    eos::FileMD fmdCopy(*fmd);
@@ -3986,14 +4044,20 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		}
 	      }
 	    }
-	  } 
+	    found_files[i].resize(0);
+	  }
+	  //	  found_files.resize(0);
+	    
 	  gOFS->MgmStats.Add("FindEntries",vid.uid,vid.gid,cnt);
 	}
+
 	
-	if ( ((option.find("d")) != STR_NPOS) || ((option.find("f"))==STR_NPOS)){
+	if ( (option.find("d")) != STR_NPOS ) {
+	  dosort = false;
 	  for (unsigned int i = 0; i< found_dirs.size(); i++) {
-	    std::sort(found_dirs[i].begin(), found_dirs[i].end());
+	    //	    std::sort(found_dirs[i].begin(), found_dirs[i].end());
 	    for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
+	      // print directories
 	      XrdOucString attr="";
 	      if (printkey.length()) {
 		gOFS->_attr_get(found_dirs[i][j].c_str(), *error, vid, (const char*) 0, printkey.c_str(), attr);
@@ -4011,7 +4075,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    }
 	  }
 	}
+	found_dirs.resize(0);
       }
+
 
       if (calcbalance) {
 	XrdOucString sizestring="";
@@ -4062,7 +4128,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  stdOut += outline; 
 	}
       }
-      MakeResult(1);
+      MakeResult(dosort);
       return SFS_OK;
     }
 
@@ -4090,7 +4156,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  std::vector< std::vector<std::string> > found_dirs;
 	  std::vector< std::vector<std::string> > found_files;
 	  if (option == "r") {
-	    if (gOFS->_find(path.c_str(), *error, vid_in, found_dirs , found_files)) {
+	    if (gOFS->_find(path.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
 	      stdErr += "error: unable to search in path";
 	      retc = errno;
 	    } 
@@ -4175,7 +4241,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	std::vector< std::vector<std::string> > found_dirs;
 	std::vector< std::vector<std::string> > found_files;
 	if (option == "r") {
-	  if (gOFS->_find(path.c_str(), *error, vid_in, found_dirs , found_files)) {
+	  if (gOFS->_find(path.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
 	    stdErr += "error: unable to search in path";
 	    retc = errno;
 	  } 
