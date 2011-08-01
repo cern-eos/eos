@@ -2587,6 +2587,7 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::_find(const char       *path,             // In 
 		     XrdOucErrInfo    &out_error,        // Out
+		     XrdOucString     &stdErr,
 		     eos::common::Mapping::VirtualIdentity &vid, // In
 		     std::vector< std::vector<std::string> > &found_dirs, // Out
 		     std::vector< std::vector<std::string> > &found_files, // Out
@@ -2609,7 +2610,18 @@ int XrdMgmOfs::_find(const char       *path,             // In
   found_dirs[0].resize(1);
   found_dirs[0][0] = Path.c_str();
   int deepness = 0;
+
+  // users cannot return more than 250k files and 50k dirs with one find
+
+  static unsigned long long finddiruserlimit  = 50000;
+  static unsigned long long findfileuserlimit = 2500;
+
+  unsigned long long filesfound=0;
+  unsigned long long dirsfound=0;
+
   do {
+    bool permok = false;
+
     found_dirs.resize(deepness+2);
     found_files.resize(deepness+2);
     // loop over all directories in that deepness
@@ -2620,13 +2632,19 @@ int XrdMgmOfs::_find(const char       *path,             // In
       gOFS->eosViewMutex.Lock();
       try {
 	cmd = gOFS->eosView->getContainer(Path.c_str());
+	permok = cmd->access(vid.uid,vid.gid, R_OK|X_OK);
       } catch( eos::MDException &e ) {
 	errno = e.getErrno();
 	cmd = 0;
 	eos_debug("check for directory - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
       }
-
+      
       if (cmd) {
+	if (!permok) {
+	  stdErr += "error: no permissions to read directory "; stdErr += Path.c_str(); stdErr += "\n";
+	  continue;
+	}
+
 	// add all children into the 2D vectors
 	eos::ContainerMD::ContainerMap::iterator dit;
 	for ( dit = cmd->containersBegin(); dit != cmd->containersEnd(); ++dit) {
@@ -2642,6 +2660,7 @@ int XrdMgmOfs::_find(const char       *path,             // In
 	    }
 	  } else {
 	    found_dirs[deepness+1].push_back(fpath);
+	    dirsfound++;
 	  }
 	}
 
@@ -2650,12 +2669,27 @@ int XrdMgmOfs::_find(const char       *path,             // In
 	  for ( fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit) {
 	    std::string fpath = Path.c_str(); fpath += fit->second->getName(); 
 	    found_files[deepness].push_back(fpath);
+	    filesfound++;
 	  }
 	}
       }
       gOFS->eosViewMutex.UnLock();
     }
     deepness++;
+
+    if ( (vid.uid != 0) && (! eos::common::Mapping::HasUid(3, vid.uid_list)) && (! eos::common::Mapping::HasGid(4, vid.gid_list)) && (! vid.sudoer) ) {
+      // apply the user limits for non root/admin/sudoers
+      if (filesfound >= findfileuserlimit) {
+	stdErr += "warning: find results are limited for users to nfiles="; stdErr += (int)findfileuserlimit; 
+	stdErr += " -  result is truncated!\n";
+	break;
+      }
+      if (dirsfound >= finddiruserlimit) {
+	stdErr += "warning: find results are limited for users to ndirs="; stdErr += (int)finddiruserlimit; 
+	stdErr += " -  result is truncated!\n";
+	break;
+      }
+    }
   } while (found_dirs[deepness].size());
   //-------------------------------------------  
 
@@ -2683,8 +2717,16 @@ int XrdMgmOfs::Emsg(const char    *pfx,    // Message prefix value
 //
    snprintf(buffer,sizeof(buffer),"Unable to %s %s; %s", op, target, etext);
 
-   eos_err(buffer);
-
+   if (ecode == EIDRM) {
+     eos_debug(buffer);
+   }
+   
+   if (!strcmp(op,"stat")) {
+     eos_debug(buffer);
+   } else {
+     eos_err(buffer);
+   }
+   
 // Print it out if debugging is enabled
 //
 #ifndef NODEBUG
