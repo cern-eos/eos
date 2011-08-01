@@ -44,7 +44,9 @@ Messaging::Process(XrdMqMessage* newmessage)
     bool result = SharedObjectManager->ParseEnvMessage(newmessage, error);
     if (!result) {
       if (error != "no subject in message body")
-        eos_err(error.c_str());
+        eos_info(error.c_str());
+      else 
+	eos_debug(error.c_str());
     } else {
       return;
     }
