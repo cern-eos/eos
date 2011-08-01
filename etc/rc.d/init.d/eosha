@@ -32,7 +32,7 @@ stop() {
         rm -f /var/lock/subsys/eosha
         rm -f /var/run/eosha.pid
         echo
-        service eossync stop
+        /etc/init.d/eossync stop
 }
 
 ### main logic ###

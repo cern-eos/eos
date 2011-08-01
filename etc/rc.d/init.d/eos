@@ -191,7 +191,7 @@ status() {
 condrestart() {
     if [ -z "$1" ]; then
         for i in ${XRD_ROLES}; do
-            service eos condrestart $i
+            /etc/init.d/eos condrestart $i
         done;
     else
         if [ -f /var/lock/subsys/$prog.$1 ]; then
@@ -202,12 +202,12 @@ condrestart() {
 
 restart() {
     if [ "$eoshaoff" = "1" ]; then
-        service eosha stop 
+        /etc/init.d/eosha stop 
     fi
     stop $1
     start $1
     if [ "$eoshaoff" = "1" ]; then
-        service eosha start 
+        /etc/init.d/eosha start 
     fi
 }
 
@@ -249,7 +249,7 @@ eoshaoff=0
 if [ -t 0 ]; then 
 if [ -t 1 ]; then 
 if [ "$1" != "status" ]; then
-    service eosha status 2>&1 | grep running >& /dev/null
+    /etc/init.d/eosha status 2>&1 | grep running >& /dev/null
     eoshastatus=$?
     if [ $eoshastatus = "0" ]; then
         if [ "$1" != "restart" ] && [ "$1" != "condrestart" ]; then 
