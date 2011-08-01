@@ -5,6 +5,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/Load.hh"
 #include "fst/Namespace.hh"
+#include "common/Logging.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 /*----------------------------------------------------------------------------*/
@@ -14,7 +15,7 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-class ScanDir {
+class ScanDir : eos::common::LogId {
   // ---------------------------------------------------------------------------
   //! This class scan's a directory tree and checks checksums (and blockchecksums if present)
   //! in a defined interval with limited bandwidth

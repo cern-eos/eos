@@ -1,5 +1,6 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Attr.hh"
+#include "common/Logging.hh"
 #include "fst/ScanDir.hh"
 /*----------------------------------------------------------------------------*/
 #include <cstdlib>
@@ -61,7 +62,12 @@ void ScanDir::ScanFiles()
   FTS *tree = fts_open(paths, FTS_NOCHDIR, 0);
 
   if (!tree){
-    fprintf(stderr, "error: fts_open failed! \n");
+    if (bgThread) {
+      eos_err("fts_open failed");
+    } else {
+      fprintf(stderr, "error: fts_open failed! \n");
+    }
+
     free(paths);
     return;
   }
@@ -86,7 +92,11 @@ void ScanDir::ScanFiles()
     XrdSysThread::CancelPoint();
   }
   if (fts_close(tree)){
-    fprintf(stderr, "error: fts_close failed \n");
+    if (bgThread) {
+      eos_err("fts_close fialed");
+    } else {
+      fprintf(stderr, "error: fts_close failed \n");
+    }
   }  
   free(paths);
   pthread_cleanup_pop(0);
@@ -111,7 +121,11 @@ void ScanDir::CheckFile(const char* filepath)
   struct stat buf1;
   struct stat buf2;
   if (stat(filePath.c_str(), &buf1)) {
-    fprintf(stderr,"error: cannot stat %s\n", filePath.c_str());
+    if (bgThread) {
+      eos_err("cannot stat %s", filePath.c_str());
+    } else {
+      fprintf(stderr,"error: cannot stat %s\n", filePath.c_str());
+    }
     return ;
   }
   
@@ -129,13 +143,18 @@ void ScanDir::CheckFile(const char* filepath)
 	layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain, checksumtype);
 	if (!ScanFileLoadAware(filePath.c_str(), scansize, scantime, checksumVal, layoutid,logicalFileName.c_str())){
           if ( (! stat(filePath.c_str(), &buf2)) && (buf1.st_mtime == buf2.st_mtime)) {
-            if (bgThread)
+            if (bgThread) {
               syslog(LOG_ERR,"corrupted  file checksum: localpath=%slfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
+	      eos_err("corrupted  file checksum: localpath=%slfn=\"%s\"", filePath.c_str(), logicalFileName.c_str());
+	    }
             else
               fprintf(stderr,"[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
           } else {
-            if (bgThread) 
+            if (bgThread) {
+	      eos_err("file %s has been modified during the scan ... ignoring checksum error", filePath.c_str());
+	    } else {
               fprintf(stderr,"[ScanDir] file %s has been modified during the scan ... ignoring checksum error\n", filePath.c_str());
+	    }
           }
         }
 	//collect statistics
@@ -143,7 +162,11 @@ void ScanDir::CheckFile(const char* filepath)
 	totalScanSize += scansize;
         
 	if (!attr->Set("user.eos.timestamp", GetTimestamp())) {
-	  fprintf(stderr, "error: [CheckFile] Can not set extended attrbutes to file. \n");
+	  if (bgThread) {
+	    eos_err("Can not set extended attributes to file.");
+	  } else {
+	    fprintf(stderr, "error: [CheckFile] Can not set extended attributes to file. \n");
+	  }
         }
       } else {
         noNoChecksumFiles++;
@@ -187,7 +210,11 @@ eos::fst::CheckSum* ScanDir::GetBlockXS(const char* filepath)
         struct stat info;
         
         if (stat(fileXSPath.c_str(), &info)) {
-          fprintf(stderr,"error: cannot open file %s\n", fileXSPath.c_str());
+	  if (bgThread) {
+	    eos_err("cannot open file %s", fileXSPath.c_str());
+	  } else {
+	    fprintf(stderr,"error: cannot open file %s\n", fileXSPath.c_str());
+	  }
           maxfilesize = 0;
         } else {
           maxfilesize = info.st_size;
@@ -200,7 +227,11 @@ eos::fst::CheckSum* ScanDir::GetBlockXS(const char* filepath)
           return NULL;
         }
       } else {
-        fprintf(stderr,"error: cannot get checksum object for layout id %lx\n", layoutid);
+	if (bgThread) {
+	  eos_err("cannot get checksum object for layout id %lx", layoutid);
+	} else {
+	  fprintf(stderr,"error: cannot get checksum object for layout id %lx\n", layoutid);
+	}
       }
     }
     else
@@ -282,6 +313,7 @@ void* ScanDir::ThreadProc(void)
     durationScan = ((tv_end.tv_sec - tv_start.tv_sec) * 1000.0) + ((tv_end.tv_usec - tv_start.tv_usec) / 1000.0);
     if (bgThread) {
       syslog(LOG_ERR,"Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li skippedfiles=%li\n", dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles,noNoChecksumFiles);
+      eos_notice("Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li skippedfiles=%li", dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles,noNoChecksumFiles);
     } else {
       fprintf(stderr,"[ScanDir] Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li skippedfiles=%li\n", dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles,noNoChecksumFiles);
     }
@@ -315,7 +347,11 @@ bool ScanDir::ScanFileLoadAware(const char* path, unsigned long long &scansize, 
 
   normalXS = eos::fst::ChecksumPlugins::GetChecksumObject(layoutid);
   if (!normalXS) {
-    fprintf(stderr,"error: cannot get checksum object for %lx\n", layoutid);
+    if (bgThread) {
+      eos_err("cannot get checksum object for %lx\n", layoutid);
+    } else {
+      fprintf(stderr,"error: cannot get checksum object for %lx\n", layoutid);
+    }
     return false;
   }
 
@@ -390,11 +426,13 @@ bool ScanDir::ScanFileLoadAware(const char* path, unsigned long long &scansize, 
  
   //check block checksum
   if (corruptBlockXS){
-    if (bgThread)
+    if (bgThread) {
       syslog(LOG_ERR,"corrupted block checksum: localpath=%s blockxspath=%s lfn=%s\n", path,fileXSPath.c_str(),lfn);
-    else
+      eos_crit("corrupted block checksum: localpath=%s blockxspath=%s lfn=%s", path,fileXSPath.c_str(),lfn);
+    } else {
       fprintf(stderr,"[ScanDir] corrupted block checksum: localpath=%s blockxspath=%s lfn=%s\n", path,fileXSPath.c_str(),lfn);
-
+    }
+    
     retVal &= false;
   }
   else {
