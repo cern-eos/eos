@@ -85,6 +85,9 @@ static int eosdfs_getattr(const char *path, struct stat *stbuf)
 
 static int eosdfs_access(const char *path, int mask)
 {
+  // we don't call access, we have access control in every other call!
+  return 0;
+  /*
   int res;
   char rootpath[4096];
   eosatime = time(0);  
@@ -96,6 +99,7 @@ static int eosdfs_access(const char *path, int mask)
   if (res == -1)
     return -errno;
   return 0;
+  */
 }
 
 static int eosdfs_readlink(const char *path, char *buf, size_t size)
