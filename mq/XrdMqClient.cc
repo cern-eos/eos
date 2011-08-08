@@ -93,52 +93,44 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
   XrdClientAdmin* admin=0;
   //  msg.Print();
   for (i=0 ;i< kBrokerN; i++) {
-    CheckBrokerXrdClientSender(i);
-    admin = GetBrokerXrdClientSender(i);
-    if (admin) {
-      char result[16384];
-      size_t result_size=0;
-      Mutex.Lock();
-      admin->Connect();
-      admin->GetClientConn()->ClearLastServerError();
-      admin->GetClientConn()->SetOpTimeLimit(10);
-      admin->Query(kXR_Qopaquf,
-                   (kXR_char *) message.c_str(),
-                   (kXR_char *) result, result_size);
-      if (!admin->LastServerResp()) {
-        rc = false;
-      }
-      switch (admin->LastServerResp()->status) {
-      case kXR_ok:
-        rc = true;
-        break;
-      case kXR_error:
-        rc = false;
-        break;
-      default:
-        rc = false;
-        break;
-      }
+    char result[16384];
+    size_t result_size=0;
+
+    admin = new XrdClientAdmin(GetBrokerUrl(i)->c_str());
+    admin->Connect();
+    admin->GetClientConn()->ClearLastServerError();
+    admin->GetClientConn()->SetOpTimeLimit(10);
+    admin->Query(kXR_Qopaquf,
+		 (kXR_char *) message.c_str(),
+		 (kXR_char *) result, result_size);
+    if (!admin->LastServerResp()) {
+      rc = false;
     }
+    switch (admin->LastServerResp()->status) {
+    case kXR_ok:
+      rc = true;
+      break;
+    case kXR_error:
+      rc = false;
+      break;
+    default:
+      rc = false;
+      break;
+    }
+
     // we continue until any of the brokers accepts the message
-  }
-  Mutex.UnLock();
-
-  if (!rc) {
-    //  XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "send message to all brokers");  
-    if (admin) {
-      XrdMqMessage::Eroute.Emsg("SendMessage", admin->LastServerError()->errnum, admin->LastServerError()->errmsg);
-    } else {
-      XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "no broker available");
+    if (!rc) {
+      //  XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "send message to all brokers");  
+      if (admin) {
+	XrdMqMessage::Eroute.Emsg("SendMessage", admin->LastServerError()->errnum, admin->LastServerError()->errmsg);
+      } else {
+	XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "no broker available");
+      }
     }
+
+    delete admin;
   }
 
-  if (!rc) {
-    Mutex.Lock();
-    // TODO: does not work if there would be several broker !!
-    ReNewBrokerXrdClientSender(0);
-    Mutex.UnLock();
-  }
   return true;
 }
 
@@ -303,19 +295,6 @@ XrdMqClient::GetBrokerXrdClientSender(int i) {
   return kBrokerXrdClientSender.Find(GetBrokerId(i).c_str());
 }
 
-
-/*----------------------------------------------------------------------------*/
-/* ReNewBrokerXrdClientSender                                                 */
-/*----------------------------------------------------------------------------*/
-
-void XrdMqClient::ReNewBrokerXrdClientSender(int i) {
-  fprintf(stderr,"XrdMqClient::ReNewBorkerXrdClientSender %d", i);
-  kBrokerXrdClientSender.Del(GetBrokerId(i).c_str());
-  SetXrootVariables();
-  kBrokerXrdClientSender.Add(GetBrokerId(i).c_str(), new XrdClientAdmin(GetBrokerUrl(i)->c_str()));
-  GetBrokerXrdClientSender(i)->Connect();
-}
-
 /*----------------------------------------------------------------------------*/
 /* ReNewBrokerXrdClientReceiver                                               */
 /*----------------------------------------------------------------------------*/
@@ -331,34 +310,6 @@ void XrdMqClient::ReNewBrokerXrdClientReceiver(int i) {
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/* CheckBrokerXrdClientSender                                                 */
-/*----------------------------------------------------------------------------*/
-
-void XrdMqClient::CheckBrokerXrdClientSender(int i) {
-  Mutex.Lock();
-  XrdClientAdmin* client = GetBrokerXrdClientSender(i);
-  if (i < 256) {
-    if (kBrokerXrdClientSenderAliasTimeStamp[i] &&
-        ( (time(NULL) - kBrokerXrdClientSenderAliasTimeStamp[i]) < 10 ) ) {
-      // do nothing
-    } else {
-      XrdClientUrlSet alias(GetBrokerUrl(i)->c_str());
-      alias.Rewind();
-      XrdClientUrlInfo* currentalias = alias.GetNextUrl();
-      if (currentalias->GetUrl() != client->GetClientConn()->GetCurrentUrl().GetUrl()) {
-        fprintf(stderr,"XrdMqClient::CheckBrokerXrdClientSender => Broker alias changed from %s => %s\n", client->GetClientConn()->GetCurrentUrl().GetUrl().c_str(), currentalias->GetUrl().c_str());
-        // the alias has been switched, del the client and create a new one to connect to the new alias
-        ReNewBrokerXrdClientSender(i);
-        // get the new client object
-        GetBrokerXrdClientSender(i);
-        kBrokerXrdClientSenderAliasTimeStamp[i] = time(NULL);
-      }
-    }
-  }
-  Mutex.UnLock();
-}
-   
 /*----------------------------------------------------------------------------*/
 /* CheckBrokerXrdClientReceiver                                               */
 /*----------------------------------------------------------------------------*/

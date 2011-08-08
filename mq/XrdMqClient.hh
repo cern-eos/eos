@@ -54,10 +54,8 @@ public:
   const char*   GetClientId() {return kClientId.c_str();}
   
   void ReNewBrokerXrdClientReceiver(int i);
-  void ReNewBrokerXrdClientSender(int i);
 
   void CheckBrokerXrdClientReceiver(int i);
-  void CheckBrokerXrdClientSender(int i);
 
   bool AddBroker(const char* brokerurl, bool advisorystatus=false, bool advisoryquery=false);
 
