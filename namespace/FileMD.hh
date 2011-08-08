@@ -297,6 +297,19 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
+      //! Test the unlinkedlocation
+      //------------------------------------------------------------------------
+      bool hasUnlinkedLocation( location_t location )
+      {
+        for (unsigned int i=0; i< pUnlinkedLocation.size(); i++)
+        {
+          if( pUnlinkedLocation[i] == location )
+            return true;
+        }
+        return false;
+      }
+
+      //------------------------------------------------------------------------
       //! Get number of unlinked locations
       //------------------------------------------------------------------------
       size_t getNumUnlinkedLocation() const
