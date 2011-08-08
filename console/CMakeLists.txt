@@ -14,16 +14,19 @@ add_executable ( eos
 		 commands/com_chown.cc 
 		 commands/com_clear.cc         
 		 commands/com_config.cc 
+		 commands/com_console.cc 
 		 commands/com_debug.cc 
 		 commands/com_file.cc 
 		 commands/com_find.cc 
 		 commands/com_fs.cc 
+		 commands/com_fsck.cc
                  commands/com_fuse.cc
 		 commands/com_group.cc
                  commands/com_io.cc
 		 commands/com_license.cc 
 		 commands/com_ls.cc 
 		 commands/com_mkdir.cc 
+		 commands/com_motd.cc 
 		 commands/com_node.cc
 		 commands/com_ns.cc    
 		 commands/com_print.cc 
@@ -41,12 +44,13 @@ add_executable ( eos
 		 commands/com_timing.cc
 		 commands/com_transfers.cc 
 		 commands/com_verify.cc 
+		 commands/com_version.cc 
 		 commands/com_vid.cc 
 		 commands/com_whoami.cc   
                  commands/com_who.cc
 )
 
-target_link_libraries ( eos XrdClient XrdSys XrdOuc XrdNetUtil XrdNet XrdOuc pthread dl  XrdSys XrdNetUtil crypto uuid curses z readline )
+target_link_libraries ( eos XrdClient XrdSys XrdOuc XrdNetUtil XrdNet XrdOuc pthread dl  XrdSys XrdNetUtil XrdMqClient-Static crypto uuid curses z readline )
 
 INSTALL_PROGRAMS( /sbin FILES eosadmin )
 

@@ -10,11 +10,13 @@ extern int com_chmod (char*);
 extern int com_chown (char*);
 extern int com_clear (char*);
 extern int com_config (char*);
+extern int com_console (char*);
 extern int com_debug (char*);
 extern int com_file (char*);
 extern int com_fileinfo (char*);
 extern int com_find (char*);
 extern int com_fs   (char*);
+extern int com_fsck   (char*);
 extern int com_fuse (char*);
 extern int com_group (char*);
 extern int com_help (char *);
@@ -22,6 +24,7 @@ extern int com_io (char *);
 extern int com_license (char*);
 extern int com_ls (char*);
 extern int com_mkdir (char*);
+extern int com_motd (char*);
 extern int com_node (char*);
 extern int com_ns (char*);
 extern int com_pwd (char*);
@@ -38,6 +41,7 @@ extern int com_test (char*);
 extern int com_timing (char*);
 extern int com_transfers (char*);
 extern int com_verify (char*);
+extern int com_version (char*);
 extern int com_vid (char*);
 extern int com_whoami (char*);
 extern int com_who (char*);
@@ -98,12 +102,14 @@ COMMAND commands[] = {
   { (char*)"chmod",    com_chmod,    (char*)"Mode Interface" },
   { (char*)"chown",    com_chown,    (char*)"Chown Interface" },
   { (char*)"config",   com_config,   (char*)"Configuration System"},
+  { (char*)"console",  com_console,  (char*)"Run Error Console"},
   { (char*)"debug",    com_debug,    (char*)"Set debug level"},
   { (char*)"exit",     com_quit,     (char*)"Exit from EOS console" },
   { (char*)"file",     com_file,     (char*)"File Handling" },
   { (char*)"fileinfo", com_fileinfo, (char*)"File Information" },
   { (char*)"find",     com_find,     (char*)"Find files/directories" },
   { (char*)"fs",       com_fs,       (char*)"File System configuration"},
+  { (char*)"fsck",     com_fsck,      (char*)"File System Consistency Checking"},
   { (char*)"fuse",     com_fuse,     (char*)"Fuse Mounting"},
   { (char*)"group",    com_group,    (char*)"Group configuration" },
   { (char*)"help",     com_help,     (char*)"Display this text" },
@@ -111,6 +117,7 @@ COMMAND commands[] = {
   { (char*)"license",  com_license,  (char*)"Display Software License" },
   { (char*)"ls",       com_ls,       (char*)"List a directory" },
   { (char*)"mkdir",    com_mkdir,    (char*)"Create a directory" },
+  { (char*)"motd",     com_motd,     (char*)"Message of the day" },
   { (char*)"node",     com_node,     (char*)"Node configuration" },
   { (char*)"ns",       com_ns,       (char*)"Namespace Interface" },
   { (char*)"vid",      com_vid,      (char*)"Virtual ID System Configuration" },
@@ -128,6 +135,7 @@ COMMAND commands[] = {
   { (char*)"timing",   com_timing,   (char*)"Toggle timing flag for execution time measurement" },
   { (char*)"transfers",com_transfers,(char*)"Transfer Interface"},
   { (char*)"verify",   com_verify,   (char*)"Verify Interface"},
+  { (char*)"version",  com_version,  (char*)"Verbose client/server version"},
   { (char*)"whoami",   com_whoami,   (char*)"Determine how we are mapped on server side" },
   { (char*)"who",      com_who,      (char*)"Statistics about connected users"},
   { (char*)"?",        com_help,     (char*)"Synonym for `help'" },
@@ -814,7 +822,13 @@ int main (int argc, char* argv[]) {
     textblue      = "";
     textbold      = "";
     textunbold    = "";
+  } 
+
+  if (interactive) {
+    execute_line((char*)"motd");
+    execute_line((char*)"version");
   }
+
 
   char prompt[4096];
   sprintf(prompt,"%sEOS Console%s [%s%s%s] |> ", textbold.c_str(),textunbold.c_str(),textred.c_str(),serveruri.c_str(),textnormal.c_str());

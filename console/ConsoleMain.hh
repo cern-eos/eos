@@ -45,6 +45,8 @@ extern XrdOucString rstdout;
 extern XrdOucString rstderr;
 extern XrdOucString user_role;
 extern XrdOucString group_role;
+extern XrdOucString serveruri;
+extern void exit_handler (int a);
 
 extern int global_retc;
 extern bool global_highlighting;

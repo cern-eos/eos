@@ -279,7 +279,7 @@ com_file (char* arg1) {
               XrdOucString cx="";
               for (unsigned int k=0; k< SHA_DIGEST_LENGTH; k++) {
                 // the adler and crc32 functions are not bytewise but derived from int byte order
-                if ( ((checksumtype == "adler") || (checksumtype == "crc32")) && (k<4) ) {
+                if ( ((checksumtype == "adler") || (checksumtype == "crc32") || (checksumtype == "crc32c"))  && (k<4) ) {
                   char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd.checksum[3-k]));
                   cx += hb;
                 } else {
