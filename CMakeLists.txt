@@ -21,6 +21,11 @@ include(EosUtils)
 # Search for dependencies
 #-------------------------------------------------------------------------------
 
+if (RELEASE)
+else (RELEASE)
+set(RELEASE "head")
+endif (RELEASE)
+
 if (CLIENT)
 find_package(XRootD REQUIRED)
 find_package(fuse REQUIRED)
@@ -47,7 +52,7 @@ endif(MacOSX)
 
 EOS_CheckOutOfSourceBuild()
 
-set(CMAKE_CXX_FLAGS "-g -Wall -O2 -msse4.2 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\"" )
+set(CMAKE_CXX_FLAGS "-g -Wall -O2 -msse4.2 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
 #-D_LARGEFILE_SOURCE=1 -D_FILE_OFFSET_BITS=64")
 
 #set(SOFLAGS  "-m64 -dynamiclib -undefined dynamic_lookup -single_module")

@@ -4,7 +4,7 @@
 Summary: The EOS server installation.
 Name: eos-server
 Version: 0.1.0
-Release: rc23
+Release: rc24
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -35,8 +35,8 @@ test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
 export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44 
 mkdir -p build
 cd build
-cmake ../
-cmake ../
+cmake ../ -DRELEASE=%{release}
+cmake ../ -DRELEASE=%{release}
 %{__make} %{_smp_mflags} 
 
 %{__make} install DESTDIR=$RPM_BUILD_ROOT
@@ -84,13 +84,15 @@ fi
 /usr/lib64/libXrdEosFst.so
 /usr/sbin/eosfstregister
 /usr/sbin/eosfstinfo
-#/usr/sbin/eosfstcheck
-#/usr/sbin/eosfstclean
-#/usr/sbin/eosfstmgmsync
+/usr/sbin/eosfstcheck
+/usr/sbin/eosfstclean
+/usr/sbin/eosfstmgmsync
 /usr/sbin/eosadmin
 /usr/sbin/eos-check-blockxs
 /usr/sbin/eos-compute-blockxs
 /usr/sbin/eos-scan-fs
+/usr/sbin/eos-fst-fsck
+/usr/sbin/eos-adler32
 /usr/lib64/libXrdEosMgm.so.0.1.0
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so
