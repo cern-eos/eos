@@ -1057,9 +1057,13 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
           weight          *= ((netweight>0)?sqrt(netweight):0);
           // drain patch
           if (snapshot.mConfigStatus == eos::common::FileSystem::kDrain) {
-            // we set a low weight for drain filesystems
-            if (weight > 0.1)
-              weight =0.1;
+            // we set a low weight for drain filesystems if there is more than one replica
+	    if (locationsfs.size() == 1) {
+	      weight = 1.0;
+	    } else {
+	      if (weight > 0.1)
+		weight =0.1;
+	    }
           }
           availablefsweightsort.insert(std::pair<double,eos::common::FileSystem::fsid_t> (weight, snapshot.mId));          
           renorm += weight;
@@ -1122,38 +1126,38 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
     
     // -----------------------------------------------------------------------
     // now start with the one with the highest weight, but still use probabilty to select it
-      // -----------------------------------------------------------------------
-      std::multimap<double, eos::common::FileSystem::fsid_t>::reverse_iterator wit;
-      for (wit = availablefsweightsort.rbegin(); wit != availablefsweightsort.rend(); wit++) {
-        float randomacceptor = (0.999999 * random()/RAND_MAX);
-        eos_static_debug("random acceptor=%.02f norm=%.02f weight=%.02f normweight=%.02f fsid=%u", randomacceptor, renorm, wit->first, wit->first/renorm, wit->second);
-
-        if ( (wit->first/renorm)> randomacceptor) {
-          // take this
-          for (size_t i=0; i< locationsfs.size();i++) {
-            if (locationsfs[i] == wit->second) {
-              fsindex = i;
-              return 0;
-            }
-          }
-          // uuh! - this should NEVER happen!
-          eos_static_crit("fatal inconsistency in scheduling - file system missing after selection in randomacceptor");
-          return EIO;
-        }
+    // -----------------------------------------------------------------------
+    std::multimap<double, eos::common::FileSystem::fsid_t>::reverse_iterator wit;
+    for (wit = availablefsweightsort.rbegin(); wit != availablefsweightsort.rend(); wit++) {
+      float randomacceptor = (0.999999 * random()/RAND_MAX);
+      eos_static_debug("random acceptor=%.02f norm=%.02f weight=%.02f normweight=%.02f fsid=%u", randomacceptor, renorm, wit->first, wit->first/renorm, wit->second);
+      
+      if ( (wit->first/renorm)> randomacceptor) {
+	// take this
+	for (size_t i=0; i< locationsfs.size();i++) {
+	  if (locationsfs[i] == wit->second) {
+	    fsindex = i;
+	    return 0;
+	  }
+	}
+	// uuh! - this should NEVER happen!
+	eos_static_crit("fatal inconsistency in scheduling - file system missing after selection in randomacceptor");
+	return EIO;
       }
-      // -----------------------------------------------------------------------
-      // if we don't succeed by the randomized weight, we return the one with the highest weight
-      // -----------------------------------------------------------------------
-
-      for (size_t i=0; i< locationsfs.size();i++) {
-        if (locationsfs[i] == availablefsweightsort.begin()->second) {
-          fsindex = i;
-          return 0;
-        }
+    }
+    // -----------------------------------------------------------------------
+    // if we don't succeed by the randomized weight, we return the one with the highest weight
+    // -----------------------------------------------------------------------
+    
+    for (size_t i=0; i< locationsfs.size();i++) {
+      if (locationsfs[i] == availablefsweightsort.begin()->second) {
+	fsindex = i;
+	return 0;
       }
-      // uuh! - this should NEVER happen!
-      eos_static_crit("fatal inconsistency in scheduling - file system missing after selection");
-      return EIO;
+    }
+    // uuh! - this should NEVER happen!
+    eos_static_crit("fatal inconsistency in scheduling - file system missing after selection");
+    return EIO;
   }
 
   return EINVAL;

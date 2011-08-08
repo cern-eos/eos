@@ -1413,7 +1413,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}   
 
 	if (subcmd == "dumpmd") {
-	  if (vid_in.uid == 0) {
+	  if ( (vid_in.uid == 0) || (vid_in.prot == "sss") ) {
             std::string fsidst = opaque.Get("mgm.fsid");
 	    XrdOucString dp = opaque.Get("mgm.dumpmd.path");
 	    XrdOucString df = opaque.Get("mgm.dumpmd.fid");
@@ -1421,7 +1421,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             retc = proc_fs_dumpmd(fsidst, dp, df, ds, stdOut, stdErr, tident, vid_in);
 	  } else {
 	    retc = EPERM;
-	    stdErr = "error: you have to take role 'root' to execute this command";
+	    stdErr = "error: you have to take role 'root' or connect via 'sss' to execute this command";
 	  }
 	}
 
@@ -1921,6 +1921,90 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
 
 
+    if (cmd == "fsck") {
+      if (vid_in.uid == 0) {
+	if (subcmd == "disable") {
+	  if (gOFS->FsCheck.Stop()) {
+	    stdOut += "success: disabled fsck";
+	  } else {
+	    stdErr += "error: fsck was already disabled";
+	  }
+	}
+	if (subcmd == "enable") {
+	  if (gOFS->FsCheck.Start()) {
+	    stdOut += "success: enabled fsck";
+	  } else {
+	    stdErr += "error: fsck was already enabled";
+	  }
+	}
+	if (subcmd == "report") {
+	  XrdOucString option=""; 
+	  XrdOucString selection="";
+	  option = opaque.Get("mgm.option")?opaque.Get("mgm.option"):"";
+	  selection = opaque.Get("mgm.fsck.selection")?opaque.Get("mgm.fsck.selection"):"";
+	  if ( (option.find("C")!=STR_NPOS) ||
+	       (option.find("O")!=STR_NPOS) ||
+	       (option.find("D")!=STR_NPOS) ) {
+	    stdErr="error: illegal option\n";
+	    retc=EINVAL;
+	  }
+	  if (gOFS->FsCheck.Report(stdOut,stdErr, option,selection))
+	    retc=0;
+	  else
+	    retc=EINVAL;
+	}
+
+	if (subcmd == "repair") {
+	  XrdOucString option=""; 
+	  XrdOucString selection="";
+	  option = opaque.Get("mgm.option")?opaque.Get("mgm.option"):"";
+	  if (option == "checksum") 
+	    option = "C";
+	  if (option == "unlink-unregistered") 
+	    option = "U";
+	  if (option == "unlink-orphans")
+	    option = "O";
+	  if (option == "adjust-replicas")
+	    option = "A";
+
+	  if ( (option.find("C")==STR_NPOS) &&
+	       (option.find("U")==STR_NPOS) &&
+	       (option.find("O")==STR_NPOS) &&
+	       (option.find("A")==STR_NPOS)) {
+	    stdErr="error: illegal option\n";
+	    retc=EINVAL;
+	  }
+
+	  if (option == "C") {
+	    option += "al";
+	    selection="diff_fst_disk_fmd_checksum";
+	  }
+	  if (option == "U") {
+	    option += "al";
+	    selection="replica_not_registered";
+	  }
+	  if (option == "O") {
+	    option += "al";
+	    selection="replica_orphaned";
+	  }
+	  if (option == "A") {
+	    option += "al";
+	    selection="diff_replica_layout";
+	  }
+	  if (gOFS->FsCheck.Report(stdOut,stdErr, option,selection))
+	    retc=0;
+	  else
+	    retc=EINVAL;
+	}	  
+      }
+
+      if (subcmd == "stat") {
+	XrdOucString option=""; // not used for the moment
+	eos_info("fsck stat");
+	gOFS->FsCheck.PrintOut(stdOut, option);
+      }
+    }
+
     if (cmd == "quota") {
       if (subcmd == "ls") {
 	eos_notice("quota ls");
@@ -2327,7 +2411,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
 
 	if (vid_in.uid && ( (!uidt) || (!gidt) ) ) {
-	  stdErr = "error: you are mapped to uid/gid=0 but you are not root!";
+	  stdErr = "error: you are changing to uid/gid=0 but you are not root!";
 	  retc = EPERM;
 	  failure=true;
 	}
@@ -2355,6 +2439,67 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
   }
 
   if (userCmd) {
+    if (cmd == "motd") {
+      XrdOucString motdupload = opaque.Get("mgm.motd")?opaque.Get("mgm.motd"):"";
+      gOFS->MgmStats.Add("motd",vid_in.uid,vid_in.gid,1);
+      eos_info("motd");
+      XrdOucString motdfile = gOFS->MgmConfigDir;
+      motdfile += "/motd";
+      
+      if (motdupload.length() &&
+	  ((!vid_in.uid) ||
+	   eos::common::Mapping::HasUid(3, vid.uid_list) || 
+	   eos::common::Mapping::HasGid(4, vid.gid_list)) ) {
+	// root + admins can set the MOTD
+	unsigned int motdlen=0;
+	char* motdout=0;
+	eos_info("decoding motd\n");
+	if (eos::common::SymKey::Base64Decode(motdupload, motdout, motdlen)) {
+	  if (motdlen) {
+	    int fd = ::open(motdfile.c_str(),O_WRONLY);
+	    if (fd) {
+	      size_t nwrite = ::write(fd, motdout, motdlen);
+	      if (!nwrite) {
+		stdErr += "error: error writing motd file\n"; 
+	      }
+	      ::close(fd);
+	    }
+	  }
+	} else {
+	  stdErr += "error: unabile to decode motd message\n";
+	}
+      }
+
+
+      int fd = ::open(motdfile.c_str(),O_RDONLY);
+      if (fd>0) {
+	size_t nread;
+	char buffer[65536];
+	nread = ::read(fd,buffer,sizeof(buffer));
+	if (nread> 0) {
+	  buffer[65535]=0 ;
+	  stdOut += buffer;
+	}
+	::close(fd);
+      }
+      MakeResult(0);
+      return SFS_OK;
+    }
+
+    if (cmd == "version") {
+      gOFS->MgmStats.Add("version",vid_in.uid,vid_in.gid,1);
+      eos_info("version");
+      stdOut += "EOS_INSTANCE=";
+      stdOut += gOFS->MgmOfsInstanceName;
+      stdOut += "\nEOS_SERVER_VERSION="; 
+      stdOut += VERSION;
+      stdOut += " EOS_SERVER_RELEASE=";
+      stdOut += RELEASE; 
+      MakeResult(0);
+      return SFS_OK;
+    }
+    
+
     if (cmd == "quota") {
       gOFS->MgmStats.Add("Quota",vid_in.uid,vid_in.gid,1);
       if (subcmd == "ls") {
@@ -2859,6 +3004,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    XrdOucString space = "default";
 	    XrdOucString refspace = "";
 	    unsigned int forcedsubgroup = 0;
+	    unsigned long long fid = fmd->getId();
 
 	    if (fmd) {
               eos::FileMD fmdCopy(*fmd);
@@ -3124,6 +3270,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 			//-------------------------------------------
 			gOFS->eosViewMutex.Lock();
 			try {
+			  // we have to get again the original file meta data
+			  fmd = gOFS->eosFileService->getFileMD(fid);
 			  fmd->unlinkLocation(fsid2delete[i]);
 			  gOFS->eosView->updateFileStore(fmd);
 			  eos_debug("removing location %u", fsid2delete[i]);
@@ -3388,7 +3536,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		if (i==0) {
 		  std::string out="";
 		  stdOut += "<#> <fs-id> ";
-		  std::string format="header=1|indent=12|headeronly=1|key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
+		  std::string format="header=1|indent=12|headeronly=1|key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
 		  filesystem->Print(out, format);
 		  stdOut += out.c_str();
 		}

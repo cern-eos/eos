@@ -242,11 +242,34 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
    gOFS->MgmStats.Add("OpenDir",vid.uid,vid.gid,1);
 
    // Open the directory
+   bool permok = false;
 
    //-------------------------------------------
    gOFS->eosViewMutex.Lock();
    try {
+     eos::ContainerMD::FileMap::iterator dh_files;
+     eos::ContainerMD::ContainerMap::iterator dh_dirs;
+
      dh = gOFS->eosView->getContainer(cPath.GetPath());
+     permok = dh->access(vid.uid,vid.gid, R_OK|X_OK);
+     
+     if (permok) {
+       // add all the files
+       for (dh_files = dh->filesBegin(); dh_files != dh->filesEnd(); dh_files++) {
+	 // 
+	 dh_list.insert(dh_files->first);
+       }
+       
+       for (dh_dirs = dh->containersBegin(); dh_dirs != dh->containersEnd(); dh_dirs++) {
+	 dh_list.insert(dh_dirs->first);
+       }
+       
+       dh_list.insert(".");
+       // the root dir has no .. entry
+       if (strcmp(dir_path,"/")) {
+	 dh_list.insert("..");
+       }
+     }
    } catch( eos::MDException &e ) {
      dh = 0;
      errno = e.getErrno();
@@ -257,7 +280,7 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
    if (dh) {
      eos_debug("access for %d %d gives %d in %o", vid.uid,vid.gid,(dh->access(vid.uid,vid.gid, R_OK|X_OK)), dh->getMode());
    }
-   bool permok = dh?(dh->access(vid.uid,vid.gid, R_OK|X_OK)): false;
+
    gOFS->eosViewMutex.UnLock();
    //-------------------------------------------
 
@@ -273,19 +296,12 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
 		 "open directory", cPath.GetPath());
    }
    
+   dirName = dir_path;
+
    // Set up values for this directory object
    //
-   ateof = 0;
-   fname = strdup(cPath.GetPath());
+   dh_it = dh_list.begin();
 
-   dh_files = dh->filesBegin();
-   dh_dirs  = dh->containersBegin();
-
-   if ( (dh_files == dh->filesEnd()) && 
-        (dh_dirs  == dh->containersEnd()) ) {
-     // there are no files, return '.' and evt. '..'
-     retDot = true;
-   }
    EXEC_TIMING_END("OpenDir");   
    return  SFS_OK;
 }
@@ -303,46 +319,14 @@ const char *XrdMgmOfsDirectory::nextEntry()
             0 upon EOF and an actual error code (i.e., not 0) on error.
 */
 {
-    static const char *epname = "nextEntry";
-    //    int retc;
+  if (dh_it == dh_list.end()) {
+    // no more entry
+    return (const char *)0;
+  }
 
-// Lock the directory and do any required tracing
-//
-   if (!dh) 
-      {Emsg(epname,error,EBADF,"read directory",fname);
-       return (const char *)0;
-      }
-
-
-   if (dh_files != dh->filesEnd()) {
-     // there are more files
-     entry = dh_files->first.c_str();
-     dh_files++;
-   } else {
-     if (dh_dirs != dh->containersEnd()) {
-       // there are more dirs
-       entry = dh_dirs->first.c_str();
-       dh_dirs++;
-       if (dh_dirs == dh->containersEnd()) {
-         retDot = true;
-       }
-     } else {
-       if (retDot) {
-         retDotDot=true;
-         retDot=false;
-         return ".";
-       }
-       if (strcmp(fname,"/")) {
-         if (retDotDot) {
-           retDotDot=false;
-           return "..";
-         }
-       }
-       return (const char*) 0;
-     }
-   }
-
-   return (const char *)entry.c_str();
+  std::set<std::string>::iterator tmp_it = dh_it;
+  dh_it++;
+  return tmp_it->c_str();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -848,7 +832,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     // if we don't have quota we don't bounce the client back
     if (retc != ENOSPC) {
       // check if we should try to heal offline replicas (rw mode only)
-      if (isRW && attrmap.count("sys.heal.unavailable")) {
+      if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable")) {
 	int nmaxheal = atoi(attrmap["sys.heal.unavailable"].c_str());
 	int nheal=0;
 	gOFS->MgmHealMapMutex.Lock();
@@ -936,6 +920,11 @@ int XrdMgmOfsFile::open(const char          *path,      // In
       }
       gOFS->MgmStats.Add("OpenFileOffline",vid.uid,vid.gid,1);  
     } else {
+      if (isCreation) {
+	// we will remove the created file in the namespace
+	gOFS->_rem(cPath.GetPath(),error, vid, 0);
+      }
+
       gOFS->MgmStats.Add("OpenFailedQuota",vid.uid,vid.gid,1);  
     }
 
@@ -1339,12 +1328,12 @@ int XrdMgmOfs::_chown(const char               *path,    // In
   // try as a directory
   try {
     cmd = gOFS->eosView->getContainer(path);
-    if ( (vid.uid) && !cmd->access(vid.uid,vid.gid,W_OK)) {
+    if ( (vid.uid) && (vid.uid != 3) && (vid.gid != 4) && !cmd->access(vid.uid,vid.gid,W_OK)) {
       errno = EPERM;
     } else {
       // change the owner
       cmd->setCUid(uid);
-      if ((!vid.uid) && gid) {
+      if (((!vid.uid) || (vid.uid ==3) || (vid.gid == 4)) && gid) {
 	// change the group
 	cmd->setCGid(gid);
       }
@@ -1676,7 +1665,10 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       stdpermcheck = true;
     }
     
-    if (stdpermcheck && (!dir->access(vid.uid,vid.gid, X_OK|W_OK))) {
+    // admin's can always create a directory
+    if (stdpermcheck && 
+	(!dir->access(vid.uid,vid.gid, X_OK|W_OK))
+	) {
       errno = EPERM;
       return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
     }
@@ -2008,6 +2000,9 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
 
   try {
     gOFS->eosView->unlinkFile(path);
+    if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())) {
+      gOFS->eosView->removeFile( fmd );
+    }
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
@@ -2125,7 +2120,7 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
    
    // check permissions
    bool permok = stdpermcheck?(dhpar?(dhpar->access(vid.uid,vid.gid, X_OK|W_OK)): false):aclok;
-   
+
    gOFS->eosViewMutex.UnLock();
    //-------------------------------------------
 
@@ -3012,11 +3007,13 @@ XrdMgmOfs::FSctl(const int               cmd,
       XrdOucString averifysize     = env.Get("mgm.verify.size");
       XrdOucString acommitsize     = env.Get("mgm.commit.size");
       XrdOucString adropfsid       = env.Get("mgm.drop.fsid");
+      XrdOucString areplication    = env.Get("mgm.replication");
 
       bool verifychecksum = (averifychecksum=="1");
       bool commitchecksum = (acommitchecksum=="1");
       bool verifysize     = (averifysize=="1");
       bool commitsize     = (acommitsize=="1");
+      bool replication    = (areplication=="1");
 
       char* checksum = env.Get("mgm.checksum");
       char  binchecksum[SHA_DIGEST_LENGTH];
@@ -3091,6 +3088,31 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    return Emsg(epname,error, EIDRM, "commit filesize change - file is already removed [EIDRM]","");
 	  }
 
+	  // check if this commit comes from a transfer and if the size/checksum is ok
+	  if (replication) {
+	    if (commitsize) {
+	      if (fmd->getSize() != size) {
+		eos_err("replication for fid=%lu resulted in a different file size on fsid=%llu - rejecting replica", fmd->getId(), fsid);
+		gOFS->MgmStats.Add("ReplicaFailedSize",0,0,1);
+		return Emsg(epname, error, EBADE, "commit replica - file size is wrong [EBADE]","");
+	      }
+	    }
+
+	    if (commitchecksum) {
+	      bool cxError=false;
+	      for (int i=0 ; i< SHA_DIGEST_LENGTH; i++) {
+		if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i]) {
+		  cxError=true;
+		}
+	      }
+	      if (cxError) {
+		eos_err("replication for fid=%lu resulted in a different checksum on fsid=%llu - rejecting replica", fmd->getId(), fsid);
+		gOFS->MgmStats.Add("ReplicaFailedChecksum",0,0,1);
+		return Emsg(epname, error, EBADR, "commit replica - file checksum is wrong [EBADR]","");
+	      }
+	    }
+	  }
+
 	  if (verifysize) {
 	    // check if we saw a file size change or checksum change
 	    if (fmd->getSize() != size) {
@@ -3123,6 +3145,11 @@ XrdMgmOfs::FSctl(const int               cmd,
 		quotanode->removeFile(fmd);
 	    }		
 	    fmd->addLocation(fsid);
+	    // if fsid is in the deletion list, we try to remove it if there is something in the deletion list
+	    if (fmd->getNumUnlinkedLocation()) {
+	      fmd->removeLocation(fsid);
+	    }
+	    
 	    if (commitsize) {
 	      fmd->setSize(size);
 	    }
@@ -3478,6 +3505,87 @@ XrdMgmOfs::FSctl(const int               cmd,
       response += " retc="; response += retc;
       error.setErrInfo(response.length()+1, response.c_str());
       return SFS_DATA;
+    }
+
+    if (vid.prot == "sss") {
+      // only disk server can set files dirty/not dirty
+      if (execmd == "markdirty") {
+	eos_info("markdirty %s", opaque.c_str());
+        gOFS->MgmStats.Add("MarkDirty",vid.uid,vid.gid,1);  
+	char* sfid;
+	char* sfsid;
+	sfid     = env.Get("fid");
+	sfsid     = env.Get("fsid");
+	char* dsize     = env.Get("size.dirty");
+	char* dcks      = env.Get("checksum.dirty");
+	char* dblockxs  = env.Get("blockchecksum.dirty");
+	char* drep      = env.Get("replica.missing");
+	char* eio       = env.Get("io.error");
+
+	if (sfid && sfsid) {
+	  unsigned long long fid  = strtoull(sfid, 0,10);
+	  unsigned long      fsid = strtoul(sfsid,  0,10);
+	  
+	  MgmDirtyMapMutex.Lock();
+	  if (dsize) {
+	    MgmDirtyMap[fid][fsid].dirtysize=true;
+	  } else {
+	    MgmDirtyMap[fid][fsid].dirtysize=false;
+	    if (dcks) {
+	      MgmDirtyMap[fid][fsid].dirtychecksum=true;
+	    } else {
+	      MgmDirtyMap[fid][fsid].dirtychecksum=false;
+	    }
+	    if (dblockxs) {
+	      MgmDirtyMap[fid][fsid].dirtyblockxs=true;
+	    } else {
+	      MgmDirtyMap[fid][fsid].dirtyblockxs=false;
+	    }
+	    if (drep) {
+	      MgmDirtyMap[fid][fsid].missingreplica=true;
+	    } else {
+	      MgmDirtyMap[fid][fsid].missingreplica=false;
+	    }
+	    if (eio) {
+	      MgmDirtyMap[fid][fsid].ioerror=true;
+	    } else {
+	      MgmDirtyMap[fid][fsid].ioerror=false;
+	    }
+	    MgmDirtyMapMutex.UnLock();
+	  }
+	}
+	
+	XrdOucString response="markdirty: ";
+	response += "retc=0"; 
+	error.setErrInfo(response.length()+1, response.c_str());
+	return SFS_DATA;
+      }
+      
+      if (execmd == "markclean") {
+	eos_info("markclean %s", opaque.c_str());
+        gOFS->MgmStats.Add("MarkClean",vid.uid,vid.gid,1);  
+	char* fxid;
+	char* fsid;
+	fxid  = env.Get("fxid");
+	fsid  = env.Get("fsid");
+	
+	if (fxid && fsid) {
+	  unsigned long long fid  = strtoull(env.Get("fid"), 0,10);
+	  unsigned long      fsid = strtoul(env.Get("fsid"),  0,10);
+	  
+	  MgmDirtyMapMutex.Lock();
+	  MgmDirtyMap[fid].erase(fsid);
+	  if (!MgmDirtyMap[fid].size()) {
+	    MgmDirtyMap.erase(fid);
+	  }
+	  MgmDirtyMapMutex.UnLock();
+	}
+	
+	XrdOucString response="markclean: ";
+	response += "retc=0"; 
+	error.setErrInfo(response.length()+1, response.c_str());
+	return SFS_DATA;
+      }
     }
 
     if (execmd == "statvfs") {
@@ -4333,7 +4441,6 @@ XrdMgmOfs::StartMgmFsListener(void *pp)
   return 0;
 }
 
-
 /*----------------------------------------------------------------------------*/
 void
 XrdMgmOfs::Deletion() 
@@ -4432,10 +4539,10 @@ XrdMgmOfs::Deletion()
 	      msgbody += capabilityenv->Env(caplen);
 	      // we send deletions in bunches of max 1024 for efficiency
 	      message.SetBody(msgbody.c_str());
-	    }
-	    
-	    if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
-	      eos_static_err("unable to send deletion message to %s", receiver.c_str());
+	      
+	      if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+		eos_static_err("unable to send deletion message to %s", receiver.c_str());
+	      }
 	    }
 	    idlist = "";
 	    ndeleted = 0;
@@ -4474,6 +4581,68 @@ XrdMgmOfs::Deletion()
       //-------------------------------------------
     }
   }
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
+XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid, unsigned long long fid)
+{
+  // -------------------------------------------------------------------------
+  // send an explicit deletion message to any fsid/fid pair
+  // -------------------------------------------------------------------------
+  
+  
+  XrdMqMessage message("deletion");
+  
+  eos::mgm::FileSystem* fs = 0;
+  XrdOucString receiver="";
+  XrdOucString msgbody = "mgm.cmd=drop"; 
+  XrdOucString capability ="";
+  XrdOucString idlist="";
+
+  // get the filesystem from the FS view
+  {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    if (FsView::gFsView.mIdView.count(fsid)) {
+      fs = FsView::gFsView.mIdView[fsid];
+      if (fs) {
+	capability += "&mgm.access=delete";
+	capability += "&mgm.manager=" ; capability += gOFS->ManagerId.c_str();
+	capability += "&mgm.fsid="; 
+	capability += (int) fs->GetId();
+	capability += "&mgm.localprefix=";
+	capability += fs->GetPath().c_str();
+	capability += "&mgm.fids=";
+	XrdOucString hexfid=""; eos::common::FileId::Fid2Hex(fid,hexfid);
+	capability += hexfid;
+	receiver    = fs->GetQueue().c_str();
+      }
+    }
+  }
+
+  bool ok =false;
+
+  if (fs) {
+    XrdOucEnv incapability(capability.c_str());
+    XrdOucEnv* capabilityenv = 0;
+    eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+    
+    int caprc=0;
+    if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
+      eos_static_err("unable to create capability - errno=%u", caprc);
+    } else {
+      int caplen = 0;
+      msgbody += capabilityenv->Env(caplen);
+      // we send deletions in bunches of max 1024 for efficiency
+      message.SetBody(msgbody.c_str());
+      if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+	eos_static_err("unable to send deletion message to %s", receiver.c_str());
+      } else {
+	ok = true;
+      }
+    }
+  }  
+  return ok;
 }
 
 /*----------------------------------------------------------------------------*/

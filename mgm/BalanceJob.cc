@@ -85,6 +85,7 @@ BalanceJob::Balance(void)
 {
   unsigned long long nscheduled=0;
   XrdSysThread::SetCancelOn();
+  XrdSysThread::SetCancelDeferred();
 
   mThreadRunningLock.Lock();
   mThreadRunning=true;
@@ -102,14 +103,17 @@ BalanceJob::Balance(void)
   }
 
   eos_static_notice("Started balancing on group %s", mName.c_str());
+  XrdSysThread::SetCancelOff();
   // set status to 'active'
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     mGroup->SetConfigMember("stat.balancing","scheduling",false, "", true);
   }
+  XrdSysThread::SetCancelOn();
 
   XrdSysThread::CancelPoint();
 
+  XrdSysThread::SetCancelOff();
   // look into all our group members how much they are off the avg
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -188,6 +192,7 @@ BalanceJob::Balance(void)
     }
   }
 
+  XrdSysThread::SetCancelOn();
 
   XrdSysThread::CancelPoint();
 
@@ -196,6 +201,7 @@ BalanceJob::Balance(void)
   
   bool found=false;
 
+  XrdSysThread::SetCancelOff();
   // now pickup the sources and distribute on targets
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -242,6 +248,8 @@ BalanceJob::Balance(void)
             unsigned long long cid  = 0;
             unsigned long long size = 0;
             long unsigned int  lid  = 0;
+	    uid_t uid=0;
+	    gid_t gid=0;
             bool acceptid           = false;
             std::string fullpath = "";
             
@@ -253,10 +261,15 @@ BalanceJob::Balance(void)
                 lid = fmd->getLayoutId();
                 cid = fmd->getContainerId();
                 size = fmd->getSize();
+		uid  = fmd->getCUid();
+		gid  = fmd->getCGid();
+
               } catch ( eos::MDException &e ) {
                 fmd = 0;
               }
-              if (fmd && (!fmd->hasLocation(target_snapshot.mId))) {
+
+	      // the target should not be already in the location vector and there shouldn't be already a file scheduled there
+              if (fmd && (!fmd->hasLocation(target_snapshot.mId)) && (!TargetFidMap[target_snapshot.mId].count(fid))) {
                 // we can put a replica here !
                 acceptid = true;
                 size = fmd->getSize();
@@ -299,6 +312,10 @@ BalanceJob::Balance(void)
               target_capability += "mgm.access=write";
               target_capability += "&mgm.lid=";        target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid&0xffffff0f); 
               // make's it a plain replica
+	      target_capability += "&mgm.source.lid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid);
+	      target_capability += "&mgm.source.ruid"; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)uid);
+	      target_capability += "&mgm.source.rgid"; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)gid);
+
               target_capability += "&mgm.cid=";        target_capability += eos::common::StringConversion::GetSizeString(sizestring,cid);
               target_capability += "&mgm.ruid=";       target_capability+=(int)1;
               target_capability += "&mgm.rgid=";       target_capability+=(int)1;
@@ -348,6 +365,7 @@ BalanceJob::Balance(void)
                 if ( TargetQueues.count(target_it->first)) {
                   bool sub = TargetQueues[target_it->first]->Add(txjob);
                   eos_static_info("Submitted %d %s\n", sub, fullcapability.c_str());
+		  TargetFidMap[target_snapshot.mId].insert(fid);
                 }
                 if (txjob)
                   delete txjob;
@@ -407,8 +425,6 @@ BalanceJob::Balance(void)
     }
   }
 
-  XrdSysThread::CancelPoint();
-  
   eos_static_info("Finished balancing on group %s", mName.c_str());
 
 
@@ -417,11 +433,17 @@ BalanceJob::Balance(void)
     mGroup->SetConfigMember("stat.balancing","running",false, "", true);
   }
 
+  XrdSysThread::SetCancelOn();
+
+  XrdSysThread::CancelPoint();
+
   unsigned long long totalfiles=0;
   unsigned long long prevtotalfiles=0;
   time_t lastchange=time(NULL);
   bool abort=false;
+  bool wasstalled=false;
   do {
+    XrdSysThread::SetCancelOff();
     {
       totalfiles = 0;
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -441,18 +463,22 @@ BalanceJob::Balance(void)
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
       mGroup->SetConfigMember("stat.balancing.queued",squeued,false, "", true);
     }
-
+    XrdSysThread::SetCancelOn();
     for (int i=0; i< 10;i++) {
       sleep(1);
       XrdSysThread::CancelPoint();
     }
 
     time_t diff = time(NULL) - lastchange;
+
+    XrdSysThread::SetCancelOff();
+
     if ( (diff > 60) ) {
       if (diff < 300) {
 
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         mGroup->SetConfigMember("stat.balancing","stalled",false, "", true);
+	wasstalled =true;
       } else {
         // clean-up the queues
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -465,7 +491,15 @@ BalanceJob::Balance(void)
         mGroup->SetConfigMember("stat.balancing","incomplete",false, "", true);
         mGroup->SetConfigMember("stat.balancing.queued","0",false, "", true);
       }
+    } else {
+      if (wasstalled) {
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        mGroup->SetConfigMember("stat.balancing","running",false, "", true);
+	wasstalled=false;
+      }
     }
+
+    XrdSysThread::SetCancelOn();
   } while (totalfiles && (!abort) );
   
   
@@ -476,21 +510,28 @@ BalanceJob::Balance(void)
     }
   }
 
+  XrdSysThread::SetCancelOff();
+
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     mGroup->SetConfigMember("stat.balancing","cooldown",false, "", true);
   }
+
+  XrdSysThread::SetCancelOn();
 
   for (int i=0; i< 120; i++) {
     sleep(1);
     XrdSysThread::CancelPoint();
   }
 
+  XrdSysThread::SetCancelOff();
+
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     mGroup->SetConfigMember("stat.balancing","idle",false, "", true);
   }
   
+  XrdSysThread::SetCancelOn();
   
   mThreadRunningLock.Lock();
   mThreadRunning=false;

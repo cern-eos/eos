@@ -1,5 +1,5 @@
-#ifndef __EOSMGM_EGROUP__HH__
-#define __EOSMGM_EGROUP__HH__
+#ifndef __EOSMGM_IOSTAT__HH__
+#define __EOSMGM_IOSTAT__HH__
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"

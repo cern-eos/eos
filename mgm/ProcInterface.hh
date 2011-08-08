@@ -43,6 +43,11 @@ public:
   int stat(struct stat* buf);
   int close();
 
+  void AddOutput(XrdOucString &lStdOut, XrdOucString &lStdErr) {
+    lStdOut += stdOut;
+    lStdErr += stdErr;
+  }
+
   ProcCommand();
   ~ProcCommand();
 }; 

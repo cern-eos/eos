@@ -14,6 +14,7 @@
 #include "mgm/ConfigEngine.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Iostat.hh"
+#include "mgm/Fsck.hh"
 #include "mgm/Messaging.hh"
 #include "namespace/IView.hh"
 #include "namespace/IFileMDSvc.hh"
@@ -54,34 +55,28 @@ public:
                             const char *y="");
         int         close();
 
-const   char       *FName() {return (const char *)fname;}
+const   char       *FName() {return (const char *)dirName.c_str();}
 
                     XrdMgmOfsDirectory(char *user=0) : XrdSfsDirectory(user)
-                                {ateof = 0; fname = 0;
+                                {dirName=""; dh=0;
 				 d_pnt = &dirent_full.d_entry; eos::common::Mapping::Nobody(vid);
-				 eos::common::LogId();dh =0;retDot=retDotDot=false;
+				 eos::common::LogId();
                                 }
 
                    ~XrdMgmOfsDirectory() {}
 private:
-
-  char           ateof;
-  char          *fname;
-  XrdOucString   entry;
-  bool           retDot;
-  bool           retDotDot;
 
   struct {struct dirent d_entry;
     char   pad[MAXNAMLEN];   // This is only required for Solaris!
   } dirent_full;
   
   struct dirent *d_pnt;
-  
+  std::string dirName;
   eos::common::Mapping::VirtualIdentity vid;
 
   eos::ContainerMD* dh;
-  eos::ContainerMD::FileMap::iterator dh_files;
-  eos::ContainerMD::ContainerMap::iterator dh_dirs;
+  std::set<std::string> dh_list;
+  std::set<std::string>::const_iterator dh_it;
 };
 
 /*----------------------------------------------------------------------------*/
@@ -499,8 +494,21 @@ virtual bool           Init(XrdSysError &);
         bool             IoReportNamespace;  //  Mgm IO Reports get stored in a fake namespace attaching each report to a namespace file in <IoReportStorePath>
         XrdOucString     IoReportStorePath;  //  Mgm IO Report store path by default is /var/tmp/eos/report
 
+        Fsck             FsCheck;            // Class checking the filesystem
         google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;
         XrdSysMutex      MgmHealMapMutex;
+
+
+        struct MgmDirtyMap {
+	  bool dirtysize;
+	  bool dirtychecksum;
+	  bool dirtyblockxs;
+	  bool missingreplica;
+	  bool ioerror;
+	};
+
+        std::map < unsigned long long, std::map<unsigned long, struct MgmDirtyMap> > MgmDirtyMap; // a map pointing to inconsistent replicas
+        XrdSysMutex      MgmDirtyMapMutex;
 
         eos::common::ClientAdminManager CommonClientAdminManager; // Manager of ClientAdmin's
 
@@ -509,6 +517,7 @@ virtual bool           Init(XrdSysError &);
  static void* StartMgmDeletion(void *pp);    //  Deletion Thread Starter
         void  Deletion();                    //  Deletion Function
 
+        bool  DeleteExternal(eos::common::FileSystem::fsid_t fsid, unsigned long long fid); // send an explicit deletion message to any fsid/fid pair
 
  static void* StartMgmStats(void *pp);       // Statistics circular buffer thread
 

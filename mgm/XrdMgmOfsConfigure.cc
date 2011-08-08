@@ -576,6 +576,27 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     ManagerId+= (int)myPort;
   }
 
+  XrdOucString keytabcks="unaccessible";
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // build the adler checksum of the default keytab file
+  int fd = ::open("/etc/eos.keytab",O_RDONLY);
+  if (fd>0) {
+    char buffer[65535];
+    size_t nread = ::read(fd, buffer, sizeof(buffer));
+    if (nread>0) {
+      unsigned int adler;
+      adler = adler32(0L, Z_NULL,0);
+      adler = adler32(adler, (const Bytef*) buffer, nread);
+      char sadler[1024];
+      snprintf(sadler,sizeof(sadler)-1,"%08x", adler);
+      keytabcks=sadler;
+    }
+    close(fd);
+  }
+
+  eos_notice("MGM_HOST=%s MGM_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s", HostName, myPort, VERSION,RELEASE, keytabcks.c_str());
+
+
   // create global visible configuration parameters
   // we create 3 queues
   // "/eos/<instance>/
@@ -891,7 +912,10 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("Fuse",0,0,0);
   gOFS->MgmStats.Add("GetMdLocation",0,0,0);
   gOFS->MgmStats.Add("Ls",0,0,0);
+  gOFS->MgmStats.Add("MarkDirty",0,0,0);
+  gOFS->MgmStats.Add("MarkClean",0,0,0);
   gOFS->MgmStats.Add("Mkdir",0,0,0);
+  gOFS->MgmStats.Add("Motd",0,0,0);
   gOFS->MgmStats.Add("MoveStripe",0,0,0);
   gOFS->MgmStats.Add("OpenDir",0,0,0);
   gOFS->MgmStats.Add("OpenFailedExists",0,0,0);
@@ -909,6 +933,8 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("OpenWriteTruncate",0,0,0);
   gOFS->MgmStats.Add("OpenWrite",0,0,0);
   gOFS->MgmStats.Add("ReadLink",0,0,0);
+  gOFS->MgmStats.Add("ReplicaFailedSize",0,0,0);
+  gOFS->MgmStats.Add("ReplicaFailedChecksum",0,0,0);
   gOFS->MgmStats.Add("RedirectENOENT",0,0,0);
   gOFS->MgmStats.Add("RedirectENONET",0,0,0);
   gOFS->MgmStats.Add("Rename",0,0,0);
@@ -919,6 +945,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("Truncate",0,0,0);
   gOFS->MgmStats.Add("Utimes",0,0,0);
   gOFS->MgmStats.Add("VerifyStripe",0,0,0);
+  gOFS->MgmStats.Add("Version",0,0,0);
   gOFS->MgmStats.Add("WhoAmI",0,0,0);
 
   // set IO accounting file
@@ -937,6 +964,10 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->IoStats.StartCirculate();
   // start IO accounting
   gOFS->IoStats.Start();
+
+
+  // don't start the FSCK thread yet automatically
+  // gOFS->FsCheck.Start();
 
   if (hash) {
     // ask for a broadcast from fst's

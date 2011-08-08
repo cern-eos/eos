@@ -52,6 +52,7 @@ Balancer::Balance(void)
     bool IsSpaceBalancing=true;
     double SpaceDifferenceThreshold=0;
     
+    XrdSysThread::SetCancelOff();
     {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
@@ -80,7 +81,7 @@ Balancer::Balance(void)
         }
       }
     }
-
+    XrdSysThread::SetCancelOn();
     // hang a little bit around ...
     for (size_t sleeper = 0; sleeper < 100; sleeper++) {
       usleep(100000);

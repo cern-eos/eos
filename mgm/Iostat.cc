@@ -27,7 +27,7 @@ void
 Iostat::StartCirculate()
 {
   // we have to do after the name of the dump file was set, therefore the StartCirculate is an extra call
-  XrdSysThread::Run(&cthread, Iostat::StaticCirculate, static_cast<void *>(this),0, "Report Circulation Thread");
+  XrdSysThread::Run(&cthread, Iostat::StaticCirculate, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "Report Circulation Thread");
 }
 
 /* ------------------------------------------------------------------------- */
@@ -45,7 +45,7 @@ Iostat::Start()
 
   if (!mRunning) {
     mClient.Subscribe();
-    XrdSysThread::Run(&thread, Iostat::StaticReceive, static_cast<void *>(this),0, "Report Receiver Thread");
+    XrdSysThread::Run(&thread, Iostat::StaticReceive, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "Report Receiver Thread");
     mRunning = true;
     return true;
   } else {
