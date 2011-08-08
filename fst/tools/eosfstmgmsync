@@ -1,15 +1,25 @@
 #!/bin/bash
-. /etc/sysconfig/xrd
+test -r /etc/sysconfig/eos && . /etc/sysconfig/eos
+test -r /etc/quattor_install_info && . /etc/quattor_install_info
 
-/etc/init.d/xrd status && echo exit -1
+# set the redirector name like the quattor cluster name
+if [ "x$EOS_MGM_URL" = "x" ]; then
+        EOS_MGM_URL=root://$CDB_CLUSTER
+fi
+
+export EOS_MGM_URL
+export XrdSecPROTOCOL=sss
+
+
+/etc/init.d/eos status fst && echo exit -1
 
 # you can add a --test to just simulate what would happen
-# eosfstclean [--test] 
+# eosfstmgmsync [--test] 
 
 for fsname in `ls ${EOS_FST_DATA_DISK-/data}??/.eosfsid`; do
     fsid=`cat $fsname`;
     data=`dirname $fsname`;
     mdlog=`ls -1 ${EOS_FST_MD_LOCATION-/var/eos/md}/*.*$fsid.mdlog | sort | tail -1`;
-    ${EOS_LOCATION-/opt/eos}/bin/eosfstfsck $mdlog --data=${data}/ --mgm=${EOS_MGM_URL:root://lxbra0301.cern.ch//} --upload-fid=\* --delete-enoent --delete-deleted $1
+    ${EOS_LOCATION-/usr}/sbin/eos-fst-fsck $mdlog --data=${data}/ --mgm=${EOS_MGM_URL-root://eosdev.cern.ch//} --upload-fid=\* --delete-enoent --delete-deleted $1
 done
 

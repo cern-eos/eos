@@ -19,6 +19,20 @@ EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 bool 
+CheckSum::Compare(const char* refchecksum)
+{
+  bool result=true;
+  for (int i=0; i< GetCheckSumLen(); i++) {
+    int len;
+    if (refchecksum[i]!= GetBinChecksum(len)[i]) {
+      result=false;
+    }
+  }
+  return result;
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
 CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scantime, int rate) 
 {
   static int buffersize=1024*1024;
@@ -54,7 +68,6 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
     }
     Add(buffer, nread, offset);
     offset += nread;
-
     if (rate) {
       // regulate the verification rate
       gettimeofday(&currenttime,&tz);

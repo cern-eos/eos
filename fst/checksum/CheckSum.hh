@@ -41,6 +41,7 @@ public:
 
   virtual const char* GetHexChecksum() = 0;
   virtual const char* GetBinChecksum(int &len) = 0;
+  virtual bool Compare(const char* refchecksum);
   virtual off_t GetLastOffset() = 0;
   
   virtual int GetCheckSumLen() = 0;

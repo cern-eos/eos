@@ -146,6 +146,7 @@ public:
 
   bool FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid);
   bool CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid, bool failenoent=false);
+  bool GetFsidFromLabel(std::string path, eos::common::FileSystem::fsid_t &fsid);
 };
 
 EOSFSTNAMESPACE_END

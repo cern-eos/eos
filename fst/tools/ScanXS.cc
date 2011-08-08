@@ -13,12 +13,14 @@ int main (int argc, char *argv[]){
     fprintf(stderr,"usage: eos-scan-fs <directory>\n");
     exit(-1);
   }
-  
+
+  srand((unsigned int) time(NULL));
+
   eos::fst::Load fstLoad(1);
   fstLoad.Monitor();
 
   XrdOucString dirName = argv[1];
-  eos::fst::ScanDir* sd = new eos::fst::ScanDir(dirName.c_str(), &fstLoad, false, 20,100);
+  eos::fst::ScanDir* sd = new eos::fst::ScanDir(dirName.c_str(), &fstLoad, false, 10,100);
   if (sd) {
     eos::fst::ScanDir::StaticThreadProc( (void*)sd);
     delete sd;

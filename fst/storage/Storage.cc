@@ -121,7 +121,7 @@ FileSystem::RunScanner(Load* fstLoad, time_t interval)
   }
 
   // create the object running the scanner thread
-  scanDir = new ScanDir(GetPath().c_str(),fstLoad, true, interval);
+  scanDir = new ScanDir(GetPath().c_str(), fstLoad, true, interval);
   eos_info("Started 'ScanDir' thread with interval time of %u seconds", (unsigned long) interval);
 }
 
@@ -497,6 +497,50 @@ Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std:
   }
 
   return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+Storage::GetFsidFromLabel(std::string path, eos::common::FileSystem::fsid_t &fsid)
+{
+  //----------------------------------------------------------------
+  //! return the file system id from the filesystem fsid label file
+  //----------------------------------------------------------------
+
+  XrdOucString fsidfile = path.c_str();
+  fsidfile += "/.eosfsid";
+  
+  struct stat buf;
+  fsid = 0;
+
+  if (!stat(fsidfile.c_str(), &buf)) {
+    int fd = open(fsidfile.c_str(),O_RDONLY);
+    if (fd < 0) {
+      return false;
+    } else {
+      char ssfid[32];
+      memset(ssfid,0,sizeof(ssfid));
+      int nread = read(fd,ssfid,sizeof(ssfid)-1);
+      if (nread<0) {
+	close(fd);
+	return false;
+      }
+      close(fd);
+      // for safety
+      if (nread < (int)(sizeof(ssfid)-1)) 
+	ssfid[nread]=0;
+      else
+	ssfid[31]=0;
+      if (ssfid[strnlen(ssfid,sizeof(ssfid))-1] == '\n') {
+        ssfid[strnlen(ssfid, sizeof(ssfid))-1] = 0;
+      }
+      fsid = atoi(ssfid);
+    }
+  } 
+  if (fsid) 
+    return true;
+  else 
+    return false;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -923,7 +967,7 @@ Storage::ErrorReport()
       if (endpos > localCircularIndex[i] ) {
 	// we have to follow the messages and add them to the queue
 	gOFS.ErrorReportQueueMutex.Lock();
-	for (size_t j = localCircularIndex[i]; j < endpos; j++) {
+	for (unsigned long j = localCircularIndex[i]; j < endpos; j++) {
 	  // copy the messages to the queue
 	  eos::common::Logging::gMutex.Lock();
 	  gOFS.ErrorReportQueue.push(eos::common::Logging::gLogMemory[i][j%eos::common::Logging::gCircularIndexSize]);
@@ -948,10 +992,9 @@ Storage::ErrorReport()
       XrdMqMessage message("errorreport");
       message.MarkAsMonitor();
 
-      XrdOucString msgbody;
       message.SetBody(report.c_str());
       
-      eos_debug("broadcasting errorreport message: %s", msgbody.c_str());
+      eos_debug("broadcasting errorreport message: %s", report.c_str());
       
 
       if (!XrdMqMessaging::gMessageClient.SendMessage(message, errorReceiver.c_str())) {
@@ -994,7 +1037,7 @@ Storage::Verify()
 
       // try to lock this file
       if (!gOFS.LockManager.TryLock(verifyfile->fId)) {
-	eos_static_info("verifying File Id=%llu on Fs=%u postponed - file is currently open for writing");
+	eos_static_info("verifying File Id=%x on Fs=%u postponed - file is currently open for writing", verifyfile->fId, verifyfile->fsId);
 	verifications.push(verifyfile);
 	continue;
       }
@@ -1006,7 +1049,7 @@ Storage::Verify()
     }
     verificationsMutex.UnLock();
 
-    eos_static_debug("verifying File Id=%llu on Fs=%u", verifyfile->fId, verifyfile->fsId);
+    eos_static_debug("verifying File Id=%x on Fs=%u", verifyfile->fId, verifyfile->fsId);
     // verify the file
     XrdOucString hexfid="";
     eos::common::FileId::Fid2Hex(verifyfile->fId,hexfid);
@@ -1019,17 +1062,17 @@ Storage::Verify()
     // get current size on disk
     struct stat statinfo;
     if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
-      eos_static_err("unable to verify file id=%llu on fs=%u path=%s - stat on local disk failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+      eos_static_err("unable to verify file id=%x on fs=%u path=%s - stat on local disk failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
     } else {
       // attach meta data
       eos::common::Fmd* fMd = 0;
       fMd = eos::common::gFmdHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, 0);
       bool localUpdate = false;
       if (!fMd) {
-	eos_static_err("unable to verify id=%llu on fs=%u path=%s - no local MD stored", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+	eos_static_err("unable to verify id=%x on fs=%u path=%s - no local MD stored", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
       } else {
 	if ( fMd->fMd.size != (unsigned long long)statinfo.st_size) {
-	  eos_static_err("updating file size: path=%s fid=%s changelog value %llu - fs value %llu",verifyfile->path.c_str(),hexfid.c_str(), statinfo.st_size, fMd->fMd.size);
+	  eos_static_err("updating file size: path=%s fid=%s changelog value %x - fs value %llu",verifyfile->path.c_str(),hexfid.c_str(), statinfo.st_size, fMd->fMd.size);
 	  localUpdate = true;
 	}
 	
@@ -1077,9 +1120,16 @@ Storage::Verify()
 	      memset(fMd->fMd.checksum,0,sizeof(fMd->fMd.checksum));
 	      // copy checksum into meta data
 	      memcpy(fMd->fMd.checksum, checksummer->GetBinChecksum(checksumlen),checksumlen);
+
 	      localUpdate =true;
 	    } else {
 	      eos_static_info("checksum OK        : path=%s fid=%s checksum=%s", verifyfile->path.c_str(),hexfid.c_str(), checksummer->GetHexChecksum());
+	    }
+	    eos::common::Attr *attr = eos::common::Attr::OpenAttr(fstPath.c_str());
+	    if (attr) {
+	      // update the extended attributes
+	      attr->Set("user.eos.checksum",checksummer->GetBinChecksum(checksumlen), checksumlen);
+	      delete attr;
 	    }
 	  }
 

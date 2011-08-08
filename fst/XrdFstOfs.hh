@@ -28,6 +28,7 @@
 #include "Xrd/XrdScheduler.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/mman.h>
+#include <fts.h>
 #include <queue>
 /*----------------------------------------------------------------------------*/
 
@@ -37,10 +38,30 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-class XrdFstOfsDirectory : public XrdOfsDirectory, public eos::common::LogId {
+class XrdFstOfsDirectory : public XrdSfsDirectory, public eos::common::LogId {
+private:
+  FTS *fts_tree;
+  char **fts_paths;
+  XrdOucString entry;
+  XrdOucString dirname;
+  eos::common::FileSystem::fsid_t fsid;
+  
 public:
-  XrdFstOfsDirectory(const char *user) : XrdOfsDirectory(user){eos::common::LogId();};
-  virtual            ~XrdFstOfsDirectory() {}
+  XrdFstOfsDirectory(const char *user) : XrdSfsDirectory(user){eos::common::LogId();fts_tree=0;fts_paths=0;};
+  virtual            ~XrdFstOfsDirectory() {
+    close();
+  }
+
+  
+  int         open(const char              *dirName,
+		   const XrdSecClientName  *client = 0,
+		   const char              *opaque = 0); 
+
+  const char *nextEntry();
+
+  const   char       *FName() {return (const char *)dirname.c_str();}
+
+  int         close();
 };
 
 /*----------------------------------------------------------------------------*/
@@ -82,7 +103,7 @@ public:
   int            fsctl(const int               cmd,
 		       const char             *args,
 		       XrdOucErrInfo    &out_error,
-		       const XrdSecEntity     *client) { return SFS_OK; } 
+		       const XrdSecEntity     *client);
 
   int            mkdir(const char             *dirName,
 		       XrdSfsMode        Mode,

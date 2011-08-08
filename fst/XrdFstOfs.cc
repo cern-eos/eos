@@ -1,5 +1,6 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOfs.hh"
+#include "fst/checksum/ChecksumPlugins.hh"
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
@@ -316,6 +317,28 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   XrdOucString dumperfile = eos::fst::Config::gConfig.FstMetaLogDir;
   dumperfile += "so.fst.dump";
   ObjectManager.StartDumper(dumperfile.c_str());
+
+  XrdOucString keytabcks="unaccessible";
+
+ 
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // build the adler checksum of the default keytab file
+  int fd = ::open("/etc/eos.keytab",O_RDONLY);
+  if (fd>0) {
+    char buffer[65535];
+    size_t nread = ::read(fd, buffer, sizeof(buffer));
+    if (nread>0) {
+      CheckSum* KeyCKS = ChecksumPlugins::GetChecksumObject(eos::common::LayoutId::kAdler);
+      if (KeyCKS) {
+	KeyCKS->Add(buffer,0,nread);
+	keytabcks= KeyCKS->GetHexChecksum();
+	delete KeyCKS;
+      }
+    }
+    close(fd);
+  }
+
+  eos_notice("FST_HOST=%s FST_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s", HostName, myPort, VERSION,RELEASE, keytabcks.c_str());
 
   return 0;
 }
@@ -840,6 +863,19 @@ XrdFstOfsFile::close()
          
          // set the container id
          fMd->fMd.cid = cid;
+	 
+	 // for replicat's set the original uid/gid/lid values
+	 if (capOpaque->Get("mgm.source.lid")) {
+	   fMd->fMd.lid = strtoul(capOpaque->Get("mgm.source.lid"),0,10);
+	 }
+
+	 if (capOpaque->Get("mgm.source.ruid")) {
+	   fMd->fMd.uid = atoi(capOpaque->Get("mgm.source.ruid"));
+	 }
+
+	 if (capOpaque->Get("mgm.source.rgid")) {
+	   fMd->fMd.uid = atoi(capOpaque->Get("mgm.source.rgid"));
+	 }
          
          eos::common::Path cPath(capOpaque->Get("mgm.path"));
          if (cPath.GetName())strncpy(fMd->fMd.name,cPath.GetName(),255);
@@ -885,12 +921,21 @@ XrdFstOfsFile::close()
            capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
          }
          rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
-         if (rc == -EIDRM) {
+         if ( (rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR) ) {
            if (!gOFS.Storage->CloseTransaction(fsid, fileid)) {
              eos_crit("cannot close transaction for fsid=%u fid=%llu", fsid, fileid);
            }
-           // this file has been deleted in the meanwhile ... we can unlink that immedeatly
-           eos_info("unlinking fid=%08x path=%s - file has been already unlinked from the namespace", fMd->fMd.fid, Path.c_str());
+	   if (rc == -EIDRM) {
+	     // this file has been deleted in the meanwhile ... we can unlink that immedeatly
+	     eos_info("unlinking fid=%08x path=%s - file has been already unlinked from the namespace", fMd->fMd.fid, Path.c_str());
+	   }
+	   if (rc == -EBADE) {
+	     eos_err("unlinking fid=%08x path=%s - file size of replica does not match reference", fMd->fMd.fid, Path.c_str());
+	   }
+	   if (rc == -EBADR) {
+	     eos_err("unlinking fid=%08x path=%s - checksum of replica does not match reference", fMd->fMd.fid, Path.c_str());
+	   }
+
            int rc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
            rc = SFS_ERROR;
            
@@ -1457,7 +1502,29 @@ XrdFstOfs::_rem(const char             *path,
   return SFS_OK;
 }
 
-/*----------------------------------------------------------------------------*/
+int       
+XrdFstOfs::fsctl(const int               cmd,
+		 const char             *args,
+		 XrdOucErrInfo          &error,
+		 const XrdSecEntity *client)
+
+{
+  static const char *epname = "fsctl";
+  const char *tident = error.getErrUser();
+
+  if ((cmd == SFS_FSCTL_LOCATE)) {
+    char locResp[4096];
+    char rType[3], *Resp[] = {rType, locResp};
+    rType[0] = 'S';
+    rType[1] = 'r';//(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
+    rType[2] = '\0';
+    sprintf(locResp,"[::%s:%d] ",(char*)HostName,myPort);
+    error.setErrInfo(strlen(locResp)+3, (const char **)Resp, 2);
+    ZTRACE(fsctl,"located at headnode: " << locResp);
+    return SFS_DATA;
+  }
+  return gOFS.Emsg(epname, error, EPERM, "execute fsctl function", "");
+}
 
 /*----------------------------------------------------------------------------*/
 int
@@ -1471,6 +1538,18 @@ XrdFstOfs::FSctl(const int               cmd,
   
   static const char *epname = "FSctl";
   const char *tident = error.getErrUser();
+
+  if ((cmd == SFS_FSCTL_LOCATE)) {
+    char locResp[4096];
+    char rType[3], *Resp[] = {rType, locResp};
+    rType[0] = 'S';
+    rType[1] = 'r';//(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
+    rType[2] = '\0';
+    sprintf(locResp,"[::%s:%d] ",(char*)HostName,myPort);
+    error.setErrInfo(strlen(locResp)+3, (const char **)Resp, 2);
+    ZTRACE(fsctl,"located at headnode: " << locResp);
+    return SFS_DATA;
+  }
   
   // accept only plugin calls!
 
@@ -1551,7 +1630,7 @@ XrdFstOfs::FSctl(const int               cmd,
 }
 
 
-
+/*----------------------------------------------------------------------------*/
 void 
 XrdFstOfs::OpenFidString(unsigned long fsid, XrdOucString &outstring)
 {
@@ -1578,5 +1657,151 @@ XrdFstOfs::OpenFidString(unsigned long fsid, XrdOucString &outstring)
   OpenFidMutex.UnLock();
 }
 
+
+/*----------------------------------------------------------------------------*/
+int
+XrdFstOfsDirectory::open(const char              *dirName,
+			 const XrdSecClientName  *client,
+			 const char              *opaque)
+{
+  /* --------------------------------------------------------------------------------- */
+  /* We use opendir/readdir/closedir to send meta data information about EOS FST files */
+  /* --------------------------------------------------------------------------------- */
+  XrdOucEnv Opaque(opaque?opaque:"disk=1");
+
+  eos_info("calling opendir for %s\n", dirName);
+  dirname = dirName;
+  if (!client || (strcmp(client->prot,"sss"))) {
+    return gOFS.Emsg("opendir",error,EPERM, "open directory - you need to connect via sss",dirName);
+  }
+
+  if (Opaque.Get("disk")) {
+    std::string dn = dirname.c_str();
+    if (!gOFS.Storage->GetFsidFromLabel(dn, fsid)) {
+      return gOFS.Emsg("opendir",error, EINVAL,"open directory - filesystem has no fsid label ", dirName);
+    }
+    // here we traverse the tree of the path given by dirName
+    fts_paths    = (char**) calloc(2, sizeof(char*));
+    fts_paths[0] = (char*) dirName;
+    fts_paths[1] = 0;
+    fts_tree = fts_open(fts_paths, FTS_NOCHDIR, 0);
+        
+    if (fts_tree) {
+      return SFS_OK;
+    }
+    return gOFS.Emsg("opendir",error,errno,"open directory - fts_open failed for ",dirName);
+  }
+  return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+
+const char*
+XrdFstOfsDirectory::nextEntry()
+{
+  FTSENT *node;
+  size_t nfound=0;
+  entry="";
+  // we send the directory contents in a packed format
+
+  while ( (node = fts_read(fts_tree)) ) {
+    if (node) {
+      if (node->fts_level > 0 && node->fts_name[0] == '.') {
+	fts_set(fts_tree, node, FTS_SKIP);
+      } else {
+	if (node->fts_info && FTS_F) {
+	  XrdOucString sizestring;
+	  XrdOucString filePath = node->fts_accpath;
+	  XrdOucString fileId   = node->fts_accpath;
+	  if (!filePath.matches("*.xsmap")) {
+	    struct stat st_buf;
+	    eos::common::Attr *attr = eos::common::Attr::OpenAttr(filePath.c_str());
+	    int spos = filePath.rfind("/");
+	    if (spos >0) {
+	      fileId.erase(0, spos+1);
+	    }
+	    if ((fileId.length() == 8) && (!stat(filePath.c_str(),&st_buf) && S_ISREG(st_buf.st_mode))) {
+	      std::string val="";
+	      // fxid
+	      entry += fileId;
+	      entry += ":";
+	      // scandir timestap
+	      val = attr->Get("user.eos.timestamp").c_str();
+	      entry += val.length()?val.c_str():"x";
+	      entry += ":";
+	      // creation checksum
+	      val = "";
+	      char checksumVal[SHA_DIGEST_LENGTH];
+	      size_t checksumLen;
+	      memset(checksumVal,0,SHA_DIGEST_LENGTH);
+	      if (attr->Get("user.eos.checksum", checksumVal, checksumLen)) {
+		for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
+		  char hb[3]; sprintf(hb,"%02x", (unsigned char) (checksumVal[i]));
+		  val += hb;
+		}
+	      }
+
+	      entry += val.length()?val.c_str():"x";
+	      entry += ":";
+	      // tag for file checksum error
+	      val = attr->Get("user.eos.filecxerror").c_str();
+	      entry += val.length()?val.c_str():"x";
+	      entry += ":";
+	      // tag for block checksum error
+	      val = attr->Get("user.eos.blockcxerror").c_str();
+	      entry += val.length()?val.c_str():"x";
+	      entry += ":";
+	      // tag for physical size
+	      entry += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)st_buf.st_size);
+	      entry += ":";
+	      if (fsid) {
+		eos::common::Fmd* fmd = eos::common::gFmdHandler.GetFmd(eos::common::FileId::Hex2Fid(fileId.c_str()), fsid, 0,0,0,0);
+		if (fmd) {
+		  // size in changelog
+		  entry += eos::common::StringConversion::GetSizeString(sizestring, fmd->fMd.size);
+		  entry += ":";
+
+		  // checksum in changelog
+		  for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
+		    char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->fMd.checksum[i]));
+		    entry += hb;
+		  }
+		  delete fmd;
+		} 
+	      }
+	      entry += "\n";
+	      nfound++;
+	    }
+	    if (attr)
+	      delete attr;
+	  }
+	}
+      }
+      if (nfound)
+	break;
+    }
+  }
+
+  if (nfound==0) 
+    return 0;
+  else
+    return entry.c_str();
+}
+
+/*----------------------------------------------------------------------------*/
+
+int
+XrdFstOfsDirectory::close()
+{
+  if (fts_tree) {
+    fts_close(fts_tree);
+    fts_tree = 0;
+  }
+  if (fts_paths) {
+    free(fts_paths);
+    fts_paths=0;
+  }
+  return SFS_OK;
+}
 EOSFSTNAMESPACE_END
 

@@ -34,6 +34,7 @@ private:
   long long int bufferSize;
   long int noNoChecksumFiles;
   long int noTotalFiles;
+  long int SkippedFiles; 
 
   int rateBandwidth;     // MB/s
   int alignment;
@@ -51,15 +52,14 @@ public:
     noNoChecksumFiles = 0;
     noTotalFiles     = 0;
     bgThread = bgthread;
-
     alignment = pathconf(dirPath.c_str(), _PC_REC_XFER_ALIGN);
     bufferSize = 256 * alignment;
- 
+    
     if (posix_memalign((void**)&buffer, alignment, bufferSize)){
       fprintf(stderr, "error: error calling posix_memaling on dirpath=%s. \n",dirPath.c_str());
       return;
     }
-
+    
     if (bgthread) {
       openlog("scandir", LOG_PID | LOG_NDELAY, LOG_USER);
       XrdSysThread::Run(&thread, ScanDir::StaticThreadProc, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "ScanDir Thread");
@@ -70,9 +70,10 @@ public:
 
   void CheckFile(const char*);
   eos::fst::CheckSum* GetBlockXS(const char*);
-  bool ScanFileLoadAware(const char*, unsigned long long &, float &, std::string, unsigned long, const char* lfn); 
-
+  bool ScanFileLoadAware(const char*, unsigned long long &, float &, const char*, unsigned long, const char* lfn, bool &filecxerror, bool &blockxserror); 
+  
   std::string GetTimestamp();
+  std::string GetTimestampSmeared();
   bool RescanFile(std::string);
   
   static void* StaticThreadProc(void*);

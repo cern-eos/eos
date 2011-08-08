@@ -50,15 +50,32 @@ add_executable( eos-scan-fs
                 Load.cc
 )
 
+add_executable( eos-adler32
+		tools/Adler32.cc
+                checksum/CheckSum.cc
+                ../checksum/crc32c.cc
+                ../checksum/crc32ctables.cc
+)
+
 add_executable( eosfstcp 
                 txqueue/eosfstcp.cc
+)
+
+add_executable( eos-fst-fsck 
+                tools/FsckFst.cc
+                checksum/CheckSum.cc
+                ../checksum/crc32c.cc
+                ../checksum/crc32ctables.cc
+
 )
 
 target_link_libraries ( FstLoad XrdSys XrdOuc XrdNetUtil dl )
 target_link_libraries ( eos-check-blockxs eosCommon )
 target_link_libraries ( eos-compute-blockxs eosCommon )
 target_link_libraries ( eos-scan-fs eosCommon ) 
+target_link_libraries ( eos-adler32 eosCommon ) 
 target_link_libraries ( eosfstcp XrdPosix )
+target_link_libraries ( eos-fst-fsck XrdClient uuid eosCommon )
 
 if (Linux)
   set_target_properties (XrdEosFst PROPERTIES
@@ -68,7 +85,7 @@ if (Linux)
   )
 endif(Linux)
 
-INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstinfo tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync eos-check-blockxs eos-compute-blockxs eos-scan-fs )
+INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstinfo tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync tools/eosfstmgmcheck eos-adler32 eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-fst-fsck)
 
 install ( TARGETS XrdEosFst eosfstcp
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}

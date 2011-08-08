@@ -5,15 +5,16 @@
 #include <fcntl.h>
 
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdCommon/XrdCommonFmd.hh"
-#include "XrdCommon/XrdCommonPath.hh"
-#include "XrdCommon/XrdCommonFileId.hh"
-#include "XrdCommon/XrdCommonFileSystem.hh"
-#include "XrdCommon/XrdCommonLayoutId.hh"
+#include "common/Fmd.hh"
+#include "common/Path.hh"
+#include "common/FileId.hh"
+#include "common/FileSystem.hh"
+#include "common/LayoutId.hh"
+#include "common/StringConversion.hh"
 
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientAdmin.hh"
-#include "fst/XrdFstOfsChecksumPlugins.hh"
+#include "fst/checksum/ChecksumPlugins.hh"
 
 #include <google/sparse_hash_set>
 
@@ -51,9 +52,9 @@ bool yesno(const char* text) {
 int main(int argc, char* argv[] ) {
   // change to daemon account
   setuid(2);
-  XrdCommonLogging::Init();
-  XrdCommonLogging::SetUnit("eosfstfsck");
-  XrdCommonLogging::SetLogPriority(LOG_NOTICE);
+  eos::common::Logging::Init();
+  eos::common::Logging::SetUnit("eosfstfsck");
+  eos::common::Logging::SetLogPriority(LOG_NOTICE);
   XrdOucString passoption="c";
   XrdOucString changelogdir="";
   XrdOucString searchpath="";
@@ -183,7 +184,7 @@ int main(int argc, char* argv[] ) {
 
   int fsid=0;
   
-  XrdCommonFmdHandler gFmd;
+  eos::common::FmdHandler gFmd;
   XrdClientAdmin* gManager;
 
   int idpos = changelogfile.rfind(".mdlog");
@@ -218,9 +219,9 @@ int main(int argc, char* argv[] ) {
 
   if (trim) {
     if (quiet)
-      XrdCommonLogging::SetLogPriority(LOG_CRIT);
+      eos::common::Logging::SetLogPriority(LOG_CRIT);
     else 
-      XrdCommonLogging::SetLogPriority(LOG_NOTICE);
+      eos::common::Logging::SetLogPriority(LOG_NOTICE);
     if (!gFmd.TrimLogFile(fsid,passoption)) {
       fprintf(stderr,"%s: error: trimming has failed\n",argv[0]);
       rc = 2;
@@ -240,12 +241,12 @@ int main(int argc, char* argv[] ) {
   if (searchpath.length()) {
     fprintf(stdout,"---------------------------------------\n");
     if (quiet)
-       XrdCommonLogging::SetLogPriority(LOG_CRIT);
+       eos::common::Logging::SetLogPriority(LOG_CRIT);
     else 
       if (!show) 
-	XrdCommonLogging::SetLogPriority(LOG_NOTICE);
+	eos::common::Logging::SetLogPriority(LOG_NOTICE);
       else
-	XrdCommonLogging::SetLogPriority(LOG_INFO);
+	eos::common::Logging::SetLogPriority(LOG_INFO);
 
     if (cleantransactions) {
       unsigned long long transaction_cleanup_ok=0;
@@ -290,9 +291,9 @@ int main(int argc, char* argv[] ) {
     } else {
       char filename[16384];
       while ( (fscanf(fp,"%s\n",filename)) == 1) {
-	XrdCommonPath cPath(filename);
+	eos::common::Path cPath(filename);
 	XrdOucString bname = cPath.GetName();
-	long long fid = XrdCommonFileId::Hex2Fid(bname.c_str());
+	long long fid = eos::common::FileId::Hex2Fid(bname.c_str());
 	//	fprintf(stdout,"%llu\t", fid);
 	DiskFid.insert(make_pair(fid,filename));
       }
@@ -353,7 +354,7 @@ int main(int argc, char* argv[] ) {
 	    eos_static_err("fid %08llx - cannot do stat on %s !", it->first,DiskFid[it->first].c_str());
 	    error_wrong_filesize++;
 	  } else {
-	    XrdCommonFmd* fmd = gFmd.GetFmd(it->first, fsid, 0,0,0);
+	    eos::common::Fmd* fmd = gFmd.GetFmd(it->first, fsid, 0,0,0);
 
 	    // check size
 	    if ((unsigned long long) buf.st_size != gFmd.FmdSize[it->first]) {
@@ -424,12 +425,12 @@ int main(int argc, char* argv[] ) {
 
   if (mgmurl.length()) {
     if (quiet)
-      XrdCommonLogging::SetLogPriority(LOG_CRIT);
+      eos::common::Logging::SetLogPriority(LOG_CRIT);
     else 
       if (!show) 
-	XrdCommonLogging::SetLogPriority(LOG_NOTICE);
+	eos::common::Logging::SetLogPriority(LOG_NOTICE);
       else
-	XrdCommonLogging::SetLogPriority(LOG_INFO);
+	eos::common::Logging::SetLogPriority(LOG_INFO);
 
     google::sparse_hash_set<unsigned long long> fidsInCache;
 
@@ -462,6 +463,9 @@ int main(int argc, char* argv[] ) {
 	offset += nbytes;
       }
       client.Close();
+    } else {
+      fprintf(stderr,"error: unable to dump meta data from the MGM!\n");
+      exit(-1);
     }
 
     XrdOucEnv result(out.c_str());
@@ -487,6 +491,10 @@ int main(int argc, char* argv[] ) {
     unsigned long long failed_update_local=0;
     unsigned long long failed_update_central=0;
 
+    if (result.Get("mgm.proc.stderr") && strlen(result.Get("mgm.proc.stderr"))) {
+      fprintf(stderr,"error: couldn't get a meta data dump from the MGM - %s\n", result.Get("mgm.proc.stderr"));
+      exit(-1);
+    }
     // this is not the most efficient since we copy twice the whole buffer, but it is more 'clean' to do like that
     if (result.Get("mgm.proc.stdout")) {
       out = result.Get("mgm.proc.stdout");
@@ -503,8 +511,8 @@ int main(int argc, char* argv[] ) {
 	XrdOucEnv mdEnv(thisline.c_str());
 
 	// parse back the info
-	struct XrdCommonFmd::FMD fmd;
-	memset((void*)&fmd,0,sizeof(struct XrdCommonFmd::FMD));
+	struct eos::common::Fmd::FMD fmd;
+	memset((void*)&fmd,0,sizeof(struct eos::common::Fmd::FMD));
 	bool parseerror=false;
 	if (mdEnv.Get("id")) {
 	  fmd.fid = strtoull(mdEnv.Get("id"),0,10);
@@ -581,7 +589,7 @@ int main(int argc, char* argv[] ) {
 	  XrdOucString localChecksum="";
 	  
 	  // do the comparisons
-	  XrdCommonFmd* rfmd = gFmd.GetFmd(fmd.fid, fsid, 0,0,0);
+	  eos::common::Fmd* rfmd = gFmd.GetFmd(fmd.fid, fsid, 0,0,0);
 	  if (!rfmd) {
 	    eos_static_err("fid %08llx - cannot retrieve file meta data from changelog",fmd.fid);
 	    error_no_fmd++;
@@ -589,8 +597,9 @@ int main(int argc, char* argv[] ) {
 	    for (int i=0; i< SHA_DIGEST_LENGTH; i++ ) {
 	      char c[3];
 	      // caution, this checksum have swapped byte order, because they come from reading an int bytewise!
-	      if ( ((XrdCommonLayoutId::GetChecksum(rfmd->fMd.lid) == XrdCommonLayoutId::kAdler) ||
-		    (XrdCommonLayoutId::GetChecksum(rfmd->fMd.lid) == XrdCommonLayoutId::kCRC32)) && (i<4) ) {
+	      if ( ((eos::common::LayoutId::GetChecksum(rfmd->fMd.lid) == eos::common::LayoutId::kAdler) ||    
+		    (eos::common::LayoutId::GetChecksum(rfmd->fMd.lid) == eos::common::LayoutId::kCRC32) ||
+		    (eos::common::LayoutId::GetChecksum(rfmd->fMd.lid) == eos::common::LayoutId::kCRC32C))  && (i<4) ) {
 		sprintf(c,"%02x", (unsigned char) rfmd->fMd.checksum[3-i]);
 	      } else {
 		sprintf(c,"%02x", (unsigned char) rfmd->fMd.checksum[i]);
@@ -600,11 +609,11 @@ int main(int argc, char* argv[] ) {
 	    
 	    XrdOucString centralChecksum = mdEnv.Get("checksum");
 	    if (centralChecksum != localChecksum) {
-	      eos_static_notice("fid %08llx has CX=%s LX=%s TYPE=%s",rfmd->fMd.fid, centralChecksum.c_str(),localChecksum.c_str(),  XrdCommonLayoutId::GetChecksumString(rfmd->fMd.lid));
+	      eos_static_notice("fid %08llx has CX=%s LX=%s TYPE=%s",rfmd->fMd.fid, centralChecksum.c_str(),localChecksum.c_str(),  eos::common::LayoutId::GetChecksumString(rfmd->fMd.lid));
 	      error_diff_checksum++;
 	      if (checksum) {
 		// recalculate a checksum
-		XrdFstOfsChecksum* checksummer = XrdFstOfsChecksumPlugins::GetChecksumObject(rfmd->fMd.lid);
+		eos::fst::CheckSum* checksummer = eos::fst::ChecksumPlugins::GetChecksumObject(rfmd->fMd.lid);
 		if (!checksummer) {
 		  eos_static_crit("cannot load any checksum plugin");
 		  error_xsum_illegaltype++;
@@ -612,8 +621,8 @@ int main(int argc, char* argv[] ) {
 		  // build the local filename
 		  XrdOucString hexstring="";
 		  XrdOucString fullpath="";
-		  XrdCommonFileId::Fid2Hex(rfmd->fMd.fid, hexstring);
-		  XrdCommonFileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
+		  eos::common::FileId::Fid2Hex(rfmd->fMd.fid, hexstring);
+		  eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
 		  // scan the checksum of that file
 		  eos_static_notice("Scanning checksum of file %s ...", fullpath.c_str());
 		  unsigned long long scansize=0;
@@ -623,7 +632,7 @@ int main(int argc, char* argv[] ) {
 		    error_xsum_failed++;
 		  } else {
 		    XrdOucString sizestring;
-		    eos_static_notice("name=%s path=%s fid=%08llx CX=%s size=%s time=%.02fms rate=%.02f MB/s", rfmd->fMd.name, fullpath.c_str(), rfmd->fMd.fid,checksummer->GetHexChecksum() , XrdCommonFileSystem::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999));
+		    eos_static_notice("name=%s path=%s fid=%08llx CX=%s size=%s time=%.02fms rate=%.02f MB/s", rfmd->fMd.name, fullpath.c_str(), rfmd->fMd.fid,checksummer->GetHexChecksum() , eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999));
 		    int checksumlen;
 		    checksummer->GetBinChecksum(checksumlen);
 		    // copy checksum into meta data entry
@@ -653,9 +662,9 @@ int main(int argc, char* argv[] ) {
 			capOpaqueFile += checksummer->GetHexChecksum();
 			
 			capOpaqueFile += "&mgm.mtime=";
-			capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, rfmd->fMd.mtime);
+			capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)rfmd->fMd.mtime);
 			capOpaqueFile += "&mgm.mtime_ns=";
-			capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, rfmd->fMd.mtime_ns);
+			capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)rfmd->fMd.mtime_ns);
 			
 			capOpaqueFile += "&mgm.add.fsid=";
 			capOpaqueFile += (int)rfmd->fMd.fsid;
@@ -663,7 +672,7 @@ int main(int argc, char* argv[] ) {
 			capOpaqueFile += "&mgm.path=<UNDEF>";
 			capOpaqueFile += "&mgm.fid=";
 			XrdOucString hexfid;
-			XrdCommonFileId::Fid2Hex(rfmd->fMd.fid,hexfid);
+			eos::common::FileId::Fid2Hex(rfmd->fMd.fid,hexfid);
 			capOpaqueFile += hexfid;
 			
 			gManager->GetClientConn()->ClearLastServerError();
@@ -838,7 +847,7 @@ int main(int argc, char* argv[] ) {
 	  eos_static_notice("fid %08x is in the changelog but missing in central cache",it->first);
 
 	  if (uploadfid == "*") {
-	    XrdCommonFmd* fmd = gFmd.GetFmd(it->first, fsid, 0,0,0);
+	    eos::common::Fmd* fmd = gFmd.GetFmd(it->first, fsid, 0,0,0);
 	    if (fmd) {
 	      if (!testonly) {
 		XrdOucString capOpaqueFile="";
@@ -852,9 +861,9 @@ int main(int argc, char* argv[] ) {
 		//	capOpaqueFile += checksummer->GetHexChecksum();
 		
 		capOpaqueFile += "&mgm.mtime=";
-		capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fmd->fMd.mtime);
+		capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fmd->fMd.mtime);
 		capOpaqueFile += "&mgm.mtime_ns=";
-		capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fmd->fMd.mtime_ns);
+		capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fmd->fMd.mtime_ns);
 		
 		capOpaqueFile += "&mgm.add.fsid=";
 		capOpaqueFile += (int)fmd->fMd.fsid;
@@ -862,7 +871,7 @@ int main(int argc, char* argv[] ) {
 		capOpaqueFile += "&mgm.path=<UNDEF>";
 		capOpaqueFile += "&mgm.fid=";
 		XrdOucString hexfid;
-		XrdCommonFileId::Fid2Hex(fmd->fMd.fid,hexfid);
+		eos::common::FileId::Fid2Hex(fmd->fMd.fid,hexfid);
 		capOpaqueFile += hexfid;
 		
 		gManager->GetClientConn()->ClearLastServerError();
@@ -913,8 +922,8 @@ int main(int argc, char* argv[] ) {
 		      // unlink on disk
 		      XrdOucString hexstring="";
 		      XrdOucString fullpath="";
-		      XrdCommonFileId::Fid2Hex(fmd->fMd.fid, hexstring);
-		      XrdCommonFileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
+		      eos::common::FileId::Fid2Hex(fmd->fMd.fid, hexstring);
+		      eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
 		      eos_static_crit("unlinking %s", fullpath.c_str());
 		      if ((!testonly) && (unlink(fullpath.c_str()))) {eos_static_err("failed to unlink file %s", fullpath.c_str());}
 		      
@@ -926,7 +935,7 @@ int main(int argc, char* argv[] ) {
 		      capOpaqueFile += (int)fmd->fMd.fsid;
 		      capOpaqueFile += "&mgm.fid=";
 		      XrdOucString hexfid;
-		      XrdCommonFileId::Fid2Hex(fmd->fMd.fid,hexfid);
+		      eos::common::FileId::Fid2Hex(fmd->fMd.fid,hexfid);
 		      capOpaqueFile += hexfid;
 		      
 		      gManager->GetClientConn()->ClearLastServerError();
@@ -976,8 +985,8 @@ int main(int argc, char* argv[] ) {
 			// unlink on disk
 			XrdOucString hexstring="";
 			XrdOucString fullpath="";
-			XrdCommonFileId::Fid2Hex(fmd->fMd.fid, hexstring);
-			XrdCommonFileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
+			eos::common::FileId::Fid2Hex(fmd->fMd.fid, hexstring);
+			eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
 			eos_static_crit("unlinking %s", fullpath.c_str());
 			if ((!testonly) && (unlink(fullpath.c_str()))) {eos_static_err("failed to unlink file %s", fullpath.c_str());}
 			files_delete_local++;
@@ -1017,7 +1026,7 @@ int main(int argc, char* argv[] ) {
     // this piece of code uploads the meta data of an explicit given hex fid
     if (uploadfid.length() && (uploadfid!="*")) {
       unsigned long long ufid = strtoull(uploadfid.c_str(),0,16);
-      XrdCommonFmd* fmd = gFmd.GetFmd(ufid, fsid, 0,0,0);
+      eos::common::Fmd* fmd = gFmd.GetFmd(ufid, fsid, 0,0,0);
       if (fmd) {
 	if (!testonly) {
 	  XrdOucString capOpaqueFile="";
@@ -1031,9 +1040,9 @@ int main(int argc, char* argv[] ) {
 	  //	capOpaqueFile += checksummer->GetHexChecksum();
 	  
 	  capOpaqueFile += "&mgm.mtime=";
-	  capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fmd->fMd.mtime);
+	  capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fmd->fMd.mtime);
 	  capOpaqueFile += "&mgm.mtime_ns=";
-	  capOpaqueFile += XrdCommonFileSystem::GetSizeString(mTimeString, fmd->fMd.mtime_ns);
+	  capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fmd->fMd.mtime_ns);
 	  
 	  capOpaqueFile += "&mgm.add.fsid=";
 	  capOpaqueFile += (int)fmd->fMd.fsid;
@@ -1041,7 +1050,7 @@ int main(int argc, char* argv[] ) {
 	  capOpaqueFile += "&mgm.path=<UNDEF>";
 	  capOpaqueFile += "&mgm.fid=";
 	  XrdOucString hexfid;
-	  XrdCommonFileId::Fid2Hex(fmd->fMd.fid,hexfid);
+	  eos::common::FileId::Fid2Hex(fmd->fMd.fid,hexfid);
 	  capOpaqueFile += hexfid;
 	  
 	  gManager->GetClientConn()->ClearLastServerError();
