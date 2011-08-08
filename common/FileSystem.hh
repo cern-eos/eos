@@ -38,6 +38,8 @@ protected:
   TransferQueue* mBalanceQueue;
   TransferQueue* mExternQueue;
 
+  unsigned long long PreBookedSpace;
+
 public:
   //------------------------------------------------------------------------
   // Struct & Type definitions
@@ -285,7 +287,15 @@ public:
 
   long long GetPrebookedSpace() {
     // this is dummy for the moment, but will later return 'scheduled' used space
-    return 0;
+    return PreBookedSpace;
+  }
+
+  void PreBookSpace(unsigned long long book) {
+    PreBookedSpace += book;
+  }
+   
+  void FreePreBookedSpace() {
+    PreBookedSpace = 0;
   }
 
   TransferQueue* GetDrainQueue  () { return mDrainQueue;   }

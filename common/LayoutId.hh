@@ -100,6 +100,11 @@ public:
     if (GetLayoutType(layout) == kRaid5)   return (1.0 * (GetStripeNumber(layout)+1) / ( GetStripeNumber(layout)?GetStripeNumber(layout):1));
     return 1.0;
   }
+
+  static size_t GetMinOnlineReplica(unsigned long layout) {
+    if (GetLayoutType(layout) == kRaid5)   return GetStripeNumber(layout);
+    return 1;
+  }
   
   static const char* GetChecksumString(unsigned long layout) { if (GetChecksum(layout)==kNone) return "none"; if (GetChecksum(layout)==kAdler) return "adler"; if (GetChecksum(layout)==kCRC32) return "crc32"; if (GetChecksum(layout)==kCRC32C) return "crc32c"; if (GetChecksum(layout)==kMD5) return "md5"; if (GetChecksum(layout)==kSHA1) return "sha"; return "none";}
   static const char* GetBlockChecksumString(unsigned long layout) { if (GetBlockChecksum(layout)==kNone) return "none"; if (GetBlockChecksum(layout)==kAdler) return "adler"; if (GetBlockChecksum(layout)==kCRC32) return "crc32"; if (GetBlockChecksum(layout)==kCRC32C) return "crc32c"; if (GetBlockChecksum(layout)==kMD5) return "md5"; if (GetBlockChecksum(layout)==kSHA1) return "sha"; return "none";}

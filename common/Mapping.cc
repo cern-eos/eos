@@ -331,9 +331,9 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
       if (!HasUid((*it),vid.uid_list)) vid.uid_list.push_back((*it));
   }
 
-  if (gUserRoleVector.count(vid.gid)) {
+  if (gGroupRoleVector.count(vid.uid)) {
     gid_vector::const_iterator it;
-    for (it = gGroupRoleVector[vid.gid].begin(); it != gGroupRoleVector[vid.gid].end(); ++it)
+    for (it = gGroupRoleVector[vid.uid].begin(); it != gGroupRoleVector[vid.uid].end(); ++it)
       if (!HasGid((*it),vid.gid_list)) vid.gid_list.push_back((*it));
   }
 

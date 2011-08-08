@@ -41,6 +41,16 @@ public:
     fullpath = sfullpath;
     while (fullpath.replace("//","/")) {}
   }
+
+  // compute a fid from a prefix path
+  static unsigned long long PathToFid(const char* path) {
+    XrdOucString hexfid="";
+    hexfid = path;
+    int rpos = hexfid.rfind("/");
+    if(rpos>0) 
+      hexfid.erase(0,rpos+1);
+    return Hex2Fid(hexfid.c_str());
+  }
 };
 
 /*----------------------------------------------------------------------------*/
