@@ -3091,6 +3091,9 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  // check if this commit comes from a transfer and if the size/checksum is ok
 	  if (replication) {
 	    if (fmd->getSize() != size) {
+	      gOFS->eosViewMutex.UnLock();
+	      //-------------------------------------------
+
 	      eos_err("replication for fid=%lu resulted in a different file size on fsid=%llu - rejecting replica", fmd->getId(), fsid);
 	      gOFS->MgmStats.Add("ReplicaFailedSize",0,0,1);
 	      return Emsg(epname, error, EBADE, "commit replica - file size is wrong [EBADE]","");
@@ -3103,6 +3106,8 @@ XrdMgmOfs::FSctl(const int               cmd,
 	      }
 	    }
 	    if (cxError) {
+	      gOFS->eosViewMutex.UnLock();
+	      //-------------------------------------------
 	      eos_err("replication for fid=%lu resulted in a different checksum on fsid=%llu - rejecting replica", fmd->getId(), fsid);
 	      gOFS->MgmStats.Add("ReplicaFailedChecksum",0,0,1);
 	      return Emsg(epname, error, EBADR, "commit replica - file checksum is wrong [EBADR]","");
@@ -4263,6 +4268,9 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   unsigned long long fid = fmd->getId();
   unsigned long long cid = fmd->getContainerId();
   long unsigned int  lid = fmd->getLayoutId();
+  uid_t              uid = fmd->getCUid();
+  gid_t              gid = fmd->getCGid();
+
   unsigned long long size = fmd->getSize();
 
   if (dropsource) 
@@ -4347,6 +4355,10 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   if (dropsource) {
     target_capability += "&mgm.drainfsid=";  target_capability += (int)source_snapshot.mId;
   }
+
+  target_capability += "&mgm.source.lid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid);
+  target_capability += "&mgm.source.ruid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)uid);
+  target_capability += "&mgm.source.rgid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)gid);
   
   // build the target_capability contents
   target_capability += "&mgm.localprefix=";       target_capability += target_snapshot.mPath.c_str();

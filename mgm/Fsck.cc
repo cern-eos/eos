@@ -389,7 +389,8 @@ Fsck::Check(void)
 		    if (tokens[1] != "x") {
 		      nchecked++;
 		      mLocalErrorMap[mErrorNames[7]]++;
-		      mLocalErrorFidSet[mErrorNames[7]].insert(fid);
+		      // don't track all the fids
+		      //		      mLocalErrorFidSet[mErrorNames[7]].insert(fid);
 		      if (tokens[3] == "1") {
 			error_fst_filechecksum = true;
 			n_error_fst_filechecksum++;
@@ -405,7 +406,8 @@ Fsck::Check(void)
 		    } else {
 		      nunchecked++;
 		      mLocalErrorMap[mErrorNames[8]]++;
-		    mLocalErrorFidSet[mErrorNames[8]].insert(fid);
+		      // don't track all the fids
+		      //mLocalErrorFidSet[mErrorNames[8]].insert(fid);
 		    }
 		  } else {
 		    if (lfnexists) {
