@@ -66,7 +66,7 @@ void
 FileSystem::BroadcastError(const char* msg) 
 {
   SetStatus(eos::common::FileSystem::kOpsError);
-  SetError(errno,msg);
+  SetError(errno?errno:EIO,msg);
 
   //  eos_debug("broadcasting error message: %s", msgbody.c_str());
 }

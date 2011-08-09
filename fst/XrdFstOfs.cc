@@ -1721,6 +1721,22 @@ XrdFstOfsDirectory::nextEntry()
 	      fileId.erase(0, spos+1);
 	    }
 	    if ((fileId.length() == 8) && (!stat(filePath.c_str(),&st_buf) && S_ISREG(st_buf.st_mode))) {
+	      // only scan closed files !!!!
+	      unsigned long long fileid = eos::common::FileId::Hex2Fid(fileId.c_str());
+	      bool isopenforwrite=false;
+
+	      gOFS.OpenFidMutex.Lock();
+	      if (gOFS.WOpenFid[fsid].count(fileid)) {
+		if (gOFS.WOpenFid[fsid][fileid]>0) {
+		  isopenforwrite=true;
+		}
+	      }
+	      gOFS.OpenFidMutex.UnLock();
+	      if (isopenforwrite) {
+		if (attr)
+		  delete attr;
+		continue;
+	      }
 	      std::string val="";
 	      // fxid
 	      entry += fileId;
@@ -1769,6 +1785,19 @@ XrdFstOfsDirectory::nextEntry()
 		  delete fmd;
 		} 
 	      }
+
+	      gOFS.OpenFidMutex.Lock();
+	      if (gOFS.WOpenFid[fsid].count(fileid)) {
+		if (gOFS.WOpenFid[fsid][fileid]>0) {
+		  isopenforwrite=true;
+		}
+	      }
+	      gOFS.OpenFidMutex.UnLock();
+	      if (isopenforwrite) {
+		if (attr)
+		  delete attr;
+		continue;
+	      }	      
 	      entry += "\n";
 	      nfound++;
 	    }
