@@ -300,7 +300,7 @@ Fsck::Check(void)
 		    if (fmd->hasUnlinkedLocation( (eos::FileMD::location_t) fsid))
 		      unlinkedlocation=true;
 
-		    if (eos::common::LayoutId::GetChecksum(fmd->getLayoutId() > eos::common::LayoutId::kNone)) {
+		    if (eos::common::LayoutId::GetChecksum(fmd->getLayoutId()) > eos::common::LayoutId::kNone) {
 		      hasfmdchecksum=true;
 		    }
 
