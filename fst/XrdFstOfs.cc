@@ -478,6 +478,7 @@ XrdFstOfsFile::open(const char                *path,
   fstBlockSize = eos::common::LayoutId::GetBlocksize(lid);
 
   // check if this is an open for replication
+  
   if (Path.beginswith("/replicate:")) {
     bool isopenforwrite=false;
     gOFS.OpenFidMutex.Lock();
@@ -491,6 +492,7 @@ XrdFstOfsFile::open(const char                *path,
       eos_err("forbid to open replica - file %s is opened in RW mode");
       return gOFS.Emsg(epname,error, ENOENT,"open - cannot replicate: file is opened in RW mode",path);
     }
+    isReplication=true;
   }
   
 
@@ -638,6 +640,22 @@ XrdFstOfsFile::open(const char                *path,
       }
     }
     delete attr;
+  }
+
+  // try to get if the file has a scan error
+  std::string filecxerror = attr->Get("user.filecxerror");
+
+  if ((!isRW) && (filecxerror == "1")) {
+    // if we have a replica layout
+    if (lid == eos::common::LayoutId::kReplica) {
+      // there was a checksum error during the last scan
+      if (layOut->IsEntryServer()) {
+	rc = SFS_REDIRECT;
+	int ecode=1094;
+	error.setErrInfo(ecode,RedirectManager.c_str());
+	eos_warning("rebouncing client since our replica has a wrong checksum back to MGM %s:%d",RedirectManager.c_str(), ecode);
+      }
+    }
   }
 
   if (!rc) {
@@ -792,6 +810,13 @@ XrdFstOfsFile::verifychecksum()
         if (!attr->Set("user.eos.checksum",checkSum->GetBinChecksum(checksumlen), checksumlen)) {
           eos_err("unable to set extended attribute <eos.checksum> errno=%d", errno);
         }
+	// reset any tagged error
+	if (!attr->Set("user.eos.filecxerror","0")) {
+          eos_err("unable to set extended attribute <eos.filecxerror> errno=%d", errno);
+	}
+	if (!attr->Set("user.eos.blockcxerror","0")) {
+          eos_err("unable to set extended attribute <eos.blockcxerror> errno=%d", errno);
+	}
         delete attr;
       }
     } else {
@@ -916,11 +941,15 @@ XrdFstOfsFile::close()
            capOpaqueFile += capOpaque->Get("mgm.drainfsid");
          }
          
-         if (isEntryServer) {
+         if (isEntryServer && !isReplication) {
            // the entry server commits size and checksum
            capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
-         }
+         } else {
+	   capOpaqueFile += "&mgm.replication=1";
+	 }
+
          rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
+
          if ( (rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR) ) {
            if (!gOFS.Storage->CloseTransaction(fsid, fileid)) {
              eos_crit("cannot close transaction for fsid=%u fid=%llu", fsid, fileid);
