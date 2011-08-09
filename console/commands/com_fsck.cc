@@ -79,7 +79,7 @@ com_fsck (char* arg1) {
   printf("usage: fsck stat                                                  :  print status of consistency check\n");
   printf("       fsck enable                                                :  enable fsck\n");
   printf("       fsck disable                                               :  disable fsck\n");
-  printf("       fsck report [-g] [-m] [-a] [-i] [-l] [--error <tag>]       :  report consistency check results");
+  printf("       fsck report [-h] [-g] [-m] [-a] [-i] [-l] [--error <tag>]  :  report consistency check results");
   printf("                                                               -g :  report global counters\n");
   printf("                                                               -m :  select monitoring output format\n");
   printf("                                                               -a :  break down statistics per filesystem\n");
@@ -87,6 +87,7 @@ com_fsck (char* arg1) {
   printf("                                                               -l :  print concerned logical names\n");
   printf("                                               --error <tag>      :  select only errors with name <tag> in the printout\n");
   printf("                                                                     you get the names by doing 'fsck report -g'\n");
+  printf("                                                               -h :  print help explaining the individual tags!\n");
 
   printf("       fsck repair --checksum\n");
   printf("                                                                  :  issues a 'verify' operation on all files with checksum errors\n");
