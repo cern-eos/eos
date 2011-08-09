@@ -179,11 +179,18 @@ Fsck::Check(void)
 	std::string hostport="";
 	std::string mountpoint="";
 	bool active=false;
+      
+	XrdSysThread::SetCancelOff();
+
 	{
 	  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	  it = FsView::gFsView.mIdView.begin();
-	  for (size_t l=0; l < pos; l++) {
-	    it++;
+	  if (it != FsView::gFsView.mIdView.end()) {
+	    for (size_t l=0; l < pos; l++) {
+	      it++;
+	      if (it == FsView::gFsView.mIdView.end())
+		break;
+	    }
 	  }
 	  if (it != FsView::gFsView.mIdView.end()) {
 	    fsid = it->first;
@@ -200,7 +207,9 @@ Fsck::Check(void)
 	    fsid = 0;
 	  }
 	}
-	
+
+	XrdSysThread::SetCancelOn();	
+
 	if (fsid) {
 	  // this remembers which fsids have been scanned ... we use this to remove old fsids from the global map (which don't exist anymore)
 

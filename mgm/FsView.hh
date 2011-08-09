@@ -144,15 +144,19 @@ public:
   void DetachBalancerJob();
 #endif
 
-
   FsGroup(const char* name) {
     mName = name; 
     mType="groupview";
 #ifndef EOSMGMFSVIEWTEST
     mBalanceJob=0;
 #endif
-}
-  ~FsGroup(){};
+  }
+
+#ifdef EOSMGMFSVIEWTEST
+  virtual ~FsGroup() {};
+#else
+  virtual ~FsGroup();
+#endif
 
   unsigned int GetIndex() { return mIndex; }
 

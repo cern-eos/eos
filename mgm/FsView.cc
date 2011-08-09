@@ -1800,6 +1800,19 @@ FsGroup::DetachBalancerJob()
   BalancerLock.UnLock();
 }
 
+/*----------------------------------------------------------------------------*/
+FsGroup::~FsGroup() 
+{
+#ifndef EOSMGMFSVIEWTEST
+  if (mBalanceJob) {
+    BalancerLock.Lock();
+    delete mBalanceJob;
+    mBalanceJob=0;
+    BalancerLock.UnLock();
+  }
+#endif
+}
+
 
 /*----------------------------------------------------------------------------*/
 void
