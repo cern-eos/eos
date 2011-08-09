@@ -1086,6 +1086,14 @@ XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manag
 
       if (msg.find("[EIDRM]") !=STR_NPOS)
 	 rc = -EIDRM;
+
+
+      if (msg.find("[EBADE]") !=STR_NPOS)
+	 rc = -EBADE;
+
+
+      if (msg.find("[EBADR]") !=STR_NPOS)
+	 rc = -EBADR;
       break;
       
     default:
