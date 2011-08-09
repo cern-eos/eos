@@ -1944,7 +1944,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  selection = opaque.Get("mgm.fsck.selection")?opaque.Get("mgm.fsck.selection"):"";
 	  if ( (option.find("C")!=STR_NPOS) ||
 	       (option.find("O")!=STR_NPOS) ||
-	       (option.find("D")!=STR_NPOS) ) {
+	       (option.find("D")!=STR_NPOS) ||
+	       (option.find("h")!=STR_NPOS)) {
 	    stdErr="error: illegal option\n";
 	    retc=EINVAL;
 	  }

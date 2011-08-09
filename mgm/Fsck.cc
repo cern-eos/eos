@@ -47,7 +47,7 @@ Fsck::Fsck()
   mErrorNames[4] = "diff_fst_disk_fmd_checksum";
 
   mTotalErrorMap["diff_file_checksum_scan"] = 0;
-  mErrorHelp["diff_file_checksum_scan"] = "A file checksum error has been detected during the file scan _ the computed checksum differes from the checksum stored in the extended attributes on disk";
+  mErrorHelp["diff_file_checksum_scan"] = "The computed checksum during the file scan differes from the checksum stored in the extended attributes on disk";
   mErrorNames[5] = "diff_file_checksum_scan";
 
   mTotalErrorMap["diff_block_checksum_scan"] = 0;
@@ -271,6 +271,7 @@ Fsck::Check(void)
 		  bool replicaexists = false;
 		  bool lfnexists = false;
 		  bool unlinkedlocation = false;
+		  bool hasfmdchecksum = false;
 
 		  if (fmd) {
 		    eos::FileMD fmdCopy(*fmd);
@@ -299,6 +300,10 @@ Fsck::Check(void)
 		    if (fmd->hasUnlinkedLocation( (eos::FileMD::location_t) fsid))
 		      unlinkedlocation=true;
 
+		    if (eos::common::LayoutId::GetChecksum(fmd->getLayoutId() > eos::common::LayoutId::kNone)) {
+		      hasfmdchecksum=true;
+		    }
+
 		    // check if we have != stripes than defined by the layout
 		    if (fmd->getNumLocation() != (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1)) {
 		      mLocalErrorMap[mErrorNames[11]]++;
@@ -315,7 +320,8 @@ Fsck::Check(void)
                           if (FsView::gFsView.mIdView.count(*lociter)) {
 			    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 			    if (FsView::gFsView.mIdView.count(*lociter)) {
-			      if (FsView::gFsView.mIdView[*lociter]->GetActiveStatus() == eos::common::FileSystem::kOffline) {
+			      if ( (FsView::gFsView.mIdView[*lociter]->GetActiveStatus() == eos::common::FileSystem::kOffline) || 
+				   (FsView::gFsView.mIdView[*lociter]->GetStatus() != eos::common::FileSystem::kBooted) ){
 				if (!oneoffline) {
 				  n_error_replica_offline++;
 				  oneoffline=true;
@@ -372,18 +378,21 @@ Fsck::Check(void)
 		      mLocalErrorFidSet[mErrorNames[2]].insert(fid);
 		    }
 		    
-		    if (mgm_checksum != tokens[7]) {
-		      error_mgm_disk_checksum_differ = true;
-		      n_error_mgm_disk_checksum_differ++;
-		      mLocalErrorMap[mErrorNames[3]]++;
-		      mLocalErrorFidSet[mErrorNames[3]].insert(fid);
-		    }
-		    
-		    if (tokens[2] != tokens[7]) {
-		      error_fst_disk_fmd_checksum_differ = true;
-		      n_error_fst_disk_fmd_checksum_differ++;
-		      mLocalErrorMap[mErrorNames[4]]++;
-		      mLocalErrorFidSet[mErrorNames[4]].insert(fid);
+		    if (hasfmdchecksum) {
+		      // we only apply this if the file is supposed to have a checksum in the namespace
+		      if (mgm_checksum != tokens[7]) {
+			error_mgm_disk_checksum_differ = true;
+			n_error_mgm_disk_checksum_differ++;
+			mLocalErrorMap[mErrorNames[3]]++;
+			mLocalErrorFidSet[mErrorNames[3]].insert(fid);
+		      }
+		      
+		      if (tokens[2] != tokens[7]) {
+			error_fst_disk_fmd_checksum_differ = true;
+			n_error_fst_disk_fmd_checksum_differ++;
+			mLocalErrorMap[mErrorNames[4]]++;
+			mLocalErrorFidSet[mErrorNames[4]].insert(fid);
+		      }
 		    }
 		    
 		    if (tokens[1] != "x") {
@@ -567,7 +576,16 @@ Fsck::Log(bool overwrite, const char* msg, ...)
 bool
 Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucString selection)
 {
+  if ((option.find("h")!= STR_NPOS)) {
+    for (size_t i=0; i< mErrorNames.size(); i++) {
+      char outline[1024];
+      snprintf(outline, sizeof(outline)-1,"%-32s %s\n", mErrorNames[i].c_str(), mErrorHelp[mErrorNames[i]].c_str());
+      out += outline;
+    }
 
+    return true;
+  }
+  
   std::string sel =selection.c_str();
   
   if (selection.length()) {
