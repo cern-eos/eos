@@ -408,8 +408,8 @@ DrainJob::Drain(void)
                       target_capability += "mgm.access=write";
                       target_capability += "&mgm.lid=";        target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid&0xffffff0f); // make's it a plain replica
 		      target_capability += "&mgm.source.lid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid);
-		      target_capability += "&mgm.source.ruid"; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)uid);
-		      target_capability += "&mgm.source.rgid"; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)gid);
+		      target_capability += "&mgm.source.ruid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)uid);
+		      target_capability += "&mgm.source.rgid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)gid);
 
 		      target_capability += "&mgm.cid=";        target_capability += eos::common::StringConversion::GetSizeString(sizestring,cid);
                       target_capability += "&mgm.ruid=";       target_capability+=(int)1;

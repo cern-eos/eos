@@ -189,7 +189,9 @@ Fsck::Check(void)
 	    fsid = it->first;
 	    hostport  = it->second->GetString("hostport");
 	    mountpoint = it->second->GetString("path");
-	    if (it->second->GetActiveStatus() == eos::common::FileSystem::kOnline) {
+	    // check only file systems, which are broadcasting and booted
+	    if ( (it->second->GetActiveStatus() == eos::common::FileSystem::kOnline) && 
+		 (it->second->GetStatus() == eos::common::FileSystem::kBooted ) ) {
 	      active = true;
 	    } else {
 	      active = false;
@@ -427,6 +429,7 @@ Fsck::Check(void)
 	  mErrorMapMutex.Lock();
 	  for (size_t i=0; i< mErrorNames.size(); i++) {
 	    mFsidErrorMap[mErrorNames[i]][fsid] = mLocalErrorMap[mErrorNames[i]];
+	    mFsidErrorFidSet[mErrorNames[i]][fsid].clear();
 	    mFsidErrorFidSet[mErrorNames[i]][fsid] = mLocalErrorFidSet[mErrorNames[i]];
 	  }
 	  mErrorMapMutex.UnLock();

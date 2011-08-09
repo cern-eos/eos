@@ -3090,26 +3090,22 @@ XrdMgmOfs::FSctl(const int               cmd,
 
 	  // check if this commit comes from a transfer and if the size/checksum is ok
 	  if (replication) {
-	    if (commitsize) {
-	      if (fmd->getSize() != size) {
-		eos_err("replication for fid=%lu resulted in a different file size on fsid=%llu - rejecting replica", fmd->getId(), fsid);
-		gOFS->MgmStats.Add("ReplicaFailedSize",0,0,1);
-		return Emsg(epname, error, EBADE, "commit replica - file size is wrong [EBADE]","");
-	      }
+	    if (fmd->getSize() != size) {
+	      eos_err("replication for fid=%lu resulted in a different file size on fsid=%llu - rejecting replica", fmd->getId(), fsid);
+	      gOFS->MgmStats.Add("ReplicaFailedSize",0,0,1);
+	      return Emsg(epname, error, EBADE, "commit replica - file size is wrong [EBADE]","");
 	    }
 
-	    if (commitchecksum) {
-	      bool cxError=false;
-	      for (int i=0 ; i< SHA_DIGEST_LENGTH; i++) {
-		if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i]) {
-		  cxError=true;
-		}
+	    bool cxError=false;
+	    for (int i=0 ; i< SHA_DIGEST_LENGTH; i++) {
+	      if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i]) {
+		cxError=true;
 	      }
-	      if (cxError) {
-		eos_err("replication for fid=%lu resulted in a different checksum on fsid=%llu - rejecting replica", fmd->getId(), fsid);
-		gOFS->MgmStats.Add("ReplicaFailedChecksum",0,0,1);
-		return Emsg(epname, error, EBADR, "commit replica - file checksum is wrong [EBADR]","");
-	      }
+	    }
+	    if (cxError) {
+	      eos_err("replication for fid=%lu resulted in a different checksum on fsid=%llu - rejecting replica", fmd->getId(), fsid);
+	      gOFS->MgmStats.Add("ReplicaFailedChecksum",0,0,1);
+	      return Emsg(epname, error, EBADR, "commit replica - file checksum is wrong [EBADR]","");
 	    }
 	  }
 
