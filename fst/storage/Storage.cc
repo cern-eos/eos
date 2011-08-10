@@ -76,7 +76,7 @@ void
 FileSystem::BroadcastError(int errc, const char* errmsg) 
 {
   SetStatus(eos::common::FileSystem::kOpsError);
-  SetError(errno,errmsg);
+  SetError(errno?errno:EIO,errmsg);
   
   //  eos_debug("broadcasting error message: %s", msgbody.c_str());
 }
@@ -293,7 +293,7 @@ Storage::Boot(FileSystem *fs)
   eos::common::Statfs* statfs = eos::common::Statfs::DoStatfs(fs->GetPath().c_str());
   if (!statfs) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
-    fs->SetError(errno,"cannot statfs filesystem");
+    fs->SetError(errno?errno:EIO,"cannot statfs filesystem");
     return;
   }
 
@@ -314,7 +314,7 @@ Storage::Boot(FileSystem *fs)
     }
     
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
-    fs->SetError(errno, "cannot have <rw> access");
+    fs->SetError(errno?errno:EIO, "cannot have <rw> access");
     return;
   }
   
@@ -353,14 +353,14 @@ Storage::Boot(FileSystem *fs)
   if (mkdir(transactionDirectory.c_str(), S_IRWXU | S_IRGRP| S_IXGRP | S_IROTH | S_IXOTH)) {
     if (errno != EEXIST) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
-      fs->SetError(errno,"cannot create transactiondirectory");
+      fs->SetError(errno?errno:EIO,"cannot create transactiondirectory");
       return;
     }
   }
 
   if (chown(transactionDirectory.c_str(), geteuid(),getegid())) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
-    fs->SetError(errno,"cannot change ownership of transactiondirectory");
+    fs->SetError(errno?errno:EIO,"cannot change ownership of transactiondirectory");
     return;
   }
 

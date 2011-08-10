@@ -96,6 +96,7 @@ BalanceJob::Balance(void)
   SourceSizeMap.clear();
   TargetSizeMap.clear();
   TargetQueues.clear();
+  TargetFidMap.clear();
 
   for (int i=0; i< 120 ; i++) {
     sleep(1);
@@ -175,7 +176,7 @@ BalanceJob::Balance(void)
                       schedulebytes-= fmd->getSize();
                       nscheduled++;
                     } else {
-                      eos_static_info("couldn't add file id %llu because %llu/%llu", fid, fmd->getSize(), schedulebytes);
+                      eos_static_debug("couldn't add file id %llu because %llu/%llu", fid, fmd->getSize(), schedulebytes);
                     }
                   }
                 }
@@ -235,7 +236,7 @@ BalanceJob::Balance(void)
           
           // check if there is space on the next target
           if (target_it->second > 0) {
-            eos_static_info("target %u has enough space", source_it->first);
+            eos_static_info("target %u has enough space", target_it->first);
             std::set<unsigned long long>::const_iterator fid_it;
             // take the first fid on from the fid list of the source filesystem
             fid_it = SourceFidMap[source_it->first].begin();
@@ -257,6 +258,7 @@ BalanceJob::Balance(void)
               gOFS->eosViewMutex.Lock();
               eos::FileMD* fmd = 0;
               try {
+		fid = *fid_it;
                 fmd = gOFS->eosFileService->getFileMD(fid);
                 lid = fmd->getLayoutId();
                 cid = fmd->getContainerId();
@@ -384,7 +386,7 @@ BalanceJob::Balance(void)
               eos_static_info("source size=%llu target size=%llu", source_it->second, target_it->second);
             } else {
               eos_static_info("couldn't place fid %llu", fid);
-            }
+	    }
             
             // go to next target group
             target_it++;
