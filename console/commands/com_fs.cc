@@ -18,7 +18,8 @@ com_fs (char* arg1) {
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
-  
+  bool temp_silent=false;
+
   if ( subcommand == "add" ) {
     XrdOucString in ="mgm.cmd=fs&mgm.subcmd=add";
     XrdOucString uuid="";
@@ -123,7 +124,7 @@ com_fs (char* arg1) {
           ok=true;
         }
 	if (option == "-s") {
-	  silent=true;
+	  temp_silent=true;
 	  ok=true;
 	}
 	if (option == "-e") {
@@ -147,7 +148,7 @@ com_fs (char* arg1) {
     } while(option.length());
 
     XrdOucEnv* result = client_admin_command(in);
-    if (!silent) {
+    if (!silent && (!temp_silent)) {
       global_retc = output_result(result, highlighting);
     } else {
       if (result) {
@@ -156,6 +157,7 @@ com_fs (char* arg1) {
         global_retc = EINVAL;
       }
     }
+
     return (0);
   }
   
@@ -204,11 +206,14 @@ com_fs (char* arg1) {
       in += "&mgm.fs.id=";
       in += arg;
     } else {
-      XrdOucString mountpoint = subtokenizer.GetToken();
+      XrdOucString mp = subtokenizer.GetToken();
       XrdOucString hostport = arg;
-      in += "&mgm.fs.hostport=";
-      in += arg;
-      if (!(arg.find(":")!= STR_NPOS)) {
+
+      if (!mp.length()) {
+	mp = arg;
+	hostport = XrdNetDNS::getHostName();
+      }
+      if (!(hostport.find(":")!= STR_NPOS)) {
 	in += ":1095";
         hostport += ":1095";
       }
@@ -217,13 +222,19 @@ com_fs (char* arg1) {
         hostport.insert("/eos/",0);
         hostport.append("/fst");
       }
-      in += "&mgm.node=";
+      in += "&mgm.fs.node=";
       in += hostport;
 
       in += "&mgm.fs.mountpoint=";
-      if (!mountpoint.length())
+      if (!mp.length())
 	goto com_fs_usage;
-      in += mountpoint;
+
+      while(mp.endswith("/")) {mp.erase(mp.length()-1);}
+      in += mp;
+
+      if (access(mp.c_str(), R_OK | X_OK)) {
+	goto com_fs_usage;
+      }
     }
 
     global_retc = output_result(client_admin_command(in));
@@ -259,13 +270,34 @@ com_fs (char* arg1) {
     char r1fsid[128]; sprintf(r1fsid,"%d", fsid);
     char r2fsid[128]; sprintf(r2fsid,"%04d", fsid);
     if ( (arg == r1fsid) || (arg == r2fsid) ) {
-      // boot by fsid
+      // status by fsid
       in += "&mgm.fs.id=";
+      in += arg;
     } else {
-      goto com_fs_usage;
+      XrdOucString arg2 = subtokenizer.GetToken();
+      XrdOucString mp = arg;
+      if (!arg2.length()) {
+	// status by mount point
+	char* HostName = XrdNetDNS::getHostName();
+	in += "&mgm.fs.node=";
+	in += HostName;
+	in += "&mgm.fs.mountpoint=";
+	in += arg;
+	mp = arg;
+      } else {
+	in += "&mgm.fs.node=";
+	in += arg;
+	in += "&mgm.fs.mountpoint=";
+	in += arg2;
+	mp = arg2;
+      }
+
+      while(mp.endswith("/")) {mp.erase(mp.length()-1);}
+      if (access(mp.c_str(), R_OK | X_OK)) {
+	goto com_fs_usage;
+      }
     }
 
-    in += arg;
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
@@ -621,8 +653,8 @@ com_fs (char* arg1) {
   printf("fs config <fsid> drainperiod=<seconds> : \n");
   printf("                                                  drain period a drain job is waiting to finish the drain procedure\n");
   printf("\n");
-  printf("fs rm    <fs-id>|<node-queue> :\n");
-  printf("                                                  remove filesystem configuration by name or id\n");
+  printf("fs rm    <fs-id>|<node-queue>|<mount-point>|<hostname> <mountpoint> :\n");
+  printf("                                                  remove filesystem configuration by various identifiers\n");
   printf("\n");
   printf("fs boot  <fs-id>|<node-queue>|* :\n");
   printf("                                                  boot filesystem with ID <fs-id> or name <node-queue> or all (*)\n");
@@ -642,6 +674,11 @@ com_fs (char* arg1) {
   printf("\n");
   printf("fs status <fs-id> :\n");
   printf("                                                  returns all status variables of a filesystem and calculates the risk of data loss if this filesystem get's removed\n"); 
+  printf("fs status <mount-point> :\n");
+  printf("                                                  as before but accepts the mount point as input parameters and set's host=<this host>\n");
+
+  printf("fs status <host> <mount-point> :\n");
+  printf("                                                  as before but accepts the mount point and hostname as input parameters\n");
   printf("Examples:\n");
   printf("  fs ls --io             List all filesystems with IO statistics\n\n");
   printf("  fs boot *              Send boot request to all filesystems\n\n");

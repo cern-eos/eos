@@ -150,6 +150,50 @@ com_quota (char* arg1) {
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
+
+  if ( subcommand == "rmnode" ) {
+    XrdOucString in ="mgm.cmd=quota&mgm.subcmd=rmnode";
+    XrdOucString space="";
+    do {
+      if ((arg == "--path") || (arg == "-p")) {
+	space = subtokenizer.GetToken();
+	if (!space.length()) 
+	  goto com_quota_usage;
+	
+	in += "&mgm.quota.space=";
+	in += space;
+	arg = subtokenizer.GetToken();
+      } else {
+	goto com_quota_usage;
+      }
+    } while (arg.length());
+    
+    if (!space.length())
+      goto com_quota_usage;
+    
+    string s;
+    printf("Do you really want to delete the quota node under path %s ?\n" , space.c_str());
+    printf("Confirm the deletion by typing => ");
+    XrdOucString confirmation="";
+    for (int i=0; i<10; i++) {
+      confirmation += (int) (9.0 * rand()/RAND_MAX);
+    }
+
+    printf("%s\n", confirmation.c_str());
+    printf("                               => ");
+    getline( std::cin, s );
+    std::string sconfirmation = confirmation.c_str();
+    if ( s == sconfirmation) {
+      printf("\nDeletion confirmed\n");
+      global_retc = output_result(client_admin_command(in));
+    } else {
+      printf("\nDeletion aborted!\n");
+      global_retc = -1;
+    }
+    return (0);
+  }
+  
+  
   
  com_quota_usage:
   printf("usage: quota                                                                                       : show personal quota\n");
@@ -171,6 +215,8 @@ com_quota (char* arg1) {
   printf("     => you have to specify either the user or the group identified by the unix id or the user/group name\n");
   printf("     => the space argument is by default assumed as 'default'\n");
   printf("     => you have to specify at least a volume or an inode limit to set quota\n");
+  printf("       quota rmnode -p <path>                                                                      : remove quota node and every defined quota on that node\n");
+  
 
   return (0);
 }

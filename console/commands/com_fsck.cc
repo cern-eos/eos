@@ -60,7 +60,8 @@ com_fsck (char* arg1) {
 	 ( (option != "--checksum") &&
 	   (option != "--unlink-unregistered") &&
 	   (option != "--unlink-orphans") &&
-	   (option != "--adjust-replicas") ) )
+	   (option != "--adjust-replicas") &&
+	   (option != "--drop-missing-replicas") ) )
       goto com_fsck_usage;
     option.replace("--","");
     in += "&mgm.option=";
@@ -97,6 +98,9 @@ com_fsck (char* arg1) {
   printf("                                                                  :  unlink replicas which don't belong to any logical name\n");
   printf("       fsck repair --adjust-replicas\n");
   printf("                                                                  :  try to fix all replica inconsistencies\n");
+  printf("       fsck repair --drop-missing-replicas\n");
+  printf("                                                                  :  just drop replicas from the namespace if they cannot be found on disk\n");
+
   
 
 	 
