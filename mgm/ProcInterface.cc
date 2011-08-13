@@ -1518,8 +1518,35 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       if (subcmd == "status") {
 	if ((vid_in.uid == 0) || (vid_in.prot=="sss")) {
 	  std::string fsids = (opaque.Get("mgm.fs.id"))?opaque.Get("mgm.fs.id"):"";
-
+	  std::string node  = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
+	  std::string mount = (opaque.Get("mgm.fs.mountpoint"))?opaque.Get("mgm.fs.mountpoint"):"";
 	  eos::common::FileSystem::fsid_t fsid = atoi(fsids.c_str());
+
+	  if (!fsid) {
+	    // try to get from the node/mountpoint
+	    if ( (node.find(":") == std::string::npos) ) {
+	      node += ":1095"; // default eos fst port
+	    }
+	    
+	    if ((node.find("/eos/") == std::string::npos)) {
+	      node.insert(0,"/eos/");
+	      node.append("/fst");
+	    }
+	    
+	    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+	    if (FsView::gFsView.mNodeView.count(node)) {
+	      std::set<eos::common::FileSystem::fsid_t>::iterator it;
+	      for (it = FsView::gFsView.mNodeView[node]->begin(); it != FsView::gFsView.mNodeView[node]->end();  it++) {
+		if ( FsView::gFsView.mIdView.count(*it)) {
+		  if ( FsView::gFsView.mIdView[*it]->GetPath() == mount) {
+		    // this is the filesystem
+		    fsid = *it;
+		  } 
+		}
+	      }
+            }
+          }
+	  
           if (fsid) {
             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
             if (FsView::gFsView.mIdView.count(fsid)) {
@@ -1620,7 +1647,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               stdErr="error: cannot find filesystem - no filesystem with fsid="; stdErr += fsids.c_str(); 
               retc = ENOENT;
             }
-          }
+          } else {
+	    stdErr="error: cannot find a matching filesystem";
+	    retc = ENOENT;
+	  }
         } else {
           retc = EPERM;
           stdErr = "error: you have to take role 'root' to execute this command or connect via sss";
@@ -1967,11 +1997,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    option = "O";
 	  if (option == "adjust-replicas")
 	    option = "A";
+	  if (option == "drop-missing-replicas")
+	    option = "D";
 
 	  if ( (option.find("C")==STR_NPOS) &&
 	       (option.find("U")==STR_NPOS) &&
 	       (option.find("O")==STR_NPOS) &&
-	       (option.find("A")==STR_NPOS)) {
+	       (option.find("A")==STR_NPOS) &&
+	       (option.find("D")==STR_NPOS) ) {
 	    stdErr="error: illegal option\n";
 	    retc=EINVAL;
 	  }
@@ -1991,6 +2024,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  if (option == "A") {
 	    option += "al";
 	    selection="diff_replica_layout";
+	  }
+	  if (option == "D") {
+	    option += "al";
+	    selection="replica_missing";
 	  }
 	  if (gOFS->FsCheck.Report(stdOut,stdErr, option,selection))
 	    retc=0;
@@ -2095,6 +2132,23 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	} else {
 	  retc = EPERM;
 	  stdErr = "error: you cannot remove quota from storage node with 'sss' authentication!";
+	}
+      }
+
+
+      if (subcmd == "rmnode") {
+	eos_notice("quota rm");
+	if (vid_in.prot != "sss") {
+	  XrdOucString space = opaque.Get("mgm.quota.space");
+	  XrdOucString msg="";
+	  if (!Quota::RmSpaceQuota(space, msg, retc)) {
+	    stdErr = msg;
+	  } else {
+	    stdOut = msg;
+	  }
+	} else {
+	  retc = EPERM;
+	  stdErr = "error: you cannot remove quota nodes from storage node with 'sss' authentication!";
 	}
       }
       //      stdOut+="\n==== quota done ====";
@@ -2442,7 +2496,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
   if (userCmd) {
     if (cmd == "motd") {
       XrdOucString motdupload = opaque.Get("mgm.motd")?opaque.Get("mgm.motd"):"";
-      gOFS->MgmStats.Add("motd",vid_in.uid,vid_in.gid,1);
+      gOFS->MgmStats.Add("Motd",vid_in.uid,vid_in.gid,1);
       eos_info("motd");
       XrdOucString motdfile = gOFS->MgmConfigDir;
       motdfile += "/motd";
@@ -2488,7 +2542,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
 
     if (cmd == "version") {
-      gOFS->MgmStats.Add("version",vid_in.uid,vid_in.gid,1);
+      gOFS->MgmStats.Add("Version",vid_in.uid,vid_in.gid,1);
       eos_info("version");
       stdOut += "EOS_INSTANCE=";
       stdOut += gOFS->MgmOfsInstanceName;
@@ -3545,7 +3599,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		stdOut += fsline; 
 		
 		std::string out="";
-		std::string format="key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
+		std::string format="key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
 		filesystem->Print(out, format);
 		stdOut += out.c_str();
 		if ( (option.find("-fullpath")) != STR_NPOS) {
