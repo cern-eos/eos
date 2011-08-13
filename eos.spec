@@ -4,7 +4,7 @@
 Summary: The EOS server installation.
 Name: eos-server
 Version: 0.1.0
-Release: rc25
+Release: rc26
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -93,6 +93,7 @@ fi
 /usr/sbin/eos-scan-fs
 /usr/sbin/eos-fst-fsck
 /usr/sbin/eos-adler32
+/usr/sbin/eos-fst-dump
 /usr/lib64/libXrdEosMgm.so.0.1.0
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so
