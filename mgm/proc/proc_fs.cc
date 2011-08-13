@@ -157,8 +157,45 @@ int proc_fs_config(std::string &identifier, std::string &key, std::string &value
             fs->SetLongLong(key.c_str(), eos::common::StringConversion::GetSizeFromString(value.c_str()));
             FsView::gFsView.StoreFsConfig(fs);
           } else {
-            fs->SetString(key.c_str(),value.c_str());
-            FsView::gFsView.StoreFsConfig(fs);
+	    if ( (key == "configstatus") && (value == "empty") ) {
+	      bool isempty=true;
+	      // check if this file system is really empty
+	      try {
+		eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fs->GetId());
+		if (filelist.size()) {
+		  isempty =false;
+		}
+	      } catch ( eos::MDException &e ) {
+		isempty=true;
+	      }
+	      if (!isempty) {
+		stdErr="error: the filesystem is not empty, therefore it can't be removed\n";
+		stdErr+="# -------------------------------------------------------------------\n";
+		stdErr+="# You can inspect the registered files via the command:\n";
+		stdErr+="# [eos] fs dumpmd "; stdErr += (int)fs->GetId(); stdErr += " -path\n";
+		stdErr+="# -------------------------------------------------------------------\n";
+		stdErr+="# You can drain the filesystem if it is still operational via the command:\n";
+		stdErr+="# [eos] fs config "; stdErr += (int)fs->GetId(); stdErr += " configstatus=drain\n";
+		stdErr+="# -------------------------------------------------------------------\n";
+		stdErr+="# You can drain the filesystem if it is unusable via the command:\n";
+		stdErr+="# [eos] fs config "; stdErr += (int)fs->GetId(); stdErr += " configstatus=draindead\n";
+		stdErr+="# -------------------------------------------------------------------\n";
+		stdErr+="# You can force to remove these files via the command:\n";
+		stdErr+="# [eos] fs dropfiles "; stdErr += (int) fs->GetId(); stdErr += "\n";
+ 		stdErr+="# -------------------------------------------------------------------\n";
+		stdErr+="# You can force to drop these files (brute force) via the command:\n";
+		stdErr+="# [eos] fs dropfiles "; stdErr += (int) fs->GetId(); stdErr += "-f \n";
+		stdErr+="# -------------------------------------------------------------------\n";
+		stdErr+="# [eos] = 'eos -b' on MGM or 'eosadmin' on storage nodes\n";
+		retc = EPERM;
+	      } else {
+		fs->SetString(key.c_str(),value.c_str());
+		FsView::gFsView.StoreFsConfig(fs);
+	      }
+	    } else {
+	      fs->SetString(key.c_str(),value.c_str());
+	      FsView::gFsView.StoreFsConfig(fs);
+	    }
           }
         }
       } else {
@@ -619,6 +656,8 @@ int proc_fs_rm(std::string &nodename, std::string &mountpoint, std::string &id, 
   if (fs ) {
     std::string nodename = fs->GetString("host");
     size_t dpos=0;
+
+    std::string cstate = fs->GetString("configstatus");
     
     if ( (dpos = nodename.find(".")) != std::string::npos) {
       nodename.erase(dpos);
@@ -627,15 +666,20 @@ int proc_fs_rm(std::string &nodename, std::string &mountpoint, std::string &id, 
       stdErr="error: filesystems can only be removed as 'root' or from the server mounting them using sss protocol\n";
       retc = EPERM;
     } else {
-      if (!FsView::gFsView.RemoveMapping(fsid)) {
-        stdErr = "error: couldn't remove mapping of filesystem defined by ";stdErr += nodename.c_str(); stdErr += "/";stdErr += mountpoint.c_str(); stdErr+="/"; stdErr += id.c_str(); stdErr+= " ";
-      }
-      
-      if (! FsView::gFsView.UnRegister(fs)) {
-        stdErr = "error: couldn't unregister the filesystem "; stdErr += nodename.c_str(); stdErr += " ";stdErr += mountpoint.c_str(); stdErr+=" "; stdErr += id.c_str(); stdErr+= "from the FsView";
-        retc = EFAULT;
+      if (cstate != "empty") {
+	stdErr = "error: you can only  remove file systems which are in 'empty' status";
+	retc = EINVAL;
       } else {
-        stdOut = "success: unregistered ";stdOut += nodename.c_str(); stdOut += " ";stdOut += mountpoint.c_str(); stdOut+=" "; stdOut += id.c_str(); stdOut+= " from the FsView";
+	if (!FsView::gFsView.RemoveMapping(fsid)) {
+	  stdErr = "error: couldn't remove mapping of filesystem defined by ";stdErr += nodename.c_str(); stdErr += "/";stdErr += mountpoint.c_str(); stdErr+="/"; stdErr += id.c_str(); stdErr+= " ";
+	}
+	
+	if (! FsView::gFsView.UnRegister(fs)) {
+	  stdErr = "error: couldn't unregister the filesystem "; stdErr += nodename.c_str(); stdErr += " ";stdErr += mountpoint.c_str(); stdErr+=" "; stdErr += id.c_str(); stdErr+= "from the FsView";
+        retc = EFAULT;
+	} else {
+	  stdOut = "success: unregistered ";stdOut += nodename.c_str(); stdOut += " ";stdOut += mountpoint.c_str(); stdOut+=" "; stdOut += id.c_str(); stdOut+= " from the FsView";
+	}
       }
     }
   } else {
