@@ -62,10 +62,38 @@ BalanceJob::ReActivate()
 /*----------------------------------------------------------------------------*/
 BalanceJob::~BalanceJob() {
   //----------------------------------------------------------------
-  //! destructor stops the balancing thread 
-  //----------------------------------------------------------------
+  //! destructor stops the balancing thread and clears the transfer queues
+  //---------------------------------------------------------------
+  eos_static_notice("Stoppging balancing in group=%s", mName.c_str());
   XrdSysThread::Cancel(thread);
   XrdSysThread::Join(thread,NULL);
+
+  {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
+    unsigned long long totalfiles = 0;
+      
+    for (it = mGroup->begin(); it != mGroup->end();it++){ 
+      eos_static_notice("Clearing balance Queue of fsid=%u", *it);
+      FsView::gFsView.mIdView[*it]->GetBalanceQueue()->Clear();
+    }
+
+    for (it = mGroup->begin(); it != mGroup->end();it++){ 
+      totalfiles += FsView::gFsView.mIdView[*it]->GetBalanceQueue()->Size();
+    }
+
+    std::string squeued="0";
+    eos::common::StringConversion::GetSizeString(squeued, totalfiles);    
+
+    mGroup->SetConfigMember("stat.balancing.queued",squeued,false, "", true);
+  }
+
+  {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    mGroup->SetConfigMember("stat.balancing","idle",false, "", true);
+    mGroup->SetConfigMember("stat.balancing.queued","0", false, "", true);
+  }
+
 }
 
 
@@ -98,7 +126,19 @@ BalanceJob::Balance(void)
   TargetQueues.clear();
   TargetFidMap.clear();
 
-  for (int i=0; i< 120 ; i++) {
+  unsigned int seed = (int) (XrdSysThread::ID() + time(NULL));
+  int sleeper =100 + ( 20 * (rand_r(&seed))/(RAND_MAX+1.0));
+
+  XrdSysThread::SetCancelOff();
+  
+  {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    mGroup->SetConfigMember("stat.balancing","activating",false, "", true);
+  }
+
+  XrdSysThread::SetCancelOn();
+
+  for (int i=0; i< sleeper ; i++) {
     sleep(1);
     XrdSysThread::CancelPoint();
   }
@@ -123,13 +163,17 @@ BalanceJob::Balance(void)
     // get the current average value
     unsigned long long avg = (unsigned long long) mGroup->AverageDouble("stat.statfs.usedbytes");
 
+    // we cannot schedule too many transfers since the queue is updated with a transaction => we limit to max. 5000 transfers per balancing round
+    size_t groupsize   = mGroup->size();
+    size_t extractsize = groupsize?5000/groupsize:5000;
+
     for (it = mGroup->begin(); it != mGroup->end();it++) {
       eos::common::FileSystem::fs_snapshot snapshot;
       eos::common::FileSystem* fs = FsView::gFsView.mIdView[*it];
       if (fs) 
         fs->SnapShotFileSystem(snapshot);
       
-      if ( fs && (snapshot.mStatus>= eos::common::FileSystem::kRO) &&
+      if ( fs && (snapshot.mConfigStatus >= eos::common::FileSystem::kRO) &&
            (snapshot.mStatus  == eos::common::FileSystem::kBooted) && 
            (snapshot.mErrCode      == 0 ) &&
            (fs->HasHeartBeat(snapshot)) &&
@@ -140,9 +184,9 @@ BalanceJob::Balance(void)
         if (usedbytes <= avg) {
           // this is a target
           TargetSizeMap[snapshot.mId] = (avg-usedbytes);
-          eos_static_info("filesystem %u is a target with %llu bytes", snapshot.mId, (avg-usedbytes));
+          eos_static_debug("filesystem %u is a target with %llu bytes", snapshot.mId, (avg-usedbytes));
         } else {
-          eos_static_info("filesystem %u is a source with %llu bytes", snapshot.mId, (usedbytes-avg));
+          eos_static_debug("filesystem %u is a source with %llu bytes", snapshot.mId, (usedbytes-avg));
           // this is a source
           SourceSizeMap[snapshot.mId] = (usedbytes-avg);
 
@@ -156,13 +200,13 @@ BalanceJob::Balance(void)
             unsigned long long nfids = (unsigned long long) filelist.size();
             eos_static_notice("found %llu files in filesystem view %u", nfids,snapshot.mId);
             
-            // we don't try to extract more then 1000 files
-            for (size_t i=0; i< 1000; i++) {
+            // we don't try to extract more then <extract-size> files
+            for (size_t i=0; i< extractsize; i++) {
               unsigned long long rpos = (unsigned long long ) (( 0.999999 * random()* nfids )/RAND_MAX);
               eos::FileSystemView::FileIterator fit = filelist.begin();
 
               std::advance (fit,rpos);
-              eos_static_info("random selection %llu/%llu", rpos, nfids);
+              eos_static_debug("random selection %llu/%llu", rpos, nfids);
               if (fit != filelist.end()) {
                 eos::FileMD::id_t fid = *fit;
                 
@@ -204,6 +248,9 @@ BalanceJob::Balance(void)
 
   XrdSysThread::SetCancelOff();
   // now pickup the sources and distribute on targets
+
+
+  eos_static_notice("Balancing on group %s members=%lu sources=%lu targets=%lu", mName.c_str(), mGroup->size(), SourceSizeMap.size(), TargetQueues.size());
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     
