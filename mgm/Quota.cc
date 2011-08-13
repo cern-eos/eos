@@ -76,6 +76,28 @@ SpaceQuota::~SpaceQuota() {}
 
 
 /*----------------------------------------------------------------------------*/
+void
+SpaceQuota::RemoveQuotaNode(XrdOucString &msg, int &retc) 
+
+{
+  gOFS->eosViewMutex.Lock();
+  eos::ContainerMD *quotadir=0;
+  try {
+    quotadir = gOFS->eosView->getContainer( SpaceName.c_str() );
+    gOFS->eosView->removeQuotaNode( quotadir ) ;
+    retc = 0;
+    msg = "success: removed quota node "; msg += SpaceName.c_str();
+  } catch( eos::MDException &e ) {
+    quotadir = 0;
+    retc = e.getErrno();
+    msg = e.getMessage().str().c_str();
+  }
+  gOFS->eosViewMutex.UnLock();
+}
+
+
+
+/*----------------------------------------------------------------------------*/
 void SpaceQuota::UpdateLogicalSizeFactor()
 {
   // ------------------------------------------------------------------------------------------------------
@@ -1433,6 +1455,29 @@ Quota::RmQuota(XrdOucString space, long uid_sel, long gid_sel, XrdOucString &msg
   } else {
     msg = "error: no space defined with name ";msg += space;
     return false;
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
+Quota::RmSpaceQuota(XrdOucString space, XrdOucString &msg, int &retc) 
+{
+  eos_static_debug("space=%s",space.c_str());
+
+  eos::common::RWMutexWriteLock lock(gQuotaMutex);
+  
+  SpaceQuota* spacequota = 0;
+  
+  spacequota = GetSpaceQuota(space.c_str(), true);
+  
+  if (!spacequota) {
+    msg = "error: there is no quota node under this path";
+    retc =  EINVAL;
+    return false;
+  } else {
+    spacequota->RemoveQuotaNode(msg, retc);
+    gQuota.erase(space.c_str());
+    return true;
   }
 }
 

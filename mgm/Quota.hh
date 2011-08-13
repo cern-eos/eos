@@ -189,6 +189,8 @@ public:
   SpaceQuota(const char* name);
   ~SpaceQuota();
 
+  void RemoveQuotaNode(XrdOucString &msg, int &retc);
+
   std::map<long long, unsigned long long>::const_iterator Begin() { return Quota.begin();}
   std::map<long long, unsigned long long>::const_iterator End()   { return Quota.end();}
 
@@ -300,6 +302,8 @@ public:
   static bool SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long bytes, long long files, XrdOucString &msg, int &retc); // -1 means it is not set for all long/long long values
 
   static bool RmQuota(XrdOucString space, long uid_sel, long gid_sel, XrdOucString &msg, int &retc); // -1 means it is not set for all long/long long values
+
+  static bool RmSpaceQuota(XrdOucString space, XrdOucString &msg, int &retc); // removes a quota space/quota node
 
   // callback function for the namespace implementation to calculate the size a file occupies
   static uint64_t MapSizeCB(const eos::FileMD *file);
