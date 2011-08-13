@@ -26,7 +26,7 @@ Fsck::Fsck()
   
   mErrorMapMutex.Lock();
   mTotalErrorMap["totalfiles"]=0;
-  mErrorNames.resize(14);
+  mErrorNames.resize(15);
   mErrorHelp["totalfiles"] = "Total number of replicas found";
   mErrorNames[0] = "totalfiles";
 
@@ -82,6 +82,10 @@ Fsck::Fsck()
   mErrorHelp["file_offline"] = "No replica is accessible";
   mErrorNames[13] = "file_offline";
 
+  mTotalErrorMap["replica_missing"] = 0;
+  mErrorHelp["replica_missing"] = "There is a reference to a replica in the namespace, but the replica was not seen on the storage node";
+  mErrorNames[14] = "replica_missing";
+
   mErrorMapMutex.UnLock(); 
 } 
 
@@ -104,10 +108,31 @@ Fsck::Stop()
 {
   if (mRunning) {
     eos_static_info("cancel fsck thread");
+
+    // cancel the master
     XrdSysThread::Cancel(mThread);
+
+    // kill all running eos-fst-dump commands to terminate the pending Scan threads
+    system("pkill -9 eos-fst-dump");
+
+    // we don't cancel all the still pending Scan threads since they will terminate on their own
+    do {
+      size_t nthreads=0;
+      mScanThreadMutex.Lock();
+      nthreads = mScanThreads.size();
+      mScanThreadMutex.UnLock();
+      if (!nthreads) {
+	break;
+      }
+      sleep(1);
+    } while(1);
+
+
+    // join the master thread
     XrdSysThread::Join(mThread,NULL);
     eos_static_info("joined fsck thread");
     mRunning = false;
+    Log(false,"disabled check");
     return true;
   } else {
     return false;
@@ -127,10 +152,23 @@ Fsck::StaticCheck(void* arg){
   return reinterpret_cast<Fsck*>(arg)->Check();
 }
 
+
+/* ------------------------------------------------------------------------- */
+void* 
+Fsck::StaticScan(void* arg){
+  struct ThreadInfo* tInfo = reinterpret_cast<Fsck::ThreadInfo*>(arg);
+
+  return (tInfo->mFsck)->Scan(tInfo->mFsid, tInfo->mActive, tInfo->mPos, tInfo->mMax, tInfo->mHostPort, tInfo->mMountPoint);
+}
+
 /* ------------------------------------------------------------------------- */
 void* 
 Fsck::Check(void)
 {
+  
+  mScanThreadInfo.clear();
+  mScanThreads.clear();
+
   XrdSysThread::SetCancelOn();
   XrdSysThread::SetCancelDeferred();
   while (1) {
@@ -155,21 +193,22 @@ Fsck::Check(void)
     
     std::map<eos::common::FileSystem::fsid_t, FileSystem*>::const_iterator it;
 
-    unsigned long long totalfiles=0;
-    unsigned long long nchecked=0;
-    unsigned long long nunchecked=0;
-    unsigned long long n_error_replica_not_registered=0;
-    unsigned long long n_error_replica_orphaned=0;
-
-    unsigned long long n_error_mgm_disk_size_differ = 0;
-    unsigned long long n_error_fst_disk_fmd_size_differ = 0;
-    unsigned long long n_error_mgm_disk_checksum_differ = 0;
-    unsigned long long n_error_fst_disk_fmd_checksum_differ = 0;    
-    unsigned long long n_error_fst_filechecksum = 0;
-    unsigned long long n_error_fst_blockchecksum = 0;
-    unsigned long long n_error_replica_layout = 0;
-    unsigned long long n_error_replica_offline = 0;
-    unsigned long long n_error_file_offline = 0;
+    totalfiles=0;
+    nchecked=0;
+    nunchecked=0;
+    n_error_replica_not_registered=0;
+    n_error_replica_orphaned=0;
+    
+    n_error_mgm_disk_size_differ = 0;
+    n_error_fst_disk_fmd_size_differ = 0;
+    n_error_mgm_disk_checksum_differ = 0;
+    n_error_fst_disk_fmd_checksum_differ = 0;    
+    n_error_fst_filechecksum = 0;
+    n_error_fst_blockchecksum = 0;
+    n_error_replica_layout = 0;
+    n_error_replica_offline = 0;
+    n_error_file_offline = 0;
+    n_error_replica_missing = 0;
 
     std::set<eos::common::FileSystem::fsid_t> scannedfsids;
 
@@ -186,19 +225,17 @@ Fsck::Check(void)
 	  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	  it = FsView::gFsView.mIdView.begin();
 	  if (it != FsView::gFsView.mIdView.end()) {
-	    for (size_t l=0; l < pos; l++) {
-	      it++;
-	      if (it == FsView::gFsView.mIdView.end())
-		break;
-	    }
+	    std::advance(it, pos);
 	  }
+
 	  if (it != FsView::gFsView.mIdView.end()) {
 	    fsid = it->first;
 	    hostport  = it->second->GetString("hostport");
 	    mountpoint = it->second->GetString("path");
 	    // check only file systems, which are broadcasting and booted
 	    if ( (it->second->GetActiveStatus() == eos::common::FileSystem::kOnline) && 
-		 (it->second->GetStatus() == eos::common::FileSystem::kBooted ) ) {
+		 (it->second->GetStatus() == eos::common::FileSystem::kBooted ) && 
+		 (it->second->GetConfigStatus() >= eos::common::FileSystem::kRO) ) {
 	      active = true;
 	    } else {
 	      active = false;
@@ -214,250 +251,62 @@ Fsck::Check(void)
 	  // this remembers which fsids have been scanned ... we use this to remove old fsids from the global map (which don't exist anymore)
 
 	  scannedfsids.insert(fsid);
+	  
+	  mScanThreadInfo[fsid].mFsck       = this;
+	  mScanThreadInfo[fsid].mFsid       = fsid;
+	  mScanThreadInfo[fsid].mActive     = active;
+	  mScanThreadInfo[fsid].mPos        = pos;
+	  mScanThreadInfo[fsid].mMax        = max;
+	  mScanThreadInfo[fsid].mHostPort   = hostport;
+	  mScanThreadInfo[fsid].mMountPoint = mountpoint;
+	  size_t maxthreads = 100;
 
-	  // local accounting get's copy after the full loop in to the global accounting
-	  std::map<std::string, unsigned long long> mLocalErrorMap; 
-	  std::map<std::string, std::set<unsigned long long> > mLocalErrorFidSet;
-	  std::set<unsigned long long> mSet;
 
-	  // initialize local accounting
-	  for (size_t i=0; i< mErrorNames.size(); i++) {
-	    mLocalErrorMap[mErrorNames[i]] = 0;
-	    mLocalErrorFidSet[mErrorNames[i]] = mSet;
-	  }
-
-	  if (!active) {
-	    Log(true,"filesystem: %lu/%lu fsid=%05d hostport=%20s mountpoint=%s INACTIVE", pos+1,max, fsid, hostport.c_str(),mountpoint.c_str());
-	    Log(false,"");
-	  } else {
-	    Log(true,"filesystem: %lu/%lu fsid=%05d hostport=%20s mountpoint=%s totalfiles=%lu", pos+1,max, fsid, hostport.c_str(),mountpoint.c_str(),totalfiles);
-	    
-	    eos_static_debug("checking filesystem: fsid=%lu hostport=%s mountpoint=%s",pos, hostport.c_str(),mountpoint.c_str());
-	    XrdOucString url = "root://daemon@"; url += hostport.c_str(); url += "/"; url += mountpoint.c_str();
-
-	    XrdSysThread::SetCancelOff();
-	    DIR* dir = XrdPosixXrootd::Opendir(url.c_str());
-	    unsigned long long nfiles=0;
-	    if (dir) {
-	      static struct dirent* dentry;
-	      while ( (dentry = XrdPosixXrootd::Readdir(dir)) ) {
-		//	      Log(true,"filesystem: %lu/%lu %s", pos,max, dentry->d_name);
-		nfiles++;
-		totalfiles++;
-		mLocalErrorMap[mErrorNames[0]]++;
-
-		Log(true,"filesystem: %lu/%lu fsid=%05d hostport=%20s mountpoint=%s totalfiles=%llu nfiles=%lu", pos+1,max, fsid, hostport.c_str(),mountpoint.c_str(), totalfiles, nfiles);
-		// decode the entry
-		std::vector<std::string> tokens;
-		std::string delimiter=":";
-		std::string token= dentry->d_name;
-		eos::common::StringConversion::Tokenize(token, tokens, delimiter);
-		unsigned long long fid = strtoull(tokens[0].c_str(),0,16);
-		if (fid) {
-		  eos::FileMD* fmd=0;
-		  
-		  //-------------------------------------------
-		  gOFS->eosViewMutex.Lock();
-		  try {
-		    fmd = gOFS->eosFileService->getFileMD(fid);
-		  } catch ( eos::MDException &e ) {
-		    // nothing to catch
-		  }
-		 
-		  // convert size & checksum into strings
-		  XrdOucString sizestring="";
-		  std::string mgm_size = "";
-		  std::string mgm_checksum = "";
-		  bool replicaexists = false;
-		  bool lfnexists = false;
-		  bool unlinkedlocation = false;
-		  bool hasfmdchecksum = false;
-
-		  if (fmd) {
-		    eos::FileMD fmdCopy(*fmd);
-		    fmd = &fmdCopy;
-		    gOFS->eosViewMutex.UnLock();
-		    //-------------------------------------------
-		    eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getSize());
-		  
-		    mgm_size = sizestring.c_str();
-		    for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
-		      unsigned int checksumtype = eos::common::LayoutId::GetChecksum(fmd->getLayoutId());
-		      if ( ( (checksumtype == eos::common::LayoutId::kAdler) || 
-			     (checksumtype == eos::common::LayoutId::kCRC32) || 
-			     (checksumtype == eos::common::LayoutId::kCRC32C) ) && (i<4) ) {
-			char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[3-i]));
-			mgm_checksum += hb;
-
-		      } else {
-			char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
-			mgm_checksum += hb;
-		      }
-		    }
-		    if (fmd->hasLocation( (eos::FileMD::location_t) fsid))
-		      replicaexists=true;
-
-		    if (fmd->hasUnlinkedLocation( (eos::FileMD::location_t) fsid))
-		      unlinkedlocation=true;
-
-		    if (eos::common::LayoutId::GetChecksum(fmd->getLayoutId()) > eos::common::LayoutId::kNone) {
-		      hasfmdchecksum=true;
-		    }
-
-		    // check if we have != stripes than defined by the layout
-		    if (fmd->getNumLocation() != (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1)) {
-		      mLocalErrorMap[mErrorNames[11]]++;
-		      mLocalErrorFidSet[mErrorNames[11]].insert(fid);
-		      n_error_replica_layout++;
-		    }
-
-		    // check if locations are online
-		    eos::FileMD::LocationVector::const_iterator lociter;
-		    bool oneoffline=false;
-		    size_t nonline=0;
-		    for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
-                        if (*lociter) {
-                          if (FsView::gFsView.mIdView.count(*lociter)) {
-			    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-			    if (FsView::gFsView.mIdView.count(*lociter)) {
-			      if ( (FsView::gFsView.mIdView[*lociter]->GetActiveStatus() == eos::common::FileSystem::kOffline) || 
-				   (FsView::gFsView.mIdView[*lociter]->GetStatus() != eos::common::FileSystem::kBooted) ){
-				if (!oneoffline) {
-				  n_error_replica_offline++;
-				  oneoffline=true;
-				  mLocalErrorMap[mErrorNames[12]]++;
-				  mLocalErrorFidSet[mErrorNames[12]].insert(fid);
-				}
-			      } else {
-				nonline++;
-			      }
-			    }
-			  }
-			}
-		    }
-		    if ((fmd->getNumLocation()) && (nonline < eos::common::LayoutId::GetMinOnlineReplica((fmd->getLayoutId())))) {
-		      mLocalErrorMap[mErrorNames[13]]++;
-		      mLocalErrorFidSet[mErrorNames[13]].insert(fid);
-		      n_error_file_offline++;
-		    }
-		  } else {
-		    gOFS->eosViewMutex.UnLock();
-		    //-------------------------------------------
-		  }
-		  
-		  
-		  //		  if (!(nfiles%10)) 
-		  //		    eos_static_info("%d tokens %s %s %s\n", tokens.size(), token.c_str(), mgm_size.c_str(), mgm_checksum.c_str());
-		  
-		  // now we have all the information and we compare all sizes, checksums and locations
-		  // the mgm size differes from the size on disk
-		  bool error_mgm_disk_size_differ = false;
-		  // the changelog size on the FST differs from the size on disk
-		  bool error_fst_disk_fmd_size_differ = false;
-		  // the mgm checksum differs from the disk checksum
-		  bool error_mgm_disk_checksum_differ = false;
-		  // the changelog checksum on the FST differes from the checksum in the extended attributes on disk
-		  bool error_fst_disk_fmd_checksum_differ = false;
-		  // the scanned filechecksum does not agree with the extended attribute checksum
-		  bool error_fst_filechecksum;
-		  // the scanned blockchecksums are faulty
-		  bool error_fst_blockchecksum;
-		  
-		  if (replicaexists) {
-		    if (mgm_size != tokens[5]) {
-		      error_mgm_disk_size_differ = true;
-		      n_error_mgm_disk_size_differ++;
-		      mLocalErrorMap[mErrorNames[1]]++;
-		      mLocalErrorFidSet[mErrorNames[1]].insert(fid);
-		    }
-		    
-		    if (tokens[5] != tokens[6]) {
-		      error_fst_disk_fmd_size_differ = true;
-		      n_error_fst_disk_fmd_size_differ++;
-		      mLocalErrorMap[mErrorNames[2]]++;
-		      mLocalErrorFidSet[mErrorNames[2]].insert(fid);
-		    }
-		    
-		    if (hasfmdchecksum) {
-		      // we only apply this if the file is supposed to have a checksum in the namespace
-		      if (mgm_checksum != tokens[7]) {
-			error_mgm_disk_checksum_differ = true;
-			n_error_mgm_disk_checksum_differ++;
-			mLocalErrorMap[mErrorNames[3]]++;
-			mLocalErrorFidSet[mErrorNames[3]].insert(fid);
-		      }
-		      
-		      if (tokens[2] != tokens[7]) {
-			error_fst_disk_fmd_checksum_differ = true;
-			n_error_fst_disk_fmd_checksum_differ++;
-			mLocalErrorMap[mErrorNames[4]]++;
-			mLocalErrorFidSet[mErrorNames[4]].insert(fid);
-		      }
-		    }
-		    
-		    if (tokens[1] != "x") {
-		      nchecked++;
-		      mLocalErrorMap[mErrorNames[7]]++;
-		      // don't track all the fids
-		      //		      mLocalErrorFidSet[mErrorNames[7]].insert(fid);
-		      if (tokens[3] == "1") {
-			error_fst_filechecksum = true;
-			n_error_fst_filechecksum++;
-			mLocalErrorMap[mErrorNames[5]]++;
-			mLocalErrorFidSet[mErrorNames[5]].insert(fid);
-		      }
-		      if (tokens[4] == "1") {
-			error_fst_blockchecksum = true;
-			n_error_fst_blockchecksum++;
-			mLocalErrorMap[mErrorNames[6]]++;
-			mLocalErrorFidSet[mErrorNames[6]].insert(fid);
-		      }
-		    } else {
-		      nunchecked++;
-		      mLocalErrorMap[mErrorNames[8]]++;
-		      // don't track all the fids
-		      //mLocalErrorFidSet[mErrorNames[8]].insert(fid);
-		    }
-		  } else {
-		    if (lfnexists) {
-		      if (!unlinkedlocation) {
-			mLocalErrorMap[mErrorNames[9]]++;
-			if (!mLocalErrorFidSet[mErrorNames[9]].count(fid))
-			  mLocalErrorFidSet[mErrorNames[9]].insert(fid);
-			n_error_replica_not_registered++;
-		      }
-		    } else {
-		      if (!unlinkedlocation) {
-			mLocalErrorMap[mErrorNames[10]]++;
-			mLocalErrorFidSet[mErrorNames[10]].insert(fid);
-			n_error_replica_orphaned++;
-		      }
-		    }
-		  }
-		}
-	      }
-
-	      XrdPosixXrootd::Closedir(dir);
-
-	      XrdSysThread::SetCancelOn();
-	    } else {
-	      Log(false,"error: unable to open %s", url.c_str());
-	      Log(false,"");
+	  
+	  // wait that we have less the mMaxThreads running
+	  size_t loopcount=0;
+	  do {
+	    size_t nrunning=0;
+	    mScanThreadMutex.Lock();
+	    nrunning = mScanThreads.size();
+	    mScanThreadMutex.UnLock();
+	    loopcount++;
+	    if (nrunning < maxthreads) 
+	      break;
+	    else {
+	      if (!loopcount%12)
+		Log(false,"=> %u/%u threads are in use", nrunning, maxthreads);
+	      sleep(5);
 	    }
-	  }
-	  // copy local maps to global maps
-	  mErrorMapMutex.Lock();
-	  for (size_t i=0; i< mErrorNames.size(); i++) {
-	    mFsidErrorMap[mErrorNames[i]][fsid] = mLocalErrorMap[mErrorNames[i]];
-	    mFsidErrorFidSet[mErrorNames[i]][fsid].clear();
-	    mFsidErrorFidSet[mErrorNames[i]][fsid] = mLocalErrorFidSet[mErrorNames[i]];
-	  }
-	  mErrorMapMutex.UnLock();
+	    
+	  } while(1);
+	  
+	  XrdSysThread::SetCancelOff();	
+	  mScanThreads[fsid] = 0;
+	  XrdSysThread::Run(&mScanThreads[fsid], Fsck::StaticScan, static_cast<void *>(&mScanThreadInfo[fsid]),XRDSYSTHREAD_HOLD, "Fsck Scan Thread");
+	  XrdSysThread::SetCancelOn();	
 	}
       }
       pos++;
       XrdSysThread::CancelPoint();
     }
+
+    // now wait for all threads to finish
+    size_t loopcount=0;
+    do {
+      loopcount++;
+      size_t nthreads=0;
+      mScanThreadMutex.Lock();
+      nthreads = mScanThreads.size();
+      mScanThreadMutex.UnLock();
+      if (nthreads) {
+	if (!(loopcount%60))
+	  Log(false,"still %u threads running\n",nthreads);
+      } else {
+	break;
+      }
+      sleep(1);
+    } while(1);
 
     mErrorMapMutex.Lock();
 
@@ -475,6 +324,7 @@ Fsck::Check(void)
     mTotalErrorMap["diff_replica_layout"]        = n_error_replica_layout;
     mTotalErrorMap["replica_offline"]            = n_error_replica_offline;
     mTotalErrorMap["file_offline"]               = n_error_file_offline;
+    mTotalErrorMap["replica_missing"]            = n_error_replica_missing;
 
     // remove not scanned fsids
 
@@ -496,21 +346,7 @@ Fsck::Check(void)
     
     mErrorMapMutex.UnLock();
 
-    Log(false,"N-TOTAL-FILES           = %llu", totalfiles);
-    Log(false,"E-MGM-DISK-SIZE         = %llu", n_error_mgm_disk_size_differ);
-    Log(false,"E-FST-DISK-FMD-SIZE     = %llu", n_error_fst_disk_fmd_size_differ);
-    Log(false,"E-MGM-DISK-CHECKSUM     = %llu", n_error_mgm_disk_checksum_differ);
-    Log(false,"E-FST-DISK-FMD-CHECKSUM = %llu", n_error_fst_disk_fmd_checksum_differ);
-    Log(false,"E-FST-FILECHECKSUM      = %llu", n_error_fst_filechecksum);
-    Log(false,"E-FST-BLOCKCHECKSUM     = %llu", n_error_fst_blockchecksum);
-    Log(false,"N-FST-CHECKED           = %llu", nchecked);
-    Log(false,"N-FST-UNCHECKED         = %llu", nunchecked);
-    Log(false,"N-REPLICA_NOT_REGISTERED= %llu", n_error_replica_not_registered);
-    Log(false,"N-REPLICA_ORPHANED      = %llu", n_error_replica_orphaned);
-    Log(false,"N-REPLICA-LAYOUT        = %llu", n_error_replica_layout);
-    Log(false,"N-REPLICA-OFFLINE       = %llu", n_error_replica_offline);
-    Log(false,"N-FILE-OFFLINE          = %llu", n_error_file_offline);
-    Log(false,"stopping check");
+    Log(false,"stopping check - found %llu replicas", totalfiles);
     
     XrdSysThread::CancelPoint();
     Log(false,"=> next run in 8 hours");
@@ -727,12 +563,35 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
 		    ProcCommand Cmd;
 		    XrdOucString info="mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
 		    info += path.c_str();
-
+		    info += "&mgm.format=fuse";
 		    Cmd.open("/proc/user",info.c_str(), vid, &error);
 		    Cmd.AddOutput(out,err);
+		    out+="\n";
+		    err+="\n";
 		    Cmd.close();
 		  }
-		  
+
+		  if ( (option.find("D")!=STR_NPOS) && 
+		       (mErrorNames[i] == "replica_missing") ) {
+		    // execute adjust replica
+		    eos::common::Mapping::VirtualIdentity vid;
+		    eos::common::Mapping::Root(vid);
+		    XrdOucErrInfo error;
+		    
+		    // execute a proc command
+		    ProcCommand Cmd;
+		    XrdOucString info="mgm.cmd=file&mgm.subcmd=drop&mgm.path=";
+		    info += path.c_str();
+		    info += "&mgm.file.fsid=";
+		    info += (int) it->first;
+		    info += "&mgm.format=fuse";
+		    Cmd.open("/proc/user",info.c_str(), vid, &error);
+		    Cmd.AddOutput(out,err);
+		    out+="\n";
+		    err+="\n";
+		    Cmd.close();
+		  }
+
 		  //-------------------------------------------
 		}
 	      }
@@ -747,5 +606,318 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
 }
 
 
+
+void*
+Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t max, std::string hostport, std::string mountpoint)
+{
+
+  XrdSysThread::SetCancelOn();
+  XrdSysThread::SetCancelDeferred();
+
+  // local accounting get's copy after the full loop in to the global accounting
+  std::map<std::string, unsigned long long> mLocalErrorMap; 
+  std::map<std::string, std::set<unsigned long long> > mLocalErrorFidSet;
+  std::set<unsigned long long> mSet;
+  
+  // initialize local accounting
+  for (size_t i=0; i< mErrorNames.size(); i++) {
+    mLocalErrorMap[mErrorNames[i]] = 0;
+    mLocalErrorFidSet[mErrorNames[i]] = mSet;
+  }
+  
+  if (!active) {
+    Log(false,"filesystem: fsid=%05d hostport=%20s mountpoint=%s INACTIVE", fsid, hostport.c_str(),mountpoint.c_str());
+  } else {
+    //    Log(false,"filesystem: fsid=%05d hostport=%20s mountpoint=%s totalfiles=%lu", fsid, hostport.c_str(),mountpoint.c_str(),totalfiles);
+
+    // stream all the fsids in this filesystem in to the set of replica_missing, then each file found is removed from this set
+    // --------------------------
+    gOFS->eosViewMutex.Lock();
+    eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+    eos::FileSystemView::FileIterator it;
+    for (it = filelist.begin(); it != filelist.end(); ++it) {
+      mLocalErrorFidSet["replica_missing"].insert(*it);
+    }
+    gOFS->eosViewMutex.UnLock();
+    // --------------------------
+    
+    XrdOucString url = "root://daemon@"; url += hostport.c_str(); url += "/"; url += mountpoint.c_str();
+    
+    XrdSysThread::SetCancelOff();
+
+    XrdOucString dumpfile = "/tmp/eos.scan."; dumpfile += (int) fsid; dumpfile += ".dump";
+    XrdOucString sysline = "touch "; sysline += dumpfile; sysline += "; chown daemon.daemon "; sysline += dumpfile; sysline +="; eos-fst-dump "; sysline += url; sysline += " >& "; sysline += dumpfile;
+    
+    // delete possible old dump file
+    ::unlink(dumpfile.c_str());
+    // runnin eos-fst-dump command
+    system(sysline.c_str());
+
+    std::ifstream inFile(dumpfile.c_str());
+    std::string dumpentry;
+
+    unsigned long long nfiles=0;
+
+    while(std::getline(inFile, dumpentry)) {
+      mGlobalCounterLock.Lock();
+      nfiles++;
+      totalfiles++;
+      mGlobalCounterLock.UnLock();
+      mLocalErrorMap[mErrorNames[0]]++;
+      
+      // decode the entry
+
+      // the tokens are define in XrdFstOfs.cc: nextEntry as
+      // [0] = fxid [1] = scan timestamp [2] = creation checksum [3] = bool:file cx error [4] = bool:block cx error 
+      // [5] = phys. size [6] changelog size [7] changelog checksum [8] bool: currently open for write
+
+      std::vector<std::string> tokens;
+      std::string delimiter=":";
+      std::string token = dumpentry;
+      eos::common::StringConversion::Tokenize(token, tokens, delimiter);
+
+      unsigned long long fid = strtoull(tokens[0].c_str(),0,16);
+
+      if (fid) {
+	// remove this file from the replica_missing set
+	mLocalErrorFidSet["replica_missing"].erase(fid);
+      }
+
+      // fid givena dn file is currently not written
+      if (fid && (tokens[8] != "1")) {
+	eos::FileMD* fmd=0;
+	
+	//-------------------------------------------
+	gOFS->eosViewMutex.Lock();
+	try {
+	  fmd = gOFS->eosFileService->getFileMD(fid);
+	} catch ( eos::MDException &e ) {
+	  // nothing to catch
+	}
+	
+	// convert size & checksum into strings
+	XrdOucString sizestring="";
+	std::string mgm_size = "";
+	std::string mgm_checksum = "";
+	bool replicaexists = false;
+	bool lfnexists = false;
+	bool unlinkedlocation = false;
+	bool hasfmdchecksum = false;
+	
+	if (fmd) {
+	  eos::FileMD fmdCopy(*fmd);
+	  fmd = &fmdCopy;
+	  gOFS->eosViewMutex.UnLock();
+	  //-------------------------------------------
+	  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getSize());
+	  
+	  mgm_size = sizestring.c_str();
+	  for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
+	    unsigned int checksumtype = eos::common::LayoutId::GetChecksum(fmd->getLayoutId());
+	    if ( ( (checksumtype == eos::common::LayoutId::kAdler) || 
+		   (checksumtype == eos::common::LayoutId::kCRC32) || 
+		   (checksumtype == eos::common::LayoutId::kCRC32C) ) && (i<4) ) {
+	      char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[3-i]));
+	      mgm_checksum += hb;
+	      
+	    } else {
+	      char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+	      mgm_checksum += hb;
+	    }
+	  }
+	  if (fmd->hasLocation( (eos::FileMD::location_t) fsid))
+	    replicaexists=true;
+	  
+	  if (fmd->hasUnlinkedLocation( (eos::FileMD::location_t) fsid))
+	    unlinkedlocation=true;
+	  
+	  if (eos::common::LayoutId::GetChecksum(fmd->getLayoutId()) > eos::common::LayoutId::kNone) {
+	      hasfmdchecksum=true;
+	  }
+	  
+	  // check if we have != stripes than defined by the layout
+	  if (fmd->getNumLocation() != (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1)) {
+	    mLocalErrorMap[mErrorNames[11]]++;
+	    mLocalErrorFidSet[mErrorNames[11]].insert(fid);
+	    mGlobalCounterLock.Lock();
+	    n_error_replica_layout++;
+	    mGlobalCounterLock.UnLock();
+	  }
+	  
+	  // check if locations are online
+	  eos::FileMD::LocationVector::const_iterator lociter;
+	  bool oneoffline=false;
+	  size_t nonline=0;
+	  for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+	    if (*lociter) {
+	      if (FsView::gFsView.mIdView.count(*lociter)) {
+		eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+		if (FsView::gFsView.mIdView.count(*lociter)) {
+		  if ( (FsView::gFsView.mIdView[*lociter]->GetActiveStatus() == eos::common::FileSystem::kOffline) || 
+		       (FsView::gFsView.mIdView[*lociter]->GetStatus() != eos::common::FileSystem::kBooted) ){
+		    if (!oneoffline) {
+		      mGlobalCounterLock.Lock();
+		      n_error_replica_offline++;
+		      mGlobalCounterLock.UnLock();
+		      oneoffline=true;
+		      mLocalErrorMap[mErrorNames[12]]++;
+		      mLocalErrorFidSet[mErrorNames[12]].insert(fid);
+		    }
+		  } else {
+		    mGlobalCounterLock.Lock();
+		    nonline++;
+		    mGlobalCounterLock.UnLock();
+		  }
+		}
+	      }
+	    }
+	  }
+	  if ((fmd->getNumLocation()) && (nonline < eos::common::LayoutId::GetMinOnlineReplica((fmd->getLayoutId())))) {
+	    mLocalErrorMap[mErrorNames[13]]++;
+	    mLocalErrorFidSet[mErrorNames[13]].insert(fid);
+	    mGlobalCounterLock.Lock();
+	    n_error_file_offline++;
+	    mGlobalCounterLock.UnLock();
+	  }
+	} else {
+	  gOFS->eosViewMutex.UnLock();
+	  //-------------------------------------------
+	}
+
+	
+	// now we have all the information and we compare all sizes, checksums and locations
+	// the mgm size differes from the size on disk
+	bool error_mgm_disk_size_differ = false;
+	// the changelog size on the FST differs from the size on disk
+	bool error_fst_disk_fmd_size_differ = false;
+	// the mgm checksum differs from the disk checksum
+	bool error_mgm_disk_checksum_differ = false;
+	// the changelog checksum on the FST differes from the checksum in the extended attributes on disk
+	bool error_fst_disk_fmd_checksum_differ = false;
+	// the scanned filechecksum does not agree with the extended attribute checksum
+	bool error_fst_filechecksum;
+	// the scanned blockchecksums are faulty
+	bool error_fst_blockchecksum;
+	
+	if (replicaexists) {
+	  if (mgm_size != tokens[5]) {
+	    error_mgm_disk_size_differ = true;
+	    mGlobalCounterLock.Lock();
+	    n_error_mgm_disk_size_differ++;
+	    mGlobalCounterLock.UnLock();
+	    mLocalErrorMap[mErrorNames[1]]++;
+	    mLocalErrorFidSet[mErrorNames[1]].insert(fid);
+	  }
+	  
+	  if (tokens[5] != tokens[6]) {
+	    error_fst_disk_fmd_size_differ = true;
+	    mGlobalCounterLock.Lock();
+	    n_error_fst_disk_fmd_size_differ++;
+	    mGlobalCounterLock.UnLock();
+	    mLocalErrorMap[mErrorNames[2]]++;
+	    mLocalErrorFidSet[mErrorNames[2]].insert(fid);
+	  }
+	  
+	  if (hasfmdchecksum) {
+	    // we only apply this if the file is supposed to have a checksum in the namespace
+	    if (mgm_checksum != tokens[7]) {
+	      error_mgm_disk_checksum_differ = true;
+	      mGlobalCounterLock.Lock();
+	      n_error_mgm_disk_checksum_differ++;
+	      mGlobalCounterLock.UnLock();
+	      mLocalErrorMap[mErrorNames[3]]++;
+	      mLocalErrorFidSet[mErrorNames[3]].insert(fid);
+	    }
+	    
+	    if (tokens[2] != tokens[7]) {
+	      error_fst_disk_fmd_checksum_differ = true;
+	      mGlobalCounterLock.Lock();
+	      n_error_fst_disk_fmd_checksum_differ++;
+	      mGlobalCounterLock.UnLock();
+		mLocalErrorMap[mErrorNames[4]]++;
+		mLocalErrorFidSet[mErrorNames[4]].insert(fid);
+	    }
+	  }
+	  
+	  if (tokens[1] != "x") {
+	    mGlobalCounterLock.Lock();
+	    nchecked++;
+	    mLocalErrorMap[mErrorNames[7]]++;
+	    mGlobalCounterLock.UnLock();
+	    // don't track all the fids
+	    //		      mLocalErrorFidSet[mErrorNames[7]].insert(fid);
+	    if (tokens[3] == "1") {
+	      error_fst_filechecksum = true;
+	      mGlobalCounterLock.Lock();
+	      n_error_fst_filechecksum++;
+	      mGlobalCounterLock.UnLock();
+	      mLocalErrorMap[mErrorNames[5]]++;
+	      mLocalErrorFidSet[mErrorNames[5]].insert(fid);
+	    }
+	    if (tokens[4] == "1") {
+	      error_fst_blockchecksum = true;
+	      mGlobalCounterLock.Lock();
+	      n_error_fst_blockchecksum++;
+	      mGlobalCounterLock.UnLock();
+	      mLocalErrorMap[mErrorNames[6]]++;
+	      mLocalErrorFidSet[mErrorNames[6]].insert(fid);
+	    }
+	  } else {
+	    mGlobalCounterLock.Lock();
+	    nunchecked++;
+	    mGlobalCounterLock.UnLock();
+	    mLocalErrorMap[mErrorNames[8]]++;
+	    // don't track all the fids
+	      //mLocalErrorFidSet[mErrorNames[8]].insert(fid);
+	  }
+	} else {
+	  if (lfnexists) {
+	    if (!unlinkedlocation) {
+	      mLocalErrorMap[mErrorNames[9]]++;
+	      if (!mLocalErrorFidSet[mErrorNames[9]].count(fid))
+		mLocalErrorFidSet[mErrorNames[9]].insert(fid);
+	      mGlobalCounterLock.Lock();
+	      n_error_replica_not_registered++;
+	      mGlobalCounterLock.UnLock();
+	    }
+	  } else {
+	    if (!unlinkedlocation) {
+	      mLocalErrorMap[mErrorNames[10]]++;
+	      mLocalErrorFidSet[mErrorNames[10]].insert(fid);
+	      mGlobalCounterLock.Lock();
+	      n_error_replica_orphaned++;
+	      mGlobalCounterLock.UnLock();
+	    }
+	  }
+	}      }
+    }
+    Log(false,"filesystem: fsid=%05d hostport=%20s mountpoint=%s totalfiles=%llu", fsid, hostport.c_str(),mountpoint.c_str(), totalfiles);
+    // delete dump file
+    ::unlink(dumpfile.c_str());      
+  }
+  // copy local maps to global maps
+  mErrorMapMutex.Lock();
+  for (size_t i=0; i< mErrorNames.size(); i++) {
+    mFsidErrorMap[mErrorNames[i]][fsid] = mLocalErrorMap[mErrorNames[i]];
+    mFsidErrorFidSet[mErrorNames[i]][fsid].clear();
+    mFsidErrorFidSet[mErrorNames[i]][fsid] = mLocalErrorFidSet[mErrorNames[i]];
+    if (mErrorNames[i] == "replica_missing") {
+      // copy the missing replica counter
+      mGlobalCounterLock.Lock();
+      n_error_replica_missing+= mLocalErrorFidSet["replica_missing"].size();
+      mFsidErrorMap[mErrorNames[i]][fsid] = mLocalErrorFidSet["replica_missing"].size();
+      mGlobalCounterLock.UnLock();
+    }
+  }
+
+  // remove this thread from the running thread map
+  mErrorMapMutex.UnLock();
+  mScanThreadMutex.Lock();
+  mScanThreads.erase(fsid);
+  mScanThreadMutex.UnLock();
+
+  XrdSysThread::SetCancelOn();
+  return NULL;
+}
 
 EOSMGMNAMESPACE_END
