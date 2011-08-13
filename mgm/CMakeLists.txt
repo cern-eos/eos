@@ -31,9 +31,15 @@ add_executable ( testmgmview
 	         test/MgmViewTest.cc
 )
 
+add_executable ( eos-fst-dump
+	         FstDump.cc 
+)
+
 target_link_libraries ( testmgmview XrdClient XrdSys XrdOuc XrdNet XrdNetUtil eosCommon-Static XrdMqClient-Static crypto uuid curses pthread dl z)
 
 set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )
+
+target_link_libraries ( eos-fst-dump XrdPosix XrdSys XrdOuc XrdNet XrdNetUtil )
 
 if (Linux)
   set_target_properties (XrdEosMgm PROPERTIES
@@ -48,3 +54,5 @@ install ( TARGETS XrdEosMgm
           RUNTIME DESTINATION bin
           ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
 )
+
+INSTALL_PROGRAMS( /sbin FILES eos-fst-dump )
