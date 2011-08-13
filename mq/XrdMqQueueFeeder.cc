@@ -13,7 +13,7 @@ int main (int argc, char* argv[]) {
   long long size = 10;
 
   if ( (argc < 2) || (argc > 5) ) {
-    fprintf(stderr, "usage: QueueDumper <brokerurl>/<queue> [n feed] [sleep in mus after feed] [message size]\n");
+    fprintf(stderr, "usage: QueueFeeder <brokerurl>/<queue> [n feed] [sleep in mus after feed] [message size]\n");
     exit(-1);
   }
 

@@ -185,7 +185,7 @@ public:
   void MakeUpdateEnvHeader(XrdOucString &out);
   void MakeDeletionEnvHeader(XrdOucString &out);
   void MakeRemoveEnvHeader(XrdOucString &out);
-  void AddTransactionEnvString(XrdOucString &out);
+  void AddTransactionEnvString(XrdOucString &out, bool clearafter=true);
   void AddDeletionEnvString(XrdOucString &out);
   bool BroadCastEnvString(const char* receiver);
   void Dump(XrdOucString &out);

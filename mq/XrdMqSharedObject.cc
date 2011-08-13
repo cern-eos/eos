@@ -744,14 +744,45 @@ XrdMqSharedObjectManager::OpenMuxTransaction(const char* type, const char* broad
 bool
 XrdMqSharedHash::CloseTransaction() 
 {
+  bool retval=true;
   if (Transactions.size()) {
     XrdOucString txmessage="";
     MakeUpdateEnvHeader(txmessage);
-    AddTransactionEnvString(txmessage);
-    XrdMqMessage message("XrdMqSharedHashMessage");
-    message.SetBody(txmessage.c_str());
-    message.MarkAsMonitor();
-    XrdMqMessaging::gMessageClient.SendMessage(message, BroadCastQueue.c_str());
+    AddTransactionEnvString(txmessage, false);
+
+    if (txmessage.length() > (2*1000*1000)) {
+      // we set the message size limit to 2M, if the message is bigger, we just send transaction item by item
+      std::set<std::string>::const_iterator transit;
+      for (transit= Transactions.begin(); transit != Transactions.end(); transit++) {
+	txmessage="";
+	MakeUpdateEnvHeader(txmessage);
+	
+        // encoding works as "mysh.pairs=|<key1>~<value1>%<changeid1>|<key2>~<value2>%<changeid2 ...."
+	txmessage += "&"; txmessage += XRDMQSHAREDHASH_PAIRS; txmessage += "=";
+
+	XrdMqRWMutexReadLock lock(StoreMutex);
+	if ( (Store.count(transit->c_str() ))) {
+	  txmessage += "|";
+	  txmessage += transit->c_str();
+	  txmessage += "~";
+	  txmessage += Store[transit->c_str()].entry.c_str();
+	  txmessage += "%";
+	  char cid[1024];snprintf(cid,sizeof(cid)-1,"%llu",Store[transit->c_str()].ChangeId);
+	  txmessage += cid;
+	}
+	XrdMqMessage message("XrdMqSharedHashMessage");
+	message.SetBody(txmessage.c_str());
+	message.MarkAsMonitor();
+	retval &= XrdMqMessaging::gMessageClient.SendMessage(message, BroadCastQueue.c_str());
+      }
+      Transactions.clear();
+    } else {
+      Transactions.clear();
+      XrdMqMessage message("XrdMqSharedHashMessage");
+      message.SetBody(txmessage.c_str());
+      message.MarkAsMonitor();
+      retval &= XrdMqMessaging::gMessageClient.SendMessage(message, BroadCastQueue.c_str());
+    }
   }
 
   if (Deletions.size()) {
@@ -761,12 +792,12 @@ XrdMqSharedHash::CloseTransaction()
     XrdMqMessage message("XrdMqSharedHashMessage");
     message.SetBody(txmessage.c_str());
     message.MarkAsMonitor();
-    XrdMqMessaging::gMessageClient.SendMessage(message, BroadCastQueue.c_str());
+    retval &= XrdMqMessaging::gMessageClient.SendMessage(message, BroadCastQueue.c_str());
   }
 
   IsTransaction = false;
   TransactionMutex.UnLock();
-  return true;
+  return retval;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -834,7 +865,7 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMqSharedHash::AddTransactionEnvString(XrdOucString &out)
+XrdMqSharedHash::AddTransactionEnvString(XrdOucString &out, bool clearafter)
 {
   // encoding works as "mysh.pairs=|<key1>~<value1>%<changeid1>|<key2>~<value2>%<changeid2 ...."
   out += "&"; out += XRDMQSHAREDHASH_PAIRS; out += "=";
@@ -852,7 +883,8 @@ XrdMqSharedHash::AddTransactionEnvString(XrdOucString &out)
       out += cid;
     }
   }
-  Transactions.clear();
+  if (clearafter)
+    Transactions.clear();
 }
 
 /*----------------------------------------------------------------------------*/

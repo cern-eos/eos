@@ -90,6 +90,12 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
   message += "?";
   message += msg.GetMessageBuffer();
 
+  if (message.length() > (2*1000*1000)) {
+    fprintf(stderr,"XrdMqClient::SendMessage: error => trying to send message with size %d [limit is 2M]\n", message.length());
+    XrdMqMessage::Eroute.Emsg("SendMessage", E2BIG, "The message exceeds the maximum size of 2M!");
+    return false;
+  }
+
   XrdClientAdmin* admin=0;
   //  msg.Print();
   for (i=0 ;i< kBrokerN; i++) {
