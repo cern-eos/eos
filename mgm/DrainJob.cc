@@ -361,7 +361,9 @@ DrainJob::Drain(void)
                     SpaceQuota* space = Quota::GetResponsibleSpaceQuota(drain_snapshot.mSpace.c_str());
                     if (space) {
                       eos_static_info("Responsible space is %s\n", space->GetSpaceName());
-                    }
+                    } else {
+		      eos_static_err("No responsible space for %s\n", drain_snapshot.mSpace.c_str());
+		    }
                     // schedule access to that file as a plain file
                     int retc=0;
                     if ((!space) || (retc=space->FileAccess((uid_t)0,(gid_t)0,(long unsigned int)0, (const char*) 0, lid, locationfs, fsindex, false, (long long unsigned)0))) {
@@ -657,8 +659,12 @@ DrainJob::Drain(void)
     }
     if (totallostfiles) 
       fs->SetDrainStatus(eos::common::FileSystem::kDrainLostFiles);
-    else 
+    else {
       fs->SetDrainStatus(eos::common::FileSystem::kDrained);
+      // we automatically switch this filesystem to the 'empty' state
+      fs->SetString("configstatus","empty");
+      FsView::gFsView.StoreFsConfig(fs);
+    }
     fs->SetLongLong("stat.drainprogress",  100);
   }
   XrdSysThread::SetCancelOn();      
