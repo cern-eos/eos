@@ -111,7 +111,7 @@ public:
   //------------------------------------------------------------------------
 
   enum eBootStatus   { kOpsError=-2, kBootFailure=-1, kDown=0, kBootSent=1, kBooting=2, kBooted=3};
-  enum eConfigStatus { kUnknown=-1, kOff=0, kDrainDead, kDrain, kRO, kWO, kRW};
+  enum eConfigStatus { kUnknown=-1, kOff=0, kEmpty, kDrainDead, kDrain, kRO, kWO, kRW};
   enum eDrainStatus  { kNoDrain=0, kDrainPrepare=1, kDrainWait=2,  kDraining=3, kDrained=4, kDrainStalling=5, kDrainExpired=6, kDrainLostFiles=7};
   enum eActiveStatus { kOffline=0, kOnline=1};
   //------------------------------------------------------------------------

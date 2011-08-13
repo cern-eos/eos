@@ -154,6 +154,7 @@ FileSystem::GetConfigStatusAsString(int status)
 {
   if (status == kUnknown) return "unknown";
   if (status == kOff) return "off";
+  if (status == kEmpty) return "empty";
   if (status == kDrainDead) return "draindead";
   if (status == kDrain) return "drain";
   if (status == kRO) return "ro";
@@ -188,6 +189,7 @@ FileSystem::GetConfigStatusFromString(const char* ss)
   
   if (!strcmp(ss,"unknown")) return kUnknown;
   if (!strcmp(ss,"off")) return kOff;
+  if (!strcmp(ss,"empty")) return kEmpty;
   if (!strcmp(ss,"draindead")) return kDrainDead;
   if (!strcmp(ss,"drain")) return kDrain;
   if (!strcmp(ss,"ro")) return kRO;
