@@ -544,6 +544,30 @@ Storage::GetFsidFromLabel(std::string path, eos::common::FileSystem::fsid_t &fsi
 }
 
 /*----------------------------------------------------------------------------*/
+bool
+Storage::GetFsidFromPath(std::string path, eos::common::FileSystem::fsid_t &fsid)
+{
+  //----------------------------------------------------------------
+  //! return the file system id from the configured filesystem vector
+  //----------------------------------------------------------------
+  
+  eos::common::RWMutexReadLock lock (fsMutex);
+  fsid = 0;
+  
+  for (unsigned int i=0; i< fileSystemsVector.size(); i++) {
+    if (fileSystemsVector[i]->GetPath() == path) {
+      fsid = fileSystemsVector[i]->GetId();
+      break;
+    }
+  }
+  if (fsid) 
+    return true;
+  else
+    return false;
+}
+  
+
+/*----------------------------------------------------------------------------*/
 void*
 Storage::StartFsScrub(void * pp)
 {

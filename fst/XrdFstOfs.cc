@@ -330,7 +330,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
     if (nread>0) {
       CheckSum* KeyCKS = ChecksumPlugins::GetChecksumObject(eos::common::LayoutId::kAdler);
       if (KeyCKS) {
-	KeyCKS->Add(buffer,0,nread);
+	KeyCKS->Add(buffer,nread,0);
 	keytabcks= KeyCKS->GetHexChecksum();
 	delete KeyCKS;
       }
@@ -1714,7 +1714,7 @@ XrdFstOfsDirectory::open(const char              *dirName,
 
   if (Opaque.Get("disk")) {
     std::string dn = dirname.c_str();
-    if (!gOFS.Storage->GetFsidFromLabel(dn, fsid)) {
+    if (!gOFS.Storage->GetFsidFromPath(dn, fsid)) {
       return gOFS.Emsg("opendir",error, EINVAL,"open directory - filesystem has no fsid label ", dirName);
     }
     // here we traverse the tree of the path given by dirName
@@ -1769,20 +1769,16 @@ XrdFstOfsDirectory::nextEntry()
 		}
 	      }
 	      gOFS.OpenFidMutex.UnLock();
-	      if (isopenforwrite) {
-		if (attr)
-		  delete attr;
-		continue;
-	      }
+
 	      std::string val="";
-	      // fxid
+	      // token[0]: fxid
 	      entry += fileId;
 	      entry += ":";
-	      // scandir timestap
+	      // token[1] scandir timestap
 	      val = attr->Get("user.eos.timestamp").c_str();
 	      entry += val.length()?val.c_str():"x";
 	      entry += ":";
-	      // creation checksum
+	      // token[2] creation checksum
 	      val = "";
 	      char checksumVal[SHA_DIGEST_LENGTH];
 	      size_t checksumLen;
@@ -1796,33 +1792,35 @@ XrdFstOfsDirectory::nextEntry()
 
 	      entry += val.length()?val.c_str():"x";
 	      entry += ":";
-	      // tag for file checksum error
+	      // token[3] tag for file checksum error
 	      val = attr->Get("user.eos.filecxerror").c_str();
 	      entry += val.length()?val.c_str():"x";
 	      entry += ":";
-	      // tag for block checksum error
+	      // token[4] tag for block checksum error
 	      val = attr->Get("user.eos.blockcxerror").c_str();
 	      entry += val.length()?val.c_str():"x";
 	      entry += ":";
-	      // tag for physical size
+	      // token[5] tag for physical size
 	      entry += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)st_buf.st_size);
 	      entry += ":";
 	      if (fsid) {
 		eos::common::Fmd* fmd = eos::common::gFmdHandler.GetFmd(eos::common::FileId::Hex2Fid(fileId.c_str()), fsid, 0,0,0,0);
 		if (fmd) {
-		  // size in changelog
+		  // token[6] size in changelog
 		  entry += eos::common::StringConversion::GetSizeString(sizestring, fmd->fMd.size);
 		  entry += ":";
 
-		  // checksum in changelog
+		  // token[7] checksum in changelog
 		  for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
 		    char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->fMd.checksum[i]));
 		    entry += hb;
 		  }
 		  delete fmd;
 		} 
+	      } else {
+		entry += "0:0:";
 	      }
-
+	      
 	      gOFS.OpenFidMutex.Lock();
 	      if (gOFS.WOpenFid[fsid].count(fileid)) {
 		if (gOFS.WOpenFid[fsid][fileid]>0) {
@@ -1830,11 +1828,12 @@ XrdFstOfsDirectory::nextEntry()
 		}
 	      }
 	      gOFS.OpenFidMutex.UnLock();
+	      // token[8] :1 if it is write-open and :0 if not
 	      if (isopenforwrite) {
-		if (attr)
-		  delete attr;
-		continue;
-	      }	      
+		entry += ":1";
+	      } else {
+		  entry += ":0";
+	      }
 	      entry += "\n";
 	      nfound++;
 	    }

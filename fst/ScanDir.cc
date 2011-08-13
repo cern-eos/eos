@@ -496,7 +496,7 @@ bool ScanDir::ScanFileLoadAware(const char* path, unsigned long long &scansize, 
 
     if (nread) {
       if (!corruptBlockXS && blockXS)
-	if (!blockXS->CheckBlockSum(offset, buffer, bufferSize))
+	if (!blockXS->CheckBlockSum(offset, buffer, nread))
 	  corruptBlockXS = true;
       
       //      fprintf(stderr,"adding %ld %llu\n", nread,offset);
