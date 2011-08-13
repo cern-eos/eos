@@ -78,7 +78,11 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status)
     drainJob = new DrainJob(GetId());
     drainJobMutex.UnLock();
   } else {
-    SetDrainStatus(eos::common::FileSystem::kNoDrain);
+    if (status == kEmpty) {
+      SetDrainStatus(eos::common::FileSystem::kDrained);
+    } else {
+      SetDrainStatus(eos::common::FileSystem::kNoDrain);
+    }
   }
 
   return eos::common::FileSystem::SetConfigStatus(status);
