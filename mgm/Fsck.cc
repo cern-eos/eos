@@ -609,7 +609,7 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
 
 void*
 Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t max, std::string hostport, std::string mountpoint)
-{
+{ 
 
   XrdSysThread::SetCancelOn();
   XrdSysThread::SetCancelDeferred();
@@ -633,10 +633,14 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
     // stream all the fsids in this filesystem in to the set of replica_missing, then each file found is removed from this set
     // --------------------------
     gOFS->eosViewMutex.Lock();
-    eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
-    eos::FileSystemView::FileIterator it;
-    for (it = filelist.begin(); it != filelist.end(); ++it) {
-      mLocalErrorFidSet["replica_missing"].insert(*it);
+    try {
+      eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+      eos::FileSystemView::FileIterator it;
+      for (it = filelist.begin(); it != filelist.end(); ++it) {
+	mLocalErrorFidSet["replica_missing"].insert(*it);
+      }
+    } catch ( eos::MDException &e ) {
+      // nothing to catch
     }
     gOFS->eosViewMutex.UnLock();
     // --------------------------
