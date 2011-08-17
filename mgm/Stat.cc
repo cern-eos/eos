@@ -203,7 +203,7 @@ Stat::PrintOutTotal(XrdOucString &out, bool details, bool monitoring, bool numer
     out += "\n";
     out +="# -----------------------------------------------------------------------------------------------------------\n";
   } else {
-    sprintf(outline,"total.exec.avg=%.02f total.exec.sigma=%.02f\n", avg,sig);
+    sprintf(outline,"uid=all gid=all total.exec.avg=%.02f total.exec.sigma=%.02f\n", avg,sig);
     out += outline;
   }
   for (it = tags.begin(); it!= tags.end(); ++it) {

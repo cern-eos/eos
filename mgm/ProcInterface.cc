@@ -1708,12 +1708,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         stdOut+="ALL      avg. Dir  Entry Size             ";stdOut += cldratio; stdOut += "\n";
         stdOut+="# ------------------------------------------------------------------------------------\n";
       } else {
-        stdOut += "all ns.total.files=";       stdOut += files; stdOut += " ";
-        stdOut += "all ns.total.directories="; stdOut += dirs;  stdOut += "\n";
-        stdOut += "all ns.total.files.changelog.size=";       stdOut += eos::common::StringConversion::GetSizeString(clfsize, (unsigned long long)statf.st_size); stdOut += "\n";
-        stdOut += "all ns.total.directories.changelog.size="; stdOut += eos::common::StringConversion::GetSizeString(cldsize, (unsigned long long)statd.st_size); stdOut += "\n";
-        stdOut += "all ns.total.files.changelog.avg_entry_size=";       stdOut += eos::common::StringConversion::GetSizeString(clfratio, (unsigned long long) f?(1.0*statf.st_size)/f:0); stdOut += "\n";
-        stdOut += "all ns.total.directories.changelog.avg_entry_size="; stdOut += eos::common::StringConversion::GetSizeString(cldratio, (unsigned long long) d?(1.0*statd.st_size)/d:0); stdOut += "\n";
+        stdOut += "uid=all gid=all ns.total.files=";       stdOut += files; stdOut += "\n";
+        stdOut += "uid=all gid=all ns.total.directories="; stdOut += dirs;  stdOut += "\n";
+        stdOut += "uid=all gid=all ns.total.files.changelog.size=";       stdOut += eos::common::StringConversion::GetSizeString(clfsize, (unsigned long long)statf.st_size); stdOut += "\n";
+        stdOut += "uid=all gid=all ns.total.directories.changelog.size="; stdOut += eos::common::StringConversion::GetSizeString(cldsize, (unsigned long long)statd.st_size); stdOut += "\n";
+        stdOut += "uid=all gid=all ns.total.files.changelog.avg_entry_size=";       stdOut += eos::common::StringConversion::GetSizeString(clfratio, (unsigned long long) f?(1.0*statf.st_size)/f:0); stdOut += "\n";
+        stdOut += "uid=all gid=all ns.total.directories.changelog.avg_entry_size="; stdOut += eos::common::StringConversion::GetSizeString(cldratio, (unsigned long long) d?(1.0*statd.st_size)/d:0); stdOut += "\n";
       }
 
       if (subcmd == "stat") {
