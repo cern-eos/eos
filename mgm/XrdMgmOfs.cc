@@ -3051,7 +3051,9 @@ XrdMgmOfs::FSctl(const int               cmd,
 	// get the file meta data if exists
 	eos::FileMD *fmd = 0;
 	eos::ContainerMD::id_t cid=0;
-	
+
+	eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+	    
 	//-------------------------------------------
 	gOFS->eosViewMutex.Lock();
 	try {
@@ -3135,8 +3137,8 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    }
 	  }
 
+	  
           {
-            eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
             SpaceQuota* space = Quota::GetResponsibleSpaceQuota(spath);
             eos::QuotaNode* quotanode = 0;
             if (space) {
@@ -3154,7 +3156,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    if (commitsize) {
 	      fmd->setSize(size);
 	    }
-	    // add new quota
+
 	    if (quotanode) {
 	      quotanode->addFile(fmd);
 	    }

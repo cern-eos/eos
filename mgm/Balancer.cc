@@ -22,8 +22,8 @@ Balancer::~Balancer()
   //----------------------------------------------------------------
   //! destructor stops the balancer thread and stops all balancer processes (not used, the thread is always existing)
   //----------------------------------------------------------------
-  
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+  // we assume that the destructor is called with the mutex FsView::gFsView.ViewMutex
   
   std::set<FsGroup*>::const_iterator git;
   if (FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {

@@ -1190,7 +1190,7 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
 SpaceQuota* 
 Quota::GetSpaceQuota(const char* name, bool nocreate) 
 {
-  // the caller has to Readlock gQuotaMutex
+  // the caller has to Readlock gQuotaMutex, if nocreate=false
   SpaceQuota* spacequota=0;
   std::string sname = name;
 
@@ -1316,7 +1316,11 @@ Quota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long bytes,
       sprintf(configvalue,"%llu",bytes);
       msg+= printline;
       // store the setting into the config table
-      gOFS->ConfEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
+      if (bytes==0) {
+      } else {
+	gOFS->ConfEngine->DeleteConfigValue("quota", configstring.c_str());
+	gOFS->ConfEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
+      }
      
       retc = 0;
     } 
@@ -1330,7 +1334,11 @@ Quota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long bytes,
       sprintf(configvalue,"%llu",files);
       msg+= printline;
       // store the setting into the config table
-      gOFS->ConfEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
+      if (files == 0) {
+	gOFS->ConfEngine->DeleteConfigValue("quota", configstring.c_str());
+      } else {
+	gOFS->ConfEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
+      }
       retc = 0;
     }
 
@@ -1343,7 +1351,11 @@ Quota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long bytes,
       sprintf(configvalue,"%llu",bytes);
       msg+= printline;
       // store the setting into the config table
-      gOFS->ConfEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
+      if (bytes == 0) {
+	gOFS->ConfEngine->DeleteConfigValue("quota", configstring.c_str());
+      } else {
+	gOFS->ConfEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
+      }
       retc = 0;
     }
 
@@ -1356,7 +1368,11 @@ Quota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long bytes,
       sprintf(configvalue,"%llu",files);
       msg+= printline;
       // store the setting into the config table
-      gOFS->ConfEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
+      if (files == 0) {
+	gOFS->ConfEngine->DeleteConfigValue("quota", configstring.c_str());
+      } else {
+	gOFS->ConfEngine->SetConfigValue("quota", configstring.c_str(), configvalue);
+      }
       retc = 0;
     }
 
@@ -1372,6 +1388,7 @@ Quota::SetQuota(XrdOucString space, long uid_sel, long gid_sel, long long bytes,
 bool 
 Quota::RmQuota(XrdOucString space, long uid_sel, long gid_sel, XrdOucString &msg, int &retc) 
 {
+  // -> this is not used anymore, the remove is done with SetQuota(files=0,vol=0)
   eos_static_debug("space=%s",space.c_str());
 
   eos::common::RWMutexReadLock lock(gQuotaMutex);

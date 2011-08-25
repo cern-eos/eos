@@ -259,8 +259,9 @@ Fsck::Check(void)
 	  mScanThreadInfo[fsid].mMax        = max;
 	  mScanThreadInfo[fsid].mHostPort   = hostport;
 	  mScanThreadInfo[fsid].mMountPoint = mountpoint;
-	  size_t maxthreads = 100;
+	  size_t maxthreads = mParallelThreads;
 
+       
 
 	  
 	  // wait that we have less the mMaxThreads running
@@ -752,13 +753,14 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 	  eos::FileMD::LocationVector::const_iterator lociter;
 	  bool oneoffline=false;
 	  size_t nonline=0;
-	  for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
-	    if (*lociter) {
-	      if (FsView::gFsView.mIdView.count(*lociter)) {
-		eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+	  
+	  {
+	    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+	    for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+	      if (*lociter) {
 		if (FsView::gFsView.mIdView.count(*lociter)) {
-		  if ( (FsView::gFsView.mIdView[*lociter]->GetActiveStatus() == eos::common::FileSystem::kOffline) || 
-		       (FsView::gFsView.mIdView[*lociter]->GetStatus() != eos::common::FileSystem::kBooted) ){
+		  if ( (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(true) == eos::common::FileSystem::kOffline) || 
+		       (FsView::gFsView.mIdView[*lociter]->GetStatus(true) != eos::common::FileSystem::kBooted) ){
 		    if (!oneoffline) {
 		      mGlobalCounterLock.Lock();
 		      n_error_replica_offline++;
@@ -785,6 +787,7 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 	  }
 	} else {
 	  gOFS->eosViewMutex.UnLock();
+	  lfnexists=false;
 	  //-------------------------------------------
 	}
 

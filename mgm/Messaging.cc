@@ -56,12 +56,11 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
   // new implementations uses mainly read locks
   FsView::gFsView.ViewMutex.LockRead();            // =========| LockRead
 
-  if (!FsView::gFsView.mNodeView.count(nodequeue.c_str())) {
+  if (!FsView::gFsView.mNodeView.count(nodequeue)) {
     // -----------------------------------------------------
     // rare case where a node is not yet known
     // -----------------------------------------------------
     FsView::gFsView.ViewMutex.UnLockRead();        // |========= UnLockRead
-    
     // register the node to the global view and config
     {    
       // =========| LockWrite

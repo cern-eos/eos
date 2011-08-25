@@ -32,6 +32,8 @@ private:
 
   std::vector<std::string> mErrorNames;
 
+  size_t mParallelThreads;
+
   // map 'error-name'-> errorcount
   std::map<std::string, unsigned long long> mTotalErrorMap;
   // map 'error-name'-> error help
@@ -94,7 +96,16 @@ public:
 
   void ClearLog();
   void Log(bool overwrite, const char* msg, ...);
-  
+
+  bool SetMaxThreads(size_t nthreads) {
+    mParallelThreads = nthreads;
+    if (mParallelThreads <1) 
+      mParallelThreads = 1;
+    if (mParallelThreads > 100)
+      mParallelThreads = 100;
+    return true;
+  }
+
   static void* StaticCheck(void*);
   void* Check();
 };

@@ -1443,7 +1443,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
 
       if (subcmd == "boot") {
-	if (vid_in.uid == 0) {
+	if ((vid_in.uid == 0) || (vid_in.prot=="sss")) {
 	  std::string node  = (opaque.Get("mgm.fs.node"))?opaque.Get("mgm.fs.node"):"";
 	  std::string fsids = (opaque.Get("mgm.fs.id"))?opaque.Get("mgm.fs.id"):"";
 
@@ -1451,18 +1451,23 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 	  if (node == "*") {
 	    // boot all filesystems
-	    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
-	    std::map<eos::common::FileSystem::fsid_t, FileSystem*>::iterator it;
-	    stdOut += "success: boot message send to";
-	    for (it = FsView::gFsView.mIdView.begin(); it!= FsView::gFsView.mIdView.end(); it++) {
-	      if ( (it->second->GetConfigStatus() > eos::common::FileSystem::kOff) ) {
-		it->second->SetLongLong("bootsenttime",(unsigned long long)time(NULL));
-		stdOut += " ";
-		stdOut += it->second->GetString("host").c_str();
-		stdOut += ":";
+	    if (vid_in.uid == 0) {
+	      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+	      
+	      std::map<eos::common::FileSystem::fsid_t, FileSystem*>::iterator it;
+	      stdOut += "success: boot message send to";
+	      for (it = FsView::gFsView.mIdView.begin(); it!= FsView::gFsView.mIdView.end(); it++) {
+		if ( (it->second->GetConfigStatus() > eos::common::FileSystem::kOff) ) {
+		  it->second->SetLongLong("bootsenttime",(unsigned long long)time(NULL));
+		  stdOut += " ";
+		  stdOut += it->second->GetString("host").c_str();
+		  stdOut += ":";
 		stdOut += it->second->GetString("path").c_str();
+		}
 	      }
+	    } else {
+	      retc = EPERM;
+	      stdErr = "error: you have to take role 'root' to execute this command";
 	    }
 	  } else {
 	    if (node.length()) {
@@ -1961,6 +1966,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  }
 	}
 	if (subcmd == "enable") {
+	  XrdOucString nthreads="";
+	  nthreads = opaque.Get("mgm.fsck.nthreads")?opaque.Get("mgm.fsck.nthreads"):0;
+	  if (nthreads.length()) {
+	    if (atoi(nthreads.c_str())) {
+	      gOFS->FsCheck.SetMaxThreads(atoi(nthreads.c_str()));
+	      stdOut += "success: configuring for "; stdOut += nthreads.c_str(); stdOut += " parallel threads\n";
+	    }
+	  }
 	  if (gOFS->FsCheck.Start()) {
 	    stdOut += "success: enabled fsck";
 	  } else {
@@ -2124,7 +2137,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  long gid = eos::common::Mapping::GroupNameToGid(sgid,errc);
 	  
 	  XrdOucString msg ="";
-	  if (!Quota::RmQuota(space, uid_sel.length()?uid:-1, gid_sel.length()?gid:-1, msg, retc)) {
+	  if (!Quota::SetQuota(space, uid_sel.length()?uid:-1, gid_sel.length()?gid:-1, 0, 0,  msg, retc)) {
 	    stdErr = msg;
 	  } else {
 	  stdOut = msg;
@@ -3139,8 +3152,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  int nnewreplicas = nreplayout - nreponline; // we have to create that much new replica
 		  
 		  eos_debug("forcedsubgroup=%d icreationsubgroup=%d", forcedsubgroup, icreationsubgroup);
+
 		  // get the location where we can read that file
-		  SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(),false);
+		  SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(),true);
 		  eos_debug("creating %d new replicas space=%s subgroup=%d", nnewreplicas, space.c_str(), forcedsubgroup);
 
 		  if (!quotaspace) {
