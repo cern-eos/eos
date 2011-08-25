@@ -21,6 +21,15 @@ com_fsck (char* arg1) {
 
   if (cmd == "enable") {
     in += "mgm.subcmd=enable";
+    XrdOucString nthreads=subtokenizer.GetToken();
+    if (nthreads.length()) {
+      if (atoi(nthreads.c_str())) {
+	in += "&mgm.fsck.nthreads=";
+	in += nthreads;
+      } else {
+	goto com_fsck_usage;
+      }
+    }
   }
   if (cmd == "disable") {
     in += "mgm.subcmd=disable";
@@ -78,7 +87,7 @@ com_fsck (char* arg1) {
 
  com_fsck_usage:
   printf("usage: fsck stat                                                  :  print status of consistency check\n");
-  printf("       fsck enable                                                :  enable fsck\n");
+  printf("       fsck enable [#threads]                                     :  enable fsck [with #threads threads]\n");
   printf("       fsck disable                                               :  disable fsck\n");
   printf("       fsck report [-h] [-g] [-m] [-a] [-i] [-l] [--error <tag>]  :  report consistency check results");
   printf("                                                               -g :  report global counters\n");
