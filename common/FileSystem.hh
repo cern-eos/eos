@@ -205,12 +205,31 @@ public:
       return SetString("stat.active", "offline", false);
   }
 
-  fsactive_t GetActiveStatus() {
+  fsactive_t GetActiveStatus(bool cached=false) {
+    // this function can be used with a small cache which 1s expiration time to avoid too many lookup's in tight loops
+    static fsactive_t cActive=0;
+    static XrdSysMutex cActiveLock;
+    if (cached) {
+      static time_t cachetime=0;
+      time_t now=time(NULL);
+      cActiveLock.Lock();
+      if ( now - cachetime ) {
+	cachetime = now;
+      } else {
+	cActiveLock.UnLock();
+	return cActive;
+      }
+    }
     std::string active = GetString("stat.active");
-    if (active == "online") 
+    if (active == "online") {
+      cActive = kOnline;
+      cActiveLock.UnLock();	
       return kOnline;
-    else
+    } else {
+      cActive = kOffline;
+      cActiveLock.UnLock();
       return kOffline;
+    }
   }
 
   fsactive_t GetActiveStatus(fs_snapshot_t snapshot) {
@@ -322,8 +341,24 @@ public:
     return mPath;
   }
 
-  fsstatus_t GetStatus() {
-    return GetStatusFromString(GetString("stat.boot").c_str());
+  fsstatus_t GetStatus(bool cached=false) {
+    static fsstatus_t cStatus=0;
+    static XrdSysMutex cStatusLock;
+    if (cached) {
+      static time_t cachetime=0;
+      time_t now=time(NULL);
+      cStatusLock.Lock();
+      if ( now - cachetime ) {
+	cachetime = now;
+      } else {
+	cStatusLock.UnLock();
+	return cStatus;
+      }
+    }
+
+    cStatus = GetStatusFromString(GetString("stat.boot").c_str());
+    cStatusLock.UnLock();
+    return cStatus;
   }
   
   fsstatus_t GetDrainStatus() {
@@ -332,6 +367,10 @@ public:
 
   fsstatus_t GetConfigStatus() { 
     return GetConfigStatusFromString(GetString("configstatus").c_str());
+  }
+
+  int GetErrCode() {
+    return atoi(GetString("stat.errc").c_str());
   }
 
   //------------------------------------------------------------------------
