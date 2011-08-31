@@ -3072,9 +3072,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    XrdOucString space = "default";
 	    XrdOucString refspace = "";
 	    unsigned int forcedsubgroup = 0;
-	    unsigned long long fid = fmd->getId();
+
 
 	    if (fmd) {
+	      unsigned long long fid = fmd->getId();
               eos::FileMD fmdCopy(*fmd);
               fmd = &fmdCopy;
               
