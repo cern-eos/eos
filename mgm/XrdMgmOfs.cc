@@ -785,7 +785,7 @@ int XrdMgmOfsFile::open(const char          *path,      // In
         bookingsize = strtoull(openOpaque->Get("eos.bookingsize"),0,10);
       } else {
         if (openOpaque->Get("oss.asize")) {
-          bookingsize = strtoull(openOpaque->Get("eos.bookingsize"),0,10);
+          bookingsize = strtoull(openOpaque->Get("oss.asize"),0,10);
         }
       }
     }
