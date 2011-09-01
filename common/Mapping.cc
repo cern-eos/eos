@@ -9,7 +9,7 @@ EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 RWMutex                    Mapping::gMapMutex;
-RWMutex                    Mapping::gPhysicalIdMutex;
+XrdSysMutex                Mapping::gPhysicalIdMutex;
  
 Mapping::UserRoleMap_t     Mapping::gUserRoleVector;
 Mapping::GroupRoleMap_t    Mapping::gGroupRoleVector;
@@ -521,22 +521,20 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
 
   eos_static_debug("find in uid cache %s", name);
 
-  gPhysicalIdMutex.LockRead();
+  gPhysicalIdMutex.Lock();
 
   // cache short cut's
   if (!(id = gPhysicalUidCache.Find(name))) {
-    gPhysicalIdMutex.UnLockRead();
+    gPhysicalIdMutex.UnLock();
     eos_static_debug("not found in uid cache");
     struct passwd *pwbufp=0;
     
     if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) 
       return;
     id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
-    gPhysicalIdMutex.LockWrite();
+    gPhysicalIdMutex.Lock();
     gPhysicalUidCache.Add(name, id, 3600);
-    gPhysicalIdMutex.UnLockWrite();
     eos_static_debug("adding to cache uid=%u gid=%u", id->uid,id->gid);
-    gPhysicalIdMutex.LockRead();
   };
 
   vid.uid = id->uid;
@@ -548,7 +546,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
     vid.uid = id->uid;
     vid.gid = id->gid;
     eos_static_debug("returning uid=%u gid=%u", id->uid,id->gid);
-    gPhysicalIdMutex.UnLockRead();
+    gPhysicalIdMutex.UnLock();
     return; 
   }
 
@@ -586,10 +584,10 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
   gid_vector* vec = new uid_vector;
   *vec = vid.gid_list;
 
-  gPhysicalIdMutex.UnLockRead();
-  RWMutexWriteLock lock(gPhysicalIdMutex);
 
   gPhysicalGidCache.Add(name,vec, 3600);
+
+  gPhysicalIdMutex.UnLock(); 
 
   return ;
 }

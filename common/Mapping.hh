@@ -91,7 +91,7 @@ public:
   static XrdOucHash<id_pair>    gPhysicalUidCache;
   static XrdOucHash<gid_vector> gPhysicalGidCache;
 
-  static RWMutex gPhysicalIdMutex; // protects the physical ID cache
+  static XrdSysMutex gPhysicalIdMutex; // protects the physical ID cache
 
   static RWMutex gMapMutex;        // protects all global map hashes
 
