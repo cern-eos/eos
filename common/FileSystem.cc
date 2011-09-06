@@ -19,6 +19,12 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
   mPath.erase(0, mQueue.length());
   mSom       = som;
   PreBookedSpace = 0;
+  cActive = 0;
+  cStatus = 0;
+  cConfigStatus = 0;
+  cActiveTime = 0;
+  cStatusTime = 0;
+  cConfigTime = 0;
 
   std::string broadcast = queue;
   if (bc2mgm)

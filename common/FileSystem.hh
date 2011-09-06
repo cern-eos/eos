@@ -126,6 +126,18 @@ public:
   static  fsactive_t GetActiveStatusFromString(const char* ss);
   static const char* GetAutoBootRequestString();
 
+  //------------------------------------------------------------------------
+  //! Cache Members
+  //------------------------------------------------------------------------
+  fsactive_t  cActive;
+  XrdSysMutex cActiveLock;
+  time_t      cActiveTime;
+  fsstatus_t  cStatus;
+  time_t      cStatusTime;
+  XrdSysMutex cStatusLock;
+  fsstatus_t  cConfigStatus;
+  XrdSysMutex cConfigLock;
+  time_t      cConfigTime;
 
   //------------------------------------------------------------------------
   //! Setter Functions
@@ -207,17 +219,16 @@ public:
 
   fsactive_t GetActiveStatus(bool cached=false) {
     // this function can be used with a small cache which 1s expiration time to avoid too many lookup's in tight loops
-    static fsactive_t cActive=0;
-    static XrdSysMutex cActiveLock;
+    fsactive_t rActive=0;
     if (cached) {
-      static time_t cachetime=0;
       time_t now=time(NULL);
       cActiveLock.Lock();
-      if ( now - cachetime ) {
-	cachetime = now;
+      if ( now - cActiveTime ) {
+	cActiveTime = now;
       } else {
+	rActive = cActive;
 	cActiveLock.UnLock();
-	return cActive;
+	return rActive;
       }
     }
     std::string active = GetString("stat.active");
@@ -231,7 +242,7 @@ public:
       return kOffline;
     }
   }
-
+  
   fsactive_t GetActiveStatus(fs_snapshot_t snapshot) {
     return snapshot.mActiveStatus;
   }
@@ -342,31 +353,47 @@ public:
   }
 
   fsstatus_t GetStatus(bool cached=false) {
-    static fsstatus_t cStatus=0;
-    static XrdSysMutex cStatusLock;
+    fsstatus_t rStatus=0;
     if (cached) {
-      static time_t cachetime=0;
       time_t now=time(NULL);
       cStatusLock.Lock();
-      if ( now - cachetime ) {
-	cachetime = now;
+      if ( now - cStatusTime ) {
+	cStatusTime = now;
       } else {
+	rStatus = cStatus;
 	cStatusLock.UnLock();
-	return cStatus;
+	return rStatus;
       }
     }
 
     cStatus = GetStatusFromString(GetString("stat.boot").c_str());
+    rStatus = cStatus;
     cStatusLock.UnLock();
-    return cStatus;
+    return rStatus;
   }
   
   fsstatus_t GetDrainStatus() {
     return GetDrainStatusFromString(GetString("stat.drain").c_str());
   }
 
-  fsstatus_t GetConfigStatus() { 
-    return GetConfigStatusFromString(GetString("configstatus").c_str());
+  fsstatus_t GetConfigStatus(bool cached=false) { 
+    fsstatus_t rConfigStatus=0;
+    if (cached) {
+      time_t now=time(NULL);
+      cConfigLock.Lock();
+      if ( now - cConfigTime ) {
+	cConfigTime = now;
+      } else {
+	rConfigStatus = cConfigStatus;
+	cConfigLock.UnLock();
+	return rConfigStatus;
+      }
+    }
+
+    cConfigStatus = GetConfigStatusFromString(GetString("configstatus").c_str());
+    rConfigStatus = cConfigStatus;
+    cConfigLock.UnLock();
+    return rConfigStatus;
   }
 
   int GetErrCode() {

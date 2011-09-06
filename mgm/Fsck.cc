@@ -351,7 +351,9 @@ Fsck::Check(void)
     
     XrdSysThread::CancelPoint();
     Log(false,"=> next run in 8 hours");
-    sleep(3600*8);
+    for (size_t s=0; s< (8*3600); s++) {
+      sleep(1);
+    }
   }
   return 0;
 }
@@ -759,8 +761,16 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 	    for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
 	      if (*lociter) {
 		if (FsView::gFsView.mIdView.count(*lociter)) {
-		  if ( (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(true) == eos::common::FileSystem::kOffline) || 
-		       (FsView::gFsView.mIdView[*lociter]->GetStatus(true) != eos::common::FileSystem::kBooted) ){
+		  eos::common::FileSystem::fsstatus_t bootstatus   = (FsView::gFsView.mIdView[*lociter]->GetStatus(true));
+		  eos::common::FileSystem::fsstatus_t configstatus = (FsView::gFsView.mIdView[*lociter]->GetConfigStatus());
+
+		  bool conda = (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(true) == eos::common::FileSystem::kOffline)  ;
+		  bool condb = ( bootstatus != eos::common::FileSystem::kBooted) ;
+		  bool condc = ( configstatus == eos::common::FileSystem::kDrainDead);
+
+		  if ( conda || condb || condc) {
+		    //		    fprintf(stderr,"warning: %d %d %d %d %d %d %d %d %llx\n", (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(false)), (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(true)),
+		    //			    FsView::gFsView.mIdView[*lociter]->GetStatus(false),FsView::gFsView.mIdView[*lociter]->GetStatus(true), conda, condb, condc, bootstatus, fid) ;
 		    if (!oneoffline) {
 		      mGlobalCounterLock.Lock();
 		      n_error_replica_offline++;
