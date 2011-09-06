@@ -2839,7 +2839,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
  	      }
 	      
  	      if (fmd) {
- 		if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica) {
+ 		if ( (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica) || (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kPlain)) {
  		  unsigned long newlayout = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::GetChecksum(fmd->getLayoutId()), newstripenumber, eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()));
  		  fmd->setLayoutId(newlayout);
 		  stdOut += "success: setting new stripe number to "; stdOut += newstripenumber; stdOut += " for path="; stdOut += path;
@@ -3617,7 +3617,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      stdOut += "size="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getSize()); stdOut+=" ";
 	      stdOut += "mtime="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mtime.tv_sec); stdOut += "."; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mtime.tv_nsec); stdOut += " ";
 	      stdOut += "ctime="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)ctime.tv_sec); stdOut += "."; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)ctime.tv_nsec);stdOut += " ";
-	      stdOut += "uid="; stdOut += (int)fmd->getCUid(); stdOut += " gid="; stdOut += (int)fmd->getCGid();
+	      stdOut += "uid="; stdOut += (int)fmd->getCUid(); stdOut += " gid="; stdOut += (int)fmd->getCGid(); stdOut += " ";
 	      
 	      stdOut += "fxid="; stdOut += hexfidstring; stdOut+=" "; stdOut += "fid="; stdOut += fid; stdOut += " ";
 	      stdOut += "pid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getContainerId()); stdOut+=" ";
