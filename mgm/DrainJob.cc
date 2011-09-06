@@ -328,13 +328,13 @@ DrainJob::Drain(void)
                           locationfs.push_back(*lociter);
                         }
                       }
+                      fullpath = gOFS->eosView->getUri(fmd);
                     } catch ( eos::MDException &e ) {
                       fmd = 0;
                     }
                     if (fmd && (!fmd->hasLocation(target_snapshot.mId))) {
                       // we can put a replica here ! 
                       size = fmd->getSize();
-                      fullpath = gOFS->eosView->getUri(fmd);
 
 		      // check if there is space for that file
 		      if (fs->ReserveSpace(target_snapshot, size))
