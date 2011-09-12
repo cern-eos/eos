@@ -49,6 +49,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   MgmConfigDir = "/var/tmp/";
   MgmMetaLogDir = "/var/tmp/eos/md/";
   MgmHealMap.set_deleted_key(0);
+  MgmDirectoryModificationTime.set_deleted_key(0);
 
   IoReportStore=false;
   IoReportNamespace=false;

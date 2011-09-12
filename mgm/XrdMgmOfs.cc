@@ -603,7 +603,15 @@ int XrdMgmOfsFile::open(const char          *path,      // In
     return Emsg(epname, error, errno, "open file", path);      
   }
   
-
+  // store the in-memory modification time
+  gOFS->MgmDirectoryModificationTimeMutex.Lock();
+  // we get the current time, but we don't update the creation time
+  struct timespec ts;
+  eos::common::Timing::GetTimeSpec(ts);
+  gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_sec = ts.tv_sec;
+  gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_nsec = ts.tv_nsec;
+  gOFS->MgmDirectoryModificationTimeMutex.UnLock();
+    
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
   
@@ -1803,9 +1811,16 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     newdir->setCUid(vid.uid);
     newdir->setCGid(vid.gid);
     newdir->setMode(acc_mode);
-
     newdir->setMode(dir->getMode());
-    
+
+    // store the in-memory modification time
+    gOFS->MgmDirectoryModificationTimeMutex.Lock();
+    eos::ContainerMD::ctime_t ctime;
+    newdir->getCTime(ctime);
+    gOFS->MgmDirectoryModificationTime[dir->getId()].tv_sec = ctime.tv_sec;
+    gOFS->MgmDirectoryModificationTime[dir->getId()].tv_nsec = ctime.tv_nsec;
+    gOFS->MgmDirectoryModificationTimeMutex.UnLock();
+
     if (dir->getMode() & S_ISGID) {
       // inherit the attributes
       eos::ContainerMD::XAttrMap::const_iterator it;
@@ -2003,6 +2018,16 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
     if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())) {
       gOFS->eosView->removeFile( fmd );
     }
+
+    if (container) {
+      struct timespec ts;
+      eos::common::Timing::GetTimeSpec(ts);
+      // update the in-memory modification time
+      gOFS->MgmDirectoryModificationTimeMutex.Lock();
+      gOFS->MgmDirectoryModificationTime[container->getId()].tv_sec = ts.tv_sec;
+      gOFS->MgmDirectoryModificationTime[container->getId()].tv_nsec = ts.tv_nsec;
+      gOFS->MgmDirectoryModificationTimeMutex.UnLock();
+    }
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
@@ -2141,6 +2166,16 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
    gOFS->eosViewMutex.Lock();
 
    try {
+     // remove the in-memory modification time of the deleted directory
+     gOFS->MgmDirectoryModificationTimeMutex.Lock();
+     gOFS->MgmDirectoryModificationTime.erase(dh->getId());
+     struct timespec ts;
+     // update the in-memory modification time of the parent directory
+     eos::common::Timing::GetTimeSpec(ts);
+     gOFS->MgmDirectoryModificationTime[dhpar->getId()].tv_sec = ts.tv_sec;
+     gOFS->MgmDirectoryModificationTime[dhpar->getId()].tv_nsec = ts.tv_nsec;
+     gOFS->MgmDirectoryModificationTimeMutex.UnLock();
+
      eosView->removeContainer(path);
    } catch( eos::MDException &e ) {
      errno = e.getErrno();
@@ -2387,6 +2422,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     eos::ContainerMD::ctime_t atime;
     cmd->getCTime(atime);
     buf->st_atime   = atime.tv_sec;
+
     buf->st_mtime   = atime.tv_sec;
     buf->st_ctime   = atime.tv_sec;
 
@@ -2396,6 +2432,18 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     buf->st_atim.tv_nsec   = atime.tv_nsec;
     buf->st_mtim.tv_nsec   = atime.tv_nsec;
     buf->st_ctim.tv_nsec   = atime.tv_nsec;
+
+    // if we have a cached modification time, return that one
+    // -->
+    gOFS->MgmDirectoryModificationTimeMutex.Lock();
+    if (gOFS->MgmDirectoryModificationTime.count(buf->st_ino)) {
+      buf->st_mtime = gOFS->MgmDirectoryModificationTime[buf->st_ino].tv_sec;
+      buf->st_mtim.tv_sec = buf->st_mtime;
+      buf->st_mtim.tv_nsec = gOFS->MgmDirectoryModificationTime[buf->st_ino].tv_nsec;
+    }
+    gOFS->MgmDirectoryModificationTimeMutex.UnLock();  
+    // --|
+
     
     EXEC_TIMING_END("Stat");    
     return SFS_OK;

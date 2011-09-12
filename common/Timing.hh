@@ -54,6 +54,18 @@ public:
   }
 
   virtual ~Timing(){Timing* n = next; if (n) delete n;};
+
+
+  static void GetTimeSpec(struct timespec &ts) {
+#ifdef __APPLE__
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    ts.tv_sec = tv.tv_sec;
+    ts.tv_nsec = tv.tv_usec * 1000;
+#else
+    clock_gettime(CLOCK_REALTIME, &ts);
+#endif
+  }    
 };
 
 #define TIMING(__trace__, __ID__,__LIST__)                              \
@@ -65,6 +77,9 @@ do {                                                                    \
      (__LIST__)->ptr->next=new eos::common::Timing(__ID__,tp);          \
      (__LIST__)->ptr = (__LIST__)->ptr->next;                           \
 } while(0);                                                             \
+
+
+
 
 EOSCOMMONNAMESPACE_END
  

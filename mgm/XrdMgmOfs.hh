@@ -499,6 +499,10 @@ virtual bool           Init(XrdSysError &);
         XrdSysMutex      MgmHealMapMutex;
 
 
+        // map keeping the modification times of directories, they are either directly inserted from directory/file creation or they are set from a directory listing
+        XrdSysMutex      MgmDirectoryModificationTimeMutex;
+        google::sparse_hash_map<unsigned long long, struct timespec> MgmDirectoryModificationTime;
+
         struct MgmDirtyMap {
 	  bool dirtysize;
 	  bool dirtychecksum;

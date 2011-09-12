@@ -417,7 +417,7 @@ while(1) {
                 print "$ttime $stime $failovertime\n";
                 for (my $i=0; $i< ($failovertime-($ttime-$stime)); $i+=10) {
                     now();
-                    printf "$now ... starting service in %d seconds ...\n", $failovertime - $i;
+                    printf "$now ... starting service in %d seconds ...\n", $failovertime-($ttime-$stime) - $i;
                     sleep 10;
                 }
             }
