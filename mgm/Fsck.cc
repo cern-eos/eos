@@ -123,8 +123,9 @@ Fsck::Stop()
       mScanThreadMutex.UnLock();
       if (!nthreads) {
 	break;
-      }
-      sleep(1);
+      }    
+      XrdSysTimer sleeper;
+      sleeper.Snooze(1);
     } while(1);
 
 
@@ -171,8 +172,11 @@ Fsck::Check(void)
 
   XrdSysThread::SetCancelOn();
   XrdSysThread::SetCancelDeferred();
+  
+  XrdSysTimer sleeper;
+
   while (1) {
-    usleep(1000000);
+    sleeper.Snooze(1);
     eos_static_debug("Started consistency checker thread");
     ClearLog();
     Log(false,"started check");
@@ -277,7 +281,7 @@ Fsck::Check(void)
 	    else {
 	      if (!loopcount%12)
 		Log(false,"=> %u/%u threads are in use", nrunning, maxthreads);
-	      sleep(5);
+	      sleeper.Snooze(5);	     
 	    }
 	    
 	  } while(1);
@@ -305,8 +309,8 @@ Fsck::Check(void)
 	  Log(false,"still %u threads running\n",nthreads);
       } else {
 	break;
-      }
-      sleep(1);
+      }    
+      sleeper.Snooze(1);
     } while(1);
 
     mErrorMapMutex.Lock();
@@ -351,9 +355,7 @@ Fsck::Check(void)
     
     XrdSysThread::CancelPoint();
     Log(false,"=> next run in 8 hours");
-    for (size_t s=0; s< (8*3600); s++) {
-      sleep(1);
-    }
+    sleeper.Snooze(8*3600);
   }
   return 0;
 }

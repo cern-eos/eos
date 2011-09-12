@@ -241,6 +241,28 @@ com_fs (char* arg1) {
     return (0);
   }
 
+
+  if ( subcommand == "dropdeletion" ) {
+    XrdOucString arg = subtokenizer.GetToken();
+    if (!arg.c_str()) {
+      goto com_fs_usage;
+    }
+    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=dropdeletion";
+    int fsid = atoi(arg.c_str());
+    char r1fsid[128]; sprintf(r1fsid,"%d", fsid);
+    char r2fsid[128]; sprintf(r2fsid,"%04d", fsid);
+    if ( (arg == r1fsid) || (arg == r2fsid) ) {
+      // boot by fsid
+      in += "&mgm.fs.id=";
+      in += arg;
+    } else {
+      goto com_fs_usage;
+    }
+
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+
   if ( subcommand == "boot" ) {
     XrdOucString arg = subtokenizer.GetToken();
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=boot";

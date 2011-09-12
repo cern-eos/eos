@@ -2673,6 +2673,7 @@ int XrdMgmOfs::_find(const char       *path,             // In
       if (cmd) {
 	if (!permok) {
 	  stdErr += "error: no permissions to read directory "; stdErr += Path.c_str(); stdErr += "\n";
+	  gOFS->eosViewMutex.UnLock();
 	  continue;
 	}
 
@@ -2706,6 +2707,7 @@ int XrdMgmOfs::_find(const char       *path,             // In
       }
       gOFS->eosViewMutex.UnLock();
     }
+
     deepness++;
 
     if ( (vid.uid != 0) && (! eos::common::Mapping::HasUid(3, vid.uid_list)) && (! eos::common::Mapping::HasGid(4, vid.gid_list)) && (! vid.sudoer) ) {
@@ -4457,7 +4459,8 @@ XrdMgmOfs::Deletion()
 {
   // thread distributing deletions
   while (1) {
-    sleep(60);
+    XrdSysTimer sleeper;
+    sleeper.Snooze(60);   
     eos_static_debug("running deletion");
     std::vector <unsigned int> fslist;
     // get a list of file Ids
@@ -4518,6 +4521,10 @@ XrdMgmOfs::Deletion()
 	      //		break;
 	      //	      }
 
+	      if ( (fs->GetActiveStatus() == eos::common::FileSystem::kOffline) ) {
+		break;
+	      }
+	      
 	      capability += "&mgm.access=delete";
 	      capability += "&mgm.manager=" ; capability += gOFS->ManagerId.c_str();
 	      capability += "&mgm.fsid="; 
@@ -4659,10 +4666,12 @@ XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid, unsigned long lo
 void
 XrdMgmOfs::FsListener() 
 {
-  sleep(5);
+  XrdSysTimer sleeper;
+  sleeper.Snooze(5);  
   // thread listening on filesystem errors
   do {
-    sleep(1);
+    XrdSysTimer sleeper;
+    sleeper.Snooze(1);
     gOFS->ObjectManager.SubjectsMutex.Lock(); 
     // listens on modifications on filesystem objects
     while (gOFS->ObjectManager.ModificationSubjects.size()) {

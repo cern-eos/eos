@@ -172,7 +172,8 @@ Iostat::Receive(void)
       delete report;
       delete newmessage;
     }
-    usleep(1000000);
+    XrdSysTimer sleeper;
+    sleeper.Snooze(1);   
     XrdSysThread::CancelPoint();
   }
   return 0;

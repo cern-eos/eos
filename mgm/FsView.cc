@@ -1,6 +1,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/FsView.hh"
 #include "common/StringConversion.hh"
+#include "XrdSys/XrdSysTimer.hh"
 
 /*----------------------------------------------------------------------------*/
 #include <math.h>
@@ -742,7 +743,8 @@ FsView::HeartBeatCheck()
         }
       }
     }
-    sleep(1);
+    XrdSysTimer sleeper;
+    sleeper.Snooze(1);   
     XrdSysThread::CancelPoint();
   }
   

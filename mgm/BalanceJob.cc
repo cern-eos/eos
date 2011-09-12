@@ -139,7 +139,8 @@ BalanceJob::Balance(void)
   XrdSysThread::SetCancelOn();
 
   for (int i=0; i< sleeper ; i++) {
-    sleep(1);
+    XrdSysTimer sleeper;
+    sleeper.Snooze(1);
     XrdSysThread::CancelPoint();
   }
 
@@ -514,7 +515,8 @@ BalanceJob::Balance(void)
     }
     XrdSysThread::SetCancelOn();
     for (int i=0; i< 10;i++) {
-      sleep(1);
+      XrdSysTimer sleeper;
+      sleeper.Snooze(1);
       XrdSysThread::CancelPoint();
     }
 
@@ -554,7 +556,8 @@ BalanceJob::Balance(void)
   
   if (abort) {
     for (int i=0; i< 60; i++) {
-      sleep(1);
+      XrdSysTimer sleeper;
+      sleeper.Snooze(1);          
       XrdSysThread::CancelPoint();
     }
   }
@@ -569,7 +572,8 @@ BalanceJob::Balance(void)
   XrdSysThread::SetCancelOn();
 
   for (int i=0; i< 120; i++) {
-    sleep(1);
+    XrdSysTimer sleeper;
+    sleeper.Snooze(1);
     XrdSysThread::CancelPoint();
   }
 

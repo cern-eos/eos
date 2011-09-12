@@ -70,6 +70,7 @@ DrainJob::Drain(void)
   XrdSysThread::SetCancelOn();
   XrdSysThread::SetCancelDeferred();
 
+  XrdSysTimer sleeper;
   // the retry is currently hardcoded to 3 e.g. the maximum time for a drain operation is 3 x <drainperiod>
   int maxtry=3;
   int ntried=0;
@@ -113,8 +114,8 @@ DrainJob::Drain(void)
 
   XrdSysThread::SetCancelOn();
   // now we wait 60 seconds ...
-  for (int k=0; k< 600; k++) {
-    usleep(100000);
+  for (int k=0; k< 60; k++) {
+    sleeper.Snooze(1);
     XrdSysThread::CancelPoint();
   }
 
@@ -547,7 +548,7 @@ DrainJob::Drain(void)
   } while (1);
 
   
-  sleep(1);
+  sleeper.Snooze(1);  
 
   // now wait that all files disappear from the view 
 
@@ -633,7 +634,7 @@ DrainJob::Drain(void)
     for (int k=0; k< 10; k++) {
       // check if we should abort
       XrdSysThread::CancelPoint();
-      usleep(1000000);
+      sleeper.Snooze(1);
     }
 
     // with successful drained, we have nothing left

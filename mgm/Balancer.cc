@@ -2,6 +2,8 @@
 #include "mgm/Balancer.hh"
 #include "mgm/FsView.hh"
 #include "common/StringConversion.hh"
+#include "XrdSys/XrdSysTimer.hh"
+
 /* ------------------------------------------------------------------------- */
 /* ------------------------------------------------------------------------- */
 EOSMGMNAMESPACE_BEGIN
@@ -101,8 +103,9 @@ Balancer::Balance(void)
     }
     XrdSysThread::SetCancelOn();
     // hang a little bit around ...
-    for (size_t sleeper = 0; sleeper < 100; sleeper++) {
-      usleep(100000);
+    for (size_t sleeper = 0; sleeper < 10; sleeper++) {
+      XrdSysTimer sleeper;
+      sleeper.Snooze(1);
       XrdSysThread::CancelPoint();
     }
   }

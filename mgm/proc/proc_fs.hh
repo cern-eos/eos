@@ -28,6 +28,8 @@ int proc_fs_mv(std::string &sfsid, std::string &space, XrdOucString &stdOut, Xrd
 
 int proc_fs_rm(std::string &nodename, std::string &mountpoint, std::string &id, XrdOucString &stdOut, XrdOucString  &stdErr, std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in);
 
+int proc_fs_dropdeletion(std::string &id, XrdOucString &stdOut, XrdOucString  &stdErr, std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in);
+
 EOSMGMNAMESPACE_END
 
 #endif

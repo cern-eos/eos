@@ -257,7 +257,9 @@ XrdMqSharedObjectManager::FileDumper()
     if (rename(df.c_str(),DumperFile.c_str())) {
       fprintf(stderr,"XrdMqSharedObjectManager::FileDumper=> unable to write dumper file %s\n", DumperFile.c_str());
     }
-    sleep(10);
+    for (size_t i=0; i< 1000; i++) {
+      usleep(10000);
+    }
   }
 }
 

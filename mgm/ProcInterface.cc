@@ -1440,6 +1440,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);  
           retc = proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, tident, vid_in);
         }
+
+	if (subcmd == "dropdeletion") {
+          std::string id           =  opaque.Get("mgm.fs.id")?opaque.Get("mgm.fs.id"):"";
+          eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);  
+	  retc = proc_fs_dropdeletion(id, stdOut, stdErr, tident, vid_in);
+	}
       }
 
       if (subcmd == "boot") {

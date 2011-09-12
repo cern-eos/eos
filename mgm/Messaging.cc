@@ -139,7 +139,8 @@ Messaging::Listen()
       Process(newmessage);
       delete newmessage;
     } else {
-      usleep(1000000);
+      XrdSysTimer sleeper;
+      sleeper.Snooze(1);     
     }
   }
 }
