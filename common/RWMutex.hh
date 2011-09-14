@@ -21,9 +21,12 @@ class RWMutex
 {
 private:
   pthread_rwlock_t       rwlock;
-
+  pthread_rwlockattr_t   attr;
 public:
-  RWMutex() {if (pthread_rwlock_init(&rwlock, NULL)) {throw "pthread_rwlock_init failed";}}
+  RWMutex() {
+    if (pthread_rwlockattr_setkind_np(&attr,PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP)) { throw "pthread_rwlockattr_setkind_np failed";}
+    if (pthread_rwlockattr_setpshared(&attr,PTHREAD_PROCESS_SHARED)){ throw "pthread_rwlockattr_setpshared failed";}
+    if (pthread_rwlock_init(&rwlock, &attr)) {throw "pthread_rwlock_init failed";}}
   ~RWMutex() {}
 
   void LockRead() {
