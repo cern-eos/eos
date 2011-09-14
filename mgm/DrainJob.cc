@@ -535,11 +535,13 @@ DrainJob::Drain(void)
       }
 
       XrdSysThread::SetCancelOn();
+      if (!filesleft) 
+	break;
     }
 
     if (fids.size()==0) 
       break;
-    
+
     for (int k=0; k< 10; k++) {
       // check if we should abort
       XrdSysThread::CancelPoint();

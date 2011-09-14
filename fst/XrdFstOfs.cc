@@ -639,11 +639,15 @@ XrdFstOfsFile::open(const char                *path,
         eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
       }
     }
-    delete attr;
   }
 
   // try to get if the file has a scan error
-  std::string filecxerror = attr->Get("user.filecxerror");
+  std::string filecxerror = "0";
+
+  if (attr) {
+    filecxerror = attr->Get("user.filecxerror");
+    delete attr;
+  }
 
   if ((!isRW) && (filecxerror == "1")) {
     // if we have a replica layout

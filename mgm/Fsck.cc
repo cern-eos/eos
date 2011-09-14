@@ -287,8 +287,10 @@ Fsck::Check(void)
 	  } while(1);
 	  
 	  XrdSysThread::SetCancelOff();	
+	  mScanThreadMutex.Lock();
 	  mScanThreads[fsid] = 0;
 	  XrdSysThread::Run(&mScanThreads[fsid], Fsck::StaticScan, static_cast<void *>(&mScanThreadInfo[fsid]),XRDSYSTHREAD_HOLD, "Fsck Scan Thread");
+	  mScanThreadMutex.UnLock();
 	  XrdSysThread::SetCancelOn();	
 	}
       }

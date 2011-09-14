@@ -1487,6 +1487,51 @@ int XrdMgmOfs::_exists(const char                *path,        // In
     file_exists = XrdSfsFileExistIsDirectory;
   }
 
+  if (file_exists == XrdSfsFileExistNo) {
+    // get the parent directory
+    eos::common::Path cPath(path);
+    eos::ContainerMD* dir=0;
+    eos::ContainerMD::XAttrMap attrmap;
+    
+    //-------------------------------------------
+    gOFS->eosViewMutex.Lock();
+    try {
+      dir = eosView->getContainer(cPath.GetParentPath());
+      eos::ContainerMD::XAttrMap::const_iterator it;
+      for ( it = dir->attributesBegin(); it != dir->attributesEnd(); ++it) {
+        attrmap[it->first] = it->second;
+      }
+    } catch( eos::MDException &e ) {
+      dir = 0;
+    }
+    gOFS->eosViewMutex.UnLock();
+    //-------------------------------------------
+    
+    if (dir) {
+      XrdOucString redirectionhost="invalid?";
+      int ecode=0;
+      int rcode=SFS_OK;
+      if (attrmap.count("sys.redirect.enoent")) {
+	// there is a redirection setting here
+	redirectionhost = "";
+	redirectionhost = attrmap["sys.redirect.enoent"].c_str();
+	int portpos = 0;
+	if ( (portpos = redirectionhost.find(":")) != STR_NPOS) {
+	  XrdOucString port = redirectionhost;
+	  port.erase(0,portpos+1);
+	  ecode = atoi(port.c_str());
+	  redirectionhost.erase(portpos);
+	} else {
+	  ecode = 1094;
+	}
+	rcode = SFS_REDIRECT;
+	error.setErrInfo(ecode, redirectionhost.c_str());
+	gOFS->MgmStats.Add("RedirectENOENT",vid.uid,vid.gid,1);
+	return rcode;
+      }
+    }
+  }
+
   EXEC_TIMING_END("Exists");  
   return SFS_OK;
 }
@@ -1637,6 +1682,8 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 
   eos::ContainerMD* dir=0;
   eos::ContainerMD::XAttrMap attrmap;
+  eos::ContainerMD* copydir=0;
+
     
   // check for the parent directory
   if (spath != "/") {
@@ -1644,6 +1691,8 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     gOFS->eosViewMutex.Lock();
     try {
       dir = eosView->getContainer(cPath.GetParentPath());
+      copydir = new eos::ContainerMD(*dir);
+      dir = copydir;
       eos::ContainerMD::XAttrMap::const_iterator it;
       for ( it = dir->attributesBegin(); it != dir->attributesEnd(); ++it) {
         attrmap[it->first] = it->second;
@@ -1677,6 +1726,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     if (stdpermcheck && 
 	(!dir->access(vid.uid,vid.gid, X_OK|W_OK))
 	) {
+      if (copydir) delete copydir;
       errno = EPERM;
       return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
     }
@@ -1702,6 +1752,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       gOFS->eosViewMutex.UnLock();
       //-------------------------------------------
       if (fulldir) {
+	if (copydir) delete copydir;
 	eos_info("this directory exists!",path);
 	EXEC_TIMING_END("Exists");
 	return SFS_OK;
@@ -1722,7 +1773,9 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	//-------------------------------------------
 	gOFS->eosViewMutex.Lock();
 	try {
+	  if (copydir) delete copydir;	  
 	  dir = eosView->getContainer(cPath.GetSubPath(i));
+	  copydir = new eos::ContainerMD(*dir);
           eos::ContainerMD::XAttrMap::const_iterator it;
           for ( it = dir->attributesBegin(); it != dir->attributesEnd(); ++it) {
             attrmap[it->first] = it->second;
@@ -1737,6 +1790,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       }
       // that is really a serious problem!
       if (!dir) {
+	if (copydir) delete copydir;
 	eos_crit("didn't find any parent path traversing the namespace");
 	errno = ENODATA;
 	return Emsg(epname, error, ENODATA, "create directory", cPath.GetSubPath(i));
@@ -1757,6 +1811,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       }
       
       if (stdpermcheck && (!dir->access(vid.uid,vid.gid, X_OK|W_OK))) {
+	if (copydir) delete copydir;
         errno = EPERM;
         return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
       }
@@ -1785,14 +1840,22 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	  errno = e.getErrno();
 	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
 	}
+	dir = newdir;
+	if (dir) {
+	  if (copydir) delete copydir;
+	  copydir = new eos::ContainerMD(*dir);
+	  dir = copydir;
+	}
 	gOFS->eosViewMutex.UnLock();
 	//-------------------------------------------
 	
-	if (!newdir) 
+	if (!newdir) {
+	  if (copydir) delete copydir;
 	  return Emsg(epname,error,errno,"mkdir",path);
-	dir = newdir;
+	}
       }
     } else {
+      if (copydir) delete copydir;
       errno = ENOENT;
       return Emsg(epname,error,errno,"mkdir",path);
     }
@@ -1836,6 +1899,8 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   }
   gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
+
+  if (copydir) delete copydir;
 
   if (!newdir) {
     return Emsg(epname,error,errno,"mkdir",path);
@@ -2107,6 +2172,9 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
    eos::ContainerMD* dhpar=0;
    eos::ContainerMD* dh=0;
 
+   eos::ContainerMD::id_t dh_id=0;
+   eos::ContainerMD::id_t dhpar_id=0;
+
    eos::common::Path cPath(path);
    eos::ContainerMD::XAttrMap attrmap;
 
@@ -2115,11 +2183,13 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
    gOFS->eosViewMutex.Lock();
    try {
      dhpar = gOFS->eosView->getContainer(cPath.GetParentPath());
+     dhpar_id = dhpar->getId();
      eos::ContainerMD::XAttrMap::const_iterator it;
      for ( it = dhpar->attributesBegin(); it != dhpar->attributesEnd(); ++it) {
        attrmap[it->first] = it->second;
       }
      dh = gOFS->eosView->getContainer(path);
+     dh_id = dh->getId();
    } catch( eos::MDException &e ) {
      dhpar = 0;
      dh=0;
@@ -2168,12 +2238,12 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
    try {
      // remove the in-memory modification time of the deleted directory
      gOFS->MgmDirectoryModificationTimeMutex.Lock();
-     gOFS->MgmDirectoryModificationTime.erase(dh->getId());
+     gOFS->MgmDirectoryModificationTime.erase(dh_id);
      struct timespec ts;
      // update the in-memory modification time of the parent directory
      eos::common::Timing::GetTimeSpec(ts);
-     gOFS->MgmDirectoryModificationTime[dhpar->getId()].tv_sec = ts.tv_sec;
-     gOFS->MgmDirectoryModificationTime[dhpar->getId()].tv_nsec = ts.tv_nsec;
+     gOFS->MgmDirectoryModificationTime[dhpar_id].tv_sec = ts.tv_sec;
+     gOFS->MgmDirectoryModificationTime[dhpar_id].tv_nsec = ts.tv_nsec;
      gOFS->MgmDirectoryModificationTimeMutex.UnLock();
 
      eosView->removeContainer(path);
