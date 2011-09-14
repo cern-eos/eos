@@ -1702,8 +1702,6 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
       noParent = true;
     }
-    gOFS->eosViewMutex.UnLock();
-    //-------------------------------------------
   }
 
   // check permission
@@ -1728,6 +1726,9 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	) {
       if (copydir) delete copydir;
       errno = EPERM;
+      gOFS->eosViewMutex.UnLock();
+      //-------------------------------------------
+
       return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
     }
   }
@@ -1740,21 +1741,18 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     eos::ContainerMD* fulldir=0;
     if (dir) {
       // only if the parent exists, the full path can exist!
-
-      //-------------------------------------------
-      gOFS->eosViewMutex.Lock();
       try {
 	fulldir = eosView->getContainer(path);
       } catch( eos::MDException &e ) {
 	fulldir = 0;
 	eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
       }
-      gOFS->eosViewMutex.UnLock();
-      //-------------------------------------------
       if (fulldir) {
 	if (copydir) delete copydir;
 	eos_info("this directory exists!",path);
 	EXEC_TIMING_END("Exists");
+        gOFS->eosViewMutex.UnLock();
+        //-------------------------------------------
 	return SFS_OK;
       }
     }
@@ -1770,8 +1768,6 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       for (i=cPath.GetSubPathSize()-1;i>=0; i--) {
         attrmap.clear();
 	eos_debug("testing path %s", cPath.GetSubPath(i));
-	//-------------------------------------------
-	gOFS->eosViewMutex.Lock();
 	try {
 	  if (copydir) delete copydir;	  
 	  dir = eosView->getContainer(cPath.GetSubPath(i));
@@ -1783,8 +1779,6 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	} catch( eos::MDException &e ) {
 	  dir = 0;
 	}
-	gOFS->eosViewMutex.UnLock();
-	//-------------------------------------------
 	if (dir)
 	  break;
       }
@@ -1793,6 +1787,8 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	if (copydir) delete copydir;
 	eos_crit("didn't find any parent path traversing the namespace");
 	errno = ENODATA;
+	gOFS->eosViewMutex.UnLock();
+	//-------------------------------------------
 	return Emsg(epname, error, ENODATA, "create directory", cPath.GetSubPath(i));
       }
    
@@ -1813,13 +1809,14 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       if (stdpermcheck && (!dir->access(vid.uid,vid.gid, X_OK|W_OK))) {
 	if (copydir) delete copydir;
         errno = EPERM;
+	gOFS->eosViewMutex.UnLock();
+	//-------------------------------------------
+
         return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
       }
    
       
       for (j=i+1; j< (int)cPath.GetSubPathSize(); j++) {
-	//-------------------------------------------
-	gOFS->eosViewMutex.Lock();
 	try {
 	  eos_debug("creating path %s", cPath.GetSubPath(j));
 	  newdir = eosView->createContainer(cPath.GetSubPath(j), recurse);
@@ -1840,35 +1837,38 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	  errno = e.getErrno();
 	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
 	}
+
 	dir = newdir;
 	if (dir) {
 	  if (copydir) delete copydir;
 	  copydir = new eos::ContainerMD(*dir);
 	  dir = copydir;
 	}
-	gOFS->eosViewMutex.UnLock();
-	//-------------------------------------------
 	
 	if (!newdir) {
 	  if (copydir) delete copydir;
+          gOFS->eosViewMutex.UnLock();
+          //-------------------------------------------
 	  return Emsg(epname,error,errno,"mkdir",path);
 	}
       }
     } else {
       if (copydir) delete copydir;
       errno = ENOENT;
+      gOFS->eosViewMutex.UnLock();
+      //-------------------------------------------
       return Emsg(epname,error,errno,"mkdir",path);
     }
   }
 
   // this might not be needed, but it is detected by coverty
   if (!dir) {
+    gOFS->eosViewMutex.UnLock();
+    //-------------------------------------------
     return Emsg(epname,error,errno,"mkdir",path);
   }
 
     
-  //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
   try {
     newdir = eosView->createContainer(path);
     newdir->setCUid(vid.uid);

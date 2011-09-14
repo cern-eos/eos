@@ -80,6 +80,159 @@ struct fuse_ll {
   int got_destroy;
 };
 
+//caching structures
+#define MAX_CACHE_SIZE 100
+
+typedef struct {
+  char* name;
+  unsigned long long inode;
+  struct fuse_entry_param e;
+} cache_entry, *cache_entry_ptr, **cache_entry_array;
+
+typedef struct {
+  char* name;
+  int filled;
+  int idx_entry;
+  int no_entries;
+  time_t mtv_sec;
+  struct dirbuf b;
+  unsigned long long inode;
+  cache_entry_array entries;
+} cache_dir, *cache_dir_ptr, **cache_dir_array;
+
+static int idx_dir = 0; 
+static int no_dirs = 0;  //no. of dirs in cache
+static cache_dir_array cache = NULL;
+
+//-------------------------------------------------------------------------------------------------
+//search for a particular inode in the cache
+static cache_dir_ptr get_dir_from_cache(fuse_ino_t inode)
+{
+  int i;
+  for (i = 0; i < no_dirs; i++){
+    if (cache[i]->inode == inode) 
+      return cache[i];
+  }
+  return NULL;
+}
+
+
+//-------------------------------------------------------------------------------------------------
+//update a directory entry in the cache
+static int update_dir_in_cache(cache_dir_ptr dir, char *name, int nentries, time_t mtime, struct dirbuf *b)
+{
+  dir->filled = 0;
+  dir->idx_entry = 0;
+  dir->mtv_sec = mtime;
+  dir->name = (char *) memset(dir->name, 0, 16348 * sizeof(char));
+  dir->name = strncpy(dir->name, name, strlen(name));
+  if (dir->no_entries != nentries){
+    dir->no_entries = nentries;
+    dir->entries = (cache_entry_array) realloc(dir->entries, dir->no_entries * sizeof(cache_entry_ptr));
+  }
+
+  if (dir->b.size != b->size) {
+    dir->b.size = b->size;
+    dir->b.p = (char*) realloc(dir->b.p, dir->b.size * sizeof(char));
+  }
+  dir->b.p = (char *)memcpy(dir->b.p, b->p, dir->b.size * sizeof(char));
+
+  return 0;
+}
+
+
+//-------------------------------------------------------------------------------------------------
+//add a directory in cache allocating space for the entries contained in the directory
+static int add_dir_to_cache(fuse_ino_t dir_inode, char *name, int nentries, time_t mtv_sec, struct dirbuf *b)
+{
+  cache_dir_ptr dir = NULL;
+
+  if (cache == NULL) {
+    //allocate cache
+    no_dirs = 0;
+    idx_dir = 0;
+    cache = (cache_dir_array) calloc(MAX_CACHE_SIZE, sizeof(cache_dir_ptr));
+    if (cache == NULL)
+      return -1;
+  }
+
+  if (no_dirs < MAX_CACHE_SIZE){
+    //allocate a new dir entry
+    cache[idx_dir] = (cache_dir_ptr) calloc(1, sizeof(cache_dir));
+    dir = cache[idx_dir];
+    dir->filled = 0;
+    dir->idx_entry = 0;
+    dir->mtv_sec = mtv_sec;
+    dir->inode = dir_inode;
+    dir->no_entries = nentries;
+    dir->name = (char*) calloc (16348, sizeof(char));
+    dir->name = strncpy(dir->name, name, strlen(name));
+    dir->entries = (cache_entry_array) calloc(dir->no_entries, sizeof(cache_entry_ptr));
+    dir->b.size = b->size;
+    dir->b.p = (char*) calloc(dir->b.size, sizeof(char));
+    dir->b.p = (char*) memcpy(dir->b.p, b->p, dir->b.size);
+    
+    no_dirs++;
+    idx_dir = no_dirs % MAX_CACHE_SIZE;
+  }
+  else {
+    //overwrite an old dir entry
+    dir = cache[idx_dir];
+    dir->filled = 0;
+    dir->idx_entry = 0;
+    dir->mtv_sec = mtv_sec;
+    dir->inode = dir_inode;
+    dir->no_entries = nentries;
+    dir->name = (char *) memset(dir->name, 0, 16348 * sizeof(char));
+    dir->name = strncpy(dir->name, name, strlen(name));
+    dir->entries = (cache_entry_array) realloc(dir->entries, dir->no_entries * sizeof(cache_entry_ptr));
+    dir->b.size = b->size;
+    dir->b.p = (char*) calloc(dir->b.size, sizeof(char));
+    dir->b.p = (char*) memcpy(dir->b.p, b->p, dir->b.size);
+
+    idx_dir = (idx_dir + 1) % MAX_CACHE_SIZE;
+  }
+
+  return 0;  
+}
+
+
+//-------------------------------------------------------------------------------------------------
+//search for a particular entry in a directory
+static cache_entry_ptr get_entry_from_dir(cache_dir_ptr dir, const char* entry_name)
+{
+  int i = 0;
+  for (i = 0; i < dir->idx_entry; i++){
+    if (strncmp(dir->entries[i]->name, entry_name, strlen(entry_name)) == 0)
+      return dir->entries[i];
+  }
+  return NULL;
+}
+
+
+//-------------------------------------------------------------------------------------------------
+//add a new entry to a directory in cache
+static int add_entry_to_dir(cache_dir_ptr dir, fuse_ino_t entry_inode, const char *entry_name, struct fuse_entry_param *e)
+{
+  if (dir->idx_entry >= dir->no_entries){
+    //dir is full
+    return -1;
+  }
+  
+  dir->entries[dir->idx_entry] = (cache_entry_ptr) calloc(1, sizeof(cache_entry));
+  dir->entries[dir->idx_entry]->name = (char *) calloc(16348, sizeof(char));
+  dir->entries[dir->idx_entry]->name = (char*) strncpy(dir->entries[dir->idx_entry]->name, entry_name, strlen(entry_name));
+  dir->entries[dir->idx_entry]->inode = entry_inode;
+  dir->entries[dir->idx_entry]->e = *e;
+  
+  dir->idx_entry++;
+  if (dir->idx_entry >= dir->no_entries - 2)
+    dir->filled = 1;
+  return 0;
+}
+
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_readlink(fuse_req_t req, fuse_ino_t ino)
 {
   struct stat stbuf;
@@ -108,6 +261,8 @@ static void eosfs_ll_readlink(fuse_req_t req, fuse_ino_t ino)
   }
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_getattr(fuse_req_t req, fuse_ino_t ino,
 				struct fuse_file_info *fi)
 {
@@ -136,6 +291,8 @@ static void eosfs_ll_getattr(fuse_req_t req, fuse_ino_t ino,
   }
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
 				int to_set, struct fuse_file_info *fi)
 {
@@ -215,10 +372,13 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
   }
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
 {
   const char* parentpath=NULL;
   char fullpath[16384];
+  char ifullpath[16384];
 
   parentpath = xrd_get_name_for_inode(parent);
   if (parent ==1) {
@@ -229,35 +389,60 @@ static void eosfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     return;
   }
 
-  sprintf(fullpath,"root://%s@%s%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix, parentpath,name);
-  if (isdebug) printf("[%s]: parent=%lld path=%s uid=%d\n", __FUNCTION__,(long long)parent,fullpath,req->ctx.uid);
-  struct fuse_entry_param e;
-  memset(&e, 0, sizeof(e));
-  e.attr_timeout = attrcachetime;
-  e.entry_timeout = entrycachetime;
-  int retc = xrd_stat(fullpath,&e.attr);
-  if (!retc) {
-    char ifullpath[16384];
-    if (name[0] == '/') 
-      sprintf(ifullpath,"%s%s",parentpath,name);
-    else
-      sprintf(ifullpath,"%s/%s",parentpath,name);
-    if (isdebug) printf("[%s]: storeinode=%lld path=%s\n", __FUNCTION__,(long long) e.attr.st_ino,ifullpath);
-    e.ino = e.attr.st_ino;
-    xrd_store_inode(e.attr.st_ino,ifullpath);
-    fuse_reply_entry(req, &e);
-  } else {
-    if (errno == EFAULT) {
-      e.ino = 0;
+  if (name[0] == '/') 
+    sprintf(ifullpath,"%s%s",parentpath,name);
+  else
+    sprintf(ifullpath,"%s/%s",parentpath,name);
+
+  sprintf(fullpath,"root://%s@%s%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, parentpath,name);
+  if (isdebug) printf("[%s]: parent=%lld path=%s uid=%d\n", __FUNCTION__, (long long)parent, fullpath, req->ctx.uid);
+
+  cache_dir_ptr dir = NULL;
+  cache_entry_ptr entry = NULL;
+  dir = get_dir_from_cache(parent);
+
+  if (dir && dir->filled) {
+    entry = get_entry_from_dir(dir, name);
+    if (entry) {
+      xrd_store_inode(entry->e.attr.st_ino,ifullpath);
+      fuse_reply_entry(req, &(entry->e));
+      return;
+    }
+    else { 
+      //entry not found it will be added below 
+    }
+  } 
+
+  if ((!dir) || (!entry)) {
+    //fill dir with entries
+    struct fuse_entry_param e;
+    memset(&e, 0, sizeof(e));
+    e.attr_timeout = attrcachetime;
+    e.entry_timeout = entrycachetime;
+    int retc = xrd_stat(fullpath, &e.attr);
+    if (!retc) {
+      if (isdebug) printf("[%s]: storeinode=%lld path=%s\n", __FUNCTION__,(long long) e.attr.st_ino,ifullpath);
+      e.ino = e.attr.st_ino;
+      xrd_store_inode(e.attr.st_ino,ifullpath);
       fuse_reply_entry(req, &e);
+      //add entry to dir
+      if (dir && (!entry))
+        add_entry_to_dir(dir, e.attr.st_ino, name, &e); 
     } else {
-      fuse_reply_err(req, errno);
+      if (errno == EFAULT) {
+        e.ino = 0;
+        fuse_reply_entry(req, &e);
+      } else {
+        fuse_reply_err(req, errno);
+      }
     }
   }
 }
 
 #define min(x, y) ((x) < (y) ? (x) : (y))
 
+
+//--------------------------------------------------------------------------------------------------
 static int reply_buf_limited(fuse_req_t req, const char *buf, size_t bufsize,
 			     off_t off, size_t maxsize)
 {
@@ -268,6 +453,8 @@ static int reply_buf_limited(fuse_req_t req, const char *buf, size_t bufsize,
     return fuse_reply_buf(req, NULL, 0);
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_opendir(fuse_req_t req, fuse_ino_t ino,
 			      struct fuse_file_info *fi)
 {
@@ -296,6 +483,8 @@ static void eosfs_ll_opendir(fuse_req_t req, fuse_ino_t ino,
   }
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void dirbuf_add(fuse_req_t req, struct dirbuf *b, const char *name,
 		fuse_ino_t ino)
 {
@@ -309,11 +498,14 @@ static void dirbuf_add(fuse_req_t req, struct dirbuf *b, const char *name,
                     b->size);
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 			      off_t off, struct fuse_file_info *fi)
 {
   struct stat stbuf;
   char fullpath[16384];
+  char dirfullpath[16384];
   static int i=0;
   const char* name = xrd_get_name_for_inode((long long)ino);
   // the root is inode 1
@@ -329,44 +521,74 @@ static void eosfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
   if (isdebug) printf("[%s]: inode=%lld path=%s size=%lld off=%lld\n", __FUNCTION__,(long long)ino,fullpath,(long long)size,(long long)off);
 
   int retc = 0;
-
-  int cnt;
+  int cnt = 0;
   char* namep;
   unsigned long long in;
-
-  cnt=0;
-
-  struct dirent* entry;
   struct dirbuf* b;
+  struct stat attr;
+  cache_dir_ptr dir;
+  
+  sprintf(dirfullpath,"root://%s@%s%s/%s",xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
+  retc = xrd_stat(dirfullpath, &attr);
 
-  if (xrd_inodirlist_entry(ino,0,&namep,&in)) {
-    xrd_inodirlist(ino,fullpath);
-    b = xrd_inodirlist_getbuffer(ino);
-    if (!b) {
-      fuse_reply_err(req, EPERM);
-      return;
+  dir = get_dir_from_cache(ino);
+  if ((dir) && (attr.st_mtim.tv_sec ==  dir->mtv_sec)) {
+    //dir in cache and valid 
+    if (xrd_inodirlist_entry(ino,0,&namep,&in)) {
+      xrd_inodirlist(ino,fullpath);
+      b = xrd_inodirlist_getbuffer(ino);
+      if (!b) {
+        fuse_reply_err(req, EPERM);
+        return;
+      }
+      b->size = dir->b.size;
+      b->p = (char *) realloc(b->p, b->size * sizeof(char));
+      b->p = (char*) memcpy(b->p, dir->b.p, b->size);
     }
-    b->p=NULL;
-    b->size=0;
-    while ((!xrd_inodirlist_entry(ino, cnt, &namep, &in))) {
-      char ifullpath[16384];
-      sprintf(ifullpath,"%s/%s",name,namep);
-      struct stat newbuf;
-      if (isdebug) printf("[%s]: add entry name=%s\n", __FUNCTION__,namep);
-      dirbuf_add(req, b, namep, (fuse_ino_t) in);
+    else {
+      b = xrd_inodirlist_getbuffer(ino);
+    }
+  }
+  else {
+    //dir not in cache
+    if (xrd_inodirlist_entry(ino,0,&namep,&in)) {
+      xrd_inodirlist(ino,fullpath);
+      b = xrd_inodirlist_getbuffer(ino);
+      if (!b) {
+        fuse_reply_err(req, EPERM);
+        return;
+      }
+      b->p=NULL;
+      b->size=0;
+
+      while ((!xrd_inodirlist_entry(ino, cnt, &namep, &in))) {
+        char ifullpath[16384];
+        sprintf(ifullpath,"%s/%s",name,namep);
+        if (isdebug) printf("[%s]: add entry name=%s\n", __FUNCTION__,namep);
+        dirbuf_add(req, b, namep, (fuse_ino_t) in);
       
-      cnt++;
-    }
- 
-  } else {
-    b = xrd_inodirlist_getbuffer(ino);
+        cnt++;
+      }
+
+      //add directory to cache or update it
+      if (dir) {
+        if (attr.st_mtim.tv_sec !=  dir->mtv_sec) {
+          update_dir_in_cache(dir, fullpath, cnt, attr.st_mtim.tv_sec, b);          
+        }
+      }
+      else {
+        add_dir_to_cache(ino, fullpath, cnt, attr.st_mtim.tv_sec, b);
+      }
+    } else 
+      b = xrd_inodirlist_getbuffer(ino);
   }
   
   if (isdebug) printf("[%s]: return size=%lld ptr=%lld\n", __FUNCTION__,(long long)b->size,(long long)b->p);
   reply_buf_limited(req,b->p,b->size,off,size);
-
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_releasedir (fuse_req_t req, fuse_ino_t ino,
 				  struct fuse_file_info *fi)
 {
@@ -379,6 +601,8 @@ static void eosfs_ll_releasedir (fuse_req_t req, fuse_ino_t ino,
   fuse_reply_err(req, 0);
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_statfs(fuse_req_t req, fuse_ino_t ino)
 {
   struct statvfs svfs,svfs2;
@@ -420,6 +644,7 @@ static void eosfs_ll_statfs(fuse_req_t req, fuse_ino_t ino)
 }
 
 
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_mknod(fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode,
 			    dev_t rdev)
 {
@@ -477,6 +702,8 @@ static void eosfs_ll_mknod(fuse_req_t req, fuse_ino_t parent, const char *name, 
   fuse_reply_err(req,EINVAL);
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode)
 {
   const char* parentpath=NULL;
@@ -520,6 +747,8 @@ static void eosfs_ll_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, 
   }
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
 {
   const char* parentpath=NULL;
@@ -546,6 +775,8 @@ static void eosfs_ll_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
   }
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name)
 {
   const char* parentpath=NULL;
@@ -576,6 +807,8 @@ static void eosfs_ll_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name)
   }
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_symlink(fuse_req_t req, const char *link, fuse_ino_t parent, 
 			      const char *name)
 {
@@ -625,6 +858,8 @@ static void eosfs_ll_symlink(fuse_req_t req, const char *link, fuse_ino_t parent
   }
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 			     fuse_ino_t newparent, const char *newname)
 {
@@ -676,6 +911,7 @@ static void eosfs_ll_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 }
 
 
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
 			   const char *name)
 {
@@ -728,6 +964,7 @@ static void eosfs_ll_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
 }
 
 
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_access(fuse_req_t req, fuse_ino_t ino, int mask)
 {
   char fullpath[16384];
@@ -752,6 +989,7 @@ static void eosfs_ll_access(fuse_req_t req, fuse_ino_t ino, int mask)
 }
 
 
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_open(fuse_req_t req, fuse_ino_t ino,
 			     struct fuse_file_info *fi)
 {
@@ -816,6 +1054,8 @@ static void eosfs_ll_open(fuse_req_t req, fuse_ino_t ino,
   fuse_reply_open(req, fi);
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_read(fuse_req_t req, fuse_ino_t ino, size_t size,
 			   off_t off, struct fuse_file_info *fi)
 {
@@ -839,6 +1079,8 @@ static void eosfs_ll_read(fuse_req_t req, fuse_ino_t ino, size_t size,
   }
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_write(fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size,
 			    off_t off, struct fuse_file_info *fi)
 {
@@ -855,6 +1097,8 @@ static void eosfs_ll_write(fuse_req_t req, fuse_ino_t ino, const char *buf, size
   }
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_release(fuse_req_t req, fuse_ino_t ino,
 			    struct fuse_file_info *fi)
 {
@@ -886,6 +1130,8 @@ static void eosfs_ll_release(fuse_req_t req, fuse_ino_t ino,
   fuse_reply_err(req,0);
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 			    struct fuse_file_info *fi)
 {
@@ -899,34 +1145,46 @@ static void eosfs_ll_fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
   fuse_reply_err(req,0);
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_forget (fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
 {
   xrd_forget_inode(ino);
   fuse_reply_none(req);
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_flush (fuse_req_t req, fuse_ino_t ino,
 			     struct fuse_file_info *fi) 
 {
   fuse_reply_err(req,0);
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_getxattr (fuse_req_t req, fuse_ino_t ino, const char *name,
 		  size_t size) 
 {
 
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
 {
 
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_removexattr (fuse_req_t req, fuse_ino_t ino, const char *name)
 {
 
 }
 
+
+//--------------------------------------------------------------------------------------------------
 static void eosfs_ll_setxattr (fuse_req_t req, fuse_ino_t ino, const char *name,
 				const char *value, size_t size, int flags)
 {
@@ -1097,6 +1355,7 @@ int main(int argc, char *argv[])
     }
     fuse_unmount(mountpoint, ch);
   }
+
   fuse_opt_free_args(&args);
   
   return err ? 1 : 0;
