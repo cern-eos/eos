@@ -1,20 +1,22 @@
 %define _unpackaged_files_terminate_build 0
 %define __os_install_post       /bin/true
 %define debug_package %{nil} 
+
 Summary: The EOS server installation.
 Name: eos-server
 Version: 0.1.0
-Release: rc31 
+Release: rc31
 Prefix: /usr
 License: none
 Group: Applications/File
-Source: eos-0.1.0.tar.gz
+Source: %{name}-%{version}-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
-BuildRequires: autoconf, automake, libtool
+BuildRequires: cmake >= 2.6
 BuildRequires: xrootd-server >= 3.0.4
 BuildRequires: xrootd-server-devel  >= 3.0.4
 BuildRequires: readline-devel, ncurses-devel
+BuildRequires: libattr-devel
 BuildRequires: sparsehash
 BuildRequires: gcc44, gcc44-c++
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel
@@ -28,7 +30,7 @@ The EOS server installation containing MGM, FST & MQ service.
 
 %prep
 
-%setup -n eos-0.1.0
+%setup -n %{name}-%{version}-%{release}
 
 %build
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
