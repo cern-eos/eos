@@ -74,7 +74,7 @@ target_link_libraries ( eos-check-blockxs eosCommon )
 target_link_libraries ( eos-compute-blockxs eosCommon )
 target_link_libraries ( eos-scan-fs eosCommon ) 
 target_link_libraries ( eos-adler32 eosCommon ) 
-target_link_libraries ( eosfstcp XrdPosix )
+target_link_libraries ( eosfstcp XrdPosix ssl )
 target_link_libraries ( eos-fst-fsck XrdClient uuid eosCommon )
 
 if (Linux)
