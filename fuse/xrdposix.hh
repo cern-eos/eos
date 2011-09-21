@@ -8,6 +8,9 @@
 /* Modified: Andreas-Joachim Peters (CERN,2010) EOS                     */
 /************************************************************************/
 
+#ifndef __XRD_POSIX__HH__
+#define __XRD_POSIX__HH__
+
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -36,7 +39,7 @@ struct dirbuf {
 void           xrd_socks4(const char* host, const char* port);
 
 int            xrd_stat(const char *file_name, struct stat *buf);
-    int            xrd_statfs(const char *url, const char* path, struct statvfs *stbuf);
+int            xrd_statfs(const char *url, const char* path, struct statvfs *stbuf);
 
 DIR           *xrd_opendir(const char *dirname);
 struct dirent *xrd_readdir(DIR *dirp);
@@ -87,3 +90,4 @@ int            xrd_readopenfilelist_get(unsigned long long inode, uid_t uid);
   }
 #endif
 
+#endif

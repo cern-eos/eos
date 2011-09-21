@@ -9,6 +9,7 @@ add_executable ( eosfsd
 add_executable ( eosd
                  eosd.c
                  xrdposix.cc
+                 DirCache.cc
 )
 
 set_target_properties ( eosfsd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
