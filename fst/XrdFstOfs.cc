@@ -620,33 +620,41 @@ XrdFstOfsFile::open(const char                *path,
 
   if ( (!rc) && isCreation && bookingsize) {
     rc = layOut->fallocate(bookingsize);
-    eos_debug("file allocation gave return code %d for allocation of size=%llu" , rc, bookingsize);
-  }
-
-  // set the eos lfn as extended attribute
-  eos::common::Attr* attr = eos::common::Attr::OpenAttr(layOut->GetLocalReplicaPath());
-  if (attr && isRW) {
-    if (Path.beginswith("/replicate:")) {
-      if (capOpaque->Get("mgm.lfn")) {
-        if (!attr->Set(std::string("user.eos.lfn"), std::string(capOpaque->Get("mgm.lfn")))) {
-          eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
-        }
-      } else {
-        eos_err("no lfn in replication capability");
-      }
-    } else {
-      if (!attr->Set(std::string("user.eos.lfn"), std::string(path))) {
-        eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
-      }
+    if (rc) {
+      int save_errno=errno;
+      eos_crit("file allocation gave return code %d errno=%d for allocation of size=%llu" , rc, errno, bookingsize);
+      layOut->remove();
+      return gOFS.Emsg(epname,error, save_errno,"open - file allocation failed ",path);
     }
   }
 
-  // try to get if the file has a scan error
   std::string filecxerror = "0";
 
-  if (attr) {
-    filecxerror = attr->Get("user.filecxerror");
-    delete attr;
+  if (!rc) {
+    // set the eos lfn as extended attribute
+    eos::common::Attr* attr = eos::common::Attr::OpenAttr(layOut->GetLocalReplicaPath());
+    if (attr && isRW) {
+      if (Path.beginswith("/replicate:")) {
+	if (capOpaque->Get("mgm.lfn")) {
+	  if (!attr->Set(std::string("user.eos.lfn"), std::string(capOpaque->Get("mgm.lfn")))) {
+	    eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
+	  }
+	} else {
+	  eos_err("no lfn in replication capability");
+	}
+      } else {
+	if (!attr->Set(std::string("user.eos.lfn"), std::string(path))) {
+	  eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
+	}
+      }
+    }
+    
+    // try to get if the file has a scan error
+    
+    if (attr) {
+      filecxerror = attr->Get("user.filecxerror");
+      delete attr;
+    }    
   }
 
   if ((!isRW) && (filecxerror == "1")) {
@@ -762,6 +770,7 @@ XrdFstOfsFile::closeofs()
   }
     
   rc |= XrdOfsFile::close();
+
   return rc;
 }
 
@@ -1024,6 +1033,19 @@ XrdFstOfsFile::close()
    eos_crit("file-xs error file=%s", capOpaque->Env(envlen));
  }
 
+ 
+ if (deleteOnClose) {
+   eos_info("Deleting on close fn=%s fstpath=%s\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+   int rc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
+   rc = SFS_ERROR;
+   
+   if (fstBlockXS) {
+     // delete also the block checksum file
+     fstBlockXS->UnlinkXSPath();
+   }
+ }
+
+  return rc;
  if (fstBlockXS) {
    delete fstBlockXS;
    fstBlockXS=0;
@@ -1314,6 +1336,14 @@ XrdFstOfsFile::truncateofs(XrdSfsFileOffset   fileOffset)
 int          
 XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
 {
+
+  if (fileOffset == EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN) {
+    eos_warning("Deletion flag for file %s indicated",fstPath.c_str());
+    // this truncate offset indicates to delete the file during the close operation
+    deleteOnClose = true;
+    return SFS_OK;
+  }
+
   //  fprintf(stderr,"truncate called %llu\n", fileOffset);
   eos_info("(truncate)  openSize=%llu fileOffset=%llu", openSize, fileOffset);
   if (fileOffset != openSize) {
@@ -1323,7 +1353,7 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
       checkSum->SetDirty();
     }
   }
-  
+
   return layOut->truncate(fileOffset);
 }
 
@@ -1820,7 +1850,9 @@ XrdFstOfsDirectory::nextEntry()
 		    entry += hb;
 		  }
 		  delete fmd;
-		} 
+		} else {
+		  entry += "x:x:";
+		}
 	      } else {
 		entry += "0:0:";
 	      }
@@ -1836,7 +1868,7 @@ XrdFstOfsDirectory::nextEntry()
 	      if (isopenforwrite) {
 		entry += ":1";
 	      } else {
-		  entry += ":0";
+		entry += ":0";
 	      }
 	      entry += "\n";
 	      nfound++;

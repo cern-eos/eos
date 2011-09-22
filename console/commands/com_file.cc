@@ -156,7 +156,7 @@ com_file (char* arg1) {
     in += "&mgm.subcmd=verify";
     in += "&mgm.path="; in += path;
     if (fsid1.length()) {
-      if  ( (fsid1 != "-checksum") && (fsid1 != "-commitchecksum") && (fsid1 != "-commitsize") && (fsid1 != "-rate")) {
+      if  ( (fsid1 != "-checksum") && (fsid1 != "-commitchecksum") && (fsid1 != "-commitsize") && (fsid1 != "-commitfmd") && (fsid1 != "-rate")) {
         if (fsid1.beginswith("-"))
           goto com_file_usage;
 
@@ -167,6 +167,7 @@ com_file (char* arg1) {
           option[2] = subtokenizer.GetToken();
           option[3] = subtokenizer.GetToken();
           option[4] = subtokenizer.GetToken();
+	  option[5] = subtokenizer.GetToken();
         }
       } else {
         option[0] = fsid1;
@@ -174,10 +175,11 @@ com_file (char* arg1) {
         option[2] = subtokenizer.GetToken();
         option[3] = subtokenizer.GetToken();
         option[4] = subtokenizer.GetToken();
+        option[5] = subtokenizer.GetToken();
       }
     }
 
-    for (int i=0; i< 5; i++) {
+    for (int i=0; i< 6; i++) {
       if (option[i].length()) {
         if (option[i] == "-checksum") {
           in += "&mgm.file.compute.checksum=1";
@@ -188,16 +190,20 @@ com_file (char* arg1) {
             if (option[i] == "-commitsize") {
               in += "&mgm.file.commit.size=1";
             } else {
-              if (option[i] == "-rate") {
-                in += "&mgm.file.verify.rate=";
-                if (!option[i+1].length())
-                  goto com_file_usage;
-                in += option[i+1];
-                i++;
-                continue;
-              } else {
-                goto com_file_usage;
-              }
+	      if (option[i] == "-commitfmd") {
+		in += "&mgm.file.commit.fmd=1";
+	      } else {
+		if (option[i] == "-rate") {
+		  in += "&mgm.file.verify.rate=";
+		  if (!option[i+1].length())
+		    goto com_file_usage;
+		  in += option[i+1];
+		  i++;
+		  continue;
+		} else {
+		  goto com_file_usage;
+		}
+	      }
             }
           }
         }

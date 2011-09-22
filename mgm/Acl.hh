@@ -17,12 +17,13 @@ class Acl {
   bool canRead;
   bool canWrite;
   bool canWriteOnce;
+  bool canBrowse;
   bool hasAcl;
   bool hasEgroup;
 
 public:
 
-  Acl() { canRead = false; canWrite = false; canWriteOnce = false; hasAcl = false;}
+  Acl() { canRead = false; canWrite = false; canWriteOnce = false; canBrowse = false; hasAcl = false;}
 
   Acl(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualIdentity &vid);
   ~Acl(){};
@@ -32,6 +33,7 @@ public:
   bool CanRead()      {return canRead;}
   bool CanWrite()     {return canWrite;}
   bool CanWriteOnce() {return canWriteOnce;}
+  bool CanBrowse()   {return canBrowse;}
   bool HasAcl()       {return hasAcl;}
   bool HasEgroup()    {return hasEgroup;}
 };

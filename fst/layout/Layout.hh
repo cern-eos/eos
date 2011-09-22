@@ -16,6 +16,13 @@ EOSFSTNAMESPACE_BEGIN
 
 class XrdFstOfsFile;
 
+
+// -------------------------------------------------------------------------------------------
+// we use this truncate offset (1TB) to indicate that a file should be deleted during the close 
+// there is no better interface usable via XrdClient to communicate a deletion on a open file
+
+#define EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN 1024 * 1024 * 1024 * 1024ll
+
 class Layout : public eos::common::LogId {
 protected:
   XrdOucString Name;
@@ -53,6 +60,7 @@ public:
   virtual int write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length) = 0;
   virtual int truncate(XrdSfsFileOffset offset) = 0;
   virtual int fallocate(XrdSfsFileOffset lenght) {return 0;}
+  virtual int remove() {return 0;} 
   virtual int sync() = 0;
   virtual int close() = 0;
   

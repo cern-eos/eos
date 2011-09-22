@@ -13,6 +13,9 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+
+XrdSysMutex BalanceJob::gSchedulingMutex;
+
 /*----------------------------------------------------------------------------*/
 BalanceJob::BalanceJob(FsGroup* group)
 {
@@ -121,6 +124,7 @@ BalanceJob::Balance(void)
 
   // clear all maps
   SourceFidMap.clear();
+  SourceFidSet.clear();
   SourceSizeMap.clear();
   TargetSizeMap.clear();
   TargetQueues.clear();
@@ -211,13 +215,14 @@ BalanceJob::Balance(void)
               if (fit != filelist.end()) {
                 eos::FileMD::id_t fid = *fit;
                 
-                if (!SourceFidMap[snapshot.mId].count(fid)){
+                if ((!SourceFidMap[snapshot.mId].count(fid) ) && (!SourceFidSet.count(fid))){
                   eos::FileMD* fmd = 0;
                   fmd = gOFS->eosFileService->getFileMD(fid);
                   if (fmd) {
                     if (fmd->getSize() < schedulebytes) {
                       eos_static_info("adding file id %llu to be moved",fid);
                       SourceFidMap[snapshot.mId].insert(fid);
+		      SourceFidSet.insert(fid);
                       schedulebytes-= fmd->getSize();
                       nscheduled++;
                     } else {
@@ -251,8 +256,10 @@ BalanceJob::Balance(void)
   // now pickup the sources and distribute on targets
 
 
-  eos_static_notice("Balancing on group %s members=%lu sources=%lu targets=%lu", mName.c_str(), mGroup->size(), SourceSizeMap.size(), TargetQueues.size());
+  eos_static_notice("Waiting to balance on group %s members=%lu sources=%lu targets=%lu", mName.c_str(), mGroup->size(), SourceSizeMap.size(), TargetQueues.size());
   {
+    gSchedulingMutex.Lock();
+    eos_static_notice("Balancing on group %s members=%lu sources=%lu targets=%lu", mName.c_str(), mGroup->size(), SourceSizeMap.size(), TargetQueues.size());
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     
 
@@ -473,6 +480,8 @@ BalanceJob::Balance(void)
       // close all balancing queue transactions
       TargetQueues[target_it->first]->CloseTransaction();
     }
+
+    gSchedulingMutex.UnLock();
   }
 
   eos_static_info("Finished balancing on group %s", mName.c_str());
@@ -524,8 +533,8 @@ BalanceJob::Balance(void)
 
     XrdSysThread::SetCancelOff();
 
-    if ( (diff > 60) ) {
-      if (diff < 300) {
+    if ( (diff > 300) ) {
+      if (diff < 3600) {
 
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         mGroup->SetConfigMember("stat.balancing","stalled",false, "", true);

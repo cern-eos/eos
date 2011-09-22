@@ -166,10 +166,10 @@ com_attr (char* arg1) {
   printf("         sys.acl=<acllist>                     : set's an ACL which is honoured for open,rm & rmdir operations\n");
   printf("               => <acllist> = <rule1>,<rule2>...<ruleN> is a comma separated list of rules\n");
   printf("               => <rule> = u:<uid|username>>|g:<gid|groupname>|egroup:<name>:{rwo} \n\n");
-  printf("               e.g.: <acllist=\"u:300:rw,g:z2:rwo:egroup:eos-dev:rw\"\n\n");
+  printf("               e.g.: <acllist=\"u:300:rw,g:z2:rwo:egroup:eos-dev:rwx\"\n\n");
   printf("               => user id 300 can read + write\n");
   printf("               => group z2 can read + write-once (create new files but can't delete)\n");
-  printf("               => members of egroup 'eos-dev' can read & write\n");
+  printf("               => members of egroup 'eos-dev' can read & write & browse\n");
  
   
   printf("User Variables:\n");

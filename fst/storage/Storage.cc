@@ -1090,7 +1090,7 @@ Storage::Verify()
     } else {
       // attach meta data
       eos::common::Fmd* fMd = 0;
-      fMd = eos::common::gFmdHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, 0);
+      fMd = eos::common::gFmdHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, verifyfile->commitFmd);
       bool localUpdate = false;
       if (!fMd) {
 	eos_static_err("unable to verify id=%x on fs=%u path=%s - no local MD stored", verifyfile->fId, verifyfile->fsId, fstPath.c_str());

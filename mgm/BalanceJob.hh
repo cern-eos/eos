@@ -29,10 +29,14 @@ private:
   bool mThreadRunning;
 
   std::map<eos::common::FileSystem::fsid_t, std::set<unsigned long long > >    SourceFidMap; // the sources to schedule
+  std::set<unsigned long long >                                                SourceFidSet; // the alls fids to schedule within a group
   std::map<eos::common::FileSystem::fsid_t, unsigned long long>                SourceSizeMap;
   std::map<eos::common::FileSystem::fsid_t, unsigned long long>                TargetSizeMap;
   std::map<eos::common::FileSystem::fsid_t, eos::common::TransferQueue* >      TargetQueues;
   std::map<eos::common::FileSystem::fsid_t, std::set<unsigned long long > >    TargetFidMap; // the scheduled targets
+
+  static XrdSysMutex gSchedulingMutex; // serializes the scheduling part between groups to avoid overload 
+
 public:
 
   BalanceJob(FsGroup* group);

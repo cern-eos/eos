@@ -689,12 +689,16 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 
       unsigned long long fid = strtoull(tokens[0].c_str(),0,16);
 
+      if (tokens.size() != 9) {	
+	Log(false,"Got illegal response from fst (size(tokens)=%d) => %s\n", tokens.size(), dumpentry.c_str());
+	continue;
+      }
       if (fid) {
 	// remove this file from the replica_missing set
 	mLocalErrorFidSet["replica_missing"].erase(fid);
       }
 
-      // fid givena dn file is currently not written
+      // fid given and file is currently not written
       if (fid && (tokens[8] != "1")) {
 	eos::FileMD* fmd=0;
 	

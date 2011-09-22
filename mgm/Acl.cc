@@ -32,6 +32,7 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
   canRead = false;
   canWrite = false;
   canWriteOnce = false;
+  canBrowse = false;
   hasEgroup = false;
 
   if (!acl.length()) {
@@ -85,12 +86,19 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
         canRead = true;
         hasAcl = true;
       }
-      if ((entry[2].find("w"))!= std::string::npos) {
-        canWrite = true;
+
+      if ((entry[2].find("x"))!= std::string::npos) {
+        canBrowse = true;
         hasAcl = true;
       }
-      if ((!canWrite) && ((entry[2].find("wo"))!= std::string::npos)) {
-        canWriteOnce = true;
+
+      if (((entry[2].find("wo"))!= std::string::npos)) {
+	canWriteOnce = true;
+	hasAcl = true;
+      }
+
+      if ((!canWriteOnce) && (entry[2].find("w"))!= std::string::npos) {
+        canWrite = true;
         hasAcl = true;
       }
     }

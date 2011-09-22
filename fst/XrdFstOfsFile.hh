@@ -75,7 +75,7 @@ public:
   int          truncate(XrdSfsFileOffset   fileOffset);
   int          truncateofs(XrdSfsFileOffset   fileOffset);
 
-  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; fstBlockXS=0; fstBlockSize=0; eos::common::LogId(); closed=false; opened=false; haswrite=false; fMd = 0;checkSum = 0; layOut = 0; isRW= 0; isCreation = 0; rBytes=wBytes=srBytes=swBytes=rOffset=wOffset=0; rTime.tv_sec=wTime.tv_sec=lrTime.tv_sec=lwTime.tv_sec=rTime.tv_usec=wTime.tv_usec=lrTime.tv_usec=lwTime.tv_usec=cTime.tv_sec=cTime.tv_usec=0;fileid=0;fsid=0;lid=0;cid=0;rCalls=wCalls=0; localPrefix="";maxOffsetWritten=0;openSize=0;closeSize=0;isReplication=false;}
+  XrdFstOfsFile(const char* user) : XrdOfsFile(user){openOpaque = 0; capOpaque = 0; fstPath=""; fstBlockXS=0; fstBlockSize=0; eos::common::LogId(); closed=false; opened=false; haswrite=false; fMd = 0;checkSum = 0; layOut = 0; isRW= 0; isCreation = 0; rBytes=wBytes=srBytes=swBytes=rOffset=wOffset=0; rTime.tv_sec=wTime.tv_sec=lrTime.tv_sec=lwTime.tv_sec=rTime.tv_usec=wTime.tv_usec=lrTime.tv_usec=lwTime.tv_usec=cTime.tv_sec=cTime.tv_usec=0;fileid=0;fsid=0;lid=0;cid=0;rCalls=wCalls=0; localPrefix="";maxOffsetWritten=0;openSize=0;closeSize=0;isReplication=false; deleteOnClose=false;}
   virtual ~XrdFstOfsFile() {
     close();
     if (openOpaque) {delete openOpaque; openOpaque=0;}
@@ -112,6 +112,7 @@ protected:
   bool         isRW;
   bool         isCreation;
   bool         isReplication;
+  bool         deleteOnClose;
   eos::common::Fmd* fMd;
   eos::fst::CheckSum* checkSum;
   eos::fst::Layout*  layOut;

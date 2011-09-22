@@ -842,6 +842,19 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   ObjectManager.StartDumper(dumperfile.c_str());
   ObjectManager.SetAutoReplyQueueDerive(true);
 
+  if (ConfigAutoLoad.length()) {
+    eos_info("autoload config=%s", ConfigAutoLoad.c_str());
+    XrdOucString configloader = "mgm.config.file="; 
+    configloader += ConfigAutoLoad;
+    XrdOucEnv configenv(configloader.c_str());
+    XrdOucString stdErr="";
+    if (!ConfEngine->LoadConfig(configenv, stdErr)) {
+      eos_crit("Unable to auto-load config %s", ConfigAutoLoad.c_str());
+    } else {
+      eos_info("Successful auto-load config %s", ConfigAutoLoad.c_str());
+    }
+  }
+
   // create deletion thread
   pthread_t tid;
   eos_info("starting deletion thread");
@@ -858,26 +871,14 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     NoGo = 1;
   }
 
+  
   eos_info("starting fs listener thread");
   if ((XrdSysThread::Run(&tid, XrdMgmOfs::StartMgmFsListener, static_cast<void *>(this),
-                              0, "FsListener Thread"))) {
+			 0, "FsListener Thread"))) {
     eos_crit("cannot start fs listener thread");
     NoGo = 1;
   }
-
-  if (ConfigAutoLoad.length()) {
-    eos_info("autoload config=%s", ConfigAutoLoad.c_str());
-    XrdOucString configloader = "mgm.config.file="; 
-    configloader += ConfigAutoLoad;
-    XrdOucEnv configenv(configloader.c_str());
-    XrdOucString stdErr="";
-    if (!ConfEngine->LoadConfig(configenv, stdErr)) {
-      eos_crit("Unable to auto-load config %s", ConfigAutoLoad.c_str());
-    } else {
-      eos_info("Successful auto-load config %s", ConfigAutoLoad.c_str());
-    }
-  }
-
+  
   // load all the quota nodes from the namespace
   Quota::LoadNodes();
   // fill the current accounting
@@ -978,5 +979,5 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   usleep(2000000);
   
   return NoGo;
-}
+  }
 /*----------------------------------------------------------------------------*/

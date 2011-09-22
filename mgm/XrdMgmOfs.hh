@@ -499,6 +499,11 @@ virtual bool           Init(XrdSysError &);
         XrdSysMutex      MgmHealMapMutex;
 
 
+        eos::common::RWMutex  PathMapMutex;  // mutex protecting the path map
+        std::map<std::string,std::string> PathMap; // containing global path remapping
+        void PathRemap(const char* inpath, XrdOucString &outpath); //  map defining global namespace remapping
+
+
         // map keeping the modification times of directories, they are either directly inserted from directory/file creation or they are set from a directory listing
         XrdSysMutex      MgmDirectoryModificationTimeMutex;
         google::sparse_hash_map<unsigned long long, struct timespec> MgmDirectoryModificationTime;

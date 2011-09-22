@@ -2491,14 +2491,29 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
 
 	if (!failure) {
+	  // for directories
 	  for (unsigned int i = 0; i< found_dirs.size(); i++) {
 	    std::sort(found_dirs[i].begin(), found_dirs[i].end());
 	    for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
 	      if (gOFS->_chown(found_dirs[i][j].c_str(), uidt , gidt, *error, vid_in, (char*)0)) {
-		stdErr += "error: unable to chown of directory "; stdErr += found_dirs[i][j].c_str();
+		stdErr += "error: unable to chown of directory "; stdErr += found_dirs[i][j].c_str(); stdErr += "\n";
 		retc = errno;
 	      } else {
-		stdOut += "success: owner of file/directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid_in.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();}}
+		stdOut += "success: owner of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid_in.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();} stdOut += "\n";}
+	      }
+
+	    }
+	  }
+
+	  // for files
+	  for (unsigned int i = 0; i< found_files.size(); i++) {
+	    std::sort(found_files[i].begin(), found_files[i].end());
+	    for (unsigned int j = 0; j< found_files[i].size(); j++) {
+	      if (gOFS->_chown(found_files[i][j].c_str(), uidt , gidt, *error, vid_in, (char*)0)) {
+		stdErr += "error: unable to chown of file "; stdErr += found_files[i][j].c_str(); stdErr += "\n";
+		retc = errno;
+	      } else {
+		stdOut += "success: owner of file "; stdOut += found_files[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid_in.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();} stdOut += "\n"; }
 	      }
 	    }
 	  }
@@ -2873,6 +2888,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  XrdOucString computechecksum = opaque.Get("mgm.file.compute.checksum");
 	  XrdOucString commitchecksum = opaque.Get("mgm.file.commit.checksum");
 	  XrdOucString commitsize     = opaque.Get("mgm.file.commit.size");
+	  XrdOucString commitfmd      = opaque.Get("mgm.file.commit.fmd");
 	  XrdOucString verifyrate     = opaque.Get("mgm.file.verify.rate");
 
 	  if (computechecksum=="1") {
@@ -2886,7 +2902,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  if (commitsize=="1") {
 	    option += "&mgm.verify.commit.size=1";
 	  }
-	  
+
+	  if (commitfmd=="1") {
+	    option += "&mgm.verify.commit.fmd=1";
+	  }
+
 	  if (verifyrate.length()) {
 	    option += "&mgm.verify.rate="; option += verifyrate;
 	  }
@@ -3876,7 +3896,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  XrdOucString sgid=""; sgid += (int) buf.st_gid;
 		  XrdOucString sizestring="";
 		  struct tm *t_tm;
-		  t_tm = localtime(&buf.st_mtime);
+		  t_tm = localtime(&buf.st_ctime);
 		  
 		  strcpy(modestr,"----------");
 		  for (i=0; i<6; i++) if ( ftype_v[i] == ( S_IFMT & buf.st_mode ) ) break;
@@ -4564,7 +4584,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		stdErr += "error: unable to chmod of directory "; stdErr += found_dirs[i][j].c_str();
 		retc = errno;
 	      } else {
-		stdOut += "success: mode of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now '"; stdOut += mode; stdOut += "'";
+		if (vid_in.uid) {
+		  stdOut += "success: mode of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now '2"; stdOut += mode; stdOut += "'";
+		} else {
+		  stdOut += "success: mode of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now '"; stdOut += mode; stdOut += "'";
+		}
 	      }
 	  }
 	  }

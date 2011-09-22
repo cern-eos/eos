@@ -42,6 +42,7 @@ public:
   virtual int truncate(XrdSfsFileOffset offset);
   virtual int sync();
   virtual int close();
+  virtual int remove() {return 0;}
 
   virtual ~Raid5Layout();
 };

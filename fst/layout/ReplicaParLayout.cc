@@ -27,7 +27,7 @@ ReplicaParLayout::open(const char                *path,
 			   const char                *opaque)
 {
 
-  // no replica index definition indicates that his is gateway access just forwarding to another remote server
+  // no replica index definition indicates that this is gateway access just forwarding to another remote server
 
   int replicaIndex = 0;
   int replicaHead  = 0;
@@ -285,6 +285,37 @@ ReplicaParLayout::sync()
   return rc1;
 }
 
+/*----------------------------------------------------------------------------*/
+int
+ReplicaParLayout::remove()
+{
+  int rc1 = SFS_OK;
+  int rc2 = true;
+  if (ioLocal) {
+    rc1 = unlink(LocalReplicaPath.c_str());
+  }
+
+  for (int i=0; i< nStripes; i++) {
+    if (replicaClient[i]) {
+      if (!replicaClient[i]->Truncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN)) {
+	eos_err("Failed to truncate remote replica with deletion offset - %s", replicaUrl[i].c_str());
+	rc2=0;
+      } 
+    } 
+  }
+  
+  if (rc1 <0) {
+    eos_err("Failed to remove local replica - %s", replicaUrl[0].c_str());
+    return gOFS.Emsg("ReplicaClose",*error, errno, "remove local replica", replicaUrl[0].c_str());
+  }
+
+  if (!rc2) {
+    return gOFS.Emsg("ReplicaRemove",*error, EREMOTEIO, "remove remote replica", "");
+  }  
+  return rc1;
+}
+
+/*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
 int
@@ -299,8 +330,8 @@ ReplicaParLayout::close()
   for (int i=0; i< nStripes; i++) {
     if (replicaClient[i]) {
       if (!replicaClient[i]->Sync()) {
-	eos_err("Failed to close remote replica - %s", replicaUrl[i].c_str());
-	rc2=0;
+        eos_err("Failed to close remote replica - %s", replicaUrl[i].c_str());
+        rc2=0;
       } 
     } 
   }
@@ -315,7 +346,5 @@ ReplicaParLayout::close()
   }  
   return rc1;
 }
-
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_END

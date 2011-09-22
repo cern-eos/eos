@@ -97,7 +97,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
   eos::common::Path cPath(mapfilepath);
   // check if the directory exists
   if (::stat(cPath.GetParentPath(),&buf)) {
-    if (::mkdir(cPath.GetParentPath(),S_IRWXU | S_IRGRP | S_IXGRP |S_IROTH | S_IXOTH)) {
+    if ((::mkdir(cPath.GetParentPath(),S_IRWXU | S_IRGRP | S_IXGRP |S_IROTH | S_IXOTH)) && (errno != EEXIST)) {
       return false;
     }
     if (::chown(cPath.GetParentPath(), geteuid(),getegid()))

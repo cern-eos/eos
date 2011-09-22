@@ -30,6 +30,7 @@ public:
   virtual int write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length);
   virtual int truncate(XrdSfsFileOffset offset);
   virtual int fallocate(XrdSfsFileOffset length);
+  virtual int remove();
   virtual int sync();
   virtual int close();
 

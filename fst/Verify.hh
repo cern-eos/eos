@@ -31,12 +31,13 @@ public:
   bool computeChecksum;
   bool commitChecksum;
   bool commitSize;
+  bool commitFmd;
 
   unsigned int verifyRate;
 
-  Verify(unsigned long long fid, unsigned long fsid, const char* localprefix, const char* managerid, const char* inopaque,const char* incontainer, unsigned long incid, unsigned long inlid, const char* inpath, bool inComputeChecksum, bool inCommitChecksum, bool inCommitSize, unsigned int inVerifyRate) {
+  Verify(unsigned long long fid, unsigned long fsid, const char* localprefix, const char* managerid, const char* inopaque,const char* incontainer, unsigned long incid, unsigned long inlid, const char* inpath, bool inComputeChecksum, bool inCommitChecksum, bool inCommitSize, bool inCommitFmd, unsigned int inVerifyRate) {
     fId = fid;  fsId = fsid; localPrefix = localprefix; managerId = managerid; opaque = inopaque;
-    container = incontainer; cId = incid; path = inpath; lId = inlid; computeChecksum=inComputeChecksum; commitChecksum=inCommitChecksum; commitSize=inCommitSize; verifyRate = inVerifyRate;
+    container = incontainer; cId = incid; path = inpath; lId = inlid; computeChecksum=inComputeChecksum; commitChecksum=inCommitChecksum; commitSize=inCommitSize; verifyRate = inVerifyRate; commitFmd = inCommitFmd;
   }
 
   static Verify* Create(XrdOucEnv* capOpaque) {
@@ -52,7 +53,8 @@ public:
     bool computeChecksum=false;
     bool commitChecksum=false;
     bool commitSize=false;
-
+    bool commitFmd=false;
+    
 
     const char* sfsid=0;
     const char* smanager=0;
@@ -89,6 +91,10 @@ public:
       commitSize=atoi(capOpaque->Get("mgm.verify.commit.size"));
     }
 
+    if (capOpaque->Get("mgm.verify.commit.fmd")) {
+      commitFmd=atoi(capOpaque->Get("mgm.verify.commit.fmd"));
+    }
+
     if (capOpaque->Get("mgm.verify.rate")) { 
       verifyRate=atoi(capOpaque->Get("mgm.verify.rate"));
     }
@@ -108,13 +114,13 @@ public:
 
     fid = eos::common::FileId::Hex2Fid(hexfid.c_str());	
     fsid   = atoi(sfsid);
-    return new Verify(fid, fsid, localprefix, smanager, capOpaque->Env(envlen), container, cid, lid, path, computeChecksum,commitChecksum,commitSize, verifyRate);
+    return new Verify(fid, fsid, localprefix, smanager, capOpaque->Env(envlen), container, cid, lid, path, computeChecksum,commitChecksum,commitSize, commitFmd, verifyRate);
   };
 
   ~Verify() {};
 
   void Show(const char* show="") {
-    eos_static_info("Verify File Id=%llu on Fs=%u Path=%s ComputeChecksum=%d CommitChecksum=%d CommitSize=%d VerifyRate=%d %s", fId, fsId,path.c_str(),computeChecksum, commitChecksum, commitSize, verifyRate, show);
+    eos_static_info("Verify File Id=%llu on Fs=%u Path=%s ComputeChecksum=%d CommitChecksum=%d CommitSize=%d CommitFmd=%d VerifyRate=%d %s", fId, fsId,path.c_str(),computeChecksum, commitChecksum, commitSize, commitFmd, verifyRate, show);
   }
 };
 
