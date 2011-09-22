@@ -713,7 +713,7 @@ int main(int argc, char* argv[]) {
 	break;
       case 1:
       case 2:
-	startwritebyte = XrdPosixXrootd::Lseek(dstfd[i],0,SEEK_END);
+	startwritebyte = XrdPosixXrootd::Lseek(dstfd[i],(long long)0,SEEK_END);
 	break;
       }      
       if (startwritebyte<0) {
