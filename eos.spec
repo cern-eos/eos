@@ -12,8 +12,6 @@ Group: Applications/File
 
 Source: %{name}-%{version}-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
-%description
-The EOS software package.
 
 BuildRequires: cmake >= 2.6
 BuildRequires: xrootd-server >= 3.0.4
@@ -27,6 +25,9 @@ BuildRequires: fuse-devel, fuse
 %if 0%{?rhel} < 6
 BuildRequires: gcc44, gcc44-c++
 %endif
+
+%description
+The EOS software package.
 
 #######################################################################################
 # the shell client package 
