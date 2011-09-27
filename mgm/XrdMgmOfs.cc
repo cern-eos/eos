@@ -210,8 +210,14 @@ XrdMgmOfs::PathRemap(const char* inpath, XrdOucString &outpath)
     return;
   }
 
-  if (PathMap.count(inpath)) {
+  if (PathMap.count(inpath) ) {
     outpath.replace(inpath,PathMap[inpath].c_str());
+    outpath.erase(outpath.length()-1);
+    return;
+  }
+
+  if (PathMap.count(outpath.c_str())) {
+    outpath.replace(outpath.c_str(),PathMap[outpath.c_str()].c_str());
     outpath.erase(outpath.length()-1);
     return;
   }
@@ -228,7 +234,8 @@ XrdMgmOfs::PathRemap(const char* inpath, XrdOucString &outpath)
       return;
     }
   }
-   return;
+  outpath.erase(outpath.length()-1);
+  return;
 }
 
 
