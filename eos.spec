@@ -15,17 +15,6 @@ BuildRoot: %{_tmppath}/%{name}-root
 %description
 The EOS software package.
 
-#######################################################################################
-# the shell client package 
-#######################################################################################
-%package -n eos-server
-#######################################################################################
-Summary: The EOS server installation
-Group: Applications/File
-%description -n eos-server
-The EOS server installation containing MGM, FST & MQ service.
-
-
 BuildRequires: cmake >= 2.6
 BuildRequires: xrootd-server >= 3.0.4
 BuildRequires: xrootd-server-devel  >= 3.0.4
@@ -38,6 +27,17 @@ BuildRequires: fuse-devel, fuse
 %if 0%{?rhel} < 6
 BuildRequires: gcc44, gcc44-c++
 %endif
+
+#######################################################################################
+# the shell client package 
+#######################################################################################
+%package -n eos-server
+#######################################################################################
+Summary: The EOS server installation
+Group: Applications/File
+%description -n eos-server
+The EOS server installation containing MGM, FST & MQ service.
+
 
 Requires: xrootd-server >= 3.0.4
 Requires: eos-client
