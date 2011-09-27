@@ -124,9 +124,9 @@ Iostat::Receive(void)
           static char logfile[4096];
           snprintf(logfile,sizeof(logfile) -1, "%s/%04u/%02u/%04u%02u%02u.eosreport",gOFS->IoReportStorePath.c_str(), 
                   1900+nowtm.tm_year,
-                  nowtm.tm_mon,
+                  nowtm.tm_mon+1,
                   1900+nowtm.tm_year,
-                  nowtm.tm_mon,
+                  nowtm.tm_mon+1,
                   nowtm.tm_mday);
 
           reportfile = logfile;

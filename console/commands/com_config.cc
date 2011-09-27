@@ -39,17 +39,21 @@ com_config (char* arg1) {
 		    in += "&mgm.config.global=1";
 		    arg = subtokenizer.GetToken();
 		  } else 
-		    if ((arg == "--access") || (arg == "-a")) {
-		      in += "mgm.config.access=1";
+		    if ((arg == "--map") || (arg == "-m")) {
+		      in += "&mgm.config.map=1";
 		      arg = subtokenizer.GetToken();
 		    } else 
-		      if (!arg.beginswith("-")) {
-			in += "&mgm.config.file=";
-			in += arg;
+		      if ((arg == "--access") || (arg == "-a")) {
+			in += "mgm.config.access=1";
 			arg = subtokenizer.GetToken();
-		      } else {
-			goto com_config_usage;
-		      }
+		      } else 
+			if (!arg.beginswith("-")) {
+			  in += "&mgm.config.file=";
+			  in += arg;
+			  arg = subtokenizer.GetToken();
+			} else {
+			  goto com_config_usage;
+			}
       } while (arg.length());
     }      
     
@@ -181,7 +185,7 @@ com_config (char* arg1) {
   printf("                                                  list existing configurations\n");
   printf("            --backup|-b : show also backup & autosave files\n");
 
-  printf("config dump [--fs|-f] [--vid|-v] [--quota|-q] [--policy|-p] [--comment|-c] [--global|-g] [--access|-a] [<name>]: \n");
+  printf("config dump [--fs|-f] [--vid|-v] [--quota|-q] [--policy|-p] [--comment|-c] [--global|-g] [--access|-a] [<name>] [--map|-m]] : \n");
   printf("                                                  dump current configuration or configuration with name <name>\n");
   printf("            -f : dump only file system config\n");
   printf("            -v : dump only virtual id config\n");
@@ -189,6 +193,7 @@ com_config (char* arg1) {
   printf("            -p : dump only policy config\n");
   printf("            -g : dump only global config\n");
   printf("            -a : dump only access config\n");
+  printf("            -m : dump only mapping config\n");
 
   printf("config save [-f] [<name>] [--comment|-c \"<comment>\"] ] :\n");
   printf("                                                  save config (optionally under name)\n");

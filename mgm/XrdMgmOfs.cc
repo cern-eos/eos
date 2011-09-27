@@ -39,29 +39,6 @@
 #endif
 
 
-#define MAYSTALL { if (gOFS->IsStall) {                                \
-      XrdOucString stallmsg="";                                        \
-      int stalltime=0;                                                 \
-      if (gOFS->ShouldStall(__FUNCTION__,vid, stalltime, stallmsg))    \
-        return gOFS->Stall(error,stalltime, stallmsg.c_str());         \
-    }                                                                  \
-  }
-
-#define MAYREDIRECT { if (gOFS->IsRedirect) {                          \
-      int port=0;                                                      \
-      XrdOucString host="";                                            \
-      if (gOFS->ShouldRedirect(__FUNCTION__,vid, host,port))	       \
-        return gOFS->Redirect(error, host.c_str(), port);              \
-    }                                                                  \
-  }
-
-#define NAMESPACEMAP                                                   \
-  const char*path = inpath;                                            \
-  XrdOucString store_path=path;                                        \
-  store_path = gOFS->MapPath(inpath);                                  \
-  path = store_path.c_str(); 
-
-
 /*----------------------------------------------------------------------------*/
 XrdSysError     gMgmOfsEroute(0);  
 XrdSysError    *XrdMgmOfs::eDest;
@@ -190,7 +167,73 @@ XrdMgmOfs::ShouldRedirect(const char* function,  eos::common::Mapping::VirtualId
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfsDirectory::open(const char              *dir_path, // In
+void
+XrdMgmOfs::ResetPathMap()
+{
+  eos::common::RWMutexWriteLock lock(PathMapMutex);
+  PathMap.clear();
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+XrdMgmOfs::AddPathMap(const char* source, const char* target) {
+  eos::common::RWMutexWriteLock lock(PathMapMutex);
+  if (PathMap.count(source)) {
+    return false;
+  } else {
+    PathMap[source] = target;
+    ConfEngine->SetConfigValue("map",source,target);
+    return true;
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void 
+XrdMgmOfs::PathRemap(const char* inpath, XrdOucString &outpath)
+{
+  // remaps paths
+  eos::common::Path cPath(inpath);
+
+  eos::common::RWMutexReadLock lock(PathMapMutex);
+  eos_debug("map %s [%d][%d]", inpath, PathMap.size(), cPath.GetSubPathSize()-1);
+
+  outpath = inpath;
+
+  // remove double slashes
+  while (outpath.replace("//","/")) {}
+  
+  // append a / to the path
+  outpath += "/";
+
+  if (!PathMap.size()) {
+    outpath.erase(outpath.length()-1);
+    return;
+  }
+
+  if (PathMap.count(inpath)) {
+    outpath.replace(inpath,PathMap[inpath].c_str());
+    outpath.erase(outpath.length()-1);
+    return;
+  }
+
+  if (!cPath.GetSubPathSize()) {
+    outpath.erase(outpath.length()-1);
+    return;
+  }
+
+  for (size_t i=cPath.GetSubPathSize()-1; i>0; i--) {
+    if (PathMap.count(cPath.GetSubPath(i))) {
+      outpath.replace(cPath.GetSubPath(i),PathMap[cPath.GetSubPath(i)].c_str());
+      outpath.erase(outpath.length()-1);
+      return;
+    }
+  }
+   return;
+}
+
+
+/*----------------------------------------------------------------------------*/
+int XrdMgmOfsDirectory::open(const char              *inpath, // In
                                 const XrdSecEntity  *client,   // In
                                 const char              *info)     // In
 /*
@@ -205,19 +248,21 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
 {
    static const char *epname = "opendir";
    const char *tident = error.getErrUser();
-   
+
    XrdOucEnv Open_Env(info);
 
-   eos_info("path=%s",dir_path);
+   NAMESPACEMAP;
 
-   AUTHORIZE(client,&Open_Env,AOP_Readdir,"open directory",dir_path,error);
+   eos_info("path=%s",path);
+
+   AUTHORIZE(client,&Open_Env,AOP_Readdir,"open directory",path,error);
 
    eos::common::Mapping::IdMap(client,info,tident, vid);
 
    MAYSTALL;
    MAYREDIRECT;
 
-   return open(dir_path, vid, info);
+   return open(path, vid, info);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -237,7 +282,7 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
    static const char *epname = "opendir";
    XrdOucEnv Open_Env(info);
    errno = 0;
-   
+
    EXEC_TIMING_BEGIN("OpenDir");
 
    eos::common::Path cPath(dir_path);
@@ -371,7 +416,7 @@ int XrdMgmOfsDirectory::close()
 
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfsFile::open(const char          *path,      // In
+int XrdMgmOfsFile::open(const char          *inpath,      // In
                            XrdSfsFileOpenMode   open_mode, // In
                            mode_t               Mode,      // In
                      const XrdSecEntity        *client,    // In
@@ -407,6 +452,8 @@ int XrdMgmOfsFile::open(const char          *path,      // In
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
   SetLogId(logId, vid, tident);
+
+  NAMESPACEMAP;
 
   eos_info("path=%s info=%s",path,info);
 
@@ -1268,7 +1315,7 @@ int XrdMgmOfsFile::truncate(XrdSfsFileOffset  flen)  // In
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::chmod(const char                *path,    // In
+int XrdMgmOfs::chmod(const char                *inpath,    // In
                               XrdSfsMode        Mode,    // In
                               XrdOucErrInfo    &error,   // Out
                         const XrdSecEntity     *client,  // In
@@ -1293,9 +1340,12 @@ int XrdMgmOfs::chmod(const char                *path,    // In
 
   XrdOucEnv chmod_Env(info);
 
+  NAMESPACEMAP;
+
   XTRACE(chmod, path,"");
 
   AUTHORIZE(client,&chmod_Env,AOP_Chmod,"chmod",path,error);
+
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
@@ -1443,7 +1493,7 @@ int XrdMgmOfs::_chown(const char               *path,    // In
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::exists(const char                *path,        // In
+int XrdMgmOfs::exists(const char                *inpath,        // In
                                XrdSfsFileExistence &file_exists, // Out
                                XrdOucErrInfo       &error,       // Out
                          const XrdSecEntity    *client,          // In
@@ -1458,6 +1508,8 @@ int XrdMgmOfs::exists(const char                *path,        // In
   eos::common::Mapping::VirtualIdentity vid;
 
   XrdOucEnv exists_Env(info);
+
+  NAMESPACEMAP;
 
   XTRACE(exists, path,"");
 
@@ -1660,7 +1712,7 @@ const char *XrdMgmOfs::getVersion() {
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::mkdir(const char             *path,    // In
+int XrdMgmOfs::mkdir(const char              *inpath,    // In
                               XrdSfsMode        Mode,    // In
                               XrdOucErrInfo    &error,   // Out
                         const XrdSecEntity     *client,  // In
@@ -1674,6 +1726,8 @@ int XrdMgmOfs::mkdir(const char             *path,    // In
   
   XrdOucEnv mkdir_Env(info);
   
+  NAMESPACEMAP; 
+
   XTRACE(mkdir, path,"");
   
   eos_info("path=%s",path);
@@ -1974,7 +2028,7 @@ int XrdMgmOfs::prepare( XrdSfsPrep       &pargs,
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::rem(const char             *path,    // In
+int XrdMgmOfs::rem(const char             *inpath,    // In
                             XrdOucErrInfo    &error,   // Out
                       const XrdSecEntity *client,  // In
                       const char             *info)    // In
@@ -1994,7 +2048,9 @@ int XrdMgmOfs::rem(const char             *path,    // In
     
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-  
+
+  NAMESPACEMAP; 
+
   XTRACE(remove, path,"");
   
   XrdOucEnv env(info);
@@ -2166,7 +2222,7 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::remdir(const char             *path,    // In
+int XrdMgmOfs::remdir(const char             *inpath,    // In
                                XrdOucErrInfo    &error,   // Out
                          const XrdSecEntity *client,  // In
                          const char             *info)    // In
@@ -2190,7 +2246,9 @@ int XrdMgmOfs::remdir(const char             *path,    // In
   XrdOucEnv remdir_Env(info);
   
   XrdSecEntity mappedclient();
-  
+
+  NAMESPACEMAP;
+
   XTRACE(remove, path,"");
   
   AUTHORIZE(client,&remdir_Env,AOP_Delete,"remove",path, error);
@@ -2357,6 +2415,7 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   AUTHORIZE(client,&renameo_Env,AOP_Update,"rename",old_name, error);
   AUTHORIZE(client,&renamen_Env,AOP_Update,"rename",new_name, error);
 
+  // we need to add also the namespace re mapping here ...
   oldn = old_name;
   newn = new_name;
 
@@ -2409,7 +2468,7 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::stat(const char              *path,        // In
+int XrdMgmOfs::stat(const char              *inpath,         // In
                              struct stat       *buf,         // Out
                              XrdOucErrInfo     &error,       // Out
                        const XrdSecEntity  *client,          // In
@@ -2435,6 +2494,8 @@ int XrdMgmOfs::stat(const char              *path,        // In
   XrdSecEntity mappedclient();
 
   XrdOucEnv Open_Env(info);
+
+  NAMESPACEMAP; 
   
   XTRACE(stat, path,"");
 
@@ -2616,7 +2677,7 @@ int XrdMgmOfs::truncate(const char*,
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::readlink(const char          *path,        // In
+int XrdMgmOfs::readlink(const char             *inpath,      // In
 			   XrdOucString        &linkpath,    // Out
 			   XrdOucErrInfo       &error,       // Out
 			   const XrdSecEntity  *client,       // In
@@ -2633,6 +2694,8 @@ int XrdMgmOfs::readlink(const char          *path,        // In
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
+  NAMESPACEMAP; 
+
   XTRACE(fsctl, path,"");
 
   AUTHORIZE(client,&rl_Env,AOP_Stat,"readlink",path,error);
@@ -2648,7 +2711,7 @@ int XrdMgmOfs::readlink(const char          *path,        // In
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::symlink(const char           *path,        // In
+int XrdMgmOfs::symlink(const char            *inpath,        // In
 			  const char           *linkpath,    // In
 			  XrdOucErrInfo        &error,       // Out
 			  const XrdSecEntity   *client,      // In
@@ -2661,6 +2724,8 @@ int XrdMgmOfs::symlink(const char           *path,        // In
 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
+
+  NAMESPACEMAP; 
 
   XTRACE(fsctl, path,"");
 
@@ -2682,7 +2747,7 @@ int XrdMgmOfs::symlink(const char           *path,        // In
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::access( const char           *path,        // In
+int XrdMgmOfs::access( const char            *inpath,        // In
                           int                   mode,        // In
 			  XrdOucErrInfo        &error,       // Out
 			  const XrdSecEntity   *client,      // In
@@ -2692,6 +2757,8 @@ int XrdMgmOfs::access( const char           *path,        // In
   const char *tident = error.getErrUser(); 
 
   XrdOucEnv access_Env(info);
+
+  NAMESPACEMAP; 
 
   XTRACE(fsctl, path,"");
 
@@ -2708,11 +2775,11 @@ int XrdMgmOfs::access( const char           *path,        // In
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::utimes(  const char          *path,        // In
+int XrdMgmOfs::utimes(  const char            *inpath,        // In
 			   struct timespec      *tvp,         // In
-			   XrdOucErrInfo       &error,       // Out
+			   XrdOucErrInfo       &error,        // Out
 			   const XrdSecEntity  *client,       // In
-			   const char          *info)        // In
+			   const char          *info)         // In
 {
   static const char *epname = "utimes";
   const char *tident = error.getErrUser(); 
@@ -2721,6 +2788,8 @@ int XrdMgmOfs::utimes(  const char          *path,        // In
 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
+
+  NAMESPACEMAP;
 
   XTRACE(fsctl, path,"");
 
@@ -3065,7 +3134,8 @@ XrdMgmOfs::fsctl(const int               cmd,
 {
   eos_info("cmd=%d args=%s", cmd,args);
 
-  if ((cmd == SFS_FSCTL_LOCATE)) {
+  int opcode = cmd & SFS_FSCTL_CMD;
+  if ((opcode == SFS_FSCTL_LOCATE)) {
     // check if this file exists
     //    XrdSfsFileExistence file_exists;
     //    if ((_exists(path.c_str(),file_exists,error,client,0)) || (file_exists!=XrdSfsFileExistIsFile)) {
@@ -3126,19 +3196,23 @@ XrdMgmOfs::FSctl(const int               cmd,
   } else {
     iopaque[0] = 0;
   }
+
+  const char* inpath = ipath;
+
+  NAMESPACEMAP;
   
   // from here on we can deal with XrdOucString which is more 'comfortable'
-  XrdOucString path    = ipath;
+  XrdOucString spath    = path;
   XrdOucString opaque  = iopaque;
   XrdOucString result  = "";
   XrdOucEnv env(opaque.c_str());
 
-  eos_debug("path=%s opaque=%s", path.c_str(), opaque.c_str());
+  eos_debug("path=%s opaque=%s", spath.c_str(), opaque.c_str());
 
   if ((cmd == SFS_FSCTL_LOCATE)) {
     // check if this file exists
     XrdSfsFileExistence file_exists;
-    if ((_exists(path.c_str(),file_exists,error,client,0)) || (file_exists!=XrdSfsFileExistIsFile)) {
+    if ((_exists(spath.c_str(),file_exists,error,client,0)) || (file_exists!=XrdSfsFileExistIsFile)) {
       return SFS_ERROR;
     }
    
@@ -3463,7 +3537,7 @@ XrdMgmOfs::FSctl(const int               cmd,
     if (execmd == "stat") {
       struct stat buf;
 
-      int retc = lstat(path.c_str(),
+      int retc = lstat(spath.c_str(),
 		      &buf,  
 		      error, 
 		      client,
@@ -3506,7 +3580,7 @@ XrdMgmOfs::FSctl(const int               cmd,
         struct stat buf;
 
         // check if it is a file or directory ....
-        int retc = lstat(path.c_str(),
+        int retc = lstat(spath.c_str(),
                          &buf,  
                          error, 
                          client,
@@ -3522,7 +3596,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 
 
  	XrdSfsMode newmode = atoi(smode);
-        retc =  _chmod(path.c_str(),
+        retc =  _chmod(spath.c_str(),
                        newmode,
                        error,
                        vid);
@@ -3546,7 +3620,7 @@ XrdMgmOfs::FSctl(const int               cmd,
         uid_t uid = atoi(suid);
         gid_t gid = atoi(sgid);
 
-	int retc =  _chown(path.c_str(),
+	int retc =  _chown(spath.c_str(),
                           uid,
                           gid,
 			  error,
@@ -3634,7 +3708,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	tvp[1].tv_sec  = strtol(tv2_sec,0,10);
 	tvp[1].tv_nsec = strtol(tv2_nsec,0,10);
 
-	int retc = utimes(path.c_str(), 
+	int retc = utimes(spath.c_str(), 
 			  tvp,
 			  error, 
 			  client,
@@ -3660,7 +3734,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       //-------------------------------------------
       gOFS->eosViewMutex.Lock();
       try {
-        fmd = gOFS->eosView->getFile(path.c_str());
+        fmd = gOFS->eosView->getFile(spath.c_str());
         for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
           char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
           checksum += hb;
@@ -3824,13 +3898,13 @@ XrdMgmOfs::FSctl(const int               cmd,
     eos_err("No implementation for %s", execmd.c_str());
   }
 
-  return  Emsg(epname,error,EINVAL,"execute FSctl command",path.c_str());  
+  return  Emsg(epname,error,EINVAL,"execute FSctl command",spath.c_str());  
 }
 
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::attr_ls(const char             *path,
+XrdMgmOfs::attr_ls(const char             *inpath,
 		   XrdOucErrInfo          &error,
 		   const XrdSecEntity     *client,
 		   const char             *info,
@@ -3841,6 +3915,8 @@ XrdMgmOfs::attr_ls(const char             *path,
   XrdOucEnv access_Env(info);
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
+
+  NAMESPACEMAP; 
 
   XTRACE(fsctl, path,"");
 
@@ -3853,7 +3929,7 @@ XrdMgmOfs::attr_ls(const char             *path,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::attr_set(const char             *path,
+XrdMgmOfs::attr_set(const char             *inpath,
 		    XrdOucErrInfo          &error,
 		    const XrdSecEntity     *client,
 		    const char             *info,
@@ -3867,6 +3943,8 @@ XrdMgmOfs::attr_set(const char             *path,
 
   XrdOucEnv access_Env(info);
 
+  NAMESPACEMAP;
+
   XTRACE(fsctl, path,"");
 
   AUTHORIZE(client,&access_Env,AOP_Update,"update",path,error);
@@ -3878,7 +3956,7 @@ XrdMgmOfs::attr_set(const char             *path,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::attr_get(const char             *path,
+XrdMgmOfs::attr_get(const char             *inpath,
 		    XrdOucErrInfo    &error,
 		    const XrdSecEntity     *client,
 		    const char             *info,
@@ -3892,6 +3970,8 @@ XrdMgmOfs::attr_get(const char             *path,
 
   XrdOucEnv access_Env(info);
 
+  NAMESPACEMAP;
+
   XTRACE(fsctl, path,"");
 
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
@@ -3903,7 +3983,7 @@ XrdMgmOfs::attr_get(const char             *path,
 
 /*----------------------------------------------------------------------------*/
 int         
-XrdMgmOfs::attr_rem(const char             *path,
+XrdMgmOfs::attr_rem(const char             *inpath,
 		    XrdOucErrInfo    &error,
 		    const XrdSecEntity     *client,
 		    const char             *info,
@@ -3915,6 +3995,8 @@ XrdMgmOfs::attr_rem(const char             *path,
   eos::common::Mapping::VirtualIdentity vid;
 
   XrdOucEnv access_Env(info); 
+
+  NAMESPACEMAP;
 
   XTRACE(fsctl, path,"");
 

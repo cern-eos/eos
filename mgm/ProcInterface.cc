@@ -2420,11 +2420,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
     
     if ( cmd == "chown" ) {
-      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString spath = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.chown.option");
       XrdOucString owner   = opaque.Get("mgm.chown.owner");
 
-      if ( (!path.length()) || (!owner.length())) {
+      const char* inpath = spath.c_str();
+
+      NAMESPACEMAP;
+
+      spath = path;
+      if ( (!spath.length()) || (!owner.length())) {
 	stdErr = "error: you have to provide a path and the owner to set!\n";
 	retc = EINVAL;
       } else {
@@ -2432,14 +2437,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	std::vector< std::vector<std::string> > found_dirs;
 	std::vector< std::vector<std::string> > found_files;
 	if (option == "r") {
-	  if (gOFS->_find(path.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
+	  if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
 	    stdErr += "error: unable to search in path";
 	    retc = errno;
 	  } 
 	} else {
 	  // the single dir case
 	  found_dirs.resize(1);
-	  found_dirs[0].push_back(path.c_str());
+	  found_dirs[0].push_back(spath.c_str());
 	}
 	
 	std::string uid=owner.c_str();
@@ -2790,8 +2795,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 
     if ( cmd == "file" ) {
-      XrdOucString path = opaque.Get("mgm.path");
-      if (!path.length()) {
+      XrdOucString spath = opaque.Get("mgm.path");
+
+      const char* inpath = spath.c_str();
+
+      NAMESPACEMAP;
+
+      spath = path;
+
+      if (!spath.length()) {
 	stdErr="error: you have to give a path name to call 'file'";
 	retc = EINVAL;
       } else {
@@ -2805,7 +2817,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    
  	  unsigned long fsid = (sfsid.length())?strtoul(sfsid.c_str(),0,10):0;
 
-          if (gOFS->_dropstripe(path.c_str(),*error, vid_in, fsid, forceRemove)) {
+          if (gOFS->_dropstripe(spath.c_str(),*error, vid_in, fsid, forceRemove)) {
  	    stdErr += "error: unable to drop stripe";
  	    retc = errno;
  	  } else {
@@ -2826,15 +2838,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
  	    // only root can do that
  	    if (vid_in.uid==0) {
  	      eos::FileMD* fmd=0;
- 	      if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
+ 	      if ( (spath.beginswith("fid:") || (spath.beginswith("fxid:") ) ) ) {
  		unsigned long long fid=0;
- 		if (path.beginswith("fid:")) {
- 		  path.replace("fid:","");
- 		  fid = strtoull(path.c_str(),0,10);
+ 		if (spath.beginswith("fid:")) {
+ 		  spath.replace("fid:","");
+ 		  fid = strtoull(spath.c_str(),0,10);
  		}
- 		if (path.beginswith("fxid:")) {
- 		  path.replace("fxid:","");
- 		  fid = strtoull(path.c_str(),0,16);
+ 		if (spath.beginswith("fxid:")) {
+ 		  spath.replace("fxid:","");
+ 		  fid = strtoull(spath.c_str(),0,16);
  		}
  		// reference by fid+fsid
  		//-------------------------------------------
@@ -2851,7 +2863,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		//-------------------------------------------
 		gOFS->eosViewMutex.Lock();
  		try {
- 		  fmd = gOFS->eosView->getFile(path.c_str());
+ 		  fmd = gOFS->eosView->getFile(spath.c_str());
  		} catch ( eos::MDException &e ) {
  		  errno = e.getErrno();
  		  stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
@@ -2863,7 +2875,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
  		if ( (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica) || (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kPlain)) {
  		  unsigned long newlayout = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::GetChecksum(fmd->getLayoutId()), newstripenumber, eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()));
  		  fmd->setLayoutId(newlayout);
-		  stdOut += "success: setting new stripe number to "; stdOut += newstripenumber; stdOut += " for path="; stdOut += path;
+		  stdOut += "success: setting new stripe number to "; stdOut += newstripenumber; stdOut += " for path="; stdOut += spath;
  		  // commit new layout
  		  gOFS->eosView->updateFileStore(fmd);
  		} else {
@@ -2920,15 +2932,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  // only root can do that
 	  if (vid_in.uid==0) {
 	    eos::FileMD* fmd=0;
-	    if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
+	    if ( (spath.beginswith("fid:") || (spath.beginswith("fxid:") ) ) ) {
 	      unsigned long long fid=0;
-	      if (path.beginswith("fid:")) {
-		path.replace("fid:","");
-		fid = strtoull(path.c_str(),0,10);
+	      if (spath.beginswith("fid:")) {
+		spath.replace("fid:","");
+		fid = strtoull(spath.c_str(),0,10);
 	      }
-	      if (path.beginswith("fxid:")) {
-		path.replace("fxid:","");
-		fid = strtoull(path.c_str(),0,16);
+	      if (spath.beginswith("fxid:")) {
+		spath.replace("fxid:","");
+		fid = strtoull(spath.c_str(),0,16);
 	      }
 	      // reference by fid+fsid
 	      //-------------------------------------------
@@ -2936,7 +2948,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      try {
 		fmd = gOFS->eosFileService->getFileMD(fid);
 		std::string fullpath = gOFS->eosView->getUri(fmd);
-		path = fullpath.c_str();
+		spath = fullpath.c_str();
 	      } catch ( eos::MDException &e ) {
 		errno = e.getErrno();
 		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
@@ -2947,7 +2959,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      //-------------------------------------------
 	      gOFS->eosViewMutex.Lock();
 	      try {
-		fmd = gOFS->eosView->getFile(path.c_str());
+		fmd = gOFS->eosView->getFile(spath.c_str());
 	      } catch ( eos::MDException &e ) {
 		errno = e.getErrno();
 		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
@@ -2975,9 +2987,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		if (acceptfsid) 
 		  acceptfound=true;
 
-		int lretc = gOFS->_verifystripe(path.c_str(), *error, vid, (unsigned long) *it, option);
+		int lretc = gOFS->_verifystripe(spath.c_str(), *error, vid, (unsigned long) *it, option);
 		if (!lretc) {
-		  stdOut += "success: sending verify to fsid= "; stdOut += (int)*it; stdOut += " for path="; stdOut += path; stdOut += "\n";
+		  stdOut += "success: sending verify to fsid= "; stdOut += (int)*it; stdOut += " for path="; stdOut += spath; stdOut += "\n";
 		} else {
 		  retc = errno;
 		}
@@ -2985,9 +2997,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 	      // we want to be able to force the registration and verification of a not registered replica
 	      if (acceptfsid && (!acceptfound)) {
-		int lretc = gOFS->_verifystripe(path.c_str(), *error, vid, (unsigned long) acceptfsid, option);
+		int lretc = gOFS->_verifystripe(spath.c_str(), *error, vid, (unsigned long) acceptfsid, option);
                 if (!lretc) {
-                  stdOut += "success: sending forced verify to fsid= "; stdOut += acceptfsid; stdOut += " for path="; stdOut += path; stdOut += "\n";
+                  stdOut += "success: sending forced verify to fsid= "; stdOut += acceptfsid; stdOut += " for path="; stdOut += spath; stdOut += "\n";
                 } else {
                   retc = errno;
                 }
@@ -3010,7 +3022,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  XrdOucString sfsidtarget = opaque.Get("mgm.file.targetfsid");
 	  unsigned long targetfsid = (sfsidsource.length())?strtoul(sfsidtarget.c_str(),0,10):0;
 
-	  if (gOFS->_movestripe(path.c_str(),*error, vid_in, sourcefsid, targetfsid)) {
+	  if (gOFS->_movestripe(spath.c_str(),*error, vid_in, sourcefsid, targetfsid)) {
 	    stdErr += "error: unable to move stripe";
 	    retc = errno;
 	  } else {
@@ -3028,7 +3040,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
  	  if (sexpressflag == "1")
  	    expressflag = 1;
 
- 	  if (gOFS->_copystripe(path.c_str(),*error, vid_in, sourcefsid, targetfsid)) {
+ 	  if (gOFS->_copystripe(spath.c_str(),*error, vid_in, sourcefsid, targetfsid)) {
  	    stdErr += "error: unable to replicate stripe";
  	    retc = errno;
  	  } else {
@@ -3061,15 +3073,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      icreationsubgroup = atoi(opaque.Get("mgm.file.desiredsubgroup"));
 	    }
 
-	    if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
+	    if ( (spath.beginswith("fid:") || (spath.beginswith("fxid:") ) ) ) {
 	      unsigned long long fid=0;
-	      if (path.beginswith("fid:")) {
-		path.replace("fid:","");
-		fid = strtoull(path.c_str(),0,10);
+	      if (spath.beginswith("fid:")) {
+		spath.replace("fid:","");
+		fid = strtoull(spath.c_str(),0,10);
 	      }
-	      if (path.beginswith("fxid:")) {
-		path.replace("fxid:","");
-		fid = strtoull(path.c_str(),0,16);
+	      if (spath.beginswith("fxid:")) {
+		spath.replace("fxid:","");
+		fid = strtoull(spath.c_str(),0,16);
 	      }
 	      
 	      // reference by fid+fsid
@@ -3087,7 +3099,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      //-------------------------------------------
 	      gOFS->eosViewMutex.Lock();
 	      try {
-		fmd = gOFS->eosView->getFile(path.c_str());
+		fmd = gOFS->eosView->getFile(spath.c_str());
 	      } catch ( eos::MDException &e ) {
 		errno = e.getErrno();
 		stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
@@ -3158,7 +3170,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  }		 
 		}
 		
-		eos_debug("path=%s nrep=%lu nrep-layout=%lu nrep-online=%lu", path.c_str(), nrep, nreplayout, nreponline);
+		eos_debug("path=%s nrep=%lu nrep-layout=%lu nrep-online=%lu", spath.c_str(), nrep, nreplayout, nreponline);
 
 		if (nreplayout > nreponline) {
 		  // set the desired space & subgroup if provided
@@ -3202,12 +3214,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		      int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::kNone, nnewreplicas);
 		      
 		      // we don't know the container tag here, but we don't really care since we are scheduled as root
-		      if (!(errno = quotaspace->FilePlacement(path.c_str(), vid_in.uid, vid_in.gid, 0 , layoutId, selectedfs, SFS_O_TRUNC, forcedsubgroup, fmd->getSize()))) {
+		      if (!(errno = quotaspace->FilePlacement(spath.c_str(), vid_in.uid, vid_in.gid, 0 , layoutId, selectedfs, SFS_O_TRUNC, forcedsubgroup, fmd->getSize()))) {
 			// yes we got a new replication vector
 			for (unsigned int i=0; i< selectedfs.size(); i++) {
 			  //			  stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
 			  // add replication here 
-			  if (gOFS->_replicatestripe(fmd,path.c_str(), *error, vid_in, sourcefsid, selectedfs[i] , false, expressflag)) {
+			  if (gOFS->_replicatestripe(fmd,spath.c_str(), *error, vid_in, sourcefsid, selectedfs[i] , false, expressflag)) {
 			    stdErr += "error: unable to replicate stripe "; stdErr += (int) sourcefsid; stdErr += " => "; stdErr += (int) selectedfs[i]; stdErr += "\n";
 			    retc = errno;
 			  } else {
@@ -3215,10 +3227,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 			  }
 			}
 		      } else {
-			stdErr = "error: create new replicas => cannot place replicas: "; stdErr += path; stdErr += "\n";
+			stdErr = "error: create new replicas => cannot place replicas: "; stdErr += spath; stdErr += "\n";
 		      }
 		    } else {
-		      stdErr = "error: create new replicas => no source available: "; stdErr += path; stdErr += "\n";
+		      stdErr = "error: create new replicas => no source available: "; stdErr += spath; stdErr += "\n";
 		    }
 		  }
 		} else {
@@ -3396,9 +3408,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	if (subcmd == "getmdlocation") {
 	  gOFS->MgmStats.Add("GetMdLocation",vid_in.uid,vid_in.gid,1);
 	  // this returns the access urls to query local metadata information
-	  XrdOucString path = opaque.Get("mgm.path");
+	  XrdOucString spath = opaque.Get("mgm.path");
 	  
-	  if (!path.length()) {
+	  const char* inpath = spath.c_str();
+	  
+	  NAMESPACEMAP;
+	  
+	  spath = path;
+
+	  if (!spath.length()) {
 	    stdErr="error: you have to give a path name to call 'fileinfo'";
 	    retc = EINVAL;
 	  } else {
@@ -3407,7 +3425,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    //-------------------------------------------
 	    gOFS->eosViewMutex.Lock();
 	    try {
-	      fmd = gOFS->eosView->getFile(path.c_str());
+	      fmd = gOFS->eosView->getFile(spath.c_str());
 	    } catch ( eos::MDException &e ) {
 	      errno = e.getErrno();
 	      stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
@@ -3478,24 +3496,30 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
     if ( cmd == "fileinfo" ) {
       gOFS->MgmStats.Add("FileInfo",vid_in.uid,vid_in.gid,1);
-      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString spath = opaque.Get("mgm.path");
       XrdOucString option= opaque.Get("mgm.file.info.option");
 
-      if (!path.length()) {
+      const char* inpath = spath.c_str();
+
+      NAMESPACEMAP;
+      
+      spath = path;
+
+      if (!spath.length()) {
 	stdErr="error: you have to give a path name to call 'fileinfo'";
 	retc = EINVAL;
       } else {
 	eos::FileMD* fmd=0;
 
-	if ( (path.beginswith("fid:") || (path.beginswith("fxid:") ) ) ) {
+	if ( (spath.beginswith("fid:") || (spath.beginswith("fxid:") ) ) ) {
 	  unsigned long long fid=0;
-	  if (path.beginswith("fid:")) {
-	    path.replace("fid:","");
-	    fid = strtoull(path.c_str(),0,10);
+	  if (spath.beginswith("fid:")) {
+	    spath.replace("fid:","");
+	    fid = strtoull(spath.c_str(),0,10);
 	  }
-	  if (path.beginswith("fxid:")) {
-	    path.replace("fxid:","");
-	    fid = strtoull(path.c_str(),0,16);
+	  if (spath.beginswith("fxid:")) {
+	    spath.replace("fxid:","");
+	    fid = strtoull(spath.c_str(),0,16);
 	  }
 
 	  // reference by fid+fsid
@@ -3504,7 +3528,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  try {
 	    fmd = gOFS->eosFileService->getFileMD(fid);
 	    std::string fullpath = gOFS->eosView->getUri(fmd);
-	    path = fullpath.c_str();
+	    spath = fullpath.c_str();
 	  } catch ( eos::MDException &e ) {
 	    errno = e.getErrno();
 	    stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
@@ -3515,7 +3539,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  //-------------------------------------------
 	  gOFS->eosViewMutex.Lock();
 	  try {
-	    fmd = gOFS->eosView->getFile(path.c_str());
+	    fmd = gOFS->eosView->getFile(spath.c_str());
 	  } catch ( eos::MDException &e ) {
 	    errno = e.getErrno();
 	    stdErr = "error: cannot retrieve file meta data - "; stdErr += e.getMessage().str().c_str();
@@ -3549,10 +3573,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  if ( (option.find("-path")) != STR_NPOS) {
 	    if (!Monitoring) {
 	      stdOut += "path:   "; 
-	      stdOut += path;
+	      stdOut += spath;
 	      stdOut+="\n";
 	    } else {
-	      stdOut += "path="; stdOut += path; stdOut += " ";
+	      stdOut += "path="; stdOut += spath; stdOut += " ";
 	    }
 	  }
 
@@ -3620,7 +3644,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    snprintf(fid,32,"%llu",(unsigned long long) fmd->getId());
 	    
 	    if (!Monitoring) {
-	      stdOut  = "  File: '"; stdOut += path; stdOut += "'";
+	      stdOut  = "  File: '"; stdOut += spath; stdOut += "'";
 	      stdOut += "  Size: "; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getSize()); stdOut+="\n";
 	      stdOut += "Modify: "; stdOut += ctime_r(&filectime, mtimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mtime.tv_sec); stdOut += "."; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mtime.tv_nsec); stdOut += "\n";
 	      stdOut += "Change: "; stdOut += ctime_r(&filemtime, ctimestring); stdOut.erase(stdOut.length()-1); stdOut += " Timestamp: ";stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)ctime.tv_sec); stdOut += "."; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)ctime.tv_nsec);stdOut += "\n";
@@ -3639,7 +3663,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      stdOut += " *******\n";
 	      stdOut += "  #Rep: "; stdOut += (int)fmd->getNumLocation(); stdOut+="\n";	      
 	    } else {
-	      stdOut  = "file="; stdOut += path; stdOut += " ";
+	      stdOut  = "file="; stdOut += spath; stdOut += " ";
 	      stdOut += "size="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getSize()); stdOut+=" ";
 	      stdOut += "mtime="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mtime.tv_sec); stdOut += "."; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mtime.tv_nsec); stdOut += " ";
 	      stdOut += "ctime="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)ctime.tv_sec); stdOut += "."; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)ctime.tv_nsec);stdOut += " ";
@@ -3744,10 +3768,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     } 
     
     if ( cmd == "mkdir" ) {
-      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString spath = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
       
-      if (!path.length()) {
+      const char* inpath=spath.c_str();
+
+      NAMESPACEMAP;
+
+      spath = path;
+
+      if (!spath.length()) {
 	stdErr="error: you have to give a path name to call 'mkdir'";
 	retc = EINVAL;
       } else {
@@ -3755,7 +3785,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	if (option == "p") {
 	  mode |= SFS_O_MKPTH;
 	}
-	if (gOFS->_mkdir(path.c_str(), mode, *error, vid_in,(const char*)0)) {
+	if (gOFS->_mkdir(spath.c_str(), mode, *error, vid_in,(const char*)0)) {
 	  stdErr += "error: unable to create directory";
 	  retc = errno;
 	}
@@ -3765,12 +3795,19 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
 
     if ( cmd == "rmdir" ) {
-      XrdOucString path = opaque.Get("mgm.path");
-      if (!path.length()) {
+      XrdOucString spath = opaque.Get("mgm.path");
+
+      const char* inpath = spath.c_str();
+
+      NAMESPACEMAP;
+
+      spath = path;
+
+      if (!spath.length()) {
 	stdErr="error: you have to give a path name to call 'rmdir'";
 	retc = EINVAL;
       } else {
-	if (gOFS->_remdir(path.c_str(), *error, vid_in,(const char*)0)) {
+	if (gOFS->_remdir(spath.c_str(), *error, vid_in,(const char*)0)) {
 	  stdErr += "error: unable to remove directory";
 	  retc = errno;
 	}
@@ -3781,15 +3818,22 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
     if ( cmd == "cd" ) {
       gOFS->MgmStats.Add("Cd",vid_in.uid,vid_in.gid,1);
-      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString spath = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
-      if (!path.length()) {
+
+      const char* inpath = spath.c_str();
+
+      NAMESPACEMAP;
+
+      spath = path;
+
+      if (!spath.length()) {
 	stdErr="error: you have to give a path name to call 'cd'";
 	retc = EINVAL;
       } else {
 	XrdMgmOfsDirectory dir;
 	struct stat buf;
-	if(gOFS->_stat(path.c_str(),&buf, *error,  vid_in, (const char*) 0)) {
+	if(gOFS->_stat(spath.c_str(),&buf, *error,  vid_in, (const char*) 0)) {
 	  stdErr = error->getErrText();
 	  retc = errno;
 	} else {
@@ -3807,10 +3851,19 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
    
     if ( cmd == "ls" ) {
+      eos_info("calling ls");
       gOFS->MgmStats.Add("Ls",vid_in.uid,vid_in.gid,1);
-      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString spath = opaque.Get("mgm.path");
+      const char* inpath=spath.c_str();
+
+      NAMESPACEMAP;
+
+      eos_info("mapped to %s", path);
+      
+      spath = path;
+      
       XrdOucString option = opaque.Get("mgm.option");
-      if (!path.length()) {
+      if (!spath.length()) {
 	stdErr="error: you have to give a path name to call 'ls'";
 	retc = EINVAL;
       } else {
@@ -3819,26 +3872,26 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	int listrc=0;
 	XrdOucString filter = "";
 
-	if(gOFS->_stat(path.c_str(),&buf, *error,  vid_in, (const char*) 0)) {
+	if(gOFS->_stat(spath.c_str(),&buf, *error,  vid_in, (const char*) 0)) {
 	  stdErr = error->getErrText();
 	  retc = errno;
 	} else {
 	  // if this is a directory open it and list
 	  if (S_ISDIR(buf.st_mode)) {
-	    listrc = dir.open(path.c_str(), vid_in, (const char*) 0);
+	    listrc = dir.open(spath.c_str(), vid_in, (const char*) 0);
 	  } else {
 	    // if this is a file, open the parent and set the filter
-	    if (path.endswith("/")) {
-	      path.erase(path.length()-1);
+	    if (spath.endswith("/")) {
+	      spath.erase(spath.length()-1);
 	    }
-	    int rpos = path.rfind("/");
+	    int rpos = spath.rfind("/");
 	    if (rpos == STR_NPOS) {
 	      listrc = SFS_ERROR;
 	      retc = ENOENT;
 	    } else {
-	      filter.assign(path,rpos+1);
-	      path.erase(rpos);
-	      listrc = dir.open(path.c_str(), vid_in, (const char*) 0);
+	      filter.assign(spath,rpos+1);
+	      spath.erase(rpos);
+	      listrc = dir.open(spath.c_str(), vid_in, (const char*) 0);
 	    }
 	  }
 	  
@@ -3883,7 +3936,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		fmode_v[3] = S_IRGRP; fmode_v[4] = S_IWGRP; fmode_v[5] = S_IXGRP;
 		fmode_v[6] = S_IROTH; fmode_v[7] = S_IWOTH; fmode_v[8] = S_IXOTH;
 		// return full information
-		XrdOucString statpath = path; statpath += "/"; statpath += val;
+		XrdOucString statpath = spath; statpath += "/"; statpath += val;
 		while (statpath.replace("//","/")) {}
 		struct stat buf;
 		if (gOFS->_stat(statpath.c_str(),&buf, *error, vid_in, (const char*) 0)) {
@@ -3963,9 +4016,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
 
     if ( cmd == "rm" ) {
-      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString spath = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
-      if (!path.length()) {
+
+      const char* inpath = spath.c_str();
+
+      NAMESPACEMAP;
+
+      spath = path;
+
+      if (!spath.length()) {
 	stdErr="error: you have to give a path name to call 'rm'";
 	retc = EINVAL;
       } else {
@@ -3974,7 +4034,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  std::vector< std::vector<std::string> > found_dirs;
 	  std::vector< std::vector<std::string> > found_files;
 	  
-	  if (gOFS->_find(path.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
+	  if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
 	    stdErr += "error: unable to remove file/directory";
 	    retc = errno;
 	  } else {
@@ -4003,7 +4063,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    }
 	  }
 	} else {
-	  if (gOFS->_rem(path.c_str(), *error, vid_in,(const char*)0)) {
+	  if (gOFS->_rem(spath.c_str(), *error, vid_in,(const char*)0)) {
 	    stdErr += "error: unable to remove file/directory";
 	    retc = errno;
 	  }
@@ -4034,7 +4094,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	
     if ( cmd == "find" ) {
       dosort = true;
-      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString spath = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
       XrdOucString attribute = opaque.Get("mgm.find.attribute");
       XrdOucString key = attribute;
@@ -4042,6 +4102,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       XrdOucString printkey = opaque.Get("mgm.find.printkey");
 
       // this hash is used to calculate the balance of the found files over the filesystems involved
+
+      const char* inpath = spath.c_str();
+
+      NAMESPACEMAP;
+
+      spath = path;
 
       google::dense_hash_map<unsigned long, unsigned long long> filesystembalance;
       google::dense_hash_map<std::string, unsigned long long> spacebalance;
@@ -4126,7 +4192,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	val.erase(0, attribute.find("=")+1);
       }
 
-      if (!path.length()) {
+      if (!spath.length()) {
 	stdErr="error: you have to give a path name to call 'find'";
 	retc = EINVAL;
      } else {
@@ -4139,7 +4205,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  nofiles = true;
 	}
 
-	if (gOFS->_find(path.c_str(), *error, stdErr, vid_in, found_dirs , found_files, key.c_str(),val.c_str(), nofiles)) {
+	if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found_dirs , found_files, key.c_str(),val.c_str(), nofiles)) {
 	  stdErr += "error: unable to remove file/directory";
 	  retc = errno;
 	}
@@ -4449,11 +4515,96 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       return SFS_OK;
     }
 
-    
+    if ( cmd == "map" ) {
+      if (subcmd == "ls") {
+	eos::common::RWMutexReadLock lock(gOFS->PathMapMutex);
+	std::map<std::string,std::string>::const_iterator it;
+	for (it = gOFS->PathMap.begin(); it != gOFS->PathMap.end(); it++) {
+	  char mapline[16384];
+	  snprintf(mapline,sizeof(mapline)-1,"%-64s => %s\n", it->first.c_str(), it->second.c_str());
+	  stdOut += mapline;
+	}
+	MakeResult(dosort);
+	return SFS_OK;
+      }
+
+      if (subcmd == "link") {
+	if ((!vid_in.uid) ||
+	    eos::common::Mapping::HasUid(3, vid.uid_list) || 
+	    eos::common::Mapping::HasGid(4, vid.gid_list)) {
+	  XrdOucString srcpath = opaque.Get("mgm.map.src");
+	  XrdOucString dstpath = opaque.Get("mgm.map.dest");
+	  fprintf(stderr,"|%s|%s|\n", srcpath.c_str(), dstpath.c_str());
+	  if ( (!srcpath.length()) || ( (srcpath.find("..")!=STR_NPOS) )
+	       || ( (srcpath.find("/../") !=STR_NPOS) )
+ 	       || ( (srcpath.find(" ")!=STR_NPOS) )
+	       || ( (srcpath.find("\\")!=STR_NPOS) )
+	       || ( (srcpath.find("/./")!=STR_NPOS) ) 
+	       || ( (!srcpath.beginswith("/")))
+	       || ( (!srcpath.endswith("/")))
+	       || (!dstpath.length()) || ( (dstpath.find("..")!=STR_NPOS) )
+	       || ( (dstpath.find("/../") !=STR_NPOS) )
+ 	       || ( (dstpath.find(" ")!=STR_NPOS) )
+	       || ( (dstpath.find("\\")!=STR_NPOS) )
+	       || ( (dstpath.find("/./")!=STR_NPOS) ) 
+	       || ( (!dstpath.beginswith("/")))
+	       || ( (!dstpath.endswith("/"))) ) {
+
+	    retc = EPERM;
+	    stdErr = "error: source and destination path has to start and end with '/', shouldn't contain spaces, '/./' or '/../' or backslash characters!";
+	  } else {
+	    if (gOFS->PathMap.count(srcpath.c_str())) {
+	      retc = EEXIST;
+	      stdErr = "error: there is already a mapping defined for '"; stdErr += srcpath.c_str(); stdErr += "' - remove the existing mapping using 'map unlink'!";
+	    } else {
+	      gOFS->PathMap[srcpath.c_str()] = dstpath.c_str();
+	      gOFS->ConfEngine->SetConfigValue("map",srcpath.c_str(),dstpath.c_str());
+	      stdOut = "success: added mapping '"; stdOut += srcpath.c_str(); stdOut += "'=>'"; stdOut += dstpath.c_str(); stdOut += "'";
+	    }
+	  }
+	} else {
+	  // permission denied
+	  retc = EPERM;
+	  stdErr = "error: you don't have the required priviledges to execute 'map link'!";
+	}
+	MakeResult(dosort);
+	return SFS_OK;
+      }
+      
+      if (subcmd == "unlink") {
+	XrdOucString path = opaque.Get("mgm.map.src");
+	if ((!vid_in.uid) ||
+	    eos::common::Mapping::HasUid(3, vid.uid_list) || 
+	    eos::common::Mapping::HasGid(4, vid.gid_list)) {
+	  eos::common::RWMutexWriteLock lock(gOFS->PathMapMutex);
+	  if ( (!path.length()) || (!gOFS->PathMap.count(path.c_str()))) {
+	    retc = EINVAL;
+	    stdErr = "error: path '"; stdErr += path.c_str(); stdErr += "' is not in the path map!";
+	  } else {
+	    gOFS->PathMap.erase(path.c_str());
+	    stdOut = "success: removed mapping of path '"; stdOut += path.c_str(); stdOut += "'";
+	  }
+	} else {
+	  // permission denied
+	  retc = EPERM;
+	  stdErr = "error: you don't have the required priviledges to execute 'map unlink'!";
+	}
+	MakeResult(dosort);
+	return SFS_OK;
+      }
+    }
+
     if ( cmd == "attr" ) {
-      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString spath = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
-      if ( (!path.length()) || 
+
+      const char* inpath = spath.c_str();
+
+      NAMESPACEMAP;
+
+      spath = path;
+
+      if ( (!spath.length()) || 
 	   ( (subcmd !="set") && (subcmd != "get") && (subcmd != "ls") && (subcmd != "rm") ) ) {
 	stdErr="error: you have to give a path name to call 'attr' and one of the subcommands 'ls', 'get','rm','set' !";
 	retc = EINVAL;
@@ -4473,14 +4624,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  std::vector< std::vector<std::string> > found_dirs;
 	  std::vector< std::vector<std::string> > found_files;
 	  if (option == "r") {
-	    if (gOFS->_find(path.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
+	    if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
 	      stdErr += "error: unable to search in path";
 	      retc = errno;
 	    } 
 	  } else {
 	    // the single dir case
 	    found_dirs.resize(1);
-	    found_dirs[0].push_back(path.c_str());
+	    found_dirs[0].push_back(spath.c_str());
 	  }
 	  
 	  if (!retc) {
@@ -4547,10 +4698,17 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
   
     if ( cmd == "chmod" ) {
-      XrdOucString path = opaque.Get("mgm.path");
+      XrdOucString spath = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
       XrdOucString mode   = opaque.Get("mgm.chmod.mode");
-      if ( (!path.length()) || (!mode.length())) {
+
+      const char* inpath = spath.c_str();
+
+      NAMESPACEMAP;
+
+      spath = path;
+
+      if ( (!spath.length()) || (!mode.length())) {
 	stdErr = "error: you have to provide a path and the mode to set!\n";
 	retc = EINVAL;
       } else {
@@ -4558,14 +4716,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	std::vector< std::vector<std::string> > found_dirs;
 	std::vector< std::vector<std::string> > found_files;
 	if (option == "r") {
-	  if (gOFS->_find(path.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
+	  if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
 	    stdErr += "error: unable to search in path";
 	    retc = errno;
 	  } 
 	} else {
 	  // the single dir case
 	  found_dirs.resize(1);
-	  found_dirs[0].push_back(path.c_str());
+	  found_dirs[0].push_back(spath.c_str());
 	}
 
 	char modecheck[1024]; snprintf(modecheck,sizeof(modecheck)-1, "%llu", (unsigned long long) strtoul(mode.c_str(),0,10));

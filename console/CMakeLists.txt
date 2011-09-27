@@ -25,6 +25,7 @@ add_executable ( eos
                  commands/com_io.cc
 		 commands/com_license.cc 
 		 commands/com_ls.cc 
+		 commands/com_map.cc 
 		 commands/com_mkdir.cc 
 		 commands/com_motd.cc 
 		 commands/com_node.cc

@@ -36,6 +36,30 @@
 
 USE_EOSMGMNAMESPACE
 
+#define MAYSTALL { if (gOFS->IsStall) {                                \
+      XrdOucString stallmsg="";                                        \
+      int stalltime=0;                                                 \
+      if (gOFS->ShouldStall(__FUNCTION__,vid, stalltime, stallmsg))    \
+        return gOFS->Stall(error,stalltime, stallmsg.c_str());         \
+    }                                                                  \
+  }
+
+#define MAYREDIRECT { if (gOFS->IsRedirect) {                          \
+      int port=0;                                                      \
+      XrdOucString host="";                                            \
+      if (gOFS->ShouldRedirect(__FUNCTION__,vid, host,port))	       \
+        return gOFS->Redirect(error, host.c_str(), port);              \
+    }                                                                  \
+  }
+
+#define NAMESPACEMAP                                                   \
+  const char*path = inpath;                                            \
+  XrdOucString store_path=path;                                        \
+  gOFS->PathRemap(inpath,store_path);				       \
+  path = store_path.c_str(); 
+
+
+
 /*----------------------------------------------------------------------------*/
 class XrdMgmOfsDirectory : public XrdSfsDirectory , public eos::common::LogId
 {
@@ -499,10 +523,11 @@ virtual bool           Init(XrdSysError &);
         XrdSysMutex      MgmHealMapMutex;
 
 
-        eos::common::RWMutex  PathMapMutex;  // mutex protecting the path map
-        std::map<std::string,std::string> PathMap; // containing global path remapping
-        void PathRemap(const char* inpath, XrdOucString &outpath); //  map defining global namespace remapping
-
+        eos::common::RWMutex  PathMapMutex;                                  // mutex protecting the path map
+        std::map<std::string,std::string> PathMap;                           // containing global path remapping
+        void PathRemap(const char* inpath, XrdOucString &outpath);           // map defining global namespace remapping
+        bool             AddPathMap(const char* source, const char* target); // add's a mapping to the path map
+        void             ResetPathMap();                                     // reset/empty the path map
 
         // map keeping the modification times of directories, they are either directly inserted from directory/file creation or they are set from a directory listing
         XrdSysMutex      MgmDirectoryModificationTimeMutex;

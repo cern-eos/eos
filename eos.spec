@@ -2,15 +2,29 @@
 %define __os_install_post       /bin/true
 %define debug_package %{nil} 
 
-Summary: The EOS server installation.
-Name: eos-server
+Summary: The EOS project
+Name: eos
 Version: 0.1.0
 Release: rc31
 Prefix: /usr
 License: none
 Group: Applications/File
+
 Source: %{name}-%{version}-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
+%description
+The EOS software package.
+
+#######################################################################################
+# the shell client package 
+#######################################################################################
+%package -n eos-server
+#######################################################################################
+Summary: The EOS server installation
+Group: Applications/File
+%description -n eos-server
+The EOS server installation containing MGM, FST & MQ service.
+
 
 BuildRequires: cmake >= 2.6
 BuildRequires: xrootd-server >= 3.0.4
@@ -27,9 +41,6 @@ BuildRequires: gcc44, gcc44-c++
 
 Requires: xrootd-server >= 3.0.4
 Requires: eos-client
-
-%description
-The EOS server installation containing MGM, FST & MQ service.
 
 %prep
 
@@ -67,7 +78,7 @@ if [ $1 = 0 ]; then
         /sbin/chkconfig --del eos
 fi
 
-%files
+%files -n eos-server
 %defattr(-,root,root)
 /usr/lib64/libXrdMqClient.so.0.1.0
 /usr/lib64/libXrdMqClient.so.0

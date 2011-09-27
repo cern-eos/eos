@@ -106,7 +106,6 @@ ConfigEngineChangeLog::Tail(unsigned int nlines, XrdOucString &tail)
 
   Mutex.UnLock();
   while(tail.replace("&"," ")) {}
-  eos_static_info("tail is %s", tail.c_str());
   return true;
 }
 
@@ -432,6 +431,8 @@ ConfigEngine::ResetConfig()
 
   Access::Reset();
 
+  gOFS->ResetPathMap();
+
   FsView::gFsView.Reset();
   eos::common::GlobalConfig::gConfig.Reset();
   Mutex.Lock();
@@ -571,6 +572,14 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
       return 0;
     }
   }
+
+  if (skey.beginswith("map:")) {
+    skey.erase(0,4);
+    if (!gOFS->AddPathMap(skey.c_str(),sdef.c_str())) {
+      *err += "error: unable to apply config "; *err += key, *err += " => "; *err += def->c_str(); *err +="\n";
+      return 0;
+    }
+  }
   
   if (skey.beginswith("quota:")) {
     // set a quota definition
@@ -670,6 +679,10 @@ ConfigEngine::PrintEachConfig(const char* key, XrdOucString* def, void* Arg)
       if (skey.beginswith("global:"))
 	filter = true;
     }
+    if (option.find("m")!=STR_NPOS) {
+      if (skey.beginswith("map:"))
+	filter = true;
+    }
     
     if (filter) {
       (*outstring) += key; (*outstring) += " => "; (*outstring) += def->c_str(); (*outstring) += "\n";
@@ -687,9 +700,9 @@ ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
   const char* name = filter.Get("mgm.config.file");
 
   pinfo.out = &out;
-  pinfo.option = "vfqcg";
+  pinfo.option = "vfqcgm";
   
-  if (filter.Get("mgm.config.vid") || (filter.Get("mgm.config.fs")) || (filter.Get("mgm.config.quota")) || (filter.Get("mgm.config.comment")  || (filter.Get("mgm.config.policy")) || (filter.Get("mgm.config.global") )))
+  if (filter.Get("mgm.config.vid") || (filter.Get("mgm.config.fs")) || (filter.Get("mgm.config.quota")) || (filter.Get("mgm.config.comment")  || (filter.Get("mgm.config.policy")) || (filter.Get("mgm.config.global") || (filter.Get("mgm.config.map")) )))
     pinfo.option = "";
   
   if (filter.Get("mgm.config.vid")) {
@@ -709,6 +722,9 @@ ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
   }
   if (filter.Get("mgm.config.global")) {
     pinfo.option += "g";
+  }
+  if (filter.Get("mgm.config.map")) {
+    pinfo.option += "m";
   }
   
   if (name == 0) {
@@ -740,7 +756,9 @@ ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
 	filtered = true;
       if ( (pinfo.option.find("g")!=STR_NPOS) && (sinputline.beginswith("global:")))
 	filtered =true;
-
+      if ( (pinfo.option.find("m")!=STR_NPOS) && (sinputline.beginswith("map:")))
+	filtered =true;
+      
       if (filtered) {
 	out += sinputline;
 	out += "\n";

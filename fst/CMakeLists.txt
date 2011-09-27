@@ -69,6 +69,8 @@ add_executable( eos-fst-fsck
 
 )
 
+set_target_properties( eosfstcp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+
 target_link_libraries ( FstLoad XrdSys XrdOuc XrdNetUtil dl )
 target_link_libraries ( eos-check-blockxs eosCommon )
 target_link_libraries ( eos-compute-blockxs eosCommon )

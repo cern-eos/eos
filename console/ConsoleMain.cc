@@ -23,6 +23,7 @@ extern int com_help (char *);
 extern int com_io (char *);
 extern int com_license (char*);
 extern int com_ls (char*);
+extern int com_map (char*);
 extern int com_mkdir (char*);
 extern int com_motd (char*);
 extern int com_node (char*);
@@ -116,6 +117,7 @@ COMMAND commands[] = {
   { (char*)"io",       com_io,       (char*)"IO Interface" }, 
   { (char*)"license",  com_license,  (char*)"Display Software License" },
   { (char*)"ls",       com_ls,       (char*)"List a directory" },
+  { (char*)"map",      com_map,      (char*)"Path mapping interface" },
   { (char*)"mkdir",    com_mkdir,    (char*)"Create a directory" },
   { (char*)"motd",     com_motd,     (char*)"Message of the day" },
   { (char*)"node",     com_node,     (char*)"Node configuration" },
