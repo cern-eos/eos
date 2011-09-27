@@ -19,7 +19,7 @@ BuildRequires: xrootd-server-devel  >= 3.0.4
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel
 BuildRequires: sparsehash
-BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel
+BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel, openssl-static
 BuildRequires: fuse-devel, fuse
 
 %if 0%{?rhel} < 6
