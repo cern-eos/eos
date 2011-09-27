@@ -24,6 +24,8 @@ BuildRequires: fuse-devel, fuse
 
 %if 0%{?rhel} < 6
 BuildRequires: gcc44, gcc44-c++
+%else
+BuildRequires: libuuid-devel
 %endif
 
 %description
