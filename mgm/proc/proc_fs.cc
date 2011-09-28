@@ -621,7 +621,7 @@ int proc_fs_mv(std::string &sfsid, std::string &space, XrdOucString &stdOut, Xrd
       
       if (FsView::gFsView.MoveGroup(fs, space)) {
         retc = 0;
-        stdOut = "success: moved filesystem "; stdOut += sfsid.c_str(); stdOut += " into space "; stdOut += space.c_str();
+        stdOut = "success: moved filesystem "; stdOut += (int) fs->GetId(); stdOut += " into space "; stdOut += space.c_str();
       } else {
         retc = EIO;
         stdErr = "error: failed to move filesystem "; stdErr += (int)snapshot.mId; stdErr += " into space "; stdErr += space.c_str();
