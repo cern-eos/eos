@@ -847,7 +847,7 @@ int main(int argc, char* argv[]) {
       }
       
       if (nwrite != nread) {
-	fprintf(stderr, "error: write failed on destination file %s - wrote %ld/%ld bytes - destination file is incomplete!\n",destination[i],nwrite,nread);
+	fprintf(stderr, "error: write failed on destination file %s - wrote %lld/%lld bytes - destination file is incomplete!\n",destination[i],(long long)nwrite,(long long)nread);
 	exit(-EIO);
       }
       

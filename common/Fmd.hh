@@ -32,9 +32,9 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-#define EOSCOMMONFMDHEADER_MAGIC 0xabcdabcdabcdabcd
-#define EOSCOMMONFMDCREATE_MAGIC 0xffffffffffffffff
-#define EOSCOMMONFMDDELETE_MAGIC 0xdddddddddddddddd
+#define EOSCOMMONFMDHEADER_MAGIC 0xabcdabcdabcdabcdULL
+#define EOSCOMMONFMDCREATE_MAGIC 0xffffffffffffffffULL
+#define EOSCOMMONFMDDELETE_MAGIC 0xddddddddddddddddULL
 
 #define FMDVERSION "1.0.0"
 

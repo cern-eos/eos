@@ -360,7 +360,7 @@ bool FmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
     return false;
   }
 
-  if (stbuf.st_size > (6 * 1000l*1000l*1000l)) {
+  if (stbuf.st_size > (6 * 1000ll*1000ll*1000ll)) {
     // we don't map more than 6 GB ... should first trim here
     eos_crit("changelog file exceeds memory limit of 6 GB for boot procedure");
     return false;

@@ -34,13 +34,13 @@ public:
     char formsize[1024];
     if (insize >= 1000) {
       if (insize >= (1000*1000)) {
-	if (insize >= (1000l*1000l*1000l)) {
-	  if (insize >= (1000l*1000l*1000l*1000l)) {
+	if (insize >= (1000ll*1000ll*1000ll)) {
+	  if (insize >= (1000ll*1000ll*1000ll*1000ll)) {
 	    // TB
-	    sprintf(formsize,"%.02f T%s",insize*1.0 / (1000l*1000l*1000l*1000l), unit);
+	    sprintf(formsize,"%.02f T%s",insize*1.0 / (1000ll*1000ll*1000ll*1000ll), unit);
 	  } else {
 	    // GB
-	    sprintf(formsize,"%.02f G%s",insize*1.0 / (1000l*1000l*1000l), unit);
+	    sprintf(formsize,"%.02f G%s",insize*1.0 / (1000ll*1000ll*1000ll), unit);
 	  }
 	} else {
 	  // MB
@@ -78,19 +78,19 @@ public:
     }
     
     if (sizestring.endswith("T") || sizestring.endswith("t")) {
-      convfactor = 1000l*1000l*1000l*1000l;
+      convfactor = 1000ll*1000ll*1000ll*1000ll;
     }
     
     if (sizestring.endswith("G") || sizestring.endswith("g")) {
-      convfactor = 1000l*1000l*1000l;
+      convfactor = 1000ll*1000ll*1000ll;
     }
     
     if (sizestring.endswith("M") || sizestring.endswith("m")) {
-      convfactor = 1000l*1000l;
+      convfactor = 1000ll*1000ll;
     }
     
     if (sizestring.endswith("K") || sizestring.endswith("k")) {
-      convfactor = 1000l;
+      convfactor = 1000ll;
     }
     if (convfactor >1)
       sizestring.erase(sizestring.length()-1);

@@ -27,6 +27,8 @@ static uint32_t cpuid(uint32_t functionInput) {
     uint32_t ebx;
     uint32_t ecx;
     uint32_t edx;
+
+#if __SIZEOF_POINTER__ == 8
 #ifdef __PIC__
     // PIC: Need to save and restore ebx See:
     // http://sam.zoy.org/blog/2007-04-13-shlib-with-non-pic-code-have-inline-assembly-and-pic-mix-well
@@ -37,6 +39,10 @@ static uint32_t cpuid(uint32_t functionInput) {
             : "cc");
 #else
     asm("cpuid" : "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx) : "a" (functionInput));
+#endif
+#else
+    fprintf(stderr,"error: crc32c is not supported on 32bit platforms\n");
+    ecx=0;
 #endif
     return ecx;
 }
