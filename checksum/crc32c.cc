@@ -23,10 +23,13 @@ static uint32_t crc32c_CPUDetection(uint32_t crc, const void* data, size_t lengt
 CRC32CFunctionPtr crc32c = crc32c_CPUDetection;
 
 static uint32_t cpuid(uint32_t functionInput) {
+    uint32_t ecx;
+#if __SIZEOF_POINTER__ == 8
     uint32_t eax;
     uint32_t ebx;
-    uint32_t ecx;
     uint32_t edx;
+
+#endif
 
 #if __SIZEOF_POINTER__ == 8
 #ifdef __PIC__

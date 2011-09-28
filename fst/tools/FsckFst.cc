@@ -297,7 +297,7 @@ int main(int argc, char* argv[] ) {
 	//	fprintf(stdout,"%llu\t", fid);
 	DiskFid.insert(make_pair(fid,filename));
       }
-      fprintf(stdout,"=> loaded %ld FID's from local path %s \n", DiskFid.size(), searchpath.c_str());
+      fprintf(stdout,"=> loaded %lld FID's from local path %s \n", (long long)DiskFid.size(), searchpath.c_str());
       fclose(fp);
     }
     unsigned long long error_wrong_filesize=0;
@@ -632,7 +632,7 @@ int main(int argc, char* argv[] ) {
 		    error_xsum_failed++;
 		  } else {
 		    XrdOucString sizestring;
-		    eos_static_notice("name=%s path=%s fid=%08llx CX=%s size=%s time=%.02fms rate=%.02f MB/s", rfmd->fMd.name, fullpath.c_str(), rfmd->fMd.fid,checksummer->GetHexChecksum() , eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999));
+		    eos_static_notice("name=%s path=%s fid=%08llx CX=%s size=%s time=%.02fms rate=%.02f MB/s", rfmd->fMd.name, fullpath.c_str(), rfmd->fMd.fid,checksummer->GetHexChecksum() , eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL));
 		    int checksumlen;
 		    checksummer->GetBinChecksum(checksumlen);
 		    // copy checksum into meta data entry

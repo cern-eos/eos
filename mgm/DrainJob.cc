@@ -530,7 +530,7 @@ DrainJob::Drain(void)
         if ( (drainendtime-time(NULL)) >0) {
           fs->SetLongLong("stat.timeleft", drainendtime-time(NULL));
         } else {
-          fs->SetLongLong("stat.timeleft", 99999999999);
+          fs->SetLongLong("stat.timeleft", 99999999999LL);
         }
       }
 
@@ -601,7 +601,7 @@ DrainJob::Drain(void)
       if ( (drainendtime-time(NULL)) >0) {
         fs->SetLongLong("stat.timeleft", drainendtime-time(NULL));
       } else {
-        fs->SetLongLong("stat.timeleft", 99999999999);
+        fs->SetLongLong("stat.timeleft", 99999999999LL);
       }
     }
 

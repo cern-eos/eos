@@ -799,7 +799,7 @@ XrdFstOfsFile::verifychecksum()
       float scantime = 0; // is ms
       if (checkSum->ScanFile(fstPath.c_str(), scansize, scantime)) {
         XrdOucString sizestring;
-        eos_info("Rescanned checksum - size=%s time=%.02fms rate=%.02f MB %x/s", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999), checkSum->GetHexChecksum());
+        eos_info("Rescanned checksum - size=%s time=%.02fms rate=%.02f MB %x/s", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL), checkSum->GetHexChecksum());
       } else {
         eos_err("Rescanning of checksum failed");
       }

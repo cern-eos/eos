@@ -1126,7 +1126,7 @@ Storage::Verify()
 	} else {
 	  XrdOucString sizestring;
 	  if (checksummer && verifyfile->computeChecksum) 
-	    eos_static_info("rescanned checksum - size=%s time=%.02fms rate=%.02f MB/s limit=%d MB/s", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999), verifyfile->verifyRate);
+	    eos_static_info("rescanned checksum - size=%s time=%.02fms rate=%.02f MB/s limit=%d MB/s", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL), verifyfile->verifyRate);
 
 	  if (checksummer && verifyfile->computeChecksum) { 
 	    int checksumlen=0;

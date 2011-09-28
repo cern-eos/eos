@@ -311,7 +311,12 @@ static void eosfs_ll_opendir(fuse_req_t req, fuse_ino_t ino,
   
   DIR* dir ;
   dir = xrd_opendir(fullpath);
+
+#if __SIZEOF_POINTER__ == 8
   fi->fh = (uint64_t) dir;
+#else
+  fi->fh = (unsigned long) dir;
+#endif
 
   if (dir) {
     fuse_reply_open(req, fi);
