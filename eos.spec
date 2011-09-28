@@ -19,13 +19,13 @@ BuildRequires: xrootd-server-devel  >= 3.0.4
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel
 BuildRequires: sparsehash
-BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel, openssl-static,ncurses-devel,ncurses-static
+BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel
 BuildRequires: fuse-devel, fuse
 
 %if 0%{?rhel} < 6
 BuildRequires: gcc44, gcc44-c++
 %else
-BuildRequires: libuuid-devel
+BuildRequires: libuuid-devel,ncurses-static,openssl-static
 %endif
 
 %description
