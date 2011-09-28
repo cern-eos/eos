@@ -562,7 +562,9 @@ proc_fs_source(std::string source_group, std::string target_group)
       }
       // check if this filesystem is in RW mode (this we have to streamline with the query tags to apply to ro,wo & rw !
       bool isRW = (FsView::gFsView.mIdView[*its]->GetConfigStatus() >= eos::common::FileSystem::kRW)?true:false;
-      if ( (!exists) && (isRW) )
+
+      bool isActive = (FsView::gFsView.mIdView[*its]->GetActiveStatus() == eos::common::FileSystem::kOnline);
+      if ( (!exists) && (isRW) && (isActive) )
         return FsView::gFsView.mIdView[*its];
     }
   }
