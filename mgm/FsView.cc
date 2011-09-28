@@ -1851,6 +1851,13 @@ FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs)
         FsView::gFsView.StoreFsConfig(fs);
       }
     }
+    if (!snapshot.mHeadRoom) {
+      // try to apply the default
+      if (GetConfigMember("headroom").length()) {
+        fs->SetString("headroom", GetConfigMember("headroom").c_str());
+        FsView::gFsView.StoreFsConfig(fs);
+      }
+    }
   }
 }
 
