@@ -150,8 +150,8 @@ FmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid, XrdOucStri
   bool isNew=false;
 
   if (!FmdMap.count(fsid)) {
-    FmdMap[fsid].set_empty_key(0xffffffffe);
-    FmdMap[fsid].set_deleted_key(0xffffffff);
+    FmdMap[fsid].set_empty_key(0xffffffffeULL);
+    FmdMap[fsid].set_deleted_key(0xffffffffULL);
   }
 
   char fsChangeLogFileName[1024];
@@ -239,8 +239,8 @@ bool FmdHandler::AttachLatestChangeLogFile(const char* changelogdir, int fsid)
 
   eos_debug("before set");
   if (!FmdMap.count(fsid)) {
-    FmdMap[fsid].set_empty_key(0xffffffffe);
-    FmdMap[fsid].set_deleted_key(0xffffffff);
+    FmdMap[fsid].set_empty_key(0xffffffffeULL);
+    FmdMap[fsid].set_deleted_key(0xffffffffULL);
   }
   eos_debug("after set");
 

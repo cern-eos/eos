@@ -646,10 +646,10 @@ Storage::Scrub()
   // create a 1M pattern
   eos_static_info("Creating Scrubbing pattern ...");
   for (int i=0;i< 1024*1024/16; i+=2) {
-    scrubPattern[0][i]=0xaaaa5555aaaa5555;
-    scrubPattern[0][i+1]=0x5555aaaa5555aaaa;
-    scrubPattern[1][i]=0x5555aaaa5555aaaa;
-    scrubPattern[1][i+1]=0xaaaa5555aaaa5555;
+    scrubPattern[0][i]=0xaaaa5555aaaa5555ULL;
+    scrubPattern[0][i+1]=0x5555aaaa5555aaaaULL;
+    scrubPattern[1][i]=0x5555aaaa5555aaaaULL;
+    scrubPattern[1][i+1]=0xaaaa5555aaaa5555ULL;
   }
 
 
@@ -846,7 +846,7 @@ Storage::Trim()
 	eos_static_err("Cannot stat the changelog file for fsid=%llu for", it->first);
       } else {
 	// we trim only if the file reached 6 GB
-	if (buf.st_size > (6000l * 1024 * 1024)) {
+	if (buf.st_size > (6000LL * 1024 * 1024)) {
 	  if (!eos::common::gFmdHandler.TrimLogFile(fsid)) {
 	    eos_static_err("Trimming failed on fsid=%llu",it->first);
 	  }

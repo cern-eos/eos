@@ -297,7 +297,7 @@ namespace eos
     vec[5].iov_len = record.size();
     vec[6].iov_base = &chkSum; vec[6].iov_len = 4;
 
-    if( writev( pFd, vec, 7 ) != (unsigned)(24+record.size()) )
+    if( writev( pFd, vec, 7 ) != (ssize_t)(24+record.size()) )
     {
       MDException ex( errno );
       ex.getMessage() << "Unable to write the record data at offset 0x";
