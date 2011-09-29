@@ -336,7 +336,7 @@ com_file (char* arg1) {
         if (newresult->Get("mgm.nrep"))    { nrep = atoi (newresult->Get("mgm.nrep"));}
         if (nrep != stripes) {
           consistencyerror = true;
-	  if (inconsitencylable != "NOFMD") {
+	  if (inconsistencylable != "NOFMD") {
 	    inconsistencylable ="REPLICA";
 	  }
         }
