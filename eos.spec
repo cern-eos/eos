@@ -5,7 +5,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.1.0
-Release: rc34
+Release: rc36
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -66,21 +66,6 @@ cmake ../ -DRELEASE=%{release}
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%post
-/sbin/chkconfig --add eos
-echo Starting conditional EOS services
-/sbin/service eos condrestart > /dev/null 2>&1 || :
-/sbin/service eosd condrestart > /dev/null 2>&1 || :
-%preun
-if [ $1 = 0 ]; then
-        echo Stopping EOS services
-        /sbin/service eosha stop > /dev/null 2>&1 
-        /sbin/service eosd stop > /dev/null 2>&1 
-        /sbin/service eos stop > /dev/null 2>&1 || :
-        /sbin/service eossync stop > /dev/null 2>&1 
-        /sbin/chkconfig --del eos
-fi
-
 %files -n eos-server
 %defattr(-,root,root)
 /usr/lib64/libXrdMqClient.so.0.1.0
@@ -132,6 +117,22 @@ fi
 %_sysconfdir/rc.d/init.d/eosha
 %_sysconfdir/rc.d/init.d/eossync
 %_sysconfdir/cron.d/eos-logs
+
+%post -n eos-server
+/sbin/chkconfig --add eos
+echo Starting conditional EOS services
+/sbin/service eos condrestart > /dev/null 2>&1 || :
+/sbin/service eosd condrestart > /dev/null 2>&1 || :
+%preun -n eos-server
+if [ $1 = 0 ]; then
+        echo Stopping EOS services
+        /sbin/service eosha stop > /dev/null 2>&1 
+        /sbin/service eosd stop > /dev/null 2>&1 
+        /sbin/service eos stop > /dev/null 2>&1 || :
+        /sbin/service eossync stop > /dev/null 2>&1 
+        /sbin/chkconfig --del eos
+fi
+
 
 #######################################################################################
 # the shell client package 

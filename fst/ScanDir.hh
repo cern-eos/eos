@@ -38,6 +38,7 @@ private:
   long int noTotalFiles;
   long int SkippedFiles; 
 
+  bool setChecksum;
   int rateBandwidth;     // MB/s
   int alignment;
   char* buffer;
@@ -47,7 +48,7 @@ private:
   bool bgThread;
 public:
 
-  ScanDir(const char* dirpath, eos::fst::Load* fstload, bool bgthread=true, long int testinterval = 10, int ratebandwidth = 100): 
+  ScanDir(const char* dirpath, eos::fst::Load* fstload, bool bgthread=true, long int testinterval = 10, int ratebandwidth = 100, bool setchecksum=false): 
     fstLoad(fstload),dirPath(dirpath), testInterval(testinterval), rateBandwidth(ratebandwidth)
   {
     thread = 0;
@@ -56,7 +57,7 @@ public:
     bgThread = bgthread;
     alignment = pathconf(dirPath.c_str(), _PC_REC_XFER_ALIGN);
     bufferSize = 256 * alignment;
-    
+    setChecksum = setchecksum;
     if (posix_memalign((void**)&buffer, alignment, bufferSize)){
       fprintf(stderr, "error: error calling posix_memaling on dirpath=%s. \n",dirPath.c_str());
       return;

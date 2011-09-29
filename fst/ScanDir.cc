@@ -534,7 +534,19 @@ bool ScanDir::ScanFileLoadAware(const char* path, unsigned long long &scansize, 
     if (bgThread) {
       eos_err("Computed checksum is %s scansize %llu\n", normalXS->GetHexChecksum(), scansize);
     } else {
-      fprintf(stderr,"Computed checksum is %s scansize %llu\n", normalXS->GetHexChecksum(), scansize);
+      fprintf(stderr,"error: computed checksum is %s scansize %llu\n", normalXS->GetHexChecksum(), scansize);
+      if (setChecksum) {
+	eos::common::Attr *attr = eos::common::Attr::OpenAttr(filePath.c_str());
+	if (attr) {
+	  int checksumlen;
+	  if (!attr->Set("user.eos.checksum",normalXS->GetBinChecksum(checksumlen), checksumlen)) {
+	    fprintf(stderr, "error: failed to reset existing checksum \n");
+	  } else {
+	    fprintf(stdout, "success: reset checksum of %s to %s\n", filePath.c_str(), normalXS->GetHexChecksum());
+	  }
+	  delete attr;
+	}
+      }
     }
     noCorruptFiles++;
     retVal = false;
