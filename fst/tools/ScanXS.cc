@@ -27,7 +27,7 @@ int main (int argc, char *argv[]){
 
   eos::fst::Load fstLoad(1);
   fstLoad.Monitor();
-
+  usleep(100000);
   XrdOucString dirName = argv[1];
   eos::fst::ScanDir* sd = new eos::fst::ScanDir(dirName.c_str(), &fstLoad, false, 10,100,setxs);
   if (sd) {

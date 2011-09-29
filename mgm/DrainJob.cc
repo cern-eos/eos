@@ -216,6 +216,7 @@ DrainJob::Drain(void)
       XrdSysThread::CancelPoint();
 
       if (now > waitreporttime) {
+	XrdSysThread::SetCancelOff();
         // update stat.timeleft
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         fs = 0;
@@ -227,6 +228,7 @@ DrainJob::Drain(void)
         } 
         fs->SetLongLong("stat.timeleft", waitendtime-now);
         waitreporttime = now + 10;
+	XrdSysThread::SetCancelOn();
       }
     }
   }

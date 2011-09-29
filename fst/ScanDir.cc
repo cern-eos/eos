@@ -538,8 +538,10 @@ bool ScanDir::ScanFileLoadAware(const char* path, unsigned long long &scansize, 
       if (setChecksum) {
 	eos::common::Attr *attr = eos::common::Attr::OpenAttr(filePath.c_str());
 	if (attr) {
-	  int checksumlen;
-	  if (!attr->Set("user.eos.checksum",normalXS->GetBinChecksum(checksumlen), checksumlen)) {
+	  int checksumlen=0;
+	  normalXS->GetBinChecksum(checksumlen);
+	  if ( (!attr->Set("user.eos.checksum",normalXS->GetBinChecksum(checksumlen), checksumlen)) || 
+	       (!attr->Set("user.eos.filecxerror", "0")) ) {
 	    fprintf(stderr, "error: failed to reset existing checksum \n");
 	  } else {
 	    fprintf(stdout, "success: reset checksum of %s to %s\n", filePath.c_str(), normalXS->GetHexChecksum());
