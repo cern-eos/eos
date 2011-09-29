@@ -156,6 +156,9 @@ public:
   void           SetDebug(XrdOucEnv &env);
   void           SendRtLog(XrdMqMessage* message);
 
+  int            Stall(XrdOucErrInfo &error, int stime, const char *msg);
+  int            Redirect(XrdOucErrInfo &error, const char* host, int &port);
+
   eos::fst::LockManager LockManager;
  
   eos::common::ClientAdminManager ClientAdminManager;

@@ -587,7 +587,11 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     if (dmd) {
       fmd = dmd->findFile(cPath.GetName());
       if (!fmd) {
+	if (dmd->findContainer(cPath.GetName())) {
+	  errno = EISDIR;
+	} else {
 	errno = ENOENT;
+	}
       } else {
         fileId = fmd->getId();
         fmdlid = fmd->getLayoutId();

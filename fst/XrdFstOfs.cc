@@ -546,7 +546,17 @@ XrdFstOfsFile::open(const char                *path,
 
     if (!fstBlockXS->OpenMap(fstXSPath.c_str(), isCreation?bookingsize:statinfo.st_size,fstBlockSize, isRW)) {
       eos_err("unable to create block checksum file");
-      return gOFS.Emsg(epname,error, EIO,"open - cannot create/get block checksum file",fstXSPath.c_str());
+
+      if (lid == eos::common::LayoutId::kReplica) {
+	// there was a blockchecksum open error
+	if (!isRW) {
+	  int ecode=1094;
+	  eos_warning("rebouncing client since we failed to open the block checksum file back to MGM %s:%d",RedirectManager.c_str(), ecode);
+	  return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
+	}
+      } else {
+	return gOFS.Emsg(epname,error, EIO,"open - cannot create/get block checksum file",fstXSPath.c_str());
+      }
     }
   } 
   
@@ -662,10 +672,9 @@ XrdFstOfsFile::open(const char                *path,
     if (lid == eos::common::LayoutId::kReplica) {
       // there was a checksum error during the last scan
       if (layOut->IsEntryServer()) {
-	rc = SFS_REDIRECT;
 	int ecode=1094;
-	error.setErrInfo(ecode,RedirectManager.c_str());
 	eos_warning("rebouncing client since our replica has a wrong checksum back to MGM %s:%d",RedirectManager.c_str(), ecode);
+	return gOFS.Redirect(error,RedirectManager.c_str(),ecode);
       }
     }
   }
@@ -678,10 +687,10 @@ XrdFstOfsFile::open(const char                *path,
       if (gOFS.WOpenFid[fsid][fileid]==0) {
 	// this keeps this thread busy for 10 seconds trying to lock and then rebounces if the lock couldn't be taken
 	if (!gOFS.LockManager.LockTimeout(fileid,10)) {
-	  // bounce the client back
+	  // this is cryptic for the moment, we have to review this ===> TODO !!!!
 	}
       }
-
+      
       gOFS.WOpenFid[fsid][fileid]++;
     }
     else
@@ -709,10 +718,10 @@ XrdFstOfsFile::open(const char                *path,
     // in any case we just redirect back to the manager if we are the 1st entry point of the client
 
     if (layOut->IsEntryServer()) {
-      rc = SFS_REDIRECT;
       int ecode=1094;
-      error.setErrInfo(ecode,RedirectManager.c_str());
+      rc = SFS_REDIRECT;
       eos_warning("rebouncing client after open error back to MGM %s:%d",RedirectManager.c_str(), ecode);
+      return gOFS.Redirect(error, RedirectManager.c_str(),ecode);
     }
   }
 
@@ -1726,6 +1735,48 @@ XrdFstOfs::OpenFidString(unsigned long fsid, XrdOucString &outstring)
   outstring += nopen;
   
   OpenFidMutex.UnLock();
+}
+
+int XrdFstOfs::Stall(XrdOucErrInfo   &error, // Error text & code
+		     int              stime, // Seconds to stall
+		     const char      *msg)   // Message to give
+{
+  XrdOucString smessage = msg;
+  smessage += "; come back in ";
+  smessage += stime;
+  smessage += " seconds!";
+  
+  EPNAME("Stall");
+  const char *tident = error.getErrUser();
+  
+  ZTRACE(delay, "Stall " <<stime <<": " << smessage.c_str());
+
+  // Place the error message in the error object and return
+  //
+  error.setErrInfo(0, smessage.c_str());
+  
+  // All done
+  //
+  return stime;
+}
+
+/*----------------------------------------------------------------------------*/
+int XrdFstOfs::Redirect(XrdOucErrInfo   &error, // Error text & code
+                        const char* host,
+                        int &port)
+{
+  EPNAME("Redirect");
+  const char *tident = error.getErrUser();
+  
+  ZTRACE(delay, "Redirect " <<host <<":" << port);
+
+  // Place the error message in the error object and return
+  //
+  error.setErrInfo(port,host);
+  
+  // All done
+  //
+  return SFS_REDIRECT;
 }
 
 

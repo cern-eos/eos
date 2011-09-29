@@ -285,6 +285,8 @@ com_file (char* arg1) {
             //      fprintf(stderr,"%s %s %s\n",newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()));
             if ((retc=gFmdHandler.GetRemoteFmd(admin, newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()), fmd))) {
               if (!silent)fprintf(stderr,"error: unable to retrieve file meta data from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
+	      consistencyerror = true;
+	      inconsistencylable="NOFMD";
             } else {
               XrdOucString cx="";
               for (unsigned int k=0; k< SHA_DIGEST_LENGTH; k++) {
@@ -334,7 +336,9 @@ com_file (char* arg1) {
         if (newresult->Get("mgm.nrep"))    { nrep = atoi (newresult->Get("mgm.nrep"));}
         if (nrep != stripes) {
           consistencyerror = true;
-          inconsistencylable ="REPLICA";
+	  if (inconsitencylable != "NOFMD") {
+	    inconsistencylable ="REPLICA";
+	  }
         }
       }
       
