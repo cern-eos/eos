@@ -180,7 +180,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     return false;
   }
 
-  if (gCheckSumLockRef.count(mapfilepath)) {
+  if (!gCheckSumLockRef.count(mapfilepath)) {
     gCheckSumLockRef[CheckSumMapFile] = 1;
   } else {
     gCheckSumLockRef[CheckSumMapFile]++;

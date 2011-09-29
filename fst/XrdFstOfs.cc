@@ -818,28 +818,31 @@ XrdFstOfsFile::verifychecksum()
     }
 
     if (isRW) {
-      eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
-      checkSum->GetBinChecksum(checksumlen);
-      // copy checksum into meta data
-      memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
-      
-      // set the eos checksum extended attributes
-      eos::common::Attr* attr = eos::common::Attr::OpenAttr(fstPath.c_str());
-      if (attr) {
-        if (!attr->Set(std::string("user.eos.checksumtype"), std::string(checkSum->GetName()))) {
-          eos_err("unable to set extended attribute <eos.checksumtype> errno=%d", errno);
-        }
-        if (!attr->Set("user.eos.checksum",checkSum->GetBinChecksum(checksumlen), checksumlen)) {
-          eos_err("unable to set extended attribute <eos.checksum> errno=%d", errno);
-        }
-	// reset any tagged error
-	if (!attr->Set("user.eos.filecxerror","0")) {
-          eos_err("unable to set extended attribute <eos.filecxerror> errno=%d", errno);
+      if (haswrite) {
+	// if we have no write, we don't set this attributes (xrd3cp!)
+	eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
+	checkSum->GetBinChecksum(checksumlen);
+	// copy checksum into meta data
+	memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
+	
+	// set the eos checksum extended attributes
+	eos::common::Attr* attr = eos::common::Attr::OpenAttr(fstPath.c_str());
+	if (attr) {
+	  if (!attr->Set(std::string("user.eos.checksumtype"), std::string(checkSum->GetName()))) {
+	    eos_err("unable to set extended attribute <eos.checksumtype> errno=%d", errno);
+	  }
+	  if (!attr->Set("user.eos.checksum",checkSum->GetBinChecksum(checksumlen), checksumlen)) {
+	    eos_err("unable to set extended attribute <eos.checksum> errno=%d", errno);
+	  }
+	  // reset any tagged error
+	  if (!attr->Set("user.eos.filecxerror","0")) {
+	    eos_err("unable to set extended attribute <eos.filecxerror> errno=%d", errno);
+	  }
+	  if (!attr->Set("user.eos.blockcxerror","0")) {
+	    eos_err("unable to set extended attribute <eos.blockcxerror> errno=%d", errno);
+	  }
+	  delete attr;
 	}
-	if (!attr->Set("user.eos.blockcxerror","0")) {
-          eos_err("unable to set extended attribute <eos.blockcxerror> errno=%d", errno);
-	}
-        delete attr;
       }
     } else {
       // this is a read with checksum check, compare with fMD
