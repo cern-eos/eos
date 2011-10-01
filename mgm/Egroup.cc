@@ -38,13 +38,16 @@ Egroup::Member(std::string &username, std::string &egroupname)
   if (!WEXITSTATUS(rc)) {
     Map[egroupname][username] = true;
     LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
+
+    Mutex.UnLock();
+    return true;
   } else {
     Map[egroupname][username] = false;
     LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
-  }
 
-  Mutex.UnLock();
-  return true;
+    Mutex.UnLock();
+    return false;
+  }
 }
  
 EOSMGMNAMESPACE_END

@@ -56,7 +56,6 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
   std::string grouptag = "g:"; grouptag += groupid; grouptag += ":";
 
   std::string username  = eos::common::Mapping::UidToUserName(vid.uid,errc);
-
   for (it = rules.begin(); it != rules.end(); it++) {
     bool egroupmatch = false;
     if (!it->compare(0, strlen("egroup:"), "egroup:")) {
@@ -71,7 +70,6 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
       egroupmatch = Egroup::Member(username, entry[1]);
       hasEgroup = egroupmatch;
     }
-    
     if ((!it->compare(0, usertag.length(), usertag)) || (!it->compare(0,grouptag.length(), grouptag)) || (egroupmatch)) {
       // that is our rule
       std::vector<std::string> entry;

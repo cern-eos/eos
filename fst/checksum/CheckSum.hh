@@ -91,10 +91,6 @@ public:
 
 
   std::string CheckSumMapFile; 
-  static google::sparse_hash_map<std::string, XrdSysMutex> gCheckSumLock;  // this locks every write operation into the memory mapped checksum file
-  static google::sparse_hash_map<std::string, int> gCheckSumLockRef;       // this count's the number of clients on a checksum object
-  static XrdSysMutex gCheckSumLockRefLock;                                 // this locks the gChecksumLockRef object
-  static bool gCheckSumLockInit;                                           // this indicates if we have to set the deleted key on the global sparse_hash_maps
 };
 
 EOSFSTNAMESPACE_END

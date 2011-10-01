@@ -751,7 +751,10 @@ XrdFstOfsFile::closeofs()
     if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
       rc = gOFS.Emsg(epname,error, EIO, "close - cannot stat closed file to determine file size",Path.c_str());
     } else {
-      {
+      // check if there is more than one writer in this moment or a reader , if yes, we don't recompute wholes in the checksum and we don't truncate the checksum map, the last single writer will do that
+      // ---->
+      gOFS.OpenFidMutex.Lock();
+      if ((gOFS.WOpenFid[fsid].count(fileid)==1) && (gOFS.ROpenFid[fsid].count(fileid)==0)) {
         XrdOucErrInfo error;
         if(!fctl(SFS_FCTL_GETFD,0,error)) {
           int fd = error.getErrInfo();
@@ -759,16 +762,20 @@ XrdFstOfsFile::closeofs()
             eos_err("unable to fill holes of block checksum map");
           }
         }
+	
+	if (isRW) {
+	  if (!fstBlockXS->ChangeMap(statinfo.st_size, true)) {
+	    eos_err("unable to change block checksum map");
+	    rc = SFS_ERROR;
+	  } else {
+	    eos_info("adjusting block XS map to %llu\n", statinfo.st_size);
+	  }
+	}
+      }	else {
+	eos_info("block-xs skipping hole check and changemap nwriter=%d nreader=%d", gOFS.WOpenFid[fsid].count(fileid), gOFS.ROpenFid[fsid].count(fileid));
       }
-
-      if (isRW) {
-	if (!fstBlockXS->ChangeMap(statinfo.st_size, true)) {
-	  eos_err("unable to change block checksum map");
-	  rc = SFS_ERROR;
-	} else {
-          eos_info("adjusting block XS map to %llu\n", statinfo.st_size);
-        }
-      }
+      gOFS.OpenFidMutex.UnLock();
+      // -----|
 
       eos_info("block-xs wblocks=%llu rblocks=%llu holes=%llu", fstBlockXS->GetXSBlocksWritten(), fstBlockXS->GetXSBlocksChecked(), fstBlockXS->GetXSBlocksWrittenHoles());
       if (!fstBlockXS->CloseMap()) {

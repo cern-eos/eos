@@ -17,11 +17,6 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-google::sparse_hash_map<std::string, XrdSysMutex> CheckSum::gCheckSumLock;
-google::sparse_hash_map<std::string, int>         CheckSum::gCheckSumLockRef;
-XrdSysMutex                                       CheckSum::gCheckSumLockRefLock;
-bool                                              CheckSum::gCheckSumLockInit = false;
-
 /*----------------------------------------------------------------------------*/
 bool 
 CheckSum::Compare(const char* refchecksum)
@@ -98,13 +93,6 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
 bool 
 CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize, bool isRW) 
 {
-  XrdSysMutexHelper(gCheckSumLockRefLock);
-  if (!gCheckSumLockInit) {
-    gCheckSumLockRef.set_deleted_key("deleted");
-    gCheckSumLock.set_deleted_key("deleted");
-    gCheckSumLockInit = true;
-  }
-  
   CheckSumMapFile = mapfilepath;
 
   struct stat buf;
@@ -180,12 +168,6 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     return false;
   }
 
-  if (!gCheckSumLockRef.count(mapfilepath)) {
-    gCheckSumLockRef[CheckSumMapFile] = 1;
-  } else {
-    gCheckSumLockRef[CheckSumMapFile]++;
-  }
-
   return true;
 }
 
@@ -255,19 +237,6 @@ CheckSum::ChangeMap(size_t newsize, bool shrink)
 bool 
 CheckSum::CloseMap()
 {
-  XrdSysMutexHelper(gCheckSumLockRefLock);
-
-  if (gCheckSumLockRef[CheckSumMapFile]>1) {
-    gCheckSumLockRef[CheckSumMapFile]--;
-  } else {
-    gCheckSumLockRef.erase(CheckSumMapFile);
-    gCheckSumLockRef.resize(0);
-    if (gCheckSumLock.count(CheckSumMapFile)) {
-      gCheckSumLock.erase(CheckSumMapFile);
-      gCheckSumLock.resize(0);
-    }
-  }
-
   SyncMap();
 
   if (ChecksumMapFd) {
@@ -412,10 +381,7 @@ CheckSum::CheckBlockSum(off_t offset, const char* buffer, size_t len)
 bool 
 CheckSum::SetXSMap(off_t offset) 
 {
-  gCheckSumLock[CheckSumMapFile].Lock();
-
   if (!ChangeMap((offset+BlockSize), false)) {
-    gCheckSumLock[CheckSumMapFile].UnLock();
     return false;
   }
 
@@ -426,7 +392,6 @@ CheckSum::SetXSMap(off_t offset)
   for (int i=0; i < len; i++) {
     ChecksumMap[i+mapoffset] = cks[i];
   }
-  gCheckSumLock[CheckSumMapFile].UnLock();
   return true;
 }
 
