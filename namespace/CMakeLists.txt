@@ -1,4 +1,4 @@
-include_directories( ../ /usr/include/xrootd/ /usr/include/ )
+include_directories( ../ /usr/include/xrootd/ /usr/include/ ${SPARSEHASH_INCLUDE_DIR} )
 
 if(CPPUNIT_FOUND)
 add_subdirectory( tests )
