@@ -9,8 +9,17 @@ if(FUSE_INCLUDE_DIRS AND FUSE_LIBRARIES)
 set(FUSE_FIND_QUIETLY TRUE)
 endif(FUSE_INCLUDE_DIRS AND FUSE_LIBRARIES)
 
-find_path(FUSE_INCLUDE_DIR fuse/fuse_lowlevel.h)
-find_library(FUSE_LIBRARY fuse)
+find_path( FUSE_INCLUDE_DIR fuse/fuse_lowlevel.h
+  HINTS
+  /usr
+  ${FUSE_DIR}
+  PATH_SUFFIXES include )
+
+find_library( FUSE_LIBRARY fuse
+  HINTS
+  /usr
+  ${FUSE_DIR}
+  PATH_SUFFIXES lib )
 
 set(FUSE_INCLUDE_DIRS ${FUSE_INCLUDE_DIR})
 set(FUSE_LIBRARIES ${FUSE_LIBRARY})
