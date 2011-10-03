@@ -2435,9 +2435,9 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   MAYSTALL;
   MAYREDIRECT;
 
-  int r1,r2;
+  //  int r1,r2;
   
-  r1=r2=SFS_OK;
+  //  r1=r2=SFS_OK;
 
 
   gOFS->MgmStats.Add("Rename",vid.uid,vid.gid,1);  

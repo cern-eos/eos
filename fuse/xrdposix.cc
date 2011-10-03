@@ -31,7 +31,7 @@
 #endif
 
 
-
+XrdPosixXrootd posixsingleton;
 
 static XrdOucHash<XrdOucString> *passwdstore;
 static XrdOucHash<XrdOucString>  *inodestore;
@@ -310,7 +310,9 @@ public:
 #endif
     if (pages) {
       int retc = XrdPosixXrootd::Pwrite(fildes, pages->buffer + pages->pagestart, pages->nbytes, (long long) pages->offset + pages->pagestart);
-      retc = 0;
+      if (retc) {
+	fprintf(stderr,"error {%s/%s/%d}: pwrite command failed;retc=%d", __FUNCTION__,__FILE__, __LINE__,retc);; 
+      }
 #ifdef XWCDEBUG
       printf("**** [XWC:Flush] Write [page=%llu] buf=%llu bytes=%llu start=%llu offset=%llu\n",(unsigned long long)pages,(unsigned long long)pages->buffer,(unsigned long long)pages->nbytes,(unsigned long long)pages->pagestart,(unsigned long long)pages->offset);
 #endif

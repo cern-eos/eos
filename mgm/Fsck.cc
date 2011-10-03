@@ -811,22 +811,9 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 
 	
 	// now we have all the information and we compare all sizes, checksums and locations
-	// the mgm size differes from the size on disk
-	bool error_mgm_disk_size_differ = false;
-	// the changelog size on the FST differs from the size on disk
-	bool error_fst_disk_fmd_size_differ = false;
-	// the mgm checksum differs from the disk checksum
-	bool error_mgm_disk_checksum_differ = false;
-	// the changelog checksum on the FST differes from the checksum in the extended attributes on disk
-	bool error_fst_disk_fmd_checksum_differ = false;
-	// the scanned filechecksum does not agree with the extended attribute checksum
-	bool error_fst_filechecksum;
-	// the scanned blockchecksums are faulty
-	bool error_fst_blockchecksum;
 	
 	if (replicaexists) {
 	  if (mgm_size != tokens[5]) {
-	    error_mgm_disk_size_differ = true;
 	    mGlobalCounterLock.Lock();
 	    n_error_mgm_disk_size_differ++;
 	    mGlobalCounterLock.UnLock();
@@ -835,7 +822,6 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 	  }
 	  
 	  if (tokens[5] != tokens[6]) {
-	    error_fst_disk_fmd_size_differ = true;
 	    mGlobalCounterLock.Lock();
 	    n_error_fst_disk_fmd_size_differ++;
 	    mGlobalCounterLock.UnLock();
@@ -846,7 +832,6 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 	  if (hasfmdchecksum) {
 	    // we only apply this if the file is supposed to have a checksum in the namespace
 	    if (mgm_checksum != tokens[7]) {
-	      error_mgm_disk_checksum_differ = true;
 	      mGlobalCounterLock.Lock();
 	      n_error_mgm_disk_checksum_differ++;
 	      mGlobalCounterLock.UnLock();
@@ -855,7 +840,6 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 	    }
 	    
 	    if (tokens[2] != tokens[7]) {
-	      error_fst_disk_fmd_checksum_differ = true;
 	      mGlobalCounterLock.Lock();
 	      n_error_fst_disk_fmd_checksum_differ++;
 	      mGlobalCounterLock.UnLock();
@@ -872,7 +856,6 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 	    // don't track all the fids
 	    //		      mLocalErrorFidSet[mErrorNames[7]].insert(fid);
 	    if (tokens[3] == "1") {
-	      error_fst_filechecksum = true;
 	      mGlobalCounterLock.Lock();
 	      n_error_fst_filechecksum++;
 	      mGlobalCounterLock.UnLock();
@@ -880,7 +863,6 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 	      mLocalErrorFidSet[mErrorNames[5]].insert(fid);
 	    }
 	    if (tokens[4] == "1") {
-	      error_fst_blockchecksum = true;
 	      mGlobalCounterLock.Lock();
 	      n_error_fst_blockchecksum++;
 	      mGlobalCounterLock.UnLock();

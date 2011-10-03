@@ -262,6 +262,7 @@ DrainJob::Drain(void)
 
   // start scheduling into the queues
   do {
+    XrdSysThread::SetCancelOff();
     size_t fids_start = fids.size();
     {
       // do one loop over the scheduling group and check how many files are still scheduled

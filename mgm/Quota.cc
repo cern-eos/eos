@@ -702,8 +702,6 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
     }
   } 
   
-  unsigned int currentfsrandomoffset=0;
-
   std::string spacename = SpaceName.c_str();
   
   std::set<FsGroup*>::const_iterator git;
@@ -742,7 +740,6 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
     
     std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
     eos::common::FileSystem::fsid_t fsid=0;
-    eos::common::FileSystem::fsid_t first_fsid=0;
 
     // create the string map key for this group/index pair
     XrdOucString fsindextag="";
@@ -771,10 +768,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
     eos_static_debug("Enter %s points to %d", sfsindextag.c_str(), *fsit);
 
     // remember the one we started with ...
-    first_fsid = fsid;
 
-    currentfsrandomoffset = (unsigned int) (( 0.999999 * random()* (*git)->size() )/RAND_MAX);
-    
     // we loop over some filesystems in that group
     for (unsigned int fsindex=0; fsindex < (*git)->size(); fsindex++) {
       eos_static_debug("checking scheduling group %d filesystem %d", (*git)->GetIndex(), *fsit);	

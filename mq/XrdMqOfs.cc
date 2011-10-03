@@ -534,7 +534,8 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
   basestats.erase(basestats.rfind("/"));
   XrdOucString mkdirbasestats="mkdir -p "; mkdirbasestats += basestats; mkdirbasestats += " 2>/dev/null";
   int rc = system(mkdirbasestats.c_str());
-  
+  if (rc) { fprintf(stderr,"error {%s/%s/%d}: system command failed;retc=%d", __FUNCTION__,__FILE__, __LINE__,WEXITSTATUS(rc)); }
+
   BrokerId = "root://";
   BrokerId += ManagerId;
   BrokerId += "/";
@@ -579,7 +580,7 @@ XrdMqOfs::Statistics() {
     int fd = open(tmpfile.c_str(),O_CREAT|O_RDWR|O_TRUNC, S_IROTH | S_IRGRP | S_IRUSR);
     if (fd >=0) {
       char line[4096];
-      int rc=0;
+      int rc;
       sprintf(line,"mq.received               %lld\n",ReceivedMessages); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.delivered              %lld\n",DeliveredMessages); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.fanout                 %lld\n",FanOutMessages); rc = write(fd,line,strlen(line));
@@ -599,6 +600,7 @@ XrdMqOfs::Statistics() {
       sprintf(line,"mq.total_rate             %f\n",(1000.0*(NoMessages-LastNoMessages)/(tdiff))); rc = write(fd,line,strlen(line));
       close(fd);
       ::rename(tmpfile.c_str(),StatisticsFile.c_str());
+      if (rc) { fprintf(stderr,"error {%s/%s/%d}: system command failed;retc=%d", __FUNCTION__,__FILE__, __LINE__,WEXITSTATUS(rc)); }
     }
     gettimeofday(&tstart,&tz);
 

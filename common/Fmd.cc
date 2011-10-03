@@ -447,13 +447,6 @@ bool FmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
       
       // do quota hashs
       if (Fmd::IsCreate(pMd)) {
-
-        long long exsize = -1;
-        if (FmdSize.count(pMd->fid)>0) {
-          // exists
-          exsize = FmdSize[pMd->fid];
-        }
-        
         // store new size
         FmdSize[pMd->fid] = pMd->size;
         

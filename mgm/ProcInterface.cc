@@ -2619,7 +2619,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       std::string delimiter=":";
       std::string option = (opaque.Get("mgm.option"))?opaque.Get("mgm.option"):"";
       bool monitoring = false;
-      bool translate  = true;
+      //      bool translate  = true;
       bool showclients = false;
       bool showall     = false;
       bool showauth    = false;
@@ -2631,9 +2631,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       if ( (option.find("m")) != std::string::npos ) {
         monitoring = true;
       }
-      if ( (option.find("n")) != std::string::npos ) {
-        translate = false;
-      }
+      //      if ( (option.find("n")) != std::string::npos ) {
+      //	translate = false;
+      //      }
       if ( (option.find("c")) != std::string::npos ) {
         showclients = true;
       }
@@ -3035,10 +3035,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
  	  unsigned long sourcefsid  = (sfsidsource.length())?strtoul(sfsidsource.c_str(),0,10):0;
  	  XrdOucString sfsidtarget  = opaque.Get("mgm.file.targetfsid");
  	  unsigned long targetfsid  = (sfsidtarget.length())?strtoul(sfsidtarget.c_str(),0,10):0;
- 	  XrdOucString sexpressflag = (opaque.Get("mgm.file.express"));
- 	  bool expressflag=false;
- 	  if (sexpressflag == "1")
- 	    expressflag = 1;
 
  	  if (gOFS->_copystripe(spath.c_str(),*error, vid_in, sourcefsid, targetfsid)) {
  	    stdErr += "error: unable to replicate stripe";
@@ -3059,12 +3055,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    bool expressflag=false;
 	    if (sexpressflag == "1")
 	      expressflag = 1;
-
-	    bool groupmixflag=false;
-	    
-	    XrdOucString sgroupmixflag = (opaque.Get("mgm.file.nogroupmix"));
-	    if (sgroupmixflag == "1") 
-	      groupmixflag = 1;
 
 	    XrdOucString creationspace    = opaque.Get("mgm.file.desiredspace");
 	    int icreationsubgroup = -1;

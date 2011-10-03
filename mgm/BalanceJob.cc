@@ -149,6 +149,48 @@ BalanceJob::Balance(void)
   }
 
   eos_static_notice("Started balancing on group %s", mName.c_str());
+
+  XrdSysThread::SetCancelOff();
+  
+  bool hasdrainjob = false;
+  do  {
+    // we have to make sure, nobody is drainig here ...., otherwise we can get a scheduling interference between drain and balancing!
+    hasdrainjob = false;
+    // check if there is something draining
+    {
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
+      
+      for (it = mGroup->begin(); it != mGroup->end();it++) {
+	eos::common::FileSystem::fs_snapshot snapshot;
+	eos::common::FileSystem* fs = FsView::gFsView.mIdView[*it];
+	if (fs) {
+	  fs->SnapShotFileSystem(snapshot);
+	  if ( ( (snapshot.mConfigStatus == eos::common::FileSystem::kDrain) || (snapshot.mConfigStatus == eos::common::FileSystem::kDrainDead) ) ) {
+	    hasdrainjob = true;
+	  }
+	}
+      }
+    }
+    
+    if (hasdrainjob) {
+      // set status to 'active'
+      {
+	eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+	mGroup->SetConfigMember("stat.balancing","drainwait",false, "", true);
+      }
+
+      XrdSysThread::SetCancelOn();
+      for (int i=0; i< 10;i++) {
+	XrdSysTimer sleeper;
+	sleeper.Snooze(1);
+	XrdSysThread::CancelPoint();
+      }
+      XrdSysThread::SetCancelOff();
+    }
+  } while (hasdrainjob);
+  
+
   XrdSysThread::SetCancelOff();
   // set status to 'active'
   {
@@ -160,7 +202,7 @@ BalanceJob::Balance(void)
   XrdSysThread::CancelPoint();
 
   XrdSysThread::SetCancelOff();
-  // look into all our group members how much they are off the avg
+
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     std::set<eos::common::FileSystem::fsid_t>::const_iterator it;

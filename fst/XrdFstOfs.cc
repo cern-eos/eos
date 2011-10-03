@@ -997,7 +997,10 @@ XrdFstOfsFile::close()
 	     eos_err("unlinking fid=%08x path=%s - checksum of replica does not match reference", fMd->fMd.fid, Path.c_str());
 	   }
 
-           int rc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
+           int retc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
+	   if (!retc) {
+	     eos_debug("<rem> returned retc=%d", retc);
+	   }
            rc = SFS_ERROR;
            
            if (fstBlockXS) {
@@ -1055,7 +1058,10 @@ XrdFstOfsFile::close()
  
  if (deleteOnClose) {
    eos_info("Deleting on close fn=%s fstpath=%s\n", capOpaque->Get("mgm.path"), fstPath.c_str());
-   int rc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
+   int retc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
+   if (retc) {
+     eos_debug("<rem> returned retc=%d", retc);
+   }
    rc = SFS_ERROR;
    
    if (fstBlockXS) {
@@ -1561,7 +1567,9 @@ XrdFstOfs::_rem(const char             *path,
   // unlink file
   errno = 0;
   int rc = XrdOfs::rem(fstPath.c_str(),error,client,0);
-  eos_info("rc=%d errno=%d", rc,errno);
+  if (rc) {
+    eos_info("rc=%d errno=%d", rc,errno);
+  }
 
   // unlink block checksum files
   {

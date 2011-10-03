@@ -1013,14 +1013,12 @@ FsView::PrintSpaces(std::string &out, std::string headerformat, std::string list
   //----------------------------------------------------------------
 
   std::map<std::string , FsSpace* >::iterator it;
-  bool first=true;
   for (it = mSpaceView.begin(); it != mSpaceView.end(); it++) {
     if (selection) {
       if ( (it->second->mName.find(selection)) == std::string::npos)
         continue;
     }
     it->second->Print(out, headerformat,listformat);
-    first = false;
     if ( !listformat.length() && ((headerformat.find("header=1:")) == 0)) {
       headerformat.erase(0, 9);
     }
@@ -1036,14 +1034,12 @@ FsView::PrintGroups(std::string &out, std::string headerformat, std::string list
   //----------------------------------------------------------------
 
   std::map<std::string , FsGroup* >::iterator it;
-  bool first=true;
   for (it = mGroupView.begin(); it != mGroupView.end(); it++) {
     if (selection) {
       if ( (it->second->mName.find(selection)) == std::string::npos)
         continue;
     }
     it->second->Print(out, headerformat,listformat);
-    first = false;
     if ( !listformat.length() && ((headerformat.find("header=1:")) == 0)) {
       headerformat.erase(0, 9);
     }
@@ -1059,14 +1055,12 @@ FsView::PrintNodes(std::string &out, std::string headerformat, std::string listf
   //----------------------------------------------------------------
 
   std::map<std::string , FsNode* >::iterator it;
-  bool first=true;
   for (it = mNodeView.begin(); it != mNodeView.end(); it++) {
     if (selection) {
       if ( (it->second->mName.find(selection)) == std::string::npos)
         continue;
     }
     it->second->Print(out, headerformat,listformat);
-    first = false;
     if ( !listformat.length() && ((headerformat.find("header=1:")) == 0)) {
       headerformat.erase(0, 9);
     }
