@@ -8,7 +8,11 @@ if(SPARSEHASH_INCLUDE_DIR)
 set(SPARSEHASH_FIND_QUIETLY TRUE)
 endif(SPARSEHASH_INCLUDE_DIR)
 
-find_path(SPARSEHASH_INCLUDE_DIR google/sparsehash/sparsehashtable.h)
+find_path( SPARSEHASH_INCLUDE_DIR google/sparsehash/sparsehashtable.h
+  HINTS
+  ${SPARSEHASH_DIR}
+  /usr
+  PATH_SUFFIXES include)
 
 # handle the QUIETLY and REQUIRED arguments and set SPARSEHASH_FOUND to TRUE if
 # all listed variables are TRUE
