@@ -60,7 +60,7 @@ int main (int argc, char* argv[]) {
       message.kMessageHeader.kDescription += i;
       (mqc << message);
       
-      for (int j=0; j< 0; j++) {
+      for (int j=0; j< 10; j++) {
         XrdMqMessage* newmessage = mqc.RecvMessage();
         if (!newmessage) 
           continue;

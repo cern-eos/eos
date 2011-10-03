@@ -832,7 +832,7 @@ static void eosfs_ll_open(fuse_req_t req, fuse_ino_t ino,
   sprintf(fullpath,"root://%s@%s/%s%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
   
   int res;
-  if ( fi->flags | O_RDWR | O_WRONLY | O_CREAT ) {
+  if ( fi->flags & ( O_RDWR | O_WRONLY | O_CREAT) ) {
     if ( (res = xrd_mknodopenfilelist_get(ino)) >0) {
       xrd_mknodopenfilelist_release(res, ino);
     } else {

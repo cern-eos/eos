@@ -135,13 +135,9 @@ bool NetStat::Measure() {
       } else {
 	if (items<0) {
 	  fclose(fd);
-	  if (n<2) {
-	    return false;
-	  } else {
-	    t1.tv_sec  = t2.tv_sec;
-	    t1.tv_nsec = t2.tv_nsec;
-	    return true;
-	  }
+	  t1.tv_sec  = t2.tv_sec;
+	  t1.tv_nsec = t2.tv_nsec;
+	  return true;
 	}
       }
       

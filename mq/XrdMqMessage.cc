@@ -977,9 +977,7 @@ XrdMqMessage::Configure(const char* ConfigFN) {
         fullcertpath += (char*)ep->d_name;
         FILE* fp = fopen(fullcertpath.c_str(),"r");
         if (!fp) {
-          if (dp)
-            closedir(dp);
-            
+	  closedir(dp);
           return Eroute.Emsg("Config", errno, "open public key file fn=", fullcertpath.c_str());
         }
         
@@ -1007,8 +1005,6 @@ XrdMqMessage::Configure(const char* ConfigFN) {
       }
       (void) closedir (dp);
     } else {
-      if (dp)
-        closedir(dp);
       return Eroute.Emsg("Config", errno, "open public key directory dn=",  PublicKeyDirectory.c_str());
     }
     kCanVerify = true;

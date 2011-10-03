@@ -528,8 +528,10 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
     eos_static_debug("not found in uid cache");
     struct passwd *pwbufp=0;
     
-    if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) 
+    if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
+      gPhysicalIdMutex.UnLock();
       return;
+    }
     id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
     gPhysicalUidCache.Add(name, id, 3600);
     eos_static_debug("adding to cache uid=%u gid=%u", id->uid,id->gid);

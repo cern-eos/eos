@@ -435,6 +435,7 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl, const char
 
     kClientId = "/xmessage/"; kClientId += HostName; kClientId+="/"; kClientId += Domain;
   }
+  kInternalBufferPosition=0;
 }
 
 /*----------------------------------------------------------------------------*/

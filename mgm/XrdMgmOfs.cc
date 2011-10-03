@@ -651,6 +651,8 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
         eos_info("redirecting to %s:%d", redirectionhost.c_str(), ecode);
         return rcode;
       }
+    } else {
+      gOFS->eosViewMutex.Lock();
     }
     return Emsg(epname, error, errno, "open file", path);
   } 

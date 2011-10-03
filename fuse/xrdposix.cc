@@ -246,7 +246,7 @@ public:
 
   XrdWriteCachePage* freepages;
   
-  XrdWriteCachePagePool() { freepages = 0;}
+  XrdWriteCachePagePool() { freepages = 0; NPages = 0; PageSize = 0;}
   
   XrdWriteCachePagePool(int npages, int pagesize) {
     NPages = npages;
@@ -290,7 +290,12 @@ public:
     Safe.UnLock();
   }
 
-  ~XrdWriteCachePagePool() {/* not implemented since not needed */};
+  ~XrdWriteCachePagePool() {
+    /* not implemented since not needed */
+    if (freepages) {
+      delete freepages;
+    }
+  };
 
 };
 
@@ -927,6 +932,8 @@ int xrd_inodirlist(unsigned long long dirinode, const char *path)
     int items = sscanf(value,"%s retc=%d",tag, &retc);
     if ((items != 2) || (strcmp(tag,"inodirlist:"))) {
       free(value);
+      if (posixdir) 
+	delete posixdir;
       return EFAULT;
     }
     ptr = strchr(value,' ');
@@ -937,6 +944,8 @@ int xrd_inodirlist(unsigned long long dirinode, const char *path)
       int items = sscanf(ptr,"%s %llu",dirpath,&inode);
       if (items != 2) {
 	free(value);
+	if (posixdir)
+	  delete posixdir;
 	return EFAULT;
       }
       XrdOucString whitespacedirpath = dirpath;

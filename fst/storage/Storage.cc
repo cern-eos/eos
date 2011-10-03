@@ -1063,6 +1063,7 @@ Storage::Verify()
       if (!gOFS.LockManager.TryLock(verifyfile->fId)) {
 	eos_static_info("verifying File Id=%x on Fs=%u postponed - file is currently open for writing", verifyfile->fId, verifyfile->fsId);
 	verifications.push(verifyfile);
+	verificationsMutex.UnLock();
 	continue;
       }
     } else {
@@ -1411,6 +1412,8 @@ Storage::Communicator()
               }
             }
           }
+	} else {
+	  gOFS.ObjectManager.HashMutex.UnLockRead();
 	}
       } else {
 	eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", queue.c_str(),key.c_str());
