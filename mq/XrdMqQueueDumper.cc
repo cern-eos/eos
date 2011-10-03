@@ -3,7 +3,7 @@
 #include <mq/XrdMqTiming.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
-#include <xrootd/XrdClient/XrdClientEnv.hh>
+#include <XrdClient/XrdClientEnv.hh>
 
 int main (int argc, char* argv[]) {
   XrdMqClient mqc;
