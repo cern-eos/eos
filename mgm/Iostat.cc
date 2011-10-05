@@ -20,6 +20,8 @@ Iostat::Iostat()
   mRunning = false;
   mInit = false;
   mStoreFileName="";
+  cthread = 0;
+  thread = 0;
 }
 
 /* ------------------------------------------------------------------------- */

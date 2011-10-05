@@ -98,7 +98,8 @@ XrdMqOfs::XrdMqOfs(XrdSysError *ep)
   DiscardedMonitoringMessages = 0;
   
   (void) signal(SIGINT,xrdmqofs_shutdown);
-
+  HostName=0;
+  HostPref=0;
   fprintf(stderr,"Addr::QueueOutMutex        0x%llx\n",(unsigned long long) &XrdOfsFS.QueueOutMutex);
   fprintf(stderr,"Addr::MessageMutex         0x%llx\n",(unsigned long long) &XrdOfsFS.MessagesMutex);
 }

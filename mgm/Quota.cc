@@ -24,6 +24,7 @@ SpaceQuota::SpaceQuota(const char* name) {
   PhysicalFreeBytes = PhysicalFreeFiles = PhysicalMaxBytes = PhysicalMaxFiles = 0;
   PhysicalTmpFreeBytes = PhysicalTmpFreeFiles = PhysicalTmpMaxBytes = PhysicalTmpMaxFiles = 0;
   LayoutSizeFactor = 1.0;
+  On = false;
 
   gOFS->eosViewMutex.Lock();
   eos::ContainerMD *quotadir=0;

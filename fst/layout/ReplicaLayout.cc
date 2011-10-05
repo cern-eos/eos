@@ -13,6 +13,7 @@ ReplicaLayout::ReplicaLayout(XrdFstOfsFile* thisFile,int lid, XrdOucErrInfo *out
   replicaClient = 0;
   replicaUrl = "";
   ioLocal = true;
+  replicaIndex = 0;
 }
 
 /*----------------------------------------------------------------------------*/

@@ -57,7 +57,7 @@ public:
   }
 
   void Reset () {
-    md5offset = 0; MD5_Init(&ctx); memset(md5,0,MD5_DIGEST_LENGTH+1);needsRecalculation=0;
+    md5offset = 0; MD5_Init(&ctx); memset(md5,0,MD5_DIGEST_LENGTH+1);needsRecalculation=0;md5hex[0]=0;
   }
 
   virtual ~MD5(){};

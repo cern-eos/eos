@@ -427,6 +427,7 @@ static int eosdfs_release(const char *path, struct fuse_file_info *fi)
   fd = (int) fi->fh;
   xrd_close(fd);
   fi->fh = 0;
+  return 0;
 }
 
 static int eosdfs_fsync(const char *path, int isdatasync,

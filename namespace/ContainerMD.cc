@@ -50,6 +50,7 @@ namespace eos
     pMode     = other.pMode;
     pACLId    = other.pACLId;
     pXAttrs   = other.pXAttrs;
+    pFlags    = other.pFlags;
     return *this;
   }
 

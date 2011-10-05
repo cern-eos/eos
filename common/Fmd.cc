@@ -737,7 +737,7 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option) {
     char copybuffer[128*1024];
     int nread=0;
     do {
-      nread = pread(rfd, copybuffer, sizeof(copybuffer), offset);
+      nread = pread(rfd, copybuffer, sizeof(copybuffer), (size_t) offset);
       if (nread>0) {
         offset += nread;
         int nwrite = write(newfd,copybuffer,nread);

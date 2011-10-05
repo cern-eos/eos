@@ -1161,7 +1161,8 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
       char lformat[1024];
       char lenformat[1024];
       line[0]=0;
-      
+      snprintf(lformat,sizeof(lformat)-1, "%%s");
+
       if ((formattags["format"].find("s"))!= std::string::npos) 
         snprintf(lformat,sizeof(lformat)-1, "%%s");
       

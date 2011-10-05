@@ -145,6 +145,7 @@ public:
     interval = ival;
     if (interval==0)
       interval = 1;
+    zombie = false;
   }
 
 

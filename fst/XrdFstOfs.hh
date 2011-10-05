@@ -47,7 +47,7 @@ private:
   eos::common::FileSystem::fsid_t fsid;
   
 public:
-  XrdFstOfsDirectory(const char *user) : XrdSfsDirectory(user){eos::common::LogId();fts_tree=0;fts_paths=0;};
+  XrdFstOfsDirectory(const char *user) : XrdSfsDirectory(user){eos::common::LogId();fts_tree=0;fts_paths=0;fsid=0;};
   virtual            ~XrdFstOfsDirectory() {
     close();
   }
@@ -81,7 +81,7 @@ public:
  
   int Configure(XrdSysError &error);
 
-  XrdFstOfs() {eos::common::LogId();}
+  XrdFstOfs() {eos::common::LogId(); Eroute = 0; Messaging = 0; Storage = 0; TransferScheduler = 0;}
 
   XrdSysError*        Eroute;          // used by the 
 

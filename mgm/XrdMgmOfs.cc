@@ -2030,10 +2030,10 @@ int XrdMgmOfs::prepare( XrdSfsPrep       &pargs,
 			   const XrdSecEntity *client)
 {
   //  static const char *epname = "prepare";
-  //const char *tident = error.getErrUser();  
+  const char *tident = error.getErrUser();  
 
   eos::common::Mapping::VirtualIdentity vid;
-
+  eos::common::Mapping::IdMap(client,0,tident, vid);
   MAYSTALL;
   MAYREDIRECT;
 
@@ -2674,14 +2674,15 @@ int XrdMgmOfs::lstat(const char              *path,        // In
 int XrdMgmOfs::truncate(const char*, 
 			   XrdSfsFileOffset, 
 			   XrdOucErrInfo& error, 
-			   const XrdSecEntity*, 
+			   const XrdSecEntity* client,  
 			   const char* path)
 {
   static const char *epname = "truncate";
-
+  const char *tident = error.getErrUser(); 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-
+  eos::common::Mapping::IdMap(client,0,tident, vid);
+  
   MAYSTALL;
   MAYREDIRECT;
 
@@ -3303,9 +3304,9 @@ XrdMgmOfs::FSctl(const int               cmd,
 	checksumbuffer.putData(binchecksum, SHA_DIGEST_LENGTH);
 
 	if (checksum) {
-	  eos_debug("commit: path=%s size=%s fid=%s fsid=%s checksum=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, checksum, amtime, amtimensec);
+	  eos_info("commit: path=%s size=%s fid=%s fsid=%s checksum=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, checksum, amtime, amtimensec);
 	} else {
-	  eos_debug("commit: path=%s size=%s fid=%s fsid=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, amtime, amtimensec);
+	  eos_info("commit: path=%s size=%s fid=%s fsid=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, amtime, amtimensec);
 	}
 	
 	// get the file meta data if exists

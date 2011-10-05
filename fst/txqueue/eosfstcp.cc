@@ -499,6 +499,7 @@ int main(int argc, char* argv[]) {
 	fprintf(stderr,"error: cannot allocate link buffer\n");
 	exit(-ENOMEM);
       }
+      readlinkbuff[0]=0;
 
       switch(sid[i]) {
       case 0:

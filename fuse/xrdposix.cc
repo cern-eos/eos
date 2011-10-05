@@ -158,6 +158,8 @@ public:
     tag = name;
     next = NULL;
     ptr  = this;
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
   } 
   XrdPosixTiming(const char* i_maintag) {
     tag = "BEGIN";
@@ -233,6 +235,8 @@ public:
     offset=0;
     lastoffset=0;
     Next=0;
+    nbytes=0;
+    pagestart=0;
   };
 
   ~XrdWriteCachePage() {if (buffer) free(buffer); buffer = 0;offset=0;lastoffset=0;};
@@ -327,7 +331,7 @@ public:
     return 0;
   }
   
-  XrdWriteCacheBucket() {Pool=0;pages=0;}
+  XrdWriteCacheBucket() {Pool=0;pages=0;UpdateTime=0;}
   XrdWriteCacheBucket(XrdWriteCachePagePool* inp) {Pool=inp;pages=0;}
   ~XrdWriteCacheBucket() {};
   

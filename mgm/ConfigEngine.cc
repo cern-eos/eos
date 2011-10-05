@@ -21,6 +21,7 @@ XrdOucHash<XrdOucString> ConfigEngine::configDefinitions;
 /*----------------------------------------------------------------------------*/
 ConfigEngineChangeLog::ConfigEngineChangeLog()
 {
+  fd = 0;
 }
 
 void ConfigEngineChangeLog::Init(const char* changelogfile) 

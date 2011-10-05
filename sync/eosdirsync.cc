@@ -126,8 +126,8 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
 	}
       }
     }
+    close(fd);
   }
-  close(fd);
   delete client;
   return success;
 }

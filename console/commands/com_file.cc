@@ -195,7 +195,7 @@ com_file (char* arg1) {
 	      } else {
 		if (option[i] == "-rate") {
 		  in += "&mgm.file.verify.rate=";
-		  if (!option[i+1].length())
+		  if ( (i==5) || (!option[i+1].length()))
 		    goto com_file_usage;
 		  in += option[i+1];
 		  i++;

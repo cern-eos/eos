@@ -86,6 +86,24 @@ Fsck::Fsck()
   mErrorHelp["replica_missing"] = "There is a reference to a replica in the namespace, but the replica was not seen on the storage node";
   mErrorNames[14] = "replica_missing";
 
+  mParallelThreads=0;
+  mThread = 0;
+  n_error_file_offline = 0;
+  n_error_fst_blockchecksum = 0;
+  n_error_fst_disk_fmd_checksum_differ = 0;
+  n_error_fst_disk_fmd_size_differ = 0;
+  n_error_fst_filechecksum = 0;
+  n_error_mgm_disk_checksum_differ = 0;
+  n_error_mgm_disk_size_differ = 0;
+  n_error_replica_layout = 0;
+  n_error_replica_missing = 0;
+  n_error_replica_not_registered = 0;
+  n_error_replica_offline = 0;
+  n_error_replica_orphaned = 0;
+  nchecked=0;
+  nunchecked=0;
+  totalfiles=0;
+
   mErrorMapMutex.UnLock(); 
 } 
 
@@ -539,7 +557,7 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
 		      out += outline;
 		    } else {
 		      char errline[1024];
-		      snprintf(errline,sizeof(outline)-1, "err: unable to send unlink to fsid=%u fxid=%llx\n",it->first,*fidit);
+		      snprintf(errline,sizeof(errline)-1, "err: unable to send unlink to fsid=%u fxid=%llx\n",it->first,*fidit);
 		      err += outline;
 		    }
 		  }
@@ -553,7 +571,7 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
 		      out += outline;
 		    } else {
 		      char errline[1024];
-		      snprintf(errline,sizeof(outline)-1, "err: unable to send unlink to fsid=%u fxid=%llx\n",it->first,*fidit);
+		      snprintf(errline,sizeof(errline)-1, "err: unable to send unlink to fsid=%u fxid=%llx\n",it->first,*fidit);
 		      err += outline;
 		    }
 		  }

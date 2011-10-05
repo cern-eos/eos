@@ -40,7 +40,7 @@ private:
 
   bool setChecksum;
   int rateBandwidth;     // MB/s
-  int alignment;
+  long alignment;
   char* buffer;
 
   pthread_t thread;
@@ -54,11 +54,13 @@ public:
     thread = 0;
     noNoChecksumFiles = 0;
     noTotalFiles     = 0;
+    buffer = 0;
     bgThread = bgthread;
     alignment = pathconf(dirPath.c_str(), _PC_REC_XFER_ALIGN);
     bufferSize = 256 * alignment;
     setChecksum = setchecksum;
-    if (posix_memalign((void**)&buffer, alignment, bufferSize)){
+    size_t palignment = alignment;
+    if (posix_memalign((void**)&buffer, palignment, bufferSize)){
       fprintf(stderr, "error: error calling posix_memaling on dirpath=%s. \n",dirPath.c_str());
       return;
     }

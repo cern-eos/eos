@@ -23,7 +23,7 @@ class Acl {
 
 public:
 
-  Acl() { canRead = false; canWrite = false; canWriteOnce = false; canBrowse = false; hasAcl = false;}
+  Acl() { canRead = false; canWrite = false; canWriteOnce = false; canBrowse = false; hasAcl = false; hasEgroup = false;}
 
   Acl(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualIdentity &vid);
   ~Acl(){};

@@ -131,9 +131,10 @@ namespace eos
     //--------------------------------------------------------------------------
     // Connect to the remote host
     //--------------------------------------------------------------------------
-    if( ::connect( pFD, (sockaddr*)&addr, sizeof( addr ) ) != 0 )
+    if( (pFD<0) || ( ::connect( pFD, (sockaddr*)&addr, sizeof( addr ) ) != 0 ))
     {
-      ::close( pFD );
+      if (pFD>0) 
+	::close( pFD );
       ex.getMessage() << "Socket: Connection failed: ";
       ex.getMessage() << strerror( errno );
       throw ex;
@@ -168,9 +169,10 @@ namespace eos
     //--------------------------------------------------------------------------
     // Bind the socket
     //--------------------------------------------------------------------------
-    if( ::bind( pFD, (sockaddr *)&localAddr, sizeof( sockaddr_in ) ) == -1 )
+    if( (pFD<0) || (::bind( pFD, (sockaddr *)&localAddr, sizeof( sockaddr_in ) ) == -1 ))
     {
-      ::close( pFD );
+      if (pFD) 
+	::close( pFD );
       ex.getMessage() << "Socket: Unable to bind to port: " << port << " ";
       ex.getMessage() << strerror( errno );
       throw ex;

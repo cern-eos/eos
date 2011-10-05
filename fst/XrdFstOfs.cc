@@ -686,11 +686,10 @@ XrdFstOfsFile::open(const char                *path,
     if (isRW) {
       if (gOFS.WOpenFid[fsid][fileid]==0) {
 	// this keeps this thread busy for 10 seconds trying to lock and then rebounces if the lock couldn't be taken
-	if (!gOFS.LockManager.LockTimeout(fileid,10)) {
-	  // this is cryptic for the moment, we have to review this ===> TODO !!!!
-	}
+	//	if (!gOFS.LockManager.LockTimeout(fileid,10)) {
+	//	  // this is cryptic for the moment, we have to review this ===> TODO !!!!
+	//	}
       }
-      
       gOFS.WOpenFid[fsid][fileid]++;
     }
     else
@@ -753,8 +752,9 @@ XrdFstOfsFile::closeofs()
     } else {
       // check if there is more than one writer in this moment or a reader , if yes, we don't recompute wholes in the checksum and we don't truncate the checksum map, the last single writer will do that
       // ---->
+      eos_info("%s wopen=%d ropen=%d fsid=%ld fid=%lld",fstPath.c_str(), (gOFS.WOpenFid[fsid].count(fileid))?gOFS.WOpenFid[fsid][fileid]:0 , (gOFS.ROpenFid[fsid].count(fileid))?gOFS.ROpenFid[fsid][fileid]:0, fsid, fileid);
       gOFS.OpenFidMutex.Lock();
-      if ((gOFS.WOpenFid[fsid].count(fileid)==1) && (gOFS.ROpenFid[fsid].count(fileid)==0)) {
+      if ( (gOFS.WOpenFid[fsid].count(fileid) && (gOFS.WOpenFid[fsid][fileid]==1) && ((!gOFS.ROpenFid[fsid].count(fileid)) || (gOFS.ROpenFid[fsid][fileid]==0)))) {
         XrdOucErrInfo error;
         if(!fctl(SFS_FCTL_GETFD,0,error)) {
           int fd = error.getErrInfo();
@@ -772,7 +772,7 @@ XrdFstOfsFile::closeofs()
 	  }
 	}
       }	else {
-	eos_info("block-xs skipping hole check and changemap nwriter=%d nreader=%d", gOFS.WOpenFid[fsid].count(fileid), gOFS.ROpenFid[fsid].count(fileid));
+	eos_info("block-xs skipping hole check and changemap nwriter=%d nreader=%d", (gOFS.WOpenFid[fsid].count(fileid))?gOFS.WOpenFid[fsid][fileid]:0 , (gOFS.ROpenFid[fsid].count(fileid))?gOFS.ROpenFid[fsid][fileid]:0);
       }
       gOFS.OpenFidMutex.UnLock();
       // -----|

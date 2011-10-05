@@ -30,7 +30,7 @@ protected:
   unsigned long long nXSBlocksWrittenHoles;
 
 public:
-  CheckSum(){Name = "";}
+  CheckSum(){Name = "";ChecksumMap = 0;}
   CheckSum(const char* name){Name = name;needsRecalculation = false;ChecksumMap=0; ChecksumMapSize=0;BlockSize=0;nXSBlocksChecked=0; nXSBlocksWritten=0; nXSBlocksWrittenHoles=0;BlockXSPath="";}
 
   virtual bool Add(const char* buffer, size_t length, off_t offset) = 0;

@@ -882,7 +882,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   // load all the quota nodes from the namespace
   Quota::LoadNodes();
   // fill the current accounting
-  Quota:: NodesToSpaceQuota();
+  Quota::NodesToSpaceQuota();
 
   // add all stat entries with 0
 

@@ -54,6 +54,7 @@ public:
     e_.entry_timeout = e->entry_timeout;
     e_.ino = e->attr.st_ino;
     e_.attr = e->attr;
+    e_.generation = 0;
   }; 
   
   ~SubDirEntry(){};

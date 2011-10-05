@@ -190,6 +190,8 @@ void ScanDir::CheckFile(const char* filepath)
     } else {
       fprintf(stderr,"error: cannot stat %s\n", filePath.c_str());
     }
+    if (attr) 
+      delete attr;
     return ;
   }
   

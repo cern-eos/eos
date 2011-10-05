@@ -80,6 +80,7 @@ SymKey::Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen) {
 /*----------------------------------------------------------------------------*/
 SymKeyStore::SymKeyStore() 
 {
+  currentKey=0;
 }
 
 /*----------------------------------------------------------------------------*/

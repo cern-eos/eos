@@ -48,7 +48,7 @@ public:
   std::string mName;
   std::string mType;
   
-  BaseView(){mStatus="unknown";}
+  BaseView(){mStatus="unknown";mHeartBeat=0;}
   ~BaseView(){};
   
   virtual const char* GetConfigQueuePrefix() { return "";}
@@ -147,6 +147,7 @@ public:
   FsGroup(const char* name) {
     mName = name; 
     mType="groupview";
+    mIndex=0;
 #ifndef EOSMGMFSVIEWTEST
     mBalanceJob=0;
 #endif

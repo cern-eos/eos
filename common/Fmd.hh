@@ -51,7 +51,7 @@ public:
 
   struct FMDHEADER fmdHeader;
 
-  FmdHeader() {fmdHeader.magic = EOSCOMMONFMDHEADER_MAGIC; strncpy(fmdHeader.version,FMDVERSION,10); fmdHeader.ctime=time(0);}
+  FmdHeader() {fmdHeader.magic = EOSCOMMONFMDHEADER_MAGIC; strncpy(fmdHeader.version,FMDVERSION,10); fmdHeader.ctime=time(0); fmdHeader.version[0]=0;fmdHeader.fsid=0;}
   ~FmdHeader() {};
 
   void SetId(int infsid) { fmdHeader.fsid = infsid;} 

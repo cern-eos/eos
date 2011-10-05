@@ -51,6 +51,7 @@ public:
   
   Statfs(const char* inpath) {
     path = inpath;
+    memset(&statFs, 0, sizeof(struct statfs));
   }
   
   ~Statfs(){}

@@ -19,7 +19,7 @@ public:
   XrdOucString     FstQueueWildcard;     // our queue match name
 
   static Config gConfig;
-  Config() {}
+  Config() {FstQuotaReportInterval=0;autoBoot=false;}
   ~Config() {}
 };
 
