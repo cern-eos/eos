@@ -43,6 +43,7 @@ namespace eos
   {
     pId       = other.pId;
     pParentId = other.pParentId;
+    pFlags    = other.pFlags;
     pCTime    = other.pCTime;
     pName     = other.pName;
     pCUid     = other.pCUid;
