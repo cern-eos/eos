@@ -738,7 +738,8 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
   for (unsigned int groupindex=0; groupindex < FsView::gFsView.mSpaceGroupView[spacename].size(); groupindex++) {
     eos_static_debug("scheduling group loop %d", forcedindex);
     selectedfs.clear();
-    
+    availablefs.clear();
+
     std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
     eos::common::FileSystem::fsid_t fsid=0;
 
