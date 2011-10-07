@@ -53,12 +53,14 @@ RETVAL=0
 prog="globus-gridftp-server"
 
 ftpd=/opt/globus/sbin/globus-gridftp-server
-port=${port:-2811}
-log=${log:-/var/log/eos/gridftp/$prog.log}
+port=${GLOBUS_GRIDFTP_PORT:-2811}
+log=${GLOBUS_GRIDFTP_LOG:-/var/log/eos/gridftp/$prog.log}
+debuglog=${GLOBUS_GRIDFTP_DEBUGLOG:-/var/log/eos/gridftp/$prog-debug.log}
+debugloglevel=${GLOBUS_GRIDFTP_DEBUGLOG_LEVEL:=warn,error,info}
 pid_file=/var/run/$prog.pid
 lockfile=/var/lock/subsys/$prog
 user=""
-options=""
+options={GLOBUS_GRIDFTP_OPTIONS:-""}
 
 
 # -S  stand alone mode
@@ -76,7 +78,7 @@ if [ ! -d "/var/log/eos/gridftp" ]; then
 fi
 
 if [ -z "$options" ]; then
-  options=" -S -p $port -Z $log -dsi eos"
+  options=" -S -p $port -log-module stdio -logfile $debuglog -log-level $debugloglevel -log-transfer $log -dsi eos"
 fi
 
 start()
