@@ -9,6 +9,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/sparse_hash_map>
+#include <google/sparse_hash_set>
 #include <sys/types.h>
 #include <string>
 #include <stdarg.h>
@@ -35,13 +36,13 @@ private:
   size_t mParallelThreads;
 
   // map 'error-name'-> errorcount
-  std::map<std::string, unsigned long long> mTotalErrorMap;
+  google::sparse_hash_map<std::string, unsigned long long> mTotalErrorMap;
   // map 'error-name'-> error help
-  std::map<std::string, std::string> mErrorHelp;
+  google::sparse_hash_map<std::string, XrdOucString> mErrorHelp;
   // map 'error-name'-> 'fsid' -> errorcount
-  std::map<std::string, std::map <eos::common::FileSystem::fsid_t, unsigned long long > > mFsidErrorMap;
+  google::sparse_hash_map<std::string, google::sparse_hash_map <eos::common::FileSystem::fsid_t, unsigned long long > > mFsidErrorMap;
   // map 'error-name'-> 'fsid' -> set of 'fid' 
-  std::map<std::string, std::map <eos::common::FileSystem::fsid_t, std::set<unsigned long long> > > mFsidErrorFidSet;
+  google::sparse_hash_map<std::string, google::sparse_hash_map <eos::common::FileSystem::fsid_t, google::sparse_hash_set<unsigned long long> > > mFsidErrorFidSet;
 
   XrdSysMutex mGlobalCounterLock;
   unsigned long long totalfiles;
@@ -75,8 +76,9 @@ public:
   XrdSysMutex mScanThreadMutex;
 
   pthread_t mThread;
-  std::map<eos::common::FileSystem::fsid_t, ThreadInfo> mScanThreadInfo;
-  std::map<eos::common::FileSystem::fsid_t, pthread_t> mScanThreads;
+  google::sparse_hash_map<eos::common::FileSystem::fsid_t, ThreadInfo> mScanThreadInfo;
+  google::sparse_hash_map<eos::common::FileSystem::fsid_t, pthread_t> mScanThreads;
+  google::sparse_hash_map<eos::common::FileSystem::fsid_t, pthread_t> mScanThreadsJoin;
 
   bool mRunning;
   

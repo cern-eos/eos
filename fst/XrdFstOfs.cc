@@ -21,6 +21,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <attr/xattr.h>
 
 /*----------------------------------------------------------------------------*/
 // the global OFS handle
@@ -825,13 +827,13 @@ XrdFstOfsFile::verifychecksum()
     }
 
     if (isRW) {
+      eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
+      checkSum->GetBinChecksum(checksumlen);
+      // copy checksum into meta data
+      memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
+
       if (haswrite) {
-	// if we have no write, we don't set this attributes (xrd3cp!)
-	eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
-	checkSum->GetBinChecksum(checksumlen);
-	// copy checksum into meta data
-	memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
-	
+	// if we have no write, we don't set this attributes (xrd3cp!)	
 	// set the eos checksum extended attributes
 	eos::common::Attr* attr = eos::common::Attr::OpenAttr(fstPath.c_str());
 	if (attr) {
@@ -1721,6 +1723,55 @@ XrdFstOfs::FSctl(const int               cmd,
       delete fmd;
       error.setErrInfo(fmdenvstring.length()+1,fmdenvstring.c_str());
       return SFS_DATA;
+    }
+
+    if (execmd == "getxattr") {
+      char* key    = env.Get("fst.getxattr.key");
+      char* path   = env.Get("fst.getxattr.path");
+      if (!key) {
+	eos_static_err("no key specified as attribute name");
+	const char* err = "ERROR";
+	error.setErrInfo(strlen(err)+1,err);
+	return SFS_DATA;
+      }
+      if (!path) {
+	eos_static_err("no path specified to get the attribute from");
+	const char* err = "ERROR";
+	error.setErrInfo(strlen(err)+1,err);
+	return SFS_DATA;
+      }
+      char value[1024];
+      ssize_t attr_length = getxattr(path,key,value,sizeof(value));
+      if (attr_length>0) {
+	value[1023]=0;
+	XrdOucString skey=key;
+	XrdOucString attr = "";
+	if (skey=="user.eos.checksum") {
+	  // checksum's are binary and need special reformatting ( we swap the byte order if they are 4 bytes long )
+	  if (attr_length==4) {
+	    for (ssize_t k=0; k<4; k++) {
+	      char hex[4];
+	      snprintf(hex,sizeof(hex-1),"%02x", (unsigned char) value[3-k]);
+	      attr += hex;
+	    }
+	  } else {
+	    for (ssize_t k=0; k<attr_length; k++) {
+	      char hex[4];
+	      snprintf(hex,sizeof(hex-1),"%02x", (unsigned char) value[3-k]);
+	      attr += hex;
+	    }
+	  }
+	} else {
+	  attr = value;
+	}
+	error.setErrInfo(attr.length()+1,attr.c_str());
+	return SFS_DATA;
+      } else {
+	eos_static_err("getxattr failed for path=%s",path);
+	const char* err = "ERROR";
+	error.setErrInfo(strlen(err)+1,err);
+	return SFS_DATA;
+      }
     }
   }
 

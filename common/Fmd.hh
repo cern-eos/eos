@@ -195,7 +195,7 @@ public:
 
   // remote fmd
   int GetRemoteFmd(ClientAdmin* admin, const char* serverurl, const char* shexfid, const char* sfsid, struct Fmd::FMD &fmd);
-
+  int GetRemoteAttribute(ClientAdmin* admin, const char* serverurl, const char* key, const char* path, XrdOucString& attribute);
 
   FmdHandler() {
     SetLogId("CommonFmdHandler"); isOpen=false;

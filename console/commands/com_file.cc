@@ -229,8 +229,9 @@ com_file (char* arg1) {
     int envlen=0;
 
     XrdOucEnv* newresult = new XrdOucEnv(result->Env(envlen));
-
     delete result;
+    
+    XrdOucString checksumattribute="NOTREQUIRED";
 
     bool consistencyerror=false;
     bool down=false;
@@ -241,7 +242,7 @@ com_file (char* arg1) {
       XrdOucString size = newresult->Get("mgm.size");
       
       if ( (option.find("%silent") == STR_NPOS) && (!silent) ) {
-        printf("path=%-32s fid=%s size=%s nrep=%s checksumtype=%s checksum=%s\n", path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.nrep"), checksumtype.c_str(), newresult->Get("mgm.checksum"));
+        printf("path=\"%-32s\" fid=\"%4s\" size=\"10%s\" nrep=\"%s\" checksumtype=\"%s\" checksum=\"%s\"\n", path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.nrep"), checksumtype.c_str(), newresult->Get("mgm.checksum"));
       }
 
       int i=0;
@@ -253,7 +254,7 @@ com_file (char* arg1) {
         XrdOucString repfid  = "mgm.fid"; repfid += i;
         XrdOucString repfsid = "mgm.fsid"; repfsid += i;
         XrdOucString repbootstat = "mgm.fsbootstat"; repbootstat += i;
-
+	XrdOucString repfstpath  = "mgm.fstpath"; repfstpath += i;
         if ( newresult->Get(repurl.c_str()) ) {
           // Query 
           ClientAdmin* admin = CommonClientAdminManager.GetAdmin(newresult->Get(repurl.c_str()));
@@ -283,6 +284,25 @@ com_file (char* arg1) {
             inconsistencylable ="DOWN";
           } else {
             //      fprintf(stderr,"%s %s %s\n",newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()));
+	    if ((option.find("%checksumattr")!= STR_NPOS)) {
+	      checksumattribute="";
+	      if ((retc=gFmdHandler.GetRemoteAttribute(admin, newresult->Get(repurl.c_str()), "user.eos.checksum",newresult->Get(repfstpath.c_str()), checksumattribute))) {
+		if (!silent)fprintf(stderr,"error: unable to retrieve extended attribute from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
+	      } 
+	    }
+
+	    // do a remote stat
+	    long id;
+	    long long rsize;
+	    long flags;
+	    long modtime;
+
+	    admin->GetAdmin()->Connect();
+	    if (!admin->GetAdmin()->Stat(newresult->Get(repfstpath.c_str()), id, rsize, flags, modtime)) {
+	      consistencyerror = true;
+	      inconsistencylable="STATFAILED";
+	    }
+
             if ((retc=gFmdHandler.GetRemoteFmd(admin, newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()), fmd))) {
               if (!silent)fprintf(stderr,"error: unable to retrieve file meta data from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
 	      consistencyerror = true;
@@ -306,7 +326,12 @@ com_file (char* arg1) {
                 if (sss != size) {
                   consistencyerror = true;
                   inconsistencylable ="SIZE";
-                }
+                } else {
+		  if (fmd.size != (unsigned long long)rsize) {
+		    consistencyerror = true;
+		    inconsistencylable = "FSTSIZE";
+		  }
+		}
               }
               
               if ( (option.find("%checksum")) != STR_NPOS ) {
@@ -315,9 +340,22 @@ com_file (char* arg1) {
                   inconsistencylable ="CHECKSUM";
                 }
               }
+
+	      if ((option.find("%checksumattr")!= STR_NPOS)) {
+		if ((checksumattribute.length()<8) || (!cx.beginswith(checksumattribute))) {
+		  consistencyerror = true;
+		  inconsistencylable = "CHECKSUMATTR";
+		}
+	      }
+
               nreplicaonline++;
-                      
-              if (!silent)printf("nrep=%02d fsid=%lu size=%llu checksum=%s\n", i, fmd.fsid, fmd.size, cx.c_str());
+
+	      if (!silent)printf("nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" size=\"%llu\" checksum=\"%s\"", i, newresult->Get(repfsid.c_str()),newresult->Get(repurl.c_str()),newresult->Get(repfstpath.c_str()),fmd.size, cx.c_str());                      
+	      if ((option.find("%checksumattr")!= STR_NPOS)) {
+		if (!silent)printf(" checksumattr=%s\n", checksumattribute.c_str());
+	      } else {
+		if (!silent)printf("\n");
+	      }
             }
           }
 
@@ -369,11 +407,12 @@ com_file (char* arg1) {
   printf("                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
   printf("file adjustreplica <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]] :\n");
   printf("                                                  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
-  printf("file check <path> [%%size%%checksum%%nrep%%force%%output%%silent] :\n");
+  printf("file check <path> [%%size%%checksum%%nrep%%checksumattr%%force%%output%%silent] :\n");
   printf("                                                  retrieves stat information from the physical replicas and verifies the correctness\n");
   printf("       - %%size                                                       :  return with an error code if there is a mismatch between the size meta data information\n");
   printf("       - %%checksum                                                   :  return with an error code if there is a mismatch between the checksum meta data information\n");
   printf("       - %%nrep                                                       :  return with an error code if there is a mismatch between the layout number of replicas and the existing replicas\n");
+  printf("       - %%checksumattr                                               :  return with an error code if there is a mismatch between the checksum in the extended attributes on the FST and the FMD checksum\n");
   printf("       - %%silent                                                     :  suppresses all information for each replic to be printed\n");
   printf("       - %%force                                                      :  forces to get the MD even if the node is down\n");
   printf("       - %%output                                                     :  prints lines with inconsitency information\n");

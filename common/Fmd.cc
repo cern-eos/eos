@@ -959,6 +959,64 @@ FmdHandler::GetRemoteFmd(ClientAdmin* admin, const char* serverurl, const char* 
   return 0;
 }
 
+/*----------------------------------------------------------------------------*/
+int
+FmdHandler::GetRemoteAttribute(ClientAdmin* admin, const char* serverurl, const char* key, const char* path, XrdOucString& attribute)
+{
+  char result[64*1024]; result[0]=0;
+  int  result_size=64*1024;
+
+  XrdOucString fmdquery="/?fst.pcmd=getxattr&fst.getxattr.key="; fmdquery += key; fmdquery+="&fst.getxattr.path=";fmdquery += path;
+
+  if ( (!serverurl) || (!key) || (!path) ) {
+    return EINVAL;
+  }
+
+  int rc=0;
+  admin->Lock();
+  admin->GetAdmin()->Connect();
+  admin->GetAdmin()->GetClientConn()->ClearLastServerError();
+  admin->GetAdmin()->GetClientConn()->SetOpTimeLimit(10);
+  admin->GetAdmin()->Query(kXR_Qopaquf,
+                           (kXR_char *) fmdquery.c_str(),
+                           (kXR_char *) result, result_size);
+  
+  if (!admin->GetAdmin()->LastServerResp()) {
+    eos_static_err("Unable to retrieve meta data from server %s for key=%s path=%s",serverurl, key, path);
+    
+    rc = 1;
+  }
+  switch (admin->GetAdmin()->LastServerResp()->status) {
+  case kXR_ok:
+    eos_static_debug("got attribute meta data from server %s for key=%s path=%s attribute=%s",serverurl, key, path, result);
+    rc = 0;
+    break;
+    
+  case kXR_error:
+    eos_static_err("Unable to retrieve meta data from server %s for key=%s path=%s",serverurl, key, path);
+    rc = ECOMM;
+    break;
+    
+  default:
+    rc = ECOMM;
+    break;
+  }
+  admin->UnLock();
+
+  if (rc) {
+    return EIO;
+  }
+
+  if (!strncmp(result,"ERROR", 5)) {
+    // remote side couldn't get the record
+    eos_static_err("Unable to retrieve meta data on remote server %s for key=%s path=%s",serverurl, key, path);
+    return ENODATA;
+  }
+
+  attribute = result;
+  return 0;
+}
+
 EOSCOMMONNAMESPACE_END
 
 

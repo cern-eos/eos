@@ -22,6 +22,15 @@ EOSMGMNAMESPACE_BEGIN
 /* ------------------------------------------------------------------------- */
 Fsck::Fsck() 
 {
+  //  mTotalErrorMap.set_empty_key("");
+  //  mErrorHelp.set_empty_key("");
+  //  mFsidErrorMap.set_empty_key("");
+  //  mFsidErrorFidSet.set_empty_key("");
+
+  mScanThreadInfo.set_deleted_key(0);
+  mScanThreads.set_deleted_key(0);
+  mScanThreadsJoin.set_deleted_key(0);
+  
   mRunning = false;
   
   mErrorMapMutex.Lock();
@@ -146,7 +155,6 @@ Fsck::Stop()
       sleeper.Snooze(1);
     } while(1);
 
-
     // join the master thread
     XrdSysThread::Join(mThread,NULL);
     eos_static_info("joined fsck thread");
@@ -186,7 +194,21 @@ Fsck::Check(void)
 {
   
   mScanThreadInfo.clear();
+  mScanThreadInfo.resize(0);
   mScanThreads.clear();
+  mScanThreads.resize(0);
+
+  for (size_t i=0; i< mErrorNames.size(); i++) {
+    google::sparse_hash_map <eos::common::FileSystem::fsid_t, unsigned long long >::iterator itfid;
+
+    mFsidErrorMap[mErrorNames[i]].clear();
+    mFsidErrorMap[mErrorNames[i]].resize(0);
+    for (itfid = mFsidErrorMap[mErrorNames[i]].begin(); itfid != mFsidErrorMap[mErrorNames[i]].end(); itfid ++) {
+      mFsidErrorFidSet[mErrorNames[i]][itfid->first].clear();
+      mFsidErrorFidSet[mErrorNames[i]][itfid->first].resize(0);
+    }
+  }
+
 
   XrdSysThread::SetCancelOn();
   XrdSysThread::SetCancelDeferred();
@@ -232,7 +254,7 @@ Fsck::Check(void)
     n_error_file_offline = 0;
     n_error_replica_missing = 0;
 
-    std::set<eos::common::FileSystem::fsid_t> scannedfsids;
+    google::sparse_hash_set<eos::common::FileSystem::fsid_t> scannedfsids;
 
     while (pos < max) {
       {
@@ -254,6 +276,7 @@ Fsck::Check(void)
 	    fsid = it->first;
 	    hostport  = it->second->GetString("hostport");
 	    mountpoint = it->second->GetString("path");
+	    fprintf(stderr,"%s %s\n",hostport.c_str(), mountpoint.c_str());
 	    // check only file systems, which are broadcasting and booted
 	    if ( (it->second->GetActiveStatus() == eos::common::FileSystem::kOnline) && 
 		 (it->second->GetStatus() == eos::common::FileSystem::kBooted ) && 
@@ -271,7 +294,7 @@ Fsck::Check(void)
 
 	if (fsid) {
 	  // this remembers which fsids have been scanned ... we use this to remove old fsids from the global map (which don't exist anymore)
-
+	  
 	  scannedfsids.insert(fsid);
 	  
 	  mScanThreadInfo[fsid].mFsck       = this;
@@ -281,40 +304,43 @@ Fsck::Check(void)
 	  mScanThreadInfo[fsid].mMax        = max;
 	  mScanThreadInfo[fsid].mHostPort   = hostport;
 	  mScanThreadInfo[fsid].mMountPoint = mountpoint;
-	  size_t maxthreads = mParallelThreads;
-
-       
-
-	  
-	  // wait that we have less the mMaxThreads running
-	  size_t loopcount=0;
-	  do {
-	    size_t nrunning=0;
-	    mScanThreadMutex.Lock();
-	    nrunning = mScanThreads.size();
-	    mScanThreadMutex.UnLock();
-	    loopcount++;
-	    if (nrunning < maxthreads) 
-	      break;
-	    else {
-	      if (!loopcount%12)
-		Log(false,"=> %u/%u threads are in use", nrunning, maxthreads);
-	      sleeper.Snooze(5);	     
-	    }
-	    
-	  } while(1);
-	  
-	  XrdSysThread::SetCancelOff();	
-	  mScanThreadMutex.Lock();
-	  mScanThreads[fsid] = 0;
-	  XrdSysThread::Run(&mScanThreads[fsid], Fsck::StaticScan, static_cast<void *>(&mScanThreadInfo[fsid]),XRDSYSTHREAD_HOLD, "Fsck Scan Thread");
-	  mScanThreadMutex.UnLock();
-	  XrdSysThread::SetCancelOn();	
 	}
       }
       pos++;
       XrdSysThread::CancelPoint();
     }
+
+    google::sparse_hash_map<eos::common::FileSystem::fsid_t, ThreadInfo>::iterator scanit;
+    
+    for (scanit = mScanThreadInfo.begin(); scanit != mScanThreadInfo.end(); scanit++) {
+      // wait that we have less the mMaxThreads running
+      size_t maxthreads = mParallelThreads;
+      size_t loopcount=0;
+      do {
+	size_t nrunning=0;
+	mScanThreadMutex.Lock();
+	nrunning = mScanThreads.size();
+	mScanThreadMutex.UnLock();
+	loopcount++;
+	if (nrunning < maxthreads) 
+	  break;
+	else {
+	  if (!loopcount%12)
+	    Log(false,"=> %u/%u threads are in use", nrunning, maxthreads);
+	  sleeper.Snooze(5);	     
+	}
+	
+      } while(1);
+      
+      XrdSysThread::SetCancelOff();	
+      mScanThreadMutex.Lock();
+      mScanThreads[scanit->first] = 0;
+      XrdSysThread::Run(&mScanThreads[scanit->first], Fsck::StaticScan, static_cast<void *>(&(scanit->second)), XRDSYSTHREAD_HOLD, "Fsck Scan Thread");
+      mScanThreadsJoin[scanit->first] = mScanThreads[scanit->first];
+      mScanThreadMutex.UnLock();
+      XrdSysThread::SetCancelOn();	
+    }
+
 
     // now wait for all threads to finish
     size_t loopcount=0;
@@ -333,7 +359,21 @@ Fsck::Check(void)
       sleeper.Snooze(1);
     } while(1);
 
+    {
+      mScanThreadMutex.Lock();
+      // join the slave threads
+      google::sparse_hash_map<eos::common::FileSystem::fsid_t, pthread_t>::iterator tit;
+      for (tit = mScanThreadsJoin.begin(); tit != mScanThreadsJoin.end(); tit++) {
+	XrdSysThread::Join(tit->second,0);
+      }
+      mScanThreadsJoin.clear();
+      mScanThreadsJoin.resize(0);
+      mScanThreadMutex.UnLock();
+    }
+
     mErrorMapMutex.Lock();
+
+
 
     mTotalErrorMap["totalfiles"]= totalfiles;
     mTotalErrorMap["diff_mgm_disk_size"]         = n_error_mgm_disk_size_differ;
@@ -353,15 +393,15 @@ Fsck::Check(void)
 
     // remove not scanned fsids
 
-    std::set<eos::common::FileSystem::fsid_t> fsidstodelete;
-    std::map <eos::common::FileSystem::fsid_t, unsigned long long>::const_iterator fsit;
+    google::sparse_hash_set<eos::common::FileSystem::fsid_t> fsidstodelete;
+    google::sparse_hash_map <eos::common::FileSystem::fsid_t, unsigned long long>::const_iterator fsit;
     for (fsit = mFsidErrorMap[mErrorNames[0]].begin(); fsit != mFsidErrorMap[mErrorNames[0]].end(); fsit++) {
       if (!scannedfsids.count(fsit->first)) {
 	fsidstodelete.insert(fsit->first);
       }
     }
 
-    std::set<eos::common::FileSystem::fsid_t>::const_iterator dit;
+    google::sparse_hash_set<eos::common::FileSystem::fsid_t>::const_iterator dit;
     for (dit = fsidstodelete.begin(); dit != fsidstodelete.end(); dit++) {
       for (size_t i=0; i< mErrorNames.size(); i++) {
 	mFsidErrorMap[mErrorNames[i]].erase(*dit);
@@ -485,7 +525,7 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
       if ( (! sel.length()) || 
 	   (sel == mErrorNames[i]) ) {
 	if (mFsidErrorMap[mErrorNames[i]].size()) {
-	  std::map<eos::common::FileSystem::fsid_t,unsigned long long>::const_iterator it;
+	  google::sparse_hash_map<eos::common::FileSystem::fsid_t,unsigned long long>::const_iterator it;
 	  for (it = mFsidErrorMap[mErrorNames[i]].begin(); it != mFsidErrorMap[mErrorNames[i]].end(); it ++) {
 	    char outline[4096];
 	    if (it->second) {
@@ -500,7 +540,7 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
 	      }
 	      if (option.find("i")!=STR_NPOS) {
 		XrdOucString fidstring="";
-		std::set<unsigned long long>::const_iterator fidit;
+		google::sparse_hash_set<unsigned long long>::const_iterator fidit;
 		for (fidit = mFsidErrorFidSet[mErrorNames[i]][it->first].begin(); fidit != mFsidErrorFidSet[mErrorNames[i]][it->first].end(); fidit++) {
 		  XrdOucString sizestring;
 		  XrdOucString fxid="";
@@ -514,14 +554,14 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
 	      }
 	      
 	      if (option.find("l")!=STR_NPOS) {
-		std::set<unsigned long long>::const_iterator fidit;
+		google::sparse_hash_set<unsigned long long>::const_iterator fidit;
 		for (fidit = mFsidErrorFidSet[mErrorNames[i]][it->first].begin(); fidit != mFsidErrorFidSet[mErrorNames[i]][it->first].end(); fidit++) {
 		  XrdOucString sizestring;
 		  //-------------------------------------------
 		  gOFS->eosViewMutex.Lock();
-		  std::string path="";
+		  XrdOucString path="";
 		  try {
-		    path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(*fidit));
+		    path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(*fidit)).c_str();
 		  } catch ( eos::MDException &e ) {
 		    path ="EINVAL";
 		  }
@@ -640,16 +680,18 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
   XrdSysThread::SetCancelDeferred();
 
   // local accounting get's copy after the full loop in to the global accounting
-  std::map<std::string, unsigned long long> mLocalErrorMap; 
-  std::map<std::string, std::set<unsigned long long> > mLocalErrorFidSet;
-  std::set<unsigned long long> mSet;
+
+  google::sparse_hash_map<std::string, unsigned long long> mLocalErrorMap;
+  google::sparse_hash_map<std::string, google::sparse_hash_set<unsigned long long> > mLocalErrorFidSet;
+  google::sparse_hash_set<unsigned long long> mSet;
   
   // initialize local accounting
   for (size_t i=0; i< mErrorNames.size(); i++) {
     mLocalErrorMap[mErrorNames[i]] = 0;
     mLocalErrorFidSet[mErrorNames[i]] = mSet;
+    mLocalErrorFidSet[mErrorNames[i]].set_deleted_key(0);
   }
-  
+
   if (!active) {
     Log(false,"filesystem: fsid=%05d hostport=%20s mountpoint=%s INACTIVE", fsid, hostport.c_str(),mountpoint.c_str());
   } else {
@@ -688,6 +730,7 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
     unsigned long long nfiles=0;
 
     while(std::getline(inFile, dumpentry)) {
+      break;
       mGlobalCounterLock.Lock();
       nfiles++;
       totalfiles++;
@@ -702,7 +745,7 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 
       std::vector<std::string> tokens;
       std::string delimiter=":";
-      std::string token = dumpentry;
+      std::string token = dumpentry.c_str();
       eos::common::StringConversion::Tokenize(token, tokens, delimiter);
 
       unsigned long long fid = strtoull(tokens[0].c_str(),0,16);
@@ -729,7 +772,7 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 	}
 	
 	// convert size & checksum into strings
-	XrdOucString sizestring="";
+	std::string sizestring="";
 	std::string mgm_size = "";
 	std::string mgm_checksum = "";
 	bool replicaexists = false;
@@ -848,8 +891,8 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 	  }
 	  
 	  if (hasfmdchecksum) {
-	    // we only apply this if the file is supposed to have a checksum in the namespace
-	    if (mgm_checksum != tokens[7]) {
+	    // we only apply this if the file is supposed to have a checksum in the namespace and the file has not zero size!
+	    if ( (mgm_checksum != tokens[7]) && (mgm_size != "0")) {
 	      mGlobalCounterLock.Lock();
 	      n_error_mgm_disk_checksum_differ++;
 	      mGlobalCounterLock.UnLock();
@@ -925,6 +968,7 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
   for (size_t i=0; i< mErrorNames.size(); i++) {
     mFsidErrorMap[mErrorNames[i]][fsid] = mLocalErrorMap[mErrorNames[i]];
     mFsidErrorFidSet[mErrorNames[i]][fsid].clear();
+    mFsidErrorFidSet[mErrorNames[i]][fsid].resize(0);
     mFsidErrorFidSet[mErrorNames[i]][fsid] = mLocalErrorFidSet[mErrorNames[i]];
     if (mErrorNames[i] == "replica_missing") {
       // copy the missing replica counter

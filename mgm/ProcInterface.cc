@@ -3464,6 +3464,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		}
 		if (filesystem) {
 		  XrdOucString host; 
+		  XrdOucString fullpath="";
 		  std::string hostport = filesystem->GetString("hostport");
 		  stdOut += "mgm.replica.url";stdOut += i; stdOut += "="; stdOut += hostport.c_str(); stdOut +="&";
 		  XrdOucString hexstring="";
@@ -3471,6 +3472,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  stdOut += "mgm.fid"; stdOut += i; stdOut += "="; stdOut += hexstring;  stdOut += "&";
 		  stdOut += "mgm.fsid";stdOut += i; stdOut += "="; stdOut += (int) *lociter; stdOut += "&";
 		  stdOut += "mgm.fsbootstat"; stdOut += i; stdOut += "="; stdOut += filesystem->GetString("stat.boot").c_str(); stdOut += "&";
+		  stdOut += "mgm.fstpath"; stdOut += i; stdOut += "="; eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(),filesystem->GetPath().c_str(),fullpath); stdOut += fullpath; stdOut += "&";
 		} else {
 		  stdOut += "NA&";
 		}
@@ -3720,8 +3722,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		if ( (option.find("-fullpath")) != STR_NPOS) {
 		  // for the fullpath option we output the full storage path for each replica
 		  XrdOucString fullpath;
+		  eos::common::FileId::FidPrefix2FullPath(hexfidstring.c_str(),filesystem->GetPath().c_str(),fullpath);
 		  if (!Monitoring) {
-		    eos::common::FileId::FidPrefix2FullPath(hexfidstring.c_str(),filesystem->GetPath().c_str(),fullpath);
 		    stdOut.erase(stdOut.length()-1);
 		    stdOut += " ";
 		    stdOut += fullpath;
