@@ -1469,13 +1469,31 @@ int XrdMgmOfs::_chown(const char               *path,    // In
       fprintf(stderr,"checking dir %s\n", cPath.GetParentPath());
 
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+
+      SpaceQuota* space = Quota::GetResponsibleSpaceQuota(cPath.GetParentPath());
+      eos::QuotaNode* quotanode = 0;
+      if (space) {
+        quotanode = space->GetQuotaNode();
+      }
+
       if ( (vid.uid) && !cmd->access(vid.uid,vid.gid,W_OK)) {
 	errno = EPERM;
       } else {
 	fprintf(stderr,"get file %s\n", path);
 	fmd = gOFS->eosView->getFile(path);
+
+	// substract the file
+        if (quotanode) {
+          quotanode->removeFile(fmd);
+        }
+
 	// change the owner
 	fmd->setCUid(uid);
+
+	// re-add the file
+        if (quotanode) {
+          quotanode->addFile(fmd);
+        }
 
 	if (!vid.uid) {
 	  if (gid) {

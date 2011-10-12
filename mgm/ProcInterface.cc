@@ -2435,17 +2435,17 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	retc = EINVAL;
       } else {
 	// find everything to be modified
-	std::vector< std::vector<std::string> > found_dirs;
-	std::vector< std::vector<std::string> > found_files;
+	std::vector< std::vector<std::string> > *found_dirs  = new std::vector< std::vector<std::string> >;
+	std::vector< std::vector<std::string> > *found_files = new std::vector< std::vector<std::string> >;
 	if (option == "r") {
-	  if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
+	  if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, *found_dirs , *found_files)) {
 	    stdErr += "error: unable to search in path";
 	    retc = errno;
 	  } 
 	} else {
 	  // the single dir case
-	  found_dirs.resize(1);
-	  found_dirs[0].push_back(spath.c_str());
+	  found_dirs->resize(1);
+	  (*found_dirs)[0].push_back(spath.c_str());
 	}
 	
 	std::string uid=owner.c_str();
@@ -2498,32 +2498,34 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 	if (!failure) {
 	  // for directories
-	  for (unsigned int i = 0; i< found_dirs.size(); i++) {
-	    std::sort(found_dirs[i].begin(), found_dirs[i].end());
-	    for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
-	      if (gOFS->_chown(found_dirs[i][j].c_str(), uidt , gidt, *error, vid_in, (char*)0)) {
-		stdErr += "error: unable to chown of directory "; stdErr += found_dirs[i][j].c_str(); stdErr += "\n";
+	  for (unsigned int i = 0; i< (*found_dirs).size(); i++) {
+	    std::sort((*found_dirs)[i].begin(), (*found_dirs)[i].end());
+	    for (unsigned int j = 0; j< (*found_dirs)[i].size(); j++) {
+	      if (gOFS->_chown((*found_dirs)[i][j].c_str(), uidt , gidt, *error, vid_in, (char*)0)) {
+		stdErr += "error: unable to chown of directory "; stdErr += (*found_dirs)[i][j].c_str(); stdErr += "\n";
 		retc = errno;
 	      } else {
-		stdOut += "success: owner of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid_in.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();} stdOut += "\n";}
+		stdOut += "success: owner of directory "; stdOut += (*found_dirs)[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid_in.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();} stdOut += "\n";}
 	      }
 
 	    }
 	  }
 
 	  // for files
-	  for (unsigned int i = 0; i< found_files.size(); i++) {
-	    std::sort(found_files[i].begin(), found_files[i].end());
-	    for (unsigned int j = 0; j< found_files[i].size(); j++) {
-	      if (gOFS->_chown(found_files[i][j].c_str(), uidt , gidt, *error, vid_in, (char*)0)) {
-		stdErr += "error: unable to chown of file "; stdErr += found_files[i][j].c_str(); stdErr += "\n";
+	  for (unsigned int i = 0; i< (*found_files).size(); i++) {
+	    std::sort((*found_files)[i].begin(), (*found_files)[i].end());
+	    for (unsigned int j = 0; j< (*found_files)[i].size(); j++) {
+	      if (gOFS->_chown((*found_files)[i][j].c_str(), uidt , gidt, *error, vid_in, (char*)0)) {
+		stdErr += "error: unable to chown of file "; stdErr += (*found_files)[i][j].c_str(); stdErr += "\n";
 		retc = errno;
 	      } else {
-		stdOut += "success: owner of file "; stdOut += found_files[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid_in.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();} stdOut += "\n"; }
+		stdOut += "success: owner of file "; stdOut += (*found_files)[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid_in.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();} stdOut += "\n"; }
 	      }
 	    }
 	  }
 	}
+	delete found_dirs;
+	delete found_files;
 	MakeResult(dosort);
 	return SFS_OK;
       }
@@ -4024,37 +4026,39 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       } else {
 	// find everything to be deleted
 	if (option == "r") {
-	  std::vector< std::vector<std::string> > found_dirs;
-	  std::vector< std::vector<std::string> > found_files;
-	  
-	  if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
+	  std::vector< std::vector<std::string> > *found_dirs  = new std::vector< std::vector<std::string> >;
+	  std::vector< std::vector<std::string> > *found_files = new std::vector< std::vector<std::string> >;
+
+	  if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, (*found_dirs) , (*found_files))) {
 	    stdErr += "error: unable to remove file/directory";
 	    retc = errno;
 	  } else {
 	    // delete files starting at the deepest level
-	    for (int i = found_files.size()-1 ; i>=0; i--) {
-	      std::sort(found_files[i].begin(), found_files[i].end());
-	      for (unsigned int j = 0; j< found_files[i].size(); j++) {
-		if (gOFS->_rem(found_files[i][j].c_str(), *error, vid_in,(const char*)0)) {
+	    for (int i = (*found_files).size()-1 ; i>=0; i--) {
+	      std::sort((*found_files)[i].begin(), (*found_files)[i].end());
+	      for (unsigned int j = 0; j< (*found_files)[i].size(); j++) {
+		if (gOFS->_rem((*found_files)[i][j].c_str(), *error, vid_in,(const char*)0)) {
 		  stdErr += "error: unable to remove file\n";
 		  retc = errno;
 		} 
 	      }
 	    } 
 	    // delete directories starting at the deepest level
-	    for (int i = found_dirs.size()-1; i>=0; i--) {
-	      std::sort(found_dirs[i].begin(), found_dirs[i].end());
-	      for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
+	    for (int i = (*found_dirs).size()-1; i>=0; i--) {
+	      std::sort((*found_dirs)[i].begin(), (*found_dirs)[i].end());
+	      for (unsigned int j = 0; j< (*found_dirs)[i].size(); j++) {
 		// don't even try to delete the root directory
-		if (found_dirs[i][j] == "/")
+		if ((*found_dirs)[i][j] == "/")
 		  continue;
-		if (gOFS->_remdir(found_dirs[i][j].c_str(), *error, vid_in,(const char*)0)) {
+		if (gOFS->_remdir((*found_dirs)[i][j].c_str(), *error, vid_in,(const char*)0)) {
 		  stdErr += "error: unable to remove directory";
 		  retc = errno;
 		} 
 	      }
 	    }
 	  }
+	  delete found_dirs;
+	  delete found_files;
 	} else {
 	  if (gOFS->_rem(spath.c_str(), *error, vid_in,(const char*)0)) {
 	    stdErr += "error: unable to remove file/directory";
@@ -4189,8 +4193,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	stdErr="error: you have to give a path name to call 'find'";
 	retc = EINVAL;
      } else {
-	std::vector< std::vector<std::string> > found_dirs;
-	std::vector< std::vector<std::string> > found_files;
+	std::vector< std::vector<std::string> > *found_dirs  = new std::vector< std::vector<std::string> >;
+	std::vector< std::vector<std::string> > *found_files = new std::vector< std::vector<std::string> >;
 	
 	bool nofiles=false;
 
@@ -4198,7 +4202,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  nofiles = true;
 	}
 
-	if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found_dirs , found_files, key.c_str(),val.c_str(), nofiles)) {
+	if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, (*found_dirs) , (*found_files), key.c_str(),val.c_str(), nofiles)) {
 	  stdErr += "error: unable to remove file/directory";
 	  retc = errno;
 	}
@@ -4210,9 +4214,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  if (option.find("d") == STR_NPOS)
 	    dosort = false;
 
-	  for (unsigned int i = 0 ; i< found_files.size(); i++) {
-	    std::sort(found_files[i].begin(), found_files[i].end());
-	    for (unsigned int j = 0; j< found_files[i].size(); j++) {
+	  for (unsigned int i = 0 ; i< (*found_files).size(); i++) {
+	    std::sort((*found_files)[i].begin(), (*found_files)[i].end());
+	    for (unsigned int j = 0; j< (*found_files)[i].size(); j++) {
 	      cnt++;
 	      if (!calcbalance) {
 		if (findgroupmix || findzero || printsize || printfid || printchecksum || printctime || printmtime || printrep  || printunlink || selectrepdiff || selectonehour) {
@@ -4223,7 +4227,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		    bool selected = true;
   
 		    unsigned long long filesize=0;
-		    fmd = gOFS->eosView->getFile(found_files[i][j].c_str());
+		    fmd = gOFS->eosView->getFile((*found_files)[i][j].c_str());
 		    eos::FileMD fmdCopy(*fmd);
 		    fmd = &fmdCopy;
 		    gOFS->eosViewMutex.UnLock();
@@ -4241,7 +4245,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		    if (selected && (findzero || findgroupmix)) {
 		      if (findzero) {
 			if (!(filesize = fmd->getSize())) {
-			  stdOut += found_files[i][j].c_str();
+			  stdOut += (*found_files)[i][j].c_str();
 			  stdOut += "\n";
 			} 
 		      }
@@ -4280,7 +4284,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 			  }
 			}
 			if (mixed) {
-			  stdOut += found_files[i][j].c_str();
+			  stdOut += (*found_files)[i][j].c_str();
 			  stdOut += "\n";
 			} 
 		      }
@@ -4298,7 +4302,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 			
 			if (printed) {
 			  stdOut += "path=";
-			  stdOut += found_files[i][j].c_str();
+			  stdOut += (*found_files)[i][j].c_str();
 
 			  if (printsize) {
 			    stdOut += " size=";
@@ -4365,7 +4369,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		    //-------------------------------------------
 		  }
 		} else {
-		  stdOut += found_files[i][j].c_str();
+		  stdOut += (*found_files)[i][j].c_str();
 		  stdOut += "\n";
 		}
 	      } else {
@@ -4374,7 +4378,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		gOFS->eosViewMutex.Lock();
 		eos::FileMD* fmd = 0;
 		try {
-		  fmd = gOFS->eosView->getFile(found_files[i][j].c_str());
+		  fmd = gOFS->eosView->getFile((*found_files)[i][j].c_str());
 		} catch( eos::MDException &e ) {
 		  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
 		}
@@ -4420,7 +4424,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		}
 	      }
 	    }
-	    found_files[i].resize(0);
+	    (*found_files)[i].resize(0);
 	  }
 	  //	  found_files.resize(0);
 	    
@@ -4430,13 +4434,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	
 	if ( (option.find("d")) != STR_NPOS ) {
 	  dosort = false;
-	  for (unsigned int i = 0; i< found_dirs.size(); i++) {
-	    std::sort(found_dirs[i].begin(), found_dirs[i].end());
-	    for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
+	  for (unsigned int i = 0; i< (*found_dirs).size(); i++) {
+	    std::sort((*found_dirs)[i].begin(), (*found_dirs)[i].end());
+	    for (unsigned int j = 0; j< (*found_dirs)[i].size(); j++) {
 	      // print directories
 	      XrdOucString attr="";
 	      if (printkey.length()) {
-		gOFS->_attr_get(found_dirs[i][j].c_str(), *error, vid, (const char*) 0, printkey.c_str(), attr);
+		gOFS->_attr_get((*found_dirs)[i][j].c_str(), *error, vid, (const char*) 0, printkey.c_str(), attr);
 	      }
 	      if (printkey.length()) {
 		char pattr[4096];
@@ -4446,12 +4450,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		sprintf(pattr,"%-32s",attr.c_str());
 		stdOut += pattr;
 	      }
-	      stdOut += found_dirs[i][j].c_str();
+	      stdOut += (*found_dirs)[i][j].c_str();
 	      stdOut += "\n";
 	    }
 	  }
 	}
-	found_dirs.resize(0);
+	(*found_dirs).resize(0);
+	delete found_dirs;
+	delete found_files;
       }
 
 
@@ -4614,35 +4620,36 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  XrdOucString val = opaque.Get("mgm.attr.value");
 	  
 	  // find everything to be modified
-	  std::vector< std::vector<std::string> > found_dirs;
-	  std::vector< std::vector<std::string> > found_files;
+	  std::vector< std::vector<std::string> > *found_dirs  = new std::vector< std::vector<std::string> >;
+	  std::vector< std::vector<std::string> > *found_files = new std::vector< std::vector<std::string> >;
+
 	  if (option == "r") {
-	    if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
+	    if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, (*found_dirs) , (*found_files))) {
 	      stdErr += "error: unable to search in path";
 	      retc = errno;
 	    } 
 	  } else {
 	    // the single dir case
-	    found_dirs.resize(1);
-	    found_dirs[0].push_back(spath.c_str());
+	    (*found_dirs).resize(1);
+	    (*found_dirs)[0].push_back(spath.c_str());
 	  }
 	  
 	  if (!retc) {
 	    // apply to  directories starting at the highest level
-	    for (unsigned int i = 0; i< found_dirs.size(); i++) {
-	      std::sort(found_dirs[i].begin(), found_dirs[i].end());
-	      for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
+	    for (unsigned int i = 0; i< (*found_dirs).size(); i++) {
+	      std::sort((*found_dirs)[i].begin(), (*found_dirs)[i].end());
+	      for (unsigned int j = 0; j< (*found_dirs)[i].size(); j++) {
 		eos::ContainerMD::XAttrMap map;
 		
 		if (subcmd == "ls") {
 		  XrdOucString partialStdOut = "";
-		  if (gOFS->_attr_ls(found_dirs[i][j].c_str(), *error, vid_in,(const char*)0, map)) {
-		    stdErr += "error: unable to list attributes in directory "; stdErr += found_dirs[i][j].c_str();
+		  if (gOFS->_attr_ls((*found_dirs)[i][j].c_str(), *error, vid_in,(const char*)0, map)) {
+		    stdErr += "error: unable to list attributes in directory "; stdErr += (*found_dirs)[i][j].c_str();
 		    retc = errno;
 		  } else {
 		    eos::ContainerMD::XAttrMap::const_iterator it;
 		    if ( option == "r" ) {
-		      stdOut += found_dirs[i][j].c_str();
+		      stdOut += (*found_dirs)[i][j].c_str();
 		      stdOut += ":\n";
 		    }
 
@@ -4657,17 +4664,17 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		}
 		
 		if (subcmd == "set") {
-		  if (gOFS->_attr_set(found_dirs[i][j].c_str(), *error, vid_in,(const char*)0, key.c_str(),val.c_str())) {
-		    stdErr += "error: unable to set attribute in directory "; stdErr += found_dirs[i][j].c_str();
+		  if (gOFS->_attr_set((*found_dirs)[i][j].c_str(), *error, vid_in,(const char*)0, key.c_str(),val.c_str())) {
+		    stdErr += "error: unable to set attribute in directory "; stdErr += (*found_dirs)[i][j].c_str();
 		    retc = errno;
 		  } else {
-		    stdOut += "success: set attribute '"; stdOut += key; stdOut += "'='"; stdOut += val; stdOut += "' in directory "; stdOut += found_dirs[i][j].c_str();stdOut += "\n";
+		    stdOut += "success: set attribute '"; stdOut += key; stdOut += "'='"; stdOut += val; stdOut += "' in directory "; stdOut += (*found_dirs)[i][j].c_str();stdOut += "\n";
 		  }
 		}
 		
 		if (subcmd == "get") {
-		  if (gOFS->_attr_get(found_dirs[i][j].c_str(), *error, vid_in,(const char*)0, key.c_str(), val)) {
-		    stdErr += "error: unable to get attribute '"; stdErr += key; stdErr += "' in directory "; stdErr += found_dirs[i][j].c_str();
+		  if (gOFS->_attr_get((*found_dirs)[i][j].c_str(), *error, vid_in,(const char*)0, key.c_str(), val)) {
+		    stdErr += "error: unable to get attribute '"; stdErr += key; stdErr += "' in directory "; stdErr += (*found_dirs)[i][j].c_str();
                     retc = errno;
 		  } else {
 		    stdOut += key; stdOut += "="; stdOut += val; stdOut +="\n"; 
@@ -4675,15 +4682,17 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		}
 		
 		if (subcmd == "rm") {
-		  if (gOFS->_attr_rem(found_dirs[i][j].c_str(), *error, vid_in,(const char*)0, key.c_str())) {
-		    stdErr += "error: unable to remove attribute '"; stdErr += key; stdErr += "' in directory "; stdErr += found_dirs[i][j].c_str();
+		  if (gOFS->_attr_rem((*found_dirs)[i][j].c_str(), *error, vid_in,(const char*)0, key.c_str())) {
+		    stdErr += "error: unable to remove attribute '"; stdErr += key; stdErr += "' in directory "; stdErr += (*found_dirs)[i][j].c_str();
 		  } else {
-		    stdOut += "success: removed attribute '"; stdOut += key; stdOut +="' from directory "; stdOut += found_dirs[i][j].c_str();stdOut += "\n";
+		    stdOut += "success: removed attribute '"; stdOut += key; stdOut +="' from directory "; stdOut += (*found_dirs)[i][j].c_str();stdOut += "\n";
 		  }
 		}
 	      }
 	    }
 	  }
+	  delete found_dirs;
+	  delete found_files;
 	}
       }
       MakeResult(dosort);
@@ -4706,17 +4715,18 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	retc = EINVAL;
       } else {
 	// find everything to be modified
-	std::vector< std::vector<std::string> > found_dirs;
-	std::vector< std::vector<std::string> > found_files;
+	std::vector< std::vector<std::string> > *found_dirs  = new std::vector< std::vector<std::string> >;
+	std::vector< std::vector<std::string> > *found_files = new std::vector< std::vector<std::string> >;
+
 	if (option == "r") {
-	  if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found_dirs , found_files)) {
+	  if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, (*found_dirs) , (*found_files))) {
 	    stdErr += "error: unable to search in path";
 	    retc = errno;
 	  } 
 	} else {
 	  // the single dir case
-	  found_dirs.resize(1);
-	  found_dirs[0].push_back(spath.c_str());
+	  (*found_dirs).resize(1);
+	  (*found_dirs)[0].push_back(spath.c_str());
 	}
 
 	char modecheck[1024]; snprintf(modecheck,sizeof(modecheck)-1, "%llu", (unsigned long long) strtoul(mode.c_str(),0,10));
@@ -4728,22 +4738,24 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  XrdSfsMode Mode = (XrdSfsMode) strtoul(mode.c_str(),0,8);
 	  
 	  
-	  for (unsigned int i = 0; i< found_dirs.size(); i++) {
-	    std::sort(found_dirs[i].begin(), found_dirs[i].end());
-	    for (unsigned int j = 0; j< found_dirs[i].size(); j++) {
-	      if (gOFS->_chmod(found_dirs[i][j].c_str(), Mode, *error, vid_in, (char*)0)) {
-		stdErr += "error: unable to chmod of directory "; stdErr += found_dirs[i][j].c_str();
+	  for (unsigned int i = 0; i< (*found_dirs).size(); i++) {
+	    std::sort((*found_dirs)[i].begin(), (*found_dirs)[i].end());
+	    for (unsigned int j = 0; j< (*found_dirs)[i].size(); j++) {
+	      if (gOFS->_chmod((*found_dirs)[i][j].c_str(), Mode, *error, vid_in, (char*)0)) {
+		stdErr += "error: unable to chmod of directory "; stdErr += (*found_dirs)[i][j].c_str();
 		retc = errno;
 	      } else {
 		if (vid_in.uid) {
-		  stdOut += "success: mode of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now '2"; stdOut += mode; stdOut += "'";
+		  stdOut += "success: mode of directory "; stdOut += (*found_dirs)[i][j].c_str(); stdOut += " is now '2"; stdOut += mode; stdOut += "'";
 		} else {
-		  stdOut += "success: mode of directory "; stdOut += found_dirs[i][j].c_str(); stdOut += " is now '"; stdOut += mode; stdOut += "'";
+		  stdOut += "success: mode of directory "; stdOut += (*found_dirs)[i][j].c_str(); stdOut += " is now '"; stdOut += mode; stdOut += "'";
 		}
 	      }
 	  }
 	  }
 	}
+	delete found_dirs;
+	delete found_files;
 	MakeResult(dosort);
 	return SFS_OK;
       }

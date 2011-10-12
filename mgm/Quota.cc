@@ -32,8 +32,11 @@ SpaceQuota::SpaceQuota(const char* name) {
   std::string path = name;
 
   if (path[0] == '/') {
+    if (path[path.length()-1] != '/') {
+      path += "/";
+    }
     try {
-      quotadir = gOFS->eosView->getContainer(name );
+      quotadir = gOFS->eosView->getContainer(path.c_str());
     } catch( eos::MDException &e ) {
       quotadir = 0;
     }
@@ -1190,6 +1193,11 @@ Quota::GetSpaceQuota(const char* name, bool nocreate)
   SpaceQuota* spacequota=0;
   std::string sname = name;
 
+  // allow sloppy guys to skip the trailing '/'
+  if (sname[sname.length()-1] != '/') {
+    sname += "/";
+  }
+  
   if ( (gQuota.count(sname)) && (spacequota = gQuota[sname]) ) {
     
   } else {

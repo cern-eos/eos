@@ -56,6 +56,11 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
   std::string grouptag = "g:"; grouptag += groupid; grouptag += ":";
 
   std::string username  = eos::common::Mapping::UidToUserName(vid.uid,errc);
+  std::string groupname = eos::common::Mapping::GidToGroupName(vid.gid,errc);
+
+  std::string usertagfn =  "u:"; usertag  += username;  usertag += ":";
+  std::string grouptagfn = "g:"; grouptag += groupname; grouptag += ":";
+
   for (it = rules.begin(); it != rules.end(); it++) {
     bool egroupmatch = false;
     if (!it->compare(0, strlen("egroup:"), "egroup:")) {
@@ -70,7 +75,8 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
       egroupmatch = Egroup::Member(username, entry[1]);
       hasEgroup = egroupmatch;
     }
-    if ((!it->compare(0, usertag.length(), usertag)) || (!it->compare(0,grouptag.length(), grouptag)) || (egroupmatch)) {
+    if ((!it->compare(0, usertag.length(), usertag)) || (!it->compare(0,grouptag.length(), grouptag)) || (egroupmatch) ||
+	(!it->compare(0, usertagfn.length(), usertagfn)) || (!it->compare(0,grouptagfn.length(), grouptagfn)) ) {
       // that is our rule
       std::vector<std::string> entry;
       std::string delimiter = ":";
