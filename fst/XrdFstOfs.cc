@@ -810,6 +810,14 @@ XrdFstOfsFile::verifychecksum()
         checkSum=0;
         return false;
       }
+
+      if ( checkSum->GetLastOffset() == openSize ) {
+        eos_info("Skipping checksum (re-scan) since file was not read  ...");
+        // remove the checksum object
+        delete checkSum;
+        checkSum=0;
+        return false;
+      }
     }
     
     if (checkSum->NeedsRecalculation()) {
