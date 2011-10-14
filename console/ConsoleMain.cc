@@ -659,7 +659,7 @@ void usage() {
 int main (int argc, char* argv[]) {
   char *line, *s;
   serveruri = (char*)"root://";
-  XrdOucString HostName      = XrdNetDNS::getHostName();
+  XrdOucString HostName      = XrdSysDNS::getHostName();
   // serveruri += HostName;
   // serveruri += ":1094";
   serveruri += "localhost";

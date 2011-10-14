@@ -44,11 +44,11 @@ add_library (XrdMqOfs-Static STATIC
 	    XrdMqMessage.hh )
 
 
-target_link_libraries (XrdMqClient XrdSys XrdNetUtil XrdNet XrdOuc XrdClient crypto uuid curses)
-target_link_libraries (XrdMqOfs    XrdSys XrdNetUtil XrdNet XrdOuc XrdClient XrdOfs crypto uuid curses)
+target_link_libraries (XrdMqClient XrdUtils  XrdClient crypto uuid curses)
+target_link_libraries (XrdMqOfs    XrdUtils  XrdClient XrdOfs crypto uuid curses)
 
 target_link_libraries (XrdMqClient-Static )
-#depends on XrdClient XrdSys XrdOuc XrdNetUtil XrdNet XrdOuc libcrypto.a libuuid.a libcurses.a pthread dl )
+#depends on XrdClient XrdSys XrdOuc  XrdOuc libcrypto.a libuuid.a libcurses.a pthread dl )
 
 
 add_executable ( xrdmqclienttest XrdMqClientTest.cc  )
@@ -61,15 +61,15 @@ add_executable ( xrdmqsharedobjectclient XrdMqSharedObjectClient.cc )
 add_executable ( xrdmqsharedobjectqueueclient     XrdMqSharedObjectQueueClient.cc     )
 add_executable ( xrdmqsharedobjectbroadcastclient XrdMqSharedObjectBroadCastClient.cc )
 
-target_link_libraries ( xrdmqclienttest XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNetUtil XrdNet libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
-target_link_libraries ( xrdmqdumper     XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNetUtil XrdNet libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
-target_link_libraries ( xrdmqfeeder     XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNetUtil XrdNet libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
-target_link_libraries ( xrdmqclientmaster XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNetUtil XrdNet libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
-target_link_libraries ( xrdmqclientworker XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNetUtil XrdNet libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
-target_link_libraries ( xrdmqcryptotest   XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNetUtil XrdNet libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
-target_link_libraries ( xrdmqsharedobjectclient XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNetUtil XrdNet libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
-target_link_libraries ( xrdmqsharedobjectqueueclient XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNetUtil XrdNet libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
-target_link_libraries ( xrdmqsharedobjectbroadcastclient XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNetUtil XrdNet libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
+target_link_libraries ( xrdmqclienttest XrdMqClient-Static XrdClient XrdUtils  libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
+target_link_libraries ( xrdmqdumper     XrdMqClient-Static XrdClient XrdUtils  libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
+target_link_libraries ( xrdmqfeeder     XrdMqClient-Static XrdClient XrdUtils  libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
+target_link_libraries ( xrdmqclientmaster XrdMqClient-Static XrdClient XrdUtils  libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
+target_link_libraries ( xrdmqclientworker XrdMqClient-Static XrdClient XrdUtils  libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
+target_link_libraries ( xrdmqcryptotest   XrdMqClient-Static XrdClient XrdUtils  libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
+target_link_libraries ( xrdmqsharedobjectclient XrdMqClient-Static XrdClient XrdUtils  libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
+target_link_libraries ( xrdmqsharedobjectqueueclient XrdMqClient-Static XrdClient XrdUtils  libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
+target_link_libraries ( xrdmqsharedobjectbroadcastclient XrdMqClient-Static XrdClient XrdUtils  libcrypto.a libuuid.a libcurses.a libz.a pthread dl)
 
 
 if (Linux)

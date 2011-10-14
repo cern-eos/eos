@@ -4,8 +4,8 @@
 
 Summary: The EOS project
 Name: eos
-Version: 0.1.0
-Release: rc40
+Version: 0.1.1
+Release: 1
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -68,10 +68,10 @@ rm -rf $RPM_BUILD_ROOT
 
 %files -n eos-server
 %defattr(-,root,root)
-/usr/lib64/libXrdMqClient.so.0.1.0
+/usr/lib64/libXrdMqClient.so.0.1.1
 /usr/lib64/libXrdMqClient.so.0
 /usr/lib64/libXrdMqClient.so
-/usr/lib64/libXrdMqOfs.so.0.1.0
+/usr/lib64/libXrdMqOfs.so.0.1.1
 /usr/lib64/libXrdMqOfs.so.0
 /usr/lib64/libXrdMqOfs.so
 /usr/bin/xrdmqdumper
@@ -80,13 +80,13 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eoshapl
 /usr/sbin/eosfilesync
 /usr/sbin/eosdirsync
-/usr/lib64/libeosCommon.so.0.1.0
+/usr/lib64/libeosCommon.so.0.1.1
 /usr/lib64/libeosCommon.so.0
 /usr/lib64/libeosCommon.so
-/usr/lib64/libXrdEosAuth.so.0.1.0
+/usr/lib64/libXrdEosAuth.so.0.1.1
 /usr/lib64/libXrdEosAuth.so.0
 /usr/lib64/libXrdEosAuth.so
-/usr/lib64/libXrdEosFst.so.0.1.0
+/usr/lib64/libXrdEosFst.so.0.1.1
 /usr/lib64/libXrdEosFst.so.0
 /usr/lib64/libXrdEosFst.so
 /usr/sbin/eosfstregister
@@ -101,7 +101,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eos-fst-fsck
 /usr/sbin/eos-adler32
 /usr/sbin/eos-fst-dump
-/usr/lib64/libXrdEosMgm.so.0.1.0
+/usr/lib64/libXrdEosMgm.so.0.1.1
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so
 /usr/sbin/eos-log-compact

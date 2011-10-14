@@ -17,7 +17,7 @@ const char *XrdMqOfsCVSID = "$Id: XrdMqOfs.cc,v 1.0.0 2007/10/04 01:34:19 ajp Ex
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "mq/XrdMqOfs.hh"
 #include "mq/XrdMqMessage.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
@@ -475,11 +475,11 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
 
     // Establish our hostname and IPV4 address
     //
-    HostName      = XrdNetDNS::getHostName();
+    HostName      = XrdSysDNS::getHostName();
 
-    if (!XrdNetDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
+    if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
     strcpy(buff, "[::"); bp = buff+3;
-    bp += XrdNetDNS::IP2String(myIPaddr, 0, bp, 128);
+    bp += XrdSysDNS::IP2String(myIPaddr, 0, bp, 128);
     *bp++ = ']'; *bp++ = ':';
     sprintf(bp, "%d", myPort);
     for (i = 0; HostName[i] && HostName[i] != '.'; i++);
@@ -600,7 +600,7 @@ XrdMqOfs::Statistics() {
       sprintf(line,"mq.droppedmonitoring_rate %f\n",(1000.0*(DiscardedMonitoringMessages-LastDiscardedMonitoringMessages)/(tdiff))); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.total_rate             %f\n",(1000.0*(NoMessages-LastNoMessages)/(tdiff))); rc = write(fd,line,strlen(line));
       close(fd);
-      ::rename(tmpfile.c_str(),StatisticsFile.c_str());
+      rc = ::rename(tmpfile.c_str(),StatisticsFile.c_str());
       if (rc) { fprintf(stderr,"error {%s/%s/%d}: system command failed;retc=%d", __FUNCTION__,__FILE__, __LINE__,WEXITSTATUS(rc)); }
     }
     gettimeofday(&tstart,&tz);

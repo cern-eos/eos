@@ -24,7 +24,7 @@ add_library (XrdEosMgm MODULE
 	    Fsck.cc
 	    )
 
-target_link_libraries (XrdEosMgm XrdClient XrdPosix XrdSys XrdOuc XrdNet XrdNetUtil XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z)
+target_link_libraries (XrdEosMgm XrdClient XrdPosix XrdUtils XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z)
 
 add_executable ( testmgmview
 	         FsView.cc
@@ -35,11 +35,11 @@ add_executable ( eos-fst-dump
 	         FstDump.cc 
 )
 
-target_link_libraries ( testmgmview XrdClient XrdSys XrdOuc XrdNet XrdNetUtil eosCommon-Static XrdMqClient-Static crypto uuid curses pthread dl z)
+target_link_libraries ( testmgmview XrdClient XrdUtils eosCommon-Static XrdMqClient-Static crypto uuid curses pthread dl z)
 
 set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )
 
-target_link_libraries ( eos-fst-dump XrdPosix XrdSys XrdOuc XrdNet XrdNetUtil )
+target_link_libraries ( eos-fst-dump XrdPosix XrdUtils )
 
 if (Linux)
   set_target_properties (XrdEosMgm PROPERTIES

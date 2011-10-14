@@ -12,7 +12,7 @@
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>

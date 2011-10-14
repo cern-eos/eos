@@ -211,7 +211,7 @@ com_fs (char* arg1) {
 
       if (!mp.length()) {
 	mp = arg;
-	hostport = XrdNetDNS::getHostName();
+	hostport = XrdSysDNS::getHostName();
       }
       if (!(hostport.find(":")!= STR_NPOS)) {
 	in += ":1095";
@@ -300,7 +300,7 @@ com_fs (char* arg1) {
       XrdOucString mp = arg;
       if (!arg2.length()) {
 	// status by mount point
-	char* HostName = XrdNetDNS::getHostName();
+	char* HostName = XrdSysDNS::getHostName();
 	in += "&mgm.fs.node=";
 	in += HostName;
 	in += "&mgm.fs.mountpoint=";

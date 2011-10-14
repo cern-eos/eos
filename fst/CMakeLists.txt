@@ -20,7 +20,7 @@ add_library (XrdEosFst MODULE
             txqueue/TransferQueue.cc
 	    )
 
-target_link_libraries (XrdEosFst eosCapability-Static eosCommon-Static XrdMqClient-Static XrdClient XrdSys XrdOuc XrdNet XrdNetUtil XrdOfs XrdOss crypto uuid curses pthread dl z attr)
+target_link_libraries (XrdEosFst eosCapability-Static eosCommon-Static XrdMqClient-Static XrdClient XrdUtils XrdOfs crypto uuid curses pthread dl z attr)
 
 add_executable ( FstLoad
                  Load.cc
@@ -71,7 +71,7 @@ add_executable( eos-fst-fsck
 
 set_target_properties( eosfstcp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 
-target_link_libraries ( FstLoad XrdSys XrdOuc XrdNetUtil dl )
+target_link_libraries ( FstLoad XrdUtils dl )
 target_link_libraries ( eos-check-blockxs eosCommon )
 target_link_libraries ( eos-compute-blockxs eosCommon )
 target_link_libraries ( eos-scan-fs eosCommon ) 

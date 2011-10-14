@@ -11,7 +11,7 @@ add_library (eosCapability-Static STATIC
 	    XrdCapability.hh
 	    )
 
-target_link_libraries (XrdEosAuth XrdSys XrdOuc XrdNet eosCommon)
+target_link_libraries (XrdEosAuth XrdUtils eosCommon)
 
 target_link_libraries (eosCapability-Static)
 

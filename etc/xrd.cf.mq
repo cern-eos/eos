@@ -1,8 +1,7 @@
 ######################### Broker OFS ########################
 xrootd.fslib libXrdMqOfs.so
 all.export /eos/ nolock
-all.role manager
-all.manager localhost 2313
+all.role server
 #############################################################
 # SSS authentication
 xrootd.seclib libXrdSec.so

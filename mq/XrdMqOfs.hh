@@ -162,7 +162,7 @@ public:
   
   static  XrdOucHash<XrdOucString> *stringstore;
   
-  XrdSfsFile      *newFile(char *user=0) {return (XrdSfsFile*) new XrdMqOfsFile(user);}
+  XrdOfsFile      *newFile(char *user=0) {return (XrdOfsFile*) new XrdMqOfsFile(user);}
   
   char*            HostName;           // -> our hostname as derived in XrdOfs
   char*            HostPref;           // -> our hostname as derived in XrdOfs without domain

@@ -5,7 +5,7 @@ const char *XrdMqClientCVSID = "$Id: XrdMqClient.cc,v 1.0.0 2007/10/04 01:34:19 
 #include <mq/XrdMqClient.hh>
 #include <mq/XrdMqTiming.hh>
 
-#include <XrdNet/XrdNetDNS.hh>
+#include <XrdSys/XrdSysDNS.hh>
 #include <XrdClient/XrdClientUrlSet.hh>
 
 /******************************************************************************/
@@ -99,8 +99,7 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
   XrdClientAdmin* admin=0;
   //  msg.Print();
   for (i=0 ;i< kBrokerN; i++) {
-    char result[16384];
-    size_t result_size=0;
+    char *result = 0;
 
     admin = new XrdClientAdmin(GetBrokerUrl(i)->c_str());
     admin->Connect();
@@ -108,7 +107,10 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
     admin->GetClientConn()->SetOpTimeLimit(10);
     admin->Query(kXR_Qopaquf,
 		 (kXR_char *) message.c_str(),
-		 (kXR_char *) result, result_size);
+		 (kXR_char **) &result, 0);
+
+    free(result);
+
     if (!admin->LastServerResp()) {
       rc = false;
     }
@@ -422,7 +424,7 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl, const char
     }
   } else {
     // the default is to create the client id as /xmesssage/<domain>/<host>/
-    XrdOucString FullName      = XrdNetDNS::getHostName();
+    XrdOucString FullName      = XrdSysDNS::getHostName();
     int ppos=0;
     XrdOucString HostName = FullName;
     XrdOucString Domain   = FullName;

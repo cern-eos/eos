@@ -51,7 +51,7 @@ add_executable ( eos
                  commands/com_who.cc
 )
 
-target_link_libraries ( eos XrdClient XrdSys XrdOuc XrdNetUtil XrdNet XrdOuc pthread dl  XrdSys XrdNetUtil XrdMqClient-Static crypto uuid curses z readline )
+target_link_libraries ( eos XrdClient XrdUtils pthread dl XrdMqClient-Static crypto uuid curses z readline )
 
 INSTALL_PROGRAMS( /sbin FILES eosadmin )
 

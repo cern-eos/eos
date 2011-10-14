@@ -32,6 +32,7 @@ eos::fst::XrdFstOfs eos::fst::gOFS;
 
 extern XrdSysError OfsEroute;
 extern XrdOssSys  *XrdOfsOss;
+extern XrdOfs     *XrdOfsFS;
 extern XrdOss     *XrdOssGetSS(XrdSysLogger *, const char *, const char *);
 extern XrdOucTrace OfsTrace;
 
@@ -61,6 +62,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 //
    if (!(XrdOfsOss = (XrdOssSys*) XrdOssGetSS(lp, configfn, eos::fst::gOFS.OssLib))) return 0;
 
+   XrdOfsFS = &eos::fst::gOFS;
 // All done, we can return the callout vector to these routines.
 //
    return &eos::fst::gOFS;
@@ -87,7 +89,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   if (rc)
     return rc;
 
-  TransferScheduler = new XrdScheduler(8, 128, 60);
+  TransferScheduler = new XrdScheduler(&Eroute, &OfsTrace, 8, 128, 60);
 
   TransferScheduler->Start();
 

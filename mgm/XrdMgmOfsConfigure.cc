@@ -14,7 +14,7 @@
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
 #include "namespace/views/HierarchicalView.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -79,11 +79,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     
     // Establish our hostname and IPV4 address
     //
-    HostName      = XrdNetDNS::getHostName();
+    HostName      = XrdSysDNS::getHostName();
     
-    if (!XrdNetDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
+    if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
     strcpy(buff, "[::"); bp = buff+3;
-    bp += XrdNetDNS::IP2String(myIPaddr, 0, bp, 128);
+    bp += XrdSysDNS::IP2String(myIPaddr, 0, bp, 128);
     *bp++ = ']'; *bp++ = ':';
     sprintf(bp, "%ld", myPort);
     for (i = 0; HostName[i] && HostName[i] != '.'; i++);
