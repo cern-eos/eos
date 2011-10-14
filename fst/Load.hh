@@ -153,7 +153,7 @@ public:
     int rc=0;
     
     if ((rc = XrdSysThread::Run(&tid, Load::StartLoadThread, static_cast<void *>(this),
-				0, "Scrubber"))) {
+                                0, "Scrubber"))) {
       return false;
     } else {
       return true;
@@ -171,11 +171,11 @@ public:
     while (1) {
       Mutex.Lock();
       if (!fDiskStat.Measure()) {
-	fprintf(stderr,"error: cannot get disk IO statistic\n");
+        fprintf(stderr,"error: cannot get disk IO statistic\n");
       }
 
       if (!fNetStat.Measure()) {
-	fprintf(stderr,"error: cannot get network IO statistic\n");
+        fprintf(stderr,"error: cannot get network IO statistic\n");
       }
       Mutex.UnLock();
       sleep(interval);
@@ -193,42 +193,42 @@ public:
       mapdev = "";
       struct stat stbuf;
       if (!(stat("/etc/mtab",&stbuf))) {
-	devicemap.clear();
-	if (stbuf.st_mtime != loadtime) {
-	  FILE* fd = fopen("/etc/mtab","r");
-	  // reparse the mtab
-	  char line[1025];
-	  char val[6][1024];
-	  line[0]=0;
-	  while (fd && fgets(line, 1024, fd)) {
-	    if ((sscanf(line,"%s %s %s %s %s %s\n", val[0],val[1],val[2],val[3],val[4],val[5]))==6) {
-	      XrdOucString sdev  = val[0];
-	      XrdOucString spath = val[1];
+        devicemap.clear();
+        if (stbuf.st_mtime != loadtime) {
+          FILE* fd = fopen("/etc/mtab","r");
+          // reparse the mtab
+          char line[1025];
+          char val[6][1024];
+          line[0]=0;
+          while (fd && fgets(line, 1024, fd)) {
+            if ((sscanf(line,"%s %s %s %s %s %s\n", val[0],val[1],val[2],val[3],val[4],val[5]))==6) {
+              XrdOucString sdev  = val[0];
+              XrdOucString spath = val[1];
               //fprintf(stderr,"%s => %s\n", sdev.c_str(), spath.c_str());
-	      if (sdev.beginswith("/dev/")) {
-		sdev.erase(0,5);
-		devicemap[sdev.c_str()] = spath.c_str();
+              if (sdev.beginswith("/dev/")) {
+                sdev.erase(0,5);
+                devicemap[sdev.c_str()] = spath.c_str();
                 //fprintf(stderr,"=> %s %s\n", sdev.c_str(),spath.c_str());
-	      }
-	    }
-	  }
-	  if (fd)
-	    fclose(fd);
-	}
+              }
+            }
+          }
+          if (fd)
+            fclose(fd);
+        }
       }
       std::map<std::string, std::string>::const_iterator devicemapit;
       for ( devicemapit = devicemap.begin(); devicemapit != devicemap.end(); devicemapit++ ) {
-	XrdOucString match = devpath;
-	XrdOucString itstr = devicemapit->second.c_str();
-	match.erase(devicemapit->second.length());
+        XrdOucString match = devpath;
+        XrdOucString itstr = devicemapit->second.c_str();
+        match.erase(devicemapit->second.length());
         //        fprintf(stderr,"%s <=> %s\n",match.c_str(),itstr.c_str());
-	if (match == itstr) {
-	  if ((int)devicemapit->second.length() > (int)mappath.length()) {
-	    mapdev = devicemapit->first.c_str();
-	    mappath = devicemapit->second.c_str();
+        if (match == itstr) {
+          if ((int)devicemapit->second.length() > (int)mappath.length()) {
+            mapdev = devicemapit->first.c_str();
+            mappath = devicemapit->second.c_str();
             //fprintf(stderr,"Setting up mapping %s=>%s\n", mapdev.c_str(), mappath.c_str());
-	  }
-	}
+          }
+        }
       }
     }
     if (!mapdev.length()) {

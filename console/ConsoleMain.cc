@@ -694,14 +694,14 @@ int main (int argc, char* argv[]) {
     if (in1.beginswith("-")) {
       if ( (in1 != "--help")  &&
            (in1 != "--version") &&
-	   (in1 != "--batch") &&
-	   (in1 != "--role")  &&
-	   (in1 != "-h")      &&
-	   (in1 != "-b")      &&
+           (in1 != "--batch") &&
+           (in1 != "--role")  &&
+           (in1 != "-h")      &&
+           (in1 != "-b")      &&
            (in1 != "-v")      &&
-	   (in1 != "-r")) {
-	usage();
-	exit(-1);
+           (in1 != "-r")) {
+        usage();
+        exit(-1);
       }
     }
     if ( (in1 == "--help") || (in1 == "-h") ) {
@@ -776,13 +776,13 @@ int main (int argc, char* argv[]) {
           cmdline += argv[i];
           cmdline += " ";
         }
-	if ( (!selectedrole) && (!getuid()) && (serveruri.beginswith("root://localhost"))) {
-	  // we are root, we always select also the root role by default
-	  XrdOucString cmdline="role 0 0 ";
-	  if (!interactive)silent = true;
-	  execute_line ((char*)cmdline.c_str());
-	  if (!interactive)silent = false;
-	}
+        if ( (!selectedrole) && (!getuid()) && (serveruri.beginswith("root://localhost"))) {
+          // we are root, we always select also the root role by default
+          XrdOucString cmdline="role 0 0 ";
+          if (!interactive)silent = true;
+          execute_line ((char*)cmdline.c_str());
+          if (!interactive)silent = false;
+        }
 
         // strip leading and trailing white spaces
         while (cmdline.beginswith(" ")) {cmdline.erase(0,1);}
@@ -827,6 +827,13 @@ int main (int argc, char* argv[]) {
   } 
 
   if (interactive) {
+    fprintf(stderr,"# ---------------------------------------------------------------------------\n");
+    fprintf(stderr,"# EOS  Copyright (C) 2011 CERN/Switzerland\n");
+    fprintf(stderr,"# This program comes with ABSOLUTELY NO WARRANTY; for details type `license'.\n");
+    fprintf(stderr,"# This is free software, and you are welcome to redistribute it \n");
+    fprintf(stderr,"# under certain conditions; type `license' for details.\n");
+    fprintf(stderr,"# ---------------------------------------------------------------------------\n");
+
     execute_line((char*)"motd");
     execute_line((char*)"version");
   }

@@ -86,13 +86,13 @@ com_attr (char* arg1) {
 
     if (key=="default") {
       if (value == "replica") {
-	XrdOucString d1 = "set "; d1 += optionstring; d1 += "sys.forced.blocksize=4k ";   d1 += path;
-	XrdOucString d2 = "set "; d2 += optionstring; d2 += "sys.forced.checksum=adler "; d2 += path;
-	XrdOucString d3 = "set "; d3 += optionstring; d3 += "sys.forced.layout=replica "; d3 += path;
-	XrdOucString d4 = "set "; d4 += optionstring; d4 += "sys.forced.nstripes=2 ";     d4 += path;
-	XrdOucString d5 = "set "; d5 += optionstring; d5 += "sys.forced.space=default ";  d5 += path;
-	global_retc = com_attr((char*)d1.c_str()) || com_attr((char*)d2.c_str()) || com_attr((char*)d3.c_str()) || com_attr((char*)d4.c_str()) || com_attr((char*)d5.c_str());
-	return (0);
+        XrdOucString d1 = "set "; d1 += optionstring; d1 += "sys.forced.blocksize=4k ";   d1 += path;
+        XrdOucString d2 = "set "; d2 += optionstring; d2 += "sys.forced.checksum=adler "; d2 += path;
+        XrdOucString d3 = "set "; d3 += optionstring; d3 += "sys.forced.layout=replica "; d3 += path;
+        XrdOucString d4 = "set "; d4 += optionstring; d4 += "sys.forced.nstripes=2 ";     d4 += path;
+        XrdOucString d5 = "set "; d5 += optionstring; d5 += "sys.forced.space=default ";  d5 += path;
+        global_retc = com_attr((char*)d1.c_str()) || com_attr((char*)d2.c_str()) || com_attr((char*)d3.c_str()) || com_attr((char*)d4.c_str()) || com_attr((char*)d5.c_str());
+        return (0);
       } 
       goto com_attr_usage;
     }

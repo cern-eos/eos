@@ -193,53 +193,53 @@ public:
   virtual ~XrdPosixTiming(){XrdPosixTiming* n = next; if (n) delete n;};
 };
 
-#define TIMING(__ID__,__LIST__)                                         \
-do {                                                                    \
-     struct timeval tp;                                                 \
-     struct timezone tz;                                                \
-     gettimeofday(&tp, &tz);                                            \
-     (__LIST__)->ptr->next=new XrdPosixTiming(__ID__,tp);             \
-     (__LIST__)->ptr = (__LIST__)->ptr->next;                           \
-} while(0);                                                             \
+#define TIMING(__ID__,__LIST__)                                 \
+  do {                                                          \
+    struct timeval tp;                                          \
+    struct timezone tz;                                         \
+    gettimeofday(&tp, &tz);                                     \
+    (__LIST__)->ptr->next=new XrdPosixTiming(__ID__,tp);        \
+    (__LIST__)->ptr = (__LIST__)->ptr->next;                    \
+  } while(0);                                                   
 
 
 class XrdWriteCachePage {
 public:
-  char*  buffer;
-  size_t nbytes;
-  int    size;
-  off_t  offset;
-  off_t  lastoffset;
-  off_t  pagestart;
+char*  buffer;
+size_t nbytes;
+int    size;
+off_t  offset;
+off_t  lastoffset;
+off_t  pagestart;
 
-  XrdWriteCachePage* Next;
+XrdWriteCachePage* Next;
 
-  void SetOffset(off_t offs) {offset = offs;}
-  void SetLastOffset(off_t offs) {lastoffset = offs;}
-  void SetNbytes(size_t nb) {
-    nbytes = nb;    
+void SetOffset(off_t offs) {offset = offs;}
+void SetLastOffset(off_t offs) {lastoffset = offs;}
+void SetNbytes(size_t nb) {
+  nbytes = nb;    
 #ifdef XWCDEBUG
-    printf("**** [XWC:SetNbytes] [page=%llu] nbytes = %llu\n",(unsigned long long)this,(unsigned long long)nbytes);
+  printf("**** [XWC:SetNbytes] [page=%llu] nbytes = %llu\n",(unsigned long long)this,(unsigned long long)nbytes);
 #endif
-  }
-  void SetPageStart(size_t nb) {
-    pagestart = nb;
+}
+void SetPageStart(size_t nb) {
+  pagestart = nb;
 #ifdef XWCDEBUG
-    printf("**** [XWC:SetPageStart] [page=%llu] pagestart = %llu\n",(unsigned long long)this,(unsigned long long)pagestart);
+  printf("**** [XWC:SetPageStart] [page=%llu] pagestart = %llu\n",(unsigned long long)this,(unsigned long long)pagestart);
 #endif
-  }
+}
 
-  XrdWriteCachePage(int sze) {
-    buffer = (char*) malloc(sze);
-    size = sze;
-    offset=0;
-    lastoffset=0;
-    Next=0;
-    nbytes=0;
-    pagestart=0;
-  };
+XrdWriteCachePage(int sze) {
+  buffer = (char*) malloc(sze);
+  size = sze;
+  offset=0;
+  lastoffset=0;
+  Next=0;
+  nbytes=0;
+  pagestart=0;
+};
 
-  ~XrdWriteCachePage() {if (buffer) free(buffer); buffer = 0;offset=0;lastoffset=0;};
+~XrdWriteCachePage() {if (buffer) free(buffer); buffer = 0;offset=0;lastoffset=0;};
 };
 
 class XrdWriteCachePagePool {
@@ -258,9 +258,9 @@ public:
     freepages = 0;
     for (int i=0; i< npages; i++) {
       if (freepages) {
-	freepages->Next = new XrdWriteCachePage(pagesize);
+        freepages->Next = new XrdWriteCachePage(pagesize);
       } else {
-	freepages = new XrdWriteCachePage(pagesize);
+        freepages = new XrdWriteCachePage(pagesize);
       }
     }
   }
@@ -320,7 +320,7 @@ public:
     if (pages) {
       int retc = XrdPosixXrootd::Pwrite(fildes, pages->buffer + pages->pagestart, pages->nbytes, (long long) pages->offset + pages->pagestart);
       if (retc) {
-	fprintf(stderr,"error {%s/%s/%d}: pwrite command failed;retc=%d", __FUNCTION__,__FILE__, __LINE__,retc);; 
+        fprintf(stderr,"error {%s/%s/%d}: pwrite command failed;retc=%d", __FUNCTION__,__FILE__, __LINE__,retc);; 
       }
 #ifdef XWCDEBUG
       printf("**** [XWC:Flush] Write [page=%llu] buf=%llu bytes=%llu start=%llu offset=%llu\n",(unsigned long long)pages,(unsigned long long)pages->buffer,(unsigned long long)pages->nbytes,(unsigned long long)pages->pagestart,(unsigned long long)pages->offset);
@@ -937,7 +937,7 @@ int xrd_inodirlist(unsigned long long dirinode, const char *path)
     if ((items != 2) || (strcmp(tag,"inodirlist:"))) {
       free(value);
       if (posixdir) 
-	delete posixdir;
+        delete posixdir;
       return EFAULT;
     }
     ptr = strchr(value,' ');
@@ -947,10 +947,10 @@ int xrd_inodirlist(unsigned long long dirinode, const char *path)
     while ((ptr) &&(ptr < endptr)) {
       int items = sscanf(ptr,"%s %llu",dirpath,&inode);
       if (items != 2) {
-	free(value);
-	if (posixdir)
-	  delete posixdir;
-	return EFAULT;
+        free(value);
+        if (posixdir)
+          delete posixdir;
+        return EFAULT;
       }
       XrdOucString whitespacedirpath = dirpath;
       whitespacedirpath.replace("%20"," ");
@@ -1014,12 +1014,12 @@ int xrd_open(const char *path, int oflags, mode_t mode)
     if (spath.endswith("/proc/reconnect")) {
       XrdClientAdmin* client = new XrdClientAdmin(path);
       if (client) {
-	if (client->Connect()) {
-	  client->GetClientConn()->Disconnect(true);
-	  errno = ENETRESET;
-	  return -1;
-	}
-	delete client;
+        if (client->Connect()) {
+          client->GetClientConn()->Disconnect(true);
+          errno = ENETRESET;
+          return -1;
+        }
+        delete client;
       }
       errno = ECONNABORTED;
       return -1;
@@ -1355,31 +1355,31 @@ const char* xrd_get_dir(DIR* dp, int entry) { return 0;}
 #define MAX_NUM_NODES 63 /* max number of data nodes in a cluster */
 void xrd_init()
 {
-    memset(fdbuffermap,0,sizeof(fdbuffermap));
+  memset(fdbuffermap,0,sizeof(fdbuffermap));
 
-    XrdPosixXrootd::setEnv(NAME_DATASERVERCONN_TTL,300);
-    XrdPosixXrootd::setEnv(NAME_LBSERVERCONN_TTL,3600*24);
-    XrdPosixXrootd::setEnv(NAME_REQUESTTIMEOUT,30);
-    EnvPutInt("NAME_MAXREDIRECTCOUNT",3);
-    EnvPutInt("NAME_RECONNECTWAIT", 10);
+  XrdPosixXrootd::setEnv(NAME_DATASERVERCONN_TTL,300);
+  XrdPosixXrootd::setEnv(NAME_LBSERVERCONN_TTL,3600*24);
+  XrdPosixXrootd::setEnv(NAME_REQUESTTIMEOUT,30);
+  EnvPutInt("NAME_MAXREDIRECTCOUNT",3);
+  EnvPutInt("NAME_RECONNECTWAIT", 10);
 
-    setenv("XRDPOSIX_POPEN","1",1);
-    if (getenv("EOS_DEBUG")) {
-      XrdPosixXrootd::setEnv(NAME_DEBUG,atoi(getenv("EOS_DEBUG")));
-    }
-    // 1 MB buckets = 256 
-    if (getenv("EOS_NOXWC")) {
-      XWC = 0;
-    } else {
-      XWC = new XrdWriteCache(4*1024*1024 / OSPAGESIZE);
-    }
+  setenv("XRDPOSIX_POPEN","1",1);
+  if (getenv("EOS_DEBUG")) {
+    XrdPosixXrootd::setEnv(NAME_DEBUG,atoi(getenv("EOS_DEBUG")));
+  }
+  // 1 MB buckets = 256 
+  if (getenv("EOS_NOXWC")) {
+    XWC = 0;
+  } else {
+    XWC = new XrdWriteCache(4*1024*1024 / OSPAGESIZE);
+  }
 
-    passwdstore = new XrdOucHash<XrdOucString> ();
-    inodestore  = new XrdOucHash<XrdOucString> ();
-    stringstore = new XrdOucHash<XrdOucString> ();
-    dirstore    = new XrdOucHash<XrdPosixDirList> (); 
-    mknodopenstore = new XrdOucHash<XrdOpenPosixFile> ();
-    readopenstore = new XrdOucHash<XrdOpenPosixFile> ();
+  passwdstore = new XrdOucHash<XrdOucString> ();
+  inodestore  = new XrdOucHash<XrdOucString> ();
+  stringstore = new XrdOucHash<XrdOucString> ();
+  dirstore    = new XrdOucHash<XrdPosixDirList> (); 
+  mknodopenstore = new XrdOucHash<XrdOpenPosixFile> ();
+  readopenstore = new XrdOucHash<XrdOpenPosixFile> ();
 }
         
 

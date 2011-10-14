@@ -228,12 +228,12 @@ int main(int argc, char* argv[] ) {
     } else {
 
       if (inplace) {
-	if (!rename(gFmd.ChangeLogFileName.c_str(),argv[1])) {
-	  fprintf(stdout,"=> trimmed in place := renaming  %s => %s\n", gFmd.ChangeLogFileName.c_str(),argv[1]);
-	} else {
-	  fprintf(stderr,"%s: error: cannot rename new trim logfile to be in place!\n",argv[0]);
-	  rc = 3;
-	}
+        if (!rename(gFmd.ChangeLogFileName.c_str(),argv[1])) {
+          fprintf(stdout,"=> trimmed in place := renaming  %s => %s\n", gFmd.ChangeLogFileName.c_str(),argv[1]);
+        } else {
+          fprintf(stderr,"%s: error: cannot rename new trim logfile to be in place!\n",argv[0]);
+          rc = 3;
+        }
       }
     }
   }
@@ -241,12 +241,12 @@ int main(int argc, char* argv[] ) {
   if (searchpath.length()) {
     fprintf(stdout,"---------------------------------------\n");
     if (quiet)
-       eos::common::Logging::SetLogPriority(LOG_CRIT);
+      eos::common::Logging::SetLogPriority(LOG_CRIT);
     else 
       if (!show) 
-	eos::common::Logging::SetLogPriority(LOG_NOTICE);
+        eos::common::Logging::SetLogPriority(LOG_NOTICE);
       else
-	eos::common::Logging::SetLogPriority(LOG_INFO);
+        eos::common::Logging::SetLogPriority(LOG_INFO);
 
     if (cleantransactions) {
       unsigned long long transaction_cleanup_ok=0;
@@ -257,23 +257,23 @@ int main(int argc, char* argv[] ) {
       tadir += "/"; tadir += ".eostransaction";
       DIR* dir = opendir(tadir.c_str());
       if (!dir) {
-	fprintf(stderr,"error: cannot open transactiondirectory %s\n", tadir.c_str());
-	exit(-1);
+        fprintf(stderr,"error: cannot open transactiondirectory %s\n", tadir.c_str());
+        exit(-1);
       }
       struct dirent* entry;
       while ( (entry=readdir(dir))) {
-	if ( (!strcmp(entry->d_name,".")) ||
-	     (!strcmp(entry->d_name,".."))) {
-	  continue;
-	}
-	eos_static_info("transactions directory: cleaning %s", entry->d_name);
-	XrdOucString txname = tadir; txname += "/"; txname += entry->d_name;
-	if ((testonly) || (!unlink(txname.c_str()))) {
-	  transaction_cleanup_ok++;
-	} else {
-	  eos_static_crit("transactions directory: cleanup failed for %s", txname.c_str());
-	  transaction_cleanup_failed++;
-	}
+        if ( (!strcmp(entry->d_name,".")) ||
+             (!strcmp(entry->d_name,".."))) {
+          continue;
+        }
+        eos_static_info("transactions directory: cleaning %s", entry->d_name);
+        XrdOucString txname = tadir; txname += "/"; txname += entry->d_name;
+        if ((testonly) || (!unlink(txname.c_str()))) {
+          transaction_cleanup_ok++;
+        } else {
+          eos_static_crit("transactions directory: cleanup failed for %s", txname.c_str());
+          transaction_cleanup_failed++;
+        }
       }
       closedir(dir);
       fprintf(stdout,"=> transactions cleaned ok     : %llu\n", transaction_cleanup_ok);
@@ -291,11 +291,11 @@ int main(int argc, char* argv[] ) {
     } else {
       char filename[16384];
       while ( (fscanf(fp,"%s\n",filename)) == 1) {
-	eos::common::Path cPath(filename);
-	XrdOucString bname = cPath.GetName();
-	long long fid = eos::common::FileId::Hex2Fid(bname.c_str());
-	//	fprintf(stdout,"%llu\t", fid);
-	DiskFid.insert(make_pair(fid,filename));
+        eos::common::Path cPath(filename);
+        XrdOucString bname = cPath.GetName();
+        long long fid = eos::common::FileId::Hex2Fid(bname.c_str());
+        //      fprintf(stdout,"%llu\t", fid);
+        DiskFid.insert(make_pair(fid,filename));
       }
       fprintf(stdout,"=> loaded %lld FID's from local path %s \n", (long long)DiskFid.size(), searchpath.c_str());
       fclose(fp);
@@ -309,32 +309,32 @@ int main(int argc, char* argv[] ) {
     {
       google::sparse_hash_map<long long, std::string>::iterator it;
       for (it = DiskFid.begin(); it != DiskFid.end(); ++it) {
-	// check if this exists in the meta data log
-	if (gFmd.FmdSize.count(it->first)==1) {
-	  // ok, that's good, let's crosscheck the size
+        // check if this exists in the meta data log
+        if (gFmd.FmdSize.count(it->first)==1) {
+          // ok, that's good, let's crosscheck the size
 
-	} else {
-	  // bad, this is missing
-	  eos_static_info("fid %08llx on disk      : missing in changelog file !", it->first);
-	  error_missing_changelog++;
-	  if (deletemissingchangelog) {
-	    if (!sure) {
-	      if (yesno("You asked to unlink files from the data disk .... are you really sure? [y/n + ENTER]")) {
-		sure = true;
-	      } else {
-		exit(0);
-	      }
-	    }
-	    if (sure) {
-	      eos_static_crit("unlinking file %s", it->second.c_str());
-	      // uncomment that to make the tool 'sharp'
-	      if (!testonly) {
-		if (unlink(it->second.c_str())) {eos_static_err("failed to unlink file %s", it->second.c_str());}
-	      }
-	      files_unlinked_data++;
-	    }
-	  }
-	}
+        } else {
+          // bad, this is missing
+          eos_static_info("fid %08llx on disk      : missing in changelog file !", it->first);
+          error_missing_changelog++;
+          if (deletemissingchangelog) {
+            if (!sure) {
+              if (yesno("You asked to unlink files from the data disk .... are you really sure? [y/n + ENTER]")) {
+                sure = true;
+              } else {
+                exit(0);
+              }
+            }
+            if (sure) {
+              eos_static_crit("unlinking file %s", it->second.c_str());
+              // uncomment that to make the tool 'sharp'
+              if (!testonly) {
+                if (unlink(it->second.c_str())) {eos_static_err("failed to unlink file %s", it->second.c_str());}
+              }
+              files_unlinked_data++;
+            }
+          }
+        }
       }
     }
     unsigned long long error_missing_disk=0;
@@ -346,56 +346,56 @@ int main(int argc, char* argv[] ) {
     {
       google::dense_hash_map<long long, unsigned long long>::iterator it;
       for (it = gFmd.FmdSize.begin(); it != gFmd.FmdSize.end(); ++it) {
-	if ((DiskFid.count(it->first))==1) {
-	  // ok, that's good, check the most basic meta data now
-	  struct stat buf;
-	  if (stat(DiskFid[it->first].c_str(),&buf)) {
-	    // uups, cannot stat this file
-	    eos_static_err("fid %08llx - cannot do stat on %s !", it->first,DiskFid[it->first].c_str());
-	    error_wrong_filesize++;
-	  } else {
-	    eos::common::Fmd* fmd = gFmd.GetFmd(it->first, fsid, 0,0,0);
+        if ((DiskFid.count(it->first))==1) {
+          // ok, that's good, check the most basic meta data now
+          struct stat buf;
+          if (stat(DiskFid[it->first].c_str(),&buf)) {
+            // uups, cannot stat this file
+            eos_static_err("fid %08llx - cannot do stat on %s !", it->first,DiskFid[it->first].c_str());
+            error_wrong_filesize++;
+          } else {
+            eos::common::Fmd* fmd = gFmd.GetFmd(it->first, fsid, 0,0,0);
 
-	    // check size
-	    if ((unsigned long long) buf.st_size != gFmd.FmdSize[it->first]) {
-	      eos_static_notice("fid %08llx has size=%llu on disk but size=%llu in the changelog!", it->first, (unsigned long long) buf.st_size, gFmd.FmdSize[it->first]);
-	      error_wrong_filesize++;
-	      if (repairlocal) {
-		// repair the size
-		fmd->fMd.size = buf.st_size;
-		if (!testonly)
-		  gFmd.FmdSize[it->first] = buf.st_size;
-		if ((!testonly) && (!gFmd.Commit(fmd))) {
-		  eos_static_err("unable to repair file size in changelog file fo fid %08llx size=%llu", it->first, (unsigned long long) buf.st_size);
-		} else {
-		  repaired_files++;
-		}
-	      }
-	    } 
-	    // check modification time
-	    if (!fmd) {
-	      eos_static_err("fid %08llx - cannot retrieve file meta data from changelog",it->first);
-	    } else {
-	      if ( labs((unsigned long long) buf.st_mtime - fmd->fMd.mtime)>1 ) {
-		//eos_static_notice("fid %08llx has mtime=%llu on disk but mtime=%llu in the changelog!", it->first, (unsigned long long)buf.st_mtime, fmd->fMd.mtime);
-		warning_wrong_mtime++;
-	      }
-	      if ( (unsigned long long) buf.st_ctime != fmd->fMd.ctime) {
-		//eos_static_notice("fid %08llx has ctime=%llu on disk but ctime=%llu in the changelog!", it->first, (unsigned long long)buf.st_ctime, fmd->fMd.ctime);
-		warning_wrong_ctime++;
-	      }
-	    }
-	  }
-	} else {
-	  // bad, this is missing
-	  eos_static_info("fid %08llx on changelog : missing on disk !\n", it->first);
-	  error_missing_disk++;
-	  if (deletemissingdisk) {
-	    if (!testonly)
-	      gFmd.DeleteFmd(it->first,fsid);
-	    files_removed_changelog++;
-	  }
-	}
+            // check size
+            if ((unsigned long long) buf.st_size != gFmd.FmdSize[it->first]) {
+              eos_static_notice("fid %08llx has size=%llu on disk but size=%llu in the changelog!", it->first, (unsigned long long) buf.st_size, gFmd.FmdSize[it->first]);
+              error_wrong_filesize++;
+              if (repairlocal) {
+                // repair the size
+                fmd->fMd.size = buf.st_size;
+                if (!testonly)
+                  gFmd.FmdSize[it->first] = buf.st_size;
+                if ((!testonly) && (!gFmd.Commit(fmd))) {
+                  eos_static_err("unable to repair file size in changelog file fo fid %08llx size=%llu", it->first, (unsigned long long) buf.st_size);
+                } else {
+                  repaired_files++;
+                }
+              }
+            } 
+            // check modification time
+            if (!fmd) {
+              eos_static_err("fid %08llx - cannot retrieve file meta data from changelog",it->first);
+            } else {
+              if ( labs((unsigned long long) buf.st_mtime - fmd->fMd.mtime)>1 ) {
+                //eos_static_notice("fid %08llx has mtime=%llu on disk but mtime=%llu in the changelog!", it->first, (unsigned long long)buf.st_mtime, fmd->fMd.mtime);
+                warning_wrong_mtime++;
+              }
+              if ( (unsigned long long) buf.st_ctime != fmd->fMd.ctime) {
+                //eos_static_notice("fid %08llx has ctime=%llu on disk but ctime=%llu in the changelog!", it->first, (unsigned long long)buf.st_ctime, fmd->fMd.ctime);
+                warning_wrong_ctime++;
+              }
+            }
+          }
+        } else {
+          // bad, this is missing
+          eos_static_info("fid %08llx on changelog : missing on disk !\n", it->first);
+          error_missing_disk++;
+          if (deletemissingdisk) {
+            if (!testonly)
+              gFmd.DeleteFmd(it->first,fsid);
+            files_removed_changelog++;
+          }
+        }
       }
     }
     
@@ -428,9 +428,9 @@ int main(int argc, char* argv[] ) {
       eos::common::Logging::SetLogPriority(LOG_CRIT);
     else 
       if (!show) 
-	eos::common::Logging::SetLogPriority(LOG_NOTICE);
+        eos::common::Logging::SetLogPriority(LOG_NOTICE);
       else
-	eos::common::Logging::SetLogPriority(LOG_INFO);
+        eos::common::Logging::SetLogPriority(LOG_INFO);
 
     google::sparse_hash_set<unsigned long long> fidsInCache;
 
@@ -458,9 +458,9 @@ int main(int argc, char* argv[] ) {
       int nbytes=0;
       char buffer[4096+1];
       while ((nbytes = client.Read(buffer,offset, 4096)) >0) {
-	buffer[nbytes]=0;
-	out += buffer;
-	offset += nbytes;
+        buffer[nbytes]=0;
+        out += buffer;
+        offset += nbytes;
       }
       client.Close();
     } else {
@@ -503,290 +503,290 @@ int main(int argc, char* argv[] ) {
       int lastlinebreak=-1;
       unsigned long long nfiles=0;
       while ( (linebreak = out.find('\n',linebreak)) != STR_NPOS) {
-	nfiles++;
-	XrdOucString thisline="";
-	thisline.assign(out,lastlinebreak+1,linebreak);
-	thisline.replace("#and#","&");
-	thisline.replace("\n","");
-	XrdOucEnv mdEnv(thisline.c_str());
+        nfiles++;
+        XrdOucString thisline="";
+        thisline.assign(out,lastlinebreak+1,linebreak);
+        thisline.replace("#and#","&");
+        thisline.replace("\n","");
+        XrdOucEnv mdEnv(thisline.c_str());
 
-	// parse back the info
-	struct eos::common::Fmd::FMD fmd;
-	memset((void*)&fmd,0,sizeof(struct eos::common::Fmd::FMD));
-	bool parseerror=false;
-	if (mdEnv.Get("id")) {
-	  fmd.fid = strtoull(mdEnv.Get("id"),0,10);
-	  fidsInCache.insert(fmd.fid);
-	} else {
-	  parseerror=true;
-	}
+        // parse back the info
+        struct eos::common::Fmd::FMD fmd;
+        memset((void*)&fmd,0,sizeof(struct eos::common::Fmd::FMD));
+        bool parseerror=false;
+        if (mdEnv.Get("id")) {
+          fmd.fid = strtoull(mdEnv.Get("id"),0,10);
+          fidsInCache.insert(fmd.fid);
+        } else {
+          parseerror=true;
+        }
 
-	if (mdEnv.Get("cid"))
-	  fmd.cid = strtoull(mdEnv.Get("cid"),0,10);
-	else
-	  parseerror=true;
-	
-	if (mdEnv.Get("uid")) 
-	  fmd.uid = (uid_t) strtoul(mdEnv.Get("uid"),0,10);
-	else 
-	  parseerror=true;
-	  
-	if (mdEnv.Get("gid")) 
-	  fmd.gid = (gid_t) strtoul(mdEnv.Get("gid"),0,10);
-	else 
-	  parseerror=true;
+        if (mdEnv.Get("cid"))
+          fmd.cid = strtoull(mdEnv.Get("cid"),0,10);
+        else
+          parseerror=true;
+        
+        if (mdEnv.Get("uid")) 
+          fmd.uid = (uid_t) strtoul(mdEnv.Get("uid"),0,10);
+        else 
+          parseerror=true;
+          
+        if (mdEnv.Get("gid")) 
+          fmd.gid = (gid_t) strtoul(mdEnv.Get("gid"),0,10);
+        else 
+          parseerror=true;
 
-	if (mdEnv.Get("ctime"))
-	  fmd.ctime = strtoull(mdEnv.Get("ctime"),0,10);
-	else
-	  parseerror=true;
+        if (mdEnv.Get("ctime"))
+          fmd.ctime = strtoull(mdEnv.Get("ctime"),0,10);
+        else
+          parseerror=true;
 
-	if (mdEnv.Get("ctime_ns"))
-	  fmd.ctime_ns = strtoull(mdEnv.Get("ctime_ns"),0,10);
-	else
-	  parseerror=true;
+        if (mdEnv.Get("ctime_ns"))
+          fmd.ctime_ns = strtoull(mdEnv.Get("ctime_ns"),0,10);
+        else
+          parseerror=true;
 
-	if (mdEnv.Get("mtime"))
-	  fmd.mtime = strtoull(mdEnv.Get("mtime"),0,10);
-	else
-	  parseerror=true;
+        if (mdEnv.Get("mtime"))
+          fmd.mtime = strtoull(mdEnv.Get("mtime"),0,10);
+        else
+          parseerror=true;
 
-	if (mdEnv.Get("mtime_ns"))
-	  fmd.mtime_ns = strtoull(mdEnv.Get("mtime_ns"),0,10);
-	else
-	  parseerror=true;
+        if (mdEnv.Get("mtime_ns"))
+          fmd.mtime_ns = strtoull(mdEnv.Get("mtime_ns"),0,10);
+        else
+          parseerror=true;
 
-	if (mdEnv.Get("size"))
-	  fmd.size = strtoull(mdEnv.Get("size"),0,10);
-	else
-	  parseerror=true;
+        if (mdEnv.Get("size"))
+          fmd.size = strtoull(mdEnv.Get("size"),0,10);
+        else
+          parseerror=true;
 
-	if (mdEnv.Get("lid"))
-	  fmd.lid = strtoul(mdEnv.Get("lid"),0,10);
+        if (mdEnv.Get("lid"))
+          fmd.lid = strtoul(mdEnv.Get("lid"),0,10);
 
-	if (mdEnv.Get("location")) {
-	  XrdOucString location = mdEnv.Get("location");
-	  XrdOucString loctag ="" ; loctag+= fsid; loctag+= ",";
-	  if ( (location.find(loctag.c_str())) != STR_NPOS) {
-	    fmd.fsid = fsid;
-	  } else {
-	    fmd.fsid = 0;
-	  }
-	}
-	 
-	if (mdEnv.Get("name")) {
-	  strncpy(fmd.name, mdEnv.Get("name"),sizeof(fmd.name)-1);
-	  fmd.name[sizeof(fmd.name)-1] = 0;
-	}
+        if (mdEnv.Get("location")) {
+          XrdOucString location = mdEnv.Get("location");
+          XrdOucString loctag ="" ; loctag+= fsid; loctag+= ",";
+          if ( (location.find(loctag.c_str())) != STR_NPOS) {
+            fmd.fsid = fsid;
+          } else {
+            fmd.fsid = 0;
+          }
+        }
+         
+        if (mdEnv.Get("name")) {
+          strncpy(fmd.name, mdEnv.Get("name"),sizeof(fmd.name)-1);
+          fmd.name[sizeof(fmd.name)-1] = 0;
+        }
 
-	if (mdEnv.Get("container")) {
-	  strncpy(fmd.name, mdEnv.Get("container"),sizeof(fmd.container)-1);
-	  fmd.container[sizeof(fmd.container)-1] = 0;
-	}
+        if (mdEnv.Get("container")) {
+          strncpy(fmd.name, mdEnv.Get("container"),sizeof(fmd.container)-1);
+          fmd.container[sizeof(fmd.container)-1] = 0;
+        }
 
 
-	if (!parseerror) {
-	  XrdOucString localChecksum="";
-	  
-	  // do the comparisons
-	  eos::common::Fmd* rfmd = gFmd.GetFmd(fmd.fid, fsid, 0,0,0);
-	  if (!rfmd) {
-	    eos_static_err("fid %08llx - cannot retrieve file meta data from changelog",fmd.fid);
-	    error_no_fmd++;
-	  } else {
-	    for (int i=0; i< SHA_DIGEST_LENGTH; i++ ) {
-	      char c[3];
-	      // caution, this checksum have swapped byte order, because they come from reading an int bytewise!
-	      if ( ((eos::common::LayoutId::GetChecksum(rfmd->fMd.lid) == eos::common::LayoutId::kAdler) ||    
-		    (eos::common::LayoutId::GetChecksum(rfmd->fMd.lid) == eos::common::LayoutId::kCRC32) ||
-		    (eos::common::LayoutId::GetChecksum(rfmd->fMd.lid) == eos::common::LayoutId::kCRC32C))  && (i<4) ) {
-		sprintf(c,"%02x", (unsigned char) rfmd->fMd.checksum[3-i]);
-	      } else {
-		sprintf(c,"%02x", (unsigned char) rfmd->fMd.checksum[i]);
-	      }
-	      localChecksum+=c;
-	    }
-	    
-	    XrdOucString centralChecksum = mdEnv.Get("checksum");
-	    if (centralChecksum != localChecksum) {
-	      eos_static_notice("fid %08llx has CX=%s LX=%s TYPE=%s",rfmd->fMd.fid, centralChecksum.c_str(),localChecksum.c_str(),  eos::common::LayoutId::GetChecksumString(rfmd->fMd.lid));
-	      error_diff_checksum++;
-	      if (checksum) {
-		// recalculate a checksum
-		eos::fst::CheckSum* checksummer = eos::fst::ChecksumPlugins::GetChecksumObject(rfmd->fMd.lid);
-		if (!checksummer) {
-		  eos_static_crit("cannot load any checksum plugin");
-		  error_xsum_illegaltype++;
-		} else {
-		  // build the local filename
-		  XrdOucString hexstring="";
-		  XrdOucString fullpath="";
-		  eos::common::FileId::Fid2Hex(rfmd->fMd.fid, hexstring);
-		  eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
-		  // scan the checksum of that file
-		  eos_static_notice("Scanning checksum of file %s ...", fullpath.c_str());
-		  unsigned long long scansize=0;
-		  float scantime = 0;
-		  if (!checksummer->ScanFile(fullpath.c_str(), scansize, scantime)) {
-		    eos_static_crit("cannot scan the checksum of fid %08llx under path %s", rfmd->fMd.fid, fullpath.c_str());
-		    error_xsum_failed++;
-		  } else {
-		    XrdOucString sizestring;
-		    eos_static_notice("name=%s path=%s fid=%08llx CX=%s size=%s time=%.02fms rate=%.02f MB/s", rfmd->fMd.name, fullpath.c_str(), rfmd->fMd.fid,checksummer->GetHexChecksum() , eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL));
-		    int checksumlen;
-		    checksummer->GetBinChecksum(checksumlen);
-		    // copy checksum into meta data entry
-		    memset(rfmd->fMd.checksum, 0, sizeof(SHA_DIGEST_LENGTH));
-		    memcpy(rfmd->fMd.checksum, checksummer->GetBinChecksum(checksumlen),checksumlen);
-		    
-		    if (repairlocal) {
-		      if ((!testonly) && (!gFmd.Commit(rfmd))) {
-			eos_static_err("unable to commit checksum update in changelog file fo fid %08llx", rfmd->fMd.fid);
-			failed_update_local++;
-		      } else {
-			repaired_local_checksum++;
-		      }
-		    }
-		    
-		    
-		    if (repaircache) {
-		      if (!testonly) {
-			XrdOucString capOpaqueFile="";
-			XrdOucString mTimeString="";
-			capOpaqueFile += "/?";
-			capOpaqueFile += "&mgm.pcmd=commit";
-			capOpaqueFile += "&mgm.size=";
-			char filesize[1024]; sprintf(filesize,"%llu", rfmd->fMd.size);
-			capOpaqueFile += filesize;
-			capOpaqueFile += "&mgm.checksum=";
-			capOpaqueFile += checksummer->GetHexChecksum();
-			
-			capOpaqueFile += "&mgm.mtime=";
-			capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)rfmd->fMd.mtime);
-			capOpaqueFile += "&mgm.mtime_ns=";
-			capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)rfmd->fMd.mtime_ns);
-			
-			capOpaqueFile += "&mgm.add.fsid=";
-			capOpaqueFile += (int)rfmd->fMd.fsid;
-			
-			capOpaqueFile += "&mgm.path=<UNDEF>";
-			capOpaqueFile += "&mgm.fid=";
-			XrdOucString hexfid;
-			eos::common::FileId::Fid2Hex(rfmd->fMd.fid,hexfid);
-			capOpaqueFile += hexfid;
-			
-			gManager->GetClientConn()->ClearLastServerError();
-			gManager->GetClientConn()->SetOpTimeLimit(10);
-			gManager->Query(kXR_Qopaquf,
-					(kXR_char *) capOpaqueFile.c_str(),
-					(kXR_char *) managerresult, managerresult_size);
-			
-			bool ok=false;
-			
-			if (!gManager->LastServerResp()) {
-			  eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - manager is unavailable", rfmd->fMd.fid);
-			} else {
-			  switch (gManager->LastServerResp()->status) {
-			  case kXR_ok:
-			    eos_static_notice("commited meta data in central cache for fid=%08llx", rfmd->fMd.fid);
-			    ok = true;
-			    break;
-			  case kXR_error:
-			    eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - update failed", rfmd->fMd.fid);
-			    ok = false;
-			    break;
-			    
-			  default:
-			    ok = true;
-			    break;
-			  }
-			}
-			if (!ok) {
-			  failed_update_central++;		      
-			}
-			if (ok) {
-			  repaired_cache_checksum++;
-			}
-		      } else {
-			repaired_cache_checksum++;
-		      }
-		    }
-		    delete checksummer;
-		  }
-		}
-	      }
-	    }
-	    
-	    if (rfmd->fMd.lid != fmd.lid) {
-		error_diff_lid++;
-	    }
+        if (!parseerror) {
+          XrdOucString localChecksum="";
+          
+          // do the comparisons
+          eos::common::Fmd* rfmd = gFmd.GetFmd(fmd.fid, fsid, 0,0,0);
+          if (!rfmd) {
+            eos_static_err("fid %08llx - cannot retrieve file meta data from changelog",fmd.fid);
+            error_no_fmd++;
+          } else {
+            for (int i=0; i< SHA_DIGEST_LENGTH; i++ ) {
+              char c[3];
+              // caution, this checksum have swapped byte order, because they come from reading an int bytewise!
+              if ( ((eos::common::LayoutId::GetChecksum(rfmd->fMd.lid) == eos::common::LayoutId::kAdler) ||    
+                    (eos::common::LayoutId::GetChecksum(rfmd->fMd.lid) == eos::common::LayoutId::kCRC32) ||
+                    (eos::common::LayoutId::GetChecksum(rfmd->fMd.lid) == eos::common::LayoutId::kCRC32C))  && (i<4) ) {
+                sprintf(c,"%02x", (unsigned char) rfmd->fMd.checksum[3-i]);
+              } else {
+                sprintf(c,"%02x", (unsigned char) rfmd->fMd.checksum[i]);
+              }
+              localChecksum+=c;
+            }
+            
+            XrdOucString centralChecksum = mdEnv.Get("checksum");
+            if (centralChecksum != localChecksum) {
+              eos_static_notice("fid %08llx has CX=%s LX=%s TYPE=%s",rfmd->fMd.fid, centralChecksum.c_str(),localChecksum.c_str(),  eos::common::LayoutId::GetChecksumString(rfmd->fMd.lid));
+              error_diff_checksum++;
+              if (checksum) {
+                // recalculate a checksum
+                eos::fst::CheckSum* checksummer = eos::fst::ChecksumPlugins::GetChecksumObject(rfmd->fMd.lid);
+                if (!checksummer) {
+                  eos_static_crit("cannot load any checksum plugin");
+                  error_xsum_illegaltype++;
+                } else {
+                  // build the local filename
+                  XrdOucString hexstring="";
+                  XrdOucString fullpath="";
+                  eos::common::FileId::Fid2Hex(rfmd->fMd.fid, hexstring);
+                  eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
+                  // scan the checksum of that file
+                  eos_static_notice("Scanning checksum of file %s ...", fullpath.c_str());
+                  unsigned long long scansize=0;
+                  float scantime = 0;
+                  if (!checksummer->ScanFile(fullpath.c_str(), scansize, scantime)) {
+                    eos_static_crit("cannot scan the checksum of fid %08llx under path %s", rfmd->fMd.fid, fullpath.c_str());
+                    error_xsum_failed++;
+                  } else {
+                    XrdOucString sizestring;
+                    eos_static_notice("name=%s path=%s fid=%08llx CX=%s size=%s time=%.02fms rate=%.02f MB/s", rfmd->fMd.name, fullpath.c_str(), rfmd->fMd.fid,checksummer->GetHexChecksum() , eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL));
+                    int checksumlen;
+                    checksummer->GetBinChecksum(checksumlen);
+                    // copy checksum into meta data entry
+                    memset(rfmd->fMd.checksum, 0, sizeof(SHA_DIGEST_LENGTH));
+                    memcpy(rfmd->fMd.checksum, checksummer->GetBinChecksum(checksumlen),checksumlen);
+                    
+                    if (repairlocal) {
+                      if ((!testonly) && (!gFmd.Commit(rfmd))) {
+                        eos_static_err("unable to commit checksum update in changelog file fo fid %08llx", rfmd->fMd.fid);
+                        failed_update_local++;
+                      } else {
+                        repaired_local_checksum++;
+                      }
+                    }
+                    
+                    
+                    if (repaircache) {
+                      if (!testonly) {
+                        XrdOucString capOpaqueFile="";
+                        XrdOucString mTimeString="";
+                        capOpaqueFile += "/?";
+                        capOpaqueFile += "&mgm.pcmd=commit";
+                        capOpaqueFile += "&mgm.size=";
+                        char filesize[1024]; sprintf(filesize,"%llu", rfmd->fMd.size);
+                        capOpaqueFile += filesize;
+                        capOpaqueFile += "&mgm.checksum=";
+                        capOpaqueFile += checksummer->GetHexChecksum();
+                        
+                        capOpaqueFile += "&mgm.mtime=";
+                        capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)rfmd->fMd.mtime);
+                        capOpaqueFile += "&mgm.mtime_ns=";
+                        capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)rfmd->fMd.mtime_ns);
+                        
+                        capOpaqueFile += "&mgm.add.fsid=";
+                        capOpaqueFile += (int)rfmd->fMd.fsid;
+                        
+                        capOpaqueFile += "&mgm.path=<UNDEF>";
+                        capOpaqueFile += "&mgm.fid=";
+                        XrdOucString hexfid;
+                        eos::common::FileId::Fid2Hex(rfmd->fMd.fid,hexfid);
+                        capOpaqueFile += hexfid;
+                        
+                        gManager->GetClientConn()->ClearLastServerError();
+                        gManager->GetClientConn()->SetOpTimeLimit(10);
+                        gManager->Query(kXR_Qopaquf,
+                                        (kXR_char *) capOpaqueFile.c_str(),
+                                        (kXR_char *) managerresult, managerresult_size);
+                        
+                        bool ok=false;
+                        
+                        if (!gManager->LastServerResp()) {
+                          eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - manager is unavailable", rfmd->fMd.fid);
+                        } else {
+                          switch (gManager->LastServerResp()->status) {
+                          case kXR_ok:
+                            eos_static_notice("commited meta data in central cache for fid=%08llx", rfmd->fMd.fid);
+                            ok = true;
+                            break;
+                          case kXR_error:
+                            eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - update failed", rfmd->fMd.fid);
+                            ok = false;
+                            break;
+                            
+                          default:
+                            ok = true;
+                            break;
+                          }
+                        }
+                        if (!ok) {
+                          failed_update_central++;                    
+                        }
+                        if (ok) {
+                          repaired_cache_checksum++;
+                        }
+                      } else {
+                        repaired_cache_checksum++;
+                      }
+                    }
+                    delete checksummer;
+                  }
+                }
+              }
+            }
+            
+            if (rfmd->fMd.lid != fmd.lid) {
+              error_diff_lid++;
+            }
 
-	    if (rfmd->fMd.uid != fmd.uid) {
-	      error_diff_uid++;
-	    }
+            if (rfmd->fMd.uid != fmd.uid) {
+              error_diff_uid++;
+            }
 
-	    if (rfmd->fMd.gid != fmd.gid) {
-	      error_diff_gid++;
-	    }
+            if (rfmd->fMd.gid != fmd.gid) {
+              error_diff_gid++;
+            }
 
-	    if (rfmd->fMd.cid != fmd.cid) {
-	      error_diff_cid++;
-	    }
+            if (rfmd->fMd.cid != fmd.cid) {
+              error_diff_cid++;
+            }
 
-	    if ( labs(rfmd->fMd.ctime - fmd.ctime) > 1) {
-	      error_diff_ctime++;
-	    }
+            if ( labs(rfmd->fMd.ctime - fmd.ctime) > 1) {
+              error_diff_ctime++;
+            }
 
-	    if (rfmd->fMd.ctime_ns != fmd.ctime_ns) {
-	      error_diff_ctime_ns++;
-	    }
+            if (rfmd->fMd.ctime_ns != fmd.ctime_ns) {
+              error_diff_ctime_ns++;
+            }
 
-	    if ( (rfmd->fMd.ctime != fmd.ctime) || (rfmd->fMd.ctime_ns != fmd.ctime_ns) ) {
-	      //eos_static_notice("fid %08llx has ctime=%llu.%llu in cache but ctime=%llu.%llu in the changelog!", fmd.fid, fmd.ctime, fmd.ctime_ns,rfmd->fMd.ctime, rfmd->fMd.ctime_ns);
-	    }
+            if ( (rfmd->fMd.ctime != fmd.ctime) || (rfmd->fMd.ctime_ns != fmd.ctime_ns) ) {
+              //eos_static_notice("fid %08llx has ctime=%llu.%llu in cache but ctime=%llu.%llu in the changelog!", fmd.fid, fmd.ctime, fmd.ctime_ns,rfmd->fMd.ctime, rfmd->fMd.ctime_ns);
+            }
 
-	    if (rfmd->fMd.mtime != fmd.mtime) {
-	      error_diff_mtime_ns++;
-	    }
+            if (rfmd->fMd.mtime != fmd.mtime) {
+              error_diff_mtime_ns++;
+            }
 
-	    if (strncmp(rfmd->fMd.name,fmd.name,255)) {
-	      eos_static_info("fid %08llx has name=%s in cache but name=%s in the changelog!", fmd.fid, fmd.name, rfmd->fMd.name);
-	      error_diff_name++;
-	    }
+            if (strncmp(rfmd->fMd.name,fmd.name,255)) {
+              eos_static_info("fid %08llx has name=%s in cache but name=%s in the changelog!", fmd.fid, fmd.name, rfmd->fMd.name);
+              error_diff_name++;
+            }
 
-	    if ( (rfmd->fMd.mtime != fmd.mtime) || (rfmd->fMd.mtime_ns != fmd.mtime_ns) ) {
-	      //	      eos_static_notice("fid %08llx has mtime=%llu.%llu in cache but mtime=%llu.%llu in the changelog!", fmd.fid, fmd.mtime, fmd.mtime_ns,rfmd->fMd.mtime, rfmd->fMd.mtime_ns);
-	    }
+            if ( (rfmd->fMd.mtime != fmd.mtime) || (rfmd->fMd.mtime_ns != fmd.mtime_ns) ) {
+              //              eos_static_notice("fid %08llx has mtime=%llu.%llu in cache but mtime=%llu.%llu in the changelog!", fmd.fid, fmd.mtime, fmd.mtime_ns,rfmd->fMd.mtime, rfmd->fMd.mtime_ns);
+            }
 
-	    if (strncmp(rfmd->fMd.container,fmd.container,255)) {
-	      eos_static_info("fid %08llx has contanier id cid=%llu in cache but cid=%llu in the changelog!", fmd.fid, fmd.cid, rfmd->fMd.cid);
-	      error_diff_container++;
-	    }
+            if (strncmp(rfmd->fMd.container,fmd.container,255)) {
+              eos_static_info("fid %08llx has contanier id cid=%llu in cache but cid=%llu in the changelog!", fmd.fid, fmd.cid, rfmd->fMd.cid);
+              error_diff_container++;
+            }
 
-	    if (rfmd->fMd.size != fmd.size) {
-	      eos_static_notice("fid %08llx has file size size=%llu in cache but size=%llu in the changelog!", fmd.fid, fmd.size, rfmd->fMd.size);
-	      error_diff_size++;
-	    }
-	  }
-	  lastlinebreak=linebreak;
-	  linebreak++;
-	} else {
-	  error_parsing++;
-	}
+            if (rfmd->fMd.size != fmd.size) {
+              eos_static_notice("fid %08llx has file size size=%llu in cache but size=%llu in the changelog!", fmd.fid, fmd.size, rfmd->fMd.size);
+              error_diff_size++;
+            }
+          }
+          lastlinebreak=linebreak;
+          linebreak++;
+        } else {
+          error_parsing++;
+        }
       }
       /*      unsigned long long error_no_fmd=0;
-	      unsigned long long error_diff_lid=0;
-	      unsigned long long error_diff_uid=0;
-	      unsigned long long error_diff_gid=0;
-	      unsigned long long error_diff_cid=0;
-	      unsigned long long error_ctime=0;
-	      unsigned long long error_ctime_ns=0;
-	      unsigned long long error_mtime=0;
-	      unsigned long long error_mtime_ns=0;
-	      unsigned long long error_diff_checksum=0;
-	      unsigned long long error_diff_name=0;
-	      unsigned long long error_diff_container=0;
-	      unsigned long long error_diff_size=0;         */
+              unsigned long long error_diff_lid=0;
+              unsigned long long error_diff_uid=0;
+              unsigned long long error_diff_gid=0;
+              unsigned long long error_diff_cid=0;
+              unsigned long long error_ctime=0;
+              unsigned long long error_ctime_ns=0;
+              unsigned long long error_mtime=0;
+              unsigned long long error_mtime_ns=0;
+              unsigned long long error_diff_checksum=0;
+              unsigned long long error_diff_name=0;
+              unsigned long long error_diff_container=0;
+              unsigned long long error_diff_size=0;         */
 
       fprintf(stdout,"---------------------------------------\n");
       fprintf(stdout,"=> files in central cache      : %llu\n", nfiles);
@@ -813,18 +813,18 @@ int main(int argc, char* argv[] ) {
       fprintf(stdout,"=> failed to update central MD : %llu\n", failed_update_central);
 
       if (error_no_fmd ||
-	  error_diff_lid ||
-	  error_diff_uid ||
-	  error_diff_gid ||
-	  error_diff_ctime ||
-	  error_diff_ctime_ns ||
-	  error_diff_mtime ||
-	  error_diff_mtime_ns ||
-	  error_diff_checksum ||
-	  error_diff_name ||
-	  error_diff_container ||
-	  error_diff_size)
-	rc = 7;
+          error_diff_lid ||
+          error_diff_uid ||
+          error_diff_gid ||
+          error_diff_ctime ||
+          error_diff_ctime_ns ||
+          error_diff_mtime ||
+          error_diff_mtime_ns ||
+          error_diff_checksum ||
+          error_diff_name ||
+          error_diff_container ||
+          error_diff_size)
+        rc = 7;
     } else {
       eos_static_err("cannot get filelist from mgm [%s]",result.Get("mgm.proc.stderr"));
       rc = 6;
@@ -842,174 +842,174 @@ int main(int argc, char* argv[] ) {
       // now dow the comparison in the opposite direction - compare local changelog to cache
       google::dense_hash_map<long long, unsigned long long>::iterator it;
       for (it = gFmd.FmdSize.begin(); it != gFmd.FmdSize.end(); ++it) {
-	if (!fidsInCache.count(it->first)) {
-	  error_diff_cachemiss++;
-	  eos_static_notice("fid %08x is in the changelog but missing in central cache",it->first);
+        if (!fidsInCache.count(it->first)) {
+          error_diff_cachemiss++;
+          eos_static_notice("fid %08x is in the changelog but missing in central cache",it->first);
 
-	  if (uploadfid == "*") {
-	    eos::common::Fmd* fmd = gFmd.GetFmd(it->first, fsid, 0,0,0);
-	    if (fmd) {
-	      if (!testonly) {
-		XrdOucString capOpaqueFile="";
-		XrdOucString mTimeString="";
-		capOpaqueFile += "/?";
-		capOpaqueFile += "&mgm.pcmd=commit";
-		capOpaqueFile += "&mgm.size=";
-		char filesize[1024]; sprintf(filesize,"%llu", fmd->fMd.size);
-		capOpaqueFile += filesize;
-		//	capOpaqueFile += "&mgm.checksum=";
-		//	capOpaqueFile += checksummer->GetHexChecksum();
-		
-		capOpaqueFile += "&mgm.mtime=";
-		capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fmd->fMd.mtime);
-		capOpaqueFile += "&mgm.mtime_ns=";
-		capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fmd->fMd.mtime_ns);
-		
-		capOpaqueFile += "&mgm.add.fsid=";
-		capOpaqueFile += (int)fmd->fMd.fsid;
-		
-		capOpaqueFile += "&mgm.path=<UNDEF>";
-		capOpaqueFile += "&mgm.fid=";
-		XrdOucString hexfid;
-		eos::common::FileId::Fid2Hex(fmd->fMd.fid,hexfid);
-		capOpaqueFile += hexfid;
-		
-		gManager->GetClientConn()->ClearLastServerError();
-		gManager->GetClientConn()->SetOpTimeLimit(10);
-		gManager->Query(kXR_Qopaquf,
-				(kXR_char *) capOpaqueFile.c_str(),
-				(kXR_char *) managerresult, managerresult_size);
-		
-		bool ok=false;
-		bool isdeleted=false;
-		bool nosuchfile=false;
-		
-		XrdOucString errtext = "";
-		if (!gManager->LastServerResp()) {
-		  eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - manager is unavailable", fmd->fMd.fid);
-		} else {
-		  switch (gManager->LastServerResp()->status) {
-		  case kXR_ok:
-		    eos_static_notice("commited meta data in central cache for fid=%08llx", fmd->fMd.fid);
-		    ok = true;
-		    break;
-		  case kXR_error:
-		    errtext = gManager->LastServerError()->errmsg;
-		  if (errtext.find("file is already removed")!=STR_NPOS) {
-		    isdeleted = true;
-		  } else {
-		    eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - update failed - %d", fmd->fMd.fid, gManager->LastServerError()->errnum);
-		  }
-		  if (errtext.find("No such file or directory")!=STR_NPOS) {
-		    nosuchfile=true;
-		  }
-		  ok = false;
-		  break;
-		  
-		  default:
-		    ok = true;
-		    break;
-		  }
-		}
-	      
-		if (!ok) {
-		  if (isdeleted) {
-		    eos_static_err("fid=%08llx is already deleted", fmd->fMd.fid);
-		    files_not_uploaded_deleted++;
-		    if (deletedeleted) {
-		      // remove from changelog
-		      gFmd.DeleteFmd(fmd->fMd.fid, fsid);
-		      // unlink on disk
-		      XrdOucString hexstring="";
-		      XrdOucString fullpath="";
-		      eos::common::FileId::Fid2Hex(fmd->fMd.fid, hexstring);
-		      eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
-		      eos_static_crit("unlinking %s", fullpath.c_str());
-		      if ((!testonly) && (unlink(fullpath.c_str()))) {eos_static_err("failed to unlink file %s", fullpath.c_str());}
-		      
-		      // drop this replica in the cache
-		      XrdOucString capOpaqueFile="";
-		      capOpaqueFile += "/?";
-		      capOpaqueFile += "&mgm.pcmd=drop";
-		      capOpaqueFile += "&mgm.fsid=";
-		      capOpaqueFile += (int)fmd->fMd.fsid;
-		      capOpaqueFile += "&mgm.fid=";
-		      XrdOucString hexfid;
-		      eos::common::FileId::Fid2Hex(fmd->fMd.fid,hexfid);
-		      capOpaqueFile += hexfid;
-		      
-		      gManager->GetClientConn()->ClearLastServerError();
-		      gManager->GetClientConn()->SetOpTimeLimit(10);
-		      gManager->Query(kXR_Qopaquf,
-				      (kXR_char *) capOpaqueFile.c_str(),
-				      (kXR_char *) managerresult, managerresult_size);
-		      
-		      bool ok=false;
-		      
-		      if (!gManager->LastServerResp()) {
-			eos_static_err("unable to drop replica fid=%08llx - manager is unavailable", fmd->fMd.fid);
-		      } else {
-			switch (gManager->LastServerResp()->status) {
-			case kXR_ok:
-			  eos_static_notice("dropped replica in central cache for fid=%08llx fsid=%d", fmd->fMd.fid,fsid);
-			  ok = true;
-			  break;
-			case kXR_error:
-			  eos_static_err("unable to drop replica in meta data cache for fid=%08llx - drop failed - %d", fmd->fMd.fid, gManager->LastServerError()->errnum);
-			  ok = false;
-			  break;
-			  
-			default:
-			  ok = true;
-			  break;
-			}
-		      }
-		      if (!ok) {
-			eos_static_err("unable to drop replica for fid=%08llx", fmd->fMd.fid);
-			rc = 8;
-			files_drop_failed++;
-		      }
-		      if (ok) {
-			rc = 0;
-			eos_static_info("dropped replica of fid=%08llx fsid=%d", fmd->fMd.fid, fsid);
-			files_drop_ok++;
-		      }
-		    }
-		  } else {
-		    if (nosuchfile) {
-		      files_enoent++;
-		      
-		      if (deleteenoent) {
-			// remove from changelog
-			gFmd.DeleteFmd(fmd->fMd.fid, fsid);
-			// unlink on disk
-			XrdOucString hexstring="";
-			XrdOucString fullpath="";
-			eos::common::FileId::Fid2Hex(fmd->fMd.fid, hexstring);
-			eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
-			eos_static_crit("unlinking %s", fullpath.c_str());
-			if ((!testonly) && (unlink(fullpath.c_str()))) {eos_static_err("failed to unlink file %s", fullpath.c_str());}
-			files_delete_local++;
-		      }
-		    } else {
-		      eos_static_err("unable to update file meta data of fid=%08llx", fmd->fMd.fid);
-		      files_upload_failed++;
-		    }
-		  }
-		  rc = 8;
-		}
-		if (ok) {
-		  rc = 0;
-		  eos_static_info("updated file meta data of fid=%08llx", fmd->fMd.fid);
-		  files_upload_ok++;
-		}
-	      }
-	    } else {
-	      fprintf(stdout,"error: fid %s is not known !", uploadfid.c_str());
-	      rc = 8;
-	    }
-	  }
-	}
+          if (uploadfid == "*") {
+            eos::common::Fmd* fmd = gFmd.GetFmd(it->first, fsid, 0,0,0);
+            if (fmd) {
+              if (!testonly) {
+                XrdOucString capOpaqueFile="";
+                XrdOucString mTimeString="";
+                capOpaqueFile += "/?";
+                capOpaqueFile += "&mgm.pcmd=commit";
+                capOpaqueFile += "&mgm.size=";
+                char filesize[1024]; sprintf(filesize,"%llu", fmd->fMd.size);
+                capOpaqueFile += filesize;
+                //      capOpaqueFile += "&mgm.checksum=";
+                //      capOpaqueFile += checksummer->GetHexChecksum();
+                
+                capOpaqueFile += "&mgm.mtime=";
+                capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fmd->fMd.mtime);
+                capOpaqueFile += "&mgm.mtime_ns=";
+                capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fmd->fMd.mtime_ns);
+                
+                capOpaqueFile += "&mgm.add.fsid=";
+                capOpaqueFile += (int)fmd->fMd.fsid;
+                
+                capOpaqueFile += "&mgm.path=<UNDEF>";
+                capOpaqueFile += "&mgm.fid=";
+                XrdOucString hexfid;
+                eos::common::FileId::Fid2Hex(fmd->fMd.fid,hexfid);
+                capOpaqueFile += hexfid;
+                
+                gManager->GetClientConn()->ClearLastServerError();
+                gManager->GetClientConn()->SetOpTimeLimit(10);
+                gManager->Query(kXR_Qopaquf,
+                                (kXR_char *) capOpaqueFile.c_str(),
+                                (kXR_char *) managerresult, managerresult_size);
+                
+                bool ok=false;
+                bool isdeleted=false;
+                bool nosuchfile=false;
+                
+                XrdOucString errtext = "";
+                if (!gManager->LastServerResp()) {
+                  eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - manager is unavailable", fmd->fMd.fid);
+                } else {
+                  switch (gManager->LastServerResp()->status) {
+                  case kXR_ok:
+                    eos_static_notice("commited meta data in central cache for fid=%08llx", fmd->fMd.fid);
+                    ok = true;
+                    break;
+                  case kXR_error:
+                    errtext = gManager->LastServerError()->errmsg;
+                    if (errtext.find("file is already removed")!=STR_NPOS) {
+                      isdeleted = true;
+                    } else {
+                      eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - update failed - %d", fmd->fMd.fid, gManager->LastServerError()->errnum);
+                    }
+                    if (errtext.find("No such file or directory")!=STR_NPOS) {
+                      nosuchfile=true;
+                    }
+                    ok = false;
+                    break;
+                  
+                  default:
+                    ok = true;
+                    break;
+                  }
+                }
+              
+                if (!ok) {
+                  if (isdeleted) {
+                    eos_static_err("fid=%08llx is already deleted", fmd->fMd.fid);
+                    files_not_uploaded_deleted++;
+                    if (deletedeleted) {
+                      // remove from changelog
+                      gFmd.DeleteFmd(fmd->fMd.fid, fsid);
+                      // unlink on disk
+                      XrdOucString hexstring="";
+                      XrdOucString fullpath="";
+                      eos::common::FileId::Fid2Hex(fmd->fMd.fid, hexstring);
+                      eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
+                      eos_static_crit("unlinking %s", fullpath.c_str());
+                      if ((!testonly) && (unlink(fullpath.c_str()))) {eos_static_err("failed to unlink file %s", fullpath.c_str());}
+                      
+                      // drop this replica in the cache
+                      XrdOucString capOpaqueFile="";
+                      capOpaqueFile += "/?";
+                      capOpaqueFile += "&mgm.pcmd=drop";
+                      capOpaqueFile += "&mgm.fsid=";
+                      capOpaqueFile += (int)fmd->fMd.fsid;
+                      capOpaqueFile += "&mgm.fid=";
+                      XrdOucString hexfid;
+                      eos::common::FileId::Fid2Hex(fmd->fMd.fid,hexfid);
+                      capOpaqueFile += hexfid;
+                      
+                      gManager->GetClientConn()->ClearLastServerError();
+                      gManager->GetClientConn()->SetOpTimeLimit(10);
+                      gManager->Query(kXR_Qopaquf,
+                                      (kXR_char *) capOpaqueFile.c_str(),
+                                      (kXR_char *) managerresult, managerresult_size);
+                      
+                      bool ok=false;
+                      
+                      if (!gManager->LastServerResp()) {
+                        eos_static_err("unable to drop replica fid=%08llx - manager is unavailable", fmd->fMd.fid);
+                      } else {
+                        switch (gManager->LastServerResp()->status) {
+                        case kXR_ok:
+                          eos_static_notice("dropped replica in central cache for fid=%08llx fsid=%d", fmd->fMd.fid,fsid);
+                          ok = true;
+                          break;
+                        case kXR_error:
+                          eos_static_err("unable to drop replica in meta data cache for fid=%08llx - drop failed - %d", fmd->fMd.fid, gManager->LastServerError()->errnum);
+                          ok = false;
+                          break;
+                          
+                        default:
+                          ok = true;
+                          break;
+                        }
+                      }
+                      if (!ok) {
+                        eos_static_err("unable to drop replica for fid=%08llx", fmd->fMd.fid);
+                        rc = 8;
+                        files_drop_failed++;
+                      }
+                      if (ok) {
+                        rc = 0;
+                        eos_static_info("dropped replica of fid=%08llx fsid=%d", fmd->fMd.fid, fsid);
+                        files_drop_ok++;
+                      }
+                    }
+                  } else {
+                    if (nosuchfile) {
+                      files_enoent++;
+                      
+                      if (deleteenoent) {
+                        // remove from changelog
+                        gFmd.DeleteFmd(fmd->fMd.fid, fsid);
+                        // unlink on disk
+                        XrdOucString hexstring="";
+                        XrdOucString fullpath="";
+                        eos::common::FileId::Fid2Hex(fmd->fMd.fid, hexstring);
+                        eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), searchpath.c_str(), fullpath);
+                        eos_static_crit("unlinking %s", fullpath.c_str());
+                        if ((!testonly) && (unlink(fullpath.c_str()))) {eos_static_err("failed to unlink file %s", fullpath.c_str());}
+                        files_delete_local++;
+                      }
+                    } else {
+                      eos_static_err("unable to update file meta data of fid=%08llx", fmd->fMd.fid);
+                      files_upload_failed++;
+                    }
+                  }
+                  rc = 8;
+                }
+                if (ok) {
+                  rc = 0;
+                  eos_static_info("updated file meta data of fid=%08llx", fmd->fMd.fid);
+                  files_upload_ok++;
+                }
+              }
+            } else {
+              fprintf(stdout,"error: fid %s is not known !", uploadfid.c_str());
+              rc = 8;
+            }
+          }
+        }
       }
       fprintf(stdout,"---------------------------------------\n");
       fprintf(stdout,"=> files missing in cache        %llu\n", error_diff_cachemiss);
@@ -1028,69 +1028,69 @@ int main(int argc, char* argv[] ) {
       unsigned long long ufid = strtoull(uploadfid.c_str(),0,16);
       eos::common::Fmd* fmd = gFmd.GetFmd(ufid, fsid, 0,0,0);
       if (fmd) {
-	if (!testonly) {
-	  XrdOucString capOpaqueFile="";
-	  XrdOucString mTimeString="";
-	  capOpaqueFile += "/?";
-	  capOpaqueFile += "&mgm.pcmd=commit";
-	  capOpaqueFile += "&mgm.size=";
-	  char filesize[1024]; sprintf(filesize,"%llu", fmd->fMd.size);
-	  capOpaqueFile += filesize;
-	  //	capOpaqueFile += "&mgm.checksum=";
-	  //	capOpaqueFile += checksummer->GetHexChecksum();
-	  
-	  capOpaqueFile += "&mgm.mtime=";
-	  capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fmd->fMd.mtime);
-	  capOpaqueFile += "&mgm.mtime_ns=";
-	  capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fmd->fMd.mtime_ns);
-	  
-	  capOpaqueFile += "&mgm.add.fsid=";
-	  capOpaqueFile += (int)fmd->fMd.fsid;
-	  
-	  capOpaqueFile += "&mgm.path=<UNDEF>";
-	  capOpaqueFile += "&mgm.fid=";
-	  XrdOucString hexfid;
-	  eos::common::FileId::Fid2Hex(fmd->fMd.fid,hexfid);
-	  capOpaqueFile += hexfid;
-	  
-	  gManager->GetClientConn()->ClearLastServerError();
-	  gManager->GetClientConn()->SetOpTimeLimit(10);
-	  gManager->Query(kXR_Qopaquf,
-			  (kXR_char *) capOpaqueFile.c_str(),
-			  (kXR_char *) managerresult, managerresult_size);
-	  
-	  bool ok=false;
-	  
-	  if (!gManager->LastServerResp()) {
-	    eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - manager is unavailable", fmd->fMd.fid);
-	  } else {
-	    switch (gManager->LastServerResp()->status) {
-	    case kXR_ok:
-	      eos_static_notice("commited meta data in central cache for fid=%08llx", fmd->fMd.fid);
-	      ok = true;
-	      break;
-	    case kXR_error:
-	      eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - update failed - %d", fmd->fMd.fid, gManager->LastServerError()->errnum);
-	      ok = false;
-	      break;
-	      
-	    default:
-	      ok = true;
-	      break;
-	    }
-	  }
-	  if (!ok) {
-	    eos_static_err("unable to update file meta data of fid=%08llx", fmd->fMd.fid);
-	    rc = 8;
-	  }
-	  if (ok) {
-	    rc = 0;
-	    eos_static_info("updated file meta data of fid=%08llx", fmd->fMd.fid);
-	  }
-	}
+        if (!testonly) {
+          XrdOucString capOpaqueFile="";
+          XrdOucString mTimeString="";
+          capOpaqueFile += "/?";
+          capOpaqueFile += "&mgm.pcmd=commit";
+          capOpaqueFile += "&mgm.size=";
+          char filesize[1024]; sprintf(filesize,"%llu", fmd->fMd.size);
+          capOpaqueFile += filesize;
+          //    capOpaqueFile += "&mgm.checksum=";
+          //    capOpaqueFile += checksummer->GetHexChecksum();
+          
+          capOpaqueFile += "&mgm.mtime=";
+          capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fmd->fMd.mtime);
+          capOpaqueFile += "&mgm.mtime_ns=";
+          capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fmd->fMd.mtime_ns);
+          
+          capOpaqueFile += "&mgm.add.fsid=";
+          capOpaqueFile += (int)fmd->fMd.fsid;
+          
+          capOpaqueFile += "&mgm.path=<UNDEF>";
+          capOpaqueFile += "&mgm.fid=";
+          XrdOucString hexfid;
+          eos::common::FileId::Fid2Hex(fmd->fMd.fid,hexfid);
+          capOpaqueFile += hexfid;
+          
+          gManager->GetClientConn()->ClearLastServerError();
+          gManager->GetClientConn()->SetOpTimeLimit(10);
+          gManager->Query(kXR_Qopaquf,
+                          (kXR_char *) capOpaqueFile.c_str(),
+                          (kXR_char *) managerresult, managerresult_size);
+          
+          bool ok=false;
+          
+          if (!gManager->LastServerResp()) {
+            eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - manager is unavailable", fmd->fMd.fid);
+          } else {
+            switch (gManager->LastServerResp()->status) {
+            case kXR_ok:
+              eos_static_notice("commited meta data in central cache for fid=%08llx", fmd->fMd.fid);
+              ok = true;
+              break;
+            case kXR_error:
+              eos_static_err("unable to commit meta data update to meta data cache for fid=%08llx - update failed - %d", fmd->fMd.fid, gManager->LastServerError()->errnum);
+              ok = false;
+              break;
+              
+            default:
+              ok = true;
+              break;
+            }
+          }
+          if (!ok) {
+            eos_static_err("unable to update file meta data of fid=%08llx", fmd->fMd.fid);
+            rc = 8;
+          }
+          if (ok) {
+            rc = 0;
+            eos_static_info("updated file meta data of fid=%08llx", fmd->fMd.fid);
+          }
+        }
       } else {
-	fprintf(stdout,"error: fid %s is not known !", uploadfid.c_str());
-	rc = 8;
+        fprintf(stdout,"error: fid %s is not known !", uploadfid.c_str());
+        rc = 8;
       }
     }
   } 

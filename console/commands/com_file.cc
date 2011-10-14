@@ -167,7 +167,7 @@ com_file (char* arg1) {
           option[2] = subtokenizer.GetToken();
           option[3] = subtokenizer.GetToken();
           option[4] = subtokenizer.GetToken();
-	  option[5] = subtokenizer.GetToken();
+          option[5] = subtokenizer.GetToken();
         }
       } else {
         option[0] = fsid1;
@@ -190,20 +190,20 @@ com_file (char* arg1) {
             if (option[i] == "-commitsize") {
               in += "&mgm.file.commit.size=1";
             } else {
-	      if (option[i] == "-commitfmd") {
-		in += "&mgm.file.commit.fmd=1";
-	      } else {
-		if (option[i] == "-rate") {
-		  in += "&mgm.file.verify.rate=";
-		  if ( (i==5) || (!option[i+1].length()))
-		    goto com_file_usage;
-		  in += option[i+1];
-		  i++;
-		  continue;
-		} else {
-		  goto com_file_usage;
-		}
-	      }
+              if (option[i] == "-commitfmd") {
+                in += "&mgm.file.commit.fmd=1";
+              } else {
+                if (option[i] == "-rate") {
+                  in += "&mgm.file.verify.rate=";
+                  if ( (i==5) || (!option[i+1].length()))
+                    goto com_file_usage;
+                  in += option[i+1];
+                  i++;
+                  continue;
+                } else {
+                  goto com_file_usage;
+                }
+              }
             }
           }
         }
@@ -254,7 +254,7 @@ com_file (char* arg1) {
         XrdOucString repfid  = "mgm.fid"; repfid += i;
         XrdOucString repfsid = "mgm.fsid"; repfsid += i;
         XrdOucString repbootstat = "mgm.fsbootstat"; repbootstat += i;
-	XrdOucString repfstpath  = "mgm.fstpath"; repfstpath += i;
+        XrdOucString repfstpath  = "mgm.fstpath"; repfstpath += i;
         if ( newresult->Get(repurl.c_str()) ) {
           // Query 
           ClientAdmin* admin = CommonClientAdminManager.GetAdmin(newresult->Get(repurl.c_str()));
@@ -284,29 +284,29 @@ com_file (char* arg1) {
             inconsistencylable ="DOWN";
           } else {
             //      fprintf(stderr,"%s %s %s\n",newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()));
-	    if ((option.find("%checksumattr")!= STR_NPOS)) {
-	      checksumattribute="";
-	      if ((retc=gFmdHandler.GetRemoteAttribute(admin, newresult->Get(repurl.c_str()), "user.eos.checksum",newresult->Get(repfstpath.c_str()), checksumattribute))) {
-		if (!silent)fprintf(stderr,"error: unable to retrieve extended attribute from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
-	      } 
-	    }
+            if ((option.find("%checksumattr")!= STR_NPOS)) {
+              checksumattribute="";
+              if ((retc=gFmdHandler.GetRemoteAttribute(admin, newresult->Get(repurl.c_str()), "user.eos.checksum",newresult->Get(repfstpath.c_str()), checksumattribute))) {
+                if (!silent)fprintf(stderr,"error: unable to retrieve extended attribute from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
+              } 
+            }
 
-	    // do a remote stat
-	    long id;
-	    long long rsize;
-	    long flags;
-	    long modtime;
+            // do a remote stat
+            long id;
+            long long rsize;
+            long flags;
+            long modtime;
 
-	    admin->GetAdmin()->Connect();
-	    if (!admin->GetAdmin()->Stat(newresult->Get(repfstpath.c_str()), id, rsize, flags, modtime)) {
-	      consistencyerror = true;
-	      inconsistencylable="STATFAILED";
-	    }
+            admin->GetAdmin()->Connect();
+            if (!admin->GetAdmin()->Stat(newresult->Get(repfstpath.c_str()), id, rsize, flags, modtime)) {
+              consistencyerror = true;
+              inconsistencylable="STATFAILED";
+            }
 
             if ((retc=gFmdHandler.GetRemoteFmd(admin, newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()), fmd))) {
               if (!silent)fprintf(stderr,"error: unable to retrieve file meta data from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
-	      consistencyerror = true;
-	      inconsistencylable="NOFMD";
+              consistencyerror = true;
+              inconsistencylable="NOFMD";
             } else {
               XrdOucString cx="";
               for (unsigned int k=0; k< SHA_DIGEST_LENGTH; k++) {
@@ -327,11 +327,11 @@ com_file (char* arg1) {
                   consistencyerror = true;
                   inconsistencylable ="SIZE";
                 } else {
-		  if (fmd.size != (unsigned long long)rsize) {
-		    consistencyerror = true;
-		    inconsistencylable = "FSTSIZE";
-		  }
-		}
+                  if (fmd.size != (unsigned long long)rsize) {
+                    consistencyerror = true;
+                    inconsistencylable = "FSTSIZE";
+                  }
+                }
               }
               
               if ( (option.find("%checksum")) != STR_NPOS ) {
@@ -341,21 +341,21 @@ com_file (char* arg1) {
                 }
               }
 
-	      if ((option.find("%checksumattr")!= STR_NPOS)) {
-		if ((checksumattribute.length()<8) || (!cx.beginswith(checksumattribute))) {
-		  consistencyerror = true;
-		  inconsistencylable = "CHECKSUMATTR";
-		}
-	      }
+              if ((option.find("%checksumattr")!= STR_NPOS)) {
+                if ((checksumattribute.length()<8) || (!cx.beginswith(checksumattribute))) {
+                  consistencyerror = true;
+                  inconsistencylable = "CHECKSUMATTR";
+                }
+              }
 
               nreplicaonline++;
 
-	      if (!silent)printf("nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" size=\"%llu\" checksum=\"%s\"", i, newresult->Get(repfsid.c_str()),newresult->Get(repurl.c_str()),newresult->Get(repfstpath.c_str()),fmd.size, cx.c_str());                      
-	      if ((option.find("%checksumattr")!= STR_NPOS)) {
-		if (!silent)printf(" checksumattr=%s\n", checksumattribute.c_str());
-	      } else {
-		if (!silent)printf("\n");
-	      }
+              if (!silent)printf("nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" size=\"%llu\" checksum=\"%s\"", i, newresult->Get(repfsid.c_str()),newresult->Get(repurl.c_str()),newresult->Get(repfstpath.c_str()),fmd.size, cx.c_str());                      
+              if ((option.find("%checksumattr")!= STR_NPOS)) {
+                if (!silent)printf(" checksumattr=%s\n", checksumattribute.c_str());
+              } else {
+                if (!silent)printf("\n");
+              }
             }
           }
 
@@ -374,9 +374,9 @@ com_file (char* arg1) {
         if (newresult->Get("mgm.nrep"))    { nrep = atoi (newresult->Get("mgm.nrep"));}
         if (nrep != stripes) {
           consistencyerror = true;
-	  if (inconsistencylable != "NOFMD") {
-	    inconsistencylable ="REPLICA";
-	  }
+          if (inconsistencylable != "NOFMD") {
+            inconsistencylable ="REPLICA";
+          }
         }
       }
       

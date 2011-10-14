@@ -224,17 +224,17 @@ public:
       time_t now=time(NULL);
       cActiveLock.Lock();
       if ( now - cActiveTime ) {
-	cActiveTime = now;
+        cActiveTime = now;
       } else {
-	rActive = cActive;
-	cActiveLock.UnLock();
-	return rActive;
+        rActive = cActive;
+        cActiveLock.UnLock();
+        return rActive;
       }
     }
     std::string active = GetString("stat.active");
     if (active == "online") {
       cActive = kOnline;
-      cActiveLock.UnLock();	
+      cActiveLock.UnLock();     
       return kOnline;
     } else {
       cActive = kOffline;
@@ -358,11 +358,11 @@ public:
       time_t now=time(NULL);
       cStatusLock.Lock();
       if ( now - cStatusTime ) {
-	cStatusTime = now;
+        cStatusTime = now;
       } else {
-	rStatus = cStatus;
-	cStatusLock.UnLock();
-	return rStatus;
+        rStatus = cStatus;
+        cStatusLock.UnLock();
+        return rStatus;
       }
     }
 
@@ -382,11 +382,11 @@ public:
       time_t now=time(NULL);
       cConfigLock.Lock();
       if ( now - cConfigTime ) {
-	cConfigTime = now;
+        cConfigTime = now;
       } else {
-	rConfigStatus = cConfigStatus;
-	cConfigLock.UnLock();
-	return rConfigStatus;
+        rConfigStatus = cConfigStatus;
+        cConfigLock.UnLock();
+        return rConfigStatus;
       }
     }
 

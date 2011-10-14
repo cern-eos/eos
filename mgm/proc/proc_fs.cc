@@ -44,7 +44,7 @@ int proc_fs_dumpmd(std::string &fsidst, XrdOucString &dp, XrdOucString &df, XrdO
     stdErr="error: illegal parameters";
     retc = EINVAL;
   } else {
-    fsid = atoi(fsidst.c_str());	
+    fsid = atoi(fsidst.c_str());        
     gOFS->eosViewMutex.Lock();
     try {
       eos::FileMD* fmd = 0;
@@ -95,7 +95,7 @@ int proc_fs_config(std::string &identifier, std::string &key, std::string &value
   if (!identifier.length() || !key.length() || !value.length()) {
     stdErr="error: illegal parameters";
     retc = EINVAL;
-  } else {	
+  } else {      
     eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
     
     FileSystem* fs = 0;
@@ -157,45 +157,45 @@ int proc_fs_config(std::string &identifier, std::string &key, std::string &value
             fs->SetLongLong(key.c_str(), eos::common::StringConversion::GetSizeFromString(value.c_str()));
             FsView::gFsView.StoreFsConfig(fs);
           } else {
-	    if ( (key == "configstatus") && (value == "empty") ) {
-	      bool isempty=true;
-	      // check if this file system is really empty
-	      try {
-		eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fs->GetId());
-		if (filelist.size()) {
-		  isempty =false;
-		}
-	      } catch ( eos::MDException &e ) {
-		isempty=true;
-	      }
-	      if (!isempty) {
-		stdErr="error: the filesystem is not empty, therefore it can't be removed\n";
-		stdErr+="# -------------------------------------------------------------------\n";
-		stdErr+="# You can inspect the registered files via the command:\n";
-		stdErr+="# [eos] fs dumpmd "; stdErr += (int)fs->GetId(); stdErr += " -path\n";
-		stdErr+="# -------------------------------------------------------------------\n";
-		stdErr+="# You can drain the filesystem if it is still operational via the command:\n";
-		stdErr+="# [eos] fs config "; stdErr += (int)fs->GetId(); stdErr += " configstatus=drain\n";
-		stdErr+="# -------------------------------------------------------------------\n";
-		stdErr+="# You can drain the filesystem if it is unusable via the command:\n";
-		stdErr+="# [eos] fs config "; stdErr += (int)fs->GetId(); stdErr += " configstatus=draindead\n";
-		stdErr+="# -------------------------------------------------------------------\n";
-		stdErr+="# You can force to remove these files via the command:\n";
-		stdErr+="# [eos] fs dropfiles "; stdErr += (int) fs->GetId(); stdErr += "\n";
- 		stdErr+="# -------------------------------------------------------------------\n";
-		stdErr+="# You can force to drop these files (brute force) via the command:\n";
-		stdErr+="# [eos] fs dropfiles "; stdErr += (int) fs->GetId(); stdErr += "-f \n";
-		stdErr+="# -------------------------------------------------------------------\n";
-		stdErr+="# [eos] = 'eos -b' on MGM or 'eosadmin' on storage nodes\n";
-		retc = EPERM;
-	      } else {
-		fs->SetString(key.c_str(),value.c_str());
-		FsView::gFsView.StoreFsConfig(fs);
-	      }
-	    } else {
-	      fs->SetString(key.c_str(),value.c_str());
-	      FsView::gFsView.StoreFsConfig(fs);
-	    }
+            if ( (key == "configstatus") && (value == "empty") ) {
+              bool isempty=true;
+              // check if this file system is really empty
+              try {
+                eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fs->GetId());
+                if (filelist.size()) {
+                  isempty =false;
+                }
+              } catch ( eos::MDException &e ) {
+                isempty=true;
+              }
+              if (!isempty) {
+                stdErr="error: the filesystem is not empty, therefore it can't be removed\n";
+                stdErr+="# -------------------------------------------------------------------\n";
+                stdErr+="# You can inspect the registered files via the command:\n";
+                stdErr+="# [eos] fs dumpmd "; stdErr += (int)fs->GetId(); stdErr += " -path\n";
+                stdErr+="# -------------------------------------------------------------------\n";
+                stdErr+="# You can drain the filesystem if it is still operational via the command:\n";
+                stdErr+="# [eos] fs config "; stdErr += (int)fs->GetId(); stdErr += " configstatus=drain\n";
+                stdErr+="# -------------------------------------------------------------------\n";
+                stdErr+="# You can drain the filesystem if it is unusable via the command:\n";
+                stdErr+="# [eos] fs config "; stdErr += (int)fs->GetId(); stdErr += " configstatus=draindead\n";
+                stdErr+="# -------------------------------------------------------------------\n";
+                stdErr+="# You can force to remove these files via the command:\n";
+                stdErr+="# [eos] fs dropfiles "; stdErr += (int) fs->GetId(); stdErr += "\n";
+                stdErr+="# -------------------------------------------------------------------\n";
+                stdErr+="# You can force to drop these files (brute force) via the command:\n";
+                stdErr+="# [eos] fs dropfiles "; stdErr += (int) fs->GetId(); stdErr += "-f \n";
+                stdErr+="# -------------------------------------------------------------------\n";
+                stdErr+="# [eos] = 'eos -b' on MGM or 'eosadmin' on storage nodes\n";
+                retc = EPERM;
+              } else {
+                fs->SetString(key.c_str(),value.c_str());
+                FsView::gFsView.StoreFsConfig(fs);
+              }
+            } else {
+              fs->SetString(key.c_str(),value.c_str());
+              FsView::gFsView.StoreFsConfig(fs);
+            }
           }
         }
       } else {
@@ -206,7 +206,7 @@ int proc_fs_config(std::string &identifier, std::string &key, std::string &value
       stdErr += "error: cannot identify the filesystem by <"; stdErr += identifier.c_str(); stdErr += ">";
       retc = EINVAL;
     }
-  }	  
+  }       
   return retc;
 }
 
@@ -278,7 +278,7 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
             fs->SetId(fsid);
             fs->SetString("uuid",uuid.c_str());
             fs->SetString("configstatus", configstatus.c_str());
-            //		    fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
+            //              fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
             std::string splitspace="";
             std::string splitgroup="";
             
@@ -347,7 +347,7 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
                     }
                   }
                 }
-		
+                
                 if (j== 1000) {
                   eos_static_crit("infinite loop detected finding available scheduling group!");
                   stdErr += "error: infinite loop detected finding available scheduling group!";
@@ -393,7 +393,7 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
         }
       } else {
         stdErr+="error: cannot register filesystem - is already existing!";
-        retc = EEXIST;	      
+        retc = EEXIST;        
       }
     }
     
@@ -412,49 +412,49 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
 /*----------------------------------------------------------------------------*/
 //std::string proc_fs_fill(eos::common::FileSystem::fs_snapshot_t &snapshot, std::string space, bool random)
 //{
-  //  std::string splitspace="";
-  //  std::string splitgroup="";
+//  std::string splitspace="";
+//  std::string splitgroup="";
 
-  //  eos::common::StringConversion::SplitByPoint(space, splitspace, splitgroup);
+//  eos::common::StringConversion::SplitByPoint(space, splitspace, splitgroup);
 
 //  bool exists=false;
 //  std::map<std::string,FsGroup*>::const_iterator it;
 //  std::multimap<int, FsGroup*> sortedgroups;
 
-  //  if (!random) {
-    // create sorted multimap ordered by the number of rw filesystems
-  //    for (it = FsView::gFsView.mGroupView.begin(); it != FsView::gFsView.mGroupView.end(); it++) {
-  //      std::string ingroup, inindex;
+//  if (!random) {
+// create sorted multimap ordered by the number of rw filesystems
+//    for (it = FsView::gFsView.mGroupView.begin(); it != FsView::gFsView.mGroupView.end(); it++) {
+//      std::string ingroup, inindex;
 
-  //      eos::common::StringConversion::SplitByPoint(it->mName, ingroup, inindex);
+//      eos::common::StringConversion::SplitByPoint(it->mName, ingroup, inindex);
 
-  //      if (ingroup  != splitspace)
-  //        continue;
+//      if (ingroup  != splitspace)
+//        continue;
 
-  //      int groupfilesystems = it->SumLongLong("<n>?configstatus=rw");
-  //      sortedgroups.insert(std::pair(groupfilesystems, *it));
-  //    }
-  //    std::multimap<int, FsGroup*>::const_iterator sortedit;
-  //    bool exists=true;
-  //    for (sortedit = sortedgroups.begin(); sortedit != sortedgroup.end(); sortedit++) {
-  //      // check if the node is already in that group
-  //      exists=false;
-  //std::set<eos::common::FileSystem::fsid_t>::const_iterator existit;
-  // check if this node has not already a filesystem in this group
-  //  for (existit = sortedit->begin(); existit != sortedit->end(); existit++) {
-  //        if (FsView::gFsView.mIdView[*existit]->GetString("host") == snapshot.mHost) {
-  //          // this subgroup has already this host
-  //          exists=true;
-  //        }
-  //      }
-  //      if (!exists) 
-  //        break;
-  //    }
-  //    if (!exists) {
-  //      // great this we can use
-  //    } else {
-  //      // open up a new group
-  //    }
+//      int groupfilesystems = it->SumLongLong("<n>?configstatus=rw");
+//      sortedgroups.insert(std::pair(groupfilesystems, *it));
+//    }
+//    std::multimap<int, FsGroup*>::const_iterator sortedit;
+//    bool exists=true;
+//    for (sortedit = sortedgroups.begin(); sortedit != sortedgroup.end(); sortedit++) {
+//      // check if the node is already in that group
+//      exists=false;
+//std::set<eos::common::FileSystem::fsid_t>::const_iterator existit;
+// check if this node has not already a filesystem in this group
+//  for (existit = sortedit->begin(); existit != sortedit->end(); existit++) {
+//        if (FsView::gFsView.mIdView[*existit]->GetString("host") == snapshot.mHost) {
+//          // this subgroup has already this host
+//          exists=true;
+//        }
+//      }
+//      if (!exists) 
+//        break;
+//    }
+//    if (!exists) {
+//      // great this we can use
+//    } else {
+//      // open up a new group
+//    }
         
 //  return space;
 //}
@@ -637,7 +637,7 @@ int proc_fs_mv(std::string &sfsid, std::string &space, XrdOucString &stdOut, Xrd
 int proc_fs_rm(std::string &nodename, std::string &mountpoint, std::string &id, XrdOucString &stdOut, XrdOucString  &stdErr, std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in) {
   int retc=0;
   eos::common::FileSystem::fsid_t fsid = 0;
-	  
+          
   if (id.length()) 
     fsid = atoi(id.c_str());
   
@@ -670,19 +670,19 @@ int proc_fs_rm(std::string &nodename, std::string &mountpoint, std::string &id, 
       retc = EPERM;
     } else {
       if (cstate != "empty") {
-	stdErr = "error: you can only  remove file systems which are in 'empty' status";
-	retc = EINVAL;
+        stdErr = "error: you can only  remove file systems which are in 'empty' status";
+        retc = EINVAL;
       } else {
-	if (!FsView::gFsView.RemoveMapping(fsid)) {
-	  stdErr = "error: couldn't remove mapping of filesystem defined by ";stdErr += nodename.c_str(); stdErr += "/";stdErr += mountpoint.c_str(); stdErr+="/"; stdErr += id.c_str(); stdErr+= " ";
-	}
-	
-	if (! FsView::gFsView.UnRegister(fs)) {
-	  stdErr = "error: couldn't unregister the filesystem "; stdErr += nodename.c_str(); stdErr += " ";stdErr += mountpoint.c_str(); stdErr+=" "; stdErr += id.c_str(); stdErr+= "from the FsView";
-        retc = EFAULT;
-	} else {
-	  stdOut = "success: unregistered ";stdOut += nodename.c_str(); stdOut += " ";stdOut += mountpoint.c_str(); stdOut+=" "; stdOut += id.c_str(); stdOut+= " from the FsView";
-	}
+        if (!FsView::gFsView.RemoveMapping(fsid)) {
+          stdErr = "error: couldn't remove mapping of filesystem defined by ";stdErr += nodename.c_str(); stdErr += "/";stdErr += mountpoint.c_str(); stdErr+="/"; stdErr += id.c_str(); stdErr+= " ";
+        }
+        
+        if (! FsView::gFsView.UnRegister(fs)) {
+          stdErr = "error: couldn't unregister the filesystem "; stdErr += nodename.c_str(); stdErr += " ";stdErr += mountpoint.c_str(); stdErr+=" "; stdErr += id.c_str(); stdErr+= "from the FsView";
+          retc = EFAULT;
+        } else {
+          stdOut = "success: unregistered ";stdOut += nodename.c_str(); stdOut += " ";stdOut += mountpoint.c_str(); stdOut+=" "; stdOut += id.c_str(); stdOut+= " from the FsView";
+        }
       }
     }
   } else {
@@ -708,12 +708,12 @@ int proc_fs_dropdeletion(std::string &id, XrdOucString &stdOut, XrdOucString  &s
     } else {
       gOFS->eosViewMutex.Lock();
       try {
-	eos::FileSystemView::FileList unlinklist =  gOFS->eosFsView->getUnlinkedFileList(fsid);
-	unlinklist.clear();
-	unlinklist.resize(0);
-	stdOut += "success: dropped deletions on fsid="; stdOut += id.c_str();
+        eos::FileSystemView::FileList unlinklist =  gOFS->eosFsView->getUnlinkedFileList(fsid);
+        unlinklist.clear();
+        unlinklist.resize(0);
+        stdOut += "success: dropped deletions on fsid="; stdOut += id.c_str();
       } catch( eos::MDException &e ) {
-	stdErr = "error: there is no deletion list for fsid="; stdErr += id.c_str();
+        stdErr = "error: there is no deletion list for fsid="; stdErr += id.c_str();
       }
       gOFS->eosViewMutex.UnLock();
     }

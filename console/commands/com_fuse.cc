@@ -158,8 +158,8 @@ com_fuse (char* arg1) {
   
   exit(0);
   
-  com_fuse_usage:
+ com_fuse_usage:
   printf("usage: fuse mount  <mount-point> [-o <fuseparamaterlist>] [-l <logfile>] : mount connected eos pool on <mount-point>\n");
   printf("       fuse umount <mount-point>                                         : unmount eos pool from <mount-point>\n");
   exit(-1);
-  }
+}

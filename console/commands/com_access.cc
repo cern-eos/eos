@@ -56,9 +56,9 @@ com_access (char* arg1) {
     XrdOucString maybeoption = subtokenizer.GetToken();
     while (maybeoption.beginswith("-")) {
       if ( (subcmd == "ls") && (maybeoption != "-m") && (maybeoption != "-n") )
-	goto com_access_usage;
+        goto com_access_usage;
       if ( (subcmd != "ls") ) 
-	goto com_access_usage;
+        goto com_access_usage;
 
       maybeoption.replace("-","");
       option += maybeoption;
@@ -73,19 +73,19 @@ com_access (char* arg1) {
       type = maybeoption;
       XrdOucString id   = subtokenizer.GetToken();
       if ((!type.length()) || (!id.length())) 
-	goto com_access_usage;
+        goto com_access_usage;
       
       if (type == "host") {
-	in += "&mgm.access.host="; in += id;
-	ok = true;
+        in += "&mgm.access.host="; in += id;
+        ok = true;
       }
       if (type == "user") {
-	in += "&mgm.access.user="; in += id;
-	ok = true;
+        in += "&mgm.access.user="; in += id;
+        ok = true;
       }
       if (type == "group") {
-	in += "&mgm.access.group="; in += id;
-	ok = true;
+        in += "&mgm.access.group="; in += id;
+        ok = true;
       }
     }
 
@@ -93,18 +93,18 @@ com_access (char* arg1) {
       type = maybeoption;
       XrdOucString id   = subtokenizer.GetToken();
       if ((subcmd != "rm") && ((!type.length()) || (!id.length())))
-	goto com_access_usage;
+        goto com_access_usage;
       
       if (!id.length()) {
-	id = "dummy";
+        id = "dummy";
       }
       if (type == "redirect") {
-	in += "&mgm.access.redirect="; in += id;
-	ok = true;
+        in += "&mgm.access.redirect="; in += id;
+        ok = true;
       }
       if (type == "stall") {
-	in += "&mgm.access.stall="; in += id;
-	ok = true;
+        in += "&mgm.access.stall="; in += id;
+        ok = true;
       }
     }
     if (!ok) 

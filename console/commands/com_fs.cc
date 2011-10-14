@@ -28,12 +28,12 @@ com_fs (char* arg1) {
     if ( (manual == "-m") || (manual == "--manual") ) {
       fsid = subtokenizer.GetToken();
       if (fsid.length()) {
-	int ifsid= atoi(fsid.c_str());  
-	if (ifsid == 0)
-	  goto com_fs_usage;
-	uuid = subtokenizer.GetToken();
+        int ifsid= atoi(fsid.c_str());  
+        if (ifsid == 0)
+          goto com_fs_usage;
+        uuid = subtokenizer.GetToken();
       } else {
-	goto com_fs_usage;
+        goto com_fs_usage;
       }
     } else {
       uuid = manual;
@@ -106,31 +106,31 @@ com_fs (char* arg1) {
       subtokenizer.GetLine();
       option = subtokenizer.GetToken();
       if (option.length()) {
-	if (option == "-m") {
-	  in += "&mgm.outformat=m";
-	  ok=true;
-	  highlighting=false;
-	} 
-	if (option == "-l") {
-	  in += "&mgm.outformat=l";
-	  ok=true;
-	}
-	if (option == "--io") {
-	  in += "&mgm.outformat=io";
-	  ok=true;
+        if (option == "-m") {
+          in += "&mgm.outformat=m";
+          ok=true;
+          highlighting=false;
+        } 
+        if (option == "-l") {
+          in += "&mgm.outformat=l";
+          ok=true;
+        }
+        if (option == "--io") {
+          in += "&mgm.outformat=io";
+          ok=true;
         }
         if ( (option == "--drain") || (option == "-d")) {
           in += "&mgm.outformat=d";
           ok=true;
         }
-	if (option == "-s") {
-	  temp_silent=true;
-	  ok=true;
-	}
-	if (option == "-e") {
-	  in += "&mgm.outformat=e";
-	  ok=true;
-	}
+        if (option == "-s") {
+          temp_silent=true;
+          ok=true;
+        }
+        if (option == "-e") {
+          in += "&mgm.outformat=e";
+          ok=true;
+        }
         if (!option.beginswith("-")) {
           in += "&mgm.selection=";
           in += option;
@@ -139,7 +139,7 @@ com_fs (char* arg1) {
           sel=true;
         }
       } else {
-	ok=true;
+        ok=true;
       }
       
       if (!ok) 
@@ -210,11 +210,11 @@ com_fs (char* arg1) {
       XrdOucString hostport = arg;
 
       if (!mp.length()) {
-	mp = arg;
-	hostport = XrdSysDNS::getHostName();
+        mp = arg;
+        hostport = XrdSysDNS::getHostName();
       }
       if (!(hostport.find(":")!= STR_NPOS)) {
-	in += ":1095";
+        in += ":1095";
         hostport += ":1095";
       }
 
@@ -227,13 +227,13 @@ com_fs (char* arg1) {
 
       in += "&mgm.fs.mountpoint=";
       if (!mp.length())
-	goto com_fs_usage;
+        goto com_fs_usage;
 
       while(mp.endswith("/")) {mp.erase(mp.length()-1);}
       in += mp;
 
       if (access(mp.c_str(), R_OK | X_OK)) {
-	goto com_fs_usage;
+        goto com_fs_usage;
       }
     }
 
@@ -299,24 +299,24 @@ com_fs (char* arg1) {
       XrdOucString arg2 = subtokenizer.GetToken();
       XrdOucString mp = arg;
       if (!arg2.length()) {
-	// status by mount point
-	char* HostName = XrdSysDNS::getHostName();
-	in += "&mgm.fs.node=";
-	in += HostName;
-	in += "&mgm.fs.mountpoint=";
-	in += arg;
-	mp = arg;
+        // status by mount point
+        char* HostName = XrdSysDNS::getHostName();
+        in += "&mgm.fs.node=";
+        in += HostName;
+        in += "&mgm.fs.mountpoint=";
+        in += arg;
+        mp = arg;
       } else {
-	in += "&mgm.fs.node=";
-	in += arg;
-	in += "&mgm.fs.mountpoint=";
-	in += arg2;
-	mp = arg2;
+        in += "&mgm.fs.node=";
+        in += arg;
+        in += "&mgm.fs.mountpoint=";
+        in += arg2;
+        mp = arg2;
       }
 
       while(mp.endswith("/")) {mp.erase(mp.length()-1);}
       if (access(mp.c_str(), R_OK | X_OK)) {
-	goto com_fs_usage;
+        goto com_fs_usage;
       }
     }
 

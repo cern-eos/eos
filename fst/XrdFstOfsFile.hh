@@ -27,42 +27,42 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId {
 
 public:
   int          openofs(const char                *fileName,
-		    XrdSfsFileOpenMode   openMode,
-		    mode_t               createMode,
-		    const XrdSecEntity        *client,
-		    const char                *opaque = 0);
+                       XrdSfsFileOpenMode   openMode,
+                       mode_t               createMode,
+                       const XrdSecEntity        *client,
+                       const char                *opaque = 0);
 
   int          open(const char                *fileName,
-		    XrdSfsFileOpenMode   openMode,
-		    mode_t               createMode,
-		    const XrdSecEntity        *client,
-		    const char                *opaque = 0);
+                    XrdSfsFileOpenMode   openMode,
+                    mode_t               createMode,
+                    const XrdSecEntity        *client,
+                    const char                *opaque = 0);
   
   int          closeofs();
 
   int          close();
 
   int          read(XrdSfsFileOffset   fileOffset,   // Preread only
-		      XrdSfsXferSize     amount);
+                    XrdSfsXferSize     amount);
   
   XrdSfsXferSize read(XrdSfsFileOffset   fileOffset,
-		      char              *buffer,
-		      XrdSfsXferSize     buffer_size);
+                      char              *buffer,
+                      XrdSfsXferSize     buffer_size);
 
 
   XrdSfsXferSize readofs(XrdSfsFileOffset   fileOffset,
-		      char              *buffer,
-		      XrdSfsXferSize     buffer_size);
+                         char              *buffer,
+                         XrdSfsXferSize     buffer_size);
   
   int          read(XrdSfsAio *aioparm);
   
   XrdSfsXferSize write(XrdSfsFileOffset   fileOffset,
-		       const char        *buffer,
-		       XrdSfsXferSize     buffer_size);
+                       const char        *buffer,
+                       XrdSfsXferSize     buffer_size);
 
   XrdSfsXferSize writeofs(XrdSfsFileOffset   fileOffset,
-		       const char        *buffer,
-		       XrdSfsXferSize     buffer_size);
+                          const char        *buffer,
+                          XrdSfsXferSize     buffer_size);
   
   int          write(XrdSfsAio *aioparm);
 

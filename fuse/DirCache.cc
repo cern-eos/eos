@@ -70,10 +70,10 @@ public:
   char* name_;
 
   DirEntry (const char          *name, 
-             unsigned long long  inode, 
-             int                 no_entries, 
-             time_t              mtv_sec, 
-             struct dirbuf      *b)
+            unsigned long long  inode, 
+            int                 no_entries, 
+            time_t              mtv_sec, 
+            struct dirbuf      *b)
     : filled_(false), no_entries_(no_entries), inode_(inode)
   {
     mtv_sec_ = mtv_sec;

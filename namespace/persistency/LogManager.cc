@@ -17,26 +17,26 @@ namespace
   typedef google::sparse_hash_map<uint64_t, uint64_t> RecordMap;
   class CompactingScanner: public eos::ILogRecordScanner
   {
-    public:
-      //------------------------------------------------------------------------
-      // Constructor
-      //------------------------------------------------------------------------
-      CompactingScanner( RecordMap                   &map,
-                         eos::ILogCompactingFeedback *feedback,
-                         eos::LogCompactingStats     &stats,
-                         time_t                      time ):
-        pMap( map ), pFeedback( feedback ), pStats( stats ), pTime( time ) {}
+  public:
+    //------------------------------------------------------------------------
+    // Constructor
+    //------------------------------------------------------------------------
+    CompactingScanner( RecordMap                   &map,
+                       eos::ILogCompactingFeedback *feedback,
+                       eos::LogCompactingStats     &stats,
+                       time_t                      time ):
+      pMap( map ), pFeedback( feedback ), pStats( stats ), pTime( time ) {}
 
-      //------------------------------------------------------------------------
-      // Got through the records
-      //------------------------------------------------------------------------
-      virtual void processRecord( uint64_t offset, char type,
-                                  const eos::Buffer &buffer )
-      {
-        //----------------------------------------------------------------------
-        // Check the buffer
-        //----------------------------------------------------------------------
-        if( buffer.size() < 8 )
+    //------------------------------------------------------------------------
+    // Got through the records
+    //------------------------------------------------------------------------
+    virtual void processRecord( uint64_t offset, char type,
+                                const eos::Buffer &buffer )
+    {
+      //----------------------------------------------------------------------
+      // Check the buffer
+      //----------------------------------------------------------------------
+      if( buffer.size() < 8 )
         {
           eos::MDException ex;
           ex.getMessage() << "Record at 0x" << std::setbase(16) << offset;
@@ -44,42 +44,42 @@ namespace
           throw ex;
         }
 
-        uint64_t id;
-        buffer.grabData( 0, &id, 8 );
-        ++pStats.recordsTotal;
+      uint64_t id;
+      buffer.grabData( 0, &id, 8 );
+      ++pStats.recordsTotal;
 
-        //----------------------------------------------------------------------
-        // Update
-        //----------------------------------------------------------------------
-        if( type == eos::UPDATE_RECORD_MAGIC )
+      //----------------------------------------------------------------------
+      // Update
+      //----------------------------------------------------------------------
+      if( type == eos::UPDATE_RECORD_MAGIC )
         {
           pMap[id] = offset;
           ++pStats.recordsUpdated;
         }
 
-        //----------------------------------------------------------------------
-        // Deleteion
-        //----------------------------------------------------------------------
-        if( type == eos::DELETE_RECORD_MAGIC )
+      //----------------------------------------------------------------------
+      // Deleteion
+      //----------------------------------------------------------------------
+      if( type == eos::DELETE_RECORD_MAGIC )
         {
           pMap.erase( id );
           ++pStats.recordsDeleted;
         }
 
-        //----------------------------------------------------------------------
-        // Report progress
-        //----------------------------------------------------------------------
-        pStats.timeElapsed = time(0) - pTime;
-        if( pFeedback )
-          pFeedback->reportProgress( pStats,
-            eos::ILogCompactingFeedback::InitialScan );
-      }
+      //----------------------------------------------------------------------
+      // Report progress
+      //----------------------------------------------------------------------
+      pStats.timeElapsed = time(0) - pTime;
+      if( pFeedback )
+        pFeedback->reportProgress( pStats,
+                                   eos::ILogCompactingFeedback::InitialScan );
+    }
 
-    private:
-      RecordMap                   &pMap;
-      eos::ILogCompactingFeedback *pFeedback;
-      eos::LogCompactingStats     &pStats;
-      time_t                       pTime;
+  private:
+    RecordMap                   &pMap;
+    eos::ILogCompactingFeedback *pFeedback;
+    eos::LogCompactingStats     &pStats;
+    time_t                       pTime;
   };
 }
 
@@ -104,12 +104,12 @@ namespace eos
 
     if( inputFile.getContentFlag() != FILE_LOG_MAGIC &&
         inputFile.getContentFlag() != CONTAINER_LOG_MAGIC )
-    {
-      MDException ex;
-      ex.getMessage() << "Cannot repack content: " << std::setbase( 16 );
-      ex.getMessage() << inputFile.getContentFlag();
-      throw ex;
-    }
+      {
+        MDException ex;
+        ex.getMessage() << "Cannot repack content: " << std::setbase( 16 );
+        ex.getMessage() << inputFile.getContentFlag();
+        throw ex;
+      }
 
     //--------------------------------------------------------------------------
     // Scan the file
@@ -130,15 +130,15 @@ namespace eos
     RecordMap::iterator it;
     Buffer              buffer;
     for( it = map.begin(); it != map.end(); ++it )
-    {
-      uint8_t type = inputFile.readRecord( it->second, buffer );
-      outputFile.storeRecord( type, buffer );
-      ++stats.recordsWritten;
-      stats.timeElapsed = time(0) - startTime;
-      if( feedback )
-        feedback->reportProgress( stats,
-                                  ILogCompactingFeedback::RecordCopying );
-    }
+      {
+        uint8_t type = inputFile.readRecord( it->second, buffer );
+        outputFile.storeRecord( type, buffer );
+        ++stats.recordsWritten;
+        stats.timeElapsed = time(0) - startTime;
+        if( feedback )
+          feedback->reportProgress( stats,
+                                    ILogCompactingFeedback::RecordCopying );
+      }
 
     //--------------------------------------------------------------------------
     // Write a compacting stamp

@@ -24,8 +24,8 @@ class XrdSecEntity;
 /*----------------------------------------------------------------------------*/
 
 extern "C" XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *lp,
-						  const char   *cfn,
-						  const char   *parm);
+                                                  const char   *cfn,
+                                                  const char   *parm);
 /*----------------------------------------------------------------------------*/
 
 class XrdCapability
@@ -67,8 +67,8 @@ public:
   virtual int         Test(const XrdAccPrivs priv,
                            const Access_Operation oper) { return 0;}
 
-          bool        Init();
-          bool        Configure(const char* ConfigFN);
+  bool        Init();
+  bool        Configure(const char* ConfigFN);
 
   XrdCapability(){}
 

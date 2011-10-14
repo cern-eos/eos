@@ -45,16 +45,16 @@ com_quota (char* arg1) {
                 arg = subtokenizer.GetToken();
               }
             } else 
-	      if ((arg == "-m")) {
-		in += "&mgm.quota.format=m";
-		arg = subtokenizer.GetToken();
-		highlighting = false;
-	      } else 
-		if ((arg == "-n")) {
-		  in += "&mgm.quota.printid=n";
-		  arg = subtokenizer.GetToken();
-		} else 
-		  goto com_quota_usage;
+              if ((arg == "-m")) {
+                in += "&mgm.quota.format=m";
+                arg = subtokenizer.GetToken();
+                highlighting = false;
+              } else 
+                if ((arg == "-n")) {
+                  in += "&mgm.quota.printid=n";
+                  arg = subtokenizer.GetToken();
+                } else 
+                  goto com_quota_usage;
       } while (arg.length());
     
     
@@ -137,13 +137,13 @@ com_quota (char* arg1) {
             XrdOucString space = subtokenizer.GetToken();
             if (!space.length()) 
               goto com_quota_usage;
-	    
+            
             in += "&mgm.quota.space=";
             in += space;
             arg = subtokenizer.GetToken();
           } else {
             goto com_quota_usage;
-	  }
+          }
     } while (arg.length());
     
     
@@ -156,15 +156,15 @@ com_quota (char* arg1) {
     XrdOucString space="";
     do {
       if ((arg == "--path") || (arg == "-p")) {
-	space = subtokenizer.GetToken();
-	if (!space.length()) 
-	  goto com_quota_usage;
-	
-	in += "&mgm.quota.space=";
-	in += space;
-	arg = subtokenizer.GetToken();
+        space = subtokenizer.GetToken();
+        if (!space.length()) 
+          goto com_quota_usage;
+        
+        in += "&mgm.quota.space=";
+        in += space;
+        arg = subtokenizer.GetToken();
       } else {
-	goto com_quota_usage;
+        goto com_quota_usage;
       }
     } while (arg.length());
     

@@ -101,17 +101,17 @@ Transfer::Do()
     do {
       int nread = replicaClient->Read(cpbuffer,offset,buffersize);
       if (nread>0) {
-	if (!ofsFile->writeofs(offset, cpbuffer, nread)) {
-	  failed = true;
-	  break;
-	}
+        if (!ofsFile->writeofs(offset, cpbuffer, nread)) {
+          failed = true;
+          break;
+        }
       }
 
       if (checkSum && (nread>=0)) checkSum->Add(cpbuffer,nread,offset);
 
       if (nread != buffersize) {
-	offset += nread;
-	break;
+        offset += nread;
+        break;
       }
 
       offset += nread;
@@ -156,9 +156,9 @@ Transfer::Do()
     checkSum->GetBinChecksum(checksumlen);
     for (int i=0; i<checksumlen ; i++) {
       if (newfmd->fMd.checksum[i] != checkSum->GetBinChecksum(checksumlen)[i]) {
-	checksumerror=true;
-	// set the new computed checksum anyway - this policy we might change ?!?!?
-	newfmd->fMd.checksum[i] = checkSum->GetBinChecksum(checksumlen)[i];
+        checksumerror=true;
+        // set the new computed checksum anyway - this policy we might change ?!?!?
+        newfmd->fMd.checksum[i] = checkSum->GetBinChecksum(checksumlen)[i];
       }
     }
   }

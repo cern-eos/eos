@@ -54,14 +54,14 @@ Vid::Set(const char* value)
     if ((val=env.Get("mgm.vid.target.sudo"))) {
       // fill sudoer list
       XrdOucString setting = val;
-      if (setting == "true") {	
-	eos::common::Mapping::gSudoerMap[uid]=1;
-	set = true;
+      if (setting == "true") {  
+        eos::common::Mapping::gSudoerMap[uid]=1;
+        set = true;
       } else {
-	// this in fact is deletion of the right
-	eos::common::Mapping::gSudoerMap[uid]=0;
-	gOFS->ConfEngine->DeleteConfigValue("vid",skey.c_str());
-	return true;
+        // this in fact is deletion of the right
+        eos::common::Mapping::gSudoerMap[uid]=0;
+        gOFS->ConfEngine->DeleteConfigValue("vid",skey.c_str());
+        return true;
       }
     }
   }
@@ -102,8 +102,8 @@ Vid::Set(const char* value)
       uid_t muid = (uid_t)atoi(newuid.c_str());
       XrdOucString cx = ""; cx += (int)muid;
       if (cx != newuid) {
-	eos_static_err("strings differ %s %s", cx.c_str(),newuid.c_str());
-	return false;
+        eos_static_err("strings differ %s %s", cx.c_str(),newuid.c_str());
+        return false;
       }
       skey += ":"; skey += "uid";
       eos::common::Mapping::gVirtualUidMap[skey.c_str()] = muid;
@@ -122,8 +122,8 @@ Vid::Set(const char* value)
       gid_t mgid = (gid_t)atoi(newgid.c_str());
       XrdOucString cx =""; cx += (int) mgid;
       if (cx != newgid) {
-	eos_static_err("strings differ %s %s", cx.c_str(),newgid.c_str());
-	return false;
+        eos_static_err("strings differ %s %s", cx.c_str(),newgid.c_str());
+        return false;
       }
       skey += ":"; skey += "gid";
       eos::common::Mapping::gVirtualGidMap[skey.c_str()] = mgid;

@@ -35,25 +35,25 @@ com_config (char* arg1) {
                   in += "&mgm.config.policy=1";
                   arg = subtokenizer.GetToken();
                 } else 
-		  if ((arg == "--global") || (arg == "-g")) {
-		    in += "&mgm.config.global=1";
-		    arg = subtokenizer.GetToken();
-		  } else 
-		    if ((arg == "--map") || (arg == "-m")) {
-		      in += "&mgm.config.map=1";
-		      arg = subtokenizer.GetToken();
-		    } else 
-		      if ((arg == "--access") || (arg == "-a")) {
-			in += "mgm.config.access=1";
-			arg = subtokenizer.GetToken();
-		      } else 
-			if (!arg.beginswith("-")) {
-			  in += "&mgm.config.file=";
-			  in += arg;
-			  arg = subtokenizer.GetToken();
-			} else {
-			  goto com_config_usage;
-			}
+                  if ((arg == "--global") || (arg == "-g")) {
+                    in += "&mgm.config.global=1";
+                    arg = subtokenizer.GetToken();
+                  } else 
+                    if ((arg == "--map") || (arg == "-m")) {
+                      in += "&mgm.config.map=1";
+                      arg = subtokenizer.GetToken();
+                    } else 
+                      if ((arg == "--access") || (arg == "-a")) {
+                        in += "mgm.config.access=1";
+                        arg = subtokenizer.GetToken();
+                      } else 
+                        if (!arg.beginswith("-")) {
+                          in += "&mgm.config.file=";
+                          in += arg;
+                          arg = subtokenizer.GetToken();
+                        } else {
+                          goto com_config_usage;
+                        }
       } while (arg.length());
     }      
     
@@ -104,41 +104,41 @@ com_config (char* arg1) {
       if (arg == "-f") {
         in += "&mgm.config.force=1";
         arg = subtokenizer.GetToken();
-	match=true;
+        match=true;
       } 
  
       if ((arg == "--comment")||(arg == "-c")) {
-	in += "&mgm.config.comment=";
-	arg = subtokenizer.GetToken();
-	if ((arg.beginswith("\"") || (arg.beginswith("'") ))) {
-	  arg.replace("'","\"");
-	  if (arg.length()) {
-	    do {
-	      in += " ";
-	      in += arg;
-	      arg = subtokenizer.GetToken();
-	    } while (arg.length() && (!arg.endswith("\"")) && (!arg.endswith("'")));
-	    
-	    if (arg.endswith("\"") || arg.endswith("'")) {
-	      in += " ";
-	      arg.replace("'","\"");
-	      in += arg;
-	    }
-	    arg = subtokenizer.GetToken();
-	  }
-	}
-	match=true;
+        in += "&mgm.config.comment=";
+        arg = subtokenizer.GetToken();
+        if ((arg.beginswith("\"") || (arg.beginswith("'") ))) {
+          arg.replace("'","\"");
+          if (arg.length()) {
+            do {
+              in += " ";
+              in += arg;
+              arg = subtokenizer.GetToken();
+            } while (arg.length() && (!arg.endswith("\"")) && (!arg.endswith("'")));
+            
+            if (arg.endswith("\"") || arg.endswith("'")) {
+              in += " ";
+              arg.replace("'","\"");
+              in += arg;
+            }
+            arg = subtokenizer.GetToken();
+          }
+        }
+        match=true;
       } 
       
       if (!arg.beginswith("-")) {
-	in += "&mgm.config.file=";
-	in += arg;
-	hasfile = true;
-	arg = subtokenizer.GetToken();
-	match=true;
+        in += "&mgm.config.file=";
+        in += arg;
+        hasfile = true;
+        arg = subtokenizer.GetToken();
+        match=true;
       } 
       if (!match)
-	arg = subtokenizer.GetToken();
+        arg = subtokenizer.GetToken();
 
     } while (arg.length() && match);
 

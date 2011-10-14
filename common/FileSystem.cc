@@ -47,17 +47,17 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
         if (hostport.length()) {
           size_t ppos=hostport.find(":");
           std::string host = hostport;
-            std::string port = hostport;
-            if (ppos != std::string::npos) {
-              host.erase(ppos);
-              port.erase(0,ppos+1);
-            } else {
-              port = "1094";
-            }
-            mHash->Set("hostport",hostport);
-            mHash->Set("host",host);
-            mHash->Set("port",port);
-            mHash->Set("configstatus","down");
+          std::string port = hostport;
+          if (ppos != std::string::npos) {
+            host.erase(ppos);
+            port.erase(0,ppos+1);
+          } else {
+            port = "1094";
+          }
+          mHash->Set("hostport",hostport);
+          mHash->Set("host",host);
+          mHash->Set("port",port);
+          mHash->Set("configstatus","down");
         } else {
           eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
         }

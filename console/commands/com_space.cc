@@ -28,23 +28,23 @@ com_space (char* arg1) {
       subtokenizer.GetLine();
       option = subtokenizer.GetToken();
       if (option.length()) {
-	if (option == "-m") {
-	  in += "&mgm.outformat=m";
-	  ok=true;
-	  highlighting=false;
-	} 
-	if (option == "-l") {
-	  in += "&mgm.outformat=l";
-	  ok=true;
-	}
+        if (option == "-m") {
+          in += "&mgm.outformat=m";
+          ok=true;
+          highlighting=false;
+        } 
+        if (option == "-l") {
+          in += "&mgm.outformat=l";
+          ok=true;
+        }
         if (option == "--io") {
           in += "&mgm.outformat=io";
           ok=true;
         }
-	if (option == "-s") {
-	  silent=true;
-	  ok=true;
-	}
+        if (option == "-s") {
+          silent=true;
+          ok=true;
+        }
         if (!option.beginswith("-")) {
           in += "&mgm.selection=";
           in += option;
@@ -53,10 +53,10 @@ com_space (char* arg1) {
           sel=true;
         }
           
-	if (!ok) 
-	  printusage=true;
+        if (!ok) 
+          printusage=true;
       } else {
-	ok=true;
+        ok=true;
       }
     } while(option.length());
   }

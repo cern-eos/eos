@@ -51,7 +51,7 @@ public:
 
     for (int i=0; i< timeout; i++) {
       if (TryLock(fid)) 
-	return true;
+        return true;
       sleep(1);
     }
     return false;
@@ -63,12 +63,12 @@ public:
     do {
       LockMutex.Lock();
       if (!LockFid.count(fid)) {
-	LockFid.insert(fid);
-	rc = true;
-	LockMutex.UnLock();
+        LockFid.insert(fid);
+        rc = true;
+        LockMutex.UnLock();
       } else {
-	LockMutex.UnLock();
-	usleep(interval);
+        LockMutex.UnLock();
+        usleep(interval);
       }
     } while (!rc);
     return rc;

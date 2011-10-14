@@ -139,7 +139,7 @@ public:
       if (IsTransaction) {
         if (broadcast)
           Deletions.insert(storeit->first);
-	Transactions.erase(storeit->first);
+        Transactions.erase(storeit->first);
       }
     }
     Store.clear();
@@ -359,7 +359,7 @@ public:
   {
     std::string ssubject = subject;
     if (queuesubjects.count(ssubject))
-    return &queuesubjects[ssubject];
+      return &queuesubjects[ssubject];
     else 
       return 0;
   }

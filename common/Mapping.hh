@@ -110,9 +110,9 @@ public:
     do {
       kommapos = slist.find(",");
       if (kommapos != STR_NPOS) {
-	number.assign(slist,0,kommapos-1);
-	vector_list.push_back((uid_t)atoi(number.c_str()));
-	slist.erase(0,kommapos+1);
+        number.assign(slist,0,kommapos-1);
+        vector_list.push_back((uid_t)atoi(number.c_str()));
+        slist.erase(0,kommapos+1);
       }
     } while (kommapos != STR_NPOS);
   }
@@ -126,9 +126,9 @@ public:
     do {
       kommapos = slist.find(",");
       if (kommapos != STR_NPOS) {
-	number.assign(slist,0,kommapos-1);
-	vector_list.push_back((gid_t)atoi(number.c_str()));
-	slist.erase(0,kommapos+1);
+        number.assign(slist,0,kommapos-1);
+        vector_list.push_back((gid_t)atoi(number.c_str()));
+        slist.erase(0,kommapos+1);
       }
     } while (kommapos != STR_NPOS);
   }
@@ -141,7 +141,7 @@ public:
     uid_vector::const_iterator it;
     for (it = vector.begin(); it != vector.end(); ++it) {
       if ((*it) == uid)
-	return true;
+        return true;
     }
     return false;
   }
@@ -150,7 +150,7 @@ public:
     uid_vector::const_iterator it;
     for (it = vector.begin(); it != vector.end(); ++it) {
       if ((*it) == gid)
-	return true;
+        return true;
     }
     return false;
   }

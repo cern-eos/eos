@@ -74,7 +74,7 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
       scantime = ( ((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec)/1000.0 ));
       float expecttime = (1.0 * offset / rate) / 1000.0;
       if (expecttime > scantime) {
-	usleep(1000.0*(expecttime - scantime));
+        usleep(1000.0*(expecttime - scantime));
       }
     }
   } while (nread == buffersize);

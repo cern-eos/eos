@@ -96,14 +96,14 @@ public:
 };
 
 
-#define EXEC_TIMING_BEGIN(__ID__)					\
-  struct timeval start__ID__;						\
-  struct timeval stop__ID__;						\
-  struct timezone tz__ID__;						\
-  gettimeofday(&start__ID__, &tz__ID__);					
+#define EXEC_TIMING_BEGIN(__ID__)               \
+  struct timeval start__ID__;                   \
+  struct timeval stop__ID__;                    \
+  struct timezone tz__ID__;                     \
+  gettimeofday(&start__ID__, &tz__ID__);                                        
 
-#define EXEC_TIMING_END(__ID__)			\
-  gettimeofday(&stop__ID__, &tz__ID__);		\
+#define EXEC_TIMING_END(__ID__)                                         \
+  gettimeofday(&stop__ID__, &tz__ID__);                                 \
   gOFS->MgmStats.AddExec(__ID__, ((stop__ID__.tv_sec-start__ID__.tv_sec)*1000.0) + ((stop__ID__.tv_usec-start__ID__.tv_usec)/1000.0) );
 
 class Stat {

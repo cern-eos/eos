@@ -124,10 +124,10 @@ public:
     if (autosave && currentConfigFile.length()) {
       int aspos=0;
       if ( (aspos = currentConfigFile.find(".autosave")) != STR_NPOS) {
-	currentConfigFile.erase(aspos);
+        currentConfigFile.erase(aspos);
       }
       if ( (aspos = currentConfigFile.find(".backup")) != STR_NPOS) {
-	currentConfigFile.erase(aspos);
+        currentConfigFile.erase(aspos);
       }
       XrdOucString envstring = "mgm.config.file=";envstring += currentConfigFile;
       envstring += "&mgm.config.force=1";
@@ -136,7 +136,7 @@ public:
       XrdOucString err="";
       
       if (!SaveConfig(env, err)) {
-	eos_static_err("%s\n", err.c_str());
+        eos_static_err("%s\n", err.c_str());
       }
     }
   }
@@ -153,10 +153,10 @@ public:
     if (autosave && currentConfigFile.length()) {
       int aspos=0;
       if ( (aspos = currentConfigFile.find(".autosave")) != STR_NPOS) {
-	currentConfigFile.erase(aspos);
+        currentConfigFile.erase(aspos);
       }
       if ( (aspos = currentConfigFile.find(".backup")) != STR_NPOS) {
-	currentConfigFile.erase(aspos);
+        currentConfigFile.erase(aspos);
       }
       XrdOucString envstring = "mgm.config.file=";envstring += currentConfigFile;
       envstring += "&mgm.config.force=1";
@@ -165,7 +165,7 @@ public:
       XrdOucString err="";
 
       if (!SaveConfig(env, err)) {
-	eos_static_err("%s\n", err.c_str());
+        eos_static_err("%s\n", err.c_str());
       }
     }
   }
@@ -185,10 +185,10 @@ public:
     if (autosave && currentConfigFile.length()) {
       int aspos=0;
       if ( (aspos = currentConfigFile.find(".autosave")) != STR_NPOS) {
-	currentConfigFile.erase(aspos);
+        currentConfigFile.erase(aspos);
       }
       if ( (aspos = currentConfigFile.find(".backup")) != STR_NPOS) {
-	currentConfigFile.erase(aspos);
+        currentConfigFile.erase(aspos);
       }
       XrdOucString envstring = "mgm.config.file=";envstring += currentConfigFile;
       envstring += "&mgm.config.force=1";
@@ -196,7 +196,7 @@ public:
       XrdOucEnv env(envstring.c_str());
       XrdOucString err="";
       if (!SaveConfig(env, err)) {
-	eos_static_err("%s\n", err.c_str());
+        eos_static_err("%s\n", err.c_str());
       }
     }
     eos_static_debug("%s", fsname);

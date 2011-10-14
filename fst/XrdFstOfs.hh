@@ -54,8 +54,8 @@ public:
 
   
   int         open(const char              *dirName,
-		   const XrdSecClientName  *client = 0,
-		   const char              *opaque = 0); 
+                   const XrdSecClientName  *client = 0,
+                   const char              *opaque = 0); 
 
   const char *nextEntry();
 
@@ -87,65 +87,65 @@ public:
 
   // here we mask all illegal operations
   int            chmod(const char             *Name,
-		       XrdSfsMode        Mode,
-		       XrdOucErrInfo    &out_error,
-		       const XrdSecEntity     *client,
-		       const char             *opaque = 0) { return SFS_OK;}
+                       XrdSfsMode        Mode,
+                       XrdOucErrInfo    &out_error,
+                       const XrdSecEntity     *client,
+                       const char             *opaque = 0) { return SFS_OK;}
   
   int            exists(const char                *fileName,
-			XrdSfsFileExistence &exists_flag,
-			XrdOucErrInfo       &out_error,
-			const XrdSecEntity        *client,
-			const char                *opaque = 0) { return SFS_OK;}
+                        XrdSfsFileExistence &exists_flag,
+                        XrdOucErrInfo       &out_error,
+                        const XrdSecEntity        *client,
+                        const char                *opaque = 0) { return SFS_OK;}
 
 
   
   int            fsctl(const int               cmd,
-		       const char             *args,
-		       XrdOucErrInfo    &out_error,
-		       const XrdSecEntity     *client);
+                       const char             *args,
+                       XrdOucErrInfo    &out_error,
+                       const XrdSecEntity     *client);
 
   int            mkdir(const char             *dirName,
-		       XrdSfsMode        Mode,
-		       XrdOucErrInfo    &out_error,
-		       const XrdSecEntity     *client,
-		       const char             *opaque = 0) { return SFS_OK;}
+                       XrdSfsMode        Mode,
+                       XrdOucErrInfo    &out_error,
+                       const XrdSecEntity     *client,
+                       const char             *opaque = 0) { return SFS_OK;}
   
   int            prepare(      XrdSfsPrep       &pargs,
-			       XrdOucErrInfo    &out_error,
-			       const XrdSecEntity     *client = 0) { return SFS_OK;}
+                               XrdOucErrInfo    &out_error,
+                               const XrdSecEntity     *client = 0) { return SFS_OK;}
   
   
   int            rem(const char             *path,
-		     XrdOucErrInfo    &out_error,
-		     const XrdSecEntity     *client,
-		     const char             *info = 0) ;
+                     XrdOucErrInfo    &out_error,
+                     const XrdSecEntity     *client,
+                     const char             *info = 0) ;
 
   int            _rem(const char             *path,
-		     XrdOucErrInfo           &out_error,
-		      const XrdSecEntity     *client,
- 		      XrdOucEnv              *info = 0, 
-		    const char*               fstPath=0, 
-		      unsigned long long      fid=0,
-		      unsigned long           fsid=0) ;
+                      XrdOucErrInfo           &out_error,
+                      const XrdSecEntity     *client,
+                      XrdOucEnv              *info = 0, 
+                      const char*               fstPath=0, 
+                      unsigned long long      fid=0,
+                      unsigned long           fsid=0) ;
   
   int            remdir(const char             *dirName,
-			XrdOucErrInfo    &out_error,
-			const XrdSecEntity     *client,
-			const char             *info = 0) { return SFS_OK;}
+                        XrdOucErrInfo    &out_error,
+                        const XrdSecEntity     *client,
+                        const char             *info = 0) { return SFS_OK;}
   
   int            rename(const char             *oldFileName,
-			const char             *newFileName,
-			XrdOucErrInfo    &out_error,
-			const XrdSecEntity     *client,
-			const char             *infoO = 0,
-			const char            *infoN = 0) {return SFS_OK;}
+                        const char             *newFileName,
+                        XrdOucErrInfo    &out_error,
+                        const XrdSecEntity     *client,
+                        const char             *infoO = 0,
+                        const char            *infoN = 0) {return SFS_OK;}
 
   int            stat(  const char             *path,
-			struct stat      *buf,
-			XrdOucErrInfo    &out_error,
-			const XrdSecEntity     *client,
-			const char             *opaque = 0);
+                        struct stat      *buf,
+                        XrdOucErrInfo    &out_error,
+                        const XrdSecEntity     *client,
+                        const char             *opaque = 0);
 
   int            CallManager(XrdOucErrInfo *error, const char* path, const char* manager, XrdOucString &capOpaqueFile);
 

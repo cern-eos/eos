@@ -76,7 +76,7 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
       hasEgroup = egroupmatch;
     }
     if ((!it->compare(0, usertag.length(), usertag)) || (!it->compare(0,grouptag.length(), grouptag)) || (egroupmatch) ||
-	(!it->compare(0, usertagfn.length(), usertagfn)) || (!it->compare(0,grouptagfn.length(), grouptagfn)) ) {
+        (!it->compare(0, usertagfn.length(), usertagfn)) || (!it->compare(0,grouptagfn.length(), grouptagfn)) ) {
       // that is our rule
       std::vector<std::string> entry;
       std::string delimiter = ":";
@@ -97,8 +97,8 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
       }
 
       if (((entry[2].find("wo"))!= std::string::npos)) {
-	canWriteOnce = true;
-	hasAcl = true;
+        canWriteOnce = true;
+        hasAcl = true;
       }
 
       if ((!canWriteOnce) && (entry[2].find("w"))!= std::string::npos) {

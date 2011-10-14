@@ -106,12 +106,12 @@ extern "C" {
   }
 
 #define COUT(s) do {                            \
-      cout_print s;                             \
-   } while (0)
+    cout_print s;                               \
+  } while (0)
 
 #define CERR(s) do {                            \
-      cerr_print s;                             \
-   } while (0)
+    cerr_print s;                               \
+  } while (0)
   
 }
 //////////////////////////////////////////////////////////////////////
@@ -119,7 +119,7 @@ extern "C" {
 void print_summary(char* src[MAXSRCDST], char* dst[MAXSRCDST], unsigned long long bytesread) {
   gettimeofday (&abs_stop_time, &tz);
   float abs_time=((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) *1000 +
-			  (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
+                          (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
 
   XrdOucString xsrc[MAXSRCDST];
   XrdOucString xdst[MAXSRCDST];
@@ -180,7 +180,7 @@ void print_progbar(unsigned long long bytesread, unsigned long long size) {
   }
   
   float abs_time=((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) *1000 +
-			  (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
+                          (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
   CERR(("| %.02f %% [%.01f MB/s]\r",100.0*bytesread/size,bytesread/abs_time/1000.0));
 }
 
@@ -226,15 +226,15 @@ int main(int argc, char* argv[]) {
       char tuid[128];
       sprintf(tuid,"%d",euid);
       if (strcmp(tuid,optarg)) {
-	// this is not a number, try to map it with getpwnam
-	struct passwd* pwinfo = getpwnam(optarg);
-	if (pwinfo) {
-	  euid = pwinfo->pw_uid;
-	  if (debug) {fprintf(stdout,"[eosfstcp]: mapping user  %s=>UID:%d\n",optarg,euid);}
-	} else {
-	  fprintf(stderr,"error: cannot map user %s to any unix id!\n",optarg);
-	  exit(-ENOENT);
-	}
+        // this is not a number, try to map it with getpwnam
+        struct passwd* pwinfo = getpwnam(optarg);
+        if (pwinfo) {
+          euid = pwinfo->pw_uid;
+          if (debug) {fprintf(stdout,"[eosfstcp]: mapping user  %s=>UID:%d\n",optarg,euid);}
+        } else {
+          fprintf(stderr,"error: cannot map user %s to any unix id!\n",optarg);
+          exit(-ENOENT);
+        }
       }
       break;
     case 'g':
@@ -242,15 +242,15 @@ int main(int argc, char* argv[]) {
       char tgid[128];
       sprintf(tgid,"%d",egid);
       if (strcmp(tgid,optarg)) {
-	// this is not a number, try to map it with getgrnam
-	struct group* grinfo = getgrnam(optarg);
-	if (grinfo) {
-	  egid = grinfo->gr_gid;
-	  if (debug) {fprintf(stdout,"[eosfstcp]: mapping group %s=>GID:%d\n",optarg,egid);}
-	} else {
-	  fprintf(stderr,"error: cannot map group %s to any unix id!\n",optarg);
-	  exit(-ENOENT);
-	}
+        // this is not a number, try to map it with getgrnam
+        struct group* grinfo = getgrnam(optarg);
+        if (grinfo) {
+          egid = grinfo->gr_gid;
+          if (debug) {fprintf(stdout,"[eosfstcp]: mapping group %s=>GID:%d\n",optarg,egid);}
+        } else {
+          fprintf(stderr,"error: cannot map group %s to any unix id!\n",optarg);
+          exit(-ENOENT);
+        }
       }
       break;
     case '5':
@@ -259,39 +259,39 @@ int main(int argc, char* argv[]) {
     case 't':
       bandwidth = atoi(optarg);
       if ( (bandwidth < 1) || (bandwidth > 2000) ) {
-	fprintf(stderr,"error: bandwidth can only be 1 <= bandwidth <= 2000 Mb/s\n");
-	exit(-1);
+        fprintf(stderr,"error: bandwidth can only be 1 <= bandwidth <= 2000 Mb/s\n");
+        exit(-1);
       }
       break;
     case 'S':
       nsrc= atoi(optarg);
       // currently not supported
       if ( nsrc > 1) {
-	fprintf(stderr,"error: >1 sources are currently not supported!\n");
-	exit(-1);
+        fprintf(stderr,"error: >1 sources are currently not supported!\n");
+        exit(-1);
       }
       if ( (nsrc<1) || (nsrc > MAXSRCDST) ) {
-	fprintf(stderr,"error: # of sources must be 1 <= # <= %d\n",MAXSRCDST);
-	exit(-1);
+        fprintf(stderr,"error: # of sources must be 1 <= # <= %d\n",MAXSRCDST);
+        exit(-1);
       }
       break;
     case 'D':
       ndst= atoi(optarg);
       if ( (ndst<1) || (ndst > MAXSRCDST) ) {
-	fprintf(stderr,"error: # of sources must be 1 <= # <= %d\n",MAXSRCDST);
-	exit(-1);
+        fprintf(stderr,"error: # of sources must be 1 <= # <= %d\n",MAXSRCDST);
+        exit(-1);
       }
       break;
     case 'b':
       buffersize = atoi(optarg);
       if ( (buffersize <4096) || (buffersize > 100 * 1024 * 1024)) {
-	fprintf(stderr,"error: buffer size can only 4k <= size <= 100 M\n");
-	exit(-1);
+        fprintf(stderr,"error: buffer size can only 4k <= size <= 100 M\n");
+        exit(-1);
       }
       break;
     case 'm':
       for (int i=0; i< MAXSRCDST; i++) {
-	dest_mode[i] = strtol(optarg,0,8);
+        dest_mode[i] = strtol(optarg,0,8);
       }
       set_mode=1;
       break;
@@ -299,8 +299,8 @@ int main(int argc, char* argv[]) {
       char* colon;
       colon = strchr(optarg,':');
       if (colon <0) {
-	fprintf(stderr,"error: range has to be given in the format <startbyte>:<stopbyte> e.g. 0:100000\n");
-	exit(-1);
+        fprintf(stderr,"error: range has to be given in the format <startbyte>:<stopbyte> e.g. 0:100000\n");
+        exit(-1);
       }
       *colon = 0;
       startbyte = strtoll(optarg,0,0);
@@ -379,8 +379,8 @@ int main(int argc, char* argv[]) {
     if (src[i] == "-") {
       sid[i] = STDINOUTID;
       if (i > 0 ) {
-	fprintf(stderr,"error: you cannot read with several sources from stdin\n");
-	exit(-1);
+        fprintf(stderr,"error: you cannot read with several sources from stdin\n");
+        exit(-1);
       }
     }
   }
@@ -398,11 +398,11 @@ int main(int argc, char* argv[]) {
     if (verbose || debug) {
       fprintf(stdout,"[eosfstcp]: copy protocol ");
       for (int j=0; j< nsrc; j++) {
-	fprintf(stdout,"%s:",protocols[sid[j]]);
+        fprintf(stdout,"%s:",protocols[sid[j]]);
       }
       fprintf(stdout,"=>");
       for (int j=0; j< ndst; j++) {
-      	fprintf(stdout,"%s:",protocols[did[j]]);
+        fprintf(stdout,"%s:",protocols[did[j]]);
       }
       fprintf(stdout,"\n");
     }
@@ -438,7 +438,7 @@ int main(int argc, char* argv[]) {
       XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,buffersize*3);
       XrdPosixXrootd::setEnv(NAME_READCACHESIZE,buffersize*6);
       if (debug)
-	XrdPosixXrootd::setEnv(NAME_DEBUG,10);
+        XrdPosixXrootd::setEnv(NAME_DEBUG,10);
     }
   }
 
@@ -448,41 +448,41 @@ int main(int argc, char* argv[]) {
       XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,buffersize*3);
       XrdPosixXrootd::setEnv(NAME_READCACHESIZE,buffersize*6);
       if (debug)
-      XrdPosixXrootd::setEnv(NAME_DEBUG,10);
+        XrdPosixXrootd::setEnv(NAME_DEBUG,10);
     }
   }   
 
 
   if (!replicamode) 
-  for (int i=0 ; i< nsrc; i++) {
-    // stat the source
-    switch(sid[i]) {
-    case 0:
-      if (debug) {fprintf(stdout,"[eosfstcp]: doing POSIX stat on %s\n",source[i]);}
-      stat_failed = lstat(source[i],&st[i]);
-      break;
-    case 1:
-    case 2:
-      if (debug) {fprintf(stdout,"[eosfstcp]: doing XROOT stat on %s\n",source[i]);}
-      stat_failed = XrdPosixXrootd::Stat(source[i],&st[i]);
-      break;
-    case 3:
-      stat_failed = 0;
-      break;
-    }
+    for (int i=0 ; i< nsrc; i++) {
+      // stat the source
+      switch(sid[i]) {
+      case 0:
+        if (debug) {fprintf(stdout,"[eosfstcp]: doing POSIX stat on %s\n",source[i]);}
+        stat_failed = lstat(source[i],&st[i]);
+        break;
+      case 1:
+      case 2:
+        if (debug) {fprintf(stdout,"[eosfstcp]: doing XROOT stat on %s\n",source[i]);}
+        stat_failed = XrdPosixXrootd::Stat(source[i],&st[i]);
+        break;
+      case 3:
+        stat_failed = 0;
+        break;
+      }
     
-    if (stat_failed) {
-      fprintf(stderr,"error: cannot stat source %s\n",source[i]);
-      exit(-ENOENT);
+      if (stat_failed) {
+        fprintf(stderr,"error: cannot stat source %s\n",source[i]);
+        exit(-ENOENT);
+      }
     }
-  }
 
   // stat consistency check
   for (int i=0; i< nsrc; i++) {
     for (int j=0; j< nsrc; j++) {
       if (st[i].st_size != st[j].st_size) {
-	fprintf(stderr,"error: source files differe in size !\n");
-	exit (-EINVAL);
+        fprintf(stderr,"error: source files differe in size !\n");
+        exit (-EINVAL);
       }
     }
   }
@@ -490,68 +490,68 @@ int main(int argc, char* argv[]) {
   // check if this is a range link
 
   if (!replicamode)
-  for (int i=0; i< nsrc; i++) {  
-    if (S_ISLNK(st[i].st_mode)) {
-      int readlink_size=0;
+    for (int i=0; i< nsrc; i++) {  
+      if (S_ISLNK(st[i].st_mode)) {
+        int readlink_size=0;
 
-      char* readlinkbuff = (char*) malloc(4096);
-      if (!readlinkbuff) {
-	fprintf(stderr,"error: cannot allocate link buffer\n");
-	exit(-ENOMEM);
-      }
-      readlinkbuff[0]=0;
+        char* readlinkbuff = (char*) malloc(4096);
+        if (!readlinkbuff) {
+          fprintf(stderr,"error: cannot allocate link buffer\n");
+          exit(-ENOMEM);
+        }
+        readlinkbuff[0]=0;
 
-      switch(sid[i]) {
-      case 0:
-	if (debug) {fprintf(stdout,"[eosfstcp]: doing POSIX readlink on %s\n",source[i]);}
-	readlink_size = readlink(source[i],readlinkbuff,4096);
-	break;
-      case 1:
-      case 2:
-	if (debug) {fprintf(stdout,"[eosfstcp]: doing XROOT readlink on %s\n",source[i]);}
-	// not implemented in xrootd posix
-	readlink_size = 1;
-	break;
-      case 3:
-	readlink_size = 0;
-	break;
-      }
+        switch(sid[i]) {
+        case 0:
+          if (debug) {fprintf(stdout,"[eosfstcp]: doing POSIX readlink on %s\n",source[i]);}
+          readlink_size = readlink(source[i],readlinkbuff,4096);
+          break;
+        case 1:
+        case 2:
+          if (debug) {fprintf(stdout,"[eosfstcp]: doing XROOT readlink on %s\n",source[i]);}
+          // not implemented in xrootd posix
+          readlink_size = 1;
+          break;
+        case 3:
+          readlink_size = 0;
+          break;
+        }
       
-      if (readlink_size < 0) {
-	fprintf(stderr,"error: cannot read the link of %s\n",source[i]);
-	exit(-errno);
-      }
+        if (readlink_size < 0) {
+          fprintf(stderr,"error: cannot read the link of %s\n",source[i]);
+          exit(-errno);
+        }
       
-      char* space = strchr(readlinkbuff,' ');
-      if (space) {
-	*space = 0;
-	char* colon = strchr(space+1,':');
-	if (colon) {
-	  *colon = 0;
-	  // yep, this is a range link
-	  startbyte = strtoll(space+1,0,0);
-	  stopbyte  = strtoll(colon+1,0,0);
-	  source[i] = readlinkbuff;
-	  if (debug) {fprintf(stdout,"[eosfstcp]: setting range to destination %s %lld:%lld\n",source[0],startbyte,stopbyte);}
-	}
+        char* space = strchr(readlinkbuff,' ');
+        if (space) {
+          *space = 0;
+          char* colon = strchr(space+1,':');
+          if (colon) {
+            *colon = 0;
+            // yep, this is a range link
+            startbyte = strtoll(space+1,0,0);
+            stopbyte  = strtoll(colon+1,0,0);
+            source[i] = readlinkbuff;
+            if (debug) {fprintf(stdout,"[eosfstcp]: setting range to destination %s %lld:%lld\n",source[0],startbyte,stopbyte);}
+          }
+        }
       }
     }
-  }
   
   // if we don't have transparent staging enabled, we need to check if files are online
   if (!transparentstaging) {
     for (int i=0; i< nsrc; i++) {
       switch(sid[i]) {
       case 0:
-	if (debug) {fprintf(stdout,"[eosfstcp]: POSIX is transparent for staging - nothing to check\n");}
-	break;
+        if (debug) {fprintf(stdout,"[eosfstcp]: POSIX is transparent for staging - nothing to check\n");}
+        break;
       case 1:
       case 2:
-	if (debug) {fprintf(stdout,"[eosfstcp]: XROOT is transparent for staging - nothing to check\n");}
-	break;
-	case 3:
-	  if (debug) {fprintf(stdout,"[eosfstcp]: STDIN is transparent for staging - nothing to check\n");}
-	  break;
+        if (debug) {fprintf(stdout,"[eosfstcp]: XROOT is transparent for staging - nothing to check\n");}
+        break;
+      case 3:
+        if (debug) {fprintf(stdout,"[eosfstcp]: STDIN is transparent for staging - nothing to check\n");}
+        break;
       }
     }
   }
@@ -564,71 +564,71 @@ int main(int argc, char* argv[]) {
     for (int i=0; i< ndst; i++) {
       int pos=0;
       while ( (pos = dst[i].find("/",pos+1)) != STR_NPOS ) {
-	XrdOucString subpath = dst[i];
-	subpath.erase(pos+1);
-	switch(did[i]) {
-	case 0:
-	  if (debug) {fprintf(stdout,"[eosfstcp]: doing POSIX stat on %s\n",subpath.c_str());}
-	  stat_failed = stat((char*)subpath.c_str(),&dstst[i]);
-	  break;
-	case 1:
-	case 2:
-	  if (debug) {fprintf(stdout,"[eosfstcp]: doing XROOT stat on %s\n",subpath.c_str());}
-	  stat_failed = XrdPosixXrootd::Stat((char*)subpath.c_str(),&dstst[i]);
-	  break;
-	case 3:
-	  stat_failed = 0;
-	  break;
-	  
-	}
+        XrdOucString subpath = dst[i];
+        subpath.erase(pos+1);
+        switch(did[i]) {
+        case 0:
+          if (debug) {fprintf(stdout,"[eosfstcp]: doing POSIX stat on %s\n",subpath.c_str());}
+          stat_failed = stat((char*)subpath.c_str(),&dstst[i]);
+          break;
+        case 1:
+        case 2:
+          if (debug) {fprintf(stdout,"[eosfstcp]: doing XROOT stat on %s\n",subpath.c_str());}
+          stat_failed = XrdPosixXrootd::Stat((char*)subpath.c_str(),&dstst[i]);
+          break;
+        case 3:
+          stat_failed = 0;
+          break;
+          
+        }
 
-	mode_t mode;
-	int mkdir_failed=0;
-	mode = dest_mode[i] | S_IXUSR | S_IXGRP | S_IXOTH;
-	if (stat_failed) {
-	  // create the directory
-	  switch(did[i]) {
-	  case 0:
-	    if (debug) {fprintf(stdout,"[eosfstcp]: doing POSIX mkdir on %s\n",(char*)subpath.c_str());}
-	    mkdir_failed = mkdir((char*)subpath.c_str(),mode);
-	    break;
-	  case 1:
-	  case 2:
-	    if (debug) {fprintf(stdout,"[eosfstcp]: doing XROOT mkdir on %s\n",(char*)subpath.c_str());}
-	    mkdir_failed = XrdPosixXrootd::Mkdir(source[i],mode);
-	    break;
-	  case 3:
-	    mkdir_failed = 0;
-	    break;
-	  }
-	  if (mkdir_failed) {
-	    fprintf(stderr,"error: cannot create destination sub-directory %s\n",(char*)subpath.c_str());
-	    exit (-EPERM);	  
-	  }
-	}
+        mode_t mode;
+        int mkdir_failed=0;
+        mode = dest_mode[i] | S_IXUSR | S_IXGRP | S_IXOTH;
+        if (stat_failed) {
+          // create the directory
+          switch(did[i]) {
+          case 0:
+            if (debug) {fprintf(stdout,"[eosfstcp]: doing POSIX mkdir on %s\n",(char*)subpath.c_str());}
+            mkdir_failed = mkdir((char*)subpath.c_str(),mode);
+            break;
+          case 1:
+          case 2:
+            if (debug) {fprintf(stdout,"[eosfstcp]: doing XROOT mkdir on %s\n",(char*)subpath.c_str());}
+            mkdir_failed = XrdPosixXrootd::Mkdir(source[i],mode);
+            break;
+          case 3:
+            mkdir_failed = 0;
+            break;
+          }
+          if (mkdir_failed) {
+            fprintf(stderr,"error: cannot create destination sub-directory %s\n",(char*)subpath.c_str());
+            exit (-EPERM);        
+          }
+        }
 
-	int chown_failed=0;
-	if (getuid() == 0) {
-	  // the root user can also set the user/group as in the source location
-	  switch(did[i]) {
-	  case 0:
-	    chown_failed = chown((char*)subpath.c_str(),st[0].st_uid,st[0].st_gid);
-	    break;
-	  case 1:
-	  case 2:
-	    // we don't have that here in the std. xrootd
-	    chown_failed = 0;
-	    break;
-	  case 3:
-	    chown_failed = 0;
-	    break;
-	  }
-	}
-	
-	if (chown_failed) {
-	  fprintf(stderr, "error: cannot set owner=%d/group=%d for %s\n",st[i].st_uid,st[i].st_gid,(char*)subpath.c_str());
-	  exit(-EPERM);
-	}
+        int chown_failed=0;
+        if (getuid() == 0) {
+          // the root user can also set the user/group as in the source location
+          switch(did[i]) {
+          case 0:
+            chown_failed = chown((char*)subpath.c_str(),st[0].st_uid,st[0].st_gid);
+            break;
+          case 1:
+          case 2:
+            // we don't have that here in the std. xrootd
+            chown_failed = 0;
+            break;
+          case 3:
+            chown_failed = 0;
+            break;
+          }
+        }
+        
+        if (chown_failed) {
+          fprintf(stderr, "error: cannot set owner=%d/group=%d for %s\n",st[i].st_uid,st[i].st_gid,(char*)subpath.c_str());
+          exit(-EPERM);
+        }
       }
     }
   }
@@ -661,16 +661,16 @@ int main(int argc, char* argv[]) {
       if (debug) {fprintf(stdout,"[eosfstcp]: seeking in %d to position %lld\n",srcfd[i],startbyte);}
       switch(sid[i]) {
       case 0:
-	startbyte = lseek(srcfd[i],startbyte,SEEK_SET);
-	break;
+        startbyte = lseek(srcfd[i],startbyte,SEEK_SET);
+        break;
       case 1:
       case 2:
-	startbyte = XrdPosixXrootd::Lseek(srcfd[i],startbyte,SEEK_SET);
-	break;
+        startbyte = XrdPosixXrootd::Lseek(srcfd[i],startbyte,SEEK_SET);
+        break;
       }      
       if (startbyte<0) {
-	fprintf(stderr,"error: cannot seek to the required startposition of file %s %d\n",source[i],errno);
-	exit(-EIO);
+        fprintf(stderr,"error: cannot seek to the required startposition of file %s %d\n",source[i],errno);
+        exit(-EIO);
       }
     }
   }
@@ -680,18 +680,18 @@ int main(int argc, char* argv[]) {
     case 0:
       if (debug) {fprintf(stdout,"[eosfstcp]: doing POSIX open to write  %s\n",destination[i]);}
       if (appendmode) {
-	dstfd[i] = open(destination[i],O_WRONLY|O_CREAT,st[i].st_mode);
+        dstfd[i] = open(destination[i],O_WRONLY|O_CREAT,st[i].st_mode);
       } else {
-	dstfd[i] = open(destination[i],O_WRONLY|O_TRUNC|O_CREAT,st[i].st_mode);
+        dstfd[i] = open(destination[i],O_WRONLY|O_TRUNC|O_CREAT,st[i].st_mode);
       }
       break;
     case 1:
     case 2:
       if (debug) {fprintf(stdout,"[eosfstcp]: doing XROOT open to write  %s\n",destination[i]);}
       if (appendmode) {
-	dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY|O_CREAT,st[i].st_mode);
+        dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY|O_CREAT,st[i].st_mode);
       } else {
-	dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY|O_TRUNC|O_CREAT,st[i].st_mode);
+        dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY|O_TRUNC|O_CREAT,st[i].st_mode);
       }
       break;
     case 3:
@@ -710,16 +710,16 @@ int main(int argc, char* argv[]) {
     for (int i=0; i< ndst; i++) {
       switch(did[i]) {
       case 0:
-	startwritebyte = lseek(dstfd[i],0,SEEK_END);
-	break;
+        startwritebyte = lseek(dstfd[i],0,SEEK_END);
+        break;
       case 1:
       case 2:
-	startwritebyte = XrdPosixXrootd::Lseek(dstfd[i],(long long)0,SEEK_END);
-	break;
+        startwritebyte = XrdPosixXrootd::Lseek(dstfd[i],(long long)0,SEEK_END);
+        break;
       }      
       if (startwritebyte<0) {
-	fprintf(stderr,"error: cannot seek to end of file to %d of %s\n",dest_mode[i],destination[i]);
-	exit(-EIO);
+        fprintf(stderr,"error: cannot seek to end of file to %d of %s\n",dest_mode[i],destination[i]);
+        exit(-EIO);
       }
     }
   }
@@ -759,16 +759,16 @@ int main(int argc, char* argv[]) {
       // the root user can also set the user/group as in the source location
       switch(did[i]) {
       case 0:
-	chown_failed = chown(destination[i],st[0].st_uid,st[0].st_gid);
-	break;
+        chown_failed = chown(destination[i],st[0].st_uid,st[0].st_gid);
+        break;
       case 1:
       case 2:
-	// we don't have that here in the std. xrootd
-	chown_failed = 0;
-	break;
+        // we don't have that here in the std. xrootd
+        chown_failed = 0;
+        break;
       case 3:
-	chown_failed = 0;
-	break;
+        chown_failed = 0;
+        break;
       }
     }
     
@@ -787,20 +787,20 @@ int main(int argc, char* argv[]) {
     if (progbar) {
       gettimeofday(&abs_stop_time,&tz);
       for (int i=0; i< nsrc; i++) 
-	if (sid[i]==3)
-	  st[i].st_size = totalbytes;
+        if (sid[i]==3)
+          st[i].st_size = totalbytes;
       print_progbar(totalbytes,st[0].st_size);
     }
     
     if (bandwidth) {
       gettimeofday (&abs_stop_time, &tz);
       float abs_time=((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) *1000 +
-			      (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
+                              (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
       
       // regulate the io - sleep as desired
       float exp_time = totalbytes/bandwidth/1000.0;
       if (abs_time < exp_time) {
-	usleep((int)(1000*(exp_time - abs_time)));
+        usleep((int)(1000*(exp_time - abs_time)));
       }
     }
 
@@ -811,14 +811,14 @@ int main(int argc, char* argv[]) {
 
     ssize_t nread =-1;
     switch(sid[0]) {
-      case 0:
-      case 3:
-	nread = read(srcfd[0], (void*) (buffer), buffersize);
-	break;
-      case 1:
-      case 2:
-	nread = XrdPosixXrootd::Read(srcfd[0],(void*) (buffer), buffersize);
-	break;
+    case 0:
+    case 3:
+      nread = read(srcfd[0], (void*) (buffer), buffersize);
+      break;
+    case 1:
+    case 2:
+      nread = XrdPosixXrootd::Read(srcfd[0],(void*) (buffer), buffersize);
+      break;
     }
     
     if (nread < 0 ) {
@@ -839,17 +839,17 @@ int main(int argc, char* argv[]) {
       switch(did[i]) {
       case 0:
       case 3:
-	nwrite = write(dstfd[i], (void*) buffer, nread);
-	break;
+        nwrite = write(dstfd[i], (void*) buffer, nread);
+        break;
       case 1:
       case 2:
-	nwrite = XrdPosixXrootd::Write(dstfd[i],(void*) buffer, nread);
-	break;
+        nwrite = XrdPosixXrootd::Write(dstfd[i],(void*) buffer, nread);
+        break;
       }
       
       if (nwrite != nread) {
-	fprintf(stderr, "error: write failed on destination file %s - wrote %lld/%lld bytes - destination file is incomplete!\n",destination[i],(long long)nwrite,(long long)nread);
-	exit(-EIO);
+        fprintf(stderr, "error: write failed on destination file %s - wrote %lld/%lld bytes - destination file is incomplete!\n",destination[i],(long long)nwrite,(long long)nread);
+        exit(-EIO);
       }
       
     }
@@ -870,7 +870,7 @@ int main(int argc, char* argv[]) {
     gettimeofday(&abs_stop_time,&tz);
     for (int i=0; i< nsrc; i++) 
       if (sid[i]==3)
-	st[i].st_size = totalbytes;
+        st[i].st_size = totalbytes;
     print_progbar(totalbytes,st[0].st_size);
     cout << endl;
   }
@@ -905,7 +905,7 @@ int main(int argc, char* argv[]) {
       XrdPosixXrootd::Close(dstfd[i]);
       break;
     case 3:
-    break;
+      break;
     }
   }
 
@@ -929,7 +929,7 @@ int main(int argc, char* argv[]) {
       // xrootd has no symlink support in posix 
       break;
     case 3:
-    break;
+      break;
     }
     if (symlink_failed) {
       fprintf(stderr,"error: cannot creat symlink from %s -> %s\n",symlinkname, rangedestname);

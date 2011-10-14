@@ -68,18 +68,18 @@ public:
   }    
 };
 
-#define TIMING(__trace__, __ID__,__LIST__)                              \
-if (__trace__.What & TRACE_debug)                                       \
-do {                                                                    \
-     struct timeval tp;                                                 \
-     struct timezone tz;                                                \
-     gettimeofday(&tp, &tz);                                            \
-     (__LIST__)->ptr->next=new eos::common::Timing(__ID__,tp);          \
-     (__LIST__)->ptr = (__LIST__)->ptr->next;                           \
-} while(0);                                                             \
-
-
-
+#define TIMING(__trace__, __ID__,__LIST__)                      \
+  if (__trace__.What & TRACE_debug)                             \
+    do {                                                        \
+      struct timeval tp;                                        \
+      struct timezone tz;                                       \
+      gettimeofday(&tp, &tz);                                   \
+      (__LIST__)->ptr->next=new eos::common::Timing(__ID__,tp); \
+      (__LIST__)->ptr = (__LIST__)->ptr->next;                  \
+    } while(0);                                                 \
+                                                                \
+                                                                \
+                                                                \
 
 EOSCOMMONNAMESPACE_END
  

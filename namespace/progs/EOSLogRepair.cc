@@ -16,69 +16,69 @@
 //------------------------------------------------------------------------------
 class Feedback: public eos::ILogRepairFeedback
 {
-  public:
-    //--------------------------------------------------------------------------
-    // Constructor
-    //--------------------------------------------------------------------------
-    Feedback(): pPrevSize( 0 ), pLastUpdated( 0 ) {}
+public:
+  //--------------------------------------------------------------------------
+  // Constructor
+  //--------------------------------------------------------------------------
+  Feedback(): pPrevSize( 0 ), pLastUpdated( 0 ) {}
 
-    //--------------------------------------------------------------------------
-    // Report progress
-    //--------------------------------------------------------------------------
-    virtual void reportProgress( eos::LogRepairStats &stats )
-    {
-      uint64_t          sum = stats.bytesAccepted + stats.bytesDiscarded;
-      std::stringstream o;
+  //--------------------------------------------------------------------------
+  // Report progress
+  //--------------------------------------------------------------------------
+  virtual void reportProgress( eos::LogRepairStats &stats )
+  {
+    uint64_t          sum = stats.bytesAccepted + stats.bytesDiscarded;
+    std::stringstream o;
 
-      if( pLastUpdated == stats.timeElapsed  && sum != stats.bytesTotal )
-        return;
-      pLastUpdated = stats.timeElapsed;
+    if( pLastUpdated == stats.timeElapsed  && sum != stats.bytesTotal )
+      return;
+    pLastUpdated = stats.timeElapsed;
 
-      o << "\r";
-      o << "Elapsed time: ";
-      o << eos::DisplayHelper::getReadableTime( stats.timeElapsed ) << " ";
-      o << "Progress: " << eos::DisplayHelper::getReadableSize( sum ) << " / ";
-      o << eos::DisplayHelper::getReadableSize( stats.bytesTotal );
+    o << "\r";
+    o << "Elapsed time: ";
+    o << eos::DisplayHelper::getReadableTime( stats.timeElapsed ) << " ";
+    o << "Progress: " << eos::DisplayHelper::getReadableSize( sum ) << " / ";
+    o << eos::DisplayHelper::getReadableSize( stats.bytesTotal );
 
-      //------------------------------------------------------------------------
-      // Avoid garbage on the screen by overwriting it with spaces
-      //------------------------------------------------------------------------
-      int thisSize = o.str().size();
-      for( int i = thisSize; i <= pPrevSize; ++i )
-        o << " ";
-      pPrevSize = thisSize;
+    //------------------------------------------------------------------------
+    // Avoid garbage on the screen by overwriting it with spaces
+    //------------------------------------------------------------------------
+    int thisSize = o.str().size();
+    for( int i = thisSize; i <= pPrevSize; ++i )
+      o << " ";
+    pPrevSize = thisSize;
 
-      std::cerr << o.str() << std::flush;
+    std::cerr << o.str() << std::flush;
 
-      //------------------------------------------------------------------------
-      // Go to the next line
-      //------------------------------------------------------------------------
-      if( sum == stats.bytesTotal )
-        std::cerr << std::endl;
-    }
+    //------------------------------------------------------------------------
+    // Go to the next line
+    //------------------------------------------------------------------------
+    if( sum == stats.bytesTotal )
+      std::cerr << std::endl;
+  }
 
-    //--------------------------------------------------------------------------
-    // Check the header
-    //--------------------------------------------------------------------------
-    virtual void reportHeaderStatus( bool               isOk,
-                                     const std::string &message,
-                                     uint8_t            version,
-                                     uint16_t           contentFlag )
-    {
-      std::cerr << "Header status: ";
-      if( isOk )
+  //--------------------------------------------------------------------------
+  // Check the header
+  //--------------------------------------------------------------------------
+  virtual void reportHeaderStatus( bool               isOk,
+                                   const std::string &message,
+                                   uint8_t            version,
+                                   uint16_t           contentFlag )
+  {
+    std::cerr << "Header status: ";
+    if( isOk )
       {
         std::cerr << "OK (version: 0x" << std::setbase(16) << (int)version;
         std::cerr << ", content: 0x" << std::setbase(16) << contentFlag;
         std::cerr << ")" << std::setbase(10) << std::endl;
       }
-      else
-        std::cerr << "broken (" << message << ")" << std::endl;
-    }
+    else
+      std::cerr << "broken (" << message << ")" << std::endl;
+  }
 
-  private:
-    int    pPrevSize;
-    time_t pLastUpdated;
+private:
+  int    pPrevSize;
+  time_t pLastUpdated;
 };
 
 //------------------------------------------------------------------------------
@@ -90,12 +90,12 @@ int main( int argc, char **argv )
   // Check the commandline parameters
   //----------------------------------------------------------------------------
   if( argc != 3 )
-  {
-    std::cerr << "Usage:" << std::endl;
-    std::cerr << "  " << argv[0] << " broken_log_file new_log_file";
-    std::cerr << std::endl;
-    return 1;
-  }
+    {
+      std::cerr << "Usage:" << std::endl;
+      std::cerr << "  " << argv[0] << " broken_log_file new_log_file";
+      std::cerr << std::endl;
+      return 1;
+    }
 
   //----------------------------------------------------------------------------
   // Repair the log
@@ -104,16 +104,16 @@ int main( int argc, char **argv )
   eos::LogRepairStats stats;
 
   try
-  {
-    eos::ChangeLogFile::repair( argv[1], argv[2], stats, &feedback );
-    eos::DataHelper::copyOwnership( argv[2], argv[1] );
-  }
+    {
+      eos::ChangeLogFile::repair( argv[1], argv[2], stats, &feedback );
+      eos::DataHelper::copyOwnership( argv[2], argv[1] );
+    }
   catch( eos::MDException &e )
-  {
-    std::cerr << std::endl;
-    std::cerr << "Error: " << e.what() << std::endl;
-    return 2;
-  }
+    {
+      std::cerr << std::endl;
+      std::cerr << "Error: " << e.what() << std::endl;
+      return 2;
+    }
 
   //----------------------------------------------------------------------------
   // Display the stats

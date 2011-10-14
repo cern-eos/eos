@@ -20,8 +20,8 @@ public:
 
   /*----------------------------------------------------------------------------*/  
   static void Tokenize(const std::string& str,
-		       std::vector<std::string>& tokens,
-		       const std::string& delimiters = " ")
+                       std::vector<std::string>& tokens,
+                       const std::string& delimiters = " ")
   {
     // Skip delimiters at beginning.
     std::string::size_type lastPos = str.find_first_not_of(delimiters, 0);
@@ -44,8 +44,8 @@ public:
     char formsize[1024];
     if (insize >= 1000) {
       if (insize >= (1000*1000)) {
-	if (insize >= (1000ll*1000ll*1000ll)) {
-	  if (insize >= (1000ll*1000ll*1000ll*1000ll)) {
+        if (insize >= (1000ll*1000ll*1000ll)) {
+          if (insize >= (1000ll*1000ll*1000ll*1000ll)) {
             if (insize >= (1000ll*1000ll*1000ll*1000ll*1000ll)) {
               if (insize >= (1000ll*1000ll*1000ll*1000ll*1000ll*1000ll)) {
                 // EB
@@ -58,23 +58,23 @@ public:
               // TB
               sprintf(formsize,"%.02f T%s",insize*1.0 / (1000ll*1000ll*1000ll*1000ll), unit);
             }
-	  } else {
-	    // GB
-	    sprintf(formsize,"%.02f G%s",insize*1.0 / (1000ll*1000ll*1000ll), unit);
-	  }
-	} else {
-	  // MB
-	  sprintf(formsize,"%.02f M%s",insize*1.0 / (1000*1000),unit);
-	}
+          } else {
+            // GB
+            sprintf(formsize,"%.02f G%s",insize*1.0 / (1000ll*1000ll*1000ll), unit);
+          }
+        } else {
+          // MB
+          sprintf(formsize,"%.02f M%s",insize*1.0 / (1000*1000),unit);
+        }
       } else {
-	// kB
-	sprintf(formsize,"%.02f k%s",insize*1.0 / (1000),unit);
+        // kB
+        sprintf(formsize,"%.02f k%s",insize*1.0 / (1000),unit);
       }
     } else {
       if (strlen(unit)) {
-	sprintf(formsize,"%.02f %s",insize*1.0, unit);
+        sprintf(formsize,"%.02f %s",insize*1.0, unit);
       } else {
-	sprintf(formsize,"%.02f",insize*1.0);
+        sprintf(formsize,"%.02f",insize*1.0);
       }
     }
     sizestring = formsize;
@@ -82,7 +82,7 @@ public:
     return sizestring.c_str();
   }
 
-/*----------------------------------------------------------------------------*/
+  /*----------------------------------------------------------------------------*/
   static unsigned long long 
   GetSizeFromString(XrdOucString sizestring) {
     errno = 0;
@@ -186,7 +186,7 @@ public:
       hostport.erase(0, pos+1);
       pos = hostport.find("/");
       if (pos != STR_NPOS) {
-	hostport.erase(pos);
+        hostport.erase(pos);
       }
     }
     return hostport;
@@ -201,7 +201,7 @@ public:
       hostport.erase(0, pos+1);
       pos = hostport.find("/");
       if (pos != STR_NPOS) {
-	hostport.erase(pos);
+        hostport.erase(pos);
       }
     }
     return hostport;

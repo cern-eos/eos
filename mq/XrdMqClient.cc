@@ -106,8 +106,8 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
     admin->GetClientConn()->ClearLastServerError();
     admin->GetClientConn()->SetOpTimeLimit(10);
     admin->Query(kXR_Qopaquf,
-		 (kXR_char *) message.c_str(),
-		 (kXR_char **) &result, 0);
+                 (kXR_char *) message.c_str(),
+                 (kXR_char **) &result, 0);
 
     free(result);
 
@@ -130,9 +130,9 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
     if (!rc) {
       //  XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "send message to all brokers");  
       if (admin) {
-	XrdMqMessage::Eroute.Emsg("SendMessage", admin->LastServerError()->errnum, admin->LastServerError()->errmsg);
+        XrdMqMessage::Eroute.Emsg("SendMessage", admin->LastServerError()->errnum, admin->LastServerError()->errmsg);
       } else {
-	XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "no broker available");
+        XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "no broker available");
       }
     }
 

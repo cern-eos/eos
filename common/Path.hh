@@ -55,10 +55,10 @@ public:
       pos = fullPath.find("/",pos);
       std::string subpath;
       if (pos!=STR_NPOS) {
-	subpath.assign(fullPath.c_str(),pos+1);
-	subPath.push_back(subpath);
-	lastpos = pos;
-	pos++;
+        subpath.assign(fullPath.c_str(),pos+1);
+        subPath.push_back(subpath);
+        lastpos = pos;
+        pos++;
       }
     } while (pos!=STR_NPOS);
     parentPath.assign(fullPath,0,lastpos);

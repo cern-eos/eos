@@ -112,7 +112,7 @@ public:
 
     int envlen=0;
 
-    fid = eos::common::FileId::Hex2Fid(hexfid.c_str());	
+    fid = eos::common::FileId::Hex2Fid(hexfid.c_str()); 
     fsid   = atoi(sfsid);
     return new Verify(fid, fsid, localprefix, smanager, capOpaque->Env(envlen), container, cid, lid, path, computeChecksum,commitChecksum,commitSize, commitFmd, verifyRate);
   };

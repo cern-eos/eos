@@ -27,9 +27,9 @@ XrdCapability gCapabilityEngine;
 /*----------------------------------------------------------------------------*/
 XrdAccPrivs
 XrdCapability::Access(const XrdSecEntity    *Entity,
-		      const char            *path,
-		      const Access_Operation oper,
-		      XrdOucEnv       *Env)
+                      const char            *path,
+                      const Access_Operation oper,
+                      XrdOucEnv       *Env)
 {
   return XrdAccPriv_All;
 }
@@ -147,8 +147,8 @@ XrdCapability::~XrdCapability() {}
 */
 
 extern "C" XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *lp,
-                                              const char   *cfn,
-                                              const char   *parm)
+                                                  const char   *cfn,
+                                                  const char   *parm)
 {
   TkEroute.SetPrefix("capability_");
   TkEroute.logger(lp);
@@ -159,8 +159,8 @@ extern "C" XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *lp,
 
   XrdAccAuthorize* acc = (XrdAccAuthorize*) new XrdCapability();
   if (!acc) {
-     TkEroute.Say("------ XrdCapability Allocation Failed!");
-     return 0;
+    TkEroute.Say("------ XrdCapability Allocation Failed!");
+    return 0;
   }
 
   if (!((XrdCapability*)acc)->Configure(cfn) || (!((XrdCapability*)acc)->Init())) {

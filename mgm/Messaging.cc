@@ -160,9 +160,9 @@ void Messaging::Process(XrdMqMessage* newmessage)
       eos_debug("queue=%s online=%d",advisorymessage->kQueue.c_str(), advisorymessage->kOnline);
       
       if (advisorymessage->kQueue.endswith("/fst")) {
-	if (!Update(advisorymessage)) {
-	  eos_err("cannot update node status for %s", advisorymessage->GetBody());
-	}
+        if (!Update(advisorymessage)) {
+          eos_err("cannot update node status for %s", advisorymessage->GetBody());
+        }
       }
       delete advisorymessage;
     }

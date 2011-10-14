@@ -641,7 +641,7 @@ Mapping::GidToGroupName(gid_t gid, int &errc)
 uid_t 
 Mapping::UserNameToUid(std::string &username, int &errc)
 {
- char buffer[65536];
+  char buffer[65536];
   int buflen = sizeof(buffer);
   uid_t uid=99;
   struct passwd pwbuf;

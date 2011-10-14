@@ -84,12 +84,12 @@ Stat::GetTotalAvg60(const char* tag)
   google::sparse_hash_map<uid_t, StatAvg>::iterator it;
   
   double val = 0;
-    if (!StatAvgUid.count(tag))
-      return 0;
-    for (it=StatAvgUid[tag].begin(); it!= StatAvgUid[tag].end(); ++it) {
-      val += it->second.GetAvg60();
-    }
-    return val;
+  if (!StatAvgUid.count(tag))
+    return 0;
+  for (it=StatAvgUid[tag].begin(); it!= StatAvgUid[tag].end(); ++it) {
+    val += it->second.GetAvg60();
+  }
+  return val;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -233,7 +233,7 @@ Stat::PrintOutTotal(XrdOucString &out, bool details, bool monitoring, bool numer
       sprintf(aexecsig,"-NA-");
     
     if (!monitoring) {
-	sprintf(outline,"ALL        %-32s %12llu %8s %8s %8s %8s %8s +- %-10s\n",tag, GetTotal(tag),a5,a60,a300,a3600, aexec, aexecsig);
+      sprintf(outline,"ALL        %-32s %12llu %8s %8s %8s %8s %8s +- %-10s\n",tag, GetTotal(tag),a5,a60,a300,a3600, aexec, aexecsig);
     } else {
       sprintf(outline,"uid=all gid=all cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s exec=%f execsig=%f\n",tag, GetTotal(tag),a5,a60,a300,a3600,avg,sig);
     }
@@ -279,7 +279,7 @@ Stat::PrintOutTotal(XrdOucString &out, bool details, bool monitoring, bool numer
         } else {
           sprintf(outline,"%s cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",identifier, tuit->first.c_str(),StatsUid[tuit->first.c_str()][it->first],a5,a60,a300,a3600);
         }
-	
+        
         uidout.push_back(outline);
       }
     }
@@ -376,9 +376,9 @@ Stat::Circulate()
     for (tit = StatAvgGid.begin(); tit != StatAvgGid.end(); ++tit) {
       // loop over vids
       google::sparse_hash_map<uid_t, StatAvg>::iterator it;
-	for (it = tit->second.begin(); it != tit->second.end(); ++it) {
-	  it->second.StampZero();
-	}
+      for (it = tit->second.begin(); it != tit->second.end(); ++it) {
+        it->second.StampZero();
+      }
     }
 
     Mutex.UnLock();

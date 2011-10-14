@@ -68,9 +68,9 @@ extern XrdOucEnv* CommandEnv;
 typedef int       CFunction(char *);
 
 typedef struct {
-  char *name;			/* User printable name of the function. */
-  CFunction* func;;	        /* Function to call to do the job. */
-  char *doc;			/* Documentation for this function.  */
+  char *name;                   /* User printable name of the function. */
+  CFunction* func;;             /* Function to call to do the job. */
+  char *doc;                    /* Documentation for this function.  */
 } COMMAND;
 
 extern COMMAND commands[];

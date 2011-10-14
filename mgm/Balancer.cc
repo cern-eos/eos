@@ -91,12 +91,12 @@ Balancer::Balance(void)
           eos_static_debug("space=%-10s group=%-20s deviation=%-10s threshold=%-10s", mSpaceName.c_str(), (*git)->GetMember("name").c_str(), eos::common::StringConversion::GetReadableSizeString(sizestring1,(unsigned long long)dev,"B"), eos::common::StringConversion::GetReadableSizeString(sizestring2, (unsigned long long)SpaceDifferenceThreshold,"B"));
         }
       } else {
-	std::set<FsGroup*>::const_iterator git;
-	if (FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
-	  for (git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin(); git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); git++) {
-	    (*git)->StopBalancerJob();      
-	  }
-	}
+        std::set<FsGroup*>::const_iterator git;
+        if (FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
+          for (git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin(); git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); git++) {
+            (*git)->StopBalancerJob();      
+          }
+        }
       }
     }
     XrdSysThread::SetCancelOn();

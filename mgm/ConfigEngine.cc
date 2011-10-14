@@ -144,8 +144,8 @@ ConfigEngine::LoadConfig(XrdOucEnv &env, XrdOucString &err)
     while (!infile.eof()) {          
       getline(infile, s);
       if (s.length()) {
-	allconfig += s.c_str();
-	allconfig += "\n";
+        allconfig += s.c_str();
+        allconfig += "\n";
       }
       eos_notice("IN ==> %s", s.c_str());
     }
@@ -232,18 +232,18 @@ ConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
       char backupfile[4096];
       struct stat st;
       if (stat(fullpath.c_str(), &st)) {
-	err = "error: cannot stat the config file with name \""; err += name ; err += "\"";
-	return false;
+        err = "error: cannot stat the config file with name \""; err += name ; err += "\"";
+        return false;
       }
       if (autosave) {
-	sprintf(backupfile,"%s.autosave.%lu%s",halfpath.c_str(),st.st_mtime,EOSMGMCONFIGENGINE_EOS_SUFFIX);
+        sprintf(backupfile,"%s.autosave.%lu%s",halfpath.c_str(),st.st_mtime,EOSMGMCONFIGENGINE_EOS_SUFFIX);
       } else {
-	sprintf(backupfile,"%s.backup.%lu%s",halfpath.c_str(),st.st_mtime,EOSMGMCONFIGENGINE_EOS_SUFFIX);
+        sprintf(backupfile,"%s.backup.%lu%s",halfpath.c_str(),st.st_mtime,EOSMGMCONFIGENGINE_EOS_SUFFIX);
       }
 
       if (rename(fullpath.c_str(),backupfile)) {
-	err = "error: unable to move existing config file to backup version!";
-	return false;
+        err = "error: unable to move existing config file to backup version!";
+        return false;
       }
     }
   }
@@ -331,10 +331,10 @@ ConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
   allstat = (struct filestat*) malloc(sizeof(struct filestat) * nobjects);
   
   if (!allstat) {
-      eos_err("cannot allocate sorting array");
-      if (dir)
-	closedir(dir);
-      return false;
+    eos_err("cannot allocate sorting array");
+    if (dir)
+      closedir(dir);
+    return false;
   }
   
   seekdir(dir,tdp);
@@ -368,13 +368,13 @@ ConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
       fn.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX,"");
       
       if (fn == currentConfigFile) {
-	if (changeLog.configChanges.length()) {
-	  fn = "!";
-	} else {
-	  fn = "*";
-	}
+        if (changeLog.configChanges.length()) {
+          fn = "!";
+        } else {
+          fn = "*";
+        }
       } else {
-	fn = " ";
+        fn = " ";
       } 
 
       fn += allstat[j].filename;
@@ -386,10 +386,10 @@ ConfigEngine::ListConfigs(XrdOucString &configlist, bool showbackup)
       // remove  suffix
       removelinefeed.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX,"");
       if ( (!showbackup) &&  ( (removelinefeed.find(".backup.") != STR_NPOS) || (removelinefeed.find(".autosave.") != STR_NPOS))) {
-	// don't show this ones
+        // don't show this ones
       } else {
-	configlist += removelinefeed;
-	configlist += "\n";
+        configlist += removelinefeed;
+        configlist += "\n";
       }
     }
     free(allstat);
@@ -508,10 +508,10 @@ ConfigEngine::ParseConfig(XrdOucString &inconfig, XrdOucString &err)
       int seppos;
       seppos = key.find(" => ");
       if (seppos == STR_NPOS) {
-	Mutex.UnLock();
-	err = "parsing error in configuration file line "; err += (int) linenumber; err += " : "; err += s.c_str();
-	errno = EINVAL;
-	return false;
+        Mutex.UnLock();
+        err = "parsing error in configuration file line "; err += (int) linenumber; err += " : "; err += s.c_str();
+        errno = EINVAL;
+        return false;
       }
       value.assign(key, seppos + 4);
       key.erase(seppos);
@@ -594,8 +594,8 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
     tagoffset    = skey.find(':', ugequaloffset+1);
 
     if ( (ugoffset      == STR_NPOS) ||
-	 (ugequaloffset == STR_NPOS) ||
-	 (tagoffset     == STR_NPOS) ) {
+         (ugequaloffset == STR_NPOS) ||
+         (tagoffset     == STR_NPOS) ) {
       eos_static_err("cannot parse config line key: |%s|",skey.c_str());
       *err += "error: cannot parse config line key: "; *err += skey.c_str();
     }
@@ -618,10 +618,10 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
 
     if (spacequota) {
       if (id>0 || (ugid == "0")) {
-	spacequota->SetQuota(SpaceQuota::GetTagFromString(tag), id, value, false);
+        spacequota->SetQuota(SpaceQuota::GetTagFromString(tag), id, value, false);
       } else {
-	*err += "error: illegal id found: "; *err += ugid;
-	eos_static_err("config id is negative");
+        *err += "error: illegal id found: "; *err += ugid;
+        eos_static_err("config id is negative");
       }
     }
   }
@@ -658,36 +658,36 @@ ConfigEngine::PrintEachConfig(const char* key, XrdOucString* def, void* Arg)
     bool filter = false;
     if (option.find("v")!=STR_NPOS) {
       if (skey.beginswith("vid:"))
-	filter = true;
+        filter = true;
     }
     if (option.find("f")!=STR_NPOS) {
       if (skey.beginswith("fs:"))
-	filter = true;
+        filter = true;
     }
     if (option.find("q")!=STR_NPOS) {
       if (skey.beginswith("quota:"))
-	filter = true;
+        filter = true;
     }
     if (option.find("p")!=STR_NPOS) {
       if (skey.beginswith("policy:"))
-	filter = true;
+        filter = true;
     }
     if (option.find("c")!=STR_NPOS) {
       if (skey.beginswith("comment-"))
-	filter = true;
+        filter = true;
     }
     if (option.find("g")!=STR_NPOS) {
       if (skey.beginswith("global:"))
-	filter = true;
+        filter = true;
     }
     if (option.find("m")!=STR_NPOS) {
       if (skey.beginswith("map:"))
-	filter = true;
+        filter = true;
     }
     
     if (filter) {
       (*outstring) += key; (*outstring) += " => "; (*outstring) += def->c_str(); (*outstring) += "\n";
-  }
+    }
   }
   return 0;
 }
@@ -708,7 +708,7 @@ ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
   
   if (filter.Get("mgm.config.vid")) {
     pinfo.option += "v";
-    }
+  }
   if (filter.Get("mgm.config.fs")) {
     pinfo.option += "f";
   }
@@ -746,23 +746,23 @@ ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
       // filter according to user specification
       bool filtered = false;
       if ( (pinfo.option.find("v")!=STR_NPOS) && (sinputline.beginswith("vid:")))
-	filtered = true;
+        filtered = true;
       if ( (pinfo.option.find("f")!=STR_NPOS) && (sinputline.beginswith("fs:")))
-	filtered = true;
+        filtered = true;
       if ( (pinfo.option.find("q")!=STR_NPOS) && (sinputline.beginswith("quota:")))
-	filtered = true;
+        filtered = true;
       if ( (pinfo.option.find("c")!=STR_NPOS) && (sinputline.beginswith("comment-")))
-	filtered = true;
+        filtered = true;
       if ( (pinfo.option.find("p")!=STR_NPOS) && (sinputline.beginswith("policy:")))
-	filtered = true;
+        filtered = true;
       if ( (pinfo.option.find("g")!=STR_NPOS) && (sinputline.beginswith("global:")))
-	filtered =true;
+        filtered =true;
       if ( (pinfo.option.find("m")!=STR_NPOS) && (sinputline.beginswith("map:")))
-	filtered =true;
+        filtered =true;
       
       if (filtered) {
-	out += sinputline;
-	out += "\n";
+        out += sinputline;
+        out += "\n";
       }
     }
   }

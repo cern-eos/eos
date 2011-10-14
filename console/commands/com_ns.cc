@@ -33,7 +33,7 @@ com_ns (char* arg1) {
       options += "a";
     } else {
       if (option == "-m") {
-	options += "m";
+        options += "m";
       } else {
         if (option == "-n") {
           options += "n";

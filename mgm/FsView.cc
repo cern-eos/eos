@@ -132,10 +132,10 @@ FsView::Register (FileSystem* fs)
       // loop over all attached filesystems and compare the queue path
       std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
       for (it=mNodeView[snapshot.mQueue]->begin(); it != mNodeView[snapshot.mQueue]->end(); it++) {
-	if (FsView::gFsView.mIdView[*it]->GetQueuePath() == snapshot.mQueuePath) {
-	  // this queue path was already existing, we cannot register
-	  return false;
-	}
+        if (FsView::gFsView.mIdView[*it]->GetQueuePath() == snapshot.mQueuePath) {
+          // this queue path was already existing, we cannot register
+          return false;
+        }
       }
     }
     
@@ -145,12 +145,12 @@ FsView::Register (FileSystem* fs)
       eos::common::FileSystem::fsid_t fsid;
       fsid = mFileSystemView[fs];
       if (fsid != snapshot.mId) {
-	// remove previous mapping
-	mIdView.erase(fsid);
-	// setup new two way mapping
-	mFileSystemView[fs] = snapshot.mId;
-	mIdView[snapshot.mId] = fs;
-	eos_debug("updating mapping %u<=>%lld", snapshot.mId,fs);
+        // remove previous mapping
+        mIdView.erase(fsid);
+        // setup new two way mapping
+        mFileSystemView[fs] = snapshot.mId;
+        mIdView[snapshot.mId] = fs;
+        eos_debug("updating mapping %u<=>%lld", snapshot.mId,fs);
       }
     } else {
       mFileSystemView[fs] = snapshot.mId;
@@ -342,8 +342,8 @@ FsView::UnRegister(FileSystem* fs)
       node->erase(snapshot.mId);
       eos_debug("unregister node %s from node view", node->GetMember("name").c_str());
       if (!node->size()) {
-	mNodeView.erase(snapshot.mQueue);
-	delete node;
+        mNodeView.erase(snapshot.mQueue);
+        delete node;
       }
     }
 
@@ -355,9 +355,9 @@ FsView::UnRegister(FileSystem* fs)
       group->erase(snapshot.mId);
       eos_debug("unregister group %s from group view", group->GetMember("name").c_str());
       if (!group->size()) {
-	mSpaceGroupView[snapshot.mSpace].erase(mGroupView[snapshot.mGroup]);
-	mGroupView.erase(snapshot.mGroup);
-	delete group;
+        mSpaceGroupView[snapshot.mSpace].erase(mGroupView[snapshot.mGroup]);
+        mGroupView.erase(snapshot.mGroup);
+        delete group;
       }
     }
 
@@ -369,8 +369,8 @@ FsView::UnRegister(FileSystem* fs)
       space->erase(snapshot.mId);
       eos_debug("unregister space %s from space view", space->GetMember("name").c_str());
       if (!space->size()) {
-	mSpaceView.erase(snapshot.mSpace);
-	delete space;
+        mSpaceView.erase(snapshot.mSpace);
+        delete space;
       }
     }
 
@@ -404,8 +404,8 @@ FsView::ExistsQueue(std::string queue, std::string queuepath)
     std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
     for (it=mNodeView[queue]->begin(); it != mNodeView[queue]->end(); it++) {
       if (FsView::gFsView.mIdView[*it]->GetQueuePath() == queuepath) {
-	// this queue path was already existing, we cannot register
-	return true;
+        // this queue path was already existing, we cannot register
+        return true;
       }
     }
   }
@@ -451,9 +451,9 @@ FsView::UnRegisterNode(const char* nodename)
       eos::common::FileSystem::fsid_t fsid = *(mNodeView[nodename]->begin());
       FileSystem* fs = mIdView[fsid];
       if (fs) {
-	hasfs = true;
-	eos_static_debug("Unregister filesystem fsid=%llu node=%s queue=%s", (unsigned long long) fsid, nodename, fs->GetQueue().c_str());
-	retc |= UnRegister(fs);
+        hasfs = true;
+        eos_static_debug("Unregister filesystem fsid=%llu node=%s queue=%s", (unsigned long long) fsid, nodename, fs->GetQueue().c_str());
+        retc |= UnRegister(fs);
       }
     }
     if (!hasfs) {
@@ -505,9 +505,9 @@ FsView::UnRegisterSpace(const char* spacename)
       eos::common::FileSystem::fsid_t fsid = *(mSpaceView[spacename]->begin());
       FileSystem* fs = mIdView[fsid];
       if (fs) {
-	hasfs = true;
-	eos_static_debug("Unregister filesystem fsid=%llu space=%s queue=%s", (unsigned long long) fsid, spacename, fs->GetQueue().c_str());
-	retc |= UnRegister(fs);
+        hasfs = true;
+        eos_static_debug("Unregister filesystem fsid=%llu space=%s queue=%s", (unsigned long long) fsid, spacename, fs->GetQueue().c_str());
+        retc |= UnRegister(fs);
       }
     }
     if (!hasfs) {
@@ -559,9 +559,9 @@ FsView::UnRegisterGroup(const char* groupname)
       eos::common::FileSystem::fsid_t fsid = *(mGroupView[groupname]->begin());
       FileSystem* fs = mIdView[fsid];
       if (fs) {
-	hasfs = true;
-	eos_static_debug("Unregister filesystem fsid=%llu group=%s queue=%s", (unsigned long long) fsid, groupname, fs->GetQueue().c_str());
-	retc |= UnRegister(fs);
+        hasfs = true;
+        eos_static_debug("Unregister filesystem fsid=%llu group=%s queue=%s", (unsigned long long) fsid, groupname, fs->GetQueue().c_str());
+        retc |= UnRegister(fs);
       }
     }
     if (!hasfs) {
@@ -759,7 +759,7 @@ BaseView::GetMember(std::string member) {
   //----------------------------------------------------------------
 
   if (member == "name")
-      return mName;
+    return mName;
   if (member == "type")
     return mType;
   if (member == "nofs") {
@@ -1163,15 +1163,15 @@ FsView::ApplyGlobalConfig(const char* key, std::string &val)
       size_t dashpos=0;
       // remote the #<variable> 
       if ( (dashpos = broadcast.find("#")) != std::string::npos) {
-	broadcast.erase(dashpos);
+        broadcast.erase(dashpos);
       }
       broadcast += "/fst";
       if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(tokens[0].c_str(),broadcast.c_str())) {
-	eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
+        eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
       }
     } else {
       if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(tokens[0].c_str(),"/eos/*/mgm")) {
-	eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
+        eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
       }
     }
     eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
@@ -1235,7 +1235,7 @@ BaseView::SumLongLong(const char* param, bool lock)
 
   // we have to rescale the stat.net parameters because they arrive for each filesystem
   if (!sparam.compare(0,8,"stat.net")) {
-   if (mType == "spaceview") {
+    if (mType == "spaceview") {
       // divide by the number of "cfg.groupmod"
       std::string gsize="";
       long long groupmod=1;
@@ -1443,7 +1443,7 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
     if (formattags.count("header") ) {
       // add the desired seperator
       if (formattags.count("header") == 1) {
-	buildheader=true;
+        buildheader=true;
       }
     }
 
@@ -1458,40 +1458,40 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
       lformat[0]=0;
 
       if ((formattags["format"].find("s"))!= std::string::npos) 
-	snprintf(lformat,sizeof(lformat)-1, "%%s");
+        snprintf(lformat,sizeof(lformat)-1, "%%s");
       
       if ((formattags["format"].find("l"))!= std::string::npos)
-	snprintf(lformat,sizeof(lformat)-1, "%%lld");
+        snprintf(lformat,sizeof(lformat)-1, "%%lld");
       
       
       if ((formattags["format"].find("f"))!= std::string::npos)
-	snprintf(lformat,sizeof(lformat)-1, "%%.02f");
+        snprintf(lformat,sizeof(lformat)-1, "%%.02f");
       
       // protect against missing format types
       if (lformat[0]== 0) 
-	continue;
+        continue;
       
       if (alignleft) {
-	snprintf(lenformat,sizeof(lenformat)-1, "%%-%ds",width);
+        snprintf(lenformat,sizeof(lenformat)-1, "%%-%ds",width);
       } else {
-	snprintf(lenformat,sizeof(lenformat)-1, "%%%ds",width);
+        snprintf(lenformat,sizeof(lenformat)-1, "%%%ds",width);
       }
       
       // normal member printout
       if (formattags.count("member")) {
 
-	if ( ((formattags["format"].find("+")) != std::string::npos) ) {
-	  std::string ssize;
-	  eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)(strtoll(GetMember(formattags["member"]).c_str(),0,10)), formattags["unit"].c_str());
-	  snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
-	} else {
-	  snprintf(tmpline,sizeof(tmpline)-1,lformat,GetMember(formattags["member"]).c_str());
-	  snprintf(line,sizeof(line)-1,lenformat,tmpline);
-	}
+        if ( ((formattags["format"].find("+")) != std::string::npos) ) {
+          std::string ssize;
+          eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)(strtoll(GetMember(formattags["member"]).c_str(),0,10)), formattags["unit"].c_str());
+          snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
+        } else {
+          snprintf(tmpline,sizeof(tmpline)-1,lformat,GetMember(formattags["member"]).c_str());
+          snprintf(line,sizeof(line)-1,lenformat,tmpline);
+        }
 
-	if (buildheader) {
-	  char headline[1024];
-	  char lenformat[1024];
+        if (buildheader) {
+          char headline[1024];
+          char lenformat[1024];
           XrdOucString pkey= formattags["member"].c_str();
           pkey.replace("stat.statfs.","");
           pkey.replace("stat.","");
@@ -1500,33 +1500,33 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
             pkey=formattags["tag"].c_str();
           }
             
-	  snprintf(lenformat, sizeof(lenformat)-1, "%%%ds", width-1);
-	  snprintf(headline,sizeof(headline)-1, lenformat,pkey.c_str());
-	  std::string sline = headline;
-	  if (sline.length() != (width-1)) {
-	    sline.erase(0, ((sline.length()-width+1+3)>0)?(sline.length()-width+1+3):0);
-	    sline.insert(0,"...");
-	  }
-	  header += "#";
-	  header += sline;
-	}
+          snprintf(lenformat, sizeof(lenformat)-1, "%%%ds", width-1);
+          snprintf(headline,sizeof(headline)-1, lenformat,pkey.c_str());
+          std::string sline = headline;
+          if (sline.length() != (width-1)) {
+            sline.erase(0, ((sline.length()-width+1+3)>0)?(sline.length()-width+1+3):0);
+            sline.insert(0,"...");
+          }
+          header += "#";
+          header += sline;
+        }
       }
       
       // sum printout
       if (formattags.count("sum")) {
-	snprintf(tmpline,sizeof(tmpline)-1,lformat,SumLongLong(formattags["sum"].c_str()));
-	
-	if ( ((formattags["format"].find("+")) != std::string::npos) ) {
-	  std::string ssize;
-	  eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)SumLongLong(formattags["sum"].c_str()), formattags["unit"].c_str());
-	  snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
-	} else {
-	  snprintf(line,sizeof(line)-1,lenformat,tmpline);
-	}
+        snprintf(tmpline,sizeof(tmpline)-1,lformat,SumLongLong(formattags["sum"].c_str()));
+        
+        if ( ((formattags["format"].find("+")) != std::string::npos) ) {
+          std::string ssize;
+          eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)SumLongLong(formattags["sum"].c_str()), formattags["unit"].c_str());
+          snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
+        } else {
+          snprintf(line,sizeof(line)-1,lenformat,tmpline);
+        }
 
-	if (buildheader) {
-	  char headline[1024];
-	  char lenformat[1024];
+        if (buildheader) {
+          char headline[1024];
+          char lenformat[1024];
           XrdOucString pkey= formattags["sum"].c_str();
           pkey.replace("stat.statfs.","");
           pkey.replace("stat.","");
@@ -1536,13 +1536,13 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
             width+=5;
           }
 
-	  snprintf(lenformat, sizeof(lenformat)-1, "%%%ds", width-6);
-	  snprintf(headline,sizeof(headline)-1, lenformat,pkey.c_str());
-	  std::string sline = headline;
-	  if (sline.length() != (width-6)) {
-	    sline.erase(0, ((sline.length()-width+6+3)>0)?(sline.length()-width+6+3):0);
-	    sline.insert(0,"...");
-	  }
+          snprintf(lenformat, sizeof(lenformat)-1, "%%%ds", width-6);
+          snprintf(headline,sizeof(headline)-1, lenformat,pkey.c_str());
+          std::string sline = headline;
+          if (sline.length() != (width-6)) {
+            sline.erase(0, ((sline.length()-width+6+3)>0)?(sline.length()-width+6+3):0);
+            sline.insert(0,"...");
+          }
           if (!formattags.count("tag")) {
             header += "#";
             header += "sum(";
@@ -1552,23 +1552,23 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
             header += "#";
             header += sline;
           }
-	}
+        }
       }
       
       if (formattags.count("avg")) {
-	snprintf(tmpline,sizeof(tmpline)-1,lformat,AverageDouble(formattags["avg"].c_str()));
-	
-	if ( (formattags["format"].find("+")!= std::string::npos) ) {
-	  std::string ssize;
-	  eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)AverageDouble(formattags["avg"].c_str()), formattags["unit"].c_str());
-	  snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
-	} else {
-	  snprintf(line,sizeof(line)-1,lenformat,tmpline);
-	}
-	
-	if (buildheader) {
-	  char headline[1024];
-	  char lenformat[1024];
+        snprintf(tmpline,sizeof(tmpline)-1,lformat,AverageDouble(formattags["avg"].c_str()));
+        
+        if ( (formattags["format"].find("+")!= std::string::npos) ) {
+          std::string ssize;
+          eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)AverageDouble(formattags["avg"].c_str()), formattags["unit"].c_str());
+          snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
+        } else {
+          snprintf(line,sizeof(line)-1,lenformat,tmpline);
+        }
+        
+        if (buildheader) {
+          char headline[1024];
+          char lenformat[1024];
           XrdOucString pkey= formattags["avg"].c_str();
           pkey.replace("stat.statfs.","");
           pkey.replace("stat.","");
@@ -1578,13 +1578,13 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
             width+=5;
           }
           
-	  snprintf(lenformat, sizeof(lenformat)-1, "%%%ds", width-6);
-	  snprintf(headline,sizeof(headline)-1, lenformat,pkey.c_str());
-	  std::string sline = headline;
-	  if (sline.length() != (width-6)) {
-	    sline.erase(0, ((sline.length()-width+6+3)>0)?(sline.length()-width+6+3):0);
-	    sline.insert(0,"...");
-	  }
+          snprintf(lenformat, sizeof(lenformat)-1, "%%%ds", width-6);
+          snprintf(headline,sizeof(headline)-1, lenformat,pkey.c_str());
+          std::string sline = headline;
+          if (sline.length() != (width-6)) {
+            sline.erase(0, ((sline.length()-width+6+3)>0)?(sline.length()-width+6+3):0);
+            sline.insert(0,"...");
+          }
           if (!formattags.count("tag")) {
             header += "#";
             header += "avg(";
@@ -1594,22 +1594,22 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
             header += "#";
             header += sline;
           }
-	}
+        }
       }
 
       if (formattags.count("sig")) {
-	snprintf(tmpline,sizeof(tmpline)-1,lformat,SigmaDouble(formattags["sig"].c_str()));
-	
-	if ( (formattags["format"].find("+")!= std::string::npos) ) {
-	  std::string ssize;
-	  eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)SigmaDouble(formattags["sig"].c_str()), formattags["unit"].c_str());
-	  snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
-	} else {
-	  snprintf(line,sizeof(line)-1,lenformat,tmpline);
-	}
-	if (buildheader) {
-	  char headline[1024];
-	  char lenformat[1024];
+        snprintf(tmpline,sizeof(tmpline)-1,lformat,SigmaDouble(formattags["sig"].c_str()));
+        
+        if ( (formattags["format"].find("+")!= std::string::npos) ) {
+          std::string ssize;
+          eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)SigmaDouble(formattags["sig"].c_str()), formattags["unit"].c_str());
+          snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
+        } else {
+          snprintf(line,sizeof(line)-1,lenformat,tmpline);
+        }
+        if (buildheader) {
+          char headline[1024];
+          char lenformat[1024];
           XrdOucString pkey= formattags["sig"].c_str();
           pkey.replace("stat.statfs.","");
           pkey.replace("stat.","");
@@ -1619,13 +1619,13 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
             width += 5;
           }
 
-	  snprintf(lenformat, sizeof(lenformat)-1, "%%%ds", width-6);
-	  snprintf(headline,sizeof(headline)-1, lenformat,pkey.c_str());
-	  std::string sline = headline;
-	  if (sline.length() != (width-6)) {
-	    sline.erase(0, ((sline.length()-width+6+3)>0)?(sline.length()-width+6+3):0);
-	    sline.insert(0,"...");
-	  }
+          snprintf(lenformat, sizeof(lenformat)-1, "%%%ds", width-6);
+          snprintf(headline,sizeof(headline)-1, lenformat,pkey.c_str());
+          std::string sline = headline;
+          if (sline.length() != (width-6)) {
+            sline.erase(0, ((sline.length()-width+6+3)>0)?(sline.length()-width+6+3):0);
+            sline.insert(0,"...");
+          }
           if (!formattags.count("tag")) {
             header += "#";
             header += "sig(";
@@ -1635,22 +1635,22 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
             header += "#";
             header += sline;
           }
-	}
+        }
       }
 
       if (formattags.count("maxdev")) {
-	snprintf(tmpline,sizeof(tmpline)-1,lformat,MaxDeviation(formattags["maxdev"].c_str()));
-	
-	if ( (formattags["format"].find("+")!= std::string::npos) ) {
-	  std::string ssize;
-	  eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)MaxDeviation(formattags["maxdev"].c_str()), formattags["unit"].c_str());
-	  snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
-	} else {
-	  snprintf(line,sizeof(line)-1,lenformat,tmpline);
-	}
-	if (buildheader) {
-	  char headline[1024];
-	  char lenformat[1024];
+        snprintf(tmpline,sizeof(tmpline)-1,lformat,MaxDeviation(formattags["maxdev"].c_str()));
+        
+        if ( (formattags["format"].find("+")!= std::string::npos) ) {
+          std::string ssize;
+          eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)MaxDeviation(formattags["maxdev"].c_str()), formattags["unit"].c_str());
+          snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
+        } else {
+          snprintf(line,sizeof(line)-1,lenformat,tmpline);
+        }
+        if (buildheader) {
+          char headline[1024];
+          char lenformat[1024];
           XrdOucString pkey= formattags["maxdev"].c_str();
           pkey.replace("stat.statfs.","");
           pkey.replace("stat.","");
@@ -1660,13 +1660,13 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
             width += 5;
           }
 
-	  snprintf(lenformat, sizeof(lenformat)-1, "%%%ds", width-6);
-	  snprintf(headline,sizeof(headline)-1, lenformat,pkey.c_str());
-	  std::string sline = headline;
-	  if (sline.length() != (width-6)) {
-	    sline.erase(0, ((sline.length()-width+6+3)>0)?(sline.length()-width+6+3):0);
-	    sline.insert(0,"...");
-	  }
+          snprintf(lenformat, sizeof(lenformat)-1, "%%%ds", width-6);
+          snprintf(headline,sizeof(headline)-1, lenformat,pkey.c_str());
+          std::string sline = headline;
+          if (sline.length() != (width-6)) {
+            sline.erase(0, ((sline.length()-width+6+3)>0)?(sline.length()-width+6+3):0);
+            sline.insert(0,"...");
+          }
           if (!formattags.count("tag")) {
             header += "#";
             header += "dev(";
@@ -1676,35 +1676,35 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
             header += "#";
             header += sline;
           }
-	}
+        }
       }
 
       if ( (formattags["format"].find("o")!= std::string::npos) ) {
-	char keyval[4096];
-	buildheader = false; // auto disable header
-	if (formattags.count("member")) {
-	  snprintf(keyval,sizeof(keyval)-1,"%s=%s", formattags["member"].c_str(), line);
-	}
-	if (formattags.count("sum")) {
-	  snprintf(keyval,sizeof(keyval)-1,"sum.%s=%s", formattags["sum"].c_str(), line);
-	}
-	if (formattags.count("avg")) {
-	  snprintf(keyval,sizeof(keyval)-1,"avg.%s=%s", formattags["avg"].c_str(), line);
-	}
-	if (formattags.count("sig")) {
-	  snprintf(keyval,sizeof(keyval)-1,"sig.%s=%s", formattags["sig"].c_str(), line);
-	}
-	if (formattags.count("maxdev")) {
-	  snprintf(keyval,sizeof(keyval)-1,"dev.%s=%s", formattags["maxdev"].c_str(), line);
-	}
-	body += keyval;
+        char keyval[4096];
+        buildheader = false; // auto disable header
+        if (formattags.count("member")) {
+          snprintf(keyval,sizeof(keyval)-1,"%s=%s", formattags["member"].c_str(), line);
+        }
+        if (formattags.count("sum")) {
+          snprintf(keyval,sizeof(keyval)-1,"sum.%s=%s", formattags["sum"].c_str(), line);
+        }
+        if (formattags.count("avg")) {
+          snprintf(keyval,sizeof(keyval)-1,"avg.%s=%s", formattags["avg"].c_str(), line);
+        }
+        if (formattags.count("sig")) {
+          snprintf(keyval,sizeof(keyval)-1,"sig.%s=%s", formattags["sig"].c_str(), line);
+        }
+        if (formattags.count("maxdev")) {
+          snprintf(keyval,sizeof(keyval)-1,"dev.%s=%s", formattags["maxdev"].c_str(), line);
+        }
+        body += keyval;
       }  else {
-	std::string sline = line;
-	if (sline.length() > width) {
-	  sline.erase(0, ((sline.length()-width+3)>0)?(sline.length()-width+3):0);
-	  sline.insert(0,"...");
-	}
-	body += sline;
+        std::string sline = line;
+        if (sline.length() > width) {
+          sline.erase(0, ((sline.length()-width+3)>0)?(sline.length()-width+3):0);
+          sline.insert(0,"...");
+        }
+        body += sline;
       }
     }
 
@@ -1712,7 +1712,7 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
       // add the desired seperator
       body += formattags["sep"];
       if (buildheader) {
-	header += formattags["sep"];
+        header += formattags["sep"];
       }
     }
   }
@@ -1727,11 +1727,11 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
     for (it=begin(); it != end(); it++) {
       FsView::gFsView.mIdView[*it]->Print(body, listformat);
       if (first) {
-	// put the header format only in the first node printout
-	first = false;
-	if ( (listformat.find("header=1:")) == 0) {
-	  listformat.erase(0, 9);
-	}
+        // put the header format only in the first node printout
+        first = false;
+        if ( (listformat.find("header=1:")) == 0) {
+          listformat.erase(0, 9);
+        }
       }
     }      
   }

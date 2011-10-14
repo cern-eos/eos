@@ -86,44 +86,44 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
       success = false;
     } else {
       if (!client->Stat(&dststat, true)) {
-	eos_static_err("cannot stat destination file %s", destfilename.c_str());
-	delete client;
-	close(fd);
-	return false;
+        eos_static_err("cannot stat destination file %s", destfilename.c_str());
+        delete client;
+        close(fd);
+        return false;
       }
 
       if (dststat.size == srcstat.st_size) {
-	// if the file exists already with the correct size we don't need to copoy
-	delete client;
-	close(fd);
-	return true;
+        // if the file exists already with the correct size we don't need to copoy
+        delete client;
+        close(fd);
+        return true;
       }
 
       if (!client->Truncate(0)) {
-	eos_static_err("cannot truncate remote file");
-	success = false;
+        eos_static_err("cannot truncate remote file");
+        success = false;
       } else {
-	char* copyptr = (char*) mmap(NULL, srcstat.st_size, PROT_READ, MAP_SHARED, fd, 0);
-	if (!copyptr) {
-	  eos_static_err("cannot map source file ");
-	  success = false;
-	} else {
-	  for (unsigned long long offset = 0; offset < (unsigned long long)srcstat.st_size; offset += (TRANSFERBLOCKSIZE)) {
-	    unsigned long long length;
-	    if ( (srcstat.st_size -offset) > TRANSFERBLOCKSIZE) {
-	      length = TRANSFERBLOCKSIZE;
-	    } else {
-	      length = srcstat.st_size-offset;
-	    }
-		
-	    if (!client->Write(copyptr + offset, offset,length )) {
-	      eos_static_err("cannot write remote block at %llu/%lu\n", (unsigned long long)offset, (unsigned long)length);
-	      success = false;
-	      break;
-	    }
-	  }
-	  munmap(copyptr,srcstat.st_size);
-	}
+        char* copyptr = (char*) mmap(NULL, srcstat.st_size, PROT_READ, MAP_SHARED, fd, 0);
+        if (!copyptr) {
+          eos_static_err("cannot map source file ");
+          success = false;
+        } else {
+          for (unsigned long long offset = 0; offset < (unsigned long long)srcstat.st_size; offset += (TRANSFERBLOCKSIZE)) {
+            unsigned long long length;
+            if ( (srcstat.st_size -offset) > TRANSFERBLOCKSIZE) {
+              length = TRANSFERBLOCKSIZE;
+            } else {
+              length = srcstat.st_size-offset;
+            }
+                
+            if (!client->Write(copyptr + offset, offset,length )) {
+              eos_static_err("cannot write remote block at %llu/%lu\n", (unsigned long long)offset, (unsigned long)length);
+              success = false;
+              break;
+            }
+          }
+          munmap(copyptr,srcstat.st_size);
+        }
       }
     }
     close(fd);
@@ -171,33 +171,33 @@ int main (int argc, char* argv[]) {
       // yes, there are modifications, loop over the contents in that directory
       DIR* dir = opendir(sourcedir.c_str());
       if (!dir) {
-	eos_static_err("cannot open source directory %s - errno=%d - retry in 1 minute ...", sourcedir.c_str(),errno);
-	sleep(60);
-	continue;
+        eos_static_err("cannot open source directory %s - errno=%d - retry in 1 minute ...", sourcedir.c_str(),errno);
+        sleep(60);
+        continue;
       }
       struct dirent *entry;
 
       while ( (entry = readdir(dir)) ) {
-	XrdOucString dstfile = dsturl;
-	XrdOucString sentry = sourcedir;
-	XrdOucString file = entry->d_name;
-	sentry += "/";
-	sentry += entry->d_name;
-	dstfile += "/";
-	dstfile += entry->d_name;
+        XrdOucString dstfile = dsturl;
+        XrdOucString sentry = sourcedir;
+        XrdOucString file = entry->d_name;
+        sentry += "/";
+        sentry += entry->d_name;
+        dstfile += "/";
+        dstfile += entry->d_name;
 
-	struct stat entrystat;
-	if (stat(sentry.c_str(), &entrystat)) {
-	  eos_static_err("cannot stat file %s", sentry.c_str());
-	} else {
-	  if (!S_ISREG(entrystat.st_mode)) {
-	    eos_static_info("skipping %s [not a file]", sentry.c_str());
-	  } else {
-	    if (!forwardFile(sentry, dstfile)) {
-	      eos_static_err("cannot sync file %s => %s", sentry.c_str(),dsturl.c_str()); 
-	    }
-	  }
-	}
+        struct stat entrystat;
+        if (stat(sentry.c_str(), &entrystat)) {
+          eos_static_err("cannot stat file %s", sentry.c_str());
+        } else {
+          if (!S_ISREG(entrystat.st_mode)) {
+            eos_static_info("skipping %s [not a file]", sentry.c_str());
+          } else {
+            if (!forwardFile(sentry, dstfile)) {
+              eos_static_err("cannot sync file %s => %s", sentry.c_str(),dsturl.c_str()); 
+            }
+          }
+        }
       }
       closedir(dir);
     }

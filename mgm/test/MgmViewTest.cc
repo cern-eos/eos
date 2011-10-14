@@ -137,7 +137,7 @@ int main() {
       eos::mgm::FileSystem* fs = FsView::gFsView.mIdView[fsid];
       FsView::gFsView.ViewMutex.UnLockRead();
       if (fs) {
-	FsView::gFsView.UnRegister(fs);
+        FsView::gFsView.UnRegister(fs);
       }
     }
   }

@@ -140,12 +140,12 @@ void ScanDir::ScanFiles()
       fts_set(tree, node, FTS_SKIP);
     } else {
       if (node->fts_info && FTS_F) {
-	XrdOucString filePath = node->fts_accpath;
-	if (!filePath.matches("*.xsmap")){
-	  if (!bgThread)
-	    fprintf(stderr,"[ScanDir] processing file %s\n",filePath.c_str());
-	  CheckFile(filePath.c_str());
-	}
+        XrdOucString filePath = node->fts_accpath;
+        if (!filePath.matches("*.xsmap")){
+          if (!bgThread)
+            fprintf(stderr,"[ScanDir] processing file %s\n",filePath.c_str());
+          CheckFile(filePath.c_str());
+        }
       }
     }    
     if (bgThread)
@@ -208,44 +208,44 @@ void ScanDir::CheckFile(const char* filepath)
     
     if (RescanFile(checksumStamp)){
       if (checksumType.compare("")){
-	bool blockcxerror= false;
-	bool filecxerror = false;
+        bool blockcxerror= false;
+        bool filecxerror = false;
 
         XrdOucString envstring = "eos.layout.checksum="; envstring += checksumType.c_str();
         XrdOucEnv env(envstring.c_str());
         unsigned long checksumtype = eos::common::LayoutId::GetChecksumFromEnv(env);
-	layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain, checksumtype);
-	if (!ScanFileLoadAware(filePath.c_str(), scansize, scantime, checksumVal, layoutid,logicalFileName.c_str(), filecxerror, blockcxerror)){
+        layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain, checksumtype);
+        if (!ScanFileLoadAware(filePath.c_str(), scansize, scantime, checksumVal, layoutid,logicalFileName.c_str(), filecxerror, blockcxerror)){
           if ( (! stat(filePath.c_str(), &buf2)) && (buf1.st_mtime == buf2.st_mtime)) {
             if (bgThread) {
               syslog(LOG_ERR,"corrupted file checksum: localpath=%s lfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
-	      eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(), logicalFileName.c_str());
-	    }
+              eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(), logicalFileName.c_str());
+            }
             else
               fprintf(stderr,"[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
           } else {
             if (bgThread) {
-	      eos_err("file %s has been modified during the scan ... ignoring checksum error", filePath.c_str());
-	    } else {
+              eos_err("file %s has been modified during the scan ... ignoring checksum error", filePath.c_str());
+            } else {
               fprintf(stderr,"[ScanDir] file %s has been modified during the scan ... ignoring checksum error\n", filePath.c_str());
-	    }
+            }
           }
         }
-	//collect statistics
-	durationScan += scantime;
-	totalScanSize += scansize;
+        //collect statistics
+        durationScan += scantime;
+        totalScanSize += scansize;
         
-	
-	if ( (!attr->Set("user.eos.timestamp", GetTimestampSmeared())) ||
-	     (!attr->Set("user.eos.filecxerror", filecxerror?"1":"0")) ||
-	     (!attr->Set("user.eos.blockcxerror", blockcxerror?"1":"0")) )
-	  {
-	  if (bgThread) {
-	    eos_err("Can not set extended attributes to file.");
-	  } else {
-	    fprintf(stderr, "error: [CheckFile] Can not set extended attributes to file. \n");
-	  }
-        }
+        
+        if ( (!attr->Set("user.eos.timestamp", GetTimestampSmeared())) ||
+             (!attr->Set("user.eos.filecxerror", filecxerror?"1":"0")) ||
+             (!attr->Set("user.eos.blockcxerror", blockcxerror?"1":"0")) )
+          {
+            if (bgThread) {
+              eos_err("Can not set extended attributes to file.");
+            } else {
+              fprintf(stderr, "error: [CheckFile] Can not set extended attributes to file. \n");
+            }
+          }
       } else {
         noNoChecksumFiles++;
       }
@@ -290,11 +290,11 @@ eos::fst::CheckSum* ScanDir::GetBlockXS(const char* filepath)
         struct stat info;
         
         if (stat(fileXSPath.c_str(), &info)) {
-	  if (bgThread) {
-	    eos_err("cannot open file %s", fileXSPath.c_str());
-	  } else {
-	    fprintf(stderr,"error: cannot open file %s\n", fileXSPath.c_str());
-	  }
+          if (bgThread) {
+            eos_err("cannot open file %s", fileXSPath.c_str());
+          } else {
+            fprintf(stderr,"error: cannot open file %s\n", fileXSPath.c_str());
+          }
           maxfilesize = 0;
         } else {
           maxfilesize = info.st_size;
@@ -307,11 +307,11 @@ eos::fst::CheckSum* ScanDir::GetBlockXS(const char* filepath)
           return NULL;
         }
       } else {
-	if (bgThread) {
-	  eos_err("cannot get checksum object for layout id %lx", layoutid);
-	} else {
-	  fprintf(stderr,"error: cannot get checksum object for layout id %lx\n", layoutid);
-	}
+        if (bgThread) {
+          eos_err("cannot get checksum object for layout id %lx", layoutid);
+        } else {
+          fprintf(stderr,"error: cannot get checksum object for layout id %lx\n", layoutid);
+        }
       }
     }
     else
@@ -429,8 +429,8 @@ void* ScanDir::ThreadProc(void)
     else {
       // run again after 4 hours
       for (size_t s=0; s < (4*3600); s++) {
-	if (bgThread)
-	  XrdSysThread::CancelPoint();
+        if (bgThread)
+          XrdSysThread::CancelPoint();
         sleep(1);
       }
     }
@@ -498,30 +498,30 @@ bool ScanDir::ScanFileLoadAware(const char* path, unsigned long long &scansize, 
 
     if (nread) {
       if (!corruptBlockXS && blockXS)
-	if (!blockXS->CheckBlockSum(offset, buffer, nread))
-	  corruptBlockXS = true;
+        if (!blockXS->CheckBlockSum(offset, buffer, nread))
+          corruptBlockXS = true;
       
       //      fprintf(stderr,"adding %ld %llu\n", nread,offset);
       normalXS->Add(buffer, nread, offset);
       
       offset += nread;
       if (currentRate) {
-	// regulate the verification rate
-	gettimeofday(&currenttime,&tz);
-	scantime = ( ((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec)/1000.0 ));
-	float expecttime = (1.0 * offset / currentRate) / 1000.0;
-	if (expecttime > scantime) {
-	  usleep(1000.0*(expecttime - scantime));
-	}
-	//adjust the rate according to the load information
-	load = fstLoad->GetDiskRate("sda", "millisIO") / 1000.0;
-	if (load > 0.7){
-	  //adjust currentRate
-	  if (currentRate > 5)
-	    currentRate = 0.9 * currentRate; 	
-	} else {
-	  currentRate = rateBandwidth;     
-	}
+        // regulate the verification rate
+        gettimeofday(&currenttime,&tz);
+        scantime = ( ((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec)/1000.0 ));
+        float expecttime = (1.0 * offset / currentRate) / 1000.0;
+        if (expecttime > scantime) {
+          usleep(1000.0*(expecttime - scantime));
+        }
+        //adjust the rate according to the load information
+        load = fstLoad->GetDiskRate("sda", "millisIO") / 1000.0;
+        if (load > 0.7){
+          //adjust currentRate
+          if (currentRate > 5)
+            currentRate = 0.9 * currentRate;    
+        } else {
+          currentRate = rateBandwidth;     
+        }
       }
     }
   } while (nread==bufferSize);
@@ -538,18 +538,18 @@ bool ScanDir::ScanFileLoadAware(const char* path, unsigned long long &scansize, 
     } else {
       fprintf(stderr,"error: computed checksum is %s scansize %llu\n", normalXS->GetHexChecksum(), scansize);
       if (setChecksum) {
-	eos::common::Attr *attr = eos::common::Attr::OpenAttr(filePath.c_str());
-	if (attr) {
-	  int checksumlen=0;
-	  normalXS->GetBinChecksum(checksumlen);
-	  if ( (!attr->Set("user.eos.checksum",normalXS->GetBinChecksum(checksumlen), checksumlen)) || 
-	       (!attr->Set("user.eos.filecxerror", "0")) ) {
-	    fprintf(stderr, "error: failed to reset existing checksum \n");
-	  } else {
-	    fprintf(stdout, "success: reset checksum of %s to %s\n", filePath.c_str(), normalXS->GetHexChecksum());
-	  }
-	  delete attr;
-	}
+        eos::common::Attr *attr = eos::common::Attr::OpenAttr(filePath.c_str());
+        if (attr) {
+          int checksumlen=0;
+          normalXS->GetBinChecksum(checksumlen);
+          if ( (!attr->Set("user.eos.checksum",normalXS->GetBinChecksum(checksumlen), checksumlen)) || 
+               (!attr->Set("user.eos.filecxerror", "0")) ) {
+            fprintf(stderr, "error: failed to reset existing checksum \n");
+          } else {
+            fprintf(stdout, "success: reset checksum of %s to %s\n", filePath.c_str(), normalXS->GetHexChecksum());
+          }
+          delete attr;
+        }
       }
     }
     noCorruptFiles++;

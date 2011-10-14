@@ -8,10 +8,10 @@ EOSFSTNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 int          
 PlainLayout::open(const char                *path,
-			   XrdSfsFileOpenMode   open_mode,
-			   mode_t               create_mode,
-			   const XrdSecEntity        *client,
-			   const char                *opaque)
+                  XrdSfsFileOpenMode   open_mode,
+                  mode_t               create_mode,
+                  const XrdSecEntity        *client,
+                  const char                *opaque)
 {
   LocalReplicaPath = path;
   return ofsFile->openofs(path, open_mode, create_mode, client, opaque);

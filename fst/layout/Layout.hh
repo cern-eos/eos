@@ -49,10 +49,10 @@ public:
   unsigned int GetLayOutId() { return layOutId;}
 
   virtual int open(const char                *path,
-		   XrdSfsFileOpenMode   open_mode,
-		   mode_t               create_mode,
-		   const XrdSecEntity        *client,
-		   const char                *opaque) = 0;
+                   XrdSfsFileOpenMode   open_mode,
+                   mode_t               create_mode,
+                   const XrdSecEntity        *client,
+                   const char                *opaque) = 0;
 
   virtual bool IsEntryServer() { return isEntryServer; }
 

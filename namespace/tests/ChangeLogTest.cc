@@ -35,15 +35,15 @@
 //------------------------------------------------------------------------------
 class ChangeLogTest: public CppUnit::TestCase
 {
-  public:
-    CPPUNIT_TEST_SUITE( ChangeLogTest );
-      CPPUNIT_TEST( readWriteCorrectness );
-      CPPUNIT_TEST( followingTest );
-      CPPUNIT_TEST( fsckTest );
-    CPPUNIT_TEST_SUITE_END();
-    void readWriteCorrectness();
-    void followingTest();
-    void fsckTest();
+public:
+  CPPUNIT_TEST_SUITE( ChangeLogTest );
+  CPPUNIT_TEST( readWriteCorrectness );
+  CPPUNIT_TEST( followingTest );
+  CPPUNIT_TEST( fsckTest );
+  CPPUNIT_TEST_SUITE_END();
+  void readWriteCorrectness();
+  void followingTest();
+  void fsckTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( ChangeLogTest );
@@ -53,23 +53,23 @@ CPPUNIT_TEST_SUITE_REGISTRATION( ChangeLogTest );
 //------------------------------------------------------------------------------
 class DummyFileMDSvc: public eos::IFileMDSvc
 {
-  public:
-    virtual void initialize() throw( eos::MDException ) {}
-    virtual void configure( std::map<std::string, std::string> &config )
-      throw( eos::MDException ) {}
-    virtual void finalize() throw( eos::MDException ) {}
-    virtual eos::FileMD *getFileMD( eos::FileMD::id_t id )
-      throw( eos::MDException )
-      { return 0; }
-    virtual eos::FileMD *createFile() throw( eos::MDException ) { return 0; }
-    virtual void updateStore( eos::FileMD *obj ) throw( eos::MDException ) {}
-    virtual void removeFile( eos::FileMD *obj ) throw( eos::MDException ) {}
-    virtual void removeFile( eos::FileMD::id_t fileId )
-      throw( eos::MDException ) {}
-    virtual uint64_t getNumFiles() const { return 0; }
-    virtual void visit( eos::IFileVisitor *visitor ) {}
-    virtual void addChangeListener( eos::IFileMDChangeListener *listener ) {}
-    virtual void notifyListeners( eos::IFileMDChangeListener::Event *event ) {}
+public:
+  virtual void initialize() throw( eos::MDException ) {}
+  virtual void configure( std::map<std::string, std::string> &config )
+    throw( eos::MDException ) {}
+  virtual void finalize() throw( eos::MDException ) {}
+  virtual eos::FileMD *getFileMD( eos::FileMD::id_t id )
+    throw( eos::MDException )
+  { return 0; }
+  virtual eos::FileMD *createFile() throw( eos::MDException ) { return 0; }
+  virtual void updateStore( eos::FileMD *obj ) throw( eos::MDException ) {}
+  virtual void removeFile( eos::FileMD *obj ) throw( eos::MDException ) {}
+  virtual void removeFile( eos::FileMD::id_t fileId )
+    throw( eos::MDException ) {}
+  virtual uint64_t getNumFiles() const { return 0; }
+  virtual void visit( eos::IFileVisitor *visitor ) {}
+  virtual void addChangeListener( eos::IFileMDChangeListener *listener ) {}
+  virtual void notifyListeners( eos::IFileMDChangeListener::Event *event ) {}
 };
 
 //------------------------------------------------------------------------------
@@ -128,20 +128,20 @@ void checkFileMD( eos::FileMD &fileMetadata, unsigned i )
 //------------------------------------------------------------------------------
 class FileScanner: public eos::ILogRecordScanner
 {
-  public:
-    virtual void processRecord( uint64_t offset, char type,
-                                const eos::Buffer &buffer )
-    {
-      pRecords.push_back( std::make_pair( offset, buffer.size() ) );
-    }
+public:
+  virtual void processRecord( uint64_t offset, char type,
+                              const eos::Buffer &buffer )
+  {
+    pRecords.push_back( std::make_pair( offset, buffer.size() ) );
+  }
 
-    std::vector<std::pair<uint64_t, uint16_t> > &getRecords()
-    {
-      return pRecords;
-    }
+  std::vector<std::pair<uint64_t, uint16_t> > &getRecords()
+  {
+    return pRecords;
+  }
 
-  private:
-    std::vector<std::pair<uint64_t, uint16_t> > pRecords;
+private:
+  std::vector<std::pair<uint64_t, uint16_t> > pRecords;
 };
 
 //------------------------------------------------------------------------------
@@ -149,21 +149,21 @@ class FileScanner: public eos::ILogRecordScanner
 //------------------------------------------------------------------------------
 class FileFollower: public eos::ILogRecordScanner
 {
-  public:
-    FileFollower(): pIndex( 0 ) {}
-    virtual void processRecord( uint64_t offset, char type,
-                                const eos::Buffer &buffer )
-    {
-      DummyFileMDSvc fmd;
-      eos::FileMD fileMetadata( 0, &fmd );
-      fileMetadata.deserialize( buffer );
-      checkFileMD( fileMetadata, pIndex++ );
-      if( pIndex == NUMTESTFILES )
-        pthread_exit( 0 );
-    }
+public:
+  FileFollower(): pIndex( 0 ) {}
+  virtual void processRecord( uint64_t offset, char type,
+                              const eos::Buffer &buffer )
+  {
+    DummyFileMDSvc fmd;
+    eos::FileMD fileMetadata( 0, &fmd );
+    fileMetadata.deserialize( buffer );
+    checkFileMD( fileMetadata, pIndex++ );
+    if( pIndex == NUMTESTFILES )
+      pthread_exit( 0 );
+  }
 
-  private:
-    int pIndex;
+private:
+  int pIndex;
 };
 
 //------------------------------------------------------------------------------
@@ -188,22 +188,22 @@ void ChangeLogTest::readWriteCorrectness()
 
   std::vector<uint64_t> offsets;
   for( int i = 0; i < NUMTESTFILES; ++i )
-  {
-    buffer.clear();
-    fillFileMD( fileMetadata, i );
-    CPPUNIT_ASSERT_NO_THROW( fileMetadata.serialize( buffer ) );
-    CPPUNIT_ASSERT_NO_THROW( offsets.push_back(
-                              file.storeRecord(
-                                eos::UPDATE_RECORD_MAGIC, buffer ) ) );
-    fileMetadata.clearLocations();
-  }
+    {
+      buffer.clear();
+      fillFileMD( fileMetadata, i );
+      CPPUNIT_ASSERT_NO_THROW( fileMetadata.serialize( buffer ) );
+      CPPUNIT_ASSERT_NO_THROW( offsets.push_back(
+                                                 file.storeRecord(
+                                                                  eos::UPDATE_RECORD_MAGIC, buffer ) ) );
+      fileMetadata.clearLocations();
+    }
   file.close();
 
   //----------------------------------------------------------------------------
   // Scan the file and compare the offsets
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT_NO_THROW( file.open( fileName, eos::ChangeLogFile::ReadOnly,
-                           0x0000 ) );
+                                      0x0000 ) );
   CPPUNIT_ASSERT( file.getContentFlag() == 0x1212 );
   FileScanner scanner;
   CPPUNIT_ASSERT_NO_THROW( file.scanAllRecords( &scanner ) );
@@ -216,12 +216,12 @@ void ChangeLogTest::readWriteCorrectness()
   // Check the records
   //----------------------------------------------------------------------------
   for( unsigned i = 0; i < readRecords.size(); ++i )
-  {
-    CPPUNIT_ASSERT_NO_THROW( file.readRecord( readRecords[i].first, buffer ) );
-    CPPUNIT_ASSERT_NO_THROW( fileMetadata.deserialize( buffer ) );
-    checkFileMD( fileMetadata, i );
-    fileMetadata.clearLocations();
-  }
+    {
+      CPPUNIT_ASSERT_NO_THROW( file.readRecord( readRecords[i].first, buffer ) );
+      CPPUNIT_ASSERT_NO_THROW( fileMetadata.deserialize( buffer ) );
+      checkFileMD( fileMetadata, i );
+      fileMetadata.clearLocations();
+    }
   file.close();
   unlink( fileName.c_str() );
 }
@@ -254,7 +254,7 @@ void ChangeLogTest::followingTest()
   //----------------------------------------------------------------------------
   pthread_t thread;
   CPPUNIT_ASSERT_MESSAGE( "Unable to spawn the follower thread",
-    pthread_create( &thread, 0, followerThread, &file ) == 0 );
+                          pthread_create( &thread, 0, followerThread, &file ) == 0 );
 
   //----------------------------------------------------------------------------
   // Store 1000 files
@@ -265,15 +265,15 @@ void ChangeLogTest::followingTest()
 
   std::vector<uint64_t> offsets;
   for( int i = 0; i < 1000; ++i )
-  {
-    buffer.clear();
-    fillFileMD( fileMetadata, i );
-    CPPUNIT_ASSERT_NO_THROW( fileMetadata.serialize( buffer ) );
-    CPPUNIT_ASSERT_NO_THROW(
-      offsets.push_back( file.storeRecord( eos::UPDATE_RECORD_MAGIC, buffer ) ) );
-    fileMetadata.clearLocations();
-    usleep( 60000 );
-  }
+    {
+      buffer.clear();
+      fillFileMD( fileMetadata, i );
+      CPPUNIT_ASSERT_NO_THROW( fileMetadata.serialize( buffer ) );
+      CPPUNIT_ASSERT_NO_THROW(
+                              offsets.push_back( file.storeRecord( eos::UPDATE_RECORD_MAGIC, buffer ) ) );
+      fileMetadata.clearLocations();
+      usleep( 60000 );
+    }
   pthread_join( thread, 0 );
 
   file.close();
@@ -290,17 +290,17 @@ static void createRandomLog( const std::string &path, uint64_t numRecords )
   eos::Buffer        buffer;
   file.open( path );
   for( uint64_t i = 0; i < numRecords; ++i )
-  {
-    uint8_t numBlocks = (random()%254) + 1;
-    buffer.clear();
-    buffer.reserve( numBlocks*4 );
-    for( uint16_t j = 0; j < numBlocks; ++j )
     {
-      uint32_t block = random();
-      buffer.putData( &block, 4 );
+      uint8_t numBlocks = (random()%254) + 1;
+      buffer.clear();
+      buffer.reserve( numBlocks*4 );
+      for( uint16_t j = 0; j < numBlocks; ++j )
+        {
+          uint32_t block = random();
+          buffer.putData( &block, 4 );
+        }
+      file.storeRecord( 1, buffer );
     }
-    file.storeRecord( 1, buffer );
-  }
   file.close();
 }
 
@@ -376,17 +376,17 @@ void breakRecordsFunc( int fd,
 {
   std::vector<size_t>::iterator it;
   for( it = toBreak.begin(); it != toBreak.end(); ++it )
-  {
-    uint32_t size = recRead[*it].second+24;
-    char buffer[size];
-    if( pread( fd, buffer, size, recRead[*it].first ) != size )
-      throw std::string( "Unable to read enough data" );
+    {
+      uint32_t size = recRead[*it].second+24;
+      char buffer[size];
+      if( pread( fd, buffer, size, recRead[*it].first ) != size )
+        throw std::string( "Unable to read enough data" );
 
-    f( buffer, size );
+      f( buffer, size );
 
-    if( pwrite( fd, buffer, size, recRead[*it].first ) != size )
-      throw std::string( "Unable to write the broken data" );
-  }
+      if( pwrite( fd, buffer, size, recRead[*it].first ) != size )
+        throw std::string( "Unable to write the broken data" );
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -438,12 +438,12 @@ static void breakRecords( const std::string &path, uint64_t numBreak,
   std::copy( itB, itE, sizeBreak.begin() );
 
   while( randomMagicBreak.size() != reminder )
-  {
-    size_t toBreak = (1+random()) % readRecords.size();
-    if( randomBreakRecs.find( toBreak-1 ) == randomBreakRecs.end() &&
-        randomBreakRecs.find( toBreak ) == randomBreakRecs.end() )
-      randomMagicBreak.insert( toBreak );
-  }
+    {
+      size_t toBreak = (1+random()) % readRecords.size();
+      if( randomBreakRecs.find( toBreak-1 ) == randomBreakRecs.end() &&
+          randomBreakRecs.find( toBreak ) == randomBreakRecs.end() )
+        randomMagicBreak.insert( toBreak );
+    }
 
   std::copy( randomMagicBreak.begin(), randomMagicBreak.end(),
              magicBreak.begin() );
@@ -490,8 +490,8 @@ void ChangeLogTest::fsckTest()
   // stats.scanned may be more than 10000 and it's fine
   CPPUNIT_ASSERT( stats.scanned == stats.healthy + stats.notFixed );
   uint64_t totalFixed = brokenStats.fixedWrongMagic +
-                        brokenStats.fixedWrongChecksum +
-                        brokenStats.fixedWrongSize;
+    brokenStats.fixedWrongChecksum +
+    brokenStats.fixedWrongSize;
   CPPUNIT_ASSERT( stats.healthy == 9900+totalFixed );
   CPPUNIT_ASSERT( stats.fixedWrongMagic    == brokenStats.fixedWrongMagic );
   CPPUNIT_ASSERT( stats.fixedWrongChecksum == brokenStats.fixedWrongChecksum );

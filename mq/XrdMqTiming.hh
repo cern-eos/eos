@@ -46,12 +46,12 @@ public:
 };
 
 #define TIMING( __ID__,__LIST__)                                        \
-do {                                                                    \
-     struct timeval tp;                                                 \
-     struct timezone tz;                                                \
-     gettimeofday(&tp, &tz);                                            \
-     (__LIST__)->ptr->next=new XrdMqTiming(__ID__,tp);                  \
-     (__LIST__)->ptr = (__LIST__)->ptr->next;                           \
-} while(0);                                                             \
+  do {                                                                    \
+    struct timeval tp;                                                 \
+    struct timezone tz;                                                \
+    gettimeofday(&tp, &tz);                                            \
+    (__LIST__)->ptr->next=new XrdMqTiming(__ID__,tp);                  \
+    (__LIST__)->ptr = (__LIST__)->ptr->next;                           \
+  } while(0);                                                             \
  
 #endif

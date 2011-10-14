@@ -83,7 +83,7 @@ extern "C" {
   static
   void
   globus_l_gfs_eos_start(globus_gfs_operation_t op,
-                                  globus_gfs_session_info_t *session_info) {
+                         globus_gfs_session_info_t *session_info) {
     globus_l_gfs_eos_handle_t *eos_handle;
     globus_gfs_finished_info_t finished_info;
     const char *func="globus_l_gfs_eos_start";
@@ -149,21 +149,21 @@ extern "C" {
     stat_object->ino      = stat_buf->st_ino;
 
     if(filename && *filename)
-    {
+      {
         stat_object->name = strdup(filename);
-    }
+      }
     else
-    {
+      {
         stat_object->name = NULL;
-    }
+      }
     if(symlink_target && *symlink_target)
-    {
+      {
         stat_object->symlink_target = strdup(symlink_target);
-    }
+      }
     else
-    {
-      stat_object->symlink_target = NULL;
-    }
+      {
+        stat_object->symlink_target = NULL;
+      }
   }
   
   static
@@ -220,21 +220,21 @@ extern "C" {
     else
       {
         if(filepart == buf)
-        {
+          {
             if(!*(filepart + 1))
-            {
+              {
                 basepath[0] = '\0';
                 filename[0] = '/';
                 filename[1] = '\0';
-            }
+              }
             else
-            {
+              {
                 *filepart++ = '\0';
                 basepath[0] = '/';
                 basepath[1] = '\0';
                 strcpy(filename, filepart);
-            }
-        }
+              }
+          }
         else
           {
             *filepart++ = '\0';
@@ -247,22 +247,22 @@ extern "C" {
 
   
 
-/*************************************************************************
- *  stat
- *  ----
- *  This interface function is called whenever the server needs 
- *  information about a given file or resource.  It is called then an
- *  LIST is sent by the client, when the server needs to verify that 
- *  a file exists and has the proper permissions, etc.
- ************************************************************************/
+  /*************************************************************************
+   *  stat
+   *  ----
+   *  This interface function is called whenever the server needs 
+   *  information about a given file or resource.  It is called then an
+   *  LIST is sent by the client, when the server needs to verify that 
+   *  a file exists and has the proper permissions, etc.
+   ************************************************************************/
   
-static
-void
-globus_l_gfs_eos_stat(
-    globus_gfs_operation_t              op,
-    globus_gfs_stat_info_t *            stat_info,
-    void *                              user_arg)
-{
+  static
+  void
+  globus_l_gfs_eos_stat(
+                        globus_gfs_operation_t              op,
+                        globus_gfs_stat_info_t *            stat_info,
+                        void *                              user_arg)
+  {
     globus_result_t                     result;
     struct stat                         stat_buf;
     globus_gfs_stat_t *                 stat_array;
@@ -276,59 +276,59 @@ globus_l_gfs_eos_stat(
     PathName=stat_info->pathname;
 
     //    freopen("/tmp/xrdlog.gsiftp","a+", stderr);
-   /* 
-      If we do stat_info->pathname++, it will cause third-party transfer
-      hanging if there is a leading // in path. Don't know why. To work
-      around, we replaced it with PathName.
-   */
+    /* 
+       If we do stat_info->pathname++, it will cause third-party transfer
+       hanging if there is a leading // in path. Don't know why. To work
+       around, we replaced it with PathName.
+    */
     while ( (strlen(PathName)>1) && (PathName[0] == '/' && PathName[1] == '/'))
-    {
+      {
         PathName++;
-    }
+      }
     
     /* lstat is the same as stat when not operating on a link */
     if(XrdPosix_Stat(PathName, &stat_buf) != 0)
-    {
+      {
         result = GlobusGFSErrorSystemError("stat", errno);
         goto error_stat1;
-    }
+      }
 
     globus_l_gfs_file_partition_path(PathName, basepath, filename);
     
     if(!S_ISDIR(stat_buf.st_mode) || stat_info->file_only)
-    {
+      {
         stat_array = (globus_gfs_stat_t *)
-            globus_malloc(sizeof(globus_gfs_stat_t));
+          globus_malloc(sizeof(globus_gfs_stat_t));
         if(!stat_array)
-        {
+          {
             result = GlobusGFSErrorMemory("stat_array");
             goto error_alloc1;
-        }
+          }
         
         globus_l_gfs_file_copy_stat(
-            stat_array, &stat_buf, filename, symlink_target);
+                                    stat_array, &stat_buf, filename, symlink_target);
         stat_count = 1;
-    }
+      }
     else
-    {
+      {
         struct dirent *                 dir_entry = 0 ;
         int                             i;
         char                            dir_path[MAXPATHLEN];
     
         dir = XrdPosix_Opendir(PathName);
         if(!dir)
-        {
+          {
             result = GlobusGFSErrorSystemError("opendir", errno);
             goto error_open;
-        }
+          }
         
         stat_count = 0;
         int rc = 0;
 
         while( dir_entry =  XrdPosix_Readdir(dir) )
-        {
+          {
             stat_count++;
-        }
+          }
         XrdPosix_Rewinddir(dir);
 
         
@@ -346,7 +346,7 @@ globus_l_gfs_eos_stat(
         for(i = 0;
             dir_entry = XrdPosix_Readdir(dir);
             i++)
-        {
+          {
             char                        tmp_path[MAXPATHLEN];
             char                        *path;
                 
@@ -361,47 +361,47 @@ globus_l_gfs_eos_stat(
             while (path[0] == '/' && path[1] == '/') { path++; }
             /* lstat is the same as stat when not operating on a link */
             if(XrdPosix_Stat(path, &stat_buf) != 0)
-            {
+              {
                 result = GlobusGFSErrorSystemError("lstat", errno);
                 /* just skip invalid entries */
                 stat_count--;
                 i--;
                 continue;
-            }
+              }
             globus_l_gfs_file_copy_stat(
-                &stat_array[i], &stat_buf, dir_entry->d_name, symlink_target);
-        }
+                                        &stat_array[i], &stat_buf, dir_entry->d_name, symlink_target);
+          }
         
         if(i != stat_count)
-        {
+          {
             result = GlobusGFSErrorSystemError("readdir", errno);
             goto error_read;
-        }
+          }
         
         XrdPosix_Closedir(dir);
-    }
+      }
     
     globus_gridftp_server_finished_stat(
-        op, GLOBUS_SUCCESS, stat_array, stat_count);
+                                        op, GLOBUS_SUCCESS, stat_array, stat_count);
     
     
     globus_l_gfs_file_destroy_stat(stat_array, stat_count);
     
     return;
 
-error_read:
+  error_read:
     globus_l_gfs_file_destroy_stat(stat_array, stat_count);
     
-error_alloc2:
+  error_alloc2:
     closedir(dir);
     
-error_open:
-error_alloc1:
-error_stat1:
+  error_open:
+  error_alloc1:
+  error_stat1:
     globus_gridftp_server_finished_stat(op, result, NULL, 0);
 
-/*    GlobusGFSFileDebugExitWithError();  */
-}
+    /*    GlobusGFSFileDebugExitWithError();  */
+  }
 
   /*************************************************************************
    *  command
@@ -424,8 +424,8 @@ error_stat1:
    ************************************************************************/
   static void
   globus_l_gfs_eos_command(globus_gfs_operation_t op,
-                                    globus_gfs_command_info_t* cmd_info,
-                                    void *user_arg) {
+                           globus_gfs_command_info_t* cmd_info,
+                           void *user_arg) {
     globus_l_gfs_eos_handle_t *eos_handle;
     globus_result_t result;
 
@@ -441,7 +441,7 @@ error_stat1:
     PathName=cmd_info->pathname;
     while (PathName[0] == '/' && PathName[1] == '/')
       {
-	PathName++;
+        PathName++;
       }
 
     fflush(stderr);
@@ -449,93 +449,93 @@ error_stat1:
     switch(cmd_info->command)
       {
       case GLOBUS_GFS_CMD_MKD:
-	(XrdPosix_Mkdir(PathName, 0777) == 0) || 
-	  (rc = GlobusGFSErrorGeneric("mkdir() fail"));
-	break;
+        (XrdPosix_Mkdir(PathName, 0777) == 0) || 
+          (rc = GlobusGFSErrorGeneric("mkdir() fail"));
+        break;
       case GLOBUS_GFS_CMD_RMD:
-	(XrdPosix_Rmdir(PathName) == 0) || 
-	  (rc = GlobusGFSErrorGeneric("rmdir() fail"));
-	break;
+        (XrdPosix_Rmdir(PathName) == 0) || 
+          (rc = GlobusGFSErrorGeneric("rmdir() fail"));
+        break;
       case GLOBUS_GFS_CMD_DELE:
-	(XrdPosix_Unlink(PathName) == 0) ||
-	  (rc = GlobusGFSErrorGeneric("unlink() fail"));
-	break;
+        (XrdPosix_Unlink(PathName) == 0) ||
+          (rc = GlobusGFSErrorGeneric("unlink() fail"));
+        break;
       case GLOBUS_GFS_CMD_SITE_RDEL:
-	/*
-	  result = globus_l_gfs_file_delete(
-	  op, PathName, GLOBUS_TRUE);
-	*/
-	rc = GLOBUS_FAILURE;
-	break;
+        /*
+          result = globus_l_gfs_file_delete(
+          op, PathName, GLOBUS_TRUE);
+        */
+        rc = GLOBUS_FAILURE;
+        break;
       case GLOBUS_GFS_CMD_RNTO:
-	(XrdPosix_Rename(cmd_info->rnfr_pathname, PathName) == 0) || 
-	  (rc = GlobusGFSErrorGeneric("rename() fail"));
-	break;
+        (XrdPosix_Rename(cmd_info->rnfr_pathname, PathName) == 0) || 
+          (rc = GlobusGFSErrorGeneric("rename() fail"));
+        break;
       case GLOBUS_GFS_CMD_SITE_CHMOD:
-	char request[16384];
-	char response[4096];
-	sprintf(response,"");
-	sprintf(request,"root://%s%s?mgm.pcmd=chmod&mode=%d",getenv("XROOTD_VMP")?getenv("XROOTD_VMP"):"",PathName, cmd_info->chmod_mode);
-	
-	long long result;
+        char request[16384];
+        char response[4096];
+        sprintf(response,"");
+        sprintf(request,"root://%s%s?mgm.pcmd=chmod&mode=%d",getenv("XROOTD_VMP")?getenv("XROOTD_VMP"):"",PathName, cmd_info->chmod_mode);
+        
+        long long result;
         result = XrdPosixXrootd::QueryOpaque(request,response,4096);
-	rc = GlobusGFSErrorGeneric("chmod() fail");
-	
-	if (result>0) {
-	  char tag[4096];
-	  int retc=0;
-	  int items = sscanf(response,"%s retc=%d",tag, &retc);
+        rc = GlobusGFSErrorGeneric("chmod() fail");
+        
+        if (result>0) {
+          char tag[4096];
+          int retc=0;
+          int items = sscanf(response,"%s retc=%d",tag, &retc);
           fflush(stderr);
-	  if (retc || (items != 2) || (strcmp(tag,"chmod:"))) {
-	    // error
-	  } else {
-	    rc = GLOBUS_SUCCESS;
-	  }
-	}
-	break;
+          if (retc || (items != 2) || (strcmp(tag,"chmod:"))) {
+            // error
+          } else {
+            rc = GLOBUS_SUCCESS;
+          }
+        }
+        break;
       case GLOBUS_GFS_CMD_CKSM:
         fflush(stderr);
-	if (!strcmp(cmd_info->cksm_alg, "adler32") || 
+        if (!strcmp(cmd_info->cksm_alg, "adler32") || 
             !strcmp(cmd_info->cksm_alg, "ADLER32")) {
-	  char request[16384];
-	  char response[4096];
-	  sprintf(response,"");
+          char request[16384];
+          char response[4096];
+          sprintf(response,"");
           sprintf(request,"root://%s%s?mgm.pcmd=checksum",getenv("XROOTD_VMP")?getenv("XROOTD_VMP"):"",PathName);
-	  // put 0 terminated hex string in cmd_data
-	  long long result;
+          // put 0 terminated hex string in cmd_data
+          long long result;
           result = XrdPosixXrootd::QueryOpaque(request,response,4096);
           fflush(stderr);
-	  if (result>0) {
-	    if ( (strstr(response,"retc=0") && (strlen(response)> 10))) {
-	      // the server returned a checksum via 'checksum: <checksum> retc=' 
-	      const char* cbegin = response + 10;
-	      const char* cend   = strstr(response,"retc=");
+          if (result>0) {
+            if ( (strstr(response,"retc=0") && (strlen(response)> 10))) {
+              // the server returned a checksum via 'checksum: <checksum> retc=' 
+              const char* cbegin = response + 10;
+              const char* cend   = strstr(response,"retc=");
               if (cend > (cbegin+8)) {
                 cend = cbegin + 8;
               }
-	      if (cbegin && cend) {
-		strncpy(cmd_data,cbegin, cend-cbegin);
-		// 0-terminate
-		cmd_data[cend-cbegin]=0;
-		rc = GLOBUS_SUCCESS;
-		globus_gridftp_server_finished_command(op, rc, cmd_data);
-		return;
-	      } else {
-		rc = GlobusGFSErrorGeneric("checksum() fail");
-	      }
-	    } else {
-	      // the server returned an error
-	      char* e = strstr(response,"retc=");
-	      rc = GlobusGFSErrorGeneric("checksum() fail");
-	    }
-	  }
-	}
-	rc = GLOBUS_FAILURE;
-	break;
-	
+              if (cbegin && cend) {
+                strncpy(cmd_data,cbegin, cend-cbegin);
+                // 0-terminate
+                cmd_data[cend-cbegin]=0;
+                rc = GLOBUS_SUCCESS;
+                globus_gridftp_server_finished_command(op, rc, cmd_data);
+                return;
+              } else {
+                rc = GlobusGFSErrorGeneric("checksum() fail");
+              }
+            } else {
+              // the server returned an error
+              char* e = strstr(response,"retc=");
+              rc = GlobusGFSErrorGeneric("checksum() fail");
+            }
+          }
+        }
+        rc = GLOBUS_FAILURE;
+        break;
+        
       default:
-	rc = GLOBUS_FAILURE;
-	break;
+        rc = GLOBUS_FAILURE;
+        break;
       }
     globus_gridftp_server_finished_command(op, rc, NULL);
   }
@@ -562,21 +562,21 @@ error_stat1:
     int rc;
     const char *func = "eos_handle_open";
     globus_gfs_log_message(GLOBUS_GFS_LOG_DUMP,
-			   "%s: open file \"%s\"\n",
-			   func,
-			   path);
+                           "%s: open file \"%s\"\n",
+                           func,
+                           path);
     try {
       system("printenv | grep XROOT");
       rc = XrdPosix_Open(path, flags, mode);
       if (rc < 0) {
-	globus_gfs_log_message(GLOBUS_GFS_LOG_ERR,
-                                   "%s: XrdPosixXrootd::Open returned error code %d\n",
-			       func, errno);
+        globus_gfs_log_message(GLOBUS_GFS_LOG_ERR,
+                               "%s: XrdPosixXrootd::Open returned error code %d\n",
+                               func, errno);
       }
     } catch (...) {
       globus_gfs_log_message(GLOBUS_GFS_LOG_INFO,
-			     "%s: Exception caught when calling XrdPosixXrootd::Open\n",
-			     func);
+                             "%s: Exception caught when calling XrdPosixXrootd::Open\n",
+                             func);
       return -1;
     }
     return (rc);
@@ -687,8 +687,8 @@ error_stat1:
 
   static void
   globus_l_gfs_eos_recv(globus_gfs_operation_t op,
-                                 globus_gfs_transfer_info_t *transfer_info,
-                                 void *user_arg) {
+                        globus_gfs_transfer_info_t *transfer_info,
+                        void *user_arg) {
     globus_l_gfs_eos_handle_t *eos_handle;
     globus_result_t result;
     const char *func = "globus_l_gfs_eos_recv";
@@ -762,8 +762,8 @@ error_stat1:
    ************************************************************************/
   static void
   globus_l_gfs_eos_send(globus_gfs_operation_t op,
-                                 globus_gfs_transfer_info_t *transfer_info,
-                                 void *user_arg) {
+                        globus_gfs_transfer_info_t *transfer_info,
+                        void *user_arg) {
     globus_l_gfs_eos_handle_t *eos_handle;
     const char *func = "globus_l_gfs_eos_send";
     char *pathname;
@@ -996,22 +996,22 @@ error_stat1:
 
   /// no need to change this
   static globus_gfs_storage_iface_t globus_l_gfs_eos_dsi_iface =
-  {
-    GLOBUS_GFS_DSI_DESCRIPTOR_BLOCKING | GLOBUS_GFS_DSI_DESCRIPTOR_SENDER,
-    globus_l_gfs_eos_start,
-    globus_l_gfs_eos_destroy,
-    NULL, /* list */
-    globus_l_gfs_eos_send,
-    globus_l_gfs_eos_recv,
-    NULL, /* trev */
-    NULL, /* active */
-    NULL, /* passive */
-    NULL, /* data destroy */
-    globus_l_gfs_eos_command,
-    globus_l_gfs_eos_stat,
-    NULL,
-    NULL
-  };
+    {
+      GLOBUS_GFS_DSI_DESCRIPTOR_BLOCKING | GLOBUS_GFS_DSI_DESCRIPTOR_SENDER,
+      globus_l_gfs_eos_start,
+      globus_l_gfs_eos_destroy,
+      NULL, /* list */
+      globus_l_gfs_eos_send,
+      globus_l_gfs_eos_recv,
+      NULL, /* trev */
+      NULL, /* active */
+      NULL, /* passive */
+      NULL, /* data destroy */
+      globus_l_gfs_eos_command,
+      globus_l_gfs_eos_stat,
+      NULL,
+      NULL
+    };
 
 
   /// no need to change this

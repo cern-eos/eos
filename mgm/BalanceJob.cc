@@ -162,29 +162,29 @@ BalanceJob::Balance(void)
       std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
       
       for (it = mGroup->begin(); it != mGroup->end();it++) {
-	eos::common::FileSystem::fs_snapshot snapshot;
-	eos::common::FileSystem* fs = FsView::gFsView.mIdView[*it];
-	if (fs) {
-	  fs->SnapShotFileSystem(snapshot);
-	  if ( ( (snapshot.mConfigStatus == eos::common::FileSystem::kDrain) || (snapshot.mConfigStatus == eos::common::FileSystem::kDrainDead) ) ) {
-	    hasdrainjob = true;
-	  }
-	}
+        eos::common::FileSystem::fs_snapshot snapshot;
+        eos::common::FileSystem* fs = FsView::gFsView.mIdView[*it];
+        if (fs) {
+          fs->SnapShotFileSystem(snapshot);
+          if ( ( (snapshot.mConfigStatus == eos::common::FileSystem::kDrain) || (snapshot.mConfigStatus == eos::common::FileSystem::kDrainDead) ) ) {
+            hasdrainjob = true;
+          }
+        }
       }
     }
     
     if (hasdrainjob) {
       // set status to 'active'
       {
-	eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-	mGroup->SetConfigMember("stat.balancing","drainwait",false, "", true);
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        mGroup->SetConfigMember("stat.balancing","drainwait",false, "", true);
       }
 
       XrdSysThread::SetCancelOn();
       for (int i=0; i< 10;i++) {
-	XrdSysTimer sleeper;
-	sleeper.Snooze(1);
-	XrdSysThread::CancelPoint();
+        XrdSysTimer sleeper;
+        sleeper.Snooze(1);
+        XrdSysThread::CancelPoint();
       }
       XrdSysThread::SetCancelOff();
     }
@@ -264,7 +264,7 @@ BalanceJob::Balance(void)
                     if (fmd->getSize() < schedulebytes) {
                       eos_static_info("adding file id %llu to be moved",fid);
                       SourceFidMap[snapshot.mId].insert(fid);
-		      SourceFidSet.insert(fid);
+                      SourceFidSet.insert(fid);
                       schedulebytes-= fmd->getSize();
                       nscheduled++;
                     } else {
@@ -346,8 +346,8 @@ BalanceJob::Balance(void)
             unsigned long long cid  = 0;
             unsigned long long size = 0;
             long unsigned int  lid  = 0;
-	    uid_t uid=0;
-	    gid_t gid=0;
+            uid_t uid=0;
+            gid_t gid=0;
             bool acceptid           = false;
             std::string fullpath = "";
             
@@ -355,19 +355,19 @@ BalanceJob::Balance(void)
               gOFS->eosViewMutex.Lock();
               eos::FileMD* fmd = 0;
               try {
-		fid = *fid_it;
+                fid = *fid_it;
                 fmd = gOFS->eosFileService->getFileMD(fid);
                 lid = fmd->getLayoutId();
                 cid = fmd->getContainerId();
                 size = fmd->getSize();
-		uid  = fmd->getCUid();
-		gid  = fmd->getCGid();
+                uid  = fmd->getCUid();
+                gid  = fmd->getCGid();
 
               } catch ( eos::MDException &e ) {
                 fmd = 0;
               }
 
-	      // the target should not be already in the location vector and there shouldn't be already a file scheduled there
+              // the target should not be already in the location vector and there shouldn't be already a file scheduled there
               if (fmd && (!fmd->hasLocation(target_snapshot.mId)) && (!TargetFidMap[target_snapshot.mId].count(fid))) {
                 // we can put a replica here !
                 acceptid = true;
@@ -411,9 +411,9 @@ BalanceJob::Balance(void)
               target_capability += "mgm.access=write";
               target_capability += "&mgm.lid=";        target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid&0xffffff0f); 
               // make's it a plain replica
-	      target_capability += "&mgm.source.lid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid);
-	      target_capability += "&mgm.source.ruid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)uid);
-	      target_capability += "&mgm.source.rgid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)gid);
+              target_capability += "&mgm.source.lid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid);
+              target_capability += "&mgm.source.ruid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)uid);
+              target_capability += "&mgm.source.rgid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)gid);
 
               target_capability += "&mgm.cid=";        target_capability += eos::common::StringConversion::GetSizeString(sizestring,cid);
               target_capability += "&mgm.ruid=";       target_capability+=(int)1;
@@ -464,7 +464,7 @@ BalanceJob::Balance(void)
                 if ( TargetQueues.count(target_it->first)) {
                   bool sub = TargetQueues[target_it->first]->Add(txjob);
                   eos_static_info("Submitted %d %s\n", sub, fullcapability.c_str());
-		  TargetFidMap[target_snapshot.mId].insert(fid);
+                  TargetFidMap[target_snapshot.mId].insert(fid);
                 }
                 if (txjob)
                   delete txjob;
@@ -483,7 +483,7 @@ BalanceJob::Balance(void)
               eos_static_info("source size=%llu target size=%llu", source_it->second, target_it->second);
             } else {
               eos_static_info("couldn't place fid %llu", fid);
-	    }
+            }
             
             // go to next target group
             target_it++;
@@ -580,7 +580,7 @@ BalanceJob::Balance(void)
 
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         mGroup->SetConfigMember("stat.balancing","stalled",false, "", true);
-	wasstalled =true;
+        wasstalled =true;
       } else {
         // clean-up the queues
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -597,7 +597,7 @@ BalanceJob::Balance(void)
       if (wasstalled) {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         mGroup->SetConfigMember("stat.balancing","running",false, "", true);
-	wasstalled=false;
+        wasstalled=false;
       }
     }
 

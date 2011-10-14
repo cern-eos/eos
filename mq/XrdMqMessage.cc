@@ -883,7 +883,7 @@ XrdMqMessage::Print() {
     std::cerr << "kMessageBuffer         : (...) too long" << std::endl;
     std::cerr << "Length                 : " << kMessageBuffer.length() << std::endl;
   } else {
-  std::cerr << "kMessageBuffer         : " << kMessageBuffer << std::endl;
+    std::cerr << "kMessageBuffer         : " << kMessageBuffer << std::endl;
   }
   std::cerr << "-----------------------------------------------------" << std::endl;
 }
@@ -977,7 +977,7 @@ XrdMqMessage::Configure(const char* ConfigFN) {
         fullcertpath += (char*)ep->d_name;
         FILE* fp = fopen(fullcertpath.c_str(),"r");
         if (!fp) {
-	  closedir(dp);
+          closedir(dp);
           return Eroute.Emsg("Config", errno, "open public key file fn=", fullcertpath.c_str());
         }
         

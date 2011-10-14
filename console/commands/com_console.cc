@@ -19,9 +19,9 @@ com_console (char *arg) {
 
     if (!broker.endswith("//")) {
       if (!broker.endswith("/")) {
-	broker += ":1097//";
+        broker += ":1097//";
       } else {
-	broker += ":1097//";
+        broker += ":1097//";
       }
     } else {
       broker.erase(broker.length()-3);
@@ -47,43 +47,43 @@ com_console (char *arg) {
       XrdMqMessage* newmessage = mqc.RecvMessage();
       
       if (newmessage) {
-	XrdOucString line = newmessage->GetBody();
-	if (global_highlighting) {
-	  static std::string textnormal("\033[0m");
-	  static std::string textblack("\033[49;30m");
-	  static std::string textred("\033[49;31m");
-	  static std::string textrederror("\033[47;31m\e[5m");
-	  static std::string textblueerror("\033[47;34m\e[5m");
-	  static std::string textgreen("\033[49;32m");
-	  static std::string textyellow("\033[49;33m");
-	  static std::string textblue("\033[49;34m");
-	  static std::string textbold("\033[1m");
-	  static std::string textunbold("\033[0m");
+        XrdOucString line = newmessage->GetBody();
+        if (global_highlighting) {
+          static std::string textnormal("\033[0m");
+          static std::string textblack("\033[49;30m");
+          static std::string textred("\033[49;31m");
+          static std::string textrederror("\033[47;31m\e[5m");
+          static std::string textblueerror("\033[47;34m\e[5m");
+          static std::string textgreen("\033[49;32m");
+          static std::string textyellow("\033[49;33m");
+          static std::string textblue("\033[49;34m");
+          static std::string textbold("\033[1m");
+          static std::string textunbold("\033[0m");
 
-	  static std::string cinfo    = textgreen + "INFO" + textnormal;
-	  static std::string cdebug   = textblack + "DEBUG" + textnormal;
-	  static std::string cerr     = textred + "ERROR" + textnormal;
-	  static std::string cnote    = textblue + "NOTE" + textnormal;
-	  static std::string cwarn    = textblueerror + "WARN" + textnormal;
-	  static std::string cemerg   = textrederror + "EMERG" + textnormal;
-	  static std::string ccrit    = textrederror + "CRIT" + textnormal;
-	  static std::string calert   = textrederror + "ALERT" + textnormal;
+          static std::string cinfo    = textgreen + "INFO" + textnormal;
+          static std::string cdebug   = textblack + "DEBUG" + textnormal;
+          static std::string cerr     = textred + "ERROR" + textnormal;
+          static std::string cnote    = textblue + "NOTE" + textnormal;
+          static std::string cwarn    = textblueerror + "WARN" + textnormal;
+          static std::string cemerg   = textrederror + "EMERG" + textnormal;
+          static std::string ccrit    = textrederror + "CRIT" + textnormal;
+          static std::string calert   = textrederror + "ALERT" + textnormal;
 
-	  line.replace("INFO",cinfo.c_str());
-	  line.replace("DEBUG",cdebug.c_str());
-	  line.replace("ERROR",cerr.c_str());
-	  line.replace("EMERG", cemerg.c_str());
-	  line.replace("CRIT", ccrit.c_str());
-	  line.replace("WARN", cwarn.c_str());
-	  line.replace("ALERT", calert.c_str());
-	  line.replace("NOTE", cnote.c_str());
-	}
+          line.replace("INFO",cinfo.c_str());
+          line.replace("DEBUG",cdebug.c_str());
+          line.replace("ERROR",cerr.c_str());
+          line.replace("EMERG", cemerg.c_str());
+          line.replace("CRIT", ccrit.c_str());
+          line.replace("WARN", cwarn.c_str());
+          line.replace("ALERT", calert.c_str());
+          line.replace("NOTE", cnote.c_str());
+        }
 
         fprintf(stdout,"%s\n",line.c_str());
-	fflush(stdout);
-	delete newmessage;
+        fflush(stdout);
+        delete newmessage;
       } else {
-	usleep(100000);
+        usleep(100000);
       }
     }
     

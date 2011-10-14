@@ -20,15 +20,15 @@ namespace eos
   //----------------------------------------------------------------------------
   class IContainerMDChangeListener
   {
-    public:
-      enum Action
+  public:
+    enum Action
       {
         Updated = 0,
         Deleted,
         Created
       };
 
-      virtual void containerMDChanged( ContainerMD *obj, Action type );
+    virtual void containerMDChanged( ContainerMD *obj, Action type );
   };
 
   //----------------------------------------------------------------------------
@@ -40,64 +40,64 @@ namespace eos
   //----------------------------------------------------------------------------
   class IContainerMDSvc
   {
-    public:
-      virtual ~IContainerMDSvc() {}
+  public:
+    virtual ~IContainerMDSvc() {}
 
-      //------------------------------------------------------------------------
-      //! Initizlize the container service
-      //------------------------------------------------------------------------
-      virtual void initialize() throw( MDException ) = 0;
+    //------------------------------------------------------------------------
+    //! Initizlize the container service
+    //------------------------------------------------------------------------
+    virtual void initialize() throw( MDException ) = 0;
 
-      //------------------------------------------------------------------------
-      //! Configure the container service
-      //------------------------------------------------------------------------
-      virtual void configure( std::map<std::string, std::string> &config )
-                                                      throw( MDException ) = 0;
+    //------------------------------------------------------------------------
+    //! Configure the container service
+    //------------------------------------------------------------------------
+    virtual void configure( std::map<std::string, std::string> &config )
+      throw( MDException ) = 0;
 
-      //------------------------------------------------------------------------
-      //! Finalize the container service
-      //------------------------------------------------------------------------
-      virtual void finalize() throw( MDException ) = 0;
+    //------------------------------------------------------------------------
+    //! Finalize the container service
+    //------------------------------------------------------------------------
+    virtual void finalize() throw( MDException ) = 0;
 
-      //------------------------------------------------------------------------
-      //! Get the file metadata information for the given file ID
-      //------------------------------------------------------------------------
-      virtual ContainerMD *getContainerMD( ContainerMD::id_t id )
-                                                        throw( MDException ) = 0;
+    //------------------------------------------------------------------------
+    //! Get the file metadata information for the given file ID
+    //------------------------------------------------------------------------
+    virtual ContainerMD *getContainerMD( ContainerMD::id_t id )
+      throw( MDException ) = 0;
 
-      //------------------------------------------------------------------------
-      //! Create new container metadata object with an assigned id, the user has
-      //! to fill all the remaining fields
-      //------------------------------------------------------------------------
-      virtual ContainerMD *createContainer() throw( MDException ) = 0;
+    //------------------------------------------------------------------------
+    //! Create new container metadata object with an assigned id, the user has
+    //! to fill all the remaining fields
+    //------------------------------------------------------------------------
+    virtual ContainerMD *createContainer() throw( MDException ) = 0;
 
-      //------------------------------------------------------------------------
-      //! Update the contaienr metadata in the backing store after the
-      //! ContainerMD object has been changed
-      //------------------------------------------------------------------------
-      virtual void updateStore( ContainerMD *obj ) throw( MDException ) = 0;
+    //------------------------------------------------------------------------
+    //! Update the contaienr metadata in the backing store after the
+    //! ContainerMD object has been changed
+    //------------------------------------------------------------------------
+    virtual void updateStore( ContainerMD *obj ) throw( MDException ) = 0;
 
-      //------------------------------------------------------------------------
-      //! Remove object from the store
-      //------------------------------------------------------------------------
-      virtual void removeContainer( ContainerMD *obj ) throw( MDException ) = 0;
+    //------------------------------------------------------------------------
+    //! Remove object from the store
+    //------------------------------------------------------------------------
+    virtual void removeContainer( ContainerMD *obj ) throw( MDException ) = 0;
 
-      //------------------------------------------------------------------------
-      //! Remove object from the store
-      //------------------------------------------------------------------------
-      virtual void removeContainer( ContainerMD::id_t containerId )
-                                                      throw( MDException ) = 0;
+    //------------------------------------------------------------------------
+    //! Remove object from the store
+    //------------------------------------------------------------------------
+    virtual void removeContainer( ContainerMD::id_t containerId )
+      throw( MDException ) = 0;
 
-      //------------------------------------------------------------------------
-      //! Get number of containers
-      //------------------------------------------------------------------------
-      virtual uint64_t getNumContainers() const = 0;
+    //------------------------------------------------------------------------
+    //! Get number of containers
+    //------------------------------------------------------------------------
+    virtual uint64_t getNumContainers() const = 0;
 
-      //------------------------------------------------------------------------
-      //! Add file listener that will be notified about all of the changes in
-      //! the store
-      //------------------------------------------------------------------------
-      virtual void addChangeListener( IContainerMDChangeListener *listener ) = 0;
+    //------------------------------------------------------------------------
+    //! Add file listener that will be notified about all of the changes in
+    //! the store
+    //------------------------------------------------------------------------
+    virtual void addChangeListener( IContainerMDChangeListener *listener ) = 0;
   };
 }
 

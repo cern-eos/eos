@@ -216,7 +216,7 @@ DrainJob::Drain(void)
       XrdSysThread::CancelPoint();
 
       if (now > waitreporttime) {
-	XrdSysThread::SetCancelOff();
+        XrdSysThread::SetCancelOff();
         // update stat.timeleft
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         fs = 0;
@@ -228,7 +228,7 @@ DrainJob::Drain(void)
         } 
         fs->SetLongLong("stat.timeleft", waitendtime-now);
         waitreporttime = now + 10;
-	XrdSysThread::SetCancelOn();
+        XrdSysThread::SetCancelOn();
       }
     }
   }
@@ -301,8 +301,8 @@ DrainJob::Drain(void)
                   unsigned long long cid=0;
                   unsigned long long size=0;
                   long unsigned int lid = 0;
-		  uid_t uid=0;
-		  gid_t gid=0;
+                  uid_t uid=0;
+                  gid_t gid=0;
                   bool acceptid=false;
                   size_t q=0;
                   std::string fullpath = "";
@@ -321,8 +321,8 @@ DrainJob::Drain(void)
                       lid = fmd->getLayoutId();
                       cid = fmd->getContainerId();
                       size = fmd->getSize();
-		      uid = fmd->getCUid();
-		      gid = fmd->getCGid();
+                      uid = fmd->getCUid();
+                      gid = fmd->getCGid();
 
                       // push all the locations
                       eos::FileMD::LocationVector::const_iterator lociter;
@@ -340,9 +340,9 @@ DrainJob::Drain(void)
                       // we can put a replica here ! 
                       size = fmd->getSize();
 
-		      // check if there is space for that file
-		      if (fs->ReserveSpace(target_snapshot, size))
-			acceptid = true;
+                      // check if there is space for that file
+                      if (fs->ReserveSpace(target_snapshot, size))
+                        acceptid = true;
                     }
 
 
@@ -366,8 +366,8 @@ DrainJob::Drain(void)
                     if (space) {
                       eos_static_info("Responsible space is %s\n", space->GetSpaceName());
                     } else {
-		      eos_static_err("No responsible space for %s\n", drain_snapshot.mSpace.c_str());
-		    }
+                      eos_static_err("No responsible space for %s\n", drain_snapshot.mSpace.c_str());
+                    }
                     // schedule access to that file as a plain file
                     int retc=0;
                     if ((!space) || (retc=space->FileAccess((uid_t)0,(gid_t)0,(long unsigned int)0, (const char*) 0, lid, locationfs, fsindex, false, (long long unsigned)0))) {
@@ -413,11 +413,11 @@ DrainJob::Drain(void)
                       XrdOucString target_capability="";
                       target_capability += "mgm.access=write";
                       target_capability += "&mgm.lid=";        target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid&0xffffff0f); // make's it a plain replica
-		      target_capability += "&mgm.source.lid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid);
-		      target_capability += "&mgm.source.ruid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)uid);
-		      target_capability += "&mgm.source.rgid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)gid);
+                      target_capability += "&mgm.source.lid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid);
+                      target_capability += "&mgm.source.ruid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)uid);
+                      target_capability += "&mgm.source.rgid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)gid);
 
-		      target_capability += "&mgm.cid=";        target_capability += eos::common::StringConversion::GetSizeString(sizestring,cid);
+                      target_capability += "&mgm.cid=";        target_capability += eos::common::StringConversion::GetSizeString(sizestring,cid);
                       target_capability += "&mgm.ruid=";       target_capability+=(int)1;
                       target_capability += "&mgm.rgid=";       target_capability+=(int)1;
                       target_capability += "&mgm.uid=";        target_capability+=(int)1;
@@ -469,18 +469,18 @@ DrainJob::Drain(void)
                           delete source_capabilityenv;
                         if (target_capabilityenv)
                           delete target_capabilityenv;
-			// book the space
-			target_fs->PreBookSpace(size);
+                        // book the space
+                        target_fs->PreBookSpace(size);
                       }
                       last_scheduled = time(NULL);
                     }
                   }
-		}
+                }
                 queue->CloseTransaction();
               }
             }
           }
-	  target_fs->FreePreBookedSpace();
+          target_fs->FreePreBookedSpace();
         }
       }
     }
@@ -539,7 +539,7 @@ DrainJob::Drain(void)
 
       XrdSysThread::SetCancelOn();
       if (!filesleft) 
-	break;
+        break;
     }
 
     if (fids.size()==0) 
@@ -596,7 +596,7 @@ DrainJob::Drain(void)
         fs = FsView::gFsView.mIdView[fsid];
       if (!fs) {
         eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
-	XrdSysThread::SetCancelOn();      
+        XrdSysThread::SetCancelOn();      
         return 0 ;
       }
       fs->SetLongLong("stat.drainprogress",  progress);
@@ -618,7 +618,7 @@ DrainJob::Drain(void)
           fs = FsView::gFsView.mIdView[fsid];
         if (!fs) {
           eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
-	  XrdSysThread::SetCancelOn();      
+          XrdSysThread::SetCancelOn();      
           return 0 ;
         }
         
@@ -628,7 +628,7 @@ DrainJob::Drain(void)
         if (ntried <=maxtry) {
           // trigger retry; 
         } else {
-	  XrdSysThread::SetCancelOn();      
+          XrdSysThread::SetCancelOn();      
           return 0;
         }
       }

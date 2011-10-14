@@ -8,15 +8,15 @@
 
 #define GTRACE(act)         gMgmOfsTrace.What & TRACE_ ## act
 
-#define TRACES(x) \
-        {gMgmOfsTrace.Beg(epname,tident); cerr <<x; gMgmOfsTrace.End();}
+#define TRACES(x)                                                       \
+  {gMgmOfsTrace.Beg(epname,tident); cerr <<x; gMgmOfsTrace.End();}
 
-#define FTRACE(act, x) \
-   if (GTRACE(act)) \
-      TRACES(x <<" fn=" << (oh->Name()))
+#define FTRACE(act, x)                          \
+  if (GTRACE(act))                              \
+    TRACES(x <<" fn=" << (oh->Name()))
 
-#define XTRACE(act, target, x) \
-   if (GTRACE(act)) TRACES(x <<" fn=" <<target)
+#define XTRACE(act, target, x)                  \
+  if (GTRACE(act)) TRACES(x <<" fn=" <<target)
 
 #define ZTRACE(act, x) if (GTRACE(act)) TRACES(x)
 

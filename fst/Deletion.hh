@@ -60,10 +60,10 @@ public:
     while (1) {
       hexfid = subtokenizer.GetToken();
       if (hexfid.length()) {
-	fileid = eos::common::FileId::Hex2Fid(hexfid.c_str());	
-	idvector.push_back(fileid);
+        fileid = eos::common::FileId::Hex2Fid(hexfid.c_str());  
+        idvector.push_back(fileid);
       } else {
-	break;
+        break;
       }
     }
     

@@ -28,10 +28,10 @@ public:
   ReplicaParLayout(XrdFstOfsFile* thisFile,int lid, XrdOucErrInfo *error);
 
   virtual int open(const char                *path,
-		   XrdSfsFileOpenMode   open_mode,
-		   mode_t               create_mode,
-		   const XrdSecEntity        *client,
-		   const char                *opaque);
+                   XrdSfsFileOpenMode   open_mode,
+                   mode_t               create_mode,
+                   const XrdSecEntity        *client,
+                   const char                *opaque);
   
   virtual int read(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length);
   virtual int write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length);

@@ -17,7 +17,7 @@ com_motd (char *arg) {
       maxmotd[1023]=0;
       XrdOucString b64out;
       if (nread>0) {
-	eos::common::SymKey::Base64Encode(maxmotd, strlen(maxmotd)+1, b64out);
+        eos::common::SymKey::Base64Encode(maxmotd, strlen(maxmotd)+1, b64out);
       }
       in += "&mgm.motd=";
       in += b64out.c_str();

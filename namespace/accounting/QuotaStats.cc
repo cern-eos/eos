@@ -81,11 +81,11 @@ namespace eos
     throw( MDException )
   {
     if( pNodeMap.find( nodeId ) != pNodeMap.end() )
-    {
-      MDException e;
-      e.getMessage() << "Quota node already exist: " << nodeId;
-      throw e;
-    }
+      {
+        MDException e;
+        e.getMessage() << "Quota node already exist: " << nodeId;
+        throw e;
+      }
     QuotaNode *node = new QuotaNode( this );
     pNodeMap[nodeId] = node;
     return node;
@@ -99,11 +99,11 @@ namespace eos
   {
     NodeMap::iterator it = pNodeMap.find( nodeId );
     if( it == pNodeMap.end() )
-    {
-      MDException e;
-      e.getMessage() << "Quota node does not exist: " << nodeId;
-      throw e;
-    }
+      {
+        MDException e;
+        e.getMessage() << "Quota node does not exist: " << nodeId;
+        throw e;
+      }
     QuotaNode *node = new QuotaNode( this );
     pNodeMap[nodeId] = node;
   }

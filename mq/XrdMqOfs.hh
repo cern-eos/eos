@@ -104,17 +104,17 @@ class XrdMqOfsFile : public XrdOfsFile
 public:
 
   int open(const char                *fileName,
-	   XrdSfsFileOpenMode   openMode,
-	   mode_t               createMode,
-	   const XrdSecEntity        *client = 0,
-	   const char                *opaque = 0);
+           XrdSfsFileOpenMode   openMode,
+           mode_t               createMode,
+           const XrdSecEntity        *client = 0,
+           const char                *opaque = 0);
   
   int close();
 
   
   XrdSfsXferSize read(XrdSfsFileOffset   fileOffset,
-		      char              *buffer,
-		      XrdSfsXferSize     buffer_size);
+                      char              *buffer,
+                      XrdSfsXferSize     buffer_size);
 
   int stat(struct stat *buf);
   
@@ -180,16 +180,16 @@ public:
 
   XrdSysMutex                 MessagesMutex;  // -> mutex protecting the message hash
   int              stat(const char               *Name,
-			struct stat              *buf,
-			XrdOucErrInfo            &error,
-			const XrdSecEntity       *client = 0,
-			const char               *opaque = 0);
+                        struct stat              *buf,
+                        XrdOucErrInfo            &error,
+                        const XrdSecEntity       *client = 0,
+                        const char               *opaque = 0);
 
   int              stat(const char               *Name,
-			mode_t                   &mode,
-			XrdOucErrInfo            &error,
-			const XrdSecEntity       *client = 0,
-			const char               *opaque = 0);
+                        mode_t                   &mode,
+                        XrdOucErrInfo            &error,
+                        const XrdSecEntity       *client = 0,
+                        const char               *opaque = 0);
   
 
   XrdSysMutex  StatLock;

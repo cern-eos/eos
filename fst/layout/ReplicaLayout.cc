@@ -19,10 +19,10 @@ ReplicaLayout::ReplicaLayout(XrdFstOfsFile* thisFile,int lid, XrdOucErrInfo *out
 /*----------------------------------------------------------------------------*/
 int
 ReplicaLayout::open(const char                *path,
-			     XrdSfsFileOpenMode   open_mode,
-			     mode_t               create_mode,
-			     const XrdSecEntity        *client,
-			     const char                *opaque)
+                    XrdSfsFileOpenMode   open_mode,
+                    mode_t               create_mode,
+                    const XrdSecEntity        *client,
+                    const char                *opaque)
 {
   const char* index = ofsFile->openOpaque->Get("mgm.replicaindex");
 
@@ -31,7 +31,7 @@ ReplicaLayout::open(const char                *path,
     replicaIndex = atoi(index);
     if ( (replicaIndex<0) || (replicaIndex>eos::common::LayoutId::kSixteenStripe) ) {
       eos_err("illegal replica index %d", replicaIndex);
-     return gOFS.Emsg("ReplicaOpen",*error, EINVAL, "open replica - illegal replica index found", index);
+      return gOFS.Emsg("ReplicaOpen",*error, EINVAL, "open replica - illegal replica index found", index);
     }
     ioLocal = true;
   } else {
@@ -86,9 +86,9 @@ ReplicaLayout::open(const char                *path,
       replicaClient = new XrdClient(replicaUrl.c_str());
       // open remote file
       if (!replicaClient->Open(0,0, false)) {
-	// open failed
-	eos_err("Failed to open replica - remote open failed on ", replicaUrl.c_str());
-	return gOFS.Emsg("ReplicaOpen",*error, EREMOTEIO, "open replica - remote open failed ", replicaUrl.c_str());
+        // open failed
+        eos_err("Failed to open replica - remote open failed on ", replicaUrl.c_str());
+        return gOFS.Emsg("ReplicaOpen",*error, EREMOTEIO, "open replica - remote open failed ", replicaUrl.c_str());
       }
     }
     return SFS_OK;
@@ -104,9 +104,9 @@ ReplicaLayout::open(const char                *path,
       replicaClient = new XrdClient(replicaUrl.c_str());
       // open remote file
       if (!replicaClient->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or, kXR_async | kXR_mkpath | kXR_open_updt | kXR_new, false)) {
-	// open failed
-	eos_err("Failed to open replica - remote open failed on ", replicaUrl.c_str());
-	return gOFS.Emsg("ReplicaOpen",*error, EREMOTEIO, "open replica - remote open failed ", replicaUrl.c_str());
+        // open failed
+        eos_err("Failed to open replica - remote open failed on ", replicaUrl.c_str());
+        return gOFS.Emsg("ReplicaOpen",*error, EREMOTEIO, "open replica - remote open failed ", replicaUrl.c_str());
       }
     } 
     if (ioLocal) 

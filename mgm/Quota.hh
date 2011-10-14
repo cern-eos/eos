@@ -48,14 +48,14 @@ private:
       std::string spacename = SpaceName.c_str();
       std::string key="quota";
       if (FsView::gFsView.mSpaceView.count(spacename)) {
-	std::string ison = FsView::gFsView.mSpaceView[spacename]->GetConfigMember(key);
-	if (ison == "on") {
-	  On = true;
-	} else {
-	  On = false;
-	}
+        std::string ison = FsView::gFsView.mSpaceView[spacename]->GetConfigMember(key);
+        if (ison == "on") {
+          On = true;
+        } else {
+          On = false;
+        }
       } else {
-	On = false;
+        On = false;
       }
       LastEnableCheck = now;
     }
@@ -117,13 +117,13 @@ public:
   const char* GetTagCategory(int tag) {
 
     if ( ( tag == kUserBytesIs) || ( tag == kUserBytesTarget) || (tag == kUserLogicalBytesIs) || (tag == kUserLogicalBytesTarget) ||
-	 ( tag == kUserFilesIs) || ( tag == kUserFilesTarget) ) return "user ";
+         ( tag == kUserFilesIs) || ( tag == kUserFilesTarget) ) return "user ";
     if ( ( tag == kGroupBytesIs)|| ( tag == kGroupBytesTarget) || (tag == kGroupLogicalBytesIs) || (tag == kGroupLogicalBytesTarget) ||
-	 ( tag == kGroupFilesIs)|| ( tag == kGroupFilesTarget) ) return "group";
+         ( tag == kGroupFilesIs)|| ( tag == kGroupFilesTarget) ) return "group";
     if ( ( tag == kAllUserBytesIs) || ( tag == kAllUserBytesTarget) ||
-	 ( tag == kAllUserFilesIs) || ( tag == kAllUserFilesTarget) ) return "user ";
+         ( tag == kAllUserFilesIs) || ( tag == kAllUserFilesTarget) ) return "user ";
     if ( ( tag == kAllGroupBytesIs)|| ( tag == kAllGroupBytesTarget) ||
-	 ( tag == kAllGroupFilesIs)|| ( tag == kAllGroupFilesTarget) ) return "group";
+         ( tag == kAllGroupFilesIs)|| ( tag == kAllGroupFilesTarget) ) return "group";
     return "-----";
   }
   const char* GetTagName(int tag) {

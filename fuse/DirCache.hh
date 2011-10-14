@@ -7,7 +7,7 @@
 /*--------------------------------------------------------------------------------------------------------*/
 
 #ifdef __cplusplus
-  extern "C" {
+extern "C" {
 #endif
 
   void cache_init();
@@ -18,7 +18,7 @@
   void add_entry_to_dir(fuse_ino_t dir_inode, fuse_ino_t entry_inode, const char *entry_name, struct fuse_entry_param *e);
 
 #ifdef __cplusplus
-  }
+}
 #endif
 
 #endif

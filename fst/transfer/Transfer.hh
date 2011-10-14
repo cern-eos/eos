@@ -79,7 +79,7 @@ public:
       return 0;
     }
 
-    fileid = eos::common::FileId::Hex2Fid(hexfid.c_str());	
+    fileid = eos::common::FileId::Hex2Fid(hexfid.c_str());      
     
     fsidsource   = atoi(sfsidsource);
     fsidtarget   = atoi(sfsidtarget);

@@ -97,7 +97,7 @@ TransferQueue::Get()
       mHashQueue->QueueMutex.Lock();
       entry = mHashQueue->GetQueue()->front();
       if (!entry) {
-      mHashQueue->QueueMutex.UnLock();
+        mHashQueue->QueueMutex.UnLock();
         mSom->HashMutex.UnLockRead();
         return 0;
       } else {

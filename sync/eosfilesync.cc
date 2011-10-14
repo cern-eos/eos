@@ -37,7 +37,7 @@ int main (int argc, char* argv[]) {
 
   XrdOucString debugstring="";
 
-   if (argc==4) {
+  if (argc==4) {
     debugstring = argv[3];
   }
  
@@ -139,8 +139,8 @@ int main (int argc, char* argv[]) {
 
     if (isdumpfile) {
       if (!client->Truncate(0)) {
-	eos_static_crit("couldn't truncate remote file");
-	exit(-1);
+        eos_static_crit("couldn't truncate remote file");
+        exit(-1);
       }
       remoteoffset = 0;
     } else {
@@ -172,12 +172,12 @@ int main (int argc, char* argv[]) {
     
       char* copyptr = (char*) mmap(NULL, mapsize, PROT_READ, MAP_SHARED, fd,mapoffset);
       if (!copyptr) {
-	eos_static_crit("cannot map source file at %llu", (unsigned long long)remoteoffset);
-	exit(-1);
+        eos_static_crit("cannot map source file at %llu", (unsigned long long)remoteoffset);
+        exit(-1);
       }
       if (!client->Write(copyptr + (remoteoffset %PAGESIZE), remoteoffset, transfersize)) {
-	eos_static_err("cannot write remote block at %llu/%lu", (unsigned long long)remoteoffset, (unsigned long)transfersize);
-	sleep(60);
+        eos_static_err("cannot write remote block at %llu/%lu", (unsigned long long)remoteoffset, (unsigned long)transfersize);
+        sleep(60);
       }
       munmap(copyptr,mapsize);
     }
@@ -188,8 +188,8 @@ int main (int argc, char* argv[]) {
     // every 1000 ms we send a sync command
     if (syncperiod > 1000) {
       if (!client->Sync()) {
-	eos_static_crit("cannot sync remote file");
-	exit(-1);
+        eos_static_crit("cannot sync remote file");
+        exit(-1);
       }
     }
     if (isdumpfile) {

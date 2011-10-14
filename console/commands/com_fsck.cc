@@ -24,10 +24,10 @@ com_fsck (char* arg1) {
     XrdOucString nthreads=subtokenizer.GetToken();
     if (nthreads.length()) {
       if (atoi(nthreads.c_str())) {
-	in += "&mgm.fsck.nthreads=";
-	in += nthreads;
+        in += "&mgm.fsck.nthreads=";
+        in += nthreads;
       } else {
-	goto com_fsck_usage;
+        goto com_fsck_usage;
       }
     }
   }
@@ -44,20 +44,20 @@ com_fsck (char* arg1) {
     do {
       option = subtokenizer.GetToken();
       if (option.length()) {
-	XrdOucString tag="";
-	if (option == "--error") {
-	  tag = subtokenizer.GetToken();
-	  if (!tag.length()) {
-	    goto com_fsck_usage;
-	  } else {
-	    in += "&mgm.fsck.selection=";
-	    in += tag;
-	    continue;
-	  }
-	}
-	
-	while (option.replace("-","")) {}
-	options += option;
+        XrdOucString tag="";
+        if (option == "--error") {
+          tag = subtokenizer.GetToken();
+          if (!tag.length()) {
+            goto com_fsck_usage;
+          } else {
+            in += "&mgm.fsck.selection=";
+            in += tag;
+            continue;
+          }
+        }
+        
+        while (option.replace("-","")) {}
+        options += option;
       }
     } while (option.length());
   }
@@ -66,11 +66,11 @@ com_fsck (char* arg1) {
     in += "mgm.subcmd=repair";
     option = subtokenizer.GetToken();
     if ( (! option.length()) || 
-	 ( (option != "--checksum") &&
-	   (option != "--unlink-unregistered") &&
-	   (option != "--unlink-orphans") &&
-	   (option != "--adjust-replicas") &&
-	   (option != "--drop-missing-replicas") ) )
+         ( (option != "--checksum") &&
+           (option != "--unlink-unregistered") &&
+           (option != "--unlink-orphans") &&
+           (option != "--adjust-replicas") &&
+           (option != "--drop-missing-replicas") ) )
       goto com_fsck_usage;
     option.replace("--","");
     in += "&mgm.option=";
@@ -112,6 +112,6 @@ com_fsck (char* arg1) {
 
   
 
-	 
+         
   return (0);
 }

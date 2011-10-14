@@ -231,7 +231,7 @@ com_vid (char* arg1) {
     if (!hastype) 
       goto com_vid_usage;
 
-   in += "&mgm.vid.pattern=<pwd>";
+    in += "&mgm.vid.pattern=<pwd>";
     if (type != "unix") {
       in += "&mgm.vid.uid=0";
       in += "&mgm.vid.gid=0";
