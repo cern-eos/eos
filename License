@@ -673,7 +673,7 @@
 // Public License instead of this License.  But first, please read
 // <http://www.gnu.org/philosophy/why-not-lgpl.html>.
 
-const char* license="/************************************************************************************\n \
+const char* license=" /************************************************************************************\n \
 * EOS - the CERN Disk Storage System                                                *\n \
 * Copyright (C) 2011 CERN/Switzerland                                               *\n \
 *                                                                                   *\n \
@@ -688,10 +688,18 @@ const char* license="/**********************************************************
 * GNU General Public License for more details.                                      *\n \
 *                                                                                   *\n \
 * EOS is based on the XRootD software:                                              *\n \
+* ----------------------------------------------------------------------------------*\n \
 * Copyright (C) 2005-2010, Board of Trustees of the Leland Stanford, Jr. University.*\n \
 * Produced under contract DE-AC02-76-SF00515 with the US Department of Energy.      *\n \
 * All rights reserved.                                                              *\n \
 * See <http://xrootd.org> for more details.                                         *\n \
+*                                                                                   *\n \
+* EOS uses crc32c checksum alogrithms from MIT/Intel:                               *\n \
+* ----------------------------------------------------------------------------------*\n \
+* Copyright 2008,2009,2010 Massachusetts Institute of Technology.                   *\n \
+* Implementations adapted from Intel's Slicing By 8 Sourceforge Project             *\n \
+* http://sourceforge.net/projects/slicing-by-8/                                     *\n \
+* Copyright (c) 2004-2006 Intel Corporation                                         *\n \
 ************************************************************************************/\n \
 \n \
                     GNU GENERAL PUBLIC LICENSE\n \
