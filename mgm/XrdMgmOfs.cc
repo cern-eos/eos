@@ -652,7 +652,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
         return rcode;
       }
     } else {
-      gOFS->eosViewMutex.Lock();
+      gOFS->eosViewMutex.UnLock();
     }
     return Emsg(epname, error, errno, "open file", path);
   } 
@@ -828,7 +828,9 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, newlayoutId, space, *openOpaque, forcedFsId);
 
-  eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex); // lock order 1
+  eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);         // lock order 2
+
   SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(),false);
 
   if (!quotaspace) {
@@ -908,9 +910,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 
   int retc = 0;
 
-  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-
-    // ************************************************************************************************
+  // ************************************************************************************************
   if (isCreation || ( (open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation()))) {
     // ************************************************************************************************
     // place a new file 

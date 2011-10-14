@@ -46,13 +46,12 @@ void* TransferMultiplexer::ThreadProc(void){
 
   eos_static_info("running transfer multiplexer with %d queues", mQueues.size());
 
-  size_t loopsleep=100000;
+  size_t loopsleep=2000000;
 
   XrdSysThread::SetCancelOn();
   //  pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
 
   while (1) {
-    bool found=false;
     for (size_t i=0; i< mQueues.size(); i++) {
       while( mQueues[i]->GetQueue()->Size()) {
         // look in all registered queues
@@ -85,19 +84,9 @@ void* TransferMultiplexer::ThreadProc(void){
       }
     }
 
-    // we do relaxed self pacing
-    if (!found) {
-      for (size_t i=0; i< loopsleep/10000; i++) {
-        usleep(10000);
-        XrdSysThread::CancelPoint();
-        //        pthread_testcancel();
-      }
-      loopsleep*=2;
-      if (loopsleep>2000000) {
-        loopsleep=2000000;
-      }
-    } else {
-      loopsleep=100000;
+    for (size_t i=0; i< loopsleep/10000; i++) {
+      usleep(10000);
+      XrdSysThread::CancelPoint();
     }
   }
 

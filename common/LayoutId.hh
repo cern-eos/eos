@@ -33,7 +33,7 @@ public:
     k128k    =0x2,
     k256k    =0x3,
     k512k    =0x4,
-    k1M      =0x4,
+    k1M      =0x5,
   };
   enum eStripeNumber {
     kOneStripe     =0x0, 

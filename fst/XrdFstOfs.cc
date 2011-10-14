@@ -831,7 +831,15 @@ XrdFstOfsFile::verifychecksum()
       }
     } else {
       // this was prefect streaming I/O
-      checkSum->Finalize();
+      if (checkSum->GetLastOffset() == openSize) {
+	checkSum->Finalize();
+      } else {
+	eos_info("Skipping checksum (re-scan) since file was not read completely ...");
+        // remove the checksum object
+        delete checkSum;
+        checkSum=0;
+        return false;
+      }
     }
 
     if (isRW) {
@@ -1080,7 +1088,7 @@ XrdFstOfsFile::close()
    }
  }
 
-  return rc;
+ 
  if (fstBlockXS) {
    delete fstBlockXS;
    fstBlockXS=0;

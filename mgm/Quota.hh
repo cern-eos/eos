@@ -162,7 +162,7 @@ public:
     if (!avail) {
       return "ignored";
     }
-    double p = (avail)?(100.0 * is /avail): 100.0;
+    double p = (100.0 * is /avail);
     if (p < 90) {
       return "ok";
     }

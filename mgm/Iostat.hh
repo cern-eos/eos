@@ -42,7 +42,7 @@ public:
       unsigned int mbins = tdiff / 1440; // number of bins the measurement was hitting
       if (mbins==0)
         mbins=1;
-      unsigned long norm_val = mbins?(1.0*val/mbins):val;
+      unsigned long norm_val = (1.0*val/mbins);
 
       for (size_t bins = 0; bins < mbins; bins++) {
         unsigned int bin86400 = ( ((stoptime-(bins*1440))/1440)% 60);
