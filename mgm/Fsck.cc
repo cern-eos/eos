@@ -753,7 +753,6 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
     unsigned long long nfiles=0;
 
     while(std::getline(inFile, dumpentry)) {
-      break;
       mGlobalCounterLock.Lock();
       nfiles++;
       totalfiles++;
