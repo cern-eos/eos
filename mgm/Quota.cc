@@ -1273,13 +1273,13 @@ Quota::GetSpaceNameList(const char* key, SpaceQuota* spacequota, void *Arg)
 void
 Quota::PrintOut(const char* space, XrdOucString &output, long uid_sel, long gid_sel, bool monitoring, bool translateids)
 {
+  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock lock(gQuotaMutex);
   output="";
   XrdOucString spacenames="";
   if (space ==0) {
     // make sure all configured spaces exist In the quota views
     std::map<std::string, FsSpace*>::const_iterator sit;
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
     for (sit = FsView::gFsView.mSpaceView.begin(); sit != FsView::gFsView.mSpaceView.end(); sit++) {
       Quota::GetSpaceQuota(sit->second->GetMember("name").c_str());
@@ -1556,10 +1556,11 @@ Quota::MapSizeCB(const eos::FileMD *file)
 /*----------------------------------------------------------------------------*/
 void
 Quota::LoadNodes() 
-{
+
+{ 
+  // this routine has to be called with eosViewMutex locked
   // iterate over the defined quota nodes and make them visible as SpaceQuota
   eos::common::RWMutexReadLock lock(gQuotaMutex);
-
   eos::QuotaStats::NodeMap::iterator it;
   for (it = gOFS->eosView->getQuotaStats()->nodesBegin(); it != gOFS->eosView->getQuotaStats()->nodesEnd(); it++) {
     eos::ContainerMD::id_t id = it->first;
@@ -1578,7 +1579,8 @@ Quota::LoadNodes()
 void 
 Quota::NodesToSpaceQuota() 
 {
-  gOFS->eosViewMutex.Lock();
+  // this routine has to be called with eosViewMutex locked
+  eos::common::RWMutexReadLock locker(gQuotaMutex);
   // inserts the current state of the quota nodes into SpaceQuota's 
   eos::QuotaStats::NodeMap::iterator it;
   for (it = gOFS->eosView->getQuotaStats()->nodesBegin(); it != gOFS->eosView->getQuotaStats()->nodesEnd(); it++) {
@@ -1587,7 +1589,6 @@ Quota::NodesToSpaceQuota()
     std::string quotapath = gOFS->eosView->getUri( container);
     NodeToSpaceQuota(quotapath.c_str(), false);
   }
-  gOFS->eosViewMutex.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1596,10 +1597,9 @@ Quota::NodesToSpaceQuota()
 void 
 Quota::NodeToSpaceQuota(const char* name, bool lock)
 {
+  // this routine has to be called with gQuotaMutex read-locked 
   if (!name)
     return;
-
-  eos::common::RWMutexReadLock locker(gQuotaMutex);
 
   SpaceQuota* spacequota = Quota::GetSpaceQuota(name, false);
 

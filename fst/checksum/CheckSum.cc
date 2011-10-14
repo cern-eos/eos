@@ -200,8 +200,7 @@ CheckSum::SyncMap()
 {
   return true;
 
-  // let's try if this boosts the performance
-  if (ChecksumMapFd) {
+  /*  if (ChecksumMapFd) {
     if (ChecksumMap) {
       if (!msync(ChecksumMap, ChecksumMapSize,MS_SYNC)) {
         return true;
@@ -209,6 +208,7 @@ CheckSum::SyncMap()
     }
   }
   return false;
+  */
 }
 
 /*----------------------------------------------------------------------------*/

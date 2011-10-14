@@ -1439,7 +1439,8 @@ Storage::Communicator()
           gOFS.ObjectManager.HashMutex.UnLockRead();
         }
       } else {
-        eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", queue.c_str(),key.c_str());
+	eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", queue.c_str(),key.c_str());
+	gOFS.ObjectManager.HashMutex.UnLockRead();
       }
     }
 

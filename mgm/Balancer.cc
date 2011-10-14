@@ -50,12 +50,13 @@ Balancer::~Balancer()
 
   // we assume that the destructor is called with the mutex FsView::gFsView.ViewMutex
   
-  std::set<FsGroup*>::const_iterator git;
+  /*  std::set<FsGroup*>::const_iterator git;
   if (FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
     for (git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin(); git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); git++) {
       (*git)->StopBalancerJob();      
     }
   }
+  */
 
   XrdSysThread::Cancel(thread);
   XrdSysThread::Join(thread,NULL);

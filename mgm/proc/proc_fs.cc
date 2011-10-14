@@ -163,7 +163,7 @@ int proc_fs_config(std::string &identifier, std::string &key, std::string &value
     if (fs) {
       // check the allowed strings
       if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ) ) ||
-           (((key == "headroom") || (key == "scaninterval") || (key == "graceperiod") || (key == "drainperiod") ) && (eos::common::StringConversion::GetSizeFromString(value.c_str()) >= 0) ) ) {
+           (((key == "headroom") || (key == "scaninterval") || (key == "graceperiod") || (key == "drainperiod") ) ) ) {
         
         std::string nodename = fs->GetString("host");
         size_t dpos=0;

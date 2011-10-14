@@ -84,6 +84,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   long myPort=0;
 
+  // ---------------------------------- lock until return
+  XrdSysMutexHelper(gOFS->eosViewMutex);
+
   setenv("XrdSecPROTOCOL","sss",1);
   Eroute.Say("=====> mgmofs enforces SSS authentication for XROOT clients");
 
