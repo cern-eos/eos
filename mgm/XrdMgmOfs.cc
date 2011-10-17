@@ -4019,6 +4019,8 @@ XrdMgmOfs::FSctl(const int               cmd,
           }
           else if (subcmd == "rm") {  // rmxattr
             XrdOucString key = env.Get("mgm.xattrname");
+	    key.replace("user.admin.","sys.");
+	    key.replace("user.eos.","user.");
             int rc = gOFS->attr_rem(spath.c_str(), error, client, (const char *) 0, key.c_str());
 
             XrdOucString response = "rmxattr: retc=";
