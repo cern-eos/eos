@@ -25,6 +25,7 @@
 #include <cstring>
 #include <google/dense_hash_map>
 #include <pthread.h>
+#include <XrdOuc/XrdOucString.hh>
 /*----------------------------------------------------------------------------*/
 #include "DirCache.hh"
 /*----------------------------------------------------------------------------*/
@@ -66,7 +67,6 @@ class SubDirEntry
 {
 public:
   string name_;
-  fuse_ino_t inode_;
   struct fuse_entry_param e_;
   
   SubDirEntry(const char* name, fuse_ino_t inode, struct fuse_entry_param *e)
@@ -79,8 +79,11 @@ public:
     e_.attr = e->attr;
     e_.generation = 0;
   }; 
-  
+
   ~SubDirEntry(){};
+
+private: 
+  fuse_ino_t inode_;
 };
 
 
@@ -280,7 +283,8 @@ void sync_dir_in_cache(fuse_ino_t inode, char *name,
     dir->Update(name, nentries, mtv_sec, b);  
   }
   else {                              //add
-    cache->SizeControl();  //delete some entries if cache full
+    cache->SizeControl();             //delete some entries if cache full
+    //printf("Add dir to cache: %s \n", name);
     DirEntry *dir  = new DirEntry(name, inode, nentries, mtv_sec, b);
     cache->dir_hash_[(unsigned long long)inode] = dir;
     cache->AddNoEntries(nentries);
@@ -294,8 +298,7 @@ void sync_dir_in_cache(fuse_ino_t inode, char *name,
 //         0 - dir not in cache
 //         1 - found entry
 /*----------------------------------------------------------------------------*/
-int get_entry_from_dir(fuse_req_t req, fuse_ino_t dir_inode, 
-                       const char* entry_name, const char* ifullpath) 
+int get_entry_from_dir(fuse_req_t req, fuse_ino_t dir_inode, const char* ifullpath) 
 { 
   cache->Lock();
   int retc;
@@ -303,8 +306,10 @@ int get_entry_from_dir(fuse_req_t req, fuse_ino_t dir_inode,
   if (iter != cache->dir_hash_.end()) {
     DirEntry* dir = (DirEntry*) iter->second;
     if (dir->Filled()){
-      SubDirEntry* entry = (SubDirEntry*)dir->GetEntry(entry_name);
+      SubDirEntry* entry = (SubDirEntry*)dir->GetEntry(ifullpath);
       if (entry) {
+        XrdOucString entry_name = ifullpath;
+        entry_name.assign(entry_name, entry_name.rfind('/') + 1);
         xrd_store_inode(entry->e_.attr.st_ino, ifullpath);
         fuse_reply_entry(req, &(entry->e_));
         retc = 1; //success
@@ -325,13 +330,14 @@ int get_entry_from_dir(fuse_req_t req, fuse_ino_t dir_inode,
 
 /*----------------------------------------------------------------------------*/
 void add_entry_to_dir(fuse_ino_t dir_inode, fuse_ino_t entry_inode, 
-                      const char *entry_name, struct fuse_entry_param *e)
+                      const char *ifullpath, struct fuse_entry_param *e)
 {
   cache->Lock();
   dir_iterator iter = cache->dir_hash_.find((unsigned long long) dir_inode);
   if (iter != cache->dir_hash_.end()){
     DirEntry* dir = (DirEntry*) iter->second;
-    SubDirEntry * entry = new SubDirEntry(entry_name, entry_inode, e);
+    SubDirEntry * entry = new SubDirEntry(ifullpath, entry_inode, e);
+    //printf("Added subdirectory to cache: %s \n", ifullpath);
     dir->AddEntry(entry);
   }
   cache->Unlock();

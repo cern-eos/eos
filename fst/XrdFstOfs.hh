@@ -153,22 +153,22 @@ public:
                       unsigned long           fsid=0) ;
   
   int            remdir(const char             *dirName,
-                        XrdOucErrInfo    &out_error,
-                        const XrdSecEntity     *client,
-                        const char             *info = 0) { return SFS_OK;}
+			XrdOucErrInfo          &out_error,
+			const XrdSecEntity     *client,
+			const char             *info = 0) { return SFS_OK;}
   
   int            rename(const char             *oldFileName,
-                        const char             *newFileName,
-                        XrdOucErrInfo    &out_error,
-                        const XrdSecEntity     *client,
-                        const char             *infoO = 0,
-                        const char            *infoN = 0) {return SFS_OK;}
+			const char             *newFileName,
+			XrdOucErrInfo          &out_error,
+			const XrdSecEntity     *client,
+			const char             *infoO = 0,
+			const char            *infoN = 0) {return SFS_OK;}
 
   int            stat(  const char             *path,
-                        struct stat      *buf,
-                        XrdOucErrInfo    &out_error,
-                        const XrdSecEntity     *client,
-                        const char             *opaque = 0);
+			struct stat            *buf,
+			XrdOucErrInfo          &out_error,
+			const XrdSecEntity     *client,
+			const char             *opaque = 0);
 
   int            CallManager(XrdOucErrInfo *error, const char* path, const char* manager, XrdOucString &capOpaqueFile);
 

@@ -1587,14 +1587,14 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   Function: Determine if file 'path' actually exists.
 
   Input:    path        - Is the fully qualified name of the file to be tested.
-  :            file_exists - Is the address of the variable to hold the status of
-  'path' when success is returned. The values may be:
-  XrdSfsFileExistIsDirectory - file not found but path is valid.
-  XrdSfsFileExistIsFile      - file found.
-  XrdSfsFileExistNo          - neither file nor directory.
-  einfo       - Error information object holding the details.
-  client      - Authentication credentials, if any.
-  info        - Opaque information, if any.
+            file_exists - Is the address of the variable to hold the status of
+                          'path' when success is returned. The values may be:
+                          XrdSfsFileExistIsDirectory - file not found but path is valid.
+                          XrdSfsFileExistIsFile      - file found.
+                          XrdSfsFileExistNo          - neither file nor directory.
+            einfo       - Error information object holding the details.
+            client      - Authentication credentials, if any.
+            info        - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 
@@ -2522,10 +2522,10 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::stat(const char              *inpath,         // In
-                    struct stat       *buf,         // Out
-                    XrdOucErrInfo     &error,       // Out
-                    const XrdSecEntity  *client,          // In
+int XrdMgmOfs::stat(const char              *inpath,      // In
+                    struct stat             *buf,         // Out
+                    XrdOucErrInfo           &error,       // Out
+                    const XrdSecEntity      *client,      // In
                     const char              *info)        // In
 /*
   Function: Get info on 'path'.
@@ -2626,7 +2626,6 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     }
     gOFS->MgmDirectoryModificationTimeMutex.UnLock();  
     // --|
-    
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
     eos_debug("check for directory - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
@@ -2675,6 +2674,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
       errno = e.getErrno();
       eos_debug("check for file - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
     }
+
     gOFS->eosViewMutex.UnLock();
     //-------------------------------------------
     if (!fmd) {
@@ -3593,11 +3593,11 @@ XrdMgmOfs::FSctl(const int               cmd,
       struct stat buf;
 
       int retc = lstat(spath.c_str(),
-                       &buf,  
-                       error, 
-                       client,
-                       0);
-      
+		      &buf,  
+		      error, 
+		      client,
+		      0);
+
       if (retc == SFS_OK) {
         char statinfo[16384];
         // convert into a char stream
@@ -3950,6 +3950,164 @@ XrdMgmOfs::FSctl(const int               cmd,
       }
       return SFS_DATA;
     }
+
+    if (execmd == "xattr") {
+      const char* sub_cmd;
+      struct stat buf;
+
+      // check if it is a file or directory ....
+      int retc = lstat(spath.c_str(),
+                       &buf,  
+                       error, 
+                       client,
+                       0);
+
+      if (!retc && S_ISDIR(buf.st_mode)) {            //extended attributes for directories
+        if ((sub_cmd = env.Get("mgm.subcmd"))) {
+          XrdOucString subcmd = sub_cmd;
+          if (subcmd == "ls") {  //listxattr
+            eos::ContainerMD::XAttrMap map;
+            errno = gOFS->attr_ls(spath.c_str(), error, client, (const char *) 0, map);
+      
+            XrdOucString response = "lsxattr: retc=";
+            response += errno; response += " ";
+          
+            if (errno == SFS_OK) {
+              for (std::map<std::string, std::string>::iterator iter = map.begin(); iter != map.end(); iter++){
+                response += iter->first.c_str(); 
+                response += "&"; 
+              }
+              response += "\0";
+            }
+ 
+            error.setErrInfo(response.length() + 1, response.c_str());
+            return SFS_DATA;
+          }
+          else if (subcmd == "get") {  //getxattr
+            XrdOucString value;
+            char* key = env.Get("mgm.xattrname");
+            
+            errno = gOFS->attr_get(spath.c_str(), error, client, (const char*) 0, key, value);
+                                  
+            XrdOucString response = "getxattr: retc=";
+            response += errno;
+          
+            if (errno == SFS_OK) {
+              response += " value=";
+              response += value;
+            }
+
+            error.setErrInfo(response.length() + 1, response.c_str());
+            return SFS_DATA;
+          }
+          else if (subcmd == "set") {  //setxattr
+            XrdOucString key = env.Get("mgm.xattrname");
+            XrdOucString value = env.Get("mgm.xattrvalue");
+        
+            errno = gOFS->attr_set(spath.c_str(), error, client, (const char *) 0, key.c_str(), value.c_str());
+      
+            XrdOucString response = "setxattr: retc=";
+            response += errno;
+
+            error.setErrInfo(response.length() + 1, response.c_str());
+            return SFS_DATA;
+          }
+          else if (subcmd == "rm") {  // rmxattr
+            XrdOucString key = env.Get("mgm.xattrname");
+            errno = gOFS->attr_rem(spath.c_str(), error, client, (const char *) 0, key.c_str());
+
+            XrdOucString response = "rmxattr: retc=";
+            response += errno;
+          
+            error.setErrInfo(response.length() + 1, response.c_str());
+            return SFS_DATA;
+          }
+        }
+      }
+      else if (!retc && S_ISREG(buf.st_mode)) {  //extended attributes for files
+        //-------------------------------------------
+        gOFS->eosViewMutex.Lock();
+        eos::FileMD* fmd = 0;
+        try {
+          fmd = gOFS->eosView->getFile(spath.c_str());
+        } catch( eos::MDException &e ) {
+          eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+        }
+  
+        if ((sub_cmd = env.Get("mgm.subcmd"))) {
+          XrdOucString subcmd = sub_cmd;
+          char* char_key = NULL;
+          XrdOucString key;
+          XrdOucString response;
+
+          if (subcmd == "ls") {      //listxattr
+            response = "lsxattr: retc=0 ";
+            response += "user.eos.cid"; response += "&";
+            response += "user.eos.fid"; response += "&";
+            response += "user.eos.lid"; response += "&";
+            response += "user.eos.XStype"; response += "&";
+            response += "user.eos.XS"; response += "&";
+            error.setErrInfo(response.length() + 1, response.c_str());
+          }
+          else if (subcmd == "get") { //getxattr
+            char_key = env.Get("mgm.xattrname");
+            key = char_key;
+            response = "getxattr: retc=";
+            
+            if (key.find("eos.cid") != STR_NPOS) {
+              XrdOucString sizestring;
+              response += "0 "; response += "value=";
+              response += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getContainerId());
+            }
+            else if (key.find("eos.fid") != STR_NPOS) {
+              char fid[32];
+              response += "0 "; response += "value=";
+              snprintf(fid,32,"%llu",(unsigned long long) fmd->getId());
+              response += fid;
+            }
+            else if (key.find("eos.XStype") != STR_NPOS){
+              response += "0 "; response += "value=";
+              response += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+            }
+            else if (key.find("eos.XS") != STR_NPOS){
+              response += "0 "; response += "value=";
+              char hb[3]; 
+	      for (unsigned int i = 0; i < SHA_DIGEST_LENGTH; i++) {
+                if ((i + 1) == SHA_DIGEST_LENGTH)
+                  sprintf(hb,"%02x ", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+                else 
+                  sprintf(hb,"%02x_", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+		response += hb;
+	      }
+
+            }
+            else if (key.find("eos.lid") != STR_NPOS){
+              response += "0 "; response += "value=";
+              response += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId());
+            }
+            else 
+              response += "1 ";     
+
+            error.setErrInfo(response.length() + 1, response.c_str());
+          }
+          else if (subcmd == "rm") {  //rmxattr
+            response += "1 "; //error
+          }
+          else if (subcmd == "set") { //setxattr
+            response += "1 "; //error
+          }
+        
+          gOFS->eosViewMutex.UnLock();
+          //-------------------------------------------
+          return SFS_DATA;
+        }
+        
+        gOFS->eosViewMutex.UnLock();
+        //------------------------------------------
+        return SFS_DATA;
+      }
+    }
+
     eos_err("No implementation for %s", execmd.c_str());
   }
 
@@ -4012,11 +4170,11 @@ XrdMgmOfs::attr_set(const char             *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::attr_get(const char             *inpath,
-                    XrdOucErrInfo    &error,
-                    const XrdSecEntity     *client,
-                    const char             *info,
-                    const char             *key,
-                    XrdOucString           &value)
+		    XrdOucErrInfo          &error,
+		    const XrdSecEntity     *client,
+		    const char             *info,
+		    const char             *key,
+		    XrdOucString           &value)
 {
   static const char *epname = "attr_get";
   const char *tident = error.getErrUser(); 
@@ -4032,17 +4190,17 @@ XrdMgmOfs::attr_get(const char             *inpath,
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
   
   eos::common::Mapping::IdMap(client,info,tident,vid);  
-  
+
   return _attr_get(path, error,vid,info,key,value);
 }
 
 /*----------------------------------------------------------------------------*/
 int         
 XrdMgmOfs::attr_rem(const char             *inpath,
-                    XrdOucErrInfo    &error,
-                    const XrdSecEntity     *client,
-                    const char             *info,
-                    const char             *key)
+		    XrdOucErrInfo          &error,
+		    const XrdSecEntity     *client,
+		    const char             *info,
+		    const char             *key)
 {
   static const char *epname = "attr_rm";
   const char *tident = error.getErrUser(); 
@@ -4162,14 +4320,14 @@ XrdMgmOfs::_attr_set(const char             *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_attr_get(const char             *path,
-                     XrdOucErrInfo    &error,
-                     eos::common::Mapping::VirtualIdentity &vid,
-                     const char             *info,
-                     const char             *key,
-                     XrdOucString           &value,
-                     bool                    islocked)
+		     XrdOucErrInfo          &error,
+		     eos::common::Mapping::VirtualIdentity &vid,
+		     const char             *info,
+		     const char             *key,
+		     XrdOucString           &value,
+		     bool                    islocked)
 {
-  static const char *epname = "attr_set";  
+  static const char *epname = "attr_get";  
   eos::ContainerMD *dh=0;
   errno = 0;
 

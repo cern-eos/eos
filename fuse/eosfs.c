@@ -465,7 +465,7 @@ static int eosdfs_setxattr(const char *path, const char *name, const char *value
   /*
     int res = lsetxattr(path, name, value, size, flags);
     if (res == -1)
-    return -errno;
+      return -errno;
   */
   eosatime = time(0);    
   return 0;

@@ -509,11 +509,13 @@ void xrd_wo_env() {
   XrdPosixXrootd::setEnv(NAME_READCACHESIZE,rcsize);
 }
 
+//-------------------------------------------------------------------------------------------------------------------
 void xrd_sync_env() {
   XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,(long)0);
   XrdPosixXrootd::setEnv(NAME_READCACHESIZE,(long)0);
 }
 
+//-------------------------------------------------------------------------------------------------------------------
 void xrd_rw_env() {
   int rahead = 0; //97*1024;
   int rcsize = 0; //512*1024;
@@ -529,6 +531,201 @@ void xrd_rw_env() {
   XrdPosixXrootd::setEnv(NAME_READCACHESIZE,rcsize);
 }
 
+
+//-------------------------------------------------------------------------------------------------------------------
+int xrd_rmxattr(const char *path, const char *xattr_name) 
+{
+  XrdPosixTiming rmxattrtiming("rmxattr");
+  TIMING("START", &rmxattrtiming);
+  
+  char response[4096]; 
+  response[0] = 0;
+  XrdOucString request;
+  request = path;
+  request += "?";
+  request += "mgm.pcmd=xattr&";
+  request += "mgm.subcmd=rm&";
+  request += "mgm.xattrname=";
+  request +=  xattr_name; 
+
+  long long rmxattr = XrdPosixXrootd::QueryOpaque(request.c_str(), response, 4096);
+  TIMING("GETPLUGIN", &rmxattrtiming);
+  
+  if (rmxattr >= 0) {
+    //parse the output
+    int retc = 0;
+    int items =0;
+    char tag[1024];
+
+    items = sscanf(response, "%s retc=%i", tag, &retc);
+    if ((items != 2) || (strcmp(tag,"rmxattr:"))) {
+      errno = ENOENT;
+      return EFAULT;
+    }
+    else 
+      rmxattr = retc;
+  }
+  else 
+    return EFAULT;
+
+  TIMING("END", &rmxattrtiming);
+  rmxattrtiming.Print();
+
+  return rmxattr;
+}
+
+
+//-------------------------------------------------------------------------------------------------------------------
+int xrd_setxattr(const char *path, const char *xattr_name, const char *xattr_value, size_t size) 
+{
+  XrdPosixTiming setxattrtiming("setxattr");
+  TIMING("START", &setxattrtiming);
+  
+  char response[4096]; 
+  response[0] = 0;
+  XrdOucString request;
+  request = path;
+  request += "?";
+  request += "mgm.pcmd=xattr&";
+  request += "mgm.subcmd=set&";
+  request += "mgm.xattrname=";
+  request +=  xattr_name; request += "&";
+  request += "mgm.xattrvalue=";
+  request += xattr_value;
+
+  long long setxattr = XrdPosixXrootd::QueryOpaque(request.c_str(), response, 4096);
+  TIMING("GETPLUGIN", &setxattrtiming);
+  
+  if (setxattr >= 0) {
+    //parse the output
+    int retc = 0;
+    int items =0;
+    char tag[1024];
+
+    items = sscanf(response, "%s retc=%i", tag, &retc);
+    if ((items != 2) || (strcmp(tag,"setxattr:"))) {
+      errno = ENOENT;
+      return EFAULT;
+    }
+    else
+      setxattr = retc;
+  }
+  else 
+    return EFAULT;
+
+  TIMING("END", &setxattrtiming);
+  setxattrtiming.Print();
+
+  return setxattr;
+}
+
+//-------------------------------------------------------------------------------------------------------------------
+int xrd_getxattr(const char *path, const char *xattr_name, char **xattr_value, size_t *size) 
+{
+  XrdPosixTiming getxattrtiming("getxattr");
+  TIMING("START", &getxattrtiming);
+  
+  char response[4096]; 
+  response[0] = 0;
+  XrdOucString request;
+  request = path;
+  request += "?";
+  request += "mgm.pcmd=xattr&";
+  request += "mgm.subcmd=get&";
+  request += "mgm.xattrname=";
+  request +=  xattr_name;
+
+  long long getxattr = XrdPosixXrootd::QueryOpaque(request.c_str(), response, 4096);
+  TIMING("GETPLUGIN", &getxattrtiming);
+  
+  if (getxattr >= 0) {
+    //parse the output
+    int retc = 0;
+    int items =0;
+    char tag[1024];
+    char rval[4096];
+    
+    items = sscanf(response, "%s retc=%i value=%s", tag, &retc, rval);
+    if ((items != 3) || (strcmp(tag,"getxattr:"))) {
+      errno = ENOENT;
+      return EFAULT;
+    }
+    else {
+      getxattr = retc;
+      if (strcmp(xattr_name, "user.eos.XS") == 0){
+        char *ptr = rval;
+        for (unsigned int i = 0; i< strlen(rval); i++, ptr++) {
+          if (*ptr == '_')
+            *ptr = ' ';
+        }
+      }
+      *size = strlen(rval);
+      *xattr_value = (char*) calloc((*size) + 1, sizeof(char));
+      *xattr_value = strncpy(*xattr_value, rval, *size);
+    } 
+  }
+  else 
+    return EFAULT;
+
+  TIMING("END", &getxattrtiming);
+  getxattrtiming.Print();
+
+  return getxattr;
+}
+
+
+//-------------------------------------------------------------------------------------------------------------------
+int xrd_listxattr(const char *path, char **xattr_list, size_t *size) 
+{
+  XrdPosixTiming listxattrtiming("listxattr");
+  TIMING("START", &listxattrtiming);
+  
+  char response[16384]; 
+  response[0] = 0;
+  XrdOucString request;
+  request = path;
+  request += "?";
+  request += "mgm.pcmd=xattr&";
+  request += "mgm.subcmd=ls";
+
+  long long listxattr = XrdPosixXrootd::QueryOpaque(request.c_str(), response, 16384);
+  TIMING("GETPLUGIN", &listxattrtiming);
+  
+  if (listxattr >= 0) {
+    //parse the output
+    int retc = 0;
+    int items =0;
+    char tag[1024];
+    char rval[16384];
+    
+    items = sscanf(response, "%s retc=%i %s", tag, &retc, rval);
+    if ((items != 3) || (strcmp(tag,"lsxattr:"))) {
+      errno = ENOENT;
+      return EFAULT;
+    }
+    else {
+      listxattr = retc;
+      *size = strlen(rval);
+      char *ptr = rval;
+      for (unsigned int i = 0; i < (*size); i++, ptr++){
+        if (*ptr == '&')
+          *ptr = '\0';
+      }      
+      *xattr_list = (char*) calloc((*size) + 1, sizeof(char));
+      *xattr_list = (char*) memcpy(*xattr_list, rval, *size);
+    }
+  }
+  else 
+    return EFAULT;
+
+  TIMING("END", &listxattrtiming);
+  listxattrtiming.Print();
+
+  return listxattr;
+}
+
+
+//-------------------------------------------------------------------------------------------------------------------
 int xrd_stat(const char *path, struct stat *buf)
 {
   XrdPosixTiming stattiming("xrd_stat");

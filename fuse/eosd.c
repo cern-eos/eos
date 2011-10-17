@@ -257,15 +257,15 @@ static void eosfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
   }
 
   if (name[0] == '/') 
-    sprintf(ifullpath,"%s%s",parentpath,name);
+    sprintf(ifullpath, "%s%s", parentpath, name);
   else
-    sprintf(ifullpath,"%s/%s",parentpath,name);
+    sprintf(ifullpath, "%s/%s", parentpath, name);
 
   sprintf(fullpath,"root://%s@%s%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, parentpath,name);
   if (isdebug) printf("[%s]: parent=%lld path=%s uid=%d\n", __FUNCTION__, (long long)parent, fullpath, req->ctx.uid);
 
   //try to get entry from cache
-  entry_status = get_entry_from_dir(req, parent, name, ifullpath);
+  entry_status = get_entry_from_dir(req, parent, ifullpath);
   if (entry_status <= 0) {
     //add entry to dir
     struct fuse_entry_param e;
@@ -276,11 +276,11 @@ static void eosfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     if (!retc) {
       if (isdebug) printf("[%s]: storeinode=%lld path=%s\n", __FUNCTION__,(long long) e.attr.st_ino,ifullpath);
       e.ino = e.attr.st_ino;
-      xrd_store_inode(e.attr.st_ino,ifullpath);
+      xrd_store_inode(e.attr.st_ino, ifullpath);
       fuse_reply_entry(req, &e);
       //add entry to dir
       if (entry_status < 0) 
-        add_entry_to_dir(parent, e.attr.st_ino, name, &e); 
+        add_entry_to_dir(parent, e.attr.st_ino, ifullpath, &e); 
     } else {
       if (errno == EFAULT) {
         e.ino = 0;
@@ -389,6 +389,8 @@ static void eosfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
   retc = xrd_stat(dirfullpath, &attr);
   dir_status = get_dir_from_cache(ino, attr.st_mtim.tv_sec, fullpath, &b);
 
+  //printf("[%s]: dir_status: %i \n", __FUNCTION__, dir_status);
+
   if (dir_status < 0){
     fuse_reply_err(req, EPERM);
     return;    
@@ -408,15 +410,17 @@ static void eosfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
       while ((!xrd_inodirlist_entry(ino, cnt, &namep, &in))) {
         char ifullpath[16384];
         sprintf(ifullpath,"%s/%s",name,namep);
-        if (isdebug) printf("[%s]: add entry name=%s\n", __FUNCTION__,namep);
+        if (isdebug) printf("[%s]: add entry name=%s\n", __FUNCTION__, namep);
         dirbuf_add(req, b, namep, (fuse_ino_t) in);
       
         cnt++;
       }
 
       //add directory to cache or update it
-      if (dir_status == 2 || dir_status == 0) 
-        sync_dir_in_cache(ino, fullpath, cnt, attr.st_mtim.tv_sec, b);          
+      if (dir_status == 2 || dir_status == 0) {
+        printf("[%s]: add dir to cache or update it:\n", __FUNCTION__);
+        sync_dir_in_cache(ino, dirfullpath, cnt, attr.st_mtim.tv_sec, b);          
+      }
     }
     else {
       b = xrd_inodirlist_getbuffer(ino);
@@ -1002,11 +1006,52 @@ static void eosfs_ll_flush (fuse_req_t req, fuse_ino_t ino,
 }
 
 
-//--------------------------------------------------------------------------------------------------
-static void eosfs_ll_getxattr (fuse_req_t req, fuse_ino_t ino, const char *name,
-		  size_t size) 
+//---------------------------------------------------------------------------------------------------
+static void eosfs_ll_getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_t size) 
 {
+  int retc = 0;
+  size_t init_size = size;
+  char fullpath[16384];
+  const char* name = xrd_get_name_for_inode((long long)ino);
 
+  // the root is inode 1
+  if (ino == 1) {
+    name = "/";
+  }
+  if (!name) {
+    fuse_reply_err(req, ENXIO);
+    return;
+  }
+
+  if ((!strcmp(xattr_name, "system.posix_acl_access")) || 
+      (!strcmp(xattr_name, "system.posix_acl_default"))) 
+    {
+      fuse_reply_err(req, ENODATA);
+      return;
+    }
+
+  sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
+  if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
+
+  char* xattr_value = NULL;
+  retc = xrd_getxattr(fullpath, xattr_name, &xattr_value, &size);
+
+  if (retc)
+    fuse_reply_err(req, ENODATA);
+  else {
+    if (init_size) {
+      if (init_size < size)
+        fuse_reply_err(req, ERANGE);
+      else 
+        fuse_reply_buf(req, xattr_value, size);
+    }
+    else 
+      fuse_reply_xattr(req, size);
+  }
+
+  if (xattr_value)
+    free(xattr_value);
+  return;
 }
 
 
@@ -1014,21 +1059,94 @@ static void eosfs_ll_getxattr (fuse_req_t req, fuse_ino_t ino, const char *name,
 static void eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
 {
 
+  int retc = 0;
+  size_t init_size = size;
+  char fullpath[16384];
+  const char* name = xrd_get_name_for_inode((long long)ino);
+  // the root is inode 1
+  if (ino == 1) {
+    name = "/";
+  }
+  if (!name) {
+    fuse_reply_err(req, ENXIO);
+    return;
+  }
+
+  sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
+  if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
+
+  char* xattr_list = NULL;
+  retc = xrd_listxattr(fullpath, &xattr_list, &size);
+
+  if (retc)
+    fuse_reply_err(req, retc);
+  else {
+    if (init_size) {
+      if (init_size < size)
+        fuse_reply_err(req, ERANGE);
+      else 
+        fuse_reply_buf(req, xattr_list, size + 1);
+    }
+    else 
+      fuse_reply_xattr(req, size);
+  }
+  
+  if (xattr_list)
+    free(xattr_list);
+
+  return;
 }
 
 
 //--------------------------------------------------------------------------------------------------
-static void eosfs_ll_removexattr (fuse_req_t req, fuse_ino_t ino, const char *name)
+static void eosfs_ll_removexattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name)
 {
+  int retc = 0;
+  char fullpath[16384];
+  const char* name = xrd_get_name_for_inode((long long)ino);
+  // the root is inode 1
+  if (ino == 1) {
+    name = "/";
+  }
+  if (!name) {
+    fuse_reply_err(req, ENXIO);
+    return;
+  }
 
+  sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
+  if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
+
+  retc = xrd_rmxattr(fullpath, xattr_name);
+  fuse_reply_err(req, retc);
+
+  return;
 }
 
 
 //--------------------------------------------------------------------------------------------------
-static void eosfs_ll_setxattr (fuse_req_t req, fuse_ino_t ino, const char *name,
-				const char *value, size_t size, int flags)
+static void eosfs_ll_setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
+				const char *xattr_value, size_t size, int flags)
 {
+  int retc = 0;
+  size_t init_size = size;
+  char fullpath[16384];
+  const char* name = xrd_get_name_for_inode((long long)ino);
+  // the root is inode 1
+  if (ino == 1) {
+    name = "/";
+  }
+  if (!name) {
+    fuse_reply_err(req, ENXIO);
+    return;
+  }
 
+  sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
+  if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
+
+  retc = xrd_setxattr(fullpath, xattr_name, xattr_value, strlen(xattr_value));
+  fuse_reply_err(req, retc);
+
+  return;
 }
 
 static struct fuse_lowlevel_ops eosfs_ll_oper = {
@@ -1055,10 +1173,10 @@ static struct fuse_lowlevel_ops eosfs_ll_oper = {
   .fsync	= eosfs_ll_fsync,
   .forget       = eosfs_ll_forget,
   .flush        = eosfs_ll_flush,
-  /*  .setxattr     = eosfs_ll_setxattr,
+  .setxattr     = eosfs_ll_setxattr,
   .getxattr     = eosfs_ll_getxattr,
   .listxattr    = eosfs_ll_listxattr,
-  .removexattr  = eosfs_ll_removexattr,*/
+  .removexattr  = eosfs_ll_removexattr
 };
 
 int main(int argc, char *argv[])
