@@ -35,6 +35,7 @@ SpaceQuota::SpaceQuota(const char* name) {
     if (path[path.length()-1] != '/') {
       path += "/";
     }
+    SpaceName = path.c_str();
     try {
       quotadir = gOFS->eosView->getContainer(path.c_str());
     } catch( eos::MDException &e ) {
@@ -1209,7 +1210,7 @@ Quota::GetSpaceQuota(const char* name, bool nocreate)
     do {
       gQuotaMutex.UnLockRead();
       gQuotaMutex.LockWrite();    
-      spacequota = new SpaceQuota(name);
+      spacequota = new SpaceQuota(sname.c_str());
       gQuota[sname]=spacequota;
       gQuotaMutex.UnLockWrite();    
       gQuotaMutex.LockRead();
