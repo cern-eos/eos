@@ -1193,9 +1193,11 @@ Quota::GetSpaceQuota(const char* name, bool nocreate)
   SpaceQuota* spacequota=0;
   std::string sname = name;
 
-  // allow sloppy guys to skip the trailing '/'
-  if (sname[sname.length()-1] != '/') {
-    sname += "/";
+  if (sname[0] == '/') {
+    // allow sloppy guys to skip the trailing '/'
+    if (sname[sname.length()-1] != '/') {
+      sname += "/";
+    }
   }
   
   if ( (gQuota.count(sname)) && (spacequota = gQuota[sname]) ) {
