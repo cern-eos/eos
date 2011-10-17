@@ -600,7 +600,7 @@ XrdMqOfs::Statistics() {
       sprintf(line,"mq.droppedmonitoring_rate %f\n",(1000.0*(DiscardedMonitoringMessages-LastDiscardedMonitoringMessages)/(tdiff))); rc = write(fd,line,strlen(line));
       sprintf(line,"mq.total_rate             %f\n",(1000.0*(NoMessages-LastNoMessages)/(tdiff))); rc = write(fd,line,strlen(line));
       close(fd);
-      ::rename(tmpfile.c_str(),StatisticsFile.c_str());
+      rc = ::rename(tmpfile.c_str(),StatisticsFile.c_str());
       if (rc) { fprintf(stderr,"error {%s/%s/%d}: system command failed;retc=%d", __FUNCTION__,__FILE__, __LINE__,WEXITSTATUS(rc)); }
     }
     gettimeofday(&tstart,&tz);

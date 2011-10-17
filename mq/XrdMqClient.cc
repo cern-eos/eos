@@ -100,7 +100,7 @@ bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool si
   //  msg.Print();
   for (i=0 ;i< kBrokerN; i++) {
     char result[16384];
-    size_t result_size=0;
+    size_t result_size=16384;
 
     admin = new XrdClientAdmin(GetBrokerUrl(i)->c_str());
     admin->Connect();
