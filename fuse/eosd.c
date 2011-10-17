@@ -1077,7 +1077,6 @@ static void eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
 
   char* xattr_list = NULL;
   retc = xrd_listxattr(fullpath, &xattr_list, &size);
-
   if (retc)
     fuse_reply_err(req, retc);
   else {

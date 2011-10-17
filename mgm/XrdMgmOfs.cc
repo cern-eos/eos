@@ -3967,32 +3967,36 @@ XrdMgmOfs::FSctl(const int               cmd,
           XrdOucString subcmd = sub_cmd;
           if (subcmd == "ls") {  //listxattr
             eos::ContainerMD::XAttrMap map;
-            errno = gOFS->attr_ls(spath.c_str(), error, client, (const char *) 0, map);
+            int rc = gOFS->attr_ls(spath.c_str(), error, client, (const char *) 0, map);
       
             XrdOucString response = "lsxattr: retc=";
-            response += errno; response += " ";
-          
-            if (errno == SFS_OK) {
+            response += rc; response += " ";
+            if (rc == SFS_OK) {
               for (std::map<std::string, std::string>::iterator iter = map.begin(); iter != map.end(); iter++){
                 response += iter->first.c_str(); 
                 response += "&"; 
               }
               response += "\0";
+	      while(response.replace("user.","tmp.")){}
+	      while(response.replace("tmp.","user.eos.")){}
+	      while(response.replace("sys.","user.admin.")){}
             }
+	    fprintf(stderr,"reponse is %s %s %u\n",spath.c_str(),response.c_str(), map.size());
  
             error.setErrInfo(response.length() + 1, response.c_str());
             return SFS_DATA;
           }
           else if (subcmd == "get") {  //getxattr
             XrdOucString value;
-            char* key = env.Get("mgm.xattrname");
-            
-            errno = gOFS->attr_get(spath.c_str(), error, client, (const char*) 0, key, value);
+            XrdOucString key = env.Get("mgm.xattrname");
+	    key.replace("user.admin.","sys.");
+	    key.replace("user.eos.","user.");
+            int rc = gOFS->attr_get(spath.c_str(), error, client, (const char*) 0, key.c_str(), value);
                                   
             XrdOucString response = "getxattr: retc=";
-            response += errno;
+            response += rc;
           
-            if (errno == SFS_OK) {
+            if (rc == SFS_OK) {
               response += " value=";
               response += value;
             }
@@ -4003,21 +4007,22 @@ XrdMgmOfs::FSctl(const int               cmd,
           else if (subcmd == "set") {  //setxattr
             XrdOucString key = env.Get("mgm.xattrname");
             XrdOucString value = env.Get("mgm.xattrvalue");
-        
-            errno = gOFS->attr_set(spath.c_str(), error, client, (const char *) 0, key.c_str(), value.c_str());
+	    key.replace("user.admin.","sys.");
+	    key.replace("user.eos.","user.");
+            int rc = gOFS->attr_set(spath.c_str(), error, client, (const char *) 0, key.c_str(), value.c_str());
       
             XrdOucString response = "setxattr: retc=";
-            response += errno;
+            response += rc;
 
             error.setErrInfo(response.length() + 1, response.c_str());
             return SFS_DATA;
           }
           else if (subcmd == "rm") {  // rmxattr
             XrdOucString key = env.Get("mgm.xattrname");
-            errno = gOFS->attr_rem(spath.c_str(), error, client, (const char *) 0, key.c_str());
+            int rc = gOFS->attr_rem(spath.c_str(), error, client, (const char *) 0, key.c_str());
 
             XrdOucString response = "rmxattr: retc=";
-            response += errno;
+            response += rc;
           
             error.setErrInfo(response.length() + 1, response.c_str());
             return SFS_DATA;
@@ -4244,8 +4249,8 @@ XrdMgmOfs::_attr_ls(const char             *path,
     for ( it=dh->attributesBegin(); it != dh->attributesEnd(); ++it) {
       XrdOucString key = it->first.c_str();
       // we don't show sys.* attributes to others than root
-      if ( key.beginswith("sys.") && (!vid.sudoer) )
-        continue;
+      //      if ( key.beginswith("sys.") && (!vid.sudoer) )
+      //        continue;
       map[it->first] = it->second;
     }
   } catch( eos::MDException &e ) {
@@ -4345,9 +4350,9 @@ XrdMgmOfs::_attr_get(const char             *path,
   try {
     dh = gOFS->eosView->getContainer(path);
     XrdOucString Key = key;
-    if ( Key.beginswith("sys.") && (!vid.sudoer) )
-      errno = EPERM;
-    else 
+    //    if ( Key.beginswith("sys.") && (!vid.sudoer) )
+    //      errno = EPERM;
+    //    else 
       value = (dh->getAttribute(key)).c_str();
   } catch( eos::MDException &e ) {
     dh = 0;

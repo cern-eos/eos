@@ -690,7 +690,6 @@ int xrd_listxattr(const char *path, char **xattr_list, size_t *size)
 
   long long listxattr = XrdPosixXrootd::QueryOpaque(request.c_str(), response, 16384);
   TIMING("GETPLUGIN", &listxattrtiming);
-  
   if (listxattr >= 0) {
     //parse the output
     int retc = 0;
@@ -702,8 +701,7 @@ int xrd_listxattr(const char *path, char **xattr_list, size_t *size)
     if ((items != 3) || (strcmp(tag,"lsxattr:"))) {
       errno = ENOENT;
       return EFAULT;
-    }
-    else {
+    } else {
       listxattr = retc;
       *size = strlen(rval);
       char *ptr = rval;
