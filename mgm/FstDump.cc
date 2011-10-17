@@ -30,6 +30,8 @@
 #include <stdio.h>
 #include <errno.h>
 
+XrdPosixXrootd posixsingleton;
+
 int main(int argc, char* argv[])
 {
   setenv("XrdSecPROTOCOL","sss",1);

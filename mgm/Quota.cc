@@ -58,6 +58,8 @@ SpaceQuota::SpaceQuota(const char* name) {
     if (path[path.length()-1] != '/') {
       path += "/";
     }
+    SpaceName = path.c_str();
+
     try {
       quotadir = gOFS->eosView->getContainer(path.c_str());
     } catch( eos::MDException &e ) {
@@ -1216,9 +1218,11 @@ Quota::GetSpaceQuota(const char* name, bool nocreate)
   SpaceQuota* spacequota=0;
   std::string sname = name;
 
-  // allow sloppy guys to skip the trailing '/'
-  if (sname[sname.length()-1] != '/') {
-    sname += "/";
+  if (sname[0] == '/') {
+    // allow sloppy guys to skip the trailing '/'
+    if (sname[sname.length()-1] != '/') {
+      sname += "/";
+    }
   }
   
   if ( (gQuota.count(sname)) && (spacequota = gQuota[sname]) ) {
@@ -1230,7 +1234,7 @@ Quota::GetSpaceQuota(const char* name, bool nocreate)
     do {
       gQuotaMutex.UnLockRead();
       gQuotaMutex.LockWrite();    
-      spacequota = new SpaceQuota(name);
+      spacequota = new SpaceQuota(sname.c_str());
       gQuota[sname]=spacequota;
       gQuotaMutex.UnLockWrite();    
       gQuotaMutex.LockRead();
