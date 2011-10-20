@@ -810,14 +810,6 @@ XrdFstOfsFile::verifychecksum()
         checkSum=0;
         return false;
       }
-
-      if ( checkSum->GetLastOffset() == openSize ) {
-        eos_info("Skipping checksum (re-scan) since file was not read  ...");
-        // remove the checksum object
-        delete checkSum;
-        checkSum=0;
-        return false;
-      }
     }
     
     if (checkSum->NeedsRecalculation()) {
@@ -831,9 +823,7 @@ XrdFstOfsFile::verifychecksum()
       }
     } else {
       // this was prefect streaming I/O
-      if (checkSum->GetLastOffset() == openSize) {
-	checkSum->Finalize();
-      } else {
+      if ((!isRW) && (checkSum->GetLastOffset() != openSize)) {
 	eos_info("Skipping checksum (re-scan) since file was not read completely ...");
         // remove the checksum object
         delete checkSum;
@@ -841,6 +831,8 @@ XrdFstOfsFile::verifychecksum()
         return false;
       }
     }
+    
+    checkSum->Finalize();
 
     if (isRW) {
       eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
