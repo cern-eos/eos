@@ -242,7 +242,7 @@ com_file (char* arg1) {
       XrdOucString size = newresult->Get("mgm.size");
       
       if ( (option.find("%silent") == STR_NPOS) && (!silent) ) {
-        printf("path=\"%-32s\" fid=\"%4s\" size=\"10%s\" nrep=\"%s\" checksumtype=\"%s\" checksum=\"%s\"\n", path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.nrep"), checksumtype.c_str(), newresult->Get("mgm.checksum"));
+        printf("path=\"%-32s\" fid=\"%4s\" size=\"%s\" nrep=\"%s\" checksumtype=\"%s\" checksum=\"%s\"\n", path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.nrep"), checksumtype.c_str(), newresult->Get("mgm.checksum"));
       }
 
       int i=0;
