@@ -2917,7 +2917,7 @@ int XrdMgmOfs::_find(const char       *path,             // In
   // users cannot return more than 250k files and 50k dirs with one find
 
   static unsigned long long finddiruserlimit  = 50000;
-  static unsigned long long findfileuserlimit = 2500000;
+  static unsigned long long findfileuserlimit = 250000;
 
   unsigned long long filesfound=0;
   unsigned long long dirsfound=0;
