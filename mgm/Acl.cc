@@ -39,7 +39,6 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
     // no acl definition
     return ;
   }
-    
   int errc = 0;
   std::vector<std::string> rules;
   std::string delimiter = ",";
@@ -56,10 +55,16 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
   std::string grouptag = "g:"; grouptag += groupid; grouptag += ":";
 
   std::string username  = eos::common::Mapping::UidToUserName(vid.uid,errc);
+  if (errc) {
+    username = "_INVAL_";
+  }
   std::string groupname = eos::common::Mapping::GidToGroupName(vid.gid,errc);
+  if (errc) {
+    groupname = "_INVAL_";
+  }
 
-  std::string usertagfn =  "u:"; usertag  += username;  usertag += ":";
-  std::string grouptagfn = "g:"; grouptag += groupname; grouptag += ":";
+  std::string usertagfn =  "u:"; usertagfn  += username;  usertagfn += ":";
+  std::string grouptagfn = "g:"; grouptagfn += groupname; grouptagfn += ":";
 
   for (it = rules.begin(); it != rules.end(); it++) {
     bool egroupmatch = false;
@@ -67,7 +72,6 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
       std::vector<std::string> entry;
       std::string delimiter = ":";
       eos::common::StringConversion::Tokenize(*it, entry, delimiter);
-
       if (entry.size() <3 ) {
         continue; 
       }
@@ -76,7 +80,7 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
       hasEgroup = egroupmatch;
     }
     if ((!it->compare(0, usertag.length(), usertag)) || (!it->compare(0,grouptag.length(), grouptag)) || (egroupmatch) ||
-	(!it->compare(0, usertagfn.length(), usertagfn)) || (!it->compare(0,grouptagfn.length(), grouptagfn)) ) {
+        (!it->compare(0, usertagfn.length(), usertagfn)) || (!it->compare(0,grouptagfn.length(), grouptagfn)) ) {
       // that is our rule
       std::vector<std::string> entry;
       std::string delimiter = ":";
@@ -97,8 +101,8 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
       }
 
       if (((entry[2].find("wo"))!= std::string::npos)) {
-	canWriteOnce = true;
-	hasAcl = true;
+        canWriteOnce = true;
+        hasAcl = true;
       }
 
       if ((!canWriteOnce) && (entry[2].find("w"))!= std::string::npos) {

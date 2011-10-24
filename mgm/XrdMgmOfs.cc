@@ -1380,6 +1380,8 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
 
   EXEC_TIMING_BEGIN("Chmod");
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   eos::ContainerMD* cmd = 0;
@@ -1432,6 +1434,8 @@ int XrdMgmOfs::_chown(const char               *path,    // In
   static const char *epname = "chown";
 
   EXEC_TIMING_BEGIN("Chown");
+
+  eos::common::Mapping::Copy(vid, this->vid);
 
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
@@ -1581,6 +1585,8 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   // try if that is directory
   EXEC_TIMING_BEGIN("Exists");
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("Exists",vid.uid,vid.gid,1);  
 
 
@@ -1692,6 +1698,8 @@ int XrdMgmOfs::_exists(const char                *path,        // In
 */
 {
   EXEC_TIMING_BEGIN("Exists");
+  
+  eos::common::Mapping::Copy(vid, this->vid);
 
   gOFS->MgmStats.Add("Exists",vid.uid,vid.gid,1);  
   
@@ -1761,10 +1769,10 @@ int XrdMgmOfs::mkdir(const char              *inpath,    // In
 
   XTRACE(mkdir, path,"");
   
-  eos_info("path=%s",path);
-  
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  eos_info("path=%s",path);
+  
   MAYSTALL;
   MAYREDIRECT;
   
@@ -1795,6 +1803,8 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   errno = 0;
 
   EXEC_TIMING_BEGIN("Mkdir");
+
+  eos::common::Mapping::Copy(vid, this->vid);
 
   gOFS->MgmStats.Add("Mkdir",vid.uid,vid.gid,1);  
 
@@ -2118,6 +2128,8 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   
   EXEC_TIMING_BEGIN("Rm");
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("Rm",vid.uid,vid.gid,1);  
 
   // Perform the actual deletion
@@ -2312,6 +2324,8 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
    errno = 0;
 
    EXEC_TIMING_BEGIN("RmDir");
+
+   eos::common::Mapping::Copy(vid, this->vid);
 
    gOFS->MgmStats.Add("RmDir",vid.uid,vid.gid,1);  
 
@@ -2550,6 +2564,8 @@ int XrdMgmOfs::_stat(const char              *path,        // In
   static const char *epname = "_stat";
 
   EXEC_TIMING_BEGIN("Stat");
+
+  eos::common::Mapping::Copy(vid, this->vid);
 
   gOFS->MgmStats.Add("Stat",vid.uid,vid.gid,1);  
   
@@ -2847,6 +2863,8 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
  
   EXEC_TIMING_BEGIN("Utimes");    
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("Utimes",vid.uid,vid.gid,1);  
 
   //-------------------------------------------
@@ -2903,6 +2921,8 @@ int XrdMgmOfs::_find(const char       *path,             // In
   errno = 0;
 
   EXEC_TIMING_BEGIN("Find");      
+
+  eos::common::Mapping::Copy(vid, this->vid);
 
   gOFS->MgmStats.Add("Find",vid.uid,vid.gid,1);  
 
@@ -4053,6 +4073,8 @@ XrdMgmOfs::_attr_ls(const char             *path,
   
   EXEC_TIMING_BEGIN("AttrLs");      
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("AttrLs",vid.uid,vid.gid,1);  
   
   //-------------------------------------------
@@ -4100,6 +4122,8 @@ XrdMgmOfs::_attr_set(const char             *path,
   errno = 0;
 
   EXEC_TIMING_BEGIN("AttrSet");      
+
+  eos::common::Mapping::Copy(vid, this->vid);
 
   gOFS->MgmStats.Add("AttrSet",vid.uid,vid.gid,1);  
 
@@ -4152,6 +4176,8 @@ XrdMgmOfs::_attr_get(const char             *path,
 
   EXEC_TIMING_BEGIN("AttrGet");      
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("AttrGet",vid.uid,vid.gid,1);  
 
   if ( !key) 
@@ -4201,6 +4227,8 @@ XrdMgmOfs::_attr_rem(const char             *path,
 
   EXEC_TIMING_BEGIN("AttrRm");      
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("AttrRm",vid.uid,vid.gid,1);  
 
   if ( !key ) 
@@ -4247,6 +4275,8 @@ XrdMgmOfs::_verifystripe(const char             *path,
   eos::FileMD *fmd=0;
 
   EXEC_TIMING_BEGIN("VerifyStripe");      
+
+  eos::common::Mapping::Copy(vid, this->vid);
 
   errno = 0;
   unsigned long long fid=0;
@@ -4379,6 +4409,8 @@ XrdMgmOfs::_dropstripe(const char             *path,
 
   EXEC_TIMING_BEGIN("DropStripe");
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("DropStripe",vid.uid,vid.gid,1);  
 
   eos_debug("drop");
@@ -4485,6 +4517,8 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   
   EXEC_TIMING_BEGIN("ReplicateStripe");
   
+  eos::common::Mapping::Copy(vid, this->vid);
+
   eos::common::Path cPath(path);
 
   eos_debug("replicating %s from %u=>%u [drop=%d]", path, sourcefsid,targetfsid,dropsource);
@@ -4559,6 +4593,8 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   long unsigned int  lid = fmd->getLayoutId();
   uid_t              uid = fmd->getCUid();
   gid_t              gid = fmd->getCGid();
+
+  eos::common::Mapping::Copy(vid, this->vid);
 
   unsigned long long size = fmd->getSize();
 
