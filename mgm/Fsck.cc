@@ -113,6 +113,11 @@ Fsck::Fsck()
   nunchecked=0;
   totalfiles=0;
 
+  for (size_t i=0; i< mErrorNames.size(); i++) {
+    mFsidErrorMap[mErrorNames[i]].set_deleted_key(0);
+    mFsidErrorFidSet[mErrorNames[i]].set_deleted_key(0);
+  }
+
   mErrorMapMutex.UnLock(); 
 } 
 
