@@ -21,14 +21,14 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 #define eos_log(__EOSCOMMON_LOG_PRIORITY__ , ...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid,this->ruid, this->rgid, this->cident,  LOG_MASK(__EOSCOMMON_LOG_PRIORITY__) , __VA_ARGS__
-#define eos_debug(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->vid, this->cident, (LOG_DEBUG)  , __VA_ARGS__)
-#define eos_info(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->vid, this->cident, (LOG_INFO)   , __VA_ARGS__)
-#define eos_notice(...)  eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->vid, this->cident, (LOG_NOTICE) , __VA_ARGS__)
-#define eos_warning(...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->vid, this->cident, (LOG_CRIT)   , __VA_ARGS__)
-#define eos_err(...)     eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->vid, this->cident, (LOG_ERR)    , __VA_ARGS__)
-#define eos_crit(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->vid, this->cident, (LOG_CRIT)   , __VA_ARGS__)
-#define eos_alert(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->vid, this->cident, (LOG_ALERT)  , __VA_ARGS__)
-#define eos_emerg(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->vid, this->cident, (LOG_EMERG)  , __VA_ARGS__)
+#define eos_debug(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_DEBUG)  , __VA_ARGS__)
+#define eos_info(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_INFO)   , __VA_ARGS__)
+#define eos_notice(...)  eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_NOTICE) , __VA_ARGS__)
+#define eos_warning(...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_CRIT)   , __VA_ARGS__)
+#define eos_err(...)     eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_ERR)    , __VA_ARGS__)
+#define eos_crit(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_CRIT)   , __VA_ARGS__)
+#define eos_alert(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_ALERT)  , __VA_ARGS__)
+#define eos_emerg(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_EMERG)  , __VA_ARGS__)
 
 #define eos_static_log(__EOSCOMMON_LOG_PRIORITY__ , ...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"",  (__EOSCOMMON_LOG_PRIORITY__) , __VA_ARGS__
 #define eos_static_debug(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", eos::common::Logging::gZeroVid,"", (LOG_DEBUG)  , __VA_ARGS__)
