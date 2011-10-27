@@ -1765,7 +1765,7 @@ XrdFstOfs::FSctl(const int               cmd,
 	  } else {
 	    for (ssize_t k=0; k<attr_length; k++) {
 	      char hex[4];
-	      snprintf(hex,sizeof(hex-1),"%02x", (unsigned char) value[3-k]);
+	      snprintf(hex,sizeof(hex-1),"%02x", (unsigned char) value[k]);
 	      attr += hex;
 	    }
 	  }
