@@ -58,19 +58,18 @@ private:
 
 public:
 
-  static XrdOucHash<XrdOucString> configDefinitionsFile;
-  static XrdOucHash<XrdOucString> configDefinitions;
+  std::map<std::string, std::string> configDefinitions;
 
   struct PrintInfo {
     XrdOucString* out;
     XrdOucString option;
   };
 
-  static int ApplyEachConfig(const char* key, XrdOucString* def, void* Arg);
+  int ApplyEachConfig(const char* key, std::string def, void* Arg);
 
-  static int PrintEachConfig(const char* key, XrdOucString* def, void* Arg);
+  int PrintEachConfig(const char* key, std::string def, void* Arg);
 
-  static int DeleteConfigByMatch(const char* key, XrdOucString* def, void* Arg);
+  int DeleteConfigByMatch(const char* key, std::string def, void* Arg);
 
   ConfigEngine(const char* configdir) {
     configDir = configdir;
@@ -113,7 +112,10 @@ public:
 
   void PrintConfig() {
     Mutex.Lock();
-    configDefinitions.Apply(PrintEachConfig, NULL);
+    std::map<std::string,std::string>::const_iterator it;
+    for (it = configDefinitions.begin(); it != configDefinitions.end(); it++) {
+      PrintEachConfig(it->first.c_str(),it->second,NULL);
+    }
     Mutex.UnLock();
   }
 
@@ -146,9 +148,10 @@ public:
     if (tochangelog)
       changeLog.AddEntry(cl.c_str());
     XrdOucString configname = prefix; configname+=":";
-    XrdOucString *sdef = new XrdOucString(def);
     configname += fsname;
-    configDefinitions.Rep(configname.c_str(),sdef);
+    Mutex.Lock();
+    configDefinitions[configname.c_str()] = def;
+    Mutex.UnLock();
     eos_static_debug("%s => %s", fsname, def);
     if (autosave && currentConfigFile.length()) {
       int aspos=0;
@@ -176,7 +179,7 @@ public:
     XrdOucString configname = prefix; configname+=":"; configname += fsname;
 
     Mutex.Lock();  
-    configDefinitions.Del(configname.c_str()); 
+    configDefinitions.erase(configname.c_str()); 
     Mutex.UnLock();
 
     if (tochangelog)
@@ -206,7 +209,10 @@ public:
   void DeleteConfigValueByMatch(const char* prefix, const char* match) {
     Mutex.Lock();
     XrdOucString smatch = prefix; smatch += ":"; smatch += match;
-    configDefinitions.Apply(DeleteConfigByMatch, &smatch);
+    std::map<std::string,std::string>::const_iterator it;
+    for (it = configDefinitions.begin(); it != configDefinitions.end(); it++) {
+      DeleteConfigByMatch(it->first.c_str(),it->second, (void*)match);
+    }
     Mutex.UnLock();
   }
 

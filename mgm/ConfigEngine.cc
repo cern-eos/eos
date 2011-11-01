@@ -15,8 +15,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-XrdOucHash<XrdOucString> ConfigEngine::configDefinitionsFile;
-XrdOucHash<XrdOucString> ConfigEngine::configDefinitions;
+//XrdOucHash<XrdOucString> ConfigEngine::configDefinitions;
 
 /*----------------------------------------------------------------------------*/
 ConfigEngineChangeLog::ConfigEngineChangeLog()
@@ -269,7 +268,7 @@ ConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
       configkey += dtime; 
       configkey += ":";
 
-      configDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));
+      configDefinitions[configkey.c_str()]=esccomment.c_str();
     }
 
     DumpConfig(config, env);
@@ -437,7 +436,7 @@ ConfigEngine::ResetConfig()
   FsView::gFsView.Reset();
   eos::common::GlobalConfig::gConfig.Reset();
   Mutex.Lock();
-  configDefinitions.Purge();
+  configDefinitions.clear();
   Mutex.UnLock();
 
   // load all the quota nodes from the namespace
@@ -465,17 +464,22 @@ ConfigEngine::ApplyConfig(XrdOucString &err)
 
   Access::Reset();
 
-  Mutex.Lock();
-  XrdOucHash<XrdOucString> configDefinitionsCopy;
-
   // disable the defaults in FsSpace
   FsSpace::gDisableDefaults=true;
 
-  configDefinitions.Apply(ApplyEachConfig, &err);
-
+  Mutex.Lock();
+  std::map<std::string,std::string> configDefinitionsCopy;
+  configDefinitionsCopy = configDefinitions;
+  Mutex.UnLock();
+  
+  std::map<std::string,std::string>::const_iterator it;
+  for (it = configDefinitionsCopy.begin(); it != configDefinitionsCopy.end();it++) {
+    ApplyEachConfig(it->first.c_str(), it->second, &err);
+  }
+       
   // enable the defaults in FsSpace
   FsSpace::gDisableDefaults=false;
-  Mutex.UnLock();
+
 
   Access::ApplyAccessConfig();
 
@@ -492,7 +496,7 @@ ConfigEngine::ParseConfig(XrdOucString &inconfig, XrdOucString &err)
 {
   err = "";
   Mutex.Lock();
-  configDefinitions.Purge();
+  configDefinitions.clear();
 
   std::istringstream streamconfig(inconfig.c_str());
 
@@ -517,7 +521,7 @@ ConfigEngine::ParseConfig(XrdOucString &inconfig, XrdOucString &err)
       key.erase(seppos);
 
       eos_notice("setting config key=%s value=%s", key.c_str(),value.c_str());
-      configDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
+      configDefinitions[key.c_str()] = value.c_str();
     }
   }
 
@@ -527,7 +531,7 @@ ConfigEngine::ParseConfig(XrdOucString &inconfig, XrdOucString &err)
 
 /*----------------------------------------------------------------------------*/
 int
-ConfigEngine::DeleteConfigByMatch(const char* key, XrdOucString* def, void* Arg)
+ConfigEngine::DeleteConfigByMatch(const char* key, std::string def, void* Arg)
 {
   XrdOucString* matchstring = (XrdOucString*) Arg;
   XrdOucString skey = key;
@@ -541,27 +545,27 @@ ConfigEngine::DeleteConfigByMatch(const char* key, XrdOucString* def, void* Arg)
 
 /*----------------------------------------------------------------------------*/
 int
-ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
+ConfigEngine::ApplyEachConfig(const char* key, std::string def, void* Arg)
 {
   XrdOucString* err = (XrdOucString*) Arg;
 
-  if (!key || !def)
+  if (!key || !def.length())
     return 0;
 
-  XrdOucString toenv = def->c_str();
+  XrdOucString toenv = def.c_str();
   while(toenv.replace(" ", "&")) {}
   XrdOucEnv envdev(toenv.c_str());
   
-  std::string sdef = def->c_str();
+  std::string sdef = def.c_str();
 
-  eos_static_debug("key=%s def=%s", key, def->c_str());
+  eos_static_debug("key=%s def=%s", key, def.c_str());
   XrdOucString skey = key;
 
   if (skey.beginswith("fs:")) {
     // set a filesystem definition
     skey.erase(0,3);
     if (!FsView::gFsView.ApplyFsConfig(skey.c_str(),sdef)) {
-      *err += "error: unable to apply config "; *err += key, *err += " => "; *err += def->c_str(); *err +="\n";
+      *err += "error: unable to apply config "; *err += key, *err += " => "; *err += def.c_str(); *err +="\n";
       return 0;
     }
   }
@@ -569,7 +573,7 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
   if (skey.beginswith("global:")) {
     skey.erase(0,7);
     if (!FsView::gFsView.ApplyGlobalConfig(skey.c_str(),sdef)) {
-      *err += "error: unable to apply config "; *err += key, *err += " => "; *err += def->c_str(); *err +="\n";
+      *err += "error: unable to apply config "; *err += key, *err += " => "; *err += def.c_str(); *err +="\n";
       return 0;
     }
   }
@@ -577,7 +581,7 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
   if (skey.beginswith("map:")) {
     skey.erase(0,4);
     if (!gOFS->AddPathMap(skey.c_str(),sdef.c_str())) {
-      *err += "error: unable to apply config "; *err += key, *err += " => "; *err += def->c_str(); *err +="\n";
+      *err += "error: unable to apply config "; *err += key, *err += " => "; *err += def.c_str(); *err +="\n";
       return 0;
     }
   }
@@ -613,7 +617,7 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
 
     SpaceQuota* spacequota = Quota::GetSpaceQuota(space.c_str());
 
-    unsigned long long value = strtoll(def->c_str(),0,10);
+    unsigned long long value = strtoll(def.c_str(),0,10);
     long id = strtol(ugid.c_str(),0,10);
 
     if (spacequota) {
@@ -635,7 +639,7 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
     int envlen;
     // set a virutal Identity
     if (!Vid::Set(envdev.Env(envlen))) {
-      eos_static_err("cannot apply config line key: |%s| => |%s|",skey.c_str(), def->c_str());
+      eos_static_err("cannot apply config line key: |%s| => |%s|",skey.c_str(), def.c_str());
       *err += "error: cannot apply config line key: "; *err += skey.c_str();
     } 
   }
@@ -645,12 +649,12 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
 
 /*----------------------------------------------------------------------------*/
 int
-ConfigEngine::PrintEachConfig(const char* key, XrdOucString* def, void* Arg)
+ConfigEngine::PrintEachConfig(const char* key, std::string def, void* Arg)
 {
   if (Arg == NULL)
-    eos_static_info("%s => %s", key, def->c_str());
+    eos_static_info("%s => %s", key, def.c_str());
   else {
-    eos_static_debug("%s => %s", key, def->c_str());
+    eos_static_debug("%s => %s", key, def.c_str());
     
     XrdOucString* outstring = ((struct PrintInfo*) Arg)->out;
     XrdOucString option    = ((struct PrintInfo*) Arg)->option;
@@ -686,7 +690,7 @@ ConfigEngine::PrintEachConfig(const char* key, XrdOucString* def, void* Arg)
     }
     
     if (filter) {
-      (*outstring) += key; (*outstring) += " => "; (*outstring) += def->c_str(); (*outstring) += "\n";
+      (*outstring) += key; (*outstring) += " => "; (*outstring) += def.c_str(); (*outstring) += "\n";
   }
   }
   return 0;
@@ -730,7 +734,10 @@ ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
   
   if (name == 0) {
     Mutex.Lock();
-    configDefinitions.Apply(PrintEachConfig,&pinfo);
+    std::map<std::string, std::string>::const_iterator it;
+    for (it = configDefinitions.begin(); it != configDefinitions.end(); it++) {
+      PrintEachConfig(it->first.c_str(), it->second, &pinfo);
+    }
     Mutex.UnLock();
     while (out.replace("&"," ")) {}
   } else {
