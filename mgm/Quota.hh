@@ -174,7 +174,14 @@ public:
   
   const char* GetQuotaPercentage(unsigned long long is, unsigned long long avail, XrdOucString &spercentage) {
     char percentage[1024];
-    sprintf(percentage, "%.02f", avail?(100.0 * is / avail):100.0);
+    float fp = avail? (100.0 * is / avail):100.0;
+    if (fp> 100.0) {
+      fp = 100.0;
+    }
+    if (fp <0) {
+      fp = 0;
+    }
+    sprintf(percentage, "%.02f", fp);
     spercentage = percentage;
     return spercentage.c_str();
   }
