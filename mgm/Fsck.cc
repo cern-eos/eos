@@ -242,6 +242,7 @@ Fsck::Check(void)
     
     std::map<eos::common::FileSystem::fsid_t, FileSystem*>::const_iterator it;
 
+    mErrorMapMutex.Lock(); 
     totalfiles=0;
     nchecked=0;
     nunchecked=0;
@@ -258,6 +259,7 @@ Fsck::Check(void)
     n_error_replica_offline = 0;
     n_error_file_offline = 0;
     n_error_replica_missing = 0;
+    mErrorMapMutex.UnLock(); 
 
     google::sparse_hash_set<eos::common::FileSystem::fsid_t> scannedfsids;
 

@@ -1393,24 +1393,28 @@ Storage::Communicator()
 	    if (eos::fst::Config::gConfig.autoBoot && (fileSystems[queue.c_str()]->GetStatus() <= eos::common::FileSystem::kDown) && (fileSystems[queue.c_str()]->GetConfigStatus() > eos::common::FileSystem::kOff) ) {
 	      Boot(fileSystems[queue.c_str()]);
 	    }
-	  }
-	  if (key == "bootsenttime") {
-	    gOFS.ObjectManager.HashMutex.UnLockRead();
-	    // this is a request to (re-)boot a filesystem
-	    if (fileSystems.count(queue.c_str())) {
-	      Boot(fileSystems[queue.c_str()]);
-	    } else {
+	  } else {
+	    if (key == "bootsenttime") {
+	      gOFS.ObjectManager.HashMutex.UnLockRead();
+	      // this is a request to (re-)boot a filesystem
+	      if (fileSystems.count(queue.c_str())) {
+		Boot(fileSystems[queue.c_str()]);
+	      } else {
 	      eos_static_err("got boot time update on not existant filesystem %s", queue.c_str());
+	      }
+	    } else {
+	      if (key == "scaninterval") {
+		gOFS.ObjectManager.HashMutex.UnLockRead();
+		if (fileSystems.count(queue.c_str())) {
+		  time_t interval = (time_t) fileSystems[queue.c_str()]->GetLongLong("scaninterval");
+		  if (interval>0) {
+		    fileSystems[queue.c_str()]->RunScanner(&fstLoad, interval);
+		  }
+		}
+	      } else {
+		gOFS.ObjectManager.HashMutex.UnLockRead();
+	      }
 	    }
-	  }
-          if (key == "scaninterval") {
-            gOFS.ObjectManager.HashMutex.UnLockRead();
-            if (fileSystems.count(queue.c_str())) {
-              time_t interval = (time_t) fileSystems[queue.c_str()]->GetLongLong("scaninterval");
-              if (interval>0) {
-                fileSystems[queue.c_str()]->RunScanner(&fstLoad, interval);
-              }
-            }
           }
 	} else {
 	  gOFS.ObjectManager.HashMutex.UnLockRead();

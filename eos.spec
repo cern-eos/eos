@@ -5,7 +5,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.1.0
-Release: rc40d
+Release: rc41
 Prefix: /usr
 License: none
 Group: Applications/File

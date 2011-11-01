@@ -331,7 +331,7 @@ public:
     return 0;
   }
   
-  XrdWriteCacheBucket() {Pool=0;pages=0;UpdateTime=0;}
+  XrdWriteCacheBucket() {Pool=0;pages=0;UpdateTime=0;offsets=0;}
   XrdWriteCacheBucket(XrdWriteCachePagePool* inp) {Pool=inp;pages=0;}
   ~XrdWriteCacheBucket() {};
   
