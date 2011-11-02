@@ -12,6 +12,7 @@
 #include "namespace/persistency/ChangeLogFile.hh"
 
 #include <google/sparse_hash_map>
+#include <google/dense_hash_map>
 #include <list>
 
 namespace eos
@@ -28,6 +29,8 @@ namespace eos
       ChangeLogFileMDSvc(): pFirstFreeId( 1 ), pChangeLog( 0 )
       {
         pIdMap.set_deleted_key( 0 );
+        pIdMap.set_empty_key( 0xffffffffffffffff );
+	pIdMap.resize(10000000);
         pChangeLog = new ChangeLogFile;
       }
 
@@ -126,7 +129,7 @@ namespace eos
         FileMD   *ptr;
       };
 
-      typedef google::sparse_hash_map<FileMD::id_t, DataInfo> IdMap;
+      typedef google::dense_hash_map<FileMD::id_t, DataInfo> IdMap;
       typedef std::list<IFileMDChangeListener*>               ListenerList;
 
       //------------------------------------------------------------------------

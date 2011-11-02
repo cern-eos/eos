@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <google/sparse_hash_map>
+#include <google/dense_hash_map>
 #include <map>
 #include <sys/time.h>
 
@@ -27,8 +28,8 @@ namespace eos
   class ContainerMD
   {
     public:
-      typedef google::sparse_hash_map<std::string, ContainerMD*> ContainerMap;
-      typedef google::sparse_hash_map<std::string, FileMD*>      FileMap;
+      typedef google::dense_hash_map<std::string, ContainerMD*> ContainerMap;
+      typedef google::dense_hash_map<std::string, FileMD*>      FileMap;
       typedef std::map<std::string, std::string>                 XAttrMap;
 
       //------------------------------------------------------------------------
