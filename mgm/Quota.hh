@@ -197,7 +197,14 @@ public:
   
   const char* GetQuotaPercentage(unsigned long long is, unsigned long long avail, XrdOucString &spercentage) {
     char percentage[1024];
-    sprintf(percentage, "%.02f", avail?(100.0 * is / avail):100.0);
+    float fp = avail? (100.0 * is / avail):100.0;
+    if (fp> 100.0) {
+      fp = 100.0;
+    }
+    if (fp <0) {
+      fp = 0;
+    }
+    sprintf(percentage, "%.02f", fp);
     spercentage = percentage;
     return spercentage.c_str();
   }
@@ -299,7 +306,7 @@ public:
   int FilePlacement(const char* path, uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate=false, int forcedindex=-1, unsigned long long bookingsize=1024*1024*1024ll);
 
   // the access routine
-  int FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW, unsigned long long bookingsize,eos::common::FileSystem::fsstatus_t min_fsstatus = eos::common::FileSystem::kDrain);
+  int FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW, unsigned long long bookingsize,std::vector<unsigned int> &unavailfs, eos::common::FileSystem::fsstatus_t min_fsstatus = eos::common::FileSystem::kDrain);
 
 };
 

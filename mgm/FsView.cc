@@ -937,10 +937,13 @@ FsView::CreateMapping(std::string fsuuid)
   } else {
     if (!NextFsId) 
       SetNextFsId(1);
+
     while (Fs2UuidMap.count(NextFsId)) {
-      SetNextFsId(NextFsId+1);
+      NextFsId++;
     }
     
+    SetNextFsId(NextFsId);
+
     Uuid2FsMap[fsuuid]=NextFsId;
     Fs2UuidMap[NextFsId] = fsuuid;
     return NextFsId;
@@ -1834,48 +1837,51 @@ FsGroup::~FsGroup()
 
 
 /*----------------------------------------------------------------------------*/
-void
+bool
 FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs)
 {
   // -----------------------------------------
   // ! if a filesystem has not yet these parameters defined, we inherit them from the space configuration
   // ! this function has to be called with the a read lock on the View Mutex !
+  // ! return's true if the fs was modified and the caller should evt. store the modification to the config
   // -----------------------------------------
   
   if (!fs)
-    return ;
+    return false ;
 
+  bool modified = false;
   eos::common::FileSystem::fs_snapshot_t snapshot;
   if (fs->SnapShotFileSystem(snapshot, false)) {
     if (!snapshot.mScanInterval) {
       // try to apply the default
       if (GetConfigMember("scaninterval").length()) {
         fs->SetString("scaninterval", GetConfigMember("scaninterval").c_str());
-        FsView::gFsView.StoreFsConfig(fs);
+	modified = true;
       }
     }
     if (!snapshot.mGracePeriod) {
       // try to apply the default
       if (GetConfigMember("graceperiod").length()) {
         fs->SetString("graceperiod", GetConfigMember("graceperiod").c_str());
-        FsView::gFsView.StoreFsConfig(fs);
+	modified = true;
       }
     }
     if (!snapshot.mDrainPeriod) {
       // try to apply the default
       if (GetConfigMember("drainperiod").length()) {
         fs->SetString("drainperiod", GetConfigMember("drainperiod").c_str());
-        FsView::gFsView.StoreFsConfig(fs);
+	modified = true;
       }
     }
     if (!snapshot.mHeadRoom) {
       // try to apply the default
       if (GetConfigMember("headroom").length()) {
-        fs->SetString("headroom", GetConfigMember("headroom").c_str());
-        FsView::gFsView.StoreFsConfig(fs);
+        fs->SetString("headroom", GetConfigMember("headroom").c_str())
+;	modified = true;
       }
     }
   }
+  return modified;
 }
 
 #endif

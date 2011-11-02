@@ -56,6 +56,8 @@ public:
   virtual int remove();
   virtual int sync();
   virtual int close();
+  
+  virtual int stat(struct stat *buf);
 
   virtual ~PlainLayout(){};
 };

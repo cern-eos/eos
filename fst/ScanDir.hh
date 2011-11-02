@@ -80,11 +80,17 @@ public:
     buffer = 0;
     bgThread = bgthread;
     alignment = pathconf(dirPath.c_str(), _PC_REC_XFER_ALIGN);
-    bufferSize = 256 * alignment;
-    setChecksum = setchecksum;
-    size_t palignment = alignment;
-    if (posix_memalign((void**)&buffer, palignment, bufferSize)){
-      fprintf(stderr, "error: error calling posix_memaling on dirpath=%s. \n",dirPath.c_str());
+
+    if (alignment>0) {
+      bufferSize = 256 * alignment;
+      setChecksum = setchecksum;
+      size_t palignment = alignment;
+      if (posix_memalign((void**)&buffer, palignment, bufferSize)){
+        fprintf(stderr, "error: error calling posix_memaling on dirpath=%s. \n",dirPath.c_str());
+	return;
+      }
+    } else {
+      fprintf(stderr,"error: OS does not provide alignment\n");
       return;
     }
     

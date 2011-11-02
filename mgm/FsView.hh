@@ -144,7 +144,7 @@ public:
   static const char* sGetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
 
   
-  void ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs);
+  bool ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs); //return's true if something was modified
 };
 
 //------------------------------------------------------------------------

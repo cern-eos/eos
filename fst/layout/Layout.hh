@@ -25,6 +25,8 @@
 #define __EOSFST_LAYOUT_HH__
 
 /*----------------------------------------------------------------------------*/
+#include <sys/types.h>
+/*----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
@@ -32,7 +34,6 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -86,6 +87,8 @@ public:
   virtual int remove() {return 0;} 
   virtual int sync() = 0;
   virtual int close() = 0;
+
+  virtual int stat(struct stat *buf) = 0;
   
   virtual ~Layout(){};
 };

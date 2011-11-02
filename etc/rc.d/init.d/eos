@@ -65,6 +65,13 @@ cleanup() {
 	fi
 }
 
+# fix the /etc/eos.keytab ownership to XRD_USER
+
+if [ -e /etc/eos.keytab ]; then
+	chown $XRD_USER /etc/eos.keytab
+	chmod 400 /etc/eos.keytab
+fi
+
 
 start() {
         # Run daemon
@@ -227,10 +234,16 @@ restart() {
     if [ "$eoshaoff" = "1" ]; then
         /etc/init.d/eosha stop 
     fi
+    if [ "$eosdoff" = "1" ]; then
+        /etc/init.d/eosd stop 
+    fi
     stop $1
     start $1
     if [ "$eoshaoff" = "1" ]; then
         /etc/init.d/eosha start 
+    fi
+    if [ "$eosdoff" = "1" ]; then
+        /etc/init.d/eosd start 
     fi
 }
 
@@ -268,12 +281,15 @@ elif [ -z "${XRD_ROLES}" ]; then
 fi
 
 eoshaoff=0
+eosdoff=0
 
 if [ -t 0 ]; then 
 if [ -t 1 ]; then 
 if [ "$1" != "status" ]; then
     /etc/init.d/eosha status 2>&1 | grep running >& /dev/null
     eoshastatus=$?
+    /etc/init.d/eosd status 2>&1 | grep running >& /dev/null
+    eosdstatus=$?
     if [ $eoshastatus = "0" ]; then
         if [ "$1" != "restart" ] && [ "$1" != "condrestart" ]; then 
 
@@ -283,6 +299,9 @@ if [ "$1" != "status" ]; then
             eoshaoff=1
         fi
     fi
+    if [ $eosdstatus = "0" ]; then
+	eosdoff=1
+    fi	
 fi
 fi
 fi

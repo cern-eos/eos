@@ -78,8 +78,10 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
   off_t offset = 0;
 
   char* buffer = (char*) malloc(buffersize);
-  if (!buffer)
+  if (!buffer) {
+    close(fd);
     return false;
+  }
 
   do {
     errno = 0;

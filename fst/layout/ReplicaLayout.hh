@@ -62,6 +62,7 @@ public:
   virtual int sync();
   virtual int close();
   virtual int remove() {return 0;} 
+  virtual int stat(struct stat *buf);
 
   virtual ~ReplicaLayout();
 };

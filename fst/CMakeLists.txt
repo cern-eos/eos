@@ -29,11 +29,15 @@ add_library (XrdEosFst MODULE
 	    layout/Raid5Layout.cc
 	    layout/ReplicaLayout.cc
 	    layout/ReplicaParLayout.cc
+	    layout/HeaderCRC.cc
+	    layout/RaidDPLayout.cc
+            layout/ReedSLayout.cc
 	    checksum/CheckSum.cc
 	    storage/Storage.cc
 	    Config.cc
 	    Load.cc
             ScanDir.cc
+            RaidDPScan.cc
 	    Messaging.cc
 	    XrdFstOfs.cc
             ../checksum/crc32c.cc
@@ -41,6 +45,7 @@ add_library (XrdEosFst MODULE
             txqueue/TransferMultiplexer.cc
             txqueue/TransferJob.cc
             txqueue/TransferQueue.cc
+            zfec/fec.cc
 	    )
 
 target_link_libraries (XrdEosFst eosCapability-Static eosCommon-Static XrdMqClient-Static XrdClient XrdUtils XrdOfs crypto uuid curses pthread dl z attr)
@@ -73,12 +78,20 @@ add_executable( eos-scan-fs
                 Load.cc
 )
 
+
 add_executable( eos-adler32
 		tools/Adler32.cc
                 checksum/CheckSum.cc
                 ../checksum/crc32c.cc
                 ../checksum/crc32ctables.cc
 )
+
+
+add_executable( eos-raid-recover
+                RaidDPScan.cc
+                tools/RecoverRaidDP.cc
+)
+
 
 add_executable( eosfstcp 
                 txqueue/eosfstcp.cc
@@ -101,6 +114,7 @@ target_link_libraries ( eos-scan-fs eosCommon )
 target_link_libraries ( eos-adler32 eosCommon ) 
 target_link_libraries ( eosfstcp XrdPosix ssl )
 target_link_libraries ( eos-fst-fsck XrdClient uuid eosCommon )
+target_link_libraries ( eos-raid-recover eosCommon)
 
 if (Linux)
   set_target_properties (XrdEosFst PROPERTIES
@@ -110,7 +124,7 @@ if (Linux)
   )
 endif(Linux)
 
-INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstinfo tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync tools/eosfstmgmcheck eos-adler32 eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-fst-fsck)
+INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstinfo tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync tools/eosfstmgmcheck eos-adler32 eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-fst-fsck eos-raid-recover)
 
 install ( TARGETS XrdEosFst eosfstcp
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}

@@ -42,6 +42,8 @@ namespace eos
   {
     pSubContainers.set_deleted_key( "" );
     pFiles.set_deleted_key( "" );
+    pSubContainers.set_empty_key( "##_EMPTY_##" );
+    pFiles.set_empty_key( "##_EMPTY_##" );
     pCTime.tv_sec = 0;
     pCTime.tv_nsec = 0;
   }

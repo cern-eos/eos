@@ -248,6 +248,13 @@ Raid5Layout::sync()
 
 /*----------------------------------------------------------------------------*/
 int
+Raid5Layout::stat(struct stat *buf) {
+  return SFS_OK;
+}
+
+
+/*----------------------------------------------------------------------------*/
+int
 Raid5Layout::close()
 {
   // write last parity chunk

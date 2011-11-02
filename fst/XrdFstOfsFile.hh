@@ -25,6 +25,8 @@
 #define __XRDFSTOFS_FSTOFSFILE_HH__
 
 /*----------------------------------------------------------------------------*/
+#include <sys/types.h>
+/*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/Fmd.hh"
 #include "common/ClientAdmin.hh"
@@ -47,14 +49,18 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId {
   friend class ReplicaLayout;
   friend class ReplicaParLayout;
   friend class Raid5Layout;
+  friend class RaidDPLayout;
+  friend class ReedSLayout;
 
 public:
   int          openofs(const char                *fileName,
-                       XrdSfsFileOpenMode   openMode,
-                       mode_t               createMode,
-                       const XrdSecEntity        *client,
-                       const char                *opaque = 0);
-
+		       XrdSfsFileOpenMode   openMode,
+		       mode_t               createMode,
+		       const XrdSecEntity        *client,
+		       const char                *opaque = 0, 
+		       bool openBlockXS=false,
+		       unsigned long lid=0 );
+  
   int          open(const char                *fileName,
                     XrdSfsFileOpenMode   openMode,
                     mode_t               createMode,
@@ -89,6 +95,7 @@ public:
   
   int          write(XrdSfsAio *aioparm);
 
+  int          stat(struct stat *buf);
   bool         verifychecksum();
   int          sync();
   int          syncofs();

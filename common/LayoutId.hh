@@ -48,7 +48,9 @@ public:
   enum eLayoutType   {
     kPlain   =0x0,
     kReplica =0x1, 
-    kRaid5   =0x2
+    kRaid5   =0x2,
+    kRaidDP  =0x3,
+    kReedS   =0x4
   };
   enum eBlockSize {
     k4k      =0x0,
@@ -113,6 +115,7 @@ public:
   static unsigned long GetLayoutType(unsigned long layout)   {return ( (layout>>4) & 0xf);}
   static unsigned long GetStripeNumber(unsigned long layout) {return ( (layout>>8) & 0xf);}
   static unsigned long GetBlocksize(unsigned long layout)  {return BlockSize(((layout>>16) & 0xf));}
+  static unsigned long GetBlocksizeType(unsigned long layout)  {return ((layout>>16) & 0xf);}
   static unsigned long GetBlockChecksum(unsigned long layout) { return ( (layout>>20) & 0xf);}
   static unsigned long MakeBlockChecksum(unsigned long xs) { return (xs<<20);}
   static unsigned long GetBlockChecksumLen(unsigned long layout) { return GetChecksumLen((layout>>20)& 0xf);}
@@ -121,23 +124,37 @@ public:
     if (GetLayoutType(layout) == kPlain)   return 1.0;
     if (GetLayoutType(layout) == kReplica) return 1.0 * (GetStripeNumber(layout)+1);
     if (GetLayoutType(layout) == kRaid5)   return (1.0 * (GetStripeNumber(layout)+1) / ( GetStripeNumber(layout)?GetStripeNumber(layout):1));
+    if (GetLayoutType(layout) == kRaidDP)  return 1.0 * (GetStripeNumber(layout)+2);
+    if (GetLayoutType(layout) == kReedS)   return 1.0 * (GetStripeNumber(layout)+2);
     return 1.0;
   }
 
   static size_t GetMinOnlineReplica(unsigned long layout) {
-    if (GetLayoutType(layout) == kRaid5)   return GetStripeNumber(layout);
+    if (GetLayoutType(layout) == kRaid5)   return (GetStripeNumber(layout));
+    if (GetLayoutType(layout) == kRaidDP)  return (GetStripeNumber(layout)-1);
+    if (GetLayoutType(layout) == kReedS)   return (GetStripeNumber(layout)-1);
     return 1;
   }
+
+  static unsigned long GetOnlineStripeNumber(unsigned long layout) {
+    if (GetLayoutType(layout) == kRaid5)   return (GetStripeNumber(layout)+1);
+    if (GetLayoutType(layout) == kRaidDP)  return (GetStripeNumber(layout)+1);
+    if (GetLayoutType(layout) == kReedS)   return (GetStripeNumber(layout)+1);
+    return (GetStripeNumber(layout)+1);
+  }
   
+
   static const char* GetChecksumString(unsigned long layout) { if (GetChecksum(layout)==kNone) return "none"; if (GetChecksum(layout)==kAdler) return "adler"; if (GetChecksum(layout)==kCRC32) return "crc32"; if (GetChecksum(layout)==kCRC32C) return "crc32c"; if (GetChecksum(layout)==kMD5) return "md5"; if (GetChecksum(layout)==kSHA1) return "sha"; return "none";}
   static const char* GetBlockChecksumString(unsigned long layout) { if (GetBlockChecksum(layout)==kNone) return "none"; if (GetBlockChecksum(layout)==kAdler) return "adler"; if (GetBlockChecksum(layout)==kCRC32) return "crc32"; if (GetBlockChecksum(layout)==kCRC32C) return "crc32c"; if (GetBlockChecksum(layout)==kMD5) return "md5"; if (GetBlockChecksum(layout)==kSHA1) return "sha"; return "none";}
 
-  static const char* GetLayoutTypeString(unsigned long layout) { if (GetLayoutType(layout) == kReplica) return "replica"; if (GetLayoutType(layout) == kRaid5) return "raid5"; return "plain";}
+  static const char* GetBlockSizeString(unsigned long layout) { if (GetBlocksize(layout)==k4k) return "4k"; if (GetBlocksize(layout)==k64k) return "k64k"; if (GetBlocksize(layout)==k128k) return "128k"; if (GetBlocksize(layout)==k256k) return "256k"; if (GetBlocksize(layout)==k512k) return "512k"; if (GetBlocksize(layout)==k1M) return "1M"; return "illegal";}
+
+  static const char* GetLayoutTypeString(unsigned long layout) { if (GetLayoutType(layout) == kReplica) return "replica"; if (GetLayoutType(layout) == kRaid5) return "raid5"; if (GetLayoutType(layout) == kRaidDP) return "raidDP"; if (GetLayoutType(layout) == kReedS) return "reedS"; return "plain";}
   static unsigned long GetChecksumFromEnv(XrdOucEnv &env)    {const char* val=0; if ( (val=env.Get("eos.layout.checksum")) ) { XrdOucString xsum=val; if (xsum == "adler") return kAdler; if (xsum == "crc32") return kCRC32; if (xsum == "crc32c") return kCRC32C; if (xsum == "md5") return kMD5; if (xsum == "sha") return kSHA1;} return kNone;}
   static unsigned long GetBlockChecksumFromEnv(XrdOucEnv &env)    {const char* val=0; if ( (val=env.Get("eos.layout.blockchecksum")) ) { XrdOucString xsum=val; if (xsum == "adler") return kAdler; if (xsum == "crc32") return kCRC32; if (xsum == "crc32c") return kCRC32C; if (xsum == "md5") return kMD5; if (xsum == "sha") return kSHA1;} return kNone;}
   static unsigned long GetBlocksizeFromEnv(XrdOucEnv &env)   {const char* val=0; if ( (val=env.Get("eos.layout.blocksize")) ) { XrdOucString bs=val;  if (bs == "4k") return k4k; if (bs == "64k") return k64k; if (bs == "128k") return k128k; if (bs == "256k") return k256k; if (bs == "512k") return k512k; if (bs == "1M") return k1M;} return 0;}
   
-  static unsigned long GetLayoutFromEnv(XrdOucEnv &env)      {const char* val=0; if ( (val=env.Get("eos.layout.type")) ) { XrdOucString typ=val; if (typ == "replica") return kReplica; if (typ == "raid5") return kRaid5;} return kPlain;}
+  static unsigned long GetLayoutFromEnv(XrdOucEnv &env)      {const char* val=0; if ( (val=env.Get("eos.layout.type")) ) { XrdOucString typ=val; if (typ == "replica") return kReplica; if (typ == "raid5") return kRaid5; if (typ == "raidDP") return kRaidDP; if (typ == "reedS") return kReedS;} return kPlain;}
   static unsigned long GetStripeNumberFromEnv(XrdOucEnv &env){const char* val=0; if ( (val=env.Get("eos.layout.nstripes"))) { int n = atoi(val); if ( ((n-1)>= kOneStripe) && ( (n-1) <= kSixteenStripe)) return (n);} return (kOneStripe+1);}
 
   LayoutId();

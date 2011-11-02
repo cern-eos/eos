@@ -67,6 +67,8 @@ public:
   virtual int close();
   virtual int remove() {return 0;}
 
+  virtual int stat(struct stat *buf);
+
   virtual ~Raid5Layout();
 };
 

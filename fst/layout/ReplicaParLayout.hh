@@ -63,6 +63,8 @@ public:
   virtual int close();
   virtual int remove();
 
+  virtual int stat(struct stat *buf);
+
   virtual ~ReplicaParLayout();
 };
 

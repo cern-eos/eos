@@ -237,7 +237,6 @@ int proc_fs_config(std::string &identifier, std::string &key, std::string &value
 int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, std::string &mountpoint, std::string &space, std::string &configstatus, XrdOucString &stdOut, XrdOucString  &stdErr, std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in) 
 {
   int retc=0;
-  bool ViewHasWriteLock=false;
   eos::common::FileSystem::fsid_t fsid = atoi(sfsid.c_str());
 
   if ( (!nodename.length()) || (!mountpoint.length()) || (!space.length()) || (!configstatus.length()) ||
@@ -254,8 +253,8 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
       rnodename.erase(dpos);
     }
 
-    // ========> ViewMutex READLOCK
-    FsView::gFsView.ViewMutex.LockRead();
+    // ========> ViewMutex WRITELOCK
+    FsView::gFsView.ViewMutex.LockWrite();
     
     // rough check that the filesystem is added from a host with the same tident ... anyway we should have configured 'sss' security
     if ( (vid_in.uid!=0) && ( (vid_in.prot != "sss") || tident.compare(0, tident.length(), rnodename, 0, tident.length()) )) {
@@ -383,12 +382,6 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
             
             if (!retc) {
               fs->SetString("schedgroup", splitgroup.c_str());
-
-              // ========> ViewMutex READUNLOCK
-              FsView::gFsView.ViewMutex.UnLockRead();
-              // ========> ViewMutex WRITELOCK
-              ViewHasWriteLock=true;
-              FsView::gFsView.ViewMutex.LockWrite();
               if (!FsView::gFsView.Register(fs)) {
                 // remove mapping
                 if (FsView::gFsView.RemoveMapping(fsid,uuid)) {
@@ -404,7 +397,10 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
               } 
               // set all the space related default parameters
               if (FsView::gFsView.mSpaceView.count(space)) {
-                FsView::gFsView.mSpaceView[space]->ApplySpaceDefaultParameters(fs);
+                if (FsView::gFsView.mSpaceView[space]->ApplySpaceDefaultParameters(fs)) {
+		  // store the modifications
+		  FsView::gFsView.StoreFsConfig(fs);
+		}
               }
 
             } else {
@@ -420,67 +416,11 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
       }
     }
     
-    if (ViewHasWriteLock) {
-      // ========> ViewMutex WRITEUnLOCK
-      FsView::gFsView.ViewMutex.UnLockWrite();
-    } else {
-      // ========> ViewMutex READUNLOCK
-      FsView::gFsView.ViewMutex.UnLockRead();
-    }
+    // ========> ViewMutex WRITEUnLOCK
+    FsView::gFsView.ViewMutex.UnLockWrite();
   }
   return retc;
 }
-
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
-//std::string proc_fs_fill(eos::common::FileSystem::fs_snapshot_t &snapshot, std::string space, bool random)
-//{
-//  std::string splitspace="";
-//  std::string splitgroup="";
-
-//  eos::common::StringConversion::SplitByPoint(space, splitspace, splitgroup);
-
-//  bool exists=false;
-//  std::map<std::string,FsGroup*>::const_iterator it;
-//  std::multimap<int, FsGroup*> sortedgroups;
-
-//  if (!random) {
-// create sorted multimap ordered by the number of rw filesystems
-//    for (it = FsView::gFsView.mGroupView.begin(); it != FsView::gFsView.mGroupView.end(); it++) {
-//      std::string ingroup, inindex;
-
-//      eos::common::StringConversion::SplitByPoint(it->mName, ingroup, inindex);
-
-//      if (ingroup  != splitspace)
-//        continue;
-
-//      int groupfilesystems = it->SumLongLong("<n>?configstatus=rw");
-//      sortedgroups.insert(std::pair(groupfilesystems, *it));
-//    }
-//    std::multimap<int, FsGroup*>::const_iterator sortedit;
-//    bool exists=true;
-//    for (sortedit = sortedgroups.begin(); sortedit != sortedgroup.end(); sortedit++) {
-//      // check if the node is already in that group
-//      exists=false;
-//std::set<eos::common::FileSystem::fsid_t>::const_iterator existit;
-// check if this node has not already a filesystem in this group
-//  for (existit = sortedit->begin(); existit != sortedit->end(); existit++) {
-//        if (FsView::gFsView.mIdView[*existit]->GetString("host") == snapshot.mHost) {
-//          // this subgroup has already this host
-//          exists=true;
-//        }
-//      }
-//      if (!exists) 
-//        break;
-//    }
-//    if (!exists) {
-//      // great this we can use
-//    } else {
-//      // open up a new group
-//    }
-        
-//  return space;
-//}
 
 /*----------------------------------------------------------------------------*/
 std::string 

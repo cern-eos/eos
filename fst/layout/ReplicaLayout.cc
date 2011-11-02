@@ -25,7 +25,10 @@
 #include "fst/layout/ReplicaLayout.hh"
 #include "fst/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdOss/XrdOssApi.hh"
 /*----------------------------------------------------------------------------*/
+
+extern XrdOssSys  *XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -238,6 +241,13 @@ ReplicaLayout::sync()
     return gOFS.Emsg("Repl}icaSync",*error, EREMOTEIO, "sync remote replica", replicaUrl.c_str());
   }  
   return rc1;
+}
+
+
+/*----------------------------------------------------------------------------*/
+int
+ReplicaLayout::stat(struct stat *buf) {
+  return XrdOfsOss->Stat(ofsFile->fstPath.c_str(),buf);
 }
 
 

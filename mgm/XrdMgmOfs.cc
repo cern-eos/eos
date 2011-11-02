@@ -485,17 +485,6 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 
   NAMESPACEMAP;
 
-  eos_info("path=%s info=%s",path,info);
-
-  MAYSTALL;
-  MAYREDIRECT;
-
-  openOpaque = new XrdOucEnv(info);
-  //  const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
-  //  char *opname;
-  //  int aop=0;
-  
-  //  mode_t acc_mode = Mode & S_IAMB;
   int open_flag = 0;
   
   int isRW = 0;
@@ -503,19 +492,6 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   bool isCreation = false;
 
   int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
-  
-  int rcode=SFS_ERROR;
-  
-  XrdOucString redirectionhost="invalid?";
-
-  XrdOucString targethost="";
-  int targetport = atoi(gOFS->MgmOfsTargetPort.c_str());
-
-  int ecode=0;
-  unsigned long fmdlid=0;
-  unsigned long long cid = 0;
-  
-  eos_debug("mode=%x [create=%x truncate=%x]", open_mode, SFS_O_CREAT, SFS_O_TRUNC);
 
   // Set the actual open mode and find mode
   //
@@ -548,6 +524,35 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
       break;
     }
   
+  if (isRW) {
+    eos_info("op=WRITE trunc=%d path=%s info=%s",open_mode & SFS_O_TRUNC, path,info);
+  } else {
+    eos_info("op=READ  path=%s info=%s",path,info);
+  }
+
+  MAYSTALL;
+  MAYREDIRECT;
+
+  openOpaque = new XrdOucEnv(info);
+  //  const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
+  //  char *opname;
+  //  int aop=0;
+  
+  //  mode_t acc_mode = Mode & S_IAMB;
+  
+  int rcode=SFS_ERROR;
+  
+  XrdOucString redirectionhost="invalid?";
+
+  XrdOucString targethost="";
+  int targetport = atoi(gOFS->MgmOfsTargetPort.c_str());
+
+  int ecode=0;
+  unsigned long fmdlid=0;
+  unsigned long long cid = 0;
+  
+  eos_debug("mode=%x [create=%x truncate=%x]", open_mode, SFS_O_CREAT, SFS_O_TRUNC);
+
   // proc filter
   if (ProcInterface::IsProcAccess(path)) {
     gOFS->MgmStats.Add("OpenProc",vid.uid,vid.gid,1);  
@@ -683,7 +688,6 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 
   // ACL and permission check
   Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
-
   eos_info("acl=%d r=%d w=%d wo=%d egroup=%d", acl.HasAcl(),acl.CanRead(),acl.CanWrite(),acl.CanWriteOnce(), acl.HasEgroup());
   bool stdpermcheck=false;
   if (acl.HasAcl()) {
@@ -851,6 +855,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, newlayoutId, space, *openOpaque, forcedFsId);
 
+
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex); // lock order 1
   eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);         // lock order 2
 
@@ -862,6 +867,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 
 
   if (isCreation || ( (open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation()))) {
+    eos_info("blocksize=%llu lid=%x", eos::common::LayoutId::GetBlocksize(newlayoutId), newlayoutId);
     layoutId = newlayoutId;
     // set the layout and commit new meta data 
     fmd->setLayoutId(layoutId);
@@ -929,6 +935,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   eos::mgm::FileSystem* filesystem = 0;
 
   std::vector<unsigned int> selectedfs;
+  std::vector<unsigned int> unavailfs;  // file systems which are unavailable during a read operation
   std::vector<unsigned int>::const_iterator sfs;
 
   int retc = 0;
@@ -958,7 +965,15 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
       return Emsg(epname, error, ENODEV,  "open - no replica exists", path);        
     }
 
-    retc = quotaspace->FileAccess(vid.uid, vid.gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW, fmd->getSize());
+    retc = quotaspace->FileAccess(vid.uid, vid.gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW, fmd->getSize(),unavailfs);
+
+    if (retc == EXDEV) {
+      // --------------------------------------------------------------
+      // indicating that the layout requires the replacement of stripes
+      // --------------------------------------------------------------
+      
+      retc = 0; // TODO: we currently don't support repair on the fly mode
+    }
   }
 
   if (retc) {
@@ -1061,7 +1076,11 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
       gOFS->MgmStats.Add("OpenFailedQuota",vid.uid,vid.gid,1);  
     }
 
-    return Emsg(epname, error, retc, "access quota space ", path);
+    if (isRW) {
+      return Emsg(epname, error, retc, "access quota space ", path);
+    } else {
+      return Emsg(epname, error, retc, "open file ", path);
+    }
   }
 
   // ************************************************************************************************
@@ -1085,7 +1104,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 
 
   // rebuild the layout ID (for read it should indicate only the number of available stripes for reading);
-  newlayoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::GetLayoutType(layoutId), eos::common::LayoutId::GetChecksum(layoutId), (int)selectedfs.size(), eos::common::LayoutId::GetBlocksize(layoutId), eos::common::LayoutId::GetBlockChecksum(layoutId));
+  newlayoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::GetLayoutType(layoutId), eos::common::LayoutId::GetChecksum(layoutId), (int)selectedfs.size(), eos::common::LayoutId::GetBlocksizeType(layoutId), eos::common::LayoutId::GetBlockChecksum(layoutId));
   capability += "&mgm.lid=";    
   capability += (int)newlayoutId;
   capability += "&mgm.bookingsize=";
@@ -1098,7 +1117,9 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     capability += "&mgm.localprefix="; capability+= filesystem->GetPath().c_str();
   }
 
-  if ( eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReplica ) {
+  if ((eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReplica) || 
+      (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kRaidDP) || 
+      (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReedS)) {
     capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
     capability += "&mgm.localprefix="; capability+= filesystem->GetPath().c_str();
     
@@ -1117,17 +1138,34 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
       }
       capability += "&mgm.url"; capability += i; capability += "=root://";
       XrdOucString replicahost=""; int replicaport = 0;
-      replicahost = repfilesystem->GetString("host").c_str();
+
+      // ------------------------------------------------------------------- 
+      // logic to mask 'offline' filesystems
+      // ------------------------------------------------------------------- 
+      bool exclude=false;
+      for (size_t k = 0; k < unavailfs.size(); k++) {
+	if (selectedfs[i] == unavailfs[k]) {
+	  exclude=true;
+	  break;
+	}
+      }
+
+      if (exclude) {
+	replicahost = "__offline_";
+	replicahost += repfilesystem->GetString("host").c_str();
+      } else {
+	replicahost = repfilesystem->GetString("host").c_str();
+      }
+
       replicaport = atoi(repfilesystem->GetString("port").c_str());
 
       capability += replicahost; capability += ":"; capability += replicaport; capability += "//";
       // add replica fsid
       capability += "&mgm.fsid"; capability += i; capability += "="; capability += (int)repfilesystem->GetId();
       capability += "&mgm.localprefix"; capability += i; capability += "=";capability+= repfilesystem->GetPath().c_str();
+
       eos_debug("Redirection Url %d => %s", i, replicahost.c_str());
     }
-    //    capability += "&mgm.path=";
-    //    capability += path;
   }
   
   // encrypt capability
@@ -1403,6 +1441,8 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
 
   EXEC_TIMING_BEGIN("Chmod");
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
   eos::ContainerMD* cmd = 0;
@@ -1455,6 +1495,8 @@ int XrdMgmOfs::_chown(const char               *path,    // In
   static const char *epname = "chown";
 
   EXEC_TIMING_BEGIN("Chown");
+
+  eos::common::Mapping::Copy(vid, this->vid);
 
   //-------------------------------------------
   gOFS->eosViewMutex.Lock();
@@ -1604,6 +1646,8 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   // try if that is directory
   EXEC_TIMING_BEGIN("Exists");
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("Exists",vid.uid,vid.gid,1);  
 
 
@@ -1716,6 +1760,8 @@ int XrdMgmOfs::_exists(const char                *path,        // In
 {
   EXEC_TIMING_BEGIN("Exists");
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("Exists",vid.uid,vid.gid,1);  
   
   // try if that is directory
@@ -1784,10 +1830,10 @@ int XrdMgmOfs::mkdir(const char              *inpath,    // In
 
   XTRACE(mkdir, path,"");
   
-  eos_info("path=%s",path);
-  
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  eos_info("path=%s",path);
+  
   MAYSTALL;
   MAYREDIRECT;
   
@@ -1813,17 +1859,21 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
 {
-  static const char *epname = "mkdir";
+  static const char *epname = "_mkdir";
   mode_t acc_mode = (Mode & S_IAMB) | S_IFDIR;
   errno = 0;
 
   EXEC_TIMING_BEGIN("Mkdir");
+
+  eos::common::Mapping::Copy(vid, this->vid);
 
   gOFS->MgmStats.Add("Mkdir",vid.uid,vid.gid,1);  
 
   //  const char *tident = error.getErrUser();
 
   XrdOucString spath= path;
+
+  eos_info("path=%s\n", spath.c_str());
 
   if (!spath.beginswith("/")) {
     errno = EINVAL;
@@ -2141,6 +2191,8 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   
   EXEC_TIMING_BEGIN("Rm");
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("Rm",vid.uid,vid.gid,1);  
 
   // Perform the actual deletion
@@ -2335,6 +2387,8 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
   errno = 0;
 
   EXEC_TIMING_BEGIN("RmDir");
+
+  eos::common::Mapping::Copy(vid, this->vid);
 
   gOFS->MgmStats.Add("RmDir",vid.uid,vid.gid,1);  
 
@@ -2573,6 +2627,9 @@ int XrdMgmOfs::_stat(const char              *path,        // In
   static const char *epname = "_stat";
 
   EXEC_TIMING_BEGIN("Stat");
+
+
+  eos::common::Mapping::Copy(vid, this->vid);
 
   gOFS->MgmStats.Add("Stat",vid.uid,vid.gid,1);  
   
@@ -2870,6 +2927,8 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
  
   EXEC_TIMING_BEGIN("Utimes");    
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("Utimes",vid.uid,vid.gid,1);  
 
   //-------------------------------------------
@@ -2927,6 +2986,8 @@ int XrdMgmOfs::_find(const char       *path,             // In
 
   EXEC_TIMING_BEGIN("Find");      
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("Find",vid.uid,vid.gid,1);  
 
   if (!(Path.endswith('/')))
@@ -2940,10 +3001,17 @@ int XrdMgmOfs::_find(const char       *path,             // In
   // users cannot return more than 250k files and 50k dirs with one find
 
   static unsigned long long finddiruserlimit  = 50000;
-  static unsigned long long findfileuserlimit = 2500;
+  static unsigned long long findfileuserlimit = 100000;
 
   unsigned long long filesfound=0;
   unsigned long long dirsfound=0;
+
+  bool limitresult = false;
+  bool limited = false;
+
+  if ( (vid.uid != 0) && (! eos::common::Mapping::HasUid(3, vid.uid_list)) && (! eos::common::Mapping::HasGid(4, vid.gid_list)) && (! vid.sudoer) ) {
+    limitresult = true;
+  }
 
   do {
     bool permok = false;
@@ -2986,6 +3054,15 @@ int XrdMgmOfs::_find(const char       *path,             // In
               }
             }
           } else {
+	    if (limitresult) {
+	      // apply the user limits for non root/admin/sudoers
+	      if (dirsfound >= finddiruserlimit) {
+		stdErr += "warning: find results are limited for users to ndirs="; stdErr += (int)finddiruserlimit; 
+		stdErr += " -  result is truncated!\n";
+		limited = true;
+		break;
+	      }
+	    }
             found_dirs[deepness+1].push_back(fpath);
             dirsfound++;
           }
@@ -2994,6 +3071,15 @@ int XrdMgmOfs::_find(const char       *path,             // In
         if (!nofiles) {
           eos::ContainerMD::FileMap::iterator fit;
           for ( fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit) {
+	    if (limitresult) {
+	      // apply the user limits for non root/admin/sudoers
+	      if (filesfound >= findfileuserlimit) {
+		stdErr += "warning: find results are limited for users to nfiles="; stdErr += (int)findfileuserlimit; 
+		stdErr += " -  result is truncated!\n";
+		limited = true;
+		break;
+	      }
+	    }
             std::string fpath = Path.c_str(); fpath += fit->second->getName(); 
             found_files[deepness].push_back(fpath);
             filesfound++;
@@ -3001,22 +3087,14 @@ int XrdMgmOfs::_find(const char       *path,             // In
         }
       }
       gOFS->eosViewMutex.UnLock();
+      if (limited) {
+	break;
+      }
     }
 
     deepness++;
-
-    if ( (vid.uid != 0) && (! eos::common::Mapping::HasUid(3, vid.uid_list)) && (! eos::common::Mapping::HasGid(4, vid.gid_list)) && (! vid.sudoer) ) {
-      // apply the user limits for non root/admin/sudoers
-      if (filesfound >= findfileuserlimit) {
-        stdErr += "warning: find results are limited for users to nfiles="; stdErr += (int)findfileuserlimit; 
-        stdErr += " -  result is truncated!\n";
-        break;
-      }
-      if (dirsfound >= finddiruserlimit) {
-        stdErr += "warning: find results are limited for users to ndirs="; stdErr += (int)finddiruserlimit; 
-        stdErr += " -  result is truncated!\n";
-        break;
-      }
+    if (limited) {
+      break;
     }
   } while (found_dirs[deepness].size());
   //-------------------------------------------  
@@ -3370,8 +3448,14 @@ XrdMgmOfs::FSctl(const int               cmd,
           //-------------------------------------------
           
           // uups, no such file anymore
-          return Emsg(epname,error,errno,"commit filesize change",spath);
+	  if (errno == ENOENT) {
+            return Emsg(epname,error, ENOENT, "commit filesize change - file is already removed [EIDRM]","");
+	  } else {
+	    return Emsg(epname,error,errno,"commit filesize change",spath);
+	  }
         } else {
+	  unsigned long lid = fmd->getLayoutId();
+
           // check if fsid and fid are ok 
           if (fmd->getId() != fid ) {
             gOFS->eosViewMutex.UnLock();
@@ -3403,19 +3487,22 @@ XrdMgmOfs::FSctl(const int               cmd,
               return Emsg(epname, error, EBADE, "commit replica - file size is wrong [EBADE]","");
             }
 
-            bool cxError=false;
-            for (int i=0 ; i< SHA_DIGEST_LENGTH; i++) {
-              if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i]) {
-                cxError=true;
-              }
-            }
-            if (cxError) {
-              gOFS->eosViewMutex.UnLock();
-              //-------------------------------------------
-              eos_err("replication for fid=%lu resulted in a different checksum on fsid=%llu - rejecting replica", fmd->getId(), fsid);
-              gOFS->MgmStats.Add("ReplicaFailedChecksum",0,0,1);
-              return Emsg(epname, error, EBADR, "commit replica - file checksum is wrong [EBADR]","");
-            }
+	    if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
+	      // we check the checksum only for replica layouts
+	      bool cxError=false;
+	      for (int i=0 ; i< SHA_DIGEST_LENGTH; i++) {
+		if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i]) {
+		  cxError=true;
+		}
+	      }
+	      if (cxError) {
+		gOFS->eosViewMutex.UnLock();
+		//-------------------------------------------
+		eos_err("replication for fid=%lu resulted in a different checksum on fsid=%llu - rejecting replica", fmd->getId(), fsid);
+		gOFS->MgmStats.Add("ReplicaFailedChecksum",0,0,1);
+		return Emsg(epname, error, EBADR, "commit replica - file checksum is wrong [EBADR]","");
+	      }
+	    }
           }
 
           if (verifysize) {
@@ -3981,8 +4068,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 	      while(response.replace("tmp.","user.eos.")){}
 	      while(response.replace("sys.","user.admin.")){}
             }
-	    fprintf(stderr,"reponse is %s %s %u\n",spath.c_str(),response.c_str(), map.size());
- 
             error.setErrInfo(response.length() + 1, response.c_str());
             return SFS_DATA;
           }
@@ -4241,6 +4326,8 @@ XrdMgmOfs::_attr_ls(const char             *path,
   
   EXEC_TIMING_BEGIN("AttrLs");      
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("AttrLs",vid.uid,vid.gid,1);  
   
   //-------------------------------------------
@@ -4288,6 +4375,8 @@ XrdMgmOfs::_attr_set(const char             *path,
   errno = 0;
 
   EXEC_TIMING_BEGIN("AttrSet");      
+
+  eos::common::Mapping::Copy(vid, this->vid);
 
   gOFS->MgmStats.Add("AttrSet",vid.uid,vid.gid,1);  
 
@@ -4340,6 +4429,8 @@ XrdMgmOfs::_attr_get(const char             *path,
 
   EXEC_TIMING_BEGIN("AttrGet");      
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("AttrGet",vid.uid,vid.gid,1);  
 
   if ( !key) 
@@ -4389,6 +4480,8 @@ XrdMgmOfs::_attr_rem(const char             *path,
 
   EXEC_TIMING_BEGIN("AttrRm");      
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("AttrRm",vid.uid,vid.gid,1);  
 
   if ( !key ) 
@@ -4435,6 +4528,8 @@ XrdMgmOfs::_verifystripe(const char             *path,
   eos::FileMD *fmd=0;
 
   EXEC_TIMING_BEGIN("VerifyStripe");      
+
+  eos::common::Mapping::Copy(vid, this->vid);
 
   errno = 0;
   unsigned long long fid=0;
@@ -4567,6 +4662,8 @@ XrdMgmOfs::_dropstripe(const char             *path,
 
   EXEC_TIMING_BEGIN("DropStripe");
 
+  eos::common::Mapping::Copy(vid, this->vid);
+
   gOFS->MgmStats.Add("DropStripe",vid.uid,vid.gid,1);  
 
   eos_debug("drop");
@@ -4673,6 +4770,8 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   
   EXEC_TIMING_BEGIN("ReplicateStripe");
   
+  eos::common::Mapping::Copy(vid, this->vid);
+
   eos::common::Path cPath(path);
 
   eos_debug("replicating %s from %u=>%u [drop=%d]", path, sourcefsid,targetfsid,dropsource);

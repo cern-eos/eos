@@ -14,8 +14,8 @@ Source: %{name}-%{version}-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 BuildRequires: cmake >= 2.6
-BuildRequires: xrootd-server >= 3.0.4
-BuildRequires: xrootd-server-devel  >= 3.0.4
+BuildRequires: xrootd-server >= 3.1.0
+BuildRequires: xrootd-server-devel  >= 3.1.0
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel
 BuildRequires: sparsehash
@@ -42,7 +42,7 @@ Group: Applications/File
 The EOS server installation containing MGM, FST & MQ service.
 
 
-Requires: xrootd-server >= 3.0.4
+Requires: xrootd-server >= 3.1.0
 Requires: eos-client
 
 %prep
@@ -167,7 +167,7 @@ The EOS shell client.
 Summary: The EOS fuse client
 Group: Applications/File
 
-Requires: xrootd-client >= 3.0.0
+Requires: xrootd-client >= 3.1.0
 Requires: eos-client
 
 %description -n eos-fuse

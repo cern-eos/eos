@@ -373,11 +373,36 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 /*----------------------------------------------------------------------------*/
 int          
 XrdFstOfsFile::openofs(const char                *path,
-                       XrdSfsFileOpenMode   open_mode,
-                       mode_t               create_mode,
-                       const XrdSecEntity        *client,
-                       const char                *opaque)
+		    XrdSfsFileOpenMode       open_mode,
+		    mode_t                 create_mode,
+		    const XrdSecEntity         *client,
+                    const char                 *opaque,
+                    bool                   openBlockXS, 
+                    unsigned long              lid)
 {
+  bool isRead = true;
+
+  if ( (open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
+		     SFS_O_CREAT  | SFS_O_TRUNC) ) != 0) {
+    isRead = false;
+  }
+  else{
+    //anyway we need to open for writing for the recovery case
+    open_mode |= SFS_O_RDWR;
+  }
+  
+  if (openBlockXS && isRead ) {
+    fstBlockXS = ChecksumPlugins::GetChecksumObject(lid, true);
+    fstBlockSize = eos::common::LayoutId::GetBlocksize(lid);
+    XrdOucString fstXSPath = fstBlockXS->MakeBlockXSPath(path);
+    struct stat buf;
+    if (!XrdOfsOss->Stat(path, &buf)) {
+      if (!fstBlockXS->OpenMap(fstXSPath.c_str(), buf.st_size, fstBlockSize, false)) {
+        eos_err("unable to create block checksum file");
+        return gOFS.Emsg("XrdFstOfsFile",error, EIO,"open - cannot get block checksum file",fstXSPath.c_str());
+      }
+    }
+  }
   return XrdOfsFile::open(path, open_mode, create_mode, client, opaque);
 }
 
@@ -504,6 +529,7 @@ XrdFstOfsFile::open(const char                *path,
   // extract blocksize from the layout
   fstBlockSize = eos::common::LayoutId::GetBlocksize(lid);
 
+  eos_info("blocksize=%llu lid=%x", fstBlockSize, lid);
   // check if this is an open for replication
   
   if (Path.beginswith("/replicate:")) {
@@ -523,7 +549,6 @@ XrdFstOfsFile::open(const char                *path,
   }
   
 
-
   open_mode |= SFS_O_MKPTH;
   create_mode|= SFS_O_MKPTH;
 
@@ -542,7 +567,6 @@ XrdFstOfsFile::open(const char                *path,
   } else {
     if (open_mode & SFS_O_CREAT) 
       open_mode -= SFS_O_CREAT;
-    openSize = statinfo.st_size;
   }
 
 
@@ -574,7 +598,7 @@ XrdFstOfsFile::open(const char                *path,
     if (!fstBlockXS->OpenMap(fstXSPath.c_str(), isCreation?bookingsize:statinfo.st_size,fstBlockSize, isRW)) {
       eos_err("unable to create block checksum file");
 
-      if (lid == eos::common::LayoutId::kReplica) {
+      if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
         // there was a blockchecksum open error
         if (!isRW) {
           int ecode=1094;
@@ -635,13 +659,7 @@ XrdFstOfsFile::open(const char                *path,
   }
 
   // call the checksum factory function with the selected layout
-
-  if (isRW || (opaqueCheckSum != "ignore")) {
-    // we always do checksums for reads if it was not explicitly switched off
-    checkSum = eos::fst::ChecksumPlugins::GetChecksumObject(lid);
-    eos_debug("checksum requested %d %u", checkSum, lid);
-  }
-
+  
   layOut = eos::fst::LayoutPlugins::GetLayoutObject(this, lid, &error);
 
   if( !layOut) {
@@ -652,6 +670,31 @@ XrdFstOfsFile::open(const char                *path,
   }
 
   layOut->SetLogId(logId, vid, tident);
+
+  if (isRW || ( ( opaqueCheckSum != "ignore") && 
+		((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) || 
+		 (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kPlain)))) {
+    
+    if ( ( (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaidDP) || 
+	   (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReedS  ) ) && 
+	 (!layOut->IsEntryServer())) {
+      // this case we need to exclude!
+    } else {
+      // we always do checksums for writes and reads for kPlain & kReplica if it was not explicitly switched off 
+      checkSum = eos::fst::ChecksumPlugins::GetChecksumObject(lid);
+      eos_debug("checksum requested %d %u", checkSum, lid);
+    }
+  }
+
+  if (!isCreation) {
+    // get the real size of the file, not the local stripe size!
+    if ((retc = layOut->stat(&statinfo))) {
+      return gOFS.Emsg(epname,error, EIO, "open - cannot stat layout to determine file size",Path.c_str());
+    }
+    // we feed the layout size, not the physical on disk!
+    openSize = statinfo.st_size;
+  }
+
 
   int rc = layOut->open(fstPath.c_str(), open_mode, create_mode, client, stringOpaque.c_str());
 
@@ -696,7 +739,7 @@ XrdFstOfsFile::open(const char                *path,
 
   if ((!isRW) && (filecxerror == "1")) {
     // if we have a replica layout
-    if (lid == eos::common::LayoutId::kReplica) {
+    if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
       // there was a checksum error during the last scan
       if (layOut->IsEntryServer()) {
         int ecode=1094;
@@ -759,6 +802,8 @@ XrdFstOfsFile::open(const char                *path,
       }
     }
   }
+
+  eos_debug("OPEN FINISHED!\n");
   return rc;
 }
 
@@ -776,7 +821,9 @@ XrdFstOfsFile::closeofs()
     struct stat statinfo;
     if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
       rc = gOFS.Emsg(epname,error, EIO, "close - cannot stat closed file to determine file size",Path.c_str());
-    } else {
+    }
+
+    if (!rc) {
       // check if there is more than one writer in this moment or a reader , if yes, we don't recompute wholes in the checksum and we don't truncate the checksum map, the last single writer will do that
       // ---->
       eos_info("%s wopen=%d ropen=%d fsid=%ld fid=%lld",fstPath.c_str(), (gOFS.WOpenFid[fsid].count(fileid))?gOFS.WOpenFid[fsid][fileid]:0 , (gOFS.ROpenFid[fsid].count(fileid))?gOFS.ROpenFid[fsid][fileid]:0, fsid, fileid);
@@ -848,16 +895,16 @@ XrdFstOfsFile::verifychecksum()
       }
     } else {
       // this was prefect streaming I/O
-      if (checkSum->GetLastOffset() == openSize) {
-	checkSum->Finalize();
-      } else {
-	eos_info("Skipping checksum (re-scan) since file was not read completely ...");
+      if ((!isRW) && (checkSum->GetLastOffset() != openSize)) {
+        eos_info("Skipping checksum (re-scan) since file was not read completely ...");
         // remove the checksum object
         delete checkSum;
         checkSum=0;
         return false;
       }
     }
+    
+    checkSum->Finalize();
 
     if (isRW) {
       eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
@@ -904,49 +951,46 @@ XrdFstOfsFile::verifychecksum()
 int
 XrdFstOfsFile::close()
 {
-  EPNAME("close");
-  int rc = 0;;
-  bool checksumerror=false;
-  if ( opened && (!closed) && fMd) {
-    eos_info("");
+ EPNAME("close");
+ int rc = 0;
+ bool checksumerror=false;
+ if ( opened && (!closed) && fMd) {
+   eos_info("");
 
-    if (isCreation) {
-      // if we had space allocation we have to truncate the allocated space to the real size of the file
-      if (layOut) {
-        if ( (long long)maxOffsetWritten>(long long)openSize)
-          layOut->truncate(maxOffsetWritten);
-      }
-    }
+   if (isCreation) {
+     // if we had space allocation we have to truncate the allocated space to the real size of the file
+     if ((strcmp(layOut->GetName(), "raidDP") == 0) || (strcmp(layOut->GetName(), "reedS") == 0)){
+       if (layOut->IsEntryServer())
+	 layOut->truncate(maxOffsetWritten);
+     } else {
+       if ( (long long)maxOffsetWritten>(long long)openSize)
+	 layOut->truncate(maxOffsetWritten);
+     }
+   }
 
-    checksumerror = verifychecksum();
+   checksumerror = verifychecksum();
 
-    // store the entry server information before closing the layout
-    bool isEntryServer=false;
-    if (layOut->IsEntryServer()) {
-      isEntryServer=true;
-    }
+   // store the entry server information before closing the layout
+   bool isEntryServer=false;
+   if (layOut->IsEntryServer()) {
+     isEntryServer=true;
+   }
 
+   // first we assume that, if we have writes, we update it
+   closeSize = openSize;
 
-    if (layOut) {
-      rc = layOut->close();
-    } else {
-      rc = closeofs();
-    }
-
-    // first we assume that, if we have writes, we update it
-    closeSize = openSize;
-
-    if (haswrite || isCreation ) {
-      // commit meta data
-      struct stat statinfo;
-      if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
-        rc = gOFS.Emsg(epname,error, EIO, "close - cannot stat closed file to determine file size",Path.c_str());
-      } else {
-        if ( (statinfo.st_size==0) || haswrite) {
-          // update size
-          closeSize = statinfo.st_size;
-          fMd->fMd.size     = statinfo.st_size;
-          fMd->fMd.mtime    = statinfo.st_mtime;
+   if (haswrite || isCreation ) {
+     // commit meta data
+     struct stat statinfo;
+     if ((rc = layOut->stat(&statinfo))) {
+       rc = gOFS.Emsg(epname,error, EIO, "close - cannot stat closed layout to determine file size",Path.c_str());
+     }
+     if (!rc) {
+       if ( (statinfo.st_size==0) || haswrite) {
+         // update size
+         closeSize = statinfo.st_size;
+         fMd->fMd.size     = statinfo.st_size;
+         fMd->fMd.mtime    = statinfo.st_mtime;
 #ifdef __APPLE__
           fMd->fMd.mtime_ns = 0;
 #else
@@ -1012,7 +1056,7 @@ XrdFstOfsFile::close()
             // the entry server commits size and checksum
             capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
           } else {
-            capOpaqueFile += "&mgm.replication=1";
+	    capOpaqueFile += "&mgm.replication=1";
           }
 
           rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
@@ -1051,6 +1095,13 @@ XrdFstOfsFile::close()
         gOFS.Storage->CloseTransaction(fsid, fileid);
       }
     }
+    
+    if (layOut) {
+      rc = layOut->close();
+    } else {
+      rc = closeofs();
+    }
+
    
     closed = true;
 
@@ -1237,6 +1288,8 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
   gettimeofday(&cTime,&tz);
   rCalls++;
 
+  eos_debug("XrdFstOfsFile: read - fileOffset: %lli, buffer_size: %i\n", fileOffset, buffer_size);
+
   int rc = layOut->read(fileOffset,buffer,buffer_size);
 
   if ((rc>0) && (checkSum)) {
@@ -1332,7 +1385,6 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
 
     if ( (unsigned long long)(fileOffset + buffer_size)> (unsigned long long)maxOffsetWritten)
       maxOffsetWritten = (fileOffset + buffer_size);
-
   }
 
   gettimeofday(&lwTime,&tz);
@@ -1415,6 +1467,26 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
 
   return layOut->truncate(fileOffset);
 }
+
+
+/*----------------------------------------------------------------------------*/
+int          
+XrdFstOfsFile::stat(struct stat *buf)
+{
+  EPNAME("stat");
+  int rc = SFS_OK ;
+
+  if (layOut) {
+    if ((rc = layOut->stat(buf))) {
+      rc = gOFS.Emsg(epname,error, EIO, "stat - cannot stat layout to determine file size ",Path.c_str());
+    }
+  } else {
+    rc = gOFS.Emsg(epname,error, ENXIO, "stat - no layout to determine file size ",Path.c_str());
+  }
+  
+  return rc;
+}
+
 
 /*----------------------------------------------------------------------------*/
 void
@@ -1789,7 +1861,7 @@ XrdFstOfs::FSctl(const int               cmd,
           } else {
             for (ssize_t k=0; k<attr_length; k++) {
               char hex[4];
-              snprintf(hex,sizeof(hex-1),"%02x", (unsigned char) value[3-k]);
+              snprintf(hex,sizeof(hex-1),"%02x", (unsigned char) value[k]);
               attr += hex;
             }
           }

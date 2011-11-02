@@ -96,7 +96,7 @@ Policy::GetLayoutAndSpace(const char* path, eos::ContainerMD::XAttrMap &attrmap,
     XrdOucEnv layoutenv(layoutstring.c_str());
     // we force to use a specified stripe width in this directory even if the user wants something else
     blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(layoutenv);
-    eos_static_debug("sys.forced.blocksize in %s",path);
+    eos_static_debug("sys.forced.blocksize in %s : %llu",path, blocksize);
   }
 
   if ( ((!attrmap.count("sys.forced.nouserlayout")) || (attrmap["sys.forced.nouserlayout"] != "1")) &&

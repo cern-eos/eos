@@ -24,7 +24,10 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/PlainLayout.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdOss/XrdOssApi.hh"
 /*----------------------------------------------------------------------------*/
+
+extern XrdOssSys *XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -80,6 +83,14 @@ int
 PlainLayout::sync() 
 {
   return ofsFile->syncofs();
+}
+
+
+/*----------------------------------------------------------------------------*/
+int
+PlainLayout::stat(struct stat *buf) 
+{
+  return XrdOfsOss->Stat(ofsFile->fstPath.c_str(),buf);
 }
 
 

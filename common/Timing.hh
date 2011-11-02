@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2011 CERN/ASwitzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -54,14 +54,10 @@ public:
     maintag = i_maintag;
   }
 
-  void Print(XrdOucTrace &trace) {
+  void Print() {
     char msg[512];
-    if (!(trace.What & 0x8000)) 
-      return;
     Timing* p = this->next;
     Timing* n; 
-    trace.Beg("Timing");
-
     cerr << std::endl;
     while ((n =p->next)) {
 
@@ -73,7 +69,6 @@ public:
     p = this->next;
     sprintf(msg,"                                        =%12s= %12s<=>%-12s : %.03f\n",maintag.c_str(),p->tag.c_str(), n->tag.c_str(), (float)((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec))/1000.0);
     cerr << msg;
-    trace.End();
   }
 
   virtual ~Timing(){Timing* n = next; if (n) delete n;};
@@ -91,18 +86,15 @@ public:
   }    
 };
 
-#define TIMING(__trace__, __ID__,__LIST__)                      \
-  if (__trace__.What & TRACE_debug)                             \
-    do {                                                        \
-      struct timeval tp;                                        \
-      struct timezone tz;                                       \
-      gettimeofday(&tp, &tz);                                   \
-      (__LIST__)->ptr->next=new eos::common::Timing(__ID__,tp); \
-      (__LIST__)->ptr = (__LIST__)->ptr->next;                  \
-    } while(0);                                                 \
-                                                                \
-                                                                \
-                                                                \
+#define TIMING( __ID__,__LIST__)                                \
+  do {								\
+    struct timeval tp;						\
+    struct timezone tz;						\
+    gettimeofday(&tp, &tz);					\
+    (__LIST__)->ptr->next=new eos::common::Timing(__ID__,tp);	\
+    (__LIST__)->ptr = (__LIST__)->ptr->next;			\
+  } while(0);							
+
 
 EOSCOMMONNAMESPACE_END
  

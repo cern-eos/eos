@@ -3218,12 +3218,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                   } else {
                     unsigned long fsIndex; // this defines the fs to use in the selectefs vector
                     std::vector<unsigned int> selectedfs;
+		    std::vector<unsigned int> unavailfs;
                     // fill the existing locations
                     for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
                       selectedfs.push_back(*lociter);
                     }
-                    
-                    if (!(errno=quotaspace->FileAccess(vid_in.uid, vid_in.gid, (unsigned long)0, space.c_str(), (unsigned long)fmd->getLayoutId(), selectedfs, fsIndex, false, (long long unsigned) 0))) {
+
+                    if (!(errno=quotaspace->FileAccess(vid_in.uid, vid_in.gid, (unsigned long)0, space.c_str(), (unsigned long)fmd->getLayoutId(), selectedfs, fsIndex, false, (long long unsigned) 0, unavailfs))) {
                       // this is now our source filesystem
                       unsigned int sourcefsid = selectedfs[fsIndex];
                       // now the just need to ask for <n> targets
@@ -3677,7 +3678,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 stdOut += hb;
               }
               stdOut+="\n";
-              stdOut +  "Layout: "; stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId()); stdOut += " Stripes: "; stdOut += (int)(eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1);
+              stdOut +  "Layout: "; stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId()); stdOut += " Stripes: "; stdOut += (int)(eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1); stdOut += "Blocksize: "; stdOut += eos::common::LayoutId::GetBlockSizeString(fmd->getLayoutId());
               stdOut += " *******\n";
               stdOut += "  #Rep: "; stdOut += (int)fmd->getNumLocation(); stdOut+="\n";       
             } else {
@@ -3726,7 +3727,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                   if (!Monitoring) {
                     std::string out="";
                     stdOut += "<#> <fs-id> ";
-                    std::string format="header=1|indent=12|headeronly=1|key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
+                    std::string format="header=1|indent=12|headeronly=1|key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s";
                     filesystem->Print(out, format);
                     stdOut += out.c_str();
                   }               
@@ -3736,7 +3737,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                   stdOut += fsline; 
                   
                   std::string out="";
-                  std::string format="key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s";
+                  std::string format="key=host:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s";
                   filesystem->Print(out, format);
                   stdOut += out.c_str();
                 } else {
@@ -3803,6 +3804,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         if (option == "p") {
           mode |= SFS_O_MKPTH;
         }
+	fprintf(stderr,"uid=%u gid=%u\n", vid_in.uid, vid_in.gid);
         if (gOFS->_mkdir(spath.c_str(), mode, *error, vid_in,(const char*)0)) {
           stdErr += "error: unable to create directory";
           retc = errno;

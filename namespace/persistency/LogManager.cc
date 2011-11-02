@@ -25,6 +25,7 @@
 #include "namespace/persistency/ChangeLogFile.hh"
 #include "namespace/persistency/ChangeLogConstants.hh"
 #include <google/sparse_hash_map>
+#include <google/dense_hash_map>
 #include <iomanip>
 
 namespace
@@ -32,7 +33,7 @@ namespace
   //----------------------------------------------------------------------------
   // Record scanner
   //----------------------------------------------------------------------------
-  typedef google::sparse_hash_map<uint64_t, uint64_t> RecordMap;
+  typedef google::dense_hash_map<uint64_t, uint64_t> RecordMap;
   class CompactingScanner: public eos::ILogRecordScanner
   {
   public:
@@ -136,6 +137,8 @@ namespace eos
     time_t            startTime = time( 0 );
     CompactingScanner scanner( map, feedback, stats, startTime );
     map.set_deleted_key( 0 );
+    map.set_empty_key( 0xffffffffffffffff );
+    map.resize(10000000);
     inputFile.scanAllRecords( &scanner );
     stats.recordsKept = map.size();
 

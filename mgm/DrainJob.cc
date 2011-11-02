@@ -393,7 +393,8 @@ DrainJob::Drain(void)
                     }
                     // schedule access to that file as a plain file
                     int retc=0;
-                    if ((!space) || (retc=space->FileAccess((uid_t)0,(gid_t)0,(long unsigned int)0, (const char*) 0, lid, locationfs, fsindex, false, (long long unsigned)0))) {
+		    std::vector<unsigned int> unavailfs; // not used
+                    if ((!space) || (retc=space->FileAccess((uid_t)0,(gid_t)0,(long unsigned int)0, (const char*) 0, lid, locationfs, fsindex, false, (long long unsigned)0, unavailfs))) {
                       // uups, we cannot access this file at all, add it to the lost files
                       eos_static_crit("File fid=%lu [%d] is lost - no replica accessible during drain operation errno=%d\n", fid, locationfs.size(),retc);
 

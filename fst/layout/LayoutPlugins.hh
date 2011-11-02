@@ -33,6 +33,8 @@
 #include "fst/layout/ReplicaLayout.hh"
 #include "fst/layout/ReplicaParLayout.hh"
 #include "fst/layout/Raid5Layout.hh"
+#include "fst/layout/RaidDPLayout.hh"
+#include "fst/layout/ReedSLayout.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -52,6 +54,13 @@ public:
     if (eos::common::LayoutId::GetLayoutType(layoutid) == eos::common::LayoutId::kRaid5) {
       return (Layout*)new Raid5Layout(thisFile,layoutid, error);
     }
+    if (eos::common::LayoutId::GetLayoutType(layoutid) == eos::common::LayoutId::kRaidDP) {
+      return (Layout*)new RaidDPLayout(thisFile,layoutid, error);
+    }
+    if (eos::common::LayoutId::GetLayoutType(layoutid) == eos::common::LayoutId::kReedS) {
+      return (Layout*)new ReedSLayout(thisFile,layoutid, error);
+    }
+
     return 0;
   }
 };

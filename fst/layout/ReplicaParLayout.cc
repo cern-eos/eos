@@ -25,7 +25,10 @@
 #include "fst/layout/ReplicaParLayout.hh"
 #include "fst/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdOss/XrdOssApi.hh"
 /*----------------------------------------------------------------------------*/
+
+extern XrdOssSys  *XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -277,6 +280,14 @@ ReplicaParLayout::truncate(XrdSfsFileOffset offset)
     return gOFS.Emsg("ReplicaParTruncate",*error, EREMOTEIO, "truncate remote replica");
   }
   return rc1;
+}
+
+
+/*----------------------------------------------------------------------------*/
+int
+ReplicaParLayout::stat(struct stat *buf) 
+{
+  return XrdOfsOss->Stat(ofsFile->fstPath.c_str(),buf);
 }
 
 /*----------------------------------------------------------------------------*/

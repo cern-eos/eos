@@ -29,6 +29,8 @@
 #include "namespace/IContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFile.hh"
 
+#include <google/dense_hash_map>
+#include <google/sparse_hash_map>
 #include <list>
 #include <map>
 
@@ -46,6 +48,8 @@ namespace eos
     ChangeLogContainerMDSvc(): pFirstFreeId( 0 )
     {
       pIdMap.set_deleted_key( 0 );
+      pIdMap.set_empty_key( 0xffffffffffffffff );
+      pIdMap.resize(1000000);
       pChangeLog = new ChangeLogFile;
     }
 
@@ -132,7 +136,7 @@ namespace eos
       ContainerMD *ptr;
     };
 
-    typedef google::sparse_hash_map<ContainerMD::id_t, DataInfo> IdMap;
+    typedef google::dense_hash_map<ContainerMD::id_t, DataInfo> IdMap;
     typedef std::list<IContainerMDChangeListener*>               ListenerList;
 
     //------------------------------------------------------------------------
