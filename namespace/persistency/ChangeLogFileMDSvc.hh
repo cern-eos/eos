@@ -147,7 +147,7 @@ namespace eos
       FileMD   *ptr;
     };
 
-    typedef google::sparse_hash_map<FileMD::id_t, DataInfo> IdMap;
+    typedef google::dense_hash_map<FileMD::id_t, DataInfo> IdMap;
     typedef std::list<IFileMDChangeListener*>               ListenerList;
 
     //------------------------------------------------------------------------
