@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/perl
 # ----------------------------------------------------------------------
-# File: eosadmin
+# File: eosreport
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
 
@@ -22,17 +22,28 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+my $year = $ARGV[0];
+my $month = $ARGV[1];
+my $day = $ARGV[2];
+my $file = "/var/eos/report/$year/$month/$year$month$day.eosreport";
+print "# Opening $file ...";
 
-test -r /etc/sysconfig/eos && . /etc/sysconfig/eos
-test -r /etc/quattor_install_info && . /etc/quattor_install_info
-
-# set the redirector name like the quattor cluster name
-if [ "x$EOS_MGM_URL" = "x" ]; then
-        EOS_MGM_URL=root://$CDB_CLUSTER
-fi
-
-export EOS_MGM_URL
-export XrdSecPROTOCOL=sss
-eos $*
-
+if (open IN ," $file") {
+    while (<IN>) {
+	$_ =~ s/\&/\ /g;
+	my @val = split (" ", $_);
+	my $hash;
+	foreach $kv (@val) {
+	my ($key, $val) = split( "=",$kv);
+	$hash->{$key} = $val;
+    }
+	my $time = ($hash->{cts}*1000) + $hash->{ctms} - ($hash->{ots}*1000) - $hash->{otms};
+	if ($time) {
+	    printf("%s uid=%s gid=%s r-bytes=%-10s\tr-rate=%03.02f\tr-size=%03.02f MB\tw-bytes=%-10s\tw-rate=%03.02f\tw-size=%03.02f MB path=%s\n", scalar localtime($hash->{ots}), $hash->{ruid}, $hash->{rgid}, $hash->{rb}, $hash->{rb} / $time /1000.0, $hash->{rb}/1000000.0, $hash->{wb}, $hash->{wb} / $time/1000.0, $hash->{wb}/1000000.0, $hash->{path});
+	}
+    }
+} else {
+    print "\n";
+    print "# Usage: eosreport <year> <month> <day>\n";
+}
 
