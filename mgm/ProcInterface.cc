@@ -3678,7 +3678,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 stdOut += hb;
               }
               stdOut+="\n";
-              stdOut +  "Layout: "; stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId()); stdOut += " Stripes: "; stdOut += (int)(eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1); stdOut += "Blocksize: "; stdOut += eos::common::LayoutId::GetBlockSizeString(fmd->getLayoutId());
+              stdOut +  "Layout: "; stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId()); stdOut += " Stripes: "; stdOut += (int)(eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1); stdOut += " Blocksize: "; stdOut += eos::common::LayoutId::GetBlockSizeString(fmd->getLayoutId());
               stdOut += " *******\n";
               stdOut += "  #Rep: "; stdOut += (int)fmd->getNumLocation(); stdOut+="\n";       
             } else {

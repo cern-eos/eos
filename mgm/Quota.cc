@@ -426,7 +426,7 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
       eos_static_debug("loop %d %d", groupentries, sortgidarray[groupentries]);
       groupentries++;
     }
-    
+
     sort(sortuidarray,sortuidarray+userentries);
     sort(sortgidarray,sortgidarray+groupentries);
     
@@ -439,11 +439,13 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
       eos_static_debug("sort %d %d", k, sortgidarray[k]);
     }
     
+    std::vector <std::string> uidout;
+    std::vector <std::string> gidout;
     
     if (userentries) {
       // user loop
       if (!monitoring) {
-        sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kUserBytesIs), GetTagName(kUserBytesIs), GetTagName(kUserLogicalBytesIs), GetTagName(kUserFilesIs),GetTagName(kUserBytesTarget), GetTagName(kUserLogicalBytesTarget), GetTagName(kUserFilesTarget), "filled[%]", "vol-status","ino-status");
+        sprintf(headerline,"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kUserBytesIs), GetTagName(kUserBytesIs), GetTagName(kUserLogicalBytesIs), GetTagName(kUserFilesIs),GetTagName(kUserBytesTarget), GetTagName(kUserLogicalBytesTarget), GetTagName(kUserFilesTarget), "filled[%]", "vol-status","ino-status");
         output+= headerline;
       }
     }
@@ -469,7 +471,7 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
         if (!getpwuid_r(sortuidarray[lid], &pwbuf, buffer, buflen, &pwbufp)) {
           char uidlimit[16];
           if (pwbuf.pw_name) {
-            snprintf(uidlimit,8,"%s",pwbuf.pw_name);
+            snprintf(uidlimit,11,"%s",pwbuf.pw_name);
             id = uidlimit;
           }
         }
@@ -477,7 +479,7 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
 
       XrdOucString percentage="";
       if (!monitoring) {
-        sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() ,
+        sprintf(headerline,"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() ,
                 eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kUserBytesIs,sortuidarray[lid]),"B"), 
                 eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kUserLogicalBytesIs,sortuidarray[lid]),"B"), 
                 eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kUserFilesIs,sortuidarray[lid]),"-"), 
@@ -500,14 +502,25 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
                 GetQuotaStatus(GetQuota(kUserFilesIs,sortuidarray[lid]), GetQuota(kUserFilesTarget,sortuidarray[lid])));
       }
       
-      output += headerline;
+      if (!translateids) {
+	output += headerline;
+      } else {
+	uidout.push_back(headerline);
+      }
     }
     
+    if (translateids) {
+      std::sort(uidout.begin(),uidout.end());
+      for (size_t i=0; i<uidout.size(); i++) {
+	output += uidout[i].c_str();
+      }
+    }
+
     if (groupentries) {
       // group loop
       if (!monitoring) {
         output+="# ...............................................................................................\n";
-        sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kGroupBytesIs), GetTagName(kGroupBytesIs), GetTagName(kGroupLogicalBytesIs), GetTagName(kGroupFilesIs), GetTagName(kGroupBytesTarget), GetTagName(kGroupLogicalBytesTarget), GetTagName(kGroupFilesTarget), "filled[%]", "vol-status","ino-status");
+        sprintf(headerline,"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kGroupBytesIs), GetTagName(kGroupBytesIs), GetTagName(kGroupLogicalBytesIs), GetTagName(kGroupFilesIs), GetTagName(kGroupBytesTarget), GetTagName(kGroupLogicalBytesTarget), GetTagName(kGroupFilesTarget), "filled[%]", "vol-status","ino-status");
         output+= headerline;
       }
     }
@@ -532,14 +545,14 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
         
         if (!getgrgid_r(sortgidarray[lid], &grbuf, buffer, buflen, &grbufp)) {
           char gidlimit[16];
-          snprintf(gidlimit,8,"%s",grbuf.gr_name);
+          snprintf(gidlimit,11,"%s",grbuf.gr_name);
           id = gidlimit;
         }
       }
 
       XrdOucString percentage="";
       if (!monitoring) {
-        sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() ,
+        sprintf(headerline,"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() ,
                 eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kGroupBytesIs,sortgidarray[lid]),"B"), 
                 eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kGroupLogicalBytesIs,sortgidarray[lid]),"B"), 
                 eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kGroupFilesIs,sortgidarray[lid]),"-"), 
@@ -561,9 +574,20 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
                 GetQuotaStatus(GetQuota(kGroupBytesIs,sortgidarray[lid]), GetQuota(kGroupBytesTarget,sortgidarray[lid])),
                 GetQuotaStatus(GetQuota(kGroupFilesIs,sortgidarray[lid]), GetQuota(kGroupFilesTarget,sortgidarray[lid])));
       }
-      output += headerline;
+      if (!translateids) {
+	output += headerline;
+      } else {
+	gidout.push_back(headerline);
+      }
     }
     
+    if (translateids) {
+      std::sort(gidout.begin(),gidout.end());
+      for (size_t i=0; i<gidout.size(); i++) {
+	output += gidout[i].c_str();
+      }
+    }
+
     if ( (uid_sel <0) && (gid_sel <0)) {
       if (!monitoring) {
         output+="# ----------------------------------------------------------------------------------------------------------\n";
@@ -581,9 +605,9 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
       XrdOucString percentage="";
       
       if (!monitoring) {
-        sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kAllUserBytesIs), GetTagName(kAllUserBytesIs), GetTagName(kAllUserLogicalBytesIs), GetTagName(kAllUserFilesIs), GetTagName(kAllUserBytesTarget), GetTagName(kAllUserLogicalBytesTarget), GetTagName(kAllUserFilesTarget), "filled[%]", "vol-status", "ino-status");
+        sprintf(headerline,"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kAllUserBytesIs), GetTagName(kAllUserBytesIs), GetTagName(kAllUserLogicalBytesIs), GetTagName(kAllUserFilesIs), GetTagName(kAllUserBytesTarget), GetTagName(kAllUserLogicalBytesTarget), GetTagName(kAllUserFilesTarget), "filled[%]", "vol-status", "ino-status");
         output += headerline;
-        sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() ,
+        sprintf(headerline,"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() ,
                 eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kAllUserBytesIs,0),"B"), 
                 eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kAllUserLogicalBytesIs,0),"B"), 
                 eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kAllUserFilesIs,0),"-"), 
@@ -608,9 +632,9 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
       output += headerline;
 
       if (!monitoring) {
-        sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kAllGroupBytesIs), GetTagName(kAllGroupBytesIs), GetTagName(kAllGroupLogicalBytesIs), GetTagName(kAllGroupFilesIs), GetTagName(kAllGroupBytesTarget), GetTagName(kAllGroupLogicalBytesTarget), GetTagName(kAllGroupFilesTarget), "filled[%]", "vol-status","ino-status");
+        sprintf(headerline,"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", GetTagCategory(kAllGroupBytesIs), GetTagName(kAllGroupBytesIs), GetTagName(kAllGroupLogicalBytesIs), GetTagName(kAllGroupFilesIs), GetTagName(kAllGroupBytesTarget), GetTagName(kAllGroupLogicalBytesTarget), GetTagName(kAllGroupFilesTarget), "filled[%]", "vol-status","ino-status");
         output += headerline;
-        sprintf(headerline,"%-8s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , 
+        sprintf(headerline,"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str() , 
                 eos::common::StringConversion::GetReadableSizeString(value1, GetQuota(kAllGroupBytesIs,0),"B"), 
                 eos::common::StringConversion::GetReadableSizeString(value2, GetQuota(kAllGroupLogicalBytesIs,0),"B"), 
                 eos::common::StringConversion::GetReadableSizeString(value3, GetQuota(kAllGroupFilesIs,0),"-"), 
