@@ -30,7 +30,7 @@
 #include <utility>
 #include <list>
 #include <deque>
-#include <google/sparse_hash_set>
+#include <google/dense_hash_set>
 
 namespace eos
 {
@@ -42,9 +42,10 @@ namespace eos
     // than a list and it's fragmented structure speeding up deletions.
     // The filelists we keep are quite big - a list would be faster
     // but more memory consuming, a vector would be slower but less
-    // memory consuming
+    // memory consuming. We changed to dense hash set since it is much faster
+    // and the memory overhead is not visible in a million file namespace.
     //------------------------------------------------------------------------
-    typedef google::sparse_hash_set<FileMD::id_t> FileList;
+    typedef google::dense_hash_set<FileMD::id_t> FileList;
     typedef FileList::iterator                    FileIterator;
 
     //------------------------------------------------------------------------
@@ -107,8 +108,8 @@ namespace eos
     void finalize();
 
   private:
-    std::deque<FileList> pFiles;
-    std::deque<FileList> pUnlinkedFiles;
+    std::vector<FileList> pFiles;
+    std::vector<FileList> pUnlinkedFiles;
   };
 }
 

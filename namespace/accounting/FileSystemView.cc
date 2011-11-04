@@ -36,8 +36,10 @@ namespace eos
     if( size <= oldSize )
       return;
     d.resize(size);
-    for( size_t i = oldSize; i < size; ++i )
+    for( size_t i = oldSize; i < size; ++i ) {
       d[i].set_deleted_key( 0 );
+      d[i].set_empty_key(0xffffffffffffffff);
+    }
   }
 
   //----------------------------------------------------------------------------
