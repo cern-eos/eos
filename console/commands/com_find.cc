@@ -235,6 +235,12 @@ com_find (char* arg1) {
 
 
   path = abspath(path.c_str());
+
+  if (!s1.length() && (path=="/")) {
+    fprintf(stderr,"error: you didnt' provide any path and would query '/' - will not do that!\n");
+    return EINVAL;
+  }
+
   in += "mgm.path=";
   in += path;
   in += "&mgm.option=";
