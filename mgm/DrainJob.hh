@@ -55,7 +55,7 @@ public:
     XrdSysThread::Run(&thread, DrainJob::StaticThreadProc, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "DrainJob Thread");
   }
 
-  void ResetCounter(bool lockit=true);
+  void ResetCounter();
 
   static void* StaticThreadProc(void*);
   void* Drain(); // the function scheduling from the drain map into shared queues

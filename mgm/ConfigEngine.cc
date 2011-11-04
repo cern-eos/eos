@@ -752,9 +752,7 @@ ConfigEngine::DumpConfig(XrdOucString &out, XrdOucEnv &filter)
   }
   
   if (name == 0) {
-    Mutex.Lock();
     configDefinitions.Apply(PrintEachConfig,&pinfo);
-    Mutex.UnLock();
     while (out.replace("&"," ")) {}
   } else {
     // dump from stored config file

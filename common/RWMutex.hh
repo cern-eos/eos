@@ -45,9 +45,13 @@ class RWMutex
 private:
   pthread_rwlock_t       rwlock;
   pthread_rwlockattr_t   attr;
+  struct timespec        wlocktime;
+  
 public:
   RWMutex() {
-    if (pthread_rwlockattr_setkind_np(&attr,PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP)) { throw "pthread_rwlockattr_setkind_np failed";}
+    wlocktime.tv_sec=5; // try to get write lock in 5 seconds, then release quickly and retry
+    wlocktime.tv_nsec=0;
+    if (pthread_rwlockattr_setkind_np(&attr,PTHREAD_RWLOCK_PREFER_WRITER_NP)) { throw "pthread_rwlockattr_setkind_np failed";}
     if (pthread_rwlockattr_setpshared(&attr,PTHREAD_PROCESS_SHARED)){ throw "pthread_rwlockattr_setpshared failed";}
     if (pthread_rwlock_init(&rwlock, &attr)) {throw "pthread_rwlock_init failed";}}
   ~RWMutex() {}
@@ -61,7 +65,20 @@ public:
   }
   
   void LockWrite() {
-    if (pthread_rwlock_wrlock(&rwlock)) { throw "pthread_rwlock_wrlock failed";}
+    while (1) {
+      int rc = pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
+      if ( rc ) {
+	if (rc != ETIMEDOUT) {
+	  fprintf(stderr,"=== WRITE LOCK EXCEPTION == TID=%llu OBJECT=%llx rc=%d\n", (unsigned long long)XrdSysThread::ID(), (unsigned long long)this,rc);
+	  throw "pthread_rwlock_wrlock failed";
+	} else {
+	  fprintf(stderr,"==== WRITE LOCK PENDING ==== TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this); 
+	  usleep(100000);
+	}
+      } else {
+	break;
+      }
+    }
   }
   
   void UnLockWrite() { 

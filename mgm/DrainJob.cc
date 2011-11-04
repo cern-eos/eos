@@ -47,16 +47,15 @@ DrainJob::~DrainJob() {
     XrdSysThread::Join(thread,NULL);
     thread=0;
   }
-  ResetCounter(false);
+  ResetCounter();
   eos_static_notice("Stopping Drain Job for fs=%u", fsid);
 }
 
 void
-DrainJob::ResetCounter(bool lockit) 
+DrainJob::ResetCounter() 
 {
   // set all the drain counters back to 0 
 
-  if (lockit) FsView::gFsView.ViewMutex.LockRead();
   FileSystem* fs = 0;
   if (FsView::gFsView.mIdView.count(fsid)) {
     fs = FsView::gFsView.mIdView[fsid];
@@ -73,7 +72,6 @@ DrainJob::ResetCounter(bool lockit)
       //    fs->CloseTransaction();
     }
   }
-  if (lockit) FsView::gFsView.ViewMutex.UnLockRead();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -104,7 +102,11 @@ DrainJob::Drain(void)
   eos_static_notice("Starting Drain Job for fs=%u onOpsError=%d try=%d", fsid,onOpsError, ntried);
 
   FileSystem* fs = 0;
-  ResetCounter();
+
+  {
+    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+    ResetCounter();
+  }
 
 
   std::string group="";

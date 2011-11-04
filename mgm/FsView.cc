@@ -535,7 +535,6 @@ FsView::UnRegisterSpace(const char* spacename)
     }
     if (!hasfs) {
       // we have to explicitly remove the space from the view here because no fs was removed
-      eos::common::RWMutexWriteLock maplock(MapMutex);
       retc = (mSpaceView.erase(spacename)?true:false);
     }
   }

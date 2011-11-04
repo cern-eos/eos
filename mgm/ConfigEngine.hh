@@ -200,7 +200,6 @@ public:
 
     Mutex.Lock();  
     configDefinitions.Del(configname.c_str()); 
-    Mutex.UnLock();
 
     if (tochangelog)
       changeLog.AddEntry(cl.c_str());
@@ -222,8 +221,8 @@ public:
         eos_static_err("%s\n", err.c_str());
       }
     }
+    Mutex.UnLock();
     eos_static_debug("%s", fsname);
-
   }
   
   void DeleteConfigValueByMatch(const char* prefix, const char* match) {

@@ -55,93 +55,93 @@ Fsck::Fsck()
   mScanThreadsJoin.set_deleted_key(0);
   
   mRunning = false;
-  
-  mErrorMapMutex.Lock();
-  mTotalErrorMap["totalfiles"]=0;
-  mErrorNames.resize(15);
-  mErrorHelp["totalfiles"] = "Total number of replicas found";
-  mErrorNames[0] = "totalfiles";
 
-  mTotalErrorMap["diff_mgm_disk_size"] = 0;
-  mErrorHelp["diff_mgm_disk_size"] = "The size registered in the namespace differs from the size of a replica on disk";
-  mErrorNames[1] = "diff_mgm_disk_size";
-
-  mTotalErrorMap["diff_fst_disk_fmd_size"] = 0;
-  mErrorHelp["diff_fst_disk_fmd_size"] = "The size of a replica on disk differs from the size stored in the changelog on the FST.";
-  mErrorNames[2] = "diff_fst_disk_fmd_size";
-  
-  mTotalErrorMap["diff_mgm_disk_checksum"] = 0;
-  mErrorHelp["diff_mgm_disk_checksum"] = "The checksum registered in the namespace differs from the checksum of a replica on disk";
-  mErrorNames[3] = "diff_mgm_disk_checksum";
-
-  mTotalErrorMap["diff_fst_disk_fmd_checksum"] = 0;
-  mErrorHelp["diff_fst_disk_fmd_checksum"] = "The checksum in the chenagelog of the FST differes from the checksum stored in the extended attributes on disk";
-  mErrorNames[4] = "diff_fst_disk_fmd_checksum";
-
-  mTotalErrorMap["diff_file_checksum_scan"] = 0;
-  mErrorHelp["diff_file_checksum_scan"] = "The computed checksum during the file scan differes from the checksum stored in the extended attributes on disk";
-  mErrorNames[5] = "diff_file_checksum_scan";
-
-  mTotalErrorMap["diff_block_checksum_scan"] = 0;
-  mErrorHelp["diff_block_checksum_scan"] = "A block checksum errors has been detected during the file scan";
-  mErrorNames[6] = "diff_block_checksum_scan";
-
-  mTotalErrorMap["scanned_files"] = 0;
-  mErrorHelp["scanned_files"] = "Number of files scanned by the checksum scanner";
-  mErrorNames[7] = "scanned_files";
-
-  mTotalErrorMap["not_scanned_files"] = 0;
-  mErrorHelp["not_scanned_files"] = "Number of files without checksum scan";
-  mErrorNames[8] = "not_scanned_files";
-
-  mTotalErrorMap["replica_not_registered"] = 0;
-  mErrorHelp["replica_not_registered"] = "Replica not registered";
-  mErrorNames[9] = "replica_not_registered";
-
-  mTotalErrorMap["replica_orphaned"] = 0;
-  mErrorHelp["replica_orphaned"] = "There is no file name anymore connected to that replica";
-  mErrorNames[10] = "replica_orphaned";
- 
-  mTotalErrorMap["diff_replica_layout"] = 0;
-  mErrorHelp["diff_replica_layout"] = "There is a different number of replica's existing than defined by the layout";
-  mErrorNames[11] = "diff_replica_layout";
-
-  mTotalErrorMap["replica_offline"] = 0;
-  mErrorHelp["replica_offline"] = "Not all replicas are online";
-  mErrorNames[12] = "replica_offline";
-
-  mTotalErrorMap["file_offline"] = 0;
-  mErrorHelp["file_offline"] = "No replica is accessible";
-  mErrorNames[13] = "file_offline";
-
-  mTotalErrorMap["replica_missing"] = 0;
-  mErrorHelp["replica_missing"] = "There is a reference to a replica in the namespace, but the replica was not seen on the storage node";
-  mErrorNames[14] = "replica_missing";
-
-  mParallelThreads=0;
-  mThread = 0;
-  n_error_file_offline = 0;
-  n_error_fst_blockchecksum = 0;
-  n_error_fst_disk_fmd_checksum_differ = 0;
-  n_error_fst_disk_fmd_size_differ = 0;
-  n_error_fst_filechecksum = 0;
-  n_error_mgm_disk_checksum_differ = 0;
-  n_error_mgm_disk_size_differ = 0;
-  n_error_replica_layout = 0;
-  n_error_replica_missing = 0;
-  n_error_replica_not_registered = 0;
-  n_error_replica_offline = 0;
-  n_error_replica_orphaned = 0;
-  nchecked=0;
-  nunchecked=0;
-  totalfiles=0;
-
-  for (size_t i=0; i< mErrorNames.size(); i++) {
-    mFsidErrorMap[mErrorNames[i]].set_deleted_key(0);
-    mFsidErrorFidSet[mErrorNames[i]].set_deleted_key(0);
-  }
-
-  mErrorMapMutex.UnLock(); 
+  {
+    XrdSysMutexHelper lock(mErrorMapMutex);
+    mTotalErrorMap["totalfiles"]=0;
+    mErrorNames.resize(15);
+    mErrorHelp["totalfiles"] = "Total number of replicas found";
+    mErrorNames[0] = "totalfiles";
+    
+    mTotalErrorMap["diff_mgm_disk_size"] = 0;
+    mErrorHelp["diff_mgm_disk_size"] = "The size registered in the namespace differs from the size of a replica on disk";
+    mErrorNames[1] = "diff_mgm_disk_size";
+    
+    mTotalErrorMap["diff_fst_disk_fmd_size"] = 0;
+    mErrorHelp["diff_fst_disk_fmd_size"] = "The size of a replica on disk differs from the size stored in the changelog on the FST.";
+    mErrorNames[2] = "diff_fst_disk_fmd_size";
+    
+    mTotalErrorMap["diff_mgm_disk_checksum"] = 0;
+    mErrorHelp["diff_mgm_disk_checksum"] = "The checksum registered in the namespace differs from the checksum of a replica on disk";
+    mErrorNames[3] = "diff_mgm_disk_checksum";
+    
+    mTotalErrorMap["diff_fst_disk_fmd_checksum"] = 0;
+    mErrorHelp["diff_fst_disk_fmd_checksum"] = "The checksum in the chenagelog of the FST differes from the checksum stored in the extended attributes on disk";
+    mErrorNames[4] = "diff_fst_disk_fmd_checksum";
+    
+    mTotalErrorMap["diff_file_checksum_scan"] = 0;
+    mErrorHelp["diff_file_checksum_scan"] = "The computed checksum during the file scan differes from the checksum stored in the extended attributes on disk";
+    mErrorNames[5] = "diff_file_checksum_scan";
+    
+    mTotalErrorMap["diff_block_checksum_scan"] = 0;
+    mErrorHelp["diff_block_checksum_scan"] = "A block checksum errors has been detected during the file scan";
+    mErrorNames[6] = "diff_block_checksum_scan";
+    
+    mTotalErrorMap["scanned_files"] = 0;
+    mErrorHelp["scanned_files"] = "Number of files scanned by the checksum scanner";
+    mErrorNames[7] = "scanned_files";
+    
+    mTotalErrorMap["not_scanned_files"] = 0;
+    mErrorHelp["not_scanned_files"] = "Number of files without checksum scan";
+    mErrorNames[8] = "not_scanned_files";
+    
+    mTotalErrorMap["replica_not_registered"] = 0;
+    mErrorHelp["replica_not_registered"] = "Replica not registered";
+    mErrorNames[9] = "replica_not_registered";
+    
+    mTotalErrorMap["replica_orphaned"] = 0;
+    mErrorHelp["replica_orphaned"] = "There is no file name anymore connected to that replica";
+    mErrorNames[10] = "replica_orphaned";
+    
+    mTotalErrorMap["diff_replica_layout"] = 0;
+    mErrorHelp["diff_replica_layout"] = "There is a different number of replica's existing than defined by the layout";
+    mErrorNames[11] = "diff_replica_layout";
+    
+    mTotalErrorMap["replica_offline"] = 0;
+    mErrorHelp["replica_offline"] = "Not all replicas are online";
+    mErrorNames[12] = "replica_offline";
+    
+    mTotalErrorMap["file_offline"] = 0;
+    mErrorHelp["file_offline"] = "No replica is accessible";
+    mErrorNames[13] = "file_offline";
+    
+    mTotalErrorMap["replica_missing"] = 0;
+    mErrorHelp["replica_missing"] = "There is a reference to a replica in the namespace, but the replica was not seen on the storage node";
+    mErrorNames[14] = "replica_missing";
+    
+    mParallelThreads=0;
+    mThread = 0;
+    n_error_file_offline = 0;
+    n_error_fst_blockchecksum = 0;
+    n_error_fst_disk_fmd_checksum_differ = 0;
+    n_error_fst_disk_fmd_size_differ = 0;
+    n_error_fst_filechecksum = 0;
+    n_error_mgm_disk_checksum_differ = 0;
+    n_error_mgm_disk_size_differ = 0;
+    n_error_replica_layout = 0;
+    n_error_replica_missing = 0;
+    n_error_replica_not_registered = 0;
+    n_error_replica_offline = 0;
+    n_error_replica_orphaned = 0;
+    nchecked=0;
+    nunchecked=0;
+    totalfiles=0;
+    
+    for (size_t i=0; i< mErrorNames.size(); i++) {
+      mFsidErrorMap[mErrorNames[i]].set_deleted_key(0);
+      mFsidErrorFidSet[mErrorNames[i]].set_deleted_key(0);
+    }
+  } 
 } 
 
 /* ------------------------------------------------------------------------- */
@@ -173,9 +173,11 @@ Fsck::Stop()
     // we don't cancel all the still pending Scan threads since they will terminate on their own
     do {
       size_t nthreads=0;
-      mScanThreadMutex.Lock();
-      nthreads = mScanThreads.size();
-      mScanThreadMutex.UnLock();
+      {
+	XrdSysMutexHelper lock(mScanThreadMutex);	
+	nthreads = mScanThreads.size();
+      }
+     
       if (!nthreads) {
         break;
       }    
@@ -346,9 +348,10 @@ Fsck::Check(void)
       size_t loopcount=0;
       do {
         size_t nrunning=0;
-        mScanThreadMutex.Lock();
-        nrunning = mScanThreads.size();
-        mScanThreadMutex.UnLock();
+	{
+	  XrdSysMutexHelper lock(mScanThreadMutex);       
+	  nrunning = mScanThreads.size();
+	}
         loopcount++;
         if (nrunning < maxthreads) 
           break;
@@ -361,11 +364,12 @@ Fsck::Check(void)
       } while(1);
       
       XrdSysThread::SetCancelOff();     
-      mScanThreadMutex.Lock();
-      mScanThreads[scanit->first] = 0;
-      XrdSysThread::Run(&mScanThreads[scanit->first], Fsck::StaticScan, static_cast<void *>(&(scanit->second)), XRDSYSTHREAD_HOLD, "Fsck Scan Thread");
-      mScanThreadsJoin[scanit->first] = mScanThreads[scanit->first];
-      mScanThreadMutex.UnLock();
+      {
+	XrdSysMutexHelper lock(mScanThreadMutex);     
+	mScanThreads[scanit->first] = 0;
+	XrdSysThread::Run(&mScanThreads[scanit->first], Fsck::StaticScan, static_cast<void *>(&(scanit->second)), XRDSYSTHREAD_HOLD, "Fsck Scan Thread");
+	mScanThreadsJoin[scanit->first] = mScanThreads[scanit->first];
+      }
       XrdSysThread::SetCancelOn();      
     }
 
@@ -375,9 +379,10 @@ Fsck::Check(void)
     do {
       loopcount++;
       size_t nthreads=0;
-      mScanThreadMutex.Lock();
-      nthreads = mScanThreads.size();
-      mScanThreadMutex.UnLock();
+      {
+	XrdSysMutexHelper lock(mScanThreadMutex);      
+	nthreads = mScanThreads.size();
+      }
       if (nthreads) {
         if (!(loopcount%60))
           Log(false,"still %u threads running\n",nthreads);
@@ -388,15 +393,14 @@ Fsck::Check(void)
     } while(1);
 
     {
-      mScanThreadMutex.Lock();
+      XrdSysMutexHelper lock(mScanThreadMutex);  
       // join the slave threads
       google::sparse_hash_map<eos::common::FileSystem::fsid_t, pthread_t>::iterator tit;
       for (tit = mScanThreadsJoin.begin(); tit != mScanThreadsJoin.end(); tit++) {
         XrdSysThread::Join(tit->second,0);
       }
       mScanThreadsJoin.clear();
-      mScanThreadsJoin.resize(0);
-      mScanThreadMutex.UnLock();
+      mScanThreadsJoin.resize(0);     
     }
 
     mErrorMapMutex.Lock();
@@ -452,18 +456,16 @@ Fsck::Check(void)
 void 
 Fsck::PrintOut(XrdOucString &out,  XrdOucString option)
 {
-  mLogMutex.Lock();
+  XrdSysMutexHelper lock(mLogMutex);
   out = mLog;
-  mLogMutex.UnLock();
 }
 
 /* ------------------------------------------------------------------------- */
 void 
 Fsck::ClearLog() 
 {
-  mLogMutex.Lock();
+  XrdSysMutexHelper lock(mLogMutex);  
   mLog="";
-  mLogMutex.UnLock();
 }
 
 /* ------------------------------------------------------------------------- */
@@ -487,7 +489,7 @@ Fsck::Log(bool overwrite, const char* msg, ...)
   ptr = buffer + strlen(buffer);
 
   vsprintf(ptr, msg, args);
-  mLogMutex.Lock();
+  XrdSysMutexHelper lock(mLogMutex);
   if (overwrite) {
     int spos = mLog.rfind("\n",mLog.length()-2);
     if (spos>0) {
@@ -497,7 +499,6 @@ Fsck::Log(bool overwrite, const char* msg, ...)
   mLog+=buffer;
   mLog+= "\n";
   va_end(args);
-  mLogMutex.UnLock();
 }
 
 
@@ -530,8 +531,8 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
       return false;
     }
   }
-  
-  mErrorMapMutex.Lock();
+
+  XrdSysMutexHelper lock(mErrorMapMutex);  
   if ((option.find("g")!=STR_NPOS) || (option.length()==0) ) {
     // print global counts
     for (size_t i = 0; i < mErrorNames.size(); i++) {
@@ -693,8 +694,7 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
         }
       }
     }
-  }
-  mErrorMapMutex.UnLock();
+  } 
   return true;
 }
 
@@ -758,11 +758,12 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
     unsigned long long nfiles=0;
 
     while(std::getline(inFile, dumpentry)) {
-      mGlobalCounterLock.Lock();
-      nfiles++;
-      totalfiles++;
-      mGlobalCounterLock.UnLock();
-      mLocalErrorMap[mErrorNames[0]]++;
+      {
+	XrdSysMutexHelper lock(mGlobalCounterLock);
+	nfiles++;
+	totalfiles++;
+	mLocalErrorMap[mErrorNames[0]]++;
+      }
       
       // decode the entry
 
@@ -842,9 +843,10 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
           if (fmd->getNumLocation() != (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1)) {
             mLocalErrorMap[mErrorNames[11]]++;
             mLocalErrorFidSet[mErrorNames[11]].insert(fid);
-            mGlobalCounterLock.Lock();
-            n_error_replica_layout++;
-            mGlobalCounterLock.UnLock();
+	    {
+	      	XrdSysMutexHelper lock(mGlobalCounterLock);
+		n_error_replica_layout++;
+	    }
           }
           
           // check if locations are online
@@ -868,17 +870,19 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
                     //              fprintf(stderr,"warning: %d %d %d %d %d %d %d %d %llx\n", (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(false)), (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(true)),
                     //                      FsView::gFsView.mIdView[*lociter]->GetStatus(false),FsView::gFsView.mIdView[*lociter]->GetStatus(true), conda, condb, condc, bootstatus, fid) ;
                     if (!oneoffline) {
-                      mGlobalCounterLock.Lock();
-                      n_error_replica_offline++;
-                      mGlobalCounterLock.UnLock();
+		      {
+			XrdSysMutexHelper lock(mGlobalCounterLock);
+			n_error_replica_offline++;
+		      }
                       oneoffline=true;
                       mLocalErrorMap[mErrorNames[12]]++;
                       mLocalErrorFidSet[mErrorNames[12]].insert(fid);
                     }
                   } else {
-                    mGlobalCounterLock.Lock();
-                    nonline++;
-                    mGlobalCounterLock.UnLock();
+		    {
+		      XrdSysMutexHelper lock(mGlobalCounterLock);
+		      nonline++;
+                    }
                   }
                 }
               }
@@ -887,9 +891,10 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
           if ((fmd->getNumLocation()) && (nonline < eos::common::LayoutId::GetMinOnlineReplica((fmd->getLayoutId())))) {
             mLocalErrorMap[mErrorNames[13]]++;
             mLocalErrorFidSet[mErrorNames[13]].insert(fid);
-            mGlobalCounterLock.Lock();
-            n_error_file_offline++;
-            mGlobalCounterLock.UnLock();
+	    {
+	      XrdSysMutexHelper lock(mGlobalCounterLock);
+	      n_error_file_offline++;
+	    }
           }
         } else {
           gOFS->eosViewMutex.UnLock();
@@ -902,17 +907,19 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
         
         if (replicaexists) {
           if (mgm_size != tokens[5]) {
-            mGlobalCounterLock.Lock();
-            n_error_mgm_disk_size_differ++;
-            mGlobalCounterLock.UnLock();
+	    {
+	      XrdSysMutexHelper lock(mGlobalCounterLock);
+	      n_error_mgm_disk_size_differ++;
+	    }
             mLocalErrorMap[mErrorNames[1]]++;
             mLocalErrorFidSet[mErrorNames[1]].insert(fid);
           }
           
           if (tokens[5] != tokens[6]) {
-            mGlobalCounterLock.Lock();
-            n_error_fst_disk_fmd_size_differ++;
-            mGlobalCounterLock.UnLock();
+	    {
+	      XrdSysMutexHelper lock(mGlobalCounterLock);
+	      n_error_fst_disk_fmd_size_differ++;
+	    }
             mLocalErrorMap[mErrorNames[2]]++;
             mLocalErrorFidSet[mErrorNames[2]].insert(fid);
           }
@@ -920,47 +927,53 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
           if (hasfmdchecksum) {
             // we only apply this if the file is supposed to have a checksum in the namespace and the file has not zero size!
             if ( (mgm_checksum != tokens[7]) && (mgm_size != "0")) {
-              mGlobalCounterLock.Lock();
-              n_error_mgm_disk_checksum_differ++;
-              mGlobalCounterLock.UnLock();
+	      {
+		XrdSysMutexHelper lock(mGlobalCounterLock);
+		n_error_mgm_disk_checksum_differ++;
+	      }
               mLocalErrorMap[mErrorNames[3]]++;
               mLocalErrorFidSet[mErrorNames[3]].insert(fid);
             }
             
             if (tokens[2] != tokens[7]) {
-              mGlobalCounterLock.Lock();
-              n_error_fst_disk_fmd_checksum_differ++;
-              mGlobalCounterLock.UnLock();
+	      {
+		XrdSysMutexHelper lock(mGlobalCounterLock);
+		n_error_fst_disk_fmd_checksum_differ++;
+	      }
               mLocalErrorMap[mErrorNames[4]]++;
               mLocalErrorFidSet[mErrorNames[4]].insert(fid);
             }
           }
           
           if (tokens[1] != "x") {
-            mGlobalCounterLock.Lock();
-            nchecked++;
-            mLocalErrorMap[mErrorNames[7]]++;
-            mGlobalCounterLock.UnLock();
+	    {
+	      XrdSysMutexHelper lock(mGlobalCounterLock);
+	      nchecked++;
+	      mLocalErrorMap[mErrorNames[7]]++;
+            }
             // don't track all the fids
             //                mLocalErrorFidSet[mErrorNames[7]].insert(fid);
             if (tokens[3] == "1") {
-              mGlobalCounterLock.Lock();
-              n_error_fst_filechecksum++;
-              mGlobalCounterLock.UnLock();
+	      {
+		XrdSysMutexHelper lock(mGlobalCounterLock);
+		n_error_fst_filechecksum++;
+	      }
               mLocalErrorMap[mErrorNames[5]]++;
               mLocalErrorFidSet[mErrorNames[5]].insert(fid);
             }
             if (tokens[4] == "1") {
-              mGlobalCounterLock.Lock();
-              n_error_fst_blockchecksum++;
-              mGlobalCounterLock.UnLock();
+	      {
+		XrdSysMutexHelper lock(mGlobalCounterLock);
+		n_error_fst_blockchecksum++;
+              }
               mLocalErrorMap[mErrorNames[6]]++;
               mLocalErrorFidSet[mErrorNames[6]].insert(fid);
             }
           } else {
-            mGlobalCounterLock.Lock();
-            nunchecked++;
-            mGlobalCounterLock.UnLock();
+	    {
+	      XrdSysMutexHelper lock(mGlobalCounterLock);           
+	      nunchecked++;
+	    }
             mLocalErrorMap[mErrorNames[8]]++;
             // don't track all the fids
             //mLocalErrorFidSet[mErrorNames[8]].insert(fid);
@@ -971,46 +984,54 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
               mLocalErrorMap[mErrorNames[9]]++;
               if (!mLocalErrorFidSet[mErrorNames[9]].count(fid))
                 mLocalErrorFidSet[mErrorNames[9]].insert(fid);
-              mGlobalCounterLock.Lock();
-              n_error_replica_not_registered++;
-              mGlobalCounterLock.UnLock();
+	      {
+		XrdSysMutexHelper lock(mGlobalCounterLock);
+		n_error_replica_not_registered++;
+              }
             }
           } else {
             if (!unlinkedlocation) {
               mLocalErrorMap[mErrorNames[10]]++;
               mLocalErrorFidSet[mErrorNames[10]].insert(fid);
-              mGlobalCounterLock.Lock();
-              n_error_replica_orphaned++;
-              mGlobalCounterLock.UnLock();
+	      {
+		XrdSysMutexHelper lock(mGlobalCounterLock);
+		n_error_replica_orphaned++;
+              }
             }
           }
-        }      }
+        } 
+      }
     }
     Log(false,"filesystem: fsid=%05d hostport=%20s mountpoint=%s totalfiles=%llu", fsid, hostport.c_str(),mountpoint.c_str(), totalfiles);
     // delete dump file
     ::unlink(dumpfile.c_str());      
   }
   // copy local maps to global maps
-  mErrorMapMutex.Lock();
-  for (size_t i=0; i< mErrorNames.size(); i++) {
-    mFsidErrorMap[mErrorNames[i]][fsid] = mLocalErrorMap[mErrorNames[i]];
-    mFsidErrorFidSet[mErrorNames[i]][fsid].clear();
-    mFsidErrorFidSet[mErrorNames[i]][fsid].resize(0);
-    mFsidErrorFidSet[mErrorNames[i]][fsid] = mLocalErrorFidSet[mErrorNames[i]];
-    if (mErrorNames[i] == "replica_missing") {
-      // copy the missing replica counter
-      mGlobalCounterLock.Lock();
-      n_error_replica_missing+= mLocalErrorFidSet["replica_missing"].size();
-      mFsidErrorMap[mErrorNames[i]][fsid] = mLocalErrorFidSet["replica_missing"].size();
-      mGlobalCounterLock.UnLock();
+
+  {
+    XrdSysMutexHelper lock(mErrorMapMutex);
+    
+    for (size_t i=0; i< mErrorNames.size(); i++) {
+      mFsidErrorMap[mErrorNames[i]][fsid] = mLocalErrorMap[mErrorNames[i]];
+      mFsidErrorFidSet[mErrorNames[i]][fsid].clear();
+      mFsidErrorFidSet[mErrorNames[i]][fsid].resize(0);
+      mFsidErrorFidSet[mErrorNames[i]][fsid] = mLocalErrorFidSet[mErrorNames[i]];
+      if (mErrorNames[i] == "replica_missing") {
+	// copy the missing replica counter
+	{
+	  XrdSysMutexHelper lock(mGlobalCounterLock);
+	  n_error_replica_missing+= mLocalErrorFidSet["replica_missing"].size();
+	  mFsidErrorMap[mErrorNames[i]][fsid] = mLocalErrorFidSet["replica_missing"].size();
+	}
+      }
     }
   }
-
   // remove this thread from the running thread map
-  mErrorMapMutex.UnLock();
-  mScanThreadMutex.Lock();
-  mScanThreads.erase(fsid);
-  mScanThreadMutex.UnLock();
+ 
+  {
+    XrdSysMutexHelper lock(mScanThreadMutex);
+    mScanThreads.erase(fsid);
+  }
 
   XrdSysThread::SetCancelOn();
   return NULL;

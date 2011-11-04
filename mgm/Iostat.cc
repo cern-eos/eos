@@ -119,7 +119,6 @@ Iostat::StaticCirculate(void* arg){
 void* 
 Iostat::Receive(void)
 {
-  XrdSysThread::SetCancelOn();
   while (1) {
     XrdMqMessage* newmessage = 0;
     while ( (newmessage = mClient.RecvMessage()) ) {
@@ -197,9 +196,12 @@ Iostat::Receive(void)
       delete report;
       delete newmessage;
     }
+    XrdSysThread::SetCancelOn();
     XrdSysTimer sleeper;
     sleeper.Snooze(1);   
     XrdSysThread::CancelPoint();
+    XrdSysThread::SetCancelOff();
+    
   }
   return 0;
 }
