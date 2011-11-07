@@ -1254,7 +1254,13 @@ BaseView::SumLongLong(const char* param, bool lock)
       if (isquery && ( (!snapshot.mActiveStatus) || ( snapshot.mStatus != eos::common::FileSystem::kBooted)))
         continue;
 
-      sum += FsView::gFsView.mIdView[*it]->GetLongLong(sparam.c_str());
+      long long v =  FsView::gFsView.mIdView[*it]->GetLongLong(sparam.c_str());
+      if (isquery && v && (sparam == "stat.statfs.capacity")) {
+	// correct the capacity(rw) value for headroom
+	v -= snapshot.mHeadRoom;
+      }
+      sum += v;
+
     }
   }
 
