@@ -109,31 +109,32 @@ com_attr (char* arg1) {
 
     if (key=="default") {
       if (value == "replica") {
-        XrdOucString d1 = "set "; d1 += optionstring; d1 += "sys.forced.blocksize=4k ";   d1 += path;
-        XrdOucString d2 = "set "; d2 += optionstring; d2 += "sys.forced.checksum=adler "; d2 += path;
-        XrdOucString d3 = "set "; d3 += optionstring; d3 += "sys.forced.layout=replica "; d3 += path;
-        XrdOucString d4 = "set "; d4 += optionstring; d4 += "sys.forced.nstripes=2 ";     d4 += path;
-        XrdOucString d5 = "set "; d5 += optionstring; d5 += "sys.forced.space=default ";  d5 += path;
-        global_retc = com_attr((char*)d1.c_str()) || com_attr((char*)d2.c_str()) || com_attr((char*)d3.c_str()) || com_attr((char*)d4.c_str()) || com_attr((char*)d5.c_str());
+        XrdOucString d1 = optionstring; d1 += "set "; d1 += "sys.forced.blocksize=4k ";   d1 += path;
+        XrdOucString d2 = optionstring; d2 += "set "; d2 += "sys.forced.checksum=adler "; d2 += path;
+        XrdOucString d3 = optionstring; d3 += "set "; d3 += "sys.forced.layout=replica "; d3 += path;
+        XrdOucString d4 = optionstring; d4 += "set "; d4 += "sys.forced.nstripes=2 ";     d4 += path;
+        XrdOucString d5 = optionstring; d5 += "set "; d5 += "sys.forced.space=default ";  d5 += path;
+        XrdOucString d6 = optionstring; d6 += "set "; d6 += "sys.forced.blockchecksum=crc32c ";  d6 += path;
+        global_retc = com_attr((char*)d1.c_str()) || com_attr((char*)d2.c_str()) || com_attr((char*)d3.c_str()) || com_attr((char*)d4.c_str()) || com_attr((char*)d5.c_str()) || com_attr((char*)d6.c_str());
         return (0);
       } 
       if (value == "raidDP") {
-        XrdOucString d1 = "set "; d1 += optionstring; d1 += "sys.forced.blocksize=4k ";   d1 += path;
-        XrdOucString d2 = "set "; d2 += optionstring; d2 += "sys.forced.checksum=adler "; d2 += path;
-        XrdOucString d3 = "set "; d3 += optionstring; d3 += "sys.forced.layout=raidDP "; d3 += path;
-        XrdOucString d4 = "set "; d4 += optionstring; d4 += "sys.forced.nstripes=6 ";     d4 += path;
-        XrdOucString d5 = "set "; d5 += optionstring; d5 += "sys.forced.space=default ";  d5 += path;
-        XrdOucString d6 = "set "; d6 += optionstring; d6 += "sys.forced.blockchecksum=crc32c ";  d6 += path;
+        XrdOucString d1 = optionstring; d1 += "set "; d1 += "sys.forced.blocksize=4k ";   d1 += path;
+        XrdOucString d2 = optionstring; d2 += "set "; d2 += "sys.forced.checksum=adler "; d2 += path;
+        XrdOucString d3 = optionstring; d3 += "set "; d3 += "sys.forced.layout=raidDP "; d3 += path;
+        XrdOucString d4 = optionstring; d4 += "set "; d4 += "sys.forced.nstripes=6 ";     d4 += path;
+        XrdOucString d5 = optionstring; d5 += "set "; d5 += "sys.forced.space=default ";  d5 += path;
+        XrdOucString d6 = optionstring; d6 += "set "; d6 += "sys.forced.blockchecksum=crc32c ";  d6 += path;
         global_retc = com_attr((char*)d1.c_str()) || com_attr((char*)d2.c_str()) || com_attr((char*)d3.c_str()) || com_attr((char*)d4.c_str()) || com_attr((char*)d5.c_str()) || com_attr((char*)d6.c_str());
         return (0);
       } 
       if (value == "reedS") {
-        XrdOucString d1 = "set "; d1 += optionstring; d1 += "sys.forced.blocksize=4k ";   d1 += path;
-        XrdOucString d2 = "set "; d2 += optionstring; d2 += "sys.forced.checksum=adler "; d2 += path;
-        XrdOucString d3 = "set "; d3 += optionstring; d3 += "sys.forced.layout=reedS "; d3 += path;
-        XrdOucString d4 = "set "; d4 += optionstring; d4 += "sys.forced.nstripes=6 ";     d4 += path;
-        XrdOucString d5 = "set "; d5 += optionstring; d5 += "sys.forced.space=default ";  d5 += path;
-        XrdOucString d6 = "set "; d6 += optionstring; d6 += "sys.forced.blockchecksum=crc32c ";  d6 += path;
+        XrdOucString d1 = optionstring; d1 += "set "; d1 += "sys.forced.blocksize=4k ";   d1 += path;
+        XrdOucString d2 = optionstring; d2 += "set "; d2 += "sys.forced.checksum=adler "; d2 += path;
+        XrdOucString d3 = optionstring; d3 += "set "; d3 += "sys.forced.layout=reedS "; d3 += path;
+        XrdOucString d4 = optionstring; d4 += "set "; d4 += "sys.forced.nstripes=6 ";     d4 += path;
+        XrdOucString d5 = optionstring; d5 += "set "; d5 += "sys.forced.space=default ";  d5 += path;
+        XrdOucString d6 = optionstring; d6 += "set "; d6 += "sys.forced.blockchecksum=crc32c ";  d6 += path;
         global_retc = com_attr((char*)d1.c_str()) || com_attr((char*)d2.c_str()) || com_attr((char*)d3.c_str()) || com_attr((char*)d4.c_str()) || com_attr((char*)d5.c_str()) || com_attr((char*)d6.c_str());
         return (0);
       } 
