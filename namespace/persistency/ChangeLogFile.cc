@@ -783,7 +783,7 @@ namespace eos
       }
 
     ChangeLogFile output;
-    output.open( newFilename, Create, 1 );
+    output.open( newFilename, Create, contentFlag );
 
     //--------------------------------------------------------------------------
     // Reconstructing...
