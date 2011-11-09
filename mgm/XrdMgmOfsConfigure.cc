@@ -84,9 +84,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   long myPort=0;
 
-  // ---------------------------------- lock until return
-  XrdSysMutexHelper(gOFS->eosViewMutex);
-
   setenv("XrdSecPROTOCOL","sss",1);
   Eroute.Say("=====> mgmofs enforces SSS authentication for XROOT clients");
 
@@ -701,7 +698,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   MgmNsDirChangeLogFile  = contSettings["changelog_path"].c_str();
 
   time_t tstart = time(0);
-  
+
+  gOFS->eosViewRWMutex.SetBlocking(true);
+
   //-------------------------------------------
   try {
     eosFileService->configure( fileSettings );
@@ -808,14 +807,16 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   XrdOucString procpathquota  = procpath; procpathquota += "/quota";
   XrdOucString procpathreconnect = procpath; procpathreconnect += "/reconnect";
 
+  // ---------------------------------- we don't lock the namespace assuming that we are the only one touching it during configure
   try {
     XrdOucErrInfo error;
     XrdSfsFileExistence file_exists;
     eos::common::Mapping::VirtualIdentity vid;
     eos::common::Mapping::Root(vid);
     eos::FileMD* fmd=0;
-    if ((!gOFS->_exists(procpathwhoami.c_str(),file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
+    if ((!gOFS->_exists(procpathwhoami.c_str(),file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo)) 
       fmd = gOFS->eosView->createFile(procpathwhoami.c_str(),0,0);
+
     if (fmd) {
       fmd->setSize(4096);
       gOFS->eosView->updateFileStore(fmd);

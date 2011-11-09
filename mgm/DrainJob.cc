@@ -155,31 +155,31 @@ DrainJob::Drain(void)
   long long scheduledfiles=0;
 
   XrdSysThread::SetCancelOff();
-  //------------------------------------
-  gOFS->eosViewMutex.Lock(); 
-  try {
-    eos::FileMD* fmd = 0;
-    eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
-    eos::FileSystemView::FileIterator it;
-    
-    for (it = filelist.begin(); it != filelist.end(); ++it) {
-      fmd = gOFS->eosFileService->getFileMD(*it);
-      if (fmd) {
-        //eos::FileMD::LocationVector::const_iterator lociter;
-        //      for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
-        //      }
-        totalbytes+= fmd->getSize();
-        totalfiles++;
-
-        // insert into the drainqueue
-        fids.push_back((unsigned long long)fmd->getId());
+  {
+    //------------------------------------
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    try {
+      eos::FileMD* fmd = 0;
+      eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+      eos::FileSystemView::FileIterator it;
+      
+      for (it = filelist.begin(); it != filelist.end(); ++it) {
+	fmd = gOFS->eosFileService->getFileMD(*it);
+	if (fmd) {
+	  //eos::FileMD::LocationVector::const_iterator lociter;
+	  //      for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+	  //      }
+	  totalbytes+= fmd->getSize();
+	  totalfiles++;
+	  
+	  // insert into the drainqueue
+	  fids.push_back((unsigned long long)fmd->getId());
+	}
       }
-    }
-  } catch ( eos::MDException &e ) {
+    } catch ( eos::MDException &e ) {
     // there are no files in that view
+    }    
   }
-  
-  gOFS->eosViewMutex.UnLock();
   //------------------------------------
 
   XrdSysThread::SetCancelOn();
@@ -338,7 +338,7 @@ DrainJob::Drain(void)
                     fid = fids[q];
                     locationfs.clear();
                     // ------------------------------------------
-                    gOFS->eosViewMutex.Lock();
+		    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);                   
                     eos::FileMD* fmd = 0;
                     unsigned long long size=0;
                     try {
@@ -369,9 +369,7 @@ DrainJob::Drain(void)
                       if (fs->ReserveSpace(target_snapshot, size))
                         acceptid = true;
                     }
-
-
-                    gOFS->eosViewMutex.UnLock();
+                  
                     // ------------------------------------------
                     if (acceptid) {
                       scheduledbytes += size;
@@ -542,15 +540,19 @@ DrainJob::Drain(void)
       // get a rough estimate about the drain progress
       // ---------------------------------------------      
 
-      gOFS->eosViewMutex.Lock(); 
       long long filesleft=0;
-      try {
-        eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
-        filesleft = filelist.size();
-      } catch ( eos::MDException &e ) {
-        // there are no files in that view
+
+      {
+	eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	
+	try {
+	  eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+	  filesleft = filelist.size();
+	} catch ( eos::MDException &e ) {
+	  // there are no files in that view
+	}
       }
-      gOFS->eosViewMutex.UnLock();
+      
       int progress = (int)(totalfiles)?(100.0*(totalfiles-filesleft + totallostfiles)/totalfiles):100;
 
       {
@@ -588,17 +590,17 @@ DrainJob::Drain(void)
 
     long long filesleft = 0;
 
-    //------------------------------------
-    gOFS->eosViewMutex.Lock(); 
-    try {
-      eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
-      filesleft = filelist.size();
-
-    } catch ( eos::MDException &e ) {
-      // there are no files in that view
+    {
+      //------------------------------------
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      try {
+	eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+	filesleft = filelist.size();
+	
+      } catch ( eos::MDException &e ) {
+	// there are no files in that view
+      }
     }
-    
-    gOFS->eosViewMutex.UnLock();
     //------------------------------------
 
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);

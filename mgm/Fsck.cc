@@ -447,8 +447,15 @@ Fsck::Check(void)
     
     XrdSysThread::CancelPoint();
     Log(false,"=> next run in 8 hours");
+    // write the report files
+    XrdOucString out,err;
+    XrdOucString option="e";
+    XrdOucString selection="";
+    Report(out, err, option, selection);
+
     sleeper.Snooze(8*3600);
   }
+
   return 0;
 }
 
@@ -548,6 +555,48 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
       }
     }
   }
+
+  if ((option.find("e")!=STR_NPOS)) {
+    // dump out everything into /var/eos/report/fsck/<unixtimestamp>/*.lfn
+    for (size_t i = 0; i < mErrorNames.size(); i++) {
+      char lfnfile[4096];
+      snprintf(lfnfile,sizeof(lfnfile)-1,"/var/eos/report/fsck/%lu/%s.lfn", time(NULL), mErrorNames[i].c_str());
+      eos::common::Path lfnpath(lfnfile);
+      lfnpath.MakeParentPath(S_IRWXU);
+      FILE* fout = fopen(lfnfile,"w+");
+      if (fout) {
+	Log(false,"created export report lfn files under %s\n", lfnfile);
+      } else {
+	Log(false,"creation of export report lfn files under %s failed\n", lfnfile);
+      }
+
+      if (mFsidErrorMap[mErrorNames[i]].size()) {
+	google::sparse_hash_map<eos::common::FileSystem::fsid_t,unsigned long long>::const_iterator it;
+	for (it = mFsidErrorMap[mErrorNames[i]].begin(); it != mFsidErrorMap[mErrorNames[i]].end(); it ++) {
+	  if (it->second) {
+	    google::sparse_hash_set<unsigned long long>::const_iterator fidit;
+	    for (fidit = mFsidErrorFidSet[mErrorNames[i]][it->first].begin(); fidit != mFsidErrorFidSet[mErrorNames[i]][it->first].end(); fidit++) {
+	      XrdOucString sizestring;
+	      //-------------------------------------------
+	      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	      XrdOucString path="";
+	      try {
+		path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(*fidit)).c_str();
+	      } catch ( eos::MDException &e ) {
+		path ="EINVAL";
+	      }	      
+	      
+	      if (path.length() && fout) {
+		fprintf(fout,"%s", path.c_str());
+	      }
+	    }
+	  }
+	}
+      }
+      if (fout) fclose(fout);
+    }
+  }
+
   if ((option.find("a")!=STR_NPOS)) {
     // print statistic for all filesystems having errors
     for (size_t i = 0; i < mErrorNames.size(); i++) {
@@ -586,16 +635,17 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
                 google::sparse_hash_set<unsigned long long>::const_iterator fidit;
                 for (fidit = mFsidErrorFidSet[mErrorNames[i]][it->first].begin(); fidit != mFsidErrorFidSet[mErrorNames[i]][it->first].end(); fidit++) {
                   XrdOucString sizestring;
-                  //-------------------------------------------
-                  gOFS->eosViewMutex.Lock();
                   XrdOucString path="";
-                  try {
-                    path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(*fidit)).c_str();
-                  } catch ( eos::MDException &e ) {
-                    path ="EINVAL";
-                  }
-                  gOFS->eosViewMutex.UnLock();
-
+		  {
+		  //-------------------------------------------
+		    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);                
+		    try {
+		      path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(*fidit)).c_str();
+		    } catch ( eos::MDException &e ) {
+		      path ="EINVAL";
+		    }                  
+		    
+		  }
                   if (path.length()) {
                     out += "lfn=";
                     out += path.c_str();
@@ -727,17 +777,18 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 
     // stream all the fsids in this filesystem in to the set of replica_missing, then each file found is removed from this set
     // --------------------------
-    gOFS->eosViewMutex.Lock();
-    try {
-      eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
-      eos::FileSystemView::FileIterator it;
-      for (it = filelist.begin(); it != filelist.end(); ++it) {
-        mLocalErrorFidSet["replica_missing"].insert(*it);
+    {
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      try {
+	eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+	eos::FileSystemView::FileIterator it;
+	for (it = filelist.begin(); it != filelist.end(); ++it) {
+	  mLocalErrorFidSet["replica_missing"].insert(*it);
+	}
+      } catch ( eos::MDException &e ) {
+	// nothing to catch
       }
-    } catch ( eos::MDException &e ) {
-      // nothing to catch
     }
-    gOFS->eosViewMutex.UnLock();
     // --------------------------
     
     XrdOucString url = "root://daemon@"; url += hostport.c_str(); url += "/"; url += mountpoint.c_str();
@@ -756,6 +807,9 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
     std::string dumpentry;
 
     unsigned long long nfiles=0;
+
+    // we do only one scan at a time to avoid to high mutex contention
+    mScanMutex.Lock();
 
     while(std::getline(inFile, dumpentry)) {
       {
@@ -791,8 +845,8 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
       if (fid && (tokens[8] != "1")) {
         eos::FileMD* fmd=0;
         
-        //-------------------------------------------
-        gOFS->eosViewMutex.Lock();
+        //-------------------------------------------      
+	gOFS->eosViewRWMutex.LockRead();
         try {
           fmd = gOFS->eosFileService->getFileMD(fid);
         } catch ( eos::MDException &e ) {
@@ -804,14 +858,14 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
         std::string mgm_size = "";
         std::string mgm_checksum = "";
         bool replicaexists = false;
-        bool lfnexists = false;
+        bool lfnexists = true;
         bool unlinkedlocation = false;
         bool hasfmdchecksum = false;
         
         if (fmd) {
           eos::FileMD fmdCopy(*fmd);
           fmd = &fmdCopy;
-          gOFS->eosViewMutex.UnLock();
+          gOFS->eosViewRWMutex.UnLockRead();
           //-------------------------------------------
           eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getSize());
           
@@ -897,7 +951,7 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
 	    }
           }
         } else {
-          gOFS->eosViewMutex.UnLock();
+          gOFS->eosViewRWMutex.UnLockRead();
           lfnexists=false;
           //-------------------------------------------
         }
@@ -1005,6 +1059,7 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
     Log(false,"filesystem: fsid=%05d hostport=%20s mountpoint=%s totalfiles=%llu", fsid, hostport.c_str(),mountpoint.c_str(), totalfiles);
     // delete dump file
     ::unlink(dumpfile.c_str());      
+    mScanMutex.UnLock();
   }
   // copy local maps to global maps
 

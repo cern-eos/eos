@@ -534,6 +534,7 @@ public:
   eos::IView      *eosView;            // -> hierarchical view of the namespace
   eos::FileSystemView *eosFsView;      // -> filesystem view of the namespace
   XrdSysMutex      eosViewMutex;       // -> mutex making the namespace single threaded
+  eos::common::RWMutex eosViewRWMutex;     // -> rw namespace mutex
   XrdOucString     MgmMetaLogDir;      //  Directory containing the meta data (change) log files
   Stat             MgmStats;           //  Mgm Namespace Statistics
   Iostat           IoStats;            //  Mgm IO Statistics

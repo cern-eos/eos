@@ -50,7 +50,7 @@ private:
 
   XrdOucString  mLog;
   XrdSysMutex mLogMutex;
-
+  XrdSysMutex mScanMutex;
   // these maps contain the snapshot state of the last fsck
   XrdSysMutex mErrorMapMutex;
 

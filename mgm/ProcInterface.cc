@@ -1610,7 +1610,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 unsigned long long nfids_risky   =0;
                 unsigned long long nfids_inaccessible =0;
 
-                gOFS->eosViewMutex.Lock();
+		eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);                         
                 try {
                   eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
                   nfids = (unsigned long long) filelist.size();
@@ -1673,8 +1673,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 } catch ( eos::MDException &e ) {
                   errno = e.getErrno();
                   eos_static_err("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-                }
-                gOFS->eosViewMutex.UnLock();
+                }               
                 //-------------------------------------------
                 retc=0;
               }
@@ -1856,7 +1855,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
           if (!rerror) {
             //-------------------------------------------
-            gOFS->eosViewMutex.Lock();
+	    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);                     
 
             time_t tstart = time(0);
             
@@ -1876,10 +1875,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               errno = e.getErrno();
               eos_crit("initialization returnd ec=%d %s\n", e.getErrno(),e.getMessage().str().c_str());
               stdErr += "error: initialization returnd ec="; stdErr += (int) e.getErrno(); stdErr += " msg='"; stdErr += e.getMessage().str().c_str();stdErr += "'";
-            }
-            
-            gOFS->eosViewMutex.UnLock();                 
-            //-------------------------------------------
+            }                              
           } else {
             retc = EFAULT;
             stdErr = "error: renaming failed - this can be fatal - please check manually!";
@@ -2779,30 +2775,30 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           inode = 0;
 
           //-------------------------------------------
-          gOFS->eosViewMutex.Lock();
-          try {
-            fmd = gOFS->eosView->getFile(cPath.GetPath());
-            inode = fmd->getId() << 28;
-          } catch ( eos::MDException &e ) {
-            errno = e.getErrno();
-            eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	  {
+	    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);                    
+	    try {
+	      fmd = gOFS->eosView->getFile(cPath.GetPath());
+	      inode = fmd->getId() << 28;
+	    } catch ( eos::MDException &e ) {
+	      errno = e.getErrno();
+	      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	    }
           }
-          gOFS->eosViewMutex.UnLock();
           //-------------------------------------------
 
           // check if that is a directory in case
           if (!fmd) {
             eos::ContainerMD* dir=0;
             //-------------------------------------------
-            gOFS->eosViewMutex.Lock();
+	    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);          
             try {
               dir = gOFS->eosView->getContainer(cPath.GetPath());
               inode = dir->getId();
             } catch( eos::MDException &e ) {
               dir = 0;
               eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-            }
-            gOFS->eosViewMutex.UnLock();
+            }            
             //-------------------------------------------
           }
           sprintf(inodestr, "%lld",inode);
@@ -2876,7 +2872,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 }
                 // reference by fid+fsid
                 //-------------------------------------------
-                gOFS->eosViewMutex.Lock();
+                gOFS->eosViewRWMutex.LockRead();
                 try {
                   fmd = gOFS->eosFileService->getFileMD(fid);
                 } catch ( eos::MDException &e ) {
@@ -2887,7 +2883,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               } else {
                 // reference by path
                 //-------------------------------------------
-                gOFS->eosViewMutex.Lock();
+                gOFS->eosViewRWMutex.LockRead();
                 try {
                   fmd = gOFS->eosView->getFile(spath.c_str());
                 } catch ( eos::MDException &e ) {
@@ -2911,7 +2907,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               } else {
                 retc = errno;
               }
-              gOFS->eosViewMutex.UnLock();
+              gOFS->eosViewRWMutex.UnLockRead();
               //-------------------------------------------
     
             } else {
@@ -2970,7 +2966,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               }
               // reference by fid+fsid
               //-------------------------------------------
-              gOFS->eosViewMutex.Lock();
+              gOFS->eosViewRWMutex.LockRead();
               try {
                 fmd = gOFS->eosFileService->getFileMD(fid);
                 std::string fullpath = gOFS->eosView->getUri(fmd);
@@ -2983,7 +2979,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             } else {
               // reference by path
               //-------------------------------------------
-              gOFS->eosViewMutex.Lock();
+              gOFS->eosViewRWMutex.LockRead();
               try {
                 fmd = gOFS->eosView->getFile(spath.c_str());
               } catch ( eos::MDException &e ) {
@@ -3001,7 +2997,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 locations.push_back(*it);
               }
               
-              gOFS->eosViewMutex.UnLock();
+              gOFS->eosViewRWMutex.UnLockRead();
               
               retc = 0;
               bool acceptfound=false;
@@ -3031,7 +3027,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 }
               }
             } else {
-              gOFS->eosViewMutex.UnLock();
+              gOFS->eosViewRWMutex.UnLockRead();
             }
             
             //-------------------------------------------
@@ -3102,7 +3098,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               
               // reference by fid+fsid
               //-------------------------------------------
-              gOFS->eosViewMutex.Lock();
+              gOFS->eosViewRWMutex.LockRead();
               try {
                 fmd = gOFS->eosFileService->getFileMD(fid);
               } catch ( eos::MDException &e ) {
@@ -3113,7 +3109,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             } else {
               // reference by path
               //-------------------------------------------
-              gOFS->eosViewMutex.Lock();
+              gOFS->eosViewRWMutex.LockRead();
               try {
                 fmd = gOFS->eosView->getFile(spath.c_str());
               } catch ( eos::MDException &e ) {
@@ -3133,7 +3129,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               eos::FileMD fmdCopy(*fmd);
               fmd = &fmdCopy;
               
-              gOFS->eosViewMutex.UnLock();
+              gOFS->eosViewRWMutex.UnLockRead();
               //-------------------------------------------
               
               // check if that is a replica layout at all
@@ -3393,7 +3389,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                     for (unsigned int i = 0 ; i< fsid2delete.size(); i++) {
                       if (fmd->hasLocation(fsid2delete[i])) {
                         //-------------------------------------------
-                        gOFS->eosViewMutex.Lock();
+			eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
                         try {
                           // we have to get again the original file meta data
                           fmd = gOFS->eosFileService->getFileMD(fid);
@@ -3405,16 +3401,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                           errno = e.getErrno();
                           stdErr = "error: drop excess replicas => cannot unlink location - "; stdErr += e.getMessage().str().c_str(); stdErr += "\n";
                           eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-                        }
-                        gOFS->eosViewMutex.UnLock();
+                        }                        
                       }
                     }
                   }
                 }
               }
-            } else {
-              gOFS->eosViewMutex.UnLock();
-              //-------------------------------------------
             }
           } else {
             retc = EPERM;
@@ -3440,7 +3432,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             eos::FileMD* fmd=0;
             
             //-------------------------------------------
-            gOFS->eosViewMutex.Lock();
+	    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);          
             try {
               fmd = gOFS->eosView->getFile(spath.c_str());
             } catch ( eos::MDException &e ) {
@@ -3451,14 +3443,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
             if (!fmd) {
               retc = errno;
-              gOFS->eosViewMutex.UnLock();
-              //-------------------------------------------
-
             } else {
               eos::FileMD fmdCopy(*fmd);
               fmd = &fmdCopy;
-              gOFS->eosViewMutex.UnLock();
-              //-------------------------------------------
 
               XrdOucString sizestring;
               
@@ -3543,7 +3530,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
           // reference by fid+fsid
           //-------------------------------------------
-          gOFS->eosViewMutex.Lock();
+          gOFS->eosViewRWMutex.LockRead();
           try {
             fmd = gOFS->eosFileService->getFileMD(fid);
             std::string fullpath = gOFS->eosView->getUri(fmd);
@@ -3556,7 +3543,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         } else {
           // reference by path
           //-------------------------------------------
-          gOFS->eosViewMutex.Lock();
+          gOFS->eosViewRWMutex.LockRead();
           try {
             fmd = gOFS->eosView->getFile(spath.c_str());
           } catch ( eos::MDException &e ) {
@@ -3570,14 +3557,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
         if (!fmd) {
           retc = errno;
-          gOFS->eosViewMutex.UnLock();
+          gOFS->eosViewRWMutex.UnLockRead();
           //-------------------------------------------
 
         } else {
           // make a copy of the meta data
           eos::FileMD fmdCopy(*fmd);
           fmd = &fmdCopy;
-          gOFS->eosViewMutex.UnLock();
+          gOFS->eosViewRWMutex.UnLockRead();
           //-------------------------------------------
 
           XrdOucString sizestring;
@@ -4247,7 +4234,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               if (!calcbalance) {
                 if (findgroupmix || findzero || printsize || printfid || printchecksum || printctime || printmtime || printrep  || printunlink || selectrepdiff || selectonehour) {
                   //-------------------------------------------
-                  gOFS->eosViewMutex.Lock();
+
+                  gOFS->eosViewRWMutex.LockRead();
                   eos::FileMD* fmd = 0;
                   try {
                     bool selected = true;
@@ -4256,7 +4244,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                     fmd = gOFS->eosView->getFile((*found_files)[i][j].c_str());
                     eos::FileMD fmdCopy(*fmd);
                     fmd = &fmdCopy;
-                    gOFS->eosViewMutex.UnLock();
+                    gOFS->eosViewRWMutex.UnLockRead();
                     //-------------------------------------------
 
                     if (selectonehour) {
@@ -4391,7 +4379,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                     }
                   } catch( eos::MDException &e ) {
                     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-                    gOFS->eosViewMutex.UnLock();
+                    gOFS->eosViewRWMutex.UnLockRead();
                     //-------------------------------------------
                   }
                 } else {
@@ -4401,7 +4389,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               } else {
                 // get location
                 //-------------------------------------------
-                gOFS->eosViewMutex.Lock();
+                gOFS->eosViewRWMutex.LockRead();
                 eos::FileMD* fmd = 0;
                 try {
                   fmd = gOFS->eosView->getFile((*found_files)[i][j].c_str());
@@ -4412,7 +4400,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 if (fmd) {
                   eos::FileMD fmdCopy(*fmd);
                   fmd = &fmdCopy;
-                  gOFS->eosViewMutex.UnLock();
+                  gOFS->eosViewRWMutex.UnLockRead();
                   //-------------------------------------------
 
                   for (unsigned int i=0; i< fmd->getNumLocation(); i++) {
@@ -4445,7 +4433,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                     }
                   }
                 } else {
-                  gOFS->eosViewMutex.UnLock();
+                  gOFS->eosViewRWMutex.UnLockRead();
                   //-------------------------------------------
                 }
               }

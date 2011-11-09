@@ -264,7 +264,7 @@ BalanceJob::Balance(void)
 
           // get enough FIDs to free the space
           //-------------------------------------------
-          gOFS->eosViewMutex.Lock();
+	  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
           try {
             eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(snapshot.mId);
             unsigned long long nfids = (unsigned long long) filelist.size();
@@ -300,8 +300,7 @@ BalanceJob::Balance(void)
           } catch ( eos::MDException &e ) {
             errno = e.getErrno();
             eos_static_err("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-          }
-          gOFS->eosViewMutex.UnLock();
+          }         
           //-------------------------------------------            
         }
       }
@@ -375,7 +374,7 @@ BalanceJob::Balance(void)
             std::string fullpath = "";
             
             do {
-              gOFS->eosViewMutex.Lock();
+	      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
               eos::FileMD* fmd = 0;
               try {
                 fid = *fid_it;
@@ -396,8 +395,7 @@ BalanceJob::Balance(void)
                 acceptid = true;
                 size = fmd->getSize();
                 fullpath = gOFS->eosView->getUri(fmd);
-              }
-              gOFS->eosViewMutex.UnLock();
+              }             
               // increment to the next fid in the source filesystem fid set
               if (!acceptid)
                 fid_it++;

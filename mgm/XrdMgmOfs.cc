@@ -325,7 +325,7 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
   bool permok = false;
 
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);      
   try {
     eos::ContainerMD::XAttrMap attrmap;
     eos::ContainerMD::FileMap::iterator dh_files;
@@ -380,9 +380,6 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
   if (dh) {
     eos_debug("access for %d %d gives %d in %o", vid.uid,vid.gid,(dh->access(vid.uid,vid.gid, R_OK|X_OK)), dh->getMode());
   }
-
-  gOFS->eosViewMutex.UnLock();
-  //-------------------------------------------
 
   // Verify that this object is not already associated with an open directory
   //
@@ -602,130 +599,125 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   // get the directory meta data if exists
   eos::ContainerMD* dmd=0;
   eos::ContainerMD::XAttrMap attrmap;
-
-  //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
-  try {
-    dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
-    // get the attributes out
-    eos::ContainerMD::XAttrMap::const_iterator it;
-    for ( it = dmd->attributesBegin(); it != dmd->attributesEnd(); ++it) {
-      attrmap[it->first] = it->second;
-    }
-    if (dmd) {
-      fmd = dmd->findFile(cPath.GetName());
-      if (!fmd) {
-        if (dmd->findContainer(cPath.GetName())) {
-          errno = EISDIR;
-        } else {
-          errno = ENOENT;
-        }
-      } else {
-        fileId = fmd->getId();
-        fmdlid = fmd->getLayoutId();
-        cid    = fmd->getContainerId();
-      }
-    }
-    else
-      fmd = 0;
-    
-  } catch( eos::MDException &e ) {
-    dmd = 0;
-    errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-  };
-
-  //-------------------------------------------
-  // check permissions
-
-  if (!dmd) {
-    if (cPath.GetSubPath(2)) {
-      eos_info("checking l2 path %s", cPath.GetSubPath(2));
-      //-------------------------------------------
-      // check if we have a redirection setting at level 2 in the namespace
-      //-------------------------------------------
-      try {
-        dmd = gOFS->eosView->getContainer(cPath.GetSubPath(2));
-        // get the attributes out
-        eos::ContainerMD::XAttrMap::const_iterator it;
-        for ( it = dmd->attributesBegin(); it != dmd->attributesEnd(); ++it) {
-          attrmap[it->first] = it->second;
-        }
-      } catch( eos::MDException &e ) {
-        dmd = 0;
-        errno = e.getErrno();
-        eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-      };
-      
-      gOFS->eosViewMutex.UnLock();
-      
-      //-------------------------------------------
-      if (attrmap.count("sys.redirect.enoent")) {
-        // there is a redirection setting here
-        redirectionhost = "";
-        redirectionhost = attrmap["sys.redirect.enoent"].c_str();
-        int portpos = 0;
-        if ( (portpos = redirectionhost.find(":")) != STR_NPOS) {
-          XrdOucString port = redirectionhost;
-          port.erase(0,portpos+1);
-          ecode = atoi(port.c_str());
-          redirectionhost.erase(portpos);
-        } else {
-          ecode = 1094;
-        }
-        rcode = SFS_REDIRECT;
-        error.setErrInfo(ecode, redirectionhost.c_str());
-        gOFS->MgmStats.Add("RedirectENOENT",vid.uid,vid.gid,1);  
-        eos_info("redirecting to %s:%d", redirectionhost.c_str(), ecode);
-        return rcode;
-      }
-    } else {
-      gOFS->eosViewMutex.UnLock();
-    }
-    return Emsg(epname, error, errno, "open file", path);
-  } 
-  
-
-  // ACL and permission check
-  Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
-  eos_info("acl=%d r=%d w=%d wo=%d egroup=%d", acl.HasAcl(),acl.CanRead(),acl.CanWrite(),acl.CanWriteOnce(), acl.HasEgroup());
+  Acl acl;
   bool stdpermcheck=false;
-  if (acl.HasAcl()) {
-    if (isRW) {
-      // write case
-      if ( (!acl.CanWrite()) && (!acl.CanWriteOnce()) ) {
-        // we have to check the standard permissions
-        stdpermcheck = true;
+
+  {
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    //-------------------------------------------
+    try {
+      dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+      // get the attributes out
+      eos::ContainerMD::XAttrMap::const_iterator it;
+      for ( it = dmd->attributesBegin(); it != dmd->attributesEnd(); ++it) {
+	attrmap[it->first] = it->second;
+      }
+      if (dmd) {
+	fmd = dmd->findFile(cPath.GetName());
+	if (!fmd) {
+	  if (dmd->findContainer(cPath.GetName())) {
+	    errno = EISDIR;
+	  } else {
+	    errno = ENOENT;
+	  }
+	} else {
+	  fileId = fmd->getId();
+	  fmdlid = fmd->getLayoutId();
+	  cid    = fmd->getContainerId();
+	}
+      }
+      else
+	fmd = 0;
+      
+    } catch( eos::MDException &e ) {
+      dmd = 0;
+      errno = e.getErrno();
+      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    };
+    
+    //-------------------------------------------
+    // check permissions
+    
+    if (!dmd) {
+      if (cPath.GetSubPath(2)) {
+	eos_info("checking l2 path %s", cPath.GetSubPath(2));
+	//-------------------------------------------
+	// check if we have a redirection setting at level 2 in the namespace
+	//-------------------------------------------
+	try {
+	  dmd = gOFS->eosView->getContainer(cPath.GetSubPath(2));
+	  // get the attributes out
+	  eos::ContainerMD::XAttrMap::const_iterator it;
+	  for ( it = dmd->attributesBegin(); it != dmd->attributesEnd(); ++it) {
+	    attrmap[it->first] = it->second;
+	  }
+	} catch( eos::MDException &e ) {
+	  dmd = 0;
+	  errno = e.getErrno();
+	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	};	      
+	//-------------------------------------------
+	if (attrmap.count("sys.redirect.enoent")) {
+	  // there is a redirection setting here
+	  redirectionhost = "";
+	  redirectionhost = attrmap["sys.redirect.enoent"].c_str();
+	  int portpos = 0;
+	  if ( (portpos = redirectionhost.find(":")) != STR_NPOS) {
+	    XrdOucString port = redirectionhost;
+	    port.erase(0,portpos+1);
+	    ecode = atoi(port.c_str());
+	    redirectionhost.erase(portpos);
+	  } else {
+	    ecode = 1094;
+	  }
+	  rcode = SFS_REDIRECT;
+	  error.setErrInfo(ecode, redirectionhost.c_str());
+	  gOFS->MgmStats.Add("RedirectENOENT",vid.uid,vid.gid,1);  
+	  eos_info("redirecting to %s:%d", redirectionhost.c_str(), ecode);
+	  return rcode;
+	}    
+      }
+      return Emsg(epname, error, errno, "open file", path);
+    } 
+    
+    // ACL and permission check
+    acl.Set(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
+    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d", acl.HasAcl(),acl.CanRead(),acl.CanWrite(),acl.CanWriteOnce(), acl.HasEgroup());
+    if (acl.HasAcl()) {
+      if (isRW) {
+	// write case
+	if ( (!acl.CanWrite()) && (!acl.CanWriteOnce()) ) {
+	  // we have to check the standard permissions
+	  stdpermcheck = true;
+	}
+      } else {
+	// read case
+	if ( (!acl.CanRead()) ) {
+	  // we have to check the standard permissions
+	  stdpermcheck = true;
+	} 
       }
     } else {
-      // read case
-      if ( (!acl.CanRead()) ) {
-        // we have to check the standard permissions
-        stdpermcheck = true;
-      } 
+      stdpermcheck = true;
     }
-  } else {
-    stdpermcheck = true;
+    
+    if (stdpermcheck && (!dmd->access(vid.uid, vid.gid, (isRW)?W_OK | X_OK:R_OK | X_OK))) {
+      errno = EPERM;  
+      gOFS->MgmStats.Add("OpenFailedPermission",vid.uid,vid.gid,1);  
+      return Emsg(epname, error, errno, "open file", path);      
+    }
+    
+    // store the in-memory modification time
+    gOFS->MgmDirectoryModificationTimeMutex.Lock();
+    // we get the current time, but we don't update the creation time
+    struct timespec ts;
+    eos::common::Timing::GetTimeSpec(ts);
+    gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_sec = ts.tv_sec;
+    gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_nsec = ts.tv_nsec;
+    gOFS->MgmDirectoryModificationTimeMutex.UnLock();
+    //-------------------------------------------    
   }
 
-  if (stdpermcheck && (!dmd->access(vid.uid, vid.gid, (isRW)?W_OK | X_OK:R_OK | X_OK))) {
-    errno = EPERM;
-    gOFS->eosViewMutex.UnLock();
-    gOFS->MgmStats.Add("OpenFailedPermission",vid.uid,vid.gid,1);  
-    return Emsg(epname, error, errno, "open file", path);      
-  }
-  
-  // store the in-memory modification time
-  gOFS->MgmDirectoryModificationTimeMutex.Lock();
-  // we get the current time, but we don't update the creation time
-  struct timespec ts;
-  eos::common::Timing::GetTimeSpec(ts);
-  gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_sec = ts.tv_sec;
-  gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_nsec = ts.tv_nsec;
-  gOFS->MgmDirectoryModificationTimeMutex.UnLock();
-    
-  gOFS->eosViewMutex.UnLock();
-  //-------------------------------------------
   
   if (isRW) {
     if ((open_mode & SFS_O_TRUNC) && fmd) {
@@ -777,21 +769,22 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
       } else {
         // creation of a new file
 
-        //-------------------------------------------
-        gOFS->eosViewMutex.Lock();
-        try {
-          // we create files with the uid/gid of the parent directory
-          fmd = gOFS->eosView->createFile(path, vid.uid, vid.gid);
-          fileId = fmd->getId();
-          fmdlid = fmd->getLayoutId();
-          cid    = fmd->getContainerId();
-        } catch( eos::MDException &e ) {
-          fmd = 0;
-          errno = e.getErrno();
-          eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-        };
-        gOFS->eosViewMutex.UnLock();
-        //-------------------------------------------
+	{
+	  //-------------------------------------------
+	  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);	 
+	  try {
+	    // we create files with the uid/gid of the parent directory
+	    fmd = gOFS->eosView->createFile(path, vid.uid, vid.gid);
+	    fileId = fmd->getId();
+	    fmdlid = fmd->getLayoutId();
+	    cid    = fmd->getContainerId();
+	  } catch( eos::MDException &e ) {
+	    fmd = 0;
+	    errno = e.getErrno();
+	    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	  };	 
+	  //-------------------------------------------
+	}
         
         if (!fmd) {
           // creation failed
@@ -872,28 +865,28 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     // set the layout and commit new meta data 
     fmd->setLayoutId(layoutId);
     fmd->setSize(0);
-    //-------------------------------------------
-    gOFS->eosViewMutex.Lock();
-    try {
-      gOFS->eosView->updateFileStore(fmd);
-
-      SpaceQuota* space = Quota::GetResponsibleSpaceQuota(path);
-      if (space) {
-        eos::QuotaNode* quotanode = 0;
-        quotanode = space->GetQuotaNode();
-        if (quotanode) {
-          quotanode->addFile(fmd);
-        }
-      }
-    } catch( eos::MDException &e ) {
-      errno = e.getErrno();
-      std::string errmsg = e.getMessage().str();
-      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-      gOFS->eosViewMutex.UnLock();
-      return Emsg(epname, error, errno, "open file", errmsg.c_str());      
+    {
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      //-------------------------------------------      
+      try {
+	gOFS->eosView->updateFileStore(fmd);
+	
+	SpaceQuota* space = Quota::GetResponsibleSpaceQuota(path);
+	if (space) {
+	  eos::QuotaNode* quotanode = 0;
+	  quotanode = space->GetQuotaNode();
+	  if (quotanode) {
+	    quotanode->addFile(fmd);
+	  }
+	}
+      } catch( eos::MDException &e ) {
+	errno = e.getErrno();
+	std::string errmsg = e.getMessage().str();
+	eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());	
+	return Emsg(epname, error, errno, "open file", errmsg.c_str());      
+      }     
+      //-------------------------------------------
     }
-    gOFS->eosViewMutex.UnLock();
-    //-------------------------------------------
   }
   
   capability += "&mgm.ruid=";       capability+=(int)vid.uid; 
@@ -1442,7 +1435,7 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
   EXEC_TIMING_BEGIN("Chmod");
 
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   eos::ContainerMD* cmd = 0;
   errno = 0;
 
@@ -1470,7 +1463,6 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
     errno = e.getErrno();
   };
   
-  gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
 
   if (cmd  && (!errno)) {
@@ -1495,7 +1487,7 @@ int XrdMgmOfs::_chown(const char               *path,    // In
   EXEC_TIMING_BEGIN("Chown");
 
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   eos::ContainerMD* cmd = 0;
   eos::FileMD* fmd = 0;
   errno = 0;
@@ -1573,7 +1565,6 @@ int XrdMgmOfs::_chown(const char               *path,    // In
     };
   }
 
-  gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
 
   if (cmd  && (!errno)) {
@@ -1644,29 +1635,29 @@ int XrdMgmOfs::_exists(const char                *path,        // In
 
   gOFS->MgmStats.Add("Exists",vid.uid,vid.gid,1);  
 
-
-  //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
   eos::ContainerMD* cmd = 0;
-  try {
-    cmd = gOFS->eosView->getContainer(path);
-  } catch ( eos::MDException &e ) {
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-  };
-  gOFS->eosViewMutex.UnLock();
-  //-------------------------------------------
+
+  {
+    //-------------------------------------------
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    try {
+      cmd = gOFS->eosView->getContainer(path);
+    } catch ( eos::MDException &e ) {
+      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    };
+    //-------------------------------------------
+  }
 
   if (!cmd) {
     // try if that is a file
     //-------------------------------------------
-    gOFS->eosViewMutex.Lock();
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);   
     eos::FileMD* fmd = 0;
     try {
       fmd = gOFS->eosView->getFile(path);
     } catch( eos::MDException &e ) {
       eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
     }
-    gOFS->eosViewMutex.UnLock();
     //-------------------------------------------
 
     if (!fmd) {
@@ -1685,7 +1676,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
     eos::ContainerMD::XAttrMap attrmap;
     
     //-------------------------------------------
-    gOFS->eosViewMutex.Lock();
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);    
     try {
       dir = eosView->getContainer(cPath.GetParentPath());
       eos::ContainerMD::XAttrMap::const_iterator it;
@@ -1694,8 +1685,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
       }
     } catch( eos::MDException &e ) {
       dir = 0;
-    }
-    gOFS->eosViewMutex.UnLock();
+    }    
     //-------------------------------------------
     
     if (dir) {
@@ -1755,31 +1745,32 @@ int XrdMgmOfs::_exists(const char                *path,        // In
   EXEC_TIMING_BEGIN("Exists");
 
   gOFS->MgmStats.Add("Exists",vid.uid,vid.gid,1);  
+
+  eos::ContainerMD* cmd = 0;
   
   // try if that is directory
-  //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
-  eos::ContainerMD* cmd = 0;
-  try {
-    cmd = gOFS->eosView->getContainer(path);
-  } catch ( eos::MDException &e ) {
-    cmd = 0;
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-  };
-  gOFS->eosViewMutex.UnLock();
-  //-------------------------------------------
+  {
+    //-------------------------------------------
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    try {
+      cmd = gOFS->eosView->getContainer(path);
+    } catch ( eos::MDException &e ) {
+      cmd = 0;
+      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    };  
+    //-------------------------------------------
+  }
 
   if (!cmd) {
     // try if that is a file
     //-------------------------------------------
-    gOFS->eosViewMutex.Lock();
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);    
     eos::FileMD* fmd = 0;
     try {
       fmd = gOFS->eosView->getFile(path);
     } catch( eos::MDException &e ) {
       eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
     }
-    gOFS->eosViewMutex.UnLock();
     //-------------------------------------------
 
     if (!fmd) {
@@ -1879,52 +1870,52 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
   eos::ContainerMD::XAttrMap attrmap;
   eos::ContainerMD* copydir=0;
 
-    
-  // check for the parent directory
-  if (spath != "/") {
+  {
     //-------------------------------------------
-    gOFS->eosViewMutex.Lock();
-    try {
-      dir = eosView->getContainer(cPath.GetParentPath());
-      copydir = new eos::ContainerMD(*dir);
-      dir = copydir;
-      eos::ContainerMD::XAttrMap::const_iterator it;
-      for ( it = dir->attributesBegin(); it != dir->attributesEnd(); ++it) {
-        attrmap[it->first] = it->second;
-      }
-    } catch( eos::MDException &e ) {
-      dir = 0;
-      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-      noParent = true;
-    }
-  }
-
-  // check permission
-  if (dir ) {
-    // ACL and permission check
-    Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     
-    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d", acl.HasAcl(),acl.CanRead(),acl.CanWrite(),acl.CanWriteOnce(), acl.HasEgroup());
-    bool stdpermcheck=false;
-    if (acl.HasAcl()) {
-      if ( (!acl.CanWrite()) && (!acl.CanWriteOnce()) ) {
-        // we have to check the standard permissions
-        stdpermcheck = true;
+    // check for the parent directory
+    if (spath != "/") {
+      try {
+	dir = eosView->getContainer(cPath.GetParentPath());
+	copydir = new eos::ContainerMD(*dir);
+	dir = copydir;
+	eos::ContainerMD::XAttrMap::const_iterator it;
+	for ( it = dir->attributesBegin(); it != dir->attributesEnd(); ++it) {
+	  attrmap[it->first] = it->second;
+	}
+      } catch( eos::MDException &e ) {
+	dir = 0;
+	eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	noParent = true;
       }
-    } else {
-      stdpermcheck = true;
     }
     
-    // admin's can always create a directory
-    if (stdpermcheck && 
-        (!dir->access(vid.uid,vid.gid, X_OK|W_OK))
-        ) {
-      if (copydir) delete copydir;
-      errno = EPERM;
-      gOFS->eosViewMutex.UnLock();
-      //-------------------------------------------
-
+    // check permission
+    if (dir ) {
+      // ACL and permission check
+      Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
+      
+      eos_info("acl=%d r=%d w=%d wo=%d egroup=%d", acl.HasAcl(),acl.CanRead(),acl.CanWrite(),acl.CanWriteOnce(), acl.HasEgroup());
+      bool stdpermcheck=false;
+      if (acl.HasAcl()) {
+	if ( (!acl.CanWrite()) && (!acl.CanWriteOnce()) ) {
+	  // we have to check the standard permissions
+	  stdpermcheck = true;
+	}
+      } else {
+	stdpermcheck = true;
+      }
+      
+      // admin's can always create a directory
+      if (stdpermcheck && 
+	  (!dir->access(vid.uid,vid.gid, X_OK|W_OK))
+	  ) {
+	if (copydir) delete copydir;
+	errno = EPERM;
+	
       return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
+      }
     }
   }
   
@@ -1935,6 +1926,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     // short cut if it exists already
     eos::ContainerMD* fulldir=0;
     if (dir) {
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
       // only if the parent exists, the full path can exist!
       try {
         fulldir = eosView->getContainer(path);
@@ -1945,9 +1937,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       if (fulldir) {
         if (copydir) delete copydir;
         eos_info("this directory exists!",path);
-        EXEC_TIMING_END("Exists");
-        gOFS->eosViewMutex.UnLock();
-        //-------------------------------------------
+        EXEC_TIMING_END("Exists");      
         return SFS_OK;
       }
     }
@@ -1961,6 +1951,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       int i,j;
       // go the paths up until one exists!
       for (i=cPath.GetSubPathSize()-1;i>=0; i--) {
+	eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
         attrmap.clear();
         eos_debug("testing path %s", cPath.GetSubPath(i));
         try {
@@ -1981,8 +1972,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       if (!dir) {
         if (copydir) delete copydir;
         eos_crit("didn't find any parent path traversing the namespace");
-        errno = ENODATA;
-        gOFS->eosViewMutex.UnLock();
+        errno = ENODATA;       
         //-------------------------------------------
         return Emsg(epname, error, ENODATA, "create directory", cPath.GetSubPath(i));
       }
@@ -2004,14 +1994,13 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       if (stdpermcheck && (!dir->access(vid.uid,vid.gid, X_OK|W_OK))) {
         if (copydir) delete copydir;
         errno = EPERM;
-        gOFS->eosViewMutex.UnLock();
-        //-------------------------------------------
 
         return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
       }
    
       
       for (j=i+1; j< (int)cPath.GetSubPathSize(); j++) {
+	eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
         try {
           eos_debug("creating path %s", cPath.GetSubPath(j));
           newdir = eosView->createContainer(cPath.GetSubPath(j), recurse);
@@ -2042,28 +2031,22 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
         
         if (!newdir) {
           if (copydir) delete copydir;
-          gOFS->eosViewMutex.UnLock();
-          //-------------------------------------------
           return Emsg(epname,error,errno,"mkdir",path);
         }
       }
     } else {
       if (copydir) delete copydir;
       errno = ENOENT;
-      gOFS->eosViewMutex.UnLock();
-      //-------------------------------------------
       return Emsg(epname,error,errno,"mkdir",path);
     }
   }
 
   // this might not be needed, but it is detected by coverty
-  if (!dir) {
-    gOFS->eosViewMutex.UnLock();
-    //-------------------------------------------
+  if (!dir) {   
     return Emsg(epname,error,errno,"mkdir",path);
   }
 
-    
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);    
   try {
     newdir = eosView->createContainer(path);
     newdir->setCUid(vid.uid);
@@ -2092,8 +2075,6 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   }
-  gOFS->eosViewMutex.UnLock();
-  //-------------------------------------------
 
   if (copydir) delete copydir;
 
@@ -2191,7 +2172,6 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   XTRACE(remove, path,"");
 
 
-
   XrdSfsFileExistence file_exists;
   if ((_exists(path,file_exists,error,vid,0))) {
     return SFS_ERROR;
@@ -2207,7 +2187,7 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   }
 
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   // free the booked quota
   eos::FileMD* fmd=0;
@@ -2252,7 +2232,6 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
     if (container) {
       if (stdpermcheck && (!container->access(vid.uid, vid.gid, W_OK | X_OK))) {
         errno = EPERM;
-        gOFS->eosViewMutex.UnLock();
         return Emsg(epname, error, errno, "remove file", path);      
       }
       
@@ -2260,14 +2239,12 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
       if (acl.CanWriteOnce()) {
         errno = EPERM;
         // this is a write once user
-        gOFS->eosViewMutex.UnLock();
         return Emsg(epname, error, EPERM,"remove existing file - you are write-once user");
       }
 
       if ( (!stdpermcheck) && (!acl.CanWrite())) {
         errno = EPERM;
         // this use is not allowed to write
-        gOFS->eosViewMutex.UnLock();
         return Emsg(epname, error, EPERM,"remove existing file - you don't have write permissions");
       }
 
@@ -2304,8 +2281,6 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   };
-  gOFS->eosViewMutex.UnLock();
-  //-------------------------------------------
 
   EXEC_TIMING_END("Rm");
 
@@ -2389,7 +2364,8 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
 
    
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+ 
   try {
     dhpar = gOFS->eosView->getContainer(cPath.GetParentPath());
     dhpar_id = dhpar->getId();
@@ -2425,9 +2401,6 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
   // check permissions
   bool permok = stdpermcheck?(dhpar?(dhpar->access(vid.uid,vid.gid, X_OK|W_OK)): false):aclok;
 
-  gOFS->eosViewMutex.UnLock();
-  //-------------------------------------------
-
   // check existence
 
   if (!dh) {
@@ -2440,10 +2413,6 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
     return Emsg(epname, error, errno, "rmdir", path);
   }
     
-
-  //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
-
   try {
     // remove the in-memory modification time of the deleted directory
     gOFS->MgmDirectoryModificationTimeMutex.Lock();
@@ -2460,8 +2429,6 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   }
-  gOFS->eosViewMutex.UnLock();
-  //-------------------------------------------
 
   EXEC_TIMING_END("RmDir");
 
@@ -2616,15 +2583,65 @@ int XrdMgmOfs::_stat(const char              *path,        // In
 
 
   gOFS->MgmStats.Add("Stat",vid.uid,vid.gid,1);  
+
+  //-------------------------------------------
+
+  // try if that is a file
+  errno =0;
+  eos::FileMD* fmd = 0; 
+  eos::common::Path cPath(path);
+
+  //-------------------------------------------
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  try {
+    fmd = gOFS->eosView->getFile(cPath.GetPath());
+  } catch( eos::MDException &e ) {
+    errno = e.getErrno();
+    eos_debug("check for file - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+  
+  //-------------------------------------------
+  if (fmd) {
+    eos::FileMD fmdCopy(*fmd);
+    fmd = &fmdCopy;   
+    memset(buf, 0, sizeof(struct stat));
+    
+    buf->st_dev     = 0xcaff;
+    buf->st_ino     = fmd->getId() << 28;
+    buf->st_mode    = S_IFREG;
+    buf->st_mode    |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR );
+    buf->st_nlink   = 1;
+    buf->st_uid     = fmd->getCUid();
+    buf->st_gid     = fmd->getCGid();
+    buf->st_rdev    = 0;     /* device type (if inode device) */
+    buf->st_size    = fmd->getSize();
+    buf->st_blksize = 512;
+    buf->st_blocks  = fmd->getSize() / 512;
+    eos::FileMD::ctime_t atime;
+    
+    // adding also nanosecond to stat struct
+    fmd->getCTime(atime);
+    buf->st_ctime   = atime.tv_sec;
+    buf->st_ctim.tv_sec   = atime.tv_sec;
+    buf->st_ctim.tv_nsec   = atime.tv_nsec;
+    
+    fmd->getMTime(atime);
+    buf->st_mtime   = atime.tv_sec;
+    buf->st_mtim.tv_sec   = atime.tv_sec;
+    buf->st_mtim.tv_nsec   = atime.tv_nsec;
+    
+    buf->st_atime   = atime.tv_sec;
+    buf->st_atim.tv_sec   = atime.tv_sec;
+    buf->st_atim.tv_nsec  = atime.tv_nsec;
+    EXEC_TIMING_END("Stat");    
+    return SFS_OK;
+  }
   
   // try if that is directory
   eos::ContainerMD* cmd = 0;
   errno = 0;
 
-  eos::common::Path cPath(path);
-
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
   try {
     cmd = gOFS->eosView->getContainer(cPath.GetPath());
     
@@ -2645,6 +2662,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     buf->st_blocks  = 0;
     eos::ContainerMD::ctime_t atime;
     cmd->getCTime(atime);
+
     buf->st_atime   = atime.tv_sec;
     
     buf->st_mtime   = atime.tv_sec;
@@ -2667,69 +2685,11 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     }
     gOFS->MgmDirectoryModificationTimeMutex.UnLock();  
     // --|
+    return SFS_OK;
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
     eos_debug("check for directory - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-  }
-  gOFS->eosViewMutex.UnLock();
-  //-------------------------------------------
-
-  if (!cmd) {
-    // try if that is a file
-    errno =0;
-    eos::FileMD* fmd = 0; 
-    //-------------------------------------------
-    gOFS->eosViewMutex.Lock();
-    try {
-      fmd = gOFS->eosView->getFile(cPath.GetPath());
-    } catch( eos::MDException &e ) {
-      errno = e.getErrno();
-      eos_debug("check for file - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-    }
-
-    //-------------------------------------------
-    if (!fmd) {
-      gOFS->eosViewMutex.UnLock();
-      return Emsg(epname, error, errno, "stat", cPath.GetPath());
-    } else {
-      eos::FileMD fmdCopy(*fmd);
-      fmd = &fmdCopy;
-      gOFS->eosViewMutex.UnLock();
-      memset(buf, 0, sizeof(struct stat));
-      
-      buf->st_dev     = 0xcaff;
-      buf->st_ino     = fmd->getId() << 28;
-      buf->st_mode    = S_IFREG;
-      buf->st_mode    |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR );
-      buf->st_nlink   = 1;
-      buf->st_uid     = fmd->getCUid();
-      buf->st_gid     = fmd->getCGid();
-      buf->st_rdev    = 0;     /* device type (if inode device) */
-      buf->st_size    = fmd->getSize();
-      buf->st_blksize = 512;
-      buf->st_blocks  = fmd->getSize() / 512;
-      eos::FileMD::ctime_t atime;
-      
-      // adding also nanosecond to stat struct
-      fmd->getCTime(atime);
-      buf->st_ctime   = atime.tv_sec;
-      buf->st_ctim.tv_sec   = atime.tv_sec;
-      buf->st_ctim.tv_nsec   = atime.tv_nsec;
-      
-      fmd->getMTime(atime);
-      buf->st_mtime   = atime.tv_sec;
-      buf->st_mtim.tv_sec   = atime.tv_sec;
-      buf->st_mtim.tv_nsec   = atime.tv_nsec;
-      
-      buf->st_atime   = atime.tv_sec;
-      buf->st_atim.tv_sec   = atime.tv_sec;
-      buf->st_atim.tv_nsec  = atime.tv_nsec;
-    }
-    EXEC_TIMING_END("Stat");    
-    return SFS_OK;
-  } else {
-    EXEC_TIMING_END("Stat");    
-    return SFS_OK;
+    return Emsg(epname, error, errno, "stat", cPath.GetPath());
   }
 }
 
@@ -2918,7 +2878,7 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
   gOFS->MgmStats.Add("Utimes",vid.uid,vid.gid,1);  
 
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   try {
     cmd = gOFS->eosView->getContainer(path);
     // we use creation time as modification time ... hmmm ...
@@ -2943,8 +2903,6 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
       eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
     }
   }
-  gOFS->eosViewMutex.UnLock();
-  //-------------------------------------------
 
   EXEC_TIMING_END("Utimes");      
 
@@ -3007,7 +2965,7 @@ int XrdMgmOfs::_find(const char       *path,             // In
       Path = found_dirs[deepness][i].c_str();
       eos_static_debug("Listing files in directory %s", Path.c_str());
       //-------------------------------------------
-      gOFS->eosViewMutex.Lock();
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
       try {
         cmd = gOFS->eosView->getContainer(Path.c_str());
         permok = cmd->access(vid.uid,vid.gid, R_OK|X_OK);
@@ -3019,8 +2977,7 @@ int XrdMgmOfs::_find(const char       *path,             // In
       
       if (cmd) {
         if (!permok) {
-          stdErr += "error: no permissions to read directory "; stdErr += Path.c_str(); stdErr += "\n";
-          gOFS->eosViewMutex.UnLock();
+          stdErr += "error: no permissions to read directory "; stdErr += Path.c_str(); stdErr += "\n";         
           continue;
         }
 
@@ -3070,7 +3027,6 @@ int XrdMgmOfs::_find(const char       *path,             // In
           }
         }
       }
-      gOFS->eosViewMutex.UnLock();
       if (limited) {
 	break;
       }
@@ -3109,12 +3065,12 @@ int XrdMgmOfs::Emsg(const char    *pfx,    // Message prefix value
 
   if (ecode == EIDRM) {
     eos_debug(buffer);
-  }
-   
-  if (!strcmp(op,"stat")) {
-    eos_debug(buffer);
   } else {
-    eos_err(buffer);
+    if (( !strcmp(op,"stat"))) {
+      eos_debug(buffer);
+    } else {
+      eos_err(buffer);
+    }
   }
    
   // Print it out if debugging is enabled
@@ -3419,7 +3375,7 @@ XrdMgmOfs::FSctl(const int               cmd,
         eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
             
         //-------------------------------------------
-        gOFS->eosViewMutex.Lock();
+	eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);      
         try {
           fmd = gOFS->eosFileService->getFileMD(fid);
         } catch( eos::MDException &e ) {
@@ -3427,10 +3383,7 @@ XrdMgmOfs::FSctl(const int               cmd,
           eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
         }
 
-        if (!fmd) {
-          gOFS->eosViewMutex.UnLock();
-          //-------------------------------------------
-          
+        if (!fmd) {          
           // uups, no such file anymore
 	  if (errno == ENOENT) {
             return Emsg(epname,error, ENOENT, "commit filesize change - file is already removed [EIDRM]","");
@@ -3441,21 +3394,16 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  unsigned long lid = fmd->getLayoutId();
 
           // check if fsid and fid are ok 
-          if (fmd->getId() != fid ) {
-            gOFS->eosViewMutex.UnLock();
-            //-------------------------------------------
-            
+          if (fmd->getId() != fid ) {            
             eos_notice("commit for fid=%lu but fid=%lu", fmd->getId(), fid);
             gOFS->MgmStats.Add("CommitFailedFid",0,0,1);
             return Emsg(epname,error, EINVAL,"commit filesize change - file id is wrong [EINVAL]", spath);
           }
           
           // check if this file is already unlinked from the visible namespace
-          if (!(cid=fmd->getContainerId())) {
-            gOFS->eosViewMutex.UnLock();
-            //-------------------------------------------
+          if (!(cid=fmd->getContainerId())) {          
                 
-            eos_notice("commit for fid=%lu but file is disconnected from any container", fmd->getId());
+            eos_warning("commit for fid=%lu but file is disconnected from any container", fmd->getId());
             gOFS->MgmStats.Add("CommitFailedUnlinked",0,0,1);  
             return Emsg(epname,error, EIDRM, "commit filesize change - file is already removed [EIDRM]","");
           }
@@ -3463,7 +3411,6 @@ XrdMgmOfs::FSctl(const int               cmd,
           // check if this commit comes from a transfer and if the size/checksum is ok
           if (replication) {
             if (fmd->getSize() != size) {
-              gOFS->eosViewMutex.UnLock();
               //-------------------------------------------
 
               eos_err("replication for fid=%lu resulted in a different file size on fsid=%llu - rejecting replica", fmd->getId(), fsid);
@@ -3480,7 +3427,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 		}
 	      }
 	      if (cxError) {
-		gOFS->eosViewMutex.UnLock();
 		//-------------------------------------------
 		eos_err("replication for fid=%lu resulted in a different checksum on fsid=%llu - rejecting replica", fmd->getId(), fsid);
 		gOFS->MgmStats.Add("ReplicaFailedChecksum",0,0,1);
@@ -3557,12 +3503,9 @@ XrdMgmOfs::FSctl(const int               cmd,
             errno = e.getErrno();
             std::string errmsg = e.getMessage().str();
             eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-            gOFS->eosViewMutex.UnLock();
             gOFS->MgmStats.Add("CommitFailedNamespace",0,0,1);  
             return Emsg(epname, error, errno, "commit filesize change", errmsg.c_str());      
-          }
-          gOFS->eosViewMutex.UnLock();
-          //-------------------------------------------
+          }      
         }
       } else {
         int envlen=0;
@@ -3592,7 +3535,7 @@ XrdMgmOfs::FSctl(const int               cmd,
         unsigned long fsid      = strtoul (afsid,0,10);
         
         //-------------------------------------------
-        gOFS->eosViewMutex.Lock();
+	eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);     
         eos::FileMD* fmd = 0;
         eos::ContainerMD* container = 0;
         eos::QuotaNode* quotanode = 0;
@@ -3600,7 +3543,7 @@ XrdMgmOfs::FSctl(const int               cmd,
         try { 
           fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
         } catch (...) {
-          eos_err("no meta record exists anymore for fid=%s", afid);
+          eos_warning("no meta record exists anymore for fid=%s", afid);
           fmd = 0;
         }
 
@@ -3645,13 +3588,11 @@ XrdMgmOfs::FSctl(const int               cmd,
               }
             }
           } catch (...) {
-            eos_err("no meta record exists anymore for fid=%s", afid);
+            eos_warning("no meta record exists anymore for fid=%s", afid);
           };
         }
 
         gOFS->MgmStats.Add("Drop",vid.uid,vid.gid,1);  
-        gOFS->eosViewMutex.UnLock();
-        //-------------------------------------------
         
         const char* ok = "OK";
         error.setErrInfo(strlen(ok)+1,ok);
@@ -3858,7 +3799,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       eos::FileMD* fmd=0;
       int retc=0;
       //-------------------------------------------
-      gOFS->eosViewMutex.Lock();
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);      
       try {
         fmd = gOFS->eosView->getFile(spath.c_str());
         for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
@@ -3875,8 +3816,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       } else {
         retc = 0;
       }
-      gOFS->eosViewMutex.UnLock();
-      //-------------------------------------------
+         
       XrdOucString response="checksum: "; response += checksum;
       response += " retc="; response += retc;
       error.setErrInfo(response.length()+1, response.c_str());
@@ -4102,7 +4042,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       }
       else if (!retc && S_ISREG(buf.st_mode)) {  //extended attributes for files
         //-------------------------------------------
-        gOFS->eosViewMutex.Lock();
+	eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);         
         eos::FileMD* fmd = 0;
         try {
           fmd = gOFS->eosView->getFile(spath.c_str());
@@ -4172,14 +4112,9 @@ XrdMgmOfs::FSctl(const int               cmd,
           else if (subcmd == "set") { //setxattr
             response += "1 "; //error
           }
-        
-          gOFS->eosViewMutex.UnLock();
-          //-------------------------------------------
+                       
           return SFS_DATA;
-        }
-        
-        gOFS->eosViewMutex.UnLock();
-        //------------------------------------------
+        }         
         return SFS_DATA;
       }
     }
@@ -4313,7 +4248,7 @@ XrdMgmOfs::_attr_ls(const char             *path,
   gOFS->MgmStats.Add("AttrLs",vid.uid,vid.gid,1);  
   
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);      
   try {
     dh = gOFS->eosView->getContainer(path);
     eos::ContainerMD::XAttrMap::const_iterator it;
@@ -4333,7 +4268,6 @@ XrdMgmOfs::_attr_ls(const char             *path,
   if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
     if (!errno)errno = EPERM;
 
-  gOFS->eosViewMutex.UnLock();
 
   EXEC_TIMING_END("AttrLs");      
 
@@ -4364,7 +4298,7 @@ XrdMgmOfs::_attr_set(const char             *path,
     return  Emsg(epname,error,EINVAL,"set attribute",path);  
 
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);      
   try {
     dh = gOFS->eosView->getContainer(path);
     XrdOucString Key = key;
@@ -4383,7 +4317,6 @@ XrdMgmOfs::_attr_set(const char             *path,
   if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
     if (!errno) errno = EPERM;
   
-  gOFS->eosViewMutex.UnLock();
 
   EXEC_TIMING_END("AttrSet");      
  
@@ -4416,8 +4349,8 @@ XrdMgmOfs::_attr_get(const char             *path,
 
   value = "";
 
-  //-------------------------------------------
-  if(!islocked) gOFS->eosViewMutex.Lock();
+  //------------------------------------------- 
+  if(!islocked) gOFS->eosViewRWMutex.LockRead();
   try {
     dh = gOFS->eosView->getContainer(path);
     XrdOucString Key = key;
@@ -4434,7 +4367,7 @@ XrdMgmOfs::_attr_get(const char             *path,
   if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
     if (!errno) errno = EPERM;
   
-  if (!islocked) gOFS->eosViewMutex.UnLock();
+  if (!islocked) gOFS->eosViewRWMutex.UnLockRead();
 
   EXEC_TIMING_END("AttrGet");        
 
@@ -4464,7 +4397,7 @@ XrdMgmOfs::_attr_rem(const char             *path,
     return  Emsg(epname,error,EINVAL,"delete attribute",path);  
 
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);       
   try {
     dh = gOFS->eosView->getContainer(path);
     XrdOucString Key = key;
@@ -4480,8 +4413,6 @@ XrdMgmOfs::_attr_rem(const char             *path,
   // check permissions
   if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
     if (!errno) errno = EPERM;
-  
-  gOFS->eosViewMutex.UnLock();
 
   EXEC_TIMING_END("AttrRm");      
   
@@ -4516,8 +4447,9 @@ XrdMgmOfs::_verifystripe(const char             *path,
 
   eos_debug("verify");
   eos::common::Path cPath(path);
+  
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);        
   try {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
     eos::ContainerMD::XAttrMap::const_iterator it;
@@ -4529,21 +4461,20 @@ XrdMgmOfs::_verifystripe(const char             *path,
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   }
-
+  
   // check permissions
   if (dh && (!dh->access(vid.uid,vid.gid, X_OK|W_OK)))
     if (!errno) errno = EPERM;
-
   
-  if (errno) {
-    gOFS->eosViewMutex.UnLock();
+  
+  if (errno) {   
     return  Emsg(epname,error,errno,"drop stripe",path);  
   }
-
+    
   // get the file
   try {
     fmd = gOFS->eosView->getFile(path);
-
+    
     // we don't check anymore if we know about this location, we just send to the filesystem, because we want to have a method to register a not commited replica
     //    if (fmd->hasLocation(fsid)) {
     //      eos_debug("verifying location %u", fsid);
@@ -4553,17 +4484,13 @@ XrdMgmOfs::_verifystripe(const char             *path,
     //    }
     fid = fmd->getId();
     lid = fmd->getLayoutId();
-    cid = fmd->getContainerId();
-    
-    
+    cid = fmd->getContainerId();           
   } catch( eos::MDException &e ) {
-    fmd = 0;
-    errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-  }
+      fmd = 0;
+      errno = e.getErrno();
+      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  } 
 
-  gOFS->eosViewMutex.UnLock();
-  
   if (!errno) {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     eos::mgm::FileSystem* verifyfilesystem = 0;
@@ -4641,7 +4568,7 @@ XrdMgmOfs::_dropstripe(const char             *path,
   eos_debug("drop");
   eos::common::Path cPath(path);
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);      
   try {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
   } catch( eos::MDException &e ) {
@@ -4654,8 +4581,7 @@ XrdMgmOfs::_dropstripe(const char             *path,
   if (dh && (!dh->access(vid.uid,vid.gid, X_OK|W_OK)))
     if (!errno) errno = EPERM;
 
-  if (errno) {
-    gOFS->eosViewMutex.UnLock();
+  if (errno) {    
     return  Emsg(epname,error,errno,"drop stripe",path);  
   }
 
@@ -4684,9 +4610,7 @@ XrdMgmOfs::_dropstripe(const char             *path,
     fmd = 0;
     errno = e.getErrno();
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
-  }
-  
-  gOFS->eosViewMutex.UnLock();
+  } 
 
   EXEC_TIMING_END("DropStripe");
   
@@ -4746,7 +4670,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
 
   eos_debug("replicating %s from %u=>%u [drop=%d]", path, sourcefsid,targetfsid,dropsource);
   //-------------------------------------------
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);       
   try {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
   } catch( eos::MDException &e ) {
@@ -4778,8 +4702,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
   }
   
-  if (errno) {
-    gOFS->eosViewMutex.UnLock();
+  if (errno) {    
     //-------------------------------------------
     return  Emsg(epname,error,errno,"replicate stripe",path);    
   }
@@ -4788,7 +4711,6 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   eos::FileMD fmdCopy(*fmd);
   fmd = &fmdCopy;
 
-  gOFS->eosViewMutex.UnLock();
   //-------------------------------------------
 
   int retc =  _replicatestripe(fmd, path, error, vid, sourcefsid, targetfsid, dropsource, expressflag);
@@ -5022,7 +4944,7 @@ XrdMgmOfs::Deletion()
       // loop over all file systems
 
       //-------------------------------------------
-      gOFS->eosViewMutex.Lock();
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);      
       std::pair<eos::FileSystemView::FileIterator, eos::FileSystemView::FileIterator> unlinkpair;
       try {
         unlinkpair = eosFsView->getUnlinkedFiles( fslist[i] );
@@ -5134,9 +5056,7 @@ XrdMgmOfs::Deletion()
         }
       } catch (...) {
         eos_static_debug("nothing to delete in fs %d", fslist[i]);
-      }
-
-      gOFS->eosViewMutex.UnLock();
+      }     
       //-------------------------------------------
     }
   }

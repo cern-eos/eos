@@ -50,7 +50,7 @@ SpaceQuota::SpaceQuota(const char* name) {
   LayoutSizeFactor = 1.0;
   On = false;
 
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   eos::ContainerMD *quotadir=0;
 
   std::string path = name;
@@ -97,7 +97,6 @@ SpaceQuota::SpaceQuota(const char* name) {
     QuotaNode = 0;
   }
 
-  gOFS->eosViewMutex.UnLock();
 }
 
 
@@ -110,7 +109,7 @@ void
 SpaceQuota::RemoveQuotaNode(XrdOucString &msg, int &retc) 
 
 {
-  gOFS->eosViewMutex.Lock();
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   eos::ContainerMD *quotadir=0;
   try {
     quotadir = gOFS->eosView->getContainer( SpaceName.c_str() );
@@ -121,8 +120,7 @@ SpaceQuota::RemoveQuotaNode(XrdOucString &msg, int &retc)
     quotadir = 0;
     retc = e.getErrno();
     msg = e.getMessage().str().c_str();
-  }
-  gOFS->eosViewMutex.UnLock();
+  }  
 }
 
 
@@ -1673,7 +1671,7 @@ Quota::NodeToSpaceQuota(const char* name, bool lock)
   SpaceQuota* spacequota = Quota::GetSpaceQuota(name, false);
 
   if (lock) 
-    gOFS->eosViewMutex.Lock();
+    gOFS->eosViewRWMutex.LockRead();
   if (spacequota && spacequota->GetQuotaNode()) {
     // insert current state of a single quota node into aSpaceQuota
     eos::QuotaNode::UserMap::const_iterator itu;
@@ -1691,7 +1689,7 @@ Quota::NodeToSpaceQuota(const char* name, bool lock)
     }
   }
   if (lock)
-    gOFS->eosViewMutex.UnLock();
+    gOFS->eosViewRWMutex.UnLockRead();
 }
 
 /*----------------------------------------------------------------------------*/
