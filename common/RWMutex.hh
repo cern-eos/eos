@@ -46,15 +46,21 @@ private:
   pthread_rwlock_t       rwlock;
   pthread_rwlockattr_t   attr;
   struct timespec        wlocktime;
-  
+  bool                   blocking;
+
 public:
   RWMutex() {
+    blocking = false;
     wlocktime.tv_sec=5; // try to get write lock in 5 seconds, then release quickly and retry
     wlocktime.tv_nsec=0;
     if (pthread_rwlockattr_setkind_np(&attr,PTHREAD_RWLOCK_PREFER_WRITER_NP)) { throw "pthread_rwlockattr_setkind_np failed";}
     if (pthread_rwlockattr_setpshared(&attr,PTHREAD_PROCESS_SHARED)){ throw "pthread_rwlockattr_setpshared failed";}
     if (pthread_rwlock_init(&rwlock, &attr)) {throw "pthread_rwlock_init failed";}}
   ~RWMutex() {}
+
+  void SetBlocking(bool block) {
+    blocking = block;
+  }
 
   void LockRead() {
     if (pthread_rwlock_rdlock(&rwlock)) { throw "pthread_rwlock_rdlock failed";}
@@ -65,18 +71,22 @@ public:
   }
   
   void LockWrite() {
-    while (1) {
-      int rc = pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
-      if ( rc ) {
-	if (rc != ETIMEDOUT) {
-	  fprintf(stderr,"=== WRITE LOCK EXCEPTION == TID=%llu OBJECT=%llx rc=%d\n", (unsigned long long)XrdSysThread::ID(), (unsigned long long)this,rc);
-	  throw "pthread_rwlock_wrlock failed";
+    if (blocking) {
+      if (pthread_rwlock_rdlock(&rwlock)) { throw "pthread_rwlock_rdlock failed";}
+    } else {
+      while (1) {
+	int rc = pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
+	if ( rc ) {
+	  if (rc != ETIMEDOUT) {
+	    fprintf(stderr,"=== WRITE LOCK EXCEPTION == TID=%llu OBJECT=%llx rc=%d\n", (unsigned long long)XrdSysThread::ID(), (unsigned long long)this,rc);
+	    throw "pthread_rwlock_wrlock failed";
+	  } else {
+	    fprintf(stderr,"==== WRITE LOCK PENDING ==== TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this); 
+	    usleep(100000);
+	  }
 	} else {
-	  fprintf(stderr,"==== WRITE LOCK PENDING ==== TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this); 
-	  usleep(100000);
+	  break;
 	}
-      } else {
-	break;
       }
     }
   }
