@@ -44,7 +44,9 @@ Adler::Add(const char* buffer, size_t length, off_t offset)
 }
 
 /*----------------------------------------------------------------------------*/
-MapChunks& Adler::AddElementToMap(MapChunks& map, Chunk& chunk) {
+MapChunks&
+Adler::AddElementToMap(MapChunks& map, Chunk& chunk)
+{
   IterMap iter = map.find(chunk.offset);
   off_t offEndChunk = chunk.offset + chunk.length;
 
