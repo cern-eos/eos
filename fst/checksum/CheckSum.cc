@@ -139,7 +139,7 @@ CheckSum::ScanFile(const char* path, off_t offsetInit, size_t lengthInit, const 
   ResetInit(offsetInit, lengthInit, checksumInit);
 
   //move at the right location in the  file
-  if (lseek(fd, offsetInit, SEEK_SET) < 0) {
+  if (lseek(fd, offsetInit + lengthInit, SEEK_SET) < 0) {
     close(fd);
     return false;
   }
