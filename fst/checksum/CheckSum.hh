@@ -59,6 +59,7 @@ public:
   virtual bool Add(const char* buffer, size_t length, off_t offset) = 0;
   virtual void Finalize() {};
   virtual void Reset() = 0;
+  virtual void ResetInit(off_t offsetInit, size_t lengthInit, const char* checksumInit) {};
   virtual void SetDirty() {
     needsRecalculation = true;
   }
@@ -73,6 +74,8 @@ public:
   bool NeedsRecalculation() {return needsRecalculation;}
 
   virtual bool ScanFile(const char* path, unsigned long long &scansize, float &scantime, int rate=0);
+  virtual bool ScanFile(const char* path,  off_t offsetInit, size_t lengthInit, const char* partialChecksum,
+                        unsigned long long &scansize, float &scantime, int rate=0);
   virtual bool SetXSMap(off_t offset);
   virtual bool VerifyXSMap(off_t offset);
 

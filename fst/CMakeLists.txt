@@ -32,6 +32,7 @@ add_library (XrdEosFst MODULE
 	    layout/HeaderCRC.cc
 	    layout/RaidDPLayout.cc
             layout/ReedSLayout.cc
+	    checksum/Adler.cc
 	    checksum/CheckSum.cc
 	    storage/Storage.cc
 	    Config.cc
@@ -57,6 +58,7 @@ add_executable ( FstLoad
 
 add_executable ( eos-check-blockxs
                  tools/CheckBlockXS.cc
+		 checksum/Adler.cc
                  checksum/CheckSum.cc
                  ../checksum/crc32c.cc
                  ../checksum/crc32ctables.cc
@@ -64,6 +66,7 @@ add_executable ( eos-check-blockxs
 
 add_executable ( eos-compute-blockxs
                  tools/ComputeBlockXS.cc
+		 checksum/Adler.cc
                  checksum/CheckSum.cc
                  ../checksum/crc32c.cc
                  ../checksum/crc32ctables.cc
@@ -72,6 +75,7 @@ add_executable ( eos-compute-blockxs
 add_executable( eos-scan-fs 
                 ScanDir.cc
                 tools/ScanXS.cc
+		 checksum/Adler.cc
                 checksum/CheckSum.cc
                 ../checksum/crc32c.cc
                 ../checksum/crc32ctables.cc
@@ -81,6 +85,7 @@ add_executable( eos-scan-fs
 
 add_executable( eos-adler32
 		tools/Adler32.cc
+		checksum/Adler.cc
                 checksum/CheckSum.cc
                 ../checksum/crc32c.cc
                 ../checksum/crc32ctables.cc
@@ -99,6 +104,7 @@ add_executable( eosfstcp
 
 add_executable( eos-fst-fsck 
                 tools/FsckFst.cc
+		checksum/Adler.cc
                 checksum/CheckSum.cc
                 ../checksum/crc32c.cc
                 ../checksum/crc32ctables.cc
