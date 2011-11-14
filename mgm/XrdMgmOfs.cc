@@ -2162,6 +2162,8 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   
   EXEC_TIMING_BEGIN("Rm");
 
+  eos_info("path=%s vid.uid=%u vid.gid=%u", path, vid.uid, vid.gid);
+
   gOFS->MgmStats.Add("Rm",vid.uid,vid.gid,1);  
 
   // Perform the actual deletion
@@ -3406,7 +3408,17 @@ XrdMgmOfs::FSctl(const int               cmd,
             eos_warning("commit for fid=%lu but file is disconnected from any container", fmd->getId());
             gOFS->MgmStats.Add("CommitFailedUnlinked",0,0,1);  
             return Emsg(epname,error, EIDRM, "commit filesize change - file is already removed [EIDRM]","");
-          }
+          } else {
+	    // store the in-memory modification time
+	    gOFS->MgmDirectoryModificationTimeMutex.Lock();
+	    // we get the current time, but we don't update the creation time
+	    struct timespec ts;
+	    eos::common::Timing::GetTimeSpec(ts);
+	    gOFS->MgmDirectoryModificationTime[cid].tv_sec = ts.tv_sec;
+	    gOFS->MgmDirectoryModificationTime[cid].tv_nsec = ts.tv_nsec;
+	    gOFS->MgmDirectoryModificationTimeMutex.UnLock();
+	    //-------------------------------------------    
+	  }
 
           // check if this commit comes from a transfer and if the size/checksum is ok
           if (replication) {

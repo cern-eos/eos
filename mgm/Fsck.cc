@@ -557,10 +557,11 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
   }
 
   if ((option.find("e")!=STR_NPOS)) {
+    time_t exporttime = time(NULL);
     // dump out everything into /var/eos/report/fsck/<unixtimestamp>/*.lfn
     for (size_t i = 0; i < mErrorNames.size(); i++) {
       char lfnfile[4096];
-      snprintf(lfnfile,sizeof(lfnfile)-1,"/var/eos/report/fsck/%lu/%s.lfn", time(NULL), mErrorNames[i].c_str());
+      snprintf(lfnfile,sizeof(lfnfile)-1,"/var/eos/report/fsck/%lu/%s.lfn", exporttime, mErrorNames[i].c_str());
       eos::common::Path lfnpath(lfnfile);
       lfnpath.MakeParentPath(S_IRWXU);
       FILE* fout = fopen(lfnfile,"w+");
@@ -587,7 +588,7 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
 	      }	      
 	      
 	      if (path.length() && fout) {
-		fprintf(fout,"%s", path.c_str());
+		fprintf(fout,"%s\n", path.c_str());
 	      }
 	    }
 	  }
