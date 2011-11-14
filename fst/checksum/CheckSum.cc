@@ -55,6 +55,7 @@ CheckSum::Compare(const char* refchecksum)
 }
 
 /*----------------------------------------------------------------------------*/
+/* scan of a complete file */
 bool 
 CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scantime, int rate) 
 {
@@ -113,6 +114,76 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
   free(buffer);
   return true;
 }
+
+
+/*----------------------------------------------------------------------------*/
+/* scan of a file for which we already have computed a partial checksum */
+bool 
+CheckSum::ScanFile(const char* path, off_t offsetInit, size_t lengthInit, const char* checksumInit,
+                   unsigned long long &scansize, float &scantime, int rate ) 
+{
+  static int buffersize=1024*1024;
+  struct timezone tz;
+  struct timeval  opentime;
+  struct timeval  currenttime;
+  scansize = 0;
+  scantime = 0;
+
+  gettimeofday(&opentime,&tz);
+
+  int fd = open(path, O_RDONLY);
+  if (fd<0) {
+    return false;
+  }
+
+  ResetInit(offsetInit, lengthInit, checksumInit);
+
+  //move at the right location in the  file
+  if (lseek(fd, offsetInit + lengthInit, SEEK_SET) < 0) {
+    close(fd);
+    return false;
+  }
+    
+  int nread=0;
+  off_t offset = 0;
+
+  char* buffer = (char*) malloc(buffersize);
+  if (!buffer) {
+    close(fd);
+    return false;
+  }
+
+  do {
+    errno = 0;
+    nread = read(fd,buffer,buffersize);
+    if (nread < 0) {
+      close(fd);
+      free(buffer);
+      return false;
+    }
+    Add(buffer, nread, offset);
+    offset += nread;
+    if (rate) {
+      // regulate the verification rate
+      gettimeofday(&currenttime,&tz);
+      scantime = ( ((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec)/1000.0 ));
+      float expecttime = (1.0 * offset / rate) / 1000.0;
+      if (expecttime > scantime) {
+        usleep(1000.0*(expecttime - scantime));
+      }
+    }
+  } while (nread == buffersize);
+
+  gettimeofday(&currenttime,&tz);
+  scantime = ( ((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec)/1000.0 ));
+  scansize = (unsigned long long) offset;
+
+  Finalize();  
+  close(fd);
+  free(buffer);
+  return true;
+}
+
 
 /*----------------------------------------------------------------------------*/
 bool 

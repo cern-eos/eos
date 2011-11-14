@@ -32,49 +32,67 @@
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
 #include <zlib.h>
+#include <map>
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
+
+struct ltoff_t {
+  bool operator()(off_t s1, off_t s2) const {
+    return (s1 < s2);
+  }
+};
+
+typedef struct {
+  off_t offset;
+  size_t length;
+  unsigned int adler;
+} Chunk;
+
+typedef std::map<off_t, Chunk, ltoff_t> MapChunks;
+typedef std::map<off_t, Chunk, ltoff_t>::iterator IterMap;
+
 
 class Adler : public CheckSum {
 private:
   off_t adleroffset;
   unsigned int adler;
+  MapChunks map;
   
 public:
   Adler() : CheckSum("adler") {Reset();}
 
+  bool Add(const char* buffer, size_t length, off_t offset);
+  MapChunks& AddElementToMap(MapChunks& map, Chunk& chunk);
+ 
   off_t GetLastOffset() {return adleroffset;}
-
-  bool Add(const char* buffer, size_t length, off_t offset) {
-    if (offset != adleroffset) {
-      needsRecalculation = true;
-      return false;
-    }
-    adler = adler32(adler, (const Bytef*) buffer, length);
-    adleroffset += length;
-    return true;
-  }
-
-  const char* GetHexChecksum() {
-    char sadler[1024];
-    sprintf(sadler,"%08x",adler);
-    Checksum = sadler;
-    return Checksum.c_str();
-  }
-
-  const char* GetBinChecksum(int &len) {
-    len = sizeof(unsigned int);
-    return (char*) &adler;
-  }
-
   int GetCheckSumLen() { return sizeof(unsigned int);}
+  void ValidateAdlerMap();
+ 
+  const char* GetHexChecksum();
+  const char* GetBinChecksum(int &len); 
 
+  void Finalize();
   void Reset() {
-    adleroffset = 0; adler = adler32(0L, Z_NULL,0); needsRecalculation=0;
+    map.clear();
+    adleroffset = 0;  adler = adler32(0L, Z_NULL,0); needsRecalculation = false;
   }
 
-  virtual ~Adler(){};
+  void ResetInit(off_t offsetInit, size_t lengthInit, const char* checksumInitBin) {
+    Chunk currChunk;
+    adleroffset = offsetInit + lengthInit;
+    adler = (unsigned int) strtoul(checksumInitBin, NULL, 2);
+
+    currChunk.offset = offsetInit;
+    currChunk.length = lengthInit;
+    currChunk.adler = adler;
+
+    map.clear();
+    map = AddElementToMap(map, currChunk);
+    needsRecalculation = false;
+  }
+  
+  virtual ~Adler() {};
 
 };
 
