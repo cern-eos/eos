@@ -694,7 +694,7 @@ XrdFstOfsFile::open(const char                *path,
     // we feed the layout size, not the physical on disk!
     openSize = statinfo.st_size;
 
-    if (checkSum) {
+    if (checkSum && isRW) {
       // preset with the last known checksum
       checkSum->ResetInit(0, openSize, fMd->fMd.checksum);
     }
@@ -888,13 +888,15 @@ XrdFstOfsFile::verifychecksum()
         return false;
       }
     }
+
+    checkSum->Finalize();
     
     if (checkSum->NeedsRecalculation()) {
       unsigned long long scansize=0;
       float scantime = 0; // is ms
       if (checkSum->ScanFile(fstPath.c_str(), scansize, scantime)) {
         XrdOucString sizestring;
-        eos_info("Rescanned checksum - size=%s time=%.02fms rate=%.02f MB %x/s", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL), checkSum->GetHexChecksum());
+        eos_info("Rescanned checksum - size=%s time=%.02fms rate=%.02f MB/s %x", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL), checkSum->GetHexChecksum());
       } else {
         eos_err("Rescanning of checksum failed");
       }
@@ -909,8 +911,6 @@ XrdFstOfsFile::verifychecksum()
       }
     }
     
-    checkSum->Finalize();
-
     if (isRW) {
       eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
       checkSum->GetBinChecksum(checksumlen);
@@ -1373,11 +1373,11 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
 
   // evt. add checksum
   if ((rc >0) && (checkSum)){
-    //    fprintf(stderr,"Adding %d bytes to checksum \n", rc);
+    fprintf(stderr,"Adding %d bytes to checksum \n", rc);
     checkSum->Add(buffer, (size_t) rc, (off_t) fileOffset);
     //    fprintf(stderr,"(write) checksum type: %s checksum hex: %s\n", checkSum->GetName(), checkSum->GetHexChecksum());
   } else {
-    //    fprintf(stderr,"Write without checksumming\n");
+    fprintf(stderr,"Write without checksumming\n");
   }
 
   if (wOffset != (unsigned long long) fileOffset) {
@@ -1465,8 +1465,10 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
   if (fileOffset != openSize) {
     haswrite = true;
     if (checkSum) {
-      checkSum->Reset();
-      checkSum->SetDirty();
+      if (fileOffset != checkSum->GetMaxOffset()) {
+	checkSum->Reset();
+	checkSum->SetDirty();
+      }
     }
   }
 

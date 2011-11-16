@@ -3063,15 +3063,17 @@ int XrdMgmOfs::Emsg(const char    *pfx,    // Message prefix value
 
   // Format the error message
   //
+  
+  
   snprintf(buffer,sizeof(buffer),"Unable to %s %s; %s", op, target, etext);
 
   if (ecode == EIDRM) {
-    eos_debug(buffer);
+    eos_debug("Unable to %s %s; %s", op, target, etext);
   } else {
     if (( !strcmp(op,"stat"))) {
-      eos_debug(buffer);
+      eos_debug("Unable to %s %s; %s", op, target, etext);
     } else {
-      eos_err(buffer);
+      eos_err("Unable to %s %s; %s", op, target, etext);
     }
   }
    
@@ -3107,7 +3109,7 @@ int XrdMgmOfsDirectory::Emsg(const char    *pfx,    // Message prefix value
   //
   snprintf(buffer,sizeof(buffer),"Unable to %s %s; %s", op, target, etext);
 
-  eos_err(buffer);
+  eos_err("Unable to %s %s; %s", op, target, etext);
 
   // Print it out if debugging is enabled
   //
@@ -3141,7 +3143,7 @@ int XrdMgmOfsFile::Emsg(const char    *pfx,    // Message prefix value
   //
   snprintf(buffer,sizeof(buffer),"Unable to %s %s; %s", op, target, etext);
 
-  eos_err(buffer);
+  eos_err("Unable to %s %s; %s", op, target, etext);
 
   // Print it out if debugging is enabled
   //

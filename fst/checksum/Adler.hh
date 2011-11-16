@@ -67,6 +67,7 @@ public:
   MapChunks& AddElementToMap(MapChunks& map, Chunk& chunk);
  
   off_t GetLastOffset() {return adleroffset;}
+  off_t GetMaxOffset() { return maxoffset;}
   int GetCheckSumLen() { return sizeof(unsigned int);}
   void ValidateAdlerMap();
  
@@ -83,7 +84,13 @@ public:
     Chunk currChunk;
     maxoffset = 0;
     adleroffset = offsetInit + lengthInit;
-    adler = *((unsigned int*) checksumInitBin);
+
+    // if a file is truncated we get 0,0,<some checksum => reset to 0
+    if (lengthInit!=0) {
+      adler = *((unsigned int*) checksumInitBin);
+    } else {
+      adler = adler32(0L, Z_NULL,0);
+    }
 
     currChunk.offset = offsetInit;
     currChunk.length = lengthInit;
@@ -91,6 +98,7 @@ public:
 
     map.clear();
     map = AddElementToMap(map, currChunk);
+    maxoffset = (offsetInit + lengthInit);
     needsRecalculation = false;
   }
   
