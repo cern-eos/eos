@@ -3943,8 +3943,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  XrdOucString suid=""; suid += (int) buf.st_uid;
 		  XrdOucString sgid=""; sgid += (int) buf.st_gid;
 		  XrdOucString sizestring="";
-		  struct tm *t_tm;
-		  t_tm = localtime(&buf.st_ctime);
+		  struct tm t_tm_local;
+		  struct tm* t_tm;
+		  t_tm = localtime_r(&buf.st_ctime, &t_tm_local);
 		  
 		  strcpy(modestr,"----------");
 		  for (i=0; i<6; i++) if ( ftype_v[i] == ( S_IFMT & buf.st_mode ) ) break;

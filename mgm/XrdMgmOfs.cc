@@ -3041,13 +3041,13 @@ int XrdMgmOfs::Emsg(const char    *pfx,    // Message prefix value
    snprintf(buffer,sizeof(buffer),"Unable to %s %s; %s", op, target, etext);
 
    if (ecode == EIDRM) {
-     eos_debug(buffer);
+     eos_debug("Unable to %s %s; %s", op, target, etext);
    }
    
    if (!strcmp(op,"stat")) {
-     eos_debug(buffer);
+     eos_debug("Unable to %s %s; %s", op, target, etext);
    } else {
-     eos_err(buffer);
+     eos_err("Unable to %s %s; %s", op, target, etext);
    }
    
 // Print it out if debugging is enabled
@@ -3385,6 +3385,16 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    eos_notice("commit for fid=%lu but file is disconnected from any container", fmd->getId());
 	    gOFS->MgmStats.Add("CommitFailedUnlinked",0,0,1);  
 	    return Emsg(epname,error, EIDRM, "commit filesize change - file is already removed [EIDRM]","");
+	  } else {
+	    // store the in-memory modification time
+            gOFS->MgmDirectoryModificationTimeMutex.Lock();
+            // we get the current time, but we don't update the creation time
+            struct timespec ts;
+	    eos::common::Timing::GetTimeSpec(ts);
+            gOFS->MgmDirectoryModificationTime[cid].tv_sec = ts.tv_sec;
+            gOFS->MgmDirectoryModificationTime[cid].tv_nsec = ts.tv_nsec;
+            gOFS->MgmDirectoryModificationTimeMutex.UnLock();
+            //-------------------------------------------
 	  }
 
 	  // check if this commit comes from a transfer and if the size/checksum is ok
