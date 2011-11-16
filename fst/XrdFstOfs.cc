@@ -693,6 +693,11 @@ XrdFstOfsFile::open(const char                *path,
     }
     // we feed the layout size, not the physical on disk!
     openSize = statinfo.st_size;
+
+    if (checkSum) {
+      // preset with the last known checksum
+      checkSum->ResetInit(0, openSize, fMd->fMd.checksum);
+    }
   }
 
 

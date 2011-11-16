@@ -56,6 +56,7 @@ typedef std::map<off_t, Chunk, ltoff_t>::iterator IterMap;
 class Adler : public CheckSum {
 private:
   off_t adleroffset;
+  off_t maxoffset;
   unsigned int adler;
   MapChunks map;
   
@@ -75,13 +76,14 @@ public:
   void Finalize();
   void Reset() {
     map.clear();
-    adleroffset = 0;  adler = adler32(0L, Z_NULL,0); needsRecalculation = false;
+    adleroffset = 0;  adler = adler32(0L, Z_NULL,0); needsRecalculation = false; maxoffset = 0;
   }
 
   void ResetInit(off_t offsetInit, size_t lengthInit, const char* checksumInitBin) {
     Chunk currChunk;
+    maxoffset = 0;
     adleroffset = offsetInit + lengthInit;
-    adler = (unsigned int) strtoul(checksumInitBin, NULL, 2);
+    adler = *((unsigned int*) checksumInitBin);
 
     currChunk.offset = offsetInit;
     currChunk.length = lengthInit;

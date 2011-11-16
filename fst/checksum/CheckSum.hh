@@ -68,7 +68,7 @@ public:
   virtual const char* GetBinChecksum(int &len) = 0;
   virtual bool Compare(const char* refchecksum);
   virtual off_t GetLastOffset() = 0;
-  
+  virtual off_t GetMaxOffset() { return GetLastOffset(); }
   virtual int GetCheckSumLen() = 0;
   const char* GetName() {return Name.c_str();}
   bool NeedsRecalculation() {return needsRecalculation;}

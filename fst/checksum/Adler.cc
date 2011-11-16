@@ -32,7 +32,11 @@ Adler::Add(const char* buffer, size_t length, off_t offset)
 {
   Chunk currChunk;
   adler = adler32(adler, (const Bytef*) buffer, length);
-  adleroffset += length;
+  adleroffset = offset + length;
+
+  if (adleroffset> maxoffset) {
+    maxoffset = adleroffset;
+  }
 
   currChunk.offset = offset;
   currChunk.length = length;
@@ -96,6 +100,12 @@ Adler::ValidateAdlerMap()
   value = iter1->second.adler;
   needsRecalculation = false;
     
+  if (iter1 == iter2) {
+    //we have no chunk
+    adler = adler32(0L, Z_NULL,0);
+    return;
+  }
+
   if (iter2 == map.end()) {
     //we have one chunk
     adler = value;
