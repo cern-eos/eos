@@ -3082,7 +3082,7 @@ int XrdMgmOfsDirectory::Emsg(const char    *pfx,    // Message prefix value
 //
    snprintf(buffer,sizeof(buffer),"Unable to %s %s; %s", op, target, etext);
 
-   eos_err(buffer);
+   eos_err("Unable to %s %s; %s", op, target, etext);
 
 // Print it out if debugging is enabled
 //
@@ -3116,7 +3116,7 @@ int XrdMgmOfsFile::Emsg(const char    *pfx,    // Message prefix value
 //
    snprintf(buffer,sizeof(buffer),"Unable to %s %s; %s", op, target, etext);
 
-   eos_err(buffer);
+   eos_err("Unable to %s %s; %s", op, target, etext);
 
 // Print it out if debugging is enabled
 //
