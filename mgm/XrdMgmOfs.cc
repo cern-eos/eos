@@ -4959,7 +4959,7 @@ XrdMgmOfs::Deletion()
 
       //-------------------------------------------
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);      
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);      
       std::pair<eos::FileSystemView::FileIterator, eos::FileSystemView::FileIterator> unlinkpair;
       try {
         unlinkpair = eosFsView->getUnlinkedFiles( fslist[i] );
