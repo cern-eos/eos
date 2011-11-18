@@ -4792,6 +4792,8 @@ XrdMgmOfs::Deletion()
     for (unsigned int i=0 ; i< fslist.size(); i++) {
       // loop over all file systems
 
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
       //-------------------------------------------
       gOFS->eosViewMutex.Lock();
       std::pair<eos::FileSystemView::FileIterator, eos::FileSystemView::FileIterator> unlinkpair;
@@ -4819,7 +4821,6 @@ XrdMgmOfs::Deletion()
 	      continue ;
 	    }
 
-	    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	    if (FsView::gFsView.mIdView.count(fslist[i])) {
 	      fs = FsView::gFsView.mIdView[fslist[i]];
 	    } else {
