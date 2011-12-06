@@ -81,7 +81,7 @@ start() {
 	echo
 	for i in ${XRD_ROLES}; do
             XRD_ROLEFLAG="";
-	        if [ "$i" = "mgm" ]; then
+            if [ "$i" = "mgm" ]; then
 		    XRD_ROLEFLAG="-m "
  	    fi
 	    
@@ -168,6 +168,9 @@ start() {
                                 FRETVAL=$RETVAL
                         fi
 		fi
+        if [ "$i" = "fed" ]; then
+           /etc/init.d/cmsd start
+        fi
 	done
  
         RETVAL=$FRETVAL
@@ -193,6 +196,11 @@ stop() {
                 rm -f /var/lock/subsys/$prog.*
 	    fi
         fi
+
+        if [ "$i" = "fed" ]; then
+           /etc/init.d/cmsd stop
+        fi
+
         return $RETVAL
 }
 
@@ -215,6 +223,11 @@ status() {
                         fi
                 fi                        
         done
+
+        if [ "$i" = "fed" ]; then
+           /etc/init.d/cmsd status
+        fi
+
         return $RETVAL
 }
 
@@ -222,9 +235,15 @@ condrestart() {
     if [ -z "$1" ]; then
         for i in ${XRD_ROLES}; do
             /etc/init.d/eos condrestart $i
+            if [ "$i" = "fed" ]; then
+               /etc/init.d/cmsd condrestart
+            fi
         done;
     else
         if [ -f /var/lock/subsys/$prog.$1 ]; then
+            if [ "$i" = "fed" ]; then
+               /etc/init.d/cmsd restart
+            fi
             restart $1;
         fi
     fi

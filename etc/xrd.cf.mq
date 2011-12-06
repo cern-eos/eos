@@ -5,7 +5,9 @@ all.role server
 #############################################################
 # SSS authentication
 xrootd.seclib libXrdSec.so
+sec.protocol unix
 sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
+sec.protbind localhost only unix
 sec.protbind * only sss
 
 #############################################################
@@ -20,5 +22,6 @@ xrd.timeout idle 120
 #############################################################
 #get some nice statics in the log file about the queue status
 ofs.trace getstats -login -disc
+ofs.persist off
 #############################################################
 mq.queue /eos/
