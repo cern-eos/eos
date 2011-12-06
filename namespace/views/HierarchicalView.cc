@@ -104,8 +104,16 @@ namespace eos
     char uriBuffer[uri.length()+1];
     strcpy( uriBuffer, uri.c_str() );
     std::vector<char*> elements;
+
+    if (uri == "/") {
+      MDException e( ENOENT );
+      e.getMessage() << " is not a file";
+      throw e;
+    }
+
     eos::PathProcessor::splitPath( elements, uriBuffer );
-    size_t position;
+    size_t position;    
+
     ContainerMD *cont = findLastContainer( elements, elements.size()-1,
                                            position );
 

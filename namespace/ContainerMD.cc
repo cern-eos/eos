@@ -202,7 +202,13 @@ namespace eos
   //----------------------------------------------------------------------------
   bool ContainerMD::access( uid_t uid, gid_t gid, int flags )
   {
+    // root can do everything
     if ( uid == 0 )
+      return true;
+
+    // daemon can read everything
+    if  ( ( uid == 2 ) && 
+	  (!(flags & W_OK)) ) 
       return true;
 
     //--------------------------------------------------------------------------
