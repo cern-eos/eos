@@ -311,8 +311,7 @@ public:
                        XrdOucErrInfo    &out_error,
                        XrdOucString &stdErr,
                        eos::common::Mapping::VirtualIdentity &vid,
-                       std::vector< std::vector<std::string> > &found_dirs,
-                       std::vector< std::vector<std::string> > &found_files,
+                       std::map<std::string, std::set<std::string> > &found,
                        const char* key=0, const char* val=0, bool nofiles=false);
 
    
@@ -541,6 +540,7 @@ public:
   bool             IoReportStore;      //  Mgm IO Reports get stored by default into /var/tmp/eos/report
   bool             IoReportNamespace;  //  Mgm IO Reports get stored in a fake namespace attaching each report to a namespace file in <IoReportStorePath>
   XrdOucString     IoReportStorePath;  //  Mgm IO Report store path by default is /var/tmp/eos/report
+  bool             ErrorLog;           //  Mgm writes error log with cluster collected file into /var/log/eos/errorlog.eos
 
   Fsck             FsCheck;            // Class checking the filesystem
   google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;

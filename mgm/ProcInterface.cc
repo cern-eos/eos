@@ -17,7 +17,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
- * You should have received a copy of the GNU General Public License    *
+ * You should have received a copy of the AGNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
@@ -44,6 +44,8 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
+#include <iostream>
+#include <fstream>
 /*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
@@ -130,11 +132,56 @@ ProcCommand::ProcCommand()
   path = "";
   adminCmd = userCmd = 0;
   error = 0;
+  fstdout = fstderr = fresultStream = 0;
+  fstdoutfilename = fstderrfilename = fresultStreamfilename = "";
 }
 
 /*----------------------------------------------------------------------------*/
 ProcCommand::~ProcCommand()
 {
+  if (fstdout) {
+    fclose(fstdout); fstdout=0;
+    unlink(fstdoutfilename.c_str());
+  }
+
+  if (fstderr) {
+    fclose(fstderr); fstderr=0;
+    unlink(fstderrfilename.c_str());
+  }
+
+  if (fresultStream) {
+    fclose(fresultStream); fresultStream=0;
+    unlink(fresultStreamfilename.c_str());
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
+ProcCommand::OpenTemporaryOutputFiles() {
+  char tmpdir [4096];
+  snprintf(tmpdir,sizeof(tmpdir)-1, "/tmp/eos.mgm/%llu", (unsigned long long)XrdSysThread::ID());
+  fstdoutfilename       = tmpdir; fstdoutfilename       += ".stdout";
+  fstderrfilename       = tmpdir; fstderrfilename       += ".stderr";
+  fresultStreamfilename = tmpdir; fresultStreamfilename += ".resultstream";
+
+  eos::common::Path cPath(fstdoutfilename.c_str());
+  
+  if (!cPath.MakeParentPath(S_IRWXU)) {
+    eos_err("Unable to create temporary outputfile directory %s", tmpdir);
+    return false;
+  }
+
+  fstdout       = fopen(fstdoutfilename.c_str(),"w");
+  fstderr       = fopen(fstderrfilename.c_str(),"w");
+  fresultStream = fopen(fresultStreamfilename.c_str(),"w+");
+
+  if ( (!fstdout) || (!fstderr) || (!fresultStream) ) {
+    if (fstdout) fclose(fstdout);
+    if (fstderr) fclose(fstderr);
+    if (fresultStream) fclose(fresultStream);
+    return false;
+  }
+  return true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2454,17 +2501,20 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         retc = EINVAL;
       } else {
         // find everything to be modified
-        std::vector< std::vector<std::string> > *found_dirs  = new std::vector< std::vector<std::string> >;
-        std::vector< std::vector<std::string> > *found_files = new std::vector< std::vector<std::string> >;
+	std::map<std::string, std::set<std::string> > found;
+	std::map<std::string, std::set<std::string> >::const_iterator foundit;
+	std::set<std::string>::const_iterator fileit;
+
         if (option == "r") {
-          if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, *found_dirs , *found_files)) {
+          if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found)) {
             stdErr += "error: unable to search in path";
             retc = errno;
           } 
         } else {
           // the single dir case
-          found_dirs->resize(1);
-          (*found_dirs)[0].push_back(spath.c_str());
+	  found[spath.c_str()].size();
+	  //          found_dirs->resize(1);
+	  //          (*found_dirs)[0].push_back(spath.c_str());
         }
         
         std::string uid=owner.c_str();
@@ -2517,34 +2567,28 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
         if (!failure) {
           // for directories
-          for (unsigned int i = 0; i< (*found_dirs).size(); i++) {
-            std::sort((*found_dirs)[i].begin(), (*found_dirs)[i].end());
-            for (unsigned int j = 0; j< (*found_dirs)[i].size(); j++) {
-              if (gOFS->_chown((*found_dirs)[i][j].c_str(), uidt , gidt, *error, vid_in, (char*)0)) {
-                stdErr += "error: unable to chown of directory "; stdErr += (*found_dirs)[i][j].c_str(); stdErr += "\n";
-                retc = errno;
-              } else {
-                stdOut += "success: owner of directory "; stdOut += (*found_dirs)[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid_in.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();} stdOut += "\n";}
-              }
-
-            }
-          }
+	  for ( foundit = found.begin(); foundit!= found.end(); foundit++ ) {
+	    if (gOFS->_chown(foundit->first.c_str(), uidt , gidt, *error, vid_in, (char*)0)) {
+	      stdErr += "error: unable to chown of directory "; stdErr += foundit->first.c_str(); stdErr += "\n";
+	      retc = errno;
+	    } else {
+	      stdOut += "success: owner of directory "; stdOut += foundit->first.c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid_in.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();} stdOut += "\n";}
+	    }
+	  }
 
           // for files
-          for (unsigned int i = 0; i< (*found_files).size(); i++) {
-            std::sort((*found_files)[i].begin(), (*found_files)[i].end());
-            for (unsigned int j = 0; j< (*found_files)[i].size(); j++) {
-              if (gOFS->_chown((*found_files)[i][j].c_str(), uidt , gidt, *error, vid_in, (char*)0)) {
-                stdErr += "error: unable to chown of file "; stdErr += (*found_files)[i][j].c_str(); stdErr += "\n";
-                retc = errno;
-              } else {
-                stdOut += "success: owner of file "; stdOut += (*found_files)[i][j].c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid_in.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();} stdOut += "\n"; }
+	  for ( foundit = found.begin(); foundit!= found.end(); foundit++ ) {
+	    for (fileit = foundit->second.begin(); fileit != foundit->second.end(); fileit++) {
+	      std::string fpath = foundit->first; fpath += *fileit;
+              if (gOFS->_chown(fpath.c_str(), uidt , gidt, *error, vid_in, (char*)0)) {
+		stdErr += "error: unable to chown of file "; stdErr += fpath.c_str(); stdErr += "\n";
+		retc = errno;
+	      } else {
+		stdOut += "success: owner of file "; stdOut += fpath.c_str(); stdOut += " is now "; stdOut += "uid="; stdOut += uid.c_str(); if (!vid_in.uid) { if (gidt) {stdOut += " gid="; stdOut += gid.c_str();} stdOut += "\n"; }
               }
             }
           }
         }
-        delete found_dirs;
-        delete found_files;
         MakeResult(dosort);
         return SFS_OK;
       }
@@ -3862,7 +3906,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       eos_info("calling ls");
       gOFS->MgmStats.Add("Ls",vid_in.uid,vid_in.gid,1);
       XrdOucString spath = opaque.Get("mgm.path");
-      const char* inpath=spath.c_str();
+      eos::common::Path cPath(spath.c_str());
+      const char* inpath=cPath.GetPath();
 
       NAMESPACEMAP;
 
@@ -4027,8 +4072,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     if ( cmd == "rm" ) {
       XrdOucString spath = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
+      XrdOucString deep   = opaque.Get("mgm.deletion");
 
       const char* inpath = spath.c_str();
+      eos::common::Path cPath(inpath);
 
       NAMESPACEMAP;
 
@@ -4040,39 +4087,41 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       } else {
         // find everything to be deleted
         if (option == "r") {
-          std::vector< std::vector<std::string> > *found_dirs  = new std::vector< std::vector<std::string> >;
-          std::vector< std::vector<std::string> > *found_files = new std::vector< std::vector<std::string> >;
+	  std::map<std::string, std::set<std::string> > found;
+	  std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
+	  std::set<std::string>::const_iterator fileit;
 
-          if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, (*found_dirs) , (*found_files))) {
-            stdErr += "error: unable to remove file/directory";
-            retc = errno;
+          if (((cPath.GetSubPathSize()<4)&&(deep != "deep")) || (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found))) {
+	    if ((cPath.GetSubPathSize()<4)&&(deep != "deep")) {
+	      stdErr += "error: deep recursive deletes are forbidden without shell confirmation code!";
+	      retc = EPERM;
+	    } else {
+	      stdErr += "error: unable to remove file/directory";
+	      retc = errno;
+	    }
           } else {
             // delete files starting at the deepest level
-            for (int i = (*found_files).size()-1 ; i>=0; i--) {
-              std::sort((*found_files)[i].begin(), (*found_files)[i].end());
-              for (unsigned int j = 0; j< (*found_files)[i].size(); j++) {
-                if (gOFS->_rem((*found_files)[i][j].c_str(), *error, vid_in,(const char*)0)) {
+	    for (rfoundit=found.rbegin(); rfoundit != found.rend(); rfoundit++) {
+	      for (fileit=rfoundit->second.begin(); fileit!=rfoundit->second.end(); fileit++) {
+		std::string fspath = rfoundit->first; fspath += *fileit;
+                if (gOFS->_rem(fspath.c_str(), *error, vid_in,(const char*)0)) {
                   stdErr += "error: unable to remove file\n";
                   retc = errno;
                 } 
               }
             } 
             // delete directories starting at the deepest level
-            for (int i = (*found_dirs).size()-1; i>=0; i--) {
-              std::sort((*found_dirs)[i].begin(), (*found_dirs)[i].end());
-              for (unsigned int j = 0; j< (*found_dirs)[i].size(); j++) {
-                // don't even try to delete the root directory
-                if ((*found_dirs)[i][j] == "/")
-                  continue;
-                if (gOFS->_remdir((*found_dirs)[i][j].c_str(), *error, vid_in,(const char*)0)) {
-                  stdErr += "error: unable to remove directory";
-                  retc = errno;
-                } 
-              }
-            }
-          }
-          delete found_dirs;
-          delete found_files;
+	    for (rfoundit=found.rbegin(); rfoundit != found.rend(); rfoundit++) {
+	      // don't even try to delete the root directory
+	      std::string fspath = rfoundit->first.c_str();
+	      if (fspath == "/")
+		continue;
+	      if (gOFS->_remdir(rfoundit->first.c_str(), *error, vid_in,(const char*)0)) {
+		stdErr += "error: unable to remove directory";
+		retc = errno;
+	      } 
+	    }
+	  }
         } else {
           if (gOFS->_rem(spath.c_str(), *error, vid_in,(const char*)0)) {
             stdErr += "error: unable to remove file/directory";
@@ -4105,6 +4154,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         
     if ( cmd == "find" ) {
       dosort = true;
+
       XrdOucString spath = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
       XrdOucString attribute = opaque.Get("mgm.find.attribute");
@@ -4112,14 +4162,33 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       XrdOucString val = attribute;
       XrdOucString printkey = opaque.Get("mgm.find.printkey");
 
-      // this hash is used to calculate the balance of the found files over the filesystems involved
-
       const char* inpath = spath.c_str();
-
+      bool deepquery = false;
+      static XrdSysMutex deepQueryMutex;
+      static std::map<std::string, std::set<std::string> > * globalfound = 0;
       NAMESPACEMAP;
 
       spath = path;
 
+      if (!OpenTemporaryOutputFiles()) {
+	stdErr += "error: cannot write find result files on MGM\n";
+	retc=EIO;
+	MakeResult(dosort);
+	return SFS_OK;
+      } 
+
+      eos::common::Path cPath(spath.c_str());
+      if ( cPath.GetSubPathSize()<5 ) {
+	if ( (((option.find("d")) != STR_NPOS) && ((option.find("f"))==STR_NPOS))) {
+	  // directory queries are fine even for the complete namespace
+	  deepquery = false;
+	} else {
+	  // deep queries are serialized by a mutex and use a single the output hashmap !
+	  deepquery = true;	
+	}
+      }
+
+      // this hash is used to calculate the balance of the found files over the filesystems involved
       google::dense_hash_map<unsigned long, unsigned long long> filesystembalance;
       google::dense_hash_map<std::string, unsigned long long> spacebalance;
       google::dense_hash_map<std::string, unsigned long long> schedulinggroupbalance;
@@ -4145,7 +4214,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       bool selectrepdiff  = false;
       bool selectonehour  = false;
       bool printunlink   = false;
-
+      bool printcounter  = false;
+      
       if (option.find("b")!=STR_NPOS) {
         calcbalance=true;
       }
@@ -4197,41 +4267,62 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       if (option.find("1")!=STR_NPOS) {
         selectonehour = true;
       }
-
+      
+      if (option.find("Z")!=STR_NPOS) {
+	printcounter = true;
+      }
       if (attribute.length()) {
         key.erase(attribute.find("="));
         val.erase(0, attribute.find("=")+1);
       }
 
       if (!spath.length()) {
-        stdErr="error: you have to give a path name to call 'find'";
+	fprintf(fstderr,"error: you have to give a path name to call 'find'");
         retc = EINVAL;
       } else {
-        std::vector< std::vector<std::string> > *found_dirs  = new std::vector< std::vector<std::string> >;
-        std::vector< std::vector<std::string> > *found_files = new std::vector< std::vector<std::string> >;
-        
+	std::map<std::string, std::set<std::string> > * found = 0;
+	if (deepquery) {
+	  // we use a single once allocated map for deep searches to store the results to avoid memory explosion
+	  deepQueryMutex.Lock();
+
+	  if (!globalfound) {
+	    globalfound = new std::map<std::string, std::set<std::string> >;
+	  }
+	  found = globalfound;
+	} else {
+	  found = new std::map<std::string, std::set<std::string> >;
+	}
+	std::map<std::string, std::set<std::string> >::const_iterator foundit;
+	std::set<std::string>::const_iterator fileit;
         bool nofiles=false;
 
         if ( ((option.find("d")) != STR_NPOS) && ((option.find("f"))==STR_NPOS)){
           nofiles = true;
         }
 
-        if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, (*found_dirs) , (*found_files), key.c_str(),val.c_str(), nofiles)) {
-          stdErr += "error: unable to remove file/directory";
+        if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, (*found), key.c_str(),val.c_str(), nofiles)) {
+	  fprintf(fstderr,"%s", stdErr.c_str());
+          fprintf(fstderr,"error: unable to run find in directory");
           retc = errno;
         }
 
         int cnt=0;
+	unsigned long long filecounter=0;
+	unsigned long long dircounter=0;
 
         if ( ((option.find("f")) != STR_NPOS) || ((option.find("d"))==STR_NPOS)) {
-          // we don't need to sort files alone ...
-          if (option.find("d") == STR_NPOS)
-            dosort = false;
+	  for (foundit=(*found).begin(); foundit != (*found).end(); foundit++) {
 
-          for (unsigned int i = 0 ; i< (*found_files).size(); i++) {
-            std::sort((*found_files)[i].begin(), (*found_files)[i].end());
-            for (unsigned int j = 0; j< (*found_files)[i].size(); j++) {
+	    if ( (option.find("d"))==STR_NPOS) {
+	      if (option.find("f") == STR_NPOS) {
+		if (!printcounter) fprintf(fstdout,"%s\n", foundit->first.c_str());
+		dircounter++;
+	      }
+	    }
+
+	    for (fileit=foundit->second.begin(); fileit!=foundit->second.end(); fileit++) {
               cnt++;
+	      std::string fspath = foundit->first; fspath += *fileit;
               if (!calcbalance) {
                 if (findgroupmix || findzero || printsize || printfid || printchecksum || printctime || printmtime || printrep  || printunlink || selectrepdiff || selectonehour) {
                   //-------------------------------------------
@@ -4242,7 +4333,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                     bool selected = true;
   
                     unsigned long long filesize=0;
-                    fmd = gOFS->eosView->getFile((*found_files)[i][j].c_str());
+                    fmd = gOFS->eosView->getFile(fspath.c_str());
                     eos::FileMD fmdCopy(*fmd);
                     fmd = &fmdCopy;
                     gOFS->eosViewRWMutex.UnLockRead();
@@ -4260,8 +4351,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                     if (selected && (findzero || findgroupmix)) {
                       if (findzero) {
                         if (!(filesize = fmd->getSize())) {
-                          stdOut += (*found_files)[i][j].c_str();
-                          stdOut += "\n";
+                          if(!printcounter) fprintf(fstdout,"%s\n",  fspath.c_str());
                         } 
                       }
 
@@ -4299,8 +4389,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                           }
                         }
                         if (mixed) {
-                          stdOut += (*found_files)[i][j].c_str();
-                          stdOut += "\n";
+			  if (!printcounter)fprintf(fstdout,"%s\n", fspath.c_str());
                         } 
                       }
                     } else {
@@ -4316,76 +4405,65 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                         }
                         
                         if (printed) {
-                          stdOut += "path=";
-                          stdOut += (*found_files)[i][j].c_str();
+			  if (!printcounter)fprintf(fstdout,"path=%s",fspath.c_str());
 
                           if (printsize) {
-                            stdOut += " size=";
-                            char psize[40];
-                            snprintf(psize,40,"%llu",(unsigned long long)fmd->getSize());
-                            stdOut += psize;
+			    if (!printcounter)fprintf(fstdout," size=%llu", (unsigned long long)fmd->getSize());
                           }
                           if (printfid) {
-                            stdOut += " fid=";
-                            char pfid[40];
-                            snprintf(pfid,40,"%llu",(unsigned long long)fmd->getId());
-                            stdOut += pfid;
+			    if (!printcounter)fprintf(fstdout, " fid=%llu", (unsigned long long)fmd->getId());
                           }
                           if (printfs) {
-                            stdOut += " fsid=";
+			    if (!printcounter)fprintf(stdout," fsid=");
                             eos::FileMD::LocationVector::const_iterator lociter;
                             for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
                               if (lociter != fmd->locationsBegin()) {
-                                stdOut += ",";
+				if (!printcounter)fprintf(fstdout,",");
                               }
-                              stdOut += (int) *lociter;
+			      if (!printcounter)fprintf(fstdout,"%d", (int) *lociter);
                             }
                           }
                           if (printchecksum) {
-                            stdOut += " checksum=";
-                            for (unsigned int i=0; i< eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
-                              char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
-                              stdOut += hb;
+			    if (!printcounter)fprintf(fstdout," checksum=");
+			    for (unsigned int i=0; i< eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
+			      if (!printcounter)fprintf(fstdout, "%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
                             }
                           }
                           
                           if (printctime) {
                             eos::FileMD::ctime_t ctime;
                             fmd->getCTime(ctime);
-                            stdOut += " ctime=";
-                            char pctime[40];
-                            snprintf(pctime,40,"%llu.%llu",(unsigned long long)ctime.tv_sec,(unsigned long long)ctime.tv_nsec);
-                            stdOut += pctime;
+			    if (!printcounter)fprintf(fstdout," ctime=%llu.%llu",(unsigned long long)ctime.tv_sec,(unsigned long long)ctime.tv_nsec);
                           }
                           if (printmtime) {
                             eos::FileMD::ctime_t mtime;
                             fmd->getMTime(mtime);
-                            stdOut += " mtime=";
-                            char pmtime[40];
-                            snprintf(pmtime,40,"%llu.%llu",(unsigned long long)mtime.tv_sec,(unsigned long long)mtime.tv_nsec);
-                            stdOut += pmtime;
+			    if (!printcounter)fprintf(fstdout," mtime=%llu.%llu",(unsigned long long)mtime.tv_sec,(unsigned long long)mtime.tv_nsec);
                           }
                           
                           if (printrep) {
-                            stdOut += " nrep="; stdOut += (int)fmd->getNumLocation();
-                          }
+			    if (!printcounter)fprintf(fstdout," nrep=%d", (int)fmd->getNumLocation());
+                          } 
                           
-                          if (printunlink) {
-                            stdOut += " nunlink="; stdOut += (int)fmd->getNumUnlinkedLocation();
+			  if (printunlink) {
+			    if (!printcounter)fprintf(fstdout," nunlink=%d", (int)fmd->getNumUnlinkedLocation());
                           }
-                          
-                          stdOut += "\n";
+			  
+			  if (!printcounter)fprintf(fstdout,"\n");
                         }
                       }
                     }
+		    if (selected) {
+		      filecounter++;
+		    }
                   } catch( eos::MDException &e ) {
                     eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
                     gOFS->eosViewRWMutex.UnLockRead();
                     //-------------------------------------------
                   }
                 } else {
-                  stdOut += (*found_files)[i][j].c_str();
-                  stdOut += "\n";
+		  if (!printcounter)fprintf(fstdout,"%s\n", fspath.c_str());
+		  filecounter++;
                 }
               } else {
                 // get location
@@ -4393,7 +4471,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 gOFS->eosViewRWMutex.LockRead();
                 eos::FileMD* fmd = 0;
                 try {
-                  fmd = gOFS->eosView->getFile((*found_files)[i][j].c_str());
+                  fmd = gOFS->eosView->getFile(fspath.c_str());
                 } catch( eos::MDException &e ) {
                   eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
                 }
@@ -4439,69 +4517,58 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 }
               }
             }
-            (*found_files)[i].resize(0);
           }
-          //      found_files.resize(0);
-            
           gOFS->MgmStats.Add("FindEntries",vid_in.uid,vid_in.gid,cnt);
-        }
+	}
 
         
         if ( (option.find("d")) != STR_NPOS ) {
-          dosort = false;
-          for (unsigned int i = 0; i< (*found_dirs).size(); i++) {
-            std::sort((*found_dirs)[i].begin(), (*found_dirs)[i].end());
-            for (unsigned int j = 0; j< (*found_dirs)[i].size(); j++) {
-              // print directories
-              XrdOucString attr="";
-              if (printkey.length()) {
-                gOFS->_attr_get((*found_dirs)[i][j].c_str(), *error, vid, (const char*) 0, printkey.c_str(), attr);
-              }
-              if (printkey.length()) {
-                char pattr[4096];
-                if (!attr.length()) {
-                  attr = "undef";
-                }
-                sprintf(pattr,"%-32s",attr.c_str());
-                stdOut += pattr;
-              }
-              stdOut += (*found_dirs)[i][j].c_str();
-              stdOut += "\n";
-            }
+	  for (foundit=(*found).begin(); foundit != (*found).end(); foundit++) {
+	    // print directories
+	    XrdOucString attr="";
+	    if (printkey.length()) {
+	      gOFS->_attr_get(foundit->first.c_str(), *error, vid, (const char*) 0, printkey.c_str(), attr);
+	      if (printkey.length()) {
+		if (!attr.length()) {
+		  attr = "undef";
+		}
+		if (!printcounter)fprintf(fstdout,"%s=%-32s path=",printkey.c_str(),attr.c_str());
+	      }
+	    }
+	    if (!printcounter)fprintf(fstdout,"%s\n", foundit->first.c_str());
           }
+	  dircounter++;
         }
-        (*found_dirs).resize(0);
-        delete found_dirs;
-        delete found_files;
+	if (deepquery) {
+	  globalfound->clear();
+	  deepQueryMutex.UnLock();
+	} else {
+	  delete found;
+	}
+	if (printcounter) {
+	  fprintf(fstdout,"nfiles=%llu ndirectories=%llu\n", filecounter, dircounter);
+	}
       }
-
 
       if (calcbalance) {
         XrdOucString sizestring="";
         google::dense_hash_map<unsigned long, unsigned long long>::iterator it;
         for ( it = filesystembalance.begin(); it != filesystembalance.end(); it++) {
-          char outline[1024];
-          sprintf(outline,"fsid=%lu \tvolume=%-12s \tnbytes=%llu\n",it->first,eos::common::StringConversion::GetReadableSizeString(sizestring, it->second,"B"), it->second);
-          stdOut += outline;
+          fprintf(fstdout,"fsid=%lu \tvolume=%-12s \tnbytes=%llu\n",it->first,eos::common::StringConversion::GetReadableSizeString(sizestring, it->second,"B"), it->second);
         }
 
         google::dense_hash_map<std::string, unsigned long long>::iterator its;
         for ( its= spacebalance.begin(); its != spacebalance.end(); its++) {
-          char outline[1024];
-          sprintf(outline,"space=%s \tvolume=%-12s \tnbytes=%llu\n",its->first.c_str(),eos::common::StringConversion::GetReadableSizeString(sizestring, its->second,"B"), its->second);
-          stdOut += outline;
+	  fprintf(fstdout,"space=%s \tvolume=%-12s \tnbytes=%llu\n",its->first.c_str(),eos::common::StringConversion::GetReadableSizeString(sizestring, its->second,"B"), its->second);
         }
 
         google::dense_hash_map<std::string, unsigned long long>::iterator itg;
         for ( itg= schedulinggroupbalance.begin(); itg != schedulinggroupbalance.end(); itg++) {
-          char outline[1024];
-          sprintf(outline,"sched=%s \tvolume=%-12s \tnbytes=%llu\n",itg->first.c_str(),eos::common::StringConversion::GetReadableSizeString(sizestring, itg->second,"B"), itg->second);
-          stdOut += outline;
+          fprintf(fstdout,"sched=%s \tvolume=%-12s \tnbytes=%llu\n",itg->first.c_str(),eos::common::StringConversion::GetReadableSizeString(sizestring, itg->second,"B"), itg->second);
         }
         
         google::dense_hash_map<int, unsigned long long>::iterator itsd;
         for ( itsd= sizedistribution.begin(); itsd != sizedistribution.end(); itsd++) {
-          char outline[1024];
           unsigned long long lowerlimit=0;
           unsigned long long upperlimit=0;
           if ( ((itsd->first)-1) > 0)
@@ -4514,7 +4581,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           XrdOucString sizestring3;
           XrdOucString sizestring4;
           unsigned long long avgsize = (unsigned long long ) (sizedistributionn[itsd->first]?itsd->second/sizedistributionn[itsd->first]:0);
-          sprintf(outline,"sizeorder=%02d \trange=[ %-12s ... %-12s ] volume=%-12s \tavgsize=%-12s \tnbyptes=%llu \t avgnbytes=%llu\n", itsd->first
+          fprintf(fstdout,"sizeorder=%02d \trange=[ %-12s ... %-12s ] volume=%-12s \tavgsize=%-12s \tnbyptes=%llu \t avgnbytes=%llu\n", itsd->first
                   , eos::common::StringConversion::GetReadableSizeString(sizestring1, lowerlimit,"B")
                   , eos::common::StringConversion::GetReadableSizeString(sizestring2, upperlimit,"B")
                   , eos::common::StringConversion::GetReadableSizeString(sizestring3, itsd->second,"B")
@@ -4522,7 +4589,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                   , itsd->second
                   , avgsize
                   );
-          stdOut += outline; 
         }
       }
       MakeResult(dosort);
@@ -4635,36 +4701,34 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           XrdOucString val = opaque.Get("mgm.attr.value");
           
           // find everything to be modified
-          std::vector< std::vector<std::string> > *found_dirs  = new std::vector< std::vector<std::string> >;
-          std::vector< std::vector<std::string> > *found_files = new std::vector< std::vector<std::string> >;
+	  std::map<std::string, std::set<std::string> > found;
+	  std::map<std::string, std::set<std::string> >::const_iterator foundit;
+	  std::set<std::string>::const_iterator fileit;
 
           if (option == "r") {
-            if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, (*found_dirs) , (*found_files))) {
+            if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found)) {
               stdErr += "error: unable to search in path";
               retc = errno;
             } 
           } else {
             // the single dir case
-            (*found_dirs).resize(1);
-            (*found_dirs)[0].push_back(spath.c_str());
+	    found[spath.c_str()].size();           
           }
           
           if (!retc) {
             // apply to  directories starting at the highest level
-            for (unsigned int i = 0; i< (*found_dirs).size(); i++) {
-              std::sort((*found_dirs)[i].begin(), (*found_dirs)[i].end());
-              for (unsigned int j = 0; j< (*found_dirs)[i].size(); j++) {
-                eos::ContainerMD::XAttrMap map;
-                
+	    for ( foundit = found.begin(); foundit!= found.end(); foundit++ ) {
+	      {
+		eos::ContainerMD::XAttrMap map;
                 if (subcmd == "ls") {
                   XrdOucString partialStdOut = "";
-                  if (gOFS->_attr_ls((*found_dirs)[i][j].c_str(), *error, vid_in,(const char*)0, map)) {
-                    stdErr += "error: unable to list attributes in directory "; stdErr += (*found_dirs)[i][j].c_str();
+                  if (gOFS->_attr_ls(foundit->first.c_str(), *error, vid_in,(const char*)0, map)) {
+                    stdErr += "error: unable to list attributes in directory "; stdErr += foundit->first.c_str();
                     retc = errno;
                   } else {
                     eos::ContainerMD::XAttrMap::const_iterator it;
                     if ( option == "r" ) {
-                      stdOut += (*found_dirs)[i][j].c_str();
+                      stdOut += foundit->first.c_str();
                       stdOut += ":\n";
                     }
 
@@ -4679,17 +4743,17 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 }
                 
                 if (subcmd == "set") {
-                  if (gOFS->_attr_set((*found_dirs)[i][j].c_str(), *error, vid_in,(const char*)0, key.c_str(),val.c_str())) {
-                    stdErr += "error: unable to set attribute in directory "; stdErr += (*found_dirs)[i][j].c_str();
+                  if (gOFS->_attr_set(foundit->first.c_str(), *error, vid_in,(const char*)0, key.c_str(),val.c_str())) {
+                    stdErr += "error: unable to set attribute in directory "; stdErr += foundit->first.c_str();
                     retc = errno;
                   } else {
-                    stdOut += "success: set attribute '"; stdOut += key; stdOut += "'='"; stdOut += val; stdOut += "' in directory "; stdOut += (*found_dirs)[i][j].c_str();stdOut += "\n";
+                    stdOut += "success: set attribute '"; stdOut += key; stdOut += "'='"; stdOut += val; stdOut += "' in directory "; stdOut += foundit->first.c_str();stdOut += "\n";
                   }
                 }
                 
                 if (subcmd == "get") {
-                  if (gOFS->_attr_get((*found_dirs)[i][j].c_str(), *error, vid_in,(const char*)0, key.c_str(), val)) {
-                    stdErr += "error: unable to get attribute '"; stdErr += key; stdErr += "' in directory "; stdErr += (*found_dirs)[i][j].c_str();
+                  if (gOFS->_attr_get(foundit->first.c_str(), *error, vid_in,(const char*)0, key.c_str(), val)) {
+                    stdErr += "error: unable to get attribute '"; stdErr += key; stdErr += "' in directory "; stdErr += foundit->first.c_str();
                     retc = errno;
                   } else {
                     stdOut += key; stdOut += "="; stdOut += val; stdOut +="\n"; 
@@ -4697,17 +4761,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 }
                 
                 if (subcmd == "rm") {
-                  if (gOFS->_attr_rem((*found_dirs)[i][j].c_str(), *error, vid_in,(const char*)0, key.c_str())) {
-                    stdErr += "error: unable to remove attribute '"; stdErr += key; stdErr += "' in directory "; stdErr += (*found_dirs)[i][j].c_str();
+                  if (gOFS->_attr_rem(foundit->first.c_str(), *error, vid_in,(const char*)0, key.c_str())) {
+                    stdErr += "error: unable to remove attribute '"; stdErr += key; stdErr += "' in directory "; stdErr += foundit->first.c_str();
                   } else {
-                    stdOut += "success: removed attribute '"; stdOut += key; stdOut +="' from directory "; stdOut += (*found_dirs)[i][j].c_str();stdOut += "\n";
+                    stdOut += "success: removed attribute '"; stdOut += key; stdOut +="' from directory "; stdOut += foundit->first.c_str();stdOut += "\n";
                   }
                 }
               }
             }
           }
-          delete found_dirs;
-          delete found_files;
         }
       }
       MakeResult(dosort);
@@ -4730,18 +4792,18 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         retc = EINVAL;
       } else {
         // find everything to be modified
-        std::vector< std::vector<std::string> > *found_dirs  = new std::vector< std::vector<std::string> >;
-        std::vector< std::vector<std::string> > *found_files = new std::vector< std::vector<std::string> >;
+	std::map<std::string, std::set<std::string> > found;
+	std::map<std::string, std::set<std::string> >::const_iterator foundit;
+	std::set<std::string>::const_iterator fileit;
 
         if (option == "r") {
-          if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, (*found_dirs) , (*found_files))) {
+          if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found)) {
             stdErr += "error: unable to search in path";
             retc = errno;
           } 
         } else {
           // the single dir case
-          (*found_dirs).resize(1);
-          (*found_dirs)[0].push_back(spath.c_str());
+	  found[spath.c_str()].size();         
         }
 
         char modecheck[1024]; snprintf(modecheck,sizeof(modecheck)-1, "%llu", (unsigned long long) strtoul(mode.c_str(),0,10));
@@ -4752,25 +4814,21 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         } else {
           XrdSfsMode Mode = (XrdSfsMode) strtoul(mode.c_str(),0,8);
           
-          
-          for (unsigned int i = 0; i< (*found_dirs).size(); i++) {
-            std::sort((*found_dirs)[i].begin(), (*found_dirs)[i].end());
-            for (unsigned int j = 0; j< (*found_dirs)[i].size(); j++) {
-              if (gOFS->_chmod((*found_dirs)[i][j].c_str(), Mode, *error, vid_in, (char*)0)) {
-                stdErr += "error: unable to chmod of directory "; stdErr += (*found_dirs)[i][j].c_str();
+	  for (foundit = found.begin(); foundit != found.end(); foundit++) {
+	    {
+              if (gOFS->_chmod(foundit->first.c_str(), Mode, *error, vid_in, (char*)0)) {
+                stdErr += "error: unable to chmod of directory "; stdErr += foundit->first.c_str();
                 retc = errno;
               } else {
                 if (vid_in.uid) {
-                  stdOut += "success: mode of directory "; stdOut += (*found_dirs)[i][j].c_str(); stdOut += " is now '2"; stdOut += mode; stdOut += "'";
+                  stdOut += "success: mode of directory "; stdOut += foundit->first.c_str(); stdOut += " is now '2"; stdOut += mode; stdOut += "'";
                 } else {
-                  stdOut += "success: mode of directory "; stdOut += (*found_dirs)[i][j].c_str(); stdOut += " is now '"; stdOut += mode; stdOut += "'";
+                  stdOut += "success: mode of directory "; stdOut += foundit->first.c_str(); stdOut += " is now '"; stdOut += mode; stdOut += "'";
                 }
               }
             }
           }
         }
-        delete found_dirs;
-        delete found_files;
         MakeResult(dosort);
         return SFS_OK;
       }
@@ -4790,12 +4848,25 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 int
 ProcCommand::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen) 
 {
-  if ( ((unsigned int)blen <= (len - offset)) ) {
-    memcpy(buff, resultStream.c_str() + offset, blen);
-    return blen;
+  if (fresultStream) {
+    // file based results go here ...
+    if ( (fseek(fresultStream,offset,0)) == 0) {
+      size_t nread = fread(buff, 1, blen, fresultStream);
+      if (nread>0) 
+	return nread;
+    } else {
+      eos_err("seek to %llu failed\n", offset);
+    }
+    return 0;
   } else {
-    memcpy(buff, resultStream.c_str() + offset, (len - offset));
-    return (len - offset);
+    // memory based results go here ...
+    if ( ((unsigned int)blen <= (len - offset)) ) {
+      memcpy(buff, resultStream.c_str() + offset, blen);
+      return blen;
+    } else {
+      memcpy(buff, resultStream.c_str() + offset, (len - offset));
+      return (len - offset);
+    }
   }
 }
 
@@ -4821,27 +4892,73 @@ void
 ProcCommand::MakeResult(bool dosort, bool fuseformat) 
 {
   resultStream = "";
-  if (!fuseformat)
-    resultStream =  "mgm.proc.stdout=";
-  XrdMqMessage::Sort(stdOut,dosort);
-  resultStream += XrdMqMessage::Seal(stdOut);
-  if (!fuseformat)
-    resultStream += "&mgm.proc.stderr=";
-  resultStream += XrdMqMessage::Seal(stdErr);
-  
-  if (!fuseformat) {
-    resultStream += "&mgm.proc.retc=";
-    resultStream += retc;
+
+  if (!fstdout) {
+    if (!fuseformat)
+      resultStream =  "mgm.proc.stdout=";
+    XrdMqMessage::Sort(stdOut,dosort);
+    resultStream += XrdMqMessage::Seal(stdOut);
+    if (!fuseformat)
+      resultStream += "&mgm.proc.stderr=";
+    resultStream += XrdMqMessage::Seal(stdErr);
+    
+    if (!fuseformat) {
+      resultStream += "&mgm.proc.retc=";
+      resultStream += retc;
+    }
+    if (!resultStream.endswith('\n')) {
+      resultStream += "\n";
+    }
+    //    fprintf(stderr,"%s\n",resultStream.c_str());
+    if (retc) {
+      eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);
+    }
+    len = resultStream.length();
+    offset = 0;
+  } else {
+    // file based results CANNOT be sorted and don't have fuseformat
+    if (!fuseformat) {
+      // create the stdout result 
+      if ( !fseek(fstdout,0,0) && !fseek(fstderr,0,0) && !fseek(fresultStream,0,0) ) {
+	fprintf(fresultStream,"&mgm.proc.stdout=");
+
+	std::ifstream inStdout(fstdoutfilename.c_str());
+	std::ifstream inStderr(fstderrfilename.c_str());
+	std::string entry;
+
+	while(std::getline(inStdout, entry)) {
+	  XrdOucString sentry = entry.c_str();
+	  sentry+="\n";
+	  XrdMqMessage::Seal(sentry);
+	  fprintf(fresultStream,"%s",sentry.c_str());
+	}
+	// close and remove - if this fails there is nothing to recover anyway
+	fclose(fstdout);
+	fstdout = 0;
+	unlink(fstdoutfilename.c_str());
+	// create the stderr result
+	fprintf(fresultStream,"&mgm.proc.stderr=");
+	while(std::getline(inStdout, entry)) {
+	  XrdOucString sentry = entry.c_str();
+	  sentry+="\n";
+	  XrdMqMessage::Seal(sentry);
+	  fprintf(fresultStream,"%s",sentry.c_str());
+	}
+	// close and remove - if this fails there is nothing to recover anyway
+	fclose(fstderr);
+	fstderr = 0;
+	unlink(fstderrfilename.c_str());
+	
+	fprintf(fresultStream,"&mgm.proc.retc=%d", retc);
+	len = ftell(fresultStream);
+		
+	// spool the resultstream to the beginning
+	fseek(fresultStream,0,0);
+      } else {
+	eos_static_err("cannot seek to position 0 in result files");
+      }
+    }
   }
-  if (!resultStream.endswith('\n')) {
-    resultStream += "\n";
-  }
-  //    fprintf(stderr,"%s\n",resultStream.c_str());
-  if (retc) {
-    eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);
-  }
-  len = resultStream.length();
-  offset = 0;
 }
 
 /*----------------------------------------------------------------------------*/

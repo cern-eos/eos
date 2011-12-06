@@ -45,10 +45,18 @@ private:
   XrdOucString subcmd;
   XrdOucString args;
 
-  XrdOucString stdOut;;
+  XrdOucString stdOut;
   XrdOucString stdErr;
   int retc;
   XrdOucString resultStream;
+
+  // the 'find' command writes results into temporary files
+  FILE* fstdout;
+  FILE* fstderr;
+  FILE* fresultStream;
+  XrdOucString fstdoutfilename;
+  XrdOucString fstderrfilename;
+  XrdOucString fresultStreamfilename;
 
   XrdOucErrInfo*   error;
 
@@ -70,6 +78,8 @@ public:
     lStdOut += stdOut;
     lStdErr += stdErr;
   }
+
+  bool OpenTemporaryOutputFiles();
 
   ProcCommand();
   ~ProcCommand();

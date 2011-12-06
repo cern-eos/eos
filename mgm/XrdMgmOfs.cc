@@ -155,10 +155,10 @@ XrdMgmOfs::ShouldStall(const char* function,  eos::common::Mapping::VirtualIdent
     }
     stallmsg="Attention: you are currently banned in this instance and each request is stalled for ";
     stallmsg += (int) stalltime; stallmsg += " seconds ...";
-    eos_static_info("denying access to uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
+    eos_static_info("info=\"denying access to\" uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
     return true;
   } 
-  eos_static_debug("allowing access to uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
+  eos_static_debug("info=\"allowing access to\" uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
   return false;
 }
 
@@ -218,7 +218,7 @@ XrdMgmOfs::PathRemap(const char* inpath, XrdOucString &outpath)
   eos::common::Path cPath(inpath);
 
   eos::common::RWMutexReadLock lock(PathMapMutex);
-  eos_debug("map %s [%d][%d]", inpath, PathMap.size(), cPath.GetSubPathSize()-1);
+  eos_debug("mappath=%s ndir=%d dirlevel=%d", inpath, PathMap.size(), cPath.GetSubPathSize()-1);
 
   outpath = inpath;
 
@@ -317,7 +317,7 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
 
   eos::common::Path cPath(dir_path);
    
-  eos_info("(opendir) path=%s",cPath.GetPath());
+  eos_info("name=opendir path=%s",cPath.GetPath());
 
   gOFS->MgmStats.Add("OpenDir",vid.uid,vid.gid,1);
 
@@ -373,12 +373,12 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
   } catch( eos::MDException &e ) {
     dh = 0;
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());
   }
   // check permissions
 
   if (dh) {
-    eos_debug("access for %d %d gives %d in %o", vid.uid,vid.gid,(dh->access(vid.uid,vid.gid, R_OK|X_OK)), dh->getMode());
+    eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o", vid.uid,vid.gid,(dh->access(vid.uid,vid.gid, R_OK|X_OK)), dh->getMode());
   }
 
   // Verify that this object is not already associated with an open directory
@@ -522,9 +522,9 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     }
   
   if (isRW) {
-    eos_info("op=WRITE trunc=%d path=%s info=%s",open_mode & SFS_O_TRUNC, path,info);
+    eos_info("op=write trunc=%d path=%s info=%s",open_mode & SFS_O_TRUNC, path,info);
   } else {
-    eos_info("op=READ  path=%s info=%s",path,info);
+    eos_info("op=read path=%s info=%s",path,info);
   }
 
   MAYSTALL;
@@ -548,7 +548,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   unsigned long fmdlid=0;
   unsigned long long cid = 0;
   
-  eos_debug("mode=%x [create=%x truncate=%x]", open_mode, SFS_O_CREAT, SFS_O_TRUNC);
+  eos_debug("mode=%x create=%x truncate=%x", open_mode, SFS_O_CREAT, SFS_O_TRUNC);
 
   // proc filter
   if (ProcInterface::IsProcAccess(path)) {
@@ -572,13 +572,13 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     AUTHORIZE(client,openOpaque,(isRW?AOP_Update:AOP_Read),"open",path,error);
   }
 
-  eos_debug("authorize done");
+  eos_debug("msg=\"authorize done\"");
 
   eos::common::Path cPath(path);
 
   // check if we have to create the full path
   if (Mode & SFS_O_MKPTH) {
-    eos_debug("SFS_O_MKPTH was requested");
+    eos_debug("msg=\"SFS_O_MKPTH was requested\"");
 
     XrdSfsFileExistence file_exists;
     int ec = gOFS->_exists(cPath.GetParentPath(),file_exists,error,vid,0);
@@ -632,7 +632,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     } catch( eos::MDException &e ) {
       dmd = 0;
       errno = e.getErrno();
-      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());
     };
     
     //-------------------------------------------
@@ -654,7 +654,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 	} catch( eos::MDException &e ) {
 	  dmd = 0;
 	  errno = e.getErrno();
-	  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	  eos_debug("msg=\"exception\" ec=%d emsg=%s\n", e.getErrno(),e.getMessage().str().c_str());
 	};	      
 	//-------------------------------------------
 	if (attrmap.count("sys.redirect.enoent")) {
@@ -781,7 +781,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 	  } catch( eos::MDException &e ) {
 	    fmd = 0;
 	    errno = e.getErrno();
-	    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());
 	  };	 
 	  //-------------------------------------------
 	}
@@ -882,7 +882,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
       } catch( eos::MDException &e ) {
 	errno = e.getErrno();
 	std::string errmsg = e.getMessage().str();
-	eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());	
+	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());	
 	return Emsg(epname, error, errno, "open file", errmsg.c_str());      
       }     
       //-------------------------------------------
@@ -1643,7 +1643,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
     try {
       cmd = gOFS->eosView->getContainer(path);
     } catch ( eos::MDException &e ) {
-      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());      
     };
     //-------------------------------------------
   }
@@ -1656,7 +1656,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
     try {
       fmd = gOFS->eosView->getFile(path);
     } catch( eos::MDException &e ) {
-      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());
     }
     //-------------------------------------------
 
@@ -1756,7 +1756,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
       cmd = gOFS->eosView->getContainer(path);
     } catch ( eos::MDException &e ) {
       cmd = 0;
-      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());      
     };  
     //-------------------------------------------
   }
@@ -1769,7 +1769,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
     try {
       fmd = gOFS->eosView->getFile(path);
     } catch( eos::MDException &e ) {
-      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());      
     }
     //-------------------------------------------
 
@@ -1886,7 +1886,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	}
       } catch( eos::MDException &e ) {
 	dir = 0;
-	eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());       
 	noParent = true;
       }
     }
@@ -1932,7 +1932,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
         fulldir = eosView->getContainer(path);
       } catch( eos::MDException &e ) {
         fulldir = 0;
-        eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());       
       }
       if (fulldir) {
         if (copydir) delete copydir;
@@ -2019,7 +2019,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
           eosView->updateContainerStore(newdir);
         } catch( eos::MDException &e ) {
           errno = e.getErrno();
-          eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	  eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());          
         }
 
         dir = newdir;
@@ -2073,7 +2073,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     eosView->updateContainerStore(newdir);
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());  
   }
 
   if (copydir) delete copydir;
@@ -2202,7 +2202,7 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
     fmd = gOFS->eosView->getFile(path);
   } catch ( eos::MDException &e) {
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());    
   }
 
   if (fmd) {
@@ -2281,7 +2281,7 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
     }
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());   
   };
 
   EXEC_TIMING_END("Rm");
@@ -2381,7 +2381,7 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
     dhpar = 0;
     dh=0;
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());  
   }
 
   Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
@@ -2429,7 +2429,7 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
     eosView->removeContainer(path);
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());   
   }
 
   EXEC_TIMING_END("RmDir");
@@ -2595,11 +2595,12 @@ int XrdMgmOfs::_stat(const char              *path,        // In
 
   //-------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+
   try {
     fmd = gOFS->eosView->getFile(cPath.GetPath());
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
-    eos_debug("check for file - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());   
   }
   
   //-------------------------------------------
@@ -2690,7 +2691,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
     return SFS_OK;
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
-    eos_debug("check for directory - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());    
     return Emsg(epname, error, errno, "stat", cPath.GetPath());
   }
 }
@@ -2809,6 +2810,8 @@ int XrdMgmOfs::symlink(const char            *inpath,        // In
 }
 
 /*----------------------------------------------------------------------------*/
+/* This function operations ONLY on directories !!!                           */
+/*----------------------------------------------------------------------------*/
 int XrdMgmOfs::access( const char            *inpath,        // In
                        int                   mode,        // In
                        XrdOucErrInfo        &error,       // Out
@@ -2833,6 +2836,88 @@ int XrdMgmOfs::access( const char            *inpath,        // In
 
   gOFS->MgmStats.Add("Access",vid.uid,vid.gid,1);  
 
+
+  eos::common::Path cPath(path);
+
+  eos::ContainerMD* dh;
+  eos::FileMD* fh;
+  bool permok = false;
+  //-------------------------------------------
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);      
+  try {
+    fh = gOFS->eosView->getFile(cPath.GetPath());
+  } catch( eos::MDException &e ) {
+    fh = 0;
+    errno = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+  
+  try {
+    eos::ContainerMD::XAttrMap attrmap;
+    if (fh) {
+      // if this is a file we check the access on the parent directory
+      dh = gOFS->eosView->getContainer(cPath.GetParentPath());
+    } else {
+      // if this is not a file we assume it is a directory
+      dh = gOFS->eosView->getContainer(cPath.GetPath());
+    }
+    permok = dh->access(vid.uid,vid.gid, mode);
+
+    if (!permok) {
+      // get attributes
+      eos::ContainerMD::XAttrMap::const_iterator it;
+      for ( it = dh->attributesBegin(); it != dh->attributesEnd(); ++it) {
+        attrmap[it->first] = it->second;
+      }
+      // ACL and permission check
+      Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
+       
+      eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d", acl.HasAcl(),acl.CanRead(),acl.CanWrite(),acl.CanWriteOnce(), acl.CanBrowse(),acl.HasEgroup());
+
+      // browse permission by ACL
+      if (acl.HasAcl()) {
+	if ( (mode & W_OK) && acl.CanWrite()) {
+	  permok = true;
+	}
+
+	if ( (mode & R_OK) && acl.CanRead()) {
+	  permok = true;
+	}
+
+        if ( (mode & W_OK) && acl.CanBrowse()) {
+          permok = true;
+        }
+      }
+    }
+  } catch( eos::MDException &e ) {
+    dh = 0;
+    errno = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());
+  }
+
+  // check permissions
+
+  if (!dh) {
+    eos_debug("msg=\"access\" errno=ENOENT");
+    return Emsg(epname, error, ENOENT, "access", path); 
+  }
+
+  if (dh) {
+    eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o", vid.uid,vid.gid,(dh->access(vid.uid,vid.gid, R_OK|X_OK)), dh->getMode());
+  }
+  
+  if ( dh && (mode & F_OK) ) {
+    return SFS_OK;
+  }
+    
+  if ( dh && permok ) {
+    return SFS_OK;
+  }
+
+  if ( dh && (!permok) ) {
+    return Emsg(epname, error, EACCES, "access", path); 
+  }
+  
   return Emsg(epname, error, EOPNOTSUPP, "access", path); 
 }
 
@@ -2889,7 +2974,7 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
     done = true;
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
-    eos_debug("check for directory - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());    
   }
 
   if (!cmd) {
@@ -2902,7 +2987,7 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
       done = true;
     } catch( eos::MDException &e ) {
       errno = e.getErrno();
-      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());      
     }
   }
 
@@ -2920,21 +3005,23 @@ int XrdMgmOfs::_find(const char       *path,             // In
                      XrdOucErrInfo    &out_error,        // Out
                      XrdOucString     &stdErr,
                      eos::common::Mapping::VirtualIdentity &vid, // In
-                     std::vector< std::vector<std::string> > &found_dirs, // Out
-                     std::vector< std::vector<std::string> > &found_files, // Out
+		     std::map<std::string, std::set<std::string> > &found,		     
                      const char* key, const char* val, bool nofiles
                      )
 {
+  std::vector< std::vector<std::string> > found_dirs;
+
   // try if that is directory
   eos::ContainerMD* cmd = 0;
-  XrdOucString Path = path;
+  std::string Path = path;
+  XrdOucString sPath = path;
   errno = 0;
 
   EXEC_TIMING_BEGIN("Find");      
 
   gOFS->MgmStats.Add("Find",vid.uid,vid.gid,1);  
 
-  if (!(Path.endswith('/')))
+  if (!(sPath.endswith('/')))
     Path += "/";
   
   found_dirs.resize(1);
@@ -2961,7 +3048,6 @@ int XrdMgmOfs::_find(const char       *path,             // In
     bool permok = false;
 
     found_dirs.resize(deepness+2);
-    found_files.resize(deepness+2);
     // loop over all directories in that deepness
     for (unsigned int i=0; i< found_dirs[deepness].size(); i++) {
       Path = found_dirs[deepness][i].c_str();
@@ -2974,7 +3060,7 @@ int XrdMgmOfs::_find(const char       *path,             // In
       } catch( eos::MDException &e ) {
         errno = e.getErrno();
         cmd = 0;
-        eos_debug("check for directory - caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());       
       }
       
       if (cmd) {
@@ -2993,7 +3079,8 @@ int XrdMgmOfs::_find(const char       *path,             // In
             XrdOucString attr="";
             if(!gOFS->_attr_get(fpath.c_str(), out_error, vid, (const char*) 0, key, attr, true)) {
               if (attr == val) {
-                found_dirs[deepness+1].push_back(fpath);
+                found_dirs[deepness+1].push_back(fpath.c_str());
+		found[fpath].size();
               }
             }
           } else {
@@ -3006,7 +3093,8 @@ int XrdMgmOfs::_find(const char       *path,             // In
 		break;
 	      }
 	    }
-            found_dirs[deepness+1].push_back(fpath);
+            found_dirs[deepness+1].push_back(fpath.c_str());
+	    found[fpath].size();
             dirsfound++;
           }
         }
@@ -3023,8 +3111,7 @@ int XrdMgmOfs::_find(const char       *path,             // In
 		break;
 	      }
 	    }
-            std::string fpath = Path.c_str(); fpath += fit->second->getName(); 
-            found_files[deepness].push_back(fpath);
+	    found[Path].insert(fit->second->getName());
             filesfound++;
           }
         }
@@ -3040,6 +3127,23 @@ int XrdMgmOfs::_find(const char       *path,             // In
     }
   } while (found_dirs[deepness].size());
   //-------------------------------------------  
+  if (!nofiles) {
+    // if the result is empty, maybe this was a find by file
+    if (!found.size()) {
+      XrdSfsFileExistence file_exists;
+      if (((_exists(Path.c_str(),file_exists,out_error,vid,0))==SFS_OK) && (file_exists==XrdSfsFileExistIsFile)) {
+	eos::common::Path cPath(Path.c_str());
+	found[cPath.GetParentPath()].insert(cPath.GetName());
+      }
+    }
+  }
+  //-------------------------------------------  
+  // include also the directory which was specified in the query if it is accessible and a directory since it can evt. be missing if it is empty
+  XrdSfsFileExistence dir_exists;
+  if (((_exists(Path.c_str(),dir_exists,out_error,vid,0))==SFS_OK) && (dir_exists==XrdSfsFileExistIsDirectory)) {
+    eos::common::Path cPath(Path.c_str());
+    found[Path.c_str()].size();
+  }
 
   EXEC_TIMING_END("Find");      
   return SFS_OK;
@@ -3384,7 +3488,7 @@ XrdMgmOfs::FSctl(const int               cmd,
           fmd = gOFS->eosFileService->getFileMD(fid);
         } catch( eos::MDException &e ) {
           errno = e.getErrno();
-          eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	  eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());          
         }
 
         if (!fmd) {          
@@ -3516,7 +3620,7 @@ XrdMgmOfs::FSctl(const int               cmd,
           }  catch( eos::MDException &e ) {
             errno = e.getErrno();
             std::string errmsg = e.getMessage().str();
-            eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());           
             gOFS->MgmStats.Add("CommitFailedNamespace",0,0,1);  
             return Emsg(epname, error, errno, "commit filesize change", errmsg.c_str());      
           }      
@@ -3752,11 +3856,13 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "access") {
-      /*
-        char* smode;
+      char* smode;
         if ((smode = env.Get("mode"))) {
         int newmode = atoi(smode);
-        int retc = access(path.c_str(),newmode, error,client,0);
+        int retc =0;
+	if (access(spath.c_str(),newmode, error,client,0)) {
+	  retc = error.getErrInfo();
+	}
         XrdOucString response="access: retc=";
         response += retc;
         error.setErrInfo(response.length()+1,response.c_str());
@@ -3767,7 +3873,6 @@ XrdMgmOfs::FSctl(const int               cmd,
         error.setErrInfo(response.length()+1,response.c_str());
         return SFS_DATA;
         }
-      */
     }
 
     if (execmd == "utimes") {
@@ -3822,7 +3927,7 @@ XrdMgmOfs::FSctl(const int               cmd,
         }
       } catch ( eos::MDException &e ) {
         errno = e.getErrno();
-        eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());       
       }
 
       if (!fmd) {
@@ -4061,7 +4166,7 @@ XrdMgmOfs::FSctl(const int               cmd,
         try {
           fmd = gOFS->eosView->getFile(spath.c_str());
         } catch( eos::MDException &e ) {
-          eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	  eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());         
         }
   
         if ((sub_cmd = env.Get("mgm.subcmd"))) {
@@ -4276,7 +4381,7 @@ XrdMgmOfs::_attr_ls(const char             *path,
   } catch( eos::MDException &e ) {
     dh = 0;
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());    
   }
   // check permissions
   if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
@@ -4325,7 +4430,7 @@ XrdMgmOfs::_attr_set(const char             *path,
   } catch( eos::MDException &e ) {
     dh = 0;
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());
   }
   // check permissions
   if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
@@ -4375,7 +4480,7 @@ XrdMgmOfs::_attr_get(const char             *path,
   } catch( eos::MDException &e ) {
     dh = 0;
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());  
   }
   // check permissions
   if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
@@ -4422,7 +4527,7 @@ XrdMgmOfs::_attr_rem(const char             *path,
   } catch( eos::MDException &e ) {
     dh = 0;
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());   
   }
   // check permissions
   if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
@@ -4473,7 +4578,7 @@ XrdMgmOfs::_verifystripe(const char             *path,
   } catch( eos::MDException &e ) {
     dh = 0;
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());   
   }
   
   // check permissions
@@ -4502,7 +4607,7 @@ XrdMgmOfs::_verifystripe(const char             *path,
   } catch( eos::MDException &e ) {
       fmd = 0;
       errno = e.getErrno();
-      eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());     
   } 
 
   if (!errno) {
@@ -4588,7 +4693,7 @@ XrdMgmOfs::_dropstripe(const char             *path,
   } catch( eos::MDException &e ) {
     dh = 0;
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());
   }
 
   // check permissions
@@ -4623,7 +4728,7 @@ XrdMgmOfs::_dropstripe(const char             *path,
   } catch( eos::MDException &e ) {
     fmd = 0;
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());   
   } 
 
   EXEC_TIMING_END("DropStripe");
@@ -4690,7 +4795,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   } catch( eos::MDException &e ) {
     dh = 0;
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());  
   }
 
   // check permissions
@@ -4713,7 +4818,7 @@ XrdMgmOfs::_replicatestripe(const char             *path,
   } catch( eos::MDException &e ) {
     fmd = 0;
     errno = e.getErrno();
-    eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str()); 
   }
   
   if (errno) {    
