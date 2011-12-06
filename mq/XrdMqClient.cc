@@ -331,7 +331,6 @@ XrdMqClient::GetBrokerXrdClientSender(int i) {
 /*----------------------------------------------------------------------------*/
 
 void XrdMqClient::ReNewBrokerXrdClientReceiver(int i) {
-  fprintf(stderr,"XrdMqClient::ReNewBorkerXrdClientReceiver %d", i);
   kBrokerXrdClientReceiver.Del(GetBrokerId(i).c_str());
   SetXrootVariables();
   
@@ -356,7 +355,7 @@ void XrdMqClient::CheckBrokerXrdClientReceiver(int i) {
       XrdClientUrlSet alias(GetBrokerUrl(i)->c_str());
       alias.Rewind();
       XrdClientUrlInfo* currentalias = alias.GetNextUrl();
-      if (currentalias->GetUrl() != client->GetClientConn()->GetCurrentUrl().GetUrl()) {
+      if ( (!currentalias) || (currentalias->GetUrl() != client->GetClientConn()->GetCurrentUrl().GetUrl())) {
         fprintf(stderr,"XrdMqClient::CheckBrokerXrdClientReceiver => Broker alias changed from %s => %s\n", client->GetClientConn()->GetCurrentUrl().GetUrl().c_str(), currentalias->GetUrl().c_str());
 
         ReNewBrokerXrdClientReceiver(i);
