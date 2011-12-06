@@ -566,9 +566,9 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
       lfnpath.MakeParentPath(S_IRWXU);
       FILE* fout = fopen(lfnfile,"w+");
       if (fout) {
-	Log(false,"created export report lfn files under %s\n", lfnfile);
+	Log(false,"created export report lfn files under %s", lfnfile);
       } else {
-	Log(false,"creation of export report lfn files under %s failed\n", lfnfile);
+	Log(false,"creation of export report lfn files under %s failed", lfnfile);
       }
 
       if (mFsidErrorMap[mErrorNames[i]].size()) {
