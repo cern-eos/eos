@@ -839,13 +839,13 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     }
   }
 
-  try {
+  /*  try {
     eosmd = eosView->getContainer(instancepath.c_str());
     eosmd->setAttribute("security.selinux", "system_u:object_r:httpd_sys_content_t:s0");    
     eosView->updateContainerStore(eosmd);
   } catch (eos::MDException &e ) {
     eosmd = 0;
-  }
+    } */
     
 
   // create ../proc/<x> files
