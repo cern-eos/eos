@@ -95,10 +95,10 @@ Logging::log(const char* func, const char* file, int line, const char* logid, co
     truncname.erase(0,truncname.length()-16);
   }
     
-  sprintf(fcident,"%s %d/%d [%16s]",cident,vid.uid,vid.gid,truncname.c_str());
+  sprintf(fcident,"tident=%s uid=%d gid=%d name=%s",cident,vid.uid,vid.gid,truncname.c_str());
 
   tm = localtime (&current_time);
-  sprintf (buffer, "%02d%02d%02d %02d:%02d:%02d %lu.%06lu %s| %-36s %-24s %014lu %16s:%-4s \t.....| %-50s %-10s | ", tm->tm_year-100, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long)tv.tv_usec, GetPriorityString(priority),logid, gUnit.c_str(), (unsigned long)XrdSysThread::ID(), File.c_str(), linen, fcident, func);
+  sprintf (buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%s level=%s logid=%s unit=%s tid=%lu source=%s:%s %s ", tm->tm_year-100, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long)tv.tv_usec, func, GetPriorityString(priority),logid, gUnit.c_str(), (unsigned long)XrdSysThread::ID(), File.c_str(), linen, fcident);
 
   char*  ptr = buffer + strlen(buffer);
   vsprintf(ptr, msg, args);

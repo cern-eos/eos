@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <errno.h>
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -49,6 +50,7 @@ public:
   const char* GetName()                  { return lastPath.c_str();}
   const char* GetPath()                  { return fullPath.c_str();}
   const char* GetParentPath()            { return parentPath.c_str();    }
+  XrdOucString& GetFullPath()            { return fullPath;        }
   const char* GetSubPath(unsigned int i) { if (i<subPath.size()) return subPath[i].c_str(); else return 0; }
   unsigned int GetSubPathSize()          { return subPath.size();  }
 
@@ -63,13 +65,24 @@ public:
       fullPath.erase(fullPath.length()-2);
     }
 
-    // reassign /..
-    if (fullPath.endswith("/..")) {
-      fullPath.erase(fullPath.length()-3);
-      int spos = fullPath.rfind("/");
+    int bppos;
+
+    // convert /./
+    while ( (bppos = fullPath.find("/./")) != STR_NPOS) {
+      fullPath.erase(bppos,2);
+    }
+
+    // convert /..
+    while ( (bppos = fullPath.find("/..")) != STR_NPOS) {
+      int spos = fullPath.rfind("/",bppos-1);
       if (spos != STR_NPOS) {
-        fullPath.erase(spos);
+	fullPath.erase(bppos,3);
+	fullPath.erase(spos+1, bppos-spos-1);
       }
+    }
+
+    if (!fullPath.length()) {
+      fullPath="/";
     }
 
     int lastpos=0;
@@ -88,7 +101,6 @@ public:
     lastPath.assign(fullPath,lastpos+1);
   }
 
-
   bool MakeParentPath(mode_t mode) {
     int retc=0;
     struct stat buf;
@@ -99,7 +111,7 @@ public:
         if (!stat(GetSubPath(i), &buf)) {
           // this exists
           for (int j=i+1 ;  j < (int)GetSubPathSize(); j++) {
-            retc |= mkdir(GetSubPath(j), mode);
+            retc |= (mkdir(GetSubPath(j), mode)?((errno==EEXIST)?0:-1):0);
           }
           break;
         }
