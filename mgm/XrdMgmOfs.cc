@@ -1451,10 +1451,12 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
       // change the permission mask, but make sure it is set to a directory
       if (Mode & S_IFREG) 
         Mode ^= S_IFREG;
-      if (vid.uid) {
-        if (! (Mode & S_ISGID) ) {
-          Mode |= S_ISGID;
-        }
+      if ( (Mode & S_ISUID) ) {
+	Mode ^= S_ISUID;
+      } else {
+	if (! (Mode & S_ISGID) ) {
+	  Mode |= S_ISGID;
+	}
       }
       cmd->setMode(Mode | S_IFDIR);
       eosView->updateContainerStore(cmd);

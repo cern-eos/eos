@@ -4065,7 +4065,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           }
         }
       }
-      MakeResult(1);
+      MakeResult(0);
       return SFS_OK;
     }
 
