@@ -24,9 +24,12 @@
 include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} )
 link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
 
+
 add_executable ( eos
 	         ConsoleMain.cc
 		 ConsoleMain.hh	
+		 ConsolePipe.cc
+		 ConsolePipe.hh
                  ../common/Logging.cc
                  ../common/Fmd.cc
                  ../common/SymKeys.cc
@@ -57,6 +60,7 @@ add_executable ( eos
 		 commands/com_pwd.cc 
 		 commands/com_quit.cc 
 		 commands/com_quota.cc 
+		 commands/com_reconnect.cc 
 		 commands/com_restart.cc 
 		 commands/com_rm.cc 
 		 commands/com_rmdir.cc 
@@ -78,7 +82,7 @@ target_link_libraries ( eos XrdClient XrdUtils pthread dl XrdMqClient-Static cry
 
 INSTALL_PROGRAMS( /sbin FILES eosadmin )
 
-install ( TARGETS eos
+install ( TARGETS eos 
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
           RUNTIME DESTINATION bin
           ARCHIVE DESTINATION ${LIB_INSTALL_DIR}

@@ -23,9 +23,20 @@
 
 /*----------------------------------------------------------------------------*/
 #include "ConsoleMain.hh"
+#include "ConsolePipe.hh"
 #include "../License"
+
+#include "common/Path.hh"
+#include "common/IoPipe.hh"
+/*----------------------------------------------------------------------------*/
+#include "XrdNet/XrdNetOpts.hh"
+#include "XrdNet/XrdNetSocket.hh"
+#include "XrdSys/XrdSysLogger.hh"
 /*----------------------------------------------------------------------------*/
 
+// ----------------------------------------------------------------------------
+// - Implemented Commands                                                     -
+// ----------------------------------------------------------------------------
 extern int com_access (char*);
 extern int com_attr (char*);
 extern int com_cd (char*);
@@ -54,6 +65,7 @@ extern int com_ns (char*);
 extern int com_pwd (char*);
 extern int com_quit (char *);
 extern int com_quota (char*);
+extern int com_reconnect (char*);
 extern int com_restart (char*);
 extern int com_rm (char*);
 extern int com_rmdir (char*);
@@ -70,6 +82,9 @@ extern int com_vid (char*);
 extern int com_whoami (char*);
 extern int com_who (char*);
 
+// ----------------------------------------------------------------------------
+// - Global Variables                                                         -
+// ----------------------------------------------------------------------------
 XrdOucString serveruri="";
 XrdOucString historyfile="";
 XrdOucString pwd="/";
@@ -78,12 +93,17 @@ XrdOucString rstderr;
 XrdOucString user_role="";
 XrdOucString group_role="";
 
-int global_retc=0;
-bool global_highlighting=true;
-bool interactive=true;
-bool silent=false;
-bool timing=false;
-bool debug=false;
+int  global_retc         = 0;
+bool global_highlighting = true;
+bool interactive         = true;
+bool silent              = false;
+bool timing              = false;
+bool debug               = false;
+bool pipemode            = false;
+bool runpipe             = false;
+bool ispipe              = false;
+eos::common::IoPipe iopipe;
+int  retcfd = 0;
 
 XrdOucEnv* CommandEnv=0; // this is a pointer to the result of client_admin... or client_user.... = it get's invalid when the output_result function is called
 
@@ -95,18 +115,23 @@ eos::common::ClientAdminManager CommonClientAdminManager;
   return 0;
   }*/
 
-/*----------------------------------------------------------------------------*/
-
+// ----------------------------------------------------------------------------
+// - Exit handler
+// ----------------------------------------------------------------------------
 void exit_handler (int a) {
   fprintf(stdout,"\n");
   fprintf(stderr,"<Control-C>\n");
   write_history(historyfile.c_str());
+  if (ispipe) {
+    iopipe.UnLockProducer();
+  }
   exit(-1);
 }
 
 
-/* The names of functions that actually do the manipulation. */
-
+// ----------------------------------------------------------------------------
+// - Absolut Path Conversion Function
+// ----------------------------------------------------------------------------
 const char* abspath(const char* in) {
   static XrdOucString inpath;
   inpath = in;
@@ -117,7 +142,9 @@ const char* abspath(const char* in) {
 }
 
 
-
+// ----------------------------------------------------------------------------
+// - Command Mapping Array
+// ----------------------------------------------------------------------------
 COMMAND commands[] = {
   { (char*)"access",   com_access,   (char*)"Access Interface" },
   { (char*)"attr",     com_attr,     (char*)"Attribute Interface" },
@@ -149,6 +176,7 @@ COMMAND commands[] = {
   { (char*)"pwd",      com_pwd,      (char*)"Print working directory" },
   { (char*)"quit",     com_quit,     (char*)"Exit from EOS console" },
   { (char*)"quota",    com_quota,    (char*)"Quota System configuration"},
+  { (char*)"reconnect",com_reconnect,(char*)"Forces a re-authentication of the shell"},
   { (char*)"restart",  com_restart,  (char*)"Restart System"},
   { (char*)"rmdir",    com_rmdir,    (char*)"Remove a directory" },
   { (char*)"rm",       com_rm,       (char*)"Remove a file" },
@@ -168,7 +196,9 @@ COMMAND commands[] = {
   { (char *)0, (int (*)(char*))0,(char *)0 }
 };
 
-/* Forward declarations. */
+// ----------------------------------------------------------------------------
+// - Forward Declarations
+// ----------------------------------------------------------------------------
 char *stripwhite (char *string);
 COMMAND *find_command (char *command);
 char **EOSConsole_completion (const char *text, int start, int intend);
@@ -193,11 +223,55 @@ dupstr (char *s){
   return (r);
 }
 
-/* **************************************************************** */
-/*                                                                  */
-/*                  Interface to Readline Completion                */
-/*                                                                  */
-/* **************************************************************** */
+
+/* Switches stdin,stdout,stderr to pipe mode where we are a persistant communication daemon for a the eospipe command forwarding commands */
+bool
+startpipe() {
+  XrdOucString pipedir="";
+  XrdOucString stdinname = "";
+  XrdOucString stdoutname = "";
+  XrdOucString stderrname = "";
+  XrdOucString retcname = "";
+
+  ispipe = true;
+
+  if (!iopipe.Init()) {
+    fprintf(stderr,"error: cannot set IoPipe\n");
+    return false;
+  }
+
+  XrdSysLogger* logger = new XrdSysLogger();
+  XrdSysError eDest(logger);
+
+
+  int stdinfd  = iopipe.AttachStdin (eDest);
+  int stdoutfd = iopipe.AttachStdout(eDest);
+  int stderrfd = iopipe.AttachStderr(eDest);
+  retcfd       = iopipe.AttachRetc  (eDest);
+
+  if ( (stdinfd <0) || 
+       (stdoutfd < 0) ||
+       (stderrfd < 0) ||
+       (retcfd   < 0) ) {
+    fprintf(stderr,"error: cannot attach to pipes\n");
+    return false;
+  }
+
+  if (!iopipe.LockProducer()) {
+    return false;
+  }
+    
+  stdin =  fdopen(stdinfd ,"r");
+  stdout = fdopen(stdoutfd,"w");
+  stderr = fdopen(stderrfd,"w");
+
+  return true;
+}
+
+
+// ----------------------------------------------------------------------------
+// - Interface to Readline Completion
+// ----------------------------------------------------------------------------
 
 /* Tell the GNU Readline library how to complete.  We want to try to complete
    on command names if this is the first word in the line, or on filenames
@@ -637,7 +711,9 @@ valid_argument (char *caller, char *arg) {
   return (1);
 }
 
-/*----------------------------------------------------------------------------*/
+// ----------------------------------------------------------------------------
+// - Colour Definitions
+// ----------------------------------------------------------------------------
 
 std::string textnormal("\033[0m");
 std::string textblack("\033[49;30m");
@@ -650,11 +726,16 @@ std::string textblue("\033[49;34m");
 std::string textbold("\033[1m");
 std::string textunbold("\033[0m");
 
+// ----------------------------------------------------------------------------
+// - Usage Information
+// ----------------------------------------------------------------------------
+
 void usage() {
   fprintf(stderr,"`eos' is the command line interface (CLI) of the EOS storage system.\n");
   fprintf(stderr,"Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
   fprintf(stderr,"            -r, --role <uid> <gid>              : select user role <uid> and group role <gid>\n");
-  fprintf(stderr,"            -b, --batch                         : run in batch mode without colour and syntax highlighting\n");
+  fprintf(stderr,"            -b, --batch                         : run in batch mode without colour and syntax highlighting and without pipe\n");
+  fprintf(stderr,"            -p, --pipe                          : run stdin,stdout,stderr on local pipes and go to background\n");
   fprintf(stderr,"            -h, --help                          : print help text\n");
   fprintf(stderr,"            -v, --version                       : print version information\n");
   fprintf(stderr,"            <mgm-url>                           : xroot URL of the management server e.g. root://<hostname>[:<port>]\n");
@@ -664,6 +745,9 @@ void usage() {
   fprintf(stderr,"Environment Variables: \n");
   fprintf(stderr,"            EOS_MGM_URL                         : set's the redirector URL\n");
   fprintf(stderr,"            EOS_HISTORY_FILE                    : set's the command history file - by default '$HOME/.eos_history' is used\n\n");
+  fprintf(stderr,"            EOS_SOCKS4_HOST                     : set's the SOCKS4 proxy host name\n");
+  fprintf(stderr,"            EOS_SOCKS4_PORT                     : set's the SOCKS4 proxy port\n");
+  fprintf(stderr,"            EOS_DISABLE_PIPEMODE                : forbids the EOS shell to split into a session and pipe executable to avoid useless re-authentication\n");
   fprintf(stderr,"Return Value: \n");
   fprintf(stderr,"            The return code of the last executed command is returned. 0 is returned in case of success otherwise <errno> (!=0).\n\n");
   fprintf(stderr, "Examples:\n");
@@ -678,6 +762,10 @@ void usage() {
 
   fprintf(stderr,"Report bugs to eos-dev@cern.ch\n");
 }
+
+// ----------------------------------------------------------------------------
+// - Main Executable
+// ----------------------------------------------------------------------------
 
 int main (int argc, char* argv[]) {
   char *line, *s;
@@ -703,6 +791,11 @@ int main (int argc, char* argv[]) {
   int argindex=1;
 
   int retc = system("test -t 0 && test -t 1");
+
+  if (!getenv("EOS_DISABLE_PIPEMODE")) {
+    runpipe = true;
+  }
+
   if (!retc) {
     global_highlighting = true;
     interactive = true;
@@ -715,13 +808,15 @@ int main (int argc, char* argv[]) {
     XrdOucString in1 = argv[argindex];
 
     if (in1.beginswith("-")) {
-      if ( (in1 != "--help")  &&
+      if ( (in1 != "--help")    &&
            (in1 != "--version") &&
-           (in1 != "--batch") &&
-           (in1 != "--role")  &&
-           (in1 != "-h")      &&
-           (in1 != "-b")      &&
-           (in1 != "-v")      &&
+           (in1 != "--batch")   &&
+	   (in1 != "--pipe")    &&
+           (in1 != "--role")    &&
+           (in1 != "-h")        &&
+           (in1 != "-b")        &&
+           (in1 != "-p")        &&
+           (in1 != "-v")        &&
            (in1 != "-r")) {
         usage();
         exit(-1);
@@ -742,8 +837,20 @@ int main (int argc, char* argv[]) {
     if ( (in1 == "--batch") || (in1 == "-b") ) {
       interactive = false;
       global_highlighting = false;
+      runpipe = false;
       argindex++;
       in1 = argv[argindex];
+    }
+
+    if ( (in1 == "--pipe") || (in1 == "-p") ) {
+      pipemode = true;
+      argindex++;
+      in1 = argv[argindex];
+
+      if (!startpipe()) {
+	fprintf(stderr,"error: unable to start the pipe - maybe there is already a process with 'eos -p' running?\n");
+	exit(-1);
+      }
     }
 
     if ( (in1 == "--role") || (in1 == "-r") ) {
@@ -755,11 +862,16 @@ int main (int argc, char* argv[]) {
       XrdOucString cmdline="role ";
       cmdline += urole; cmdline += " ";
       cmdline += grole;
-      if (!interactive)silent = true;
-      execute_line ((char*)cmdline.c_str());
-      if (!interactive)silent = false;
-      selectedrole = true;
+
       in1 = argv[argindex];
+      if (in1.length()) {
+	silent = true;
+      }
+      execute_line ((char*)cmdline.c_str());
+      if (in1.length()) {
+	silent = false;
+      }
+      selectedrole = true;
     } 
 
     if ( (in1 == "--batch") || (in1 == "-b") ) {
@@ -802,16 +914,53 @@ int main (int argc, char* argv[]) {
         if ( (!selectedrole) && (!getuid()) && (serveruri.beginswith("root://localhost"))) {
           // we are root, we always select also the root role by default
           XrdOucString cmdline="role 0 0 ";
-          if (!interactive)silent = true;
+          if (!interactive || (runpipe))silent = true;
           execute_line ((char*)cmdline.c_str());
-          if (!interactive)silent = false;
+          if (!interactive || (runpipe))silent = false;
         }
 
         // strip leading and trailing white spaces
         while (cmdline.beginswith(" ")) {cmdline.erase(0,1);}
         while (cmdline.endswith(" ")) {cmdline.erase(cmdline.length()-1,1);}
-        execute_line ((char*)cmdline.c_str());
-        exit(global_retc);
+	
+	// here we can use the 'eospipe' mechanism if allowed
+
+	if (runpipe) {
+	  cmdline += "\n";
+	  // put the eos daemon into batch mode
+	  interactive = false;
+	  global_highlighting = false;
+	  iopipe.Init(); // need to initialize for Checkproducer
+
+	  if (!iopipe.CheckProducer()) {
+	    // we need to run a pipe daemon, so we fork here and let the fork run the code like 'eos -p'
+	    if (!fork()) {
+	      for (int i=1; i< argc; i++) {
+		for (size_t j=0; j< strlen(argv[i]); j++) {
+		  argv[i][j] = '*';
+		}
+	      }
+	      // detach from the session id
+	      pid_t sid;
+	      if((sid=setsid()) < 0) {
+		fprintf(stderr,"ERROR: failed to create new session (setsid())\n");
+		exit(-1);
+	      }
+	      startpipe();
+	      pipemode=true;
+	      // enters down the readline loop with modified stdin,stdout,stderr
+	    } else {
+	      // now we just deal with the pipes from the client end
+	      exit(pipe_command(cmdline.c_str()));
+	    }
+	  } else {
+	    // now we just deal with the pipes from the client end
+	    exit(pipe_command(cmdline.c_str()));
+	  }
+	} else {
+	  execute_line ((char*)cmdline.c_str());
+	  exit(global_retc);
+	}
       }
     }
   }
@@ -863,7 +1012,11 @@ int main (int argc, char* argv[]) {
 
 
   char prompt[4096];
-  sprintf(prompt,"%sEOS Console%s [%s%s%s] |> ", textbold.c_str(),textunbold.c_str(),textred.c_str(),serveruri.c_str(),textnormal.c_str());
+  if (pipemode) {
+    prompt[0] = 0;
+  } else {
+    sprintf(prompt,"%sEOS Console%s [%s%s%s] |> ", textbold.c_str(),textunbold.c_str(),textred.c_str(),serveruri.c_str(),textnormal.c_str());
+  }
 
   progname = argv[0];
 
@@ -882,8 +1035,18 @@ int main (int argc, char* argv[]) {
   for ( ; done == 0; )
     {
       char prompt[4096];
-      sprintf(prompt,"%sEOS Console%s [%s%s%s] |%s> ", textbold.c_str(),textunbold.c_str(),textred.c_str(),serveruri.c_str(),textnormal.c_str(),pwd.c_str());
+      if (pipemode) {
+	prompt[0]=0;
+      } else {
+	sprintf(prompt,"%sEOS Console%s [%s%s%s] |%s> ", textbold.c_str(),textunbold.c_str(),textred.c_str(),serveruri.c_str(),textnormal.c_str(),pwd.c_str());
+      }
+      if (pipemode) {
+	signal (SIGALRM,  exit_handler);
+	alarm(60);
+      }
       line = readline (prompt);
+      if (pipemode)
+	alarm(0);
 
       if (!line)
         break;
@@ -896,7 +1059,30 @@ int main (int argc, char* argv[]) {
       if (*s)
         {
           add_history (s);
+	  // 20 minutes timeout for commands ... that is long !
+	  signal (SIGALRM,  exit_handler);
+	  alarm(1200);
           execute_line (s);
+	  alarm(0);
+	  char newline = '\n';
+	  int n = 0;
+	  fflush(stdout);
+	  fflush(stderr);
+	  std::cout << std::flush;
+	  std::cerr << std::flush;
+	  if (pipemode) {
+	    // we send the stop sequence to the pipe thread listeners
+	    fprintf(stdout,"\f\n");
+	    fprintf(stderr,"\f\n");
+	    fflush(stdout);
+	    fflush(stderr);
+	    n = write(retcfd,&global_retc,1);
+	    n = write(retcfd,&newline,1);
+	    if (n!=1) {
+	      fprintf(stderr,"error: unable to write retc to retc-socket\n");
+	      exit(-1);
+	    }
+	  }
         }
 
       free (line);
@@ -906,7 +1092,11 @@ int main (int argc, char* argv[]) {
   exit (0);
 }
 
-/* Execute a command line. */
+
+// ----------------------------------------------------------------------------
+// - Command Line Execution Function
+// ----------------------------------------------------------------------------
+
 int
 execute_line (char *line) {
   register int i;

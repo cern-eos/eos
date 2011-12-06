@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: com_rm.cc
+// File: com_reconnect.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -23,71 +23,44 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-#include "common/Path.hh"
 /*----------------------------------------------------------------------------*/
 
-/* Remove a file */
+/* Force a reconnection/reauthentication */
 int
-com_rm (char* arg1) {
+com_reconnect (char* arg1) {
   // split subcommands
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
-  XrdOucString s1 = subtokenizer.GetToken();
-  XrdOucString s2 = subtokenizer.GetToken();
-  XrdOucString path;
-  XrdOucString option;
+  XrdOucString param="";
+  XrdOucString option="";
+  param = subtokenizer.GetToken();
 
-  if (s1 == "-r") {
-    option ="r";
-    path = s2;
-  } else {
-    option ="";
-    path = s1;
-  }
-  
-  eos::common::Path* cPath = 0;
-
-  XrdOucString in = "mgm.cmd=rm&"; 
-  if (!path.length()) {
-    goto com_rm_usage;
-    
-  } else {
-    path = abspath(path.c_str());
-    in += "mgm.path=";
-    in += path;
-    in += "&mgm.option=";
-    in += option;
-
-    cPath = new eos::common::Path(path.c_str());
-    
-    if (cPath->GetSubPathSize() < 4) {
-      string s;
-      printf("Do you really want to delete ALL files starting at %s ?\n" , path.c_str());
-      printf("Confirm the deletion by typing => ");
-      XrdOucString confirmation="";
-      for (int i=0; i<10; i++) {
-	confirmation += (int) (9.0 * rand()/RAND_MAX);
-      }
-      printf("%s\n", confirmation.c_str());
-      printf("                               => ");
-      getline( std::cin, s );
-      std::string sconfirmation = confirmation.c_str();
-      if ( s == sconfirmation) {
-	printf("\nDeletion confirmed\n");
-	in += "&mgm.deletion=deep";
-	delete cPath;
-      } else {
-	printf("\nDeletion aborted\n");
-	global_retc = EINTR;
-	delete cPath;
-	return (0);
-      }
+  if ( (!param.length()) || 
+       ( param == "gsi" ) ||
+       ( param == "krb5" ) || 
+       ( param == "unix" ) ||
+       ( param == "sss" ) ) {
+    if (param.length()) {
+      fprintf(stdout,"# reconnecting to %s with <%s> authentication\n", serveruri.c_str(), param.c_str());
+      setenv("XrdSecPROTOCOL",param.c_str(),1);
+    } else {
+      fprintf(stdout,"# reconnecting to %s\n", serveruri.c_str());
     }
-    global_retc = output_result(client_user_command(in));
+
+    XrdOucString path = serveruri;
+    path += "//proc/admin/";
+    
+    XrdClientAdmin admin(path.c_str());
+    admin.Connect();
+    if (admin.GetClientConn()) {
+      admin.GetClientConn()->Disconnect(true);
+    }
+    
+    if (debug)
+      printf("debug: %s\n", path.c_str());
+    return (0);
+  } else {
+    printf("usage: reconnect [gsi,krb5,unix,sss]                                    :  reconnect to the management node [using the specified protocol]\n");
     return (0);
   }
-
- com_rm_usage:
-  printf("usage: rm [-r] <path>                                                  :  remove file <path>\n");
-  return (0);
 }

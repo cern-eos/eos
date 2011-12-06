@@ -33,6 +33,23 @@
 int
 com_console (char *arg) {
   pid_t pid=0;
+  XrdSysLogger* logger = 0;
+  XrdOucString sarg = arg;
+  if (arg) {
+    if (sarg.beginswith("log")) {
+      logger = new XrdSysLogger();
+      XrdSysError eDest(logger);
+      XrdOucString loggerpath = "/var/log/eos/";
+      loggerpath += "errorlog.eos";
+      logger->Bind(loggerpath.c_str(),0);
+    } else {
+      if (sarg != "") {
+	fprintf(stderr, "usage: console [log]\n");
+	fprintf(stderr, "                                 log - write a log file into /var/log/eos/errorlog.eos\n");
+	exit(-1);
+      }
+    }
+  }
   if (!(pid=fork())) {
     XrdMqClient mqc;
     XrdMqMessage message("");
@@ -101,9 +118,13 @@ com_console (char *arg) {
           line.replace("ALERT", calert.c_str());
           line.replace("NOTE", cnote.c_str());
         }
-
-        fprintf(stdout,"%s\n",line.c_str());
-        fflush(stdout);
+	
+	if (logger) {
+	  fprintf(stderr,"%s\n",line.c_str());
+	} else {
+	  fprintf(stdout,"%s\n",line.c_str());
+	  fflush(stdout);
+	}
         delete newmessage;
       } else {
         usleep(100000);

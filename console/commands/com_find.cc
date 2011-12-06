@@ -103,6 +103,10 @@ com_find (char* arg1) {
       option += "D";
     }
 
+    if (s1 == "--count") {
+      option += "Z";
+    }
+
     if (s1 == "-1") {
       option += "1";
     }
@@ -268,7 +272,7 @@ com_find (char* arg1) {
   return (0);
 
  com_find_usage:
-  printf("usage: find [-s] [-d] [-f] [-0] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
+  printf("usage: find [--count] [-s] [-d] [-f] [-0] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
   printf("                                                                        -f -d :  find files(-f) or directories (-d) in <path>\n");
   printf("                                                               -x <key>=<val> :  find entries with <key>=<val>\n");
   printf("                                                                           -0 :  find 0-size files \n");
@@ -280,6 +284,7 @@ com_find (char* arg1) {
   printf("                                                           -layoutstripes <n> :  apply new layout with <n> stripes to all files found\n");
   printf("                                                                           -1 :  find files which are atleast 1 hour old\n");
   printf("                                                                 --stripediff :  find files which have not the nominal number of stripes(replicas)\n");
+  printf("                                                                      --count :  just print counters for files/dirs found\n");
   printf("                                                                      default :  find files and directories\n");
   printf("       find [--nrep] [--nunlink] [--size] [--fid] [--fs] [--checksum] [--ctime] [--mtime] <path>   :  find files and print out the requested meta data as key value pairs\n");              
   return (0);
