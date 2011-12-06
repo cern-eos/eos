@@ -1350,6 +1350,14 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset   fileOffset,
                         const char        *buffer,
                         XrdSfsXferSize     buffer_size)
 {
+  if (fsid) {
+    // check if the file system is full
+    XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
+    if (gOFS.Storage->fileSystemFullMap[fsid]) {
+      return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space (headroom) exceeded fn=", FName());      
+    }
+  }
+
   if (fstBlockXS) {
     fstBlockXS->AddBlockSum(fileOffset, buffer, buffer_size);
   }

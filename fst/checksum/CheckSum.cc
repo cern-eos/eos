@@ -271,17 +271,15 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
 bool 
 CheckSum::SyncMap() 
 {
-  return true;
-
-  /*  if (ChecksumMapFd) {
+  if (ChecksumMapFd) {
     if (ChecksumMap) {
-      if (!msync(ChecksumMap, ChecksumMapSize,MS_SYNC)) {
+      if (!msync(ChecksumMap, ChecksumMapSize,MS_ASYNC)) {
         return true;
       }
     }
   }
   return false;
-  */
+  
 }
 
 /*----------------------------------------------------------------------------*/

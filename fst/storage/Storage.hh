@@ -53,7 +53,7 @@ private:
   XrdOucString transactionDirectory;
 
   eos::common::Statfs* statFs;         // the owner of the object is a global hash in eos::common::Statfs - this are just references
-  eos::fst::ScanDir*      scanDir;               // the class scanning checksum on a filesystem
+  eos::fst::ScanDir*      scanDir;     // the class scanning checksum on a filesystem
   unsigned long last_blocks_free;  
   time_t        last_status_broadcast;
 
@@ -148,6 +148,9 @@ public:
   std::vector <FileSystem*> fileSystemsVector;
   std::map<eos::common::FileSystem::fsid_t , FileSystem*> fileSystemsMap;
 
+  XrdSysMutex fileSystemFullMapMutex;
+  std::map<eos::common::FileSystem::fsid_t , bool> fileSystemFullMap;
+  
   //  static int HasStatfsChanged(const char* key, FileSystem* filesystem, void* arg);
   int ScrubFs(const char* path, unsigned long long free, unsigned long long lbocks, unsigned long id);
 
