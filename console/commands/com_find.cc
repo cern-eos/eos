@@ -111,9 +111,9 @@ com_find (char* arg1) {
       option += "1";
     }
 
-    if (s1.beginswith( "-h" )) {
+    if (s1.beginswith( "-h" ) || (s1.beginswith( "--help"))) {
       goto com_find_usage;
-    }
+   }
 
     if (s1 == "-x") {
       option += "x";
@@ -162,6 +162,10 @@ com_find (char* arg1) {
   
   if (s1.length()) {
     path = s1;
+  }
+
+  if (path == "help") {
+      goto com_find_usage;
   }
 
   // the find to change a layout
