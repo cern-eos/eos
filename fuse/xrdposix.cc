@@ -1036,13 +1036,13 @@ xrd_utimes(const char* path, struct timespec *tvp) {
     // parse the stat output
     int items = sscanf(value,"%s retc=%d",tag, &retc);
     if ((items != 2) || (strcmp(tag,"utimes:"))) {
-      
+      errno = EFAULT;
       return -EFAULT;
     }
     
     return retc;
   } else {
-    
+    errno = EFAULT;
     return -EFAULT;
   }  
 }
@@ -1073,13 +1073,14 @@ xrd_access(const char* path, int mode) {
     // parse the stat output
     int items = sscanf(value,"%s retc=%d",tag, &retc);
     if ((items != 2) || (strcmp(tag,"access:"))) {
-      
+      errno = EFAULT;
       return -EFAULT;
     }
-    
+    fprintf(stderr,"retc=%d\n", retc);
+    errno = retc;
     return retc;
   } else {
-    
+    errno = EFAULT;
     return -EFAULT;
   }
 }
