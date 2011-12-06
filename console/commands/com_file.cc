@@ -94,7 +94,8 @@ com_file (char* arg1) {
   XrdOucString fsid1 = subtokenizer.GetToken();
   XrdOucString fsid2 = subtokenizer.GetToken();
 
-  path = abspath(path.c_str());
+  if ((!path.beginswith("fid:"))&&(!path.beginswith("fxid:")))
+    path = abspath(path.c_str());
 
   XrdOucString in = "mgm.cmd=file";
   if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) && (cmd != "check") && ( cmd != "adjustreplica" ) && ( cmd != "info" ) && (cmd != "layout") && (cmd != "verify")) {
