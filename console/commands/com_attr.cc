@@ -178,11 +178,11 @@ com_attr (char* arg1) {
   printf("attr [-r] set default=replica <path> :\n");
   printf("                                                : set attributes of path (-r recursive) to the EOS defaults for replicas.\n");
 
-  printf("attr [-r] set default=raidDP <path> :\n");
-  printf("                                                : set attributes of path (-r recursive) to the EOS defaults for dual parity raid (4+2).\n");
+  //  printf("attr [-r] set default=raidDP <path> :\n");
+  //  printf("                                                : set attributes of path (-r recursive) to the EOS defaults for dual parity raid (4+2).\n");
 
-  printf("attr [-r] set default=reedS <path> :\n");
-  printf("                                                : set attributes of path (-r recursive) to the EOS defaults for reed solomon (4+2).\n");
+  //  printf("attr [-r] set default=reedS <path> :\n");
+  //  printf("                                                : set attributes of path (-r recursive) to the EOS defaults for reed solomon (4+2).\n");
 
   printf(" -r : set recursive on all directory children\n");
   printf("attr [-r] get <key> <path> :\n");
@@ -196,7 +196,8 @@ com_attr (char* arg1) {
 
   printf("Administrator Variables:\n");
   printf("         sys.forced.space=<space>              : enforces to use <space>    [configuration dependend]\n");
-  printf("         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica,raidDP,reedS)]\n");
+  //  printf("         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica,raidDP,reedS)]\n");
+  printf("         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica)]\n");
   printf("         sys.forced.checksum=<checksum>        : enforces to use file-level checksum <checksum>\n");
   printf("                                              <checksum> = adler,crc32,crc32c,md5,sha\n");
   printf("         sys.forced.blockchecksum=<checksum>   : enforces to use block-level checksum <checksum>\n");
