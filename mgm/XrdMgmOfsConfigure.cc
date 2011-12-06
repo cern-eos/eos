@@ -77,7 +77,15 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   IoReportStore=false;
   IoReportNamespace=false;
   IoReportStorePath="/var/tmp/eos/report";
+
+  // cleanup the query output cache directory
+  XrdOucString systemline="rm -rf /tmp/eos.mgm/* >& /dev/null &";
+  int rrc = system(systemline.c_str());
+  if (WEXITSTATUS(rrc)) {
+    eos_err("%s returned %d", systemline.c_str(), rrc);
+  }
   
+  ErrorLog=true;
   
   bool ConfigAutoSave = false;
   XrdOucString ConfigAutoLoad = "";
@@ -241,6 +249,21 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
             Eroute.Say("=====> mgmofs.authorize : true");
           else
             Eroute.Say("=====> mgmofs.authorize : false");
+        }
+
+        if (!strcmp("errorlog",var)) {
+          if ((!(val = Config.GetWord())) || (strcmp("true",val) && strcmp("false",val) && strcmp("1",val) && strcmp("0",val))) {
+            Eroute.Emsg("Config","argument 2 for errorlog illegal or missing. Must be <true>,<false>,<1> or <0>!"); NoGo=1;} else {
+            if ((!strcmp("true",val) || (!strcmp("1",val)))) {
+              ErrorLog = true;
+            } else {
+	      ErrorLog = false;
+	    }
+          }
+          if (ErrorLog)
+            Eroute.Say("=====> mgmofs.errorlog : true");
+          else
+            Eroute.Say("=====> mgmofs.errorlog : false");
         }
         
         if (!strcmp("symkey",var)) {
@@ -505,6 +528,19 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     Eroute.Say("=====> mgmofs.reportnamespace: disabled","");
   }
 
+  if (ErrorLog)
+    Eroute.Say("=====> mgmofs.errorlog : enabled");
+  else
+    Eroute.Say("=====> mgmofs.errorlog : disabled");
+
+  if (ErrorLog) {
+    // this 
+    XrdOucString errorlogkillline="pkill -f \"eos -b console log _MGMID_\"";
+    system(errorlogkillline.c_str());
+    XrdOucString errorlogline="eos -b console log _MGMID_ >& /dev/null &";
+    system(errorlogline.c_str());
+  }
+  
   // we need to specify this if the server was not started with the explicit manager option ... e.g. see XrdOfs
   
   Eroute.Say("=====> all.role: ", role.c_str(),"");
@@ -776,11 +812,13 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     }
   }
 
+  XrdOucString instancepath= "/eos/";
   XrdOucString procpath = "/eos/";
   XrdOucString subpath = MgmOfsInstanceName ;
   if (subpath.beginswith("eos")) {subpath.replace("eos","");}
   procpath += subpath;
   procpath += "/proc";
+  instancepath += subpath;
 
   try {
     eosmd = eosView->getContainer(procpath.c_str());
@@ -800,6 +838,15 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
       return 1;
     }
   }
+
+  try {
+    eosmd = eosView->getContainer(instancepath.c_str());
+    eosmd->setAttribute("security.selinux", "system_u:object_r:httpd_sys_content_t:s0");    
+    eosView->updateContainerStore(eosmd);
+  } catch (eos::MDException &e ) {
+    eosmd = 0;
+  }
+    
 
   // create ../proc/<x> files
   XrdOucString procpathwhoami = procpath; procpathwhoami+= "/whoami";
