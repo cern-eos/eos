@@ -2289,7 +2289,7 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
       }
       
       // check if this directory is write-once for the mapped user
-      if (acl.CanWriteOnce()) {
+      if (acl.CanWriteOnce() && (fmd->getSize())) {
         errno = EPERM;
         // this is a write once user
         return Emsg(epname, error, EPERM,"remove existing file - you are write-once user");
