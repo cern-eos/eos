@@ -67,6 +67,7 @@ XrdSysError     gMgmOfsEroute(0);
 XrdSysError    *XrdMgmOfs::eDest;
 XrdOucTrace     gMgmOfsTrace(&gMgmOfsEroute);
 
+const char* XrdMgmOfs::gNameSpaceState[] = {"down", "booting", "booted", "failed"};
 
 XrdMgmOfs* gOFS=0;
 
@@ -135,7 +136,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 
 /*----------------------------------------------------------------------------*/
 bool 
-XrdMgmOfs::ShouldStall(const char* function,  eos::common::Mapping::VirtualIdentity &vid,int &stalltime, XrdOucString &stallmsg) 
+XrdMgmOfs::ShouldStall(const char* function,  int __AccessMode__, eos::common::Mapping::VirtualIdentity &vid,int &stalltime, XrdOucString &stallmsg) 
 {
   // check for user, group or host banning
   eos::common::RWMutexReadLock lock(Access::gAccessMutex);
@@ -146,34 +147,70 @@ XrdMgmOfs::ShouldStall(const char* function,  eos::common::Mapping::VirtualIdent
          (Access::gAllowedUsers.size()  && Access::gAllowedUsers.count(vid.uid)) ||
          (Access::gAllowedGroups.size() && Access::gAllowedGroups.count(vid.gid)) ||
          (Access::gAllowedHosts.size()  && Access::gAllowedHosts.count(vid.host)) || 
-         (Access::gStallRules.size() && (Access::gStallRules.count(std::string("*"))))
+         (Access::gStallRules.size() && (Access::gStallRules.count(std::string("*")))) ||
+	 ( IS_ACCESSMODE_R && (Access::gStallRules.count(std::string("r:*")))) ||
+	 ( IS_ACCESSMODE_W && (Access::gStallRules.count(std::string("w:*"))))
          )) {
     if (Access::gStallRules.size()) {
-      stalltime = atoi(Access::gStallRules[std::string("*")].c_str());
+      if (Access::gStallRules.count(std::string("*"))) {
+	stalltime = atoi(Access::gStallRules[std::string("*")].c_str());
+      } else {
+	if ( IS_ACCESSMODE_R) {
+	  stalltime = atoi(Access::gStallRules[std::string("r:*")].c_str());
+	} else {
+	  stalltime = atoi(Access::gStallRules[std::string("w:*")].c_str());
+	}
+      }
     } else {
       stalltime = 300;
     }
-    stallmsg="Attention: you are currently banned in this instance and each request is stalled for ";
+    stallmsg="Attention: you are currently hold in this instance and each request is stalled for ";
     stallmsg += (int) stalltime; stallmsg += " seconds ...";
     eos_static_info("info=\"denying access to\" uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
     return true;
-  } 
+  } else {
+    if (Access::gStallRules.size()) {
+      if (Access::gStallRules.count(std::string("*"))) {
+	if (vid.host != "localhost.localdomain") {
+	  stalltime = atoi(Access::gStallRules[std::string("*")].c_str());
+	  stallmsg="Attention: you are currently hold in this instance and each request is stalled for ";
+	  stallmsg += (int) stalltime; stallmsg += " seconds ...";
+	  eos_static_info("info=\"denying access to\" uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
+	  return true;
+	}
+      }
+    }
+  }
   eos_static_debug("info=\"allowing access to\" uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
   return false;
 }
 
 bool
-XrdMgmOfs::ShouldRedirect(const char* function,  eos::common::Mapping::VirtualIdentity &vid,XrdOucString &host, int &port)
+XrdMgmOfs::ShouldRedirect(const char* function, int __AccessMode__, eos::common::Mapping::VirtualIdentity &vid,XrdOucString &host, int &port)
 {
   if ( (vid.host == "localhost")  || (vid.uid==0))
     return false;
     
   if (Access::gRedirectionRules.size()) {
-    if (Access::gRedirectionRules.count(std::string("*"))) {
+    bool c1 = Access::gRedirectionRules.count(std::string("*"));
+    bool c3 = (IS_ACCESSMODE_R && Access::gRedirectionRules.count(std::string("r:*")));
+    bool c2 = (IS_ACCESSMODE_W && Access::gRedirectionRules.count(std::string("w:*")));
+    if (c1 || c2 || c3) {
       // redirect
       std::string delimiter=":";
       std::vector<std::string> tokens;
-      eos::common::StringConversion::Tokenize(Access::gRedirectionRules[std::string("*")],tokens,delimiter);
+      if (c1) {
+	eos::common::StringConversion::Tokenize(Access::gRedirectionRules[std::string("*")],tokens,delimiter);
+      } else {
+	if (c2) {
+	  eos::common::StringConversion::Tokenize(Access::gRedirectionRules[std::string("w:*")],tokens,delimiter);
+	} else {
+	  if (c3) { 
+	    eos::common::StringConversion::Tokenize(Access::gRedirectionRules[std::string("r:*")],tokens,delimiter);
+	  }
+	}
+      }
+
       if (tokens.size() == 1) {
         host = tokens[0].c_str();
         port = 1094;
@@ -289,6 +326,7 @@ int XrdMgmOfsDirectory::open(const char              *inpath, // In
 
   eos::common::Mapping::IdMap(client,info,tident, vid);
 
+  ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
 
@@ -525,6 +563,11 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     eos_info("op=write trunc=%d path=%s info=%s",open_mode & SFS_O_TRUNC, path,info);
   } else {
     eos_info("op=read path=%s info=%s",path,info);
+  }
+
+  ACCESSMODE_R;
+  if (isRW) {
+    SET_ACCESSMODE_W;
   }
 
   MAYSTALL;
@@ -1416,6 +1459,7 @@ int XrdMgmOfs::chmod(const char                *inpath,    // In
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
   
@@ -1602,6 +1646,7 @@ int XrdMgmOfs::exists(const char                *inpath,        // In
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
   
@@ -1819,6 +1864,7 @@ int XrdMgmOfs::mkdir(const char              *inpath,    // In
 
   eos_info("path=%s",path);
   
+  ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
   
@@ -2098,6 +2144,8 @@ int XrdMgmOfs::prepare( XrdSfsPrep       &pargs,
 
   eos::common::Mapping::VirtualIdentity vid;
   eos::common::Mapping::IdMap(client,0,tident, vid);
+
+  ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
 
@@ -2138,6 +2186,7 @@ int XrdMgmOfs::rem(const char             *inpath,    // In
   
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
   
@@ -2328,6 +2377,7 @@ int XrdMgmOfs::remdir(const char             *inpath,    // In
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
   
+  ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
 
@@ -2486,6 +2536,7 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
 
   eos::common::Mapping::IdMap(client,infoO,tident,vid);
 
+  ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
 
@@ -2568,6 +2619,7 @@ int XrdMgmOfs::stat(const char              *inpath,      // In
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
 
@@ -2734,6 +2786,7 @@ int XrdMgmOfs::truncate(const char*,
   eos::common::Mapping::VirtualIdentity vid;
   eos::common::Mapping::IdMap(client,0,tident, vid);
   
+  ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
 
@@ -2751,9 +2804,6 @@ int XrdMgmOfs::readlink(const char             *inpath,      // In
   static const char *epname = "readlink";
   const char *tident = error.getErrUser(); 
 
-  MAYSTALL;
-  MAYREDIRECT;
-
   XrdOucEnv rl_Env(info);
 
   // use a thread private vid
@@ -2767,6 +2817,7 @@ int XrdMgmOfs::readlink(const char             *inpath,      // In
   
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
 
@@ -2803,6 +2854,7 @@ int XrdMgmOfs::symlink(const char            *inpath,        // In
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
 
@@ -2833,6 +2885,7 @@ int XrdMgmOfs::access( const char            *inpath,        // In
 
   eos::common::Mapping::IdMap(client,info,tident,vid);  
 
+  ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
 
@@ -2946,6 +2999,7 @@ int XrdMgmOfs::utimes(  const char            *inpath,        // In
 
   eos::common::Mapping::IdMap(client,info,tident,vid);  
 
+  ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
 
@@ -3355,8 +3409,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 
   eos::common::Mapping::IdMap(client,"",tident,vid);  
 
-  MAYSTALL;
-  MAYREDIRECT;
   
   if (args.Arg1Len) {
     if (args.Arg1Len < 16384) {
@@ -3393,6 +3445,11 @@ XrdMgmOfs::FSctl(const int               cmd,
   eos_debug("path=%s opaque=%s", spath.c_str(), opaque.c_str());
 
   if ((cmd == SFS_FSCTL_LOCATE)) {
+
+    ACCESSMODE_R;
+    MAYSTALL;
+    MAYREDIRECT;
+
     // check if this file exists
     XrdSfsFileExistence file_exists;
     if ((_exists(spath.c_str(),file_exists,error,client,0)) || (file_exists!=XrdSfsFileExistIsFile)) {
@@ -3422,6 +3479,10 @@ XrdMgmOfs::FSctl(const int               cmd,
     XrdOucString execmd = scmd;
 
     if (execmd == "commit") {
+      
+      ACCESSMODE_W;
+      MAYSTALL;
+      MAYREDIRECT;
 
       EXEC_TIMING_BEGIN("Commit");      
 
@@ -3645,6 +3706,11 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
     
     if (execmd == "drop") {
+
+      ACCESSMODE_W;
+      MAYSTALL;
+      MAYREDIRECT;
+
       EXEC_TIMING_BEGIN("Drop");      
       // drops a replica
       int envlen;
@@ -3722,6 +3788,11 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "stat") {
+
+      ACCESSMODE_R;
+      MAYSTALL;
+      MAYREDIRECT;
+
       struct stat buf;
 
       int retc = lstat(spath.c_str(),
@@ -3762,6 +3833,11 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "chmod") {
+
+      ACCESSMODE_W;
+      MAYSTALL;
+      MAYREDIRECT;
+
       char* smode;
       if ((smode = env.Get("mode"))) {
         struct stat buf;
@@ -3801,6 +3877,11 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "chown") {
+
+      ACCESSMODE_W;
+      MAYSTALL;
+      MAYREDIRECT;
+
       char* suid;
       char* sgid;
       if ((suid = env.Get("uid")) && (sgid = env.Get("gid"))) {
@@ -3825,6 +3906,11 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "symlink") {
+
+      ACCESSMODE_W;
+      MAYSTALL;
+      MAYREDIRECT;
+
       /*
         char* destination;
         char* source;
@@ -3845,6 +3931,11 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "readlink") {
+
+      ACCESSMODE_R;
+      MAYSTALL;
+      MAYREDIRECT;
+
       /*
         XrdOucString linkpath="";
         int retc=readlink(path.c_str(),linkpath,error,client,0);
@@ -3858,6 +3949,11 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "access") {
+
+      ACCESSMODE_R;
+      MAYSTALL;
+      MAYREDIRECT;
+
       char* smode;
         if ((smode = env.Get("mode"))) {
         int newmode = atoi(smode);
@@ -3878,6 +3974,10 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "utimes") {
+
+      ACCESSMODE_W;
+      MAYSTALL;
+      MAYREDIRECT;
       
       char* tv1_sec;
       char* tv1_nsec;
@@ -3915,6 +4015,11 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "checksum") {
+
+      ACCESSMODE_R;
+      MAYSTALL;
+      MAYREDIRECT;
+
       // get the checksum 
       XrdOucString checksum="";
       eos::FileMD* fmd=0;
@@ -3945,6 +4050,11 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (vid.prot == "sss") {
+
+      ACCESSMODE_R;
+      MAYSTALL;
+      MAYREDIRECT;
+
       // only disk server can set files dirty/not dirty
       if (execmd == "markdirty") {
         eos_info("markdirty %s", opaque.c_str());
@@ -3999,6 +4109,11 @@ XrdMgmOfs::FSctl(const int               cmd,
       }
       
       if (execmd == "markclean") {
+
+	ACCESSMODE_R;
+	MAYSTALL;
+	MAYREDIRECT;
+
         eos_info("markclean %s", opaque.c_str());
         gOFS->MgmStats.Add("MarkClean",vid.uid,vid.gid,1);  
         char* fxid;
@@ -4026,6 +4141,11 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "statvfs") {
+
+      ACCESSMODE_R;
+      MAYSTALL;
+      MAYREDIRECT;
+
       gOFS->MgmStats.Add("Statvfs",vid.uid,vid.gid,1);
       XrdOucString space = env.Get("path");
       static XrdSysMutex statvfsmutex;
@@ -4084,6 +4204,11 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "xattr") {
+
+      ACCESSMODE_W;
+      MAYSTALL;
+      MAYREDIRECT;
+
       const char* sub_cmd;
       struct stat buf;
 

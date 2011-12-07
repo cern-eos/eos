@@ -59,10 +59,17 @@ namespace eos
   //----------------------------------------------------------------------------
   // Initialize the view
   //----------------------------------------------------------------------------
+
   void HierarchicalView::initialize() throw( MDException )
   {
+    initialize1();
+    initialize2();
+    initialize3();
+  }
+
+  void HierarchicalView::initialize1() throw( MDException )
+  {
     pContainerSvc->initialize();
-    pFileSvc->initialize();
 
     //--------------------------------------------------------------------------
     // Get root container
@@ -77,11 +84,20 @@ namespace eos
         pRoot->setParentId( pRoot->getId() );
         pContainerSvc->updateStore( pRoot );
       }
+  }
 
+  void HierarchicalView::initialize2() throw( MDException )
+  {
+    pFileSvc->initialize();
+  }
+
+  void HierarchicalView::initialize3() throw( MDException )
+  {
     //--------------------------------------------------------------------------
     // Scan all the files to reattach them to containers - THIS SHOULD NOT
     // BE DONE! THE INFO NEEDS TO BE STORED WITH CONTAINERS
     //--------------------------------------------------------------------------
+
     FileVisitor visitor( pContainerSvc, pQuotaStats, this );
     pFileSvc->visit( &visitor );
   }

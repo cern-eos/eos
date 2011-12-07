@@ -233,6 +233,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       std::string option="";
       std::string redirect="";
       std::string stall="";
+      std::string type="";
 
       bool monitoring = false;
       bool translate  = true;
@@ -242,6 +243,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       option = opaque.Get("mgm.access.option")?opaque.Get("mgm.access.option"):"";
       redirect=opaque.Get("mgm.access.redirect")?opaque.Get("mgm.access.redirect"):"";
       stall  = opaque.Get("mgm.access.stall")?opaque.Get("mgm.access.stall"):"";
+      type   = opaque.Get("mgm.access.type")?opaque.Get("mgm.access.type"):"";
 
       if ( (option.find("m"))!=std::string::npos)
         monitoring = true;
@@ -484,14 +486,30 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
       if (subcmd == "set") {
         eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
-        if (redirect.length()) {
-          Access::gRedirectionRules[std::string("*")] = redirect;
-          stdOut = "success: setting global redirection to '"; stdOut += redirect.c_str(); stdOut += "'";
+        if (redirect.length() && ( (type.length()==0) || (type=="r") || (type=="w"))) {
+	  if (type == "r") {
+	    Access::gRedirectionRules[std::string("r:*")] = redirect;
+	  } else {
+	    if (type == "w") {
+	      Access::gRedirectionRules[std::string("w:*")] = redirect;
+	    } else {
+	      Access::gRedirectionRules[std::string("*")] = redirect;
+	    }
+	  }
+          stdOut = "success: setting global redirection to '"; stdOut += redirect.c_str(); stdOut += "'"; if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
         } else {
           if (stall.length()) {
-            if (atoi(stall.c_str()) >0) {
-              Access::gStallRules[std::string("*")] = stall;
-              stdOut += "success: setting global stall to "; stdOut += stall.c_str(); stdOut += " seconds";
+            if ( (atoi(stall.c_str()) >0) && ( (type.length()==0) || (type=="r") || (type=="w"))) {
+	      if (type == "r") {
+		Access::gStallRules[std::string("r:*")] = stall;
+	      } else {
+		if (type == "w") {
+		  Access::gStallRules[std::string("w:*")] = stall;
+		} else {
+		  Access::gStallRules[std::string("*")] = stall;
+		}
+	      }
+              stdOut += "success: setting global stall to "; stdOut += stall.c_str(); stdOut += " seconds"; if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
             } else {
               stdErr = "error: <stalltime> has to be > 0";
               retc = EINVAL;
@@ -506,18 +524,38 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       if (subcmd == "rm") {
         eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
         if (redirect.length()) {
-          if (Access::gRedirectionRules.count(std::string("*"))) {
-            stdOut = "success: removing global redirection from '"; stdOut += redirect.c_str(); stdOut += "'";
-            Access::gRedirectionRules.erase(std::string("*"));
+          if ( (Access::gRedirectionRules.count(std::string("*")) && ((type.length()==0))) ||
+	       (Access::gRedirectionRules.count(std::string("r:*")) && (type=="r")) || 
+	       (Access::gRedirectionRules.count(std::string("w:*")) && (type=="w")) ) {
+            stdOut = "success: removing global redirection"; if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+	    if (type == "r") {
+	      Access::gRedirectionRules.erase(std::string("r:*"));
+	    } else {
+	      if (type == "w") {
+		Access::gRedirectionRules.erase(std::string("w:*"));
+	      } else {
+		Access::gRedirectionRules.erase(std::string("*"));
+	      }
+	    }
           } else {
             stdErr = "error: there is no global redirection defined";
             retc = EINVAL;
           }
         } else {
           if (stall.length()) {
-            if (Access::gStallRules.count(std::string("*"))) {
-              stdOut = "success: removing global stall time of "; stdOut += stall.c_str(); stdOut += " seconds";
-              Access::gStallRules.erase(std::string("*"));
+	    if ( (Access::gStallRules.count(std::string("*")) && ((type.length()==0))) ||
+		 (Access::gStallRules.count(std::string("r:*")) && (type=="r")) || 
+		 (Access::gStallRules.count(std::string("w:*")) && (type=="w")) ) {
+	      stdOut = "success: removing global stall time"; if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+	      if (type == "r") {
+		Access::gStallRules.erase(std::string("r:*"));
+	      } else {
+		if (type == "w") {
+		  Access::gStallRules.erase(std::string("w:*"));
+		} else {
+		  Access::gStallRules.erase(std::string("*"));
+		}
+	      }
             } else {
               stdErr = "error: there is no global stall time defined";
               retc = EINVAL;
@@ -1774,12 +1812,28 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         eos::common::StringConversion::GetReadableSizeString(clfratio,(unsigned long long) f?(1.0*statf.st_size)/f:0 ,"B");
         eos::common::StringConversion::GetReadableSizeString(cldratio,(unsigned long long) d?(1.0*statd.st_size)/d:0 ,"B");
       }
+
+      XrdOucString bootstring;
+      time_t boottime;
+
+      {
+	XrdSysMutexHelper lock(gOFS->InitializationMutex);
+	bootstring = gOFS->gNameSpaceState[gOFS->Initialized];
+	boottime = 0;
+	if (bootstring == "booting") {
+	  boottime = (time(NULL)-gOFS->InitializationTime);   
+	} else { 
+	  boottime = gOFS->InitializationTime;
+	}
+      }
       
       if (!monitoring) {
         stdOut+="# ------------------------------------------------------------------------------------\n";
         stdOut+="# Namespace Statistic\n";
         stdOut+="# ------------------------------------------------------------------------------------\n";
-        stdOut+="ALL      Files                            ";stdOut += files; stdOut+="\n";
+
+        stdOut+="ALL      Files                            ";stdOut += files; stdOut += " ["; stdOut += bootstring;stdOut+= "] (";stdOut += (int) boottime; stdOut += "s)";stdOut+="\n";  
+
         stdOut+="ALL      Directories                      ";stdOut += dirs;  stdOut+="\n";
         stdOut+="# ....................................................................................\n";
         stdOut+="ALL      File Changelog Size              ";stdOut += clfsize; stdOut += "\n";
@@ -1795,6 +1849,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         stdOut += "uid=all gid=all ns.total.directories.changelog.size="; stdOut += eos::common::StringConversion::GetSizeString(cldsize, (unsigned long long)statd.st_size); stdOut += "\n";
         stdOut += "uid=all gid=all ns.total.files.changelog.avg_entry_size=";       stdOut += eos::common::StringConversion::GetSizeString(clfratio, (unsigned long long) f?(1.0*statf.st_size)/f:0); stdOut += "\n";
         stdOut += "uid=all gid=all ns.total.directories.changelog.avg_entry_size="; stdOut += eos::common::StringConversion::GetSizeString(cldratio, (unsigned long long) d?(1.0*statd.st_size)/d:0); stdOut += "\n";
+	stdOut += "uid=all gid=all ns.boot.status="; stdOut += bootstring; stdOut += "\n";
+	stdOut += "uid=all gid=all ns.boot.time="; stdOut += (int) boottime; stdOut += "\n";
       }
 
       if (subcmd == "stat") {

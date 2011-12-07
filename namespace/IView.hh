@@ -77,6 +77,10 @@ namespace eos
     //------------------------------------------------------------------------
     virtual void initialize() throw( MDException ) = 0;
 
+    virtual void initialize1() throw( MDException ) = 0;
+    virtual void initialize2() throw( MDException ) = 0;
+    virtual void initialize3() throw( MDException ) = 0;
+
     //------------------------------------------------------------------------
     //! Finalizelize the view
     //------------------------------------------------------------------------

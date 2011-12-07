@@ -59,10 +59,21 @@
 
 USE_EOSMGMNAMESPACE
 
+#define ACCESS_R 0
+#define ACCESS_W 1
+
+
+#define ACCESSMODE_R int __AccessMode__ = 0
+#define ACCESSMODE_W int __AccessMode__ = 1
+#define SET_ACCESSMODE_W __AccessMode__ = 1
+
+#define IS_ACCESSMODE_R (__AccessMode__ == 0)
+#define IS_ACCESSMODE_W (__AccessMode__ == 1)
+
 #define MAYSTALL { if (gOFS->IsStall) {                                 \
       XrdOucString stallmsg="";                                         \
       int stalltime=0;                                                  \
-      if (gOFS->ShouldStall(__FUNCTION__,vid, stalltime, stallmsg))     \
+      if (gOFS->ShouldStall(__FUNCTION__,__AccessMode__, vid, stalltime, stallmsg)) \
         return gOFS->Stall(error,stalltime, stallmsg.c_str());          \
     }                                                                   \
   }
@@ -70,7 +81,7 @@ USE_EOSMGMNAMESPACE
 #define MAYREDIRECT { if (gOFS->IsRedirect) {                   \
       int port=0;                                               \
       XrdOucString host="";                                     \
-      if (gOFS->ShouldRedirect(__FUNCTION__,vid, host,port))    \
+      if (gOFS->ShouldRedirect(__FUNCTION__,__AccessMode__,vid, host,port)) \
         return gOFS->Redirect(error, host.c_str(), port);       \
     }                                                           \
   }
@@ -487,11 +498,21 @@ public:
   virtual               ~XrdMgmOfs() {}
 
   virtual int            Configure(XrdSysError &);
+  static void*           StaticInitializeFileView(void* arg);
+  void*                  InitializeFileView();
+
+  enum eNamespace { kDown=0, kBooting=1, kBooted=2, kFailed=3};
+  int                    Initialized;
+  time_t                 InitializationTime;
+  XrdSysMutex            InitializationMutex;
+
+  static const char*     gNameSpaceState[];
+
   virtual bool           Init(XrdSysError &);
   int            Stall(XrdOucErrInfo &error, int stime, const char *msg);
   int            Redirect(XrdOucErrInfo &error, const char* host, int &port);
-  bool           ShouldStall(const char* function, eos::common::Mapping::VirtualIdentity &vid, int &stalltime, XrdOucString &stallmsg);
-  bool           ShouldRedirect(const char* function, eos::common::Mapping::VirtualIdentity &vid, XrdOucString &host, int &port);
+  bool           ShouldStall(const char* function, int accessmode, eos::common::Mapping::VirtualIdentity &vid, int &stalltime, XrdOucString &stallmsg);
+  bool           ShouldRedirect(const char* function, int accessmode, eos::common::Mapping::VirtualIdentity &vid, XrdOucString &host, int &port);
 
   char          *ConfigFN;       
   
@@ -509,6 +530,7 @@ public:
   XrdOucString     MgmOfsQueue;        // -> our mgm queue name
   XrdOucString     MgmOfsInstanceName; // -> name of the EOS instance
   XrdOucString     MgmConfigDir;       // Directory where config files are stored
+  XrdOucString     MgmProcPath;        // Directory with proc files
   XrdOucString     AuthLib;            // -> path to a possible authorizationn library
   XrdOucString     MgmNsFileChangeLogFile; // -> path to namespace changelog file for files
   XrdOucString     MgmNsDirChangeLogFile;  // -> path to namespace changelog file for directories
@@ -523,6 +545,7 @@ public:
   bool             IsReadOnly;         // -> true if this is a read-only redirector 
   bool             IsRedirect;         // -> true if the Redirect function should be called to redirect
   bool             IsStall;            // -> true if the Stall function should be called to send a wait
+  bool             IsWriteStall;       // -> true if the Stall function should be called to send a wait to everything doing 'writes'
 
   bool             authorize;          // -> determins if the autorization should be applied or not
   XrdAccAuthorize *Authorization;      // -> Authorization   Service

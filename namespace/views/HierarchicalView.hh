@@ -97,6 +97,10 @@ namespace eos
     //------------------------------------------------------------------------
     virtual void initialize() throw( MDException );
 
+    virtual void initialize1() throw( MDException );// phase 1 - load & setup container
+    virtual void initialize2() throw( MDException );// phase 2 - load files
+    virtual void initialize3() throw( MDException );// phase 3 - register files in container
+
     //------------------------------------------------------------------------
     //! Finalize the view
     //------------------------------------------------------------------------

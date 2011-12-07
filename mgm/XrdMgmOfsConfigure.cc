@@ -33,6 +33,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/Quota.hh"
+#include "mgm/Access.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
 #include "namespace/views/HierarchicalView.hh"
@@ -48,6 +49,135 @@ extern XrdOucTrace gMgmOfsTrace;
 /*----------------------------------------------------------------------------*/
 
 USE_EOSMGMNAMESPACE
+
+/*----------------------------------------------------------------------------*/
+void* 
+XrdMgmOfs::StaticInitializeFileView(void* arg)
+{
+  //----------------------------------------------------------------
+  //! static thread startup function calling Drain
+  //----------------------------------------------------------------
+  return reinterpret_cast<XrdMgmOfs*>(arg)->InitializeFileView();
+}
+
+/*----------------------------------------------------------------------------*/
+void*
+XrdMgmOfs::InitializeFileView() 
+{
+  {
+    XrdSysMutexHelper lock(InitializationMutex);
+    Initialized=kBooting;
+    InitializationTime=time(0);
+  }
+  time_t tstart = time(0);
+  std::string oldstallrule="";
+  // set the client stall
+  {
+    eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+    if (Access::gStallRules.count(std::string("*"))) {
+      oldstallrule = Access::gStallRules[std::string("*")];
+    }
+    Access::gStallRules[std::string("*")] = "10";
+  }
+
+  try {
+    eosView->initialize2();
+    {
+      gOFS->eosViewRWMutex.LockWrite();
+      eosView->initialize3();    
+      
+      // create ../proc/<x> files
+      XrdOucString procpathwhoami = MgmProcPath; procpathwhoami+= "/whoami";
+      XrdOucString procpathwho    = MgmProcPath; procpathwho   += "/who";
+      XrdOucString procpathquota  = MgmProcPath; procpathquota += "/quota";
+      XrdOucString procpathreconnect = MgmProcPath; procpathreconnect += "/reconnect";
+      
+      XrdOucErrInfo error;
+      eos::common::Mapping::VirtualIdentity vid;
+      eos::common::Mapping::Root(vid);
+      eos::FileMD* fmd=0;
+
+      try {
+	fmd = gOFS->eosView->getFile(procpathwhoami.c_str());
+	fmd = 0;
+      } catch( eos::MDException &e ) {
+	fmd = gOFS->eosView->createFile(procpathwhoami.c_str(),0,0);
+      }
+      
+      if (fmd) {
+	fmd->setSize(4096);
+	gOFS->eosView->updateFileStore(fmd);
+      }
+
+      try {
+	fmd = gOFS->eosView->getFile(procpathwho.c_str());
+	fmd = 0;
+      } catch( eos::MDException &e ) {
+	fmd = gOFS->eosView->createFile(procpathwho.c_str(),0,0);
+      }
+
+      if (fmd) {
+	fmd->setSize(4096);
+	gOFS->eosView->updateFileStore(fmd);
+      }
+
+      try {
+	fmd = gOFS->eosView->getFile(procpathquota.c_str());
+	fmd = 0;
+      } catch( eos::MDException &e ) {
+	fmd = gOFS->eosView->createFile(procpathquota.c_str(),0,0);
+      }
+
+      if (fmd) {
+	fmd->setSize(4096);
+	gOFS->eosView->updateFileStore(fmd);
+      }
+
+      try {
+	fmd = gOFS->eosView->getFile(procpathreconnect.c_str());
+	fmd = 0;
+      } catch( eos::MDException &e ) {
+	fmd = gOFS->eosView->createFile(procpathreconnect.c_str(),0,0);
+      }
+
+      if (fmd) {
+	fmd->setSize(4096);
+	gOFS->eosView->updateFileStore(fmd);
+      }
+      {
+	XrdSysMutexHelper lock(InitializationMutex);
+	Initialized=kBooted;
+      }
+    }
+    time_t tstop  = time(0);
+    eos_notice("eos namespace file loading stopped after %d seconds", (tstop-tstart));
+    {
+      eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+      if (oldstallrule.length()) {
+	Access::gStallRules[std::string("*")] = oldstallrule;
+      } else {
+	Access::gStallRules.erase(std::string("*"));
+      }
+    }
+    gOFS->eosViewRWMutex.UnLockWrite();
+  } catch ( eos::MDException &e ) {
+    {
+      XrdSysMutexHelper lock(InitializationMutex);
+      Initialized=kFailed;
+    }
+    time_t tstop  = time(0);
+    eos_crit("eos namespace file loading initialization failed after %d seconds", (tstop-tstart));
+    errno = e.getErrno();
+    eos_crit("initialization returnd ec=%d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  };
+
+  {
+    InitializationTime=(time(0)-InitializationTime);
+    XrdSysMutexHelper lock(InitializationMutex);
+  }
+  return 0;
+}
+
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::Configure(XrdSysError &Eroute) 
@@ -752,8 +882,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     eosFileService->addChangeListener( eosFsView );
 
     eosView->getQuotaStats()->registerSizeMapper( Quota::MapSizeCB );
-    eosView->initialize();
-    eosFsView->initialize();
+    eosView->initialize1();
 
     time_t tstop  = time(0);
     eos_notice("eos view configure stopped after %d seconds", (tstop-tstart));
@@ -813,22 +942,22 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   }
 
   XrdOucString instancepath= "/eos/";
-  XrdOucString procpath = "/eos/";
+  MgmProcPath = "/eos/";
   XrdOucString subpath = MgmOfsInstanceName ;
   if (subpath.beginswith("eos")) {subpath.replace("eos","");}
-  procpath += subpath;
-  procpath += "/proc";
+  MgmProcPath += subpath;
+  MgmProcPath += "/proc";
   instancepath += subpath;
 
   try {
-    eosmd = eosView->getContainer(procpath.c_str());
+    eosmd = eosView->getContainer(MgmProcPath.c_str());
   } catch ( eos::MDException &e ) {
     eosmd =0;
   }
 
   if (!eosmd) {
     try {
-      eosmd = eosView->createContainer(procpath.c_str(), true );
+      eosmd = eosView->createContainer(MgmProcPath.c_str(), true );
       // set attribute inheritance
       eosmd->setMode(S_IFDIR| S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP);
       eosView->updateContainerStore(eosmd);
@@ -848,48 +977,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     } */
     
 
-  // create ../proc/<x> files
-  XrdOucString procpathwhoami = procpath; procpathwhoami+= "/whoami";
-  XrdOucString procpathwho    = procpath; procpathwho   += "/who";
-  XrdOucString procpathquota  = procpath; procpathquota += "/quota";
-  XrdOucString procpathreconnect = procpath; procpathreconnect += "/reconnect";
-
-  // ---------------------------------- we don't lock the namespace assuming that we are the only one touching it during configure
-  try {
-    XrdOucErrInfo error;
-    XrdSfsFileExistence file_exists;
-    eos::common::Mapping::VirtualIdentity vid;
-    eos::common::Mapping::Root(vid);
-    eos::FileMD* fmd=0;
-    if ((!gOFS->_exists(procpathwhoami.c_str(),file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo)) 
-      fmd = gOFS->eosView->createFile(procpathwhoami.c_str(),0,0);
-
-    if (fmd) {
-      fmd->setSize(4096);
-      gOFS->eosView->updateFileStore(fmd);
-    }
-    if ((!gOFS->_exists(procpathwho.c_str(),file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
-      fmd = gOFS->eosView->createFile(procpathwho.c_str(),0,0);
-    if (fmd) {
-      fmd->setSize(4096);
-      gOFS->eosView->updateFileStore(fmd);
-    }
-    if ((!gOFS->_exists(procpathquota.c_str(),file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
-      fmd = gOFS->eosView->createFile(procpathquota.c_str(),0,0);
-    if (fmd) {
-      fmd->setSize(4096);
-      gOFS->eosView->updateFileStore(fmd);
-    }
-    if ((!gOFS->_exists(procpathreconnect.c_str(),file_exists,error,vid,0))&&(file_exists==XrdSfsFileExistNo))
-      fmd = gOFS->eosView->createFile(procpathreconnect.c_str(),0,0);
-    if (fmd) {
-      fmd->setSize(4096);
-      gOFS->eosView->updateFileStore(fmd);
-    }
-  } catch ( eos::MDException &e ) {
-    // nothing in this case
-    eosmd = 0;
-  }
+  pthread_t tid;
   
   //-------------------------------------------
 
@@ -929,8 +1017,14 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     }
   }
 
+  eos_info("starting file view loader thread");
+  if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView, static_cast<void *>(this),
+                         0, "File View Loader"))) {
+    eos_crit("cannot start file view loader");
+    NoGo = 1;
+  }
+
   // create deletion thread
-  pthread_t tid;
   eos_info("starting deletion thread");
   if ((XrdSysThread::Run(&tid, XrdMgmOfs::StartMgmDeletion, static_cast<void *>(this),
                          0, "Deletion Thread"))) {

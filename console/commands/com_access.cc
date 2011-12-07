@@ -117,18 +117,48 @@ com_access (char* arg1) {
       XrdOucString id   = subtokenizer.GetToken();
       if ((subcmd != "rm") && ((!type.length()) || (!id.length())))
         goto com_access_usage;
-      
+
+      XrdOucString rtype   = subtokenizer.GetToken();
+      if (subcmd == "rm") {
+	rtype = id;
+      }
+
       if (!id.length()) {
         id = "dummy";
       }
       if (type == "redirect") {
         in += "&mgm.access.redirect="; in += id;
-        ok = true;
+	if (rtype.length()) {
+	  if (rtype == "r") {
+	    in += "&mgm.access.type=r";
+	    ok = true;
+	  } else {
+	    if (rtype == "w") {
+	      in += "&mgm.access.type=w";
+	      ok = true;
+	    }
+	  }
+	} else {
+	  ok = true;
+	}
       }
       if (type == "stall") {
         in += "&mgm.access.stall="; in += id;
-        ok = true;
+	if (rtype.length()) {
+	  if (rtype == "r") {
+	    in += "&mgm.access.type=r";
+	    ok = true;
+	  } else {
+	    if (rtype == "w") {
+	      in += "&mgm.access.type=w";
+	      ok = true;
+	    } 
+	  }
+	} else {
+	  ok = true;
+	}
       }
+
     }
     if (!ok) 
       goto com_access_usage;
@@ -165,11 +195,13 @@ com_access (char* arg1) {
   printf("                                  <target-host> : hostname to which all requests get redirected\n");
   printf("access rm  redirect :\n");
   printf("                                                  removes global redirection\n");
-  printf("access set stall <stall-time> :\n");
+  printf("access set stall <stall-time> [r|w]:\n");
   printf("                                                  allows to set a global stall time\n");
   printf("                                   <stall-time> : time in seconds after which clients should rebounce\n");
-  printf("access rm  stall :\n");
+  printf("                                          [r|w] : optional set stall time for read/write requests seperatly\n");
+  printf("access rm  stall [r|w]:\n");
   printf("                                                  removes global stall time\n");
+  printf("                                          [r|w] : removes stall time for read or write requests\n");
   printf("access ls [-m] [-n] :\n");
   printf("                                                  print banned,unbanned user,group, hosts\n");
   printf("                                                                  -m    : output in monitoring format with <key>=<value>\n");
