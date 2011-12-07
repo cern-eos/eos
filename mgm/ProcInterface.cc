@@ -3353,9 +3353,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                         }
                       } else {
                         stdErr = "error: create new replicas => cannot place replicas: "; stdErr += spath; stdErr += "\n";
+			retc = ENOSPC;
                       }
                     } else {
                       stdErr = "error: create new replicas => no source available: "; stdErr += spath; stdErr += "\n";
+		      retc = ENONET;
                     }
                   }
                 } else {

@@ -145,7 +145,12 @@ public:
     }
     if (convfactor >1)
       sizestring.erase(sizestring.length()-1);
-    return (strtoll(sizestring.c_str(),0,10) * convfactor);
+
+    if ( (sizestring.find("."))!=STR_NPOS) {
+      return ((unsigned long long) (strtod(sizestring.c_str(),NULL) * convfactor));
+    } else {
+      return (strtoll(sizestring.c_str(),0,10) * convfactor);
+    }
   }
 
   /*----------------------------------------------------------------------------*/
