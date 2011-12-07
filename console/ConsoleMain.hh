@@ -99,6 +99,9 @@ typedef struct {
   char *doc;                    /* Documentation for this function.  */
 } COMMAND;
 
+/* Help filter function */
+extern int wants_help(const char* arg1);
+
 extern COMMAND commands[];
 
 extern int done;

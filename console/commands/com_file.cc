@@ -33,6 +33,7 @@ using namespace eos::common;
 /* Get file information */
 int
 com_fileinfo (char* arg1) {
+  XrdOucString savearg=arg1;
   // split subcommands
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
@@ -48,6 +49,10 @@ com_fileinfo (char* arg1) {
   } while(1);
 
   XrdOucString in = "mgm.cmd=fileinfo&"; 
+
+  if (wants_help(savearg.c_str()))
+    goto com_fileinfo_usage;
+  
   if (!path.length()) {
     goto com_fileinfo_usage;
     
@@ -85,8 +90,8 @@ com_fileinfo (char* arg1) {
 
 int 
 com_file (char* arg1) {
+  XrdOucString savearg = arg1;
   XrdOucString arg = arg1;
-
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString cmd = subtokenizer.GetToken();
@@ -98,6 +103,10 @@ com_file (char* arg1) {
     path = abspath(path.c_str());
 
   XrdOucString in = "mgm.cmd=file";
+
+  if (wants_help(savearg.c_str())) 
+    goto com_file_usage;
+
   if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) && (cmd != "check") && ( cmd != "adjustreplica" ) && ( cmd != "info" ) && (cmd != "layout") && (cmd != "verify")) {
     goto com_file_usage;
   }
