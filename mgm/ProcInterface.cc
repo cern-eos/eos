@@ -1861,6 +1861,18 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         XrdOucString sizestring="";
 
         if (vid_in.uid==0) {
+	  
+	  {
+	    XrdSysMutexHelper(gOFS->InitializationMutex);
+	    if (gOFS->Initialized != gOFS->kBooted) {
+	      retc = EFAULT;
+	      stdErr += "error: the namespace is still booting!\n";
+	      MakeResult(false);
+	      return SFS_OK;
+	    }
+	  }
+
+
           XrdOucString NewNsFileChangeLogFile = gOFS->MgmNsFileChangeLogFile;
           XrdOucString NewNsDirChangeLogFile  = gOFS->MgmNsDirChangeLogFile;
           XrdOucString BackupNsFileChangeLogFile = gOFS->MgmNsFileChangeLogFile;

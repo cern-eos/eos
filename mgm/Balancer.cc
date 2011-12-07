@@ -24,6 +24,7 @@
 /* ------------------------------------------------------------------------- */
 #include "mgm/Balancer.hh"
 #include "mgm/FsView.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "common/StringConversion.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -81,6 +82,22 @@ Balancer::Balance(void)
   //----------------------------------------------------------------
 
   XrdSysThread::SetCancelOn();
+
+  //---------------------------------------
+  // wait that the namespace is initialized
+  //---------------------------------------
+  bool go=false;
+  do {
+    XrdSysThread::SetCancelOff();
+    {
+      XrdSysMutexHelper(gOFS->InitializationMutex);
+      if (gOFS->Initialized == gOFS->kBooted) {
+	go = true;
+      }
+    }
+    XrdSysThread::SetCancelOn();
+    sleep(1);
+  } while (!go);
 
   // loop forever until cancelled
   while (1) {

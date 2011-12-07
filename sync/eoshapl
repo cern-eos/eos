@@ -319,7 +319,7 @@ while(1) {
                 now();
                 printf "____________________________________________________________________________________________________________\n";
                 system("test -e $md1file && mv -v $md1file $md1failoverfile.$stime >> $logfile 2>&1 ");
-                system("test -e $md1failoverfile.$stime && bzip2 -v $md1failoverfile.$stime >> $logfile 2>&1 ");
+                system("test -e $md1failoverfile.$stime && bzip2 -v $md1failoverfile.$stime >> $logfile 2>&1 &");
                 printf "____________________________________________________________________________________________________________\n";
                 my $retc = system("echo := eos-log-compact $md2file $md1file ; test -e $md2file && eos-log-compact $md2file $md1file >> $logfile 2>&1 ");
                 $retc = ($retc >> 8);
@@ -340,7 +340,7 @@ while(1) {
 
                 printf "____________________________________________________________________________________________________________\n";
                 system("test -e $md1dirfile && mv -v $md1dirfile $md1failoverdirfile.$stime >> $logfile 2>&1 ");
-                system("test -e $md1failoverdirfile.$stime && bzip2 -v $md1failoverdirfile.$stime >> $logfile 2>&1 ");
+                system("test -e $md1failoverdirfile.$stime && bzip2 -v $md1failoverdirfile.$stime >> $logfile 2>&1 &");
                 printf "____________________________________________________________________________________________________________\n";
                 $retc = system("echo := eos-log-compact $md2dirfile $md1dirfile >> $logfile 2>&1  ; eos-log-compact $md2dirfile $md1dirfile >> $logfile 2>&1 ");
                 $retc = ($retc >> 8);
@@ -365,7 +365,7 @@ while(1) {
             if ( "$host" eq "$target2" ) {
                 printf "____________________________________________________________________________________________________________\n";
                 system("test -e $md2file && mv -v $md2file $md2failoverfile.$stime >> $logfile 2>&1 ");
-                system("test -e $md2failoverfile.$stime && bzip2 -v $md2failoverfile.$stime >> $logfile 2>&1 ");
+                system("test -e $md2failoverfile.$stime && bzip2 -v $md2failoverfile.$stime >> $logfile 2>&1 & ");
                 printf "____________________________________________________________________________________________________________\n";
                 my $retc = system("echo := eos-log-compact $md1file $md2file >> $logfile 2>&1 ; test -e $md1file && eos-log-compact $md1file $md2file >> $logfile 2>&1 ");
                 $retc = ($retc >> 8);
@@ -386,7 +386,7 @@ while(1) {
 
                 printf "____________________________________________________________________________________________________________\n";
                 system("test -e $md2dirfile && mv -v $md2dirfile $md2failoverdirfile.$stime >> $logfile 2>&1 ");
-                system("test -e $md2failoverdirfile.$stime && bzip2 -v $md2failoverdirfile.$stime >> $logfile 2>&1 ");
+                system("test -e $md2failoverdirfile.$stime && bzip2 -v $md2failoverdirfile.$stime >> $logfile 2>&1 &");
                 printf "____________________________________________________________________________________________________________\n";
                 $retc = system("echo := eos-log-compact $md1dirfile $md2dirfile >> $logfile 2>&1 ; test -e $md1dirfile && eos-log-compact $md1dirfile $md2dirfile >> $logfile 2>&1 ");
                 $retc = ($retc >> 8);

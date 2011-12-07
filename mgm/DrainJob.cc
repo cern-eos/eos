@@ -88,6 +88,22 @@ DrainJob::StaticThreadProc(void* arg)
 void*
 DrainJob::Drain(void)
 {  
+  //---------------------------------------
+  // wait that the namespace is initialized
+  //---------------------------------------
+  bool go=false;
+  do {
+    XrdSysThread::SetCancelOff();
+    {
+      XrdSysMutexHelper(gOFS->InitializationMutex);
+      if (gOFS->Initialized == gOFS->kBooted) {
+        go = true;
+      }
+    }
+    XrdSysThread::SetCancelOn();
+    sleep(1);
+  } while (!go);
+  
   XrdSysThread::SetCancelOn();
   XrdSysThread::SetCancelDeferred();
 
