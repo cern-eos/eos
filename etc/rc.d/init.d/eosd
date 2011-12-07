@@ -124,10 +124,18 @@ stop() {
         echo -n "Stopping $prog: "
         umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
         umount -f -l $umdir >& /dev/null
-        pkill -9 -f ${EOS_ROOT}/sbin/eosd
+	killed=$?
+	if [ $killed -ne 0 ]; then 
+	        pkill -9 -f "${EOS_ROOT}/sbin/eosd $umdir"
+		killed=$?
+	fi	
         rm -f /var/lock/subsys/eosd
         echo
-        echo_success
+	if [ $killed -eq 0 ]; then
+	        echo_success	
+	else
+		echo_failure
+        fi	
         echo
         RETVAL=0;
     done
