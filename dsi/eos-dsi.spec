@@ -21,7 +21,7 @@ BuildRequires: vdt_globus_sdk          = %{GLOBUS_VERSION}
 BuildRequires: vdt_compile_globus_core = %{GLOBUS_VERSION}
 BuildRequires: vdt_globus_essentials   = %{GLOBUS_VERSION}
 BuildRequires: gpt
-BuildRequires: globus-config           = %{GLOBUS_VERSION}
+BuildRequires: globus-config
 BuildRequires: xrootd-libs-devel >= 3.1.0
 BuildRequires: xrootd-client-devel >= 3.1.0
 BuildRequires: autoconf, automake, libtool
