@@ -1,6 +1,7 @@
 %define debug_package %{nil}
 %define _unpackaged_files_terminate_build 0
 %define __os_install_post       /bin/true
+%define GLOBUS_VERSION  VDT1.10.1x86_64_rhap_5-3
 
 Summary: EOS gridftp DSI plugin
 Name: eos-dsi
@@ -12,10 +13,15 @@ Source0: %{name}-%{version}-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 Requires: xrootd-client >= 3.1.0
-Requires: vdt_globus_essentials = VDT1.10.1x86_64_rhap_5-3
-Requires: vdt_globus_data_server = VDT1.10.1x86_64_rhap_5-3
+Requires: vdt_globus_essentials        = %{GLOBUS_VERSION}
+Requires: vdt_globus_data_server       = %{GLOBUS_VERSION}
 
-BuildRequires: vdt_globus_sdk = VDT1.10.1x86_64_rhap_5-3
+BuildRequires: vdt_globus_sdk          = %{GLOBUS_VERSION}
+#BuildRequires: vdt_packaging_fixes,
+BuildRequires: vdt_compile_globus_core = %{GLOBUS_VERSION}
+BuildRequires: vdt_globus_essentials   = %{GLOBUS_VERSION}
+BuildRequires: gpt
+BuildRequires: globus-config           = %{GLOBUS_VERSION}
 BuildRequires: xrootd-libs-devel >= 3.1.0
 BuildRequires: xrootd-client-devel >= 3.1.0
 BuildRequires: autoconf, automake, libtool
