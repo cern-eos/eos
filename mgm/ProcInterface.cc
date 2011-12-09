@@ -3735,7 +3735,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             if (!Monitoring) {
               stdOut += "xstype: "; stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
 	      stdOut += "\n";
-              stdOut += " xs:     ";
+              stdOut += "xs:     ";
               for (unsigned int i=0; i< eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
                 char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
                 stdOut += hb;
