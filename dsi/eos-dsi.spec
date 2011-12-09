@@ -31,7 +31,7 @@ EOS gridftp DSI plugin
 
 %build
 ./bootstrap.sh
-./configure --sysconfdir=/etc/
+./configure --sysconfdir=/etc/ --libdir=%{_libdir}
 %{__make} %{_smp_mflags}
 
 %install
