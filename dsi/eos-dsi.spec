@@ -18,6 +18,7 @@ Requires: vdt_globus_data_server = VDT1.10.1x86_64_rhap_5-3
 BuildRequires: vdt_globus_sdk = VDT1.10.1x86_64_rhap_5-3
 BuildRequires: xrootd-libs-devel >= 3.1.0
 BuildRequires: xrootd-client-devel >= 3.1.0
+BuildRequires: autoconf, automake, libtool
 
 %description
 EOS gridftp DSI plugin
