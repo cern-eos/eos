@@ -8,7 +8,7 @@ Version: 0.1.1
 Release: 3
 License: none
 Group: Applications/File
-Source0: eos-dsi-0.1.1.tar.gz
+Source0: %{name}-%{version}-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 Requires: xrootd-client >= 3.1.0
@@ -23,7 +23,7 @@ BuildRequires: xrootd-client-devel >= 3.1.0
 EOS gridftp DSI plugin
 
 %prep
-%setup -n eos-dsi-0.1.1
+%setup -n %{name}-%{version}-%{release}
 
 %build
 ./bootstrap.sh
