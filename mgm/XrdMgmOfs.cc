@@ -1481,6 +1481,8 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
   //-------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   eos::ContainerMD* cmd = 0;
+  eos::ContainerMD::XAttrMap attrmap;
+
   errno = 0;
 
   gOFS->MgmStats.Add("Chmod",vid.uid,vid.gid,1);  
@@ -1489,9 +1491,17 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
   
   try {
     cmd = gOFS->eosView->getContainer(path);
-    if (!cmd->access(vid.uid,vid.gid,W_OK)) {
-      errno = EPERM;
-    } else {
+    eos::ContainerMD::XAttrMap::const_iterator it;
+    for ( it = cmd->attributesBegin(); it != cmd->attributesEnd(); ++it) {
+      attrmap[it->first] = it->second;
+    }
+    Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
+
+    if ( (cmd->getCUid() == vid.uid) ||  // the owner
+	 (!vid.uid) ||                   // the root user
+	 (vid.uid ==3) ||                // the admin user
+	 (vid.gid == 4) ||               // the admin group
+	 (acl.CanChmod()) ) {            // the chmod ACL entry
       // change the permission mask, but make sure it is set to a directory
       if (Mode & S_IFREG) 
         Mode ^= S_IFREG;
@@ -1504,6 +1514,8 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
       }
       cmd->setMode(Mode | S_IFDIR);
       eosView->updateContainerStore(cmd);
+    } else {
+      errno = EPERM;
     }
   } catch ( eos::MDException &e ) {
     errno = e.getErrno();
@@ -4047,97 +4059,6 @@ XrdMgmOfs::FSctl(const int               cmd,
       response += " retc="; response += retc;
       error.setErrInfo(response.length()+1, response.c_str());
       return SFS_DATA;
-    }
-
-    if (vid.prot == "sss") {
-
-      ACCESSMODE_R;
-      MAYSTALL;
-      MAYREDIRECT;
-
-      // only disk server can set files dirty/not dirty
-      if (execmd == "markdirty") {
-        eos_info("markdirty %s", opaque.c_str());
-        gOFS->MgmStats.Add("MarkDirty",vid.uid,vid.gid,1);  
-        char* sfid;
-        char* sfsid;
-        sfid     = env.Get("fid");
-        sfsid     = env.Get("fsid");
-        char* dsize     = env.Get("size.dirty");
-        char* dcks      = env.Get("checksum.dirty");
-        char* dblockxs  = env.Get("blockchecksum.dirty");
-        char* drep      = env.Get("replica.missing");
-        char* eio       = env.Get("io.error");
-
-        if (sfid && sfsid) {
-          unsigned long long fid  = strtoull(sfid, 0,10);
-          unsigned long      fsid = strtoul(sfsid,  0,10);
-          
-          MgmDirtyMapMutex.Lock();
-          if (dsize) {
-            MgmDirtyMap[fid][fsid].dirtysize=true;
-          } else {
-            MgmDirtyMap[fid][fsid].dirtysize=false;
-            if (dcks) {
-              MgmDirtyMap[fid][fsid].dirtychecksum=true;
-            } else {
-              MgmDirtyMap[fid][fsid].dirtychecksum=false;
-            }
-            if (dblockxs) {
-              MgmDirtyMap[fid][fsid].dirtyblockxs=true;
-            } else {
-              MgmDirtyMap[fid][fsid].dirtyblockxs=false;
-            }
-            if (drep) {
-              MgmDirtyMap[fid][fsid].missingreplica=true;
-            } else {
-              MgmDirtyMap[fid][fsid].missingreplica=false;
-            }
-            if (eio) {
-              MgmDirtyMap[fid][fsid].ioerror=true;
-            } else {
-              MgmDirtyMap[fid][fsid].ioerror=false;
-            }
-            MgmDirtyMapMutex.UnLock();
-          }
-        }
-        
-        XrdOucString response="markdirty: ";
-        response += "retc=0"; 
-        error.setErrInfo(response.length()+1, response.c_str());
-        return SFS_DATA;
-      }
-      
-      if (execmd == "markclean") {
-
-	ACCESSMODE_R;
-	MAYSTALL;
-	MAYREDIRECT;
-
-        eos_info("markclean %s", opaque.c_str());
-        gOFS->MgmStats.Add("MarkClean",vid.uid,vid.gid,1);  
-        char* fxid;
-        char* fsid;
-        fxid  = env.Get("fxid");
-        fsid  = env.Get("fsid");
-        
-        if (fxid && fsid) {
-          unsigned long long fid  = strtoull(env.Get("fid"), 0,10);
-          unsigned long      fsid = strtoul(env.Get("fsid"),  0,10);
-          
-          MgmDirtyMapMutex.Lock();
-          MgmDirtyMap[fid].erase(fsid);
-          if (!MgmDirtyMap[fid].size()) {
-            MgmDirtyMap.erase(fid);
-          }
-          MgmDirtyMapMutex.UnLock();
-        }
-        
-        XrdOucString response="markclean: ";
-        response += "retc=0"; 
-        error.setErrInfo(response.length()+1, response.c_str());
-        return SFS_DATA;
-      }
     }
 
     if (execmd == "statvfs") {

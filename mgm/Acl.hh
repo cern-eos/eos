@@ -41,6 +41,8 @@ class Acl {
   bool canWrite;
   bool canWriteOnce;
   bool canBrowse;
+  bool canChmod;
+  bool canDelete;
   bool hasAcl;
   bool hasEgroup;
 
@@ -56,7 +58,9 @@ public:
   bool CanRead()      {return canRead;}
   bool CanWrite()     {return canWrite;}
   bool CanWriteOnce() {return canWriteOnce;}
-  bool CanBrowse()   {return canBrowse;}
+  bool CanBrowse()    {return canBrowse;}
+  bool CanChmod()     {return canChmod;}
+  bool CanDelete()    {return canDelete;}
   bool HasAcl()       {return hasAcl;}
   bool HasEgroup()    {return hasEgroup;}
 };
