@@ -8,27 +8,31 @@ Version: 0.1.1
 Release: 3
 License: none
 Group: Applications/File
-Source0: eos-dsi-0.1.1.tar.gz
+Source0: %{name}-%{version}-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 Requires: xrootd-client >= 3.1.0
-Requires: vdt_globus_essentials = VDT1.10.1x86_64_rhap_5-3
-Requires: vdt_globus_data_server = VDT1.10.1x86_64_rhap_5-3
-
-BuildRequires: vdt_globus_sdk = VDT1.10.1x86_64_rhap_5-3
+Requires: vdt_globus_essentials
+Requires: vdt_globus_data_server
+BuildRequires: vdt_globus_sdk
+BuildRequires: vdt_compile_globus_core
+BuildRequires: vdt_globus_essentials
+BuildRequires: gpt
+BuildRequires: globus-config
 BuildRequires: xrootd-libs-devel >= 3.1.0
 BuildRequires: xrootd-client-devel >= 3.1.0
+BuildRequires: autoconf, automake, libtool
 
 %description
 EOS gridftp DSI plugin
 
 %prep
-%setup -n eos-dsi-0.1.1
+%setup -n %{name}-%{version}-%{release}
 
 %build
 ./bootstrap.sh
-./configure --sysconfdir=/etc/ --libdir=/usr/lib64/
-make -j 4 install
+./configure --sysconfdir=/etc/ --libdir=%{_libdir}
+%{__make} %{_smp_mflags}
 
 %install
 make install DESTDIR=$RPM_BUILD_ROOT
@@ -39,9 +43,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
-/etc/init.d/*
-/usr/lib64/*.so
-/usr/lib64/*.so.*
+%{_libdir}/*.so.*
 /opt/globus/lib/*
 %_sysconfdir/init.d/eos-gridftp
 %doc
