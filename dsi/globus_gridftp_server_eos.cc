@@ -39,6 +39,8 @@
 #include <unistd.h>
 #include <errno.h>
 
+XrdPosixXrootd posixsingleton;
+
 extern "C" {
 
   static globus_version_t local_version =
