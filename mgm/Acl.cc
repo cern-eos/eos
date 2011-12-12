@@ -57,7 +57,7 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
   canWriteOnce = false;
   canBrowse = false;
   canChmod = false;
-  canDelete = false;
+  canNotDelete = false;
   hasEgroup = false;
 
   if (!acl.length()) {
@@ -130,8 +130,8 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
         hasAcl = true;
       }
 
-      if ((entry[2].find("d"))!= std::string::npos) {
-        canDelete = true;
+      if ((entry[2].find("!d"))!= std::string::npos) {
+        canNotDelete = true;
         hasAcl = true;
       }
 

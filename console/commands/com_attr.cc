@@ -216,11 +216,12 @@ com_attr (char* arg1) {
   printf("               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public \n\n");
   printf("         sys.acl=<acllist>                     : set's an ACL which is honoured for open,rm & rmdir operations\n");
   printf("               => <acllist> = <rule1>,<rule2>...<ruleN> is a comma separated list of rules\n");
-  printf("               => <rule> = u:<uid|username>>|g:<gid|groupname>|egroup:<name>:{rwo} \n\n");
-  printf("               e.g.: <acllist=\"u:300:rw,g:z2:rwo:egroup:eos-dev:rwx\"\n\n");
+  printf("               => <rule> = u:<uid|username>>|g:<gid|groupname>|egroup:<name>:{rwom!d} \n\n");
+  printf("               e.g.: <acllist=\"u:300:rw,g:z2:rwo:egroup:eos-dev:rwx,u:500:rwm!d\"\n\n");
   printf("               => user id 300 can read + write\n");
   printf("               => group z2 can read + write-once (create new files but can't delete)\n");
   printf("               => members of egroup 'eos-dev' can read & write & browse\n");
+  printf("               => user id 500 can read + write into and chmod, but cannot delete the directory itself!\n");
  
   
   printf("User Variables:\n");

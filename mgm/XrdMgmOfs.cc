@@ -1481,6 +1481,7 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
   //-------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   eos::ContainerMD* cmd = 0;
+  eos::ContainerMD* pcmd = 0;
   eos::ContainerMD::XAttrMap attrmap;
 
   errno = 0;
@@ -1488,13 +1489,18 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
   gOFS->MgmStats.Add("Chmod",vid.uid,vid.gid,1);  
 
   eos_info("path=%s mode=%o",path, Mode);
-  
+
+  eos::common::Path cPath(path);  
+
   try {
     cmd = gOFS->eosView->getContainer(path);
+    pcmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+
     eos::ContainerMD::XAttrMap::const_iterator it;
-    for ( it = cmd->attributesBegin(); it != cmd->attributesEnd(); ++it) {
+    for ( it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it) {
       attrmap[it->first] = it->second;
     }
+    // acl of the parent!
     Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
 
     if ( (cmd->getCUid() == vid.uid) ||  // the owner
@@ -2453,6 +2459,16 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
   bool stdpermcheck=false;
   bool aclok=false;
   if (acl.HasAcl()) {
+    if ( (dh->getCUid() != vid.uid) &&
+	 (vid.uid) &&                   // not the root user
+	 (vid.uid != 3) &&              // not the admin user
+	 (vid.gid != 4) &&              // notthe admin group
+	 (acl.CanNotDelete()) ) {
+      // deletion is explicitly forbidden
+      errno = EPERM;
+      return Emsg(epname, error, EPERM, "rmdir", path);
+    }
+    
     if ( (!acl.CanWrite()) ) {
       // we have to check the standard permissions
       stdpermcheck = true;
