@@ -60,7 +60,7 @@ debugloglevel=${GLOBUS_GRIDFTP_DEBUGLOG_LEVEL:-warn,error,info}
 pid_file=/var/run/$prog.pid
 lockfile=/var/lock/subsys/$prog
 user=""
-options={GLOBUS_GRIDFTP_OPTIONS:-""}
+options=${GLOBUS_GRIDFTP_OPTIONS:-""}
 
 
 # -S  stand alone mode
