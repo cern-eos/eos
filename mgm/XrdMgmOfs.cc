@@ -52,7 +52,7 @@
 #include "XrdSfs/XrdSfsAio.hh"
 /*----------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------------*/
+/*-------A---------------------------------------------------------------------*/
 #ifdef __APPLE__
 #define ECOMM 70
 #endif
@@ -1583,8 +1583,6 @@ int XrdMgmOfs::_chown(const char               *path,    // In
     try {
       // try as a file
       eos::common::Path cPath(path);
-      fprintf(stderr,"checking dir %s\n", cPath.GetParentPath());
-
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
 
       SpaceQuota* space = Quota::GetResponsibleSpaceQuota(cPath.GetParentPath());
@@ -1593,10 +1591,9 @@ int XrdMgmOfs::_chown(const char               *path,    // In
         quotanode = space->GetQuotaNode();
       }
 
-      if ( (vid.uid) && !cmd->access(vid.uid,vid.gid,W_OK)) {
+      if ( (vid.uid) && (!vid.sudoer) && (vid.uid != 3) && (vid.gid !=4) ) {
         errno = EPERM;
       } else {
-        fprintf(stderr,"get file %s\n", path);
         fmd = gOFS->eosView->getFile(path);
 
         // substract the file
@@ -2313,9 +2310,14 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
         return Emsg(epname, error, EPERM,"remove existing file - you are write-once user");
       }
 
+      if ( (vid.uid) && (vid.uid != container->getCUid()) && (vid.uid !=3) && (vid.gid != 4) && (acl.CanNotDelete()) ) {
+	errno = EPERM;
+	// deletion is forbidden for not-owner
+        return Emsg(epname, error, EPERM,"remove existing file - ACL forbids file deletion");
+      }
       if ( (!stdpermcheck) && (!acl.CanWrite())) {
         errno = EPERM;
-        // this use is not allowed to write
+        // this user is not allowed to write
         return Emsg(epname, error, EPERM,"remove existing file - you don't have write permissions");
       }
 
@@ -2466,7 +2468,7 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
 	 (acl.CanNotDelete()) ) {
       // deletion is explicitly forbidden
       errno = EPERM;
-      return Emsg(epname, error, EPERM, "rmdir", path);
+      return Emsg(epname, error, EPERM, "rmdir by ACL", path);
     }
     
     if ( (!acl.CanWrite()) ) {
@@ -4488,18 +4490,19 @@ XrdMgmOfs::_attr_set(const char             *path,
     if ( Key.beginswith("sys.") && (!vid.sudoer) )
       errno = EPERM;
     else {
-      dh->setAttribute(key,value);
-      eosView->updateContainerStore(dh);
+      // check permissions in case of user attributes
+      if (dh && Key.beginswith("user.") && (vid.uid != dh->getCUid()) && (!vid.sudoer)) {
+	errno = EPERM;
+      } else {
+	dh->setAttribute(key,value);
+	eosView->updateContainerStore(dh);
+      }
     }
   } catch( eos::MDException &e ) {
     dh = 0;
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());
   }
-  // check permissions
-  if (dh && (!dh->access(vid.uid,vid.gid, X_OK|R_OK)))
-    if (!errno) errno = EPERM;
-  
 
   EXEC_TIMING_END("AttrSet");      
  
