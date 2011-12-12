@@ -25,7 +25,7 @@ export CSEC_MECH=ID
 if [ -f /etc/sysconfig/globus ]; then
     . /etc/sysconfig/globus
 fi
-A
+
 GLOBUS_LOCATION=${GLOBUS_LOCATION:-/opt/globus}
 
 if [ ! -d "$GLOBUS_LOCATION" ]; then
