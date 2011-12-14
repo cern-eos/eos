@@ -132,9 +132,6 @@ extern "C" {
     finished_info.info.session.home_dir = NULL;
 
     globus_gridftp_server_operation_finished(op, GLOBUS_SUCCESS, &finished_info);
-
-    // uncomment that, if you want to add debug printouts
-    //    freopen("/tmp/xrdlog.gsiftp","a+", stderr);
   }
 
   /*************************************************************************
@@ -300,7 +297,6 @@ extern "C" {
     GlobusGFSName(globus_l_gfs_eos_stat);
     PathName=stat_info->pathname;
 
-    //    freopen("/tmp/xrdlog.gsiftp","a+", stderr);
     /* 
        If we do stat_info->pathname++, it will cause third-party transfer
        hanging if there is a leading // in path. Don't know why. To work
@@ -312,7 +308,7 @@ extern "C" {
       }
     
     /* lstat is the same as stat when not operating on a link */
-    if(XrdPosix_Stat(PathName, &stat_buf) != 0)
+    if(XrdPosixXrootd::Stat(PathName, &stat_buf) != 0)
       {
         result = GlobusGFSErrorSystemError("stat", errno);
         goto error_stat1;
@@ -340,7 +336,7 @@ extern "C" {
         int                             i;
         char                            dir_path[MAXPATHLEN];
     
-        dir = XrdPosix_Opendir(PathName);
+        dir = XrdPosixXrootd::Opendir(PathName);
         if(!dir)
           {
             result = GlobusGFSErrorSystemError("opendir", errno);
@@ -350,11 +346,11 @@ extern "C" {
         stat_count = 0;
         int rc = 0;
 
-        while( dir_entry =  XrdPosix_Readdir(dir) )
+        while( dir_entry =  XrdPosixXrootd::Readdir(dir) )
           {
             stat_count++;
           }
-        XrdPosix_Rewinddir(dir);
+        XrdPosixXrootd::Rewinddir(dir);
 
         
         stat_array = (globus_gfs_stat_t *)
@@ -369,7 +365,7 @@ extern "C" {
         dir_path[MAXPATHLEN - 1] = '\0';
         
         for(i = 0;
-            dir_entry = XrdPosix_Readdir(dir);
+            dir_entry = XrdPosixXrootd::Readdir(dir);
             i++)
           {
             char                        tmp_path[MAXPATHLEN];
@@ -385,7 +381,7 @@ extern "C" {
             if (path[0] == '/' && path[1] == '/') { path++; }
             while (path[0] == '/' && path[1] == '/') { path++; }
             /* lstat is the same as stat when not operating on a link */
-            if(XrdPosix_Stat(path, &stat_buf) != 0)
+            if(XrdPosixXrootd::Stat(path, &stat_buf) != 0)
               {
                 result = GlobusGFSErrorSystemError("lstat", errno);
                 /* just skip invalid entries */
@@ -403,7 +399,7 @@ extern "C" {
             goto error_read;
           }
         
-        XrdPosix_Closedir(dir);
+        XrdPosixXrootd::Closedir(dir);
       }
     
     globus_gridftp_server_finished_stat(
@@ -474,15 +470,15 @@ extern "C" {
     switch(cmd_info->command)
       {
       case GLOBUS_GFS_CMD_MKD:
-        (XrdPosix_Mkdir(PathName, 0777) == 0) || 
+        (XrdPosixXrootd::Mkdir(PathName, 0777) == 0) || 
           (rc = GlobusGFSErrorGeneric("mkdir() fail"));
         break;
       case GLOBUS_GFS_CMD_RMD:
-        (XrdPosix_Rmdir(PathName) == 0) || 
+        (XrdPosixXrootd::Rmdir(PathName) == 0) || 
           (rc = GlobusGFSErrorGeneric("rmdir() fail"));
         break;
       case GLOBUS_GFS_CMD_DELE:
-        (XrdPosix_Unlink(PathName) == 0) ||
+        (XrdPosixXrootd::Unlink(PathName) == 0) ||
           (rc = GlobusGFSErrorGeneric("unlink() fail"));
         break;
       case GLOBUS_GFS_CMD_SITE_RDEL:
@@ -493,7 +489,7 @@ extern "C" {
         rc = GLOBUS_FAILURE;
         break;
       case GLOBUS_GFS_CMD_RNTO:
-        (XrdPosix_Rename(cmd_info->rnfr_pathname, PathName) == 0) || 
+        (XrdPosixXrootd::Rename(cmd_info->rnfr_pathname, PathName) == 0) || 
           (rc = GlobusGFSErrorGeneric("rename() fail"));
         break;
       case GLOBUS_GFS_CMD_SITE_CHMOD:
@@ -592,7 +588,7 @@ extern "C" {
                            path);
     try {
       system("printenv | grep XROOT");
-      rc = XrdPosix_Open(path, flags, mode);
+      rc = XrdPosixXrootd::Open(path, flags, mode);
       if (rc < 0) {
         globus_gfs_log_message(GLOBUS_GFS_LOG_ERR,
                                "%s: XrdPosixXrootd::Open returned error code %d\n",
@@ -629,13 +625,13 @@ extern "C" {
         eos_handle->done = GLOBUS_TRUE;
       }
       else if(nbytes > 0) {
-        start_offset = XrdPosix_Lseek(eos_handle->fd, offset, SEEK_SET);
+        start_offset = XrdPosixXrootd::Lseek(eos_handle->fd, offset, SEEK_SET);
         if(start_offset != offset) {
           eos_handle->cached_res = globus_l_gfs_make_error("seek",errno);
           eos_handle->done = GLOBUS_TRUE;
         }
         else {
-          bytes_written = XrdPosix_Write(eos_handle->fd, buffer, nbytes);
+          bytes_written = XrdPosixXrootd::Write(eos_handle->fd, buffer, nbytes);
           if(bytes_written < nbytes) {
             errno = ENOSPC;
             eos_handle->cached_res =
@@ -652,7 +648,7 @@ extern "C" {
       }
       /* if done and there are no outstanding callbacks finish */
       else if(eos_handle->outstanding == 0){
-        XrdPosix_Close(eos_handle->fd);
+        XrdPosixXrootd::Close(eos_handle->fd);
         globus_gridftp_server_finished_transfer
           (op, eos_handle->cached_res);
       }
@@ -679,7 +675,7 @@ extern "C" {
         eos_handle->cached_res = result;
         eos_handle->done = GLOBUS_TRUE;
         if(eos_handle->outstanding == 0) {
-          XrdPosix_Close(eos_handle->fd);
+          XrdPosixXrootd::Close(eos_handle->fd);
           globus_gridftp_server_finished_transfer
             (eos_handle->op, eos_handle->cached_res);
         }
@@ -700,7 +696,7 @@ extern "C" {
         eos_handle->cached_res = result;
         eos_handle->done = GLOBUS_TRUE;
         if(eos_handle->outstanding == 0) {
-          XrdPosix_Close(eos_handle->fd);
+          XrdPosixXrootd::Close(eos_handle->fd);
           globus_gridftp_server_finished_transfer
             (eos_handle->op, eos_handle->cached_res);
         }
@@ -868,7 +864,7 @@ extern "C" {
                                            &eos_handle->blk_length);
       if (eos_handle->blk_length == 0) {
         result = GLOBUS_SUCCESS;
-        XrdPosix_Close(eos_handle->fd);
+        XrdPosixXrootd::Close(eos_handle->fd);
         eos_handle->cached_res = result;
         eos_handle->done = GLOBUS_TRUE;
         if (eos_handle->outstanding == 0) {
@@ -886,13 +882,13 @@ extern "C" {
       read_length = eos_handle->blk_length;
     }
 
-    start_offset = XrdPosix_Lseek(eos_handle->fd,
+    start_offset = XrdPosixXrootd::Lseek(eos_handle->fd,
                                   eos_handle->blk_offset,
                                   SEEK_SET);
     // verify that it worked
     if (start_offset != eos_handle->blk_offset) {
       result = globus_l_gfs_make_error("seek", errno);
-      XrdPosix_Close(eos_handle->fd);
+      XrdPosixXrootd::Close(eos_handle->fd);
       eos_handle->cached_res = result;
       eos_handle->done = GLOBUS_TRUE;
       if (eos_handle->outstanding == 0) {
@@ -905,7 +901,7 @@ extern "C" {
     buffer = (globus_byte_t*)globus_malloc(read_length);
     if(buffer == NULL) {
       result = GlobusGFSErrorGeneric("error: malloc failed");
-      XrdPosix_Close(eos_handle->fd);
+      XrdPosixXrootd::Close(eos_handle->fd);
       eos_handle->cached_res = result;
       eos_handle->done = GLOBUS_TRUE;
       if (eos_handle->outstanding == 0) {
@@ -915,11 +911,11 @@ extern "C" {
       return eos_handle->done;
     }
 
-    nbread = XrdPosix_Read(eos_handle->fd, buffer, read_length);
+    nbread = XrdPosixXrootd::Read(eos_handle->fd, buffer, read_length);
     if (nbread == 0) { // eof
       result = GLOBUS_SUCCESS;
       globus_free(buffer);
-      XrdPosix_Close(eos_handle->fd);
+      XrdPosixXrootd::Close(eos_handle->fd);
       eos_handle->cached_res = result;
       eos_handle->done = GLOBUS_TRUE;
       if (eos_handle->outstanding == 0) {
@@ -932,7 +928,7 @@ extern "C" {
     if (nbread < 0) { // error
       result = globus_l_gfs_make_error("read", errno);
       globus_free(buffer);
-      XrdPosix_Close(eos_handle->fd);
+      XrdPosixXrootd::Close(eos_handle->fd);
       eos_handle->cached_res = result;
       eos_handle->done = GLOBUS_TRUE;
       if (eos_handle->outstanding == 0) {
@@ -966,7 +962,7 @@ extern "C" {
     eos_handle->blk_offset += read_length;
     if (res != GLOBUS_SUCCESS) {
       globus_free(buffer);
-      XrdPosix_Close(eos_handle->fd);
+      XrdPosixXrootd::Close(eos_handle->fd);
       eos_handle->cached_res = res;
       eos_handle->done = GLOBUS_TRUE;
       if (eos_handle->outstanding == 0) {
@@ -1003,7 +999,7 @@ extern "C" {
       if (!eos_handle->done) {
         globus_l_gfs_eos_send_next_to_client(eos_handle);
       } else if (eos_handle->outstanding == 0) {
-        XrdPosix_Close(eos_handle->fd);
+        XrdPosixXrootd::Close(eos_handle->fd);
         globus_gfs_log_message(GLOBUS_GFS_LOG_INFO,
                                "%s: finished transfer\n",
                                func);

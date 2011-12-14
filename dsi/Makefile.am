@@ -6,7 +6,7 @@ lib_LTLIBRARIES = libglobus_gridftp_server_eos.la
 
 libglobus_gridftp_server_eos_la_SOURCES = dsi_eos.hh  globus_gridftp_server_eos.cc
 libglobus_gridftp_server_eos_la_LIBADD =
-libglobus_gridftp_server_eos_la_LDFLAGS = -L$(XROOTD_LIBDIR)/ -lXrdPosix -L$(GLOBUS_LOCATION)/lib/ -lglobus_ftp_control_$(GLOBUS_FLAVOR)
+libglobus_gridftp_server_eos_la_LDFLAGS = -L$(XROOTD_LIBDIR)/ -lXrdPosix -L$(GLOBUS_LOCATION)/lib/ -lglobus_ftp_control_$(GLOBUS_FLAVOR) 
 
 install-exec-local:	
 	if [ -e "$(DESTDIR)/$(GLOBUS_LOCATION)/lib/libglobus_gridftp_server_eos_$(GLOBUS_FLAVOR).so" ]; then  unlink $(DESTDIR)/$(GLOBUS_LOCATION)/lib/libglobus_gridftp_server_eos_$(GLOBUS_FLAVOR).so; fi 

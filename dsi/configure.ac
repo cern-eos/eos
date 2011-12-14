@@ -12,24 +12,20 @@ AC_PREFIX_DEFAULT(/usr/)
 AM_INIT_AUTOMAKE(1.6 foreign)
 
 
-LIBGCCS="-lgcc_s"
 case "$target_os" in
    tiger*)
      CXXFLAGS +=-D__FreeBSD__=10
      export CXXFLAGS
-     LIBGCCS="-lgcc_s.1"	
      AC_DEFINE(__macos__)
      ;;
    darwin*)
      CXXFLAGS +=-D__FreeBSD__=10
      export CXXFLAGS
-     LIBGCCS="-lgcc_s.1"	
      AC_DEFINE(__macos__)
      ;;
    apple*)
      CXXFLAGS +=-D__FreeBSD__=10
      export CXXFLAGS
-     LIBGCCS="-lgcc_s.1"	
      AC_DEFINE(__macos__)
      ;;
    linux*)
@@ -56,7 +52,6 @@ else
 fi
 
 
-AC_SUBST(LIBGCCS)
 AC_SUBST(MARK64)
 
 AC_ARG_WITH(xrootd,
