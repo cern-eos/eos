@@ -45,6 +45,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/*.so.*
 /opt/globus/lib/*
 %_sysconfdir/init.d/eos-gridftp
+%_sysconfdir/logrotate.d/eos-gridftp
 %doc
 
 %changelog
