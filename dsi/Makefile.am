@@ -11,9 +11,11 @@ libglobus_gridftp_server_eos_la_LDFLAGS = -L$(XROOTD_LIBDIR)/ -lXrdPosix -L$(GLO
 install-exec-local:	
 	if [ -e "$(DESTDIR)/$(GLOBUS_LOCATION)/lib/libglobus_gridftp_server_eos_$(GLOBUS_FLAVOR).so" ]; then  unlink $(DESTDIR)/$(GLOBUS_LOCATION)/lib/libglobus_gridftp_server_eos_$(GLOBUS_FLAVOR).so; fi 
 	mkdir -p $(DESTDIR)/$(GLOBUS_LOCATION)/lib
-	ln -s  $(libdir)/libglobus_gridftp_server_eos.so $(DESTDIR)/$(GLOBUS_LOCATION)/lib/libglobus_gridftp_server_eos_$(GLOBUS_FLAVOR).so 
+	ln -s  $(libdir)/libglobus_gridftp_server_eos.so.0.0.0 $(DESTDIR)/$(GLOBUS_LOCATION)/lib/libglobus_gridftp_server_eos_$(GLOBUS_FLAVOR).so
 	mkdir -p $(DESTDIR)/$(sysconfdir)/init.d/
-	$(INSTALL) -m 755 $(srcdir)/etc/init.d/eos-gridftp $(DESTDIR)/$(sysconfdir)/init.d/eos-gridftp
+	mkdir -p $(DESTDIR)/$(sysconfdir)/logrotate.d/
+	$(INSTALL) -m 755 $(srcdir)/etc/init.d/eos-gridftp      $(DESTDIR)/$(sysconfdir)/init.d/eos-gridftp
+	$(INSTALL) -m 755 $(srcdir)/etc/logrotate.d/eos-gridftp $(DESTDIR)/$(sysconfdir)/logrotate.d/eos-gridftp
 
 uninstall:		
 	unlink $(GLOBUS_LOCATION)/lib/libglobus_gridftp_server_eos_$(GLOBUS_FLAVOR).so 

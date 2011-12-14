@@ -1,0 +1,7 @@
+/var/log/eos/gridftp/*.log {
+    comptess
+    daily
+    copytruncate
+    missingok
+    rotate 120
+}

@@ -8,7 +8,7 @@ Version: 0.1.1
 Release: 5
 License: none
 Group: Applications/File
-Source0: %{name}-%{version}-%{release}.tar.gz
+Source0: eos-dsi-0.1.1.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 Requires: xrootd-client >= 3.1.0
@@ -27,7 +27,7 @@ BuildRequires: autoconf, automake, libtool
 EOS gridftp DSI plugin
 
 %prep
-%setup -n %{name}-%{version}-%{release}
+%setup -n eos-dsi-0.1.1
 
 %build
 ./bootstrap.sh
@@ -40,7 +40,6 @@ make install DESTDIR=$RPM_BUILD_ROOT
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-
 %files
 %defattr(-,root,root,-)
 %{_libdir}/*.so.*
@@ -48,8 +47,8 @@ rm -rf $RPM_BUILD_ROOT
 %_sysconfdir/init.d/eos-gridftp
 %doc
 
-
 %changelog
+* Wed Dec 14 2011 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-5
 * Fri Dec 09 2011 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-3
 * Thu Jun 16 2011 root <root@lxbsu2005.cern.ch> - dsi.rc20
 - moving to xrootd 3.0.4
