@@ -8,7 +8,7 @@ Version: 0.1.1
 Release: 5
 License: none
 Group: Applications/File
-Source0: eos-dsi-0.1.1.tar.gz
+Source0: eos-dsi-0.1.1-%{Release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 Requires: xrootd-client >= 3.1.0

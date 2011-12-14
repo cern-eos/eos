@@ -8,7 +8,7 @@ Version: @PACKAGE_VERSION@
 Release: 5
 License: none
 Group: Applications/File
-Source0: @PACKAGE_TARNAME@-@PACKAGE_VERSION@.tar.gz
+Source0: @PACKAGE_TARNAME@-@PACKAGE_VERSION@-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 Requires: xrootd-client >= 3.1.0
@@ -27,7 +27,7 @@ BuildRequires: autoconf, automake, libtool
 EOS gridftp DSI plugin
 
 %prep
-%setup -n @PACKAGE_TARNAME@-@PACKAGE_VERSION@-%{Release}
+%setup -n @PACKAGE_TARNAME@-@PACKAGE_VERSION@-%{release}
 
 %build
 ./bootstrap.sh
