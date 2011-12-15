@@ -51,8 +51,7 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 /*----------------------------------------------------------------------------*/
-
-/*-------A---------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 #ifdef __APPLE__
 #define ECOMM 70
 #endif
@@ -85,6 +84,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError *ep)
   eDest = ep;
   ConfigFN  = 0;  
   eos::common::LogId();
+  eos::common::LogId::SetSingleShotLogId();
   (void) signal(SIGINT,xrdmgmofs_shutdown);
 }
 
@@ -3522,14 +3522,19 @@ XrdMgmOfs::FSctl(const int               cmd,
       char* afsid  = env.Get("mgm.add.fsid");
       char* amtime =     env.Get("mgm.mtime");
       char* amtimensec = env.Get("mgm.mtime_ns"); 
-     
+      char* alogid     = env.Get("mgm.logid");
+
+      if (alogid) {
+	SetLogId(alogid);
+      }
+
       XrdOucString averifychecksum = env.Get("mgm.verify.checksum");
       XrdOucString acommitchecksum = env.Get("mgm.commit.checksum");
       XrdOucString averifysize     = env.Get("mgm.verify.size");
       XrdOucString acommitsize     = env.Get("mgm.commit.size");
       XrdOucString adropfsid       = env.Get("mgm.drop.fsid");
       XrdOucString areplication    = env.Get("mgm.replication");
-
+      
       bool verifychecksum = (averifychecksum=="1");
       bool commitchecksum = (acommitchecksum=="1");
       bool verifysize     = (averifysize=="1");
@@ -3587,8 +3592,10 @@ XrdMgmOfs::FSctl(const int               cmd,
         if (!fmd) {          
           // uups, no such file anymore
 	  if (errno == ENOENT) {
+	    eos::common::LogId::SetSingleShotLogId();
             return Emsg(epname,error, ENOENT, "commit filesize change - file is already removed [EIDRM]","");
 	  } else {
+	    eos::common::LogId::SetSingleShotLogId();
 	    return Emsg(epname,error,errno,"commit filesize change",spath);
 	  }
         } else {
@@ -3598,6 +3605,7 @@ XrdMgmOfs::FSctl(const int               cmd,
           if (fmd->getId() != fid ) {            
             eos_notice("commit for fid=%lu but fid=%lu", fmd->getId(), fid);
             gOFS->MgmStats.Add("CommitFailedFid",0,0,1);
+	    eos::common::LogId::SetSingleShotLogId();
             return Emsg(epname,error, EINVAL,"commit filesize change - file id is wrong [EINVAL]", spath);
           }
           
@@ -3606,6 +3614,7 @@ XrdMgmOfs::FSctl(const int               cmd,
                 
             eos_warning("commit for fid=%lu but file is disconnected from any container", fmd->getId());
             gOFS->MgmStats.Add("CommitFailedUnlinked",0,0,1);  
+	    eos::common::LogId::SetSingleShotLogId();
             return Emsg(epname,error, EIDRM, "commit filesize change - file is already removed [EIDRM]","");
           } else {
 	    // store the in-memory modification time
@@ -3626,6 +3635,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 
               eos_err("replication for fid=%lu resulted in a different file size on fsid=%llu - rejecting replica", fmd->getId(), fsid);
               gOFS->MgmStats.Add("ReplicaFailedSize",0,0,1);
+	      eos::common::LogId::SetSingleShotLogId();
               return Emsg(epname, error, EBADE, "commit replica - file size is wrong [EBADE]","");
             }
 
@@ -3641,6 +3651,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 		//-------------------------------------------
 		eos_err("replication for fid=%lu resulted in a different checksum on fsid=%llu - rejecting replica", fmd->getId(), fsid);
 		gOFS->MgmStats.Add("ReplicaFailedChecksum",0,0,1);
+		eos::common::LogId::SetSingleShotLogId();
 		return Emsg(epname, error, EBADR, "commit replica - file checksum is wrong [EBADR]","");
 	      }
 	    }
@@ -3715,6 +3726,7 @@ XrdMgmOfs::FSctl(const int               cmd,
             std::string errmsg = e.getMessage().str();
 	    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());           
             gOFS->MgmStats.Add("CommitFailedNamespace",0,0,1);  
+	    eos::common::LogId::SetSingleShotLogId();
             return Emsg(epname, error, errno, "commit filesize change", errmsg.c_str());      
           }      
         }
@@ -3723,11 +3735,14 @@ XrdMgmOfs::FSctl(const int               cmd,
         eos_err("commit message does not contain all meta information: %s", env.Env(envlen));
         gOFS->MgmStats.Add("CommitFailedParameters",0,0,1);  
         if (spath) {
+	  eos::common::LogId::SetSingleShotLogId();
           return  Emsg(epname,error,EINVAL,"commit filesize change - size,fid,fsid,mtime not complete",spath);
         } else {
+	  eos::common::LogId::SetSingleShotLogId();
           return  Emsg(epname,error,EINVAL,"commit filesize change - size,fid,fsid,mtime,path not complete","unknown");
         }
       }
+      eos::common::LogId::SetSingleShotLogId();
       gOFS->MgmStats.Add("Commit",0,0,1);  
       const char* ok = "OK";
       error.setErrInfo(strlen(ok)+1,ok);
