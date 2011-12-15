@@ -5,7 +5,7 @@
 Summary: EOS gridftp DSI plugin
 Name: eos-dsi
 Version: @PACKAGE_VERSION@
-Release: 5
+Release: 5a
 License: none
 Group: Applications/File
 Source0: @PACKAGE_TARNAME@-@PACKAGE_VERSION@-%{release}.tar.gz
