@@ -27,8 +27,13 @@
 #include "common/Logging.hh"
 #include "common/ClientAdmin.hh"
 #include "common/FileSystem.hh"
+
+#ifndef CLIENT_ONLY
 #include "mq/XrdMqMessage.hh"
+#endif
+
 #include "mq/XrdMqTiming.hh"
+
 /*----------------------------------------------------------------------------*/
 #include "XrdClient/XrdClient.hh"
 #include "XrdOuc/XrdOucEnv.hh"

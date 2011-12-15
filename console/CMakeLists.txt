@@ -78,7 +78,12 @@ add_executable ( eos
                  commands/com_who.cc
 )
 
+if (CLIENT)
+target_link_libraries ( eos XrdClient XrdUtils pthread dl crypto uuid curses z readline )
+else (CLIENT)
 target_link_libraries ( eos XrdClient XrdUtils pthread dl XrdMqClient-Static crypto uuid curses z readline )
+endif (CLIENT)
+
 
 INSTALL_PROGRAMS( /sbin FILES eosadmin )
 
