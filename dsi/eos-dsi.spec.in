@@ -5,7 +5,7 @@
 Summary: EOS gridftp DSI plugin
 Name: eos-dsi
 Version: @PACKAGE_VERSION@
-Release: 5a
+Release: 6
 License: none
 Group: Applications/File
 Source0: @PACKAGE_TARNAME@-@PACKAGE_VERSION@-%{release}.tar.gz
@@ -47,6 +47,18 @@ rm -rf $RPM_BUILD_ROOT
 %_sysconfdir/init.d/eos-gridftp
 %_sysconfdir/logrotate.d/eos-gridftp
 %doc
+
+%post
+/sbin/chkconfig --add eos
+echo Starting conditional EOS grid-ftp services
+/sbin/service eos-gridftp condrestart > /dev/null 2>&1 || :
+%preun 
+if [ $1 = 0 ]; then
+        echo Stopping EOS grid-ftp services
+        /sbin/service eos-gridftp stop > /dev/null 2>&1 
+        /sbin/chkconfig --del eos
+fi
+
 
 %changelog
 * Wed Dec 14 2011 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-5

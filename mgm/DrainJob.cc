@@ -331,7 +331,7 @@ DrainJob::Drain(void)
               int n2submit = 10 - queue->Size();
               if (n2submit>0) {
                 // submit n2submit jobs
-                eos_static_info("submitting %d new transfer jobs", n2submit);
+                eos_static_debug("submitting %d new transfer jobs", n2submit);
 
                 queue->OpenTransaction();
                 for (int nsubmit = 0; nsubmit < n2submit; nsubmit++) {
