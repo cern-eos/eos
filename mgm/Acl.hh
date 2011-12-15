@@ -43,6 +43,7 @@ class Acl {
   bool canBrowse;
   bool canChmod;
   bool canNotDelete;
+  bool canDelete;
   bool hasAcl;
   bool hasEgroup;
 

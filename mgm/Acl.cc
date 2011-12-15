@@ -58,6 +58,7 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
   canBrowse = false;
   canChmod = false;
   canNotDelete = false;
+  canDelete = false;
   hasEgroup = false;
 
   if (!acl.length()) {
@@ -131,7 +132,17 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
       }
 
       if ((entry[2].find("!d"))!= std::string::npos) {
-        canNotDelete = true;
+	// canDelete is true, if deletion has been explicitly allowed by a rule and in this case we don't forbid deletion even if another rule says that
+	if (!canDelete) {
+	  canNotDelete = true;
+	}
+
+        hasAcl = true;
+      }
+
+      if ((entry[2].find("+d"))!= std::string::npos) {
+	canDelete = true;
+	canNotDelete = false;
         hasAcl = true;
       }
 
