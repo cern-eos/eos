@@ -30,7 +30,9 @@
 #include <string.h>
 
 #include <XrdPosix/XrdPosixXrootd.hh>
+#include <XrdPosix/XrdPosixXrootdPath.hh>
 #include <XrdPosix/XrdPosixExtern.hh>
+
 #include "dsi_eos.hh"
 
 #include <stdio.h>
@@ -40,6 +42,7 @@
 #include <errno.h>
 
 XrdPosixXrootd posixsingleton;
+XrdPosixXrootPath XP;
 
 extern "C" {
 
@@ -306,9 +309,13 @@ extern "C" {
       {
         PathName++;
       }
+
+    char *myPath, buff[2048];
+    if (!(myPath = XP.URL(PathName, buff, sizeof(buff))))
+      myPath=PathName;
     
     /* lstat is the same as stat when not operating on a link */
-    if(XrdPosixXrootd::Stat(PathName, &stat_buf) != 0)
+    if(XrdPosixXrootd::Stat(myPath, &stat_buf) != 0)
       {
         result = GlobusGFSErrorSystemError("stat", errno);
         goto error_stat1;
@@ -336,7 +343,11 @@ extern "C" {
         int                             i;
         char                            dir_path[MAXPATHLEN];
     
-        dir = XrdPosixXrootd::Opendir(PathName);
+	char *myPath, buff[2048];
+	if (!(myPath = XP.URL(PathName, buff, sizeof(buff))))
+	  myPath=PathName;
+	
+        dir = XrdPosixXrootd::Opendir(myPath);
         if(!dir)
           {
             result = GlobusGFSErrorSystemError("opendir", errno);
@@ -381,7 +392,11 @@ extern "C" {
             if (path[0] == '/' && path[1] == '/') { path++; }
             while (path[0] == '/' && path[1] == '/') { path++; }
             /* lstat is the same as stat when not operating on a link */
-            if(XrdPosixXrootd::Stat(path, &stat_buf) != 0)
+	    char *myPath, buff[2048];
+	    if (!(myPath = XP.URL(path, buff, sizeof(buff))))
+	      myPath=path;
+
+            if(XrdPosixXrootd::Stat(myPath, &stat_buf) != 0)
               {
                 result = GlobusGFSErrorSystemError("lstat", errno);
                 /* just skip invalid entries */
@@ -467,18 +482,23 @@ extern "C" {
 
     fflush(stderr);
     rc = GLOBUS_SUCCESS;
+
+    char *myPath, buff[2048];
+    if (!(myPath = XP.URL(PathName, buff, sizeof(buff))))
+      myPath=PathName;
+
     switch(cmd_info->command)
       {
       case GLOBUS_GFS_CMD_MKD:
-        (XrdPosixXrootd::Mkdir(PathName, 0777) == 0) || 
+        (XrdPosixXrootd::Mkdir(myPath, 0777) == 0) || 
           (rc = GlobusGFSErrorGeneric("mkdir() fail"));
         break;
       case GLOBUS_GFS_CMD_RMD:
-        (XrdPosixXrootd::Rmdir(PathName) == 0) || 
+        (XrdPosixXrootd::Rmdir(myPath) == 0) || 
           (rc = GlobusGFSErrorGeneric("rmdir() fail"));
         break;
       case GLOBUS_GFS_CMD_DELE:
-        (XrdPosixXrootd::Unlink(PathName) == 0) ||
+        (XrdPosixXrootd::Unlink(myPath) == 0) ||
           (rc = GlobusGFSErrorGeneric("unlink() fail"));
         break;
       case GLOBUS_GFS_CMD_SITE_RDEL:
@@ -489,7 +509,10 @@ extern "C" {
         rc = GLOBUS_FAILURE;
         break;
       case GLOBUS_GFS_CMD_RNTO:
-        (XrdPosixXrootd::Rename(cmd_info->rnfr_pathname, PathName) == 0) || 
+	char *rmyPath, buff[2048];
+	if (!(rmyPath = XP.URL(cmd_info->rnfr_pathname, buff, sizeof(buff))))
+	  rmyPath=cmd_info->rnfr_pathname;
+        (XrdPosixXrootd::Rename(rmyPath, myPath) == 0) || 
           (rc = GlobusGFSErrorGeneric("rename() fail"));
         break;
       case GLOBUS_GFS_CMD_SITE_CHMOD:
@@ -587,8 +610,11 @@ extern "C" {
                            func,
                            path);
     try {
-      system("printenv | grep XROOT");
-      rc = XrdPosixXrootd::Open(path, flags, mode);
+      char *myPath, buff[2048];
+      if (!(myPath = XP.URL(path, buff, sizeof(buff))))
+	myPath=path;
+
+      rc = XrdPosixXrootd::Open(myPath, flags, mode);
       if (rc < 0) {
         globus_gfs_log_message(GLOBUS_GFS_LOG_ERR,
                                "%s: XrdPosixXrootd::Open returned error code %d\n",
