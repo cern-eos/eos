@@ -289,8 +289,8 @@ BalanceJob::Balance(void)
 
   XrdSysThread::CancelPoint();
 
-  std::map<eos::common::FileSystem::fsid_t, unsigned long long >::const_iterator source_it;
-  std::map<eos::common::FileSystem::fsid_t, unsigned long long >::const_iterator target_it;
+  std::map<eos::common::FileSystem::fsid_t, long long >::const_iterator source_it;
+  std::map<eos::common::FileSystem::fsid_t, long long >::const_iterator target_it;
   
   bool found=false;
 
@@ -301,7 +301,6 @@ BalanceJob::Balance(void)
   eos_static_notice("Waiting to balance on group %s members=%lu sources=%lu targets=%lu", mName.c_str(), mGroup->size(), SourceSizeMap.size(), TargetQueues.size());
   {
     gSchedulingMutex.Lock();
-    eos_static_notice("Balancing on group %s members=%lu sources=%lu targets=%lu", mName.c_str(), mGroup->size(), SourceSizeMap.size(), TargetQueues.size());
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     
 
@@ -310,6 +309,8 @@ BalanceJob::Balance(void)
       TargetQueues[target_it->first] = FsView::gFsView.mIdView[target_it->first]->GetBalanceQueue();
       TargetQueues[target_it->first]->OpenTransaction();
     }
+
+    eos_static_notice("Balancing on group %s members=%lu sources=%lu targets=%lu", mName.c_str(), mGroup->size(), SourceSizeMap.size(), TargetQueues.size());
 
     source_it = SourceSizeMap.begin();
     target_it = TargetSizeMap.begin();
