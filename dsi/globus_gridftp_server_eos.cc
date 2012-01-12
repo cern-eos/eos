@@ -739,7 +739,7 @@ extern "C" {
     globus_l_gfs_eos_handle_t *eos_handle;
     globus_result_t result;
     const char *func = "globus_l_gfs_eos_recv";
-    char *pathname;
+    char pathname[16384];
     int flags;
 
     GlobusGFSName(globus_l_gfs_eos_recv);
@@ -747,7 +747,11 @@ extern "C" {
 
     globus_gfs_log_message(GLOBUS_GFS_LOG_DUMP,"%s: started\n",func);
 
-    pathname = strdup(transfer_info->pathname);
+    if (transfer_info->alloc_size) {
+      snprintf(pathname,sizeof(pathname)-1, "%s?eos.bookingsize=%llu",transfer_info->pathname, transfer_info->alloc_size);
+    } else {
+      snprintf(pathname,sizeof(pathname),"%s", transfer_info->pathname);
+    }
 
     globus_gfs_log_message(GLOBUS_GFS_LOG_DUMP,
                            "%s: pathname: %s \n",
@@ -763,7 +767,6 @@ extern "C" {
     if (eos_handle->fd < 0) {
       result=globus_l_gfs_make_error("open/create", errno);
       globus_gridftp_server_finished_transfer(op, result);
-      free(pathname);
       return;
     }
 
@@ -788,7 +791,6 @@ extern "C" {
     }
     globus_mutex_unlock(&eos_handle->mutex);
     globus_gfs_log_message(GLOBUS_GFS_LOG_DUMP,"%s: finished\n",func);
-    free(pathname);
     return;
   }
 

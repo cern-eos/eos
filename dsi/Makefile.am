@@ -22,9 +22,9 @@ uninstall:
 	unlink $(DESTDIR)/$(sysconfdir)/init.d/eos-gridftp
 
 
-EXTRA_DIST = bootstrap.sh etc/init.d/eos-gridftp eos-dsi.spec eos-dsi.spec.in
+EXTRA_DIST = bootstrap.sh etc/init.d/eos-gridftp etc/logrotate.d/eos-gridftp eos-dsi.spec eos-dsi.spec.in
 
 rpm:    dist
 	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
-	rpmbuild -bb eos-dsi.spec
+	rpmbuild -bb eos-dsi.spec 
 
