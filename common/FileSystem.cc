@@ -332,13 +332,16 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t &fs, bool dolock) {
     fs.mDiskFiles       = (long) mHash->GetLongLong("stat.statfs.files");
     fs.mDiskFfree       = (long) mHash->GetLongLong("stat.statfs.ffree");
     fs.mDiskFused       = (long) mHash->GetLongLong("stat.statfs.fused");
+    fs.mDiskFilled      = (double) mHash->GetDouble("stat.statfs.filled");
+    fs.mNominalFilled   = (double) mHash->GetDouble("stat.nominal.filled");
+
     fs.mFiles           = (long) mHash->GetLongLong("stat.usedfiles");
     fs.mDiskNameLen     = (long) mHash->GetLongLong("stat.statfs.namelen");
     fs.mDiskRopen       = (long) mHash->GetLongLong("stat.ropen");
     fs.mDiskWopen       = (long) mHash->GetLongLong("stat.wopen");
     fs.mWeightRead      = 1.0;
     fs.mWeightWrite     = 1.0;
-
+    
     fs.mScanInterval    = (time_t) mHash->GetLongLong("scaninterval");
     fs.mGracePeriod     = (time_t) mHash->GetLongLong("graceperiod");
     fs.mDrainPeriod     = (time_t) mHash->GetLongLong("drainperiod");

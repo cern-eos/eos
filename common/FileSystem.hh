@@ -101,6 +101,8 @@ public:
     double mNetOutRateMiB;
     double mWeightRead;
     double mWeightWrite;
+    double mNominalFilled;
+    double mDiskFilled;
     long long mDiskCapacity;
     long long mDiskFreeBytes;
     long   mDiskType;

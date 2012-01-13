@@ -67,9 +67,9 @@ EOSCOMMONNAMESPACE_BEGIN
 
 class LogId {
 public:
-  void SetSingleShotLogId() {
+  void SetSingleShotLogId(const char* td="<single-exec>") {
     snprintf(logId,sizeof(logId)-1,"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
-    snprintf(cident, sizeof(cident)-1,"<single-exec>");
+    snprintf(cident, sizeof(cident)-1,"%s",td);
   }
   
   void SetLogId(const char* newlogid, const char* td= "<service>") {

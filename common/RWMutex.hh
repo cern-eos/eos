@@ -72,7 +72,7 @@ public:
   
   void LockWrite() {
     if (blocking) {
-      if (pthread_rwlock_rdlock(&rwlock)) { throw "pthread_rwlock_rdlock failed";}
+      if (pthread_rwlock_wrlock(&rwlock)) { throw "pthread_rwlock_rdlock failed";}
     } else {
       while (1) {
 	int rc = pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
@@ -89,6 +89,10 @@ public:
 	}
       }
     }
+  }
+
+  int TimeoutLockWrite() {
+    return pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
   }
   
   void UnLockWrite() { 

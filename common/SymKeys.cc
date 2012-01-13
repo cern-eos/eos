@@ -120,8 +120,9 @@ SymKeyStore::SetKey64(const char* inkey64, time_t invalidity)
 
   char* binarykey = 0;
   unsigned int outlen = 0;
-  XrdOucString s64=inkey64;
-  if (!SymKey::Base64Decode(s64, binarykey, outlen)) {
+  XrdOucString key64=inkey64;
+
+  if (!SymKey::Base64Decode(key64, binarykey, outlen)) {
     return 0;
   }
   if (outlen != SHA_DIGEST_LENGTH) 
@@ -142,6 +143,7 @@ SymKeyStore::SetKey(const char* inkey, time_t invalidity)
   if (!key) {
     return 0;
   }
+
   // check if it exists
   SymKey* existkey = Store.Find(key->GetDigest64());
   // if it exists we remove it add it with the new validity time

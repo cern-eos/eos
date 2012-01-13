@@ -47,7 +47,8 @@ private:
   char key[SHA_DIGEST_LENGTH+1];
   char keydigest[SHA_DIGEST_LENGTH+1];
   char keydigest64[SHA_DIGEST_LENGTH*2];
-  
+  XrdOucString key64;
+
   time_t validity;
 
 public:
@@ -55,7 +56,11 @@ public:
   static bool Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen);
 
   SymKey(const char* inkey, time_t invalidity) {
+    key64="";
     memcpy(key,inkey,SHA_DIGEST_LENGTH);
+    
+    SymKey::Base64Encode(key, SHA_DIGEST_LENGTH, key64);
+    
     validity = invalidity;
     SHA_CTX sha1;
     SHA1_Init(&sha1);
@@ -74,8 +79,13 @@ public:
     }
     fprintf(stderr, "digest: %s", keydigest64);
   }
+
   const char* GetKey() {
     return key;
+  }
+
+  const char* GetKey64() {
+    return key64.c_str();
   }
 
   const char* GetDigest() {

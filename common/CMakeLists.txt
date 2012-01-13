@@ -39,6 +39,7 @@ add_library (eosCommon SHARED
             TransferQueue.cc
             TransferJob.cc
             Report.cc
+	    sqlite/sqlite3.c
 	    )
 
 add_library (eosCommon-Static STATIC
@@ -56,6 +57,7 @@ add_library (eosCommon-Static STATIC
             TransferQueue.cc
             TransferJob.cc
             Report.cc
+	    sqlite/sqlite3.c
 )
 
 
