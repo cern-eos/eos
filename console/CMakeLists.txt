@@ -70,7 +70,7 @@ add_executable ( eos
 		 commands/com_space.cc
 		 commands/com_test.cc 
 		 commands/com_timing.cc
-		 commands/com_transfers.cc 
+		 commands/com_transfer.cc 
 		 commands/com_verify.cc 
 		 commands/com_version.cc 
 		 commands/com_vid.cc 

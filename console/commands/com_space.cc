@@ -222,7 +222,11 @@ com_space (char* arg1) {
   printf("                                                                --io : print IO satistics\n");
   printf("       space config <space-name> space.nominalsize=<value>           : configure the nominal size for this space\n");
   printf("       space config <space-name> space.balancer=on|off               : enable/disable the space balancer [default=on]\n");
-  printf("       space config <space-name> space.balancer.threshold=<size>     : configure the used bytes deviation which triggers balancing [ default=50G ] \n");
+  printf("       space config <space-name> space.balancer.threshold=<percent>  : configure the used bytes deviation which triggers balancing            [ default=20 (%%)     ] \n");
+  printf("       space config <space-name> space.balancer.node.rate=<MB/s>     : configure the nominal transfer bandwith per running transfer on a node [ default=25 (MB/s)   ]\n");
+  printf("       space config <space-name> space.balancer.node.ntx=<#>         : configure the number of parallel balancing transfers per node          [ default=2 (streams) ]\n");
+  printf("       space config <space-name> space.drainer.node.rate=<MB/s >     : configure the nominal transfer bandwith per running transfer on a node [ default=25 (MB/s)   ]\n");
+  printf("       space config <space-name> space.drainer.node.ntx=<#>          : configure the number of parallel draining transfers per node           [ default=2 (streams) ]\n");
   printf("       space config <space-name> space.headroom=<size>               : configure the default disk headroom if not defined on a filesystem (see fs for details)\n");
   printf("       space config <space-name> space.scaninterval=<sec>            : configure the default scan interval if not defined on a filesystem (see fs for details)\n");
   printf("       space config <space-name> space.drainperiod=<sec>             : configure the default drain  period if not defined on a filesystem (see fs for details)\n");

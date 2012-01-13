@@ -75,7 +75,7 @@ extern int com_silent (char*);
 extern int com_space (char*);
 extern int com_test (char*);
 extern int com_timing (char*);
-extern int com_transfers (char*);
+extern int com_transfer (char*);
 extern int com_verify (char*);
 extern int com_version (char*);
 extern int com_vid (char*);
@@ -199,7 +199,7 @@ COMMAND commands[] = {
   { (char*)"space",    com_space,    (char*)"Space configuration" },
   { (char*)"test",     com_test,     (char*)"Run performance test" },
   { (char*)"timing",   com_timing,   (char*)"Toggle timing flag for execution time measurement" },
-  { (char*)"transfers",com_transfers,(char*)"Transfer Interface"},
+  { (char*)"transfer" ,com_transfer ,(char*)"Transfer Interface"},
   { (char*)"verify",   com_verify,   (char*)"Verify Interface"},
   { (char*)"version",  com_version,  (char*)"Verbose client/server version"},
   { (char*)"whoami",   com_whoami,   (char*)"Determine how we are mapped on server side" },
