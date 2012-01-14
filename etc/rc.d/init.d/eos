@@ -74,9 +74,6 @@ fi
 
 
 start() {
-        # Run daemon
-        echo -n $"Starting $prog: "
-
 	# Start xrootd daemons
 	echo
 	for i in ${XRD_ROLES}; do
@@ -178,30 +175,48 @@ start() {
 }
 
 stop() {
-        cleanup
-        echo -n $"Stopping $prog: $1 "
-        if [ -n "$1" ]; then
-                killproc $prog.$1 2>/dev/null
-        else
-                killproc $prog 2>/dev/null
-        fi
-        RETVAL=$?
-        echo
-        if [ -n "$1" ]; then
-	    if [ $USER = "root" ]; then
-                [ -f /var/lock/subsys/$prog.$1 ] && rm -f /var/lock/subsys/$prog.$1
-	    fi
-        else 
-	    if [ $USER = "root" ]; then
-                rm -f /var/lock/subsys/$prog.*
-	    fi
-        fi
+	GRETVAL=0
+	if [ -n "$1" ]; then
+		XRD_ROLES="$1";
+	fi	
+	for role in $XRD_ROLES; do 
+		RETVAL=0
+	        if [ "$role" = "fed" ]; then
+	        	/etc/init.d/cmsd stop
+			GRETVAL=$?
+	        else 
+			RETVAL=1
+			echo -n $"Stopping $prog: $role"
+	  	       	# try killing by grep
+			for pid in `ps -eo pid,ppid,comm,cmd | grep -v egrep | grep $role | egrep "$prog -n $role" | awk '{print $1}'`; do
 
-        if [ "$i" = "fed" ]; then
-           /etc/init.d/cmsd stop
-        fi
-
-        return $RETVAL
+		        	if [ -n "$pid" ]; then
+					kill -15 $pid;
+					usleep 200000
+					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
+					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
+					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
+					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
+					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
+					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
+					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
+					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
+					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
+					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
+					[ -d "/proc/$pid" ] || RETVAL=0
+					[ "$RETVAL" != "0" ] && GRETVAL=$RETVAL
+					[ $USER = "root" ] && [ "$RETVAL" = "0" ] && [ -f /var/lock/subsys/$prog.$role ] && rm -f /var/lock/subsys/$prog.$role
+					[ $USER = "root" ] && [ "$RETVAL" = "0" ] && [ -f /var/run/$prog.$role ] && rm -f /var/run/$prog.$role
+					
+				fi
+			done	
+	   	        [ -f /var/lock/subsys/$prog.$role ] && rm -f /var/lock/subsys/$prog.$role
+                        [ -f /var/run/$prog.$role ] && rm -f /var/run/$prog.$role
+			[ "$RETVAL" = "0" ] && success || failure 	
+			echo
+		fi
+	done
+        return $GRETVAL
 }
 
 status() {
@@ -218,8 +233,14 @@ status() {
                                 echo $"$prog for role: $i dead but subsys locked"
                                 RETVAL=1
                         else
-                                echo $"$prog for role: $i is stopped"
-                                RETVAL=2
+				pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 $prog.*$_XRD_OPTIONS\$" | grep $i | awk '{print $1}' | head -1`
+                                if [ -n "$pid" ]; then
+                                   echo $"$prog for role: $i is starting (pid $pid) "
+				   RETVAL=0
+	 			else	
+                                   echo $"$prog for role: $i is stopped"
+                                   RETVAL=2
+				fi
                         fi
                 fi                        
         done

@@ -29,9 +29,9 @@ chown daemon:daemon /var/log/eos/httpd/
 chown daemon:daemon /var/www/eos/cgi-bin/eos-httpd-redirector.cgi
 chown daemon:daemon /var/www/eos/browser/connectors/jqueryFileTree.pl
 chown root:daemon /var/www/eos/cgi-bin/eos-httpd-redirector-suexec.cgi
-chmod 700 /var/www/eos/cgi-bin/eos-httpd-redirector.cgi
-chmod 4750 /var/www/eos/cgi-bin/eos-httpd-redirector-suexec.cgi
-chmod 700 /var/www/eos/browser/connectors/jqueryFileTree.pl
+chmod 755 /var/www/eos/cgi-bin/eos-httpd-redirector.cgi
+chmod 4755 /var/www/eos/cgi-bin/eos-httpd-redirector-suexec.cgi
+chmod 755 /var/www/eos/browser/connectors/jqueryFileTree.pl
 test -L /var/www/eos/eos || ln -s /eos /var/www/eos/eos
 test -L /var/www/eos/browser/tree/eos || ln -s /eos /var/www/eos/browser/tree/eos
 

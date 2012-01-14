@@ -27,3 +27,4 @@ INSTALL ( FILES rc.d/init.d/eos rc.d/init.d/eosha rc.d/init.d/eossync rc.d/init.
 INSTALL ( FILES sysconfig/eos.example sysconfig/xrootd.example sysconfig/eoshttpd DESTINATION ${SYSCONFDIR}/sysconfig/ )
 INSTALL ( FILES cron.d/eos-logs DESTINATION ${SYSCONFDIR}/cron.d/ )
 INSTALL ( FILES httpd/conf/eoshttpd.default.conf DESTINATION ${SYSCONFDIR}/httpd/conf/ )
+INSTALL ( DIRECTORY shibboleth DESTINATION ${SYSCONFDIR}/ )
