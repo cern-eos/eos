@@ -13,7 +13,7 @@
  * (at your option) any later version.                                  *
  *                                                                      *
  * This program is distributed in the hope that it will be useful,      *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * but WITHOUTA ANY WARRANTY; without even the implied warranty of       *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
@@ -373,11 +373,35 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
         }
       }
     } else {
-      std::string delimiter = "%";
-      // we support also multiplexed subject updates and split the list
-      XrdMqStringConversion::Tokenize(subject,subjectlist,delimiter);
+      // support 'wild card' broadcasts with */<name>
+      if ( (subject.find("*/")) == 0 ) {
+	XrdOucString wmatch = subject.c_str();
+	wmatch.erase(0,2);
+	{
+	  std::map<std::string, XrdMqSharedHash*>::iterator it;
+	  for (it=hashsubjects.begin(); it != hashsubjects.end(); it++) {
+	    XrdOucString hs = it->first.c_str();
+	    if (hs.endswith(wmatch)) {
+	      subjectlist.push_back(hs.c_str());
+	    }
+	  }
+	}
+	{
+	  std::map<std::string, XrdMqSharedQueue>::iterator it;
+	  for (it=queuesubjects.begin(); it != queuesubjects.end(); it++) {
+	    XrdOucString hs = it->first.c_str();
+	    if (hs.endswith(wmatch)) {
+	      subjectlist.push_back(hs.c_str());
+	    }
+	  }
+	}
+      } else {
+	std::string delimiter = "%";
+	// we support also multiplexed subject updates and split the list
+	XrdMqStringConversion::Tokenize(subject,subjectlist,delimiter);
+      }
     }
-
+    
     XrdOucString ftag = XRDMQSHAREDHASH_CMD; ftag += "="; ftag += env.Get(XRDMQSHAREDHASH_CMD);
 
     if (subjectlist.size()>0)

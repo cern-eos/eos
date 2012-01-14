@@ -83,6 +83,17 @@ bool XrdMqClient::Unsubscribe(const char* queue) {
   }
   return true;
 }
+
+/*----------------------------------------------------------------------------*/
+/* Disconnect                                                                 */
+/*----------------------------------------------------------------------------*/
+void XrdMqClient::Disconnect() {
+  for (int i=0; i< kBrokerN;i++) {
+    GetBrokerXrdClientReceiver(i)->GetClientConn()->Disconnect(true);
+  }
+  kBrokerN=0;
+  return;
+}
   
 /*----------------------------------------------------------------------------*/
 /* SendMessage                                                                */

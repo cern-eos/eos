@@ -309,6 +309,7 @@ XrdMqOfsFile::open(const char                *queuename,
   
 
   if (XrdOfsFS.QueueOut.count(squeue)) {
+    fprintf(stderr,"EBUSY: Queue %s is busy\n", QueueName.c_str());
     // this is already open by 'someone'
     return XrdMqOfs::Emsg(epname, error, EBUSY, "connect queue - already connected",queuename);
   }

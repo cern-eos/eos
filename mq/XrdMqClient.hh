@@ -82,6 +82,7 @@ public:
 
   bool AddBroker(const char* brokerurl, bool advisorystatus=false, bool advisoryquery=false);
 
+  void Disconnect();
 
   XrdMqClient(const char* clientid = 0, const char* brokerurl = 0, const char* defaultreceiverid = 0);
 
