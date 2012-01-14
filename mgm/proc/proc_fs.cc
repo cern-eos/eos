@@ -397,7 +397,7 @@ int proc_fs_add(std::string &sfsid, std::string &uuid, std::string &nodename, st
               } 
               // set all the space related default parameters
               if (FsView::gFsView.mSpaceView.count(space)) {
-                if (FsView::gFsView.mSpaceView[space]->ApplySpaceDefaultParameters(fs)) {
+                if (FsView::gFsView.mSpaceView[space]->ApplySpaceDefaultParameters(fs), true) {
 		  // store the modifications
 		  FsView::gFsView.StoreFsConfig(fs);
 		}
@@ -581,7 +581,7 @@ int proc_fs_mv(std::string &sfsid, std::string &space, XrdOucString &stdOut, Xrd
 
       // set all the space related default parameters
       if (FsView::gFsView.mSpaceView.count(rspace)) {
-        FsView::gFsView.mSpaceView[rspace]->ApplySpaceDefaultParameters(fs);
+        FsView::gFsView.mSpaceView[rspace]->ApplySpaceDefaultParameters(fs, true);
       }
       
       if (FsView::gFsView.MoveGroup(fs, space)) {

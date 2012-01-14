@@ -32,6 +32,7 @@
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
+#include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Access.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
@@ -46,6 +47,8 @@
 #include "XrdCms/XrdCmsFinder.hh"
 /*----------------------------------------------------------------------------*/
 extern XrdOucTrace gMgmOfsTrace;
+extern void xrdmgmofs_shutdown(int sig);
+
 /*----------------------------------------------------------------------------*/
 
 USE_EOSMGMNAMESPACE
@@ -190,8 +193,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   bool authorize=false;
   AuthLib = "";
   Authorization = 0;
-
+  pthread_t tid = 0;
   IssueCapability = false;
+
+  setenv("XrdSecPROTOCOL","sss",1);
+  Eroute.Say("=====> mgmofs enforces SSS authentication for XROOT clients");
 
   MgmOfsTargetPort = "1094";
   MgmOfsName = "";
@@ -221,9 +227,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   XrdOucString ConfigAutoLoad = "";
 
   long myPort=0;
-
-  setenv("XrdSecPROTOCOL","sss",1);
-  Eroute.Say("=====> mgmofs enforces SSS authentication for XROOT clients");
 
   if (getenv("XRDDEBUG")) gMgmOfsTrace.What = TRACE_MOST | TRACE_debug;
 
@@ -394,28 +397,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
             Eroute.Say("=====> mgmofs.errorlog : true");
           else
             Eroute.Say("=====> mgmofs.errorlog : false");
-        }
-        
-        if (!strcmp("symkey",var)) {
-          if ((!(val = Config.GetWord())) || (strlen(val)!=28)) {
-            Eroute.Emsg("Config","argument 2 for symkey missing or length!=28");
-            NoGo=1;
-          } else {
-            // this key is valid forever ...
-            if (getenv("EOS_SYM_KEY")) {
-              if (!eos::common::gSymKeyStore.SetKey64(getenv("EOS_SYM_KEY"),0)) {
-                Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
-                NoGo=1;
-              }
-              Eroute.Say("=====> mgmofs.symkey(sysconfig) : ", getenv("EOS_SYM_KEY"));
-            } else {
-              if (!eos::common::gSymKeyStore.SetKey64(val,0)) {
-                Eroute.Emsg("Config","cannot decode your key and use it in the sym key store!");
-                NoGo=1;
-              }
-              Eroute.Say("=====> mgmofs.symkey : ", val);
-            }
-          }
         }
         
         if (!strcmp("configdir",var)) {
@@ -665,7 +646,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   if (ErrorLog) {
     // this 
-    XrdOucString errorlogkillline="pkill -f \"eos -b console log _MGMID_\"";
+    XrdOucString errorlogkillline="pkill -9 -f \"eos -b console log _MGMID_\"";
     system(errorlogkillline.c_str());
     XrdOucString errorlogline="eos -b console log _MGMID_ >& /dev/null &";
     system(errorlogline.c_str());
@@ -768,24 +749,41 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   XrdOucString keytabcks="unaccessible";
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // build the adler checksum of the default keytab file
+  // build the adler & sha1 checksum of the default keytab file
   int fd = ::open("/etc/eos.keytab",O_RDONLY);
+
+  XrdOucString symkey="";
+
   if (fd>0) {
     char buffer[65535];
+    char keydigest[SHA_DIGEST_LENGTH+1];
+
+    SHA_CTX sha1;
+    SHA1_Init(&sha1);
+    
+
+
     size_t nread = ::read(fd, buffer, sizeof(buffer));
     if (nread>0) {
       unsigned int adler;
+      SHA1_Update(&sha1, (const char*) buffer, nread);
       adler = adler32(0L, Z_NULL,0);
       adler = adler32(adler, (const Bytef*) buffer, nread);
       char sadler[1024];
       snprintf(sadler,sizeof(sadler)-1,"%08x", adler);
       keytabcks=sadler;
     }
+    SHA1_Final((unsigned char*)keydigest, &sha1);
+    eos::common::SymKey::Base64Encode(keydigest, SHA_DIGEST_LENGTH, symkey);
     close(fd);
   }
 
-  eos_notice("MGM_HOST=%s MGM_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s", HostName, myPort, VERSION,RELEASE, keytabcks.c_str());
+  eos_notice("MGM_HOST=%s MGM_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s SYMKEY=%s", HostName, myPort, VERSION,RELEASE, keytabcks.c_str(), symkey.c_str());
 
+  if (!eos::common::gSymKeyStore.SetKey64(symkey.c_str(),0)) {
+    eos_crit("unable to store the created symmetric key %s", symkey.c_str());
+    return 1;
+  }
 
   // create global visible configuration parameters
   // we create 3 queues
@@ -798,8 +796,10 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   FstConfigQueue = configbasequeue; FstConfigQueue += "/fst/";
 
   SpaceConfigQueuePrefix = configbasequeue; SpaceConfigQueuePrefix += "/space/";
-  NodeConfigQueuePrefix  = configbasequeue; NodeConfigQueuePrefix  += "/node/";
+  NodeConfigQueuePrefix  = "/config/"     ; NodeConfigQueuePrefix  += MgmOfsInstanceName.c_str(); NodeConfigQueuePrefix  += "/node/";
   GroupConfigQueuePrefix = configbasequeue; GroupConfigQueuePrefix += "/group/";
+
+  FsNode::gManagerId = ManagerId.c_str();
 
   FsView::gFsView.SetConfigQueues(MgmConfigQueue.c_str(), NodeConfigQueuePrefix.c_str(), GroupConfigQueuePrefix.c_str(), SpaceConfigQueuePrefix.c_str());
   FsView::gFsView.SetConfigEngine(ConfEngine);
@@ -877,7 +877,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     
     eosView->configure ( settings );
     
-    eos_notice("%s",(char*)"eos view configure started");
+    eos_notice("%s",(char*)"eos directory view configure started");
 
     eosFileService->addChangeListener( eosFsView );
 
@@ -885,7 +885,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     eosView->initialize1();
 
     time_t tstop  = time(0);
-    eos_notice("eos view configure stopped after %d seconds", (tstop-tstart));
+    eos_notice("eos directory view configure stopped after %d seconds", (tstop-tstart));
   } catch ( eos::MDException &e ) {
     time_t tstop  = time(0);
     eos_crit("eos view initialization failed after %d seconds", (tstop-tstart));
@@ -977,8 +977,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     } */
     
 
-  pthread_t tid;
-  
   //-------------------------------------------
 
   // create the specific listener class
@@ -1052,6 +1050,12 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   // fill the current accounting
   Quota::NodesToSpaceQuota();
 
+  // initialize the transfer database
+  if (!gTransferEngine.Init("/var/eos/tx")) {
+    eos_crit("cannot intialize transfer database");
+    NoGo = 1;
+  }
+
   // add all stat entries with 0
 
   gOFS->MgmStats.Add("HashSet",0,0,0);
@@ -1087,6 +1091,10 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("Mkdir",0,0,0);
   gOFS->MgmStats.Add("Motd",0,0,0);
   gOFS->MgmStats.Add("MoveStripe",0,0,0);
+  gOFS->MgmStats.Add("OpenBalance",0,0,0);
+  gOFS->MgmStats.Add("OpenFailedBalance",0,0,0);
+  gOFS->MgmStats.Add("OpenDrain",0,0,0);
+  gOFS->MgmStats.Add("OpenFailedDrain",0,0,0);
   gOFS->MgmStats.Add("OpenDir",0,0,0);
   gOFS->MgmStats.Add("OpenFailedExists",0,0,0);
   gOFS->MgmStats.Add("OpenFailedHeal",0,0,0);
@@ -1132,6 +1140,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   }
   // start IO ciruclate thread
   gOFS->IoStats.StartCirculate();
+
   // start IO accounting
   gOFS->IoStats.Start();
 

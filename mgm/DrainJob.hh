@@ -42,9 +42,10 @@ class DrainJob {
   // ---------------------------------------------------------------------------
 private:
   eos::common::FileSystem::fsid_t fsid;
+  std::string space;
+  std::string group;
   bool onOpsError;
   pthread_t thread;
-  std::deque<unsigned long long> fids;
 
 public:
 
@@ -58,8 +59,10 @@ public:
   void ResetCounter();
 
   static void* StaticThreadProc(void*);
-  void* Drain(); // the function scheduling from the drain map into shared queues
-  
+  void* Drain();     // the function scheduling from the drain map into shared queues
+
+  void SetDrainer();   // enabled the drain pull for all filesytems in the group
+  void SetSpaceNode(); // set's space defined variables on each node involved in draining e.g. transfer rate & nparallel transfers
   virtual ~DrainJob();
 };
 

@@ -63,13 +63,13 @@ DrainJob::ResetCounter()
       //    fs->OpenTransaction();
       fs->SetLongLong("stat.drainbytesleft", 0);
       fs->SetLongLong("stat.drainfiles",     0);
-      fs->SetLongLong("stat.drainscheduledfiles",   0);
-      fs->SetLongLong("stat.drainscheduledbytes",   0);
       fs->SetLongLong("stat.drainlostfiles", 0);
       fs->SetLongLong("stat.timeleft", 0);
       fs->SetLongLong("stat.drainprogress",0);
       fs->SetLongLong("stat.drainretry", 0);
-      //    fs->CloseTransaction();
+      fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
+      SetDrainer();
+      fs->CloseTransaction();
     }
   }
 }
@@ -84,32 +84,103 @@ DrainJob::StaticThreadProc(void* arg)
   return reinterpret_cast<DrainJob*>(arg)->Drain();
 }
 
+
+/*----------------------------------------------------------------------------*/
+void
+DrainJob::SetDrainer()
+{
+  //----------------------------------------------------------------
+  //! routine enabling/disabling the pull thread on FST to participate in draining  
+  //----------------------------------------------------------------
+
+  FileSystem* fs = 0;
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  fs = 0;
+  if (FsView::gFsView.mIdView.count(fsid)) 
+    fs = FsView::gFsView.mIdView[fsid];
+  if (!fs) {
+    return;
+  }
+  
+  FsGroup::const_iterator git;
+  bool setactive=false;
+  if (FsView::gFsView.mGroupView.count(group)) {
+    for ( git = FsView::gFsView.mGroupView[group]->begin(); git != FsView::gFsView.mGroupView[group]->end(); git++) {
+      if (FsView::gFsView.mIdView.count(*git)) {
+	int drainstatus = (eos::common::FileSystem::GetDrainStatusFromString(FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str()));
+	if ( (drainstatus == eos::common::FileSystem::kDraining) ||
+	     (drainstatus == eos::common::FileSystem::kDrainStalling ) ) {
+	  // if any group filesystem is draining, all the others have to enable the pull for draining!
+	  setactive=true;
+	}
+      }
+    }
+    for ( git = FsView::gFsView.mGroupView[group]->begin(); git != FsView::gFsView.mGroupView[group]->end(); git++) {
+      fs = FsView::gFsView.mIdView[*git];
+      if (fs) {
+	if (setactive) {
+	  if (fs->GetString("stat.drainer") != "on") {
+	    fs->SetString("stat.drainer","on");
+	  }
+	} else {
+	  if (fs->GetString("stat.drainer") == "on") {
+	    fs->SetString("stat.drainer","off");
+	  }
+	}
+      }
+    }
+  }
+}
+
+
+void
+DrainJob::SetSpaceNode()
+{
+  std::string SpaceNodeTransfers="";
+  std::string SpaceNodeTransferRate="";
+  FileSystem* fs = 0;
+
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+  if (FsView::gFsView.mSpaceView.count(space)) {
+    SpaceNodeTransfers       = FsView::gFsView.mSpaceView[space]->GetConfigMember("drainer.node.ntx");
+    SpaceNodeTransferRate    = FsView::gFsView.mSpaceView[space]->GetConfigMember("drainer.node.rate");
+  }
+
+  FsGroup::const_iterator git;
+  if (FsView::gFsView.mGroupView.count(group)) {
+    for ( git = FsView::gFsView.mGroupView[group]->begin(); git != FsView::gFsView.mGroupView[group]->end(); git++) {
+      if (FsView::gFsView.mIdView.count(*git)) {
+	fs = FsView::gFsView.mIdView[*git];
+	if (fs) {
+	  FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
+	  if (node) {
+	    // broadcast the rate & stream configuration if changed
+	    if (node->GetConfigMember("stat.drain.ntx") != SpaceNodeTransfers) {
+	      node->SetConfigMember("stat.drain.ntx", SpaceNodeTransfers,false, "", true);
+	    }
+	    if (node->GetConfigMember("stat.drain.rate") != SpaceNodeTransferRate) {
+	      node->SetConfigMember("stat.drain.rate", SpaceNodeTransferRate, false, "", true);
+	    }
+	  }
+	}
+      }
+    }
+  }
+}
+
 /*----------------------------------------------------------------------------*/
 void*
 DrainJob::Drain(void)
 {  
-  //---------------------------------------
-  // wait that the namespace is initialized
-  //---------------------------------------
-  bool go=false;
-  do {
-    XrdSysThread::SetCancelOff();
-    {
-      XrdSysMutexHelper(gOFS->InitializationMutex);
-      if (gOFS->Initialized == gOFS->kBooted) {
-        go = true;
-      }
-    }
-    XrdSysThread::SetCancelOn();
-    sleep(1);
-  } while (!go);
-  
+
   XrdSysThread::SetCancelOn();
   XrdSysThread::SetCancelDeferred();
 
   XrdSysTimer sleeper;
-  // the retry is currently hardcoded to 3 e.g. the maximum time for a drain operation is 3 x <drainperiod>
-  int maxtry=3;
+
+  // the retry is currently hardcoded to 1 e.g. the maximum time for a drain operation is 1 x <drainperiod>
+  int maxtry=1;
   int ntried=0;
 
  retry:
@@ -125,7 +196,6 @@ DrainJob::Drain(void)
   }
 
 
-  std::string group="";
   time_t drainstart = time(NULL);
   time_t drainperiod = 0;
   time_t drainendtime = 0;
@@ -151,47 +221,55 @@ DrainJob::Drain(void)
     fs->SnapShotFileSystem(drain_snapshot,false);
     drainperiod = fs->GetLongLong("drainperiod");
     drainendtime = drainstart + drainperiod;
+    space = drain_snapshot.mSpace;
+    group = drain_snapshot.mGroup;
   }
 
   XrdSysThread::SetCancelOn();
   // now we wait 60 seconds ...
   for (int k=0; k< 60; k++) {
+    XrdSysThread::SetCancelOff();
+    fs->SetLongLong("stat.timeleft", 59-k);
+    XrdSysThread::SetCancelOn();
     sleeper.Snooze(1);
     XrdSysThread::CancelPoint();
   }
+
+  //---------------------------------------
+  // wait that the namespace is initialized
+  //---------------------------------------
+  fs->SetDrainStatus(eos::common::FileSystem::kDrainWait);
+  bool go=false;
+  do {
+    XrdSysThread::SetCancelOff();
+    {
+
+      XrdSysMutexHelper(gOFS->InitializationMutex);
+      if (gOFS->Initialized == gOFS->kBooted) {
+        go = true;
+      }
+    }
+    XrdSysThread::SetCancelOn();
+    sleep(1);
+  } while (!go);
+  
 
   // check if we should abort
   XrdSysThread::CancelPoint();
 
   // build the list of files to migrate
-  long long totalbytes=0;
   long long totalfiles=0;
-  long long totallostfiles=0;
-  long long scheduledbytes=0;
-  long long scheduledfiles=0;
 
   XrdSysThread::SetCancelOff();
   {
     //------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try {
-      eos::FileMD* fmd = 0;
       eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
       eos::FileSystemView::FileIterator it;
+
+      totalfiles = filelist.size();
       
-      for (it = filelist.begin(); it != filelist.end(); ++it) {
-	fmd = gOFS->eosFileService->getFileMD(*it);
-	if (fmd) {
-	  //eos::FileMD::LocationVector::const_iterator lociter;
-	  //      for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
-	  //      }
-	  totalbytes+= fmd->getSize();
-	  totalfiles++;
-	  
-	  // insert into the drainqueue
-	  fids.push_back((unsigned long long)fmd->getId());
-	}
-      }
     } catch ( eos::MDException &e ) {
     // there are no files in that view
     }    
@@ -216,11 +294,8 @@ DrainJob::Drain(void)
       return 0 ;
     }
     
-    fs->SetLongLong("stat.drainbytesleft", totalbytes);
+    fs->SetLongLong("stat.drainbytesleft", fs->GetLongLong("stat.statfs.usedbytes"));
     fs->SetLongLong("stat.drainfiles",     totalfiles);
-    fs->SetLongLong("stat.drainscheduledfiles",   0);
-    fs->SetLongLong("stat.drainscheduledbytes",   0);
-    fs->SetLongLong("stat.drainlostfiles", totallostfiles);
   } 
   
 
@@ -296,244 +371,53 @@ DrainJob::Drain(void)
     }
     
     fs->SetDrainStatus(eos::common::FileSystem::kDraining);
+
+    // this enables the pull functionality on FST
+    SetDrainer();
   }
 
-  time_t last_scheduled;
-  last_scheduled = time(NULL);
+  time_t last_filesleft_change;
+  last_filesleft_change = time(NULL);
+  long long last_filesleft;
+  last_filesleft=0;
 
-  // start scheduling into the queues
+  // enable draining
   do {
     XrdSysThread::SetCancelOff();
-    size_t fids_start = fids.size();
+
+    bool stalled = ( (time(NULL)-last_filesleft_change) > 600);
+    long long filesleft=0;
+    
+    SetSpaceNode();
+    
     {
-      // do one loop over the scheduling group and check how many files are still scheduled
-      eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
-      std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
-      if (FsView::gFsView.mGroupView.count(group)) {
-        for (it = FsView::gFsView.mGroupView[group]->begin(); it != FsView::gFsView.mGroupView[group]->end(); it++) {
-          eos::common::FileSystem::fs_snapshot_t target_snapshot;
-          eos::common::FileSystem::fs_snapshot_t source_snapshot;
-          FileSystem* target_fs = FsView::gFsView.mIdView[*it];
-          FileSystem* source_fs = 0;
-          target_fs->SnapShotFileSystem(target_snapshot,false);
-          
-          if ( (target_snapshot.mId != fsid ) && 
-               (target_snapshot.mStatus       == eos::common::FileSystem::kBooted) && 
-               (target_snapshot.mConfigStatus >= eos::common::FileSystem::kRW)     &&
-               (target_snapshot.mErrCode      == 0 ) &&
-               (fs->HasHeartBeat(target_snapshot)) &&
-               (fs->GetActiveStatus(target_snapshot))
-               ) {
-
-            // this is a healthy filesystem and can be used
-            eos::common::TransferQueue* queue = 0;
-            if ( (queue = target_fs->GetDrainQueue())) {
-              int n2submit = 10 - queue->Size();
-              if (n2submit>0) {
-                // submit n2submit jobs
-                eos_static_debug("submitting %d new transfer jobs", n2submit);
-
-                queue->OpenTransaction();
-                for (int nsubmit = 0; nsubmit < n2submit; nsubmit++) {
-                  if (fids.size()==0) 
-                    break;
-                  
-                  unsigned long long fid=0;
-                  unsigned long long cid=0;
-                  unsigned long long size=0;
-                  long unsigned int lid = 0;
-                  uid_t uid=0;
-                  gid_t gid=0;
-                  bool acceptid=false;
-                  size_t q=0;
-                  std::string fullpath = "";
-                  std::vector<unsigned int> locationfs;
-
-
-                  for (q=0; q< fids.size(); q++) {
-                    fid = fids[q];
-                    locationfs.clear();
-                    // ------------------------------------------
-		    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);                   
-                    eos::FileMD* fmd = 0;
-                    unsigned long long size=0;
-                    try {
-                      fmd = gOFS->eosFileService->getFileMD(fid);
-                      lid = fmd->getLayoutId();
-                      cid = fmd->getContainerId();
-                      size = fmd->getSize();
-                      uid = fmd->getCUid();
-                      gid = fmd->getCGid();
-
-                      // push all the locations
-                      eos::FileMD::LocationVector::const_iterator lociter;
-                      for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
-                        // ignore filesystem id 0
-                        if ((*lociter)) {
-                          locationfs.push_back(*lociter);
-                        }
-                      }
-                      fullpath = gOFS->eosView->getUri(fmd);
-                    } catch ( eos::MDException &e ) {
-                      fmd = 0;
-                    }
-                    if (fmd && (!fmd->hasLocation(target_snapshot.mId))) {
-                      // we can put a replica here ! 
-                      size = fmd->getSize();
-
-                      // check if there is space for that file
-                      if (fs->ReserveSpace(target_snapshot, size))
-                        acceptid = true;
-                    }
-                  
-                    // ------------------------------------------
-                    if (acceptid) {
-                      scheduledbytes += size;
-                      break;
-                    }
-                  }
-
-                  if (acceptid) {
-                    eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-
-                    fids.erase(fids.begin() + q);
-                    XrdOucString sizestring="";
-                    long unsigned int fsindex = 0;
-                    
-                    // get the responsible quota space
-                    SpaceQuota* space = Quota::GetResponsibleSpaceQuota(drain_snapshot.mSpace.c_str());
-                    if (space) {
-                      eos_static_info("Responsible space is %s\n", space->GetSpaceName());
-                    } else {
-                      eos_static_err("No responsible space for %s\n", drain_snapshot.mSpace.c_str());
-                    }
-                    // schedule access to that file as a plain file
-                    int retc=0;
-		    std::vector<unsigned int> unavailfs; // not used
-                    if ((!space) || (retc=space->FileAccess((uid_t)0,(gid_t)0,(long unsigned int)0, (const char*) 0, lid, locationfs, fsindex, false, (long long unsigned)0, unavailfs))) {
-                      // uups, we cannot access this file at all, add it to the lost files
-                      eos_static_crit("File fid=%lu [%d] is lost - no replica accessible during drain operation errno=%d\n", fid, locationfs.size(),retc);
-
-                      //                      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                      fs = 0;
-                      if (FsView::gFsView.mIdView.count(fsid)) 
-                        fs = FsView::gFsView.mIdView[fsid];
-                      if (!fs) {
-                        eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
-                        return 0 ;
-                      }
-
-                      totallostfiles++;
-                      fs->SetLongLong("stat.drainlostfiles", totallostfiles);
-                    } else {                   
-                      // create the capability for the transfer to allow the target machine read access on that file
-                      source_fs = FsView::gFsView.mIdView[locationfs[fsindex]];
-                      source_fs->SnapShotFileSystem(source_snapshot,false);                      
-                      XrdOucString source_capability="";
-                      XrdOucString sizestring;
-                      source_capability += "mgm.access=read";
-                      source_capability += "&mgm.lid=";        source_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)lid&0xffffff0f); // make's it a plain replica
-                      source_capability += "&mgm.cid=";        source_capability += eos::common::StringConversion::GetSizeString(sizestring,cid);
-                      source_capability += "&mgm.ruid=";       source_capability+=(int)1;
-                      source_capability += "&mgm.rgid=";       source_capability+=(int)1;
-                      source_capability += "&mgm.uid=";        source_capability+=(int)1;
-                      source_capability += "&mgm.gid=";        source_capability+=(int)1;
-                      source_capability += "&mgm.path=";       source_capability += fullpath.c_str();
-                      source_capability += "&mgm.manager=";    source_capability += gOFS->ManagerId.c_str();
-                      source_capability += "&mgm.fid=";    
-                      XrdOucString hexfid; eos::common::FileId::Fid2Hex(fid,hexfid);source_capability += hexfid;
-                      source_capability += "&mgm.drainfsid=";  source_capability += (int)fsid;
-                     
-                      // build the source_capability contents
-                      source_capability += "&mgm.localprefix=";       source_capability += source_snapshot.mPath.c_str();
-                      source_capability += "&mgm.fsid=";              source_capability += (int)source_snapshot.mId;
-                      source_capability += "&mgm.sourcehostport=";    source_capability += source_snapshot.mHostPort.c_str();
-                      source_capability += "&mgm.lfn=";               source_capability += fullpath.c_str();
-
-                      XrdOucString target_capability="";
-                      target_capability += "mgm.access=write";
-                      target_capability += "&mgm.lid=";        target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid&0xffffff0f); // make's it a plain replica
-                      target_capability += "&mgm.source.lid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)lid);
-                      target_capability += "&mgm.source.ruid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)uid);
-                      target_capability += "&mgm.source.rgid="; target_capability += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)gid);
-
-                      target_capability += "&mgm.cid=";        target_capability += eos::common::StringConversion::GetSizeString(sizestring,cid);
-                      target_capability += "&mgm.ruid=";       target_capability+=(int)1;
-                      target_capability += "&mgm.rgid=";       target_capability+=(int)1;
-                      target_capability += "&mgm.uid=";        target_capability+=(int)1;
-                      target_capability += "&mgm.gid=";        target_capability+=(int)1;
-                      target_capability += "&mgm.path=";       target_capability += fullpath.c_str();
-                      target_capability += "&mgm.manager=";    target_capability += gOFS->ManagerId.c_str();
-                      target_capability += "&mgm.fid=";    
-                      target_capability += hexfid;
-                      target_capability += "&mgm.drainfsid=";  target_capability += (int)fsid;
-                     
-                      // build the target_capability contents
-                      target_capability += "&mgm.localprefix=";       target_capability += target_snapshot.mPath.c_str();
-                      target_capability += "&mgm.fsid=";              target_capability += (int)target_snapshot.mId;
-                      target_capability += "&mgm.targethostport=";    target_capability += target_snapshot.mHostPort.c_str();
-                      target_capability += "&mgm.lfn=";               target_capability += fullpath.c_str();
-                      target_capability += "&mgm.bookingsize=";       target_capability += eos::common::StringConversion::GetSizeString(sizestring, size);                      
-                      // issue a source_capability
-                      XrdOucEnv insource_capability(source_capability.c_str());
-                      XrdOucEnv intarget_capability(target_capability.c_str());
-                      XrdOucEnv* source_capabilityenv = 0;
-                      XrdOucEnv* target_capabilityenv = 0;
-                      XrdOucString fullcapability="";
-                      eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-                      
-                      int caprc=0;
-                      if ((caprc=gCapabilityEngine.Create(&insource_capability, source_capabilityenv, symkey)) || 
-                          (caprc=gCapabilityEngine.Create(&intarget_capability, target_capabilityenv, symkey))){
-                        eos_static_err("unable to create source/target capability - errno=%u", caprc);
-                        errno = caprc;
-                      } else {
-                        errno = 0;
-                        int caplen = 0;
-                        XrdOucString source_cap = source_capabilityenv->Env(caplen); 
-                        XrdOucString target_cap = target_capabilityenv->Env(caplen);
-                        source_cap.replace("cap.sym","source.cap.sym");
-                        target_cap.replace("cap.sym","target.cap.sym");
-                        source_cap.replace("cap.msg","source.cap.msg");
-                        target_cap.replace("cap.msg","target.cap.msg");
-                        source_cap += "&source.url=root://"; source_cap += source_snapshot.mHostPort.c_str();source_cap += "//replicate:"; source_cap += hexfid;
-                        target_cap += "&target.url=root://"; target_cap += target_snapshot.mHostPort.c_str();target_cap += "//replicate:"; target_cap += hexfid;
-                        fullcapability += source_cap;
-                        fullcapability += target_cap; 
-                        
-                        eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
-                        bool sub = queue->Add(txjob);
-                        eos_static_info("Submitted %d %s\n", sub, fullcapability.c_str());
-                        delete txjob;
-                        if (source_capabilityenv)
-                          delete source_capabilityenv;
-                        if (target_capabilityenv)
-                          delete target_capabilityenv;
-                        // book the space
-                        target_fs->PreBookSpace(size);
-                      }
-                      last_scheduled = time(NULL);
-                    }
-                  }
-                }
-                queue->CloseTransaction();
-              }
-            }
-          }
-          target_fs->FreePreBookedSpace();
-        }
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      last_filesleft = filesleft;
+      try {
+	eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+	filesleft = filelist.size();
+      } catch ( eos::MDException &e ) {
+	// there are no files in that view
       }
     }
+    
+    if (!last_filesleft) {
+      last_filesleft = filesleft;
+    }
 
-    XrdSysThread::SetCancelOn();
+    if (filesleft != last_filesleft) {
+      last_filesleft_change = time(NULL);
+    }
 
-    size_t fids_stop = fids.size();
-    scheduledfiles = totalfiles-fids.size();
-    bool stalled = ( (time(NULL)-last_scheduled) > 600);
+    eos_static_debug("stalled=%d now=%llu last_filesleft_change=%llu filesleft=%llu last_filesleft=%llu", stalled, time(NULL), last_filesleft_change, filesleft, last_filesleft);
 
     // update drain display variables
-    if ( (fids_start != fids_stop) || stalled ) {
-      XrdSysThread::SetCancelOff();
+    if ( (filesleft != last_filesleft) || stalled ) {      
+      
+      // ---------------------------------------------
+      // get a rough estimate about the drain progress
+      // ---------------------------------------------      
+      
       {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         fs = 0;
@@ -543,33 +427,15 @@ DrainJob::Drain(void)
           eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
           return 0 ;
         }
-        fs->SetLongLong("stat.drainbytesleft", totalbytes-scheduledbytes);
-        fs->SetLongLong("stat.drainfiles",     totalfiles-scheduledfiles);
-        fs->SetLongLong("stat.drainscheduledfiles",  scheduledfiles);
-        fs->SetLongLong("stat.drainscheduledbytes",  scheduledbytes);
+	fs->SetLongLong("stat.drainbytesleft", fs->GetLongLong("stat.statfs.usedbytes"));
+        fs->SetLongLong("stat.drainfiles",     filesleft);
         if ( stalled )
           fs->SetDrainStatus(eos::common::FileSystem::kDrainStalling);
         else
           fs->SetDrainStatus(eos::common::FileSystem::kDraining);
       }
-      // ---------------------------------------------
-      // get a rough estimate about the drain progress
-      // ---------------------------------------------      
 
-      long long filesleft=0;
-
-      {
-	eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-	
-	try {
-	  eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
-	  filesleft = filelist.size();
-	} catch ( eos::MDException &e ) {
-	  // there are no files in that view
-	}
-      }
-      
-      int progress = (int)(totalfiles)?(100.0*(totalfiles-filesleft + totallostfiles)/totalfiles):100;
+      int progress = (int)(totalfiles)?(100.0*(totalfiles-filesleft)/totalfiles):100;
 
       {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -579,62 +445,19 @@ DrainJob::Drain(void)
         } else {
           fs->SetLongLong("stat.timeleft", 99999999999LL);
         }
-      }
-
-      XrdSysThread::SetCancelOn();
+      }    
       if (!filesleft) 
         break;
     }
 
-    if (fids.size()==0) 
-      break;
-
-    for (int k=0; k< 10; k++) {
-      // check if we should abort
-      XrdSysThread::CancelPoint();
-      usleep(100000);
-    }
-  } while (1);
-
-  
-  sleeper.Snooze(1);  
-
-  // now wait that all files disappear from the view 
-
-  do {
-    XrdSysThread::SetCancelOff();         
-
-    long long filesleft = 0;
-
-    {
-      //------------------------------------
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      try {
-	eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
-	filesleft = filelist.size();
-	
-      } catch ( eos::MDException &e ) {
-	// there are no files in that view
-      }
-    }
-    //------------------------------------
-
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    fs = 0;
-    if (FsView::gFsView.mIdView.count(fsid)) 
-      fs = FsView::gFsView.mIdView[fsid];
-    if (!fs) {
-      eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
-      return 0 ;
-    }
-    
+    // check how long we do already draining
     drainperiod = fs->GetLongLong("drainperiod");
     drainendtime = drainstart + drainperiod;
 
     // set timeleft
     {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      int progress = (int)(totalfiles)?(100.0*(totalfiles-filesleft+totallostfiles)/totalfiles):100;
+      int progress = (int)(totalfiles)?(100.0*(totalfiles-filesleft)/totalfiles):100;
       fs = 0;
       if (FsView::gFsView.mIdView.count(fsid)) 
         fs = FsView::gFsView.mIdView[fsid];
@@ -667,32 +490,29 @@ DrainJob::Drain(void)
         }
         
         fs->SetDrainStatus(eos::common::FileSystem::kDrainExpired);
+	SetDrainer();       
 
         // retry logic
         if (ntried <=maxtry) {
           // trigger retry; 
         } else {
+	  fs->SetLongLong("stat.drainlostfiles", filesleft);
           XrdSysThread::SetCancelOn();      
           return 0;
         }
       }
       goto retry;
     }
-
-    XrdSysThread::SetCancelOn();          
+    XrdSysThread::SetCancelOn();
     for (int k=0; k< 10; k++) {
       // check if we should abort
       XrdSysThread::CancelPoint();
-      sleeper.Snooze(1);
+      usleep(100000);
     }
-
-    // with successful drained, we have nothing left
-    if (filesleft <= totallostfiles) {
-      break;
-    }
+    XrdSysThread::SetCancelOff();
   } while (1);
 
-
+  
  nofilestodrain:
 
   // set status to 'drained'
@@ -707,14 +527,12 @@ DrainJob::Drain(void)
       XrdSysThread::SetCancelOn();      
       return 0 ;
     }
-    if (totallostfiles) 
-      fs->SetDrainStatus(eos::common::FileSystem::kDrainLostFiles);
-    else {
-      fs->SetDrainStatus(eos::common::FileSystem::kDrained);
-      // we automatically switch this filesystem to the 'empty' state
-      fs->SetString("configstatus","empty");
-      FsView::gFsView.StoreFsConfig(fs);
-    }
+    
+    fs->SetDrainStatus(eos::common::FileSystem::kDrained);    
+    SetDrainer();
+    // we automatically switch this filesystem to the 'empty' state
+    fs->SetString("configstatus","empty");
+    FsView::gFsView.StoreFsConfig(fs);
     fs->SetLongLong("stat.drainprogress",  100);
   }
   XrdSysThread::SetCancelOn();      

@@ -31,6 +31,7 @@
 #include "mgm/FileSystem.hh"
 #include "mgm/FsView.hh"
 #include "common/RWMutex.hh"
+#include "common/SymKeys.hh"
 #include "common/Logging.hh"
 #include "common/GlobalConfig.hh"
 /*----------------------------------------------------------------------------*/
@@ -69,6 +70,7 @@ private:
   std::string mSize;
 public:
   std::string mName;
+
   std::string mType;
   
   BaseView(){mStatus="unknown";mHeartBeat=0;}
@@ -115,7 +117,15 @@ public:
       if (GetConfigMember("balancer")== "") 
         SetConfigMember("balancer","off",true,"/eos/*/mgm"); // disable balancing by default
       if (GetConfigMember("balancer.threshold")=="") 
-        SetConfigMember("balancer.threshold","50000000000",true,"/eos/*/mgm"); // set deviation treshold
+        SetConfigMember("balancer.threshold","20",true,"/eos/*/mgm"); // set deviation treshold
+      if (GetConfigMember("balancer.node.rate")=="") 
+        SetConfigMember("balancer.node.rate","25",true,"/eos/*/mgm"); // set balancing rate per balancing stream
+      if (GetConfigMember("balancer.node.ntx")=="") 
+        SetConfigMember("balancer.node.ntx","2",true,"/eos/*/mgm"); // set parallel balancing streams per node
+      if (GetConfigMember("drain.node.rate")=="") 
+        SetConfigMember("drainer.node.rate","25",true,"/eos/*/mgm"); // set drain rate per drain stream
+      if (GetConfigMember("drainer.node.ntx")=="") 
+        SetConfigMember("drainer.node.ntx","2",true,"/eos/*/mgm"); // set parallel draining streams per node
       if (GetConfigMember("graceperiod")=="")
         SetConfigMember("graceperiod","86400",true,"/eos/*/mgm");
       if (GetConfigMember("drainperiod")=="")
@@ -144,7 +154,7 @@ public:
   static const char* sGetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
 
   
-  bool ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs); //return's true if something was modified
+  bool ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force=false); //return's true if something was modified
 };
 
 //------------------------------------------------------------------------
@@ -193,10 +203,20 @@ public:
 class FsNode : public BaseView {
 public:
 
-  virtual std::string GetMember(std::string name);
+  static std::string gManagerId;
 
+  virtual std::string GetMember(std::string name);
+  
   FsNode(const char* name) {mName = name; mType="nodesview";}
   ~FsNode(){};
+
+  void SetNodeConfigDefault() { 
+    SetConfigMember("manager", gManagerId, true, mName.c_str(), true); 
+    SetConfigMember("stat.balance.ntx", "2",true,  mName.c_str(), true); // we configure for two balancer transfers by default
+    SetConfigMember("stat.balance.rate","25",true, mName.c_str(), true); // we configure for 25 Mb/s for each balancing transfer
+    eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+    SetConfigMember("symkey",symkey->GetKey64(),true, mName.c_str(), true); // we put the current sym key
+  }
 
   static std::string gConfigQueuePrefix;
   virtual const char* GetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}

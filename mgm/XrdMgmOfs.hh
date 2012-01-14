@@ -501,6 +501,9 @@ public:
   static void*           StaticInitializeFileView(void* arg);
   void*                  InitializeFileView();
 
+  static void*           StaticSignalHandlerThread(void* arg);
+  void*                  SignalHandlerThread();
+
   enum eNamespace { kDown=0, kBooting=1, kBooted=2, kFailed=3};
   int                    Initialized;
   time_t                 InitializationTime;
@@ -579,17 +582,6 @@ public:
   // map keeping the modification times of directories, they are either directly inserted from directory/file creation or they are set from a directory listing
   XrdSysMutex      MgmDirectoryModificationTimeMutex;
   google::sparse_hash_map<unsigned long long, struct timespec> MgmDirectoryModificationTime;
-
-  struct MgmDirtyMap {
-    bool dirtysize;
-    bool dirtychecksum;
-    bool dirtyblockxs;
-    bool missingreplica;
-    bool ioerror;
-  };
-
-  std::map < unsigned long long, std::map<unsigned long, struct MgmDirtyMap> > MgmDirtyMap; // a map pointing to inconsistent replicas
-  XrdSysMutex      MgmDirtyMapMutex;
 
   eos::common::ClientAdminManager CommonClientAdminManager; // Manager of ClientAdmin's
 

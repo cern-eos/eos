@@ -36,6 +36,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/FsView.hh"
+#include "mgm/txengine/TransferEngine.hh"
 #include "namespace/persistency/LogManager.hh"
 #include "namespace/utils/DataHelper.hh"
 #include "namespace/views/HierarchicalView.hh"
@@ -1089,8 +1090,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           std::sort(keylist.begin(), keylist.end());
           for (size_t i=0; i< keylist.size(); i++) {
             char line[1024];
-            if ( (keylist[i] == "balancer.threshold") ||
-                 (keylist[i] == "nominalsize") || 
+            if ( (keylist[i] == "nominalsize") || 
                  (keylist[i] == "headroom")) {
               XrdOucString sizestring;
               // size printout
@@ -1228,6 +1228,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                      (key == "graceperiod") ||
                      (key == "drainperiod") ||
                      (key == "balancer") || 
+                     (key == "balancer.node.rate") || 
+                     (key == "balancer.node.ntx") || 
+                     (key == "drainer.node.rate") || 
+                     (key == "drainer.node.ntx") || 
                      (key == "balancer.threshold") ) {
 
                   if (key == "balancer") {
@@ -1247,7 +1251,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                     }
                   } else {
                     unsigned long long size   = eos::common::StringConversion::GetSizeFromString(value.c_str());
-                    if (size) {
+                    if (size>=0) {
                       char ssize[1024];
                       snprintf(ssize,sizeof(ssize)-1,"%llu", size);
                       value = ssize;
@@ -1259,7 +1263,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                       }
                     } else {
                       retc = EINVAL;
-                      stdErr = "error: value has to be positiva number";
+                      stdErr = "error: value has to be a positiv number";
                     }
                   }
                 } 
@@ -2308,6 +2312,37 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       //      stdOut+="\n==== quota done ====";
     }
 
+    if (cmd == "transfer") {
+      XrdOucString src     = opaque.Get("mgm.src")?opaque.Get("mgm.src"):"";
+      XrdOucString dst     = opaque.Get("mgm.dst")?opaque.Get("mgm.dst"):"";
+      XrdOucString rate    = opaque.Get("mgm.rate")?opaque.Get("mgm.rate"):"";
+      XrdOucString streams = opaque.Get("mgm.streams")?opaque.Get("mgm.streams"):"";
+      XrdOucString group   = opaque.Get("mgm.group")?opaque.Get("mgm.group"):"";
+      XrdOucString subcmd  = opaque.Get("mgm.subcmd")?opaque.Get("mgm.subcmd"):"";
+      XrdOucString id      = opaque.Get("mgm.txid")?opaque.Get("mgm.txid"):"";
+      XrdOucString option  = opaque.Get("mgm.option")?opaque.Get("mgm.option"):"";
+
+      if ( (subcmd != "submit") && (subcmd != "ls") && (subcmd != "cancel") ) {
+	retc = EINVAL;
+	stdErr = "error: there is no such sub-command defined for <transfer>";
+	MakeResult(true);
+	return SFS_OK;
+      }
+
+      if ( (subcmd == "submit") ) {
+	retc = gTransferEngine.Submit(src,dst,rate,streams,group, stdOut, stdErr, vid_in);
+      }
+
+      if ( (subcmd == "ls") ) {
+	retc = gTransferEngine.Ls(option,group,stdOut,stdErr,vid_in);
+      }
+
+      if ( (subcmd == "cancel") ) {
+	retc = gTransferEngine.Cancel(id,group,stdOut,stdErr,vid_in);
+      }
+      MakeResult(false);
+    }
+
     if (cmd == "debug") {
       if (vid_in.uid == 0) {
         XrdOucString debugnode =  opaque.Get("mgm.nodename");
@@ -2984,7 +3019,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 }
                 // reference by fid+fsid
                 //-------------------------------------------
-                gOFS->eosViewRWMutex.LockRead();
+                gOFS->eosViewRWMutex.LockWrite();
                 try {
                   fmd = gOFS->eosFileService->getFileMD(fid);
                 } catch ( eos::MDException &e ) {
@@ -2995,7 +3030,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               } else {
                 // reference by path
                 //-------------------------------------------
-                gOFS->eosViewRWMutex.LockRead();
+                gOFS->eosViewRWMutex.LockWrite();
                 try {
                   fmd = gOFS->eosView->getFile(spath.c_str());
                 } catch ( eos::MDException &e ) {
@@ -3019,7 +3054,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               } else {
                 retc = errno;
               }
-              gOFS->eosViewRWMutex.UnLockRead();
+              gOFS->eosViewRWMutex.UnLockWrite();
               //-------------------------------------------
     
             } else {
@@ -3503,7 +3538,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                     for (unsigned int i = 0 ; i< fsid2delete.size(); i++) {
                       if (fmd->hasLocation(fsid2delete[i])) {
                         //-------------------------------------------
-			eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+			eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
                         try {
                           // we have to get again the original file meta data
                           fmd = gOFS->eosFileService->getFileMD(fid);

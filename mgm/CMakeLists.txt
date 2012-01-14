@@ -37,7 +37,6 @@ add_library (XrdEosMgm MODULE
 	    XrdMgmOfsConfigure.cc
 	    XrdMgmOfs.cc
             DrainJob.cc
-            BalanceJob.cc
             Balancer.cc
             FileSystem.cc
             Egroup.cc
@@ -45,6 +44,8 @@ add_library (XrdEosMgm MODULE
             Stat.cc
             Iostat.cc
 	    Fsck.cc
+	    txengine/TransferEngine.cc
+	    txengine/TransferFsDB.cc
 	    )
 
 target_link_libraries (XrdEosMgm XrdClient XrdPosix XrdUtils XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z)

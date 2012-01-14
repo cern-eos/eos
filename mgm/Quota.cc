@@ -1163,7 +1163,7 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
       }
     }
     
-    eos_static_info("Requesting %d/%d replicas to be online\n", availablefs.size(),eos::common::LayoutId::GetMinOnlineReplica(lid));
+    eos_static_debug("Requesting %d/%d replicas to be online\n", availablefs.size(),eos::common::LayoutId::GetMinOnlineReplica(lid));
     // -----------------------------------------------------------------------
     // check if there are enough stripes available for a read operation of the given layout
     // -----------------------------------------------------------------------
