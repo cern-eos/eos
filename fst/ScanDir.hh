@@ -86,6 +86,7 @@ public:
       setChecksum = setchecksum;
       size_t palignment = alignment;
       if (posix_memalign((void**)&buffer, palignment, bufferSize)){
+	buffer = 0;
         fprintf(stderr, "error: error calling posix_memaling on dirpath=%s. \n",dirPath.c_str());
 	return;
       }

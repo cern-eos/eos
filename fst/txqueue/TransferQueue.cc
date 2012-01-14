@@ -47,12 +47,37 @@ TransferQueue::~TransferQueue(){
 
 /* ------------------------------------------------------------------------- */
 size_t TransferQueue::GetBandwidth(){
-  return bandwidth;
+  size_t bw = 0;
+  {
+    XrdSysMutexHelper(mBandwidthMutex);
+    bw = bandwidth;
+  }
+  return bw;
 }
 
 /* ------------------------------------------------------------------------- */
 void TransferQueue::SetBandwidth(size_t band){
+  XrdSysMutexHelper(mBandwidthMutex);
   bandwidth = band;
 }
 
+/* ------------------------------------------------------------------------- */
+size_t  
+TransferQueue::GetSlots()
+{
+  size_t n =0;
+  {
+    XrdSysMutexHelper(mSlotsMutex);
+    n = nslots;
+  }
+  return n;
+}
+
+/* ------------------------------------------------------------------------- */
+void 
+TransferQueue::SetSlots(size_t slots)
+{
+  XrdSysMutexHelper(mSlotsMutex);
+  nslots = slots;
+}
 EOSFSTNAMESPACE_END

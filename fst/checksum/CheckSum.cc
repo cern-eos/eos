@@ -534,7 +534,6 @@ CheckSum::AddBlockSumHoles(int fd)
       for (size_t i = 0; i < nblocks; i++) {
         iszero = true;
         for (size_t n = 0; n < len; n++) {
-          //          fprintf(stderr,"%ld %ld %llu %d\n", i, n, (i*len)+n,  ChecksumMap[(i*len)+n]);
           if (ChecksumMap[ (i*len)+ n ]) {
             iszero=false;
             break;

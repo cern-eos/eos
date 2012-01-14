@@ -34,7 +34,7 @@
 #include <google/dense_hash_map>
 /*----------------------------------------------------------------------------*/
 #include "XrdOss/XrdOssApi.hh"
-
+#include "XrdSys/XrdSysTimer.hh"
 extern XrdOssSys  *XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
@@ -134,6 +134,50 @@ FileSystem::GetStatfs()
   return statFs;
 }
 
+/*----------------------------------------------------------------------------*/
+void
+FileSystem::CleanTransactions()
+{
+  DIR* tdir = opendir(GetTransactionDirectory());
+  if (tdir) {
+    struct dirent* name;
+    while ( ( name = readdir(tdir) ) ) {
+      XrdOucString sname = name->d_name;
+      // skipp . & ..
+      if ( sname.beginswith("."))
+	continue;
+      XrdOucString fulltransactionpath = GetTransactionDirectory();
+      fulltransactionpath += "/"; fulltransactionpath += name->d_name;
+      struct stat buf;
+      if (!stat(fulltransactionpath.c_str(), &buf)) {
+	XrdOucString hexfid = name->d_name;
+	const char* localprefix = GetPath().c_str();
+	XrdOucString fstPath;
+	eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), localprefix, fstPath);
+	unsigned long long fileid = eos::common::FileId::Hex2Fid(hexfid.c_str());
+	
+	// we allow to keep files open for 1 week
+	if (buf.st_mtime < (time(NULL) - (7*86400))) {
+	  eos_static_info("action=delete transaction=%llx fstpath=%s",sname.c_str(), fulltransactionpath.c_str());
+      
+	  // -------------------------------------------------------------------------------------------------------
+	  // clean-up this file locally
+	  // -------------------------------------------------------------------------------------------------------
+	  
+	  XrdOucErrInfo error;
+	  int retc =  gOFS._rem("/CLEANTRANSACTIONS", error, 0, 0, fstPath.c_str(), fileid, GetId(), true);
+	  if (retc) {
+	    eos_static_debug("deletion failed for %s", fstPath.c_str());
+	  }
+	} else {
+	  eos_static_info("action=keep transaction=%llx fstpath=%s",sname.c_str(), fulltransactionpath.c_str());
+	}
+      }
+    }
+  } else {
+    eos_static_err("Unable to open transactiondirectory %s",GetTransactionDirectory());
+  }
+}
 
 /*----------------------------------------------------------------------------*/
 void
@@ -227,12 +271,16 @@ Storage::Storage(const char* metadirectory)
     zombie = true;
   }
 
+  ThreadSet.insert(tid);
+
   eos_info("starting trim thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsTrim, static_cast<void *>(this),
                               0, "Meta Store Trim"))) {
     eos_crit("cannot start trimming theread");
     zombie = true;
   }
+
+  ThreadSet.insert(tid);
 
   eos_info("starting deletion thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsRemover, static_cast<void *>(this),
@@ -241,12 +289,16 @@ Storage::Storage(const char* metadirectory)
     zombie = true;
   }
 
+  ThreadSet.insert(tid);
+
   eos_info("starting report thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsReport, static_cast<void *>(this),
                               0, "Report Thread"))) {
     eos_crit("cannot start report thread");
     zombie = true;
   }
+
+  ThreadSet.insert(tid);
 
   eos_info("starting error report thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsErrorReport, static_cast<void *>(this),
@@ -255,12 +307,16 @@ Storage::Storage(const char* metadirectory)
     zombie = true;
   }
 
+  ThreadSet.insert(tid);
+
   eos_info("starting verification thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsVerify, static_cast<void *>(this),
                               0, "Verify Thread"))) {
     eos_crit("cannot start verify thread");
     zombie = true;
   }
+
+  ThreadSet.insert(tid);
 
   eos_info("starting filesystem communication thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsCommunicator, static_cast<void *>(this),
@@ -269,12 +325,44 @@ Storage::Storage(const char* metadirectory)
     zombie = true;
   }
 
+  ThreadSet.insert(tid);
+
   eos_info("starting filesystem publishing thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsPublisher, static_cast<void *>(this),
                               0, "Publisher Thread"))) {
     eos_crit("cannot start publisher thread");
     zombie = true;
   }
+
+  ThreadSet.insert(tid);
+
+  eos_info("starting filesystem balancer thread");
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsBalancer, static_cast<void *>(this),
+                              0, "Balancer Thread"))) {
+    eos_crit("cannot start balancer thread");
+    zombie = true;
+  }
+
+  ThreadSet.insert(tid);
+
+  eos_info("starting filesystem drainer thread");
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsDrainer, static_cast<void *>(this),
+                              0, "Drainer Thread"))) {
+    eos_crit("cannot start drainer thread");
+    zombie = true;
+  }
+
+  ThreadSet.insert(tid);
+
+
+  eos_info("starting filesystem transaction cleaner thread");
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsCleaner, static_cast<void *>(this),
+                              0, "Cleaner Thread"))) {
+    eos_crit("cannot start cleaner thread");
+    zombie = true;
+  }
+
+  ThreadSet.insert(tid);
 
   eos_info("enabling net/io load monitor");
   fstLoad.Monitor();
@@ -388,7 +476,7 @@ Storage::Boot(FileSystem *fs)
   }
 
   fs->SetTransactionDirectory(transactionDirectory.c_str());
-
+  fs->CleanTransactions();
   fs->SetLongLong("stat.bootdonetime", (unsigned long long) time(NULL));
   fs->SetStatus(eos::common::FileSystem::kBooted);
   fs->SetError(0,"");
@@ -659,6 +747,33 @@ Storage::StartFsPublisher(void * pp)
 {
   Storage* storage = (Storage*)pp;
   storage->Publish();
+  return 0;
+}    
+
+/*----------------------------------------------------------------------------*/
+void*
+Storage::StartFsBalancer(void * pp)
+{
+  Storage* storage = (Storage*)pp;
+  storage->Balancer();
+  return 0;
+}    
+
+/*----------------------------------------------------------------------------*/
+void*
+Storage::StartFsDrainer(void * pp)
+{
+  Storage* storage = (Storage*)pp;
+  storage->Drainer();
+  return 0;
+}    
+
+/*----------------------------------------------------------------------------*/
+void*
+Storage::StartFsCleaner(void * pp)
+{
+  Storage* storage = (Storage*)pp;
+  storage->Cleaner();
   return 0;
 }    
 
@@ -1292,7 +1407,13 @@ Storage::Communicator()
       }
 
       if (! queue.beginswith(Config::gConfig.FstQueue)) {
-        eos_static_info("no action on creation of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
+	if (queue.beginswith("/config/") && queue.endswith(Config::gConfig.FstHostPort)) {
+	  // this is the configuration entry and we should store it to have access to it since it's name depends on the instance name and we don't know (yet)
+	  Config::gConfig.FstNodeConfigQueue = queue;
+	  eos_static_info("storing config queue name <%s>", Config::gConfig.FstNodeConfigQueue.c_str());
+	} else {
+	  eos_static_info("no action on creation of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
+	}
         continue;
       } else {
         eos_static_info("received creation notification of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
@@ -1391,7 +1512,7 @@ Storage::Communicator()
       unlocked=true;
 
       XrdOucString queue = newsubject.c_str();
-      if (! queue.beginswith(Config::gConfig.FstQueue)) {
+      if ((! queue.beginswith(Config::gConfig.FstQueue)) && (! queue.beginswith(Config::gConfig.FstNodeConfigQueue))) {
         eos_static_err("illegal subject found in modification list <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
         break;
       } else {
@@ -1406,54 +1527,66 @@ Storage::Communicator()
         queue.erase(dpos);
       }
 
-      eos::common::RWMutexReadLock lock(fsMutex);
-      if ((fileSystems.count(queue.c_str()))) {
-        eos_static_info("got modification on <subqueue>=%s <key>=%s", queue.c_str(),key.c_str());
-        
-        gOFS.ObjectManager.HashMutex.LockRead();
-
-        XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(),"hash");
-        if (hash) {
-          if (key == "id") {
-            unsigned int fsid= hash->GetUInt(key.c_str());
-            gOFS.ObjectManager.HashMutex.UnLockRead();
-
-            // setup the reverse lookup by id
-            fileSystemsMap[fsid] = fileSystems[queue.c_str()];
-            eos_static_info("setting reverse lookup for fsid %u", fsid);
-            // check if we are autobooting
-            if (eos::fst::Config::gConfig.autoBoot && (fileSystems[queue.c_str()]->GetStatus() <= eos::common::FileSystem::kDown) && (fileSystems[queue.c_str()]->GetConfigStatus() > eos::common::FileSystem::kOff) ) {
-              Boot(fileSystems[queue.c_str()]);
-            }
-          } else {
-	    if (key == "bootsenttime") {
+      if (queue == Config::gConfig.FstNodeConfigQueue) {
+	if (key == "symkey") {
+	  // we received a new symkey 
+	  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(),"hash");
+	  if (hash) {
+	    std::string symkey = hash->Get("symkey");
+	    eos_static_info("symkey=%s", symkey.c_str());
+	    eos::common::gSymKeyStore.SetKey64(symkey.c_str(),0);
+	  }
+	}
+      } else {
+	eos::common::RWMutexReadLock lock(fsMutex);
+	if ((fileSystems.count(queue.c_str()))) {
+	  eos_static_info("got modification on <subqueue>=%s <key>=%s", queue.c_str(),key.c_str());
+	  
+	  gOFS.ObjectManager.HashMutex.LockRead();
+	  
+	  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(),"hash");
+	  if (hash) {
+	    if (key == "id") {
+	      unsigned int fsid= hash->GetUInt(key.c_str());
 	      gOFS.ObjectManager.HashMutex.UnLockRead();
-	      // this is a request to (re-)boot a filesystem
-	      if (fileSystems.count(queue.c_str())) {
+	      
+	      // setup the reverse lookup by id
+	      fileSystemsMap[fsid] = fileSystems[queue.c_str()];
+	      eos_static_info("setting reverse lookup for fsid %u", fsid);
+	      // check if we are autobooting
+	      if (eos::fst::Config::gConfig.autoBoot && (fileSystems[queue.c_str()]->GetStatus() <= eos::common::FileSystem::kDown) && (fileSystems[queue.c_str()]->GetConfigStatus() > eos::common::FileSystem::kOff) ) {
 		Boot(fileSystems[queue.c_str()]);
-	      } else {
-              eos_static_err("got boot time update on not existant filesystem %s", queue.c_str());
 	      }
 	    } else {
-	      if (key == "scaninterval") {
+	      if (key == "bootsenttime") {
 		gOFS.ObjectManager.HashMutex.UnLockRead();
+		// this is a request to (re-)boot a filesystem
 		if (fileSystems.count(queue.c_str())) {
-		  time_t interval = (time_t) fileSystems[queue.c_str()]->GetLongLong("scaninterval");
-		  if (interval>0) {
-		    fileSystems[queue.c_str()]->RunScanner(&fstLoad, interval);
-		  }
+		  Boot(fileSystems[queue.c_str()]);
+		} else {
+		  eos_static_err("got boot time update on not existant filesystem %s", queue.c_str());
 		}
 	      } else {
-		gOFS.ObjectManager.HashMutex.UnLockRead();
+		if (key == "scaninterval") {
+		  gOFS.ObjectManager.HashMutex.UnLockRead();
+		  if (fileSystems.count(queue.c_str())) {
+		    time_t interval = (time_t) fileSystems[queue.c_str()]->GetLongLong("scaninterval");
+		    if (interval>0) {
+		      fileSystems[queue.c_str()]->RunScanner(&fstLoad, interval);
+		    }
+		  }
+		} else {
+		  gOFS.ObjectManager.HashMutex.UnLockRead();
+		}
 	      }
 	    }
-	  }
         } else {
-          gOFS.ObjectManager.HashMutex.UnLockRead();
-        }
-      } else {
-	eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", queue.c_str(),key.c_str());
-	gOFS.ObjectManager.HashMutex.UnLockRead();
+	    gOFS.ObjectManager.HashMutex.UnLockRead();
+	  }
+	} else {
+	  eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", queue.c_str(),key.c_str());
+	  gOFS.ObjectManager.HashMutex.UnLockRead();
+	}
       }
     }
 
@@ -1527,6 +1660,7 @@ Storage::Publish()
           success &= fileSystemsVector[i]->SetLongLong("stat.wopen", (long long)gOFS.WOpenFid[fileSystemsVector[i]->GetId()].size());
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.freebytes",  fileSystemsVector[i]->GetLongLong("stat.statfs.bfree")*fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.usedbytes", (fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")-fileSystemsVector[i]->GetLongLong("stat.statfs.bfree"))*fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
+	  success &= fileSystemsVector[i]->SetDouble("stat.statfs.filled", 100.0 * ((fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")-fileSystemsVector[i]->GetLongLong("stat.statfs.bfree"))) / (1+fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")));
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.capacity",   fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")*fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.fused",     (fileSystemsVector[i]->GetLongLong("stat.statfs.files")-fileSystemsVector[i]->GetLongLong("stat.statfs.ffree"))*fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
           success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (eos::common::gFmdHandler.FmdMap.count(fileSystemsVector[i]->GetId())?eos::common::gFmdHandler.FmdMap[fileSystemsVector[i]->GetId()].size():0));
@@ -1563,6 +1697,302 @@ Storage::Publish()
     }
   }
 }
+
+/*----------------------------------------------------------------------------*/
+void
+Storage::Drainer()
+{
+  SetLogId("FstDrainer");
+  SetSingleShotLogId();
+
+  eos_static_info("Start Drainer ...");
+
+  std::string nodeconfigqueue="";
+  
+  const char* val =0;
+  // we have to wait that we know our node config queue
+  while ( !(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str())) {
+    XrdSysTimer sleeper;
+    sleeper.Snooze(5);
+    eos_static_info("Snoozing ...");
+  }
+  
+  nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
+
+  while(1) {
+    eos_static_debug("Doing drainng round ...");
+    size_t nscheduled=0;
+
+    // ---------------------------------------
+    // get some global variables
+    // ---------------------------------------
+    gOFS.ObjectManager.HashMutex.LockRead();
+    
+    XrdMqSharedHash* confighash = gOFS.ObjectManager.GetHash(nodeconfigqueue.c_str());
+    std::string manager = confighash?confighash->Get("manager"):"unknown";
+    unsigned long long nparalleltx = confighash?confighash->GetLongLong("stat.drain.ntx"):0;
+    unsigned long long ratetx    = confighash?confighash->GetLongLong("stat.drain.rate"):0;
+    
+    if (nparalleltx == 0) nparalleltx = 0;
+    if (ratetx      == 0) ratetx     = 25;
+    
+    eos_static_debug("manager=%s nparalleltransfers=%llu transferrate=%llu", manager.c_str(), nparalleltx, ratetx);
+    gOFS.ObjectManager.HashMutex.UnLockRead();
+    // ---------------------------------------
+
+    unsigned int nfs=0;
+    {
+      eos::common::RWMutexReadLock lock (fsMutex);
+      nfs = fileSystemsVector.size();
+    }    
+    for (unsigned int i=0; i< nfs; i++) {
+      eos::common::RWMutexReadLock lock(fsMutex);
+      if (i< fileSystemsVector.size()) {
+        std::string path = fileSystemsVector[i]->GetPath();
+	unsigned long id = fileSystemsVector[i]->GetId();
+
+	eos_static_debug("FileSystem %lu ",id);
+     
+	// check if this filesystem has to 'schedule2drain' 
+
+	if (fileSystemsVector[i]->GetString("stat.drainer") != "on") {
+	  // nothing to do here
+	  continue;
+	}
+
+	unsigned long long freebytes   = fileSystemsVector[i]->GetLongLong("stat.statfs.freebytes");
+	unsigned long long nqueued = fileSystemsVector[i]->GetDrainQueue()->GetQueue()->Size();
+
+	if (fileSystemsVector[i]->GetDrainQueue()->GetBandwidth() != ratetx) {
+	  // modify the bandwidth setting for this queue
+	  fileSystemsVector[i]->GetDrainQueue()->SetBandwidth(ratetx);
+	}
+	
+	if (fileSystemsVector[i]->GetDrainQueue()->GetSlots() != nparalleltx) {
+	  // modify slot settings for this queue
+	  fileSystemsVector[i]->GetDrainQueue()->SetSlots(nparalleltx);
+	}
+	
+	eos::common::FileSystem::fsstatus_t bootstatus   = fileSystemsVector[i]->GetStatus();
+	eos::common::FileSystem::fsstatus_t configstatus = fileSystemsVector[i]->GetConfigStatus();
+	
+	eos_static_debug("id=%u nqueued=%llu nparalleltx=%llu", id, nqueued, nparalleltx);
+	
+	// we drain into filesystems which are booted and 'in production' e.g. not draining or down
+	if ( (bootstatus == eos::common::FileSystem::kBooted) && 
+	     (configstatus > eos::common::FileSystem::kDrain) && 
+	     (nqueued < nparalleltx)) {
+	  XrdOucErrInfo error;
+	  XrdOucString managerQuery="/?";
+	  managerQuery += "mgm.pcmd=schedule2drain";
+	  managerQuery += "&mgm.target.fsid=";
+	  char sid[1024];  snprintf(sid,sizeof(sid)-1,"%lu", id);
+	  managerQuery += sid;
+	  managerQuery += "&mgm.target.freebytes=";
+	  char sfree[1024]; snprintf(sfree,sizeof(sfree)-1,"%llu", freebytes);
+	  managerQuery += sfree;
+	  // the log ID to the schedule2balance
+	  managerQuery += "&mgm.logid="; managerQuery += logId;
+	  
+	  XrdOucString fullcapability="";
+	  int rc = gOFS.CallManager(&error, "/",manager.c_str(), managerQuery, &fullcapability);
+	  if (rc) {
+	    eos_static_err("manager returned errno=%d", rc);
+	  } else {
+	    if (fullcapability.length()) {
+	      eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
+	      bool sub = fileSystemsVector[i]->GetDrainQueue()->GetQueue()->Add(txjob);
+	      if (sub) {
+		eos_static_debug("id=%u job=%s", id, fullcapability.c_str());
+		nscheduled++;
+	      } else {
+	      eos_static_err("failed to submit balancing job");
+	      }
+	    } else {
+	      eos_static_debug("manager returned no file to schedule [ENODATA]");
+	    }
+	  }
+	}
+      }
+    }
+    
+    // go to sleep for a while if there was nothing to do
+    if (!nscheduled) {
+      XrdSysTimer sleeper;
+      sleeper.Snooze(30);
+    }
+  }
+}
+
+
+/*----------------------------------------------------------------------------*/
+void
+Storage::Balancer()
+{
+  SetLogId("FstBalancer");
+  SetSingleShotLogId();
+
+  eos_static_info("Start Balancer ...");
+
+  std::string nodeconfigqueue="";
+  
+  const char* val =0;
+  // we have to wait that we know our node config queue
+  while ( !(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str())) {
+    XrdSysTimer sleeper;
+    sleeper.Snooze(5);
+    eos_static_info("Snoozing ...");
+  }
+  
+  nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
+
+  while(1) {
+    eos_static_debug("Doing balancing round ...");
+    size_t nscheduled=0;
+
+    // ---------------------------------------
+    // get some global variables
+    // ---------------------------------------
+    gOFS.ObjectManager.HashMutex.LockRead();
+    
+    XrdMqSharedHash* confighash = gOFS.ObjectManager.GetHash(nodeconfigqueue.c_str());
+    std::string manager = confighash?confighash->Get("manager"):"unknown";
+    unsigned long long nparalleltx = confighash?confighash->GetLongLong("stat.balance.ntx"):0;
+    unsigned long long ratetx    = confighash?confighash->GetLongLong("stat.balance.rate"):0;
+    
+    if (nparalleltx == 0) nparalleltx = 1;
+    if (ratetx      == 0) ratetx     = 25;
+    
+    eos_static_debug("manager=%s nparalleltransfers=%llu transferrate=%llu", manager.c_str(), nparalleltx, ratetx);
+    gOFS.ObjectManager.HashMutex.UnLockRead();
+    // ---------------------------------------
+
+    unsigned int nfs=0;
+    {
+      eos::common::RWMutexReadLock lock (fsMutex);
+      nfs = fileSystemsVector.size();
+    }    
+    for (unsigned int i=0; i< nfs; i++) {
+      eos::common::RWMutexReadLock lock(fsMutex);     
+      if (i< fileSystemsVector.size()) {
+        std::string path = fileSystemsVector[i]->GetPath();
+	double nominal = fileSystemsVector[i]->GetDouble("stat.nominal.filled");
+	double filled  = fileSystemsVector[i]->GetDouble("stat.statfs.filled");
+
+	unsigned long id = fileSystemsVector[i]->GetId();
+
+	eos_static_debug("FileSystem %lu %.02f %.02f",id, filled, nominal);
+      
+
+	if (filled < nominal) {
+	  // if the fill status is less than nominal we can ask a balancer transfer to the MGM
+	  unsigned long long freebytes   = fileSystemsVector[i]->GetLongLong("stat.statfs.freebytes");
+	  unsigned long long nqueued = fileSystemsVector[i]->GetBalanceQueue()->GetQueue()->Size();
+	  if (fileSystemsVector[i]->GetBalanceQueue()->GetBandwidth() != ratetx) {
+	    // modify the bandwidth setting for this queue
+	    fileSystemsVector[i]->GetBalanceQueue()->SetBandwidth(ratetx);
+	  }
+
+	  if (fileSystemsVector[i]->GetBalanceQueue()->GetSlots() != nparalleltx) {
+	    // modify slot settings for this queue
+	    fileSystemsVector[i]->GetBalanceQueue()->SetSlots(nparalleltx);
+	  }
+
+	  eos::common::FileSystem::fsstatus_t bootstatus   = fileSystemsVector[i]->GetStatus();
+	  eos::common::FileSystem::fsstatus_t configstatus = fileSystemsVector[i]->GetConfigStatus();
+
+	  eos_static_debug("id=%u nqueued=%llu nparalleltx=%llu", id, nqueued, nparalleltx);
+
+	  // we balance filesystems which are booted and 'in production' e.g. not draining or down
+	  if ( (bootstatus == eos::common::FileSystem::kBooted) && 
+	       (configstatus > eos::common::FileSystem::kDrain) && 
+	       (nqueued < nparalleltx)) {
+	    XrdOucErrInfo error;
+	    XrdOucString managerQuery="/?";
+	    managerQuery += "mgm.pcmd=schedule2balance";
+	    managerQuery += "&mgm.target.fsid=";
+	    char sid[1024];  snprintf(sid,sizeof(sid)-1,"%lu", id);
+	    managerQuery += sid;
+	    managerQuery += "&mgm.target.freebytes=";
+	    char sfree[1024]; snprintf(sfree,sizeof(sfree)-1,"%llu", freebytes);
+	    managerQuery += sfree;
+	    // the log ID to the schedule2balance
+	    managerQuery += "&mgm.logid="; managerQuery += logId;
+
+	    XrdOucString fullcapability="";
+	    int rc = gOFS.CallManager(&error, "/",manager.c_str(), managerQuery, &fullcapability);
+	    if (rc) {
+	      eos_static_err("manager returned errno=%d", rc);
+	    } else {
+	      if (fullcapability.length()) {
+		eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
+		bool sub = fileSystemsVector[i]->GetBalanceQueue()->GetQueue()->Add(txjob);
+		if (sub) {
+		  eos_static_debug("id=%u job=%s", id, fullcapability.c_str());
+		  nscheduled++;
+		} else {
+		  eos_static_err("failed to submit balancing job");
+		}
+	      } else {
+		eos_static_debug("manager returned no file to schedule [ENODATA]");
+	      }
+	    } 
+	  } 	    
+	}
+      }      
+    }
+
+    // go to sleep for a while if there was nothing to do
+    if (!nscheduled) {
+      XrdSysTimer sleeper;
+      sleeper.Snooze(30);
+    }
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
+Storage::Cleaner()
+{
+  SetLogId("FstCleaner");
+  SetSingleShotLogId();
+
+  eos_static_info("Start Cleaner ...");
+
+  std::string nodeconfigqueue="";
+  
+  const char* val =0;
+  // we have to wait that we know our node config queue
+  while ( !(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str())) {
+    XrdSysTimer sleeper;
+    sleeper.Snooze(5);
+    eos_static_info("Snoozing ...");
+  }
+  
+  nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
+
+  while(1) {
+    eos_static_debug("Doing cleaning round ...");
+
+    unsigned int nfs=0;
+    {
+      eos::common::RWMutexReadLock lock (fsMutex);
+      nfs = fileSystemsVector.size();
+    }    
+    for (unsigned int i=0; i< nfs; i++) {
+      eos::common::RWMutexReadLock lock(fsMutex);     
+      if (i< fileSystemsVector.size()) {
+	if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted) 
+	  fileSystemsVector[i]->CleanTransactions();
+      }
+    }
+
+    // go to sleep for a day since we allow a transaction to stay for 1 week
+    XrdSysTimer sleeper;
+    sleeper.Snooze(24*3600);
+  }
+}      
+
 
 /*----------------------------------------------------------------------------*/
 bool 

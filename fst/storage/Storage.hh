@@ -69,11 +69,17 @@ public:
   ~FileSystem();
 
   void SetTransactionDirectory(const char* tx) { transactionDirectory= tx;}
+  void CleanTransactions();
+
   void RunScanner(Load* fstLoad, time_t interval);
 
   std::string  GetPath() {return GetString("path");}
 
   const char* GetTransactionDirectory() {return transactionDirectory.c_str();}
+
+  TransferQueue* GetDrainQueue()   { return mTxDrainQueue;  }
+  TransferQueue* GetBalanceQueue() { return mTxBalanceQueue;}
+  TransferQueue* GetExternQueue()  { return mTxExternQueue; }
 
   void BroadcastError(const char* msg);
   void BroadcastError(int errc, const char* errmsg);
@@ -113,6 +119,7 @@ private:
 
 protected:
   eos::common::RWMutex fsMutex;
+  std::set<pthread_t> ThreadSet;
 
 public:
   // fsstat & quota thread
@@ -124,6 +131,9 @@ public:
   static void* StartFsErrorReport(void* pp);
   static void* StartFsVerify(void* pp);
   static void* StartFsPublisher(void* pp);
+  static void* StartFsBalancer(void* pp);
+  static void* StartFsDrainer(void* pp);
+  static void* StartFsCleaner(void* pp);
 
   void Scrub();
   void Trim();
@@ -133,6 +143,9 @@ public:
   void Verify();
   void Communicator();
   void Publish();
+  void Balancer();
+  void Drainer();
+  void Cleaner();
 
   void Boot(FileSystem* fs);
 

@@ -55,7 +55,7 @@ public:
     // add all queues and then call Run()
     mQueues.push_back(queue);
   }
-  
+
   void Run(); // add all queues beforehand!
 
   static void* StaticThreadProc(void*);

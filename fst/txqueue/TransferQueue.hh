@@ -49,6 +49,8 @@ private:
 
   size_t mJobsRunning;
   XrdSysMutex mJobsRunningMutex;
+  XrdSysMutex mBandwidthMutex;
+  XrdSysMutex mSlotsMutex;
 
 public: 
 
@@ -59,8 +61,8 @@ public:
 
   const char* GetName() { return mName.c_str();}
 
-  size_t  GetSlots() { return nslots; } ;
-  void SetSlots(size_t slots) { nslots = slots; } ;
+  size_t  GetSlots();
+  void SetSlots(size_t slots);
 
   size_t  GetBandwidth();
   void SetBandwidth(size_t band);

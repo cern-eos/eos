@@ -36,7 +36,6 @@ Adler::Add(const char* buffer, size_t length, off_t offset)
   if (adleroffset> maxoffset) {
     maxoffset = adleroffset;
   }
-
   currChunk.offset = offset;
   currChunk.length = length;
   currChunk.adler = adler;
@@ -50,14 +49,14 @@ Adler::Add(const char* buffer, size_t length, off_t offset)
 MapChunks&
 Adler::AddElementToMap(MapChunks& map, Chunk& chunk)
 {
-  IterMap iter = map.find(chunk.offset);
   off_t offEndChunk = chunk.offset + chunk.length;
+  IterMap iter = map.find(offEndChunk);
+
   if (iter != map.end()) {
     map.erase(iter);
     map.insert(std::pair<off_t, Chunk>(offEndChunk, chunk));
   }
   else {
-
     map.insert(std::pair<off_t, Chunk>(offEndChunk, chunk));
   }
   
@@ -90,11 +89,17 @@ void
 Adler::ValidateAdlerMap()
 {
   unsigned int value;
-
+  adler = adler32(0L, Z_NULL,0);
+  needsRecalculation = false;
   IterMap iter1 = map.begin();
   IterMap iter2 = iter1;
   value = iter1->second.adler;
-     
+
+  /*  IterMap iter3;
+  for (iter3= map.begin(); iter3!= map.end(); iter3++) {
+    fprintf(stderr,"%llu %llu %llu %x\n", iter3->first,iter3->second.offset, iter3->second.length, iter3->second.adler);
+    } */
+
   if (map.begin() == map.end()) {
     //we have no chunk
     adler = adler32(0L, Z_NULL,0);
@@ -107,24 +112,33 @@ Adler::ValidateAdlerMap()
     if ((iter1->first) != maxoffset) {
       // there was probably some overwrite
       needsRecalculation = true;
+    } else {
+      if (iter1->second.offset !=0) {
+	needsRecalculation = true;
+      }
     }
     //we have one chunk
     adler = value;
     return;
   }
-  
-  value = adler32_combine(value, iter2->second.offset, iter2->second.length);
-    
+ 
+  off_t appliedoffset=0;
+ 
+  value = adler32_combine(value, iter2->second.adler, iter2->second.length);
+  appliedoffset = iter2->first;
+
   if ((iter1->second.offset != 0) ||
       (iter1->first != iter2->second.offset)) {
     needsRecalculation = true;
     return;
   }
 
-  off_t appliedoffset=0;
+  iter1++;
+  iter2++;
+
   for ( ; iter2 != map.end(); iter1++, iter2++) {
     appliedoffset = iter2->first;
-    value = adler32_combine(value, iter2->second.offset, iter2->second.length);
+    value = adler32_combine(value, iter2->second.adler, iter2->second.length);
     if (iter1->first != iter2->second.offset) {
       needsRecalculation = true;
       break;

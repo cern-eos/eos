@@ -92,6 +92,7 @@ public:
       adler = adler32(0L, Z_NULL,0);
     }
 
+    fprintf(stderr,"adler is %x\n", adler);
     currChunk.offset = offsetInit;
     currChunk.length = lengthInit;
     currChunk.adler = adler;

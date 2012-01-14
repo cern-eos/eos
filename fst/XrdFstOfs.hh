@@ -87,6 +87,7 @@ public:
   int         close();
 };
 
+
 /*----------------------------------------------------------------------------*/
 class XrdFstOfs : public XrdOfs, public eos::common::LogId {
   friend class XrdFstOfsDirectory;
@@ -106,7 +107,14 @@ public:
  
   int Configure(XrdSysError &error);
 
-  XrdFstOfs() {eos::common::LogId(); Eroute = 0; Messaging = 0; Storage = 0; TransferScheduler = 0;}
+  static void xrdfstofs_shutdown(int sig);
+
+  XrdFstOfs() {
+    eos::common::LogId(); Eroute = 0; Messaging = 0; Storage = 0; TransferScheduler = 0; 
+    (void) signal(SIGINT,xrdfstofs_shutdown);
+    (void) signal(SIGTERM,xrdfstofs_shutdown);
+    (void) signal(SIGQUIT,xrdfstofs_shutdown);
+  }
 
   XrdSysError*        Eroute;          // used by the 
 
@@ -152,7 +160,8 @@ public:
                       XrdOucEnv              *info = 0, 
                       const char*               fstPath=0, 
                       unsigned long long      fid=0,
-                      unsigned long           fsid=0) ;
+                      unsigned long           fsid=0, 
+		      bool     ignoreifnotexist=false) ;
   
   int            remdir(const char             *dirName,
 			XrdOucErrInfo          &out_error,
@@ -172,7 +181,7 @@ public:
 			const XrdSecEntity     *client,
 			const char             *opaque = 0);
 
-  int            CallManager(XrdOucErrInfo *error, const char* path, const char* manager, XrdOucString &capOpaqueFile);
+  int            CallManager(XrdOucErrInfo *error, const char* path, const char* manager, XrdOucString &capOpaqueFile, XrdOucString* return_result=0);
 
 
   // this function deals with plugin calls
