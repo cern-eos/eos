@@ -5,7 +5,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.1.1
-Release: 6
+Release: 6pre7e
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -31,8 +31,6 @@ BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static
 %description
 The EOS software package.
 
-#######################################################################################
-# the shell client package 
 #######################################################################################
 %package -n eos-server
 #######################################################################################
@@ -112,6 +110,7 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) /etc/xrd.cf.mgm
 %config(noreplace) /etc/xrd.cf.mq
 %config(noreplace) /etc/xrd.cf.sync
+%config(noreplace) /etc/xrd.cf.fed
 %config(noreplace) /etc/sysconfig/eos.example
 %_sysconfdir/rc.d/init.d/eos
 %_sysconfdir/rc.d/init.d/eosha
