@@ -26,7 +26,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/Balancer.hh"
-#include "mgm/BalanceJob.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/FsView.hh"
@@ -55,7 +54,6 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-class BalanceJob;
 
 //------------------------------------------------------------------------
 //! Classes providing views on filesystems by space,group,node
@@ -161,29 +159,15 @@ public:
 class FsGroup : public BaseView {
   friend class FsView;
 
-#ifndef EOSMGMFSVIEWTEST
-  BalanceJob* mBalanceJob;
-#endif
-
 protected:
   unsigned int mIndex;
   
 public:
 
-#ifndef EOSMGMFSVIEWTEST
-  XrdSysMutex BalancerLock;
-  bool StartBalancerJob();
-  bool StopBalancerJob();
-  void DetachBalancerJob();
-#endif
-
   FsGroup(const char* name) {
     mName = name; 
     mType="groupview";
     mIndex=0;
-#ifndef EOSMGMFSVIEWTEST
-    mBalanceJob=0;
-#endif
   }
 
 #ifdef EOSMGMFSVIEWTEST

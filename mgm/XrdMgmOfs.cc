@@ -4443,8 +4443,24 @@ XrdMgmOfs::FSctl(const int               cmd,
 	source_fs->SnapShotFileSystem(source_snapshot);
 
 	eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-	eos::FileSystemView::FileList source_filelist = gOFS->eosFsView->getFileList(source_fsid);
-	eos::FileSystemView::FileList target_filelist = gOFS->eosFsView->getFileList(target_fsid);
+
+	eos::FileSystemView::FileList source_filelist;
+	eos::FileSystemView::FileList target_filelist;
+
+	try {
+	  source_filelist = gOFS->eosFsView->getFileList(source_fsid);
+	} catch ( eos::MDException &e ) {
+	  source_filelist.set_deleted_key( 0 );
+	  source_filelist.set_empty_key(0xffffffffffffffff);
+	}
+
+	try {
+	  target_filelist = gOFS->eosFsView->getFileList(target_fsid);
+	} catch ( eos::MDException &e ) {
+	  target_filelist.set_deleted_key( 0 );
+	  target_filelist.set_empty_key(0xffffffffffffffff);
+	}
+
 	unsigned long long nfids = (unsigned long long) source_filelist.size();
 
 	eos_static_debug("group=%s cycle=%lu source_fsid=%u target_fsid=%u n_source_fids=%llu", target_snapshot.mGroup.c_str(), gposition , source_fsid, target_fsid, nfids);
@@ -4710,8 +4726,23 @@ XrdMgmOfs::FSctl(const int               cmd,
 	source_fs->SnapShotFileSystem(source_snapshot);
 
 	eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-	eos::FileSystemView::FileList source_filelist = gOFS->eosFsView->getFileList(source_fsid);
-	eos::FileSystemView::FileList target_filelist = gOFS->eosFsView->getFileList(target_fsid);
+	eos::FileSystemView::FileList source_filelist;
+	eos::FileSystemView::FileList target_filelist;
+
+	try {
+	  source_filelist = gOFS->eosFsView->getFileList(source_fsid);
+	} catch ( eos::MDException &e ) {
+	  source_filelist.set_deleted_key( 0 );
+	  source_filelist.set_empty_key(0xffffffffffffffff);
+	}
+
+	try {
+	  target_filelist = gOFS->eosFsView->getFileList(target_fsid);
+	} catch ( eos::MDException &e ) {
+	  target_filelist.set_deleted_key( 0 );
+	  target_filelist.set_empty_key(0xffffffffffffffff);
+	}
+
 	unsigned long long nfids = (unsigned long long) source_filelist.size();
 
 	eos_static_debug("group=%s cycle=%lu source_fsid=%u target_fsid=%u n_source_fids=%llu", target_snapshot.mGroup.c_str(), gposition , source_fsid, target_fsid, nfids);

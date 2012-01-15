@@ -1787,60 +1787,10 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
 }
 
 #ifndef EOSMGMFSVIEWTEST
-/*----------------------------------------------------------------------------*/
-bool
-FsGroup::StartBalancerJob()
-{
-  bool retc=false;
-  BalancerLock.Lock();
-
-  if (!mBalanceJob) {
-    mBalanceJob = new BalanceJob(this);
-    retc=true;
-  } else {
-    if (mBalanceJob->ReActivate())
-      retc=true;
-  }
-  BalancerLock.UnLock();
-  return retc;
-}
-
-
-/*----------------------------------------------------------------------------*/
-bool
-FsGroup::StopBalancerJob()
-{
-  bool retc=false;
-  BalancerLock.Lock();
-  if (mBalanceJob) {
-    delete mBalanceJob;
-    mBalanceJob=0;
-    retc=true;
-  }
-  BalancerLock.UnLock();
-  return retc;
-}
-
-/*----------------------------------------------------------------------------*/
-void
-FsGroup::DetachBalancerJob()
-{
-  BalancerLock.Lock();
-  mBalanceJob=0;
-  BalancerLock.UnLock();
-}
 
 /*----------------------------------------------------------------------------*/
 FsGroup::~FsGroup() 
 {
-#ifndef EOSMGMFSVIEWTEST
-  if (mBalanceJob) {
-    BalancerLock.Lock();
-    delete mBalanceJob;
-    mBalanceJob=0;
-    BalancerLock.UnLock();
-  }
-#endif
 }
 
 

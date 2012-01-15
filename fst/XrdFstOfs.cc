@@ -97,6 +97,9 @@ EOSFSTNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 void
 XrdFstOfs::xrdfstofs_shutdown(int sig) {
+  // we don't want core dumps from a shutdown
+
+  (void) signal(SIGSEGV,SIG_IGN);
 
   // handler to shutdown the daemon for valgrinding and clean server stop (e.g. let's time to finish write operations
 
@@ -996,7 +999,7 @@ XrdFstOfsFile::close()
     // -------------------------------------------------------------------------------------------------------  
     // check if the file close comes from a client disconnect e.g. the destructor
     // -------------------------------------------------------------------------------------------------------
-    if (viaDelete) {
+    if (viaDelete && isCreation) {
       // -------------------------------------------------------------------------------------------------------
       // it is closed by the constructor e.g. no proper close
       // -------------------------------------------------------------------------------------------------------
