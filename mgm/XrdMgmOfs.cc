@@ -3458,7 +3458,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 
   eos::common::Mapping::IdMap(client,"",tident,vid);  
 
-  eos::common::LogId::SetSingleShotLogId();
+  eos::common::LogId::SetSingleShotLogId(tident);
   
   if (args.Arg1Len) {
     if (args.Arg1Len < 16384) {

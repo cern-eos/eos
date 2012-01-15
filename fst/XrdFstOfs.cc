@@ -479,7 +479,7 @@ XrdFstOfsFile::open(const char                *path,
   int caprc = 0;
 
   if ((caprc=gCapabilityEngine.Extract(openOpaque, capOpaque))) {
-    if (ENOKEY) {
+    if (caprc == ENOKEY) {
       // if we just miss the key, better stall the client
       return gOFS.Stall(error, 10, "FST still misses the required capability key");
     }

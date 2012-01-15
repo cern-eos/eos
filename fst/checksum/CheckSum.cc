@@ -92,8 +92,10 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
       free(buffer);
       return false;
     }
-    Add(buffer, nread, offset);
-    offset += nread;
+    if (nread>0) {
+      Add(buffer, nread, offset);
+      offset += nread;
+    }
     if (rate) {
       // regulate the verification rate
       gettimeofday(&currenttime,&tz);

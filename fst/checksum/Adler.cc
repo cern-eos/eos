@@ -30,6 +30,7 @@ EOSFSTNAMESPACE_BEGIN
 bool
 Adler::Add(const char* buffer, size_t length, off_t offset)
 {
+  adler = adler32(0L, Z_NULL,0);
   Chunk currChunk;
   adler = adler32(adler, (const Bytef*) buffer, length);
   adleroffset = offset + length;
@@ -95,9 +96,9 @@ Adler::ValidateAdlerMap()
   IterMap iter2 = iter1;
   value = iter1->second.adler;
 
-  /*  IterMap iter3;
-  for (iter3= map.begin(); iter3!= map.end(); iter3++) {
-    fprintf(stderr,"%llu %llu %llu %x\n", iter3->first,iter3->second.offset, iter3->second.length, iter3->second.adler);
+  IterMap iter3;
+  /*  for (iter3= map.begin(); iter3!= map.end(); iter3++) {
+    fprintf(stderr,"ADLER VALIDATE %llu %llu %llu %x\n", iter3->first,iter3->second.offset, iter3->second.length, iter3->second.adler);
     } */
 
   if (map.begin() == map.end()) {
@@ -124,18 +125,6 @@ Adler::ValidateAdlerMap()
  
   off_t appliedoffset=0;
  
-  value = adler32_combine(value, iter2->second.adler, iter2->second.length);
-  appliedoffset = iter2->first;
-
-  if ((iter1->second.offset != 0) ||
-      (iter1->first != iter2->second.offset)) {
-    needsRecalculation = true;
-    return;
-  }
-
-  iter1++;
-  iter2++;
-
   for ( ; iter2 != map.end(); iter1++, iter2++) {
     appliedoffset = iter2->first;
     value = adler32_combine(value, iter2->second.adler, iter2->second.length);
