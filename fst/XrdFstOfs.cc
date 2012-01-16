@@ -97,19 +97,15 @@ EOSFSTNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 void
 XrdFstOfs::xrdfstofs_shutdown(int sig) {
-  // we don't want core dumps from a shutdown
-
-  (void) signal(SIGSEGV,SIG_IGN);
-
   // handler to shutdown the daemon for valgrinding and clean server stop (e.g. let's time to finish write operations
 
   std::set<pthread_t>::const_iterator it;
   for (it= gOFS.Storage->ThreadSet.begin(); it != gOFS.Storage->ThreadSet.end(); it++) {
-    eos_static_warning("Shutdown Thread %llx", (unsigned long long) *it);
+    eos_static_warning("op=shutdown threadid=%llx", (unsigned long long) *it);
     pthread_cancel(*it);
   }
 
-  eos_static_warning("Shutdown complete");
+  eos_static_warning("op=shutdown status=completed");
 
 
   exit(-1);
@@ -280,7 +276,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   eos::common::Logging::SetLogPriority(LOG_INFO);
   eos::common::Logging::SetUnit(unit.c_str());
 
-  eos_info("logging configured\n");
+  eos_info("info=\"logging configured\"");
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // create the messaging object(recv thread)
@@ -572,7 +568,7 @@ XrdFstOfsFile::open(const char                *path,
     }
     gOFS.OpenFidMutex.UnLock();
     if (isopenforwrite) {
-      eos_err("forbid to open replica - file %s is opened in RW mode");
+      eos_err("forbid to open replica - file %s is opened in RW mode", Path.c_str());
       return gOFS.Emsg(epname,error, ENOENT,"open - cannot replicate: file is opened in RW mode",path);
     }
     isReplication=true;
@@ -622,7 +618,7 @@ XrdFstOfsFile::open(const char                *path,
     fstBlockXS = 0;
 
   if (fstBlockXS) {
-    eos_info("created/got blocklevel checksum\n");
+    eos_info("info=\"created/got blocklevel checksum\"");
     XrdOucString fstXSPath = fstBlockXS->MakeBlockXSPath(fstPath.c_str());
 
     if (!fstBlockXS->OpenMap(fstXSPath.c_str(), isCreation?bookingsize:statinfo.st_size,fstBlockSize, isRW)) {
@@ -870,7 +866,7 @@ XrdFstOfsFile::closeofs()
             eos_err("unable to change block checksum map");
             rc = SFS_ERROR;
           } else {
-            eos_info("adjusting block XS map to %llu\n", statinfo.st_size);
+            eos_info("info=\"adjusting block XS map to %llu\"", statinfo.st_size);
           }
         }
 
@@ -882,7 +878,7 @@ XrdFstOfsFile::closeofs()
           }
         }       
       } else {
-        eos_info("block-xs skipping hole check and changemap nwriter=%d nreader=%d", (gOFS.WOpenFid[fsid].count(fileid))?gOFS.WOpenFid[fsid][fileid]:0 , (gOFS.ROpenFid[fsid].count(fileid))?gOFS.ROpenFid[fsid][fileid]:0);
+        eos_info("info=\"block-xs skipping hole check and changemap\" nwriter=%d nreader=%d", (gOFS.WOpenFid[fsid].count(fileid))?gOFS.WOpenFid[fsid][fileid]:0 , (gOFS.ROpenFid[fsid].count(fileid))?gOFS.ROpenFid[fsid][fileid]:0);
       }
       gOFS.OpenFidMutex.UnLock();
       // -----|
@@ -912,7 +908,7 @@ XrdFstOfsFile::verifychecksum()
     if (!isRW) {
       // for read's we don't scan the whole file if the file was not read upto the end - we skip checksumming for large files > 64M
       if ( (checkSum->GetMaxOffset() != openSize) && ( openSize > (1024*1024*64)) ) {
-        eos_info("Skipping checksum (re-scan) for files > 64M ...");
+        eos_info("info=\"skipping checksum (re-scan) for files > 64M ...\"");
         // remove the checksum object
         delete checkSum;
         checkSum=0;
@@ -927,14 +923,14 @@ XrdFstOfsFile::verifychecksum()
       float scantime = 0; // is ms
       if (checkSum->ScanFile(fstPath.c_str(), scansize, scantime)) {
         XrdOucString sizestring;
-        eos_info("Rescanned checksum - size=%s time=%.02fms rate=%.02f MB/s %x", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL), checkSum->GetHexChecksum());
+        eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %x", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL), checkSum->GetHexChecksum());
       } else {
         eos_err("Rescanning of checksum failed");
       }
     } else {
       // this was prefect streaming I/O
       if ((!isRW) && (checkSum->GetMaxOffset() != openSize)) {
-        eos_info("Skipping checksum (re-scan) since file was not read completely %llu %llu...", checkSum->GetMaxOffset(), openSize);
+        eos_info("info=\"skipping checksum (re-scan) since file was not read completely %llu %llu...\"", checkSum->GetMaxOffset(), openSize);
         // remove the checksum object
         delete checkSum;
         checkSum=0;
@@ -1164,13 +1160,13 @@ XrdFstOfsFile::close()
 	      }
 	      if (rc == -EIDRM) {
 		// this file has been deleted in the meanwhile ... we can unlink that immedeatly
-		eos_info("unlinking fid=%08x path=%s - file has been already unlinked from the namespace", fMd->fMd.fid, Path.c_str());
+		eos_info("info=\"unlinking fid=%08x path=%s - file has been already unlinked from the namespace\"", fMd->fMd.fid, Path.c_str());
 	      }
 	      if (rc == -EBADE) {
-		eos_err("unlinking fid=%08x path=%s - file size of replica does not match reference", fMd->fMd.fid, Path.c_str());
+		eos_err("info=\"unlinking fid=%08x path=%s - file size of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
 	      }
 	      if (rc == -EBADR) {
-		eos_err("unlinking fid=%08x path=%s - checksum of replica does not match reference", fMd->fMd.fid, Path.c_str());
+		eos_err("info=\"unlinking fid=%08x path=%s - checksum of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
 	      }
 	      
 	      int retc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
@@ -1237,7 +1233,7 @@ XrdFstOfsFile::close()
   }
   
   if (deleteOnClose) {
-    eos_info("Deleting on close fn=%s fstpath=%s\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+    eos_info("info=\"deleting on close\" fn=%s fstpath=%s\n", capOpaque->Get("mgm.path"), fstPath.c_str());
     int retc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid, true);
     if (retc) {
       eos_debug("<rem> returned retc=%d", retc);
@@ -1579,7 +1575,7 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
   }
 
   //  fprintf(stderr,"truncate called %llu\n", fileOffset);
-  eos_info("(truncate)  openSize=%llu fileOffset=%llu", openSize, fileOffset);
+  eos_info("subcmd=truncate openSize=%llu fileOffset=%llu", openSize, fileOffset);
   if (fileOffset != openSize) {
     haswrite = true;
     if (checkSum) {
@@ -1819,7 +1815,7 @@ XrdFstOfs::_rem(const char             *path,
     Adler xs; // the type does not matter here
     const char* path = xs.MakeBlockXSPath(fstPath.c_str());
     if (!xs.UnlinkXSPath()) {
-      eos_info("removed block-xs: %s", path);
+      eos_info("info=\"removed block-xs\" path=%s", path);
     }
   }
 
@@ -2100,7 +2096,7 @@ XrdFstOfsDirectory::open(const char              *dirName,
   /* --------------------------------------------------------------------------------- */
   XrdOucEnv Opaque(opaque?opaque:"disk=1");
 
-  eos_info("calling opendir for %s\n", dirName);
+  eos_info("info=\"calling opendir\" dir=%s\n", dirName);
   dirname = dirName;
   if (!client || (strcmp(client->prot,"sss"))) {
     return gOFS.Emsg("opendir",error,EPERM, "open directory - you need to connect via sss",dirName);

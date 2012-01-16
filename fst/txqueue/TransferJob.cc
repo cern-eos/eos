@@ -167,6 +167,11 @@ void TransferJob::DoIt(){
   int rc = system(command.str().c_str());
 
   eos_static_debug("copy returned with retc=%d", WEXITSTATUS(rc));
+
+  // own the result files
+  ::chown(fileOutput.c_str(), geteuid(),getegid());
+  ::chown(fileResult.c_str(), geteuid(),getegid());
+
   //delete the result files
   remove(fileOutput.c_str());
   remove(fileResult.c_str());

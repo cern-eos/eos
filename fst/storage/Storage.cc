@@ -1718,6 +1718,8 @@ Storage::Drainer()
   }
   
   nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
+  unsigned int cycler=0;
+
 
   while(1) {
     eos_static_debug("Doing drainng round ...");
@@ -1746,42 +1748,53 @@ Storage::Drainer()
       nfs = fileSystemsVector.size();
     }    
     for (unsigned int i=0; i< nfs; i++) {
+      unsigned int index = (i+cycler) % nfs;
       eos::common::RWMutexReadLock lock(fsMutex);
-      if (i< fileSystemsVector.size()) {
-        std::string path = fileSystemsVector[i]->GetPath();
-	unsigned long id = fileSystemsVector[i]->GetId();
-
+      if ( index < fileSystemsVector.size()) {
+        std::string path = fileSystemsVector[index]->GetPath();
+	unsigned long id = fileSystemsVector[index]->GetId();
 	eos_static_debug("FileSystem %lu ",id);
      
 	// check if this filesystem has to 'schedule2drain' 
 
-	if (fileSystemsVector[i]->GetString("stat.drainer") != "on") {
+	if (fileSystemsVector[index]->GetString("stat.drainer") != "on") {
 	  // nothing to do here
 	  continue;
 	}
 
-	unsigned long long freebytes   = fileSystemsVector[i]->GetLongLong("stat.statfs.freebytes");
-	unsigned long long nqueued = fileSystemsVector[i]->GetDrainQueue()->GetQueue()->Size();
+	unsigned long long freebytes   = fileSystemsVector[index]->GetLongLong("stat.statfs.freebytes");
+	unsigned long long nrunning = 0;
 
-	if (fileSystemsVector[i]->GetDrainQueue()->GetBandwidth() != ratetx) {
+	for (unsigned int s=0; s < nfs; s++) {
+	  if (s < fileSystemsVector.size()) {
+	    unsigned long long lrunning  = fileSystemsVector[s]->GetDrainQueue()->GetRunning();
+	    unsigned long long lqueued   = fileSystemsVector[s]->GetDrainQueue()->GetQueue()->Size();
+	    lrunning += lqueued;
+	    nrunning += (lrunning);
+	    if (lrunning != (unsigned long long) fileSystemsVector[s]->GetLongLong("stat.drainer.running")) 
+	      fileSystemsVector[s]->SetLongLong("stat.drainer.running",lrunning);
+	  }
+	}
+
+	if (fileSystemsVector[index]->GetDrainQueue()->GetBandwidth() != ratetx) {
 	  // modify the bandwidth setting for this queue
-	  fileSystemsVector[i]->GetDrainQueue()->SetBandwidth(ratetx);
+	  fileSystemsVector[index]->GetDrainQueue()->SetBandwidth(ratetx);
 	}
 	
-	if (fileSystemsVector[i]->GetDrainQueue()->GetSlots() != nparalleltx) {
+	if (fileSystemsVector[index]->GetDrainQueue()->GetSlots() != nparalleltx) {
 	  // modify slot settings for this queue
-	  fileSystemsVector[i]->GetDrainQueue()->SetSlots(nparalleltx);
+	  fileSystemsVector[index]->GetDrainQueue()->SetSlots(nparalleltx);
 	}
 	
-	eos::common::FileSystem::fsstatus_t bootstatus   = fileSystemsVector[i]->GetStatus();
-	eos::common::FileSystem::fsstatus_t configstatus = fileSystemsVector[i]->GetConfigStatus();
+	eos::common::FileSystem::fsstatus_t bootstatus   = fileSystemsVector[index]->GetStatus();
+	eos::common::FileSystem::fsstatus_t configstatus = fileSystemsVector[index]->GetConfigStatus();
 	
-	eos_static_debug("id=%u nqueued=%llu nparalleltx=%llu", id, nqueued, nparalleltx);
+	eos_static_debug("id=%u nrunning=%llu nparalleltx=%llu", id, nrunning, nparalleltx);
 	
 	// we drain into filesystems which are booted and 'in production' e.g. not draining or down
 	if ( (bootstatus == eos::common::FileSystem::kBooted) && 
 	     (configstatus > eos::common::FileSystem::kDrain) && 
-	     (nqueued < nparalleltx)) {
+	     (nrunning < nparalleltx)) {
 	  XrdOucErrInfo error;
 	  XrdOucString managerQuery="/?";
 	  managerQuery += "mgm.pcmd=schedule2drain";
@@ -1801,12 +1814,12 @@ Storage::Drainer()
 	  } else {
 	    if (fullcapability.length()) {
 	      eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
-	      bool sub = fileSystemsVector[i]->GetDrainQueue()->GetQueue()->Add(txjob);
+	      bool sub = fileSystemsVector[index]->GetDrainQueue()->GetQueue()->Add(txjob);
 	      if (sub) {
 		eos_static_debug("id=%u job=%s", id, fullcapability.c_str());
 		nscheduled++;
 	      } else {
-	      eos_static_err("failed to submit balancing job");
+	      eos_static_err("failed to submit draining job");
 	      }
 	    } else {
 	      eos_static_debug("manager returned no file to schedule [ENODATA]");
@@ -1821,6 +1834,19 @@ Storage::Drainer()
       XrdSysTimer sleeper;
       sleeper.Snooze(30);
     }
+
+    // update the 'running' variable
+    for (unsigned int s=0; s < nfs; s++) {
+      eos::common::RWMutexReadLock lock(fsMutex);
+      if (s < fileSystemsVector.size()) {
+	unsigned long long lrunning  = fileSystemsVector[s]->GetDrainQueue()->GetRunning();
+	unsigned long long lqueued   = fileSystemsVector[s]->GetDrainQueue()->GetQueue()->Size();
+	lrunning += lqueued;
+	if (lrunning != (unsigned long long) fileSystemsVector[s]->GetLongLong("stat.drainer.running")) 
+	  fileSystemsVector[s]->SetLongLong("stat.drainer.running",lrunning);
+      }
+    }
+    cycler++;
   }
 }
 
@@ -1846,10 +1872,12 @@ Storage::Balancer()
   
   nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
 
+  unsigned int cycler=0;
+
   while(1) {
     eos_static_debug("Doing balancing round ...");
     size_t nscheduled=0;
-
+    bool   ask=false;
     // ---------------------------------------
     // get some global variables
     // ---------------------------------------
@@ -1860,7 +1888,7 @@ Storage::Balancer()
     unsigned long long nparalleltx = confighash?confighash->GetLongLong("stat.balance.ntx"):0;
     unsigned long long ratetx    = confighash?confighash->GetLongLong("stat.balance.rate"):0;
     
-    if (nparalleltx == 0) nparalleltx = 1;
+    if (nparalleltx == 0) nparalleltx = 0;
     if (ratetx      == 0) ratetx     = 25;
     
     eos_static_debug("manager=%s nparalleltransfers=%llu transferrate=%llu", manager.c_str(), nparalleltx, ratetx);
@@ -1873,40 +1901,55 @@ Storage::Balancer()
       nfs = fileSystemsVector.size();
     }    
     for (unsigned int i=0; i< nfs; i++) {
-      eos::common::RWMutexReadLock lock(fsMutex);     
-      if (i< fileSystemsVector.size()) {
-        std::string path = fileSystemsVector[i]->GetPath();
-	double nominal = fileSystemsVector[i]->GetDouble("stat.nominal.filled");
-	double filled  = fileSystemsVector[i]->GetDouble("stat.statfs.filled");
+      unsigned int index = (i+cycler) % nfs;
 
-	unsigned long id = fileSystemsVector[i]->GetId();
+      eos::common::RWMutexReadLock lock(fsMutex);     
+      if (index< fileSystemsVector.size()) {
+        std::string path = fileSystemsVector[index]->GetPath();
+	double nominal = fileSystemsVector[index]->GetDouble("stat.nominal.filled");
+	double filled  = fileSystemsVector[index]->GetDouble("stat.statfs.filled");
+
+	unsigned long id = fileSystemsVector[index]->GetId();
 
 	eos_static_debug("FileSystem %lu %.02f %.02f",id, filled, nominal);
       
+	unsigned long long nrunning = 0;
+
+	for (unsigned int s=0; s < nfs; s++) {
+	  if (s < fileSystemsVector.size()) {
+	    unsigned long long lrunning  = fileSystemsVector[s]->GetBalanceQueue()->GetRunning();
+	    unsigned long long lqueued   = fileSystemsVector[s]->GetBalanceQueue()->GetQueue()->Size();
+	    lrunning += lqueued;
+	    nrunning += (lrunning);
+	    if (lrunning != (unsigned long long) fileSystemsVector[s]->GetLongLong("stat.balancer.running")) 
+	      fileSystemsVector[s]->SetLongLong("stat.balancer.running",lrunning);
+	  }
+	}
 
 	if (filled < nominal) {
+	  ask = true;
 	  // if the fill status is less than nominal we can ask a balancer transfer to the MGM
-	  unsigned long long freebytes   = fileSystemsVector[i]->GetLongLong("stat.statfs.freebytes");
-	  unsigned long long nqueued = fileSystemsVector[i]->GetBalanceQueue()->GetQueue()->Size();
-	  if (fileSystemsVector[i]->GetBalanceQueue()->GetBandwidth() != ratetx) {
+	  unsigned long long freebytes   = fileSystemsVector[index]->GetLongLong("stat.statfs.freebytes");
+	  
+	  if (fileSystemsVector[index]->GetBalanceQueue()->GetBandwidth() != ratetx) {
 	    // modify the bandwidth setting for this queue
-	    fileSystemsVector[i]->GetBalanceQueue()->SetBandwidth(ratetx);
+	    fileSystemsVector[index]->GetBalanceQueue()->SetBandwidth(ratetx);
 	  }
 
-	  if (fileSystemsVector[i]->GetBalanceQueue()->GetSlots() != nparalleltx) {
+	  if (fileSystemsVector[index]->GetBalanceQueue()->GetSlots() != nparalleltx) {
 	    // modify slot settings for this queue
-	    fileSystemsVector[i]->GetBalanceQueue()->SetSlots(nparalleltx);
+	    fileSystemsVector[index]->GetBalanceQueue()->SetSlots(nparalleltx);
 	  }
 
-	  eos::common::FileSystem::fsstatus_t bootstatus   = fileSystemsVector[i]->GetStatus();
-	  eos::common::FileSystem::fsstatus_t configstatus = fileSystemsVector[i]->GetConfigStatus();
+	  eos::common::FileSystem::fsstatus_t bootstatus   = fileSystemsVector[index]->GetStatus();
+	  eos::common::FileSystem::fsstatus_t configstatus = fileSystemsVector[index]->GetConfigStatus();
 
-	  eos_static_debug("id=%u nqueued=%llu nparalleltx=%llu", id, nqueued, nparalleltx);
+	  eos_static_debug("id=%u nrunning=%llu nparalleltx=%llu", id, nrunning, nparalleltx);
 
 	  // we balance filesystems which are booted and 'in production' e.g. not draining or down
 	  if ( (bootstatus == eos::common::FileSystem::kBooted) && 
 	       (configstatus > eos::common::FileSystem::kDrain) && 
-	       (nqueued < nparalleltx)) {
+	       (nrunning < nparalleltx)) {
 	    XrdOucErrInfo error;
 	    XrdOucString managerQuery="/?";
 	    managerQuery += "mgm.pcmd=schedule2balance";
@@ -1926,7 +1969,7 @@ Storage::Balancer()
 	    } else {
 	      if (fullcapability.length()) {
 		eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
-		bool sub = fileSystemsVector[i]->GetBalanceQueue()->GetQueue()->Add(txjob);
+		bool sub = fileSystemsVector[index]->GetBalanceQueue()->GetQueue()->Add(txjob);
 		if (sub) {
 		  eos_static_debug("id=%u job=%s", id, fullcapability.c_str());
 		  nscheduled++;
@@ -1938,15 +1981,16 @@ Storage::Balancer()
 	      }
 	    } 
 	  } 	    
-	}
+	} 
       }      
     }
 
     // go to sleep for a while if there was nothing to do
-    if (!nscheduled) {
+    if ((!ask) || (!nscheduled)) {
       XrdSysTimer sleeper;
       sleeper.Snooze(30);
     }
+    cycler++;
   }
 }
 
