@@ -188,7 +188,7 @@ public:
   std::string Get(const char* key) {GetCounter++;std::string get=""; XrdMqRWMutexReadLock lock(StoreMutex);if (Store.count(key)) get = Store[key].GetEntry(); return get;}
 
   long long   GetLongLong(const char* key) {
-    std::string get = Get(key); return strtoll(get.c_str(),0,10);
+    std::string get = Get(key); if (!get.length()) {return 0;} else {return strtoll(get.c_str(),0,10);}
   }
 
   unsigned int GetUInt(const char* key) {
