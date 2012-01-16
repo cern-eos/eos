@@ -124,7 +124,7 @@ Balancer::Balance(void)
       SpaceNodeTransferRate    = FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("balancer.node.rate");
 
       if (IsSpaceBalancing) {
-	size_t totalfiles;
+	size_t totalfiles; // number of files currently in transfer
         // loop over all groups
         for (git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin(); git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); git++) {
 	  
@@ -141,7 +141,7 @@ Balancer::Balance(void)
 	      eos::common::FileSystem* fs = FsView::gFsView.mIdView[*it];
 	      
 	      if (FsView::gFsView.mIdView.count(*it)) {
-		totalfiles += FsView::gFsView.mIdView[*it]->GetBalanceQueue()->Size();
+		totalfiles += FsView::gFsView.mIdView[*it]->GetLongLong("stat.balancer.running");
 	      }
 	      
 	      if (fs) {
@@ -150,12 +150,13 @@ Balancer::Balance(void)
 		  hasdrainjob = true;
 		}
 	      }
-	    }
 
-	    std::string squeued="0";
-	    eos::common::StringConversion::GetSizeString(squeued, totalfiles);
-	    {
-	      (*git)->SetConfigMember("stat.balancing.queued",squeued,false, "", true);
+	      // set transfer running by group
+	      char srunning[256]; snprintf(srunning, sizeof(srunning)-1, "%lu", totalfiles);
+	      std::string brunning = srunning;
+	      if ( (*git)->GetConfigMember("stat.balancing.running") != brunning) {
+		(*git)->SetConfigMember("stat.balancing.running", brunning, false, "", true);
+	      }
 	    }
 	  }
 
@@ -228,6 +229,9 @@ Balancer::Balance(void)
         std::set<FsGroup*>::const_iterator git;
         if (FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
 	  for (git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin(); git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); git++) {
+	    if ( (*git)->GetConfigMember("stat.balancing.running") != "0") {
+	      (*git)->SetConfigMember("stat.balancing.running", "0", false, "", true);
+	    }
 	    std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
 	    for (fsit = (*git)->begin(); fsit != (*git)->end(); fsit++) {
 	      FileSystem* fs = FsView::gFsView.mIdView[*fsit];

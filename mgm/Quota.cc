@@ -1171,13 +1171,16 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
       return ENONET;
     }
 
-    if (availablefs.size() != eos::common::LayoutId::GetOnlineStripeNumber(lid)) {
-      // -----------------------------------------------------------------------
-      // check if there are enough stripes available for the layout type chosen
-      // if not we set EXDEV as return code indicating that the caller needs
-      // to place new stripes for each unavailfs entry
-      // -----------------------------------------------------------------------
-      returnCode = EXDEV;
+    if ( (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaidDP) ||
+	 (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReedS) ) {
+      if (availablefs.size() != eos::common::LayoutId::GetOnlineStripeNumber(lid)) {
+	// -----------------------------------------------------------------------
+	// check if there are enough stripes available for the layout type chosen
+	// if not we set EXDEV as return code indicating that the caller needs
+	// to place new stripes for each unavailfs entry
+	// -----------------------------------------------------------------------
+	returnCode = EXDEV;
+      }
     }
 
     // -----------------------------------------------------------------------

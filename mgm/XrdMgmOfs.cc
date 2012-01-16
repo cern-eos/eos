@@ -702,7 +702,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     
     if (!dmd) {
       if (cPath.GetSubPath(2)) {
-	eos_info("checking l2 path %s", cPath.GetSubPath(2));
+	eos_info("info=\"checking l2 path\" path=%s", cPath.GetSubPath(2));
 	//-------------------------------------------
 	// check if we have a redirection setting at level 2 in the namespace
 	//-------------------------------------------
@@ -735,7 +735,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 	  rcode = SFS_REDIRECT;
 	  error.setErrInfo(ecode, redirectionhost.c_str());
 	  gOFS->MgmStats.Add("RedirectENOENT",vid.uid,vid.gid,1);  
-	  eos_info("redirecting to %s:%d", redirectionhost.c_str(), ecode);
+	  eos_info("info=\"redirecting\" hostport=%s:%d", redirectionhost.c_str(), ecode);
 	  return rcode;
 	}    
       }
@@ -1071,7 +1071,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
               stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
             }
             gOFS->MgmStats.Add("OpenStalledHeal",vid.uid,vid.gid,1);  
-            eos_info("[sys] stalling file %s (rw=%d) stalltime=%d nstall=%d", path, isRW, stalltime, nheal);
+            eos_info("attr=sys info=\"stalling file\" path=%s rw=%d stalltime=%d nstall=%d", path, isRW, stalltime, nheal);
             gOFS->MgmHealMapMutex.UnLock();
             return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
           } else {
@@ -1088,7 +1088,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
         if (stalltime) {
           // stall the client
           gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
-          eos_info("[sys] stalling file %s (rw=%d) - replica(s) down",path, isRW);
+          eos_info("attr=sys info=\"stalling file since replica's are down\" path=%s rw=%d",path, isRW);
           return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
         }
       }
@@ -1098,7 +1098,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
         if (stalltime) {
           // stall the client
           gOFS->MgmStats.Add("OpenStalled",vid.uid,vid.gid,1);  
-          eos_info("[user] stalling file %s (rw=%d) - replica(s) down",path, isRW);
+          eos_info("attr=user info=\"stalling file since replica's are down\" path=%s rw=%d",path, isRW);
           return gOFS->Stall(error, stalltime, "Required filesystems are currently unavailable!");
         }
       }
@@ -1261,7 +1261,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 
   //  ZTRACE(open, "Return redirection " << redirectionhost.c_str() << "Targetport: " << ecode);
 
-  eos_info("redirection=%s:%d", redirectionhost.c_str(), ecode);
+  eos_info("info=\"redirection\" hostport=%s:%d", redirectionhost.c_str(), ecode);
 
   if (capabilityenv)
     delete capabilityenv;
@@ -2018,7 +2018,6 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
       }
       if (fulldir) {
         if (copydir) delete copydir;
-        eos_info("this directory exists!",path);
         EXEC_TIMING_END("Exists");      
         return SFS_OK;
       }
@@ -3589,9 +3588,9 @@ XrdMgmOfs::FSctl(const int               cmd,
         checksumbuffer.putData(binchecksum, SHA_DIGEST_LENGTH);
 
         if (checksum) {
-          eos_info("commit: path=%s size=%s fid=%s fsid=%s checksum=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, checksum, amtime, amtimensec);
+          eos_info("subcmd=commit path=%s size=%s fid=%s fsid=%s checksum=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, checksum, amtime, amtimensec);
         } else {
-          eos_info("commit: path=%s size=%s fid=%s fsid=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, amtime, amtimensec);
+          eos_info("subcmd=commit path=%s size=%s fid=%s fsid=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, amtime, amtimensec);
         }
         
         // get the file meta data if exists
@@ -4654,7 +4653,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       eos::common::FileSystem::fs_snapshot source_snapshot;
       unsigned long long freebytes = (sfreebytes.c_str())?strtoull(sfreebytes.c_str(),0,10):0;
 
-      eos_static_info("cmd=schedule2balance fsid=%d freebytes=%llu logid=%s", target_fsid, freebytes, alogid?alogid:"");
+      eos_static_info("cmd=schedule2drain fsid=%d freebytes=%llu logid=%s", target_fsid, freebytes, alogid?alogid:"");
 
       while(1)
       // lock the view and get the filesystem information for the target where be balance to
@@ -4704,7 +4703,8 @@ XrdMgmOfs::FSctl(const int               cmd,
 	eos::common::FileSystem* source_fs = 0;
 	for (size_t n=0; n< group->size(); n++) {
 	  // look for a filesystem in drain mode
-	  if (eos::common::FileSystem::GetDrainStatusFromString(FsView::gFsView.mIdView[*group_iterator]->GetString("stat.drain").c_str()) != eos::common::FileSystem::kDraining ) {
+	  if ( (eos::common::FileSystem::GetDrainStatusFromString(FsView::gFsView.mIdView[*group_iterator]->GetString("stat.drain").c_str()) != eos::common::FileSystem::kDraining ) &&
+	       (eos::common::FileSystem::GetDrainStatusFromString(FsView::gFsView.mIdView[*group_iterator]->GetString("stat.drain").c_str()) != eos::common::FileSystem::kDrainStalling ) ) {
 	    source_fs = 0;
 	    group_iterator++; if (group_iterator == group->end()) group_iterator = group->begin();
 	    continue;
@@ -4750,7 +4750,8 @@ XrdMgmOfs::FSctl(const int               cmd,
 	// give the oldest file first
 	eos::FileSystemView::FileIterator fit = source_filelist.begin();
 	while (fit != source_filelist.end()) {
-	  // check that the target does not has this file
+	  eos_static_debug("checkinf fid %llx", *fit);
+	  // check that the target does not have this file
 	  eos::FileMD::id_t fid = *fit;
 	  if (target_filelist.count(fid)) {
 	    // iterate to the next file, we have this file already
@@ -4775,6 +4776,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    if ( (sScheduledFid.count(fid) && ((sScheduledFid[fid] > (time(NULL))))) ) {
 	      // iterate to the next file, we have scheduled this file during the last hour or anyway it is empty
 	      fit++;
+	      eos_static_debug("file %llx has already been scheduled at %lu", fid, sScheduledFid[fid]);
 	      continue;
 	    } else {
 	      eos::FileMD* fmd = 0;
@@ -4828,6 +4830,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 		std::vector<unsigned int> unavailfs; // not used
 		if ((!space) || (retc=space->FileAccess((uid_t)0,(gid_t)0,(long unsigned int)0, (const char*) 0, lid, locationfs, fsindex, false, (long long unsigned)0, unavailfs))) {
 		  // inaccessible files we let retry after 60 minutes
+		  eos_static_err("no access to file %llx retc=%d", fid, retc);
 		  sScheduledFid[fid] = time(NULL) + 3600;
 		  // try with next file
 		  fit++;
@@ -5684,7 +5687,7 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
     eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
     
     bool sub = targetfilesystem->GetExternQueue()->Add(txjob);
-    eos_info("Submitted %d %s %llu %s\n", sub, hexfid.c_str(), fid, fullcapability.c_str());
+    eos_info("info=\"submitted transfer job\" subretc=%d fxid=%s fid=%llu cap=%s\n", sub, hexfid.c_str(), fid, fullcapability.c_str());
 
     if (!sub) 
       errno = ENXIO;
