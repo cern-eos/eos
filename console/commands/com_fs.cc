@@ -689,6 +689,7 @@ com_fs (char* arg1) {
   printf("                                    ro          : filesystem set in read-only mode\n");
   printf("                                    drain       : filesystem set in drain mode\n");
   printf("                                    off         : filesystem set disabled\n"); 
+  printf("                                    empty       : filesystem is set to empty - possible only if there are no files stored anymore"); 
   printf("fs config <fsid> headroom=<size>\n");
   printf("                    <size> can be (>0)[BMGT]    : the headroom to keep per filesystem (e.g. you can write '1G' for 1 GB)\n");
   printf("fs config <fsid> scaninterval=<seconds>: \n");
