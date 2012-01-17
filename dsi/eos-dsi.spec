@@ -61,7 +61,7 @@ fi
 
 
 %changelog
-* Tue Jan 17 2011 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-8
+* Tue Jan 17 2012 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-8
 - support for file size preset via eos.bookingsize attribute
 * Wed Dec 14 2011 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-5
 * Fri Dec 09 2011 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-3
