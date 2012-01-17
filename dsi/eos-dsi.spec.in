@@ -5,7 +5,7 @@
 Summary: EOS gridftp DSI plugin
 Name: eos-dsi
 Version: @PACKAGE_VERSION@
-Release: 6
+Release: 6pre7c
 License: none
 Group: Applications/File
 Source0: @PACKAGE_TARNAME@-@PACKAGE_VERSION@-%{release}.tar.gz
@@ -18,7 +18,7 @@ BuildRequires: vdt_globus_sdk
 BuildRequires: vdt_compile_globus_core
 BuildRequires: vdt_globus_essentials
 BuildRequires: gpt
-BuildRequires: globus-config
+#BuildRequires: globus-config
 BuildRequires: xrootd-libs-devel >= 3.1.0
 BuildRequires: xrootd-client-devel >= 3.1.0
 BuildRequires: autoconf, automake, libtool

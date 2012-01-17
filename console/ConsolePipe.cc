@@ -52,7 +52,9 @@ static void* StaticThreadReaderStdout(void* arg) {
       fprintf(stderr, "socket read failed on fd %d\n", fd);
     } else {
       XrdOucString sline = line;
-      if (sline.endswith("\f\n")) {
+      if (sline.endswith("#__STOP__#\n")) {
+	sline.replace("#__STOP__#\n", "");
+	fprintf(stdout,"%s", sline.c_str());
 	return 0;
       }
       fprintf(stdout,"%s", line);
@@ -75,7 +77,9 @@ static void* StaticThreadReaderStderr(void* arg) {
       fprintf(stderr, "socket read failed on fd %d\n", fd);
     } else {
       XrdOucString sline = line;
-      if (sline.endswith("\f\n")) {
+      if (sline.endswith("#__STOP__#\n")) {
+	sline.replace("#__STOP__#\n", "");
+	fprintf(stderr,"%s", sline.c_str());
 	return 0;
       }
       fprintf(stderr,"%s", line);

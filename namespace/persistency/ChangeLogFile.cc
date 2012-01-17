@@ -24,6 +24,7 @@
 #include "namespace/persistency/ChangeLogFile.hh"
 #include "namespace/utils/SmartPtrs.hh"
 #include "namespace/utils/DataHelper.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #include <fcntl.h>
 #include <sys/types.h>
@@ -34,6 +35,7 @@
 #include <cerrno>
 #include <cstring>
 #include <iomanip>
+#include <stdio.h>
 
 #define CHANGELOG_MAGIC 0x45434847
 #define RECORD_MAGIC    0x4552
@@ -317,13 +319,13 @@ namespace eos
 
     if( writev( pFd, vec, 7 ) != (ssize_t)(24+record.size()) )
       {
+	//	sigprocmask(SIG_SETMASK,&oldsigset,0);
         MDException ex( errno );
         ex.getMessage() << "Unable to write the record data at offset 0x";
         ex.getMessage() << std::setbase(16) << offset << "; ";
         ex.getMessage() << strerror( errno );
         throw ex;
-      }
-
+      } 
     return offset;
   }
 
@@ -369,9 +371,9 @@ namespace eos
     //--------------------------------------------------------------------------
     if( *magic != RECORD_MAGIC )
       {
-        MDException ex( EFAULT );
-        ex.getMessage() << "Read: Record's magic number is wrong.";
-        throw ex;
+	MDException ex( EFAULT );
+	ex.getMessage() << "Read: Record's magic number is wrong.";
+	throw ex;
       }
 
     //--------------------------------------------------------------------------

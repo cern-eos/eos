@@ -628,7 +628,8 @@ output_result(XrdOucEnv* result, bool highlighting) {
   if (rstderr.length()) {
     fprintf(stderr,"%s (errc=%d) (%s)\n",rstderr.c_str(), retc, strerror(retc));
   }
-
+  fflush(stdout);
+  fflush(stderr);
   CommandEnv=0;
   delete result;
   return retc;
@@ -1092,8 +1093,8 @@ int main (int argc, char* argv[]) {
 	      exit(-1);
 	    }
 	    // we send the stop sequence to the pipe thread listeners
-	    fprintf(stdout,"\f\n");
-	    fprintf(stderr,"\f\n");
+	    fprintf(stdout,"#__STOP__#\n");
+	    fprintf(stderr,"#__STOP__#\n");
 	    fflush(stdout);
 	    fflush(stderr);
 	  }
