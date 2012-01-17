@@ -2112,7 +2112,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         }
         if (subcmd == "enable") {
           XrdOucString nthreads="";
-          nthreads = opaque.Get("mgm.fsck.nthreads")?opaque.Get("mgm.fsck.nthreads"):0;
+          nthreads = opaque.Get("mgm.fsck.nthreads")?opaque.Get("mgm.fsck.nthreads"):"1";
           if (nthreads.length()) {
             if (atoi(nthreads.c_str())) {
               gOFS->FsCheck.SetMaxThreads(atoi(nthreads.c_str()));
