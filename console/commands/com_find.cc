@@ -39,6 +39,8 @@ com_find (char* arg1) {
   XrdOucString path;
   XrdOucString option="";
   XrdOucString attribute="";
+  XrdOucString olderthan="";
+  XrdOucString youngerthan="";
   XrdOucString printkey="";
   XrdOucString filter="";
   XrdOucString stripes="";
@@ -125,6 +127,43 @@ com_find (char* arg1) {
 
       if ((attribute.find("&")) != STR_NPOS)
         goto com_find_usage;
+    }
+
+    if (s1 == "-ctime") {
+      XrdOucString period="";
+      period = subtokenizer.GetToken();
+
+      if (!period.length())
+	goto com_find_usage;
+
+      bool do_olderthan; 
+      do_olderthan = false;
+      bool do_youngerthan;
+      do_youngerthan = false;
+
+      if (period.beginswith("+")) {
+	do_olderthan=true;
+      }
+
+      if (period.beginswith("-")) {
+	do_youngerthan=true;
+      }
+      
+      if ((!do_olderthan) && (!do_youngerthan)) {
+	goto com_find_usage;
+      }
+
+      period.erase(0,1);
+      time_t now = time(NULL);
+      now -= (86400 * strtoul(period.c_str(),0,10));
+      char snow[1024];
+      snprintf(snow, sizeof(snow)-1, "%lu", now);
+      if (do_olderthan) {
+	olderthan = snow;
+      }
+      if (do_youngerthan) {
+	youngerthan = snow;
+      }
     }
 
     if (s1 == "-c") {
@@ -257,6 +296,16 @@ com_find (char* arg1) {
     in += "&mgm.find.attribute=";
     in += attribute;
   }
+  if (olderthan.length()) {
+    in += "&mgm.find.olderthan=";
+    in += olderthan;
+  }
+
+  if (youngerthan.length()) {
+    in += "&mgm.find.youngerthan=";
+    in += youngerthan;
+  }
+
   if (printkey.length()) {
     in += "&mgm.find.printkey=";
     in += printkey;
@@ -276,7 +325,7 @@ com_find (char* arg1) {
   return (0);
 
  com_find_usage:
-  fprintf(stdout,"usage: find [--count] [-s] [-d] [-f] [-0] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
+  fprintf(stdout,"usage: find [--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
   fprintf(stdout,"                                                                        -f -d :  find files(-f) or directories (-d) in <path>\n");
   fprintf(stdout,"                                                               -x <key>=<val> :  find entries with <key>=<val>\n");
   fprintf(stdout,"                                                                           -0 :  find 0-size files \n");
@@ -285,6 +334,8 @@ com_find (char* arg1) {
   fprintf(stdout,"                                                                           -b :  query the server balance of the files found\n");
   fprintf(stdout,"                                                                    -c %%tags  :  find all files with inconsistencies defined by %%tags [ see help of 'file check' command]\n");
   fprintf(stdout,"                                                                           -s :  run as a subcommand (in silent mode)\n");
+  fprintf(stdout,"                                                                  -ctime +<n> :  find files older than <n> days\n");
+  fprintf(stdout,"                                                                  -ctime -<n> :  find files younger than <n> days\n");
   fprintf(stdout,"                                                           -layoutstripes <n> :  apply new layout with <n> stripes to all files found\n");
   fprintf(stdout,"                                                                           -1 :  find files which are atleast 1 hour old\n");
   fprintf(stdout,"                                                                 --stripediff :  find files which have not the nominal number of stripes(replicas)\n");

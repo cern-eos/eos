@@ -4263,6 +4263,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       XrdOucString spath = opaque.Get("mgm.path");
       XrdOucString option = opaque.Get("mgm.option");
       XrdOucString attribute = opaque.Get("mgm.find.attribute");
+      XrdOucString olderthan = opaque.Get("mgm.find.olderthan");
+      XrdOucString youngerthan = opaque.Get("mgm.find.youngerthan");
+
       XrdOucString key = attribute;
       XrdOucString val = attribute;
       XrdOucString printkey = opaque.Get("mgm.find.printkey");
@@ -4320,7 +4323,17 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       bool selectonehour  = false;
       bool printunlink   = false;
       bool printcounter  = false;
-      
+      time_t selectoldertime = 0;
+      time_t selectyoungertime = 0;
+
+      if (olderthan.c_str()) {
+	selectoldertime = (time_t) strtoull(olderthan.c_str(),0,10);
+      }
+
+      if (youngerthan.c_str()) {
+	selectyoungertime = (time_t) strtoull(youngerthan.c_str(),0,10);
+      }
+
       if (option.find("b")!=STR_NPOS) {
         calcbalance=true;
       }
@@ -4429,7 +4442,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               cnt++;
 	      std::string fspath = foundit->first; fspath += *fileit;
               if (!calcbalance) {
-                if (findgroupmix || findzero || printsize || printfid || printchecksum || printctime || printmtime || printrep  || printunlink || selectrepdiff || selectonehour) {
+                if (findgroupmix || findzero || printsize || printfid || printchecksum || printctime || printmtime || printrep  || printunlink || selectrepdiff || selectonehour || selectoldertime || selectyoungertime ) {
                   //-------------------------------------------
 
                   gOFS->eosViewRWMutex.LockRead();
@@ -4451,7 +4464,22 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                         selected = false;
                       }
                     }
+		    
+		    if (selectoldertime) {
+                      eos::FileMD::ctime_t mtime;
+                      fmd->getMTime(mtime);
+                      if ( mtime.tv_sec > selectoldertime ) {
+                        selected = false;
+                      }
+		    }
 
+		    if (selectyoungertime) {
+                      eos::FileMD::ctime_t mtime;
+                      fmd->getMTime(mtime);
+                      if ( mtime.tv_sec < selectyoungertime ) {
+                        selected = false;
+                      }
+		    }
 
                     if (selected && (findzero || findgroupmix)) {
                       if (findzero) {
@@ -4498,7 +4526,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                         } 
                       }
                     } else {
-                      if (selected && (printsize || printfid || printchecksum || printfs || printctime || printmtime || printrep || printunlink || selectrepdiff)) {
+                      if (selected && (selectonehour || selectoldertime || selectyoungertime ||printsize || printfid || printchecksum || printfs || printctime || printmtime || printrep || printunlink || selectrepdiff)) {
                         XrdOucString sizestring;
                         bool printed = true;
                         if (selectrepdiff) {
