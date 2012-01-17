@@ -68,9 +68,9 @@ com_rtlog (char* arg1) {
   }
   
  com_rtlog_usage:
-  printf("usage: rtlog [<queue>|*|.] [<sec in the past>=3600] [<debug>=err] [filter-word]\n");
-  printf("                     - '*' means to query all nodes\n");
-  printf("                     - '.' means to query only the connected mgm\n");
-  printf("                     - if the first argument is ommitted '.' is assumed\n");
+  fprintf(stdout,"usage: rtlog [<queue>|*|.] [<sec in the past>=3600] [<debug>=err] [filter-word]\n");
+  fprintf(stdout,"                     - '*' means to query all nodes\n");
+  fprintf(stdout,"                     - '.' means to query only the connected mgm\n");
+  fprintf(stdout,"                     - if the first argument is ommitted '.' is assumed\n");
   return (0);
 }

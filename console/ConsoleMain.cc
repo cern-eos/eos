@@ -1079,22 +1079,23 @@ int main (int argc, char* argv[]) {
 	  alarm(0);
 	  char newline = '\n';
 	  int n = 0;
-	  fflush(stdout);
-	  fflush(stderr);
 	  std::cout << std::flush;
 	  std::cerr << std::flush;
+	  fflush(stdout);
+	  fflush(stderr);
+
 	  if (pipemode) {
-	    // we send the stop sequence to the pipe thread listeners
-	    fprintf(stdout,"\f\n");
-	    fprintf(stderr,"\f\n");
-	    fflush(stdout);
-	    fflush(stderr);
 	    n = write(retcfd,&global_retc,1);
 	    n = write(retcfd,&newline,1);
 	    if (n!=1) {
 	      fprintf(stderr,"error: unable to write retc to retc-socket\n");
 	      exit(-1);
 	    }
+	    // we send the stop sequence to the pipe thread listeners
+	    fprintf(stdout,"\f\n");
+	    fprintf(stderr,"\f\n");
+	    fflush(stdout);
+	    fflush(stderr);
 	  }
         }
 

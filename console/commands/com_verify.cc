@@ -59,7 +59,7 @@ com_verify (char* arg1) {
   }
   
  com_usage_verify:
-  printf("       verify drop fst *                   : drop transfers on all fst nodes !\n");
-  printf("       verify ls fst *                     : list transfers on all fst nodes !\n");
+  fprintf(stdout,"       verify drop fst *                   : drop transfers on all fst nodes !\n");
+  fprintf(stdout,"       verify ls fst *                     : list transfers on all fst nodes !\n");
   return (0);
 }

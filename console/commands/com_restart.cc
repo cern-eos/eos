@@ -46,6 +46,6 @@ com_restart (char* arg1) {
     return (0);
   }
   
-  printf("       restart fst [*]                         : restart all services on fst nodes !\n");
+  fprintf(stdout,"       restart fst [*]                         : restart all services on fst nodes !\n");
   return (0);
 }

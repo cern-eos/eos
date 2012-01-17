@@ -71,11 +71,11 @@ com_who (char* arg1) {
   return (0);
 
  com_who_usage:
-  printf("usage: who [-c] [-n] [-z] [-a] [-m]                               :  print statistics about active users (idle<5min)\n");
-  printf("                -c                                                   -  break down by client host\n");
-  printf("                -n                                                   -  print id's instead of names\n");
-  printf("                -z                                                   -  print auth protocols\n");
-  printf("                -a                                                   -  print all\n");
-  printf("                -m                                                   -  print in monitoring format <key>=<value>\n");
+  fprintf(stdout,"usage: who [-c] [-n] [-z] [-a] [-m]                               :  print statistics about active users (idle<5min)\n");
+  fprintf(stdout,"                -c                                                   -  break down by client host\n");
+  fprintf(stdout,"                -n                                                   -  print id's instead of names\n");
+  fprintf(stdout,"                -z                                                   -  print auth protocols\n");
+  fprintf(stdout,"                -a                                                   -  print all\n");
+  fprintf(stdout,"                -m                                                   -  print in monitoring format <key>=<value>\n");
   return (0);
 }

@@ -109,29 +109,29 @@ com_fsck (char* arg1) {
   return (0);
 
  com_fsck_usage:
-  printf("usage: fsck stat                                                  :  print status of consistency check\n");
-  printf("       fsck enable [#threads]                                     :  enable fsck [with #threads threads]\n");
-  printf("       fsck disable                                               :  disable fsck\n");
-  printf("       fsck report [-h] [-g] [-m] [-a] [-i] [-l] [--error <tag>]  :  report consistency check results");
-  printf("                                                               -g :  report global counters\n");
-  printf("                                                               -m :  select monitoring output format\n");
-  printf("                                                               -a :  break down statistics per filesystem\n");
-  printf("                                                               -i :  print concerned file ids\n");
-  printf("                                                               -l :  print concerned logical names\n");
-  printf("                                               --error <tag>      :  select only errors with name <tag> in the printout\n");
-  printf("                                                                     you get the names by doing 'fsck report -g'\n");
-  printf("                                                               -h :  print help explaining the individual tags!\n");
+  fprintf(stdout,"usage: fsck stat                                                  :  print status of consistency check\n");
+  fprintf(stdout,"       fsck enable [#threads]                                     :  enable fsck [with #threads threads]\n");
+  fprintf(stdout,"       fsck disable                                               :  disable fsck\n");
+  fprintf(stdout,"       fsck report [-h] [-g] [-m] [-a] [-i] [-l] [--error <tag>]  :  report consistency check results");
+  fprintf(stdout,"                                                               -g :  report global counters\n");
+  fprintf(stdout,"                                                               -m :  select monitoring output format\n");
+  fprintf(stdout,"                                                               -a :  break down statistics per filesystem\n");
+  fprintf(stdout,"                                                               -i :  print concerned file ids\n");
+  fprintf(stdout,"                                                               -l :  print concerned logical names\n");
+  fprintf(stdout,"                                               --error <tag>      :  select only errors with name <tag> in the printout\n");
+  fprintf(stdout,"                                                                     you get the names by doing 'fsck report -g'\n");
+  fprintf(stdout,"                                                               -h :  print help explaining the individual tags!\n");
 
-  printf("       fsck repair --checksum\n");
-  printf("                                                                  :  issues a 'verify' operation on all files with checksum errors\n");
-  printf("       fsck repair --unlink-unregistered\n");
-  printf("                                                                  :  unlink replicas which are not connected/registered to their logical name\n");
-  printf("       fsck repair --unlink-orphans\n");
-  printf("                                                                  :  unlink replicas which don't belong to any logical name\n");
-  printf("       fsck repair --adjust-replicas\n");
-  printf("                                                                  :  try to fix all replica inconsistencies\n");
-  printf("       fsck repair --drop-missing-replicas\n");
-  printf("                                                                  :  just drop replicas from the namespace if they cannot be found on disk\n");
+  fprintf(stdout,"       fsck repair --checksum\n");
+  fprintf(stdout,"                                                                  :  issues a 'verify' operation on all files with checksum errors\n");
+  fprintf(stdout,"       fsck repair --unlink-unregistered\n");
+  fprintf(stdout,"                                                                  :  unlink replicas which are not connected/registered to their logical name\n");
+  fprintf(stdout,"       fsck repair --unlink-orphans\n");
+  fprintf(stdout,"                                                                  :  unlink replicas which don't belong to any logical name\n");
+  fprintf(stdout,"       fsck repair --adjust-replicas\n");
+  fprintf(stdout,"                                                                  :  try to fix all replica inconsistencies\n");
+  fprintf(stdout,"       fsck repair --drop-missing-replicas\n");
+  fprintf(stdout,"                                                                  :  just drop replicas from the namespace if they cannot be found on disk\n");
 
   
 

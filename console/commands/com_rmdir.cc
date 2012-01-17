@@ -48,7 +48,7 @@ com_rmdir (char* arg1) {
   }
 
  com_rmdir_usage:
-  printf("usage: rmdir <path>                                                   :  remote directory <path>\n");
+  fprintf(stdout,"usage: rmdir <path>                                                   :  remote directory <path>\n");
   return (0);
 
 }

@@ -101,17 +101,17 @@ com_io (char* arg1) {
   return (0);
 
  com_io_usage:
-  printf("usage: io stat [-a] [-m] [-n]                                     :  print io statistics\n");
-  printf("                -a                                                   -  break down by uid/gid\n");
-  printf("                -m                                                   -  print in <key>=<val> monitoring format\n");
-  printf("                -n                                                   -  print numerical uid/gids\n");
-  printf("                -t                                                   -  print top user stats\n");
-  printf("       io enable [-r] [-n]                                        :  enable collection of io statistics\n");
-  printf("                                                               -r    enable collection of io reports\n");
-  printf("                                                               -n    enable report namespace\n");
-  printf("       io disable [-r] [-n]                                       :  disable collection of io statistics\n");
-  printf("                                                               -r    disable collection of io reports\n");
-  printf("                                                               -n    disable report namespace\n");
-  printf("       io report <path>                                           :  show contents of report namespace for <path>\n");
+  fprintf(stdout,"usage: io stat [-a] [-m] [-n]                                     :  print io statistics\n");
+  fprintf(stdout,"                -a                                                   -  break down by uid/gid\n");
+  fprintf(stdout,"                -m                                                   -  print in <key>=<val> monitoring format\n");
+  fprintf(stdout,"                -n                                                   -  print numerical uid/gids\n");
+  fprintf(stdout,"                -t                                                   -  print top user stats\n");
+  fprintf(stdout,"       io enable [-r] [-n]                                        :  enable collection of io statistics\n");
+  fprintf(stdout,"                                                               -r    enable collection of io reports\n");
+  fprintf(stdout,"                                                               -n    enable report namespace\n");
+  fprintf(stdout,"       io disable [-r] [-n]                                       :  disable collection of io statistics\n");
+  fprintf(stdout,"                                                               -r    disable collection of io reports\n");
+  fprintf(stdout,"                                                               -n    disable report namespace\n");
+  fprintf(stdout,"       io report <path>                                           :  show contents of report namespace for <path>\n");
   return (0);
 }

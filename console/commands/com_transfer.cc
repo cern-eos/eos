@@ -142,27 +142,27 @@ com_transfer (char* argin) {
   }
   
  com_usage_transfer:
-  printf("Usage: transfer submit|cancel|ls ..");
-  printf("'[eos] transfer ..' provides the transfer interface of EOS.\n");
-  printf("Options:\n");
-  printf("transfer submit [--rate=<rate>] [--streams=<#>] [--group=<groupname>] <URL1> <URL2> :\n");
-  printf("                                                  transfer a file from URL1 to URL2\n");
-  printf("                                                             <URL> can be root://<host>/<path> or a local path /eos/...\n");
-  printf("       --rate          : limit the transfer rate to <rate>\n");
-  printf("       --streams       : use <#> parallel streams\n\n");
-  printf("       --group         : set the group name for this transfer\n");
-  printf("transfer get [--rate=<rate>] [--streams=<#>] [--group=<groupname>] root://<host>//<path> /eos/.. :\n");
-  printf("                                                  transfer the file from RUL root://<host>//<path> to /eos/..\n");
-  printf("       --rate          : limit the transfer rate to <rate>\n");
-  printf("       --streams       : use <#> parallel streams\n\n");
-  printf("       --group         : set the group name for this transfer\n");
-  printf("transfer cancel <id>\n");
-  printf("                                                  cancel transfer with ID <id>\n");
-  printf("       <id>=*          : cancel all transfers (only root can do that)\n\n");
-  printf("transfer ls [-a] [-m] [--group=<groupname>] \n");
-  printf("       -a              : list all transfers not only of the current role\n");
-  printf("       --group         : list all transfers in this group\n");
-  printf("       -m              : list all transfers in monitoring format (key-val pairs)\n");
+  fprintf(stdout,"Usage: transfer submit|cancel|ls ..");
+  fprintf(stdout,"'[eos] transfer ..' provides the transfer interface of EOS.\n");
+  fprintf(stdout,"Options:\n");
+  fprintf(stdout,"transfer submit [--rate=<rate>] [--streams=<#>] [--group=<groupname>] <URL1> <URL2> :\n");
+  fprintf(stdout,"                                                  transfer a file from URL1 to URL2\n");
+  fprintf(stdout,"                                                             <URL> can be root://<host>/<path> or a local path /eos/...\n");
+  fprintf(stdout,"       --rate          : limit the transfer rate to <rate>\n");
+  fprintf(stdout,"       --streams       : use <#> parallel streams\n\n");
+  fprintf(stdout,"       --group         : set the group name for this transfer\n");
+  fprintf(stdout,"transfer get [--rate=<rate>] [--streams=<#>] [--group=<groupname>] root://<host>//<path> /eos/.. :\n");
+  fprintf(stdout,"                                                  transfer the file from RUL root://<host>//<path> to /eos/..\n");
+  fprintf(stdout,"       --rate          : limit the transfer rate to <rate>\n");
+  fprintf(stdout,"       --streams       : use <#> parallel streams\n\n");
+  fprintf(stdout,"       --group         : set the group name for this transfer\n");
+  fprintf(stdout,"transfer cancel <id>\n");
+  fprintf(stdout,"                                                  cancel transfer with ID <id>\n");
+  fprintf(stdout,"       <id>=*          : cancel all transfers (only root can do that)\n\n");
+  fprintf(stdout,"transfer ls [-a] [-m] [--group=<groupname>] \n");
+  fprintf(stdout,"       -a              : list all transfers not only of the current role\n");
+  fprintf(stdout,"       --group         : list all transfers in this group\n");
+  fprintf(stdout,"       -m              : list all transfers in monitoring format (key-val pairs)\n");
   
   return (0);
 }

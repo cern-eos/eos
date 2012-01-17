@@ -195,22 +195,22 @@ com_quota (char* arg1) {
       goto com_quota_usage;
     
     string s;
-    printf("Do you really want to delete the quota node under path %s ?\n" , space.c_str());
-    printf("Confirm the deletion by typing => ");
+    fprintf(stdout,"Do you really want to delete the quota node under path %s ?\n" , space.c_str());
+    fprintf(stdout,"Confirm the deletion by typing => ");
     XrdOucString confirmation="";
     for (int i=0; i<10; i++) {
       confirmation += (int) (9.0 * rand()/RAND_MAX);
     }
 
-    printf("%s\n", confirmation.c_str());
-    printf("                               => ");
+    fprintf(stdout,"%s\n", confirmation.c_str());
+    fprintf(stdout,"                               => ");
     getline( std::cin, s );
     std::string sconfirmation = confirmation.c_str();
     if ( s == sconfirmation) {
-      printf("\nDeletion confirmed\n");
+      fprintf(stdout,"\nDeletion confirmed\n");
       global_retc = output_result(client_admin_command(in));
     } else {
-      printf("\nDeletion aborted!\n");
+      fprintf(stdout,"\nDeletion aborted!\n");
       global_retc = -1;
     }
     return (0);
@@ -219,26 +219,26 @@ com_quota (char* arg1) {
   
   
  com_quota_usage:
-  printf("usage: quota                                                                                       : show personal quota\n");
-  printf("       quota ls [-n] [-m] -u <uid> [-p <path> ]                                                    : list configured quota and quota node(s)\n");
-  printf("       quota ls [-n] [-m] --uid <uid> [--path <path>]                                              : list configured quota and quota node(s)\n");
-  printf("       quota ls [-n] [-m] -g <gid> [-p <path> ]                                                    : list configured quota and quota node(s)\n");
-  printf("       quota ls [-n] [-m] --gid <gid> [--path <path>]                                              : list configured quota and quota node(s)\n");
-  printf("       quota set -u <uid>|-g <gid> -p <path>   [-v <bytes>] [-i <inodes>]                          : set volume and/or inode quota by uid or gid \n");
-  printf("       quota set --uid <uid>|--gid <gid> -p|--path <path> [--volume <bytes>] [--inodes <inodes>]   : set volume and/or inode quota by uid or gid \n");
-  printf("       quota rm  -u <uid>|-g <gid> -p|--path <path>                                                : remove configured quota for uid/gid in path\n");
-  printf("       quota rm  --uid <uid>|--gid <gid> -p|--path <path>                                          : remove configured quota for uid/gid in path\n");
-  printf("                                                 -m                  : print information in monitoring <key>=<value> format\n");
-  printf("                                                 -n                  : don't translate ids, print uid+gid number\n");
-  printf("                                                 -u/--uid <uid>      : print information only for uid <uid>\n");
-  printf("                                                 -g/-gid <gid>       : print information only for gid <gid>\n");
-  printf("                                                 -p/--path <path>    : print information only for path <path>\n");
-  printf("                                                 -v/--volume <bytes> : set the volume limit to <bytes>\n");
-  printf("                                                 -i/--inodes <inodes>: set the inodes limit to <inodes>\n");
-  printf("     => you have to specify either the user or the group identified by the unix id or the user/group name\n");
-  printf("     => the space argument is by default assumed as 'default'\n");
-  printf("     => you have to specify at least a volume or an inode limit to set quota\n");
-  printf("       quota rmnode -p <path>                                                                      : remove quota node and every defined quota on that node\n");
+  fprintf(stdout,"usage: quota                                                                                       : show personal quota\n");
+  fprintf(stdout,"       quota ls [-n] [-m] -u <uid> [-p <path> ]                                                    : list configured quota and quota node(s)\n");
+  fprintf(stdout,"       quota ls [-n] [-m] --uid <uid> [--path <path>]                                              : list configured quota and quota node(s)\n");
+  fprintf(stdout,"       quota ls [-n] [-m] -g <gid> [-p <path> ]                                                    : list configured quota and quota node(s)\n");
+  fprintf(stdout,"       quota ls [-n] [-m] --gid <gid> [--path <path>]                                              : list configured quota and quota node(s)\n");
+  fprintf(stdout,"       quota set -u <uid>|-g <gid> -p <path>   [-v <bytes>] [-i <inodes>]                          : set volume and/or inode quota by uid or gid \n");
+  fprintf(stdout,"       quota set --uid <uid>|--gid <gid> -p|--path <path> [--volume <bytes>] [--inodes <inodes>]   : set volume and/or inode quota by uid or gid \n");
+  fprintf(stdout,"       quota rm  -u <uid>|-g <gid> -p|--path <path>                                                : remove configured quota for uid/gid in path\n");
+  fprintf(stdout,"       quota rm  --uid <uid>|--gid <gid> -p|--path <path>                                          : remove configured quota for uid/gid in path\n");
+  fprintf(stdout,"                                                 -m                  : print information in monitoring <key>=<value> format\n");
+  fprintf(stdout,"                                                 -n                  : don't translate ids, print uid+gid number\n");
+  fprintf(stdout,"                                                 -u/--uid <uid>      : print information only for uid <uid>\n");
+  fprintf(stdout,"                                                 -g/-gid <gid>       : print information only for gid <gid>\n");
+  fprintf(stdout,"                                                 -p/--path <path>    : print information only for path <path>\n");
+  fprintf(stdout,"                                                 -v/--volume <bytes> : set the volume limit to <bytes>\n");
+  fprintf(stdout,"                                                 -i/--inodes <inodes>: set the inodes limit to <inodes>\n");
+  fprintf(stdout,"     => you have to specify either the user or the group identified by the unix id or the user/group name\n");
+  fprintf(stdout,"     => the space argument is by default assumed as 'default'\n");
+  fprintf(stdout,"     => you have to specify at least a volume or an inode limit to set quota\n");
+  fprintf(stdout,"       quota rmnode -p <path>                                                                      : remove quota node and every defined quota on that node\n");
   
 
   return (0);

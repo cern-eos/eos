@@ -78,15 +78,15 @@ com_map (char* arg1) {
   return (0); 
 
  com_map_usage:
-  printf("'[eos] map ..' provides a namespace mapping interface for directories in EOS.\n");
-  printf("Usage: map [OPTIONS] ls|link|unlink ...\n");
-  printf("Options:\n");
+  fprintf(stdout,"'[eos] map ..' provides a namespace mapping interface for directories in EOS.\n");
+  fprintf(stdout,"Usage: map [OPTIONS] ls|link|unlink ...\n");
+  fprintf(stdout,"Options:\n");
   
-  printf("map ls :\n");
-  printf("                                                : list all defined mappings\n");  
-  printf("map link <source-path> <destination-path> :\n");
-  printf("                                                : create a symbolic link from source-path to destination-path\n");
-  printf("map unlink <source-path> :\n");
-  printf("                                                : remove symbolic link from source-path\n");
+  fprintf(stdout,"map ls :\n");
+  fprintf(stdout,"                                                : list all defined mappings\n");  
+  fprintf(stdout,"map link <source-path> <destination-path> :\n");
+  fprintf(stdout,"                                                : create a symbolic link from source-path to destination-path\n");
+  fprintf(stdout,"map unlink <source-path> :\n");
+  fprintf(stdout,"                                                : remove symbolic link from source-path\n");
   return (0);
 }

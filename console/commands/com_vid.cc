@@ -318,27 +318,27 @@ com_vid (char* arg1) {
   }
   
  com_vid_usage:
-  printf("usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a]                                                    : list configured policies\n");
-  printf("                                        -u : show only user role mappings\n");
-  printf("                                        -g : show only group role mappings\n");
-  printf("                                        -s : show list of sudoers\n");
-  printf("                                        -U : show user  alias mapping\n");
-  printf("                                        -G : show group alias mapping\n");
-  printf("                                        -y : show configured gateways\n");
-  printf("                                        -a : show authentication\n");
-  printf("\n");
-  printf("       vid set membership <uid> -uids [<uid1>,<uid2>,...]\n");
-  printf("       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
-  printf("       vid set membership <uid> [+|-]sudo \n");
-  printf("       vid set map -krb5|-gsi|-ssl|-sss|-unix|-tident <pattern> [vuid:<uid>] [vgid:<gid>] \n");
-  printf("\n");
-  printf("       vid rm <key>                                                                                 : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
-  printf("\n");
-  printf("       vid enable|disable krb5|gsi|ssl|sss|unix\n");
-  printf("                                           : enable/disables the default mapping via password database\n");
-  printf("\n");
-  printf("       vid add|remove gateway <hostname>\n");
-  printf("                                             adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
+  fprintf(stdout,"usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a]                                                    : list configured policies\n");
+  fprintf(stdout,"                                        -u : show only user role mappings\n");
+  fprintf(stdout,"                                        -g : show only group role mappings\n");
+  fprintf(stdout,"                                        -s : show list of sudoers\n");
+  fprintf(stdout,"                                        -U : show user  alias mapping\n");
+  fprintf(stdout,"                                        -G : show group alias mapping\n");
+  fprintf(stdout,"                                        -y : show configured gateways\n");
+  fprintf(stdout,"                                        -a : show authentication\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"       vid set membership <uid> -uids [<uid1>,<uid2>,...]\n");
+  fprintf(stdout,"       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
+  fprintf(stdout,"       vid set membership <uid> [+|-]sudo \n");
+  fprintf(stdout,"       vid set map -krb5|-gsi|-ssl|-sss|-unix|-tident <pattern> [vuid:<uid>] [vgid:<gid>] \n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"       vid rm <key>                                                                                 : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"       vid enable|disable krb5|gsi|ssl|sss|unix\n");
+  fprintf(stdout,"                                           : enable/disables the default mapping via password database\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"       vid add|remove gateway <hostname>\n");
+  fprintf(stdout,"                                             adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
 
 
   return (0);

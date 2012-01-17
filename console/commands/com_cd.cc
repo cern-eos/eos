@@ -75,9 +75,9 @@ com_cd (char *arg) {
       break;
     }
     int rpos = pwd.rfind("/",dppos-1);
-    //    printf("%s %d %d\n", pwd.c_str(), dppos, rpos);
+    //    fprintf(stdout,"%s %d %d\n", pwd.c_str(), dppos, rpos);
     if (rpos != STR_NPOS) {
-      //      printf("erasing %d %d", rpos, dppos-rpos+3);
+      //      fprintf(stdout,"erasing %d %d", rpos, dppos-rpos+3);
       pwd.erase(rpos, dppos-rpos+3);
     } else {
       pwd = oldpwd;
@@ -98,16 +98,16 @@ com_cd (char *arg) {
   return (0);
 
  com_cd_usage:
-  printf("'[eos] cd ...' provides the namespace change directory command in EOS.\n");
-  printf("Usage: cd <dir>|-|..|~\n");
-  printf("Options:\n");
-  printf("cd <dir> :\n");
-  printf("                                                  change into direcotry <dir>. If it does not exist, the current directory will stay as before!\n");
-  printf("cd - :\n");
-  printf("                                                  change into the previous directory\n");
-  printf("cd .. :\n");
-  printf("                                                  change into the directory one level up\n");
-  printf("cd ~ :\n");
-  printf("                                                  change into the directory defined via the environment variable EOS_HOME\n");
+  fprintf(stdout,"'[eos] cd ...' provides the namespace change directory command in EOS.\n");
+  fprintf(stdout,"Usage: cd <dir>|-|..|~\n");
+  fprintf(stdout,"Options:\n");
+  fprintf(stdout,"cd <dir> :\n");
+  fprintf(stdout,"                                                  change into direcotry <dir>. If it does not exist, the current directory will stay as before!\n");
+  fprintf(stdout,"cd - :\n");
+  fprintf(stdout,"                                                  change into the previous directory\n");
+  fprintf(stdout,"cd .. :\n");
+  fprintf(stdout,"                                                  change into the directory one level up\n");
+  fprintf(stdout,"cd ~ :\n");
+  fprintf(stdout,"                                                  change into the directory defined via the environment variable EOS_HOME\n");
   return (0);
 }

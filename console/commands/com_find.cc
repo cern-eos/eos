@@ -276,20 +276,20 @@ com_find (char* arg1) {
   return (0);
 
  com_find_usage:
-  printf("usage: find [--count] [-s] [-d] [-f] [-0] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
-  printf("                                                                        -f -d :  find files(-f) or directories (-d) in <path>\n");
-  printf("                                                               -x <key>=<val> :  find entries with <key>=<val>\n");
-  printf("                                                                           -0 :  find 0-size files \n");
-  printf("                                                                           -g :  find files with mixed scheduling groups\n");
-  printf("                                                                     -p <key> :  additionally print the value of <key> for each entry\n");
-  printf("                                                                           -b :  query the server balance of the files found\n");
-  printf("                                                                    -c %%tags  :  find all files with inconsistencies defined by %%tags [ see help of 'file check' command]\n");
-  printf("                                                                           -s :  run as a subcommand (in silent mode)\n");
-  printf("                                                           -layoutstripes <n> :  apply new layout with <n> stripes to all files found\n");
-  printf("                                                                           -1 :  find files which are atleast 1 hour old\n");
-  printf("                                                                 --stripediff :  find files which have not the nominal number of stripes(replicas)\n");
-  printf("                                                                      --count :  just print counters for files/dirs found\n");
-  printf("                                                                      default :  find files and directories\n");
-  printf("       find [--nrep] [--nunlink] [--size] [--fid] [--fs] [--checksum] [--ctime] [--mtime] <path>   :  find files and print out the requested meta data as key value pairs\n");              
+  fprintf(stdout,"usage: find [--count] [-s] [-d] [-f] [-0] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
+  fprintf(stdout,"                                                                        -f -d :  find files(-f) or directories (-d) in <path>\n");
+  fprintf(stdout,"                                                               -x <key>=<val> :  find entries with <key>=<val>\n");
+  fprintf(stdout,"                                                                           -0 :  find 0-size files \n");
+  fprintf(stdout,"                                                                           -g :  find files with mixed scheduling groups\n");
+  fprintf(stdout,"                                                                     -p <key> :  additionally print the value of <key> for each entry\n");
+  fprintf(stdout,"                                                                           -b :  query the server balance of the files found\n");
+  fprintf(stdout,"                                                                    -c %%tags  :  find all files with inconsistencies defined by %%tags [ see help of 'file check' command]\n");
+  fprintf(stdout,"                                                                           -s :  run as a subcommand (in silent mode)\n");
+  fprintf(stdout,"                                                           -layoutstripes <n> :  apply new layout with <n> stripes to all files found\n");
+  fprintf(stdout,"                                                                           -1 :  find files which are atleast 1 hour old\n");
+  fprintf(stdout,"                                                                 --stripediff :  find files which have not the nominal number of stripes(replicas)\n");
+  fprintf(stdout,"                                                                      --count :  just print counters for files/dirs found\n");
+  fprintf(stdout,"                                                                      default :  find files and directories\n");
+  fprintf(stdout,"       find [--nrep] [--nunlink] [--size] [--fid] [--fs] [--checksum] [--ctime] [--mtime] <path>   :  find files and print out the requested meta data as key value pairs\n");              
   return (0);
 }

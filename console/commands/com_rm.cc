@@ -62,22 +62,22 @@ com_rm (char* arg1) {
     
     if (cPath->GetSubPathSize() < 4) {
       string s;
-      printf("Do you really want to delete ALL files starting at %s ?\n" , path.c_str());
-      printf("Confirm the deletion by typing => ");
+      fprintf(stdout,"Do you really want to delete ALL files starting at %s ?\n" , path.c_str());
+      fprintf(stdout,"Confirm the deletion by typing => ");
       XrdOucString confirmation="";
       for (int i=0; i<10; i++) {
 	confirmation += (int) (9.0 * rand()/RAND_MAX);
       }
-      printf("%s\n", confirmation.c_str());
-      printf("                               => ");
+      fprintf(stdout,"%s\n", confirmation.c_str());
+      fprintf(stdout,"                               => ");
       getline( std::cin, s );
       std::string sconfirmation = confirmation.c_str();
       if ( s == sconfirmation) {
-	printf("\nDeletion confirmed\n");
+	fprintf(stdout,"\nDeletion confirmed\n");
 	in += "&mgm.deletion=deep";
 	delete cPath;
       } else {
-	printf("\nDeletion aborted\n");
+	fprintf(stdout,"\nDeletion aborted\n");
 	global_retc = EINTR;
 	delete cPath;
 	return (0);
@@ -88,6 +88,6 @@ com_rm (char* arg1) {
   }
 
  com_rm_usage:
-  printf("usage: rm [-r] <path>                                                  :  remove file <path>\n");
+  fprintf(stdout,"usage: rm [-r] <path>                                                  :  remove file <path>\n");
   return (0);
 }

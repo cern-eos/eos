@@ -74,16 +74,16 @@ com_fileinfo (char* arg1) {
   }
 
  com_fileinfo_usage:
-  printf("usage: fileinfo <path> [--path] [--fxid] [--fid] [--size] [--checksum] [--fullpath] [-m]   :  print file information for <path>\n");
-  printf("       fileinfo fxid:<fid-hex>                                           :  print file information for fid <fid-hex>\n");
-  printf("       fileinfo fid:<fid-dec>                                            :  print file information for fid <fid-dec>\n");
-  printf("                                                                 --path  :  selects to add the path information to the output\n");
-  printf("                                                                 --fxid  :  selects to add the hex file id information to the output\n");
-  printf("                                                                 --fid   :  selects to add the base10 file id information to the output\n");
-  printf("                                                                 --size  :  selects to add the size information to the output\n");
-  printf("                                                              --checksum :  selects to add the checksum information to the output\n");
-  printf("                                                              --fullpath :  selects to add the full path information to each replica\n");
-  printf("                                                                  -m     :  print single line in monitoring format\n");
+  fprintf(stdout,"usage: fileinfo <path> [--path] [--fxid] [--fid] [--size] [--checksum] [--fullpath] [-m]   :  print file information for <path>\n");
+  fprintf(stdout,"       fileinfo fxid:<fid-hex>                                           :  print file information for fid <fid-hex>\n");
+  fprintf(stdout,"       fileinfo fid:<fid-dec>                                            :  print file information for fid <fid-dec>\n");
+  fprintf(stdout,"                                                                 --path  :  selects to add the path information to the output\n");
+  fprintf(stdout,"                                                                 --fxid  :  selects to add the hex file id information to the output\n");
+  fprintf(stdout,"                                                                 --fid   :  selects to add the base10 file id information to the output\n");
+  fprintf(stdout,"                                                                 --size  :  selects to add the size information to the output\n");
+  fprintf(stdout,"                                                              --checksum :  selects to add the checksum information to the output\n");
+  fprintf(stdout,"                                                              --fullpath :  selects to add the full path information to each replica\n");
+  fprintf(stdout,"                                                                  -m     :  print single line in monitoring format\n");
   return (0);
 
 }
@@ -275,7 +275,7 @@ com_file (char* arg1) {
       XrdOucString size = newresult->Get("mgm.size");
       
       if ( (option.find("%silent") == STR_NPOS) && (!silent) ) {
-        printf("path=\"%-32s\" fid=\"%4s\" size=\"%s\" nrep=\"%s\" checksumtype=\"%s\" checksum=\"%s\"\n", path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.nrep"), checksumtype.c_str(), newresult->Get("mgm.checksum"));
+        fprintf(stdout,"path=\"%-32s\" fid=\"%4s\" size=\"%s\" nrep=\"%s\" checksumtype=\"%s\" checksum=\"%s\"\n", path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.nrep"), checksumtype.c_str(), newresult->Get("mgm.checksum"));
       }
 
       int i=0;
@@ -383,11 +383,11 @@ com_file (char* arg1) {
 
               nreplicaonline++;
 
-              if (!silent)printf("nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" size=\"%llu\" checksum=\"%s\"", i, newresult->Get(repfsid.c_str()),newresult->Get(repurl.c_str()),newresult->Get(repfstpath.c_str()),fmd.size, cx.c_str());                      
+              if (!silent)fprintf(stdout,"nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" size=\"%llu\" checksum=\"%s\"", i, newresult->Get(repfsid.c_str()),newresult->Get(repurl.c_str()),newresult->Get(repfstpath.c_str()),fmd.size, cx.c_str());                      
               if ((option.find("%checksumattr")!= STR_NPOS)) {
-                if (!silent)printf(" checksumattr=%s\n", checksumattribute.c_str());
+                if (!silent)fprintf(stdout," checksumattr=\"%s\"\n", checksumattribute.c_str());
               } else {
-                if (!silent)printf("\n");
+                if (!silent)fprintf(stdout,"\n");
               }
             }
           }
@@ -415,7 +415,7 @@ com_file (char* arg1) {
       
       if ( (option.find("%output"))!= STR_NPOS ) {
         if (consistencyerror)
-          printf("INCONSISTENCY %s path=%-32s fid=%s size=%s stripes=%s nrep=%s nrepstored=%d nreponline=%d checksumtype=%s checksum=%s\n", inconsistencylable.c_str(), path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.stripes"), newresult->Get("mgm.nrep"), i, nreplicaonline, checksumtype.c_str(), newresult->Get("mgm.checksum"));
+          fprintf(stdout,"INCONSISTENCY %s path=%-32s fid=%s size=%s stripes=%s nrep=%s nrepstored=%d nreponline=%d checksumtype=%s checksum=%s\n", inconsistencylable.c_str(), path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.stripes"), newresult->Get("mgm.nrep"), i, nreplicaonline, checksumtype.c_str(), newresult->Get("mgm.checksum"));
       }
 
       delete newresult;
@@ -429,37 +429,37 @@ com_file (char* arg1) {
   return (0);
 
  com_file_usage:
-  printf("Usage: file drop|move|replicate|adjustreplica|check|info|layout|verify ...\n");
-  printf("'[eos] file ..' provides the file management interface of EOS.\n");
-  printf("Options:\n");
-  printf("file drop <path> <fsid> [-f] :\n");
-  printf("                                                  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
-  printf("file move <path> <fsid1> <fsid2> :\n");
-  printf("                                                  move the file <path> from  <fsid1> to <fsid2>\n");
-  printf("file replicate <path> <fsid1> <fsid2> :\n");
-  printf("                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
-  printf("file adjustreplica <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]] :\n");
-  printf("                                                  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
-  printf("file check <path> [%%size%%checksum%%nrep%%checksumattr%%force%%output%%silent] :\n");
-  printf("                                                  retrieves stat information from the physical replicas and verifies the correctness\n");
-  printf("       - %%size                                                       :  return with an error code if there is a mismatch between the size meta data information\n");
-  printf("       - %%checksum                                                   :  return with an error code if there is a mismatch between the checksum meta data information\n");
-  printf("       - %%nrep                                                       :  return with an error code if there is a mismatch between the layout number of replicas and the existing replicas\n");
-  printf("       - %%checksumattr                                               :  return with an error code if there is a mismatch between the checksum in the extended attributes on the FST and the FMD checksum\n");
-  printf("       - %%silent                                                     :  suppresses all information for each replic to be printed\n");
-  printf("       - %%force                                                      :  forces to get the MD even if the node is down\n");
-  printf("       - %%output                                                     :  prints lines with inconsitency information\n");
-  printf("file info <path> :\n");
-  printf("                                                  convenience function aliasing to 'fileinfo' command\n");
-  printf("file layout <path>|fid:<fid-dec>|fxid:<fid-hex>  -stripes <n> :\n");
-  printf("                                                  change the number of stripes of a file with replica layout to <n>\n");
-  printf("file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : \n");
-  printf("                                                  verify a file against the disk images\n");
-  printf("       <fsid>          : verifies only the replica on <fsid>\n");
-  printf("       -checksum       : trigger the checksum calculation during the verification process\n");
-  printf("       -commitchecksum : commit the computed checksum to the MGM\n");
-  printf("       -commitsize     : commit the file size to the MGM\n");
-  printf("       -rate <rate>    : restrict the verification speed to <rate> per node\n");
+  fprintf(stdout,"Usage: file drop|move|replicate|adjustreplica|check|info|layout|verify ...\n");
+  fprintf(stdout,"'[eos] file ..' provides the file management interface of EOS.\n");
+  fprintf(stdout,"Options:\n");
+  fprintf(stdout,"file drop <path> <fsid> [-f] :\n");
+  fprintf(stdout,"                                                  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
+  fprintf(stdout,"file move <path> <fsid1> <fsid2> :\n");
+  fprintf(stdout,"                                                  move the file <path> from  <fsid1> to <fsid2>\n");
+  fprintf(stdout,"file replicate <path> <fsid1> <fsid2> :\n");
+  fprintf(stdout,"                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
+  fprintf(stdout,"file adjustreplica <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]] :\n");
+  fprintf(stdout,"                                                  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
+  fprintf(stdout,"file check <path> [%%size%%checksum%%nrep%%checksumattr%%force%%output%%silent] :\n");
+  fprintf(stdout,"                                                  retrieves stat information from the physical replicas and verifies the correctness\n");
+  fprintf(stdout,"       - %%size                                                       :  return with an error code if there is a mismatch between the size meta data information\n");
+  fprintf(stdout,"       - %%checksum                                                   :  return with an error code if there is a mismatch between the checksum meta data information\n");
+  fprintf(stdout,"       - %%nrep                                                       :  return with an error code if there is a mismatch between the layout number of replicas and the existing replicas\n");
+  fprintf(stdout,"       - %%checksumattr                                               :  return with an error code if there is a mismatch between the checksum in the extended attributes on the FST and the FMD checksum\n");
+  fprintf(stdout,"       - %%silent                                                     :  suppresses all information for each replic to be printed\n");
+  fprintf(stdout,"       - %%force                                                      :  forces to get the MD even if the node is down\n");
+  fprintf(stdout,"       - %%output                                                     :  prints lines with inconsitency information\n");
+  fprintf(stdout,"file info <path> :\n");
+  fprintf(stdout,"                                                  convenience function aliasing to 'fileinfo' command\n");
+  fprintf(stdout,"file layout <path>|fid:<fid-dec>|fxid:<fid-hex>  -stripes <n> :\n");
+  fprintf(stdout,"                                                  change the number of stripes of a file with replica layout to <n>\n");
+  fprintf(stdout,"file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : \n");
+  fprintf(stdout,"                                                  verify a file against the disk images\n");
+  fprintf(stdout,"       <fsid>          : verifies only the replica on <fsid>\n");
+  fprintf(stdout,"       -checksum       : trigger the checksum calculation during the verification process\n");
+  fprintf(stdout,"       -commitchecksum : commit the computed checksum to the MGM\n");
+  fprintf(stdout,"       -commitsize     : commit the file size to the MGM\n");
+  fprintf(stdout,"       -rate <rate>    : restrict the verification speed to <rate> per node\n");
   return (0);
 }
 

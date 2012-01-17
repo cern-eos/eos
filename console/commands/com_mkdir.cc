@@ -52,7 +52,7 @@ com_mkdir (char* arg1) {
   }
 
  com_mkdir_usage:
-  printf("usage: mkdir -p <path>                                                :  create directory <path>\n");
+  fprintf(stdout,"usage: mkdir -p <path>                                                :  create directory <path>\n");
   return (0);
 
 }

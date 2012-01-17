@@ -57,10 +57,10 @@ com_reconnect (char* arg1) {
     }
     
     if (debug)
-      printf("debug: %s\n", path.c_str());
+      fprintf(stdout,"debug: %s\n", path.c_str());
     return (0);
   } else {
-    printf("usage: reconnect [gsi,krb5,unix,sss]                                    :  reconnect to the management node [using the specified protocol]\n");
+    fprintf(stdout,"usage: reconnect [gsi,krb5,unix,sss]                                    :  reconnect to the management node [using the specified protocol]\n");
     return (0);
   }
 }

@@ -137,14 +137,14 @@ com_group (char* arg1) {
 
  com_group_usage:
 
-  printf("usage: group ls                                                      : list groups\n");
-  printf("usage: group ls [-s] [-m|-l|--io] [<group>]                          : list groups or only <group>\n");
-  printf("                                                                  -s : silent mode\n");
-  printf("                                                                  -m : monitoring key=value output format\n");
-  printf("                                                                  -l : long output - list also file systems after each group\n");
-  printf("                                                                --io : print IO statistics for the group\n");
-  printf("                                                                --IO : print IO statistics for each filesystem\n");
-  printf("       group rm <group-name>                                         : remove group\n");
-  printf("       group set <group-name> on|off                                 : activate/deactivate group\n");
+  fprintf(stdout,"usage: group ls                                                      : list groups\n");
+  fprintf(stdout,"usage: group ls [-s] [-m|-l|--io] [<group>]                          : list groups or only <group>\n");
+  fprintf(stdout,"                                                                  -s : silent mode\n");
+  fprintf(stdout,"                                                                  -m : monitoring key=value output format\n");
+  fprintf(stdout,"                                                                  -l : long output - list also file systems after each group\n");
+  fprintf(stdout,"                                                                --io : print IO statistics for the group\n");
+  fprintf(stdout,"                                                                --IO : print IO statistics for each filesystem\n");
+  fprintf(stdout,"       group rm <group-name>                                         : remove group\n");
+  fprintf(stdout,"       group set <group-name> on|off                                 : activate/deactivate group\n");
   return (0);
 }

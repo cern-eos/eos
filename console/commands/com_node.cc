@@ -163,13 +163,13 @@ com_node (char* arg1) {
 
  com_node_usage:
 
-  printf("usage: node ls [-s] [-m|-l|--io] [<node>]                            : list all nodes or only <node>\n");
-  printf("                                                                  -s : silent mode\n");
-  printf("                                                                  -m : monitoring key=value output format\n");
-  printf("                                                                  -l : long output - list also file systems after each node\n");
-  printf("                                                                --io : print IO statistics\n");
-  printf("       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node (see help of 'fs config' for details)\n");
-  printf("       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
-  printf("       node rm  <queue-name>|<host:port>                        : remove a node\n");
+  fprintf(stdout,"usage: node ls [-s] [-m|-l|--io] [<node>]                            : list all nodes or only <node>\n");
+  fprintf(stdout,"                                                                  -s : silent mode\n");
+  fprintf(stdout,"                                                                  -m : monitoring key=value output format\n");
+  fprintf(stdout,"                                                                  -l : long output - list also file systems after each node\n");
+  fprintf(stdout,"                                                                --io : print IO statistics\n");
+  fprintf(stdout,"       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node (see help of 'fs config' for details)\n");
+  fprintf(stdout,"       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
+  fprintf(stdout,"       node rm  <queue-name>|<host:port>                        : remove a node\n");
   return (0);
 }

@@ -49,10 +49,10 @@ static void* StaticThreadReaderStdout(void* arg) {
   do {
     int nread = getline(&line, &len, fin);
     if (nread == -1) {
-      //      fprintf(stderr, "socket read failed on fd %d\n", fd);
+      fprintf(stderr, "socket read failed on fd %d\n", fd);
     } else {
       XrdOucString sline = line;
-      if (sline == "\f\n") {
+      if (sline.endswith("\f\n")) {
 	return 0;
       }
       fprintf(stdout,"%s", line);
@@ -72,10 +72,10 @@ static void* StaticThreadReaderStderr(void* arg) {
   do {
     int nread = getline(&line, &len, fin);
     if (nread == -1) {
-      //      fprintf(stderr, "socket read failed on fd %d\n", fd);
+      fprintf(stderr, "socket read failed on fd %d\n", fd);
     } else {
       XrdOucString sline = line;
-      if (sline == "\f\n") {
+      if (sline.endswith("\f\n")) {
 	return 0;
       }
       fprintf(stderr,"%s", line);

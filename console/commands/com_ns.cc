@@ -75,11 +75,11 @@ com_ns (char* arg1) {
   return (0);
 
  com_ns_usage:
-  printf("Usage: ns                                                         :  print basic namespace parameters\n");
-  printf("       ns stat [-a] [-m] [-n]                                     :  print namespace statistics\n");
-  printf("                -a                                                   -  break down by uid/gid\n");
-  printf("                -m                                                   -  print in <key>=<val> monitoring format\n");
-  printf("                -n                                                   -  print numerical uid/gids\n");
-  printf("       ns compact                                                    -  compact the current changelogfile and reload the namespace\n");
+  fprintf(stdout,"Usage: ns                                                         :  print basic namespace parameters\n");
+  fprintf(stdout,"       ns stat [-a] [-m] [-n]                                     :  print namespace statistics\n");
+  fprintf(stdout,"                -a                                                   -  break down by uid/gid\n");
+  fprintf(stdout,"                -m                                                   -  print in <key>=<val> monitoring format\n");
+  fprintf(stdout,"                -n                                                   -  print numerical uid/gids\n");
+  fprintf(stdout,"       ns compact                                                    -  compact the current changelogfile and reload the namespace\n");
   return (0);
 }

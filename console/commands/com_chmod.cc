@@ -56,9 +56,9 @@ com_chmod (char* arg1) {
   return (0);
 
  com_chmod_usage:
-  printf("usage: chmod [-r] <mode> <path>                             : set mode for <path> (-r recursive)\n");  
-  printf("                 <mode> can be only numerical like 755, 644, 700\n");
-  printf("                 <mode> are automatically changed to 2755, 2644, 2700 respectivly\n");
-  printf("                 <mode> to disable attribute inheritance use 4755, 4644, 4700 ...\n");
+  fprintf(stdout,"usage: chmod [-r] <mode> <path>                             : set mode for <path> (-r recursive)\n");  
+  fprintf(stdout,"                 <mode> can be only numerical like 755, 644, 700\n");
+  fprintf(stdout,"                 <mode> are automatically changed to 2755, 2644, 2700 respectivly\n");
+  fprintf(stdout,"                 <mode> to disable attribute inheritance use 4755, 4644, 4700 ...\n");
   return (0);
 }
