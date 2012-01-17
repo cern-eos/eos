@@ -5,10 +5,10 @@
 Summary: EOS gridftp DSI plugin
 Name: eos-dsi
 Version: 0.1.1
-Release: 7
+Release: 8
 License: none
 Group: Applications/File
-Source0: eos-dsi-0.1.1-7.tar.gz
+Source0: eos-dsi-0.1.1-8.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 Requires: xrootd-client >= 3.1.0
@@ -61,6 +61,8 @@ fi
 
 
 %changelog
+* Tue Jan 17 2011 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-8
+- support for file size preset via eos.bookingsize attribute
 * Wed Dec 14 2011 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-5
 * Fri Dec 09 2011 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-3
 * Thu Jun 16 2011 root <root@lxbsu2005.cern.ch> - dsi.rc20
