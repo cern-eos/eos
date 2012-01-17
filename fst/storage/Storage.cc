@@ -781,7 +781,6 @@ Storage::StartFsCleaner(void * pp)
 void
 Storage::Scrub()
 {
-  SetLogId("FstScrubber");
   // create a 1M pattern
   eos_static_info("Creating Scrubbing pattern ...");
   for (int i=0;i< 1024*1024/16; i+=2) {
@@ -969,7 +968,6 @@ Storage::ScrubFs(const char* path, unsigned long long free, unsigned long long b
 void
 Storage::Trim()
 {
- SetLogId("FstTrim");
   // this thread supervises the changelogfile and trims them from time to time to shrink their size
   while(1) {
     sleep(10);
@@ -1005,7 +1003,6 @@ Storage::Trim()
 void
 Storage::Remover()
 {
-  SetLogId("FstRemover");
   // this thread unlinks stored files
   while(1) {
     // since we use vector and erase from the beginning, this is not really a perfect choice, but we don't have any performance issues here
@@ -1054,7 +1051,6 @@ Storage::Remover()
 void
 Storage::Report()
 {
-  SetLogId("Report");
   // this thread send's report messages from the report queue
   bool failure;
 
@@ -1107,7 +1103,6 @@ Storage::Report()
 void
 Storage::ErrorReport()
 {
-  SetLogId("FstErrorReport");
   // this thread send's error report messages from the error queue
   bool failure;
 
@@ -1187,7 +1182,6 @@ Storage::ErrorReport()
 void
 Storage::Verify()
 {  
-  SetLogId("FstVerify");
   // this thread unlinks stored files
   while(1) {
     verificationsMutex.Lock();
@@ -1372,8 +1366,6 @@ Storage::Communicator()
 
 {  
 
-  SetLogId("FstCommunicatorr");
-  // this thread retrieves changes on the ObjectManager queue and maintains associated filesystem objects
   eos_static_info("Communicator activated ...");  
 
   while (1) {
@@ -1601,7 +1593,6 @@ Storage::Communicator()
 void
 Storage::Publish()
 {
-  SetLogId("FstPublish");
   eos_static_info("Publisher activated ...");  
   struct timeval tv1, tv2; 
   struct timezone tz;
@@ -1702,9 +1693,6 @@ Storage::Publish()
 void
 Storage::Drainer()
 {
-  SetLogId("FstDrainer");
-  SetSingleShotLogId();
-
   eos_static_info("Start Drainer ...");
 
   std::string nodeconfigqueue="";
@@ -1855,9 +1843,6 @@ Storage::Drainer()
 void
 Storage::Balancer()
 {
-  SetLogId("FstBalancer");
-  SetSingleShotLogId();
-
   eos_static_info("Start Balancer ...");
 
   std::string nodeconfigqueue="";
@@ -1998,9 +1983,6 @@ Storage::Balancer()
 void
 Storage::Cleaner()
 {
-  SetLogId("FstCleaner");
-  SetSingleShotLogId();
-
   eos_static_info("Start Cleaner ...");
 
   std::string nodeconfigqueue="";
