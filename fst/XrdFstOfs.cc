@@ -747,8 +747,8 @@ XrdFstOfsFile::open(const char                *path,
     eos::common::Attr* attr = eos::common::Attr::OpenAttr(layOut->GetLocalReplicaPath());
     if (attr && isRW) {
       if (Path.beginswith("/replicate:")) {
-        if (capOpaque->Get("mgm.lfn")) {
-          if (!attr->Set(std::string("user.eos.lfn"), std::string(capOpaque->Get("mgm.lfn")))) {
+        if (capOpaque->Get("mgm.path")) {
+          if (!attr->Set(std::string("user.eos.lfn"), std::string(capOpaque->Get("mgm.path")))) {
             eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
           }
         } else {

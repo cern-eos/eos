@@ -4543,7 +4543,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  source_capability += "&mgm.localprefix=";       source_capability += source_snapshot.mPath.c_str();
 		  source_capability += "&mgm.fsid=";              source_capability += (int)source_snapshot.mId;
 		  source_capability += "&mgm.sourcehostport=";    source_capability += source_snapshot.mHostPort.c_str();
-		  source_capability += "&mgm.lfn=";               source_capability += fullpath.c_str();
 		  
 		  XrdOucString target_capability="";
 		  target_capability += "mgm.access=write";
@@ -4568,7 +4567,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  target_capability += "&mgm.localprefix=";       target_capability += target_snapshot.mPath.c_str();
 		  target_capability += "&mgm.fsid=";              target_capability += (int)target_snapshot.mId;
 		  target_capability += "&mgm.targethostport=";    target_capability += target_snapshot.mHostPort.c_str();
-		  target_capability += "&mgm.lfn=";               target_capability += fullpath.c_str();
 		  target_capability += "&mgm.bookingsize=";       target_capability += eos::common::StringConversion::GetSizeString(sizestring, size);
 		  // issue a source_capability
 		  XrdOucEnv insource_capability(source_capability.c_str());
@@ -4864,7 +4862,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  source_capability += "&mgm.localprefix=";       source_capability += source_snapshot.mPath.c_str();
 		  source_capability += "&mgm.fsid=";              source_capability += (int)source_snapshot.mId;
 		  source_capability += "&mgm.sourcehostport=";    source_capability += source_snapshot.mHostPort.c_str();
-		  source_capability += "&mgm.lfn=";               source_capability += fullpath.c_str();
 		  
 		  XrdOucString target_capability="";
 		  target_capability += "mgm.access=write";
@@ -4889,7 +4886,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  target_capability += "&mgm.localprefix=";       target_capability += target_snapshot.mPath.c_str();
 		  target_capability += "&mgm.fsid=";              target_capability += (int)target_snapshot.mId;
 		  target_capability += "&mgm.targethostport=";    target_capability += target_snapshot.mHostPort.c_str();
-		  target_capability += "&mgm.lfn=";               target_capability += fullpath.c_str();
 		  target_capability += "&mgm.bookingsize=";       target_capability += eos::common::StringConversion::GetSizeString(sizestring, size);
 		  // issue a source_capability
 		  XrdOucEnv insource_capability(source_capability.c_str());
@@ -5628,7 +5624,6 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   source_capability += "&mgm.localprefix=";       source_capability += source_snapshot.mPath.c_str();
   source_capability += "&mgm.fsid=";              source_capability += (int)source_snapshot.mId;
   source_capability += "&mgm.sourcehostport=";    source_capability += source_snapshot.mHostPort.c_str();
-  source_capability += "&mgm.lfn=";               source_capability += path;
   
   XrdOucString target_capability="";
   target_capability += "mgm.access=write";
@@ -5655,7 +5650,6 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   target_capability += "&mgm.localprefix=";       target_capability += target_snapshot.mPath.c_str();
   target_capability += "&mgm.fsid=";              target_capability += (int)target_snapshot.mId;
   target_capability += "&mgm.targethostport=";    target_capability += target_snapshot.mHostPort.c_str();
-  target_capability += "&mgm.lfn=";               target_capability += path;
   target_capability += "&mgm.bookingsize=";       target_capability += eos::common::StringConversion::GetSizeString(sizestring, size);
   // issue a source_capability
   XrdOucEnv insource_capability(source_capability.c_str());

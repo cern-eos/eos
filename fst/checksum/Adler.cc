@@ -30,6 +30,9 @@ EOSFSTNAMESPACE_BEGIN
 bool
 Adler::Add(const char* buffer, size_t length, off_t offset)
 {
+  if (offset != adleroffset) 
+    needsRecalculation = true;
+  
   adler = adler32(0L, Z_NULL,0);
   Chunk currChunk;
   adler = adler32(adler, (const Bytef*) buffer, length);
@@ -97,9 +100,16 @@ Adler::ValidateAdlerMap()
   value = iter1->second.adler;
 
   IterMap iter3;
-  /*  for (iter3= map.begin(); iter3!= map.end(); iter3++) {
-    fprintf(stderr,"ADLER VALIDATE %llu %llu %llu %x\n", iter3->first,iter3->second.offset, iter3->second.length, iter3->second.adler);
-    } */
+  //  for (iter3= map.begin(); iter3!= map.end(); iter3++) {
+  //    fprintf(stderr,"ADLER VALIDATE %llu %llu %llu %x\n", iter3->first,iter3->second.offset, iter3->second.length, iter3->second.adler);
+  //  } 
+
+  if (iter1->second.offset != 0) {
+    // the first chunk is not at the beginning
+    needsRecalculation = true;
+    adler = adler32(0L, Z_NULL,0);
+    return;
+  }
 
   if (map.begin() == map.end()) {
     //we have no chunk
@@ -144,7 +154,9 @@ Adler::ValidateAdlerMap()
   } else {
     adler = adler32(0L, Z_NULL,0);
   }
-  
+
+  fprintf(stderr,"adler is %x\n", adler);
+  fflush(stdout);
   return;
 }
 

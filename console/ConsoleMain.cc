@@ -248,6 +248,10 @@ startpipe() {
 
   ispipe = true;
 
+  close(STDIN_FILENO);
+  close(STDOUT_FILENO);
+  close(STDERR_FILENO);
+
   if (!iopipe.Init()) {
     fprintf(stderr,"error: cannot set IoPipe\n");
     return false;

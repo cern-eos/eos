@@ -40,49 +40,53 @@
 
 extern eos::common::IoPipe iopipe;
 
+
 static void* StaticThreadReaderStdout(void* arg) {
   int fd = ((unsigned long long) arg)%65536;
-  FILE* fin = fdopen(fd,"r");
-  char * line = NULL;
-  size_t len = 0;
 
+  XrdOucString sline="";
   do {
-    int nread = getline(&line, &len, fin);
-    if (nread == -1) {
-      fprintf(stderr, "socket read failed on fd %d\n", fd);
-    } else {
-      XrdOucString sline = line;
-      if (sline.endswith("#__STOP__#\n")) {
-	sline.replace("#__STOP__#\n", "");
+    char c;
+    int nread = read(fd, &c, 1);
+    if (nread ==1 ) {
+      sline += c;
+      if (c == '\n') {
+	if (sline.find("#__STOP__#") != STR_NPOS) {
+	  sline.replace("#__STOP__#\n", "");
+	  fprintf(stdout,"%s", sline.c_str());
+	  return 0;
+	}
 	fprintf(stdout,"%s", sline.c_str());
-	return 0;
+	sline="";
       }
-      fprintf(stdout,"%s", line);
+    } else {
+      fprintf(stderr, "socket read failed on fd %d\n", fd);
     }
   } while (1);
-
   return 0;
 }
 
 static void* StaticThreadReaderStderr(void* arg) {
   int fd = ((unsigned long long) arg)%65536;
 
-  FILE* fin = fdopen(fd,"r");
-  char * line = NULL;
-  size_t len = 0;
+  XrdOucString sline="";
 
   do {
-    int nread = getline(&line, &len, fin);
-    if (nread == -1) {
-      fprintf(stderr, "socket read failed on fd %d\n", fd);
-    } else {
-      XrdOucString sline = line;
-      if (sline.endswith("#__STOP__#\n")) {
-	sline.replace("#__STOP__#\n", "");
+    char c;
+    int nread = read(fd, &c, 1);
+    if (nread ==1 ) {
+      sline += c;
+      if (c == '\n') {
+	if (sline.find("#__STOP__#\n")!=STR_NPOS) {
+	  sline.replace("#__STOP__#\n", "");
+	  fprintf(stderr,"%s", sline.c_str());
+	  return 0;
+	}
 	fprintf(stderr,"%s", sline.c_str());
-	return 0;
+	sline="";
       }
-      fprintf(stderr,"%s", line);
+    } else {
+      fprintf(stderr, "socket read failed on fd %d\n", fd);
     }
   } while (1);
 
