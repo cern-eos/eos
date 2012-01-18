@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------
+/ ----------------------------------------------------------------------
 // File: DrainJob.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
@@ -63,7 +63,6 @@ DrainJob::ResetCounter()
       //    fs->OpenTransaction();
       fs->SetLongLong("stat.drainbytesleft", 0);
       fs->SetLongLong("stat.drainfiles",     0);
-      fs->SetLongLong("stat.drainlostfiles", 0);
       fs->SetLongLong("stat.timeleft", 0);
       fs->SetLongLong("stat.drainprogress",0);
       fs->SetLongLong("stat.drainretry", 0);
@@ -498,10 +497,9 @@ DrainJob::Drain(void)
 	SetDrainer();       
 
         // retry logic
-        if (ntried <=maxtry) {
+        if (ntried < maxtry) {
           // trigger retry; 
         } else {
-	  fs->SetLongLong("stat.drainlostfiles", filesleft);
           XrdSysThread::SetCancelOn();      
           return 0;
         }
