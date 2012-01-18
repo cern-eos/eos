@@ -855,6 +855,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
         
         if (!fmd) {
           // creation failed
+	  gOFS->MgmStats.Add("OpenFailedCreate",vid.uid,vid.gid,1);  
           return Emsg(epname, error, errno, "create file", path);      
         }
         isCreation = true;
@@ -885,8 +886,10 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
       gOFS->MgmStats.Add("RedirectENOENT",vid.uid,vid.gid,1);
       return rcode;
     }
-    if ((!fmd)) 
+    if ((!fmd)) {
+      gOFS->MgmStats.Add("OpenFailedENOENT",vid.uid,vid.gid,1);  
       return Emsg(epname, error, errno, "open file", path);      
+    }
     gOFS->MgmStats.Add("OpenRead",vid.uid,vid.gid,1);  
   }
   
@@ -922,6 +925,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(),false);
 
   if (!quotaspace) {
+    gOFS->MgmStats.Add("OpenFailedQuota",vid.uid,vid.gid,1);  
     return Emsg(epname, error, EINVAL, "get quota space ", space.c_str());
   }
 
@@ -950,6 +954,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 	errno = e.getErrno();
 	std::string errmsg = e.getMessage().str();
 	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());	
+	gOFS->MgmStats.Add("OpenFailedQuota",vid.uid,vid.gid,1);  
 	return Emsg(epname, error, errno, "open file", errmsg.c_str());      
       }     
       //-------------------------------------------
@@ -1022,6 +1027,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 
     if (! selectedfs.size()) {
       // this file has not a single existing replica
+      gOFS->MgmStats.Add("OpenFileOffline",vid.uid,vid.gid,1);  
       return Emsg(epname, error, ENODEV,  "open - no replica exists", path);        
     }
 
@@ -3603,9 +3609,11 @@ XrdMgmOfs::FSctl(const int               cmd,
         eos::FileMD *fmd = 0;
         eos::ContainerMD::id_t cid=0;
 
+	// -------------------------------------------
+	// keep the lock order View=>Quota=>Namespace
+        // -------------------------------------------
         eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-            
-        //-------------------------------------------
+        // -------------------------------------------
 	eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);      
         try {
           fmd = gOFS->eosFileService->getFileMD(fid);
@@ -4135,8 +4143,11 @@ XrdMgmOfs::FSctl(const int               cmd,
 
         // here we put some cache to avoid too heavy space recomputations
         if (  (time(NULL) - laststat) > ( 10 + (int)rand()/RAND_MAX) ) {
-          eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-          SpaceQuota* spacequota = Quota::GetResponsibleSpaceQuota(space.c_str());
+	  SpaceQuota* spacequota = 0;
+	  {
+	    eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+	    spacequota = Quota::GetResponsibleSpaceQuota(space.c_str());
+	  }
           
           if (!spacequota) {
             // take the sum's from all file systems in 'default'
@@ -4340,6 +4351,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       MAYREDIRECT;
 
       EXEC_TIMING_BEGIN("OpenBalance");      
+      gOFS->MgmStats.Add("Schedule2Balance",0,0,1);         
 
       XrdOucString sfsid       = env.Get("mgm.target.fsid");
       XrdOucString sfreebytes  = env.Get("mgm.target.freebytes");
@@ -4631,6 +4643,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       MAYREDIRECT;
 
       EXEC_TIMING_BEGIN("OpenDrain");      
+      gOFS->MgmStats.Add("Schedule2Drain",0,0,1);         
 
       XrdOucString sfsid       = env.Get("mgm.target.fsid");
       XrdOucString sfreebytes  = env.Get("mgm.target.freebytes");
@@ -4685,18 +4698,19 @@ XrdMgmOfs::FSctl(const int               cmd,
 
 	// select the next fs in the group to get a file to move
 	size_t gposition=0;
-	sGroupCycleMutex.Lock();
-	if (sGroupCycle.count(target_snapshot.mGroup)) {
-	  gposition = sGroupCycle[target_snapshot.mGroup] % group->size();
-	} else {
-	  gposition = 0;
-	  sGroupCycle[target_snapshot.mGroup]=0;
+	{
+	  XrdSysMutexHelper(sGroupCycleMutex);
+	  if (sGroupCycle.count(target_snapshot.mGroup)) {
+	    gposition = sGroupCycle[target_snapshot.mGroup] % group->size();
+	  } else {
+	    gposition = 0;
+	    sGroupCycle[target_snapshot.mGroup]=0;
+	  }
+	  // shift the iterator for the next schedule call to the following filesystem in the group
+	  sGroupCycle[target_snapshot.mGroup]++;
+	  sGroupCycle[target_snapshot.mGroup]%= groupsize;
 	}
-	// shift the iterator for the next schedule call to the following filesystem in the group
-	sGroupCycle[target_snapshot.mGroup]++;
-	sGroupCycle[target_snapshot.mGroup]%= groupsize;
-	sGroupCycleMutex.UnLock();
-
+	  
 	eos_thread_debug("group=%s cycle=%lu", target_snapshot.mGroup.c_str(), gposition);
 	// try to find a file, which is smaller than the free bytes and has no replica on the target filesystem
 	// we start at a random position not to move data of the same period to a single disk
@@ -4731,7 +4745,14 @@ XrdMgmOfs::FSctl(const int               cmd,
 	}
 	source_fs->SnapShotFileSystem(source_snapshot);
 
-	eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	// -------------------------------------------
+	// keep the lock order View=>Quota=>Namespace
+        // -------------------------------------------
+	eos::common::RWMutexReadLock gLock(Quota::gQuotaMutex);
+        // -------------------------------------------
+	eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
+        // -------------------------------------------
+
 	eos::FileSystemView::FileList source_filelist;
 	eos::FileSystemView::FileList target_filelist;
 
@@ -4825,8 +4846,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 	      	      
 	      if (fmd) {
 		// get the access scheduled
-		eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-		
 		XrdOucString sizestring="";
 		long unsigned int fsindex = 0;
                 
@@ -4938,8 +4957,8 @@ XrdMgmOfs::FSctl(const int               cmd,
 		    fullcapability += target_cap;
 		    // send the capability
 		    error.setErrInfo(fullcapability.length() + 1, fullcapability.c_str());
-		    gOFS->MgmStats.Add("OpenBalance",0,0,1);         
-		    EXEC_TIMING_END("OpenBalance");      
+		    gOFS->MgmStats.Add("OpenDrain",0,0,1);         
+		    EXEC_TIMING_END("OpenDrain");      
 		    return SFS_DATA;
 		  }
 		} else {
