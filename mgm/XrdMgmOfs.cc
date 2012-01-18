@@ -4831,7 +4831,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 		long unsigned int fsindex = 0;
                 
 		// get the responsible quota space
-		SpaceQuota* space = Quota::GetSpaceQuota(source_snapshot.mSpace.c_str());
+		SpaceQuota* space = Quota::GetSpaceQuota(source_snapshot.mSpace.c_str(), true);
 		if (space) {
 		  eos_thread_debug("space=%s", space->GetSpaceName());
 		} else {

@@ -230,13 +230,13 @@ Storage::Storage(const char* metadirectory)
 
   // make metadir
   XrdOucString mkmetalogdir = "mkdir -p "; mkmetalogdir += metadirectory;  mkmetalogdir += " >& /dev/null";
-  system(mkmetalogdir.c_str());
-
+  int rc = system(mkmetalogdir.c_str());
+  if (rc) rc=0;
   // own the directory
   mkmetalogdir = "chown -R daemon.daemon "; mkmetalogdir += metadirectory; mkmetalogdir += " >& /dev/null"; 
 
-  system(mkmetalogdir.c_str());
-
+  rc = system(mkmetalogdir.c_str());
+  if (rc) rc=0;
   metaDirectory = metadirectory;
   
   // check if the meta directory is accessible
@@ -248,7 +248,6 @@ Storage::Storage(const char* metadirectory)
   zombie = false;
   // start threads
   pthread_t tid;
-  int rc;
 
   // we need page aligned addresses for direct IO
   long pageval = sysconf(_SC_PAGESIZE);
@@ -410,7 +409,10 @@ Storage::Boot(FileSystem *fs)
 
   // try to own that directory
   XrdOucString chownline="chown daemon.daemon ";chownline += fs->GetPath().c_str();
-  system(chownline.c_str());
+  int rc = system(chownline.c_str());
+  if (!WEXITSTATUS(rc)) {
+    eos_err("unable to do %s", chownline.c_str());
+  }
   
   // test if we have rw access
   struct stat buf;
