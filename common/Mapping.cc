@@ -83,6 +83,7 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
 
   vid.name = client->name;
   vid.tident = tident;
+  vid.sudoer = false;
 
   // first map by alias
   XrdOucString useralias = client->prot;
