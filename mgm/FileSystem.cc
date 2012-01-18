@@ -103,6 +103,7 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status)
   } else {
     if (status == kEmpty) {
       SetDrainStatus(eos::common::FileSystem::kDrained);
+      SetLongLong("stat.drainprogress",100);
     } else {
       SetDrainStatus(eos::common::FileSystem::kNoDrain);
     }
