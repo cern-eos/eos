@@ -647,9 +647,16 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   if (ErrorLog) {
     // this 
     XrdOucString errorlogkillline="pkill -9 -f \"eos -b console log _MGMID_\"";
-    system(errorlogkillline.c_str());
+    int rrc = system(errorlogkillline.c_str());
+    if (WEXITSTATUS(rrc)) {
+      eos_info("%s returned %d", errorlogkillline.c_str(), rrc);
+    }
+
     XrdOucString errorlogline="eos -b console log _MGMID_ >& /dev/null &";
-    system(errorlogline.c_str());
+    rrc = system(errorlogline.c_str());
+    if (WEXITSTATUS(rrc)) {
+      eos_info("%s returned %d", errorlogline.c_str(), rrc);
+    }
   }
   
   // we need to specify this if the server was not started with the explicit manager option ... e.g. see XrdOfs

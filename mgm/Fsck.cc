@@ -168,7 +168,10 @@ Fsck::Stop()
     XrdSysThread::Cancel(mThread);
 
     // kill all running eos-fst-dump commands to terminate the pending Scan threads
-    system("pkill -9 eos-fst-dump");
+    int rrc=system("pkill -9 eos-fst-dump");
+    if (WEXITSTATUS(rrc)) {
+      rrc=0;
+    }
 
     // we don't cancel all the still pending Scan threads since they will terminate on their own
     do {
@@ -802,8 +805,10 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
     // delete possible old dump file
     ::unlink(dumpfile.c_str());
     // runnin eos-fst-dump command
-    system(sysline.c_str());
-
+    int rrc = system(sysline.c_str());
+    if (WEXITSTATUS(rrc)) {
+      rrc=0;
+    }
     std::ifstream inFile(dumpfile.c_str());
     std::string dumpentry;
 

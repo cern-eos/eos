@@ -1,5 +1,5 @@
 /var/log/eos/gridftp/*.log {
-    comptess
+    compress
     daily
     copytruncate
     missingok

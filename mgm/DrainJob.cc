@@ -380,13 +380,13 @@ DrainJob::Drain(void)
   last_filesleft_change = time(NULL);
   long long last_filesleft;
   last_filesleft=0;
-
+  long long filesleft;
+  filesleft = 0;
   // enable draining
   do {
     XrdSysThread::SetCancelOff();
 
     bool stalled = ( (time(NULL)-last_filesleft_change) > 600);
-    long long filesleft=0;
     
     SetSpaceNode();
     
@@ -489,6 +489,7 @@ DrainJob::Drain(void)
           return 0 ;
         }
         
+        fs->SetLongLong("stat.drainfiles",     filesleft);
         fs->SetDrainStatus(eos::common::FileSystem::kDrainExpired);
 	SetDrainer();       
 
@@ -527,7 +528,8 @@ DrainJob::Drain(void)
       XrdSysThread::SetCancelOn();      
       return 0 ;
     }
-    
+
+    fs->SetLongLong("stat.drainfiles",     filesleft);    
     fs->SetDrainStatus(eos::common::FileSystem::kDrained);    
     SetDrainer();
     // we automatically switch this filesystem to the 'empty' state

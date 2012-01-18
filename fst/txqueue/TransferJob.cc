@@ -165,12 +165,21 @@ void TransferJob::DoIt(){
 
   eos_static_debug("executing %s", command.str().c_str());
   int rc = system(command.str().c_str());
+  if (WEXITSTATUS(rc)) {
+    eos_static_err("%s returned %d", command.str().c_str(), rc);
+  }
 
   eos_static_debug("copy returned with retc=%d", WEXITSTATUS(rc));
 
   // own the result files
-  ::chown(fileOutput.c_str(), geteuid(),getegid());
-  ::chown(fileResult.c_str(), geteuid(),getegid());
+  rc = ::chown(fileOutput.c_str(), geteuid(),getegid());
+  if (rc) {
+    eos_static_err("chown failed for %s", fileOutput.c_str());
+  }
+  rc = ::chown(fileResult.c_str(), geteuid(),getegid());
+  if (rc) {
+    eos_static_err("chown failed for %s", fileResult.c_str());
+  }
 
   //delete the result files
   remove(fileOutput.c_str());

@@ -82,11 +82,16 @@ xrdmgmofs_shutdown(int sig) {
   XrdMqMessaging::gMessageClient.Disconnect();
 
   if (gOFS->ErrorLog) {
-    // this
     XrdOucString errorlogkillline="pkill -9 -f \"eos -b console log _MGMID_\"";
-    system(errorlogkillline.c_str());
+    int rrc = system(errorlogkillline.c_str());
+    if (WEXITSTATUS(rrc)) {
+      eos_static_info("%s returned %d", errorlogkillline.c_str(), rrc);
+    }
     XrdOucString errorlogline="eos -b console log _MGMID_ >& /dev/null &";
-    system(errorlogline.c_str());
+    rrc = system(errorlogline.c_str());
+    if (WEXITSTATUS(rrc)) {
+      eos_static_info("%s returned %d", errorlogline.c_str(), rrc);
+    }
     eos_static_warning("Shutdown stopping console error log");
   }
   eos_static_warning("Shutdown complete");

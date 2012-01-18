@@ -1964,9 +1964,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           {
             std::string cmdline1="bzip2 "; cmdline1 += BackupNsFileChangeLogFile.c_str(); cmdline1 += " >& /dev/null &";
             std::string cmdline2="bzip2 "; cmdline2 += BackupNsDirChangeLogFile.c_str(); cmdline2 += " >& /dev/null &";
-            system(cmdline1.c_str());
-            system(cmdline2.c_str());
-
+            int rrc = system(cmdline1.c_str());
+	    if (WEXITSTATUS(rrc)) {
+	      eos_err("%s returned %d", cmdline1.c_str(), rrc);
+	    }
+            rrc = system(cmdline2.c_str());
+	    if (WEXITSTATUS(rrc)) {
+	      eos_err("%s returned %d", cmdline2.c_str(), rrc);
+	    }
             stdOut += "# launched 'bzip2' job to archive "; stdOut += BackupNsFileChangeLogFile.c_str(); stdOut += "\n";
             stdOut += "# launched 'bzip2' job to archive "; stdOut += BackupNsDirChangeLogFile.c_str();  stdOut += "\n";
           }
