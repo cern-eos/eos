@@ -38,6 +38,7 @@
 #include <libgen.h>
 #include <pwd.h>
 #include "xrdposix.hh"
+#include "XrdCache/XrdFileCache.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClient.hh"
@@ -58,8 +59,8 @@
 XrdPosixXrootd posixsingleton;
 
 static XrdOucHash<XrdOucString> *passwdstore;
-static XrdOucHash<XrdOucString>  *inodestore;
-static XrdOucHash<XrdOucString>  *stringstore;
+static XrdOucHash<XrdOucString> *inodestore;
+static XrdOucHash<XrdOucString> *stringstore;
 
 XrdSysMutex passwdstoremutex;
 XrdSysMutex inodestoremutex;
@@ -84,8 +85,6 @@ STRINGSTORE(const char* __charptr__) {
 }
 
 
-
-
 #define XWCDEBUG
 
 char* fdbuffermap[65535];
@@ -94,6 +93,10 @@ void xrd_sync_env();
 void xrd_ro_env();
 void xrd_rw_env();
 void xrd_wo_env();
+
+/******************************************************************************/
+/*                            XrdPosixDirEntry Class                          */
+/******************************************************************************/
 
 class XrdPosixDirEntry {
 public:
@@ -104,6 +107,11 @@ public:
     inode = in;
   }
 };
+
+/******************************************************************************/
+/*                            XrdPosixDirList Class                           */
+/******************************************************************************/
+
 
 class XrdPosixDirList {
 public:
@@ -149,6 +157,11 @@ public:
   }
 };
 
+
+/******************************************************************************/
+/*                           XrdOpenPosixFile Class                           */
+/******************************************************************************/
+
 static XrdOucHash<XrdPosixDirList>  *dirstore;
 XrdSysMutex dirmutex;
 
@@ -161,10 +174,13 @@ public:
   XrdOpenPosixFile(int FD){fd=FD;nuser=0;uid=0;};
   XrdOpenPosixFile(int FD,uid_t UID){fd=FD;nuser=0;uid=UID;};
 
-  ~XrdOpenPosixFile(){if ((nuser==0)&&(fd>0)) xrd_close(fd);}
+  ~XrdOpenPosixFile(){if ((nuser==0)&&(fd>0)) xrd_close(fd, 0);}
 };
 
 
+/******************************************************************************/
+/*                             XrdPosixTiming Class                           */
+/******************************************************************************/
 
 static XrdOucHash<XrdOpenPosixFile>  *mknodopenstore;
 static XrdOucHash<XrdOpenPosixFile>  *readopenstore;
@@ -227,6 +243,10 @@ public:
   } while(0);                                                   
 
 
+/******************************************************************************/
+/*                          XrdWriteCachePage Class                           */
+/******************************************************************************/
+
 class XrdWriteCachePage {
 public:
 char*  buffer;
@@ -265,6 +285,11 @@ XrdWriteCachePage(int sze) {
 
 ~XrdWriteCachePage() {if (buffer) free(buffer); buffer = 0;offset=0;lastoffset=0;};
 };
+
+
+/******************************************************************************/
+/*                      XrdWriteCachePagePool Class                           */
+/******************************************************************************/
 
 class XrdWriteCachePagePool {
 public:
@@ -327,6 +352,11 @@ public:
 
 };
 
+
+/******************************************************************************/
+/*                        XrdWriteCacheBucket Class                           */
+/******************************************************************************/
+
 class XrdWriteCacheBucket {
 public:
   time_t UpdateTime;
@@ -361,6 +391,10 @@ public:
   
 };
 
+
+/******************************************************************************/
+/*                              XrdWriteCache Class                           */
+/******************************************************************************/
 
 class XrdWriteCache {
 public:
@@ -467,73 +501,100 @@ public:
   ~XrdWriteCache(){if (Pool) delete Pool; Pool=0;};
 };
 
-static XrdWriteCache* XWC;
 
+//replace the old cache with the new XrdCache
+static XrdWriteCache* XWC;
+static XrdFileCache* XFC;
 
 XrdSysMutex OpenMutex;
 
-void xrd_socks4(const char* host, const char* port) {
+//------------------------------------------------------------------------------
+void
+xrd_socks4(const char* host, const char* port)
+{
   EnvPutString( NAME_SOCKS4HOST, host);
   EnvPutString( NAME_SOCKS4PORT, port);
   XrdPosixXrootd::setEnv(NAME_SOCKS4HOST,host);
   XrdPosixXrootd::setEnv(NAME_SOCKS4PORT,port);
 }
 
-void xrd_ro_env() {
+
+//------------------------------------------------------------------------------
+void
+xrd_ro_env()
+{
   int rahead = 0; //97*1024;
   int rcsize = 0; //512*1024;
 
-  if (getenv("EOS_READAHEADSIZE")) {
-    rahead = atoi(getenv("EOS_READAHEADSIZE"));
+  if (!(getenv("EOS_XFC")))
+  {
+    if (getenv("EOS_READAHEADSIZE")) {
+      rahead = atoi(getenv("EOS_READAHEADSIZE"));
+    }
+    if (getenv("EOS_READCACHESIZE")) {
+      rcsize = atoi(getenv("EOS_READCACHESIZE"));
+    }
   }
-  if (getenv("EOS_READCACHESIZE")) {
-    rcsize = atoi(getenv("EOS_READCACHESIZE"));
-  }
-
-  XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,rahead);
-  XrdPosixXrootd::setEnv(NAME_READCACHESIZE,rcsize);
-}
-
-void xrd_wo_env() {
-  int rahead = 0; //97*1024;
-  int rcsize = 0; //512*1024;
-
-  if (getenv("EOS_READAHEADSIZE")) {
-    rahead = atoi(getenv("EOS_READAHEADSIZE"));
-  }
-  if (getenv("EOS_READCACHESIZE")) {
-    rcsize = atoi(getenv("EOS_READCACHESIZE"));
-  }
-
-  XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,rahead);
-  XrdPosixXrootd::setEnv(NAME_READCACHESIZE,rcsize);
-}
-
-//-------------------------------------------------------------------------------------------------------------------
-void xrd_sync_env() {
-  XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,(long)0);
-  XrdPosixXrootd::setEnv(NAME_READCACHESIZE,(long)0);
-}
-
-//-------------------------------------------------------------------------------------------------------------------
-void xrd_rw_env() {
-  int rahead = 0; //97*1024;
-  int rcsize = 0; //512*1024;
-
-  if (getenv("EOS_READAHEADSIZE")) {
-    rahead = atoi(getenv("EOS_READAHEADSIZE"));
-  }
-  if (getenv("EOS_READCACHESIZE")) {
-    rcsize = atoi(getenv("EOS_READCACHESIZE"));
-  }
-
+   
   XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,rahead);
   XrdPosixXrootd::setEnv(NAME_READCACHESIZE,rcsize);
 }
 
 
-//-------------------------------------------------------------------------------------------------------------------
-int xrd_rmxattr(const char *path, const char *xattr_name) 
+//------------------------------------------------------------------------------
+void
+xrd_wo_env()
+{
+  int rahead = 0; //97*1024;
+  int rcsize = 0; //512*1024;
+
+  if (!(getenv("EOS_XFC")))
+  {
+    if (getenv("EOS_READAHEADSIZE")) {
+      rahead = atoi(getenv("EOS_READAHEADSIZE"));
+    }
+    if (getenv("EOS_READCACHESIZE")) {
+      rcsize = atoi(getenv("EOS_READCACHESIZE"));
+    }
+  }  
+  
+  XrdPosixXrootd::setEnv(NAME_READAHEADSIZE, rahead);
+  XrdPosixXrootd::setEnv(NAME_READCACHESIZE, rcsize);  
+}
+
+//------------------------------------------------------------------------------
+void
+xrd_sync_env()
+{
+  XrdPosixXrootd::setEnv(NAME_READAHEADSIZE, (long)0);
+  XrdPosixXrootd::setEnv(NAME_READCACHESIZE, (long)0);
+}
+
+//------------------------------------------------------------------------------
+void
+xrd_rw_env()
+{
+  int rahead = 0; //97*1024;
+  int rcsize = 0; //512*1024;
+
+  if(!(getenv("EOS_XFC")))
+  {
+    if (getenv("EOS_READAHEADSIZE")) {
+      rahead = atoi(getenv("EOS_READAHEADSIZE"));
+    }
+    if (getenv("EOS_READCACHESIZE")) {
+      rcsize = atoi(getenv("EOS_READCACHESIZE"));
+    }
+  }
+  
+  XrdPosixXrootd::setEnv(NAME_READAHEADSIZE, rahead);
+  XrdPosixXrootd::setEnv(NAME_READCACHESIZE, rcsize);
+}
+
+
+//------------------------------------------------------------------------------
+int
+xrd_rmxattr(const char *path, const char *xattr_name) 
 {
   XrdPosixTiming rmxattrtiming("rmxattr");
   TIMING("START", &rmxattrtiming);
@@ -575,8 +636,9 @@ int xrd_rmxattr(const char *path, const char *xattr_name)
 }
 
 
-//-------------------------------------------------------------------------------------------------------------------
-int xrd_setxattr(const char *path, const char *xattr_name, const char *xattr_value, size_t size) 
+//------------------------------------------------------------------------------
+int
+xrd_setxattr(const char *path, const char *xattr_name, const char *xattr_value, size_t size) 
 {
   XrdPosixTiming setxattrtiming("setxattr");
   TIMING("START", &setxattrtiming);
@@ -619,8 +681,10 @@ int xrd_setxattr(const char *path, const char *xattr_name, const char *xattr_val
   return setxattr;
 }
 
-//-------------------------------------------------------------------------------------------------------------------
-int xrd_getxattr(const char *path, const char *xattr_name, char **xattr_value, size_t *size) 
+
+//------------------------------------------------------------------------------
+int
+xrd_getxattr(const char *path, const char *xattr_name, char **xattr_value, size_t *size) 
 {
   XrdPosixTiming getxattrtiming("getxattr");
   TIMING("START", &getxattrtiming);
@@ -674,8 +738,9 @@ int xrd_getxattr(const char *path, const char *xattr_name, char **xattr_value, s
 }
 
 
-//-------------------------------------------------------------------------------------------------------------------
-int xrd_listxattr(const char *path, char **xattr_list, size_t *size) 
+//------------------------------------------------------------------------------
+int
+xrd_listxattr(const char *path, char **xattr_list, size_t *size) 
 {
   XrdPosixTiming listxattrtiming("listxattr");
   TIMING("START", &listxattrtiming);
@@ -723,8 +788,9 @@ int xrd_listxattr(const char *path, char **xattr_list, size_t *size)
 }
 
 
-//-------------------------------------------------------------------------------------------------------------------
-int xrd_stat(const char *path, struct stat *buf)
+//------------------------------------------------------------------------------
+int
+xrd_stat(const char *path, struct stat *buf)
 {
   XrdPosixTiming stattiming("xrd_stat");
   TIMING("START",&stattiming);
@@ -775,11 +841,12 @@ int xrd_stat(const char *path, struct stat *buf)
 
   TIMING("END",&stattiming);
   stattiming.Print();
-
   
   return dostat;
 }
 
+
+//------------------------------------------------------------------------------
 int 
 xrd_statfs(const char* url, const char* path, struct statvfs *stbuf) 
 {
@@ -857,6 +924,8 @@ xrd_statfs(const char* url, const char* path, struct statvfs *stbuf)
   }
 }
 
+
+//------------------------------------------------------------------------------  
 int 
 xrd_chmod(const char* path, mode_t mode) 
 {
@@ -895,6 +964,7 @@ xrd_chmod(const char* path, mode_t mode)
   }
 }
 
+//------------------------------------------------------------------------------
 int 
 xrd_symlink(const char* url, const char* destpath, const char* sourcepath) 
 {
@@ -930,6 +1000,8 @@ xrd_symlink(const char* url, const char* destpath, const char* sourcepath)
 
 }
 
+
+//------------------------------------------------------------------------------
 int 
 xrd_link(const char* url, const char* destpath, const char* sourcepath) 
 {
@@ -966,6 +1038,8 @@ xrd_link(const char* url, const char* destpath, const char* sourcepath)
 
 }
 
+
+//------------------------------------------------------------------------------
 int 
 xrd_readlink(const char* path, char* buf, size_t bufsize) {
   XrdPosixTiming readlinktiming("xrd_readlink");
@@ -1002,6 +1076,8 @@ xrd_readlink(const char* path, char* buf, size_t bufsize) {
   }
 }
 
+
+//------------------------------------------------------------------------------
 int 
 xrd_utimes(const char* path, struct timespec *tvp) {
   XrdPosixTiming utimestiming("xrd_utimes");
@@ -1047,6 +1123,8 @@ xrd_utimes(const char* path, struct timespec *tvp) {
   }  
 }
 
+
+//------------------------------------------------------------------------------
 int            
 xrd_access(const char* path, int mode) {
   XrdPosixTiming accesstiming("xrd_access");
@@ -1085,7 +1163,10 @@ xrd_access(const char* path, int mode) {
   }
 }
 
-int xrd_inodirlist(unsigned long long dirinode, const char *path)
+
+//------------------------------------------------------------------------------
+int
+xrd_inodirlist(unsigned long long dirinode, const char *path)
 {
   XrdPosixTiming inodirtiming("xrd_inodirlist");
   TIMING("START",&inodirtiming);
@@ -1193,33 +1274,44 @@ int xrd_inodirlist(unsigned long long dirinode, const char *path)
 }
 
 
-  
+//------------------------------------------------------------------------------  
 DIR *xrd_opendir(const char *path)
 {
   return XrdPosixXrootd::Opendir(path);
 }
 
+
+//------------------------------------------------------------------------------  
 struct dirent *xrd_readdir(DIR *dirp)
 {
   return XrdPosixXrootd::Readdir(dirp);
 }
 
+
+//------------------------------------------------------------------------------  
 int xrd_closedir(DIR *dirp)
 {
   return XrdPosixXrootd::Closedir(dirp);
 }
 
+
+//------------------------------------------------------------------------------  
 int xrd_mkdir(const char *path, mode_t mode)
 {
   return XrdPosixXrootd::Mkdir(path, mode);
 }
 
+
+//------------------------------------------------------------------------------  
 int xrd_rmdir(const char *path)
 {
   return XrdPosixXrootd::Rmdir(path);
 }
 
-int xrd_open(const char *path, int oflags, mode_t mode)
+
+//------------------------------------------------------------------------------
+int
+xrd_open(const char *path, int oflags, mode_t mode)
 {
   XrdOucString spath=path;
   printf("Spath is %s\n",spath.c_str());
@@ -1289,83 +1381,184 @@ int xrd_open(const char *path, int oflags, mode_t mode)
   return retc;
 }
 
-int xrd_close(int fildes)
+
+//------------------------------------------------------------------------------
+int
+xrd_close(int fildes, unsigned long inode)
 {
   if (XWC) {
-    XWC->Flush(fildes);
+    XWC->Flush(fildes); 
   }
+  else if (XFC && inode) {
+    XFC->WaitFinishWrites(inode);
+  }
+  
   return XrdPosixXrootd::Close(fildes);
 }
 
-int xrd_truncate(int fildes, off_t offset)
+
+//------------------------------------------------------------------------------
+int
+xrd_truncate(int fildes, off_t offset, unsigned long inode)
 {
   if (XWC) {
     XWC->Flush(fildes);
   }
+  else if (XFC && inode) {
+    XFC->WaitFinishWrites(inode);
+  }
+  
   return XrdPosixXrootd::Ftruncate(fildes,offset);
 }
 
-off_t xrd_lseek(int fildes, off_t offset, int whence)
+
+//------------------------------------------------------------------------------
+off_t
+xrd_lseek(int fildes, off_t offset, int whence, unsigned long inode)
 {
   if (XWC) {
     XWC->Flush(fildes);
   }
+  else if (XFC && inode) {
+    XFC->WaitFinishWrites(inode);
+  }
+ 
   return XrdPosixXrootd::Lseek(fildes, (long long)offset, whence);
 }
 
-ssize_t xrd_read(int fildes, void *buf, size_t nbyte)
+
+//------------------------------------------------------------------------------
+ssize_t
+xrd_read(int fildes, void *buf, size_t nbyte, unsigned long inode)
+{
+  size_t ret;
+  
+  if (XWC) {
+    XWC->Flush(fildes);
+    ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
+  }
+  else if (XFC && inode)
+  {
+    XFC->WaitFinishWrites(inode);
+    off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
+
+    if ((ret = XFC->GetRead(inode, fildes, buf, offset, nbyte)) != nbyte)
+    {
+      ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
+      XFC->PutRead(inode, fildes, buf, offset, nbyte);
+    }
+  }
+  else {
+    ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
+  }
+  
+  return ret;
+}
+
+
+//------------------------------------------------------------------------------
+ssize_t
+xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode)
+{
+  size_t ret;
+
+  if (XWC) {
+    XWC->Flush(fildes);
+    ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
+  }
+  else if (XFC && inode)
+  {
+    XFC->WaitFinishWrites(inode);
+    if ((ret = XFC->GetRead(inode, fildes, buf, offset, nbyte)) != nbyte)
+      {
+        fprintf(stdout, "Block not in cache, try to read it now. \n");
+        ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
+        fprintf(stdout, "Block not in cache, try to cache it now. \n");
+        XFC->PutRead(inode, fildes, buf, offset, nbyte);
+      }
+  }
+  else {
+    ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
+  }
+  
+  return ret;
+}
+
+
+//------------------------------------------------------------------------------
+ssize_t
+xrd_write(int fildes, const void *buf, size_t nbyte, unsigned long inode)
+{
+  size_t ret;
+  if (XWC) {
+    XWC->Flush(fildes);
+    ret = XrdPosixXrootd::Write(fildes, buf, nbyte);
+  }
+  else if (XFC && inode)
+  {
+    off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
+    XFC->SubmitWrite(inode, fildes, const_cast<void*>(buf), offset, nbyte);
+    ret = nbyte;
+  }
+  else {
+    ret = XrdPosixXrootd::Write(fildes, buf, nbyte);    
+  }
+  return ret;                  
+}
+
+
+//------------------------------------------------------------------------------
+ssize_t
+xrd_pwrite(int fildes, const void *buf, size_t nbyte, off_t offset, unsigned long inode)
+{
+  size_t ret;
+  if (XWC) {
+    XWC->Flush(fildes);
+    ret = XrdPosixXrootd::Pwrite(fildes, buf, nbyte, static_cast<long long>(offset));
+  }
+  else if (XFC && inode)
+  {
+    XFC->SubmitWrite(inode, fildes, const_cast<void*>(buf), offset, nbyte);
+    ret = nbyte;
+  }
+  else {
+    ret = XrdPosixXrootd::Pwrite(fildes, buf, nbyte, static_cast<long long>(offset));    
+  }
+  return ret;                  
+}
+
+
+//------------------------------------------------------------------------------
+int
+xrd_fsync(int fildes, unsigned long inode)
 {
   if (XWC) {
     XWC->Flush(fildes);
   }
-  return XrdPosixXrootd::Read(fildes, buf, nbyte);
-}
-
-ssize_t xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset)
-{
-  if (XWC) {
-    XWC->Flush(fildes);
+  else if (XFC && inode) {
+    XFC->WaitFinishWrites(inode);
   }
-  return XrdPosixXrootd::Pread(fildes, buf, nbyte, (long long)offset);
-}
-
-ssize_t xrd_write(int fildes, const void *buf, size_t nbyte)
-{
-  if (XWC) {
-    XWC->Flush(fildes);
-  }
-  return XrdPosixXrootd::Write(fildes, buf, nbyte);
-}
-
-ssize_t xrd_pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
-{
-  if (XWC) {
-    return XWC->Write(fildes, buf, nbyte, offset);
-  }
-
-  return XrdPosixXrootd::Pwrite(fildes, buf, nbyte, (long long) offset);
-}
-
-int xrd_fsync(int fildes)
-{
-  if (XWC) {
-    XWC->Flush(fildes);
-  }
+  
   return XrdPosixXrootd::Fsync(fildes);
 }
 
+
+//------------------------------------------------------------------------------
 int xrd_unlink(const char *path)
 {
   return XrdPosixXrootd::Unlink(path);
 }
 
+
+//------------------------------------------------------------------------------
 int xrd_rename(const char *oldpath, const char *newpath)
 {
   return XrdPosixXrootd::Rename(oldpath, newpath);
 }
 
-
-void xrd_store_inode(long long inode, const char* name) {
+//------------------------------------------------------------------------------
+void
+xrd_store_inode(long long inode, const char* name) {
   XrdOucString* node;
   char nodename[4096];
   sprintf(nodename,"%lld",inode);
@@ -1380,7 +1573,10 @@ void xrd_store_inode(long long inode, const char* name) {
   }
 }
 
-void xrd_forget_inode(long long inode) 
+
+//------------------------------------------------------------------------------
+void
+xrd_forget_inode(long long inode) 
 {
   char nodename[4096];
   sprintf(nodename,"%lld",inode);
@@ -1390,7 +1586,11 @@ void xrd_forget_inode(long long inode)
   inodestoremutex.UnLock();
 }
 
-const char* xrd_get_name_for_inode(long long inode) {
+
+//------------------------------------------------------------------------------
+const char*
+xrd_get_name_for_inode(long long inode)
+{
   char nodename[4096];
   sprintf(nodename,"%lld",inode);
   inodestoremutex.Lock();
@@ -1403,7 +1603,10 @@ const char* xrd_get_name_for_inode(long long inode) {
 }
 
 
-const char* xrd_mapuser(uid_t uid) {
+//------------------------------------------------------------------------------
+const char*
+xrd_mapuser(uid_t uid)
+{
   struct passwd* pw;
   XrdOucString sid = "";
   XrdOucString* spw=NULL;
@@ -1435,7 +1638,11 @@ const char* xrd_mapuser(uid_t uid) {
   return STRINGSTORE(spw->c_str());
 }
 
-int xrd_inodirlist_entry(unsigned long long dirinode, int index, char** name, unsigned long long *inode) {
+
+//------------------------------------------------------------------------------
+int
+xrd_inodirlist_entry(unsigned long long dirinode, int index, char** name, unsigned long long *inode)
+{
   char dirtag[1024];
   sprintf(dirtag,"%llu", dirinode);
   XrdPosixDirList* posixdir;
@@ -1454,7 +1661,11 @@ int xrd_inodirlist_entry(unsigned long long dirinode, int index, char** name, un
   return -1;
 }
 
-void xrd_inodirlist_delete(unsigned long long dirinode) {
+
+//------------------------------------------------------------------------------
+void
+xrd_inodirlist_delete(unsigned long long dirinode)
+{
   char dirtag[1024];
   sprintf(dirtag,"%llu",dirinode);
   dirmutex.Lock();
@@ -1462,7 +1673,11 @@ void xrd_inodirlist_delete(unsigned long long dirinode) {
   dirmutex.UnLock();
 }
 
-int xrd_mknodopenfilelist_get(unsigned long long inode) {
+
+//------------------------------------------------------------------------------
+int
+xrd_mknodopenfilelist_get(unsigned long long inode)
+{
   char filetag[1024];
   sprintf(filetag,"%llu",inode);
   XrdOpenPosixFile* posixfile;
@@ -1476,7 +1691,11 @@ int xrd_mknodopenfilelist_get(unsigned long long inode) {
   return -1;
 }
 
-int xrd_mknodopenfilelist_release(int fd,unsigned long long inode){
+
+//------------------------------------------------------------------------------
+int
+xrd_mknodopenfilelist_release(int fd,unsigned long long inode)
+{
   char filetag[1024];
   sprintf(filetag,"%llu",inode);
   XrdOpenPosixFile* posixfile;
@@ -1491,8 +1710,12 @@ int xrd_mknodopenfilelist_release(int fd,unsigned long long inode){
   mknodopenstoremutex.UnLock();
   return -1;
 }
-    
-int xrd_mknodopenfilelist_add(int fd, unsigned long long inode) {
+
+
+//------------------------------------------------------------------------------
+int
+xrd_mknodopenfilelist_add(int fd, unsigned long long inode)
+{
   char filetag[1024];
   sprintf(filetag,"%llu",inode);
 
@@ -1509,7 +1732,11 @@ int xrd_mknodopenfilelist_add(int fd, unsigned long long inode) {
   return 0;
 }
 
-int xrd_readopenfilelist_get(unsigned long long inode, uid_t uid) {
+
+//------------------------------------------------------------------------------
+int
+xrd_readopenfilelist_get(unsigned long long inode, uid_t uid)
+{
   char filetag[1024];
   sprintf(filetag,"%u-%llu",uid,inode);
   XrdOpenPosixFile* posixfile;
@@ -1523,7 +1750,11 @@ int xrd_readopenfilelist_get(unsigned long long inode, uid_t uid) {
   return -1;
 }
 
-int xrd_readopenfilelist_lease(unsigned long long inode, uid_t uid) {
+
+//------------------------------------------------------------------------------
+int
+xrd_readopenfilelist_lease(unsigned long long inode, uid_t uid)
+{
   char filetag[1024];
   sprintf(filetag,"%u%llu",uid, inode);
   XrdOpenPosixFile* posixfile;
@@ -1537,7 +1768,11 @@ int xrd_readopenfilelist_lease(unsigned long long inode, uid_t uid) {
   return -1;
 }
 
-int xrd_readopenfilelist_add(int fd, unsigned long long inode, uid_t uid, double readopentime) {
+
+//------------------------------------------------------------------------------
+int
+xrd_readopenfilelist_add(int fd, unsigned long long inode, uid_t uid, double readopentime)
+{
   char filetag[1024];
   sprintf(filetag,"%u-%llu",uid,inode);
   
@@ -1552,10 +1787,13 @@ int xrd_readopenfilelist_add(int fd, unsigned long long inode, uid_t uid, double
   readopenstore->Add(filetag,posixfile,(time_t)readopentime);
   readopenstoremutex.UnLock();
   return 0;
-
 }
 
-struct dirbuf* xrd_inodirlist_getbuffer(unsigned long long dirinode) {
+
+//------------------------------------------------------------------------------
+struct dirbuf*
+xrd_inodirlist_getbuffer(unsigned long long dirinode)
+{
   char dirtag[1024];
   sprintf(dirtag,"%llu",dirinode);
   XrdPosixDirList* posixdir;
@@ -1569,11 +1807,15 @@ struct dirbuf* xrd_inodirlist_getbuffer(unsigned long long dirinode) {
   }
 }
 
+
+//------------------------------------------------------------------------------
 const char* xrd_get_dir(DIR* dp, int entry) { return 0;}
 
 
 #define MAX_NUM_NODES 63 /* max number of data nodes in a cluster */
-void xrd_init()
+//------------------------------------------------------------------------------
+void
+xrd_init()
 {
   memset(fdbuffermap,0,sizeof(fdbuffermap));
 
@@ -1587,13 +1829,27 @@ void xrd_init()
   if (getenv("EOS_DEBUG")) {
     XrdPosixXrootd::setEnv(NAME_DEBUG,atoi(getenv("EOS_DEBUG")));
   }
-  // 1 MB buckets = 256 
-  if (getenv("EOS_NOXWC")) {
-    XWC = 0;
-  } else {
-    XWC = new XrdWriteCache(4*1024*1024 / OSPAGESIZE);
-  }
+  
+  //uncomment this to enable XrdCachFile
+  setenv("EOS_XFC", "1", 1);
+  setenv("EOS_XFC_SIZE", "200000000", 1);   // ~200MB
 
+  //initialise the XrdFileCache
+  if (!(getenv("EOS_XFC"))) {
+    fprintf(stdout, "XRD FILE CACHE not initialized. \n");
+    XFC = NULL;
+    // initialise XrdWriteCache 1 MB buckets = 256
+    if (getenv("EOS_NOXWC")) {
+      XWC = NULL;
+    } else {
+      XWC = new XrdWriteCache(4*1024*1024 / OSPAGESIZE);
+    }
+  } else 
+  {
+    fprintf(stdout, "XRD FILE CACHE initialized. \n");
+    XFC = XrdFileCache::Instance(static_cast<size_t>(atol(getenv("EOS_XFC_SIZE"))));   
+  }
+  
   passwdstore = new XrdOucHash<XrdOucString> ();
   inodestore  = new XrdOucHash<XrdOucString> ();
   stringstore = new XrdOucHash<XrdOucString> ();

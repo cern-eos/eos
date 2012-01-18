@@ -1,6 +1,6 @@
 /* --------------------------------------------------------------------*/
 /* File: eosd.c                                                        */
-/* Author: Elvin Sindrilaru/Andreas-Joachim Peters - CERN              */
+/* Author: Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN       */
 /* --------------------------------------------------------------------*/
 
 /************************************************************************
@@ -192,13 +192,13 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     if (fi) {
       if (isdebug) printf("[%s]: truncate\n",__FUNCTION__);
       if (fi->fh) {
-        retc = xrd_truncate(fi->fh,attr->st_size);
+        retc = xrd_truncate(fi->fh,attr->st_size, 0);
       } else {
         if (isdebug) printf("[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__,(long long)attr->st_size, (long long)ino);
         int fd;
         if ((fd = xrd_open(fullpath, O_WRONLY , S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
-          retc = xrd_truncate(fd,attr->st_size);
-          xrd_close(fd);
+          retc = xrd_truncate(fd,attr->st_size, 0);
+          xrd_close(ino, fd);
         } else {
           retc = -1;
         }
@@ -207,8 +207,8 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
       if (isdebug) printf("[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__,(long long)attr->st_size, (long long)ino);
       int fd;
       if ((fd = xrd_open(fullpath, O_WRONLY , S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
-        retc = xrd_truncate(fd,attr->st_size);
-        xrd_close(fd);
+        retc = xrd_truncate(fd, attr->st_size, 0);
+        xrd_close(ino, fd);
       }
     }
   }
@@ -875,6 +875,7 @@ static void eosfs_ll_open(fuse_req_t req, fuse_ino_t ino,
 
   fi->fh = res;
 
+  
   if (getenv("EOS_KERNELCACHE") && (!strcmp(getenv("EOS_KERNELCACHE"),"1"))) {
     // TODO: this should be improved
     if (strstr(fullpath,"/proc/")) {
@@ -883,6 +884,12 @@ static void eosfs_ll_open(fuse_req_t req, fuse_ino_t ino,
       fi->keep_cache = 1;
     }
   } else {
+    fi->keep_cache = 0;
+  }
+    
+  //if XrdCacheFile enabled then disable kernel cache
+  if (getenv("EOS_XFC")) {
+    fprintf(stdout, "Disabling the kernel cache. \n");
     fi->keep_cache = 0;
   }
 
@@ -906,7 +913,7 @@ static void eosfs_ll_read(fuse_req_t req, fuse_ino_t ino, size_t size,
   if (fi->fh) {
     char* buf = fdbuffermap[fi->fh];
     if (isdebug) printf("[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)size,(long long)off,(long long)buf,(long long)fi->fh);
-    int res = xrd_pread(fi->fh, buf, size, off);
+    int res = xrd_pread(fi->fh, buf, size, off, ino);
     if (res == -1) {
       // map file system errors to IO errors!
       if (errno == ENOSYS)
@@ -930,7 +937,7 @@ static void eosfs_ll_write(fuse_req_t req, fuse_ino_t ino, const char *buf, size
 {
   if (fi->fh) {
     if (isdebug) printf("[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)size,(long long)off,(long long)buf,(long long)fi->fh);
-    int res = xrd_pwrite(fi->fh, buf, size, off);
+    int res = xrd_pwrite(fi->fh, buf, size, off, ino);
     if (res == -1) {
       fuse_reply_err(req, errno);
     }
@@ -962,7 +969,7 @@ static void eosfs_ll_release(fuse_req_t req, fuse_ino_t ino,
     }
 
     //    if ((xrd_readopenfilelist_lease(ino,req->ctx.uid)<0)) {
-      res = xrd_close(fd);
+    res = xrd_close(fd, 0);
       //    }
 
     fi->fh = 0;
@@ -981,7 +988,7 @@ static void eosfs_ll_fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 {
   if (fi->fh) {
     if (isdebug) printf("[%s]: inode=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)fi->fh);
-    int res = xrd_fsync(fi->fh);
+    int res = xrd_fsync(fi->fh, ino);
     if (res == -1) {
       fuse_reply_err(req, errno);
     }

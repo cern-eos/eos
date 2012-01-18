@@ -182,7 +182,7 @@ static int eosdfs_mknod(const char *path, mode_t mode, dev_t rdev)
     res = xrd_open(rootpath, O_CREAT | O_EXCL | O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); 
     if (res == -1)
       return -errno;
-    xrd_close(res);
+    xrd_close(res, 0);
   }    
   return 0;
 }
@@ -334,8 +334,8 @@ static int eosdfs_truncate(const char *path, off_t size)
   if (res == -1)
     return -errno;
   
-  xrd_truncate(res,size);
-  xrd_close(res);
+  xrd_truncate(res, size, 0);
+  xrd_close(res, 0);
   return 0;
 }
 
@@ -385,7 +385,7 @@ static int eosdfs_read(const char *path, char *buf, size_t size, off_t offset,
   int res;
   eosatime = time(0);    
   fd = (int) fi->fh;
-  res = xrd_pread(fd, buf, size, offset);
+  res = xrd_pread(fd, buf, size, offset, 0);
   if (res == -1) {
     if (errno == ENOSYS)
       errno = EIO;
@@ -406,7 +406,7 @@ static int eosdfs_write(const char *path, const char *buf, size_t size,
   */
   eosatime = time(0);    
   fd = (int) fi->fh;
-  res = xrd_pwrite(fd, buf, size, offset);
+  res = xrd_pwrite(fd, buf, size, offset, 0);
   if (res == -1)
     res = -errno;
   
@@ -440,7 +440,7 @@ static int eosdfs_release(const char *path, struct fuse_file_info *fi)
   char rootpath[4096];
   eosatime = time(0);    
   fd = (int) fi->fh;
-  xrd_close(fd);
+  xrd_close(fd, 0);
   fi->fh = 0;
   return 0;
 }

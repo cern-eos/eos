@@ -76,14 +76,16 @@ int            xrd_mkdir(const char *path, mode_t mode);
 int            xrd_rmdir(const char *path);
 
 int            xrd_open(const char *pathname, int flags, mode_t mode);
-int            xrd_truncate(int fildes, off_t offset);
-off_t          xrd_lseek(int fildes, off_t offset, int whence);
-ssize_t        xrd_read(int fd, void *buf, size_t count);
-ssize_t        xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset);
-int            xrd_close(int fd);
-ssize_t        xrd_write(int fildes, const void *buf, size_t nbyte);
-ssize_t        xrd_pwrite(int fildes, const void *buf, size_t nbyte, off_t offset);
-int            xrd_fsync(int fildes);
+
+int            xrd_truncate(int fildes, off_t offset, unsigned long inode);
+off_t          xrd_lseek(int fildes, off_t offset, int whence, unsigned long inode);
+ssize_t        xrd_read(int fd, void *buf, size_t count, unsigned long inode);
+ssize_t        xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode);
+int            xrd_close(int fd, unsigned long inode);
+ssize_t        xrd_write(int fildes, const void *buf, size_t nbyte, unsigned long inode);
+ssize_t        xrd_pwrite(int fildes, const void *buf, size_t nbyte, off_t offset, unsigned long inode);
+int            xrd_fsync(int fildes, unsigned long inode);
+  
 int            xrd_unlink(const char *path);
 int            xrd_rename(const char *oldpath, const char *newpath);
 int            xrd_chmod(const char *path, mode_t mode);    

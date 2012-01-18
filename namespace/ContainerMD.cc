@@ -141,7 +141,7 @@ namespace eos
         offset = buffer.grabData( offset, &len2, sizeof( len2 ) );
         char strBuffer2[len2];
         offset = buffer.grabData( offset, strBuffer2, len2 );
-        pXAttrs.insert( std::make_pair( strBuffer1, strBuffer2 ) );
+        pXAttrs.insert( std::make_pair <char*, char*>( strBuffer1, strBuffer2 ) );
       }
   };
 
