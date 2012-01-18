@@ -124,6 +124,10 @@ void TransferJob::DoIt(){
   ss << "BEFORE=$(date +%s)" << std::endl;
   ss << "[ -f $FILEOUTPUT ] && rm $FILEOUTPUT" << std::endl;
   ss << "[ -f $FILERETURN ] && rm $FILERETURN" << std::endl;
+  ss << "touch $FILEOUTPUT" << std::endl;
+  ss << "touch $FILERETURN" << std::endl;
+  ss << "chown daemon:daemon $FILEOUTPUT" << std::endl;
+  ss << "chown daemon:daemon $FILERETURN" << std::endl;
   ss << "eosfstcp -u 2 -g 2 -R -n -p -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
   ss << "PID=$!" << std::endl;
   ss << "AFTER=$(date +%s)" << std::endl;
@@ -167,23 +171,14 @@ void TransferJob::DoIt(){
   int rc = system(command.str().c_str());
   if (WEXITSTATUS(rc)) {
     eos_static_err("%s returned %d", command.str().c_str(), rc);
+  } else {
+    eos_static_debug("unlinking script file output");
+    // remove the result files
+    rc = unlink(fileOutput.c_str());
+    if (rc) rc = 0; // for compiler happyness
+    rc = unlink(fileResult.c_str());
+    if (rc) rc = 0; // for compiler happyness
   }
-
-  eos_static_debug("copy returned with retc=%d", WEXITSTATUS(rc));
-
-  // own the result files
-  rc = ::chown(fileOutput.c_str(), geteuid(),getegid());
-  if (rc) {
-    eos_static_err("chown failed for %s", fileOutput.c_str());
-  }
-  rc = ::chown(fileResult.c_str(), geteuid(),getegid());
-  if (rc) {
-    eos_static_err("chown failed for %s", fileResult.c_str());
-  }
-
-  //delete the result files
-  remove(fileOutput.c_str());
-  remove(fileResult.c_str());
 
   // we are over running
   mQueue->DecRunning();

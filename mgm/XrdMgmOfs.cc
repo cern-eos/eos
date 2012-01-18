@@ -4481,7 +4481,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    continue;
 	  } else {
 	    // check that this file has not been scheduled during the 1h period
-	    XrdSysMutexHelper(sScheduledFidMutex);
+	    XrdSysMutexHelper sLock(sScheduledFidMutex);
 	    if (sScheduledFid.size() > 100000) {
 	      // do some cleanup
 	      std::map<eos::common::FileSystem::fsid_t, time_t>::iterator it1;
@@ -4765,7 +4765,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    continue;
 	  } else {
 	    // check that this file has not been scheduled during the 1h period
-	    XrdSysMutexHelper(sScheduledFidMutex);
+	    XrdSysMutexHelper sLock(sScheduledFidMutex);
 	    if (sScheduledFid.size() > 100000) {
 	      // do some cleanup
 	      std::map<eos::common::FileSystem::fsid_t, time_t>::iterator it1;

@@ -183,6 +183,9 @@ DrainJob::Drain(void)
   int maxtry=1;
   int ntried=0;
 
+  long long filesleft=0;
+
+
  retry:
   ntried++;
 
@@ -379,9 +382,10 @@ DrainJob::Drain(void)
   time_t last_filesleft_change;
   last_filesleft_change = time(NULL);
   long long last_filesleft;
+
   last_filesleft=0;
-  long long filesleft;
-  filesleft = 0;
+  filesleft=0;
+
   // enable draining
   do {
     XrdSysThread::SetCancelOff();
