@@ -155,7 +155,6 @@ Adler::ValidateAdlerMap()
     adler = adler32(0L, Z_NULL,0);
   }
 
-  fprintf(stderr,"adler is %x\n", adler);
   fflush(stdout);
   return;
 }
