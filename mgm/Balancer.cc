@@ -231,10 +231,10 @@ Balancer::Balance(void)
 		if ((fsdev >0) || (!isset.length())) {
 		  // 0.0 indicates, that we are perfectly filled (or the balancing is disabled)
 		  fs->SetDouble("stat.nominal.filled",0.0,true);
-		  (*git)->SetConfigMember("stat.balancing","idle",false, "", true);
 		}
 	      }
 	    }
+	    (*git)->SetConfigMember("stat.balancing","idle",false, "", true);
 	  }
 	}
 	}
