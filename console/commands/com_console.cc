@@ -29,6 +29,13 @@
 #include <sys/wait.h>
 
 
+#ifdef CLIENT_ONLY
+int 
+com_console (char *arg) {
+  fprintf(stderr,"error: console not supported in client-only compilation\n");
+  exit(-1);
+}
+#else
 /* Run error log console &*/
 int
 com_console (char *arg) {
@@ -139,3 +146,4 @@ com_console (char *arg) {
   signal(SIGINT, exit_handler);
   return (0);
 }
+#endif
