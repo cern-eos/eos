@@ -3561,7 +3561,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                   }
                 }
               }
-            }
+            } else {
+              gOFS->eosViewRWMutex.UnLockRead();
+	    }
           } else {
             retc = EPERM;
             stdErr = "error: you have to take role 'root' to execute this command";
