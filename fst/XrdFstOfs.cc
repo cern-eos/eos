@@ -105,6 +105,9 @@ XrdFstOfs::xrdfstofs_shutdown(int sig) {
     pthread_cancel(*it);
   }
 
+  // disconnect from the message queue
+  XrdMqMessaging::gMessageClient.Unsubscribe();
+  XrdMqMessaging::gMessageClient.Disconnect();
   eos_static_warning("op=shutdown status=completed");
 
 
