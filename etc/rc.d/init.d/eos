@@ -166,7 +166,7 @@ start() {
                         fi
 		fi
         if [ "$i" = "fed" ]; then
-           /etc/init.d/cmsd start
+           /etc/rc.d/init.d/cmsd start
         fi
 	done
  
@@ -182,7 +182,7 @@ stop() {
 	for role in $XRD_ROLES; do 
 		RETVAL=0
 	        if [ "$role" = "fed" ]; then
-	        	/etc/init.d/cmsd stop
+	        	/etc/rc.d/init.d/cmsd stop
 			GRETVAL=$?
 	        else 
 			RETVAL=1
@@ -252,7 +252,7 @@ status() {
         done
 
         if [ "$i" = "fed" ]; then
-           /etc/init.d/cmsd status
+           /etc/rc.d/init.d/cmsd status
         fi
 
         return $RETVAL
@@ -263,13 +263,13 @@ condrestart() {
         for i in ${XRD_ROLES}; do
             /etc/init.d/eos condrestart $i
             if [ "$i" = "fed" ]; then
-               /etc/init.d/cmsd condrestart
+               /etc/rc.d/init.d/cmsd condrestart
             fi
         done;
     else
         if [ -f /var/lock/subsys/$prog.$1 ]; then
             if [ "$i" = "fed" ]; then
-               /etc/init.d/cmsd restart
+               /etc/rc.d/init.d/cmsd restart
             fi
             restart $1;
         fi
