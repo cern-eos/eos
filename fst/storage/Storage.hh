@@ -184,7 +184,7 @@ public:
   bool CloseTransaction(eos::common::FileSystem::fsid_t fsid, unsigned long long fid);
 
   bool FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid);
-  bool CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid, bool failenoent=false);
+  bool CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid, bool failenoid=false, bool failnouuid=false);
   bool GetFsidFromLabel(std::string path, eos::common::FileSystem::fsid_t &fsid);
   bool GetFsidFromPath(std::string path, eos::common::FileSystem::fsid_t &fsid);
 };

@@ -407,13 +407,6 @@ Storage::Boot(FileSystem *fs)
     return;
   }
 
-  // try to own that directory
-  XrdOucString chownline="chown daemon.daemon ";chownline += fs->GetPath().c_str();
-  int rc = system(chownline.c_str());
-  if (!WEXITSTATUS(rc)) {
-    eos_err("unable to do %s", chownline.c_str());
-  }
-  
   // test if we have rw access
   struct stat buf;
   if ( ::stat( fs->GetPath().c_str(), &buf) || (buf.st_uid != geteuid()) || ( (buf.st_mode & S_IRWXU ) != S_IRWXU) ) {
@@ -430,7 +423,24 @@ Storage::Boot(FileSystem *fs)
     fs->SetError(errno?errno:EIO, "cannot have <rw> access");
     return;
   }
-  
+
+  // test if we are on the root partition
+  struct stat root_buf;
+  if ( ::stat( "/", &root_buf)) {
+    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetError(errno?errno:EIO, "cannot stat root / filesystems");
+    return;
+  }
+
+  if (root_buf.st_dev == buf.st_dev) {
+    // this filesystem is on the ROOT partition
+    if (!CheckLabel(fs->GetPath(),fsid,uuid, false, true)) {
+      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+      fs->SetError(EIO,"filesystem is on the root partition without or wrong <uuid> label file .eosfsuuid");
+      return;
+    }
+  }
+
   gOFS.OpenFidMutex.Lock();
   gOFS.ROpenFid.clear_deleted_key();
   gOFS.ROpenFid[fsid].clear_deleted_key();
@@ -532,7 +542,7 @@ Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::st
 
 /*----------------------------------------------------------------------------*/
 bool 
-Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid, bool failenoent) 
+Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid, bool failenoid, bool failenouuid) 
 {
   //----------------------------------------------------------------
   //! checks that the label on the filesystem is the same as the configuration
@@ -570,11 +580,11 @@ Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std:
       ckfsid = atoi(ssfid);
     }
   } else {
-    if (failenoent) 
+    if (failenoid) 
       return false;
   }
 
-  // write FS uuid file
+  // read FS uuid file
   std::string uuidfile = path;
   uuidfile += "/.eosfsuuid";
 
@@ -600,7 +610,7 @@ Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std:
       ckuuid = suuid;
     }
   } else {
-    if (failenoent) 
+    if (failenouuid) 
       return false;
   }
   
@@ -874,7 +884,7 @@ Storage::ScrubFs(const char* path, unsigned long long free, unsigned long long b
 
   int index = 10 - (int) (10.0 * free / blocks);
 
-  eos_static_info("Running Scrubber on filesystem path=%s id=%u free=%llu blocks=%llu index=%d", path, id, free,blocks,index);
+  eos_static_debug("Running Scrubber on filesystem path=%s id=%u free=%llu blocks=%llu index=%d", path, id, free,blocks,index);
 
   int fserrors=0;
   
@@ -888,7 +898,7 @@ Storage::ScrubFs(const char* path, unsigned long long free, unsigned long long b
     struct stat buf;
 
     for (int k = 0; k< 2; k++) {
-      eos_static_info("Scrubbing file %s", scrubfile[k].c_str());
+      eos_static_debug("Scrubbing file %s", scrubfile[k].c_str());
       if ( ((k==0) && stat(scrubfile[k].c_str(),&buf)) || ((k==0) && (buf.st_size!=(MB*1024*1024))) || ((k==1))) {
         // ok, create this file once
         int ff=0;
@@ -904,7 +914,7 @@ Storage::ScrubFs(const char* path, unsigned long long free, unsigned long long b
         }
         // select the pattern randomly
         int rshift = (int) ( (1.0 *rand()/RAND_MAX)+ 0.5);
-        eos_static_info("rshift is %d", rshift);
+        eos_static_debug("rshift is %d", rshift);
         for (int i=0; i< MB; i++) {
           int nwrite = write(ff, scrubPattern[rshift], 1024 * 1024);
           if (nwrite != (1024*1024)) {
@@ -1659,7 +1669,8 @@ Storage::Publish()
           success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (eos::common::gFmdHandler.FmdMap.count(fileSystemsVector[i]->GetId())?eos::common::gFmdHandler.FmdMap[fileSystemsVector[i]->GetId()].size():0));
                                                        
           success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetString("stat.boot").c_str());
-
+	  success &= fileSystemsVector[i]->SetLongLong("stat.drainer.running",fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued());
+	  success &= fileSystemsVector[i]->SetLongLong("stat.balancer.running",fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued());
           gOFS.OpenFidMutex.UnLock();
 
 	  {
@@ -1676,9 +1687,8 @@ Storage::Publish()
             eos_static_err("cannot set net parameters on filesystem %s", fileSystemsVector[i]->GetPath().c_str());
           }
         }
+	gOFS.ObjectManager.CloseMuxTransaction();
       }
-      
-      gOFS.ObjectManager.CloseMuxTransaction();
     }
     gettimeofday(&tv2, &tz);
     int lCycleDuration = (int)( (tv2.tv_sec*1000.0)-(tv1.tv_sec*1000.0) + (tv2.tv_usec/1000.0) - (tv1.tv_usec/1000.0) );
@@ -1710,10 +1720,15 @@ Storage::Drainer()
   nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
   unsigned int cycler=0;
 
+  std::vector<bool> should_ask; // vector describing if a file system is within the treshould to be a balancing source
+  std::vector<bool> has_work;   // vector describing if a file system got a transfer scheduled in the last balancing round
+
+  unsigned long long nscheduled=0;
+  unsigned long long nscheduled_new=0;
 
   while(1) {
-    eos_static_debug("Doing drainng round ...");
-    size_t nscheduled=0;
+    eos_static_debug("Doing draining round ...");
+    bool ask = false;
 
     // ---------------------------------------
     // get some global variables
@@ -1736,11 +1751,28 @@ Storage::Drainer()
     {
       eos::common::RWMutexReadLock lock (fsMutex);
       nfs = fileSystemsVector.size();
-    }    
+      should_ask.resize(nfs);
+      has_work.resize(nfs);
+
+      // if we didn't schedule yet, we just look into the queues what is there
+      if (!nscheduled) {
+	for (unsigned int s=0; s < nfs; s++) {
+	  if (s < fileSystemsVector.size()) {
+	    nscheduled += fileSystemsVector[s]->GetDrainQueue()->GetRunningAndQueued();
+	  }
+	}
+      }
+    }
+
+    nscheduled_new = 0;
+
     for (unsigned int i=0; i< nfs; i++) {
       unsigned int index = (i+cycler) % nfs;
       eos::common::RWMutexReadLock lock(fsMutex);
-      if ( index < fileSystemsVector.size()) {
+      if (index < fileSystemsVector.size()) {
+	should_ask[index] = false;
+	has_work[index]   = false;
+
         std::string path = fileSystemsVector[index]->GetPath();
 	unsigned long id = fileSystemsVector[index]->GetId();
 	eos_static_debug("FileSystem %lu ",id);
@@ -1752,19 +1784,9 @@ Storage::Drainer()
 	  continue;
 	}
 
-	unsigned long long freebytes   = fileSystemsVector[index]->GetLongLong("stat.statfs.freebytes");
-	unsigned long long nrunning = 0;
+	ask = true;
 
-	for (unsigned int s=0; s < nfs; s++) {
-	  if (s < fileSystemsVector.size()) {
-	    unsigned long long lrunning  = fileSystemsVector[s]->GetDrainQueue()->GetRunning();
-	    unsigned long long lqueued   = fileSystemsVector[s]->GetDrainQueue()->GetQueue()->Size();
-	    lrunning += lqueued;
-	    nrunning += (lrunning);
-	    if (lrunning != (unsigned long long) fileSystemsVector[s]->GetLongLong("stat.drainer.running")) 
-	      fileSystemsVector[s]->SetLongLong("stat.drainer.running",lrunning);
-	  }
-	}
+	unsigned long long freebytes   = fileSystemsVector[index]->GetLongLong("stat.statfs.freebytes");
 
 	if (fileSystemsVector[index]->GetDrainQueue()->GetBandwidth() != ratetx) {
 	  // modify the bandwidth setting for this queue
@@ -1779,61 +1801,95 @@ Storage::Drainer()
 	eos::common::FileSystem::fsstatus_t bootstatus   = fileSystemsVector[index]->GetStatus();
 	eos::common::FileSystem::fsstatus_t configstatus = fileSystemsVector[index]->GetConfigStatus();
 	
-	eos_static_debug("id=%u nrunning=%llu nparalleltx=%llu", id, nrunning, nparalleltx);
+	eos_static_info("id=%u nscheduled=%llu nparalleltx=%llu", id, nscheduled, nparalleltx);
 	
 	// we drain into filesystems which are booted and 'in production' e.g. not draining or down
 	if ( (bootstatus == eos::common::FileSystem::kBooted) && 
-	     (configstatus > eos::common::FileSystem::kDrain) && 
-	     (nrunning < nparalleltx)) {
-	  XrdOucErrInfo error;
-	  XrdOucString managerQuery="/?";
-	  managerQuery += "mgm.pcmd=schedule2drain";
-	  managerQuery += "&mgm.target.fsid=";
-	  char sid[1024];  snprintf(sid,sizeof(sid)-1,"%lu", id);
-	  managerQuery += sid;
-	  managerQuery += "&mgm.target.freebytes=";
-	  char sfree[1024]; snprintf(sfree,sizeof(sfree)-1,"%llu", freebytes);
-	  managerQuery += sfree;
-	  // the log ID to the schedule2balance
-	  managerQuery += "&mgm.logid="; managerQuery += logId;
-	  
-	  XrdOucString fullcapability="";
-	  int rc = gOFS.CallManager(&error, "/",manager.c_str(), managerQuery, &fullcapability);
-	  if (rc) {
-	    eos_static_err("manager returned errno=%d", rc);
-	  } else {
-	    if (fullcapability.length()) {
-	      eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
-	      bool sub = fileSystemsVector[index]->GetDrainQueue()->GetQueue()->Add(txjob);
-	      if (sub) {
-		eos_static_debug("id=%u job=%s", id, fullcapability.c_str());
-		nscheduled++;
-	      } else {
-	      eos_static_err("failed to submit draining job");
-	      }
+	     (configstatus > eos::common::FileSystem::kDrain) ) {
+	  should_ask[index] = true;
+	  // we allows max. <nparalleltx> transfers to run at the same time
+	  if (nscheduled < nparalleltx) {
+	    eos_static_info("asking for new job %d/%d", nscheduled, nparalleltx);
+	    XrdOucErrInfo error;
+	    XrdOucString managerQuery="/?";
+	    managerQuery += "mgm.pcmd=schedule2drain";
+	    managerQuery += "&mgm.target.fsid=";
+	    char sid[1024];  snprintf(sid,sizeof(sid)-1,"%lu", id);
+	    managerQuery += sid;
+	    managerQuery += "&mgm.target.freebytes=";
+	    char sfree[1024]; snprintf(sfree,sizeof(sfree)-1,"%llu", freebytes);
+	    managerQuery += sfree;
+	    // the log ID to the schedule2balance
+	    managerQuery += "&mgm.logid="; managerQuery += logId;
+	    
+	    XrdOucString response="";
+	    int rc = gOFS.CallManager(&error, "/",manager.c_str(), managerQuery, &response);
+	    if (rc) {
+	      eos_static_err("manager returned errno=%d", rc);
 	    } else {
-	      eos_static_debug("manager returned no file to schedule [ENODATA]");
+	      if (response == "submitted") {
+		eos_static_info("got a new job");
+		nscheduled++;
+		nscheduled_new++;
+		has_work[index] = true;
+		eos_static_debug("manager scheduled a transfer for us!");
+	      } else {
+		eos_static_debug("manager returned no file to schedule [ENODATA]");
+	      }
 	    }
+	  } else {
+	    eos_static_info("asking for new job stopped");
+	    // if all slots are busy anyway, we leave the loop
+	    break;
 	  }
 	}
       }
     }
-    
-    // go to sleep for a while if there was nothing to do
-    if (!nscheduled) {
-      XrdSysTimer sleeper;
-      sleeper.Snooze(30);
-    }
 
-    // update the 'running' variable
-    for (unsigned int s=0; s < nfs; s++) {
-      eos::common::RWMutexReadLock lock(fsMutex);
-      if (s < fileSystemsVector.size()) {
-	unsigned long long lrunning  = fileSystemsVector[s]->GetDrainQueue()->GetRunning();
-	unsigned long long lqueued   = fileSystemsVector[s]->GetDrainQueue()->GetQueue()->Size();
-	lrunning += lqueued;
-	if (lrunning != (unsigned long long) fileSystemsVector[s]->GetLongLong("stat.drainer.running")) 
-	  fileSystemsVector[s]->SetLongLong("stat.drainer.running",lrunning);
+    if ((!ask)) {
+      // ---------------------------------------------------------------------------------------------
+      // we have no filesystem which is member of a draining group at the moment
+      // ---------------------------------------------------------------------------------------------
+      nscheduled = 0;
+      XrdSysTimer sleeper;
+      // go to sleep for a while if there was nothing to do
+      eos_static_info("doing a long sleep of 30s");
+      sleeper.Snooze(30);
+    } else {
+      if (nscheduled_new) {
+	// ---------------------------------------------------------------------------------------------
+	// if we scheduled in the last round, we go one more until we cannot schedule anymore
+	// ---------------------------------------------------------------------------------------------
+	eos_static_info("asking for new job sleep 100000");
+	usleep(100000);
+      } else {
+	// ---------------------------------------------------------------------------------------------
+	// we are actually running transfers, we check more frequently, if we have to ask for more 
+	// and interrupt the sleepy period as soon as we have a slot free
+	// ---------------------------------------------------------------------------------------------
+	for (unsigned int sleeper = 0; sleeper < 30; sleeper++) {
+	  eos::common::RWMutexReadLock lock(fsMutex);     
+	  nfs = fileSystemsVector.size();
+	  should_ask.resize(nfs);
+	  unsigned long total_running=0;
+	  for (unsigned int i=0; i< nfs; i++) {
+	    if (should_ask[i]) {
+	      total_running += fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued();
+	    }
+	  }
+	  if ( (total_running >= nparalleltx) || (nscheduled == nparalleltx) ) {
+	    XrdSysTimer sleeper;
+	    sleeper.Snooze(1);
+	    nscheduled = 0; // this trick allows that we give atleast a second time for a transfer job to appear in the FST queue
+	  } else {
+	    if (total_running == 0) {
+	      XrdSysTimer sleeper;
+	      sleeper.Snooze(1);
+	    }
+	    break;
+	  }
+	}
+	nscheduled=0;
       }
     }
     cycler++;
@@ -1848,7 +1904,6 @@ Storage::Balancer()
   eos_static_info("Start Balancer ...");
 
   std::string nodeconfigqueue="";
-  
   const char* val =0;
   // we have to wait that we know our node config queue
   while ( !(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str())) {
@@ -1861,9 +1916,15 @@ Storage::Balancer()
 
   unsigned int cycler=0;
 
+  std::vector<bool> should_ask; // vector describing if a file system is within the treshould to be a balancing source
+  std::vector<bool> has_work;   // vector describing if a file system got a transfer scheduled in the last balancing round
+
+  unsigned long long nscheduled=0;
+  unsigned long long nscheduled_new=0;
+
   while(1) {
     eos_static_debug("Doing balancing round ...");
-    size_t nscheduled=0;
+
     bool   ask=false;
     // ---------------------------------------
     // get some global variables
@@ -1884,14 +1945,31 @@ Storage::Balancer()
 
     unsigned int nfs=0;
     {
+      // determin the number of configured filesystems
       eos::common::RWMutexReadLock lock (fsMutex);
       nfs = fileSystemsVector.size();
+      should_ask.resize(nfs);
+      has_work.resize(nfs);
+
+      // if we didn't schedule yet, we just look into the queues what is there
+      if (!nscheduled) {
+	for (unsigned int s=0; s < nfs; s++) {
+	  if (s < fileSystemsVector.size()) {
+	    nscheduled += fileSystemsVector[s]->GetBalanceQueue()->GetRunningAndQueued();
+	  }
+	}
+      }
     }    
+
+    nscheduled_new = 0;
+
     for (unsigned int i=0; i< nfs; i++) {
       unsigned int index = (i+cycler) % nfs;
-
       eos::common::RWMutexReadLock lock(fsMutex);     
-      if (index< fileSystemsVector.size()) {
+      if (index < fileSystemsVector.size()) {
+	should_ask[index] = false;
+	has_work[index]   = false;
+
         std::string path = fileSystemsVector[index]->GetPath();
 	double nominal = fileSystemsVector[index]->GetDouble("stat.nominal.filled");
 	double filled  = fileSystemsVector[index]->GetDouble("stat.statfs.filled");
@@ -1900,20 +1978,9 @@ Storage::Balancer()
 
 	eos_static_debug("FileSystem %lu %.02f %.02f",id, filled, nominal);
       
-	unsigned long long nrunning = 0;
-
-	for (unsigned int s=0; s < nfs; s++) {
-	  if (s < fileSystemsVector.size()) {
-	    unsigned long long lrunning  = fileSystemsVector[s]->GetBalanceQueue()->GetRunning();
-	    unsigned long long lqueued   = fileSystemsVector[s]->GetBalanceQueue()->GetQueue()->Size();
-	    lrunning += lqueued;
-	    nrunning += (lrunning);
-	    if (lrunning != (unsigned long long) fileSystemsVector[s]->GetLongLong("stat.balancer.running")) 
-	      fileSystemsVector[s]->SetLongLong("stat.balancer.running",lrunning);
-	  }
-	}
 
 	if (filled < nominal) {
+	  should_ask[index] = true;
 	  ask = true;
 	  // if the fill status is less than nominal we can ask a balancer transfer to the MGM
 	  unsigned long long freebytes   = fileSystemsVector[index]->GetLongLong("stat.statfs.freebytes");
@@ -1931,52 +1998,95 @@ Storage::Balancer()
 	  eos::common::FileSystem::fsstatus_t bootstatus   = fileSystemsVector[index]->GetStatus();
 	  eos::common::FileSystem::fsstatus_t configstatus = fileSystemsVector[index]->GetConfigStatus();
 
-	  eos_static_debug("id=%u nrunning=%llu nparalleltx=%llu", id, nrunning, nparalleltx);
+	  eos_static_debug("id=%u nscheduled=%llu nparalleltx=%llu", id, nscheduled, nparalleltx);
 
+	  // ---------------------------------------------------------------------------------------------
 	  // we balance filesystems which are booted and 'in production' e.g. not draining or down
+	  // ---------------------------------------------------------------------------------------------
 	  if ( (bootstatus == eos::common::FileSystem::kBooted) && 
-	       (configstatus > eos::common::FileSystem::kDrain) && 
-	       (nrunning < nparalleltx)) {
-	    XrdOucErrInfo error;
-	    XrdOucString managerQuery="/?";
-	    managerQuery += "mgm.pcmd=schedule2balance";
-	    managerQuery += "&mgm.target.fsid=";
-	    char sid[1024];  snprintf(sid,sizeof(sid)-1,"%lu", id);
-	    managerQuery += sid;
-	    managerQuery += "&mgm.target.freebytes=";
-	    char sfree[1024]; snprintf(sfree,sizeof(sfree)-1,"%llu", freebytes);
-	    managerQuery += sfree;
-	    // the log ID to the schedule2balance
-	    managerQuery += "&mgm.logid="; managerQuery += logId;
+	       (configstatus > eos::common::FileSystem::kDrain) ) {
 
-	    XrdOucString fullcapability="";
-	    int rc = gOFS.CallManager(&error, "/",manager.c_str(), managerQuery, &fullcapability);
-	    if (rc) {
-	      eos_static_err("manager returned errno=%d", rc);
-	    } else {
-	      if (fullcapability.length()) {
-		eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
-		bool sub = fileSystemsVector[index]->GetBalanceQueue()->GetQueue()->Add(txjob);
-		if (sub) {
-		  eos_static_debug("id=%u job=%s", id, fullcapability.c_str());
-		  nscheduled++;
-		} else {
-		  eos_static_err("failed to submit balancing job");
-		}
+	    if (nscheduled < nparalleltx) {	    
+	      XrdOucErrInfo error;
+	      XrdOucString managerQuery="/?";
+	      managerQuery += "mgm.pcmd=schedule2balance";
+	      managerQuery += "&mgm.target.fsid=";
+	      char sid[1024];  snprintf(sid,sizeof(sid)-1,"%lu", id);
+	      managerQuery += sid;
+	      managerQuery += "&mgm.target.freebytes=";
+	      char sfree[1024]; snprintf(sfree,sizeof(sfree)-1,"%llu", freebytes);
+	      managerQuery += sfree;
+	      // the log ID to the schedule2balance
+	      managerQuery += "&mgm.logid="; managerQuery += logId;
+	      
+	      XrdOucString response="";
+	      int rc = gOFS.CallManager(&error, "/",manager.c_str(), managerQuery, &response);
+	      if (rc) {
+		eos_static_err("manager returned errno=%d", rc);
 	      } else {
-		eos_static_debug("manager returned no file to schedule [ENODATA]");
-	      }
-	    } 
-	  } 	    
-	} 
+		if (response == "submitted") {
+		  eos_static_debug("id=%u result=%s", id, response.c_str());
+		  nscheduled++;
+		  nscheduled_new++;
+		  has_work[index]=true;
+		} else {
+		  eos_static_debug("manager returned no file to schedule [ENODATA]");
+		}
+	      } 
+	    } else {
+	      eos_static_info("asking for new job stopped");
+	      // if all slots are busy anyway, we leave the loop
+	      break;
+	    }
+	  }
+	}
       }      
     }
 
-    // go to sleep for a while if there was nothing to do
-    if ((!ask) || (!nscheduled)) {
+    if ((!ask)) {
+      // ---------------------------------------------------------------------------------------------
+      // we have no filesystem which is member of a balancing group at the moment
+      // ---------------------------------------------------------------------------------------------
       XrdSysTimer sleeper;
+      // go to sleep for a while if there was nothing to do
       sleeper.Snooze(30);
-    }
+    } else {
+      if (nscheduled_new) {
+	// ---------------------------------------------------------------------------------------------
+	// if we scheduled in the last round, we go one more until we cannot schedule anymore
+	// ---------------------------------------------------------------------------------------------
+	eos_static_info("asking for new job sleep 100000");
+	usleep(100000);
+      } else {
+	// ---------------------------------------------------------------------------------------------
+	// we are actually running transfers, we check more frequently, if we have to ask for more 
+	// and interrupt the sleepy period as soon as we have a slot free
+	// ---------------------------------------------------------------------------------------------
+	for (unsigned int sleeper = 0; sleeper < 30; sleeper++) {
+	  eos::common::RWMutexReadLock lock(fsMutex);     
+	  nfs = fileSystemsVector.size();
+	  should_ask.resize(nfs);
+	  unsigned long total_running=0;
+	  for (unsigned int i=0; i< nfs; i++) {
+	    if (should_ask[i]) {
+	      total_running += fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued();
+	    }
+	  }
+	  if ( (total_running >= nparalleltx) || (nscheduled == nparalleltx) ) {
+            XrdSysTimer sleeper;
+            sleeper.Snooze(1);
+            nscheduled = 0; // this trick allows that we give atleast a second time for a transfer job to appear in the FST queue
+          } else {
+            if (total_running == 0) {
+              XrdSysTimer sleeper;
+              sleeper.Snooze(1);
+            }
+            break;
+          }
+	}
+	nscheduled=0;
+      }
+    }    
     cycler++;
   }
 }

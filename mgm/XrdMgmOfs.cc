@@ -657,8 +657,10 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     // if it does not exist try to create the path!
     if ((!ec) && (file_exists==XrdSfsFileExistNo)) {
       ec = gOFS->_mkdir(cPath.GetParentPath(),Mode,error,vid,info);
-      if (ec) 
+      if (ec) {
+	gOFS->MgmStats.Add("OpenFailedPermission",vid.uid,vid.gid,1);  
         return SFS_ERROR;
+      }
     }
   }
   
@@ -744,6 +746,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 	  return rcode;
 	}    
       }
+      gOFS->MgmStats.Add("OpenFailedENOENT",vid.uid,vid.gid,1);  
       return Emsg(epname, error, errno, "open file", path);
     } 
     
@@ -2353,14 +2356,10 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
       eos::QuotaNode* quotanode = 0;
       try {
         quotanode = gOFS->eosView->getQuotaNode(container);
+        quotanode->removeFile(fmd);
       } catch ( eos::MDException &e ) {
         quotanode = 0;
       }
-      
-      // free previous quota
-      if (quotanode) {
-        quotanode->removeFile(fmd);
-      }         
     }
   }
 
@@ -3812,15 +3811,11 @@ XrdMgmOfs::FSctl(const int               cmd,
         if (container) {
           try {
             quotanode = gOFS->eosView->getQuotaNode(container);
+            quotanode->removeFile(fmd);
           } catch ( eos::MDException &e ) {
             quotanode = 0;
           }
-          
-          // free previous quota
-          if (quotanode) {
-            quotanode->removeFile(fmd);
-          }             
-        }
+	}
 
         if (fmd) {
           try {
@@ -4350,7 +4345,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       MAYSTALL;
       MAYREDIRECT;
 
-      EXEC_TIMING_BEGIN("OpenBalance");      
+      EXEC_TIMING_BEGIN("Scheduled2Balance");      
       gOFS->MgmStats.Add("Schedule2Balance",0,0,1);         
 
       XrdOucString sfsid       = env.Get("mgm.target.fsid");
@@ -4368,7 +4363,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       }
       
       if ((!sfsid.length()) || (!sfreebytes.length())) {
-	gOFS->MgmStats.Add("OpenFailedBalance",0,0,1);         
+	gOFS->MgmStats.Add("SchedulingFailedBalance",0,0,1);         
 	return Emsg(epname, error, EINVAL, "unable to schedule - missing parameters [EINVAL]");
       }
 
@@ -4376,6 +4371,8 @@ XrdMgmOfs::FSctl(const int               cmd,
       eos::common::FileSystem::fsid_t source_fsid = 0;
       eos::common::FileSystem::fs_snapshot target_snapshot;
       eos::common::FileSystem::fs_snapshot source_snapshot;
+      eos::common::FileSystem* target_fs = 0;
+
       unsigned long long freebytes = (sfreebytes.c_str())?strtoull(sfreebytes.c_str(),0,10):0;
 
       eos_thread_info("cmd=schedule2balance fsid=%d freebytes=%llu logid=%s", target_fsid, freebytes, alogid?alogid:"");
@@ -4384,19 +4381,19 @@ XrdMgmOfs::FSctl(const int               cmd,
       // lock the view and get the filesystem information for the target where be balance to
       {
 	eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-	eos::common::FileSystem* fs = FsView::gFsView.mIdView[target_fsid];
-	if (!fs) {
+	target_fs = FsView::gFsView.mIdView[target_fsid];
+	if (!target_fs) {
 	  eos_thread_err("fsid=%u is not in filesystem view", target_fsid);
-	  gOFS->MgmStats.Add("OpenFailedBalance",0,0,1);         
+	  gOFS->MgmStats.Add("SchedulingFailedBalance",0,0,1);         
 	  return Emsg(epname, error, EINVAL, "unable to schedule - filesystem ID is not known");
 	}
-	fs->SnapShotFileSystem(target_snapshot);
+	target_fs->SnapShotFileSystem(target_snapshot);
 	FsGroup* group = FsView::gFsView.mGroupView[target_snapshot.mGroup];
 
 	size_t groupsize = FsView::gFsView.mGroupView.size();
 	if (!group) {
 	  eos_thread_err("group=%s is not in group view", target_snapshot.mGroup.c_str());
-	  gOFS->MgmStats.Add("OpenFailedBalance",0,0,1);         
+	  gOFS->MgmStats.Add("SchedulingFailedBalance",0,0,1);         
 	  return Emsg(epname, error, EINVAL, "unable to schedule - group is not known [EINVAL]");
 	}
 
@@ -4452,7 +4449,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 
 	if (!source_fs) {
 	  eos_thread_debug("no source available");
-	  gOFS->MgmStats.Add("OpenFailedBalance",0,0,1);         
+	  gOFS->MgmStats.Add("SchedulingFailedBalance",0,0,1);         
 	  error.setErrInfo(0,"");
 	  return SFS_DATA;
 	  //	  return Emsg(epname, error, EINVAL, "unable to schedule - no source available [ENODATA]");
@@ -4598,7 +4595,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  if ((caprc=gCapabilityEngine.Create(&insource_capability, source_capabilityenv, symkey)) ||
 		      (caprc=gCapabilityEngine.Create(&intarget_capability, target_capabilityenv, symkey))){
 		    eos_thread_err("unable to create source/target capability - errno=%u", caprc);
-		    gOFS->MgmStats.Add("OpenFailedBalance",0,0,1);         
+		    gOFS->MgmStats.Add("SchedulingFailedBalance",0,0,1);         
 		    return Emsg(epname, error, caprc, "create source/target capability [EADV]");
 		  } else {
 		    int caplen = 0;
@@ -4612,10 +4609,20 @@ XrdMgmOfs::FSctl(const int               cmd,
 		    target_cap += "&target.url=root://"; target_cap += target_snapshot.mHostPort.c_str();target_cap += "//replicate:"; target_cap += hexfid;
 		    fullcapability += source_cap;
 		    fullcapability += target_cap;
-		    // send the capability
-		    error.setErrInfo(fullcapability.length() + 1, fullcapability.c_str());
-		    gOFS->MgmStats.Add("OpenBalance",0,0,1);         
-		    EXEC_TIMING_END("OpenBalance");      
+
+		    // send submitted response
+		    XrdOucString response="submitted";
+		    error.setErrInfo(response.length()+1, response.c_str());
+
+		    eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
+		    
+		    if (target_fs->GetBalanceQueue()->Add(txjob)) {
+		      eos_thread_info("cmd=queued fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
+		      eos_thread_debug("job=%s", fullcapability.c_str());
+		    }
+		    
+		    gOFS->MgmStats.Add("Scheduled2Balance",0,0,1);         
+		    EXEC_TIMING_END("Scheduled2Balance");      
 		    return SFS_DATA;
 		  }
 		} else {
@@ -4631,7 +4638,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	}
 	break;
       }
-      gOFS->MgmStats.Add("OpenFailedBalance",0,0,1);
+      gOFS->MgmStats.Add("SchedulingFailedBalance",0,0,1);
       error.setErrInfo(0,"");
       return SFS_DATA;
       //      return Emsg(epname, error, ENODATA, "schedule any file [ENODATA]");
@@ -4642,7 +4649,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       MAYSTALL;
       MAYREDIRECT;
 
-      EXEC_TIMING_BEGIN("OpenDrain");      
+      EXEC_TIMING_BEGIN("Scheduled2Drain");      
       gOFS->MgmStats.Add("Schedule2Drain",0,0,1);         
 
       XrdOucString sfsid       = env.Get("mgm.target.fsid");
@@ -4660,7 +4667,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       }
       
       if ((!sfsid.length()) || (!sfreebytes.length())) {
-	gOFS->MgmStats.Add("OpenFailedDrain",0,0,1);         
+	gOFS->MgmStats.Add("SchedulingFailedDrain",0,0,1);         
 	return Emsg(epname, error, EINVAL, "unable to schedule - missing parameters [EINVAL]");
       }
 
@@ -4669,6 +4676,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       eos::common::FileSystem::fs_snapshot target_snapshot;
       eos::common::FileSystem::fs_snapshot source_snapshot;
       eos::common::FileSystem::fs_snapshot replica_source_snapshot;
+      eos::common::FileSystem* target_fs = 0;
 
       unsigned long long freebytes = (sfreebytes.c_str())?strtoull(sfreebytes.c_str(),0,10):0;
 
@@ -4678,19 +4686,19 @@ XrdMgmOfs::FSctl(const int               cmd,
       // lock the view and get the filesystem information for the target where be balance to
       {
 	eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-	eos::common::FileSystem* fs = FsView::gFsView.mIdView[target_fsid];
-	if (!fs) {
+	target_fs = FsView::gFsView.mIdView[target_fsid];
+	if (!target_fs) {
 	  eos_thread_err("fsid=%u is not in filesystem view", target_fsid);
-	  gOFS->MgmStats.Add("OpenFailedDrain",0,0,1);         
+	  gOFS->MgmStats.Add("SchedulingFailedDrain",0,0,1);         
 	  return Emsg(epname, error, EINVAL, "unable to schedule - filesystem ID is not known");
 	}
-	fs->SnapShotFileSystem(target_snapshot);
+	target_fs->SnapShotFileSystem(target_snapshot);
 	FsGroup* group = FsView::gFsView.mGroupView[target_snapshot.mGroup];
 
 	size_t groupsize = FsView::gFsView.mGroupView.size();
 	if (!group) {
 	  eos_thread_err("group=%s is not in group view", target_snapshot.mGroup.c_str());
-	  gOFS->MgmStats.Add("OpenFailedDrain",0,0,1);         
+	  gOFS->MgmStats.Add("SchedulingFailedDrain",0,0,1);         
 	  return Emsg(epname, error, EINVAL, "unable to schedule - group is not known [EINVAL]");
 	}
 
@@ -4738,7 +4746,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 
 	if (!source_fs) {
 	  eos_thread_debug("no source available");
-	  gOFS->MgmStats.Add("OpenFailedDrain",0,0,1);         
+	  gOFS->MgmStats.Add("SchedulingFailedDrain",0,0,1);         
 	  error.setErrInfo(0,"");
 	  return SFS_DATA;
 	  //	  return Emsg(epname, error, EINVAL, "unable to schedule - no source available [ENODATA]");
@@ -4777,7 +4785,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	// give the oldest file first
 	eos::FileSystemView::FileIterator fit = source_filelist.begin();
 	while (fit != source_filelist.end()) {
-	  eos_thread_debug("checkinf fid %llx", *fit);
+	  eos_thread_debug("checking fid %llx", *fit);
 	  // check that the target does not have this file
 	  eos::FileMD::id_t fid = *fit;
 	  if (target_filelist.count(fid)) {
@@ -4850,7 +4858,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 		long unsigned int fsindex = 0;
                 
 		// get the responsible quota space
-		SpaceQuota* space = Quota::GetSpaceQuota(source_snapshot.mSpace.c_str(), true);
+		SpaceQuota* space = Quota::GetSpaceQuota(source_snapshot.mSpace.c_str(), false);
 		if (space) {
 		  eos_thread_debug("space=%s", space->GetSpaceName());
 		} else {
@@ -4941,7 +4949,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  if ((caprc=gCapabilityEngine.Create(&insource_capability, source_capabilityenv, symkey)) ||
 		      (caprc=gCapabilityEngine.Create(&intarget_capability, target_capabilityenv, symkey))){
 		    eos_thread_err("unable to create source/target capability - errno=%u", caprc);
-		    gOFS->MgmStats.Add("OpenFailedDrain",0,0,1);         
+		    gOFS->MgmStats.Add("SchedulingFailedDrain",0,0,1);         
 		    return Emsg(epname, error, caprc, "create source/target capability [EADV]");
 		  } else {
 		    int caplen = 0;
@@ -4955,10 +4963,20 @@ XrdMgmOfs::FSctl(const int               cmd,
 		    target_cap += "&target.url=root://"; target_cap += target_snapshot.mHostPort.c_str();target_cap += "//replicate:"; target_cap += hexfid;
 		    fullcapability += source_cap;
 		    fullcapability += target_cap;
-		    // send the capability
-		    error.setErrInfo(fullcapability.length() + 1, fullcapability.c_str());
-		    gOFS->MgmStats.Add("OpenDrain",0,0,1);         
-		    EXEC_TIMING_END("OpenDrain");      
+		    // send submitted response
+		    XrdOucString response="submitted";
+		    error.setErrInfo(response.length()+1, response.c_str());
+
+		    eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
+		    
+		    if (target_fs->GetDrainQueue()->Add(txjob)) {
+		      eos_thread_info("cmd=queued fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
+		      eos_thread_debug("job=%s", fullcapability.c_str());
+		    }
+
+
+		    gOFS->MgmStats.Add("Scheduled2Drain",0,0,1);         
+		    EXEC_TIMING_END("Scheduled2Drain");      
 		    return SFS_DATA;
 		  }
 		} else {
@@ -4974,7 +4992,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	}
 	break;
       }
-      gOFS->MgmStats.Add("OpenFailedDrain",0,0,1);         
+      gOFS->MgmStats.Add("SchedulingFailedDrain",0,0,1);         
       error.setErrInfo(0,"");
       return SFS_DATA;
       //      return Emsg(epname, error, ENODATA, "schedule any file [ENODATA]");

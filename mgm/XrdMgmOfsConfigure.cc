@@ -1098,10 +1098,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("Mkdir",0,0,0);
   gOFS->MgmStats.Add("Motd",0,0,0);
   gOFS->MgmStats.Add("MoveStripe",0,0,0);
-  gOFS->MgmStats.Add("OpenBalance",0,0,0);
-  gOFS->MgmStats.Add("OpenFailedBalance",0,0,0);
-  gOFS->MgmStats.Add("OpenDrain",0,0,0);
-  gOFS->MgmStats.Add("OpenFailedDrain",0,0,0);
   gOFS->MgmStats.Add("OpenDir",0,0,0);
   gOFS->MgmStats.Add("OpenFailedCreate",0,0,0);
   gOFS->MgmStats.Add("OpenFailedENOENT",0,0,0);
@@ -1129,6 +1125,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("Rm",0,0,0);
   gOFS->MgmStats.Add("Schedule2Drain",0,0,0);
   gOFS->MgmStats.Add("Schedule2Balance",0,0,0);
+  gOFS->MgmStats.Add("SchedulingFailedBalance",0,0,0);
+  gOFS->MgmStats.Add("SchedulingFailedDrain",0,0,0);
+  gOFS->MgmStats.Add("Scheduled2Balance",0,0,0);
+  gOFS->MgmStats.Add("Scheduled2Drain",0,0,0);
+
   gOFS->MgmStats.Add("Stat",0,0,0);
   gOFS->MgmStats.Add("Symlink",0,0,0);
   gOFS->MgmStats.Add("Truncate",0,0,0);

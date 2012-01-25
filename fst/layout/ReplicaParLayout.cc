@@ -364,7 +364,7 @@ ReplicaParLayout::close()
 
   for (int i=0; i< nStripes; i++) {
     if (replicaClient[i]) {
-      if (!replicaClient[i]->Sync()) {
+      if (!replicaClient[i]->Close()) {
         eos_err("Failed to close remote replica - %s", replicaUrl[i].c_str());
         rc2=0;
       } 

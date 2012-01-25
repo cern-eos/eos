@@ -5,7 +5,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.1.1
-Release: 10
+Release: 11
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -120,6 +120,7 @@ rm -rf $RPM_BUILD_ROOT
 %post -n eos-server
 /sbin/chkconfig --add eos
 echo Starting conditional EOS services
+sleep 2
 /sbin/service eos condrestart > /dev/null 2>&1 || :
 /sbin/service eosd condrestart > /dev/null 2>&1 || :
 %preun -n eos-server

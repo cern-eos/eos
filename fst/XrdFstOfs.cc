@@ -1044,12 +1044,12 @@ XrdFstOfsFile::close()
 	    layOut->truncate(maxOffsetWritten);
 	} else {
 	  if ( (long long)maxOffsetWritten>(long long)openSize) {
-	    layOut->truncate(maxOffsetWritten);
 	    // -------------------------------------------------------------------------------------------------------
 	    // check if we have to deallocate something for this file transaction
 	    // -------------------------------------------------------------------------------------------------------
 	    if ((bookingsize) && (bookingsize > (long long) maxOffsetWritten)) {
 	      eos_info("deallocationg %llu bytes", bookingsize - maxOffsetWritten);
+	      layOut->truncate(maxOffsetWritten);
 	      // we have evt. to deallocate blocks which have not been written
 	      layOut->fdeallocate(maxOffsetWritten,bookingsize);
 	    }
@@ -1190,13 +1190,12 @@ XrdFstOfsFile::close()
 	gOFS.Storage->CloseTransaction(fsid, fileid);
       }
     }
-    
+
     if (layOut) {
       rc = layOut->close();
     } else {
       rc = closeofs();
     }
-    
     
     closed = true;
     
@@ -1238,6 +1237,7 @@ XrdFstOfsFile::close()
     if (retc) {
       eos_debug("<rem> returned retc=%d", retc);
     }
+
     rc = SFS_OK;
     
     if (fstBlockXS) {
@@ -1257,7 +1257,7 @@ XrdFstOfsFile::close()
     delete fstBlockXS;
     fstBlockXS=0;
   }
-  
+
   return rc;
 }
 
