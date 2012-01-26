@@ -1,0 +1,17 @@
+/var/log/eos/errorlog.eos {
+        size 1M
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 4
+        compress
+}
+
+/var/log/eos/eosha.log {
+        size 1M
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 4
+        compress
+}
