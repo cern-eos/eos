@@ -212,12 +212,13 @@ stop() {
 					[ -d "/proc/$pid" ] || RETVAL=0
 					[ "$RETVAL" != "0" ] && GRETVAL=$RETVAL
 					[ $USER = "root" ] && [ "$RETVAL" = "0" ] && [ -f /var/lock/subsys/$prog.$role ] && rm -f /var/lock/subsys/$prog.$role
-					[ $USER = "root" ] && [ "$RETVAL" = "0" ] && [ -f /var/run/$prog.$role ] && rm -f /var/run/$prog.$role
+					[ $USER = "root" ] && [ "$RETVAL" = "0" ] && [ -f /var/run/$prog.$role.pid ] && rm -f /var/run/$prog.$role.pid
 					
 				fi
 			done	
 	   	        [ -f /var/lock/subsys/$prog.$role ] && rm -f /var/lock/subsys/$prog.$role
-                        [ -f /var/run/$prog.$role ] && rm -f /var/run/$prog.$role
+                        [ -f /var/run/$prog.$role.pid ] && rm -f /var/run/$prog.$role.pid
+
 			[ "$RETVAL" = "0" ] && success || failure 	
 			echo
 		fi
@@ -225,10 +226,11 @@ stop() {
         return $GRETVAL
 }
 
-status() {
+getstatus() {
         # Loop over xrootd roles
         for i in ${XRD_ROLES}; do
                 # Check if the xrootd daemon associated to this role running
+  	        status -p /var/run/$prog.$i.pid $prog.$i >& /dev/null
                 pid=`pidofproc $prog.$i`
                 if [ -n "$pid" ]; then
                         echo $"$prog for role: $i (pid $pid) is running..."
@@ -362,7 +364,7 @@ case "$1" in
                 stop $2
                 ;;
         status)
-                status
+                getstatus
                 ;;
         restart)
                 restart $2
