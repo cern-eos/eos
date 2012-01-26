@@ -108,7 +108,7 @@ start() {
 			echo
                 else
 		        # Setup the base xrootd options
-		        _XRD_OPTIONS="-n $i ${XRD_ROLEFLAG}-c ${_XRD_CONFIG} -l ${XRD_LOGDIR}/xrdlog.$i -b -R${XRD_USER} "
+		        _XRD_OPTIONS="-n $i -c ${_XRD_CONFIG} ${XRD_ROLEFLAG} -l ${XRD_LOGDIR}/xrdlog.$i -b -R${XRD_USER} "
 			_XRD_OPTIONS=${_XRD_OPTIONS%' '}
 			echo  with ${_XRD_OPTIONS}
 			# Setup xrootd environment
@@ -138,7 +138,7 @@ start() {
 			# Write the pid to a file
 			RETVAL=$?
 			if [ $RETVAL -eq 0 ]; then
-			        pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $i" | awk '{print $1}'`
+			        pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $i -c /etc/xrd" | awk '{print $1}'`
 				if [ $USER = "root" ]; then
 				    rm -f /var/run/$prog.$i.pid
 				fi
@@ -180,6 +180,9 @@ stop() {
 		XRD_ROLES="$1";
 	fi	
 	for role in $XRD_ROLES; do 
+		if [ "$XRD_ROLES" = "mgm" ]; then
+   			XRD_ROLEFLAG="-m "
+		fi
 		RETVAL=0
 	        if [ "$role" = "fed" ]; then
 	        	/etc/rc.d/init.d/cmsd stop
@@ -188,7 +191,7 @@ stop() {
 			RETVAL=1
 			echo -n $"Stopping $prog: $role"
 	  	       	# try killing by grep
-			for pid in `ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $role" | awk '{print $1}'`; do
+			for pid in `ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $role -c /etc/xrd" | awk '{print $1}'`; do
 
 		        	if [ -n "$pid" ]; then
 					if [ "$role" = "fst" ] ; then
