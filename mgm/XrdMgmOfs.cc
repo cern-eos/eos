@@ -2356,7 +2356,9 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
       eos::QuotaNode* quotanode = 0;
       try {
         quotanode = gOFS->eosView->getQuotaNode(container);
-        quotanode->removeFile(fmd);
+	if (quotanode) {
+	  quotanode->removeFile(fmd);
+	}
       } catch ( eos::MDException &e ) {
         quotanode = 0;
       }
@@ -3811,7 +3813,9 @@ XrdMgmOfs::FSctl(const int               cmd,
         if (container) {
           try {
             quotanode = gOFS->eosView->getQuotaNode(container);
-            quotanode->removeFile(fmd);
+	    if (quotanode) {
+	      quotanode->removeFile(fmd);
+	    }
           } catch ( eos::MDException &e ) {
             quotanode = 0;
           }
