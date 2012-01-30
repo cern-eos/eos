@@ -116,7 +116,7 @@ class Logging {
 private:
 public:
   typedef std::vector< unsigned long > LogCircularIndex;
-  typedef std::vector< std::vector <std::string> > LogArray;
+  typedef std::vector< std::vector <XrdOucString> > LogArray;
 
   static LogCircularIndex gLogCircularIndex;
   static LogArray         gLogMemory;
