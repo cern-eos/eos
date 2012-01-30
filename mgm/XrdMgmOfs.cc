@@ -3866,7 +3866,6 @@ XrdMgmOfs::FSctl(const int               cmd,
             }
           }
 
-          
           {
             SpaceQuota* space = Quota::GetResponsibleSpaceQuota(spath);
             eos::QuotaNode* quotanode = 0;
@@ -3882,6 +3881,11 @@ XrdMgmOfs::FSctl(const int               cmd,
               fmd->removeLocation(fsid);
             }
             
+	    if (dropfsid) {
+	      eos_thread_debug("commit: dropping replica on fs %lu", dropfsid);
+	      fmd->unlinkLocation((unsigned short)dropfsid);
+	    }
+          
             if (commitsize) {
               fmd->setSize(size);
             }
@@ -3900,10 +3904,6 @@ XrdMgmOfs::FSctl(const int               cmd,
           mt.tv_sec  = mtime;
           mt.tv_nsec = mtimens;
           fmd->setMTime(mt);     
-          if (dropfsid) {
-            eos_thread_debug("commit: dropping replica on fs %lu", dropfsid);
-            fmd->unlinkLocation((unsigned short)dropfsid);
-          }
           
           eos_thread_debug("commit: setting size to %llu", fmd->getSize());
           //-------------------------------------------
