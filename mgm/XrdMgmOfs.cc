@@ -1458,6 +1458,137 @@ int XrdMgmOfsFile::truncate(XrdSfsFileOffset  flen)  // In
 }
 
 /*----------------------------------------------------------------------------*/
+int            
+XrdMgmOfs::chksum(      XrdSfsFileSystem::csFunc            Func,
+			    const char             *csName,
+			    const char             *inpath,
+			    XrdOucErrInfo          &error,
+			    const XrdSecEntity     *client,
+			    const char             *opaque)
+  /*
+  Function: Compute and return file checksum.
+
+  Input:    Func      - Function to be performed:
+                        csCalc   - Return precomputed or computed checksum.
+                        csGet    - Return precomputed checksum.
+                        csSize   - Verify csName and get its size.
+            path      - Pathname of file for csCalc and csSize.
+            einfo     - Error information object to hold error details.
+            client    - Authentication credentials, if any.
+            opaque    - Opaque information to be used as seen fit.
+
+  Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
+  */
+{
+  static const char *epname = "chksum";
+  const char *tident = error.getErrUser();
+
+  // use a thread private vid
+  eos::common::Mapping::VirtualIdentity vid;
+
+  XrdSecEntity mappedclient();
+
+  XrdOucEnv Open_Env(opaque);
+
+  XrdOucEnv  cksEnv(opaque,0,client);
+  char buff[MAXPATHLEN+8];
+  int rc;
+  
+  XrdOucString CheckSumName = csName;
+
+  // retrieve meta data for <path>
+
+  gOFS->MgmStats.Add("Checksum",vid.uid,vid.gid,1);
+
+  // A csSize request is issued usually once to verify everything is working. We
+  // take this opportunity to also verify the checksum name.
+  //
+
+  rc = 0;
+
+  if ((Func == XrdSfsFileSystem::csSize)) {
+    if (CheckSumName == "eos") {
+      // just return the length
+      error.setErrCode(20); 
+      return SFS_OK;
+    } else {
+      strcpy(buff, csName); strcat(buff, " checksum not supported.");
+      error.setErrInfo(ENOTSUP, buff);
+      return SFS_ERROR;
+    }
+  }
+  
+  NAMESPACEMAP;
+
+  XTRACE(stat, path,csName);
+
+  AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",path,error);
+
+  eos::common::Mapping::IdMap(client,opaque,tident,vid);
+
+  ACCESSMODE_R;
+  MAYSTALL;
+  MAYREDIRECT;
+
+  eos_info("path=%s",inpath);
+
+  //-------------------------------------------
+  errno =0;
+  eos::FileMD* fmd = 0;
+  eos::common::Path cPath(path);
+
+  // Everything else requires a path
+  //
+
+  if (!path){
+    strcpy(buff, csName);
+    strcat(buff, " checksum path not specified.");
+    error.setErrInfo(EINVAL, buff);
+    return SFS_ERROR;
+  }
+
+  
+  //-------------------------------------------
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  
+  try {
+    fmd = gOFS->eosView->getFile(cPath.GetPath());
+  } catch( eos::MDException &e ) {
+    errno = e.getErrno();
+  }
+
+  if (!fmd) {
+    // file does not exist
+    *buff = 0;
+    rc = ENOENT;
+    error.setErrInfo(rc, "no such file or directory");
+    return SFS_ERROR;    
+  }
+
+  // Now determine what to do
+  //
+  if ( (Func == XrdSfsFileSystem::csCalc ) ||
+       (Func == XrdSfsFileSystem::csGet  ) ) {
+  } else {
+    error.setErrInfo(EINVAL, "Invalid checksum function.");
+    return SFS_ERROR;
+  }
+
+  // copy the checksum buffer
+  const char *hv = "0123456789abcdef";
+  size_t j = 0;
+  for (size_t i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
+    buff[j++] = hv[(fmd->getChecksum().getDataPtr()[i] >> 4) & 0x0f];
+    buff[j++] = hv[ fmd->getChecksum().getDataPtr()[i]       & 0x0f];
+  }
+  buff[j] = '\0';
+  eos_info("checksum is %s", buff);
+  error.setErrInfo(0, buff);
+  return SFS_OK;
+}
+
+
+/*----------------------------------------------------------------------------*/
 int XrdMgmOfs::chmod(const char                *inpath,    // In
                      XrdSfsMode        Mode,    // In
                      XrdOucErrInfo    &error,   // Out
@@ -3429,16 +3560,16 @@ XrdMgmOfs::fsctl(const int               cmd,
                  XrdOucErrInfo          &error,
                  const XrdSecEntity *client)
 {
-  eos_info("cmd=%d args=%s", cmd,args);
+  const char *tident = error.getErrUser();
+
+  eos::common::LogId ThreadLogId;
+  ThreadLogId.SetSingleShotLogId(tident);
+
+  eos_thread_info("cmd=%d args=%s", cmd,args);
 
   int opcode = cmd & SFS_FSCTL_CMD;
   if ((opcode == SFS_FSCTL_LOCATE)) {
-    // check if this file exists
-    //    XrdSfsFileExistence file_exists;
-    //    if ((_exists(path.c_str(),file_exists,error,client,0)) || (file_exists!=XrdSfsFileExistIsFile)) {
-    //      return SFS_ERROR;
-    //    }
-    
+
     char locResp[4096];
     char rType[3], *Resp[] = {rType, locResp};
     rType[0] = 'S';
@@ -3449,6 +3580,36 @@ XrdMgmOfs::fsctl(const int               cmd,
     error.setErrInfo(strlen(locResp)+3, (const char **)Resp, 2);
     return SFS_DATA;
   }
+
+  if ((opcode == SFS_FSCTL_STATLS)) {
+    int blen=0;
+    char* buff = error.getMsgBuff(blen);
+    XrdOucString space = "default";
+    
+    eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+    
+    unsigned long long freebytes = 0;
+    unsigned long long maxbytes  = 0;
+    
+    // take the sum's from all file systems in 'default'
+    if (FsView::gFsView.mSpaceView.count("default")) {
+      space = "default";
+      eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+      freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
+      maxbytes  = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
+    } 
+
+    static const char *Resp="oss.cgroup=%s&oss.space=%lld&oss.free=%lld"
+      "&oss.maxf=%lld&oss.used=%lld&oss.quota=%lld";
+
+    blen = snprintf(buff,blen,Resp,space.c_str(),maxbytes, freebytes,64 * 1024*1024*1024LL  /* fake 64BG */, 
+		    maxbytes-freebytes, maxbytes);
+    
+    error.setErrCode(blen+1);
+    return SFS_DATA;
+  }
+
+
   return Emsg("fsctl", error, EOPNOTSUPP, "fsctl", args);
 }
 
@@ -3529,10 +3690,9 @@ XrdMgmOfs::FSctl(const int               cmd,
     ZTRACE(fsctl,"located at headnode: " << locResp);
     return SFS_DATA;
   }
-  
 
   if (cmd!=SFS_FSCTL_PLUGIN) {
-    return SFS_ERROR;
+    return Emsg("fsctl", error, EOPNOTSUPP, "fsctl", inpath);  
   }
 
   const char* scmd;

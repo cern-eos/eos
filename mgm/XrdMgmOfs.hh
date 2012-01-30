@@ -250,6 +250,13 @@ public:
                         XrdOucErrInfo    &out_error,
                         eos::common::Mapping::VirtualIdentity &vid,
                         const char             *opaque = 0);
+  
+  int            chksum(XrdSfsFileSystem::csFunc Func,
+                        const char             *csName,
+                        const char             *Path,
+			XrdOucErrInfo    &out_error,
+                        const XrdSecEntity     *client = 0,
+                        const char             *opaque = 0);
 
   int            exists(const char                *fileName,
                         XrdSfsFileExistence &exists_flag,

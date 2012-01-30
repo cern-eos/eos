@@ -942,7 +942,20 @@ XrdFstOfsFile::verifychecksum()
     }
     
     if (isRW) {
-      eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
+      eos_info("(write) checksum type: %s checksum hex: %s requested-checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum(), openOpaque->Get("mgm.checksum")?openOpaque->Get("mgm.checksum"):"-none-");
+
+      // check if the check sum for the file was given at upload time
+      if (openOpaque->Get("mgm.checksum")) {
+	XrdOucString opaqueChecksum = openOpaque->Get("mgm.checksum");
+	XrdOucString hexChecksum = checkSum->GetHexChecksum();
+	if (opaqueChecksum != hexChecksum) {
+	  eos_err("requested checksum %s does not match checksum %s of uploaded file");
+	  delete checkSum;
+	  checkSum=0;
+	  return true;
+	}
+      }
+      
       checkSum->GetBinChecksum(checksumlen);
       // copy checksum into meta data
       memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
@@ -1000,7 +1013,8 @@ XrdFstOfsFile::close()
     // -------------------------------------------------------------------------------------------------------
     if (viaDelete && isCreation) {
       // -------------------------------------------------------------------------------------------------------
-      // it is closed by the constructor e.g. no proper close
+      // it is closed by the constructor e.g. no proper close 
+      // or the specified checksum does not match the computed one
       // -------------------------------------------------------------------------------------------------------
       eos_static_debug("(unpersist): deleting File Id=%llu on Fs=%u", fMd->fMd.fsid, fMd->fMd.fid);
       // delete the file
@@ -1061,7 +1075,26 @@ XrdFstOfsFile::close()
       }
       
       eos_info("calling verifychecksum");
+      // -------------------------------------------------------------------------------------------------------
+      // call checksum verification
       checksumerror = verifychecksum();
+
+      if (isCreation && checksumerror) {
+	// -------------------------------------------------------------------------------------------------------
+	// we have a checksum error if the checksum was preset and does not match!
+	// -------------------------------------------------------------------------------------------------------
+	// set the file to be deleted
+	// -------------------------------------------------------------------------------------------------------
+	deleteOnClose = true;
+	layOut->remove();
+	
+	if (fstBlockXS) {
+	  // delete also the block checksum file
+	  fstBlockXS->UnlinkXSPath();
+	  delete fstBlockXS;
+	  fstBlockXS=0;
+	}
+      }
       
       // store the entry server information before closing the layout
       bool isEntryServer=false;
@@ -1072,7 +1105,7 @@ XrdFstOfsFile::close()
       // first we assume that, if we have writes, we update it
       closeSize = openSize;
       
-      if (haswrite || isCreation ) {
+      if ((!checksumerror) && (haswrite || isCreation)) {
 	// commit meta data
 	struct stat statinfo;
 	if ((rc = layOut->stat(&statinfo))) {
