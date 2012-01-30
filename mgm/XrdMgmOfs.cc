@@ -4515,6 +4515,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       XrdOucString sfsid       = env.Get("mgm.target.fsid");
       XrdOucString sfreebytes  = env.Get("mgm.target.freebytes");
       char* alogid             = env.Get("mgm.logid");
+      char* nosubmit           = env.Get("mgm.nosubmit");
 
       // static map with iterator position for the next group scheduling and it's mutex
       static std::map<std::string, size_t> sGroupCycle;
@@ -4780,11 +4781,22 @@ XrdMgmOfs::FSctl(const int               cmd,
 
 		    eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
 		    
-		    if (target_fs->GetBalanceQueue()->Add(txjob)) {
-		      eos_thread_info("cmd=queued fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
-		      eos_thread_debug("job=%s", fullcapability.c_str());
+		    if (!nosubmit) {
+		      if (target_fs->GetBalanceQueue()->Add(txjob)) {
+			eos_thread_info("cmd=queued fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
+			eos_thread_debug("job=%s", fullcapability.c_str());
+		      }
 		    }
 		    
+		    if (txjob) {
+		      delete txjob;
+		    }
+
+		    if (source_capabilityenv)
+		      delete source_capabilityenv;
+		    if (target_capabilityenv)
+		      delete target_capabilityenv;
+
 		    gOFS->MgmStats.Add("Scheduled2Balance",0,0,1);         
 		    EXEC_TIMING_END("Scheduled2Balance");      
 		    return SFS_DATA;
@@ -5138,6 +5150,14 @@ XrdMgmOfs::FSctl(const int               cmd,
 		      eos_thread_debug("job=%s", fullcapability.c_str());
 		    }
 
+		    if (txjob) {
+		      delete txjob;
+		    }
+
+		    if (source_capabilityenv)
+		      delete source_capabilityenv;
+		    if (target_capabilityenv)
+		      delete target_capabilityenv;
 
 		    gOFS->MgmStats.Add("Scheduled2Drain",0,0,1);         
 		    EXEC_TIMING_END("Scheduled2Drain");      
