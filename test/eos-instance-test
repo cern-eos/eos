@@ -1,0 +1,238 @@
+#/bin/bash
+################################################################################################################
+# modify as desired
+#export MAILNOTIFY=apeters@mail.cern.ch
+#export GSMNOTIFY="0041764875002@mail2sms.cern.ch"
+export INSTANCETEST="dev"
+export REDIRECTOR=localhost
+export TESTSYS=/tmp/eos-instance-test/
+export GSMLOCKTIME=3600
+export TESTTIMESLICE=60;
+
+mkdir -p $TESTSYS
+################################################################################################################
+# don't touch
+export failed=0
+export success=0
+export XRDALLCERTLOG=$TESTSYS/xroot-$UID-all-certification.log
+export XRDCERTLOG=$TESTSYS/xroot-$UID-certification.log
+export GSMLOCKFILE=$TESTSYS/xroot-$UID-gsm.lock
+export XRDTESTPID=$TESTSYS/xroot-$UID-pid
+export FAILFILE=$TESTSYS/xroot-$UID-failed
+export TIMEOUTFILE=$TESTSYS/xroot-$UID-timeout
+
+export TESTSYSFILE1K=$TESTSYS/file.1K
+export TESTSYSFILE1M=$TESTSYS/file.1M
+
+################################################################################################################
+echo "####################################"
+echo "### Creating Test Pattern File 1K"
+echo "####################################"
+yes | dd of=$TESTSYSFILE1K bs=1k count=1
+echo "####################################"
+echo "### Creating Test Pattern File 1M"
+echo "####################################"
+yes | dd of=$TESTSYSFILE1M bs=1k count=1000
+################################################################################################################
+
+
+. /etc/rc.d/init.d/functions
+echo "" > $XRDALLCERTLOG
+rm -f $FAILFILE
+rm -f $TIMEOUTFILE
+
+kill_child_processes() {
+    pid=$(bash -c 'echo $PPID');
+    if [ $1 -gt 0 ]; then
+	pids=`pstree -p $1 | sed 's/(/\n(/g' | grep '(' | sed 's/(\(.*\)).*/\1/' | tr "\n" " "`;
+	for name in $pids; do 
+	    if [ $name -ne $pid ]; then
+		kill -9 $name >& /dev/null
+		usleep 100000
+	    fi
+	done
+    fi
+}
+
+kill_processes() {
+    pid=$(bash -c 'echo $PPID');
+    kill_child_processes $pid;
+    exit -1;
+}
+
+################################################################################################################
+mailnotify () {
+    OK="OK" && test -e $FAILFILE && OK="FAILED"
+
+    if [ $OK = "FAILED" ]; then
+	if [ -n "$MAILNOTIFY" ]; then  mutt -s "$INSTANCETEST $OK" $MAILNOTIFY < $XRDALLCERTLOG ; fi
+	if [ ! -e $GSMLOCKFILE ]; then 
+	    if [ -n "$GSMNOTIFY" ]; then echo "$INSTANCETEST failed at `date`" | mail -s "$INSTANCETEST $OK" $GSMNOTIFY ; touch $GSMLOCKFILE; ( sleep GSMLOCKTIME; rm -rf $GSMLOCKFILE; ) >& /dev/null & 
+	    fi; 
+	fi
+	exit -1
+    fi	
+    exit 0
+}
+################################################################################################################
+(
+export XROOTSYS=/usr/
+export LD_LIBRARY_PATH=$XROOTSYS/lib64/:$LD_LIBRARY_PATH; export PATH=$XROOTSYS/bin:$PATH
+pid=$(bash -c 'echo $PPID');
+echo -n $pid >& $XRDTESTPID
+################################################################################################################
+# Library
+################################################################################################################
+showtoken () {
+    echo "############### KRB 5 ##############"
+    klist -5
+    echo "############### X509  ##############"
+    $XROOTSYS/bin/xrdgsprioxy info
+    echo "####################################"
+}
+################################################################################################################
+logoutput () {
+    echo "----------------- Error Output --------------------";cat $XRDCERTLOG ;echo "---------------------------------------------------"
+}
+################################################################################################################
+upload () {
+    echo xrdcp -np -v -f $1 root://$REDIRECTOR/$2 -OD$3 >& /tmp/xroot-$UID-certification.log ;$XROOTSYS/bin/xrdcp -f $1 root://$REDIRECTOR/$2 -OD$3 >> $XRDCERTLOG 2>&1
+}
+################################################################################################################
+download () {
+    echo xrdcp -np -v -f root://$REDIRECTOR/$2 $1 -OS$3 >& /tmp/xroot-$UID-certification.log ;$XROOTSYS/bin/xrdcp -f root://$REDIRECTOR/$2 $1 -OS$3 >> $XRDCERTLOG 2>&1
+}
+################################################################################################################
+timeout() {
+    echo "## TIMEOUT ##";
+    exit 0;
+}
+
+meta() {
+    echo xrd $REDIRECTOR $1 $2\?$3 >& /tmp/xroot-$UID-certification.log ; $XROOTSYS/bin/xrd $REDIRECTOR $1 $2\?$3 >> $XRDCERTLOG 2>&1
+}
+
+eos() {
+    echo eos -b $EOSROLE root://$REDIRECTOR $* >& /tmp/xroot-$UID-certification.log; eval $XROOTSYS/bin/eos -b $EOSROLE root://$REDIRECTOR $* >> $XRDCERTLOG 2>&1
+}
+
+################################################################################################################
+testout () {
+    echo Failed: $failed Success: $success
+    if [ $failed -gt 0 ]; then touch $FAILFILE; fi
+}
+################################################################################################################
+testcnt=0;
+runtest () {
+    testcnt=$[$testcnt+1];
+
+    if [ -e $TIMEOUTFILE ]; then
+	echo -n `date +"%x %X"` timeout
+	failure
+    else 
+	START=$(date +%s.%N)
+	echo $testcnt | awk '{printf("%04d ",$1);}'
+	echo -n `date +"%x %X"` "$1"
+	auth=$2
+	res=$3
+	renv=$4
+	shift 
+	echo -n $*
+	shift
+	shift
+	shift
+	if [ $auth = "krb5" ] ; then ( export X509_USER_CERT=/tmp/illegal X509_USER_KEY=/tmp/illegal $renv; $* ) ; ret=$?; fi
+	if [ $auth = "gsi"  ] ; then ( export KRB5CCNAME=/tmp/illegal                                $renv; $* ) ; ret=$?; fi
+	if [ $auth = "unix" ] ; then ( export XrdSecPROTOCOL=unix                                    $renv; $* ) ; ret=$?; fi
+	if [ $auth = "sss"  ] ; then ( export XrdSecPROTOCOL=sss                                     $renv; $* ) ; ret=$?; fi
+	echo
+	if [ $res -eq 0 ] ; then if [ $ret -eq 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
+	if [ $res -eq 1 ] ; then if [ $ret -ne 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
+	END=$(date +%s.%N)
+	DIFF=$(echo "$END - $START" | bc)
+	echo "                         in $DIFF seconds"
+	echo "--------------------------------------------------------------------------------------------------------------------"
+    fi
+}
+################################################################################################################
+
+echo "==================================================="
+echo "### Testing $REDIRECTOR"
+echo "==================================================="
+
+################################################################################################################
+# define your tests here
+# runtest <info> <auth> <exports> <expect> <mode> <srcpath> <dstpath> <param>
+#      <info>                  : describes what you are testing
+#      <auth>                  : 'krb5','gsi','unix','sss' - choose krb5 or X509 authentication [ you have to create both tokens beforehand ]
+#      <env>                   : can be used to set the execution environment env <env> "
+#      <expect>                : 0 or 1 => 0 - you expect the command works , 1 - you expect that the command failes
+#      <mode>                  : upload|download|meta|eos : self explaining - meta executes command via xrd shell, eos via eos shell
+#      <srcpath,dstpath>       : is a local '/...' or remote '/eos/...' path
+#      <param>                 : opaque information passed ... '&' has to be escaped !!!!
+################################################################################################################
+
+################################################################################################################
+xrdgsiproxy init
+showtoken
+# EXAMPLE TESTS, they are expected to fail                                                                     #
+runtest "### Stat     " unix 0 "" meta stat "/eos/$INSTANCETEST/"
+runtest "### Mkdir    " unix 0 "" eos mkdir "-p" "/eos/$INSTANCETEST/test/instancetest/"
+runtest "### Rm       " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/instancetest/"
+runtest "### Mkdir    " unix 0 "" eos mkdir "/eos/$INSTANCETEST/test/instancetest/"
+runtest "### Upload   " unix 1 "" upload    "/etc/passwd" "/eos/$INSTANCETEST/test/instancetest/passwd" "eos.space=default"
+runtest "### Chmod    " unix 0 "" eos chmod "777" "/eos/$INSTANCETEST/test/instancetest"
+runtest "### Upload   " unix 0 "" upload    "/etc/passwd" "/eos/$INSTANCETEST/test/instancetest/passwd" "eos.space=default"
+runtest "### Stat     " unix 0 "" meta stat "/eos/$INSTANCETEST/test/instancetest/passwd"
+runtest "### Stat     " unix 0 "" meta stat "/eos/$INSTANCETEST/test/instancetest/passwd.1"
+runtest "### Download " unix 0 "" download  "/tmp/dumpit" "/eos/$INSTANCETEST/test/instancetest/passwd" 
+runtest "### Download " unix 1 "" download  "/tmp/dumpit" "/eos/$INSTANCETEST/test/instancetest/passwd.1" 
+runtest "### Find     " unix 0 "" eos find "-f --count /eos/dev/test/ | grep nfiles=1"
+runtest "### Rem      " unix 1 "" eos rm    "/eos/$INSTANCETEST/test/instancetest/passwd.1"
+runtest "### Rm       " unix 0 "" eos rm    "/eos/$INSTANCETEST/test/instancetest/passwd"
+runtest "### FileInfo " unix 1 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/passwd.1"
+runtest "### Stat     " unix 0 "" meta stat "/eos/$INSTANCETEST/test/instancetest/passwd"
+
+################################################################################################################
+# FINAL CLEANUP #
+runtest "### Cleanup  " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/instancetest/"
+################################################################################################################
+# show test summary
+testout
+unlink $XRDTESTPID
+exit
+################################################################################################################
+) | tee -a $XRDALLCERTLOG &
+
+
+trap 'kill_processes' TERM
+trap 'kill_processes' QUIT
+trap 'kill_processes' INT
+
+sleep 1
+testpid=`cat $XRDTESTPID 2>/dev/null`;
+for wait in `seq 1 $TESTTIMESLICE`; do 
+    kill -0 $testpid >& /dev/null
+    if [ $? -eq 0 ]; then
+	sleep 1;
+    else 
+	break;
+    fi
+done
+
+kill -0 $testpid >& /dev/null
+
+if [ $? -eq 0 ]; then
+ touch $TIMEOUTFILE
+ kill_child_processes $testpid;
+fi
+
+[ -e "$TIMEOUTFILE" ] && ( echo >> $XRDALLCERTLOG; echo "error: timeout after $TESTTIMESLICE seconds" >> $XRDALLCERTLOG; touch $FAILFILE; echo "error: timeout after $TESTTIMESLICE seconds";) 
+
+unlink $TIMEOUTFILE >& /dev/null
+################################################################################################################
+mailnotify
+################################################################################################################
+
+
+
