@@ -120,6 +120,10 @@ eos() {
     echo eos -b $EOSROLE root://$REDIRECTOR $* >& /tmp/eos-$UID-certification.log; eval $XROOTSYS/bin/eos -b $EOSROLE root://$REDIRECTOR $* >> $XRDCERTLOG 2>&1
 }
 
+stress() {
+    echo xrdstress $* >& /tmp/eos-$UID-certification.log; eval xrdstress $* >> $XRDCERTLOG 2>&1
+}
+
 ################################################################################################################
 testout () {
     echo Failed: $failed Success: $success
@@ -171,7 +175,7 @@ echo "==================================================="
 #      <auth>                  : 'krb5','gsi','unix','sss' - choose krb5 or X509 authentication [ you have to create both tokens beforehand ]
 #      <env>                   : can be used to set the execution environment env <env> "
 #      <expect>                : 0 or 1 => 0 - you expect the command works , 1 - you expect that the command failes
-#      <mode>                  : upload|download|meta|eos : self explaining - meta executes command via xrd shell, eos via eos shell
+#      <mode>                  : upload|download|meta|eos|stress : self explaining - meta executes command via xrd shell, eos via eos shell
 #      <srcpath,dstpath>       : is a local '/...' or remote '/eos/...' path
 #      <param>                 : opaque information passed ... '&' has to be escaped !!!!
 ################################################################################################################
@@ -184,6 +188,7 @@ runtest "### Stat     " unix 0 "" meta stat "/eos/$INSTANCETEST/"
 runtest "### Mkdir    " unix 0 "" eos mkdir "-p" "/eos/$INSTANCETEST/test/instancetest/"
 runtest "### Rm       " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/instancetest/"
 runtest "### Mkdir    " unix 0 "" eos mkdir "/eos/$INSTANCETEST/test/instancetest/"
+runtest "### Chmod    " unix 0 "" eos chmod "755" "/eos/$INSTANCETEST/test/instancetest/"
 runtest "### Upload   " unix 1 "" upload    "/etc/passwd" "/eos/$INSTANCETEST/test/instancetest/passwd" "eos.space=default"
 runtest "### Chmod    " unix 0 "" eos chmod "777" "/eos/$INSTANCETEST/test/instancetest"
 runtest "### Upload   " unix 0 "" upload    "/etc/passwd" "/eos/$INSTANCETEST/test/instancetest/passwd" "eos.space=default"
@@ -201,9 +206,14 @@ runtest "### Who      " unix 0 "" eos "who | grep root"
 runtest "### Version  " unix 0 "" eos "version | grep EOS_INSTANCE"
 runtest "### Version  " unix 0 "" eos "version | grep EOS_CLIENT_VERSION"
 runtest "### Version  " unix 0 "" eos "version | grep EOS_SERVER_VERSION"
+runtest "### Chmod    " unix 0 "" eos chmod "777" "/eos/$INSTANCETEST/test/"
+runtest "### Stress W " unix 0 "" stress "-d root://localhost//eos/$INSTANCETEST/test -o wr -f 100 -s 1KB -n stress -c 10"
+runtest "### Find     " unix 0 "" eos find "-f --count /eos/dev/test/ | grep nfiles=1000"
+runtest "### Stress R " unix 0 "" stress "-d root://localhost//eos/$INSTANCETEST/test -o rd -f 100 -s 1KB -n stress -c 10"
 ################################################################################################################
 # FINAL CLEANUP #
-runtest "### Cleanup  " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/instancetest/"
+runtest "### Cleanup  " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/stress"
+runtest "### Cleanup  " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/instancetest"
 ################################################################################################################
 # show test summary
 testout
