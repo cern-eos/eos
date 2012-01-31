@@ -1,6 +1,6 @@
 #/bin/bash
 ################################################################################################################
-# modify as desired
+# default values can be overwritten in /etc/sysconfig/eos-instance-test
 #export MAILNOTIFY=apeters@mail.cern.ch
 #export GSMNOTIFY="0041764875002@mail2sms.cern.ch"
 export INSTANCETEST="dev"
@@ -9,17 +9,21 @@ export TESTSYS=/tmp/eos-instance-test/
 export GSMLOCKTIME=3600
 export TESTTIMESLICE=60;
 
+if [ - e /etc/sysconfig/eos-instance-test ];  then
+. /etc/sysconfig/eos-instance-test
+fi
+
 mkdir -p $TESTSYS
 ################################################################################################################
 # don't touch
 export failed=0
 export success=0
-export XRDALLCERTLOG=$TESTSYS/xroot-$UID-all-certification.log
-export XRDCERTLOG=$TESTSYS/xroot-$UID-certification.log
-export GSMLOCKFILE=$TESTSYS/xroot-$UID-gsm.lock
-export XRDTESTPID=$TESTSYS/xroot-$UID-pid
-export FAILFILE=$TESTSYS/xroot-$UID-failed
-export TIMEOUTFILE=$TESTSYS/xroot-$UID-timeout
+export XRDALLCERTLOG=$TESTSYS/eos-$UID-all-certification.log
+export XRDCERTLOG=$TESTSYS/eos-$UID-certification.log
+export GSMLOCKFILE=$TESTSYS/eos-$UID-gsm.lock
+export XRDTESTPID=$TESTSYS/eos-$UID-pid
+export FAILFILE=$TESTSYS/eos-$UID-failed
+export TIMEOUTFILE=$TESTSYS/eos-$UID-timeout
 
 export TESTSYSFILE1K=$TESTSYS/file.1K
 export TESTSYSFILE1M=$TESTSYS/file.1M
@@ -38,9 +42,9 @@ yes | dd of=$TESTSYSFILE1M bs=1k count=1000
 
 . /etc/rc.d/init.d/functions
 echo "" > $XRDALLCERTLOG
-rm -f $FAILFILE
-rm -f $TIMEOUTFILE
-
+rm -f $FAILFILE 2>/dev/null
+rm -f $TIMEOUTFILE 2>/dev/null
+rm -f $XRDCERTLOG 2>/dev/null
 kill_child_processes() {
     pid=$(bash -c 'echo $PPID');
     if [ $1 -gt 0 ]; then
@@ -96,11 +100,11 @@ logoutput () {
 }
 ################################################################################################################
 upload () {
-    echo xrdcp -np -v -f $1 root://$REDIRECTOR/$2 -OD$3 >& /tmp/xroot-$UID-certification.log ;$XROOTSYS/bin/xrdcp -f $1 root://$REDIRECTOR/$2 -OD$3 >> $XRDCERTLOG 2>&1
+    echo xrdcp -np -v -f $1 root://$REDIRECTOR/$2 -OD$3 >& /tmp/eos-$UID-certification.log ;$XROOTSYS/bin/xrdcp -f $1 root://$REDIRECTOR/$2 -OD$3 >> $XRDCERTLOG 2>&1
 }
 ################################################################################################################
 download () {
-    echo xrdcp -np -v -f root://$REDIRECTOR/$2 $1 -OS$3 >& /tmp/xroot-$UID-certification.log ;$XROOTSYS/bin/xrdcp -f root://$REDIRECTOR/$2 $1 -OS$3 >> $XRDCERTLOG 2>&1
+    echo xrdcp -np -v -f root://$REDIRECTOR/$2 $1 -OS$3 >& /tmp/eos-$UID-certification.log ;$XROOTSYS/bin/xrdcp -f root://$REDIRECTOR/$2 $1 -OS$3 >> $XRDCERTLOG 2>&1
 }
 ################################################################################################################
 timeout() {
@@ -109,11 +113,11 @@ timeout() {
 }
 
 meta() {
-    echo xrd $REDIRECTOR $1 $2\?$3 >& /tmp/xroot-$UID-certification.log ; $XROOTSYS/bin/xrd $REDIRECTOR $1 $2\?$3 >> $XRDCERTLOG 2>&1
+    echo xrd $REDIRECTOR $1 $2\?$3 >& /tmp/eos-$UID-certification.log ; $XROOTSYS/bin/xrd $REDIRECTOR $1 $2\?$3 >> $XRDCERTLOG 2>&1
 }
 
 eos() {
-    echo eos -b $EOSROLE root://$REDIRECTOR $* >& /tmp/xroot-$UID-certification.log; eval $XROOTSYS/bin/eos -b $EOSROLE root://$REDIRECTOR $* >> $XRDCERTLOG 2>&1
+    echo eos -b $EOSROLE root://$REDIRECTOR $* >& /tmp/eos-$UID-certification.log; eval $XROOTSYS/bin/eos -b $EOSROLE root://$REDIRECTOR $* >> $XRDCERTLOG 2>&1
 }
 
 ################################################################################################################
@@ -192,7 +196,11 @@ runtest "### Rem      " unix 1 "" eos rm    "/eos/$INSTANCETEST/test/instancetes
 runtest "### Rm       " unix 0 "" eos rm    "/eos/$INSTANCETEST/test/instancetest/passwd"
 runtest "### FileInfo " unix 1 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/passwd.1"
 runtest "### Stat     " unix 0 "" meta stat "/eos/$INSTANCETEST/test/instancetest/passwd"
-
+runtest "### Whoami   " unix 0 "" eos "whoami | grep authz:unix | grep uid=0"
+runtest "### Who      " unix 0 "" eos "who | grep root"
+runtest "### Version  " unix 0 "" eos "version | grep EOS_INSTANCE"
+runtest "### Version  " unix 0 "" eos "version | grep EOS_CLIENT_VERSION"
+runtest "### Version  " unix 0 "" eos "version | grep EOS_SERVER_VERSION"
 ################################################################################################################
 # FINAL CLEANUP #
 runtest "### Cleanup  " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/instancetest/"
