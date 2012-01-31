@@ -125,6 +125,7 @@ protected:
   XrdOucString fstPath;
   CheckSum*    fstBlockXS;
   off_t        bookingsize;
+  off_t        targetsize;
   bool         viaDelete;
 
   unsigned long long fstBlockSize;

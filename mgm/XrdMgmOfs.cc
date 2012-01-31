@@ -981,6 +981,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   }
 
   unsigned long long bookingsize; // the size which will be reserved with a placement of one replica for that file
+  unsigned long long targetsize = 0;
 
   if (attrmap.count("sys.forced.bookingsize")) {
     // we allow only a system attribute not to get fooled by a user
@@ -989,7 +990,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     if (attrmap.count("user.forced.bookingsize")) {
       bookingsize = strtoull(attrmap["user.forced.bookingsize"].c_str(),0,10);
     } else {
-      bookingsize = 1024*1024ll; // 1M as default
+      bookingsize = 1024ll; // 1k as default
       if (openOpaque->Get("eos.bookingsize")) {
         bookingsize = strtoull(openOpaque->Get("eos.bookingsize"),0,10);
       } else {
@@ -998,6 +999,14 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
         }
       }
     }
+  }
+
+  if (openOpaque->Get("oss.asize")) {
+    targetsize = strtoull(openOpaque->Get("oss.asize"),0,10);
+  }
+
+  if (openOpaque->Get("eos.targetsize")) {
+    targetsize = strtoull(openOpaque->Get("eos.targetsize"),0,10);
   }
 
   eos::mgm::FileSystem* filesystem = 0;
@@ -1176,10 +1185,15 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   newlayoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::GetLayoutType(layoutId), eos::common::LayoutId::GetChecksum(layoutId), (int)selectedfs.size(), eos::common::LayoutId::GetBlocksizeType(layoutId), eos::common::LayoutId::GetBlockChecksum(layoutId));
   capability += "&mgm.lid=";    
   capability += (int)newlayoutId;
+  // space to be prebooked/allocated
   capability += "&mgm.bookingsize=";
-
   capability += eos::common::StringConversion::GetSizeString(sizestring,bookingsize);
 
+  // expected size of the target file on close
+  if (targetsize) {
+    capability += "&mgm.targetsize=";
+    capability += eos::common::StringConversion::GetSizeString(sizestring, targetsize);
+  }
   
   if ( eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kPlain ) {
     capability += "&mgm.fsid="; capability += (int)filesystem->GetId();

@@ -497,8 +497,10 @@ XrdFstOfsFile::open(const char                *path,
   const char* scid=0;
   const char* smanager=0;
   const char* sbookingsize=0;
+  const char* stargetsize=0;
 
   bookingsize = 0;
+  targetsize = 0;
 
   fileid=0;
   fsid=0;
@@ -604,7 +606,10 @@ XrdFstOfsFile::open(const char                *path,
     if (!(sbookingsize=capOpaque->Get("mgm.bookingsize"))) {
       return gOFS.Emsg(epname,error, EINVAL,"open - no booking size in capability",path);
     } else {
-      bookingsize = strtoull(capOpaque->Get("mgm.bookingsize"),0,0); 
+      bookingsize = strtoull(capOpaque->Get("mgm.bookingsize"),0,10); 
+    }
+    if ((stargetsize=capOpaque->Get("mgm.targetsize"))) {
+      targetsize = strtoull(capOpaque->Get("mgm.targetsize"),0,10);
     }
   }
 
@@ -1002,7 +1007,8 @@ XrdFstOfsFile::close()
   EPNAME("close");
   int rc = 0;
   bool checksumerror=false;
-  
+  bool targetsizeerror=false;
+
   // -------------------------------------------------------------------------------------------------------
   // we enter the close logic only once since there can be an explicit close or a close via the destructor
   // -------------------------------------------------------------------------------------------------------
@@ -1078,10 +1084,12 @@ XrdFstOfsFile::close()
       // -------------------------------------------------------------------------------------------------------
       // call checksum verification
       checksumerror = verifychecksum();
+      targetsizeerror = (targetsize)?(targetsize!=maxOffsetWritten):false;
 
-      if (isCreation && checksumerror) {
+      if (isCreation && (checksumerror||targetsizeerror)) {
 	// -------------------------------------------------------------------------------------------------------
 	// we have a checksum error if the checksum was preset and does not match!
+	// we have a target size error, if the target size was preset and does not match!
 	// -------------------------------------------------------------------------------------------------------
 	// set the file to be deleted
 	// -------------------------------------------------------------------------------------------------------
