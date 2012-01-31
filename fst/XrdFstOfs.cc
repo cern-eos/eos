@@ -1084,7 +1084,7 @@ XrdFstOfsFile::close()
       // -------------------------------------------------------------------------------------------------------
       // call checksum verification
       checksumerror = verifychecksum();
-      targetsizeerror = (targetsize)?(targetsize!=maxOffsetWritten):false;
+      targetsizeerror = (targetsize)?(targetsize!=(off_t)maxOffsetWritten):false;
 
       if (isCreation && (checksumerror||targetsizeerror)) {
 	// -------------------------------------------------------------------------------------------------------

@@ -142,7 +142,57 @@ com_node (char* arg1) {
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
-  
+
+  if ( subcommand == "register" ) {
+    XrdOucString nodename = subtokenizer.GetToken();
+    XrdOucString path2register = subtokenizer.GetToken();
+    XrdOucString space2register = subtokenizer.GetToken();
+    XrdOucString flag1 = subtokenizer.GetToken();
+    XrdOucString flag2 = subtokenizer.GetToken();
+    bool forceflag=false;
+    bool rootflag=false;
+
+    if (flag1.length()) {
+      if (flag1 == "--force") {
+	forceflag = true;
+      } else {
+	if (flag1 == "--root") {
+	  rootflag = true;
+	} else {
+	  goto com_node_usage;
+	}
+      }
+      if (flag2.length()) {
+	if (flag2 == "--force") {
+	  forceflag = true;
+	} else {
+	  if (flag2 == "--root") {
+	    rootflag = true;
+	  } else {
+	    goto com_node_usage;
+	  }
+	}
+      }
+    }
+      
+    if ( (!nodename.length()) || (!path2register.length()) || (!space2register.length()) ) {
+      goto com_node_usage;
+    }
+
+    XrdOucString in = "mgm.cmd=node&mgm.subcmd=register&mgm.node.name=";in+=nodename;
+    in += "&mgm.node.path2register=";  in += path2register;
+    in += "&mgm.node.space2register="; in += space2register;
+
+    if (forceflag) {
+      in += "&mgm.node.force=true";
+    } 
+
+    if (rootflag) {
+      in += "&mgm.node.root=true";
+    }
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
   
   if (printusage ||  (!ok))
     goto com_node_usage;
@@ -171,5 +221,11 @@ com_node (char* arg1) {
   fprintf(stdout,"       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node (see help of 'fs config' for details)\n");
   fprintf(stdout,"       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
   fprintf(stdout,"       node rm  <queue-name>|<host:port>                        : remove a node\n");
+  fprintf(stdout,"       node register <host:port|*> <path2register> <space2register> [--force] [--root]\n");
+  fprintf(stdout,"                                                                : register filesystems on node <host:port>\n");
+  fprintf(stdout,"                                                                  <path2register> is used as match for the filesystems to register e.g. /data matches filesystems /data01 /data02 etc. ... /data/ registers all subdirectories in /data/\n");
+  fprintf(stdout,"                                                                  <space2register> is formed as <space>:<n> where <space> is the space name and <n> must be equal to the number of filesystems which are matched by <path2register> e.g. data:4 or spare:22 ...\n");
+  fprintf(stdout,"                                                                --force : removes any existing filesystem label and re-registers\n");
+  fprintf(stdout,"                                                                --root  : allows to register paths on the root partition\n");
   return (0);
 }

@@ -150,6 +150,7 @@ public:
   static         int GetConfigStatusFromString(const char* ss);
   static  fsactive_t GetActiveStatusFromString(const char* ss);
   static const char* GetAutoBootRequestString();
+  static const char* GetRegisterRequestString();
 
   //------------------------------------------------------------------------
   //! Cache Members

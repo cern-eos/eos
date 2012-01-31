@@ -265,6 +265,13 @@ FileSystem::GetAutoBootRequestString()
 }
 
 /*----------------------------------------------------------------------------*/
+const char*
+FileSystem::GetRegisterRequestString() 
+{
+  return "mgm.cmd=register";
+}
+
+/*----------------------------------------------------------------------------*/
 void
 FileSystem::CreateConfig(std::string &key, std::string &val)
 {
