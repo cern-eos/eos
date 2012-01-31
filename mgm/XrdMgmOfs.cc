@@ -4515,7 +4515,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       XrdOucString sfsid       = env.Get("mgm.target.fsid");
       XrdOucString sfreebytes  = env.Get("mgm.target.freebytes");
       char* alogid             = env.Get("mgm.logid");
-      char* nosubmit           = env.Get("mgm.nosubmit");
+      char* simulate           = env.Get("mgm.simulate"); // used to test the routing
 
       // static map with iterator position for the next group scheduling and it's mutex
       static std::map<std::string, size_t> sGroupCycle;
@@ -4697,8 +4697,10 @@ XrdMgmOfs::FSctl(const int               cmd,
 	      
 	      if (fmd) {
 		if ((size>0) && (size < freebytes)) {
-		  		  // this file fits, let's return the capability to transfer it 
-		  sScheduledFid[fid] = time(NULL) + 3600;
+		  if (!simulate) {
+		    // this file fits, let's return the capability to transfer it 
+		    sScheduledFid[fid] = time(NULL) + 3600;
+		  }
 
 		  // we can schedule fid from source => target_it
 		  eos_thread_info("subcmd=scheduling fid=%llx source_fsid=%u target_fsid=%u", fid, source_fsid, target_fsid);
@@ -4781,7 +4783,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 
 		    eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
 		    
-		    if (!nosubmit) {
+		    if (!simulate) {
 		      if (target_fs->GetBalanceQueue()->Add(txjob)) {
 			eos_thread_info("cmd=queued fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
 			eos_thread_debug("job=%s", fullcapability.c_str());
@@ -4831,6 +4833,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       XrdOucString sfsid       = env.Get("mgm.target.fsid");
       XrdOucString sfreebytes  = env.Get("mgm.target.freebytes");
       char* alogid             = env.Get("mgm.logid");
+      char* simulate           = env.Get("mgm.simulate"); // used to test the routing
 
       // static map with iterator position for the next group scheduling and it's mutex
       static std::map<std::string, size_t> sGroupCycle;
@@ -5062,8 +5065,10 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  }
 		  replica_source_fs->SnapShotFileSystem(replica_source_snapshot);
 
-		  // this file fits, let's return the capability to transfer it 
-		  sScheduledFid[fid] = time(NULL) + 3600;
+		  if (!simulate) {
+		    // this file fits, let's return the capability to transfer it 
+		    sScheduledFid[fid] = time(NULL) + 3600;
+		  }
 		  
 		  // we can schedule fid from replica_source => target_it
 		  eos_thread_info("subcmd=scheduling fid=%llx drain_fsid=%u replica_source_fsid=%u target_fsid=%u", fid, source_fsid, locationfs[fsindex], target_fsid);
@@ -5144,10 +5149,12 @@ XrdMgmOfs::FSctl(const int               cmd,
 		    error.setErrInfo(response.length()+1, response.c_str());
 
 		    eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
-		    
-		    if (target_fs->GetDrainQueue()->Add(txjob)) {
-		      eos_thread_info("cmd=queued fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
-		      eos_thread_debug("job=%s", fullcapability.c_str());
+
+		    if (!simulate) {
+		      if (target_fs->GetDrainQueue()->Add(txjob)) {
+			eos_thread_info("cmd=queued fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
+			eos_thread_debug("job=%s", fullcapability.c_str());
+		      }
 		    }
 
 		    if (txjob) {
