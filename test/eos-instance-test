@@ -7,7 +7,7 @@ export INSTANCETEST="dev"
 export REDIRECTOR=localhost
 export TESTSYS=/tmp/eos-instance-test/
 export GSMLOCKTIME=3600
-export TESTTIMESLICE=60;
+export TESTTIMESLICE=300;
 
 if [ - e /etc/sysconfig/eos-instance-test ];  then
 . /etc/sysconfig/eos-instance-test
@@ -217,6 +217,8 @@ runtest "### Mkdir    " unix 0 "" eos mkdir "-p" "/eos/$INSTANCETEST/test/instan
 runtest "### Rm       " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/instancetest/"
 runtest "### Mkdir    " unix 0 "" eos mkdir "/eos/$INSTANCETEST/test/instancetest/"
 runtest "### Chmod    " unix 0 "" eos chmod "755" "/eos/$INSTANCETEST/test/instancetest/"
+runtest "### Motd     " unix 0 "" eos motd 
+runtest "### Help     " unix 0 "" eos "help | grep \"Display this text\""
 ################################################################################################################
 # Upload,Download,Sat
 ################################################################################################################
@@ -271,10 +273,35 @@ runtest "### Rm       " unix 0 "" eos rm    "/eos/$INSTANCETEST/test/instancetes
 # STRESS
 ################################################################################################################
 runtest "### Chmod    " unix 0 "" eos chmod "777" "/eos/$INSTANCETEST/test/"
-runtest "### Stress W " unix 0 "" stress "-d root://localhost//eos/$INSTANCETEST/test -o wr -f 100 -s 1KB -n stress -c 10"
-runtest "### Find     " unix 0 "" eos find "-f --count /eos/dev/test/ | grep nfiles=1000"
+runtest "### Stress Wp" unix 0 "" stress "-d root://localhost//eos/$INSTANCETEST/test -o wr -f 100 -s 1KB -n stress -c 10 -p"
+runtest "### Stress W " unix 0 "" stress "-d root://localhost//eos/$INSTANCETEST/test -o wr -f 100 -s 1KB -n stress -c 10 "
+runtest "### Find     " unix 0 "" eos find "-f --count /eos/dev/test/ | grep nfiles=2000"
 runtest "### Stress R " unix 0 "" stress "-d root://localhost//eos/$INSTANCETEST/test -o rd -f 100 -s 1KB -n stress -c 10"
-runtest "### Stress R " unix 0 "" stress "-d root://localhost//eos/$INSTANCETEST/test -o rd -f 100 -s 1KB -n stress -c 10 -p"
+runtest "### Stress Rp" unix 0 "" stress "-d root://localhost//eos/$INSTANCETEST/test -o rd -f 100 -s 1KB -n stress -c 10 -p"
+################################################################################################################
+# ATTRIBUTES
+################################################################################################################
+runtest "### Attr Set " unix 0 "" eos attr set default=replica "/eos/$INSTANCETEST/test |grep success | wc -l | grep -w 6"
+runtest "### Attr Ls  " unix 0 "" eos attr ls "/eos/$INSTANCETEST/test | grep sys | wc -l | grep -w 6"
+runtest "### Attr Get " unix 0 "" eos attr get "sys.forced.space /eos/$INSTANCETEST/test  | grep default"
+runtest "### Attr Rm  " unix 0 "" eos attr rm  "sys.forced.blockchecksum /eos/$INSTANCETEST/test"
+runtest "### Attr Rm  " unix 0 "" eos attr rm  "sys.forced.blocksize /eos/$INSTANCETEST/test"
+runtest "### Attr Rm  " unix 0 "" eos attr rm  "sys.forced.checksum /eos/$INSTANCETEST/test"
+runtest "### Attr Rm  " unix 0 "" eos attr rm  "sys.forced.layout /eos/$INSTANCETEST/test"
+runtest "### Attr Rm  " unix 0 "" eos attr rm  "sys.forced.nstripes /eos/$INSTANCETEST/test"
+################################################################################################################
+# NAMESPACE
+################################################################################################################
+runtest "### Cd       " unix 1 "" eos cd /__dont_exists
+runtest "### Cd       " unix 0 "" eos cd /eos/$INSTANCETEST/test
+runtest "### Ls       " unix 1 "" eos ls /__dont_exist 
+runtest "### Ls       " unix 0 "" eos ls "/eos/$INSTANCETEST/test | grep [a-z] | wc -l | grep -w 2"
+runtest "### Ls       " unix 0 "" eos ls -l "/eos/$INSTANCETEST/test | grep ^d| wc -l | grep -w 2"
+runtest "### Ls       " unix 0 "" eos ls -la "/eos/$INSTANCETEST/test | grep ^d| wc -l | grep -w 4"
+runtest "### Find     " unix 0 "" eos "find 2>&1 | grep error"
+runtest "### Find     " unix 0 "" eos find -f "/eos/$INSTANCETEST/test | grep eos | wc -l |grep -w 2000"
+runtest "### Find     " unix 0 "" eos find --count "/eos/$INSTANCETEST/test | grep 2000"
+runtest "### Find     " unix 0 "" eos find -d "/eos/$INSTANCETEST/test | grep eos | wc -l | grep -w 2"
 ################################################################################################################
 # FINAL CLEANUP 
 ################################################################################################################
