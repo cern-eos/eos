@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// File: LayoutPlugins.hh
-// Author: Andreas-Joachim Peters - CERN
+// File: HeaderCRC.cc
+// Author: Elvin-Alin Sindrilaru - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -21,40 +21,56 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_LAYOUTPLUGIN_HH__
-#define __EOSFST_LAYOUTPLUGIN_HH__
+#ifndef __EOSFST_HEADERCRC_HH__
+#define __EOSFST_HEADERCRC_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "common/LayoutId.hh"
+#include <sys/types.h>
+/*----------------------------------------------------------------------------*/
+#include "common/Logging.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
-#include "fst/layout/Layout.hh"
-#include "fst/layout/PlainLayout.hh"
-#include "fst/layout/ReplicaLayout.hh"
-#include "fst/layout/ReplicaParLayout.hh"
-#include "fst/layout/Raid5Layout.hh"
+/*----------------------------------------------------------------------------*/
+#include <XrdPosix/XrdPosixXrootd.hh>
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-class LayoutPlugins {
-public:
-  LayoutPlugins() {};
-  ~LayoutPlugins() {};
+#define HEADER ("_HEADER_RAIDIO_")
 
-  static Layout* GetLayoutObject(XrdFstOfsFile* thisFile, unsigned int layoutid, XrdOucErrInfo *error) {
-    if (eos::common::LayoutId::GetLayoutType(layoutid) == eos::common::LayoutId::kPlain) {
-      return (Layout*)new PlainLayout(thisFile, layoutid, error);
-    }
-    if (eos::common::LayoutId::GetLayoutType(layoutid) == eos::common::LayoutId::kReplica) {
-      return (Layout*)new ReplicaParLayout(thisFile,layoutid, error);
-    }
-    if (eos::common::LayoutId::GetLayoutType(layoutid) == eos::common::LayoutId::kRaid5) {
-      return (Layout*)new Raid5Layout(thisFile,layoutid, error);
-    }
- 
-    return 0;
-  }
+class HeaderCRC : public eos::common::LogId {
+
+private:
+
+  bool valid;
+  char tag[16];
+  long int noBlocks;                           //total number of blocks 
+  size_t sizeLastBlock;                        //size of the last block of data
+  unsigned int idStripe;                       //index of the stripe the header belongs to
+  
+  static const size_t sizeHeader = 4 *1024;   //size of header
+
+public:
+
+  HeaderCRC();  
+  HeaderCRC(long);  
+  ~HeaderCRC();
+
+  int writeToFile(int fd);            
+  bool readFromFile(int fd);         
+  
+  char*        getTag();
+  int          getSize() const;   
+  size_t       getSizeLastBlock() const;
+  long int     getNoBlocks() const;
+  unsigned int getIdStripe() const; 
+  
+  void setNoBlocks(long int nblocks);
+  void setSizeLastBlock(size_t sizelastblock);  
+  void setIdStripe(unsigned int idstripe); 
+
+  bool isValid() const;
+  void setState(bool state);  
 };
 
 EOSFSTNAMESPACE_END

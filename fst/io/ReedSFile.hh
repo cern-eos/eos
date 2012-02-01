@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// File: LayoutPlugins.hh
-// Author: Andreas-Joachim Peters - CERN
+// File: ReedSFile.hh
+// Author: Elvin-Alin Sindrilaru - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -21,40 +21,40 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_LAYOUTPLUGIN_HH__
-#define __EOSFST_LAYOUTPLUGIN_HH__
+#ifndef __EOSFST_REEDSFILE_HH__
+#define __EOSFST_REEDSFILE_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "common/LayoutId.hh"
 #include "fst/Namespace.hh"
-#include "fst/XrdFstOfsFile.hh"
-#include "fst/layout/Layout.hh"
-#include "fst/layout/PlainLayout.hh"
-#include "fst/layout/ReplicaLayout.hh"
-#include "fst/layout/ReplicaParLayout.hh"
-#include "fst/layout/Raid5Layout.hh"
+#include "fst/io/RaidIO.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-class LayoutPlugins {
-public:
-  LayoutPlugins() {};
-  ~LayoutPlugins() {};
+class ReedSFile : public RaidIO
+{
+ public:
 
-  static Layout* GetLayoutObject(XrdFstOfsFile* thisFile, unsigned int layoutid, XrdOucErrInfo *error) {
-    if (eos::common::LayoutId::GetLayoutType(layoutid) == eos::common::LayoutId::kPlain) {
-      return (Layout*)new PlainLayout(thisFile, layoutid, error);
-    }
-    if (eos::common::LayoutId::GetLayoutType(layoutid) == eos::common::LayoutId::kReplica) {
-      return (Layout*)new ReplicaParLayout(thisFile,layoutid, error);
-    }
-    if (eos::common::LayoutId::GetLayoutType(layoutid) == eos::common::LayoutId::kRaid5) {
-      return (Layout*)new Raid5Layout(thisFile,layoutid, error);
-    }
- 
-    return 0;
-  }
+  ReedSFile(std::vector<std::string> stripeurl, int nparitystripes,
+             off_t targetsize = 0, std::string bookingopaque="oss.size");
+
+  virtual int truncate(off_t offset);
+  virtual ~ReedSFile();
+
+ private:
+
+  void computeParity();                        
+  int writeParityToFiles(off_t offsetGroup);
+  
+  virtual bool recoverBlock(char *buffer, off_t offset, size_t length, bool storeRecovery);
+  virtual void addDataBlock(off_t offset, char* buffer, size_t length);
+  virtual void computeDataBlocksParity(off_t offsetGroup);
+  //  virtual int updateParityForGroups(off_t offsetStart, off_t offsetEnd);
+  
+  //methods used for backtracking
+  bool solutionBkt(unsigned int k, unsigned int *indexes, vector<unsigned int> validId);
+  bool validBkt(unsigned int k, unsigned int *indexes, vector<unsigned int> validId);
+  bool backtracking(unsigned int *indexes, vector<unsigned int> validId, unsigned int k);
 };
 
 EOSFSTNAMESPACE_END

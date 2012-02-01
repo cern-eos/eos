@@ -29,9 +29,6 @@ add_library (XrdEosFst MODULE
 	    layout/Raid5Layout.cc
 	    layout/ReplicaLayout.cc
 	    layout/ReplicaParLayout.cc
-	    layout/HeaderCRC.cc
-	    layout/RaidDPLayout.cc
-            layout/ReedSLayout.cc
 	    checksum/Adler.cc
 	    checksum/CheckSum.cc
 	    storage/Storage.cc
@@ -100,6 +97,17 @@ add_executable( eos-raid-recover
 
 add_executable( eosfstcp 
                 txqueue/eosfstcp.cc
+		io/RaidIO.cc
+		io/RaidDpFile.cc
+		io/ReedSFile.cc
+		io/HeaderCRC.cc
+		../common/Logging.cc
+		../common/Attr.cc
+		checksum/Adler.cc
+                checksum/CheckSum.cc
+                ../checksum/crc32c.cc
+                ../checksum/crc32ctables.cc
+		zfec/fec.cc	
 )
 
 add_executable( eos-fst-fsck 
@@ -118,7 +126,7 @@ target_link_libraries ( eos-check-blockxs eosCommon )
 target_link_libraries ( eos-compute-blockxs eosCommon )
 target_link_libraries ( eos-scan-fs eosCommon ) 
 target_link_libraries ( eos-adler32 eosCommon ) 
-target_link_libraries ( eosfstcp XrdPosix ssl )
+target_link_libraries ( eosfstcp XrdPosix ssl uuid )
 target_link_libraries ( eos-fst-fsck XrdClient uuid eosCommon )
 target_link_libraries ( eos-raid-recover eosCommon)
 
