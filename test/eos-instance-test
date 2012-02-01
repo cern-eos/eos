@@ -59,7 +59,14 @@ kill_child_processes() {
 }
 
 kill_processes() {
-    pid=$(bash -c 'echo $PPID');
+    echo
+    echo 	
+    echo "CONTORL-C received ... aborting ..."	
+    echo
+    pid=`cat $XRDTESTPID 2>/dev/null`;	
+    if [ -z "$pid" ]; then
+	    pid=$(bash -c 'echo $PPID');
+    fi
     kill_child_processes $pid;
     exit -1;
 }
@@ -100,11 +107,19 @@ logoutput () {
 }
 ################################################################################################################
 upload () {
-    echo xrdcp -np -v -f $1 root://$REDIRECTOR/$2 -OD$3 >& /tmp/eos-$UID-certification.log ;$XROOTSYS/bin/xrdcp -f $1 root://$REDIRECTOR/$2 -OD$3 >> $XRDCERTLOG 2>&1
+    src=$1
+    dst=$2
+    shift
+    shift
+    echo xrdcp -np -v -f $src root://$REDIRECTOR/$dst $* >& /tmp/eos-$UID-certification.log ;eval $XROOTSYS/bin/xrdcp -f $src root://$REDIRECTOR/$dst $* >> $XRDCERTLOG 2>&1
 }
 ################################################################################################################
 download () {
-    echo xrdcp -np -v -f root://$REDIRECTOR/$2 $1 -OS$3 >& /tmp/eos-$UID-certification.log ;$XROOTSYS/bin/xrdcp -f root://$REDIRECTOR/$2 $1 -OS$3 >> $XRDCERTLOG 2>&1
+    src=$1
+    dst=$2
+    shift
+    shift
+    echo xrdcp -np -v -f root://$REDIRECTOR/$dst $src $* >& /tmp/eos-$UID-certification.log ;eval $XROOTSYS/bin/xrdcp -f root://$REDIRECTOR/$dst $src $* >> $XRDCERTLOG 2>&1
 }
 ################################################################################################################
 timeout() {
@@ -138,6 +153,10 @@ runtest () {
 	echo -n `date +"%x %X"` timeout
 	failure
     else 
+	echo "-------------------------------------------------------------" >> $XRDCERTLOG 2>&1
+	echo "# Test $testcnt: $*" >> $XRDCERTLOG 2>&1		
+	echo "-------------------------------------------------------------" >> $XRDCERTLOG 2>&1
+
 	START=$(date +%s.%N)
 	echo $testcnt | awk '{printf("%04d ",$1);}'
 	echo -n `date +"%x %X"` "$1"
@@ -156,6 +175,7 @@ runtest () {
 	echo
 	if [ $res -eq 0 ] ; then if [ $ret -eq 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
 	if [ $res -eq 1 ] ; then if [ $ret -ne 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
+	if [ $res -eq 2 ] ; then success; ((success++)); fi
 	END=$(date +%s.%N)
 	DIFF=$(echo "$END - $START" | bc)
 	echo "                         in $DIFF seconds"
@@ -174,7 +194,7 @@ echo "==================================================="
 #      <info>                  : describes what you are testing
 #      <auth>                  : 'krb5','gsi','unix','sss' - choose krb5 or X509 authentication [ you have to create both tokens beforehand ]
 #      <env>                   : can be used to set the execution environment env <env> "
-#      <expect>                : 0 or 1 => 0 - you expect the command works , 1 - you expect that the command failes
+#      <expect>                : 0 or 1 => 0 - you expect the command works , 1 - you expect that the command failes, 2 - you run the command but it can fail or not, that is expected
 #      <mode>                  : upload|download|meta|eos|stress : self explaining - meta executes command via xrd shell, eos via eos shell
 #      <srcpath,dstpath>       : is a local '/...' or remote '/eos/...' path
 #      <param>                 : opaque information passed ... '&' has to be escaped !!!!
@@ -184,46 +204,80 @@ echo "==================================================="
 xrdgsiproxy init
 showtoken
 # EXAMPLE TESTS, they are expected to fail                                                                     #
+################################################################################################################
+# Preparation
+################################################################################################################
+runtest "### Access   " unix 2 "" eos "access rm stall r"
+runtest "### Access   " unix 2 "" eos "access rm redirect"
+runtest "### Access   " unix 2 "" eos "access unban user nobody"
 runtest "### Stat     " unix 0 "" meta stat "/eos/$INSTANCETEST/"
+runtest "### Cleanup  " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/stress"
+runtest "### Cleanup  " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/instancetest"
 runtest "### Mkdir    " unix 0 "" eos mkdir "-p" "/eos/$INSTANCETEST/test/instancetest/"
 runtest "### Rm       " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/instancetest/"
 runtest "### Mkdir    " unix 0 "" eos mkdir "/eos/$INSTANCETEST/test/instancetest/"
 runtest "### Chmod    " unix 0 "" eos chmod "755" "/eos/$INSTANCETEST/test/instancetest/"
-runtest "### Upload   " unix 1 "" upload    "/etc/passwd" "/eos/$INSTANCETEST/test/instancetest/passwd" "eos.space=default"
+################################################################################################################
+# Upload,Download,Sat
+################################################################################################################
+runtest "### Upload   " unix 1 "" upload    "/etc/passwd" "/eos/$INSTANCETEST/test/instancetest/passwd" "-ODeos.space=default"
 runtest "### Chmod    " unix 0 "" eos chmod "777" "/eos/$INSTANCETEST/test/instancetest"
-runtest "### Upload   " unix 0 "" upload    "/etc/passwd" "/eos/$INSTANCETEST/test/instancetest/passwd" "eos.space=default"
+runtest "### Upload   " unix 0 "" upload    "/etc/passwd" "/eos/$INSTANCETEST/test/instancetest/passwd" "-ODeos.space=default"
 runtest "### Stat     " unix 0 "" meta stat "/eos/$INSTANCETEST/test/instancetest/passwd"
 runtest "### Stat     " unix 0 "" meta stat "/eos/$INSTANCETEST/test/instancetest/passwd.1"
 runtest "### Download " unix 0 "" download  "/tmp/dumpit" "/eos/$INSTANCETEST/test/instancetest/passwd" 
 runtest "### Download " unix 1 "" download  "/tmp/dumpit" "/eos/$INSTANCETEST/test/instancetest/passwd.1" 
 runtest "### Find     " unix 0 "" eos find "-f --count /eos/dev/test/ | grep nfiles=1"
 runtest "### Rem      " unix 1 "" eos rm    "/eos/$INSTANCETEST/test/instancetest/passwd.1"
-runtest "### Rm       " unix 0 "" eos rm    "/eos/$INSTANCETEST/test/instancetest/passwd"
 runtest "### FileInfo " unix 1 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/passwd.1"
 runtest "### Stat     " unix 0 "" meta stat "/eos/$INSTANCETEST/test/instancetest/passwd"
 runtest "### Whoami   " unix 0 "" eos "whoami | grep authz:unix | grep uid=0"
 runtest "### Who      " unix 0 "" eos "who | grep root"
+################################################################################################################
+# VERSION
+################################################################################################################
 runtest "### Version  " unix 0 "" eos "version | grep EOS_INSTANCE"
 runtest "### Version  " unix 0 "" eos "version | grep EOS_CLIENT_VERSION"
 runtest "### Version  " unix 0 "" eos "version | grep EOS_SERVER_VERSION"
+################################################################################################################
+# ACCESS BAN
+################################################################################################################
 runtest "### Access   " unix 0 "" eos "access ban user nobody"
+# takes long
+#runtest "### Download " unix 0 "" download  "/tmp/dumpit" "/eos/$INSTANCETEST/test/instancetest/passwd"
+#runtest "### Download " unix 1 "" download  "/tmp/dumpit" "/eos/$INSTANCETEST/test/instancetest/passwd" "-OSeos.ruid=99" "-DITransactionTimeout 1"
 runtest "### Access   " unix 0 "" eos "access ls | grep nobody"
 runtest "### Access   " unix 0 "" eos "access unban user nobody"
 runtest "### Access   " unix 1 "" eos "access ls | grep nobody"
-runtest "### Access   " unix 0 "" eos "access set stall 10 r"
-runtest "### Access   " unix 0 "" eos "access ls | grep \"r:\* => 10\""
+################################################################################################################
+# ACCESS STALL
+################################################################################################################
+runtest "### Access   " unix 0 "" eos "access set stall 1 r"
+runtest "### Download " unix 0 "" download  "/tmp/dumpit" "/eos/$INSTANCETEST/test/instancetest/passwd"
+runtest "### Download " unix 1 "" download  "/tmp/dumpit" "/eos/$INSTANCETEST/test/instancetest/passwd" "-OSeos.ruid=99" "-DITransactionTimeout 1"
+runtest "### Access   " unix 0 "" eos "access ls | grep \"r:\* => 1\""
 runtest "### Access   " unix 0 "" eos "access rm stall r"
-runtest "### Access   " unix 1 "" eos "access ls | grep \"r:\* => 10\""
-runtest "### Access   " unix 0 "" eos "access set redirect foo"
+runtest "### Access   " unix 1 "" eos "access ls | grep \"r:\* => 1\""
+################################################################################################################
+# ACCESS REDIRECT
+################################################################################################################
+runtest "### Access   " unix 0 "" eos "access set redirect foo.senf"
+runtest "### Download " unix 1 "" download  "/tmp/dumpit" "/eos/$INSTANCETEST/test/instancetest/passwd" "-DIFirstConnectTimeout 2 -DIConnectTimeout 2 -DIReconnectWait 1 -DIMaxRedirectCnt 1"
 runtest "### Access   " unix 0 "" eos "access ls | grep foo"
 runtest "### Access   " unix 0 "" eos "access rm redirect"
 runtest "### Access   " unix 1 "" eos "access ls | grep foo"
+runtest "### Rm       " unix 0 "" eos rm    "/eos/$INSTANCETEST/test/instancetest/passwd"
+################################################################################################################
+# STRESS
+################################################################################################################
 runtest "### Chmod    " unix 0 "" eos chmod "777" "/eos/$INSTANCETEST/test/"
 runtest "### Stress W " unix 0 "" stress "-d root://localhost//eos/$INSTANCETEST/test -o wr -f 100 -s 1KB -n stress -c 10"
 runtest "### Find     " unix 0 "" eos find "-f --count /eos/dev/test/ | grep nfiles=1000"
 runtest "### Stress R " unix 0 "" stress "-d root://localhost//eos/$INSTANCETEST/test -o rd -f 100 -s 1KB -n stress -c 10"
+runtest "### Stress R " unix 0 "" stress "-d root://localhost//eos/$INSTANCETEST/test -o rd -f 100 -s 1KB -n stress -c 10 -p"
 ################################################################################################################
-# FINAL CLEANUP #
+# FINAL CLEANUP 
+################################################################################################################
 runtest "### Cleanup  " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/stress"
 runtest "### Cleanup  " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/instancetest"
 ################################################################################################################
