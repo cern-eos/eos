@@ -33,10 +33,14 @@ echo "####################################"
 echo "### Creating Test Pattern File 1K"
 echo "####################################"
 yes | dd of=$TESTSYSFILE1K bs=1k count=1
+CKS1K=`eos-adler32 $TESTSYSFILE1K | awk '{print $4'} | sed s/adler32=//`
+echo "adler32 (1k) = $CKS1K"
 echo "####################################"
 echo "### Creating Test Pattern File 1M"
 echo "####################################"
 yes | dd of=$TESTSYSFILE1M bs=1k count=1000
+CKS1M=`eos-adler32 $TESTSYSFILE1M | awk '{print $4'} | sed s/adler32=//`
+echo "adler32 (1M) = $CKS1M"
 ################################################################################################################
 
 
@@ -139,6 +143,10 @@ stress() {
     echo xrdstress $* >& /tmp/eos-$UID-certification.log; eval xrdstress $* >> $XRDCERTLOG 2>&1
 }
 
+abort() {
+    echo xrdabort root://$REDIRECTOR/$1 >& /tmp/eos-$UID-certification.log; eval xrdabort root://$REDIRECTOR/$1 >> $XRDCERTLOG 2>&1
+}
+
 ################################################################################################################
 testout () {
     echo Failed: $failed Success: $success
@@ -195,7 +203,7 @@ echo "==================================================="
 #      <auth>                  : 'krb5','gsi','unix','sss' - choose krb5 or X509 authentication [ you have to create both tokens beforehand ]
 #      <env>                   : can be used to set the execution environment env <env> "
 #      <expect>                : 0 or 1 => 0 - you expect the command works , 1 - you expect that the command failes, 2 - you run the command but it can fail or not, that is expected
-#      <mode>                  : upload|download|meta|eos|stress : self explaining - meta executes command via xrd shell, eos via eos shell
+#      <mode>                  : upload|download|meta|eos|stress|abort : self explaining - meta executes command via xrd shell, eos via eos shell, stress runs xrdstress, abort runs xrdabort
 #      <srcpath,dstpath>       : is a local '/...' or remote '/eos/...' path
 #      <param>                 : opaque information passed ... '&' has to be escaped !!!!
 ################################################################################################################
@@ -211,8 +219,8 @@ runtest "### Access   " unix 2 "" eos "access rm stall r"
 runtest "### Access   " unix 2 "" eos "access rm redirect"
 runtest "### Access   " unix 2 "" eos "access unban user nobody"
 runtest "### Stat     " unix 0 "" meta stat "/eos/$INSTANCETEST/"
-runtest "### Cleanup  " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/stress"
-runtest "### Cleanup  " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/instancetest"
+runtest "### Cleanup  " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/instancetest/"
+runtest "### Cleanup  " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/stress/"
 runtest "### Mkdir    " unix 0 "" eos mkdir "-p" "/eos/$INSTANCETEST/test/instancetest/"
 runtest "### Rm       " unix 0 "" eos rm "-r" "/eos/$INSTANCETEST/test/instancetest/"
 runtest "### Mkdir    " unix 0 "" eos mkdir "/eos/$INSTANCETEST/test/instancetest/"
@@ -220,7 +228,7 @@ runtest "### Chmod    " unix 0 "" eos chmod "755" "/eos/$INSTANCETEST/test/insta
 runtest "### Motd     " unix 0 "" eos motd 
 runtest "### Help     " unix 0 "" eos "help | grep \"Display this text\""
 ################################################################################################################
-# Upload,Download,Sat
+# Upload,Download,Stat
 ################################################################################################################
 runtest "### Upload   " unix 1 "" upload    "/etc/passwd" "/eos/$INSTANCETEST/test/instancetest/passwd" "-ODeos.space=default"
 runtest "### Chmod    " unix 0 "" eos chmod "777" "/eos/$INSTANCETEST/test/instancetest"
@@ -235,6 +243,18 @@ runtest "### FileInfo " unix 1 "" eos fileinfo "/eos/$INSTANCETEST/test/instance
 runtest "### Stat     " unix 0 "" meta stat "/eos/$INSTANCETEST/test/instancetest/passwd"
 runtest "### Whoami   " unix 0 "" eos "whoami | grep authz:unix | grep uid=0"
 runtest "### Who      " unix 0 "" eos "who | grep root"
+runtest "### Abort    " unix 1 "" abort /eos/$INSTANCETEST/test/instancetest/abort
+runtest "### FileInfo " unix 1 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/abort"
+runtest "### Attr     " unix 0 "" eos attr set sys.forced.checksum=adler /eos/$INSTANCETEST/test/instancetest/
+runtest "### UploadCks" unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k" "-ODeos.checksum=$CKS1K"
+runtest "### FileInfo " unix 0 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k -m | grep nrep=1"
+runtest "### UploadCks" unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
+runtest "### FileInfo " unix 0 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k -m | grep nrep=0"
+runtest "### Rem      " unix 0 "" eos rm    "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k"
+runtest "### UploadCks" unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
+runtest "### FileInfo " unix 0 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k -m | grep nrep=0"
+runtest "### Rem      " unix 0 "" eos rm    "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k"
+runtest "### Attr     " unix 0 "" eos attr rm sys.forced.checksum /eos/$INSTANCETEST/test/instancetest/
 ################################################################################################################
 # VERSION
 ################################################################################################################

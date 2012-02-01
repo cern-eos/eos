@@ -31,10 +31,16 @@ add_executable (xrdstress.exe
  	        XrdStress.cc
 )
 
+add_executable (xrdcpabort
+ 	        XrdCpAbort.cc
+)
+
 target_link_libraries(xrdstress.exe XrdPosix uuid)
+target_link_libraries(xrdcpabort XrdPosix)
+
 set_target_properties ( xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x" )
 
-INSTALL_PROGRAMS( /sbin FILES xrdstress.exe )
+INSTALL_PROGRAMS( /sbin FILES xrdstress.exe xrdcpabort )
 
 INSTALL ( FILES xrdstress DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ PERMISSIONS OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
 INSTALL ( FILES eos-instance-test DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ PERMISSIONS OWNER_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
