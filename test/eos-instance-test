@@ -176,10 +176,10 @@ runtest () {
 	shift
 	shift
 	shift
-	if [ $auth = "krb5" ] ; then ( export X509_USER_CERT=/tmp/illegal X509_USER_KEY=/tmp/illegal $renv; $* ) ; ret=$?; fi
-	if [ $auth = "gsi"  ] ; then ( export KRB5CCNAME=/tmp/illegal                                $renv; $* ) ; ret=$?; fi
-	if [ $auth = "unix" ] ; then ( export XrdSecPROTOCOL=unix                                    $renv; $* ) ; ret=$?; fi
-	if [ $auth = "sss"  ] ; then ( export XrdSecPROTOCOL=sss                                     $renv; $* ) ; ret=$?; fi
+	if [ $auth = "krb5" ] ; then ( eval export X509_USER_CERT=/tmp/illegal X509_USER_KEY=/tmp/illegal $renv; $* ) ; ret=$?; fi
+	if [ $auth = "gsi"  ] ; then ( eval export KRB5CCNAME=/tmp/illegal                                $renv; $* ) ; ret=$?; fi
+	if [ $auth = "unix" ] ; then ( eval export XrdSecPROTOCOL=unix                                    $renv; $* ) ; ret=$?; fi
+	if [ $auth = "sss"  ] ; then ( eval export XrdSecPROTOCOL=sss                                     $renv; $* ) ; ret=$?; fi
 	echo
 	if [ $res -eq 0 ] ; then if [ $ret -eq 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
 	if [ $res -eq 1 ] ; then if [ $ret -ne 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
@@ -327,6 +327,28 @@ runtest "### Find     " unix 0 "" eos "find 2>&1 | grep error"
 runtest "### Find     " unix 0 "" eos find -f "/eos/$INSTANCETEST/test | grep eos | wc -l |grep -w 2000"
 runtest "### Find     " unix 0 "" eos find --count "/eos/$INSTANCETEST/test | grep 2000"
 runtest "### Find     " unix 0 "" eos find -d "/eos/$INSTANCETEST/test | grep eos | wc -l | grep -w 2"
+runtest "### Chmod    " unix 0 "" eos chmod 700 /eos/$INSTANCETEST/test/instancetest/
+runtest "### Ls       " unix 1 "EOSROLE='-r 99 99'" eos ls /eos/$INSTANCETEST/test/instancetest/
+runtest "### Ls       " unix 0 "" eos ls /eos/$INSTANCETEST/test/instancetest/
+runtest "### Attr     " unix 0 "" eos attr set sys.acl=u:nobody:rx /eos/$INSTANCETEST/test/instancetest/
+runtest "### Ls       " unix 0 "EOSROLE='-r 99 99'" eos ls /eos/$INSTANCETEST/test/instancetest/
+runtest "### Upload   " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$INSTANCETEST/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
+runtest "### Attr     " unix 0 "" eos attr set sys.acl=u:nobody:rwox /eos/$INSTANCETEST/test/instancetest/
+runtest "### Upload   " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$INSTANCETEST/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
+runtest "### Upload   " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$INSTANCETEST/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
+runtest "### Rm       " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$INSTANCETEST/test/instancetest/file.1k
+runtest "### Attr     " unix 0 "" eos attr set sys.acl=u:nobody:rwx /eos/$INSTANCETEST/test/instancetest/
+runtest "### Upload   " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$INSTANCETEST/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
+runtest "### Chmod    " unix 0 "" eos chmod 777 /eos/$INSTANCETEST/test/instancetest/
+runtest "### Attr     " unix 0 "" eos attr set sys.acl=u:nobody:rwox /eos/$INSTANCETEST/test/instancetest/
+runtest "### Rm       " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$INSTANCETEST/test/instancetest/file.1k
+runtest "### Attr     " unix 0 "" eos attr set sys.acl=u:nobody:rwx!d /eos/$INSTANCETEST/test/instancetest/
+runtest "### Rm       " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$INSTANCETEST/test/instancetest/file.1k
+runtest "### Attr     " unix 0 "" eos attr set sys.acl=u:nobody:rwx+d,g:nobody:rwx!d /eos/$INSTANCETEST/test/instancetest/
+runtest "### Rm       " unix 0 "EOSROLE='-r 99 99'" eos rm /eos/$INSTANCETEST/test/instancetest/file.1k
+runtest "### Attr     " unix 0 "" eos attr rm sys.acl /eos/$INSTANCETEST/test/instancetest/
+runtest "### Chmod    " unix 0 "" eos chmod 755 /eos/$INSTANCETEST/test/instancetest/
+
 ################################################################################################################
 # FINAL CLEANUP 
 ################################################################################################################
