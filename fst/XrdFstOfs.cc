@@ -1017,6 +1017,18 @@ XrdFstOfsFile::close()
     // -------------------------------------------------------------------------------------------------------  
     // check if the file close comes from a client disconnect e.g. the destructor
     // -------------------------------------------------------------------------------------------------------
+
+    XrdOucString hexstring="";
+    eos::common::FileId::Fid2Hex(fMd->fMd.fid,hexstring);
+    XrdOucErrInfo error;
+    
+    XrdOucString capOpaqueString="/?mgm.pcmd=drop";
+    XrdOucString OpaqueString = "";
+    OpaqueString+="&mgm.fsid="; OpaqueString += (int)fMd->fMd.fsid;
+    OpaqueString+="&mgm.fid=";  OpaqueString += hexstring;
+    XrdOucEnv Opaque(OpaqueString.c_str());
+    capOpaqueString += OpaqueString;
+      
     if (viaDelete && isCreation) {
       // -------------------------------------------------------------------------------------------------------
       // it is closed by the constructor e.g. no proper close 
@@ -1024,17 +1036,7 @@ XrdFstOfsFile::close()
       // -------------------------------------------------------------------------------------------------------
       eos_static_debug("(unpersist): deleting File Id=%llu on Fs=%u", fMd->fMd.fsid, fMd->fMd.fid);
       // delete the file
-      XrdOucString hexstring="";
-      eos::common::FileId::Fid2Hex(fMd->fMd.fid,hexstring);
-      XrdOucErrInfo error;
-      
-      XrdOucString capOpaqueString="/?mgm.pcmd=drop";
-      XrdOucString OpaqueString = "";
-      OpaqueString+="&mgm.fsid="; OpaqueString += (int)fMd->fMd.fsid;
-      OpaqueString+="&mgm.fid=";  OpaqueString += hexstring;
-      XrdOucEnv Opaque(OpaqueString.c_str());
-      capOpaqueString += OpaqueString;
-      
+
       // -------------------------------------------------------------------------------------------------------
       // set the file to be deleted
       // -------------------------------------------------------------------------------------------------------
@@ -1101,6 +1103,14 @@ XrdFstOfsFile::close()
 	  fstBlockXS->UnlinkXSPath();
 	  delete fstBlockXS;
 	  fstBlockXS=0;
+	}
+
+	// -------------------------------------------------------------------------------------------------------
+	// delete the replica in the MGM
+	// -------------------------------------------------------------------------------------------------------
+	int rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueString);
+	if (rc) {
+	  eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",hexstring.c_str(), fMd->fMd.fid, capOpaque->Get("mgm.manager"));
 	}
       }
       
