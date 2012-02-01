@@ -249,12 +249,17 @@ runtest "### Attr     " unix 0 "" eos attr set sys.forced.checksum=adler /eos/$I
 runtest "### UploadCks" unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k" "-ODeos.checksum=$CKS1K"
 runtest "### FileInfo " unix 0 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k -m | grep nrep=1"
 runtest "### UploadCks" unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
-runtest "### FileInfo " unix 0 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k -m | grep nrep=0"
-runtest "### Rem      " unix 0 "" eos rm    "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k"
+runtest "### FileInfo " unix 1 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k -m | grep nrep=0"
+runtest "### Rem      " unix 2 "" eos rm    "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k"
 runtest "### UploadCks" unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
-runtest "### FileInfo " unix 0 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k -m | grep nrep=0"
-runtest "### Rem      " unix 0 "" eos rm    "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k"
+runtest "### FileInfo " unix 1 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k -m | grep nrep=0"
+runtest "### Rem      " unix 2 "" eos rm    "/eos/$INSTANCETEST/test/instancetest/faulty-checksum1k"
 runtest "### Attr     " unix 0 "" eos attr rm sys.forced.checksum /eos/$INSTANCETEST/test/instancetest/
+runtest "### UploadSz " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$INSTANCETEST/test/instancetest/faulty-size1k" "-ODeos.targetsize=1024"
+runtest "### FileInfo " unix 0 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/faulty-size1k -m | grep nrep=1"
+runtest "### UploadSz " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$INSTANCETEST/test/instancetest/faulty-size1k" "-ODeos.targetsize=1000"
+runtest "### FileInfo " unix 1 "" eos fileinfo "/eos/$INSTANCETEST/test/instancetest/faulty-size1k -m | grep nrep=0"
+runtest "### Rem      " unix 2 "" eos rm    "/eos/$INSTANCETEST/test/instancetest/faulty-size1k"
 ################################################################################################################
 # VERSION
 ################################################################################################################
