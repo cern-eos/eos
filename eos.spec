@@ -5,7 +5,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.1.1
-Release: 12
+Release: 13
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -178,6 +178,19 @@ The EOS fuse client.
 /etc/fuse.conf
 /etc/rc.d/init.d/eosd
 %changelog
+
+%post -n eos-fuse
+/sbin/chkconfig --add eosd
+echo Starting conditional EOS services
+sleep 2
+/sbin/service eosd condrestart > /dev/null 2>&1 || :
+%preun -n eos-fuse
+if [ $1 = 0 ]; then
+        echo Stopping EOS services
+        /sbin/service eosd stop > /dev/null 2>&1 
+        /sbin/chkconfig --del eosd
+fi
+
 
 #######################################################################################
 # the srm scripts package 
