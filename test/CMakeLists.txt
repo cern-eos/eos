@@ -38,7 +38,8 @@ add_executable (xrdcpabort
 target_link_libraries(xrdstress.exe XrdPosix uuid)
 target_link_libraries(xrdcpabort XrdPosix)
 
-set_target_properties ( xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x" )
+set_target_properties ( xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x -D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpabort PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 
 INSTALL_PROGRAMS( /sbin FILES xrdstress.exe xrdcpabort )
 
