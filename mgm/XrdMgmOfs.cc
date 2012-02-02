@@ -78,6 +78,10 @@ xrdmgmofs_shutdown(int sig) {
   eos_static_warning("Shutdown:: grab write mutex");
   gOFS->eosViewRWMutex.TimeoutLockWrite();
 
+  eos_static_warning("Shutdown:: set stall rule");
+  eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+  Access::gStallRules[std::string("*")] = 60;
+
   eos_static_warning("Shutdown:: disconnect from broker");
   XrdMqMessaging::gMessageClient.Disconnect();
 
@@ -3590,7 +3594,7 @@ XrdMgmOfs::fsctl(const int               cmd,
     // we don't want to manage writes via global redirection - therefore we mark the files as 'r'
     rType[1] = 'r';//(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
     rType[2] = '\0';
-    sprintf(locResp,"[::%s] ",(char*)gOFS->ManagerId.c_str());
+    sprintf(locResp,"[::%s]:%d ",(char*)gOFS->ManagerIp.c_str(), gOFS->ManagerPort);
     error.setErrInfo(strlen(locResp)+3, (const char **)Resp, 2);
     return SFS_DATA;
   }
@@ -3699,7 +3703,7 @@ XrdMgmOfs::FSctl(const int               cmd,
     // we don't want to manage writes via global redirection - therefore we mark the files as 'r'
     rType[1] = 'r';//(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
     rType[2] = '\0';
-    sprintf(locResp,"[::%s] ",(char*)gOFS->ManagerId.c_str());
+    sprintf(locResp,"[::%s]:%d ",(char*)gOFS->ManagerIp.c_str(), gOFS->ManagerPort);
     error.setErrInfo(strlen(locResp)+3, (const char **)Resp, 2);
     ZTRACE(fsctl,"located at headnode: " << locResp);
     return SFS_DATA;

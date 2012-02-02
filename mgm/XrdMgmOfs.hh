@@ -605,7 +605,8 @@ public:
   void  FsListener();                  //  Listens on filesystem errors
 
   XrdOucString     ManagerId;          // -> manager id in <host>:<port> format
-
+  XrdOucString     ManagerIp;          // -> manager ip in <xxx.yyy.zzz.vvv> format
+  int              ManagerPort;        // -> manager port as number e.g. 1094
 protected:
   char*            HostName;           // -> our hostname as derived in XrdOfs
   char*            HostPref;           // -> our hostname as derived in XrdOfs without domain
