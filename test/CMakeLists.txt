@@ -35,13 +35,37 @@ add_executable (xrdcpabort
  	        XrdCpAbort.cc
 )
 
+add_executable (xrdcprandom
+ 	        XrdCpRandom.cc
+)
+
+add_executable (xrdcpextend
+ 	        XrdCpExtend.cc
+)
+
+add_executable (xrdcpshrink
+ 	        XrdCpShrink.cc
+)
+
+add_executable (xrdcptruncate
+ 	        XrdCpTruncate.cc
+)
+
 target_link_libraries(xrdstress.exe XrdPosix uuid)
 target_link_libraries(xrdcpabort XrdPosix)
+target_link_libraries(xrdcprandom XrdPosix)
+target_link_libraries(xrdcpextend XrdPosix)
+target_link_libraries(xrdcpshrink XrdPosix)
+target_link_libraries(xrdcptruncate XrdPosix)
 
 set_target_properties ( xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x -D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpabort PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcprandom PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpextend PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpshrink PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcptruncate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 
-INSTALL_PROGRAMS( /sbin FILES xrdstress.exe xrdcpabort )
+INSTALL_PROGRAMS( /sbin FILES xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcptruncate )
 
 INSTALL ( FILES xrdstress DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ PERMISSIONS OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
 INSTALL ( FILES eos-instance-test DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ PERMISSIONS OWNER_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
