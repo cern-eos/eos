@@ -259,6 +259,18 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     ManagerId=HostName;
     ManagerId+=":";
     ManagerId+=(int)myPort;
+    unsigned int ip=0;
+    
+    if ( XrdSysDNS::Host2IP(HostName,&ip)) {
+      char buff[1024];
+      XrdSysDNS::IP2String(ip,0,buff, 1024);
+      ManagerIp = buff;
+      ManagerPort = myPort;
+    } else {
+      return Eroute.Emsg("Config", errno, "convert hostname to IP address", HostName);
+    }
+    
+
     Eroute.Say("=====> mgmofs.managerid: ",ManagerId.c_str(),"");
   }
 

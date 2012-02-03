@@ -99,6 +99,13 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eos-fst-fsck
 /usr/sbin/eos-adler32
 /usr/sbin/eos-fst-dump
+/usr/sbin/xrdcpabort
+/usr/sbin/xrdcpextend
+/usr/sbin/xrdcprandom
+/usr/sbin/xrdcpshrink
+/usr/sbin/xrdcptruncate
+/usr/sbin/xrdstress
+/usr/sbin/xrdstress.exe
 /usr/lib64/libXrdEosMgm.so.0.1.1
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so

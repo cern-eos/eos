@@ -52,7 +52,7 @@ bool TransferEngine::Init(const char* connectstring)
 
 /*----------------------------------------------------------------------------*/
 int 
-TransferEngine::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid)
+TransferEngine::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid, time_t exptime, XrdOucString credentials)
 {
   if ( ((!src.beginswith("root://")) &&
 	(!src.beginswith("/eos/"))) ||
@@ -88,7 +88,7 @@ TransferEngine::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate,
   }
   
   XrdOucString submissionhost=vid.tident.c_str();
-  return xDB->Submit(src,dst,rate,streams,group,stdOut,stdErr,vid.uid,vid.gid,submissionhost);
+  return xDB->Submit(src,dst,rate,streams,group,stdOut,stdErr,vid.uid,vid.gid,exptime, credentials, submissionhost);
 }
 
 /*----------------------------------------------------------------------------*/
