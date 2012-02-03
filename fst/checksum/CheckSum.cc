@@ -512,7 +512,7 @@ CheckSum::VerifyXSMap(off_t offset)
   for (int i=0; i < len; i++) {
     //    fprintf(stderr,"Compare %llu %llu\n", ChecksumMap[i+mapoffset], cks[i]);
     if ( (ChecksumMap[i+mapoffset]) && ((ChecksumMap[i+mapoffset] != cks[i]))) {
-      fprintf(stderr,"Failed %llu %llu %llu\n", offset + i, ChecksumMap[i+mapoffset], cks[i]);
+      //      fprintf(stderr,"Failed %llu %llu %llu\n", offset + i, ChecksumMap[i+mapoffset], cks[i]);
       return false;
     }
   }
