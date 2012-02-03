@@ -216,7 +216,7 @@ com_attr (char* arg1) {
   fprintf(stdout,"               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public \n\n");
   fprintf(stdout,"         sys.acl=<acllist>                     : set's an ACL which is honoured for open,rm & rmdir operations\n");
   fprintf(stdout,"               => <acllist> = <rule1>,<rule2>...<ruleN> is a comma separated list of rules\n");
-  fprintf(stdout,"               => <rule> = u:<uid|username>>|g:<gid|groupname>|egroup:<name>:{rwom(!d)(+d)} \n\n");
+  fprintf(stdout,"               => <rule> = u:<uid|username>>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)} \n\n");
   fprintf(stdout,"               e.g.: <acllist=\"u:300:rw,g:z2:rwo:egroup:eos-dev:rwx,u:500:rwm!d\"\n\n");
   fprintf(stdout,"               => user id 300 can read + write\n");
   fprintf(stdout,"               => group z2 can read + write-once (create new files but can't delete)\n");
