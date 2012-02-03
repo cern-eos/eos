@@ -925,15 +925,29 @@ XrdFstOfsFile::verifychecksum()
     }
 
     checkSum->Finalize();
+
+    if (checkSum->NeedsRecalculation() && (!isRW) && fstBlockXS) {
+      // if we didn't have streaming IO, but we have block checksumming, we don't need to rescan the file
+      delete checkSum;
+      checkSum=0;
+      return true;
+      return false;
+    }
     
     if (checkSum->NeedsRecalculation()) {
       unsigned long long scansize=0;
       float scantime = 0; // is ms
-      if (checkSum->ScanFile(fstPath.c_str(), scansize, scantime)) {
-        XrdOucString sizestring;
-        eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %x", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL), checkSum->GetHexChecksum());
+
+      if(!fctl(SFS_FCTL_GETFD,0,error)) {
+	int fd = error.getErrInfo();
+	if (checkSum->ScanFile(fd, scansize, scantime)) {
+	  XrdOucString sizestring;
+	  eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %x", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL), checkSum->GetHexChecksum());
+	} else {
+	  eos_err("Rescanning of checksum failed");
+	}
       } else {
-        eos_err("Rescanning of checksum failed");
+	eos_err("Couldn't get file descriptor");
       }
     } else {
       // this was prefect streaming I/O
@@ -1049,6 +1063,7 @@ XrdFstOfsFile::close()
 	delete fstBlockXS;
 	fstBlockXS=0;
       }
+
       // -------------------------------------------------------------------------------------------------------
       // delete the replica in the MGM
       // -------------------------------------------------------------------------------------------------------
@@ -1415,10 +1430,13 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
 {
   int retc = XrdOfsFile::read(fileOffset,buffer,buffer_size);
 
+  eos_info("read %llu %llu %lu", this, fileOffset, buffer_size);
   if (fstBlockXS) {
+    XrdSysMutexHelper cLock (BlockXsMutex);
     if ((retc>0) && (!fstBlockXS->CheckBlockSum(fileOffset, buffer, retc))) {
       int envlen=0;
       eos_crit("block-xs error offset=%llu len=%llu file=%s",(unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());
+      BlockXsMutex.UnLock();
       return gOFS.Emsg("readofs", error, EIO, "read file - wrong block checksum fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
     }
   }
@@ -1455,6 +1473,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
   int rc = layOut->read(fileOffset,buffer,buffer_size);
 
   if ((rc>0) && (checkSum)) {
+    XrdSysMutexHelper cLock (ChecksumMutex);
     checkSum->Add(buffer, rc, fileOffset);
   }
 
@@ -1523,6 +1542,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset   fileOffset,
   }
 
   if (fstBlockXS) {
+    XrdSysMutexHelper cLock(BlockXsMutex);
     fstBlockXS->AddBlockSum(fileOffset, buffer, buffer_size);
   }
   
@@ -1545,6 +1565,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
 
   // evt. add checksum
   if ((rc >0) && (checkSum)){
+    XrdSysMutexHelper cLock (ChecksumMutex);
     checkSum->Add(buffer, (size_t) rc, (off_t) fileOffset);
   }
 

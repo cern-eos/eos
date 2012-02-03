@@ -34,9 +34,10 @@ int main(int argc, char* argv[]) {
   eos::fst::CheckSum *normalXS;
   normalXS = eos::fst::ChecksumPlugins::GetChecksumObject(eos::common::LayoutId::kAdler);
   if (normalXS) {
+    XrdOucString path = (argv[1])?argv[1]:"";
     unsigned long long scansize;
     float scantime;
-    normalXS->ScanFile(argv[1],scansize,scantime);
+    normalXS->ScanFile(path.c_str(),scansize,scantime);
     fprintf(stdout,"path=%s size=%llu time=%.02f adler32=%s\n", argv[1],scansize,scantime,normalXS->GetHexChecksum());
     exit(0);
   }

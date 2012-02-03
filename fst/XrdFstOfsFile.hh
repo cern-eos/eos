@@ -134,6 +134,8 @@ protected:
   XrdOucString Path;
   XrdOucString localPrefix;
   XrdOucString RedirectManager; // -> host where we bounce back 
+  XrdSysMutex  BlockXsMutex;
+  XrdSysMutex  ChecksumMutex;
 
   unsigned long long fileid; // file id
   unsigned long fsid;        // file system id

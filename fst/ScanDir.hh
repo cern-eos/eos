@@ -75,10 +75,12 @@ public:
     fstLoad(fstload),dirPath(dirpath), testInterval(testinterval), rateBandwidth(ratebandwidth)
   {
     thread = 0;
-    noNoChecksumFiles = 0;
-    noTotalFiles     = 0;
+    noNoChecksumFiles = noScanFiles = noCorruptFiles = noTotalFiles = SkippedFiles = 0;
+    durationScan = 0;
+    totalScanSize = bufferSize = 0;
     buffer = 0;
     bgThread = bgthread;
+
     alignment = pathconf(dirPath.c_str(), _PC_REC_XFER_ALIGN);
 
     if (alignment>0) {

@@ -1853,7 +1853,7 @@ Storage::Drainer()
       nscheduled = 0;
       XrdSysTimer sleeper;
       // go to sleep for a while if there was nothing to do
-      eos_static_info("doing a long sleep of 30s");
+      eos_static_debug("doing a long sleep of 30s");
       sleeper.Snooze(30);
     } else {
       if (nscheduled_new) {

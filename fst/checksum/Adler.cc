@@ -94,7 +94,7 @@ Adler::ValidateAdlerMap()
 {
   unsigned int value;
   adler = adler32(0L, Z_NULL,0);
-  needsRecalculation = false;
+
   IterMap iter1 = map.begin();
   IterMap iter2 = iter1;
   value = iter1->second.adler;
@@ -116,6 +116,8 @@ Adler::ValidateAdlerMap()
     adler = adler32(0L, Z_NULL,0);
     return;
   }
+
+  needsRecalculation = false;
 
   iter2++;
 

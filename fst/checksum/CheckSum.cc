@@ -59,6 +59,20 @@ CheckSum::Compare(const char* refchecksum)
 bool 
 CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scantime, int rate) 
 {
+  int fd = open(path, O_RDONLY);
+  if (fd<0) {
+    return false;
+  }
+  bool scan = ScanFile(fd, scansize, scantime, rate);
+  close(fd);
+  return scan;
+}
+
+/*----------------------------------------------------------------------------*/
+/* scan of a complete file */
+bool 
+CheckSum::ScanFile(int fd, unsigned long long &scansize, float &scantime, int rate) 
+{
   static int buffersize=1024*1024;
   struct timezone tz;
   struct timeval  opentime;
@@ -68,11 +82,6 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
 
   gettimeofday(&opentime,&tz);
 
-  int fd = open(path, O_RDONLY);
-  if (fd<0) {
-    return false;
-  }
-
   Reset();
 
   int nread=0;
@@ -80,7 +89,6 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
 
   char* buffer = (char*) malloc(buffersize);
   if (!buffer) {
-    close(fd);
     return false;
   }
 
@@ -88,7 +96,6 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
     errno = 0;
     nread = read(fd,buffer,buffersize);
     if (nread<0) {
-      close(fd);
       free(buffer);
       return false;
     }
@@ -112,7 +119,6 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
   scansize = (unsigned long long) offset;
 
   Finalize();  
-  close(fd);
   free(buffer);
   return true;
 }
@@ -224,7 +230,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     std::string sBlockSize = sblocksize;
     std::string sBlockCheckSum = Name.c_str();
     if ((!attr->Set(std::string("user.eos.blocksize"),sBlockSize)) || (!attr->Set(std::string("user.eos.blockchecksum"),sBlockCheckSum))) {
-      fprintf(stderr,"CheckSum::OpenMap => cannot set extended attributes errno=%d!\n", errno);
+      //      fprintf(stderr,"CheckSum::OpenMap => cannot set extended attributes errno=%d!\n", errno);
       delete attr;
       close(ChecksumMapFd);
       return false;
@@ -495,15 +501,20 @@ CheckSum::SetXSMap(off_t offset)
 bool 
 CheckSum::VerifyXSMap(off_t offset) 
 {
-  if (!ChangeMap((offset+BlockSize), false))
+  if (!ChangeMap((offset+BlockSize), false)) {
+    fprintf(stderr,"ChangeMap failed\n");
     return false;
+  }
   off_t mapoffset = (offset / BlockSize) * GetCheckSumLen();
-  
+  //  fprintf(stderr,"Verifying %llu %llu\n", offset, mapoffset);
   int len=0;
   const char* cks = GetBinChecksum(len);
   for (int i=0; i < len; i++) {
-    if ( (ChecksumMap[i+mapoffset]) && ((ChecksumMap[i+mapoffset] != cks[i])))
+    //    fprintf(stderr,"Compare %llu %llu\n", ChecksumMap[i+mapoffset], cks[i]);
+    if ( (ChecksumMap[i+mapoffset]) && ((ChecksumMap[i+mapoffset] != cks[i]))) {
+      fprintf(stderr,"Failed %llu %llu %llu\n", offset + i, ChecksumMap[i+mapoffset], cks[i]);
       return false;
+    }
   }
   return true;
 }
