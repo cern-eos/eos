@@ -46,13 +46,13 @@ com_console (char *arg) {
     if (sarg.beginswith("log")) {
       logger = new XrdSysLogger();
       XrdSysError eDest(logger);
-      XrdOucString loggerpath = "/var/log/eos/";
-      loggerpath += "errorlog.eos";
+      XrdOucString loggerpath = "/var/log/eos/mgm/";
+      loggerpath += "error.log";
       logger->Bind(loggerpath.c_str(),0);
     } else {
       if (sarg != "") {
 	fprintf(stderr, "usage: console [log]\n");
-	fprintf(stderr, "                                 log - write a log file into /var/log/eos/errorlog.eos\n");
+	fprintf(stderr, "                                 log - write a log file into /var/log/eos/mgm/error.log\n");
 	exit(-1);
       }
     }
