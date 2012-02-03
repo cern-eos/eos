@@ -191,7 +191,7 @@ public:
 
   void Print();
   XrdAdvisoryMqMessage(const char* description ,const char* queue, bool online, int type) : XrdMqMessage(description, type) { kQueue = queue; kOnline = online;};
-  XrdAdvisoryMqMessage() : XrdMqMessage() {}
+  XrdAdvisoryMqMessage() : XrdMqMessage() { kQueue = ""; kOnline = false;}
   static XrdAdvisoryMqMessage* Create(const char* rawmessage);
 };
 

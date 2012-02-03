@@ -119,7 +119,8 @@ XrdMqOfs::XrdMqOfs(XrdSysError *ep)
   AdvisoryMessages = 0;
   UndeliverableMessages = 0;
   DiscardedMonitoringMessages = 0;
-  
+  BacklogDeferred = NoMessages = QueueBacklogHits = 0;
+
   (void) signal(SIGINT,xrdmqofs_shutdown);
   HostName=0;
   HostPref=0;
