@@ -46,7 +46,7 @@ export EOS_INSTANCE_NAME=eosdev
 export EOS_AUTOLOAD_CONFIG=default
 
 # The EOS broker URL 
-export EOS_BROKER_URL=root://eosdev.cern.ch:1097//eos/
+export EOS_BROKER_URL=root://localhost:1097//eos/
 
 # The fully qualified hostname of MGM master1
 export EOS_MGM_MASTER1=eosdevsrv1.cern.ch
@@ -86,3 +86,28 @@ export EOS_PSS_MGM=$EOS_MGM_ALIAS:1094
 
 # The path which should be proxied (/ for all)
 export EOS_PSS_PATH=/
+
+# ------------------------------------------------------------------
+# Test Configuration
+# ------------------------------------------------------------------
+
+# mail notification for failed tests
+#export EOS_TEST_MAILNOTIFY=apeters@mail.cern.ch
+
+# SMS notification for failed tests
+#export EOS_TEST_GSMNOTIFY="0041764875002@mail2sms.cern.ch"
+
+# Instance name = name of directory at deepness 2 /eos/<instance>/
+#export EOS_TEST_INSTANCE="dev"
+
+# MGM host redirector
+export EOS_TEST_REDIRECTOR=localhost
+
+# local test output directory
+export EOS_TEST_TESTSYS=/tmp/eos-instance-test/
+
+# time to lock re-sending of SMS for consecutively failing tests
+export EOS_TEST_GSMLOCKTIME=3600
+
+# max. time given to the test to finish
+export EOS_TEST_TESTTIMESLICE=300;
