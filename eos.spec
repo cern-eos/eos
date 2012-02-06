@@ -4,8 +4,8 @@
 
 Summary: The EOS project
 Name: eos
-Version: 0.1.1
-Release: 13
+Version: 0.2.0
+Release: 0
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -55,7 +55,6 @@ export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 
 mkdir -p build
 cd build
-cmake ../ -DRELEASE=%{release}
 cmake ../ -DRELEASE=%{release}
 %{__make} %{_smp_mflags} 
 
@@ -155,15 +154,15 @@ The EOS shell client.
 ############################
 # documentation
 %doc %_mandir/man1/eos.1.gz
-%doc %_mandir/man1/eos::fs.1.gz
-%doc %_mandir/man1/eos::access.1.gz
-%doc %_mandir/man1/eos::attr.1.gz
-%doc %_mandir/man1/eos::cd.1.gz
-%doc %_mandir/man1/eos::chown.1.gz
-%doc %_mandir/man1/eos::clear.1.gz
-%doc %_mandir/man1/eos::config.1.gz
-%doc %_mandir/man1/eos::debug.1.gz
-%doc %_mandir/man1/eos::file.1.gz
+%doc %_mandir/man1/eos-fs.1.gz
+%doc %_mandir/man1/eos-access.1.gz
+%doc %_mandir/man1/eos-attr.1.gz
+%doc %_mandir/man1/eos-cd.1.gz
+%doc %_mandir/man1/eos-chown.1.gz
+%doc %_mandir/man1/eos-clear.1.gz
+%doc %_mandir/man1/eos-config.1.gz
+%doc %_mandir/man1/eos-debug.1.gz
+%doc %_mandir/man1/eos-file.1.gz
 
 
 #######################################################################################
