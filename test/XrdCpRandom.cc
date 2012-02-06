@@ -61,7 +61,7 @@ int main (int argc, char* argv[]) {
     off_t offset = (off_t)(100000000.0 * random()/RAND_MAX);
     voff.push_back(offset);
     lmap[offset] = 0;
-    fprintf(stderr,"Chunk %u : %llu\n", (unsigned int) i, (unsigned long long)offset);
+    //    fprintf(stderr,"Chunk %u : %llu\n", (unsigned int) i, (unsigned long long)offset);
   }
   
   std::map<off_t, off_t>::const_iterator it1;
@@ -70,14 +70,14 @@ int main (int argc, char* argv[]) {
   it2++;
   for (it1 = lmap.begin(); (it1 != lmap.end())&&(it2 != lmap.end()) ; it1++) {
     lmap[it1->first] = (it2->first-it1->first);
-    fprintf(stderr,"%llu %llu\n", it1->first,lmap[it1->first]);
+    //    fprintf(stderr,"%llu %llu\n", it1->first,lmap[it1->first]);
     it2++;
   }
   
   
   if (fdWrite>=0) {
     for (size_t i=0; i< 100 ;i++) {
-      fprintf(stderr,"Writing %llu %llu\n", voff[i], lmap[voff[i]]);
+      //      fprintf(stderr,"Writing %llu %llu\n", voff[i], lmap[voff[i]]);
       XrdPosixXrootd::Pwrite(fdWrite, buffer+voff[i], lmap[voff[i]],voff[i]);
     }
   } else {
