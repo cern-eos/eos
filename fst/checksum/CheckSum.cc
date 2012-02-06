@@ -29,6 +29,7 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <sys/mman.h>
+#include <xfs/xfs.h>
 /*----------------------------------------------------------------------------*/
 #include "fst/checksum/Adler.hh"
 #include "fst/checksum/CRC32.hh"
@@ -37,6 +38,7 @@
 #include "fst/checksum/MD5.hh"
 #include "fst/checksum/SHA1.hh"
 #include "common/Path.hh"
+#include "common/Logging.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -238,10 +240,27 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     delete attr;
   }
   
-
   ChecksumMapSize = ((maxfilesize / blocksize)+1) * (GetCheckSumLen());
+  ChecksumMapOpenSize = ChecksumMapSize; // we need this, in case we have to deallocate !
+
   if (isRW) {
-    if (posix_fallocate(ChecksumMapFd, 0, ChecksumMapSize)) {
+    int rc=0;
+    if(platform_test_xfs_fd(ChecksumMapFd)) {
+      // select the fast XFS allocation function if available
+      xfs_flock64_t fl;
+      fl.l_whence= 0;
+      fl.l_start= 0;
+      fl.l_len= (off64_t)ChecksumMapSize;
+      //      rc = xfsctl(NULL, ChecksumMapFd, XFS_IOC_RESVSP64, &fl);
+      rc = 0;
+      if (!rc) {
+	// if successfull truncate to this length
+	rc = ftruncate(ChecksumMapFd, ChecksumMapSize);
+      }
+    } else {
+      rc = posix_fallocate(ChecksumMapFd,0,ChecksumMapSize);
+    }
+    if (rc) {
       close(ChecksumMapFd);
       //      fprintf(stderr,"posix allocate failed\n")
       return false;
@@ -265,7 +284,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
 
     ChecksumMap = (char*)mmap(0, ChecksumMapSize, PROT_READ | PROT_WRITE, MAP_SHARED, ChecksumMapFd, 0);
   }
-
+   
   if (ChecksumMap == MAP_FAILED) {
     close(ChecksumMapFd);
     fprintf(stderr,"Fatal: mmap failed\n");
@@ -305,8 +324,8 @@ CheckSum::ChangeMap(size_t newsize, bool shrink)
   if ((!shrink) && (ChecksumMapSize > newsize))
     return true;
 
-  if ( (!shrink) && ((newsize - ChecksumMapSize) < (128*1024)))
-    newsize = ChecksumMapSize + (128*1024);// to avoid to many truncs/msync's here we increase the desired value by 1M
+  if ( (!shrink) && ((newsize - ChecksumMapSize) < (64*1024)))
+    newsize = ChecksumMapSize + (64*1024);// to avoid to many truncs/msync's here we increase the desired value by 64k
   
   if (!SyncMap()) {
     //    fprintf(stderr,"CheckSum:ChangeMap sync failed\n");
@@ -343,6 +362,21 @@ CheckSum::CloseMap()
 
   if (ChecksumMapFd) {
     if (ChecksumMap) {
+      if (ChecksumMapSize < ChecksumMapOpenSize) {
+	// if the file is smaller than the first assumed map size during OpenMap, we have to deallocate the XFS space!
+	if(platform_test_xfs_fd(ChecksumMapFd)) {
+	  // select the fast XFS deallocation function if available
+	  xfs_flock64_t fl;
+	  fl.l_whence= 0;
+	  fl.l_start= ChecksumMapSize;
+	  fl.l_len= (off64_t)ChecksumMapOpenSize-ChecksumMapSize;
+	  int rc= xfsctl(NULL, ChecksumMapFd, XFS_IOC_UNRESVSP64, &fl);
+	  if (rc) {
+	    fprintf(stderr,"XFS deallocation returned retc=%d", rc);
+	  }
+	} 
+      }
+      
       if (munmap(ChecksumMap, ChecksumMapSize)) {
         close(ChecksumMapFd);
         return false;

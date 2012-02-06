@@ -26,6 +26,8 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOss/XrdOssApi.hh"
 /*----------------------------------------------------------------------------*/
+#include <xfs/xfs.h>
+/*----------------------------------------------------------------------------*/
 
 extern XrdOssSys *XrdOfsOss;
 
@@ -73,8 +75,40 @@ PlainLayout::fallocate(XrdSfsFileOffset length)
   if(ofsFile->fctl(SFS_FCTL_GETFD,0,error)) 
     return -1;
   int fd = error.getErrInfo();
-  if (fd>0)
+
+  if(platform_test_xfs_fd(fd)) {
+    // select the fast XFS allocation function if available
+    xfs_flock64_t fl;
+    fl.l_whence= 0;
+    fl.l_start= 0;
+    fl.l_len= (off64_t)length;
+    return xfsctl(NULL, fd, XFS_IOC_RESVSP64, &fl);
+  } else {
     return posix_fallocate(fd,0,length);
+  }
+  return -1;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+PlainLayout::fdeallocate(XrdSfsFileOffset fromoffset, XrdSfsFileOffset tooffset)
+{
+  XrdOucErrInfo error;
+  if(ofsFile->fctl(SFS_FCTL_GETFD,0,error))
+    return -1;
+  int fd = error.getErrInfo();
+  if (fd>0) {
+    if(platform_test_xfs_fd(fd)) {
+      // select the fast XFS deallocation function if available
+      xfs_flock64_t fl;
+      fl.l_whence= 0;
+      fl.l_start= fromoffset;
+      fl.l_len= (off64_t)tooffset-fromoffset;
+      return xfsctl(NULL, fd, XFS_IOC_UNRESVSP64, &fl);
+    } else {
+      return 0;
+    }
+  }
   return -1;
 }
 

@@ -435,6 +435,17 @@ void* ScanDir::ThreadProc(void)
     noTotalFiles = 0;
     SkippedFiles = 0;
 
+    if (bgThread) {
+      // get a random smearing and avoid that all start at the same time!
+      // run again after 4 hours +- 2 hours
+      size_t sleeper = (4*3600) + ((long int) (( 2*7200.0 * random()/RAND_MAX) ) -  ( (long int) (7200.0) ));
+      for (size_t s=0; s < (sleeper); s++) {
+        if (bgThread)
+          XrdSysThread::CancelPoint();
+        sleep(1);
+      }
+    }
+
     gettimeofday(&tv_start, &tz);
     ScanFiles();
     gettimeofday(&tv_end, &tz);
@@ -447,18 +458,10 @@ void* ScanDir::ThreadProc(void)
       fprintf(stderr,"[ScanDir] Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li nochecksumfiles=%li skippedfiles=%li\n", dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles,noNoChecksumFiles, SkippedFiles);
     }
 
-    if (!bgThread)
-      break;
-    else {
-      // run again after 4 hours
-      for (size_t s=0; s < (4*3600); s++) {
-        if (bgThread)
-          XrdSysThread::CancelPoint();
-        sleep(1);
-      }
-    }
     if (bgThread)
       XrdSysThread::CancelPoint();
+    else 
+      break;
   }  while(1);
   return NULL;
 }

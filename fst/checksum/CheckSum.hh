@@ -45,6 +45,7 @@ protected:
   bool needsRecalculation;
   char* ChecksumMap;
   size_t ChecksumMapSize;
+  size_t ChecksumMapOpenSize;
   int   ChecksumMapFd;
   size_t BlockSize;
 
@@ -55,7 +56,7 @@ protected:
 
 public:
   CheckSum(){Name = "";ChecksumMap = 0;}
-  CheckSum(const char* name){Name = name;needsRecalculation = false;ChecksumMap=0; ChecksumMapSize=0;BlockSize=0;nXSBlocksChecked=0; nXSBlocksWritten=0; nXSBlocksWrittenHoles=0;BlockXSPath="";ChecksumMapFd=-1;}
+  CheckSum(const char* name){Name = name;needsRecalculation = false;ChecksumMap=0; ChecksumMapSize=0;ChecksumMapOpenSize=0;BlockSize=0;nXSBlocksChecked=0; nXSBlocksWritten=0; nXSBlocksWrittenHoles=0;BlockXSPath="";ChecksumMapFd=-1;}
 
   virtual bool Add(const char* buffer, size_t length, off_t offset) = 0;
   virtual void Finalize() {};
