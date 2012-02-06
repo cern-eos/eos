@@ -93,6 +93,9 @@ endif (CLIENT)
 ######################################################################################################################
 set(CMAKE_INSTALL_PREFIX /usr/)
 
+set(SYSCONFDIR "/etc" CACHE PATH "Directory for system configuration files" )
+set(MANDIR "/usr/share/man/man1" CACHE PATH "Directory where man pages get installed" ) 
+
 if (CLIENT)
 add_subdirectory (fuse)
 add_subdirectory (console)
@@ -123,8 +126,6 @@ endif (CLIENT)
 include_directories( ../ /usr/include/xrootd/ /usr/include/ )
 link_directories( /usr/${LIB_INSTALL_DIR}/)
 
-set(SYSCONFDIR "/etc" CACHE PATH "Directory for system configuration files" )
-set(MANDIR "/usr/share/man/man1" CACHE PATH "Directory where man pages get installed" ) 
 
 ######################################################################################################################
 # uninstall target
