@@ -5,7 +5,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.1.1
-Release: 14
+Release: 15
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -98,13 +98,6 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eos-fst-fsck
 /usr/sbin/eos-adler32
 /usr/sbin/eos-fst-dump
-/usr/sbin/xrdcpabort
-/usr/sbin/xrdcpextend
-/usr/sbin/xrdcprandom
-/usr/sbin/xrdcpshrink
-/usr/sbin/xrdcptruncate
-/usr/sbin/xrdstress
-/usr/sbin/xrdstress.exe
 /usr/lib64/libXrdEosMgm.so.0.1.1
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so
@@ -247,6 +240,9 @@ Contains an instance test script and some test executables
 /usr/sbin/eos-instance-test
 /usr/sbin/xrdcpabort
 /usr/sbin/xrdcpextend
+/usr/sbin/xrdcpholes
+/usr/sbin/xrdcpbackward
+/usr/sbin/xrdcpdownloadrandom
 /usr/sbin/xrdcprandom
 /usr/sbin/xrdcpshrink
 /usr/sbin/xrdcptruncate
