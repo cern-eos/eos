@@ -1,4 +1,4 @@
-/var/log/eos/mgm/errors.log {
+/var/log/eos/mgm/error.log {
 	daily
         copytruncate
         create 755 root root
