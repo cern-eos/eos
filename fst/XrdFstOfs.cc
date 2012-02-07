@@ -930,7 +930,6 @@ XrdFstOfsFile::verifychecksum()
       // if we didn't have streaming IO, but we have block checksumming, we don't need to rescan the file
       delete checkSum;
       checkSum=0;
-      return true;
       return false;
     }
     
