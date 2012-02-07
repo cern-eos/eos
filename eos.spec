@@ -230,3 +230,26 @@ Requires: eos-server
 Contains an example keytab file.
 %files -n eos-testkeytab
 %config(noreplace) %attr(-,daemon,daemon) %_sysconfdir/eos.keytab
+
+#######################################################################################
+# the test package 
+#######################################################################################
+%package -n eos-test
+#######################################################################################
+Summary: The EOS test package
+Group: Applications/File
+
+Requires: eos-server
+
+%description -n eos-test
+Contains an instance test script and some test executables
+%files -n eos-test
+/usr/sbin/eos-instance-test
+/usr/sbin/xrdcpabort
+/usr/sbin/xrdcpextend
+/usr/sbin/xrdcprandom
+/usr/sbin/xrdcpshrink
+/usr/sbin/xrdcptruncate
+/usr/sbin/xrdstress
+/usr/sbin/xrdstress.exe
+
