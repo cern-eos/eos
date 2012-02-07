@@ -1,4 +1,4 @@
-# ----------------------------------------------------------------------
+ ----------------------------------------------------------------------
 # File: eos-instance-test
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
@@ -298,7 +298,7 @@ runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
 runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" 
 runtest "### Download  " unix 1 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1" 
-runtest "### Find      " unix 0 "" eos find "-f --count /eos/dev/test/ | grep nfiles=1"
+runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=1"
 runtest "### Rem       " unix 1 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
 runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
 runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
@@ -390,7 +390,7 @@ runtest "### Rm        " unix 0 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Stress Wp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -c 10 -p"
 runtest "### Stress W  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -c 10 "
-runtest "### Find      " unix 0 "" eos find "-f --count /eos/dev/test/ | grep nfiles=2000"
+runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=2000"
 runtest "### Stress R  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -c 10"
 runtest "### Stress Rp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -c 10 -p"
 ################################################################################################################
