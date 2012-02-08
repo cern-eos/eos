@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
 // File: DirCache.cc
-// Author: Elvin Sindrilaru - CERN
+// Author: Elvin-Alin Sindrilaru - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -34,7 +34,6 @@
 #define MAX_CACHE_SIZE 10000
 
 using std::string;
-using std::tr1::hash;
 using google::dense_hash_map;
 
 
@@ -44,20 +43,18 @@ struct eqstr {
   }
 };
 
-
 struct eqllu {
   bool operator()(long long s1, long long s2) const {
     return (s1 == s2);
   }
 };
 
-
 class DirCache;
 class DirEntry;
 class SubDirEntry;
 
-typedef dense_hash_map<long long, DirEntry*, hash<long long>, eqllu>::iterator dir_iterator;
-typedef dense_hash_map<string, SubDirEntry*, hash<string>, eqstr>::iterator subdir_iterator;
+typedef dense_hash_map<long long, DirEntry*, std::tr1::hash<long long>, eqllu>::iterator dir_iterator;
+typedef dense_hash_map<string, SubDirEntry*, std::tr1::hash<string>, eqstr>::iterator subdir_iterator;
 
 DirCache* cache = NULL;
 
@@ -166,7 +163,7 @@ private:
   bool filled_;
   int no_entries_;
   unsigned long long inode_;
-  dense_hash_map<string, SubDirEntry*, hash<string>, eqstr> subdir_hash_; 
+  dense_hash_map<string, SubDirEntry*, std::tr1::hash<string>, eqstr> subdir_hash_; 
 };
 
 
@@ -174,7 +171,7 @@ private:
 class DirCache 
 {
 public:
-  dense_hash_map<long long, DirEntry*, hash<long long> , eqllu> dir_hash_;
+  dense_hash_map<long long, DirEntry*, std::tr1::hash<long long> , eqllu> dir_hash_;
 
   DirCache() 
   {
