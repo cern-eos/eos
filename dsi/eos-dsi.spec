@@ -27,7 +27,7 @@ BuildRequires: autoconf, automake, libtool
 EOS gridftp DSI plugin
 
 %prep
-%setup -n eos-dsi-0.1.1-%{release}
+%setup -n eos-dsi-0.2.0-%{release}
 
 %build
 ./bootstrap.sh
