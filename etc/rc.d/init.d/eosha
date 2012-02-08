@@ -70,6 +70,20 @@ case "$1" in
   status)
         status eosha
         ;;
+  condrestart)	
+	status eosha 2>&1 | grep dead 
+	if [ $? -eq 0 ]; then
+          stop
+	  start
+	  exit 0
+	fi
+	status eosha 2>&1 | grep running
+        if [ $? -eq 0 ]; then
+	  stop
+	  start
+	  exit 0
+	fi
+	;;
   restart|reload|condrestart)
         stop
         start
