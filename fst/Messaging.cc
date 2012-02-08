@@ -87,6 +87,34 @@ Messaging::Process(XrdMqMessage* newmessage)
       rc=0;
     }
   }
+  
+  if (cmd == "register") {
+    eos_notice("registering filesystems");
+    XrdOucString manager = action.Get("mgm.manager");
+    XrdOucString path2register = action.Get("mgm.path2register");
+    XrdOucString space2register = action.Get("mgm.space2register");
+    XrdOucString forceflag = action.Get("mgm.force");
+    XrdOucString rootflag  = action.Get("mgm.root");
+
+    if (path2register.length() && space2register.length()) {
+      XrdOucString sysline ="eosfstregister"; 
+      if (rootflag == "true") {
+	sysline += " -r ";
+      }
+      if (forceflag == "true") {
+	sysline += " --force ";
+      }
+      sysline += manager; sysline += " ";
+      sysline += path2register; sysline += " ";
+      sysline += space2register;
+      sysline += " >& /tmp/eosfstregister.out &";
+      eos_notice("lanched %s", sysline.c_str());
+      int rc = system(sysline.c_str());
+      if (rc) {
+	rc = 0;
+      }
+    }
+  }
 
   if (cmd == "rtlog") {
     gOFS.SendRtLog(newmessage);

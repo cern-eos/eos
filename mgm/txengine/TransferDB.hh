@@ -42,7 +42,7 @@ public:
   virtual ~TransferDB(){};
   virtual bool Init(const char* dbspec="/var/eos/tx/") = 0;
   virtual int Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid) = 0;
-  virtual int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, XrdOucString& submissionhost) = 0;
+  virtual int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString& credentials, XrdOucString& submissionhost) = 0;
 };
 
 EOSMGMNAMESPACE_END

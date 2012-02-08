@@ -423,7 +423,19 @@ void* ScanDir::ThreadProc(void)
 
   if (bgThread)
     XrdSysThread::SetCancelOn();
-  
+
+
+  if (bgThread) {
+    // get a random smearing and avoid that all start at the same time!
+    // start in the range of 0 to 4 hours 
+    size_t sleeper = (4*3600.0 * random()/RAND_MAX);
+    for (size_t s=0; s < (sleeper); s++) {
+      if (bgThread)
+	XrdSysThread::CancelPoint();
+      sleep(1);
+    }
+  }
+
   do {
     struct timezone tz;
     struct timeval tv_start, tv_end;
@@ -453,10 +465,11 @@ void* ScanDir::ThreadProc(void)
       // run again after 4 hours
       for (size_t s=0; s < (4*3600); s++) {
         if (bgThread)
-          XrdSysThread::CancelPoint();
+	  XrdSysThread::CancelPoint();
         sleep(1);
       }
     }
+
     if (bgThread)
       XrdSysThread::CancelPoint();
   }  while(1);

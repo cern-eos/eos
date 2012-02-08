@@ -38,9 +38,10 @@ start() {
         [ -z "${EOS_MGM_MASTER1}" ] && failure && echo "Env EOS_MGM_MASTER1 undefined!" && exit -1;
         [ -z "${EOS_MGM_MASTER2}" ] && failure && echo "Env EOS_MGM_MASTER2 undefined!" && exit -1;
         [ -z "${EOS_MGM_ALIAS}"   ] && failure && echo "Env EOS_MGM_ALIAS undefined!"  && exit -1;
-        
-        echo eosha ${EOS_LOGDIR-/var/log/eos/}/eosha.log ${EOS_MGM_MASTER1} ${EOS_MGM_MASTER2} ${EOS_MGM_ALIAS} ${EOS_MGM_FAILOVERTIME-120}
-        eosha ${EOS_LOGDIR-/var/log/eos/}/eosha.log ${EOS_MGM_MASTER1} ${EOS_MGM_MASTER2} ${EOS_MGM_ALIAS} ${EOS_MGM_FAILOVERTIME-120}
+        mkdir -p ${EOS_LOGDIR-/var/log/eos/}/eosha        	
+	chown daemon:daemon ${EOS_LOGDIR-/var/log/eos/}/eosha        	
+        echo eosha ${EOS_LOGDIR-/var/log/eos/eosha}/eosha/eosha.log ${EOS_MGM_MASTER1} ${EOS_MGM_MASTER2} ${EOS_MGM_ALIAS} ${EOS_MGM_FAILOVERTIME-120}
+        eosha ${EOS_LOGDIR-/var/log/eos/}/eosha//eosha.log ${EOS_MGM_MASTER1} ${EOS_MGM_MASTER2} ${EOS_MGM_ALIAS} ${EOS_MGM_FAILOVERTIME-120}
         ### Create the lock file ###
         touch /var/lock/subsys/eosha
         success $"eosha has been started."
@@ -69,6 +70,20 @@ case "$1" in
   status)
         status eosha
         ;;
+  condrestart)	
+	status eosha 2>&1 | grep dead 
+	if [ $? -eq 0 ]; then
+          stop
+	  start
+	  exit 0
+	fi
+	status eosha 2>&1 | grep running
+        if [ $? -eq 0 ]; then
+	  stop
+	  start
+	  exit 0
+	fi
+	;;
   restart|reload|condrestart)
         stop
         start

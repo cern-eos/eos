@@ -366,15 +366,17 @@ void XrdMqClient::CheckBrokerXrdClientReceiver(int i) {
       XrdClientUrlSet alias(GetBrokerUrl(i)->c_str());
       alias.Rewind();
       XrdClientUrlInfo* currentalias = alias.GetNextUrl();
-      if ( (!currentalias) || (currentalias->GetUrl() != client->GetClientConn()->GetCurrentUrl().GetUrl())) {
-        fprintf(stderr,"XrdMqClient::CheckBrokerXrdClientReceiver => Broker alias changed from %s => %s\n", client->GetClientConn()->GetCurrentUrl().GetUrl().c_str(), currentalias->GetUrl().c_str());
+      if (client && client->GetClientConn()) {
+	if ( (!currentalias) || (currentalias->GetUrl() != client->GetClientConn()->GetCurrentUrl().GetUrl())) {
+	  fprintf(stderr,"XrdMqClient::CheckBrokerXrdClientReceiver => Broker alias changed from %s => %s\n", client->GetClientConn()->GetCurrentUrl().GetUrl().c_str(), currentalias->GetUrl().c_str());
+	  
+	  ReNewBrokerXrdClientReceiver(i);
+	  // get the new client object
+	  GetBrokerXrdClientReceiver(i);
+	  // the alias has been switched, del the client and create a new one to connect to the new alias
 
-        ReNewBrokerXrdClientReceiver(i);
-        // get the new client object
-        GetBrokerXrdClientReceiver(i);
-        // the alias has been switched, del the client and create a new one to connect to the new alias
-
-        kBrokerXrdClientReceiverAliasTimeStamp[i] = time(NULL);
+	  kBrokerXrdClientReceiverAliasTimeStamp[i] = time(NULL);
+	}
       }
     }
   }

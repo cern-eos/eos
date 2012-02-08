@@ -28,6 +28,13 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Create a Report object based on a report env representation
+ * 
+ * @param report 
+ */
+/*----------------------------------------------------------------------------*/
 Report::Report(XrdOucEnv &report) 
 {
   ots = report.Get("ots")?strtoull(report.Get("ots"),0,10):0;
@@ -55,6 +62,13 @@ Report::Report(XrdOucEnv &report)
   csize  = strtoull(report.Get("csize")?report.Get("csize"):"0",0,10);
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Dump the report contents into a string in human readable key=value format
+ * 
+ * @param out string containing the report
+ */
+/*----------------------------------------------------------------------------*/
 void
 Report::Dump(XrdOucString &out)
 {
@@ -62,6 +76,7 @@ Report::Dump(XrdOucString &out)
   snprintf(dumpline,sizeof(dumpline)-1,"uid=%d gid=%d rb=%llu wb=%llu srb=%llu swb=%llu nrc=%llu nwc=%llu rt=%.02f wt=%.02f osize=%llu csize=%llu ots=%llu.%llu cts=%llu.%llu td=%s host=%s logid=%s\n", uid, gid, rb, wb, srb, swb, nrc,nwc, rt,wt,osize,csize, ots,otms, cts,ctms, td.c_str(),host.c_str(), logid.c_str());
   out+=dumpline;
 }
+/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_END
 

@@ -21,6 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   Path.hh
+ * 
+ * @brief  Convenience Class to deal with path names.
+ * 
+ * 
+ */
+
 #ifndef __EOSCOMMON_PATH__
 #define __EOSCOMMON_PATH__
 
@@ -39,21 +47,51 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+//! Class providing some comfortable functions on path names
+/*----------------------------------------------------------------------------*/
+
 class Path {
 private:
-  XrdOucString fullPath;
-  XrdOucString parentPath;
-  XrdOucString lastPath;
-  std::vector<std::string> subPath;
+  XrdOucString fullPath;  //< the full path stored
+  XrdOucString parentPath;//< path of the parent directory
+  XrdOucString lastPath;  //< the base name/file name
+  std::vector<std::string> subPath; //< a vector with all partial sub-paths
 
 public:
+  // ---------------------------------------------------------------------------
+  //! Return basename/filename
+  // ---------------------------------------------------------------------------
   const char* GetName()                  { return lastPath.c_str();}
+  
+  // ---------------------------------------------------------------------------
+  //! Return full path
+  // ---------------------------------------------------------------------------
   const char* GetPath()                  { return fullPath.c_str();}
+
+  // ---------------------------------------------------------------------------
+  //! Return path of the parent directory
+  // ---------------------------------------------------------------------------
   const char* GetParentPath()            { return parentPath.c_str();    }
+
+  // ---------------------------------------------------------------------------
+  //! Return full path
+  // ---------------------------------------------------------------------------
   XrdOucString& GetFullPath()            { return fullPath;        }
+
+  // ---------------------------------------------------------------------------
+  //! Return sub path with depth i (0 is / 1 is /eos/ aso....)
+  // ---------------------------------------------------------------------------
   const char* GetSubPath(unsigned int i) { if (i<subPath.size()) return subPath[i].c_str(); else return 0; }
+
+  // ---------------------------------------------------------------------------
+  //! Return number of sub paths stored
+  // ---------------------------------------------------------------------------
   unsigned int GetSubPathSize()          { return subPath.size();  }
 
+  // ---------------------------------------------------------------------------
+  //! Constructor
+  // ---------------------------------------------------------------------------
   Path(const char* path){
     fullPath = path;
 
@@ -101,6 +139,9 @@ public:
     lastPath.assign(fullPath,lastpos+1);
   }
 
+  // ---------------------------------------------------------------------------
+  //! Convenience function to auto-create all needed parent paths for this path object with mode
+  // ---------------------------------------------------------------------------
   bool MakeParentPath(mode_t mode) {
     int retc=0;
     struct stat buf;
@@ -123,9 +164,12 @@ public:
     return true;
   }
   
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   ~Path(){};
 };
-
+/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 
 #endif

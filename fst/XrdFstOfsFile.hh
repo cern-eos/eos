@@ -125,6 +125,7 @@ protected:
   XrdOucString fstPath;
   CheckSum*    fstBlockXS;
   off_t        bookingsize;
+  off_t        targetsize;
   bool         viaDelete;
 
   unsigned long long fstBlockSize;
@@ -133,6 +134,8 @@ protected:
   XrdOucString Path;
   XrdOucString localPrefix;
   XrdOucString RedirectManager; // -> host where we bounce back 
+  XrdSysMutex  BlockXsMutex;
+  XrdSysMutex  ChecksumMutex;
 
   unsigned long long fileid; // file id
   unsigned long fsid;        // file system id

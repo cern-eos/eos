@@ -67,7 +67,10 @@ bool TransferFsDB::Init(const char* dbpath)
   }
 
   if ((sqlite3_open(dpath.c_str(),&DB) == SQLITE_OK)) {
-    XrdOucString createtable = "CREATE TABLE if not exists transfers (src varchar(256), dst varchar(256), rate smallint, streams smallint, groupname varchar(128), status varchar(32), submissionhost varchar(64), log clob, uid smallint, gid smallint, id integer PRIMARY KEY AUTOINCREMENT )";
+    XrdOucString createtable = "CREATE TABLE if not exists transfers (src varchar(256), dst varchar(256), rate smallint, streams smallint, groupname varchar(128), status varchar(32), submissionhost varchar(64), log clob, uid smallint, gid smallint, expires int, credential clob, id integer PRIMARY KEY AUTOINCREMENT )";
+
+    //    XrdOucString createtable = "CREATE TABLE if not exists transfers (src varchar(256), dst varchar(256), rate smallint, streams smallint, groupname varchar(128), status varchar(32), submissionhost varchar(64), log clob, uid smallint, gid smallint, id integer PRIMARY KEY AUTOINCREMENT )";
+
     if ((sqlite3_exec(DB,createtable.c_str(), CallBack, this, &ErrMsg))) {
       eos_err("unable to create <transfers> table - msg=%s\n",ErrMsg);
       return false;
@@ -114,12 +117,12 @@ TransferFsDB::Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut
   char outline[16384];
 
   if (!monitoring) {
-    snprintf(outline, sizeof(outline)-1,"%-8s %-8s %-16s %-4s %-6s %-4s %-4s %-48s %-48s %-16s\n","ID","STATUS", "GROUP","RATE","STREAMS", "UID","GID","SOURCE","DESTINATION","SUBMISSIONHOST");
+    snprintf(outline, sizeof(outline)-1,"%-8s %-8s %-16s %-4s %-6s %-4s %-4s %-8s %-48s %-48s %-16s\n","ID","STATUS", "GROUP","RATE","STREAM", "UID","GID","EXPTIME", "SOURCE","DESTINATION","SUBMISSIONHOST");
     stdOut += outline;
-    stdOut += "________ ________ ________________ ____ ______ ____ ____ ________________________________________________ ________________________________________________ ________________\n";
+    stdOut += "________ ________ ________________ ____ ______ ____ ____ ________ ________________________________________________ ________________________________________________ ________________\n";
     for (size_t i = 0; i< Qr.size(); i++) {
       
-      snprintf(outline, sizeof(outline)-1,"%-8s %-8s %-16s %-4s %-6s %-4s %-4s %-48s %-48s %-16s\n",
+      snprintf(outline, sizeof(outline)-1,"%-8s %-8s %-16s %-4s %-6s %-4s %-4s %-8s %-48s %-48s %-16s\n",
 	       Qr[i]["id"].c_str(),
 	       Qr[i]["status"].c_str(),
 	       Qr[i]["groupname"].c_str(),
@@ -127,6 +130,7 @@ TransferFsDB::Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut
 	       Qr[i]["streams"].c_str(),
 	       Qr[i]["uid"].c_str(),
 	       Qr[i]["gid"].c_str(),
+	       Qr[i]["expires"].c_str(),
 	       Qr[i]["src"].c_str(),
 	       Qr[i]["dst"].c_str(),
 	       Qr[i]["submissionhost"].c_str());
@@ -149,7 +153,7 @@ TransferFsDB::Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut
 }
 
 int 
-TransferFsDB::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, XrdOucString& submissionhost)
+TransferFsDB::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString &credential, XrdOucString& submissionhost)
 {
   XrdSysMutexHelper lock(Lock);
   Qr.clear();
@@ -158,21 +162,27 @@ TransferFsDB::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, X
   XrdOucString suid=""; suid += (int)uid;
   XrdOucString sgid=""; sgid += (int)gid;
 
-  insert = "insert into transfers(src,dst,rate,streams,groupname,status,submissionhost,log,uid,gid,id) values(";
+  insert = "insert into transfers(src,dst,rate,streams,groupname,status,submissionhost,log,uid,gid,expires,credential,id) values(";
   insert += "'"; insert += src;     insert += "',";
   insert += "'"; insert += dst;     insert += "',";
   insert += "'"; insert += rate;    insert += "',";
   insert += "'"; insert += streams; insert += "',";
   insert += "'"; insert += group;   insert += "',";
-  insert += TransferEngine::GetTransferState(TransferEngine::kInserted); insert += ",";
+  insert += "'";
+  insert += TransferEngine::GetTransferState(TransferEngine::kInserted); insert += "',";
   //  insert += "'inserted'";           insert += ",";
   insert += "'"; insert += submissionhost; insert += "',";
   insert += "'"; insert += "";      insert += "',";
   insert += "'"; insert += suid;    insert += "',";
   insert += "'"; insert += sgid;    insert += "',";
+  char sexptime[1024];
+  snprintf(sexptime,sizeof(sexptime)-1,"%lu",  exptime);
+  insert += "'"; insert += sexptime; insert += "',";
+  insert += "'"; insert += credential; insert += "',";
   insert += "NULL";
   insert += ")";
 
+  fprintf(stderr,"%s\n", insert.c_str());
   if ((sqlite3_exec(DB,insert.c_str(), CallBack, this, &ErrMsg))) {
     eos_err("unable to insert - msg=%s\n",ErrMsg);
     stdErr = "error: " ; stdErr += ErrMsg;

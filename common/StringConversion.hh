@@ -21,6 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   StringConversion.hh
+ * 
+ * @brief  Convenience class to deal with strings.
+ * 
+ * 
+ */
+
 #ifndef __EOSCOMMON_STRINGCONVERSION__
 #define __EOSCOMMON_STRINGCONVERSION__
 
@@ -38,10 +46,21 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+//! Static class with convenience functinons for string tokenizing, value2string and split functions
+/*----------------------------------------------------------------------------*/
 class StringConversion {
 public:
 
-  /*----------------------------------------------------------------------------*/  
+  // ---------------------------------------------------------------------------
+  /** 
+   * Tokenize a string
+   * 
+   * @param str string to be tokenized
+   * @param tokens  returned list of seperated string tokens
+   * @param delimiters delimiter used for tokenizing
+   */
+  // ---------------------------------------------------------------------------
   static void Tokenize(const std::string& str,
                        std::vector<std::string>& tokens,
                        const std::string& delimiters = " ")
@@ -61,7 +80,17 @@ public:
     }
   }
   
-  /*----------------------------------------------------------------------------*/
+  // ---------------------------------------------------------------------------
+  /** 
+   * Convert a long long value into K,M,G,T,P,E byte scale
+   * 
+   * @param sizestring returned XrdOuc string representation
+   * @param insize number to convert
+   * @param unit unit to display e.g. B for bytes
+   * 
+   * @return sizestring.c_str()
+   */
+  // ---------------------------------------------------------------------------
   static const char* 
   GetReadableSizeString(XrdOucString& sizestring, unsigned long long insize, const char* unit) {
     char formsize[1024];
@@ -105,7 +134,15 @@ public:
     return sizestring.c_str();
   }
 
-  /*----------------------------------------------------------------------------*/
+  // ---------------------------------------------------------------------------
+  /** 
+   * Convert a readable string into a number
+   * 
+   * @param sizestring readable string like 4 KB or 1000 GB
+   * 
+   * @return number
+   */
+  // ---------------------------------------------------------------------------
   static unsigned long long 
   GetSizeFromString(XrdOucString sizestring) {
     errno = 0;
@@ -153,7 +190,18 @@ public:
     }
   }
 
-  /*----------------------------------------------------------------------------*/
+
+  // ---------------------------------------------------------------------------
+  /** 
+   * Convert a long long value into K,M,G,T,P,E byte scale
+   * 
+   * @param sizestring returned standard string representation
+   * @param insize number to convert
+   * @param unit unit to display e.g. B for bytes
+   * 
+   * @return sizestring.c_str()
+   */  
+  // ---------------------------------------------------------------------------
   static const char* 
   GetReadableSizeString(std::string& sizestring, unsigned long long insize, const char* unit) {
     const char* ptr=0;
@@ -163,7 +211,16 @@ public:
     return ptr;
   }
   
-  /*----------------------------------------------------------------------------*/
+  // ---------------------------------------------------------------------------
+  /** 
+   * Convert a long long number into a std::string
+   * 
+   * @param sizestring returned string
+   * @param insize number
+   * 
+   * @return sizestring.c_str()
+   */
+  // ---------------------------------------------------------------------------
   static const char*
   GetSizeString(std::string& sizestring, unsigned long long insize) {
     char buffer[1024];
@@ -172,7 +229,16 @@ public:
     return sizestring.c_str();
   }
 
-  /*----------------------------------------------------------------------------*/
+  // ---------------------------------------------------------------------------
+  /** 
+   * Convert a number into a XrdOuc string
+   * 
+   * @param sizestring returned XrdOuc string
+   * @param insize number
+   * 
+   * @return sizestring.c_str()
+   */
+  // ---------------------------------------------------------------------------
   static const char*
   GetSizeString(XrdOucString& sizestring, unsigned long long insize) {
     char buffer[1024];
@@ -181,7 +247,16 @@ public:
     return sizestring.c_str();
   }
   
-  /*----------------------------------------------------------------------------*/
+  // ---------------------------------------------------------------------------
+  /** 
+   * Convert a floating point number into a string
+   * 
+   * @param sizestring returned string
+   * @param insize floating point number
+   * 
+   * @return sizestring.c_str()
+   */
+  // ---------------------------------------------------------------------------
   static const char*
   GetSizeString(XrdOucString& sizestring, double insize) {
     char buffer[1024];
@@ -190,7 +265,17 @@ public:
     return sizestring.c_str();
   }
   
-  /*----------------------------------------------------------------------------*/
+  // ---------------------------------------------------------------------------
+  /** 
+   * Split a 'key:value' definition into key + value
+   * 
+   * @param keyval key-val string 'key:value'
+   * @param key returned key
+   * @param value return value
+   * 
+   * @return true if parsing ok, false if wrong format
+   */
+  // ---------------------------------------------------------------------------  
   static bool 
   SplitKeyValue(XrdOucString keyval, XrdOucString &key, XrdOucString &value) {
     int equalpos = keyval.find(":");
@@ -203,11 +288,18 @@ public:
       return false;
     }
   }
-  
-  /*----------------------------------------------------------------------------*/
+
+  // ---------------------------------------------------------------------------  
+  /** 
+   * Specialized splitting function returning the host part out of a queue name
+   * 
+   * @param queue name of a queue e.g. /eos/host:port/role
+   * 
+   * @return string containing the host
+   */
+  // ---------------------------------------------------------------------------  
   static XrdOucString
   GetHostPortFromQueue(const char* queue) {
-    // extracts only host:port from queue names like /eos/<host>:<port>/<role>
     XrdOucString hostport = queue;
     int pos = hostport.find("/",2);
     if (pos != STR_NPOS) {
@@ -220,9 +312,17 @@ public:
     return hostport;
   }
 
+  // ---------------------------------------------------------------------------
+  /** 
+   * Specialized splitting function returning the host:port part out of a queue name
+   * 
+   * @param queue name of a queue e.g. /eos/host:port/role
+   * 
+   * @return string containing host:port
+   */
+  // ---------------------------------------------------------------------------
   static std::string
   GetStringHostPortFromQueue(const char* queue) {
-    // extracts only host:port from queue names like /eos/<host>:<port>/<role>
     std::string hostport = queue;
     int pos = hostport.find("/",2);
     if (pos != STR_NPOS) {
@@ -235,6 +335,15 @@ public:
     return hostport;
   }
 
+  // ---------------------------------------------------------------------------
+  /** 
+   * Split 'a.b' into a and b
+   * 
+   * @param in 'a.b'
+   * @param pre string before .
+   * @param post string after .
+   */
+  // ---------------------------------------------------------------------------
   static void
   SplitByPoint(std::string in, std::string &pre, std::string &post) {
     std::string::size_type dpos=0;
@@ -249,11 +358,18 @@ public:
     }
   }
 
-  
+  // ---------------------------------------------------------------------------
+  //! Constructor
+  // ---------------------------------------------------------------------------
   StringConversion() {};
+
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   ~StringConversion() {};
 };
 
+/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 
 #endif

@@ -21,6 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   Logging.hh
+ *
+ * @brief  Class for message logging.
+ *
+ */
+
 #ifndef __EOSCOMMON_LOGGING_HH__
 #define __EOSCOMMON_LOGGING_HH__
 
@@ -43,6 +50,9 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+//! Log Macros usable in objects inheriting from the logId Class
+/*----------------------------------------------------------------------------*/
 #define eos_log(__EOSCOMMON_LOG_PRIORITY__ , ...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid,this->ruid, this->rgid, this->cident,  LOG_MASK(__EOSCOMMON_LOG_PRIORITY__) , __VA_ARGS__
 #define eos_debug(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_DEBUG)  , __VA_ARGS__)
 #define eos_info(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_INFO)   , __VA_ARGS__)
@@ -53,6 +63,10 @@ EOSCOMMONNAMESPACE_BEGIN
 #define eos_alert(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_ALERT)  , __VA_ARGS__)
 #define eos_emerg(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_EMERG)  , __VA_ARGS__)
 
+/*----------------------------------------------------------------------------*/
+//! Log Macros usable in singleton objects used by individual threads
+//! You should define locally LodId ThreadLogId in the thread function
+/*----------------------------------------------------------------------------*/
 #define eos_thread_debug(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_DEBUG)  , __VA_ARGS__)
 #define eos_thread_info(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_INFO)   , __VA_ARGS__)
 #define eos_thread_notice(...)  eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_NOTICE) , __VA_ARGS__)
@@ -62,7 +76,9 @@ EOSCOMMONNAMESPACE_BEGIN
 #define eos_thread_alert(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_ALERT)  , __VA_ARGS__)
 #define eos_thread_emerg(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_EMERG)  , __VA_ARGS__)
 
-
+/*----------------------------------------------------------------------------*/
+//! Log Macros usable from static member functions without LogId object
+/*----------------------------------------------------------------------------*/
 #define eos_static_log(__EOSCOMMON_LOG_PRIORITY__ , ...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"",  (__EOSCOMMON_LOG_PRIORITY__) , __VA_ARGS__
 #define eos_static_debug(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", eos::common::Logging::gZeroVid,"", (LOG_DEBUG)  , __VA_ARGS__)
 #define eos_static_info(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", eos::common::Logging::gZeroVid,"", (LOG_INFO)   , __VA_ARGS__)
@@ -75,19 +91,31 @@ EOSCOMMONNAMESPACE_BEGIN
 
 #define EOSCOMMONLOGGING_CIRCULARINDEXSIZE 10000
 
+/*----------------------------------------------------------------------------*/
+//! Class implementing EOS logging
+/*----------------------------------------------------------------------------*/
 class LogId {
 public:
+  // ---------------------------------------------------------------------------
+  //! For calls which are not client initiated this function set's a unique dummy log id
+  // ---------------------------------------------------------------------------
   void SetSingleShotLogId(const char* td="<single-exec>") {
     snprintf(logId,sizeof(logId)-1,"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
     snprintf(cident, sizeof(cident)-1,"%s",td);
   }
   
+  // ---------------------------------------------------------------------------
+  //! Set's the logid and trace identifier
+  // ---------------------------------------------------------------------------
   void SetLogId(const char* newlogid, const char* td= "<service>") {
     if (newlogid != logId)
       snprintf(logId,sizeof(logId)-1,"%s",newlogid);
     snprintf(cident,sizeof(cident)-1,"%s", td);
   }
   
+  // ---------------------------------------------------------------------------
+  //! Set's the logid, vid and trace identifier
+  // ---------------------------------------------------------------------------
   void SetLogId(const char* newlogid, Mapping::VirtualIdentity &vid_in, const char* td = "") {
     Mapping::Copy(vid_in, vid);
     snprintf(cident,sizeof(cident)-1,"%s",td);
@@ -96,10 +124,13 @@ public:
   }
 
 
-  char logId[40];
-  char cident[256];
-  Mapping::VirtualIdentity vid;
+  char logId[40];   //< the log Id for message printout
+  char cident[256]; //< the client identifier
+  Mapping::VirtualIdentity vid; //< the client identity
 
+  // ---------------------------------------------------------------------------
+  //! Constructor
+  // ---------------------------------------------------------------------------
   LogId() {
     uuid_t uuid;
     uuid_generate_time(uuid);
@@ -109,28 +140,49 @@ public:
     vid.gid=getgid();
   }
 
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   ~LogId(){}
 };
+
+// ---------------------------------------------------------------------------
+//! Class wrapping global singleton objects for logging
+// ---------------------------------------------------------------------------
 
 class Logging {
 private:
 public:
-  typedef std::vector< unsigned long > LogCircularIndex;
-  typedef std::vector< std::vector <std::string> > LogArray;
+  typedef std::vector< unsigned long > LogCircularIndex; //< typedef for circular index pointing to the next message position int he log array
+  typedef std::vector< std::vector <XrdOucString> > LogArray; //< typdef for log message array 
 
-  static LogCircularIndex gLogCircularIndex;
-  static LogArray         gLogMemory;
-  static unsigned long    gCircularIndexSize; 
-  static Mapping::VirtualIdentity gZeroVid;
-  static int gLogMask;
-  static int gPriorityLevel;
-  static XrdSysMutex gMutex;
-  static XrdOucString gUnit;
-  static XrdOucString gFilter;
+  static LogCircularIndex gLogCircularIndex; //< global circular index
+  static LogArray         gLogMemory;        //< global logging memory
+  static unsigned long    gCircularIndexSize;//< global circular index size
+  static Mapping::VirtualIdentity gZeroVid;  //< root vid
+  static int gLogMask;                       //< log mask
+  static int gPriorityLevel;                 //< log priority
+  static XrdSysMutex gMutex;                 //< global mutex
+  static XrdOucString gUnit;                 //< global unit name
+  static XrdOucString gFilter;               //< global log filter to apply
+  // ---------------------------------------------------------------------------
+  //! Set the log priority (like syslog)
+  // ---------------------------------------------------------------------------
   static void SetLogPriority(int pri) { gLogMask = LOG_UPTO(pri); gPriorityLevel = pri;}
+
+  // ---------------------------------------------------------------------------
+  //! Set the log unit name
+  // ---------------------------------------------------------------------------
   static void SetUnit(const char* unit) { gUnit = unit;}
+
+  // ---------------------------------------------------------------------------
+  //! Set the log filter
+  // ---------------------------------------------------------------------------
   static void SetFilter(const char* filter) {gFilter = filter;}
 
+  // ---------------------------------------------------------------------------
+  //! Return priority as string
+  // ---------------------------------------------------------------------------
   static const char* GetPriorityString(int pri) {
     if (pri==(LOG_INFO)) return "INFO ";
     if (pri==(LOG_DEBUG)) return "DEBUG";
@@ -144,6 +196,8 @@ public:
     return "NONE ";
   }
 
+  // ---------------------------------------------------------------------------
+  //! Return priority int from string
   static int GetPriorityByString(const char* pri) {
     if (!strcmp(pri,"info"))    return LOG_INFO;
     if (!strcmp(pri,"debug"))   return LOG_DEBUG;
@@ -156,13 +210,19 @@ public:
     return -1;
   }
 
-
+  // ---------------------------------------------------------------------------
+  //! Initialize Logger
+  // ---------------------------------------------------------------------------
   static void Init();
   
+  // ---------------------------------------------------------------------------
+  //! Log a message into the global buffer
+  // ---------------------------------------------------------------------------
   static void log(const char* func, const char* file, int line, const char* logid, const Mapping::VirtualIdentity &vid , const char* cident, int priority, const char *msg, ...);
 
 };
 
+/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 
 #endif

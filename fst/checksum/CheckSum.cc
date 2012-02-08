@@ -29,6 +29,7 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <sys/mman.h>
+#include <xfs/xfs.h>
 /*----------------------------------------------------------------------------*/
 #include "fst/checksum/Adler.hh"
 #include "fst/checksum/CRC32.hh"
@@ -37,6 +38,7 @@
 #include "fst/checksum/MD5.hh"
 #include "fst/checksum/SHA1.hh"
 #include "common/Path.hh"
+#include "common/Logging.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -59,6 +61,20 @@ CheckSum::Compare(const char* refchecksum)
 bool 
 CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scantime, int rate) 
 {
+  int fd = open(path, O_RDONLY);
+  if (fd<0) {
+    return false;
+  }
+  bool scan = ScanFile(fd, scansize, scantime, rate);
+  close(fd);
+  return scan;
+}
+
+/*----------------------------------------------------------------------------*/
+/* scan of a complete file */
+bool 
+CheckSum::ScanFile(int fd, unsigned long long &scansize, float &scantime, int rate) 
+{
   static int buffersize=1024*1024;
   struct timezone tz;
   struct timeval  opentime;
@@ -68,11 +84,6 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
 
   gettimeofday(&opentime,&tz);
 
-  int fd = open(path, O_RDONLY);
-  if (fd<0) {
-    return false;
-  }
-
   Reset();
 
   int nread=0;
@@ -80,7 +91,6 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
 
   char* buffer = (char*) malloc(buffersize);
   if (!buffer) {
-    close(fd);
     return false;
   }
 
@@ -88,7 +98,6 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
     errno = 0;
     nread = read(fd,buffer,buffersize);
     if (nread<0) {
-      close(fd);
       free(buffer);
       return false;
     }
@@ -112,7 +121,6 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
   scansize = (unsigned long long) offset;
 
   Finalize();  
-  close(fd);
   free(buffer);
   return true;
 }
@@ -224,7 +232,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     std::string sBlockSize = sblocksize;
     std::string sBlockCheckSum = Name.c_str();
     if ((!attr->Set(std::string("user.eos.blocksize"),sBlockSize)) || (!attr->Set(std::string("user.eos.blockchecksum"),sBlockCheckSum))) {
-      fprintf(stderr,"CheckSum::OpenMap => cannot set extended attributes errno=%d!\n", errno);
+      //      fprintf(stderr,"CheckSum::OpenMap => cannot set extended attributes errno=%d!\n", errno);
       delete attr;
       close(ChecksumMapFd);
       return false;
@@ -232,10 +240,27 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     delete attr;
   }
   
-
   ChecksumMapSize = ((maxfilesize / blocksize)+1) * (GetCheckSumLen());
+  ChecksumMapOpenSize = ChecksumMapSize; // we need this, in case we have to deallocate !
+
   if (isRW) {
-    if (posix_fallocate(ChecksumMapFd, 0, ChecksumMapSize)) {
+    int rc=0;
+    if(platform_test_xfs_fd(ChecksumMapFd)) {
+      // select the fast XFS allocation function if available
+      xfs_flock64_t fl;
+      fl.l_whence= 0;
+      fl.l_start= 0;
+      fl.l_len= (off64_t)ChecksumMapSize;
+      //      rc = xfsctl(NULL, ChecksumMapFd, XFS_IOC_RESVSP64, &fl);
+      rc = 0;
+      if (!rc) {
+	// if successfull truncate to this length
+	rc = ftruncate(ChecksumMapFd, ChecksumMapSize);
+      }
+    } else {
+      rc = posix_fallocate(ChecksumMapFd,0,ChecksumMapSize);
+    }
+    if (rc) {
       close(ChecksumMapFd);
       //      fprintf(stderr,"posix allocate failed\n")
       return false;
@@ -259,7 +284,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
 
     ChecksumMap = (char*)mmap(0, ChecksumMapSize, PROT_READ | PROT_WRITE, MAP_SHARED, ChecksumMapFd, 0);
   }
-
+   
   if (ChecksumMap == MAP_FAILED) {
     close(ChecksumMapFd);
     fprintf(stderr,"Fatal: mmap failed\n");
@@ -299,8 +324,8 @@ CheckSum::ChangeMap(size_t newsize, bool shrink)
   if ((!shrink) && (ChecksumMapSize > newsize))
     return true;
 
-  if ( (!shrink) && ((newsize - ChecksumMapSize) < (128*1024)))
-    newsize = ChecksumMapSize + (128*1024);// to avoid to many truncs/msync's here we increase the desired value by 1M
+  if ( (!shrink) && ((newsize - ChecksumMapSize) < (64*1024)))
+    newsize = ChecksumMapSize + (64*1024);// to avoid to many truncs/msync's here we increase the desired value by 64k
   
   if (!SyncMap()) {
     //    fprintf(stderr,"CheckSum:ChangeMap sync failed\n");
@@ -337,6 +362,21 @@ CheckSum::CloseMap()
 
   if (ChecksumMapFd) {
     if (ChecksumMap) {
+      if (ChecksumMapSize < ChecksumMapOpenSize) {
+	// if the file is smaller than the first assumed map size during OpenMap, we have to deallocate the XFS space!
+	if(platform_test_xfs_fd(ChecksumMapFd)) {
+	  // select the fast XFS deallocation function if available
+	  xfs_flock64_t fl;
+	  fl.l_whence= 0;
+	  fl.l_start= ChecksumMapSize;
+	  fl.l_len= (off64_t)ChecksumMapOpenSize-ChecksumMapSize;
+	  int rc= xfsctl(NULL, ChecksumMapFd, XFS_IOC_UNRESVSP64, &fl);
+	  if (rc) {
+	    fprintf(stderr,"XFS deallocation returned retc=%d", rc);
+	  }
+	} 
+      }
+      
       if (munmap(ChecksumMap, ChecksumMapSize)) {
         close(ChecksumMapFd);
         return false;
@@ -495,15 +535,20 @@ CheckSum::SetXSMap(off_t offset)
 bool 
 CheckSum::VerifyXSMap(off_t offset) 
 {
-  if (!ChangeMap((offset+BlockSize), false))
+  if (!ChangeMap((offset+BlockSize), false)) {
+    fprintf(stderr,"ChangeMap failed\n");
     return false;
+  }
   off_t mapoffset = (offset / BlockSize) * GetCheckSumLen();
-  
+  //  fprintf(stderr,"Verifying %llu %llu\n", offset, mapoffset);
   int len=0;
   const char* cks = GetBinChecksum(len);
   for (int i=0; i < len; i++) {
-    if ( (ChecksumMap[i+mapoffset]) && ((ChecksumMap[i+mapoffset] != cks[i])))
+    //    fprintf(stderr,"Compare %llu %llu\n", ChecksumMap[i+mapoffset], cks[i]);
+    if ( (ChecksumMap[i+mapoffset]) && ((ChecksumMap[i+mapoffset] != cks[i]))) {
+      //      fprintf(stderr,"Failed %llu %llu %llu\n", offset + i, ChecksumMap[i+mapoffset], cks[i]);
       return false;
+    }
   }
   return true;
 }

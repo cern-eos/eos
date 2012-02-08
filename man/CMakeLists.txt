@@ -21,4 +21,4 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-INSTALL ( FILES man1/eos.1.gz man1/eos::fs.1.gz man1/eos::access.1.gz man1/eos::attr.1.gz man1/eos::cd.1.gz man1/eos::chown.1.gz man1/eos::clear.1.gz man1/eos::config.1.gz man1/eos::debug.1.gz man1/eos::file.1.gz DESTINATION ${MANDIR}/ PERMISSIONS OWNER_READ OWNER_WRITE )
+INSTALL ( FILES man1/eos.1.gz man1/eos-fs.1.gz man1/eos-access.1.gz man1/eos-attr.1.gz man1/eos-cd.1.gz man1/eos-chown.1.gz man1/eos-clear.1.gz man1/eos-config.1.gz man1/eos-debug.1.gz man1/eos-file.1.gz DESTINATION ${MANDIR}/ PERMISSIONS OWNER_READ OWNER_WRITE )

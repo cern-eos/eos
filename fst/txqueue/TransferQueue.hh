@@ -52,6 +52,8 @@ private:
   XrdSysMutex mBandwidthMutex;
   XrdSysMutex mSlotsMutex;
 
+  XrdSysCondVar mJobTerminateCondition;
+
 public: 
 
   TransferQueue(eos::common::TransferQueue** queue, const char* name, int slots=2, int band=100);
@@ -68,23 +70,28 @@ public:
   void SetBandwidth(size_t band);
   
   void IncRunning() {
-    mJobsRunningMutex.Lock();
+    XrdSysMutexHelper(mJobsRunningMutex);
     mJobsRunning++;
-    mJobsRunningMutex.UnLock();
   }
 
   void DecRunning() {
-    mJobsRunningMutex.Lock();
+    XrdSysMutexHelper(mJobsRunningMutex);
     mJobsRunning--;
-    mJobsRunningMutex.UnLock();
+    // signal threads waiting for a job to finish
+    mJobTerminateCondition.Signal();
   }
 
   size_t GetRunning() {
     size_t nrun=0;
-    mJobsRunningMutex.Lock();
-    nrun = mJobsRunning;
-    mJobsRunningMutex.UnLock();
+    {
+      XrdSysMutexHelper(mJobsRunningMutex);
+      nrun = mJobsRunning;
+    }
     return nrun;
+  }
+    
+  size_t GetRunningAndQueued() {
+    return (GetRunning() + GetQueue()->Size());
   }
     
 };

@@ -21,6 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   TransferQueue.hh
+ * 
+ * @brief  Base class for transfer queues.
+ * 
+ * 
+ */
+
 #ifndef __EOSCOMMON_TRANSFERQUEUE_HH__
 #define __EOSCOMMON_TRANSFERQUEUE_HH__
 
@@ -42,29 +50,69 @@ EOSCOMMONNAMESPACE_BEGIN
 
 class FileSystem;
 
+/*----------------------------------------------------------------------------*/
+//! Class implementing the base class of a transfer queue used in FST & MGM
+/*----------------------------------------------------------------------------*/
+
 class TransferQueue {
 private:
-  std::string mQueue;      // = <queue>              e.g. /eos/<host>/fst/<mntpoint>
-  std::string mFullQueue;  // = <fullqueue>          e.g. /eos/<host>/fst/<mntpoint>/txqueue/<txqueue>
-  std::string mTxQueue;    // = <txqueue>
-  FileSystem* mFileSystem; // -> pointer to parent object
-  bool        mSlave;      // -> this is a queue slave, it won't clear the queue on deletion
+  // ---------------------------------------------------------------------------
+  //! Queue name e.g. /eos/host/fst/mntpoint
+  // ---------------------------------------------------------------------------
+  std::string mQueue;
 
-  XrdMqSharedQueue* mHashQueue;  // before usage mSom needs a read lock and mHash has to be validated to avoid race conditions in deletion
+  // ---------------------------------------------------------------------------
+  //! Full Queue name e.g. /eos/'host'/fst/mntpoint/txqueue/'txname'
+  // ---------------------------------------------------------------------------
+  std::string mFullQueue;
+
+  // ---------------------------------------------------------------------------
+  //! Transfer Queue name e.g. 'txname' e.g. balanceq, drainq, externq
+  // ---------------------------------------------------------------------------
+  std::string mTxQueue;   
+
+  // ---------------------------------------------------------------------------
+  //! Reference to parent object hosting this queue e.g. a filesystem object
+  // ---------------------------------------------------------------------------
+  FileSystem* mFileSystem;
+
+  // ---------------------------------------------------------------------------
+  //! Indicator for a queue slave e.g. if the object is deleted it __does__ __not__ clear the queue!
+  // ---------------------------------------------------------------------------
+  bool        mSlave;    
+
+  // ---------------------------------------------------------------------------
+  //! Reference to the underlying shared queue maintained by the shared object manager
+  //! Usage of this object requires a read lock on the shared object manager and the hash has to be validated!
+  // ---------------------------------------------------------------------------
+  XrdMqSharedQueue* mHashQueue; 
   XrdMqSharedObjectManager* mSom;
   XrdSysMutex constructorLock;
 
 public:
-  //------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   //! Constructor
-  //------------------------------------------------------------------------
-
+  // ---------------------------------------------------------------------------
   TransferQueue(const char* queue, const char* queuepath, const char* subqueue, eos::common::FileSystem* fs, XrdMqSharedObjectManager* som, bool bc2mgm=false);
 
+  // ---------------------------------------------------------------------------
+  //! Add a transfer job to the queue
+  // ---------------------------------------------------------------------------
   bool Add   (eos::common::TransferJob* job);
+
+  // ---------------------------------------------------------------------------
+  //! Get a transfer job from the queue
+  // ---------------------------------------------------------------------------
   eos::common::TransferJob* Get();
+
+  // ---------------------------------------------------------------------------
+  //! Remove a transfer job from the queue
+  // ---------------------------------------------------------------------------
   bool Remove(eos::common::TransferJob* job);
 
+  // ---------------------------------------------------------------------------
+  //! Get the current size of the queue
+  // ---------------------------------------------------------------------------
   size_t Size() {
     if (mSom) {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
@@ -78,6 +126,9 @@ public:
     return 0;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Clear all jobs from the queue
+  // ---------------------------------------------------------------------------
   bool Clear () {    
     if (mSom) {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
@@ -92,6 +143,9 @@ public:
     return false;
   };
 
+  // ---------------------------------------------------------------------------
+  //! Open a transaction for a bulk injection
+  // ---------------------------------------------------------------------------
   bool OpenTransaction () {
     if (mSom) {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
@@ -105,6 +159,9 @@ public:
     return false;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Close a transaction after a bulk injection
+  // ---------------------------------------------------------------------------
   bool CloseTransaction () {
     if (mSom) {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
@@ -118,6 +175,9 @@ public:
     return false;
   }
   
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   virtual ~TransferQueue();
 };
 

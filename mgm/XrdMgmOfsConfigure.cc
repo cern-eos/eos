@@ -259,6 +259,18 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     ManagerId=HostName;
     ManagerId+=":";
     ManagerId+=(int)myPort;
+    unsigned int ip=0;
+    
+    if ( XrdSysDNS::Host2IP(HostName,&ip)) {
+      char buff[1024];
+      XrdSysDNS::IP2String(ip,0,buff, 1024);
+      ManagerIp = buff;
+      ManagerPort = myPort;
+    } else {
+      return Eroute.Emsg("Config", errno, "convert hostname to IP address", HostName);
+    }
+    
+
     Eroute.Say("=====> mgmofs.managerid: ",ManagerId.c_str(),"");
   }
 
@@ -1098,11 +1110,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("Mkdir",0,0,0);
   gOFS->MgmStats.Add("Motd",0,0,0);
   gOFS->MgmStats.Add("MoveStripe",0,0,0);
-  gOFS->MgmStats.Add("OpenBalance",0,0,0);
-  gOFS->MgmStats.Add("OpenFailedBalance",0,0,0);
-  gOFS->MgmStats.Add("OpenDrain",0,0,0);
-  gOFS->MgmStats.Add("OpenFailedDrain",0,0,0);
   gOFS->MgmStats.Add("OpenDir",0,0,0);
+  gOFS->MgmStats.Add("OpenFailedCreate",0,0,0);
+  gOFS->MgmStats.Add("OpenFailedENOENT",0,0,0);
   gOFS->MgmStats.Add("OpenFailedExists",0,0,0);
   gOFS->MgmStats.Add("OpenFailedHeal",0,0,0);
   gOFS->MgmStats.Add("OpenFailedPermission",0,0,0);
@@ -1125,6 +1135,13 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("Rename",0,0,0);
   gOFS->MgmStats.Add("RmDir",0,0,0);
   gOFS->MgmStats.Add("Rm",0,0,0);
+  gOFS->MgmStats.Add("Schedule2Drain",0,0,0);
+  gOFS->MgmStats.Add("Schedule2Balance",0,0,0);
+  gOFS->MgmStats.Add("SchedulingFailedBalance",0,0,0);
+  gOFS->MgmStats.Add("SchedulingFailedDrain",0,0,0);
+  gOFS->MgmStats.Add("Scheduled2Balance",0,0,0);
+  gOFS->MgmStats.Add("Scheduled2Drain",0,0,0);
+
   gOFS->MgmStats.Add("Stat",0,0,0);
   gOFS->MgmStats.Add("Symlink",0,0,0);
   gOFS->MgmStats.Add("Truncate",0,0,0);

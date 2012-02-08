@@ -4,8 +4,8 @@
 
 Summary: The EOS project
 Name: eos
-Version: 0.1.1
-Release: 8
+Version: 0.2.0
+Release: 0
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -55,7 +55,6 @@ export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 
 mkdir -p build
 cd build
-cmake ../ -DRELEASE=%{release}
 cmake ../ -DRELEASE=%{release}
 %{__make} %{_smp_mflags} 
 
@@ -120,6 +119,7 @@ rm -rf $RPM_BUILD_ROOT
 %post -n eos-server
 /sbin/chkconfig --add eos
 echo Starting conditional EOS services
+sleep 2
 /sbin/service eos condrestart > /dev/null 2>&1 || :
 /sbin/service eosd condrestart > /dev/null 2>&1 || :
 %preun -n eos-server
@@ -147,15 +147,15 @@ The EOS shell client.
 ############################
 # documentation
 %doc %_mandir/man1/eos.1.gz
-%doc %_mandir/man1/eos::fs.1.gz
-%doc %_mandir/man1/eos::access.1.gz
-%doc %_mandir/man1/eos::attr.1.gz
-%doc %_mandir/man1/eos::cd.1.gz
-%doc %_mandir/man1/eos::chown.1.gz
-%doc %_mandir/man1/eos::clear.1.gz
-%doc %_mandir/man1/eos::config.1.gz
-%doc %_mandir/man1/eos::debug.1.gz
-%doc %_mandir/man1/eos::file.1.gz
+%doc %_mandir/man1/eos-fs.1.gz
+%doc %_mandir/man1/eos-access.1.gz
+%doc %_mandir/man1/eos-attr.1.gz
+%doc %_mandir/man1/eos-cd.1.gz
+%doc %_mandir/man1/eos-chown.1.gz
+%doc %_mandir/man1/eos-clear.1.gz
+%doc %_mandir/man1/eos-config.1.gz
+%doc %_mandir/man1/eos-debug.1.gz
+%doc %_mandir/man1/eos-file.1.gz
 
 
 #######################################################################################
@@ -177,6 +177,19 @@ The EOS fuse client.
 /etc/fuse.conf
 /etc/rc.d/init.d/eosd
 %changelog
+
+%post -n eos-fuse
+/sbin/chkconfig --add eosd
+echo Starting conditional EOS services
+sleep 2
+/sbin/service eosd condrestart > /dev/null 2>&1 || :
+%preun -n eos-fuse
+if [ $1 = 0 ]; then
+        echo Stopping EOS services
+        /sbin/service eosd stop > /dev/null 2>&1 
+        /sbin/chkconfig --del eosd
+fi
+
 
 #######################################################################################
 # the srm scripts package 
@@ -210,3 +223,29 @@ Requires: eos-server
 Contains an example keytab file.
 %files -n eos-testkeytab
 %config(noreplace) %attr(-,daemon,daemon) %_sysconfdir/eos.keytab
+
+#######################################################################################
+# the test package 
+#######################################################################################
+%package -n eos-test
+#######################################################################################
+Summary: The EOS test package
+Group: Applications/File
+
+Requires: eos-server
+
+%description -n eos-test
+Contains an instance test script and some test executables
+%files -n eos-test
+/usr/sbin/eos-instance-test
+/usr/sbin/xrdcpabort
+/usr/sbin/xrdcpextend
+/usr/sbin/xrdcpholes
+/usr/sbin/xrdcpbackward
+/usr/sbin/xrdcpdownloadrandom
+/usr/sbin/xrdcprandom
+/usr/sbin/xrdcpshrink
+/usr/sbin/xrdcptruncate
+/usr/sbin/xrdstress
+/usr/sbin/xrdstress.exe
+

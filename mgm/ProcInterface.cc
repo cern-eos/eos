@@ -26,7 +26,6 @@
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
 #include "common/StringConversion.hh"
-#include "common/StringStore.hh"
 #include "common/Path.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
@@ -1058,6 +1057,56 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           retc = EPERM;
           stdErr = "error: you have to take role 'root' to execute this command";
         } 
+      }
+
+      if (subcmd == "register") {
+	if (vid_in.uid ==0) {
+	  XrdOucString registernode   = opaque.Get("mgm.node.name");
+	  XrdOucString path2register  = opaque.Get("mgm.node.path2register");
+	  XrdOucString space2register = opaque.Get("mgm.node.space2register");
+	  XrdOucString force          = opaque.Get("mgm.node.force");
+	  XrdOucString rootflag       = opaque.Get("mgm.node.root");
+
+	  if ( (!registernode.c_str()) ||
+	       (!path2register.c_str()) ||
+	       (!space2register.c_str()) || 
+	       (force.length() && (force != "true")) ||
+	       (rootflag.length() && (rootflag != "true"))
+	       ) {
+	    stdErr="error: invalid parameters";
+	    retc = EINVAL;
+	  } else {
+	    XrdMqMessage message("mgm"); XrdOucString msgbody="";
+	    msgbody = eos::common::FileSystem::GetRegisterRequestString();
+	    msgbody += "&mgm.path2register="; msgbody += path2register;
+	    msgbody += "&mgm.space2register=";msgbody += space2register;
+	    if (force.length()) {
+	      msgbody += "&mgm.force=true";
+	    }
+	    if (rootflag.length()) { 
+	      msgbody += "&mgm.root=true";
+	    }
+
+	    message.SetBody(msgbody.c_str());
+	    XrdOucString nodequeue="/eos/";
+	    if ( registernode =="*" ) {
+	      nodequeue += "*";
+	    } else {
+	      nodequeue += registernode;
+	    }
+	    nodequeue += "/fst";
+	    
+	    if (XrdMqMessaging::gMessageClient.SendMessage(message, nodequeue.c_str())) {
+	      stdOut="success: sent global register message to all fst nodes"; 
+	    } else {
+	      stdErr="error: could not send global fst register message!";
+	      retc = EIO;
+	    }
+	  }
+	}  else {
+	  stdErr="error: you have to take the root role to execute the register command!";
+	  retc = EPERM;
+	} 
       }
     }
     
@@ -2450,8 +2499,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         }
       }
     }
-
-
+      
     //    if (cmd == "restart") {
     //      if (vid_in.uid == 0) {
     //  if (subcmd == "fst") {
@@ -3561,7 +3609,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                   }
                 }
               }
-            }
+            } else {
+              gOFS->eosViewRWMutex.UnLockRead();
+	    }
           } else {
             retc = EPERM;
             stdErr = "error: you have to take role 'root' to execute this command";

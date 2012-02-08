@@ -442,11 +442,11 @@ DrainJob::Drain(void)
 
       {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        fs->SetLongLong("stat.drainprogress",  progress);
+        fs->SetLongLong("stat.drainprogress",  progress, false);
         if ( (drainendtime-time(NULL)) >0) {
-          fs->SetLongLong("stat.timeleft", drainendtime-time(NULL));
+          fs->SetLongLong("stat.timeleft", drainendtime-time(NULL), false);
         } else {
-          fs->SetLongLong("stat.timeleft", 99999999999LL);
+          fs->SetLongLong("stat.timeleft", 99999999999LL, false);
         }
       }    
       if (!filesleft) 
@@ -469,12 +469,12 @@ DrainJob::Drain(void)
         XrdSysThread::SetCancelOn();      
         return 0 ;
       }
-      fs->SetLongLong("stat.drainprogress",  progress);
+      fs->SetLongLong("stat.drainprogress",  progress, false);
       
       if ( (drainendtime-time(NULL)) >0) {
-        fs->SetLongLong("stat.timeleft", drainendtime-time(NULL));
+        fs->SetLongLong("stat.timeleft", drainendtime-time(NULL), false);
       } else {
-        fs->SetLongLong("stat.timeleft", 99999999999LL);
+        fs->SetLongLong("stat.timeleft", 99999999999LL, false);
       }
     }
 

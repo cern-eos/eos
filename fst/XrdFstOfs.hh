@@ -213,7 +213,7 @@ public:
   std::queue <XrdOucString> ReportQueue;
 
   XrdSysMutex ErrorReportQueueMutex;
-  std::queue <std::string> ErrorReportQueue;
+  std::queue <XrdOucString> ErrorReportQueue;
 
   XrdMqSharedObjectManager ObjectManager;// -> managing shared objects
 

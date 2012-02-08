@@ -21,6 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   FileId.hh
+ * 
+ * @brief  Convenience Class for File IDs.
+ * 
+ * 
+ */
+
 #ifndef __EOSCOMMON_FILEID__HH__
 #define __EOSCOMMON_FILEID__HH__
 
@@ -32,19 +40,26 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+//! Class to handle file IDs.
+//! Provides conversion functions from/to hex representation and to build path names from fids and prefixes
+/*----------------------------------------------------------------------------*/
 class FileId {
 public:
+  //! Constructor
   FileId();
+
+  //! Destructor
   ~FileId();
 
-  // convert a fid into a hex decimal string
+  //! Convert a fid into a hex decimal string
   static void Fid2Hex(unsigned long long fid, XrdOucString &hexstring) {
     char hexbuffer[128];
     sprintf(hexbuffer,"%08llx", fid);
     hexstring = hexbuffer;
   }
 
-  // convert a hex decimal string into a fid
+  //! Convert a hex decimal string into a fid
   static unsigned long long Hex2Fid(const char* hexstring) {
     if (hexstring)
       return strtoll(hexstring, 0, 16);
@@ -52,7 +67,7 @@ public:
       return 0;
   }
 
-  // compute a path from a fid and localprefix
+  //! Compute a path from a fid and localprefix
   static void FidPrefix2FullPath(const char* hexstring, const char* localprefix,  XrdOucString &fullpath, unsigned int subindex = 0) {
     unsigned long long fid = Hex2Fid(hexstring);
     char sfullpath[16384];
@@ -65,7 +80,7 @@ public:
     while (fullpath.replace("//","/")) {}
   }
 
-  // compute a fid from a prefix path
+  //! Compute a fid from a prefix path
   static unsigned long long PathToFid(const char* path) {
     XrdOucString hexfid="";
     hexfid = path;

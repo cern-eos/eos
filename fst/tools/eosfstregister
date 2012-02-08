@@ -17,7 +17,7 @@ print "###########################\n";
 #}
 
 sub usage() {
-    printf STDERR  "usage: eosfstregister [-i] [-r] [<host[:port]>] <mount-prefix> [<space1>:<nfilesystems1>] [<space2>:<nfilesystems2>] [-h|--help]\n";
+    printf STDERR  "usage: eosfstregister [-i] [-r] [--force] [<host[:port]>] <mount-prefix> [<space1>:<nfilesystems1>] [<space2>:<nfilesystems2>] [-h|--help]\n";
     printf STDERR  "                       -r : allows to register file systems mounted on the root partition\n";
     printf STDERR  "                       -i : ignore if one of the filesystems has already a filesystem id stored and continue\n";
     printf STDERR  " hint: if <mount-prefix> ends with '/' subdirectories are scanned in this directory, \n";
@@ -29,6 +29,7 @@ my $hostname = `hostname -f`;
 chomp $hostname;
 my $ignoreerrors=0;
 my $allowroot=0;
+my $force=0;
 
 for ( my $arg = 0; $arg < $#ARGV+1; $arg++) {
     if ( ($ARGV[$arg] =~ /^-h/ ) ||
@@ -40,10 +41,16 @@ for ( my $arg = 0; $arg < $#ARGV+1; $arg++) {
 	$ignoreerrors = 1;
 	splice (@ARGV, $arg,1);
     }
+    if (( $ARGV[$arg] =~ /--force/ )) {
+	$force = 1;
+	splice (@ARGV, $arg,1);
+    }
+	
     if (( $ARGV[$arg] =~ /-r/ ) ) {
         $allowroot = 1;
 	splice (@ARGV, $arg,1);
     }
+
 #    print "$ARGV[$arg]\n";
 }
        
@@ -185,6 +192,12 @@ foreach ( @filesystems ) {
     my $uuid="";
     my $fsid=0;
     print $_;
+
+    if ( $force ) {
+	unlink "$_/.eosfsuuid";
+	unlink "$_/.eosfsid";
+    }
+
     if ( ! -e "$_/.eosfsuuid" ) {
 	$uuid = `uuidgen`;
 	chomp $uuid;

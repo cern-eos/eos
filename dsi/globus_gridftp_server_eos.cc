@@ -748,7 +748,7 @@ extern "C" {
     globus_gfs_log_message(GLOBUS_GFS_LOG_DUMP,"%s: started\n",func);
 
     if (transfer_info->alloc_size) {
-      snprintf(pathname,sizeof(pathname)-1, "%s?eos.bookingsize=%llu",transfer_info->pathname, transfer_info->alloc_size);
+      snprintf(pathname,sizeof(pathname)-1, "%s?eos.bookingsize=%llu&eos.targetsize=%llu",transfer_info->pathname, transfer_info->alloc_size, transfer_info->alloc_size);
     } else {
       snprintf(pathname,sizeof(pathname),"%s", transfer_info->pathname);
     }

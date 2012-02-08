@@ -1,0 +1,17 @@
+/var/log/eos/mgm/error.log {
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
+/var/log/eos/eosha/eosha.log {
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}

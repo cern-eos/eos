@@ -1,0 +1,516 @@
+ ----------------------------------------------------------------------
+# File: eos-instance-test
+# Author: Andreas-Joachim Peters - CERN
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2011 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+#/bin/bash
+################################################################################################################
+# default values can be overwritten in /etc/sysconfig/eos
+#export EOS_TEST_MAILNOTIFY=apeters@mail.cern.ch
+#export EOS_TEST_GSMNOTIFY="0041764875002@mail2sms.cern.ch"
+
+export EOS_TEST_REDIRECTOR=localhost
+export EOS_TEST_TESTSYS=/tmp/eos-instance-test
+export EOS_TEST_GSMLOCKTIME=3600
+export EOS_TEST_TESTTIMESLICE=300;
+
+if [ -e /etc/sysconfig/eos ];  then
+. /etc/sysconfig/eos
+fi
+
+if [ -z "$EOS_TEST_INSTANCE" ]; then
+	if [ -n "$EOS_INSTANCE_NAME" ]; then
+  	  export EOS_TEST_INSTANCE=${EOS_INSTANCE_NAME#eos}
+	else 
+          export EOS_TEST_INSTANCE="dev"
+        fi
+fi
+################################################################################################################
+mkdir -p $EOS_TEST_TESTSYS
+################################################################################################################
+# don't touch
+export failed=0
+export success=0
+export EOSLASTLOG=$EOS_TEST_TESTSYS/test-last.log
+export EOSALLCERTLOG=$EOS_TEST_TESTSYS/test-result.log
+export EOSCERTLOG="$EOS_TEST_TESTSYS/test-output.log"
+export GSMLOCKFILE=$EOS_TEST_TESTSYS/eos-gsm.lock
+export EOSTESTPID=$EOS_TEST_TESTSYS/eos-pid
+export FAILFILE=$EOS_TEST_TESTSYS/eos-failed
+export TIMEOUTFILE=$EOS_TEST_TESTSYS/eos-timeout
+
+export TESTSYSFILE1K=$EOS_TEST_TESTSYS/file.1K
+export TESTSYSFILE1M=$EOS_TEST_TESTSYS/file.1M
+export TESTSYSFILE50M=$EOS_TEST_TESTSYS/file.50M
+
+################################################################################################################
+echo "####################################"
+echo "### Creating Test Pattern File 1K"
+echo "####################################"
+yes | dd of=$TESTSYSFILE1K bs=1k count=1
+CKS1K=`eos-adler32 $TESTSYSFILE1K | awk '{print $4'} | sed s/adler32=//`
+echo "adler32 (1k) = $CKS1K"
+echo "####################################"
+echo "### Creating Test Pattern File 1M"
+echo "####################################"
+yes | dd of=$TESTSYSFILE1M bs=1k count=1000
+CKS1M=`eos-adler32 $TESTSYSFILE1M | awk '{print $4'} | sed s/adler32=//`
+echo "adler32 (1M) = $CKS1M"
+echo "####################################"
+echo "### Creating Test Pattern File 50M"
+echo "####################################"
+yes | dd of=$TESTSYSFILE50M bs=1k count=50000
+CKS50M=`eos-adler32 $TESTSYSFILE1M | awk '{print $4'} | sed s/adler32=//`
+echo "adler32 (50M) = $CKS50M"
+################################################################################################################
+
+
+. /etc/rc.d/init.d/functions
+echo "" > $EOSALLCERTLOG
+rm -f $FAILFILE 2>/dev/null
+rm -f $TIMEOUTFILE 2>/dev/null
+rm -f $EOSCERTLOG 2>/dev/null
+kill_child_processes() {
+    pid=$(bash -c 'echo $PPID');
+    if [ $1 -gt 0 ]; then
+	pids=`pstree -p $1 | sed 's/(/\n(/g' | grep '(' | sed 's/(\(.*\)).*/\1/' | tr "\n" " "`;
+	for name in $pids; do 
+	    if [ $name -ne $pid ]; then
+		kill -9 $name >& /dev/null
+		usleep 100000
+	    fi
+	done
+    fi
+}
+
+kill_processes() {
+    echo
+    echo 	
+    echo "CONTORL-C received ... aborting ..."	
+    echo
+    pid=`cat $EOSTESTPID 2>/dev/null`;	
+    if [ -z "$pid" ]; then
+	    pid=$(bash -c 'echo $PPID');
+    fi
+    kill_child_processes $pid;
+    exit -1;
+}
+
+################################################################################################################
+mailnotify () {
+    OK="OK" && test -e $FAILFILE && OK="FAILED"
+
+    if [ $OK = "FAILED" ]; then
+	if [ -n "$EOS_TEST_MAILNOTIFY" ]; then  mutt -s "$EOS_TEST_INSTANCE $OK" $EOS_TEST_MAILNOTIFY < $EOSALLCERTLOG ; fi
+	if [ ! -e $GSMLOCKFILE ]; then 
+	    if [ -n "$EOS_TEST_GSMNOTIFY" ]; then echo "$EOS_TEST_INSTANCE failed at `date`" | mail -s "$EOS_TEST_INSTANCE $OK" $EOS_TEST_GSMNOTIFY ; touch $GSMLOCKFILE; ( sleep EOS_TEST_GSMLOCKTIME; rm -rf $GSMLOCKFILE; ) >& /dev/null & 
+	    fi; 
+	fi
+	exit -1
+    fi	
+    exit 0
+}
+################################################################################################################
+(
+export XROOTSYS=/usr/
+export LD_LIBRARY_PATH=$XROOTSYS/lib64/:$LD_LIBRARY_PATH; export PATH=$XROOTSYS/bin:$PATH
+pid=$(bash -c 'echo $PPID');
+echo -n $pid >& $EOSTESTPID
+################################################################################################################
+# Library
+################################################################################################################
+showtoken () {
+    echo "############### KRB 5 ##############"
+    /usr/kerberos/bin/klist -5
+    echo "############### X509  ##############"
+    xrdgsiproxy info
+    echo "####################################"
+}
+################################################################################################################
+logoutput () {
+    echo "----------------- Error Output --------------------";cat $EOSCERTLOG ;echo "---------------------------------------------------"
+}
+################################################################################################################
+upload () {
+    src=$1
+    dst=$2
+    shift
+    shift
+    echo xrdcp -np -v -f $src root://$EOS_TEST_REDIRECTOR/$dst $* >& $EOSLASTLOG ;eval $XROOTSYS/bin/xrdcp -f $src root://$EOS_TEST_REDIRECTOR/$dst $* >> $EOSCERTLOG 2>&1
+}
+################################################################################################################
+download () {
+    src=$1
+    dst=$2
+    shift
+    shift
+    echo xrdcp -np -v -f root://$EOS_TEST_REDIRECTOR/$dst $src $* >& $EOSLASTLOG ;eval $XROOTSYS/bin/xrdcp -f root://$EOS_TEST_REDIRECTOR/$dst $src $* >> $EOSCERTLOG 2>&1
+}
+################################################################################################################
+timeout() {
+    echo "## TIMEOUT ##";
+    exit 0;
+}
+
+meta() {
+    echo xrd $EOS_TEST_REDIRECTOR $1 $2\?$3 >& $EOSLASTLOG ; $XROOTSYS/bin/xrd $EOS_TEST_REDIRECTOR $1 $2\?$3 >> $EOSCERTLOG 2>&1
+}
+
+eos() {
+    echo eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval $XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
+}
+
+stress() {
+    echo xrdstress $* >& $EOSLASTLOG; eval xrdstress $* >> $EOSCERTLOG 2>&1
+}
+
+abort() {
+    echo xrdcpabort root://$EOS_TEST_REDIRECTOR/$1 >& $EOSLASTLOG; eval xrdcpabort root://$EOS_TEST_REDIRECTOR/$1 >> $EOSCERTLOG 2>&1
+}
+
+extend() {
+    echo xrdcpextend root://$EOS_TEST_REDIRECTOR/$1 >& $EOSLASTLOG; eval xrdcpextend root://$EOS_TEST_REDIRECTOR/$1 >> $EOSCERTLOG 2>&1
+}
+
+shrink() {
+    echo xrdcpshrink root://$EOS_TEST_REDIRECTOR/$1 >& $EOSLASTLOG; eval xrdcpshrink root://$EOS_TEST_REDIRECTOR/$1 >> $EOSCERTLOG 2>&1
+}
+
+random() {
+    echo xrdcprandom root://$EOS_TEST_REDIRECTOR/$1 >& $EOSLASTLOG; eval xrdcprandom root://$EOS_TEST_REDIRECTOR/$1 >> $EOSCERTLOG 2>&1
+}
+
+truncate() {
+    echo xrdcptruncate root://$EOS_TEST_REDIRECTOR/$1 >& $EOSLASTLOG; eval xrdcptruncate root://$EOS_TEST_REDIRECTOR/$1 >> $EOSCERTLOG 2>&1
+}
+
+holes() {
+    echo xrdcpholesroot://$EOS_TEST_REDIRECTOR/$1 >& $EOSLASTLOG; eval xrdcpholes root://$EOS_TEST_REDIRECTOR/$1 >> $EOSCERTLOG 2>&1
+}
+
+backward() {
+    echo xrdcpbackward root://$EOS_TEST_REDIRECTOR/$1 >& $EOSLASTLOG; eval xrdcpbackward root://$EOS_TEST_REDIRECTOR/$1 >> $EOSCERTLOG 2>&1
+}
+
+downloadrandom() {
+    echo xrdcpdownloadrandom root://$EOS_TEST_REDIRECTOR/$1 >& $EOSLASTLOG; eval xrdcpdownloadrandom root://$EOS_TEST_REDIRECTOR/$1 >> $EOSCERTLOG 2>&1
+}
+
+################################################################################################################
+testout () {
+    echo Failed: $failed Success: $success
+    if [ $failed -gt 0 ]; then touch $FAILFILE; fi
+}
+################################################################################################################
+testcnt=0;
+runtest () {
+    testcnt=$[$testcnt+1];
+
+    if [ -e $TIMEOUTFILE ]; then
+	echo -n `date +"%x %X"` timeout
+	failure
+    else 
+	echo "-------------------------------------------------------------" >> $EOSCERTLOG 2>&1
+	echo "# Test $testcnt: $*" >> $EOSCERTLOG 2>&1		
+	echo "-------------------------------------------------------------" >> $EOSCERTLOG 2>&1
+
+	START=$(date +%s.%N)
+	echo $testcnt | awk '{printf("%04d ",$1);}'
+	echo -n `date +"%x %X"` "$1"
+	auth=$2
+	res=$3
+	renv=$4
+	shift 
+	echo -n $*
+	shift
+	shift
+	shift
+	if [ $auth = "krb5" ] ; then ( eval export X509_USER_CERT=/tmp/illegal X509_USER_KEY=/tmp/illegal $renv; $* ) ; ret=$?; fi
+	if [ $auth = "gsi"  ] ; then ( eval export KRB5CCNAME=/tmp/illegal                                $renv; $* ) ; ret=$?; fi
+	if [ $auth = "unix" ] ; then ( eval export XrdSecPROTOCOL=unix                                    $renv; $* ) ; ret=$?; fi
+	if [ $auth = "sss"  ] ; then ( eval export XrdSecPROTOCOL=sss                                     $renv; $* ) ; ret=$?; fi
+	echo
+	if [ $res -eq 0 ] ; then if [ $ret -eq 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
+	if [ $res -eq 1 ] ; then if [ $ret -ne 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
+	if [ $res -eq 2 ] ; then success; ((success++)); fi
+	END=$(date +%s.%N)
+	DIFF=$(echo "$END - $START" | bc)
+	echo "                         in $DIFF seconds"
+	echo "--------------------------------------------------------------------------------------------------------------------"
+    fi
+}
+################################################################################################################
+
+echo "==================================================="
+echo "### Testing $EOS_TEST_REDIRECTOR"
+echo "==================================================="
+
+################################################################################################################
+# define your tests here
+# runtest <info> <auth> <exports> <expect> <mode> <srcpath> <dstpath> <param>
+#      <info>                  : describes what you are testing
+#      <auth>                  : 'krb5','gsi','unix','sss' - choose krb5 or X509 authentication [ you have to create both tokens beforehand ]
+#      <env>                   : can be used to set the execution environment env <env> "
+#      <expect>                : 0 or 1 => 0 - you expect the command works , 1 - you expect that the command failes, 2 - you run the command but it can fail or not, that is expected
+#      <mode>                  : upload|download|meta|eos|stress|abort|extend|shrink|random|truncate|holes|backward|downloadrandom : self explaining - meta executes command via xrd shell, eos via eos shell, stress runs xrdstress, abort runs xrdcpabort ...
+#      <srcpath,dstpath>       : is a local '/...' or remote '/eos/...' path
+#      <param>                 : opaque information passed ... '&' has to be escaped !!!!
+################################################################################################################
+
+################################################################################################################
+#xrdgsiproxy init >>& $EOSCERTLOG
+showtoken >> $EOSCERTLOG 2>&1
+
+################################################################################################################
+# Preparation
+################################################################################################################
+runtest "### Access    " unix 2 "" eos "access rm stall r"
+runtest "### Access    " unix 2 "" eos "access rm redirect"
+runtest "### Access    " unix 2 "" eos "access unban user nobody"
+runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/"
+runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/"
+runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.blockchecksum /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.blocksize /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.layouts /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.nstripes /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.space /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+runtest "### Rm        " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+runtest "### Chmod     " unix 0 "" eos chmod "755" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+runtest "### Motd      " unix 0 "" eos motd 
+runtest "### Help      " unix 0 "" eos "help | grep \"Display this text\""
+################################################################################################################
+# Upload,Download,Stat
+################################################################################################################
+runtest "### Upload    " unix 1 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-ODeos.space=default"
+runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
+runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-ODeos.space=default"
+runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
+runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
+runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" 
+runtest "### Download  " unix 1 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1" 
+runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=1"
+runtest "### Rem       " unix 1 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
+runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
+runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
+runtest "### Whoami    " unix 0 "" eos "whoami | grep authz:unix | grep uid=0"
+runtest "### Who       " unix 0 "" eos "who | grep root"
+# --------------------------
+# Control-C
+# --------------------------
+runtest "### Abort     " unix 1 "" abort /eos/$EOS_TEST_INSTANCE/test/instancetest/abort
+runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/abort"
+runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/abort"
+# --------------------------
+# Extend a file via truncate
+# --------------------------
+runtest "### Extend    " unix 0 "" extend /eos/$EOS_TEST_INSTANCE/test/instancetest/extend
+runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/extend" 
+runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/extend"
+# --------------------------
+# Shrink a file via truncate
+# --------------------------
+runtest "### Shrink    " unix 0 "" shrink /eos/$EOS_TEST_INSTANCE/test/instancetest/shrink
+runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/shrink" 
+runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/shrink"
+# --------------------------
+# Write file in random order
+# --------------------------
+runtest "### Random    " unix 0 "" random /eos/$EOS_TEST_INSTANCE/test/instancetest/random
+runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/random" 
+runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/random"
+# --------------------------
+# Extend file and rewrite the beginning
+# --------------------------
+runtest "### Truncate  " unix 0 "" truncate /eos/$EOS_TEST_INSTANCE/test/instancetest/truncate
+runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/truncate" 
+runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/truncate"
+# --------------------------
+# Expand file several times
+# --------------------------
+runtest "### holes     " unix 0 "" holes /eos/$EOS_TEST_INSTANCE/test/instancetest/holes
+runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/holes" 
+runtest "### backward  " unix 0 "" backward  /eos/$EOS_TEST_INSTANCE/test/instancetest/holes
+runtest "### downrnd   " unix 0 "" downloadrandom  /eos/$EOS_TEST_INSTANCE/test/instancetest/holes
+runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/holes"
+# --------------------------
+runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=adler /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### UploadCks " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=$CKS1K"
+runtest "### FileInfo  " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k -m | grep nrep=1" 
+runtest "### UploadCks " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
+runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k -m | grep nrep=0"
+runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k"
+runtest "### UploadCks " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
+runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k -m | grep nrep=0"
+runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k"
+runtest "### Attr      "  unix 0 "" eos attr rm sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### UploadSz  "  unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k" "-ODeos.targetsize=1024"
+runtest "### FileInfo  " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k -m | grep nrep=1"
+runtest "### UploadSz  " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k" "-ODeos.targetsize=1000"
+runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k -m | grep nrep=0"
+runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k"
+################################################################################################################
+# VERSION
+################################################################################################################
+runtest "### Version   " unix 0 "" eos "version | grep EOS_INSTANCE"
+runtest "### Version   " unix 0 "" eos "version | grep EOS_CLIENT_VERSION"
+runtest "### Version   " unix 0 "" eos "version | grep EOS_SERVER_VERSION"
+################################################################################################################
+# ACCESS BAN
+################################################################################################################
+runtest "### Access    " unix 0 "" eos "access ban user nobody"
+# takes long
+#runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
+#runtest "### Download  " unix 1 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-OSeos.ruid=99" "-DITransactionTimeout 1"
+runtest "### Access    " unix 0 "" eos "access ls | grep nobody"
+runtest "### Access    " unix 0 "" eos "access unban user nobody"
+runtest "### Access    " unix 1 "" eos "access ls | grep nobody"
+################################################################################################################
+# ACCESS STALL
+################################################################################################################
+runtest "### Access    " unix 0 "" eos "access set stall 1 r"
+runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
+runtest "### Download  " unix 1 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-OSeos.ruid=99" "-DITransactionTimeout 1"
+runtest "### Access    " unix 0 "" eos "access ls | grep \"r:\* => 1\""
+runtest "### Access    " unix 0 "" eos "access rm stall r"
+runtest "### Access    " unix 1 "" eos "access ls | grep \"r:\* => 1\""
+################################################################################################################
+# ACCESS REDIRECT
+################################################################################################################
+runtest "### Access    " unix 0 "" eos "access set redirect foo.senf"
+runtest "### Download  " unix 1 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-DIFirstConnectTimeout 2 -DIConnectTimeout 2 -DIReconnectWait 1 -DIMaxRedirectCnt 1"
+runtest "### Access    " unix 0 "" eos "access ls | grep foo"
+runtest "### Access    " unix 0 "" eos "access rm redirect"
+runtest "### Access    " unix 1 "" eos "access ls | grep foo"
+runtest "### Rm        " unix 0 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
+################################################################################################################
+# STRESS
+################################################################################################################
+runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 6"
+runtest "### Stress Wp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -c 10 -p"
+runtest "### Stress W  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -c 10 "
+runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=2000"
+runtest "### Stress R  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -c 10"
+runtest "### Stress Rp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -c 10 -p"
+################################################################################################################
+# ATTRIBUTES
+###################################################A#############################################################
+runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 6"
+runtest "### Attr Ls   " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test | grep sys | wc -l | grep -w 6"
+runtest "### Attr Get  " unix 0 "" eos attr get "sys.forced.space /eos/$EOS_TEST_INSTANCE/test  | grep default"
+runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.blockchecksum /eos/$EOS_TEST_INSTANCE/test"
+runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.blocksize /eos/$EOS_TEST_INSTANCE/test"
+runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test"
+runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.layout /eos/$EOS_TEST_INSTANCE/test"
+runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.nstripes /eos/$EOS_TEST_INSTANCE/test"
+################################################################################################################
+# NAMESPACE
+################################################################################################################
+runtest "### Cd        " unix 1 "" eos cd /__dont_exists
+runtest "### Cd        " unix 0 "" eos cd /eos/$EOS_TEST_INSTANCE/test
+runtest "### Ls        " unix 1 "" eos ls /__dont_exist 
+runtest "### Ls        " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test | grep [a-z] | wc -l | grep -w 2"
+runtest "### Ls        " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 2"
+runtest "### Ls        " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 4"
+runtest "### Find      " unix 0 "" eos "find 2>&1 | grep error"
+runtest "### Find      " unix 0 "" eos find -f "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l |grep -w 2000"
+runtest "### Find      " unix 0 "" eos find --count "/eos/$EOS_TEST_INSTANCE/test | grep 2000"
+runtest "### Find      " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l | grep -w 2"
+runtest "### Chmod     " unix 0 "" eos chmod 700 /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Ls        " unix 1 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Ls        " unix 0 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rx /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Upload    " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwox /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
+runtest "### Upload    " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
+runtest "### Rm        " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
+runtest "### Chmod     " unix 0 "" eos chmod 777 /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwox /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Rm        " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Rm        " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwx+d,g:nobody:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Rm        " unix 0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
+runtest "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/instancetest/
+# --------------------------
+# Parallel sockets (does not work currently with 3.1.0 clients)
+# --------------------------
+#runtest "### UploadP   " unix 0 "" upload  "$TESTSYSFILE50M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" "-S10"
+#runtest "### Download  " unix 0 "" download   "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" 
+#runtest "### DownloadP " unix 0 "" download "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" "-S10"
+
+################################################################################################################
+# FINAL CLEANUP 
+################################################################################################################
+runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress"
+runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
+################################################################################################################
+# show test summary
+testout
+unlink $EOSTESTPID
+exit
+################################################################################################################
+) | tee -a $EOSALLCERTLOG &
+
+
+trap 'kill_processes' TERM
+trap 'kill_processes' QUIT
+trap 'kill_processes' INT
+
+sleep 1
+testpid=`cat $EOSTESTPID 2>/dev/null`;
+for wait in `seq 1 $EOS_TEST_TESTTIMESLICE`; do 
+    kill -0 $testpid >& /dev/null
+    if [ $? -eq 0 ]; then
+	sleep 1;
+    else 
+	break;
+    fi
+done
+
+kill -0 $testpid >& /dev/null
+
+if [ $? -eq 0 ]; then
+ touch $TIMEOUTFILE
+ kill_child_processes $testpid;
+fi
+
+[ -e "$TIMEOUTFILE" ] && ( echo >> $EOSALLCERTLOG; echo "error: timeout after $EOS_TEST_TESTTIMESLICE seconds" >> $EOSALLCERTLOG; touch $FAILFILE; echo "error: timeout after $EOS_TEST_TESTTIMESLICE seconds";) 
+
+unlink $TIMEOUTFILE >& /dev/null
+
+################################################################################################################
+echo "#--------------------------------------------------------------"
+echo "# Log of the test results         : $EOSALLCERTLOG"
+echo "# Log with individual test output : $EOSCERTLOG"
+echo "#--------------------------------------------------------------"
+################################################################################################################
+mailnotify
+################################################################################################################

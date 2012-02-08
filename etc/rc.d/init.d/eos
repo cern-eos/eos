@@ -108,7 +108,7 @@ start() {
 			echo
                 else
 		        # Setup the base xrootd options
-		        _XRD_OPTIONS="-n $i ${XRD_ROLEFLAG}-c ${_XRD_CONFIG} -l ${XRD_LOGDIR}/xrdlog.$i -b -R${XRD_USER} "
+		        _XRD_OPTIONS="-n $i -c ${_XRD_CONFIG} ${XRD_ROLEFLAG} -l ${XRD_LOGDIR}/xrdlog.$i -b -R${XRD_USER} "
 			_XRD_OPTIONS=${_XRD_OPTIONS%' '}
 			echo  with ${_XRD_OPTIONS}
 			# Setup xrootd environment
@@ -138,7 +138,7 @@ start() {
 			# Write the pid to a file
 			RETVAL=$?
 			if [ $RETVAL -eq 0 ]; then
-			        pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 $prog.*$_XRD_OPTIONS\$" | awk '{print $1}'`
+			        pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $i -c /etc/xrd" | awk '{print $1}'`
 				if [ $USER = "root" ]; then
 				    rm -f /var/run/$prog.$i.pid
 				fi
@@ -166,7 +166,7 @@ start() {
                         fi
 		fi
         if [ "$i" = "fed" ]; then
-           /etc/init.d/cmsd start
+           /etc/rc.d/init.d/cmsd start
         fi
 	done
  
@@ -180,15 +180,18 @@ stop() {
 		XRD_ROLES="$1";
 	fi	
 	for role in $XRD_ROLES; do 
+		if [ "$XRD_ROLES" = "mgm" ]; then
+   			XRD_ROLEFLAG="-m "
+		fi
 		RETVAL=0
 	        if [ "$role" = "fed" ]; then
-	        	/etc/init.d/cmsd stop
+	        	/etc/rc.d/init.d/cmsd stop
 			GRETVAL=$?
 	        else 
 			RETVAL=1
 			echo -n $"Stopping $prog: $role"
 	  	       	# try killing by grep
-			for pid in `ps -eo pid,ppid,comm,cmd | grep -v egrep | grep $role | egrep "$prog -n $role" | awk '{print $1}'`; do
+			for pid in `ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $role -c /etc/xrd" | awk '{print $1}'`; do
 
 		        	if [ -n "$pid" ]; then
 					if [ "$role" = "fst" ] ; then
@@ -212,12 +215,13 @@ stop() {
 					[ -d "/proc/$pid" ] || RETVAL=0
 					[ "$RETVAL" != "0" ] && GRETVAL=$RETVAL
 					[ $USER = "root" ] && [ "$RETVAL" = "0" ] && [ -f /var/lock/subsys/$prog.$role ] && rm -f /var/lock/subsys/$prog.$role
-					[ $USER = "root" ] && [ "$RETVAL" = "0" ] && [ -f /var/run/$prog.$role ] && rm -f /var/run/$prog.$role
+					[ $USER = "root" ] && [ "$RETVAL" = "0" ] && [ -f /var/run/$prog.$role.pid ] && rm -f /var/run/$prog.$role.pid
 					
 				fi
 			done	
 	   	        [ -f /var/lock/subsys/$prog.$role ] && rm -f /var/lock/subsys/$prog.$role
-                        [ -f /var/run/$prog.$role ] && rm -f /var/run/$prog.$role
+                        [ -f /var/run/$prog.$role.pid ] && rm -f /var/run/$prog.$role.pid
+
 			[ "$RETVAL" = "0" ] && success || failure 	
 			echo
 		fi
@@ -225,10 +229,11 @@ stop() {
         return $GRETVAL
 }
 
-status() {
+getstatus() {
         # Loop over xrootd roles
         for i in ${XRD_ROLES}; do
                 # Check if the xrootd daemon associated to this role running
+  	        status -p /var/run/$prog.$i.pid $prog.$i >& /dev/null
                 pid=`pidofproc $prog.$i`
                 if [ -n "$pid" ]; then
                         echo $"$prog for role: $i (pid $pid) is running..."
@@ -239,7 +244,7 @@ status() {
                                 echo $"$prog for role: $i dead but subsys locked"
                                 RETVAL=1
                         else
-				pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 $prog.*$_XRD_OPTIONS\$" | grep $i | awk '{print $1}' | head -1`
+				pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $i"| awk '{print $1}' | head -1`
                                 if [ -n "$pid" ]; then
                                    echo $"$prog for role: $i is starting (pid $pid) "
 				   RETVAL=0
@@ -252,7 +257,7 @@ status() {
         done
 
         if [ "$i" = "fed" ]; then
-           /etc/init.d/cmsd status
+           /etc/rc.d/init.d/cmsd status
         fi
 
         return $RETVAL
@@ -263,13 +268,13 @@ condrestart() {
         for i in ${XRD_ROLES}; do
             /etc/init.d/eos condrestart $i
             if [ "$i" = "fed" ]; then
-               /etc/init.d/cmsd condrestart
+               /etc/rc.d/init.d/cmsd condrestart
             fi
         done;
     else
         if [ -f /var/lock/subsys/$prog.$1 ]; then
             if [ "$i" = "fed" ]; then
-               /etc/init.d/cmsd restart
+               /etc/rc.d/init.d/cmsd restart
             fi
             restart $1;
         fi
@@ -362,7 +367,7 @@ case "$1" in
                 stop $2
                 ;;
         status)
-                status
+                getstatus
                 ;;
         restart)
                 restart $2

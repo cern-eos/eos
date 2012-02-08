@@ -55,6 +55,8 @@ find_package(fuse REQUIRED)
 else (CLIENT)
 find_package(SparseHash REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(ncurses REQUIRED)
+find_package(readline REQUIRED)
 find_package(uuid REQUIRED)
 find_package(z REQUIRED)
 find_package(CPPUnit)
@@ -75,6 +77,8 @@ else(MacOSX)
 set(LIB_INSTALL_DIR lib64)
 endif(MacOSX)
 
+set(SBIN_INSTALL_DIR sbin)
+
 EOS_CheckOutOfSourceBuild()
 
 if (CLIENT)
@@ -91,10 +95,14 @@ endif (CLIENT)
 ######################################################################################################################
 set(CMAKE_INSTALL_PREFIX /usr/)
 
+set(SYSCONFDIR "/etc" CACHE PATH "Directory for system configuration files" )
+set(MANDIR "/usr/share/man/man1" CACHE PATH "Directory where man pages get installed" ) 
+
 if (CLIENT)
 add_subdirectory (fuse)
 add_subdirectory (console)
 add_subdirectory (man)
+add_subdirectory (test)
 else (CLIENT)
 add_subdirectory (mq)
 add_subdirectory (common)
@@ -109,6 +117,7 @@ add_subdirectory (fuse)
 add_subdirectory (srm)
 add_subdirectory (var)
 add_subdirectory (man)
+add_subdirectory (test)
 if (HTTPD_FOUND) 
 if (APR_FOUND)
 add_subdirectory (httpd)
@@ -119,8 +128,6 @@ endif (CLIENT)
 include_directories( ../ /usr/include/xrootd/ /usr/include/ )
 link_directories( /usr/${LIB_INSTALL_DIR}/)
 
-set(SYSCONFDIR "/etc" CACHE PATH "Directory for system configuration files" )
-set(MANDIR "/usr/share/man/man1" CACHE PATH "Directory where man pages get installed" ) 
 
 ######################################################################################################################
 # uninstall target

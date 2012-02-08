@@ -28,7 +28,6 @@
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
 #include "common/StringConversion.hh"
-#include "common/StringStore.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/Policy.hh"

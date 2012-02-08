@@ -21,6 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   TransferJob.hh
+ * 
+ * @brief  Base class for transfer jobs.
+ * 
+ * 
+ */
+
 #ifndef __EOSCOMMON_TRANSFERJOB_HH__
 #define __EOSCOMMON_TRANSFERJOB_HH__
 
@@ -37,30 +45,54 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+//! Class abstracting a transfer job for FST and MGM
+//! Main purpose is to encode a transfer job into a safe text string
+/*----------------------------------------------------------------------------*/
 class TransferJob {
 private:
-  XrdOucEnv* mJob;
-  XrdOucString mEncodedEnv;
+  XrdOucEnv* mJob;             //< Description of a transfer
+  XrdOucString mEncodedEnv;    //< Encoded string version of a transfer
   
 public:
-  //------------------------------------------------------------------------
-  //! Constructor
-  //------------------------------------------------------------------------
-
+  // ---------------------------------------------------------------------------
+  //! Concstructor
+  // ---------------------------------------------------------------------------
   TransferJob(const char* description);
+
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   virtual ~TransferJob();
 
-  const char* GetSealed(); // returns the sealed env string
+  // ---------------------------------------------------------------------------
+  //! Returns a 'sealed' env string - e.g. & is forbidden in the messaging framework and therefore replaced
+  // ---------------------------------------------------------------------------
+  const char* GetSealed();
   
+  // ---------------------------------------------------------------------------
+  //! Factory function for a transferjob
+  // ---------------------------------------------------------------------------
   static TransferJob* Create(const char* sealeddescription);
 
-  XrdOucEnv* GetEnv() ; // return XrdOucEnv object
+  // ---------------------------------------------------------------------------
+  //! Return XrdOucEnv repesentation of a transfer job
+  // ---------------------------------------------------------------------------
+  XrdOucEnv* GetEnv() ; 
 
-  void Replace(const char* description); // this is used to replace the job content with a decoded capability
+  // ---------------------------------------------------------------------------
+  //! Function to replace the contents of a transfer job.
+  //! This is used to replace the job content with a decoded capability.
+  // ---------------------------------------------------------------------------
+  void Replace(const char* description); 
 
+  // ---------------------------------------------------------------------------
+  //! Print the job details into out
+  // ---------------------------------------------------------------------------
   void PrintOut(XrdOucString &out);
 };
 
+/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 
 #endif

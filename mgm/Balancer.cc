@@ -49,16 +49,6 @@ Balancer::~Balancer()
   //! destructor stops the balancer thread and stops all balancer processes (not used, the thread is always existing)
   //----------------------------------------------------------------
 
-  // we assume that the destructor is called with the mutex FsView::gFsView.ViewMutex
-  
-  /*  std::set<FsGroup*>::const_iterator git;
-  if (FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
-    for (git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin(); git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); git++) {
-      (*git)->StopBalancerJob();      
-    }
-  }
-  */
-
   XrdSysThread::Cancel(thread);
   XrdSysThread::Join(thread,NULL);
 }
@@ -194,13 +184,14 @@ Balancer::Balance(void)
 		fsdev = fs->GetDouble("stat.nominal.filled");
 
 		// if the value changes significantly, broadcast it
-		if ( fabs(fsdev-dev) > 0.5){ 
+		if ( fabs(fsdev-avg) > 0.5) {
 		  if (!hasdrainjob) {
 		    fs->SetDouble("stat.nominal.filled",avg,true);
-		  } else {
-		    // we disable the balancing on this filesystem if draining is running in the group
-		    fs->SetDouble("stat.nominal.filled",0.0,true);
 		  }
+		}
+		if (hasdrainjob && fsdev) {
+		  // we disable the balancing on this filesystem if draining is running in the group
+		  fs->SetDouble("stat.nominal.filled",0.0,true);
 		}
 	      }
 	    }
@@ -212,8 +203,11 @@ Balancer::Balance(void)
 		fsdev = fs->GetDouble("stat.nominal.filled");
 		if ((fsdev >0) || (!isset.length())) {
 		  // 0.0 indicates, that we are perfectly filled (or the balancing is disabled)
-		  fs->SetDouble("stat.nominal.filled",0.0,true);
-		  (*git)->SetConfigMember("stat.balancing","idle",false, "", true);
+		  if (fsdev) {
+		    fs->SetDouble("stat.nominal.filled",0.0,true);
+		  }
+		  if ( (*git)->GetConfigMember("stat.balancing") != "idle")
+		    (*git)->SetConfigMember("stat.balancing","idle",false, "", true);
 		}
 	      }
 	    }
@@ -240,11 +234,13 @@ Balancer::Balance(void)
 		double fsdev = fs->GetDouble("stat.nominal.filled");
 		if ((fsdev >0) || (!isset.length())) {
 		  // 0.0 indicates, that we are perfectly filled (or the balancing is disabled)
-		  fs->SetDouble("stat.nominal.filled",0.0,true);
-		  (*git)->SetConfigMember("stat.balancing","idle",false, "", true);
+		  if (fsdev)
+		    fs->SetDouble("stat.nominal.filled",0.0,true);
 		}
 	      }
 	    }
+	    if ( (*git)->GetConfigMember("stat.balancing") != "idle")
+	      (*git)->SetConfigMember("stat.balancing","idle",false, "", true);
 	  }
 	}
 	}

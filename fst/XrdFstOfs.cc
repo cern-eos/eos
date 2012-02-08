@@ -105,6 +105,9 @@ XrdFstOfs::xrdfstofs_shutdown(int sig) {
     pthread_cancel(*it);
   }
 
+  // disconnect from the message queue
+  XrdMqMessaging::gMessageClient.Unsubscribe();
+  XrdMqMessaging::gMessageClient.Disconnect();
   eos_static_warning("op=shutdown status=completed");
 
 
@@ -494,8 +497,10 @@ XrdFstOfsFile::open(const char                *path,
   const char* scid=0;
   const char* smanager=0;
   const char* sbookingsize=0;
+  const char* stargetsize=0;
 
   bookingsize = 0;
+  targetsize = 0;
 
   fileid=0;
   fsid=0;
@@ -601,7 +606,10 @@ XrdFstOfsFile::open(const char                *path,
     if (!(sbookingsize=capOpaque->Get("mgm.bookingsize"))) {
       return gOFS.Emsg(epname,error, EINVAL,"open - no booking size in capability",path);
     } else {
-      bookingsize = strtoull(capOpaque->Get("mgm.bookingsize"),0,0); 
+      bookingsize = strtoull(capOpaque->Get("mgm.bookingsize"),0,10); 
+    }
+    if ((stargetsize=capOpaque->Get("mgm.targetsize"))) {
+      targetsize = strtoull(capOpaque->Get("mgm.targetsize"),0,10);
     }
   }
 
@@ -917,15 +925,28 @@ XrdFstOfsFile::verifychecksum()
     }
 
     checkSum->Finalize();
+
+    if (checkSum->NeedsRecalculation() && (!isRW) && fstBlockXS) {
+      // if we didn't have streaming IO, but we have block checksumming, we don't need to rescan the file
+      delete checkSum;
+      checkSum=0;
+      return false;
+    }
     
     if (checkSum->NeedsRecalculation()) {
       unsigned long long scansize=0;
       float scantime = 0; // is ms
-      if (checkSum->ScanFile(fstPath.c_str(), scansize, scantime)) {
-        XrdOucString sizestring;
-        eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %x", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL), checkSum->GetHexChecksum());
+
+      if(!fctl(SFS_FCTL_GETFD,0,error)) {
+	int fd = error.getErrInfo();
+	if (checkSum->ScanFile(fd, scansize, scantime)) {
+	  XrdOucString sizestring;
+	  eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %x", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL), checkSum->GetHexChecksum());
+	} else {
+	  eos_err("Rescanning of checksum failed");
+	}
       } else {
-        eos_err("Rescanning of checksum failed");
+	eos_err("Couldn't get file descriptor");
       }
     } else {
       // this was prefect streaming I/O
@@ -939,7 +960,20 @@ XrdFstOfsFile::verifychecksum()
     }
     
     if (isRW) {
-      eos_info("(write) checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
+      eos_info("(write) checksum type: %s checksum hex: %s requested-checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum(), openOpaque->Get("mgm.checksum")?openOpaque->Get("mgm.checksum"):"-none-");
+
+      // check if the check sum for the file was given at upload time
+      if (openOpaque->Get("mgm.checksum")) {
+	XrdOucString opaqueChecksum = openOpaque->Get("mgm.checksum");
+	XrdOucString hexChecksum = checkSum->GetHexChecksum();
+	if (opaqueChecksum != hexChecksum) {
+	  eos_err("requested checksum %s does not match checksum %s of uploaded file");
+	  delete checkSum;
+	  checkSum=0;
+	  return true;
+	}
+      }
+      
       checkSum->GetBinChecksum(checksumlen);
       // copy checksum into meta data
       memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
@@ -986,7 +1020,8 @@ XrdFstOfsFile::close()
   EPNAME("close");
   int rc = 0;
   bool checksumerror=false;
-  
+  bool targetsizeerror=false;
+
   // -------------------------------------------------------------------------------------------------------
   // we enter the close logic only once since there can be an explicit close or a close via the destructor
   // -------------------------------------------------------------------------------------------------------
@@ -995,23 +1030,26 @@ XrdFstOfsFile::close()
     // -------------------------------------------------------------------------------------------------------  
     // check if the file close comes from a client disconnect e.g. the destructor
     // -------------------------------------------------------------------------------------------------------
+
+    XrdOucString hexstring="";
+    eos::common::FileId::Fid2Hex(fMd->fMd.fid,hexstring);
+    XrdOucErrInfo error;
+    
+    XrdOucString capOpaqueString="/?mgm.pcmd=drop";
+    XrdOucString OpaqueString = "";
+    OpaqueString+="&mgm.fsid="; OpaqueString += (int)fMd->fMd.fsid;
+    OpaqueString+="&mgm.fid=";  OpaqueString += hexstring;
+    XrdOucEnv Opaque(OpaqueString.c_str());
+    capOpaqueString += OpaqueString;
+      
     if (viaDelete && isCreation) {
       // -------------------------------------------------------------------------------------------------------
-      // it is closed by the constructor e.g. no proper close
+      // it is closed by the constructor e.g. no proper close 
+      // or the specified checksum does not match the computed one
       // -------------------------------------------------------------------------------------------------------
       eos_static_debug("(unpersist): deleting File Id=%llu on Fs=%u", fMd->fMd.fsid, fMd->fMd.fid);
       // delete the file
-      XrdOucString hexstring="";
-      eos::common::FileId::Fid2Hex(fMd->fMd.fid,hexstring);
-      XrdOucErrInfo error;
-      
-      XrdOucString capOpaqueString="/?mgm.pcmd=drop";
-      XrdOucString OpaqueString = "";
-      OpaqueString+="&mgm.fsid="; OpaqueString += (int)fMd->fMd.fsid;
-      OpaqueString+="&mgm.fid=";  OpaqueString += hexstring;
-      XrdOucEnv Opaque(OpaqueString.c_str());
-      capOpaqueString += OpaqueString;
-      
+
       // -------------------------------------------------------------------------------------------------------
       // set the file to be deleted
       // -------------------------------------------------------------------------------------------------------
@@ -1024,6 +1062,7 @@ XrdFstOfsFile::close()
 	delete fstBlockXS;
 	fstBlockXS=0;
       }
+
       // -------------------------------------------------------------------------------------------------------
       // delete the replica in the MGM
       // -------------------------------------------------------------------------------------------------------
@@ -1044,12 +1083,12 @@ XrdFstOfsFile::close()
 	    layOut->truncate(maxOffsetWritten);
 	} else {
 	  if ( (long long)maxOffsetWritten>(long long)openSize) {
-	    layOut->truncate(maxOffsetWritten);
 	    // -------------------------------------------------------------------------------------------------------
 	    // check if we have to deallocate something for this file transaction
 	    // -------------------------------------------------------------------------------------------------------
 	    if ((bookingsize) && (bookingsize > (long long) maxOffsetWritten)) {
 	      eos_info("deallocationg %llu bytes", bookingsize - maxOffsetWritten);
+	      layOut->truncate(maxOffsetWritten);
 	      // we have evt. to deallocate blocks which have not been written
 	      layOut->fdeallocate(maxOffsetWritten,bookingsize);
 	    }
@@ -1058,7 +1097,36 @@ XrdFstOfsFile::close()
       }
       
       eos_info("calling verifychecksum");
+      // -------------------------------------------------------------------------------------------------------
+      // call checksum verification
       checksumerror = verifychecksum();
+      targetsizeerror = (targetsize)?(targetsize!=(off_t)maxOffsetWritten):false;
+
+      if (isCreation && (checksumerror||targetsizeerror)) {
+	// -------------------------------------------------------------------------------------------------------
+	// we have a checksum error if the checksum was preset and does not match!
+	// we have a target size error, if the target size was preset and does not match!
+	// -------------------------------------------------------------------------------------------------------
+	// set the file to be deleted
+	// -------------------------------------------------------------------------------------------------------
+	deleteOnClose = true;
+	layOut->remove();
+	
+	if (fstBlockXS) {
+	  // delete also the block checksum file
+	  fstBlockXS->UnlinkXSPath();
+	  delete fstBlockXS;
+	  fstBlockXS=0;
+	}
+
+	// -------------------------------------------------------------------------------------------------------
+	// delete the replica in the MGM
+	// -------------------------------------------------------------------------------------------------------
+	int rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueString);
+	if (rc) {
+	  eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",hexstring.c_str(), fMd->fMd.fid, capOpaque->Get("mgm.manager"));
+	}
+      }
       
       // store the entry server information before closing the layout
       bool isEntryServer=false;
@@ -1069,7 +1137,7 @@ XrdFstOfsFile::close()
       // first we assume that, if we have writes, we update it
       closeSize = openSize;
       
-      if (haswrite || isCreation ) {
+      if ((!checksumerror) && (haswrite || isCreation)) {
 	// commit meta data
 	struct stat statinfo;
 	if ((rc = layOut->stat(&statinfo))) {
@@ -1190,13 +1258,12 @@ XrdFstOfsFile::close()
 	gOFS.Storage->CloseTransaction(fsid, fileid);
       }
     }
-    
+
     if (layOut) {
       rc = layOut->close();
     } else {
       rc = closeofs();
     }
-    
     
     closed = true;
     
@@ -1238,6 +1305,7 @@ XrdFstOfsFile::close()
     if (retc) {
       eos_debug("<rem> returned retc=%d", retc);
     }
+
     rc = SFS_OK;
     
     if (fstBlockXS) {
@@ -1257,7 +1325,7 @@ XrdFstOfsFile::close()
     delete fstBlockXS;
     fstBlockXS=0;
   }
-  
+
   return rc;
 }
 
@@ -1361,10 +1429,13 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
 {
   int retc = XrdOfsFile::read(fileOffset,buffer,buffer_size);
 
+  eos_info("read %llu %llu %lu", this, fileOffset, buffer_size);
   if (fstBlockXS) {
+    XrdSysMutexHelper cLock (BlockXsMutex);
     if ((retc>0) && (!fstBlockXS->CheckBlockSum(fileOffset, buffer, retc))) {
       int envlen=0;
       eos_crit("block-xs error offset=%llu len=%llu file=%s",(unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());
+      BlockXsMutex.UnLock();
       return gOFS.Emsg("readofs", error, EIO, "read file - wrong block checksum fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
     }
   }
@@ -1401,6 +1472,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
   int rc = layOut->read(fileOffset,buffer,buffer_size);
 
   if ((rc>0) && (checkSum)) {
+    XrdSysMutexHelper cLock (ChecksumMutex);
     checkSum->Add(buffer, rc, fileOffset);
   }
 
@@ -1469,6 +1541,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset   fileOffset,
   }
 
   if (fstBlockXS) {
+    XrdSysMutexHelper cLock(BlockXsMutex);
     fstBlockXS->AddBlockSum(fileOffset, buffer, buffer_size);
   }
   
@@ -1491,6 +1564,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
 
   // evt. add checksum
   if ((rc >0) && (checkSum)){
+    XrdSysMutexHelper cLock (ChecksumMutex);
     checkSum->Add(buffer, (size_t) rc, (off_t) fileOffset);
   }
 

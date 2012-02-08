@@ -193,6 +193,13 @@ namespace eos
       }
 
     FileMD *file = pFileSvc->createFile();
+    if( !file )
+      {
+        MDException e( EIO );
+        e.getMessage() << "File creation failed";
+        throw e;
+      }
+
     file->setName( elements[position] );
     file->setCUid( uid );
     file->setCGid( gid );
@@ -227,6 +234,14 @@ namespace eos
       }
 
     FileMD *file = cont->findFile( elements[position] );
+
+    if( !file )
+      {
+        MDException e( ENOENT );
+        e.getMessage() << "File does not exist";
+        throw e;
+      }
+
     cont->removeFile( file->getName() );
     file->setContainerId( 0 );
     file->unlinkAllLocations();

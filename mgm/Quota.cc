@@ -1279,7 +1279,7 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
 SpaceQuota* 
 Quota::GetSpaceQuota(const char* name, bool nocreate) 
 {
-  // the caller has to Readlock gQuotaMutex, if nocreate=false
+  // the caller has to Readlock gQuotaMutex
   SpaceQuota* spacequota=0;
   std::string sname = name;
 

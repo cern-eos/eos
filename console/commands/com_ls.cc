@@ -40,6 +40,11 @@ com_ls (char* arg1) {
     param = subtokenizer.GetToken();
     if (!param.length())
       break;
+    if (param == "--help") 
+      goto com_ls_usage;
+    if (param == "-h")
+      goto com_ls_usage;
+
     if (param.beginswith("-")) {
       option+= param;
       if ( (option.find("&")) != STR_NPOS) {
