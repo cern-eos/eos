@@ -21,6 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   Namespace.hh
+ * 
+ * @brief  Macros defining eos:common namespace.
+ * 
+ * 
+ */
+
+
+/*----------------------------------------------------------------------------*/
+//! Macros defining the comman namespace
+/*----------------------------------------------------------------------------*/
+
 #ifndef __EOSCOMMON_NAMESPACE_HH__
 #define __EOSCOMMON_NAMESPACE_HH__
 

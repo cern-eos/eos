@@ -29,11 +29,20 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-// create a singleton for this store
-SymKeyStore gSymKeyStore;
+/*----------------------------------------------------------------------------*/
+SymKeyStore gSymKeyStore;//< global SymKey store singleton
+/*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
-/* Base64 Encoding                                                            */
+/** 
+ * Base64 encoding function
+ * 
+ * @param in binary pointer to encode
+ * @param inlen length of buffer in
+ * @param out base64 encoded string
+ * 
+ * @return true if successful, false if failure
+ */
 /*----------------------------------------------------------------------------*/
 bool
 SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString &out) {
@@ -72,6 +81,15 @@ SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString &out) {
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Base64 decoding function
+ * 
+ * @param in base64 string to decode
+ * @param out binary buffer pointer where to store the decoded string
+ * @param outlen length of the decoded string
+ * 
+ * @return true if successful otherwise false
+ */
 /* Base64 Decoding                                                            */
 /*----------------------------------------------------------------------------*/
 bool
@@ -101,17 +119,29 @@ SymKey::Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen) {
 }
 
 /*----------------------------------------------------------------------------*/
+//! Constructor
+/*----------------------------------------------------------------------------*/
 SymKeyStore::SymKeyStore() 
 {
   currentKey=0;
 }
 
 /*----------------------------------------------------------------------------*/
+//! Destructor
+/*----------------------------------------------------------------------------*/
 SymKeyStore::~SymKeyStore()
 {
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Set a key providing its base64 encoded representation and validity
+ * 
+ * @param inkey64 base64 encoded key
+ * @param invalidity time when key get's invalid
+ * 
+ * @return pointer to SymKey object in store
+ */
 SymKey* 
 SymKeyStore::SetKey64(const char* inkey64, time_t invalidity) 
 {
@@ -131,6 +161,15 @@ SymKeyStore::SetKey64(const char* inkey64, time_t invalidity)
   return SetKey(binarykey, invalidity);
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Set a key providing it's binary representation and validity
+ * 
+ * @param inkey binary key of SHA_DIGEST_LENGTH length
+ * @param invalidity time when key gets invalid
+ * 
+ * @return pointer SymKey object in store
+ */
 /*----------------------------------------------------------------------------*/
 SymKey* 
 SymKeyStore::SetKey(const char* inkey, time_t invalidity) 
@@ -159,6 +198,14 @@ SymKeyStore::SetKey(const char* inkey, time_t invalidity)
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Retrieve key by keydigest in base64 format
+ * 
+ * @param inkeydigest64 digest base64 encoded
+ * 
+ * @return pointer to SymKey in store 
+ */
+/*----------------------------------------------------------------------------*/
 SymKey*
 SymKeyStore::GetKey(const char* inkeydigest64) 
 {
@@ -170,6 +217,13 @@ SymKeyStore::GetKey(const char* inkeydigest64)
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Retrieve last added valid key from the store
+ * 
+ * 
+ * @return pointer to current Symkey in the store
+ */
+/*----------------------------------------------------------------------------*/
 SymKey*
 SymKeyStore::GetCurrentKey() 
 {
@@ -180,6 +234,7 @@ SymKeyStore::GetCurrentKey()
   return 0;
 }
 
+/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 
 

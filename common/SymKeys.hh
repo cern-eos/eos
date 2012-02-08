@@ -21,6 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   SymKeys.hh
+ * 
+ * @brief  Class implementing a symmetric key store and CODEC facility.
+ * 
+ * 
+ */
+
 #ifndef __EOSCOMMON_SYMKEYS__HH__
 #define __EOSCOMMON_SYMKEYS__HH__
 
@@ -42,19 +50,39 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+
+/*----------------------------------------------------------------------------*/
+//! Class wrapping a symmetric key object and its encoding/decoding methods
+/*----------------------------------------------------------------------------*/
+
 class SymKey {
 private:
-  char key[SHA_DIGEST_LENGTH+1];
-  char keydigest[SHA_DIGEST_LENGTH+1];
-  char keydigest64[SHA_DIGEST_LENGTH*2];
-  XrdOucString key64;
+  char key[SHA_DIGEST_LENGTH+1];         //< the symmetric key in binary format
+  char keydigest[SHA_DIGEST_LENGTH+1];   //< the digest of the key  in binary format
+  char keydigest64[SHA_DIGEST_LENGTH*2]; //< the digest of the key in base64 format
+  XrdOucString key64;                    //< the key in base64 format
 
-  time_t validity;
+  time_t validity;                       //< unix time when the validity of the key stops
 
 public:
+  // ---------------------------------------------------------------------------
+  //! Base64 encode a string
+  // ---------------------------------------------------------------------------
   static bool Base64Encode(char* in, unsigned int inlen, XrdOucString &out);
+
+  // ---------------------------------------------------------------------------
+  //! Base64 decode a string
+  // ---------------------------------------------------------------------------
   static bool Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen);
 
+  // ---------------------------------------------------------------------------
+  /** 
+   * Constructor for a symmetric key
+   * 
+   * @param inkey binary key of SHA_DIGEST_LENGTH
+   * @param invalidity unix time stamp when the key becomes invalid
+   */
+  // ---------------------------------------------------------------------------
   SymKey(const char* inkey, time_t invalidity) {
     key64="";
     memcpy(key,inkey,SHA_DIGEST_LENGTH);
@@ -70,8 +98,15 @@ public:
     Base64Encode(keydigest, SHA_DIGEST_LENGTH, skeydigest64);
     strncpy(keydigest64,skeydigest64.c_str(),(SHA_DIGEST_LENGTH*2)-1);
   }
+
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   ~SymKey(){}
 
+  // ---------------------------------------------------------------------------
+  //! Output a key and it's digest to stderr
+  // ---------------------------------------------------------------------------
   void Print() {
     fprintf(stderr,"symkey: ");
     for (int i=0; i< SHA_DIGEST_LENGTH; i++) {
@@ -80,26 +115,44 @@ public:
     fprintf(stderr, "digest: %s", keydigest64);
   }
 
+  // ---------------------------------------------------------------------------
+  //! Return the binary key
+  // ---------------------------------------------------------------------------
   const char* GetKey() {
     return key;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Return the base64 encoded key
+  // ---------------------------------------------------------------------------
   const char* GetKey64() {
     return key64.c_str();
   }
 
+  // ---------------------------------------------------------------------------
+  //! Return the binary key digest
+  // ---------------------------------------------------------------------------
   const char* GetDigest() {
     return keydigest;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Return the base64 encoded digest
+  // ---------------------------------------------------------------------------
   const char* GetDigest64() {
     return keydigest64;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Return the expiration time stamp of the key
+  // ---------------------------------------------------------------------------
   time_t GetValidity() {
     return validity;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Check if the key is still valid
+  // ---------------------------------------------------------------------------
   bool IsValid() {
     if (!validity)
       return true;
@@ -107,6 +160,9 @@ public:
       return ((time(0)+EOSCOMMONSYMKEYS_GRACEPERIOD) > validity);
   }
 
+  // ---------------------------------------------------------------------------
+  //! Factory function to create a SymKey Object
+  // ---------------------------------------------------------------------------
   static SymKey* Create(const char* inkey, time_t validity) {
     return new SymKey(inkey, validity);
   }
@@ -114,23 +170,49 @@ public:
 };
 
 /*----------------------------------------------------------------------------*/
+//! Class providing a keystore for symmetric keys
+/*----------------------------------------------------------------------------*/
+
 class SymKeyStore {
 private:
+
   XrdSysMutex Mutex;
   XrdOucHash<SymKey> Store;
   SymKey* currentKey;
 public:
+  // ---------------------------------------------------------------------------
+  //! Constructor
+  // ---------------------------------------------------------------------------
   SymKeyStore();
+
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   ~SymKeyStore();
 
-  SymKey* SetKey(const char* key, time_t validity);     // set binary key
-  SymKey* SetKey64(const char* key64, time_t validity); // set key in base64 format
-  SymKey* GetKey(const char* keydigest64);              // get key by b64 encoded digest
-  SymKey* GetCurrentKey();                              // get last added valid key
+  // ---------------------------------------------------------------------------
+  //! Set a binary key and it's validity
+  // ---------------------------------------------------------------------------
+  SymKey* SetKey(const char* key, time_t validity);    
+
+  // ---------------------------------------------------------------------------
+  //! Set a base64 key and it's validity
+  // ---------------------------------------------------------------------------
+  SymKey* SetKey64(const char* key64, time_t validity);
+
+  // ---------------------------------------------------------------------------
+  //! Get a base64 encoded key by digest from the store
+  // ---------------------------------------------------------------------------
+  SymKey* GetKey(const char* keydigest64);             
+
+  // ---------------------------------------------------------------------------
+  //! Get last added valid key from the store
+  // ---------------------------------------------------------------------------
+  SymKey* GetCurrentKey();                              
 };
 
 /*----------------------------------------------------------------------------*/
-extern SymKeyStore gSymKeyStore;
+extern SymKeyStore gSymKeyStore; //< global SymKey store singleton
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_END

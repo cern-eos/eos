@@ -29,32 +29,40 @@
 
 
 EOSCOMMONNAMESPACE_BEGIN
-
+/*----------------------------------------------------------------------------*/
+/** 
+ * Constructor
+ * 
+ * @param description string describing a transfer
+ *
+/*----------------------------------------------------------------------------*/
 TransferJob::TransferJob(const char* description)
 {
-  //------------------------------------------------------------------------
-  //! Constructor
-  //------------------------------------------------------------------------
   if (description)
     mJob = new XrdOucEnv(description);
   else
     mJob = 0;
 }
 
+/*----------------------------------------------------------------------------*/
+//! Destructor
+/*----------------------------------------------------------------------------*/
 TransferJob::~TransferJob() {
-  //------------------------------------------------------------------------
-  //! Destructor
-  //------------------------------------------------------------------------
   if (mJob)
     delete mJob;
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Get the env representation of a transfer job
+ * 
+ * 
+ * @return pointer to string describing env representation
+ */
+/*----------------------------------------------------------------------------*/
 const char*
 TransferJob::GetSealed() 
 {
-  //------------------------------------------------------------------------
-  //! Return the env representation of a job
-  //------------------------------------------------------------------------
   if (!mJob)
     return 0;
 
@@ -64,12 +72,18 @@ TransferJob::GetSealed()
   return mEncodedEnv.c_str();
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Factor function to create a transfer job from a string description
+ * 
+ * @param sealeddescription return's a job object created from a sealed description as found in shared queues
+ * 
+ * @return pointer to transfer job object
+ */
+/*----------------------------------------------------------------------------*/
 TransferJob*
 TransferJob::Create(const char* sealeddescription)
 {
-  //------------------------------------------------------------------------
-  //! Return a job created from a sealed description as found in shared queues
-  //------------------------------------------------------------------------
   if (!sealeddescription)
     return 0;
 
@@ -78,21 +92,22 @@ TransferJob::Create(const char* sealeddescription)
   return new TransferJob(s.c_str());
 }
 
+/*----------------------------------------------------------------------------*/
+//! Return the env representation of a job
+/*----------------------------------------------------------------------------*/
 XrdOucEnv*
 TransferJob::GetEnv() 
 {
-  //------------------------------------------------------------------------
-  //! Return the env representation of a job
-  //------------------------------------------------------------------------
   return mJob;
 }
 
+/*----------------------------------------------------------------------------*/
+//! Allows to replace the XrdOucEnv description externally
+//! This is used to replace a symmetric key encoded contents with the human readable contents
+/*----------------------------------------------------------------------------*/
 void 
 TransferJob::Replace(const char* description)
 {
-  //------------------------------------------------------------------------
-  //! Replace the XrdOucEnv description externally
-  //------------------------------------------------------------------------
   if (mJob) {
     delete mJob;
   }
@@ -100,6 +115,9 @@ TransferJob::Replace(const char* description)
   mJob = new XrdOucEnv(description);
 }
 
+/*----------------------------------------------------------------------------*/
+//! Print a transfer job env description as key-val pairs
+/*----------------------------------------------------------------------------*/
 void 
 TransferJob::PrintOut(XrdOucString &out)
 {
@@ -113,7 +131,6 @@ TransferJob::PrintOut(XrdOucString &out)
     out += " ";
   }
 }
-
-
+/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 

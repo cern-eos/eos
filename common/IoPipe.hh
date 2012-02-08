@@ -21,6 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   IoPipe.hh
+ *
+ * @brief  Class providing one-directional pipes for stdout,stderr & retc bridging between processes.
+ * 
+ * 
+ */
+
 #ifndef __EOSCOMMON_IOPIPE__
 #define __EOSCOMMON_IOPIPE__
 
@@ -44,14 +52,22 @@
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
+
+/*----------------------------------------------------------------------------*/
+//! Class Implementing communication via local unix pipes.
+//! Each IoPipe uses three pipes to bridge stdout,stderr & return code.
+//! IoPipes need to be locked because there can be only one Producer and one Consumer.
+//! IoPipe is used by console/ConsoleMain.cc to allow persistent connection of the xrootd client.
+/*----------------------------------------------------------------------------*/
+
 class IoPipe {
  public:
-  XrdOucString lPrefix;
-  XrdOucString lPipeDir;
-  XrdOucString lPipeProducerLock;
-  XrdOucString lPipeConsumerLock;
+  XrdOucString lPrefix;   //< directory to store pipes
+  XrdOucString lPipeDir;  //< directory including process uid and parent pid dependent 
+  XrdOucString lPipeProducerLock; //< lock for the producer
+  XrdOucString lPipeConsumerLock; //< lock for the consumer
 
-  XrdOucString lStdInName ;
+  XrdOucString lStdInName ; 
   XrdOucString lStdOutName;
   XrdOucString lStdErrName;
   XrdOucString lRetcName  ;
@@ -64,6 +80,9 @@ class IoPipe {
   int lConsumerFd;
   int lProducerFd;
 
+  // ---------------------------------------------------------------------------
+  //! Constructor
+  // ---------------------------------------------------------------------------
   IoPipe(XrdOucString prefix = "/tmp/eos") {
     lPrefix = prefix;
     lPipeDir = prefix;
@@ -82,11 +101,17 @@ class IoPipe {
     lProducerFd = lConsumerFd = 0;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Write a pid into a file
+  // ---------------------------------------------------------------------------
   void WritePid(const char* path, pid_t pid) {
     std::ofstream pidfile(path, ios::binary);
     pidfile << pid ;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Read a pid from a file
+  // ---------------------------------------------------------------------------
   pid_t ReadPid(const char* path) {
     pid_t lpid=0;
     std::ifstream pidfile(path);
@@ -94,6 +119,9 @@ class IoPipe {
     return lpid;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Initialize IoPipe creating all needed parent directories
+  // ---------------------------------------------------------------------------
   bool Init() {
     XrdOucString dummypipedir = lPipeDir; dummypipedir += "/dummy";
     eos::common::Path dPath(dummypipedir.c_str());
@@ -103,6 +131,9 @@ class IoPipe {
     return true;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Write our Pid into the producer pid file
+  // ---------------------------------------------------------------------------
   bool LockProducer() {
     int fd = open (lPipeProducerLock.c_str(),O_EXCL| O_CREAT, S_IRWXU);
     if (fd>=0) {
@@ -113,6 +144,9 @@ class IoPipe {
     return false;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Check if the stored producer is alive
+  // ---------------------------------------------------------------------------
   bool CheckProducer() {
     pid_t pid = ReadPid(lPipeProducerLock.c_str());
     if (pid) {
@@ -123,6 +157,9 @@ class IoPipe {
     return false;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Kill the current producer
+  // ---------------------------------------------------------------------------
   bool KillProducer() {
     pid_t pid = ReadPid(lPipeProducerLock.c_str());
     if (pid) {
@@ -134,6 +171,9 @@ class IoPipe {
 
   }
 
+  // ---------------------------------------------------------------------------
+  //! Write our Pid into the consumer pid file
+  // ---------------------------------------------------------------------------
   bool LockConsumer() {
     do {
       int fd = open (lPipeConsumerLock.c_str(),O_EXCL| O_CREAT, S_IRWXU);
@@ -147,6 +187,9 @@ class IoPipe {
     return false;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Remove the producer pid file
+  // ---------------------------------------------------------------------------
   bool UnLockProducer() {
     int rc = unlink(lPipeProducerLock.c_str());
     if (!rc)
@@ -155,6 +198,9 @@ class IoPipe {
       return false;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Remove the consumer pid file
+  // ---------------------------------------------------------------------------
   bool UnLockConsumer() {
     int rc = unlink(lPipeConsumerLock.c_str());
     if (!rc)
@@ -164,6 +210,9 @@ class IoPipe {
   }
 
 
+  // ---------------------------------------------------------------------------
+  //! Attach to the stdin pipe
+  // ---------------------------------------------------------------------------
   int AttachStdin(XrdSysError &eDest) {
     XrdNetSocket* socket    = XrdNetSocket::Create(&eDest, lPipeDir.c_str(),  lStdInName.c_str(),  S_IRWXU, XRDNET_FIFO);
     if (socket) {
@@ -174,6 +223,9 @@ class IoPipe {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  //! Attach to the stdout pipe
+  // ---------------------------------------------------------------------------
   int AttachStdout(XrdSysError &eDest) {
     XrdNetSocket* socket = XrdNetSocket::Create(&eDest, lPipeDir.c_str(), lStdOutName.c_str(), S_IRWXU, XRDNET_FIFO);
     if (socket) {
@@ -184,6 +236,9 @@ class IoPipe {
     }
   }
   
+  // ---------------------------------------------------------------------------
+  //! Attach to the stderr pipe
+  // ---------------------------------------------------------------------------
   int AttachStderr(XrdSysError &eDest) {
     XrdNetSocket* socket = XrdNetSocket::Create(&eDest, lPipeDir.c_str(), lStdErrName.c_str(), S_IRWXU, XRDNET_FIFO);
     if (socket) {
@@ -194,6 +249,9 @@ class IoPipe {
     } 
   }
   
+  // ---------------------------------------------------------------------------
+  //! Attach to the retc pipe
+  // ---------------------------------------------------------------------------
   int AttachRetc(XrdSysError &eDest) {
     XrdNetSocket* socket = XrdNetSocket::Create(&eDest, lPipeDir.c_str(), lRetcName.c_str(), S_IRWXU, XRDNET_FIFO);
     if (socket) {
@@ -204,9 +262,13 @@ class IoPipe {
     }
   }
   
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   ~IoPipe() {};
 };
 
+/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 
 #endif

@@ -31,11 +31,18 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Constructor for a transfer queue
+ * 
+ * @param queue name of the queue e.g. /eos/'host'/fst/
+ * @param queuepath name of the queue path e.g. /eos/'host'/fst/'mountpoint'/
+ * @param subqueue name of the subqueue e.g. drainq,balanceq,externalq
+ * @param fs pointer to filesytem object to add the queue
+ * @param som pointer to shared object manager
+ * @param bc2mgm broadcast-to-manager flag indicating if changes are broadcasted to manager nodes
+ */
+/*----------------------------------------------------------------------------*/
 TransferQueue::TransferQueue(const char* queue, const char* queuepath, const char* subqueue, FileSystem* fs, XrdMqSharedObjectManager* som, bool bc2mgm) {
-  //------------------------------------------------------------------------
-  //! Constructor
-  //------------------------------------------------------------------------
-
   mFileSystem = fs;
 
   constructorLock.Lock();
@@ -86,12 +93,22 @@ TransferQueue::TransferQueue(const char* queue, const char* queuepath, const cha
 }
 
 /*----------------------------------------------------------------------------*/
+//! Destructor
+/*----------------------------------------------------------------------------*/
 TransferQueue::~TransferQueue() {
   if (!mSlave) {
     Clear();
   }
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Add a transfer job to the queue
+ * 
+ * @param job pointer to job to add
+ * 
+ * @return true if successful otherwise false
+ */
 /*----------------------------------------------------------------------------*/
 bool 
 TransferQueue::Add(eos::common::TransferJob* job)
@@ -109,6 +126,13 @@ TransferQueue::Add(eos::common::TransferJob* job)
   return retc;
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Get a job from the queue. The caller has to clean-up the job object.
+ * 
+ * 
+ * @return pointer to job
+ */
 /*----------------------------------------------------------------------------*/
 TransferJob* 
 TransferQueue::Get() 
@@ -145,12 +169,21 @@ TransferQueue::Get()
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Remove a job from the queue. Currently this is not implemented!
+ * 
+ * @param job pointer to job object
+ * 
+ * @return true if successful otherwise false
+ */
+/*----------------------------------------------------------------------------*/
 bool 
 TransferQueue::Remove(eos::common::TransferJob* job)
 {
   return false;
 }
 
+/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_END
 

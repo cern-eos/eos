@@ -31,28 +31,47 @@
 EOSCOMMONNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 
-GlobalConfig GlobalConfig::gConfig; // singleton for global configuration access
+GlobalConfig GlobalConfig::gConfig; //! Singleton for global configuration access
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Constructor
+ * 
+ */
+/*----------------------------------------------------------------------------*/
+
 GlobalConfig::GlobalConfig()
 {
   mSom = 0;
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Store the object manager in the global config
+ * 
+ * @param som pointer to a shared object manager
+ */
+/*----------------------------------------------------------------------------*/
+
 void GlobalConfig::SetSOM(XrdMqSharedObjectManager* som) 
 {
   mSom = som;
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Add a configuration queue
+ * 
+ * @param configqueue name of the configuration queue e.g. /eos/<host:port>/mgm
+ * @param broadcastqueue name of the queue where to broadcast  e.g. /eos/'*'/mgm
+ * 
+ * @return true if success false if failed
+ */
+/*----------------------------------------------------------------------------*/
+
 bool 
 GlobalConfig::AddConfigQueue(const char* configqueue, const char* broadcastqueue)
 {
-  //----------------------------------------------------------------
-  //! adds a global configuration hash and it's broad cast queue ... dont' MUTEX!
-  //----------------------------------------------------------------
-  
   std::string lConfigQueue    = configqueue;
   std::string lBroadCastQueue = broadcastqueue;
   XrdMqSharedHash* lHash=0;
@@ -81,13 +100,16 @@ GlobalConfig::AddConfigQueue(const char* configqueue, const char* broadcastqueue
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Print the broad cast mapping to the given string
+ * 
+ * @param out reference to a string where to print 
+ */
+/*----------------------------------------------------------------------------*/
+
 void
 GlobalConfig::PrintBroadCastMap(std::string &out)
 {
-  //----------------------------------------------------------------
-  //! prints the added global configuration queues and where they are broadcasted
-  //----------------------------------------------------------------
-
   std::map<std::string, std::string>::const_iterator it;
 
   for (it = mBroadCastQueueMap.begin(); it != mBroadCastQueueMap.end(); it++) {
@@ -98,36 +120,54 @@ GlobalConfig::PrintBroadCastMap(std::string &out)
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Get a pointer to the hash storing a configuration queue
+ * 
+ * @param configqueue name of the configuration queue
+ * 
+ * @return pointer to a shared hash representing a configuration queue
+ */
+/*----------------------------------------------------------------------------*/
+
 XrdMqSharedHash*
 GlobalConfig::Get(const char* configqueue) 
 {
-  //----------------------------------------------------------------
-  //! returns a global hash for the required configqueue ... read and/orMUTEX as long as you use the hash
-  //----------------------------------------------------------------
-
   std::string lConfigQueue = configqueue;
 
   return mSom->GetObject(lConfigQueue.c_str(),"hash");
 }
 
+
+/*----------------------------------------------------------------------------*/
+/** 
+ * Join the prefix with the hostport name extracted from the queue name.
+ * E.g. /eos/eostest/space + /eos/host1:port1/fst = /eos/eostest/space/host1:port1
+ * 
+ * @param prefix 
+ * @param queuename 
+ * 
+ * @return 
+ */
+/*----------------------------------------------------------------------------*/
+
 std::string 
 GlobalConfig::QueuePrefixName(const char* prefix, const char*queuename)
 {
-  //----------------------------------------------------------------
-  //! joins the prefix with the hostport name extracted from the queue e.g /eos/eostest/space + /eos/host1:port1/fst = /eos/eostest/space/host1:port1
-  //----------------------------------------------------------------
   std::string out=prefix;
   out += eos::common::StringConversion::GetHostPortFromQueue(queuename).c_str();
   return out;
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Reset the configuration object e.g. all attached shared objects
+ * 
+ */
+/*----------------------------------------------------------------------------*/
+
 void
 GlobalConfig::Reset()
 {
-  //----------------------------------------------------------------
-  //! resets(clears) all attached shared objects
-  //----------------------------------------------------------------
   if (mSom) 
     mSom->Clear();
 }

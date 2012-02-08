@@ -21,7 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//         $Id: Timing.hh,v 1.1 2008/09/15 10:04:02 apeters Exp $
+/**
+ * @file   Timing.hh
+ * 
+ * @brief  Class providing real-time code measurements.
+ * 
+ * 
+ */
+
 
 #ifndef __EOSCOMMON__TIMING__HH
 #define __EOSCOMMON__TIMING__HH
@@ -33,6 +40,20 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+//! Class implementing comfortable time measurements through methods/functions
+//! 
+//! Example
+//! eos::common::Timing tm("Test");
+//! TIMING("START",&tm);
+//! ...
+//! TIMING("CHECKPOINT1",&tm);
+//! ...
+//! TIMING("CHECKPOINT2",&tm);
+//! ...
+//! TIMING("STOP", &tm);
+//! tm.Print();
+/*----------------------------------------------------------------------------*/
 class Timing {
 public:
   struct timeval tv;
@@ -41,12 +62,18 @@ public:
   Timing* next;
   Timing* ptr;
 
+  // ---------------------------------------------------------------------------
+  //! Constructor - used only internally
+  // ---------------------------------------------------------------------------
   Timing(const char* name, struct timeval &i_tv) {
     memcpy(&tv, &i_tv, sizeof(struct timeval));
     tag = name;
     next = 0;
     ptr  = this;
   }
+  // ---------------------------------------------------------------------------
+  //! Constructor - tag is used as the name for the measurement in Print
+  // ---------------------------------------------------------------------------
   Timing(const char* i_maintag) {
     tag = "BEGIN";
     next = 0;
@@ -54,6 +81,9 @@ public:
     maintag = i_maintag;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Print method to display measurements on STDERR
+  // ---------------------------------------------------------------------------
   void Print() {
     char msg[512];
     Timing* p = this->next;
@@ -71,9 +101,14 @@ public:
     cerr << msg;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   virtual ~Timing(){Timing* n = next; if (n) delete n;};
 
-
+  // ---------------------------------------------------------------------------
+  //! Wrapper Function to hide difference between Apple and Linux
+  // ---------------------------------------------------------------------------
   static void GetTimeSpec(struct timespec &ts) {
 #ifdef __APPLE__
     struct timeval tv;
@@ -86,6 +121,9 @@ public:
   }    
 };
 
+// ---------------------------------------------------------------------------
+//! Macro to place a measurement throughout the code
+// ---------------------------------------------------------------------------
 #define TIMING( __ID__,__LIST__)                                \
   do {								\
     struct timeval tp;						\

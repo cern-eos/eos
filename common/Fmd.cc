@@ -35,10 +35,20 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-FmdHandler gFmdHandler;
+FmdHandler gFmdHandler; //< static 
 /*----------------------------------------------------------------------------*/
 
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Read an FMD header from an open file
+ * 
+ * @param fd filedescriptor from where to read
+ * @param ignoreversion disables the check for the version
+ * 
+ * @return true if successful otherwise false
+ *
+ */
 /*----------------------------------------------------------------------------*/
 bool 
 FmdHeader::Read(int fd, bool ignoreversion) 
@@ -68,6 +78,14 @@ FmdHeader::Read(int fd, bool ignoreversion)
 }
  
 /*----------------------------------------------------------------------------*/
+/** 
+ * Write an FMD header to an open file descriptor
+ * 
+ * @param fd file descriptor where to write to
+ * 
+ * @return true if successful otherwise false
+ */
+/*----------------------------------------------------------------------------*/
 bool 
 FmdHeader::Write(int fd) 
 {
@@ -83,6 +101,12 @@ FmdHeader::Write(int fd)
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Dump the contents of the FMD header to stdout
+ * 
+ * @param header handle to the header todump
+ */
+/*----------------------------------------------------------------------------*/
 void
 FmdHeader::Dump(struct FMDHEADER* header) 
 {
@@ -94,6 +118,14 @@ FmdHeader::Dump(struct FMDHEADER* header)
 }
 
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Write an FMD record to an open changelog file
+ * 
+ * @param fd filedescriptor open for writing of the changelog file
+ * 
+ * @return true if successfull otherwise false
+ */
 /*----------------------------------------------------------------------------*/
 bool 
 Fmd::Write(int fd) 
@@ -109,6 +141,15 @@ Fmd::Write(int fd)
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Read an FMD record at a given offset
+ * 
+ * @param fd filedescriptor open for reading of the changelog file to read from
+ * @param offset offset where to read from the file descriptor
+ * 
+ * @return true if successfull otherwise false
+ */
+/*----------------------------------------------------------------------------*/
 bool 
 Fmd::Read(int fd, off_t offset) 
 {
@@ -120,6 +161,12 @@ Fmd::Read(int fd, off_t offset)
   return true;
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Dump an FMD record to stderr
+ * 
+ * @param fmd handle to the FMD struct
+ */
 /*----------------------------------------------------------------------------*/
 void
 Fmd::Dump(struct FMD* fmd) {
@@ -159,13 +206,19 @@ Fmd::Dump(struct FMD* fmd) {
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Set a new changelog file for a filesystem id. The 'fsck' tool uses the 'c' option to avoid creation of changelog files.
+ * 
+ * @param changelogfilename path to the changelog file
+ * @param fsid filesystem id identified by this file
+ * @param option if options is 'c' we don't create a new change log file if it does not exist!
+ * 
+ * @return true if successfull false if failed
+ */
+/*----------------------------------------------------------------------------*/
 bool
 FmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid, XrdOucString option) 
 {
-  // option is pass from the fsck executable in XrdFstOfs
-  // this is identified via the option field 'c'
-  // for fsck we don't want to automatically create a new changelog file if the path is not yet existing !
-
   eos_debug("");
 
   RWMutexWriteLock lock(Mutex);
@@ -240,6 +293,16 @@ FmdHandler::SetChangeLogFile(const char* changelogfilename, int fsid, XrdOucStri
 }
 
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Comparison functino for modification times
+ * 
+ * @param a pointer to a filestat struct
+ * @param b pointer to a filestat struct
+ * 
+ * @return difference between the two modification times within the filestat struct
+ */
+/*----------------------------------------------------------------------------*/
 int 
 FmdHandler::CompareMtime(const void* a, const void *b) {
   struct filestat {
@@ -249,6 +312,15 @@ FmdHandler::CompareMtime(const void* a, const void *b) {
   return ( (((struct filestat*)b)->buf.st_mtime) - ((struct filestat*)a)->buf.st_mtime);
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Attach to the most recent changelog file for a given filesystem id
+ * 
+ * @param changelogdir directory where to search for changelog files
+ * @param fsid filesystem to find the changelog file for 
+ * 
+ * @return true if attached false if not found
+ */
 /*----------------------------------------------------------------------------*/
 bool FmdHandler::AttachLatestChangeLogFile(const char* changelogdir, int fsid) 
 {
@@ -345,6 +417,15 @@ bool FmdHandler::AttachLatestChangeLogFile(const char* changelogdir, int fsid)
   return SetChangeLogFile(changelogfilename.c_str(),fsid);
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Read the contents of a changelog file into the memory hash
+ * 
+ * @param fsid filesystem id to read
+ * @param option 'f' specifies to ignore the changelog version 'd' requests to dump while reading 'c' indicates that called from the 'fsck' tool
+ * 
+ * @return if all records read and valid otherwise false
+ */
 /*----------------------------------------------------------------------------*/
 bool FmdHandler::ReadChangeLogHash(int fsid, XrdOucString option) 
 {
@@ -511,6 +592,19 @@ bool FmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Return or Create an FMD struct for the given file/filesystem id for user uid/gid and layout layoutid
+ * 
+ * @param fid file id
+ * @param fsid filesystem id
+ * @param uid user id of the caller
+ * @param gid group id of the caller
+ * @param layoutid layout id used to store during creation
+ * @param isRW indicates if we create a not existing FMD 
+ * 
+ * @return pointer to FMD struct if successfull otherwise 0
+ */
+/*----------------------------------------------------------------------------*/
 Fmd*
 FmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid, gid_t gid, unsigned int layoutid, bool isRW) 
 {
@@ -597,6 +691,15 @@ FmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid, gid_t g
 
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Delete a record associated with file id fid on filesystem fsid
+ * 
+ * @param fid file id
+ * @param fsid filesystem id
+ * 
+ * @return true if deleted, false if it does not exist
+ */
+/*----------------------------------------------------------------------------*/
 bool
 FmdHandler::DeleteFmd(unsigned long long fid, unsigned int fsid) 
 {
@@ -622,6 +725,14 @@ FmdHandler::DeleteFmd(unsigned long long fid, unsigned int fsid)
 }
 
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Commit FMD to the changelog file
+ * 
+ * @param fmd pointer to FMD
+ * 
+ * @return true if record has been commited
+ */
 /*----------------------------------------------------------------------------*/
 bool
 FmdHandler::Commit(Fmd* fmd)
@@ -664,6 +775,15 @@ FmdHandler::Commit(Fmd* fmd)
   return true;
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Trim a change log file for a given filesystem id
+ * 
+ * @param fsid file system id
+ * @param option 'c' given by external trim tool to verbose the compactification
+ * 
+ * @return true if successful otherwise false
+ */
 /*----------------------------------------------------------------------------*/
 bool
 FmdHandler::TrimLogFile(int fsid, XrdOucString option) {
@@ -830,6 +950,13 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option) {
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Convert a FMD struct into an env representation
+ * 
+ * 
+ * @return env representation
+ */
+/*----------------------------------------------------------------------------*/
 XrdOucEnv*
 Fmd::FmdToEnv() 
 {
@@ -844,6 +971,15 @@ Fmd::FmdToEnv()
   return new XrdOucEnv(serialized);
 };
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Convert an env representation to an FMD struct
+ * 
+ * @param env env representation
+ * @param fmd reference to FMD struct
+ * 
+ * @return true if successful otherwise false
+ */
 /*----------------------------------------------------------------------------*/
 bool 
 Fmd::EnvToFmd(XrdOucEnv &env, struct Fmd::FMD &fmd)
@@ -912,6 +1048,17 @@ Fmd::EnvToFmd(XrdOucEnv &env, struct Fmd::FMD &fmd)
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Return FMD from a remote filesystem
+ * 
+ * @param admin pointer to a ClientAdmin object
+ * @param serverurl url of the server to contact
+ * @param shexfid hex string of the file id
+ * @param sfsid string of filesystem id
+ * @param fmd reference to the FMD struct to store FMD
+ * 
+ * @return 
+ */
 int
 FmdHandler::GetRemoteFmd(ClientAdmin* admin, const char* serverurl, const char* shexfid, const char* sfsid, struct Fmd::FMD &fmd)
 {
@@ -983,6 +1130,18 @@ FmdHandler::GetRemoteFmd(ClientAdmin* admin, const char* serverurl, const char* 
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Return a remote file attribute
+ * 
+ * @param admin Pointer to a client admin object
+ * @param serverurl url of the server to contact
+ * @param key extended attribute key to get
+ * @param path file path to read attributes from
+ * @param attribute reference where to store the attribute value
+ * 
+ * @return 
+ */
+/*----------------------------------------------------------------------------*/
 int
 FmdHandler::GetRemoteAttribute(ClientAdmin* admin, const char* serverurl, const char* key, const char* path, XrdOucString& attribute)
 {
@@ -1039,6 +1198,8 @@ FmdHandler::GetRemoteAttribute(ClientAdmin* admin, const char* serverurl, const 
   attribute = result;
   return 0;
 }
+
+/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_END
 

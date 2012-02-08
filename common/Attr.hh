@@ -21,6 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   Attr.hh
+ * 
+ * @brief  Interface to extended attributes on file level.
+ * 
+ * 
+ */
+
 #ifndef __EOSCOMMON_ATTR__HH__
 #define __EOSCOMMON_ATTR__HH__
 
@@ -37,23 +45,53 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+//! Class to modify extended attributes on files.
+//! Best is to use the factory function OpenAttr instead of the constructor.
+/*----------------------------------------------------------------------------*/
+
 class Attr {
 private:
-  std::string fName;
+  std::string fName; //< File Name storing the attributes
 
 public:
-  bool Set(const char* name, const char* value, size_t len); // set a binary attribute (name has to start with 'user.' !!!)
-  bool Set(std::string key, std::string value);              // set a string attribute (name has to start with 'user.' !!!)
-  bool Get(const char* name, char* value, size_t &size); // get a binary attribute
-  std::string Get(std::string name);                     // get a strnig attribute
+  // ------------------------------------------------------------------------
+  //! Set a binary attribute (name has to start with 'user.' !!!)
+  // ------------------------------------------------------------------------
+  bool Set(const char* name, const char* value, size_t len); 
+
+  // ------------------------------------------------------------------------
+  //! Set a string attribute (name has to start with 'user.' !!!)
+  // ------------------------------------------------------------------------
+  bool Set(std::string key, std::string value);          
+
+  // ------------------------------------------------------------------------
+  //! Get a binary attribute by name (name has to starte with 'user.' !!!)
+  // ------------------------------------------------------------------------
+  bool Get(const char* name, char* value, size_t &size); 
+
+  // ------------------------------------------------------------------------
+  //! Get a string attribute by name (name has to starte with 'user.' !!!)
+  // ------------------------------------------------------------------------
+  std::string Get(std::string name);                     
   
-  static Attr* OpenAttr(const char* file);            // factory function
-  Attr(const char* file);
-  ~Attr();
+  // ------------------------------------------------------------------------
+  //! Factory function to create an attribute object
+  // ------------------------------------------------------------------------
+  static Attr* OpenAttr(const char* file);               
 
-
+  // ------------------------------------------------------------------------
+  //! Constructor
+  // ------------------------------------------------------------------------
+  Attr(const char* file);                                
+  
+  // ------------------------------------------------------------------------
+  //! Destructor
+  // ------------------------------------------------------------------------
+  ~Attr();                                               
 };
 
+/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 #endif
 

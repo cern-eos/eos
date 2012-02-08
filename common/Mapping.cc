@@ -24,12 +24,13 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/Mapping.hh"
-#include "common/StringStore.hh"
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+// global mapping objects
 /*----------------------------------------------------------------------------*/
 RWMutex                    Mapping::gMapMutex;
 XrdSysMutex                Mapping::gPhysicalIdMutex;
@@ -47,6 +48,12 @@ std::map<std::string, time_t> Mapping::ActiveTidents;
 XrdOucHash<Mapping::id_pair>    Mapping::gPhysicalUidCache;
 XrdOucHash<Mapping::gid_vector> Mapping::gPhysicalGidCache;
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Expire Active client entries which have not been used since interval
+ * 
+ * @param interval seconds of idle time for expiration
+ */
 /*----------------------------------------------------------------------------*/
 void 
 Mapping::ActiveExpire(int interval) 
@@ -68,6 +75,15 @@ Mapping::ActiveExpire(int interval)
   Mapping::ActiveLock.UnLock();
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Map a client to its virtual identity
+ * 
+ * @param client xrootd client authenticatino object
+ * @param env opaque information containing role selection like 'eos.ruid' and 'eos.rgid'
+ * @param tident trace identifier of the client
+ * @param vid returned virtual identity
+ */
 /*----------------------------------------------------------------------------*/
 void 
 Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, Mapping::VirtualIdentity &vid)
@@ -100,6 +116,9 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
   
   vid.prot = client->prot;
 
+  // ---------------------------------------------------------------------------
+  // kerberos mapping
+  // ---------------------------------------------------------------------------
   if ( (vid.prot == "krb5") ) {
     eos_static_debug("krb5 mapping");
     if (gVirtualUidMap.count("krb5:\"<pwd>\":uid")) {
@@ -120,6 +139,9 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     }
   }
   
+  // ---------------------------------------------------------------------------
+  // ssl mapping
+  // ---------------------------------------------------------------------------
   if ( (vid.prot == "ssl") ) {
     eos_static_debug("ssl mapping");
     if (gVirtualUidMap.count("ssl:\"<pwd>\":uid")) {
@@ -140,6 +162,9 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // gsi mapping
+  // ---------------------------------------------------------------------------
   if ( (vid.prot == "gsi") ) {
     eos_static_debug("gsi mapping");
     if (gVirtualUidMap.count("gsi:\"<pwd>\":uid")) {
@@ -160,6 +185,9 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // sss mapping
+  // ---------------------------------------------------------------------------
   if ( (vid.prot == "sss") ) {
     eos_static_debug("sss mapping");
     if (gVirtualUidMap.count("sss:\"<pwd>\":uid")) {
@@ -203,6 +231,9 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // unix mapping
+  // ---------------------------------------------------------------------------
   if ( (vid.prot == "unix") ) {
     eos_static_debug("unix mapping");
     if (gVirtualUidMap.count("unix:\"<pwd>\":uid")) {
@@ -246,7 +277,9 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     }
   }
 
+  // ---------------------------------------------------------------------------
   // tident mapping
+  // ---------------------------------------------------------------------------
   XrdOucString mytident="";
   XrdOucString wildcardtident="";
   XrdOucString host="";
@@ -271,7 +304,10 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     if (!HasGid(99, vid.gid_list)) vid.gid_list.push_back(99);
   } 
 
+  // ---------------------------------------------------------------------------
   // wild card tidents
+  // one can define mapping entries like '*@host=>0' e.g. for fuse mounts
+  // ---------------------------------------------------------------------------
   if ((gVirtualUidMap.count(swcuidtident.c_str()))) {
     if (!gVirtualUidMap[swcuidtident.c_str()]) {
       if ( gRootSquash && (host != "localhost") && (vid.name == "root") ) {
@@ -329,7 +365,9 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
 
   eos_static_debug("suidtident:%s sgidtident:%s", suidtident.c_str(), sgidtident.c_str());
 
+  // ---------------------------------------------------------------------------
   // the configuration door for localhost clients adds always the adm/adm vid's
+  // ---------------------------------------------------------------------------
   if ( ( suidtident == "tident:\"root@localhost.localdomain\":uid") || 
        ( suidtident == "tident:\"root@localhost\":uid") ) {
     vid.sudoer = true;
@@ -339,7 +377,9 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     if (!HasGid(4,vid.gid_list)) vid.gid_list.push_back(vid.gid);
   }
 
+  // ---------------------------------------------------------------------------
   // explicit virtual mapping overrules physical mappings - the second one comes from the physical mapping before
+  // ---------------------------------------------------------------------------
   vid.uid = (gVirtualUidMap.count(useralias.c_str())) ?gVirtualUidMap[useralias.c_str() ]:vid.uid;
   if (!HasUid(vid.uid,vid.uid_list)) vid.uid_list.insert(vid.uid_list.begin(),vid.uid);
   vid.gid = (gVirtualGidMap.count(groupalias.c_str()))?gVirtualGidMap[groupalias.c_str()]:vid.gid;
@@ -348,7 +388,9 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
 
   if (!HasGid(vid.gid,vid.gid_list)) vid.gid_list.insert(vid.gid_list.begin(),vid.gid);
 
+  // ---------------------------------------------------------------------------
   // add virtual user and group roles - if any 
+  // ---------------------------------------------------------------------------
   if (gUserRoleVector.count(vid.uid)) {
     uid_vector::const_iterator it;
     for (it = gUserRoleVector[vid.uid].begin(); it != gUserRoleVector[vid.uid].end(); ++it)
@@ -361,8 +403,9 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
       if (!HasGid((*it),vid.gid_list)) vid.gid_list.push_back((*it));
   }
 
-
-  // select roles
+  // ---------------------------------------------------------------------------
+  // Environment selected roles
+  // ---------------------------------------------------------------------------
   XrdOucString ruid = Env.Get("eos.ruid");
   XrdOucString rgid = Env.Get("eos.rgid");
   uid_t sel_uid = vid.uid;
@@ -381,13 +424,17 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
       sel_gid = (gVirtualGidMap.count(rgid.c_str()))?gVirtualGidMap[rgid.c_str()]:99;
     }
   }
-    
-  // set sudoer flag
+
+  // ---------------------------------------------------------------------------    
+  // Sudoer flag setting
+  // ---------------------------------------------------------------------------
   if (gSudoerMap.count(vid.uid)) {
     vid.sudoer = true;
   }
 
-  // check if we are allowed to take sel_uid & sel_gid
+  // ---------------------------------------------------------------------------
+  // Check if we are allowed to take sel_uid & sel_gid
+  // ---------------------------------------------------------------------------
   if (!vid.sudoer) {
     // if we are not a sudore, scan the allowed ids
     if (HasUid(sel_uid, vid.uid_list))
@@ -408,8 +455,14 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
 
   time_t now = time(NULL);
 
+  // ---------------------------------------------------------------------------
+  // Maintain the active client map and expire old entries
+  // ---------------------------------------------------------------------------
   ActiveLock.Lock();
+
+  // ---------------------------------------------------------------------------
   // safty measures not to exceed memory by 'nasty' clients
+  // ---------------------------------------------------------------------------
   if (ActiveTidents.size() > 100000) {
     ActiveExpire();
   }
@@ -424,6 +477,13 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
   eos_static_debug("selected %d %d [%s %s]", vid.uid,vid.gid, ruid.c_str(),rgid.c_str());
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Print the current mappings
+ * 
+ * @param stdOut the output is stored here
+ * @param option can be 'u' for user role mappings 'g' for group role mappings 's' for sudoer list 'U' for user alias mapping 'G' for group alias mapping 'y' for gateway mappings (tidents) 'a' for authentication mapping rules
+ */
 /*----------------------------------------------------------------------------*/
 void
 Mapping::Print(XrdOucString &stdOut, XrdOucString option)
@@ -529,6 +589,13 @@ Mapping::Print(XrdOucString &stdOut, XrdOucString option)
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Store the physical Ids for name in the virtual identity
+ * 
+ * @param name user name
+ * @param vid virtual identity to store
+ */
+/*----------------------------------------------------------------------------*/
 void
 Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
 {
@@ -575,6 +642,9 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
   }
 
 
+  // ----------------------------------------------------------------------------------------
+  // TODO: Because of problems with the LDAP database we have commented the secondary group support
+  // ----------------------------------------------------------------------------------------
   /* remove secondary searches in the database -> LDAP assertion
      struct group* gr;
   
@@ -617,7 +687,15 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
 }
 
 /*----------------------------------------------------------------------------*/
-
+/** 
+ * Convert uid to user name
+ * 
+ * @param uid unix user id
+ * @param errc 0 if success, EINVAL if does not exist
+ * 
+ * @return user name as string
+ */
+/*----------------------------------------------------------------------------*/
 std::string 
 Mapping::UidToUserName(uid_t uid, int &errc)
 {
@@ -638,6 +716,15 @@ Mapping::UidToUserName(uid_t uid, int &errc)
   return uid_string;
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Convert gid to group name
+ * 
+ * @param gid unix group id
+ * @param errc 0 if success, EINVAL if does not exist
+ * 
+ * @return user name as string
+ */
 /*----------------------------------------------------------------------------*/
 std::string 
 Mapping::GidToGroupName(gid_t gid, int &errc)
@@ -661,6 +748,15 @@ Mapping::GidToGroupName(gid_t gid, int &errc)
   return gid_string;
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Convert string name to uid
+ * 
+ * @param username name as string
+ * @param errc 0 if success, EINVAL if does not exist
+ * 
+ * @return user id
+ */
 /*----------------------------------------------------------------------------*/
 uid_t 
 Mapping::UserNameToUid(std::string &username, int &errc)
@@ -686,6 +782,15 @@ Mapping::UserNameToUid(std::string &username, int &errc)
   return uid;
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Convert string name to gid
+ * 
+ * @param groupname name as string
+ * @param errc 0 if success, EINVAL if does not exist
+ * 
+ * @return group id
+ */
 /*----------------------------------------------------------------------------*/
 gid_t 
 Mapping::GroupNameToGid(std::string &groupname, int &errc)

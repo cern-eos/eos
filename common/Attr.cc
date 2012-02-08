@@ -31,13 +31,19 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+
+/*----------------------------------------------------------------------------*/
+/** 
+ * Factury function checking if file exists.
+ * 
+ * @param file path to the file with extended attributes
+ * 
+ * @return Attr object if file exists otherwise 0
+ */
 /*----------------------------------------------------------------------------*/
 Attr*
 Attr::OpenAttr(const char * file)
 {
-  //----------------------------------------------------------------
-  //! factory function checking if file exists
-  //----------------------------------------------------------------
   struct stat buf;
   if (!file)
     return 0;
@@ -49,22 +55,37 @@ Attr::OpenAttr(const char * file)
 };
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Create an attribute object for file
+ * 
+ * @param file path toe the file with extended attributes
+ */
+/*----------------------------------------------------------------------------*/
 Attr::Attr(const char* file)
 {
-  //----------------------------------------------------------------
-  //! constructor for attribute access
-  //----------------------------------------------------------------
   fName = file;
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Destructor
+ * 
+ */
+/*----------------------------------------------------------------------------*/
 Attr::~Attr() 
 {
-  //----------------------------------------------------------------
-  //! destructor
-  //----------------------------------------------------------------
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Set an attribute with name to value
+ * 
+ * @param name attribute name should start with 'user.'
+ * @param value attribute string value
+ * @param len length of string value
+ * 
+ * @return true if successful - false if error
+ */
 /*----------------------------------------------------------------------------*/
 bool 
 Attr::Set(const char* name, const char* value, size_t len)
@@ -78,20 +99,38 @@ Attr::Set(const char* name, const char* value, size_t len)
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Set an attribute named by key to value
+ * 
+ * @param key string of the key should start with 'user.'
+ * @param value string value
+ * 
+ * @return true if successful - false if error
+ */
+/*----------------------------------------------------------------------------*/
 bool 
 Attr::Set(std::string key, std::string value)
 {
+
   return Set(key.c_str(), value.c_str(), value.length());
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Retrieve a binary attribute - value buffer is of size 'size' and the result is store there.
+ * The value buffer must be large enough to hold the full attribute.
+ * 
+ * @param name name of the attribute to retrieve
+ * @param value pointer to string where to store the value
+ * @param size size of the value buffer.
+ * 
+ * @return true if the attribute has been retrieved - false if error
+ */
+/*----------------------------------------------------------------------------*/
 bool
 Attr::Get(const char* name, char* value, size_t &size)
 {
-  //----------------------------------------------------------------
-  //! retrieves a binary attribute - value buffer is of size <size> and the result is stored there
-  //! <buffer> must be large enough to hold the full attribute
-  //----------------------------------------------------------------  
+
   if ((!name) || (!value))
     return -1;
 
@@ -105,12 +144,18 @@ Attr::Get(const char* name, char* value, size_t &size)
 }
 
 /*----------------------------------------------------------------------------*/
+/** 
+ * Return a string for the extended attribute by name
+ * 
+ * @param name key of the extended attribute
+ * 
+ * @return string of the value and also empty "" if it does not exist
+ */
+/*----------------------------------------------------------------------------*/
 std::string
 Attr::Get(std::string name)
 {
-  //----------------------------------------------------------------
-  //! returns an extended attribute as a string
-  //----------------------------------------------------------------
+
   char buffer[65536];
   size_t size = sizeof(buffer)-1;
 
@@ -121,4 +166,5 @@ Attr::Get(std::string name)
   return std::string(buffer);
 }
 
+/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
