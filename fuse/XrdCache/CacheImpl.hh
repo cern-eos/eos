@@ -373,6 +373,10 @@ class CacheImpl
           pthread_mutex_unlock(&mutexList);                //unlock list
           pthread_rwlock_unlock(&rwMapLock);               //unlock map
 
+          pthread_mutex_lock(&mutexWriteDone);
+          pthread_cond_wait(&condWriteDone, &mutexWriteDone);
+          pthread_mutex_unlock(&mutexWriteDone);
+         
           pthread_rwlock_wrlock(&rwMapLock);               //write lock map
           pthread_mutex_lock(&mutexList);                  //lock list       
         }

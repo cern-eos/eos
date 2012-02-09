@@ -198,7 +198,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
         int fd;
         if ((fd = xrd_open(fullpath, O_WRONLY , S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
           retc = xrd_truncate(fd,attr->st_size, 0);
-          xrd_close(ino, fd);
+          xrd_close(fd, ino);
         } else {
           retc = -1;
         }
@@ -208,7 +208,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
       int fd;
       if ((fd = xrd_open(fullpath, O_WRONLY , S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
         retc = xrd_truncate(fd, attr->st_size, 0);
-        xrd_close(ino, fd);
+        xrd_close(fd, ino);
       }
     }
   }
@@ -969,7 +969,7 @@ static void eosfs_ll_release(fuse_req_t req, fuse_ino_t ino,
     }
 
     //    if ((xrd_readopenfilelist_lease(ino,req->ctx.uid)<0)) {
-    res = xrd_close(fd, 0);
+    res = xrd_close(fd, ino);
       //    }
 
     fi->fh = 0;
