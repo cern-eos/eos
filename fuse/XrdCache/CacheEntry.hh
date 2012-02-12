@@ -36,26 +36,36 @@
 class CacheEntry
 {
  public:
+
   CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstraction *ptr);
   ~CacheEntry();
+  static const size_t getMaxSize() { return 524288; };    //512 KB
 
-  int    GetFd() const { return fd; };
-  char*  GetDataBuffer() { return buffer; }; 
-  size_t GetLength() const { return length; };
-  off_t  GetOffset() const { return offset; };
-  off_t  GetOffsetEnd() const { return (offset + length); };
+  int    getFd() const;
+  char*  getDataBuffer(); 
+  size_t getSizeData() const;
+  size_t getCapacity() const;
+  off_t  getOffsetStart() const;
+  off_t  getOffsetEnd() const;
+  FileAbstraction*  getParentFile() const;
 
-  FileAbstraction*  GetParentFile() const { return pParentFile; }; 
-  void   Recycle(int filedes, char* buf, off_t offset, size_t lenBuf,
+  void   addPiece(char* buf, off_t off, size_t len);
+  bool   getPiece(char* buf, off_t off, size_t len);
+  void   doWrite();
+  void   doRecycle(int filedes, char* buf, off_t offset, size_t lenBuf,
                   FileAbstraction* ptr);
 
  private:
-  int fd;                       //file descriptor
-  size_t capacity;
-  size_t length;
-  off_t  offset;
-  char*  buffer;                //buffer of the object
-  FileAbstraction* pParentFile; //pointer to parent file
+  int fd;                           //file descriptor
+  char*  buffer;                    //buffer of the object
+  size_t capacity;                  //total capcity ~ 512 KB
+  size_t sizeData;                  //size of useful data
+  off_t  offsetStart;               //offset relative to the file
+
+  std::map<off_t, size_t> mapPices; //pieces read/to be written 
+  FileAbstraction* pParentFile;     //pointer to parent file
+
+  void mergePieces();
 };
 
 #endif

@@ -1497,6 +1497,7 @@ xrd_write(int fildes, const void *buf, size_t nbyte, unsigned long inode)
   else if (XFC && inode)
   {
     off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
+    fprintf(stdout, "submitting a new write request\n");
     XFC->SubmitWrite(inode, fildes, const_cast<void*>(buf), offset, nbyte);
     ret = nbyte;
   }
@@ -1518,6 +1519,7 @@ xrd_pwrite(int fildes, const void *buf, size_t nbyte, off_t offset, unsigned lon
   }
   else if (XFC && inode)
   {
+    fprintf(stdout, "submitting a new write request\n");
     XFC->SubmitWrite(inode, fildes, const_cast<void*>(buf), offset, nbyte);
     ret = nbyte;
   }
@@ -1846,7 +1848,7 @@ xrd_init()
     }
   } else 
   {
-    fprintf(stdout, "XRD FILE CACHE initialized. \n");
+    fprintf(stdout, "XRD FILE CACHE initialized to size %li \n", atol(getenv("EOS_XFC_SIZE")));
     XFC = XrdFileCache::Instance(static_cast<size_t>(atol(getenv("EOS_XFC_SIZE"))));   
   }
   
