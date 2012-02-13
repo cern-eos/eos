@@ -7,6 +7,8 @@
 //------------------------------------------------------------------------------
 #include "XrdPosix/XrdPosixXrootd.hh"
 //------------------------------------------------------------------------------
+#include "common/Logging.hh"
+//------------------------------------------------------------------------------
 
 template <
   typename K,
@@ -138,13 +140,9 @@ class CacheImpl
 
     //delay the writing thread if there are not enough request
     //in the queue for the current file and then start processing them
+    eos_static_debug("oldSize=%zu newSize=%zu writeSize=%zu limit=%f currentSize=%zu", oldSizeQ, newSizeQ, GetWritesSize(),minPercentWrites * sizeMax, GetCurrentSize());
     if (oldSizeQ != 0)
     {
-      /*fprintf(stdout, "oldSize = %zu, newSize = %zu, writeSize = %zu, \
-                limit = %f, currentSize = %zu \n", oldSizeQ, newSizeQ, GetWritesSize(),
-               minPercentWrites * sizeMax, GetCurrentSize());
-      */
-      
       if ((oldSizeQ > newSizeQ) &&
           !inLimitRegion && 
           (GetWritesSize() < threshold + epsilon ) &&
@@ -154,7 +152,7 @@ class CacheImpl
         struct timespec ts;
         ts.tv_sec = 0;
         ts.tv_nsec = 500 * 1e6;  //500 mili sec
-        //fprintf(stdout, "[%s] Writing thread sleep!\n", __FUNCTION__);
+        fprintf(stderr, "[%s] Writing thread sleep!\n", __FUNCTION__);
         nanosleep(&ts, NULL);
       }
     }
@@ -185,6 +183,7 @@ class CacheImpl
       pthread_rwlock_unlock(&rwMapLock);             //unlock map
      
       //do actual writing
+      eos_static_debug("cmd=pwrite fd=%lu offset=%lld length=%lu", pEntry->GetFd(), static_cast<long long>(pEntry->GetOffset()), pEntry->GetLength());
       retc = XrdPosixXrootd::Pwrite(pEntry->GetFd(), pEntry->GetDataBuffer(), pEntry->GetLength(),
                             static_cast<long long>(pEntry->GetOffset()));
 
@@ -205,6 +204,7 @@ class CacheImpl
       pEntry->GetParentFile()->DecrementWrites(pEntry->GetLength());
       DecreaseWritesSize(pEntry->GetLength());
 
+      //      eos_static_info("cache full %.02f\n", 100.0*GetWritesSize()/(maxPercentWrites*sizeMax));
       if (GetWritesSize() <= maxPercentWrites * sizeMax)
       {
         //notify possible waiting threads that a write was done
@@ -223,6 +223,7 @@ class CacheImpl
   void
   AddWrite(const key_type& k, value_type* const v)
   {
+    eos_static_debug("adding write request to queue");
     pthread_rwlock_wrlock(&rwMapLock);            //write lock map
     pthread_mutex_lock(&mutexList);               //lock list
 
@@ -230,6 +231,7 @@ class CacheImpl
     while (GetCurrentSize() + length >= sizeMax) {
       if (!evict())
       {
+	eos_static_info("writing stalled - cache full");
         //release lock and wait for writing thread to do some writing
         //in case all cache is full with blocks for writing
         pthread_mutex_unlock(&mutexList);         //unlock list
@@ -242,6 +244,7 @@ class CacheImpl
         //relock the map and the list
         pthread_rwlock_wrlock(&rwMapLock);         //write lock map
         pthread_mutex_lock(&mutexList);            //lock list
+	eos_static_info("writing continues - cache free");
       }
     }
 
@@ -323,6 +326,7 @@ class CacheImpl
     pthread_rwlock_unlock(&rwMapLock);         //unlock map
     
     //add the new key to the queue for the write thread
+    eos_static_debug("pushing to queue");
     writeReqQueue->push(const_cast<key_type&>(k));
   }
  

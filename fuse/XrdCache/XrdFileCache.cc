@@ -28,6 +28,8 @@
 //------------------------------------------------------------------------------
 #include "XrdFileCache.hh"
 //------------------------------------------------------------------------------
+#include "common/Logging.hh"
+//------------------------------------------------------------------------------
 
 XrdFileCache* XrdFileCache::pInstance = NULL;
 
@@ -98,20 +100,22 @@ XrdFileCache::WriteThreadProc(void* arg)
   XrdFileCache* pfc = static_cast<XrdFileCache*>(arg);
     
   while (1) {
+    eos_static_debug("waiting for write request");
     pfc->cacheImpl->writeReqQueue->wait_pop(key);
-    
+    eos_static_debug("waited for write request");
     if (key == -1) 
     {     
-      fprintf(stdout, "Got sentinel element => EXIT. \n");
+      fprintf(stderr, "Got sentinel element => EXIT. \n");
       break;
     }
     else {
+      eos_static_debug("calling process");
       //do write element
       pfc->cacheImpl->ProcessWriteReq(key, retc);     
     }
   }
   
-  fprintf(stdout, "Stopped writer thread.\n");
+  fprintf(stderr, "Stopped writer thread.\n");
   return (void*) pfc;
 }
 
@@ -170,6 +174,7 @@ size_t
 XrdFileCache::SubmitWrite(unsigned long inode, int filed, void* buf,
                           off_t offset, size_t length)
 {
+  eos_static_debug("inode=%lu filed=%d offset=%llu length=%lu", inode, filed, (unsigned long long)offset, (unsigned long )length);
   size_t ret = 0;
   CacheEntry* pEntry = NULL;
   FileAbstraction * fAbst = GetFileObj(inode);
@@ -188,6 +193,7 @@ size_t
 XrdFileCache::GetRead(unsigned long inode, int filed, void* buf,
                       off_t offset, size_t length)
 {
+  eos_static_debug("inode=%lu filed=%d offset=%llu length=%lu", inode, filed, (unsigned long long)offset, (unsigned long )length);
   size_t ret = 0;
   CacheEntry* pEntry = NULL;
   FileAbstraction * fAbst = GetFileObj(inode);
@@ -218,6 +224,7 @@ void
 XrdFileCache::PutRead(unsigned long inode, int filed, void* buf,
                       off_t offset, size_t length)
 {
+  eos_static_debug("inode=%lu filed=%d offset=%llu length=%lu", inode, filed, (unsigned long long)offset, (unsigned long )length);
   CacheEntry* pEntry = NULL;
   FileAbstraction * fAbst = GetFileObj(inode);
   long long int key = fAbst->GenerateBlockKey(offset + length);
@@ -235,6 +242,7 @@ size_t
 XrdFileCache::GetReadV(unsigned long inode, int filed, void* buf,
                        off_t* offset, size_t* length, int nbuf)
 {
+  eos_static_debug("inode=%lu filed=%d nbuf=%d", inode, filed, nbuf);
   size_t ret = 0;
   char* ptrBuf = static_cast<char*>(buf);
   long long int key;
@@ -263,6 +271,7 @@ void
 XrdFileCache::PutReadV(unsigned long inode, int filed, void* buf,
                        off_t* offset, size_t* length, int nbuf)
 {
+  eos_static_debug("inode=%lu filed=%d nbuf=%d", inode, filed, nbuf);
   char* ptrBuf = static_cast<char*>(buf);
   long long int key; 
   CacheEntry* pEntry = NULL;
@@ -285,6 +294,7 @@ XrdFileCache::PutReadV(unsigned long inode, int filed, void* buf,
 void
 XrdFileCache::RemoveFileInode(unsigned long inode)
 {
+  eos_static_debug("inode=%lu", inode);
   FileAbstraction* ptr =  NULL;
   
   pthread_rwlock_wrlock(&keyMgmLock);   //write lock
@@ -325,7 +335,11 @@ void
 XrdFileCache::WaitFinishWrites(unsigned long inode)
 {
   FileAbstraction* fAbst = GetFileObj(inode);
-  if (fAbst)
+  if (fAbst) {
+    eos_static_debug("ok inode=%llu",inode);
     fAbst->WaitFinishWrites();
+  } else {
+    eos_static_debug("miss inode=%llu",inode);
+  }
   return;
 }

@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * CopByright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -25,6 +25,7 @@
 #include <cstdio>
 #include <queue>
 #include <pthread.h>
+#include <common/Logging.hh>
 //------------------------------------------------------------------------------
 
 #ifndef __EOS_CONCURRENTQUEUE_HH__
@@ -130,9 +131,11 @@ void
 ConcurrentQueue<Data>::wait_pop(Data& popped_value)
 {
   pthread_mutex_lock(&mutex);
-  while(queue.empty())
-  {
+  while(queue.empty()) {
+    
+    eos_static_debug("wait on concurrent queue");
     pthread_cond_wait(&cond, &mutex);
+    eos_static_debug("wait on concurrent queue signalled");
   }
 
   popped_value = queue.front();

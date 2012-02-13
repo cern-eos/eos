@@ -170,7 +170,8 @@ void
 FileAbstraction::WaitFinishWrites()
 {
   pthread_mutex_lock(&writesMutex);
-  if (noWrites != 0)
+  eos_static_debug("nowrites=%d", noWrites);
+  if (noWrites != 0) 
     pthread_cond_wait(&writesCond, &writesMutex);
   pthread_mutex_unlock(&writesMutex);  
 }  
