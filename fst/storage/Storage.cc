@@ -1726,6 +1726,8 @@ Storage::Drainer()
   unsigned long long nscheduled=0;
   unsigned long long nscheduled_new=0;
 
+  int expsleep=50000;
+
   while(1) {
     eos_static_debug("Doing draining round ...");
     bool ask = false;
@@ -1809,7 +1811,7 @@ Storage::Drainer()
 	  should_ask[index] = true;
 	  // we allows max. <nparalleltx> transfers to run at the same time
 	  if (nscheduled < nparalleltx) {
-	    eos_static_info("asking for new job %d/%d", nscheduled, nparalleltx);
+	    eos_static_debug("asking for new job %d/%d", nscheduled, nparalleltx);
 	    XrdOucErrInfo error;
 	    XrdOucString managerQuery="/?";
 	    managerQuery += "mgm.pcmd=schedule2drain";
@@ -1860,8 +1862,9 @@ Storage::Drainer()
 	// ---------------------------------------------------------------------------------------------
 	// if we scheduled in the last round, we go one more until we cannot schedule anymore
 	// ---------------------------------------------------------------------------------------------
-	eos_static_info("asking for new job sleep 100000");
+	eos_static_debug("asking for new job sleep 100000");
 	usleep(100000);
+	expsleep = 100000;
       } else {
 	// ---------------------------------------------------------------------------------------------
 	// we are actually running transfers, we check more frequently, if we have to ask for more 
@@ -1883,8 +1886,17 @@ Storage::Drainer()
 	    nscheduled = 0; // this trick allows that we give atleast a second time for a transfer job to appear in the FST queue
 	  } else {
 	    if (total_running == 0) {
+	      // we don't run anything
 	      XrdSysTimer sleeper;
 	      sleeper.Snooze(1);
+	      expsleep = 50000;
+	    } else {
+	      // we run something, we could ask for more immedeatly but we ramp up the sleep
+	      usleep(expsleep);
+	      expsleep *=2;
+	      if (expsleep > 10000000) {
+		expsleep = 10000000;
+	      }
 	    }
 	    break;
 	  }
@@ -2055,7 +2067,7 @@ Storage::Balancer()
 	// ---------------------------------------------------------------------------------------------
 	// if we scheduled in the last round, we go one more until we cannot schedule anymore
 	// ---------------------------------------------------------------------------------------------
-	eos_static_info("asking for new job sleep 100000");
+	eos_static_debug("asking for new job sleep 100000");
 	usleep(100000);
       } else {
 	// ---------------------------------------------------------------------------------------------

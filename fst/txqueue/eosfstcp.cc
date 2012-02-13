@@ -712,7 +712,12 @@ int main(int argc, char* argv[]) {
     case 2:
       if (debug) {fprintf(stdout,"[eosfstcp]: doing XROOT open to write  %s\n",destination[i]);}
       if (appendmode) {
-        dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY|O_CREAT,st[i].st_mode);
+	struct stat buf;
+	if (XrdPosixXrootd::Stat((char*)destination[i],&buf)) {
+	  dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY|O_CREAT,st[i].st_mode);
+	} else {
+	  dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY,st[i].st_mode);
+	}
       } else {
         dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY|O_TRUNC|O_CREAT,st[i].st_mode);
       }
