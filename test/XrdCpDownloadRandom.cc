@@ -59,7 +59,7 @@ int main (int argc, char* argv[]) {
 
 	int rbytes = XrdPosixXrootd::Pread(fdRead, buffer, length, offset);
 	if (rbytes != (int)length) {
-	  fprintf(stderr,"error: read failed at offset %lld length %lu \n", (unsigned long long)offset,length);
+	  fprintf(stderr,"error: read failed at offset %lld length %lu \n", (unsigned long long)offset,(unsigned long)length);
 	  exit(-1);
 	}
 	first = false;
