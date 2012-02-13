@@ -142,7 +142,7 @@ Balancer::Balance(void)
 	      }
 
 	      // set transfer running by group
-	      char srunning[256]; snprintf(srunning, sizeof(srunning)-1, "%lu", totalfiles);
+	      char srunning[256]; snprintf(srunning, sizeof(srunning)-1, "%lu", (unsigned long)totalfiles);
 	      std::string brunning = srunning;
 	      if ( (*git)->GetConfigMember("stat.balancing.running") != brunning) {
 		(*git)->SetConfigMember("stat.balancing.running", brunning, false, "", true);

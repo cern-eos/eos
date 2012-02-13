@@ -656,20 +656,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   else
     Eroute.Say("=====> mgmofs.errorlog : disabled");
 
-  if (ErrorLog) {
-    // this 
-    XrdOucString errorlogkillline="pkill -9 -f \"eos -b console log _MGMID_\"";
-    int rrc = system(errorlogkillline.c_str());
-    if (WEXITSTATUS(rrc)) {
-      eos_info("%s returned %d", errorlogkillline.c_str(), rrc);
-    }
-
-    XrdOucString errorlogline="eos -b console log _MGMID_ >& /dev/null &";
-    rrc = system(errorlogline.c_str());
-    if (WEXITSTATUS(rrc)) {
-      eos_info("%s returned %d", errorlogline.c_str(), rrc);
-    }
-  }
   
   // we need to specify this if the server was not started with the explicit manager option ... e.g. see XrdOfs
   
@@ -1033,6 +1019,22 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
       eos_info("Successful auto-load config %s", ConfigAutoLoad.c_str());
     }
   }
+
+  if (ErrorLog) {
+    // this 
+    XrdOucString errorlogkillline="pkill -9 -f \"eos -b console log _MGMID_\"";
+    int rrc = system(errorlogkillline.c_str());
+    if (WEXITSTATUS(rrc)) {
+      eos_info("%s returned %d", errorlogkillline.c_str(), rrc);
+    }
+
+    XrdOucString errorlogline="eos -b console log _MGMID_ >& /dev/null &";
+    rrc = system(errorlogline.c_str());
+    if (WEXITSTATUS(rrc)) {
+      eos_info("%s returned %d", errorlogline.c_str(), rrc);
+    }
+  }
+
 
   eos_info("starting file view loader thread");
   if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView, static_cast<void *>(this),

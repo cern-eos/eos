@@ -91,12 +91,6 @@ xrdmgmofs_shutdown(int sig) {
     if (WEXITSTATUS(rrc)) {
       eos_static_info("%s returned %d", errorlogkillline.c_str(), rrc);
     }
-    XrdOucString errorlogline="eos -b console log _MGMID_ >& /dev/null &";
-    rrc = system(errorlogline.c_str());
-    if (WEXITSTATUS(rrc)) {
-      eos_static_info("%s returned %d", errorlogline.c_str(), rrc);
-    }
-    eos_static_warning("Shutdown stopping console error log");
   }
   eos_static_warning("Shutdown complete");
   kill(getpid(),9);
