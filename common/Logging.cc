@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------
+// -A---------------------------------------------------------------------
 // File: Logging.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
@@ -119,7 +119,7 @@ Logging::log(const char* func, const char* file, int line, const char* logid, co
   sprintf(fcident,"tident=%s uid=%d gid=%d name=%s",cident,vid.uid,vid.gid,truncname.c_str());
 
   tm = localtime (&current_time);
-  sprintf (buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%s level=%s logid=%s unit=%s tid=%lu source=%s:%s %s ", tm->tm_year-100, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long)tv.tv_usec, func, GetPriorityString(priority),logid, gUnit.c_str(), (unsigned long)XrdSysThread::ID(), File.c_str(), linen, fcident);
+  sprintf (buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-24s level=%s logid=%s unit=%s tid=%lu source=%s:%-5s %s ", tm->tm_year-100, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long)tv.tv_usec, func, GetPriorityString(priority),logid, gUnit.c_str(), (unsigned long)XrdSysThread::ID(), File.c_str(), linen, fcident);
 
   char*  ptr = buffer + strlen(buffer);
   vsprintf(ptr, msg, args);
@@ -151,6 +151,7 @@ Logging::Init()
     gLogCircularIndex[i] = 0;
     gLogMemory[i].resize(gCircularIndexSize);
   }
+  gZeroVid.name="-";
 }
 
 /*----------------------------------------------------------------------------*/
