@@ -1057,6 +1057,7 @@ XrdFstOfsFile::close()
       layOut->remove();
       
       if (fstBlockXS) {
+	fstBlockXS->CloseMap();
 	// delete also the block checksum file
 	fstBlockXS->UnlinkXSPath();
 	delete fstBlockXS;
@@ -1296,7 +1297,6 @@ XrdFstOfsFile::close()
       gOFS.ReportQueue.push(reportString);
       gOFS.ReportQueueMutex.UnLock();
     } 
-    
   }
   
   if (deleteOnClose) {
