@@ -137,7 +137,7 @@ namespace eos
     time_t            startTime = time( 0 );
     CompactingScanner scanner( map, feedback, stats, startTime );
     map.set_deleted_key( 0 );
-    map.set_empty_key( 0xffffffffffffffff );
+    map.set_empty_key( 0xffffffffffffffffll );
     map.resize(10000000);
     inputFile.scanAllRecords( &scanner );
     stats.recordsKept = map.size();

@@ -38,7 +38,7 @@ namespace eos
     d.resize(size);
     for( size_t i = oldSize; i < size; ++i ) {
       d[i].set_deleted_key( 0 );
-      d[i].set_empty_key(0xffffffffffffffff);
+      d[i].set_empty_key(0xffffffffffffffffll);
     }
   }
 

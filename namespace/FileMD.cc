@@ -67,7 +67,6 @@ namespace eos
     pCTime       = other.pCTime;
     pMTime       = other.pMTime;
     pChecksum    = other.pChecksum;
-
     pFileMDSvc   = 0;
     return *this;
   }

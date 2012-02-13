@@ -52,7 +52,7 @@ namespace eos
     typedef uint32_t                location_t;
     typedef uint32_t                layoutId_t;
     typedef std::vector<location_t> LocationVector;
-
+    
     //------------------------------------------------------------------------
     //! Constructor
     //------------------------------------------------------------------------
@@ -226,9 +226,9 @@ namespace eos
     //------------------------------------------------------------------------
     //! Get name
     //------------------------------------------------------------------------
-    const std::string &getName() const
+    const std::string getName() const
     {
-      return pName;
+      return std::string(pName);
     }
 
     //------------------------------------------------------------------------
@@ -436,12 +436,12 @@ namespace eos
     ctime_t            pMTime;
     uint64_t           pSize;
     ContainerMD::id_t  pContainerId;
-    std::string        pName;
-    LocationVector     pLocation;
-    LocationVector     pUnlinkedLocation;
     uid_t              pCUid;
     gid_t              pCGid;
     uint32_t           pLayoutId;
+    std::string        pName;
+    LocationVector     pLocation;
+    LocationVector     pUnlinkedLocation;
     Buffer             pChecksum;
     IFileMDSvc        *pFileMDSvc;
   };

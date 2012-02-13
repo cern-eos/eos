@@ -48,7 +48,7 @@ namespace eos
     ChangeLogContainerMDSvc(): pFirstFreeId( 0 )
     {
       pIdMap.set_deleted_key( 0 );
-      pIdMap.set_empty_key( 0xffffffffffffffff );
+      pIdMap.set_empty_key( 0xffffffffffffffffll );
       pIdMap.resize(1000000);
       pChangeLog = new ChangeLogFile;
     }
