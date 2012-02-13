@@ -458,7 +458,7 @@ RaidDPLayout::operationXOR(char *stripe1, char *stripe2, XrdSfsXferSize totalByt
 
   noPices = totalBytes / sizeof(v2do);
 
-  for (unsigned int i = 0; i < noPices; idx1++, idx2++, xor_res++, i++) {
+  for (long int i = 0; i < noPices; idx1++, idx2++, xor_res++, i++) {
     *xor_res = *idx1 ^ *idx2;
   }
 

@@ -1306,7 +1306,7 @@ XrdFstOfsFile::close()
       eos_debug("<rem> returned retc=%d", retc);
     }
 
-    rc = SFS_OK;
+    rc = SFS_ERROR;
     
     if (fstBlockXS) {
       // delete also the block checksum file
