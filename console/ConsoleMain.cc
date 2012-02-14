@@ -32,6 +32,8 @@
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdPosix/XrdPosixXrootd.hh"
+XrdPosixXrootd posixsingleton;
 /*----------------------------------------------------------------------------*/
 
 // ----------------------------------------------------------------------------
@@ -45,7 +47,9 @@ extern int com_chown (char*);
 extern int com_clear (char*);
 extern int com_config (char*);
 extern int com_console (char*);
+extern int com_cp (char*);
 extern int com_debug (char*);
+extern int com_dropbox (char*);
 extern int com_file (char*);
 extern int com_fileinfo (char*);
 extern int com_find (char*);
@@ -73,6 +77,7 @@ extern int com_role (char*);
 extern int com_rtlog (char*);
 extern int com_silent (char*);
 extern int com_space (char*);
+extern int com_stat (char*);
 extern int com_test (char*);
 extern int com_timing (char*);
 extern int com_transfer (char*);
@@ -167,7 +172,9 @@ COMMAND commands[] = {
   { (char*)"chown",    com_chown,    (char*)"Chown Interface" },
   { (char*)"config",   com_config,   (char*)"Configuration System"},
   { (char*)"console",  com_console,  (char*)"Run Error Console"},
+  { (char*)"cp",       com_cp,       (char*)"Cp command"},
   { (char*)"debug",    com_debug,    (char*)"Set debug level"},
+  { (char*)"dropbox",  com_dropbox,  (char*)"Drop box"},
   { (char*)"exit",     com_quit,     (char*)"Exit from EOS console" },
   { (char*)"file",     com_file,     (char*)"File Handling" },
   { (char*)"fileinfo", com_fileinfo, (char*)"File Information" },
@@ -197,6 +204,7 @@ COMMAND commands[] = {
   { (char*)"rtlog",    com_rtlog,    (char*)"Get realtime log output from mgm & fst servers" },
   { (char*)"silent",   com_silent,   (char*)"Toggle silent flag for stdout" },
   { (char*)"space",    com_space,    (char*)"Space configuration" },
+  { (char*)"stat",     com_stat,     (char*)"Run 'stat' on a file or directory" },
   { (char*)"test",     com_test,     (char*)"Run performance test" },
   { (char*)"timing",   com_timing,   (char*)"Toggle timing flag for execution time measurement" },
   { (char*)"transfer" ,com_transfer ,(char*)"Transfer Interface"},
@@ -860,6 +868,12 @@ int main (int argc, char* argv[]) {
       in1 = argv[argindex];
     }
 
+    if ( (in1 == "cp" ) ) {
+      interactive = false;
+      global_highlighting = false;
+      runpipe = false;
+    }
+
     if ( (in1 == "--pipe") || (in1 == "-p") ) {
       pipemode = true;
       argindex++;
@@ -896,6 +910,10 @@ int main (int argc, char* argv[]) {
       interactive = false;
       argindex++;
       in1 = argv[argindex];
+    }
+
+    if ( (in1 == "cp" ) ) {
+      interactive = false;
     }
 
     if (in1.beginswith("root://")) {

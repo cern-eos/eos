@@ -71,6 +71,7 @@ char symlinkname[4096];
 int dosymlink=0;
 int replicamode=0;
 float bandwidth=0;
+XrdOucString cpname="";
 
 // To compute throughput etc
 struct timeval abs_start_time;
@@ -78,7 +79,7 @@ struct timeval abs_stop_time;
 struct timezone tz;
 
 void usage() {
-  fprintf(stderr, "Usage: %s [-5] [-t <mb/s>] [-h] [-v] [-d] [-l] [-b <size>] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] <src1> [src2...] <dst1> [dst2...]\n",PROGRAM);
+  fprintf(stderr, "Usage: %s [-5] [-t <mb/s>] [-h] [-v] [-d] [-l] [-b <size>] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n",PROGRAM);
   fprintf(stderr, "       -h           : help\n");
   fprintf(stderr, "       -d           : debug mode\n");
   fprintf(stderr, "       -v           : verbose mode\n");
@@ -87,6 +88,7 @@ void usage() {
   fprintf(stderr, "       -b <size>    : use <size> as buffer size for copy operations\n");
   fprintf(stderr, "       -m <mode>    : set the mode for the destination file\n");
   fprintf(stderr, "       -n           : hide progress bar\n");
+  fprintf(stderr, "       -N           : set name for progress printout\n");
   fprintf(stderr, "       -s           : hide summary\n");
   fprintf(stderr, "       -u <uid|name>: use <uid> as UID to execute the operation -  (user)<name> is mapped to unix UID if possible\n");
   fprintf(stderr, "       -g <gid|name>: use <gid> as GID to execute the operation - (group)<name> is mapped to unix GID if possible\n");
@@ -192,7 +194,7 @@ void print_summary(char* src[MAXSRCDST], char* dst[MAXSRCDST], unsigned long lon
 }
 
 void print_progbar(unsigned long long bytesread, unsigned long long size) {
-  CERR(("[eosfstcp] Total %.02f MB\t|",(float)size/1024/1024));
+  CERR(("[eosfstcp] %-24s Total %.02f MB\t|",cpname.c_str(), (float)size/1024/1024));
   for (int l=0; l< 20;l++) {
     if (l< ( (int)(20.0*bytesread/size)))
       CERR(("="));
@@ -218,7 +220,7 @@ int main(int argc, char* argv[]) {
   extern char *optarg;
   extern int optind;
 
-  while ( ( c= getopt(argc, argv, "nshdvlipb:m:u:g:t:S:D:5ar:L:R")) != -1) {
+  while ( ( c= getopt(argc, argv, "nshdvlipb:m:u:g:t:S:D:5ar:N:L:R")) != -1) {
     switch(c) {
     case 'v':
       verbose=1;
@@ -304,6 +306,9 @@ int main(int argc, char* argv[]) {
         fprintf(stderr,"error: # of sources must be 1 <= # <= %d\n",MAXSRCDST);
         exit(-1);
       }
+      break;
+    case 'N':
+      cpname = optarg;
       break;
     case 'b':
       buffersize = atoi(optarg);
@@ -468,8 +473,8 @@ int main(int argc, char* argv[]) {
   for (int i=0; i< ndst; i++) {
     if (did[i]==2) {
       new XrdPosixXrootd();
-      XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,buffersize*3);
-      XrdPosixXrootd::setEnv(NAME_READCACHESIZE,buffersize*6);
+      XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,0l);
+      XrdPosixXrootd::setEnv(NAME_READCACHESIZE,0l);
       if (debug)
         XrdPosixXrootd::setEnv(NAME_DEBUG,10);
     }
