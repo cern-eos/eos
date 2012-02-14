@@ -1390,7 +1390,7 @@ xrd_close(int fildes, unsigned long inode)
     XWC->Flush(fildes); 
   }
   else if (XFC && inode) {
-    XFC->WaitFinishWrites(inode);
+    XFC->waitFinishWrites(inode);
   }
   
   return XrdPosixXrootd::Close(fildes);
@@ -1405,7 +1405,7 @@ xrd_truncate(int fildes, off_t offset, unsigned long inode)
     XWC->Flush(fildes);
   }
   else if (XFC && inode) {
-    XFC->WaitFinishWrites(inode);
+    XFC->waitFinishWrites(inode);
   }
   
   return XrdPosixXrootd::Ftruncate(fildes,offset);
@@ -1420,7 +1420,7 @@ xrd_lseek(int fildes, off_t offset, int whence, unsigned long inode)
     XWC->Flush(fildes);
   }
   else if (XFC && inode) {
-    XFC->WaitFinishWrites(inode);
+    XFC->waitFinishWrites(inode);
   }
  
   return XrdPosixXrootd::Lseek(fildes, (long long)offset, whence);
@@ -1439,19 +1439,19 @@ xrd_read(int fildes, void *buf, size_t nbyte, unsigned long inode)
   }
   else if (XFC && inode)
   {
-    XFC->WaitFinishWrites(inode);
+    XFC->waitFinishWrites(inode);
     off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
 
-    if ((ret = XFC->GetRead(inode, fildes, buf, offset, nbyte)) != nbyte)
+    if ((ret = XFC->getRead(inode, fildes, buf, offset, nbyte)) != nbyte)
     {
       ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
-      XFC->PutRead(inode, fildes, buf, offset, nbyte);
+      XFC->putRead(inode, fildes, buf, offset, nbyte);
     }
   }
   else {
     ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
   }
-  
+   
   return ret;
 }
 
@@ -1468,14 +1468,16 @@ xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode
   }
   else if (XFC && inode)
   {
-    XFC->WaitFinishWrites(inode);
-    if ((ret = XFC->GetRead(inode, fildes, buf, offset, nbyte)) != nbyte)
-      {
-        fprintf(stdout, "Block not in cache, try to read it now. \n");
-        ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
-        fprintf(stdout, "Block not in cache, try to cache it now. \n");
-        XFC->PutRead(inode, fildes, buf, offset, nbyte);
-      }
+    XFC->waitFinishWrites(inode);
+    if ((ret = XFC->getRead(inode, fildes, buf, offset, nbyte)) != nbyte)
+    {
+      fprintf(stderr, "Block not found in cache: off=%zu, len=%zu \n", offset, nbyte);
+      ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
+      XFC->putRead(inode, fildes, buf, offset, nbyte);
+    }
+    else {
+      fprintf(stderr, "Block found in cache: off=%zu, len=%zu \n", offset, nbyte);
+    }
   }
   else {
     ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
@@ -1494,13 +1496,13 @@ xrd_write(int fildes, const void *buf, size_t nbyte, unsigned long inode)
     XWC->Flush(fildes);
     ret = XrdPosixXrootd::Write(fildes, buf, nbyte);
   }
-  else if (XFC && inode)
+  /*  else if (XFC && inode)
   {
     off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
     fprintf(stdout, "submitting a new write request\n");
-    XFC->SubmitWrite(inode, fildes, const_cast<void*>(buf), offset, nbyte);
+    XFC->submitWrite(inode, fildes, const_cast<void*>(buf), offset, nbyte);
     ret = nbyte;
-  }
+    }*/
   else {
     ret = XrdPosixXrootd::Write(fildes, buf, nbyte);    
   }
@@ -1519,8 +1521,8 @@ xrd_pwrite(int fildes, const void *buf, size_t nbyte, off_t offset, unsigned lon
   }
   else if (XFC && inode)
   {
-    fprintf(stdout, "submitting a new write request\n");
-    XFC->SubmitWrite(inode, fildes, const_cast<void*>(buf), offset, nbyte);
+    fprintf(stderr, "info=submitting new write request\n");
+    XFC->submitWrite(inode, fildes, const_cast<void*>(buf), offset, nbyte);
     ret = nbyte;
   }
   else {
@@ -1538,7 +1540,7 @@ xrd_fsync(int fildes, unsigned long inode)
     XWC->Flush(fildes);
   }
   else if (XFC && inode) {
-    XFC->WaitFinishWrites(inode);
+    XFC->waitFinishWrites(inode);
   }
   
   return XrdPosixXrootd::Fsync(fildes);
@@ -1834,7 +1836,7 @@ xrd_init()
   
   //uncomment this to enable XrdCachFile
   setenv("EOS_XFC", "1", 1);
-  setenv("EOS_XFC_SIZE", "200000000", 1);   // ~200MB
+  setenv("EOS_XFC_SIZE", "500000000", 1);   // ~1GB
 
   //initialise the XrdFileCache
   if (!(getenv("EOS_XFC"))) {

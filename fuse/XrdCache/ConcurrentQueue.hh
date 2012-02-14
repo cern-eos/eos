@@ -30,7 +30,7 @@
 #ifndef __EOS_CONCURRENTQUEUE_HH__
 #define __EOS_CONCURRENTQUEUE_HH__
 
-template <class Data>
+template <typename Data>
 class ConcurrentQueue
 {
  public:
@@ -53,7 +53,7 @@ class ConcurrentQueue
 
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 ConcurrentQueue<Data>::ConcurrentQueue()
 {
   pthread_mutex_init(&mutex, NULL);
@@ -61,7 +61,7 @@ ConcurrentQueue<Data>::ConcurrentQueue()
 }
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 ConcurrentQueue<Data>::~ConcurrentQueue()
 {
   pthread_mutex_destroy(&mutex);
@@ -71,7 +71,7 @@ ConcurrentQueue<Data>::~ConcurrentQueue()
 
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 size_t
 ConcurrentQueue<Data>::GetSize()
 {
@@ -83,7 +83,7 @@ ConcurrentQueue<Data>::GetSize()
 }
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 void
 ConcurrentQueue<Data>::push(Data& data)
 {
@@ -94,7 +94,7 @@ ConcurrentQueue<Data>::push(Data& data)
 }
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 bool
 ConcurrentQueue<Data>::empty() const
 {
@@ -106,7 +106,7 @@ ConcurrentQueue<Data>::empty() const
 
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 bool
 ConcurrentQueue<Data>::try_pop(Data& popped_value)
 {
@@ -125,7 +125,7 @@ ConcurrentQueue<Data>::try_pop(Data& popped_value)
 
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 void
 ConcurrentQueue<Data>::wait_pop(Data& popped_value)
 {
@@ -142,7 +142,7 @@ ConcurrentQueue<Data>::wait_pop(Data& popped_value)
 
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 void
 ConcurrentQueue<Data>::clear()
 {

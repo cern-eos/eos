@@ -1,9 +1,34 @@
+// ----------------------------------------------------------------------
+// File: CacheImpl.hh
+// Author: Elvin-Alin Sindrilaru - CERN
+// ----------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2011 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
 //------------------------------------------------------------------------------
 #ifndef __EOS_CACHEIMPL_HH__
 #define __EOS_CACHEIMPL_HH__
 //------------------------------------------------------------------------------
 #include <time.h>
 #include <list>
+#include <iterator>
+#include <cassert>
 //------------------------------------------------------------------------------
 #include "XrdPosix/XrdPosixXrootd.hh"
 //------------------------------------------------------------------------------
@@ -26,7 +51,7 @@ class CacheImpl
   //list<key, opType> access history, most recent at the back
   //opType = write => true
   //opType = read  => false
-  typedef std::list<std::pair<key_type, bool> > key_list_type;
+  typedef std::list< std::pair<key_type, bool> > key_list_type;
 
   //key to (value and history iterator) map
   typedef MAP <
@@ -37,20 +62,20 @@ class CacheImpl
       >
     > key_map_type;
 
-  ConcurrentQueue<key_type>* writeReqQueue;   //write request queue
-
   //------------------------------------------------------------------------------
   //Constuctor
   CacheImpl(size_t sMax, mgm_cache* fc):
       mgmCache(fc),
+      killThread(false),
       sizeMax(sMax),
-      sizeReads(0),
+      sizeVirtual(0),
       sizeWrites(0),
+      sizeReads(0),
       oldSizeQ(0),
       inLimitRegion(false)
   {
     recycleQueue = new ConcurrentQueue<value_type*>();
-    writeReqQueue = new ConcurrentQueue<key_type>();
+    writeReqQueue = new ConcurrentQueue<typename key_map_type::iterator>();
 
     pthread_mutex_init(&mutexList, NULL);
     pthread_rwlock_init(&rwMapLock, NULL);
@@ -96,18 +121,42 @@ class CacheImpl
     pthread_mutex_destroy(&mutexWritesSize);
   }
 
-  //------------------------------------------------------------------------------
-  //Get value for key k from cache, return NULL if not found
-  value_type*
-  GetReadEntry(const key_type& k, file_abst* pFileAbst )
-  {
-    pthread_rwlock_rdlock(&rwMapLock);               //read lock map
 
-    while (pFileAbst->GetNoWrites() != 0) {
+  //------------------------------------------------------------------------------
+  void
+  runThreadWrites()
+  {
+    int retc = 0;
+    typename key_map_type::iterator it;
+    
+    while (1) {
+      writeReqQueue->wait_pop(it);
+      
+      if (it == keyValueMap.end() && killThread) {
+        processWriteReq(it, true, retc);
+      } else {
+        //do write element
+        processWriteReq(it, false, retc);
+      }
+    }
+  }  
+  
+  //------------------------------------------------------------------------------
+  //Get value for key k from cache
+  bool
+  getReadEntry(const key_type& k, char* buf, off_t off, size_t len, file_abst* pFileAbst)
+  {
+    //block requested is aligned with respect to the maximum CacheEntry size
+    bool found = false;
+    value_type* pEntry = 0;
+
+    pthread_rwlock_rdlock(&rwMapLock);               //read lock map
+    
+    while (pFileAbst->getSizeWrites() != 0) {
       //wait until writes on current file are done
-      pthread_rwlock_unlock(&rwMapLock);
-      pFileAbst->WaitFinishWrites();
-      pthread_rwlock_rdlock(&rwMapLock);
+      pthread_rwlock_unlock(&rwMapLock);             //unlock map
+      pFileAbst->waitFinishWrites();
+      pthread_rwlock_rdlock(&rwMapLock);             //read lock map
     }
 
     const typename key_map_type::iterator it = keyValueMap.find(k);
@@ -115,23 +164,139 @@ class CacheImpl
     if (it == keyValueMap.end()) {
       //key not found
       pthread_rwlock_unlock(&rwMapLock);             //unlock map
-      return 0;
+      return false;
     } else {
-      // update access record
-      pthread_mutex_lock(&mutexList);                //lock list
-      keyList.splice(keyList.end(), keyList, it->second.second);
-      pthread_mutex_unlock(&mutexList);              //unlock list
+      pEntry = it->second.first;
+      found = pEntry->getPiece(buf, off, len);
+      if (found) {
+        // update access record
+        pthread_mutex_lock(&mutexList);              //lock list
+        keyList.splice(keyList.end(), keyList, it->second.second);
+        pthread_mutex_unlock(&mutexList);            //unlock list
+      }
       pthread_rwlock_unlock(&rwMapLock);             //unlock map
-      return it->second.first;
+      return found;
     }
   }
 
 
   //------------------------------------------------------------------------------
-  //Proccess a write request from the qeue
-  bool
-  ProcessWriteReq(const key_type& k, int& retc)
+  //Insert fresh key-value pair in the cache
+  void
+  insert(int filed, const key_type& k, char* buf, off_t off, size_t len, file_abst* pFileAbst)
   {
+    value_type* pEntry = 0;
+    pthread_rwlock_rdlock(&rwMapLock);                 //read lock map
+ 
+    while (pFileAbst->getSizeWrites() != 0) {
+      //wait until writes on current file are done
+      fprintf(stderr, "Wait finish writes.\n");
+      pthread_rwlock_unlock(&rwMapLock);               //unlock map
+      pFileAbst->waitFinishWrites();
+      pthread_rwlock_rdlock(&rwMapLock);               //read lock map
+    }
+   
+    const typename key_map_type::iterator it = keyValueMap.find(k);
+
+    if (it != keyValueMap.end()) {
+      //block entry found
+      pEntry = it->second.first;
+      //printf(stderr, "[%s] Get block pointer=%p.\n", __FUNCTION__, pEntry);
+      size_t sizeOldData = pEntry->getSizeData();
+      pEntry->addPiece(buf, off, len);
+      //fprintf(stderr, "[%s] Add piece.\n", __FUNCTION__);
+
+      pthread_mutex_lock(&mutexList);                //lock list
+      keyList.splice(keyList.end(), keyList, it->second.second);
+      pthread_mutex_unlock(&mutexList);              //unlock list
+
+      //update info about the file
+      pEntry->getParentFile()->incrementReads(pEntry->getSizeData() - sizeOldData);
+      pthread_rwlock_unlock(&rwMapLock);             //unlock map
+    }
+    else {
+      //add new block
+      //fprintf(stderr, "No block found we add a new one. \n");
+      pEntry = getRecycledBlock(filed, buf, off, len, pFileAbst);
+      pthread_rwlock_unlock(&rwMapLock);               //unlock map
+      pthread_rwlock_wrlock(&rwMapLock);               //write lock map
+      pthread_mutex_lock(&mutexList);                  //lock list
+      
+      while (getCurrentSize() + value_type::getMaxSize() >= sizeMax)
+      {
+        if (!evict()) {
+          //release locks and wait for writing thread to do some writing
+          //in case all cache is full with blocks for writing
+          pthread_rwlock_unlock(&rwMapLock);               //unlock map
+          pthread_mutex_unlock(&mutexList);                //unlock list
+
+          pthread_mutex_lock(&mutexWriteDone);
+          pthread_cond_wait(&condWriteDone, &mutexWriteDone);
+          pthread_mutex_unlock(&mutexWriteDone);
+
+          pthread_rwlock_wrlock(&rwMapLock);               //write lock map
+          pthread_mutex_lock(&mutexList);                  //lock list
+        }
+      }
+
+      //update most-recently-used key
+      typename key_list_type::iterator it =
+          keyList.insert(keyList.end(), std::make_pair(k, false));
+      sizeVirtual += value_type::getMaxSize();
+      
+      pthread_mutex_unlock(&mutexList);                    //unlock list
+      
+      //update size info about the file
+      pEntry->getParentFile()->incrementReads(pEntry->getSizeData());
+      keyValueMap.insert(std::make_pair(k, std::make_pair(pEntry, it)));
+      pthread_rwlock_unlock(&rwMapLock);                    //unlock map
+    }
+  };
+ 
+
+  //------------------------------------------------------------------------------
+  //Proccess a write request from the qeue
+  void
+  processWriteReq(typename key_map_type::iterator it, bool lastTime, int& retc)
+  {
+    value_type* pEntry = 0;
+    
+    if (lastTime) {
+      //commit all writes
+      
+
+
+      return;
+    }
+    
+    if (it == keyValueMap.end()) {
+      //timedout waiting for block
+      
+
+    }
+    else {
+      //received a block
+      pEntry = it->second.first;
+
+      if (pEntry->isFull()) {
+        pEntry->doWrite();
+
+        
+        
+        
+      }
+      else {
+        //check how many penging blocks for this file and decide
+
+      }
+      
+    }
+    
+
+
+
+    
+    /*
     double percentEpsilon = 0.1;
     double threshold = minPercentWrites * sizeMax;
     double epsilon =  threshold * percentEpsilon;
@@ -140,12 +305,7 @@ class CacheImpl
     //delay the writing thread if there are not enough request
     //in the queue for the current file and then start processing them
     if (oldSizeQ != 0) {
-      /*fprintf(stdout, "oldSize = %zu, newSize = %zu, writeSize = %zu, \
-        limit = %f, currentSize = %zu \n", oldSizeQ, newSizeQ, GetWritesSize(),
-        minPercentWrites * sizeMax, GetCurrentSize());
-      */
-
-      if ((oldSizeQ > newSizeQ) &&
+       if ((oldSizeQ > newSizeQ) &&
           !inLimitRegion &&
           (GetWritesSize() < threshold + epsilon ) &&
           (GetWritesSize() > threshold - epsilon)) {
@@ -188,8 +348,8 @@ class CacheImpl
       //put error code in error queue
       if (retc != pEntry->GetOffset()) {
         error_type elem = std::make_pair(
-            retc, std::make_pair<off_t, size_t>(pEntry->GetOffset(), pEntry->GetLength()));
-        pEntry->GetParentFile()->errorsQueue->push(elem);
+            retc, std::make_pair<off_t, size_t>(pEntry->getOffset(), pEntry->getLength()));
+        pEntry->getParentFile()->errorsQueue->push(elem);
       }
 
       //modify the state of the block in the list WRITE -> READ
@@ -198,7 +358,7 @@ class CacheImpl
       pthread_mutex_unlock(&mutexList);              //unlock list
 
       //decrease the number of write req pending for current file and in cache
-      pEntry->GetParentFile()->DecrementWrites(pEntry->GetLength());
+      pEntry->getParentFile()->decrementWrites(pEntry->GetLength());
       DecreaseWritesSize(pEntry->GetLength());
 
       if (GetWritesSize() <= maxPercentWrites * sizeMax) {
@@ -208,163 +368,120 @@ class CacheImpl
         pthread_cond_broadcast(&condWriteDone);        //send broadcast
         pthread_mutex_unlock(&mutexWriteDone);
       }
-
-      return true;
-    }
+      }
+    */
   }
+
 
   //------------------------------------------------------------------------------
   //Add a new write request to the queue
   void
-  AddWrite(const key_type& k, value_type* const v) {
-    pthread_rwlock_wrlock(&rwMapLock);            //write lock map
-    pthread_mutex_lock(&mutexList);               //lock list
+  addWrite(int filed, const key_type& k, char* buf, off_t off, size_t len, file_abst* pFileAbst)
+  {
+    value_type* pEntry = 0;
+ 
+    pthread_rwlock_rdlock(&rwMapLock);            //read lock map
 
-    size_t length = v->GetLength();
+    if (pFileAbst->getSizeReads() != 0) {
+      //delete all reads block from cache
+      typename key_map_type::iterator iTmp;
+      const typename key_map_type::iterator iStart = keyValueMap.lower_bound(pFileAbst->getFirstPossibleKey());
+      const typename key_map_type::iterator iEnd = keyValueMap.lower_bound(pFileAbst->getLastPossibleKey());
+           
+      pthread_mutex_lock(&mutexList);             //lock list
+      iTmp = iStart;
 
-    while (GetCurrentSize() + length >= sizeMax) {
-      if (!evict()) {
-        //release lock and wait for writing thread to do some writing
-        //in case all cache is full with blocks for writing
-        pthread_mutex_unlock(&mutexList);         //unlock list
-        pthread_rwlock_unlock(&rwMapLock);        //unlock map
+      typename key_list_type::iterator itList;
+      while (iTmp != iEnd) {
+        itList = iTmp->second.second;
+        if (itList->second == true) {
+          fprintf(stderr, "error=write block in cache, when only reads expected\n");
+          exit(-1);
+        }
 
-        pthread_mutex_lock(&mutexWriteDone);
-        pthread_cond_wait(&condWriteDone, &mutexWriteDone);
-        pthread_mutex_unlock(&mutexWriteDone);
-
-        //relock the map and the list
-        pthread_rwlock_wrlock(&rwMapLock);         //write lock map
-        pthread_mutex_lock(&mutexList);            //lock list
+        pEntry = iTmp->second.first;
+        pEntry->getParentFile()->decrementReads(pEntry->getSizeData());
+        keyList.erase(iTmp->second.second);
+        sizeVirtual -= value_type::getMaxSize();
+        iTmp++;
       }
+
+      keyValueMap.erase(iStart, iEnd);
+      pthread_mutex_unlock(&mutexList);             //unlock list
     }
 
-    //check for overlap with other blocks
-    typename key_map_type::iterator iter = keyValueMap.lower_bound(k);
-    typename key_map_type::iterator aux_iter;
-    off_t offStart;
-    off_t offEnd;
-    off_t offBlockEnd = v->GetOffset() + v->GetLength();
+    //no more reads should be associtaed with this file
+    assert(pFileAbst->getSizeReads() == 0);
+    
+    typename key_map_type::iterator it = keyValueMap.find(k);
 
-    if (iter != keyValueMap.end()) {
-      if (iter != keyValueMap.begin()) {
-        //if not first element in map then go one step back
-        iter--;
-      }
+    if (it != keyValueMap.end()) {
+      //block entry found
+      pEntry = it->second.first;
+      pEntry->addPiece(buf, off, len);
+      fprintf(stderr, "[%s] Add write piece.\n", __FUNCTION__);
+      pthread_rwlock_unlock(&rwMapLock);            //unlock map
+      writeReqQueue->push(it);
+    }
+    else {
+      std::pair<typename key_map_type::iterator, bool> ret;
+      
+      //add new block
+      pEntry = getRecycledBlock(filed, buf, off, len, pFileAbst);
+      pthread_rwlock_unlock(&rwMapLock);          //unlock map
+      pthread_rwlock_wrlock(&rwMapLock);          //write lock map
+      pthread_mutex_lock(&mutexList);             //lock list
+      
+      while (getCurrentSize() + value_type::getMaxSize() >= sizeMax) {
+        if (!evict()) {
+          //release lock and wait for writing thread to do some writing
+          //in case all cache is full with blocks for writing
+          pthread_mutex_unlock(&mutexList);         //unlock list
+          pthread_rwlock_unlock(&rwMapLock);        //unlock map
 
-      for (int i = 0; ; i++) {
-        offStart = iter->second.first->GetOffset();
-        offEnd = offStart + iter->second.first->GetLength();
+          pthread_mutex_lock(&mutexWriteDone);
+          pthread_cond_wait(&condWriteDone, &mutexWriteDone);
+          pthread_mutex_unlock(&mutexWriteDone);
 
-        //if current block overlaps with new block and is a reading block -> remove
-        if ((((v->GetOffset() >= offStart) && (v->GetOffset() <= offEnd)) ||
-             ((offBlockEnd >= offStart) && (offBlockEnd <= offEnd))) &&
-            (iter->second.second->second == false)) {
-          //remove block from cache
-          aux_iter = iter;
-          aux_iter++;
-
-          if (aux_iter != keyValueMap.end()) {
-            //if not last element then increment iterator
-            currentSize -= iter->second.first->GetLength();
-            keyList.erase(iter->second.second);
-            keyValueMap.erase(iter);
-            iter = aux_iter;
-          } else {
-            //if last element then delete and exit loop
-            currentSize -= iter->second.first->GetLength();
-            keyList.erase(iter->second.second);
-            keyValueMap.erase(iter);
-            break;
-          }
-        } else {
-          //no overlap with the current block
-          iter++;
-
-          if (iter == keyValueMap.end()) {
-            break;
-          }
-
-          //if we are after the insertion point and the block does not
-          //overlap with the new one there is no need to check further => exit loop
-          if (i >= 2) break;
+          //relock the map and the list
+          pthread_rwlock_wrlock(&rwMapLock);        //write lock map
+          pthread_mutex_lock(&mutexList);           //lock list
         }
       }
+
+      //insert reference in list of priorities
+      typename key_list_type::iterator it =
+          keyList.insert(keyList.end(), std::make_pair(k, true));
+      sizeVirtual += value_type::getMaxSize();
+      pthread_mutex_lock(&mutexList);           //lock list
+      
+      //add new entry
+      ret = keyValueMap.insert(std::make_pair(k, std::make_pair(pEntry, it)));
+      pthread_rwlock_unlock(&rwMapLock);         //unlock map
+
+      writeReqQueue->push(ret.first);
     }
-
-    //increase the number of write requests on current file
-    v->GetParentFile()->IncrementWrites(v->GetLength());
-    v->GetParentFile()->IncrementNoBlocks();
-
-    //update most-recently-used key
-    typename key_list_type::iterator it =
-        keyList.insert(keyList.end(), std::make_pair(k, true));
-    currentSize += length;
-    pthread_mutex_unlock(&mutexList);          //unlock list
-
-    //add new entry
-    keyValueMap.insert(std::make_pair(k, std::make_pair(v, it)));
-
-    //update the size of write requests in cache
-    IncreaseWritesSize(v->GetLength());
-    pthread_rwlock_unlock(&rwMapLock);         //unlock map
-
-    //add the new key to the queue for the write thread
-    writeReqQueue->push(const_cast<key_type&>(k));
   }
 
-
   //------------------------------------------------------------------------------
-  //Insert fresh key-value pair in the cache
   void
-  Insert(const key_type& k, value_type* const v)
+  killWriteThread()
   {
-    //decide if current block is to be added in the cache
-    bool addToCache = false;
-
-    pthread_rwlock_wrlock(&rwMapLock);                  //write lock map
-    pthread_mutex_lock(&mutexList);                     //lock list
-
-    size_t length = v->GetLength();
-
-    while (GetCurrentSize() + length >= sizeMax) {
-      if (!evict()) {
-        //release locks and wait for writing thread to do some writing
-        //in case all cache is full with blocks for writing
-        pthread_mutex_unlock(&mutexList);                //unlock list
-        pthread_rwlock_unlock(&rwMapLock);               //unlock map
-
-        pthread_mutex_lock(&mutexWriteDone);
-        pthread_cond_wait(&condWriteDone, &mutexWriteDone);
-        pthread_mutex_unlock(&mutexWriteDone);
-
-        pthread_rwlock_wrlock(&rwMapLock);               //write lock map
-        pthread_mutex_lock(&mutexList);                  //lock list
-      }
-    }
-
-    //update most-recently-used key
-    typename key_list_type::iterator it =
-        keyList.insert(keyList.end(), std::make_pair(k, false));
-
-    //increment no of blocks for file in cache
-    v->GetParentFile()->IncrementNoBlocks();
-
-    pthread_mutex_unlock(&mutexList);                     //unlock list
-    currentSize += length;
-
-    //add new entry
-    keyValueMap.insert(std::make_pair(k, std::make_pair(v, it)));
-    pthread_rwlock_unlock(&rwMapLock);                    //unlock map
-  };
-
+    //add sentinel object to the queue
+    typename key_map_type::iterator it = keyValueMap.end();
+    killThread = true;
+    writeReqQueue->push(it);
+    return;
+  }
+  
 
   //------------------------------------------------------------------------------
   value_type*
-  GetRecycledObj(int filed, char* buf, off_t offset, size_t length, file_abst* pFileAbst)
+  getRecycledBlock(int filed, char* buf, off_t offset, size_t length, file_abst* pFileAbst)
   {
     value_type* pRecycledObj = NULL;
 
+    fprintf(stderr, "[%s] Calling method. \n", __FUNCTION__);
     if (recycleQueue->try_pop(pRecycledObj)) {
       //got obj from pool
       pRecycledObj->doRecycle(filed, buf, offset, length, pFileAbst);
@@ -378,21 +495,21 @@ class CacheImpl
 
 
   //------------------------------------------------------------------------------
-  size_t GetCurrentSize() const
+  size_t getCurrentSize() const
   {
-    return currentSize;
+    return sizeVirtual;
   };
 
   
   //------------------------------------------------------------------------------
-  void SetSize(size_t sMax)
+  void setSize(size_t sMax)
   {
     sizeMax = sMax;
   };
 
   
   //------------------------------------------------------------------------------
-  size_t GetWritesSize() {
+  size_t getWritesSize() {
     size_t lSize;
     pthread_mutex_lock(&mutexWritesSize);
     lSize = sizeWrites;
@@ -402,7 +519,7 @@ class CacheImpl
 
 
   //------------------------------------------------------------------------------
-  void IncreaseWritesSize(size_t size) {
+  void increaseWritesSize(size_t size) {
     pthread_mutex_lock(&mutexWritesSize);
     sizeWrites += size;
     pthread_mutex_unlock(&mutexWritesSize);
@@ -410,7 +527,7 @@ class CacheImpl
 
 
   //------------------------------------------------------------------------------
-  void DecreaseWritesSize(size_t size) {
+  void decreaseWritesSize(size_t size) {
     pthread_mutex_lock(&mutexWritesSize);
     sizeWrites -= size;
     pthread_mutex_unlock(&mutexWritesSize);
@@ -438,21 +555,25 @@ class CacheImpl
     if (foundCandidate) {
       const typename key_map_type::iterator it = keyValueMap.find(iter->first);
 
-      if (it == keyValueMap.end())
+      if (it == keyValueMap.end()) {
         fprintf(stderr, "[evict] Iterator to the end!!\n");
+        return false;
+      }
 
       value_type* pEntry = static_cast<value_type*>(it->second.first);
-      currentSize -= pEntry->GetLength();
+      sizeVirtual -= value_type::getMaxSize();
       keyValueMap.erase(it);
       keyList.erase(iter);
 
       //remove file id from mapping if no more blocks in cache and
       //there are no references to the file object
-      if ((pEntry->GetParentFile()->GetDecrementNoBlocks() == 0) &&
-          (pEntry->GetParentFile()->GetNoReferences() == 0)) {
-        mgmCache->RemoveFileInode(pEntry->GetParentFile()->GetInode());
-      }
+      pEntry->getParentFile()->decrementReads(pEntry->getSizeData());
 
+      if ((pEntry->getParentFile()->getSizeRdWr() == 0) &&
+          (pEntry->getParentFile()->getNoReferences() == 0))
+      {
+        mgmCache->removeFileInode(pEntry->getParentFile()->getInode());
+      }
       
       //add block to the recycle pool
       recycleQueue->push(pEntry);
@@ -460,8 +581,7 @@ class CacheImpl
 
     return foundCandidate;
   }
-
-  //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
   //Percentage of the total cache size which represents the upper limit
   //to which we accept new write requests, after this point notifications
@@ -474,14 +594,15 @@ class CacheImpl
   static const double minPercentWrites = 0.025;
 
   mgm_cache*     mgmCache;         //upper mgm layer of the cache
-
+  bool           killThread;       //kill writing thread
+  
   size_t         sizeMax;          //maximum size of cache
   size_t         sizeVirtual;      //sum of all blocks capacity 
   size_t         sizeWrites;       //size of write requests
   size_t         sizeReads;        //size of read requests
-  
-  key_list_type  keyList;          //list of recently accessed entries
+
   key_map_type   keyValueMap;      //map <key pair<value, listIter>>
+  key_list_type  keyList;          //list of recently accessed entries
   size_t         oldSizeQ;         //size queue write requests at previous step
   bool           inLimitRegion;    //mark if value in limit region
 
@@ -493,6 +614,7 @@ class CacheImpl
   pthread_cond_t condWriteDone;    //  waiting threads that a write op. has been done
 
   ConcurrentQueue<value_type*>* recycleQueue;   //pool of reusable objects
+  ConcurrentQueue<typename key_map_type::iterator>* writeReqQueue;   //write request queue
 };
 
 #endif

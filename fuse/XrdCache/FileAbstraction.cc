@@ -23,15 +23,16 @@
 
 //------------------------------------------------------------------------------
 #include "FileAbstraction.hh"
+#include "CacheEntry.hh"
 //------------------------------------------------------------------------------
 
 FileAbstraction::FileAbstraction(int id, unsigned long ino):
     idFile(id),
-    noReferences(0),
+    nReferences(0),
     inode(ino),
-    noBlocks(0),
-    noWrites(0),
-    sizeWrites(0)
+    nWriteBlocks(0),
+    sizeWrites(0),
+    sizeReads(0)
 {
   //max file size we can deal with is 90TB 
   firstPossibleKey = static_cast<long long>(1e14 * idFile);          
@@ -55,69 +56,84 @@ FileAbstraction::~FileAbstraction()
 
 
 //------------------------------------------------------------------------------
-void
-FileAbstraction::GetReadsInfo(unsigned long& no, size_t &size)
+size_t
+FileAbstraction::getSizeRdWr() 
 {
+  size_t size;
   pthread_mutex_lock(&updMutex);
-  no = noReadBlocks;
-  size = sizeReads;
+  size = sizeWrites + sizeReads;
   pthread_mutex_unlock(&updMutex);
+  return size;
 }
 
 
 //------------------------------------------------------------------------------
-void
-FileAbstraction::GetWritesInfo(unsigned long& no, size_t &size)
+size_t
+FileAbstraction::getSizeWrites() 
 {
+  size_t size;
   pthread_mutex_lock(&updMutex);
-  no = noWriteBlocks;
   size = sizeWrites;
   pthread_mutex_unlock(&updMutex);
+  return size;
 }
 
 
 //------------------------------------------------------------------------------
-unsigned long
-FileAbstraction::GetNoWriteBlocks()
+size_t
+FileAbstraction::getSizeReads() 
 {
-  unsigned long no;
+  size_t size;
   pthread_mutex_lock(&updMutex);
-  no = noWriteBlocks;
+  size = sizeReads;
   pthread_mutex_unlock(&updMutex);
-  return no;
+  return size;
 }
 
 
 //------------------------------------------------------------------------------
-unsigned long
-FileAbstraction::GetNoReadBlocks()
+long long int
+FileAbstraction::getNoWriteBlocks()
 {
-  unsigned long no;
+  long long int n;
   pthread_mutex_lock(&updMutex);
-  no = noReadBlocks;
+  n = nWriteBlocks;
   pthread_mutex_unlock(&updMutex);
-  return no;
+  return n;
 }
 
 
 //------------------------------------------------------------------------------
-unsigned long
-FileAbstraction::GetNoBlocks()
+long long
+FileAbstraction::getFirstPossibleKey() const
 {
-  unsigned long no;
-  pthread_mutex_lock(&updMutex);
-  no = noReadBlocks + noWriteBlocks;
-  pthread_mutex_unlock(&updMutex);
-  return no;
+  return firstPossibleKey;
+}
+
+
+//------------------------------------------------------------------------------
+long long
+FileAbstraction::getLastPossibleKey() const
+{
+  return lastPossibleKey;
 }
 
 
 //------------------------------------------------------------------------------
 void
-FileAbstraction::IncrementWrites(size_t size)
+FileAbstraction::incrementNoWriteBlocks()
 {
   pthread_mutex_lock(&updMutex);
-  noWrites++;
+  nWriteBlocks++;
+  pthread_mutex_unlock(&updMutex);
+}
+
+
+//------------------------------------------------------------------------------
+void
+FileAbstraction::incrementWrites(size_t size)
+{
+  pthread_mutex_lock(&updMutex);
   sizeWrites += size;
   pthread_mutex_unlock(&updMutex);
 }
@@ -125,10 +141,9 @@ FileAbstraction::IncrementWrites(size_t size)
 
 //------------------------------------------------------------------------------
 void
-FileAbstraction::IncrementReads(size_t size)
+FileAbstraction::incrementReads(size_t size)
 {
   pthread_mutex_lock(&updMutex);
-  noReads++;
   sizeReads += size;
   pthread_mutex_unlock(&updMutex);
 }
@@ -136,12 +151,21 @@ FileAbstraction::IncrementReads(size_t size)
 
 //------------------------------------------------------------------------------
 void
-FileAbstraction::DecrementWrites(size_t size)
+FileAbstraction::decrementNoWriteBlocks()
 {
   pthread_mutex_lock(&updMutex);
-  noWrites--;
+  nWriteBlocks--;
+  pthread_mutex_unlock(&updMutex);
+}
+
+
+//------------------------------------------------------------------------------
+void
+FileAbstraction::decrementWrites(size_t size)
+{
+  pthread_mutex_lock(&updMutex);
   sizeWrites -= size;
-  if (noWrites == 0)
+  if (sizeWrites == 0)
   {
     //notify pending reading processes
     pthread_cond_signal(&writesCond);
@@ -152,22 +176,21 @@ FileAbstraction::DecrementWrites(size_t size)
 
 //------------------------------------------------------------------------------
 void
-FileAbstraction::DecrementReads(size_t size)
+FileAbstraction::decrementReads(size_t size)
 {
   pthread_mutex_lock(&updMutex);
-  noWrites--;
-  sizeWrites -= size;
+  sizeReads -= size;
   pthread_mutex_unlock(&updMutex);
 }
 
 
 //------------------------------------------------------------------------------
 int
-FileAbstraction::GetNoReferences()
+FileAbstraction::getNoReferences()
 {
   int no;
   pthread_mutex_lock(&updMutex);
-  no = noReferences;
+  no = nReferences;
   pthread_mutex_unlock(&updMutex);
   return no;
 }
@@ -175,30 +198,30 @@ FileAbstraction::GetNoReferences()
 
 //------------------------------------------------------------------------------
 void
-FileAbstraction::IncrementNoReferences()
+FileAbstraction::incrementNoReferences()
 {
   pthread_mutex_lock(&updMutex);
-  noReferences++;
+  nReferences++;
   pthread_mutex_unlock(&updMutex);
 }
 
 
 //------------------------------------------------------------------------------
 void
-FileAbstraction::DecrementNoReferences()
+FileAbstraction::decrementNoReferences()
 {
   pthread_mutex_lock(&updMutex);
-  noReferences--;
+  nReferences--;
   pthread_mutex_unlock(&updMutex);
 }
 
 
 //------------------------------------------------------------------------------
 void
-FileAbstraction::WaitFinishWrites()
+FileAbstraction::waitFinishWrites()
 {
   pthread_mutex_lock(&updMutex);
-  if (noWrites != 0)
+  if (sizeWrites != 0)
     pthread_cond_wait(&writesCond, &updMutex);
   pthread_mutex_unlock(&updMutex);  
 }  
@@ -206,16 +229,16 @@ FileAbstraction::WaitFinishWrites()
 
 //------------------------------------------------------------------------------
 long long int
-FileAbstraction::GenerateBlockKey(off_t offsetEnd)
+FileAbstraction::generateBlockKey(off_t offset)
 {
-  offsetEnd %= CacheEntry::getMaxSize();
-  return static_cast<long long int>((1e14 * idFile) + offsetEnd);
+  offset = (offset / CacheEntry::getMaxSize()) * CacheEntry::getMaxSize();
+  return static_cast<long long int>((1e14 * idFile) + offset);
 }
 
 
 //------------------------------------------------------------------------------
 int
-FileAbstraction::GetId() const
+FileAbstraction::getId() const
 {
   return idFile;
 }
@@ -223,14 +246,14 @@ FileAbstraction::GetId() const
 
 //------------------------------------------------------------------------------
 ConcurrentQueue<error_type>&
-FileAbstraction::GetErrorQueue() const
+FileAbstraction::getErrorQueue() const
 {
   return *errorsQueue;
 }
 
 //------------------------------------------------------------------------------
 unsigned long
-FileAbstraction::GetInode() const
+FileAbstraction::getInode() const
 {
   return inode;
 }

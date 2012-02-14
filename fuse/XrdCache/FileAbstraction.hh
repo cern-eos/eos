@@ -44,35 +44,39 @@ class FileAbstraction
   FileAbstraction(int key, unsigned long ino);
   ~FileAbstraction();
 
-  int GetId() const;
-  int GetNoReferences() const;
-  void GetWritesInfo(unsigned long& no, size_t& size);
-  void GetReadsInfo(unsigned long& no, size_t& size);
-  ConcurrentQueue<error_type>& GetErrorQueue() const;
+  int getId() const;
+  int getNoReferences();
+  ConcurrentQueue<error_type>& getErrorQueue() const;
 
-  unsigned long GetInode() const;
-  unsigned long GetNoBlocks() const;
-  unsigned long GetNoReadBlocks() const;
-  unsigned long GetNoWriteBlocks() const;
+  unsigned long getInode() const;
+  size_t getSizeRdWr();
+  size_t getSizeReads();
+  size_t getSizeWrites();
 
-  void IncrementWrites(size_t sWrite);
-  void IncrementReads(size_t sRead);
+  long long int getNoWriteBlocks();
+
+  long long getLastPossibleKey() const;
+  long long getFirstPossibleKey() const;
+
+  void incrementWrites(size_t sWrite);
+  void incrementReads(size_t sRead);
+  void incrementNoWriteBlocks();
   
-  void DecrementWrites(size_t sWrite);
-  void DecrementReads(size_t sRead);
+  void decrementWrites(size_t sWrite);
+  void decrementReads(size_t sRead);
+  void decrementNoWriteBlocks();
 
-  void IncrementNoReferences();
-  void DecrementNoReferences();
+  void incrementNoReferences();
+  void decrementNoReferences();
 
-  long long int GenerateBlockKey(off_t offsetEnd);
-  void WaitFinishWrites();
+  long long int generateBlockKey(off_t offsetEnd);
+  void waitFinishWrites();
   
  private:
   int idFile;                   //internally assigned key
-  int noReferences;             //number of held referencess to this file
-  unsigned long inode;          //inode of current file  
-  unsigned long noReads;        //no of read blocks
-  unsigned long noWrites;       //no. of write blocks in cache
+  int nReferences;             //number of held referencess to this file
+  unsigned long inode;          //inode of current file
+  long long int nWriteBlocks;   //no of blocks in cache for this file
   size_t sizeWrites;            //the size of write blocks in cache
   size_t sizeReads;             //the size of read blocks in cache
 

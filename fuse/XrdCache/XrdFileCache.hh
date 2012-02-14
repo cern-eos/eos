@@ -44,20 +44,20 @@ public:
   static XrdFileCache* Instance(size_t sizeMax);
   ~XrdFileCache();
 
-  void SetCacheSize(size_t rsMax, size_t wsMax);
-  int ThreadStart(pthread_t& thread, ThreadFn f);
+  void setCacheSize(size_t rsMax, size_t wsMax);
+  int threadStart(pthread_t& thread, ThreadFn f);
 
-  size_t SubmitWrite(unsigned long inode, int filed, void* buff, off_t offset, size_t length); 
-  size_t GetRead(unsigned long inode, int filed, void* buf, off_t offset, size_t length);
-  void PutRead(unsigned long inode, int filed, void* buf, off_t offset, size_t length);
+  void submitWrite(unsigned long inode, int filed, void* buff, off_t offset, size_t length); 
+  size_t getRead(unsigned long inode, int filed, void* buf, off_t offset, size_t length);
+  size_t putRead(unsigned long inode, int filed, void* buf, off_t offset, size_t length);
 
   //vector reads
-  size_t GetReadV(unsigned long inode, int filed, void* buf, off_t* offset, size_t* length, int nbuf);
-  void PutReadV(unsigned long inode, int filed, void* buf, off_t* offset, size_t* length, int nbuf);
+  //size_t getReadV(unsigned long inode, int filed, void* buf, off_t* offset, size_t* length, int nbuf);
+  //void putReadV(unsigned long inode, int filed, void* buf, off_t* offset, size_t* length, int nbuf);
 
-  ConcurrentQueue<error_type>& GetErrorQueue(unsigned long inode);
-  void WaitFinishWrites(unsigned long inode);
-  void RemoveFileInode(unsigned long inode);
+  ConcurrentQueue<error_type>& getErrorQueue(unsigned long inode);
+  void waitFinishWrites(unsigned long inode);
+  void removeFileInode(unsigned long inode);
   
 private:
 
@@ -68,8 +68,8 @@ private:
   XrdFileCache(size_t sizeMax);
   void Init();
 
-  static void* WriteThreadProc(void *);
-  FileAbstraction* GetFileObj(unsigned long inode);
+  static void* writeThreadProc(void *);
+  FileAbstraction* getFileObj(unsigned long inode);
  
   size_t cacheSizeMax;             //read cache size
   int indexFile;                   //last index assigned to a file

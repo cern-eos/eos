@@ -39,7 +39,7 @@ class CacheEntry
 
   CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstraction *ptr);
   ~CacheEntry();
-  static const size_t getMaxSize() { return 524288; };    //512 KB
+  static const size_t getMaxSize() { return 1048576; };    //1MB
 
   int    getFd() const;
   char*  getDataBuffer(); 
@@ -47,10 +47,11 @@ class CacheEntry
   size_t getCapacity() const;
   off_t  getOffsetStart() const;
   off_t  getOffsetEnd() const;
+  bool   getPiece(char* buf, off_t off, size_t len);
   FileAbstraction*  getParentFile() const;
 
-  void   addPiece(char* buf, off_t off, size_t len);
-  bool   getPiece(char* buf, off_t off, size_t len);
+  bool   isFull();
+  void    addPiece(char* buf, off_t off, size_t len);
   void   doWrite();
   void   doRecycle(int filedes, char* buf, off_t offset, size_t lenBuf,
                   FileAbstraction* ptr);
@@ -62,7 +63,7 @@ class CacheEntry
   size_t sizeData;                  //size of useful data
   off_t  offsetStart;               //offset relative to the file
 
-  std::map<off_t, size_t> mapPices; //pieces read/to be written 
+  std::map<off_t, size_t> mapPieces; //pieces read/to be written 
   FileAbstraction* pParentFile;     //pointer to parent file
 
   void mergePieces();

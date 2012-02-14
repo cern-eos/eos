@@ -57,11 +57,11 @@ XrdFileCache::XrdFileCache(size_t sizeMax):
 void
 XrdFileCache::Init()
 {
-    cacheImpl = new CacheImpl < long long int, CacheEntry, FileAbstraction,
-    XrdFileCache, std::map > (cacheSizeMax, this);
-
-    //start worker thread
-    ThreadStart(writeThread, XrdFileCache::WriteThreadProc);
+  cacheImpl = new CacheImpl < long long int, CacheEntry, FileAbstraction,
+      XrdFileCache, std::map > (cacheSizeMax, this);
+  
+  //start worker thread
+  threadStart(writeThread, XrdFileCache::writeThreadProc);
 }
 
 
@@ -70,8 +70,7 @@ XrdFileCache::~XrdFileCache()
 {
     void* ret;
     //add sentinel object to queue => kill worker thread
-    long long int sentinel = -1;
-    cacheImpl->writeReqQueue->push(sentinel);
+    cacheImpl->killWriteThread();
     pthread_join(writeThread, &ret);
 
     delete cacheImpl;
@@ -82,7 +81,7 @@ XrdFileCache::~XrdFileCache()
 
 //------------------------------------------------------------------------------
 int
-XrdFileCache::ThreadStart(pthread_t& thread, ThreadFn f)
+XrdFileCache::threadStart(pthread_t& thread, ThreadFn f)
 {
     return pthread_create(&thread, NULL, f, (void*) this);
 }
@@ -90,40 +89,26 @@ XrdFileCache::ThreadStart(pthread_t& thread, ThreadFn f)
 
 //------------------------------------------------------------------------------
 void*
-XrdFileCache::WriteThreadProc(void* arg)
+XrdFileCache::writeThreadProc(void* arg)
 {
-    int retc = 0;
-    long long int key = 0;
-    XrdFileCache* pfc = static_cast<XrdFileCache*>(arg);
-
-    while (1) {
-        pfc->cacheImpl->writeReqQueue->wait_pop(key);
-
-        if (key == -1) {
-            fprintf(stdout, "Got sentinel element => EXIT. \n");
-            break;
-        } else {
-            //do write element
-            pfc->cacheImpl->ProcessWriteReq(key, retc);
-        }
-    }
-
-    fprintf(stdout, "Stopped writer thread.\n");
-    return (void*) pfc;
+  XrdFileCache* pfc = static_cast<XrdFileCache*>(arg);
+  pfc->cacheImpl->runThreadWrites();
+  fprintf(stdout, "Stopped writer thread.\n");
+  return (void*) pfc;
 }
 
 
 //------------------------------------------------------------------------------
 void
-XrdFileCache::SetCacheSize(size_t rsMax, size_t wsMax)
+XrdFileCache::setCacheSize(size_t rsMax, size_t wsMax)
 {
-    cacheImpl->SetSize(rsMax);
+    cacheImpl->setSize(rsMax);
 }
 
 
 //------------------------------------------------------------------------------
 FileAbstraction*
-XrdFileCache::GetFileObj(unsigned long inode)
+XrdFileCache::getFileObj(unsigned long inode)
 {
     int key = 0;
     FileAbstraction* fRet = NULL;
@@ -133,7 +118,7 @@ XrdFileCache::GetFileObj(unsigned long inode)
 
     if (iter != fileInodeMap.end()) {
         fRet = iter->second;
-        key = fRet->GetId();
+        key = fRet->getId();
     } else {
         pthread_rwlock_unlock(&keyMgmLock);  //unlock
         pthread_rwlock_wrlock(&keyMgmLock);  //write lock
@@ -152,7 +137,7 @@ XrdFileCache::GetFileObj(unsigned long inode)
     }
 
     //increase the number of references to this file
-    fRet->IncrementNoReferences();
+    fRet->incrementNoReferences();
     pthread_rwlock_unlock(&keyMgmLock);  //unlock
 
     //fprintf(stdout, "For inode: %lu assign key: %i. \n", inode, key);
@@ -161,48 +146,38 @@ XrdFileCache::GetFileObj(unsigned long inode)
 
 
 //------------------------------------------------------------------------------
-size_t
-XrdFileCache::SubmitWrite(unsigned long inode, int filed, void* buf,
+void
+XrdFileCache::submitWrite(unsigned long inode, int filed, void* buf,
                           off_t offset, size_t length)
 {
-    size_t ret = 0;
-    CacheEntry* pEntry = NULL;
-    FileAbstraction* fAbst = GetFileObj(inode);
-    long long int key = fAbst->GenerateBlockKey(offset + length);
-
-    pEntry = cacheImpl->getRecycledBlock(filed, static_cast<char*>(buf),
-                                       offset, length, fAbst);
-    cacheImpl->AddWrite(key, pEntry);
-    fAbst->DecrementNoReferences();
-    return ret;
+  FileAbstraction* fAbst = getFileObj(inode);
+  long long int key = fAbst->generateBlockKey(offset);
+  
+  cacheImpl->addWrite(filed, key, static_cast<char*>(buf), offset, length, fAbst);
+  fAbst->decrementNoReferences();
+  return;
 }
 
 
 //------------------------------------------------------------------------------
 size_t
-XrdFileCache::GetRead(unsigned long inode, int filed, void* buf,
+XrdFileCache::getRead(unsigned long inode, int filed, void* buf,
                       off_t offset, size_t length)
 {
   bool found = true;
   long long int key;
   size_t nread;
   off_t readOffset = 0;
-  CacheEntry* pEntry = NULL;
-  FileAbstraction* fAbst = GetFileObj(inode);
+  FileAbstraction* fAbst = getFileObj(inode);
 
   //read bigger than block size, break in smaller blocks
   while (((offset % CacheEntry::getMaxSize()) + length) > CacheEntry::getMaxSize())
   {
     nread = CacheEntry::getMaxSize() - (offset % CacheEntry::getMaxSize());
-    key = fAbst->GenerateBlockKey(offset + nread);
-    pEntry = cacheImpl->GetReadEntry(key, fAbst);
-    if (pEntry == 0) {
-      //block not found
-      return 0;
-    }
-    found = pEntry->getPiece(buf + readOffset, offset, nread);
+    key = fAbst->generateBlockKey(offset);
+    fprintf(stdout, "[%s](1) off=%zu, len=%zu \n", __FUNCTION__, offset, nread);
+    found = cacheImpl->getReadEntry(key, static_cast<char*>(buf) + readOffset, offset, nread, fAbst);
     if (!found) {
-      //piece not found in block
       return 0;
     }
     offset += nread;
@@ -212,99 +187,69 @@ XrdFileCache::GetRead(unsigned long inode, int filed, void* buf,
 
   if (length !=0) {
     nread = length;
-    key = fAbst->GenerateBlockKey(offset + nread);
-    pEntry = cacheImpl->GetReadEntry(key, fAbst);
-    if (pEntry == 0) {
-      //block not found
-      return 0;
-    }
-    found = pEntry->getPiece(buf + readOffset, offset, nread);
+    key = fAbst->generateBlockKey(offset);
+    fprintf(stdout, "[%s](2) off=%zu, len=%zu \n", __FUNCTION__, offset, nread);
+    found = cacheImpl->getReadEntry(key, static_cast<char*>(buf) + readOffset, offset, nread, fAbst);
     if (!found) {
-      //piece not found in block
       return 0;
     }
     readOffset += nread;
   }
       
-  fAbst->DecrementNoReferences();
+  fAbst->decrementNoReferences();
   return readOffset;
 }
 
 
 //------------------------------------------------------------------------------
-void
-XrdFileCache::PutRead(unsigned long inode, int filed, void* buf,
+size_t
+XrdFileCache::putRead(unsigned long inode, int filed, void* buf,
                       off_t offset, size_t length)
 {
   size_t nread;
   long long int key;
-  bool addNewBlock = false;
-  CacheEntry* pEntry = NULL;
-  FileAbstraction* fAbst = GetFileObj(inode);
+  off_t readOffset = 0;
+  FileAbstraction* fAbst = getFileObj(inode);
 
   //read bigger than block size, break in smaller blocks
   while (((offset % CacheEntry::getMaxSize()) + length) > CacheEntry::getMaxSize())
   {
     nread = CacheEntry::getMaxSize() - (offset % CacheEntry::getMaxSize());
-    key = fAbst->GenerateBlockKey(offset + nread);
-    pEntry = cacheImpl->GetReadEntry(key, fAbst);
-
-    if (pEntry == 0) {
-      //create new block
-      pEntry = cacheImpl->getRecycledBlock(filed, static_cast<char*>(buf),
-                                         offset, length, fAbst);
-      addNewBlock = true;
-    }
-
-    pEntry->addPiece(static_cast<char*>(buf), offset, nread);
-
-    if (addNewBlock) {
-      addNewBlock = false;
-      cacheImpl->Insert(key, pEntry);
-    }
-    
+    key = fAbst->generateBlockKey(offset);
+    //fprintf(stdout, "[%s](1) off=%zu, len=%zu key=%lli\n", __FUNCTION__, offset, nread, key);
+    cacheImpl->insert(filed, key, static_cast<char*>(buf) + readOffset, offset, nread, fAbst);
     offset += nread;
     length -= nread;
+    readOffset += nread;
   }
 
   if (length != 0) {
     nread = length;
-    key = fAbst->GenerateBlockKey(offset + nread);
-    pEntry = cacheImpl->GetReadEntry(key, fAbst);
-
-    if (pEntry == 0) {
-      //create new block
-      pEntry = cacheImpl->getRecycledBlock(filed, static_cast<char*>(buf),
-                                         offset, length, fAbst);
-      addNewBlock = true;
-    }
-
-    pEntry->addPiece(static_cast<char*>(buf), offset, nread);
-    if (addNewBlock) {
-      addNewBlock = false;
-      cacheImpl->Insert(key, pEntry);
-    }
+    key = fAbst->generateBlockKey(offset);
+    //fprintf(stdout, "[%s](2) off=%zu, len=%zu key=%lli\n", __FUNCTION__, offset, nread, key);
+    cacheImpl->insert(filed, key, static_cast<char*>(buf) + readOffset, offset, nread, fAbst);
+    readOffset += nread;
   }
   
-  fAbst->DecrementNoReferences();
-  return;
+  fAbst->decrementNoReferences();
+  return readOffset;
 }
 
 /*
 //------------------------------------------------------------------------------
 size_t
-XrdFileCache::GetReadV(unsigned long inode, int filed, void* buf,
+XrdFileCache::getReadV(unsigned long inode, int filed, void* buf,
                        off_t* offset, size_t* length, int nbuf)
 {
     size_t ret = 0;
     char* ptrBuf = static_cast<char*>(buf);
     long long int key;
     CacheEntry* pEntry = NULL;
-    FileAbstraction* fAbst = GetFileObj(inode);
+    FileAbstraction* fAbst = getFileObj(inode);
 
     for (int i = 0; i < nbuf; i++) {
         key = fAbst->GenerateBlockKey(offset[i] + length[i]);
-        pEntry = cacheImpl->GetReadEntry(key, fAbst);
+        pEntry = cacheImpl->getReadEntry(key, fAbst);
 
         if (pEntry && (pEntry->GetLength() == length[i])) {
             ptrBuf = (char*)memcpy(ptrBuf, pEntry->GetDataBuffer(), pEntry->GetLength());
@@ -320,13 +265,13 @@ XrdFileCache::GetReadV(unsigned long inode, int filed, void* buf,
 
 //------------------------------------------------------------------------------
 void
-XrdFileCache::PutReadV(unsigned long inode, int filed, void* buf,
+XrdFileCache::putReadV(unsigned long inode, int filed, void* buf,
                        off_t* offset, size_t* length, int nbuf)
 {
     char* ptrBuf = static_cast<char*>(buf);
     long long int key;
     CacheEntry* pEntry = NULL;
-    FileAbstraction* fAbst = GetFileObj(inode);
+    FileAbstraction* fAbst = getFileObj(inode);
 
     for (int i = 0; i < nbuf; i++) {
         pEntry = cacheImpl->getRecycledBlock(filed, ptrBuf, offset[i], length[i], fAbst);
@@ -342,7 +287,7 @@ XrdFileCache::PutReadV(unsigned long inode, int filed, void* buf,
 
 //------------------------------------------------------------------------------
 void
-XrdFileCache::RemoveFileInode(unsigned long inode)
+XrdFileCache::removeFileInode(unsigned long inode)
 {
     FileAbstraction* ptr =  NULL;
 
@@ -352,9 +297,9 @@ XrdFileCache::RemoveFileInode(unsigned long inode)
     if (iter != fileInodeMap.end()) {
         ptr = static_cast<FileAbstraction*>((*iter).second);
 
-        if ((ptr->GetNoBlocks() == 0) && (ptr->GetNoReferences() == 0)) {
+        if ((ptr->getSizeRdWr() == 0) && (ptr->getNoReferences() == 0)) {
             //remove file from mapping
-            usedIndexQueue.push(ptr->GetId());
+            usedIndexQueue.push(ptr->getId());
             delete ptr;
             fileInodeMap.erase(iter);
         }
@@ -367,25 +312,24 @@ XrdFileCache::RemoveFileInode(unsigned long inode)
 
 //------------------------------------------------------------------------------
 ConcurrentQueue<error_type>&
-XrdFileCache::GetErrorQueue(unsigned long inode)
+XrdFileCache::getErrorQueue(unsigned long inode)
 {
     ConcurrentQueue<error_type>* tmp = NULL;
-    FileAbstraction* fAbst = GetFileObj(inode);
+    FileAbstraction* fAbst = getFileObj(inode);
 
-    *tmp = fAbst->GetErrorQueue();
-    fAbst->DecrementNoReferences();
+    *tmp = fAbst->getErrorQueue();
+    fAbst->decrementNoReferences();
 
     return *tmp;
 }
 
 //------------------------------------------------------------------------------
 void
-XrdFileCache::WaitFinishWrites(unsigned long inode)
+XrdFileCache::waitFinishWrites(unsigned long inode)
 {
-    FileAbstraction* fAbst = GetFileObj(inode);
+    FileAbstraction* fAbst = getFileObj(inode);
 
     if (fAbst)
-        fAbst->WaitFinishWrites();
-
+        fAbst->waitFinishWrites();
     return;
 }
