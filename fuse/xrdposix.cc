@@ -1836,7 +1836,7 @@ xrd_init()
   
   //uncomment this to enable XrdCachFile
   setenv("EOS_XFC", "1", 1);
-  setenv("EOS_XFC_SIZE", "500000000", 1);   // ~1GB
+  setenv("EOS_XFC_SIZE", "10000000", 1);   // ~10MB
 
   //initialise the XrdFileCache
   if (!(getenv("EOS_XFC"))) {

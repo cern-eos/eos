@@ -221,8 +221,13 @@ void
 FileAbstraction::waitFinishWrites()
 {
   pthread_mutex_lock(&updMutex);
-  if (sizeWrites != 0)
+  if (sizeWrites != 0) {
+    //TODO::
+    //send all write blocks from cache to writing queue
+
+    
     pthread_cond_wait(&writesCond, &updMutex);
+  }
   pthread_mutex_unlock(&updMutex);  
 }  
 

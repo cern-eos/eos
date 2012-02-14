@@ -33,7 +33,7 @@
 #include "ConcurrentQueue.hh"
 //------------------------------------------------------------------------------
 
-typedef std::pair<int, std::pair<off_t, size_t> > error_type;
+typedef std::pair<int, off_t> error_type;
 
 class FileAbstraction
 {

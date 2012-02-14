@@ -30,6 +30,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 //------------------------------------------------------------------------------
+#include <XrdPosix/XrdPosixXrootd.hh>
+//------------------------------------------------------------------------------
 #include "FileAbstraction.hh"
 //------------------------------------------------------------------------------
 
@@ -51,22 +53,22 @@ class CacheEntry
   FileAbstraction*  getParentFile() const;
 
   bool   isFull();
-  void    addPiece(char* buf, off_t off, size_t len);
-  void   doWrite();
+  void   addPiece(char* buf, off_t off, size_t len);
+  int    doWrite();
   void   doRecycle(int filedes, char* buf, off_t offset, size_t lenBuf,
                   FileAbstraction* ptr);
 
  private:
-  int fd;                           //file descriptor
-  char*  buffer;                    //buffer of the object
-  size_t capacity;                  //total capcity ~ 512 KB
-  size_t sizeData;                  //size of useful data
-  off_t  offsetStart;               //offset relative to the file
+  int fd;                            //file descriptor
+  char*  buffer;                     //buffer of the object
+  size_t capacity;                   //total capcity ~ 512 KB
+  size_t sizeData;                   //size of useful data
+  off_t  offsetStart;                //offset relative to the file
 
   std::map<off_t, size_t> mapPieces; //pieces read/to be written 
-  FileAbstraction* pParentFile;     //pointer to parent file
+  FileAbstraction* pParentFile;      //pointer to parent file
 
-  void mergePieces();
+  //  void mergePieces();
 };
 
 #endif

@@ -257,15 +257,25 @@ CacheEntry::getPiece(char* buf, off_t off, size_t len)
 
 
 //------------------------------------------------------------------------------
-void
+int
 CacheEntry::doWrite()
 {
-  pParentFile->decrementWrites(sizeData);
-  pParentFile->decrementNoWriteBlocks();
+  int retc;
+  off_t offsetRelative;
+  std::map<off_t, size_t>::iterator iCurrent = mapPieces.begin();
+  std::map<off_t, size_t>::iterator iEnd = mapPieces.end();
+    
+  for( ; iCurrent != iEnd; iCurrent++) {
+    offsetRelative = iCurrent->first % getMaxSize();
+    retc = XrdPosixXrootd::Pwrite(fd, buffer + offsetRelative, iCurrent->second, iCurrent->first);
 
-  //TODO:: write the pieces
-  
-  return;
+    if (retc != (int)iCurrent->second) {
+      fprintf(stderr, "error=error while writing using XrdPosixXrootd\n");
+      return retc;
+    }
+  }
+    
+  return 0;
 };
 
 
@@ -276,7 +286,7 @@ CacheEntry::isFull()
   return (capacity == sizeData);  
 };
 
-
+/*
 //------------------------------------------------------------------------------
 void
 CacheEntry::mergePieces()
@@ -301,7 +311,7 @@ CacheEntry::mergePieces()
     }
   }
 } 
-
+*/
 
 //------------------------------------------------------------------------------
 int

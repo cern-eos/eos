@@ -329,7 +329,8 @@ XrdFileCache::waitFinishWrites(unsigned long inode)
 {
     FileAbstraction* fAbst = getFileObj(inode);
 
-    if (fAbst)
+    if (fAbst) {
         fAbst->waitFinishWrites();
+    }
     return;
 }
