@@ -47,7 +47,6 @@ CacheEntry::CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstra
   buffer = (char*) calloc(capacity, sizeof(char));
   buffer = (char*) memcpy(buffer + offsetRelative, buf, len);
   mapPieces.insert(std::make_pair(off, len));
-  pParentFile->incrementNoWriteBlocks();
 }
 
 
@@ -82,7 +81,7 @@ CacheEntry::doRecycle(int filedes, char* buf, off_t off, size_t len, FileAbstrac
 
 
 //------------------------------------------------------------------------------
-void
+size_t
 CacheEntry::addPiece(char* buf, off_t off, size_t len)
 {
 
@@ -94,19 +93,6 @@ CacheEntry::addPiece(char* buf, off_t off, size_t len)
   std::map<off_t, size_t>::iterator iBefore;
   std::map<off_t, size_t>::reverse_iterator iReverse;
   char* pBuffer = buffer + offsetRelative;
-
-  /*  
-  if (mapPieces.size() == 0) {
-    //add directly, no previous pieces in map
-    pBuffer = (char*) memcpy(pBuffer, buf, len);
-    mapPieces.insert(std::make_pair(off, len));
-    sizeData = len;
-    sizeAdded = len;
-    pParentFile->incrementWrites(sizeAdded);
-    return;
-  }
-  */
-
   std::map<off_t, size_t>::iterator iAfter = mapPieces.lower_bound(off);
 
   if (iAfter->first == off) {
@@ -198,9 +184,7 @@ CacheEntry::addPiece(char* buf, off_t off, size_t len)
 
   }
 
-  pParentFile->incrementWrites(sizeAdded);
-  fprintf(stderr, "[%s] File=%i, sizeWrites=%zu\n", __FUNCTION__, pParentFile->getId(), pParentFile->getSizeWrites());
-  return;
+  return sizeAdded;
 }
 
 

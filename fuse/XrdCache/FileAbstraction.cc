@@ -36,7 +36,7 @@ FileAbstraction::FileAbstraction(int id, unsigned long ino):
 {
   //max file size we can deal with is 90TB 
   firstPossibleKey = static_cast<long long>(1e14 * idFile);          
-  lastPossibleKey = static_cast<long long>((1e14 * (idFile + 1)) - 1);
+  lastPossibleKey = static_cast<long long>((1e14 * (idFile + 1)));
 
   fprintf(stdout, "idFile=%i, firstPossibleKey=%llu, lastPossibleKey=%llu \n",
           idFile, firstPossibleKey, lastPossibleKey);

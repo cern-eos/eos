@@ -53,7 +53,7 @@ class CacheEntry
   FileAbstraction*  getParentFile() const;
 
   bool   isFull();
-  void   addPiece(char* buf, off_t off, size_t len);
+  size_t   addPiece(char* buf, off_t off, size_t len);
   int    doWrite();
   void   doRecycle(int filedes, char* buf, off_t offset, size_t lenBuf,
                   FileAbstraction* ptr);

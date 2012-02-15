@@ -140,7 +140,7 @@ XrdFileCache::getFileObj(unsigned long inode)
     fRet->incrementNoReferences();
     pthread_rwlock_unlock(&keyMgmLock);  //unlock
 
-    //fprintf(stdout, "For inode: %lu assign key: %i. \n", inode, key);
+    fprintf(stdout, "For inode: %lu assign key: %i. \n", inode, key);
     return fRet;
 }
 

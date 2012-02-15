@@ -203,25 +203,24 @@ class CacheImpl
 
     if (it != keyValueMap.end()) {
       //block entry found
+      size_t sizeAdded;
       pEntry = it->second.first;
-      //printf(stderr, "[%s] Get block pointer=%p.\n", __FUNCTION__, pEntry);
-      size_t sizeOldData = pEntry->getSizeData();
-      pEntry->addPiece(buf, off, len);
-      //fprintf(stderr, "[%s] Add piece.\n", __FUNCTION__);
+      sizeAdded = pEntry->addPiece(buf, off, len);
 
       pthread_mutex_lock(&mutexList);                //lock list
       keyList.splice(keyList.end(), keyList, it->second.second);
-      pthread_mutex_unlock(&mutexList);              //unlock list
-
       //update info about the file
-      pEntry->getParentFile()->incrementReads(pEntry->getSizeData() - sizeOldData);
+      pEntry->getParentFile()->incrementReads(sizeAdded);
+      pthread_mutex_unlock(&mutexList);              //unlock list
+     
       pthread_rwlock_unlock(&rwMapLock);             //unlock map
     }
     else {
-      //add new block
-      //fprintf(stderr, "No block found we add a new one. \n");
-      pEntry = getRecycledBlock(filed, buf, off, len, pFileAbst);
       pthread_rwlock_unlock(&rwMapLock);               //unlock map
+            
+      //add new block
+      pEntry = getRecycledBlock(filed, buf, off, len, pFileAbst);
+
       pthread_rwlock_wrlock(&rwMapLock);               //write lock map
       pthread_mutex_lock(&mutexList);                  //lock list
       
@@ -230,9 +229,9 @@ class CacheImpl
         if (!evict()) {
           //release locks and wait for writing thread to do some writing
           //in case all cache is full with blocks for writing
-          pthread_rwlock_unlock(&rwMapLock);               //unlock map
           pthread_mutex_unlock(&mutexList);                //unlock list
-
+          pthread_rwlock_unlock(&rwMapLock);               //unlock map
+      
           pthread_mutex_lock(&mutexWriteDone);
           pthread_cond_wait(&condWriteDone, &mutexWriteDone);
           pthread_mutex_unlock(&mutexWriteDone);
@@ -245,13 +244,13 @@ class CacheImpl
       //update most-recently-used key
       typename key_list_type::iterator it =
           keyList.insert(keyList.end(), std::make_pair(k, false));
-      sizeVirtual += value_type::getMaxSize();
-      
-      pthread_mutex_unlock(&mutexList);                    //unlock list
-      
-      //update size info about the file
-      pEntry->getParentFile()->incrementReads(pEntry->getSizeData());
       keyValueMap.insert(std::make_pair(k, std::make_pair(pEntry, it)));
+
+      //update cache and file size
+      sizeVirtual += value_type::getMaxSize();
+      pEntry->getParentFile()->incrementReads(pEntry->getSizeData());
+
+      pthread_mutex_unlock(&mutexList);                    //unlock list
       pthread_rwlock_unlock(&rwMapLock);                    //unlock map
     }
   };
@@ -261,6 +260,12 @@ class CacheImpl
   flushWrites(file_abst* pFileAbst)
   {
     fprintf(stderr, "[%s] Calling.\n" ,__FUNCTION__);
+        
+    if (pFileAbst->getSizeWrites() == 0) {
+      fprintf(stderr, "[%s] No writes for this file.\n" ,__FUNCTION__);
+      return;
+    }
+    
     pthread_rwlock_rdlock(&rwMapLock);               //read lock map
 
     typename key_map_type::iterator iStart = keyValueMap.lower_bound(pFileAbst->getFirstPossibleKey());
@@ -274,6 +279,7 @@ class CacheImpl
     pthread_rwlock_unlock(&rwMapLock);               //unlock map
     fprintf(stderr, "[%s] End method.\n" ,__FUNCTION__);
   }; 
+
 
   //------------------------------------------------------------------------------
   //Proccess a write request from the qeue
@@ -313,17 +319,18 @@ class CacheImpl
     keyValueMap.erase(it);
     keyList.erase(iterList);
     sizeVirtual -= value_type::getMaxSize();
+
+    if (getCurrentSize() <= maxPercentWrites * sizeMax) {
+      //notify possible waiting threads that a write was done
+      //(i.e. possible free space in cache available)
+      pthread_mutex_lock(&mutexWriteDone);
+      pthread_cond_broadcast(&condWriteDone);        //send broadcast
+      pthread_mutex_unlock(&mutexWriteDone);
+    }
+
     pthread_mutex_unlock(&mutexList);                //unlock list
     pthread_rwlock_unlock(&rwMapLock);               //unlock map
 
-    if (getCurrentSize() <= maxPercentWrites * sizeMax) {
-        //notify possible waiting threads that a write was done
-        //(i.e. possible free space in cache available)
-        pthread_mutex_lock(&mutexWriteDone);
-        pthread_cond_broadcast(&condWriteDone);        //send broadcast
-        pthread_mutex_unlock(&mutexWriteDone);
-      }
-    
     fprintf(stderr, "[%s] Add block to recycle queue.\n", __FUNCTION__);
 
     //add block to recycle list
@@ -337,17 +344,16 @@ class CacheImpl
   addWrite(int filed, const key_type& k, char* buf, off_t off, size_t len, file_abst* pFileAbst)
   {
     value_type* pEntry = 0;
-
     fprintf(stderr, "[%s] Calling method.\n", __FUNCTION__); 
-    pthread_rwlock_rdlock(&rwMapLock);            //read lock map
 
     if (pFileAbst->getSizeReads() != 0) {
       //delete all read blocks from cache
+      pthread_rwlock_wrlock(&rwMapLock);            //write lock map
       typename key_map_type::iterator iTmp;
       const typename key_map_type::iterator iStart = keyValueMap.lower_bound(pFileAbst->getFirstPossibleKey());
       const typename key_map_type::iterator iEnd = keyValueMap.lower_bound(pFileAbst->getLastPossibleKey());
            
-      pthread_mutex_lock(&mutexList);             //lock list
+      pthread_mutex_lock(&mutexList);               //lock list
       iTmp = iStart;
 
       typename key_list_type::iterator itList;
@@ -360,24 +366,26 @@ class CacheImpl
 
         pEntry = iTmp->second.first;
         pEntry->getParentFile()->decrementReads(pEntry->getSizeData());
-        keyList.erase(iTmp->second.second);
         sizeVirtual -= value_type::getMaxSize();
+        keyList.erase(iTmp->second.second);
         iTmp++;
       }
 
       keyValueMap.erase(iStart, iEnd);
       pthread_mutex_unlock(&mutexList);             //unlock list
+      pthread_rwlock_unlock(&rwMapLock);            //unlock map
     }
 
-    //no more reads should be associtaed with this file
+    pthread_rwlock_rdlock(&rwMapLock);           //read lock map
     assert(pFileAbst->getSizeReads() == 0);
     
     typename key_map_type::iterator it = keyValueMap.find(k);
 
     if (it != keyValueMap.end()) {
-      //block entry found
+      size_t sizeAdded;
       pEntry = it->second.first;
-      pEntry->addPiece(buf, off, len);
+      sizeAdded = pEntry->addPiece(buf, off, len);
+      pEntry->getParentFile()->incrementWrites(sizeAdded);
       fprintf(stderr, "[%s] Old block: key=%lli, off=%zu, len=%zu.\n",
               __FUNCTION__, k, off, len);
       pthread_rwlock_unlock(&rwMapLock);            //unlock map
@@ -388,14 +396,14 @@ class CacheImpl
     }
     else {
       std::pair<typename key_map_type::iterator, bool> ret;
+
+      pthread_rwlock_unlock(&rwMapLock);          //unlock map
       
       //add new block
       pEntry = getRecycledBlock(filed, buf, off, len, pFileAbst);
-      pEntry->getParentFile()->incrementWrites(len);
-      
       fprintf(stderr, "[%s] New block: key=%lli, off=%zu, len=%zu.\n",
               __FUNCTION__, k, off, len);
-      pthread_rwlock_unlock(&rwMapLock);          //unlock map
+
       pthread_rwlock_wrlock(&rwMapLock);          //write lock map
       pthread_mutex_lock(&mutexList);             //lock list
       
@@ -420,11 +428,14 @@ class CacheImpl
       typename key_list_type::iterator it =
           keyList.insert(keyList.end(), std::make_pair(k, true));
       sizeVirtual += value_type::getMaxSize();
-      pthread_mutex_unlock(&mutexList);           //unlock list
+
+      pEntry->getParentFile()->incrementWrites(len);
+      pEntry->getParentFile()->incrementNoWriteBlocks();
       
       //add new entry
       ret = keyValueMap.insert(std::make_pair(k, std::make_pair(pEntry, it)));
-      pthread_rwlock_unlock(&rwMapLock);         //unlock map
+      pthread_mutex_unlock(&mutexList);             //unlock list
+      pthread_rwlock_unlock(&rwMapLock);            //unlock map
 
       if (pEntry->isFull()) {
         writeReqQueue->push(ret.first);
