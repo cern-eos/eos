@@ -1429,7 +1429,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
 {
   int retc = XrdOfsFile::read(fileOffset,buffer,buffer_size);
 
-  eos_info("read %llu %llu %lu", this, fileOffset, buffer_size);
+  eos_debug("read %llu %llu %lu", this, fileOffset, buffer_size);
   if (fstBlockXS) {
     XrdSysMutexHelper cLock (BlockXsMutex);
     if ((retc>0) && (!fstBlockXS->CheckBlockSum(fileOffset, buffer, retc))) {
