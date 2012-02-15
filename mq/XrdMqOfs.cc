@@ -43,7 +43,7 @@ const char *XrdMqOfsCVSID = "$Id: XrdMqOfs.cc,v 1.0.0 2007/10/04 01:34:19 ajp Ex
 #include "XrdSys/XrdSysDNS.hh"
 #include "mq/XrdMqOfs.hh"
 #include "mq/XrdMqMessage.hh"
-#include "XrdOfs/XrdOfsTrace.hh"
+#include "mq/XrdMqOfsTrace.hh"
 
 #include <pwd.h>
 #include <grp.h>
@@ -53,15 +53,12 @@ const char *XrdMqOfsCVSID = "$Id: XrdMqOfs.cc,v 1.0.0 2007/10/04 01:34:19 ajp Ex
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
 
-XrdSysError     OfsEroute(0);  
-extern XrdOssSys *XrdOfsOss;
-XrdSysError    *XrdMqOfs::eDest;
-extern XrdOucTrace OfsTrace;
-extern XrdOss    *XrdOssGetSS(XrdSysLogger *, const char *, const char *);
+XrdSysError     gMqOfsEroute(0);
+XrdOucTrace     gMqOfsTrace(&gMqOfsEroute);
 
 XrdOucHash<XrdOucString>*     XrdMqOfs::stringstore;
 
-XrdMqOfs   XrdOfsFS;
+XrdMqOfs*   gMqFS=0;
 
 void
 xrdmqofs_shutdown(int sig) {
@@ -82,25 +79,25 @@ STRINGSTORE(const char* __charptr__) {
   XrdOucString* yourstring;
   if (!__charptr__ ) return (char*)"";
 
-  if ((yourstring = XrdOfsFS.stringstore->Find(__charptr__))) {
+  if ((yourstring = gMqFS->stringstore->Find(__charptr__))) {
     return (char*)yourstring->c_str();
   } else {
     XrdOucString* newstring = new XrdOucString(__charptr__);
-    XrdOfsFS.StoreMutex.Lock();
-    XrdOfsFS.stringstore->Add(__charptr__,newstring);
-    XrdOfsFS.StoreMutex.UnLock();
+    gMqFS->StoreMutex.Lock();
+    gMqFS->stringstore->Add(__charptr__,newstring);
+    gMqFS->StoreMutex.UnLock();
     return (char*)newstring->c_str();
   } 
 }
 
 
 XrdMqOfsOutMutex::XrdMqOfsOutMutex() {
-  XrdOfsFS.QueueOutMutex.Lock();
+  gMqFS->QueueOutMutex.Lock();
 }
 
 XrdMqOfsOutMutex::~XrdMqOfsOutMutex() 
 {
-  XrdOfsFS.QueueOutMutex.UnLock();
+  gMqFS->QueueOutMutex.UnLock();
 }
   
 /******************************************************************************/
@@ -109,7 +106,6 @@ XrdMqOfsOutMutex::~XrdMqOfsOutMutex()
 
 XrdMqOfs::XrdMqOfs(XrdSysError *ep)
 {
-  eDest = ep;
   ConfigFN  = 0;  
   StartupTime = time(0);
   LastOutputTime = time(0);
@@ -124,8 +120,8 @@ XrdMqOfs::XrdMqOfs(XrdSysError *ep)
   (void) signal(SIGINT,xrdmqofs_shutdown);
   HostName=0;
   HostPref=0;
-  fprintf(stderr,"Addr::QueueOutMutex        0x%llx\n",(unsigned long long) &XrdOfsFS.QueueOutMutex);
-  fprintf(stderr,"Addr::MessageMutex         0x%llx\n",(unsigned long long) &XrdOfsFS.MessagesMutex);
+  fprintf(stderr,"Addr::QueueOutMutex        0x%llx\n",(unsigned long long) &gMqFS->QueueOutMutex);
+  fprintf(stderr,"Addr::MessageMutex         0x%llx\n",(unsigned long long) &gMqFS->MessagesMutex);
 }
 
 /******************************************************************************/
@@ -151,18 +147,22 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 {
   // Do the herald thing
   //
-  OfsEroute.SetPrefix("mqofs_");
-  OfsEroute.logger(lp);
-  OfsEroute.Say("++++++ (c) 2010 CERN/IT-DSS ",
-                "v 1.0");
+  gMqOfsEroute.SetPrefix("mqofs_");
+  gMqOfsEroute.logger(lp);
+  gMqOfsEroute.Say("++++++ (c) 2012 CERN/IT-DSS ",
+                VERSION);
 
-  XrdOfsFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
+  static XrdMqOfs myFS(&gMqOfsEroute);
 
-  if ( XrdOfsFS.Configure(OfsEroute) ) return 0;
+  gMqFS = &myFS;
+
+  gMqFS->ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
+
+  if ( gMqFS->Configure(gMqOfsEroute) ) return 0;
    
   // All done, we can return the callout vector to these routines.
   //
-  return &XrdOfsFS;
+  return gMqFS;
 }
   
 /******************************************************************************/
@@ -171,6 +171,40 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 
 const char *XrdMqOfs::getVersion() {return XrdVERSION;}
 
+
+/******************************************************************************/
+/*                                 S t a l l                                  */
+/******************************************************************************/
+
+int XrdMqOfs::Emsg(const char    *pfx,    // Message prefix value
+		   XrdOucErrInfo &einfo,  // Place to put text & error code
+		   int            ecode,  // The error code
+		   const char    *op,     // Operation being performed
+		   const char    *target) // The target (e.g., fname)
+{
+  char *etext, buffer[4096], unkbuff[64];
+  
+  // Get the reason for the error
+  //
+  if (ecode < 0) ecode = -ecode;
+  if (!(etext = strerror(ecode)))
+    {sprintf(unkbuff, "reason unknown (%d)", ecode); etext = unkbuff;}
+
+  // Format the error message
+  //
+  
+  
+  snprintf(buffer,sizeof(buffer),"Unable to %s %s; %s", op, target, etext);
+
+  gMqOfsEroute.Emsg(pfx, buffer);
+
+  // Place the error message in the error object and return
+  //
+  einfo.setErrInfo(ecode, buffer);
+  
+  return SFS_ERROR;
+}
+  
 /******************************************************************************/
 /*                                 S t a l l                                  */
 /******************************************************************************/
@@ -212,39 +246,39 @@ XrdMqOfs::stat(const char                *queuename,
 
   Statistics();
 
-  ZTRACE(open,"stat by buf: "<< queuename);
+  ZTRACE(stat,"stat by buf: "<< queuename);
   std::string squeue = queuename;
 
   {
     XrdMqOfsOutMutex qm;
-    if ((!XrdOfsFS.QueueOut.count(squeue)) || (!(Out = XrdOfsFS.QueueOut[squeue]))) {
-      return XrdMqOfs::Emsg(epname, error, EINVAL,"check queue - no such queue");
+    if ((!gMqFS->QueueOut.count(squeue)) || (!(Out = gMqFS->QueueOut[squeue]))) {
+      return gMqFS->Emsg(epname, error, EINVAL,"check queue - no such queue");
     }
     Out->DeletionSem.Wait();
   }
 
   {
-    XrdOfsFS.AdvisoryMessages++;
+    gMqFS->AdvisoryMessages++;
     // submit an advisory message
     XrdAdvisoryMqMessage amg("AdvisoryQuery", queuename,true, XrdMqMessageHeader::kQueryMessage);
     XrdMqMessageHeader::GetTime(amg.kMessageHeader.kSenderTime_sec,amg.kMessageHeader.kSenderTime_nsec);
     XrdMqMessageHeader::GetTime(amg.kMessageHeader.kBrokerTime_sec,amg.kMessageHeader.kBrokerTime_nsec);
-    amg.kMessageHeader.kSenderId = XrdOfsFS.BrokerId;
+    amg.kMessageHeader.kSenderId = gMqFS->BrokerId;
     amg.Encode();
     //    amg.Print();
     XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
-    XrdMqOfsMatches matches(XrdOfsFS.QueueAdvisory.c_str(), env, tident, XrdMqMessageHeader::kQueryMessage, queuename);
+    XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident, XrdMqMessageHeader::kQueryMessage, queuename);
     XrdMqOfsOutMutex qm;
-    if (!XrdOfsFS.Deliver(matches))
+    if (!gMqFS->Deliver(matches))
       delete env;
   }
 
 
   // this should be the case always ...
-  ZTRACE(open, "Waiting for message");
+  ZTRACE(stat, "Waiting for message");
   //  Out->MessageSem.Wait(1);
   Out->Lock();
-  ZTRACE(open, "Grabbing message");
+  ZTRACE(stat, "Grabbing message");
   
   memset(buf,0,sizeof(struct stat));
   buf->st_blksize= 1024;
@@ -263,7 +297,7 @@ XrdMqOfs::stat(const char                *queuename,
   Out->UnLock();
   Out->DeletionSem.Post();
   if (buf->st_size == 0) {
-    XrdOfsFS.NoMessages++;
+    gMqFS->NoMessages++;
   }
   return SFS_OK;
 }
@@ -279,7 +313,7 @@ XrdMqOfs::stat(const char                *Name,
   EPNAME("stat");
   const char *tident = error.getErrUser();
 
-  ZTRACE(open,"stat by mode");
+  ZTRACE(stat,"stat by mode");
   return SFS_ERROR;
 }
 
@@ -294,6 +328,7 @@ XrdMqOfsFile::open(const char                *queuename,
                    const char                *opaque)
 {
   EPNAME("open");
+  tident = error.getErrUser();
 
   ZTRACE(open,"Connecting Queue: " << queuename);
   
@@ -301,18 +336,18 @@ XrdMqOfsFile::open(const char                *queuename,
   QueueName = queuename;
   std::string squeue = queuename;
 
-  //  printf("%s %s %s\n",QueueName.c_str(),XrdOfsFS.QueuePrefix.c_str(),opaque);
+  //  printf("%s %s %s\n",QueueName.c_str(),gMqFS->QueuePrefix.c_str(),opaque);
   // check if this queue is accepted by the broker
-  if (!QueueName.beginswith(XrdOfsFS.QueuePrefix)) {
+  if (!QueueName.beginswith(gMqFS->QueuePrefix)) {
     // this queue is not supported by us
-    return XrdMqOfs::Emsg(epname, error, EINVAL,"connect queue - the broker does not serve the requested queue");
+    return gMqFS->Emsg(epname, error, EINVAL,"connect queue - the broker does not serve the requested queue");
   }
   
 
-  if (XrdOfsFS.QueueOut.count(squeue)) {
+  if (gMqFS->QueueOut.count(squeue)) {
     fprintf(stderr,"EBUSY: Queue %s is busy\n", QueueName.c_str());
     // this is already open by 'someone'
-    return XrdMqOfs::Emsg(epname, error, EBUSY, "connect queue - already connected",queuename);
+    return gMqFS->Emsg(epname, error, EBUSY, "connect queue - already connected",queuename);
   }
     
   Out = new XrdMqMessageOut(queuename);
@@ -333,7 +368,7 @@ XrdMqOfsFile::open(const char                *queuename,
   Out->AdvisoryStatus = advisorystatus;
   Out->AdvisoryQuery  = advisoryquery;
 
-  XrdOfsFS.QueueOut.insert(std::pair<std::string, XrdMqMessageOut*>(squeue, Out));
+  gMqFS->QueueOut.insert(std::pair<std::string, XrdMqMessageOut*>(squeue, Out));
 
   ZTRACE(open,"Connected Queue: " << queuename);
   IsOpen = true;
@@ -354,31 +389,31 @@ XrdMqOfsFile::close() {
 
   {
     XrdMqOfsOutMutex qm; 
-    if ((XrdOfsFS.QueueOut.count(squeue)) && (Out = XrdOfsFS.QueueOut[squeue])) {
+    if ((gMqFS->QueueOut.count(squeue)) && (Out = gMqFS->QueueOut[squeue])) {
       // hmm this could create a dead lock
       //      Out->DeletionSem.Wait();
       Out->Lock();
       // we have to take away all pending messages
       Out->RetrieveMessages();
-      XrdOfsFS.QueueOut.erase(squeue);
+      gMqFS->QueueOut.erase(squeue);
       delete Out;
     }
     Out = 0;
   }
 
   {
-    XrdOfsFS.AdvisoryMessages++;
+    gMqFS->AdvisoryMessages++;
     // submit an advisory message
     XrdAdvisoryMqMessage amg("AdvisoryStatus", QueueName.c_str(),false, XrdMqMessageHeader::kStatusMessage);
     XrdMqMessageHeader::GetTime(amg.kMessageHeader.kSenderTime_sec,amg.kMessageHeader.kSenderTime_nsec);
     XrdMqMessageHeader::GetTime(amg.kMessageHeader.kBrokerTime_sec,amg.kMessageHeader.kBrokerTime_nsec);
-    amg.kMessageHeader.kSenderId = XrdOfsFS.BrokerId;
+    amg.kMessageHeader.kSenderId = gMqFS->BrokerId;
     amg.Encode();
     //    amg.Print();
     XrdSmartOucEnv* env =new XrdSmartOucEnv(amg.GetMessageBuffer());
-    XrdMqOfsMatches matches(XrdOfsFS.QueueAdvisory.c_str(), env, tident, XrdMqMessageHeader::kStatusMessage, QueueName.c_str());
+    XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident, XrdMqMessageHeader::kStatusMessage, QueueName.c_str());
     XrdMqOfsOutMutex qm;
-    if (!XrdOfsFS.Deliver(matches))
+    if (!gMqFS->Deliver(matches))
       delete env;
   }
 
@@ -391,10 +426,10 @@ XrdMqOfsFile::read(XrdSfsFileOffset  fileOffset,
                    char            *buffer,
                    XrdSfsXferSize   buffer_size) {
   EPNAME("read");
-  ZTRACE(open,"read");
+  ZTRACE(read,"read");
   if (Out) {
     unsigned int mlen = Out->MessageBuffer.length();
-    ZTRACE(open,"reading size:" << buffer_size);
+    ZTRACE(read,"reading size:" << buffer_size);
     if ((unsigned long) buffer_size < mlen) {
       memcpy(buffer,Out->MessageBuffer.c_str(),buffer_size);
       Out->MessageBuffer.erase(0,buffer_size);
@@ -415,33 +450,33 @@ XrdMqOfsFile::read(XrdSfsFileOffset  fileOffset,
 int
 XrdMqOfsFile::stat(struct stat *buf) {
   EPNAME("stat");
-  ZTRACE(open,"fstat");
+  ZTRACE(read,"fstat");
 
   if (Out) {
     Out->DeletionSem.Wait();
     // this should be the case always ...
-    ZTRACE(open, "Waiting for message");
+    ZTRACE(stat, "Waiting for message");
 
     {
-      XrdOfsFS.AdvisoryMessages++;
+      gMqFS->AdvisoryMessages++;
       // submit an advisory message
       XrdAdvisoryMqMessage amg("AdvisoryQuery", QueueName.c_str(),true, XrdMqMessageHeader::kQueryMessage);
       XrdMqMessageHeader::GetTime(amg.kMessageHeader.kSenderTime_sec,amg.kMessageHeader.kSenderTime_nsec);
       XrdMqMessageHeader::GetTime(amg.kMessageHeader.kBrokerTime_sec,amg.kMessageHeader.kBrokerTime_nsec);
-      amg.kMessageHeader.kSenderId = XrdOfsFS.BrokerId;
+      amg.kMessageHeader.kSenderId = gMqFS->BrokerId;
       amg.Encode();
       //      amg.Print();
       XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
-      XrdMqOfsMatches matches(XrdOfsFS.QueueAdvisory.c_str(), env, tident, XrdMqMessageHeader::kQueryMessage, QueueName.c_str());
+      XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident, XrdMqMessageHeader::kQueryMessage, QueueName.c_str());
       XrdMqOfsOutMutex qm;
-      if (!XrdOfsFS.Deliver(matches))
+      if (!gMqFS->Deliver(matches))
         delete env;
     }
 
 
     //    Out->MessageSem.Wait(1);
     Out->Lock();
-    ZTRACE(open, "Grabbing message");
+    ZTRACE(stat, "Grabbing message");
 
     memset(buf,0,sizeof(struct stat));
     buf->st_blksize= 1024;
@@ -461,11 +496,11 @@ XrdMqOfsFile::stat(struct stat *buf) {
     Out->DeletionSem.Post();
 
     if (buf->st_size == 0) {
-      XrdOfsFS.NoMessages++;
+      gMqFS->NoMessages++;
     }
     return SFS_OK;
   }
-  ZTRACE(open, "No message queue");
+  ZTRACE(stat, "No message queue");
   return SFS_ERROR;
 }
 
@@ -520,9 +555,10 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
   }
 
 
+  gMqOfsTrace.What= TRACE_getstats | TRACE_close| TRACE_open;
 
   if( !ConfigFN || !*ConfigFN) {
-    // this error will be reported by XrdOfsFS.Configure
+    // this error will be reported by gMqFS->Configure
   } else {
     // Try to open the configuration file.
     //
@@ -544,6 +580,21 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
             QueueAdvisory += "*";
           }
         }
+
+	if (!strcmp("trace",var)) {
+	  if (( val = Config.GetWord())) {
+	    XrdOucString tracelevel = val;
+	    if ( tracelevel == "low") {
+	      gMqOfsTrace.What= TRACE_close| TRACE_open;
+	    }
+	    if ( tracelevel == "medium") {
+	      gMqOfsTrace.What = TRACE_getstats | TRACE_open| TRACE_close;
+	    }
+	    if ( tracelevel == "high") {
+	      gMqOfsTrace.What = TRACE_ALL;
+	    }
+	  }	    
+	}
 
         if (!strcmp("statfile",var)) {
           if (( val = Config.GetWord())) {
@@ -569,7 +620,6 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
 
   Eroute.Say("=====> mq.queue: ", QueuePrefix.c_str());
   Eroute.Say("=====> mq.brokerid: ", BrokerId.c_str());
-  rc = XrdOfs::Configure(Eroute);
   return rc;
 }
 

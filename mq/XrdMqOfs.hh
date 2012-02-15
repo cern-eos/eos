@@ -122,7 +122,7 @@ public:
 
 
 
-class XrdMqOfsFile : public XrdOfsFile
+class XrdMqOfsFile : public XrdSfsFile
 {
 public:
 
@@ -141,13 +141,27 @@ public:
 
   int stat(struct stat *buf);
   
-  XrdMqOfsFile(char *user=0) : XrdOfsFile(user) {
-    QueueName = "";envOpaque=0;Out=0;IsOpen = false;}
+  XrdMqOfsFile(char *user=0) : XrdSfsFile(user) {
+    QueueName = "";envOpaque=0;Out=0;IsOpen = false;tident="";}
   
   ~XrdMqOfsFile() { 
     if (envOpaque) delete envOpaque;
     close();
   }
+
+
+  virtual int fctl(int, const char*, XrdOucErrInfo&) {return SFS_ERROR;}
+  virtual const char* FName() {return "queue";}
+  virtual int getMmap(void**, off_t&) {return SFS_ERROR;}
+  virtual int read(XrdSfsFileOffset, XrdSfsXferSize) {return SFS_ERROR;}
+  virtual int read(XrdSfsAio*) {return SFS_ERROR;}
+  virtual XrdSfsXferSize write(XrdSfsFileOffset, const char*, XrdSfsXferSize) {return SFS_OK;}
+  virtual int write(XrdSfsAio*) {return SFS_OK;}
+  virtual int sync() {return SFS_OK;}
+  virtual int sync(XrdSfsAio*) {return SFS_OK;}
+  virtual int truncate(XrdSfsFileOffset) {return SFS_OK;}
+  virtual int getCXinfo(char*, int&) {return SFS_ERROR;}
+
 
 private:
   XrdOucEnv*             envOpaque;
@@ -155,7 +169,7 @@ private:
   
   XrdOucString           QueueName;
   bool                   IsOpen;
-  
+  const char             *tident;
 };
 
 
@@ -165,7 +179,7 @@ public:
   ~XrdMqOfsOutMutex();
 };
 
-class XrdMqOfs : public XrdOfs
+class XrdMqOfs : public XrdSfsFileSystem
 {
 public:
   friend class XrdMqOfsFile;
@@ -185,8 +199,12 @@ public:
   
   static  XrdOucHash<XrdOucString> *stringstore;
   
-  XrdOfsFile      *newFile(char *user=0) {return (XrdOfsFile*) new XrdMqOfsFile(user);}
-  
+  XrdSfsFile      *newFile(char *user=0) {return (XrdSfsFile*) new XrdMqOfsFile(user);}
+  XrdSfsDirectory      *newDir(char *user=0) {return (XrdSfsDirectory*) 0;}
+
+  int              Emsg(const char *, XrdOucErrInfo&, int, const char *x, const char *y="");
+  int              myPort; 
+
   char*            HostName;           // -> our hostname as derived in XrdOfs
   char*            HostPref;           // -> our hostname as derived in XrdOfs without domain
   XrdOucString     ManagerId;          // -> manager id in <host>:<port> format
@@ -213,8 +231,19 @@ public:
                         XrdOucErrInfo            &error,
                         const XrdSecEntity       *client = 0,
                         const char               *opaque = 0);
-  
 
+  int              getStats(char *buff, int blen) {return 0;}
+
+  virtual int chmod(const char*, XrdSfsMode, XrdOucErrInfo&, const XrdSecEntity*, const char*) {return 0;}
+  virtual int fsctl(int, const char*, XrdOucErrInfo&, const XrdSecEntity*) {return 0;}
+  virtual int exists(const char*, XrdSfsFileExistence&, XrdOucErrInfo&, const XrdSecEntity*, const char*) {return 0;}
+  virtual int mkdir(const char*, XrdSfsMode, XrdOucErrInfo&, const XrdSecEntity*, const char*) {return 0;}
+  virtual int prepare(XrdSfsPrep&, XrdOucErrInfo&, const XrdSecEntity*) {return 0;}
+  virtual int rem(const char*, XrdOucErrInfo&, const XrdSecEntity*, const char*) {return 0;}
+  virtual int remdir(const char*, XrdOucErrInfo&, const XrdSecEntity*, const char*) {return 0;}
+  virtual int rename(const char*, const char*, XrdOucErrInfo&, const XrdSecEntity*, const char*, const char*) {return 0;}
+  virtual int truncate(const char*, XrdSfsFileOffset, XrdOucErrInfo&, const XrdSecEntity*, const char*) {return 0;}
+  
   XrdSysMutex  StatLock;
   time_t       StartupTime;
   time_t       LastOutputTime;
@@ -229,6 +258,7 @@ public:
   long long    QueueBacklogHits;
   void         Statistics();
   XrdOucString StatisticsFile;
+  char         *ConfigFN;
 
 private:
   

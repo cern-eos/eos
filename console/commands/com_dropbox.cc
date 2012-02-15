@@ -28,15 +28,61 @@
 /* Dropbox interface */
 int
 com_dropbox (char *arg) {
-  if (!strcmp(arg,"--help") || !strcmp(arg,"-h"))
+  XrdOucTokenizer subtokenizer(arg);
+  subtokenizer.GetLine();
+  XrdOucString subcommand = subtokenizer.GetToken();
+  
+  if ( (subcommand.find("--help")!=STR_NPOS) || (subcommand.find("-h")!=STR_NPOS))
     goto com_dropbox_usage;
+  
+  if ( (subcommand != "add") && (subcommand != "rm") && (subcommand != "start") && (subcommand != "stop") && (subcommand != "ls") ) {
+    goto com_dropbox_usage;
+  }
+  
+  if (subcommand == "add") {
 
+    global_retc = 0;
+    return (0);
+  }
+
+  if (subcommand == "start") {
+
+    global_retc = 0;
+    return (0);
+  }
+
+  if (subcommand == "rm") {
+
+    global_retc = 0;
+    return (0);
+  }
+
+  if (subcommand == "stop") {
     
+    global_retc = 0;
+    return (0);
+  }
+
+  if (subcommand == "ls") {
+    
+    global_retc = 0;
+    return (0);
+  }
+
  com_dropbox_usage:
+  fprintf(stdout,"Usage: dropbox add|rm|start|stop|add|rm|ls ...\n");
   fprintf(stdout,"'[eos] dropbox ...' provides dropbox functionality for eos.\n");
-  fprintf(stdout,"Usage: dropbox <dir>\n");
+
   fprintf(stdout,"Options:\n");
-  fprintf(stdout,"dropbox <dir> :\n");
-  fprintf(stdout,"                                                  run drop box in <dir\n");
+  fprintf(stdout,"dropbox add <eos-dir> <local-dir>   :\n");
+  fprintf(stdout,"                                                  add drop box configuration to synchronize from <eos-dir> to <local-dir>!\n");
+  fprintf(stdout,"dropbox rm <eos-dir>                :\n");
+  fprintf(stdout,"                                                  remove drop box configuration to synchronize from <eos-dir>!\n");
+  fprintf(stdout,"dropbox start [<eos-dir>]           :\n");
+  fprintf(stdout,"                                                  start the drop box daemon for <eos-dir>. If no directory is specified all configured directories will be started!\n");
+  fprintf(stdout,"dropbox stop [<eos-dir>]            :\n");
+  fprintf(stdout,"                                                  stop the drop box daemon for <eos-dir>. If no directory is specified all configured directories will be stopped!\n");
+  fprintf(stdout,"dropbox ls                          :\n");
+  fprintf(stdout,"                                                  list configured drop box daemons and their status\n");
   return (0);
 }

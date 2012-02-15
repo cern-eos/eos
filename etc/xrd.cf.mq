@@ -2,6 +2,7 @@
 xrootd.fslib libXrdMqOfs.so
 all.export /eos/ nolock
 all.role server
+xrootd.async off nosf
 #############################################################
 # SSS authentication
 xrootd.seclib libXrdSec.so
@@ -18,8 +19,7 @@ xrd.port 1097
 xrd.network keepalive
 xrd.timeout idle 120
 #############################################################
-#get some nice statics in the log file about the queue status
-ofs.trace getstats -login -disc
-ofs.persist off
+# low|medium|high as trace levels
+mq.trace low
 #############################################################
 mq.queue /eos/

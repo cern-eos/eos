@@ -25,13 +25,13 @@
 
 #include "mq/XrdMqOfs.hh"
 #include "mq/XrdMqMessage.hh"
-#include "XrdOfs/XrdOfsTrace.hh"
+#include "mq/XrdMqOfsTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
 #define XRDMQOFS_FSCTLPATHLEN 1024
 
-extern XrdOucTrace OfsTrace;
-extern XrdMqOfs   XrdOfsFS;
+extern XrdOucTrace gMqOfsTrace;
+extern XrdMqOfs*   gMqFS;
 
 /////////////////////////////////////////////////////////////////////////////
 // Helper Classes & Functions
@@ -75,7 +75,7 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
       
 
       else {
-        ZTRACE(open,"Adding Advisory Message to Queuename: "<< Out->QueueName.c_str());
+        ZTRACE(fsctl,"Adding Advisory Message to Queuename: "<< Out->QueueName.c_str());
         MatchedOutputQueues.push_back(Out);
       }
     }
@@ -101,7 +101,7 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
         int nmatch = Key.matches(Matches.queuename.c_str(),'*');
         if (nmatch == nowildcard.length()) {
           // this is a match
-          ZTRACE(open,"Adding Wildcard matched Message to Queuename: "<< Out->QueueName.c_str());
+          ZTRACE(fsctl,"Adding Wildcard matched Message to Queuename: "<< Out->QueueName.c_str());
           MatchedOutputQueues.push_back(Out);
         }
       }
@@ -116,7 +116,7 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
       if (QueueOut.count(queuename))
         Out = QueueOut[queuename];
       if (Out) {
-        ZTRACE(open,"Adding full matched Message to Queuename: "<< Out->QueueName.c_str());
+        ZTRACE(fsctl,"Adding full matched Message to Queuename: "<< Out->QueueName.c_str());
         MatchedOutputQueues.push_back(Out);
       }
     }
@@ -141,7 +141,7 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
         Matches.backlog =true;
         Matches.backlogqueues += Out->QueueName;
         Matches.backlogqueues += ":";
-        XrdOfsFS.QueueBacklogHits++;
+        gMqFS->QueueBacklogHits++;
         TRACES("warning: queue " << Out->QueueName << " exceeds backlog of " << MQOFSMAXQUEUEBACKLOG << " message!");
       }
     
@@ -149,19 +149,19 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
         Matches.backlogrejected =true;
         Matches.backlogqueues += Out->QueueName;
         Matches.backlogqueues += ":";
-        XrdOfsFS.BacklogDeferred++;
+        gMqFS->BacklogDeferred++;
         TRACES("error: queue " << Out->QueueName << " exceeds max. accepted backlog of " << MQOFSREJECTQUEUEBACKLOG << " message!");
       } else {
         Matches.matches++;
         if (Matches.matches == 1) {
           // add to the message hash 
-          XrdOfsFS.MessagesMutex.Lock();
+          gMqFS->MessagesMutex.Lock();
           std::string messageid = Matches.message->Get(XMQHEADER);
-          XrdOfsFS.Messages.insert(std::pair<std::string, XrdSmartOucEnv*> (messageid,Matches.message));
-          XrdOfsFS.MessagesMutex.UnLock();
+          gMqFS->Messages.insert(std::pair<std::string, XrdSmartOucEnv*> (messageid,Matches.message));
+          gMqFS->MessagesMutex.UnLock();
         }
 
-        ZTRACE(open,"Adding Message to Queuename: "<< Out->QueueName.c_str());
+        ZTRACE(fsctl,"Adding Message to Queuename: "<< Out->QueueName.c_str());
         //      fprintf(stderr, "%s adding message %llu\n", Out->QueueName.c_str(), (unsigned long long)Matches.message);
         Out->MessageQueue.push_back((Matches.message));
         Matches.message->AddRefs(1);
@@ -200,22 +200,22 @@ XrdMqMessageOut::RetrieveMessages() {
 
     int len;
     MessageBuffer += message->Env(len);
-    XrdOfsFS.MessagesMutex.Lock();
-    XrdOfsFS.DeliveredMessages++;
+    gMqFS->MessagesMutex.Lock();
+    gMqFS->DeliveredMessages++;
     message->DecRefs();
     if (message->Refs()<=0) {
       // we can delete this message from the queue!
       XrdOucString msg = message->Get(XMQHEADER);
-      XrdOfsFS.Messages.erase(msg.c_str());
+      gMqFS->Messages.erase(msg.c_str());
       message->procmutex.UnLock();
       //      fprintf(stderr,"%s delete %llu \n", QueueName.c_str(), (unsigned long long) message);
       delete message;
-      XrdOfsFS.FanOutMessages++;
+      gMqFS->FanOutMessages++;
     } else {
       message->procmutex.UnLock();
     }
     nQueued--;
-    XrdOfsFS.MessagesMutex.UnLock();
+    gMqFS->MessagesMutex.UnLock();
   }
   return MessageBuffer.length();
 }
@@ -234,14 +234,15 @@ XrdMqOfs::FSctl(const int               cmd,
   ZTRACE(fsctl,"Calling FSctl");
 
   if (cmd!=SFS_FSCTL_PLUGIN) {
-    return XrdOfs::FSctl(cmd, args, error, client);
+    gMqFS->Emsg(epname, error, EINVAL, "to call FSctl function - not supported", "");
+    return SFS_ERROR;
   }
 
   // check for backlog
   if (Messages.size() > MQOFSMAXMESSAGEBACKLOG) {
     // this is not absolutely threadsafe .... better would lock
     BacklogDeferred++;
-    XrdMqOfs::Emsg(epname, error, ENOMEM, "accept message - too many pending messages", "");
+    gMqFS->Emsg(epname, error, ENOMEM, "accept message - too many pending messages", "");
     return SFS_ERROR;
   }
 
@@ -250,7 +251,7 @@ XrdMqOfs::FSctl(const int               cmd,
       strncpy(ipath,args.Arg1,args.Arg1Len);
       ipath[args.Arg1Len] = 0;
     } else {
-      XrdMqOfs::Emsg(epname, error, EINVAL, "convert path argument - string too long", "");
+      gMqFS->Emsg(epname, error, EINVAL, "convert path argument - string too long", "");
       return SFS_ERROR;
     }
   } else {
@@ -274,13 +275,13 @@ XrdMqOfs::FSctl(const int               cmd,
   XrdSmartOucEnv* env = new XrdSmartOucEnv(opaque.c_str());
 
   if (!env) {
-    XrdMqOfs::Emsg(epname, error, ENOMEM, "allocate memory", "");
+    gMqFS->Emsg(epname, error, ENOMEM, "allocate memory", "");
     return SFS_ERROR;
   }
   // look into the header
   XrdMqMessageHeader mh;
   if (!mh.Decode(opaque.c_str())) {
-    XrdMqOfs::Emsg(epname, error, EINVAL, "decode message header", "");
+    gMqFS->Emsg(epname, error, EINVAL, "decode message header", "");
     delete env;
     return SFS_ERROR;
   }
@@ -313,7 +314,7 @@ XrdMqOfs::FSctl(const int               cmd,
   if (matches.backlogrejected) {
     XrdOucString backlogmessage = "queue message on all receivers - maximum backlog exceeded on queues: ";
     backlogmessage += matches.backlogqueues;
-    XrdMqOfs::Emsg(epname, error, E2BIG, backlogmessage.c_str(), ipath);
+    gMqFS->Emsg(epname, error, E2BIG, backlogmessage.c_str(), ipath);
     if (backlogmessage.length() > 255) {
       backlogmessage.erase(255);
       backlogmessage += "...";
@@ -333,7 +334,7 @@ XrdMqOfs::FSctl(const int               cmd,
       backlogmessage += "...";
     }
 
-    XrdMqOfs::Emsg(epname, error, ENFILE, backlogmessage.c_str(), ipath);
+    gMqFS->Emsg(epname, error, ENFILE, backlogmessage.c_str(), ipath);
     TRACES(backlogmessage.c_str());
     return SFS_ERROR;
   } 
@@ -343,7 +344,7 @@ XrdMqOfs::FSctl(const int               cmd,
     error.setErrInfo(3,(char*)result);
 
     if ( ((matches.messagetype) != XrdMqMessageHeader::kStatusMessage) && ((matches.messagetype) != XrdMqMessageHeader::kQueryMessage) ) {
-      XrdOfsFS.ReceivedMessages++;
+      gMqFS->ReceivedMessages++;
     }
 
     return SFS_DATA;
@@ -362,9 +363,9 @@ XrdMqOfs::FSctl(const int               cmd,
 
     // this is a new hook for special monitoring message, to just accept them and if nobody listens they just go to nirvana
     if (!ismonitor) {
-      XrdOfsFS.UndeliverableMessages++;
-      XrdMqOfs::Emsg(epname, error, EINVAL, "submit message - no listener on requested queue: ", ipath);
-      TRACES("no listener on requeste queue: ");
+      gMqFS->UndeliverableMessages++;
+      gMqFS->Emsg(epname, error, EINVAL, "submit message - no listener on requested queue: ", ipath);
+      TRACES("no listener on requested queue: ");
       TRACES(ipath);
       return SFS_ERROR;
     } else {
@@ -372,7 +373,7 @@ XrdMqOfs::FSctl(const int               cmd,
       ZTRACE(open,"Discarding montor message without receiver");
       const char* result="OK";
       error.setErrInfo(3,(char*)result);
-      XrdOfsFS.DiscardedMonitoringMessages++;
+      gMqFS->DiscardedMonitoringMessages++;
       return SFS_DATA;
     }
   }
