@@ -135,7 +135,7 @@ class CacheImpl
         break;
       } else {
         //do write element
-        processWriteReq(it, false);
+        processWriteReq(it);
       }
     }
   }  
@@ -192,10 +192,10 @@ class CacheImpl
       fprintf(stderr, "Wait finish writes.\n");
       pthread_rwlock_unlock(&rwMapLock);               //unlock map
       
-      //TODO:: send the blocks to be written to the rquest queue in read lock
-      
-      
+      //send the blocks to be written to the rquest queue in read lock
+      flushWrites(pFileAbst);
       pFileAbst->waitFinishWrites();
+
       pthread_rwlock_rdlock(&rwMapLock);               //read lock map
     }
    
@@ -255,17 +255,38 @@ class CacheImpl
       pthread_rwlock_unlock(&rwMapLock);                    //unlock map
     }
   };
- 
+
+  //------------------------------------------------------------------------------
+  void
+  flushWrites(file_abst* pFileAbst)
+  {
+    fprintf(stderr, "[%s] Calling.\n" ,__FUNCTION__);
+    pthread_rwlock_rdlock(&rwMapLock);               //read lock map
+
+    typename key_map_type::iterator iStart = keyValueMap.lower_bound(pFileAbst->getFirstPossibleKey());
+    const typename key_map_type::iterator iEnd = keyValueMap.lower_bound(pFileAbst->getLastPossibleKey());
+
+    for (; iStart != iEnd; iStart++) {
+      writeReqQueue->push(iStart);
+      fprintf(stderr, "[%s] Pushing elem to queue.\n" ,__FUNCTION__);
+    }
+
+    pthread_rwlock_unlock(&rwMapLock);               //unlock map
+    fprintf(stderr, "[%s] End method.\n" ,__FUNCTION__);
+  }; 
 
   //------------------------------------------------------------------------------
   //Proccess a write request from the qeue
   void
-  processWriteReq(typename key_map_type::iterator it, bool lastTime)
+  processWriteReq(typename key_map_type::iterator it)
   {
     int retc = 0;
     error_type error;
     typename key_list_type::iterator iterList;
     value_type* pEntry = it->second.first;
+
+    fprintf(stderr, "[%s] Do write , file sizeWrrites=%zu.\n", __FUNCTION__,
+            pEntry->getParentFile()->getSizeWrites());
 
     pthread_rwlock_rdlock(&rwMapLock);               //read lock map
     retc = pEntry->doWrite();
@@ -282,11 +303,16 @@ class CacheImpl
     //delete entry
     pthread_rwlock_wrlock(&rwMapLock);               //write lock map
     pthread_mutex_lock(&mutexList);                  //lock list
+    fprintf(stderr, "[%s] Before decrement file=%i sizeWrites=%zu, sizeData=%zu.\n", __FUNCTION__,
+            pEntry->getParentFile()->getId(), pEntry->getParentFile()->getSizeWrites(), pEntry->getSizeData());
+
+    pEntry->getParentFile()->decrementWrites(pEntry->getSizeData());
+    pEntry->getParentFile()->decrementNoWriteBlocks();
+    fprintf(stderr, "[%s] After decrement file=%i sizeWrites=%zu, sizeData=%zu.\n", __FUNCTION__,
+            pEntry->getParentFile()->getId(), pEntry->getParentFile()->getSizeWrites(), pEntry->getSizeData());
     keyValueMap.erase(it);
     keyList.erase(iterList);
     sizeVirtual -= value_type::getMaxSize();
-    pEntry->getParentFile()->decrementWrites(pEntry->getSizeData());
-    pEntry->getParentFile()->decrementNoWriteBlocks();
     pthread_mutex_unlock(&mutexList);                //unlock list
     pthread_rwlock_unlock(&rwMapLock);               //unlock map
 
@@ -298,6 +324,8 @@ class CacheImpl
         pthread_mutex_unlock(&mutexWriteDone);
       }
     
+    fprintf(stderr, "[%s] Add block to recycle queue.\n", __FUNCTION__);
+
     //add block to recycle list
     recycleQueue->push(pEntry);
   };
@@ -363,7 +391,8 @@ class CacheImpl
       
       //add new block
       pEntry = getRecycledBlock(filed, buf, off, len, pFileAbst);
-
+      pEntry->getParentFile()->incrementWrites(len);
+      
       fprintf(stderr, "[%s] New block: key=%lli, off=%zu, len=%zu.\n",
               __FUNCTION__, k, off, len);
       pthread_rwlock_unlock(&rwMapLock);          //unlock map

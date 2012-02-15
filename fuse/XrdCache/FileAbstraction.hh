@@ -74,7 +74,7 @@ class FileAbstraction
   
  private:
   int idFile;                   //internally assigned key
-  int nReferences;             //number of held referencess to this file
+  int nReferences;              //number of held referencess to this file
   unsigned long inode;          //inode of current file
   long long int nWriteBlocks;   //no of blocks in cache for this file
   size_t sizeWrites;            //the size of write blocks in cache

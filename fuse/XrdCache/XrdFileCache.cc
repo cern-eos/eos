@@ -327,10 +327,12 @@ XrdFileCache::getErrorQueue(unsigned long inode)
 void
 XrdFileCache::waitFinishWrites(unsigned long inode)
 {
-    FileAbstraction* fAbst = getFileObj(inode);
+  FileAbstraction* fAbst = getFileObj(inode);
 
-    if (fAbst) {
-        fAbst->waitFinishWrites();
-    }
-    return;
+  if (fAbst) {
+    cacheImpl->flushWrites(fAbst);
+    fAbst->waitFinishWrites();
+    fprintf(stderr, "[%s] After wait call.\n" ,__FUNCTION__);  
+}
+  return;
 }

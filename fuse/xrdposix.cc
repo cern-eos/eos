@@ -1390,6 +1390,7 @@ xrd_close(int fildes, unsigned long inode)
     XWC->Flush(fildes); 
   }
   else if (XFC && inode) {
+    fprintf(stderr, "[%s] Calling waitFinishWrites.\n", __FUNCTION__);
     XFC->waitFinishWrites(inode);
   }
   
@@ -1504,7 +1505,8 @@ xrd_write(int fildes, const void *buf, size_t nbyte, unsigned long inode)
     ret = nbyte;
     }*/
   else {
-    ret = XrdPosixXrootd::Write(fildes, buf, nbyte);    
+    ret = XrdPosixXrootd::Write(fildes, buf, nbyte);
+    exit(1);
   }
   return ret;                  
 }
@@ -1836,7 +1838,7 @@ xrd_init()
   
   //uncomment this to enable XrdCachFile
   setenv("EOS_XFC", "1", 1);
-  setenv("EOS_XFC_SIZE", "10000000", 1);   // ~10MB
+  setenv("EOS_XFC_SIZE", "100000000", 1);   // ~100MB
 
   //initialise the XrdFileCache
   if (!(getenv("EOS_XFC"))) {

@@ -164,7 +164,9 @@ void
 FileAbstraction::decrementWrites(size_t size)
 {
   pthread_mutex_lock(&updMutex);
+  fprintf(stderr, "[%s] Old size=%zu.\n", __FUNCTION__, sizeWrites);
   sizeWrites -= size;
+  fprintf(stderr, "[%s] The new size=%zu.\n", __FUNCTION__, sizeWrites);
   if (sizeWrites == 0)
   {
     //notify pending reading processes
@@ -221,11 +223,8 @@ void
 FileAbstraction::waitFinishWrites()
 {
   pthread_mutex_lock(&updMutex);
+  fprintf(stderr, "[%s] sizeWrites=%zu.\n" ,__FUNCTION__, sizeWrites);
   if (sizeWrites != 0) {
-    //TODO::
-    //send all write blocks from cache to writing queue
-
-    
     pthread_cond_wait(&writesCond, &updMutex);
   }
   pthread_mutex_unlock(&updMutex);  

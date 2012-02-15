@@ -94,7 +94,8 @@ CacheEntry::addPiece(char* buf, off_t off, size_t len)
   std::map<off_t, size_t>::iterator iBefore;
   std::map<off_t, size_t>::reverse_iterator iReverse;
   char* pBuffer = buffer + offsetRelative;
-  
+
+  /*  
   if (mapPieces.size() == 0) {
     //add directly, no previous pieces in map
     pBuffer = (char*) memcpy(pBuffer, buf, len);
@@ -104,6 +105,7 @@ CacheEntry::addPiece(char* buf, off_t off, size_t len)
     pParentFile->incrementWrites(sizeAdded);
     return;
   }
+  */
 
   std::map<off_t, size_t>::iterator iAfter = mapPieces.lower_bound(off);
 
@@ -191,11 +193,13 @@ CacheEntry::addPiece(char* buf, off_t off, size_t len)
   if (addNewPiece) {
     buffer = (char*) memcpy(buffer + offsetRelative, buf, len);
     mapPieces.insert(std::make_pair(off, len));
-    sizeData += len;
     sizeAdded = len;
+    sizeData += sizeAdded;
+
   }
 
   pParentFile->incrementWrites(sizeAdded);
+  fprintf(stderr, "[%s] File=%i, sizeWrites=%zu\n", __FUNCTION__, pParentFile->getId(), pParentFile->getSizeWrites());
   return;
 }
 
