@@ -30,4 +30,5 @@ add_library (XrdCache SHARED
 		FileAbstraction.cc
 )
 
+set_target_properties(XrdCache PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
 target_link_libraries(XrdCache pthread XrdClient XrdPosix)

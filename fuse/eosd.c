@@ -114,7 +114,7 @@ static void eosfs_ll_readlink(fuse_req_t req, fuse_ino_t ino)
   }
   
   sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
-  if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);  
+  if (isdebug) fprintf(stderr, "[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);  
   char linkbuffer[8912];
   
   int retc = xrd_readlink(fullpath, linkbuffer, sizeof(linkbuffer));
@@ -146,7 +146,7 @@ static void eosfs_ll_getattr(fuse_req_t req, fuse_ino_t ino,
   }
 
   sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
-  if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);
+  if (isdebug) fprintf(stderr, "[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);
 
   int retc = xrd_stat(fullpath,&stbuf);
 
@@ -175,14 +175,14 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
   }
 
   sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
-  if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);  
+  if (isdebug) fprintf(stderr, "[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);  
   if (to_set & FUSE_SET_ATTR_MODE) {
-    if (isdebug) printf("[%s]: set attr mode ino=%lld\n", __FUNCTION__,(long long)ino);
+    if (isdebug) fprintf(stderr, "[%s]: set attr mode ino=%lld\n", __FUNCTION__,(long long)ino);
     retc = xrd_chmod(fullpath, attr->st_mode);
   }
   if ( (to_set & FUSE_SET_ATTR_UID) && (to_set & FUSE_SET_ATTR_GID) ) {
-    if (isdebug) printf("[%s]: set attr uid  ino=%lld\n", __FUNCTION__,(long long)ino);
-    if (isdebug) printf("[%s]: set attr gid  ino=%lld\n", __FUNCTION__,(long long)ino);
+    if (isdebug) fprintf(stderr, "[%s]: set attr uid  ino=%lld\n", __FUNCTION__,(long long)ino);
+    if (isdebug) fprintf(stderr, "[%s]: set attr gid  ino=%lld\n", __FUNCTION__,(long long)ino);
     // f.t.m. we fake it works !
     //    fuse_reply_err(req,EPERM);
     //    return;
@@ -190,11 +190,12 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
 
   if (to_set & FUSE_SET_ATTR_SIZE) {
     if (fi) {
-      if (isdebug) printf("[%s]: truncate\n",__FUNCTION__);
+      if (isdebug) fprintf(stderr, "[%s]: truncate\n",__FUNCTION__);
       if (fi->fh) {
         retc = xrd_truncate(fi->fh,attr->st_size, 0);
       } else {
-        if (isdebug) printf("[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__,(long long)attr->st_size, (long long)ino);
+        if (isdebug) fprintf(stderr, "[%s]: set attr size=%lld ino=%lld\n",
+                             __FUNCTION__,(long long)attr->st_size, (long long)ino);
         int fd;
         if ((fd = xrd_open(fullpath, O_WRONLY , S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
           retc = xrd_truncate(fd,attr->st_size, 0);
@@ -204,7 +205,8 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
         }
       }
     } else {
-      if (isdebug) printf("[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__,(long long)attr->st_size, (long long)ino);
+      if (isdebug) fprintf(stderr, "[%s]: set attr size=%lld ino=%lld\n",
+                           __FUNCTION__,(long long)attr->st_size, (long long)ino);
       int fd;
       if ((fd = xrd_open(fullpath, O_WRONLY , S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
         retc = xrd_truncate(fd, attr->st_size, 0);
@@ -219,11 +221,13 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     tvp[0].tv_nsec = 0;
     tvp[1].tv_sec = attr->st_mtime;
     tvp[1].tv_nsec = 0;
-    if (isdebug) printf("[%s]: set attr atime ino=%lld time=%ld\n", __FUNCTION__,(long long)ino, (long)attr->st_atime);
-    if (isdebug) printf("[%s]: set attr mtime ino=%lld time=%ld\n", __FUNCTION__,(long long)ino, (long)attr->st_mtime);
+    if (isdebug) {
+      fprintf(stderr, "[%s]: set attr atime ino=%lld time=%ld\n", __FUNCTION__,(long long)ino, (long)attr->st_atime);
+      fprintf(stderr, "[%s]: set attr mtime ino=%lld time=%ld\n", __FUNCTION__,(long long)ino, (long)attr->st_mtime);
+    }
     retc = xrd_utimes(fullpath, tvp);
   }
-  if (isdebug) printf("[%s]: return code =%d\n",__FUNCTION__, retc);
+  if (isdebug) fprintf(stderr, "[%s]: return code =%d\n",__FUNCTION__, retc);
   struct stat newattr;
   memset(&newattr,0,sizeof(struct stat));
   if (!retc) {
@@ -262,7 +266,8 @@ static void eosfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     sprintf(ifullpath, "%s/%s", parentpath, name);
 
   sprintf(fullpath,"root://%s@%s%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, parentpath,name);
-  if (isdebug) printf("[%s]: parent=%lld path=%s uid=%d\n", __FUNCTION__, (long long)parent, fullpath, req->ctx.uid);
+  if (isdebug) fprintf(stderr, "[%s]: parent=%lld path=%s uid=%d\n",
+                       __FUNCTION__, (long long)parent, fullpath, req->ctx.uid);
 
   //try to get entry from cache
   entry_status = get_entry_from_dir(req, parent, ifullpath);
@@ -274,7 +279,8 @@ static void eosfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     e.entry_timeout = entrycachetime;
     int retc = xrd_stat(fullpath, &e.attr);
     if (!retc) {
-      if (isdebug) printf("[%s]: storeinode=%lld path=%s\n", __FUNCTION__,(long long) e.attr.st_ino,ifullpath);
+      if (isdebug) fprintf(stderr, "[%s]: storeinode=%lld path=%s\n",
+                           __FUNCTION__,(long long) e.attr.st_ino,ifullpath);
       e.ino = e.attr.st_ino;
       xrd_store_inode(e.attr.st_ino, ifullpath);
       fuse_reply_entry(req, &e);
@@ -323,7 +329,7 @@ static void eosfs_ll_opendir(fuse_req_t req, fuse_ino_t ino,
   }
   
   sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
-  if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);
+  if (isdebug) fprintf(stderr, "[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);
   
   DIR* dir ;
   dir = xrd_opendir(fullpath);
@@ -376,7 +382,8 @@ static void eosfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
   }
   
   sprintf(fullpath,"root://%s@%s//proc/user/?mgm.cmd=fuse&mgm.subcmd=inodirlist&mgm.path=%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
-  if (isdebug) printf("[%s]: inode=%lld path=%s size=%lld off=%lld\n", __FUNCTION__,(long long)ino,fullpath,(long long)size,(long long)off);
+  if (isdebug) fprintf(stderr, "[%s]: inode=%lld path=%s size=%lld off=%lld\n",
+                       __FUNCTION__,(long long)ino,fullpath,(long long)size,(long long)off);
 
   int retc = 0, dir_status;
   int cnt = 0;
@@ -410,7 +417,7 @@ static void eosfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
       while ((!xrd_inodirlist_entry(ino, cnt, &namep, &in))) {
         char ifullpath[16384];
         sprintf(ifullpath,"%s/%s",name,namep);
-        if (isdebug) printf("[%s]: add entry name=%s\n", __FUNCTION__, namep);
+        if (isdebug) fprintf(stderr, "[%s]: add entry name=%s\n", __FUNCTION__, namep);
         dirbuf_add(req, b, namep, (fuse_ino_t) in);
       
         cnt++;
@@ -427,7 +434,8 @@ static void eosfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
     }
   }
   
-  if (isdebug) printf("[%s]: return size=%lld ptr=%lld\n", __FUNCTION__, (long long)b->size, (long long)b->p);
+  if (isdebug) fprintf(stderr, "[%s]: return size=%lld ptr=%lld\n",
+                       __FUNCTION__, (long long)b->size, (long long)b->p);
   reply_buf_limited(req, b->p, b->size, off, size);
 }
 
@@ -510,7 +518,8 @@ static void eosfs_ll_mknod(fuse_req_t req, fuse_ino_t parent, const char *name, 
 
     sprintf(fullpath,"root://%s@%s/%s%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,parentpath,name);
     sprintf(fullparentpath,"root://%s@%s/%s%s",xrd_mapuser(req->ctx.uid),mounthostport, mountprefix,parentpath);
-    if (isdebug) printf("[%s]: parent=%lld path=%s uid=%d\n", __FUNCTION__,(long long)parent,fullpath,req->ctx.uid);
+    if (isdebug) fprintf(stderr, "[%s]: parent=%lld path=%s uid=%d\n",
+                         __FUNCTION__,(long long)parent,fullpath,req->ctx.uid);
 
     res = xrd_open(fullpath, O_CREAT | O_EXCL | O_RDWR, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     if (res == -1) {
@@ -538,7 +547,7 @@ static void eosfs_ll_mknod(fuse_req_t req, fuse_ino_t parent, const char *name, 
     } else {
       xrd_mknodopenfilelist_add(res,e.ino);
       xrd_store_inode(e.ino,ifullpath);
-      if (isdebug) printf("[%s]: storeinode=%lld path=%s\n", __FUNCTION__,(long long) e.ino,ifullpath);
+      if (isdebug) fprintf(stderr, "[%s]: storeinode=%lld path=%s\n", __FUNCTION__,(long long) e.ino,ifullpath);
       fuse_reply_entry(req,&e);
       return;
     }
@@ -563,7 +572,7 @@ static void eosfs_ll_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, 
   }
 
   sprintf(fullpath,"root://%s@%s/%s%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,parentpath,name);
-  if (isdebug) printf("[%s]: path=%s\n", __FUNCTION__,fullpath);
+  if (isdebug) fprintf(stderr, "[%s]: path=%s\n", __FUNCTION__,fullpath);
   int retc = xrd_mkdir(fullpath,mode);
   if (!retc) {
     char ifullpath[16384];
@@ -608,7 +617,7 @@ static void eosfs_ll_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
   }
 
   sprintf(fullpath,"root://%s@%s/%s%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,parentpath,name);
-  if (isdebug) printf("[%s]: path=%s\n", __FUNCTION__,fullpath);
+  if (isdebug) fprintf(stderr, "[%s]: path=%s\n", __FUNCTION__,fullpath);
   int retc = xrd_unlink(fullpath);
   if (!retc) {
     fuse_reply_buf(req, NULL, 0);
@@ -636,7 +645,7 @@ static void eosfs_ll_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name)
   }
 
   sprintf(fullpath,"root://%s@%s/%s%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,parentpath,name);
-  if (isdebug) printf("[%s]: path=%s\n", __FUNCTION__,fullpath);
+  if (isdebug) fprintf(stderr, "[%s]: path=%s\n", __FUNCTION__,fullpath);
   int retc = xrd_rmdir(fullpath);
   if (!retc) {
     fuse_reply_err(req, 0);
@@ -672,13 +681,13 @@ static void eosfs_ll_symlink(fuse_req_t req, const char *link, fuse_ino_t parent
   }
 
   sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,parentpath,name);
-  if (isdebug) printf("[%s]: path=%s\n", __FUNCTION__,fullpath);
+  if (isdebug) fprintf(stderr, "[%s]: path=%s\n", __FUNCTION__,fullpath);
 
   sprintf(linksource,"%s/%s",parentpath,name);
   sprintf(linkdest,"%s/%s",parentpath,link);
 
   sprintf(fulllinkpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,parentpath,link);
-  if (isdebug) printf("[%s]: sourcepath=%s link=%s\n", __FUNCTION__,linksource,link);
+  if (isdebug) fprintf(stderr, "[%s]: sourcepath=%s link=%s\n", __FUNCTION__,linksource,link);
   int retc = xrd_symlink(fullpath,linksource,link);
   if (!retc) {
     struct fuse_entry_param e;
@@ -687,7 +696,8 @@ static void eosfs_ll_symlink(fuse_req_t req, const char *link, fuse_ino_t parent
     e.entry_timeout = entrycachetime;
     int retc = xrd_stat(fullpath,&e.attr);
     if (!retc) {
-      if (isdebug) printf("[%s]: storeinode=%lld path=%s\n", __FUNCTION__,(long long)e.attr.st_ino,linksource);
+      if (isdebug) fprintf(stderr, "[%s]: storeinode=%lld path=%s\n",
+                           __FUNCTION__,(long long)e.attr.st_ino,linksource);
       e.ino = e.attr.st_ino;
       xrd_store_inode(e.attr.st_ino,linksource);
       fuse_reply_entry(req, &e);
@@ -733,15 +743,17 @@ static void eosfs_ll_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 
   struct stat stbuf;
   int retcold = xrd_stat(fullpath, &stbuf);
-  if (isdebug) printf("[%s]: path=%s inode=%lu [%d]\n", __FUNCTION__,fullpath,stbuf.st_ino,retcold);
-  if (isdebug) printf("[%s]: path=%s newpath=%s\n", __FUNCTION__,fullpath,newfullpath);
+  if (isdebug) {
+    fprintf(stderr, "[%s]: path=%s inode=%lu [%d]\n", __FUNCTION__,fullpath,stbuf.st_ino,retcold);
+    fprintf(stderr, "[%s]: path=%s newpath=%s\n", __FUNCTION__,fullpath,newfullpath);
+  }
   int retc = xrd_rename(fullpath,newfullpath);
   if (!retc) {
     // update the inode store
     if (!retcold) {
       char iparentpath[16384];
       sprintf(iparentpath,"%s/%s",newparentpath,newname);
-      if (isdebug) printf("[%s]: forgetting inode=%lu \n",__FUNCTION__,stbuf.st_ino);
+      if (isdebug) fprintf(stderr, "[%s]: forgetting inode=%lu \n",__FUNCTION__,stbuf.st_ino);
       xrd_forget_inode(stbuf.st_ino);
       xrd_store_inode(stbuf.st_ino,iparentpath);
     }
@@ -779,11 +791,11 @@ static void eosfs_ll_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
   }
   
   sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,parentpath,name);
-  if (isdebug) printf("[%s]: path=%s\n", __FUNCTION__,fullpath);
+  if (isdebug) fprintf(stderr, "[%s]: path=%s\n", __FUNCTION__,fullpath);
 
   sprintf(linkdest,"%s/%s",parentpath,name);
 
-  if (isdebug) printf("[%s]: sourcepath=%s link=%s\n", __FUNCTION__,linkdest,sourcepath);
+  if (isdebug) fprintf(stderr, "[%s]: sourcepath=%s link=%s\n", __FUNCTION__,linkdest,sourcepath);
   int retc = xrd_link(fullpath,linkdest,sourcepath);
   if (!retc) {
     struct fuse_entry_param e;
@@ -792,7 +804,8 @@ static void eosfs_ll_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
     e.entry_timeout = entrycachetime;
     int retc = xrd_stat(fullpath,&e.attr);
     if (!retc) {
-      if (isdebug) printf("[%s]: storeinode=%lld path=%s\n", __FUNCTION__,(long long)e.attr.st_ino,linkdest);
+      if (isdebug) fprintf(stderr, "[%s]: storeinode=%lld path=%s\n",
+                           __FUNCTION__,(long long)e.attr.st_ino,linkdest);
       e.ino = e.attr.st_ino;
       xrd_store_inode(e.attr.st_ino,linkdest);
       fuse_reply_entry(req, &e);
@@ -823,7 +836,7 @@ static void eosfs_ll_access(fuse_req_t req, fuse_ino_t ino, int mask)
   }
   
   sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
-  if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);
+  if (isdebug) fprintf(stderr, "[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);
   int retc = xrd_access(fullpath,mask);
   if (!retc) {
     fuse_reply_err(req, 0);
@@ -867,7 +880,8 @@ static void eosfs_ll_open(fuse_req_t req, fuse_ino_t ino,
       //      }
   }
 
-  if (isdebug) printf("[%s]: inode=%lld path=%s res=%d\n", __FUNCTION__,(long long)ino,fullpath,res);
+  if (isdebug) fprintf(stderr, "[%s]: inode=%lld path=%s res=%d\n",
+                       __FUNCTION__, (long long)ino, fullpath, res);
   if (res == -1) {
     fuse_reply_err(req, errno);
     return;
@@ -936,7 +950,9 @@ static void eosfs_ll_write(fuse_req_t req, fuse_ino_t ino, const char *buf, size
 			    off_t off, struct fuse_file_info *fi)
 {
   if (fi->fh) {
-    if (isdebug) printf("[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)size,(long long)off,(long long)buf,(long long)fi->fh);
+    if (isdebug) fprintf(stderr, "[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n",
+                         __FUNCTION__, (long long)ino, (long long)size, (long long)off,
+                         (long long)buf, (long long)fi->fh);
     int res = xrd_pwrite(fi->fh, buf, size, off, ino);
     if (res == -1) {
       fuse_reply_err(req, errno);
@@ -954,7 +970,7 @@ static void eosfs_ll_release(fuse_req_t req, fuse_ino_t ino,
 			    struct fuse_file_info *fi)
 {
   if (fi->fh) {
-    if (isdebug) printf("[%s]: inode=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)fi->fh);
+    if (isdebug) fprintf(stderr, "[%s]: inode=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)fi->fh);
     int fd = (int)fi->fh;
 
     if (fdbuffermap[fi->fh]) {
@@ -987,7 +1003,7 @@ static void eosfs_ll_fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 			    struct fuse_file_info *fi)
 {
   if (fi->fh) {
-    if (isdebug) printf("[%s]: inode=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)fi->fh);
+    if (isdebug) fprintf(stderr, "[%s]: inode=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)fi->fh);
     int res = xrd_fsync(fi->fh, ino);
     if (res == -1) {
       fuse_reply_err(req, errno);
@@ -1038,7 +1054,7 @@ static void eosfs_ll_getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr
     }
 
   sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
-  if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
+  if (isdebug) fprintf(stderr, "[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
 
   char* xattr_value = NULL;
   retc = xrd_getxattr(fullpath, xattr_name, &xattr_value, &size);
@@ -1080,7 +1096,7 @@ static void eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
   }
 
   sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
-  if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
+  if (isdebug) fprintf(stderr, "[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
 
   char* xattr_list = NULL;
   retc = xrd_listxattr(fullpath, &xattr_list, &size);
@@ -1120,7 +1136,7 @@ static void eosfs_ll_removexattr (fuse_req_t req, fuse_ino_t ino, const char *xa
   }
 
   sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
-  if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
+  if (isdebug) fprintf(stderr, "[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
 
   retc = xrd_rmxattr(fullpath, xattr_name);
   fuse_reply_err(req, retc);
@@ -1147,7 +1163,7 @@ static void eosfs_ll_setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr
   }
 
   sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
-  if (isdebug) printf("[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
+  if (isdebug) fprintf(stderr, "[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
 
   retc = xrd_setxattr(fullpath, xattr_name, xattr_value, strlen(xattr_value));
   fuse_reply_err(req, retc);
@@ -1238,9 +1254,6 @@ int main(int argc, char *argv[])
     exit(-1);
   }
 
-  xrd_init();
-  cache_init();
-
   // move the mounthostport starting with the host name
   char* pmounthostport=0;
   char* smountprefix=0;
@@ -1271,7 +1284,7 @@ int main(int argc, char *argv[])
     }
   }
   
-  fprintf(stdout,"mounthost=%s mountmountprefix=%s\n", mounthostport, mountprefix);
+  fprintf(stderr,"mounthost=%s mountmountprefix=%s\n", mounthostport, mountprefix);
 
   if (!isdebug) {
     pid_t m_pid=fork();
@@ -1300,9 +1313,12 @@ int main(int argc, char *argv[])
     
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
-    close(STDERR_FILENO);
+    // close(STDERR_FILENO); => don't close because we redirect that to a file!
   }
 
+  xrd_init();
+  cache_init();
+  
   if (fuse_parse_cmdline(&args, &mountpoint, NULL, NULL) != -1 &&
       (ch = fuse_mount(mountpoint, &args)) != NULL) {
     struct fuse_session *se;
