@@ -327,7 +327,11 @@ ReplicaParLayout::remove()
   int rc1 = SFS_OK;
   int rc2 = true;
   if (ioLocal) {
-    rc1 = unlink(LocalReplicaPath.c_str());
+    struct stat buf;
+    if (!::stat(LocalReplicaPath.c_str(),&buf)) {
+      // only try to delete if there is something to delete!
+      rc1 = unlink(LocalReplicaPath.c_str());
+    }
   }
 
   for (int i=0; i< nStripes; i++) {

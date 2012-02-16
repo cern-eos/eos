@@ -4,8 +4,8 @@
 
 Summary: The EOS project
 Name: eos
-Version: 0.2.0
-Release: 1
+Version: 0.1.1
+Release: 18
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -72,7 +72,6 @@ rm -rf $RPM_BUILD_ROOT
 /usr/lib64/libXrdMqOfs.so.0
 /usr/lib64/libXrdMqOfs.so
 /usr/bin/xrdmqdumper
-/usr/bin/eosfstcp
 /usr/sbin/eosha
 /usr/sbin/eoshapl
 /usr/sbin/eosfilesync
@@ -144,6 +143,7 @@ Group: Applications/File
 The EOS shell client.
 %files -n eos-client
 /usr/bin/eos
+/usr/bin/eosfstcp
 ############################
 # documentation
 %doc %_mandir/man1/eos.1.gz

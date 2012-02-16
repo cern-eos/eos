@@ -63,7 +63,7 @@ Iostat::Start()
     XrdOucString queue = gOFS->MgmOfsBroker;
     queue += gOFS->ManagerId;
     queue += "/report";
-    queue.replace("root://","root://root@");
+    queue.replace("root://","root://daemon@");
     mClient.AddBroker(queue.c_str());
     mInit = true;
   }

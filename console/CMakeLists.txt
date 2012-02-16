@@ -41,7 +41,9 @@ add_executable ( eos
 		 commands/com_clear.cc         
 		 commands/com_config.cc 
 		 commands/com_console.cc 
+		 commands/com_cp.cc 
 		 commands/com_debug.cc 
+		 commands/com_dropbox.cc 
 		 commands/com_file.cc 
 		 commands/com_find.cc 
 		 commands/com_fs.cc 
@@ -68,6 +70,7 @@ add_executable ( eos
 		 commands/com_rtlog.cc 
 		 commands/com_silent.cc 
 		 commands/com_space.cc
+		 commands/com_stat.cc
 		 commands/com_test.cc 
 		 commands/com_timing.cc
 		 commands/com_transfer.cc 
@@ -79,9 +82,9 @@ add_executable ( eos
 )
 
 if (CLIENT)
-target_link_libraries ( eos XrdClient XrdUtils pthread dl crypto uuid curses z readline )
+target_link_libraries ( eos XrdPosix XrdClient XrdUtils pthread dl crypto uuid curses z readline )
 else (CLIENT)
-target_link_libraries ( eos XrdClient XrdUtils pthread dl XrdMqClient-Static crypto uuid curses z readline )
+target_link_libraries ( eos XrdPosix XrdClient XrdUtils pthread dl XrdMqClient-Static crypto uuid curses z readline )
 endif (CLIENT)
 
 

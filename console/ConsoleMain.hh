@@ -36,6 +36,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "XrdClient/XrdClient.hh"
+#include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucString.hh"

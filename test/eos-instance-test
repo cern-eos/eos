@@ -294,6 +294,8 @@ runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.checksum /eos/$EOS_TES
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.layouts /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.nstripes /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.space /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
+runtest "### Quota     " unix 0 "" eos quota set -u 3 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest "### Rm        " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
@@ -405,6 +407,23 @@ runtest "### Access    " unix 0 "" eos "access rm redirect"
 runtest "### Access    " unix 1 "" eos "access ls | grep foo"
 runtest "### Rm        " unix 0 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
 ################################################################################################################
+# Quota Tests
+################################################################################################################
+eos -b space status default | grep quota | grep on >& /dev/null
+if [ "$?"="0" ]; then
+# --------------------------
+# if quota is enabled
+# --------------------------
+runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 0
+runtest "### Upload    " unix 1 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=99" "-DITransactionTimeout 1"
+runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=99" "-DITransactionTimeout 1"
+runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1 -i 1M
+runtest "### Upload    " unix 1 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=99" "-DITransactionTimeout 1"
+runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota"
+runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
+fi
+################################################################################################################
 # STRESS
 ################################################################################################################
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/"
@@ -465,7 +484,6 @@ runtest "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/in
 #runtest "### UploadP   " unix 0 "" upload  "$TESTSYSFILE50M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" "-S10"
 #runtest "### Download  " unix 0 "" download   "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" 
 #runtest "### DownloadP " unix 0 "" download "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" "-S10"
-
 ################################################################################################################
 # FINAL CLEANUP 
 ################################################################################################################

@@ -110,7 +110,8 @@ XrdFstOfs::xrdfstofs_shutdown(int sig) {
   XrdMqMessaging::gMessageClient.Disconnect();
   eos_static_warning("op=shutdown status=completed");
 
-
+  // put SEGV handler now!
+  signal(SIGSEGV,SIG_IGN);
   exit(-1);
 }
 
@@ -689,7 +690,9 @@ XrdFstOfsFile::open(const char                *path,
   fMd = eos::common::gFmdHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
   if (!fMd) {
     eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
-    return gOFS.Emsg(epname,error,EINVAL,"open - unable to get file meta data",path);
+    int ecode=1094;
+    eos_warning("rebouncing client since we failed to get the FMD record back to MGM %s:%d",RedirectManager.c_str(), ecode);
+    return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
   }
 
   // call the checksum factory function with the selected layout
@@ -1057,6 +1060,7 @@ XrdFstOfsFile::close()
       layOut->remove();
       
       if (fstBlockXS) {
+	fstBlockXS->CloseMap();
 	// delete also the block checksum file
 	fstBlockXS->UnlinkXSPath();
 	delete fstBlockXS;
@@ -1296,7 +1300,6 @@ XrdFstOfsFile::close()
       gOFS.ReportQueue.push(reportString);
       gOFS.ReportQueueMutex.UnLock();
     } 
-    
   }
   
   if (deleteOnClose) {
@@ -1429,7 +1432,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
 {
   int retc = XrdOfsFile::read(fileOffset,buffer,buffer_size);
 
-  eos_info("read %llu %llu %lu", this, fileOffset, buffer_size);
+  eos_debug("read %llu %llu %lu", this, fileOffset, buffer_size);
   if (fstBlockXS) {
     XrdSysMutexHelper cLock (BlockXsMutex);
     if ((retc>0) && (!fstBlockXS->CheckBlockSum(fileOffset, buffer, retc))) {

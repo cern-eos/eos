@@ -50,7 +50,7 @@ private:
 
 public:
 
-  TransferJob(TransferQueue* queue, eos::common::TransferJob* cjob,  int bw, int timeout=3600);
+  TransferJob(TransferQueue* queue, eos::common::TransferJob* cjob,  int bw, int timeout=7200);
   ~TransferJob();
 
   void DoIt();

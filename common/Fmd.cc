@@ -610,7 +610,7 @@ FmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid, gid_t g
 {
   RWMutexWriteLock lock(Mutex);
   if (fdChangeLogRead[fsid]>0) {
-    if (FmdMap[fsid][fid] != 0) {
+    if ( FmdMap.count(fsid) && (FmdMap[fsid][fid] != 0)) {
       // this is to read an existing entry
       Fmd* fmd = new Fmd();
       if (!fmd) return 0;
@@ -718,7 +718,9 @@ FmdHandler::DeleteFmd(unsigned long long fid, unsigned int fsid)
   // erase the has entries
   RWMutexWriteLock lock(Mutex);
     
-  FmdMap[fsid].erase(fid);
+  if (FmdMap.count(fsid)) {
+    FmdMap[fsid].erase(fid);
+  }
   FmdSize.erase(fid);
 
   return rc;
@@ -824,7 +826,7 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option) {
 
   std::vector <unsigned long long> alloffsets;
   google::dense_hash_map <unsigned long long, unsigned long long> offsetmapping;
-  offsetmapping.set_empty_key(0xffffffff);
+  offsetmapping.set_empty_key(0xffffffffLL);
 
   eos_static_info("trimming step 1");
 
