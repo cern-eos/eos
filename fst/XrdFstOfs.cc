@@ -110,7 +110,8 @@ XrdFstOfs::xrdfstofs_shutdown(int sig) {
   XrdMqMessaging::gMessageClient.Disconnect();
   eos_static_warning("op=shutdown status=completed");
 
-
+  // put SEGV handler now!
+  signal(SIGSEGV,SIG_IGN);
   exit(-1);
 }
 
@@ -689,7 +690,9 @@ XrdFstOfsFile::open(const char                *path,
   fMd = eos::common::gFmdHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
   if (!fMd) {
     eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
-    return gOFS.Emsg(epname,error,EINVAL,"open - unable to get file meta data",path);
+    int ecode=1094;
+    eos_warning("rebouncing client since we failed to get the FMD record back to MGM %s:%d",RedirectManager.c_str(), ecode);
+    return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
   }
 
   // call the checksum factory function with the selected layout

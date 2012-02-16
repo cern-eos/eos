@@ -1040,7 +1040,7 @@ Storage::Remover()
         capOpaqueString += OpaqueString;
         
         if ( (gOFS._rem("/DELETION",error, (const XrdSecEntity*)0, &Opaque)!= SFS_OK)) {
-          eos_static_err("unable to remove fid %s fsid %lu localprefix=%s",hexstring.c_str(), todelete.fsId, todelete.localPrefix.c_str());
+          eos_static_warning("unable to remove fid %s fsid %lu localprefix=%s",hexstring.c_str(), todelete.fsId, todelete.localPrefix.c_str());
         } 
         
         // update the manager
