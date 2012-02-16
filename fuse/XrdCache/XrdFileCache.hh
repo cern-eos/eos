@@ -22,10 +22,8 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-#ifndef __EOS_FILECACHE_HH__
-#define __EOS_FILECACHE_HH__
-//------------------------------------------------------------------------------
-#include <string>
+#ifndef __EOS_XRDFILECACHE_HH__
+#define __EOS_XRDFILECACHE_HH__
 //------------------------------------------------------------------------------
 #include <pthread.h>
 #include <semaphore.h>
@@ -36,18 +34,19 @@
 #include "CacheEntry.hh"
 //------------------------------------------------------------------------------
 
-typedef void* (*ThreadFn)(void*); 
+typedef void* (*ThreadFn)(void*);
 
 class XrdFileCache
 {
 public:
+
   static XrdFileCache* Instance(size_t sizeMax);
   ~XrdFileCache();
 
   void setCacheSize(size_t rsMax, size_t wsMax);
   int threadStart(pthread_t& thread, ThreadFn f);
 
-  void submitWrite(unsigned long inode, int filed, void* buff, off_t offset, size_t length); 
+  void submitWrite(unsigned long inode, int filed, void* buff, off_t offset, size_t length);
   size_t getRead(unsigned long inode, int filed, void* buf, off_t offset, size_t length);
   size_t putRead(unsigned long inode, int filed, void* buf, off_t offset, size_t length);
 
@@ -58,29 +57,29 @@ public:
   ConcurrentQueue<error_type>& getErrorQueue(unsigned long inode);
   void waitFinishWrites(unsigned long inode);
   void removeFileInode(unsigned long inode);
-  
+
 private:
 
   //maximum number of files concurrently in cache
-  static const int maxIndexFiles = 100; 
+  static const int maxIndexFiles = 100;
   static XrdFileCache* pInstance;
-  
+
   XrdFileCache(size_t sizeMax);
   void Init();
 
-  static void* writeThreadProc(void *);
+  static void* writeThreadProc(void*);
   FileAbstraction* getFileObj(unsigned long inode);
- 
+
   size_t cacheSizeMax;             //read cache size
   int indexFile;                   //last index assigned to a file
 
   pthread_t writeThread;
   pthread_rwlock_t keyMgmLock;
 
-  std::queue<int> usedIndexQueue;                           //file indices used and avilable to recycle
+  std::queue<int> usedIndexQueue;                           //file indices used and available to recycle
   std::map<unsigned long, FileAbstraction*> fileInodeMap;   //map inodes to FileAbst objects
 
   CacheImpl<long long int, CacheEntry, FileAbstraction, XrdFileCache, std::map>* cacheImpl;
 };
-  
+
 #endif

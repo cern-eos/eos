@@ -33,19 +33,19 @@
 template <typename Data>
 class ConcurrentQueue
 {
- public:
+public:
   ConcurrentQueue();
   ~ConcurrentQueue();
 
-  size_t GetSize();  
+  size_t GetSize();
   void push(Data& data);
   bool empty() const;
 
   bool try_pop(Data& popped_value);
   void wait_pop(Data& popped_value);
   void clear();
-  
- private:
+
+private:
   std::queue<Data> queue;
   pthread_mutex_t mutex;
   pthread_cond_t cond;
@@ -111,8 +111,8 @@ bool
 ConcurrentQueue<Data>::try_pop(Data& popped_value)
 {
   pthread_mutex_lock(&mutex);
-  if(queue.empty())
-  {
+
+  if(queue.empty()) {
     pthread_mutex_unlock(&mutex);
     return false;
   }
@@ -130,8 +130,8 @@ void
 ConcurrentQueue<Data>::wait_pop(Data& popped_value)
 {
   pthread_mutex_lock(&mutex);
-  while(queue.empty())
-  {
+
+  while(queue.empty()) {
     pthread_cond_wait(&cond, &mutex);
   }
 
@@ -147,12 +147,13 @@ void
 ConcurrentQueue<Data>::clear()
 {
   pthread_mutex_lock(&mutex);
-  while (!queue.empty())
-  {
+
+  while (!queue.empty()) {
     queue.pop();
   }
+
   pthread_mutex_unlock(&mutex);
 }
 
 
-#endif 
+#endif

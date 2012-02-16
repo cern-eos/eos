@@ -24,23 +24,24 @@
 //------------------------------------------------------------------------------
 #include "FileAbstraction.hh"
 #include "CacheEntry.hh"
+#include "common/Logging.hh"
 //------------------------------------------------------------------------------
 
 FileAbstraction::FileAbstraction(int id, unsigned long ino):
-    idFile(id),
-    nReferences(0),
-    inode(ino),
-    nWriteBlocks(0),
-    sizeWrites(0),
-    sizeReads(0)
+  idFile(id),
+  nReferences(0),
+  inode(ino),
+  nWriteBlocks(0),
+  sizeWrites(0),
+  sizeReads(0)
 {
-  //max file size we can deal with is 90TB 
-  firstPossibleKey = static_cast<long long>(1e14 * idFile);          
+  //max file size we can deal with is ~ 90TB
+  firstPossibleKey = static_cast<long long>(1e14 * idFile);
   lastPossibleKey = static_cast<long long>((1e14 * (idFile + 1)));
 
-  fprintf(stdout, "idFile=%i, firstPossibleKey=%llu, lastPossibleKey=%llu \n",
-          idFile, firstPossibleKey, lastPossibleKey);
-  
+  eos_static_debug("idFile=%i, firstPossibleKey=%llu, lastPossibleKey=%llu",
+                   idFile, firstPossibleKey, lastPossibleKey);
+
   errorsQueue = new ConcurrentQueue<error_type>();
   pthread_mutex_init(&updMutex, NULL);
   pthread_cond_init(&writesCond, NULL);
@@ -49,7 +50,7 @@ FileAbstraction::FileAbstraction(int id, unsigned long ino):
 //------------------------------------------------------------------------------
 FileAbstraction::~FileAbstraction()
 {
-  pthread_cond_destroy(&writesCond);  
+  pthread_cond_destroy(&writesCond);
   pthread_mutex_destroy(&updMutex);
   delete errorsQueue;
 }
@@ -57,7 +58,7 @@ FileAbstraction::~FileAbstraction()
 
 //------------------------------------------------------------------------------
 size_t
-FileAbstraction::getSizeRdWr() 
+FileAbstraction::getSizeRdWr()
 {
   size_t size;
   pthread_mutex_lock(&updMutex);
@@ -69,7 +70,7 @@ FileAbstraction::getSizeRdWr()
 
 //------------------------------------------------------------------------------
 size_t
-FileAbstraction::getSizeWrites() 
+FileAbstraction::getSizeWrites()
 {
   size_t size;
   pthread_mutex_lock(&updMutex);
@@ -81,7 +82,7 @@ FileAbstraction::getSizeWrites()
 
 //------------------------------------------------------------------------------
 size_t
-FileAbstraction::getSizeReads() 
+FileAbstraction::getSizeReads()
 {
   size_t size;
   pthread_mutex_lock(&updMutex);
@@ -164,14 +165,15 @@ void
 FileAbstraction::decrementWrites(size_t size)
 {
   pthread_mutex_lock(&updMutex);
-  fprintf(stderr, "[%s] Old size=%zu.\n", __FUNCTION__, sizeWrites);
+  eos_static_debug("old size=%zu", sizeWrites);
   sizeWrites -= size;
-  fprintf(stderr, "[%s] The new size=%zu.\n", __FUNCTION__, sizeWrites);
-  if (sizeWrites == 0)
-  {
+  eos_static_debug("new size=%zu", sizeWrites);
+
+  if (sizeWrites == 0) {
     //notify pending reading processes
     pthread_cond_signal(&writesCond);
   }
+
   pthread_mutex_unlock(&updMutex);
 }
 
@@ -223,12 +225,14 @@ void
 FileAbstraction::waitFinishWrites()
 {
   pthread_mutex_lock(&updMutex);
-  fprintf(stderr, "[%s] sizeWrites=%zu.\n" ,__FUNCTION__, sizeWrites);
+  eos_static_debug("sizeWrites=%zu", sizeWrites);
+
   if (sizeWrites != 0) {
     pthread_cond_wait(&writesCond, &updMutex);
   }
-  pthread_mutex_unlock(&updMutex);  
-}  
+
+  pthread_mutex_unlock(&updMutex);
+}
 
 
 //------------------------------------------------------------------------------

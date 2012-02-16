@@ -84,7 +84,7 @@ start() {
 	    ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
 	    ulimit -n 65000
 	    modprobe fuse
-            ${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -omax_readahead=131072,max_write=4194304,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch}/${EOS_FUSE_MOUNTDIR-/eos/}//  >& /dev/null 
+            ${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -omax_readahead=131072,max_write=4194304,big_writes,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch}/${EOS_FUSE_MOUNTDIR-/eos/}//  >& /dev/null 
             
             
             SRETVAL=$?

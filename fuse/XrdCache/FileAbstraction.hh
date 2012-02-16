@@ -37,10 +37,10 @@ typedef std::pair<int, off_t> error_type;
 
 class FileAbstraction
 {
- public:
+public:
 
   ConcurrentQueue<error_type>* errorsQueue;
-  
+
   FileAbstraction(int key, unsigned long ino);
   ~FileAbstraction();
 
@@ -48,20 +48,19 @@ class FileAbstraction
   int getNoReferences();
   ConcurrentQueue<error_type>& getErrorQueue() const;
 
-  unsigned long getInode() const;
   size_t getSizeRdWr();
   size_t getSizeReads();
   size_t getSizeWrites();
+  unsigned long getInode() const;
 
   long long int getNoWriteBlocks();
-
   long long getLastPossibleKey() const;
   long long getFirstPossibleKey() const;
 
   void incrementWrites(size_t sWrite);
   void incrementReads(size_t sRead);
   void incrementNoWriteBlocks();
-  
+
   void decrementWrites(size_t sWrite);
   void decrementReads(size_t sRead);
   void decrementNoWriteBlocks();
@@ -71,8 +70,9 @@ class FileAbstraction
 
   long long int generateBlockKey(off_t offsetEnd);
   void waitFinishWrites();
-  
- private:
+
+private:
+
   int idFile;                   //internally assigned key
   int nReferences;              //number of held referencess to this file
   unsigned long inode;          //inode of current file
@@ -83,7 +83,7 @@ class FileAbstraction
   long long lastPossibleKey;    //last possible offset in file
   long long firstPossibleKey;   //first possibleoffset in file
 
-  pthread_cond_t writesCond;    //condition to notify when there are no
+  pthread_cond_t writesCond;    //condition to notify when there are no more writes
   pthread_mutex_t updMutex;     //mutex for modifying the no. of blocks or ref.
 };
 

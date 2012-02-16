@@ -21,14 +21,14 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ ${XROOTD_INCLUDE_DIR} )
-link_directories( ${XROOTD_LIB_DIR} )
+include_directories( .. / $ {XROOTD_INCLUDE_DIR} )
+link_directories( $ {XROOTD_LIB_DIR} )
 
 add_library (XrdCache SHARED
-	    	XrdFileCache.cc
-		CacheEntry.cc
-		FileAbstraction.cc
-)
+             XrdFileCache.cc
+             CacheEntry.cc
+             FileAbstraction.cc
+            )
 
 set_target_properties(XrdCache PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
 target_link_libraries(XrdCache pthread XrdClient XrdPosix)
