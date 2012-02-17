@@ -410,7 +410,7 @@ runtest "### Rm        " unix 0 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/insta
 # Quota Tests
 ################################################################################################################
 eos -b space status default | grep quota | grep on >& /dev/null
-if [ "$?"="0" ]; then
+if [ $? -eq 0 ]; then
 # --------------------------
 # if quota is enabled
 # --------------------------
