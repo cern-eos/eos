@@ -1608,8 +1608,30 @@ Storage::Publish()
   eos_static_info("Publisher activated ...");  
   struct timeval tv1, tv2; 
   struct timezone tz;
+  unsigned long long netspeed=1000000000;
+  // ---------------------------------------------------------------------
+  // get our network speed
+  // ---------------------------------------------------------------------
+  char* tmpname = tmpnam(NULL);
+  XrdOucString getnetspeed = "ip route list | sed -ne '/^default/s/.*dev //p' | xargs ethtool | grep Speed | cut -d ':' -f2 | cut -d 'M' -f1 >> "; getnetspeed += tmpname;
 
+  system(getnetspeed.c_str());
+  
+  FILE* fnetspeed = fopen(tmpname,"r");
+  if (fnetspeed) {
+    if ( (fscanf(fnetspeed,"%llu", &netspeed)) == 1) {
+      // we get MB as a number => convert into bytes
+      netspeed *= 1000000;
+      eos_static_info("ethtool:networkspeed=%.02f GB/s", 1.0*netspeed/1000000000.0);
+    } 
+    fclose(fnetspeed);
+  }
+  
+  eos_static_info("publishing:networkspeed=%.02f GB/s", 1.0*netspeed/1000000000.0);
+
+  // ---------------------------------------------------------------------
   // give some time before publishing
+  // ---------------------------------------------------------------------
   sleep(3);
 
   while (1) {
@@ -1651,7 +1673,7 @@ Storage::Publish()
           // copy out net info 
           // TODO: take care of eth0 only ..
           // somethimg has to tell us if we are 1GBit, or 10GBit ... we assume 1GBit now as the default
-          success &= fileSystemsVector[i]->SetDouble("stat.net.ethratemib", 1000000000/(8*1024*1024));
+          success &= fileSystemsVector[i]->SetDouble("stat.net.ethratemib", netspeed/(8*1024*1024));
           success &= fileSystemsVector[i]->SetDouble("stat.net.inratemib",  fstLoad.GetNetRate("eth0","rxbytes")/1024.0/1024.0);
           success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib", fstLoad.GetNetRate("eth0","txbytes")/1024.0/1024.0);
           //          eos_static_debug("Path is %s %f\n", fileSystemsVector[i]->GetPath().c_str(), fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
