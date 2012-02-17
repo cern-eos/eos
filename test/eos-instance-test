@@ -310,8 +310,8 @@ runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test
 runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-ODeos.space=default"
 runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
 runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
-runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" 
-runtest "### Download  " unix 1 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1" 
+runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" 
+runtest "### Download  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1" 
 runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=1"
 runtest "### Rem       " unix 1 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
 runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
@@ -328,31 +328,31 @@ runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/insta
 # Extend a file via truncate
 # --------------------------
 runtest "### Extend    " unix 0 "" extend /eos/$EOS_TEST_INSTANCE/test/instancetest/extend
-runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/extend" 
+runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/extend" 
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/extend"
 # --------------------------
 # Shrink a file via truncate
 # --------------------------
 runtest "### Shrink    " unix 0 "" shrink /eos/$EOS_TEST_INSTANCE/test/instancetest/shrink
-runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/shrink" 
+runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/shrink" 
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/shrink"
 # --------------------------
 # Write file in random order
 # --------------------------
 runtest "### Random    " unix 0 "" random /eos/$EOS_TEST_INSTANCE/test/instancetest/random
-runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/random" 
+runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/random" 
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/random"
 # --------------------------
 # Extend file and rewrite the beginning
 # --------------------------
 runtest "### Truncate  " unix 0 "" truncate /eos/$EOS_TEST_INSTANCE/test/instancetest/truncate
-runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/truncate" 
+runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/truncate" 
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/truncate"
 # --------------------------
 # Expand file several times
 # --------------------------
 runtest "### holes     " unix 0 "" holes /eos/$EOS_TEST_INSTANCE/test/instancetest/holes
-runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/holes" 
+runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/holes" 
 runtest "### backward  " unix 0 "" backward  /eos/$EOS_TEST_INSTANCE/test/instancetest/holes
 runtest "### downrnd   " unix 0 "" downloadrandom  /eos/$EOS_TEST_INSTANCE/test/instancetest/holes
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/holes"
@@ -383,8 +383,8 @@ runtest "### Version   " unix 0 "" eos "version | grep EOS_SERVER_VERSION"
 ################################################################################################################
 runtest "### Access    " unix 0 "" eos "access ban user nobody"
 # takes long
-#runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
-#runtest "### Download  " unix 1 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-OSeos.ruid=99" "-DITransactionTimeout 1"
+#runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
+#runtest "### Download  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-OSeos.ruid=99" "-DITransactionTimeout 1"
 runtest "### Access    " unix 0 "" eos "access ls | grep nobody"
 runtest "### Access    " unix 0 "" eos "access unban user nobody"
 runtest "### Access    " unix 1 "" eos "access ls | grep nobody"
@@ -392,8 +392,8 @@ runtest "### Access    " unix 1 "" eos "access ls | grep nobody"
 # ACCESS STALL
 ################################################################################################################
 runtest "### Access    " unix 0 "" eos "access set stall 1 r"
-runtest "### Download  " unix 0 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
-runtest "### Download  " unix 1 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-OSeos.ruid=99" "-DITransactionTimeout 1"
+runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
+runtest "### Download  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-OSeos.ruid=99" "-DITransactionTimeout 1"
 runtest "### Access    " unix 0 "" eos "access ls | grep \"r:\* => 1\""
 runtest "### Access    " unix 0 "" eos "access rm stall r"
 runtest "### Access    " unix 1 "" eos "access ls | grep \"r:\* => 1\""
@@ -401,7 +401,7 @@ runtest "### Access    " unix 1 "" eos "access ls | grep \"r:\* => 1\""
 # ACCESS REDIRECT
 ################################################################################################################
 runtest "### Access    " unix 0 "" eos "access set redirect foo.senf"
-runtest "### Download  " unix 1 "" download  "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-DIFirstConnectTimeout 2 -DIConnectTimeout 2 -DIReconnectWait 1 -DIMaxRedirectCnt 1"
+runtest "### Download  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-DIFirstConnectTimeout 2 -DIConnectTimeout 2 -DIReconnectWait 1 -DIMaxRedirectCnt 1"
 runtest "### Access    " unix 0 "" eos "access ls | grep foo"
 runtest "### Access    " unix 0 "" eos "access rm redirect"
 runtest "### Access    " unix 1 "" eos "access ls | grep foo"
@@ -482,8 +482,8 @@ runtest "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/in
 # Parallel sockets (does not work currently with 3.1.0 clients)
 # --------------------------
 #runtest "### UploadP   " unix 0 "" upload  "$TESTSYSFILE50M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" "-S10"
-#runtest "### Download  " unix 0 "" download   "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" 
-#runtest "### DownloadP " unix 0 "" download "/tmp/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" "-S10"
+#runtest "### Download  " unix 0 "" download   "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" 
+#runtest "### DownloadP " unix 0 "" download "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" "-S10"
 ################################################################################################################
 # FINAL CLEANUP 
 ################################################################################################################

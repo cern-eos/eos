@@ -854,7 +854,6 @@ XrdFstOfsFile::open(const char                *path,
 int
 XrdFstOfsFile::closeofs()
 {
-  EPNAME("closeofs");
   int rc = 0;
 
   // ------------------------------------------------------------------------
