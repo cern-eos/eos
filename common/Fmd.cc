@@ -586,7 +586,7 @@ FmdHandler::GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid, gid_t g
         return 0;
       }
     } else {
-      eos_err("unable to get fmd for fid %d on fs %d - record not found", fid, fsid);
+      eos_warning("unable to get fmd for fid %d on fs %d - record not found", fid, fsid);
       return 0;
     }
   } else {
