@@ -33,6 +33,7 @@
 #include "XrdPosix/XrdPosixXrootd.hh"
 //------------------------------------------------------------------------------
 #include "common/Logging.hh"
+#include "common/Timing.hh"
 //------------------------------------------------------------------------------
 
 
@@ -72,8 +73,6 @@ public:
     killThread(false),
     sizeMax(sMax),
     sizeVirtual(0),
-    sizeWrites(0),
-    sizeReads(0),
     oldSizeQ(0),
     inLimitRegion(false) {
     recycleQueue = new ConcurrentQueue<value_type*>();
@@ -142,31 +141,40 @@ public:
   //------------------------------------------------------------------------------
   //Get value for key k from cache
   bool
-  getRead(const key_type& k, char* buf, off_t off, size_t len, file_abst* pFileAbst) {
+  getRead(const key_type& k, char* buf, off_t off, size_t len, file_abst* pFileAbst) 
+  {
     //block requested is aligned with respect to the maximum CacheEntry size
-    bool found = false;
+    
+    eos::common::Timing gr("getRead");
+    TIMING("start", &gr);
+
+    bool foundPiece = false;
     value_type* pEntry = 0;
 
     pthread_rwlock_rdlock(&rwMapLock);               //read lock map
 
+    /*
     while (pFileAbst->getSizeWrites() != 0) {
       //wait until writes on current file are done
       pthread_rwlock_unlock(&rwMapLock);             //unlock map
       pFileAbst->waitFinishWrites();
       pthread_rwlock_rdlock(&rwMapLock);             //read lock map
     }
+    */
 
     const typename key_map_type::iterator it = keyValueMap.find(k);
 
     if (it == keyValueMap.end()) {
       //key not found
       pthread_rwlock_unlock(&rwMapLock);             //unlock map
-      return false;
     } else {
-      pEntry = it->second.first;
-      found = pEntry->getPiece(buf, off, len);
 
-      if (found) {
+      pEntry = it->second.first;
+      TIMING("getPiece in", &gr);
+      foundPiece = pEntry->getPiece(buf, off, len);
+      TIMING("getPiece out", &gr);
+
+      if (foundPiece) {
         // update access record
         pthread_mutex_lock(&mutexList);              //lock list
         keyList.splice(keyList.end(), keyList, it->second.second);
@@ -174,18 +182,26 @@ public:
       }
 
       pthread_rwlock_unlock(&rwMapLock);             //unlock map
-      return found;
     }
+
+    TIMING("return", &gr);
+    //gr.Print();
+    return foundPiece;
   }
 
 
   //------------------------------------------------------------------------------
   //Insert fresh key-value pair in the cache
   void
-  addRead(int filed, const key_type& k, char* buf, off_t off, size_t len, file_abst* pFileAbst) {
+  addRead(int filed, const key_type& k, char* buf, off_t off, size_t len, file_abst* pFileAbst) 
+  {
+    eos::common::Timing ar("addRead");
+    TIMING("start", &ar);
+
     value_type* pEntry = 0;
     pthread_rwlock_rdlock(&rwMapLock);                 //read lock map
-
+    
+    /*
     while (pFileAbst->getSizeWrites() != 0) {
       //wait until writes on current file are done
       eos_static_debug("info=wait finish writes");
@@ -197,6 +213,7 @@ public:
 
       pthread_rwlock_rdlock(&rwMapLock);               //read lock map
     }
+    */
 
     const typename key_map_type::iterator it = keyValueMap.find(k);
 
@@ -213,6 +230,7 @@ public:
       pthread_mutex_unlock(&mutexList);              //unlock list
 
       pthread_rwlock_unlock(&rwMapLock);             //unlock map
+      TIMING("add to old block", &ar);
     } else {
       pthread_rwlock_unlock(&rwMapLock);             //unlock map
 
@@ -223,7 +241,9 @@ public:
       pthread_mutex_lock(&mutexList);                //lock list
 
       while (getCurrentSize() + value_type::getMaxSize() >= sizeMax) {
+        TIMING("start evitc", &ar);
         if (!evict()) {
+          TIMING("failed evict", &ar);
           //release locks and wait for writing thread to do some writing
           //in case all cache is full with blocks for writing
           pthread_mutex_unlock(&mutexList);                //unlock list
@@ -235,6 +255,9 @@ public:
 
           pthread_rwlock_wrlock(&rwMapLock);               //write lock map
           pthread_mutex_lock(&mutexList);                  //lock list
+        }
+        else {
+          TIMING("success evict", &ar);
         }
       }
 
@@ -250,6 +273,9 @@ public:
       pthread_mutex_unlock(&mutexList);                    //unlock list
       pthread_rwlock_unlock(&rwMapLock);                   //unlock map
     }
+
+    TIMING("return", &ar);
+    //ar.Print();
   };
 
   //------------------------------------------------------------------------------
@@ -474,33 +500,6 @@ public:
   };
 
 
-  //------------------------------------------------------------------------------
-  size_t getWritesSize() {
-    size_t lSize;
-    pthread_mutex_lock(&mutexWritesSize);
-    lSize = sizeWrites;
-    pthread_mutex_unlock(&mutexWritesSize);
-    return lSize;
-  };
-
-
-  //------------------------------------------------------------------------------
-  void increaseWritesSize(size_t size) {
-    pthread_mutex_lock(&mutexWritesSize);
-    sizeWrites += size;
-    pthread_mutex_unlock(&mutexWritesSize);
-  };
-
-
-  //------------------------------------------------------------------------------
-  void decreaseWritesSize(size_t size) {
-    pthread_mutex_lock(&mutexWritesSize);
-    sizeWrites -= size;
-    pthread_mutex_unlock(&mutexWritesSize);
-  };
-
-  //------------------------------------------------------------------------------
-
 private:
 
   //------------------------------------------------------------------------------
@@ -535,8 +534,7 @@ private:
       //there are no references to the file object
       pEntry->getParentFile()->decrementReads(pEntry->getSizeData());
 
-      if ((pEntry->getParentFile()->getSizeRdWr() == 0) &&
-          (pEntry->getParentFile()->getNoReferences() == 0)) {
+      if (pEntry->getParentFile()->isInUse()) {
         mgmCache->removeFileInode(pEntry->getParentFile()->getInode());
       }
 
@@ -559,7 +557,6 @@ private:
   size_t         sizeMax;          //maximum size of cache
   size_t         sizeVirtual;      //sum of all blocks capacity
   size_t         sizeWrites;       //size of write requests
-  size_t         sizeReads;        //size of read requests
 
   key_map_type   keyValueMap;      //map <key pair<value, listIter>>
   key_list_type  keyList;          //list of recently accessed entries

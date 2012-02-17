@@ -245,6 +245,19 @@ FileAbstraction::generateBlockKey(off_t offset)
 
 
 //------------------------------------------------------------------------------
+bool
+FileAbstraction::isInUse()
+{
+  bool retVal = false;
+  pthread_mutex_lock(&updMutex);
+  if ((sizeReads + sizeWrites != 0) || (nReferences > 1)) {
+    retVal =  true;
+  }
+  pthread_mutex_unlock(&updMutex);
+  return retVal;
+}
+
+//------------------------------------------------------------------------------
 int
 FileAbstraction::getId() const
 {

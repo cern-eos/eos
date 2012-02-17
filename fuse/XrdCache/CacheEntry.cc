@@ -68,7 +68,7 @@ CacheEntry::doRecycle(int filedes, char* buf, off_t off, size_t len, FileAbstrac
   }
 
   mapPieces.clear();
-  buffer = (char*) memset(buffer, 0, capacity);
+  //buffer = (char*) memset(buffer, 0, capacity);
   offsetRelative = off % getMaxSize();
   buffer = (char*) memcpy(buffer + offsetRelative, buf, len);
   mapPieces.insert(std::make_pair(off, len));

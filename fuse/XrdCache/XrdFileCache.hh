@@ -47,16 +47,19 @@ public:
   int threadStart(pthread_t& thread, ThreadFn f);
 
   void submitWrite(unsigned long inode, int filed, void* buff, off_t offset, size_t length);
-  size_t getRead(unsigned long inode, int filed, void* buf, off_t offset, size_t length);
-  size_t putRead(unsigned long inode, int filed, void* buf, off_t offset, size_t length);
+  size_t getRead(FileAbstraction* fAbst, int filed, void* buf, off_t offset, size_t length);
+  size_t putRead(FileAbstraction* fAbst, int filed, void* buf, off_t offset, size_t length);
 
   //vector reads
   //size_t getReadV(unsigned long inode, int filed, void* buf, off_t* offset, size_t* length, int nbuf);
   //void putReadV(unsigned long inode, int filed, void* buf, off_t* offset, size_t* length, int nbuf);
-
-  ConcurrentQueue<error_type>& getErrorQueue(unsigned long inode);
+  
   void waitFinishWrites(unsigned long inode);
+  void waitFinishWrites(FileAbstraction *fAbst);
   void removeFileInode(unsigned long inode);
+
+  FileAbstraction* getFileObj(unsigned long inode);
+  ConcurrentQueue<error_type>& getErrorQueue(unsigned long inode);
 
 private:
 
@@ -68,7 +71,6 @@ private:
   void Init();
 
   static void* writeThreadProc(void*);
-  FileAbstraction* getFileObj(unsigned long inode);
 
   size_t cacheSizeMax;             //read cache size
   int indexFile;                   //last index assigned to a file

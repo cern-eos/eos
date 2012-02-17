@@ -39,6 +39,7 @@
 #include <pwd.h>
 #include "xrdposix.hh"
 #include "XrdCache/XrdFileCache.hh"
+#include "XrdCache/FileAbstraction.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClient.hh"
@@ -50,6 +51,7 @@
 #include "XrdClient/XrdClientConst.hh"
 
 #include "common/Logging.hh"
+#include "common/Timing.hh"
 #include "common/Path.hh"
 
 #ifndef __macos__
@@ -236,15 +238,6 @@ public:
   virtual ~XrdPosixTiming(){XrdPosixTiming* n = next; if (n) delete n;};
 };
 
-#define TIMING(__ID__,__LIST__)                                 \
-  do {                                                          \
-    struct timeval tp;                                          \
-    struct timezone tz;                                         \
-    gettimeofday(&tp, &tz);                                     \
-    (__LIST__)->ptr->next=new XrdPosixTiming(__ID__,tp);        \
-    (__LIST__)->ptr = (__LIST__)->ptr->next;                    \
-  } while(0);                                                   
-
 
 static XrdFileCache* XFC;
 XrdSysMutex OpenMutex;
@@ -341,7 +334,7 @@ int
 xrd_rmxattr(const char *path, const char *xattr_name) 
 {
   eos_static_info("path=%s xattr_name=%s", path, xattr_name);
-  XrdPosixTiming rmxattrtiming("rmxattr");
+  eos::common::Timing rmxattrtiming("rmxattr");
   TIMING("START", &rmxattrtiming);
   
   char response[4096]; 
@@ -386,7 +379,7 @@ int
 xrd_setxattr(const char *path, const char *xattr_name, const char *xattr_value, size_t size) 
 {
   eos_static_info("path=%s xattr_name=%s xattr_value=%s", path, xattr_name, xattr_value);
-  XrdPosixTiming setxattrtiming("setxattr");
+  eos::common::Timing setxattrtiming("setxattr");
   TIMING("START", &setxattrtiming);
   
   char response[4096]; 
@@ -431,9 +424,9 @@ xrd_setxattr(const char *path, const char *xattr_name, const char *xattr_value, 
 //------------------------------------------------------------------------------
 int
 xrd_getxattr(const char *path, const char *xattr_name, char **xattr_value, size_t *size) 
-{
+{ 
   eos_static_info("path=%s xattr_name=%s",path,xattr_name);
-  XrdPosixTiming getxattrtiming("getxattr");
+  eos::common::Timing getxattrtiming("getxattr");
   TIMING("START", &getxattrtiming);
   
   char response[4096]; 
@@ -490,7 +483,7 @@ int
 xrd_listxattr(const char *path, char **xattr_list, size_t *size) 
 {
   eos_static_info("path=%s",path);
-  XrdPosixTiming listxattrtiming("listxattr");
+  eos::common::Timing listxattrtiming("listxattr");
   TIMING("START", &listxattrtiming);
   
   char response[16384]; 
@@ -541,7 +534,7 @@ int
 xrd_stat(const char *path, struct stat *buf)
 {
   eos_static_info("path=%x", path);
-  XrdPosixTiming stattiming("xrd_stat");
+  eos::common::Timing stattiming("xrd_stat");
   TIMING("START",&stattiming);
 
   char value[4096]; value[0] = 0;;
@@ -623,7 +616,7 @@ xrd_statfs(const char* url, const char* path, struct statvfs *stbuf)
     return 0;
   }
 
-  XrdPosixTiming statfstiming("xrd_statfs");
+  eos::common::Timing statfstiming("xrd_statfs");
   TIMING("START",&statfstiming);
 
   char value[4096]; value[0] = 0;;
@@ -679,7 +672,7 @@ int
 xrd_chmod(const char* path, mode_t mode) 
 {
   eos_static_info("path=%s mode=%x", path, mode);
-  XrdPosixTiming chmodtiming("xrd_chmod");
+  eos::common::Timing chmodtiming("xrd_chmod");
   TIMING("START",&chmodtiming);
 
   char value[4096]; value[0] = 0;;
@@ -709,7 +702,6 @@ xrd_chmod(const char* path, mode_t mode)
     
     return retc;
   } else {
-    
     return -EFAULT;
   }
 }
@@ -719,8 +711,9 @@ int
 xrd_symlink(const char* url, const char* destpath, const char* sourcepath) 
 {
   eos_static_info("url=%s destpath=%s,sourcepath=%s", url, destpath, sourcepath);
-  XrdPosixTiming symlinktiming("xrd_symlink");
+  eos::common::Timing symlinktiming("xrd_symlink");
   TIMING("START",&symlinktiming);
+  
   char value[4096]; value[0] = 0;;
   XrdOucString request;
   request = url;
@@ -733,6 +726,7 @@ xrd_symlink(const char* url, const char* destpath, const char* sourcepath)
 
   TIMING("END",&symlinktiming);
   symlinktiming.Print();
+  
   if (dosymlink>=0) {
     char tag[1024];
     int retc;
@@ -757,8 +751,9 @@ int
 xrd_link(const char* url, const char* destpath, const char* sourcepath) 
 {
   eos_static_info("url=%s destpath=%s sourcepath=%s", url, destpath, sourcepath);
-  XrdPosixTiming linktiming("xrd_link");
+  eos::common::Timing linktiming("xrd_link");
   TIMING("START",&linktiming);
+  
   char value[4096]; value[0] = 0;;
   XrdOucString request;
   request = url;
@@ -796,8 +791,9 @@ int
 xrd_readlink(const char* path, char* buf, size_t bufsize)
 {
   eos_static_info("path=%s", path);
-  XrdPosixTiming readlinktiming("xrd_readlink");
+  eos::common::Timing readlinktiming("xrd_readlink");
   TIMING("START",&readlinktiming);
+  
   char value[4096]; value[0] = 0;;
   XrdOucString request;
   request = path;
@@ -836,7 +832,7 @@ int
 xrd_utimes(const char* path, struct timespec *tvp)
 {
   eos_static_info("path=%s", path);
-  XrdPosixTiming utimestiming("xrd_utimes");
+  eos::common::Timing utimestiming("xrd_utimes");
   TIMING("START",&utimestiming);
 
   char value[4096]; value[0] = 0;;
@@ -885,7 +881,7 @@ int
 xrd_access(const char* path, int mode)
 {
   eos_static_info("path=%s mode=%d", path, mode);
-  XrdPosixTiming accesstiming("xrd_access");
+  eos::common::Timing accesstiming("xrd_access");
   TIMING("START",&accesstiming);
 
   char value[4096]; value[0] = 0;;
@@ -927,7 +923,7 @@ int
 xrd_inodirlist(unsigned long long dirinode, const char *path)
 {
   eos_static_info("inode=%llu path=%s",dirinode, path);
-  XrdPosixTiming inodirtiming("xrd_inodirlist");
+  eos::common::Timing inodirtiming("xrd_inodirlist");
   TIMING("START",&inodirtiming);
 
   char* value=0;
@@ -1028,6 +1024,7 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
     
   TIMING("END",&inodirtiming);
   inodirtiming.Print();
+  
   free(value);
   return doinodirlist;
 }
@@ -1192,15 +1189,17 @@ xrd_read(int fildes, void *buf, size_t nbyte, unsigned long inode)
 {
   eos_static_info("fd=%d nbytes=%lu inode=%lu",fildes, (unsigned long)nbyte, (unsigned long)inode);
   size_t ret;
+  FileAbstraction* fAbst =0;
 
   if (XFC && inode) {
-    XFC->waitFinishWrites(inode);
+    fAbst = XFC->getFileObj(inode);
+    XFC->waitFinishWrites(fAbst);
     off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
 
-    if ((ret = XFC->getRead(inode, fildes, buf, offset, nbyte)) != nbyte)
+    if ((ret = XFC->getRead(fAbst, fildes, buf, offset, nbyte)) != nbyte)
     {
       ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
-      XFC->putRead(inode, fildes, buf, offset, nbyte);
+      XFC->putRead(fAbst, fildes, buf, offset, nbyte);
     }
   } else {
     ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
@@ -1214,24 +1213,39 @@ xrd_read(int fildes, void *buf, size_t nbyte, unsigned long inode)
 ssize_t
 xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode)
 {
+  eos::common::Timing xpr("xrd_pread");
+  TIMING("start", &xpr);
+  
   eos_static_debug("fd=%d nbytes=%lu offset=%llu inode=%lu",fildes, (unsigned long)nbyte, (unsigned long long)offset, (unsigned long) inode);
   size_t ret;
+  FileAbstraction* fAbst =0;
 
+  fprintf(stderr, "xrd_pread:off=%zu, len=%zu \n", offset, nbyte);
+  
   if (XFC && inode) {
-    XFC->waitFinishWrites(inode);
-    if ((ret = XFC->getRead(inode, fildes, buf, offset, nbyte)) != nbyte)
+    fAbst = XFC->getFileObj(inode);
+    XFC->waitFinishWrites(fAbst);
+    TIMING("wait writes", &xpr);
+    if ((ret = XFC->getRead(fAbst, fildes, buf, offset, nbyte)) != nbyte)
     {
-      fprintf(stderr, "Block not found in cache: off=%zu, len=%zu \n", offset, nbyte);
+      TIMING("read in", &xpr);
+      eos_static_debug("Block not found in cache: off=%zu, len=%zu", offset, nbyte);
       ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
-      XFC->putRead(inode, fildes, buf, offset, nbyte);
+      TIMING("read out", &xpr);
+      XFC->putRead(fAbst, fildes, buf, offset, nbyte);
+      TIMING("put read", &xpr);
     }
     else {
-      fprintf(stderr, "Block found in cache: off=%zu, len=%zu \n", offset, nbyte);
+      eos_static_debug("Block found in cache: off=%zu, len=%zu", offset, nbyte);
+      TIMING("block in cache", &xpr);
+      
     }
   } else {
     ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
   }
-  
+
+  TIMING("end", &xpr);
+  xpr.Print();
   return ret;
 }
 
@@ -1245,7 +1259,6 @@ xrd_write(int fildes, const void *buf, size_t nbyte, unsigned long inode)
 
   if (XFC && inode) {
     off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
-    fprintf(stdout, "submitting a new write request\n");
     XFC->submitWrite(inode, fildes, const_cast<void*>(buf), offset, nbyte);
     ret = nbyte;
   } else {
@@ -1259,16 +1272,23 @@ xrd_write(int fildes, const void *buf, size_t nbyte, unsigned long inode)
 ssize_t
 xrd_pwrite(int fildes, const void *buf, size_t nbyte, off_t offset, unsigned long inode)
 {
+  eos::common::Timing xpw("xrd_write");
+  TIMING("start", &xpw);
+
   eos_static_debug("fd=%d nbytes=%lu inode=%lu", fildes, (unsigned long)nbyte, (unsigned long) inode);
   size_t ret;
+
+  fprintf(stderr, "xrd_pwrite:off=%zu, len=%zu \n", offset, nbyte);
   
   if (XFC && inode) {
-    fprintf(stderr, "info=submitting new write request\n");
     XFC->submitWrite(inode, fildes, const_cast<void*>(buf), offset, nbyte);
     ret = nbyte;
   } else {
     ret = XrdPosixXrootd::Pwrite(fildes, buf, nbyte, static_cast<long long>(offset));    
   }
+
+  TIMING("end", &xpw);
+  xpw.Print();
   return ret;                  
 }
 
@@ -1601,7 +1621,7 @@ xrd_init()
   eos::common::Mapping::Root(vid);
   eos::common::Logging::Init();
   eos::common::Logging::SetUnit("FUSE@localhost");
-  eos::common::Logging::SetLogPriority(LOG_INFO);
+  eos::common::Logging::SetLogPriority(LOG_DEBUG);
   
   memset(fdbuffermap,0,sizeof(fdbuffermap));
 
@@ -1618,7 +1638,7 @@ xrd_init()
   
   //uncomment this to enable XrdCachFile
   setenv("EOS_XFC", "1", 1);
-  setenv("EOS_XFC_SIZE", "100000000", 1);   // ~100MB
+  setenv("EOS_XFC_SIZE", "300000000", 1);   // ~300MB
 
   //initialise the XrdFileCache
   if (!(getenv("EOS_XFC"))) {
@@ -1638,4 +1658,4 @@ xrd_init()
 }
         
 
-//  LocalWords:  xrdposix XCFS
+

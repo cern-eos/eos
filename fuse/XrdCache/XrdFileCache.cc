@@ -142,7 +142,7 @@ XrdFileCache::getFileObj(unsigned long inode)
   fRet->incrementNoReferences();
   pthread_rwlock_unlock(&keyMgmLock);  //unlock
 
-  eos_static_debug("inode=%lu, key=%i. \n", inode, key);
+  eos_static_debug("inode=%lu, key=%i", inode, key);
   return fRet;
 }
 
@@ -152,10 +152,30 @@ void
 XrdFileCache::submitWrite(unsigned long inode, int filed, void* buf,
                           off_t offset, size_t length)
 {
+  size_t nwrite;
+  long long int key;
+  off_t writtenOffset = 0;
   FileAbstraction* fAbst = getFileObj(inode);
-  long long int key = fAbst->generateBlockKey(offset);
+ 
+  while (((offset % CacheEntry::getMaxSize()) + length) > CacheEntry::getMaxSize()) {
+    nwrite = CacheEntry::getMaxSize() - (offset % CacheEntry::getMaxSize());
+    key = fAbst->generateBlockKey(offset);
+    eos_static_debug("(1) off=%zu, len=%zu", offset, nwrite);
+    cacheImpl->addWrite(filed, key, static_cast<char*>(buf) + writtenOffset, offset, nwrite, fAbst);
 
-  cacheImpl->addWrite(filed, key, static_cast<char*>(buf), offset, length, fAbst);
+    offset += nwrite;
+    length -= nwrite;
+    writtenOffset += nwrite;
+  }
+
+  if (length != 0) {
+    nwrite = length;
+    key = fAbst->generateBlockKey(offset);
+    eos_static_debug("(2) off=%zu, len=%zu", offset, nwrite);
+    cacheImpl->addWrite(filed, key, static_cast<char*>(buf) + writtenOffset, offset, nwrite, fAbst);
+    writtenOffset += nwrite;
+  }
+
   fAbst->decrementNoReferences();
   return;
 }
@@ -163,20 +183,19 @@ XrdFileCache::submitWrite(unsigned long inode, int filed, void* buf,
 
 //------------------------------------------------------------------------------
 size_t
-XrdFileCache::getRead(unsigned long inode, int filed, void* buf,
+XrdFileCache::getRead(FileAbstraction* fAbst, int filed, void* buf,
                       off_t offset, size_t length)
 {
   bool found = true;
   long long int key;
   size_t nread;
   off_t readOffset = 0;
-  FileAbstraction* fAbst = getFileObj(inode);
 
   //read bigger than block size, break in smaller blocks
   while (((offset % CacheEntry::getMaxSize()) + length) > CacheEntry::getMaxSize()) {
     nread = CacheEntry::getMaxSize() - (offset % CacheEntry::getMaxSize());
     key = fAbst->generateBlockKey(offset);
-    eos_static_debug("(1) off=%zu, len=%zu \n", offset, nread);
+    eos_static_debug("(1) off=%zu, len=%zu", offset, nread);
     found = cacheImpl->getRead(key, static_cast<char*>(buf) + readOffset, offset, nread, fAbst);
 
     if (!found) {
@@ -191,7 +210,7 @@ XrdFileCache::getRead(unsigned long inode, int filed, void* buf,
   if (length != 0) {
     nread = length;
     key = fAbst->generateBlockKey(offset);
-    eos_static_debug("(2) off=%zu, len=%zu \n", offset, nread);
+    eos_static_debug("(2) off=%zu, len=%zu", offset, nread);
     found = cacheImpl->getRead(key, static_cast<char*>(buf) + readOffset, offset, nread, fAbst);
 
     if (!found) {
@@ -208,19 +227,18 @@ XrdFileCache::getRead(unsigned long inode, int filed, void* buf,
 
 //------------------------------------------------------------------------------
 size_t
-XrdFileCache::putRead(unsigned long inode, int filed, void* buf,
+XrdFileCache::putRead(FileAbstraction* fAbst, int filed, void* buf,
                       off_t offset, size_t length)
 {
   size_t nread;
   long long int key;
   off_t readOffset = 0;
-  FileAbstraction* fAbst = getFileObj(inode);
 
   //read bigger than block size, break in smaller blocks
   while (((offset % CacheEntry::getMaxSize()) + length) > CacheEntry::getMaxSize()) {
     nread = CacheEntry::getMaxSize() - (offset % CacheEntry::getMaxSize());
     key = fAbst->generateBlockKey(offset);
-    eos_static_debug("off=%zu, len=%zu key=%lli", offset, nread, key);
+    eos_static_debug("(1) off=%zu, len=%zu key=%lli", offset, nread, key);
     cacheImpl->addRead(filed, key, static_cast<char*>(buf) + readOffset, offset, nread, fAbst);
     offset += nread;
     length -= nread;
@@ -230,7 +248,7 @@ XrdFileCache::putRead(unsigned long inode, int filed, void* buf,
   if (length != 0) {
     nread = length;
     key = fAbst->generateBlockKey(offset);
-    eos_static_debug("off=%zu, len=%zu key=%lli", offset, nread, key);
+    eos_static_debug("(2) off=%zu, len=%zu key=%lli", offset, nread, key);
     cacheImpl->addRead(filed, key, static_cast<char*>(buf) + readOffset, offset, nread, fAbst);
     readOffset += nread;
   }
@@ -330,11 +348,24 @@ XrdFileCache::getErrorQueue(unsigned long inode)
 
 //------------------------------------------------------------------------------
 void
+XrdFileCache::waitFinishWrites(FileAbstraction* fAbst)
+{
+  if (fAbst->getSizeWrites() != 0) {
+    cacheImpl->flushWrites(fAbst);
+    fAbst->waitFinishWrites();
+  }
+
+  return;
+}
+
+
+//------------------------------------------------------------------------------
+void
 XrdFileCache::waitFinishWrites(unsigned long inode)
 {
   FileAbstraction* fAbst = getFileObj(inode);
-
-  if (fAbst) {
+  
+  if (fAbst->getSizeWrites() != 0) {
     cacheImpl->flushWrites(fAbst);
     fAbst->waitFinishWrites();
   }

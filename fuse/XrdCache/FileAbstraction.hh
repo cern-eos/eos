@@ -68,8 +68,9 @@ public:
   void incrementNoReferences();
   void decrementNoReferences();
 
-  long long int generateBlockKey(off_t offsetEnd);
+  bool isInUse();
   void waitFinishWrites();
+  long long int generateBlockKey(off_t offsetEnd);
 
 private:
 

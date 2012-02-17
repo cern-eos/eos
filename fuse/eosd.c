@@ -21,8 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-
 /*
   FUSE: Filesystem in Userspace
   Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
@@ -32,6 +30,7 @@
 
   gcc -Wall `pkg-config fuse --cflags --libs` hello_ll.c -o hello_ll
 */
+
 
 #define FUSE_USE_VERSION 26
 
@@ -900,18 +899,19 @@ static void eosfs_ll_open(fuse_req_t req, fuse_ino_t ino,
   } else {
     fi->keep_cache = 0;
   }
-    
-  //if XrdCacheFile enabled then disable kernel cache
-  if (getenv("EOS_XFC")) {
-    fprintf(stdout, "Disabling the kernel cache. \n");
-    fi->keep_cache = 0;
-  }
 
   if (getenv("EOS_DIRECTIO") && (!strcmp(getenv("EOS_DIRECTIO"),"1"))) {
     fi->direct_io=1;
   } else {
     fi->direct_io=0;
   }
+
+  //if XrdCacheFile enabled then disable kernel cache
+  if (getenv("EOS_XFC")) {
+    fprintf(stderr, "Disabling the kernel cache when XFC enabled. \n");
+    fi->keep_cache = 0;
+  }
+
 
   if (!fdbuffermap[fi->fh])
     fdbuffermap[fi->fh] = (char*) malloc(PAGESIZE);
@@ -926,7 +926,7 @@ static void eosfs_ll_read(fuse_req_t req, fuse_ino_t ino, size_t size,
 {
   if (fi->fh) {
     char* buf = fdbuffermap[fi->fh];
-    if (isdebug) printf("[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)size,(long long)off,(long long)buf,(long long)fi->fh);
+    if (isdebug) fprintf(stderr, "[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)size,(long long)off,(long long)buf,(long long)fi->fh);
     int res = xrd_pread(fi->fh, buf, size, off, ino);
     if (res == -1) {
       // map file system errors to IO errors!
@@ -1240,8 +1240,6 @@ int main(int argc, char *argv[])
   }
 
   rdr = getenv("EOS_RDRURL");
-
-
   fprintf(stdout,"EOS_RDRURL = %s\n", getenv("EOS_RDRURL"));
 
   if (! rdr) {
