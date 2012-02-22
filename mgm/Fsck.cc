@@ -587,7 +587,9 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
 	      try {
 		path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(*fidit)).c_str();
 	      } catch ( eos::MDException &e ) {
-		path ="EINVAL";
+		char spath[4096];
+		snprintf(spath, sizeof(spath)-1, "fsid=%u fxid=%08llx fid=%llu", it->first, *fidit, *fidit);
+		path += spath;
 	      }	      
 	      
 	      if (path.length() && fout) {
