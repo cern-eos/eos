@@ -177,7 +177,7 @@ com_cp (char* argin) {
     source_list.clear();
     for (size_t l =0; l< source_find_list.size(); l++) {
       // one wildcard file or directory
-      if ( ((source_find_list[l].endswith("*") != STR_NPOS ) || (source_find_list[0].endswith("/")))) {
+      if ( (source_find_list[l].endswith("*") || (source_find_list[0].endswith("/")))) {
 	arg1 = source_find_list[l];
 	// translate the wildcard
 	if ( (arg1.endswith("*") != STR_NPOS ) || (arg1.endswith("/")) ) {
@@ -255,7 +255,11 @@ com_cp (char* argin) {
 	    }
 	    pclose(fp);
 	  }
+	} else {
+	  source_list.push_back(arg1.c_str());
 	}
+      } else {
+	source_list.push_back(source_find_list[l].c_str());
       }
     }
   } else {
