@@ -140,6 +140,10 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   eos::fst::Config::gConfig.autoBoot = false;
 
   eos::fst::Config::gConfig.FstOfsBrokerUrl = "root://localhost:1097//eos/";
+  
+  if (getenv("EOS_BROKER_URL")) {
+    eos::fst::Config::gConfig.FstOfsBrokerUrl = getenv("EOS_BROKER_URL");
+  }
 
   eos::fst::Config::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
 
