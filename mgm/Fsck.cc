@@ -995,7 +995,8 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
               mLocalErrorFidSet[mErrorNames[3]].insert(fid);
             }
             
-            if (tokens[2] != tokens[7]) {
+	    // we only apply this if the file has not 0 size, otherwise the file has no checksum type set on disk
+            if ( (tokens[2] != tokens[7]) && (mgm_size != "0") ){
 	      {
 		XrdSysMutexHelper lock(mGlobalCounterLock);
 		n_error_fst_disk_fmd_checksum_differ++;
