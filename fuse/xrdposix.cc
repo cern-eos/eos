@@ -517,14 +517,11 @@ void xrd_sync_env() {
 
 //-------------------------------------------------------------------------------------------------------------------
 void xrd_rw_env() {
-  int rahead = 0; //97*1024;
-  int rcsize = 0; //512*1024;
+  int rahead = 0;
+  int rcsize = 0;
 
-  if (getenv("EOS_READAHEADSIZE")) {
-    rahead = atoi(getenv("EOS_READAHEADSIZE"));
-  }
-  if (getenv("EOS_READCACHESIZE")) {
-    rcsize = atoi(getenv("EOS_READCACHESIZE"));
+  if (getenv("EOS_WRITECACHESIZE")) {
+    rcsize = atoi(getenv("EOS_WRITECACHESIZE"));
   }
 
   XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,rahead);
