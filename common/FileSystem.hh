@@ -65,7 +65,7 @@ protected:
 
 public:
   //------------------------------------------------------------------------
-  // Struct & Type definitions
+  //! Struct & Type definitions
   //------------------------------------------------------------------------
   typedef uint32_t fsid_t;
   typedef int32_t fsstatus_t;
@@ -132,7 +132,7 @@ public:
   virtual ~FileSystem();
 
   //------------------------------------------------------------------------
-  // Enums
+  //! Enums
   //------------------------------------------------------------------------
 
   enum eBootStatus   { kOpsError=-2, kBootFailure=-1, kDown=0, kBootSent=1, kBooting=2, kBooted=3};
