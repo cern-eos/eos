@@ -587,7 +587,9 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
 	      try {
 		path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(*fidit)).c_str();
 	      } catch ( eos::MDException &e ) {
-		path ="EINVAL";
+		char spath[4096];
+		snprintf(spath, sizeof(spath)-1, "fsid=%u fxid=%08llx fid=%llu", it->first, *fidit, *fidit);
+		path += spath;
 	      }	      
 	      
 	      if (path.length() && fout) {
@@ -995,7 +997,8 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
               mLocalErrorFidSet[mErrorNames[3]].insert(fid);
             }
             
-            if (tokens[2] != tokens[7]) {
+	    // we only apply this if the file has not 0 size, otherwise the file has no checksum type set on disk
+            if ( (tokens[2] != tokens[7]) && (mgm_size != "0") ){
 	      {
 		XrdSysMutexHelper lock(mGlobalCounterLock);
 		n_error_fst_disk_fmd_checksum_differ++;

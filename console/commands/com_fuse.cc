@@ -115,16 +115,16 @@ com_fuse (char* arg1) {
       env += " EOS_READAHEADSIZE=";
       env += getenv("EOS_READAHEADSIZE");
     } else {
-      setenv("EOS_READAHEADSIZE","4000000",1);
-      env += " EOS_READAHEADSIZE=4000000";
+      setenv("EOS_READAHEADSIZE","131072",1);
+      env += " EOS_READAHEADSIZE=131072";
     }
 
     if (getenv("EOS_READCACHESIZE")) {
       env += " EOS_READCACHESIZE=";
       env += getenv("EOS_READCACHESIZE");
     } else {
-      setenv("EOS_READCACHESIZE","16000000",1);
-      env += " EOS_READCACHESIZE=16000000";
+      setenv("EOS_READCACHESIZE","393216",1);
+      env += " EOS_READCACHESIZE=393216";
     }
     
     fprintf(stderr,"===> xrootd ra    : %s\n", getenv("EOS_READAHEADSIZE"));

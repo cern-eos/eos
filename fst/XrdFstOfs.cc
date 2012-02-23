@@ -140,6 +140,10 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   eos::fst::Config::gConfig.autoBoot = false;
 
   eos::fst::Config::gConfig.FstOfsBrokerUrl = "root://localhost:1097//eos/";
+  
+  if (getenv("EOS_BROKER_URL")) {
+    eos::fst::Config::gConfig.FstOfsBrokerUrl = getenv("EOS_BROKER_URL");
+  }
 
   eos::fst::Config::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
 
@@ -854,7 +858,6 @@ XrdFstOfsFile::open(const char                *path,
 int
 XrdFstOfsFile::closeofs()
 {
-  EPNAME("closeofs");
   int rc = 0;
 
   // ------------------------------------------------------------------------
@@ -863,7 +866,8 @@ XrdFstOfsFile::closeofs()
   if (fstBlockXS) {
     struct stat statinfo;
     if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
-      rc = gOFS.Emsg(epname,error, EIO, "close - cannot stat closed file to determine file size",Path.c_str());
+      eos_warning("close - cannot stat closed file %s- probably already unlinked!", Path.c_str());
+      return XrdOfsFile::close();
     }
 
     if (!rc) {
@@ -1245,12 +1249,7 @@ XrdFstOfsFile::close()
 	      if (!retc) {
 		eos_debug("<rem> returned retc=%d", retc);
 	      }
-	      rc = SFS_ERROR;
-	      
-	      if (fstBlockXS) {
-		// delete also the block checksum file
-		fstBlockXS->UnlinkXSPath();
-	      }
+	      deleteOnClose=true; 
 	    }
 	  }    
 	} 

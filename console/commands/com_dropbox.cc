@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "common/Path.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Dropbox interface */
@@ -31,7 +32,15 @@ com_dropbox (char *arg) {
   XrdOucTokenizer subtokenizer(arg);
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
-  
+
+  XrdOucString homedirectory=getenv("HOME");
+  XrdOucString configdirectory = homedirectory + "/.eosdropboxd";
+      
+  if (!getenv("HOME")) {
+    fprintf(stderr,"error: your HOME environment variable is not defined - I need that!\n");
+    global_retc = -1;
+    return (0);
+  }
   if ( (subcommand.find("--help")!=STR_NPOS) || (subcommand.find("-h")!=STR_NPOS))
     goto com_dropbox_usage;
   
@@ -40,13 +49,75 @@ com_dropbox (char *arg) {
   }
   
   if (subcommand == "add") {
+    XrdOucString remotedir = subtokenizer.GetToken();
+    XrdOucString localdir  = subtokenizer.GetToken();
 
+    if (localdir.beginswith("/eos")) {
+      fprintf(stderr,"error: the local directory can not start with /eos!\n");
+      global_retc = -1;
+      return (0);      
+    }
+
+    if (!remotedir.beginswith("/eos")) {
+      fprintf(stderr,"error: the remote directory has to start with /eos!\n");
+      global_retc = -1;
+      return (0);      
+    }
+
+    if ((!remotedir.endswith("/dropbox/") && (!remotedir.endswith("/dropbox")))) {
+      fprintf(stderr,"error: your remote directory has to be named '/dropbox'\n");
+      global_retc = -1;
+      return (0);
+    }
+
+    XrdOucString configdummy = configdirectory + "/dummy";
+    eos::common::Path cPath(configdummy.c_str());
+    if (!cPath.MakeParentPath(S_IRUSR | S_IWUSR)) {
+      fprintf(stderr,"error: cannot create %s\n", configdirectory.c_str());
+      global_retc = -EPERM;
+      return (0);
+    }
+    
+    XrdOucString localdirdummy = localdir + "/dummy";
+    eos::common::Path lPath(localdirdummy.c_str());
+    if ( (!lPath.MakeParentPath(S_IRUSR | S_IWUSR)) || (access(localdir.c_str(),W_OK|X_OK))) {
+      fprintf(stderr,"error: cannot access %s\n", localdirdummy.c_str());
+      global_retc = -EPERM;
+      return (0);
+    }
+
+    XrdOucString localdircontracted = localdir;
+    while (localdircontracted.replace("/","::")) {}
+
+    XrdOucString newconfigentry = configdirectory + "/";
+    newconfigentry += localdircontracted;
+
+    struct stat buf;
+    if (!stat(newconfigentry.c_str(), &buf)) {
+      fprintf(stderr,"error: there is already a configuration for the local directory %s\n", localdir.c_str());
+      global_retc = EEXIST;
+      return (0);
+    }
+
+    // we store the remote dir configuration in the target of a symlink!
+    if (symlink(remotedir.c_str(),newconfigentry.c_str())) {
+      fprintf(stderr,"error: failed to symlink the new configuration entry %s\n", localdir.c_str());
+      global_retc = errno;
+      return (0);
+    }
+    
+    fprintf(stderr,"success: created dropbox configuration from %s |==> %s\n", remotedir.c_str(), localdir.c_str());
     global_retc = 0;
     return (0);
   }
 
   if (subcommand == "start") {
-
+    XrdOucString resync = subtokenizer.GetToken();    
+    if (resync.length()) {
+      system("eosdropboxd --resync");
+    } else {
+      system("eosdropboxd");
+    }
     global_retc = 0;
     return (0);
   }
@@ -58,13 +129,37 @@ com_dropbox (char *arg) {
   }
 
   if (subcommand == "stop") {
-    
+    system("pkill -15 eosdropboxd >& /dev/null");
     global_retc = 0;
     return (0);
   }
 
   if (subcommand == "ls") {
-    
+    DIR* dir = opendir(configdirectory.c_str());
+    if (!dir) {
+      fprintf(stderr,"error: cannot opendir %s\n", configdirectory.c_str());
+      global_retc = errno;
+      return (0);
+    }
+    struct dirent* entry=0;
+    while ( (entry = readdir(dir))) {
+      XrdOucString sentry = entry->d_name;
+      XrdOucString configentry= configdirectory; configentry += "/";
+      if ( (sentry == ".")  || (sentry == "..") ) {
+	continue;
+      }
+      configentry += sentry;
+      char buffer[4096];
+      ssize_t nr = readlink(configentry.c_str(), buffer, sizeof(buffer));
+      if (nr < 0) {
+	fprintf(stderr,"error: unable to read link %s errno=%d\n", configentry.c_str(), errno);
+      } else {
+	buffer[nr] = 0;
+	while (sentry.replace("::","/")) {}
+	fprintf(stdout,"[sync] %32s |==> %-32s\n", buffer, sentry.c_str());
+      }
+    }
+    closedir(dir);
     global_retc = 0;
     return (0);
   }
@@ -78,10 +173,10 @@ com_dropbox (char *arg) {
   fprintf(stdout,"                                                  add drop box configuration to synchronize from <eos-dir> to <local-dir>!\n");
   fprintf(stdout,"dropbox rm <eos-dir>                :\n");
   fprintf(stdout,"                                                  remove drop box configuration to synchronize from <eos-dir>!\n");
-  fprintf(stdout,"dropbox start [<eos-dir>]           :\n");
-  fprintf(stdout,"                                                  start the drop box daemon for <eos-dir>. If no directory is specified all configured directories will be started!\n");
-  fprintf(stdout,"dropbox stop [<eos-dir>]            :\n");
-  fprintf(stdout,"                                                  stop the drop box daemon for <eos-dir>. If no directory is specified all configured directories will be stopped!\n");
+  fprintf(stdout,"dropbox start [--resync]             :\n");
+  fprintf(stdout,"                                                  start the drop box daemon for all configured dropbox directories! If the --resync flag is given, the local directory is resynced from scratch from the remote directory!");
+  fprintf(stdout,"dropbox stop                        :\n");
+  fprintf(stdout,"                                                  stop the drop box daemon for all configured dropbox directories!\n");
   fprintf(stdout,"dropbox ls                          :\n");
   fprintf(stdout,"                                                  list configured drop box daemons and their status\n");
   return (0);

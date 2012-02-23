@@ -380,7 +380,6 @@ int
 XrdMqOfsFile::close() {
   EPNAME("close");
 
-  XrdOfsFile::close();
   if (!IsOpen) 
     return SFS_OK;
 
@@ -515,11 +514,6 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
   const char *val;
   int  cfgFD;
 
-  int rc = XrdOfs::Configure(Eroute);
-
-  if (rc)
-    return rc;
-
   StatisticsFile = "/var/log/eos/mq/proc/stats";
 
 
@@ -617,7 +611,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
   XrdOucString basestats = StatisticsFile;
   basestats.erase(basestats.rfind("/"));
   XrdOucString mkdirbasestats="mkdir -p "; mkdirbasestats += basestats; mkdirbasestats += " 2>/dev/null";
-  rc = system(mkdirbasestats.c_str());
+  int rc = system(mkdirbasestats.c_str());
   if (rc) { fprintf(stderr,"error {%s/%s/%d}: system command failed;retc=%d", __FUNCTION__,__FILE__, __LINE__,WEXITSTATUS(rc)); }
 
   BrokerId = "root://";

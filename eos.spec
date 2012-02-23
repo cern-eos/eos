@@ -4,8 +4,8 @@
 
 Summary: The EOS project
 Name: eos
-Version: 0.1.1
-Release: 18
+Version: 0.1.3
+Release: 1
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -143,6 +143,7 @@ Group: Applications/File
 The EOS shell client.
 %files -n eos-client
 /usr/bin/eos
+/usr/bin/eosdropboxd
 /usr/bin/eosfstcp
 ############################
 # documentation

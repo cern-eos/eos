@@ -44,6 +44,7 @@ int com_cp_usage() {
   fprintf(stdout,"       -S              : print summary\n");
   fprintf(stdout,"       -s --silent     : no output just return code\n");
   fprintf(stdout,"       -d              : enable debug information\n");
+  fprintf(stdout,"   -k | --no-overwrite : disable overwriting of files\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Remark: \n");
   fprintf(stdout,"       If you deal with directories always add a '/' in the end of source or target paths e.g. if the target should be a directory and not a file put a '/' in the end. To copy a directory hierarchy use '-r' and source and target directories terminated with '/' !\n");
@@ -85,6 +86,8 @@ com_cp (char* argin) {
   bool debug = false;
   bool checksums = false;
   bool silent = false;
+  bool nooverwrite = false;
+
   unsigned long long copysize=0;
   int retc=0;
   int copiedok=0;
@@ -121,17 +124,21 @@ com_cp (char* argin) {
 		if ( (option == "-s") || (option == "--silent")) {
 		  silent = true;
 		} else {
-		  if ( option == "--checksum" ) {
-		    checksums=true;
+		  if ( (option == "-k") || (option == "--no-overwrite")) {
+		    nooverwrite = true;
 		  } else {
-		    if ( option == "-d") {
-		      debug =true; 
+		    if ( option == "--checksum" ) {
+		      checksums=true;
 		    } else {
-		      if (option.beginswith("-")) {
-			return com_cp_usage();
+		      if ( option == "-d") {
+			debug =true; 
 		      } else {
-		      source_list.push_back(option.c_str());
-		      break;
+			if (option.beginswith("-")) {
+			  return com_cp_usage();
+			} else {
+			  source_list.push_back(option.c_str());
+			  break;
+			}
 		      }
 		    }
 		  }
@@ -143,6 +150,9 @@ com_cp (char* argin) {
       }
     }
   } while(1);
+
+  if (silent) 
+    noprogress = true;
 
   nextarg=subtokenizer.GetToken();
   lastarg=subtokenizer.GetToken();
@@ -177,7 +187,7 @@ com_cp (char* argin) {
     source_list.clear();
     for (size_t l =0; l< source_find_list.size(); l++) {
       // one wildcard file or directory
-      if ( ((source_find_list[l].endswith("*") != STR_NPOS ) || (source_find_list[0].endswith("/")))) {
+      if ( (source_find_list[l].endswith("*") || (source_find_list[0].endswith("/")))) {
 	arg1 = source_find_list[l];
 	// translate the wildcard
 	if ( (arg1.endswith("*") != STR_NPOS ) || (arg1.endswith("/")) ) {
@@ -255,7 +265,11 @@ com_cp (char* argin) {
 	    }
 	    pclose(fp);
 	  }
+	} else {
+	  source_list.push_back(arg1.c_str());
 	}
+      } else {
+	source_list.push_back(source_find_list[l].c_str());
       }
     }
   } else {
@@ -299,14 +313,25 @@ com_cp (char* argin) {
   }
 
   // create the target directory if it is a local one
-  if ((!target.beginswith("/eos"))&& (target.endswith("/"))) {
-    XrdOucString mktarget = "mkdir -p "; mktarget += target.c_str();
-    system(mktarget.c_str());
-    if (access(target.c_str(), R_OK|W_OK)) {
-      fprintf(stderr,"error: cannot create/access your target directory!\n");
-      exit(0);
+  if ((!target.beginswith("/eos"))) {
+    if (target.endswith("/")) {
+      XrdOucString mktarget = "mkdir --mode 755 -p "; mktarget += target.c_str();
+      system(mktarget.c_str());
+      if (access(target.c_str(), R_OK|W_OK)) {
+	fprintf(stderr,"error: cannot create/access your target directory!\n");
+	exit(0);
+      }
+    } else {
+      eos::common::Path cTarget(target.c_str());
+      XrdOucString mktarget = "mkdir --mode 755 -p "; mktarget += cTarget.GetParentPath();
+      system(mktarget.c_str());
+      if (access(cTarget.GetParentPath(), R_OK|W_OK)) {
+	fprintf(stderr,"error: cannot create/access your target directory!\n");
+	exit(0);
+      }
     }
   }
+  
 
   // compute the size to copy
   std::vector<std::string> file_info;
@@ -385,6 +410,25 @@ com_cp (char* argin) {
       snprintf(targetadd,sizeof(targetadd)-1,"\\?eos.targetsize=%llu\\&eos.bookingsize=%llu", source_size[nfile], source_size[nfile]);
       arg2.append(targetadd);
     }
+
+    if (nooverwrite) {
+      struct stat buf;
+      // check if target exists
+      if (targetfile.beginswith("/eos/")) {
+	XrdOucString url=serveruri.c_str();
+	url+="/";
+	url+= targetfile;
+	if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
+	  fprintf(stderr,"error: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
+	  continue;
+	}
+      } else {
+	if (!stat(targetfile.c_str(), &buf)) {
+	  fprintf(stderr,"error: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
+	  continue;
+	}
+      }
+    }
     
     if (interactive) {
       if (!arg1.beginswith("/")) {
@@ -407,12 +451,12 @@ com_cp (char* argin) {
     if(debug)fprintf(stderr,"[eos-cp] running: %s\n", cmdline.c_str());
     int lrc=system(cmdline.c_str());
     // check the target size
-    if (source_list[nfile].beginswith("/eos/")) {
+    if (targetfile.beginswith("/eos/")) {
       struct stat buf;
       buf.st_size=0;
       XrdOucString url=serveruri.c_str();
       url+="/";
-      url+= source_list[nfile];
+      url+= targetfile;
       if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
 	if (buf.st_size != (int)source_size[nfile]) {
 	  fprintf(stderr,"error: filesize differ between source and target file!\n");
@@ -425,7 +469,7 @@ com_cp (char* argin) {
     } else {
       struct stat buf;
       buf.st_size=0;
-      if (!stat(source_list[nfile].c_str(), &buf)) {
+      if (!stat(targetfile.c_str(), &buf)) {
 	if (buf.st_size != (int)source_size[nfile]) {
 	  fprintf(stderr,"error: filesize differ between source and target file!\n");
 	  lrc = 0xffff00;
@@ -464,6 +508,8 @@ com_cp (char* argin) {
   float crate   = (copiedsize *1.0 / passed);
   XrdOucString sizestring="";
   XrdOucString sizestring2="";
-  if (!silent) fprintf(stderr,"[eos-cp] copied %d/%d files and %s in %.02f seconds with %s\n", copiedok, (int)source_list.size(), eos::common::StringConversion::GetReadableSizeString(sizestring, copiedsize, "B"), passed, eos::common::StringConversion::GetReadableSizeString(sizestring2, (unsigned long long)crate,"B/s"));
+  XrdOucString warningtag="";
+  if (retc) warningtag="#WARNING ";
+  if (!silent) fprintf(stderr,"%s[eos-cp] copied %d/%d files and %s in %.02f seconds with %s\n", warningtag.c_str(),copiedok, (int)source_list.size(), eos::common::StringConversion::GetReadableSizeString(sizestring, copiedsize, "B"), passed, eos::common::StringConversion::GetReadableSizeString(sizestring2, (unsigned long long)crate,"B/s"));
   exit(WEXITSTATUS(retc));
 }
