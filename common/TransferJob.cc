@@ -34,7 +34,7 @@ EOSCOMMONNAMESPACE_BEGIN
  * Constructor
  * 
  * @param description string describing a transfer
- *
+ */
 /*----------------------------------------------------------------------------*/
 TransferJob::TransferJob(const char* description)
 {

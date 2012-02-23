@@ -97,8 +97,6 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId {
   friend class eos::fst::ReplicaParLayout;
   friend class eos::fst::PlainLayout;
   friend class eos::fst::Raid5Layout;
-  friend class eos::fst::RaidDPLayout;
-  friend class eos::fst::ReedSLayout;
 private:
 
 public:

@@ -1,0 +1,171 @@
+// ----------------------------------------------------------------------
+// File: HeaderCRC.cc
+// Author: Elvin-Alin Sindrilaru - CERN
+// ----------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2011 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
+/*----------------------------------------------------------------------------*/
+#include "fst/io/HeaderCRC.hh"
+/*----------------------------------------------------------------------------*/
+
+EOSFSTNAMESPACE_BEGIN
+
+/*----------------------------------------------------------------------------*/
+//default constructor
+HeaderCRC::HeaderCRC()
+{
+  idStripe = -1;
+  noBlocks = -1;
+  sizeLastBlock = -1;
+  valid = true;
+}
+
+
+/*----------------------------------------------------------------------------*/
+//constructor
+HeaderCRC::HeaderCRC(long int noblocks)
+{
+  strcpy(tag, HEADER);
+  noBlocks = noblocks;
+  sizeLastBlock = -1;
+  idStripe = -1;
+  valid = true;
+}
+
+
+/*----------------------------------------------------------------------------*/
+//destructor
+HeaderCRC::~HeaderCRC()
+{
+  //empty
+}
+
+
+/*----------------------------------------------------------------------------*/
+//read the header from the file via XrdPosixXrootd
+bool HeaderCRC::readFromFile(int fd)
+{
+  unsigned int ret;
+  long int offset = 0;
+  char* buff = (char*)calloc(sizeHeader, sizeof(char));
+
+  eos_debug("HeaderCRC::ReadFromFile: offset: %li, sizeHeader: %i \n", offset, sizeHeader);
+
+  ret = XrdPosixXrootd::Pread(fd, buff, sizeHeader, offset);
+  if ((!ret) || (ret != sizeHeader)) {
+    free(buff);
+    valid = false;
+    return false;
+  }
+ 
+  memcpy(tag, buff, sizeof tag);
+  if (strncmp(tag, HEADER, strlen(HEADER))){
+    free(buff);
+    valid = false;
+    return false;
+  }
+
+  offset += sizeof tag;
+  memcpy(&idStripe, buff + offset, sizeof idStripe);
+  offset += sizeof idStripe;
+  memcpy(&noBlocks, buff + offset, sizeof noBlocks);
+  offset += sizeof noBlocks;
+  memcpy(&sizeLastBlock, buff + offset, sizeof sizeLastBlock);
+
+  free(buff);
+  valid = true;
+  return true;
+}
+
+
+/*----------------------------------------------------------------------------*/
+//write the header to the file via XrdPosixXrootd
+int HeaderCRC::writeToFile(int fd)
+{
+  size_t nwrite;
+  int offset = 0;
+  char* buff = (char*) calloc(sizeHeader, sizeof(char));
+
+  memcpy(buff + offset, HEADER, sizeof tag);
+  offset += sizeof tag;
+  memcpy(buff + offset, &idStripe, sizeof idStripe);
+  offset += sizeof idStripe;
+  memcpy(buff + offset, &noBlocks, sizeof noBlocks);
+  offset += sizeof noBlocks;
+  memcpy(buff + offset, &sizeLastBlock, sizeof sizeLastBlock);
+  offset += sizeof sizeLastBlock;
+  memset(buff + offset, 0, sizeHeader - offset);
+
+  nwrite = XrdPosixXrootd::Pwrite(fd, buff, sizeHeader, 0); 
+  if (nwrite != sizeHeader) {
+    free(buff);
+    valid = false;
+    return -1;
+  }
+    
+  free(buff);
+  valid = true;
+  return 0;
+}
+
+
+/*----------------------------------------------------------------------------*/
+char*
+HeaderCRC::getTag() { return tag; }
+
+/*----------------------------------------------------------------------------*/
+int
+HeaderCRC::getSize() const { return sizeHeader; }
+
+/*----------------------------------------------------------------------------*/
+long int
+HeaderCRC::getNoBlocks() const { return noBlocks; }
+
+/*----------------------------------------------------------------------------*/
+size_t
+HeaderCRC::getSizeLastBlock() const { return sizeLastBlock; } 
+
+/*----------------------------------------------------------------------------*/
+unsigned int
+HeaderCRC::getIdStripe() const { return idStripe; }
+
+/*----------------------------------------------------------------------------*/
+void
+HeaderCRC::setNoBlocks(long int nblocks) { noBlocks = nblocks; }
+
+/*----------------------------------------------------------------------------*/
+void
+HeaderCRC::setSizeLastBlock(size_t sizelastblock) { sizeLastBlock = sizelastblock; }
+
+/*----------------------------------------------------------------------------*/
+void
+HeaderCRC::setIdStripe(unsigned int idstripe) { idStripe = idstripe; }
+
+/*----------------------------------------------------------------------------*/
+bool
+HeaderCRC::isValid() const { return valid; }
+
+/*----------------------------------------------------------------------------*/
+void
+HeaderCRC::setState(bool state) { valid = state; }
+
+/*----------------------------------------------------------------------------*/
+
+EOSFSTNAMESPACE_END

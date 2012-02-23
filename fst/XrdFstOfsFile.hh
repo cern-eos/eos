@@ -49,8 +49,6 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId {
   friend class ReplicaLayout;
   friend class ReplicaParLayout;
   friend class Raid5Layout;
-  friend class RaidDPLayout;
-  friend class ReedSLayout;
 
 public:
   int          openofs(const char                *fileName,
