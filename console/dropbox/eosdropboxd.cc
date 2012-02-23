@@ -121,7 +121,6 @@ int main(int argc, char* argv[])
   XrdOucString syskill = "kill -15 `pgrep -f eosdropboxd -U ";
   syskill += (int) getuid();
   syskill += " | grep -v grep | grep -v "; syskill += (int) getpid(); syskill += " | awk '{printf(\"%s \",$1)}' `";
-  fprintf(stderr,"%s\n", syskill.c_str());
   eos_static_debug("system: %s", syskill.c_str());
   system(syskill.c_str());
   
@@ -412,6 +411,7 @@ int main(int argc, char* argv[])
 	  if (touch(localpath.c_str(),newmtime)) {
 	    eos_static_err("[touch] failed to update local file %s", localpath.c_str());
 	  }
+	  pclose(mfile);
 	}
 	
 	if (action == "download") {
@@ -539,6 +539,7 @@ int main(int argc, char* argv[])
     }
     counter++;
     sleep(10);
+
     resync = false;
   } while (1);
 
