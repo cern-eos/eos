@@ -36,6 +36,7 @@
 #include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 /*----------------------------------------------------------------------------*/
 #include <stdio.h>
 #define _MULTI_THREADED
@@ -55,6 +56,9 @@ private:
   pthread_rwlockattr_t   attr;
   struct timespec        wlocktime;
   bool                   blocking;
+
+  ssize_t                readLockCounter;
+  ssize_t                writeLockCounter;
 
 public:
   // ---------------------------------------------------------------------------
@@ -87,6 +91,7 @@ public:
   //! Lock for read
   // ---------------------------------------------------------------------------
   void LockRead() {
+    AtomicInc(readLockCounter);
     if (pthread_rwlock_rdlock(&rwlock)) { throw "pthread_rwlock_rdlock failed";}
   }
   
@@ -100,6 +105,7 @@ public:
   //! Lock for write
   // ---------------------------------------------------------------------------
   void LockWrite() {
+    AtomicInc(writeLockCounter);
     if (blocking) {
     // a blocking mutex is just a normal lock for write
       if (pthread_rwlock_wrlock(&rwlock)) { throw "pthread_rwlock_rdlock failed";}
@@ -136,6 +142,22 @@ public:
   void UnLockWrite() { 
     if (pthread_rwlock_unlock(&rwlock)) { throw "pthread_rwlock_unlock failed";}
   }
+
+  // ---------------------------------------------------------------------------
+  //! Get Readlock Counter
+  // ---------------------------------------------------------------------------
+  ssize_t GetReadLockCounter() {
+    return AtomicGet(readLockCounter);
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Get Writelock Counter
+  // ---------------------------------------------------------------------------
+  ssize_t GetWriteLockCounter() {
+    return AtomicGet(writeLockCounter);
+  }
+
+
 };
 
 /*----------------------------------------------------------------------------*/

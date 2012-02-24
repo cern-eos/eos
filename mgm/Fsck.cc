@@ -578,11 +578,12 @@ Fsck::Report(XrdOucString &out,  XrdOucString &err, XrdOucString option, XrdOucS
 	google::sparse_hash_map<eos::common::FileSystem::fsid_t,unsigned long long>::const_iterator it;
 	for (it = mFsidErrorMap[mErrorNames[i]].begin(); it != mFsidErrorMap[mErrorNames[i]].end(); it ++) {
 	  if (it->second) {
+	    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+
 	    google::sparse_hash_set<unsigned long long>::const_iterator fidit;
 	    for (fidit = mFsidErrorFidSet[mErrorNames[i]][it->first].begin(); fidit != mFsidErrorFidSet[mErrorNames[i]][it->first].end(); fidit++) {
 	      XrdOucString sizestring;
 	      //-------------------------------------------
-	      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 	      XrdOucString path="";
 	      try {
 		path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(*fidit)).c_str();
