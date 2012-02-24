@@ -1082,6 +1082,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("HashSet",0,0,0);
   gOFS->MgmStats.Add("HashSetNoLock",0,0,0);
   gOFS->MgmStats.Add("HashGet",0,0,0);
+  
+  gOFS->MgmStats.Add("ViewLockR",0,0,0);
+  gOFS->MgmStats.Add("ViewLockW",0,0,0);
+  gOFS->MgmStats.Add("NsLockR",0,0,0);
+  gOFS->MgmStats.Add("NsLockW",0,0,0);
 
   gOFS->MgmStats.Add("Access",0,0,0);
   gOFS->MgmStats.Add("AttrGet",0,0,0);
