@@ -364,7 +364,7 @@ ReedSFile::computeDataBlocksParity(off_t offsetGroup)
   TIMING("WriteParity",&up);     
 
   fullDataBlocks = false;
-  up.Print();
+  //  up.Print();
 }
 
 
