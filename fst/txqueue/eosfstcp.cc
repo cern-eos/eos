@@ -46,7 +46,7 @@
 #include "fst/checksum/ChecksumPlugins.hh"
 
 #define PROGRAM "eosfstcp"
-#define DEFAULTBUFFERSIZE 1024*1024
+#define DEFAULTBUFFERSIZE 1*1024*1024
 
 #define XROOTID      0x2
 #define RAIDIOID     0x1
@@ -567,6 +567,13 @@ int main(int argc, char* argv[]) {
       new XrdPosixXrootd();
       XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,0l);
       XrdPosixXrootd::setEnv(NAME_READCACHESIZE,0l);
+      if (debug)
+        XrdPosixXrootd::setEnv(NAME_DEBUG, 10);
+    }
+    if (did[i] == RAIDIOID) {
+      new XrdPosixXrootd();
+      XrdPosixXrootd::setEnv(NAME_READAHEADSIZE, buffersize*3);
+      XrdPosixXrootd::setEnv(NAME_READCACHESIZE, buffersize*6);
       if (debug)
         XrdPosixXrootd::setEnv(NAME_DEBUG, 10);
     }
