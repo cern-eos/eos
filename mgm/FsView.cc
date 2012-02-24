@@ -1250,20 +1250,19 @@ BaseView::SumLongLong(const char* param, bool lock)
   for (it=begin(); it != end(); it++) {
 
     eos::common::FileSystem::fs_snapshot snapshot;
-    FsView::gFsView.mIdView[*it]->SnapShotFileSystem(snapshot);
-
+    
     // for query sum's we always fold in that a group and host has to be enabled
     if  ((!key.length()) || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value) ) {
-      if (isquery && ( (!snapshot.mActiveStatus) || ( snapshot.mStatus != eos::common::FileSystem::kBooted)))
+      if (isquery && ( (!eos::common::FileSystem::GetActiveStatusFromString(FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())) || 
+		       ( eos::common::FileSystem::GetStatusFromString(FsView::gFsView.mIdView[*it]->GetString("stat.boot").c_str()) != eos::common::FileSystem::kBooted)))
         continue;
-
+      
       long long v =  FsView::gFsView.mIdView[*it]->GetLongLong(sparam.c_str());
       if (isquery && v && (sparam == "stat.statfs.capacity")) {
 	// correct the capacity(rw) value for headroom
-	v -= snapshot.mHeadRoom;
+	v -= FsView::gFsView.mIdView[*it]->GetLongLong("headroom");
       }
       sum += v;
-
     }
   }
 

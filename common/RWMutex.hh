@@ -21,6 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   RWMutex.hh
+ * 
+ * @brief  Class implementing a fair read-write Mutex.
+ * 
+ * 
+ */
+
 #ifndef __EOSCOMMON_RWMUTEX_HH__
 #define __EOSCOMMON_RWMUTEX_HH__
 
@@ -28,18 +36,19 @@
 #include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 /*----------------------------------------------------------------------------*/
 #include <stdio.h>
 #define _MULTI_THREADED
 #include <pthread.h>
 /*----------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------------*/
-/* THIS CLASS IMPLEMENTS A FAIR RW MUTEX                                      */
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+//! Class implements a faire rw mutex prefering writers
+/*----------------------------------------------------------------------------*/
 class RWMutex  
 {
 private:
@@ -48,32 +57,61 @@ private:
   struct timespec        wlocktime;
   bool                   blocking;
 
+  ssize_t                readLockCounter;
+  ssize_t                writeLockCounter;
+
 public:
+  // ---------------------------------------------------------------------------
+  //! Constructor
+  // ---------------------------------------------------------------------------
   RWMutex() {
+    // by default we are not a blocking write mutex
     blocking = false;
-    wlocktime.tv_sec=5; // try to get write lock in 5 seconds, then release quickly and retry
+    // try to get write lock in 5 seconds, then release quickly and retry
+    wlocktime.tv_sec=5; 
     wlocktime.tv_nsec=0;
+    // readers don't go ahead of writers!
     if (pthread_rwlockattr_setkind_np(&attr,PTHREAD_RWLOCK_PREFER_WRITER_NP)) { throw "pthread_rwlockattr_setkind_np failed";}
     if (pthread_rwlockattr_setpshared(&attr,PTHREAD_PROCESS_SHARED)){ throw "pthread_rwlockattr_setpshared failed";}
     if (pthread_rwlock_init(&rwlock, &attr)) {throw "pthread_rwlock_init failed";}}
+
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   ~RWMutex() {}
 
+  // ---------------------------------------------------------------------------
+  //! Set the write lock to blocking or not blocking
+  // ---------------------------------------------------------------------------
   void SetBlocking(bool block) {
     blocking = block;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Lock for read
+  // ---------------------------------------------------------------------------
   void LockRead() {
+    AtomicInc(readLockCounter);
     if (pthread_rwlock_rdlock(&rwlock)) { throw "pthread_rwlock_rdlock failed";}
   }
   
+  // ---------------------------------------------------------------------------
+  //! Unlock a read lock
   void UnLockRead() { 
     if (pthread_rwlock_unlock(&rwlock)) { throw "pthread_rwlock_unlock failed";}
   }
   
+  // ---------------------------------------------------------------------------
+  //! Lock for write
+  // ---------------------------------------------------------------------------
   void LockWrite() {
+    AtomicInc(writeLockCounter);
     if (blocking) {
+    // a blocking mutex is just a normal lock for write
       if (pthread_rwlock_wrlock(&rwlock)) { throw "pthread_rwlock_rdlock failed";}
     } else {
+      // a non-blocking mutex tries for few seconds to write lock, then releases
+      // this has the side effect, that it allows dead locked readers to jump ahead the lock queue
       while (1) {
 	int rc = pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
 	if ( rc ) {
@@ -91,36 +129,78 @@ public:
     }
   }
 
+  // ---------------------------------------------------------------------------
+  //! Lock for write but give up after wlocktime
+  // ---------------------------------------------------------------------------
   int TimeoutLockWrite() {
     return pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
   }
   
+  // ---------------------------------------------------------------------------
+  //! Unlock a write lock
+  // ---------------------------------------------------------------------------
   void UnLockWrite() { 
     if (pthread_rwlock_unlock(&rwlock)) { throw "pthread_rwlock_unlock failed";}
   }
+
+  // ---------------------------------------------------------------------------
+  //! Get Readlock Counter
+  // ---------------------------------------------------------------------------
+  ssize_t GetReadLockCounter() {
+    return AtomicGet(readLockCounter);
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Get Writelock Counter
+  // ---------------------------------------------------------------------------
+  ssize_t GetWriteLockCounter() {
+    return AtomicGet(writeLockCounter);
+  }
+
+
 };
 
-
-class RWMutexWriteLock
+/*----------------------------------------------------------------------------*/
+//! Class implementing a monitor for write locking
+/*----------------------------------------------------------------------------*/class RWMutexWriteLock
 {
 private:
   RWMutex* Mutex;
 
 public:
+  // ---------------------------------------------------------------------------
+  //! Constructor
+  // ---------------------------------------------------------------------------
   RWMutexWriteLock(RWMutex &mutex) { Mutex = &mutex; Mutex->LockWrite();}
+
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   ~RWMutexWriteLock() { Mutex->UnLockWrite();}
 };
 
+/*----------------------------------------------------------------------------*/
+//! Class implementing a monitor for read locking
+/*----------------------------------------------------------------------------*/
 class RWMutexReadLock
 {
 private:
   RWMutex* Mutex;
 
 public:
+  // ---------------------------------------------------------------------------
+  //! Constructor
+  // ---------------------------------------------------------------------------
+  
   RWMutexReadLock(RWMutex &mutex) { Mutex = &mutex; Mutex->LockRead();}
+
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   ~RWMutexReadLock() { Mutex->UnLockRead();}
 };
 
+/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 
 #endif

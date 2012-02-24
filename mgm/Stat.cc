@@ -24,6 +24,8 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Mapping.hh"
 #include "mgm/Stat.hh"
+#include "mgm/FsView.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "mq/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -366,6 +368,14 @@ Stat::Circulate()
   unsigned long long l2=0;
   unsigned long long l3=0;
   unsigned long long l1tmp,l2tmp,l3tmp;
+
+  unsigned long long ns1=0;
+  unsigned long long ns2=0;
+  unsigned long long view1=0;
+  unsigned long long view2=0;
+
+  unsigned long long ns1tmp,ns2tmp,view1tmp,view2tmp;
+
   // empty the circular buffer and extract some Mq statistic values
   while(1) {
     usleep(512345);
@@ -375,13 +385,31 @@ Stat::Circulate()
     l2tmp = XrdMqSharedHash::SetNLCounter;
     l3tmp = XrdMqSharedHash::GetCounter;
 
+    // fsview statistics extraction
+    view1tmp = FsView::gFsView.ViewMutex.GetReadLockCounter();
+    view2tmp = FsView::gFsView.ViewMutex.GetWriteLockCounter();
+
+    // namespace lock statistics extraction
+    ns1tmp = gOFS->eosViewRWMutex.GetReadLockCounter();
+    ns2tmp = gOFS->eosViewRWMutex.GetWriteLockCounter();
+    
     Add("HashSet"  ,0,0,l1tmp-l1);
     Add("HashSetNoLock",0,0,l2tmp-l2);
     Add("HashGet"  ,0,0,l3tmp-l3);
 
+    Add("ViewLockR",0,0,view1tmp-view1);
+    Add("ViewLockW",0,0,view2tmp-view2);
+    Add("NsLockR",0,0,ns1tmp-ns1);
+    Add("NsLockW",0,0,ns2tmp-ns2);
+
     l1 = l1tmp;
     l2 = l2tmp;
     l3 = l3tmp;
+    view1 = view1tmp;
+    view2 = view2tmp;
+    ns1 = ns1tmp;
+    ns2 = ns2tmp;
+
     // --------------------------------------------
 
     Mutex.Lock();

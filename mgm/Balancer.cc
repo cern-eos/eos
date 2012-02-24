@@ -127,7 +127,6 @@ Balancer::Balance(void)
 	    std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
 	    totalfiles = 0;
 	    for (it = (*git)->begin(); it != (*git)->end();it++) {
-	      eos::common::FileSystem::fs_snapshot snapshot;
 	      eos::common::FileSystem* fs = FsView::gFsView.mIdView[*it];
 	      
 	      if (FsView::gFsView.mIdView.count(*it)) {
@@ -135,11 +134,11 @@ Balancer::Balance(void)
 	      }
 	      
 	      if (fs) {
-		fs->SnapShotFileSystem(snapshot);
-		if ( ( (snapshot.mConfigStatus == eos::common::FileSystem::kDrain) || (snapshot.mConfigStatus == eos::common::FileSystem::kDrainDead) ) ) {
+		eos::common::FileSystem::fsstatus_t configstatus = fs->GetConfigStatus();
+		if ( ( (configstatus == eos::common::FileSystem::kDrain) || (configstatus == eos::common::FileSystem::kDrainDead) ) ) {
 		  hasdrainjob = true;
 		}
-	      }
+	    }
 
 	      // set transfer running by group
 	      char srunning[256]; snprintf(srunning, sizeof(srunning)-1, "%lu", totalfiles);
