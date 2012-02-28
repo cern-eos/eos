@@ -36,6 +36,8 @@
 
 typedef void* (*ThreadFn)(void*);
 
+class CacheImpl;
+
 class XrdFileCache
 {
 public:
@@ -81,7 +83,7 @@ private:
   std::queue<int> usedIndexQueue;                           //file indices used and available to recycle
   std::map<unsigned long, FileAbstraction*> fileInodeMap;   //map inodes to FileAbst objects
 
-  CacheImpl<long long int, CacheEntry, FileAbstraction, XrdFileCache, std::map>* cacheImpl;
+  CacheImpl* cacheImpl;
 };
 
 #endif

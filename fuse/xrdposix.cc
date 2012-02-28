@@ -1187,7 +1187,7 @@ xrd_lseek(int fildes, off_t offset, int whence, unsigned long inode)
 ssize_t
 xrd_read(int fildes, void *buf, size_t nbyte, unsigned long inode)
 {
-  eos_static_info("fd=%d nbytes=%lu inode=%lu",fildes, (unsigned long)nbyte, (unsigned long)inode);
+  eos_static_info("fd=%d nbytes=%lu inode=%lu", fildes, (unsigned long)nbyte, (unsigned long)inode);
   size_t ret;
   FileAbstraction* fAbst =0;
 

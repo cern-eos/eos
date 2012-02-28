@@ -59,8 +59,7 @@ XrdFileCache::XrdFileCache(size_t sizeMax):
 void
 XrdFileCache::Init()
 {
-  cacheImpl = new CacheImpl < long long int, CacheEntry, FileAbstraction,
-  XrdFileCache, std::map > (cacheSizeMax, this);
+  cacheImpl = new CacheImpl(cacheSizeMax, this);
 
   //start worker thread
   threadStart(writeThread, XrdFileCache::writeThreadProc);
