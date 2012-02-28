@@ -1216,7 +1216,8 @@ xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode
   eos::common::Timing xpr("xrd_pread");
   TIMING("start", &xpr);
   
-  eos_static_debug("fd=%d nbytes=%lu offset=%llu inode=%lu",fildes, (unsigned long)nbyte, (unsigned long long)offset, (unsigned long) inode);
+  eos_static_info("fd=%d nbytes=%lu offset=%llu inode=%lu",fildes, (unsigned long)nbyte, (unsigned long long)offset, (unsigned long) inode);
+ 
   size_t ret;
   FileAbstraction* fAbst =0;
 

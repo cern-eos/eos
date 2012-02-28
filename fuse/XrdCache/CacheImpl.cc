@@ -48,7 +48,8 @@ CacheImpl::CacheImpl(size_t sMax, XrdFileCache *fc):
 
 //------------------------------------------------------------------------------
 //Destructor
-CacheImpl::~CacheImpl() {
+CacheImpl::~CacheImpl()
+{
   pthread_rwlock_wrlock(&rwMapLock);
 
   for (key_map_type::iterator it = keyValueMap.begin();
@@ -82,7 +83,8 @@ CacheImpl::~CacheImpl() {
 
 //------------------------------------------------------------------------------
 void
-CacheImpl::runThreadWrites() {
+CacheImpl::runThreadWrites()
+{
   key_map_type::iterator it;
 
   while (1) {

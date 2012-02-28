@@ -1032,6 +1032,15 @@ static void eosfs_ll_flush (fuse_req_t req, fuse_ino_t ino,
 //---------------------------------------------------------------------------------------------------
 static void eosfs_ll_getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_t size) 
 {
+  //filter out specific requests
+  if ((!strcmp(xattr_name, "system.posix_acl_access")) || 
+      (!strcmp(xattr_name, "system.posix_acl_default") ||
+       (!strcmp(xattr_name, "security.capability")))) 
+  {
+    fuse_reply_err(req, ENODATA);
+    return;
+  }
+ 
   int retc = 0;
   size_t init_size = size;
   char fullpath[16384];
@@ -1045,13 +1054,6 @@ static void eosfs_ll_getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr
     fuse_reply_err(req, ENXIO);
     return;
   }
-
-  if ((!strcmp(xattr_name, "system.posix_acl_access")) || 
-      (!strcmp(xattr_name, "system.posix_acl_default"))) 
-    {
-      fuse_reply_err(req, ENODATA);
-      return;
-    }
 
   sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
   if (isdebug) fprintf(stderr, "[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
