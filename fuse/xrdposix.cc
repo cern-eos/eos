@@ -1239,7 +1239,6 @@ xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode
     else {
       eos_static_debug("Block found in cache: off=%zu, len=%zu", offset, nbyte);
       TIMING("block in cache", &xpr);
-      
     }
   } else {
     ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
@@ -1280,7 +1279,7 @@ xrd_pwrite(int fildes, const void *buf, size_t nbyte, off_t offset, unsigned lon
   size_t ret;
 
   fprintf(stderr, "xrd_pwrite:off=%zu, len=%zu \n", offset, nbyte);
-  
+
   if (XFC && inode) {
     XFC->submitWrite(inode, fildes, const_cast<void*>(buf), offset, nbyte);
     ret = nbyte;

@@ -28,7 +28,8 @@
 CacheEntry::CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstraction* ptr):
   fd(filedes),
   sizeData(len),
-  pParentFile(ptr)
+  inQueue(false),
+  pParentFile(ptr) 
 {
   off_t offsetRelative;
 
@@ -61,6 +62,7 @@ CacheEntry::doRecycle(int filedes, char* buf, off_t off, size_t len, FileAbstrac
   fd = filedes;
   offsetStart = (off / getMaxSize()) * getMaxSize();
   pParentFile = ptr;
+  inQueue = false;
 
   if (len > capacity) {
     fprintf(stderr, "error=len should never be bigger than capacity.\n");
@@ -68,7 +70,6 @@ CacheEntry::doRecycle(int filedes, char* buf, off_t off, size_t len, FileAbstrac
   }
 
   mapPieces.clear();
-  //buffer = (char*) memset(buffer, 0, capacity);
   offsetRelative = off % getMaxSize();
   buffer = (char*) memcpy(buffer + offsetRelative, buf, len);
   mapPieces.insert(std::make_pair(off, len));
@@ -225,7 +226,7 @@ CacheEntry::doWrite()
   int retc;
   off_t offsetRelative;
   std::map<off_t, size_t>::iterator iCurrent = mapPieces.begin();
-  std::map<off_t, size_t>::iterator iEnd = mapPieces.end();
+  const std::map<off_t, size_t>::iterator iEnd = mapPieces.end();
 
   for( ; iCurrent != iEnd; iCurrent++) {
     offsetRelative = iCurrent->first % getMaxSize();
@@ -238,7 +239,23 @@ CacheEntry::doWrite()
   }
 
   return 0;
-};
+}
+
+
+//------------------------------------------------------------------------------
+void
+CacheEntry::setInQueue(bool status)
+{
+  inQueue = status;
+}
+
+
+//------------------------------------------------------------------------------
+bool
+CacheEntry::isInQueue() const
+{
+  return inQueue;
+}
 
 
 //------------------------------------------------------------------------------

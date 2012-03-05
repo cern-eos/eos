@@ -39,7 +39,7 @@ public:
 
   size_t GetSize();
   void push(Data& data);
-  bool empty() const;
+  bool empty();
 
   bool try_pop(Data& popped_value);
   void wait_pop(Data& popped_value);
@@ -96,7 +96,7 @@ ConcurrentQueue<Data>::push(Data& data)
 //------------------------------------------------------------------------------
 template <typename Data>
 bool
-ConcurrentQueue<Data>::empty() const
+ConcurrentQueue<Data>::empty()
 {
   pthread_mutex_lock(&mutex);
   bool emptyState = queue.empty();

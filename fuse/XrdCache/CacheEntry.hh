@@ -42,7 +42,7 @@ public:
   CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstraction* ptr);
   ~CacheEntry();
   static const size_t getMaxSize() {
-    return 1048576;
+    return 4*1048576;
   };    //1MB=1048576 512KB=524288
 
   int    getFd() const;
@@ -59,6 +59,8 @@ public:
   size_t addPiece(char* buf, off_t off, size_t len);
   void   doRecycle(int filedes, char* buf, off_t offset, size_t lenBuf,
                    FileAbstraction* ptr);
+  bool   isInQueue() const;
+  void   setInQueue(bool isInQueue); 
 
 private:
 
@@ -67,6 +69,7 @@ private:
   size_t capacity;                   //total capcity 512 KB ~ 1MB
   size_t sizeData;                   //size of useful data
   off_t  offsetStart;                //offset relative to the file
+  bool   inQueue;                    //mark if added to the queue
 
   std::map<off_t, size_t> mapPieces; //pieces read/to be written
   FileAbstraction* pParentFile;      //pointer to parent file

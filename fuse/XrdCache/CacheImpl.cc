@@ -35,6 +35,7 @@ CacheImpl::CacheImpl(size_t sMax, XrdFileCache *fc):
 {
   recycleQueue = new ConcurrentQueue<CacheEntry*>();
   writeReqQueue = new ConcurrentQueue<key_map_type::iterator>();
+  cacheThreshold = maxPercentWrites * sizeMax;
 
   pthread_mutex_init(&mutexList, NULL);
   pthread_rwlock_init(&rwMapLock, NULL);
@@ -86,9 +87,14 @@ void
 CacheImpl::runThreadWrites()
 {
   key_map_type::iterator it;
+  eos::common::Timing rtw("runThreadWrites");
+  TIMING("start", &rtw);
+
 
   while (1) {
+    TIMING("before pop", &rtw);
     writeReqQueue->wait_pop(it);
+    TIMING("after pop", &rtw);
 
     if (it == keyValueMap.end() && killThread) {
       break;
@@ -97,6 +103,8 @@ CacheImpl::runThreadWrites()
       processWriteReq(it);
     }
   }
+
+  rtw.Print();
 }
 
 
@@ -188,6 +196,8 @@ CacheImpl::addRead(int filed, const long long int& k, char* buf, off_t off, size
         pthread_mutex_unlock(&mutexList);                //unlock list
         pthread_rwlock_unlock(&rwMapLock);               //unlock map
 
+        eos_static_debug("Waiting for writing thread to free space.");
+            
         pthread_mutex_lock(&mutexWriteDone);
         pthread_cond_wait(&condWriteDone, &mutexWriteDone);
         pthread_mutex_unlock(&mutexWriteDone);
@@ -222,19 +232,23 @@ CacheImpl::addRead(int filed, const long long int& k, char* buf, off_t off, size
 void
 CacheImpl::flushWrites(FileAbstraction* pFileAbst)
 {
+  CacheEntry *pEntry = 0;
+  
   if (pFileAbst->getSizeWrites() == 0) {
     eos_static_debug("info=no writes for this file");
     return;
   }
-
+  
   pthread_rwlock_rdlock(&rwMapLock);               //read lock map
-
   key_map_type::iterator iStart = keyValueMap.lower_bound(pFileAbst->getFirstPossibleKey());
   const key_map_type::iterator iEnd = keyValueMap.lower_bound(pFileAbst->getLastPossibleKey());
 
   for (; iStart != iEnd; iStart++) {
-    writeReqQueue->push(iStart);
-    eos_static_debug("info=pushing write elem to queue");
+    pEntry = iStart->second.first;
+    if (!pEntry->isInQueue()) {
+      writeReqQueue->push(iStart);
+      eos_static_debug("info=pushing write elem to queue");
+    }
   }
 
   pthread_rwlock_unlock(&rwMapLock);               //unlock map
@@ -246,16 +260,21 @@ CacheImpl::flushWrites(FileAbstraction* pFileAbst)
 void
 CacheImpl::processWriteReq(key_map_type::iterator it)
 {
+  eos::common::Timing pwr("peocessWriteReq");
+  TIMING("start", &pwr);
+  
   int retc = 0;
   error_type error;
+  size_t tmpSizeVirtual = 0;
   key_list_type::iterator iterList;
   CacheEntry* pEntry = it->second.first;
 
   eos_static_debug("file sizeWrites=%zu", pEntry->getParentFile()->getSizeWrites());
 
-  pthread_rwlock_rdlock(&rwMapLock);               //read lock map
   retc = pEntry->doWrite();
 
+  TIMING("after write", &pwr);
+  
   //put error code in error queue
   if (retc) {
     error = std::make_pair(retc, pEntry->getOffsetStart());
@@ -263,30 +282,21 @@ CacheImpl::processWriteReq(key_map_type::iterator it)
   }
 
   iterList = it->second.second;
-  pthread_rwlock_unlock(&rwMapLock);               //unlock map
-
+  
+  pEntry->getParentFile()->decrementWrites(pEntry->getSizeData());
+  pEntry->getParentFile()->decrementNoWriteBlocks();
+ 
   //delete entry
   pthread_rwlock_wrlock(&rwMapLock);               //write lock map
   pthread_mutex_lock(&mutexList);                  //lock list
   
-  eos_static_debug("Before decrement file=%i sizeWrites=%zu, sizeData=%zu",
-                   pEntry->getParentFile()->getId(),
-                   pEntry->getParentFile()->getSizeWrites(),
-                   pEntry->getSizeData());
-
-  pEntry->getParentFile()->decrementWrites(pEntry->getSizeData());
-  pEntry->getParentFile()->decrementNoWriteBlocks();
-  
-  eos_static_debug("After decrement file=%i sizeWrites=%zu, sizeData=%zu",
-                   pEntry->getParentFile()->getId(),
-                   pEntry->getParentFile()->getSizeWrites(),
-                   pEntry->getSizeData());
-  
   keyValueMap.erase(it);
   keyList.erase(iterList);
+
+  tmpSizeVirtual = sizeVirtual;
   sizeVirtual -= CacheEntry::getMaxSize();
 
-  if (getCurrentSize() <= maxPercentWrites * sizeMax) {
+  if (tmpSizeVirtual > cacheThreshold && sizeVirtual <= cacheThreshold) {
     //notify possible waiting threads that a write was done
     //(i.e. possible free space in cache available)
     pthread_mutex_lock(&mutexWriteDone);
@@ -296,11 +306,11 @@ CacheImpl::processWriteReq(key_map_type::iterator it)
 
   pthread_mutex_unlock(&mutexList);                //unlock list
   pthread_rwlock_unlock(&rwMapLock);               //unlock map
-
-  eos_static_debug("info=add block to recycle queue");
-
+  
   //add block to recycle list
   recycleQueue->push(pEntry);
+  TIMING("finish", &pwr);
+  //pwr.Print();
 }
 
 
@@ -320,7 +330,6 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, siz
 
     pthread_mutex_lock(&mutexList);               //lock list
     iTmp = iStart;
-
     key_list_type::iterator itList;
 
     while (iTmp != iEnd) {
@@ -358,6 +367,7 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, siz
 
     if (pEntry->isFull()) {
       eos_static_debug("info=block full add to writes queue");
+      pEntry->setInQueue(true);
       writeReqQueue->push(it);
     }
   } else {
@@ -379,6 +389,8 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, siz
         pthread_mutex_unlock(&mutexList);         //unlock list
         pthread_rwlock_unlock(&rwMapLock);        //unlock map
 
+        eos_static_debug("Thread waiting for writes to be done!");
+        
         pthread_mutex_lock(&mutexWriteDone);
         pthread_cond_wait(&condWriteDone, &mutexWriteDone);
         pthread_mutex_unlock(&mutexWriteDone);
@@ -396,13 +408,14 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, siz
 
     pEntry->getParentFile()->incrementWrites(len);
     pEntry->getParentFile()->incrementNoWriteBlocks();
-
+    
     //add new entry
     ret = keyValueMap.insert(std::make_pair(k, std::make_pair(pEntry, it)));
     pthread_mutex_unlock(&mutexList);             //unlock list
     pthread_rwlock_unlock(&rwMapLock);            //unlock map
 
     if (pEntry->isFull()) {
+      pEntry->setInQueue(true);
       writeReqQueue->push(ret.first);
     }
   }

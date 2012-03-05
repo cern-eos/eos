@@ -30,13 +30,12 @@
 #include <iterator>
 #include <cassert>
 //------------------------------------------------------------------------------
-#include "XrdPosix/XrdPosixXrootd.hh"
-//------------------------------------------------------------------------------
 #include "common/Logging.hh"
 #include "common/Timing.hh"
 #include "XrdFileCache.hh"
 #include "FileAbstraction.hh"
 #include "CacheEntry.hh"
+#include <XrdPosix/XrdPosixXrootd.hh>
 //------------------------------------------------------------------------------
 
 class XrdFileCache;
@@ -75,7 +74,7 @@ private:
   //Percentage of the total cache size which represents the upper limit
   //to which we accept new write requests, after this point notifications
   //to threads that want to submit new req are delayed
-  static const double maxPercentWrites = 0.80;
+  static const double maxPercentWrites = 0.90;
 
   XrdFileCache*  mgmCache;         //upper mgm layer of the cache
   bool           killThread;       //kill writing thread
@@ -83,6 +82,7 @@ private:
   size_t         sizeMax;          //maximum size of cache
   size_t         sizeVirtual;      //sum of all blocks capacity
   size_t         sizeWrites;       //size of write requests
+  size_t         cacheThreshold;   //max size write requests
 
   key_map_type   keyValueMap;      //map <key pair<value, listIter>>
   key_list_type  keyList;          //list of recently accessed entries
