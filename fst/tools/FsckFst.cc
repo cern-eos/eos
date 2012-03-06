@@ -46,6 +46,7 @@ void usage(const char* name) {
   fprintf(stderr,"       -f         : force the reading even if the version does not match\n");
   fprintf(stderr,"    --dump        : dump out the meta data blocks\n");
   fprintf(stderr,"    --trim        : trim this file (erases faulty records)\n");
+  fprintf(stderr,"    --resync      : if there is an error, resync to the next valid header\n");
   fprintf(stderr,"    --inplace     : replace the original file with the trimmed copy\n");
   fprintf(stderr,"    --data=<path> : compare with files in path\n");
   fprintf(stderr,"    --delete-missing-changelog : files which are on disk but not anymore active in the changelog get unlinked - WARNING - this can be VERY dangerous if the data path does not match the changelogfile!\n");
@@ -89,6 +90,7 @@ int main(int argc, char* argv[] ) {
 
   bool trim = false;
   bool inplace = false;
+  bool resync = false;
   bool show = false;
   bool repairlocal = false;
   bool repaircache = false;
@@ -133,6 +135,11 @@ int main(int argc, char* argv[] ) {
       fprintf(stdout,"=> activated in-place for trim option ...\n");
       inplace = true;
     }
+    if (option == "--resync") {
+      fprintf(stdout,"=> activated resync for trim option ...\n");
+      resync = true;
+      passoption += "R";
+    } 
     if (option.beginswith("--data=")) {
       searchpath = option;
       searchpath.erase(0,7);
