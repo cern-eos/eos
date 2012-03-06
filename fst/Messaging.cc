@@ -36,14 +36,19 @@ void
 Messaging::Listen()
 {
   while(1) {
+    XrdSysThread::SetCancelOff();
     XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
     if (newmessage) newmessage->Print();
     if (newmessage) {
       Process(newmessage);
       delete newmessage;
+      XrdSysThread::SetCancelOn();
     } else {
+      XrdSysThread::SetCancelOn();
       sleep(1);
     }
+
+    XrdSysThread::CancelPoint();
   }
 }
 

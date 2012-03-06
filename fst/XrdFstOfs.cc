@@ -102,17 +102,15 @@ XrdFstOfs::xrdfstofs_shutdown(int sig) {
   std::set<pthread_t>::const_iterator it;
   for (it= gOFS.Storage->ThreadSet.begin(); it != gOFS.Storage->ThreadSet.end(); it++) {
     eos_static_warning("op=shutdown threadid=%llx", (unsigned long long) *it);
-    pthread_cancel(*it);
+    XrdSysThread::Cancel(*it);
+    XrdSysThread::Join(*it,0);
   }
+  
+  delete gOFS.Messaging; // shutdown messaging thread
 
-  // disconnect from the message queue
-  XrdMqMessaging::gMessageClient.Unsubscribe();
-  XrdMqMessaging::gMessageClient.Disconnect();
   eos_static_warning("op=shutdown status=completed");
 
-  // put SEGV handler now!
-  signal(SIGSEGV,SIG_IGN);
-  exit(-1);
+  exit(0);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1270,6 +1268,10 @@ XrdFstOfsFile::close()
     
     closed = true;
     
+    if (rc) {
+      deleteOnClose = true;
+    }
+
     gOFS.OpenFidMutex.Lock();
     if (isRW) 
       gOFS.WOpenFid[fMd->fMd.fsid][fMd->fMd.fid]--;
