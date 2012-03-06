@@ -87,11 +87,10 @@ XrdMqMessaging::XrdMqMessaging(const char* url, const char* defaultreceiverqueue
 //------------------------------------------------------------------------------
 bool XrdMqMessaging::StartListenerThread()
 {
-  pthread_t tid;
   int rc;
   XrdMqMessage::Eroute.Say("###### " ,"mq messaging: starting thread ","");
   if ((rc = XrdSysThread::Run(&tid, XrdMqMessaging::Start, static_cast<void *>(this),
-                              0, "Messaging Receiver"))) {
+                              XRDSYSTHREAD_HOLD, "Messaging Receiver"))) {
     XrdMqMessage::Eroute.Emsg("messaging",rc,"create messaging thread");
     zombie = true;
     return false;
@@ -102,6 +101,10 @@ bool XrdMqMessaging::StartListenerThread()
 /*----------------------------------------------------------------------------*/
 XrdMqMessaging::~XrdMqMessaging() 
 {
+  if (tid) {
+    XrdSysThread::Cancel(tid);
+    XrdSysThread::Join(tid,0);
+  }
   gMessageClient.Unsubscribe();
 }
 /*----------------------------------------------------------------------------*/

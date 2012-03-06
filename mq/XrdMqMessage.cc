@@ -416,6 +416,7 @@ XrdMqMessage::CipherEncrypt(XrdOucString &in, char* &out, unsigned int &outlen, 
   EVP_EncryptInit_ex(&ctx, 0, 0, (const unsigned char*) key, iv);
   if (!(EVP_EncryptUpdate(&ctx, (uint_fast8_t*) oencryptptr, &encryptlen1, (uint_fast8_t*) in.c_str(), in.length()+1))) {
     Eroute.Emsg("CipherEncrypt", EINVAL, "update cipher block");
+    EVP_CIPHER_CTX_cleanup(&ctx);
     return false;
   }
 
@@ -423,11 +424,13 @@ XrdMqMessage::CipherEncrypt(XrdOucString &in, char* &out, unsigned int &outlen, 
     oencryptptr += encryptlen1;
   } else {
     free(encryptptr);
+    EVP_CIPHER_CTX_cleanup(&ctx);
     return false;
   }
 
   if (!(EVP_EncryptFinal(&ctx, (uint_fast8_t*) oencryptptr, &encryptlen2))) {
     Eroute.Emsg("CipherEncrypt", EINVAL, "finalize cipher block");
+    EVP_CIPHER_CTX_cleanup(&ctx);
     return false;
   }
 
@@ -439,8 +442,11 @@ XrdMqMessage::CipherEncrypt(XrdOucString &in, char* &out, unsigned int &outlen, 
   outlen = (encryptlen1 + encryptlen2);
   if (outlen> (unsigned int)(4096 + in.length())) {
     Eroute.Emsg("CipherEncrypt", ENOMEM, "guarantee uncorrupted memory - memory overwrite detected");
+    EVP_CIPHER_CTX_cleanup(&ctx);
     return false;
   }
+
+  EVP_CIPHER_CTX_cleanup(&ctx);
   return true;
 }
 
@@ -473,6 +479,7 @@ XrdMqMessage::CipherDecrypt(char* in, unsigned int inlen, XrdOucString &out, cha
   if (!(EVP_DecryptUpdate(&ctx, (uint_fast8_t*) decryptptr, &decryptlen1, (uint_fast8_t*) in, inlen))) {
     Eroute.Emsg("CipherDecrypt", EINVAL, "update cipher block");
     if (decryptptr) free(decryptptr);
+    EVP_CIPHER_CTX_cleanup(&ctx);
     return false;
   }
 
@@ -489,15 +496,18 @@ XrdMqMessage::CipherDecrypt(char* in, unsigned int inlen, XrdOucString &out, cha
 
   if ((!EVP_DecryptFinal(&ctx, (uint_fast8_t*) odecryptptr, &decryptlen2))) {
     Eroute.Emsg("CipherDecrypt", EINVAL, "finalize cipher block");
+    EVP_CIPHER_CTX_cleanup(&ctx);
     return false;
   }
 
   if ((unsigned int)(decryptlen1+decryptlen2)> (4096 + inlen)) {
     Eroute.Emsg("CipherDecrypt", ENOMEM, "guarantee uncorrupted memory - memory overwrite detected");
+    EVP_CIPHER_CTX_cleanup(&ctx);
     return false;
   }
   out.assign(decryptptr,0, decryptlen1+decryptlen2);
   free(decryptptr);
+  EVP_CIPHER_CTX_cleanup(&ctx);
   return true;
 }
 

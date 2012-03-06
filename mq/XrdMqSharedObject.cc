@@ -46,12 +46,22 @@ XrdMqSharedObjectManager::XrdMqSharedObjectManager()
   AutoReplyQueueDerive = false;
   IsMuxTransaction = false;
   MuxTransactions.clear();
+  dumper_tid=0;
 }
 
 /*----------------------------------------------------------------------------*/
 XrdMqSharedObjectManager::~XrdMqSharedObjectManager() 
 {
+  if (dumper_tid) {
+    XrdSysThread::Cancel(dumper_tid);
+    XrdSysThread::Join(dumper_tid,0);
+  }
 
+  std::map<std::string, XrdMqSharedHash*>::iterator hashit;// hashsubjects;
+
+  for (hashit = hashsubjects.begin(); hashit != hashsubjects.end(); hashit++) {
+    delete hashit->second;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -244,10 +254,10 @@ XrdMqSharedObjectManager::DumpSharedObjectList(XrdOucString& out)
 void 
 XrdMqSharedObjectManager::StartDumper(const char* file) 
 {
-  pthread_t tid;
+  pthread_t dumper_tid;
   int rc=0;
   DumperFile = file;
-  if ((rc = XrdSysThread::Run(&tid, XrdMqSharedObjectManager::StartHashDumper, static_cast<void *>(this),
+  if ((rc = XrdSysThread::Run(&dumper_tid, XrdMqSharedObjectManager::StartHashDumper, static_cast<void *>(this),
                               0, "HashDumper"))) {
     fprintf(stderr,"XrdMqSharedObjectManager::StartDumper=> failed to run dumper thread\n");
   }

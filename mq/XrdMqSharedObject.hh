@@ -36,6 +36,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mq/XrdMqClient.hh"
+#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 
 #define XRDMQSHAREDHASH_CMD       "mqsh.cmd"
@@ -283,6 +284,8 @@ class XrdMqSharedObjectManager {
   friend class XrdMqSharedQueue;
 
 private:
+  pthread_t dumper_tid;       // thread ID of the dumper thread
+
   std::map<std::string, XrdMqSharedHash*> hashsubjects;
   std::map<std::string, XrdMqSharedQueue> queuesubjects;
 

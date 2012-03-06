@@ -370,7 +370,7 @@ XrdMqOfs::FSctl(const int               cmd,
       return SFS_ERROR;
     } else {
       //      fprintf(stderr,"Dropped Monitor message %s\n",c.c_str());
-      ZTRACE(open,"Discarding montor message without receiver");
+      ZTRACE(fsctl,"Discarding monitor message without receiver");
       const char* result="OK";
       error.setErrInfo(3,(char*)result);
       gMqFS->DiscardedMonitoringMessages++;

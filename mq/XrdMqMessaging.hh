@@ -36,6 +36,7 @@ private:
 protected:
   bool zombie;
   XrdMqSharedObjectManager* SharedObjectManager;
+  pthread_t tid;
 
 public:
   static XrdMqClient gMessageClient;
@@ -46,7 +47,7 @@ public:
   virtual bool StartListenerThread();
   void Connect();
   
-  XrdMqMessaging() {};
+  XrdMqMessaging() {tid=0;};
   XrdMqMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false, XrdMqSharedObjectManager* som=0);
   virtual ~XrdMqMessaging();
 
