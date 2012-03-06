@@ -125,6 +125,7 @@ stop() {
         umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
         umount -f -l $umdir >& /dev/null
 	killed=$?
+	pkill -f "${EOS_ROOT}/sbin/eosd $umdir"	
 	if [ $killed -ne 0 ]; then 
 	        pkill -9 -f "${EOS_ROOT}/sbin/eosd $umdir"
 		killed=$?
