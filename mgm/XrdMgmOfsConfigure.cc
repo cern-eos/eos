@@ -846,6 +846,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   //  eos_info("%s",(char*)"test info");
   //  eos_debug("%s",(char*)"test debug");
 
+  // initialize user mapping
+  eos::common::Mapping::Init();
+
   // configure the meta data catalog
   eosDirectoryService = new eos::ChangeLogContainerMDSvc;
   eosFileService      = new eos::ChangeLogFileMDSvc;

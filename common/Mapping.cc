@@ -43,10 +43,24 @@ Mapping::SudoerMap_t       Mapping::gSudoerMap;
 bool                       Mapping::gRootSquash = true;
 
 XrdSysMutex                Mapping::ActiveLock;
-std::map<std::string, time_t> Mapping::ActiveTidents;
+google::dense_hash_map<std::string, time_t> Mapping::ActiveTidents;
 
 XrdOucHash<Mapping::id_pair>    Mapping::gPhysicalUidCache;
 XrdOucHash<Mapping::gid_vector> Mapping::gPhysicalGidCache;
+
+/*----------------------------------------------------------------------------*/
+/** 
+ * Initialize Google maps
+ * 
+ */
+/*----------------------------------------------------------------------------*/
+
+void 
+Mapping::Init()
+{
+  ActiveTidents.set_empty_key("");
+  ActiveTidents.set_deleted_key("#__DELETED__#");
+}
 
 /*----------------------------------------------------------------------------*/
 /** 
@@ -58,11 +72,11 @@ XrdOucHash<Mapping::gid_vector> Mapping::gPhysicalGidCache;
 void 
 Mapping::ActiveExpire(int interval) 
 {
+  // needs to have Active Lock locked
   time_t now = time(NULL);
   // expire tidents older than interval
-  Mapping::ActiveLock.Lock();
-  std::map<std::string, time_t>::iterator it1;
-  std::map<std::string, time_t>::iterator it2;
+  google::dense_hash_map<std::string, time_t>::iterator it1;
+  google::dense_hash_map<std::string, time_t>::iterator it2;
   for (it1 = Mapping::ActiveTidents.begin(); it1 != Mapping::ActiveTidents.end();) {
     if ((now-it1->second) > interval) {
       it2=it1;
@@ -72,7 +86,7 @@ Mapping::ActiveExpire(int interval)
       it1++;
     }
   }
-  Mapping::ActiveLock.UnLock();
+  Mapping::ActiveTidents.resize(0);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -463,10 +477,10 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
   // ---------------------------------------------------------------------------
   // safty measures not to exceed memory by 'nasty' clients
   // ---------------------------------------------------------------------------
-  if (ActiveTidents.size() > 100000) {
+  if (ActiveTidents.size() > 1000) {
     ActiveExpire();
   }
-  if (ActiveTidents.size() < 1000000) {
+  if (ActiveTidents.size() < 10000) {
     char actident[1024];
     snprintf(actident, sizeof(actident)-1, "%d:%s:%s",vid.uid, mytident.c_str(), vid.prot.c_str());
     std::string intident = actident;

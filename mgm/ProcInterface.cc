@@ -2847,9 +2847,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       bool showauth    = false;
 
       // call the expiration functions
-      eos::common::Mapping::ActiveExpire();
       eos::common::Mapping::ActiveLock.Lock();
-      std::map<std::string, time_t>::const_iterator it;
+      eos::common::Mapping::ActiveExpire();
+
+      google::dense_hash_map<std::string, time_t>::const_iterator it;
       if ( (option.find("m")) != std::string::npos ) {
         monitoring = true;
       }
@@ -2870,7 +2871,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         std::string username="";
         
         tokens.clear();
-        eos::common::StringConversion::Tokenize(it->first, tokens, delimiter);
+	std::string intoken=it->first.c_str();
+        eos::common::StringConversion::Tokenize(intoken, tokens, delimiter);
         uid_t uid = atoi(tokens[0].c_str());
         int terrc=0;
         username = eos::common::Mapping::UidToUserName(uid, terrc);
@@ -2911,9 +2913,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       if (showclients || showall) {
         for (it = eos::common::Mapping::ActiveTidents.begin(); it != eos::common::Mapping::ActiveTidents.end(); it++) {
           std::string username="";
-          
           tokens.clear();
-          eos::common::StringConversion::Tokenize(it->first, tokens, delimiter);
+	  std::string intoken = it->first.c_str();
+          eos::common::StringConversion::Tokenize(intoken, tokens, delimiter);
           uid_t uid = atoi(tokens[0].c_str());
           int terrc=0;
           username = eos::common::Mapping::UidToUserName(uid,terrc);
@@ -2959,12 +2961,34 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         unsigned long long inode=0;
 
         char inodestr[256];
+	size_t dotend=0;
+	size_t dotstart=resultStream.length();
 
         while ( (entry = inodir->nextEntry() ) ) {
+	  bool isdot=false;
+	  bool isdotdot=false;
+
           XrdOucString whitespaceentry=entry;
+
+	  if (whitespaceentry == ".") {
+	    isdot=true;
+	  } 
+	  if (whitespaceentry == "..") {
+	    isdotdot=true;
+	  }
           whitespaceentry.replace(" ","%20");
-          resultStream += whitespaceentry;
-          resultStream += " ";
+	  if ( (!isdot) && (!isdotdot) ) {
+	    resultStream += whitespaceentry;
+	    resultStream += " ";
+	  }
+	  if (isdot) {
+	    // the . and .. has to be streamed as first entries
+	    resultStream.insert(". ",dotstart);
+	  }
+	  if (isdotdot) {
+	    resultStream.insert(".. ",dotend);
+	  }
+
           XrdOucString statpath = path;
           statpath += "/"; statpath += entry;
 
@@ -3002,13 +3026,24 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             //-------------------------------------------
           }
           sprintf(inodestr, "%lld",inode);
-          resultStream += inodestr;
-          resultStream += " ";
+	  if ( (!isdot) && (!isdotdot) ) {
+	    resultStream += inodestr;
+	    resultStream += " ";
+	  } else {
+	    if (isdot) {
+	      resultStream.insert(inodestr,dotstart+2);
+	      resultStream.insert(" ",dotstart+2 + strlen(inodestr));
+	      dotend = dotstart+2 + strlen(inodestr) + 1;
+	    } else {
+	      resultStream.insert(inodestr,dotend + 3);
+	      resultStream.insert(" ", dotend + strlen(inodestr) + 3);
+	    }
+	  }
         }
 
         inodir->close();
         delete inodir;
-        //      eos_debug("returning resultstream %s", resultStream.c_str());
+	eos_info("returning resultstream %s", resultStream.c_str());
         len = resultStream.length();
         offset = 0;
         return SFS_OK;

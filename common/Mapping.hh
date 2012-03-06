@@ -49,13 +49,10 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <google/dense_hash_map>
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
-
-/*----------------------------------------------------------------------------*/
-//! Static class responsible for auth to virtual/physical uid/gid mapping and virtual groups, sudoers etc.
-/*----------------------------------------------------------------------------*/
 
 class Mapping {
 private:
@@ -188,13 +185,18 @@ public:
   // ---------------------------------------------------------------------------
   //! Function to expire unused ActiveTident entries by default after 1 day
   // ---------------------------------------------------------------------------
-  static void ActiveExpire(int interval=24*3600);
+  static void ActiveExpire(int interval=30);
+
+  // ---------------------------------------------------------------------------
+  //! Function initializing static maps
+  // ---------------------------------------------------------------------------
+  static void Init();
 
   // ---------------------------------------------------------------------------
   //! Map storing the client identifiers and last usage time
   // ---------------------------------------------------------------------------
 
-  static std::map<std::string, time_t> ActiveTidents;
+  static google::dense_hash_map<std::string, time_t> ActiveTidents;
 
   // ---------------------------------------------------------------------------
   //! Variable to forbid remote root mounts - by default true

@@ -439,6 +439,8 @@ bool FmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
   bool ignoreversion=false;
   bool dump=false;
   bool isfsck=false;
+  bool isresync=false;
+
   // force option to read all versions
 
   if (option.find("f")!=STR_NPOS) 
@@ -447,6 +449,8 @@ bool FmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
     dump=true;
   if (option.find("c")!=STR_NPOS)
     isfsck=true;
+  if (option.find("R")!=STR_NPOS)
+    isresync=true;
 
   
   if (!fmdHeader.Read(fdChangeLogRead[fsid],ignoreversion)) {
@@ -495,6 +499,7 @@ bool FmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
   unsigned long long errorcrc=0;
   unsigned long long errorsequence=0;
   unsigned long long errormismatch=0;
+  unsigned long long discarded=0;
 
   eos_debug("memory mapped changelog file at %lu", changelogstart);
 
@@ -540,7 +545,7 @@ bool FmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
       Fmd::Dump(pMd);
     }
 
-    if (pMd->sequenceheader > (unsigned long long) fdChangeLogSequenceNumber[fsid]) {
+    if ((!faulty) && (pMd->sequenceheader > (unsigned long long) fdChangeLogSequenceNumber[fsid])) {
       fdChangeLogSequenceNumber[fsid] = pMd->sequenceheader;
     }
 
@@ -565,7 +570,24 @@ bool FmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
       } 
     }
     pMd++;
-    changelogstart += sizeof(struct Fmd::FMD);
+    
+    if (faulty && isresync) {
+      changelogstart += sizeof(struct Fmd::FMD);
+      // move on to the next magic
+      while ( (changelogstart + sizeof(struct Fmd::FMD)) < changelogstop) {
+	changelogstart++;
+	discarded++;
+	if ( (((*((unsigned long long*) changelogstart)) == EOSCOMMONFMDCREATE_MAGIC ) || 
+	      ((*((unsigned long long*) changelogstart)) == EOSCOMMONFMDDELETE_MAGIC ) ) && 
+	     ( sequencenumber <= (((struct Fmd::FMD*)changelogstart)->sequenceheader-1)) ) {
+	  sequencenumber = ((struct Fmd::FMD*)changelogstart)->sequenceheader-1;
+	  eos_err("skipped %d bytes to resync", discarded);
+	  break;
+	}
+      }
+    } else {
+      changelogstart += sizeof(struct Fmd::FMD);
+    }
   }
 
   FmdSize.resize(0);
@@ -586,6 +608,7 @@ bool FmdHandler::ReadChangeLogHash(int fsid, XrdOucString option)
     fprintf(stdout,"=> Error CRC32      : %llu\n", errorcrc);
     fprintf(stdout,"=> Error Sequence   : %llu\n", errorsequence);
     fprintf(stdout,"=> Error HT-Mismatch: %llu\n", errormismatch);
+    fprintf(stdout,"=> Discarded Bytes  : %llu\n", discarded);
     fprintf(stdout,"---------------------------------------\n");
   }
   return success;
@@ -849,12 +872,15 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option) {
   eos_static_info("trimming step 4");
 
   if (rfd > 0) {
+    unsigned long long sequencenumber=0;
     for (fmdit = alloffsets.begin(); fmdit != alloffsets.end(); ++fmdit) {
+      sequencenumber++;
       if (!fmdblock.Read(rfd,*fmdit)) {
         eos_static_crit("fatal error reading active changelog file at position %llu",*fmdit);
         rc = false;
         break;
       } else {
+	fmdblock.fMd.sequenceheader = fmdblock.fMd.sequencetrailer = sequencenumber;
         off_t newoffset = lseek(newfd,0,SEEK_CUR);
         offsetmapping[*fmdit] = newoffset;
         if (!fmdblock.Write(newfd)) {
