@@ -194,23 +194,13 @@ stop() {
 			for pid in `ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $role -c /etc/xrd" | awk '{print $1}'`; do
 
 		        	if [ -n "$pid" ]; then
-					if [ "$role" = "fst" ] ; then
-					# this does not make much sense, but until we cannot cleanly shut down all threads, 
-					# we have to do a brute force kill to stop EOS, this will be converted to -15 if the shutdown is clean
-						kill -9 $pid;
-					else
-						kill -15 $pid;
-					fi
+					kill -15 $pid;
 					usleep 200000
-					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
-					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
-					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
-					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
-					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
-					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
-					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
-					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
-					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
+					[ -d "/proc/$pid" ] && sleep 1 
+					[ -d "/proc/$pid" ] && sleep 1 
+					[ -d "/proc/$pid" ] && sleep 1 
+					[ -d "/proc/$pid" ] && sleep 1 
+					[ -d "/proc/$pid" ] && sleep 1 
 					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
 					[ -d "/proc/$pid" ] || RETVAL=0
 					[ "$RETVAL" != "0" ] && GRETVAL=$RETVAL
