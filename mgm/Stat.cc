@@ -198,6 +198,26 @@ Stat::GetTotalExec(double &deviation)
 }
 
 /*----------------------------------------------------------------------------*/
+void
+Stat::Clear()
+{
+  Mutex.Lock();
+  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator ittag;
+  for (ittag = StatsUid.begin(); ittag != StatsUid.end(); ittag ++) {
+    StatsUid[ittag->first].clear();
+    StatsUid[ittag->first].resize(1000);
+    StatsGid[ittag->first].clear();
+    StatsGid[ittag->first].resize(1000);
+    StatAvgUid[ittag->first].clear();
+    StatAvgUid[ittag->first].resize(1000);
+    StatAvgGid[ittag->first].clear();
+    StatAvgGid[ittag->first].resize(1000);
+    StatExec[ittag->first].resize(1000);
+  }
+  Mutex.UnLock();
+}
+
+/*----------------------------------------------------------------------------*/
 void 
 Stat::PrintOutTotal(XrdOucString &out, bool details, bool monitoring, bool numerical)
 {

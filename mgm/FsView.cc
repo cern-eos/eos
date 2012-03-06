@@ -461,6 +461,19 @@ FsView::RegisterNode(const char* nodename)
 }
 
 /*----------------------------------------------------------------------------*/
+void
+FsView::UnRegisterNodes()
+{
+  //----------------------------------------------------------------
+  //! remove all nodes
+  //----------------------------------------------------------------
+  std::map<std::string , FsNode* >::iterator it;
+  for (it = mNodeView.begin(); it != mNodeView.end(); it++) {
+    delete (it->second);
+  }
+}
+
+/*----------------------------------------------------------------------------*/
 bool 
 FsView::UnRegisterNode(const char* nodename)
 {
@@ -609,7 +622,7 @@ FsView::UnRegisterGroup(const char* groupname)
 
 /*----------------------------------------------------------------------------*/
 void 
-FsView::Reset()
+FsView::Reset() 
 {
   //----------------------------------------------------------------
   //! remove all filesystems by erasing all spaces
@@ -618,10 +631,11 @@ FsView::Reset()
   std::map<std::string , FsSpace* >::iterator it;
 
   eos::common::RWMutexWriteLock viewlock(ViewMutex);
-
   while (mSpaceView.size()) {
     UnRegisterSpace(mSpaceView.begin()->first.c_str());
   }
+
+  //  UnRegisterNodes();
 
   eos::common::RWMutexWriteLock maplock(MapMutex);
 

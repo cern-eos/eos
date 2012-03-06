@@ -1907,9 +1907,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
 
       if (subcmd == "stat") {
+	if (option.find("r") != STR_NPOS) {
+	  gOFS->MgmStats.Clear();
+	  stdOut += "success: all counters have been reset";
+	}
         gOFS->MgmStats.PrintOutTotal(stdOut, details, monitoring,numerical);
       }
-
+      
       if (subcmd == "compact") {
         XrdOucString sizestring="";
 
@@ -2845,6 +2849,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       bool showclients = false;
       bool showall     = false;
       bool showauth    = false;
+      bool showsummary = false;
 
       // call the expiration functions
       eos::common::Mapping::ActiveLock.Lock();
@@ -2854,9 +2859,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       if ( (option.find("m")) != std::string::npos ) {
         monitoring = true;
       }
-      //      if ( (option.find("n")) != std::string::npos ) {
-      //        translate = false;
-      //      }
       if ( (option.find("c")) != std::string::npos ) {
         showclients = true;
       }
@@ -2866,7 +2868,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       if ( (option.find("a")) != std::string::npos ) {
         showall = true;
       }
-
+      if ( (option.find("s")) != std::string::npos ) {
+	showsummary =true;
+      }
       for (it = eos::common::Mapping::ActiveTidents.begin(); it != eos::common::Mapping::ActiveTidents.end(); it++) {
         std::string username="";
         
@@ -2910,8 +2914,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       } 
 
       eos::common::Mapping::ActiveLock.Lock();
+      unsigned long long cnt=0;
       if (showclients || showall) {
         for (it = eos::common::Mapping::ActiveTidents.begin(); it != eos::common::Mapping::ActiveTidents.end(); it++) {
+	  cnt++;
           std::string username="";
           tokens.clear();
 	  std::string intoken = it->first.c_str();
@@ -2931,6 +2937,17 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         }
       }
       eos::common::Mapping::ActiveLock.UnLock();
+
+      if (showsummary) {
+	char formatline[1024];
+	
+	if (!monitoring) {
+	  snprintf(formatline,sizeof(formatline)-1,"sum(clients) : %llu\n", cnt);
+	} else {
+	  snprintf(formatline,sizeof(formatline)-1, "nclients=%llu\n", cnt);
+	}
+	stdOut += formatline;
+      }
       MakeResult(0,fuseformat);
       return SFS_OK;
     }

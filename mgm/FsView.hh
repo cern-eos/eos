@@ -230,6 +230,7 @@ public:
   
   bool RegisterNode   (const char* nodequeue);            // this adds or modifies an fst node
   bool UnRegisterNode (const char* nodequeue);            // this removes an fst node
+  void UnRegisterNodes();                                 // this removes all fst nodes
 
   bool RegisterSpace  (const char* spacename);            // this adds or modifies a space 
   bool UnRegisterSpace(const char* spacename);            // this remove a space
@@ -269,7 +270,7 @@ public:
   static std::string GetSpaceFormat      (std::string option);
   static std::string GetFileSystemFormat (std::string option);
 
-  void Reset(); // clears all mappings and filesystem objects
+  void Reset();       // clears all mappings and filesystem objects obtaining locks
 
   pthread_t hbthread;
 
@@ -284,11 +285,17 @@ public:
 #endif
     XrdSysThread::Run(&hbthread, FsView::StaticHeartBeatCheck, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "HeartBeat Thread");
   }
+  
+  void StopHeartBeat() {
+    if (hbthread) {
+      XrdSysThread::Cancel(hbthread);
+      XrdSysThread::Join(hbthread,0);
+      hbthread=0;
+    }
+  }
 
   ~FsView() {
-    // this currently never happens
-    XrdSysThread::Cancel(hbthread);
-    XrdSysThread::Join(hbthread,0);
+    StopHeartBeat();
   };
 
   void SetConfigQueues(const char* mgmconfigqueue, const char* nodeconfigqueue, const char* groupconfigqueue, const char* spaceconfigqueue) {

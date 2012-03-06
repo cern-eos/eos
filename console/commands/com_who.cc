@@ -55,7 +55,11 @@ com_who (char* arg1) {
             if (option == "-m") {
               options += "m";
             } else {
-              goto com_who_usage;
+	      if ( option == "-s") {
+		option += "s";
+	      } else {
+		goto com_who_usage;
+	      }
             }
           }
         }
@@ -71,11 +75,12 @@ com_who (char* arg1) {
   return (0);
 
  com_who_usage:
-  fprintf(stdout,"usage: who [-c] [-n] [-z] [-a] [-m]                               :  print statistics about active users (idle<5min)\n");
+  fprintf(stdout,"usage: who [-c] [-n] [-z] [-a] [-m] [-s]                             :  print statistics about active users (idle<5min)\n");
   fprintf(stdout,"                -c                                                   -  break down by client host\n");
   fprintf(stdout,"                -n                                                   -  print id's instead of names\n");
   fprintf(stdout,"                -z                                                   -  print auth protocols\n");
   fprintf(stdout,"                -a                                                   -  print all\n");
+  fprintf(stdout,"                -s                                                   -  print summary for clients\n");
   fprintf(stdout,"                -m                                                   -  print in monitoring format <key>=<value>\n");
   return (0);
 }

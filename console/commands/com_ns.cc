@@ -61,7 +61,11 @@ com_ns (char* arg1) {
         if (option == "-n") {
           options += "n";
         } else {
-          goto com_ns_usage;
+	  if ( option == "--reset") {
+	    options += "r";
+	  } else {
+	    goto com_ns_usage;
+	  }
         }
       }
     }
@@ -80,6 +84,7 @@ com_ns (char* arg1) {
   fprintf(stdout,"                -a                                                   -  break down by uid/gid\n");
   fprintf(stdout,"                -m                                                   -  print in <key>=<val> monitoring format\n");
   fprintf(stdout,"                -n                                                   -  print numerical uid/gids\n");
+  fprintf(stdout,"                --reset                                              -  reset namespace counter\n");
   fprintf(stdout,"       ns compact                                                    -  compact the current changelogfile and reload the namespace\n");
   return (0);
 }

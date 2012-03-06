@@ -502,7 +502,8 @@ public:
                       const char *y="");
 
   XrdMgmOfs(XrdSysError *lp);
-  virtual               ~XrdMgmOfs() {}
+  virtual               ~XrdMgmOfs() {
+}
 
   virtual int            Configure(XrdSysError &);
   static void*           StaticInitializeFileView(void* arg);
@@ -593,6 +594,10 @@ public:
   eos::common::ClientAdminManager CommonClientAdminManager; // Manager of ClientAdmin's
 
   XrdMqSharedObjectManager ObjectManager; // -> Shared Hash/Queue ObjectManager
+ 
+  pthread_t deletion_tid;              // Thead Id of the deletion thread
+  pthread_t stats_tid;                 // Thread Id of the stats thread
+  pthread_t fslistener_tid;            // Thread ID of the fs listener thread
 
   static void* StartMgmDeletion(void *pp);    //  Deletion Thread Starter
   void  Deletion();                    //  Deletion Function

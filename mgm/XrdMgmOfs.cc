@@ -74,16 +74,20 @@ XrdMgmOfs* gOFS=0;
 void
 xrdmgmofs_shutdown(int sig) {
 
+  (void) signal(SIGINT,SIG_IGN);
+  (void) signal(SIGTERM,SIG_IGN);
+  (void) signal(SIGQUIT,SIG_IGN);
+
+  // ----------------------------------------------------------------------------------------------------------------
   // handler to shutdown the daemon for valgrinding and clean server stop (e.g. let's time to finish write operations
+  // ----------------------------------------------------------------------------------------------------------------
   eos_static_warning("Shutdown:: grab write mutex");
   gOFS->eosViewRWMutex.TimeoutLockWrite();
 
+  // ----------------------------------------------------------------------------------------------------------------
   eos_static_warning("Shutdown:: set stall rule");
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
   Access::gStallRules[std::string("*")] = 60;
-
-  eos_static_warning("Shutdown:: disconnect from broker");
-  XrdMqMessaging::gMessageClient.Disconnect();
 
   if (gOFS->ErrorLog) {
     XrdOucString errorlogkillline="pkill -9 -f \"eos -b console log _MGMID_\"";
@@ -92,8 +96,44 @@ xrdmgmofs_shutdown(int sig) {
       eos_static_info("%s returned %d", errorlogkillline.c_str(), rrc);
     }
   }
+  // ----------------------------------------------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: finalizing views ... ");
+  if (gOFS->eosFsView) { gOFS->eosFsView->finalize();           delete gOFS->eosFsView;}
+  if (gOFS->eosView) { gOFS->eosView->finalize();             delete gOFS->eosView;}
+  if (gOFS->eosDirectoryService) { gOFS->eosDirectoryService->finalize(); delete gOFS->eosDirectoryService;}
+  if (gOFS->eosFileService) { gOFS->eosFileService->finalize();      delete gOFS->eosFileService;}
+
+  // ----------------------------------------------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop deletion thread ... ");
+  if (gOFS->deletion_tid) { XrdSysThread::Cancel(gOFS->deletion_tid); XrdSysThread::Join(gOFS->deletion_tid,0); }
+
+  // ----------------------------------------------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop statistics thread ... ");
+  if (gOFS->stats_tid) { XrdSysThread::Cancel(gOFS->stats_tid); XrdSysThread::Join(gOFS->stats_tid,0); }
+
+  // ----------------------------------------------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop fs listener thread ... ");
+  if (gOFS->fslistener_tid) { XrdSysThread::Cancel(gOFS->fslistener_tid); XrdSysThread::Join(gOFS->fslistener_tid,0); }
+  // ----------------------------------------------------------------------------------------------------------------
+
+  eos_static_warning("Shutdown:: stop messaging ... ");
+  if (gOFS->MgmOfsMessaging) { delete gOFS->MgmOfsMessaging; }
+
+  // ----------------------------------------------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: removing spaces...");
+  gOFS->ConfEngine->SetAutoSave(false);
+  FsView::gFsView.Reset();           // deletes all spaces and stops balancing
+
+  // ----------------------------------------------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: cleanup quota...");
+  std::map<std::string, SpaceQuota*>::const_iterator it;
+  for (it = Quota::gQuota.begin(); it != Quota::gQuota.end(); it++) {
+    delete (it->second);
+  }
+
+  // ----------------------------------------------------------------------------------------------------------------
   eos_static_warning("Shutdown complete");
-  kill(getpid(),9);
+  exit(0);
 }
 
 
@@ -105,9 +145,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError *ep)
   eos::common::LogId();
   eos::common::LogId::SetSingleShotLogId();
 
-  (void) signal(SIGINT,xrdmgmofs_shutdown);
-  (void) signal(SIGTERM,xrdmgmofs_shutdown);
-  (void) signal(SIGQUIT,xrdmgmofs_shutdown);
+  fslistener_tid = stats_tid = deletion_tid = 0;
+
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1515,8 +1554,6 @@ XrdMgmOfs::chksum(      XrdSfsFileSystem::csFunc            Func,
 
   // retrieve meta data for <path>
 
-  gOFS->MgmStats.Add("Checksum",vid.uid,vid.gid,1);
-
   // A csSize request is issued usually once to verify everything is working. We
   // take this opportunity to also verify the checksum name.
   //
@@ -1534,6 +1571,8 @@ XrdMgmOfs::chksum(      XrdSfsFileSystem::csFunc            Func,
       return SFS_ERROR;
     }
   }
+
+  gOFS->MgmStats.Add("Checksum",vid.uid,vid.gid,1);
   
   NAMESPACEMAP;
 

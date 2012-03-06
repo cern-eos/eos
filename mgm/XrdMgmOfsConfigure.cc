@@ -1048,14 +1048,14 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   // create deletion thread
   eos_info("starting deletion thread");
-  if ((XrdSysThread::Run(&tid, XrdMgmOfs::StartMgmDeletion, static_cast<void *>(this),
+  if ((XrdSysThread::Run(&deletion_tid, XrdMgmOfs::StartMgmDeletion, static_cast<void *>(this),
                          0, "Deletion Thread"))) {
     eos_crit("cannot start deletion thread");
     NoGo = 1;
   }
 
   eos_info("starting statistics thread");
-  if ((XrdSysThread::Run(&tid, XrdMgmOfs::StartMgmStats, static_cast<void *>(this),
+  if ((XrdSysThread::Run(&stats_tid, XrdMgmOfs::StartMgmStats, static_cast<void *>(this),
                          0, "Statistics Thread"))) {
     eos_crit("cannot start statistics thread");
     NoGo = 1;
@@ -1063,7 +1063,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   
   eos_info("starting fs listener thread");
-  if ((XrdSysThread::Run(&tid, XrdMgmOfs::StartMgmFsListener, static_cast<void *>(this),
+  if ((XrdSysThread::Run(&fslistener_tid, XrdMgmOfs::StartMgmFsListener, static_cast<void *>(this),
                          0, "FsListener Thread"))) {
     eos_crit("cannot start fs listener thread");
     NoGo = 1;
@@ -1097,6 +1097,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("AttrRm",0,0,0);
   gOFS->MgmStats.Add("AttrSet",0,0,0);
   gOFS->MgmStats.Add("Cd",0,0,0);
+  gOFS->MgmStats.Add("Checksum",0,0,0);
   gOFS->MgmStats.Add("Chmod",0,0,0);
   gOFS->MgmStats.Add("Chown",0,0,0);
   gOFS->MgmStats.Add("Commit",0,0,0);
@@ -1187,8 +1188,13 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     hash->BroadCastRequest("/eos/*/fst");
   }
 
+  // add shutdown handler
+  (void) signal(SIGINT,xrdmgmofs_shutdown);
+  (void) signal(SIGTERM,xrdmgmofs_shutdown);
+  (void) signal(SIGQUIT,xrdmgmofs_shutdown);
+
   usleep(2000000);
-  
+
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

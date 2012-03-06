@@ -155,6 +155,7 @@ void
 Messaging::Listen() 
 {
   while(1) {
+    XrdSysThread::SetCancelOff();
     XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
     //    if (newmessage) newmessage->Print();  
     
@@ -165,6 +166,8 @@ Messaging::Listen()
       XrdSysTimer sleeper;
       sleeper.Snooze(1);     
     }
+    XrdSysThread::SetCancelOn();
+    XrdSysThread::CancelPoint();
   }
 }
 
