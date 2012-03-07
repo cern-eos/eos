@@ -138,6 +138,7 @@ int pipe_command(const char* cmd) {
   XrdSysThread::Run(&thread2, StaticThreadReaderStderr, (void*) stderrfd ,XRDSYSTHREAD_HOLD, "Stderr Thread");
 
   signal (SIGINT,  pipe_exit_handler);
+  signal (SIGPIPE,  SIG_IGN);
 
   int n = write(stdinfd, cmd, strlen(cmd));     
   if (n != (int)strlen(cmd)) {
