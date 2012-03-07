@@ -33,48 +33,59 @@
 #include "ConcurrentQueue.hh"
 //------------------------------------------------------------------------------
 
-typedef std::pair<int, std::pair<off_t, size_t> > error_type;
+typedef std::pair<int, off_t> error_type;
 
 class FileAbstraction
 {
- public:
+public:
 
   ConcurrentQueue<error_type>* errorsQueue;
-  
+
   FileAbstraction(int key, unsigned long ino);
   ~FileAbstraction();
 
-  int GetId() { return idFile; };
-  ConcurrentQueue<error_type>& GetErrorQueue() const { return *errorsQueue; };
-  unsigned long GetInode() const { return inode; };
-   
-  unsigned long GetNoWrites();
-  void GetWrites(unsigned long& no, size_t& size);
-  void IncrementWrites(size_t sWrite);
-  void DecrementWrites(size_t sWrite);
+  int getId() const;
+  int getNoReferences();
+  ConcurrentQueue<error_type>& getErrorQueue() const;
 
-  int GetNoReferences();
-  void IncrementNoReferences();
-  void DecrementNoReferences();
+  size_t getSizeRdWr();
+  size_t getSizeReads();
+  size_t getSizeWrites();
+  unsigned long getInode() const;
 
-  void IncrementNoBlocks();
-  unsigned long GetNoBlocks();
-  unsigned long GetDecrementNoBlocks();
+  long long int getNoWriteBlocks();
+  long long getLastPossibleKey() const;
+  long long getFirstPossibleKey() const;
 
-  long long int GenerateBlockKey(off_t offsetEnd);
-  void WaitFinishWrites();
-  
- private:
-  int idFile;                    //internally assigned key
-  int noReferences;              //number of held referencess
-  unsigned long inode;           //inode of current file  
-  unsigned long noBlocks;        //no of blocks in cache which belong to this file
-  unsigned long noWrites;        //no. of write blocks in cache
-  size_t sizeWrites;             //the size of write blocks in cache
+  void incrementWrites(size_t sWrite);
+  void incrementReads(size_t sRead);
+  void incrementNoWriteBlocks();
 
-  pthread_cond_t writesCond;     //condition to notify when there are no
-  pthread_mutex_t writesMutex;   //more writes pending on the current file
-  pthread_mutex_t updMutex;      //mutex for modifying the no. of blocks or ref.
+  void decrementWrites(size_t sWrite);
+  void decrementReads(size_t sRead);
+  void decrementNoWriteBlocks();
+
+  void incrementNoReferences();
+  void decrementNoReferences();
+
+  bool isInUse();
+  void waitFinishWrites();
+  long long int generateBlockKey(off_t offsetEnd);
+
+private:
+
+  int idFile;                   //internally assigned key
+  int nReferences;              //number of held referencess to this file
+  unsigned long inode;          //inode of current file
+  long long int nWriteBlocks;   //no of blocks in cache for this file
+  size_t sizeWrites;            //the size of write blocks in cache
+  size_t sizeReads;             //the size of read blocks in cache
+
+  long long lastPossibleKey;    //last possible offset in file
+  long long firstPossibleKey;   //first possibleoffset in file
+
+  pthread_cond_t writesCond;    //condition to notify when there are no more writes
+  pthread_mutex_t updMutex;     //mutex for modifying the no. of blocks or ref.
 };
 
 #endif

@@ -31,22 +31,22 @@
 #ifndef __EOS_CONCURRENTQUEUE_HH__
 #define __EOS_CONCURRENTQUEUE_HH__
 
-template <class Data>
+template <typename Data>
 class ConcurrentQueue
 {
- public:
+public:
   ConcurrentQueue();
   ~ConcurrentQueue();
 
-  size_t GetSize();  
+  size_t GetSize();
   void push(Data& data);
-  bool empty() const;
+  bool empty();
 
   bool try_pop(Data& popped_value);
   void wait_pop(Data& popped_value);
   void clear();
-  
- private:
+
+private:
   std::queue<Data> queue;
   pthread_mutex_t mutex;
   pthread_cond_t cond;
@@ -54,7 +54,7 @@ class ConcurrentQueue
 
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 ConcurrentQueue<Data>::ConcurrentQueue()
 {
   pthread_mutex_init(&mutex, NULL);
@@ -62,7 +62,7 @@ ConcurrentQueue<Data>::ConcurrentQueue()
 }
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 ConcurrentQueue<Data>::~ConcurrentQueue()
 {
   pthread_mutex_destroy(&mutex);
@@ -72,7 +72,7 @@ ConcurrentQueue<Data>::~ConcurrentQueue()
 
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 size_t
 ConcurrentQueue<Data>::GetSize()
 {
@@ -84,7 +84,7 @@ ConcurrentQueue<Data>::GetSize()
 }
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 void
 ConcurrentQueue<Data>::push(Data& data)
 {
@@ -95,9 +95,9 @@ ConcurrentQueue<Data>::push(Data& data)
 }
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 bool
-ConcurrentQueue<Data>::empty() const
+ConcurrentQueue<Data>::empty()
 {
   pthread_mutex_lock(&mutex);
   bool emptyState = queue.empty();
@@ -107,13 +107,13 @@ ConcurrentQueue<Data>::empty() const
 
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 bool
 ConcurrentQueue<Data>::try_pop(Data& popped_value)
 {
   pthread_mutex_lock(&mutex);
-  if(queue.empty())
-  {
+
+  if(queue.empty()) {
     pthread_mutex_unlock(&mutex);
     return false;
   }
@@ -126,14 +126,12 @@ ConcurrentQueue<Data>::try_pop(Data& popped_value)
 
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 void
 ConcurrentQueue<Data>::wait_pop(Data& popped_value)
 {
   pthread_mutex_lock(&mutex);
   while(queue.empty()) {
-    
-    eos_static_debug("wait on concurrent queue");
     pthread_cond_wait(&cond, &mutex);
     eos_static_debug("wait on concurrent queue signalled");
   }
@@ -145,17 +143,18 @@ ConcurrentQueue<Data>::wait_pop(Data& popped_value)
 
 
 //------------------------------------------------------------------------------
-template <class Data>
+template <typename Data>
 void
 ConcurrentQueue<Data>::clear()
 {
   pthread_mutex_lock(&mutex);
-  while (!queue.empty())
-  {
+
+  while (!queue.empty()) {
     queue.pop();
   }
+
   pthread_mutex_unlock(&mutex);
 }
 
 
-#endif 
+#endif

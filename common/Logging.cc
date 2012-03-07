@@ -16,7 +16,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
- *                                                                      *
+ *           A                                                           *
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
@@ -35,6 +35,7 @@ EOSCOMMONNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 int Logging::gLogMask=0;
 int Logging::gPriorityLevel=0;
+int Logging::gShortFormat=0;
 
 Logging::LogArray         Logging::gLogMemory;
 Logging::LogCircularIndex Logging::gLogCircularIndex;
@@ -45,6 +46,31 @@ XrdOucString Logging::gFilter="";
 
 Mapping::VirtualIdentity Logging::gZeroVid;
 
+
+/*----------------------------------------------------------------------------*/
+/** 
+ * Should log function
+ * 
+ * @param func name of the calling function
+ * @param priority priority level of the message
+ */
+/*----------------------------------------------------------------------------*/
+
+bool
+Logging::shouldlog(const char* func, int priority) 
+{
+  // short cut if log messages are masked
+  if (!((LOG_MASK(priority) & gLogMask)))
+    return false;
+  
+  // apply filter to avoid message flooding for debug messages
+  if (priority >= LOG_INFO) {
+    if ( (gFilter.find(func))!=STR_NPOS) {
+      return false;
+    }
+  }
+  return true;
+}
 
 /*----------------------------------------------------------------------------*/
 /** 
@@ -60,6 +86,7 @@ Mapping::VirtualIdentity Logging::gZeroVid;
  * @param msg the actual log message
  */
 /*----------------------------------------------------------------------------*/
+
 void
 Logging::log(const char* func, const char* file, int line, const char* logid, const Mapping::VirtualIdentity &vid, const char* cident, int priority, const char *msg, ...) 
 {
@@ -68,10 +95,11 @@ Logging::log(const char* func, const char* file, int line, const char* logid, co
     return;
 
   // apply filter to avoid message flooding for debug messages
-  if (priority >= LOG_INFO)
+  if (priority >= LOG_INFO) {
     if ( (gFilter.find(func))!=STR_NPOS) {
       return;
     }
+  }
 
   static char* buffer=0;
 
@@ -116,10 +144,14 @@ Logging::log(const char* func, const char* file, int line, const char* logid, co
     truncname.erase(0,truncname.length()-16);
   }
     
-  sprintf(fcident,"tident=%s uid=%d gid=%d name=%s",cident,vid.uid,vid.gid,truncname.c_str());
-
-  tm = localtime (&current_time);
-  sprintf (buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-24s level=%s logid=%s unit=%s tid=%lu source=%s:%-5s %s ", tm->tm_year-100, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long)tv.tv_usec, func, GetPriorityString(priority),logid, gUnit.c_str(), (unsigned long)XrdSysThread::ID(), File.c_str(), linen, fcident);
+  if (gShortFormat) {
+    tm = localtime (&current_time);
+    sprintf (buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-12s level=%s tid=%lu source=%s:%-5s ", tm->tm_year-100, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long)tv.tv_usec, func, GetPriorityString(priority), (unsigned long)XrdSysThread::ID(), File.c_str(), linen);
+  } else {
+    sprintf(fcident,"tident=%s uid=%d gid=%d name=%s",cident,vid.uid,vid.gid,truncname.c_str());
+    tm = localtime (&current_time);
+    sprintf (buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-24s level=%s logid=%s unit=%s tid=%lu source=%s:%-5s %s ", tm->tm_year-100, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long)tv.tv_usec, func, GetPriorityString(priority),logid, gUnit.c_str(), (unsigned long)XrdSysThread::ID(), File.c_str(), linen, fcident);
+  }
 
   char*  ptr = buffer + strlen(buffer);
   vsprintf(ptr, msg, args);

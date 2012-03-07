@@ -21,8 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-
 /*
   FUSE: Filesystem in Userspace
   Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
@@ -32,6 +30,7 @@
 
   gcc -Wall `pkg-config fuse --cflags --libs` hello_ll.c -o hello_ll
 */
+
 
 #define FUSE_USE_VERSION 26
 
@@ -161,6 +160,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
   
   if (to_set & FUSE_SET_ATTR_SIZE) {
     if (fi) {
+
       if (isdebug) fprintf(stderr,"[%s]: truncate\n",__FUNCTION__);
       if (fi->fh) {
         retc = xrd_truncate(fi->fh,attr->st_size, 0);
@@ -175,6 +175,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
         }
       }
     } else {
+
       if (isdebug) fprintf(stderr,"[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__,(long long)attr->st_size, (long long)ino);
       int fd;
       if ((fd = xrd_open(fullpath, O_WRONLY , S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH))>=0) {
@@ -775,7 +776,6 @@ static void eosfs_ll_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 
   struct stat stbuf;
   int retcold = xrd_stat(fullpath, &stbuf);
-
   if (isdebug) fprintf(stderr,"[%s]: path=%s inode=%lu [%d]\n", __FUNCTION__,fullpath,stbuf.st_ino,retcold);
   if (isdebug) fprintf(stderr,"[%s]: path=%s newpath=%s\n", __FUNCTION__,fullpath,newfullpath);
 
@@ -926,7 +926,7 @@ static void eosfs_ll_open(fuse_req_t req, fuse_ino_t ino,
   fi->fh = res;
 
   
-  if (getenv("EOS_KERNELCACHE") && (!strcmp(getenv("EOS_KERNELCACHE"),"1"))) {
+  if (getenv("EOS_FUSE_KERNELCACHE") && (!strcmp(getenv("EOS_FUSE_KERNELCACHE"),"1"))) {
     // TODO: this should be improved
     if (strstr(fullpath,"/proc/")) {
       fi->keep_cache = 0;
@@ -937,13 +937,7 @@ static void eosfs_ll_open(fuse_req_t req, fuse_ino_t ino,
     fi->keep_cache = 0;
   }
     
-  //if XrdCacheFile enabled then disable kernel cache
-  //  if (getenv("EOS_XFC")) {
-  //    fprintf(stderr, "Disabling the kernel cache. \n");
-  //    fi->keep_cache = 0;
-  //  }
-
-  if (getenv("EOS_DIRECTIO") && (!strcmp(getenv("EOS_DIRECTIO"),"1"))) {
+  if (getenv("EOS_FUSE_DIRECTIO") && (!strcmp(getenv("EOS_FUSE_DIRECTIO"),"1"))) {
     fi->direct_io=1;
   } else {
     fi->direct_io=0;
@@ -1056,6 +1050,15 @@ static void eosfs_ll_flush (fuse_req_t req, fuse_ino_t ino,
 //---------------------------------------------------------------------------------------------------
 static void eosfs_ll_getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_t size) 
 {
+  //filter out specific requests
+  if ((!strcmp(xattr_name, "system.posix_acl_access")) || 
+      (!strcmp(xattr_name, "system.posix_acl_default") ||
+       (!strcmp(xattr_name, "security.capability")))) 
+  {
+    fuse_reply_err(req, ENODATA);
+    return;
+  }
+ 
   int retc = 0;
   size_t init_size = size;
   char fullpath[16384];
@@ -1273,8 +1276,6 @@ int main(int argc, char *argv[])
   }
 
   rdr = getenv("EOS_RDRURL");
-
-
   fprintf(stdout,"EOS_RDRURL = %s\n", getenv("EOS_RDRURL"));
 
   if (! rdr) {
@@ -1317,7 +1318,7 @@ int main(int argc, char *argv[])
     }
   }
   
-  fprintf(stdout,"mounthost=%s mountmountprefix=%s\n", mounthostport, mountprefix);
+  fprintf(stderr,"mounthost=%s mountmountprefix=%s\n", mounthostport, mountprefix);
 
   if (!isdebug) {
     pid_t m_pid=fork();

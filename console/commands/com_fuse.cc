@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_fuse.cc
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+// -----------------------------------B-----------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -39,7 +39,7 @@ com_fuse (char* arg1) {
     global_retc = -1;
     return 0;
   }
-    
+
   // split subcommands
   XrdOucString mountpoint="";
   XrdOucTokenizer subtokenizer(arg1);
@@ -111,26 +111,69 @@ com_fuse (char* arg1) {
     }
     
     XrdOucString env="env";
-    if (getenv("EOS_READAHEADSIZE")) {
-      env += " EOS_READAHEADSIZE=";
-      env += getenv("EOS_READAHEADSIZE");
+    if (getenv("EOS_FUSE_READAHEADSIZE")) {
+      env += " EOS_FUSE_READAHEADSIZE=";
+      env += getenv("EOS_FUSE_READAHEADSIZE");
     } else {
-      setenv("EOS_READAHEADSIZE","131072",1);
-      env += " EOS_READAHEADSIZE=131072";
+      setenv("EOS_FUSE_READAHEADSIZE","131072",1);
+      env += " EOS_FUSE_READAHEADSIZE=131072";
     }
 
-    if (getenv("EOS_READCACHESIZE")) {
-      env += " EOS_READCACHESIZE=";
-      env += getenv("EOS_READCACHESIZE");
+    if (getenv("EOS_FUSE_READCACHESIZE")) {
+      env += " EOS_FUSE_READCACHESIZE=";
+      env += getenv("EOS_FUSE_READCACHESIZE");
     } else {
-      setenv("EOS_READCACHESIZE","393216",1);
-      env += " EOS_READCACHESIZE=393216";
+      setenv("EOS_FUSE_READCACHESIZE","393216",1);
+      env += " EOS_FUSE_READCACHESIZE=393216";
+    }
+
+    if (getenv("EOS_FUSE_CACHE_WRITE")) {
+      env += " EOS_FUSE_CACHE_WRITE=";
+      env += getenv("EOS_FUSE_CACHE_WRITE");
+    } else {
+      setenv("EOS_FUSE_CACHE_WRITE","1",1);
+      env += " EOS_FUSE_CACHE_WRITE=1";
+    }
+
+    if (getenv("EOS_FUSE_CACHE_READ")) {
+      env += " EOS_FUSE_CACHE_READ=";
+      env += getenv("EOS_FUSE_CACHE_READ");
+    } else {
+      setenv("EOS_FUSE_CACHE_READ","1",1);
+      env += " EOS_FUSE_CACHE_READ=1";
     }
     
-    fprintf(stderr,"===> xrootd ra    : %s\n", getenv("EOS_READAHEADSIZE"));
-    fprintf(stderr,"===> xrootd cache : %s\n", getenv("EOS_READCACHESIZE"));
+    if (getenv("EOS_FUSE_CACHE_SIZE")) {
+      env += " EOS_FUSE_CACHE_SIZE=";
+      env += getenv("EOS_FUSE_CACHE_SIZE");
+    } else {
+      setenv("EOS_FUSE_CACHE_SIZE","100000000",1);
+      env += " EOS_FUSE_CACHE_SIZE=100000000";
+    }
 
-    XrdOucString mount=env; mount += " eosfsd "; mount += mountpoint.c_str(); mount += " -o"; mount += params;
+    if (getenv("EOS_FUSE_CACHE")) {
+      env += " EOS_FUSE_CACHE=";
+      env += getenv("EOS_FUSE_CACHE");
+    } else {
+      setenv("EOS_FUSE_CACHE","1",1);
+      env += " EOS_FUSE_CACHE=1";
+    }
+
+    if (getenv("EOS_FUSE_DEBUG")) {
+      env += " EOS_FUSE_DEBUG=";
+      env += getenv("EOS_FUSE_DEBUG");
+    } else {
+      setenv("EOS_FUSE_DEBUG","0",1);
+      env += " EOS_FUSE_DEBUG=0";
+    }
+
+    fprintf(stderr,"===> xrootd ra             : %s\n", getenv("EOS_FUSE_READAHEADSIZE"));
+    fprintf(stderr,"===> xrootd cache          : %s\n", getenv("EOS_FUSE_READCACHESIZE"));
+    fprintf(stderr,"===> fuse debug            : %s\n", getenv("EOS_FUSE_DEBUG"));
+    fprintf(stderr,"===> fuse write-cache      : %s\n", getenv("EOS_FUSE_CACHE_WRITE"));
+    fprintf(stderr,"===> fuse write-cache-size : %s\n", getenv("EOS_FUSE_CACHE_SIZE"));
+
+    XrdOucString mount=env; mount += " eosfsd "; mount += mountpoint.c_str(); mount += " -f"; mount += " -o"; mount += params;
     if (logfile.length()) {
       mount += " -d >& "; mount += logfile; mount += " &";
       int rc = system(mount.c_str());

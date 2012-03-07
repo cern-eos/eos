@@ -30,32 +30,49 @@
 #include <sys/time.h>
 #include <sys/types.h>
 //------------------------------------------------------------------------------
+#include <XrdPosix/XrdPosixXrootd.hh>
+//------------------------------------------------------------------------------
 #include "FileAbstraction.hh"
 //------------------------------------------------------------------------------
 
 class CacheEntry
 {
- public:
-  CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstraction *ptr);
+public:
+
+  CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstraction* ptr);
   ~CacheEntry();
+  static const size_t getMaxSize() {
+    return 4*1048576;
+  };    //1MB=1048576 512KB=524288
 
-  int    GetFd() const { return fd; };
-  char*  GetDataBuffer() { return buffer; }; 
-  size_t GetLength() const { return length; };
-  off_t  GetOffset() const { return offset; };
-  off_t  GetOffsetEnd() const { return (offset + length); };
+  int    getFd() const;
+  char*  getDataBuffer();
+  size_t getSizeData() const;
+  size_t getCapacity() const;
+  off_t  getOffsetStart() const;
+  off_t  getOffsetEnd() const;
+  bool   getPiece(char* buf, off_t off, size_t len);
+  FileAbstraction*  getParentFile() const;
 
-  FileAbstraction*  GetParentFile() const { return pParentFile; }; 
-  void   Recycle(int filedes, char* buf, off_t offset, size_t lenBuf,
-                  FileAbstraction* ptr);
+  bool   isFull();
+  int    doWrite();
+  size_t addPiece(char* buf, off_t off, size_t len);
+  void   doRecycle(int filedes, char* buf, off_t offset, size_t lenBuf,
+                   FileAbstraction* ptr);
+  bool   isInQueue() const;
+  void   setInQueue(bool isInQueue); 
 
- private:
-  int fd;                       //file descriptor
-  size_t capacity;
-  size_t length;
-  off_t  offset;
-  char*  buffer;                //buffer of the object
-  FileAbstraction* pParentFile; //pointer to parent file
+private:
+
+  int fd;                            //file descriptor
+  char*  buffer;                     //buffer of the object
+  size_t capacity;                   //total capcity 512 KB ~ 1MB
+  size_t sizeData;                   //size of useful data
+  off_t  offsetStart;                //offset relative to the file
+  bool   inQueue;                    //mark if added to the queue
+
+  std::map<off_t, size_t> mapPieces; //pieces read/to be written
+  FileAbstraction* pParentFile;      //pointer to parent file
 };
 
 #endif

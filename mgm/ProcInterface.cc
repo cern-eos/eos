@@ -3060,7 +3060,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
         inodir->close();
         delete inodir;
-	eos_info("returning resultstream %s", resultStream.c_str());
+	eos_debug("returning resultstream %s", resultStream.c_str());
         len = resultStream.length();
         offset = 0;
         return SFS_OK;

@@ -58,8 +58,6 @@ struct dirbuf {
 #ifdef __cplusplus
 extern "C" {
 #endif
-  
-  
   /*****************************************************************************/
   /* be carefull - this structure was copied out of the fuse<XX>.c source code */
   /* it might change in newer fuse version                                     */
@@ -118,6 +116,7 @@ extern "C" {
   void           xrd_store_child_p2i(unsigned long long inode, unsigned long long childinode, const char* name); // store an inode/path mapping starting from the parent inode + child inode + child base name
   void           xrd_forget_p2i(unsigned long long inode);                  // forget an inode/path mapping by inode
 
+  unsigned long long xrd_simulate_p2i(const char* path); // simulates an inode/path mapping for eosfsd
   
   // - IO buffers
   char*          xrd_attach_read_buffer(int fd, size_t  size); // guarantee a buffer for reading of at least 'size' for the specified fd
@@ -193,6 +192,9 @@ extern "C" {
 
   // - INITIALITZATION
   void           xrd_init();
+
+  int            fuse_cache_read;
+  int            fuse_cache_write;
 
 #ifdef __cplusplus
 }

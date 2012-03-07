@@ -874,6 +874,12 @@ int main (int argc, char* argv[]) {
       runpipe = false;
     }
 
+    if ( (in1 == "fuse" ) ) {
+      interactive = false;
+      global_highlighting = false;
+      runpipe = false;
+    }
+
     if ( (in1 == "--pipe") || (in1 == "-p") ) {
       pipemode = true;
       argindex++;
@@ -916,6 +922,10 @@ int main (int argc, char* argv[]) {
       interactive = false;
     }
 
+    if ( (in1 == "fuse" ) ) {
+      interactive = false;
+    }
+
     if (in1.beginswith("root://")) {
       serveruri = argv[argindex];
       argindex++;
@@ -924,7 +934,7 @@ int main (int argc, char* argv[]) {
 
     if (in1.length()) {
       // check if this is a file
-      if ((in1.endswith(".eosh")) && (!access(in1.c_str(), R_OK))) {
+      if ((in1.endswith("eosh")) && (!access(in1.c_str(), R_OK))) {
         // this is a script file
         char str[16384];
         fstream file_op(in1.c_str(),ios::in);

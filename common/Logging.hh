@@ -89,6 +89,19 @@ EOSCOMMONNAMESPACE_BEGIN
 #define eos_static_alert(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", eos::common::Logging::gZeroVid,"", (LOG_ALERT)  , __VA_ARGS__)
 #define eos_static_emerg(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", eos::common::Logging::gZeroVid,"", (LOG_EMERG)  , __VA_ARGS__)
 
+/*----------------------------------------------------------------------------*/
+//! Log Macros to check if a function would log in a certain log level
+/*----------------------------------------------------------------------------*/
+#define EOS_LOGS_DEBUG   eos::common::Logging::shouldlog(__FUNCTION__,(LOG_DEBUG)  )
+#define EOS_LOGS_INFO    eos::common::Logging::shouldlog(__FUNCTION__,(LOG_INFO)   )
+#define EOS_LOGS_NOTICE  eos::common::Logging::shouldlog(__FUNCTION__,(LOG_NOTICE) )
+#define EOS_LOGS_WARNING eos::common::Logging::shouldlog(__FUNCTION__,(LOG_WARNING))
+#define EOS_LOGS_ERR     eos::common::Logging::shouldlog(__FUNCTION__,(LOG_ERR)    )
+#define EOS_LOGS_CRIT    eos::common::Logging::shouldlog(__FUNCTION__,(LOG_CRIT)   )
+#define EOS_LOGS_ALERT   eos::common::Logging::shouldlog(__FUNCTION__,(LOG_ALERT)  )
+#define EOS_LOGS_EMERG   eos::common::Logging::shouldlog(__FUNCTION__,(LOG_EMERG)  )
+
+
 #define EOSCOMMONLOGGING_CIRCULARINDEXSIZE 10000
 
 /*----------------------------------------------------------------------------*/
@@ -165,6 +178,8 @@ public:
   static XrdSysMutex gMutex;                 //< global mutex
   static XrdOucString gUnit;                 //< global unit name
   static XrdOucString gFilter;               //< global log filter to apply
+  static int gShortFormat;                  //< indiciating if the log-output is in short format
+
   // ---------------------------------------------------------------------------
   //! Set the log priority (like syslog)
   // ---------------------------------------------------------------------------
@@ -215,6 +230,11 @@ public:
   // ---------------------------------------------------------------------------
   static void Init();
   
+  // ---------------------------------------------------------------------------
+  //! Check if we should log in the defined level/filter
+  // ---------------------------------------------------------------------------
+  static bool shouldlog(const char* func, int priority);
+
   // ---------------------------------------------------------------------------
   //! Log a message into the global buffer
   // ---------------------------------------------------------------------------
