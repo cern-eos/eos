@@ -60,8 +60,8 @@ public:
   void waitFinishWrites(FileAbstraction *fAbst);
   void removeFileInode(unsigned long inode);
 
-  FileAbstraction* getFileObj(unsigned long inode);
   ConcurrentQueue<error_type>& getErrorQueue(unsigned long inode);
+  FileAbstraction* getFileObj(unsigned long inode);
 
 private:
 
@@ -80,8 +80,9 @@ private:
   pthread_t writeThread;
   pthread_rwlock_t keyMgmLock;
 
-  std::queue<int> usedIndexQueue;                           //file indices used and available to recycle
   std::map<unsigned long, FileAbstraction*> fileInodeMap;   //map inodes to FileAbst objects
+
+  std::queue<int> usedIndexQueue;                           //file indices used and available to recycle
 
   CacheImpl* cacheImpl;
 };

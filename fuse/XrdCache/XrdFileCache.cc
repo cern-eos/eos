@@ -114,7 +114,8 @@ XrdFileCache::getFileObj(unsigned long inode)
   int key = 0;
   FileAbstraction* fRet = NULL;
 
-  pthread_rwlock_rdlock(&keyMgmLock);   //read lock
+  // we enter with a read lock on keyMgmLock
+
   std::map<unsigned long, FileAbstraction*>::iterator iter = fileInodeMap.find(inode);
 
   if (iter != fileInodeMap.end()) {
@@ -123,9 +124,13 @@ XrdFileCache::getFileObj(unsigned long inode)
   } else {
     pthread_rwlock_unlock(&keyMgmLock);  //unlock
     pthread_rwlock_wrlock(&keyMgmLock);  //write lock
-
     if (indexFile >= maxIndexFiles) {
       key = usedIndexQueue.front();
+      if (!key) {
+	eos_static_crit("couldn't retrieve a key\n");
+	exit(0);
+      }
+	
       usedIndexQueue.pop();
       fRet = new FileAbstraction(key, inode);
       fileInodeMap.insert(std::pair<unsigned long, FileAbstraction*>(inode, fRet));
@@ -135,13 +140,16 @@ XrdFileCache::getFileObj(unsigned long inode)
       fileInodeMap.insert(std::pair<unsigned long, FileAbstraction*>(inode, fRet));
       indexFile++;
     }
+    pthread_rwlock_unlock(&keyMgmLock);  //unlock
+    pthread_rwlock_rdlock(&keyMgmLock);  //read lock
   }
 
   //increase the number of references to this file
   fRet->incrementNoReferences();
-  pthread_rwlock_unlock(&keyMgmLock);  //unlock
 
   eos_static_debug("inode=%lu, key=%i", inode, key);
+
+  // we leave with a readlock on keyMgmLock
   return fRet;
 }
 
@@ -154,6 +162,9 @@ XrdFileCache::submitWrite(unsigned long inode, int filed, void* buf,
   size_t nwrite;
   long long int key;
   off_t writtenOffset = 0;
+
+  pthread_rwlock_rdlock(&keyMgmLock);   //read lock
+
   FileAbstraction* fAbst = getFileObj(inode);
  
   while (((offset % CacheEntry::getMaxSize()) + length) > CacheEntry::getMaxSize()) {
@@ -176,6 +187,7 @@ XrdFileCache::submitWrite(unsigned long inode, int filed, void* buf,
   }
 
   fAbst->decrementNoReferences();
+  pthread_rwlock_unlock(&keyMgmLock);  //unlock
   return;
 }
 
@@ -364,6 +376,8 @@ XrdFileCache::waitFinishWrites(FileAbstraction* fAbst)
 void
 XrdFileCache::waitFinishWrites(unsigned long inode)
 {
+  pthread_rwlock_rdlock(&keyMgmLock);   //read lock
+
   FileAbstraction* fAbst = getFileObj(inode);
   
   if (fAbst->getSizeWrites() != 0) {
@@ -371,5 +385,6 @@ XrdFileCache::waitFinishWrites(unsigned long inode)
     fAbst->waitFinishWrites();
   }
 
+  pthread_rwlock_unlock(&keyMgmLock);   //unlock
   return;
 }

@@ -137,7 +137,6 @@ xrd_basename(unsigned long long inode)
   const char* fname = xrd_path(inode);
   if (fname) {
     std::string spath = fname;
-    fprintf(stderr,"spath=%s\n", spath.c_str());
     size_t len = spath.length();
     if (len) {
       if (spath[len-1] == '/') {
@@ -770,7 +769,7 @@ xrd_listxattr(const char *path, char **xattr_list, size_t *size)
 int
 xrd_stat(const char *path, struct stat *buf)
 {
-  eos_static_info("path=%x", path);
+  eos_static_info("path=%s", path);
   eos::common::Timing stattiming("xrd_stat");
   TIMING("START",&stattiming);
 

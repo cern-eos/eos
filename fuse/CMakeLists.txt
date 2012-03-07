@@ -36,10 +36,10 @@ add_executable ( eosd
                  xrdposix.cc
 )
 
-set_target_properties ( eosfsd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
+set_target_properties ( eosfsd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 target_link_libraries ( eosfsd XrdPosix XrdClient XrdUtils XrdCache-static eosCommon-Static uuid ${FUSE_LIBRARY} pthread )
 
-set_target_properties ( eosd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
+set_target_properties ( eosd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 target_link_libraries ( eosd XrdPosix XrdClient XrdUtils XrdCache-static eosCommon-Static uuid ${FUSE_LIBRARY} pthread )
 
 INSTALL_PROGRAMS( /sbin FILES eosd )
