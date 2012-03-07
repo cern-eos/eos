@@ -51,6 +51,12 @@
 
 #include "common/Logging.hh"
 #include "common/Path.hh"
+#include "common/RWMutex.hh"
+
+#include <google/dense_hash_map>
+#include <google/sparse_hash_map>
+#include <google/sparsehash/densehashtable.h>
+
 #ifndef __macos__
 #define OSPAGESIZE 4096
 #else
@@ -61,13 +67,9 @@
 XrdPosixXrootd posixsingleton;
 
 static XrdOucHash<XrdOucString> *passwdstore;
-static XrdOucHash<XrdOucString> *inodestore;
 static XrdOucHash<XrdOucString> *stringstore;
 
 XrdSysMutex passwdstoremutex;
-XrdSysMutex inodestoremutex;
-XrdSysMutex mknodopenstoremutex;
-XrdSysMutex readopenstoremutex;
 XrdSysMutex stringstoremutex;
 
 char*
@@ -87,105 +89,380 @@ STRINGSTORE(const char* __charptr__) {
 }
 
 
-#define XWCDEBUG
-
-char* fdbuffermap[65535];
-
 void xrd_sync_env();
 void xrd_ro_env();
 void xrd_rw_env();
 void xrd_wo_env();
 
-/******************************************************************************/
-/*                            XrdPosixDirEntry Class                          */
-/******************************************************************************/
+// ---------------------------------------------------------------
+// Implementation Translations
+// ---------------------------------------------------------------
 
-class XrdPosixDirEntry {
-public:
-  XrdOucString dname;
-  unsigned long long inode;
-  XrdPosixDirEntry(const char* name, unsigned long long in) {
-    dname = name;
-    inode = in;
-  }
+// protecting the path/inode translation table
+eos::common::RWMutex InodePathMutex;
+
+// translate path name to inode
+google::dense_hash_map<std::string, unsigned long long> Path2Inode;
+
+// translate inode to path name
+google::dense_hash_map<unsigned long long, std::string> Inode2Path;
+
+// translate dir inode to inode list
+
+void           xrd_lock_r_p2i()   { InodePathMutex.LockRead();}
+void           xrd_unlock_r_p2i() { InodePathMutex.UnLockRead();}
+void           xrd_lock_w_p2i()   { InodePathMutex.LockWrite();}
+void           xrd_unlock_w_p2i() { InodePathMutex.UnLockWrite();}
+
+const char* 
+xrd_path(unsigned long   long inode)
+{
+  // translate from inode to path - use xrd_lock_r_p2i/xrd_unlock_r_p2i for thread safety in the scope of the returned string
+  if (Inode2Path.count(inode)) 
+    return Inode2Path[inode].c_str();
+  else 
+    return 0;
 };
 
-/******************************************************************************/
-/*                            XrdPosixDirList Class                           */
-/******************************************************************************/
+char*
+xrd_basename(unsigned long long inode) 
+{
+  eos::common::RWMutexReadLock vLock(InodePathMutex);
+  const char* fname = xrd_path(inode);
+  if (fname) {
+    std::string spath = fname;
+    fprintf(stderr,"spath=%s\n", spath.c_str());
+    size_t len = spath.length();
+    if (len) {
+      if (spath[len-1] == '/') {
+	spath.erase(len-1);
+      }
+    }
+    size_t spos = spath.rfind("/");
 
-
-class XrdPosixDirList {
-public:
-  XrdPosixDirEntry** entrylist;
-  int nEntries;
-  int nUsed;
-  struct dirbuf b;
-
-  XrdPosixDirList() {
-    nEntries = 1024;
-    nUsed    = 0;
-    entrylist = (XrdPosixDirEntry**) malloc(nEntries * sizeof(XrdPosixDirEntry*));
-    b.p=0;
-    b.size=0;
+    if (spos != std::string::npos) {
+      spath.erase(0, spos+1);
+    }
+    return (char*)STRINGSTORE(spath.c_str());
   }
+  return 0;
+}
 
-  XrdPosixDirEntry* GetEntry(int index) {
-    if (index < nUsed) {
-      return entrylist[index];
+unsigned long long 
+xrd_inode(const char* path) 
+{
+  // translate from path to inode - use xrd_lock_r_p2i/xrd_unlock_r_p2i for thread safety in the scope of the returned inode
+  if (Path2Inode.count(path)) 
+    return Path2Inode[path];
+  else
+    return 0;
+}
+
+void 
+xrd_store_p2i(unsigned long long inode, const char* path)
+{
+  // store an inode/path mapping
+  xrd_lock_w_p2i();
+  Path2Inode[path] = inode;
+  Inode2Path[inode] = path;
+  xrd_unlock_w_p2i();
+}
+
+void 
+xrd_store_child_p2i(unsigned long long inode, unsigned long long childinode, const char* name)
+{
+  // store an inode/path mapping
+  xrd_lock_w_p2i();
+  std::string fullpath = Inode2Path[inode];
+  std::string sname=name;
+
+  if ( (sname != ".") ) {
+    // we don't need to store this ones
+    if (sname == "..") {
+      if (inode == 1) {
+	fullpath = "/";
+      } else {
+	size_t spos = fullpath.rfind("/");
+	if (spos != std::string::npos) {
+	  fullpath.erase(spos);
+	}
+      }
     } else {
-      return NULL;
+      fullpath += "/"; fullpath += name;
     }
+    fprintf(stderr,"sname=%s fullpath=%s inode=%llu childinode=%llu\n", sname.c_str(),fullpath.c_str(), inode, childinode);
+    Path2Inode[fullpath] = childinode;
+    Inode2Path[childinode] = fullpath;
+  }
+  
+  xrd_unlock_w_p2i();
+}
+
+void       
+xrd_forget_p2i(unsigned long long inode)
+{
+  // forget an inode/path mapping by inode
+  xrd_lock_w_p2i();
+  if (Inode2Path.count(inode)) {
+    std::string path = Inode2Path[inode];
+    Path2Inode.erase(path);
+    Inode2Path.erase(inode);
+  }
+  xrd_unlock_w_p2i();
+}
+
+void
+xrd_forget_p2i(const char* path)
+{
+  // forget an inode/path mapping by path
+  xrd_lock_w_p2i();
+  if (Path2Inode.count(path)) {
+    unsigned long long inode = Path2Inode[path];
+    Path2Inode.erase(path);
+    Inode2Path.erase(inode);
+  }
+  xrd_unlock_w_p2i();
+}
+
+// ---------------------------------------------------------------
+// Implementation of the directory listing table
+// ---------------------------------------------------------------
+
+// protecting the directory listing table
+eos::common::RWMutex DirInodeListMutex;
+
+// dir listing map
+google::dense_hash_map<unsigned long long, std::vector<unsigned long long> >DirInodeList;
+google::dense_hash_map<unsigned long long, struct dirbuf> DirInodeBuffer;
+
+void xrd_lock_r_dirview()   {DirInodeListMutex.LockRead();}
+void xrd_unlock_r_dirview() {DirInodeListMutex.UnLockRead();}
+void xrd_lock_w_dirview()   {DirInodeListMutex.LockWrite();}
+void xrd_unlock_w_dirview() {DirInodeListMutex.UnLockWrite();}
+
+void           
+xrd_dirview_create(unsigned long long inode)
+{
+  // path should be attached beforehand into path translation
+  eos::common::RWMutexWriteLock vLock(DirInodeListMutex);
+  DirInodeList[inode].clear();
+  DirInodeBuffer[inode].p    = 0; 
+  DirInodeBuffer[inode].size = 0;
+}
+
+void
+xrd_dirview_delete(unsigned long long inode)
+{
+  eos::common::RWMutexWriteLock vLock(DirInodeListMutex);
+  if (DirInodeList.count(inode)) {
+    if (DirInodeBuffer[inode].p) {
+      free(DirInodeBuffer[inode].p);
+    }
+    DirInodeBuffer.erase(inode);
+    DirInodeList[inode].clear();
+    DirInodeList.erase(inode);
   }
 
-  bool Add(const char* name, unsigned long long ino) {
-    if (nUsed >= nEntries) {
-      nEntries += 1024;
-      entrylist = (XrdPosixDirEntry**) realloc(entrylist, nEntries * sizeof(XrdPosixDirEntry*));
-    }
-    entrylist[nUsed] = new XrdPosixDirEntry(name,ino);
-    nUsed++;
-    return true;
-  }
+}
 
-  ~XrdPosixDirList() {
-    for (int i=0 ;i< nUsed; i++) {
-      delete entrylist[i];
-    }
-    delete entrylist;
-    if (b.p) {
-      free (b.p);
-    }
-  }
-};
+unsigned long long            
+xrd_dirview_entry(unsigned long long dirinode, size_t index)
+{
+  // returns entry with index 'index', should have xrd_lock_dirview in the scope of the call
+  if (DirInodeList.count(dirinode) && (DirInodeList[dirinode].size() > index)) 
+    return DirInodeList[dirinode][index];
+  else
+    return 0;
+}
 
+struct dirbuf* xrd_dirview_getbuffer(unsigned long long inode)
+{
+  // returns pointer to dirbuf , should have xrd_lock_dirview in the scope of the call
+  return &DirInodeBuffer[inode];
+}
 
-/******************************************************************************/
-/*                           XrdOpenPosixFile Class                           */
-/******************************************************************************/
+// ---------------------------------------------------------------
+// Implementation of the FUSE cache entry map
+// ---------------------------------------------------------------
 
-static XrdOucHash<XrdPosixDirList>  *dirstore;
-XrdSysMutex dirmutex;
+// protecting the cache entry map
+eos::common::RWMutex FuseCacheMutex;
 
-class XrdOpenPosixFile {
+class FuseCacheEntry {
 public:
-  int fd;
-  int nuser;
-  uid_t uid;
+  FuseCacheEntry() {
+  }
 
-  XrdOpenPosixFile(int FD){fd=FD;nuser=0;uid=0;};
-  XrdOpenPosixFile(int FD,uid_t UID){fd=FD;nuser=0;uid=UID;};
+  ~FuseCacheEntry() {};
 
-  ~XrdOpenPosixFile(){if ((nuser==0)&&(fd>0)) xrd_close(fd, 0);}
+  size_t getSize() { eos::common::RWMutexReadLock vLock(Mutex); return children.size(); }
+
+  void Update() { 
+    // update the contents
+    eos::common::RWMutexReadLock vLock(Mutex);
+  }
+
+private:
+  eos::common::RWMutex Mutex;
+
+  std::map<unsigned long long,struct fuse_entry_param> children;
+  struct timespec mtime;
+
 };
 
+// inode cache
+google::dense_hash_map<unsigned long long, FuseCacheEntry> FuseCache;
 
-/******************************************************************************/
-/*                             XrdPosixTiming Class                           */
-/******************************************************************************/
 
-static XrdOucHash<XrdOpenPosixFile>  *mknodopenstore;
-static XrdOucHash<XrdOpenPosixFile>  *readopenstore;
+int
+xrd_dir_cache_get(unsigned long long inode, struct timespec mtime, char *fullpath, struct dirbuf **b)
+{
+  // create a cached directory
+  return 0;
+}
+
+int
+xrd_dir_cache_get_entry(fuse_req_t req, unsigned long long dir_inode, const char* ifullpath)
+{
+  // get a cached entry from a cached directory
+  return 0;
+}
+  
+void
+xrd_dir_cache_add_entry(unsigned long long dir_inode, unsigned long long entry_inode, const char *entry_name, struct fuse_entry_param *e)
+{
+  // add a new entry to a cached directory
+  return ;
+}
+
+void 
+xrd_dir_cache_sync_entry(unsigned long long dir_inode, char *name, int nentries, struct timespec mtime, struct dirbuf *b)
+{
+  // update the cache entry inside a cached directory
+  return ;
+}
+
+
+// ---------------------------------------------------------------
+// Implementation the open File Descriptor map
+// ---------------------------------------------------------------
+
+// protecting the open filedescriptor map
+XrdSysMutex OpenPosixXrootFdLock;
+
+// open xrootd fd table
+class PosixFd {
+public:
+  PosixFd() {
+    fd = 0;
+    nuser = 0;
+  }
+  ~PosixFd() {
+  }
+
+  void   setFd(int FD) { fd = FD;Inc();   }
+  int    getFd()       { Inc(); return fd;}
+  size_t getUser()     { return nuser;    }
+
+  void Inc() { nuser++;}
+  void Dec() { if(nuser) nuser--;}
+
+  static std::string Index(unsigned long long inode, uid_t uid) {
+    char index[256];
+    snprintf(index, sizeof(index)-1,"%llu-%u", inode,uid);
+    return index;
+  }
+
+private:
+  int fd;       // POSIX fd to store
+  size_t nuser; // number of users attached to this fd
+};
+
+google::dense_hash_map<std::string, PosixFd> OpenPosixXrootdFd; 
+
+void
+xrd_add_open_fd(int fd, unsigned long long inode, uid_t uid)
+{
+  // add fd as an open file descriptor to speed-up mknod
+  XrdSysMutexHelper vLock(OpenPosixXrootFdLock);
+
+  OpenPosixXrootdFd[PosixFd::Index(inode,uid)].setFd(fd);
+}
+
+int
+xrd_get_open_fd(unsigned long long inode, uid_t uid)
+{
+  // return posix fd for inode - increases 'nuser'
+  XrdSysMutexHelper vLock(OpenPosixXrootFdLock);
+
+  return OpenPosixXrootdFd[PosixFd::Index(inode,uid)].getFd();
+}
+
+void
+xrd_lease_open_fd(unsigned long long inode, uid_t uid)
+{
+  // release an attached file descriptor
+  XrdSysMutexHelper vLock(OpenPosixXrootFdLock);
+  OpenPosixXrootdFd[PosixFd::Index(inode,uid)].Dec();
+  if(!OpenPosixXrootdFd[PosixFd::Index(inode,uid)].getUser()) {
+    OpenPosixXrootdFd.erase(PosixFd::Index(inode,uid));
+  }
+}
+
+// ---------------------------------------------------------------
+// Implementation IO Buffer Management
+// ---------------------------------------------------------------
+
+// protecting the IO buffer map
+XrdSysMutex IoBufferLock;
+
+class IoBuf {
+ private:
+  void* buffer;
+  size_t size;
+
+ public:
+  
+  IoBuf() {
+    buffer = 0;
+    size = 0;
+  }
+
+  virtual ~IoBuf() { 
+    if (buffer && size) free(buffer);
+  }
+  char* getBuffer() {return (char*)buffer;}
+  size_t getSize() {return size;}
+  void resize(size_t newsize) {
+    if (newsize > size) {
+      buffer = realloc(buffer,(newsize<(128*1024))?128*1024:newsize);
+    }
+  }
+};
+
+// IO buffer table
+std::map<int, IoBuf> IoBufferMap;
+
+char*    
+xrd_attach_read_buffer(int fd, size_t  size)
+{
+  // guarantee a buffer for reading of at least 'size' for the specified fd
+  XrdSysMutexHelper vlock(IoBufferLock);
+
+  IoBufferMap[fd].resize(size);
+  return (char*)IoBufferMap[fd].getBuffer();
+}
+  
+void 
+xrd_release_read_buffer(int fd)
+{
+  // release a read buffer for the specified fd
+  XrdSysMutexHelper vlock(IoBufferLock);
+  IoBufferMap.erase(fd);
+  return;
+}
+
+
 
 class XrdPosixTiming {
 public:
@@ -245,10 +522,6 @@ public:
   } while(0);                                                   
 
 
-static XrdFileCache* XFC;
-
-XrdSysMutex OpenMutex;
-
 //------------------------------------------------------------------------------
 void
 xrd_socks4(const char* host, const char* port)
@@ -265,19 +538,16 @@ void
 xrd_ro_env()
 {
   eos_static_info("");
-  int rahead = 0; //97*1024;
-  int rcsize = 0; //512*1024;
+  int rahead = 0; 
+  int rcsize = 0;
 
-  if (!(getenv("EOS_XFC")))
-  {
-    if (getenv("EOS_READAHEADSIZE")) {
-      rahead = atoi(getenv("EOS_READAHEADSIZE"));
-    }
-    if (getenv("EOS_READCACHESIZE")) {
-      rcsize = atoi(getenv("EOS_READCACHESIZE"));
-    }
+  if (getenv("EOS_READAHEADSIZE")) {
+    rahead = atoi(getenv("EOS_READAHEADSIZE"));
   }
-   
+  if (getenv("EOS_READCACHESIZE")) {
+    rcsize = atoi(getenv("EOS_READCACHESIZE"));
+  }
+
   XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,rahead);
   XrdPosixXrootd::setEnv(NAME_READCACHESIZE,rcsize);
 }
@@ -288,18 +558,12 @@ void
 xrd_wo_env()
 {
   eos_static_info("");
-  int rahead = 0; //97*1024;
-  int rcsize = 0; //512*1024;
+  int rahead = 0;
+  int rcsize = 0;
 
-  if (!(getenv("EOS_XFC")))
-  {
-    if (getenv("EOS_READAHEADSIZE")) {
-      rahead = atoi(getenv("EOS_READAHEADSIZE"));
-    }
-    if (getenv("EOS_READCACHESIZE")) {
-      rcsize = atoi(getenv("EOS_READCACHESIZE"));
-    }
-  }  
+  if (getenv("EOS_WRITECACHESIZE")) {
+    rcsize = atoi(getenv("EOS_WRITECACHESIZE"));
+  }
   
   XrdPosixXrootd::setEnv(NAME_READAHEADSIZE, rahead);
   XrdPosixXrootd::setEnv(NAME_READCACHESIZE, rcsize);  
@@ -318,10 +582,8 @@ void xrd_rw_env() {
   int rahead = 0;
   int rcsize = 0;
 
-  if (!(getenv("EOS_XFC"))) {
-    if (getenv("EOS_WRITECACHESIZE")) {
-      rcsize = atoi(getenv("EOS_WRITECACHESIZE"));
-    }
+  if (getenv("EOS_WRITECACHESIZE")) {
+    rcsize = atoi(getenv("EOS_WRITECACHESIZE"));
   }
   
   XrdPosixXrootd::setEnv(NAME_READAHEADSIZE, rahead);
@@ -929,22 +1191,17 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
 
   int doinodirlist=-1;
   int retc;
-  //  OpenMutex.Lock();
   xrd_sync_env();
   XrdClient* listclient = new XrdClient(request.c_str());
   
   if (!listclient) {
-    //    OpenMutex.UnLock();
     return EFAULT;
   }
 
   if (!listclient->Open(0,0,true)) {
-    //    OpenMutex.UnLock();
     delete listclient;
     return ENOENT;
   }
-
-  //  OpenMutex.UnLock();
 
   // start to read
   value = (char*) malloc(PAGESIZE+1);
@@ -965,16 +1222,12 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
   char dirtag[1024];
   sprintf(dirtag,"%llu",dirinode);
   
-  XrdPosixDirList* posixdir;
-  dirmutex.Lock();
-  if ((dirstore->Find(dirtag))) {
-    dirstore->Del(dirtag);
-  }
-  dirmutex.UnLock();
-  
-  posixdir = new XrdPosixDirList();
-  
+  xrd_dirview_create( (unsigned long long ) dirinode);
+
   TIMING("PARSESTSTREAM",&inodirtiming);    
+
+  xrd_lock_w_dirview(); // =>
+
   if (nbytes>= 0) {
     char dirpath[4096];
     unsigned long long inode;
@@ -986,8 +1239,8 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
     int items = sscanf(value,"%s retc=%d",tag, &retc);
     if ((items != 2) || (strcmp(tag,"inodirlist:"))) {
       free(value);
-      if (posixdir) 
-        delete posixdir;
+      xrd_unlock_w_dirview(); // <=
+      xrd_dirview_delete( (unsigned long long ) dirinode);
       return EFAULT;
     }
     ptr = strchr(value,' ');
@@ -998,24 +1251,26 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
       int items = sscanf(ptr,"%s %llu",dirpath,&inode);
       if (items != 2) {
         free(value);
-        if (posixdir)
-          delete posixdir;
+	xrd_unlock_w_dirview(); // <=
+	xrd_dirview_delete( (unsigned long long ) dirinode);
         return EFAULT;
       }
       XrdOucString whitespacedirpath = dirpath;
       whitespacedirpath.replace("%20"," ");
-      posixdir->Add(whitespacedirpath.c_str(), inode);
+
+      xrd_store_child_p2i(dirinode, inode, whitespacedirpath.c_str());
+
+      DirInodeList[dirinode].push_back(inode);
       // to the next entries
       if (ptr) ptr = strchr(ptr+1,' ');
       if (ptr) ptr = strchr(ptr+1,' ');
+      eos_static_info("name=%s inode=%llu",whitespacedirpath.c_str(), inode);
     } 
     doinodirlist = 0;
   }
+
+  xrd_unlock_w_dirview(); // <=
   
-  dirmutex.Lock();
-  dirstore->Add(dirtag,posixdir);
-  dirmutex.UnLock();
-    
   TIMING("END",&inodirtiming);
   inodirtiming.Print();
   free(value);
@@ -1070,7 +1325,6 @@ xrd_open(const char *path, int oflags, mode_t mode)
 {
   eos_static_info("path=%s flags=%d mode=%d", path, oflags, mode);
   XrdOucString spath=path;
-  printf("Spath is %s\n",spath.c_str());
   int t0;
   if ((t0=spath.find("/proc/"))!=STR_NPOS) {
     // clean the path
@@ -1143,9 +1397,6 @@ int
 xrd_close(int fildes, unsigned long inode)
 {
   eos_static_info("fd=%d inode=%lu", fildes, inode);
-  if (XFC && inode)
-    XFC->WaitFinishWrites(inode);
-  eos_static_info("wait finished");
   return XrdPosixXrootd::Close(fildes);
 }
 
@@ -1155,10 +1406,6 @@ int
 xrd_truncate(int fildes, off_t offset, unsigned long inode)
 {
   eos_static_info("fd=%d offset=%llu inode=%lu", fildes, (unsigned long long)offset, inode);
-  if (XFC && inode) {
-    XFC->WaitFinishWrites(inode);
-  }
-  
   return XrdPosixXrootd::Ftruncate(fildes,offset);
 }
 
@@ -1167,11 +1414,7 @@ xrd_truncate(int fildes, off_t offset, unsigned long inode)
 off_t
 xrd_lseek(int fildes, off_t offset, int whence, unsigned long inode)
 {
-  eos_static_info("fd=%d offset=%llu whence=%d indoe=%lu", fildes, (unsigned long long)offset, whence, inode);
-  if (XFC && inode) {
-    XFC->WaitFinishWrites(inode);
-  }
- 
+  eos_static_info("fd=%d offset=%llu whence=%d inode=%lu", fildes, (unsigned long long)offset, whence, inode);
   return XrdPosixXrootd::Lseek(fildes, (long long)offset, whence);
 }
 
@@ -1183,20 +1426,8 @@ xrd_read(int fildes, void *buf, size_t nbyte, unsigned long inode)
   eos_static_info("fd=%d nbytes=%lu inode=%lu",fildes, (unsigned long)nbyte, (unsigned long)inode);
   size_t ret;
    
-  if (XFC && inode)
-  {
-    XFC->WaitFinishWrites(inode);
-    off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
+  ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
 
-    if ((ret = XFC->GetRead(inode, fildes, buf, offset, nbyte)) != nbyte)
-    {
-      ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
-      XFC->PutRead(inode, fildes, buf, offset, nbyte);
-    }
-  } else {
-    ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
-  }
-  
   return ret;
 }
 
@@ -1208,18 +1439,7 @@ xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode
   eos_static_debug("fd=%d nbytes=%lu offset=%llu inode=%lu",fildes, (unsigned long)nbyte, (unsigned long long)offset, (unsigned long) inode);
   size_t ret;
 
-  if (XFC && inode) {
-    XFC->WaitFinishWrites(inode);
-    if ((ret = XFC->GetRead(inode, fildes, buf, offset, nbyte)) != nbyte)
-      {
-        fprintf(stdout, "Block not in cache, try to read it now. \n");
-        ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
-        fprintf(stdout, "Block not in cache, try to cache it now. \n");
-        XFC->PutRead(inode, fildes, buf, offset, nbyte);
-      }
-  } else {
-    ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
-  }
+  ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
   
   return ret;
 }
@@ -1231,13 +1451,7 @@ xrd_write(int fildes, const void *buf, size_t nbyte, unsigned long inode)
 {
   eos_static_info("fd=%d nbytes=%lu inode=%lu", fildes, (unsigned long)nbyte, (unsigned  long) inode);
   size_t ret;
-  if (XFC && inode) {
-    off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
-    XFC->SubmitWrite(inode, fildes, const_cast<void*>(buf), offset, nbyte);
-    ret = nbyte;
-  } else {
-    ret = XrdPosixXrootd::Write(fildes, buf, nbyte);    
-  }
+  ret = XrdPosixXrootd::Write(fildes, buf, nbyte);    
   return ret;                  
 }
 
@@ -1248,12 +1462,7 @@ xrd_pwrite(int fildes, const void *buf, size_t nbyte, off_t offset, unsigned lon
 {
   eos_static_debug("fd=%d nbytes=%lu inode=%lu", fildes, (unsigned long)nbyte, (unsigned long) inode);
   size_t ret;
-  if (XFC && inode) {
-    XFC->SubmitWrite(inode, fildes, const_cast<void*>(buf), offset, nbyte);
-    ret = nbyte;
-  } else {
-    ret = XrdPosixXrootd::Pwrite(fildes, buf, nbyte, static_cast<long long>(offset));    
-  }
+  ret = XrdPosixXrootd::Pwrite(fildes, buf, nbyte, static_cast<long long>(offset));    
   return ret;                  
 }
 
@@ -1263,10 +1472,6 @@ int
 xrd_fsync(int fildes, unsigned long inode)
 {
   eos_static_info("fd=%d inode=%lu", fildes, (unsigned long)inode);
-  if (XFC && inode) {
-    XFC->WaitFinishWrites(inode);
-  }
-  
   return XrdPosixXrootd::Fsync(fildes);
 }
 
@@ -1285,56 +1490,6 @@ int xrd_rename(const char *oldpath, const char *newpath)
   eos_static_info("oldpath=%s newpath=%s", oldpath, newpath);
   return XrdPosixXrootd::Rename(oldpath, newpath);
 }
-
-//------------------------------------------------------------------------------
-void
-xrd_store_inode(long long inode, const char* name) {
-  eos_static_info("inode=%llu name=%s", inode, name);
-  XrdOucString* node;
-  char nodename[4096];
-  sprintf(nodename,"%lld",inode);
-
-  inodestoremutex.Lock();
-  if ( (node = inodestore->Find(nodename) ) ) {
-    inodestore->Rep(nodename, new XrdOucString(name));
-    inodestoremutex.UnLock();
-  } else {
-    inodestore->Add(nodename, new XrdOucString(name));
-    inodestoremutex.UnLock();
-  }
-}
-
-
-//------------------------------------------------------------------------------
-void
-xrd_forget_inode(long long inode) 
-{
-  eos_static_info("inode=%lld", inode);
-  char nodename[4096];
-  sprintf(nodename,"%lld",inode);
-  
-  inodestoremutex.Lock();
-  inodestore->Del(nodename);
-  inodestoremutex.UnLock();
-}
-
-
-//------------------------------------------------------------------------------
-const char*
-xrd_get_name_for_inode(long long inode)
-{
-  eos_static_info("inode=%lld", inode);
-  char nodename[4096];
-  sprintf(nodename,"%lld",inode);
-  inodestoremutex.Lock();
-  XrdOucString* node = (inodestore->Find(nodename));
-  inodestoremutex.UnLock();
-  if (node) 
-    return node->c_str();
-  else 
-    return NULL;
-}
-
 
 //------------------------------------------------------------------------------
 const char*
@@ -1372,191 +1527,9 @@ xrd_mapuser(uid_t uid)
   return STRINGSTORE(spw->c_str());
 }
 
-
-//------------------------------------------------------------------------------
-int
-xrd_inodirlist_entry(unsigned long long dirinode, int index, char** name, unsigned long long *inode)
-{
-  eos_static_info("indoe=%llu", dirinode);
-  char dirtag[1024];
-  sprintf(dirtag,"%llu", dirinode);
-  XrdPosixDirList* posixdir;
-  dirmutex.Lock();
-  if ((posixdir = dirstore->Find(dirtag))) {
-    dirmutex.UnLock();
-    XrdPosixDirEntry* entry;
-    entry = posixdir->GetEntry(index);
-    if (entry) {
-      *name = (char*)entry->dname.c_str();
-      *inode = entry->inode;
-      return 0;
-    }
-  }
-  dirmutex.UnLock();
-  return -1;
-}
-
-
-//------------------------------------------------------------------------------
-void
-xrd_inodirlist_delete(unsigned long long dirinode)
-{
-  eos_static_info("inode=%llu", dirinode);
-  char dirtag[1024];
-  sprintf(dirtag,"%llu",dirinode);
-  dirmutex.Lock();
-  dirstore->Del(dirtag);
-  dirmutex.UnLock();
-}
-
-
-//------------------------------------------------------------------------------
-int
-xrd_mknodopenfilelist_get(unsigned long long inode)
-{
-  eos_static_info("inode=%llu", inode);
-  char filetag[1024];
-  sprintf(filetag,"%llu",inode);
-  XrdOpenPosixFile* posixfile;
-  mknodopenstoremutex.Lock();
-  if ( (posixfile = mknodopenstore->Find(filetag))) {
-    posixfile->nuser++;
-    mknodopenstoremutex.UnLock();
-    return posixfile->fd;
-  }
-  mknodopenstoremutex.UnLock();
-  return -1;
-}
-
-
-//------------------------------------------------------------------------------
-int
-xrd_mknodopenfilelist_release(int fd,unsigned long long inode)
-{
-  eos_static_info("fd=%d inode=%llu", fd, inode);
-  char filetag[1024];
-  sprintf(filetag,"%llu",inode);
-  XrdOpenPosixFile* posixfile;
-  mknodopenstoremutex.Lock();
-  if ( (posixfile = mknodopenstore->Find(filetag))) {
-    if (fd == posixfile->fd) {
-      mknodopenstore->Del(filetag);
-      mknodopenstoremutex.UnLock();
-      return 0;
-    }
-  }
-  mknodopenstoremutex.UnLock();
-  return -1;
-}
-
-
-//------------------------------------------------------------------------------
-int
-xrd_mknodopenfilelist_add(int fd, unsigned long long inode)
-{
-  eos_static_info("fd=%d inode=%llu", fd, inode);
-  char filetag[1024];
-  sprintf(filetag,"%llu",inode);
-
-  XrdOpenPosixFile* posixfile;
-  mknodopenstoremutex.Lock();
-  if ( (posixfile = mknodopenstore->Find(filetag)) ) {
-    mknodopenstoremutex.UnLock();
-    return -1;
-  }
-  
-  posixfile = new XrdOpenPosixFile(fd);
-  mknodopenstore->Add(filetag,posixfile,60);
-  mknodopenstoremutex.UnLock();
-  return 0;
-}
-
-
-//------------------------------------------------------------------------------
-int
-xrd_readopenfilelist_get(unsigned long long inode, uid_t uid)
-{
-  eos_static_info("inode=%llu uid=%lu", inode, (unsigned long) uid);
-  char filetag[1024];
-  sprintf(filetag,"%u-%llu",uid,inode);
-  XrdOpenPosixFile* posixfile;
-  readopenstoremutex.Lock();
-  if ( (posixfile = readopenstore->Find(filetag))) {
-    posixfile->nuser++;
-    readopenstoremutex.UnLock();
-    return posixfile->fd;
-  }
-  readopenstoremutex.UnLock();
-  return -1;
-}
-
-
-//------------------------------------------------------------------------------
-int
-xrd_readopenfilelist_lease(unsigned long long inode, uid_t uid)
-{
-  eos_static_info("inode=%llu uid=%u", inode, (unsigned long) uid);
-  char filetag[1024];
-  sprintf(filetag,"%u%llu",uid, inode);
-  XrdOpenPosixFile* posixfile;
-  readopenstoremutex.Lock();
-  if ( (posixfile = readopenstore->Find(filetag))) {
-    posixfile->nuser--;
-    readopenstoremutex.UnLock();
-    return posixfile->fd;
-  }
-  readopenstoremutex.UnLock();
-  return -1;
-}
-
-
-//------------------------------------------------------------------------------
-int
-xrd_readopenfilelist_add(int fd, unsigned long long inode, uid_t uid, double readopentime)
-{
-  eos_static_info("fd=%d inode=%llu uid=%lu readopentime=%.02f", fd, inode, (unsigned long)uid, readopentime);
-  char filetag[1024];
-  sprintf(filetag,"%u-%llu",uid,inode);
-  
-  XrdOpenPosixFile* posixfile;
-  readopenstoremutex.Lock();
-  if ( (posixfile = readopenstore->Find(filetag)) ) {
-    readopenstoremutex.UnLock();
-    return -1;
-  }
-  
-  posixfile = new XrdOpenPosixFile(fd, uid);
-  readopenstore->Add(filetag,posixfile,(time_t)readopentime);
-  readopenstoremutex.UnLock();
-  return 0;
-}
-
-
-//------------------------------------------------------------------------------
-struct dirbuf*
-xrd_inodirlist_getbuffer(unsigned long long dirinode)
-{
-  eos_static_info("inode=%llu",dirinode);
-  char dirtag[1024];
-  sprintf(dirtag,"%llu",dirinode);
-  XrdPosixDirList* posixdir;
-  dirmutex.Lock();
-  if ((posixdir = dirstore->Find(dirtag))) {
-    dirmutex.UnLock();
-    return (&(posixdir->b));
-  } else {
-    dirmutex.UnLock();
-    return NULL;
-  }
-}
-
-
 //------------------------------------------------------------------------------
 const char* xrd_get_dir(DIR* dp, int entry) { return 0;}
 
-
-#define MAX_NUM_NODES 63 /* max number of data nodes in a cluster */
-//------------------------------------------------------------------------------
 void
 xrd_init()
 {
@@ -1581,13 +1554,30 @@ xrd_init()
   
   setvbuf(fstderr, (char*) NULL, _IONBF, 0);
 
+  // initialize hashes
+  Path2Inode.set_empty_key("");
+  Inode2Path.set_empty_key(0);
+  DirInodeList.set_empty_key(0);
+  DirInodeBuffer.set_empty_key(0);
+  FuseCache.set_empty_key(0);
+  OpenPosixXrootdFd.set_empty_key("");
+
+  Path2Inode.set_deleted_key("#__deleted__#");
+  Inode2Path.set_deleted_key(0xffffffffll);
+  DirInodeList.set_deleted_key(0xffffffffll);
+  DirInodeBuffer.set_deleted_key(0xffffffffll);
+  FuseCache.set_deleted_key(0xffffffffll);
+  OpenPosixXrootdFd.set_deleted_key("#__deleted__#");
+  
+  // create the root entry
+  Path2Inode["/"] = 1;
+  Inode2Path[1] = "/";
+
   eos::common::Mapping::VirtualIdentity_t vid;
   eos::common::Mapping::Root(vid);
   eos::common::Logging::Init();
   eos::common::Logging::SetUnit("FUSE@localhost");
   eos::common::Logging::SetLogPriority(LOG_INFO);
-
-  memset(fdbuffermap,0,sizeof(fdbuffermap));
 
   XrdPosixXrootd::setEnv(NAME_DATASERVERCONN_TTL,300);
   XrdPosixXrootd::setEnv(NAME_LBSERVERCONN_TTL,3600*24);
@@ -1607,18 +1597,14 @@ xrd_init()
   //initialise the XrdFileCache
   if (!(getenv("EOS_XFC"))) {
     eos_static_notice("File Cache not initialized.");
-    XFC = NULL;
+    //    XFC = NULL;
   } else {
     eos_static_notice("File Cache enabled with size %s",getenv("EOS_XFC_SIZE"));
-    XFC = XrdFileCache::Instance(static_cast<size_t>(atol(getenv("EOS_XFC_SIZE"))));   
+    //    XFC = XrdFileCache::Instance(static_cast<size_t>(atol(getenv("EOS_XFC_SIZE"))));   
   }
   
   passwdstore = new XrdOucHash<XrdOucString> ();
-  inodestore  = new XrdOucHash<XrdOucString> ();
   stringstore = new XrdOucHash<XrdOucString> ();
-  dirstore    = new XrdOucHash<XrdPosixDirList> (); 
-  mknodopenstore = new XrdOucHash<XrdOpenPosixFile> ();
-  readopenstore = new XrdOucHash<XrdOpenPosixFile> ();
 }
         
 
