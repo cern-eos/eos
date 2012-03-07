@@ -456,6 +456,9 @@ DrainJob::Drain(void)
     if (!filesleft) 
       break;
 
+    if (!filesleft) 
+      break;
+
     // check how long we do already draining
     drainperiod = fs->GetLongLong("drainperiod");
     drainendtime = drainstart + drainperiod;

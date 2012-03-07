@@ -189,6 +189,7 @@ Fsck::Stop()
     } while(1);
 
     // join the master thread
+    XrdSysThread::Detach(mThread);
     XrdSysThread::Join(mThread,NULL);
     eos_static_info("joined fsck thread");
     mRunning = false;
@@ -400,6 +401,7 @@ Fsck::Check(void)
       // join the slave threads
       google::sparse_hash_map<eos::common::FileSystem::fsid_t, pthread_t>::iterator tit;
       for (tit = mScanThreadsJoin.begin(); tit != mScanThreadsJoin.end(); tit++) {
+	XrdSysThread::Detach(tit->second);
         XrdSysThread::Join(tit->second,0);
       }
       mScanThreadsJoin.clear();
@@ -818,7 +820,7 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
     unsigned long long nfiles=0;
 
     // we do only one scan at a time to avoid to high mutex contention
-    mScanMutex.Lock();
+    //    mScanMutex.Lock();
 
     while(std::getline(inFile, dumpentry)) {
       {
@@ -1069,7 +1071,7 @@ Fsck::Scan(eos::common::FileSystem::fsid_t fsid, bool active, size_t pos, size_t
     Log(false,"filesystem: fsid=%05d hostport=%20s mountpoint=%s totalfiles=%llu", fsid, hostport.c_str(),mountpoint.c_str(), totalfiles);
     // delete dump file
     ::unlink(dumpfile.c_str());      
-    mScanMutex.UnLock();
+    //    mScanMutex.UnLock();
   }
   // copy local maps to global maps
 
