@@ -349,6 +349,9 @@ DrainJob::Drain(void)
         XrdSysThread::SetCancelOn();
       }
     }
+    // set the new drain times
+    drainstart = now;
+    drainendtime = drainstart + drainperiod;
   }
 
   // check if we should abort
