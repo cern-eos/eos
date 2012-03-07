@@ -36,8 +36,8 @@ EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 ReedSFile::ReedSFile(std::vector<std::string> stripeurl, int nparitystripes,
-                     off_t targetsize, std::string bookingopaque)
-    :RaidIO("reedS", stripeurl, nparitystripes, targetsize, bookingopaque)
+                     bool storerecovery, off_t targetsize, std::string bookingopaque)
+    :RaidIO("reedS", stripeurl, nparitystripes, storerecovery, targetsize, bookingopaque)
 {
   sizeGroupBlocks = nDataStripes * stripeWidth;
   
@@ -87,7 +87,7 @@ ReedSFile::computeParity()
 /*----------------------------------------------------------------------------*/
 //try to recover the block at the current offset
 bool 
-ReedSFile::recoverBlock(char *buffer, off_t offset, size_t length, bool storeRecovery)
+ReedSFile::recoverBlock(char *buffer, off_t offset, size_t length)
 {
   size_t aread;
   unsigned int blocksCorrupted;
@@ -169,31 +169,32 @@ ReedSFile::recoverBlock(char *buffer, off_t offset, size_t length, bool storeRec
   }
 
   //update the files in which we found invalid blocks
-  int rc1;
-  unsigned int stripeId;
-  for (vector<unsigned int>::iterator iter = invalidId.begin(); iter != invalidId.end(); ++iter)
-  {
-    stripeId = *iter;
-    eos_debug("Invalid index stripe: %i", stripeId);
-    eos_debug("Writing to remote file stripe: %i, fstid: %i", stripeId, mapStripe_Url[stripeId]);
+  if (storeRecovery) {
+    int rc1;
+    unsigned int stripeId;
+    for (vector<unsigned int>::iterator iter = invalidId.begin(); iter != invalidId.end(); ++iter)
+    {
+      stripeId = *iter;
+      eos_debug("Invalid index stripe: %i", stripeId);
+      eos_debug("Writing to remote file stripe: %i, fstid: %i", stripeId, mapStripe_Url[stripeId]);
    
-    rc1 = XrdPosixXrootd::Pwrite(fdUrl[mapStripe_Url[stripeId]], dataBlocks[stripeId],
-                                  stripeWidth, offsetLocal + sizeHeader);
-    if (rc1 < 0) {
-      eos_err("ReedSRecovery - write stripe failed");
-      return false;
-    }
+      rc1 = XrdPosixXrootd::Pwrite(fdUrl[mapStripe_Url[stripeId]], dataBlocks[stripeId],
+                                   stripeWidth, offsetLocal + sizeHeader);
+      if (rc1 < 0) {
+        eos_err("ReedSRecovery - write stripe failed");
+        return false;
+      }
 
-    //write the correct block to the reading buffer
-    if (*iter < nDataStripes){  //if one of the data blocks
-      if ((offset >= (off_t)(offsetGroup + (*iter) * stripeWidth)) && 
-          (offset < (off_t)(offsetGroup + ((*iter) + 1) * stripeWidth)))
-      {
-        memcpy(buffer, dataBlocks[*iter] + (offset % stripeWidth), length);    
+      //write the correct block to the reading buffer
+      if (*iter < nDataStripes){  //if one of the data blocks
+        if ((offset >= (off_t)(offsetGroup + (*iter) * stripeWidth)) && 
+            (offset < (off_t)(offsetGroup + ((*iter) + 1) * stripeWidth)))
+        {
+          memcpy(buffer, dataBlocks[*iter] + (offset % stripeWidth), length);    
+        }
       }
     }
   }
-
   doneRecovery = true;
   return true; 
 }

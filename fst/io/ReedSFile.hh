@@ -35,7 +35,7 @@ class ReedSFile : public RaidIO
 {
  public:
 
-  ReedSFile(std::vector<std::string> stripeurl, int nparitystripes,
+  ReedSFile(std::vector<std::string> stripeurl, int nparitystripes, bool storerecovery,
              off_t targetsize = 0, std::string bookingopaque="oss.size");
 
   virtual int truncate(off_t offset);
@@ -46,7 +46,7 @@ class ReedSFile : public RaidIO
   void computeParity();                        
   int writeParityToFiles(off_t offsetGroup);
   
-  virtual bool recoverBlock(char *buffer, off_t offset, size_t length, bool storeRecovery);
+  virtual bool recoverBlock(char *buffer, off_t offset, size_t length);
   virtual void addDataBlock(off_t offset, char* buffer, size_t length);
   virtual void computeDataBlocksParity(off_t offsetGroup);
   //  virtual int updateParityForGroups(off_t offsetStart, off_t offsetEnd);

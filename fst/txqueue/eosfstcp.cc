@@ -87,6 +87,7 @@ off_t offsetRaid = 0;
 int nparitystripes = 0;
 bool isSrcRaid = false;
 bool isRaidTransfer = false;
+bool storerecovery = false;
 std::string replicationType ="";
 eos::fst::RaidIO* redundancyObj = NULL;
 
@@ -129,6 +130,7 @@ void usage() {
   fprintf(stderr, "       -e           : error correction layout: raidDP/reedS\n");
   fprintf(stderr, "       -P           : number of parity stripes\n");
   fprintf(stderr, "       -X           : checksum type: adler, crc32, crc32c, sha1, md5\n");
+  fprintf(stderr, "       -f           : force the recovery of the corrupted files and store the modifications\n");
   
   exit(-1);
 }
@@ -245,7 +247,7 @@ int main(int argc, char* argv[]) {
   extern char *optarg;
   extern int optind;
 
-  while ( (c = getopt(argc, argv, "nshdvlipe:P:X:b:m:u:g:t:S:D:5ar:L:R")) != -1) {
+  while ( (c = getopt(argc, argv, "nshdvlipfe:P:X:b:m:u:g:t:S:D:5ar:L:R")) != -1) {
     switch(c) {
     case 'v':
       verbose = 1;
@@ -270,6 +272,9 @@ int main(int argc, char* argv[]) {
       break;
     case 'a':
       appendmode = 1;
+      break;
+    case 'f':
+      storerecovery = true;
       break;
     case 'e':
       replicationType = optarg;
@@ -587,7 +592,7 @@ int main(int argc, char* argv[]) {
         break;
       }
     
-      if (stat_failed) {
+      if (!isRaidTransfer && stat_failed) {
         fprintf(stderr, "error: cannot stat source %s\n", source[i]);
         exit(-ENOENT);
       }
@@ -773,8 +778,11 @@ int main(int argc, char* argv[]) {
     std::vector<std::string> vectUrl;
 
     if (nsrc > ndst) {
-      //flags = O_RDONLY;
-      flags = O_RDWR;
+      if (storerecovery)
+        flags = O_RDWR;
+      else
+        flags = O_RDONLY;
+      
       isSrcRaid = true;  //read operation
       for (int i = 0; i < nsrc; i++) { vectUrl.push_back(source[i]); }
     }
@@ -787,16 +795,15 @@ int main(int argc, char* argv[]) {
     if (debug) {fprintf(stdout, "[eosfstcp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);}
     
     if (replicationType == "raidDP") {
-      redundancyObj = new eos::fst::RaidDpFile(vectUrl, nparitystripes);
+      redundancyObj = new eos::fst::RaidDpFile(vectUrl, nparitystripes, storerecovery);
     }
     else if (replicationType == "reedS") {
-      redundancyObj = new eos::fst::ReedSFile(vectUrl, nparitystripes);
+      redundancyObj = new eos::fst::ReedSFile(vectUrl, nparitystripes, storerecovery);
     }
     
-    if (isSrcRaid && redundancyObj->open(flags))    
-    {
+    if (isSrcRaid && redundancyObj->open(flags)) {
       fprintf(stderr, "error: can not open RAIDIO object for read\n");
-      exit(-ENOENT);
+      exit(-EIO);
     }
     else if (!isSrcRaid && redundancyObj->open(flags))
     {

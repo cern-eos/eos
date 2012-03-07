@@ -35,7 +35,9 @@ EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 RaidIO::RaidIO(std::string algorithm, std::vector<std::string> stripeurl,
-               unsigned int nparitystripes, off_t targetsize, std::string bookingopaque):
+               unsigned int nparitystripes, bool storerecovery, off_t targetsize,
+               std::string bookingopaque):
+    storeRecovery(storerecovery),
     nParityStripes(nparitystripes),
     targetSize(targetsize),    
     algorithmType(algorithm),
@@ -105,10 +107,6 @@ RaidIO::open(int flags)
       fdUrl[i] = XrdPosixXrootd::Open(stripeUrls[i].c_str(), O_RDWR,
                                       kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
     }
-    if (fdUrl[i] < 0) {
-      eos_err("Invalid file descriptor");
-      return -1;
-    }    
   }
  
   for (unsigned int i = 0; i < nTotalStripes; i++) {
@@ -180,13 +178,6 @@ RaidIO::validateHeader()
     return false;
   }
   
-  //if not in writing mode then can not recover
-  if (!isRW){
-    eos_warning("Will not rewrite header after recovery if not in writing mode");
-    fprintf(stdout, "Will not rewrite header after recovery if not in writing mode.\n");
-    return false;
-  }
-  
   //get stripe id's already used and a valid header
   unsigned int idHdValid = -1;
   std::set<unsigned int> usedStripes;
@@ -217,7 +208,14 @@ RaidIO::validateHeader()
         hdUrl[idUrl].setState(true);
         hdUrl[idUrl].setNoBlocks(hdUrl[idHdValid].getNoBlocks());
         hdUrl[idUrl].setSizeLastBlock(hdUrl[idHdValid].getSizeLastBlock());
-        hdUrl[idUrl].writeToFile(fdUrl[idUrl]);
+        if (storeRecovery) {
+          XrdPosixXrootd::Close(fdUrl[idUrl]);
+          //open stripe for writing
+          fdUrl[i] = XrdPosixXrootd::Open(stripeUrls[i].c_str(),
+                                          kXR_async | kXR_mkpath | kXR_open_updt | kXR_new,
+                                          kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
+          hdUrl[idUrl].writeToFile(fdUrl[idUrl]);
+        }
         break;
       }
     }
@@ -263,7 +261,7 @@ RaidIO::read(off_t offset, char* buffer, size_t length)
 
     while (length) {
       nread = (length > stripeWidth) ? stripeWidth : length;
-      if((offset % sizeGroupBlocks == 0) && (!recoverBlock(dummyBuf, offset, nread, true)))
+      if((offset % sizeGroupBlocks == 0) && (!recoverBlock(dummyBuf, offset, nread)))
       {
         free(dummyBuf);
         eos_err("error=failed recovery of stripe");
@@ -288,7 +286,13 @@ RaidIO::read(off_t offset, char* buffer, size_t length)
       size_t lread = nread;
       do {
         TIMING("read remote in", &rt);
-        aread = XrdPosixXrootd::Pread(fdUrl[mapStripe_Url[stripeId]], buffer, lread, offsetLocal + sizeHeader);
+        fprintf(stdout, "File descriptor is: %i \n", fdUrl[mapStripe_Url[stripeId]]);
+        if (fdUrl[mapStripe_Url[stripeId]] >= 0) {
+          aread = XrdPosixXrootd::Pread(fdUrl[mapStripe_Url[stripeId]], buffer, lread, offsetLocal + sizeHeader);
+        } else {
+          aread = 0;
+          fprintf(stdout, "Setting aread = %zu\n", aread);
+        }
         TIMING("read remote out in", &rt);
         if (aread > 0) {
           if (aread != lread) {
@@ -299,6 +303,7 @@ RaidIO::read(off_t offset, char* buffer, size_t length)
           }
         } else {
           eos_warning("Read returned %ld instead of %ld bytes", aread, lread);
+          fprintf(stdout, "Read returned %ld instead of %ld bytes. \n", aread, lread);
           doRecovery = true;
           break;
         }
@@ -306,7 +311,7 @@ RaidIO::read(off_t offset, char* buffer, size_t length)
 
       TIMING("read recovery", &rt);
       if (doRecovery) {
-        if (!recoverBlock(buffer, offset, nread, true)) {    //TODO:: set storeRecovery = false
+        if (!recoverBlock(buffer, offset, nread)) { 
           eos_err("error=read recovery failed");
           return -1;
         }
