@@ -377,11 +377,12 @@ XrdFileCache::waitFinishWrites(unsigned long inode)
     cacheImpl->flushWrites(fAbst);
     fAbst->waitFinishWrites();
     if (!fAbst->isInUse(false)) {
-      if (!removeFileInode(fAbst->getInode(), false)) {
-          fAbst->decrementNoReferences();
+      if (removeFileInode(fAbst->getInode(), false)) {
+        return;
       }
     }
   }
 
+  fAbst->decrementNoReferences();
   return;
 }
