@@ -26,7 +26,7 @@
 ######################################################################################################################
 set(VERSION_MAJOR "0" )
 set(VERSION_MINOR "2")
-set(VERSION_PATCH "0" )
+set(VERSION_PATCH "1" )
 
 ######################################################################################################################
 # main section
@@ -121,6 +121,7 @@ add_subdirectory (test)
 if (HTTPD_FOUND) 
 if (APR_FOUND)
 add_subdirectory (httpd)
+add_subdirectory (httpd-mini)
 endif (APR_FOUND)
 endif (HTTPD_FOUND)
 endif (CLIENT)
