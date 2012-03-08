@@ -142,17 +142,17 @@ stop() {
         fi
         echo -n "Stopping $prog: "
         umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
-        pgrep -f "${EOS_ROOT}/sbin/eosd $umdir"	
+        pgrep -f "${EOS_ROOT}/sbin/eosd $umdir"	>& /dev/null
 	existed=$?
         umount -f -l $umdir >& /dev/null
 	pkill -f "${EOS_ROOT}/sbin/eosd $umdir"	
-        pgrep -f "${EOS_ROOT}/sbin/eosd $umdir"	
+        pgrep -f "${EOS_ROOT}/sbin/eosd $umdir"	>& /dev/null
 	killed=$?
 	while [ $killed -eq 0 ]; 
 	do 	
-	        pkill -f "${EOS_ROOT}/sbin/eosd $umdir"
+	        pkill -9 -f "${EOS_ROOT}/sbin/eosd $umdir"
 	        usleep 100000
-                pgrep -f "${EOS_ROOT}/sbin/eosd $umdir"
+                pgrep -f "${EOS_ROOT}/sbin/eosd $umdir" >& /dev/null
 		killed=$?
    	done
         rm -f /var/lock/subsys/eosd

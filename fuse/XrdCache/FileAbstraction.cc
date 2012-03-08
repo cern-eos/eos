@@ -122,20 +122,12 @@ FileAbstraction::getLastPossibleKey() const
 
 //------------------------------------------------------------------------------
 void
-FileAbstraction::incrementNoWriteBlocks()
-{
-  pthread_mutex_lock(&updMutex);
-  nWriteBlocks++;
-  pthread_mutex_unlock(&updMutex);
-}
-
-
-//------------------------------------------------------------------------------
-void
-FileAbstraction::incrementWrites(size_t size)
+FileAbstraction::incrementWrites(size_t size, bool newBlock)
 {
   pthread_mutex_lock(&updMutex);
   sizeWrites += size;
+  if (newBlock)
+    nWriteBlocks++;
   pthread_mutex_unlock(&updMutex);
 }
 
@@ -152,21 +144,13 @@ FileAbstraction::incrementReads(size_t size)
 
 //------------------------------------------------------------------------------
 void
-FileAbstraction::decrementNoWriteBlocks()
-{
-  pthread_mutex_lock(&updMutex);
-  nWriteBlocks--;
-  pthread_mutex_unlock(&updMutex);
-}
-
-
-//------------------------------------------------------------------------------
-void
-FileAbstraction::decrementWrites(size_t size)
+FileAbstraction::decrementWrites(size_t size, bool fullBlock)
 {
   pthread_mutex_lock(&updMutex);
   eos_static_debug("old size=%zu", sizeWrites);
   sizeWrites -= size;
+  if (fullBlock)
+    nWriteBlocks--;
   eos_static_debug("new size=%zu", sizeWrites);
 
   if (sizeWrites == 0) {
@@ -246,12 +230,20 @@ FileAbstraction::generateBlockKey(off_t offset)
 
 //------------------------------------------------------------------------------
 bool
-FileAbstraction::isInUse()
+FileAbstraction::isInUse(bool strongConstraint)
 {
   bool retVal = false;
   pthread_mutex_lock(&updMutex);
-  if ((sizeReads + sizeWrites != 0) || (nReferences >= 1)) {
-    retVal =  true;
+  eos_static_debug("sizeReads=%zu, sizeWrites=%zu, nReferences=%i",
+                   sizeReads, sizeWrites, nReferences);
+  if (strongConstraint) {
+    if ((sizeReads + sizeWrites != 0) || (nReferences >= 1)) {
+      retVal =  true;
+    }
+  } else {
+    if ((sizeReads + sizeWrites != 0) || (nReferences > 1)) {
+      retVal =  true;
+    }
   }
   pthread_mutex_unlock(&updMutex);
   return retVal;

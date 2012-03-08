@@ -83,16 +83,18 @@ ConcurrentQueue<Data>::GetSize()
   return size;
 }
 
+
 //------------------------------------------------------------------------------
 template <typename Data>
 void
-ConcurrentQueue<Data>::push(Data& data)
+ConcurrentQueue<Data>::push(Data &data)
 {
   pthread_mutex_lock(&mutex);
   queue.push(data);
+  pthread_cond_broadcast(&cond);
   pthread_mutex_unlock(&mutex);
-  pthread_cond_signal(&cond);
 }
+
 
 //------------------------------------------------------------------------------
 template <typename Data>

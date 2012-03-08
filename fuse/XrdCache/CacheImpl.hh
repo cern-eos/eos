@@ -78,25 +78,31 @@ private:
   //to threads that want to submit new req are delayed
   static const double maxPercentWrites = 0.90;
 
-  XrdFileCache*  mgmCache;         //upper mgm layer of the cache
-  bool           killThread;       //kill writing thread
+  //Percentage from the size of the cache to which the allocated total
+  // size of the blocks used in caching can grow
+  static const double maxPercentSizeBlocks = 1.15;
 
-  size_t         sizeMax;          //maximum size of cache
-  size_t         sizeVirtual;      //sum of all blocks capacity
-  size_t         sizeWrites;       //size of write requests
-  size_t         cacheThreshold;   //max size write requests
+  XrdFileCache*  mgmCache;           //upper mgm layer of the cache
+  bool           killThread;         //kill writing thread
 
-  key_map_type   keyValueMap;      //map <key pair<value, listIter>>
-  key_list_type  keyList;          //list of recently accessed entries
-  size_t         oldSizeQ;         //size queue write requests at previous step
-  bool           inLimitRegion;    //mark if value in limit region
+  size_t         sizeMax;            //maximum size of cache
+  size_t         sizeVirtual;        //sum of all blocks capacity
+  size_t         cacheThreshold;     //max size write requests
+  size_t         sizeAllocBlocks;    //total size of allocated blocks
+  size_t         maxSizeAllocBlocks; //max size of allocated blocks
+  
+  key_map_type   keyValueMap;        //map <key pair<value, listIter>>
+  key_list_type  keyList;            //list of recently accessed entries
+  size_t         oldSizeQ;           //size queue write requests at previous step
+  bool           inLimitRegion;      //mark if value in limit region
 
   pthread_mutex_t  mutexList;
   pthread_rwlock_t rwMapLock;
 
-  pthread_mutex_t mutexWritesSize; //mutex for updating the size of write requests
-  pthread_mutex_t mutexWriteDone;  //mutex and condition for notifying possible
-  pthread_cond_t condWriteDone;    //  waiting threads that a write op. has been done
+  pthread_mutex_t mutexAllocSize;    //mutex for updating the size of allocated blocks
+  pthread_mutex_t mutexWritesSize;   //mutex for updating the size of write requests
+  pthread_mutex_t mutexWriteDone;    //mutex and condition for notifying possible
+  pthread_cond_t condWriteDone;      //  waiting threads that a write op. has been done
 
   ConcurrentQueue<CacheEntry*>* recycleQueue;               //pool of reusable objects
   ConcurrentQueue<key_map_type::iterator>* writeReqQueue;   //write request queue

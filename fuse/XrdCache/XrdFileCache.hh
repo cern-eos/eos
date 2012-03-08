@@ -58,7 +58,7 @@ public:
   
   void waitFinishWrites(unsigned long inode);
   void waitFinishWrites(FileAbstraction *fAbst);
-  void removeFileInode(unsigned long inode);
+  bool removeFileInode(unsigned long inode, bool strongConstraint);
 
   ConcurrentQueue<error_type>& getErrorQueue(unsigned long inode);
   FileAbstraction* getFileObj(unsigned long inode);
@@ -66,7 +66,7 @@ public:
 private:
 
   //maximum number of files concurrently in cache
-  static const int maxIndexFiles = 100;
+  static const int maxIndexFiles = 100;   //has to be >=10
   static XrdFileCache* pInstance;
 
   XrdFileCache(size_t sizeMax);
@@ -80,9 +80,8 @@ private:
   pthread_t writeThread;
   pthread_rwlock_t keyMgmLock;
 
-  std::map<unsigned long, FileAbstraction*> fileInodeMap;   //map inodes to FileAbst objects
-
-  std::queue<int> usedIndexQueue;                           //file indices used and available to recycle
+  ConcurrentQueue<int>* usedIndexQueue;                  //file indices used and available to recycle
+  std::map<unsigned long, FileAbstraction*> fileInodeMap; //map inodes to FileAbst objects
 
   CacheImpl* cacheImpl;
 };

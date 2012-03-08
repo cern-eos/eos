@@ -51,24 +51,22 @@ public:
   size_t getSizeRdWr();
   size_t getSizeReads();
   size_t getSizeWrites();
+  long long int getNoWriteBlocks();
   unsigned long getInode() const;
 
-  long long int getNoWriteBlocks();
   long long getLastPossibleKey() const;
   long long getFirstPossibleKey() const;
 
-  void incrementWrites(size_t sWrite);
+  void incrementWrites(size_t sWrite, bool newBlock);
   void incrementReads(size_t sRead);
-  void incrementNoWriteBlocks();
 
-  void decrementWrites(size_t sWrite);
+  void decrementWrites(size_t sWrite, bool fullBlock);
   void decrementReads(size_t sRead);
-  void decrementNoWriteBlocks();
 
   void incrementNoReferences();
   void decrementNoReferences();
 
-  bool isInUse();
+  bool isInUse(bool strongConstraint);
   void waitFinishWrites();
   long long int generateBlockKey(off_t offsetEnd);
 
