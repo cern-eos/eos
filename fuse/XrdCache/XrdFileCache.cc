@@ -59,6 +59,7 @@ XrdFileCache::XrdFileCache(size_t sizeMax):
 void
 XrdFileCache::Init()
 {
+  usedIndexQueue = new ConcurrentQueue<int>();
   cacheImpl = new CacheImpl(cacheSizeMax, this);
 
   //start worker thread
@@ -75,6 +76,7 @@ XrdFileCache::~XrdFileCache()
   pthread_join(writeThread, &ret);
 
   delete cacheImpl;
+  delete usedIndexQueue;
   pthread_rwlock_destroy(&keyMgmLock);
   return;
 }
@@ -111,7 +113,7 @@ XrdFileCache::setCacheSize(size_t rsMax, size_t wsMax)
 FileAbstraction*
 XrdFileCache::getFileObj(unsigned long inode)
 {
-  int key = 0;
+  int key = -1;
   FileAbstraction* fRet = NULL;
 
   pthread_rwlock_rdlock(&keyMgmLock);   //read lock
@@ -125,8 +127,7 @@ XrdFileCache::getFileObj(unsigned long inode)
     pthread_rwlock_wrlock(&keyMgmLock);  //write lock
 
     if (indexFile >= maxIndexFiles) {
-      key = usedIndexQueue.front();
-      usedIndexQueue.pop();
+      usedIndexQueue->wait_pop(key);
       fRet = new FileAbstraction(key, inode);
       fileInodeMap.insert(std::pair<unsigned long, FileAbstraction*>(inode, fRet));
     } else {
@@ -155,7 +156,7 @@ XrdFileCache::submitWrite(unsigned long inode, int filed, void* buf,
   long long int key;
   off_t writtenOffset = 0;
   FileAbstraction* fAbst = getFileObj(inode);
- 
+  
   while (((offset % CacheEntry::getMaxSize()) + length) > CacheEntry::getMaxSize()) {
     nwrite = CacheEntry::getMaxSize() - (offset % CacheEntry::getMaxSize());
     key = fAbst->generateBlockKey(offset);
@@ -219,7 +220,6 @@ XrdFileCache::getRead(FileAbstraction* fAbst, int filed, void* buf,
     readOffset += nread;
   }
 
-  fAbst->decrementNoReferences();
   return readOffset;
 }
 
@@ -252,7 +252,6 @@ XrdFileCache::putRead(FileAbstraction* fAbst, int filed, void* buf,
     readOffset += nread;
   }
 
-  fAbst->decrementNoReferences();
   return readOffset;
 }
 
@@ -279,8 +278,6 @@ ret += length[i];
 } else break;
 }
 
-
-fAbst->DecrementNoReferences();
 return ret;
 }
 
@@ -302,16 +299,16 @@ cacheImpl->Insert(key, pEntry);
 ptrBuf += length[i];
 }
 
-fAbst->DecrementNoReferences();
 return;
 }
 */
 
 
 //------------------------------------------------------------------------------
-void
-XrdFileCache::removeFileInode(unsigned long inode)
+bool
+XrdFileCache::removeFileInode(unsigned long inode, bool strongConstraint)
 {
+  bool doDeletion = false;
   eos_static_debug("inode=%lu", inode);
   FileAbstraction* ptr =  NULL;
 
@@ -321,16 +318,23 @@ XrdFileCache::removeFileInode(unsigned long inode)
   if (iter != fileInodeMap.end()) {
     ptr = static_cast<FileAbstraction*>((*iter).second);
 
-    if ((ptr->getSizeRdWr() == 0) && (ptr->getNoReferences() == 0)) {
+    if (strongConstraint) {  //strong constraint
+      doDeletion = (ptr->getSizeRdWr() == 0) && (ptr->getNoReferences() == 0);
+    }
+    else { //weak constraint
+      doDeletion = (ptr->getSizeRdWr() == 0) && (ptr->getNoReferences() <= 1);
+    }
+    if (doDeletion) {
       //remove file from mapping
-      usedIndexQueue.push(ptr->getId());
+      int id = ptr->getId();
+      usedIndexQueue->push(id);
       delete ptr;
       fileInodeMap.erase(iter);
     }
   }
 
   pthread_rwlock_unlock(&keyMgmLock);   //unlock
-  return;
+  return doDeletion;
 }
 
 
@@ -354,6 +358,9 @@ XrdFileCache::waitFinishWrites(FileAbstraction* fAbst)
   if (fAbst->getSizeWrites() != 0) {
     cacheImpl->flushWrites(fAbst);
     fAbst->waitFinishWrites();
+    if (!fAbst->isInUse(false)) {
+      removeFileInode(fAbst->getInode(), false);
+    }
   }
 
   return;
@@ -369,6 +376,11 @@ XrdFileCache::waitFinishWrites(unsigned long inode)
   if (fAbst->getSizeWrites() != 0) {
     cacheImpl->flushWrites(fAbst);
     fAbst->waitFinishWrites();
+    if (!fAbst->isInUse(false)) {
+      if (!removeFileInode(fAbst->getInode(), false)) {
+          fAbst->decrementNoReferences();
+      }
+    }
   }
 
   return;

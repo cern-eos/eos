@@ -1449,6 +1449,7 @@ xrd_read(int fildes, void *buf, size_t nbyte, unsigned long inode)
       ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
       XFC->putRead(fAbst, fildes, buf, offset, nbyte);
     }
+    fAbst->decrementNoReferences();
   } else {
     ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
   }
@@ -1486,6 +1487,7 @@ xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode
       eos_static_debug("Block found in cache: off=%zu, len=%zu", offset, nbyte);
       TIMING("block in cache", &xpr);
     }
+    fAbst->decrementNoReferences();
   } else {
     ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
   }

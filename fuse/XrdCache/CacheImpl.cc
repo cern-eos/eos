@@ -30,13 +30,16 @@ CacheImpl::CacheImpl(size_t sMax, XrdFileCache *fc):
     killThread(false),
     sizeMax(sMax),
     sizeVirtual(0),
+    sizeAllocBlocks(0),
     oldSizeQ(0),
     inLimitRegion(false)
 {
   recycleQueue = new ConcurrentQueue<CacheEntry*>();
   writeReqQueue = new ConcurrentQueue<key_map_type::iterator>();
   cacheThreshold = maxPercentWrites * sizeMax;
+  maxSizeAllocBlocks = maxPercentSizeBlocks * sizeMax;
 
+  pthread_mutex_init(&mutexAllocSize, NULL);
   pthread_mutex_init(&mutexList, NULL);
   pthread_rwlock_init(&rwMapLock, NULL);
 
@@ -72,6 +75,7 @@ CacheImpl::~CacheImpl()
   delete recycleQueue;
   delete writeReqQueue;
 
+  pthread_mutex_destroy(&mutexAllocSize);
   pthread_mutex_destroy(&mutexList);
   pthread_rwlock_destroy(&rwMapLock);
 
@@ -283,8 +287,7 @@ CacheImpl::processWriteReq(key_map_type::iterator it)
 
   iterList = it->second.second;
   
-  pEntry->getParentFile()->decrementWrites(pEntry->getSizeData());
-  pEntry->getParentFile()->decrementNoWriteBlocks();
+  pEntry->getParentFile()->decrementWrites(pEntry->getSizeData(), true);
  
   //delete entry
   pthread_rwlock_wrlock(&rwMapLock);               //write lock map
@@ -352,7 +355,7 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, siz
     pthread_rwlock_unlock(&rwMapLock);            //unlock map
   }
 
-  pthread_rwlock_rdlock(&rwMapLock);           //read lock map
+  pthread_rwlock_rdlock(&rwMapLock);              //read lock map
   assert(pFileAbst->getSizeReads() == 0);
 
   key_map_type::iterator it = keyValueMap.find(k);
@@ -361,7 +364,7 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, siz
     size_t sizeAdded;
     pEntry = it->second.first;
     sizeAdded = pEntry->addPiece(buf, off, len);
-    pEntry->getParentFile()->incrementWrites(sizeAdded);
+    pEntry->getParentFile()->incrementWrites(sizeAdded, false);
     eos_static_debug("info=old block: key=%lli, off=%zu, len=%zu", k, off, len);
     pthread_rwlock_unlock(&rwMapLock);            //unlock map
 
@@ -406,8 +409,7 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, siz
         keyList.insert(keyList.end(), std::make_pair(k, true));
     sizeVirtual += CacheEntry::getMaxSize();
 
-    pEntry->getParentFile()->incrementWrites(len);
-    pEntry->getParentFile()->incrementNoWriteBlocks();
+    pEntry->getParentFile()->incrementWrites(len, true);
     
     //add new entry
     ret = keyValueMap.insert(std::make_pair(k, std::make_pair(pEntry, it)));
@@ -442,14 +444,21 @@ CacheImpl::getRecycledBlock(int filed, char* buf, off_t offset, size_t length, F
 
   if (recycleQueue->try_pop(pRecycledObj)) {
     //got obj from pool
-    eos_static_debug("info=get obj from pool");
     pRecycledObj->doRecycle(filed, buf, offset, length, pFileAbst);
   } else {
-    //no obj in pool, allocate new one
-    eos_static_debug("info=get new obj");
-    pRecycledObj = new CacheEntry(filed, buf, offset, length, pFileAbst);
+    pthread_mutex_lock(&mutexAllocSize);
+    if (sizeAllocBlocks >= maxSizeAllocBlocks) {
+      pthread_mutex_unlock(&mutexAllocSize);
+      recycleQueue->wait_pop(pRecycledObj);
+    }
+    else {
+      //no obj in pool, allocate new one
+      sizeAllocBlocks += CacheEntry::getMaxSize();
+      pthread_mutex_unlock(&mutexAllocSize);
+      pRecycledObj = new CacheEntry(filed, buf, offset, length, pFileAbst);
+    }
   }
-
+  
   return pRecycledObj;
 }
 
@@ -487,8 +496,8 @@ CacheImpl::evict()
     //there are no references to the file object
     pEntry->getParentFile()->decrementReads(pEntry->getSizeData());
 
-    if (pEntry->getParentFile()->isInUse()) {
-      mgmCache->removeFileInode(pEntry->getParentFile()->getInode());
+    if (!pEntry->getParentFile()->isInUse(true)) {
+      mgmCache->removeFileInode(pEntry->getParentFile()->getInode(), true);
     }
 
     //add block to the recycle pool
