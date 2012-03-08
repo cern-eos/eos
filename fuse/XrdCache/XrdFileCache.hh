@@ -61,7 +61,7 @@ public:
   bool removeFileInode(unsigned long inode, bool strongConstraint);
 
   ConcurrentQueue<error_type>& getErrorQueue(unsigned long inode);
-  FileAbstraction* getFileObj(unsigned long inode);
+  FileAbstraction* getFileObj(unsigned long inode, bool getNew);
 
 private:
 

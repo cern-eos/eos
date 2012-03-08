@@ -509,6 +509,18 @@ CacheImpl::evict()
 
 
 //------------------------------------------------------------------------------
+void
+CacheImpl::removeBlock()
+{
+  pthread_rwlock_wrlock(&rwMapLock);        //write lock map
+  pthread_mutex_lock(&mutexList);           //lock list
+  evict();
+  pthread_mutex_unlock(&mutexList);         //unlock list  
+  pthread_rwlock_unlock(&rwMapLock);        //unlock map
+}
+
+
+//------------------------------------------------------------------------------
 size_t
 CacheImpl::getCurrentSize() const
 {

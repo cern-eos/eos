@@ -1438,7 +1438,7 @@ xrd_read(int fildes, void *buf, size_t nbyte, unsigned long inode)
   FileAbstraction* fAbst =0;
 
   if (XFC && fuse_cache_read && inode) {
-    fAbst = XFC->getFileObj(inode);
+    fAbst = XFC->getFileObj(inode, true);
     XFC->waitFinishWrites(fAbst);
     off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
 
@@ -1469,7 +1469,7 @@ xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode
   FileAbstraction* fAbst =0;
 
   if (XFC && fuse_cache_read && inode) {
-    fAbst = XFC->getFileObj(inode);
+    fAbst = XFC->getFileObj(inode, true);
     XFC->waitFinishWrites(fAbst);
     TIMING("wait writes", &xpr);
     if ((ret = XFC->getRead(fAbst, fildes, buf, offset, nbyte)) != nbyte)

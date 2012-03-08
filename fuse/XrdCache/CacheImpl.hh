@@ -57,6 +57,7 @@ public:
   
   bool getRead(const long long int& k, char* buf, off_t off, size_t len, FileAbstraction* pFileAbst);
   void addRead(int filed, const long long int& k, char* buf, off_t off, size_t len, FileAbstraction* pFileAbst);
+  void removeBlock();
   
   void runThreadWrites();
   void flushWrites(FileAbstraction* pFileAbst);

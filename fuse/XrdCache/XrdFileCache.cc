@@ -111,7 +111,7 @@ XrdFileCache::setCacheSize(size_t rsMax, size_t wsMax)
 
 //------------------------------------------------------------------------------
 FileAbstraction*
-XrdFileCache::getFileObj(unsigned long inode)
+XrdFileCache::getFileObj(unsigned long inode, bool getNew)
 {
   int key = -1;
   FileAbstraction* fRet = NULL;
@@ -123,11 +123,16 @@ XrdFileCache::getFileObj(unsigned long inode)
   if (iter != fileInodeMap.end()) {
     fRet = iter->second;
     key = fRet->getId();
-  } else {
+  }
+  else if (getNew)
+  {
     pthread_rwlock_unlock(&keyMgmLock);  //unlock
     pthread_rwlock_wrlock(&keyMgmLock);  //write lock
     if (indexFile >= maxIndexFiles) {
-      usedIndexQueue->wait_pop(key);
+      while (!usedIndexQueue->try_pop(key)) {
+        cacheImpl->removeBlock();
+      }
+      
       fRet = new FileAbstraction(key, inode);
       fileInodeMap.insert(std::pair<unsigned long, FileAbstraction*>(inode, fRet));
     } else {
@@ -136,6 +141,10 @@ XrdFileCache::getFileObj(unsigned long inode)
       fileInodeMap.insert(std::pair<unsigned long, FileAbstraction*>(inode, fRet));
       indexFile++;
     }
+  }
+  else {
+    pthread_rwlock_unlock(&keyMgmLock);  //unlock
+    return 0;
   }
 
   //increase the number of references to this file
@@ -157,7 +166,7 @@ XrdFileCache::submitWrite(unsigned long inode, int filed, void* buf,
   long long int key;
   off_t writtenOffset = 0;
 
-  FileAbstraction* fAbst = getFileObj(inode);
+  FileAbstraction* fAbst = getFileObj(inode, true);
   
   while (((offset % CacheEntry::getMaxSize()) + length) > CacheEntry::getMaxSize()) {
     nwrite = CacheEntry::getMaxSize() - (offset % CacheEntry::getMaxSize());
@@ -267,7 +276,7 @@ size_t ret = 0;
 char* ptrBuf = static_cast<char*>(buf);
 long long int key;
 CacheEntry* pEntry = NULL;
-FileAbstraction* fAbst = getFileObj(inode);
+FileAbstraction* fAbst = getFileObj(inode, true);
 
 for (int i = 0; i < nbuf; i++) {
 key = fAbst->GenerateBlockKey(offset[i]);
@@ -292,7 +301,7 @@ off_t* offset, size_t* length, int nbuf)
 char* ptrBuf = static_cast<char*>(buf);
 long long int key;
 CacheEntry* pEntry = NULL;
-FileAbstraction* fAbst = getFileObj(inode);
+FileAbstraction* fAbst = getFileObj(inode, true);
 
 for (int i = 0; i < nbuf; i++) {
 pEntry = cacheImpl->getRecycledBlock(filed, ptrBuf, offset[i], length[i], fAbst);
@@ -345,10 +354,12 @@ ConcurrentQueue<error_type>&
 XrdFileCache::getErrorQueue(unsigned long inode)
 {
   ConcurrentQueue<error_type>* tmp = NULL;
-  FileAbstraction* fAbst = getFileObj(inode);
+  FileAbstraction* fAbst = getFileObj(inode, false);
 
-  *tmp = fAbst->getErrorQueue();
-  fAbst->decrementNoReferences();
+  if (fAbst) {
+    *tmp = fAbst->getErrorQueue();
+    fAbst->decrementNoReferences();
+  }
 
   return *tmp;
 }
@@ -373,9 +384,9 @@ XrdFileCache::waitFinishWrites(FileAbstraction* fAbst)
 void
 XrdFileCache::waitFinishWrites(unsigned long inode)
 {
-  FileAbstraction* fAbst = getFileObj(inode);
+  FileAbstraction* fAbst = getFileObj(inode, false);
   
-  if (fAbst->getSizeWrites() != 0) {
+  if (fAbst && (fAbst->getSizeWrites() != 0)) {
     cacheImpl->flushWrites(fAbst);
     fAbst->waitFinishWrites();
     if (!fAbst->isInUse(false)) {
@@ -385,6 +396,8 @@ XrdFileCache::waitFinishWrites(unsigned long inode)
     }
   }
 
-  fAbst->decrementNoReferences();
+  if (fAbst) {
+    fAbst->decrementNoReferences();
+  }
   return;
 }
