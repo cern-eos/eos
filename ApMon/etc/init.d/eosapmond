@@ -1,0 +1,173 @@
+#!/bin/bash
+#
+#       /etc/rc.d/init.d/eosapmond
+#
+# Starts xrootd 
+#
+# chkconfig: 345 95 5
+# description: Starts apmon to monitor xrootd on EOS
+# processname: ApMon
+
+# Source function library.
+EOSLOCATION="/usr/"
+EOSCONFIG="/etc/xrd.cf.fst"
+EOSLOGDIR="/var/log/eos/"
+EOSROLE="fst"
+EOSUSER="daemon"
+. /etc/init.d/functions
+test -e /etc/sysconfig/eos && . /etc/sysconfig/eos
+
+
+
+
+mkdir -p ${EOSLOGDIR}/${EOSROLE}
+chown -R $EOSUSER ${EOSLOGDIR}
+
+prog="eos_apmond"
+
+if test ! -x ${EOSLOCATION}/bin/$prog ; then
+  echo Error: ${EOSLOCATION}/bin/$prog does not exist
+  exit 0
+fi
+
+
+
+RETVAL=0
+
+#
+#       See how we were called.
+#
+
+
+host_Group=${EOS_INSTANCE_NAME}
+
+newline="
+"
+host=`hostname -f`
+xrdpid=`pgrep -u ${EOSUSER} xrootd | tail -1`
+cmspid=`pgrep -u ${EOSUSER} cmsd | tail -1`
+
+if [ $xrdpid="" ]; then
+    xrdpid=999999
+fi
+
+if [ $cmspid="" ]; then
+    cmspid=999999
+fi
+    
+
+srvMonCmds="\$apm->addJobToMonitor($xrdpid, '', 'xrootd_Services', '$host'); "
+
+MONALISA_HOST=${MONALISAHOST:-"undef"}
+APMON_DEBUG_LEVEL=${APMON_DEBUG_LEVEL:-"WARNING"}
+destination=${APMON_CONFIG:-"['$MONALISA_HOST']"}
+now=`date`
+exe="use strict;
+use warnings;
+use ApMon;
+my \$apm = new ApMon(0);
+print \"$now\\n\";
+select STDOUT; \$| = 1;
+select STDERR; \$| = 1;
+\$apm->setLogLevel('$APMON_DEBUG_LEVEL');
+\$apm->setDestinations($destination);
+\$apm->setMonitorClusterNode('${host_Group}_Nodes', '$host');
+$srvMonCmds
+
+while(1){
+  \$apm->sendBgMonitoring();
+  sleep(120);
+}
+"
+
+ 
+# if we are a manager we start the namespace monitor
+
+start() {
+        # Check if eosapmond is already running
+        avoid=$$;
+	if [ $MONALISA_HOST = "undef" ]; then
+	    echo "error: please configure the MONALISA_HOST variable in /etc/sysconfig/eos first!"
+	    return 1
+	fi
+
+        if [ ! `pgrep -f -u ${EOSUSER} $prog `  ]; then
+            echo -n "Starting $prog: "
+            EOSAPMONSTARTUPFILE="/tmp/.$prog.$RANDOM.ol" 
+            echo $exe > ${EOSAPMONSTARTUPFILE}
+
+            daemon --user ${EOSUSER} "test -e /etc/sysconfig/eos && source /etc/sysconfig/eos; cd ${EOSCOREDIR}; ulimit -c unlimited; export PERL5LIB=`perl -V:installsitearch | cut -d "'" -f 2`/ApMon ;${EOSLOCATION}/sbin/$prog ${EOSAPMONSTARTUPFILE} ${EOSLOGDIR}/${EOSROLE}/apmon.log >& /dev/null < /dev/null" 
+            RETVAL=$?
+	    sleep 1
+            unlink $EOSAPMONSTARTUPFILE;
+	    [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+            echo
+	else 
+            echo $prog already running.  
+            echo Stop it first with 'service $prog stop'
+            echo and try again or use directly 'service $prog restart'.
+            RETVAL=1
+        fi
+        return $RETVAL
+}
+
+stop() {
+        echo -n "Stopping $prog: "
+        killproc /${EOSLOCATION}/sbin/$prog
+        RETVAL=$?
+        [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog
+        echo
+        return $RETVAL
+}
+
+
+restart() {
+        stop
+        start
+}       
+
+reload() {
+        restart
+}       
+
+status_at() {
+    pid=`pidofproc $prog`
+    if [ -n "$pid" ]; then
+	echo $"$prog (pid $pid) is running..."
+    else
+	if [ -f /var/lock/subsys/$prog ]; then
+	    echo $"$prog dead but subsys locked"
+	else
+	    echo $"$prog is stopped"
+	fi
+	RETVAL=1
+    fi
+    return $RETVAL
+}
+
+
+case "$1" in
+start)
+        start
+        ;;
+stop)
+        stop
+        ;;
+reload|restart)
+        restart
+        ;;
+condrestart)
+        if [ -f /var/lock/subsys/$prog ]; then
+            restart
+        fi
+        ;;
+status)
+        status_at
+        ;;
+*)
+        echo $"Usage: $0 {start|stop|restart|condrestart|status}"
+        exit 1
+esac
+
+exit $?
+exit $RETVAL
