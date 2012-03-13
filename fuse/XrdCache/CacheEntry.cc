@@ -31,6 +31,7 @@ CacheEntry::CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstra
   inQueue(false),
   pParentFile(ptr) 
 {
+  char* pBuffer; 
   off_t offsetRelative;
 
   if (len > getMaxSize()) {
@@ -42,7 +43,8 @@ CacheEntry::CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstra
   offsetStart = (off / getMaxSize()) * getMaxSize();
   offsetRelative = off % getMaxSize();
   buffer = (char*) calloc(capacity, sizeof(char));
-  buffer = (char*) memcpy(buffer + offsetRelative, buf, len);
+  pBuffer = buffer + offsetRelative;
+  pBuffer = (char*) memcpy(pBuffer, buf, len);
   mapPieces.insert(std::make_pair(off, len));
 }
 
@@ -58,7 +60,9 @@ CacheEntry::~CacheEntry()
 void
 CacheEntry::doRecycle(int filedes, char* buf, off_t off, size_t len, FileAbstraction* ptr)
 {
+  char* pBuffer; 
   off_t offsetRelative;
+    
   fd = filedes;
   offsetStart = (off / getMaxSize()) * getMaxSize();
   pParentFile = ptr;
@@ -71,7 +75,8 @@ CacheEntry::doRecycle(int filedes, char* buf, off_t off, size_t len, FileAbstrac
 
   mapPieces.clear();
   offsetRelative = off % getMaxSize();
-  buffer = (char*) memcpy(buffer + offsetRelative, buf, len);
+  pBuffer = buffer + offsetRelative;
+  pBuffer = (char*) memcpy(pBuffer, buf, len);
   mapPieces.insert(std::make_pair(off, len));
   sizeData = len;
 }
@@ -166,15 +171,14 @@ CacheEntry::addPiece(char* buf, off_t off, size_t len)
         //merge with previous block
         if (offsetOldEnd >= offsetPieceEnd) {
           //just update the data, no off or len modification
-          pBuffer = (char*) memcpy(pBuffer, buf, len);
           sizeAdded = 0;
         }
         else {
           //extend the current block at the end
           sizeAdded = offsetPieceEnd - offsetOldEnd;
-          pBuffer = (char*) memcpy(pBuffer, buf, len);
           iReverse->second += sizeAdded;
         }
+        pBuffer = (char*) memcpy(pBuffer, buf, len);
         sizeData += sizeAdded;
       } else {
         addNewPiece = true;
@@ -272,7 +276,7 @@ CacheEntry::addPiece(char* buf, off_t off, size_t len)
   }
 
   if (addNewPiece) {
-    buffer = (char*) memcpy(buffer + offsetRelative, buf, len);
+    pBuffer = (char*) memcpy(pBuffer, buf, len);
     mapPieces.insert(std::make_pair(off, len));
     sizeAdded = len;
     sizeData += sizeAdded;
