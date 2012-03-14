@@ -286,8 +286,9 @@ CacheImpl::processWriteReq(key_map_type::iterator it)
   }
 
   iterList = it->second.second;
-  
   pEntry->getParentFile()->decrementWrites(pEntry->getSizeData(), true);
+  eos_static_debug("size_written=%zu parentWrites=%zu", pEntry->getSizeData(),
+                   pEntry->getParentFile()->getSizeWrites());  
  
   //delete entry
   pthread_rwlock_wrlock(&rwMapLock);               //write lock map
@@ -365,7 +366,8 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, siz
     pEntry = it->second.first;
     sizeAdded = pEntry->addPiece(buf, off, len);
     pEntry->getParentFile()->incrementWrites(sizeAdded, false);
-    eos_static_debug("info=old block: key=%lli, off=%zu, len=%zu", k, off, len);
+    eos_static_debug("info=old_block: key=%lli, off=%zu, len=%zu sizeAdded=%zu parentWrites=%zu",
+                     k, off, len, sizeAdded, pEntry->getParentFile()->getSizeWrites());
     pthread_rwlock_unlock(&rwMapLock);            //unlock map
 
     if (pEntry->isFull()) {
@@ -380,7 +382,6 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, siz
 
     //add new block
     pEntry = getRecycledBlock(filed, buf, off, len, pFileAbst);
-    eos_static_debug("info=new block: key=%lli, off=%zu, len=%zu", k, off, len);
 
     pthread_rwlock_wrlock(&rwMapLock);          //write lock map
     pthread_mutex_lock(&mutexList);             //lock list
@@ -392,7 +393,7 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, siz
         pthread_mutex_unlock(&mutexList);         //unlock list
         pthread_rwlock_unlock(&rwMapLock);        //unlock map
 
-        eos_static_debug("Thread waiting for writes to be done!");
+        eos_static_debug("Thread waiting for writes to be done...");
         
         pthread_mutex_lock(&mutexWriteDone);
         pthread_cond_wait(&condWriteDone, &mutexWriteDone);
@@ -410,6 +411,8 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, siz
     sizeVirtual += CacheEntry::getMaxSize();
 
     pEntry->getParentFile()->incrementWrites(len, true);
+    eos_static_debug("info=new_block: key=%lli, off=%zu, len=%zu sizeAdded=%zu parentWrites=%zu",
+                     k, off, len, len, pEntry->getParentFile()->getSizeWrites());
     
     //add new entry
     ret = keyValueMap.insert(std::make_pair(k, std::make_pair(pEntry, it)));
