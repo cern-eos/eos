@@ -38,6 +38,9 @@
 #include "mgm/Stat.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/Fsck.hh"
+#ifdef HAVE_ZMQ
+#include "mgm/ZMQ.hh"
+#endif
 #include "mgm/Messaging.hh"
 #include "namespace/IView.hh"
 #include "namespace/IFileMDSvc.hh"
@@ -608,6 +611,10 @@ public:
 
   static void* StartMgmFsListener(void *pp);  //  Listener Thread Starter
   void  FsListener();                  //  Listens on filesystem errors
+
+#ifdef HAVE_ZMQ
+  ZMQ*  zMQ;                           //  ZMQ processor
+#endif
 
   XrdOucString     ManagerId;          // -> manager id in <host>:<port> format
   XrdOucString     ManagerIp;          // -> manager ip in <xxx.yyy.zzz.vvv> format

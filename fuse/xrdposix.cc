@@ -1689,10 +1689,10 @@ xrd_init()
     }
     eos_static_notice("cache=true size=%s cache-read=%s, cache-write=%s",getenv("EOS_FUSE_CACHE_SIZE"), getenv("EOS_FUSE_CACHE_READ"), getenv("EOS_FUSE_CACHE_WRITE"));
     XFC = XrdFileCache::Instance(static_cast<size_t>(atol(getenv("EOS_FUSE_CACHE_SIZE"))));   
-    if (getenv("EOS_FUSE_CACHE_READ")) {
+    if (getenv("EOS_FUSE_CACHE_READ") && atoi(getenv("EOS_FUSE_CACHE_READ"))) {
       fuse_cache_read = true;
     }
-    if (getenv("EOS_FUSE_CACHE_WRITE")) {
+    if (getenv("EOS_FUSE_CACHE_WRITE") && atoi(getenv("EOS_FUSE_CACHE_WRITE"))) {
       fuse_cache_write = true;
     }
   }

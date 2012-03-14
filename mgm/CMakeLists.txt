@@ -46,9 +46,10 @@ add_library (XrdEosMgm MODULE
 	    Fsck.cc
 	    txengine/TransferEngine.cc
 	    txengine/TransferFsDB.cc
+	    ZMQ.cc
 	    )
 
-target_link_libraries (XrdEosMgm XrdClient XrdPosix XrdUtils XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z)
+target_link_libraries (XrdEosMgm XrdClient XrdPosix XrdUtils XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z )
 
 add_executable ( testmgmview
 	         FsView.cc

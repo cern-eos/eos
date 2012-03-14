@@ -997,6 +997,16 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     return NoGo;
   }
   
+#ifdef HAVE_ZMQ
+  //-------------------------------------------
+  // create the ZMQ processor
+  zMQ = new ZMQ("tcp://*:5555");
+  if (!zMQ || zMQ->IsZombie()) {
+    Eroute.Emsg("Config","cannto start ZMQ processor");
+    return 1;
+  }
+#endif
+
   ObjectManager.CreateSharedHash("/eos/*","/eos/*/fst");
   ObjectManager.HashMutex.LockRead();
   XrdMqSharedHash* hash = ObjectManager.GetHash("/eos/*");

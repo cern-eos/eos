@@ -273,7 +273,7 @@ CacheImpl::processWriteReq(key_map_type::iterator it)
   key_list_type::iterator iterList;
   CacheEntry* pEntry = it->second.first;
 
-  eos_static_debug("file sizeWrites=%zu", pEntry->getParentFile()->getSizeWrites());
+  eos_static_debug("file sizeWrites=%zu size=%lu offset=%llu", pEntry->getParentFile()->getSizeWrites(), pEntry->getSizeData(), pEntry->getOffsetStart());
 
   retc = pEntry->doWrite();
 

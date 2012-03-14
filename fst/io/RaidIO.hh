@@ -44,7 +44,7 @@ class RaidIO : public eos::common::LogId
  public:
 
   RaidIO(std::string algorithm, std::vector<std::string> stripeurl, unsigned int nparitystripes,
-         off_t targetsize = 0, std::string bookingopaque="oss.size");
+         bool storerecovery, off_t targetsize = 0, std::string bookingopaque="oss.size");
   
   virtual int open(int flags);
   virtual int read(off_t offset, char* buffer, size_t length);
@@ -69,6 +69,8 @@ class RaidIO : public eos::common::LogId
   bool updateHeader;             //mark if header updated
   bool doneRecovery;             //mark if recovery done
   bool fullDataBlocks;           //mark if we have all data blocks to compute parity
+  bool storeRecovery;            //set if recovery also triggers writing back to the files
+                                 //this also means that all files must be available
 
   unsigned int nParityStripes;
   unsigned int nDataStripes;
@@ -90,7 +92,7 @@ class RaidIO : public eos::common::LogId
   std::map<unsigned int, unsigned int> mapStripe_Url;  //map os stripes to url
 
   virtual bool validateHeader();
-  virtual bool recoverBlock(char *buffer, off_t offset, size_t length, bool storeRecovery) = 0;
+  virtual bool recoverBlock(char *buffer, off_t offset, size_t length) = 0;
   virtual void addDataBlock(off_t offset, char* buffer, size_t length) = 0;
   virtual void computeDataBlocksParity(off_t offsetGroup) = 0;
   //virtual int updateParityForGroups(off_t offsetStart, off_t offsetEnd) = 0;  

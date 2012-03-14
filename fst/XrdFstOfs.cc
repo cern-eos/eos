@@ -510,10 +510,6 @@ XrdFstOfsFile::open(const char                *path,
   lid=0;
   cid=0;
 
-  if (!(localprefix=capOpaque->Get("mgm.localprefix"))) {
-    return gOFS.Emsg(epname,error,EINVAL,"open - no local prefix in capability",path);
-  }
-  
   if (!(hexfid=capOpaque->Get("mgm.fid"))) {
     return gOFS.Emsg(epname,error,EINVAL,"open - no file id in capability",path);
   }
@@ -527,14 +523,22 @@ XrdFstOfsFile::open(const char                *path,
     XrdOucString replicafsidtag="mgm.fsid"; replicafsidtag += (int) atoi(openOpaque->Get("mgm.replicaindex"));
     if (capOpaque->Get(replicafsidtag.c_str())) 
       sfsid=capOpaque->Get(replicafsidtag.c_str());
-    XrdOucString replicalocalprefixtag="mgm.localprefix"; replicalocalprefixtag += (int) atoi(openOpaque->Get("mgm.replicaindex"));
-    if (capOpaque->Get(replicalocalprefixtag.c_str())) 
-      localprefix=capOpaque->Get(replicalocalprefixtag.c_str());
+  }    
+   
+  // extract the local path prefix from the broadcasted configuration!
+  eos::common::RWMutexReadLock lock(gOFS.Storage->fsMutex);
+  fsid = atoi(sfsid?sfsid:"0");
+  if ( fsid && gOFS.Storage->fileSystemsMap.count(fsid) ) {
+    localprefix = gOFS.Storage->fileSystemsMap[fsid]->GetPath().c_str();
   }
-  
   // attention: the localprefix implementation does not work for gateway machines - this needs some modifications
   localPrefix = localprefix;
 
+
+  if (!localprefix) {
+    return gOFS.Emsg(epname,error, EINVAL,"open - cannot determine the prefix path to use for the given filesystem id",path);
+  }
+	
   if (!(slid=capOpaque->Get("mgm.lid"))) {
     return gOFS.Emsg(epname,error, EINVAL,"open - no layout id in capability",path);
   }

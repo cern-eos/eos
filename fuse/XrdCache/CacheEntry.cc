@@ -230,8 +230,8 @@ CacheEntry::doWrite()
 
   for( ; iCurrent != iEnd; iCurrent++) {
     offsetRelative = iCurrent->first % getMaxSize();
+    eos_static_debug("size=%lu offset=%ll", iCurrent->second, iCurrent->first);
     retc = XrdPosixXrootd::Pwrite(fd, buffer + offsetRelative, iCurrent->second, iCurrent->first);
-
     if (retc != (int)iCurrent->second) {
       fprintf(stderr, "error=error while writing using XrdPosixXrootd\n");
       return retc;

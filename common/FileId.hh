@@ -46,6 +46,8 @@ EOSCOMMONNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 class FileId {
 public:
+  typedef unsigned long long fileid_t;
+
   //! Constructor
   FileId();
 

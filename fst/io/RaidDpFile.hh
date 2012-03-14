@@ -38,7 +38,7 @@ class RaidDpFile : public eos::fst::RaidIO
 {
  public:
 
-  RaidDpFile(std::vector<std::string> stripeurl, int nparitystripes,
+  RaidDpFile(std::vector<std::string> stripeurl, int nparitystripes, bool storerecovery,
              off_t targetsize = 0, std::string bookingopaque="oss.size");
 
   virtual int truncate(off_t offset);
@@ -50,7 +50,7 @@ private:
   unsigned int nTotalBlocks;         //no. data and parity blocks in a group
 
   //  virtual int updateParityForGroups(off_t offsetStart, off_t offsetEnd);
-  virtual bool recoverBlock(char *buffer, off_t offset, size_t length, bool storeRecovery);
+  virtual bool recoverBlock(char *buffer, off_t offset, size_t length);
   virtual void addDataBlock(off_t offset, char* buffer, size_t length);
   virtual void computeDataBlocksParity(off_t offsetGroup);
  
@@ -59,7 +59,7 @@ private:
 
   int writeParityToFiles(off_t offsetGroup);
   bool simpleParityRecover(char *buffer, off_t offset, size_t length, int &blockCorrupted);  
-  bool doubleParityRecover(char *buffer, off_t offset, size_t lenfth, bool storeRecovery);                       
+  bool doubleParityRecover(char *buffer, off_t offset, size_t lenfth);                       
 
   std::vector<unsigned int> getDiagonalStripe(unsigned int);  //return diagonal stripe corresponding to current block
   bool validHorizStripe(std::vector<unsigned int>&, bool*, unsigned int); //validate horizontal stripe 

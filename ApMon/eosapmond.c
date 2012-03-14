@@ -4,8 +4,8 @@
 #include <stdlib.h>
 
 int main(int argc, char* argv[]) {
-  if (argc !=3) {
-    fprintf(stderr,"ERROR: missing perl script & log file name to run: eos_apmond <script> <logfile>\n");
+  if (argc !=8) {
+    fprintf(stderr,"ERROR: missing arguments to run: eos_apmond <script> <logfile> <monalisa-host> <apmon-log-level> <cluster-name> <host-name> <xrootd-pid> [%d args given]\n", argc);
     exit(-1);
   }
 
@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
   // reopen stdout to the logfile name
   FILE* fstdout;
   
-  if ((!(fstdout=freopen(argv[2], "w", stdout)))) {
+  if ((!(fstdout=freopen(argv[2], "a+", stdout)))) {
     fprintf(stderr,"ERROR: cannot stream stdout into %s\n",argv[2]);
     exit(-1);
   }
@@ -43,5 +43,5 @@ int main(int argc, char* argv[]) {
     fprintf(stderr,"ERROR: failed to create new session (setsid())\n");
     exit(-1);
   }
-  execlp("/usr/bin/perl","eos_apmond",argv[1],NULL);
+  execlp("/usr/bin/perl","eos_apmond",argv[1],argv[2],argv[3],argv[4],argv[5],argv[6],argv[7], NULL);
 }

@@ -27,6 +27,7 @@ link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
 add_library (eosCommon SHARED 
 	    FileSystem.cc
 	    Fmd.cc
+	    FmdSqlite.cc
 	    Logging.cc
 	    Mapping.cc
 	    Statfs.cc
@@ -37,6 +38,7 @@ add_library (eosCommon SHARED
             TransferJob.cc
             Report.cc
 	    sqlite/sqlite3.c
+	    ZMQ.cc
 	    )
 
 add_library (eosCommon-Static STATIC
@@ -52,10 +54,11 @@ add_library (eosCommon-Static STATIC
             TransferJob.cc
             Report.cc
 	    sqlite/sqlite3.c
+	    ZMQ.cc
 )
 
 
-target_link_libraries (eosCommon XrdMqClient XrdUtils XrdClient crypto uuid curses z attr)
+target_link_libraries (eosCommon XrdMqClient XrdUtils XrdClient crypto uuid curses z attr zmq)
 
 target_link_libraries (eosCommon-Static )
 #depends on XrdMqClient-Static libcrypto.a libuuid.a libcurses.a pthread dl z)

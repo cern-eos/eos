@@ -47,7 +47,9 @@ EOSCOMMONNAMESPACE_BEGIN
 
 class LayoutId {
 public:
-  /// a layout id is constructed as an xor of the following three enums shifted by 4 bits up
+  typedef unsigned long layoutid_t;
+
+  /// a layout id is constructed as an xor as defined in GetId()
 
   // ---------------------------------------------------------------------------
   //! Definition of checksum types
@@ -110,10 +112,10 @@ public:
   // ---------------------------------------------------------------------------
   //! Build a layout id from given parameters
   // ---------------------------------------------------------------------------
-  static unsigned long GetId(int layout, int checksum = 1, int stripesize=1, int stripewidth=0, int blockchecksum = 1) {
-    return (checksum | ((layout&0xf) << 4) | (((stripesize-1)&0xf)<<8) | ((stripewidth&0xf) << 16) | ((blockchecksum&0xf) << 20));
+  static unsigned long GetId(int layout, int checksum = 1, int stripesize=1, int stripewidth=0, int blockchecksum = 1, int excessreplicas = 0, int redundancystripes = 0) {
+    return (checksum | ((layout&0xf) << 4) | (((stripesize-1)&0xf)<<8) | ((stripewidth&0xf) << 16) | ((blockchecksum&0xf) << 20) | (((excessreplicas)&0xf) << 24) | ((redundancystripes &0x7)<<28) );
   }
-
+  
   // ---------------------------------------------------------------------------
   //! Convert the blocksize enum to bytes
   // ---------------------------------------------------------------------------
@@ -181,7 +183,17 @@ public:
   //! Return layout checksum enum
   // ---------------------------------------------------------------------------
   static unsigned long GetBlockChecksum(unsigned long layout) { return ( (layout>>20) & 0xf);}
-
+  
+  // ---------------------------------------------------------------------------
+  //! Return excess replicas
+  // ---------------------------------------------------------------------------
+  static unsigned long GetExcessStripeNumber(unsigned long layout) { return ( (layout>>24) & 0xf);}
+  
+  // ---------------------------------------------------------------------------
+  //! Return redundancy stripes
+  // ---------------------------------------------------------------------------
+  static unsigned long GetRedundancyStripeNumber(unsigned long layout) { return ( (layout>>28) & 0x7);}
+  
   // ---------------------------------------------------------------------------
   //! Build block checksum layout from block checksum enum
   // ---------------------------------------------------------------------------
@@ -197,10 +209,11 @@ public:
   // ---------------------------------------------------------------------------
   static double GetSizeFactor(unsigned long layout) {
     if (GetLayoutType(layout) == kPlain)   return 1.0;
-    if (GetLayoutType(layout) == kReplica) return 1.0 * (GetStripeNumber(layout)+1);
-    if (GetLayoutType(layout) == kRaid5)   return (1.0 * (GetStripeNumber(layout)+1) / ( GetStripeNumber(layout)?GetStripeNumber(layout):1));
-    if (GetLayoutType(layout) == kRaidDP)  return 1.0 * (GetStripeNumber(layout)+2);
-    if (GetLayoutType(layout) == kReedS)   return 1.0 * (GetStripeNumber(layout)+2);
+    if (GetLayoutType(layout) == kReplica) return 1.0  * (GetStripeNumber(layout)+1 + GetExcessStripeNumber(layout));
+    if (GetLayoutType(layout) == kRaid5)   return 1.0 * ( ((1.0*( GetStripeNumber(layout)+2) / ( GetStripeNumber(layout)+1))) + GetExcessStripeNumber(layout));
+    if (GetLayoutType(layout) == kRaidDP)  return 1.0  * ( ((1.0*( GetStripeNumber(layout)+1 + GetRedundancyStripeNumber(layout))) / (GetStripeNumber(layout)+1)) + GetExcessStripeNumber(layout));
+    if (GetLayoutType(layout) == kReedS)   return 1.0  * ( ((1.0*( GetStripeNumber(layout)+1 + GetRedundancyStripeNumber(layout))) / (GetStripeNumber(layout)+1)) + GetExcessStripeNumber(layout));
+    
     return 1.0;
   }
 
@@ -215,7 +228,7 @@ public:
   }
 
   // ---------------------------------------------------------------------------
-  //! Return number of replicas which have to be onlinee for a layout to be immedeatly writable
+  //! Return number of replicas which have to be online for a layout to be immedeatly writable
   // ---------------------------------------------------------------------------
   static unsigned long GetOnlineStripeNumber(unsigned long layout) {
     if (GetLayoutType(layout) == kRaid5)   return (GetStripeNumber(layout)+1);

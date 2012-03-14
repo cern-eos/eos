@@ -37,8 +37,8 @@ typedef long v2do __attribute__((vector_size(VECTOR_SIZE)));
 
 /*----------------------------------------------------------------------------*/
 RaidDpFile::RaidDpFile(std::vector<std::string> stripeurl, int nparitystripes,
-                       off_t targetsize, std::string bookingopaque)
-    :RaidIO("raidDP", stripeurl, nparitystripes, targetsize, bookingopaque)
+                       bool storerecovery, off_t targetsize, std::string bookingopaque)
+    :RaidIO("raidDP", stripeurl, nparitystripes, storerecovery, targetsize, bookingopaque)
 {
   assert(nParityStripes = 2);
 
@@ -179,10 +179,10 @@ RaidDpFile::operationXOR(char *stripe1, char *stripe2, char* result, size_t tota
 /*----------------------------------------------------------------------------*/
 //try to recover the block at the current offset
 bool 
-RaidDpFile::recoverBlock(char *buffer, off_t offset, size_t length, bool storeRecovery)
+RaidDpFile::recoverBlock(char *buffer, off_t offset, size_t length)
 {
   //use double parity to check(recover) also diagonal parity blocks
-  doneRecovery = doubleParityRecover(buffer, offset, length, storeRecovery);
+  doneRecovery = doubleParityRecover(buffer, offset, length);
   return doneRecovery;
 }
 
@@ -199,7 +199,7 @@ RaidDpFile::simpleParityRecover(char* buffer, off_t offset, size_t length, int &
   blocksCorrupted = 0;
   for (unsigned int i = 0; i < nTotalStripes;  i++)
   {
-    if ((!(aread = XrdPosixXrootd::Pread(fdUrl[mapStripe_Url[i]], dataBlocks[i], stripeWidth, offsetLocal + sizeHeader))) || (aread != stripeWidth)) 
+    if ((fdUrl[mapStripe_Url[i]] < 0) || (!(aread = XrdPosixXrootd::Pread(fdUrl[mapStripe_Url[i]], dataBlocks[i], stripeWidth, offsetLocal + sizeHeader))) || (aread != stripeWidth)) 
     {
       eos_err("Read stripe %s - corrupted block", stripeUrls[mapStripe_Url[i]].c_str()); 
       idBlockCorrupted = i; // [0 - nDataStripes]
@@ -230,22 +230,24 @@ RaidDpFile::simpleParityRecover(char* buffer, off_t offset, size_t length, int &
                  dataBlocks[idBlockCorrupted],
                  stripeWidth);
   }
-  
+
   //return recovered block and also write it to the file
   int idReadBlock;
   unsigned int stripeId;
   unsigned int nwrite;
   off_t offsetBlock;
-
+  
   idReadBlock = (offset % (nDataStripes * stripeWidth)) / stripeWidth;  // [0-3]
   offsetBlock = (offset / (nDataStripes * stripeWidth)) * (nDataStripes * stripeWidth) + idReadBlock * stripeWidth;
   stripeId = (offsetBlock / stripeWidth) % nDataStripes;
   offsetLocal = ((offsetBlock / ( nDataStripes * stripeWidth)) * stripeWidth);
 
-  if (!(nwrite = XrdPosixXrootd::Pwrite(fdUrl[mapStripe_Url[stripeId]], dataBlocks[idBlockCorrupted], stripeWidth, offsetLocal + sizeHeader)) || (nwrite != stripeWidth))
-  {
-    eos_err("Write stripe %s- write failed", stripeUrls[mapStripe_Url[stripeId]].c_str());     
-    return false;
+  if (storeRecovery) {
+    if (!(nwrite = XrdPosixXrootd::Pwrite(fdUrl[mapStripe_Url[stripeId]], dataBlocks[idBlockCorrupted], stripeWidth, offsetLocal + sizeHeader)) || (nwrite != stripeWidth))
+    {
+      eos_err("Write stripe %s- write failed", stripeUrls[mapStripe_Url[stripeId]].c_str());     
+      return false;
+    }
   }
   
   //write the correct block to the reading buffer
@@ -257,7 +259,7 @@ RaidDpFile::simpleParityRecover(char* buffer, off_t offset, size_t length, int &
 /*----------------------------------------------------------------------------*/
 //use double parity to recover the stripe, return true if successfully reconstruted
 bool 
-RaidDpFile::doubleParityRecover(char* buffer, off_t offset, size_t length, bool storeRecovery)
+RaidDpFile::doubleParityRecover(char* buffer, off_t offset, size_t length)
 {
   int aread;
   bool* statusBlock;
@@ -282,7 +284,12 @@ RaidDpFile::doubleParityRecover(char* buffer, off_t offset, size_t length, bool 
 
     int lread = stripeWidth;
     do {
-      aread = XrdPosixXrootd::Pread(fdUrl[mapStripe_Url[idStripe]], dataBlocks[i], lread, offsetLocal + sizeHeader);
+      if (fdUrl[mapStripe_Url[idStripe]] >= 0) {
+        aread = XrdPosixXrootd::Pread(fdUrl[mapStripe_Url[idStripe]], dataBlocks[i], lread,offsetLocal + sizeHeader);
+      }
+      else {
+        aread = -1;
+      }
       if (aread > 0) {
         if (aread != lread)
         {

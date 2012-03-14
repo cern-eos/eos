@@ -5,8 +5,8 @@
 
 Summary: eos-apmon package
 Name: eos-apmon
-Version: 1.1.0
-Release: 2
+Version: 1.1.2
+Release: 1
 URL: none
 Source0: %{name}-%{version}.tar.gz
 License: OpenSource
@@ -45,7 +45,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %preun
 if [ "$1" = "0" ] ; then  # last deinstall
-    /sbin/service eosapmond stop > > /dev/null 2>&1 || :
+    /sbin/service eosapmond stop >> /dev/null 2>&1 || :
     /sbin/chkconfig --del eosapmond
 fi
 
@@ -57,6 +57,7 @@ rm -rf $RPM_BUILD_ROOT
 /etc/init.d/eosapmond
 /etc/logrotate.d/apmon-logs
 /usr/sbin/eos_apmond
+/usr/sbin/eos_apmonpl
 
 %{perl_sitearch}/ApMon/
 

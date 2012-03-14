@@ -103,6 +103,15 @@ xrdmgmofs_shutdown(int sig) {
   if (gOFS->eosDirectoryService) { gOFS->eosDirectoryService->finalize(); delete gOFS->eosDirectoryService;}
   if (gOFS->eosFileService) { gOFS->eosFileService->finalize();      delete gOFS->eosFileService;}
 
+#ifdef HAVE_ZMQ
+  // ----------------------------------------------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop ZMQ...");
+  if (gOFS->zMQ) {
+    delete gOFS->zMQ;
+    gOFS->zMQ = 0;
+  }
+#endif
+
   // ----------------------------------------------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop deletion thread ... ");
   if (gOFS->deletion_tid) { XrdSysThread::Cancel(gOFS->deletion_tid); XrdSysThread::Join(gOFS->deletion_tid,0); }
@@ -1239,14 +1248,12 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   
   if ( eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kPlain ) {
     capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
-    capability += "&mgm.localprefix="; capability+= filesystem->GetPath().c_str();
   }
 
   if ((eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReplica) || 
       (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kRaidDP) || 
       (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReedS)) {
     capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
-    capability += "&mgm.localprefix="; capability+= filesystem->GetPath().c_str();
     
     eos::mgm::FileSystem* repfilesystem = 0;
     // put all the replica urls into the capability
@@ -1287,7 +1294,6 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
       capability += replicahost; capability += ":"; capability += replicaport; capability += "//";
       // add replica fsid
       capability += "&mgm.fsid"; capability += i; capability += "="; capability += (int)repfilesystem->GetId();
-      capability += "&mgm.localprefix"; capability += i; capability += "=";capability+= repfilesystem->GetPath().c_str();
 
       eos_debug("Redirection Url %d => %s", i, replicahost.c_str());
     }
