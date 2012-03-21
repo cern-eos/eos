@@ -39,7 +39,7 @@ class CacheEntry
 {
 public:
 
-  CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstraction* ptr);
+  CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstraction* ptr, bool iswr);
   ~CacheEntry();
   static const size_t getMaxSize() {
     return 4*1048576;
@@ -54,22 +54,21 @@ public:
   bool   getPiece(char* buf, off_t off, size_t len);
   FileAbstraction*  getParentFile() const;
 
+  bool   isWr();
   bool   isFull();
   int    doWrite();
   size_t addPiece(char* buf, off_t off, size_t len);
   void   doRecycle(int filedes, char* buf, off_t offset, size_t lenBuf,
-                   FileAbstraction* ptr);
-  bool   isInQueue() const;
-  void   setInQueue(bool isInQueue); 
+                   FileAbstraction* ptr, bool iswr);
 
-private:
+ private:
 
   int fd;                            //file descriptor
+  bool isWrType;                     //is write block type
   char*  buffer;                     //buffer of the object
   size_t capacity;                   //total capcity 512 KB ~ 1MB
   size_t sizeData;                   //size of useful data
   off_t  offsetStart;                //offset relative to the file
-  bool   inQueue;                    //mark if added to the queue
 
   std::map<off_t, size_t> mapPieces; //pieces read/to be written
   FileAbstraction* pParentFile;      //pointer to parent file

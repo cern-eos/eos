@@ -1466,9 +1466,9 @@ xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode
   eos_static_debug("fd=%d nbytes=%lu offset=%llu inode=%lu",fildes, (unsigned long)nbyte, (unsigned long long)offset, (unsigned long) inode);
  
   size_t ret;
-  FileAbstraction* fAbst =0;
 
   if (XFC && fuse_cache_read && inode) {
+    FileAbstraction* fAbst = 0;
     fAbst = XFC->getFileObj(inode, true);
     XFC->waitFinishWrites(fAbst);
     TIMING("wait writes", &xpr);
@@ -1494,6 +1494,7 @@ xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode
   if (EOS_LOGS_DEBUG ) {
     xpr.Print();
   }
+
   return ret;
 }
 
@@ -1520,7 +1521,7 @@ xrd_write(int fildes, const void *buf, size_t nbyte, unsigned long inode)
 ssize_t
 xrd_pwrite(int fildes, const void *buf, size_t nbyte, off_t offset, unsigned long inode)
 {
-  eos::common::Timing xpw("xrd_write");
+  eos::common::Timing xpw("xrd_pwrite");
   TIMING("start", &xpw);
   
   eos_static_debug("fd=%d nbytes=%lu inode=%lu cache=%d cache-w=%d", fildes, (unsigned long)nbyte, (unsigned long) inode, XFC?1:0, fuse_cache_write);
@@ -1574,7 +1575,7 @@ int xrd_rename(const char *oldpath, const char *newpath)
 const char*
 xrd_mapuser(uid_t uid)
 {
-  eos_static_info("uid=%lu", (unsigned long) uid);
+  eos_static_debug("uid=%lu", (unsigned long) uid);
   struct passwd* pw;
   XrdOucString sid = "";
   XrdOucString* spw=NULL;
