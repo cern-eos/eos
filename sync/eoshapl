@@ -172,6 +172,15 @@ while(1) {
     }
 
     if ($debug || (!$cnt)) {print "$now hostname=$host [$host_ip]  aliastarget=$alias_ip aliases=$aliasname\n";}
+    
+    if ( $eossync ) {
+	now();
+	printf "$now ===================================================================\n";
+	printf("$now (re-)start EOS SYNC ...\n");
+	printf "$now ___________________________________________________________________\n";
+	# service dead ... let's restart
+	my $startupsync = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eossync restart >> $logfile 2>&1 ");
+    }  
 
     if ("$host_ip" ne "$alias_ip") {
         if ( $mastersync ) {
@@ -182,15 +191,6 @@ while(1) {
             # service dead ... let's restart
             my $startupsync = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart sync >> $logfile 2>&1 ");
         }
-
-        if ( $eossync ) {
-            now();
-            printf "$now ===================================================================\n";
-            printf("$now (re-)start EOS SYNC ...\n");
-            printf "$now ___________________________________________________________________\n";
-            # service dead ... let's restart
-            my $startupsync = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eossync restart >> $logfile 2>&1 ");
-        }  
 
         if (!$mastermq) {
             now();
