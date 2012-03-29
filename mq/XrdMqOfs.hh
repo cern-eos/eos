@@ -199,8 +199,8 @@ public:
   
   static  XrdOucHash<XrdOucString> *stringstore;
   
-  XrdSfsFile      *newFile(char *user=0) {return (XrdSfsFile*) new XrdMqOfsFile(user);}
-  XrdSfsDirectory      *newDir(char *user=0) {return (XrdSfsDirectory*) 0;}
+  XrdSfsFile      *newFile(char *user=0, int MonID=0) {return (XrdSfsFile*) new XrdMqOfsFile(user);}
+  XrdSfsDirectory      *newDir(char *user=0, int MonID=0) {return (XrdSfsDirectory*) 0;}
 
   int              Emsg(const char *, XrdOucErrInfo&, int, const char *x, const char *y="");
   int              myPort; 
