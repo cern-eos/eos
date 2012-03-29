@@ -22,8 +22,8 @@ sec.protocol krb5 host/<host>@CERN.CH
 sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2
 
 ###########################################################
-sec.protbind localhost.localdomain unix
-sec.protbind localhost unix
+sec.protbind localhost.localdomain unix sss
+sec.protbind localhost unix sss
 sec.protbind * only krb5 gsi sss unix
 ###########################################################
 mgmofs.fs /
