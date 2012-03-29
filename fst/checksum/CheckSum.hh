@@ -61,13 +61,22 @@ public:
   virtual bool Add(const char* buffer, size_t length, off_t offset) = 0;
   virtual void Finalize() {};
   virtual void Reset() = 0;
-  virtual void ResetInit(off_t offsetInit, size_t lengthInit, const char* checksumInit) {};
+  virtual void ResetInit(off_t offsetInit, size_t lengthInit, const char* checksumInitHex) {};
   virtual void SetDirty() {
     needsRecalculation = true;
   }
 
   virtual const char* GetHexChecksum() = 0;
   virtual const char* GetBinChecksum(int &len) = 0;
+  virtual bool        SetBinChecksum(const void* buffer,int len) {
+    if (len < GetCheckSumLen())
+      return false;
+    needsRecalculation = false;
+    int ilen=0;
+    memcpy((void*)GetBinChecksum(ilen),buffer, GetCheckSumLen());
+    return true;
+  }
+
   virtual bool Compare(const char* refchecksum);
   virtual off_t GetLastOffset() = 0;
   virtual off_t GetMaxOffset() { return GetLastOffset(); }

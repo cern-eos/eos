@@ -162,7 +162,7 @@ void ScanDir::ScanFiles()
     if (node->fts_level > 0 && node->fts_name[0] == '.') {
       fts_set(tree, node, FTS_SKIP);
     } else {
-      if (node->fts_info && FTS_F) {
+      if (node->fts_info == FTS_F) {
         XrdOucString filePath = node->fts_accpath;
         if (!filePath.matches("*.xsmap")){
           if (!bgThread)
@@ -264,7 +264,7 @@ void ScanDir::CheckFile(const char* filepath)
              (!attr->Set("user.eos.blockcxerror", blockcxerror?"1":"0")) )
           {
             if (bgThread) {
-              eos_err("Can not set extended attributes to file.");
+              eos_err("Can not set extended attributes to file %s", filePath.c_str());
             } else {
               fprintf(stderr, "error: [CheckFile] Can not set extended attributes to file. \n");
             }

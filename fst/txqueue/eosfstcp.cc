@@ -46,7 +46,7 @@
 #include "fst/checksum/ChecksumPlugins.hh"
 
 #define PROGRAM "eosfstcp"
-#define DEFAULTBUFFERSIZE 1*1024*1024
+#define DEFAULTBUFFERSIZE 4*1024*1024
 
 #define XROOTID      0x2
 #define RAIDIOID     0x1

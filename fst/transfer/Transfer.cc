@@ -53,11 +53,9 @@ Transfer::Do()
   // ----------------------------------------------------------------------------------------------------------
   // retrieve the file meta data from the remote server
 
-  eos::common::ClientAdmin* replicaAdmin = gOFS.ClientAdminManager.GetAdmin(capOpaque.Get("mgm.sourcehostport"));
-
   int rc=0;
   eos_static_debug("GetRemoteFmd %s %s %s",  capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"));
-  rc = eos::common::gFmdHandler.GetRemoteFmd(replicaAdmin, capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"),fmd);
+  rc = eos::common::gFmdHandler.GetRemoteFmd(capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"),fmd);
 
   if (rc) {
     eos_static_err("Failed to get remote fmd from %s [%d] fid %s from %s %s=>%s", capOpaque.Get("mgm.sourcehostport"),rc, capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"));

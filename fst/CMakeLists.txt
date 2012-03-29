@@ -44,6 +44,7 @@ add_library (XrdEosFst MODULE
             txqueue/TransferJob.cc
             txqueue/TransferQueue.cc
             zfec/fec.cc
+	    FmdSqlite.cc
 	    )
 
 target_link_libraries (XrdEosFst eosCapability-Static eosCommon-Static XrdMqClient-Static XrdClient XrdUtils XrdOfs crypto uuid curses pthread dl z attr)

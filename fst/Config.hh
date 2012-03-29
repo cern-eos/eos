@@ -27,6 +27,7 @@
 #include "fst/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -43,9 +44,10 @@ public:
   XrdOucString     FstConfigQueueWildcard;// our configuration queue match name
   XrdOucString     FstNodeConfigQueue;   // our queue holding this node's configuration settings
   XrdOucString     FstHostPort;          // <host>:<port>
-
+  XrdOucString     Manager;              // <host>:<port> 
+  XrdSysMutex      Mutex;                // lock for dynamic updates like 'Manager' 
   static Config gConfig;
-  Config() {FstQuotaReportInterval=0;autoBoot=false;}
+  Config() {FstQuotaReportInterval=0;autoBoot=false;Manager = "";}
   ~Config() {}
 };
 

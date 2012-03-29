@@ -63,6 +63,9 @@ private:
 
   TransferMultiplexer mTxMultiplexer;
 
+  std::map<std::string, size_t> inconsistency_stats;
+  std::map<std::string, std::set<eos::common::FileId::fileid_t> > inconsistency_sets;
+
 public:
   FileSystem(const char* queuepath, const char* queue, XrdMqSharedObjectManager* som);
 
@@ -80,6 +83,10 @@ public:
   TransferQueue* GetDrainQueue()   { return mTxDrainQueue;  }
   TransferQueue* GetBalanceQueue() { return mTxBalanceQueue;}
   TransferQueue* GetExternQueue()  { return mTxExternQueue; }
+
+  std::map<std::string, size_t> *GetInconsistencyStats() { return &inconsistency_stats;}
+  std::map<std::string, std::set<eos::common::FileId::fileid_t> > *GetInconsistencySets() { return &inconsistency_sets;}
+ 
 
   void BroadcastError(const char* msg);
   void BroadcastError(int errc, const char* errmsg);
@@ -134,6 +141,7 @@ public:
   static void* StartFsBalancer(void* pp);
   static void* StartFsDrainer(void* pp);
   static void* StartFsCleaner(void* pp);
+  static void* StartMgmSyncer(void* pp);
 
   void Scrub();
   void Trim();
@@ -146,6 +154,7 @@ public:
   void Balancer();
   void Drainer();
   void Cleaner();
+  void MgmSyncer();
 
   void Boot(FileSystem* fs);
 

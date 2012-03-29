@@ -24,7 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "common/Fmd.hh"
+#include "fst/FmdSqlite.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
@@ -229,6 +229,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   }
 
   XrdOucString sayquotainterval =""; sayquotainterval += eos::fst::Config::gConfig.FstQuotaReportInterval;
+
   Eroute.Say("=====> fstofs.quotainterval : ",sayquotainterval.c_str());
 
   if (! eos::fst::Config::gConfig.FstOfsBrokerUrl.endswith("/")) {
@@ -301,6 +302,8 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   // Enable the shared object notification queue
   ObjectManager.EnableQueue = true;
   ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
+  ObjectManager.SetDebug(true);
+  eos::common::Logging::SetLogPriority(LOG_DEBUG);
 
   // setup notification subjects
   ObjectManager.SubjectsMutex.Lock();
@@ -308,11 +311,13 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   std::string watch_bootsenttime = "bootsenttime";
   std::string watch_scaninterval = "scaninterval";
   std::string watch_symkey       = "symkey";
+  std::string watch_manager      = "manager";
 
   ObjectManager.ModificationWatchKeys.insert(watch_id);
   ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
   ObjectManager.ModificationWatchKeys.insert(watch_scaninterval);
   ObjectManager.ModificationWatchKeys.insert(watch_symkey);
+  ObjectManager.ModificationWatchKeys.insert(watch_manager);
   ObjectManager.SubjectsMutex.UnLock();
 
 
@@ -342,17 +347,10 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
     return 1;
   } 
 
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Create a wildcard broadcast 
-  ObjectManager.CreateSharedHash(eos::fst::Config::gConfig.FstQueueWildcard.c_str(),eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
-  ObjectManager.HashMutex.LockRead();
-  XrdMqSharedHash* hash = ObjectManager.GetHash(eos::fst::Config::gConfig.FstQueueWildcard.c_str());
-
-  if (hash) {
-    // ask for a broadcast
-    hash->BroadCastRequest(eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
-  }
-
-  ObjectManager.HashMutex.UnLockRead();
+  XrdMqSharedHash* hash = 0;
 
   // Create a node broadcast
   ObjectManager.CreateSharedHash(eos::fst::Config::gConfig.FstConfigQueueWildcard.c_str(),eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
@@ -360,6 +358,18 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   
   hash = ObjectManager.GetHash(eos::fst::Config::gConfig.FstConfigQueueWildcard.c_str());
   
+  if (hash) {
+    // ask for a broadcast
+    hash->BroadCastRequest(eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
+  }
+
+  ObjectManager.HashMutex.UnLockRead();
+
+  // Create a filesystem broadcast
+  ObjectManager.CreateSharedHash(eos::fst::Config::gConfig.FstQueueWildcard.c_str(),eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
+  ObjectManager.HashMutex.LockRead();
+  hash = ObjectManager.GetHash(eos::fst::Config::gConfig.FstQueueWildcard.c_str());
+
   if (hash) {
     // ask for a broadcast
     hash->BroadCastRequest(eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
@@ -529,13 +539,12 @@ XrdFstOfsFile::open(const char                *path,
   eos::common::RWMutexReadLock lock(gOFS.Storage->fsMutex);
   fsid = atoi(sfsid?sfsid:"0");
   if ( fsid && gOFS.Storage->fileSystemsMap.count(fsid) ) {
-    localprefix = gOFS.Storage->fileSystemsMap[fsid]->GetPath().c_str();
+    localPrefix = gOFS.Storage->fileSystemsMap[fsid]->GetPath().c_str();
   }
   // attention: the localprefix implementation does not work for gateway machines - this needs some modifications
-  localPrefix = localprefix;
 
 
-  if (!localprefix) {
+  if (!localPrefix.length()) {
     return gOFS.Emsg(epname,error, EINVAL,"open - cannot determine the prefix path to use for the given filesystem id",path);
   }
 	
@@ -556,7 +565,7 @@ XrdFstOfsFile::open(const char                *path,
   if (dpos != STR_NPOS) 
     RedirectManager.erase(dpos);
 
-  eos::common::FileId::FidPrefix2FullPath(hexfid, localprefix,fstPath);
+  eos::common::FileId::FidPrefix2FullPath(hexfid, localPrefix.c_str(),fstPath);
 
   fileid = eos::common::FileId::Hex2Fid(hexfid);
 
@@ -693,7 +702,7 @@ XrdFstOfsFile::open(const char                *path,
   eos_info("fstpath=%s", fstPath.c_str());
 
   // attach meta data
-  fMd = eos::common::gFmdHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
+  fMd = gFmdSqliteHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
   if (!fMd) {
     eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
     int ecode=1094;
@@ -739,7 +748,7 @@ XrdFstOfsFile::open(const char                *path,
 
     if (checkSum && isRW) {
       // preset with the last known checksum
-      checkSum->ResetInit(0, openSize, fMd->fMd.checksum);
+      checkSum->ResetInit(0, openSize, fMd->fMd.checksum.c_str());
     }
   }
 
@@ -985,7 +994,7 @@ XrdFstOfsFile::verifychecksum()
       
       checkSum->GetBinChecksum(checksumlen);
       // copy checksum into meta data
-      memcpy(fMd->fMd.checksum, checkSum->GetBinChecksum(checksumlen),checksumlen);
+      fMd->fMd.checksum = checkSum->GetHexChecksum();
 
       if (haswrite) {
         // if we have no write, we don't set this attributes (xrd3cp!)  
@@ -1010,12 +1019,10 @@ XrdFstOfsFile::verifychecksum()
       }
     } else {
       // this is a read with checksum check, compare with fMD
-      eos_info("(read)  checksum type: %s checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum());
-      checkSum->GetBinChecksum(checksumlen);
-      for (int i=0; i<checksumlen ; i++) {
-        if (fMd->fMd.checksum[i] != checkSum->GetBinChecksum(checksumlen)[i]) {
-          checksumerror=true;
-        }
+      eos_info("(read)  checksum type: %s checksum hex: %s fmd-checksum: %s", checkSum->GetName(), checkSum->GetHexChecksum(), fMd->fMd.checksum.c_str());
+      std::string calculatedchecksum = checkSum->GetHexChecksum();
+      if (calculatedchecksum != fMd->fMd.checksum.c_str()) {
+	checksumerror = true;
       }
     }
   }
@@ -1182,14 +1189,16 @@ XrdFstOfsFile::close()
 	    }
 	    
 	    eos::common::Path cPath(capOpaque->Get("mgm.path"));
-	    if (cPath.GetName())strncpy(fMd->fMd.name,cPath.GetName(),255);
+	    if (cPath.GetName()) {
+	      fMd->fMd.name = cPath.GetName();
+	    }
 	    const char* val =0;
 	    if ((val = capOpaque->Get("container"))) {
-	      strncpy(fMd->fMd.container,val,255);
+	      fMd->fMd.container = val;
 	    }
 	    
 	    // commit local
-	    if (!eos::common::gFmdHandler.Commit(fMd))
+	    if (!gFmdSqliteHandler.Commit(fMd))
 	      rc = gOFS.Emsg(epname,error,EIO,"close - unable to commit meta data",Path.c_str());
 	    
 	    // commit to central mgm cache
@@ -1304,6 +1313,11 @@ XrdFstOfsFile::close()
       gOFS.ReportQueueMutex.Lock();
       gOFS.ReportQueue.push(reportString);
       gOFS.ReportQueueMutex.UnLock();
+
+      // store in the WrittenFilesQueue
+      gOFS.WrittenFilesQueueMutex.Lock();
+      gOFS.WrittenFilesQueue.push(fMd->fMd);
+      gOFS.WrittenFilesQueueMutex.UnLock();
     } 
   }
   
@@ -1912,7 +1926,7 @@ XrdFstOfs::_rem(const char             *path,
     return rc;
   }
 
-  if (!eos::common::gFmdHandler.DeleteFmd(fid, fsid)) {
+  if (!gFmdSqliteHandler.DeleteFmd(fid, fsid)) {
     eos_notice("unable to delete fmd for fid %llu on filesystem %lu",fid,fsid);
     return gOFS.Emsg(epname,error,EIO,"delete file meta data ",fstPath.c_str());
   }
@@ -2025,7 +2039,7 @@ XrdFstOfs::FSctl(const int               cmd,
       unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
 
-      struct eos::common::Fmd* fmd = eos::common::gFmdHandler.GetFmd(fileid, fsid, 0, 0, 0, false);
+      FmdSqlite* fmd = gFmdSqliteHandler.GetFmd(fileid, fsid, 0, 0, 0, false);
 
       if (!fmd) {
         eos_static_err("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
@@ -2034,7 +2048,7 @@ XrdFstOfs::FSctl(const int               cmd,
         return SFS_DATA;
       }
       
-      XrdOucEnv* fmdenv = fmd->FmdToEnv();
+      XrdOucEnv* fmdenv = fmd->FmdSqliteToEnv();
       int envlen;
       XrdOucString fmdenvstring = fmdenv->Env(envlen);
       delete fmdenv;
@@ -2276,17 +2290,13 @@ XrdFstOfsDirectory::nextEntry()
               entry += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)st_buf.st_size);
               entry += ":";
               if (fsid) {
-                eos::common::Fmd* fmd = eos::common::gFmdHandler.GetFmd(eos::common::FileId::Hex2Fid(fileId.c_str()), fsid, 0,0,0,0);
+                FmdSqlite* fmd = gFmdSqliteHandler.GetFmd(eos::common::FileId::Hex2Fid(fileId.c_str()), fsid, 0,0,0,0);
                 if (fmd) {
                   // token[6] size in changelog
                   entry += eos::common::StringConversion::GetSizeString(sizestring, fmd->fMd.size);
                   entry += ":";
 
-                  // token[7] checksum in changelog
-                  for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
-                    char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->fMd.checksum[i]));
-                    entry += hb;
-                  }
+		  entry += fmd->fMd.checksum.c_str();
                   delete fmd;
                 } else {
                   entry += "x:x:";

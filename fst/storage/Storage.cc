@@ -25,6 +25,7 @@
 #include "fst/Config.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/FmdSqlite.hh"
 #include "common/Fmd.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
@@ -70,6 +71,11 @@ FileSystem::~FileSystem() {
     delete scanDir;
   }
 
+  // we call the FmdSqliteHandler shutdown function for this filesystem
+
+  
+  gFmdSqliteHandler.ShutdownDB(GetId());
+  
   // FIXME !!!
   // we accept this tiny memory leak to be able to let running transfers callback their queue
   // -> we don't delete them here!
@@ -363,6 +369,15 @@ Storage::Storage(const char* metadirectory)
 
   ThreadSet.insert(tid);
 
+  eos_info("starting mgm synchronization thread");
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer, static_cast<void *>(this),
+                              0, "MgmSyncer Thread"))) {
+    eos_crit("cannot start mgm syncer thread");
+    zombie = true;
+  }
+
+  ThreadSet.insert(tid);
+
   eos_info("enabling net/io load monitor");
   fstLoad.Monitor();
 }
@@ -391,6 +406,21 @@ Storage::Boot(FileSystem *fs)
     return;
   }
 
+  // we have to wait that we know who is our manager
+  std::string manager = "";
+  do {
+    {
+      XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+      manager = eos::fst::Config::gConfig.Manager.c_str();
+    }
+    if (manager != "") 
+      break;
+
+    XrdSysTimer sleeper;
+    sleeper.Snooze(5);
+    eos_info("Waiting to know our manager ...");    
+  } while(1);
+  
   eos::common::FileSystem::fsid_t fsid = fs->GetId();
   std::string uuid = fs->GetString("uuid");
 
@@ -450,12 +480,41 @@ Storage::Boot(FileSystem *fs)
   gOFS.WOpenFid[fsid].set_deleted_key(0);
   gOFS.OpenFidMutex.UnLock();
 
-  if (!eos::common::gFmdHandler.AttachLatestChangeLogFile(metaDirectory.c_str(), fsid)) {
+  XrdOucString dbfilename;
+  gFmdSqliteHandler.CreateDBFileName(metaDirectory.c_str(), dbfilename);
+  
+  // attach to the SQLITE DB
+  if (!gFmdSqliteHandler.SetDBFile(dbfilename.c_str(),fsid)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
-    fs->SetError(EFAULT,"cannot attach to latest change log file - see the fst logfile for details");
+    fs->SetError(EFAULT,"cannot set DB filename - see the fst logfile for details");
     return;
   }
 
+  bool resyncmgm =   (gFmdSqliteHandler.IsDirty(fsid) || (fs->GetLongLong("bootcheck")));
+
+  // resync the SQLITE DB 
+  if (!gFmdSqliteHandler.ResyncDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
+    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetError(EFAULT,"cannot resync the SQLITE DB from local disk");
+    return;
+  }
+
+  // if we detect an unclean shutdown, we resync with the MGM
+  // if we see the stat.bootcheck flag for the filesystem, we also resync
+  if (resyncmgm) {
+    // remove the bootcheck flag
+    fs->SetLongLong("bootcheck",0);
+    // resync the MGM meta data
+    if (!gFmdSqliteHandler.ResyncAllMgm(fsid, manager.c_str())) {
+      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+      fs->SetError(EFAULT,"cannot resync the mgm meta data");
+      return;
+    }
+  } else {
+    eos_info("Skip MGM resynchronization for fsid=%lu - had clean shutdown", (unsigned long) fsid);
+  }
+ 
+  
   // check if there is a lable on the disk and if the configuration shows the same fsid + uuid
   if (!CheckLabel(fs->GetPath(),fsid,uuid)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
@@ -790,6 +849,15 @@ Storage::StartFsCleaner(void * pp)
 }    
 
 /*----------------------------------------------------------------------------*/
+void*
+Storage::StartMgmSyncer(void * pp)
+{
+  Storage* storage = (Storage*)pp;
+  storage->MgmSyncer();
+  return 0;
+}    
+
+/*----------------------------------------------------------------------------*/
 void
 Storage::Scrub()
 {
@@ -871,7 +939,7 @@ Storage::Scrub()
     time_t stop = time(0);
 
     int nsleep = ( (300)-(stop-start));
-    eos_static_info("Scrubber will pause for %u seconds",nsleep);
+    eos_static_debug("Scrubber will pause for %u seconds",nsleep);
     sleep(nsleep);
   }
 }
@@ -980,33 +1048,23 @@ Storage::ScrubFs(const char* path, unsigned long long free, unsigned long long b
 void
 Storage::Trim()
 {
-  // this thread supervises the changelogfile and trims them from time to time to shrink their size
+  // this thread trim's the SQLITE DB every 30 days
   while(1) {
-    sleep(10);
-    google::sparse_hash_map<unsigned long long, google::dense_hash_map<unsigned long long, unsigned long long> >::const_iterator it;
-    eos_static_info("Trimming Size  %u", eos::common::gFmdHandler.FmdMap.size());
-    eos::common::RWMutexWriteLock (eos::common::gFmdHandler.Mutex);
-    for ( it = eos::common::gFmdHandler.FmdMap.begin(); it != eos::common::gFmdHandler.FmdMap.end(); ++it) {
+    // sleep for a month
+    XrdSysTimer sleeper;
+    sleeper.Snooze(30*86400);
+    std::map<eos::common::FileSystem::fsid_t, sqlite3*>::iterator it;
+
+    for ( it = gFmdSqliteHandler.GetDB()->begin(); it != gFmdSqliteHandler.GetDB()->end(); ++it) {
       eos_static_info("Trimming fsid=%llu ",it->first);
       int fsid = it->first;
 
-      // stat the size of this logfile
-      struct stat buf;
-      if (fstat(eos::common::gFmdHandler.fdChangeLogRead[fsid],&buf)) {
-        eos_static_err("Cannot stat the changelog file for fsid=%llu for", it->first);
+      if (!gFmdSqliteHandler.TrimDBFile(fsid)) {
+        eos_static_err("Cannot trim the SQLITE DB file for fsid=%llu ", it->first);
       } else {
-        // we trim only if the file reached 6 GB
-        if (buf.st_size > (6000LL * 1024 * 1024)) {
-          if (!eos::common::gFmdHandler.TrimLogFile(fsid)) {
-            eos_static_err("Trimming failed on fsid=%llu",it->first);
-          }
-        } else {
-          eos_static_info("Trimming skipped ... changelog is < 1GB");
-        }
+	eos_static_info("Called vaccuum on SQLITE DB file for fsid=%llu ", it->first);
       }
     }
-    // check once per day only 
-    sleep(86400);
   }
 }
 
@@ -1104,10 +1162,13 @@ Storage::Report()
     }
     gOFS.ReportQueueMutex.UnLock();
 
-    if (failure) 
-      sleep(10);
-    else 
-      sleep(1);
+    if (failure) {
+      XrdSysTimer sleeper;
+      sleeper.Snooze(10);
+    } else {
+      XrdSysTimer sleeper;
+      sleeper.Snooze(1);
+    }
   }
 }
 
@@ -1240,8 +1301,8 @@ Storage::Verify()
       eos_static_err("unable to verify file id=%x on fs=%u path=%s - stat on local disk failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
     } else {
       // attach meta data
-      eos::common::Fmd* fMd = 0;
-      fMd = eos::common::gFmdHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, verifyfile->commitFmd);
+      FmdSqlite* fMd = 0;
+      fMd = gFmdSqliteHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, verifyfile->commitFmd);
       bool localUpdate = false;
       if (!fMd) {
         eos_static_err("unable to verify id=%x on fs=%u path=%s - no local MD stored", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
@@ -1285,17 +1346,22 @@ Storage::Verify()
             
             // check if the computed checksum differs from the one in the change log
             bool cxError=false;
-            for (int i=0 ; i< checksumlen; i++) {
-              if (fMd->fMd.checksum[i] != checksummer->GetBinChecksum(checksumlen)[i])
-                cxError=true;
-            }
+	    std::string computedchecksum = checksummer->GetHexChecksum();
+	    if (fMd->fMd.checksum != computedchecksum) 
+	      cxError = true;
             
             if (cxError) {
               eos_static_err("checksum invalid   : path=%s fid=%s checksum=%s", verifyfile->path.c_str(),hexfid.c_str(), checksummer->GetHexChecksum());
-              memset(fMd->fMd.checksum,0,sizeof(fMd->fMd.checksum));
-              // copy checksum into meta data
-              memcpy(fMd->fMd.checksum, checksummer->GetBinChecksum(checksumlen),checksumlen);
+	      fMd->fMd.checksum     = computedchecksum;
+	      fMd->fMd.diskchecksum = computedchecksum;
+	      fMd->fMd.disksize     = fMd->fMd.size;
+	      if (verifyfile->commitSize) {
+		fMd->fMd.mgmsize    = fMd->fMd.size;
+	      }
 
+	      if (verifyfile->commitChecksum) {
+		fMd->fMd.mgmchecksum = computedchecksum;
+	      }
               localUpdate =true;
             } else {
               eos_static_info("checksum OK        : path=%s fid=%s checksum=%s", verifyfile->path.c_str(),hexfid.c_str(), checksummer->GetHexChecksum());
@@ -1309,12 +1375,12 @@ Storage::Verify()
           }
 
           eos::common::Path cPath(verifyfile->path.c_str());
-          if (cPath.GetName())strncpy(fMd->fMd.name,cPath.GetName(),255);
+	  fMd->fMd.name = cPath.GetName();
           if (verifyfile->container.length()) 
-            strncpy(fMd->fMd.container,verifyfile->container.c_str(),255);
+	    fMd->fMd.container = verifyfile->container.c_str();
           
           // commit local
-          if (localUpdate && (!eos::common::gFmdHandler.Commit(fMd))) {
+          if (localUpdate && (!gFmdSqliteHandler.Commit(fMd))) {
             eos_static_err("unable to verify file id=%llu on fs=%u path=%s - commit to local MD storage failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
           } else {
             if (localUpdate) eos_static_info("commited verified meta data locally id=%llu on fs=%u path=%s",verifyfile->fId, verifyfile->fsId, fstPath.c_str());
@@ -1418,9 +1484,9 @@ Storage::Communicator()
 	} else {
 	  eos_static_info("no action on creation of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
 	}
-        continue;
+	continue;
       } else {
-        eos_static_info("received creation notification of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
+	eos_static_info("received creation notification of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
       }
       
       eos::common::RWMutexWriteLock lock(fsMutex);
@@ -1449,7 +1515,7 @@ Storage::Communicator()
     gOFS.ObjectManager.SubjectsMutex.Lock(); // here we have to take care that we lock this only to retrieve the subject ... to create a new queue we have to free the lock
 
     // implements the deletion of filesystem objects
-    while (gOFS.ObjectManager.DeletionSubjects.size()) {
+    if (gOFS.ObjectManager.DeletionSubjects.size()) {
       std::string newsubject = gOFS.ObjectManager.DeletionSubjects.front();
       gOFS.ObjectManager.DeletionSubjects.pop_front();
       gOFS.ObjectManager.SubjectsMutex.UnLock();
@@ -1516,12 +1582,6 @@ Storage::Communicator()
       unlocked=true;
 
       XrdOucString queue = newsubject.c_str();
-      if ((! queue.beginswith(Config::gConfig.FstQueue)) && (! queue.beginswith(Config::gConfig.FstNodeConfigQueue))) {
-        eos_static_err("illegal subject found in modification list <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
-        break;
-      } else {
-        eos_static_info("received modification notification of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
-      }
 
       // seperate <path> from <key>
       XrdOucString key=queue;
@@ -1533,6 +1593,7 @@ Storage::Communicator()
 
       if (queue == Config::gConfig.FstNodeConfigQueue) {
 	if (key == "symkey") {
+	  gOFS.ObjectManager.HashMutex.LockRead();
 	  // we received a new symkey 
 	  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(),"hash");
 	  if (hash) {
@@ -1540,9 +1601,22 @@ Storage::Communicator()
 	    eos_static_info("symkey=%s", symkey.c_str());
 	    eos::common::gSymKeyStore.SetKey64(symkey.c_str(),0);
 	  }
+	  gOFS.ObjectManager.HashMutex.UnLockRead();
+	}
+	if (key == "manager") {
+	  gOFS.ObjectManager.HashMutex.LockRead();
+	  // we received a manager 
+	  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(),"hash");
+	  if (hash) {
+	    std::string manager = hash->Get("manager");
+	    eos_static_info("manager=%s", manager.c_str());
+	    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+	    Config::gConfig.Manager = manager.c_str();
+	  }
+	  gOFS.ObjectManager.HashMutex.UnLockRead();
 	}
       } else {
-	eos::common::RWMutexReadLock lock(fsMutex);
+	fsMutex.LockRead();
 	if ((fileSystems.count(queue.c_str()))) {
 	  eos_static_info("got modification on <subqueue>=%s <key>=%s", queue.c_str(),key.c_str());
 	  
@@ -1554,9 +1628,16 @@ Storage::Communicator()
 	      unsigned int fsid= hash->GetUInt(key.c_str());
 	      gOFS.ObjectManager.HashMutex.UnLockRead();
 	      
-	      // setup the reverse lookup by id
-	      fileSystemsMap[fsid] = fileSystems[queue.c_str()];
-	      eos_static_info("setting reverse lookup for fsid %u", fsid);
+	      if ( (!fileSystemsMap.count(fsid)) || (fileSystemsMap[fsid] != fileSystems[queue.c_str()])) {
+		fsMutex.UnLockRead();
+		fsMutex.LockWrite();
+		// setup the reverse lookup by id
+
+		fileSystemsMap[fsid] = fileSystems[queue.c_str()];
+		eos_static_info("setting reverse lookup for fsid %u", fsid);
+		fsMutex.UnLockWrite();
+		fsMutex.LockRead();
+	      }
 	      // check if we are autobooting
 	      if (eos::fst::Config::gConfig.autoBoot && (fileSystems[queue.c_str()]->GetStatus() <= eos::common::FileSystem::kDown) && (fileSystems[queue.c_str()]->GetConfigStatus() > eos::common::FileSystem::kOff) ) {
 		Boot(fileSystems[queue.c_str()]);
@@ -1584,13 +1665,14 @@ Storage::Communicator()
 		}
 	      }
 	    }
-        } else {
+	  } else {
 	    gOFS.ObjectManager.HashMutex.UnLockRead();
 	  }
 	} else {
 	  eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", queue.c_str(),key.c_str());
 	  gOFS.ObjectManager.HashMutex.UnLockRead();
 	}
+	fsMutex.UnLockRead();
       }
     }
 
@@ -1632,7 +1714,8 @@ Storage::Publish()
   // ---------------------------------------------------------------------
   // give some time before publishing
   // ---------------------------------------------------------------------
-  sleep(3);
+  XrdSysTimer sleeper;
+  sleeper.Snooze(3);
 
   while (1) {
     gettimeofday(&tv1, &tz);
@@ -1661,6 +1744,18 @@ Storage::Publish()
           }
 
 
+	  // Retrieve Statistics from the SQLITE DB
+	  std::map<std::string, size_t>::const_iterator isit;
+	  gFmdSqliteHandler.GetInconsistencyStatistics(fileSystemsVector[i]->GetId(), *fileSystemsVector[i]->GetInconsistencyStats(), *fileSystemsVector[i]->GetInconsistencySets());
+
+	  bool success = true;
+		    
+	  for (isit = fileSystemsVector[i]->GetInconsistencyStats()->begin(); isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++) {
+	    eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);
+	    std::string sname = "stat.fsck."; sname += isit->first;
+	    success &= fileSystemsVector[i]->SetLongLong(sname.c_str(),isit->second);
+	  }
+
           eos::common::Statfs* statfs = 0;
           if ( (statfs= fileSystemsVector[i]->GetStatfs()) ) {
             // call the update function which stores into the filesystem shared hash
@@ -1669,7 +1764,6 @@ Storage::Publish()
             }
           }
           
-          bool success = true;
           // copy out net info 
           // TODO: take care of eth0 only ..
           // somethimg has to tell us if we are 1GBit, or 10GBit ... we assume 1GBit now as the default
@@ -1688,7 +1782,10 @@ Storage::Publish()
 	  success &= fileSystemsVector[i]->SetDouble("stat.statfs.filled", 100.0 * ((fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")-fileSystemsVector[i]->GetLongLong("stat.statfs.bfree"))) / (1+fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")));
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.capacity",   fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")*fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.fused",     (fileSystemsVector[i]->GetLongLong("stat.statfs.files")-fileSystemsVector[i]->GetLongLong("stat.statfs.ffree"))*fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
-          success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (eos::common::gFmdHandler.FmdMap.count(fileSystemsVector[i]->GetId())?eos::common::gFmdHandler.FmdMap[fileSystemsVector[i]->GetId()].size():0));
+	  { 
+	    eos::common::RWMutexReadLock lock(gFmdSqliteHandler.Mutex);
+	    success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (gFmdSqliteHandler.FmdSqliteMap.count(fileSystemsVector[i]->GetId())?gFmdSqliteHandler.FmdSqliteMap[fileSystemsVector[i]->GetId()].size():0));
+	  }
                                                        
           success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetString("stat.boot").c_str());
 	  success &= fileSystemsVector[i]->SetLongLong("stat.drainer.running",fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued());
@@ -1718,7 +1815,8 @@ Storage::Publish()
     if (lSleepTime < 0) {
       eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds", lReportIntervalMilliSeconds,lCycleDuration);
     } else {
-      usleep(1000*lSleepTime);
+      XrdSysTimer sleeper;
+      sleeper.Snooze(lSleepTime/1000);
     }
   }
 }
@@ -1732,7 +1830,7 @@ Storage::Drainer()
   std::string nodeconfigqueue="";
   
   const char* val =0;
-  // we have to wait that we know our node config queue
+
   while ( !(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str())) {
     XrdSysTimer sleeper;
     sleeper.Snooze(5);
@@ -2154,6 +2252,7 @@ Storage::Cleaner()
     for (unsigned int i=0; i< nfs; i++) {
       eos::common::RWMutexReadLock lock(fsMutex);     
       if (i< fileSystemsVector.size()) {
+
 	if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted) 
 	  fileSystemsVector[i]->CleanTransactions();
       }
@@ -2165,6 +2264,93 @@ Storage::Cleaner()
   }
 }      
 
+/*----------------------------------------------------------------------------*/
+void
+Storage::MgmSyncer()
+{
+  // this thread checks the synchronization between the local MD after a file modification/write against the MGM server
+  while(1) {
+    XrdOucString manager="";
+
+    // get the currently active manager
+    do {
+      {
+	XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+	manager = eos::fst::Config::gConfig.Manager.c_str();
+      }
+      if (manager != "") 
+	break;
+      
+      XrdSysTimer sleeper;
+      sleeper.Snooze(5);
+      eos_info("Waiting to know our manager ...");    
+    } while(1);
+
+    bool failure = false;
+    
+    gOFS.WrittenFilesQueueMutex.Lock();
+    while (gOFS.WrittenFilesQueue.size()>0) {
+      // we enter this loop with the WrittenFilesQueueMutex locked
+      time_t now = time(NULL);
+      gOFS.WrittenFilesQueueMutex.UnLock();
+      
+      gOFS.WrittenFilesQueueMutex.Lock();
+      // fetch the next item to check
+      struct FmdSqlite::FMD fmd = gOFS.WrittenFilesQueue.front();
+      gOFS.WrittenFilesQueueMutex.UnLock();	
+      
+      eos_static_info("fid=%llx mtime=%llu", fmd.fid, fmd.ctime);
+      
+      // guarantee that we delay the check by atleast 60 seconds to wait for the commit of all recplias
+      
+      if ( (time_t)(fmd.mtime+60) > now ) {
+	eos_static_debug("msg=\"postpone mgm sync\" delay=%d", (fmd.mtime+60) - now);
+	XrdSysTimer sleeper;
+	sleeper.Snooze( ( (fmd.mtime+60) - now ) );
+	gOFS.WrittenFilesQueueMutex.Lock();
+	continue;
+      }
+      
+      bool isopenforwrite = false;
+      
+      // check if someone is still writing on that file
+      gOFS.OpenFidMutex.Lock();
+      if (gOFS.WOpenFid[fmd.fsid].count(fmd.fid)) {
+	if (gOFS.WOpenFid[fmd.fsid][fmd.fid]>0) {
+	  isopenforwrite=true;
+	}
+      }
+      gOFS.OpenFidMutex.UnLock();
+      
+      if (!isopenforwrite) {
+	// now do the consistency check
+	if (gFmdSqliteHandler.ResyncMgm(fmd.fsid, fmd.fid, manager.c_str())) {
+	  eos_static_debug("msg=\"resync ok\" fsid=%lu fid=%llx", fmd.fsid,fmd.fid);
+	  gOFS.WrittenFilesQueue.pop();
+	} else {
+	  eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx", fmd.fsid,fmd.fid);
+	  failure = true;
+	  gOFS.WrittenFilesQueueMutex.Lock(); // put back the lock
+	  break;
+	}
+      } else {
+	// if there was still a reference, we can just discard this check since the other write open will trigger a new entry in the queue
+	gOFS.WrittenFilesQueueMutex.Lock(); // put back the lock
+      }
+    }
+    gOFS.WrittenFilesQueueMutex.UnLock();
+    
+    if (failure) {
+      // the last synchronization to the MGM failed, we wait longer
+      XrdSysTimer sleeper;
+      sleeper.Snooze(10);
+    } else {
+      // the queue was empty
+      XrdSysTimer sleeper;
+      sleeper.Snooze(1);
+    }
+  }
+}
 
 /*----------------------------------------------------------------------------*/
 bool 

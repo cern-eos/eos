@@ -23,6 +23,7 @@
 
 /* ------------------------------------------------------------------------- */
 #include "common/Logging.hh"
+#include "common/CloExec.hh"
 #include "fst/txqueue/TransferJob.hh"
 /* ------------------------------------------------------------------------- */
 #include <fstream>
@@ -168,6 +169,10 @@ void TransferJob::DoIt(){
   command << fileResult + " ";
 
   eos_static_debug("executing %s", command.str().c_str());
+
+  // avoid cloning of FDs on fork
+  eos::common::CloExec::All();
+
   int rc = system(command.str().c_str());
   if (WEXITSTATUS(rc)) {
     eos_static_err("%s returned %d", command.str().c_str(), rc);

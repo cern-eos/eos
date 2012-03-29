@@ -39,6 +39,7 @@
 #include "fst/checksum/SHA1.hh"
 #include "common/Path.hh"
 #include "common/Logging.hh"
+#include "common/CloExec.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -65,6 +66,7 @@ CheckSum::ScanFile(const char* path, unsigned long long &scansize, float &scanti
   if (fd<0) {
     return false;
   }
+  eos::common::CloExec::Set(fd);
   bool scan = ScanFile(fd, scansize, scantime, rate);
   close(fd);
   return scan;
@@ -145,6 +147,8 @@ CheckSum::ScanFile(const char* path, off_t offsetInit, size_t lengthInit, const 
   if (fd<0) {
     return false;
   }
+  
+  eos::common::CloExec::Set(fd);
 
   ResetInit(offsetInit, lengthInit, checksumInit);
 
@@ -221,6 +225,8 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
   if (ChecksumMapFd <0) {
     return false;
   }
+
+  eos::common::CloExec::Set(ChecksumMapFd);
 
   // tag the map file with attributes
   eos::common::Attr* attr = eos::common::Attr::OpenAttr(mapfilepath);

@@ -29,7 +29,6 @@
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
 #include "common/Fmd.hh"
-#include "common/ClientAdmin.hh"
 #include "common/StringConversion.hh"
 #include "fst/Namespace.hh"
 #include "fst/storage/Storage.hh"
@@ -70,7 +69,7 @@ private:
   eos::common::FileSystem::fsid_t fsid;
   
 public:
-  XrdFstOfsDirectory(const char *user) : XrdSfsDirectory(user){eos::common::LogId();fts_tree=0;fts_paths=0;fsid=0;};
+  XrdFstOfsDirectory(const char *user, int MonID=0) : XrdSfsDirectory(user,MonID){eos::common::LogId();fts_tree=0;fts_paths=0;fsid=0;};
   virtual            ~XrdFstOfsDirectory() {
     close();
   }
@@ -100,8 +99,8 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId {
 private:
 
 public:
-  XrdSfsDirectory *newDir(char *user=0) {return (XrdSfsDirectory *) new XrdFstOfsDirectory(user);}
-  XrdSfsFile *newFile(char *user=0) {return (XrdSfsFile *) new XrdFstOfsFile(user);}
+  XrdSfsDirectory *newDir(char *user=0, int MonID=0) {return (XrdSfsDirectory *) new XrdFstOfsDirectory(user,MonID);}
+  XrdSfsFile *newFile(char *user=0,int MonID=0) {return (XrdSfsFile *) new XrdFstOfsFile(user,MonID);}
  
   int Configure(XrdSysError &error);
 
@@ -193,7 +192,6 @@ public:
 
   eos::fst::LockManager LockManager;
  
-  eos::common::ClientAdminManager ClientAdminManager;
   eos::fst::Messaging* Messaging;      // -> messaging interface class
   eos::fst::Storage* Storage;          // -> Meta data & filesytem store object
 
@@ -206,12 +204,16 @@ public:
   XrdSysMutex XSLockFidMutex;
   google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > XSLockFid;
 
-
-  XrdSysMutex ReportQueueMutex;
-  std::queue <XrdOucString> ReportQueue;
-
+  
+  XrdSysMutex ReportQueueMutex;             
+  std::queue <XrdOucString> ReportQueue; // queue where file transaction reports get stored and picked up by a thread running in Storage
+  
   XrdSysMutex ErrorReportQueueMutex;
-  std::queue <XrdOucString> ErrorReportQueue;
+  std::queue <XrdOucString> ErrorReportQueue; // queue where log error are stored and picked up by a thread running in Storage
+  
+  XrdSysMutex WrittenFilesQueueMutex;
+  std::queue <struct FmdSqlite::FMD> WrittenFilesQueue;// queue where modified/written files get stored and picked up by a thread running in Storage
+
 
   XrdMqSharedObjectManager ObjectManager;// -> managing shared objects
 

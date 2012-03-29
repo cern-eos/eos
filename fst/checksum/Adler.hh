@@ -80,14 +80,20 @@ public:
     adleroffset = 0;  adler = adler32(0L, Z_NULL,0); needsRecalculation = false; maxoffset = 0;
   }
 
-  void ResetInit(off_t offsetInit, size_t lengthInit, const char* checksumInitBin) {
+  void ResetInit(off_t offsetInit, size_t lengthInit, const char* checksumInitHex) {
     Chunk currChunk;
     maxoffset = 0;
     adleroffset = offsetInit + lengthInit;
 
+    // check if this is actually a valid pointer
+    if (checksumInitHex)
+      return;
+
+    int checksumInitBin = strtol(checksumInitHex,0,16);
+    
     // if a file is truncated we get 0,0,<some checksum => reset to 0
     if (lengthInit!=0) {
-      adler = *((unsigned int*) checksumInitBin);
+      adler = checksumInitBin;
     } else {
       adler = adler32(0L, Z_NULL,0);
     }
