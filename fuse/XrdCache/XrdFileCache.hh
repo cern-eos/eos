@@ -78,7 +78,7 @@ private:
   int indexFile;                   //last index assigned to a file
 
   pthread_t writeThread;
-  pthread_rwlock_t keyMgmLock;
+  XrdSysRWLock rwKeyMap;           //rw lock for the key map
 
   ConcurrentQueue<int>* usedIndexQueue;                  //file indices used and available to recycle
   std::map<unsigned long, FileAbstraction*> fileInodeMap; //map inodes to FileAbst objects

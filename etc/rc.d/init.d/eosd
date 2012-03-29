@@ -81,7 +81,7 @@ start() {
 	export EOS_FUSE_BIGWRITES=${EOS_FUSE_BIGWRITES-0}	
 	export FUSE_OPT=""
 	if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
-	  FUSE_OPT="bigwrites,"
+	  FUSE_OPT="big_writes,"
         fi	
         if [ "x$eosdpid" = "x" ]; then
             echo -n "Starting $prog: "

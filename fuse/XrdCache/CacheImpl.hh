@@ -25,7 +25,6 @@
 #ifndef __EOS_CACHEIMPL_HH__
 #define __EOS_CACHEIMPL_HH__
 //------------------------------------------------------------------------------
-#include <time.h>
 #include <list>
 #include <iterator>
 #include <cassert>
@@ -35,41 +34,50 @@
 #include "XrdFileCache.hh"
 #include "FileAbstraction.hh"
 #include "CacheEntry.hh"
-#include <XrdPosix/XrdPosixXrootd.hh>
 //------------------------------------------------------------------------------
-#include "common/Logging.hh"
+#include <XrdPosix/XrdPosixXrootd.hh>
+#include <XrdSys/XrdSysPthread.hh>
 //------------------------------------------------------------------------------
 
 class XrdFileCache;
 
 class CacheImpl
 {
-  //list<key, isRW> access history, most recent at the back
-  typedef std::list< std::pair<long long int, bool> > key_list_type;
+  //list <key> access history, most recent at the back
+  typedef std::list<long long int> key_list_type;
 
   //key to (value and history iterator) map
   typedef std::map < long long int, std::pair <CacheEntry*, key_list_type::iterator> >  key_map_type;
   
 public:
-
+ 
   CacheImpl(size_t sMax, XrdFileCache *fc);
   ~CacheImpl();
   
   bool getRead(const long long int& k, char* buf, off_t off, size_t len, FileAbstraction* pFileAbst);
   void addRead(int filed, const long long int& k, char* buf, off_t off, size_t len, FileAbstraction* pFileAbst);
-  void removeBlock();
+  bool removeReadBlock();
   
-  void runThreadWrites();
+  void forceWrite();
   void flushWrites(FileAbstraction* pFileAbst);
   void addWrite(int filed, const long long int& k, char* buf, off_t off, size_t len, FileAbstraction* pFileAbst);
-  void processWriteReq(key_map_type::iterator it);
+  void processWriteReq(CacheEntry* pEntry);
+
+  void runThreadWrites();
   void killWriteThread();
   
-  CacheEntry* getRecycledBlock(int filed, char* buf, off_t offset, size_t length, FileAbstraction* pFileAbst);
+  CacheEntry* getRecycledBlock(int filed, char* buf, off_t offset,
+                               size_t length, FileAbstraction* pFileAbst, bool iswr);
 
-  size_t getCurrentSize() const;
-  void setSize(size_t sMax);
-  
+  size_t getSize();
+  size_t incrementSize(size_t value);
+  size_t decrementSize(size_t value);
+  void setSize(size_t value);
+
+  static const int getTimeWait() {
+    return 250;  //miliseconds
+  }
+    
 private:
 
   bool evict();
@@ -80,33 +88,28 @@ private:
   static const double maxPercentWrites = 0.90;
 
   //Percentage from the size of the cache to which the allocated total
-  // size of the blocks used in caching can grow
+  //size of the blocks used in caching can grow
   static const double maxPercentSizeBlocks = 1.15;
 
-  XrdFileCache*  mgmCache;           //upper mgm layer of the cache
-  bool           killThread;         //kill writing thread
+  XrdFileCache*  mgmCache;            //upper mgm. layer of the cache
 
-  size_t         sizeMax;            //maximum size of cache
-  size_t         sizeVirtual;        //sum of all blocks capacity
-  size_t         cacheThreshold;     //max size write requests
-  size_t         sizeAllocBlocks;    //total size of allocated blocks
-  size_t         maxSizeAllocBlocks; //max size of allocated blocks
+  size_t         sizeMax;             //maximum size of cache
+  size_t         sizeVirtual;         //sum of all blocks capacity
+  size_t         cacheThreshold;      //max size write requests
+  size_t         sizeAllocBlocks;     //total size of allocated blocks
+  size_t         maxSizeAllocBlocks;  //max size of allocated blocks
   
-  key_map_type   keyValueMap;        //map <key pair<value, listIter>>
-  key_list_type  keyList;            //list of recently accessed entries
-  size_t         oldSizeQ;           //size queue write requests at previous step
-  bool           inLimitRegion;      //mark if value in limit region
+  key_map_type   keyValueMap;         //map <key pair<value, listIter>>
+  key_list_type  keyList;             //list of recently accessed entries
 
-  pthread_mutex_t  mutexList;
-  pthread_rwlock_t rwMapLock;
+  XrdSysRWLock   rwMap;               //rw lock for accessing the map
+  XrdSysMutex    mList;               //mutex for accessing the list of priorities
+  XrdSysMutex    mAllocSize;          //mutex for updating the size of allocated blocks
+  XrdSysMutex    mSize;               //mutex for updating the cache size
+  XrdSysCondVar cWriteDone;           //condition for notifying waiting threads that a write op. has been done
 
-  pthread_mutex_t mutexAllocSize;    //mutex for updating the size of allocated blocks
-  pthread_mutex_t mutexWritesSize;   //mutex for updating the size of write requests
-  pthread_mutex_t mutexWriteDone;    //mutex and condition for notifying possible
-  pthread_cond_t condWriteDone;      //  waiting threads that a write op. has been done
-
-  ConcurrentQueue<CacheEntry*>* recycleQueue;               //pool of reusable objects
-  ConcurrentQueue<key_map_type::iterator>* writeReqQueue;   //write request queue
+  ConcurrentQueue<CacheEntry*>* recycleQueue;     //pool of reusable objects
+  ConcurrentQueue<CacheEntry*>* writeReqQueue;    //write request queue
 };
 
 #endif

@@ -51,7 +51,7 @@ XrdFileCache::XrdFileCache(size_t sizeMax):
   cacheSizeMax(sizeMax),
   indexFile(10)
 {
-  pthread_rwlock_init(&keyMgmLock, NULL);
+  //empty
 }
 
 
@@ -77,8 +77,6 @@ XrdFileCache::~XrdFileCache()
 
   delete cacheImpl;
   delete usedIndexQueue;
-  pthread_rwlock_destroy(&keyMgmLock);
-  return;
 }
 
 
@@ -116,7 +114,7 @@ XrdFileCache::getFileObj(unsigned long inode, bool getNew)
   int key = -1;
   FileAbstraction* fRet = NULL;
 
-  pthread_rwlock_rdlock(&keyMgmLock);    //read lock
+  rwKeyMap.ReadLock();                                      //read lock
 
   std::map<unsigned long, FileAbstraction*>::iterator iter = fileInodeMap.find(inode);
 
@@ -126,11 +124,11 @@ XrdFileCache::getFileObj(unsigned long inode, bool getNew)
   }
   else if (getNew)
   {
-    pthread_rwlock_unlock(&keyMgmLock);  //unlock
-    pthread_rwlock_wrlock(&keyMgmLock);  //write lock
+    rwKeyMap.UnLock();                                      //unlock map
+    rwKeyMap.WriteLock();                                   //write lock
     if (indexFile >= maxIndexFiles) {
       while (!usedIndexQueue->try_pop(key)) {
-        cacheImpl->removeBlock();
+        cacheImpl->removeReadBlock();
       }
       
       fRet = new FileAbstraction(key, inode);
@@ -143,13 +141,13 @@ XrdFileCache::getFileObj(unsigned long inode, bool getNew)
     }
   }
   else {
-    pthread_rwlock_unlock(&keyMgmLock);  //unlock
+    rwKeyMap.UnLock();                                      //unlock map
     return 0;
   }
 
   //increase the number of references to this file
   fRet->incrementNoReferences();
-  pthread_rwlock_unlock(&keyMgmLock);  //unlock
+  rwKeyMap.UnLock();                                        //unlock map
 
   eos_static_debug("inode=%lu, key=%i", inode, key);
 
@@ -323,16 +321,18 @@ XrdFileCache::removeFileInode(unsigned long inode, bool strongConstraint)
   eos_static_debug("inode=%lu", inode);
   FileAbstraction* ptr =  NULL;
 
-  pthread_rwlock_wrlock(&keyMgmLock);   //write lock
+  rwKeyMap.WriteLock();                                     //write lock map
   std::map<unsigned long, FileAbstraction*>::iterator iter = fileInodeMap.find(inode);
 
   if (iter != fileInodeMap.end()) {
     ptr = static_cast<FileAbstraction*>((*iter).second);
 
-    if (strongConstraint) {  //strong constraint
+    if (strongConstraint) {
+      //strong constraint
       doDeletion = (ptr->getSizeRdWr() == 0) && (ptr->getNoReferences() == 0);
     }
-    else { //weak constraint
+    else {
+      //weak constraint
       doDeletion = (ptr->getSizeRdWr() == 0) && (ptr->getNoReferences() <= 1);
     }
     if (doDeletion) {
@@ -344,7 +344,7 @@ XrdFileCache::removeFileInode(unsigned long inode, bool strongConstraint)
     }
   }
 
-  pthread_rwlock_unlock(&keyMgmLock);   //unlock
+  rwKeyMap.UnLock();                                        //unlock map
   return doDeletion;
 }
 

@@ -25,11 +25,11 @@
 #include "CacheEntry.hh"
 //------------------------------------------------------------------------------
 
-CacheEntry::CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstraction* ptr):
+CacheEntry::CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstraction* ptr, bool iswr):
   fd(filedes),
+  isWrType(iswr),
   sizeData(len),
-  inQueue(false),
-  pParentFile(ptr) 
+  pParentFile(ptr)
 {
   char* pBuffer; 
   off_t offsetRelative;
@@ -58,15 +58,15 @@ CacheEntry::~CacheEntry()
 
 //------------------------------------------------------------------------------
 void
-CacheEntry::doRecycle(int filedes, char* buf, off_t off, size_t len, FileAbstraction* ptr)
+CacheEntry::doRecycle(int filedes, char* buf, off_t off, size_t len, FileAbstraction* ptr, bool iswr)
 {
   char* pBuffer; 
   off_t offsetRelative;
     
   fd = filedes;
+  isWrType = iswr;
   offsetStart = (off / getMaxSize()) * getMaxSize();
   pParentFile = ptr;
-  inQueue = false;
 
   if (len > capacity) {
     fprintf(stderr, "error=len should never be bigger than capacity.\n");
@@ -343,10 +343,10 @@ CacheEntry::doWrite()
   off_t offsetRelative;
   std::map<off_t, size_t>::iterator iCurrent = mapPieces.begin();
   const std::map<off_t, size_t>::iterator iEnd = mapPieces.end();
-
+  
   for( ; iCurrent != iEnd; iCurrent++) {
     offsetRelative = iCurrent->first % getMaxSize();
-    eos_static_debug("size=%lu offset=%ll", iCurrent->second, iCurrent->first);
+    //eos_static_debug("size=%lu offset=%zu", iCurrent->second, iCurrent->first);
     retc = XrdPosixXrootd::Pwrite(fd, buffer + offsetRelative, iCurrent->second, iCurrent->first);
     if (retc != (int)iCurrent->second) {
       fprintf(stderr, "error=error while writing using XrdPosixXrootd\n");
@@ -359,18 +359,10 @@ CacheEntry::doWrite()
 
 
 //------------------------------------------------------------------------------
-void
-CacheEntry::setInQueue(bool status)
-{
-  inQueue = status;
-}
-
-
-//------------------------------------------------------------------------------
 bool
-CacheEntry::isInQueue() const
+CacheEntry::isWr()
 {
-  return inQueue;
+  return isWrType;
 }
 
 
@@ -379,7 +371,7 @@ bool
 CacheEntry::isFull()
 {
   return (capacity == sizeData);
-};
+}
 
 
 //------------------------------------------------------------------------------

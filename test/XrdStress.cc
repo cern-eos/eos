@@ -707,7 +707,7 @@ int main (int argc, char* argv[])
           struct stat buff;
           int ret = XrdPosixXrootd::Stat(path.c_str(), &buff);
           if (ret != 0) {
-            std::cout << "The path requested does not exists." << std::endl
+            std::cout << "The path requested does not exists. Xrootd::stat failed." << std::endl
                       << usage << std::endl;
             exit(1);            
           }            
