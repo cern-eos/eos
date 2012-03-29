@@ -37,7 +37,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-int proc_fs_dumpmd(std::string &fsidst, XrdOucString &dp, XrdOucString &df, XrdOucString &ds, XrdOucString &stdOut, XrdOucString  &stdErr, std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in);
+int proc_fs_dumpmd(std::string &fsidst, XrdOucString &option, XrdOucString &dp, XrdOucString &df, XrdOucString &ds, XrdOucString &stdOut, XrdOucString  &stdErr, std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in, size_t &entries);
 
 int proc_fs_config(std::string &identifier, std::string &key, std::string &value, XrdOucString &stdOut, XrdOucString  &stdErr, std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in);
 

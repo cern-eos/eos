@@ -28,6 +28,7 @@
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
 #include "common/StringConversion.hh"
+#include "common/Path.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/Policy.hh"
@@ -42,26 +43,33 @@
 EOSMGMNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 
-int proc_fs_dumpmd(std::string &fsidst, XrdOucString &dp, XrdOucString &df, XrdOucString &ds, XrdOucString &stdOut, XrdOucString &stdErr, std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in)
+int proc_fs_dumpmd(std::string &fsidst, XrdOucString &option, XrdOucString &dp, XrdOucString &df, XrdOucString &ds, XrdOucString &stdOut, XrdOucString &stdErr, std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in, size_t &entries)
 {
   int retc=0;
   bool dumppath = false;
   bool dumpfid  = false;
   bool dumpsize = false;
+  bool monitor = false;
 
-  if (dp == "1") {
-    dumppath = true;
-  } 
-  if (df == "1") {
-    dumpfid = true;
-  }
-  
-  if (ds == "1") {
-    dumpsize = true;
+  if (option != "m") {
+    if (dp == "1") {
+      dumppath = true;
+    } 
+    if (df == "1") {
+      dumpfid = true;
+    }
+    
+    if (ds == "1") {
+      dumpsize = true;
+    }
+  } else {
+    monitor = true;
   }
   
   int fsid = 0;
   
+  entries = 0;
+
   if (!fsidst.length()) {
     stdErr="error: illegal parameters";
     retc = EINVAL;
@@ -76,9 +84,16 @@ int proc_fs_dumpmd(std::string &fsidst, XrdOucString &dp, XrdOucString &df, XrdO
         std::string env;
         fmd = gOFS->eosFileService->getFileMD(*it);
         if (fmd) {
+	  entries++;
           if ( (!dumppath) && (!dumpfid) && (!dumpsize) ) {
             fmd->getEnv(env);
             stdOut += env.c_str();
+	    if (monitor) {
+              std::string fullpath = gOFS->eosView->getUri(fmd);
+	      eos::common::Path cPath(fullpath.c_str());
+	      stdOut += "&container=";
+	      stdOut += cPath.GetParentPath();
+	    }
             stdOut += "\n";
           } else {
             if (dumppath) {
@@ -100,6 +115,24 @@ int proc_fs_dumpmd(std::string &fsidst, XrdOucString &dp, XrdOucString &df, XrdO
           }
         }
       }
+
+      if (monitor) {
+	// also add files which have still to be unlinked
+	eos::FileSystemView::FileList unlinkedfilelist = gOFS->eosFsView->getUnlinkedFileList(fsid);
+	for (it = unlinkedfilelist.begin(); it != unlinkedfilelist.end(); ++it) {
+	  std::string env;
+	  fmd = gOFS->eosFileService->getFileMD(*it);
+	  if (fmd) {
+	    entries++;
+	    fmd->getEnv(env);
+            stdOut += env.c_str();
+	    stdOut += "&container=-\n";
+	  }
+	}
+      }
+
+
+
     } catch ( eos::MDException &e ) {
       errno = e.getErrno();
       eos_static_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());

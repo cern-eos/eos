@@ -58,6 +58,10 @@ FsView::GetNodeFormat(std::string option) {
     return "header=1:member=hostport:width=24:format=s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+l:tag=max-files|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-run|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-run";
   }
 
+  if (option == "fsck") {
+    return "header=1:member=hostport:width=24:format=s|sep= |sum=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sep= |sum=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sep= |sum=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sep= |sum=stat.fsck.orphans_n:width=12:format=l:tag=e(orphan|sep= |sum=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sep= |sum=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sep= |sum=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sep= |sum=stat>fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sep= |sum=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sep= |sum=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
+  }
+
   if (option == "l") {
     // long output formag
     return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s|sep= |sum=stat.balancer.running:width=10:format=l:tag=balan-run|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-run"; 
@@ -76,6 +80,10 @@ FsView::GetFileSystemFormat(std::string option) {
 
   if (option == "io") {
     return "header=1:key=hostport:width=30:format=s|sep= |key=id:width=5:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=stat.disk.load:width=10:format=f:tag=diskload|sep= |key=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |key=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |key=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |key=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |key=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |key=stat.ropen:width=6:format=l:tag=ropen|sep= |key=stat.wopen:width=6:format=l:tag=wopen|sep= |key=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |key=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |key=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |key=stat.statfs.files:width=11:format=+l:tag=max-files|sep= |key=stat.balancer.running:width=10:format=l:tag=bal-run|sep= |key=stat.drainer.running:width=10:format=l:tag=drain-run";
+  }
+
+  if (option == "fsck") {
+    return "header=1:member=hostport:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sep= |key=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sep= |key=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sep= |key=stat.fsck.orphans_n:width=12:format=l:tag=e(orphan|sep= |key=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sep= |key=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sep= |key=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sep= |key=stat>fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sep= |key=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sep= |key=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
   }
 
   if (option == "d") {
@@ -107,6 +115,10 @@ FsView::GetSpaceFormat(std::string option) {
     return "header=1:member=name:width=10:format=s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+l:tag=max-files|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-run|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-run";
   }
 
+  if (option =="fsck") { 
+    return "header=1:member=name:width=10:format=s|sep= |sum=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sep= |sum=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sep= |sum=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sep= |sum=stat.fsck.orphans_n:width=12:format=l:tag=e(orphan|sep= |sum=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sep= |sum=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sep= |sum=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sep= |sum=stat>fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sep= |sum=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sep= |sum=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
+  }
+  
   if (option == "l") {
     // long output formag
     return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.groupsize:width=12:format=s|sep= |member=cfg.groupmod:width=12:format=s|sep= |member=nofs:width=6:format=s:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s";

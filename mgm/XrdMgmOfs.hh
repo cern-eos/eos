@@ -29,7 +29,6 @@
 #include "common/Mapping.hh"  
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
-#include "common/ClientAdmin.hh"
 #include "common/GlobalConfig.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
@@ -118,7 +117,7 @@ public:
 
   const   char       *FName() {return (const char *)dirName.c_str();}
 
-  XrdMgmOfsDirectory(char *user=0) : XrdSfsDirectory(user)
+  XrdMgmOfsDirectory(char *user=0, int MonID=0) : XrdSfsDirectory(user,MonID)
   {dirName=""; dh=0;
     d_pnt = &dirent_full.d_entry; eos::common::Mapping::Nobody(vid);
     eos::common::LogId();
@@ -192,7 +191,7 @@ public:
   int            Emsg(const char *, XrdOucErrInfo&, int, const char *x,
                       const char *y="");
 
-  XrdMgmOfsFile(char *user=0) : XrdSfsFile(user)
+  XrdMgmOfsFile(char *user=0, int MonID=0) : XrdSfsFile(user,MonID)
   {oh = 0; fname = 0; openOpaque=0;eos::common::Mapping::Nobody(vid);fileId=0; procCmd=0; eos::common::LogId();fmd=0;}
   ~XrdMgmOfsFile() {
     if (oh) close();
@@ -227,11 +226,11 @@ public:
 
   // Object Allocation Functions
   //
-  XrdSfsDirectory *newDir(char *user=0)
-  {return (XrdSfsDirectory *)new XrdMgmOfsDirectory(user);}
+  XrdSfsDirectory *newDir(char *user=0, int MonID=0)
+  {return (XrdSfsDirectory *)new XrdMgmOfsDirectory(user,MonID);}
 
-  XrdSfsFile      *newFile(char *user=0)
-  {return      (XrdSfsFile *)new XrdMgmOfsFile(user);}
+  XrdSfsFile      *newFile(char *user=0, int MonID=0)
+  {return      (XrdSfsFile *)new XrdMgmOfsFile(user,MonID);}
 
   // Other Functions
   //
@@ -584,6 +583,9 @@ public:
   XrdSysMutex      MgmHealMapMutex;
 
 
+  std::map<eos::common::FileSystem::fsid_t, time_t> DumpmdTimeMap;     // this map stores the last time of a filesystem dump, this information is used to track filesystems which have not been checked decentral by an FST. It is filled in the 'dumpmd' function definde in Procinterface
+  XrdSysMutex      DumpmdTimeMapMutex;                                 // mutex protecting the 'dumpmd' time
+
   eos::common::RWMutex  PathMapMutex;                                  // mutex protecting the path map
   std::map<std::string,std::string> PathMap;                           // containing global path remapping
   void PathRemap(const char* inpath, XrdOucString &outpath);           // map defining global namespace remapping
@@ -593,8 +595,6 @@ public:
   // map keeping the modification times of directories, they are either directly inserted from directory/file creation or they are set from a directory listing
   XrdSysMutex      MgmDirectoryModificationTimeMutex;
   google::sparse_hash_map<unsigned long long, struct timespec> MgmDirectoryModificationTime;
-
-  eos::common::ClientAdminManager CommonClientAdminManager; // Manager of ClientAdmin's
 
   XrdMqSharedObjectManager ObjectManager; // -> Shared Hash/Queue ObjectManager
  

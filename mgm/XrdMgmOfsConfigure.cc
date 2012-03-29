@@ -1121,6 +1121,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("CommitFailedParameters",0,0,0);
   gOFS->MgmStats.Add("CommitFailedUnlinked",0,0,0);
   gOFS->MgmStats.Add("CopyStripe",0,0,0);
+  gOFS->MgmStats.Add("DumpMd",0,0,0);
   gOFS->MgmStats.Add("Statvfs",0,0,0);
   gOFS->MgmStats.Add("DropStripe",0,0,0);
   gOFS->MgmStats.Add("Exists",0,0,0);
@@ -1130,6 +1131,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("Find",0,0,0);
   gOFS->MgmStats.Add("Fuse",0,0,0);
   gOFS->MgmStats.Add("GetMdLocation",0,0,0);
+  gOFS->MgmStats.Add("GetMd",0,0,0);
   gOFS->MgmStats.Add("Ls",0,0,0);
   gOFS->MgmStats.Add("MarkDirty",0,0,0);
   gOFS->MgmStats.Add("MarkClean",0,0,0);

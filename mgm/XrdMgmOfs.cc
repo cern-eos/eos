@@ -3338,7 +3338,7 @@ int XrdMgmOfs::_find(const char       *path,             // In
   found_dirs[0][0] = Path.c_str();
   int deepness = 0;
 
-  // users cannot return more than 250k files and 50k dirs with one find
+  // users cannot return more than 100k files and 50k dirs with one find
 
   static unsigned long long finddiruserlimit  = 50000;
   static unsigned long long findfileuserlimit = 100000;
@@ -4076,6 +4076,52 @@ XrdMgmOfs::FSctl(const int               cmd,
       }
     }
 
+    if (execmd == "getfmd") {
+      // return's meta data in env representation
+      ACCESSMODE_R;
+      MAYSTALL;
+      MAYREDIRECT;
+
+      gOFS->MgmStats.Add("GetMd",0,0,1);  
+
+      char* afid  = env.Get("mgm.getfmd.fid"); // decimal fid
+
+      eos::common::FileId::fileid_t fid = afid?strtoull(afid,0,10):0;
+
+      if (!fid) {
+	// illegal request
+	XrdOucString response="getfmd: retc=";
+        response += EINVAL;
+        error.setErrInfo(response.length()+1,response.c_str());
+        return SFS_DATA;
+      }
+
+      eos::FileMD* fmd = 0;
+      std::string fullpath;
+      eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+      
+      try {
+	fmd = gOFS->eosFileService->getFileMD(fid);
+	fullpath = gOFS->eosView->getUri(fmd);
+
+      } catch ( eos::MDException &e ) {
+	XrdOucString response="getfmd: retc=";
+        response += e.getErrno();
+	error.setErrInfo(response.length()+1,response.c_str());
+        return SFS_DATA;
+      }
+
+      eos::common::Path cPath(fullpath.c_str());
+      std::string fmdenv="";
+      fmd->getEnv(fmdenv);
+      fmdenv += "&container=";
+      fmdenv += cPath.GetParentPath();
+      XrdOucString response="getfmd: retc=0 ";
+      response += fmdenv.c_str();
+      error.setErrInfo(response.length()+1,response.c_str());
+      return SFS_DATA;
+    }
+
     if (execmd == "stat") {
 
       ACCESSMODE_R;
@@ -4617,7 +4663,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	target_fs->SnapShotFileSystem(target_snapshot);
 	FsGroup* group = FsView::gFsView.mGroupView[target_snapshot.mGroup];
 
-	size_t groupsize = FsView::gFsView.mGroupView.size();
+	size_t groupsize = FsView::gFsView.mGroupView[target_snapshot.mGroup]->size();
 	if (!group) {
 	  eos_thread_err("group=%s is not in group view", target_snapshot.mGroup.c_str());
 	  gOFS->MgmStats.Add("SchedulingFailedBalance",0,0,1);         

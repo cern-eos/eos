@@ -753,7 +753,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
     if (namespacequota) {
       hasquota = namespacequota->CheckWriteQuota(uid, gid,1ll * nfilesystems * bookingsize, nfilesystems);
       if (!hasquota) {
-        eos_static_debug("uid=%u git=%u grouptag=%s place filesystems=%u has no quota left!",uid,gid,grouptag, nfilesystems);
+        eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u has no quota left!",uid,gid,grouptag, nfilesystems);
         return ENOSPC;
       }
     } else {
