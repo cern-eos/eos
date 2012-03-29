@@ -463,7 +463,8 @@ class IoBuf {
   size_t getSize() {return size;}
   void resize(size_t newsize) {
     if (newsize > size) {
-      buffer = realloc(buffer,(newsize<(128*1024))?128*1024:newsize);
+      size = (newsize<(128*1024))?128*1024:newsize;
+      buffer = realloc(buffer,size);
     }
   }
 };
@@ -518,7 +519,7 @@ xrd_ro_env()
   if (getenv("EOS_FUSE_READCACHESIZE")) {
     rcsize = atoi(getenv("EOS_FUSE_READCACHESIZE"));
   }
-
+  eos_static_info("ra=%d cs=%d", rahead, rcsize);
   XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,rahead);
   XrdPosixXrootd::setEnv(NAME_READCACHESIZE,rcsize);
 }
@@ -1437,11 +1438,13 @@ xrd_read(int fildes, void *buf, size_t nbyte, unsigned long inode)
   size_t ret;
   FileAbstraction* fAbst =0;
 
-  if (XFC && fuse_cache_read && inode) {
-    fAbst = XFC->getFileObj(inode, true);
-    XFC->waitFinishWrites(fAbst);
-    off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
+  if (XFC && inode) {
+    XFC->waitFinishWrites(inode);
+  }
 
+  if (XFC && (fuse_cache_read) && inode) {
+    off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
+    fAbst = XFC->getFileObj(inode, true);
     if ((ret = XFC->getRead(fAbst, fildes, buf, offset, nbyte)) != nbyte)
     {
       ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
@@ -1468,10 +1471,13 @@ xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode
   size_t ret;
   FileAbstraction* fAbst =0;
 
-  if (XFC && fuse_cache_read && inode) {
-    fAbst = XFC->getFileObj(inode, true);
-    XFC->waitFinishWrites(fAbst);
+  if (XFC && inode) {
     TIMING("wait writes", &xpr);
+    XFC->waitFinishWrites(inode);
+  }
+  
+  if (XFC && (fuse_cache_read) && inode) {
+    fAbst = XFC->getFileObj(inode, true);
     if ((ret = XFC->getRead(fAbst, fildes, buf, offset, nbyte)) != nbyte)
     {
       TIMING("read in", &xpr);
