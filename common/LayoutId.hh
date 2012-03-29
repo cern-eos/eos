@@ -52,6 +52,17 @@ public:
   /// a layout id is constructed as an xor as defined in GetId()
 
   // ---------------------------------------------------------------------------
+  //! Definition of layout errors
+  // ---------------------------------------------------------------------------
+
+  enum eLayoutError {
+    // this is used on FSTs in the Fmd Synchronization
+    kOrphan = 0x1,              // layout produces an orphan
+    kUnregistered = 0x2,        // layout has an unregistered stripe
+    kReplicaWrong = 0x4         // layout has the wrong number of replicas
+  }; 
+
+  // ---------------------------------------------------------------------------
   //! Definition of checksum types
   // ---------------------------------------------------------------------------
   enum eChecksum     {

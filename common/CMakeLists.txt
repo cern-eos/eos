@@ -27,7 +27,6 @@ link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
 add_library (eosCommon SHARED 
 	    FileSystem.cc
 	    Fmd.cc
-	    FmdSqlite.cc
 	    Logging.cc
 	    Mapping.cc
 	    Statfs.cc
@@ -58,7 +57,7 @@ add_library (eosCommon-Static STATIC
 )
 
 
-target_link_libraries (eosCommon XrdMqClient XrdUtils XrdClient crypto uuid curses z attr zmq)
+target_link_libraries (eosCommon XrdMqClient XrdUtils XrdClient crypto uuid curses z attr )
 
 target_link_libraries (eosCommon-Static )
 #depends on XrdMqClient-Static libcrypto.a libuuid.a libcurses.a pthread dl z)
@@ -68,8 +67,9 @@ if (Linux)
     VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
     SOVERSION ${VERSION_MAJOR}
     CLEAN_DIRECT_OUTPUT 1
+    COMPILE_FLAGS -DSQLITE_NO_SYNC=1
   )
-  set_target_properties (eosCommon-Static PROPERTIES COMPILE_FLAGS -fPIC )
+  set_target_properties (eosCommon-Static PROPERTIES COMPILE_FLAGS "-fPIC -DSQLITE_NO_SYNC=1")
 endif(Linux)
 
 install ( TARGETS eosCommon 
