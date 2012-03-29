@@ -142,6 +142,10 @@ com_fs (char* arg1) {
           in += "&mgm.outformat=io";
           ok=true;
         }
+        if (option == "--fsck") {
+          in += "&mgm.outformat=fsck";
+          ok=true;
+        }
         if ( (option == "--drain") || (option == "-d")) {
           in += "&mgm.outformat=d";
           ok=true;
@@ -288,6 +292,7 @@ com_fs (char* arg1) {
 
   if ( subcommand == "boot" ) {
     XrdOucString arg = subtokenizer.GetToken();
+    XrdOucString option = subtokenizer.GetToken();
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=boot";
     if (!arg.length()) 
       goto com_fs_usage;
@@ -302,6 +307,15 @@ com_fs (char* arg1) {
     }
 
     in += arg;
+
+    if (option.length()) {
+      if (option != "--syncmgm") {
+	goto com_fs_usage;
+      } else {
+	in += "&mgm.fs.forcemgmsync=1";
+      }
+    }
+
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
@@ -588,46 +602,56 @@ com_fs (char* arg1) {
 
   if ( subcommand == "dumpmd" ) {
     bool silentcommand=false;
-
+    bool monitor=false;
     XrdOucString arg = subtokenizer.GetToken();
     if (arg == "-s") {
       silentcommand=true;
       arg = subtokenizer.GetToken();
     }
 
+    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=dumpmd";
 
+    if (arg == "-m") {
+      arg = subtokenizer.GetToken();
+      monitor=true;
+      in += "&mgm.dumpmd.option=m";
+    
+    }
+    
     XrdOucString option1 = subtokenizer.GetToken();
     XrdOucString option2 = subtokenizer.GetToken();
     XrdOucString option3 = subtokenizer.GetToken();
 
-    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=dumpmd";
+
     if (!arg.length()) 
       goto com_fs_usage;
     
     int fsid = atoi(arg.c_str());
     in += "&mgm.fsid=";
     in += (int) fsid;
-    
-    if ( (option1 == "-path") || (option2 == "-path") || (option3 == "-path") ) {
-      in += "&mgm.dumpmd.path=1";
-    } 
+
+    if (!monitor) {
+      if ( (option1 == "-path") || (option2 == "-path") || (option3 == "-path") ) {
+	in += "&mgm.dumpmd.path=1";
+      } 
       
-    if ( (option1 == "-fid") || (option2 == "-fid") || (option3 == "-fid") ) {
-      in += "&mgm.dumpmd.fid=1";
-    } 
-
-    if ( (option1 == "-size") || (option2 == "-size") || (option3 == "-size") ) {
-      in += "&mgm.dumpmd.size=1";
-    } 
-    
-    if ( option1.length() && (option1 != "-path") && (option1 != "-fid") && (option1 != "-size")) 
-      goto com_fs_usage;
-    
-    if ( option2.length() && (option2 != "-path") && (option2 != "-fid") && (option2 != "-size"))
-      goto com_fs_usage;
-
-    if ( option3.length() && (option3 != "-path") && (option3 != "-fid") && (option3 != "-size"))
-      goto com_fs_usage;
+      if ( (option1 == "-fid") || (option2 == "-fid") || (option3 == "-fid") ) {
+	in += "&mgm.dumpmd.fid=1";
+      } 
+      
+      if ( (option1 == "-size") || (option2 == "-size") || (option3 == "-size") ) {
+	in += "&mgm.dumpmd.size=1";
+      } 
+      
+      if ( option1.length() && (option1 != "-path") && (option1 != "-fid") && (option1 != "-size")) 
+	goto com_fs_usage;
+      
+      if ( option2.length() && (option2 != "-path") && (option2 != "-fid") && (option2 != "-size"))
+	goto com_fs_usage;
+      
+      if ( option3.length() && (option3 != "-path") && (option3 != "-fid") && (option3 != "-size"))
+	goto com_fs_usage;
+    }
 
     XrdOucEnv* result = client_admin_command(in);
     if (!silentcommand) {
@@ -649,12 +673,13 @@ com_fs (char* arg1) {
   fprintf(stdout,"'[eos] fs ..' provides the filesystem interface of EOS.\n");
   fprintf(stdout,"Usage: fs add|boot|config|dropfiles|dumpmd|mv|ls|rm|status [OPTIONS]\n");
   fprintf(stdout,"Options:\n");
-  fprintf(stdout,"fs ls [-m] [-l] [-e] [--io] [-d|--drain] [-s]   :\n"); 
+  fprintf(stdout,"fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s]   :\n"); 
   fprintf(stdout,"                                                  list all filesystems in default output format\n");
   fprintf(stdout,"            -m                                  : list all filesystem parameters in monitoring format\n");
   fprintf(stdout,"            -l                                  : display all filesystem parameters in long format\n");
   fprintf(stdout,"            -e                                  : display all filesystems in error state\n");
   fprintf(stdout,"            --io                                : display all filesystems in IO output format\n");
+  fprintf(stdout,"            --fsck                              : display filesystem check statistics\n");
   fprintf(stdout,"            -d,--drain                          : display all filesystems in drain or draindead status with drain progress and statistics\n");
 
   fprintf(stdout,"fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host>[:<port>] <mountpoint> [<schedgroup>] [<status] :\n");
@@ -702,17 +727,19 @@ com_fs (char* arg1) {
   fprintf(stdout,"fs rm    <fs-id>|<node-queue>|<mount-point>|<hostname> <mountpoint> :\n");
   fprintf(stdout,"                                                  remove filesystem configuration by various identifiers\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"fs boot  <fs-id>|<node-queue>|* :\n");
+  fprintf(stdout,"fs boot  <fs-id>|<node-queue>|* [--syncmgm]:\n");
   fprintf(stdout,"                                                  boot filesystem with ID <fs-id> or name <node-queue> or all (*)\n");
+  fprintf(stdout,"                                                                   --syncmgm : force an MGM resynchronization during the boot\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"fs dropfiles <fs-id> [-f] :\n");
   fprintf(stdout,"                                                  allows to drop all files on <fs-id> - force\n");
   fprintf(stdout,"                                                                  -f    : unlinks/removes files at the time from the NS (you have to cleanup or remove the files from disk) \n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"fs dumpmd [-s] <fs-id> [-fid] [-path] :\n");
+  fprintf(stdout,"fs dumpmd [-s|-m] <fs-id> [-fid] [-path] :\n");
   fprintf(stdout,"                                                  dump all file meta data on this filesystem in query format\n");
 
   fprintf(stdout,"                                                                  -s    : don't printout keep an internal reference\n");
+  fprintf(stdout,"                                                                  -m    : print the full meta data record in env format\n");
   fprintf(stdout,"                                                                  -fid  : dump only a list of file id's stored on this filesystem\n");
   fprintf(stdout,"                                                                  -path : dump only a list of file names stored on this filesystem\n");
 

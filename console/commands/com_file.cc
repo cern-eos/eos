@@ -44,7 +44,11 @@ com_fileinfo (char* arg1) {
     if (!newoption.length()) {
       break;
     } else {
-      option+= newoption;
+      if (newoption == "s") {
+	option += "silent";
+      } else {
+	option+= newoption;
+      }
     }
   } while(1);
 
@@ -69,14 +73,14 @@ com_fileinfo (char* arg1) {
       in += option;
     }
 
-    if ((option.find("s")==STR_NPOS)) {
+    if ((option.find("silent")==STR_NPOS)) {
       global_retc = output_result(client_user_command(in));
     }
     return (0);
   }
 
  com_fileinfo_usage:
-  fprintf(stdout,"usage: fileinfo <path> [--path] [--fxid] [--fid] [--size] [--checksum] [--fullpath] [-m] [-s]  :  print file information for <path>\n");
+  fprintf(stdout,"usage: fileinfo <path> [--path] [--fxid] [--fid] [--size] [--checksum] [--fullpath] [-m] [--silent] [--env] :  print file information for <path>\n");
   fprintf(stdout,"       fileinfo fxid:<fid-hex>                                           :  print file information for fid <fid-hex>\n");
   fprintf(stdout,"       fileinfo fid:<fid-dec>                                            :  print file information for fid <fid-dec>\n");
   fprintf(stdout,"                                                                 --path  :  selects to add the path information to the output\n");
@@ -86,6 +90,7 @@ com_fileinfo (char* arg1) {
   fprintf(stdout,"                                                              --checksum :  selects to add the checksum information to the output\n");
   fprintf(stdout,"                                                              --fullpath :  selects to add the full path information to each replica\n");
   fprintf(stdout,"                                                                  -m     :  print single line in monitoring format\n");
+  fprintf(stdout,"                                                                  --env  :  print in OucEnv format\n");
   fprintf(stdout,"                                                                  -s     :  silent - used to run as internal command\n");
   return (0);
 

@@ -64,6 +64,10 @@ com_space (char* arg1) {
           in += "&mgm.outformat=io";
           ok=true;
         }
+	if (option == "--fsck") {
+	  in += "&mgm.outformat=fsck";
+	  ok=true;
+	}
         if (option == "-s") {
           silent=true;
           ok=true;
@@ -215,11 +219,12 @@ com_space (char* arg1) {
  com_space_usage:
 
   fprintf(stdout,"usage: space ls                                                  : list spaces\n");
-  fprintf(stdout,"usage: space ls [-s] [-m|-l|--io] [<space>]                          : list in all spaces or select only <space>\n");
+  fprintf(stdout,"usage: space ls [-s] [-m|-l|--io|--fsck] [<space>]                   : list in all spaces or select only <space>\n");
   fprintf(stdout,"                                                                  -s : silent mode\n");
   fprintf(stdout,"                                                                  -m : monitoring key=value output format\n");
   fprintf(stdout,"                                                                  -l : long output - list also file systems after each space\n");
   fprintf(stdout,"                                                                --io : print IO satistics\n");
+  fprintf(stdout,"                                                              --fsck : print filesystem check statistics\n");
   fprintf(stdout,"       space config <space-name> space.nominalsize=<value>           : configure the nominal size for this space\n");
   fprintf(stdout,"       space config <space-name> space.balancer=on|off               : enable/disable the space balancer [default=on]\n");
   fprintf(stdout,"       space config <space-name> space.balancer.threshold=<percent>  : configure the used bytes deviation which triggers balancing            [ default=20 (%%)     ] \n");

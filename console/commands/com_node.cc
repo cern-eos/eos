@@ -64,6 +64,10 @@ com_node (char* arg1) {
           in += "&mgm.outformat=io";
           ok=true;
         }
+        if (option == "--fsck") {
+          in += "&mgm.outformat=fsck";
+          ok=true;
+        }
         if (option == "-s") {
           silent=true;
           ok=true;
@@ -213,11 +217,12 @@ com_node (char* arg1) {
 
  com_node_usage:
 
-  fprintf(stdout,"usage: node ls [-s] [-m|-l|--io] [<node>]                            : list all nodes or only <node>\n");
+  fprintf(stdout,"usage: node ls [-s] [-m|-l|--io|--fsck] [<node>]                     : list all nodes or only <node>\n");
   fprintf(stdout,"                                                                  -s : silent mode\n");
   fprintf(stdout,"                                                                  -m : monitoring key=value output format\n");
   fprintf(stdout,"                                                                  -l : long output - list also file systems after each node\n");
   fprintf(stdout,"                                                                --io : print IO statistics\n");
+  fprintf(stdout,"                                                              --fsck : print filesystem check statistcis\n");
   fprintf(stdout,"       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node (see help of 'fs config' for details)\n");
   fprintf(stdout,"       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
   fprintf(stdout,"       node rm  <queue-name>|<host:port>                        : remove a node\n");
