@@ -56,6 +56,7 @@ namespace eos
   //----------------------------------------------------------------------------
   FileMD &FileMD::operator = ( const FileMD &other )
   {
+    pName        = other.pName;
     pId          = other.pId;
     pSize        = other.pSize;
     pContainerId = other.pContainerId;
@@ -180,7 +181,12 @@ namespace eos
         env += locs;
         env += ",";
       }
-    
+    for ( it= pUnlinkedLocation.begin(); it != pUnlinkedLocation.end(); ++it) 
+      {
+	snprintf(locs,sizeof(locs),"!%u",*it);
+	env += locs;
+	env += ",";
+      }
     env += "&checksum=";
     uint8_t size = pChecksum.getSize();
     for ( uint8_t i=0; i < size; i++ )
