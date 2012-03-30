@@ -182,7 +182,7 @@ static int eosdfs_mknod(const char *path, mode_t mode, dev_t rdev)
     res = xrd_open(rootpath, O_CREAT | O_EXCL | O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); 
     if (res == -1)
       return -errno;
-    xrd_close(res);
+    xrd_close(res, xrd_simulate_p2i(path));
   }    
   return 0;
 }
@@ -226,6 +226,9 @@ static int eosdfs_unlink(const char *path)
   res = xrd_unlink(rootpath);
   if (res == -1 && errno != ENOENT)  /* ofs.notify rm may have already done the job on CNS */
     return -errno;
+
+  xrd_forget_p2i(xrd_simulate_p2i(path));
+
   return 0;
 }
 
@@ -239,8 +242,12 @@ static int eosdfs_rmdir(const char *path)
   strcat(rootpath,path);
   
   res = xrd_rmdir(rootpath);
+
   if (res == -1 && errno != ENOENT)
     return -errno;
+
+  xrd_forget_p2i(xrd_simulate_p2i(path));
+
   return 0;
 }
 
@@ -334,8 +341,8 @@ static int eosdfs_truncate(const char *path, off_t size)
   if (res == -1)
     return -errno;
   
-  xrd_truncate(res,size);
-  xrd_close(res);
+  xrd_truncate(res, size,xrd_simulate_p2i(path));
+  xrd_close(res, xrd_simulate_p2i(path));
   return 0;
 }
 
@@ -385,7 +392,7 @@ static int eosdfs_read(const char *path, char *buf, size_t size, off_t offset,
   int res;
   eosatime = time(0);    
   fd = (int) fi->fh;
-  res = xrd_pread(fd, buf, size, offset);
+  res = xrd_pread(fd, buf, size, offset, xrd_simulate_p2i(path));
   if (res == -1) {
     if (errno == ENOSYS)
       errno = EIO;
@@ -406,7 +413,7 @@ static int eosdfs_write(const char *path, const char *buf, size_t size,
   */
   eosatime = time(0);    
   fd = (int) fi->fh;
-  res = xrd_pwrite(fd, buf, size, offset);
+  res = xrd_pwrite(fd, buf, size, offset, xrd_simulate_p2i(path));
   if (res == -1)
     res = -errno;
   
@@ -440,7 +447,7 @@ static int eosdfs_release(const char *path, struct fuse_file_info *fi)
   char rootpath[4096];
   eosatime = time(0);    
   fd = (int) fi->fh;
-  xrd_close(fd);
+  xrd_close(fd,xrd_simulate_p2i(path));
   fi->fh = 0;
   return 0;
 }
@@ -604,6 +611,36 @@ int main(int argc, char *argv[])
     fprintf(stderr,"error: EOSFS_RDRURL is not defined or add root://<host>// to the options argument\n");
     exit(-1);
   }
+
+  pid_t m_pid=fork();
+  if(m_pid<0) {
+    fprintf(stderr,"ERROR: Failed to fork daemon process\n");
+    exit(-1);
+  }
+  
+  // kill the parent
+  if(m_pid>0) {
+    sleep(1);
+    exit(0);
+  }
+  
+  umask(0);
+  
+  pid_t sid;
+  if((sid=setsid()) < 0) {
+    fprintf(stderr,"ERROR: failed to create new session (setsid())\n");
+    exit(-1);
+  }
+  
+  if ((chdir("/")) < 0) {
+    /* Log any failure here */
+    exit(-1);
+  }
+  
+  close(STDIN_FILENO);
+  close(STDOUT_FILENO);
+  // = > don't close STDERR because we redirect that to a file!
+  
   xrd_init();
   
   umask(0);

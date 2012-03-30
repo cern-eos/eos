@@ -24,6 +24,8 @@
 include_directories( ../ ${XROOTD_INCLUDE_DIR} ${FUSE_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} )
 link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
 
+add_subdirectory(XrdCache)
+
 add_executable ( eosfsd
                  eosfs.c
                  xrdposix.cc
@@ -32,14 +34,13 @@ add_executable ( eosfsd
 add_executable ( eosd
                  eosd.c
                  xrdposix.cc
-                 DirCache.cc
 )
 
-set_target_properties ( eosfsd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
-target_link_libraries ( eosfsd XrdPosix XrdClient XrdUtils ${FUSE_LIBRARY} pthread )
+set_target_properties ( eosfsd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+target_link_libraries ( eosfsd XrdPosix XrdClient XrdUtils XrdCache-static eosCommon-Static uuid ${FUSE_LIBRARY} pthread )
 
-set_target_properties ( eosd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
-target_link_libraries ( eosd XrdPosix XrdClient XrdUtils ${FUSE_LIBRARY} pthread )
+set_target_properties ( eosd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+target_link_libraries ( eosd XrdPosix XrdClient XrdUtils XrdCache-static eosCommon-Static uuid ${FUSE_LIBRARY} pthread )
 
 INSTALL_PROGRAMS( /sbin FILES eosd )
 
