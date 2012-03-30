@@ -70,8 +70,19 @@ start() {
         # Check if eosd is already running
 	echo
         eosdpid=`pgrep -f "${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/}"`
-	export EOS_NOACCESS=${EOS_NOACCESS-1}
-	export EOS_KERNELCACHE=${EOS_KERNELCACHE-1}
+	export EOS_FUSE_DEBUG=${EOS_FUSE_DEBUG-0}
+	export EOS_FUSE_NOACCESS=${EOS_FUSE_NOACCESS-1}
+	export EOS_FUSE_KERNELCACHE=${EOS_FUSE_KERNELCACHE-1}
+	export EOS_FUSE_DIRECTIO=${EOS_FUSE_DIRECTIO-0}
+	export EOS_FUSE_CACHE=${EOS_FUSE_CACHE-1}
+	export EOS_FUSE_CACHE_SIZE=${EOS_FUSE_CACHE_SIZE-300000000}
+	export EOS_FUSE_CACHE_READ=${EOS_FUSE_CACHE_READ-0}
+	export EOS_FUSE_CACHE_WRITE=${EOS_FUSE_CACHE_WRITE-1}
+	export EOS_FUSE_BIGWRITES=${EOS_FUSE_BIGWRITES-0}	
+	export FUSE_OPT=""
+	if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
+	  FUSE_OPT="big_writes,"
+        fi	
         if [ "x$eosdpid" = "x" ]; then
             echo -n "Starting $prog: "
 	    mkdir -p /var/run/eosd/
@@ -84,7 +95,7 @@ start() {
 	    ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
 	    ulimit -n 65000
 	    modprobe fuse
-            ${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -omax_readahead=131072,max_write=4194304,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch}/${EOS_FUSE_MOUNTDIR-/eos/}//  >& /dev/null 
+            ${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch}/${EOS_FUSE_MOUNTDIR-/eos/}//  >& /dev/null 
             
             
             SRETVAL=$?
@@ -94,8 +105,16 @@ start() {
                 RETVAL=$SRETVAL; 
             fi
 	    echo
-	    echo "EOS_NOACCESS    : ${EOS_NOACCESS}"
-	    echo "EOS_KERNELCACHE : ${EOS_KERNELCACHE}"
+	    echo "EOS_FUSE_DEBUG       : ${EOS_FUSE_DEBUG}"
+	    echo "EOS_FUSE_NOACCESS    : ${EOS_FUSE_NOACCESS}"
+	    echo "EOS_FUSE_KERNELCACHE : ${EOS_FUSE_KERNELCACHE}"
+	    echo "EOS_FUSE_DIRECTIO    : ${EOS_FUSE_DIRECTIO}"
+	    echo "EOS_FUSE_CACHE       : ${EOS_FUSE_CACHE}"
+	    echo "EOS_FUSE_CACHE_SIZE  : ${EOS_FUSE_CACHE_SIZE}"
+	    echo "EOS_FUSE_CACHE_READ  : ${EOS_FUSE_CACHE_READ}"
+	    echo "EOS_FUSE_CACHE_WRITE : ${EOS_FUSE_CACHE_WRITE}"
+	    echo "EOS_FUSE_BIGWRITES   : ${EOS_FUSE_BIGWRITES}"
+
 	else 
             echo eosd already running. Pid is $eosdpid 
             echo Stop it first with 'service eosd stop'
@@ -123,15 +142,22 @@ stop() {
         fi
         echo -n "Stopping $prog: "
         umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
+        pgrep -f "${EOS_ROOT}/sbin/eosd $umdir"	>& /dev/null
+	existed=$?
         umount -f -l $umdir >& /dev/null
+	pkill -f "${EOS_ROOT}/sbin/eosd $umdir"	
+        pgrep -f "${EOS_ROOT}/sbin/eosd $umdir"	>& /dev/null
 	killed=$?
-	if [ $killed -ne 0 ]; then 
+	while [ $killed -eq 0 ]; 
+	do 	
 	        pkill -9 -f "${EOS_ROOT}/sbin/eosd $umdir"
+	        usleep 100000
+                pgrep -f "${EOS_ROOT}/sbin/eosd $umdir" >& /dev/null
 		killed=$?
-	fi	
+   	done
         rm -f /var/lock/subsys/eosd
         echo
-	if [ $killed -eq 0 ]; then
+	if [ $existed -eq 0 ]; then
 	        echo_success	
 	else
 		echo_failure
