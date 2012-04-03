@@ -2196,14 +2196,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           }
         }
         if (subcmd == "enable") {
-          XrdOucString nthreads="";
-          nthreads = opaque.Get("mgm.fsck.nthreads")?opaque.Get("mgm.fsck.nthreads"):"1";
-          if (nthreads.length()) {
-            if (atoi(nthreads.c_str())) {
-              gOFS->FsCheck.SetMaxThreads(atoi(nthreads.c_str()));
-              stdOut += "success: configuring for "; stdOut += nthreads.c_str(); stdOut += " parallel threads\n";
-            }
-          }
           if (gOFS->FsCheck.Start()) {
             stdOut += "success: enabled fsck";
           } else {

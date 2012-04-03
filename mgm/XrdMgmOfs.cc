@@ -2573,6 +2573,7 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
       gOFS->MgmDirectoryModificationTime[container->getId()].tv_nsec = ts.tv_nsec;
       gOFS->MgmDirectoryModificationTimeMutex.UnLock();
     }
+    errno =0;
   } catch( eos::MDException &e ) {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());   
