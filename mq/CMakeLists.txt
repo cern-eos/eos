@@ -70,7 +70,7 @@ add_library (XrdMqOfs-Static STATIC
 target_link_libraries (XrdMqClient XrdUtils  XrdClient crypto uuid curses)
 target_link_libraries (XrdMqOfs    XrdUtils  XrdClient XrdOfs crypto uuid curses)
 
-target_link_libraries (XrdMqClient-Static )
+target_link_libraries (XrdMqClient-Static XrdUtils XrdClient )
 #depends on XrdClient XrdSys XrdOuc  XrdOuc libcrypto.a libuuid.a libcurses.a pthread dl )
 
 
