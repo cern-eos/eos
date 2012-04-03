@@ -29,6 +29,7 @@
 #include "fst/Load.hh"
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
+#include "common/FileSystem.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 /*----------------------------------------------------------------------------*/
@@ -48,6 +49,8 @@ class ScanDir : eos::common::LogId {
 private:
 
   eos::fst::Load* fstLoad;
+  eos::common::FileSystem::fsid_t fsId;
+
   XrdOucString dirPath;
   long int testInterval;  // in seconds
 
@@ -71,8 +74,8 @@ private:
   bool bgThread;
 public:
 
-  ScanDir(const char* dirpath, eos::fst::Load* fstload, bool bgthread=true, long int testinterval = 10, int ratebandwidth = 100, bool setchecksum=false): 
-    fstLoad(fstload),dirPath(dirpath), testInterval(testinterval), rateBandwidth(ratebandwidth)
+  ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid, eos::fst::Load* fstload, bool bgthread=true, long int testinterval = 10, int ratebandwidth = 100, bool setchecksum=false): 
+    fstLoad(fstload),fsId(fsid), dirPath(dirpath), testInterval(testinterval), rateBandwidth(ratebandwidth)
   {
     thread = 0;
     noNoChecksumFiles = noScanFiles = noCorruptFiles = noTotalFiles = SkippedFiles = 0;

@@ -503,7 +503,6 @@ XrdFstOfsFile::open(const char                *path,
   //ZTRACE(open,"capability contains: " << capOpaque->Env(envlen));
   eos_info("path=%s info=%s capability=%s", path, opaque, capOpaque->Env(envlen));
 
-  const char* localprefix=0;
   const char* hexfid=0;
   const char* sfsid=0;
   const char* slid=0;
@@ -1784,6 +1783,64 @@ XrdFstOfs::SendRtLog(XrdMqMessage* message)
     repmessage.SetBody(stdOut.c_str());
     if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
       eos_err("unable to send rtlog reply message to %s", message->kMessageHeader.kSenderId.c_str());
+    }
+  }
+}
+
+
+/*----------------------------------------------------------------------------*/
+void
+XrdFstOfs::SendFsck(XrdMqMessage* message) 
+{
+  XrdOucEnv opaque(message->GetBody());
+  XrdOucString stdOut="";
+  XrdOucString tag   = opaque.Get("mgm.fsck.tags"); // the tag is either '*' for all, or a , seperated list of tag names
+  if ( (!tag.length()) ) {
+    eos_err("parameter tag missing");
+  }  else {
+    stdOut = "";
+    // loop over filesystems
+    eos::common::RWMutexReadLock(gOFS.Storage->fsMutex);
+    std::vector <eos::fst::FileSystem*>::const_iterator it;
+    for (unsigned int i=0; i< gOFS.Storage->fileSystemsVector.size(); i++) {
+      std::map<std::string, std::set<eos::common::FileId::fileid_t> >* icset = gOFS.Storage->fileSystemsVector[i]->GetInconsistencySets();
+      std::map<std::string, std::set<eos::common::FileId::fileid_t> >::const_iterator icit;
+      for (icit = icset->begin(); icit != icset->end(); icit++) {
+	// loop over all tags
+	if ( ( (tag != "mem_n") && (tag != "d_sync_n") && (tag != "m_sync_n") ) &&  
+	     ( (tag == "*") || ( (tag.find(icit->first.c_str()) != STR_NPOS)) ) ) {
+	  char stag[4096];
+	  snprintf(stag,sizeof(stag)-1,"%s@%lu", icit->first.c_str(), (unsigned long )gOFS.Storage->fileSystemsVector[i]->GetId());
+	  stdOut += stag;
+	  std::set<eos::common::FileId::fileid_t>::const_iterator fit;
+	  for (fit = icit->second.begin(); fit != icit->second.end(); fit ++) {
+	    // loop over all fids
+	    char sfid[4096];
+	    snprintf(sfid,sizeof(sfid)-1,":%08llx", *fit);
+	    stdOut += sfid;
+
+	    if (stdOut.length() > (64*1024)) {
+	      stdOut += "\n";
+	      XrdMqMessage repmessage("fsck reply message");
+	      repmessage.SetBody(stdOut.c_str());
+	      fprintf(stderr,"Sending %s\n", stdOut.c_str());
+	      if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
+		eos_err("unable to send fsck reply message to %s", message->kMessageHeader.kSenderId.c_str());
+	      }
+	      stdOut = stag;
+	    }
+	  }
+	  stdOut += "\n";
+	}
+      }
+    }
+  }
+  if (stdOut.length()) {
+    XrdMqMessage repmessage("fsck reply message");
+    repmessage.SetBody(stdOut.c_str());
+    fprintf(stderr,"Sending %s\n", stdOut.c_str());
+    if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
+      eos_err("unable to send fsck reply message to %s", message->kMessageHeader.kSenderId.c_str());
     }
   }
 }

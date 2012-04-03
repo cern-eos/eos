@@ -259,6 +259,7 @@ private:
   static int CallBack(void * object, int argc, char **argv, char **ColName);
   std::map<eos::common::FileSystem::fsid_t, bool> isDirty;
 
+  std::map<eos::common::FileSystem::fsid_t, bool> isSyncing;
 
 public:
   XrdOucString DBDir;            //< path to the directory with the SQLITE DBs
@@ -267,6 +268,10 @@ public:
 
   std::map<eos::common::FileSystem::fsid_t, sqlite3*> *GetDB() {return &DB;}
 
+  // ---------------------------------------------------------------------------
+  //! Return's the syncing flag (if we sync, all files on disk are flagge as orphans until the MGM meta data has been verified and when this flag is set, we don't report orphans!
+  // ---------------------------------------------------------------------------
+  bool IsSyncing(eos::common::FileSystem::fsid_t fsid) { return isSyncing[fsid];}
 
   // ---------------------------------------------------------------------------
   //! Return's the dirty flag indicating a non-clean shutdown
@@ -339,7 +344,12 @@ public:
   // ---------------------------------------------------------------------------
   //! Resync File meta data found under path
   // ---------------------------------------------------------------------------
-  bool ResyncDisk(const char* path, eos::common::FileSystem::fsid_t fsid, bool flaglayouterror);
+  bool ResyncAllDisk(const char* path, eos::common::FileSystem::fsid_t fsid, bool flaglayouterror);
+
+  // ---------------------------------------------------------------------------
+  //! Resync a single entry from Disk
+  // ---------------------------------------------------------------------------
+  bool ResyncDisk(const char* fstpath, eos::common::FileSystem::fsid_t fsid, bool flaglayouterror);
 
   // ---------------------------------------------------------------------------
   //! Resync a single entry from Mgm

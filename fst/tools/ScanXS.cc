@@ -52,7 +52,7 @@ int main (int argc, char *argv[]){
   fstLoad.Monitor();
   usleep(100000);
   XrdOucString dirName = argv[1];
-  eos::fst::ScanDir* sd = new eos::fst::ScanDir(dirName.c_str(), &fstLoad, false, 10,100,setxs);
+  eos::fst::ScanDir* sd = new eos::fst::ScanDir(dirName.c_str(), 0, &fstLoad, false, 10,100,setxs);
   if (sd) {
     eos::fst::ScanDir::StaticThreadProc( (void*)sd);
     delete sd;

@@ -738,6 +738,80 @@ FmdSqliteHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
   return true;
 }
 
+
+/*----------------------------------------------------------------------------*/
+/** 
+ * Resync a single entry from disk
+ * 
+ * @param path to the stored file on disk
+ * @param fsid filesystem id
+ * 
+ * @return true if successfull
+ */
+/*----------------------------------------------------------------------------*/
+bool 
+FmdSqliteHandler::ResyncDisk(const char* path, eos::common::FileSystem::fsid_t fsid, bool flaglayouterror)
+{
+  bool retc=true;
+  eos::common::Path cPath(path);
+  eos::common::FileId::fileid_t fid = eos::common::FileId::Hex2Fid(cPath.GetName());
+  off_t disksize=0;
+  if (fid) {
+    eos::common::Attr *attr = eos::common::Attr::OpenAttr(path);
+    if (attr) {
+      struct stat buf;
+      if ((!stat(path, &buf)) && S_ISREG(buf.st_mode)) {
+	std::string checksumType,checksumStamp, filecxError, blockcxError;
+	std::string diskchecksum="";
+	char checksumVal[SHA_DIGEST_LENGTH];
+	size_t checksumLen = 0;
+	
+	unsigned long checktime=0;
+	// got the file size
+	disksize = buf.st_size;
+	memset(checksumVal, 0, sizeof(checksumVal));
+	checksumLen = SHA_DIGEST_LENGTH;
+	if (!attr->Get("user.eos.checksum", checksumVal, checksumLen)) {
+	  checksumLen = 0;
+	}
+	
+	checksumType    = attr->Get("user.eos.checksumtype");
+	checksumStamp   = attr->Get("user.eos.timestamp");
+	filecxError     = attr->Get("user.eos.filecxerror");
+	blockcxError    = attr->Get("user.eos.blockcxerror");
+	
+	checktime = (strtoull(checksumStamp.c_str(),0,10)/1000000);
+	if (checksumLen) {
+	  // retrieve a checksum object to get the hex representation
+	  XrdOucString envstring = "eos.layout.checksum="; envstring += checksumType.c_str();
+	  XrdOucEnv env(envstring.c_str());
+	  int checksumtype = eos::common::LayoutId::GetChecksumFromEnv(env);
+	  eos::common::LayoutId::layoutid_t layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain, checksumtype);		  
+	  eos::fst::CheckSum *checksum = eos::fst::ChecksumPlugins::GetChecksumObject(layoutid, false);
+	  
+	  if (checksum) {
+	    if (checksum->SetBinChecksum(checksumVal, checksumLen)) {
+	      diskchecksum = checksum->GetHexChecksum();
+	    }
+	    delete checksum;
+	  }
+	}
+	
+	// now update the SQLITE DB
+	if (!UpdateFromDisk(fsid,fid, disksize, diskchecksum, checktime, (filecxError =="1")?1:0, (blockcxError == "1")?1:0,flaglayouterror)) {
+	  eos_err("failed to update SQLITE DB for fsid=%lu fid=%08llx", fsid, fid);
+	  retc = false;
+	} 
+      }
+      delete attr;
+    }
+  } else {
+    eos_debug("would convert %s (%s) to fid 0", cPath.GetName(), path);
+    retc = false;;
+  }
+  return retc;
+}
+
 /*----------------------------------------------------------------------------*/
 /** 
  * Resync files under path into SQLITE DB
@@ -749,13 +823,17 @@ FmdSqliteHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
  */
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::ResyncDisk(const char* path, eos::common::FileSystem::fsid_t fsid, bool flaglayouterror)
+FmdSqliteHandler::ResyncAllDisk(const char* path, eos::common::FileSystem::fsid_t fsid, bool flaglayouterror)
 {
   char **paths = (char**) calloc(2, sizeof(char*));
   paths[0] = (char*) path;
   paths[1] = 0;
   if (!paths) {
     return false;
+  }
+
+  if (flaglayouterror) {
+    isSyncing[fsid] = true;
   }
 
   if (!ResetDiskInformation(fsid)) {
@@ -780,60 +858,7 @@ FmdSqliteHandler::ResyncDisk(const char* path, eos::common::FileSystem::fsid_t f
         XrdOucString filePath = node->fts_accpath;
 	eos_info("file=%s", filePath.c_str());
         if (!filePath.matches("*.xsmap")){
-	  eos::common::Path cPath(filePath.c_str());
-	  eos::common::FileId::fileid_t fid = eos::common::FileId::Hex2Fid(cPath.GetName());
-	  off_t disksize=0;
-	  if (fid) {
-	    eos::common::Attr *attr = eos::common::Attr::OpenAttr(filePath.c_str());
-	    if (attr) {
-	      struct stat buf;
-	      if ((!stat(filePath.c_str(), &buf)) && S_ISREG(buf.st_mode)) {
-		std::string checksumType,checksumStamp, filecxError, blockcxError;
-		std::string diskchecksum="";
-		char checksumVal[SHA_DIGEST_LENGTH];
-		size_t checksumLen = 0;
-
-		unsigned long checktime=0;
-		// got the file size
-		disksize = buf.st_size;
-		memset(checksumVal, 0, sizeof(checksumVal));
-		checksumLen = SHA_DIGEST_LENGTH;
-		if (!attr->Get("user.eos.checksum", checksumVal, checksumLen)) {
-		  checksumLen = 0;
-		}
-
-		checksumType    = attr->Get("user.eos.checksumtype");
-		checksumStamp   = attr->Get("user.eos.timestamp");
-		filecxError     = attr->Get("user.eos.filecxerror");
-		blockcxError    = attr->Get("user.eos.blockcxerror");
-		
-		checktime = (strtoull(checksumStamp.c_str(),0,10)/1000000);
-		if (checksumLen) {
-		  // retrieve a checksum object to get the hex representation
-		  XrdOucString envstring = "eos.layout.checksum="; envstring += checksumType.c_str();
-		  XrdOucEnv env(envstring.c_str());
-		  int checksumtype = eos::common::LayoutId::GetChecksumFromEnv(env);
-		  eos::common::LayoutId::layoutid_t layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain, checksumtype);		  
-		  eos::fst::CheckSum *checksum = eos::fst::ChecksumPlugins::GetChecksumObject(layoutid, false);
-
-		  if (checksum) {
-		    if (checksum->SetBinChecksum(checksumVal, checksumLen)) {
-		      diskchecksum = checksum->GetHexChecksum();
-		    }
-		    delete checksum;
-		  }
-		}
-
-		// now update the SQLITE DB
-		if (!UpdateFromDisk(fsid,fid, disksize, diskchecksum, checktime, (filecxError =="1")?1:0, (blockcxError == "1")?1:0,flaglayouterror)) {
-		  eos_err("failed to update SQLITE DB for fsid=%lu fid=%08llx", fsid, fid);
-		} 
-	      }
-	      delete attr;
-	    }
-	  } else {
-	    eos_debug("would convert %s (%s) to fid 0", cPath.GetName(), filePath.c_str());
-	  }
+	  ResyncDisk(filePath.c_str(), fsid, flaglayouterror);
         }
       }
     }    
@@ -952,7 +977,9 @@ FmdSqliteHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const char*
       }
     }    
   }
-  
+
+  isSyncing[fsid] = false;  
+
   // remove the temporary file
   unlink(tmpfile);
   free(tmpfile);
@@ -1046,55 +1073,58 @@ FmdSqliteHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsi
   fidset["unreg_n"].clear();
   fidset["rep_diff_n"].clear();
   
-  for (it = FmdSqliteMap[fsid].begin(); it != FmdSqliteMap[fsid].end(); it++) {
-    if (it->second.layouterror) {
-      if (it->second.layouterror & eos::common::LayoutId::kOrphan) {
-	statistics["orphans_n"]++;
-	fidset["orphans_n"].insert(it->second.fid);
-      }
-      if (it->second.layouterror & eos::common::LayoutId::kUnregistered) {
-	statistics["unreg_n"]++;
-	fidset["unreg_n"].insert(it->second.fid);
-      }
-      if (it->second.layouterror & eos::common::LayoutId::kReplicaWrong) {
-	statistics["rep_diff_n"]++;
-	fidset["rep_diff_n"].insert(it->second.fid);
-      }
-    }
-      
-    if (it->second.mgmsize != 0xfffffff1ULL) {
-      statistics["m_sync_n"]++;
-      fidset["m_sync_n"].insert(it->second.fid);
-      if (it->second.size != 0xfffffff1ULL) {
-	if (it->second.size != it->second.mgmsize) {
-	  statistics["m_mem_sz_diff"]++;
-	  fidset["m_mem_sz_diff"].insert(it->second.fid);
+  if (!IsSyncing(fsid)) {
+    // we report values only when we are not in the sync phase from disk/mgm
+    for (it = FmdSqliteMap[fsid].begin(); it != FmdSqliteMap[fsid].end(); it++) {
+      if (it->second.layouterror) {
+	if (it->second.layouterror & eos::common::LayoutId::kOrphan) {
+	  statistics["orphans_n"]++;
+	  fidset["orphans_n"].insert(it->second.fid);
+	}
+	if (it->second.layouterror & eos::common::LayoutId::kUnregistered) {
+	  statistics["unreg_n"]++;
+	  fidset["unreg_n"].insert(it->second.fid);
+	}
+	if (it->second.layouterror & eos::common::LayoutId::kReplicaWrong) {
+	  statistics["rep_diff_n"]++;
+	  fidset["rep_diff_n"].insert(it->second.fid);
 	}
       }
-    }
-
-    if (!it->second.layouterror) {
-      if (it->second.diskchecksum.length() && (it->second.diskchecksum != it->second.checksum) ) {
-	statistics["d_cx_diff"]++;
-	fidset["d_cx_diff"].insert(it->second.fid);
+      
+      if (it->second.mgmsize != 0xfffffff1ULL) {
+	statistics["m_sync_n"]++;
+	fidset["m_sync_n"].insert(it->second.fid);
+	if (it->second.size != 0xfffffff1ULL) {
+	  if (it->second.size != it->second.mgmsize) {
+	    statistics["m_mem_sz_diff"]++;
+	    fidset["m_mem_sz_diff"].insert(it->second.fid);
+	  }
+	}
       }
       
-      if (it->second.mgmchecksum.length() && (it->second.mgmchecksum != it->second.checksum) ) {
-	statistics["m_cx_diff"]++;
-	fidset["m_cx_diff"].insert(it->second.fid);
+      if (!it->second.layouterror) {
+	if (it->second.diskchecksum.length() && (it->second.diskchecksum != it->second.checksum) ) {
+	  statistics["d_cx_diff"]++;
+	  fidset["d_cx_diff"].insert(it->second.fid);
+	}
+	
+	if (it->second.mgmchecksum.length() && (it->second.mgmchecksum != it->second.checksum) ) {
+	  statistics["m_cx_diff"]++;
+	  fidset["m_cx_diff"].insert(it->second.fid);
+	}
       }
-    }
-
-    statistics["mem_n"]++;
-    fidset["mem_n"].insert(it->second.fid);
-    
-    if (it->second.disksize != 0xfffffff1ULL) {
-      statistics["d_sync_n"]++;
-      fidset["d_sync_n"].insert(it->second.fid);
-      if (it->second.size != 0xfffffff1ULL) {
-	if (it->second.size != it->second.disksize) {
-	  statistics["d_mem_sz_diff"]++;
-	  fidset["d_mem_sz_diff"].insert(it->second.fid);
+      
+      statistics["mem_n"]++;
+      fidset["mem_n"].insert(it->second.fid);
+      
+      if (it->second.disksize != 0xfffffff1ULL) {
+	statistics["d_sync_n"]++;
+	fidset["d_sync_n"].insert(it->second.fid);
+	if (it->second.size != 0xfffffff1ULL) {
+	  if (it->second.size != it->second.disksize) {
+	    statistics["d_mem_sz_diff"]++;
+	    fidset["d_mem_sz_diff"].insert(it->second.fid);
+	  }
 	}
       }
     }

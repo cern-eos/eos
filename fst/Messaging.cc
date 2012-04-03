@@ -124,6 +124,10 @@ Messaging::Process(XrdMqMessage* newmessage)
   if (cmd == "rtlog") {
     gOFS.SendRtLog(newmessage);
   }
+  
+  if (cmd == "fsck") {
+    gOFS.SendFsck(newmessage);
+  }
 
   if (cmd == "drop") {
     eos_info("drop");

@@ -194,7 +194,7 @@ FileSystem::RunScanner(Load* fstLoad, time_t interval)
   }
 
   // create the object running the scanner thread
-  scanDir = new ScanDir(GetPath().c_str(), fstLoad, true, interval);
+  scanDir = new ScanDir(GetPath().c_str(), GetId(), fstLoad, true, interval);
   eos_info("Started 'ScanDir' thread with interval time of %u seconds", (unsigned long) interval);
 }
 
@@ -493,7 +493,7 @@ Storage::Boot(FileSystem *fs)
   bool resyncmgm =   (gFmdSqliteHandler.IsDirty(fsid) || (fs->GetLongLong("bootcheck")));
 
   // resync the SQLITE DB 
-  if (!gFmdSqliteHandler.ResyncDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
+  if (!gFmdSqliteHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(EFAULT,"cannot resync the SQLITE DB from local disk");
     return;

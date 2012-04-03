@@ -186,6 +186,7 @@ public:
 
   void           SetDebug(XrdOucEnv &env);
   void           SendRtLog(XrdMqMessage* message);
+  void           SendFsck(XrdMqMessage* message);
 
   int            Stall(XrdOucErrInfo &error, int stime, const char *msg);
   int            Redirect(XrdOucErrInfo &error, const char* host, int &port);
