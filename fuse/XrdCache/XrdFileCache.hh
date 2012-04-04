@@ -21,12 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
+/**
+ * @file   XrdFileCache.hh
+ *
+ * @brief  High-level cache management class.
+ *
+ *
+ */
+
 #ifndef __EOS_XRDFILECACHE_HH__
 #define __EOS_XRDFILECACHE_HH__
+
 //------------------------------------------------------------------------------
 #include <pthread.h>
-#include <semaphore.h>
 //------------------------------------------------------------------------------
 #include "ConcurrentQueue.hh"
 #include "FileAbstraction.hh"
@@ -34,56 +41,100 @@
 #include "CacheEntry.hh"
 //------------------------------------------------------------------------------
 
-typedef void* (*ThreadFn)(void*);
-
 class CacheImpl;
 
+//------------------------------------------------------------------------------
+//! Class implementing the high-level constructs needed to operate the caching
+//! framenwork
+//------------------------------------------------------------------------------
 class XrdFileCache
 {
 public:
 
-  static XrdFileCache* Instance(size_t sizeMax);
+  // ---------------------------------------------------------------------------
+  //! Get instance of class
+  // ---------------------------------------------------------------------------
+  static XrdFileCache* getInstance(size_t sizeMax);
+
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   ~XrdFileCache();
 
-  void setCacheSize(size_t rsMax, size_t wsMax);
-  int threadStart(pthread_t& thread, ThreadFn f);
-
+  // ---------------------------------------------------------------------------
+  //! Add a write request
+  // ---------------------------------------------------------------------------
   void submitWrite(unsigned long inode, int filed, void* buff, off_t offset, size_t length);
-  size_t getRead(FileAbstraction* fAbst, int filed, void* buf, off_t offset, size_t length);
-  size_t putRead(FileAbstraction* fAbst, int filed, void* buf, off_t offset, size_t length);
+
+  // ---------------------------------------------------------------------------
+  //! Try to get read from cache
+  // ---------------------------------------------------------------------------
+  size_t getRead(FileAbstraction &fAbst, void* buf, off_t offset, size_t length);
+
+  // ---------------------------------------------------------------------------
+  //! Add read to cache
+  // ---------------------------------------------------------------------------
+  size_t putRead(FileAbstraction &fAbst, int filed, void* buf, off_t offset, size_t length);
+
+  // ---------------------------------------------------------------------------
+  //! Wait for all writes of a file to be done
+  // ---------------------------------------------------------------------------
+  void waitFinishWrites(unsigned long inode);
+
+  // ---------------------------------------------------------------------------
+  //! Wait for all writes of a file to be done 
+  // ---------------------------------------------------------------------------
+  void waitFinishWrites(FileAbstraction &fAbst);
+
+  // ---------------------------------------------------------------------------
+  //! Remove file inode from mapping
+  // ---------------------------------------------------------------------------
+  bool removeFileInode(unsigned long inode, bool strongConstraint);
+
+  // ---------------------------------------------------------------------------
+  //! Get handler to the errors queue
+  // ---------------------------------------------------------------------------
+  ConcurrentQueue<error_type>& getErrorQueue(unsigned long inode);
+
+  // ---------------------------------------------------------------------------
+  //! Get handler to the file abstraction object
+  // ---------------------------------------------------------------------------
+  FileAbstraction* getFileObj(unsigned long inode, bool getNew);
 
   //vector reads
   //size_t getReadV(unsigned long inode, int filed, void* buf, off_t* offset, size_t* length, int nbuf);
   //void putReadV(unsigned long inode, int filed, void* buf, off_t* offset, size_t* length, int nbuf);
-  
-  void waitFinishWrites(unsigned long inode);
-  void waitFinishWrites(FileAbstraction *fAbst);
-  bool removeFileInode(unsigned long inode, bool strongConstraint);
-
-  ConcurrentQueue<error_type>& getErrorQueue(unsigned long inode);
-  FileAbstraction* getFileObj(unsigned long inode, bool getNew);
 
 private:
 
-  //maximum number of files concurrently in cache
-  static const int maxIndexFiles = 100;   //has to be >=10
-  static XrdFileCache* pInstance;
+  static const int maxIndexFiles = 1000;     //< maximum number of files concurrently in cache, has to be >=10
+  static XrdFileCache* pInstance;            //< singleton object
 
+  // ---------------------------------------------------------------------------
+  //! Constructor
+  // ---------------------------------------------------------------------------
   XrdFileCache(size_t sizeMax);
+
+  // ---------------------------------------------------------------------------
+  //! Initialization method
+  // ---------------------------------------------------------------------------
   void Init();
 
+  // ---------------------------------------------------------------------------
+  //! Method ran by the asynchronous thread doing writes
+  // ---------------------------------------------------------------------------
   static void* writeThreadProc(void*);
 
-  size_t cacheSizeMax;             //read cache size
-  int indexFile;                   //last index assigned to a file
+  size_t cacheSizeMax;             //< read cache size
+  int indexFile;                   //< last index assigned to a file
 
-  pthread_t writeThread;
-  XrdSysRWLock rwKeyMap;           //rw lock for the key map
+  pthread_t writeThread;           //< async thread doing the writes
+  XrdSysRWLock rwKeyMap;           //< rw lock for the key map
 
-  ConcurrentQueue<int>* usedIndexQueue;                  //file indices used and available to recycle
-  std::map<unsigned long, FileAbstraction*> fileInodeMap; //map inodes to FileAbst objects
-
-  CacheImpl* cacheImpl;
+  ConcurrentQueue<int>* usedIndexQueue;                   //< file indices used and available to recycle
+  std::map<unsigned long, FileAbstraction*> fileInodeMap; //< map inodes to FileAbst objects
+ 
+  CacheImpl* cacheImpl;                                   //< handler to the low-level cache implementation
 };
 
 #endif

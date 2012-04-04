@@ -25,11 +25,24 @@
 #include "CacheEntry.hh"
 //------------------------------------------------------------------------------
 
-CacheEntry::CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstraction* ptr, bool iswr):
-  fd(filedes),
+/*----------------------------------------------------------------------------*/
+/** 
+ * Construct a block object which is to be saved in cache
+ * 
+ * @param fildes file descriptor
+ * @param buff buffer containing the data
+ * @param off offset
+ * @param len length
+ * @param pFileAbst file object handler
+ * @param iswr if true the block is for writing, otherwise for reading
+ *
+ */
+/*----------------------------------------------------------------------------*/
+CacheEntry::CacheEntry(int filed, char* buf, off_t off, size_t len, FileAbstraction &pFileAbst, bool iswr):
+  fd(filed),
   isWrType(iswr),
   sizeData(len),
-  pParentFile(ptr)
+  pParentFile(&pFileAbst)
 {
   char* pBuffer; 
   off_t offsetRelative;
@@ -49,24 +62,41 @@ CacheEntry::CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstra
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ * Destructor
+ *
+ */
+/*----------------------------------------------------------------------------*/
 CacheEntry::~CacheEntry()
 {
   free(buffer);
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ * Reinitialise the block attributes for the recycling process
+ * 
+ * @param filed new file descriptor
+ * @param buff buffer containg the data
+ * @param off offset
+ * @param len length
+ * @param pFileAbst file object handler
+ * @param iswr if true the block is for writing, otherwise for reading
+ *
+ */
+/*----------------------------------------------------------------------------*/
 void
-CacheEntry::doRecycle(int filedes, char* buf, off_t off, size_t len, FileAbstraction* ptr, bool iswr)
+CacheEntry::doRecycle(int filed, char* buf, off_t off, size_t len, FileAbstraction &pFileAbst, bool iswr)
 {
   char* pBuffer; 
   off_t offsetRelative;
     
-  fd = filedes;
+  fd = filed;
   isWrType = iswr;
   offsetStart = (off / getMaxSize()) * getMaxSize();
-  pParentFile = ptr;
+  pParentFile = &pFileAbst;
 
   if (len > capacity) {
     fprintf(stderr, "error=len should never be bigger than capacity.\n");
@@ -74,15 +104,30 @@ CacheEntry::doRecycle(int filedes, char* buf, off_t off, size_t len, FileAbstrac
   }
 
   mapPieces.clear();
+  sizeData = len;
   offsetRelative = off % getMaxSize();
   pBuffer = buffer + offsetRelative;
   pBuffer = (char*) memcpy(pBuffer, buf, len);
   mapPieces.insert(std::make_pair(off, len));
-  sizeData = len;
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ * Add a new pice of data to the block. The new piece can overlap with previous
+ * pieces existing the the block. In that case, the overlapping parts are
+ * overwritten. The map containg the piece is also updated by doing any necessary
+ * merging.
+ * 
+ * @param buff buffer containg the data
+ * @param off offset
+ * @param len length
+ *
+ * @return the actual size increase of the meaningful data after adding the current
+ * piece (does not include the size of the overwritten sections)
+ *
+ */
+/*----------------------------------------------------------------------------*/
 size_t
 CacheEntry::addPiece(char* buf, off_t off, size_t len)
 {
@@ -90,11 +135,11 @@ CacheEntry::addPiece(char* buf, off_t off, size_t len)
   size_t sizeAdded;
   size_t sizeNew;
   size_t sizeErased = 0;
-  bool addNewPiece = false;
   off_t offsetOldEnd;
   off_t offsetRelative = off % getMaxSize();
   off_t offsetPieceEnd = off + len;
   char* pBuffer = buffer + offsetRelative;
+  bool addNewPiece = false;
 
   std::map<off_t, size_t>::iterator iBefore;
   std::map<off_t, size_t>::reverse_iterator iReverse;
@@ -286,7 +331,17 @@ CacheEntry::addPiece(char* buf, off_t off, size_t len)
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @param buff buffer where the data is to be saved 
+ * @param off offset
+ * @param len length
+ *
+ * @return whether or not the pice was found in the block
+ *
+ */
+/*----------------------------------------------------------------------------*/
 bool
 CacheEntry::getPiece(char* buf, off_t off, size_t len)
 {
@@ -335,7 +390,15 @@ CacheEntry::getPiece(char* buf, off_t off, size_t len)
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * Write the whole part of the meaningful data in the block to the corresponding file.
+ *
+ * @return error code
+ *
+ */
+/*----------------------------------------------------------------------------*/
 int
 CacheEntry::doWrite()
 {
@@ -346,7 +409,6 @@ CacheEntry::doWrite()
   
   for( ; iCurrent != iEnd; iCurrent++) {
     offsetRelative = iCurrent->first % getMaxSize();
-    //eos_static_debug("size=%lu offset=%zu", iCurrent->second, iCurrent->first);
     retc = XrdPosixXrootd::Pwrite(fd, buffer + offsetRelative, iCurrent->second, iCurrent->first);
     if (retc != (int)iCurrent->second) {
       fprintf(stderr, "error=error while writing using XrdPosixXrootd\n");
@@ -358,7 +420,13 @@ CacheEntry::doWrite()
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return true if block is for writing, false otherwise
+ *
+ */
+/*----------------------------------------------------------------------------*/
 bool
 CacheEntry::isWr()
 {
@@ -366,7 +434,13 @@ CacheEntry::isWr()
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return true is block is full with meaningful data, false otherwise
+ *
+ */
+/*----------------------------------------------------------------------------*/
 bool
 CacheEntry::isFull()
 {
@@ -374,7 +448,13 @@ CacheEntry::isFull()
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return file descriptor
+ *
+ */
+/*----------------------------------------------------------------------------*/
 int
 CacheEntry::getFd() const
 {
@@ -382,7 +462,13 @@ CacheEntry::getFd() const
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return handler to the data buffer
+ *
+ */
+/*----------------------------------------------------------------------------*/
 char*
 CacheEntry::getDataBuffer()
 {
@@ -390,7 +476,13 @@ CacheEntry::getDataBuffer()
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return capacity of the block
+ *
+ */
+/*----------------------------------------------------------------------------*/
 size_t
 CacheEntry::getCapacity() const
 {
@@ -398,7 +490,13 @@ CacheEntry::getCapacity() const
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return size of the meaningful data currently in the block
+ *
+ */
+/*----------------------------------------------------------------------------*/
 size_t
 CacheEntry::getSizeData() const
 {
@@ -406,7 +504,13 @@ CacheEntry::getSizeData() const
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return absolute value of block start offset in the file
+ *
+ */
+/*----------------------------------------------------------------------------*/
 off_t
 CacheEntry::getOffsetStart() const
 {
@@ -414,7 +518,13 @@ CacheEntry::getOffsetStart() const
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return absolute value of the block end offset in the file
+ *
+ */
+/*----------------------------------------------------------------------------*/
 off_t
 CacheEntry::getOffsetEnd() const
 {
@@ -422,7 +532,13 @@ CacheEntry::getOffsetEnd() const
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return parent file handler
+ *
+ */
+/*----------------------------------------------------------------------------*/
 FileAbstraction*
 CacheEntry::getParentFile() const
 {

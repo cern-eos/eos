@@ -21,6 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   CooncurrentQueue.hh
+ *
+ * @brief  Implementation of a thread-safe queue.
+ *
+ *
+ */
+
 //------------------------------------------------------------------------------
 #include <cstdio>
 #include <queue>
@@ -31,6 +39,9 @@
 #ifndef __EOS_CONCURRENTQUEUE_HH__
 #define __EOS_CONCURRENTQUEUE_HH__
 
+//------------------------------------------------------------------------------
+//! Thread-safe queue implementation using mutexes
+//------------------------------------------------------------------------------
 template <typename Data>
 class ConcurrentQueue
 {
@@ -38,7 +49,7 @@ public:
   ConcurrentQueue();
   ~ConcurrentQueue();
 
-  size_t GetSize();
+  size_t getSize();
   void push(Data& data);
   bool empty();
 
@@ -54,6 +65,8 @@ private:
 
 
 //------------------------------------------------------------------------------
+//! Constructor
+//------------------------------------------------------------------------------
 template <typename Data>
 ConcurrentQueue<Data>::ConcurrentQueue()
 {
@@ -61,6 +74,8 @@ ConcurrentQueue<Data>::ConcurrentQueue()
   pthread_cond_init(&cond, NULL);
 }
 
+//------------------------------------------------------------------------------
+//! Destructor
 //------------------------------------------------------------------------------
 template <typename Data>
 ConcurrentQueue<Data>::~ConcurrentQueue()
@@ -72,9 +87,11 @@ ConcurrentQueue<Data>::~ConcurrentQueue()
 
 
 //------------------------------------------------------------------------------
+//! Get size of the queue
+//------------------------------------------------------------------------------
 template <typename Data>
 size_t
-ConcurrentQueue<Data>::GetSize()
+ConcurrentQueue<Data>::getSize()
 {
   size_t size = 0;
   pthread_mutex_lock(&mutex);
@@ -84,6 +101,8 @@ ConcurrentQueue<Data>::GetSize()
 }
 
 
+//------------------------------------------------------------------------------
+//! Push data to the queue
 //------------------------------------------------------------------------------
 template <typename Data>
 void
@@ -97,6 +116,8 @@ ConcurrentQueue<Data>::push(Data &data)
 
 
 //------------------------------------------------------------------------------
+//! Test if queue is empty
+//------------------------------------------------------------------------------
 template <typename Data>
 bool
 ConcurrentQueue<Data>::empty()
@@ -108,6 +129,8 @@ ConcurrentQueue<Data>::empty()
 }
 
 
+//------------------------------------------------------------------------------
+//! Try to get data from queue
 //------------------------------------------------------------------------------
 template <typename Data>
 bool
@@ -128,6 +151,8 @@ ConcurrentQueue<Data>::try_pop(Data& popped_value)
 
 
 //------------------------------------------------------------------------------
+//! Get data from queue, if empty queue then block until at least one element is added
+//------------------------------------------------------------------------------
 template <typename Data>
 void
 ConcurrentQueue<Data>::wait_pop(Data& popped_value)
@@ -144,6 +169,8 @@ ConcurrentQueue<Data>::wait_pop(Data& popped_value)
 }
 
 
+//------------------------------------------------------------------------------
+//! Remove all elements from the queue
 //------------------------------------------------------------------------------
 template <typename Data>
 void

@@ -25,6 +25,15 @@
 #include "CacheImpl.hh"
 //------------------------------------------------------------------------------
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Construct the cache framework object
+ * 
+ * @param sMax maximum size of the cache
+ * @param fc upper cache management layer
+ *
+ */
+/*----------------------------------------------------------------------------*/
 CacheImpl::CacheImpl(size_t sMax, XrdFileCache *fc):
     mgmCache(fc),
     sizeMax(sMax),
@@ -38,8 +47,12 @@ CacheImpl::CacheImpl(size_t sMax, XrdFileCache *fc):
 }
 
 
-//------------------------------------------------------------------------------
-//Destructor
+/*----------------------------------------------------------------------------*/
+/** 
+ * Destructor
+ * 
+ */
+/*----------------------------------------------------------------------------*/
 CacheImpl::~CacheImpl()
 {
   rwMap.WriteLock();                                        //write lock map
@@ -53,7 +66,6 @@ CacheImpl::~CacheImpl()
 
   //delete recyclabe objects
   CacheEntry* ptr = 0;
-
   while (recycleQueue->try_pop(ptr)) {
     delete ptr;
   }
@@ -63,7 +75,12 @@ CacheImpl::~CacheImpl()
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ * Method run by the thread doing asynchronous writes
+ *
+ */
+/*----------------------------------------------------------------------------*/
 void
 CacheImpl::runThreadWrites()
 {
@@ -87,10 +104,21 @@ CacheImpl::runThreadWrites()
 }
 
 
-//------------------------------------------------------------------------------
-//Get value for key k from cache
+/*----------------------------------------------------------------------------*/
+/** 
+ * Get the object from cache corresponding to the key k
+ * 
+ * @param k key
+ * @param buf buffer where to save the data
+ * @param off offset
+ * @param len length
+ *
+ * @return true if read block found in cache, false otherwise
+ *
+ */
+/*----------------------------------------------------------------------------*/
 bool
-CacheImpl::getRead(const long long int& k, char* buf, off_t off, size_t len, FileAbstraction* pFileAbst) 
+CacheImpl::getRead(const long long int& k, char* buf, off_t off, size_t len) 
 {
   //block requested is aligned with respect to the maximum CacheEntry size
   eos::common::Timing gr("getRead");
@@ -122,10 +150,22 @@ CacheImpl::getRead(const long long int& k, char* buf, off_t off, size_t len, Fil
 }
 
 
-//------------------------------------------------------------------------------
-//Insert fresh key-value pair in the cache
+/*----------------------------------------------------------------------------*/
+/** 
+ * Insert a read block in the cache 
+ * 
+ * @param filed file descriptor
+ * @param k key
+ * @param buf buffer containing the data
+ * @param off offset
+ * @param len length
+ * @param pFileAbst reference to the file object
+ *
+ */
+/*----------------------------------------------------------------------------*/
 void
-CacheImpl::addRead(int filed, const long long int& k, char* buf, off_t off, size_t len, FileAbstraction* pFileAbst) 
+CacheImpl::addRead(int filed, const long long int& k, char* buf, off_t off,
+                   size_t len, FileAbstraction &pFileAbst) 
 {
   eos::common::Timing ar("addRead");
   TIMING("start", &ar);
@@ -166,13 +206,13 @@ CacheImpl::addRead(int filed, const long long int& k, char* buf, off_t off, size
     XrdSysRWLockHelper rwHelper(rwMap, false);              //write lock map
     XrdSysMutexHelper mHelper(mList);                       //lock list 
 
-    //update most-recently-used key
-    key_list_type::iterator it = keyList.insert(keyList.end(), k);
-    keyValueMap.insert(std::make_pair(k, std::make_pair(pEntry, it)));
-    
     //update cache and file size
     incrementSize(CacheEntry::getMaxSize());
     pEntry->getParentFile()->incrementReads(pEntry->getSizeData());
+    
+    //update most-recently-used key
+    key_list_type::iterator it = keyList.insert(keyList.end(), k);
+    keyValueMap.insert(std::make_pair(k, std::make_pair(pEntry, it)));
     
     //---> unlock map and list
   }
@@ -182,20 +222,27 @@ CacheImpl::addRead(int filed, const long long int& k, char* buf, off_t off, size
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ * Flush all write requests belonging to a given file
+ * 
+ * @param pFileAbst reference to the file whose writes are to be done
+ *
+ */
+/*----------------------------------------------------------------------------*/
 void
-CacheImpl::flushWrites(FileAbstraction* pFileAbst)
+CacheImpl::flushWrites(FileAbstraction &pFileAbst)
 {
   CacheEntry *pEntry = 0;
   
-  if (pFileAbst->getSizeWrites() == 0) {
+  if (pFileAbst.getSizeWrites() == 0) {
     eos_static_debug("info=no writes for this file");
     return;
   }
   
   XrdSysRWLockHelper rwHelper(rwMap);                       //read lock map
-  key_map_type::iterator iStart = keyValueMap.lower_bound(pFileAbst->getFirstPossibleKey());
-  const key_map_type::iterator iEnd = keyValueMap.lower_bound(pFileAbst->getLastPossibleKey());
+  key_map_type::iterator iStart = keyValueMap.lower_bound(pFileAbst.getFirstPossibleKey());
+  const key_map_type::iterator iEnd = keyValueMap.lower_bound(pFileAbst.getLastPossibleKey());
 
   while (iStart != iEnd) {
     pEntry = iStart->second.first;
@@ -208,8 +255,14 @@ CacheImpl::flushWrites(FileAbstraction* pFileAbst)
 }
 
 
-//------------------------------------------------------------------------------
-//Proccess a write request from the queue
+/*----------------------------------------------------------------------------*/
+/** 
+ * Process a write request
+ * 
+ * @param pEntry pointer to the request to be done
+ *
+ */
+/*----------------------------------------------------------------------------*/
 void
 CacheImpl::processWriteReq(CacheEntry* pEntry)
 {
@@ -243,21 +296,33 @@ CacheImpl::processWriteReq(CacheEntry* pEntry)
 }
 
 
-//------------------------------------------------------------------------------
-//Add a new write request to the queue
+/*----------------------------------------------------------------------------*/
+/** 
+ * Add new write request
+ *
+ * @param filed file descriptor
+ * @param k key
+ * @param buf buffer containing the data 
+ * @param off offset
+ * @param len length
+ * @param pFileAbst reference to the file object
+ *
+ */
+/*----------------------------------------------------------------------------*/
 void
-CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, size_t len, FileAbstraction* pFileAbst)
+CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off,
+                    size_t len, FileAbstraction &pFileAbst)
 {
   CacheEntry* pEntry = 0;
 
-  if (pFileAbst->getSizeReads() != 0) {
+  if (pFileAbst.getSizeReads() != 0) {
     //delete all read blocks from cache
     XrdSysRWLockHelper rwHelper(rwMap, false);              //write lock map
     XrdSysMutexHelper mHelper(mList);                       //mutex lock
 
     key_list_type::iterator itList;
-    const key_map_type::iterator iStart = keyValueMap.lower_bound(pFileAbst->getFirstPossibleKey());
-    const key_map_type::iterator iEnd = keyValueMap.lower_bound(pFileAbst->getLastPossibleKey());
+    const key_map_type::iterator iStart = keyValueMap.lower_bound(pFileAbst.getFirstPossibleKey());
+    const key_map_type::iterator iEnd = keyValueMap.lower_bound(pFileAbst.getLastPossibleKey());
     key_map_type::iterator iTmp = iStart;
        
     while (iTmp != iEnd) {
@@ -281,7 +346,7 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, siz
   }
 
   rwMap.ReadLock();                                         //read lock map
-  assert(pFileAbst->getSizeReads() == 0);
+  assert(pFileAbst.getSizeReads() == 0);
 
   key_map_type::iterator it = keyValueMap.find(k);
 
@@ -333,7 +398,12 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off, siz
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ * Method to kill the asynchrounous thread doing the writes
+ *
+ */
+/*----------------------------------------------------------------------------*/
 void
 CacheImpl::killWriteThread()
 {
@@ -344,15 +414,30 @@ CacheImpl::killWriteThread()
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ * Recycle an used block or create a new one if none available
+ *
+ * @param filed file descriptor
+ * @param k key
+ * @param buf buffer containing the data
+ * @param off offset
+ * @param len length
+ * @param pFileAbst reference to the file object
+ * @param iswr true if block is for writing, false otherwise
+ *
+ * @return the recycled object
+ *
+ */
+/*----------------------------------------------------------------------------*/
 CacheEntry*
-CacheImpl::getRecycledBlock(int filed, char* buf, off_t offset, size_t length, FileAbstraction* pFileAbst, bool iswr)
+CacheImpl::getRecycledBlock(int filed, char* buf, off_t off, size_t len, FileAbstraction &pFileAbst, bool iswr)
 {
   CacheEntry* pRecycledObj = 0;
 
   if (recycleQueue->try_pop(pRecycledObj)) {
     //got obj from pool
-    pRecycledObj->doRecycle(filed, buf, offset, length, pFileAbst, iswr);
+    pRecycledObj->doRecycle(filed, buf, off, len, pFileAbst, iswr);
   } else {
     XrdSysMutexHelper mHelper(mAllocSize);
     if (sizeAllocBlocks >= maxSizeAllocBlocks) {
@@ -363,7 +448,7 @@ CacheImpl::getRecycledBlock(int filed, char* buf, off_t offset, size_t length, F
       //no obj in pool, allocate new one
       sizeAllocBlocks += CacheEntry::getMaxSize();
       mHelper.UnLock();
-      pRecycledObj = new CacheEntry(filed, buf, offset, length, pFileAbst, iswr);
+      pRecycledObj = new CacheEntry(filed, buf, off, len, pFileAbst, iswr);
     }
   }
   
@@ -371,12 +456,55 @@ CacheImpl::getRecycledBlock(int filed, char* buf, off_t offset, size_t length, F
 }
 
 
-//------------------------------------------------------------------------------
-//Remove least-recently-used element in the cache
+/*----------------------------------------------------------------------------*/
+/** 
+ * Method to force the execution of a write even if the block is not full; \n 
+ * This is done to lower the congestion in the cache when there are many
+ * sparse writes done
+ *
+ */
+/*----------------------------------------------------------------------------*/
+void
+CacheImpl::forceWrite()
+{
+  CacheEntry* pEntry = 0;
+
+  rwMap.WriteLock();                                        //write lock map
+  key_map_type::iterator iStart = keyValueMap.begin();
+  const key_map_type::iterator iEnd = keyValueMap.end();
+  pEntry = iStart->second.first;
+  while (!pEntry->isWr() && (iStart != iEnd)) {
+    iStart++;
+    pEntry = iStart->second.first;
+  }
+
+  if (iStart != iEnd) {
+    eos_static_debug("Force write to be done!\n");
+    writeReqQueue->push(pEntry);
+    keyValueMap.erase(iStart);
+  }
+
+  rwMap.UnLock();                                           //unlock map
+   
+  eos_static_debug("Thread waiting 250 ms for writes to be done...");
+  cWriteDone.WaitMS(CacheImpl::getTimeWait());
+}
+
+/*----------------------------------------------------------------------------*/
+/** 
+ * Method to remove the least-recently used read block from cache
+ *
+ * @return true if an element was evicted, false otherwise
+ *
+ */
+/*----------------------------------------------------------------------------*/
 bool
-CacheImpl::evict()
+CacheImpl::removeReadBlock()
 {
   bool foundCandidate = false;
+  XrdSysRWLockHelper lHelper(rwMap, 0);                     //write lock map
+  XrdSysMutexHelper mHelper(mList);                         //lock list
+  
   key_list_type::iterator iter = keyList.begin();
 
   if (iter != keyList.end()) {
@@ -409,93 +537,61 @@ CacheImpl::evict()
 }
 
 
-//------------------------------------------------------------------------------
-void
-CacheImpl::forceWrite()
-{
-  //force writing thread to do some writing in case the
-  //cache is full with blocks for writing
-  CacheEntry* pEntry = 0;
-
-  rwMap.WriteLock();                                        //write lock map
-  key_map_type::iterator iStart = keyValueMap.begin();
-  const key_map_type::iterator iEnd = keyValueMap.end();
-  pEntry = iStart->second.first;
-  while (!pEntry->isWr() && (iStart != iEnd)) {
-    iStart++;
-    pEntry = iStart->second.first;
-  }
-
-  if (iStart != iEnd) {
-    eos_static_debug("Force write to be done!\n");
-    writeReqQueue->push(pEntry);
-    keyValueMap.erase(iStart);
-  }
-
-  rwMap.UnLock();                                           //unlock map
-   
-  eos_static_debug("Thread waiting 250 ms for writes to be done...");
-  cWriteDone.WaitMS(CacheImpl::getTimeWait());
-}
-
-//------------------------------------------------------------------------------
-bool
-CacheImpl::removeReadBlock()
-{
-  bool retValue;
-  rwMap.WriteLock();                                        //write lock map
-  mList.Lock();                                             //lock list
-  retValue = evict();
-  mList.UnLock();                                           //unlock list
-  rwMap.UnLock();                                           //unlock map
- 
-  return retValue;
-}
-
-
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ * Get current size of the blocks in cache
+ *
+ * @return size value
+ *
+ */
+/*----------------------------------------------------------------------------*/
 size_t
 CacheImpl::getSize()
 {
   size_t retValue;
-  mSize.Lock();
+  XrdSysMutexHelper mHelper(mSize);
   retValue = sizeVirtual;
-  mSize.UnLock();
   return retValue;
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ * Increment size of the the blocks in cache
+ *
+ * @param value the new size to be added
+ *
+ * @return the updated size value
+ *
+ */
+/*----------------------------------------------------------------------------*/
 size_t
 CacheImpl::incrementSize(size_t value) 
 {
   size_t retValue;
-  mSize.Lock();
+  XrdSysMutexHelper mHelper(mSize);
   sizeVirtual += value;
   retValue = sizeVirtual;
-  mSize.UnLock();
   return retValue;
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ * Decrement the size of the the blocks in cache
+ *
+ * @param value the size to be freed
+ *
+ * @return the updated size value
+ */
+/*----------------------------------------------------------------------------*/
 size_t
 CacheImpl::decrementSize(size_t value)
 {
   size_t retValue;
-  mSize.Lock();
+  XrdSysMutexHelper mHelper(mSize);
   sizeVirtual -= value;
   retValue = sizeVirtual;
-  mSize.UnLock();
   return retValue;
-}
-
-
-//------------------------------------------------------------------------------
-void
-CacheImpl::setSize(size_t value) 
-{
-  XrdSysMutexHelper mHelper(mSize); 
-  sizeVirtual = value;
 }
 

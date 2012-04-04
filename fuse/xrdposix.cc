@@ -1438,17 +1438,14 @@ xrd_read(int fildes, void *buf, size_t nbyte, unsigned long inode)
   size_t ret;
   FileAbstraction* fAbst =0;
 
-  if (XFC && inode) {
-    XFC->waitFinishWrites(inode);
-  }
-
-  if (XFC && (fuse_cache_read) && inode) {
-    off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
+  if (XFC && fuse_cache_read && inode) {
     fAbst = XFC->getFileObj(inode, true);
-    if ((ret = XFC->getRead(fAbst, fildes, buf, offset, nbyte)) != nbyte)
-    {
+    XFC->waitFinishWrites(*fAbst);
+    off_t offset = XrdPosixXrootd::Lseek(fildes, 0, SEEK_SET);
+
+    if ((ret = XFC->getRead(*fAbst, buf, offset, nbyte)) != nbyte) {
       ret = XrdPosixXrootd::Read(fildes, buf, nbyte);
-      XFC->putRead(fAbst, fildes, buf, offset, nbyte);
+      XFC->putRead(*fAbst, fildes, buf, offset, nbyte);
     }
     fAbst->decrementNoReferences();
   } else {
@@ -1470,21 +1467,17 @@ xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode
  
   size_t ret;
 
-  if (XFC && inode) {
-    TIMING("wait writes", &xpr);
-    XFC->waitFinishWrites(inode);
-  }
-  
-  if (XFC && (fuse_cache_read) && inode) {
-    FileAbstraction* fAbst =0;
+  if (XFC && fuse_cache_read && inode) {
+    FileAbstraction* fAbst = 0;
     fAbst = XFC->getFileObj(inode, true);
-    if ((ret = XFC->getRead(fAbst, fildes, buf, offset, nbyte)) != nbyte)
-    {
+    XFC->waitFinishWrites(*fAbst);
+    TIMING("wait writes", &xpr);
+    if ((ret = XFC->getRead(*fAbst, buf, offset, nbyte)) != nbyte) {
       TIMING("read in", &xpr);
       eos_static_debug("Block not found in cache: off=%zu, len=%zu", offset, nbyte);
       ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
       TIMING("read out", &xpr);
-      XFC->putRead(fAbst, fildes, buf, offset, nbyte);
+      XFC->putRead(*fAbst, fildes, buf, offset, nbyte);
       TIMING("put read", &xpr);
     }
     else {
@@ -1669,6 +1662,7 @@ xrd_init()
   if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0")) {
     eos::common::Logging::SetLogPriority(LOG_DEBUG);
   } else {
+    //eos::common::Logging::SetLogPriority(LOG_DEBUG);
     eos::common::Logging::SetLogPriority(LOG_INFO);
   }
   
@@ -1692,10 +1686,10 @@ xrd_init()
     XFC = NULL;
   } else {
     if (!getenv("EOS_FUSE_CACHE_SIZE")) {
-      setenv("EOS_FUSE_CACHE_SIZE", "300000000", 1);   // ~300MB
+      setenv("EOS_FUSE_CACHE_SIZE", "30000000", 1);   // ~300MB
     }
     eos_static_notice("cache=true size=%s cache-read=%s, cache-write=%s",getenv("EOS_FUSE_CACHE_SIZE"), getenv("EOS_FUSE_CACHE_READ"), getenv("EOS_FUSE_CACHE_WRITE"));
-    XFC = XrdFileCache::Instance(static_cast<size_t>(atol(getenv("EOS_FUSE_CACHE_SIZE"))));   
+    XFC = XrdFileCache::getInstance(static_cast<size_t>(atol(getenv("EOS_FUSE_CACHE_SIZE"))));   
     if (getenv("EOS_FUSE_CACHE_READ") && atoi(getenv("EOS_FUSE_CACHE_READ"))) {
       fuse_cache_read = true;
     }

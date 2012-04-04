@@ -21,9 +21,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
+/**
+ * @file   CacheEntry.hh
+ *
+ * @brief  Cached objects represenation
+ *
+ *
+ */
+
 #ifndef __EOS_CACHEENTRY_HH__
 #define __EOS_CACHEENTRY_HH__
+
 //------------------------------------------------------------------------------
 #include <map>
 //------------------------------------------------------------------------------
@@ -35,43 +43,109 @@
 #include "FileAbstraction.hh"
 //------------------------------------------------------------------------------
 
+
+//------------------------------------------------------------------------------
+//! Class representing a block saved in cache
+//------------------------------------------------------------------------------
 class CacheEntry
 {
 public:
 
-  CacheEntry(int filedes, char* buf, off_t off, size_t len, FileAbstraction* ptr, bool iswr);
+  //------------------------------------------------------------------------------
+  //! Constructor
+  //------------------------------------------------------------------------------
+  CacheEntry(int filedes, char *buf, off_t off, size_t len, FileAbstraction &ptr, bool iswr);
+
+  //------------------------------------------------------------------------------
+  //! Destructor
+  //------------------------------------------------------------------------------
   ~CacheEntry();
+
+  //------------------------------------------------------------------------------
+  //! Maximum size of the cache
+  //------------------------------------------------------------------------------
   static const size_t getMaxSize() {
     return 4*1048576;
   };    //1MB=1048576 512KB=524288
 
+
+  //------------------------------------------------------------------------------
+  //! Get file descriptor
+  //------------------------------------------------------------------------------
   int    getFd() const;
+
+  //------------------------------------------------------------------------------
+  //! Get handler to the data buffer
+  //------------------------------------------------------------------------------
   char*  getDataBuffer();
+
+  //------------------------------------------------------------------------------
+  //! Get the size of meaningful data
+  //------------------------------------------------------------------------------
   size_t getSizeData() const;
+
+  //------------------------------------------------------------------------------
+  //! Get total capacity of the object
+  //------------------------------------------------------------------------------
   size_t getCapacity() const;
+
+  //------------------------------------------------------------------------------
+  //! Get start offset value
+  //------------------------------------------------------------------------------
   off_t  getOffsetStart() const;
+  
+  //------------------------------------------------------------------------------
+  //! Get end offset value
+  //------------------------------------------------------------------------------
   off_t  getOffsetEnd() const;
-  bool   getPiece(char* buf, off_t off, size_t len);
+
+  //------------------------------------------------------------------------------
+  //! Try to get a piece from the current block
+  //------------------------------------------------------------------------------
+  bool getPiece(char* buf, off_t off, size_t len);
+
+  //------------------------------------------------------------------------------
+  //! Get handler to the parent file object
+  //------------------------------------------------------------------------------
   FileAbstraction*  getParentFile() const;
 
+  //------------------------------------------------------------------------------
+  //! Test if block is for writing
+  //------------------------------------------------------------------------------
   bool   isWr();
+
+  //------------------------------------------------------------------------------
+  //! Test if block full with meaningfull data
+  //------------------------------------------------------------------------------
   bool   isFull();
+
+  //------------------------------------------------------------------------------
+  //! Method that does the actual writing
+  //------------------------------------------------------------------------------
   int    doWrite();
+
+  //------------------------------------------------------------------------------
+  //! Add a new piece to the block
+  //------------------------------------------------------------------------------
   size_t addPiece(char* buf, off_t off, size_t len);
+
+  //------------------------------------------------------------------------------
+  //! Method to recycle a previously used block
+  //------------------------------------------------------------------------------
   void   doRecycle(int filedes, char* buf, off_t offset, size_t lenBuf,
-                   FileAbstraction* ptr, bool iswr);
+                   FileAbstraction &ptr, bool iswr);
 
  private:
 
-  int fd;                            //file descriptor
-  bool isWrType;                     //is write block type
-  char*  buffer;                     //buffer of the object
-  size_t capacity;                   //total capcity 512 KB ~ 1MB
-  size_t sizeData;                   //size of useful data
-  off_t  offsetStart;                //offset relative to the file
+  int fd;                            //< file descriptor
+  bool isWrType;                     //< is write block type
+  char*  buffer;                     //< buffer of the object
+  size_t capacity;                   //< total capcity 512 KB ~ 4MB
+  size_t sizeData;                   //< size of useful data
+  off_t  offsetStart;                //< offset relative to the file
 
-  std::map<off_t, size_t> mapPieces; //pieces read/to be written
-  FileAbstraction* pParentFile;      //pointer to parent file
+  std::map<off_t, size_t> mapPieces; //< pieces read/to be written
+  FileAbstraction* pParentFile;      //< pointer to parent file
 };
 
 #endif

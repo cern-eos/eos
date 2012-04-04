@@ -27,13 +27,23 @@
 #include "common/Logging.hh"
 //------------------------------------------------------------------------------
 
+
+/*----------------------------------------------------------------------------*/
+/** 
+ * Construct a file abstraction object
+ * 
+ * @param id generated id value
+ * @param ino inode value
+ *
+ */
+/*----------------------------------------------------------------------------*/
 FileAbstraction::FileAbstraction(int id, unsigned long ino):
   idFile(id),
   nReferences(0),
   inode(ino),
-  nWriteBlocks(0),
   sizeWrites(0),
-  sizeReads(0)
+  sizeReads(0),
+  nWriteBlocks(0)
 {
   //max file size we can deal with is ~ 90TB
   firstPossibleKey = static_cast<long long>(1e14 * idFile);
@@ -43,68 +53,96 @@ FileAbstraction::FileAbstraction(int id, unsigned long ino):
                    idFile, firstPossibleKey, lastPossibleKey);
 
   errorsQueue = new ConcurrentQueue<error_type>();
-  pthread_mutex_init(&updMutex, NULL);
-  pthread_cond_init(&writesCond, NULL);
+  cUpdate = XrdSysCondVar(0);
 }
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ * Destructor
+ * 
+ */
+/*----------------------------------------------------------------------------*/
 FileAbstraction::~FileAbstraction()
 {
-  pthread_cond_destroy(&writesCond);
-  pthread_mutex_destroy(&updMutex);
   delete errorsQueue;
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return sum of the write and read blocks size in cache
+ *
+ */
+/*----------------------------------------------------------------------------*/
 size_t
 FileAbstraction::getSizeRdWr()
 {
   size_t size;
-  pthread_mutex_lock(&updMutex);
+  XrdSysCondVarHelper cHepler(cUpdate);
   size = sizeWrites + sizeReads;
-  pthread_mutex_unlock(&updMutex);
   return size;
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return size of write blocks in cache
+ *
+ */
+/*----------------------------------------------------------------------------*/
 size_t
 FileAbstraction::getSizeWrites()
 {
   size_t size;
-  pthread_mutex_lock(&updMutex);
+  XrdSysCondVarHelper cHepler(cUpdate);
   size = sizeWrites;
-  pthread_mutex_unlock(&updMutex);
   return size;
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return size of read blocks in cache
+ *
+ */
+/*----------------------------------------------------------------------------*/
 size_t
 FileAbstraction::getSizeReads()
 {
   size_t size;
-  pthread_mutex_lock(&updMutex);
+  XrdSysCondVarHelper cHepler(cUpdate);
   size = sizeReads;
-  pthread_mutex_unlock(&updMutex);
   return size;
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return number of write blocks in cache
+ *
+ */
+/*----------------------------------------------------------------------------*/
 long long int
 FileAbstraction::getNoWriteBlocks()
 {
   long long int n;
-  pthread_mutex_lock(&updMutex);
+  XrdSysCondVarHelper cHepler(cUpdate);
   n = nWriteBlocks;
-  pthread_mutex_unlock(&updMutex);
   return n;
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return value of the first possible key
+ *
+ */
+/*----------------------------------------------------------------------------*/
 long long
 FileAbstraction::getFirstPossibleKey() const
 {
@@ -112,7 +150,13 @@ FileAbstraction::getFirstPossibleKey() const
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return value of the last possible key
+ *
+ */
+/*----------------------------------------------------------------------------*/
 long long
 FileAbstraction::getLastPossibleKey() const
 {
@@ -120,66 +164,96 @@ FileAbstraction::getLastPossibleKey() const
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @param size added write size
+ * @param newBlock true if a new write block is added, false otherwise
+ *
+ */
+/*----------------------------------------------------------------------------*/
 void
 FileAbstraction::incrementWrites(size_t size, bool newBlock)
 {
-  pthread_mutex_lock(&updMutex);
+  XrdSysCondVarHelper cHepler(cUpdate);
   sizeWrites += size;
-  if (newBlock)
+  if (newBlock) {
     nWriteBlocks++;
-  pthread_mutex_unlock(&updMutex);
+  }
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @param size added read size
+ *
+ */
+/*----------------------------------------------------------------------------*/
 void
 FileAbstraction::incrementReads(size_t size)
 {
-  pthread_mutex_lock(&updMutex);
+  XrdSysCondVarHelper cHepler(cUpdate);
   sizeReads += size;
-  pthread_mutex_unlock(&updMutex);
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @param size freed write size
+ * @param fullBlock true if a whole write block is removed, false otherwise
+ *
+ */
+/*----------------------------------------------------------------------------*/
 void
 FileAbstraction::decrementWrites(size_t size, bool fullBlock)
 {
-  pthread_mutex_lock(&updMutex);
-  eos_static_debug("old size=%zu", sizeWrites);
+  cUpdate.Lock();
+  eos_static_debug("writes old size=%zu", sizeWrites);
   sizeWrites -= size;
-  if (fullBlock)
+  if (fullBlock) {
     nWriteBlocks--;
-  eos_static_debug("new size=%zu", sizeWrites);
+  }
+  eos_static_debug("writes new size=%zu", sizeWrites);
 
   if (sizeWrites == 0) {
     //notify pending reading processes
-    pthread_cond_signal(&writesCond);
+    cUpdate.Signal();
   }
 
-  pthread_mutex_unlock(&updMutex);
+  cUpdate.UnLock();
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @param size freed read size
+ *
+ */
+/*----------------------------------------------------------------------------*/
 void
 FileAbstraction::decrementReads(size_t size)
 {
-  pthread_mutex_lock(&updMutex);
+  XrdSysCondVarHelper cHepler(cUpdate);
   sizeReads -= size;
-  pthread_mutex_unlock(&updMutex);
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return number of references held to the current file object
+ *
+ */
+/*----------------------------------------------------------------------------*/
 int
 FileAbstraction::getNoReferences()
 {
   int no;
-  pthread_mutex_lock(&updMutex);
+  XrdSysCondVarHelper cHepler(cUpdate);
   no = nReferences;
-  pthread_mutex_unlock(&updMutex);
   return no;
 }
 
@@ -188,9 +262,8 @@ FileAbstraction::getNoReferences()
 void
 FileAbstraction::incrementNoReferences()
 {
-  pthread_mutex_lock(&updMutex);
+  XrdSysCondVarHelper cHepler(cUpdate);
   nReferences++;
-  pthread_mutex_unlock(&updMutex);
 }
 
 
@@ -198,9 +271,8 @@ FileAbstraction::incrementNoReferences()
 void
 FileAbstraction::decrementNoReferences()
 {
-  pthread_mutex_lock(&updMutex);
+  XrdSysCondVarHelper cHepler(cUpdate);
   nReferences--;
-  pthread_mutex_unlock(&updMutex);
 }
 
 
@@ -208,18 +280,26 @@ FileAbstraction::decrementNoReferences()
 void
 FileAbstraction::waitFinishWrites()
 {
-  pthread_mutex_lock(&updMutex);
+  cUpdate.Lock();
   eos_static_debug("sizeWrites=%zu", sizeWrites);
 
   if (sizeWrites != 0) {
-    pthread_cond_wait(&writesCond, &updMutex);
+    cUpdate.Wait();
   }
 
-  pthread_mutex_unlock(&updMutex);
+  cUpdate.UnLock();
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @param offset offset
+ *
+ * @return newly generated key 
+ *
+ */
+/*----------------------------------------------------------------------------*/
 long long int
 FileAbstraction::generateBlockKey(off_t offset)
 {
@@ -228,14 +308,25 @@ FileAbstraction::generateBlockKey(off_t offset)
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @param strongConstraint 
+ *
+ * @return true if file object is still in use (there are blocks in cache belonging
+ * to it
+ *
+ */
+/*----------------------------------------------------------------------------*/
 bool
 FileAbstraction::isInUse(bool strongConstraint)
 {
   bool retVal = false;
-  pthread_mutex_lock(&updMutex);
+  XrdSysCondVarHelper cHepler(cUpdate);
+  
   eos_static_debug("sizeReads=%zu, sizeWrites=%zu, nReferences=%i",
-                   sizeReads, sizeWrites, nReferences);
+                   sizeReads, sizeWrites, nReferences);\
+  
   if (strongConstraint) {
     if ((sizeReads + sizeWrites != 0) || (nReferences >= 1)) {
       retVal =  true;
@@ -245,11 +336,16 @@ FileAbstraction::isInUse(bool strongConstraint)
       retVal =  true;
     }
   }
-  pthread_mutex_unlock(&updMutex);
   return retVal;
 }
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return id of the file object
+ *
+ */
+/*----------------------------------------------------------------------------*/
 int
 FileAbstraction::getId() const
 {
@@ -257,14 +353,27 @@ FileAbstraction::getId() const
 }
 
 
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return handler to the queue of errors
+ *
+ */
+/*----------------------------------------------------------------------------*/
 ConcurrentQueue<error_type>&
 FileAbstraction::getErrorQueue() const
 {
   return *errorsQueue;
 }
 
-//------------------------------------------------------------------------------
+
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * @return inode value
+ *
+ */
+/*----------------------------------------------------------------------------*/
 unsigned long
 FileAbstraction::getInode() const
 {

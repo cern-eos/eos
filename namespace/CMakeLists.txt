@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ /usr/include/xrootd/ /usr/include/ ${SPARSEHASH_INCLUDE_DIR} )
+include_directories( ../ /usr/include/xrootd/ /usr/include/ ${SPARSEHASH_INCLUDE_DIR} ${XROOTD_INCLUDE_DIR})
 
 if(CPPUNIT_FOUND)
 add_subdirectory( tests )
