@@ -1807,7 +1807,7 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
       std::map<std::string, std::set<eos::common::FileId::fileid_t> >::const_iterator icit;
       for (icit = icset->begin(); icit != icset->end(); icit++) {
 	// loop over all tags
-	if ( ( (tag != "mem_n") && (tag != "d_sync_n") && (tag != "m_sync_n") ) &&  
+	if ( ( (icit->first != "mem_n") && (icit->first != "d_sync_n") && (icit->first != "m_sync_n") ) &&  
 	     ( (tag == "*") || ( (tag.find(icit->first.c_str()) != STR_NPOS)) ) ) {
 	  char stag[4096];
 	  snprintf(stag,sizeof(stag)-1,"%s@%lu", icit->first.c_str(), (unsigned long )gOFS.Storage->fileSystemsVector[i]->GetId());
