@@ -149,11 +149,11 @@ private:
   //! Percentage of the total cache size which represents the upper limit
   //! to which we accept new write requests, after this point notifications
   //! to threads that want to submit new req are delayed
-  static const double maxPercentWrites = 0.90;
+  static const double maxPercentWrites;
 
   //! Percentage from the size of the cache to which the allocated total
   //! size of the blocks used in caching can grow
-  static const double maxPercentSizeBlocks = 1.15;
+  static const double maxPercentSizeBlocks;
 
   XrdFileCache*  mgmCache;            //< upper mgm. layer of the cache. 
 

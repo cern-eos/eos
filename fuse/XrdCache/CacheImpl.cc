@@ -25,6 +25,9 @@
 #include "CacheImpl.hh"
 //------------------------------------------------------------------------------
 
+const double CacheImpl::maxPercentWrites = 0.90;
+const double CacheImpl::maxPercentSizeBlocks = 1.15;
+
 /*----------------------------------------------------------------------------*/
 /** 
  * Construct the cache framework object
