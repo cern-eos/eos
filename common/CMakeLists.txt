@@ -59,7 +59,8 @@ add_library (eosCommon-Static STATIC
 
 target_link_libraries (eosCommon XrdMqClient XrdUtils XrdClient crypto uuid curses z attr )
 
-target_link_libraries (eosCommon-Static )
+
+target_link_libraries (eosCommon-Static XrdMqClient XrdUtils XrdClient crypto uuid curses z attr )
 #depends on XrdMqClient-Static libcrypto.a libuuid.a libcurses.a pthread dl z)
 
 if (Linux) 

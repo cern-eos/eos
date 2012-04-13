@@ -122,12 +122,12 @@ add_executable( eos-fst-fsck
 
 set_target_properties( eosfstcp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 
-target_link_libraries ( FstLoad XrdUtils dl )
+target_link_libraries ( FstLoad XrdUtils dl rt )
 target_link_libraries ( eos-check-blockxs eosCommon )
 target_link_libraries ( eos-compute-blockxs eosCommon )
-target_link_libraries ( eos-scan-fs eosCommon ) 
+target_link_libraries ( eos-scan-fs eosCommon rt ) 
 target_link_libraries ( eos-adler32 eosCommon ) 
-target_link_libraries ( eosfstcp XrdPosix ssl uuid )
+target_link_libraries ( eosfstcp XrdUtils XrdPosix XrdCrypto ${OPENSSL_LIBRARIES} uuid )
 target_link_libraries ( eos-fst-fsck XrdClient uuid eosCommon-Static crypto)
 target_link_libraries ( eos-raid-recover eosCommon)
 
