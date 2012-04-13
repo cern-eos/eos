@@ -1,5 +1,5 @@
 /************************************************************************
- * EOS - the CERN Disk Storage System                                   *
+ * eos - the cern disk Storage System                                   *
  * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
@@ -480,7 +480,7 @@ namespace eos
     uint16_t    *magic;
     uint16_t    *size;
     uint32_t    *chkSum1;
-    uint64_t    *seq;
+//    uint64_t    *seq;
     uint32_t     chkSum2;
     uint8_t     *type;
     char         buffer[20];
@@ -506,7 +506,7 @@ namespace eos
         magic   = (uint16_t*)(buffer);
         size    = (uint16_t*)(buffer+2);
         chkSum1 = (uint32_t*)(buffer+4);
-        seq     = (uint64_t*)(buffer+8);
+//        seq     = (uint64_t*)(buffer+8);
         type    = (uint8_t*) (buffer+16);
 
         //------------------------------------------------------------------------
