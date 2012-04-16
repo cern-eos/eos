@@ -68,7 +68,7 @@ static void createRandomLog( const std::string       &path,
   //----------------------------------------------------------------------------
   for( uint64_t i = 1; i <= numUnique; ++i )
   {
-    std::pair<int, bool> mod = std::make_pair( 1+random()%maxUpdates, false );
+//    std::pair<int, bool> mod = std::make_pair( 1+random()%maxUpdates, false );
     mods.insert( std::make_pair( i, std::make_pair(1 + random()%5, false ) ) );
   }
 
