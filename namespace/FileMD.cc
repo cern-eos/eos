@@ -120,14 +120,30 @@ namespace eos
   }
 
   //----------------------------------------------------------------------------
+  // Remove all locations that were previously unlinked
+  //----------------------------------------------------------------------------
+  void FileMD::removeAllLocations()
+  {
+    std::vector<location_t>::reverse_iterator it;
+    while( (it = pUnlinkedLocation.rbegin()) != pUnlinkedLocation.rend() )
+    {
+      pUnlinkedLocation.pop_back();
+      IFileMDChangeListener::Event e( this,
+                                      IFileMDChangeListener::LocationRemoved,
+                                      *it );
+      pFileMDSvc->notifyListeners( &e );
+    }
+  }
+
+  //----------------------------------------------------------------------------
   // Unlink location
   //----------------------------------------------------------------------------
   void FileMD::unlinkLocation( location_t location )
   {
     std::vector<location_t>::iterator it;
-    for ( it=pLocation.begin() ; it < pLocation.end(); it++ )
+    for( it=pLocation.begin() ; it < pLocation.end(); it++ )
     {
-      if (*it == location)
+      if(*it == location)
       {
         pUnlinkedLocation.push_back( *it );
         pLocation.erase( it );
@@ -145,16 +161,17 @@ namespace eos
   //----------------------------------------------------------------------------
   void FileMD::unlinkAllLocations()
   {
-    std::vector<location_t>::iterator it;
-    for( it = pLocation.begin(); it < pLocation.end(); ++it )
+    std::vector<location_t>::reverse_iterator it;
+    while( (it = pLocation.rbegin()) != pLocation.rend() )
     {
-      pUnlinkedLocation.push_back( *it );
+      location_t loc = *it;
+      pUnlinkedLocation.push_back( loc );
+      pLocation.pop_back();
       IFileMDChangeListener::Event e( this,
                                       IFileMDChangeListener::LocationUnlinked,
-                                      *it );
+                                      loc );
       pFileMDSvc->notifyListeners( &e );
     }
-    pLocation.clear();
   }
 
   //------------------------------------------------------------------------

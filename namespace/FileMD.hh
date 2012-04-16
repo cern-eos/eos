@@ -257,17 +257,17 @@ namespace eos
 
       //------------------------------------------------------------------------
       //! Start iterator for unlinked locations
-      //------------------------------------------------------------------------ 
+      //------------------------------------------------------------------------
       LocationVector::const_iterator unlinkedLocationsBegin() const
       {
         return pUnlinkedLocation.begin();
       }
     
-      //------------------------------------------------------------------------ 
-      //! End iterator for unlinked locations 
-      //------------------------------------------------------------------------ 
-      LocationVector::const_iterator unlinkedLocationsEnd() const 
-      { 
+      //------------------------------------------------------------------------
+      //! End iterator for unlinked locations
+      //------------------------------------------------------------------------
+      LocationVector::const_iterator unlinkedLocationsEnd() const
+      {
         return pUnlinkedLocation.end();
       }
 
@@ -295,6 +295,11 @@ namespace eos
       //! Remove location that was previously unlinked
       //------------------------------------------------------------------------
       void removeLocation( location_t location );
+
+      //------------------------------------------------------------------------
+      //! Remove all locations that were previously unlinked
+      //------------------------------------------------------------------------
+      void removeAllLocations();
 
       //------------------------------------------------------------------------
       //! Unlink location
