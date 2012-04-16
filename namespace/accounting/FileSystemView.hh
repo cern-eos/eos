@@ -46,7 +46,7 @@ namespace eos
       // and the memory overhead is not visible in a million file namespace.
       //------------------------------------------------------------------------
       typedef google::dense_hash_set<FileMD::id_t> FileList;
-      typedef FileList::iterator                    FileIterator;
+      typedef FileList::iterator                   FileIterator;
 
       //------------------------------------------------------------------------
       //! Constructor
@@ -78,6 +78,12 @@ namespace eos
         throw( MDException );
 
       //------------------------------------------------------------------------
+      //! Get a list of unlinked but not deleted files
+      //------------------------------------------------------------------------
+      std::pair<FileIterator, FileIterator> getNoReplicaFiles()
+        throw( MDException );
+
+      //------------------------------------------------------------------------
       //! Return reference to a list of files
       //! BEWARE: any replica change may invalidate iterators
       //------------------------------------------------------------------------
@@ -100,6 +106,24 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
+      //! Get list of files without replicas
+      //! BEWARE: any replica change may invalidate iterators
+      //------------------------------------------------------------------------
+      FileList &getNoReplicasFileList()
+      {
+        return pNoReplicas;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get list of files without replicas
+      //! BEWARE: any replica change may invalidate iterators
+      //------------------------------------------------------------------------
+      const FileList &getNoReplicasFileList() const
+      {
+        return pNoReplicas;
+      }
+
+      //------------------------------------------------------------------------
       //! Initizalie
       //------------------------------------------------------------------------
       void initialize();
@@ -112,6 +136,7 @@ namespace eos
     private:
       std::vector<FileList> pFiles;
       std::vector<FileList> pUnlinkedFiles;
+      FileList              pNoReplicas;
   };
 }
 

@@ -48,6 +48,8 @@ namespace eos
   //----------------------------------------------------------------------------
   FileSystemView::FileSystemView()
   {
+    pNoReplicas.set_deleted_key( 0 );
+    pNoReplicas.set_empty_key(0xffffffffffffffffll);
   }
 
   //----------------------------------------------------------------------------
@@ -58,12 +60,28 @@ namespace eos
     switch( e->action )
     {
       //------------------------------------------------------------------------
+      // New file has been created
+      //------------------------------------------------------------------------
+      case IFileMDChangeListener::Created:
+        pNoReplicas.insert( e->file->getId() );
+        break;
+
+      //------------------------------------------------------------------------
+      // File has been deleted
+      //------------------------------------------------------------------------
+      case IFileMDChangeListener::Deleted:
+        pNoReplicas.erase( e->fileId );
+        break;
+
+      //------------------------------------------------------------------------
       // Add location
       //------------------------------------------------------------------------
       case IFileMDChangeListener::LocationAdded:
         resize( pFiles, e->location+1 );
         resize( pUnlinkedFiles, e->location+1 );
         pFiles[e->location].insert( e->file->getId() );
+        if( e->file->getNumLocation() == 1 )
+          pNoReplicas.erase( e->file->getId() );
         break;
 
       //------------------------------------------------------------------------
@@ -86,6 +104,8 @@ namespace eos
         if( e->location >= pUnlinkedFiles.size() )
           return; // incostency, we should probably crash here...
         pUnlinkedFiles[e->location].erase( e->file->getId() );
+        if( !e->file->getNumUnlinkedLocation() && !e->file->getNumLocation() )
+          pNoReplicas.insert( e->file->getId() );
         break;
 
       //------------------------------------------------------------------------
@@ -123,6 +143,8 @@ namespace eos
       resize( pUnlinkedFiles, *it+1 );
       pUnlinkedFiles[*it].insert( obj->getId() );
     }
+    if( obj->getNumLocation() == 0 && obj->getNumUnlinkedLocation() == 0 )
+      pNoReplicas.insert( obj->getId() );
   }
 
   //----------------------------------------------------------------------------
@@ -160,6 +182,15 @@ namespace eos
                            pUnlinkedFiles[location].end() );
   }
 
+  //----------------------------------------------------------------------------
+  // Get files with no replicas
+  //----------------------------------------------------------------------------
+  std::pair<FileSystemView::FileIterator, FileSystemView::FileIterator>
+  FileSystemView::getNoReplicaFiles()
+    throw( MDException )
+  {
+    return std::make_pair( pNoReplicas.begin(), pNoReplicas.end() );
+  }
 
   //----------------------------------------------------------------------------
   // Return reference to a list of files
@@ -208,5 +239,6 @@ namespace eos
   {
     pFiles.clear();
     pUnlinkedFiles.clear();
+    pNoReplicas.clear();
   }
 }
