@@ -117,6 +117,9 @@ void FileSystemViewTest::fileSystemViewTest()
     eos::ContainerMD *c = view->createContainer( "/test/embed/embed2", true );
     view->createContainer( "/test/embed/embed3", true );
 
+    //--------------------------------------------------------------------------
+    // Create some files
+    //--------------------------------------------------------------------------
     for( int i = 0; i < 1000; ++i )
     {
       std::ostringstream o;
@@ -136,6 +139,16 @@ void FileSystemViewTest::fileSystemViewTest()
     }
 
     //--------------------------------------------------------------------------
+    // Create some file without replicas assigned
+    //--------------------------------------------------------------------------
+    for( int i = 0; i < 500; ++i )
+    {
+      std::ostringstream o;
+      o << "noreplicasfile" << i;
+      view->createFile( std::string("/test/embed/embed1/") + o.str() );
+    }
+
+    //--------------------------------------------------------------------------
     // Sum up all the locations
     //--------------------------------------------------------------------------
     size_t numReplicas = countReplicas( fsView );
@@ -144,6 +157,11 @@ void FileSystemViewTest::fileSystemViewTest()
     size_t numUnlinked = countUnlinked( fsView );
     CPPUNIT_ASSERT( numUnlinked == 0 );
 
+    CPPUNIT_ASSERT( fsView->getNoReplicasFileList().size() == 500 );
+
+    //--------------------------------------------------------------------------
+    // Unlinke replicas
+    //--------------------------------------------------------------------------
     for( int i = 100; i < 500; ++i )
     {
       std::ostringstream o;
@@ -178,6 +196,9 @@ void FileSystemViewTest::fileSystemViewTest()
     numUnlinked = countUnlinked( fsView );
     CPPUNIT_ASSERT( numUnlinked == 2800 );
 
+    //--------------------------------------------------------------------------
+    // Restart
+    //--------------------------------------------------------------------------
     view->finalize();
     fsView->finalize();
     view->initialize();
@@ -189,6 +210,20 @@ void FileSystemViewTest::fileSystemViewTest()
     numUnlinked = countUnlinked( fsView );
     CPPUNIT_ASSERT( numUnlinked == 2800 );
 
+    CPPUNIT_ASSERT( fsView->getNoReplicasFileList().size() == 500 );
+    eos::FileMD *f = view->getFile( std::string("/test/embed/embed1/file1") );
+    f->unlinkAllLocations();
+    numReplicas = countReplicas( fsView );
+    CPPUNIT_ASSERT( numReplicas == 17195 );
+    numUnlinked = countUnlinked( fsView );
+    CPPUNIT_ASSERT( numUnlinked == 2805 );
+    f->removeAllLocations();
+    numUnlinked = countUnlinked( fsView );
+    CPPUNIT_ASSERT( numUnlinked == 2800 );
+    view->updateFileStore( f );
+    CPPUNIT_ASSERT( fsView->getNoReplicasFileList().size() == 501 );
+    view->removeFile( f );
+    CPPUNIT_ASSERT( fsView->getNoReplicasFileList().size() == 500 );
     view->finalize();
     fsView->finalize();
 
