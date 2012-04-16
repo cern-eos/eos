@@ -32,12 +32,12 @@
 //------------------------------------------------------------------------------
 class OtherTests: public CppUnit::TestCase
 {
-public:
-  CPPUNIT_TEST_SUITE( OtherTests );
-  CPPUNIT_TEST( pathSplitterTest );
-  CPPUNIT_TEST_SUITE_END();
+  public:
+    CPPUNIT_TEST_SUITE( OtherTests );
+    CPPUNIT_TEST( pathSplitterTest );
+    CPPUNIT_TEST_SUITE_END();
 
-  void pathSplitterTest();
+    void pathSplitterTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( OtherTests );
@@ -51,12 +51,12 @@ bool checkPath( const std::vector<std::string> &elements, size_t depth )
     return false;
 
   for( size_t i = 1; i <= depth; ++i )
-    {
-      std::ostringstream o;
-      o << "test" << i;
-      if( elements[i-1] != o.str() )
-        return false;
-    }
+  {
+    std::ostringstream o;
+    o << "test" << i;
+    if( elements[i-1] != o.str() )
+      return false;
+  }
   return true;
 }
 

@@ -48,23 +48,23 @@ namespace eos
     //--------------------------------------------------------------------------
     IdMap::iterator it;
     for( it = pIdMap.begin(); it != pIdMap.end(); ++it )
-      {
-        Buffer buffer;
-        pChangeLog->readRecord( it->second.logOffset, buffer );
-        FileMD *file = new FileMD( 0, this );
-        file->deserialize( buffer );
-        it->second.ptr = file;
-        ListenerList::iterator it;
-        for( it = pListeners.begin(); it != pListeners.end(); ++it )
-          (*it)->fileMDRead( file );
-      }
+    {
+      Buffer buffer;
+      pChangeLog->readRecord( it->second.logOffset, buffer );
+      FileMD *file = new FileMD( 0, this );
+      file->deserialize( buffer );
+      it->second.ptr = file;
+      ListenerList::iterator it;
+      for( it = pListeners.begin(); it != pListeners.end(); ++it )
+        (*it)->fileMDRead( file );
+    }
   }
 
   //------------------------------------------------------------------------
   // Configure the file service
   //------------------------------------------------------------------------
   void ChangeLogFileMDSvc::configure(
-                                     std::map<std::string, std::string> &config )
+                             std::map<std::string, std::string> &config )
     throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -73,11 +73,11 @@ namespace eos
     std::map<std::string, std::string>::iterator it;
     it = config.find( "changelog_path" );
     if( it == config.end() )
-      {
-        MDException e( EINVAL );
-        e.getMessage() << "changelog_path not specified" ;
-        throw e;
-      }
+    {
+      MDException e( EINVAL );
+      e.getMessage() << "changelog_path not specified" ;
+      throw e;
+    }
     pChangeLogPath = it->second;
   }
 
@@ -100,11 +100,11 @@ namespace eos
   {
     IdMap::iterator it = pIdMap.find( id );
     if( it == pIdMap.end() )
-      {
-        MDException e( ENOENT );
-        e.getMessage() << "File #" << id << " not found";
-        throw e;
-      }
+    {
+      MDException e( ENOENT );
+      e.getMessage() << "File #" << id << " not found";
+      throw e;
+    }
     return it->second.ptr;
   }
 
@@ -128,12 +128,12 @@ namespace eos
     //--------------------------------------------------------------------------
     IdMap::iterator it = pIdMap.find( obj->getId() );
     if( it == pIdMap.end() )
-      {
-        MDException e( ENOENT );
-        e.getMessage() << "File #" << obj->getId() << " not found. ";
-        e.getMessage() << "The object was not created in this store!";
-        throw e;
-      }
+    {
+      MDException e( ENOENT );
+      e.getMessage() << "File #" << obj->getId() << " not found. ";
+      e.getMessage() << "The object was not created in this store!";
+      throw e;
+    }
 
     //--------------------------------------------------------------------------
     // Store the file in the changelog and notify the listener
@@ -165,12 +165,12 @@ namespace eos
     //--------------------------------------------------------------------------
     IdMap::iterator it = pIdMap.find( fileId );
     if( it == pIdMap.end() )
-      {
-        MDException e( ENOENT );
-        e.getMessage() << "File #" << fileId << " not found. ";
-        e.getMessage() << "The object was not created in this store!";
-        throw e;
-      }
+    {
+      MDException e( ENOENT );
+      e.getMessage() << "File #" << fileId << " not found. ";
+      e.getMessage() << "The object was not created in this store!";
+      throw e;
+    }
 
     //--------------------------------------------------------------------------
     // Store the file in the changelog and notify the listener
@@ -212,25 +212,25 @@ namespace eos
     // Update
     //--------------------------------------------------------------------------
     if( type == UPDATE_RECORD_MAGIC )
-      {
-        FileMD::id_t id;
-        buffer.grabData( 0, &id, sizeof( FileMD::id_t ) );
-        pIdMap[id] = DataInfo( offset, 0 );
-        if( pLargestId < id ) pLargestId = id;
-      }
+    {
+      FileMD::id_t id;
+      buffer.grabData( 0, &id, sizeof( FileMD::id_t ) );
+      pIdMap[id] = DataInfo( offset, 0 );
+      if( pLargestId < id ) pLargestId = id;
+    }
 
     //--------------------------------------------------------------------------
     // Deletion
     //--------------------------------------------------------------------------
     else if( type == DELETE_RECORD_MAGIC )
-      {
-        FileMD::id_t id;
-        buffer.grabData( 0, &id, sizeof( FileMD::id_t ) );
-        IdMap::iterator it = pIdMap.find( id );
-        if( it != pIdMap.end() )
-          pIdMap.erase( it );
-        if( pLargestId < id ) pLargestId = id;
-      }
+    {
+      FileMD::id_t id;
+      buffer.grabData( 0, &id, sizeof( FileMD::id_t ) );
+      IdMap::iterator it = pIdMap.find( id );
+      if( it != pIdMap.end() )
+        pIdMap.erase( it );
+      if( pLargestId < id ) pLargestId = id;
+    }
   }
 
 }

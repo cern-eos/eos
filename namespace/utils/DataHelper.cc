@@ -45,30 +45,30 @@ namespace eos
       return;
 
     if( uid != 0 )
-      {
-        MDException e( EFAULT );
-        e.getMessage() << "Only root can change ownership";
-        throw e;
-      }
+    {
+      MDException e( EFAULT );
+      e.getMessage() << "Only root can change ownership";
+      throw e;
+    }
 
     //--------------------------------------------------------------------------
     // Get the thing done
     //--------------------------------------------------------------------------
     struct stat st;
     if( stat( source.c_str(), &st ) != 0 )
-      {
-        MDException e( errno );
-        e.getMessage() << "Unable to stat source: " << source;
-        throw e;
-      }
+    {
+      MDException e( errno );
+      e.getMessage() << "Unable to stat source: " << source;
+      throw e;
+    }
 
     if( chown( target.c_str(), st.st_uid, st.st_gid ) != 0 )
-      {
-        MDException e( errno );
-        e.getMessage() << "Unable to change the ownership of the target: ";
-        e.getMessage() << target;
-        throw e;
-      }
+    {
+      MDException e( errno );
+      e.getMessage() << "Unable to change the ownership of the target: ";
+      e.getMessage() << target;
+      throw e;
+    }
   }
 }
 

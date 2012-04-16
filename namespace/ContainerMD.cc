@@ -98,14 +98,14 @@ namespace eos
     buffer.putData( &len, sizeof( len ) );
     XAttrMap::iterator it;
     for( it = pXAttrs.begin(); it != pXAttrs.end(); ++it )
-      {
-        uint16_t strLen = it->first.length()+1;
-        buffer.putData( &strLen, sizeof( strLen ) );
-        buffer.putData( it->first.c_str(), strLen );
-        strLen = it->second.length()+1;
-        buffer.putData( &strLen, sizeof( strLen ) );
-        buffer.putData( it->second.c_str(), strLen );
-      }
+    {
+      uint16_t strLen = it->first.length()+1;
+      buffer.putData( &strLen, sizeof( strLen ) );
+      buffer.putData( it->first.c_str(), strLen );
+      strLen = it->second.length()+1;
+      buffer.putData( &strLen, sizeof( strLen ) );
+      buffer.putData( it->second.c_str(), strLen );
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -134,15 +134,15 @@ namespace eos
     len = 0;
     offset = buffer.grabData( offset, &len, sizeof( len ) );
     for( uint16_t i = 0; i < len; ++i )
-      {
-        offset = buffer.grabData( offset, &len1, sizeof( len1 ) );
-        char strBuffer1[len1];
-        offset = buffer.grabData( offset, strBuffer1, len1 );
-        offset = buffer.grabData( offset, &len2, sizeof( len2 ) );
-        char strBuffer2[len2];
-        offset = buffer.grabData( offset, strBuffer2, len2 );
-        pXAttrs.insert( std::make_pair <char*, char*>( strBuffer1, strBuffer2 ) );
-      }
+    {
+      offset = buffer.grabData( offset, &len1, sizeof( len1 ) );
+      char strBuffer1[len1];
+      offset = buffer.grabData( offset, strBuffer1, len1 );
+      offset = buffer.grabData( offset, &len2, sizeof( len2 ) );
+      char strBuffer2[len2];
+      offset = buffer.grabData( offset, strBuffer2, len2 );
+      pXAttrs.insert( std::make_pair <char*, char*>( strBuffer1, strBuffer2 ) );
+    }
   };
 
   //----------------------------------------------------------------------------
@@ -203,12 +203,12 @@ namespace eos
   bool ContainerMD::access( uid_t uid, gid_t gid, int flags )
   {
     // root can do everything
-    if ( uid == 0 )
+    if( uid == 0 )
       return true;
 
     // daemon can read everything
-    if  ( ( uid == 2 ) && 
-	  (!(flags & W_OK)) ) 
+    if( (uid == 2) &&
+        (!(flags & W_OK)) )
       return true;
 
     //--------------------------------------------------------------------------
@@ -223,16 +223,16 @@ namespace eos
     // Check the perms
     //--------------------------------------------------------------------------
     if( uid == pCUid )
-      {
-        char user = convertModetUser( pMode );
-        return checkPerms( user, convFlags );
-      }
+    {
+      char user = convertModetUser( pMode );
+      return checkPerms( user, convFlags );
+    }
 
     if( gid == pCGid )
-      {
-        char group = convertModetGroup( pMode );
-        return checkPerms( group, convFlags );
-      }
+    {
+      char group = convertModetGroup( pMode );
+      return checkPerms( group, convFlags );
+    }
 
     char other = convertModetOther( pMode );
     return checkPerms( other, convFlags );

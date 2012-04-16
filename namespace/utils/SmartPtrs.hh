@@ -34,26 +34,26 @@ namespace eos
   //----------------------------------------------------------------------------
   class FileSmartPtr
   {
-  public:
-    FileSmartPtr( int fd = -1 ): pFD( fd ) {}
+    public:
+      FileSmartPtr( int fd = -1 ): pFD( fd ) {}
 
-    ~FileSmartPtr()
-    {
-      if( pFD != -1 )
-        close( pFD );
-    }
+      ~FileSmartPtr()
+      {
+        if( pFD != -1 )
+          close( pFD );
+      }
 
-    void grab( int fd )
-    {
-      pFD = fd;
-    }
+      void grab( int fd )
+      {
+        pFD = fd;
+      }
 
-    void release()
-    {
-      pFD = -1;
-    }
-  private:
-    int pFD;
+      void release()
+      {
+        pFD = -1;
+      }
+    private:
+      int pFD;
   };
 
   //----------------------------------------------------------------------------
@@ -61,26 +61,26 @@ namespace eos
   //----------------------------------------------------------------------------
   class CSmartPtr
   {
-  public:
-    CSmartPtr( void *ptr = 0 ): pPtr( ptr ) {}
+    public:
+      CSmartPtr( void *ptr = 0 ): pPtr( ptr ) {}
 
-    ~CSmartPtr()
-    {
-      if( pPtr != 0 )
-        free( pPtr );
-    }
+      ~CSmartPtr()
+      {
+        if( pPtr != 0 )
+          free( pPtr );
+      }
 
-    void grab( void *ptr )
-    {
-      pPtr = ptr;
-    }
+      void grab( void *ptr )
+      {
+        pPtr = ptr;
+      }
 
-    void release()
-    {
-      pPtr = 0;
-    }
-  private:
-    void *pPtr;
+      void release()
+      {
+        pPtr = 0;
+      }
+    private:
+      void *pPtr;
   };
 }
 

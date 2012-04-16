@@ -33,12 +33,12 @@
 //------------------------------------------------------------------------------
 class ChangeLogFileMDSvcTest: public CppUnit::TestCase
 {
-public:
-  CPPUNIT_TEST_SUITE( ChangeLogFileMDSvcTest );
-  CPPUNIT_TEST( reloadTest );
-  CPPUNIT_TEST_SUITE_END();
+  public:
+    CPPUNIT_TEST_SUITE( ChangeLogFileMDSvcTest );
+    CPPUNIT_TEST( reloadTest );
+    CPPUNIT_TEST_SUITE_END();
 
-  void reloadTest();
+    void reloadTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( ChangeLogFileMDSvcTest );
