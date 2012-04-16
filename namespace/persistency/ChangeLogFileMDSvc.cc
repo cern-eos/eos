@@ -115,6 +115,8 @@ namespace eos
   {
     FileMD *file = new FileMD( pFirstFreeId++, this );
     pIdMap.insert( std::make_pair( file->getId(), DataInfo( 0, file ) ) );
+    IFileMDChangeListener::Event e( file, IFileMDChangeListener::Created );
+    notifyListeners( &e );
     return file;
   }
 
@@ -205,8 +207,9 @@ namespace eos
   //----------------------------------------------------------------------------
   // Scan the changelog and put the appropriate data in the lookup table
   //----------------------------------------------------------------------------
-  void ChangeLogFileMDSvc::FileMDScanner::processRecord(
-                                                        uint64_t offset, char type, const Buffer &buffer )
+  void ChangeLogFileMDSvc::FileMDScanner::processRecord( uint64_t      offset,
+                                                         char          type,
+                                                         const Buffer &buffer )
   {
     //--------------------------------------------------------------------------
     // Update
