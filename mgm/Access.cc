@@ -30,30 +30,38 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-std::set<uid_t> Access::gBannedUsers;
-std::set<gid_t> Access::gBannedGroups;
-std::set<std::string> Access::gBannedHosts;
+/*----------------------------------------------------------------------------*/
+std::set<uid_t> Access::gBannedUsers;       //! singleton set for banned user IDs
+std::set<gid_t> Access::gBannedGroups;      //! singleton set for banned group IDS
+std::set<std::string> Access::gBannedHosts; //! singleton set for banned host names
 
-std::set<uid_t> Access::gAllowedUsers;
-std::set<gid_t> Access::gAllowedGroups;
-std::set<std::string> Access::gAllowedHosts;
+std::set<uid_t> Access::gAllowedUsers;      //! singleton set for allowed user IDs
+std::set<gid_t> Access::gAllowedGroups;     //! singleton set for allowed group IDs
+std::set<std::string> Access::gAllowedHosts;//! singleton set for allowed host names
 
-std::map<std::string, std::string> Access::gRedirectionRules;
-std::map<std::string, std::string> Access::gStallRules;
+std::map<std::string, std::string> Access::gRedirectionRules; //! singleton map for redirection rules
+std::map<std::string, std::string> Access::gStallRules;       //! singleton map for stall rules
 
-std::map<uid_t, std::string> Access::gUserRedirection;
-std::map<gid_t, std::string> Access::gGroupRedirection;
+std::map<uid_t, std::string> Access::gUserRedirection;  //! singleton map for UID based redirection (not used yet)
+std::map<gid_t, std::string> Access::gGroupRedirection; //! singleton map for GID based redirection (not used yet)
 
-eos::common::RWMutex Access::gAccessMutex; // protects all static set's and maps in Access
+eos::common::RWMutex Access::gAccessMutex;  //! global rw mutex protecting all static singletons
 
-const char* Access::gUserKey  = "BanUsers";
-const char* Access::gGroupKey = "BanGroups";
-const char* Access::gHostKey  = "BanHosts";
+/*----------------------------------------------------------------------------*/
+const char* Access::gUserKey  = "BanUsers";  //! constant used in the configuration store
+const char* Access::gGroupKey = "BanGroups"; //! constant used in the configuration store
+const char* Access::gHostKey  = "BanHosts";  //! constant used in the configuration store
 
-const char* Access::gAllowedUserKey  = "AllowedUsers";
-const char* Access::gAllowedGroupKey = "AllowedGroups";
-const char* Access::gAllowedHostKey  = "AllowedHosts";
+const char* Access::gAllowedUserKey  = "AllowedUsers";  //! constant used in the configuration store
+const char* Access::gAllowedGroupKey = "AllowedGroups"; //! constant used in the configuration store
+const char* Access::gAllowedHostKey  = "AllowedHosts";  //! constant used in the configuration store
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Static Function to reset all singleton objects defining access rules
+ * 
+ */
+/*----------------------------------------------------------------------------*/
 
 void
 Access::Reset() {
@@ -69,6 +77,13 @@ Access::Reset() {
   Access::gUserRedirection.clear();
   Access::gGroupRedirection.clear();
 }
+
+/*----------------------------------------------------------------------------*/
+/** 
+ * Static functino to retrieve the access configuration from the global configuration and apply to the static singleton rules
+ * 
+ */
+/*----------------------------------------------------------------------------*/
 
 void
 Access::ApplyAccessConfig()
@@ -141,6 +156,14 @@ Access::ApplyAccessConfig()
   }
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Static function to store all defined rules in the global configuration
+ * 
+ * 
+ * @return true if successful, otherwise false
+ */
+/*----------------------------------------------------------------------------*/
 
 bool
 Access::StoreAccessConfig() 

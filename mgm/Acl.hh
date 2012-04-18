@@ -33,35 +33,61 @@
 #include <sys/types.h>
 #include <string>
 /*----------------------------------------------------------------------------*/
+/**
+ * @file   Acl.hh
+ * 
+ * @brief  Class providing ACL interpretation and access control functions
+ * 
+ * ACL rules used in the constructor or set function are strings with the following format:
+ * rule='u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)}'
+ */
 
 EOSMGMNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+//! Class implementing access control list interpretation
+/*----------------------------------------------------------------------------*/
 class Acl {
-  bool canRead;
-  bool canWrite;
-  bool canWriteOnce;
-  bool canBrowse;
-  bool canChmod;
-  bool canNotDelete;
-  bool canDelete;
-  bool hasAcl;
-  bool hasEgroup;
+  bool canRead;       //< acl allows read access
+  bool canWrite;      //< acl allows write access
+  bool canWriteOnce;  //< acl allows write-once access
+  bool canBrowse;     //< acl allows browsing
+  bool canChmod;      //< acl allows mode change
+  bool canNotDelete;  //< acl forbids deletion
+  bool canDelete;     //< acl allows deletion
+  bool hasAcl;        //< acl is valid
+  bool hasEgroup;     //< acl contains egroup rule
 
 public:
-
+  /*----------------------------------------------------------------------------*/
+  //! Default Constructor
+  /*----------------------------------------------------------------------------*/
   Acl() { canRead = false; canWrite = false; canWriteOnce = false; canBrowse = false; hasAcl = false; hasEgroup = false;}
 
+  /*----------------------------------------------------------------------------*/
+  //! Constructor
+  /*----------------------------------------------------------------------------*/
   Acl(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualIdentity &vid);
+
+  /*----------------------------------------------------------------------------*/
+  //! Destructor
+  /*----------------------------------------------------------------------------*/
   ~Acl(){};
   
+  /*----------------------------------------------------------------------------*/
+  //! Enter system and user definition + identity used for ACL interpretation
+  /*----------------------------------------------------------------------------*/
   void Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualIdentity &vid);
 
+  /*----------------------------------------------------------------------------*/
+  //! Getter Functions for ACL booleans
+  /*----------------------------------------------------------------------------*/
   bool CanRead()      {return canRead;}
   bool CanWrite()     {return canWrite;}
   bool CanWriteOnce() {return canWriteOnce;}
   bool CanBrowse()    {return canBrowse;}
   bool CanChmod()     {return canChmod;}
-  bool CanNotDelete()    {return canNotDelete;}
+  bool CanNotDelete() {return canNotDelete;}
   bool HasAcl()       {return hasAcl;}
   bool HasEgroup()    {return hasEgroup;}
 };
