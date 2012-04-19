@@ -86,6 +86,7 @@ extern bool debug;
 extern bool pipemode;
 extern bool runpipe;
 extern bool ispipe;
+extern bool json;
 
 extern XrdOucEnv* client_user_command(XrdOucString &in);
 extern XrdOucEnv* client_admin_command(XrdOucString &in);

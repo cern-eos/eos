@@ -59,6 +59,7 @@ extern int com_fuse (char*);
 extern int com_group (char*);
 extern int com_help (char *);
 extern int com_io (char *);
+extern int com_json (char *);
 extern int com_license (char*);
 extern int com_ls (char*);
 extern int com_map (char*);
@@ -95,6 +96,7 @@ XrdOucString historyfile="";
 XrdOucString pwd="/";
 XrdOucString rstdout;
 XrdOucString rstderr;
+XrdOucString rstdjson;
 XrdOucString user_role="";
 XrdOucString group_role="";
 
@@ -107,6 +109,8 @@ bool debug               = false;
 bool pipemode            = false;
 bool runpipe             = false;
 bool ispipe              = false;
+bool json                = false;
+
 eos::common::IoPipe iopipe;
 int  retcfd = 0;
 
@@ -185,6 +189,7 @@ COMMAND commands[] = {
   { (char*)"group",    com_group,    (char*)"Group configuration" },
   { (char*)"help",     com_help,     (char*)"Display this text" },
   { (char*)"io",       com_io,       (char*)"IO Interface" }, 
+  { (char*)"json",     com_json,     (char*)"Toggle JSON output flag for stdout" }, 
   { (char*)"license",  com_license,  (char*)"Display Software License" },
   { (char*)"ls",       com_ls,       (char*)"List a directory" },
   { (char*)"map",      com_map,      (char*)"Path mapping interface" },
@@ -616,9 +621,11 @@ output_result(XrdOucEnv* result, bool highlighting) {
 
   rstdout = result->Get("mgm.proc.stdout");
   rstderr = result->Get("mgm.proc.stderr");
+  rstdjson = result->Get("mgm.proc.json");
 
   XrdMqMessage::UnSeal(rstdout);
   XrdMqMessage::UnSeal(rstderr);
+  XrdMqMessage::UnSeal(rstdjson);
 
   if (highlighting && global_highlighting) {
     // color replacements
@@ -635,10 +642,15 @@ output_result(XrdOucEnv* result, bool highlighting) {
   if (result->Get("mgm.proc.retc")) {
     retc = atoi(result->Get("mgm.proc.retc"));
   }
-  if (rstdout.length()) 
-    if (!silent)fprintf(stdout,"%s\n",rstdout.c_str());
-  if (rstderr.length()) {
-    fprintf(stderr,"%s (errc=%d) (%s)\n",rstderr.c_str(), retc, strerror(retc));
+  if (json) {
+    if (rstdjson.length()) 
+      if (!silent)fprintf(stdout,"%s\n",rstdjson.c_str());
+  } else {
+    if (rstdout.length()) 
+      if (!silent)fprintf(stdout,"%s\n",rstdout.c_str());
+    if (rstderr.length()) {
+      fprintf(stderr,"%s (errc=%d) (%s)\n",rstderr.c_str(), retc, strerror(retc));
+    }
   }
   fflush(stdout);
   fflush(stderr);
@@ -654,7 +666,9 @@ client_admin_command(XrdOucString &in) {
     in += "&eos.ruid="; in += user_role;
   if (group_role.length())
     in += "&eos.rgid="; in += group_role;
-
+  if (json) {
+    in += "&mgm.format=json";
+  }
   XrdMqTiming mytiming("eos");
   TIMING("start", &mytiming);
   XrdOucString out="";
@@ -693,7 +707,9 @@ client_user_command(XrdOucString &in) {
     in += "&eos.ruid="; in += user_role;
   if (group_role.length())
     in += "&eos.rgid="; in += group_role;
-
+  if (json) {
+    in += "&mgm.format=json";
+  }
   XrdMqTiming mytiming("eos");
   TIMING("start", &mytiming);
   XrdOucString out="";
@@ -758,9 +774,10 @@ std::string textunbold("\033[0m");
 
 void usage() {
   fprintf(stderr,"`eos' is the command line interface (CLI) of the EOS storage system.\n");
-  fprintf(stderr,"Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
+  fprintf(stderr,"Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [-v|--version] [-p|--pipe] [-j||--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
   fprintf(stderr,"            -r, --role <uid> <gid>              : select user role <uid> and group role <gid>\n");
   fprintf(stderr,"            -b, --batch                         : run in batch mode without colour and syntax highlighting and without pipe\n");
+  fprintf(stderr,"            -j, --json                          : switch to json output format\n");
   fprintf(stderr,"            -p, --pipe                          : run stdin,stdout,stderr on local pipes and go to background\n");
   fprintf(stderr,"            -h, --help                          : print help text\n");
   fprintf(stderr,"            -v, --version                       : print version information\n");
@@ -839,10 +856,12 @@ int main (int argc, char* argv[]) {
            (in1 != "--batch")   &&
 	   (in1 != "--pipe")    &&
            (in1 != "--role")    &&
+           (in1 != "--json")    &&
            (in1 != "-h")        &&
            (in1 != "-b")        &&
            (in1 != "-p")        &&
            (in1 != "-v")        &&
+           (in1 != "-j")        &&
            (in1 != "-r")) {
         usage();
         exit(-1);
@@ -867,7 +886,16 @@ int main (int argc, char* argv[]) {
       argindex++;
       in1 = argv[argindex];
     }
-
+    
+    if ( (in1 == "--json") || (in1 == "-j") ) {
+      interactive = false;
+      global_highlighting = false;
+      json = true;
+      runpipe = false;
+      argindex++;
+      in1 = argv[argindex];
+    }
+    
     if ( (in1 == "cp" ) ) {
       interactive = false;
       global_highlighting = false;

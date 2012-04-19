@@ -51,6 +51,7 @@ add_executable ( eos
                  commands/com_fuse.cc
 		 commands/com_group.cc
                  commands/com_io.cc
+                 commands/com_json.cc
 		 commands/com_license.cc 
 		 commands/com_ls.cc 
 		 commands/com_map.cc 

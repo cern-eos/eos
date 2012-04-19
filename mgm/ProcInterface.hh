@@ -47,6 +47,7 @@ private:
 
   XrdOucString stdOut;
   XrdOucString stdErr;
+  XrdOucString stdJson;
   int retc;
   XrdOucString resultStream;
 
@@ -62,10 +63,13 @@ private:
 
   size_t len;
   off_t  offset;
-  void MakeResult(bool dosort=false, bool fuseformat=false);
+  void MakeResult(bool dosort=false);
 
   bool adminCmd;
   bool userCmd; 
+
+  bool fuseformat;
+  bool jsonformat;
 
 public:
 

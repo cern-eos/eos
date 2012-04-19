@@ -124,6 +124,7 @@ ProcCommand::ProcCommand()
 {
   stdOut = "";
   stdErr = "";
+  stdJson = "";
   retc = 0;
   resultStream = "";
   offset = 0;
@@ -208,13 +209,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
   outformat    = opaque.Get("mgm.outformat");
   const char* selection    = opaque.Get("mgm.selection");
 
-  bool fuseformat = false;
+  fuseformat = false;
+  jsonformat = false;
   XrdOucString format = opaque.Get("mgm.format"); // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line feed in the end
 
   if (format == "fuse") {
     fuseformat = true;
   }
-
+  if (format == "json") {
+    jsonformat = true;
+  }
 
   stdOut = "";
   stdErr = "";
@@ -2773,7 +2777,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
     }
 
-    MakeResult(dosort,fuseformat);
+    MakeResult(dosort);
     return SFS_OK;
   }
 
@@ -2851,7 +2855,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         stdOut += "By group ...\n";
         Quota::PrintOut(0, out2 , -1, vid_in.gid, false, true);
         stdOut += out2;
-        MakeResult(0,fuseformat);
+        MakeResult(0);
         return SFS_OK;
       }
     }
@@ -2967,7 +2971,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
 	stdOut += formatline;
       }
-      MakeResult(0,fuseformat);
+      MakeResult(0);
       return SFS_OK;
     }
 
@@ -4061,7 +4065,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           }
         }
       }
-      MakeResult(dosort,fuseformat);
+      MakeResult(dosort);
       return SFS_OK;
     } 
     
@@ -4394,7 +4398,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         stdOut += " sudo*";
 
       stdOut += " host="; stdOut += vid_in.host.c_str();
-      MakeResult(0, fuseformat);
+      MakeResult(0);
       return SFS_OK;
     }
 
@@ -5164,32 +5168,35 @@ ProcCommand::close()
 
 /*----------------------------------------------------------------------------*/
 void
-ProcCommand::MakeResult(bool dosort, bool fuseformat) 
+ProcCommand::MakeResult(bool dosort) 
 {
   resultStream = "";
 
   if (!fstdout) {
-    if (!fuseformat)
-      resultStream =  "mgm.proc.stdout=";
     XrdMqMessage::Sort(stdOut,dosort);
-    if (!fuseformat)
+    if ((!fuseformat && !jsonformat)) {
+      // the default format
+      resultStream =  "mgm.proc.stdout=";
       resultStream += XrdMqMessage::Seal(stdOut);
-    else
-      resultStream += stdOut;
-
-    if (!fuseformat)
       resultStream += "&mgm.proc.stderr=";
-    if (!fuseformat)
       resultStream += XrdMqMessage::Seal(stdErr);
-    
-    if (!fuseformat) {
       resultStream += "&mgm.proc.retc=";
       resultStream += retc;
+
+    }
+    if (fuseformat) {
+      resultStream += stdOut;
+    }
+    if (jsonformat) {
+      if (!stdJson.length()) {
+	stdJson = "{\n  \"error\": \"command does not provide JSON output\",\n  \"errc\": 93\n}";
+      }
+      resultStream =  "mgm.proc.json=";
+      resultStream += stdJson;
     }
     if (!resultStream.endswith('\n')) {
       resultStream += "\n";
     }
-    //    fprintf(stderr,"%s\n",resultStream.c_str());
     if (retc) {
       eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);
     }
