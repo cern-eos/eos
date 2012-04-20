@@ -75,7 +75,7 @@ int proc_fs_dumpmd(std::string &fsidst, XrdOucString &option, XrdOucString &dp, 
     retc = EINVAL;
   } else {
     fsid = atoi(fsidst.c_str());        
-    gOFS->eosViewMutex.Lock();
+    eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
     try {
       eos::FileMD* fmd = 0;
       eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
@@ -130,15 +130,10 @@ int proc_fs_dumpmd(std::string &fsidst, XrdOucString &option, XrdOucString &dp, 
 	  }
 	}
       }
-
-
-
     } catch ( eos::MDException &e ) {
       errno = e.getErrno();
       eos_static_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
     }
-    gOFS->eosViewMutex.UnLock();
-    //-------------------------------------------
   }
   return retc;
 }
@@ -701,7 +696,7 @@ int proc_fs_dropdeletion(std::string &id, XrdOucString &stdOut, XrdOucString  &s
       stdErr="error: filesystems can only be removed as 'root'\n";
       retc = EPERM;
     } else {
-      gOFS->eosViewMutex.Lock();
+      eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
       try {
         eos::FileSystemView::FileList unlinklist =  gOFS->eosFsView->getUnlinkedFileList(fsid);
         unlinklist.clear();
@@ -710,7 +705,6 @@ int proc_fs_dropdeletion(std::string &id, XrdOucString &stdOut, XrdOucString  &s
       } catch( eos::MDException &e ) {
         stdErr = "error: there is no deletion list for fsid="; stdErr += id.c_str();
       }
-      gOFS->eosViewMutex.UnLock();
     }
   } else {
     stdErr = "error: there is no filesystem defined with fsid=";  stdErr += id.c_str(); stdErr+= " ";

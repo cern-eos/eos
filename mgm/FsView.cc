@@ -59,7 +59,7 @@ FsView::GetNodeFormat(std::string option) {
   }
 
   if (option == "fsck") {
-    return "header=1:member=hostport:width=24:format=s|sep= |sum=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sep= |sum=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sep= |sum=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sep= |sum=stat.fsck.orphans_n:width=12:format=l:tag=e(orphan|sep= |sum=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sep= |sum=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sep= |sum=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sep= |sum=stat>fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sep= |sum=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sep= |sum=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
+    return "header=1:member=hostport:width=24:format=s|sep= |sum=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sep= |sum=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sep= |sum=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sep= |sum=stat.fsck.orphans_n:width=12:format=l:tag=e(orphan|sep= |sum=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sep= |sum=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sep= |sum=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sep= |sum=stat.fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sep= |sum=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sep= |sum=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
   }
 
   if (option == "l") {
@@ -83,7 +83,7 @@ FsView::GetFileSystemFormat(std::string option) {
   }
 
   if (option == "fsck") {
-    return "header=1:member=hostport:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sep= |key=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sep= |key=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sep= |key=stat.fsck.orphans_n:width=12:format=l:tag=e(orphan|sep= |key=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sep= |key=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sep= |key=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sep= |key=stat>fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sep= |key=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sep= |key=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
+    return "header=1:member=hostport:width=24:format=s|sep= |key=id:width=6:format=s|sep= |key=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sep= |key=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sep= |key=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sep= |key=stat.fsck.orphans_n:width=12:format=l:tag=e(orphan|sep= |key=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sep= |key=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sep= |key=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sep= |key=stat.fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sep= |key=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sep= |key=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
   }
 
   if (option == "d") {
@@ -116,7 +116,7 @@ FsView::GetSpaceFormat(std::string option) {
   }
 
   if (option =="fsck") { 
-    return "header=1:member=name:width=10:format=s|sep= |sum=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sep= |sum=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sep= |sum=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sep= |sum=stat.fsck.orphans_n:width=12:format=l:tag=e(orphan|sep= |sum=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sep= |sum=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sep= |sum=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sep= |sum=stat>fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sep= |sum=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sep= |sum=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
+    return "header=1:member=name:width=10:format=s|sep= |sum=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sep= |sum=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sep= |sum=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sep= |sum=stat.fsck.orphans_n:width=12:format=l:tag=e(orphan|sep= |sum=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sep= |sum=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sep= |sum=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sep= |sum=stat.fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sep= |sum=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sep= |sum=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
   }
   
   if (option == "l") {

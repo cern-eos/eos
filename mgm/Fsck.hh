@@ -28,6 +28,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/FsView.hh"
 #include "common/Logging.hh"
+#include "common/FileId.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
@@ -44,7 +45,7 @@ EOSMGMNAMESPACE_BEGIN
 
 class Fsck {
   // -------------------------------------------------------------
-  // ! run's a consistency check over all FST nodes against the MGM namespace
+  // ! run's a consistency check aggregation over all FST nodes against the MGM namespace
   // -------------------------------------------------------------
 private:
 
@@ -53,7 +54,32 @@ private:
 
   pthread_t mThread;
   bool mRunning;
+
+  XrdSysMutex eMutex; //< protecting the eX... maps
+
+  // the error detail  map storing "<error-name>"=><fsid>=>[fid1,fid2,fid3...]"
+  std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t> > > eFsMap;
   
+  // the error summary map storing "<error-name>"=>[fid1,fid2,fid3...]"
+  std::map<std::string, std::set <eos::common::FileId::fileid_t> > eMap;
+  std::map<std::string, unsigned long long > eCount;
+
+  // unavailable filesystems map
+  std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsUnavail;
+
+  // dark filesystem map
+  std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsDark;
+
+
+  void  ResetErrorMaps() {
+    XrdSysMutexHelper lock(eMutex);
+    eFsMap.clear();
+    eMap.clear();
+    eCount.clear();
+    eFsUnavail.clear();
+    eFsDark.clear();
+  }
+
 public:
   Fsck();
   ~Fsck();

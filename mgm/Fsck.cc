@@ -100,7 +100,7 @@ Fsck::Check(void)
 {
   XrdSysThread::SetCancelOn();
   XrdSysThread::SetCancelDeferred();
-  
+
   XrdSysTimer sleeper;
   
   int bccount = 0;
@@ -114,7 +114,6 @@ Fsck::Check(void)
     // run through the fsts 
     // compare files on disk with files in the namespace
 
-    size_t pos=0;
     size_t max=0;
     {
       {
@@ -132,23 +131,141 @@ Fsck::Check(void)
     broadcastresponsequeue += bccount;
     XrdOucString broadcasttargetqueue = gOFS->MgmDefaultReceiverQueue;
 
-    int envlen;
     XrdOucString msgbody;
     msgbody="mgm.cmd=fsck&mgm.fsck.tags=*";
     
     XrdOucString stdOut = "";
     XrdOucString stdErr = "";
 
-    if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,broadcasttargetqueue, msgbody, stdOut, 2)) {
-      eos_static_err("failed to broad cast and collect rtlog from [%s]:[%s]", broadcastresponsequeue.c_str(),broadcasttargetqueue.c_str());
+    if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,broadcasttargetqueue, msgbody, stdOut, 10)) {
+      eos_static_err("failed to broad cast and collect fsck from [%s]:[%s]", broadcastresponsequeue.c_str(),broadcasttargetqueue.c_str());
       stdErr = "error: broadcast failed\n";
     }
+
+    ResetErrorMaps();
     
-    //    if (stdOut.c_str()) {
-    //      Log(false,"%s", stdOut.c_str());
-    //    }
-    unsigned long long totalfiles=0;
-    Log(false,"stopping check - found %llu replicas", totalfiles);
+    std::vector<std::string> lines;
+
+    // convert into a lines-wise seperated array
+    eos::common::StringConversion::StringToLineVector((char*)stdOut.c_str(), lines);
+
+    for (size_t nlines = 0; nlines <lines.size(); nlines++) {
+      fprintf(stderr,"%s\n", lines[nlines].c_str());
+      std::set<unsigned long long> fids;
+      unsigned long fsid = 0;
+      std::string errortag;
+      if (eos::common::StringConversion::ParseStringIdSet((char*)lines[nlines].c_str(), errortag, fsid, fids)) {
+	std::set<unsigned long long>::const_iterator it;
+	if (fsid) {
+	  XrdSysMutexHelper lock(eMutex);
+	  for (it = fids.begin(); it != fids.end(); it++) {
+	    // sort the fids into the error maps
+	    eFsMap[errortag][fsid].insert(*it);
+	    eMap[errortag].insert(*it);
+	    eCount[errortag]++;
+	  }
+	}
+      } else {
+	eos_static_err("Can not parse fsck response: %s\n", lines[nlines].c_str());
+      }
+    }
+
+    // grab all files which are damaged because filesystems are down
+    {
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      std::map<eos::common::FileSystem::fsid_t, FileSystem*>::const_iterator it;
+      // loop over all filesystems and check their status
+      for (it = FsView::gFsView.mIdView.begin(); it != FsView::gFsView.mIdView.end(); it++) {
+	eos::common::FileSystem::fsid_t fsid = it->first;
+	eos::common::FileSystem::fsactive_t fsactive = it->second->GetActiveStatus();
+	eos::common::FileSystem::fsstatus_t fsconfig = it->second->GetConfigStatus();
+	eos::common::FileSystem::fsstatus_t fsstatus = it->second->GetStatus();
+	if ( (fsstatus       == eos::common::FileSystem::kBooted) && 
+             (fsconfig       >= eos::common::FileSystem::kDrain) && 
+             (fsactive ) ) { 
+	  // this is healthy, don't need to do anything
+	} else {
+	  // this is not ok and contributes to replica offline errors
+	  try {
+	    eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
+	    eos::FileMD* fmd = 0;
+	    eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+	    eos::FileSystemView::FileIterator it;
+	    for (it = filelist.begin(); it != filelist.end(); ++it) {
+	      fmd = gOFS->eosFileService->getFileMD(*it);
+	      if (fmd) {
+		eFsUnavail[fsid]++;
+		eFsMap["rep_offline"][fsid].insert(*it);
+		eMap["rep_offline"].insert(*it);
+		eCount["rep_offline"]++;
+	      }
+	    }
+	  } catch ( eos::MDException &e ) {
+	    errno = e.getErrno();
+	    eos_static_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+	  }
+	}
+      }
+    }
+
+    // grab all files with have no replicas at all
+    {
+      try {
+	eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
+	eos::FileMD* fmd = 0;
+	eos::FileSystemView::FileList filelist = gOFS->eosFsView->getNoReplicasFileList();
+	eos::FileSystemView::FileIterator it;
+	for (it = filelist.begin(); it != filelist.end(); ++it) {
+	  fmd = gOFS->eosFileService->getFileMD(*it);
+	  if (fmd) {
+	    eMap["zero_replica"].insert(*it);
+	    eCount["zero_replica"]++;
+	  }
+	}
+      } catch ( eos::MDException &e ) {
+	errno = e.getErrno();
+	eos_static_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+      }
+    }
+    
+    std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
+    for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {
+      Log(false,"%-30s : %llu (%llu)", emapit->first.c_str(), emapit->second.size(), eCount[emapit->first]);
+    }
+
+    // look over unavailable filesystems
+    std::map<eos::common::FileSystem::fsid_t,unsigned long long >::const_iterator unavailit;
+    for (unavailit = eFsUnavail.begin(); unavailit != eFsUnavail.end(); unavailit++) {
+      std::string host="not configured";
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      if (FsView::gFsView.mIdView.count(unavailit->first)) {
+	host = FsView::gFsView.mIdView[unavailit->first]->GetString("hostport");
+	
+      }
+      Log(false,"host=%s fsid=%lu  replica_offline=%llu ", host.c_str(), unavailit->first, unavailit->second);
+    }
+
+    {
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      // look for dark MD entries e.g. filesystem ids which have MD entries but have not configured file system
+      eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
+      size_t nfilesystems = gOFS->eosFsView->getNumFileSystems();
+      for (size_t nfsid=1; nfsid <nfilesystems; nfsid++) {
+	try {
+	  eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(nfsid);
+	  if (filelist.size()) {
+	    // check if this exists in the gFsView
+	    if (!FsView::gFsView.mIdView.count(nfsid)) {
+	      eFsDark[nfsid]+= filelist.size();
+	      Log(false,"shadow fsid=%lu shadow_entries=%llu ", nfsid, filelist.size());
+	    }
+	  }
+	} catch ( eos::MDException &e ) {
+	}
+      }
+    }
+    
+    Log(false,"stopping check");
     
     XrdSysThread::CancelPoint();
     Log(false,"=> next run in 30 minutes");
@@ -172,6 +289,145 @@ Fsck::PrintOut(XrdOucString &out,  XrdOucString option)
 bool 
 Fsck::Report(XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucString selection)
 {
+  out = "option:"; out += option;
+  out += " selection:"; out += selection;
+  bool printfid = (option.find("i")!=STR_NPOS);
+  bool printlfn = (option.find("l")!=STR_NPOS);
+
+  if (!selection.length()) {
+    if ( (option.find("json")!= STR_NPOS) || (option.find("j") != STR_NPOS) ) {
+      // json output
+      out += "{\n";
+      if (! (option.find("a") != STR_NPOS) ) {
+	// give global table
+	std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
+	for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
+	  char sn[1024];
+	  snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )emapit->second.size());
+	  out += "  \""; out += emapit->first.c_str(); out += "\": {\n";
+	  out += "    \"n\": "; out += sn; out += "\",\n";
+	  if (printfid) {
+	    out += "    \"fxid\": ["; 
+	    std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
+	    for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+	      XrdOucString hexstring;
+	      eos::common::FileId::Fid2Hex(*fidit,hexstring);
+	      out += hexstring.c_str();
+	      out += ",";
+	    }
+	    if (out.endswith(",")) {
+	      out.erase(out.length()-1);
+	    }
+	    out += "]\n";
+	  }
+	  if (printlfn) {
+	    out += "    \"lfn\": ["; 
+	    std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
+	    for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+	      eos::FileMD* fmd=0;
+	      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+              try {
+                fmd = gOFS->eosFileService->getFileMD(*fidit);
+		std::string fullpath = gOFS->eosView->getUri(fmd);
+		out += "\""; out += fullpath.c_str(); out += "\"";
+              } catch ( eos::MDException &e ) {
+		out += "\"undefined\"";
+              }
+	      out += ",";
+	    } 
+	    if (out.endswith(",")) {
+	      out.erase(out.length()-1);
+	    }
+	    out += "]\n";
+	  }
+	  out += "  },\n";
+	}
+	
+	// list shadow filesystems
+	std::map<eos::common::FileSystem::fsid_t, unsigned long long >::const_iterator fsit;
+	out += "  \"shadow_fsid\": [";
+	for (fsit = eFsDark.begin(); fsit != eFsDark.end(); fsit++) {
+	  char sfsid[1024];
+	  snprintf(sfsid,sizeof(sfsid)-1,"%lu", (unsigned long)fsit->first);
+	  out += sfsid;
+	  out += ",";
+	}
+	if (out.endswith(",")) {
+	  out.erase(out.length()-1);
+	}
+	out += "  ]\n";
+	out += "}\n";
+      } else {
+	// do output per filesystem
+
+      }
+    } else {
+      // greppable format
+      if (! (option.find("a") != STR_NPOS) ) {
+	// give global table
+	std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
+	for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
+	  char sn[1024];
+	  snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )emapit->second.size());
+	  out += "tag=\""; out += emapit->first.c_str(); out +="\"";
+	  out += " n="; out += sn; 
+	  if (printfid) {
+	    out += " fxid="; 
+	    std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
+	    for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+	      XrdOucString hexstring;
+	      eos::common::FileId::Fid2Hex(*fidit,hexstring);
+	      out += hexstring.c_str();
+	      out += ",";
+	    }
+	    if (out.endswith(",")) {
+	      out.erase(out.length()-1);
+	    }
+	    out += "\n";
+	  }
+	  if (printlfn) {
+	    out += " lfn="; 
+	    std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
+	    for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+	      eos::FileMD* fmd=0;
+	      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+              try {
+                fmd = gOFS->eosFileService->getFileMD(*fidit);
+		std::string fullpath = gOFS->eosView->getUri(fmd);
+		out += "\""; out += fullpath.c_str(); out += "\"";
+              } catch ( eos::MDException &e ) {
+		out += "\"undefined\"";
+              }
+	      out += ",";
+	    } 
+	    if (out.endswith(",")) {
+	      out.erase(out.length()-1);
+	    }
+	    out += "\n";
+	  }
+	  
+	  // list shadow filesystems
+	  std::map<eos::common::FileSystem::fsid_t, unsigned long long >::const_iterator fsit;
+	  out += "shadow_fsid=";
+	  for (fsit = eFsDark.begin(); fsit != eFsDark.end(); fsit++) {
+	    char sfsid[1024];
+	    snprintf(sfsid,sizeof(sfsid)-1,"%lu", (unsigned long)fsit->first);
+	    out += sfsid;
+	    out += ",";
+	  }
+	  if (out.endswith(",")) {
+	    out.erase(out.length()-1);
+	  }
+	  out += "\n";
+	}
+      } else {
+	// do output per filesystem
+      }
+    }
+  } else {
+    // output the selected tag
+
+  }
   return true;
 }
 
