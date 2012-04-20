@@ -4,12 +4,16 @@
 #include <microhttpd.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <string>
+#include "include/rapidjson/rapidjson.h"
+
 #define PAGE "<html><head><title>No such file or directory</title></head><body>No such file or directory</body></html>"
 
 #include <XrdPosix/XrdPosixXrootd.hh>
 #include <XrdPosix/XrdPosixXrootdPath.hh>
 #include <XrdPosix/XrdPosixExtern.hh>
-
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucString.hh>
 
 XrdPosixXrootd posixsingleton;
 XrdPosixXrootPath XP;
@@ -71,6 +75,20 @@ dir_reader (void *cls, uint64_t pos, char *buf, size_t max)
   return rsize;
 }
 
+static int
+build_query_string (void *cls, enum MHD_ValueKind kind, const char *key,
+               const char *value)
+{
+  // this is not safe for buffer overrung
+  std::string* qString = (std::string*) cls;
+  if (qString->length()) {
+    *qString += "&";
+  }
+  *qString += key;
+  *qString += "=";
+  *qString += value;
+  return MHD_YES;
+}
 
 static int
 ahc_echo (void *cls,
@@ -89,6 +107,13 @@ ahc_echo (void *cls,
 
   struct stat buf;
 
+  // get the query string via the callback function
+  std::string qString;
+  MHD_get_connection_values (connection, MHD_GET_ARGUMENT_KIND, build_query_string,
+                             (void*) &qString);
+
+  fprintf(stderr,"qString=%s\n", qString.c_str());
+
   if (0 != strcmp (method, MHD_HTTP_METHOD_GET))
     return MHD_NO;              /* unexpected method */
   if (&aptr != *ptr)
@@ -100,27 +125,94 @@ ahc_echo (void *cls,
   *ptr = NULL;                  /* reset when done */
 
 
+  std::string MyPath;
   const char *myPath;
   char buff[2048];
+  bool eosquery=false;
+
+  XrdOucEnv Env(qString.c_str());
+
+  std::string format = Env.Get("format")?Env.Get("format"):"";
+
   if (!(myPath = XP.URL(&url[1], buff, sizeof(buff))))
     myPath=&url[1];
 
   file = 0;
   dir  = 0; 
+  MyPath=myPath;
+  if (qString.length()) {
+    MyPath += "?";
+    MyPath += qString;
+  }
+    
   fprintf(stderr,"Openning %s %d\n", myPath, XrdPosixXrootd::Stat(myPath, &buf));
-  if( (XrdPosixXrootd::Stat(myPath, &buf) == 0 ) ) {
-    if (S_ISREG (buf.st_mode)) {
-      // this is a file to open
-      file = XrdPosixXrootd::Open(myPath,0,0);
-    }
-    if (S_ISDIR (buf.st_mode)) {
-      // this is a dir to open
-      dir = XrdPosixXrootd::Opendir(myPath);
-    }
-  } 
+
+  if ( (qString.find("mgm.cmd=")) != std::string::npos) {
+    // this is an 'eos' command
+    eosquery = true;
+    fprintf(stderr,"Running eos query\n");
+  }
+
+  if (!eosquery) {
+    if( (XrdPosixXrootd::Stat(MyPath.c_str(), &buf) == 0 ) ) {
+      if (S_ISREG (buf.st_mode)) {
+	// this is a file to open
+	file = XrdPosixXrootd::Open(MyPath.c_str(),0,0);
+      }
+      if (S_ISDIR (buf.st_mode)) {
+	// this is a dir to open
+	dir = XrdPosixXrootd::Opendir(MyPath.c_str());
+      }
+    } 
+  }
 
   if ( (!file) && (!dir) ) 
     {
+      if (eosquery) {
+	fprintf(stderr,"Running eos query=%s\n", MyPath.c_str());
+	// run the query
+	file = XrdPosixXrootd::Open(MyPath.c_str(),0,0);
+	XrdOucString result;
+	result="";
+	if (file) {
+	  // read everything
+	  char rbuf[65536];
+	  off_t pos = 0;
+	  size_t nread=0;
+	  do {
+	    nread = XrdPosixXrootd::Pread(file,rbuf,65535, pos);
+	    if (nread>0) {
+	      rbuf[nread]=0;
+	      result += rbuf;
+	      pos+= nread;
+	    }
+	  } while(nread>0);
+
+	  if (format == "plain") {
+	    result.replace("&mgm.proc.stdout=","");
+	    result.replace("&mgm.proc.stderr=","");
+	    int pos = result.find("&mgm.proc.retc=");
+	    if (pos != STR_NPOS) {
+	      result.erase(pos);
+	    }
+	  }
+
+	  char* resultbuffer = (char*) malloc(result.length()+1);
+	  XrdPosixXrootd::Close(file);
+	  if (resultbuffer) {
+	    snprintf(resultbuffer,result.length()+1,"%s",result.c_str());
+	    fprintf(stderr,"Returning length=%lu\n", result.length());
+	    response = MHD_create_response_from_buffer (result.length(),
+							(void *) resultbuffer,
+							MHD_RESPMEM_MUST_FREE);
+	    ret = MHD_queue_response (connection, MHD_HTTP_OK, response);
+	    MHD_destroy_response (response);
+	    return ret;
+	  } 
+	}
+      }
+
+      response = 0;
       response = MHD_create_response_from_buffer (strlen (PAGE),
 						  (void *) PAGE,
 						  MHD_RESPMEM_PERSISTENT);
@@ -145,7 +237,7 @@ ahc_echo (void *cls,
       }
       if (dir) {
 	struct dir_info* dir_handle = (struct dir_info*) malloc (sizeof (struct dir_info));
-	if (dir_handle) {snprintf(dir_handle->name,sizeof(dir_handle->name), "%s", myPath);}
+	if (dir_handle) {snprintf(dir_handle->name,sizeof(dir_handle->name), "%s", MyPath.c_str());}
 	dir_handle->dir = dir;
 	response = MHD_create_response_from_callback (-1, 32 * 1024,     /* 32k page size */
 						      &dir_reader,
