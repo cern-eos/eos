@@ -139,14 +139,33 @@ extern "C" {
   void           xrd_lease_open_fd(unsigned long long inode, uid_t uid); // release an attached file descriptor
 
   // - FUSE Cache
-  int            xrd_dir_cache_get(unsigned long long inode, struct timespec mtime, char *fullpath, struct dirbuf **b); // create a cached directory
 
-  int            xrd_dir_cache_get_entry(fuse_req_t req, unsigned long long dir_inode, const char* ifullpath);   // get a cached entry from a cached directory
-  
-  void           xrd_dir_cache_add_entry(unsigned long long dir_inode, unsigned long long entry_inode, const char *entry_name, struct fuse_entry_param *e); // add a new entry to a cached directory
+  // ---------------------------------------------------------------------------
+  //! Definition of cache directory return values
+  // ---------------------------------------------------------------------------
+  enum DirStatus {
+    dError      = -3,   
+    dNotInCache = -2,
+    dOutdated   = -1,
+    dValid      =  0
+  };
 
-  void           xrd_dir_cache_sync_entry(unsigned long long dir_inode, char *name, int nentries, struct timespec mtime, struct dirbuf *b); // update the cache entry inside a cached directory
 
+  // ---------------------------------------------------------------------------
+  //! Definition of cache subentries return values
+  // ---------------------------------------------------------------------------
+  enum SubentryStatus {
+    eIgnore        = -3,
+    eDirNotFound   = -2,
+    eDirNotFilled  = -1,
+    eFound         =  0
+  };
+
+  int            xrd_dir_cache_get(unsigned long long inode, struct timespec mtime, char *fullpath, struct dirbuf **b);
+  int            xrd_dir_cache_get_entry(fuse_req_t req, unsigned long long inode, unsigned long long einode, const char* ifullpath);  
+  void           xrd_dir_cache_add_entry(unsigned long long inode, unsigned long long entry_inode, struct fuse_entry_param *e); 
+  void           xrd_dir_cache_sync(unsigned long long inode, char *fullpath, int nentries, struct timespec mtime, struct dirbuf *b); 
+  int            xrd_dir_isfull(unsigned long long inode);  
 
   // - SOCKS4 settings
   void           xrd_socks4(const char* host, const char* port);

@@ -47,7 +47,7 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-//! Class implements a faire rw mutex prefering writers
+//! Class implements a fair rw mutex prefering writers
 /*----------------------------------------------------------------------------*/
 class RWMutex  
 {
@@ -162,7 +162,8 @@ public:
 
 /*----------------------------------------------------------------------------*/
 //! Class implementing a monitor for write locking
-/*----------------------------------------------------------------------------*/class RWMutexWriteLock
+/*----------------------------------------------------------------------------*/
+class RWMutexWriteLock
 {
 private:
   RWMutex* Mutex;

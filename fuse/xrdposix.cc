@@ -76,7 +76,10 @@ static XrdOucHash<XrdOucString> *stringstore;
 XrdSysMutex passwdstoremutex;
 XrdSysMutex stringstoremutex;
 
-unsigned long long sim_inode=1; // this is the highest used simulated inode number as it is used by eosfsd (which works only by path but xrdposix caches by inode!) - this variable is protected by the p2i write lock
+unsigned long long sim_inode=1; // this is the highest used simulated inode
+             // number as it is used by eosfsd (which works only by path but
+             // xrdposix caches by inode!) - this variable is protected by
+             //the p2i write lock
 
 char*
 STRINGSTORE(const char* __charptr__) {
@@ -121,15 +124,18 @@ void           xrd_lock_w_p2i()   { InodePathMutex.LockWrite();}
 void           xrd_unlock_w_p2i() { InodePathMutex.UnLockWrite();}
 
 const char* 
-xrd_path(unsigned long   long inode)
+xrd_path(unsigned long long inode)
 {
-  // translate from inode to path - use xrd_lock_r_p2i/xrd_unlock_r_p2i for thread safety in the scope of the returned string
+  // translate from inode to path - use xrd_lock_r_p2i/xrd_unlock_r_p2i
+  // for thread safety in the scope of the returned string
   if (Inode2Path.count(inode)) 
     return Inode2Path[inode].c_str();
   else 
     return 0;
 };
 
+
+//------------------------------------------------------------------------------
 char*
 xrd_basename(unsigned long long inode) 
 {
@@ -153,16 +159,20 @@ xrd_basename(unsigned long long inode)
   return 0;
 }
 
+
+//------------------------------------------------------------------------------
 unsigned long long 
 xrd_inode(const char* path) 
 {
-  // translate from path to inode - use xrd_lock_r_p2i/xrd_unlock_r_p2i for thread safety in the scope of the returned inode
+  // translate from path to inode - use xrd_lock_r_p2i/xrd_unlock_r_p2i
+  // for thread safety in the scope of the returned inode
   if (Path2Inode.count(path)) 
     return Path2Inode[path];
   else
     return 0;
 }
 
+//------------------------------------------------------------------------------
 void 
 xrd_store_p2i(unsigned long long inode, const char* path)
 {
@@ -173,6 +183,8 @@ xrd_store_p2i(unsigned long long inode, const char* path)
   xrd_unlock_w_p2i();
 }
 
+
+//------------------------------------------------------------------------------
 unsigned long long
 xrd_simulate_p2i(const char* path)
 {
@@ -196,13 +208,15 @@ xrd_simulate_p2i(const char* path)
   return newinode;
 }
 
+
+//------------------------------------------------------------------------------
 void 
 xrd_store_child_p2i(unsigned long long inode, unsigned long long childinode, const char* name)
 {
   // store an inode/path mapping
   xrd_lock_w_p2i();
   std::string fullpath = Inode2Path[inode];
-  std::string sname=name;
+  std::string sname = name;
 
   if ( (sname != ".") ) {
     // we don't need to store this ones
@@ -218,7 +232,8 @@ xrd_store_child_p2i(unsigned long long inode, unsigned long long childinode, con
     } else {
       fullpath += "/"; fullpath += name;
     }
-    fprintf(stderr,"sname=%s fullpath=%s inode=%llu childinode=%llu\n", sname.c_str(),fullpath.c_str(), inode, childinode);
+    fprintf(stderr,"sname=%s fullpath=%s inode=%llu childinode=%llu\n",
+            sname.c_str(),fullpath.c_str(), inode, childinode);
     Path2Inode[fullpath] = childinode;
     Inode2Path[childinode] = fullpath;
   }
@@ -226,6 +241,8 @@ xrd_store_child_p2i(unsigned long long inode, unsigned long long childinode, con
   xrd_unlock_w_p2i();
 }
 
+
+//------------------------------------------------------------------------------
 void       
 xrd_forget_p2i(unsigned long long inode)
 {
@@ -239,6 +256,8 @@ xrd_forget_p2i(unsigned long long inode)
   xrd_unlock_w_p2i();
 }
 
+
+//------------------------------------------------------------------------------
 void
 xrd_forget_p2i(const char* path)
 {
@@ -251,6 +270,7 @@ xrd_forget_p2i(const char* path)
   }
   xrd_unlock_w_p2i();
 }
+
 
 // ---------------------------------------------------------------
 // Implementation of the directory listing table
@@ -268,9 +288,12 @@ void xrd_unlock_r_dirview() {DirInodeListMutex.UnLockRead();}
 void xrd_lock_w_dirview()   {DirInodeListMutex.LockWrite();}
 void xrd_unlock_w_dirview() {DirInodeListMutex.UnLockWrite();}
 
+
+//------------------------------------------------------------------------------
 void           
 xrd_dirview_create(unsigned long long inode)
 {
+  eos_static_debug("inode=%llu", inode);
   // path should be attached beforehand into path translation
   eos::common::RWMutexWriteLock vLock(DirInodeListMutex);
   DirInodeList[inode].clear();
@@ -278,9 +301,12 @@ xrd_dirview_create(unsigned long long inode)
   DirInodeBuffer[inode].size = 0;
 }
 
+
+//------------------------------------------------------------------------------
 void
 xrd_dirview_delete(unsigned long long inode)
 {
+  eos_static_debug("inode=%llu", inode);
   eos::common::RWMutexWriteLock vLock(DirInodeListMutex);
   if (DirInodeList.count(inode)) {
     if (DirInodeBuffer[inode].p) {
@@ -293,82 +319,334 @@ xrd_dirview_delete(unsigned long long inode)
 
 }
 
+
+//------------------------------------------------------------------------------
 unsigned long long            
 xrd_dirview_entry(unsigned long long dirinode, size_t index)
 {
   // returns entry with index 'index', should have xrd_lock_dirview in the scope of the call
+  eos_static_debug("dirinode=%llu, index=%zu", dirinode, index);
   if (DirInodeList.count(dirinode) && (DirInodeList[dirinode].size() > index)) 
     return DirInodeList[dirinode][index];
   else
     return 0;
 }
 
+
+//------------------------------------------------------------------------------
 struct dirbuf* xrd_dirview_getbuffer(unsigned long long inode)
 {
-  // returns pointer to dirbuf , should have xrd_lock_dirview in the scope of the call
+  // returns pointer to dirbuf, should have xrd_lock_dirview in the scope of the call
   return &DirInodeBuffer[inode];
 }
 
-// ---------------------------------------------------------------
-// Implementation of the FUSE cache entry map
-// ---------------------------------------------------------------
 
-// protecting the cache entry map
-eos::common::RWMutex FuseCacheMutex;
+
+
+// -----------------------------------------------------------------------------
+// Implementation of the FUSE cache entry map
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+//! Get maximum number of directories in cache
+// -----------------------------------------------------------------------------
+static const unsigned long long getMaxCacheSize() { return 128*1024; }; 
+
+eos::common::RWMutex FuseCacheMutex;  //< protecting the cache entry map
 
 class FuseCacheEntry {
 public:
-  FuseCacheEntry() {
-  }
 
-  ~FuseCacheEntry() {};
+  FuseCacheEntry(int no_entries, struct timespec mt, struct dirbuf *buf):
+    nentries(no_entries)
+  {
+    mtime.tv_sec = mt.tv_sec;
+    mtime.tv_nsec = mt.tv_nsec;
 
-  size_t getSize() { eos::common::RWMutexReadLock vLock(Mutex); return children.size(); }
+    b.size = buf->size;
+    b.p = (char*) calloc(b.size, sizeof(char));
+    b.p = (char*) memcpy(b.p, buf->p, b.size * sizeof(char));
+  };
 
-  void Update() { 
+  ~FuseCacheEntry() { free(b.p); };
+  
+  void update(int no_entries, struct timespec mt, struct dirbuf *buf) { 
     // update the contents
-    eos::common::RWMutexReadLock vLock(Mutex);
-  }
+    eos::common::RWMutexWriteLock wLock(Mutex);
+    mtime.tv_sec = mt.tv_sec;
+    mtime.tv_nsec = mt.tv_nsec;
+    nentries = no_entries;
+    children.clear();
 
+    if (b.size != buf->size){
+      b.size = buf->size;
+      b.p = (char*) realloc(b.p, b.size * sizeof(char));
+    }
+    b.p = (char*) memcpy(b.p, buf->p, b.size * sizeof(char));
+  };
+
+  bool isFilled() {
+    eos::common::RWMutexReadLock rLock(Mutex);
+    return (children.size() == static_cast<unsigned int>(nentries - 2));
+  };
+
+  void getDirbuf(struct dirbuf &buf) {
+    buf.size = b.size;
+    buf.p = (char*) realloc(buf.p, buf.size * sizeof(char));
+    buf.p = (char*) memcpy(buf.p, b.p, buf.size * sizeof(char));
+  };
+ 
+  struct timespec getTime() {
+    return mtime;
+  };
+  
+  void addEntry(unsigned long long inode, struct fuse_entry_param *e) {
+    // add subentry to the cached directory
+    eos::common::RWMutexWriteLock wLock(Mutex);
+
+    if (!children.count(inode)) {
+      children[inode] = *e;
+    }
+  };
+
+  bool getEntry(unsigned long long inode, struct fuse_entry_param &e) {
+    // get subentry from the current directory
+    eos::common::RWMutexReadLock rLock(Mutex);
+
+    if (children.count(inode)) {
+      e = children[inode];
+      return true;
+    }
+    return false;
+  };
+
+  
 private:
-  eos::common::RWMutex Mutex;
+  eos::common::RWMutex Mutex;        //< protecting the subentries map
 
-  std::map<unsigned long long,struct fuse_entry_param> children;
-  struct timespec mtime;
-
+  int nentries;                      //< number of subentries in the current directory
+  struct dirbuf b;                   //< dirbuf structure
+  struct timespec mtime;             //< modification time of the directory
+  std::map<unsigned long long, struct fuse_entry_param> children;  //< map of subentries
 };
 
-// inode cache
-google::dense_hash_map<unsigned long long, FuseCacheEntry> FuseCache;
+
+google::dense_hash_map<unsigned long long, FuseCacheEntry*> FuseCache;  //< inode cache
+typedef google::dense_hash_map<unsigned long long, FuseCacheEntry*>::iterator dir_iterator;
 
 
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * Get a cached directory
+ *
+ * @param inode inode value of the directory to be cached
+ * @param mtime modification time
+ * @param fullpath full path of the directory
+ * @param b dirbuf structure
+ *
+ * @return DirStatus code
+ *         -3 - error
+ *         -2 - not in cache
+ *         -1 - in cache but outdated, needs update
+ *          0 - dir in cache and valid
+ *
+ */
+/*----------------------------------------------------------------------------*/
 int
-xrd_dir_cache_get(unsigned long long inode, struct timespec mtime, char *fullpath, struct dirbuf **b)
+xrd_dir_cache_get(unsigned long long inode, struct timespec mtime,
+                  char* fullpath, struct dirbuf **b)
 {
-  // create a cached directory
-  return 0;
+  int retc;
+  eos::common::RWMutexReadLock rLock(FuseCacheMutex);
+  FuseCacheEntry *dir = 0;  
+
+  if (FuseCache.count(inode) && (dir = FuseCache[inode])) {
+    struct timespec oldtime = dir->getTime();
+    if ((oldtime.tv_sec == mtime.tv_sec) && (oldtime.tv_nsec == mtime.tv_nsec)) {
+      // valid timestamp
+      xrd_lock_r_dirview();  // =>
+      if (!xrd_dirview_entry(inode, 0)) {
+        // there is no listing yet, create one!
+        xrd_unlock_r_dirview();  // <=
+        xrd_inodirlist((unsigned long long)inode, fullpath);
+        xrd_lock_r_dirview();    // =>
+        *b = xrd_dirview_getbuffer((unsigned long long)inode);
+        if (!(*b)) {
+          retc = dError;  // error
+        }
+        else {
+          dir->getDirbuf(**b);
+          retc = dValid;   // success
+        }
+      }
+      else {
+        // dir in cache and valid
+        *b = xrd_dirview_getbuffer((unsigned long long)inode);
+        retc = dValid; 
+      }
+      xrd_unlock_r_dirview(); // <=        
+    }
+    else {
+       retc = dOutdated;
+    }    
+  }
+  else {
+    retc = dNotInCache;
+  }
+
+  return retc;
 }
 
-int
-xrd_dir_cache_get_entry(fuse_req_t req, unsigned long long dir_inode, const char* ifullpath)
-{
-  // get a cached entry from a cached directory
-  return 0;
-}
-  
-void
-xrd_dir_cache_add_entry(unsigned long long dir_inode, unsigned long long entry_inode, const char *entry_name, struct fuse_entry_param *e)
-{
-  // add a new entry to a cached directory
-  return ;
-}
 
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * Add or update a cache directory entry
+ *
+ * @param inode directory inode value
+ * @param fullpath directory full path
+ * @param number of entries in the current directory
+ * @param mtime modifcation time
+ * @param b dirbuf structure
+ *
+ */
+/*----------------------------------------------------------------------------*/
 void 
-xrd_dir_cache_sync_entry(unsigned long long dir_inode, char *name, int nentries, struct timespec mtime, struct dirbuf *b)
+xrd_dir_cache_sync(unsigned long long inode, char *fullpath, int nentries,
+                         struct timespec mtime, struct dirbuf *b)
 {
-  // update the cache entry inside a cached directory
-  return ;
+  eos::common::RWMutexWriteLock wLock(FuseCacheMutex);
+  FuseCacheEntry *dir = 0;
+  
+  if ((FuseCache.count(inode)) && (dir = FuseCache[inode])) {
+    // update
+    dir->update(nentries, mtime, b);
+  }
+  else {
+    // add new entry
+    if (FuseCache.size() >= getMaxCacheSize()) {
+      // size control of the cache
+      unsigned long long indx = 0;
+      unsigned long long entries_del = (unsigned long long) (0.25 * getMaxCacheSize());
+      dir_iterator iter = FuseCache.begin();
+      
+      while ((indx <= entries_del) && (iter != FuseCache.end())){
+        dir = (FuseCacheEntry*) iter->second;
+        FuseCache.erase(iter++);
+        delete dir;
+        indx++;
+      }
+    }
+    
+    dir = new FuseCacheEntry(nentries, mtime, b);
+    FuseCache[inode] = dir;
+  }
+  return;
 }
+
+
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * Test if directory is in cache and is full
+ *
+ * @param inode inode value of the directory 
+ *
+ * @return true if in cache and full, otherwise false
+ *
+ */
+/*----------------------------------------------------------------------------*/
+int
+xrd_dir_isfull(unsigned long long inode)
+{
+  eos::common::RWMutexReadLock rLock(FuseCacheMutex);
+  FuseCacheEntry *dir = 0;
+  
+  if ((FuseCache.count(inode)) && (dir = FuseCache[inode])){
+    if (dir->isFilled()) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * Get a subentry from a cached directory
+ *
+ * @param req
+ * @param inode directory inode
+ * @param einode entry inode
+ * @param efullpath full path of the subentry
+ *
+ * @return SubentryStatus value
+ *         -3 - directory filled but entry not found, the entry should be ignored
+ *         -2 - directory not in cache
+ *         -1 - directory in cache but not filled
+ *          0 - entry found
+ *
+ */
+/*----------------------------------------------------------------------------*/
+int
+xrd_dir_cache_get_entry(fuse_req_t req, unsigned long long inode,
+                        unsigned long long einode, const char *efullpath)
+{
+  int retc;
+  eos::common::RWMutexReadLock rLock(FuseCacheMutex);
+  FuseCacheEntry *dir;
+
+  if ((FuseCache.count(inode)) && (dir = FuseCache[inode])) {
+    if (dir->isFilled()) {
+      struct fuse_entry_param e;
+      if (dir->getEntry(einode, e)) {
+        xrd_store_p2i(einode, efullpath);
+        fuse_reply_entry(req, &e);
+        retc = eFound;  //success
+      }
+      else {
+        retc = eIgnore;       
+      }
+    }
+    else {
+      retc = eDirNotFilled;
+    }
+  }
+  else {
+    retc = eDirNotFound;
+  }
+  
+  return retc;
+}
+
+
+/*----------------------------------------------------------------------------*/
+/** 
+ *
+ * Add new subentry to a cached directory
+ *
+ * @param inode directory inode
+ * @param entry_inode subentry inode
+ * @param e fuse_entry_param structure
+ *
+ */
+/*----------------------------------------------------------------------------*/
+void
+xrd_dir_cache_add_entry(unsigned long long inode, unsigned long long entry_inode,
+                        struct fuse_entry_param *e)
+{
+  eos::common::RWMutexReadLock rLock(FuseCacheMutex);
+  FuseCacheEntry *dir = 0;
+
+  if ((FuseCache.count(inode)) && (dir = FuseCache[inode])) {
+    dir->addEntry(entry_inode, e);
+  }
+  return;
+}
+
+
 
 
 // ---------------------------------------------------------------
@@ -1211,7 +1489,7 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
     value = (char*) realloc(value,npages*PAGESIZE+1);
     offset += PAGESIZE;
   }
-  if (nbytes>=0) offset+= nbytes;
+  if (nbytes >= 0) offset += nbytes;
   value[offset] = 0;
   
   delete listclient;
@@ -1219,9 +1497,9 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
   char dirtag[1024];
   sprintf(dirtag,"%llu",dirinode);
   
-  xrd_dirview_create( (unsigned long long ) dirinode);
+  xrd_dirview_create( (unsigned long long) dirinode);
 
-  TIMING("PARSESTSTREAM",&inodirtiming);    
+  TIMING("PARSESTSTREAM", &inodirtiming);    
 
   xrd_lock_w_dirview(); // =>
 
@@ -1244,8 +1522,8 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
     if (ptr) ptr = strchr(ptr+1,' ');
     char* endptr = value + strlen(value) -1 ;
     
-    while ((ptr) &&(ptr < endptr)) {
-      int items = sscanf(ptr,"%s %llu",dirpath,&inode);
+    while ((ptr) && (ptr < endptr)) {
+      int items = sscanf(ptr,"%s %llu", dirpath,&inode);
       if (items != 2) {
         free(value);
 	xrd_unlock_w_dirview(); // <=
@@ -1662,7 +1940,6 @@ xrd_init()
   if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0")) {
     eos::common::Logging::SetLogPriority(LOG_DEBUG);
   } else {
-    //eos::common::Logging::SetLogPriority(LOG_DEBUG);
     eos::common::Logging::SetLogPriority(LOG_INFO);
   }
   
