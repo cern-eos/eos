@@ -583,7 +583,12 @@ FmdSqliteHandler::UpdateFromDisk(eos::common::FileSystem::fsid_t fsid, eos::comm
   eos::common::RWMutexWriteLock lock(Mutex);
   
   eos_info("fsid=%lu fid=%08llx disksize=%llu diskchecksum=%s checktime=%llu fcxerror=%d bcxerror=%d flaglayouterror=%d", fsid, fid, disksize, diskchecksum.c_str(), checktime, filecxerror, blockcxerror, flaglayouterror);
-		
+	
+  if (!fid) {
+    eos_info("skipping to insert a file with fid 0");
+    return false;    
+  }
+
   if (FmdSqliteMap.count(fsid)) {
     // update in-memory
     FmdSqliteMap[fsid][fid].disksize = disksize;
@@ -630,6 +635,11 @@ FmdSqliteHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid, eos::commo
   eos::common::RWMutexWriteLock lock(Mutex);
   
   eos_info("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s name=%s container=%s", fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str(), name.c_str(), container.c_str());
+
+  if (!fid) {
+    eos_info("skipping to insert a file with fid 0");
+    return false;    
+  }
 		
   if (FmdSqliteMap.count(fsid)) {
     // update in-memory

@@ -1717,6 +1717,8 @@ Storage::Publish()
   XrdSysTimer sleeper;
   sleeper.Snooze(3);
 
+  eos::common::FileSystem::fsid_t fsid=0;
+
   while (1) {
     gettimeofday(&tv1, &tz);
 
@@ -1738,7 +1740,7 @@ Storage::Publish()
             continue;
           }
 
-          if (!fileSystemsVector[i]->GetId()) {
+          if (!(fsid=fileSystemsVector[i]->GetId())) {
             // during the boot phase we can find a filesystem without ID
             continue;
           }
@@ -1746,7 +1748,7 @@ Storage::Publish()
 
 	  // Retrieve Statistics from the SQLITE DB
 	  std::map<std::string, size_t>::const_iterator isit;
-	  gFmdSqliteHandler.GetInconsistencyStatistics(fileSystemsVector[i]->GetId(), *fileSystemsVector[i]->GetInconsistencyStats(), *fileSystemsVector[i]->GetInconsistencySets());
+	  gFmdSqliteHandler.GetInconsistencyStatistics(fsid, *fileSystemsVector[i]->GetInconsistencyStats(), *fileSystemsVector[i]->GetInconsistencySets());
 
 	  bool success = true;
 		    
@@ -1775,8 +1777,8 @@ Storage::Publish()
           success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
           success &= fileSystemsVector[i]->SetDouble("stat.disk.load", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"millisIO")/1000.0);
           gOFS.OpenFidMutex.Lock();
-          success &= fileSystemsVector[i]->SetLongLong("stat.ropen", (long long)gOFS.ROpenFid[fileSystemsVector[i]->GetId()].size());
-          success &= fileSystemsVector[i]->SetLongLong("stat.wopen", (long long)gOFS.WOpenFid[fileSystemsVector[i]->GetId()].size());
+          success &= fileSystemsVector[i]->SetLongLong("stat.ropen", (long long)gOFS.ROpenFid[fsid].size());
+          success &= fileSystemsVector[i]->SetLongLong("stat.wopen", (long long)gOFS.WOpenFid[fsid].size());
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.freebytes",  fileSystemsVector[i]->GetLongLong("stat.statfs.bfree")*fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.usedbytes", (fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")-fileSystemsVector[i]->GetLongLong("stat.statfs.bfree"))*fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
 	  success &= fileSystemsVector[i]->SetDouble("stat.statfs.filled", 100.0 * ((fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")-fileSystemsVector[i]->GetLongLong("stat.statfs.bfree"))) / (1+fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")));
@@ -1784,9 +1786,9 @@ Storage::Publish()
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.fused",     (fileSystemsVector[i]->GetLongLong("stat.statfs.files")-fileSystemsVector[i]->GetLongLong("stat.statfs.ffree"))*fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
 	  { 
 	    eos::common::RWMutexReadLock lock(gFmdSqliteHandler.Mutex);
-	    success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (gFmdSqliteHandler.FmdSqliteMap.count(fileSystemsVector[i]->GetId())?gFmdSqliteHandler.FmdSqliteMap[fileSystemsVector[i]->GetId()].size():0));
+	    success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (gFmdSqliteHandler.FmdSqliteMap.count(fsid)?gFmdSqliteHandler.FmdSqliteMap[fsid].size():0));
 	  }
-                                                       
+	  
           success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetString("stat.boot").c_str());
 	  success &= fileSystemsVector[i]->SetLongLong("stat.drainer.running",fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued());
 	  success &= fileSystemsVector[i]->SetLongLong("stat.balancer.running",fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued());
@@ -1796,9 +1798,9 @@ Storage::Publish()
 	    XrdSysMutexHelper(fileSystemFullMapMutex);
 	    long long fbytes = fileSystemsVector[i]->GetLongLong("stat.statfs.freebytes");
 	    if ( (fbytes < 1024ll*1024ll*1024ll) || (fbytes <= fileSystemsVector[i]->GetLongLong("headroom")) ) {
-	      fileSystemFullMap[fileSystemsVector[i]->GetId()] = true;
+	      fileSystemFullMap[fsid] = true;
 	    } else {
-	      fileSystemFullMap[fileSystemsVector[i]->GetId()] = false;
+	      fileSystemFullMap[fsid] = false;
 	    }
 	  }
 
