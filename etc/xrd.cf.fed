@@ -34,7 +34,7 @@ xrootd.redirect $eospssmgm $eospsspath
 # to allow you to start the frm_xfrd to bring in missing files into '/tmp'.
 # Remove this attribute if you don't want to enable this feature.
 #
-all.export $eospsspath rw
+all.export $eospsspath 
 
 # The role directive tells xrootd to run as a data server as part of a
 # cluster. The causes the xrootd to try to contact the local cmsd which
