@@ -207,7 +207,7 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     if (gVirtualUidMap.count("sss:\"<pwd>\":uid")) {
       if (gVirtualUidMap["sss:\"<pwd>\":uid"] == 0) {
         eos_static_debug("sss uid mapping");
-        // use physical mapping for kerberos names
+        // use physical mapping for sss names
         Mapping::getPhysicalIds(client->name, vid);
         vid.gid=99;
         vid.gid_list.clear();
@@ -228,7 +228,7 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     if (gVirtualGidMap.count("sss:\"<pwd>\":gid")) {
       if (gVirtualGidMap["sss:\"<pwd>\":gid"] == 0) {
         eos_static_debug("sss gid mapping");
-        // use physical mapping for kerberos names
+        // use physical mapping for sss names
         uid_t uid = vid.uid;
         Mapping::getPhysicalIds(client->name, vid);
         vid.uid = uid;
@@ -253,7 +253,7 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     if (gVirtualUidMap.count("unix:\"<pwd>\":uid")) {
       if (gVirtualUidMap["unix:\"<pwd>\":uid"] == 0) {
         eos_static_debug("unix uid mapping");
-        // use physical mapping for kerberos names
+        // use physical mapping for unix names
         Mapping::getPhysicalIds(client->name, vid);
         vid.gid=99;
         vid.gid_list.clear();
@@ -274,7 +274,7 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     if (gVirtualGidMap.count("unix:\"<pwd>\":gid")) {
       if (gVirtualGidMap["unix:\"<pwd>\":gid"] == 0) {
         eos_static_debug("unix gid mapping");
-        // use physical mapping for kerberos names
+        // use physical mapping for unix names
         uid_t uid = vid.uid;
         Mapping::getPhysicalIds(client->name, vid);
         vid.uid = uid;

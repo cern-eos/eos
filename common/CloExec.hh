@@ -25,8 +25,7 @@
  * @file   CloExec.hh
  * 
  * @brief  Class setting filedescriptor flags to CLOEXEC
- * B
- * 
+ *  
  */
 
 #ifndef __EOSCOMMON__CLOEXEC__HH

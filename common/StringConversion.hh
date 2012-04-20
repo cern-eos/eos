@@ -39,6 +39,7 @@
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <vector>
+#include <set>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -47,7 +48,7 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-//! Static class with convenience functinons for string tokenizing, value2string and split functions
+//! Static helper class with convenience functinons for string tokenizing, value2string and split functions
 /*----------------------------------------------------------------------------*/
 class StringConversion {
 public:
@@ -277,6 +278,30 @@ public:
    */
   // ---------------------------------------------------------------------------  
   static bool 
+  SplitKeyValue(std::string keyval, std::string &key, std::string &value) {
+    int equalpos = keyval.find(":");
+    if (equalpos != STR_NPOS) {
+      key.assign(keyval,0,equalpos-1);
+      value.assign(keyval,equalpos+1, keyval.length()-(equalpos+1));
+      return true;
+    } else {
+      key=value="";
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  /** 
+   * Split a 'key:value' definition into key + value
+   * 
+   * @param keyval key-val string 'key:value'
+   * @param key returned key
+   * @param value return value
+   * 
+   * @return true if parsing ok, false if wrong format
+   */
+  // ---------------------------------------------------------------------------  
+  static bool 
   SplitKeyValue(XrdOucString keyval, XrdOucString &key, XrdOucString &value) {
     int equalpos = keyval.find(":");
     if (equalpos != STR_NPOS) {
@@ -356,6 +381,89 @@ public:
     } else {
       post = "";
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  /** 
+   * Convert a string into a line-wise map
+   * 
+   * @param in char*
+   * @param out vector with std::string lines
+   */
+  // ---------------------------------------------------------------------------
+  
+  static void
+  StringToLineVector(char* in, std::vector<std::string> &out) {
+    char* pos = in;
+    char* old_pos = in;
+    int len = strlen(in);
+    while ( (pos = strchr(pos,'\n') ) ) {
+      *pos = 0;
+      out.push_back(old_pos);
+      *pos = '\n';
+      pos++;
+      old_pos = pos;
+      // check for the end of string
+      if ((pos-in)>=len) 
+	break;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  /** 
+   * Split a string of type '<string>@<int>[:<0xXXXXXXXX] into string,int,std::set<unsigned long long>'
+   * 
+   * @param in char*
+   * @param tag string 
+   * @param id unsigned long
+   * @param set std::set<unsigned long long>
+   * @return true if parsed, false if format error
+   */
+  // ---------------------------------------------------------------------------  
+  static bool
+  ParseStringIdSet(char* in, std::string& tag, unsigned long& id, std::set<unsigned long long> &set)
+  {
+    char* ptr = in;
+    char* add = strchr(in,'@');
+    if (!add)
+      return false;
+
+    char* colon = strchr(add,':');
+
+    if (!colon) {
+      id = strtoul(add+1,0,10);
+      if (id) {
+	return true;
+      } else {
+	return false;
+      }
+    } else {
+      *colon = 0;
+      id = strtoul(add+1,0,10);
+      *colon = ':';
+    }
+
+    *add = 0;
+    tag = ptr;
+    *add = '@';
+    
+    ptr = colon+1;
+    do {
+      char* nextcolon = strchr(ptr,':');
+      // get a set member
+      if (nextcolon) {
+	*nextcolon=0;
+	unsigned long long n = strtoull(ptr,0,16);
+	*nextcolon=':';
+	set.insert(n);
+	ptr = nextcolon+1;
+      } else {
+	unsigned long long n = strtoull(ptr,0,16);
+	set.insert(n);
+	return true;
+      }
+    } while(1);
+    return false;
   }
 
   // ---------------------------------------------------------------------------
