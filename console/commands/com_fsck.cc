@@ -76,6 +76,7 @@ com_fsck (char* arg1) {
     if ( (! option.length()) || 
          ( (option != "--checksum") &&
 	   (option != "--checksum-commit") &&
+	   (option != "--verify") &&
            (option != "--unlink-unregistered") &&
            (option != "--unlink-orphans") &&
            (option != "--adjust-replicas") &&
@@ -111,6 +112,9 @@ com_fsck (char* arg1) {
   fprintf(stdout,"                                                                  :  issues a 'verify' operation on all files with checksum errors\n");
   fprintf(stdout,"       fsck repair --checksum-commit\n");
   fprintf(stdout,"                                                                  :  issues a 'verify' operation on all files with checksum errors and forces a commit of size and checksum to the MGM\n");
+  fprintf(stdout,"       fsck repair --verify\n");
+  fprintf(stdout,"                                                                  :  issues a 'verify' operation on all files with any error. This will resync the MGM meta data to the storage node and will clean-up 'ghost' entries in the FST meta data cache.");
+ 
   fprintf(stdout,"       fsck repair --unlink-unregistered\n");
   fprintf(stdout,"                                                                  :  unlink replicas which are not connected/registered to their logical name\n");
   fprintf(stdout,"       fsck repair --unlink-orphans\n");

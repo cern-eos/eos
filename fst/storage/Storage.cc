@@ -1284,7 +1284,7 @@ Storage::Verify()
       continue;
     }
     verificationsMutex.UnLock();
-
+   
     eos_static_debug("verifying File Id=%x on Fs=%u", verifyfile->fId, verifyfile->fsId);
     // verify the file
     XrdOucString hexfid="";
@@ -1294,11 +1294,45 @@ Storage::Verify()
     XrdOucString fstPath = "";
     
     eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), verifyfile->localPrefix.c_str(),fstPath);
-    
+
+    {
+      XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
+      if (gOFS.WOpenFid[verifyfile->fsId].count(verifyfile->fId)) {
+	if (gOFS.WOpenFid[verifyfile->fsId][verifyfile->fId]>0) {
+	  eos_static_warning("file is currently opened for writing id=%x on fs=%u path=%s - skipping verification", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+	  continue;
+	}
+      }
+    }
+
+    {
+      // force a resync of meta data from the MGM
+      XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+      std::string manager = eos::fst::Config::gConfig.Manager.c_str();
+      if (!gFmdSqliteHandler.ResyncMgm(verifyfile->fId, verifyfile->fsId,manager.c_str())) {
+	eos_static_err("cannot contact MGM manager=%s", manager.c_str());
+      } 
+    }
+
     // get current size on disk
     struct stat statinfo;
     if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
       eos_static_err("unable to verify file id=%x on fs=%u path=%s - stat on local disk failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+      
+      // get a record if
+      FmdSqlite* fMd = 0;
+      fMd = gFmdSqliteHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, 0, 0);
+      if (fMd) {
+	if (fMd->fMd.layouterror && eos::common::LayoutId::kUnregistered) {
+	  // the file is neither on disk nor should it be there
+	  if (!gFmdSqliteHandler.DeleteFmd(verifyfile->fId, verifyfile->fsId)) {
+	    eos_static_err("failed to remove fmd for id=%x on fs=%u path=%s - stat on local disk failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+	  } else {
+	    eos_static_info("removed fmd for id=%x on fs=%u path=%s - stat on local disk failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+	  }
+	}
+	delete fMd;
+      }
     } else {
       // attach meta data
       FmdSqlite* fMd = 0;
@@ -1370,6 +1404,7 @@ Storage::Verify()
             if (attr) {
               // update the extended attributes
               attr->Set("user.eos.checksum",checksummer->GetBinChecksum(checksumlen), checksumlen);
+	      attr->Set(std::string("user.eos.checksumtype"), std::string(checksummer->GetName()));
               delete attr;
             }
           }

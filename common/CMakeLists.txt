@@ -71,6 +71,7 @@ if (Linux)
     COMPILE_FLAGS -DSQLITE_NO_SYNC=1
   )
   set_target_properties (eosCommon-Static PROPERTIES COMPILE_FLAGS "-fPIC -DSQLITE_NO_SYNC=1")
+
 endif(Linux)
 
 install ( TARGETS eosCommon 

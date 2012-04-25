@@ -30,6 +30,7 @@
 #include "common/Path.hh"
 #include "common/Statfs.hh"
 #include "common/Attr.hh"
+#include "common/SyncAll.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
@@ -105,7 +106,10 @@ XrdFstOfs::xrdfstofs_shutdown(int sig) {
     XrdSysThread::Cancel(*it);
     XrdSysThread::Join(*it,0);
   }
-  
+
+  // sync all file descriptors
+  eos::common::SyncAll::All();
+
   delete gOFS.Messaging; // shutdown messaging thread
 
   eos_static_warning("op=shutdown status=completed");
@@ -1810,10 +1814,18 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
 	if ( ( (icit->first != "mem_n") && (icit->first != "d_sync_n") && (icit->first != "m_sync_n") ) &&  
 	     ( (tag == "*") || ( (tag.find(icit->first.c_str()) != STR_NPOS)) ) ) {
 	  char stag[4096];
-	  snprintf(stag,sizeof(stag)-1,"%s@%lu", icit->first.c_str(), (unsigned long )gOFS.Storage->fileSystemsVector[i]->GetId());
+	  eos::common::FileSystem::fsid_t fsid = gOFS.Storage->fileSystemsVector[i]->GetId();
+	  snprintf(stag,sizeof(stag)-1,"%s@%lu", icit->first.c_str(), (unsigned long )fsid);
 	  stdOut += stag;
 	  std::set<eos::common::FileId::fileid_t>::const_iterator fit;
 	  for (fit = icit->second.begin(); fit != icit->second.end(); fit ++) {
+	    // don't report files which are currently write-open
+	    XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
+	    if (gOFS.WOpenFid[fsid].count(*fit)) {
+	      if (gOFS.WOpenFid[fsid][*fit]>0) {
+		continue;
+	      }
+	    }
 	    // loop over all fids
 	    char sfid[4096];
 	    snprintf(sfid,sizeof(sfid)-1,":%08llx", *fit);

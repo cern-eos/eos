@@ -717,6 +717,7 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
   // check for a valid action in option
   if ( (option != "checksum" ) &&
        (option != "checksum-commit" ) &&
+       (option != "verify" ) &&
        (option != "unlink-unregistered") &&
        (option != "unlink-orphans") &&
        (option != "adjust-replicas") &&
@@ -776,6 +777,54 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
 	    // verify only
 	    lretc = gOFS->_verifystripe(path.c_str(), error, vid, efsmapit->first , "&mgm.verify.compute.checksum=1");
 	  }
+	  if (!lretc) {
+	    out += "success: sending verify to fsid="; out += (int)efsmapit->first; out += " for path="; out += path.c_str(); out += "\n";
+	  } else {
+	    err += "error: sending verify to fsid=";   err += (int)efsmapit->first; err += " failed for path="; err += path.c_str(); err += "\n";
+	  }
+	}
+      }
+    }
+    return true;
+  } 
+
+  if ( option.beginswith("verify")) {
+    std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>>::const_iterator efsmapit;
+    std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>> fid2check;
+    std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
+
+    for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {
+      // loop over all filesystems
+      for (efsmapit = eFsMap[emapit->first].begin(); efsmapit != eFsMap[emapit->first].end(); efsmapit++) {
+	std::set <eos::common::FileId::fileid_t>::const_iterator it;
+	// loop over all fids
+	for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++) {
+	  fid2check[efsmapit->first].insert(*it);
+	}
+      }
+    }
+
+    // loop over all filesystems
+    for (efsmapit = fid2check.begin(); efsmapit != fid2check.end(); efsmapit++) {
+      std::set <eos::common::FileId::fileid_t>::const_iterator it;
+      for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++) {      
+	eos::FileMD* fmd=0;
+	std::string path="";
+	eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	try {
+	  fmd = gOFS->eosFileService->getFileMD(*it);
+	  path = gOFS->eosView->getUri(fmd);
+	} catch ( eos::MDException &e ) {
+	}
+	
+	// issue verify operations on that particular filesystem
+	eos::common::Mapping::VirtualIdentity vid;
+	eos::common::Mapping::Root(vid);
+	XrdOucErrInfo error;
+	int lretc = 1;
+	if (path.length()) {
+	  // verify 
+	  lretc = gOFS->_verifystripe(path.c_str(), error, vid, efsmapit->first , "&mgm.verify.compute.checksum=1");
 	  if (!lretc) {
 	    out += "success: sending verify to fsid="; out += (int)efsmapit->first; out += " for path="; out += path.c_str(); out += "\n";
 	  } else {

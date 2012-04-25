@@ -27,6 +27,7 @@
 #include "common/Path.hh"
 #include "common/Attr.hh"
 #include "fst/FmdSqlite.hh"
+#include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -909,7 +910,7 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
     // get our stored one
     FmdSqlite* fmd = GetFmd(fMd.fid, fsid, fMd.uid, fMd.gid, fMd.lid, true, true);
     if (fmd) {
-      // check if we have an layout error
+      // check if we have a layout error
       fMd.layouterror = FmdSqlite::LayoutError(fsid,fMd.lid, fMd.locations);
       
       if (!UpdateFromMgm(fsid, fMd.fid, fMd.cid, fMd.lid, fMd.mgmsize, fMd.mgmchecksum, fMd.name, fMd.container, fMd.uid,fMd.gid, fMd.ctime, fMd.ctime_ns, fMd.mtime, fMd.mtime_ns, fMd.layouterror, fMd.locations)) {
