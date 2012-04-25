@@ -40,20 +40,30 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+const char* Fsck::gFsckEnabled = "fsck";
+const char* Fsck::gFsckInterval = "fsckinterval";
+
 /* ------------------------------------------------------------------------- */
 Fsck::Fsck() 
 {
   mRunning = false;
+  mInterval = 30; // in minutes !
+  mEnabled = "false";
 }
 
 /* ------------------------------------------------------------------------- */
 bool
-Fsck::Start()
+Fsck::Start(int interval)
 {
+  if (interval) {
+    mInterval = interval;
+  }
+
   if (!mRunning) {
     XrdSysThread::Run(&mThread, Fsck::StaticCheck, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "Fsck Thread");
     mRunning = true;
-    return true;
+    mEnabled = "true";
+    return StoreFsckConfig();
   } else {
     return false;
   }
@@ -74,8 +84,9 @@ Fsck::Stop()
     XrdSysThread::Join(mThread,NULL);
     eos_static_info("joined fsck thread");
     mRunning = false;
+    mEnabled = false;
     Log(false,"disabled check");
-    return true;
+    return StoreFsckConfig();
   } else {
     return false;
   }
@@ -87,6 +98,45 @@ Fsck::~Fsck()
   if (mRunning)
     Stop();
 }
+
+/* ------------------------------------------------------------------------- */
+void 
+Fsck::ApplyFsckConfig()
+{
+  std::string enabled = FsView::gFsView.GetGlobalConfig(gFsckEnabled);
+  if (enabled.length()) {
+    mEnabled = enabled.c_str();
+  }
+  std::string interval = FsView::gFsView.GetGlobalConfig(gFsckInterval);
+  if (interval.length()) {
+    mInterval = atoi(interval.c_str());
+    if (mInterval <0) {
+      mInterval = 30;
+    }
+  }
+
+  Log(false,"enabled=%s", mEnabled.c_str());
+  Log(false,"check interval=%d minutes", mInterval);
+
+  if (mEnabled == "true") {
+    Start();
+  } else {
+    Stop();
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+bool
+Fsck::StoreFsckConfig()
+{
+  bool ok=1;
+  XrdOucString sInterval="";
+  sInterval += (int) mInterval;
+  ok &= FsView::gFsView.SetGlobalConfig(gFsckEnabled, mEnabled.c_str() );
+  ok &= FsView::gFsView.SetGlobalConfig(gFsckInterval, sInterval.c_str());
+  return ok;
+}
+
 
 /* ------------------------------------------------------------------------- */
 void* 
@@ -105,6 +155,10 @@ Fsck::Check(void)
   
   int bccount = 0;
 
+  ClearLog();
+  Log(false,"delaying check by 15 minutes ...");
+  //  sleeper.Snooze(60*15);
+  
   while (1) {
     sleeper.Snooze(1);
     eos_static_debug("Started consistency checker thread");
@@ -229,9 +283,6 @@ Fsck::Check(void)
     }
     
     std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
-    for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {
-      Log(false,"%-30s : %llu (%llu)", emapit->first.c_str(), emapit->second.size(), eCount[emapit->first]);
-    }
 
     // look over unavailable filesystems
     std::map<eos::common::FileSystem::fsid_t,unsigned long long >::const_iterator unavailit;
@@ -244,6 +295,71 @@ Fsck::Check(void)
       }
       Log(false,"host=%s fsid=%lu  replica_offline=%llu ", host.c_str(), unavailit->first, unavailit->second);
     }
+
+    {
+      // loop over all replica_offline and layout error files to assemble a file offline list
+      std::set <eos::common::FileId::fileid_t>::const_iterator it;
+      std::set <eos::common::FileId::fileid_t> fid2check;
+      for (it = eMap["rep_offline"].begin(); it != eMap["rep_offline"].end(); it++) {
+	fid2check.insert(*it);
+      }
+      for (it = eMap["rep_diff_n"].begin(); it != eMap["rep_diff_n"].end(); it++) {
+	fid2check.insert(*it);
+      }
+      
+      for (it = fid2check.begin(); it != fid2check.end(); it++) {
+	eos::FileMD* fmd = 0;
+
+	// check if locations are online
+	eos::FileMD::LocationVector::const_iterator lociter;
+	try {
+	  eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
+	  fmd = gOFS->eosFileService->getFileMD(*it);
+	} catch ( eos::MDException &e ) {
+	  // nothing to catch
+	}
+	if (!fmd) 
+	  continue;
+
+	eos::FileMD fmdCopy(*fmd);
+	fmd = &fmdCopy;
+	
+	eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+	size_t nlocations = fmd->getNumLocation();
+	size_t offlinelocations = 0;
+
+	for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
+	  if (*lociter) {
+	    if (FsView::gFsView.mIdView.count(*lociter)) {
+	      eos::common::FileSystem::fsstatus_t bootstatus   = (FsView::gFsView.mIdView[*lociter]->GetStatus(true));
+	      eos::common::FileSystem::fsstatus_t configstatus = (FsView::gFsView.mIdView[*lociter]->GetConfigStatus());
+	      
+	      bool conda = (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(true) == eos::common::FileSystem::kOffline)  ;
+	      bool condb = ( bootstatus != eos::common::FileSystem::kBooted) ;
+	      bool condc = ( configstatus == eos::common::FileSystem::kDrainDead);
+	      
+	      if ( conda || condb || condc) {
+		offlinelocations++;
+	      }
+	    }
+	  }
+	}
+
+	// TODO: this condition has to be adjusted for RAIN layouts
+	if (offlinelocations == nlocations) {
+	  eMap["file_offline"].insert(*it);
+	  eCount["file_offline"]++;
+	}
+	if (offlinelocations && (offlinelocations != nlocations) ) {
+	  eMap["adjust_replica"].insert(*it);
+	  eCount["adjust_replica"]++;
+	}
+      }
+    }
+
+    for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {
+      Log(false,"%-30s : %llu (%llu)", emapit->first.c_str(), emapit->second.size(), eCount[emapit->first]);
+    }    
 
     {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -264,7 +380,7 @@ Fsck::Check(void)
 	}
       }
     }
-    
+
     Log(false,"stopping check");
     
     XrdSysThread::CancelPoint();
@@ -287,21 +403,47 @@ Fsck::PrintOut(XrdOucString &out,  XrdOucString option)
 
 /* ------------------------------------------------------------------------- */
 bool 
+Fsck::Usage(XrdOucString &out, XrdOucString &err)
+{
+  err += "error: invalid option specified\n";
+  return false;
+}
+
+/* ------------------------------------------------------------------------- */
+bool 
 Fsck::Report(XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucString selection)
 {
-  out = "option:"; out += option;
-  out += " selection:"; out += selection;
   bool printfid = (option.find("i")!=STR_NPOS);
   bool printlfn = (option.find("l")!=STR_NPOS);
 
+  XrdSysMutexHelper lock(eMutex);
+
+  XrdOucString checkoption = option;
+  checkoption.replace("h","");
+  checkoption.replace("json","");
+  checkoption.replace("i","");
+  checkoption.replace("l","");
+  checkoption.replace("a","");
+  
+  if (checkoption.length()) {
+    return Fsck::Usage(out,err);
+  }
+
+  char stimestamp[1024]; 
+  snprintf(stimestamp,sizeof(stimestamp)-1,"%lu",(unsigned long) eTimeStamp);
+
+  // currently 'selection' is not used
   if (!selection.length()) {
     if ( (option.find("json")!= STR_NPOS) || (option.find("j") != STR_NPOS) ) {
       // json output
       out += "{\n";
+      // put the check timestamp
+      out += "  \"timestamp\": "; out += stimestamp; out += ",\n";
+
       if (! (option.find("a") != STR_NPOS) ) {
 	// give global table
 	std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
-	for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
+ 	for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
 	  char sn[1024];
 	  snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )emapit->second.size());
 	  out += "  \""; out += emapit->first.c_str(); out += "\": {\n";
@@ -340,27 +482,94 @@ Fsck::Report(XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucSt
 	    }
 	    out += "]\n";
 	  }
+	  if (out.endswith(",\n")) {
+	    out.erase(out.length()-2);
+	    out += "\n";
+	  }
 	  out += "  },\n";
 	}
 	
-	// list shadow filesystems
-	std::map<eos::common::FileSystem::fsid_t, unsigned long long >::const_iterator fsit;
-	out += "  \"shadow_fsid\": [";
-	for (fsit = eFsDark.begin(); fsit != eFsDark.end(); fsit++) {
-	  char sfsid[1024];
-	  snprintf(sfsid,sizeof(sfsid)-1,"%lu", (unsigned long)fsit->first);
-	  out += sfsid;
-	  out += ",";
-	}
-	if (out.endswith(",")) {
-	  out.erase(out.length()-1);
-	}
-	out += "  ]\n";
-	out += "}\n";
       } else {
 	// do output per filesystem
+	std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
+	for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
+	  // loop over errors
+	  char sn[1024];
+	  snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )emapit->second.size());
+	  out += "  \""; out += emapit->first.c_str(); out += "\": {\n";
+	  out += "    \"n\": "; out += sn; out += "\",\n";
+	  out += "    \"fsid\":"; out += " {\n";
+	  std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>>::const_iterator efsmapit;
 
+	  for (efsmapit = eFsMap[emapit->first].begin(); efsmapit != eFsMap[emapit->first].end(); efsmapit++) {
+ 	    if (emapit->first == "zero_replica") {
+	      // this we cannot break down by filesystem id
+	      continue;
+	    }
+	    // loop over filesystems
+	    out += "      \""; out += (int)efsmapit->first; out += "\": {\n";
+	    snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )efsmapit->second.size());
+	    out += "        \"n\": "; out += sn ; out += ",\n";
+	    if (printfid) {
+	      out += "        \"fxid\": ["; 
+	      std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
+	      for (fidit = efsmapit->second.begin(); fidit != efsmapit->second.end(); fidit++) {
+		XrdOucString hexstring;
+		eos::common::FileId::Fid2Hex(*fidit,hexstring);
+		out += hexstring.c_str();
+		out += ",";
+	      }
+	      if (out.endswith(",")) {
+		out.erase(out.length()-1);
+	      }
+	      out += "]\n";
+	    }
+	    if (printlfn) {
+	      out += "        \"lfn\": ["; 
+	      std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
+	      for (fidit = efsmapit->second.begin(); fidit != efsmapit->second.end(); fidit++) {
+		eos::FileMD* fmd=0;
+		eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+		try {
+		  fmd = gOFS->eosFileService->getFileMD(*fidit);
+		  std::string fullpath = gOFS->eosView->getUri(fmd);
+		  out += "\""; out += fullpath.c_str(); out += "\"";
+		} catch ( eos::MDException &e ) {
+		  out += "\"undefined\"";
+		}
+		out += ",";
+	      } 
+	      if (out.endswith(",")) {
+		out.erase(out.length()-1);
+	      }
+	      out += "]\n";
+	    }
+	    if (out.endswith(",\n")) {
+	      out.erase(out.length()-2);
+	      out += "\n";
+	    }
+	    out += "      },\n";
+	  }
+	  out += "    },\n";
+	}
       }
+
+      // list shadow filesystems
+      std::map<eos::common::FileSystem::fsid_t, unsigned long long >::const_iterator fsit;
+      out += "  \"shadow_fsid\": [";
+      for (fsit = eFsDark.begin(); fsit != eFsDark.end(); fsit++) {
+	char sfsid[1024];
+	snprintf(sfsid,sizeof(sfsid)-1,"%lu", (unsigned long)fsit->first);
+	out += sfsid;
+	out += ",";
+      }
+      if (out.endswith(",")) {
+	out.erase(out.length()-1);
+      }
+
+      out += "  ]\n";
+      out += "}\n";
+
     } else {
       // greppable format
       if (! (option.find("a") != STR_NPOS) ) {
@@ -369,6 +578,7 @@ Fsck::Report(XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucSt
 	for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
 	  char sn[1024];
 	  snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )emapit->second.size());
+	  out += "timestamp="; out += stimestamp; out += " ";
 	  out += "tag=\""; out += emapit->first.c_str(); out +="\"";
 	  out += " n="; out += sn; 
 	  if (printfid) {
@@ -408,7 +618,7 @@ Fsck::Report(XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucSt
 	  
 	  // list shadow filesystems
 	  std::map<eos::common::FileSystem::fsid_t, unsigned long long >::const_iterator fsit;
-	  out += "shadow_fsid=";
+	  out += " shadow_fsid=";
 	  for (fsit = eFsDark.begin(); fsit != eFsDark.end(); fsit++) {
 	    char sfsid[1024];
 	    snprintf(sfsid,sizeof(sfsid)-1,"%lu", (unsigned long)fsit->first);
@@ -422,13 +632,169 @@ Fsck::Report(XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucSt
 	}
       } else {
 	// do output per filesystem
+	std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
+	std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>>::const_iterator efsmapit;
+
+	for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
+	  // loop over filesystems
+	  for (efsmapit = eFsMap[emapit->first].begin(); efsmapit != eFsMap[emapit->first].end(); efsmapit++) {
+ 	    if (emapit->first == "zero_replica") {
+	      // this we cannot break down by filesystem id
+	      continue;
+	    }
+	    
+	    char sn[1024];
+	    out += "timestamp="; out += stimestamp; out += " ";
+	    out += "tag=\""; out += emapit->first.c_str(); out +="\""; out += " ";
+	    out += "fsid="; out += (int) efsmapit->first;
+	    snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )efsmapit->second.size());
+	    out += " n="; out += sn; 
+	    if (printfid) {
+	      out += " fxid="; 
+	      std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
+	      for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+		XrdOucString hexstring;
+		eos::common::FileId::Fid2Hex(*fidit,hexstring);
+		out += hexstring.c_str();
+		out += ",";
+	      }
+	      if (out.endswith(",")) {
+		out.erase(out.length()-1);
+	      }
+	      out += "\n";
+	    } else {
+	      if (printlfn) {
+		out += " lfn="; 
+		std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
+		for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+		  eos::FileMD* fmd=0;
+		  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+		  try {
+		    fmd = gOFS->eosFileService->getFileMD(*fidit);
+		    std::string fullpath = gOFS->eosView->getUri(fmd);
+		    out += "\""; out += fullpath.c_str(); out += "\"";
+		  } catch ( eos::MDException &e ) {
+		    out += "\"undefined\"";
+		  }
+		  out += ",";
+		} 
+		if (out.endswith(",")) {
+		  out.erase(out.length()-1);
+		}
+		out += "\n";
+	      } else {
+		out += "\n";
+	      }
+	    }
+	  }
+	}
       }
     }
   } else {
-    // output the selected tag
-
+    // output the selected tag - currently we have disabled this feature in the command line
   }
   return true;
+}
+
+/* ------------------------------------------------------------------------- */
+bool 
+Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
+{
+  XrdSysMutexHelper lock(eMutex);
+
+  // check for a valid action in option
+  if ( (option != "checksum" ) &&
+       (option != "unlink-unregistered") &&
+       (option != "unlink-orphans") &&
+       (option != "adjust-replicas") &&
+       (option != "drop-missing-replicas") &&
+       (option != "unlink-zero-replicas") ) {
+    err += "error: illegal option <"; err += option; err += ">\n";
+    return false;
+  }
+
+  if (option == "checksum") {
+    std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>>::const_iterator efsmapit;
+    std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>> fid2check;
+    
+    // loop over all filesystems
+    for (efsmapit = eFsMap["m_cx_diff"].begin(); efsmapit != eFsMap["m_cx_diff"].end(); efsmapit++) {
+      std::set <eos::common::FileId::fileid_t>::const_iterator it;
+
+      // loop over all fids
+      for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++) {
+	fid2check[efsmapit->first].insert(*it);
+      }
+    }
+
+    // loop over all filesystems
+    for (efsmapit = eFsMap["d_cx_diff"].begin(); efsmapit != eFsMap["d_cx_diff"].end(); efsmapit++) {
+      std::set <eos::common::FileId::fileid_t>::const_iterator it;
+      
+      // loop over all fids
+      for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++) {
+	fid2check[efsmapit->first].insert(*it);
+      }
+    }
+    
+    // loop over all filesystems
+    for (efsmapit = fid2check.begin(); efsmapit != fid2check.end(); efsmapit++) {
+      std::set <eos::common::FileId::fileid_t>::const_iterator it;
+      for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++) {      
+	eos::FileMD* fmd=0;
+	std::string path="";
+	eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	try {
+	  fmd = gOFS->eosFileService->getFileMD(*it);
+	  path = gOFS->eosView->getUri(fmd);
+	} catch ( eos::MDException &e ) {
+	}
+	
+	// issue verify operations on that particular filesystem
+	eos::common::Mapping::VirtualIdentity vid;
+	eos::common::Mapping::Root(vid);
+	XrdOucErrInfo error;
+	int lretc = 1;
+	if (path.length()) {
+	  lretc = gOFS->_verifystripe(path.c_str(), error, vid, efsmapit->first , "&mgm.verify.compute.checksum=1");
+	  if (!lretc) {
+	    out += "success: sending verify to fsid="; out += (int)efsmapit->first; out += " for path="; out += path.c_str(); out += "\n";
+	  } else {
+	    err += "error: sending verify to fsid=";   err += (int)efsmapit->first; err += " failed for path="; err += path.c_str(); err += "\n";
+	  }
+	}
+      }
+    }
+    return true;
+  } 
+  
+  if (option == "unlink-unregistered") {
+    // unlink all unregistered files
+    return true;
+  }
+
+  if (option == "unlink-orphans") {
+    // unlink all orphaned files
+    return true;
+  }
+  
+  if (option == "adjust-replicas") {
+    // adjust all layout errors e.g. missing replicas where possible
+    return true;
+  }
+
+  if (option == "drop-missing-replicas") {
+    // drop replicas which are in the namespace but have no 'image' on disk
+    return true;
+  }
+
+  if (option == "unlink-zero-replicas") {
+    // drop all namespace entries which are older than 48 hours and have no files attached
+    return true;
+  }
+
+  err = "error: unavailable option";
+  return false;
 }
 
 /* ------------------------------------------------------------------------- */

@@ -41,9 +41,15 @@ com_fsck (char* arg1) {
   }
   
   in = "mgm.cmd=fsck&";
-
   if (cmd == "enable") {
+    XrdOucString interval = subtokenizer.GetToken();
+    if ( interval.length() && ( (atoi(interval.c_str()))<=0)) {
+      goto com_fsck_usage;
+    }
     in += "mgm.subcmd=enable";
+    if (interval.length()) {
+      in += "&mgm.fsck.interval=";in += interval.c_str();
+    }
   }
   if (cmd == "disable") {
     in += "mgm.subcmd=disable";
@@ -58,18 +64,6 @@ com_fsck (char* arg1) {
     do {
       option = subtokenizer.GetToken();
       if (option.length()) {
-        XrdOucString tag="";
-        if (option == "--error") {
-          tag = subtokenizer.GetToken();
-          if (!tag.length()) {
-            goto com_fsck_usage;
-          } else {
-            in += "&mgm.fsck.selection=";
-            in += tag;
-            continue;
-          }
-        }
-        
         while (option.replace("-","")) {}
         options += option;
       }
@@ -84,7 +78,8 @@ com_fsck (char* arg1) {
            (option != "--unlink-unregistered") &&
            (option != "--unlink-orphans") &&
            (option != "--adjust-replicas") &&
-           (option != "--drop-missing-replicas") ) )
+           (option != "--drop-missing-replicas") &&
+	   (option != "--unlink-zero-replicas") ) )
       goto com_fsck_usage;
     option.replace("--","");
     in += "&mgm.option=";
@@ -101,16 +96,14 @@ com_fsck (char* arg1) {
 
  com_fsck_usage:
   fprintf(stdout,"usage: fsck stat                                                  :  print status of consistency check\n");
-  fprintf(stdout,"       fsck enable                                                :  enable fsck\n");
+  fprintf(stdout,"       fsck enable [<interval>]                                   :  enable fsck\n");
+  fprintf(stdout,"                                                       <interval> :  check interval in minutes - default 30 minutes");
   fprintf(stdout,"       fsck disable                                               :  disable fsck\n");
-  fprintf(stdout,"       fsck report [-h] [-g] [-m] [-a] [-i] [-l] [--error <tag>]  :  report consistency check results");
-  fprintf(stdout,"                                                               -g :  report global counters\n");
-  fprintf(stdout,"                                                               -m :  select monitoring output format\n");
+  fprintf(stdout,"       fsck report [-h] [-g] [-a] [-i] [-l] [--json]              :  report consistency check results");
   fprintf(stdout,"                                                               -a :  break down statistics per filesystem\n");
   fprintf(stdout,"                                                               -i :  print concerned file ids\n");
   fprintf(stdout,"                                                               -l :  print concerned logical names\n");
-  fprintf(stdout,"                                               --error <tag>      :  select only errors with name <tag> in the printout\n");
-  fprintf(stdout,"                                                                     you get the names by doing 'fsck report -g'\n");
+  fprintf(stdout,"                                                           --json :  select JSON output format\n");
   fprintf(stdout,"                                                               -h :  print help explaining the individual tags!\n");
 
   fprintf(stdout,"       fsck repair --checksum\n");
@@ -123,6 +116,8 @@ com_fsck (char* arg1) {
   fprintf(stdout,"                                                                  :  try to fix all replica inconsistencies\n");
   fprintf(stdout,"       fsck repair --drop-missing-replicas\n");
   fprintf(stdout,"                                                                  :  just drop replicas from the namespace if they cannot be found on disk\n");
+  fprintf(stdout,"       fsck repair --unlink-zero-replicas\n");                
+  fprintf(stdout,"                                                                  :  drop all files which have no replica's attached and are older than 48 hours!\n");
 
   
 

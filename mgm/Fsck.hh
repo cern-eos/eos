@@ -52,6 +52,9 @@ private:
   XrdOucString  mLog;
   XrdSysMutex mLogMutex;
 
+  XrdOucString mEnabled;
+  int mInterval;
+
   pthread_t mThread;
   bool mRunning;
 
@@ -70,28 +73,40 @@ private:
   // dark filesystem map
   std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsDark;
 
+  // timestamp of collection
+  time_t eTimeStamp;
 
   void  ResetErrorMaps() {
     XrdSysMutexHelper lock(eMutex);
-    eFsMap.clear();
+    eFsMap.clear(); 
     eMap.clear();
     eCount.clear();
     eFsUnavail.clear();
     eFsDark.clear();
+    eTimeStamp = time(NULL);
   }
 
 public:
+  static const char* gFsckEnabled;
+  static const char* gFsckInterval;
+
   Fsck();
   ~Fsck();
  
-  bool Start();
+  bool Start(int interval=0);
   bool Stop();
+
+  bool Usage(XrdOucString &out, XrdOucString &err);
 
   void PrintOut(XrdOucString &out, XrdOucString option="");
   bool Report(XrdOucString &out, XrdOucString &err, XrdOucString option="", XrdOucString selection="");
+  bool Repair(XrdOucString &out, XrdOucString &err, XrdOucString option="");
 
   void ClearLog();
   void Log(bool overwrite, const char* msg, ...);
+
+  void ApplyFsckConfig();
+  bool StoreFsckConfig();
 
   static void* StaticCheck(void*);
   void* Check();

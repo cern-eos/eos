@@ -357,7 +357,7 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
       if (!force) {
 	// if we have a mismatch between the mgm/disk and 'ref' value in size,  we don't return the FMD record
 	if ( (fmd->fMd.disksize && (fmd->fMd.disksize != fmd->fMd.size)) ||
-	     (fmd->fMd.mgmsize &&  (fmd->fMd.mgmsize  != fmd->fMd.mgmsize)) ) {
+	     (fmd->fMd.mgmsize &&  (fmd->fMd.mgmsize  != fmd->fMd.size)) ) {
 	  eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu", fid, fsid, fmd->fMd.size, fmd->fMd.disksize, fmd->fMd.mgmsize);
 	  
 	  delete fmd;
@@ -367,7 +367,7 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
 	   
 	// if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the FMD record
 	if ( (fmd->fMd.diskchecksum.length() && (fmd->fMd.diskchecksum != fmd->fMd.checksum)) ||
-	     (fmd->fMd.mgmchecksum.length() &&  (fmd->fMd.mgmchecksum  != fmd->fMd.mgmchecksum)) ) {
+	     (fmd->fMd.mgmchecksum.length() &&  (fmd->fMd.mgmchecksum  != fmd->fMd.checksum)) ) {
 	  eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s", fid, fsid, fmd->fMd.checksum.c_str(), fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str());
 	  
 	  delete fmd;
@@ -974,6 +974,8 @@ FmdSqliteHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const char*
       if (FmdSqlite::EnvMgmToFmdSqlite(*env, fMd)) {
 	// get our stored one
 	FmdSqlite* fmd = GetFmd(fMd.fid, fsid, fMd.uid, fMd.gid, fMd.lid, true, true);
+
+	fMd.layouterror = FmdSqlite::LayoutError(fsid,fMd.lid, fMd.locations);
 	
 	if (fmd) {
 	  if (!UpdateFromMgm(fsid, fMd.fid, fMd.cid, fMd.lid, fMd.mgmsize, fMd.mgmchecksum, fMd.name, fMd.container, fMd.uid,fMd.gid, fMd.ctime, fMd.ctime_ns, fMd.mtime, fMd.mtime_ns, fMd.layouterror,fMd.locations)) {

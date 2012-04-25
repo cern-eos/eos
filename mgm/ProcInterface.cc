@@ -2203,7 +2203,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           if (gOFS->FsCheck.Start()) {
             stdOut += "success: enabled fsck";
           } else {
-            stdErr += "error: fsck was already enabled";
+            stdErr += "error: fsck was already enabled - to change the <interval> settings stop it first";
           }
         }
         if (subcmd == "report") {
@@ -2211,13 +2211,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           XrdOucString selection="";
           option = opaque.Get("mgm.option")?opaque.Get("mgm.option"):"";
           selection = opaque.Get("mgm.fsck.selection")?opaque.Get("mgm.fsck.selection"):"";
-          if ( (option.find("C")!=STR_NPOS) ||
-               (option.find("O")!=STR_NPOS) ||
-               (option.find("D")!=STR_NPOS) ||
-               (option.find("h")!=STR_NPOS)) {
-            stdErr="error: illegal option\n";
-            retc=EINVAL;
-          }
           if (gOFS->FsCheck.Report(stdOut,stdErr, option,selection))
             retc=0;
           else
@@ -2228,47 +2221,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           XrdOucString option=""; 
           XrdOucString selection="";
           option = opaque.Get("mgm.option")?opaque.Get("mgm.option"):"";
-          if (option == "checksum") 
-            option = "C";
-          if (option == "unlink-unregistered") 
-            option = "U";
-          if (option == "unlink-orphans")
-            option = "O";
-          if (option == "adjust-replicas")
-            option = "A";
-          if (option == "drop-missing-replicas")
-            option = "D";
-
-          if ( (option.find("C")==STR_NPOS) &&
-               (option.find("U")==STR_NPOS) &&
-               (option.find("O")==STR_NPOS) &&
-               (option.find("A")==STR_NPOS) &&
-               (option.find("D")==STR_NPOS) ) {
-            stdErr="error: illegal option\n";
-            retc=EINVAL;
-          }
-
-          if (option == "C") {
-            option += "al";
-            selection="diff_fst_disk_fmd_checksum";
-          }
-          if (option == "U") {
-            option += "al";
-            selection="replica_not_registered";
-          }
-          if (option == "O") {
-            option += "al";
-            selection="replica_orphaned";
-          }
-          if (option == "A") {
-            option += "al";
-            selection="diff_replica_layout";
-          }
-          if (option == "D") {
-            option += "al";
-            selection="replica_missing";
-          }
-          if (gOFS->FsCheck.Report(stdOut,stdErr, option,selection))
+          if (gOFS->FsCheck.Repair(stdOut,stdErr, option))
             retc=0;
           else
             retc=EINVAL;

@@ -502,6 +502,8 @@ ConfigEngine::ApplyConfig(XrdOucString &err)
 
   Access::ApplyAccessConfig();
 
+  gOFS->FsCheck.ApplyFsckConfig();
+
   if (err.length()) {
     errno = EINVAL;
     return false;
