@@ -30,9 +30,15 @@ add_executable ( eos
 		 ConsoleMain.hh	
 		 ConsolePipe.cc
 		 ConsolePipe.hh
-                 ../common/Logging.cc
-                 ../common/Fmd.cc
-                 ../common/SymKeys.cc
+#                 ../common/Logging.cc
+#                 ../common/Fmd.cc
+#                 ../common/SymKeys.cc
+#		 ../common/Attr.cc
+		 ../fst/FmdSqlite.cc
+		 ../fst/checksum/CheckSum.cc
+		 ../fst/checksum/Adler.cc
+		 ../checksum/crc32c.cc
+                 ../checksum/crc32ctables.cc
 		 commands/com_access.cc
 	         commands/com_attr.cc
 		 commands/com_cd.cc
@@ -90,9 +96,9 @@ add_executable ( eosdropboxd
 
 
 if (CLIENT)
-target_link_libraries ( eos XrdPosix XrdClient XrdUtils pthread dl crypto uuid curses z readline )
+target_link_libraries ( eos XrdPosix XrdClient XrdUtils eosCommon-Static pthread dl crypto uuid curses z readline )
 else (CLIENT)
-target_link_libraries ( eos XrdPosix XrdClient XrdUtils pthread dl XrdMqClient-Static crypto uuid curses z readline )
+target_link_libraries ( eos XrdPosix XrdClient XrdUtils eosCommon-Static pthread dl XrdMqClient-Static crypto uuid curses z readline )
 endif (CLIENT)
 
 target_link_libraries ( eosdropboxd eosCommon-Static XrdPosix XrdClient XrdUtils pthread )

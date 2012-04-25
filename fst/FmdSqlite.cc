@@ -1202,19 +1202,17 @@ bool
 FmdSqlite::EnvFstToFmdSqlite(XrdOucEnv &env, struct FmdSqlite::FMD &fmd)
 {
   // check that all tags are present
-  if ( !env.Get("fid") ||
+  if ( !env.Get("id") ||
        !env.Get("cid") ||
        !env.Get("ctime") ||
        !env.Get("ctime_ns") ||
        !env.Get("mtime") ||
        !env.Get("mtime_ns") ||
-       !env.Get("checksum") ||
        !env.Get("size") ||
        !env.Get("lid") ||
        !env.Get("uid") ||
        !env.Get("gid") ||
-       !env.Get("name") ||
-       !env.Get("container"))
+       !env.Get("name") )
 
     return false;
   

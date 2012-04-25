@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "fst/FmdSqlite.hh"
 /*----------------------------------------------------------------------------*/
 
 
@@ -310,7 +311,7 @@ com_file (char* arg1) {
             fprintf(stderr,"error: unable to get admin\n");
             return ECOMM;
           }
-          struct Fmd::FMD fmd;
+          struct eos::fst::FmdSqlite::FMD fmd;
           int retc=0;
 
           int oldsilent=silent;
@@ -327,7 +328,7 @@ com_file (char* arg1) {
             //      fprintf(stderr,"%s %s %s\n",newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()));
             if ((option.find("%checksumattr")!= STR_NPOS)) {
               checksumattribute="";
-              if ((retc=gFmdHandler.GetRemoteAttribute(admin, newresult->Get(repurl.c_str()), "user.eos.checksum",newresult->Get(repfstpath.c_str()), checksumattribute))) {
+              if ((retc=eos::fst::gFmdSqliteHandler.GetRemoteAttribute(newresult->Get(repurl.c_str()), "user.eos.checksum",newresult->Get(repfstpath.c_str()), checksumattribute))) {
                 if (!silent)fprintf(stderr,"error: unable to retrieve extended attribute from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
               } 
             }
@@ -344,23 +345,16 @@ com_file (char* arg1) {
               inconsistencylable="STATFAILED";
             }
 
-            if ((retc=gFmdHandler.GetRemoteFmd(admin, newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()), fmd))) {
+            if ((retc=eos::fst::gFmdSqliteHandler.GetRemoteFmdSqlite(newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()), fmd))) {
               if (!silent)fprintf(stderr,"error: unable to retrieve file meta data from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
               consistencyerror = true;
               inconsistencylable="NOFMD";
             } else {
-              XrdOucString cx="";
-              for (unsigned int k=0; k< SHA_DIGEST_LENGTH; k++) {
-                // the adler and crc32 functions are not bytewise but derived from int byte order
-                if ( ((checksumtype == "adler") || (checksumtype == "crc32") || (checksumtype == "crc32c"))  && (k<4) ) {
-                  char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd.checksum[3-k]));
-                  cx += hb;
-                } else {
-                  char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd.checksum[k]));
-                  cx += hb;
-                }
-              }
-              
+              XrdOucString cx = fmd.checksum.c_str();
+
+              for (unsigned int k=(cx.length()/2); k< SHA_DIGEST_LENGTH; k++) {
+		cx += "00";
+	      }
               if ( (option.find("%size"))!= STR_NPOS ) {
                 char ss[1024]; sprintf(ss,"%llu", fmd.size);
                 XrdOucString sss = ss;

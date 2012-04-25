@@ -1097,7 +1097,7 @@ Storage::Remover()
         XrdOucEnv Opaque(OpaqueString.c_str());
         capOpaqueString += OpaqueString;
         
-        if ( (gOFS._rem("/DELETION",error, (const XrdSecEntity*)0, &Opaque)!= SFS_OK)) {
+        if ( (gOFS._rem("/DELETION",error, (const XrdSecEntity*)0, &Opaque,0,0,0,true)!= SFS_OK)) {
           eos_static_warning("unable to remove fid %s fsid %lu localprefix=%s",hexstring.c_str(), todelete.fsId, todelete.localPrefix.c_str());
         } 
         

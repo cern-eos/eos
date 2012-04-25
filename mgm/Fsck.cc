@@ -798,13 +798,31 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
       
       // loop over all fids
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++) {
-	if (gOFS->DeleteExternal(efsmapit->first, *it)) {
-	  char outline[1024];
-	  snprintf(outline,sizeof(outline)-1, "success: send unlink to fsid=%u fxid=%llx\n",efsmapit->first,*it);
-	  out += outline;
+	eos::FileMD* fmd=0;
+	eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	bool haslocation = false;
+	// crosscheck if the location really is not attached
+	try {
+	  fmd = gOFS->eosFileService->getFileMD(*it);
+	  if (fmd->hasLocation(efsmapit->first)) {
+	    haslocation = true;
+	  }
+	} catch ( eos::MDException &e ) {
+	}
+	
+	if (!fmd) {
+	  if (gOFS->DeleteExternal(efsmapit->first, *it)) {
+	    char outline[1024];
+	    snprintf(outline,sizeof(outline)-1, "success: send unlink to fsid=%u fxid=%llx\n",efsmapit->first,*it);
+	    out += outline;
+	  } else {
+	    char errline[1024];
+	    snprintf(errline,sizeof(errline)-1, "err: unable to send unlink to fsid=%u fxid=%llx\n",efsmapit->first,*it);
+	    err += errline;
+	  }
 	} else {
 	  char errline[1024];
-	  snprintf(errline,sizeof(errline)-1, "err: unable to send unlink to fsid=%u fxid=%llx\n",efsmapit->first,*it);
+	  snprintf(errline,sizeof(errline)-1, "err: not sending unlink to fsid=%u fxid=%llx - file still exists\n",efsmapit->first,*it);
 	  err += errline;
 	}
       }
@@ -823,13 +841,31 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
       
       // loop over all fids
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++) {
-	if (gOFS->DeleteExternal(efsmapit->first, *it)) {
-	  char outline[1024];
-	  snprintf(outline,sizeof(outline)-1, "success: send unlink to fsid=%u fxid=%llx\n",efsmapit->first,*it);
-	  out += outline;
+	eos::FileMD* fmd=0;
+	eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	bool haslocation = false;
+	// crosscheck if the location really is not attached
+	try {
+	  fmd = gOFS->eosFileService->getFileMD(*it);
+	  if (fmd->hasLocation(efsmapit->first)) {
+	    haslocation = true;
+	  }
+	} catch ( eos::MDException &e ) {
+	}
+
+	if (!haslocation) {
+	  if (gOFS->DeleteExternal(efsmapit->first, *it)) {
+	    char outline[1024];
+	    snprintf(outline,sizeof(outline)-1, "success: send unlink to fsid=%u fxid=%llx\n",efsmapit->first,*it);
+	    out += outline;
+	  } else {
+	    char errline[1024];
+	    snprintf(errline,sizeof(errline)-1, "err: unable to send unlink to fsid=%u fxid=%llx\n",efsmapit->first,*it);
+	    err += errline;
+	  }
 	} else {
 	  char errline[1024];
-	  snprintf(errline,sizeof(errline)-1, "err: unable to send unlink to fsid=%u fxid=%llx\n",efsmapit->first,*it);
+	  snprintf(errline,sizeof(errline)-1, "err: not sending unlink to fsid=%u fxid=%llx - location exists!\n",efsmapit->first,*it);
 	  err += errline;
 	}
       }

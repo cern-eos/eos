@@ -302,8 +302,8 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   // Enable the shared object notification queue
   ObjectManager.EnableQueue = true;
   ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
-  ObjectManager.SetDebug(true);
-  eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  ObjectManager.SetDebug(false);
+  eos::common::Logging::SetLogPriority(LOG_INFO);
 
   // setup notification subjects
   ObjectManager.SubjectsMutex.Lock();
@@ -1975,7 +1975,6 @@ XrdFstOfs::_rem(const char             *path,
   // cleanup eventual transactions
   if (!gOFS.Storage->CloseTransaction(fsid, fid)) {
     // it should be the normal case that there is no open transaction for that file
-    int rc = 1;
     rc =1;
   }
   
@@ -2096,7 +2095,7 @@ XrdFstOfs::FSctl(const int               cmd,
       unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
 
-      FmdSqlite* fmd = gFmdSqliteHandler.GetFmd(fileid, fsid, 0, 0, 0, true);
+      FmdSqlite* fmd = gFmdSqliteHandler.GetFmd(fileid, fsid, 0, 0, 0, false, true);
 
       if (!fmd) {
         eos_static_err("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
@@ -2347,7 +2346,7 @@ XrdFstOfsDirectory::nextEntry()
               entry += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)st_buf.st_size);
               entry += ":";
               if (fsid) {
-                FmdSqlite* fmd = gFmdSqliteHandler.GetFmd(eos::common::FileId::Hex2Fid(fileId.c_str()), fsid, 0,0,0,0);
+                FmdSqlite* fmd = gFmdSqliteHandler.GetFmd(eos::common::FileId::Hex2Fid(fileId.c_str()), fsid, 0,0,0,0, true);
                 if (fmd) {
                   // token[6] size in changelog
                   entry += eos::common::StringConversion::GetSizeString(sizestring, fmd->fMd.size);
