@@ -1974,8 +1974,7 @@ XrdFstOfs::_rem(const char             *path,
 
   // cleanup eventual transactions
   if (!gOFS.Storage->CloseTransaction(fsid, fid)) {
-    // it should be the normal case that there is no open transaction for that file
-    rc =1;
+    // it should be the normal case that there is no open transaction for that file, in any case there is nothing to do here
   }
   
   if (rc) {
