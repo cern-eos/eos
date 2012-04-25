@@ -248,6 +248,7 @@ Fsck::Check(void)
 	    for (it = filelist.begin(); it != filelist.end(); ++it) {
 	      fmd = gOFS->eosFileService->getFileMD(*it);
 	      if (fmd) {
+		XrdSysMutexHelper lock(eMutex);
 		eFsUnavail[fsid]++;
 		eFsMap["rep_offline"][fsid].insert(*it);
 		eMap["rep_offline"].insert(*it);
@@ -271,7 +272,15 @@ Fsck::Check(void)
 	eos::FileSystemView::FileIterator it;
 	for (it = filelist.begin(); it != filelist.end(); ++it) {
 	  fmd = gOFS->eosFileService->getFileMD(*it);
+	  std::string path = gOFS->eosView->getUri(fmd);
+	  XrdOucString fullpath = path.c_str();
+	  if (fullpath.beginswith(gOFS->MgmProcPath)) {
+	    // don't report eos /proc files
+	    continue;
+	  }
+
 	  if (fmd) {
+	    XrdSysMutexHelper lock(eMutex);
 	    eMap["zero_replica"].insert(*it);
 	    eCount["zero_replica"]++;
 	  }
@@ -347,10 +356,12 @@ Fsck::Check(void)
 
 	// TODO: this condition has to be adjusted for RAIN layouts
 	if (offlinelocations == nlocations) {
+	  XrdSysMutexHelper lock(eMutex);
 	  eMap["file_offline"].insert(*it);
 	  eCount["file_offline"]++;
 	}
 	if (offlinelocations && (offlinelocations != nlocations) ) {
+	  XrdSysMutexHelper lock(eMutex);
 	  eMap["adjust_replica"].insert(*it);
 	  eCount["adjust_replica"]++;
 	}
@@ -372,6 +383,7 @@ Fsck::Check(void)
 	  if (filelist.size()) {
 	    // check if this exists in the gFsView
 	    if (!FsView::gFsView.mIdView.count(nfsid)) {
+	      XrdSysMutexHelper lock(eMutex);
 	      eFsDark[nfsid]+= filelist.size();
 	      Log(false,"shadow fsid=%lu shadow_entries=%llu ", nfsid, filelist.size());
 	    }
@@ -704,6 +716,7 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
 
   // check for a valid action in option
   if ( (option != "checksum" ) &&
+       (option != "checksum-commit" ) &&
        (option != "unlink-unregistered") &&
        (option != "unlink-orphans") &&
        (option != "adjust-replicas") &&
@@ -713,7 +726,7 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
     return false;
   }
 
-  if (option == "checksum") {
+  if ( option.beginswith("checksum")) {
     std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>>::const_iterator efsmapit;
     std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>> fid2check;
     
@@ -756,7 +769,13 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
 	XrdOucErrInfo error;
 	int lretc = 1;
 	if (path.length()) {
-	  lretc = gOFS->_verifystripe(path.c_str(), error, vid, efsmapit->first , "&mgm.verify.compute.checksum=1");
+	  if (option == "checksum-commit") {
+	    // verify & commit
+	    lretc = gOFS->_verifystripe(path.c_str(), error, vid, efsmapit->first , "&mgm.verify.compute.checksum=1&mgm.verify.commit.checksum=1&mgm.verify.commit.size=1");
+	  } else {
+	    // verify only
+	    lretc = gOFS->_verifystripe(path.c_str(), error, vid, efsmapit->first , "&mgm.verify.compute.checksum=1");
+	  }
 	  if (!lretc) {
 	    out += "success: sending verify to fsid="; out += (int)efsmapit->first; out += " for path="; out += path.c_str(); out += "\n";
 	  } else {
@@ -770,26 +789,149 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
   
   if (option == "unlink-unregistered") {
     // unlink all unregistered files
+    std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>>::const_iterator efsmapit;
+    std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>> fid2check;
+    
+    // loop over all filesystems
+    for (efsmapit = eFsMap["unreg_n"].begin(); efsmapit != eFsMap["unreg_n"].end(); efsmapit++) {
+      std::set <eos::common::FileId::fileid_t>::const_iterator it;
+      
+      // loop over all fids
+      for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++) {
+	if (gOFS->DeleteExternal(efsmapit->first, *it)) {
+	  char outline[1024];
+	  snprintf(outline,sizeof(outline)-1, "success: send unlink to fsid=%u fxid=%llx\n",efsmapit->first,*it);
+	  out += outline;
+	} else {
+	  char errline[1024];
+	  snprintf(errline,sizeof(errline)-1, "err: unable to send unlink to fsid=%u fxid=%llx\n",efsmapit->first,*it);
+	  err += errline;
+	}
+      }
+    }
     return true;
   }
 
   if (option == "unlink-orphans") {
     // unlink all orphaned files
+    std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>>::const_iterator efsmapit;
+    std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>> fid2check;
+    
+    // loop over all filesystems
+    for (efsmapit = eFsMap["orphans_n"].begin(); efsmapit != eFsMap["orphans_n"].end(); efsmapit++) {
+      std::set <eos::common::FileId::fileid_t>::const_iterator it;
+      
+      // loop over all fids
+      for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++) {
+	if (gOFS->DeleteExternal(efsmapit->first, *it)) {
+	  char outline[1024];
+	  snprintf(outline,sizeof(outline)-1, "success: send unlink to fsid=%u fxid=%llx\n",efsmapit->first,*it);
+	  out += outline;
+	} else {
+	  char errline[1024];
+	  snprintf(errline,sizeof(errline)-1, "err: unable to send unlink to fsid=%u fxid=%llx\n",efsmapit->first,*it);
+	  err += errline;
+	}
+      }
+    }
     return true;
   }
   
   if (option == "adjust-replicas") {
     // adjust all layout errors e.g. missing replicas where possible
+    std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>>::const_iterator efsmapit;
+    std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>> fid2check;
+    
+    // loop over all filesystems
+    for (efsmapit = eFsMap["rep_diff_n"].begin(); efsmapit != eFsMap["rep_diff_n"].end(); efsmapit++) {
+      std::set <eos::common::FileId::fileid_t>::const_iterator it;
+      
+      // loop over all fids
+      for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++) {
+	eos::FileMD* fmd=0;
+	std::string path="";
+	try {
+	  {
+	    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	    fmd = gOFS->eosFileService->getFileMD(*it);
+	    path = gOFS->eosView->getUri(fmd);
+	  }
+	  // execute adjust replica
+	  eos::common::Mapping::VirtualIdentity vid;
+	  eos::common::Mapping::Root(vid);
+	  XrdOucErrInfo error;
+	  
+	  // execute a proc command
+	  ProcCommand Cmd;
+	  XrdOucString info="mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
+	  info += path.c_str();
+	  info += "&mgm.format=fuse";
+	  Cmd.open("/proc/user",info.c_str(), vid, &error);
+	  Cmd.AddOutput(out,err);
+	  if (!out.endswith("\n")) {
+	    out+="\n";
+	  }
+	  if (!err.endswith("\n")) {
+	    err+="\n";
+	  }
+	  Cmd.close();
+	} catch ( eos::MDException &e ) {
+	}       
+      }
+    }
     return true;
   }
 
   if (option == "drop-missing-replicas") {
     // drop replicas which are in the namespace but have no 'image' on disk
-    return true;
+    err += "error: currently not supported\n";
+    return false;
   }
 
   if (option == "unlink-zero-replicas") {
     // drop all namespace entries which are older than 48 hours and have no files attached
+    // unlink all unregistered files
+    
+    std::set <eos::common::FileId::fileid_t>::const_iterator it;
+    
+    // loop over all fids
+    for (it = eMap["zero_replica"].begin(); it != eMap["zero_replica"].end(); it++) {
+      eos::FileMD* fmd=0;
+      std::string path="";
+      time_t now = time(NULL);
+      out += "progress: checking fid="; out += (int) *it; out += "\n";
+      eos::FileMD::ctime_t ctime;
+      ctime.tv_sec = 0;
+      ctime.tv_nsec = 0;
+      try {
+	{
+	  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	  fmd = gOFS->eosFileService->getFileMD(*it);
+	  path = gOFS->eosView->getUri(fmd);
+	  fmd->getCTime(ctime);
+	}
+      } catch ( eos::MDException &e ) {
+      }
+      if (fmd) {
+	if ( (ctime.tv_sec + (48*3600)) < now) {
+	  // if the file is older than 48 hours, we do the cleanup
+	  // execute adjust replica
+	  eos::common::Mapping::VirtualIdentity vid;
+	  eos::common::Mapping::Root(vid);
+	  XrdOucErrInfo error;
+	  
+	  if (!gOFS->_rem(path.c_str(),error,vid)) {
+	    char outline[1024];
+	    snprintf(outline,sizeof(outline)-1, "success: removed path=%s fxid=%llx\n",path.c_str(),*it);
+	    out += outline;
+	  } else {
+	    char errline[1024];
+	    snprintf(errline,sizeof(errline)-1, "err: unable to remove path=%s fxid=%llx\n",path.c_str(),*it);
+	    err += errline;
+	  }
+	}
+      }
+    }
     return true;
   }
 

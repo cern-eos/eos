@@ -1302,7 +1302,7 @@ Storage::Verify()
     } else {
       // attach meta data
       FmdSqlite* fMd = 0;
-      fMd = gFmdSqliteHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, verifyfile->commitFmd);
+      fMd = gFmdSqliteHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, verifyfile->commitFmd, true);
       bool localUpdate = false;
       if (!fMd) {
         eos_static_err("unable to verify id=%x on fs=%u path=%s - no local MD stored", verifyfile->fId, verifyfile->fsId, fstPath.c_str());

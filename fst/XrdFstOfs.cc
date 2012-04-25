@@ -2096,7 +2096,7 @@ XrdFstOfs::FSctl(const int               cmd,
       unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
 
-      FmdSqlite* fmd = gFmdSqliteHandler.GetFmd(fileid, fsid, 0, 0, 0, false);
+      FmdSqlite* fmd = gFmdSqliteHandler.GetFmd(fileid, fsid, 0, 0, 0, true);
 
       if (!fmd) {
         eos_static_err("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
