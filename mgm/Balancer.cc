@@ -183,7 +183,7 @@ Balancer::Balance(void)
 		fsdev = fs->GetDouble("stat.nominal.filled");
 
 		// if the value changes significantly, broadcast it
-		if ( fabs(fsdev-avg) > 0.5) {
+		if ( fabs(fsdev-avg) > 0.2) {
 		  if (!hasdrainjob) {
 		    fs->SetDouble("stat.nominal.filled",avg,true);
 		  }
