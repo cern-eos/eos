@@ -110,7 +110,10 @@ XrdFstOfs::xrdfstofs_shutdown(int sig) {
   // sync all file descriptors
   eos::common::SyncAll::All();
 
-  delete gOFS.Messaging; // shutdown messaging thread
+  if (gOFS.Messaging) {
+    delete gOFS.Messaging; // shutdown messaging thread
+    gOFS.Messaging=0;
+  }
 
   eos_static_warning("op=shutdown status=completed");
 
@@ -815,12 +818,6 @@ XrdFstOfsFile::open(const char                *path,
     gOFS.OpenFidMutex.Lock();
 
     if (isRW) {
-      if (gOFS.WOpenFid[fsid][fileid]==0) {
-        // this keeps this thread busy for 10 seconds trying to lock and then rebounces if the lock couldn't be taken
-        //      if (!gOFS.LockManager.LockTimeout(fileid,10)) {
-        //        // this is cryptic for the moment, we have to review this ===> TODO !!!!
-        //      }
-      }
       gOFS.WOpenFid[fsid][fileid]++;
     }
     else
@@ -1168,6 +1165,14 @@ XrdFstOfsFile::close()
 	    // update size
 	    closeSize = statinfo.st_size;
 	    fMd->fMd.size     = statinfo.st_size;
+	    fMd->fMd.disksize = statinfo.st_size;
+	    fMd->fMd.mgmsize  = 0xfffffff1ULL;    // now again undefined
+	    fMd->fMd.mgmchecksum = "";            // now again empty
+	    fMd->fMd.layouterror = 0;             // reset layout errors
+	    fMd->fMd.locations   = "";            // reset locations
+	    fMd->fMd.filecxerror = 0;
+	    fMd->fMd.blockcxerror= 0;
+
 	    fMd->fMd.mtime    = statinfo.st_mtime;
 #ifdef __APPLE__
 	    fMd->fMd.mtime_ns = 0;
@@ -1296,7 +1301,6 @@ XrdFstOfsFile::close()
     
     if (gOFS.WOpenFid[fMd->fMd.fsid][fMd->fMd.fid] <= 0) {
       // if this was a write of the last writer we had the lock and we release it
-      gOFS.LockManager.UnLock(fMd->fMd.fid);
       gOFS.WOpenFid[fMd->fMd.fsid].erase(fMd->fMd.fid);
       gOFS.WOpenFid[fMd->fMd.fsid].resize(0);
     }
@@ -1317,10 +1321,12 @@ XrdFstOfsFile::close()
       gOFS.ReportQueue.push(reportString);
       gOFS.ReportQueueMutex.UnLock();
 
-      // store in the WrittenFilesQueue
-      gOFS.WrittenFilesQueueMutex.Lock();
-      gOFS.WrittenFilesQueue.push(fMd->fMd);
-      gOFS.WrittenFilesQueueMutex.UnLock();
+      if (isRW) {
+	// store in the WrittenFilesQueue
+	gOFS.WrittenFilesQueueMutex.Lock();
+	gOFS.WrittenFilesQueue.push(fMd->fMd);
+	gOFS.WrittenFilesQueueMutex.UnLock();
+      }
     } 
   }
   
@@ -1818,6 +1824,11 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
 	  snprintf(stag,sizeof(stag)-1,"%s@%lu", icit->first.c_str(), (unsigned long )fsid);
 	  stdOut += stag;
 	  std::set<eos::common::FileId::fileid_t>::const_iterator fit;
+
+	  if (gOFS.Storage->fileSystemsVector[i]->GetStatus() != eos::common::FileSystem::kBooted) {
+	    // we don't report filesystems which are not booted!
+	    continue;
+	  }
 	  for (fit = icit->second.begin(); fit != icit->second.end(); fit ++) {
 	    // don't report files which are currently write-open
 	    XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
