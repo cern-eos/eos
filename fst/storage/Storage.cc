@@ -163,7 +163,17 @@ FileSystem::CleanTransactions()
 	unsigned long long fileid = eos::common::FileId::Hex2Fid(hexfid.c_str());
 	
 	// we allow to keep files open for 1 week
-	if (buf.st_mtime < (time(NULL) - (7*86400))) {
+	bool isOpen=false;
+	{
+	  XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
+	  if (gOFS.WOpenFid[GetId()].count(fileid)) {
+	    if (gOFS.WOpenFid[GetId()][fileid]>0) {
+	      isOpen = true;
+	    }
+	  }
+	}
+	
+	if ( (buf.st_mtime < (time(NULL) - (7*86400))) && (!isOpen)) {
 	  eos_static_info("action=delete transaction=%llx fstpath=%s",sname.c_str(), fulltransactionpath.c_str());
       
 	  // -------------------------------------------------------------------------------------------------------
@@ -176,7 +186,7 @@ FileSystem::CleanTransactions()
 	    eos_static_debug("deletion failed for %s", fstPath.c_str());
 	  }
 	} else {
-	  eos_static_info("action=keep transaction=%llx fstpath=%s",sname.c_str(), fulltransactionpath.c_str());
+	  eos_static_info("action=keep transaction=%llx fstpath=%s isopen=%d",sname.c_str(), fulltransactionpath.c_str(),isOpen);
 	}
       }
     }
@@ -1270,12 +1280,16 @@ Storage::Verify()
       verifications.pop();
       runningVerify=verifyfile;
 
-      // try to lock this file
-      if (!gOFS.LockManager.TryLock(verifyfile->fId)) {
-        eos_static_info("verifying File Id=%x on Fs=%u postponed - file is currently open for writing", verifyfile->fId, verifyfile->fsId);
-        verifications.push(verifyfile);
-        verificationsMutex.UnLock();
-        continue;
+      {
+	XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
+	if (gOFS.WOpenFid[verifyfile->fsId].count(verifyfile->fId)) {
+	  if (gOFS.WOpenFid[verifyfile->fsId][verifyfile->fId]>0) {
+	    eos_static_warning("file is currently opened for writing id=%x on fs=%u - skipping verification", verifyfile->fId, verifyfile->fsId);
+	    verifications.push(verifyfile);
+	    verificationsMutex.UnLock();
+	    continue;
+	  }
+	}
       }
     } else {
       eos_static_debug("got nothing");
@@ -1296,22 +1310,16 @@ Storage::Verify()
     eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), verifyfile->localPrefix.c_str(),fstPath);
 
     {
-      XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
-      if (gOFS.WOpenFid[verifyfile->fsId].count(verifyfile->fId)) {
-	if (gOFS.WOpenFid[verifyfile->fsId][verifyfile->fId]>0) {
-	  eos_static_warning("file is currently opened for writing id=%x on fs=%u path=%s - skipping verification", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
-	  continue;
-	}
+      FmdSqlite* fMd = 0;
+      fMd = gFmdSqliteHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, 0, true);
+      if (fMd) {
+	// force a resync of meta data from the MGM
+	// e.g. store in the WrittenFilesQueue to have it done asynchronous
+	gOFS.WrittenFilesQueueMutex.Lock();
+	gOFS.WrittenFilesQueue.push(fMd->fMd);
+	gOFS.WrittenFilesQueueMutex.UnLock();
+	delete fMd;
       }
-    }
-
-    {
-      // force a resync of meta data from the MGM
-      XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
-      std::string manager = eos::fst::Config::gConfig.Manager.c_str();
-      if (!gFmdSqliteHandler.ResyncMgm(verifyfile->fId, verifyfile->fsId,manager.c_str())) {
-	eos_static_err("cannot contact MGM manager=%s", manager.c_str());
-      } 
     }
 
     // get current size on disk
@@ -1321,7 +1329,7 @@ Storage::Verify()
       
       // get a record if
       FmdSqlite* fMd = 0;
-      fMd = gFmdSqliteHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, 0, 0);
+      fMd = gFmdSqliteHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, 0, true);
       if (fMd) {
 	if (fMd->fMd.layouterror && eos::common::LayoutId::kUnregistered) {
 	  // the file is neither on disk nor should it be there
@@ -1381,11 +1389,16 @@ Storage::Verify()
             // check if the computed checksum differs from the one in the change log
             bool cxError=false;
 	    std::string computedchecksum = checksummer->GetHexChecksum();
+
 	    if (fMd->fMd.checksum != computedchecksum) 
 	      cxError = true;
-            
+
+	    // commit the disk checksum in case of differences between the in-memory value
+	    if (fMd->fMd.diskchecksum != computedchecksum)
+	      localUpdate = true;
+
             if (cxError) {
-              eos_static_err("checksum invalid   : path=%s fid=%s checksum=%s", verifyfile->path.c_str(),hexfid.c_str(), checksummer->GetHexChecksum());
+              eos_static_err("checksum invalid   : path=%s fid=%s checksum=%s stored-checksum=%s", verifyfile->path.c_str(),hexfid.c_str(), checksummer->GetHexChecksum(), fMd->fMd.checksum.c_str());
 	      fMd->fMd.checksum     = computedchecksum;
 	      fMd->fMd.diskchecksum = computedchecksum;
 	      fMd->fMd.disksize     = fMd->fMd.size;
@@ -1468,7 +1481,6 @@ Storage::Verify()
       }
     }
     runningVerify=0;
-    gOFS.LockManager.UnLock(verifyfile->fId);
     if (verifyfile) delete verifyfile;
   }
 }
@@ -1783,14 +1795,16 @@ Storage::Publish()
 
 	  // Retrieve Statistics from the SQLITE DB
 	  std::map<std::string, size_t>::const_iterator isit;
-	  gFmdSqliteHandler.GetInconsistencyStatistics(fsid, *fileSystemsVector[i]->GetInconsistencyStats(), *fileSystemsVector[i]->GetInconsistencySets());
+
 
 	  bool success = true;
-		    
-	  for (isit = fileSystemsVector[i]->GetInconsistencyStats()->begin(); isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++) {
-	    eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);
-	    std::string sname = "stat.fsck."; sname += isit->first;
-	    success &= fileSystemsVector[i]->SetLongLong(sname.c_str(),isit->second);
+	  if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted) {
+	    gFmdSqliteHandler.GetInconsistencyStatistics(fsid, *fileSystemsVector[i]->GetInconsistencyStats(), *fileSystemsVector[i]->GetInconsistencySets());
+	    for (isit = fileSystemsVector[i]->GetInconsistencyStats()->begin(); isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++) {
+	      eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);
+	      std::string sname = "stat.fsck."; sname += isit->first;
+	      success &= fileSystemsVector[i]->SetLongLong(sname.c_str(),isit->second);
+	    }
 	  }
 
           eos::common::Statfs* statfs = 0;
@@ -2147,8 +2161,8 @@ Storage::Balancer()
 
 	eos_static_debug("FileSystem %lu %.02f %.02f",id, filled, nominal);
       
-
-	if (filled < nominal) {
+	// don't adjust more than a percent 
+	if ( (nominal) && (((filled>0.5)?(filled-0.5):filled) < nominal)) {
 	  should_ask[index] = true;
 	  ask = true;
 	  // if the fill status is less than nominal we can ask a balancer transfer to the MGM
