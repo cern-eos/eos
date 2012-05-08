@@ -287,7 +287,7 @@ RaidIO::read(off_t offset, char* buffer, size_t length)
       size_t lread = nread;
       do {
         TIMING("read remote in", &rt);
-        fprintf(stdout, "File descriptor is: %i \n", fdUrl[mapStripe_Url[stripeId]]);
+	//        fprintf(stdout, "File descriptor is: %i \n", fdUrl[mapStripe_Url[stripeId]]);
         if (fdUrl[mapStripe_Url[stripeId]] >= 0) {
           aread = XrdPosixXrootd::Pread(fdUrl[mapStripe_Url[stripeId]], buffer, lread, offsetLocal + sizeHeader);
         } else {
