@@ -96,8 +96,8 @@ add_executable( eos-raid-recover
 )
 
 
-add_executable( eosfstcp 
-                txqueue/eosfstcp.cc
+add_executable( eoscp 
+                txqueue/eoscp.cc
 		io/RaidIO.cc
 		io/RaidDpFile.cc
 		io/ReedSFile.cc
@@ -111,24 +111,15 @@ add_executable( eosfstcp
 		zfec/fec.cc	
 )
 
-add_executable( eos-fst-fsck 
-                tools/FsckFst.cc
-		checksum/Adler.cc
-                checksum/CheckSum.cc
-                ../checksum/crc32c.cc
-                ../checksum/crc32ctables.cc
 
-)
-
-set_target_properties( eosfstcp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 
 target_link_libraries ( FstLoad XrdUtils dl rt )
 target_link_libraries ( eos-check-blockxs eosCommon )
 target_link_libraries ( eos-compute-blockxs eosCommon )
 target_link_libraries ( eos-scan-fs eosCommon rt ) 
 target_link_libraries ( eos-adler32 eosCommon ) 
-target_link_libraries ( eosfstcp XrdUtils XrdPosix XrdCrypto ${OPENSSL_LIBRARIES} uuid )
-target_link_libraries ( eos-fst-fsck XrdClient uuid eosCommon-Static crypto)
+target_link_libraries ( eoscp XrdUtils XrdPosix XrdCrypto ${OPENSSL_LIBRARIES} uuid )
 target_link_libraries ( eos-raid-recover eosCommon)
 
 if (Linux)
@@ -139,9 +130,9 @@ if (Linux)
   )
 endif(Linux)
 
-INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstinfo tools/eosfstcheck tools/eosfstclean tools/eosfstmgmsync tools/eosfstmgmcheck eos-adler32 eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-fst-fsck eos-raid-recover)
+INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstinfo eos-adler32 eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-raid-recover)
 
-install ( TARGETS XrdEosFst eosfstcp
+install ( TARGETS XrdEosFst eoscp
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
           RUNTIME DESTINATION bin
           ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
