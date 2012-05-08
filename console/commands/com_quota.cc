@@ -36,10 +36,11 @@ com_quota (char* arg1) {
   bool highlighting = true;
 
   if ( subcommand == "") {
-    XrdOucString in ="mgm.cmd=quota&mgm.subcmd=ls";
+    XrdOucString in ="mgm.cmd=quota&mgm.subcmd=lsuser";
     global_retc = output_result(client_user_command(in));
     return (0);
   }
+
   if ( subcommand == "ls" ) {
     XrdOucString in ="mgm.cmd=quota&mgm.subcmd=ls";
     if (arg.length())
@@ -81,7 +82,7 @@ com_quota (char* arg1) {
       } while (arg.length());
     
     
-    global_retc = output_result(client_admin_command(in), highlighting);
+    global_retc = output_result(client_user_command(in), highlighting);
     return (0);
   }
   
@@ -133,7 +134,7 @@ com_quota (char* arg1) {
                 goto com_quota_usage;
     } while (arg.length());
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_user_command(in));
     return (0);
   }
 
@@ -170,7 +171,7 @@ com_quota (char* arg1) {
     } while (arg.length());
     
     
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_user_command(in));
     return (0);
   }
 
@@ -208,7 +209,7 @@ com_quota (char* arg1) {
     std::string sconfirmation = confirmation.c_str();
     if ( s == sconfirmation) {
       fprintf(stdout,"\nDeletion confirmed\n");
-      global_retc = output_result(client_admin_command(in));
+      global_retc = output_result(client_user_command(in));
     } else {
       fprintf(stdout,"\nDeletion aborted!\n");
       global_retc = -1;

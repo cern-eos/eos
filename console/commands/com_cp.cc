@@ -439,7 +439,7 @@ com_cp (char* argin) {
       }
     }
     
-    cmdline += "eosfstcp ";
+    cmdline += "eoscp ";
     if (append) cmdline += "-a ";
     if (!summary) cmdline += "-s ";
     if (noprogress) cmdline += "-n ";
