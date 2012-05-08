@@ -1,2 +1,0 @@
-#!/bin/bash
-for name in `ls -1 /var/eos/md/ | cut -d "." -f 3 | sort | uniq`; do /opt/eos/bin/eosfstfsck `ls -1 /var/eos/md/*.$name.mdlog | tail -1` --trim ; done
