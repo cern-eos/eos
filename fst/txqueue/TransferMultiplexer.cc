@@ -83,7 +83,7 @@ void* TransferMultiplexer::ThreadProc(void){
         int freeslots = mQueues[i]->GetSlots() - mQueues[i]->GetRunning();
         
         if (freeslots <=0 )
-          break;
+          break; 
         
         //        fprintf(stderr,"Found %u transfers in queue %s\n", (unsigned int) mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
         
@@ -94,9 +94,9 @@ void* TransferMultiplexer::ThreadProc(void){
         if (!cjob)
           break;
 
-        XrdOucString out="";
+	XrdOucString out="";
         cjob->PrintOut(out);
-        //        fprintf(stderr, "New transfer %s\n", out.c_str());
+	//	fprintf(stderr, "New transfer %s\n", out.c_str());
         
         //create new TransferJob and submit it to the scheduler
         TransferJob* job = new TransferJob(mQueues[i], cjob, mQueues[i]->GetBandwidth());

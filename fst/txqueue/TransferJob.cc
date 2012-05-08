@@ -129,7 +129,7 @@ void TransferJob::DoIt(){
   ss << "touch $FILERETURN" << std::endl;
   ss << "chown daemon:daemon $FILEOUTPUT" << std::endl;
   ss << "chown daemon:daemon $FILERETURN" << std::endl;
-  ss << "eosfstcp -u 2 -g 2 -R -n -p -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+  ss << "eoscp -u 2 -g 2 -R -n -p -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
   ss << "PID=$!" << std::endl;
   ss << "AFTER=$(date +%s)" << std::endl;
   ss << "DIFFTIME=$(( $AFTER - $BEFORE ))" << std::endl;

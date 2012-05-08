@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: eosfstcp.cc
+// File: eoscp.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -45,7 +45,7 @@
 #include "fst/io/ReedSFile.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 
-#define PROGRAM "eosfstcp"
+#define PROGRAM "eoscp"
 #define DEFAULTBUFFERSIZE 4*1024*1024
 
 #define XROOTID      0x2
@@ -192,40 +192,40 @@ void print_summary(char* src[MAXSRCDST], char* dst[MAXSRCDST], unsigned long lon
     xdst[i].erase(xdst[i].rfind('?'));
   }
 
-  COUT(("[eosfstcp] #################################################################\n"));
+  COUT(("[eoscp] #################################################################\n"));
 
   for (int i = 0; i < nsrc; i++) 
-    COUT(("[eosfstcp] # Source Name [%02d]         : %s\n", i, xsrc[i].c_str()));
+    COUT(("[eoscp] # Source Name [%02d]         : %s\n", i, xsrc[i].c_str()));
 
   for (int i = 0; i < ndst; i++)
-    COUT(("[eosfstcp] # Destination Name [%02d]    : %s\n", i, xdst[i].c_str()));
+    COUT(("[eoscp] # Destination Name [%02d]    : %s\n", i, xdst[i].c_str()));
 
-  COUT(("[eosfstcp] # Data Copied [bytes]      : %lld\n", bytesread));
+  COUT(("[eoscp] # Data Copied [bytes]      : %lld\n", bytesread));
   if (ndst > 1) {
-    COUT(("[eosfstcp] # Tot. Data Copied [bytes] : %lld\n", bytesread*ndst));
+    COUT(("[eoscp] # Tot. Data Copied [bytes] : %lld\n", bytesread*ndst));
   }
-  COUT(("[eosfstcp] # Realtime [s]             : %f\n", abs_time/1000.0));
+  COUT(("[eoscp] # Realtime [s]             : %f\n", abs_time/1000.0));
   if (abs_time > 0) {
-    COUT(("[eosfstcp] # Eff.Copy. Rate[MB/s]     : %f\n", bytesread/abs_time/1000.0));
+    COUT(("[eoscp] # Eff.Copy. Rate[MB/s]     : %f\n", bytesread/abs_time/1000.0));
   }
   if (bandwidth) {
-    COUT(("[eosfstcp] # Bandwidth[MB/s]          : %d\n", (int)bandwidth));
+    COUT(("[eoscp] # Bandwidth[MB/s]          : %d\n", (int)bandwidth));
   }
   if (computeXS) {
-    COUT(("[eosfstcp] # Checksum Type %s        : ", xsString.c_str()));
+    COUT(("[eoscp] # Checksum Type %s        : ", xsString.c_str()));
     COUT(("%s", xsObj->GetHexChecksum()));
     COUT(("\n"));
   }
-  COUT(("[eosfstcp] # Write Start Position     : %lld\n",startwritebyte));
-  COUT(("[eosfstcp] # Write Stop  Position     : %lld\n",stopwritebyte));
+  COUT(("[eoscp] # Write Start Position     : %lld\n",startwritebyte));
+  COUT(("[eoscp] # Write Stop  Position     : %lld\n",stopwritebyte));
   if (startbyte >= 0) {
-    COUT(("[eosfstcp] # Read  Start Position     : %lld\n",startbyte));
-    COUT(("[eosfstcp] # Read  Stop  Position     : %lld\n",stopbyte));
+    COUT(("[eoscp] # Read  Start Position     : %lld\n",startbyte));
+    COUT(("[eoscp] # Read  Stop  Position     : %lld\n",stopbyte));
   }
 }
 
 void print_progbar(unsigned long long bytesread, unsigned long long size) {
-  CERR(("[eosfstcp] %-24s Total %.02f MB\t|",cpname.c_str(), (float)size/1024/1024));
+  CERR(("[eoscp] %-24s Total %.02f MB\t|",cpname.c_str(), (float)size/1024/1024));
   for (int l=0; l< 20;l++) {
     if (l< ( (int)(20.0*bytesread/size)))
       CERR(("="));
@@ -337,7 +337,7 @@ int main(int argc, char* argv[]) {
         struct passwd* pwinfo = getpwnam(optarg);
         if (pwinfo) {
           euid = pwinfo->pw_uid;
-          if (debug) {fprintf(stdout,"[eosfstcp]: mapping user  %s=>UID:%d\n", optarg, euid);}
+          if (debug) {fprintf(stdout,"[eoscp]: mapping user  %s=>UID:%d\n", optarg, euid);}
         } else {
           fprintf(stderr,"error: cannot map user %s to any unix id!\n", optarg);
           exit(-ENOENT);
@@ -353,7 +353,7 @@ int main(int argc, char* argv[]) {
         struct group* grinfo = getgrnam(optarg);
         if (grinfo) {
           egid = grinfo->gr_gid;
-          if (debug) {fprintf(stdout,"[eosfstcp]: mapping group %s=>GID:%d\n", optarg, egid);}
+          if (debug) {fprintf(stdout,"[eoscp]: mapping group %s=>GID:%d\n", optarg, egid);}
         } else {
           fprintf(stderr,"error: cannot map group %s to any unix id!\n", optarg);
           exit(-ENOENT);
@@ -407,7 +407,7 @@ int main(int argc, char* argv[]) {
       *colon = 0;
       startbyte = strtoll(optarg,0,0);
       stopbyte  = strtoll(colon+1,0,0);
-      if (debug) {fprintf(stdout,"[eosfstcp]: reading range start=%lld stop=%lld\n", startbyte, stopbyte);}
+      if (debug) {fprintf(stdout,"[eoscp]: reading range start=%lld stop=%lld\n", startbyte, stopbyte);}
       break;
     case 'L':
       sprintf(symlinkname,"%s",optarg);
@@ -436,7 +436,7 @@ int main(int argc, char* argv[]) {
   }
   
   if (debug) {
-    fprintf(stderr, "[eosfstcp]: allocate copy buffer with %d bytes\n", buffersize);
+    fprintf(stderr, "[eoscp]: allocate copy buffer with %d bytes\n", buffersize);
   }
   
   char *source[MAXSRCDST];
@@ -451,7 +451,7 @@ int main(int argc, char* argv[]) {
   }
 
   if (verbose || debug) {
-    fprintf(stdout,"[eosfstcp]: ");
+    fprintf(stdout,"[eoscp]: ");
     for (int i = 0; i < nsrc; i++) 
       fprintf(stdout,"src<%d>=%s ", i, source[i]); 
     for (int i = 0; i < ndst; i++) 
@@ -523,7 +523,7 @@ int main(int argc, char* argv[]) {
   }
 
   if (verbose || debug) {
-    fprintf(stdout, "[eosfstcp]: copy protocol ");
+    fprintf(stdout, "[eoscp]: copy protocol ");
     for (int j = 0; j < nsrc; j++) {
       fprintf(stdout, "%s:", protocols[sid[j]]);
     }
@@ -561,7 +561,14 @@ int main(int argc, char* argv[]) {
   for (int i = 0; i< nsrc; i++) {
     if (sid[i] == XROOTID) {
       new XrdPosixXrootd();
-      XrdPosixXrootd::setEnv(NAME_READAHEADSIZE, buffersize*3);
+      XrdPosixXrootd::setEnv(NAME_READAHEADSIZE, buffersize*2);
+      XrdPosixXrootd::setEnv(NAME_READCACHESIZE, buffersize*6);
+      if (debug)
+        XrdPosixXrootd::setEnv(NAME_DEBUG, 10);
+    }
+    if (sid[i] == RAIDIOID) {
+      new XrdPosixXrootd();
+      XrdPosixXrootd::setEnv(NAME_READAHEADSIZE, buffersize*2);
       XrdPosixXrootd::setEnv(NAME_READCACHESIZE, buffersize*6);
       if (debug)
         XrdPosixXrootd::setEnv(NAME_DEBUG, 10);
@@ -571,14 +578,16 @@ int main(int argc, char* argv[]) {
   for (int i = 0; i < ndst; i++) {
     if (did[i] == XROOTID) {
       new XrdPosixXrootd();
-      XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,0l);
-      XrdPosixXrootd::setEnv(NAME_READCACHESIZE,0l);
+      XrdPosixXrootd::setEnv(NAME_READAHEADSIZE, buffersize*2);
+      XrdPosixXrootd::setEnv(NAME_READCACHESIZE, buffersize*6);
+      //      XrdPosixXrootd::setEnv(NAME_READAHEADSIZE,0l);
+      //      XrdPosixXrootd::setEnv(NAME_READCACHESIZE,0l);
       if (debug)
         XrdPosixXrootd::setEnv(NAME_DEBUG, 10);
     }
     if (did[i] == RAIDIOID) {
       new XrdPosixXrootd();
-      XrdPosixXrootd::setEnv(NAME_READAHEADSIZE, buffersize*3);
+      XrdPosixXrootd::setEnv(NAME_READAHEADSIZE, buffersize*2);
       XrdPosixXrootd::setEnv(NAME_READCACHESIZE, buffersize*6);
       if (debug)
         XrdPosixXrootd::setEnv(NAME_DEBUG, 10);
@@ -591,15 +600,15 @@ int main(int argc, char* argv[]) {
       // stat the source
       switch(sid[i]) {
       case 0:
-        if (debug) {fprintf(stdout, "[eosfstcp]: doing POSIX stat on %s\n", source[i]);}
+        if (debug) {fprintf(stdout, "[eoscp]: doing POSIX stat on %s\n", source[i]);}
         stat_failed = lstat(source[i], &st[i]);
         break;
       case 1:
-        if (debug) {fprintf(stdout, "[eosfstcp]: doing XROOT(RAIDIO) stat on %s\n", source[i]);}
+        if (debug) {fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) stat on %s\n", source[i]);}
         stat_failed = XrdPosixXrootd::Stat(source[i], &st[i]);
         break;
       case 2:
-        if (debug) {fprintf(stdout, "[eosfstcp]: doing XROOT stat on %s\n", source[i]);}
+        if (debug) {fprintf(stdout, "[eoscp]: doing XROOT stat on %s\n", source[i]);}
         stat_failed = XrdPosixXrootd::Stat(source[i], &st[i]);
         break;
       case 3:
@@ -642,15 +651,15 @@ int main(int argc, char* argv[]) {
 
         switch(sid[i]) {
         case 0:
-          if (debug) {fprintf(stdout, "[eosfstcp]: doing POSIX readlink on %s\n", source[i]);}
+          if (debug) {fprintf(stdout, "[eoscp]: doing POSIX readlink on %s\n", source[i]);}
           readlink_size = readlink(source[i], readlinkbuff, 4096);
           break;
         case 1:
-          if (debug) {fprintf(stdout, "[eosfstcp]: doing XROOT(RAIDIO) readlink on %s\n", source[i]);}
+          if (debug) {fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) readlink on %s\n", source[i]);}
           // not implemented in xrootd posix
           readlink_size = 1;
         case 2:
-          if (debug) {fprintf(stdout, "[eosfstcp]: doing XROOT readlink on %s\n", source[i]);}
+          if (debug) {fprintf(stdout, "[eoscp]: doing XROOT readlink on %s\n", source[i]);}
           // not implemented in xrootd posix
           readlink_size = 1;
           break;
@@ -674,7 +683,7 @@ int main(int argc, char* argv[]) {
             startbyte = strtoll(space+1, 0, 0);
             stopbyte  = strtoll(colon+1, 0, 0);
             source[i] = readlinkbuff;
-            if (debug) {fprintf(stdout, "[eosfstcp]: setting range to destination %s %lld:%lld\n",
+            if (debug) {fprintf(stdout, "[eoscp]: setting range to destination %s %lld:%lld\n",
                                 source[0], startbyte, stopbyte);}
           }
         }
@@ -686,16 +695,16 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < nsrc; i++) {
       switch(sid[i]) {
       case 0:
-        if (debug) {fprintf(stdout, "[eosfstcp]: POSIX is transparent for staging - nothing to check\n");}
+        if (debug) {fprintf(stdout, "[eoscp]: POSIX is transparent for staging - nothing to check\n");}
         break;
       case 1:
-        if (debug) {fprintf(stdout, "[eosfstcp]: XROOT(RAIDIO) is transparent for staging - nothing to check\n");}
+        if (debug) {fprintf(stdout, "[eoscp]: XROOT(RAIDIO) is transparent for staging - nothing to check\n");}
         break;
       case 2:
-        if (debug) {fprintf(stdout, "[eosfstcp]: XROOT is transparent for staging - nothing to check\n");}
+        if (debug) {fprintf(stdout, "[eoscp]: XROOT is transparent for staging - nothing to check\n");}
         break;
       case 3:
-        if (debug) {fprintf(stdout, "[eosfstcp]: STDIN is transparent for staging - nothing to check\n");}
+        if (debug) {fprintf(stdout, "[eoscp]: STDIN is transparent for staging - nothing to check\n");}
         break;
       }
     }
@@ -713,15 +722,15 @@ int main(int argc, char* argv[]) {
         subpath.erase(pos+1);
         switch(did[i]) {
         case 0:
-          if (debug) {fprintf(stdout, "[eosfstcp]: doing POSIX stat on %s\n", subpath.c_str());}
+          if (debug) {fprintf(stdout, "[eoscp]: doing POSIX stat on %s\n", subpath.c_str());}
           stat_failed = stat((char*)subpath.c_str(), &dstst[i]);
           break;
         case 1:
-          if (debug) {fprintf(stdout, "[eosfstcp]: doing XROOT(RAIDIO) stat on %s\n", subpath.c_str());}
+          if (debug) {fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) stat on %s\n", subpath.c_str());}
           stat_failed = XrdPosixXrootd::Stat((char*)subpath.c_str(), &dstst[i]);
           break;
         case 2:
-          if (debug) {fprintf(stdout, "[eosfstcp]: doing XROOT stat on %s\n", subpath.c_str());}
+          if (debug) {fprintf(stdout, "[eoscp]: doing XROOT stat on %s\n", subpath.c_str());}
           stat_failed = XrdPosixXrootd::Stat((char*)subpath.c_str(), &dstst[i]);
           break;
         case 3:
@@ -737,15 +746,15 @@ int main(int argc, char* argv[]) {
           // create the directory
           switch(did[i]) {
           case 0:
-            if (debug) {fprintf(stdout,"[eosfstcp]: doing POSIX mkdir on %s\n", (char*)subpath.c_str());}
+            if (debug) {fprintf(stdout,"[eoscp]: doing POSIX mkdir on %s\n", (char*)subpath.c_str());}
             mkdir_failed = mkdir((char*)subpath.c_str(), mode);
             break;
           case 1:
-            if (debug) {fprintf(stdout,"[eosfstcp]: doing XROOT(RAIDIO) mkdir on %s\n", (char*)subpath.c_str());}
+            if (debug) {fprintf(stdout,"[eoscp]: doing XROOT(RAIDIO) mkdir on %s\n", (char*)subpath.c_str());}
             mkdir_failed = XrdPosixXrootd::Mkdir(source[i], mode);
             break;
           case 2:
-            if (debug) {fprintf(stdout,"[eosfstcp]: doing XROOT mkdir on %s\n", (char*)subpath.c_str());}
+            if (debug) {fprintf(stdout,"[eoscp]: doing XROOT mkdir on %s\n", (char*)subpath.c_str());}
             mkdir_failed = XrdPosixXrootd::Mkdir(source[i], mode);
             break;
           case 3:
@@ -807,7 +816,7 @@ int main(int argc, char* argv[]) {
       for (int i = 0; i < ndst; i++) { vectUrl.push_back(destination[i]); }
     }
 
-    if (debug) {fprintf(stdout, "[eosfstcp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);}
+    if (debug) {fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);}
     
     if (replicationType == "raidDP") {
       redundancyObj = new eos::fst::RaidDpFile(vectUrl, nparitystripes, storerecovery);
@@ -830,14 +839,14 @@ int main(int argc, char* argv[]) {
   for (int i = 0; i< nsrc; i++) {
     switch(sid[i]) {
       case 0:
-        if (debug) {fprintf(stdout, "[eosfstcp]: doing POSIX open to read  %s\n", source[i]);}
+        if (debug) {fprintf(stdout, "[eoscp]: doing POSIX open to read  %s\n", source[i]);}
         srcfd[i] = open(source[i], O_RDONLY);
         break;
       case 1:
         //already taken care of
         break;
       case 2:
-        if (debug) {fprintf(stdout, "[eosfstcp]: doing XROOT open to read  %s\n", source[i]);}
+        if (debug) {fprintf(stdout, "[eoscp]: doing XROOT open to read  %s\n", source[i]);}
         srcfd[i] = XrdPosixXrootd::Open(source[i], O_RDONLY);
         break;
       case 3:
@@ -855,7 +864,7 @@ int main(int argc, char* argv[]) {
   if (startbyte > 0) {
     // seek the required start position
     for (int i = 0; i < nsrc; i++) {
-      if (debug) {fprintf(stdout, "[eosfstcp]: seeking in %d to position %lld\n", srcfd[i], startbyte);}
+      if (debug) {fprintf(stdout, "[eoscp]: seeking in %d to position %lld\n", srcfd[i], startbyte);}
       switch(sid[i]) {
       case 0:
         startbyte = lseek(srcfd[i], startbyte, SEEK_SET);
@@ -880,7 +889,7 @@ int main(int argc, char* argv[]) {
   for (int i = 0; i < ndst; i++) {
     switch(did[i]) {
     case 0:
-      if (debug) {fprintf(stdout, "[eosfstcp]: doing POSIX open to write  %s\n", destination[i]);}
+      if (debug) {fprintf(stdout, "[eoscp]: doing POSIX open to write  %s\n", destination[i]);}
       if (appendmode) {
         dstfd[i] = open(destination[i], O_WRONLY|O_CREAT, st[i].st_mode);
       } else {
@@ -891,7 +900,7 @@ int main(int argc, char* argv[]) {
       //already taken care of
       break;
     case 2:
-      if (debug) {fprintf(stdout, "[eosfstcp]: doing XROOT open to write  %s\n", destination[i]);}
+      if (debug) {fprintf(stdout, "[eoscp]: doing XROOT open to write  %s\n", destination[i]);}
       if (appendmode) {
 	struct stat buf;
 	if (XrdPosixXrootd::Stat((char*)destination[i],&buf)) {
@@ -1163,7 +1172,7 @@ int main(int argc, char* argv[]) {
       sprintf(rangedestname, "%s", destination[0]);
     }
 
-    if (debug) {fprintf(stdout, "[eosfstcp]: creating symlink %s->%s\n", symlinkname, rangedestname);} 
+    if (debug) {fprintf(stdout, "[eoscp]: creating symlink %s->%s\n", symlinkname, rangedestname);} 
     switch(did[0]) {
     case 0:
       unlink(symlinkname);
