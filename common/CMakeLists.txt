@@ -38,6 +38,7 @@ add_library (eosCommon SHARED
             Report.cc
 	    sqlite/sqlite3.c
 	    ZMQ.cc
+	    StringTokenizer.cc
 	    )
 
 add_library (eosCommon-Static STATIC
@@ -53,6 +54,7 @@ add_library (eosCommon-Static STATIC
             TransferJob.cc
             Report.cc
 	    sqlite/sqlite3.c
+	    StringTokenizer.cc
 	    ZMQ.cc
 )
 

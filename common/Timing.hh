@@ -53,6 +53,7 @@ EOSCOMMONNAMESPACE_BEGIN
 //! ...
 //! TIMING("STOP", &tm);
 //! tm.Print();
+//! fprintf(stdout,"realtime = %.02f", tm.RealTime());
 /*----------------------------------------------------------------------------*/
 class Timing {
 public:
@@ -99,6 +100,20 @@ public:
     p = this->next;
     sprintf(msg,"                                        =%12s= %12s<=>%-12s : %.03f\n",maintag.c_str(),p->tag.c_str(), n->tag.c_str(), (float)((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec))/1000.0);
     cerr << msg;
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Return total Realtime
+  // ---------------------------------------------------------------------------
+  double RealTime() {
+    Timing* p = this->next;
+    Timing* n; 
+    while ((n =p->next)) {
+      p = n;
+    }
+    n = p;
+    p = this->next;
+    return (double) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec))/1000.0;
   }
 
   // ---------------------------------------------------------------------------
