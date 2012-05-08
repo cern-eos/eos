@@ -159,7 +159,7 @@ public:
     std::vector<std::string> location_vector;
     std::set<eos::common::FileSystem::fsid_t> location_set;
     eos::common::StringConversion::Tokenize(locations, location_vector,",");
-
+    size_t validreplicas=0;
     for (size_t i=0; i< location_vector.size(); i++) {
       if (location_vector[i].length()) {
 	// unlinked locates have a '!' infront of the fsid
@@ -167,11 +167,12 @@ public:
 	  location_set.insert(strtoul(location_vector[i].c_str()+1,0,10));
 	} else {
 	  location_set.insert(strtoul(location_vector[i].c_str(),0,10));
+	  validreplicas++;
 	}
       }
     }
     size_t nstripes = eos::common::LayoutId::GetStripeNumber(lid)+1;
-    if (nstripes != location_vector.size()) {
+    if (nstripes != validreplicas) {
       lerror |= eos::common::LayoutId::kReplicaWrong;
     }
     if (! location_set.count(fsid)) {
