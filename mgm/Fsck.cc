@@ -664,7 +664,7 @@ Fsck::Report(XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucSt
 	    if (printfid) {
 	      out += " fxid="; 
 	      std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
-	      for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+	      for (fidit = efsmapit->second.begin(); fidit != efsmapit->second.end(); fidit++) {
 		XrdOucString hexstring;
 		eos::common::FileId::Fid2Hex(*fidit,hexstring);
 		out += hexstring.c_str();
@@ -678,7 +678,7 @@ Fsck::Report(XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucSt
 	      if (printlfn) {
 		out += " lfn="; 
 		std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
-		for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+		for (fidit = efsmapit->second.begin(); fidit != efsmapit->second.end(); fidit++) {
 		  eos::FileMD* fmd=0;
 		  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 		  try {
@@ -717,7 +717,7 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
   // check for a valid action in option
   if ( (option != "checksum" ) &&
        (option != "checksum-commit" ) &&
-       (option != "verify" ) &&
+       (option != "resync" ) &&
        (option != "unlink-unregistered") &&
        (option != "unlink-orphans") &&
        (option != "adjust-replicas") &&
@@ -788,7 +788,7 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
     return true;
   } 
 
-  if ( option.beginswith("verify")) {
+  if ( option.beginswith("resync")) {
     std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>>::const_iterator efsmapit;
     std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>> fid2check;
     std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
@@ -813,23 +813,16 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
 	eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 	try {
 	  fmd = gOFS->eosFileService->getFileMD(*it);
-	  path = gOFS->eosView->getUri(fmd);
 	} catch ( eos::MDException &e ) {
 	}
 	
-	// issue verify operations on that particular filesystem
-	eos::common::Mapping::VirtualIdentity vid;
-	eos::common::Mapping::Root(vid);
-	XrdOucErrInfo error;
-	int lretc = 1;
-	if (path.length()) {
-	  // verify 
-	  lretc = gOFS->_verifystripe(path.c_str(), error, vid, efsmapit->first , "&mgm.verify.compute.checksum=1");
-	  if (!lretc) {
-	    out += "success: sending verify to fsid="; out += (int)efsmapit->first; out += " for path="; out += path.c_str(); out += "\n";
-	  } else {
-	    err += "error: sending verify to fsid=";   err += (int)efsmapit->first; err += " failed for path="; err += path.c_str(); err += "\n";
-	  }
+	int lretc = 0;
+	// issue a resync command for a filesystem/fid pair
+	lretc = gOFS->SendResync( *it, efsmapit->first);
+	if (lretc) {
+	  out += "success: sending resync to fsid="; out += (int)efsmapit->first; out += " for fid="; out += (int) *it; out += "\n";
+	} else {
+	  err += "error: sending resync to fsid=";   err += (int)efsmapit->first; err += " failed for fid="; err += (int) *it; err += "\n";
 	}
       }
     }
