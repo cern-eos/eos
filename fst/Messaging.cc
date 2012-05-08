@@ -210,6 +210,25 @@ Messaging::Process(XrdMqMessage* newmessage)
     }
     gOFS.Storage->verificationsMutex.UnLock();
   }
+
+  if (cmd == "resync") {
+    eos::common::FileSystem::fsid_t fsid = (action.Get("mgm.fsid")?strtoul(action.Get("mgm.fsid"),0,10):0);
+    eos::common::FileId::fileid_t    fid = (action.Get("mgm.fid")?strtoull(action.Get("mgm.fid"),0,10):0);
+    if ( (!fsid) || (!fid)) {
+      eos_err("dropping resync fsid=%lu fid=%llu", (unsigned long)fsid, (unsigned long long) fid);
+    } else {
+      FmdSqlite* fMd = 0;
+      fMd = gFmdSqliteHandler.GetFmd(fid, fsid, 0, 0, 0, 0, 0);
+      if (fMd) {
+	// force a resync of meta data from the MGM
+	// e.g. store in the WrittenFilesQueue to have it done asynchronous
+	gOFS.WrittenFilesQueueMutex.Lock();
+	gOFS.WrittenFilesQueue.push(fMd->fMd);
+	gOFS.WrittenFilesQueueMutex.UnLock();
+	delete fMd;
+      }
+    }
+  }
 }
 
 EOSFSTNAMESPACE_END
