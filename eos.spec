@@ -87,16 +87,11 @@ rm -rf $RPM_BUILD_ROOT
 /usr/lib64/libXrdEosFst.so
 /usr/sbin/eosfstregister
 /usr/sbin/eosfstinfo
-/usr/sbin/eosfstcheck
-/usr/sbin/eosfstclean
-/usr/sbin/eosfstmgmsync
 /usr/sbin/eosadmin
 /usr/sbin/eos-check-blockxs
 /usr/sbin/eos-compute-blockxs
 /usr/sbin/eos-scan-fs
-/usr/sbin/eos-fst-fsck
 /usr/sbin/eos-adler32
-/usr/sbin/eos-fst-dump
 /usr/lib64/libXrdEosMgm.so.0.2.2
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so
@@ -144,7 +139,7 @@ The EOS shell client.
 %files -n eos-client
 /usr/bin/eos
 /usr/bin/eosdropboxd
-/usr/bin/eosfstcp
+/usr/bin/eoscp
 ############################
 # documentation
 %doc %_mandir/man1/eos.1.gz
