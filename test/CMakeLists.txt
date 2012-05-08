@@ -67,6 +67,13 @@ add_executable (xrdcptruncate
  	        XrdCpTruncate.cc
 )
 
+add_executable (eoschecksumbench
+ 	        EosChecksumBenchmark.cc
+		../fst/checksum/Adler.cc
+		../fst/checksum/CheckSum.cc
+		../checksum/crc32c.cc
+		../checksum/crc32ctables.cc
+)
 target_link_libraries(xrdstress.exe XrdPosix uuid)
 target_link_libraries(xrdcpabort XrdPosix)
 target_link_libraries(xrdcprandom XrdPosix)
@@ -77,6 +84,7 @@ target_link_libraries(xrdcpdownloadrandom XrdPosix)
 target_link_libraries(xrdcpshrink XrdPosix)
 target_link_libraries(xrdcptruncate XrdPosix)
 target_link_libraries(xrdcpposixcache XrdPosix)
+target_link_libraries(eoschecksumbench XrdPosix eosCommon)
 
 set_target_properties ( xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x -D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpabort PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
@@ -88,8 +96,9 @@ set_target_properties ( xrdcpdownloadrandom PROPERTIES COMPILE_FLAGS "-D_FILE_OF
 set_target_properties ( xrdcpshrink PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcptruncate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpposixcache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2" )
 
-INSTALL_PROGRAMS( /sbin FILES xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcpposixcache)
+INSTALL_PROGRAMS( /sbin FILES xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcpposixcache eoschecksumbench)
 
 INSTALL ( FILES xrdstress DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ PERMISSIONS OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
 INSTALL ( FILES eos-instance-test DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ PERMISSIONS OWNER_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
