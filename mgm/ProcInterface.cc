@@ -27,6 +27,7 @@
 #include "common/Mapping.hh"
 #include "common/StringConversion.hh"
 #include "common/Path.hh"
+#include "mgm/Acl.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/Policy.hh"
@@ -1041,6 +1042,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                     // check the allowed strings
                     if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ) ) ) {
                       fs->SetString(key.c_str(),value.c_str());
+		      if (value == "off") {
+			// we have to remove the errc here, otherwise we cannot terminate drainjobs on file systems with errc set
+			fs->SetString("errc","0");
+		      }
                       FsView::gFsView.StoreFsConfig(fs);
                     } else {
                       stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
@@ -1305,9 +1310,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                   } else {
                     unsigned long long size   = eos::common::StringConversion::GetSizeFromString(value.c_str());
                     if (size>=0) {
-                      char ssize[1024];
-                      snprintf(ssize,sizeof(ssize)-1,"%llu", size);
-                      value = ssize;
+		      if (key != "balancer.threshold") {
+			// the threshold is allowed to be decimal!
+			char ssize[1024];
+			snprintf(ssize,sizeof(ssize)-1,"%llu", size);
+			value = ssize;
+		      }
                       if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key,value, true, "/eos/*/mgm")) {
                         retc = EIO;
                         stdErr = "error: cannot set space config value";
@@ -1351,6 +1359,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                       if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ))) {
 
                         fs->SetString(key.c_str(),value.c_str());
+			if (value == "off") {
+			  // we have to remove the errc here, otherwise we cannot terminate drainjobs on file systems with errc set
+			  fs->SetString("errc","0");
+			}
                         FsView::gFsView.StoreFsConfig(fs);
                       } else {
                         if ( ( (key == "headroom") || ( key == "scaninterval" ) || ( key == "graceperiod" ) || ( key == "drainperiod" ) )&& ( eos::common::StringConversion::GetSizeFromString(value.c_str()) >= 0)) {
@@ -1580,6 +1592,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
         if (subcmd == "dumpmd") {
           if ( (vid_in.uid == 0) || (vid_in.prot == "sss") ) {
+
+	    // we have to stall if the namespace is still booting
+	    
+	    {
+	      XrdSysMutexHelper lock(gOFS->InitializationMutex);
+	      if (gOFS->Initialized != gOFS->kBooted) {
+		return gOFS->Stall(*error, 60, "Namespace is still booting");
+	      }
+	    }
+
             std::string fsidst = opaque.Get("mgm.fsid");
 	    XrdOucString option = opaque.Get("mgm.dumpmd.option");
             XrdOucString dp = opaque.Get("mgm.dumpmd.path");
@@ -2235,99 +2257,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
     }
 
-    if (cmd == "quota") {
-      if (subcmd == "ls") {
-        eos_notice("quota ls");
-        XrdOucString space = opaque.Get("mgm.quota.space");
-        XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
-        XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
-        XrdOucString monitoring = opaque.Get("mgm.quota.format");
-        XrdOucString printid = opaque.Get("mgm.quota.printid");
-        bool monitor = false;
-        bool translate = true;
-        if (monitoring == "m") {
-          monitor = true;
-        }
-        if (printid == "n") {
-          translate = false;
-        }
-        Quota::PrintOut(space.c_str(), stdOut , uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, monitor, translate);
-      }
-
-      if (subcmd == "set") {
-        if (vid_in.prot != "sss") {
-          eos_notice("quota set");
-          XrdOucString space = opaque.Get("mgm.quota.space");
-          XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
-          XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
-          XrdOucString svolume = opaque.Get("mgm.quota.maxbytes");
-          XrdOucString sinodes = opaque.Get("mgm.quota.maxinodes");
-          
-          if (uid_sel.length() && gid_sel.length()) {
-            stdErr="error: you either specify a uid or a gid - not both!";
-            retc = EINVAL;
-          } else {
-            unsigned long long size   = eos::common::StringConversion::GetSizeFromString(svolume);
-            if ((svolume.length()) && (errno == EINVAL)) {
-              stdErr="error: the size you specified is not a valid number!";
-              retc = EINVAL;
-            } else {
-              unsigned long long inodes = eos::common::StringConversion::GetSizeFromString(sinodes);
-              if ((sinodes.length()) && (errno == EINVAL)) {
-                stdErr="error: the inodes you specified are not a valid number!";
-                retc = EINVAL;
-              } else {
-                if ( (!svolume.length())&&(!sinodes.length())  ) {
-                  stdErr="error: quota set - max. bytes or max. inodes have to be defined!";
-                  retc = EINVAL;
-                } else {
-                  XrdOucString msg ="";
-                  std::string suid = (uid_sel.length())?uid_sel.c_str():"0";
-                  std::string sgid = (gid_sel.length())?gid_sel.c_str():"0";
-                  int errc;
-                  long uid = eos::common::Mapping::UserNameToUid(suid,errc);
-                  long gid = eos::common::Mapping::GroupNameToGid(sgid,errc);
-                  if (!Quota::SetQuota(space, uid_sel.length()?uid:-1, gid_sel.length()?gid:-1, svolume.length()?size:-1, sinodes.length()?inodes:-1, msg, retc)) {
-                    stdErr = msg;
-                  } else {
-                    stdOut = msg;
-                  }
-                }
-              }
-            }
-          }
-        } else {
-          retc = EPERM;
-          stdErr = "error: you cannot set quota from storage node with 'sss' authentication!";
-        }
-      }
-
-      if (subcmd == "rm") {
-        eos_notice("quota rm");
-        if (vid_in.prot != "sss") {
-          XrdOucString space = opaque.Get("mgm.quota.space");
-          XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
-          XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
-          
-          std::string suid = (uid_sel.length())?uid_sel.c_str():"0";
-          std::string sgid = (gid_sel.length())?gid_sel.c_str():"0";
-          int errc;
-          long uid = eos::common::Mapping::UserNameToUid(suid,errc);
-          long gid = eos::common::Mapping::GroupNameToGid(sgid,errc);
-          
-          XrdOucString msg ="";
-          if (!Quota::SetQuota(space, uid_sel.length()?uid:-1, gid_sel.length()?gid:-1, 0, 0,  msg, retc)) {
-            stdErr = msg;
-          } else {
-            stdOut = msg;
-          }
-        } else {
-          retc = EPERM;
-          stdErr = "error: you cannot remove quota from storage node with 'sss' authentication!";
-        }
-      }
-
-
+    if (cmd == "quota") {      
       if (subcmd == "rmnode") {
         eos_notice("quota rm");
         if (vid_in.prot != "sss") {
@@ -2798,8 +2728,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
     if (cmd == "quota") {
       gOFS->MgmStats.Add("Quota",vid_in.uid,vid_in.gid,1);
-      if (subcmd == "ls") {
-        eos_notice("quota ls");
+      if (subcmd == "lsuser") {
+        eos_notice("quota ls (user)");
         XrdOucString out1="";
         XrdOucString out2="";
         stdOut += "By user ...\n";
@@ -2811,6 +2741,138 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         MakeResult(0);
         return SFS_OK;
       }
+
+      
+      XrdOucString space = opaque.Get("mgm.quota.space");
+      bool canQuota = false;
+
+      if ( (!vid.uid) ||
+	   (eos::common::Mapping::HasUid(3, vid.uid_list)) || 
+	   (eos::common::Mapping::HasGid(4, vid.gid_list) ) ) {
+	// root and admin can set quota
+	canQuota = true;
+      } else {
+	// figure out if the authenticated user is a quota admin
+	eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);      
+	eos::ContainerMD* dh;
+	eos::ContainerMD::XAttrMap attrmap;
+	if (!space.beginswith("/")) {
+	  // take the proc directory
+	  space = gOFS->MgmProcPath;
+	}
+	
+	try {
+	  dh = gOFS->eosView->getContainer(space.c_str());
+	  // get attributes
+	  eos::ContainerMD::XAttrMap::const_iterator it;
+	  for ( it = dh->attributesBegin(); it != dh->attributesEnd(); ++it) {
+	    attrmap[it->first] = it->second;
+	  }
+	  // ACL and permission check
+	} catch ( eos::MDException &e ) {
+	  ;
+	}
+	
+	Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);	
+	canQuota = acl.CanSetQuota();
+      }
+
+      if (canQuota ) {
+	if (subcmd == "ls") {
+	  eos_notice("quota ls");
+	  
+	  XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
+	  XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
+	  XrdOucString monitoring = opaque.Get("mgm.quota.format");
+	  XrdOucString printid = opaque.Get("mgm.quota.printid");
+	  bool monitor = false;
+	  bool translate = true;
+	  if (monitoring == "m") {
+	    monitor = true;
+	  }
+	  if (printid == "n") {
+	    translate = false;
+	  }
+	  Quota::PrintOut(space.c_str(), stdOut , uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, monitor, translate);
+	}
+	
+	if (subcmd == "set") {
+	  if (vid_in.prot != "sss") {
+	    eos_notice("quota set");
+	    XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
+	    XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
+	    XrdOucString svolume = opaque.Get("mgm.quota.maxbytes");
+	    XrdOucString sinodes = opaque.Get("mgm.quota.maxinodes");
+	    
+	    if (uid_sel.length() && gid_sel.length()) {
+	      stdErr="error: you either specify a uid or a gid - not both!";
+	      retc = EINVAL;
+	    } else {
+	      unsigned long long size   = eos::common::StringConversion::GetSizeFromString(svolume);
+	      if ((svolume.length()) && (errno == EINVAL)) {
+		stdErr="error: the size you specified is not a valid number!";
+		retc = EINVAL;
+	      } else {
+		unsigned long long inodes = eos::common::StringConversion::GetSizeFromString(sinodes);
+		if ((sinodes.length()) && (errno == EINVAL)) {
+		  stdErr="error: the inodes you specified are not a valid number!";
+		  retc = EINVAL;
+		} else {
+		  if ( (!svolume.length())&&(!sinodes.length())  ) {
+		    stdErr="error: quota set - max. bytes or max. inodes have to be defined!";
+		    retc = EINVAL;
+		  } else {
+		    XrdOucString msg ="";
+		    std::string suid = (uid_sel.length())?uid_sel.c_str():"0";
+		    std::string sgid = (gid_sel.length())?gid_sel.c_str():"0";
+		    int errc;
+		    long uid = eos::common::Mapping::UserNameToUid(suid,errc);
+		    long gid = eos::common::Mapping::GroupNameToGid(sgid,errc);
+		    if (!Quota::SetQuota(space, uid_sel.length()?uid:-1, gid_sel.length()?gid:-1, svolume.length()?size:-1, sinodes.length()?inodes:-1, msg, retc)) {
+		      stdErr = msg;
+		    } else {
+		      stdOut = msg;
+		    }
+		  }
+		}
+            }
+	    }
+	  } else {
+	    retc = EPERM;
+	    stdErr = "error: you cannot set quota from storage node with 'sss' authentication!";
+	  }
+	}
+	
+	if (subcmd == "rm") {
+	  eos_notice("quota rm");
+	  if (vid_in.prot != "sss") {
+	    XrdOucString uid_sel = opaque.Get("mgm.quota.uid");
+	    XrdOucString gid_sel = opaque.Get("mgm.quota.gid");
+	    
+	    std::string suid = (uid_sel.length())?uid_sel.c_str():"0";
+	    std::string sgid = (gid_sel.length())?gid_sel.c_str():"0";
+	    int errc;
+	    long uid = eos::common::Mapping::UserNameToUid(suid,errc);
+	    long gid = eos::common::Mapping::GroupNameToGid(sgid,errc);
+	    
+	    XrdOucString msg ="";
+	    if (!Quota::SetQuota(space, uid_sel.length()?uid:-1, gid_sel.length()?gid:-1, 0, 0,  msg, retc)) {
+	      stdErr = msg;
+	    } else {
+	      stdOut = msg;
+	    }
+	  } else {
+	    retc = EPERM;
+	    stdErr = "error: you cannot remove quota from storage node with 'sss' authentication!";
+	  }
+	}
+      } else {
+	retc = EPERM;
+	stdErr = "error: you are not a quota administrator!";
+
+      }
+      MakeResult(0);
+      return SFS_OK;
     }
     
     if (cmd == "who") {
