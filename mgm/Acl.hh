@@ -55,14 +55,14 @@ class Acl {
   bool canChmod;      //< acl allows mode change
   bool canNotDelete;  //< acl forbids deletion
   bool canDelete;     //< acl allows deletion
+  bool canSetQuota;   //< acl allows to set quota
   bool hasAcl;        //< acl is valid
   bool hasEgroup;     //< acl contains egroup rule
-
 public:
   /*----------------------------------------------------------------------------*/
   //! Default Constructor
   /*----------------------------------------------------------------------------*/
-  Acl() { canRead = false; canWrite = false; canWriteOnce = false; canBrowse = false; hasAcl = false; hasEgroup = false;}
+  Acl() { canRead = false; canWrite = false; canWriteOnce = false; canBrowse = false; canChmod = false; canNotDelete = false; canDelete = false; canSetQuota = false; hasAcl = false; hasEgroup = false;}
 
   /*----------------------------------------------------------------------------*/
   //! Constructor
@@ -88,6 +88,7 @@ public:
   bool CanBrowse()    {return canBrowse;}
   bool CanChmod()     {return canChmod;}
   bool CanNotDelete() {return canNotDelete;}
+  bool CanSetQuota()  {return canSetQuota;}
   bool HasAcl()       {return hasAcl;}
   bool HasEgroup()    {return hasEgroup;}
 };

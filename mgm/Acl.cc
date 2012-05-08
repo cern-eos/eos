@@ -78,6 +78,7 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
   canChmod = false;
   canNotDelete = false;
   canDelete = false;
+  canSetQuota = false;
   hasEgroup = false;
 
   if (!acl.length()) {
@@ -204,6 +205,14 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
       // ---------------------------------------------------------------------------
       if ((!canWriteOnce) && (entry[2].find("w"))!= std::string::npos) {
         canWrite = true;
+        hasAcl = true;
+      }
+
+      // ---------------------------------------------------------------------------
+      //! 'q' defines quota set permission
+      // ---------------------------------------------------------------------------
+      if ((entry[2].find("q"))!= std::string::npos) {
+	canSetQuota = true;
         hasAcl = true;
       }
     }
