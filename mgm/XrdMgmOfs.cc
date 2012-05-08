@@ -5708,7 +5708,6 @@ XrdMgmOfs::_verifystripe(const char             *path,
 
     msgbody += opaquestring;
 
-    // we send deletions in bunches of max 1000 for efficiency
     message.SetBody(msgbody.c_str());   
 
     if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
@@ -6065,6 +6064,51 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
 
   return SFS_OK;
 }
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::SendResync(eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid)
+{
+  EXEC_TIMING_BEGIN("SendResync");      
+
+  gOFS->MgmStats.Add("SendResync",vid.uid,vid.gid,1);  
+
+  XrdMqMessage message("resync");
+  XrdOucString msgbody = "mgm.cmd=resync"; 
+  
+  char payload[4096];
+  snprintf(payload,sizeof(payload)-1,"&mgm.fsid=%lu&mgm.fid=%llu", (unsigned long)fsid,(unsigned long long)fid);
+  msgbody += payload;
+  
+  message.SetBody(msgbody.c_str());   
+  
+  // figure out the receiver
+  XrdOucString receiver;
+
+  {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    eos::mgm::FileSystem* verifyfilesystem = 0;
+    if (FsView::gFsView.mIdView.count(fsid)) {
+      verifyfilesystem = FsView::gFsView.mIdView[fsid];
+    }
+    if (!verifyfilesystem) {
+      eos_err("fsid=%lu is not in the configuration - cannot send resync message",fsid);
+      return false;
+    }
+    receiver = verifyfilesystem->GetQueue().c_str();
+  }
+
+
+  if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+    eos_err("unable to send resync message to %s", receiver.c_str());
+    return false;
+  } 
+
+  EXEC_TIMING_END("SendResync");      
+  
+  return true;
+}
+
 
 /*----------------------------------------------------------------------------*/
 void*

@@ -1090,8 +1090,15 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     NoGo = 1;
   }
 
-  // add all stat entries with 0
+  // create the 'default' quota space which is needed if quota is disabled!
+  {
+    eos::common::RWMutexReadLock qLock(Quota::gQuotaMutex);
+    if (!Quota::GetSpaceQuota("default")) {
+      eos_crit("failed to get default quota space");
+    }
+  }
 
+  // add all stat entries with 0
   gOFS->MgmStats.Add("HashSet",0,0,0);
   gOFS->MgmStats.Add("HashSetNoLock",0,0,0);
   gOFS->MgmStats.Add("HashGet",0,0,0);
@@ -1169,7 +1176,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("SchedulingFailedDrain",0,0,0);
   gOFS->MgmStats.Add("Scheduled2Balance",0,0,0);
   gOFS->MgmStats.Add("Scheduled2Drain",0,0,0);
-
+  gOFS->MgmStats.Add("SendResync",0,0,0);
   gOFS->MgmStats.Add("Stat",0,0,0);
   gOFS->MgmStats.Add("Symlink",0,0,0);
   gOFS->MgmStats.Add("Truncate",0,0,0);

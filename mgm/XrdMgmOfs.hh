@@ -495,6 +495,9 @@ public:
                                   bool                  expressflag=false);
 
   
+  int            SendResync(eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid);
+
+
   // Common functions
   //
   static  int            Mkpath(const char *path, mode_t mode, 
