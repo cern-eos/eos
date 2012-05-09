@@ -253,10 +253,7 @@ static void eosfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     entry_status = xrd_dir_cache_get_entry(req, parent, entry_inode, ifullpath);
   }
   else {
-    if (xrd_dir_isfull(parent))
-        entry_status = eIgnore;
-      else
-        entry_status = eDirNotFound;
+    entry_status = eDirNotFound;
   }
 
   if (entry_status != eFound) {

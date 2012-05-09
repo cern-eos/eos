@@ -545,33 +545,6 @@ xrd_dir_cache_sync(unsigned long long inode, char *fullpath, int nentries,
   return;
 }
 
-
-/*----------------------------------------------------------------------------*/
-/** 
- *
- * Test if directory is in cache and is full
- *
- * @param inode inode value of the directory 
- *
- * @return true if in cache and full, otherwise false
- *
- */
-/*----------------------------------------------------------------------------*/
-int
-xrd_dir_isfull(unsigned long long inode)
-{
-  eos::common::RWMutexReadLock rLock(FuseCacheMutex);
-  FuseCacheEntry *dir = 0;
-  
-  if ((FuseCache.count(inode)) && (dir = FuseCache[inode])){
-    if (dir->isFilled()) {
-      return 1;
-    }
-  }
-  return 0;
-}
-
-
 /*----------------------------------------------------------------------------*/
 /** 
  *
@@ -1601,7 +1574,7 @@ int xrd_rmdir(const char *path)
 int
 xrd_open(const char *path, int oflags, mode_t mode)
 {
-  eos_static_info("path=%s flags=%d mode=%d", path, oflags, mode);
+  eos_static_info("path=%s flags=%x mode=%d trunc=%d ", path, oflags, mode, oflags & O_TRUNC);
   XrdOucString spath=path;
   int t0;
   if ((t0=spath.find("/proc/"))!=STR_NPOS) {
