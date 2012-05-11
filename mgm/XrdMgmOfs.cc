@@ -2520,6 +2520,7 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   }
 
   try {
+    errno = 0;
     gOFS->eosView->unlinkFile(path);
     if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())) {
       gOFS->eosView->removeFile( fmd );
