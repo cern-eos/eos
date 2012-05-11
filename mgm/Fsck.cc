@@ -852,7 +852,7 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
 	} catch ( eos::MDException &e ) {
 	}
 	
-	if (!fmd) {
+	if ((!fmd) || (!haslocation)) {
 	  if (gOFS->DeleteExternal(efsmapit->first, *it)) {
 	    char outline[1024];
 	    snprintf(outline,sizeof(outline)-1, "success: send unlink to fsid=%u fxid=%llx\n",efsmapit->first,*it);
