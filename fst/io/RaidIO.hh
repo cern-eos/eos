@@ -27,7 +27,8 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "fst/io/HeaderCRC.hh"
-#include "fst/io/AsyncRespHandler.hh"
+#include "fst/io/AsyncReadHandler.hh"
+#include "fst/io/AsyncWriteHandler.hh"
 #include "fst/XrdFstOfsFile.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
@@ -90,10 +91,11 @@ protected:
   std::string algorithmType;
   std::string bookingOpaque;
   std::vector<char*> dataBlocks;
-  std::vector<std::string> stripeUrls;                 //! urls of the files
-  std::vector<AsyncRespHandler*> vectRespHandler;  //! async response handlers for each stripe
-  std::map<unsigned int, unsigned int> mapUrl_Stripe;  //! map of url to stripes
-  std::map<unsigned int, unsigned int> mapStripe_Url;  //! map os stripes to url
+  std::vector<std::string> stripeUrls;                  //! urls of the files
+  std::vector<AsyncReadHandler*> vectReadHandler;       //! async response handlers for each stripe
+  std::vector<AsyncWriteHandler*> vectWriteHandler;     //! async response handlers for each stripe
+  std::map<unsigned int, unsigned int> mapUrl_Stripe;   //! map of url to stripes
+  std::map<unsigned int, unsigned int> mapStripe_Url;   //! map os stripes to url
 
   virtual bool validateHeader();
   virtual bool recoverBlock( char* buffer, std::map<off_t, size_t> &mapPieces, off_t offsetInit ) = 0;

@@ -57,7 +57,8 @@ RaidIO::RaidIO( std::string algorithm, std::vector<std::string> stripeurl,
 
   for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
     xrdFile[i] = new File();
-    vectRespHandler.push_back(new AsyncRespHandler());
+    vectReadHandler.push_back(new AsyncReadHandler());
+    vectWriteHandler.push_back(new AsyncWriteHandler());
   }
 
   isRW = false;
@@ -76,8 +77,9 @@ RaidIO::~RaidIO()
   delete[] xrdFile;
   delete[] hdUrl;
 
-  while (! vectRespHandler.empty()) {
-    vectRespHandler.pop_back();
+  while (! vectReadHandler.empty()) {
+    vectReadHandler.pop_back();
+    vectWriteHandler.pop_back();
   }  
 }
 
@@ -341,10 +343,10 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
 
       //do reading
       if ( xrdFile[urlId] ) {
-        xrdFile[urlId]->Read( offsetLocal + sizeHeader, nread, pBuff, vectRespHandler[stripeId] );
-        vectRespHandler[stripeId]->Increment();\
+        vectReadHandler[stripeId]->Increment();
+        xrdFile[urlId]->Read( offsetLocal + sizeHeader, nread, pBuff, vectReadHandler[stripeId] );
         //fprintf( stdout, "From stripe %i, we expect %i responses. \n",
-        //         stripeId, vectRespHandler[stripeId]->GetNoResponses() );
+        //         stripeId, vectReadHandler[stripeId]->GetNoResponses() );
       }
     
       length -= nread;
@@ -374,13 +376,13 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
         nWaitReq = ( nWaitReq == 0 ) ? nGroupBlocks : nWaitReq;
         //fprintf( stdout, "Wait for a total of %i requests. \n", nWaitReq );
         //for ( unsigned int i = 0; i < nDataStripes; i++ ) {
-        //  fprintf( stdout, "From stripe: %i waiting for %i responses. \n", i, vectRespHandler[i]->GetNoResponses() );
+        //  fprintf( stdout, "From stripe: %i waiting for %i responses. \n", i, vectReadHandler[i]->GetNoResponses() );
         //}
         
         for ( unsigned int i = 0; i < nDataStripes; i++ ) {
-          if ( !vectRespHandler[i]->WaitOK() ) {
+          if ( !vectReadHandler[i]->WaitOK() ) {
             //fprintf( stdout, "Dealing with errors from stripe %i. \n", i);
-            mapErrors = vectRespHandler[i]->GetErrorsMap();
+            mapErrors = vectReadHandler[i]->GetErrorsMap();
             
             for (std::map<uint64_t, uint32_t>::iterator iter = mapErrors.begin();
                  iter != mapErrors.end();
@@ -398,7 +400,7 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
 
         //reset the asyn resp handler
         for ( unsigned int i = 0; i < nDataStripes; i++ ) {
-          vectRespHandler[i]->Reset();
+          vectReadHandler[i]->Reset();
         }
       }
       
@@ -435,6 +437,11 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
   offsetStart = offset;
   offsetEnd = offset + length;
 
+  //reset write handlers
+  for (unsigned int i = 0; i < nTotalStripes; i++ ) {
+    vectWriteHandler[i]->Reset();
+  }
+  
   while ( length ) {
     stripeId = ( offset / stripeWidth ) % nDataStripes;
     nwrite = ( length < stripeWidth ) ? length : stripeWidth;
@@ -443,10 +450,14 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
     COMMONTIMING( "write remote", &wt );
     eos_info( "Write stripe=%u offset=%llu size=%u", stripeId, offsetLocal + sizeHeader, nwrite );
 
-    if ( !( xrdFile[mapStripe_Url[stripeId]]->Write( offsetLocal + sizeHeader, nwrite, buffer ).IsOK() ) ) {
-      eos_err( "Write failed offset=%zu, length=%zu", offset, length );
-      return -1;
-    }
+    //sedn write request
+    vectWriteHandler[stripeId]->Increment();
+    xrdFile[mapStripe_Url[stripeId]]->Write( offsetLocal + sizeHeader, nwrite, buffer, vectWriteHandler[stripeId] );
+        
+    //if ( !( xrdFile[mapStripe_Url[stripeId]]->Write( offsetLocal + sizeHeader, nwrite, buffer ).IsOK() ) ) {
+    //  eos_err( "Write failed offset=%zu, length=%zu", offset, length );
+    //  return -1;
+    // }
 
     //add data to the dataBlocks array and compute parity if enough information
     addDataBlock( offset, buffer, nwrite );
@@ -457,6 +468,14 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
     writeLength += nwrite;
   }
 
+  //collect the responses
+  for (unsigned int i = 0; i < nDataStripes; i++ ) {
+     if ( !vectWriteHandler[i]->WaitOK() ){
+      eos_err( "Write failed." );
+      return -1;
+    }
+  }
+  
   if ( offsetEnd > ( off_t )fileSize ) {
     fileSize = offsetEnd;
     doTruncate = true;

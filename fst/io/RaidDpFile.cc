@@ -563,12 +563,16 @@ RaidDpFile::writeParityToFiles( off_t offsetGroup )
   idPFile = nTotalStripes - 2;
   idDPFile = nTotalStripes - 1;
 
+  vectWriteHandler[idPFile]->Reset();
+  vectWriteHandler[idDPFile]->Reset();
+ 
   //write the blocks to the parity files
   for ( unsigned int i = 0; i < nDataStripes; i++ ) {
     indexPBlock = ( i + 1 ) * nDataStripes + 2 * i;
     indexDPBlock = ( i + 1 ) * ( nDataStripes + 1 ) +  i;
     offsetParityLocal = ( offsetGroup / nDataStripes ) + ( i * stripeWidth );
 
+    /*
     //write simple parity
     if ( !( xrdFile[mapStripe_Url[idPFile]]->Write( offsetParityLocal + sizeHeader,
             stripeWidth,
@@ -584,6 +588,19 @@ RaidDpFile::writeParityToFiles( off_t offsetGroup )
       eos_err( "Write stripe double parity %s- write failed", stripeUrls[mapStripe_Url[idDPFile]].c_str() );
       return -1;
     }
+    */
+
+    vectWriteHandler[idPFile]->Increment();
+    xrdFile[mapStripe_Url[idPFile]]->Write( offsetParityLocal + sizeHeader, stripeWidth,
+                                            dataBlocks[indexPBlock], vectWriteHandler[idPFile] );
+    vectWriteHandler[idDPFile]->Increment();    
+    xrdFile[mapStripe_Url[idDPFile]]->Write( offsetParityLocal + sizeHeader, stripeWidth,
+                                             dataBlocks[indexDPBlock], vectWriteHandler[idDPFile] );
+  }
+
+  if ( !vectWriteHandler[idPFile]->WaitOK() || !vectWriteHandler[idDPFile]->WaitOK()){
+    eos_err( "error=error while writing parity information" );
+    return -1;
   }
 
   return SFS_OK;

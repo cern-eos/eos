@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: AsyncRespHandler.hh
+// File: AsyncWriteHandler.hh
 // Author: Elvin-Alin Sindrilaru - CERN
 // ----------------------------------------------------------------------
 
@@ -22,44 +22,37 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include <typeinfo>
-#include <map>
-/*----------------------------------------------------------------------------*/
-#include <semaphore.h>
-/*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 
-#ifndef __EOS_ASYNCRESPONSEHANDLER_HH__
-#define __EOS_ASYNCRESPONSEHANDLER_HH__
+#ifndef __EOS_ASYNCWRITEHANDLER_HH__
+#define __EOS_ASYNCWRITEHANDLER_HH__
 
 EOSFSTNAMESPACE_BEGIN
 
 //----------------------------------------------------------------------------
-//! Class for handling async responses
+//! Class for handling async write responses
 //----------------------------------------------------------------------------
-class AsyncRespHandler: public XrdCl::ResponseHandler
+class AsyncWriteHandler: public XrdCl::ResponseHandler
 {
 public:
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  AsyncRespHandler() {
-    nResponses = 0;
-    if ( sem_init( &semaphore, 0, 0 ) ) {
-      fprintf( stderr, "Error while creating semaphore. \n" );
-      return;
-    }
+  AsyncWriteHandler() {
+    state = true;
+    nExpectedRes = 0;
+    nReceivedRes = 0;
+    cond = XrdSysCondVar(0);
   };
 
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~AsyncRespHandler() {
-    sem_destroy( &semaphore );
+  virtual ~AsyncWriteHandler() {
   }
 
   //----------------------------------------------------------------------------
@@ -67,20 +60,16 @@ public:
   //----------------------------------------------------------------------------
   virtual void HandleResponse( XrdCl::XRootDStatus* status,
                                XrdCl::AnyObject*    response ) {
-    XrdCl::Chunk* chunk = 0;
+    cond.Lock();
+    nReceivedRes++;
+    if ( status->status != XrdCl::stOK ) {
+      state = false;
+    }
 
-    if ( status->status == XrdCl::stOK ) {
-      //fprintf( stdout, "Response kXR_ok.\n");
-      response->Get( chunk );
-      sem_post( &semaphore );
+    if ( nReceivedRes == nExpectedRes ) {
+      cond.Signal();
     }
-    else {
-      response->Get( chunk );
-      //fprintf( stdout, "Response kXR_err at offset = %zu, lenght = %u. \n",
-      //         chunk->offset, chunk->length );
-      mapErrors.insert( std::make_pair( chunk->offset, chunk->length ) );
-      sem_post( &semaphore );
-    }
+    cond.UnLock();
   };
 
   
@@ -88,59 +77,51 @@ public:
   //! Wait for responses
   //----------------------------------------------------------------------------
   virtual bool WaitOK() {
-    int value;
-    for ( int i = 0; i < nResponses; i++ ) {
-      sem_getvalue(&semaphore, &value);
-      sem_wait( &semaphore );
-    }
 
-    //fprintf( stdout, "[%s] Got %i responses and error status is: %i. \n",
-    //         __FUNCTION__, nResponses, mapErrors.empty() );
+    //wait for all
+    //fprintf( stdout, "nReceivedRes = %i, nExpectesRes = %i. \n", nReceivedRes, nExpectedRes );
     
-    if ( mapErrors.empty() ) {
-      return true;
+    cond.Lock();
+    //fprintf( stdout, "After Lock(). \n" );
+    if ( nReceivedRes == nExpectedRes ) {
+      cond.UnLock();
+      //fprintf( stdout, "Returning state: %i. \n", state);
+      return state;
     }
 
-    return false;
+    //fprintf( stdout, "Before Wait(). \n" );
+    cond.Wait();
+    cond.UnLock();
+    
+    return state;
   };
+
   
-  //----------------------------------------------------------------------------
-  //! Get map of errors
-  //----------------------------------------------------------------------------
-  std::map<uint64_t, uint32_t>& GetErrorsMap() {
-    return mapErrors;
-  };
-
-
   //----------------------------------------------------------------------------
   //! Increment the number fo expected responses
   //----------------------------------------------------------------------------
   virtual void Increment() {
-    nResponses++;
-  }
+    cond.Lock();
+    nExpectedRes++;
+    cond.UnLock();
+  };
 
-
-  //----------------------------------------------------------------------------
-  //! GetNoRes
-  //----------------------------------------------------------------------------
-  virtual int GetNoResponses() {
-    return nResponses;
-  }
-
-  
+ 
   //----------------------------------------------------------------------------
   //! Reset
   //----------------------------------------------------------------------------
   virtual void Reset() {
-    mapErrors.clear();
-    nResponses = 0;
+    state = true;
+    nExpectedRes = 0;
+    nReceivedRes = 0;
   };
 
 private:
 
-  int nResponses;                            //! expected number of responses
-  sem_t semaphore;                           //! semaphore used for synchronising
-  std::map<uint64_t, uint32_t> mapErrors;    //! chunks for with the request failed
+  bool state;              //! true if all requests are ok, otherwise false
+  int nExpectedRes;        //! expected number of responses
+  int nReceivedRes;        //! number of responses received
+  XrdSysCondVar cond;      //! condition variable to signal the receival of all responses
 };
 
 EOSFSTNAMESPACE_END
