@@ -344,6 +344,7 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
       //do reading
       if ( xrdFile[urlId] ) {
         vectReadHandler[stripeId]->Increment();
+        
         xrdFile[urlId]->Read( offsetLocal + sizeHeader, nread, pBuff, vectReadHandler[stripeId] );
         //fprintf( stdout, "From stripe %i, we expect %i responses. \n",
         //         stripeId, vectReadHandler[stripeId]->GetNoResponses() );
@@ -374,14 +375,9 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
       if ( ( length == 0 ) || ( nWaitReq == 0 ) ) {
         mapPieces.clear();
         nWaitReq = ( nWaitReq == 0 ) ? nGroupBlocks : nWaitReq;
-        //fprintf( stdout, "Wait for a total of %i requests. \n", nWaitReq );
-        //for ( unsigned int i = 0; i < nDataStripes; i++ ) {
-        //  fprintf( stdout, "From stripe: %i waiting for %i responses. \n", i, vectReadHandler[i]->GetNoResponses() );
-        //}
         
         for ( unsigned int i = 0; i < nDataStripes; i++ ) {
           if ( !vectReadHandler[i]->WaitOK() ) {
-            //fprintf( stdout, "Dealing with errors from stripe %i. \n", i);
             mapErrors = vectReadHandler[i]->GetErrorsMap();
             
             for (std::map<uint64_t, uint32_t>::iterator iter = mapErrors.begin();
@@ -390,7 +386,9 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
             {
               off_t offStripe = iter->first - sizeHeader;
               off_t offRel = ( offStripe / stripeWidth ) * ( nDataStripes * stripeWidth ) +
-                             (offStripe % stripeWidth);
+                             (offStripe % stripeWidth) + i * stripeWidth;
+              //fprintf( stdout, "Error offset: %zu, length, %u and offsetInit: %zu. \n",
+              //         offRel, iter->second, offsetInit );
               mapPieces.insert(std::make_pair<off_t, size_t>( offRel, iter->second ) );
             }
             
@@ -398,7 +396,7 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
           }
         }
 
-        //reset the asyn resp handler
+        // reset the asynx response handlers
         for ( unsigned int i = 0; i < nDataStripes; i++ ) {
           vectReadHandler[i]->Reset();
         }
@@ -450,14 +448,9 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
     COMMONTIMING( "write remote", &wt );
     eos_info( "Write stripe=%u offset=%llu size=%u", stripeId, offsetLocal + sizeHeader, nwrite );
 
-    //sedn write request
+    //send write request
     vectWriteHandler[stripeId]->Increment();
     xrdFile[mapStripe_Url[stripeId]]->Write( offsetLocal + sizeHeader, nwrite, buffer, vectWriteHandler[stripeId] );
-        
-    //if ( !( xrdFile[mapStripe_Url[stripeId]]->Write( offsetLocal + sizeHeader, nwrite, buffer ).IsOK() ) ) {
-    //  eos_err( "Write failed offset=%zu, length=%zu", offset, length );
-    //  return -1;
-    // }
 
     //add data to the dataBlocks array and compute parity if enough information
     addDataBlock( offset, buffer, nwrite );

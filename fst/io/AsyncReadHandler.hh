@@ -66,17 +66,13 @@ public:
   //----------------------------------------------------------------------------
   virtual void HandleResponse( XrdCl::XRootDStatus* status,
                                XrdCl::AnyObject*    response ) {
-    XrdCl::Chunk* chunk = 0;
 
     if ( status->status == XrdCl::stOK ) {
-      //fprintf( stdout, "Response kXR_ok.\n");
-      response->Get( chunk );
       sem_post( &semaphore );
     }
     else {
+      XrdCl::Chunk* chunk = 0;
       response->Get( chunk );
-      //fprintf( stdout, "Response kXR_err at offset = %zu, lenght = %u. \n",
-      //         chunk->offset, chunk->length );
       mapErrors.insert( std::make_pair( chunk->offset, chunk->length ) );
       sem_post( &semaphore );
     }
@@ -92,9 +88,6 @@ public:
       sem_getvalue(&semaphore, &value);
       sem_wait( &semaphore );
     }
-
-    //fprintf( stdout, "[%s] Got %i responses and error status is: %i. \n",
-    //         __FUNCTION__, nResponses, mapErrors.empty() );
     
     if ( mapErrors.empty() ) {
       return true;
@@ -120,7 +113,7 @@ public:
 
 
   //----------------------------------------------------------------------------
-  //! GetNoRes
+  //! Get number of expected responses
   //----------------------------------------------------------------------------
   virtual int GetNoResponses() {
     return nResponses;

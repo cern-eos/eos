@@ -77,19 +77,12 @@ public:
   //! Wait for responses
   //----------------------------------------------------------------------------
   virtual bool WaitOK() {
-
-    //wait for all
-    //fprintf( stdout, "nReceivedRes = %i, nExpectesRes = %i. \n", nReceivedRes, nExpectedRes );
-    
     cond.Lock();
-    //fprintf( stdout, "After Lock(). \n" );
     if ( nReceivedRes == nExpectedRes ) {
       cond.UnLock();
-      //fprintf( stdout, "Returning state: %i. \n", state);
       return state;
     }
 
-    //fprintf( stdout, "Before Wait(). \n" );
     cond.Wait();
     cond.UnLock();
     
@@ -120,7 +113,7 @@ private:
 
   bool state;              //! true if all requests are ok, otherwise false
   int nExpectedRes;        //! expected number of responses
-  int nReceivedRes;        //! number of responses received
+  int nReceivedRes;        //! received number of responses
   XrdSysCondVar cond;      //! condition variable to signal the receival of all responses
 };
 

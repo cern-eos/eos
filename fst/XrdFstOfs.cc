@@ -1667,8 +1667,8 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
   }
 
   /* !!!! THIS IS JUST A WORKAROUND (Lukasz?!) - return 0 when end of file !!!*/
-  if ( retc == 0 )
-    retc = -1;
+  //if ( retc == 0 )
+  //  retc = -1;
   
   return retc;
 }

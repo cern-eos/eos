@@ -307,7 +307,6 @@ RaidDpFile::doubleParityRecover( char* buffer, std::map<off_t, size_t> &mapPiece
 
     if ( validHorizStripe( horizontalStripe, statusBlock, idBlockCorrupted ) ) {
       //try to recover using simple parity
-      //fprintf( stdout, "Recover using simple parity. \n" );
       memset( dataBlocks[idBlockCorrupted], 0, stripeWidth );
 
       for ( unsigned int ind = 0;  ind < horizontalStripe.size(); ind++ ) {
@@ -325,14 +324,11 @@ RaidDpFile::doubleParityRecover( char* buffer, std::map<off_t, size_t> &mapPiece
                     ( ( idBlockCorrupted / nTotalStripes ) * stripeWidth );
 
       if ( storeRecovery ) {
-        //fprintf( stdout, "Write stripe %i - offset = %zu, length = %zu",
-        //         stripeId, offsetLocal + sizeHeader, stripeWidth );
         if ( !( xrdFile[mapStripe_Url[stripeId]]->Write( offsetLocal + sizeHeader,
                 stripeWidth,
                 dataBlocks[idBlockCorrupted] ).IsOK() ) ) {
           free( statusBlock );
           eos_err( "Write stripe %s- write failed", stripeUrls[mapStripe_Url[stripeId]].c_str() );
-          //fprintf( stdout, "Write stripe %s- write failed", stripeUrls[mapStripe_Url[stripeId]].c_str() );
           return -1;
         }
       }
@@ -347,8 +343,7 @@ RaidDpFile::doubleParityRecover( char* buffer, std::map<off_t, size_t> &mapPiece
           if ( ( offset >= ( off_t )( offsetGroup + mapBigToSmallBlock( idBlockCorrupted ) * stripeWidth ) ) &&
                ( offset < ( off_t )( offsetGroup + ( mapBigToSmallBlock( idBlockCorrupted ) + 1 ) * stripeWidth ) ) )
           {
-            //fprintf( stdout, "Copy block back to calling buffer. \n" );
-            pBuff = buffer + ( offset - offsetInit);
+            pBuff = buffer + ( offset - offsetInit );
             memcpy( pBuff, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length );
           }
         }
@@ -364,7 +359,6 @@ RaidDpFile::doubleParityRecover( char* buffer, std::map<off_t, size_t> &mapPiece
       statusBlock[idBlockCorrupted] = true;
     } else {
       //try to recover using double parity
-      //fprintf( stdout, "Recover using double parity. \n" );
 
       if ( validDiagStripe( diagonalStripe, statusBlock, idBlockCorrupted ) ) {
         //reconstruct current block and write it back to file
@@ -403,7 +397,8 @@ RaidDpFile::doubleParityRecover( char* buffer, std::map<off_t, size_t> &mapPiece
             if ( ( offset >= ( off_t )( offsetGroup + mapBigToSmallBlock( idBlockCorrupted ) * stripeWidth ) ) &&
                  ( offset < ( off_t )( offsetGroup + ( mapBigToSmallBlock( idBlockCorrupted ) + 1 ) * stripeWidth ) ) )
             {
-              memcpy( buffer, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length );
+              pBuff = buffer + ( offset - offsetInit );
+              memcpy( pBuff, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length );
             }
           }
         }
@@ -417,7 +412,6 @@ RaidDpFile::doubleParityRecover( char* buffer, std::map<off_t, size_t> &mapPiece
         statusBlock[idBlockCorrupted] = true;
       } else {
         //current block can not be recoverd in this configuration
-        //fprintf( stdout, "Current block can not be recoverd in this configuration. \n" );
         excludeId.push_back( idBlockCorrupted );
       }
     }
@@ -427,11 +421,9 @@ RaidDpFile::doubleParityRecover( char* buffer, std::map<off_t, size_t> &mapPiece
   free( statusBlock );
 
   if ( corruptId.empty() && !excludeId.empty() ) {
-    //fprintf( stdout, "RecoverBlock: false. \n" );
     return false;
   }
 
-  //fprintf( stdout, "RecoverBlock: true. \n" );
   return true;
 }
 
@@ -566,33 +558,18 @@ RaidDpFile::writeParityToFiles( off_t offsetGroup )
   vectWriteHandler[idPFile]->Reset();
   vectWriteHandler[idDPFile]->Reset();
  
-  //write the blocks to the parity files
+  // write the blocks to the parity files
   for ( unsigned int i = 0; i < nDataStripes; i++ ) {
     indexPBlock = ( i + 1 ) * nDataStripes + 2 * i;
     indexDPBlock = ( i + 1 ) * ( nDataStripes + 1 ) +  i;
     offsetParityLocal = ( offsetGroup / nDataStripes ) + ( i * stripeWidth );
 
-    /*
-    //write simple parity
-    if ( !( xrdFile[mapStripe_Url[idPFile]]->Write( offsetParityLocal + sizeHeader,
-            stripeWidth,
-            dataBlocks[indexPBlock] ).IsOK() ) ) {
-      eos_err( "Write stripe simple parity %s- write failed", stripeUrls[mapStripe_Url[idPFile]].c_str() );
-      return -1;
-    }
-
-    //write double parity
-    if ( !( xrdFile[mapStripe_Url[idDPFile]]->Write( offsetParityLocal + sizeHeader,
-            stripeWidth,
-            dataBlocks[indexDPBlock] ).IsOK() ) ) {
-      eos_err( "Write stripe double parity %s- write failed", stripeUrls[mapStripe_Url[idDPFile]].c_str() );
-      return -1;
-    }
-    */
-
+    // writing simple parity
     vectWriteHandler[idPFile]->Increment();
     xrdFile[mapStripe_Url[idPFile]]->Write( offsetParityLocal + sizeHeader, stripeWidth,
                                             dataBlocks[indexPBlock], vectWriteHandler[idPFile] );
+
+    // writing double parity
     vectWriteHandler[idDPFile]->Increment();    
     xrdFile[mapStripe_Url[idDPFile]]->Write( offsetParityLocal + sizeHeader, stripeWidth,
                                              dataBlocks[indexDPBlock], vectWriteHandler[idDPFile] );
