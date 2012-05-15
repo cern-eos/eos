@@ -154,7 +154,8 @@ Logging::log(const char* func, const char* file, int line, const char* logid, co
   }
 
   char*  ptr = buffer + strlen(buffer);
-  vsprintf(ptr, msg, args);
+  // limit the length of the output to buffer-1 length
+  vsnprintf(ptr, (ptr-buffer-1), msg, args);
   
   fprintf(stderr,"%s",buffer);
   fprintf(stderr,"\n");
