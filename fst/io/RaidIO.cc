@@ -57,7 +57,7 @@ RaidIO::RaidIO( std::string              algorithm,
 
   hdUrl = new HeaderCRC[nTotalFiles];
   xrdFile = new File*[nTotalFiles];
-  sizeHeader = hdUrl[0].getSize();
+  sizeHeader = hdUrl[0].GetSize();
 
   for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
     xrdFile[i] = new File();
@@ -160,9 +160,9 @@ RaidIO::open( int flags )
   }
 
   for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
-    if ( hdUrl[i].readFromFile( xrdFile[i] ) ) {
-      mapUS.insert( std::pair<unsigned int, unsigned int>( i, hdUrl[i].getIdStripe() ) );
-      mapSU.insert( std::pair<unsigned int, unsigned int>( hdUrl[i].getIdStripe(), i ) );
+    if ( hdUrl[i].ReadFromFile( xrdFile[i] ) ) {
+      mapUS.insert( std::pair<unsigned int, unsigned int>( i, hdUrl[i].GetIdStripe() ) );
+      mapSU.insert( std::pair<unsigned int, unsigned int>( hdUrl[i].GetIdStripe(), i ) );
     } else {
       mapUS.insert( std::pair<int, int>( i, i ) );
       mapSU.insert( std::pair<int, int>( i, i ) );
@@ -178,10 +178,10 @@ RaidIO::open( int flags )
   //----------------------------------------------------------------------------
   // Get the size of the file
   //----------------------------------------------------------------------------
-  if ( hdUrl[0].getNoBlocks() == 0 ) {
+  if ( hdUrl[0].GetNoBlocks() == 0 ) {
     fileSize = 0;
   } else {
-    fileSize = ( hdUrl[0].getNoBlocks() - 1 ) * stripeWidth + hdUrl[0].getSizeLastBlock();
+    fileSize = ( hdUrl[0].GetNoBlocks() - 1 ) * stripeWidth + hdUrl[0].GetSizeLastBlock();
   }
 
   isOpen = true;
@@ -202,7 +202,7 @@ RaidIO::ValidateHeader()
   vector<unsigned int> idUrlInvalid;
 
   for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
-    if ( hdUrl[i].isValid() ) {
+    if ( hdUrl[i].IsValid() ) {
       newFile = false;
     } else {
       allHdValid = false;
@@ -216,9 +216,9 @@ RaidIO::ValidateHeader()
 
     if ( newFile ) {
       for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
-        hdUrl[i].setState( true );  //set valid header
-        hdUrl[i].setNoBlocks( 0 );
-        hdUrl[i].setSizeLastBlock( 0 );
+        hdUrl[i].SetState( true );  //set valid header
+        hdUrl[i].SetNoBlocks( 0 );
+        hdUrl[i].SetSizeLastBlock( 0 );
       }
     }
 
@@ -241,7 +241,7 @@ RaidIO::ValidateHeader()
   std::set<unsigned int> usedStripes;
 
   for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
-    if ( hdUrl[i].isValid() ) {
+    if ( hdUrl[i].IsValid() ) {
       usedStripes.insert( mapUS[i] );
       idHdValid = i;
     } else {
@@ -263,10 +263,10 @@ RaidIO::ValidateHeader()
         eos_debug( "Add new mapping: stripe: %u, fid: %u", i, idUrl );
         mapUS[idUrl] = i;
         usedStripes.insert( i );
-        hdUrl[idUrl].setIdStripe( i );
-        hdUrl[idUrl].setState( true );
-        hdUrl[idUrl].setNoBlocks( hdUrl[idHdValid].getNoBlocks() );
-        hdUrl[idUrl].setSizeLastBlock( hdUrl[idHdValid].getSizeLastBlock() );
+        hdUrl[idUrl].SetIdStripe( i );
+        hdUrl[idUrl].SetState( true );
+        hdUrl[idUrl].SetNoBlocks( hdUrl[idHdValid].GetNoBlocks() );
+        hdUrl[idUrl].SetSizeLastBlock( hdUrl[idHdValid].GetSizeLastBlock() );
 
         if ( storeRecovery ) {
           xrdFile[idUrl]->Close();
@@ -280,7 +280,7 @@ RaidIO::ValidateHeader()
             return false;
           }
 
-          hdUrl[idUrl].writeToFile( xrdFile[idUrl] );
+          hdUrl[idUrl].WriteToFile( xrdFile[idUrl] );
         }
 
         break;
@@ -862,13 +862,13 @@ RaidIO::close()
     size_t sizelastblock = fileSize % stripeWidth;
 
     for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
-      if ( nblocks != hdUrl[i].getNoBlocks() ) {
-        hdUrl[i].setNoBlocks( nblocks );
+      if ( nblocks != hdUrl[i].GetNoBlocks() ) {
+        hdUrl[i].SetNoBlocks( nblocks );
         updateHeader = true;
       }
 
-      if ( sizelastblock != hdUrl[i].getSizeLastBlock() ) {
-        hdUrl[i].setSizeLastBlock( sizelastblock );
+      if ( sizelastblock != hdUrl[i].GetSizeLastBlock() ) {
+        hdUrl[i].SetSizeLastBlock( sizelastblock );
         updateHeader =  true;
       }
     }
@@ -878,9 +878,9 @@ RaidIO::close()
     if ( updateHeader ) {
       for ( unsigned int i = 0; i < nTotalFiles; i++ ) { //fstid's
         eos_info( "Write Stripe Header local" );
-        hdUrl[i].setIdStripe( mapUS[i] );
+        hdUrl[i].SetIdStripe( mapUS[i] );
 
-        if ( !hdUrl[i].writeToFile( xrdFile[i] ) ) {
+        if ( !hdUrl[i].WriteToFile( xrdFile[i] ) ) {
           eos_err( "error=write header to file failed for stripe:%i", i );
           return -1;
         }

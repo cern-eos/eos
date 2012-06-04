@@ -62,7 +62,7 @@ class HeaderCRC: public eos::common::LogId
     //!
     //! @return status of the operation
     //--------------------------------------------------------------------------
-    bool writeToFile( XrdCl::File* f );
+    bool WriteToFile( XrdCl::File* f );
 
     //--------------------------------------------------------------------------
     //! Read header from file
@@ -71,12 +71,12 @@ class HeaderCRC: public eos::common::LogId
     //!
     //! @return status of the operation
     //--------------------------------------------------------------------------
-    bool readFromFile( XrdCl::File* f );
+    bool ReadFromFile( XrdCl::File* f );
 
     //--------------------------------------------------------------------------
     //! Get tag of the header
     //--------------------------------------------------------------------------
-    const char* getTag() const
+    const char* GetTag() const
     {
       return tag;
     };
@@ -84,7 +84,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Get size of header
     //--------------------------------------------------------------------------
-    static const int getSize()
+    static const int GetSize()
     {
       return sizeHeader;
     };
@@ -92,7 +92,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Get size of last block in file
     //--------------------------------------------------------------------------
-    const size_t getSizeLastBlock() const
+    const size_t GetSizeLastBlock() const
     {
       return sizeLastBlock;
     };
@@ -100,7 +100,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Get number of blocks in file
     //--------------------------------------------------------------------------
-    const long int getNoBlocks() const
+    const long int GetNoBlocks() const
     {
       return noBlocks;
     };
@@ -108,7 +108,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Get id of the stripe the header belongs to
     //--------------------------------------------------------------------------
-    const unsigned int getIdStripe() const
+    const unsigned int GetIdStripe() const
     {
       return idStripe;
     };
@@ -116,7 +116,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Set number of blocks in the file
     //--------------------------------------------------------------------------
-    void setNoBlocks( long int nblocks )
+    void SetNoBlocks( long int nblocks )
     {
       noBlocks = nblocks;
     };
@@ -124,7 +124,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Set size of last block in the file
     //--------------------------------------------------------------------------
-    void setSizeLastBlock( size_t sizelastblock )
+    void SetSizeLastBlock( size_t sizelastblock )
     {
       sizeLastBlock = sizelastblock;
     };
@@ -132,7 +132,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Set id of the stripe the header belongs to
     //--------------------------------------------------------------------------
-    void setIdStripe( unsigned int idstripe )
+    void SetIdStripe( unsigned int idstripe )
     {
       idStripe = idstripe;
     };
@@ -140,7 +140,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Test if header is valid
     //--------------------------------------------------------------------------
-    const bool isValid() const
+    const bool IsValid() const
     {
       return valid;
     };
@@ -148,7 +148,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Set the header state (valid/corrupted)
     //--------------------------------------------------------------------------
-    void setState( bool state )
+    void SetState( bool state )
     {
       valid = state;
     };

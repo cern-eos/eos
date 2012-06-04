@@ -71,7 +71,7 @@ HeaderCRC::~HeaderCRC()
 // Read header from file
 //------------------------------------------------------------------------------
 bool
-HeaderCRC::readFromFile( XrdCl::File* f )
+HeaderCRC::ReadFromFile( XrdCl::File* f )
 {
   uint32_t ret;
   long int offset = 0;
@@ -111,7 +111,7 @@ HeaderCRC::readFromFile( XrdCl::File* f )
 // Write header to file
 //------------------------------------------------------------------------------
 bool
-HeaderCRC::writeToFile( XrdCl::File* f )
+HeaderCRC::WriteToFile( XrdCl::File* f )
 {
   int offset = 0;
   char* buff = static_cast< char* >( calloc( sizeHeader, sizeof( char ) ) );
