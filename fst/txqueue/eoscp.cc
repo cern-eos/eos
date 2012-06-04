@@ -712,11 +712,11 @@ int main(int argc, char* argv[]) {
   }
 
   // stat consistency check
-  if (!isRaidTransfer) {
+  if ( !isRaidTransfer ) {
     for (int i = 0; i < nsrc; i++) {
       for (int j = 0; j < nsrc; j++) {
         if (st[i].st_size != st[j].st_size) {
-          fprintf(stderr, "error: source files differe in size !\n");
+          fprintf(stderr, "error: source files differ in size !\n");
           exit(-EINVAL);
         }
       }

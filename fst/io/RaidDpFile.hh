@@ -143,6 +143,23 @@ class RaidDpFile : public eos::fst::RaidIO
                               int&   blockCorrupted );
 
     // -------------------------------------------------------------------------
+    //! Do recovery using simple parity
+    //!
+    //! @param offsetInit file offset corresponding to byte 0 from the buffer
+    //! @param buffer buffer where to save the recovered data
+    //! @param mapPieces map containing corrupted pieces
+    //!
+    //! @return true if successful, otherwise error
+    //!
+    // -------------------------------------------------------------------------
+    /*
+    bool SimpleParityRecover( off_t                    offsetInit,
+                              char*                    buffer,
+                              std::map<off_t, size_t>& mapPieces,
+                              unsigned int&            blocksCorrupted);
+    */
+
+    // -------------------------------------------------------------------------
     //! Do recovery using simple and/or double parity
     //!
     //! @param offsetInit file offset corresponding to byte 0 from the buffer

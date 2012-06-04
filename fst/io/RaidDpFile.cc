@@ -209,7 +209,7 @@ RaidDpFile::RecoverPieces( off_t                    offsetInit,
 
 
 // -----------------------------------------------------------------------------
-// Use simple and double parity to recover corrpted pieces
+// Use simple and double parity to recover corrupted pieces
 // -----------------------------------------------------------------------------
 bool
 RaidDpFile::DoubleParityRecover( off_t                    offsetInit,
@@ -230,7 +230,7 @@ RaidDpFile::DoubleParityRecover( off_t                    offsetInit,
   vector<unsigned int> sParityIndx = GetSimpleParityIndices();
   vector<unsigned int> dParityIndx = GetDoubleParityIndices();
 
-  statusBlock = ( bool* ) calloc( nTotalBlocks, sizeof( bool ) );
+  statusBlock = static_cast<bool*>( calloc( nTotalBlocks, sizeof( bool ) ) );
 
   // ---------------------------------------------------------------------------
   // Reset the read and write handlers
@@ -385,7 +385,7 @@ RaidDpFile::DoubleParityRecover( off_t                    offsetInit,
             if ( ( offset >= ( off_t )( offsetGroup + MapBigToSmall( idBlockCorrupted ) * stripeWidth ) ) &&
                  ( offset < ( off_t )( offsetGroup + ( MapBigToSmall( idBlockCorrupted ) + 1 ) * stripeWidth ) ) ) {
               pBuff = buffer + ( offset - offsetInit );
-              pBuff = static_cast<char*>(memcpy( pBuff, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length ));
+              pBuff = static_cast<char*>( memcpy( pBuff, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length ) );
             }
           }
         }
@@ -856,37 +856,51 @@ RaidDpFile::updateParityForGroups(off_t offsetStart, off_t offsetEnd)
 // Use simple parity to recover the block - NOT USED!!
 // -----------------------------------------------------------------------------
 bool
-RaidDpFile::SimpleParityRecover( char*  buffer,
-                                 off_t  offset,
-                                 size_t length,
-                                 int&   blocksCorrupted )
+RaidDpFile::SimpleParityRecover( off_t                    offsetInit,
+                                 char*                    buffer,
+                                 std::map<off_t, size_t>& mapToRecover,
+                                 unsigned int&            blocksCorrupted )
 {
-  uint32_t aread;
-  int idBlockCorrupted = -1;
+  size_t length;
+  unsigned int idBlockCorrupted = 0;
+  off_t offset = mapToRecover.begin()->first;
   off_t offsetLocal = ( offset / ( nDataFiles * stripeWidth ) ) * stripeWidth;
+  std::map<uint64_t, uint32_t> mapErrors;
 
   blocksCorrupted = 0;
 
+  // ---------------------------------------------------------------------------
+  // Reset the read and write handlers
+  // ---------------------------------------------------------------------------
   for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
-    if ( !( xrdFile[mapSU[i]] ) ||
-         !( xrdFile[mapSU[i]]->Read( offsetLocal + sizeHeader,
-                                     stripeWidth,
-                                     dataBlocks[i],
-                                     aread ).IsOK() ) ||
-         ( aread != stripeWidth ) ) {
-      eos_err( "Read stripe %s - corrupted block", stripeUrls[mapSU[i]].c_str() );
-      idBlockCorrupted = i; // [0 - nDataFilesBlocks]
-      blocksCorrupted++;
-    }
+    vReadHandler[i]->Reset();
+    vWriteHandler[i]->Reset();
+  }
 
-    if ( blocksCorrupted > 1 ) {
-      break;
+  for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
+    memset( dataBlocks[i], 0, stripeWidth );
+    vReadHandler[i]->Increment();
+    xrdFile[mapSU[i]]->Read( offsetLocal + sizeHeader, stripeWidth,
+                             dataBlocks[i], vReadHandler[i] );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mark the corrupted blocks
+  // ---------------------------------------------------------------------------
+  for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
+    if ( !vReadHandler[i]->WaitOK() ) {
+      idBlockCorrupted = i;
+      blocksCorrupted++;
+       
+      if ( blocksCorrupted > 1 ) {
+        break;
+      }
     }
   }
 
   if ( blocksCorrupted == 0 )
     return true;
-  else if ( blocksCorrupted >= 2 )
+  else if ( blocksCorrupted >= nParityFiles )
     return false;
 
   // ----------------------------------------------------------------------------
@@ -907,33 +921,54 @@ RaidDpFile::SimpleParityRecover( char*  buffer,
                   stripeWidth );
   }
 
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------------------
   // Return recovered block and also write it to the file
-  // ---------------------------------------------------------------------------
-  int idReadBlock;
-  unsigned int stripeId;
-  off_t offsetBlock;
+  // -----------------------------------------------------------------------
+  off_t offsetBlock = ( offset / ( nDataFiles * stripeWidth ) ) * ( nDataFiles * stripeWidth ) +
+                idBlockCorrupted * stripeWidth;
 
-  idReadBlock = ( offset % ( nDataFiles * stripeWidth ) ) / stripeWidth; // [0-3]
-  offsetBlock = ( offset / ( nDataFiles * stripeWidth ) ) * ( nDataFiles * stripeWidth ) +
-                idReadBlock * stripeWidth;
-  stripeId = ( offsetBlock / stripeWidth ) % nDataFiles;
-  offsetLocal = ( ( offsetBlock / ( nDataFiles * stripeWidth ) ) * stripeWidth );
 
   if ( storeRecovery ) {
-    if ( !( xrdFile[mapSU[stripeId]]->Write( offsetLocal + sizeHeader, stripeWidth,
-            dataBlocks[idBlockCorrupted] ).IsOK() ) ) {
-      eos_err( "Write stripe %s- write failed", stripeUrls[mapSU[stripeId]].c_str() );
-      return false;
+    vWriteHandler[idBlockCorrupted]->Increment();
+    xrdFile[mapSU[idBlockCorrupted]]->Write( offsetLocal + sizeHeader, stripeWidth,
+                                     dataBlocks[idBlockCorrupted], vWriteHandler[idBlockCorrupted] );
+  }
+
+  for ( std::map<off_t, size_t>::iterator iter = mapToRecover.begin();
+        iter != mapToRecover.end();
+        iter++ ) {
+    offset = iter->first;
+    length = iter->second;
+
+    // -----------------------------------------------------------------------
+    // If not SP or DP, maybe we have to return it
+    // -----------------------------------------------------------------------
+    char* pBuff;
+    if ( idBlockCorrupted < nDataFiles ) {
+      if ( ( offset >= offsetBlock ) &&
+           ( offset < static_cast<off_t>( offsetBlock +  stripeWidth ) ) ) {
+        pBuff = buffer + ( offset - offsetInit );
+        pBuff = static_cast<char*>( memcpy( pBuff, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length ) );
+      }
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Write the correct block to the reading buffer
-  // ---------------------------------------------------------------------------
-  memcpy( buffer, dataBlocks[idReadBlock] + ( offset % stripeWidth ), length );
+  // --------------------------------------------------------------------
+  // Wait for write responses and reset all handlers
+  // --------------------------------------------------------------------
+  for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
+    if ( !vWriteHandler[i]->WaitOK() ) {
+      eos_err( "Write stripe %s- write failed", stripeUrls[mapSU[i]].c_str() );
+      return false;
+    }
+
+    vWriteHandler[i]->Reset();
+    vReadHandler[i]->Reset();
+  }
+
   return true;
 }
+
 */
 
 

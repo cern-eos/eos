@@ -283,8 +283,8 @@ RaidIO::ValidateHeader()
           //TODO:: compare with the current file size and if different
           //       then truncate to the theoritical size of the file
           size_t tmpsize = ( hdUrl[idUrl].GetNoBlocks() - 1 ) * stripeWidth + hdUrl[idUrl].GetSizeLastBlock();
-          size_t stripesize = std::ceil( (tmpsize * 1.0) / sizeGroup ) *
-                                ( nDataFiles * stripeWidth ) + HeaderCRC::GetSize();
+          size_t stripesize = std::ceil( ( tmpsize * 1.0 ) / sizeGroup ) *
+                              ( nDataFiles * stripeWidth ) + HeaderCRC::GetSize();
           xrdFile[idUrl]->Truncate( stripesize );
           hdUrl[idUrl].WriteToFile( xrdFile[idUrl] );
         }
@@ -352,7 +352,7 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
     if ( fileSize < sizeGroup ) {
       len = sizeGroup;
     }
-    
+
     while ( len >= 0 ) {
       nread = ( len > static_cast<long long int>( stripeWidth ) ) ? stripeWidth : len;
       mapErrors.insert( std::make_pair<off_t, size_t>( offset, nread ) );
@@ -377,20 +377,7 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
     //--------------------------------------------------------------------------
     // Normal reading mode
     //--------------------------------------------------------------------------
-    int nGroupBlocks;
 
-    if ( algorithmType == "raidDP" ) {
-      nGroupBlocks = static_cast<int>( pow( nDataFiles, 2 ) );
-    } else if ( algorithmType == "reedS" ) {
-      nGroupBlocks = nDataFiles;
-    } else {
-      eos_err( "error=no such algorithm" );
-      return 0;
-    }
-
-    //--------------------------------------------------------------------------
-    // Reset read handlers
-    //--------------------------------------------------------------------------
     for ( unsigned int i = 0; i < nDataFiles; i++ ) {
       vReadHandler[i]->Reset();
     }
@@ -417,11 +404,11 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
       pBuff = buffer + readLength;
 
       bool doRecovery = false;
-      int nWaitReq = index % nGroupBlocks;
+      int nWaitReq = index % nDataBlocks;
 
       if ( ( length == 0 ) || ( nWaitReq == 0 ) ) {
         mapErrors.clear();
-        nWaitReq = ( nWaitReq == 0 ) ? nGroupBlocks : nWaitReq;
+        nWaitReq = ( nWaitReq == 0 ) ? nDataBlocks : nWaitReq;
 
         for ( unsigned int i = 0; i < nDataFiles; i++ ) {
           if ( !vReadHandler[i]->WaitOK() ) {
