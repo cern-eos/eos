@@ -5,7 +5,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <string>
-#include "include/rapidjson/rapidjson.h"
 
 #define PAGE "<html><head><title>No such file or directory</title></head><body>No such file or directory</body></html>"
 
