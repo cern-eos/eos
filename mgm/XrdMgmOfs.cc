@@ -2680,6 +2680,12 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());  
   }
 
+  // check existence
+  if (!dh) {
+    errno = ENOENT;
+    return Emsg(epname, error, errno, "rmdir", path);
+  }
+  
   Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
    
   bool stdpermcheck=false;
@@ -2709,13 +2715,6 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
   // check permissions
   bool permok = stdpermcheck?(dhpar?(dhpar->access(vid.uid,vid.gid, X_OK|W_OK)): false):aclok;
 
-  // check existence
-
-  if (!dh) {
-    errno = ENOENT;
-    return Emsg(epname, error, errno, "rmdir", path);
-  }
-   
   if (!permok) {
     errno = EPERM;
     return Emsg(epname, error, errno, "rmdir", path);
