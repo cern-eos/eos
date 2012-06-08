@@ -1,0 +1,21 @@
+#!/usr/bin/perl
+# apmonpl <MONALISAHOST> <APMONLOGLEVEL> <NODES-NAME> <HOST-NAME> <XRD-PID>
+use strict;
+use warnings;
+use ApMon;
+my $apm = new ApMon(0);
+my $now = `date`;
+chomp $now;
+printf "# Starting at $now\n";
+select STDOUT; $| = 1;
+select STDERR; $| = 1;
+$apm->setLogLevel($ARGV[2]);
+$apm->setDestinations(["$ARGV[1]"]);
+$apm->setMonitorClusterNode("$ARGV[3]_Nodes", "$ARGV[4]");
+$apm->addJobToMonitor($ARGV[5], '', 'xrootd_Services', "$ARGV[4]");
+
+while(1){
+    $apm->sendBgMonitoring();
+    sleep(120);
+}
+
