@@ -91,11 +91,11 @@ Vid::Set(const char* value)
 
   if (vidcmd == "map") {
     XrdOucString auth = env.Get("mgm.vid.auth");
-    if ( (auth != "ssl") && (auth != "krb5") && (auth != "sss") && (auth!="unix") && (auth!="tident") && (auth!="gsi") ) {
+    if ( (auth != "voms") && (auth != "krb5") && (auth != "sss") && (auth!="unix") && (auth!="tident") && (auth!="gsi") ) {
       eos_static_err("invalid auth mode");
       return false;
     }
-   
+    
     XrdOucString pattern = env.Get("mgm.vid.pattern");
     if (!pattern.length()) {
       eos_static_err("missing pattern");

@@ -2000,6 +2000,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           // remove evt. existing temporary .compact files ...
           unlink(NewNsFileChangeLogFile.c_str());
           unlink(NewNsDirChangeLogFile.c_str());
+
+	  //-------------------------------------------
+	  // block all changes on the namespace from here on
+	  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);                     
+	  gOFS->Initialized=XrdMgmOfs::kCompacting;
           
           stdOut+="# ------------------------------------------------------------------------------------\n";
           stdOut+="# Compacting directory namespace changelog file ...\n";
@@ -2084,12 +2089,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           
 
           if (!rerror) {
-            //-------------------------------------------
-	    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);                     
-
             time_t tstart = time(0);
             
-            //-------------------------------------------
             try {
               gOFS->eosView->finalize();
               gOFS->eosFsView->finalize();
@@ -2110,6 +2111,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             retc = EFAULT;
             stdErr = "error: renaming failed - this can be fatal - please check manually!";
           }
+	  //-------------------------------------------
         } else {
           retc = EPERM;
           stdErr = "error: you have to take role 'root' to execute this command";

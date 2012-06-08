@@ -754,11 +754,11 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
       hasquota = namespacequota->CheckWriteQuota(uid, gid,1ll * nfilesystems * bookingsize, nfilesystems);
       if (!hasquota) {
         eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u has no quota left!",uid,gid,grouptag, nfilesystems);
-        return ENOSPC;
+        return EDQUOT;
       }
     } else {
       eos_static_err("no namespace quota found for path=%s", path);
-      return ENOSPC;
+      return EDQUOT;
     }
   } 
   

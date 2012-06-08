@@ -517,7 +517,7 @@ public:
   static void*           StaticSignalHandlerThread(void* arg);
   void*                  SignalHandlerThread();
 
-  enum eNamespace { kDown=0, kBooting=1, kBooted=2, kFailed=3};
+  enum eNamespace { kDown=0, kBooting=1, kBooted=2, kFailed=3, kCompacting=4};
   int                    Initialized;
   time_t                 InitializationTime;
   XrdSysMutex            InitializationMutex;

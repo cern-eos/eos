@@ -28,6 +28,7 @@
 #include "common/Path.hh"
 #include "common/Timing.hh"
 #include "common/StringConversion.hh"
+#include "common/SecEntity.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -66,7 +67,7 @@ XrdSysError     gMgmOfsEroute(0);
 XrdSysError    *XrdMgmOfs::eDest;
 XrdOucTrace     gMgmOfsTrace(&gMgmOfsEroute);
 
-const char* XrdMgmOfs::gNameSpaceState[] = {"down", "booting", "booted", "failed"};
+const char* XrdMgmOfs::gNameSpaceState[] = {"down", "booting", "booted", "failed","compacting"};
 
 XrdMgmOfs* gOFS=0;
 
@@ -1025,6 +1026,10 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 
   XrdOucString sizestring;
   capability += "&mgm.cid=";       capability += eos::common::StringConversion::GetSizeString(sizestring,cid);
+
+  // add the mgm.sec information to the capability
+  capability += "&mgm.sec=";
+  capability += eos::common::SecEntity::ToKey(client,openOpaque->Get("eos.app")).c_str();
   
   if (attrmap.count("user.tag")) {
     capability += "&mgm.container="; 
@@ -1107,7 +1112,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 
   if (retc) {
     // if we don't have quota we don't bounce the client back
-    if (retc != ENOSPC) {
+    if ( (retc != ENOSPC) && (retc != EDQUOT) ) {
       // check if we should try to heal offline replicas (rw mode only)
       if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable")) {
         int nmaxheal = atoi(attrmap["sys.heal.unavailable"].c_str());
@@ -1206,7 +1211,13 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     }
 
     if (isRW) {
-      return Emsg(epname, error, retc, "access quota space ", path);
+      if (retc == ENOSPC) {
+	return Emsg(epname, error, retc, "get free physical space", path);
+      }
+      if (retc == EDQUOT) {
+	return Emsg(epname, error, retc, "get quota space - quota not defined or exhausted", path);
+      }
+      return Emsg(epname, error, retc, "access quota space",path);
     } else {
       return Emsg(epname, error, retc, "open file ", path);
     }
@@ -1304,6 +1315,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   XrdOucEnv* capabilityenv = 0;
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 
+  fprintf(stderr,"capability=%s\n", capability.c_str());
   int caprc=0;
   if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
     return Emsg(epname, error, caprc, "sign capability", path);

@@ -98,6 +98,11 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status)
   if ( (status == kDrain) || (status == kDrainDead) ) {
     // create a drain job
     drainJobMutex.Lock();
+    // check if there is still a drain job
+    if (drainJob) {
+      delete drainJob;
+      drainJob=0;
+    }
     drainJob = new DrainJob(GetId());
     drainJobMutex.UnLock();
   } else {
