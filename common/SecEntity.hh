@@ -106,7 +106,7 @@ public:
       rs+="&sec.host=";rs+= tokens[2];
       rs+="&sec.vorg=";rs+= tokens[3];
       rs+="&sec.grps=";rs+= tokens[4];
-      rs+="&sec.info=";rs+= tokens[5];
+      rs+="&sec.role=";rs+= tokens[5];
       rs+="&sec.info=";rs+= tokens[6];
       rs+="&sec.app=";rs+= tokens[7];
     } else {
