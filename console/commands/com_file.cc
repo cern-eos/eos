@@ -343,6 +343,7 @@ com_file (char* arg1) {
             if (!admin->GetAdmin()->Stat(newresult->Get(repfstpath.c_str()), id, rsize, flags, modtime)) {
               consistencyerror = true;
               inconsistencylable="STATFAILED";
+	      rsize=-1;
             }
 
             if ((retc=eos::fst::gFmdSqliteHandler.GetRemoteFmdSqlite(newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()), fmd))) {
@@ -363,8 +364,10 @@ com_file (char* arg1) {
                   inconsistencylable ="SIZE";
                 } else {
                   if (fmd.size != (unsigned long long)rsize) {
-                    consistencyerror = true;
-                    inconsistencylable = "FSTSIZE";
+		    if (!consistencyerror) {
+		      consistencyerror = true;
+		      inconsistencylable = "FSTSIZE";
+		    }
                   }
                 }
               }
@@ -385,7 +388,7 @@ com_file (char* arg1) {
 
               nreplicaonline++;
 
-              if (!silent)fprintf(stdout,"nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" size=\"%llu\" checksum=\"%s\"", i, newresult->Get(repfsid.c_str()),newresult->Get(repurl.c_str()),newresult->Get(repfstpath.c_str()),fmd.size, cx.c_str());                      
+              if (!silent)fprintf(stdout,"nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" size=\"%llu\" statsize=\"%lld\" checksum=\"%s\"", i, newresult->Get(repfsid.c_str()),newresult->Get(repurl.c_str()),newresult->Get(repfstpath.c_str()),fmd.size, rsize, cx.c_str());                      
               if ((option.find("%checksumattr")!= STR_NPOS)) {
                 if (!silent)fprintf(stdout," checksumattr=\"%s\"\n", checksumattribute.c_str());
               } else {

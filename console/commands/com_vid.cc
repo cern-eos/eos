@@ -123,10 +123,6 @@ com_vid (char* arg1) {
         in += "&mgm.vid.auth=krb5";
         hastype=true;
       }
-      if ( (type == "-ssl") ) {
-        in += "&mgm.vid.auth=ssl";
-        hastype=true;
-      }
       if ( (type == "-gsi") ) {
         in += "&mgm.vid.auth=gsi";
         hastype=true;
@@ -219,12 +215,6 @@ com_vid (char* arg1) {
       in += "&mgm.vid.auth=krb5";
       disableu +="krb5:\"<pwd>\":uid";
       disableg +="krb5:\"<pwd>\":gid";
-      hastype=true;
-    }
-    if ( (type == "ssl") ) {
-      in += "&mgm.vid.auth=ssl";
-      disableu +="ssl:\"<pwd>\":uid";
-      disableg +="ssl:\"<pwd>\":gid";
       hastype=true;
     }
     if ( (type == "sss") ) {
@@ -330,7 +320,7 @@ com_vid (char* arg1) {
   fprintf(stdout,"       vid set membership <uid> -uids [<uid1>,<uid2>,...]\n");
   fprintf(stdout,"       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
   fprintf(stdout,"       vid set membership <uid> [+|-]sudo \n");
-  fprintf(stdout,"       vid set map -krb5|-gsi|-ssl|-sss|-unix|-tident <pattern> [vuid:<uid>] [vgid:<gid>] \n");
+  fprintf(stdout,"       vid set map -krb5|-gsi|-sss|-unix|-tident|-voms <pattern> [vuid:<uid>] [vgid:<gid>] \n");
   fprintf(stdout,"\n");
   fprintf(stdout,"       vid rm <key>                                                                                 : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
   fprintf(stdout,"\n");
