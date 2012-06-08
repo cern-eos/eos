@@ -19,7 +19,7 @@ sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
 # KRB  authentication
 sec.protocol krb5 host/<host>@CERN.CH
 # GSI authentication
-sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2
+sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2 -vomsat:1 -moninfo:1
 
 ###########################################################
 sec.protbind localhost.localdomain unix sss
