@@ -154,29 +154,6 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
   }
   
   // ---------------------------------------------------------------------------
-  // ssl mapping
-  // ---------------------------------------------------------------------------
-  if ( (vid.prot == "ssl") ) {
-    eos_static_debug("ssl mapping");
-    if (gVirtualUidMap.count("ssl:\"<pwd>\":uid")) {
-      // use physical mapping for ssl names
-      Mapping::getPhysicalIds(client->name, vid);
-      vid.gid=99;
-      vid.gid_list.clear();
-    }
-    
-    if (gVirtualGidMap.count("ssl:\"<pwd>\":gid")) {
-      // use physical mapping for ssl names
-      uid_t uid = vid.uid;
-      Mapping::getPhysicalIds(client->name, vid);
-      vid.uid = uid;
-      vid.uid_list.clear();
-      vid.uid_list.push_back(uid);
-      vid.uid_list.push_back(99);
-    }
-  }
-
-  // ---------------------------------------------------------------------------
   // gsi mapping
   // ---------------------------------------------------------------------------
   if ( (vid.prot == "gsi") ) {
@@ -196,6 +173,47 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
       vid.uid_list.clear();
       vid.uid_list.push_back(uid);
       vid.uid_list.push_back(99);
+    }
+
+    // ---------------------------------------------------------------------------
+    // VOMS mapping
+    // ---------------------------------------------------------------------------
+    if (client->grps && client->role) {
+      std::string vomsstring="voms:";
+      vomsstring+= client->grps;
+      vomsstring+= ":";
+      vomsstring+= client->role;
+      std::string vomsuidstring=vomsstring;
+      std::string vomsgidstring=vomsstring;
+      vomsuidstring += ":uid";
+      vomsgidstring += ":gid";
+
+      // mapping to group
+      if (gVirtualGidMap.count(vomsgidstring)) {
+	// use group mapping for VOMS roles
+        vid.gid_list.clear();
+        vid.gid = gVirtualGidMap[vomsgidstring];
+        vid.gid_list.push_back(vid.gid);
+      }
+
+      // mapping to user
+      if (gVirtualUidMap.count(vomsuidstring)) {
+	// use physical mapping for VOMS roles
+	uid_t uid = vid.uid;
+	std::string cname="";
+	// convert mapped uid to user name
+	int errc=0;
+	cname = Mapping::UidToUserName(gVirtualUidMap.count(vomsuidstring), errc);
+	if (!errc) {
+	  Mapping::getPhysicalIds(cname.c_str(), vid);
+	  vid.uid = uid;
+	  vid.uid_list.clear();
+	  vid.uid_list.push_back(uid);
+	  vid.uid_list.push_back(99);
+	} else {
+	  eos_static_err("voms-mapping: cannot translate uid=%d to user name with the password db", (int)uid);
+	}
+      }
     }
   }
 

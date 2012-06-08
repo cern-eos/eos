@@ -80,6 +80,36 @@ public:
       pos = str.find_first_of(delimiters, lastPos);
     }
   }
+
+  // ---------------------------------------------------------------------------
+  /** 
+   * Tokenize a string accepting also empty members e.g. a||b is returning 3 fields
+   * 
+   * @param str string to be tokenized
+   * @param tokens  returned list of seperated string tokens
+   * @param delimiters delimiter used for tokenizing
+   */
+  // ---------------------------------------------------------------------------
+  static void EmptyTokenize(const std::string& str,
+                       std::vector<std::string>& tokens,
+                       const std::string& delimiters = " ")
+  {
+    // Skip delimiters at beginning.
+    std::string::size_type lastPos = str.find_first_not_of(delimiters, 0);
+    // Find first "non-delimiter".
+    std::string::size_type pos     = str.find_first_of(delimiters, lastPos);
+    
+    while (std::string::npos != pos || std::string::npos != lastPos) {
+      // Found a token, add it to the vector.
+      tokens.push_back(str.substr(lastPos, pos - lastPos));
+      // Skip delimiters.  Note the "not_of"
+      lastPos = str.find_first_of(delimiters, pos);
+      if (lastPos != std::string::npos)  
+	lastPos++;
+      // Find next "non-delimiter"
+      pos = str.find_first_of(delimiters, lastPos);
+    }
+  }
   
   // ---------------------------------------------------------------------------
   /** 
