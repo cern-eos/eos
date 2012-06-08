@@ -517,6 +517,7 @@ XrdFstOfsFile::open(const char                *path,
   const char* smanager=0;
   const char* sbookingsize=0;
   const char* stargetsize=0;
+  const char* secinfo=0;
 
   bookingsize = 0;
   targetsize = 0;
@@ -532,6 +533,12 @@ XrdFstOfsFile::open(const char                *path,
 
   if (!(sfsid=capOpaque->Get("mgm.fsid"))) {
     return gOFS.Emsg(epname,error, EINVAL,"open - no file system id in capability",path);
+  }
+
+  if (!(secinfo=capOpaque->Get("mgm.sec"))) {
+    return gOFS.Emsg(epname,error, EINVAL,"open - no security information in capability",path);
+  } else {
+    SecString = secinfo;
   }
 
   // if we open a replica we have to take the right filesystem id and filesystem prefix for that replica
@@ -1621,6 +1628,14 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
   if (rc <0) {
     int envlen=0;
     eos_crit("block-write error=%d offset=%llu len=%llu file=%s",error.getErrInfo(), (unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());      
+    // indicate the deletion flag for write errors
+    viaDelete = true;
+    if (isCreation) {
+      // add to the error message that this file has been removed after the error - which happens for creations
+      XrdOucString newerr = error.getErrText();
+      newerr += " => file has been removed";
+      error.setErrInfo(error.getErrInfo(),newerr.c_str());
+    }
   }
 
   return rc;

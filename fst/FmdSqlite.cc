@@ -643,6 +643,9 @@ FmdSqliteHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid, eos::commo
   }
 		
   if (FmdSqliteMap.count(fsid)) {
+    if (!FmdSqliteMap[fsid].count(fid)) {
+      FmdSqliteMap[fsid][fid].disksize = 0xfffffff1ULL;  
+    }	
     // update in-memory
     FmdSqliteMap[fsid][fid].mgmsize = mgmsize;
     FmdSqliteMap[fsid][fid].size = mgmsize;
@@ -913,7 +916,7 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
     // get an existing record without creation of a record !!!
     FmdSqlite* fmd = GetFmd(fMd.fid, fsid, fMd.uid, fMd.gid, fMd.lid, false, false);
     if (fmd) {
-      // check if there was
+      // check if there was a disk replica
       if (fmd->fMd.disksize == 0xfffffff1ULL) {
 	if (fMd.layouterror && eos::common::LayoutId::kUnregistered) {
 	  // there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
@@ -927,14 +930,17 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
       }
     }
 
-    // get our stored one
+    // get/create a record
     fmd = GetFmd(fMd.fid, fsid, fMd.uid, fMd.gid, fMd.lid, true, true);
     if (fmd) {
-      // check if we have a layout error
-      
       if (!UpdateFromMgm(fsid, fMd.fid, fMd.cid, fMd.lid, fMd.mgmsize, fMd.mgmchecksum, fMd.name, fMd.container, fMd.uid,fMd.gid, fMd.ctime, fMd.ctime_ns, fMd.mtime, fMd.mtime_ns, fMd.layouterror, fMd.locations)) {
 	eos_err("failed to update fmd for fid=%08llx", fMd.fid);
 	return false;
+      }
+      // check if it exists on disk
+      if (fmd->fMd.disksize == 0xfffffff1ULL) {
+	fMd.layouterror |= eos::common::LayoutId::kMissing;
+	eos_warning("found missing replica for fid=%llu on fsid=%lu", fMd.fid, (unsigned long) fsid);
       }
     } else {
       eos_err("failed to get/create fmd for fid=%08llx", fMd.fid);
@@ -992,12 +998,18 @@ FmdSqliteHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const char*
       struct FmdSqlite::FMD fMd;
       FmdSqlite::Reset(fMd);
       if (FmdSqlite::EnvMgmToFmdSqlite(*env, fMd)) {
-	// get our stored one
+	// get/create one
 	FmdSqlite* fmd = GetFmd(fMd.fid, fsid, fMd.uid, fMd.gid, fMd.lid, true, true);
 
 	fMd.layouterror = FmdSqlite::LayoutError(fsid,fMd.lid, fMd.locations);
 	
 	if (fmd) {
+	  // check if it exists on disk
+	  if (fmd->fMd.disksize == 0xfffffff1ULL) {
+	    fMd.layouterror |= eos::common::LayoutId::kMissing;
+	    eos_warning("found missing replica for fid=%llu on fsid=%lu", fMd.fid, (unsigned long)fsid);
+	  }
+
 	  if (!UpdateFromMgm(fsid, fMd.fid, fMd.cid, fMd.lid, fMd.mgmsize, fMd.mgmchecksum, fMd.name, fMd.container, fMd.uid,fMd.gid, fMd.ctime, fMd.ctime_ns, fMd.mtime, fMd.mtime_ns, fMd.layouterror,fMd.locations)) {
 	    eos_err("failed to update fmd %s", dumpentry.c_str());
 	  }
@@ -1091,6 +1103,7 @@ FmdSqliteHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsi
   statistics["orphans_n"] = 0;      // number of orphaned replicas
   statistics["unreg_n"]    = 0;     // number of unregistered replicas
   statistics["rep_diff_n"] = 0;     // number of files with replica number mismatch
+  statistics["rep_missing_n"] = 0;  // number of files which are missing on disk
 
   fidset["m_sync_n"].clear();       // file set's for the same items as above
   fidset["m_mem_sz_diff"].clear();
@@ -1104,6 +1117,7 @@ FmdSqliteHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsi
   fidset["orphans_n"].clear();
   fidset["unreg_n"].clear();
   fidset["rep_diff_n"].clear();
+  fidset["rep_missing_n"].clear();
   
   if (!IsSyncing(fsid)) {
     // we report values only when we are not in the sync phase from disk/mgm
@@ -1120,6 +1134,10 @@ FmdSqliteHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsi
 	if (it->second.layouterror & eos::common::LayoutId::kReplicaWrong) {
 	  statistics["rep_diff_n"]++;
 	  fidset["rep_diff_n"].insert(it->second.fid);
+	}
+	if (it->second.layouterror & eos::common::LayoutId::kMissing) {
+	  statistics["rep_missing_n"]++;
+	  fidset["rep_missing_n"].insert(it->second.fid);
 	}
       }
       
