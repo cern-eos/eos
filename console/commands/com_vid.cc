@@ -139,6 +139,10 @@ com_vid (char* arg1) {
         in += "&mgm.vid.auth=tident";
         hastype=true;
       }
+      if ( (type == "-voms") ) {
+        in += "&mgm.vid.auth=voms";
+        hastype=true;
+      }
 
       if (!hastype) 
         goto com_vid_usage;
@@ -322,6 +326,7 @@ com_vid (char* arg1) {
   fprintf(stdout,"       vid set membership <uid> [+|-]sudo \n");
   fprintf(stdout,"       vid set map -krb5|-gsi|-sss|-unix|-tident|-voms <pattern> [vuid:<uid>] [vgid:<gid>] \n");
   fprintf(stdout,"\n");
+  fprintf(stdout,"                                                                                                      -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should define <pattern>=/dteam/cern: \n");
   fprintf(stdout,"       vid rm <key>                                                                                 : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"       vid enable|disable krb5|gsi|ssl|sss|unix\n");
