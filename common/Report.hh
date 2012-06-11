@@ -78,6 +78,15 @@ public:
   float  wt;               //< disk time spent for write
   unsigned long long osize;//< size when file was opened
   unsigned long long csize;//< size when file was closed
+  std::string sec_prot;    //< auth protocol
+  std::string sec_name;    //< auth name
+  std::string sec_host;    //< auth client host
+  std::string sec_domain;  //< auth domain
+  std::string sec_vorg;    //< auth vorg
+  std::string sec_grps;    //< auth grps
+  std::string sec_role;    //< auth role
+  std::string sec_dn;      //< auth dn
+  std::string sec_app;     //< auth application
 
   // ---------------------------------------------------------------------------
   //! Constructor by report env 
@@ -92,7 +101,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Dump the report contents into a string
   // ---------------------------------------------------------------------------
-  void Dump(XrdOucString &out);
+  void Dump(XrdOucString &out, bool dumpsec=false);
 };
 
 /*----------------------------------------------------------------------------*/

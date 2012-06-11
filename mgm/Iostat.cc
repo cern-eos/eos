@@ -45,6 +45,29 @@ Iostat::Iostat()
   mStoreFileName="";
   cthread = 0;
   thread = 0;
+
+  // push default domains to watch TODO: make generic
+  IoDomains.insert(".ch");
+  IoDomains.insert(".it");
+  IoDomains.insert(".ru");
+  IoDomains.insert(".de");
+  IoDomains.insert(".nl");
+  IoDomains.insert(".fr");
+  IoDomains.insert(".se");
+  IoDomains.insert(".ro");
+  IoDomains.insert(".su");
+  IoDomains.insert(".no");
+  IoDomains.insert(".dk");
+  IoDomains.insert(".cz");
+  IoDomains.insert(".uk");
+  IoDomains.insert(".se");
+  IoDomains.insert(".org");
+  IoDomains.insert(".edu");
+  
+  // push default nodes to watch TODO: make generic
+  IoNodes.insert("lxplus");
+  IoNodes.insert("lxb");
+  IoNodes.insert("pb-d-128-141");
 }
 
 /* ------------------------------------------------------------------------- */
@@ -134,6 +157,47 @@ Iostat::Receive(void)
       Add("bytes_wseek",    report->uid, report->gid, report->swb,report->ots, report->cts);
       Add("disk_time_read",  report->uid, report->gid, (unsigned long long)report->rt,report->ots, report->cts);
       Add("disk_time_write",  report->uid, report->gid, (unsigned long long)report->wt,report->ots, report->cts);
+
+      bool dfound=false;
+      // do the domain accounting here
+      size_t pos=0;
+      if ( (pos = report->sec_host.rfind(".")) != std::string::npos) {
+	// we can sort in by domain
+	std::string sdomain = report->sec_host.substr(pos);
+	if (IoDomains.find(sdomain) != IoDomains.end()) {
+	  Mutex.Lock();
+	  if (report->rb) 
+	    IostatAvgDomainIOrb[sdomain].Add(report->rb, report->ots, report->cts);
+	  if (report->wb)
+	  IostatAvgDomainIOwb[sdomain].Add(report->wb, report->ots, report->cts);
+	  Mutex.UnLock();
+	  dfound=true;
+	}
+      }
+      
+      // do the node accounting here - keep the node list small !!!
+      std::set<std::string>::const_iterator nit;
+      for (nit = IoNodes.begin(); nit != IoNodes.end(); nit++) {
+	if (*nit == report->sec_host.substr(0, nit->length())) {
+	  Mutex.Lock();
+	  if (report->rb) 
+	  IostatAvgDomainIOrb[*nit].Add(report->rb, report->ots, report->cts);
+	  if (report->wb) 
+	  IostatAvgDomainIOwb[*nit].Add(report->wb, report->ots, report->cts);
+	  Mutex.UnLock();
+	  dfound=true;
+	}
+      }
+
+      if (!dfound) {
+	// push into the 'other' domain
+	Mutex.Lock();
+	if (report->rb) 
+	  IostatAvgDomainIOrb["other"].Add(report->rb, report->ots, report->cts);
+	if (report->wb) 
+	  IostatAvgDomainIOwb["other"].Add(report->wb, report->ots, report->cts);
+	Mutex.UnLock();
+      }
       
       if (gOFS->IoReportStore) {
         // add the record to a daily report log file
@@ -208,7 +272,7 @@ Iostat::Receive(void)
 
 /* ------------------------------------------------------------------------- */
 void 
-Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical, bool top, XrdOucString option)
+Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical, bool top, bool domain, XrdOucString option)
 {
   Mutex.Lock();
   std::vector<std::string> tags;
@@ -244,7 +308,7 @@ Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerica
     snprintf(a60,1023,"%3.02f", GetTotalAvg60(tag));
     snprintf(a300,1023,"%3.02f", GetTotalAvg300(tag));
     snprintf(a3600,1023,"%3.02f", GetTotalAvg3600(tag));
-    snprintf(a86400,1023,"%3.02f", GetTotalAvg3600(tag));
+    snprintf(a86400,1023,"%3.02f", GetTotalAvg86400(tag));
 
     if (!monitoring) {
       XrdOucString sizestring;
@@ -281,7 +345,7 @@ Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerica
         snprintf(a60,1023,"%3.02f", it->second.GetAvg60());
         snprintf(a300,1023,"%3.02f", it->second.GetAvg300());
         snprintf(a3600,1023,"%3.02f", it->second.GetAvg3600());
-        snprintf(a86400,1023,"%3.02f", it->second.GetAvg3600());
+        snprintf(a86400,1023,"%3.02f", it->second.GetAvg86400());
 
         char identifier[1024];
         if (numerical) {
@@ -331,7 +395,7 @@ Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerica
         snprintf(a60,1023,"%3.02f", it->second.GetAvg60());
         snprintf(a300,1023,"%3.02f", it->second.GetAvg300());
         snprintf(a3600,1023,"%3.02f", it->second.GetAvg3600());
-        snprintf(a86400,1023,"%3.02f", it->second.GetAvg3600());
+        snprintf(a86400,1023,"%3.02f", it->second.GetAvg86400());
 
         char identifier[1024];
         if (numerical) {
@@ -472,6 +536,47 @@ Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerica
       }
     }
   }
+
+  if (domain) {
+    XrdOucString sizestring;
+    if (!monitoring) {
+      out +="# --------------------------------------------------------------------------------------\n";
+      out +="# IO by domain/node name: \n";
+      out +="# --------------------------------------------------------------------------------------\n";
+      sprintf(outline,"%-10s %-32s %9s %8s %8s %8s %8s\n", "io", "domain", "", "1min", "5min", "1h", "24h");
+      out += outline;
+      out +="# --------------------------------------------------------------------------------------\n";
+    }
+    
+    // IO out bytes
+    google::sparse_hash_map<std::string, IostatAvg>::iterator it;
+    for (it=IostatAvgDomainIOrb.begin(); it!=IostatAvgDomainIOrb.end(); it++) {
+      if (!monitoring) {
+	sprintf(outline,"%-10s %-32s %9s %8s %8s %8s %8s\n", "IN", it->first.c_str(),""
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg60(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg300(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg3600(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg86400(),""));
+      } else {
+	sprintf(outline,"measurement=%s domain=\"%s\" 60s=%llu 300s=%llu 3600s=%llu 86400s=%llu\n", "io_out", it->first.c_str(), (unsigned long long) it->second.GetAvg60(),(unsigned long long) it->second.GetAvg300(),(unsigned long long) it->second.GetAvg3600(),(unsigned long long) it->second.GetAvg86400());
+        }      
+      out += outline;      
+    }
+    // IO in bytes
+    for (it=IostatAvgDomainIOwb.begin(); it!=IostatAvgDomainIOwb.end(); it++) {
+      if (!monitoring) {
+	sprintf(outline,"%-10s %-32s %9s %8s %8s %8s %8s\n", "OUT", it->first.c_str(),""
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg60(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg300(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg3600(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg86400(),""));
+      } else {
+	sprintf(outline,"measurement=%s domain=\"%s\" 60s=%llu 300s=%llu 3600s=%llu 86400s=%llu\n", "io_in", it->first.c_str(), (unsigned long long) it->second.GetAvg60(),(unsigned long long) it->second.GetAvg300(),(unsigned long long) it->second.GetAvg3600(),(unsigned long long) it->second.GetAvg86400());
+        }      
+      out += outline;      
+    }
+  }
+
   Mutex.UnLock();
 }
 
@@ -598,6 +703,60 @@ Iostat::NamespaceReport(const char* path, XrdOucString &stdOut, XrdOucString &st
   stdOut += summaryline;
 
   return true;
+}
+
+/* ------------------------------------------------------------------------- */
+void* 
+Iostat::Circulate() {
+  // ---------------------------------------------------------------------------
+  // ! circulate the entries to get averages over sec.min.hour and day
+  // ---------------------------------------------------------------------------
+
+  unsigned long long sc = 0 ;
+  XrdSysThread::SetCancelOn();
+  // empty the circular buffer 
+  while(1) {
+    // we store once per minute the current statistics 
+    if (!(sc%117)) {
+      // save the current state ~ every minute
+      if (!Store()) {
+	eos_static_err("failed store io stat dump file <%s>",mStoreFileName.c_str());
+      }
+    }
+    sc++;
+    usleep(512345);
+    Mutex.Lock();
+    google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatAvg> >::iterator tit;
+    google::sparse_hash_map<std::string, IostatAvg >::iterator dit;
+    // loop over tags
+    for (tit = IostatAvgUid.begin(); tit != IostatAvgUid.end(); ++tit) {
+      // loop over vids
+      google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
+      for (it = tit->second.begin(); it != tit->second.end(); ++it) {
+	it->second.StampZero();
+      }
+    }
+    
+    for (tit = IostatAvgGid.begin(); tit != IostatAvgGid.end(); ++tit) {
+      // loop over vids
+      google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
+      for (it = tit->second.begin(); it != tit->second.end(); ++it) {
+	it->second.StampZero();
+      }
+    }
+    
+    // loop over domain accounting
+    for (dit = IostatAvgDomainIOrb.begin(); dit != IostatAvgDomainIOrb.begin(); dit++) {
+      dit->second.StampZero();
+      }
+    for (dit = IostatAvgDomainIOwb.begin(); dit != IostatAvgDomainIOwb.begin(); dit++) {
+      dit->second.StampZero();
+    }
+    
+    Mutex.UnLock();
+    XrdSysThread::CancelPoint();
+  }
+  return 0;
 }
 
 EOSMGMNAMESPACE_END

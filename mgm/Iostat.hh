@@ -34,6 +34,7 @@
 #include <google/sparse_hash_map>
 #include <sys/types.h>
 #include <string>
+#include <set>
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -165,6 +166,12 @@ private:
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatAvg> > IostatAvgUid;
   google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, IostatAvg> > IostatAvgGid;
 
+  google::sparse_hash_map<std::string, IostatAvg> IostatAvgDomainIOrb;
+  google::sparse_hash_map<std::string, IostatAvg> IostatAvgDomainIOwb;
+
+  std::set<std::string> IoDomains;
+  std::set<std::string> IoNodes;
+
   XrdOucString mStoreFileName; // file name where a dump is loaded/saved in Restore/Store
 
 public:
@@ -189,7 +196,7 @@ public:
   bool Start();
   bool Stop();
 
-  void PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical=false, bool top=false, XrdOucString option="");
+  void PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical=false, bool top=false, bool domain=false, XrdOucString option="");
 
   static void* StaticReceive(void*);
   static void* StaticCirculate(void*);
@@ -267,43 +274,7 @@ public:
     return val;
   }
 
-  void* Circulate() {
-    unsigned long long sc = 0 ;
-    XrdSysThread::SetCancelOn();
-    // empty the circular buffer 
-    while(1) {
-      // we store once per minute the current statistics 
-      if (!(sc%117)) {
-        // save the current state ~ every minute
-        if (!Store()) {
-          eos_static_err("failed store io stat dump file <%s>",mStoreFileName.c_str());
-        }
-      }
-      sc++;
-      usleep(512345);
-      Mutex.Lock();
-      google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatAvg> >::iterator tit;
-      // loop over tags
-      for (tit = IostatAvgUid.begin(); tit != IostatAvgUid.end(); ++tit) {
-        // loop over vids
-        google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
-        for (it = tit->second.begin(); it != tit->second.end(); ++it) {
-          it->second.StampZero();
-        }
-      }
-      
-      for (tit = IostatAvgGid.begin(); tit != IostatAvgGid.end(); ++tit) {
-        // loop over vids
-        google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
-        for (it = tit->second.begin(); it != tit->second.end(); ++it) {
-          it->second.StampZero();
-        }
-      }
-      Mutex.UnLock();
-      XrdSysThread::CancelPoint();
-    }
-    return 0;
-  }
+  void* Circulate();
 };
 
 EOSMGMNAMESPACE_END

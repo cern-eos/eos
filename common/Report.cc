@@ -60,6 +60,15 @@ Report::Report(XrdOucEnv &report)
   wt     = atof(report.Get("wt")?report.Get("wt"):"0.0");
   osize  = strtoull(report.Get("osize")?report.Get("osize"):"0",0,10);
   csize  = strtoull(report.Get("csize")?report.Get("csize"):"0",0,10);
+  // sec extensions
+  sec_prot = report.Get("sec.prot")?report.Get("sec.prot"):"";
+  sec_name = report.Get("sec.name")?report.Get("sec.name"):"";
+  sec_host = report.Get("sec.host")?report.Get("sec.host"):"";
+  sec_domain = report.Get("sec.host")?report.Get("sec.host"):"";
+  sec_vorg = report.Get("sec.vorg")?report.Get("sec.vorg"):"";
+  sec_role = report.Get("sec.role")?report.Get("sec.role"):"";
+  sec_dn   = report.Get("sec.dn")?report.Get("sec.dn"):"";
+  sec_app  = report.Get("sec.app")?report.Get("sec.app"):"";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -70,11 +79,16 @@ Report::Report(XrdOucEnv &report)
  */
 /*----------------------------------------------------------------------------*/
 void
-Report::Dump(XrdOucString &out)
+Report::Dump(XrdOucString &out, bool dumpsec)
 {
   char dumpline[16384];
-  snprintf(dumpline,sizeof(dumpline)-1,"uid=%d gid=%d rb=%llu wb=%llu srb=%llu swb=%llu nrc=%llu nwc=%llu rt=%.02f wt=%.02f osize=%llu csize=%llu ots=%llu.%llu cts=%llu.%llu td=%s host=%s logid=%s\n", uid, gid, rb, wb, srb, swb, nrc,nwc, rt,wt,osize,csize, ots,otms, cts,ctms, td.c_str(),host.c_str(), logid.c_str());
+  snprintf(dumpline,sizeof(dumpline)-1,"uid=%d gid=%d rb=%llu wb=%llu srb=%llu swb=%llu nrc=%llu nwc=%llu rt=%.02f wt=%.02f osize=%llu csize=%llu ots=%llu.%llu cts=%llu.%llu td=%s host=%s logid=%s", uid, gid, rb, wb, srb, swb, nrc,nwc, rt,wt,osize,csize, ots,otms, cts,ctms, td.c_str(),host.c_str(), logid.c_str());
   out+=dumpline;
+  if (dumpsec) {
+    snprintf(dumpline,sizeof(dumpline)-1," sec_prot=\"%s\" sec_name=\"%s\" sec_host=\"%s\" sec_vorg=\"%s\" sec_grps=\"%s\" sec_role=\"%s\" sec_dn=\"%s\" sec_app=\"%s\"", sec_prot.c_str(), sec_name.c_str(), sec_host.c_str(), sec_vorg.c_str(), sec_grps.c_str(), sec_role.c_str(), sec_dn.c_str(), sec_app.c_str());
+    out+=dumpline;
+  }
+  out+= "\n";
 }
 /*----------------------------------------------------------------------------*/
 
