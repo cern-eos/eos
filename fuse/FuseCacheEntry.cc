@@ -88,16 +88,13 @@ void FuseCacheEntry::Update( int             no_entries,
 //------------------------------------------------------------------------------
 // Get the dirbuf structure
 //------------------------------------------------------------------------------
-void FuseCacheEntry::GetDirbuf( struct dirbuf& buf )
+void FuseCacheEntry::GetDirbuf( struct dirbuf*& buf )
 {
   fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__ );
   eos::common::RWMutexReadLock rd_lock( mutex );
-  buf.size = b.size;
-  fprintf( stderr, "[%s] Working 1. \n", __FUNCTION__ );
-  //buf.p = static_cast<char*>( realloc( buf.p, buf.size * sizeof( char ) ) );
-  buf.p = static_cast<char*>( calloc( buf.size, sizeof( char ) ) );
-  fprintf( stderr, "[%s] Working 2. \n", __FUNCTION__ );
-  buf.p = static_cast<char*>( memcpy( buf.p, b.p, buf.size * sizeof( char ) ) );
+  buf->size = b.size;
+  buf->p = static_cast<char*>( calloc( buf->size, sizeof( char ) ) );
+  buf->p = static_cast<char*>( memcpy( buf->p, b.p, buf->size * sizeof( char ) ) );
   fprintf( stderr, "[%s] Returning from function. \n", __FUNCTION__ );
 }
 

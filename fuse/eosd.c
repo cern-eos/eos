@@ -428,8 +428,8 @@ static void eosfs_ll_readdir( fuse_req_t             req,
   char* namep;
   unsigned long long in;
   struct dirbuf* b;
+  struct dirbuf* tmp_buf;
   struct stat attr;
-  int is_from_cache = 1;
 
   xrd_lock_r_p2i(); // =>
   char* name = 0;
@@ -455,77 +455,70 @@ static void eosfs_ll_readdir( fuse_req_t             req,
              ( long long )ino, fullpath, ( long long )size, ( long long )off );
   }
 
-  b = ( struct dirbuf* ) calloc( 1, sizeof( struct dirbuf ) );
-  
-  // try to use the cache for directories
-  retc = xrd_stat( dirfullpath, &attr );
-  dir_status = xrd_dir_cache_get( ino, attr.st_mtim, fullpath, &b );
-
-  if ( !isdebug ) {
+  if ( !xrd_dirview_getbuffer( ino, 1 ) ) {
+    // try to use the cache for directories
+    retc = xrd_stat( dirfullpath, &attr );
+    dir_status = xrd_dir_cache_get( ino, attr.st_mtim, fullpath, &tmp_buf );
     fprintf( stderr, "[%s] directory status is: %i. \n",  __FUNCTION__, dir_status );
-  }
+    
+    if ( !dir_status ) {
+      // dir not in cache or invalid
 
-  if ( dir_status == dError ) {
-    free( b );
-    fuse_reply_err( req, EPERM );
-    return;
-  } else if ( dir_status != dValid ) {
-    free( b );
-    is_from_cache = 0;
-    // dir not in cache or invalid
-    if ( !xrd_dirview_entry( ino, 0 ) ) {
-      // there is no listing yet, create one!
-      xrd_inodirlist( ( unsigned long long )ino, fullpath );
-      b = xrd_dirview_getbuffer( ( unsigned long long )ino );
+      if ( !xrd_dirview_getbuffer( ino, 1 ) ) {
+        // there is no listing yet, create one!
+        xrd_inodirlist( ( unsigned long long )ino, fullpath );
+        xrd_lock_r_dirview(); // =>
+        b = xrd_dirview_getbuffer( ( unsigned long long )ino, 0 );
 
-      if ( !b ) {
-        fuse_reply_err( req, EPERM );
-        free( name );
-        return;
-      }
-
-      b->p = NULL;
-      b->size = 0;
-
-      xrd_lock_r_dirview(); // =>
-
-      while ( ( in = xrd_dirview_entry( ino, cnt ) ) ) {
-        if ( ( namep = xrd_basename( in ) ) ) {
-          if ( cnt == 0 ) {
-            // this is the '.' directory
-            namep = ".";
-          } else if ( cnt == 1 ) {
-            // this is the '..' directory
-            namep = "..";
-          } 
-          
-          dirbuf_add( req, b, namep, ( fuse_ino_t ) in );
-          cnt++;
-        } else {
-          if ( isdebug ) {
-            fprintf( stderr, "[%s]: lookup failed for inode=%llu\n",
-                     __FUNCTION__, in );
-          }
-          
-          cnt++;
+        if ( !b ) {
+          xrd_unlock_r_dirview(); // =>
+          fuse_reply_err( req, EPERM );
+          free( name );
+          return;
         }
+     
+        b->p = NULL;
+        b->size = 0;
+
+        while ( ( in = xrd_dirview_entry( ino, cnt, 0 ) ) ) {
+          if ( ( namep = xrd_basename( in ) ) ) {
+            if ( cnt == 0 ) {
+              // this is the '.' directory
+              namep = ".";
+            } else if ( cnt == 1 ) {
+              // this is the '..' directory
+              namep = "..";
+            } 
+          
+            dirbuf_add( req, b, namep, ( fuse_ino_t ) in );
+            cnt++;
+          } else {
+            fprintf( stderr, "[%s]: failed for inode=%llu\n", __FUNCTION__, in );
+            cnt++;
+          }
+        }
+
+        // add directory to cache or update it
+        xrd_dir_cache_sync( ino, dirfullpath, cnt, attr.st_mtim, b );
+        xrd_unlock_r_dirview(); // <=
+      } else {
+        fprintf( stderr, "Getting buffer from dirview.\n " ); 
+        b = xrd_dirview_getbuffer( ( unsigned long long )ino, 0 );
       }
-
-      //TODO: add entry name and inode to buff
-      
-      // add directory to cache or update it
-      xrd_dir_cache_sync( ino, dirfullpath, cnt, attr.st_mtim, b );
-      
-      xrd_unlock_r_dirview(); // <=
     } else {
+      fprintf( stderr, "Getting buffer from cache and tmp_buf->size=%zu.\n ", tmp_buf->size ); 
+      xrd_dirview_create( ( unsigned long long ) ino );
       xrd_lock_r_dirview(); // =>
-
-      //TODO: get entry name and inode and add to buffer
-      
-      b = xrd_dirview_getbuffer( ( unsigned long long )ino );
-      
+      b  = xrd_dirview_getbuffer( ( unsigned long long )ino, 0 );
+      b->size = tmp_buf->size;
+      b->p = ( char* ) calloc ( b->size, sizeof( char ) );
+      b->p =( char* ) memcpy( b->p, tmp_buf->p, b->size );
       xrd_unlock_r_dirview(); // <=
+      free( tmp_buf );
     }
+  }  else {
+    fprintf( stderr, "Getting buffer from dirview.\n " ); 
+    b = xrd_dirview_getbuffer( ( unsigned long long )ino, 0 );
   }
 
   if ( name ) {
@@ -537,14 +530,10 @@ static void eosfs_ll_readdir( fuse_req_t             req,
              __FUNCTION__, ( long long )b->size, ( long long )b->p );
   }
 
-  fprintf( stderr, "[%s] Before fillinf reply buffer. \n", __FUNCTION__ );
+  fprintf( stderr, "[%s] Before filling reply buffer with size=%zu, off=%zu, size=%zu. \n",
+           __FUNCTION__, b->size, off, size);
+
   reply_buf_limited( req, b->p, b->size, off, size );
-
-
-  //free memory
-  if ( is_from_cache ) {
-     free( b );
-  }
 
   fprintf( stderr, "[%s] Return from function. \n", __FUNCTION__ );
 }
@@ -555,7 +544,7 @@ static void eosfs_ll_releasedir( fuse_req_t             req,
                                  fuse_ino_t             ino,
                                  struct fuse_file_info *fi )
 {
-  fprintf( stderr, "[%s] With inode=%llu. \n", ( long long int ) ino );
+  fprintf( stderr, "[%s] With inode=%llu. \n", __FUNCTION__, ( long long int ) ino );
   xrd_dirview_delete( ino );
   fuse_reply_err( req, 0 );
 }

@@ -341,7 +341,7 @@ void
 xrd_dirview_delete( unsigned long long inode )
 {
   eos_static_debug( "inode=%llu", inode );
-  eos::common::RWMutexWriteLock vLock( mutex_dir2inodelist );
+  eos::common::RWMutexWriteLock wr_lock( mutex_dir2inodelist );
 
   if ( dir2inodelist.count( inode ) ) {
     if ( dir2dirbuf[inode].p ) {
@@ -360,11 +360,13 @@ xrd_dirview_delete( unsigned long long inode )
 // Get entry's inode with index 'index' from directory
 // -----------------------------------------------------------------------------
 unsigned long long
-xrd_dirview_entry( unsigned long long dirinode, size_t index )
+xrd_dirview_entry( unsigned long long dirinode, size_t index, int get_lock )
 {
-  eos_static_debug( "dirinode=%llu, index=%zu", dirinode, index );
   //Obj:  should have xrd_lock_dirview in the scope of the call
-
+  eos_static_debug( "dirinode=%llu, index=%zu", dirinode, index );
+  
+  if ( get_lock )  eos::common::RWMutexReadLock rd_lock ( mutex_dir2inodelist );
+  
   if ( ( dir2inodelist.count( dirinode ) ) &&
        ( dir2inodelist[dirinode].size() > index ) ) {
     return dir2inodelist[dirinode][index];
@@ -377,9 +379,15 @@ xrd_dirview_entry( unsigned long long dirinode, size_t index )
 // -----------------------------------------------------------------------------
 // Get dirbuf corresponding to inode
 // -----------------------------------------------------------------------------
-struct dirbuf* xrd_dirview_getbuffer( unsigned long long inode ) {
+struct dirbuf* xrd_dirview_getbuffer( unsigned long long inode, int get_lock ) {
   //Obs: should have xrd_lock_dirview in the scope of the call
-  return &dir2dirbuf[inode];
+  
+  if ( get_lock )  eos::common::RWMutexReadLock rd_lock ( mutex_dir2inodelist );
+
+  if ( dir2dirbuf.count( inode ) )
+    return &dir2dirbuf[inode];
+  else
+    return 0;  
 }
 
 
@@ -393,7 +401,7 @@ struct dirbuf* xrd_dirview_getbuffer( unsigned long long inode ) {
 // -----------------------------------------------------------------------------
 static const unsigned long long GetMaxCacheSize()
 {
-  return 128 * 1024;
+  return 1024;
 }
 
 
@@ -411,11 +419,7 @@ google::dense_hash_map<unsigned long long, FuseCacheEntry*> inode2cache;  //< in
  * @param fullpath full path of the directory
  * @param b dirbuf structure
  *
- * @return DirStatus code
- *         -3 - error
- *         -2 - not in cache
- *         -1 - in cache but outdated, needs update
- *          0 - dir in cache and valid
+ * @return true if found, otherwise false
  *
  */
 /*----------------------------------------------------------------------------*/
@@ -425,7 +429,7 @@ xrd_dir_cache_get( unsigned long long inode,
                    char*              fullpath,
                    struct dirbuf**    b )
 {
-  int retc;
+  int retc = 0;
   FuseCacheEntry* dir = 0;
 
   fprintf( stderr, "[%s] Calling function.\n", __FUNCTION__ );
@@ -436,40 +440,13 @@ xrd_dir_cache_get( unsigned long long inode,
     struct timespec oldtime = dir->GetModifTime();
 
     if ( ( oldtime.tv_sec == mtime.tv_sec ) && ( oldtime.tv_nsec == mtime.tv_nsec ) ) {
-      // valid timestamp
-      xrd_lock_r_dirview();  // =>
-
-      if ( !xrd_dirview_entry( inode, 0 ) ) {
-        // there is no listing yet, create one!
-        xrd_unlock_r_dirview();  // <=
-        xrd_inodirlist( ( unsigned long long )inode, fullpath );
-        xrd_lock_r_dirview();    // =>
-        *b = xrd_dirview_getbuffer( ( unsigned long long )inode );
-
-        if ( !( *b ) ) {
-          retc = dError;  // error
-        } else {
-          dir->GetDirbuf( **b );
-          retc = dValid;   // success
-        }
-      } else {
-        // dir in cache and valid
-        fprintf( stderr, "[%s] Dir in cache and valid. \n", __FUNCTION__ );
-        dir->GetDirbuf( **b );
-        //*b = xrd_dirview_getbuffer( ( unsigned long long )inode );
-        //if ( *b == 0 )
-        //  fprintf( stderr, "[%s] The b buffer is empty. \n", __FUNCTION__ );
-        retc = dValid;
-      }
-
-      xrd_unlock_r_dirview(); // <=
-    } else {
-      retc = dOutdated;
+      // dir in cache and valid
+      *b = static_cast<struct dirbuf*>( calloc( 1, sizeof( dirbuf ) ) );
+      dir->GetDirbuf( *b );
+      retc = 1;   // found
     }
-  } else {
-    retc = dNotInCache;
   }
-
+  
   return retc;
 }
 
@@ -504,12 +481,14 @@ xrd_dir_cache_sync( unsigned long long inode,
     // add new entry
     if ( inode2cache.size() >= GetMaxCacheSize() ) {
       // size control of the cache
+      fprintf( stderr, "[%s] Doing size control of the cache.! \n", __FUNCTION__ );
       unsigned long long indx = 0;
       unsigned long long entries_del = ( unsigned long long )( 0.25 * GetMaxCacheSize() );
       google::dense_hash_map<unsigned long long, FuseCacheEntry*>::iterator iter;
       iter = inode2cache.begin();
 
       while ( ( indx <= entries_del ) && ( iter != inode2cache.end() ) ) {
+        fprintf( stderr, "[%s] Dropping directory %s from cache. \n", __FUNCTION__, xrd_path( iter->first ) );
         dir = ( FuseCacheEntry* ) iter->second;
         inode2cache.erase( iter++ );
         delete dir;
@@ -1501,6 +1480,7 @@ xrd_inodirlist( unsigned long long dirinode, const char* path )
   XrdCl::XRootDStatus status = file->Open( request.c_str(), XrdCl::OpenFlags::Flags::Read );
 
   if ( !status.IsOK() ) {
+    fprintf( stderr, "[%s] Got an error to request. \n", __FUNCTION__ );
     delete file;
     return ENOENT;
   }
@@ -1544,6 +1524,7 @@ xrd_inodirlist( unsigned long long dirinode, const char* path )
     int items = sscanf( value, "%s retc=%d", tag, &retc );
 
     if ( ( items != 2 ) || ( strcmp( tag, "inodirlist:" ) ) ) {
+      fprintf( stderr, "[%s] Got an error(1).\n", __FUNCTION__ );
       free( value );
       xrd_unlock_w_dirview(); // <=
       xrd_dirview_delete( ( unsigned long long ) dirinode );
@@ -1560,6 +1541,7 @@ xrd_inodirlist( unsigned long long dirinode, const char* path )
       int items = sscanf( ptr, "%s %llu", dirpath, &inode );
 
       if ( items != 2 ) {
+      fprintf( stderr, "[%s] Got an error(2).\n", __FUNCTION__ );
         free( value );
         xrd_unlock_w_dirview(); // <=
         xrd_dirview_delete( ( unsigned long long ) dirinode );
@@ -1591,6 +1573,7 @@ xrd_inodirlist( unsigned long long dirinode, const char* path )
   }
 
   free( value );
+  fprintf( stderr, "[%s] Return. \n", __FUNCTION__);
   return doinodirlist;
 }
 

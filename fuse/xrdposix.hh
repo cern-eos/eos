@@ -151,10 +151,10 @@ extern "C" {
   void           xrd_dirview_delete( unsigned long long inode );
 
   // returns entry with index 'index'
-  unsigned long long xrd_dirview_entry( unsigned long long dirinode, size_t index );
+  unsigned long long xrd_dirview_entry( unsigned long long dirinode, size_t index, int get_lock );
 
   // returns a buffer for a directory inode
-  struct dirbuf* xrd_dirview_getbuffer( unsigned long long dirinode ); 
+  struct dirbuf* xrd_dirview_getbuffer( unsigned long long dirinode, int get_lock ); 
 
   // - POSIX opened files
 

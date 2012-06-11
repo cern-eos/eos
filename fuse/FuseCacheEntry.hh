@@ -83,7 +83,7 @@ class FuseCacheEntry
     //! @param buf dirbuf structure
     //!
     //--------------------------------------------------------------------------
-    void GetDirbuf( struct dirbuf& buf );
+    void GetDirbuf( struct dirbuf*& buf );
 
 
     //--------------------------------------------------------------------------
