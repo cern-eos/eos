@@ -4838,6 +4838,10 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  source_capability += "&mgm.manager=";    source_capability += gOFS->ManagerId.c_str();
 		  source_capability += "&mgm.fid=";
 		  XrdOucString hexfid; eos::common::FileId::Fid2Hex(fid,hexfid);source_capability += hexfid;
+
+		  source_capability += "&mgm.sec=";
+		  source_capability += eos::common::SecEntity::ToKey(0,"eos-balancing").c_str();
+
 		  source_capability += "&mgm.drainfsid=";  source_capability += (int)source_fsid;
 		  
 		  // build the source_capability contents
@@ -4862,6 +4866,9 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  target_capability += "&mgm.manager=";    target_capability += gOFS->ManagerId.c_str();
 		  target_capability += "&mgm.fid=";
 		  target_capability += hexfid;
+		  target_capability += "&mgm.sec=";
+		  target_capability += eos::common::SecEntity::ToKey(0,"eos-balancing").c_str();
+
 		  target_capability += "&mgm.drainfsid=";  target_capability += (int)source_fsid;
 		  
 		  // build the target_capability contents
@@ -5206,6 +5213,10 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  replica_source_capability += "&mgm.manager=";    replica_source_capability += gOFS->ManagerId.c_str();
 		  replica_source_capability += "&mgm.fid=";
 		  XrdOucString hexfid; eos::common::FileId::Fid2Hex(fid,hexfid);replica_source_capability += hexfid;
+		  
+		  replica_source_capability += "&mgm.sec=";
+		  replica_source_capability += eos::common::SecEntity::ToKey(0,"eos-draining").c_str();
+
 		  replica_source_capability += "&mgm.drainfsid=";  replica_source_capability += (int)source_fsid;
 		  
 		  // build the replica_source_capability contents
@@ -5230,6 +5241,9 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  target_capability += "&mgm.manager=";    target_capability += gOFS->ManagerId.c_str();
 		  target_capability += "&mgm.fid=";
 		  target_capability += hexfid;
+		  target_capability += "&mgm.sec=";
+		  target_capability += eos::common::SecEntity::ToKey(0,"eos-draining").c_str();
+
 		  target_capability += "&mgm.drainfsid=";  target_capability += (int)source_fsid;
 		  
 		  // build the target_capability contents
@@ -5986,7 +6000,12 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   source_capability += "&mgm.path=";       source_capability += path;
   source_capability += "&mgm.manager=";    source_capability += gOFS->ManagerId.c_str();
   source_capability += "&mgm.fid=";
+
   XrdOucString hexfid; eos::common::FileId::Fid2Hex(fid,hexfid);source_capability += hexfid;
+  
+  source_capability += "&mgm.sec=";
+  source_capability += eos::common::SecEntity::ToKey(0,"eos-replication").c_str();
+
 
   // this is a move of a replica
   if (dropsource) {
@@ -6011,6 +6030,9 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   target_capability += "&mgm.manager=";    target_capability += gOFS->ManagerId.c_str();
   target_capability += "&mgm.fid=";
   target_capability += hexfid; 
+
+  target_capability += "&mgm.sec=";
+  target_capability += eos::common::SecEntity::ToKey(0,"eos-replication").c_str();
   if (dropsource) {
     target_capability += "&mgm.drainfsid=";  target_capability += (int)source_snapshot.mId;
   }

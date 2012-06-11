@@ -158,45 +158,58 @@ Iostat::Receive(void)
       Add("disk_time_read",  report->uid, report->gid, (unsigned long long)report->rt,report->ots, report->cts);
       Add("disk_time_write",  report->uid, report->gid, (unsigned long long)report->wt,report->ots, report->cts);
 
-      bool dfound=false;
-      // do the domain accounting here
-      size_t pos=0;
-      if ( (pos = report->sec_host.rfind(".")) != std::string::npos) {
-	// we can sort in by domain
-	std::string sdomain = report->sec_host.substr(pos);
-	if (IoDomains.find(sdomain) != IoDomains.end()) {
-	  Mutex.Lock();
-	  if (report->rb) 
-	    IostatAvgDomainIOrb[sdomain].Add(report->rb, report->ots, report->cts);
-	  if (report->wb)
-	  IostatAvgDomainIOwb[sdomain].Add(report->wb, report->ots, report->cts);
-	  Mutex.UnLock();
-	  dfound=true;
-	}
-      }
-      
-      // do the node accounting here - keep the node list small !!!
-      std::set<std::string>::const_iterator nit;
-      for (nit = IoNodes.begin(); nit != IoNodes.end(); nit++) {
-	if (*nit == report->sec_host.substr(0, nit->length())) {
-	  Mutex.Lock();
-	  if (report->rb) 
-	  IostatAvgDomainIOrb[*nit].Add(report->rb, report->ots, report->cts);
-	  if (report->wb) 
-	  IostatAvgDomainIOwb[*nit].Add(report->wb, report->ots, report->cts);
-	  Mutex.UnLock();
-	  dfound=true;
-	}
-      }
 
-      if (!dfound) {
-	// push into the 'other' domain
+      // do the domain accounting here      
+      if (report->path.substr(0, 10) == "replicate:") {
+	// check if this is a replication path
+	// push into the 'eos' domain
 	Mutex.Lock();
 	if (report->rb) 
-	  IostatAvgDomainIOrb["other"].Add(report->rb, report->ots, report->cts);
+	  IostatAvgDomainIOrb["eos"].Add(report->rb, report->ots, report->cts);
 	if (report->wb) 
-	  IostatAvgDomainIOwb["other"].Add(report->wb, report->ots, report->cts);
+	  IostatAvgDomainIOwb["eos"].Add(report->wb, report->ots, report->cts);
 	Mutex.UnLock();
+      } else {
+	bool dfound=false;
+	
+	size_t pos=0;
+	if ( (pos = report->sec_host.rfind(".")) != std::string::npos) {
+	  // we can sort in by domain
+	  std::string sdomain = report->sec_host.substr(pos);
+	  if (IoDomains.find(sdomain) != IoDomains.end()) {
+	    Mutex.Lock();
+	    if (report->rb) 
+	      IostatAvgDomainIOrb[sdomain].Add(report->rb, report->ots, report->cts);
+	    if (report->wb)
+	      IostatAvgDomainIOwb[sdomain].Add(report->wb, report->ots, report->cts);
+	    Mutex.UnLock();
+	    dfound=true;
+	  }
+	}
+	
+	// do the node accounting here - keep the node list small !!!
+	std::set<std::string>::const_iterator nit;
+	for (nit = IoNodes.begin(); nit != IoNodes.end(); nit++) {
+	  if (*nit == report->sec_host.substr(0, nit->length())) {
+	    Mutex.Lock();
+	    if (report->rb) 
+	      IostatAvgDomainIOrb[*nit].Add(report->rb, report->ots, report->cts);
+	    if (report->wb) 
+	      IostatAvgDomainIOwb[*nit].Add(report->wb, report->ots, report->cts);
+	    Mutex.UnLock();
+	    dfound=true;
+	  }
+	}
+	
+	if (!dfound) {
+	  // push into the 'other' domain
+	  Mutex.Lock();
+	  if (report->rb) 
+	    IostatAvgDomainIOrb["other"].Add(report->rb, report->ots, report->cts);
+	  if (report->wb) 
+	    IostatAvgDomainIOwb["other"].Add(report->wb, report->ots, report->cts);
+	  Mutex.UnLock();
+	}
       }
       
       if (gOFS->IoReportStore) {
