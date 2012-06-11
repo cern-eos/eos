@@ -110,7 +110,7 @@ public:
       rs+="&sec.info=";rs+= tokens[6];
       rs+="&sec.app=";rs+= tokens[7];
     } else {
-      fprintf(stderr,"[eos::common::SecEntit::ToEnv] yerror: %s has illegal contents [%d]\n", s?s:"", (int)tokens.size());
+      fprintf(stderr,"[eos::common::SecEntit::ToEnv] error: %s has illegal contents [%d]\n", s?s:"", (int)tokens.size());
     }
     return rs;
   }
