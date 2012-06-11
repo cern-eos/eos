@@ -136,6 +136,7 @@ Vid::Set(const char* value)
       XrdOucString svalue = value;
       while(svalue.replace("&"," ")) {};
       gOFS->ConfEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
+      return set;
     }
 
     skey = auth; 
@@ -156,17 +157,9 @@ Vid::Set(const char* value)
       XrdOucString svalue = value;
       while(svalue.replace("&"," ")) {};
       gOFS->ConfEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
+      return set;
     }
   }
-
-  // put the change into the config engine
-  if (set) {
-    // no '&' are allowed here
-    XrdOucString svalue = value;
-    while(svalue.replace("&"," ")) {};
-    gOFS->ConfEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
-  }
-  
   return set;
 }
 
@@ -217,12 +210,12 @@ Vid::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
     return false;
   }
 
-  if (vidcmd != "unmap") {
-    stdErr += "error: failed to rm vid [ "; stdErr += inenv ; stdErr += "] - wrong command to unmap";
-    errno = EINVAL;
-    retc = EINVAL;
-    return false;
-  }
+  //  if (vidcmd != "unmap") {
+  //    stdErr += "error: failed to rm vid [ "; stdErr += inenv ; stdErr += "] - wrong command to unmap";
+  //    errno = EINVAL;
+  //    retc = EINVAL;
+  //    return false;
+  //  }
 
   int nerased=0;
   nerased += eos::common::Mapping::gVirtualUidMap.erase(skey.c_str());

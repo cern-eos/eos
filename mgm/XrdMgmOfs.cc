@@ -215,9 +215,6 @@ XrdMgmOfs::ShouldStall(const char* function,  int __AccessMode__, eos::common::M
        ( Access::gBannedUsers.count(vid.uid) ||
          Access::gBannedGroups.count(vid.gid) ||
          Access::gBannedHosts.count(vid.host) || 
-         (Access::gAllowedUsers.size()  && Access::gAllowedUsers.count(vid.uid)) ||
-         (Access::gAllowedGroups.size() && Access::gAllowedGroups.count(vid.gid)) ||
-         (Access::gAllowedHosts.size()  && Access::gAllowedHosts.count(vid.host)) || 
          (Access::gStallRules.size() && (Access::gStallRules.count(std::string("*")))) ||
 	 ( IS_ACCESSMODE_R && (Access::gStallRules.count(std::string("r:*")))) ||
 	 ( IS_ACCESSMODE_W && (Access::gStallRules.count(std::string("w:*"))))
@@ -390,6 +387,7 @@ int XrdMgmOfsDirectory::open(const char              *inpath, // In
   XrdOucEnv Open_Env(info);
 
   NAMESPACEMAP;
+  BOUNCE_ILLEGAL_NAMES;
 
   eos_info("path=%s",path);
 
@@ -397,6 +395,8 @@ int XrdMgmOfsDirectory::open(const char              *inpath, // In
 
   eos::common::Mapping::IdMap(client,info,tident, vid);
 
+
+  BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
@@ -590,6 +590,8 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   SetLogId(logId, vid, tident);
 
   NAMESPACEMAP;
+  BOUNCE_ILLEGAL_NAMES;
+  BOUNCE_NOT_ALLOWED;
 
   int open_flag = 0;
   
@@ -1315,7 +1317,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   XrdOucEnv* capabilityenv = 0;
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 
-  fprintf(stderr,"capability=%s\n", capability.c_str());
+  eos_debug("capability=%s\n", capability.c_str());
   int caprc=0;
   if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
     return Emsg(epname, error, caprc, "sign capability", path);
@@ -1594,11 +1596,12 @@ XrdMgmOfs::chksum(      XrdSfsFileSystem::csFunc            Func,
   
   NAMESPACEMAP;
 
-  XTRACE(stat, path,csName);
-
   AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",path,error);
 
   eos::common::Mapping::IdMap(client,opaque,tident,vid);
+
+  BOUNCE_ILLEGAL_NAMES;
+  BOUNCE_NOT_ALLOWED;
 
   ACCESSMODE_R;
   MAYSTALL;
@@ -1689,14 +1692,14 @@ int XrdMgmOfs::chmod(const char                *inpath,    // In
   XrdOucEnv chmod_Env(info);
 
   NAMESPACEMAP;
-
-  XTRACE(chmod, path,"");
+  BOUNCE_ILLEGAL_NAMES;
 
   AUTHORIZE(client,&chmod_Env,AOP_Chmod,"chmod",path,error);
 
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
@@ -1892,13 +1895,13 @@ int XrdMgmOfs::exists(const char                *inpath,        // In
   XrdOucEnv exists_Env(info);
 
   NAMESPACEMAP;
-
-  XTRACE(exists, path,"");
+  BOUNCE_ILLEGAL_NAMES;
 
   AUTHORIZE(client,&exists_Env,AOP_Stat,"execute exists",path,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
@@ -2110,13 +2113,13 @@ int XrdMgmOfs::mkdir(const char              *inpath,    // In
   XrdOucEnv mkdir_Env(info);
   
   NAMESPACEMAP; 
+  BOUNCE_ILLEGAL_NAMES;
 
-  XTRACE(mkdir, path,"");
-  
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
   eos_info("path=%s",path);
-  
+
+  BOUNCE_NOT_ALLOWED;  
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
@@ -2427,17 +2430,15 @@ int XrdMgmOfs::rem(const char             *inpath,    // In
   eos::common::Mapping::VirtualIdentity vid;
 
   NAMESPACEMAP; 
+  BOUNCE_ILLEGAL_NAMES;
 
-  XTRACE(remove, path,"");
-  
   XrdOucEnv env(info);
   
   AUTHORIZE(client,&env,AOP_Delete,"remove",path,error);
   
-  XTRACE(remove, path,"");
-  
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
@@ -2471,12 +2472,8 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
 
   // Perform the actual deletion
   //
-  const char *tident = error.getErrUser();
   errno = 0;
   
-  XTRACE(remove, path,"");
-
-
   XrdSfsFileExistence file_exists;
   if ((_exists(path,file_exists,error,vid,0))) {
     return SFS_ERROR;
@@ -2626,13 +2623,13 @@ int XrdMgmOfs::remdir(const char             *inpath,    // In
   XrdSecEntity mappedclient();
 
   NAMESPACEMAP;
+  BOUNCE_ILLEGAL_NAMES;
 
-  XTRACE(remove, path,"");
-  
   AUTHORIZE(client,&remdir_Env,AOP_Delete,"remove",path, error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
-  
+
+  BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
@@ -2876,14 +2873,14 @@ int XrdMgmOfs::stat(const char              *inpath,      // In
 
   XrdOucEnv Open_Env(info);
 
-  NAMESPACEMAP; 
-  
-  XTRACE(stat, path,"");
+  NAMESPACEMAP;   
+  BOUNCE_ILLEGAL_NAMES;
 
   AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",path,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
@@ -3075,13 +3072,13 @@ int XrdMgmOfs::readlink(const char             *inpath,      // In
   eos::common::Mapping::VirtualIdentity vid;
 
   NAMESPACEMAP; 
-
-  XTRACE(fsctl, path,"");
+  BOUNCE_ILLEGAL_NAMES;
 
   AUTHORIZE(client,&rl_Env,AOP_Stat,"readlink",path,error);
   
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
@@ -3107,8 +3104,7 @@ int XrdMgmOfs::symlink(const char            *inpath,        // In
   eos::common::Mapping::VirtualIdentity vid;
 
   NAMESPACEMAP; 
-
-  XTRACE(fsctl, path,"");
+  BOUNCE_ILLEGAL_NAMES;
 
   XrdOucString source, destination;
 
@@ -3119,6 +3115,7 @@ int XrdMgmOfs::symlink(const char            *inpath,        // In
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
+  BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
@@ -3143,13 +3140,13 @@ int XrdMgmOfs::access( const char            *inpath,        // In
   XrdOucEnv access_Env(info);
 
   NAMESPACEMAP; 
-
-  XTRACE(fsctl, path,"");
+  BOUNCE_ILLEGAL_NAMES;
 
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);  
 
+  BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
@@ -3257,13 +3254,13 @@ int XrdMgmOfs::utimes(  const char            *inpath,        // In
   eos::common::Mapping::VirtualIdentity vid;
 
   NAMESPACEMAP;
-
-  XTRACE(fsctl, path,"");
+  BOUNCE_ILLEGAL_NAMES;
 
   AUTHORIZE(client,&utimes_Env,AOP_Update,"set utimes",path,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);  
 
+  BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
@@ -3732,7 +3729,9 @@ XrdMgmOfs::FSctl(const int               cmd,
   const char* inpath = ipath;
 
   NAMESPACEMAP;
-  
+  BOUNCE_ILLEGAL_NAMES;
+  BOUNCE_NOT_ALLOWED;
+
   // from here on we can deal with XrdOucString which is more 'comfortable'
   XrdOucString spath    = path;
   XrdOucString opaque  = iopaque;
@@ -5330,12 +5329,12 @@ XrdMgmOfs::attr_ls(const char             *inpath,
   eos::common::Mapping::VirtualIdentity vid;
 
   NAMESPACEMAP; 
-
-  XTRACE(fsctl, path,"");
+  BOUNCE_ILLEGAL_NAMES;
 
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
   
   eos::common::Mapping::IdMap(client,info,tident,vid);  
+  BOUNCE_NOT_ALLOWED;
 
   return _attr_ls(path, error,vid,info,map);
 }   
@@ -5357,12 +5356,13 @@ XrdMgmOfs::attr_set(const char             *inpath,
   XrdOucEnv access_Env(info);
 
   NAMESPACEMAP;
-
-  XTRACE(fsctl, path,"");
+  BOUNCE_ILLEGAL_NAMES;
 
   AUTHORIZE(client,&access_Env,AOP_Update,"update",path,error);
   
   eos::common::Mapping::IdMap(client,info,tident,vid);  
+
+  BOUNCE_NOT_ALLOWED;
   
   return _attr_set(path, error,vid,info,key,value);
 }
@@ -5384,12 +5384,13 @@ XrdMgmOfs::attr_get(const char             *inpath,
   XrdOucEnv access_Env(info);
 
   NAMESPACEMAP;
-
-  XTRACE(fsctl, path,"");
+  BOUNCE_ILLEGAL_NAMES;
 
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
   
   eos::common::Mapping::IdMap(client,info,tident,vid);  
+
+  BOUNCE_NOT_ALLOWED;
 
   return _attr_get(path, error,vid,info,key,value);
 }
@@ -5411,11 +5412,13 @@ XrdMgmOfs::attr_rem(const char             *inpath,
 
   NAMESPACEMAP;
 
-  XTRACE(fsctl, path,"");
+  BOUNCE_ILLEGAL_NAMES;
 
   AUTHORIZE(client,&access_Env,AOP_Delete,"delete",path,error);
   
   eos::common::Mapping::IdMap(client,info,tident,vid);  
+
+  BOUNCE_NOT_ALLOWED;
   
   return _attr_rem(path, error,vid,info,key);
 }

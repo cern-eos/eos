@@ -88,13 +88,73 @@ USE_EOSMGMNAMESPACE
     }                                                           \
   }
 
-#define NAMESPACEMAP                            \
-  const char*path = inpath;                     \
-  XrdOucString store_path=path;                 \
-  gOFS->PathRemap(inpath,store_path);           \
-  path = store_path.c_str(); 
 
+#define NAMESPACEMAP							\
+  const char*path = inpath;						\
+  XrdOucString store_path=path;						\
+  gOFS->PathRemap(inpath,store_path);					\
+  size_t __i=0;								\
+  size_t __n = store_path.length();					\
+  for (__i=0;__i<__n;__i++) {						\
+    if ( ((store_path[__i] >= 97) && (store_path[__i] <= 122 )) || /* a-z   */ \
+	 ((store_path[__i] >= 64) && (store_path[__i] <= 90 ))  || /* @,A-Z */ \
+	 ((store_path[__i] >= 48) && (store_path[__i] <= 57 ))  || /* 0-9   */ \
+	 (store_path[__i] == 47) || /* / */				\
+	 (store_path[__i] == 46) || /* . */				\
+	 (store_path[__i] == 20) || /* SPACE */				\
+	 (store_path[__i] == 45) || /* - */				\
+	 (store_path[__i] == 95) || /* _ */				\
+	 (store_path[__i] == 126)|| /* ~ */				\
+	 (store_path[__i] == 35) || /* # */				\
+	 (store_path[__i] == 58) || /* : */				\
+	 (store_path[__i] == 94)    /* ^ */				\
+	 ) {								\
+      continue;								\
+    } else {								\
+      break;								\
+    }									\
+  }									\
+  if ( (vid.uid != 0) && (__i != (__n) ) ) { /* root can use all letters */ \
+    path = 0;								\
+  } else {								\
+    path = store_path.c_str();						\
+  }								
+  
+#define BOUNCE_ILLEGAL_NAMES						\
+  if (!path) {								\
+    eos_err("illegal character in %s", store_path.c_str());		\
+    return Emsg(epname, error, EILSEQ,"accept path name - illegal characters - use only A-Z a-z 0-9 / SPACE .-_~#:^", store_path.c_str()); \
+  } 
 
+#define PROC_BOUNCE_ILLEGAL_NAMES					\
+  if (!path) {								\
+    eos_err("illegal character in %s", store_path.c_str());		\
+    retc = EILSEQ;							\
+    stdErr += "error: illegal characters - use only use only A-Z a-z 0-9 SPACE .-_~#:^\n"; \
+    return SFS_OK;							\
+  }
+
+#define BOUNCE_NOT_ALLOWED						\
+  if ((vid.uid>3) && (Access::gAllowedUsers.size() || Access::gAllowedGroups.size() || Access::gAllowedHosts.size() )) { \
+    if ( (!Access::gAllowedGroups.count(vid.gid)) &&			\
+	 (!Access::gAllowedUsers.count(vid.uid)) &&			\
+	 (!Access::gAllowedHosts.count(vid.host)) ) {			\
+      eos_err("user access restricted - not authorized identity used"); \
+      return Emsg(epname, error, EACCES,"give access - user access restricted - not authorized identity used"); \
+    }									\
+  }
+
+#define PROC_BOUNCE_NOT_ALLOWED						\
+  if ((vid.uid>3) &&(Access::gAllowedUsers.size() || Access::gAllowedGroups.size() || Access::gAllowedHosts.size() )) { \
+    if ( (!Access::gAllowedGroups.count(vid.gid)) &&			\
+	 (!Access::gAllowedUsers.count(vid.uid)) &&			\
+	 (!Access::gAllowedHosts.count(vid.host)) ) {			\
+      eos_err("user access restricted - not authorized identity used"); \
+      retc = EACCES;							\
+      stdErr += "error: user access restricted - not authorized identity used";	\
+      return SFS_OK;							\
+    }									\
+  }
 
 /*----------------------------------------------------------------------------*/
 class XrdMgmOfsDirectory : public XrdSfsDirectory , public eos::common::LogId
