@@ -52,20 +52,25 @@ public:
   // ---------------------------------------------------------------------------
   static std::string ToKey(const XrdSecEntity* entity, const char* app) {
     std::string s="";
-    s+= (entity->prot)?entity->prot:"";
-    s+= "|";
-    s+= (entity->name)?entity->name:"";
-    s+= "|";
-    s+= (entity->host)?entity->host:"";
-    s+= "|";
-    s+= (entity->vorg)?entity->vorg:"";
-    s+= "|";
-    s+= (entity->grps)?entity->grps:"";
-    s+= "|";
-    s+= (entity->role)?entity->role:"";
-    s+= "|";
-    s+= (entity->moninfo)?entity->moninfo:"";
-    s+= "|";
+    if (entity) {
+      s+= (entity->prot)?entity->prot:"";
+      s+= "|";
+      s+= (entity->name)?entity->name:"";
+      s+= "|";
+      s+= (entity->host)?entity->host:"";
+      s+= "|";
+      s+= (entity->vorg)?entity->vorg:"";
+      s+= "|";
+      s+= (entity->grps)?entity->grps:"";
+      s+= "|";
+      s+= (entity->role)?entity->role:"";
+      s+= "|";
+      s+= (entity->moninfo)?entity->moninfo:"";
+      s+= "|";
+    } else {
+      s+= "|eos||||||";
+    }
+      
     s+= (app)?app:"";
     return s;
   }

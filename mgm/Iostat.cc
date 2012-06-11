@@ -160,7 +160,7 @@ Iostat::Receive(void)
 
 
       // do the domain accounting here      
-      if (report->path.substr(0, 10) == "replicate:") {
+      if (report->path.substr(0, 11) == "/replicate:") {
 	// check if this is a replication path
 	// push into the 'eos' domain
 	Mutex.Lock();
