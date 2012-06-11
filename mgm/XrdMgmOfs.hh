@@ -135,7 +135,8 @@ USE_EOSMGMNAMESPACE
   }
 
 #define BOUNCE_NOT_ALLOWED						\
-  if ((vid.uid>3) && (Access::gAllowedUsers.size() || Access::gAllowedGroups.size() || Access::gAllowedHosts.size() )) { \
+  /* for root, bin, daemon, admin we allow localhost connects or sss authentication always */ \
+  if ( ((vid.uid>3) || ( (vid.prot!="sss") && (vid.host != "localhost") && (vid.host != "localhost.localdomain"))) && (Access::gAllowedUsers.size() || Access::gAllowedGroups.size() || Access::gAllowedHosts.size() )) { \
     if ( (!Access::gAllowedGroups.count(vid.gid)) &&			\
 	 (!Access::gAllowedUsers.count(vid.uid)) &&			\
 	 (!Access::gAllowedHosts.count(vid.host)) ) {			\

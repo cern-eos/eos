@@ -239,7 +239,7 @@ XrdMgmOfs::ShouldStall(const char* function,  int __AccessMode__, eos::common::M
   } else {
     if (Access::gStallRules.size()) {
       if (Access::gStallRules.count(std::string("*"))) {
-	if (vid.host != "localhost.localdomain") {
+	if ( (vid.host != "localhost.localdomain") && (vid.host != "localhost") ) {
 	  stalltime = atoi(Access::gStallRules[std::string("*")].c_str());
 	  stallmsg="Attention: you are currently hold in this instance and each request is stalled for ";
 	  stallmsg += (int) stalltime; stallmsg += " seconds ...";
@@ -256,7 +256,7 @@ XrdMgmOfs::ShouldStall(const char* function,  int __AccessMode__, eos::common::M
 bool
 XrdMgmOfs::ShouldRedirect(const char* function, int __AccessMode__, eos::common::Mapping::VirtualIdentity &vid,XrdOucString &host, int &port)
 {
-  if ( (vid.host == "localhost")  || (vid.uid==0))
+  if ( (vid.host == "localhost") || (vid.host == "localhost.localdomain") || (vid.uid==0))
     return false;
     
   if (Access::gRedirectionRules.size()) {
@@ -668,7 +668,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 
   // proc filter
   if (ProcInterface::IsProcAccess(path)) {
-    if (gOFS->Authorization && ( ( vid.prot != "sss") || ( vid.host != "localhost") )) {
+    if (gOFS->Authorization && ( ( vid.prot != "sss") || ( ( vid.host != "localhost") && (vid.host != "localhost.localdomain") ) ) ) {
       return Emsg(epname, error, EPERM, "execute proc command - you don't have the requested permissions for that operation ", path);
     }
 
