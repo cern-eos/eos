@@ -69,8 +69,8 @@ Iostat::Iostat()
   IoNodes.insert("lxb");    // CERN batch cluster
   IoNodes.insert("pb-d-128-141"); // CERN DHCP
   IoNodes.insert("aldaq");  // ALICE DAQ
-  //  IoNodes.insert("");   // CMS DAQ
-  IoNodes.insert("pc-tdq");   // ATLAS DAQ
+  IoNodes.insert("cms-cdr");// CMS DAQ
+  IoNodes.insert("pc-tdq"); // ATLAS DAQ
 }
 
 /* ------------------------------------------------------------------------- */
