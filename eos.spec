@@ -109,6 +109,7 @@ rm -rf $RPM_BUILD_ROOT
 %_sysconfdir/rc.d/init.d/eosha
 %_sysconfdir/rc.d/init.d/eossync
 %_sysconfdir/cron.d/eos-logs
+%_sysconfdir/cron.d/eos-reports
 
 %post -n eos-server
 /sbin/chkconfig --add eos
