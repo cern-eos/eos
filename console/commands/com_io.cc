@@ -86,7 +86,11 @@ com_io (char* arg1) {
 		  if ( option == "-d") {
 		    options += "d";
 		  } else {
-		    goto com_io_usage;
+		    if ( option == "-x") {
+		      options += "x";
+		    } else {
+		      goto com_io_usage;
+		    }
 		  }
                 }
               }
@@ -105,12 +109,13 @@ com_io (char* arg1) {
   return (0);
 
  com_io_usage:
-  fprintf(stdout,"usage: io stat [-a] [-m] [-n] [-t] [-d]                           :  print io statistics\n");
+  fprintf(stdout,"usage: io stat [-a] [-m] [-n] [-t] [-d] [-x]                      :  print io statistics\n");
   fprintf(stdout,"                -a                                                   -  break down by uid/gid\n");
   fprintf(stdout,"                -m                                                   -  print in <key>=<val> monitoring format\n");
   fprintf(stdout,"                -n                                                   -  print numerical uid/gids\n");
   fprintf(stdout,"                -t                                                   -  print top user stats\n");
   fprintf(stdout,"                -d                                                   -  break down by domains\n");
+  fprintf(stdout,"                -x                                                   -  break down by application\n");
   fprintf(stdout,"       io enable [-r] [-n]                                        :  enable collection of io statistics\n");
   fprintf(stdout,"                                                               -r    enable collection of io reports\n");
   fprintf(stdout,"                                                               -n    enable report namespace\n");

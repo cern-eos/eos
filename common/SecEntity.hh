@@ -68,7 +68,7 @@ public:
       s+= (entity->moninfo)?entity->moninfo:"";
       s+= "|";
     } else {
-      s+= "|eos||||||";
+      s+= "sss|eos|eos|-|-|-|-|";
     }
       
     s+= (app)?app:"";

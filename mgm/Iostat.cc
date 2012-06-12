@@ -65,9 +65,12 @@ Iostat::Iostat()
   IoDomains.insert(".edu");
   
   // push default nodes to watch TODO: make generic
-  IoNodes.insert("lxplus");
-  IoNodes.insert("lxb");
-  IoNodes.insert("pb-d-128-141");
+  IoNodes.insert("lxplus"); // CERN interactive cluster
+  IoNodes.insert("lxb");    // CERN batch cluster
+  IoNodes.insert("pb-d-128-141"); // CERN DHCP
+  IoNodes.insert("aldaq");  // ALICE DAQ
+  //  IoNodes.insert("");   // CMS DAQ
+  IoNodes.insert("pc-tdq");   // ATLAS DAQ
 }
 
 /* ------------------------------------------------------------------------- */
@@ -211,7 +214,21 @@ Iostat::Receive(void)
 	  Mutex.UnLock();
 	}
       }
+
+      // do the application accounting here      
+      std::string apptag="other";
+      if (report->sec_app.length()) {
+	apptag = report->sec_app;
+      }
       
+      // push into the app accounting
+      Mutex.Lock();
+      if (report->rb) 
+	IostatAvgAppIOrb[apptag].Add(report->rb, report->ots, report->cts);
+      if (report->wb) 
+	IostatAvgAppIOwb[apptag].Add(report->wb, report->ots, report->cts);
+      Mutex.UnLock();
+
       if (gOFS->IoReportStore) {
         // add the record to a daily report log file
 
@@ -285,7 +302,7 @@ Iostat::Receive(void)
 
 /* ------------------------------------------------------------------------- */
 void 
-Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical, bool top, bool domain, XrdOucString option)
+Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical, bool top, bool domain, bool apps, XrdOucString option)
 {
   Mutex.Lock();
   std::vector<std::string> tags;
@@ -590,6 +607,46 @@ Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerica
     }
   }
 
+  if (apps) {
+    XrdOucString sizestring;
+    if (!monitoring) {
+      out +="# --------------------------------------------------------------------------------------\n";
+      out +="# IO by application name: \n";
+      out +="# --------------------------------------------------------------------------------------\n";
+      sprintf(outline,"%-10s %-32s %9s %8s %8s %8s %8s\n", "io", "application", "", "1min", "5min", "1h", "24h");
+      out += outline;
+      out +="# --------------------------------------------------------------------------------------\n";
+    }
+    
+    // IO out bytes
+    google::sparse_hash_map<std::string, IostatAvg>::iterator it;
+    for (it=IostatAvgAppIOrb.begin(); it!=IostatAvgAppIOrb.end(); it++) {
+      if (!monitoring) {
+	sprintf(outline,"%-10s %-32s %9s %8s %8s %8s %8s\n", "IN", it->first.c_str(),""
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg60(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg300(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg3600(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg86400(),""));
+      } else {
+	sprintf(outline,"measurement=%s domain=\"%s\" 60s=%llu 300s=%llu 3600s=%llu 86400s=%llu\n", "io_out", it->first.c_str(), (unsigned long long) it->second.GetAvg60(),(unsigned long long) it->second.GetAvg300(),(unsigned long long) it->second.GetAvg3600(),(unsigned long long) it->second.GetAvg86400());
+        }      
+      out += outline;      
+    }
+    // IO in bytes
+    for (it=IostatAvgAppIOwb.begin(); it!=IostatAvgAppIOwb.end(); it++) {
+      if (!monitoring) {
+	sprintf(outline,"%-10s %-32s %9s %8s %8s %8s %8s\n", "OUT", it->first.c_str(),""
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg60(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg300(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg3600(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg86400(),""));
+      } else {
+	sprintf(outline,"measurement=%s domain=\"%s\" 60s=%llu 300s=%llu 3600s=%llu 86400s=%llu\n", "io_in", it->first.c_str(), (unsigned long long) it->second.GetAvg60(),(unsigned long long) it->second.GetAvg300(),(unsigned long long) it->second.GetAvg3600(),(unsigned long long) it->second.GetAvg86400());
+        }      
+      out += outline;      
+    }
+  }
+
   Mutex.UnLock();
 }
 
@@ -763,6 +820,13 @@ Iostat::Circulate() {
       dit->second.StampZero();
       }
     for (dit = IostatAvgDomainIOwb.begin(); dit != IostatAvgDomainIOwb.begin(); dit++) {
+      dit->second.StampZero();
+    }
+    // loop over app accounting
+    for (dit = IostatAvgAppIOrb.begin(); dit != IostatAvgAppIOrb.begin(); dit++) {
+      dit->second.StampZero();
+      }
+    for (dit = IostatAvgAppIOwb.begin(); dit != IostatAvgAppIOwb.begin(); dit++) {
       dit->second.StampZero();
     }
     

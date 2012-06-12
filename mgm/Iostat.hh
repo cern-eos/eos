@@ -169,6 +169,9 @@ private:
   google::sparse_hash_map<std::string, IostatAvg> IostatAvgDomainIOrb;
   google::sparse_hash_map<std::string, IostatAvg> IostatAvgDomainIOwb;
 
+  google::sparse_hash_map<std::string, IostatAvg> IostatAvgAppIOrb;
+  google::sparse_hash_map<std::string, IostatAvg> IostatAvgAppIOwb;
+
   std::set<std::string> IoDomains;
   std::set<std::string> IoNodes;
 
@@ -196,7 +199,7 @@ public:
   bool Start();
   bool Stop();
 
-  void PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical=false, bool top=false, bool domain=false, XrdOucString option="");
+  void PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical=false, bool top=false, bool domain=false, bool apps=false, XrdOucString option="");
 
   static void* StaticReceive(void*);
   static void* StaticCirculate(void*);

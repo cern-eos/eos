@@ -2199,6 +2199,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         bool numerical=false;
         bool top=false;
 	bool domain=false;
+	bool apps=false;
         if ((option.find("a")!=STR_NPOS)) 
           details = true;
         if ((option.find("m")!=STR_NPOS))
@@ -2209,10 +2210,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           top = true;
 	if ((option.find("d")!=STR_NPOS))
 	  domain= true;
-
+	if ((option.find("x")!=STR_NPOS))
+	  apps= true;
+	
         eos_info("io stat");
 
-        gOFS->IoStats.PrintOut(stdOut, details, monitoring, numerical, top, domain, option);
+        gOFS->IoStats.PrintOut(stdOut, details, monitoring, numerical, top, domain, apps, option);
       }
     }
 

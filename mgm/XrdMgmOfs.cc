@@ -4840,7 +4840,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  XrdOucString hexfid; eos::common::FileId::Fid2Hex(fid,hexfid);source_capability += hexfid;
 
 		  source_capability += "&mgm.sec=";
-		  source_capability += eos::common::SecEntity::ToKey(0,"eos-balancing").c_str();
+		  source_capability += eos::common::SecEntity::ToKey(0,"eos/balancing").c_str();
 
 		  source_capability += "&mgm.drainfsid=";  source_capability += (int)source_fsid;
 		  
@@ -4867,7 +4867,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  target_capability += "&mgm.fid=";
 		  target_capability += hexfid;
 		  target_capability += "&mgm.sec=";
-		  target_capability += eos::common::SecEntity::ToKey(0,"eos-balancing").c_str();
+		  target_capability += eos::common::SecEntity::ToKey(0,"eos/balancing").c_str();
 
 		  target_capability += "&mgm.drainfsid=";  target_capability += (int)source_fsid;
 		  
@@ -5215,7 +5215,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  XrdOucString hexfid; eos::common::FileId::Fid2Hex(fid,hexfid);replica_source_capability += hexfid;
 		  
 		  replica_source_capability += "&mgm.sec=";
-		  replica_source_capability += eos::common::SecEntity::ToKey(0,"eos-draining").c_str();
+		  replica_source_capability += eos::common::SecEntity::ToKey(0,"eos/draining").c_str();
 
 		  replica_source_capability += "&mgm.drainfsid=";  replica_source_capability += (int)source_fsid;
 		  
@@ -5242,7 +5242,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 		  target_capability += "&mgm.fid=";
 		  target_capability += hexfid;
 		  target_capability += "&mgm.sec=";
-		  target_capability += eos::common::SecEntity::ToKey(0,"eos-draining").c_str();
+		  target_capability += eos::common::SecEntity::ToKey(0,"eos/draining").c_str();
 
 		  target_capability += "&mgm.drainfsid=";  target_capability += (int)source_fsid;
 		  
@@ -5417,8 +5417,7 @@ XrdMgmOfs::attr_rem(const char             *inpath,
 		    const char             *info,
 		    const char             *key)
 {
-  static const char *epname = "attr_rm";
-  const char *tident = error.getErrUser(); 
+  static const char *epname = "attr_rm"; const char *tident = error.getErrUser(); 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
@@ -6004,7 +6003,7 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   XrdOucString hexfid; eos::common::FileId::Fid2Hex(fid,hexfid);source_capability += hexfid;
   
   source_capability += "&mgm.sec=";
-  source_capability += eos::common::SecEntity::ToKey(0,"eos-replication").c_str();
+  source_capability += eos::common::SecEntity::ToKey(0,"eos/replication").c_str();
 
 
   // this is a move of a replica
@@ -6032,7 +6031,7 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
   target_capability += hexfid; 
 
   target_capability += "&mgm.sec=";
-  target_capability += eos::common::SecEntity::ToKey(0,"eos-replication").c_str();
+  target_capability += eos::common::SecEntity::ToKey(0,"eos/replication").c_str();
   if (dropsource) {
     target_capability += "&mgm.drainfsid=";  target_capability += (int)source_snapshot.mId;
   }
