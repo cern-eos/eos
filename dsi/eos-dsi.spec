@@ -8,7 +8,7 @@ Version: 0.2.2
 Release: 1
 License: none
 Group: Applications/File
-Source0: eos-dsi-0.2.2-1.tar.gz
+Source0: eos-dsi-0.2.2-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 Requires: xrootd-client >= 3.1.0
@@ -18,7 +18,7 @@ BuildRequires: vdt_globus_sdk
 BuildRequires: vdt_compile_globus_core
 BuildRequires: vdt_globus_essentials
 BuildRequires: gpt
-BuildRequires: globus-config
+#BuildRequires: globus-config
 BuildRequires: xrootd-libs-devel >= 3.1.0
 BuildRequires: xrootd-client-devel >= 3.1.0
 BuildRequires: autoconf, automake, libtool
@@ -61,6 +61,8 @@ fi
 
 
 %changelog
+* Wed Feb 08 2012 root <root@eosdevsrv1.cern.ch> - dsi 0.2.0-0
+- no changes, just new version number
 * Tue Jan 17 2012 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-8
 - support for file size preset via eos.bookingsize attribute
 * Wed Dec 14 2011 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-5

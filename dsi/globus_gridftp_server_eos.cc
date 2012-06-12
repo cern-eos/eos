@@ -611,9 +611,19 @@ extern "C" {
                            path);
     try {
       char *myPath, buff[2048];
-      if (!(myPath = XP.URL(path, buff, sizeof(buff))))
-	myPath=path;
+      if (!(myPath = XP.URL(path, buff, sizeof(buff)))) {
+	strcpy(buff,path);
+	myPath=buff;
+      }
 
+      // add the 'eos.gridftp' application tag
+      if (strlen(myPath)) {
+	if (strchr(myPath,'?')) {
+	  strcat(myPath, "&eos.app=eos/gridftp");
+	} else {
+	  strcat(myPath, "?eos.app=eos/gridftp");
+	}
+      }
       rc = XrdPosixXrootd::Open(myPath, flags, mode);
       if (rc < 0) {
         globus_gfs_log_message(GLOBUS_GFS_LOG_ERR,
