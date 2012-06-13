@@ -35,7 +35,7 @@ com_io (char* arg1) {
   XrdOucString options="";
   XrdOucString path="";
   XrdOucString in ="";
-  if ( ( cmd != "stat") && ( cmd != "enable" ) && ( cmd != "disable") && ( cmd != "report" ) ) {
+  if ( ( cmd != "stat") && ( cmd != "enable" ) && ( cmd != "disable") && ( cmd != "report" ) && ( cmd != "ns") ) {
     goto com_io_usage;
   }
   
@@ -61,45 +61,91 @@ com_io (char* arg1) {
     in += "&mgm.io.path=";
     in += path;
   }  else {
-    do {
-      option = subtokenizer.GetToken();
-      if (!option.length())
-        break;
-      if (option == "-a") {
-        options += "a";
-      } else {
-        if (option == "-m") {
-          options += "m";
-        }  else {
-          if (option == "-n") {
-            options += "n";
-          } else {
-            if ( option == "-t") {
-              options += "t";
-            } else {
-              if ( option == "-r") {
-                options += "r";
-              } else {
-                if ( option == "-n") {
-                  options += "n";
-                } else {
-		  if ( option == "-d") {
-		    options += "d";
+    if (cmd == "ns") {
+      in += "mgm.subcmd=ns";
+      do {
+	option = subtokenizer.GetToken();
+	if (!option.length())
+	  break;
+	if (option == "-m") {
+	  options += "-m";
+	} else {
+	  if (option == "-100") {
+	    options+= "-100";
+	  } else {
+	    if (option == "-1000") {
+	      options+= "-1000";
+	    } else {
+	      if (option == "-10000") {
+		options += "-10000";
+	      } else {
+		if (option== "-a") {
+		  options += "-a";
+		} else {
+		  if (option == "-b") {
+		    options += "-b";
 		  } else {
-		    if ( option == "-x") {
-		      options += "x";
+		    if (option == "-n") {
+		      options += "-n";
 		    } else {
-		      goto com_io_usage;
+		      if (option == "-w") {
+			options += "-w";
+		      } else {
+			goto com_io_usage;
+		      }
 		    }
 		  }
-                }
-              }
-            }
-          }
-        }
-      }
-    } while(1);
+		}
+	      }
+	    }
+	  }
+	}
+      } while (1);
+    } else {
+      do {
+	option = subtokenizer.GetToken();
+	if (!option.length())
+	  break;
+	if (option == "-a") {
+	  options += "a";
+	} else {
+	  if (option == "-m") {
+	    options += "m";
+	  }  else {
+	    if (option == "-n") {
+	      options += "n";
+	    } else {
+	      if ( option == "-t") {
+		options += "t";
+	      } else {
+		if ( option == "-r") {
+		  options += "r";
+		} else {
+		  if ( option == "-n") {
+		    options += "n";
+		  } else {
+		    if ( option == "-d") {
+		      options += "d";
+		    } else {
+		      if ( option == "-x") {
+			options += "x";
+		      } else {
+			if ( option == "-l") {
+			  options += "l";
+			} else {
+			  goto com_io_usage;}
+		      }
+		    }
+		  }
+		}
+	      }
+	    }
+	  }
+	}
+      } while(1);
+    }
   }
+  
        
   if (options.length()) {
     in += "&mgm.option="; in += options;
@@ -109,7 +155,8 @@ com_io (char* arg1) {
   return (0);
 
  com_io_usage:
-  fprintf(stdout,"usage: io stat [-a] [-m] [-n] [-t] [-d] [-x]                      :  print io statistics\n");
+  fprintf(stdout,"usage: io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x]                 :  print io statistics\n");
+  fprintf(stdout,"                -l                                                   -  show summary information (this is the default if -t,-d,-x is not selected)\n");
   fprintf(stdout,"                -a                                                   -  break down by uid/gid\n");
   fprintf(stdout,"                -m                                                   -  print in <key>=<val> monitoring format\n");
   fprintf(stdout,"                -n                                                   -  print numerical uid/gids\n");
@@ -123,5 +170,13 @@ com_io (char* arg1) {
   fprintf(stdout,"                                                               -r    disable collection of io reports\n");
   fprintf(stdout,"                                                               -n    disable report namespace\n");
   fprintf(stdout,"       io report <path>                                           :  show contents of report namespace for <path>\n");
+  fprintf(stdout,"       io ns [-a] [-n] [-b] [-100|-1000|-10000] [-w]              :  show namespace IO ranking (popularity)\n");
+  fprintf(stdout,"                                                               -a    don't limit the output list\n");
+  fprintf(stdout,"                                                               -n :  show ranking by number of accesses \n");
+  fprintf(stdout,"                                                               -b :  show ranking by number of bytes\n");
+  fprintf(stdout,"                                                             -100 :  show the first 100 in the ranking\n");
+  fprintf(stdout,"                                                            -1000 :  show the first 1000 in the ranking\n");
+  fprintf(stdout,"                                                           -10000 :  show the first 10000 in the ranking\n");
+  fprintf(stdout,"                                                               -w :  show history for the last 7 days\n");
   return (0);
 }

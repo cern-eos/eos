@@ -757,16 +757,16 @@ valid_argument (char *caller, char *arg) {
 // - Colour Definitions
 // ----------------------------------------------------------------------------
 
-std::string textnormal("\033[0m");
-std::string textblack("\033[49;30m");
-std::string textred("\033[49;31m");
-std::string textrederror("\033[47;31m\e[5m");
-std::string textblueerror("\033[47;34m\e[5m");
-std::string textgreen("\033[49;32m");
-std::string textyellow("\033[49;33m");
-std::string textblue("\033[49;34m");
-std::string textbold("\033[1m");
-std::string textunbold("\033[0m");
+std::string textnormal("\001\033[0m\002");
+std::string textblack("\001\033[49;30m\002");
+std::string textred("\001\033[49;31m\002");
+std::string textrederror("\001\033[47;31m\e[5m\002");
+std::string textblueerror("\001\033[47;34m\e[5m\002");
+std::string textgreen("\001\033[49;32m\002");
+std::string textyellow("\001\033[49;33m\002");
+std::string textblue("\001\033[49;34m\002");
+std::string textbold("\001\033[1m\002");
+std::string textunbold("\001\033[0m\002");
 
 // ----------------------------------------------------------------------------
 // - Usage Information
