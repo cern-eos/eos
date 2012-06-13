@@ -74,6 +74,36 @@ public:
     s+= (app)?app:"";
     return s;
   }
+
+
+  // ---------------------------------------------------------------------------
+  //! convert the fields of a sec entity into a nice debug string ...
+  // ---------------------------------------------------------------------------
+  static std::string ToString(const XrdSecEntity* entity, const char* app) {
+    std::string s="sec.prot=";
+    if (entity) {
+      s+= (entity->prot)?entity->prot:"";
+      s+= " sec.name=\"";
+      s+= (entity->name)?entity->name:"";
+      s+= "\" sec.host=\"";
+      s+= (entity->host)?entity->host:"";
+      s+= "\" sec.vorg=\"";
+      s+= (entity->vorg)?entity->vorg:"";
+      s+= "\" sec.grps=\"";
+      s+= (entity->grps)?entity->grps:"";
+      s+= "\" sec.role=\"";
+      s+= (entity->role)?entity->role:"";
+      s+= "\" sec.info=\"";
+      s+= (entity->moninfo)?entity->moninfo:"";
+      s+= "\"";
+    } else {
+      s+= "sec.name=\"<none>\"";
+    }
+    s+= " sec.app=\"";
+    s+= (app)?app:"";
+    s+= "\"";
+    return s;
+  }
   
   // ---------------------------------------------------------------------------
   //! convert val1|val2|val3... to a map with key/val pairs

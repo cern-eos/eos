@@ -2200,6 +2200,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         bool top=false;
 	bool domain=false;
 	bool apps=false;
+	bool summary=false;
+
         if ((option.find("a")!=STR_NPOS)) 
           details = true;
         if ((option.find("m")!=STR_NPOS))
@@ -2212,10 +2214,24 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  domain= true;
 	if ((option.find("x")!=STR_NPOS))
 	  apps= true;
-	
+	if ((option.find("l")!=STR_NPOS))
+	  summary=true;
+
+	if (!(apps | domain |top | details)) {
+	  // if nothing is selected, we show the summary information
+	  summary = true;
+	}
+
         eos_info("io stat");
 
-        gOFS->IoStats.PrintOut(stdOut, details, monitoring, numerical, top, domain, apps, option);
+        gOFS->IoStats.PrintOut(stdOut, summary,details, monitoring, numerical, top, domain, apps, option);
+      }
+
+      if (subcmd == "ns") {
+        XrdOucString option = opaque.Get("mgm.option");
+	eos_info("io ns");
+
+	gOFS->IoStats.PrintNs(stdOut,option);
       }
     }
 

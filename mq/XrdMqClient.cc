@@ -31,10 +31,25 @@ const char *XrdMqClientCVSID = "$Id: XrdMqClient.cc,v 1.0.0 2007/10/04 01:34:19 
 #include <XrdSys/XrdSysDNS.hh>
 #include <XrdClient/XrdClientUrlSet.hh>
 
+#include <setjmp.h>
+#include <signal.h>
+
 /******************************************************************************/
 /*                        X r d M q C l i e n t                               */
 /******************************************************************************/
 
+XrdSysMutex XrdMqClient::Mutex;
+/*----------------------------------------------------------------------------*/
+/* Signal Handler for SIGBUS                                                  */
+/*----------------------------------------------------------------------------*/
+
+static sigjmp_buf xrdmqclient_sj_env;
+ 
+static void xrdmqclient_sigbus_hdl (int sig, siginfo_t *siginfo, void *ptr)
+{
+  // to jump to execution point
+  siglongjmp (xrdmqclient_sj_env, 1);
+}
 
 /*----------------------------------------------------------------------------*/
 /* SetXrootVariables                                                          */
@@ -76,7 +91,8 @@ bool XrdMqClient::Unsubscribe(const char* queue) {
   }
 
   for (int i=0; i< kBrokerN;i++) {
-    if (!GetBrokerXrdClientReceiver(i)->Close()) {    
+    XrdClient* client = GetBrokerXrdClientReceiver(i);
+    if (client && (!client->Close())) {    
       // open failed
       continue;
     }
@@ -357,6 +373,13 @@ void XrdMqClient::ReNewBrokerXrdClientReceiver(int i) {
  
 void XrdMqClient::CheckBrokerXrdClientReceiver(int i) {
   Mutex.Lock();
+
+  // SIGBUS re-entry
+  if (sigsetjmp(xrdmqclient_sj_env, 1)) { 
+    fprintf(stderr,"Fatal: recovered SIGBUS error - backoff for 5s\n");
+    sleep(5);
+  } 
+
   XrdClient* client = GetBrokerXrdClientReceiver(i);
   if (i < 256) {
     if (kBrokerXrdClientReceiverAliasTimeStamp[i] &&
@@ -434,12 +457,22 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl, const char
   kMessageBuffer="";
   kRecvBuffer=0;
   kRecvBufferAlloc=0;
+
+  // install sigbus signal handler
+  struct sigaction act;
+  memset (&act, 0, sizeof(act));
+  act.sa_sigaction = xrdmqclient_sigbus_hdl;
+  act.sa_flags = SA_SIGINFO;
   
+  if (sigaction(SIGBUS, &act, 0)) {
+    fprintf(stderr,"error: [XrdMqClient] cannot install SIGBUS handler\n");
+  }
+
   memset(kBrokerXrdClientReceiverAliasTimeStamp,0,sizeof(int) * 256);
   memset(kBrokerXrdClientSenderAliasTimeStamp  ,0,sizeof(int) * 256);
 
   if (brokerurl && (!AddBroker(brokerurl))) {
-    fprintf(stderr,"error: cannot add broker %s\n", brokerurl);
+    fprintf(stderr,"error: [XrdMqClient] cannot add broker %s\n", brokerurl);
   }
   if (defaultreceiverid) {
     kDefaultReceiverQueue = defaultreceiverid;

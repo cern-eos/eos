@@ -635,7 +635,12 @@ XrdFstOfsFile::open(const char                *path,
     if (!(sbookingsize=capOpaque->Get("mgm.bookingsize"))) {
       return gOFS.Emsg(epname,error, EINVAL,"open - no booking size in capability",path);
     } else {
+      errno = 0;
       bookingsize = strtoull(capOpaque->Get("mgm.bookingsize"),0,10); 
+      if (errno == ERANGE) {
+	eos_err("invalid bookingsize in capability bookingsize=%s", sbookingsize);
+	return gOFS.Emsg(epname, error, EINVAL, "open - invalid bookingsize in capability", path);
+      }
     }
     if ((stargetsize=capOpaque->Get("mgm.targetsize"))) {
       targetsize = strtoull(capOpaque->Get("mgm.targetsize"),0,10);

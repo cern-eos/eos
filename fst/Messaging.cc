@@ -113,7 +113,7 @@ Messaging::Process(XrdMqMessage* newmessage)
       sysline += path2register; sysline += " ";
       sysline += space2register;
       sysline += " >& /tmp/eosfstregister.out &";
-      eos_notice("lanched %s", sysline.c_str());
+      eos_notice("launched %s", sysline.c_str());
       int rc = system(sysline.c_str());
       if (rc) {
 	rc = 0;

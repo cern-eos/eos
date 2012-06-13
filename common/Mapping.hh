@@ -90,6 +90,9 @@ public:
     XrdOucString name;
     XrdOucString prot;
     std::string host;
+    std::string grps;
+    std::string role;
+    std::string dn;
     bool sudoer;
   };
 

@@ -176,14 +176,17 @@ void TransferJob::DoIt(){
   int rc = system(command.str().c_str());
   if (WEXITSTATUS(rc)) {
     eos_static_err("%s returned %d", command.str().c_str(), rc);
-  } else {
-    eos_static_debug("unlinking script file output");
-    // remove the result files
-    rc = unlink(fileOutput.c_str());
-    if (rc) rc = 0; // for compiler happyness
-    rc = unlink(fileResult.c_str());
-    if (rc) rc = 0; // for compiler happyness
   }
+
+  // move the output to the log file
+  std::string cattolog = "touch /var/log/eos/fst/eoscp.log; cat "; cattolog += fileOutput.c_str(); cattolog +=" >> /var/log/eos/fst/eoscp.log 2>/dev/null";
+  system(cattolog.c_str());
+
+  // remove the result files
+  rc = unlink(fileOutput.c_str());
+  if (rc) rc = 0; // for compiler happyness
+  rc = unlink(fileResult.c_str());
+  if (rc) rc = 0; // for compiler happyness
 
   // we are over running
   mQueue->DecRunning();

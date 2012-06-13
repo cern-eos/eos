@@ -44,6 +44,20 @@
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
+// static variable + sig handler to deal with SIGBUS error
+/*----------------------------------------------------------------------------*/
+
+static sigjmp_buf sj_env;
+
+/*----------------------------------------------------------------------------*/
+static void sigbus_hdl (int sig, siginfo_t *siginfo, void *ptr)
+{
+  // jump to the saved program state to catch SIGBUS caused by illegal mmapped memory access
+  siglongjmp (sj_env, 1);
+}
+
+
+/*----------------------------------------------------------------------------*/
 bool 
 CheckSum::Compare(const char* refchecksum)
 {
@@ -218,6 +232,11 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
 
   BlockSize = blocksize;
 
+  if (!BlockSize) {
+    fprintf(stderr,"Fatal: [CheckSum::OpenMap] blocksize=0\n");
+    return false;
+  }
+
   // we always open for rw mode
   ChecksumMapFd = ::open(mapfilepath, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR |S_IRGRP|S_IROTH);
 
@@ -293,7 +312,18 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
    
   if (ChecksumMap == MAP_FAILED) {
     close(ChecksumMapFd);
-    fprintf(stderr,"Fatal: mmap failed\n");
+    fprintf(stderr,"Fatal: [CheckSum::OpenMap] mmap failed\n");
+    return false;
+  }
+
+  // instantiate a signal handler for SIGBUS
+  struct sigaction act;
+  memset (&act, 0, sizeof(act));
+  act.sa_sigaction = eos::fst::sigbus_hdl;
+  act.sa_flags = SA_SIGINFO;
+ 
+  if (sigaction(SIGBUS, &act, 0)) {
+    fprintf(stderr,"Fatal: [CheckSum::OpenMap] sigaction failed\n");
     return false;
   }
 
@@ -348,7 +378,7 @@ CheckSum::ChangeMap(size_t newsize, bool shrink)
   //  fprintf(stderr,"remapping %llu %llu %llu\n", ChecksumMap, ChecksumMapSize, newsize);
   ChecksumMap = (char*)mremap(ChecksumMap, ChecksumMapSize, newsize, MREMAP_MAYMOVE);
   if (ChecksumMap == MAP_FAILED) {
-    fprintf(stderr,"mremap errno is %d\n", errno);
+    fprintf(stderr,"Fatal: [CheckSum::ChangeMap] mremap errno is %d\n", errno);
     ChecksumMapSize = 0;
     ChecksumMap = 0;
     return false;
@@ -378,7 +408,7 @@ CheckSum::CloseMap()
 	  fl.l_len= (off64_t)ChecksumMapOpenSize-ChecksumMapSize;
 	  int rc= xfsctl(NULL, ChecksumMapFd, XFS_IOC_UNRESVSP64, &fl);
 	  if (rc) {
-	    fprintf(stderr,"XFS deallocation returned retc=%d", rc);
+	    fprintf(stderr,"Fatal: [CheckSum::CloseMap] XFS deallocation returned retc=%d", rc);
 	  }
 	} 
       }
@@ -531,9 +561,18 @@ CheckSum::SetXSMap(off_t offset)
   
   int len=0;
   const char* cks = GetBinChecksum(len);
-  for (int i=0; i < len; i++) {
-    ChecksumMap[i+mapoffset] = cks[i];
+
+  
+  if (!sigsetjmp(sj_env, 1)) {
+    for (int i=0; i < len; i++) {
+      ChecksumMap[i+mapoffset] = cks[i];
+    }
+  } else {
+    // return point from signal handler
+    fprintf(stderr,"Fatal: [CheckSum::SignalHandler] recovered SIGBUS by illegal write access to mmaped XS map file\n");
+    return false;
   }
+
   return true;
 }
 
@@ -542,20 +581,28 @@ bool
 CheckSum::VerifyXSMap(off_t offset) 
 {
   if (!ChangeMap((offset+BlockSize), false)) {
-    fprintf(stderr,"ChangeMap failed\n");
+    fprintf(stderr,"Fatal: [CheckSum::VerifyXSMap] ChangeMap failed\n");
     return false;
   }
   off_t mapoffset = (offset / BlockSize) * GetCheckSumLen();
   //  fprintf(stderr,"Verifying %llu %llu\n", offset, mapoffset);
   int len=0;
   const char* cks = GetBinChecksum(len);
-  for (int i=0; i < len; i++) {
-    //    fprintf(stderr,"Compare %llu %llu\n", ChecksumMap[i+mapoffset], cks[i]);
-    if ( (ChecksumMap[i+mapoffset]) && ((ChecksumMap[i+mapoffset] != cks[i]))) {
-      //      fprintf(stderr,"Failed %llu %llu %llu\n", offset + i, ChecksumMap[i+mapoffset], cks[i]);
-      return false;
+
+  if (!sigsetjmp(sj_env, 1)) {
+    for (int i=0; i < len; i++) {
+      //    fprintf(stderr,"Compare %llu %llu\n", ChecksumMap[i+mapoffset], cks[i]);
+      if ( (ChecksumMap[i+mapoffset]) && ((ChecksumMap[i+mapoffset] != cks[i]))) {
+	//      fprintf(stderr,"Failed %llu %llu %llu\n", offset + i, ChecksumMap[i+mapoffset], cks[i]);
+	return false;
+      }
     }
+  } else {
+    // return point from signal handler
+    fprintf(stderr,"Fatal: [CheckSum::VerifyXSMap] recovered SIGBUS by illegal read access to mmaped XS map file\n");
+    return false;
   }
+
   return true;
 }
 
@@ -584,33 +631,42 @@ CheckSum::AddBlockSumHoles(int fd)
       size_t len = GetCheckSumLen();
       size_t nblocks = ChecksumMapSize / len;
       bool iszero;
-      for (size_t i = 0; i < nblocks; i++) {
-        iszero = true;
-        for (size_t n = 0; n < len; n++) {
-          if (ChecksumMap[ (i*len)+ n ]) {
-            iszero=false;
-            break;
-          }
-        }
-        if (iszero) {
-          int nrbytes = pread(fd,buffer,BlockSize, i*BlockSize);
-          if (nrbytes <0) {
-            continue;
-          }
-          if (nrbytes < (int)BlockSize) {
-            // fill the last block
-            memset(buffer+nrbytes, 0, BlockSize-nrbytes);
-            nrbytes = BlockSize;
-          }
 
-          if (!AddBlockSum( i*BlockSize, buffer, nrbytes)) {
-            //            fprintf(stderr,"AddBlockSumHoles: checksumming failed\n");
-            free(buffer);
-            return false;
-          }
-          nXSBlocksWrittenHoles++;
-        }
+      if (!sigsetjmp(sj_env, 1)) {
+	for (size_t i = 0; i < nblocks; i++) {
+	  iszero = true;
+	  for (size_t n = 0; n < len; n++) {
+	    if (ChecksumMap[ (i*len)+ n ]) {
+	      iszero=false;
+	      break;
+	    }
+	  }
+	  if (iszero) {
+	    int nrbytes = pread(fd,buffer,BlockSize, i*BlockSize);
+	    if (nrbytes <0) {
+	      continue;
+	    }
+	    if (nrbytes < (int)BlockSize) {
+	      // fill the last block
+	      memset(buffer+nrbytes, 0, BlockSize-nrbytes);
+	      nrbytes = BlockSize;
+	    }
+	    
+	    if (!AddBlockSum( i*BlockSize, buffer, nrbytes)) {
+	      //            fprintf(stderr,"AddBlockSumHoles: checksumming failed\n");
+	      free(buffer);
+	      return false;
+	    }
+	    nXSBlocksWrittenHoles++;
+	  }
+	}
+      } else {
+	// return point from signal handler
+	fprintf(stderr,"Fatal: [CheckSum::AddBlockSumHoles] recovered SIGBUS by illegal write access to mmaped XS map file\n");
+	free (buffer);
+	return false;
       }
+
       free (buffer);
       return true;
     } else {

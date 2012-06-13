@@ -28,6 +28,8 @@
 #include "mgm/Namespace.hh"
 #include "mq/XrdMqClient.hh"
 #include "common/Logging.hh"
+#include "common/FileId.hh"
+#include "common/Path.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
@@ -38,6 +40,11 @@
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
+
+// define the history in days we want to do popularity tracking
+#define IOSTAT_POPULARITY_HISTORY_DAYS 7 
+#define IOSTAT_POPULARITY_DAY 86400
+
 class IostatAvg {
 public:
   unsigned long avg86400[60];
@@ -175,6 +182,36 @@ private:
   std::set<std::string> IoDomains;
   std::set<std::string> IoNodes;
 
+  // -----------------------------------------------------------
+  // here we handle the popularity history for the last 7+1 days
+  // ----------------------------------------------------------- 
+
+  XrdSysMutex PopularityMutex; 
+  struct Popularity {
+    unsigned int nread;
+    unsigned long long rb;
+  };
+
+  size_t IostatLastPopularityBin; // this points to the bin which was last used in IostatPopularity
+
+  google::sparse_hash_map<std::string, struct Popularity> IostatPopularity[ IOSTAT_POPULARITY_HISTORY_DAYS ];
+  
+  typedef std::pair<std::string, struct Popularity> popularity_t;
+  
+  struct PopularityCmp_nread {
+    bool operator() (popularity_t const &l, popularity_t const &r) {
+      if (l.second.nread == r.second.nread) return (l.first <r.first);
+      return l.second.nread > r.second.nread;
+    }
+  };
+  
+  struct PopularityCmp_rb {
+    bool operator() (popularity_t const &l, popularity_t const &r) {
+      if (l.second.rb == r.second.rb) return (l.first <r.first);
+      return l.second.rb > r.second.rb;
+    }
+  };
+
   XrdOucString mStoreFileName; // file name where a dump is loaded/saved in Restore/Store
 
 public:
@@ -199,13 +236,28 @@ public:
   bool Start();
   bool Stop();
 
-  void PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical=false, bool top=false, bool domain=false, bool apps=false, XrdOucString option="");
+  void PrintOut(XrdOucString &out, bool summary, bool details, bool monitoring, bool numerical=false, bool top=false, bool domain=false, bool apps=false, XrdOucString option="");
+
+  void PrintNs(XrdOucString &out, XrdOucString option="");
 
   static void* StaticReceive(void*);
   static void* StaticCirculate(void*);
   void* Receive();
 
   static bool NamespaceReport(const char* path, XrdOucString &stdOut, XrdOucString &stdErr);
+
+  void AddToPopularity(std::string path, unsigned long long rb, time_t starttime, time_t stoptime) {
+    size_t popularitybin = ( ((starttime + stoptime)/2)% (IOSTAT_POPULARITY_DAY * IOSTAT_POPULARITY_HISTORY_DAYS))/ IOSTAT_POPULARITY_DAY;
+    PopularityMutex.Lock();
+    eos::common::Path cPath(path.c_str());
+    for (size_t k=0; k< cPath.GetSubPathSize(); k++) {
+      std::string sp = cPath.GetSubPath(k);
+      IostatPopularity[popularitybin][sp].rb += rb;
+      IostatPopularity[popularitybin][sp].nread++;
+    }
+    IostatLastPopularityBin = popularitybin;
+    PopularityMutex.UnLock();
+  }
 
   // stats collection
   void Add(const char* tag, uid_t uid, gid_t gid, unsigned long val, time_t starttime, time_t stoptime) {

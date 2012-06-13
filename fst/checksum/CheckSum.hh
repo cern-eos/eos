@@ -33,9 +33,12 @@
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/sparse_hash_map>
+#include <setjmp.h>
+#include <signal.h>
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
+
 
 class CheckSum {
 protected:

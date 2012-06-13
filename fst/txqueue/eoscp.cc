@@ -174,6 +174,34 @@ extern "C" {
 }
 //////////////////////////////////////////////////////////////////////
 
+void print_summary_header(char* src[MAXSRCDST], char* dst[MAXSRCDST]) {
+  XrdOucString xsrc[MAXSRCDST];
+  XrdOucString xdst[MAXSRCDST];
+
+  for (int i = 0; i < nsrc; i++) { 
+    xsrc[i] = src[i];
+    xsrc[i].erase(xsrc[i].rfind('?'));
+  }
+
+  for (int i = 0; i < ndst; i++) {
+    xdst[i] = dst[i];
+    xdst[i].erase(xdst[i].rfind('?'));
+  }
+
+  time_t rawtime;
+  struct tm* timeinfo;
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+
+  COUT(("[eoscp] #################################################################\n"));
+  COUT(("[eoscp] # Date                     : %s ( %lu ) ", asctime(timeinfo), (unsigned long) rawtime)); 
+  for (int i = 0; i < nsrc; i++) 
+    COUT(("[eoscp] # Source Name [%02d]         : %s\n", i, xsrc[i].c_str()));
+
+  for (int i = 0; i < ndst; i++)
+    COUT(("[eoscp] # Destination Name [%02d]    : %s\n", i, xdst[i].c_str()));
+}
+
 void print_summary(char* src[MAXSRCDST], char* dst[MAXSRCDST], unsigned long long bytesread) {
   gettimeofday (&abs_stop_time, &tz);
   float abs_time = ((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) *1000 +
@@ -191,14 +219,6 @@ void print_summary(char* src[MAXSRCDST], char* dst[MAXSRCDST], unsigned long lon
     xdst[i] = dst[i];
     xdst[i].erase(xdst[i].rfind('?'));
   }
-
-  COUT(("[eoscp] #################################################################\n"));
-
-  for (int i = 0; i < nsrc; i++) 
-    COUT(("[eoscp] # Source Name [%02d]         : %s\n", i, xsrc[i].c_str()));
-
-  for (int i = 0; i < ndst; i++)
-    COUT(("[eoscp] # Destination Name [%02d]    : %s\n", i, xdst[i].c_str()));
 
   COUT(("[eoscp] # Data Copied [bytes]      : %lld\n", bytesread));
   if (ndst > 1) {
@@ -448,6 +468,10 @@ int main(int argc, char* argv[]) {
 
   for (int i = 0; i < ndst; i++) {
     destination[i] = argv[optind + nsrc + i];
+  }
+
+  if (summary) {
+    print_summary_header(source, destination);
   }
 
   if (verbose || debug) {

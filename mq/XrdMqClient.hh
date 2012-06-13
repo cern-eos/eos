@@ -37,7 +37,7 @@
 
 class XrdMqClient {
 private:
-  XrdSysMutex                 Mutex;
+  static XrdSysMutex          Mutex;
   XrdOucHash <XrdOucString>   kBrokerUrls;
   XrdOucHash <XrdClient>      kBrokerXrdClientReceiver;
   XrdOucHash <XrdClientAdmin> kBrokerXrdClientSender;

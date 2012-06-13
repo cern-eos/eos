@@ -30,7 +30,8 @@
 
 #include <iostream>
 #include <fstream>
-
+#include <vector>
+#include <algorithm>
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
@@ -71,6 +72,13 @@ Iostat::Iostat()
   IoNodes.insert("aldaq");  // ALICE DAQ
   IoNodes.insert("cms-cdr");// CMS DAQ
   IoNodes.insert("pc-tdq"); // ATLAS DAQ
+
+  for (size_t i=0; i< IOSTAT_POPULARITY_HISTORY_DAYS; i++) {
+    IostatPopularity[i].set_deleted_key("");
+    IostatPopularity[i].resize(100000);
+  }
+
+  IostatLastPopularityBin = 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -175,6 +183,9 @@ Iostat::Receive(void)
       } else {
 	bool dfound=false;
 	
+	// do the popularity accounting here for everything which is not replication!
+	AddToPopularity(report->path, report->rb, report->ots, report->cts);
+
 	size_t pos=0;
 	if ( (pos = report->sec_host.rfind(".")) != std::string::npos) {
 	  // we can sort in by domain
@@ -271,7 +282,7 @@ Iostat::Receive(void)
           }
         }
       }
-      
+
       if (gOFS->IoReportNamespace) {
         // add the record into the report namespace file
         char path[4096];
@@ -302,7 +313,7 @@ Iostat::Receive(void)
 
 /* ------------------------------------------------------------------------- */
 void 
-Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerical, bool top, bool domain, bool apps, XrdOucString option)
+Iostat::PrintOut(XrdOucString &out, bool summary, bool details, bool monitoring, bool numerical, bool top, bool domain, bool apps, XrdOucString option)
 {
   Mutex.Lock();
   std::vector<std::string> tags;
@@ -317,41 +328,43 @@ Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerica
   std::sort(tags.begin(),tags.end());
 
   char outline[1024];
-      
-  if (!monitoring) {
-    out +="# -----------------------------------------------------------------------------------------------------------\n";
-    sprintf(outline,"%-10s %-32s %-9s %8s %8s %8s %8s","who", "io value","sum","1min","5min","1h", "24h");
-    out += outline;
-    out += "\n";
-    out +="# -----------------------------------------------------------------------------------------------------------\n";
-  }
 
-  for (it = tags.begin(); it!= tags.end(); ++it) {
-     
-    const char* tag = it->c_str();
-     
-    char a60[1024];
-    char a300[1024];
-    char a3600[1024];
-    char a86400[1024];
-
-    snprintf(a60,1023,"%3.02f", GetTotalAvg60(tag));
-    snprintf(a300,1023,"%3.02f", GetTotalAvg300(tag));
-    snprintf(a3600,1023,"%3.02f", GetTotalAvg3600(tag));
-    snprintf(a86400,1023,"%3.02f", GetTotalAvg86400(tag));
-
+  if (summary) {
     if (!monitoring) {
-      XrdOucString sizestring;
-      XrdOucString sa1;
-      XrdOucString sa2;
-      XrdOucString sa3;
-      XrdOucString sa4;
-
-      sprintf(outline,"ALL        %-32s %10s %8s %8s %8s %8s\n",tag, eos::common::StringConversion::GetReadableSizeString(sizestring,GetTotal(tag),""),eos::common::StringConversion::GetReadableSizeString(sa1,GetTotalAvg60(tag),""),eos::common::StringConversion::GetReadableSizeString(sa2,GetTotalAvg300(tag),""),eos::common::StringConversion::GetReadableSizeString(sa3,GetTotalAvg3600(tag),""),eos::common::StringConversion::GetReadableSizeString(sa4,GetTotalAvg86400(tag),""));
-    } else {
-      sprintf(outline,"uid=all gid=all measurement=%s total=%llu 60s=%s 300s=%s 3600s=%s 86400s=%s\n",tag, GetTotal(tag),a60,a300,a3600,a86400);
+      out +="# -----------------------------------------------------------------------------------------------------------\n";
+      sprintf(outline,"%-10s %-32s %-9s %8s %8s %8s %8s","who", "io value","sum","1min","5min","1h", "24h");
+      out += outline;
+      out += "\n";
+      out +="# -----------------------------------------------------------------------------------------------------------\n";
     }
-    out += outline;
+    
+    for (it = tags.begin(); it!= tags.end(); ++it) {
+      
+      const char* tag = it->c_str();
+      
+      char a60[1024];
+      char a300[1024];
+      char a3600[1024];
+      char a86400[1024];
+      
+      snprintf(a60,1023,"%3.02f", GetTotalAvg60(tag));
+      snprintf(a300,1023,"%3.02f", GetTotalAvg300(tag));
+      snprintf(a3600,1023,"%3.02f", GetTotalAvg3600(tag));
+      snprintf(a86400,1023,"%3.02f", GetTotalAvg86400(tag));
+      
+      if (!monitoring) {
+	XrdOucString sizestring;
+	XrdOucString sa1;
+	XrdOucString sa2;
+	XrdOucString sa3;
+	XrdOucString sa4;
+	
+	sprintf(outline,"ALL        %-32s %10s %8s %8s %8s %8s\n",tag, eos::common::StringConversion::GetReadableSizeString(sizestring,GetTotal(tag),""),eos::common::StringConversion::GetReadableSizeString(sa1,GetTotalAvg60(tag),""),eos::common::StringConversion::GetReadableSizeString(sa2,GetTotalAvg300(tag),""),eos::common::StringConversion::GetReadableSizeString(sa3,GetTotalAvg3600(tag),""),eos::common::StringConversion::GetReadableSizeString(sa4,GetTotalAvg86400(tag),""));
+      } else {
+	sprintf(outline,"uid=all gid=all measurement=%s total=%llu 60s=%s 300s=%s 3600s=%s 86400s=%s\n",tag, GetTotal(tag),a60,a300,a3600,a86400);
+      }
+      out += outline;
+    }
   }
 
   if (details) {
@@ -657,6 +670,154 @@ Iostat::PrintOut(XrdOucString &out, bool details, bool monitoring, bool numerica
 }
 
 /* ------------------------------------------------------------------------- */
+void 
+Iostat::PrintNs(XrdOucString &out, XrdOucString option)
+{
+  // ---------------------------------------------------------------------------
+  // ! compute and printout the namespace popularity ranking
+  // ---------------------------------------------------------------------------
+  size_t limit=10;
+  size_t popularitybin = ( ((time(NULL)))% (IOSTAT_POPULARITY_DAY * IOSTAT_POPULARITY_HISTORY_DAYS))/ IOSTAT_POPULARITY_DAY;
+  size_t days = 1;
+  time_t tmarker = time(NULL)/IOSTAT_POPULARITY_DAY*IOSTAT_POPULARITY_DAY;
+
+  bool monitoring = false;
+  bool bycount=false;
+  bool bybytes=false;
+  
+  if ( (option.find("-m")) != STR_NPOS ) {
+    monitoring = true;
+  }
+
+  if ( (option.find("-a")) != STR_NPOS ) {
+    limit=999999999;
+  }
+
+  if ( (option.find("-100")) != STR_NPOS) {
+    limit=100;
+  } 
+
+  if ( (option.find("-1000")) != STR_NPOS) {
+    limit=1000;
+  }
+
+  if ( (option.find("-10000")) != STR_NPOS) {
+    limit=10000;
+  }
+
+  if ( (option.find("-n") != STR_NPOS) ) {
+    bycount=true;
+  }
+
+  if ( (option.find("-b") != STR_NPOS) ) {
+    bybytes=true;
+  }
+
+  if ( (option.find("-w") != STR_NPOS) ) {
+    days = IOSTAT_POPULARITY_HISTORY_DAYS;
+  }
+
+  if (!(bycount || bybytes)) {
+    bybytes=bycount=true;
+  }
+
+  for (size_t pbin = 0; pbin < days; pbin++) {
+    PopularityMutex.Lock();
+    size_t sbin = (IOSTAT_POPULARITY_HISTORY_DAYS+popularitybin-pbin)%IOSTAT_POPULARITY_HISTORY_DAYS;
+    google::sparse_hash_map<std::string, struct Popularity>::const_iterator it;
+    
+    std::vector<popularity_t> popularity_nread(IostatPopularity[sbin].begin(), IostatPopularity[sbin].end());
+    std::vector<popularity_t> popularity_rb   (IostatPopularity[sbin].begin(), IostatPopularity[sbin].end());
+
+    // sort them (backwards) by rb or nread
+    std::sort(popularity_nread.begin(), popularity_nread.end(), PopularityCmp_nread());
+    std::sort(popularity_rb.begin(),    popularity_rb.end(),    PopularityCmp_rb() );
+    
+    XrdOucString marker = "<today";
+    if (pbin ==1) {
+      marker = "<yesterday>";
+    } 
+    if (pbin ==2) {
+      marker = "<2 days ago>";
+    } 
+    if (pbin ==3) {
+      marker = "<3 days ago>";
+    }
+    if (pbin ==4) {
+      marker = "<4 days ago>";
+    }
+    if (pbin ==5) {
+      marker = "<5 days ago>";
+    }
+    if (pbin ==6) {
+      marker = "<6 days ago>";
+    }
+
+    std::vector<popularity_t>::const_iterator popit;
+
+    if (bycount) {
+      if (!monitoring) {
+	char outline[4096];
+	out +="# --------------------------------------------------------------------------------------\n";
+	out +="# Popularity by access count "; out += marker; out += " :\n";
+	out +="# --------------------------------------------------------------------------------------\n";
+	snprintf(outline,sizeof(outline)-1, "%-6s %-13s %-13s %-64s\n", "rank", "read count", "read bytes","path");
+	out += outline;
+	out +="# --------------------------------------------------------------------------------------\n";
+      }
+
+      size_t cnt=0;
+
+      for (popit = popularity_nread.begin(); popit != popularity_nread.end(); popit++) {
+	cnt++;
+	char line[4096];
+	char nr[256];
+	snprintf(nr,sizeof(nr)-1, "%u", popit->second.nread);
+	if (monitoring) {
+	  snprintf(line,sizeof(line)-1,"measurement=popularitybyaccess time=%u rank=%d nread=%u rb=%llu path=%s\n",(unsigned int)tmarker, (int) cnt, popit->second.nread, popit->second.rb, popit->first.c_str());
+	} else {
+	  XrdOucString sizestring;
+	  snprintf(line,sizeof(line)-1,"%06d nread=%-7s rb=%-10s %-64s\n", (int)cnt, nr, eos::common::StringConversion::GetReadableSizeString(sizestring, popit->second.rb,"B"), popit->first.c_str());
+	}
+	out += line;
+      }
+    }
+
+    if (bybytes) {
+      if (!monitoring) {
+	char outline[4096];
+	out +="# --------------------------------------------------------------------------------------\n";
+	out +="# Popularity by bytes read "; out += marker; out += " :\n";
+	out +="# --------------------------------------------------------------------------------------\n";
+	snprintf(outline,sizeof(outline)-1, "%-6s %-13s %-13s %-64s\n", "rank", "read bytes", "read count","path");
+	out += outline;
+	out +="# --------------------------------------------------------------------------------------\n";
+      }
+      size_t cnt=0;
+      for (popit = popularity_rb.begin(); popit != popularity_rb.end(); popit++) {
+	cnt++;
+	char line[4096];
+	char nr[256];
+	snprintf(nr,sizeof(nr)-1, "%u", popit->second.nread);
+	if (monitoring) {
+	  snprintf(line,sizeof(line)-1,"measurement=popularitybyvolume time=%u rank=%d nread=%u rb=%llu path=%s\n", (unsigned int)tmarker, (int) cnt, popit->second.nread, popit->second.rb, popit->first.c_str());
+	} else {
+	  XrdOucString sizestring;
+	  snprintf(line,sizeof(line)-1,"%06d rb=%-10s nread=%-7s %-64s\n", (int)cnt, eos::common::StringConversion::GetReadableSizeString(sizestring, popit->second.rb,"B"), nr, popit->first.c_str());
+	}
+	out += line;
+      }
+    }
+
+    
+    /*    for (it = IostatPopularity[sbin].begin(); it != IostatPopularity[sbin].end(); it++) {
+
+      }*/
+    PopularityMutex.UnLock();
+  }
+}
+
+/* ------------------------------------------------------------------------- */
 bool 
 Iostat::Store() 
 {
@@ -837,6 +998,16 @@ Iostat::Circulate() {
     }
     
     Mutex.UnLock();
+
+    size_t popularitybin = ( ((time(NULL)))% (IOSTAT_POPULARITY_DAY * IOSTAT_POPULARITY_HISTORY_DAYS))/ IOSTAT_POPULARITY_DAY;
+    if (IostatLastPopularityBin != popularitybin) {
+      // only if we enter a new bin we erase it 
+      PopularityMutex.Lock();
+      IostatPopularity[popularitybin].clear();
+      IostatPopularity[popularitybin].resize(10000);
+      IostatLastPopularityBin = popularitybin;
+      PopularityMutex.UnLock();
+    }
     XrdSysThread::CancelPoint();
   }
   return 0;

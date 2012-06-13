@@ -25,6 +25,7 @@
 #include "common/Namespace.hh"
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
+#include "common/SecEntity.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -182,9 +183,11 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
       std::string vomsstring="voms:\"";
       vomsstring+= client->grps;
       vomsstring+= ":";
+      vid.grps=client->grps;
       if (client->role) {
 	// the role might be NULL
 	vomsstring+= client->role;
+	vid.role=client->role;
       }
       vomsstring+= "\"";
       std::string vomsuidstring=vomsstring;
@@ -510,6 +513,7 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
   ActiveLock.UnLock();
 
   eos_static_debug("selected %d %d [%s %s]", vid.uid,vid.gid, ruid.c_str(),rgid.c_str());
+  eos_static_info("%s sec.tident=\"%s\"", eos::common::SecEntity::ToString(client, Env.Get("eos.app")).c_str(),tident);
 }
 
 /*----------------------------------------------------------------------------*/
