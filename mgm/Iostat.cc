@@ -733,7 +733,7 @@ Iostat::PrintNs(XrdOucString &out, XrdOucString option)
     std::sort(popularity_nread.begin(), popularity_nread.end(), PopularityCmp_nread());
     std::sort(popularity_rb.begin(),    popularity_rb.end(),    PopularityCmp_rb() );
     
-    XrdOucString marker = "<today";
+    XrdOucString marker = "<today>";
     if (pbin ==1) {
       marker = "<yesterday>";
     } 
@@ -759,9 +759,7 @@ Iostat::PrintNs(XrdOucString &out, XrdOucString option)
       if (!monitoring) {
 	char outline[4096];
 	out +="# --------------------------------------------------------------------------------------\n";
-	out +="# Popularity by access count "; out += marker; out += " :\n";
-	out +="# --------------------------------------------------------------------------------------\n";
-	snprintf(outline,sizeof(outline)-1, "%-6s %-13s %-13s %-64s\n", "rank", "read count", "read bytes","path");
+	snprintf(outline,sizeof(outline)-1, "%-6s %-14s %-14s %-64s\n", "rank", "by(read count)", "read bytes","path");
 	out += outline;
 	out +="# --------------------------------------------------------------------------------------\n";
       }
@@ -770,6 +768,8 @@ Iostat::PrintNs(XrdOucString &out, XrdOucString option)
 
       for (popit = popularity_nread.begin(); popit != popularity_nread.end(); popit++) {
 	cnt++;
+	if (cnt > limit)
+	  break;
 	char line[4096];
 	char nr[256];
 	snprintf(nr,sizeof(nr)-1, "%u", popit->second.nread);
@@ -787,15 +787,15 @@ Iostat::PrintNs(XrdOucString &out, XrdOucString option)
       if (!monitoring) {
 	char outline[4096];
 	out +="# --------------------------------------------------------------------------------------\n";
-	out +="# Popularity by bytes read "; out += marker; out += " :\n";
-	out +="# --------------------------------------------------------------------------------------\n";
-	snprintf(outline,sizeof(outline)-1, "%-6s %-13s %-13s %-64s\n", "rank", "read bytes", "read count","path");
+	snprintf(outline,sizeof(outline)-1, "%-6s %-14s %-14s %-64s\n", "rank", "by(read bytes)", "read count","path");
 	out += outline;
 	out +="# --------------------------------------------------------------------------------------\n";
       }
       size_t cnt=0;
       for (popit = popularity_rb.begin(); popit != popularity_rb.end(); popit++) {
 	cnt++;
+	if (cnt>limit)
+	  break;
 	char line[4096];
 	char nr[256];
 	snprintf(nr,sizeof(nr)-1, "%u", popit->second.nread);

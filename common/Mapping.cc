@@ -101,7 +101,7 @@ Mapping::ActiveExpire(int interval)
  */
 /*----------------------------------------------------------------------------*/
 void 
-Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, Mapping::VirtualIdentity &vid)
+Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, Mapping::VirtualIdentity &vid, bool log)
 {
   if (!client) 
     return;
@@ -513,7 +513,9 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
   ActiveLock.UnLock();
 
   eos_static_debug("selected %d %d [%s %s]", vid.uid,vid.gid, ruid.c_str(),rgid.c_str());
-  eos_static_info("%s sec.tident=\"%s\"", eos::common::SecEntity::ToString(client, Env.Get("eos.app")).c_str(),tident);
+  if (log) {
+    eos_static_info("%s sec.tident=\"%s\"", eos::common::SecEntity::ToString(client, Env.Get("eos.app")).c_str(),tident);
+  }
 }
 
 /*----------------------------------------------------------------------------*/

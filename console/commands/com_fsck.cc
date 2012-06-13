@@ -81,7 +81,8 @@ com_fsck (char* arg1) {
            (option != "--unlink-orphans") &&
            (option != "--adjust-replicas") &&
            (option != "--drop-missing-replicas") &&
-	   (option != "--unlink-zero-replicas") ) )
+	   (option != "--unlink-zero-replicas") &&
+	   (option != "--all")) )
       goto com_fsck_usage;
     option.replace("--","");
     in += "&mgm.option=";
@@ -113,7 +114,7 @@ com_fsck (char* arg1) {
   fprintf(stdout,"       fsck repair --checksum-commit\n");
   fprintf(stdout,"                                                                  :  issues a 'verify' operation on all files with checksum errors and forces a commit of size and checksum to the MGM\n");
   fprintf(stdout,"       fsck repair --resync\n");
-  fprintf(stdout,"                                                                  :  issues a 'resync' operation on all files with any error. This will resync the MGM meta data to the storage node and will clean-up 'ghost' entries in the FST meta data cache.");
+  fprintf(stdout,"                                                                  :  issues a 'resync' operation on all files with any error. This will resync the MGM meta data to the storage node and will clean-up 'ghost' entries in the FST meta data cache.\n");
  
   fprintf(stdout,"       fsck repair --unlink-unregistered\n");
   fprintf(stdout,"                                                                  :  unlink replicas which are not connected/registered to their logical name\n");
@@ -125,6 +126,7 @@ com_fsck (char* arg1) {
   fprintf(stdout,"                                                                  :  just drop replicas from the namespace if they cannot be found on disk\n");
   fprintf(stdout,"       fsck repair --unlink-zero-replicas\n");                
   fprintf(stdout,"                                                                  :  drop all files which have no replica's attached and are older than 48 hours!\n");
+  fprintf(stdout,"       fsck repair --all                                          :  do all the repair actions besides <checksum-commit>\n");
 
   
 

@@ -135,7 +135,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Main mapping function to create a virtual identity from authentication information
   // ---------------------------------------------------------------------------
-  static void IdMap(const XrdSecEntity* client,const char* env, const char* tident, Mapping::VirtualIdentity &vid);
+  static void IdMap(const XrdSecEntity* client,const char* env, const char* tident, Mapping::VirtualIdentity &vid, bool log=true);
 
   // ---------------------------------------------------------------------------
   //! Map describing which virtual user roles a user with a given uid has

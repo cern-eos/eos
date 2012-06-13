@@ -2878,7 +2878,7 @@ int XrdMgmOfs::stat(const char              *inpath,      // In
 
   AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",path,error);
 
-  eos::common::Mapping::IdMap(client,info,tident,vid);
+  eos::common::Mapping::IdMap(client,info,tident,vid, false);
 
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;

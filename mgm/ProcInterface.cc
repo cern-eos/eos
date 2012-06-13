@@ -2267,11 +2267,26 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           XrdOucString option=""; 
           XrdOucString selection="";
           option = opaque.Get("mgm.option")?opaque.Get("mgm.option"):"";
-          if (gOFS->FsCheck.Repair(stdOut,stdErr, option))
-            retc=0;
-          else
-            retc=EINVAL;
-        }         
+	  if (option == "all") {
+	    retc = ( 
+		    gOFS->FsCheck.Repair(stdOut,stdErr, "checksum") &&
+		    gOFS->FsCheck.Repair(stdOut,stdErr, "unlink-unregistered") &&
+		    gOFS->FsCheck.Repair(stdOut,stdErr, "unlink-orphans") &&
+		    gOFS->FsCheck.Repair(stdOut,stdErr, "adjust-replicas") &&
+		    gOFS->FsCheck.Repair(stdOut,stdErr, "drop-missing-replicas") &&
+		    gOFS->FsCheck.Repair(stdOut,stdErr, "unlink-zero-replicas" ) &&
+		    gOFS->FsCheck.Repair(stdOut,stdErr, "resync" ) );
+	    if (retc)
+	      retc=0;
+	    else
+	      retc=EINVAL;
+	  } else {
+	    if (gOFS->FsCheck.Repair(stdOut,stdErr, option))
+	      retc=0;
+	    else
+	      retc=EINVAL;
+	  }  
+	}       
       }
 
       if (subcmd == "stat") {
