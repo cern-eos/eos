@@ -100,6 +100,7 @@ XrdOucString rstdjson;
 XrdOucString user_role="";
 XrdOucString group_role="";
 XrdOucString global_comment="";
+std::string exec_line="";
 
 int  global_retc         = 0;
 bool global_highlighting = true;
@@ -1189,18 +1190,21 @@ execute_line (char *line) {
   COMMAND *command;
   char *word;
 
-  std::string sline = line;
-  if (sline.substr(0,9) == "comment:\"") {
-    size_t pos = sline.find("\"",10);
-    if (pos == std::string::npos) {
-      fprintf(stderr,"error: syntax for comment is 'comment \" my comment \" <command> <args> ...'\n");
+  exec_line = line;
+  
+  size_t cbpos = exec_line.find("--comment \"");
+  size_t cepos;
+  if (cbpos != std::string::npos) {
+    cepos = exec_line.find("\"",cbpos+12);
+    if (cepos == std::string::npos) {
+      fprintf(stderr,"error: syntax for comment is '<command> <args> --comment \"...\"'\n");
       return 0;
     } else {
-      line += pos+1;
+      global_comment = exec_line.substr(cbpos+10, cepos+1-(cbpos+10)).c_str();
+      exec_line.erase(cbpos, cepos+1);
+      line = (char*)exec_line.c_str();
     }
-    global_comment = sline.substr(8,pos+1-8).c_str();
   }
-      
 
   /* Isolate the command word. */
   i = 0;
