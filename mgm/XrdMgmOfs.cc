@@ -4024,7 +4024,6 @@ XrdMgmOfs::FSctl(const int               cmd,
                  const XrdSecEntity     *client) 
 {
 
-  eos_static_info ("Calling FSctl. !!\n" );
   char ipath[16384];
   char iopaque[16384];
   
@@ -4910,7 +4909,6 @@ XrdMgmOfs::FSctl(const int               cmd,
       struct stat buf;
 
       // check if it is a file or directory ....
-      eos_info( "Do stat on the path: %s. \n", spath.c_str() );
       int retc = lstat(spath.c_str(),
                        &buf,  
                        error, 
