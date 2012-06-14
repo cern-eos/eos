@@ -547,6 +547,7 @@ void HierarchicalViewTest::lostContainerTest()
   eos::ContainerMD *cont1 = view->createContainer( "/test/embed/embed1", true );
   eos::ContainerMD *cont2 = view->createContainer( "/test/embed/embed2", true );
   eos::ContainerMD *cont3 = view->createContainer( "/test/embed/embed3", true );
+  eos::ContainerMD *cont4 = view->createContainer( "/test/embed/embed1/embedembed", true );
 
   //----------------------------------------------------------------------------
   // Create some files
@@ -556,16 +557,19 @@ void HierarchicalViewTest::lostContainerTest()
     std::ostringstream s1; s1 << "/test/embed/embed1/file" << i;
     std::ostringstream s2; s2 << "/test/embed/embed2/file" << i;
     std::ostringstream s3; s3 << "/test/embed/embed3/file" << i;
+    std::ostringstream s4; s4 << "/test/embed/embed1/embedembed/file" << i;
     view->createFile( s1.str() );
     view->createFile( s2.str() );
     view->createFile( s3.str() );
+    view->createFile( s4.str() );
   }
 
   //----------------------------------------------------------------------------
   // Remove one of the container keeping the files register with it to
   // simulate directory metadata loss
   //----------------------------------------------------------------------------
-  eos::ContainerMD::id_t removedId = cont1->getId();
+  eos::ContainerMD::id_t removedId    = cont1->getId();
+  eos::ContainerMD::id_t removedEmbId = cont4->getId();
   view->getContainerMDSvc()->removeContainer( cont1 );
 
   //----------------------------------------------------------------------------
@@ -577,13 +581,17 @@ void HierarchicalViewTest::lostContainerTest()
   //----------------------------------------------------------------------------
   // Check the containers
   //----------------------------------------------------------------------------
-  std::ostringstream s; s << "/lost+found/" << removedId;
-  CPPUNIT_ASSERT_NO_THROW( cont1 = view->getContainer( s.str() ) );
+  std::ostringstream s1; s1 << "/lost+found/orphans/" << removedId;
+  std::ostringstream s2; s2 << "/lost+found/orphans/" << removedId;
+  s2 << "/embedembed." << removedEmbId;
+  CPPUNIT_ASSERT_NO_THROW( cont1 = view->getContainer( s1.str() ) );
   CPPUNIT_ASSERT_NO_THROW( cont2 = view->getContainer( "/test/embed/embed2" ) );
   CPPUNIT_ASSERT_NO_THROW( cont3 = view->getContainer( "/test/embed/embed3" ) );
+  CPPUNIT_ASSERT_NO_THROW( cont4 = view->getContainer( s2.str() ) );
   CPPUNIT_ASSERT( cont1->getNumFiles() == 1000 );
   CPPUNIT_ASSERT( cont2->getNumFiles() == 1000 );
   CPPUNIT_ASSERT( cont3->getNumFiles() == 1000 );
+  CPPUNIT_ASSERT( cont4->getNumFiles() == 1000 );
 
   //----------------------------------------------------------------------------
   // Cleanup
