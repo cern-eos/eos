@@ -75,6 +75,8 @@ extern XrdOucString rstderr;
 extern XrdOucString user_role;
 extern XrdOucString group_role;
 extern XrdOucString serveruri;
+extern XrdOucString global_comment;
+
 extern void exit_handler (int a);
 
 extern int global_retc;

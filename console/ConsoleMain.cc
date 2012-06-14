@@ -99,6 +99,7 @@ XrdOucString rstderr;
 XrdOucString rstdjson;
 XrdOucString user_role="";
 XrdOucString group_role="";
+XrdOucString global_comment="";
 
 int  global_retc         = 0;
 bool global_highlighting = true;
@@ -669,6 +670,11 @@ client_admin_command(XrdOucString &in) {
   if (json) {
     in += "&mgm.format=json";
   }
+  if (global_comment.length()) {
+    in += "&mgm.comment=";
+    in += global_comment;
+    global_comment="";
+  }
   XrdMqTiming mytiming("eos");
   TIMING("start", &mytiming);
   XrdOucString out="";
@@ -709,6 +715,11 @@ client_user_command(XrdOucString &in) {
     in += "&eos.rgid="; in += group_role;
   if (json) {
     in += "&mgm.format=json";
+  }
+  if (global_comment.length()) {
+    in += "&mgm.comment=";
+    in += global_comment;
+    global_comment="";
   }
   XrdMqTiming mytiming("eos");
   TIMING("start", &mytiming);
@@ -1177,6 +1188,19 @@ execute_line (char *line) {
   register int i;
   COMMAND *command;
   char *word;
+
+  std::string sline = line;
+  if (sline.substr(0,9) == "comment:\"") {
+    size_t pos = sline.find("\"",10);
+    if (pos == std::string::npos) {
+      fprintf(stderr,"error: syntax for comment is 'comment \" my comment \" <command> <args> ...'\n");
+      return 0;
+    } else {
+      line += pos+1;
+    }
+    global_comment = sline.substr(8,pos+1-8).c_str();
+  }
+      
 
   /* Isolate the command word. */
   i = 0;
