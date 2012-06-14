@@ -638,8 +638,6 @@ public:
   XrdOucString     MgmMetaLogDir;      //  Directory containing the meta data (change) log files
   Stat             MgmStats;           //  Mgm Namespace Statistics
   Iostat           IoStats;            //  Mgm IO Statistics
-  bool             IoReportStore;      //  Mgm IO Reports get stored by default into /var/tmp/eos/report
-  bool             IoReportNamespace;  //  Mgm IO Reports get stored in a fake namespace attaching each report to a namespace file in <IoReportStorePath>
   XrdOucString     IoReportStorePath;  //  Mgm IO Report store path by default is /var/tmp/eos/report
   bool             ErrorLog;           //  Mgm writes error log with cluster collected file into /var/log/eos/error.log
   eos::common::CommentLog* commentLog; //  Mgm writes all proc commands with a comment into /var/log/eos/comments.log

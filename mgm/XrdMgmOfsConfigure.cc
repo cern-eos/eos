@@ -210,8 +210,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   MgmHealMap.set_deleted_key(0);
   MgmDirectoryModificationTime.set_deleted_key(0);
 
-  IoReportStore=false;
-  IoReportNamespace=false;
   IoReportStorePath="/var/tmp/eos/report";
 
   // cleanup the query output cache directory
@@ -476,38 +474,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
           }
         }
 
-        if (!strcmp("reportstore", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config","argument 2 for reportstore missing. Can be true/1 or false/0"); NoGo=1;
-          } else {
-            if ( (!(strcmp(val,"true"))) || (!(strcmp(val,"1")))) {
-              IoReportStore = true;
-            } else {
-              if ( (!(strcmp(val,"false"))) || (!(strcmp(val,"0")))) {
-                IoReportStore = false;
-              } else {
-                Eroute.Emsg("Config","argument 2 for reportstore invalid. Can be <true>/1 or <false>/0"); NoGo=1;
-              }
-            }
-          }
-        }
-
-        if (!strcmp("reportnamespace", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config","argument 2 for reportnamespace missing. Can be true/1 or false/0"); NoGo=1;
-          } else {
-            if ( (!(strcmp(val,"true"))) || (!(strcmp(val,"1")))) {
-              IoReportNamespace = true;
-            } else {
-              if ( (!(strcmp(val,"false"))) || (!(strcmp(val,"0")))) {
-                IoReportNamespace = false;
-              } else {
-                Eroute.Emsg("Config","argument 2 for reportstore invalid. Can be <true>/1 or <false>/0"); NoGo=1;
-              }
-            }
-          }
-        }
-
         if (!strcmp("reportstorepath",var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config","argument 2 for reportstorepath missing"); NoGo=1;
@@ -638,18 +604,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   } else {
     Eroute.Say("=====> mgmofs.fs: ",MgmOfsName.c_str(),"");
   } 
-
-  if (IoReportStore) {
-    Eroute.Say("=====> mgmofs.reportstore: enabled","");
-  } else {
-    Eroute.Say("=====> mgmofs.reportstore: disabled","");
-  }
-
-  if (IoReportNamespace) {
-    Eroute.Say("=====> mgmofs.reportnamespace: enabled","");
-  } else {
-    Eroute.Say("=====> mgmofs.reportnamespace: disabled","");
-  }
 
   if (ErrorLog)
     Eroute.Say("=====> mgmofs.errorlog : enabled");
@@ -1207,13 +1161,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   }
   // start IO ciruclate thread
   gOFS->IoStats.StartCirculate();
-
-  // start IO accounting
-  gOFS->IoStats.Start();
-
-
-  // don't start the FSCK thread yet automatically
-  // gOFS->FsCheck.Start();
 
   if (hash) {
     // ask for a broadcast from fst's

@@ -65,6 +65,8 @@ public:
   gid_t gid;               //< group id
   std::string td;          //< trace identifer
   std::string host;        //< server host
+  std::string server_name; //< server name without domain
+  std::string server_domain;//< server domain without server name
   unsigned long lid;       //< layout id
   unsigned long long fid;  //< file id
   unsigned long fsid;      //< filesystem id

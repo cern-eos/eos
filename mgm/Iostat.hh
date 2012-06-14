@@ -30,6 +30,7 @@
 #include "common/Logging.hh"
 #include "common/FileId.hh"
 #include "common/Path.hh"
+#include "common/Report.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
@@ -40,6 +41,7 @@
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
+
 
 // define the history in days we want to do popularity tracking
 #define IOSTAT_POPULARITY_HISTORY_DAYS 7 
@@ -61,7 +63,7 @@ public:
 
   ~IostatAvg(){};
 
-  void Add(unsigned long val, time_t starttime, time_t stoptime) {
+ void Add(unsigned long val, time_t starttime, time_t stoptime) {
     time_t now = time(0);
     
     size_t tdiff = stoptime-starttime;
@@ -212,17 +214,40 @@ private:
     }
   };
 
+
+  bool mReport;           // indicates if we store reports to the local report store
+
+  bool mReportNamespace;  // indicates if we fill the report namespace 
+
+  bool mReportPopularity; // indicates if we fill the popularity maps (protected by this::Mutex)
+
+
+  XrdSysMutex BroadcastMutex;  // protecting the following set
+  std::set<std::string> mUdpPopularityTarget; // contains all destinations for udp popularity packets
+  XrdOucString mUdpPopularityTargetList;      // contains the string describing the set above for the configuration store
   XrdOucString mStoreFileName; // file name where a dump is loaded/saved in Restore/Store
 
+
 public:
+  // configuration keys used in config key-val store
+  static const char* gIostatCollect;
+  static const char* gIostatReport;
+  static const char* gIostatReportNamespace;
+  static const char* gIostatPopularity;
+  static const char* gIostatUdpTargetList;
+
   pthread_t thread;
   pthread_t cthread;
   bool mRunning;
   bool mInit;
+
   XrdMqClient mClient;
 
   Iostat();
   ~Iostat();
+
+  void ApplyIostatConfig(); // apply the configuration settings to the iostat class
+  bool StoreIostatConfig(); // store the currently running settions of the iostat class to the configuration
 
   bool SetStoreFileName(const char* storefilename) {
     mStoreFileName = storefilename;
@@ -235,10 +260,22 @@ public:
   void StartCirculate();
   bool Start();
   bool Stop();
+  bool StartCollection();
+  bool StopCollection();
+  bool StartPopularity();
+  bool StopPopularity();
+  bool StartReport();
+  bool StopReport();
+  bool StartReportNamespace();
+  bool StopReportNamespace();
+  bool AddUdpTarget(const char* target);
+  bool RemoveUdpTarget(const char* target);
 
   void PrintOut(XrdOucString &out, bool summary, bool details, bool monitoring, bool numerical=false, bool top=false, bool domain=false, bool apps=false, XrdOucString option="");
 
   void PrintNs(XrdOucString &out, XrdOucString option="");
+
+  void UdpBroadCast(eos::common::Report*);
 
   static void* StaticReceive(void*);
   static void* StaticCirculate(void*);

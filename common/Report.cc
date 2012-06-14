@@ -47,6 +47,13 @@ Report::Report(XrdOucEnv &report)
   gid   = (gid_t) atoi(report.Get("rgid")?report.Get("rgid"):"0");
   td    = report.Get("td")?report.Get("td"):"none";
   host  = report.Get("host")?report.Get("host"):"none";
+  server_name   = host;
+  server_domain = host;
+  int dpos = host.find("."); 
+  if (dpos != STR_NPOS) {
+    server_name.erase(dpos);
+    server_domain.erase(0, dpos+1);
+  }
   lid   = strtoul(report.Get("lid")?report.Get("lid"):"0",0,10);
   fid   = strtoull(report.Get("fid")?report.Get("fid"):"0",0,10);
   fsid  = strtoul(report.Get("fsid")?report.Get("fsid"):"0",0,10);

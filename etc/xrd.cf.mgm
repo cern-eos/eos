@@ -45,11 +45,6 @@ mgmofs.metalog /var/eos/md
 
 # report store path
 mgmofs.reportstorepath /var/eos/report
-# record store is enabled by default
-mgmofs.reportstore true
-
-# record namespace is disabled by default - can be enabled on the fly with the 'io' command
-mgmofs.reportnamespace false
 
 # this defines the default config to load
 mgmofs.autoloadconfig default

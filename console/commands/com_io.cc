@@ -35,6 +35,8 @@ com_io (char* arg1) {
   XrdOucString options="";
   XrdOucString path="";
   XrdOucString in ="";
+  XrdOucString target = "";
+
   if ( ( cmd != "stat") && ( cmd != "enable" ) && ( cmd != "disable") && ( cmd != "report" ) && ( cmd != "ns") ) {
     goto com_io_usage;
   }
@@ -133,7 +135,19 @@ com_io (char* arg1) {
 			if ( option == "-l") {
 			  options += "l";
 			} else {
-			  goto com_io_usage;}
+			  if ( option == "-p" ) {
+			    options += "p";
+			  } else {
+			    if ( option == "--udp") {
+			      target = subtokenizer.GetToken();			      
+			      if ((!target.length()) || (target.beginswith("-"))) {
+				goto com_io_usage;
+			      }
+			    } else {
+			      goto com_io_usage;
+			    }
+			  }
+			}
 		      }
 		    }
 		  }
@@ -150,12 +164,14 @@ com_io (char* arg1) {
   if (options.length()) {
     in += "&mgm.option="; in += options;
   }  
-  
+  if (target.length()) {
+    in += "&mgm.udptarget="; in += target;
+  }
   global_retc = output_result(client_admin_command(in));
   return (0);
 
  com_io_usage:
-  fprintf(stdout,"usage: io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x]                 :  print io statistics\n");
+  fprintf(stdout,"usage: io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x]               :  print io statistics\n");
   fprintf(stdout,"                -l                                                   -  show summary information (this is the default if -t,-d,-x is not selected)\n");
   fprintf(stdout,"                -a                                                   -  break down by uid/gid\n");
   fprintf(stdout,"                -m                                                   -  print in <key>=<val> monitoring format\n");
@@ -163,11 +179,15 @@ com_io (char* arg1) {
   fprintf(stdout,"                -t                                                   -  print top user stats\n");
   fprintf(stdout,"                -d                                                   -  break down by domains\n");
   fprintf(stdout,"                -x                                                   -  break down by application\n");
-  fprintf(stdout,"       io enable [-r] [-n]                                        :  enable collection of io statistics\n");
+  fprintf(stdout,"       io enable [-r] [-p] [-n] [--udp <address>]                 :  enable collection of io statistics\n");
   fprintf(stdout,"                                                               -r    enable collection of io reports\n");
+  fprintf(stdout,"                                                               -p    enable popularity accounting\n");
   fprintf(stdout,"                                                               -n    enable report namespace\n");
-  fprintf(stdout,"       io disable [-r] [-n]                                       :  disable collection of io statistics\n");
+  fprintf(stdout,"                                                               --udp <address> add a UDP message target for io UDP packtes (the configured targets are shown by 'io stat -l'\n");
+  fprintf(stdout,"       io disable [-r] [-p] [-n]                                       :  disable collection of io statistics\n");
   fprintf(stdout,"                                                               -r    disable collection of io reports\n");
+  fprintf(stdout,"                                                               -p    disable popularity accounting\n");
+  fprintf(stdout,"                                                               --udp <address> remove a UDP message target for io UDP packtes\n");
   fprintf(stdout,"                                                               -n    disable report namespace\n");
   fprintf(stdout,"       io report <path>                                           :  show contents of report namespace for <path>\n");
   fprintf(stdout,"       io ns [-a] [-n] [-b] [-100|-1000|-10000] [-w]              :  show namespace IO ranking (popularity)\n");

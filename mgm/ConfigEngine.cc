@@ -503,6 +503,7 @@ ConfigEngine::ApplyConfig(XrdOucString &err)
   Access::ApplyAccessConfig();
 
   gOFS->FsCheck.ApplyFsckConfig();
+  gOFS->IoStats.ApplyIostatConfig();
 
   if (err.length()) {
     errno = EINVAL;

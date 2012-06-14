@@ -2134,64 +2134,98 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           retc = Iostat::NamespaceReport(path.c_str(), stdOut, stdErr);
         } else {
           XrdOucString option = opaque.Get("mgm.option");
+	  XrdOucString target = opaque.Get("mgm.udptarget");
           bool reports   = false;
           bool reportnamespace = false;
-          
+          bool popularity = false;
+
           if ((option.find("r")!=STR_NPOS)) 
             reports = true;
           
           if ((option.find("n")!=STR_NPOS))
             reportnamespace = true;
           
+          if ((option.find("p")!=STR_NPOS))
+	    popularity = true;
+
           if ( (!reports) && (!reportnamespace) ) {
             if (subcmd == "enable") {
-              if (gOFS->IoStats.Start()) {
-                stdOut += "success: enabled IO report collection";
-              } else {
-                stdErr += "error: IO report collection already enabled";;
-              }
+	      if (target.length()) {
+		if (gOFS->IoStats.AddUdpTarget(target.c_str())) {
+		  stdOut += "success: enabled IO udp target "; stdOut += target.c_str();
+		} else {
+		  stdErr += "error: IO udp target was not configured "; stdErr += target.c_str();
+		}
+	      } else {
+		if (popularity) {
+		  gOFS->IoStats.Start(); // always enable collection otherwise we don't get anything for popularity reporting
+		  if (gOFS->IoStats.StartPopularity()) {
+		    stdOut += "success: enabled IO popularity collection";
+		  } else {
+		    stdErr += "error: IO popularity collection already enabled";;
+		  }
+		} else {
+		  if (gOFS->IoStats.StartCollection()) {
+		    stdOut += "success: enabled IO report collection";
+		  } else {
+		    stdErr += "error: IO report collection already enabled";;
+		  }
+		}
+	      }
             }
             if (subcmd == "disable") {
-              if (gOFS->IoStats.Stop()) {
-                stdOut += "success: disabled IO report collection";
-              } else {
-                stdErr += "error: IO report collection was already disabled";
-              }
+	      if (target.length()) {
+		if (gOFS->IoStats.RemoveUdpTarget(target.c_str())) {
+		  stdOut += "success: disabled IO udp target "; stdOut += target.c_str();
+		} else {
+		  stdErr += "error: IO udp target was not configured "; stdErr += target.c_str();
+		}
+	      } else {
+		if (popularity) {
+		  if (gOFS->IoStats.StopPopularity()) {
+		    stdOut += "success: disabled IO popularity collection";
+		  } else {
+		    stdErr += "error: IO popularity collection already disabled";;
+		  }
+		} else {
+		  if (gOFS->IoStats.StopCollection()) {
+		    stdOut += "success: disabled IO report collection";
+		  } else {
+		    stdErr += "error: IO report collection was already disabled";
+		  }
+		}
+	      }
             }
           } else {
             if (reports) {
               if (subcmd == "enable") {
-                if (gOFS->IoReportStore) {
+                if (gOFS->IoStats.StartReport()) {
                   stdErr += "error: IO report store already enabled";;
                 } else {
                   stdOut += "success: enabled IO report store";
-                  gOFS->IoReportStore=true;
                 }
               }
               if (subcmd == "disable") {
-                if (!gOFS->IoReportStore) {
+                if (!gOFS->IoStats.StopReport()) {
                   stdErr += "error: IO report store already disabled";;
                 } else {
                   stdOut += "success: disabled IO report store";
-                  gOFS->IoReportStore=false;
                 }
               }
             }
             if (reportnamespace) {
               if (subcmd == "enable") {
-                if (gOFS->IoReportNamespace) {
+                if (gOFS->IoStats.StartReportNamespace()) {
                   stdErr += "error: IO report namespace already enabled";;
                 } else {
                   stdOut += "success: enabled IO report namespace";
-                  gOFS->IoReportNamespace=true;
                 }
               }
               if (subcmd == "disable") {
-                if (!gOFS->IoReportNamespace) {
+                if (!gOFS->IoStats.StopReportNamespace()) {
                   stdErr += "error: IO report namespace already disabled";;
                 } else {
                   stdOut += "success: disabled IO report namespace";
-                  gOFS->IoReportNamespace=false;
                 }
               }
             }
