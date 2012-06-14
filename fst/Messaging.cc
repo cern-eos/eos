@@ -218,7 +218,7 @@ Messaging::Process(XrdMqMessage* newmessage)
       eos_err("dropping resync fsid=%lu fid=%llu", (unsigned long)fsid, (unsigned long long) fid);
     } else {
       FmdSqlite* fMd = 0;
-      fMd = gFmdSqliteHandler.GetFmd(fid, fsid, 0, 0, 0, 0, 0);
+      fMd = gFmdSqliteHandler.GetFmd(fid, fsid, 0, 0, 0, 0, true);
       if (fMd) {
 	// force a resync of meta data from the MGM
 	// e.g. store in the WrittenFilesQueue to have it done asynchronous

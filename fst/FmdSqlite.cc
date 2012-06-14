@@ -324,6 +324,12 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
 {
 
   eos_info("fid=%08llx fsid=%lu", fid, fsid);
+
+  if (fid == 0) {
+    eos_warning("fid=0 requested for fsid=", fsid);
+    return 0;
+  }
+
   Mutex.LockRead();
 
   if (DB.count(fsid)) {
@@ -811,7 +817,7 @@ FmdSqliteHandler::ResyncDisk(const char* path, eos::common::FileSystem::fsid_t f
 	  }
 	}
 	
-	// now update the SQLITE DB
+	// now updaAte the SQLITE DB
 	if (!UpdateFromDisk(fsid,fid, disksize, diskchecksum, checktime, (filecxError =="1")?1:0, (blockcxError == "1")?1:0,flaglayouterror)) {
 	  eos_err("failed to update SQLITE DB for fsid=%lu fid=%08llx", fsid, fid);
 	  retc = false;
@@ -908,13 +914,17 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
        (rc == ENODATA)) {
     if (rc == ENODATA) {
       eos_warning("no such file on MGM for fid=%llu", fMd.fid);
+      if (fid==0) {
+	eos_warning("removing fid=0 entry");
+	return DeleteFmd(fMd.fid, fsid);
+      }
     }
 
     // define layouterrors
     fMd.layouterror = FmdSqlite::LayoutError(fsid,fMd.lid, fMd.locations);
 
     // get an existing record without creation of a record !!!
-    FmdSqlite* fmd = GetFmd(fMd.fid, fsid, fMd.uid, fMd.gid, fMd.lid, false, false);
+    FmdSqlite* fmd = GetFmd(fMd.fid, fsid, fMd.uid, fMd.gid, fMd.lid, false, true);
     if (fmd) {
       // check if there was a disk replica
       if (fmd->fMd.disksize == 0xfffffff1ULL) {
@@ -941,6 +951,14 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
       if (fmd->fMd.disksize == 0xfffffff1ULL) {
 	fMd.layouterror |= eos::common::LayoutId::kMissing;
 	eos_warning("found missing replica for fid=%llu on fsid=%lu", fMd.fid, (unsigned long) fsid);
+      }
+
+      // check if it exists on disk and on the mgm
+      if ( (fmd->fMd.disksize == 0xfffffff1ULL) && (fmd->fMd.mgmsize == 0xfffffff1ULL) ) {
+	// there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
+	eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fMd.fid, fsid);
+	delete fmd;
+	return DeleteFmd(fMd.fid, fsid);
       }
     } else {
       eos_err("failed to get/create fmd for fid=%08llx", fMd.fid);
