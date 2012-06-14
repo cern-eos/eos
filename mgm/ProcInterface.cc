@@ -64,7 +64,7 @@ EOSMGMNAMESPACE_BEGIN
 ProcInterface::ProcInterface()
 
 {  
-
+  
 }
 
 /*----------------------------------------------------------------------------*/
@@ -134,6 +134,10 @@ ProcCommand::ProcCommand()
   path = "";
   adminCmd = userCmd = 0;
   error = 0;
+  comment = "";
+  args = "";
+  exectime = time(NULL);
+  closed = true;
   fstdout = fstderr = fresultStream = 0;
   fstdoutfilename = fstderrfilename = fresultStreamfilename = "";
 }
@@ -191,7 +195,7 @@ int
 ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::VirtualIdentity &vid_in, XrdOucErrInfo   *error) 
 {
   pVid = &vid_in;
-
+  closed = false;
   path = inpath;
   bool dosort = false;
   if ( (path.beginswith ("/proc/admin")) ) {
@@ -209,6 +213,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
   subcmd       = opaque.Get("mgm.subcmd");
   outformat    = opaque.Get("mgm.outformat");
   const char* selection    = opaque.Get("mgm.selection");
+  comment      = opaque.Get("mgm.comment")?opaque.Get("mgm.comment"):"";
+  int envlen=0;
+  args         = opaque.Env(envlen);
 
   fuseformat = false;
   jsonformat = false;
@@ -5239,6 +5246,17 @@ ProcCommand::stat(struct stat* buf)
 int
 ProcCommand::close() 
 {
+  if (!closed) {
+    // only instance users or sudoers can add to the log book
+    if ( (pVid->uid <=2) || (pVid->sudoer) ) {
+      if (comment.length() && gOFS->commentLog) {
+	if (!gOFS->commentLog->Add(exectime, cmd.c_str(), subcmd.c_str(), args.c_str(), comment.c_str(), stdErr.c_str(), retc)) {
+	  eos_err("failed to log to comment log file");
+	}
+      }
+    }
+    closed = true;
+  }
   return retc;
 }
 

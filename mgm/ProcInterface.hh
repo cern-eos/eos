@@ -58,8 +58,10 @@ private:
   XrdOucString fstdoutfilename;
   XrdOucString fstderrfilename;
   XrdOucString fresultStreamfilename;
-
   XrdOucErrInfo*   error;
+
+  XrdOucString comment;
+  time_t       exectime;
 
   size_t len;
   off_t  offset;
@@ -70,7 +72,7 @@ private:
 
   bool fuseformat;
   bool jsonformat;
-
+  bool closed;
 public:
 
   int open(const char* path, const char* info, eos::common::Mapping::VirtualIdentity &vid, XrdOucErrInfo *error);

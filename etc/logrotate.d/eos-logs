@@ -16,6 +16,15 @@
         compress
 }
 
+/var/log/eos/mgm/logbook.log {
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
 /var/log/eos/fst/eoscp.log {
 	daily
         copytruncate

@@ -30,6 +30,7 @@
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
 #include "common/GlobalConfig.hh"
+#include "common/CommentLog.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "mgm/ProcInterface.hh"
@@ -640,7 +641,8 @@ public:
   bool             IoReportStore;      //  Mgm IO Reports get stored by default into /var/tmp/eos/report
   bool             IoReportNamespace;  //  Mgm IO Reports get stored in a fake namespace attaching each report to a namespace file in <IoReportStorePath>
   XrdOucString     IoReportStorePath;  //  Mgm IO Report store path by default is /var/tmp/eos/report
-  bool             ErrorLog;           //  Mgm writes error log with cluster collected file into /var/log/eos/errorlog.eos
+  bool             ErrorLog;           //  Mgm writes error log with cluster collected file into /var/log/eos/error.log
+  eos::common::CommentLog* commentLog; //  Mgm writes all proc commands with a comment into /var/log/eos/comments.log
 
   Fsck             FsCheck;            // Class checking the filesystem
   google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;

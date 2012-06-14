@@ -722,6 +722,14 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   // start the config enging
   ConfEngine = new ConfigEngine(MgmConfigDir.c_str());
 
+  // create comment log
+  commentLog = new eos::common::CommentLog("/var/log/eos/mgm/logbook.log");
+  if (commentLog && commentLog->IsValid()) {
+    Eroute.Say("=====> comment log in /var/log/eos/mgm/logbook.log");
+  } else {
+    Eroute.Emsg("Config","I cannot create/open the comment log file /var/log/eos/mgm/logbook.log"); NoGo=1;
+  }
+  
   if (ConfigAutoSave && (!getenv("EOS_AUTOSAVE_CONFIG"))) {
     Eroute.Say("=====> mgmofs.autosaveconfig: true","");
     ConfEngine->SetAutoSave(true);
