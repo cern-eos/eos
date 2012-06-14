@@ -217,11 +217,12 @@ com_attr (char* arg1) {
   fprintf(stdout,"         sys.acl=<acllist>                     : set's an ACL which is honoured for open,rm & rmdir operations\n");
   fprintf(stdout,"               => <acllist> = <rule1>,<rule2>...<ruleN> is a comma separated list of rules\n");
   fprintf(stdout,"               => <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)} \n\n");
-  fprintf(stdout,"               e.g.: <acllist=\"u:300:rw,g:z2:rwo:egroup:eos-dev:rwx,u:500:rwm!d\"\n\n");
+  fprintf(stdout,"               e.g.: <acllist=\"u:300:rw,g:z2:rwo:egroup:eos-dev:rwx,u:500:rwm!d:u:600:rwq\"\n\n");
   fprintf(stdout,"               => user id 300 can read + write\n");
   fprintf(stdout,"               => group z2 can read + write-once (create new files but can't delete)\n");
   fprintf(stdout,"               => members of egroup 'eos-dev' can read & write & browse\n");
   fprintf(stdout,"               => user id 500 can read + write into and chmod, but cannot delete the directory itself!\n");
+  fprintf(stdout,"               => user id 600 can read + write and administer the quota node\n");
   fprintf(stdout,"              '+d' : this tag can be used to overwrite a group rule excluding deletion via '!d' for certain users\n");
  
   

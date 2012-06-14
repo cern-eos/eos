@@ -2820,7 +2820,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	} catch ( eos::MDException &e ) {
 	  ;
 	}
-	
+
 	Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);	
 	canQuota = acl.CanSetQuota();
       }
@@ -5059,7 +5059,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           retc = 0;
           XrdOucString key = opaque.Get("mgm.attr.key");
           XrdOucString val = opaque.Get("mgm.attr.value");
-          
+	  
+	  bool removed_quote=false;
+	  while (val.replace("\"","")) {removed_quote=true;}
+	  if (removed_quote) {
+	    stdErr += "warning: removed quotes from attribute value";
+	  }
           // find everything to be modified
 	  std::map<std::string, std::set<std::string> > found;
 	  std::map<std::string, std::set<std::string> >::const_iterator foundit;

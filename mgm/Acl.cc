@@ -117,7 +117,6 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
   // ---------------------------------------------------------------------------
   for (it = rules.begin(); it != rules.end(); it++) {
     bool egroupmatch = false;
-    
     // ---------------------------------------------------------------------------
     //! check for e-group membership
     // ---------------------------------------------------------------------------
@@ -132,7 +131,6 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
       egroupmatch = Egroup::Member(username, entry[1]);
       hasEgroup = egroupmatch;
     }
-
     // ---------------------------------------------------------------------------
     //! match 'our' rule
     // ---------------------------------------------------------------------------
