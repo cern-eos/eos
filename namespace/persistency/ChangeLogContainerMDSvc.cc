@@ -45,14 +45,34 @@ namespace eos
     pFirstFreeId = scanner.getLargestId()+1;
 
     //--------------------------------------------------------------------------
-    // Recreate the containers
+    // Recreate the container structure
     //--------------------------------------------------------------------------
     IdMap::iterator it;
+    ContainerList   orphans;
     for( it = pIdMap.begin(); it != pIdMap.end(); ++it )
     {
       if( it->second.ptr )
         continue;
-      recreateContainer( it );
+      recreateContainer( it, orphans );
+    }
+
+    //--------------------------------------------------------------------------
+    // Deal with the orphans
+    //--------------------------------------------------------------------------
+    ContainerMD *orphansCont = getLostFoundContainer( "orphans" );
+
+    ContainerList::iterator orphIt;
+    for( orphIt = orphans.begin(); orphIt != orphans.end(); ++orphIt )
+    {
+      std::ostringstream s1, s2;
+      s1 << (*orphIt)->getParentId();
+      ContainerMD *cont = orphansCont->findContainer( s1.str() );
+      if( !cont )
+        cont = createInParent( s1.str(), orphansCont );
+
+      s2 << (*orphIt)->getName() << "." << (*orphIt)->getId();
+      (*orphIt)->setName( s2.str() );
+      cont->addContainer( *orphIt );
     }
   }
 
@@ -193,13 +213,14 @@ namespace eos
   //----------------------------------------------------------------------------
   // Recreate the container
   //----------------------------------------------------------------------------
-  void ChangeLogContainerMDSvc::recreateContainer( IdMap::iterator &it )
+  void ChangeLogContainerMDSvc::recreateContainer( IdMap::iterator &it,
+                                                   ContainerList   &orphans )
   {
     Buffer buffer;
     pChangeLog->readRecord( it->second.logOffset, buffer );
     ContainerMD *container = new ContainerMD( 0 );
-    std::auto_ptr<ContainerMD> ptr( container );
     container->deserialize( buffer );
+    it->second.ptr = container;
 
     //--------------------------------------------------------------------------
     // For non-root containers recreate the parent
@@ -210,20 +231,76 @@ namespace eos
 
       if( parentIt == pIdMap.end() )
       {
-        MDException e( ENOENT );
-        e.getMessage() << "Parent of the container #" << container->getId();
-        e.getMessage() << " does not exist (#" << container->getParentId();
-        e.getMessage() << ")";
-        throw e;
+        orphans.push_back( container );
+        return;
       }
 
       if( !(parentIt->second.ptr) )
-        recreateContainer( parentIt );
+        recreateContainer( parentIt, orphans );
 
       parentIt->second.ptr->addContainer( container );
     }
-    it->second.ptr = container;
-    ptr.release();
+  }
+
+  //------------------------------------------------------------------------
+  // Create container in parent
+  //------------------------------------------------------------------------
+  ContainerMD *ChangeLogContainerMDSvc::createInParent(
+                const std::string &name,
+                ContainerMD       *parent )
+                throw( MDException )
+  {
+      ContainerMD *container = createContainer();
+      container->setName( name );
+      parent->addContainer( container );
+      updateStore( container );
+      return container;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the lost+found container, create if necessary
+  //----------------------------------------------------------------------------
+  ContainerMD *ChangeLogContainerMDSvc::getLostFound() throw( MDException )
+  {
+    //--------------------------------------------------------------------------
+    // Get root
+    //--------------------------------------------------------------------------
+    ContainerMD *root = 0;
+    try
+    {
+      root = getContainerMD( 1 );
+    }
+    catch( MDException &e )
+    {
+      root = createContainer();
+      root->setParentId( root->getId() );
+      updateStore( root );
+    }
+
+    //--------------------------------------------------------------------------
+    // Get or create lost+found if necessary
+    //--------------------------------------------------------------------------
+    ContainerMD *lostFound = root->findContainer( "lost+found" );
+    if( lostFound )
+      return lostFound;
+    return createInParent( "lost+found", root );
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the orphans container
+  //----------------------------------------------------------------------------
+  ContainerMD *ChangeLogContainerMDSvc::getLostFoundContainer(
+                const std::string &name ) throw( MDException )
+  {
+    ContainerMD *lostFound = getLostFound();
+
+    if( name.empty() )
+      return lostFound;
+
+    ContainerMD *cont = lostFound->findContainer( name );
+    if( cont )
+      return cont;
+    return createInParent( name, lostFound );
   }
 
   //----------------------------------------------------------------------------

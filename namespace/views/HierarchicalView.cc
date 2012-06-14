@@ -504,18 +504,21 @@ namespace eos
     //--------------------------------------------------------------------------
     if( !cont )
     {
-      std::ostringstream s;
-      s << "/lost+found/" << file->getContainerId();
+      std::ostringstream s1, s2;
+      s1 << "/lost+found/orphans/" << file->getContainerId();
       try
       {
-        cont = pView->createContainer( s.str(), true );
+        cont = pView->createContainer( s1.str(), true );
       }
       catch( MDException &e )
       {
         if( e.getErrno() != EEXIST )
           throw;
       }
-      cont = pView->getContainer( s.str() );
+
+      s2 << file->getName() << "." << file->getId();
+      file->setName( s2.str() );
+      cont = pView->getContainer( s1.str() );
       cont->addFile( file );
     }
 

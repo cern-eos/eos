@@ -138,6 +138,7 @@ namespace eos
 
       typedef google::dense_hash_map<ContainerMD::id_t, DataInfo> IdMap;
       typedef std::list<IContainerMDChangeListener*>              ListenerList;
+      typedef std::list<ContainerMD*>                             ContainerList;
 
       //------------------------------------------------------------------------
       // Changelog record scanner
@@ -170,9 +171,28 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
-      // Recreate the container
+      // Recreate the container structure recursively and create the list
+      // of orphans
       //------------------------------------------------------------------------
-      void recreateContainer( IdMap::iterator &it );
+      void recreateContainer( IdMap::iterator &it, ContainerList &orphans );
+
+      //------------------------------------------------------------------------
+      // Create container in parent
+      //------------------------------------------------------------------------
+      ContainerMD *createInParent( const std::string &name,
+                                   ContainerMD       *parent )
+                    throw( MDException );
+
+      //------------------------------------------------------------------------
+      // Get the lost+found container, create if necessary
+      //------------------------------------------------------------------------
+      ContainerMD *getLostFound() throw( MDException );
+
+      //------------------------------------------------------------------------
+      // Get the orphans container
+      //------------------------------------------------------------------------
+      ContainerMD *getLostFoundContainer( const std::string &name )
+                    throw( MDException );
 
       //------------------------------------------------------------------------
       // Data members
