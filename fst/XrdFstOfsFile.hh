@@ -26,6 +26,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
+#include <vector>
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/Fmd.hh"
@@ -105,7 +106,7 @@ public:
   int          truncate(XrdSfsFileOffset   fileOffset);
   int          truncateofs(XrdSfsFileOffset   fileOffset);
 
-  XrdFstOfsFile(const char* user, int MonID=0) : XrdOfsFile(user,MonID){openOpaque = 0; capOpaque = 0; fstPath=""; fstBlockXS=0; fstBlockSize=0; eos::common::LogId(); closed=false; opened=false; haswrite=false; fMd = 0;checkSum = 0; layOut = 0; isRW= 0; isCreation = 0; rBytes=wBytes=srBytes=swBytes=rOffset=wOffset=0; rTime.tv_sec=wTime.tv_sec=lrTime.tv_sec=lwTime.tv_sec=rTime.tv_usec=wTime.tv_usec=lrTime.tv_usec=lwTime.tv_usec=cTime.tv_sec=cTime.tv_usec=0;fileid=0;fsid=0;lid=0;cid=0;rCalls=wCalls=0; localPrefix="";maxOffsetWritten=0;openSize=0;closeSize=0;isReplication=false; deleteOnClose=false; closeTime.tv_sec = closeTime.tv_usec = openTime.tv_sec = openTime.tv_usec = tz.tz_dsttime = tz.tz_minuteswest = 0;viaDelete=false;SecString="";}
+  XrdFstOfsFile(const char* user, int MonID=0) : XrdOfsFile(user,MonID){openOpaque = 0; capOpaque = 0; fstPath=""; fstBlockXS=0; fstBlockSize=0; eos::common::LogId(); closed=false; opened=false; haswrite=false; fMd = 0;checkSum = 0; layOut = 0; isRW= 0; isCreation = 0; srBytes=swBytes=rOffset=wOffset=0; rTime.tv_sec=wTime.tv_sec=lrTime.tv_sec=lwTime.tv_sec=rTime.tv_usec=wTime.tv_usec=lrTime.tv_usec=lwTime.tv_usec=cTime.tv_sec=cTime.tv_usec=0;fileid=0;fsid=0;lid=0;cid=0;rCalls=wCalls=0; localPrefix="";maxOffsetWritten=0;openSize=0;closeSize=0;isReplication=false; deleteOnClose=false; closeTime.tv_sec = closeTime.tv_usec = openTime.tv_sec = openTime.tv_usec = tz.tz_dsttime = tz.tz_minuteswest = 0;viaDelete=false;SecString="";}
   virtual ~XrdFstOfsFile() {
     viaDelete = true;
     if (!closed) {
@@ -166,8 +167,8 @@ protected:
   struct timeval openTime;
   struct timeval closeTime;
   struct timezone tz;
-  unsigned long long rBytes; // sum bytes read
-  unsigned long long wBytes; // sum bytes written
+  std::vector<unsigned long long> rvec; // vector with all read  sizes -> to compute sigma,min,max,total
+  std::vector<unsigned long long> wvec; // vector with all write sizes -> to compute sigma,min,max,total
   unsigned long long srBytes;// sum bytes seeked
   unsigned long long swBytes;// sum bytes seeked
   unsigned long rCalls;      // number of read calls
@@ -194,12 +195,7 @@ protected:
     wTime.tv_usec += (mus%1000000);
   }
   
-  void MakeReportEnv(XrdOucString &reportString) {
-    char report[16384];
-    sprintf(report,"log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&cts=%lu&ctms=%lu&rb=%llu&wb=%llu&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f&osize=%llu&csize=%llu&%s",this->logId,Path.c_str(),this->vid.uid,this->vid.gid, tIdent.c_str(), hostName.c_str(),lid, fileid, fsid, openTime.tv_sec, (unsigned long)openTime.tv_usec/1000,closeTime.tv_sec,(unsigned long)closeTime.tv_usec/1000,rBytes,wBytes,srBytes,swBytes,rCalls, wCalls,((rTime.tv_sec*1000.0)+(rTime.tv_usec/1000.0)), ((wTime.tv_sec*1000.0) + (wTime.tv_usec/1000.0)), (unsigned long long) openSize, (unsigned long long) closeSize, eos::common::SecEntity::ToEnv(SecString.c_str()).c_str());
-    reportString = report;
-  }
-
+  void MakeReportEnv(XrdOucString &reportString);
 };
 
 EOSFSTNAMESPACE_END
