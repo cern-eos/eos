@@ -317,8 +317,8 @@ CacheImpl::AddWrite( XrdCl::File*&        ref_file,
       pEntry = iTmp->second.first;
       itList = iTmp->second.second;
 
-      if ( !pEntry->IsWr() ) {
-        eos_static_err( "error=found write bloce, when only reads expected" );
+      if ( pEntry->IsWr() ) {
+        eos_static_err( "error=found write block, when only reads expected" );
         exit( -1 );
       }
 
