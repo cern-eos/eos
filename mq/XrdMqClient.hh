@@ -39,6 +39,7 @@ class XrdMqClient {
 private:
   static XrdSysMutex          Mutex;
   XrdOucHash <XrdOucString>   kBrokerUrls;
+  XrdOucHash <XrdOucString>   kBrokerAliasUrls;
   XrdOucHash <XrdClient>      kBrokerXrdClientReceiver;
   XrdOucHash <XrdClientAdmin> kBrokerXrdClientSender;
   time_t                      kBrokerXrdClientReceiverAliasTimeStamp[256];

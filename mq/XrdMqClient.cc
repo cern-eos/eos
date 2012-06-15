@@ -34,6 +34,11 @@ const char *XrdMqClientCVSID = "$Id: XrdMqClient.cc,v 1.0.0 2007/10/04 01:34:19 
 #include <setjmp.h>
 #include <signal.h>
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+
 /******************************************************************************/
 /*                        X r d M q C l i e n t                               */
 /******************************************************************************/
@@ -319,9 +324,56 @@ bool XrdMqClient::RegisterRecvCallback(void (*callback_func)(void *arg)) {
 /*----------------------------------------------------------------------------*/
 XrdOucString*
 XrdMqClient::GetBrokerUrl(int i) {
+  static XrdSysMutex AliasMutex;
+  static time_t AliasResolved=0;
+
   XrdOucString n = "";
   n+= i;
-  return kBrokerUrls.Find(n.c_str());
+  // split url
+  XrdOucString* s = kBrokerUrls.Find(n.c_str());
+  XrdOucString* a = kBrokerAliasUrls.Find(n.c_str());
+  XrdSysMutexHelper vMutex(AliasMutex);
+  // if we didn't resolve the name yet or it is older than 5 seconds, resolve it ...
+  if ( (!a) || (  (time(NULL)-AliasResolved)>5)) {
+    int hstart = s->find("://");
+    int dstop  = s->find(":", (hstart>2)?(hstart+3):0);
+    int hstop  = s->find("//",(hstart>2)?(hstart+3):0);
+    XrdOucString hostname;
+    XrdOucString queue;
+    XrdOucString port;
+    hostname.assign(*s,hstart+3,(dstop>0)?(dstop-1):(hstop-1));
+    if (dstop>0) {
+      port.assign(*s, dstop, hstop-1);
+    }
+    queue.assign(*s, hstop);
+    //    fprintf(stdout,"hostname=%s port=%s queue=%s\n", hostname.c_str(), port.c_str(), queue.c_str());
+    AliasResolved=time(NULL);
+
+    // resolve the hostname to an ip, this is not IPV6 compatible
+    struct hostent *hp;
+    struct hostent *rhp;
+    hp = gethostbyname(hostname.c_str());
+    hostname = "localhost";
+    if (hp) {
+      if (hp->h_addrtype == AF_INET ) {
+	if (hp->h_addr_list[0]) {
+	  hostname=inet_ntoa( *(struct in_addr *)hp->h_addr_list[0]);
+	  rhp = gethostbyaddr(hp->h_addr_list[0], sizeof(int),AF_INET);
+	  if (rhp) {
+	    hostname = rhp->h_name;
+	  }
+	}
+      }
+    }
+    if (hostname == "localhost") {
+      hostname = "localhost.localdomain";
+    }
+    XrdOucString* alias = new XrdOucString();
+    *alias = "root://"; *alias += hostname; *alias += port; *alias += queue;
+    kBrokerAliasUrls.Rep(n.c_str(), alias);
+    //    fprintf(stderr,"alias=%s\n", alias->c_str());
+  }
+  return kBrokerAliasUrls.Find(n.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
@@ -386,20 +438,18 @@ void XrdMqClient::CheckBrokerXrdClientReceiver(int i) {
         ( (time(NULL) - kBrokerXrdClientReceiverAliasTimeStamp[i]) < 10 ) ) {
       // do nothing
     } else {
-      XrdClientUrlSet alias(GetBrokerUrl(i)->c_str());
-      alias.Rewind();
-      XrdClientUrlInfo* currentalias = alias.GetNextUrl();
       if (client && client->GetClientConn()) {
-	if ( (!currentalias) || (currentalias->GetUrl() != client->GetClientConn()->GetCurrentUrl().GetUrl())) {
-	  fprintf(stderr,"XrdMqClient::CheckBrokerXrdClientReceiver => Broker alias changed from %s => %s\n", client->GetClientConn()->GetCurrentUrl().GetUrl().c_str(), currentalias->GetUrl().c_str());
+	//	fprintf(stderr,"Checking Broker\n");
+	XrdOucString* bk = GetBrokerUrl(i);
+	if ( (!kBrokerXrdClientReceiverAliasTimeStamp[i]) || ((bk) && (*bk != client->GetClientConn()->GetCurrentUrl().GetUrl()))) {
+	  fprintf(stderr,"XrdMqClient::CheckBrokerXrdClientReceiver => Broker alias changed from %s => %s\n", client->GetClientConn()->GetCurrentUrl().GetUrl().c_str(), bk->c_str());
 	  
 	  ReNewBrokerXrdClientReceiver(i);
 	  // get the new client object
 	  GetBrokerXrdClientReceiver(i);
 	  // the alias has been switched, del the client and create a new one to connect to the new alias
-
-	  kBrokerXrdClientReceiverAliasTimeStamp[i] = time(NULL);
 	}
+	kBrokerXrdClientReceiverAliasTimeStamp[i] = time(NULL);
       }
     }
   }
