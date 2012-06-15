@@ -71,7 +71,13 @@ public:
   unsigned long long fid;  //< file id
   unsigned long fsid;      //< filesystem id
   unsigned long long rb;   //< bytes read
-  unsigned long long wb;   //< bytes written
+  unsigned long long rb_min;   //< bytes read min
+  unsigned long long rb_max;   //< bytes read max
+  double             rb_sigma; //< bytes read sigma
+  unsigned long long wb;       //< bytes written
+  unsigned long long wb_min;   //< bytes written min 
+  unsigned long long wb_max;   //< bytes written max
+  double             wb_sigma; //< bytes written sigma
   unsigned long long srb;  //< seeked bytes for read
   unsigned long long swb;  //< seeked bytes for write
   unsigned long long nrc;  //< number of read calls
