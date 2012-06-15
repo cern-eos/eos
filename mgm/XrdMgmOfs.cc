@@ -3699,7 +3699,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 
   eos::common::Mapping::VirtualIdentity vid;
 
-  eos::common::Mapping::IdMap(client,"",tident,vid);  
+  eos::common::Mapping::IdMap(client,"",tident,vid, false);  
   
   eos::common::LogId ThreadLogId;
   ThreadLogId.SetSingleShotLogId(tident);
