@@ -38,6 +38,10 @@
 #include <sys/types.h>
 #include <string>
 #include <set>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -224,6 +228,8 @@ private:
 
   XrdSysMutex BroadcastMutex;  // protecting the following set
   std::set<std::string> mUdpPopularityTarget; // contains all destinations for udp popularity packets
+  std::map<std::string, int> mUdpSocket;      // contains a socket to the udp destination
+  std::map<std::string, struct sockaddr_in> mUdpSockAddr;  // contains the socket address structure to be reused for messages
   XrdOucString mUdpPopularityTargetList;      // contains the string describing the set above for the configuration store
   XrdOucString mStoreFileName; // file name where a dump is loaded/saved in Restore/Store
 
@@ -268,7 +274,7 @@ public:
   bool StopReport();
   bool StartReportNamespace();
   bool StopReportNamespace();
-  bool AddUdpTarget(const char* target);
+  bool AddUdpTarget(const char* target, bool storeitandlock=true);
   bool RemoveUdpTarget(const char* target);
 
   void PrintOut(XrdOucString &out, bool summary, bool details, bool monitoring, bool numerical=false, bool top=false, bool domain=false, bool apps=false, XrdOucString option="");

@@ -2155,6 +2155,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  stdOut += "success: enabled IO udp target "; stdOut += target.c_str();
 		} else {
 		  stdErr += "error: IO udp target was not configured "; stdErr += target.c_str();
+		  retc=EINVAL;
 		}
 	      } else {
 		if (popularity) {
@@ -2163,12 +2164,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		    stdOut += "success: enabled IO popularity collection";
 		  } else {
 		    stdErr += "error: IO popularity collection already enabled";;
+		    retc=EINVAL;
 		  }
 		} else {
 		  if (gOFS->IoStats.StartCollection()) {
 		    stdOut += "success: enabled IO report collection";
 		  } else {
 		    stdErr += "error: IO report collection already enabled";;
+		    retc=EINVAL;
 		  }
 		}
 	      }
@@ -2179,6 +2182,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  stdOut += "success: disabled IO udp target "; stdOut += target.c_str();
 		} else {
 		  stdErr += "error: IO udp target was not configured "; stdErr += target.c_str();
+		  retc=EINVAL;
 		}
 	      } else {
 		if (popularity) {
@@ -2186,12 +2190,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		    stdOut += "success: disabled IO popularity collection";
 		  } else {
 		    stdErr += "error: IO popularity collection already disabled";;
+		    retc=EINVAL;
 		  }
 		} else {
 		  if (gOFS->IoStats.StopCollection()) {
 		    stdOut += "success: disabled IO report collection";
 		  } else {
 		    stdErr += "error: IO report collection was already disabled";
+		    retc=EINVAL;
 		  }
 		}
 	      }
@@ -2200,14 +2206,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             if (reports) {
               if (subcmd == "enable") {
                 if (gOFS->IoStats.StartReport()) {
-                  stdErr += "error: IO report store already enabled";;
+                  stdErr += "error: IO report store already enabled";
+		  retc=EINVAL;
                 } else {
                   stdOut += "success: enabled IO report store";
                 }
               }
               if (subcmd == "disable") {
                 if (!gOFS->IoStats.StopReport()) {
-                  stdErr += "error: IO report store already disabled";;
+                  stdErr += "error: IO report store already disabled";
+		  retc=EINVAL;
                 } else {
                   stdOut += "success: disabled IO report store";
                 }
@@ -2216,7 +2224,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             if (reportnamespace) {
               if (subcmd == "enable") {
                 if (gOFS->IoStats.StartReportNamespace()) {
-                  stdErr += "error: IO report namespace already enabled";;
+                  stdErr += "error: IO report namespace already enabled";
+		  retc=EINVAL;
                 } else {
                   stdOut += "success: enabled IO report namespace";
                 }
@@ -2224,6 +2233,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               if (subcmd == "disable") {
                 if (!gOFS->IoStats.StopReportNamespace()) {
                   stdErr += "error: IO report namespace already disabled";;
+		  retc=EINVAL;
                 } else {
                   stdOut += "success: disabled IO report namespace";
                 }

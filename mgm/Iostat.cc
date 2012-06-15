@@ -33,7 +33,7 @@
 #include <vector>
 #include <algorithm>
 /*----------------------------------------------------------------------------*/
-
+#include "XrdSys/XrdSysDNS.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -148,7 +148,7 @@ Iostat::ApplyIostatConfig()
     eos::common::StringConversion::Tokenize(udplist,hostlist,delimiter);
     mUdpPopularityTarget.clear();
     for (size_t i=0; i< hostlist.size(); i++) {
-      mUdpPopularityTarget.insert(hostlist[i]);
+      AddUdpTarget(hostlist[i].c_str(),false);
     }
   }
 }
@@ -1237,16 +1237,39 @@ Iostat::StopReportNamespace()
 
 /* ------------------------------------------------------------------------- */
 bool
-Iostat::AddUdpTarget(const char* target)
+Iostat::AddUdpTarget(const char* target, bool storeitandlock)
 {
   {
-    XrdSysMutexHelper mLock(BroadcastMutex);
+    if (storeitandlock) BroadcastMutex.Lock();
     std::string starget = target;
-    if (mUdpPopularityTarget.count(starget))
+    if (mUdpPopularityTarget.count(starget)) {
+      if (storeitandlock) BroadcastMutex.UnLock();
       return false;
+    }
     
     mUdpPopularityTarget.insert(starget);
     
+    // create an UDP socket for the specified target
+    int udpsocket=-1;
+    udpsocket=socket(AF_INET,SOCK_DGRAM,0);
+
+    if (udpsocket>0) {
+      XrdOucString a_host, a_port, hp;
+      int port=0;
+      hp = starget.c_str();
+      if (!eos::common::StringConversion::SplitKeyValue(hp, a_host, a_port)) {
+	a_host=hp;
+	a_port="31000";
+      }
+      port = atoi(a_port.c_str());
+
+      mUdpSocket[starget] = udpsocket;		
+
+      XrdSysDNS::getHostAddr(a_host.c_str(), (struct sockaddr*)&mUdpSockAddr[starget]);
+      mUdpSockAddr[starget].sin_family = AF_INET;
+      mUdpSockAddr[starget].sin_port=htons(port);
+    }
+
     // rebuild the list for the configuration
     mUdpPopularityTargetList = "";
     std::set<std::string>::const_iterator it;
@@ -1259,9 +1282,10 @@ Iostat::AddUdpTarget(const char* target)
     }
   }
   // store the configuration
-  if (!StoreIostatConfig()) {
+  if ((storeitandlock) && (!StoreIostatConfig())) {
     return false;
   }
+  if (storeitandlock) BroadcastMutex.UnLock();
   return true;
 }
 
@@ -1276,6 +1300,14 @@ Iostat::RemoveUdpTarget(const char* target)
     std::string starget = target;
     if (mUdpPopularityTarget.count(starget)) {
       mUdpPopularityTarget.erase(starget);
+      if (mUdpSocket.count(starget)) {
+	if (mUdpSocket[starget]>0) {
+	  // close the UDP socket
+	  close(mUdpSocket[starget]);
+	}
+	mUdpSocket.erase(starget);
+	mUdpSockAddr.erase(starget);
+      }
       // rebuild the list for the configuration
       mUdpPopularityTargetList = "";
       std::set<std::string>::const_iterator it;
@@ -1304,9 +1336,12 @@ Iostat::UdpBroadCast(eos::common::Report* report)
 
   std::set<std::string>::const_iterator it;
   std::string u="";
+  char fs[1024];
   for (it = mUdpPopularityTarget.begin(); it != mUdpPopularityTarget.end(); it++) {
+    u="";
     XrdOucString tg = it->c_str();
     XrdOucString sizestring;
+
     if (tg.endswith("/json")) {
       // do json format broadcast
       tg.replace("/json","");
@@ -1314,17 +1349,19 @@ Iostat::UdpBroadCast(eos::common::Report* report)
       u += " \"client_domain\": \"";        u += report->sec_domain; u += "\",\n";
       u += " \"client_host\": \"";          u += report->sec_host; u += "\",\n";
       u += " \"end_time\": \"";             u += eos::common::StringConversion::GetSizeString(sizestring, report->cts); u += "\",\n";
-      u += " \"file_lfn\": \"";             u += report->path; u += "\n";
+      u += " \"file_lfn\": \"";             u += report->path; u += "\"\n";
       u += " \"file_size\": \"";            u += eos::common::StringConversion::GetSizeString(sizestring, report->csize); u+= "\",\n";
-      u += " \"read_average\": \"";         u += eos::common::StringConversion::GetSizeString(sizestring, report->rb/(report->nrc)?report->nrc:999999999); u += "\",\n";
+      u += " \"read_average\": \"";         u += eos::common::StringConversion::GetSizeString(sizestring, report->rb/((report->nrc)?report->nrc:999999999)); u += "\",\n";
       u += " \"read_bytes_at_close\": \"";  u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += "\",\n";
       u += " \"read_bytes\": \"";           u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += "\",\n";
-      u += " \"read_max\": \"";             u += "0"; u += "\",\n";
-      u += " \"read_min\": \"";             u += "0"; u += "\",\n";
+      u += " \"read_max\": \"";             u += eos::common::StringConversion::GetSizeString(sizestring, report->rb_max); u += "\",\n";
+      u += " \"read_min\": \"";             u += eos::common::StringConversion::GetSizeString(sizestring, report->rb_min); u += "\",\n";
       u += " \"read_operations\": \"";      u += eos::common::StringConversion::GetSizeString(sizestring, report->nrc); u += "\",\n";
-      u += " \"read_sigma\": \"";           u += "0"; u += "\",\n";
-      u += " \"read_single_average\": \"";  u += "0"; u += "\",\n";
-      u += " \"read_single_bytes\": \"";    u += u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += "\",\n";
+      snprintf(fs,sizeof(fs)-1, "%.02f",report->rb_sigma);
+      u += " \"read_sigma\": \"";          u += fs; u += "\",\n";
+      /* -- we have currently no access to this information */
+      /*      u += " \"read_single_average\": \"";  u += "0"; u += "\",\n";
+      u += " \"read_single_bytes\": \"";    u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += "\",\n";
       u += " \"read_single_max\": \"";      u += "0"; u += "\",\n";
       u += " \"read_single_min\": \"";      u += "0"; u += "\",\n";
       u += " \"read_single_operations\": \"";    u += eos::common::StringConversion::GetSizeString(sizestring, report->nrc); u += "\",\n";
@@ -1338,74 +1375,86 @@ Iostat::UdpBroadCast(eos::common::Report* report)
       u += " \"read_vector_max\": \"";      u += "0"; u += "\",\n";
       u += " \"read_vector_min\": \"";      u += "0"; u += "\",\n";
       u += " \"read_vector_operations\": \""; u += "0"; u += "\",\n";
-      u += " \"read_vector_sigma\": \"";    u += "0"; u += "\",\n";
+      u += " \"read_vector_sigma\": \"";    u += "0"; u += "\",\n"; */
       u += " \"server_domain\": \"";        u += report->server_domain; u += "\",\n";
       u += " \"server_host\": \"";          u += report->server_name; u += "\",\n";
-      u += " \"server_username\": \"";      u += "eos"; u += "\",\n";
+      u += " \"server_username\": \"";      u += report->sec_name; u += "\",\n";
       u += " \"start_time\": \"";           u += eos::common::StringConversion::GetSizeString(sizestring, report->ots); u += "\",\n";
       u += " \"unique_id\": \"";            u += gOFS->MgmOfsInstanceName.c_str(); u += "\",\n";
       u += " \"user_dn\": \"";               u += report->sec_dn;  u += "\",\n";
       u += " \"user_fqan\": \"";            u += report->sec_grps; u += "\",\n";
       u += " \"user_role\": \"";            u += report->sec_role; u += "\",\n";
-      u += " user_vo\": \"";                u += report->sec_vorg; u += "\",\n";
-      u += " \"write_average\": \"";        u += "0"; u += "\",\n";
+      u += " \"user_vo\": \"";              u += report->sec_vorg; u += "\",\n";
+      u += " \"write_average\": \"";        u += eos::common::StringConversion::GetSizeString(sizestring, report->wb/((report->nwc)?report->nwc:999999999)); u += "\",\n";
       u += " \"write_bytes_at_close\": \""; u += eos::common::StringConversion::GetSizeString(sizestring, report->wb); u += "\",\n";
       u += " \"write_bytes\": \"";          u += eos::common::StringConversion::GetSizeString(sizestring, report->wb); u += "\",\n";
-      u += " \"write_max\": \"";            u += "0"; u += "\",\n";
-      u += " \"write_min\": \"";            u += "0"; u += "\",\n";
+      u += " \"write_max\": \"";            u += eos::common::StringConversion::GetSizeString(sizestring, report->wb_max); u += "\",\n";
+      u += " \"write_min\": \"";            u += eos::common::StringConversion::GetSizeString(sizestring, report->wb_min); u += "\",\n";
       u += " \"write_operations\": \"";     u += eos::common::StringConversion::GetSizeString(sizestring, report->nwc); u += "\",\n";
-      u += " \"write_sigma\": \"";          u += "0"; u += "\"}\n";
+      snprintf(fs,sizeof(fs)-1, "%.02f",report->wb_sigma);
+      u += " \"write_sigma\": \"";            u += fs; u += "\"}\n";
     } else { 
       // do default format broadcast
       u += "#begin\n";
-      u += "app_info =";             u += report->sec_app; u += "\n";
-      u += "client_domain =";        u += report->sec_domain; u += "\n";
-      u += "client_host =";          u += report->sec_host; u += "\n";
-      u += "end_time =";             u += eos::common::StringConversion::GetSizeString(sizestring, report->cts); u += "\n";
+      u += "app_info=";             u += report->sec_app; u += "\n";
+      u += "client_domain=";        u += report->sec_domain; u += "\n";
+      u += "client_host=";          u += report->sec_host; u += "\n";
+      u += "end_time=";             u += eos::common::StringConversion::GetSizeString(sizestring, report->cts); u += "\n";
       u += "file_lfn = ";              u += report->path; u += "\n";
       u += "file_size = ";             u += eos::common::StringConversion::GetSizeString(sizestring, report->csize); u+= "\n";
-      u += "read_average =";         u += eos::common::StringConversion::GetSizeString(sizestring, report->rb/(report->nrc)?report->nrc:999999999); u += "\n";
-      u += "read_bytes_at_close =";  u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += "\n";
-      u += "read_bytes =";           u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += "\n";
-      u += "read_max =";             u += "0"; u += "\n";
-      u += "read_min =";             u += "0"; u += "\n";
-      u += "read_operations =";      u += eos::common::StringConversion::GetSizeString(sizestring, report->nrc); u += "\n";
-      u += "read_sigma =";           u += "0"; u += "\n";
-      u += "read_single_average =";  u += "0"; u += "\n";
-      u += "read_single_bytes =";    u += u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += "\n";
-      u += "read_single_max =";      u += "0"; u += "\n";
-      u += "read_single_min =";      u += "0"; u += "\n";
-      u += "read_single_operations =";    u += eos::common::StringConversion::GetSizeString(sizestring, report->nrc); u += "\n";
-      u += "read_single_sigma =";    u += "0"; u += "\n";
-      u += "read_vector_average =";  u += "0"; u += "\n";
-      u += "read_vector_bytes =";    u += "0"; u += "\n";
-      u += "read_vector_count_average ="; u += "0"; u += "\n";
-      u += "read_vector_count_max =";u += "0"; u += "\n";
-      u += "read_vector_count_min =";u += "0"; u += "\n";
-      u += "read_vector_count_sigma =";   u += "0"; u += "\n";
-      u += "read_vector_max =";      u += "0"; u += "\n";
-      u += "read_vector_min =";      u += "0"; u += "\n";
-      u += "read_vector_operations ="; u += "0"; u += "\n";
-      u += "read_vector_sigma =";    u += "0"; u += "\n";
-      u += "server_domain =";        u += report->server_domain; u += "\n";
-      u += "server_host =";          u += report->server_name; u += "\n";
-      u += "server_username =";      u += "eos"; u += "\n";
-      u += "start_time =";           u += eos::common::StringConversion::GetSizeString(sizestring, report->ots); u += "\n";
-      u += "unique_id =";            u += gOFS->MgmOfsInstanceName.c_str(); u += "\n";
-      u += "user_dn = ";               u += report->sec_dn; u += "\n";
-      u += "user_fqan =";            u += report->sec_grps; u += "\n";
-      u += "user_role =";            u += report->sec_role; u += "\n";
-      u += "user_vo =";              u += report->sec_vorg; u += "\n";
-      u += "write_average =";        u += "0"; u += "\n";
-      u += "write_bytes_at_close ="; u += eos::common::StringConversion::GetSizeString(sizestring, report->wb); u += "\n";
-      u += "write_bytes =";          u += eos::common::StringConversion::GetSizeString(sizestring, report->wb); u += "\n";
-      u += "write_max =";            u += "0"; u += "\n";
-      u += "write_min =";            u += "0"; u += "\n";
-      u += "write_operations =";     u += eos::common::StringConversion::GetSizeString(sizestring, report->nwc); u += "\n";
-      u += "write_sigma =";          u += "0"; u += "\n";
+      u += "read_average=";         u += eos::common::StringConversion::GetSizeString(sizestring, report->rb/((report->nrc)?report->nrc:999999999)); u += "\n";
+      u += "read_bytes_at_close=";  u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += "\n";
+      u += "read_bytes=";           u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += "\n";
+      u += "read_min=";             u += eos::common::StringConversion::GetSizeString(sizestring, report->rb_min); u += "\n";
+      u += "read_max=";             u += eos::common::StringConversion::GetSizeString(sizestring, report->rb_max); u += "\n";
+      u += "read_operations=";      u += eos::common::StringConversion::GetSizeString(sizestring, report->nrc); u += "\n";
+      u += "read_sigma=";           u += "0"; u += "\n";
+      snprintf(fs,sizeof(fs)-1, "%.02f",report->rb_sigma);
+      u += "read_sigma=";           u += fs;  u += "\n";
+      /* -- we have currently no access to this information */
+      /* u += "read_single_average=";  u += "0"; u += "\n";
+      u += "read_single_bytes=";    u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += "\n";
+      u += "read_single_max=";      u += "0"; u += "\n";
+      u += "read_single_min=";      u += "0"; u += "\n";
+      u += "read_single_operations=";    u += eos::common::StringConversion::GetSizeString(sizestring, report->nrc); u += "\n";
+      u += "read_single_sigma=";    u += "0"; u += "\n";
+      u += "read_vector_average=";  u += "0"; u += "\n";
+      u += "read_vector_bytes=";    u += "0"; u += "\n";
+      u += "read_vector_count_average="; u += "0"; u += "\n";
+      u += "read_vector_count_max=";u += "0"; u += "\n";
+      u += "read_vector_count_min=";u += "0"; u += "\n";
+      u += "read_vector_count_sigma=";   u += "0"; u += "\n";
+      u += "read_vector_max=";      u += "0"; u += "\n";
+      u += "read_vector_min=";      u += "0"; u += "\n";
+      u += "read_vector_operations="; u += "0"; u += "\n";
+      u += "read_vector_sigma=";    u += "0"; u += "\n";*/
+      u += "server_domain=";        u += report->server_domain; u += "\n";
+      u += "server_host=";          u += report->server_name; u += "\n";
+      u += "server_username=";      u += report->sec_name; u += "\n";
+      u += "start_time=";           u += eos::common::StringConversion::GetSizeString(sizestring, report->ots); u += "\n";
+      u += "unique_id=";            u += gOFS->MgmOfsInstanceName.c_str(); u += "\n";
+      u += "user_dn = ";             u += report->sec_dn; u += "\n";
+      u += "user_fqan=";            u += report->sec_grps; u += "\n";
+      u += "user_role=";            u += report->sec_role; u += "\n";
+      u += "user_vo=";              u += report->sec_vorg; u += "\n";
+      u += "write_average=";        u += eos::common::StringConversion::GetSizeString(sizestring, report->wb/((report->nwc)?report->nwc:999999999)); u += "\n";
+      u += "write_bytes_at_close="; u += eos::common::StringConversion::GetSizeString(sizestring, report->wb); u += "\n";
+      u += "write_bytes=";          u += eos::common::StringConversion::GetSizeString(sizestring, report->wb); u += "\n";
+      u += "write_min=";            u += eos::common::StringConversion::GetSizeString(sizestring, report->wb_min); u += "\n";
+      u += "write_max=";            u += eos::common::StringConversion::GetSizeString(sizestring, report->wb_max); u += "\n";
+      u += "write_operations=";     u += eos::common::StringConversion::GetSizeString(sizestring, report->nwc); u += "\n";
+      snprintf(fs,sizeof(fs)-1, "%.02f",report->rb_sigma);
+      u += "write_sigma=";          u += fs;  u += "\n";
       u += "#end\n"; 
     }
-    fprintf(stderr,"udp:\n%s\n", u.c_str());
+    int sendretc=sendto(mUdpSocket[*it],u.c_str(),u.length(),0,(struct sockaddr *)&mUdpSockAddr[*it],sizeof(struct sockaddr_in));
+    if (sendretc<0) {
+      eos_static_err("failed to send udp message to %s\n", it->c_str());
+    }
+    if (EOS_LOGS_DEBUG) {
+      fprintf(stderr,"===>UDP\n%s<===UDP\n",u.c_str());
+      eos_static_debug("retc(sendto)=%d", sendretc);
+    }
   }
 }
 EOSMGMNAMESPACE_END
