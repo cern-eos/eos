@@ -49,31 +49,19 @@ namespace eos
     //--------------------------------------------------------------------------
     IdMap::iterator it;
     ContainerList   orphans;
+    ContainerList   nameConflicts;
     for( it = pIdMap.begin(); it != pIdMap.end(); ++it )
     {
       if( it->second.ptr )
         continue;
-      recreateContainer( it, orphans );
+      recreateContainer( it, orphans, nameConflicts );
     }
 
     //--------------------------------------------------------------------------
-    // Deal with the orphans
+    // Deal with broken containers
     //--------------------------------------------------------------------------
-    ContainerMD *orphansCont = getLostFoundContainer( "orphans" );
-
-    ContainerList::iterator orphIt;
-    for( orphIt = orphans.begin(); orphIt != orphans.end(); ++orphIt )
-    {
-      std::ostringstream s1, s2;
-      s1 << (*orphIt)->getParentId();
-      ContainerMD *cont = orphansCont->findContainer( s1.str() );
-      if( !cont )
-        cont = createInParent( s1.str(), orphansCont );
-
-      s2 << (*orphIt)->getName() << "." << (*orphIt)->getId();
-      (*orphIt)->setName( s2.str() );
-      cont->addContainer( *orphIt );
-    }
+    attachBroken( getLostFoundContainer( "orphans" ), orphans );
+    attachBroken( getLostFoundContainer( "name_conflicts" ), nameConflicts );
   }
 
   //----------------------------------------------------------------------------
@@ -214,7 +202,8 @@ namespace eos
   // Recreate the container
   //----------------------------------------------------------------------------
   void ChangeLogContainerMDSvc::recreateContainer( IdMap::iterator &it,
-                                                   ContainerList   &orphans )
+                                                   ContainerList   &orphans,
+                                                   ContainerList   &nameConflicts )
   {
     Buffer buffer;
     pChangeLog->readRecord( it->second.logOffset, buffer );
@@ -236,9 +225,13 @@ namespace eos
       }
 
       if( !(parentIt->second.ptr) )
-        recreateContainer( parentIt, orphans );
+        recreateContainer( parentIt, orphans, nameConflicts );
 
-      parentIt->second.ptr->addContainer( container );
+      ContainerMD *parent = parentIt->second.ptr;
+      if( !parent->findContainer( container->getName() ) )
+        parent->addContainer( container );
+      else
+        nameConflicts.push_back( container );
     }
   }
 
@@ -301,6 +294,27 @@ namespace eos
     if( cont )
       return cont;
     return createInParent( name, lostFound );
+  }
+
+  //----------------------------------------------------------------------------
+  // Attach broken containers to lost+found
+  //----------------------------------------------------------------------------
+  void ChangeLogContainerMDSvc::attachBroken( ContainerMD   *parent,
+                                              ContainerList &broken )
+  {
+    ContainerList::iterator it;
+    for( it = broken.begin(); it != broken.end(); ++it )
+    {
+      std::ostringstream s1, s2;
+      s1 << (*it)->getParentId();
+      ContainerMD *cont = parent->findContainer( s1.str() );
+      if( !cont )
+        cont = createInParent( s1.str(), parent );
+
+      s2 << (*it)->getName() << "." << (*it)->getId();
+      (*it)->setName( s2.str() );
+      cont->addContainer( *it );
+    }
   }
 
   //----------------------------------------------------------------------------

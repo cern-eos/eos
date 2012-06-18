@@ -493,7 +493,6 @@ namespace eos
     try
     {
       cont = pContSvc->getContainerMD( file->getContainerId() );
-      cont->addFile( file );
     }
     catch( MDException &e )
     {
@@ -504,23 +503,21 @@ namespace eos
     //--------------------------------------------------------------------------
     if( !cont )
     {
-      std::ostringstream s1, s2;
-      s1 << "/lost+found/orphans/" << file->getContainerId();
-      try
-      {
-        cont = pView->createContainer( s1.str(), true );
-      }
-      catch( MDException &e )
-      {
-        if( e.getErrno() != EEXIST )
-          throw;
-      }
-
-      s2 << file->getName() << "." << file->getId();
-      file->setName( s2.str() );
-      cont = pView->getContainer( s1.str() );
-      cont->addFile( file );
+      attachBroken( "orphans", file );
+      return;
     }
+
+    //------------------------------------------------------------------------
+    // Check if the container already has the file, if it does then move it to
+    // lost+found
+    //------------------------------------------------------------------------
+    if( cont->findFile( file->getName() ) )
+    {
+      attachBroken( "name_conflicts", file );
+      return;
+    }
+    else
+      cont->addFile( file );
 
     //--------------------------------------------------------------------------
     // Update quota stats
@@ -528,6 +525,30 @@ namespace eos
     QuotaNode *node = pView->getQuotaNode( cont );
     if( node )
       node->addFile( file );
+  }
+  //----------------------------------------------------------------------------
+  // Attach a broken file to lost+found
+  //----------------------------------------------------------------------------
+  void HierarchicalView::FileVisitor::attachBroken( const std::string &parent,
+                                                    FileMD            *file )
+  {
+    ContainerMD *cont = 0;
+    std::ostringstream s1, s2;
+    s1 << "/lost+found/" << parent << "/" << file->getContainerId();
+    try
+    {
+      cont = pView->createContainer( s1.str(), true );
+    }
+    catch( MDException &e )
+    {
+      if( e.getErrno() != EEXIST )
+        throw;
+    }
+
+    s2 << file->getName() << "." << file->getId();
+    file->setName( s2.str() );
+    cont = pView->getContainer( s1.str() );
+    cont->addFile( file );
   }
 
   //----------------------------------------------------------------------------

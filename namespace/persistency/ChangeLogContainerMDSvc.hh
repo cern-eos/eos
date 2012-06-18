@@ -172,9 +172,11 @@ namespace eos
 
       //------------------------------------------------------------------------
       // Recreate the container structure recursively and create the list
-      // of orphans
+      // of orphans and name conflicts
       //------------------------------------------------------------------------
-      void recreateContainer( IdMap::iterator &it, ContainerList &orphans );
+      void recreateContainer( IdMap::iterator &it,
+                              ContainerList   &orphans,
+                              ContainerList   &nameConflicts );
 
       //------------------------------------------------------------------------
       // Create container in parent
@@ -193,6 +195,11 @@ namespace eos
       //------------------------------------------------------------------------
       ContainerMD *getLostFoundContainer( const std::string &name )
                     throw( MDException );
+
+      //------------------------------------------------------------------------
+      // Attach broken containers to lost+found
+      //------------------------------------------------------------------------
+      void attachBroken( ContainerMD *parent, ContainerList &broken );
 
       //------------------------------------------------------------------------
       // Data members

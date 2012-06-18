@@ -230,6 +230,7 @@ namespace eos
             pContSvc( contSvc ), pQuotaStats( quotaStats ), pView( view ) {}
           virtual void visitFile( FileMD *file );
         private:
+          void attachBroken( const std::string &parent, FileMD *file );
           IContainerMDSvc *pContSvc;
           QuotaStats      *pQuotaStats;
           IView           *pView;
