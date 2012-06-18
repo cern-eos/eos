@@ -548,6 +548,7 @@ void HierarchicalViewTest::lostContainerTest()
   eos::ContainerMD *cont2 = view->createContainer( "/test/embed/embed2", true );
   eos::ContainerMD *cont3 = view->createContainer( "/test/embed/embed3", true );
   eos::ContainerMD *cont4 = view->createContainer( "/test/embed/embed1/embedembed", true );
+  eos::ContainerMD *cont5 = view->createContainer( "/test/embed/embed3.conflict", true );
 
   //----------------------------------------------------------------------------
   // Create some files
@@ -558,19 +559,30 @@ void HierarchicalViewTest::lostContainerTest()
     std::ostringstream s2; s2 << "/test/embed/embed2/file" << i;
     std::ostringstream s3; s3 << "/test/embed/embed3/file" << i;
     std::ostringstream s4; s4 << "/test/embed/embed1/embedembed/file" << i;
+    std::ostringstream s5; s5 << "/test/embed/embed3.conflict/file" << i;
+    std::ostringstream s6; s6 << "/test/embed/embed2/conflict_file" << i;
     view->createFile( s1.str() );
     view->createFile( s2.str() );
     view->createFile( s3.str() );
     view->createFile( s4.str() );
+    view->createFile( s5.str() );
+    view->createFile( s6.str() );
+    eos::FileMD *file = view->getFile( s6.str() );
+    file->setName( "conflict_file" );
+    view->updateFileStore( file );
   }
 
   //----------------------------------------------------------------------------
   // Remove one of the container keeping the files register with it to
   // simulate directory metadata loss
   //----------------------------------------------------------------------------
-  eos::ContainerMD::id_t removedId    = cont1->getId();
-  eos::ContainerMD::id_t removedEmbId = cont4->getId();
+  eos::ContainerMD::id_t removedId        = cont1->getId();
+  eos::ContainerMD::id_t removedEmbId     = cont4->getId();
+  eos::ContainerMD::id_t conflictId       = cont5->getId();
+  eos::ContainerMD::id_t conflictParentId = cont5->getParentId();
   view->getContainerMDSvc()->removeContainer( cont1 );
+  cont5->setName( "embed3" );
+  view->getContainerMDSvc()->updateStore( cont5 );
 
   //----------------------------------------------------------------------------
   // Reboot
@@ -584,14 +596,25 @@ void HierarchicalViewTest::lostContainerTest()
   std::ostringstream s1; s1 << "/lost+found/orphans/" << removedId;
   std::ostringstream s2; s2 << "/lost+found/orphans/" << removedId;
   s2 << "/embedembed." << removedEmbId;
+  std::ostringstream s3; s3 << "/lost+found/name_conflicts/" << conflictParentId;
+  s3 << "/embed3." << conflictId;
+
   CPPUNIT_ASSERT_NO_THROW( cont1 = view->getContainer( s1.str() ) );
   CPPUNIT_ASSERT_NO_THROW( cont2 = view->getContainer( "/test/embed/embed2" ) );
   CPPUNIT_ASSERT_NO_THROW( cont3 = view->getContainer( "/test/embed/embed3" ) );
   CPPUNIT_ASSERT_NO_THROW( cont4 = view->getContainer( s2.str() ) );
+  CPPUNIT_ASSERT_NO_THROW( cont5 = view->getContainer( s3.str() ) );
+
+  eos::ContainerMD *cont6 = 0;
+  std::ostringstream s4; s4 << "/lost+found/name_conflicts/";
+  s4 << cont2->getId();
+  CPPUNIT_ASSERT_NO_THROW( cont6 = view->getContainer( s4.str() ) );
+
   CPPUNIT_ASSERT( cont1->getNumFiles() == 1000 );
-  CPPUNIT_ASSERT( cont2->getNumFiles() == 1000 );
+  CPPUNIT_ASSERT( cont2->getNumFiles() == 1001 ); // 1000 + 1 conflict
   CPPUNIT_ASSERT( cont3->getNumFiles() == 1000 );
   CPPUNIT_ASSERT( cont4->getNumFiles() == 1000 );
+  CPPUNIT_ASSERT( cont6->getNumFiles() == 999 );  // 1000 conflicts - 1
 
   //----------------------------------------------------------------------------
   // Cleanup
