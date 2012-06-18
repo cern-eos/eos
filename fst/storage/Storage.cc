@@ -342,6 +342,15 @@ Storage::Storage(const char* metadirectory)
 
   ThreadSet.insert(tid);
 
+  eos_info("starting daemon supervisor thread");
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartDaemonSupervisor, static_cast<void *>(this),
+                              0, "Supervisor Thread"))) {
+    eos_crit("cannot start supervisor thread");
+    zombie = true;
+  }
+
+  ThreadSet.insert(tid);
+
   eos_info("starting filesystem publishing thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsPublisher, static_cast<void *>(this),
                               0, "Publisher Thread"))) {
@@ -819,6 +828,15 @@ Storage::StartFsCommunicator(void * pp)
 {
   Storage* storage = (Storage*)pp;
   storage->Communicator();
+  return 0;
+}    
+
+/*----------------------------------------------------------------------------*/
+void*
+Storage::StartDaemonSupervisor(void * pp)
+{
+  Storage* storage = (Storage*)pp;
+  storage->Supervisor();
   return 0;
 }    
 
@@ -1726,6 +1744,73 @@ Storage::Communicator()
     if (!unlocked) {
       gOFS.ObjectManager.SubjectsMutex.UnLock();
       unlocked = true;
+    }
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
+Storage::Supervisor()
+
+{  
+  // this thread does an automatic self-restart if this storage node has filesystems configured but they don't boot
+  // - this can happen by a timing issue during the autoboot phase
+
+  eos_static_info("Supervisor activated ...");  
+
+  while (1) {
+    {
+      size_t ndown = 0;
+      size_t nfs = 0;
+      {
+	eos::common::RWMutexReadLock lock (fsMutex);
+	nfs = fileSystemsVector.size();
+	for (size_t i=0; i<fileSystemsVector.size(); i++) {
+	  if (!fileSystemsVector[i]) {
+	    continue;
+	  } else {
+	    eos::common::FileSystem::fsstatus_t bootstatus   = fileSystemsVector[i]->GetStatus();
+	    eos::common::FileSystem::fsstatus_t configstatus = fileSystemsVector[i]->GetConfigStatus();
+	    if ( (bootstatus == eos::common::FileSystem::kDown) && 
+		 (configstatus > eos::common::FileSystem::kDrain) ) {
+	      ndown++;
+	    }
+	  }
+	}
+	
+	if (ndown) {
+	  // we give one more minute to get things going
+	  XrdSysTimer sleeper;
+	  sleeper.Snooze(10);	
+	  ndown = 0;
+	  {
+	    // check the status a second time
+	    eos::common::RWMutexReadLock lock (fsMutex);
+	    nfs = fileSystemsVector.size();
+	    for (size_t i=0; i<fileSystemsVector.size(); i++) {
+	      if (!fileSystemsVector[i]) {
+		continue;
+	      } else {
+		eos::common::FileSystem::fsstatus_t bootstatus   = fileSystemsVector[i]->GetStatus();
+		eos::common::FileSystem::fsstatus_t configstatus = fileSystemsVector[i]->GetConfigStatus();
+		if ( (bootstatus == eos::common::FileSystem::kDown) && 
+		     (configstatus > eos::common::FileSystem::kDrain) ) {
+		  ndown++;
+		}
+	      }
+	    }
+	  }
+	  if (ndown == nfs) {
+	    // shutdown this daemon
+	    eos_static_alert("found %d/%d filesystems in <down> status - committing suicide !", ndown, nfs);
+	    XrdSysTimer sleeper;
+	    sleeper.Snooze(10);	
+	    kill(SIGQUIT,getpid());
+	  }
+	}
+      }
+      XrdSysTimer sleeper;
+      sleeper.Snooze(60);	
     }
   }
 }

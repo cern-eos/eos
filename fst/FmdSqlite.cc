@@ -323,7 +323,7 @@ FmdSqlite*
 FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid, uid_t uid, gid_t gid, eos::common::LayoutId::layoutid_t layoutid, bool isRW, bool force) 
 {
 
-  eos_info("fid=%08llx fsid=%lu", fid, fsid);
+  eos_info("fid=%08llx fsid=%lu", fid, (unsigned long) fsid);
 
   if (fid == 0) {
     eos_warning("fid=0 requested for fsid=", fsid);
@@ -346,7 +346,7 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
       
       if ( fmd->fMd.fid != fid) {
         // fatal this is somehow a wrong record!
-        eos_crit("unable to get fmd for fid %llu on fs %lu - file id mismatch in meta data block (%llu)", fid, fsid, fmd->fMd.fid);
+        eos_crit("unable to get fmd for fid %llu on fs %lu - file id mismatch in meta data block (%llu)", fid, (unsigned long )fsid, fmd->fMd.fid);
         delete fmd;
 	Mutex.UnLockRead();
         return 0;
@@ -354,7 +354,7 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
       
       if ( fmd->fMd.fsid != fsid) {
         // fatal this is somehow a wrong record!
-        eos_crit("unable to get fmd for fid %llu on fs %lu - filesystem id mismatch in meta data block (%llu)", fid, fsid, fmd->fMd.fsid);
+        eos_crit("unable to get fmd for fid %llu on fs %lu - filesystem id mismatch in meta data block (%llu)", fid, (unsigned long) fsid, fmd->fMd.fsid);
         delete fmd;
 	Mutex.UnLockRead();
         return 0;
@@ -365,7 +365,7 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
 	// if we have a mismatch between the mgm/disk and 'ref' value in size,  we don't return the FMD record
 	if ( (!isRW) && ((fmd->fMd.disksize && (fmd->fMd.disksize != fmd->fMd.size)) ||
 			 (fmd->fMd.mgmsize &&  (fmd->fMd.mgmsize != 0xfffffff1ULL) && (fmd->fMd.mgmsize  != fmd->fMd.size))) ) {
-	  eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu", fid, fsid, fmd->fMd.size, fmd->fMd.disksize, fmd->fMd.mgmsize);
+	  eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu", fid, (unsigned long) fsid, fmd->fMd.size, fmd->fMd.disksize, fmd->fMd.mgmsize);
 	  
 	  delete fmd;
 	  Mutex.UnLockRead();
@@ -376,7 +376,7 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
 	// this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)
 	if ((!isRW) && fmd->fMd.mgmsize && ((fmd->fMd.diskchecksum.length() && (fmd->fMd.diskchecksum != fmd->fMd.checksum)) ||
 			(fmd->fMd.mgmchecksum.length() &&  (fmd->fMd.mgmchecksum  != fmd->fMd.checksum)) )) {
-	  eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s", fid, fsid, fmd->fMd.checksum.c_str(), fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str());
+	  eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s", fid, (unsigned long) fsid, fmd->fMd.checksum.c_str(), fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str());
 	  
 	  delete fmd;
 	  Mutex.UnLockRead();
@@ -417,22 +417,22 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
 
       Mutex.UnLockWrite(); // <--      
       if (Commit(fmd)) {
-	eos_debug("returning meta data block for fid %d on fs %d", fid, fsid);
+	eos_debug("returning meta data block for fid %d on fs %d", fid, (unsigned long) fsid);
 	// return the mmaped meta data block
 
         return fmd;
       } else {
-        eos_crit("unable to write new block for fid %d on fs %d - no changelog db open for writing", fid, fsid);
+        eos_crit("unable to write new block for fid %d on fs %d - no changelog db open for writing", fid, (unsigned long) fsid);
         delete fmd;
         return 0;
       }
     } else {
-      eos_warning("unable to get fmd for fid %llu on fs %lu - record not found", fid, fsid);
+      eos_warning("unable to get fmd for fid %llu on fs %lu - record not found", fid, (unsigned long) fsid);
       Mutex.UnLockRead();
       return 0;
     }
   } else {
-    eos_crit("unable to get fmd for fid %llu on fs %lu - there is no changelog file open for that file system id", fid, fsid);
+    eos_crit("unable to get fmd for fid %llu on fs %lu - there is no changelog file open for that file system id", fid, (unsigned long) fsid);
     Mutex.UnLockRead();
     return 0;
   }
@@ -512,7 +512,7 @@ FmdSqliteHandler::Commit(FmdSqlite* fmd)
     FmdSqliteMap[fsid][fid] = fmd->fMd;
     return CommitFromMemory(fid,fsid);
   } else {
-    eos_crit("no sqlite DB open for fsid=%llu", fsid);
+    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
   }
 
   return false;
@@ -590,7 +590,7 @@ FmdSqliteHandler::UpdateFromDisk(eos::common::FileSystem::fsid_t fsid, eos::comm
 {
   eos::common::RWMutexWriteLock lock(Mutex);
   
-  eos_info("fsid=%lu fid=%08llx disksize=%llu diskchecksum=%s checktime=%llu fcxerror=%d bcxerror=%d flaglayouterror=%d", fsid, fid, disksize, diskchecksum.c_str(), checktime, filecxerror, blockcxerror, flaglayouterror);
+  eos_info("fsid=%lu fid=%08llx disksize=%llu diskchecksum=%s checktime=%llu fcxerror=%d bcxerror=%d flaglayouterror=%d", (unsigned long) fsid, fid, disksize, diskchecksum.c_str(), checktime, filecxerror, blockcxerror, flaglayouterror);
 	
   if (!fid) {
     eos_info("skipping to insert a file with fid 0");
@@ -615,7 +615,7 @@ FmdSqliteHandler::UpdateFromDisk(eos::common::FileSystem::fsid_t fsid, eos::comm
     }
     return CommitFromMemory(fid,fsid);
   } else {
-    eos_crit("no sqlite DB open for fsid=%llu", fsid);
+    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
     return false;
   }
 
@@ -642,7 +642,7 @@ FmdSqliteHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid, eos::commo
 {
   eos::common::RWMutexWriteLock lock(Mutex);
   
-  eos_info("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s name=%s container=%s", fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str(), name.c_str(), container.c_str());
+  eos_info("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s name=%s container=%s", (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str(), name.c_str(), container.c_str());
 
   if (!fid) {
     eos_info("skipping to insert a file with fid 0");
@@ -676,7 +676,7 @@ FmdSqliteHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid, eos::commo
     FmdSqliteMap[fsid][fid].checksum.erase(eos::common::LayoutId::GetChecksumLen(lid)*2);
     return CommitFromMemory(fid,fsid);
   } else {
-    eos_crit("no sqlite DB open for fsid=%llu", fsid);
+    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
     return false;
   }
 }
@@ -715,7 +715,7 @@ FmdSqliteHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
       return false;
     }
   } else {
-    eos_crit("no sqlite DB open for fsid=%llu", fsid);
+    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
     return false;
   }
   return true;
@@ -753,7 +753,7 @@ FmdSqliteHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
       return false;
     }
   } else {
-    eos_crit("no sqlite DB open for fsid=%llu", fsid);
+    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
     return false;
   }
   return true;
@@ -820,7 +820,7 @@ FmdSqliteHandler::ResyncDisk(const char* path, eos::common::FileSystem::fsid_t f
 	
 	// now updaAte the SQLITE DB
 	if (!UpdateFromDisk(fsid,fid, disksize, diskchecksum, checktime, (filecxError =="1")?1:0, (blockcxError == "1")?1:0,flaglayouterror)) {
-	  eos_err("failed to update SQLITE DB for fsid=%lu fid=%08llx", fsid, fid);
+	  eos_err("failed to update SQLITE DB for fsid=%lu fid=%08llx", (unsigned long) fsid, fid);
 	  retc = false;
 	} 
       }
@@ -931,7 +931,7 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
       if (fmd->fMd.disksize == 0xfffffff1ULL) {
 	if (fMd.layouterror && eos::common::LayoutId::kUnregistered) {
 	  // there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
-	  eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fMd.fid, fsid);
+	  eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fMd.fid, (unsigned long) fsid);
 	  delete fmd;
 	  return DeleteFmd(fMd.fid, fsid);
 	} else {
@@ -957,7 +957,7 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
       // check if it exists on disk and on the mgm
       if ( (fmd->fMd.disksize == 0xfffffff1ULL) && (fmd->fMd.mgmsize == 0xfffffff1ULL) ) {
 	// there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
-	eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fMd.fid, fsid);
+	eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fMd.fid, (unsigned long) fsid);
 	delete fmd;
 	return DeleteFmd(fMd.fid, fsid);
       }
@@ -1083,7 +1083,7 @@ FmdSqliteHandler::Query(eos::common::FileSystem::fsid_t fsid, std::string query,
     }
     return fidvector.size();
   } else {
-    eos_err("no SQL DB open for fsid=%lu", fsid);
+    eos_err("no SQL DB open for fsid=%lu", (unsigned long) fsid);
     return 0;
   }
 }
@@ -1216,7 +1216,7 @@ bool
 FmdSqliteHandler::TrimDBFile(eos::common::FileSystem::fsid_t fsid, XrdOucString option) {
 
   if (!DB.count(fsid)) {
-    eos_err("unable to trim DB for fsid=%lu - DB not open", fsid);
+    eos_err("unable to trim DB for fsid=%lu - DB not open", (unsigned long) fsid);
     return false;
   }
  

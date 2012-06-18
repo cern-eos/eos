@@ -4470,6 +4470,8 @@ XrdMgmOfs::FSctl(const int               cmd,
       MAYSTALL;
       MAYREDIRECT;
 
+      eos_thread_debug("cmd=xattr subcmd=%s path=%s", env.Get("mgm.subcmd"), spath.c_str());
+      
       const char* sub_cmd;
       struct stat buf;
 

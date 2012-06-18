@@ -777,7 +777,7 @@ XrdFstOfsFile::open(const char                *path,
   // attach meta data
   fMd = gFmdSqliteHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
   if (!fMd) {
-    eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
+    eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, (unsigned long long)fsid);
     int ecode=1094;
     eos_warning("rebouncing client since we failed to get the FMD record back to MGM %s:%d",RedirectManager.c_str(), ecode);
     return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
@@ -923,7 +923,7 @@ XrdFstOfsFile::open(const char                *path,
     // tag this transaction as open
     if (isRW) {
       if (!gOFS.Storage->OpenTransaction(fsid, fileid)) {
-        eos_crit("cannot open transaction for fsid=%u fid=%llu", fsid, fileid);
+        eos_crit("cannot open transaction for fsid=%u fidC=%llu", fsid, fileid);
       }
     }
   }
@@ -1235,6 +1235,7 @@ XrdFstOfsFile::close()
 	    fMd->fMd.disksize = statinfo.st_size;
 	    fMd->fMd.mgmsize  = 0xfffffff1ULL;    // now again undefined
 	    fMd->fMd.mgmchecksum = "";            // now again empty
+	    fMd->fMd.diskchecksum = fMd->fMd.checksum; // take the fresh checksum 
 	    fMd->fMd.layouterror = 0;             // reset layout errors
 	    fMd->fMd.locations   = "";            // reset locations
 	    fMd->fMd.filecxerror = 0;
@@ -1316,34 +1317,39 @@ XrdFstOfsFile::close()
 	    
 	    rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
 
-	    if (rc == -EIO) {
-	      eos_crit("commit returned an error msg=%s", error.getErrText());
-	      if (isCreation) {
-		// new files we should clean-up
-		deleteOnClose=true;
-	      }
-	    }
 
-	    if ( (rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR) ) {
-	      if (!gOFS.Storage->CloseTransaction(fsid, fileid)) {
-		eos_crit("cannot close transaction for fsid=%u fid=%llu", fsid, fileid);
-	      }
-	      if (rc == -EIDRM) {
-		// this file has been deleted in the meanwhile ... we can unlink that immedeatly
-		eos_info("info=\"unlinking fid=%08x path=%s - file has been already unlinked from the namespace\"", fMd->fMd.fid, Path.c_str());
-	      }
-	      if (rc == -EBADE) {
-		eos_err("info=\"unlinking fid=%08x path=%s - file size of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
-	      }
-	      if (rc == -EBADR) {
-		eos_err("info=\"unlinking fid=%08x path=%s - checksum of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
+	    if (  (rc == -EIO) || (rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR) ) {
+	      if (rc == -EIO) {
+		eos_crit("commit returned an error msg=%s", error.getErrText());
+		if (isCreation) {
+		  // new files we should clean-up
+		  deleteOnClose=true;
+		}
 	      }
 	      
-	      int retc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
-	      if (!retc) {
-		eos_debug("<rem> returned retc=%d", retc);
+	      if ( (rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR) ) {
+		if (!gOFS.Storage->CloseTransaction(fsid, fileid)) {
+		  eos_crit("cannot close transaction for fsid=%u fid=%llu", fsid, fileid);
+		}
+		if (rc == -EIDRM) {
+		  // this file has been deleted in the meanwhile ... we can unlink that immedeatly
+		  eos_info("info=\"unlinking fid=%08x path=%s - file has been already unlinked from the namespace\"", fMd->fMd.fid, Path.c_str());
+		}
+		if (rc == -EBADE) {
+		  eos_err("info=\"unlinking fid=%08x path=%s - file size of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
+		}
+		if (rc == -EBADR) {
+		  eos_err("info=\"unlinking fid=%08x path=%s - checksum of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
+		}
+		
+		int retc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
+		if (!retc) {
+		  eos_debug("<rem> returned retc=%d", retc);
+		}
+		deleteOnClose=true; 
+	      } else {
+		eos_crit("commit returned an not catched error msg=%s", error.getErrText());
 	      }
-	      deleteOnClose=true; 
 	    }
 	  }    
 	} 

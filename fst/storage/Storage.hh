@@ -130,6 +130,7 @@ protected:
 
 public:
   // fsstat & quota thread
+  static void* StartDaemonSupervisor(void *pp);
   static void* StartFsCommunicator(void *pp); 
   static void* StartFsScrub(void * pp);
   static void* StartFsTrim(void* pp);
@@ -150,6 +151,7 @@ public:
   void ErrorReport();
   void Verify();
   void Communicator();
+  void Supervisor();
   void Publish();
   void Balancer();
   void Drainer();
