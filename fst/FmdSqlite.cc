@@ -373,7 +373,8 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
 	}
 	   
 	// if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the FMD record
-	if ((!isRW) && ((fmd->fMd.diskchecksum.length() && (fmd->fMd.diskchecksum != fmd->fMd.checksum)) ||
+	// this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)
+	if ((!isRW) && fmd->fMd.mgmsize && ((fmd->fMd.diskchecksum.length() && (fmd->fMd.diskchecksum != fmd->fMd.checksum)) ||
 			(fmd->fMd.mgmchecksum.length() &&  (fmd->fMd.mgmchecksum  != fmd->fMd.checksum)) )) {
 	  eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s", fid, fsid, fmd->fMd.checksum.c_str(), fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str());
 	  
@@ -1171,12 +1172,12 @@ FmdSqliteHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsi
       }
       
       if (!it->second.layouterror) {
-	if (it->second.diskchecksum.length() && (it->second.diskchecksum != it->second.checksum) ) {
+	if (it->second.size  && it->second.diskchecksum.length() && (it->second.diskchecksum != it->second.checksum) ) {
 	  statistics["d_cx_diff"]++;
 	  fidset["d_cx_diff"].insert(it->second.fid);
 	}
 	
-	if (it->second.mgmchecksum.length() && (it->second.mgmchecksum != it->second.checksum) ) {
+	if (it->second.size && it->second.mgmchecksum.length() && (it->second.mgmchecksum != it->second.checksum) ) {
 	  statistics["m_cx_diff"]++;
 	  fidset["m_cx_diff"].insert(it->second.fid);
 	}

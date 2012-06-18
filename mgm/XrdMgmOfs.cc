@@ -3849,19 +3849,22 @@ XrdMgmOfs::FSctl(const int               cmd,
         eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
         // -------------------------------------------
 	eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);      
+	XrdOucString emsg="";
         try {
           fmd = gOFS->eosFileService->getFileMD(fid);
         } catch( eos::MDException &e ) {
           errno = e.getErrno();
 	  eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),e.getMessage().str().c_str());          
+	  emsg ="retc="; emsg += e.getErrno(); emsg += " msg="; emsg += e.getMessage().str().c_str();
         }
-
+	
         if (!fmd) {          
           // uups, no such file anymore
 	  if (errno == ENOENT) {
             return Emsg(epname,error, ENOENT, "commit filesize change - file is already removed [EIDRM]","");
 	  } else {
-	    return Emsg(epname,error,errno,"commit filesize change",spath);
+	    emsg.insert("commit filesize change [EIO] ",0);
+	    return Emsg(epname,error,errno,emsg.c_str(),spath);
 	  }
         } else {
 	  unsigned long lid = fmd->getLayoutId();

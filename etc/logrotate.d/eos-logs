@@ -1,4 +1,5 @@
 /var/log/eos/mgm/error.log {
+	missingok
 	daily
         copytruncate
         create 755 root root
@@ -8,6 +9,7 @@
 }
 
 /var/log/eos/eosha/eosha.log {
+	missingok
 	daily
         copytruncate
         create 755 root root
@@ -17,6 +19,7 @@
 }
 
 /var/log/eos/mgm/logbook.log {
+	missingok
 	daily
         copytruncate
         create 755 root root
@@ -26,6 +29,7 @@
 }
 
 /var/log/eos/fst/eoscp.log {
+	missingok
 	daily
         copytruncate
         create 755 root root

@@ -1315,7 +1315,15 @@ XrdFstOfsFile::close()
 	    capOpaqueFile += "&mgm.logid="; capOpaqueFile += logId;
 	    
 	    rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
-	    
+
+	    if (rc == -EIO) {
+	      eos_crit("commit returned an error msg=%s", error.getErrText());
+	      if (isCreation) {
+		// new files we should clean-up
+		deleteOnClose=true;
+	      }
+	    }
+
 	    if ( (rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR) ) {
 	      if (!gOFS.Storage->CloseTransaction(fsid, fileid)) {
 		eos_crit("cannot close transaction for fsid=%u fid=%llu", fsid, fileid);
@@ -1349,9 +1357,9 @@ XrdFstOfsFile::close()
     }
 
     if (layOut) {
-      rc = layOut->close();
+      rc |= layOut->close();
     } else {
-      rc = closeofs();
+      rc |= closeofs();
     }
     
     closed = true;
@@ -1397,7 +1405,7 @@ XrdFstOfsFile::close()
     } 
   }
   
-  if (deleteOnClose) {
+  if (deleteOnClose && isCreation) {
     eos_info("info=\"deleting on close\" fn=%s fstpath=%s\n", capOpaque->Get("mgm.path"), fstPath.c_str());
     int retc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid, true);
     if (retc) {
@@ -1499,6 +1507,9 @@ XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manag
       
       if (msg.find("[EADV]") != STR_NPOS)
 	rc = -EADV;
+      
+      if (msg.find("[EIO]") != STR_NPOS)
+	rc = -EIO;
 
       break;
       
