@@ -592,6 +592,9 @@ public:
   bool           ShouldStall(const char* function, int accessmode, eos::common::Mapping::VirtualIdentity &vid, int &stalltime, XrdOucString &stallmsg);
   bool           ShouldRedirect(const char* function, int accessmode, eos::common::Mapping::VirtualIdentity &vid, XrdOucString &host, int &port);
 
+  void           UpdateNowInmemoryDirectoryModificationTime(eos::ContainerMD::id_t id);
+  void           UpdateInmemoryDirectoryModificationTime(eos::ContainerMD::id_t id, eos::ContainerMD::ctime_t &ctime);
+
   char          *ConfigFN;       
   
   ConfigEngine*    ConfEngine;         // storing/restoring configuration

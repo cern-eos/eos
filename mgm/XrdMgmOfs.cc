@@ -29,6 +29,7 @@
 #include "common/Timing.hh"
 #include "common/StringConversion.hh"
 #include "common/SecEntity.hh"
+#include "namespace/Constants.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -293,6 +294,26 @@ XrdMgmOfs::ShouldRedirect(const char* function, int __AccessMode__, eos::common:
   }
   return false;
 }
+
+/*----------------------------------------------------------------------------*/
+void
+XrdMgmOfs::UpdateNowInmemoryDirectoryModificationTime(eos::ContainerMD::id_t id) {
+  struct timespec ts;
+  eos::common::Timing::GetTimeSpec(ts);
+  return UpdateInmemoryDirectoryModificationTime(id, ts);
+}
+
+
+/*----------------------------------------------------------------------------*/
+void
+XrdMgmOfs::UpdateInmemoryDirectoryModificationTime(eos::ContainerMD::id_t id, eos::ContainerMD::ctime_t &ctime) {
+  XrdSysMutexHelper vLock(gOFS->MgmDirectoryModificationTimeMutex);
+  gOFS->MgmDirectoryModificationTime[id].tv_sec = ctime.tv_sec;
+  gOFS->MgmDirectoryModificationTime[id].tv_nsec = ctime.tv_nsec;
+}
+
+
+
 
 /*----------------------------------------------------------------------------*/
 void
@@ -832,13 +853,8 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     }
     
     // store the in-memory modification time
-    gOFS->MgmDirectoryModificationTimeMutex.Lock();
     // we get the current time, but we don't update the creation time
-    struct timespec ts;
-    eos::common::Timing::GetTimeSpec(ts);
-    gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_sec = ts.tv_sec;
-    gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_nsec = ts.tv_nsec;
-    gOFS->MgmDirectoryModificationTimeMutex.UnLock();
+    gOFS->UpdateNowInmemoryDirectoryModificationTime(dmd->getId());
     //-------------------------------------------    
   }
 
@@ -1760,6 +1776,11 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
 	}
       }
       cmd->setMode(Mode | S_IFDIR);
+
+      // store the in-memory modification time for parent and this directory
+      UpdateNowInmemoryDirectoryModificationTime(pcmd->getId());
+      UpdateNowInmemoryDirectoryModificationTime(cmd->getId());
+
       eosView->updateContainerStore(cmd);
     } else {
       errno = EPERM;
@@ -2358,12 +2379,9 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     newdir->setMode(dir->getMode());
 
     // store the in-memory modification time
-    gOFS->MgmDirectoryModificationTimeMutex.Lock();
     eos::ContainerMD::ctime_t ctime;
     newdir->getCTime(ctime);
-    gOFS->MgmDirectoryModificationTime[dir->getId()].tv_sec = ctime.tv_sec;
-    gOFS->MgmDirectoryModificationTime[dir->getId()].tv_nsec = ctime.tv_nsec;
-    gOFS->MgmDirectoryModificationTimeMutex.UnLock();
+    UpdateInmemoryDirectoryModificationTime(dir->getId(), ctime);
 
     if (dir->getMode() & S_ISGID) {
       // inherit the attributes
@@ -2506,8 +2524,10 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   }
 
   if (fmd) {
+    eos_info("got fmd=%lld", (unsigned long long) fmd);
     try {
       container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+      eos_info("got container=%lld", (unsigned long long) container);
       // get the attributes out
       eos::ContainerMD::XAttrMap::const_iterator it;
       for ( it = container->attributesBegin(); it != container->attributesEnd(); ++it) {
@@ -2558,6 +2578,7 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
       eos::QuotaNode* quotanode = 0;
       try {
         quotanode = gOFS->eosView->getQuotaNode(container);
+	eos_info("got quotanode=%lld", (unsigned long long) quotanode);
 	if (quotanode) {
 	  quotanode->removeFile(fmd);
 	}
@@ -2568,19 +2589,15 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
   }
 
   try {
+    eos_info("unlinking from view %s", path);
     gOFS->eosView->unlinkFile(path);
     if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())) {
       gOFS->eosView->removeFile( fmd );
     }
 
     if (container) {
-      struct timespec ts;
-      eos::common::Timing::GetTimeSpec(ts);
       // update the in-memory modification time
-      gOFS->MgmDirectoryModificationTimeMutex.Lock();
-      gOFS->MgmDirectoryModificationTime[container->getId()].tv_sec = ts.tv_sec;
-      gOFS->MgmDirectoryModificationTime[container->getId()].tv_nsec = ts.tv_nsec;
-      gOFS->MgmDirectoryModificationTimeMutex.UnLock();
+      UpdateNowInmemoryDirectoryModificationTime(container->getId());
     }
     errno =0;
   } catch( eos::MDException &e ) {
@@ -2728,17 +2745,20 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
     errno = EPERM;
     return Emsg(epname, error, errno, "rmdir", path);
   }
+
+  if ( (dh->getFlags() && eos::QUOTA_NODE_FLAG ) && (vid.uid) ) {
+    errno = EADDRINUSE;
+    eos_err("%s is a quota node - deletion canceled", path);
+    return Emsg(epname, error, errno, "rmdir", path);
+  }
     
   try {
     // remove the in-memory modification time of the deleted directory
     gOFS->MgmDirectoryModificationTimeMutex.Lock();
     gOFS->MgmDirectoryModificationTime.erase(dh_id);
-    struct timespec ts;
-    // update the in-memory modification time of the parent directory
-    eos::common::Timing::GetTimeSpec(ts);
-    gOFS->MgmDirectoryModificationTime[dhpar_id].tv_sec = ts.tv_sec;
-    gOFS->MgmDirectoryModificationTime[dhpar_id].tv_nsec = ts.tv_nsec;
     gOFS->MgmDirectoryModificationTimeMutex.UnLock();
+    // update the in-memory modification time of the parent directory
+    UpdateNowInmemoryDirectoryModificationTime(dhpar_id);
 
     eosView->removeContainer(path);
   } catch( eos::MDException &e ) {
@@ -3884,13 +3904,8 @@ XrdMgmOfs::FSctl(const int               cmd,
             return Emsg(epname,error, EIDRM, "commit filesize change - file is already removed [EIDRM]","");
           } else {
 	    // store the in-memory modification time
-	    gOFS->MgmDirectoryModificationTimeMutex.Lock();
 	    // we get the current time, but we don't update the creation time
-	    struct timespec ts;
-	    eos::common::Timing::GetTimeSpec(ts);
-	    gOFS->MgmDirectoryModificationTime[cid].tv_sec = ts.tv_sec;
-	    gOFS->MgmDirectoryModificationTime[cid].tv_nsec = ts.tv_nsec;
-	    gOFS->MgmDirectoryModificationTimeMutex.UnLock();
+	    UpdateNowInmemoryDirectoryModificationTime(cid);
 	    //-------------------------------------------    
 	  }
 

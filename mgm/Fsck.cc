@@ -204,7 +204,7 @@ Fsck::Check(void)
     eos::common::StringConversion::StringToLineVector((char*)stdOut.c_str(), lines);
 
     for (size_t nlines = 0; nlines <lines.size(); nlines++) {
-      //      fprintf(stderr,"%s\n", lines[nlines].c_str());
+      fprintf(stderr,"%s\n", lines[nlines].c_str());
       std::set<unsigned long long> fids;
       unsigned long fsid = 0;
       std::string errortag;

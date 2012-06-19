@@ -1589,6 +1589,7 @@ Quota::RmSpaceQuota(XrdOucString space, XrdOucString &msg, int &retc)
     retc =  EINVAL;
     return false;
   } else {
+    msg = "success: removed space quota for "; msg += space.c_str();
     spacequota->RemoveQuotaNode(msg, retc);
     gQuota.erase(space.c_str());
     return true;
