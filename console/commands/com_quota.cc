@@ -209,7 +209,7 @@ com_quota (char* arg1) {
     std::string sconfirmation = confirmation.c_str();
     if ( s == sconfirmation) {
       fprintf(stdout,"\nDeletion confirmed\n");
-      global_retc = output_result(client_user_command(in));
+      global_retc = output_result(client_admin_command(in));
     } else {
       fprintf(stdout,"\nDeletion aborted!\n");
       global_retc = -1;
