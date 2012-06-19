@@ -81,6 +81,8 @@ bool XrdMqClient::Subscribe(const char* queue) {
     if (!GetBrokerXrdClientReceiver(i)->Open(0,0,false)) {
       // open failed
       continue;
+    } else {
+      CheckBrokerXrdClientReceiver(i);
     }
   }
   return true;
@@ -442,7 +444,9 @@ void XrdMqClient::CheckBrokerXrdClientReceiver(int i) {
 	//	fprintf(stderr,"Checking Broker\n");
 	XrdOucString* bk = GetBrokerUrl(i);
 	if ( (!kBrokerXrdClientReceiverAliasTimeStamp[i]) || ((bk) && (*bk != client->GetClientConn()->GetCurrentUrl().GetUrl()))) {
-	  fprintf(stderr,"XrdMqClient::CheckBrokerXrdClientReceiver => Broker alias changed from %s => %s\n", client->GetClientConn()->GetCurrentUrl().GetUrl().c_str(), bk->c_str());
+	  if (*bk != client->GetClientConn()->GetCurrentUrl().GetUrl()) {
+	    fprintf(stderr,"XrdMqClient::CheckBrokerXrdClientReceiver => Broker alias changed from %s => %s\n", client->GetClientConn()->GetCurrentUrl().GetUrl().c_str(), bk->c_str());
+	  }
 	  
 	  ReNewBrokerXrdClientReceiver(i);
 	  // get the new client object

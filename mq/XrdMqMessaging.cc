@@ -120,13 +120,11 @@ XrdMqMessaging::BroadCastAndCollect(XrdOucString broadcastresponsequeue, XrdOucS
     fprintf(stderr,"failed to add broker\n");
     return false;
   }
-
   MessageClient.SetDefaultReceiverQueue(broadcasttargetqueues.c_str());
   if (!MessageClient.Subscribe()) {
     fprintf(stderr,"failed to subscribe\n");
     return false;
   }
-
   XrdMqMessage message;
   message.SetBody(msgbody.c_str());
   message.kMessageHeader.kDescription="Broadcast and Collect";
