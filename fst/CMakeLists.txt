@@ -47,7 +47,7 @@ add_library (XrdEosFst MODULE
 	    FmdSqlite.cc
 	    )
 
-target_link_libraries (XrdEosFst eosCapability-Static eosCommon-Static XrdMqClient-Static XrdClient XrdUtils XrdOfs crypto uuid curses pthread dl z attr)
+target_link_libraries (XrdEosFst eosCapability-Static eosCommon-Static XrdMqClient-Static XrdClient XrdUtils XrdOfs crypto uuid curses pthread dl z attr rt)
 
 add_executable ( FstLoad
                  Load.cc
