@@ -6388,7 +6388,6 @@ XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid, unsigned long lo
     } else {
       int caplen = 0;
       msgbody += capabilityenv->Env(caplen);
-      // we send deletions in bunches of max 1024 for efficiency
       message.SetBody(msgbody.c_str());
       if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
         eos_static_err("unable to send deletion message to %s", receiver.c_str());

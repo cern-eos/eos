@@ -204,7 +204,7 @@ Fsck::Check(void)
     eos::common::StringConversion::StringToLineVector((char*)stdOut.c_str(), lines);
 
     for (size_t nlines = 0; nlines <lines.size(); nlines++) {
-      fprintf(stderr,"%s\n", lines[nlines].c_str());
+      //      fprintf(stderr,"%s\n", lines[nlines].c_str());
       std::set<unsigned long long> fids;
       unsigned long fsid = 0;
       std::string errortag;
@@ -796,6 +796,10 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
     std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
 
     for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {
+      // we don't sync offline replicas
+      if (emapit->first == "rep_offline") {
+	continue;
+      }
       // loop over all filesystems
       for (efsmapit = eFsMap[emapit->first].begin(); efsmapit != eFsMap[emapit->first].end(); efsmapit++) {
 	std::set <eos::common::FileId::fileid_t>::const_iterator it;
@@ -822,10 +826,14 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
 	// issue a resync command for a filesystem/fid pair
 	lretc = gOFS->SendResync( *it, efsmapit->first);
 	if (lretc) {
-	  out += "success: sending resync to fsid="; out += (int)efsmapit->first; out += " for fid="; out += (int) *it; out += "\n";
+	  char outline[1024];
+	  snprintf(outline,sizeof(outline)-1, "success: sending resync to fsid=%u fxid=%llx\n",efsmapit->first,*it);
+	  out += outline;
 	} else {
-	  out += "error: sending resync to fsid=";   out += (int)efsmapit->first; out += " failed for fid="; out += (int) *it; out += "\n";
-	}
+	  char outline[1024];
+	  snprintf(outline,sizeof(outline)-1, "error: sending resync to fsid=%u failed for fxid=%llx\n",efsmapit->first,*it);
+	  out += outline;
+}
       }
     }
     return true;
