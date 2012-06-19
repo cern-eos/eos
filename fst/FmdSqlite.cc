@@ -914,7 +914,8 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
   if ( (!(rc=GetMgmFmdSqlite(manager, fid, fMd))) || 
        (rc == ENODATA)) {
     if (rc == ENODATA) {
-      eos_warning("no such file on MGM for fid=%llu", fMd.fid);
+      eos_warning("no such file on MGM for fid=%llu", fid);
+      fMd.fid = fid;
       if (fid==0) {
 	eos_warning("removing fid=0 entry");
 	return DeleteFmd(fMd.fid, fsid);
@@ -939,6 +940,12 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
 	  delete fmd;
 	}
       }
+    }
+
+    if ( (!fmd) && (rc == ENODATA) ) {
+      // no file on MGM and no file locally
+      eos_info("fsid=%lu fid=%08lxx msg=\"file removed in the meanwhile\"", fsid, fid);
+      return true;
     }
 
     // get/create a record
