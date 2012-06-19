@@ -427,7 +427,9 @@ Storage::Boot(FileSystem *fs)
 
   // we have to wait that we know who is our manager
   std::string manager = "";
+  size_t cnt=0;
   do {
+    cnt++;
     {
       XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
       manager = eos::fst::Config::gConfig.Manager.c_str();
@@ -438,6 +440,12 @@ Storage::Boot(FileSystem *fs)
     XrdSysTimer sleeper;
     sleeper.Snooze(5);
     eos_info("Waiting to know our manager ...");    
+    if (cnt > 20) {
+      eos_static_alert("didn't receive manager name, aborting");
+      XrdSysTimer sleeper;
+      sleeper.Snooze(10);	
+      kill(SIGQUIT,getpid());
+    }
   } while(1);
   
   eos::common::FileSystem::fsid_t fsid = fs->GetId();
@@ -2407,9 +2415,10 @@ Storage::MgmSyncer()
   // this thread checks the synchronization between the local MD after a file modification/write against the MGM server
   while(1) {
     XrdOucString manager="";
-
+    size_t cnt=0;
     // get the currently active manager
     do {
+      cnt++;
       {
 	XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
 	manager = eos::fst::Config::gConfig.Manager.c_str();
@@ -2420,6 +2429,12 @@ Storage::MgmSyncer()
       XrdSysTimer sleeper;
       sleeper.Snooze(5);
       eos_info("Waiting to know our manager ...");    
+      if (cnt > 20) {
+	eos_static_alert("didn't receive manager name, aborting");
+	XrdSysTimer sleeper;
+	sleeper.Snooze(10);	
+	kill(SIGQUIT,getpid());
+      }
     } while(1);
 
     bool failure = false;

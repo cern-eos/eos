@@ -929,7 +929,7 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
     FmdSqlite* fmd = GetFmd(fMd.fid, fsid, fMd.uid, fMd.gid, fMd.lid, false, true);
     if (fmd) {
       // check if there was a disk replica
-      if (fmd->fMd.disksize == 0xfffffff1ULL) {
+      if ( fmd->fMd.disksize == 0xfffffff1ULL) {
 	if (fMd.layouterror && eos::common::LayoutId::kUnregistered) {
 	  // there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
 	  eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fMd.fid, (unsigned long) fsid);
@@ -939,6 +939,11 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
 	  // we proceed 
 	  delete fmd;
 	}
+      }
+    } else {
+      if (fMd.layouterror && eos::common::LayoutId::kUnregistered) {
+	// this entry is deleted and we are not supposed to have it
+	return true;
       }
     }
 
