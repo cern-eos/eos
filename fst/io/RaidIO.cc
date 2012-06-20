@@ -508,7 +508,7 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
   }
 
   //............................................................................
-  // Collect the responses\
+  // Collect the responses
   //............................................................................
   for ( unsigned int i = 0; i < mNbDataFiles; i++ ) {
     if ( !mWriteHandlers[i]->WaitOK() ) {
