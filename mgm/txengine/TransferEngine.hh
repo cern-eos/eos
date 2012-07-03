@@ -43,8 +43,10 @@ extern TransferEngine gTransferEngine;
 class TransferEngine {
 private:
   TransferDB* xDB;
+  pthread_t thread;
 public:
 
+  static const char* gConfigSchedule; //< global configuration tag if scheduling is enabled
   static const char* GetTransferState(int state) {
     if (state == kNone)      return "none";
     if (state == kInserted)  return "inserted";
@@ -62,10 +64,30 @@ public:
   TransferEngine();
   virtual ~TransferEngine();
   bool Init(const char* connectstring = 0 );
+  int Run(bool store=true);
+  int Stop(bool store=true);
+
+  static void* StaticSchedulerProc(void*);
+  void* Scheduler();
+
+  int ApplyTransferEngineConfig();
 
   int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid, time_t exptime=86400, XrdOucString credentials="");
   int Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
-  int Cancel(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
+  int Cancel(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid );
+  int Kill(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr , eos::common::Mapping::VirtualIdentity& vid);
+  int Resubmit(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
+  int Log(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
+  int Clear(XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
+  int Reset(XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
+
+  
+
+  bool SetState(long long id, int status)                                  {return xDB->SetState(id,status);}
+  bool SetCredential(long long id, std::string credential, time_t exptime) {return xDB->SetCredential(id, credential, exptime);}
+  bool SetLog(long long id, std::string log)                               { return xDB->SetLog(id,log);}
+  TransferDB::transfer_t GetNextTransfer(int status)                       { return xDB->GetNextTransfer(status); }
+  TransferDB::transfer_t GetTransfer(long long id)                         { return xDB->GetTransfer(id);}
 };
 
 EOSMGMNAMESPACE_END

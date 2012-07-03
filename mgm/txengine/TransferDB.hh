@@ -36,13 +36,26 @@
 EOSMGMNAMESPACE_BEGIN
 
 class TransferDB {
-
+  
 public:
-  TransferDB(){};
-  virtual ~TransferDB(){};
+
+  typedef std::map< std::string, std::string > transfer_t;
+
+  TransferDB() {};
+  virtual ~TransferDB() {};
   virtual bool Init(const char* dbspec="/var/eos/tx/") = 0;
   virtual int Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid) = 0;
   virtual int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString& credentials, XrdOucString& submissionhost) = 0;
+  virtual int Cancel(long long id, XrdOucString& stdOut, XrdOucString stdErr) = 0;
+  virtual int Clear(XrdOucString& stdOut, XrdOucString& stdErr) = 0;
+
+  virtual bool SetState(long long id, int status) = 0;
+  virtual bool SetCredential(long long id, std::string credentail, time_t exptime) = 0;
+  virtual bool SetLog(long long id, std::string log) = 0;
+  virtual std::vector<long long> QueryByGroup(XrdOucString& group) = 0;
+  virtual std::vector<long long> QueryByState(XrdOucString& state) = 0;
+  virtual transfer_t GetNextTransfer(int status) = 0;
+  virtual transfer_t GetTransfer(long long id) = 0;
 };
 
 EOSMGMNAMESPACE_END
