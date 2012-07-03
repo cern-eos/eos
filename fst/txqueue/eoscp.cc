@@ -194,7 +194,8 @@ void print_summary_header(char* src[MAXSRCDST], char* dst[MAXSRCDST]) {
   timeinfo = localtime(&rawtime);
 
   COUT(("[eoscp] #################################################################\n"));
-  COUT(("[eoscp] # Date                     : %s ( %lu ) ", asctime(timeinfo), (unsigned long) rawtime)); 
+  COUT(("[eoscp] # Date                     : ( %lu ) %s", (unsigned long) rawtime, asctime(timeinfo)));
+  COUT(("[eoscp} # auth forced=%s krb5=%s gsi=%s\n", getenv("XrdSecPROTOCOL")?(getenv("XrdSecPROTOCOL")):"<none>", getenv("KRB5CCNAME")?getenv("KRB5CCNAME"):"<none>",getenv("X509_USER_PROXY")?getenv("X509_USER_PROXY"):"<none>"));
   for (int i = 0; i < nsrc; i++) 
     COUT(("[eoscp] # Source Name [%02d]         : %s\n", i, xsrc[i].c_str()));
 

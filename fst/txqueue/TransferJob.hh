@@ -45,8 +45,10 @@ private:
   eos::common::TransferJob* mJob;
   int mBandWidth; // band width in Mb/s
   int mTimeOut;   // max duration for a transfer in seconds
+  int mStreams;   // number of streams to use
   XrdOucString mSourceUrl;
   XrdOucString mTargetUrl;
+  long long mId;  // the ID is only used for scheduled gateway transfers (managed via 'transfer' console)
 
 public:
 
@@ -58,6 +60,8 @@ public:
 
   const char* GetSourceUrl();
   const char* GetTargetUrl();
+
+  void SendState(int state, const char* logfile=0);
 };
 
 EOSFSTNAMESPACE_END

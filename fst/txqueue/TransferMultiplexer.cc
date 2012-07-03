@@ -40,20 +40,25 @@ TransferMultiplexer::TransferMultiplexer()
 
 /* ------------------------------------------------------------------------- */
 TransferMultiplexer::~TransferMultiplexer(){
- 
+  Stop();
+}
+
+/* ------------------------------------------------------------------------- */
+void
+TransferMultiplexer::Stop() {
   if (thread) {
     XrdSysThread::Cancel(thread);
     XrdSysThread::Join(thread,NULL);
-    //    pthread_cancel(thread);
-    //    pthread_join(thread, NULL);
+    thread = 0;
   }
 }
 
 /* ------------------------------------------------------------------------- */
 void
 TransferMultiplexer::Run() {
-  XrdSysThread::Run(&thread, TransferMultiplexer::StaticThreadProc, static_cast<void *>(this),0, "Multiplexer Thread");
-  //  pthread_create(&thread, NULL, &TransferMultiplexer::StaticThreadProc, this);
+  if (!thread) {
+    XrdSysThread::Run(&thread, TransferMultiplexer::StaticThreadProc, static_cast<void *>(this), XRDSYSTHREAD_HOLD, "Multiplexer Thread");
+  }
 }
 
 
@@ -71,11 +76,11 @@ void* TransferMultiplexer::ThreadProc(void){
 
   size_t loopsleep=2000000;
 
-  XrdSysThread::SetCancelOn();
-  //  pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
 
   while (1) {
     for (size_t i=0; i< mQueues.size(); i++) {
+      XrdSysThread::SetCancelOff();
+  
       while( mQueues[i]->GetQueue()->Size()) {
         // look in all registered queues
         // take an entry from the queue
@@ -106,7 +111,7 @@ void* TransferMultiplexer::ThreadProc(void){
         mQueues[i]->IncRunning();
       }
     }
-
+    XrdSysThread::SetCancelOn();
     for (size_t i=0; i< loopsleep/10000; i++) {
       usleep(10000);
       XrdSysThread::CancelPoint();

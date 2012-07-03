@@ -286,7 +286,6 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 
   // setup the circular in-memory log buffer
   eos::common::Logging::Init();
-  //eos::common::Logging::SetLogPriority(LOG_DEBUG);
   eos::common::Logging::SetLogPriority(LOG_INFO);
   eos::common::Logging::SetUnit(unit.c_str());
 
@@ -319,12 +318,14 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   std::string watch_scaninterval = "scaninterval";
   std::string watch_symkey       = "symkey";
   std::string watch_manager      = "manager";
+  std::string watch_gateway      = "txgw";
 
   ObjectManager.ModificationWatchKeys.insert(watch_id);
   ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
   ObjectManager.ModificationWatchKeys.insert(watch_scaninterval);
   ObjectManager.ModificationWatchKeys.insert(watch_symkey);
   ObjectManager.ModificationWatchKeys.insert(watch_manager);
+  ObjectManager.ModificationWatchKeys.insert(watch_gateway);
   ObjectManager.SubjectsMutex.UnLock();
 
 
@@ -555,6 +556,7 @@ XrdFstOfsFile::open(const char                *path,
   if ((caprc=gCapabilityEngine.Extract(openOpaque, capOpaque))) {
     if (caprc == ENOKEY) {
       // if we just miss the key, better stall the client
+      eos_warning("FST still misses the required capability key");
       return gOFS.Stall(error, 10, "FST still misses the required capability key");
     }
     // no capability - go away!

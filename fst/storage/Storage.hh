@@ -29,6 +29,7 @@
 #include "common/Statfs.hh"
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
+#include "common/TransferQueue.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/Load.hh"
@@ -124,11 +125,16 @@ private:
   unsigned long long* scrubPattern[2];
   unsigned long long* scrubPatternVerify;
 
+  TransferQueue* mTxGwQueue;               // the handle to the storage queue of gw transfers
+  eos::common::TransferQueue* mGwQueue;    // the handle to the low-level queue of gw transfers
+
 protected:
   eos::common::RWMutex fsMutex;
   std::set<pthread_t> ThreadSet;
 
 public:
+  TransferMultiplexer mGwMultiplexer;      // the multiplexer for gw transfers
+
   // fsstat & quota thread
   static void* StartDaemonSupervisor(void *pp);
   static void* StartFsCommunicator(void *pp); 

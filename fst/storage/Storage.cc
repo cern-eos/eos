@@ -399,6 +399,14 @@ Storage::Storage(const char* metadirectory)
 
   eos_info("enabling net/io load monitor");
   fstLoad.Monitor();
+
+  // create gw queue
+  XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);  
+  std::string n = eos::fst::Config::gConfig.FstQueue.c_str(); n += "/gw";
+  mGwQueue     = new eos::common::TransferQueue(eos::fst::Config::gConfig.FstQueue.c_str(),n.c_str(),"txq"  , (eos::common::FileSystem*)0, &gOFS.ObjectManager, false);
+  n += "/txqueue";
+  mTxGwQueue   = new TransferQueue   (&mGwQueue, n.c_str());
+  mGwMultiplexer.Add(mTxGwQueue);
 }
 
 
@@ -1687,6 +1695,31 @@ Storage::Communicator()
 	    Config::gConfig.Manager = manager.c_str();
 	  }
 	  gOFS.ObjectManager.HashMutex.UnLockRead();
+	}
+	
+	// creation/deletion of gateway transfer queue
+	if ( key == "txgw" ) {
+	  gOFS.ObjectManager.HashMutex.LockRead();
+	  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(),"hash");
+	  if (hash) {
+	    std::string gw = hash->Get("txgw");
+	    eos_static_info("txgw=%s", gw.c_str());
+
+	    gOFS.ObjectManager.HashMutex.UnLockRead();		  
+	    if (gw == "off") {
+	      // just stop the multiplexer
+	      mGwMultiplexer.Stop();
+	      eos_static_info("Stopping transfer multiplexer on %s", queue.c_str());
+	    }
+	    
+	    if (gw == "on") {
+	      mGwMultiplexer.Run();
+	      eos_static_info("Starting transfer multiplexer on %s", queue.c_str());
+	    }
+	  } else {
+	    gOFS.ObjectManager.HashMutex.UnLockRead();
+	    eos_static_warning("Cannot get hash(queue)");
+	  }
 	}
       } else {
 	fsMutex.LockRead();

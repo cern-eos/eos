@@ -56,7 +56,8 @@ public:
     mQueues.push_back(queue);
   }
 
-  void Run(); // add all queues beforehand!
+  void Run(); //  start the multiplexer thread (add all queues beforehand)
+  void Stop(); // stop the multiplexer thread
 
   static void* StaticThreadProc(void*);
   void* ThreadProc();
