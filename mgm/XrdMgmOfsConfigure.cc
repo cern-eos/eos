@@ -1141,6 +1141,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("SendResync",0,0,0);
   gOFS->MgmStats.Add("Stat",0,0,0);
   gOFS->MgmStats.Add("Symlink",0,0,0);
+  gOFS->MgmStats.Add("TxState",0,0,0);
   gOFS->MgmStats.Add("Truncate",0,0,0);
   gOFS->MgmStats.Add("Utimes",0,0,0);
   gOFS->MgmStats.Add("VerifyStripe",0,0,0);
