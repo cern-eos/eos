@@ -51,7 +51,7 @@ FsView::GetNodeFormat(std::string option) {
   
   if (option == "m") {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=hostport:width=1:format=os|sep= |member=status:width=1:format=os|sep= |member=cfg.status:width=1:format=os|sep= |member=heartbeatdelta:width=1:format=os|sep= |member=nofs:width=1:format=os|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.fused:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running";
+    return "member=type:width=1:format=os|sep= |member=hostport:width=1:format=os|sep= |member=status:width=1:format=os|sep= |member=cfg.status:width=1:format=os|sep= |member=cfg.txgw:width=1:format=os|sep= |member=heartbeatdelta:width=1:format=os|sep= |member=nofs:width=1:format=os|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.fused:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running";
   }
  
   if (option == "io") {
@@ -64,9 +64,9 @@ FsView::GetNodeFormat(std::string option) {
 
   if (option == "l") {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s|sep= |sum=stat.balancer.running:width=10:format=l:tag=balan-run|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-run"; 
+    return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=cfg.txgw:width=6:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s|sep= |sum=stat.balancer.running:width=10:format=l:tag=balan-run|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-run"; 
   }
-  return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s"; 
+  return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=cfg.txgw:width=6:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s"; 
 }
 
 /*----------------------------------------------------------------------------*/
@@ -661,7 +661,10 @@ FsView::Reset()
   mSpaceView.clear();
   mGroupView.clear();
   mNodeView.clear();
-
+  {
+    eos::common::RWMutexWriteLock gwlock(GwMutex);
+    mGwNodes.clear();
+  }
   mIdView.clear();
   mFileSystemView.clear();
 }
@@ -903,6 +906,15 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create, std::
       
   if (hash) {
     success = hash->Set(key, value);
+    if (key == "txgw") {
+      eos::common::RWMutexWriteLock gwlock(FsView::gFsView.GwMutex);
+      if (value == "on") {
+	// we have to register this queue into the gw set for fast lookups
+	FsView::gFsView.mGwNodes.insert(broadcastqueue);
+      } else {
+	FsView::gFsView.mGwNodes.erase(broadcastqueue);
+      }
+    }
   }
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
 
@@ -1220,6 +1232,7 @@ FsView::ApplyGlobalConfig(const char* key, std::string &val)
         broadcast.erase(dashpos);
       }
       broadcast += "/fst";
+
       if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(tokens[0].c_str(),broadcast.c_str())) {
         eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
       }
@@ -1233,6 +1246,30 @@ FsView::ApplyGlobalConfig(const char* key, std::string &val)
   }
   if (hash) {
     success = hash->Set(tokens[1].c_str(), val.c_str());
+
+    // ---------------------------------------------------------------------------
+    // here we build a set with the gw nodes for fast lookup in the TransferEngine
+    // ---------------------------------------------------------------------------
+    if ( (tokens[0].find("/node/")) != std::string::npos ) {
+      if (tokens[1] == "txgw") {
+	std::string broadcast = "/eos/"; broadcast += paths[paths.size()-1]; 
+	size_t dashpos=0;
+	// remote the #<variable> 
+	if ( (dashpos = broadcast.find("#")) != std::string::npos) {
+	  broadcast.erase(dashpos);
+	}
+	broadcast += "/fst";
+	
+	eos::common::RWMutexWriteLock gwlock(GwMutex);
+	if (val == "on") {
+	  // we have to register this queue into the gw set for fast lookups
+	  FsView::gFsView.mGwNodes.insert(broadcast.c_str());
+	} else {
+	  FsView::gFsView.mGwNodes.erase(broadcast.c_str());
+	}
+      }
+    }
+
   } else {
     eos_static_err("there is no global config for queue <%s>", tokens[0].c_str());
   }

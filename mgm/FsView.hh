@@ -33,6 +33,7 @@
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
 #include "common/GlobalConfig.hh"
+#include "common/TransferQueue.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
@@ -190,16 +191,34 @@ public:
   static std::string gManagerId;
 
   virtual std::string GetMember(std::string name);
-  
-  FsNode(const char* name) {mName = name; mType="nodesview";}
-  ~FsNode(){};
+  eos::common::TransferQueue* mGwQueue;
+
+  FsNode(const char* name) {
+    mName = name; mType="nodesview";
+    std::string n = mName.c_str(); n += "/gw";
+    mGwQueue = new eos::common::TransferQueue(mName.c_str(), n.c_str(), "txq", (eos::common::FileSystem*)0, eos::common::GlobalConfig::gConfig.SOM(), false);
+  }
+
+  ~FsNode(){ if (mGwQueue) delete mGwQueue; };
 
   void SetNodeConfigDefault() { 
-    SetConfigMember("manager", gManagerId, true, mName.c_str(), true); 
-    SetConfigMember("stat.balance.ntx", "2",true,  mName.c_str(), true); // we configure for two balancer transfers by default
-    SetConfigMember("stat.balance.rate","25",true, mName.c_str(), true); // we configure for 25 Mb/s for each balancing transfer
+    if (!(GetConfigMember("manager").length())) {
+      SetConfigMember("manager", gManagerId, true, mName.c_str(), true); 
+    }
+    if (!(GetConfigMember("stat.balance.ntx").length())) {
+      SetConfigMember("stat.balance.ntx", "2",true,  mName.c_str(), true); // we configure for two balancer transfers by default
+    }
+    if (!(GetConfigMember("stat.balance.rate").length())) {
+      SetConfigMember("stat.balance.rate","25",true, mName.c_str(), true); // we configure for 25 Mb/s for each balancing transfer
+    }
     eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-    SetConfigMember("symkey",symkey->GetKey64(),true, mName.c_str(), true); // we put the current sym key
+
+    if (!(GetConfigMember("symkey").length())) {
+      SetConfigMember("symkey",symkey->GetKey64(),true, mName.c_str(), true); // we put the current sym key
+    }
+    if ( (GetConfigMember("txgw") != "on") && (GetConfigMember("txgw") != "off") ) {
+      SetConfigMember("txgw","off", true, mName.c_str(), true); // by default node's aren't transfer gateways
+    }
   }
 
   static std::string gConfigQueuePrefix;
@@ -249,6 +268,9 @@ public:
 
   std::map<eos::common::FileSystem::fsid_t, FileSystem*> mIdView;
   std::map<FileSystem*, eos::common::FileSystem::fsid_t> mFileSystemView;
+
+  eos::common::RWMutex GwMutex; // protecting the mGwNodes;
+  std::set<std::string> mGwNodes;
 
   // find filesystem
   FileSystem* FindByQueuePath(std::string &queuepath); // this requires that YOU lock the ViewMap beforehand
