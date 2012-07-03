@@ -42,15 +42,10 @@ com_transfer (char* argin) {
   XrdOucString arg1="";
   XrdOucString arg2="";
 
-  if ( (subcmd != "submit") && (subcmd != "cancel") && (subcmd != "ls") ) 
+  if ( (subcmd != "submit") && (subcmd != "cancel") && (subcmd != "ls") && (subcmd != "enable") && (subcmd != "disable" ) && (subcmd != "reset" ) && (subcmd != "clear") && (subcmd != "log") && (subcmd != "resubmit") && (subcmd != "kill") ) 
     goto com_usage_transfer;
 
-  if (subcmd == "submit") 
-    in += "submit";
-  if (subcmd == "cancel")
-    in += "cancel";
-  if (subcmd == "ls") 
-    in += "ls";
+  in += subcmd;
     
   do {
     option = subtokenizer.GetToken();
@@ -74,12 +69,16 @@ com_transfer (char* argin) {
 	    if (option == "-m") {
 	      foption = "m";
 	    } else {
-	      if (option.beginswith("-")) {
-		goto com_usage_transfer;
+	      if (option == "-s") {
+		foption ="s";
 	      } else {
-		arg1=option;
-		arg2=subtokenizer.GetToken();
-		break;
+		if (option.beginswith("-")) {
+		  goto com_usage_transfer;
+		} else {
+		  arg1=option;
+		  arg2=subtokenizer.GetToken();
+		  break;
+		}
 	      }
 	    }
 	  }
@@ -108,11 +107,11 @@ com_transfer (char* argin) {
       goto com_usage_transfer;
     }
 
-    in += "&mgm.src="; in += arg1;
-    in += "&mgm.dst="; in += arg2;
-    in += "&mgm.rate="; in += rate;
-    in += "&mgm.streams="; in += streams;
-    in += "&mgm.group="; in += group;
+    in += "&mgm.txsrc="; in += arg1;
+    in += "&mgm.txdst="; in += arg2;
+    in += "&mgm.txrate="; in += rate;
+    in += "&mgm.txstreams="; in += streams;
+    in += "&mgm.txgroup="; in += group;
 
     global_retc = output_result(client_admin_command(in));
     return (0);
@@ -123,26 +122,35 @@ com_transfer (char* argin) {
       goto com_usage_transfer;
     }
 
-    in += "&mgm.option="; in += foption;
-    in += "&mgm.group="; in += group;
+    in += "&mgm.txoption="; in += foption;
+    in += "&mgm.txgroup="; in += group;
     
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
-  
-  if (subcmd == "cancel") {
-    xid = arg1;
-    if (arg2.length() || rate.length())
-      goto com_usage_transfer;
 
-    in += "&mgm.txid="; in += xid;
+  if ( (subcmd == "enable") || (subcmd == "disable") || (subcmd == "reset") || (subcmd == "clear") )  {
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
+  
+  if ( (subcmd == "cancel") || (subcmd == "log") || (subcmd == "resubmit") || (subcmd == "kill") ) {
+    xid = arg1;
+    if (!xid.length() && (!group.length())) {
+      goto com_usage_transfer;
+    }
+    if (!xid.length()) {
+      in += "&mgm.txgroup="; in += group;
+    } else {
+      in += "&mgm.txid="; in += xid;
+    }
 
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
   
  com_usage_transfer:
-  fprintf(stdout,"Usage: transfer submit|cancel|ls ..");
+  fprintf(stdout,"Usage: transfer submit|cancel|ls|enable|disable|reset|clear|resubmit|log ..");
   fprintf(stdout,"'[eos] transfer ..' provides the transfer interface of EOS.\n");
   fprintf(stdout,"Options:\n");
   fprintf(stdout,"transfer submit [--rate=<rate>] [--streams=<#>] [--group=<groupname>] <URL1> <URL2> :\n");
@@ -151,18 +159,26 @@ com_transfer (char* argin) {
   fprintf(stdout,"       --rate          : limit the transfer rate to <rate>\n");
   fprintf(stdout,"       --streams       : use <#> parallel streams\n\n");
   fprintf(stdout,"       --group         : set the group name for this transfer\n");
-  fprintf(stdout,"transfer get [--rate=<rate>] [--streams=<#>] [--group=<groupname>] root://<host>//<path> /eos/.. :\n");
-  fprintf(stdout,"                                                  transfer the file from RUL root://<host>//<path> to /eos/..\n");
-  fprintf(stdout,"       --rate          : limit the transfer rate to <rate>\n");
-  fprintf(stdout,"       --streams       : use <#> parallel streams\n\n");
-  fprintf(stdout,"       --group         : set the group name for this transfer\n");
-  fprintf(stdout,"transfer cancel <id>\n");
-  fprintf(stdout,"                                                  cancel transfer with ID <id>\n");
+  fprintf(stdout,"transfer cancel <id>|--group=<groupname>\n");
+  fprintf(stdout,"                                                  cancel transfer with ID <id> or by group <groupname>\n");
   fprintf(stdout,"       <id>=*          : cancel all transfers (only root can do that)\n\n");
-  fprintf(stdout,"transfer ls [-a] [-m] [--group=<groupname>] \n");
+  fprintf(stdout,"transfer ls [-a] [-m] [s] [--group=<groupname>] \n");
   fprintf(stdout,"       -a              : list all transfers not only of the current role\n");
-  fprintf(stdout,"       --group         : list all transfers in this group\n");
   fprintf(stdout,"       -m              : list all transfers in monitoring format (key-val pairs)\n");
-  
+  fprintf(stdout,"       -s              : print transfer summary\n");
+  fprintf(stdout,"       --group         : list all transfers in this group\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"transfer enable\n");
+  fprintf(stdout,"                       : start the transfer engine (you have to be root to do that)\n");
+  fprintf(stdout,"transfer disable\n");  
+  fprintf(stdout,"                       : stop the transfer engine (you have to be root to do that)\n");
+  fprintf(stdout,"transfer reset [--group=<groupname>]\n");    
+  fprintf(stdout,"                       : reset all transfers to 'inserted' state (you have to be root to do that)\n");
+  fprintf(stdout,"transfer clear \n");    
+  fprintf(stdout,"                       : clear's the transfer database (you have to be root to do that)\n");
+  fprintf(stdout,"transfer resubmit <id> [--group=<groupname>]\n");
+  fprintf(stdout,"                       : resubmit's a transfer\n");
+  fprintf(stdout,"transfer kill <id>|--group=<groupname>\n");
+  fprintf(stdout,"                       : kill a running transfer\n");
   return (0);
 }

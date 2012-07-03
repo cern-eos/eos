@@ -105,6 +105,24 @@ com_node (char* arg1) {
     in += active;
     ok = true;
   }
+
+  if ( subcommand == "gw" ) {
+    in ="mgm.cmd=node&mgm.subcmd=set";
+    XrdOucString nodename = subtokenizer.GetToken();
+    XrdOucString active= subtokenizer.GetToken();
+
+    if ( (active != "on") && (active != "off") ) {
+      printusage=true;
+    }
+
+    if (!nodename.length())
+      printusage=true;
+    in += "&mgm.node=";
+    in += nodename;
+    in += "&mgm.node.txgw=";
+    in += active;
+    ok = true;
+  }
   
   if ( subcommand == "rm" ) {
     in ="mgm.cmd=node&mgm.subcmd=rm";
@@ -227,6 +245,7 @@ com_node (char* arg1) {
   fprintf(stdout,"       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
   fprintf(stdout,"       node rm  <queue-name>|<host:port>                        : remove a node\n");
   fprintf(stdout,"       node register <host:port|*> <path2register> <space2register> [--force] [--root]\n");
+  fprintf(stdout,"       node gw <queue-name>|<host:port> <on|off>                : enable (on) or disable (off) node as a transfer gateway\n");
   fprintf(stdout,"                                                                : register filesystems on node <host:port>\n");
   fprintf(stdout,"                                                                  <path2register> is used as match for the filesystems to register e.g. /data matches filesystems /data01 /data02 etc. ... /data/ registers all subdirectories in /data/\n");
   fprintf(stdout,"                                                                  <space2register> is formed as <space>:<n> where <space> is the space name and <n> must be equal to the number of filesystems which are matched by <path2register> e.g. data:4 or spare:22 ...\n");
