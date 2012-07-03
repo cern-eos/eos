@@ -46,6 +46,7 @@ XRD_LOGDIR="/var/log/eos"
 XRD_COREDIR="/var/spool/eos/"
 XRD_ADMINDIR="/var/spool/eos/admin"
 XRD_CONFIGDIR="/var/eos/"
+XRD_AUTHDIR="/var/eos/auth/"
 XRD_CONFIG="/etc/xrd.cf"
 XRD_ROLEFLAG=""
 
@@ -124,6 +125,9 @@ start() {
 			    chmod -R 775 ${XRD_COREDIR}
 			fi
 			
+			mkdir -p ${XRD_AUTHDIR}/
+			chown ${XRD_USER} ${XRD_AUTHDIR}
+			setfacl -m default:u:${XRD_USER}:r ${XRD_AUTHDIR}
 			cd ${XRD_COREDIR}/core/$i
 
 			if [ ${XRD_USER} = "$USER" ]; then
@@ -279,6 +283,7 @@ restart() {
         /etc/init.d/eosd stop 
     fi
     stop $1
+    sleep 5  
     start $1
     if [ "$eoshaoff" = "1" ]; then
         /etc/init.d/eosha start 

@@ -1,0 +1,9 @@
+/var/log/eos/fuse/fuse.log {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}

@@ -17,13 +17,13 @@ sec.protocol unix
 # SSS authentication
 sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
 # KRB  authentication
-sec.protocol krb5 host/<host>@CERN.CH
+sec.protocol krb5 -exptkn:/var/eos/auth/krb5#<uid> host/<host>@CERN.CH
 # GSI authentication
-sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2 -vomsat:1 -moninfo:1
+sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2 -vomsat:1 -moninfo:1 -exppxy:/var/eos/auth/gsi#<uid>
 
 ###########################################################
-sec.protbind localhost.localdomain unix sss
-sec.protbind localhost unix sss
+sec.protbind localhost.localdomain krb5 gsi unix sss
+sec.protbind localhost krb5 gsi unix sss
 sec.protbind * only krb5 gsi sss unix
 ###########################################################
 mgmofs.fs /
