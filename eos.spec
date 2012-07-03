@@ -110,6 +110,7 @@ rm -rf $RPM_BUILD_ROOT
 %_sysconfdir/rc.d/init.d/eossync
 %_sysconfdir/cron.d/eos-logs
 %_sysconfdir/cron.d/eos-reports
+%_sysconfdir/logrotate.d/eos-logs
 
 %post -n eos-server
 /sbin/chkconfig --add eos
@@ -173,6 +174,7 @@ The EOS fuse client.
 /usr/sbin/eosd
 /etc/fuse.conf
 /etc/rc.d/init.d/eosd
+%_sysconfdir/logrotate.d/eos-fuse-logs
 %changelog
 
 %post -n eos-fuse
