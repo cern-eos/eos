@@ -1,4 +1,4 @@
- ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # File: eos-instance-test
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
@@ -28,6 +28,7 @@
 #export EOS_TEST_GSMNOTIFY="0041764875002@mail2sms.cern.ch"
 
 export EOS_TEST_REDIRECTOR=localhost
+export EOS_TEST_FULL_REDIRECTOR=`hostname -f`
 export EOS_TEST_TESTSYS=/tmp/eos-instance-test
 export EOS_TEST_GSMLOCKTIME=3600
 export EOS_TEST_TESTTIMESLICE=300;
@@ -165,6 +166,14 @@ download () {
     echo xrdcp -np -v -f root://$EOS_TEST_REDIRECTOR/$dst $src $* >& $EOSLASTLOG ;eval $XROOTSYS/bin/xrdcp -f root://$EOS_TEST_REDIRECTOR/$dst $src $* >> $EOSCERTLOG 2>&1
 }
 ################################################################################################################
+downloadh () {
+    src=$1
+    dst=$2
+    shift
+    shift
+    echo xrdcp -np -v -f root://$EOS_TEST_FULL_REDIRECTOR/$dst $src $* >& $EOSLASTLOG ;eval $XROOTSYS/bin/xrdcp -f root://$EOS_TEST_FULL_REDIRECTOR/$dst $src $* >> $EOSCERTLOG 2>&1
+}
+################################################################################################################
 timeout() {
     echo "## TIMEOUT ##";
     exit 0;
@@ -270,7 +279,7 @@ echo "==================================================="
 #      <auth>                  : 'krb5','gsi','unix','sss' - choose krb5 or X509 authentication [ you have to create both tokens beforehand ]
 #      <env>                   : can be used to set the execution environment env <env> "
 #      <expect>                : 0 or 1 => 0 - you expect the command works , 1 - you expect that the command failes, 2 - you run the command but it can fail or not, that is expected
-#      <mode>                  : upload|download|meta|eos|stress|abort|extend|shrink|random|truncate|holes|backward|downloadrandom : self explaining - meta executes command via xrd shell, eos via eos shell, stress runs xrdstress, abort runs xrdcpabort ...
+#      <mode>                  : upload|download|downloadh|meta|eos|stress|abort|extend|shrink|random|truncate|holes|backward|downloadrandom : self explaining - meta executes command via xrd shell, eos via eos shell, stress runs xrdstress, abort runs xrdcpabort ...
 #      <srcpath,dstpath>       : is a local '/...' or remote '/eos/...' path
 #      <param>                 : opaque information passed ... '&' has to be escaped !!!!
 ################################################################################################################
@@ -360,16 +369,16 @@ runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=adler /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### UploadCks " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=$CKS1K"
 runtest "### FileInfo  " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k -m | grep nrep=1" 
-runtest "### UploadCks " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
+runtest "### UploadCks " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
 runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k -m | grep nrep=0"
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k"
-runtest "### UploadCks " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
+runtest "### UploadCks " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
 runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k -m | grep nrep=0"
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k"
 runtest "### Attr      "  unix 0 "" eos attr rm sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### UploadSz  "  unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k" "-ODeos.targetsize=1024"
 runtest "### FileInfo  " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k -m | grep nrep=1"
-runtest "### UploadSz  " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k" "-ODeos.targetsize=1000"
+runtest "### UploadSz  " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k" "-ODeos.targetsize=1000"
 runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k -m | grep nrep=0"
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k"
 ################################################################################################################
@@ -401,7 +410,7 @@ runtest "### Access    " unix 1 "" eos "access ls | grep \"r:\* => 1\""
 # ACCESS REDIRECT
 ################################################################################################################
 runtest "### Access    " unix 0 "" eos "access set redirect foo.senf"
-runtest "### Download  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-DIFirstConnectTimeout 2 -DIConnectTimeout 2 -DIReconnectWait 1 -DIMaxRedirectCnt 1"
+runtest "### Download  " unix 1 "" downloadh  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-DIFirstConnectTimeout 2 -DIConnectTimeout 2 -DIReconnectWait 1 -DIMaxRedirectCnt 1"
 runtest "### Access    " unix 0 "" eos "access ls | grep foo"
 runtest "### Access    " unix 0 "" eos "access rm redirect"
 runtest "### Access    " unix 1 "" eos "access ls | grep foo"
