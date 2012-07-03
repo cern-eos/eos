@@ -26,12 +26,14 @@
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqStringConversion.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdSys/XrdSysAtomics.hh"
 /*----------------------------------------------------------------------------*/
 // system includes
 
 /*----------------------------------------------------------------------------*/
 
 bool XrdMqSharedObjectManager::debug=0;
+
 
 unsigned long long XrdMqSharedHash::SetCounter=0;
 unsigned long long XrdMqSharedHash::SetNLCounter=0;
@@ -242,7 +244,7 @@ XrdMqSharedObjectManager::DumpSharedObjectList(XrdOucString& out)
   }
 
   //  ListMutex.LockRead();
-  //  std::map<std::string , XrdMqSharedQueue>::const_iterator it_list;
+  //  std::map<std::string , XrdMqSharedQueue>::iterator it_list;
   //  for (it_list=queuesubjects.begin(); it_list!= queuesubjects.end(); it_list++) {
   //    snprintf(formatline,sizeof(formatline)-1,"subject=%32s broadcastqueue=%32s size=%u changeid=%llu\n",it_hash.first.c_str(), it_hash.second.GetBroadCastQueue(),(unsigned int) it_hash.second.GetSize(), it_hash.second.GetChangeId());
   //out += formatline;
@@ -931,6 +933,7 @@ XrdMqSharedHash::AddTransactionEnvString(XrdOucString &out, bool clearafter)
   std::set<std::string>::const_iterator transit;
 
   XrdMqRWMutexReadLock lock(StoreMutex);
+
   for (transit= Transactions.begin(); transit != Transactions.end(); transit++) {
     if ( (Store.count(transit->c_str() ))) {
       out += "|";
@@ -998,7 +1001,7 @@ XrdMqSharedHash::BroadCastRequest(const char* requesttarget) {
 bool
 XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast, bool tempmodsubjects)
 {
-  SetCounter++;
+  AtomicInc(SetCounter);
 
   if (!value)
     return false;
@@ -1010,7 +1013,8 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast, bool te
     bool callback=false;
 
     {
-      XrdMqRWMutexWriteLock lock(StoreMutex);
+      //      XrdMqRWMutexWriteLock lock(StoreMutex);
+      StoreMutex.LockWrite();
       
       if (!Store.count(skey)) {
         callback=true;
@@ -1020,6 +1024,7 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast, bool te
       if (callback) {
         CallBackInsert(&Store[skey], skey.c_str());
       }
+      StoreMutex.UnLockWrite();
     }
     
     
@@ -1074,7 +1079,7 @@ XrdMqSharedHash::SetNoLockNoBroadCast(const char* key, const char* value, bool t
   // do outside XrdMqRWMutexWriteLock lock(StoreMutex);
   // do outside SOM->SubjectsMutex.Lock();
 
-  SetNLCounter++;
+  AtomicInc(SetNLCounter);
 
   if (!value)
     return false;

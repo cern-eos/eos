@@ -122,6 +122,7 @@ void XrdMqClient::Disconnect() {
 /* SendMessage                                                                */
 /*----------------------------------------------------------------------------*/
 bool XrdMqClient::SendMessage(XrdMqMessage &msg, const char* receiverid, bool sign, bool encrypt) {
+  XrdSysMutexHelper lock(Mutex);
   bool rc = true;
   int i=0;
   // tag the sender

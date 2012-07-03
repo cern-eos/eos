@@ -41,11 +41,10 @@ class XrdMqRWMutex
 private:
   pthread_rwlock_t       rwlock;
   pthread_rwlockattr_t   attr;
-  int retc; 
   
 public:
   XrdMqRWMutex() { 
-
+    int retc;
     pthread_rwlockattr_init(&attr);
     if (pthread_rwlockattr_setkind_np(&attr,PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP)) { throw "pthread_rwlockattr_setkind_np failed";}
     if (pthread_rwlockattr_setpshared(&attr,PTHREAD_PROCESS_SHARED)){ throw "pthread_rwlockattr_setpshared failed";}
@@ -53,6 +52,7 @@ public:
   ~XrdMqRWMutex() {}
 
   void LockRead() {
+    int retc; 
     if ((retc=pthread_rwlock_rdlock(&rwlock))) { fprintf(stderr,"LockRead: retc=%d\n", retc);throw "pthread_rwlock_rdlock failed";}
     //    else 
     //      fprintf(stderr,"+++R %llu\n", (unsigned long long) this);
@@ -60,18 +60,21 @@ public:
   }
   
   void UnLockRead() { 
+    int retc; 
     if ((retc=pthread_rwlock_unlock(&rwlock))) { fprintf(stderr,"UnLockRead: retc=%d\n", retc);throw "pthread_rwlock_unlock failed";}
     //   else 
     //    fprintf(stderr,"---R %llu\n", (unsigned long long) this);
   }
 
   void LockWrite() {
+    int retc; 
     if ((retc=pthread_rwlock_wrlock(&rwlock))) { fprintf(stderr,"LockWrite: retc=%d\n", retc);throw "pthread_rwlock_wrlock failed";}
     //   else 
     //    fprintf(stderr,"+++W %llu\n", (unsigned long long) this);
   }
   
   void UnLockWrite() { 
+    int retc; 
     if ((retc=pthread_rwlock_unlock(&rwlock))) { fprintf(stderr,"UnLockWrite: retc=%d\n", retc);throw "pthread_rwlock_unlock failed";}
     //   else 
     //    fprintf(stderr,"---W %llu\n", (unsigned long long) this);

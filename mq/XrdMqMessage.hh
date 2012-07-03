@@ -110,8 +110,8 @@ protected:
 
 public:
 
-  static const char*   Seal(XrdOucString &s) {  while (s.replace("&","#and#")) {}; return s.c_str();}
-  static const char* UnSeal(XrdOucString &s) {  while (s.replace("#and#","&")) {}; return s.c_str();}
+  static const char*   Seal(XrdOucString &s, const char* seal="#and#") {  while (s.replace("&",seal)) {}; return s.c_str();}
+  static const char* UnSeal(XrdOucString &s, const char* seal="#and#") {  while (s.replace(seal,"&")) {}; return s.c_str();}
   static void Sort(XrdOucString &s, bool dosort=true);
 
 
