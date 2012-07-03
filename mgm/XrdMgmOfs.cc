@@ -38,6 +38,7 @@
 #include "mgm/Policy.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Acl.hh"
+#include "mgm/txengine/TransferEngine.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdVersion.hh"
 #include "XrdClient/XrdClientAdmin.hh"
@@ -3760,6 +3761,9 @@ XrdMgmOfs::FSctl(const int               cmd,
 
   eos_thread_debug("path=%s opaque=%s", spath.c_str(), opaque.c_str());
 
+  // ----------------------------------------------------------------------
+  // XRootD Locate
+  // ----------------------------------------------------------------------
   if ((cmd == SFS_FSCTL_LOCATE)) {
 
     ACCESSMODE_R;
@@ -3793,8 +3797,12 @@ XrdMgmOfs::FSctl(const int               cmd,
   if ((scmd = env.Get("mgm.pcmd"))) {
     XrdOucString execmd = scmd;
 
+    // ----------------------------------------------------------------------
+    // Commit a replica
+    // ----------------------------------------------------------------------
     if (execmd == "commit") {
-      
+
+      REQUIRE_SSS_OR_LOCAL_AUTH;
       ACCESSMODE_W;
       MAYSTALL;
       MAYREDIRECT;
@@ -4026,7 +4034,10 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
     
     if (execmd == "drop") {
-
+      // ----------------------------------------------------------------------
+      // Drop a replica
+      // ----------------------------------------------------------------------
+      REQUIRE_SSS_OR_LOCAL_AUTH;
       ACCESSMODE_W;
       MAYSTALL;
       MAYREDIRECT;
@@ -4106,7 +4117,10 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "getfmd") {
-      // return's meta data in env representation
+      // ----------------------------------------------------------------------
+      // Return's meta data in env representatino
+      // ----------------------------------------------------------------------
+
       ACCESSMODE_R;
       MAYSTALL;
       MAYREDIRECT;
@@ -4152,7 +4166,9 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "stat") {
-
+      // ----------------------------------------------------------------------
+      // Stat a file/dir
+      // ----------------------------------------------------------------------
       ACCESSMODE_R;
       MAYSTALL;
       MAYREDIRECT;
@@ -4197,7 +4213,9 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "chmod") {
-
+      // ----------------------------------------------------------------------
+      // chmod a dir
+      // ----------------------------------------------------------------------
       ACCESSMODE_W;
       MAYSTALL;
       MAYREDIRECT;
@@ -4241,7 +4259,9 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "chown") {
-
+      // ----------------------------------------------------------------------
+      // chown file/dir
+      // ----------------------------------------------------------------------
       ACCESSMODE_W;
       MAYSTALL;
       MAYREDIRECT;
@@ -4270,7 +4290,9 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "symlink") {
-
+      // ----------------------------------------------------------------------
+      // symlink
+      // ----------------------------------------------------------------------
       ACCESSMODE_W;
       MAYSTALL;
       MAYREDIRECT;
@@ -4295,7 +4317,9 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "readlink") {
-
+      // ----------------------------------------------------------------------
+      // readlink
+      // ----------------------------------------------------------------------
       ACCESSMODE_R;
       MAYSTALL;
       MAYREDIRECT;
@@ -4313,7 +4337,9 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "access") {
-
+      // ----------------------------------------------------------------------
+      // check access rights
+      // ----------------------------------------------------------------------
       ACCESSMODE_R;
       MAYSTALL;
       MAYREDIRECT;
@@ -4338,7 +4364,9 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "utimes") {
-
+      // ----------------------------------------------------------------------
+      // set modification times
+      // ----------------------------------------------------------------------
       ACCESSMODE_W;
       MAYSTALL;
       MAYREDIRECT;
@@ -4379,7 +4407,9 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "checksum") {
-
+      // ----------------------------------------------------------------------
+      // Return a file checksum
+      // ----------------------------------------------------------------------
       ACCESSMODE_R;
       MAYSTALL;
       MAYREDIRECT;
@@ -4414,7 +4444,9 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "statvfs") {
-
+      // ----------------------------------------------------------------------
+      // Return the virtual 'filesystem' stat
+      // ----------------------------------------------------------------------
       ACCESSMODE_R;
       MAYSTALL;
       MAYREDIRECT;
@@ -4480,7 +4512,9 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "xattr") {
-
+      // ----------------------------------------------------------------------
+      // get/set/list/rm extended attributes
+      // ----------------------------------------------------------------------
       ACCESSMODE_W;
       MAYSTALL;
       MAYREDIRECT;
@@ -4644,6 +4678,10 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "schedule2balance") {
+      // ----------------------------------------------------------------------
+      // Schedule a balancer transfer
+      // ----------------------------------------------------------------------
+      REQUIRE_SSS_OR_LOCAL_AUTH;
       ACCESSMODE_W;
       MAYSTALL;
       MAYREDIRECT;
@@ -4969,6 +5007,10 @@ XrdMgmOfs::FSctl(const int               cmd,
     }
 
     if (execmd == "schedule2drain") {
+      // ----------------------------------------------------------------------
+      // Schedule a drain transfer
+      // ----------------------------------------------------------------------
+      REQUIRE_SSS_OR_LOCAL_AUTH;
       ACCESSMODE_W;
       MAYSTALL;
       MAYREDIRECT;
@@ -5340,6 +5382,55 @@ XrdMgmOfs::FSctl(const int               cmd,
       error.setErrInfo(0,"");
       return SFS_DATA;
       //      return Emsg(epname, error, ENODATA, "schedule any file [ENODATA]");
+    }
+    
+    if (execmd == "txstate") {
+      // ----------------------------------------------------------------------
+      // Set the transfer state (and log)
+      // ----------------------------------------------------------------------
+      REQUIRE_SSS_OR_LOCAL_AUTH;
+      ACCESSMODE_W;
+      MAYSTALL;
+      MAYREDIRECT;
+
+      int envlen;
+      EXEC_TIMING_BEGIN("TxStateLog");      
+      eos_thread_info("Transfer state + log received for %s",env.Env(envlen));
+
+      char* txid = env.Get("tx.id");
+      char* sstate = env.Get("tx.state");
+      char* logb64  = env.Get("tx.log.b64");
+      if (txid && sstate) {
+	char* logout=0;
+	unsigned loglen=0;
+	long long id = strtoll(txid,0,10);
+	if (logb64) {
+	  XrdOucString slogb64 = logb64;
+	  
+	  if (eos::common::SymKey::Base64Decode(slogb64,logout, loglen)) {
+	    logout[loglen] = 0;
+	    if (!gTransferEngine.SetLog(id, logout)) {
+	      eos_thread_err("unable to set log for transfer id=%lld", id);
+	    }
+	  }
+	}
+	
+	if (sstate) {
+	  int state = atoi(sstate);
+	  if (!gTransferEngine.SetState(id, state)) {
+	    eos_thread_err("unable to set state for transfer id=%lld state=%s", id, TransferEngine::GetTransferState(state));
+	  } else {
+	    eos_thread_info("id=%lld state=%s", id, TransferEngine::GetTransferState(state));
+	  }
+	}
+      }
+      
+      gOFS->MgmStats.Add("TxState",vid.uid,vid.gid,1);  
+      
+      const char* ok = "OK";
+      error.setErrInfo(strlen(ok)+1,ok);
+      EXEC_TIMING_END("TxState");      
+      return SFS_DATA;
     }
     eos_thread_err("No implementation for %s", execmd.c_str());
   }

@@ -135,6 +135,12 @@ USE_EOSMGMNAMESPACE
     return SFS_OK;							\
   }
 
+#define REQUIRE_SSS_OR_LOCAL_AUTH					\
+  if ( (vid.prot!="sss") && ((vid.host != "localhost") && (vid.host != "localhost.localdomain")) ){ \
+    eos_err("system access restricted - not authorized identity used");	\
+    return Emsg(epname, error, EACCES,"give access - system access restricted - not authorized identity used"); \
+  }
+
 #define BOUNCE_NOT_ALLOWED						\
   /* for root, bin, daemon, admin we allow localhost connects or sss authentication always */ \
   if ( ((vid.uid>3) || ( (vid.prot!="sss") && (vid.host != "localhost") && (vid.host != "localhost.localdomain"))) && (Access::gAllowedUsers.size() || Access::gAllowedGroups.size() || Access::gAllowedHosts.size() )) { \
