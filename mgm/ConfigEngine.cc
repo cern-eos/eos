@@ -28,6 +28,7 @@
 #include "mgm/FsView.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Vid.hh"
+#include "mgm/txengine/TransferEngine.hh"
 #include "mq/XrdMqMessage.hh"
 /*----------------------------------------------------------------------------*/
 #include <iostream>
@@ -466,7 +467,7 @@ ConfigEngine::ResetConfig()
   // load all the quota nodes from the namespace
   Quota::LoadNodes();
   // fill the current accounting
-  Quota:: NodesToSpaceQuota();
+  Quota::NodesToSpaceQuota();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -504,6 +505,8 @@ ConfigEngine::ApplyConfig(XrdOucString &err)
 
   gOFS->FsCheck.ApplyFsckConfig();
   gOFS->IoStats.ApplyIostatConfig();
+
+  gTransferEngine.ApplyTransferEngineConfig();
 
   if (err.length()) {
     errno = EINVAL;
@@ -581,6 +584,7 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
   std::string sdef = def->c_str();
 
   eos_static_debug("key=%s def=%s", key, def->c_str());
+
   XrdOucString skey = key;
 
   if (skey.beginswith("fs:")) {
