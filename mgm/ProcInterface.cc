@@ -44,6 +44,7 @@
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdSys/XrdSysPriv.hh"
 /*----------------------------------------------------------------------------*/
 #include <iostream>
 #include <fstream>
@@ -916,8 +917,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       if (subcmd == "set") {      
         std::string nodename = (opaque.Get("mgm.node"))?opaque.Get("mgm.node"):"";
         std::string status   = (opaque.Get("mgm.node.state"))?opaque.Get("mgm.node.state"):"";
+	std::string txgw     = (opaque.Get("mgm.node.txgw")) ?opaque.Get("mgm.node.txgw"):"";
         std::string key = "status";
-
+	if (txgw.length()) {
+	  key = "txgw";
+	  status=txgw;
+	}
         if ( (!nodename.length()) || (!status.length()) ) {
           stdErr="error: illegal parameters";
           retc = EINVAL;
@@ -2367,16 +2372,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
 
     if (cmd == "transfer") {
-      XrdOucString src     = opaque.Get("mgm.src")?opaque.Get("mgm.src"):"";
-      XrdOucString dst     = opaque.Get("mgm.dst")?opaque.Get("mgm.dst"):"";
-      XrdOucString rate    = opaque.Get("mgm.rate")?opaque.Get("mgm.rate"):"";
-      XrdOucString streams = opaque.Get("mgm.streams")?opaque.Get("mgm.streams"):"";
-      XrdOucString group   = opaque.Get("mgm.group")?opaque.Get("mgm.group"):"";
       XrdOucString subcmd  = opaque.Get("mgm.subcmd")?opaque.Get("mgm.subcmd"):"";
+      XrdOucString src     = opaque.Get("mgm.txsrc")?opaque.Get("mgm.txsrc"):"";
+      XrdOucString dst     = opaque.Get("mgm.txdst")?opaque.Get("mgm.txdst"):"";
+      XrdOucString rate    = opaque.Get("mgm.txrate")?opaque.Get("mgm.txrate"):"";
+      XrdOucString streams = opaque.Get("mgm.txstreams")?opaque.Get("mgm.txstreams"):"";
+      XrdOucString group   = opaque.Get("mgm.txgroup")?opaque.Get("mgm.txgroup"):"";
       XrdOucString id      = opaque.Get("mgm.txid")?opaque.Get("mgm.txid"):"";
-      XrdOucString option  = opaque.Get("mgm.option")?opaque.Get("mgm.option"):"";
+      XrdOucString option  = opaque.Get("mgm.txoption")?opaque.Get("mgm.txoption"):"";
 
-      if ( (subcmd != "submit") && (subcmd != "ls") && (subcmd != "cancel") ) {
+      if ( (subcmd != "submit") && (subcmd != "ls") && (subcmd != "cancel") && (subcmd != "enable") && (subcmd != "disable") && (subcmd != "reset") && (subcmd != "clear") && (subcmd != "resubmit") && (subcmd != "kill") && (subcmd != "log") ) {
 	retc = EINVAL;
 	stdErr = "error: there is no such sub-command defined for <transfer>";
 	MakeResult(true);
@@ -2384,16 +2389,158 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
 
       if ( (subcmd == "submit") ) {
-	retc = gTransferEngine.Submit(src,dst,rate,streams,group, stdOut, stdErr, vid_in);
+	// check if we have krb5 credentials for that user
+	struct stat krbbuf;
+	struct stat gsibuf;
+	bool usegsi=false;
+	bool usekrb=false;
+	XrdOucString krbcred ="/var/eos/auth/krb5#";krbcred +=(int)vid_in.uid;
+	XrdOucString gsicred ="/var/eos/auth/gsi#" ;gsicred +=(int)vid_in.gid;
+	std::string credential;
+	XrdOucString Credential;
+	XrdOucString CredentialB64;
+
+	
+	// path the URLs for /eos/ paths
+	if (src.beginswith("/eos/")) {
+	  src.insert("root:///",0);
+	  src.insert(gOFS->MgmOfsAlias,7);
+	}
+	if (dst.beginswith("/eos/")) {
+	  dst.insert("root:///",0);
+	  dst.insert(gOFS->MgmOfsAlias,7);
+	}
+
+	if ( (src.find("//eos/")) != STR_NPOS) {
+	  if ( (src.find("?")) == STR_NPOS) {
+	    src += "?";
+	  }
+	  src += "&eos.ruid="; src += (int)vid_in.uid;
+	  src += "&eos.rgid="; src += (int)vid_in.gid;
+	}
+
+	if ( (dst.find("//eos/")) != STR_NPOS) {
+	  if ( (dst.find("?")) == STR_NPOS) {
+	    dst += "?";
+	  } 
+	  dst += "&eos.ruid="; dst += (int)vid_in.uid;
+	  dst += "&eos.rgid="; dst += (int)vid_in.gid;
+	}
+
+	{
+	  XrdSysPrivGuard priv(vid_in.uid, vid_in.gid);
+	  if (!::stat(krbcred.c_str(),&krbbuf)) {
+	    usekrb=true;
+	  }
+	  if (!::stat(gsicred.c_str(),&gsibuf)) {
+	    usegsi=true;
+	  }
+	}
+
+	
+	if (usegsi) {
+	  // put the current running user as the owner before loading
+	  // load the gsi credential
+	  {
+	    XrdSysPrivGuard priv(vid_in.uid, vid_in.gid);
+	    eos::common::StringConversion::LoadFileIntoString(gsicred.c_str(), credential);
+	  }
+	  Credential=credential.c_str();
+	  if (eos::common::SymKey::Base64Encode((char*)Credential.c_str(), Credential.length()+1, CredentialB64)) {
+	    Credential = CredentialB64;
+	  }
+	} else {
+	  if (usekrb) {
+	  // put the current running user as the owner before loading
+	    char* krb5buf = (char*) malloc(krbbuf.st_size);
+	    if (krb5buf) {
+	      XrdSysPrivGuard priv(vid_in.uid,vid_in.gid);
+	      int fd = ::open(krbcred.c_str(),0);
+	      if (fd>=0) {
+		if ( (::read(fd,krb5buf, krbbuf.st_size)) == krbbuf.st_size) {
+		  if (eos::common::SymKey::Base64Encode((char*)krb5buf, krbbuf.st_size, CredentialB64)) {
+		    Credential = CredentialB64;
+		  }
+		}
+		::close(fd);
+	      } else {
+		fprintf(stderr,"################# failed to open %s\n", krbcred.c_str());
+	      }
+	      free(krb5buf);
+	    }
+	  } else {
+	    credential="";
+	    Credential=credential.c_str();
+	  }
+	}
+	
+	if (usegsi) {
+	  Credential.insert("gsi:",0);
+	} else {
+	  if (usekrb) {
+	    Credential.insert("krb5:",0);
+	  }
+	}
+	
+	retc = gTransferEngine.Submit(src,dst,rate,streams,group, stdOut, stdErr, vid_in, 86400, Credential);
+      }
+
+      if ( (subcmd == "enable") ) {
+	if (vid_in.uid == 0) {
+	  retc = gTransferEngine.Run();
+	  if (retc) {
+	    stdErr += "error: transfer engine was already running\n";
+	  } else {
+	    stdOut += "success: enabled transfer engine\n";
+	  }
+	} else {
+          retc = EPERM;
+          stdErr = "error: you don't have the required priviledges to execute 'transfer enable'!";
+	}
+      }
+      
+      if ( (subcmd == "disable") ) {
+	if (vid_in.uid == 0) {
+	  retc = gTransferEngine.Stop();
+	  if (retc) {
+	    stdErr += "error: transfer engine was not running\n";
+	  } else {
+	    stdOut += "success: enabled transfer engine\n";
+	  }
+	} else {
+          retc = EPERM;
+          stdErr = "error: you don't have the required priviledges to execute 'transfer disable'!";
+	}
+      }
+
+      if ( (subcmd == "reset") ) {
+	retc = gTransferEngine.Reset(stdOut, stdErr, vid_in);
       }
 
       if ( (subcmd == "ls") ) {
 	retc = gTransferEngine.Ls(option,group,stdOut,stdErr,vid_in);
       }
 
+      if ( (subcmd == "clear") ) {
+	retc = gTransferEngine.Clear(stdOut,stdErr,vid_in);
+      }
+
       if ( (subcmd == "cancel") ) {
 	retc = gTransferEngine.Cancel(id,group,stdOut,stdErr,vid_in);
       }
+
+      if ( (subcmd == "resubmit") ) {
+	retc = gTransferEngine.Resubmit(id,group,stdOut,stdErr,vid_in);
+      }
+
+      if ( (subcmd == "kill") ) {
+	retc = gTransferEngine.Kill(id,group,stdOut,stdErr,vid_in);
+      }
+
+      if ( (subcmd == "log") ) {
+	retc = gTransferEngine.Log(id,group,stdOut,stdErr,vid_in);
+      }
+
       MakeResult(false);
     }
 
@@ -2782,6 +2929,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               }
               ::close(fd);
             }
+	    free(motdout);
           }
         } else {
           stdErr += "error: unabile to decode motd message\n";
@@ -4202,7 +4350,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         if (option == "p") {
           mode |= SFS_O_MKPTH;
         }
-	fprintf(stderr,"uid=%u gid=%u\n", vid_in.uid, vid_in.gid);
         if (gOFS->_mkdir(spath.c_str(), mode, *error, vid_in,(const char*)0)) {
           stdErr += "error: unable to create directory";
           retc = errno;
