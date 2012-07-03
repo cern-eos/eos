@@ -43,6 +43,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <fstream>
+#include <sstream>
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -494,6 +496,26 @@ public:
       }
     } while(1);
     return false;
+  }
+
+  // ---------------------------------------------------------------------------
+  /** 
+   * Load a text file <name> into a string
+   * 
+   * @param filename from where to load the contents
+   * @param out string where to inject the file contents
+   * @return (const char*) pointer to loaded string
+   */
+  // ---------------------------------------------------------------------------  
+  static const char*
+  LoadFileIntoString(const char* filename, std::string &out)
+  {
+    std::ifstream load(filename);
+    std::stringstream buffer;
+
+    buffer << load.rdbuf();
+    out=buffer.str();
+    return out.c_str();
   }
 
   // ---------------------------------------------------------------------------

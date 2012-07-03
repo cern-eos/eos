@@ -357,10 +357,12 @@ public:
     std::string active = GetString("stat.active");
     if (active == "online") {
       cActive = kOnline;
-      cActiveLock.UnLock();     
+      if (cached)
+	cActiveLock.UnLock();     
       return kOnline;
     } else {
       cActive = kOffline;
+      if (cached)
       cActiveLock.UnLock();
       return kOffline;
     }
@@ -526,7 +528,8 @@ public:
 
     cStatus = GetStatusFromString(GetString("stat.boot").c_str());
     rStatus = cStatus;
-    cStatusLock.UnLock();
+    if (cached)
+      cStatusLock.UnLock();
     return rStatus;
   }
 
@@ -556,7 +559,9 @@ public:
 
     cConfigStatus = GetConfigStatusFromString(GetString("configstatus").c_str());
     rConfigStatus = cConfigStatus;
-    cConfigLock.UnLock();
+    if (cached) {
+      cConfigLock.UnLock();
+    }
     return rConfigStatus;
   }
 

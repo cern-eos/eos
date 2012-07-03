@@ -107,7 +107,7 @@ public:
   void LockWrite() {
     AtomicInc(writeLockCounter);
     if (blocking) {
-    // a blocking mutex is just a normal lock for write
+      // a blocking mutex is just a normal lock for write
       if (pthread_rwlock_wrlock(&rwlock)) { throw "pthread_rwlock_rdlock failed";}
     } else {
       // a non-blocking mutex tries for few seconds to write lock, then releases
@@ -123,6 +123,7 @@ public:
 	    usleep(100000);
 	  }
 	} else {
+	  fprintf(stderr,"=== WRITE LOCK ACQUIRED  ==== TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
 	  break;
 	}
       }
