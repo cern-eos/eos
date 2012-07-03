@@ -123,7 +123,7 @@ public:
 	    usleep(100000);
 	  }
 	} else {
-	  fprintf(stderr,"=== WRITE LOCK ACQUIRED  ==== TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+	  //	  fprintf(stderr,"=== WRITE LOCK ACQUIRED  ==== TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
 	  break;
 	}
       }
@@ -142,6 +142,8 @@ public:
   // ---------------------------------------------------------------------------
   void UnLockWrite() { 
     if (pthread_rwlock_unlock(&rwlock)) { throw "pthread_rwlock_unlock failed";}
+    //    fprintf(stderr,"*** WRITE LOCK RELEASED  **** TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+	  
   }
 
   // ---------------------------------------------------------------------------
