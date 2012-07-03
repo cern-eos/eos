@@ -26,6 +26,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 /*----------------------------------------------------------------------------*/
 
 #include <stdio.h>
@@ -41,7 +42,8 @@ class XrdMqRWMutex
 private:
   pthread_rwlock_t       rwlock;
   pthread_rwlockattr_t   attr;
-  
+  unsigned long long     wlockid;
+
 public:
   XrdMqRWMutex() { 
     int retc;
@@ -49,35 +51,51 @@ public:
     if (pthread_rwlockattr_setkind_np(&attr,PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP)) { throw "pthread_rwlockattr_setkind_np failed";}
     if (pthread_rwlockattr_setpshared(&attr,PTHREAD_PROCESS_SHARED)){ throw "pthread_rwlockattr_setpshared failed";}
     if ((retc=pthread_rwlock_init(&rwlock, &attr))) {fprintf(stderr,"LockInit: retc=%d\n", retc);throw "pthread_rwlock_init failed";} }
+
   ~XrdMqRWMutex() {}
 
   void LockRead() {
     int retc; 
-    if ((retc=pthread_rwlock_rdlock(&rwlock))) { fprintf(stderr,"LockRead: retc=%d\n", retc);throw "pthread_rwlock_rdlock failed";}
-    //    else 
-    //      fprintf(stderr,"+++R %llu\n", (unsigned long long) this);
+    if (AtomicGet(wlockid) == XrdSysThread::ID()) {
+      fprintf(stderr,"MQ === WRITE LOCK FOLLOWED BY READ === TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+      throw "pthread_rwlock_wrlock write then read lock";
+    }
 
+    // fprintf(stderr,"MQ --- READ  LOCK WANTED    ---- TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+
+    if ((retc=pthread_rwlock_rdlock(&rwlock))) { fprintf(stderr,"LockRead: retc=%d\n", retc);throw "pthread_rwlock_rdlock failed";}
+
+    //fprintf(stderr,"MQ ... READ  LOCK ACQUIRED  .... TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
   }
   
   void UnLockRead() { 
     int retc; 
     if ((retc=pthread_rwlock_unlock(&rwlock))) { fprintf(stderr,"UnLockRead: retc=%d\n", retc);throw "pthread_rwlock_unlock failed";}
-    //   else 
-    //    fprintf(stderr,"---R %llu\n", (unsigned long long) this);
+    //    fprintf(stderr,"MQ ... READ  LOCK RELEASED  .... TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
   }
 
   void LockWrite() {
     int retc; 
+    if (AtomicGet(wlockid) == XrdSysThread::ID()) {
+      fprintf(stderr,"MQ === WRITE LOCK DOUBLELOCK === TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+      throw "pthread_rwlock_wrlock double lock";
+    }
+    //    fprintf(stderr,"MQ --- WRITE LOCK WANTED    ---- TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+
     if ((retc=pthread_rwlock_wrlock(&rwlock))) { fprintf(stderr,"LockWrite: retc=%d\n", retc);throw "pthread_rwlock_wrlock failed";}
-    //   else 
-    //    fprintf(stderr,"+++W %llu\n", (unsigned long long) this);
+
+    AtomicFAZ(wlockid);
+    AtomicAdd(wlockid,(unsigned long long)XrdSysThread::ID());
+
+    //    fprintf(stderr,"MQ === WRITE LOCK ACQUIRED  ==== TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
   }
   
   void UnLockWrite() { 
     int retc; 
     if ((retc=pthread_rwlock_unlock(&rwlock))) { fprintf(stderr,"UnLockWrite: retc=%d\n", retc);throw "pthread_rwlock_unlock failed";}
-    //   else 
-    //    fprintf(stderr,"---W %llu\n", (unsigned long long) this);
+    //    fprintf(stderr,"MQ --- WRITE LOCK RELEASED  ---- TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+
+    AtomicFAZ(wlockid);
   }
 };
 

@@ -1013,9 +1013,8 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast, bool te
     bool callback=false;
 
     {
-      //      XrdMqRWMutexWriteLock lock(StoreMutex);
-      StoreMutex.LockWrite();
-      
+      XrdMqRWMutexWriteLock lock(StoreMutex);
+
       if (!Store.count(skey)) {
         callback=true;
       }
@@ -1024,7 +1023,6 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast, bool te
       if (callback) {
         CallBackInsert(&Store[skey], skey.c_str());
       }
-      StoreMutex.UnLockWrite();
     }
     
     

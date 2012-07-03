@@ -187,7 +187,7 @@ public:
 
   std::string Get(std::string key) {AtomicInc(GetCounter);std::string get=""; XrdMqRWMutexReadLock lock(StoreMutex);if (Store.count(key.c_str())) get = Store[key.c_str()].GetEntry(); return get;}
 
-  std::string Get(const char* key) {AtomicInc(GetCounter);std::string get=""; XrdMqRWMutexReadLock lock(StoreMutex); if (Store.count(key)) get = Store[key].GetEntry(); StoreMutex.UnLockRead(); return get;}
+  std::string Get(const char* key) {AtomicInc(GetCounter);std::string get=""; XrdMqRWMutexReadLock lock(StoreMutex); if (Store.count(key)) get = Store[key].GetEntry(); return get;}
 
   long long   GetLongLong(const char* key) {
     std::string get = Get(key); if (!get.length()) {return 0;} else {errno=0; long long ret = strtoll(get.c_str(),0,10);if (!errno) return ret; else return 0;}
