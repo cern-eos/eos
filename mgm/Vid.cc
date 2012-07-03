@@ -79,7 +79,8 @@ Vid::Set(const char* value)
       XrdOucString setting = val;
       if (setting == "true") {  
         eos::common::Mapping::gSudoerMap[uid]=1;
-        set = true;
+        gOFS->ConfEngine->SetConfigValue("vid",skey.c_str(),value);
+	return true;
       } else {
         // this in fact is deletion of the right
         eos::common::Mapping::gSudoerMap[uid]=0;
@@ -136,7 +137,6 @@ Vid::Set(const char* value)
       XrdOucString svalue = value;
       while(svalue.replace("&"," ")) {};
       gOFS->ConfEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
-      return set;
     }
 
     skey = auth; 
@@ -157,7 +157,6 @@ Vid::Set(const char* value)
       XrdOucString svalue = value;
       while(svalue.replace("&"," ")) {};
       gOFS->ConfEngine->SetConfigValue("vid",skey.c_str(), svalue.c_str());
-      return set;
     }
   }
   return set;
