@@ -46,7 +46,8 @@ public:
   virtual bool Init(const char* dbspec="/var/eos/tx/") = 0;
   virtual int Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid) = 0;
   virtual int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString& credentials, XrdOucString& submissionhost) = 0;
-  virtual int Cancel(long long id, XrdOucString& stdOut, XrdOucString stdErr) = 0;
+  virtual int Cancel(long long id, XrdOucString& stdOut, XrdOucString& stdErr, bool nolock=false) = 0;
+  virtual int Archive(long long id, XrdOucString& stdOUt, XrdOucString& stdErr, bool nolock=false) = 0;
   virtual int Clear(XrdOucString& stdOut, XrdOucString& stdErr) = 0;
 
   virtual bool SetState(long long id, int status) = 0;

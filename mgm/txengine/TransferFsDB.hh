@@ -42,6 +42,7 @@ class TransferFsDB : public TransferDB, eos::common::LogId {
   typedef std::vector<std::map< std::string, std::string > > qr_result_t;
 private:
   sqlite3 *DB;
+  FILE* fdArchive;
   qr_result_t Qr;
   char* ErrMsg;
   XrdSysMutex Lock;
@@ -55,7 +56,8 @@ public:
   virtual int Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid);
 
   virtual int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString& credentials, XrdOucString& submissionhost);
-  virtual int Cancel(long long id, XrdOucString& stdOut, XrdOucString stdErr);
+  virtual int Cancel(long long id, XrdOucString& stdOut, XrdOucString& stdErr, bool nolock=false);
+  virtual int Archive(long long id, XrdOucString& stdOUt, XrdOucString& sttdErr, bool nolock=false);
   virtual int Clear(XrdOucString& stdOut, XrdOucString& stdErr);
   virtual std::vector<long long> QueryByGroup(XrdOucString& group);
   virtual std::vector<long long> QueryByState(XrdOucString& state);

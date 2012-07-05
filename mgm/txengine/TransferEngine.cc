@@ -66,6 +66,7 @@ int TransferEngine::Run(bool store)
       FsView::gFsView.SetGlobalConfig(TransferEngine::gConfigSchedule, "true");
     }
     XrdSysThread::Run(&thread, TransferEngine::StaticSchedulerProc, static_cast<void *>(this), XRDSYSTHREAD_HOLD, "Transfer Scheduler Thread started");
+    XrdSysThread::Run(&watchthread, TransferEngine::StaticWatchProc, static_cast<void *>(this), XRDSYSTHREAD_HOLD, "Transfer Watch Thread started");
     return 0;
   }
   return EINVAL;
@@ -77,7 +78,11 @@ TransferEngine::Stop(bool store) {
   if (thread) {
     XrdSysThread::Cancel(thread);
     XrdSysThread::Join(thread,NULL);
+    XrdSysThread::Cancel(watchthread);
+    XrdSysThread::Join(watchthread,NULL);
     thread = 0;
+    watchthread=0;
+
     if (store) {
       FsView::gFsView.SetGlobalConfig(TransferEngine::gConfigSchedule, "false");
     }
@@ -90,6 +95,11 @@ TransferEngine::Stop(bool store) {
 /* ------------------------------------------------------------------------- */
 void* TransferEngine::StaticSchedulerProc(void* arg){
   return reinterpret_cast<TransferEngine*>(arg)->Scheduler();
+}
+
+/* ------------------------------------------------------------------------- */
+void* TransferEngine::StaticWatchProc(void* arg){
+  return reinterpret_cast<TransferEngine*>(arg)->Watch();
 }
 
 /* ------------------------------------------------------------------------- */
@@ -216,9 +226,38 @@ TransferEngine::Log(XrdOucString& sid, XrdOucString& group, XrdOucString& stdOut
     stdOut += transfer["log"].c_str();
     return 0;
   } else {
-    stdErr += "error: there is no log available for id=%s";stdErr += sid; stdErr += "\n";
+    stdErr += "error: there is no log available for id=";stdErr += sid; stdErr += "\n";
     return EINVAL;
   }
+}
+
+/*----------------------------------------------------------------------------*/
+int 
+TransferEngine::Purge(XrdOucString& option, XrdOucString& sid, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid)
+{
+  long long id = strtoll(sid.c_str(),0,10);
+  
+  XrdOucString state="done";
+
+  std::vector<long long> ids = xDB->QueryByState(state);
+  for (size_t i=0; i< ids.size(); i++) {
+    TransferDB::transfer_t transfer = xDB->GetTransfer(ids[i]);
+    if (transfer.count("uid")) {
+      if ( (!vid.uid) || (((int)vid.uid == atoi(transfer["uid"].c_str())) )) {
+	if ((!id) || (id == strtoll(transfer["id"].c_str(),0,10)) ) {
+	  // purge all by the user or by explicit id
+	  if (xDB->Archive(ids[i],stdOut, stdErr)) {
+	    return -1;
+	  } else {
+	    xDB->Cancel(ids[i],stdOut, stdErr);
+	  }
+	}
+      } else {
+	stdOut+="warning: skipping id="; stdOut += transfer["id"].c_str(); stdOut += " - you are not the owner!";
+      }
+    }
+  }
+  return 0;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -260,7 +299,6 @@ int
 TransferEngine::Clear(XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid )
 {
   if (vid.uid == 0) {
-    stdOut += "success: all transfers have been cleared\n";
     xDB->Clear(stdOut, stdErr);
     return 0;
   } else {
@@ -274,9 +312,11 @@ void*
 TransferEngine::Scheduler()
 {
   eos_static_info("running transfer scheduler");
-  size_t loopsleep=2000000;
+  size_t loopsleep=500000;
   sleep(10);
   size_t gwpos=0;
+  double pacifier=1;
+
   while (1) {
     XrdSysThread::SetCancelOff();
     // schedule here
@@ -287,9 +327,10 @@ TransferEngine::Scheduler()
 	eos_static_debug("GetNextTransfer(kInserted) returned %s", transfer["error"].c_str());
       } else {
 	if (transfer.count("id")) {
+	  pacifier = 1; // reset the self pacing algorithm
 	  long long id = strtoll(transfer["id"].c_str(),0,10);
 	  eos_static_info("received transfer id=%lld", id);
-	  SetState(id, kValidated);
+	  //	  SetState(id, kValidated);
 
 	  // ------------------------------------------------------------
 	  // trivial scheduling engine
@@ -346,27 +387,82 @@ TransferEngine::Scheduler()
 		transferjob += "&tx.auth.digest=";transferjob += symkey->GetDigest64();
 	      } 
 
-	      eos::common::TransferJob* txjob = new eos::common::TransferJob(transferjob.c_str());
-	      if (FsView::gFsView.mNodeView.count(*it)) {
-		if ( FsView::gFsView.mNodeView[*it]->mGwQueue->Add(txjob)) {
-		  eos_static_info("Submitted id=%lld to node=%s\n", id, it->c_str());
-		  SetState(id, kScheduled);
+	      // do one full loop over the nodes and take the first one which does not exceed the queue limit of 20 transfers
+	      eos::common::TransferJob* txjob = 0;
+	      for (size_t n=0; n<FsView::gFsView.mGwNodes.size();n++) {
+		if (FsView::gFsView.mNodeView.count(*it)) {
+		  if ( FsView::gFsView.mNodeView[*it]->mGwQueue->Size() < 20 ) {
+		    txjob = new eos::common::TransferJob(transferjob.c_str());
+		    if ( txjob && FsView::gFsView.mNodeView[*it]->mGwQueue->Add(txjob)) {
+		      eos_static_info("Submitted id=%lld to node=%s\n", id, it->c_str());
+		      SetState(id, kScheduled);
+		      break;
+		    }
+		  } else {
+		    it++;
+		    if (it == FsView::gFsView.mGwNodes.end()) {
+		      it = FsView::gFsView.mGwNodes.begin();
+		    }
+		  }
 		}
 	      }
-	      
 	      if (txjob) {
 		delete txjob;
+		continue;
+	      } else {
+		pacifier *= (1.2);
+		if (pacifier > 10) {
+		  pacifier = 10.0;
+		}
 	      }
-
-	      }
+	    }
 	  } else {
 	    eos_static_err("GetTransfer(id) failed");
 	  }
 	} else {
 	  eos_static_debug("GetNextTransfer(kInserted) returnd no id");
+	  pacifier *= (1.2);
+	  if (pacifier > 10) {
+	    pacifier = 10.0;
+	  }
 	}
       }
     }
+    XrdSysThread::SetCancelOn();
+    for (size_t i=0; i< pacifier*loopsleep/10000; i++) {
+      usleep(10000);
+      XrdSysThread::CancelPoint();
+    }
+  }
+
+
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+void*
+TransferEngine::Watch()
+{
+  eos_static_info("running transfer watch");
+  size_t loopsleep=2000000;
+  sleep(10);
+
+  while (1) {
+    XrdSysThread::SetCancelOff();
+    {
+      eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock gwlock(FsView::gFsView.GwMutex);
+      // publish the number of queued transfers
+      std::set<std::string>::const_iterator it;
+      
+      for (it = FsView::gFsView.mGwNodes.begin(); it != FsView::gFsView.mGwNodes.end(); it++) {
+	//	if (FsView::gFsView.mNodeView.count(*it)) {
+	  size_t size = FsView::gFsView.mNodeView[*it]->mGwQueue->Size();
+	  FsView::gFsView.mNodeView[*it]->SetInQueue(size);
+	  //	}
+      }
+    }
+
     XrdSysThread::SetCancelOn();
     for (size_t i=0; i< loopsleep/10000; i++) {
       usleep(10000);

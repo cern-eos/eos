@@ -59,6 +59,7 @@ bool TransferFsDB::Init(const char* dbpath)
 {
   XrdSysMutexHelper lock(Lock);
   XrdOucString dpath = dbpath; dpath += "/transfers.sql3.db";
+  XrdOucString archivepath = dbpath; archivepath += "/transfer-archive.log";
   while (dpath.replace("//","/")) {};
   eos::common::Path cPath(dpath.c_str());
 
@@ -79,6 +80,12 @@ bool TransferFsDB::Init(const char* dbpath)
 
     if ((sqlite3_exec(DB,createtable.c_str(), CallBack, this, &ErrMsg))) {
       eos_err("unable to create <transfers> table - msg=%s\n",ErrMsg);
+      return false;
+    }
+
+    fdArchive = fopen(archivepath.c_str(),"a+");
+    if (!fdArchive) {
+      eos_err("failed to open archive file %s - errno=%d\n", archivepath.c_str(), errno);
       return false;
     }
     return true;
@@ -161,26 +168,29 @@ TransferFsDB::Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut
 	       setime,
 	       Qr[i]["src"].c_str(),
 	       Qr[i]["dst"].c_str(),
-	       Qr[i]["submissionhost"].c_str());
+		 Qr[i]["submissionhost"].c_str());
       
-      stdOut += outline;
+      if (!summary) {stdOut += outline;}
       groupby[Qr[i]["status"]]++;
     }
   } else {
     for (size_t i = 0; i< Qr.size(); i++) {
       std::map<std::string, std::string>::const_iterator it;
-      for (it=Qr[i].begin(); it != Qr[i].end(); it++) {
-	stdOut += "tx.";
-	stdOut += it->first.c_str();
-	stdOut += "=";
-	stdOut += it->second.c_str();
-	stdOut += " ";
+      if (!summary) {
+	for (it=Qr[i].begin(); it != Qr[i].end(); it++) {
+	  stdOut += "tx.";
+	  stdOut += it->first.c_str();
+	  stdOut += "=";
+	  stdOut += it->second.c_str();
+	  stdOut += " ";
+	}
+	stdOut +="\n";
+	stdOut += outline;
       }
-      stdOut +="\n";
-      stdOut += outline;
       groupby[Qr[i]["status"]]++;
     }
   }
+
 
   if (summary) {
     if (!monitoring) {
@@ -256,6 +266,23 @@ TransferFsDB::SetState(long long id, int state)
     eos_err("unable to update - msg=%s\n",ErrMsg);
     return false;
   }
+
+  if ( state == TransferEngine::kDone ) {
+    // auto archive this transfer
+    XrdOucString out,err;
+    if (!Archive(id, out, err, true)) {
+      if (!Cancel(id, out, err, true)) {
+	return true;
+      } else {
+	eos_static_err("failed to cancel id=%lld in auto-archiving after <done> state", id);
+	return false;
+      }
+    } else {
+      eos_static_err("failed to archive id=%lld in auto-archiving after <done> state", id);
+      return false;
+    }
+  }
+  
   return true;
 }
 
@@ -366,7 +393,6 @@ TransferFsDB::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, X
   insert += "NULL";
   insert += ")";
 
-  fprintf(stderr,"%s\n", insert.c_str());
   if ((sqlite3_exec(DB,insert.c_str(), CallBack, this, &ErrMsg))) {
     eos_err("unable to insert - msg=%s\n",ErrMsg);
     stdErr = "error: " ; stdErr += ErrMsg;
@@ -381,9 +407,10 @@ TransferFsDB::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, X
 
 /*----------------------------------------------------------------------------*/
 int
-TransferFsDB::Cancel(long long id, XrdOucString& stdOut, XrdOucString stdErr)
+TransferFsDB::Cancel(long long id, XrdOucString& stdOut, XrdOucString& stdErr, bool nolock)
 {
-  XrdSysMutexHelper lock(Lock);
+  
+  if (!nolock) Lock.Lock();
   XrdOucString query="";
   
   query = "delete from transfers ";  
@@ -395,10 +422,58 @@ TransferFsDB::Cancel(long long id, XrdOucString& stdOut, XrdOucString stdErr)
   if ((sqlite3_exec(DB,query.c_str(), CallBack, this, &ErrMsg))) {
     eos_err("unable to delete - msg=%s\n",ErrMsg);
     stdErr+="error: unable to delete - msg="; stdErr += ErrMsg; stdErr += "\n";
+    if (!nolock) Lock.UnLock();
     return -1 ;
   } 
   stdOut += "success: canceled transfer id="; stdOut += sid; stdOut +="\n";
+    if (!nolock) Lock.UnLock();
   return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+TransferFsDB::Archive(long long id, XrdOucString& stdOut, XrdOucString& stdErr, bool nolock)
+{
+  if (!nolock) Lock.Lock();
+  XrdOucString query="";
+  
+  query = "select * from transfers ";  
+  query += "  where id = ";
+  char sid[16];
+  snprintf(sid,sizeof(sid)-1, "%lld", id);
+  query += sid;
+  
+  if ((sqlite3_exec(DB,query.c_str(), CallBack, this, &ErrMsg))) {
+    eos_err("unable to select - msg=%s\n",ErrMsg);
+    stdErr+="error: unable to select - msg="; stdErr += ErrMsg; stdErr += "\n";
+    if (!nolock) Lock.UnLock();
+    return -1 ;
+  } 
+
+  if (Qr.size()) {
+    bool ferror=false;
+    if ( (fprintf(fdArchive,"# ==========================================================================\n")) < 0) ferror=true;
+    if ( (fprintf(fdArchive,"# id=%s uid=%s gid=%s group=%s rate=%s streams=%s\n", Qr[0]["id"].c_str(), Qr[0]["uid"].c_str(), Qr[0]["gid"].c_str(), Qr[0]["groupname"].c_str(), Qr[0]["rate"].c_str(), Qr[0]["streams"].c_str())) < 0) ferror=true;
+    if ( (fprintf(fdArchive,"# submissionhost=%s\n", Qr[0]["submissionhost"].c_str())) < 0 ) ferror=true;
+    if ( (fprintf(fdArchive,"# src=%s", Qr[0]["src"].c_str())) < 0 ) ferror=true;
+    if ( (fprintf(fdArchive,"# dst=%s", Qr[0]["dst"].c_str())) < 0 ) ferror=true;
+    if ( (fprintf(fdArchive,"# --------------------------------------------------------------------------\n")) < 0) ferror=true;
+    if ( (fprintf(fdArchive,"%s\n", Qr[0]["log"].c_str())) < 0) ferror=true;
+    if ( (fprintf(fdArchive,"# --------------------------------------------------------------------------\n")) < 0) ferror=true;
+    if (ferror) {
+      stdErr += "error: failed to write to archive file - errno="; stdErr += (int) errno;
+      if (!nolock) Lock.UnLock();
+      return -1;
+    } else {
+      stdOut += "success: archived transfer id="; stdOut += sid; stdOut +="\n";
+      if (!nolock) Lock.UnLock();
+      return 0;
+    }
+  } else {
+    stdErr += "error: query didn't return any transfer\n";
+    if (!nolock) Lock.UnLock();
+    return -1;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -454,7 +529,7 @@ TransferFsDB::QueryByState(XrdOucString& state)
   std::vector<long long> ids;
 
   query = "select id from transfers ";  
-  query += " where state='";
+  query += " where status='";
   query += state.c_str();
   query += "'";
 

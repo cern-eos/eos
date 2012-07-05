@@ -44,6 +44,7 @@ class TransferEngine {
 private:
   TransferDB* xDB;
   pthread_t thread;
+  pthread_t watchthread;
 public:
 
   static const char* gConfigSchedule; //< global configuration tag if scheduling is enabled
@@ -70,6 +71,9 @@ public:
   static void* StaticSchedulerProc(void*);
   void* Scheduler();
 
+  static void* StaticWatchProc(void*);
+  void* Watch();
+
   int ApplyTransferEngineConfig();
 
   int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid, time_t exptime=86400, XrdOucString credentials="");
@@ -80,7 +84,7 @@ public:
   int Log(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
   int Clear(XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
   int Reset(XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
-
+  int Purge(XrdOucString& option, XrdOucString& sid, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
   
 
   bool SetState(long long id, int status)                                  {return xDB->SetState(id,status);}
