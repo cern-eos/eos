@@ -241,7 +241,11 @@ com_node (char* arg1) {
   fprintf(stdout,"                                                                  -l : long output - list also file systems after each node\n");
   fprintf(stdout,"                                                                --io : print IO statistics\n");
   fprintf(stdout,"                                                              --fsck : print filesystem check statistcis\n");
-  fprintf(stdout,"       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node (see help of 'fs config' for details)\n");
+  fprintf(stdout,"       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node\n");
+  fprintf(stdout,"                                                               <key> : gw.rate=<mb/s> - set the transfer speed per gateway transfer\n");
+  fprintf(stdout,"                                                               <key> : gw.ntx=<#>     - set the number of concurrent transfers for a gateway node\n");
+  fprintf(stdout,"                                                               <key> : for other keys see help of 'fs config' for details\n");
+  fprintf(stdout,"\n");
   fprintf(stdout,"       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
   fprintf(stdout,"       node rm  <queue-name>|<host:port>                        : remove a node\n");
   fprintf(stdout,"       node register <host:port|*> <path2register> <space2register> [--force] [--root]\n");

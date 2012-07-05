@@ -69,6 +69,7 @@ com_cp (char* argin) {
   XrdOucString option="";
   XrdOucString arg1="";
   XrdOucString arg2="";
+  XrdOucString upload_target="";
   XrdOucString cmdline;
   std::vector<XrdOucString> source_list;
   std::vector<unsigned long long> source_size;
@@ -336,6 +337,11 @@ com_cp (char* argin) {
   // compute the size to copy
   std::vector<std::string> file_info;
   for (size_t nfile = 0 ; nfile < source_list.size(); nfile++) {
+    bool statok=false;
+    // ------------------------------------------
+    // EOS file
+    // ------------------------------------------
+
     if (source_list[nfile].beginswith("/eos/")) {
       struct stat buf;
       XrdOucString url=serveruri.c_str();
@@ -349,8 +355,54 @@ com_cp (char* argin) {
 	if (debug)fprintf(stderr,"[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(), (unsigned long long)buf.st_size);
 	copysize += buf.st_size;
 	source_size.push_back((unsigned long long)buf.st_size);
+	statok=true;
       }
-    } else {
+    }
+    // ------------------------------------------
+    // S3 file
+    // ------------------------------------------
+    if (source_list[nfile].beginswith("s3:")) {
+      XrdOucString sizecmd = "s3cmd ls "; sizecmd += arg1; sizecmd += " | awk '{print $3}' 2>/dev/null";
+      long long size = eos::common::StringConversion::LongLongFromShellCmd(sizecmd.c_str());
+      if ( (!size) || (size == LLONG_MAX) ) {
+	fprintf(stderr,"error: cannot obtain the size of the <s3> source file or it has 0 size!\n");
+	exit(-1);
+      }
+      if (debug)fprintf(stderr,"[eos-cp] path=%s size=%lld\n", source_list[nfile].c_str(),size);
+      copysize += size;
+      source_size.push_back(size);
+      statok=true;
+    }
+
+    if ( source_list[nfile].beginswith("http:") || 
+	 source_list[nfile].beginswith("https://") || 
+	 source_list[nfile].beginswith("gsiftp://") ) {
+      fprintf(stderr,"warning: disabling size check for http/https/gsidftp\n");
+      statok=true;
+      source_size.push_back(0);
+    }
+
+    if ( (source_list[nfile].beginswith("root:") ) ) {
+      // ------------------------------------------
+      // XRootD file
+      // ------------------------------------------
+      struct stat buf;
+      if (!XrdPosixXrootd::Stat(source_list[nfile].c_str(), &buf)) {
+	if (S_ISDIR(buf.st_mode)) {
+	  fprintf(stderr,"error: %s is a directory - use '-r' to copy directories\n", source_list[nfile].c_str());
+	  return com_cp_usage();
+	}
+	if (debug)fprintf(stderr,"[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),(unsigned long long)buf.st_size);
+	copysize += buf.st_size;
+	source_size.push_back((unsigned long long)buf.st_size);
+	statok=true;
+      }
+    }
+
+    if ( ( source_list[nfile].find(":/") == STR_NPOS) ) {
+      // ------------------------------------------
+      // local file
+      // ------------------------------------------
       struct stat buf;
       if (!stat(source_list[nfile].c_str(), &buf)) {
 	if (S_ISDIR(buf.st_mode)) {
@@ -360,7 +412,13 @@ com_cp (char* argin) {
 	if (debug)fprintf(stderr,"[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),(unsigned long long)buf.st_size);
 	copysize += buf.st_size;
 	source_size.push_back((unsigned long long)buf.st_size);
+	statok=true;
       }
+    }
+
+    if (!statok) {
+      fprintf(stderr,"error: we don't support this protocol or we cannot get the file size of source file %s\n", source_list[nfile].c_str());
+      exit(-1);
     }
   }
 
@@ -411,6 +469,41 @@ com_cp (char* argin) {
       arg2.append(targetadd);
     }
 
+    // ------------------------------
+    // check for external copy tools
+    // ------------------------------
+    if ( arg1.beginswith("http:") || arg2.beginswith("https:")) {
+      int rc=system("which curl >&/dev/null");
+      if (WEXITSTATUS(rc)) {
+	fprintf(stderr,"error: you miss the <curl> executable in your PATH\n");
+	exit(-1);
+      }
+    }
+
+    if ( arg1.beginswith("s3:") || (arg2.beginswith("s3:")) ) {
+      int rc=system("which s3cmd >&/dev/null");
+      if (WEXITSTATUS(rc)) {
+	fprintf(stderr,"error: you miss the <s3cmd> executable in your PATH\n");
+	exit(-1);
+      }
+    }
+
+    if ( arg1.beginswith("gsiftp:") || arg2.beginswith("gsiftp:") ) {
+      int rc=system("which globus-url-copy >&/dev/null");
+      if (WEXITSTATUS(rc)) {
+	fprintf(stderr,"error: you miss the <globus-url-copy> executable in your PATH\n");
+	exit(-1);
+      }
+    }
+
+    if ( (arg2.find(":/")!=STR_NPOS) && (!arg2.beginswith("root:")) ) {
+      // if the target is any other protocol than root: we download to a temporary file
+      upload_target=arg2;
+      arg2=tmpnam(NULL);
+      targetfile = arg2;
+    }
+    
+
     if (nooverwrite) {
       struct stat buf;
       // check if target exists
@@ -439,26 +532,59 @@ com_cp (char* argin) {
       }
     }
     
-    cmdline += "eoscp ";
+    bool rstdin=false;
+
+    if ( (arg1.beginswith("http:")) || (arg1.beginswith("https:")) ) {
+      cmdline += "curl "; 
+      if (arg1.beginswith("https:")) {
+	cmdline += "-k ";
+      }
+
+      cmdline += arg1; cmdline += " |";
+      rstdin = true;
+      noprogress = true;
+    }
+
+    if ( arg1.beginswith("s3:")) {
+      cmdline += "s3cmd get ";
+      cmdline += arg1;
+      cmdline += " - |";
+      rstdin = true;
+      noprogress = true;
+    }
+
+    if ( arg1.beginswith("gsiftp:")) {
+      cmdline += "globus-url-copy ";
+      cmdline += arg1;
+      cmdline += " - |";
+      rstdin = true;
+      noprogress = true;
+    }
+           
+    cmdline += "eoscp -p ";
     if (append) cmdline += "-a ";
     if (!summary) cmdline += "-s ";
     if (noprogress) cmdline += "-n ";
     cmdline += "-N "; cmdline += cPath.GetName();cmdline += " ";
-
-    cmdline += arg1; cmdline += " ";
+    if (rstdin) {
+      cmdline += "- ";
+    } else {
+      cmdline += arg1; cmdline += " ";
+    }
     cmdline += arg2;
     
     if(debug)fprintf(stderr,"[eos-cp] running: %s\n", cmdline.c_str());
     int lrc=system(cmdline.c_str());
     // check the target size
-    if (targetfile.beginswith("/eos/")) {
-      struct stat buf;
+    struct stat buf;
+      
+    if ( (targetfile.beginswith("/eos/") || (targetfile.beginswith("root://")) ) ) {
       buf.st_size=0;
       XrdOucString url=serveruri.c_str();
       url+="/";
       url+= targetfile;
       if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
-	if (buf.st_size != (int)source_size[nfile]) {
+	if ((source_size[nfile]) && (buf.st_size != (int)source_size[nfile])) {
 	  fprintf(stderr,"error: filesize differ between source and target file!\n");
 	  lrc = 0xffff00;
 	} 
@@ -467,10 +593,9 @@ com_cp (char* argin) {
 	lrc = 0xffff00;
       }
     } else {
-      struct stat buf;
       buf.st_size=0;
       if (!stat(targetfile.c_str(), &buf)) {
-	if (buf.st_size != (int)source_size[nfile]) {
+	if ((source_size[nfile]) && (buf.st_size != (int)source_size[nfile])) {
 	  fprintf(stderr,"error: filesize differ between source and target file!\n");
 	  lrc = 0xffff00;
 	} 
@@ -495,8 +620,57 @@ com_cp (char* argin) {
 	  }
 	}
       }
-      copiedok++;
-      copiedsize += source_size[nfile];
+
+      if (upload_target.length()) {
+	bool uploadok=false;
+	if (upload_target.beginswith("s3:")) {
+ 	  cmdline = "s3cmd put ";
+	  cmdline += arg2; cmdline += " ";
+	  cmdline += upload_target;
+	  if (debug) {fprintf(stderr,"[eos-cp] running: %s\n", cmdline.c_str());}
+	  int rc=system(cmdline.c_str());
+	  if (WEXITSTATUS(rc)) {
+	    fprintf(stderr,"error: failed to upload to <s3>\n");
+	    uploadok=false;
+	  } else {
+	    uploadok=true;
+	  }
+	}
+	if (upload_target.beginswith("http:")) {
+	  fprintf(stderr,"error: we don't support file uploads with http/https protocol\n");
+	  uploadok=false;
+	}
+	if (upload_target.beginswith("https:")) {
+	  fprintf(stderr,"error: we don't support file uploads with http/https protocol\n");
+	  uploadok=false;
+	}
+	if (upload_target.beginswith("gsiftp:")) {
+ 	  cmdline = "globus-url-copy file://";
+	  cmdline += arg2; cmdline += " ";
+	  cmdline += upload_target;
+	  if (debug) {fprintf(stderr,"[eos-cp] running: %s\n", cmdline.c_str());}
+	  int rc=system(cmdline.c_str());
+	  if (WEXITSTATUS(rc)) {
+	    fprintf(stderr,"error: failed to upload to <gsiftp>\n");
+	    uploadok=false;
+	  } else {
+	    uploadok=true;
+	  }
+	  uploadok=true;
+	}
+	// clean-up the tmp file in any case
+	unlink(arg2.c_str());
+
+	if (!uploadok) {
+	  lrc |= 0xffff00;
+	} else {
+	  copiedok++;
+	  copiedsize += source_size[nfile];
+	}
+      } else {
+	copiedok++;
+	copiedsize += source_size[nfile];
+      }
     }
     retc |= lrc;
 

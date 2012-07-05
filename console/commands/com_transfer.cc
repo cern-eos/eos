@@ -42,7 +42,7 @@ com_transfer (char* argin) {
   XrdOucString arg1="";
   XrdOucString arg2="";
 
-  if ( (subcmd != "submit") && (subcmd != "cancel") && (subcmd != "ls") && (subcmd != "enable") && (subcmd != "disable" ) && (subcmd != "reset" ) && (subcmd != "clear") && (subcmd != "log") && (subcmd != "resubmit") && (subcmd != "kill") ) 
+  if ( (subcmd != "submit") && (subcmd != "cancel") && (subcmd != "ls") && (subcmd != "enable") && (subcmd != "disable" ) && (subcmd != "reset" ) && (subcmd != "clear") && (subcmd != "log") && (subcmd != "resubmit") && (subcmd != "kill") && (subcmd != "purge") )
     goto com_usage_transfer;
 
   in += subcmd;
@@ -134,9 +134,9 @@ com_transfer (char* argin) {
     return (0);
   }
   
-  if ( (subcmd == "cancel") || (subcmd == "log") || (subcmd == "resubmit") || (subcmd == "kill") ) {
+  if ( (subcmd == "cancel") || (subcmd == "log") || (subcmd == "resubmit") || (subcmd == "kill") || (subcmd == "purge") ) {
     xid = arg1;
-    if (!xid.length() && (!group.length())) {
+    if ((subcmd != "purge") && (!xid.length() && (!group.length()))) {
       goto com_usage_transfer;
     }
     if (!xid.length()) {
@@ -180,5 +180,7 @@ com_transfer (char* argin) {
   fprintf(stdout,"                       : resubmit's a transfer\n");
   fprintf(stdout,"transfer kill <id>|--group=<groupname>\n");
   fprintf(stdout,"                       : kill a running transfer\n");
+  fprintf(stdout,"transfer purge [<id>|--group=<groupname>]\n");
+  fprintf(stdout,"                       : remove 'done' transfers from the transfer queue by id, group or all if not specified\n");
   return (0);
 }
