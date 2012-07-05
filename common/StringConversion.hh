@@ -41,6 +41,7 @@
 #include <vector>
 #include <set>
 #include <stdio.h>
+#include <limits.h>
 #include <errno.h>
 #include <string.h>
 #include <fstream>
@@ -516,6 +517,31 @@ public:
     buffer << load.rdbuf();
     out=buffer.str();
     return out.c_str();
+  }
+
+
+  // ---------------------------------------------------------------------------
+  /** 
+   * Read a long long number as output of a shell command - this is not usefull in multi-threaded environments
+   * 
+   * @param shellcommand to execute
+   * @return long long value of converted shell output
+   */
+  // ---------------------------------------------------------------------------  
+  static long long
+  LongLongFromShellCmd(const char* shellcommand)
+  {
+    FILE* fd = popen(shellcommand, "r");
+    if (fd) {
+      char buffer[1024];
+      int nread = fread((void*)buffer,1024,0,fd);
+      pclose(fd);
+      if ( (nread >0) && (nread <1024) ) {
+	buffer[nread]=0;
+	return strtoll(buffer,0,10);
+      }
+    }
+    return LLONG_MAX;
   }
 
   // ---------------------------------------------------------------------------
