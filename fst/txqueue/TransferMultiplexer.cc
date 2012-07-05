@@ -61,6 +61,28 @@ TransferMultiplexer::Run() {
   }
 }
 
+/* ------------------------------------------------------------------------- */
+void
+TransferMultiplexer::SetBandwidth(size_t band)
+{
+  eos::common::RWMutexWriteLock lock(Mutex);
+  for (size_t i=0; i< mQueues.size(); i++) {
+    mQueues[i]->SetBandwidth(band);
+  }
+  return;
+}
+
+/* ------------------------------------------------------------------------- */
+void 
+TransferMultiplexer::SetSlots(size_t slots)
+{
+  eos::common::RWMutexWriteLock lock(Mutex);
+  for (size_t i=0; i< mQueues.size(); i++) {
+    mQueues[i]->SetSlots(slots);
+  }
+  return;
+
+}
 
 /* ------------------------------------------------------------------------- */
 void* TransferMultiplexer::StaticThreadProc(void* arg){
@@ -78,37 +100,41 @@ void* TransferMultiplexer::ThreadProc(void){
 
 
   while (1) {
-    for (size_t i=0; i< mQueues.size(); i++) {
-      XrdSysThread::SetCancelOff();
-  
-      while( mQueues[i]->GetQueue()->Size()) {
-        // look in all registered queues
-        // take an entry from the queue
-      
-        int freeslots = mQueues[i]->GetSlots() - mQueues[i]->GetRunning();
-        
-        if (freeslots <=0 )
-          break; 
-        
-        //        fprintf(stderr,"Found %u transfers in queue %s\n", (unsigned int) mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
-        
-        mQueues[i]->GetQueue()->OpenTransaction();
-        eos::common::TransferJob* cjob = mQueues[i]->GetQueue()->Get();
-        mQueues[i]->GetQueue()->CloseTransaction();
-        
-        if (!cjob)
-          break;
-
-	XrdOucString out="";
-        cjob->PrintOut(out);
-	//	fprintf(stderr, "New transfer %s\n", out.c_str());
-        
-        //create new TransferJob and submit it to the scheduler
-        TransferJob* job = new TransferJob(mQueues[i], cjob, mQueues[i]->GetBandwidth());
-        gOFS.TransferSchedulerMutex.Lock();
-        gOFS.TransferScheduler->Schedule(job);
-        gOFS.TransferSchedulerMutex.UnLock();
-        mQueues[i]->IncRunning();
+    {
+      eos::common::RWMutexReadLock lock(Mutex);
+      for (size_t i=0; i< mQueues.size(); i++) {
+	XrdSysThread::SetCancelOff();
+	
+	while( mQueues[i]->GetQueue()->Size()) {
+	  // look in all registered queues
+	  // take an entry from the queue
+	  
+	  int freeslots = mQueues[i]->GetSlots() - mQueues[i]->GetRunning();
+	  
+	  fprintf(stderr,"slots = %d\n", mQueues[i]->GetSlots());
+	  if (freeslots <=0 )
+	    break; 
+	  
+	  //	  fprintf(stderr,"Found %u transfers in queue %s\n", (unsigned int) mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
+	  
+	  mQueues[i]->GetQueue()->OpenTransaction();
+	  eos::common::TransferJob* cjob = mQueues[i]->GetQueue()->Get();
+	  mQueues[i]->GetQueue()->CloseTransaction();
+	  
+	  if (!cjob)
+	    break;
+	  
+	  XrdOucString out="";
+	  cjob->PrintOut(out);
+	  //	fprintf(stderr, "New transfer %s\n", out.c_str());
+	  
+	  //create new TransferJob and submit it to the scheduler
+	  TransferJob* job = new TransferJob(mQueues[i], cjob, mQueues[i]->GetBandwidth());
+	  gOFS.TransferSchedulerMutex.Lock();
+	  gOFS.TransferScheduler->Schedule(job);
+	  gOFS.TransferSchedulerMutex.UnLock();
+	  mQueues[i]->IncRunning();
+	}
       }
     }
     XrdSysThread::SetCancelOn();

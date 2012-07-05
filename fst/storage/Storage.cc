@@ -403,10 +403,14 @@ Storage::Storage(const char* metadirectory)
   // create gw queue
   XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);  
   std::string n = eos::fst::Config::gConfig.FstQueue.c_str(); n += "/gw";
-  mGwQueue     = new eos::common::TransferQueue(eos::fst::Config::gConfig.FstQueue.c_str(),n.c_str(),"txq"  , (eos::common::FileSystem*)0, &gOFS.ObjectManager, false);
+  mGwQueue     = new eos::common::TransferQueue(eos::fst::Config::gConfig.FstQueue.c_str(),n.c_str(),"txq"  , (eos::common::FileSystem*)0, &gOFS.ObjectManager, true);
   n += "/txqueue";
   mTxGwQueue   = new TransferQueue   (&mGwQueue, n.c_str());
-  mGwMultiplexer.Add(mTxGwQueue);
+  if (mTxGwQueue) {
+    mGwMultiplexer.Add(mTxGwQueue);
+  } else {
+    eos_err("unable to create transfer queue");
+  }
 }
 
 
@@ -1706,6 +1710,7 @@ Storage::Communicator()
 	    eos_static_info("txgw=%s", gw.c_str());
 
 	    gOFS.ObjectManager.HashMutex.UnLockRead();		  
+
 	    if (gw == "off") {
 	      // just stop the multiplexer
 	      mGwMultiplexer.Stop();
@@ -1720,6 +1725,30 @@ Storage::Communicator()
 	    gOFS.ObjectManager.HashMutex.UnLockRead();
 	    eos_static_warning("Cannot get hash(queue)");
 	  }
+	}
+	
+	if ( key == "gw.rate" ) {
+	  // modify the rate settings of the gw multiplexer
+	  gOFS.ObjectManager.HashMutex.LockRead();
+	  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(),"hash");
+	  if (hash) {
+	    std::string rate = hash->Get("gw.rate");
+	    eos_static_info("cmd=set gw.rate=%s", rate.c_str());
+	    mGwMultiplexer.SetBandwidth(atoi(rate.c_str()));
+	  }
+	  gOFS.ObjectManager.HashMutex.UnLockRead();		  	  
+	}
+
+	if ( key == "gw.ntx" ) {
+	  // modify the parallel transfer settings of the gw multiplexer
+	  gOFS.ObjectManager.HashMutex.LockRead();
+	  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(),"hash");
+	  if (hash) {
+	    std::string ntx = hash->Get("gw.ntx");
+	    eos_static_info("cmd=set gw.ntx=%s", ntx.c_str());
+	    mGwMultiplexer.SetSlots(atoi(ntx.c_str()));
+	  }
+	  gOFS.ObjectManager.HashMutex.UnLockRead();		  	  
 	}
       } else {
 	fsMutex.LockRead();

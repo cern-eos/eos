@@ -27,6 +27,7 @@
 /* ------------------------------------------------------------------------- */
 #include "fst/Namespace.hh"
 #include "fst/txqueue/TransferJob.hh"
+#include "common/RWMutex.hh"
 /* ------------------------------------------------------------------------- */
 #include "Xrd/XrdScheduler.hh"
 /* ------------------------------------------------------------------------- */
@@ -47,14 +48,19 @@ private:
   pthread_t thread;
 
 public: 
+  eos::common::RWMutex Mutex;
 
   TransferMultiplexer();
   ~TransferMultiplexer();
 
   void Add(TransferQueue* queue) {
+    eos::common::RWMutexWriteLock lock(Mutex);
     // add all queues and then call Run()
     mQueues.push_back(queue);
   }
+
+  void SetSlots(size_t slots);    // apply in all attached queues
+  void SetBandwidth(size_t band); // apply in all attached queues
 
   void Run(); //  start the multiplexer thread (add all queues beforehand)
   void Stop(); // stop the multiplexer thread

@@ -65,6 +65,7 @@ int trylocal = 0;
 int progbar = 1;
 int summary = 1;
 int buffersize = DEFAULTBUFFERSIZE;
+unsigned long long targetsize = 0;
 int euid = -1;
 int egid = -1;
 int nsrc = 1;
@@ -107,13 +108,14 @@ struct timezone tz;
 XrdPosixXrootd posixsingleton;
 
 void usage() {
-  fprintf(stderr, "Usage: %s [-5] [-X <type>] [-t <mb/s>] [-h] [-v] [-d] [-l] [-b <size>] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n",PROGRAM);
+  fprintf(stderr, "Usage: %s [-5] [-X <type>] [-t <mb/s>] [-h] [-v] [-d] [-l] [-b <size>] [-T <size>] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n",PROGRAM);
   fprintf(stderr, "       -h           : help\n");
   fprintf(stderr, "       -d           : debug mode\n");
   fprintf(stderr, "       -v           : verbose mode\n");
   fprintf(stderr, "       -l           : try to force the destination to the local disk server [not supported]\n");
   fprintf(stderr, "       -a           : append to the file rather than truncate an existing file\n"); 
   fprintf(stderr, "       -b <size>    : use <size> as buffer size for copy operations\n");
+  fprintf(stderr, "       -T <size>    : use <size> as target size for copies from STDIN\n");
   fprintf(stderr, "       -m <mode>    : set the mode for the destination file\n");
   fprintf(stderr, "       -n           : hide progress bar\n");
   fprintf(stderr, "       -N           : set name for progress printout\n");
@@ -273,7 +275,7 @@ int main(int argc, char* argv[]) {
   extern int optind;
 
 
-  while ( (c = getopt(argc, argv, "nshdvlipfe:P:X:b:m:u:g:t:S:D:5ar:N:L:R")) != -1) {
+  while ( (c = getopt(argc, argv, "nshdvlipfe:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:")) != -1) {
     switch(c) {
     case 'v':
       verbose = 1;
@@ -412,6 +414,9 @@ int main(int argc, char* argv[]) {
         exit(-1);
       }
       break;
+    case 'T':
+      targetsize = strtoull(optarg,0,10);
+      break;
     case 'm':
       for (int i = 0; i < MAXSRCDST; i++) {
         dest_mode[i] = strtol(optarg,0,8);
@@ -486,6 +491,7 @@ int main(int argc, char* argv[]) {
 
   XrdOucString src[MAXSRCDST];
   XrdOucString dst[MAXSRCDST];
+
   for (int i = 0; i < nsrc; i++) {
     src[i] = source[i];
   }
@@ -638,6 +644,7 @@ int main(int argc, char* argv[]) {
         break;
       case 3:
         stat_failed = 0;
+	st[i].st_size = targetsize;
         break;
       }
     
@@ -1037,7 +1044,7 @@ int main(int argc, char* argv[]) {
     if (progbar) {
       gettimeofday(&abs_stop_time, &tz);
       for (int i = 0; i < nsrc; i++) {
-        if (sid[i] == 3) {
+        if ( (sid[i] == 3) && (!targetsize) ) {
           st[i].st_size = totalbytes;
         }
       }

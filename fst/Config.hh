@@ -41,6 +41,7 @@ public:
   XrdOucString     FstDefaultReceiverQueue; // Queue where we are sending to by default
   XrdOucString     FstQueue;             // our queue name
   XrdOucString     FstQueueWildcard;     // our queue match name
+  XrdOucString     FstGwQueueWildcard;   // our gateway queue match name
   XrdOucString     FstConfigQueueWildcard;// our configuration queue match name
   XrdOucString     FstNodeConfigQueue;   // our queue holding this node's configuration settings
   XrdOucString     FstHostPort;          // <host>:<port>

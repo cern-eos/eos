@@ -281,6 +281,13 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   eos::fst::Config::gConfig.FstConfigQueueWildcard+= ":";
   eos::fst::Config::gConfig.FstConfigQueueWildcard+= myPort;
 
+  // create our wildcard gw broadcast name
+  eos::fst::Config::gConfig.FstGwQueueWildcard =  "*/";
+  eos::fst::Config::gConfig.FstGwQueueWildcard+= HostName; 
+  eos::fst::Config::gConfig.FstGwQueueWildcard+= ":";
+  eos::fst::Config::gConfig.FstGwQueueWildcard+= myPort;
+  eos::fst::Config::gConfig.FstGwQueueWildcard+= "/fst/gw/txqueue/txq";
+
   // Set Logging parameters
   XrdOucString unit = "fst@"; unit+= HostName; unit+=":"; unit+=myPort;
 
@@ -319,6 +326,8 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   std::string watch_symkey       = "symkey";
   std::string watch_manager      = "manager";
   std::string watch_gateway      = "txgw";
+  std::string watch_gateway_rate = "gw.rate";
+  std::string watch_gateway_ntx  = "gw.ntx";
 
   ObjectManager.ModificationWatchKeys.insert(watch_id);
   ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
@@ -326,6 +335,8 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   ObjectManager.ModificationWatchKeys.insert(watch_symkey);
   ObjectManager.ModificationWatchKeys.insert(watch_manager);
   ObjectManager.ModificationWatchKeys.insert(watch_gateway);
+  ObjectManager.ModificationWatchKeys.insert(watch_gateway_rate);
+  ObjectManager.ModificationWatchKeys.insert(watch_gateway_ntx);
   ObjectManager.SubjectsMutex.UnLock();
 
 
@@ -359,6 +370,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Create a wildcard broadcast 
   XrdMqSharedHash* hash = 0;
+  XrdMqSharedQueue* queue = 0;
 
   // Create a node broadcast
   ObjectManager.CreateSharedHash(eos::fst::Config::gConfig.FstConfigQueueWildcard.c_str(),eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
@@ -369,6 +381,19 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   if (hash) {
     // ask for a broadcast
     hash->BroadCastRequest(eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
+  }
+
+  ObjectManager.HashMutex.UnLockRead();
+
+  // Create a node gateway broadcast
+  ObjectManager.CreateSharedQueue(eos::fst::Config::gConfig.FstGwQueueWildcard.c_str(),eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
+  ObjectManager.HashMutex.LockRead();
+  
+  queue = ObjectManager.GetQueue(eos::fst::Config::gConfig.FstGwQueueWildcard.c_str());
+  
+  if (queue) {
+    // ask for a broadcast
+    queue->BroadCastRequest(eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
   }
 
   ObjectManager.HashMutex.UnLockRead();
