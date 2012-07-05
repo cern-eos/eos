@@ -1046,29 +1046,69 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               identifier.append("/fst");
             }
             if (FsView::gFsView.mNodeView.count(identifier)) {
-              std::set<eos::common::FileSystem::fsid_t>::iterator it;
-              for (it = FsView::gFsView.mNodeView[identifier]->begin(); it != FsView::gFsView.mNodeView[identifier]->end();  it++) {
-                if ( FsView::gFsView.mIdView.count(*it)) {
-                  fs = FsView::gFsView.mIdView[*it];
-                  if (fs) {
-                    // check the allowed strings
-                    if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ) ) ) {
-                      fs->SetString(key.c_str(),value.c_str());
-		      if (value == "off") {
-			// we have to remove the errc here, otherwise we cannot terminate drainjobs on file systems with errc set
-			fs->SetString("errc","0");
+
+	      if ( key == "configstatus") {
+		std::set<eos::common::FileSystem::fsid_t>::iterator it;
+		for (it = FsView::gFsView.mNodeView[identifier]->begin(); it != FsView::gFsView.mNodeView[identifier]->end();  it++) {
+		  if ( FsView::gFsView.mIdView.count(*it)) {
+		    fs = FsView::gFsView.mIdView[*it];
+		    if (fs) {
+		      // check the allowed strings
+		      if ( (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ) ) {
+			fs->SetString(key.c_str(),value.c_str());
+			if (value == "off") {
+			  // we have to remove the errc here, otherwise we cannot terminate drainjobs on file systems with errc set
+			  fs->SetString("errc","0");
+			}
+			FsView::gFsView.StoreFsConfig(fs);
+		      } else {
+			stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
+			retc = EINVAL;
 		      }
-                      FsView::gFsView.StoreFsConfig(fs);
-                    } else {
-                      stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
-                      retc = EINVAL;
-                    }
-                  } else {
+		    } else {
                     stdErr += "error: cannot identify the filesystem by <"; stdErr += identifier.c_str(); stdErr += ">\n";
                     retc = EINVAL;
-                  }
-                }
-              } 
+		    }
+		  }
+		} 
+	      } else {
+		bool keyok=false;
+		if ( key == "gw.ntx" ) {
+		  keyok=true;
+		  int slots = atoi(value.c_str());
+		  if ( (slots < 1) || (slots > 100) ) {
+		    stdErr += "error: number of gateway transfer slots must be between 1-100\n";
+		    retc = EINVAL;
+		  } else {
+		    if (FsView::gFsView.mNodeView[identifier]->SetConfigMember(key,value,false)) {
+		      stdOut += "success: number of gateway transfer slots set to gw.ntx="; stdOut += (int)slots;
+		    } else {
+		      stdErr += "error: failed to store the config value gw.ntx\n";
+		      retc = EFAULT;
+		    }
+		  }
+		}
+		
+		if ( key == "gw.rate") {
+		  keyok=true;
+		  int bw = atoi(value.c_str());
+		  if ( (bw < 1) || (bw > 10000) ) {
+		    stdErr += "error: gateway transfer speed must be 1-10000 (MB/s)\n";
+		    retc = EINVAL;
+		  } else {
+		    if (FsView::gFsView.mNodeView[identifier]->SetConfigMember(key,value,false)) {
+		      stdOut += "success: gateway transfer rate set to gw.rate="; stdOut += (int)bw; stdOut += " Mb/s";
+		    } else {
+		      stdErr += "error: failed to store the config value gw.rate\n";
+		      retc = EFAULT;
+		    }
+		  }
+		}
+		if (!keyok) {
+		  stdErr += "error: the specified key is not known - consult the usage information of the command\n";
+		  retc = EINVAL;
+		}
+	      }		 
             } else {
               retc = EINVAL;
               stdErr = "error: cannot find node <"; stdErr += identifier.c_str(); stdErr += ">";
@@ -2381,7 +2421,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       XrdOucString id      = opaque.Get("mgm.txid")?opaque.Get("mgm.txid"):"";
       XrdOucString option  = opaque.Get("mgm.txoption")?opaque.Get("mgm.txoption"):"";
 
-      if ( (subcmd != "submit") && (subcmd != "ls") && (subcmd != "cancel") && (subcmd != "enable") && (subcmd != "disable") && (subcmd != "reset") && (subcmd != "clear") && (subcmd != "resubmit") && (subcmd != "kill") && (subcmd != "log") ) {
+      if ( (subcmd != "submit") && (subcmd != "ls") && (subcmd != "cancel") && (subcmd != "enable") && (subcmd != "disable") && (subcmd != "reset") && (subcmd != "clear") && (subcmd != "resubmit") && (subcmd != "kill") && (subcmd != "log") && (subcmd != "purge") ) {
 	retc = EINVAL;
 	stdErr = "error: there is no such sub-command defined for <transfer>";
 	MakeResult(true);
@@ -2400,8 +2440,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	XrdOucString Credential;
 	XrdOucString CredentialB64;
 
-	
-	// path the URLs for /eos/ paths
+	// -------------------------------------------
+	// modify the the URLs for /eos/ paths
 	if (src.beginswith("/eos/")) {
 	  src.insert("root:///",0);
 	  src.insert(gOFS->MgmOfsAlias,7);
@@ -2411,12 +2451,47 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  dst.insert(gOFS->MgmOfsAlias,7);
 	}
 
+	// -------------------------------------------
+	// check s3 opaque information
+	if (src.beginswith("s3://")) {
+	  if ( (src.find("s3.accesskey=") == STR_NPOS) ) {
+	    retc = EINVAL;
+	    stdErr += "error: you have to add the s3.accesskey to the URL as ?s3.accesskey=<>\n";
+	    MakeResult(false);
+	    return SFS_OK;
+	  }
+	  if ( (src.find("s3.secretkey=") == STR_NPOS) ) {
+	    retc = EINVAL;
+	    stdErr += "error: you have to add the s3.secretkey to the URL as ?s3.secretkey=<>\n";
+	    MakeResult(false);
+	    return SFS_OK;
+	  }
+	}
+
+	if (dst.beginswith("s3://")) {
+	  if ( (dst.find("s3.accesskey=") == STR_NPOS) ) {
+	    retc = EINVAL;
+	    stdErr += "error: you have to add the s3.accesskey to the URL as ?s3.accesskey=<>\n";
+	    MakeResult(false);
+	    return SFS_OK;
+	  }
+	  if ( (dst.find("s3.secretkey=") == STR_NPOS) ) {
+	    retc = EINVAL;
+	    stdErr += "error: you have to add the s3.secretkey to the URL as ?s3.secretkey=<>\n";
+	    MakeResult(false);
+	    return SFS_OK;
+	  }
+	}
+
+	// -------------------------------------------
+	// add eos opaque mapping/application tags
 	if ( (src.find("//eos/")) != STR_NPOS) {
 	  if ( (src.find("?")) == STR_NPOS) {
 	    src += "?";
 	  }
 	  src += "&eos.ruid="; src += (int)vid_in.uid;
 	  src += "&eos.rgid="; src += (int)vid_in.gid;
+	  src += "&eos.app=gw"; if (group.length()) {src += "."; src += group;}
 	}
 
 	if ( (dst.find("//eos/")) != STR_NPOS) {
@@ -2425,6 +2500,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  } 
 	  dst += "&eos.ruid="; dst += (int)vid_in.uid;
 	  dst += "&eos.rgid="; dst += (int)vid_in.gid;
+	  dst += "&eos.app=gw"; if (group.length()) {dst += "."; dst += group;}
 	}
 
 	{
@@ -2481,7 +2557,39 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    Credential.insert("krb5:",0);
 	  }
 	}
+
+	if ( (!src.beginswith("s3:")) &&
+	     (!src.beginswith("root:")) &&
+	     (!src.beginswith("gsiftp:")) &&
+	     (!src.beginswith("http:")) &&
+	     (!src.beginswith("https:")) ) {
+	  retc = EINVAL;
+	  stdErr += "error: we support only s3,root,gsiftp,http & https as a source transfer protocol\n";
+	  MakeResult(false);
+	  return SFS_OK;
+	}
+
+	if ( (!dst.beginswith("s3:")) &&
+	     (!dst.beginswith("root:")) &&
+	     (!dst.beginswith("gsiftp:")) &&
+	     (!dst.beginswith("http:")) &&
+	     (!dst.beginswith("https:")) ) {
+	  retc = EINVAL;
+	  stdErr += "error: we support only s3,root,gsiftp,http & https as a destination transfer protocol\n";
+	  MakeResult(false);
+	  return SFS_OK;
+	}
 	
+	if ( ( (src.beginswith("gsiftp:")) || 
+	       (dst.beginswith("gsiftp:")) || 
+	       (src.beginswith("https:")) ||
+	       (dst.beginswith("https:")) ) &&
+	     !usegsi) {
+	  retc = EINVAL;
+	  stdErr += "error: you need to use a delegated X509 proxy to do a transfer with gsiftp or https\n";
+	  MakeResult(false);
+	  return SFS_OK;
+	}
 	retc = gTransferEngine.Submit(src,dst,rate,streams,group, stdOut, stdErr, vid_in, 86400, Credential);
       }
 
@@ -2539,6 +2647,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
       if ( (subcmd == "log") ) {
 	retc = gTransferEngine.Log(id,group,stdOut,stdErr,vid_in);
+      }
+
+      if ( (subcmd == "purge") ) {
+	retc = gTransferEngine.Purge(option, id,group,stdOut, stdErr, vid_in);
       }
 
       MakeResult(false);

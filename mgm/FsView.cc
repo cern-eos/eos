@@ -51,11 +51,11 @@ FsView::GetNodeFormat(std::string option) {
   
   if (option == "m") {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=hostport:width=1:format=os|sep= |member=status:width=1:format=os|sep= |member=cfg.status:width=1:format=os|sep= |member=cfg.txgw:width=1:format=os|sep= |member=heartbeatdelta:width=1:format=os|sep= |member=nofs:width=1:format=os|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.fused:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running";
+    return "member=type:width=1:format=os|sep= |member=hostport:width=1:format=os|sep= |member=status:width=1:format=os|sep= |member=cfg.status:width=1:format=os|sep= |member=cfg.txgw:width=1:format=os|sep= |member=heartbeatdelta:width=1:format=os|sep= |member=nofs:width=1:format=os|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.fused:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running|sep= |member=stat.gw.queued:width=1:format=os:tag=stat.gw.queued";
   }
  
   if (option == "io") {
-    return "header=1:member=hostport:width=24:format=s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+l:tag=max-files|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-run|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-run";
+    return "header=1:member=hostport:width=24:format=s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+l:tag=max-files|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-run|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-run|sep= |member=inqueue:width=10:format=s:tag=gw-queue";
   }
 
   if (option == "fsck") {
@@ -64,9 +64,9 @@ FsView::GetNodeFormat(std::string option) {
 
   if (option == "l") {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=cfg.txgw:width=6:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s|sep= |sum=stat.balancer.running:width=10:format=l:tag=balan-run|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-run"; 
+    return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=cfg.txgw:width=6:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s|sep= |sum=stat.balancer.running:width=10:format=l:tag=balan-run|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-run|sep= |member=inqueue:width=10:format=s:tag=gw-queue"; 
   }
-  return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=cfg.txgw:width=6:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s"; 
+  return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=cfg.txgw:width=6:format=s|sep= |member=inqueue:width=10:format=s:tag=gw-queued|sep= |member=cfg.gw.ntx:width=8:format=s:tag=gw-ntx|sep= |member=cfg.gw.rate:width=8:format=s:tag=gw-rate|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s"; 
 }
 
 /*----------------------------------------------------------------------------*/
@@ -822,7 +822,13 @@ BaseView::GetMember(std::string member) {
     mSize = line;
     return mSize;
   }
-  
+
+  if (member == "inqueue") {
+    XrdOucString s="";
+    s += (int)mInQueue;
+    return s.c_str();
+  }
+
   if (member == "heartbeat") {
     char line[1024];
     snprintf(line, sizeof(line)-1, "%llu", (unsigned long long) mHeartBeat);
@@ -869,6 +875,13 @@ BaseView::GetMember(std::string member) {
 
   return "";
 }
+
+/*----------------------------------------------------------------------------*/
+FsNode::~FsNode()
+{ 
+  if (mGwQueue) delete mGwQueue; 
+  FsView::gFsView.mGwNodes.erase(mName); // unregister evt. gateway node
+};
 
 /*----------------------------------------------------------------------------*/
 std::string 
@@ -1259,7 +1272,9 @@ FsView::ApplyGlobalConfig(const char* key, std::string &val)
 	  broadcast.erase(dashpos);
 	}
 	broadcast += "/fst";
-	
+
+	FsView::gFsView.RegisterNode(broadcast.c_str()); // the node might not yet exist!
+
 	eos::common::RWMutexWriteLock gwlock(GwMutex);
 	if (val == "on") {
 	  // we have to register this queue into the gw set for fast lookups

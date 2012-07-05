@@ -55,7 +55,6 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-
 //------------------------------------------------------------------------
 //! Classes providing views on filesystems by space,group,node
 //------------------------------------------------------------------------
@@ -67,12 +66,14 @@ private:
   std::string mHeartBeatDeltaString;
   std::string mStatus;
   std::string mSize;
+  size_t      mInQueue;
+
 public:
   std::string mName;
 
   std::string mType;
   
-  BaseView(){mStatus="unknown";mHeartBeat=0;}
+  BaseView(){mStatus="unknown";mHeartBeat=0;mInQueue=0;}
   ~BaseView(){};
   
   virtual const char* GetConfigQueuePrefix() { return "";}
@@ -88,7 +89,7 @@ public:
   void SetStatus(const char* status) { mStatus = status;      }
   const char* GetStatus()            { return mStatus.c_str();}
   time_t      GetHeartBeat()         { return mHeartBeat;     }
-
+  void SetInQueue(size_t iq)         { mInQueue=iq; }
 
   long long SumLongLong(const char* param, bool lock=true); // calculates the sum of <param> as long long
   double SumDouble(const char* param);      // calculates the sum of <param> as double
@@ -199,7 +200,8 @@ public:
     mGwQueue = new eos::common::TransferQueue(mName.c_str(), n.c_str(), "txq", (eos::common::FileSystem*)0, eos::common::GlobalConfig::gConfig.SOM(), false);
   }
 
-  ~FsNode(){ if (mGwQueue) delete mGwQueue; };
+  ~FsNode();
+
 
   void SetNodeConfigDefault() { 
     if (!(GetConfigMember("manager").length())) {
@@ -219,8 +221,16 @@ public:
     if ( (GetConfigMember("txgw") != "on") && (GetConfigMember("txgw") != "off") ) {
       SetConfigMember("txgw","off", true, mName.c_str(), true); // by default node's aren't transfer gateways
     }
-  }
 
+    if ( (atoi(GetConfigMember("gw.ntx").c_str()) == 0) || (atoi(GetConfigMember("gw.ntx").c_str()) == LONG_MAX ) ) {
+      SetConfigMember("gw.ntx","10", true, mName.c_str(), true); // by default we set 10 parallel gw transfers
+    }
+
+    if ( (atoi(GetConfigMember("gw.rate").c_str()) == 0) || (atoi(GetConfigMember("gw.rate").c_str()) == LONG_MAX ) ) {
+      SetConfigMember("gw.rate","120", true, mName.c_str(), true); // by default we allow 1GBit speed per transfer
+    }
+  }
+  
   static std::string gConfigQueuePrefix;
   virtual const char* GetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
   static const char* sGetConfigQueuePrefix() { return gConfigQueuePrefix.c_str();}
