@@ -88,7 +88,6 @@ com_cp (char* argin) {
   bool checksums = false;
   bool silent = false;
   bool nooverwrite = false;
-
   unsigned long long copysize=0;
   int retc=0;
   int copiedok=0;
@@ -288,7 +287,7 @@ com_cp (char* argin) {
       } else {
 	XrdOucString l="";
 	l+= "find "; l += source_find_list[nfile]; l+= " -type f";
-	if (debug) fprintf(stderr,"[eoscp] running %s\n", l.c_str());
+	if (debug) fprintf(stderr,"[eos-cp] running %s\n", l.c_str());
 	FILE* fp = popen(l.c_str(),"r");
 	if (!fp) {
 	  fprintf(stderr, "error: unable to run 'eos' - I need it in the path");
@@ -315,20 +314,22 @@ com_cp (char* argin) {
 
   // create the target directory if it is a local one
   if ((!target.beginswith("/eos"))) {
-    if (target.endswith("/")) {
-      XrdOucString mktarget = "mkdir --mode 755 -p "; mktarget += target.c_str();
-      system(mktarget.c_str());
-      if (access(target.c_str(), R_OK|W_OK)) {
-	fprintf(stderr,"error: cannot create/access your target directory!\n");
-	exit(0);
-      }
-    } else {
-      eos::common::Path cTarget(target.c_str());
-      XrdOucString mktarget = "mkdir --mode 755 -p "; mktarget += cTarget.GetParentPath();
-      system(mktarget.c_str());
-      if (access(cTarget.GetParentPath(), R_OK|W_OK)) {
-	fprintf(stderr,"error: cannot create/access your target directory!\n");
-	exit(0);
+    if ( (target.find(":/")==STR_NPOS) && (!target.beginswith("s3:")) ) {
+      if (target.endswith("/")) {
+	XrdOucString mktarget = "mkdir --mode 755 -p "; mktarget += target.c_str();
+	system(mktarget.c_str());
+	if (access(target.c_str(), R_OK|W_OK)) {
+	  fprintf(stderr,"error: cannot create/access your target directory!\n");
+	  exit(0);
+	}
+      } else {
+	eos::common::Path cTarget(target.c_str());
+	XrdOucString mktarget = "mkdir --mode 755 -p "; mktarget += cTarget.GetParentPath();
+	system(mktarget.c_str());
+	if (access(cTarget.GetParentPath(), R_OK|W_OK)) {
+	  fprintf(stderr,"error: cannot create/access your target directory!\n");
+	  exit(0);
+	}
       }
     }
   }
@@ -358,11 +359,27 @@ com_cp (char* argin) {
 	statok=true;
       }
     }
+    XrdOucString s3env="";
     // ------------------------------------------
     // S3 file
     // ------------------------------------------
     if (source_list[nfile].beginswith("s3:")) {
-      XrdOucString sizecmd = "s3cmd ls "; sizecmd += arg1; sizecmd += " | awk '{print $3}' 2>/dev/null";
+      // check that the environment is set
+      if (!getenv("S3_ACCESS_KEY_ID") ||
+	  !getenv("S3_HOSTNAME") ||
+	  !getenv("S3_SECRET_ACCESS_KEY")) {
+	fprintf(stderr,"error: you have to set the S3 environment variables S3_ACCESS_KEY_ID, S3_HOSTNAME, S3_SECRET_ACCESS_KEY\n");
+	exit(-1);
+      }
+      s3env  = "env S3_ACCESS_KEY_ID="; s3env += getenv("S3_ACCESS_KEY_ID");
+      s3env +=         " S3_HOSTNAME="; s3env += getenv("S3_HOSTNAME");
+      s3env +=" S3_SECRET_ACCESS_KEY="; s3env += getenv("S3_SECRET_ACCESS_KEY");
+
+      XrdOucString s3arg= source_list[nfile].c_str(); s3arg.replace("s3:","");
+
+      // do some bash magic ... sigh
+      XrdOucString sizecmd = "bash -c \""; sizecmd +=s3env; sizecmd += " s3 head "; sizecmd += s3arg; sizecmd += " | grep Content-Length| awk '{print \\$2}' 2>/dev/null"; sizecmd += "\"";
+      if (debug) fprintf(stderr,"[eos-cp] running %s\n", sizecmd.c_str());
       long long size = eos::common::StringConversion::LongLongFromShellCmd(sizecmd.c_str());
       if ( (!size) || (size == LLONG_MAX) ) {
 	fprintf(stderr,"error: cannot obtain the size of the <s3> source file or it has 0 size!\n");
@@ -429,6 +446,9 @@ com_cp (char* argin) {
   // process the file list for wildcards
   for (size_t nfile = 0 ; nfile < source_list.size(); nfile++) {
     XrdOucString targetfile="";
+    XrdOucString transfersize=""; // used for STDIN pipes to specify the target size ot eoscp
+
+
     cmdline="";
     eos::common::Path cPath(source_list[nfile].c_str());
     arg1 = source_list[nfile];
@@ -481,9 +501,9 @@ com_cp (char* argin) {
     }
 
     if ( arg1.beginswith("s3:") || (arg2.beginswith("s3:")) ) {
-      int rc=system("which s3cmd >&/dev/null");
+      int rc=system("which s3 >&/dev/null");
       if (WEXITSTATUS(rc)) {
-	fprintf(stderr,"error: you miss the <s3cmd> executable in your PATH\n");
+	fprintf(stderr,"error: you miss the <s3> executable provided by libs3 in your PATH\n");
 	exit(-1);
       }
     }
@@ -496,7 +516,7 @@ com_cp (char* argin) {
       }
     }
 
-    if ( (arg2.find(":/")!=STR_NPOS) && (!arg2.beginswith("root:")) ) {
+    if ( ((arg2.find(":/")!=STR_NPOS) && (!arg2.beginswith("root:"))) ) {
       // if the target is any other protocol than root: we download to a temporary file
       upload_target=arg2;
       arg2=tmpnam(NULL);
@@ -533,6 +553,7 @@ com_cp (char* argin) {
     }
     
     bool rstdin=false;
+    bool rstdout=false;
 
     if ( (arg1.beginswith("http:")) || (arg1.beginswith("https:")) ) {
       cmdline += "curl "; 
@@ -545,14 +566,19 @@ com_cp (char* argin) {
       noprogress = true;
     }
 
-    if ( arg1.beginswith("s3:")) {
-      cmdline += "s3cmd get ";
-      cmdline += arg1;
-      cmdline += " - |";
-      rstdin = true;
-      noprogress = true;
+    if ( arg1.beginswith("s3:") || arg2.beginswith("s3:") ) {
+      char ts[1024]; snprintf(ts,sizeof(ts)-1,"%llu", source_size[nfile]);
+      transfersize = ts;
     }
 
+    if ( arg1.beginswith("s3:")) {
+      XrdOucString s3arg= arg1; s3arg.replace("s3:","");
+      cmdline += "s3 get ";
+      cmdline += s3arg;
+      cmdline += " |";
+      rstdin = true;
+    }
+    
     if ( arg1.beginswith("gsiftp:")) {
       cmdline += "globus-url-copy ";
       cmdline += arg1;
@@ -560,18 +586,38 @@ com_cp (char* argin) {
       rstdin = true;
       noprogress = true;
     }
-           
+
+    if ( arg2.beginswith("s3:")) {
+      rstdout = true;
+    }
+
+    // everything goes either via a stage file or direct
     cmdline += "eoscp -p ";
     if (append) cmdline += "-a ";
     if (!summary) cmdline += "-s ";
     if (noprogress) cmdline += "-n ";
+    if (transfersize.length()) cmdline += "-T ";cmdline += transfersize; cmdline += " ";
     cmdline += "-N "; cmdline += cPath.GetName();cmdline += " ";
     if (rstdin) {
       cmdline += "- ";
     } else {
       cmdline += arg1; cmdline += " ";
     }
-    cmdline += arg2;
+    if (rstdout) {
+      cmdline += "- ";
+    } else {
+      cmdline += arg2;
+    }
+    
+    if ( arg2.beginswith("s3:") ) {
+      // s3 can upload via STDIN setting the upload size externally - yeah!
+      cmdline += "| s3 put ";
+      XrdOucString s3arg= arg2; s3arg.replace("s3:","");
+      cmdline += s3arg;
+      cmdline += " contentLength=";
+      cmdline += transfersize.c_str();
+      cmdline += " >& /dev/null";
+    } 
     
     if(debug)fprintf(stderr,"[eos-cp] running: %s\n", cmdline.c_str());
     int lrc=system(cmdline.c_str());
@@ -582,7 +628,11 @@ com_cp (char* argin) {
       buf.st_size=0;
       XrdOucString url=serveruri.c_str();
       url+="/";
-      url+= targetfile;
+      if (targetfile.beginswith("root://")) {
+	url = targetfile;
+      } else {
+	url+= targetfile;
+      }
       if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
 	if ((source_size[nfile]) && (buf.st_size != (int)source_size[nfile])) {
 	  fprintf(stderr,"error: filesize differ between source and target file!\n");
@@ -592,7 +642,10 @@ com_cp (char* argin) {
 	fprintf(stderr,"error: target file was not created!\n");
 	lrc = 0xffff00;
       }
-    } else {
+    } 
+
+    if ( ((arg2.find(":/")==STR_NPOS) && (!arg2.beginswith("s3:"))) ) {
+      // this is a local file
       buf.st_size=0;
       if (!stat(targetfile.c_str(), &buf)) {
 	if ((source_size[nfile]) && (buf.st_size != (int)source_size[nfile])) {
@@ -603,7 +656,7 @@ com_cp (char* argin) {
 	fprintf(stderr,"error: target file was not created!\n");
 	lrc = 0xffff00;
       }
-    }      
+    }  
     if (!WEXITSTATUS(lrc)) {
       if (target.beginswith("/eos")) {
 	if (checksums) {
@@ -624,9 +677,12 @@ com_cp (char* argin) {
       if (upload_target.length()) {
 	bool uploadok=false;
 	if (upload_target.beginswith("s3:")) {
- 	  cmdline = "s3cmd put ";
-	  cmdline += arg2; cmdline += " ";
-	  cmdline += upload_target;
+	  XrdOucString s3arg= upload_target; s3arg.replace("s3:","");
+ 	  cmdline = "s3 put ";
+	  cmdline += s3arg; cmdline += " filename=";
+	  cmdline += arg2; 
+	  if (noprogress) {cmdline += " >& /dev/null";}
+	  if (silent) {cmdline += " >&/dev/null";}
 	  if (debug) {fprintf(stderr,"[eos-cp] running: %s\n", cmdline.c_str());}
 	  int rc=system(cmdline.c_str());
 	  if (WEXITSTATUS(rc)) {
@@ -648,6 +704,7 @@ com_cp (char* argin) {
  	  cmdline = "globus-url-copy file://";
 	  cmdline += arg2; cmdline += " ";
 	  cmdline += upload_target;
+	  if (silent) {cmdline += " >&/dev/null";}
 	  if (debug) {fprintf(stderr,"[eos-cp] running: %s\n", cmdline.c_str());}
 	  int rc=system(cmdline.c_str());
 	  if (WEXITSTATUS(rc)) {
@@ -671,7 +728,7 @@ com_cp (char* argin) {
 	copiedok++;
 	copiedsize += source_size[nfile];
       }
-    }
+    } 
     retc |= lrc;
 
   }    
