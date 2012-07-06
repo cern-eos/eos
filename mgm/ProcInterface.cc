@@ -5323,6 +5323,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             stdErr = "error: path '"; stdErr += path.c_str(); stdErr += "' is not in the path map!";
           } else {
             gOFS->PathMap.erase(path.c_str());
+	    gOFS->ConfEngine->DeleteConfigValue("map",path.c_str());
             stdOut = "success: removed mapping of path '"; stdOut += path.c_str(); stdOut += "'";
           }
         } else {

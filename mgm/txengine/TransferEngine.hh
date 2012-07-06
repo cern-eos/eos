@@ -53,14 +53,16 @@ public:
     if (state == kInserted)  return "inserted";
     if (state == kValidated) return "validated";
     if (state == kScheduled) return "scheduled";
+    if (state == kStageIn)   return "stagein";
     if (state == kRunning)   return "running";
+    if (state == kStageOut)  return "stageout";
     if (state == kDone)      return "done";
     if (state == kFailed)    return "failed";
     if (state == kRetry)    return "retry";
     return "unknown";
   }
 
-  enum eTransferState {kNone=0, kInserted, kValidated, kScheduled, kRunning, kDone, kFailed, kRetry};
+  enum eTransferState {kNone=0, kInserted, kValidated, kScheduled, kRunning, kStageIn, kStageOut, kDone, kFailed, kRetry};
 
   TransferEngine();
   virtual ~TransferEngine();
