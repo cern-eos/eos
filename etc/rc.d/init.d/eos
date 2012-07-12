@@ -110,7 +110,7 @@ start() {
 			echo
                 else
 		        # Setup the base xrootd options
-		        _XRD_OPTIONS="-n $i -c ${_XRD_CONFIG} ${XRD_ROLEFLAG} -l ${XRD_LOGDIR}/xrdlog.$i -b -R${XRD_USER} -d"
+		        _XRD_OPTIONS="-n $i -c ${_XRD_CONFIG} ${XRD_ROLEFLAG} -l ${XRD_LOGDIR}/xrdlog.$i -b -R${XRD_USER}"
 			_XRD_OPTIONS=${_XRD_OPTIONS%' '}
 			echo  with ${_XRD_OPTIONS}
 			# Setup xrootd environment

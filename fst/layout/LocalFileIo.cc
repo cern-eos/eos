@@ -68,12 +68,13 @@ LocalFileIo::Open( const std::string& path,
                    const std::string& opaque )
 {
   eos_debug( "path = %s", path.c_str() );
+  mLocalPath = path;
   return mLogicalFile->openofs( path.c_str(), flags, mode, mSecEntity, opaque.c_str() );
 }
 
 
 //------------------------------------------------------------------------------
-// Read from file
+// Read from file - sync 
 //------------------------------------------------------------------------------
 int64_t
 LocalFileIo::Read( XrdSfsFileOffset offset,
@@ -89,7 +90,7 @@ LocalFileIo::Read( XrdSfsFileOffset offset,
 
 
 //------------------------------------------------------------------------------
-// Write to file
+// Write to file - sync 
 //------------------------------------------------------------------------------
 int64_t
 LocalFileIo::Write( XrdSfsFileOffset offset,
@@ -101,6 +102,32 @@ LocalFileIo::Write( XrdSfsFileOffset offset,
              static_cast<int64_t>( length ) );
 
   return mLogicalFile->writeofs( offset, buffer, length );
+}
+
+
+//------------------------------------------------------------------------------
+// Read from file - async 
+//------------------------------------------------------------------------------
+int64_t
+LocalFileIo::Read( XrdSfsFileOffset offset,
+                   char*            buffer,
+                   XrdSfsXferSize   length,
+                   void*            handler )
+{
+  return SFS_ERROR;
+}
+  
+
+//------------------------------------------------------------------------------
+// Write to file - async 
+//------------------------------------------------------------------------------
+int64_t
+LocalFileIo::Write( XrdSfsFileOffset offset,
+                    char*            buffer,
+                    XrdSfsXferSize   length,
+                    void*            handler )
+{
+  return SFS_ERROR;
 }
 
 

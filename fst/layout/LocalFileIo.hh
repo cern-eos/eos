@@ -81,7 +81,7 @@ class LocalFileIo: public FileIo
 
 
     //----------------------------------------------------------------------------
-    //! Read from file
+    //! Read from file - sync 
     //!
     //! @param offset offset in file
     //! @param buffer where the data is read
@@ -96,7 +96,7 @@ class LocalFileIo: public FileIo
 
 
     //--------------------------------------------------------------------------
-    //! Write to file
+    //! Write to file - sync
     //!
     //! @param offset offset
     //! @paramm buffer data to be written
@@ -108,7 +108,7 @@ class LocalFileIo: public FileIo
     virtual int64_t Write( XrdSfsFileOffset offset,
                            char*            buffer,
                            XrdSfsXferSize   length );
-  
+
   
     //--------------------------------------------------------------------------
     //! Truncate
@@ -185,6 +185,40 @@ class LocalFileIo: public FileIo
   private:
 
     bool mIsOpen;             ///< mark if file is opened
+
+    //----------------------------------------------------------------------------
+    //! Read from file - async 
+    //!
+    //! @param offset offset in file
+    //! @param buffer where the data is read
+    //! @param lenght read length
+    //! @param handler async read handler
+    //!
+    //! @return number of bytes read or -1 if error
+    //!
+    //----------------------------------------------------------------------------
+    virtual int64_t Read( XrdSfsFileOffset offset,
+                          char*            buffer,
+                          XrdSfsXferSize   length,
+                          void*            handler );
+
+
+    //--------------------------------------------------------------------------
+    //! Write to file - async
+    //!
+    //! @param offset offset
+    //! @paramm buffer data to be written
+    //! @param length length
+    //! @param handler async write handler
+    //!
+    //! @return number of bytes written or -1 if error
+    //!
+    //--------------------------------------------------------------------------
+    virtual int64_t Write( XrdSfsFileOffset offset,
+                           char*            buffer,
+                           XrdSfsXferSize   length,
+                           void*            handler );
+
 };
 
 EOSFSTNAMESPACE_END

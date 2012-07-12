@@ -26,7 +26,7 @@
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/ReplicaParLayout.hh"
-//#include "fst/layout/RaidDpParLayout.hh"
+#include "fst/layout/RaidDpLayout.hh"
 //#include "fst/layout/ReedSParLayout.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -68,11 +68,12 @@ LayoutPlugin::GetLayoutObject( XrdFstOfsFile*      file,
     return dynamic_cast<Layout*>( new ReplicaParLayout( file, layoutId, client, error ) );
   }
       
-  /*
-    if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kRaidDP ) {
-    return static_cast<Layout*>( new RaidDpLayout( file, layoutId, error ) );
-    }
 
+  if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kRaidDP ) {
+    return static_cast<Layout*>( new RaidDpLayout( file, layoutId, client, error ) );
+  }
+  
+  /*
     if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kReedS ) {
     return static_cast<Layout*>( new ReedSLayout( file, layoutId, error ) );
     }

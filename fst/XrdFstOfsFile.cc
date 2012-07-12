@@ -22,12 +22,13 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include "common/Path.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+/*----------------------------------------------------------------------------*/
 #include "XrdOss/XrdOssApi.hh"
-#include "common/Path.hh"
 /*----------------------------------------------------------------------------*/
 
 extern XrdOssSys  *XrdOfsOss;
@@ -119,69 +120,6 @@ XrdFstOfsFile::~XrdFstOfsFile()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void
-XrdFstOfsFile:: AddReadTime()
-{
-  unsigned long mus = ( ( lrTime.tv_sec - cTime.tv_sec ) * 1000000 ) +
-                      lrTime.tv_usec - cTime.tv_usec;
-  rTime.tv_sec  += ( mus / 1000000 );
-  rTime.tv_usec += ( mus % 1000000 );
-}
-
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-void
-XrdFstOfsFile::AddWriteTime()
-{
-  unsigned long mus = ( ( lwTime.tv_sec - cTime.tv_sec ) * 1000000 ) +
-                      lwTime.tv_usec - cTime.tv_usec;
-  wTime.tv_sec  += ( mus / 1000000 );
-  wTime.tv_usec += ( mus % 1000000 );
-}
-
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-void
-XrdFstOfsFile::MakeReportEnv( XrdOucString& reportString )
-{
-  char report[16384];
-  sprintf( report, "log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&lid=%lu&"
-           "fid=%llu&fsid=%lu&ots=%lu&otms=%lu&cts=%lu&ctms=%lu&rb=%llu&"
-           "wb=%llu&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f&"
-           "osize=%llu&csize=%llu",
-           this->logId, Path.c_str(),
-           this->vid.uid,
-           this->vid.gid,
-           tIdent.c_str(),
-           hostName.c_str(),
-           lid,
-           fileid,
-           fsid,
-           openTime.tv_sec,
-           static_cast<unsigned long>( openTime.tv_usec / 1000 ),
-           closeTime.tv_sec,
-           static_cast<unsigned long>( closeTime.tv_usec / 1000 ),
-           rBytes,
-           wBytes,
-           srBytes,
-           swBytes,
-           rCalls,
-           wCalls,
-           ( ( rTime.tv_sec * 1000.0 ) + ( rTime.tv_usec / 1000.0 ) ),
-           ( ( wTime.tv_sec * 1000.0 ) + ( wTime.tv_usec / 1000.0 ) ),
-           static_cast< unsigned long long>( openSize ),
-           static_cast< unsigned long long>( closeSize ) );
-  reportString = report;
-}
-
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
 int
 XrdFstOfsFile::openofs( const char*         path,
                         XrdSfsFileOpenMode  open_mode,
@@ -191,22 +129,7 @@ XrdFstOfsFile::openofs( const char*         path,
                         bool                openBlockXS,
                         unsigned long       lid )
 {
-  bool isRead = true;
-
-  eos_debug( "Open mod = %x", open_mode );
-  if ( ( open_mode & ( SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
-                       SFS_O_CREAT  | SFS_O_TRUNC ) ) != 0 ) {
-    eos_debug(" Set isRead = false" );
-    isRead = false;
-  } else {
-    //..........................................................................
-    // TODO: drop this ....
-    // Anyway we need to open for writing for the recovery case
-    //..........................................................................
-    open_mode |= SFS_O_RDWR;
-  }
-
-  if ( openBlockXS && isRead ) {
+  if ( openBlockXS ) {
     fstBlockXS = ChecksumPlugins::GetChecksumObject( lid, true );
     fstBlockSize = eos::common::LayoutId::GetBlocksize( lid );
     XrdOucString fstXSPath = fstBlockXS->MakeBlockXSPath( path );
@@ -285,7 +208,6 @@ XrdFstOfsFile::open( const char*                path,
   }
 
   int envlen;
-  //ZTRACE(open,"capability contains: " << capOpaque->Env(envlen));
   eos_info( "path=%s info=%s capability=%s", path, opaque, capOpaque->Env( envlen ) );
   const char* hexfid = 0;
   const char* sfsid = 0;
@@ -364,6 +286,7 @@ XrdFstOfsFile::open( const char*                path,
   fsid   = atoi( sfsid );
   lid = atoi( slid );
   cid = strtoull( scid, 0, 10 );
+
   //............................................................................
   // Extract blocksize from the layout
   //............................................................................
@@ -513,6 +436,7 @@ XrdFstOfsFile::open( const char*                path,
 
   SetLogId( logId, vid, tident );
   eos_info( "fstpath=%s", fstPath.c_str() );
+
   //............................................................................
   // Attach meta data
   //............................................................................
@@ -544,10 +468,12 @@ XrdFstOfsFile::open( const char*                path,
   if ( isRW ||
        ( ( opaqueCheckSum != "ignore" ) &&
          ( ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kReplica ) ||
-           ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kPlain ) ) ) ) {
+           ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kPlain ) ) ) )
+  {
     if ( ( ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kRaidDP ) ||
            ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kReedS ) ) &&
-         ( !layOut->IsEntryServer() ) ) {
+         ( !layOut->IsEntryServer() ) )
+    {
       //........................................................................
       // This case we need to exclude!
       //........................................................................
@@ -587,7 +513,6 @@ XrdFstOfsFile::open( const char*                path,
     //..........................................................................
     // Get the real size of the file, not the local stripe size!
     //..........................................................................
-    eos_debug( "Get the real size of the file, not the local stripe size!" );
     if ( ( retc = layOut->Stat( &statinfo ) ) ) {
       return gOFS.Emsg( epname, error, EIO, "open - cannot stat layout to determine file size", Path.c_str() );
     }
@@ -735,6 +660,69 @@ XrdFstOfsFile::open( const char*                path,
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
+void
+XrdFstOfsFile:: AddReadTime()
+{
+  unsigned long mus = ( ( lrTime.tv_sec - cTime.tv_sec ) * 1000000 ) +
+                      lrTime.tv_usec - cTime.tv_usec;
+  rTime.tv_sec  += ( mus / 1000000 );
+  rTime.tv_usec += ( mus % 1000000 );
+}
+
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+void
+XrdFstOfsFile::AddWriteTime()
+{
+  unsigned long mus = ( ( lwTime.tv_sec - cTime.tv_sec ) * 1000000 ) +
+                      lwTime.tv_usec - cTime.tv_usec;
+  wTime.tv_sec  += ( mus / 1000000 );
+  wTime.tv_usec += ( mus % 1000000 );
+}
+
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+void
+XrdFstOfsFile::MakeReportEnv( XrdOucString& reportString )
+{
+  char report[16384];
+  sprintf( report, "log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&lid=%lu&"
+           "fid=%llu&fsid=%lu&ots=%lu&otms=%lu&cts=%lu&ctms=%lu&rb=%llu&"
+           "wb=%llu&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f&"
+           "osize=%llu&csize=%llu",
+           this->logId, Path.c_str(),
+           this->vid.uid,
+           this->vid.gid,
+           tIdent.c_str(),
+           hostName.c_str(),
+           lid,
+           fileid,
+           fsid,
+           openTime.tv_sec,
+           static_cast<unsigned long>( openTime.tv_usec / 1000 ),
+           closeTime.tv_sec,
+           static_cast<unsigned long>( closeTime.tv_usec / 1000 ),
+           rBytes,
+           wBytes,
+           srBytes,
+           swBytes,
+           rCalls,
+           wCalls,
+           ( ( rTime.tv_sec * 1000.0 ) + ( rTime.tv_usec / 1000.0 ) ),
+           ( ( wTime.tv_sec * 1000.0 ) + ( wTime.tv_usec / 1000.0 ) ),
+           static_cast< unsigned long long>( openSize ),
+           static_cast< unsigned long long>( closeSize ) );
+  reportString = report;
+}
+
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 int
 XrdFstOfsFile::closeofs()
 {
@@ -751,6 +739,7 @@ XrdFstOfsFile::closeofs()
       return XrdOfsFile::close();
     }
 
+    //TODO: fix this, who is rc ?!
     if ( !rc ) {
       //........................................................................
       // check if there is more than one writer in this moment or a reader ,
@@ -1138,7 +1127,6 @@ XrdFstOfsFile::close()
                           Path.c_str() );
         }
 
-        eos_debug (" XOXOXOXOX statinfo.st_size = %zu", statinfo.st_size );        
         if ( !rc ) {
           if ( ( statinfo.st_size == 0 ) || haswrite ) {
             //..................................................................
@@ -1394,7 +1382,12 @@ XrdFstOfsFile::readofs( XrdSfsFileOffset   fileOffset,
 
   if ( fstBlockXS ) {
     XrdSysMutexHelper cLock( BlockXsMutex );
-
+    
+    if ( retc != buffer_size ) {
+      eos_debug( "Error while reading the requested range." );
+      return gOFS.Emsg( "readofs", error, EIO, "read file - return value missmatch" );       
+    }
+    
     if ( ( retc > 0 ) && ( !fstBlockXS->CheckBlockSum( fileOffset, buffer, retc ) ) ) {
       int envlen = 0;
       eos_crit( "block-xs error offset=%llu len=%llu file=%s",
@@ -1633,6 +1626,7 @@ int
 XrdFstOfsFile::truncateofs( XrdSfsFileOffset fileOffset )
 {
   // truncation moves the max offset written
+  eos_debug( "value = %lli", fileOffset );
   maxOffsetWritten = fileOffset;
   return XrdOfsFile::truncate( fileOffset );
 }
@@ -1643,7 +1637,7 @@ XrdFstOfsFile::truncateofs( XrdSfsFileOffset fileOffset )
 //
 //------------------------------------------------------------------------------
 int
-XrdFstOfsFile::truncate( XrdSfsFileOffset   fileOffset )
+XrdFstOfsFile::truncate( XrdSfsFileOffset fileOffset )
 {
   if ( fileOffset == EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN ) {
     eos_warning( "Deletion flag for file %s indicated", fstPath.c_str() );
@@ -1653,7 +1647,7 @@ XrdFstOfsFile::truncate( XrdSfsFileOffset   fileOffset )
   }
 
   //  fprintf(stderr,"truncate called %llu\n", fileOffset);
-  eos_info( "subcmd=truncate openSize=%llu fileOffset=%llu", openSize, fileOffset );
+  eos_info( "subcmd=truncate openSize=%llu fileOffset=%llu ", openSize, fileOffset );
 
   if ( fileOffset != openSize ) {
     haswrite = true;

@@ -259,11 +259,10 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
       // Do remote read operation
       //........................................................................
       mReadHandlers[physical_id]->Increment();
-      XrdFileIo* ptr_xrdfile = dynamic_cast<XrdFileIo*>( mStripeFiles[physical_id] );
-      ptr_xrdfile->Read( offset_local + mSizeHeader,
-                         mDataBlocks[i],
-                         mStripeWidth,
-                         mReadHandlers[physical_id] );
+      mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
+                                       mDataBlocks[i],
+                                       mStripeWidth,
+                                       static_cast<void*>( mReadHandlers[physical_id] ) );
     } else {
       //........................................................................
       // Do local read operation
@@ -289,9 +288,11 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
 
       for ( std::map<uint64_t, uint32_t>::iterator iter = mapErrors.begin();
             iter != mapErrors.end();
-            iter++ ) {
+            iter++ )
+      {
         off_t off_stripe = iter->first - mSizeHeader;
         int index_stripe = ( off_stripe % ( mNbDataFiles * mStripeWidth ) ) / mStripeWidth;
+        eos_debug( "Index stripe: %i, off_stripe: %zu", index_stripe, off_stripe ); 
         int index = index_stripe * mNbTotalFiles + mapPL[i];
         eos_debug( "Block corrupted %i.", index );
         status_blocks[index] = false;
@@ -342,11 +343,10 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
           // Do remote write operation
           //....................................................................
           mWriteHandlers[physical_id]->Increment();
-          XrdFileIo* ptr_xrdfile = dynamic_cast<XrdFileIo*>( mStripeFiles[physical_id] );
-          ptr_xrdfile->Write( offset_local + mSizeHeader,
-                              mDataBlocks[id_corrupted],
-                              mStripeWidth,
-                              mWriteHandlers[physical_id] );
+          mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
+                                            mDataBlocks[id_corrupted],
+                                            mStripeWidth,
+                                            static_cast<void*>( mWriteHandlers[physical_id] ) );
         } else {
           //....................................................................
           // Do local write operation
@@ -369,18 +369,30 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
       {
         offset = iter->first;
         length = iter->second;
+        eos_debug( "YYY offset=%zu, length=%zu, offsetInit=%zu \n", offset, length, offsetInit );
 
         //......................................................................
         // If not SP or DP, maybe we have to return it
         //......................................................................
         if ( find( simple_parity.begin(), simple_parity.end(), id_corrupted ) == simple_parity.end() &&
              find( double_parity.begin(), double_parity.end(), id_corrupted ) == double_parity.end() ) {
+
+          eos_debug( " This is not a SP or DP, we might need to return it and "
+                     "offset_group=%zu, id=%i, mapBig[id]=%i. \n",
+                     offset_group, id_corrupted, MapBigToSmall( id_corrupted ) );
+          eos_debug( " The boundaries are: %zu and %zu",
+                     ( off_t )( offset_group + MapBigToSmall( id_corrupted ) * mStripeWidth ),
+                     ( offset_group + ( MapBigToSmall( id_corrupted ) + 1 ) * mStripeWidth ) );
+          
+          
           if ( ( offset >= ( off_t )( offset_group + MapBigToSmall( id_corrupted ) * mStripeWidth ) ) &&
                ( offset < ( off_t )( offset_group + ( MapBigToSmall( id_corrupted ) + 1 ) * mStripeWidth ) ) )
           {
+          
             pBuff = pBuffer + ( offset - offsetInit );
-            pBuff = static_cast<char*>( memcpy( pBuff, mDataBlocks[id_corrupted] +
-                                                ( offset % mStripeWidth ), length ) );
+            pBuff = static_cast<char*>( memcpy( pBuff,
+                                                mDataBlocks[id_corrupted] + (offset % mStripeWidth),
+                                                length ) );
           }
         }
       }
@@ -426,11 +438,10 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
             // Do remote write operation
             //....................................................................
             mWriteHandlers[physical_id]->Increment();
-            XrdFileIo* ptr_xrdfile = dynamic_cast<XrdFileIo*>( mStripeFiles[physical_id] );
-            ptr_xrdfile->Write( offset_local + mSizeHeader,
-                                mDataBlocks[id_corrupted],
-                                mStripeWidth,
-                                mWriteHandlers[physical_id] );
+            mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
+                                              mDataBlocks[id_corrupted],
+                                              mStripeWidth,
+                                              static_cast<void*>( mWriteHandlers[physical_id] ) );
           } else {
             //....................................................................
             // Do local write operation
@@ -463,8 +474,9 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
                  ( offset < ( off_t )( offset_group + ( MapBigToSmall( id_corrupted ) + 1 ) * mStripeWidth ) ) )
             {
               pBuff = pBuffer + ( offset - offsetInit );
-              pBuff = static_cast<char*>( memcpy( pBuff, mDataBlocks[id_corrupted] +
-                                                  ( offset % mStripeWidth ), length ) );
+              pBuff = static_cast<char*>( memcpy( pBuff,
+                                                  mDataBlocks[id_corrupted] + ( offset % mStripeWidth ),
+                                                  length ) );
             }
           }
         }
@@ -492,7 +504,6 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
   //............................................................................
   for ( unsigned int i = 0; i < mWriteHandlers.size(); i++ ) {
     if ( !mWriteHandlers[i]->WaitOK() ) {
-      free( status_blocks );
       eos_err( "Write stripe %i- write failed", i );
       ret = false;
     }
@@ -601,12 +612,11 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
       eos_debug( "Remote simple parity write operation to physical file %i at offset = %zu",
                  physical_pindex, off_parity_local + mSizeHeader );
       mWriteHandlers[physical_pindex]->Increment();
-      XrdFileIo* ptr_xrdfile = dynamic_cast<XrdFileIo*>( mStripeFiles[physical_pindex] );
       //TOOD:: fix the issue with nwrite and waiting for the confirmations
-      ptr_xrdfile->Write( off_parity_local + mSizeHeader,
-                          mDataBlocks[index_pblock],
-                          mStripeWidth,
-                          mWriteHandlers[physical_pindex] );
+      mStripeFiles[physical_pindex]->Write( off_parity_local + mSizeHeader,
+                                            mDataBlocks[index_pblock],
+                                            mStripeWidth,
+                                            static_cast<void*>( mWriteHandlers[physical_pindex] ) );
     } else {
       //........................................................................
       // Do local write operation
@@ -627,11 +637,10 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
       //........................................................................
       eos_debug( "Remote double parity write operation to physical file %i", physical_dpindex );
       mWriteHandlers[physical_dpindex]->Increment();
-      XrdFileIo* ptr_xrdfile = dynamic_cast<XrdFileIo*>( mStripeFiles[physical_dpindex] );
-      ptr_xrdfile->Write( off_parity_local + mSizeHeader,
-                          mDataBlocks[index_dpblock],
-                          mStripeWidth,
-                          mWriteHandlers[physical_dpindex] );
+      mStripeFiles[physical_dpindex]->Write( off_parity_local + mSizeHeader,
+                                             mDataBlocks[index_dpblock],
+                                             mStripeWidth,
+                                             static_cast<void*>( mWriteHandlers[physical_dpindex] ) );
     } else {
       //........................................................................
       // Do local write operation

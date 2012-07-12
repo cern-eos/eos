@@ -429,19 +429,26 @@ CheckSum::AlignBlockShrink(off_t offset, size_t len, off_t &aligned_offset, size
   off_t start = offset;
   off_t stop  = offset + len;
 
-  if (start%BlockSize) {
+  if (start % BlockSize) {
     start = start + BlockSize - (start%BlockSize);
   }
 
-  if (stop%BlockSize) {
-    stop = stop - (stop%BlockSize);
+  if (stop % BlockSize) {
+    stop = stop - (stop % BlockSize);
   }
-
+  
   aligned_offset = start;
-  aligned_len = (stop-start);
-
+  
+  if ( stop - start < 0 ) {
+    aligned_len =0;
+  }
+  else {
+    aligned_len = stop - start;
+  }
+  
   return;
 }
+
 
 /*----------------------------------------------------------------------------*/
 bool 

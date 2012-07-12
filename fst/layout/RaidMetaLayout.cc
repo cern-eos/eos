@@ -64,6 +64,7 @@ RaidMetaLayout::RaidMetaLayout( XrdFstOfsFile*      file,
   mFullDataBlocks = false;
   mOffGroupParity = -1;
   mPhysicalStripeIndex = -1;
+  mIsEntryServer = false;
 }
 
 
@@ -429,6 +430,7 @@ RaidMetaLayout::ValidateHeader( const char* opaque )
     physical_ids_invalid.pop_back();
 
     for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
+      eos_debug( "Try to map physical_id=%u to stripe_id=%u", physical_id, i );
       if ( find( used_stripes.begin(), used_stripes.end(), i ) == used_stripes.end() ) {
         //......................................................................
         // Add the new mapping
@@ -480,7 +482,7 @@ RaidMetaLayout::ValidateHeader( const char* opaque )
                                               mSecEntity,
                                               mError );
 
-            XrdSfsFileOpenMode flags = SFS_O_RDWR | SFS_O_CREAT;
+            XrdSfsFileOpenMode flags = SFS_O_RDWR;
             const int mode_int = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
             mode_t mode = mode_int & S_IAMB;
             if ( file && file->Open( mLocalPath, flags, mode, opaque ) ) {
@@ -502,7 +504,7 @@ RaidMetaLayout::ValidateHeader( const char* opaque )
           mHdUrls[physical_id]->WriteToFile( mStripeFiles[physical_id] );
           eos_debug( "After wrintg to file the header." );
         }
-
+        
         break;
       }
     }
@@ -541,7 +543,7 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
   long int index = 0;
   unsigned int stripe_id;
   char* pBuff = buffer;
-  size_t read_length = 0;
+  int64_t read_length = 0;
   off_t offset_local = 0;
   off_t offset_init = offset;
   std::map<off_t, size_t> map_errors;
@@ -622,19 +624,18 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
         nread = ( length > mStripeWidth ) ? mStripeWidth : length;
         offset_local = ( ( offset / ( mNbDataFiles * mStripeWidth ) ) * mStripeWidth ) +
                        ( offset %  mStripeWidth );
-        eos_debug( "read from logical_stripe=%i, physical_stripe=%i, offset=%lli, length=%zu",
-                   stripe_id, physical_id, offset, nread );
+        eos_debug( "read from logical_stripe=%i, physical_stripe=%i, offset_local=%lli, length=%zu",
+                   stripe_id, physical_id, offset_local, nread );
 
         if ( physical_id ) {
           //....................................................................
           // Do remote read operation
           //....................................................................
           mReadHandlers[physical_id]->Increment();
-          XrdFileIo* ptr_xrdfile = dynamic_cast<XrdFileIo*>( mStripeFiles[physical_id] );
-          nread = ptr_xrdfile->Read( offset_local + mSizeHeader,
-                                     pBuff,
-                                     nread,
-                                     mReadHandlers[physical_id] );
+          mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
+                                           pBuff,
+                                           nread,
+                                           static_cast<void*>( mReadHandlers[physical_id] ) );
         } else {
           //....................................................................
           // Do local read operation
@@ -644,9 +645,10 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
                                                             nread );
           
           if ( nbytes != static_cast<int64_t>( nread ) ) {
-            off_t offInFile = ( offset_local / mStripeWidth ) * ( mNbDataFiles * mStripeWidth ) +
-                              ( offset_local % mStripeWidth ) + stripe_id * mStripeWidth;
-            map_errors.insert( std::make_pair<off_t, size_t>( offInFile, nread ) );
+            off_t off_in_file = ( offset_local / mStripeWidth ) * ( mNbDataFiles * mStripeWidth ) +
+                ( stripe_id * mStripeWidth ) + ( offset_local % mStripeWidth ) ;
+            eos_debug( "XYXY map erros offset=%zu, length=%zu", off_in_file, nread ); 
+            map_errors.insert( std::make_pair<off_t, size_t>( off_in_file, nread ) );
             do_recovery = true;
           }
         }
@@ -660,7 +662,9 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
         eos_debug( "length=%li, num_wait_req=%i", length, num_wait_req );
         if ( ( length == 0 ) || ( num_wait_req == 0 ) ) {
           eos_debug( "Waiting for read responses!!" );
+          if ( num_wait_req == 0 ) index = 0;
           num_wait_req = ( num_wait_req == 0 ) ? mNbDataBlocks : num_wait_req;
+                    
 
           for ( unsigned int i = 0; i < mReadHandlers.size(); i++ ) {
             if ( !mReadHandlers[i]->WaitOK() ) {
@@ -669,11 +673,13 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
               for ( std::map<uint64_t, uint32_t>::iterator iter = map_err_relative.begin();
                     iter != map_err_relative.end();
                     iter++ ) {
-                off_t offInStripe = iter->first - mSizeHeader;
-                off_t offInFile = ( offInStripe / mStripeWidth ) * ( mNbDataFiles * mStripeWidth ) +
-                                  ( offInStripe % mStripeWidth ) + mapPL[i] * mStripeWidth;
-                eos_debug( "[XX] map erros offset=%zu, length=%zu", offInFile, iter->second ); 
-                map_errors.insert( std::make_pair<off_t, size_t>( offInFile, iter->second ) );
+                off_t off_in_stripe = iter->first - mSizeHeader;
+                off_t off_in_file = (static_cast<int>( off_in_stripe / mStripeWidth ) ) *
+                    ( mNbDataFiles * mStripeWidth ) + ( mapPL[i] * mStripeWidth ) +
+                    ( off_in_stripe % mStripeWidth );
+                eos_debug( "XYXY map erros offsetInStripe = %zu, offsetInFile=%zu, length=%zu",
+                           off_in_stripe, off_in_file, iter->second ); 
+                map_errors.insert( std::make_pair<off_t, size_t>( off_in_file, iter->second ) );
               }
 
               do_recovery = true;
@@ -762,12 +768,11 @@ RaidMetaLayout::Write( XrdSfsFileOffset offset,
         //......................................................................
         eos_debug( "Remote write operation." );
         mWriteHandlers[physical_index]->Increment();
-        XrdFileIo* ptr_xrdfile = dynamic_cast<XrdFileIo*>( mStripeFiles[physical_index] );
         //TODO:: fix the issue with nwrite nad  waiting for the confirmations
-        ptr_xrdfile->Write( offset_local + mSizeHeader,
-                            buffer,
-                            nwrite,
-                            mWriteHandlers[physical_index] );
+        mStripeFiles[physical_index]->Write( offset_local + mSizeHeader,
+                                             buffer,
+                                             nwrite,
+                                             static_cast<void*>( mWriteHandlers[physical_index] ) );
       } else {
         //......................................................................
         // Do local write operation
@@ -924,19 +929,18 @@ RaidMetaLayout::ReadGroup( off_t offsetGroup )
       //........................................................................
       // Do remote read operation
       //........................................................................
-      XrdFileIo* ptr_xrdfile = dynamic_cast<XrdFileIo*>( mStripeFiles[physical_id] );
       mReadHandlers[physical_id]->Increment();
-      ptr_xrdfile->Read( offset_local + mSizeHeader,
-                         mDataBlocks[MapSmallToBig( i )],
-                         mStripeWidth,
-                         mReadHandlers[physical_id] );
+      mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
+                                       mDataBlocks[MapSmallToBig( i )],
+                                       mStripeWidth,
+                                       static_cast<void*>( mReadHandlers[physical_id] ) );
     } else {
       //........................................................................
       // Do local read operation
       //........................................................................
       int64_t nbytes = mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
-                       mDataBlocks[MapSmallToBig( i )],
-                       mStripeWidth );
+                                                        mDataBlocks[MapSmallToBig( i )],
+                                                        mStripeWidth );
 
       if ( nbytes != mStripeWidth ) {
         eos_err( "err=error while reading local data blocks" );

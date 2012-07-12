@@ -120,14 +120,15 @@ class XrdFileIo: public FileIo
     //! @param offset offset in file
     //! @param buffer where the data is read
     //! @param lenght read length
+    //! @param handler async read handler
     //!
     //! @return number of bytes read or -1 if error
     //!
     //----------------------------------------------------------------------------
-    virtual int64_t Read( XrdSfsFileOffset        offset,
-                          char*                   buffer,
-                          XrdSfsXferSize          length,
-                          XrdCl::ResponseHandler* handler);
+    virtual int64_t Read( XrdSfsFileOffset offset,
+                          char*            buffer,
+                          XrdSfsXferSize   length,
+                          void*            handler);
 
 
     //--------------------------------------------------------------------------
@@ -136,14 +137,15 @@ class XrdFileIo: public FileIo
     //! @param offset offset
     //! @paramm buffer data to be written
     //! @param length length
+    //! @param handler async write handler
     //!
     //! @return number of bytes written or -1 if error
     //!
     //--------------------------------------------------------------------------
-    virtual int64_t Write( XrdSfsFileOffset        offset,
-                           char*                   buffer,
-                           XrdSfsXferSize          length,
-                           XrdCl::ResponseHandler* handler);
+    virtual int64_t Write( XrdSfsFileOffset offset,
+                           char*            buffer,
+                           XrdSfsXferSize   length,
+                           void*            handler);
 
 
 
