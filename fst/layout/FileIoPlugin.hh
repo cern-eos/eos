@@ -79,11 +79,11 @@ class FileIoPlugin
                                 XrdOucErrInfo*      error ) {
       
       if ( ioType == LayoutId::kLocal ) {
-        return dynamic_cast<FileIo*>( new LocalFileIo( file, client, error ) );
+        return static_cast<FileIo*>( new LocalFileIo( file, client, error ) );
       }
 
       if ( ioType == LayoutId::kXrdCl ) {
-        return dynamic_cast<FileIo*>( new XrdFileIo( file, client, error ) );
+        return static_cast<FileIo*>( new XrdFileIo( file, client, error ) );
       }
  
       return 0;

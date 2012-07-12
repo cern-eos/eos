@@ -445,15 +445,17 @@ RaidMetaLayout::ValidateHeader( const char* opaque )
 
         if ( mStoreRecovery ) {
           std::string path = mStripeFiles[physical_id]->GetPath();
-          eos_debug( "[0] Old file address: %p", mStripeFiles[physical_id] );
+          // Obs: do not close it as it points to the current mOfsFile !
           FileIo* file = mStripeFiles[physical_id];
+          //TODO: something should be fixed here to be abe to reopen the
+          // local file in RDWR mode otherwise we always open in RDWR mode
+          // which doesn't seem to be too convenient           
           file->Close();
           delete file;
-          file = NULL;
-          mStripeFiles[physical_id] = static_cast<FileIo*>( NULL ); 
-
-          eos_debug( "[1] Old file address: %p", mStripeFiles[physical_id] );
-                    
+          
+          mStripeFiles[physical_id] = NULL;
+          file = NULL;          
+                  
           if ( physical_id ) {
             //..................................................................
             // Re-open remote stripe
@@ -491,9 +493,7 @@ RaidMetaLayout::ValidateHeader( const char* opaque )
             }
           }
 
-          eos_debug( "[0] Old file %p and the new file %p", mStripeFiles[physical_id], file );
           mStripeFiles[physical_id] = file;
-          eos_debug( "[1] Old file %p and the new file %p", mStripeFiles[physical_id], file );
           
           //TODO:: compare with the current file size and if different
           //       then truncate to the theoritical size of the file

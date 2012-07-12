@@ -129,6 +129,8 @@ XrdFstOfsFile::openofs( const char*         path,
                         bool                openBlockXS,
                         unsigned long       lid )
 {
+  eos_debug( " _" );
+  
   if ( openBlockXS ) {
     fstBlockXS = ChecksumPlugins::GetChecksumObject( lid, true );
     fstBlockSize = eos::common::LayoutId::GetBlocksize( lid );
@@ -143,7 +145,7 @@ XrdFstOfsFile::openofs( const char*         path,
       }
     }
   }
-
+  
   return XrdOfsFile::open( path, open_mode, create_mode, client, opaque );
 }
 
@@ -1504,6 +1506,7 @@ XrdFstOfsFile::writeofs( XrdSfsFileOffset   fileOffset,
                          const char*        buffer,
                          XrdSfsXferSize     buffer_size )
 {
+  eos_debug( "_" );
   if ( fsid ) {
     // check if the file system is full
     XrdSysMutexHelper( gOFS.Storage->fileSystemFullMapMutex );
