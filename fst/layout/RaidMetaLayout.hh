@@ -388,6 +388,23 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     bool SparseParityComputation( bool force );
 
+
+    //--------------------------------------------------------------------------
+    //! Expand the current range so that it is aligned with respect to 
+    //! blockSize operations, either read or write
+    //!
+    //! @param offset offset 
+    //! @param length length
+    //! @param alignedOffset aligned offset value
+    //! @param alignedLength aligned length value
+    //!
+    //--------------------------------------------------------------------------
+    void AlignExpandBlocks( XrdSfsFileOffset  offset, 
+                            XrdSfsXferSize    length,
+                            XrdSfsFileOffset  blockSize,
+                            XrdSfsFileOffset &alignedOffset, 
+                            XrdSfsXferSize   &alignedLength );
+
 };
 
 EOSFSTNAMESPACE_END

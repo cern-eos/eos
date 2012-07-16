@@ -164,6 +164,8 @@ RaidMetaLayout::Open( const std::string& path,
                  mSecEntity,
                  mError );
 
+  // force to open it in RDWR mode
+  flags |= SFS_O_RDWR;
   if ( file && file->Open( path, flags, mode, opaque ) ) {
     eos_err( "Failed to open replica - local open failed on ", path.c_str() );
     return gOFS.Emsg( "ReplicaOpen", *mError, EIO,
@@ -292,8 +294,8 @@ RaidMetaLayout::Open( const std::string& path,
           //....................................................................
           // Read case
           //....................................................................
-          eos_debug( "File opened for reading." );
-          ret = file->Open( stripe_urls[i], XrdCl::OpenFlags::Read, 0, opaque );
+          eos_debug( "File opened in RDWR mode by default." );
+          ret = file->Open( stripe_urls[i], XrdCl::OpenFlags::Update, 0, opaque );
         }
 
         if ( ret ) {
@@ -445,6 +447,7 @@ RaidMetaLayout::ValidateHeader( const char* opaque )
         mHdUrls[physical_id]->SetSizeLastBlock( mHdUrls[hd_id_valid]->GetSizeLastBlock() );
 
         if ( mStoreRecovery ) {
+          /*
           std::string path = mStripeFiles[physical_id]->GetPath();
           // Obs: do not close it as it points to the current mOfsFile !
           FileIo* file = mStripeFiles[physical_id];
@@ -496,6 +499,8 @@ RaidMetaLayout::ValidateHeader( const char* opaque )
           }
 
           mStripeFiles[physical_id] = file;
+
+          */
           //....................................................................
           //TODO:: compare with the current file size and if different
           //       then truncate to the theoritical size of the file
@@ -537,11 +542,14 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
   
   eos::common::Timing rt( "read" );
   TIMING( "start", &rt );
-  size_t nread = 0;
+  off_t nread = 0;
   long int index = 0;
   unsigned int stripe_id;
-  char* pBuff = buffer;
+  unsigned int physical_id;
+  char* orig_buff = buffer;
+  char* ptr_buff = orig_buff;
   int64_t read_length = 0;
+  int64_t aux_length = 0;
   off_t offset_local = 0;
   off_t offset_init = offset;
   std::map<off_t, size_t> map_errors;
@@ -561,10 +569,12 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
       return 0;
     }
 
+    /*
     if ( offset + length > mFileSize ) {
       eos_warning( "Read range larger than file, resizing the read length" );
       length = mFileSize - offset;
     }
+    */
 
     if ( ( offset < 0 ) && ( mIsRw ) ) {
       //..........................................................................
@@ -609,15 +619,145 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
         mReadHandlers[i]->Reset();
       }
 
-      unsigned int physical_id;
+      XrdSfsFileOffset aligned_offset;
+      XrdSfsXferSize aligned_length;
 
-      while ( length ) {
+      //........................................................................
+      // Read first or last unaligned blocks if any
+      //........................................................................
+      char* tmp_buff = new char[mStripeWidth];
+      AlignExpandBlocks( offset, length, mStripeWidth, 
+                         aligned_offset, aligned_length );
+
+      eos_debug( "offset=%zu, length=%zu, aligned_offset=%lli, aligned_length=%lli",
+                 offset, length, aligned_offset, (long long int)aligned_length );
+
+      XrdSfsFileOffset req_offset;
+      XrdSfsXferSize req_length ;
+            
+      //........................................................................
+      // If first block unaligned
+      //........................................................................
+      if ( aligned_offset != offset ) {
+        if ( aligned_length == mStripeWidth ) {
+          req_length = length;
+        }
+        else {
+          req_length  = aligned_offset + mStripeWidth - offset;
+        }
+      
+        stripe_id = ( aligned_offset / mStripeWidth ) % mNbDataFiles;
+        physical_id = mapLP[stripe_id];
+        offset_local = ( ( aligned_offset / ( mNbDataFiles * mStripeWidth ) ) * mStripeWidth ) +
+                       ( aligned_offset %  mStripeWidth );
+
+        eos_debug( "First block unaligned, reading from stripe=%i, physical_id=%i, "
+                   "req_length=%zu", stripe_id, physical_id, req_length );
+        
+        int64_t nbytes = mStripeFiles[physical_id]->Read( offset_local + mSizeHeader, 
+                                                          tmp_buff, 
+                                                          mStripeWidth );
+        
+        if ( nbytes != mStripeWidth ) {
+          eos_debug( "map error offset=%zu, length=%zu", offset, req_length );
+          map_errors.insert( std::make_pair<off_t, size_t> ( offset, req_length ) );
+
+          //........................................................................
+          // Try to recover blocks from group
+          //........................................................................
+          if ( !RecoverPieces( offset_init, buffer, map_errors ) ) {
+            eos_err( "error=read recovery failed" );
+            return SFS_ERROR;
+          }
+        
+          map_errors.clear();
+        }
+        else {
+          eos_debug( "Read piece is: %s and out of it we read: %lli", tmp_buff, (long long int) req_length );
+          eos_debug( "----------------------------------------------------------------");
+          char* ptr_tmp = tmp_buff;
+          ptr_tmp += (offset - aligned_offset );
+
+          ptr_buff = static_cast<char*>( memcpy( ptr_buff, 
+                                                 ptr_tmp, 
+                                                 req_length ) );
+        }
+        
+        offset += req_length;
+        length -= req_length;
+        read_length += req_length;
+      } 
+
+      //........................................................................
+      // If last block unaligned
+      //........................................................................
+      if ( ( aligned_length > mStripeWidth ) &&    // if equal the the first block is also the last block
+           ( aligned_offset + aligned_length > offset + length ) )
+      { 
+        req_offset = aligned_offset + aligned_length - mStripeWidth;
+        req_length = offset + length - req_offset;
+
+        stripe_id = ( req_offset / mStripeWidth ) % mNbDataFiles;
+        physical_id = mapLP[stripe_id];
+        offset_local = ( ( req_offset / ( mNbDataFiles * mStripeWidth ) ) * mStripeWidth ) +
+                       ( req_offset %  mStripeWidth );
+
+        eos_debug( "Last block unaligned, reading from stripe=%i, physical_id=%i, "
+                   "req_offset=%zu, req_length=%lli",
+                   stripe_id, physical_id, req_offset, static_cast<long long int>( req_length ) );
+        
+        
+        int64_t nbytes = mStripeFiles[physical_id]->Read( offset_local + mSizeHeader, 
+                                                          tmp_buff, 
+                                                          mStripeWidth );
+                                                              
+        if ( nbytes != mStripeWidth ) {
+          eos_debug( "map error offset=%zu, length=%zu", req_offset, req_length );
+          map_errors.insert( std::make_pair<off_t, size_t> ( req_offset, req_length ) );
+
+          //........................................................................
+          // Try to recover blocks from group
+          //........................................................................
+          if ( !RecoverPieces( offset_init, buffer, map_errors ) ) {
+            eos_err( "error=read recovery failed" );
+            return SFS_ERROR;
+          }
+        
+          map_errors.clear();
+
+        }
+        else {
+          eos_debug( "Read piece is: %s and out of it we read:%lli", tmp_buff, (long long int) req_length );
+          eos_debug( "----------------------------------------------------------------");
+          eos_debug ( "The length of the buffer is %lli and we try to write at length %lli", 
+                      ( long long int) length, (long long int)(req_offset - offset) );
+          ptr_buff = orig_buff + ( req_offset - offset );
+          ptr_buff = static_cast<char*>( memcpy( ptr_buff, 
+                                                 tmp_buff, 
+                                                 req_length ) );
+        }
+        
+        length -= req_length;
+        aux_length = req_length;
+        ptr_buff = orig_buff;
+      }
+
+      //........................................................................
+      // Free temporary memeory
+      //........................................................................
+      delete[] tmp_buff;
+
+      while ( length > 0 ) {
         bool do_recovery = false;
         TIMING( "read remote in", &rt );
         index++;
         stripe_id = ( offset / mStripeWidth ) % mNbDataFiles;
         physical_id = mapLP[stripe_id];
-        nread = ( length > mStripeWidth ) ? mStripeWidth : length;
+        
+        //......................................................................
+        // The read size must be the same as the blockchecksum size
+        //......................................................................
+        nread = mStripeWidth;   
         offset_local = ( ( offset / ( mNbDataFiles * mStripeWidth ) ) * mStripeWidth ) +
                        ( offset %  mStripeWidth );
         eos_debug( "read from logical_stripe=%i, physical_stripe=%i, "
@@ -630,38 +770,37 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
           //....................................................................
           mReadHandlers[physical_id]->Increment();
           mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
-                                           pBuff,
-                                           nread,
+                                           ptr_buff,
+                                           mStripeWidth,
                                            static_cast<void*>( mReadHandlers[physical_id] ) );
         } else {
           //....................................................................
           // Do local read operation
           //....................................................................
           int64_t nbytes = mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
-                           pBuff,
-                           nread );
+                                                            ptr_buff,
+                                                            mStripeWidth );
 
-          if ( nbytes != static_cast<int64_t>( nread ) ) {
+          if ( nbytes < mStripeWidth ) {
             off_t off_in_file = ( offset_local / mStripeWidth ) *
                                 ( mNbDataFiles * mStripeWidth ) +
                                 ( stripe_id * mStripeWidth ) +
                                 ( offset_local % mStripeWidth ) ;
             
-            eos_debug( "map erros offset=%zu, length=%zu", off_in_file, nread );
+            eos_debug( "map error offset=%zu, length=%zu", off_in_file, nread );
             map_errors.insert( std::make_pair<off_t, size_t>( off_in_file, nread ) );
             do_recovery = true;
           }
         }
-
+        
         length -= nread;
         offset += nread;
         read_length += nread;
-        pBuff = buffer + read_length;
+        ptr_buff = orig_buff + read_length;
         int num_wait_req = index % mNbDataBlocks;
 
         if ( ( length == 0 ) || ( num_wait_req == 0 ) ) {
           if ( num_wait_req == 0 ) index = 0;
-          //num_wait_req = ( num_wait_req == 0 ) ? mNbDataBlocks : num_wait_req;
 
           for ( unsigned int i = 0; i < mReadHandlers.size(); i++ ) {
             if ( !mReadHandlers[i]->WaitOK() ) {
@@ -677,8 +816,8 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
                                     ( mapPL[i] * mStripeWidth ) +
                                     ( off_in_stripe % mStripeWidth );
                 
-                eos_debug( "map erros offsetInStripe = %zu, offsetInFile=%zu, length=%zu",
-                           off_in_stripe, off_in_file, iter->second );
+                eos_debug( "map erros offsetInStripe = %zu, offsetInFile=%zu, "
+                           " length=%zu", off_in_stripe, off_in_file, iter->second );
                 map_errors.insert( std::make_pair<off_t, size_t>( off_in_file, iter->second ) );
               }
 
@@ -701,14 +840,16 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
           eos_err( "error=read recovery failed" );
           return SFS_ERROR;
         }
-
+        
         map_errors.clear();
       }
     }
   }
-
+  
   TIMING( "read return", &rt );
   //  rt.Print();
+
+  read_length += aux_length;
   eos_debug( "Read return %zu", read_length );
   return read_length;
 }
@@ -1249,6 +1390,27 @@ RaidMetaLayout::Close()
   mIsOpen = false;
   eos_debug( "Close return %i", rc );
   return rc;
+}
+
+
+
+//------------------------------------------------------------------------------
+// Expand the current range so that it is aligned with respect to 
+// blockSize operations, either read or write
+//------------------------------------------------------------------------------
+void RaidMetaLayout::AlignExpandBlocks( XrdSfsFileOffset  offset, 
+                                        XrdSfsXferSize    length,
+                                        XrdSfsFileOffset  blockSize,
+                                        XrdSfsFileOffset &alignedOffset, 
+                                        XrdSfsXferSize   &alignedLength ) 
+{
+  alignedOffset = ( offset / blockSize ) * blockSize;
+
+  XrdSfsFileOffset end_offset = 
+    ceil ( ( (offset +  length) * 1.0 ) / blockSize ) * blockSize;
+
+  eos_debug( "end_offset=%zu, alignedOffset=%zu", end_offset, alignedOffset );
+  alignedLength = end_offset - alignedOffset;
 }
 
 
