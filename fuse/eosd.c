@@ -160,8 +160,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
   
   if (to_set & FUSE_SET_ATTR_SIZE) {
     if (fi) {
-
-      if (isdebug) fprintf(stderr,"[%s]: truncate\n",__FUNCTION__);
+      if (isdebug) fprintf(stderr,"[%s]: truncaten",__FUNCTION__);
       if (fi->fh) {
         retc = xrd_truncate(fi->fh,attr->st_size, ino);
       } else {
@@ -175,6 +174,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
         }
       }
     } else {
+      fprintf(stderr,"TRUNCATE ON UnOPEN FILE\n");
 
       if (isdebug) fprintf(stderr,"[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__,(long long)attr->st_size, (long long)ino);
       int fd;
@@ -563,6 +563,7 @@ static void eosfs_ll_mknod(fuse_req_t req, fuse_ino_t parent, const char *name, 
       return;
     } else {
       xrd_add_open_fd(res, (unsigned long long) e.ino, req->ctx.uid);
+      xrd_get_open_fd((unsigned long long)e.ino, req->ctx.uid); // flags as attached e.g. calls Inc();
       xrd_store_p2i((unsigned long long)e.ino,ifullpath);
       if (isdebug) fprintf(stderr,"[%s]: storeinode=%lld path=%s\n", __FUNCTION__,(long long) e.ino,ifullpath);
       fuse_reply_entry(req,&e);
@@ -906,10 +907,11 @@ static void eosfs_ll_open(fuse_req_t req, fuse_ino_t ino,
   xrd_unlock_r_p2i(); // <=
 
   int res;
+
   if ( fi->flags & ( O_RDWR | O_WRONLY | O_CREAT) ) {
     if ( (res = xrd_get_open_fd((unsigned long long)ino, req->ctx.uid)) >0) {
       if (isdebug) fprintf(stderr,"[%s]: inode=%llu path=%s attaching to res=%d\n", __FUNCTION__,(long long)ino,fullpath,res);
-      xrd_lease_open_fd(ino,req->ctx.uid);
+      xrd_lease_open_fd((unsigned long long) ino, req->ctx.uid);
     } else {
       res = xrd_open(fullpath, fi->flags,S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     }
@@ -1001,8 +1003,6 @@ static void eosfs_ll_release(fuse_req_t req, fuse_ino_t ino,
     xrd_release_read_buffer(fi->fh);
     
     int res=0;
-
-    xrd_lease_open_fd((unsigned long long) ino, req->ctx.uid);
 
     res = xrd_close(fd, ino);
 

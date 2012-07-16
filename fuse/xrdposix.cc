@@ -388,8 +388,8 @@ public:
   ~PosixFd() {
   }
 
-  void   setFd(int FD) { fd = FD;Inc();   }
-  int    getFd()       { Inc(); return fd;}
+  void   setFd(int FD) { fd = FD;   }
+  int    getFd()       { return fd;}
   size_t getUser()     { return nuser;    }
 
   void Inc() { nuser++;}
@@ -422,7 +422,7 @@ xrd_get_open_fd(unsigned long long inode, uid_t uid)
 {
   // return posix fd for inode - increases 'nuser'
   XrdSysMutexHelper vLock(OpenPosixXrootFdLock);
-
+  OpenPosixXrootdFd[PosixFd::Index(inode,uid)].Inc();
   return OpenPosixXrootdFd[PosixFd::Index(inode,uid)].getFd();
 }
 
@@ -431,7 +431,10 @@ xrd_lease_open_fd(unsigned long long inode, uid_t uid)
 {
   // release an attached file descriptor
   XrdSysMutexHelper vLock(OpenPosixXrootFdLock);
+  // there are two attachements after an mknod, so decrease by two
   OpenPosixXrootdFd[PosixFd::Index(inode,uid)].Dec();
+  OpenPosixXrootdFd[PosixFd::Index(inode,uid)].Dec();
+
   if(!OpenPosixXrootdFd[PosixFd::Index(inode,uid)].getUser()) {
     OpenPosixXrootdFd.erase(PosixFd::Index(inode,uid));
   }
