@@ -47,6 +47,7 @@ XRD_COREDIR="/var/spool/eos/"
 XRD_ADMINDIR="/var/spool/eos/admin"
 XRD_CONFIGDIR="/var/eos/"
 XRD_AUTHDIR="/var/eos/auth/"
+XRD_STAGEDIR="/var/eos/stage/"
 XRD_CONFIG="/etc/xrd.cf"
 XRD_ROLEFLAG=""
 
@@ -124,10 +125,16 @@ start() {
 			    chown -R ${XRD_USER} ${XRD_COREDIR}; 
 			    chmod -R 775 ${XRD_COREDIR}
 			fi
-			
+
+	                # dir to store credentials			
 			mkdir -p ${XRD_AUTHDIR}/
 			chown ${XRD_USER} ${XRD_AUTHDIR}
 			setfacl -m default:u:${XRD_USER}:r ${XRD_AUTHDIR}
+ 
+                        # dir to store intermediate stage files (only FST gateways)
+			mkdir -p ${XRD_STAGEDIR}/
+			chown ${XRD_USER} ${XRD_STAGEDIR}
+
 			cd ${XRD_COREDIR}/core/$i
 
 			if [ ${XRD_USER} = "$USER" ]; then
