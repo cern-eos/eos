@@ -56,7 +56,7 @@ public:
   virtual bool SetLog(long long id, std::string log) = 0;
   virtual std::vector<long long> QueryByGroup(XrdOucString& group) = 0;
   virtual std::vector<long long> QueryByState(XrdOucString& state) = 0;
-  virtual std::vector<long long> QueryByState(uid_t uid) = 0;
+  virtual std::vector<long long> QueryByUid(uid_t uid) = 0;
   virtual transfer_t GetNextTransfer(int status) = 0;
   virtual transfer_t GetTransfer(long long id) = 0;
 

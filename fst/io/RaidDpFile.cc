@@ -452,22 +452,22 @@ RaidDpFile::updateParityForGroups(off_t offsetStart, off_t offsetEnd)
     for(unsigned int j = 0; j < nDataBlocks; j++)
     {
       XrdOucString block = "block-"; block += (int)j;
-      TIMING(block.c_str(),&up);
+      COMMONTIMING(block.c_str(),&up);
       
       offsetBlock = offsetGroup + j * stripeWidth;
       read(offsetBlock, dataBlocks[mapSmallToBigBlock(j)], stripeWidth);        
       block += "-read";
-      TIMING(block.c_str(),&up);
+      COMMONTIMING(block.c_str(),&up);
     }
     
-    TIMING("Compute-In",&up);     
+    COMMONTIMING("Compute-In",&up);     
     //do computations of parity blocks
     computeParity();      
-    TIMING("Compute-Out",&up);     
+    COMMONTIMING("Compute-Out",&up);     
     
     //write parity blocks to files
     writeParityToFiles(offsetGroup);
-    TIMING("WriteParity",&up);     
+    COMMONTIMING("WriteParity",&up);     
   }
   //  up.Print();
   return SFS_OK;
@@ -529,14 +529,14 @@ RaidDpFile::computeDataBlocksParity(off_t offsetGroup)
 {
   eos::common::Timing up("parity");
   
-  TIMING("Compute-In",&up);     
+  COMMONTIMING("Compute-In",&up);     
   //do computations of parity blocks
   computeParity();      
-  TIMING("Compute-Out",&up);     
+  COMMONTIMING("Compute-Out",&up);     
     
   //write parity blocks to files
   writeParityToFiles(offsetGroup);
-  TIMING("WriteParity",&up);     
+  COMMONTIMING("WriteParity",&up);     
 
   fullDataBlocks = false;
   //  up.Print();

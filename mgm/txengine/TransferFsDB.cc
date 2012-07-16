@@ -573,7 +573,7 @@ TransferFsDB::QueryByGroup(XrdOucString& group)
 
 /*----------------------------------------------------------------------------*/
 std::vector<long long>
-TransferFsDB::QueryById(uid_t uid)
+TransferFsDB::QueryByUid(uid_t uid)
 {
   XrdSysMutexHelper lock(Lock);
   Qr.clear();

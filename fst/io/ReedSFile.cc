@@ -355,14 +355,14 @@ ReedSFile::computeDataBlocksParity(off_t offsetGroup)
 {
   eos::common::Timing up("parity");
   
-  TIMING("Compute-In",&up);     
+  COMMONTIMING("Compute-In",&up);     
   //do computations of parity blocks
   computeParity();      
-  TIMING("Compute-Out",&up);     
+  COMMONTIMING("Compute-Out",&up);     
     
   //write parity blocks to files
   writeParityToFiles(offsetGroup / nDataStripes);
-  TIMING("WriteParity",&up);     
+  COMMONTIMING("WriteParity",&up);     
 
   fullDataBlocks = false;
   //  up.Print();

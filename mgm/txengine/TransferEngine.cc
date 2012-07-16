@@ -346,7 +346,7 @@ TransferEngine::Reset(XrdOucString& option, XrdOucString& sid, XrdOucString& gro
     ids.push_back(id);
   } else {
     // query all ids of a certain user
-    ids = xDB->QueryById(vid.uid);
+    ids = xDB->QueryByUid(vid.uid);
   }
   
   for (size_t i=0; i< ids.size(); i++) {
@@ -364,6 +364,7 @@ TransferEngine::Reset(XrdOucString& option, XrdOucString& sid, XrdOucString& gro
       }
     }
   }
+  return 0;
 }
 
 /*----------------------------------------------------------------------------*/

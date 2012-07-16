@@ -113,7 +113,7 @@ int main (int argc, char* argv[]) {
 	    eos_static_err("failed to get checksum algorithm %s", checksumnames[i].c_str());
 	  } else {
 	    eos::common::Timing tm("Checksumming");
-	    TIMING("START",&tm);
+	    COMMONTIMING("START",&tm);
 	    char*  ptr = buffer;
 	    off_t offset = 0;
 	    for (size_t j = 0; j< MEMORYBUFFERSIZE/blocksize[bs]; j++) {
@@ -122,7 +122,7 @@ int main (int argc, char* argv[]) {
 	      ptr += blocksize[bs];
 	    }
 	    checksum->Finalize();
-	    TIMING("STOP",&tm);
+	    COMMONTIMING("STOP",&tm);
 	    XrdOucString sizestring;
 	    eos::common::StringConversion::GetReadableSizeString(sizestring,blocksize[bs], "B");
 	    eos_static_info("checksum( %-10s ) = %s realtime=%.02f [ms] blocksize=%s rate=%.02f", checksumnames[i].c_str(), checksum->GetHexChecksum(), tm.RealTime(), sizestring.c_str(), MEMORYBUFFERSIZE/tm.RealTime()/1000.0);

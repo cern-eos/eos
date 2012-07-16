@@ -238,7 +238,7 @@ int
 RaidIO::read(off_t offset, char* buffer, size_t length)
 {
   eos::common::Timing rt("read");
-  TIMING("start", &rt);
+  COMMONTIMING("start", &rt);
   
   size_t aread = 0;
   size_t nread = 0;
@@ -286,7 +286,7 @@ RaidIO::read(off_t offset, char* buffer, size_t length)
 
       size_t lread = nread;
       do {
-        TIMING("read remote in", &rt);
+        COMMONTIMING("read remote in", &rt);
 	//        fprintf(stdout, "File descriptor is: %i \n", fdUrl[mapStripe_Url[stripeId]]);
         if (fdUrl[mapStripe_Url[stripeId]] >= 0) {
           aread = XrdPosixXrootd::Pread(fdUrl[mapStripe_Url[stripeId]], buffer, lread, offsetLocal + sizeHeader);
@@ -294,7 +294,7 @@ RaidIO::read(off_t offset, char* buffer, size_t length)
           aread = 0;
           fprintf(stdout, "Setting aread = %zu\n", aread);
         }
-        TIMING("read remote out in", &rt);
+        COMMONTIMING("read remote out in", &rt);
         if (aread > 0) {
           if (aread != lread) {
             lread -= aread;
@@ -310,7 +310,7 @@ RaidIO::read(off_t offset, char* buffer, size_t length)
         }
       } while (lread);
 
-      TIMING("read recovery", &rt);
+      COMMONTIMING("read recovery", &rt);
       if (doRecovery) {
         if (!recoverBlock(buffer, offset, nread)) { 
           eos_err("error=read recovery failed");
@@ -325,7 +325,7 @@ RaidIO::read(off_t offset, char* buffer, size_t length)
     }
   }
 
-  TIMING("read return", &rt);
+  COMMONTIMING("read return", &rt);
   //  rt.Print();
   return readLength; 
 }
@@ -336,7 +336,7 @@ int
 RaidIO::write(off_t offset, char* buffer, size_t length)
 {
   eos::common::Timing wt("write");
-  TIMING("start", &wt);
+  COMMONTIMING("start", &wt);
 
   int rc;
   size_t nwrite;
@@ -354,7 +354,7 @@ RaidIO::write(off_t offset, char* buffer, size_t length)
     nwrite = (length < stripeWidth) ? length : stripeWidth;
     offsetLocal = ((offset / (nDataStripes * stripeWidth)) * stripeWidth) + (offset % stripeWidth);
 
-    TIMING("write remote", &wt);
+    COMMONTIMING("write remote", &wt);
     eos_info("Write stripe=%u offset=%llu size=%u", stripeId, offsetLocal + sizeHeader, nwrite);
     rc = XrdPosixXrootd::Pwrite(fdUrl[mapStripe_Url[stripeId]], buffer, nwrite, offsetLocal + sizeHeader);
     if (rc != (int)nwrite) {
@@ -376,7 +376,7 @@ RaidIO::write(off_t offset, char* buffer, size_t length)
     doTruncate = true;
   }
 
-  TIMING("end", &wt);
+  COMMONTIMING("end", &wt);
   //  wt.Print();
   return writeLength;
 }
@@ -448,7 +448,7 @@ int
 RaidIO::close()
 {
   eos::common::Timing ct("close");
-  TIMING("start", &ct);
+  COMMONTIMING("start", &ct);
 
   int rc = SFS_OK;
 
@@ -474,7 +474,7 @@ RaidIO::close()
       }
     }
 
-    TIMING("updateheader", &ct);
+    COMMONTIMING("updateheader", &ct);
     if (updateHeader){
       for (unsigned int i = 0; i < nTotalStripes; i++){  //fstid's
         eos_info("Write Stripe Header local");
