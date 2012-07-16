@@ -118,7 +118,7 @@ TransferEngine::ApplyTransferEngineConfig() {
 
 /*----------------------------------------------------------------------------*/
 int 
-TransferEngine::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid, time_t exptime, XrdOucString credentials)
+TransferEngine::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid, time_t exptime, XrdOucString credentials, bool sync)
 {
   if ( ((!src.beginswith("root://")) &&
 	(!src.beginswith("as3://")) &&
@@ -162,19 +162,19 @@ TransferEngine::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate,
   }
   
   XrdOucString submissionhost=vid.tident.c_str();
-  return xDB->Submit(src,dst,rate,streams,group,stdOut,stdErr,vid.uid,vid.gid,time(NULL)+exptime, credentials, submissionhost);
+  return xDB->Submit(src,dst,rate,streams,group,stdOut,stdErr,vid.uid,vid.gid,time(NULL)+exptime, credentials, submissionhost, sync);
 }
 
 /*----------------------------------------------------------------------------*/
 int 
-TransferEngine::Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid)
+TransferEngine::Ls(XrdOucString& id, XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid)
 {
   // forbid the 'a' option for non root
   if ( (vid.uid) && (option.find("a") != STR_NPOS) ) {
     stdErr += "error: you have to be root to query transfers of all users\n";
     return EPERM;
   } 
-  return xDB->Ls(option,group,stdOut,stdErr,vid.uid,vid.gid);
+  return xDB->Ls(id,option,group,stdOut,stdErr,vid.uid,vid.gid);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -233,6 +233,12 @@ TransferEngine::Log(XrdOucString& sid, XrdOucString& group, XrdOucString& stdOut
   
   if (transfer.count("log")) {
     stdOut += transfer["log"].c_str();
+    if (transfer["sync"] == "1") {
+      // purge the transfer when the log is retrieved
+      XrdOucString option="";
+      XrdOucString so;
+      Purge(option, sid, group, so, stdErr, vid);
+    }
     return 0;
   } else {
     stdErr += "error: there is no log available for id=";stdErr += sid; stdErr += "\n";
@@ -360,7 +366,7 @@ TransferEngine::Reset(XrdOucString& option, XrdOucString& sid, XrdOucString& gro
       id = strtoll(transfer["id"].c_str(),0,10);
       if (id) {
 	SetState(id,kInserted);
-	stdOut += "success: all transfers have been reset\n";
+	stdOut += "success: reset transfer id="; stdOut += transfer["id"].c_str();
       }
     }
   }

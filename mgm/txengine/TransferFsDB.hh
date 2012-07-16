@@ -53,9 +53,9 @@ public:
   bool Init(const char* dbpath="/var/eos/tx/");
   virtual ~TransferFsDB();
   
-  virtual int Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid);
+  virtual int Ls(XrdOucString& id, XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid);
 
-  virtual int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString& credentials, XrdOucString& submissionhost);
+  virtual int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString& credentials, XrdOucString& submissionhost, bool sync);
   virtual int Cancel(long long id, XrdOucString& stdOut, XrdOucString& stdErr, bool nolock=false);
   virtual int Archive(long long id, XrdOucString& stdOUt, XrdOucString& sttdErr, bool nolock=false);
   virtual int Clear(XrdOucString& stdOut, XrdOucString& stdErr);
@@ -64,11 +64,12 @@ public:
   virtual std::vector<long long> QueryByUid(uid_t uid);
 
   virtual bool SetState(long long id, int status);
+  virtual bool SetProgress(long long id, float progress);
   virtual bool SetExecutionHost(long long id, std::string& exechost);
   virtual bool SetCredential(long long id, std::string credential, time_t exptime);
   virtual bool SetLog(long long id, std::string log);
   virtual transfer_t GetNextTransfer(int status);
-  virtual transfer_t GetTransfer(long long id);
+  virtual transfer_t GetTransfer(long long id, bool nolock=false);
 };
 
 EOSMGMNAMESPACE_END

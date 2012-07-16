@@ -78,8 +78,8 @@ public:
 
   int ApplyTransferEngineConfig();
 
-  int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid, time_t exptime=86400, XrdOucString credentials="");
-  int Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
+  int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid, time_t exptime=86400, XrdOucString credentials="", bool sync=false);
+  int Ls(XrdOucString& id, XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
   int Cancel(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid );
   int Kill(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr , eos::common::Mapping::VirtualIdentity& vid);
   int Resubmit(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
@@ -90,6 +90,7 @@ public:
   
 
   bool SetState(long long id, int status)                                  { return xDB->SetState(id,status);}
+  bool SetProgress(long long id, float progress)                           { return xDB->SetProgress(id,progress);}
   bool SetExecutionHost(long long id, std::string &exechost)               { return xDB->SetExecutionHost(id,exechost);}
   bool SetCredential(long long id, std::string credential, time_t exptime) { return xDB->SetCredential(id, credential, exptime);}
   bool SetLog(long long id, std::string log)                               { return xDB->SetLog(id,log);}

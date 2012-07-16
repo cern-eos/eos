@@ -44,21 +44,22 @@ public:
   TransferDB() {};
   virtual ~TransferDB() {};
   virtual bool Init(const char* dbspec="/var/eos/tx/") = 0;
-  virtual int Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid) = 0;
-  virtual int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString& credentials, XrdOucString& submissionhost) = 0;
+  virtual int Ls(XrdOucString& id, XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid) = 0;
+  virtual int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString& credentials, XrdOucString& submissionhost, bool sync) = 0;
   virtual int Cancel(long long id, XrdOucString& stdOut, XrdOucString& stdErr, bool nolock=false) = 0;
   virtual int Archive(long long id, XrdOucString& stdOUt, XrdOucString& stdErr, bool nolock=false) = 0;
   virtual int Clear(XrdOucString& stdOut, XrdOucString& stdErr) = 0;
 
   virtual bool SetState(long long id, int status) = 0;
+  virtual bool SetProgress(long long id, float progress) = 0;
   virtual bool SetExecutionHost(long long id, std::string& exechost) = 0;
-  virtual bool SetCredential(long long id, std::string credentail, time_t exptime) = 0;
+  virtual bool SetCredential(long long id, std::string credential, time_t exptime) = 0;
   virtual bool SetLog(long long id, std::string log) = 0;
   virtual std::vector<long long> QueryByGroup(XrdOucString& group) = 0;
   virtual std::vector<long long> QueryByState(XrdOucString& state) = 0;
   virtual std::vector<long long> QueryByUid(uid_t uid) = 0;
   virtual transfer_t GetNextTransfer(int status) = 0;
-  virtual transfer_t GetTransfer(long long id) = 0;
+  virtual transfer_t GetTransfer(long long id, bool nolock=false) = 0;
 
 };
 

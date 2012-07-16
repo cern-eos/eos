@@ -5404,27 +5404,40 @@ XrdMgmOfs::FSctl(const int               cmd,
 
       int envlen;
       EXEC_TIMING_BEGIN("TxStateLog");      
-      eos_thread_info("Transfer state + log received for %s",env.Env(envlen));
+      eos_thread_debug("Transfer state + log received for %s",env.Env(envlen));
 
       char* txid = env.Get("tx.id");
       char* sstate = env.Get("tx.state");
       char* logb64  = env.Get("tx.log.b64");
-      if (txid && sstate) {
-	char* logout=0;
-	unsigned loglen=0;
+      char* sprogress = env.Get("tx.progress");
+
+      if (txid) {
 	long long id = strtoll(txid,0,10);
-	if (logb64) {
-	  XrdOucString slogb64 = logb64;
-	  
-	  if (eos::common::SymKey::Base64Decode(slogb64,logout, loglen)) {
-	    logout[loglen] = 0;
-	    if (!gTransferEngine.SetLog(id, logout)) {
-	      eos_thread_err("unable to set log for transfer id=%lld", id);
+	if (sprogress) {
+	  if (sprogress) {
+	    float progress = atof(sprogress);
+	    if (!gTransferEngine.SetProgress(id, progress)) {
+	      eos_thread_err("unable to set progress for transfer id=%lld progress=%.02f", id, progress);
+	    } else {
+	      eos_thread_info("id=%lld progress=%.02f", id, progress);
 	    }
 	  }
 	}
-	
+
 	if (sstate) {
+	  char* logout=0;
+	  unsigned loglen=0;
+	  if (logb64) {
+	    XrdOucString slogb64 = logb64;
+	    
+	    if (eos::common::SymKey::Base64Decode(slogb64,logout, loglen)) {
+	      logout[loglen] = 0;
+	      if (!gTransferEngine.SetLog(id, logout)) {
+		eos_thread_err("unable to set log for transfer id=%lld", id);
+	      }
+	    }
+	  }
+	  
 	  int state = atoi(sstate);
 	  if (!gTransferEngine.SetState(id, state)) {
 	    eos_thread_err("unable to set state for transfer id=%lld state=%s", id, TransferEngine::GetTransferState(state));

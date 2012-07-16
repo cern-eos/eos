@@ -2422,7 +2422,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       XrdOucString group   = opaque.Get("mgm.txgroup")?opaque.Get("mgm.txgroup"):"";
       XrdOucString id      = opaque.Get("mgm.txid")?opaque.Get("mgm.txid"):"";
       XrdOucString option  = opaque.Get("mgm.txoption")?opaque.Get("mgm.txoption"):"";
-
       if ( (subcmd != "submit") && (subcmd != "ls") && (subcmd != "cancel") && (subcmd != "enable") && (subcmd != "disable") && (subcmd != "reset") && (subcmd != "clear") && (subcmd != "resubmit") && (subcmd != "kill") && (subcmd != "log") && (subcmd != "purge") ) {
 	retc = EINVAL;
 	stdErr = "error: there is no such sub-command defined for <transfer>";
@@ -2622,7 +2621,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  MakeResult(false);
 	  return SFS_OK;
 	}
-	retc = gTransferEngine.Submit(src,dst,rate,streams,group, stdOut, stdErr, vid_in, 86400, Credential);
+	retc = gTransferEngine.Submit(src,dst,rate,streams,group, stdOut, stdErr, vid_in, 86400, Credential, (option.find("s")!=STR_NPOS)?true:false);
       }
 
       if ( (subcmd == "enable") ) {
@@ -2654,11 +2653,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
 
       if ( (subcmd == "reset") ) {
-	retc = gTransferEngine.Reset(id, option,group, stdOut, stdErr, vid_in);
+	retc = gTransferEngine.Reset(option,id,group, stdOut, stdErr, vid_in);
       }
 
       if ( (subcmd == "ls") ) {
-	retc = gTransferEngine.Ls(option,group,stdOut,stdErr,vid_in);
+	retc = gTransferEngine.Ls(id, option,group,stdOut,stdErr,vid_in);
       }
 
       if ( (subcmd == "clear") ) {
