@@ -454,7 +454,7 @@ CheckSum::AlignBlockShrink(off_t offset, size_t len, off_t &aligned_offset, size
   }
 
   aligned_offset = start;
-  aligned_len = (stop-start);
+  aligned_len = ((stop-start)>0)?(stop-start):0;
 
   return;
 }
