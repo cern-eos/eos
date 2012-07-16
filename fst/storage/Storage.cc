@@ -1039,7 +1039,8 @@ Storage::ScrubFs(const char* path, unsigned long long free, unsigned long long b
             break;
           }
           if (k!=0) {
-            usleep(100000);
+            XrdSysTimer msSleep; 
+	    msSleep.Wait(100);
           }
         }
         close(ff);
@@ -1075,7 +1076,8 @@ Storage::ScrubFs(const char* path, unsigned long long free, unsigned long long b
             }
           }
         }
-        usleep(100000);
+        XrdSysTimer msSleep; 
+	msSleep.Wait(100);
       }
       if (eberrors) {
         eos_static_alert("%d block errors on filesystem %lu scrubfile %s",id, scrubfile[k].c_str());
@@ -1160,7 +1162,8 @@ Storage::Remover()
       deletionsMutex.UnLock();
     } else {
       deletionsMutex.UnLock();
-      usleep(100000);
+      XrdSysTimer msSleep; 
+      msSleep.Wait(100);
     }
   }
 }
@@ -1767,7 +1770,7 @@ Storage::Communicator()
 		fsMutex.UnLockRead();
 		fsMutex.LockWrite();
 		// setup the reverse lookup by id
-
+		
 		fileSystemsMap[fsid] = fileSystems[queue.c_str()];
 		eos_static_info("setting reverse lookup for fsid %u", fsid);
 		fsMutex.UnLockWrite();
@@ -1810,14 +1813,14 @@ Storage::Communicator()
 	fsMutex.UnLockRead();
       }
     }
-
+    
     if (!unlocked) {
       gOFS.ObjectManager.SubjectsMutex.UnLock();
       unlocked = true;
     }
   }
 }
-
+  
 /*----------------------------------------------------------------------------*/
 void
 Storage::Supervisor()
@@ -2189,7 +2192,8 @@ Storage::Drainer()
 	// if we scheduled in the last round, we go one more until we cannot schedule anymore
 	// ---------------------------------------------------------------------------------------------
 	eos_static_debug("asking for new job sleep 100000");
-	usleep(100000);
+	XrdSysTimer msSleep; 
+	msSleep.Wait(100);
 	expsleep = 100000;
       } else {
 	// ---------------------------------------------------------------------------------------------
@@ -2218,7 +2222,8 @@ Storage::Drainer()
 	      expsleep = 50000;
 	    } else {
 	      // we run something, we could ask for more immedeatly but we ramp up the sleep
-	      usleep(expsleep);
+	      XrdSysTimer msSleep; 
+	      msSleep.Wait(expsleep/1000);
 	      expsleep *=2;
 	      if (expsleep > 10000000) {
 		expsleep = 10000000;
@@ -2393,8 +2398,9 @@ Storage::Balancer()
 	// ---------------------------------------------------------------------------------------------
 	// if we scheduled in the last round, we go one more until we cannot schedule anymore
 	// ---------------------------------------------------------------------------------------------
-	eos_static_debug("asking for new job sleep 100000");
-	usleep(100000);
+	eos_static_debug("asking for new job sleep 100ms");
+	XrdSysTimer msSleep; 
+	msSleep.Wait(100);
       } else {
 	// ---------------------------------------------------------------------------------------------
 	// we are actually running transfers, we check more frequently, if we have to ask for more 
