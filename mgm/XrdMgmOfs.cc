@@ -4699,6 +4699,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       static XrdSysMutex sGroupCycleMutex;
       static XrdSysMutex sScheduledFidMutex;
       static std::map<eos::common::FileSystem::fsid_t, time_t> sScheduledFid;
+      static time_t sScheduledFidCleanupTime=0;
 
       if (alogid) {
 	ThreadLogId.SetLogId(alogid,tident);
@@ -4824,7 +4825,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	eos::FileSystemView::FileIterator fit = source_filelist.begin();
 	std::advance (fit,rpos);
 	while (fit != source_filelist.end()) {
-	  // check that the taret does not has this file
+	  // check that the target does not have this file
 	  eos::FileMD::id_t fid = *fit;
 	  if (target_filelist.count(fid)) {
 	    // iterate to the next file, we have this file already
@@ -4833,20 +4834,23 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  } else {
 	    // check that this file has not been scheduled during the 1h period
 	    XrdSysMutexHelper sLock(sScheduledFidMutex);
-	    if (sScheduledFid.size() > 100000) {
+	    time_t now = time(NULL);
+	    if (sScheduledFidCleanupTime < now) {
+	      // next clean-up in 10 minutes
+	      sScheduledFidCleanupTime= now + 600;
 	      // do some cleanup
 	      std::map<eos::common::FileSystem::fsid_t, time_t>::iterator it1;
 	      std::map<eos::common::FileSystem::fsid_t, time_t>::iterator it2;
 	      it1 = it2 = sScheduledFid.begin();
-	      do {
+	      while (it2 != sScheduledFid.end()) {
 		it1 = it2;
 		it2++;
-		if (it1->second < time(NULL)) {
+		if (it1->second < now) {
 		  sScheduledFid.erase(it1);
 		}
-	      } while (it2 != sScheduledFid.end());
+	      } 
 	    }
-	    if ( (sScheduledFid.count(fid) && ((sScheduledFid[fid] > (time(NULL))))) ) {
+	    if ( (sScheduledFid.count(fid) && ((sScheduledFid[fid] > (now)))) ) {
 	      // iterate to the next file, we have scheduled this file during the last hour or anyway it is empty
 	      fit++;
 	      continue;
@@ -4876,7 +4880,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 		if ((size>0) && (size < freebytes)) {
 		  if (!simulate) {
 		    // this file fits, let's return the capability to transfer it 
-		    sScheduledFid[fid] = time(NULL) + 3600;
+		    sScheduledFid[fid] = now + 3600;
 		  }
 
 		  // we can schedule fid from source => target_it
@@ -5028,6 +5032,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       static XrdSysMutex sGroupCycleMutex;
       static XrdSysMutex sScheduledFidMutex;
       static std::map<eos::common::FileSystem::fsid_t, time_t> sScheduledFid;
+      static time_t sScheduledFidCleanupTime=0;
 
       if (alogid) {
 	ThreadLogId.SetLogId(alogid,tident);
@@ -5162,20 +5167,24 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  } else {
 	    // check that this file has not been scheduled during the 1h period
 	    XrdSysMutexHelper sLock(sScheduledFidMutex);
-	    if (sScheduledFid.size() > 100000) {
+	    time_t now = time(NULL);
+	    if (sScheduledFidCleanupTime < now) {
+	      // next clean-up in 10 minutes
+	      sScheduledFidCleanupTime= now + 600;
 	      // do some cleanup
 	      std::map<eos::common::FileSystem::fsid_t, time_t>::iterator it1;
 	      std::map<eos::common::FileSystem::fsid_t, time_t>::iterator it2;
 	      it1 = it2 = sScheduledFid.begin();
-	      do {
+	      while (it2 != sScheduledFid.end()) {
 		it1 = it2;
 		it2++;
-		if (it1->second < time(NULL)) {
+		if (it1->second < now) {
 		  sScheduledFid.erase(it1);
 		}
 	      } while (it2 != sScheduledFid.end());
 	    }
-	    if ( (sScheduledFid.count(fid) && ((sScheduledFid[fid] > (time(NULL))))) ) {
+
+	    if ( (sScheduledFid.count(fid) && ((sScheduledFid[fid] > (now)))) ) {
 	      // iterate to the next file, we have scheduled this file during the last hour or anyway it is empty
 	      fit++;
 	      eos_thread_debug("file %llx has already been scheduled at %lu", fid, sScheduledFid[fid]);
