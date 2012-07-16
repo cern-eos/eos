@@ -58,7 +58,7 @@ public:
     if (state == kStageOut)  return "stageout";
     if (state == kDone)      return "done";
     if (state == kFailed)    return "failed";
-    if (state == kRetry)    return "retry";
+    if (state == kRetry)     return "retry";
     return "unknown";
   }
 
@@ -85,12 +85,13 @@ public:
   int Resubmit(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
   int Log(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
   int Clear(XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
-  int Reset(XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
+  int Reset(XrdOucString& option, XrdOucString& sid, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
   int Purge(XrdOucString& option, XrdOucString& sid, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
   
 
-  bool SetState(long long id, int status)                                  {return xDB->SetState(id,status);}
-  bool SetCredential(long long id, std::string credential, time_t exptime) {return xDB->SetCredential(id, credential, exptime);}
+  bool SetState(long long id, int status)                                  { return xDB->SetState(id,status);}
+  bool SetExecutionHost(long long id, std::string &exechost)               { return xDB->SetExecutionHost(id,exechost);}
+  bool SetCredential(long long id, std::string credential, time_t exptime) { return xDB->SetCredential(id, credential, exptime);}
   bool SetLog(long long id, std::string log)                               { return xDB->SetLog(id,log);}
   TransferDB::transfer_t GetNextTransfer(int status)                       { return xDB->GetNextTransfer(status); }
   TransferDB::transfer_t GetTransfer(long long id)                         { return xDB->GetTransfer(id);}

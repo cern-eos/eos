@@ -74,7 +74,7 @@ bool TransferFsDB::Init(const char* dbpath)
       eos_warning("failed to set private permissions on %s", dpath.c_str());
     }
     
-    XrdOucString createtable = "CREATE TABLE if not exists transfers (src varchar(256), dst varchar(256), rate smallint, streams smallint, groupname varchar(128), status varchar(32), submissionhost varchar(64), log clob, uid smallint, gid smallint, expires int, credential clob, id integer PRIMARY KEY AUTOINCREMENT )";
+    XrdOucString createtable = "CREATE TABLE if not exists transfers (src varchar(256), dst varchar(256), rate smallint, streams smallint, groupname varchar(128), status varchar(32), exechost varchar(64), submissionhost varchar(64), log clob, uid smallint, gid smallint, expires int, credential clob, id integer PRIMARY KEY AUTOINCREMENT )";
 
     //    XrdOucString createtable = "CREATE TABLE if not exists transfers (src varchar(256), dst varchar(256), rate smallint, streams smallint, groupname varchar(128), status varchar(32), submissionhost varchar(64), log clob, uid smallint, gid smallint, id integer PRIMARY KEY AUTOINCREMENT )";
 
@@ -88,6 +88,14 @@ bool TransferFsDB::Init(const char* dbpath)
       eos_err("failed to open archive file %s - errno=%d\n", archivepath.c_str(), errno);
       return false;
     }
+    
+    // set auto-vacuum mode
+    if ((sqlite3_exec(DB,"PRAGMA auto_vacuum=FULL", CallBack, this, &ErrMsg))) {
+      eos_err("failed to set auto-vaccum mode %s - errno=%d\n", ErrMsg, errno);
+      return false;
+    }
+
+
     return true;
   } else {
     eos_err("failed to open sqlite3 database file %s - msg=%s\n", dpath.c_str(), sqlite3_errmsg(DB));
@@ -125,14 +133,18 @@ TransferFsDB::Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut
   XrdOucString query="";
 
   query = "select * from transfers";
-
+  
   if (group.length()) {
     query += " where groupname='"; query += group; query += "'";
+    if (!all) {
+      query += " and uid="; query += (int) uid;
+    }
   } else {
     if (!all) {
       query += " where uid="; query += (int) uid;
     }
   }
+  
   if ((sqlite3_exec(DB,query.c_str(), CallBack, this, &ErrMsg))) {
     eos_err("unable to query - msg=%s\n",ErrMsg);
     stdErr = "error: " ; stdErr += ErrMsg;
@@ -146,9 +158,11 @@ TransferFsDB::Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut
   std::map<std::string,int> groupby;
 
   if (!monitoring) {
-    snprintf(outline, sizeof(outline)-1,"%-8s %-8s %-16s %-4s %-6s %-4s %-4s %-8s %-48s %-48s %-16s\n","ID","STATUS", "GROUP","RATE","STREAM", "UID","GID","EXPTIME", "SOURCE","DESTINATION","SUBMISSIONHOST");
-    stdOut += outline;
-    stdOut += "________ ________ ________________ ____ ______ ____ ____ ________ ________________________________________________ ________________________________________________ ________________\n";
+    if (!summary) {
+      snprintf(outline, sizeof(outline)-1,"%-8s %-8s %-16s %-4s %-6s %-4s %-4s %-8s %-48s %-48s\n","ID","STATUS", "GROUP","RATE","STREAM", "UID","GID","EXPTIME","EXECHOST", "SUBMISSIONHOST");
+      stdOut += outline;
+      stdOut += "________ ________ ________________ ____ ______ ____ ____ ________ ________________________________________________ ________________________________________________\n";
+    }
     for (size_t i = 0; i< Qr.size(); i++) {
       long long etime = strtoul(Qr[i]["expires"].c_str(),0,10) - time(NULL);
       char setime[16];
@@ -157,7 +171,7 @@ TransferFsDB::Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut
       } else {
 	snprintf(setime,sizeof(setime)-1,"%lu", (unsigned long) etime);
       }
-      snprintf(outline, sizeof(outline)-1,"%-8s %-8s %-16s %-4s %-6s %-4s %-4s %-8s %-48s %-48s %-16s\n",
+      snprintf(outline, sizeof(outline)-1,"%-8s %-8s %-16s %-4s %-6s %-4s %-4s %-8s %-48s %-48s\n",
 	       Qr[i]["id"].c_str(),
 	       Qr[i]["status"].c_str(),
 	       Qr[i]["groupname"].c_str(),
@@ -166,11 +180,16 @@ TransferFsDB::Ls(XrdOucString& option, XrdOucString& group, XrdOucString& stdOut
 	       Qr[i]["uid"].c_str(),
 	       Qr[i]["gid"].c_str(),
 	       setime,
-	       Qr[i]["src"].c_str(),
-	       Qr[i]["dst"].c_str(),
-		 Qr[i]["submissionhost"].c_str());
+	       Qr[i]["exechost"].c_str(),
+	       Qr[i]["submissionhost"].c_str());
       
-      if (!summary) {stdOut += outline;}
+      if (!summary) {
+	stdOut += outline;
+	stdOut += "........ ........ ................ .... ...... .... .... ........  ................................................ ................................................\n";
+	stdOut += "         src..... "; stdOut += Qr[i]["src"].c_str(); stdOut += "\n";
+	stdOut += "         dst..... "; stdOut += Qr[i]["dst"].c_str(); stdOut += "\n";
+	stdOut += "........ ........ ................ .... ...... .... .... ........  ................................................ ................................................\n";
+      }
       groupby[Qr[i]["status"]]++;
     }
   } else {
@@ -283,6 +302,33 @@ TransferFsDB::SetState(long long id, int state)
     }
   }
   
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
+
+TransferFsDB::SetExecutionHost(long long id, std::string& exechost)
+{
+  XrdSysMutexHelper lock(Lock);
+  // for id=0 it sets the state on all ids
+  XrdOucString query="";
+  
+  query = "update transfers set exechost='";  query += exechost.c_str();
+  if (id == 0 ) {
+    query += "' where 1 ";
+  } else {
+    query += "' where id = ";
+    char sid[16];
+    snprintf(sid,sizeof(sid)-1, "%lld", id);
+    query += sid;
+  }
+
+  if ((sqlite3_exec(DB,query.c_str(), CallBack, this, &ErrMsg))) {
+    eos_err("unable to update - msg=%s\n",ErrMsg);
+    return false;
+  }
+
   return true;
 }
 
@@ -414,7 +460,7 @@ TransferFsDB::Cancel(long long id, XrdOucString& stdOut, XrdOucString& stdErr, b
   XrdOucString query="";
   
   query = "delete from transfers ";  
-  query += "  where id = ";
+  query += "where id = ";
   char sid[16];
   snprintf(sid,sizeof(sid)-1, "%lld", id);
   query += sid;
@@ -435,14 +481,15 @@ int
 TransferFsDB::Archive(long long id, XrdOucString& stdOut, XrdOucString& stdErr, bool nolock)
 {
   if (!nolock) Lock.Lock();
+  Qr.clear();
   XrdOucString query="";
   
   query = "select * from transfers ";  
-  query += "  where id = ";
+  query += "where id = ";
   char sid[16];
   snprintf(sid,sizeof(sid)-1, "%lld", id);
   query += sid;
-  
+
   if ((sqlite3_exec(DB,query.c_str(), CallBack, this, &ErrMsg))) {
     eos_err("unable to select - msg=%s\n",ErrMsg);
     stdErr+="error: unable to select - msg="; stdErr += ErrMsg; stdErr += "\n";
@@ -453,13 +500,15 @@ TransferFsDB::Archive(long long id, XrdOucString& stdOut, XrdOucString& stdErr, 
   if (Qr.size()) {
     bool ferror=false;
     if ( (fprintf(fdArchive,"# ==========================================================================\n")) < 0) ferror=true;
-    if ( (fprintf(fdArchive,"# id=%s uid=%s gid=%s group=%s rate=%s streams=%s\n", Qr[0]["id"].c_str(), Qr[0]["uid"].c_str(), Qr[0]["gid"].c_str(), Qr[0]["groupname"].c_str(), Qr[0]["rate"].c_str(), Qr[0]["streams"].c_str())) < 0) ferror=true;
+    if ( (fprintf(fdArchive,"# id=%s uid=%s gid=%s group=%s rate=%s streams=%s state=%s\n", Qr[0]["id"].c_str(), Qr[0]["uid"].c_str(), Qr[0]["gid"].c_str(), Qr[0]["groupname"].c_str(), Qr[0]["rate"].c_str(), Qr[0]["streams"].c_str(), Qr[0]["status"].c_str())) < 0) ferror=true;
+    if ( (fprintf(fdArchive,"# executionhost=%s\n", Qr[0]["exechost"].c_str())) < 0 ) ferror=true;
     if ( (fprintf(fdArchive,"# submissionhost=%s\n", Qr[0]["submissionhost"].c_str())) < 0 ) ferror=true;
-    if ( (fprintf(fdArchive,"# src=%s", Qr[0]["src"].c_str())) < 0 ) ferror=true;
-    if ( (fprintf(fdArchive,"# dst=%s", Qr[0]["dst"].c_str())) < 0 ) ferror=true;
+    if ( (fprintf(fdArchive,"# src=%s\n", Qr[0]["src"].c_str())) < 0 ) ferror=true;
+    if ( (fprintf(fdArchive,"# dst=%s\n", Qr[0]["dst"].c_str())) < 0 ) ferror=true;
     if ( (fprintf(fdArchive,"# --------------------------------------------------------------------------\n")) < 0) ferror=true;
     if ( (fprintf(fdArchive,"%s\n", Qr[0]["log"].c_str())) < 0) ferror=true;
     if ( (fprintf(fdArchive,"# --------------------------------------------------------------------------\n")) < 0) ferror=true;
+    fflush(fdArchive);
     if (ferror) {
       stdErr += "error: failed to write to archive file - errno="; stdErr += (int) errno;
       if (!nolock) Lock.UnLock();
@@ -500,6 +549,7 @@ std::vector<long long>
 TransferFsDB::QueryByGroup(XrdOucString& group)
 {
   XrdSysMutexHelper lock(Lock);
+  Qr.clear();
   XrdOucString query="";
   std::vector<long long> ids;
 
@@ -520,11 +570,38 @@ TransferFsDB::QueryByGroup(XrdOucString& group)
   return ids;
 }
 
+
+/*----------------------------------------------------------------------------*/
+std::vector<long long>
+TransferFsDB::QueryById(uid_t uid)
+{
+  XrdSysMutexHelper lock(Lock);
+  Qr.clear();
+  XrdOucString query="";
+  std::vector<long long> ids;
+
+  query = "select id from transfers ";  
+  query += " where uid=";
+  query += (int) uid;
+
+  if ((sqlite3_exec(DB,query.c_str(), CallBack, this, &ErrMsg))) {
+    eos_err("unable to query by group - msg=%s\n",ErrMsg);
+    return ids ;
+  } 
+
+  for (size_t i=0; i< Qr.size(); i++) {
+    ids.push_back( strtoll(Qr[i]["id"].c_str(),0,10) );
+  }
+  
+  return ids;
+}
+
 /*----------------------------------------------------------------------------*/
 std::vector<long long>
 TransferFsDB::QueryByState(XrdOucString& state)
 {
   XrdSysMutexHelper lock(Lock);
+  Qr.clear();
   XrdOucString query="";
   std::vector<long long> ids;
 
@@ -544,4 +621,5 @@ TransferFsDB::QueryByState(XrdOucString& state)
 
   return ids;
 }
+
 EOSMGMNAMESPACE_END

@@ -61,8 +61,10 @@ public:
   virtual int Clear(XrdOucString& stdOut, XrdOucString& stdErr);
   virtual std::vector<long long> QueryByGroup(XrdOucString& group);
   virtual std::vector<long long> QueryByState(XrdOucString& state);
+  virtual std::vector<long long> QueryByUid(uid_t uid);
 
   virtual bool SetState(long long id, int status);
+  virtual bool SetExecutionHost(long long id, std::string& exechost);
   virtual bool SetCredential(long long id, std::string credential, time_t exptime);
   virtual bool SetLog(long long id, std::string log);
   virtual transfer_t GetNextTransfer(int status);

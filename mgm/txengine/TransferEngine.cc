@@ -121,8 +121,16 @@ int
 TransferEngine::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid, time_t exptime, XrdOucString credentials)
 {
   if ( ((!src.beginswith("root://")) &&
+	(!src.beginswith("as3://")) &&
+	(!src.beginswith("gsiftp://")) &&
+	(!src.beginswith("http://")) &&
+	(!src.beginswith("https://")) &&
 	(!src.beginswith("/eos/"))) ||
        ((!dst.beginswith("root://")) &&
+	(!dst.beginswith("as3://")) &&
+	(!dst.beginswith("gsiftp://")) &&
+	(!dst.beginswith("http://")) &&
+	(!dst.beginswith("https://")) &&
 	(!dst.beginswith("/eos/"))) ) {
     stdErr += "error: invalid source or destination URL!";
     return EINVAL;
@@ -174,6 +182,7 @@ int
 TransferEngine::Cancel(XrdOucString& sid, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid)
 {
   long long id = strtoll(sid.c_str(),0,10);
+
   if (id) {
     TransferDB::transfer_t transfer = xDB->GetTransfer(id);
     if (transfer.count("error")) {
@@ -183,9 +192,9 @@ TransferEngine::Cancel(XrdOucString& sid, XrdOucString& group, XrdOucString& std
     if (transfer.count("uid")) {
       uid_t uid = (uid_t)atoi(transfer["uid"].c_str());
       if ( (vid.uid > 4) && (vid.uid != uid) ) {
-	stdErr = "error: you are not the owner of this transfer";
+	stdErr = "error: you are not the owner of this transfer!\n";
 	return EPERM;
-    }
+      }
     }
     return xDB->Cancel(id,stdOut, stdErr);
   } else {
@@ -198,7 +207,7 @@ TransferEngine::Cancel(XrdOucString& sid, XrdOucString& group, XrdOucString& std
 	if ( (!vid.uid) || (((int)vid.uid == atoi(transfer["uid"].c_str())) )) {
 	  xDB->Cancel(ids[i],stdOut, stdErr);
 	} else {
-	  stdOut+="warning: skipping id="; stdOut += transfer["id"].c_str(); stdOut += " - you are not the owner!";
+	  //	  stdOut+="warning: skipping transfer id="; stdOut += transfer["id"].c_str(); stdOut += " - you are not the owner!\n";
 	}
       }
     }
@@ -237,13 +246,25 @@ TransferEngine::Purge(XrdOucString& option, XrdOucString& sid, XrdOucString& gro
 {
   long long id = strtoll(sid.c_str(),0,10);
   
-  XrdOucString state="done";
+  XrdOucString state="failed";
 
-  std::vector<long long> ids = xDB->QueryByState(state);
+  std::vector<long long> ids;
+  
+  if (id) {
+    ids.push_back(id);
+  } else {
+    ids = xDB->QueryByState(state);
+  }
+
   for (size_t i=0; i< ids.size(); i++) {
     TransferDB::transfer_t transfer = xDB->GetTransfer(ids[i]);
     if (transfer.count("uid")) {
-      if ( (!vid.uid) || (((int)vid.uid == atoi(transfer["uid"].c_str())) )) {
+      std::string sGroup = group.c_str();
+      if (group.length() && (sGroup != transfer["groupname"]) ) {
+	// if we have a group selection we ignore non-group transfers
+	continue;
+      }
+      if ( ( (!vid.uid) || ((int)vid.uid == atoi(transfer["uid"].c_str()))) ) {
 	if ((!id) || (id == strtoll(transfer["id"].c_str(),0,10)) ) {
 	  // purge all by the user or by explicit id
 	  if (xDB->Archive(ids[i],stdOut, stdErr)) {
@@ -253,7 +274,10 @@ TransferEngine::Purge(XrdOucString& option, XrdOucString& sid, XrdOucString& gro
 	  }
 	}
       } else {
-	stdOut+="warning: skipping id="; stdOut += transfer["id"].c_str(); stdOut += " - you are not the owner!";
+	if (!group.length() && (id)) {
+	  // give that warning only, if there was a selection by id
+	  stdOut+="warning: skipping transfer id="; stdOut += transfer["id"].c_str(); stdOut += " - you are not the owner!\n";
+	}
       }
     }
   }
@@ -265,32 +289,80 @@ int
 TransferEngine::Resubmit(XrdOucString& sid, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid)
 {
   long long id = strtoll(sid.c_str(),0,10);
-  TransferDB::transfer_t transfer = xDB->GetTransfer(id);
-  if (transfer["status"] == "failed") {
-    SetState(id,kInserted);
-    stdOut += "success: resubmitted transfer id="; stdOut += sid.c_str(); stdOut += "\n";
-    return 0;
+  
+  std::vector<long long> ids;
+
+  if (group.length()) {
+    ids = xDB->QueryByGroup(group);
   } else {
-    if (transfer["status"] == "done") {
-      stdErr += "error: cannot resubmit <done> transfer with id="; stdErr += sid.c_str(); stdErr += "\n";
-    } else {
-      stdErr += "error: cannot get a transfer with id="; stdErr += sid.c_str(); stdErr += "\n";
-    }
-    return EINVAL;
+    ids.push_back(id);
   }
+
+  for (size_t i=0; i< ids.size(); i++) {
+    TransferDB::transfer_t transfer = xDB->GetTransfer(ids[i]);
+    if (transfer.count("id") && transfer.count("uid")) {
+      uid_t uid = atoi(transfer["uid"].c_str());
+      if (uid != vid.uid) {
+	// we are not the owner ... skip that transfer
+	stdOut += "warning: skipping transfer id="; stdOut += transfer["id"].c_str(); stdOut += " - you are not the owner!\n";
+	continue;
+      }
+      if (transfer["status"] == "failed") {
+	SetState(ids[i],kInserted);
+	stdOut += "success: resubmitted transfer id="; stdOut += transfer["id"].c_str(); stdOut += "\n";
+      } else {
+	if (transfer["status"] == "done") {
+	  if (!group.length()) {
+	    stdErr += "error: cannot resubmit <done> transfer with id="; stdErr += transfer["id"].c_str(); stdErr += "\n";
+	    return EINVAL;
+	  }
+	}
+      }
+    } else {
+      stdErr += "error: cannot get a transfer with id="; stdErr += transfer["id"].c_str(); stdErr += "\n";
+    }
+  }
+  return 0;
 }
 
 /*----------------------------------------------------------------------------*/
 int 
-TransferEngine::Reset(XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid)
+TransferEngine::Reset(XrdOucString& option, XrdOucString& sid, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid)
 {
-  if (vid.uid == 0) {
+  long long id = strtoll(sid.c_str(),0,10);
+
+  if ( (!id) && (!group.length()) && (vid.uid == 0)) {
+    // simplest case: reset all as 'root'
     SetState(0,kInserted);
     stdOut += "success: all transfers have been reset\n";
     return 0;
+  }
+
+  XrdOucString state="failed";
+
+  std::vector<long long> ids;
+  
+  if (id) {
+    ids.push_back(id);
   } else {
-    stdErr += "error: you have to be 'root' to reset transfers\n";
-    return EPERM;
+    // query all ids of a certain user
+    ids = xDB->QueryById(vid.uid);
+  }
+  
+  for (size_t i=0; i< ids.size(); i++) {
+    TransferDB::transfer_t transfer = xDB->GetTransfer(ids[i]);
+    if (transfer.count("uid")) {
+      std::string sGroup = group.c_str();
+      if (group.length() && (sGroup != transfer["groupname"]) ) {
+	// if we have a group selection we ignore non-group transfers
+	continue;
+      }
+      id = strtoll(transfer["id"].c_str(),0,10);
+      if (id) {
+	SetState(id,kInserted);
+	stdOut += "success: all transfers have been reset\n";
+      }
+    }
   }
 }
 
@@ -330,7 +402,7 @@ TransferEngine::Scheduler()
 	  pacifier = 1; // reset the self pacing algorithm
 	  long long id = strtoll(transfer["id"].c_str(),0,10);
 	  eos_static_info("received transfer id=%lld", id);
-	  //	  SetState(id, kValidated);
+ 	  // SetState(id, kValidated);
 
 	  // ------------------------------------------------------------
 	  // trivial scheduling engine
@@ -396,6 +468,8 @@ TransferEngine::Scheduler()
 		    if ( txjob && FsView::gFsView.mNodeView[*it]->mGwQueue->Add(txjob)) {
 		      eos_static_info("Submitted id=%lld to node=%s\n", id, it->c_str());
 		      SetState(id, kScheduled);
+		      std::string exechost = it->c_str();
+		      SetExecutionHost(id, exechost);
 		      break;
 		    }
 		  } else {
