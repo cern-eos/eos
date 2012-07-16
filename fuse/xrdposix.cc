@@ -639,7 +639,7 @@ public:
   ~PosixFd() {
   }
 
-  void   setFd(int FD) { fd = FD;Inc();   }
+  void   setFd(int FD) { fd = FD;   }
   int    getFd()       { Inc(); return fd;}
   size_t getUser()     { return nuser;    }
 
@@ -682,6 +682,7 @@ xrd_lease_open_fd(unsigned long long inode, uid_t uid)
 {
   // release an attached file descriptor
   XrdSysMutexHelper vLock(OpenPosixXrootFdLock);
+  OpenPosixXrootdFd[PosixFd::Index(inode,uid)].Dec();
   OpenPosixXrootdFd[PosixFd::Index(inode,uid)].Dec();
   if(!OpenPosixXrootdFd[PosixFd::Index(inode,uid)].getUser()) {
     OpenPosixXrootdFd.erase(PosixFd::Index(inode,uid));
@@ -814,7 +815,7 @@ xrd_rmxattr(const char *path, const char *xattr_name)
 {
   eos_static_info("path=%s xattr_name=%s", path, xattr_name);
   eos::common::Timing rmxattrtiming("rmxattr");
-  TIMING("START", &rmxattrtiming);
+  COMMONTIMING("START", &rmxattrtiming);
   
   char response[4096]; 
   response[0] = 0;
@@ -827,7 +828,7 @@ xrd_rmxattr(const char *path, const char *xattr_name)
   request +=  xattr_name; 
 
   long long rmxattr = XrdPosixXrootd::QueryOpaque(request.c_str(), response, 4096);
-  TIMING("GETPLUGIN", &rmxattrtiming);
+  COMMONTIMING("GETPLUGIN", &rmxattrtiming);
   
   if (rmxattr >= 0) {
     //parse the output
@@ -846,7 +847,7 @@ xrd_rmxattr(const char *path, const char *xattr_name)
   else 
     return EFAULT;
 
-  TIMING("END", &rmxattrtiming);
+  COMMONTIMING("END", &rmxattrtiming);
   if (EOS_LOGS_DEBUG) {
     rmxattrtiming.Print();
   }
@@ -861,7 +862,7 @@ xrd_setxattr(const char *path, const char *xattr_name, const char *xattr_value, 
 {
   eos_static_info("path=%s xattr_name=%s xattr_value=%s", path, xattr_name, xattr_value);
   eos::common::Timing setxattrtiming("setxattr");
-  TIMING("START", &setxattrtiming);
+  COMMONTIMING("START", &setxattrtiming);
   
   char response[4096]; 
   response[0] = 0;
@@ -876,7 +877,7 @@ xrd_setxattr(const char *path, const char *xattr_name, const char *xattr_value, 
   request += xattr_value;
 
   long long setxattr = XrdPosixXrootd::QueryOpaque(request.c_str(), response, 4096);
-  TIMING("GETPLUGIN", &setxattrtiming);
+  COMMONTIMING("GETPLUGIN", &setxattrtiming);
   
   if (setxattr >= 0) {
     //parse the output
@@ -895,7 +896,7 @@ xrd_setxattr(const char *path, const char *xattr_name, const char *xattr_value, 
   else 
     return EFAULT;
 
-  TIMING("END", &setxattrtiming);
+  COMMONTIMING("END", &setxattrtiming);
   if (EOS_LOGS_DEBUG) {
     setxattrtiming.Print();
   }
@@ -910,7 +911,7 @@ xrd_getxattr(const char *path, const char *xattr_name, char **xattr_value, size_
 {
   eos_static_info("path=%s xattr_name=%s",path,xattr_name);
   eos::common::Timing getxattrtiming("getxattr");
-  TIMING("START", &getxattrtiming);
+  COMMONTIMING("START", &getxattrtiming);
   
   char response[4096]; 
   response[0] = 0;
@@ -923,7 +924,7 @@ xrd_getxattr(const char *path, const char *xattr_name, char **xattr_value, size_
   request +=  xattr_name;
 
   long long getxattr = XrdPosixXrootd::QueryOpaque(request.c_str(), response, 4096);
-  TIMING("GETPLUGIN", &getxattrtiming);
+  COMMONTIMING("GETPLUGIN", &getxattrtiming);
   
   if (getxattr >= 0) {
     //parse the output
@@ -954,7 +955,7 @@ xrd_getxattr(const char *path, const char *xattr_name, char **xattr_value, size_
   else 
     return EFAULT;
 
-  TIMING("END", &getxattrtiming);
+  COMMONTIMING("END", &getxattrtiming);
 
   if (EOS_LOGS_DEBUG) {
     getxattrtiming.Print();
@@ -970,7 +971,7 @@ xrd_listxattr(const char *path, char **xattr_list, size_t *size)
 {
   eos_static_info("path=%s",path);
   eos::common::Timing listxattrtiming("listxattr");
-  TIMING("START", &listxattrtiming);
+  COMMONTIMING("START", &listxattrtiming);
   
   char response[16384]; 
   response[0] = 0;
@@ -981,7 +982,7 @@ xrd_listxattr(const char *path, char **xattr_list, size_t *size)
   request += "mgm.subcmd=ls";
 
   long long listxattr = XrdPosixXrootd::QueryOpaque(request.c_str(), response, 16384);
-  TIMING("GETPLUGIN", &listxattrtiming);
+  COMMONTIMING("GETPLUGIN", &listxattrtiming);
   if (listxattr >= 0) {
     //parse the output
     int retc = 0;
@@ -1008,7 +1009,7 @@ xrd_listxattr(const char *path, char **xattr_list, size_t *size)
   else 
     return EFAULT;
 
-  TIMING("END", &listxattrtiming);
+  COMMONTIMING("END", &listxattrtiming);
   if (EOS_LOGS_DEBUG) {
     listxattrtiming.Print();
   }
@@ -1023,7 +1024,7 @@ xrd_stat(const char *path, struct stat *buf)
 {
   eos_static_info("path=%s", path);
   eos::common::Timing stattiming("xrd_stat");
-  TIMING("START",&stattiming);
+  COMMONTIMING("START",&stattiming);
 
   char value[4096]; value[0] = 0;;
   XrdOucString request;
@@ -1033,7 +1034,7 @@ xrd_stat(const char *path, struct stat *buf)
   //  request.replace("@","#admin@");
 
   long long dostat = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
-  TIMING("GETPLUGIN",&stattiming);
+  COMMONTIMING("GETPLUGIN",&stattiming);
   //  fprintf(stderr,"returned %s %lld\n",value, dostat);
   if (dostat >= 0) {
     unsigned long long sval[10];
@@ -1069,7 +1070,7 @@ xrd_stat(const char *path, struct stat *buf)
     } 
   }
 
-  TIMING("END",&stattiming);
+  COMMONTIMING("END",&stattiming);
   if (EOS_LOGS_DEBUG) {
     stattiming.Print();
   }
@@ -1107,7 +1108,7 @@ xrd_statfs(const char* url, const char* path, struct statvfs *stbuf)
   }
 
   eos::common::Timing statfstiming("xrd_statfs");
-  TIMING("START",&statfstiming);
+  COMMONTIMING("START",&statfstiming);
 
   char value[4096]; value[0] = 0;;
   XrdOucString request;
@@ -1120,7 +1121,7 @@ xrd_statfs(const char* url, const char* path, struct statvfs *stbuf)
   //  fprintf(stderr,"Query %s\n", request.c_str());
   long long dostatfs = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
   
-  TIMING("END",&statfstiming);
+  COMMONTIMING("END",&statfstiming);
   if (EOS_LOGS_DEBUG) {
     statfstiming.Print();
   }
@@ -1165,7 +1166,7 @@ xrd_chmod(const char* path, mode_t mode)
 {
   eos_static_info("path=%s mode=%x", path, mode);
   eos::common::Timing chmodtiming("xrd_chmod");
-  TIMING("START",&chmodtiming);
+  COMMONTIMING("START",&chmodtiming);
 
   char value[4096]; value[0] = 0;;
   XrdOucString request;
@@ -1176,7 +1177,7 @@ xrd_chmod(const char* path, mode_t mode)
   //  request.replace("@","#admin@");
   long long dochmod = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
 
-  TIMING("END",&chmodtiming);
+  COMMONTIMING("END",&chmodtiming);
   if (EOS_LOGS_DEBUG) {
     chmodtiming.Print();
   }
@@ -1206,7 +1207,7 @@ xrd_symlink(const char* url, const char* destpath, const char* sourcepath)
 {
   eos_static_info("url=%s destpath=%s,sourcepath=%s", url, destpath, sourcepath);
   eos::common::Timing symlinktiming("xrd_symlink");
-  TIMING("START",&symlinktiming);
+  COMMONTIMING("START",&symlinktiming);
   
   char value[4096]; value[0] = 0;;
   XrdOucString request;
@@ -1218,7 +1219,7 @@ xrd_symlink(const char* url, const char* destpath, const char* sourcepath)
   request += sourcepath;
   long long dosymlink = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
 
-  TIMING("END",&symlinktiming);
+  COMMONTIMING("END",&symlinktiming);
   if (EOS_LOGS_DEBUG) {
     symlinktiming.Print();
   }
@@ -1248,7 +1249,7 @@ xrd_link(const char* url, const char* destpath, const char* sourcepath)
 {
   eos_static_info("url=%s destpath=%s sourcepath=%s", url, destpath, sourcepath);
   eos::common::Timing linktiming("xrd_link");
-  TIMING("START",&linktiming);
+  COMMONTIMING("START",&linktiming);
   
   char value[4096]; value[0] = 0;;
   XrdOucString request;
@@ -1260,7 +1261,7 @@ xrd_link(const char* url, const char* destpath, const char* sourcepath)
   request += sourcepath;
   long long dolink = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
 
-  TIMING("END",&linktiming);
+  COMMONTIMING("END",&linktiming);
   if (EOS_LOGS_DEBUG) {
     linktiming.Print();
   }
@@ -1290,7 +1291,7 @@ xrd_readlink(const char* path, char* buf, size_t bufsize)
 {
   eos_static_info("path=%s", path);
   eos::common::Timing readlinktiming("xrd_readlink");
-  TIMING("START",&readlinktiming);
+  COMMONTIMING("START",&readlinktiming);
   
   char value[4096]; value[0] = 0;;
   XrdOucString request;
@@ -1299,7 +1300,7 @@ xrd_readlink(const char* path, char* buf, size_t bufsize)
   request += "mgm.pcmd=readlink";
   long long doreadlink = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
 
-  TIMING("END",&readlinktiming);
+  COMMONTIMING("END",&readlinktiming);
   if (EOS_LOGS_DEBUG) {
     readlinktiming.Print();
   }
@@ -1333,7 +1334,7 @@ xrd_utimes(const char* path, struct timespec *tvp)
 {
   eos_static_info("path=%s", path);
   eos::common::Timing utimestiming("xrd_utimes");
-  TIMING("START",&utimestiming);
+  COMMONTIMING("START",&utimestiming);
 
   char value[4096]; value[0] = 0;;
   XrdOucString request;
@@ -1355,7 +1356,7 @@ xrd_utimes(const char* path, struct timespec *tvp)
 
   long long doutimes = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
 
-  TIMING("END",&utimestiming);
+  COMMONTIMING("END",&utimestiming);
   if (EOS_LOGS_DEBUG) {
     utimestiming.Print();
   }
@@ -1384,7 +1385,7 @@ xrd_access(const char* path, int mode)
 {
   eos_static_info("path=%s mode=%d", path, mode);
   eos::common::Timing accesstiming("xrd_access");
-  TIMING("START",&accesstiming);
+  COMMONTIMING("START",&accesstiming);
 
   char value[4096]; value[0] = 0;;
   XrdOucString request;
@@ -1398,7 +1399,7 @@ xrd_access(const char* path, int mode)
   request += (int)mode;
   long long doaccess = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
 
-  TIMING("STOP",&accesstiming);
+  COMMONTIMING("STOP",&accesstiming);
   if (EOS_LOGS_DEBUG) {
     accesstiming.Print();
   }
@@ -1428,14 +1429,14 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
 {
   eos_static_info("inode=%llu path=%s",dirinode, path);
   eos::common::Timing inodirtiming("xrd_inodirlist");
-  TIMING("START",&inodirtiming);
+  COMMONTIMING("START",&inodirtiming);
 
   char* value=0;
   char* ptr=0;
   XrdOucString request;
   request = path;
 
-  TIMING("GETSTSTREAM",&inodirtiming);
+  COMMONTIMING("GETSTSTREAM",&inodirtiming);
 
   int doinodirlist=-1;
   int retc;
@@ -1456,7 +1457,7 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
   int nbytes = 0;
   int npages=1;
   off_t offset=0;
-  TIMING("READSTSTREAM",&inodirtiming);
+  COMMONTIMING("READSTSTREAM",&inodirtiming);
   while ( (nbytes = listclient->Read(value+offset ,offset,PAGESIZE)) == PAGESIZE) {
     npages++;
     value = (char*) realloc(value,npages*PAGESIZE+1);
@@ -1472,7 +1473,7 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
   
   xrd_dirview_create( (unsigned long long) dirinode);
 
-  TIMING("PARSESTSTREAM", &inodirtiming);    
+  COMMONTIMING("PARSESTSTREAM", &inodirtiming);    
 
   xrd_lock_w_dirview(); // =>
 
@@ -1519,7 +1520,7 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
 
   xrd_unlock_w_dirview(); // <=
   
-  TIMING("END",&inodirtiming);
+  COMMONTIMING("END",&inodirtiming);
   if (EOS_LOGS_DEBUG) {
     inodirtiming.Print();
   }
@@ -1712,7 +1713,7 @@ ssize_t
 xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode)
 {
   eos::common::Timing xpr("xrd_pread");
-  TIMING("start", &xpr);
+  COMMONTIMING("start", &xpr);
   
   eos_static_debug("fd=%d nbytes=%lu offset=%llu inode=%lu",fildes, (unsigned long)nbyte, (unsigned long long)offset, (unsigned long) inode);
  
@@ -1722,25 +1723,25 @@ xrd_pread(int fildes, void *buf, size_t nbyte, off_t offset, unsigned long inode
     FileAbstraction* fAbst = 0;
     fAbst = XFC->getFileObj(inode, true);
     XFC->waitFinishWrites(*fAbst);
-    TIMING("wait writes", &xpr);
+    COMMONTIMING("wait writes", &xpr);
     if ((ret = XFC->getRead(*fAbst, buf, offset, nbyte)) != nbyte) {
-      TIMING("read in", &xpr);
+      COMMONTIMING("read in", &xpr);
       eos_static_debug("Block not found in cache: off=%zu, len=%zu", offset, nbyte);
       ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
-      TIMING("read out", &xpr);
+      COMMONTIMING("read out", &xpr);
       XFC->putRead(*fAbst, fildes, buf, offset, nbyte);
-      TIMING("put read", &xpr);
+      COMMONTIMING("put read", &xpr);
     }
     else {
       eos_static_debug("Block found in cache: off=%zu, len=%zu", offset, nbyte);
-      TIMING("block in cache", &xpr);
+      COMMONTIMING("block in cache", &xpr);
     }
     fAbst->decrementNoReferences();
   } else {
     ret = XrdPosixXrootd::Pread(fildes, buf, nbyte, static_cast<long long>(offset));
   }
 
-  TIMING("end", &xpr);
+  COMMONTIMING("end", &xpr);
   if (EOS_LOGS_DEBUG ) {
     xpr.Print();
   }
@@ -1772,7 +1773,7 @@ ssize_t
 xrd_pwrite(int fildes, const void *buf, size_t nbyte, off_t offset, unsigned long inode)
 {
   eos::common::Timing xpw("xrd_pwrite");
-  TIMING("start", &xpw);
+  COMMONTIMING("start", &xpw);
   
   eos_static_debug("fd=%d nbytes=%lu inode=%lu cache=%d cache-w=%d", fildes, (unsigned long)nbyte, (unsigned long) inode, XFC?1:0, fuse_cache_write);
   size_t ret;
@@ -1784,7 +1785,7 @@ xrd_pwrite(int fildes, const void *buf, size_t nbyte, off_t offset, unsigned lon
     ret = XrdPosixXrootd::Pwrite(fildes, buf, nbyte, static_cast<long long>(offset));    
   }
 
-  TIMING("end", &xpw);
+  COMMONTIMING("end", &xpw);
   if (EOS_LOGS_DEBUG) {
     xpw.Print();
   }

@@ -587,6 +587,7 @@ static void eosfs_ll_mknod(fuse_req_t req, fuse_ino_t parent, const char *name, 
       return;
     } else {
       xrd_add_open_fd(res, (unsigned long long) e.ino, req->ctx.uid);
+      xrd_get_open_fd((unsigned long long) e.ino, req->ctx.uid);
       xrd_store_p2i((unsigned long long)e.ino,ifullpath);
       if (isdebug) fprintf(stderr,"[%s]: storeinode=%lld path=%s\n", __FUNCTION__,(long long) e.ino,ifullpath);
       fuse_reply_entry(req,&e);

@@ -89,12 +89,12 @@ CacheImpl::runThreadWrites()
 {
   CacheEntry* pEntry = 0;
   eos::common::Timing rtw("runThreadWrites");
-  TIMING("start", &rtw);
+  COMMONTIMING("start", &rtw);
 
   while (1) {
-    TIMING("before pop", &rtw);
+    COMMONTIMING("before pop", &rtw);
     writeReqQueue->wait_pop(pEntry);
-    TIMING("after pop", &rtw);
+    COMMONTIMING("after pop", &rtw);
 
     if (pEntry == 0) {
       break;
@@ -125,7 +125,7 @@ CacheImpl::getRead(const long long int& k, char* buf, off_t off, size_t len)
 {
   //block requested is aligned with respect to the maximum CacheEntry size
   eos::common::Timing gr("getRead");
-  TIMING("start", &gr);
+  COMMONTIMING("start", &gr);
 
   bool foundPiece = false;
   CacheEntry* pEntry = 0;
@@ -135,9 +135,9 @@ CacheImpl::getRead(const long long int& k, char* buf, off_t off, size_t len)
 
   if (it != keyValueMap.end()) {
     pEntry = it->second.first;
-    TIMING("getPiece in", &gr);
+    COMMONTIMING("getPiece in", &gr);
     foundPiece = pEntry->getPiece(buf, off, len);
-    TIMING("getPiece out", &gr);
+    COMMONTIMING("getPiece out", &gr);
 
     if (foundPiece) {
       // update access record
@@ -147,7 +147,7 @@ CacheImpl::getRead(const long long int& k, char* buf, off_t off, size_t len)
   }
 
   rwMap.UnLock();                                           //unlock map
-  TIMING("return", &gr);
+  COMMONTIMING("return", &gr);
   //gr.Print();
   return foundPiece;
 }
@@ -171,7 +171,7 @@ CacheImpl::addRead(int filed, const long long int& k, char* buf, off_t off,
                    size_t len, FileAbstraction &pFileAbst) 
 {
   eos::common::Timing ar("addRead");
-  TIMING("start", &ar);
+  COMMONTIMING("start", &ar);
   CacheEntry* pEntry = 0;
 
   rwMap.ReadLock();                                         //read lock map
@@ -191,7 +191,7 @@ CacheImpl::addRead(int filed, const long long int& k, char* buf, off_t off,
     mList.UnLock();                                         //unlock list
   
     rwMap.UnLock();                                         //unlock map
-    TIMING("add to old block", &ar);
+    COMMONTIMING("add to old block", &ar);
   } else {
     rwMap.UnLock();                                         //unlock map
 
@@ -199,13 +199,13 @@ CacheImpl::addRead(int filed, const long long int& k, char* buf, off_t off,
     pEntry = getRecycledBlock(filed, buf, off, len, pFileAbst, false);
 
     while (getSize() + CacheEntry::getMaxSize() >= sizeMax) {
-      TIMING("start evitc", &ar);
+      COMMONTIMING("start evitc", &ar);
       if (!removeReadBlock()) {
         forceWrite();
       } 
     }
 
-    TIMING("after evict", &ar);
+    COMMONTIMING("after evict", &ar);
     XrdSysRWLockHelper rwHelper(rwMap, false);              //write lock map
     XrdSysMutexHelper mHelper(mList);                       //lock list 
 
@@ -220,7 +220,7 @@ CacheImpl::addRead(int filed, const long long int& k, char* buf, off_t off,
     //---> unlock map and list
   }
 
-  TIMING("return", &ar);
+  COMMONTIMING("return", &ar);
   //ar.Print();
 }
 
