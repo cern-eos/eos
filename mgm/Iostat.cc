@@ -1380,7 +1380,8 @@ Iostat::UdpBroadCast(eos::common::Report* report)
       u += " \"server_host\": \"";          u += report->server_name; u += "\",\n";
       u += " \"server_username\": \"";      u += report->sec_name; u += "\",\n";
       u += " \"start_time\": \"";           u += eos::common::StringConversion::GetSizeString(sizestring, report->ots); u += "\",\n";
-      u += " \"unique_id\": \"";            u += gOFS->MgmOfsInstanceName.c_str(); u += "\",\n";
+      XrdOucString stime; // stores the current time in <s>.<ns> 
+      u += " \"unique_id\": \"";            u += gOFS->MgmOfsInstanceName.c_str(); u += "-"; u += eos::common::StringConversion::TimeNowAsString(stime); u += "\",\n";
       u += " \"user_dn\": \"";               u += report->sec_dn;  u += "\",\n";
       u += " \"user_fqan\": \"";            u += report->sec_grps; u += "\",\n";
       u += " \"user_role\": \"";            u += report->sec_role; u += "\",\n";
