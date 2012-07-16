@@ -274,6 +274,9 @@ int main(int argc, char* argv[]) {
   extern char *optarg;
   extern int optind;
 
+  for (int i = 0; i < MAXSRCDST; i++) {
+    dest_mode[i] = S_IRWXU | S_IRGRP | S_IROTH;
+  }
 
   while ( (c = getopt(argc, argv, "nshdvlipfe:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:")) != -1) {
     switch(c) {
@@ -783,11 +786,13 @@ int main(int argc, char* argv[]) {
             break;
           case 1:
             if (debug) {fprintf(stdout,"[eoscp]: doing XROOT(RAIDIO) mkdir on %s\n", (char*)subpath.c_str());}
-            mkdir_failed = XrdPosixXrootd::Mkdir(source[i], mode);
+	    //            mkdir_failed = XrdPosixXrootd::Mkdir(source[i], mode);
+	    mkdir_failed = 0;
             break;
           case 2:
             if (debug) {fprintf(stdout,"[eoscp]: doing XROOT mkdir on %s\n", (char*)subpath.c_str());}
-            mkdir_failed = XrdPosixXrootd::Mkdir(source[i], mode);
+	    //            mkdir_failed = XrdPosixXrootd::Mkdir(source[i], mode);
+	    mkdir_failed = 0;
             break;
           case 3:
             mkdir_failed = 0;
@@ -919,13 +924,20 @@ int main(int argc, char* argv[]) {
   }
 
   for (int i = 0; i < ndst; i++) {
+    if (!set_mode) {
+      if (sid[i] != 3) {
+	// if not specified on the command line, take the source mode
+	dest_mode[i] = st[i].st_mode;
+      }
+    }
+
     switch(did[i]) {
     case 0:
       if (debug) {fprintf(stdout, "[eoscp]: doing POSIX open to write  %s\n", destination[i]);}
       if (appendmode) {
-        dstfd[i] = open(destination[i], O_WRONLY|O_CREAT, st[i].st_mode);
+        dstfd[i] = open(destination[i], O_WRONLY|O_CREAT, dest_mode[i]);
       } else {
-        dstfd[i] = open(destination[i], O_WRONLY|O_TRUNC|O_CREAT, st[i].st_mode);
+        dstfd[i] = open(destination[i], O_WRONLY|O_TRUNC|O_CREAT, dest_mode[i]);
       }
       break;
     case 1:
@@ -936,12 +948,12 @@ int main(int argc, char* argv[]) {
       if (appendmode) {
 	struct stat buf;
 	if (XrdPosixXrootd::Stat((char*)destination[i],&buf)) {
-	  dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY|O_CREAT,st[i].st_mode);
+	  dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY|O_CREAT,dest_mode[i]);
 	} else {
-	  dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY,st[i].st_mode);
+	  dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY,dest_mode[i]);
 	}
       } else {
-        dstfd[i] = XrdPosixXrootd::Open(destination[i], O_WRONLY|O_TRUNC|O_CREAT, st[i].st_mode);
+        dstfd[i] = XrdPosixXrootd::Open(destination[i], O_WRONLY|O_TRUNC|O_CREAT, dest_mode[i]);
       }
       break;
     case 3:
@@ -980,11 +992,6 @@ int main(int argc, char* argv[]) {
     // let's set the source mode or a specified one
     int chmod_failed = 0;
     
-    if (!set_mode) {
-      // if not specified on the command line, take the source mode
-      dest_mode[i] = st[0].st_mode;
-    }
-
     switch(did[i]) {
     case 0:
       chmod_failed = chmod(destination[i], dest_mode[i]);

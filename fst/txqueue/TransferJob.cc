@@ -92,7 +92,7 @@ TransferJob::GetSourceUrl()
   if ((!mJob) || (!mJob->GetEnv()))
     return 0;
   mSourceUrl = mJob->GetEnv()->Get("source.url");
-  if (mJob->GetEnv()->Get("cap.sym")) {
+  if (mJob->GetEnv()->Get("source.cap.sym")) {
     mSourceUrl += "?";
     mSourceUrl += "cap.sym=";
     mSourceUrl += mJob->GetEnv()->Get("source.cap.sym");
@@ -118,7 +118,7 @@ TransferJob::GetTargetUrl()
   if ((!mJob) || (!mJob->GetEnv()))
     return 0;
   mTargetUrl = mJob->GetEnv()->Get("target.url");
-  if (mJob->GetEnv()->Get("cap.sym")) {
+  if (mJob->GetEnv()->Get("target.cap.sym")) {
     mTargetUrl += "?";
     mTargetUrl += "cap.sym=";
     mTargetUrl += mJob->GetEnv()->Get("target.cap.sym");
@@ -143,6 +143,9 @@ void TransferJob::SendState(int state, const char* logfile)
   XrdOucString sizestring;
   txinfo += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) mId);
   txinfo += "&tx.state="; txinfo += state;
+
+  // log state transitions in the FST log file
+  eos_static_info("txid=%lld state=%s", mId, eos::mgm::TransferEngine::GetTransferState(state));
   if (logfile) {
     XrdOucString loginfob64="";
     std::string loginfo;
@@ -154,7 +157,7 @@ void TransferJob::SendState(int state, const char* logfile)
       txinfo += "&tx.log.b64=";
       txinfo += loginfob64.c_str();
     }
-    eos_static_info("Sending %s", txinfo.c_str());
+    eos_static_debug("sending %s", txinfo.c_str());
   }
   
   std::string manager = "";
@@ -178,14 +181,243 @@ void TransferJob::SendState(int state, const char* logfile)
 
 /* ------------------------------------------------------------------------- */
 void TransferJob::DoIt(){
-  std::string fileName = "/var/eos/auth/", sTmp, strBand;
-  
-  std::stringstream command, ss;
+  // This is the execution part of a transfer
+  // - in the standard case where we use only 'root:' protocol, we prepare a single script 
+  //   running the transfer with a given timeout
+  // - if we use an external protocol for the destination the transfer is split into two parts
+  //   - stagein 
+  //   - stageout
+  std::string fileName = "/var/eos/auth/", sTmp, strBand; // script name for the transfer script
+  std::string fileStageName = fileName;
+  std::stringstream command, ss, commando, so;
   std::string uuid = NewUuid();
-  std::string fileOutput = fileName + uuid;
-  std::string fileResult = fileName + uuid + ".ok";
+  std::string fileOutput = fileName + uuid;               // output file of the transfer script
+  std::string fileResult = fileName + uuid + ".ok";       // return code of the transfer script
+  std::string fileStageOutput = fileName + uuid + ".stageout";          // output file of the stageout script
+  std::string fileStageResult = fileName + uuid + ".stageout" + ".ok";  // file containing credentails
   std::string fileCredential = fileName + "." + uuid + ".cred";
 
+  std::string downloadcmd="";
+  std::string uploadcmd="";
+
+  std::string stagefile="";
+
+  static XrdSysMutex eoscpLogMutex; // avoids that several transfers write interleaved into the log file;
+
+  XrdOucString mSource      = GetSourceUrl();
+  XrdOucString mDestination = GetTargetUrl();
+
+  bool iskrb5=false;
+  bool isgsi=false;
+  bool canrun=true;
+
+
+  if ( (mJob) && (mJob->GetEnv())) {
+    // retrieve bandwidth from the opaque tx.bandwidth tag if defined
+    if ((mJob->GetEnv()->Get("tx.bandwidth") ) ) {
+      int bandwidth = atoi(mJob->GetEnv()->Get("tx.bandwidth"));
+      if ( (bandwidth <0) || (bandwidth > 100000) ) {
+	// we limit at 100 GB/s ;-)
+	bandwidth = 100000;
+      }
+    }
+
+    // retrieve timeout from the opaque tx.timeout tag if defined
+    if ((mJob->GetEnv()->Get("tx.expires") ) ) {
+      time_t exp = (unsigned long) strtoul(mJob->GetEnv()->Get("tx.expires"),0,10);
+      unsigned long timeout = (time(NULL) - exp);
+      if (timeout > 86400) {
+	// we cut off at a day - this makes otherwise no sense
+	timeout = 86400;
+      }
+      if (timeout < 1) {
+	// we cut off timeouts less than 1 seconds
+	timeout = 1;
+      }
+      mTimeOut = timeout;
+    }
+    
+    // retrieve streams from the opaque tx.streams tag if defined
+    if ((mJob->GetEnv()->Get("tx.streams") ) ) {
+      mStreams = atoi(mJob->GetEnv()->Get("tx.streams"));
+      if ( (mStreams <0) || (mStreams > 16) ) {
+	// for crazy numbers we default to a single stream
+	mStreams=1;
+      }
+    }
+    
+    // check if this is a scheduled transfer
+    if ((mJob->GetEnv()->Get("tx.id") ) ) {
+      mId = strtoll(mJob->GetEnv()->Get("tx.id"),0,10);
+    }
+
+    // extract credentials (if any)
+    if ((mJob->GetEnv()->Get("tx.auth.cred")) && (mJob->GetEnv()->Get("tx.auth.digest"))) {
+      const char* symmsg = mJob->GetEnv()->Get("tx.auth.cred");
+      const char* symkey = mJob->GetEnv()->Get("tx.auth.digest");
+      eos::common::SymKey* key = 0;
+      if ((key = eos::common::gSymKeyStore.GetKey(symkey))) {
+	XrdOucString todecrypt = symmsg;
+	XrdOucString decrypted ="";
+	
+	if (XrdMqMessage::SymmetricStringDecrypt(todecrypt, decrypted, (char*)key->GetKey())) {
+	  if (decrypted.beginswith("krb5:")) {
+	    decrypted.erase(0,5);
+	    iskrb5=true;
+	  }
+	  if (decrypted.beginswith("gsi:")) {
+	    decrypted.erase(0,4);
+	    isgsi=true;
+	  }
+	  
+	  // now base64decode the decrypted credential
+	  char* credential=0;
+	  unsigned int credentiallen=0;
+	  if (eos::common::SymKey::Base64Decode(decrypted, credential, credentiallen)) {
+	    if (credential) {
+	      int fd = open(fileCredential.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+	      if (fd>=0) {
+		if ( (write(fd, credential, credentiallen)) != (ssize_t)credentiallen) {
+		  eos_static_err("unable to write all bytes to %s", fileCredential.c_str());
+		  iskrb5=isgsi=false;
+		}
+		close(fd);
+	      } else {
+		eos_static_err("unable to open credential file %s", fileCredential.c_str());
+		iskrb5=isgsi=false;
+	      }
+	      memset(credential,0, credentiallen);
+	      free(credential);
+	    } else {
+	      iskrb5=isgsi=false;
+	    eos_static_err("unable to base64 decode the credential %s", decrypted.c_str());
+	    }
+	  }
+	} else {
+	  eos_static_err("cannot decode message %s", symmsg);
+	  iskrb5=isgsi=false;
+	} 
+      } else {
+	eos_static_err("miss the symkey for digest %s", symkey);
+	iskrb5=isgsi=false;
+      } 
+    }
+  }
+  
+  if (mDestination.beginswith("root://")) {
+    if ( (mSource.beginswith("as3://"))  ||
+	 (mSource.beginswith("http://")) || 
+	 (mSource.beginswith("https://")) ||
+	 (mSource.beginswith("gsiftp://"))) {
+      // this is a download using an external protocol into XRootD protocol, we can use a pipe with STDIN/OUT
+      if (mSource.beginswith("as3://")) {
+	// setup the s3 hostname
+	int spos = mSource.find("/",6);
+	if (spos != STR_NPOS) {
+	  XrdOucString hname;
+	  hname.assign(mSource,6,spos-1);
+	  setenv("S3_HOSTNAME",hname.c_str(),1);
+	  mSource.erase(4, spos-3);
+	  mSource.erase(0,4);
+	}
+	XrdOucString mSourceEnv=mSource;
+	spos = mSourceEnv.find("?");
+	if (spos != STR_NPOS) {
+	  mSourceEnv.erase(0,spos+1);
+	  mSource.erase(spos);
+	}
+	XrdOucEnv mEnv(mSourceEnv.c_str());
+
+	// setup the s3 id & keys
+	setenv("S3_SECRET_ACCESS_KEY",mEnv.Get("s3.key")?mEnv.Get("s3.key"):"",1);
+	setenv("S3_ACCESS_KEY_ID",mEnv.Get("s3.id")?mEnv.Get("s3.id"):"",1);
+	eos_static_debug("S3_HOSTNAME=%s S3_SECRET_ACCESS_KEY=%s S3_ACCESS_KEY_ID=%s", getenv("S3_HOSTNAME"), getenv("S3_SECRET_ACCESS_KEY"),getenv("S3_ACCESS_KEY_ID"));
+	// S3 download
+	downloadcmd="s3 get "; downloadcmd += mSource.c_str(); downloadcmd += " |";
+      }      
+      
+      if (mSource.beginswith("http://")) {
+	// HTTP download
+	downloadcmd="curl "; downloadcmd += mSource.c_str(); downloadcmd += " |";
+      }
+      
+      if (mSource.beginswith("https://")) {
+	// HTTPS download disabling certificate check (for the moment)
+	downloadcmd="curl "; downloadcmd += mSource.c_str(); downloadcmd += " -k |";
+      }
+      
+      if (mSource.beginswith("gsiftp://")) {
+	// GSIFTP download
+	downloadcmd="globus-url-copy "; downloadcmd += mSource.c_str(); downloadcmd += " - |";
+      }
+    } else {
+      // check for root protocol otherwise discard 
+      if (!mSource.beginswith("root://")) {
+	eos_static_err("illegal source protocol specified: %s", mSource.c_str());
+	canrun = false;
+      }
+    }
+  } else {
+    // this is an external destination protocol, we have to setup a stagefile
+    XrdOucString stagesuffix=mDestination;
+    stagesuffix.erase(mDestination.find("?"));
+    while(stagesuffix.replace("/","")) {}
+    // we need to do a staged transfer with a temporary copy on a local disk
+    unsetenv("TMPDIR");
+    // we create a unique name here (it is the target name + some random tmp name)
+    stagefile=tempnam("/var/eos/stage/","txj");
+    stagefile+=stagesuffix.c_str();
+    
+    if (mDestination.beginswith("as3://")) {
+      // S3 upload 
+	// setup the s3 hostname
+	int spos = mDestination.find("/",6);
+	if (spos != STR_NPOS) {
+	  XrdOucString hname;
+	  hname.assign(mDestination,6,spos-1);
+	  setenv("S3_HOSTNAME",hname.c_str(),1);
+	  mDestination.erase(4, spos-3);
+	  mDestination.erase(0,4);
+	}
+
+	XrdOucString mDestinationEnv=mDestination;
+	spos = mDestinationEnv.find("?");
+	if (spos != STR_NPOS) {
+	  mDestinationEnv.erase(0,spos+1);
+	  mDestination.erase(spos);
+	}
+
+	XrdOucEnv mEnv(mDestinationEnv.c_str());
+
+	// setup the s3 id & keys
+	setenv("S3_SECRET_ACCESS_KEY",mEnv.Get("s3.key")?mEnv.Get("s3.key"):"",1);
+	setenv("S3_ACCESS_KEY_ID",mEnv.Get("s3.id")?mEnv.Get("s3.id"):"",1);
+	eos_static_debug("S3_HOSTNAME=%s S3_SECRET_ACCESS_KEY=%s S3_ACCESS_KEY_ID=%s", getenv("S3_HOSTNAME"), getenv("S3_SECRET_ACCESS_KEY"),getenv("S3_ACCESS_KEY_ID"));
+      // extract the s3 keys and setup temporary file with them
+	uploadcmd="s3 put "; uploadcmd += "\"";uploadcmd += mDestination.c_str(); uploadcmd += "\" filename=\""; uploadcmd += stagefile.c_str(); uploadcmd += "\" 2>&1 "; 
+    }      
+    
+    if (mDestination.beginswith("http://")) {
+      // HTTP upload
+      eos_static_err("illegal target protocol specified: %s [not supported]", mDestination.c_str());
+      canrun = false;
+    }
+    
+    if (mDestination.beginswith("https://")) {
+      // HTTPS upload disabling certificate check (for the moment)
+      eos_static_err("illegal target protocol specified: %s [not supported]", mDestination.c_str());
+      canrun = false;
+    }
+    
+    if (mDestination.beginswith("gsiftp://")) {
+      // GSIFTP upload
+      uploadcmd="globus-url-copy "; uploadcmd += stagefile.c_str(); uploadcmd += " "; uploadcmd += mDestination.c_str();
+    }
+  }
+
+  // --------------------------------------------------------------------
+  // create a transfer/stagein script
+  // --------------------------------------------------------------------
   ss << "#!/bin/bash" << std::endl;
   ss << "SCRIPTNAME=$0" << std::endl;
   ss << "SOURCE=$1" << std::endl;
@@ -199,7 +431,14 @@ void TransferJob::DoIt(){
   ss << "[ -f $FILERETURN ] && rm $FILERETURN" << std::endl;
   ss << "touch $FILEOUTPUT" << std::endl;
   ss << "chown daemon:daemon $FILEOUTPUT" << std::endl;
-  ss << "eoscp -u 2 -g 2 -R -n -p -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+  if (downloadcmd.length()) {
+    // if we use an external protocol
+    ss << downloadcmd.c_str();
+    ss << "eoscp -u 2 -g 2 -R -n -p -t $BANDWIDTH \"-\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+  } else {
+    // if we use XRootD protocol on both ends
+    ss << "eoscp -u 2 -g 2 -R -n -p -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+  }
   ss << "PID=$!" << std::endl;
   ss << "AFTER=$(date +%s)" << std::endl;
   ss << "DIFFTIME=$(( $AFTER - $BEFORE ))" << std::endl;
@@ -213,138 +452,121 @@ void TransferJob::DoIt(){
   ss << "then" << std::endl;
   ss << "kill -9 $PID 2> /dev/null " << std::endl;
   ss << "fi" << std::endl;
-  ss << "rm -rf $SCRIPTNAME" << std::endl;
+  //  ss << "rm -rf $SCRIPTNAME" << std::endl;
   ss << "if [ -e $FILERETURN ] " << std::endl;
   ss << "then" << std::endl;
-  ss << "rm -rf $FILERETURN "<< std::endl;
+  //  ss << "rm -rf $FILERETURN "<< std::endl;
   ss << "exit 0; " << std::endl;
   ss << "else " << std::endl;
   ss << "exit 255; " << std::endl;
   ss << "fi" << std::endl;
-   
-  fileName = fileName + NewUuid() + ".sh";
+
+  // store the script
+  fileName = fileName + uuid + ".sh";   
   std::ofstream file;
   file.open(fileName.c_str());
   file << ss.str();
   file.close();
-  
-  std::string mSource      = GetSourceUrl();
-  std::string mDestination = GetTargetUrl();
 
-  // retrieve bandwidth from the opaque tx.bandwidth tag if defined
-  if ((mJob) && (mJob->GetEnv()) && (mJob->GetEnv()->Get("tx.bandwidth") ) ) {
-    int bandwidth = atoi(mJob->GetEnv()->Get("tx.bandwidth"));
-    if ( (bandwidth <0) || (bandwidth > 100000) ) {
-      // we limit at 100 GB/s ;-)
-      bandwidth = 100000;
-    }
+  if (stagefile.length()) {
+    // --------------------------------------------------------------------
+    // create a stageout script
+    // --------------------------------------------------------------------
+    so << "#!/bin/bash" << std::endl;
+    so << "SCRIPTNAME=$0" << std::endl;
+    so << "SOURCE=$1" << std::endl;
+    so << "DEST=$2" << std::endl;
+    so << "TOTALTIME=$3" << std::endl;
+    so << "BANDWIDTH=$4" << std::endl;
+    so << "FILEOUTPUT=$5" << std::endl;
+    so << "FILERETURN=$6" << std::endl;
+    so << "BEFORE=$(date +%s)" << std::endl;
+    so << "[ -f $FILEOUTPUT ] && rm $FILEOUTPUT" << std::endl;
+    so << "[ -f $FILERETURN ] && rm $FILERETURN" << std::endl;
+    so << "touch $FILEOUTPUT" << std::endl;
+    so << "chown daemon:daemon $FILEOUTPUT" << std::endl;
+    so << uploadcmd.c_str();
+    so << " 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+    so << "PID=$!" << std::endl;
+    so << "AFTER=$(date +%s)" << std::endl;
+    so << "DIFFTIME=$(( $AFTER - $BEFORE ))" << std::endl;
+    so << "while kill -0 $PID 2>/dev/null && [[ $DIFFTIME -lt $TOTALTIME ]]; do" << std::endl;
+    so << "sleep 1" << std::endl;
+    so << "AFTER=$(date +%s)" << std::endl;
+    so << "DIFFTIME=$(( $AFTER - $BEFORE ))" << std::endl;
+    so << "done" << std::endl;
+    so << "chown daemon:daemon $FILERETURN 2>/dev/null" << std::endl;
+    so << "if kill -0 $PID 2>/dev/null " << std::endl;
+    so << "then" << std::endl;
+    so << "kill -9 $PID 2> /dev/null " << std::endl;
+    so << "fi" << std::endl;
+    //    so << "rm -rf $SCRIPTNAME" << std::endl;
+    so << "if [ -e $FILERETURN ] " << std::endl;
+    so << "then" << std::endl;
+    //    so << "rm -rf $FILERETURN "<< std::endl;
+    so << "exit 0; " << std::endl;
+    so << "else " << std::endl;
+    so << "exit 255; " << std::endl;
+    so << "fi" << std::endl;
+
+    fileStageName=fileName + uuid + ".stageout.sh";
+
+    // store the script    
+    std::ofstream file;
+    file.open(fileStageName.c_str());
+    file << so.str();
+    file.close();
   }
-
-  // retrieve timeout from the opaque tx.timeout tag if defined
-  if ((mJob) && (mJob->GetEnv()) && (mJob->GetEnv()->Get("tx.expires") ) ) {
-    time_t exp = (unsigned long) strtoul(mJob->GetEnv()->Get("tx.expires"),0,10);
-    unsigned long timeout = (time(NULL) - exp);
-    if (timeout > 86400) {
-      // we cut off at a day - this makes otherwise no sense
-      timeout = 86400;
-    }
-    if (timeout < 1) {
-      // we cut off timeouts less than 1 seconds
-      timeout = 1;
-    }
-    mTimeOut = timeout;
-  }
-  
-  // retrieve streams from the opaque tx.streams tag if defined
-  if ((mJob) && (mJob->GetEnv()) && (mJob->GetEnv()->Get("tx.streams") ) ) {
-    mStreams = atoi(mJob->GetEnv()->Get("tx.streams"));
-    if ( (mStreams <0) || (mStreams > 16) ) {
-      // for crazy numbers we default to a single stream
-      mStreams=1;
-    }
-  }
-
-  // check if this is a scheduled transfer
-  if ((mJob) && (mJob->GetEnv()) && (mJob->GetEnv()->Get("tx.id") ) ) {
-    mId = strtoll(mJob->GetEnv()->Get("tx.id"),0,10);
-  }
-
-  bool iskrb5=false;
-  bool isgsi=false;
-  
-  // extract credentials (if any)
-  if ((mJob) && (mJob->GetEnv()) && (mJob->GetEnv()->Get("tx.auth.cred")) && (mJob->GetEnv()->Get("tx.auth.digest"))) {
-    const char* symmsg = mJob->GetEnv()->Get("tx.auth.cred");
-    const char* symkey = mJob->GetEnv()->Get("tx.auth.digest");
-    eos::common::SymKey* key = 0;
-    if ((key = eos::common::gSymKeyStore.GetKey(symkey))) {
-      XrdOucString todecrypt = symmsg;
-      XrdOucString decrypted ="";
-
-      if (XrdMqMessage::SymmetricStringDecrypt(todecrypt, decrypted, (char*)key->GetKey())) {
-	if (decrypted.beginswith("krb5:")) {
-	  decrypted.erase(0,5);
-	  iskrb5=true;
-	}
-	if (decrypted.beginswith("gsi:")) {
-	  decrypted.erase(0,4);
-	  isgsi=true;
-	}
-	
-	// now base64decode the decrypted credential
-	char* credential=0;
-	unsigned int credentiallen=0;
-	if (eos::common::SymKey::Base64Decode(decrypted, credential, credentiallen)) {
-	  if (credential) {
-	    int fd = open(fileCredential.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-	    if (fd>=0) {
-	      if ( (write(fd, credential, credentiallen)) != (ssize_t)credentiallen) {
-		eos_static_err("unable to write all bytes to %s", fileCredential.c_str());
-		iskrb5=isgsi=false;
-	      }
-	      close(fd);
-	    } else {
-	      eos_static_err("unable to open credential file %s", fileCredential.c_str());
-	      iskrb5=isgsi=false;
-	    }
-	    memset(credential,0, credentiallen);
-	    free(credential);
-	  } else {
-	    iskrb5=isgsi=false;
-	    eos_static_err("unable to base64 decode the credential %s", decrypted.c_str());
-	  }
-	}
-      } else {
-	eos_static_err("cannot decode message %s", symmsg);
-	iskrb5=isgsi=false;
-      } 
+   
+  if (mId) {
+    if (stagefile.length()) {
+      // we are staging, set it to stagein
+      SendState(eos::mgm::TransferEngine::kStageIn);
     } else {
-      eos_static_err("miss the symkey for digest %s", symkey);
-      iskrb5=isgsi=false;
-    } 
+      SendState(eos::mgm::TransferEngine::kRunning);}
   }
-  
 
-  if (mId) {SendState(eos::mgm::TransferEngine::kRunning);}
+  // -----------------------------------------------------------------------
+  // setup the command to run for the transfer/stagein and evt. the stageout
+  // -----------------------------------------------------------------------
   if (iskrb5) {
     command << "unset XrdSecPROTOCOL; KRB5CCNAME="; command << fileCredential; command << " ";
+    commando << "KRB5CCNAME="; commando << fileCredential; commando << " ";
   } else {
     if (isgsi) {
       command <<"unset XrdSecPROTOCOL; X509_USER_PROXY="; command << fileCredential; command << " ";
+      commando <<"X509_USER_PROXY="; commando << fileCredential; commando << " ";
     } else {
       command <<"unset XrdSecPROTOCOL; ";
     }
   }
 
   command << "/bin/sh ";  command << fileName + " \"";
-  command << mSource + "\" \"";    
-  command << mDestination + "\" ";
-  command << ToString(mTimeOut) + " ";
+  command << mSource.c_str(); command << "\" \"";   
+  if (!stagefile.length()) {
+    // the target is XRootD protocol
+    command << mDestination.c_str(); command << "\" ";
+    // the target is an external protocol, we use a stage file
+  } else {
+    command << stagefile.c_str(); command << "\" ";
+  }
+  command << ToString(mTimeOut) + " "; 
   command << ToString(mBandWidth) + " ";
   command << fileOutput + " ";
   command << fileResult + " ";
 
-  eos_static_debug("executing %s", command.str().c_str());
+  eos_static_debug("executing transfer/stagein %s", command.str().c_str());
+  
+  if (stagefile.length()) {
+    commando << "/bin/sh ";  commando << fileStageName + " \"";
+    commando << mSource.c_str(); commando << "\" \"";   
+    commando << mDestination.c_str(); commando << "\" ";
+    commando << ToString(mTimeOut) + " "; 
+    commando << ToString(mBandWidth) + " ";
+    commando << fileStageOutput + " ";
+    commando << fileResult + " ";
+    eos_static_debug("executing stagout %s", commando.str().c_str());
+  }
 
   // avoid cloning of FDs on fork
   eos::common::CloExec::All();
@@ -353,18 +575,45 @@ void TransferJob::DoIt(){
 
   // now set the transfer state and send the log output
   if (WEXITSTATUS(rc)) {
-    eos_static_err("%s returned %d", command.str().c_str(), rc);
+    eos_static_err("transfer returned %d", command.str().c_str(), rc);
     if (mId) {SendState(eos::mgm::TransferEngine::kFailed, fileOutput.c_str());}
   } else {
-    if (mId) {SendState(eos::mgm::TransferEngine::kDone, fileOutput.c_str());}
+    if (stagefile.length()) {
+      SendState(eos::mgm::TransferEngine::kStageOut);
+      // we have still to do the stage-out step with the external protocol
+      rc = system(commando.str().c_str());
+      if (WEXITSTATUS(rc)) {
+	eos_static_err("transfer returned %d", commando.str().c_str(), rc);
+	// send failed status
+	if (mId) {SendState(eos::mgm::TransferEngine::kFailed, fileOutput.c_str());}
+      } else {
+	// send done status
+	if (mId) {SendState(eos::mgm::TransferEngine::kDone, fileOutput.c_str());}
+      }
+    } else {
+      // send done status
+      if (mId) {SendState(eos::mgm::TransferEngine::kDone, fileOutput.c_str());}
+    }
   }
 
+  // ---- get the static log lock mutex ----
+  eoscpLogMutex.Lock(); 
   // move the output to the log file
   std::string cattolog = "touch /var/log/eos/fst/eoscp.log; cat "; cattolog += fileOutput.c_str(); cattolog +=" >> /var/log/eos/fst/eoscp.log 2>/dev/null";
   system(cattolog.c_str());
+  
+  if (stagefile.length()) {
+    // move the output to the log file
+    std::string cattolog = "touch /var/log/eos/fst/eoscp.log; echo ______________________ STAGEOUT _____________________ >> /var/log/eos/fst/eoscp.log 2>/dev/null; cat "; cattolog += fileStageOutput.c_str(); cattolog +=" | grep -v \"bytes remaining\" >> /var/log/eos/fst/eoscp.log 2>/dev/null;"; system(cattolog.c_str());
+  }
+
+  // ---- release the static log lock mutex ----
+  eoscpLogMutex.UnLock();
 
   // remove the result files
   rc = unlink(fileOutput.c_str());
+  if (rc) rc = 0; // for compiler happyness
+  rc = unlink(fileStageOutput.c_str());
   if (rc) rc = 0; // for compiler happyness
   rc = unlink(fileResult.c_str());
   if (rc) rc = 0; // for compiler happyness
@@ -372,7 +621,12 @@ void TransferJob::DoIt(){
   if (rc) rc = 0; // for compiler happyness
   rc = unlink(fileName.c_str());
   if (rc) rc = 0; // for compiler happyness
-
+  rc = unlink(fileStageName.c_str());
+  if (rc) rc = 0; // for compiler happyness
+  if (stagefile.length()) {
+    rc = unlink(stagefile.c_str());
+    if (rc) rc = 0; // for compiler happyness
+  }
   // we are over running
   mQueue->DecRunning();
 }

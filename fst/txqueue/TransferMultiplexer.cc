@@ -101,9 +101,9 @@ void* TransferMultiplexer::ThreadProc(void){
 
   while (1) {
     {
+      XrdSysThread::SetCancelOff();
       eos::common::RWMutexReadLock lock(Mutex);
       for (size_t i=0; i< mQueues.size(); i++) {
-	XrdSysThread::SetCancelOff();
 	
 	while( mQueues[i]->GetQueue()->Size()) {
 	  // look in all registered queues
@@ -111,7 +111,6 @@ void* TransferMultiplexer::ThreadProc(void){
 	  
 	  int freeslots = mQueues[i]->GetSlots() - mQueues[i]->GetRunning();
 	  
-	  fprintf(stderr,"slots = %d\n", mQueues[i]->GetSlots());
 	  if (freeslots <=0 )
 	    break; 
 	  
