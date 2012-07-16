@@ -2415,6 +2415,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       XrdOucString subcmd  = opaque.Get("mgm.subcmd")?opaque.Get("mgm.subcmd"):"";
       XrdOucString src     = opaque.Get("mgm.txsrc")?opaque.Get("mgm.txsrc"):"";
       XrdOucString dst     = opaque.Get("mgm.txdst")?opaque.Get("mgm.txdst"):"";
+      src = XrdMqMessage::UnSeal(src);
+      dst = XrdMqMessage::UnSeal(dst);
       XrdOucString rate    = opaque.Get("mgm.txrate")?opaque.Get("mgm.txrate"):"";
       XrdOucString streams = opaque.Get("mgm.txstreams")?opaque.Get("mgm.txstreams"):"";
       XrdOucString group   = opaque.Get("mgm.txgroup")?opaque.Get("mgm.txgroup"):"";
@@ -2441,6 +2443,36 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	XrdOucString CredentialB64;
 
 	// -------------------------------------------
+	// check that the path names are valid
+	XrdOucString scheck=src.c_str(); scheck.erase(scheck.find("?"));
+	XrdOucString dcheck=dst.c_str(); dcheck.erase(dcheck.find("?"));
+	const char* inpath=0;
+	{
+	  inpath = scheck.c_str();
+	  NAMESPACEMAP;
+	  if (!path) {
+	    // illegal source path
+	    retc = EILSEQ;
+	    stdErr += "error: illegal characters in path name\n";
+	    MakeResult(false);
+	    return SFS_OK;
+	  }
+	}
+	
+	{
+	  inpath = dcheck.c_str();
+	  NAMESPACEMAP;
+	  if (!path) {
+	    // illegal destination path
+	    retc = EILSEQ;
+	    stdErr += "error: illegal characters in path name\n";
+	    MakeResult(false);
+	    return SFS_OK;
+
+	  }
+	}
+	
+	// -------------------------------------------
 	// modify the the URLs for /eos/ paths
 	if (src.beginswith("/eos/")) {
 	  src.insert("root:///",0);
@@ -2453,14 +2485,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 	// -------------------------------------------
 	// check s3 opaque information
-	if (src.beginswith("s3://")) {
-	  if ( (src.find("s3.accesskey=") == STR_NPOS) ) {
+	if (src.beginswith("as3://")) {
+	  if ( (src.find("s3.key=") == STR_NPOS) ) {
 	    retc = EINVAL;
-	    stdErr += "error: you have to add the s3.accesskey to the URL as ?s3.accesskey=<>\n";
+	    stdErr += "error: you have to add the s3.key to the URL as ?s3.key=<>\n";
 	    MakeResult(false);
 	    return SFS_OK;
 	  }
-	  if ( (src.find("s3.secretkey=") == STR_NPOS) ) {
+	  if ( (src.find("s3.key=") == STR_NPOS) ) {
 	    retc = EINVAL;
 	    stdErr += "error: you have to add the s3.secretkey to the URL as ?s3.secretkey=<>\n";
 	    MakeResult(false);
@@ -2468,16 +2500,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  }
 	}
 
-	if (dst.beginswith("s3://")) {
-	  if ( (dst.find("s3.accesskey=") == STR_NPOS) ) {
+	if (dst.beginswith("as3://")) {
+	  if ( (dst.find("s3.key=") == STR_NPOS) ) {
 	    retc = EINVAL;
-	    stdErr += "error: you have to add the s3.accesskey to the URL as ?s3.accesskey=<>\n";
+	    stdErr += "error: you have to add the s3.key to the URL as ?s3.key=<>\n";
 	    MakeResult(false);
 	    return SFS_OK;
 	  }
-	  if ( (dst.find("s3.secretkey=") == STR_NPOS) ) {
+	  if ( (dst.find("s3.key=") == STR_NPOS) ) {
 	    retc = EINVAL;
-	    stdErr += "error: you have to add the s3.secretkey to the URL as ?s3.secretkey=<>\n";
+	    stdErr += "error: you have to add the s3.key to the URL as ?s3.key=<>\n";
 	    MakeResult(false);
 	    return SFS_OK;
 	  }
@@ -2558,7 +2590,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  }
 	}
 
-	if ( (!src.beginswith("s3:")) &&
+	if ( (!src.beginswith("as3:")) &&
 	     (!src.beginswith("root:")) &&
 	     (!src.beginswith("gsiftp:")) &&
 	     (!src.beginswith("http:")) &&
@@ -2569,7 +2601,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  return SFS_OK;
 	}
 
-	if ( (!dst.beginswith("s3:")) &&
+	if ( (!dst.beginswith("as3:")) &&
 	     (!dst.beginswith("root:")) &&
 	     (!dst.beginswith("gsiftp:")) &&
 	     (!dst.beginswith("http:")) &&
@@ -2613,7 +2645,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  if (retc) {
 	    stdErr += "error: transfer engine was not running\n";
 	  } else {
-	    stdOut += "success: enabled transfer engine\n";
+	    stdOut += "success: disabled transfer engine\n";
 	  }
 	} else {
           retc = EPERM;
@@ -2622,7 +2654,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
 
       if ( (subcmd == "reset") ) {
-	retc = gTransferEngine.Reset(stdOut, stdErr, vid_in);
+	retc = gTransferEngine.Reset(id, option,group, stdOut, stdErr, vid_in);
       }
 
       if ( (subcmd == "ls") ) {
