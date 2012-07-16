@@ -90,6 +90,8 @@ Logging::shouldlog(const char* func, int priority)
 void
 Logging::log(const char* func, const char* file, int line, const char* logid, const Mapping::VirtualIdentity &vid, const char* cident, int priority, const char *msg, ...) 
 {
+  static int logmsgbuffersize=1024*1024;
+
   // short cut if log messages are masked
   if (!((LOG_MASK(priority) & gLogMask)))
     return;
@@ -105,7 +107,7 @@ Logging::log(const char* func, const char* file, int line, const char* logid, co
 
   if (!buffer) {
     // 1 M print buffer
-    buffer = (char*) malloc(1024*1024);
+    buffer = (char*) malloc(logmsgbuffersize);
   }
     
   XrdOucString File = file;
@@ -154,8 +156,9 @@ Logging::log(const char* func, const char* file, int line, const char* logid, co
   }
 
   char*  ptr = buffer + strlen(buffer);
+	  
   // limit the length of the output to buffer-1 length
-  vsnprintf(ptr, (ptr-buffer-1), msg, args);
+  vsnprintf(ptr, logmsgbuffersize - (ptr-buffer-1), msg, args);
   
   fprintf(stderr,"%s",buffer);
   fprintf(stderr,"\n");

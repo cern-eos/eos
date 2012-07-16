@@ -45,13 +45,13 @@ EOSCOMMONNAMESPACE_BEGIN
 //! 
 //! Example
 //! eos::common::Timing tm("Test");
-//! TIMING("START",&tm);
+//! COMMONTIMING("START",&tm);
 //! ...
-//! TIMING("CHECKPOINT1",&tm);
+//! COMMONTIMING("CHECKPOINT1",&tm);
 //! ...
-//! TIMING("CHECKPOINT2",&tm);
+//! COMMONTIMING("CHECKPOINT2",&tm);
 //! ...
-//! TIMING("STOP", &tm);
+//! COMMONTIMING("STOP", &tm);
 //! tm.Print();
 //! fprintf(stdout,"realtime = %.02f", tm.RealTime());
 /*----------------------------------------------------------------------------*/
@@ -139,7 +139,7 @@ public:
 // ---------------------------------------------------------------------------
 //! Macro to place a measurement throughout the code
 // ---------------------------------------------------------------------------
-#define TIMING( __ID__,__LIST__)                                \
+#define COMMONTIMING( __ID__,__LIST__)                                \
   do {								\
     struct timeval tp;						\
     struct timezone tz;						\

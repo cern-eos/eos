@@ -34,6 +34,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
+#include "common/Timing.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
@@ -534,7 +535,8 @@ public:
     FILE* fd = popen(shellcommand, "r");
     if (fd) {
       char buffer[1024];
-      int nread = fread((void*)buffer,1024,0,fd);
+      buffer[0]=0;
+      int nread = fread((void*)buffer,1,1024,fd);
       pclose(fd);
       if ( (nread >0) && (nread <1024) ) {
 	buffer[nread]=0;
@@ -542,6 +544,24 @@ public:
       }
     }
     return LLONG_MAX;
+  }
+
+  // ---------------------------------------------------------------------------
+  /** 
+   * Return the time as <seconds>.<nanoseconds> in a string
+   * @param XrdOucString where to store the time as text
+   * @return const char* to XrdOucString object passed
+   */
+  // ---------------------------------------------------------------------------  
+  static const char*
+  TimeNowAsString(XrdOucString& stime)
+  {
+    struct timespec ts;
+    eos::common::Timing::GetTimeSpec(ts);
+    char tb[128];
+    snprintf(tb,sizeof(tb)-1,"%lu.%lu", ts.tv_sec, ts.tv_nsec);
+    stime = tb;
+    return stime.c_str();
   }
 
   // ---------------------------------------------------------------------------

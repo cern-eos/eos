@@ -37,6 +37,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysAtomics.hh"
+#include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/
 #include <stdio.h>
 #define _MULTI_THREADED
@@ -120,7 +121,8 @@ public:
 	    throw "pthread_rwlock_wrlock failed";
 	  } else {
 	    fprintf(stderr,"==== WRITE LOCK PENDING ==== TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this); 
-	    usleep(100000);
+	    XrdSysTimer msSleep;
+	    msSleep.Wait(500);
 	  }
 	} else {
 	  //	  fprintf(stderr,"=== WRITE LOCK ACQUIRED  ==== TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
