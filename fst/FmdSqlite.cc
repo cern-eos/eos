@@ -380,7 +380,7 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
 	  
 	  delete fmd;
 	  Mutex.UnLockRead();
-        return 0;
+	  return 0;
 	}
       }
       
@@ -398,7 +398,8 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
       gettimeofday(&tv, &tz);
 
       Mutex.UnLockRead(); // <--
-      Mutex.LockWrite();  // -->
+
+      eos::common::RWMutexWriteLock lock(Mutex); // --> (return)
 
       FmdSqliteMap[fsid][fid].uid = uid;
       FmdSqliteMap[fsid][fid].gid = gid;
@@ -410,13 +411,14 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
       FmdSqliteMap[fsid][fid].ctime_ns = FmdSqliteMap[fsid][fid].mtime_ns = FmdSqliteMap[fsid][fid].atime_ns = tv.tv_usec*1000;
       
       FmdSqlite* fmd = new FmdSqlite(fid,fsid);
-      if (!fmd) return 0;
+      if (!fmd) {
+	return 0;
+      }
       
       // make a copy of the current record
       fmd->Replicate(FmdSqliteMap[fsid][fid]);
 
-      Mutex.UnLockWrite(); // <--      
-      if (Commit(fmd)) {
+      if (Commit(fmd,false)) {
 	eos_debug("returning meta data block for fid %d on fs %d", fid, (unsigned long) fsid);
 	// return the mmaped meta data block
 
@@ -490,7 +492,7 @@ FmdSqliteHandler::DeleteFmd(eos::common::FileId::fileid_t fid, eos::common::File
  */
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::Commit(FmdSqlite* fmd)
+FmdSqliteHandler::Commit(FmdSqlite* fmd, bool lockit)
 {
   if (!fmd)
     return false;
@@ -505,14 +507,24 @@ FmdSqliteHandler::Commit(FmdSqlite* fmd)
   fmd->fMd.mtime = fmd->fMd.atime = tv.tv_sec;
   fmd->fMd.mtime_ns = fmd->fMd.atime_ns = tv.tv_usec * 1000;
 
-  eos::common::RWMutexWriteLock lock(Mutex);
+
+  if (lockit) {
+    // ---->
+    Mutex.LockWrite();
+  }
 
   if (FmdSqliteMap.count(fsid)) {
     // update in-memory
     FmdSqliteMap[fsid][fid] = fmd->fMd;
+    if (lockit) {
+      Mutex.UnLockWrite(); // <----
+    }
     return CommitFromMemory(fid,fsid);
   } else {
     eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
+    if (lockit) {
+      Mutex.UnLockWrite(); // <----
+    }
   }
 
   return false;

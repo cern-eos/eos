@@ -314,7 +314,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Commit a modified fmd record
   // ---------------------------------------------------------------------------
-  bool Commit(FmdSqlite* fmd);
+  bool Commit(FmdSqlite* fmd, bool lockit=true);
 
   // ---------------------------------------------------------------------------
   //! Commit a modified fmd record without locks and change of modification time
