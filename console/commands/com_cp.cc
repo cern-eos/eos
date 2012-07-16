@@ -54,6 +54,22 @@ int com_cp_usage() {
   fprintf(stdout,"       eos cp /var/data/ /eos/foo/user/data/                         : copy all plain files in /var/data to /eos/foo/user/data/\n");
   fprintf(stdout,"       eos cp -r /var/data/ /eos/foo/user/data/                      : copy the full hierarchy from /var/data/ to /var/data to /eos/foo/user/data/ => empty directories won't show up on the target!\n");
   fprintf(stdout,"       eos cp -r --checksum --silent /var/data/ /eos/foo/user/data/  : copy the full hierarchy and just printout the checksum information for each file copied!\n");
+  fprintf(stdout,"\nS3:\n");
+  fprintf(stdout,"      URLs have to be written as:\n");
+  fprintf(stdout,"         as3://<hostname>/<bucketname>/<filename> as implemented in ROOT\n");
+  fprintf(stdout,"      or as3:<bucketname>/<filename> with environment variable S3_HOSTNAME set\n");
+  fprintf(stdout,"     and as3:....?s3.id=<id>&s3.key=<key>\n\n");
+  fprintf(stdout,"      The access id can be defined in 3 ways:\n");
+  fprintf(stdout,"      env S3_ACCESS_ID=<access-id>          [as used in ROOT  ]\n");
+  fprintf(stdout,"      env S3_ACCESS_KEY_ID=<access-id>      [as used in libs3 ]\n\n");
+  fprintf(stdout,"      <as3-url>?s3.id=<access-id>           [as used in EOS transfers\n");
+  fprintf(stdout,"      The access key can be defined in 3 ways:\n");
+  fprintf(stdout,"      env S3_ACCESS_KEY=<access-key>        [as used in ROOT  ]\n");
+  fprintf(stdout,"      env S3_SECRET_ACCESS_KEY=<access-key> [as used in libs3 ]\n");
+  fprintf(stdout,"      <as3-url>?s3.key=<access-key>         [as used in EOS transfers\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"      If <src> and <dst> are using S3, we are using the same credentials on both ands and the target credentials will overwrite source credentials!\n");
+  
   return (0);
 }
 
@@ -314,7 +330,7 @@ com_cp (char* argin) {
 
   // create the target directory if it is a local one
   if ((!target.beginswith("/eos"))) {
-    if ( (target.find(":/")==STR_NPOS) && (!target.beginswith("s3:")) ) {
+    if ( (target.find(":/")==STR_NPOS) && (!target.beginswith("as3:")) ) {
       if (target.endswith("/")) {
 	XrdOucString mktarget = "mkdir --mode 755 -p "; mktarget += target.c_str();
 	system(mktarget.c_str());
@@ -363,19 +379,48 @@ com_cp (char* argin) {
     // ------------------------------------------
     // S3 file
     // ------------------------------------------
-    if (source_list[nfile].beginswith("s3:")) {
+    if (source_list[nfile].beginswith("as3:")) {
+      // extract evt. the hostname
+      // the hostname is part of the URL like in ROOT
+      int spos = source_list[nfile].find("/",6);
+      if (spos != STR_NPOS) {
+	XrdOucString hname;
+	hname.assign(source_list[nfile],6,spos-1);
+	setenv("S3_HOSTNAME",hname.c_str(),1);
+	source_list[nfile].erase(4, spos-3);
+      }
+
+      XrdOucString envString = source_list[nfile];
+      int qpos=0;
+      if ( (qpos=envString.find("?"))!= STR_NPOS) {
+	envString.erase(0,qpos+1);
+	XrdOucEnv env(envString.c_str());
+	// extract opaque S3 tags if present
+	if (env.Get("s3.key")) {
+	  setenv("S3_SECRET_ACCESS_KEY", env.Get("s3.key"),1);
+	}
+	if (env.Get("s3.id")) {
+	  setenv("S3_ACCESS_KEY_ID", env.Get("s3.id"),1);
+	}
+	source_list[nfile].erase(source_list[nfile].find("?"));      
+      }
+
+      // apply the ROOT compatability environment variables
+      if (getenv("S3_ACCESS_KEY")) setenv("S3_SECRET_ACCESS_KEY",getenv("S3_ACCESS_KEY"),1);
+      if (getenv("S3_ACESSS_ID"))  setenv("S3_ACCESS_KEY_ID", getenv("S3_ACCESS_ID"),1);
+
       // check that the environment is set
       if (!getenv("S3_ACCESS_KEY_ID") ||
 	  !getenv("S3_HOSTNAME") ||
 	  !getenv("S3_SECRET_ACCESS_KEY")) {
-	fprintf(stderr,"error: you have to set the S3 environment variables S3_ACCESS_KEY_ID, S3_HOSTNAME, S3_SECRET_ACCESS_KEY\n");
+	fprintf(stderr,"error: you have to set the S3 environment variables S3_ACCESS_KEY_ID | S3_ACCESS_ID, S3_HOSTNAME (or use a URI), S3_SECRET_ACCESS_KEY | S3_ACCESS_KEY\n");
 	exit(-1);
       }
       s3env  = "env S3_ACCESS_KEY_ID="; s3env += getenv("S3_ACCESS_KEY_ID");
       s3env +=         " S3_HOSTNAME="; s3env += getenv("S3_HOSTNAME");
       s3env +=" S3_SECRET_ACCESS_KEY="; s3env += getenv("S3_SECRET_ACCESS_KEY");
 
-      XrdOucString s3arg= source_list[nfile].c_str(); s3arg.replace("s3:","");
+      XrdOucString s3arg= source_list[nfile].c_str(); s3arg.replace("as3:","");
 
       // do some bash magic ... sigh
       XrdOucString sizecmd = "bash -c \""; sizecmd +=s3env; sizecmd += " s3 head "; sizecmd += s3arg; sizecmd += " | grep Content-Length| awk '{print \\$2}' 2>/dev/null"; sizecmd += "\"";
@@ -458,6 +503,38 @@ com_cp (char* argin) {
     }
     
     arg2 = target;
+
+    if (arg2.beginswith("as3://")) {
+      // apply the ROOT compatability environment variables
+      if (getenv("S3_ACCESS_KEY")) setenv("S3_SECRET_ACCESS_KEY",getenv("S3_ACCESS_KEY"),1);
+      if (getenv("S3_ACESSS_ID"))  setenv("S3_ACCESS_KEY_ID", getenv("S3_ACCESS_ID"),1);
+      // extract opaque S3 tags if present
+
+      XrdOucString envString = arg2;
+      int qpos=0;
+      if ( (qpos=envString.find("?"))!= STR_NPOS) {
+	envString.erase(0,qpos+1);
+	XrdOucEnv env(envString.c_str());
+	// extract opaque S3 tags if present
+	if (env.Get("s3.key")) {
+	  setenv("S3_SECRET_ACCESS_KEY", env.Get("s3.key"),1);
+	}
+	if (env.Get("s3.id")) {
+	  setenv("S3_ACCESS_KEY_ID", env.Get("s3.id"),1);
+	}
+	arg2.erase(source_list[nfile].find("?"));      
+      }
+
+      // the hostname is part of the URL like in ROOT
+      int spos = arg2.find("/",6);
+      if (spos != STR_NPOS) {
+	XrdOucString hname;
+	hname.assign(arg2,6,spos-1);
+	setenv("S3_HOSTNAME",hname.c_str(),1);
+	arg2.erase(4, spos-3);
+      }
+      
+    }
     
     if (arg2.beginswith(".")) {
       arg2.erase(0,2);
@@ -500,7 +577,7 @@ com_cp (char* argin) {
       }
     }
 
-    if ( arg1.beginswith("s3:") || (arg2.beginswith("s3:")) ) {
+    if ( arg1.beginswith("as3:") || (arg2.beginswith("as3:")) ) {
       int rc=system("which s3 >&/dev/null");
       if (WEXITSTATUS(rc)) {
 	fprintf(stderr,"error: you miss the <s3> executable provided by libs3 in your PATH\n");
@@ -566,13 +643,13 @@ com_cp (char* argin) {
       noprogress = true;
     }
 
-    if ( arg1.beginswith("s3:") || arg2.beginswith("s3:") ) {
+    if ( arg1.beginswith("as3:") || arg2.beginswith("as3:") ) {
       char ts[1024]; snprintf(ts,sizeof(ts)-1,"%llu", source_size[nfile]);
       transfersize = ts;
     }
 
-    if ( arg1.beginswith("s3:")) {
-      XrdOucString s3arg= arg1; s3arg.replace("s3:","");
+    if ( arg1.beginswith("as3:")) {
+      XrdOucString s3arg= arg1; s3arg.replace("as3:","");
       cmdline += "s3 get ";
       cmdline += s3arg;
       cmdline += " |";
@@ -587,7 +664,7 @@ com_cp (char* argin) {
       noprogress = true;
     }
 
-    if ( arg2.beginswith("s3:")) {
+    if ( arg2.beginswith("as3:")) {
       rstdout = true;
     }
 
@@ -609,14 +686,14 @@ com_cp (char* argin) {
       cmdline += arg2;
     }
     
-    if ( arg2.beginswith("s3:") ) {
+    if ( arg2.beginswith("as3:") ) {
       // s3 can upload via STDIN setting the upload size externally - yeah!
       cmdline += "| s3 put ";
-      XrdOucString s3arg= arg2; s3arg.replace("s3:","");
+      XrdOucString s3arg= arg2; s3arg.replace("as3:","");
       cmdline += s3arg;
       cmdline += " contentLength=";
       cmdline += transfersize.c_str();
-      cmdline += " >& /dev/null";
+      cmdline += " > /dev/null";
     } 
     
     if(debug)fprintf(stderr,"[eos-cp] running: %s\n", cmdline.c_str());
@@ -644,7 +721,7 @@ com_cp (char* argin) {
       }
     } 
 
-    if ( ((arg2.find(":/")==STR_NPOS) && (!arg2.beginswith("s3:"))) ) {
+    if ( ((arg2.find(":/")==STR_NPOS) && (!arg2.beginswith("as3:"))) ) {
       // this is a local file
       buf.st_size=0;
       if (!stat(targetfile.c_str(), &buf)) {
@@ -676,13 +753,12 @@ com_cp (char* argin) {
 
       if (upload_target.length()) {
 	bool uploadok=false;
-	if (upload_target.beginswith("s3:")) {
-	  XrdOucString s3arg= upload_target; s3arg.replace("s3:","");
+	if (upload_target.beginswith("as3:")) {
+	  XrdOucString s3arg= upload_target; s3arg.replace("as3:","");
  	  cmdline = "s3 put ";
 	  cmdline += s3arg; cmdline += " filename=";
 	  cmdline += arg2; 
-	  if (noprogress) {cmdline += " >& /dev/null";}
-	  if (silent) {cmdline += " >&/dev/null";}
+	  if (noprogress || silent) {cmdline += " >& /dev/null";}
 	  if (debug) {fprintf(stderr,"[eos-cp] running: %s\n", cmdline.c_str());}
 	  int rc=system(cmdline.c_str());
 	  if (WEXITSTATUS(rc)) {

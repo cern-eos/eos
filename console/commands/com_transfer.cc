@@ -88,17 +88,21 @@ com_transfer (char* argin) {
   } while(1);
 
   if (subcmd == "submit") {
-    if ((arg1.find("&")!= STR_NPOS)) {
-      fprintf(stderr,"error: & is not allowed in a path!\n");
-      goto com_usage_transfer;
-    }
 
     if ( (!arg2.beginswith("root://")) &&
+	 (!arg2.beginswith("as3://")) &&
+	 (!arg2.beginswith("gsiftp://")) &&
+	 (!arg2.beginswith("http://")) &&
+	 (!arg2.beginswith("https://")) &&
 	 (!arg2.beginswith("/eos/")) ) {
       goto com_usage_transfer;
     }
 
     if ( (!arg1.beginswith("/eos/")) &&
+	 (!arg1.beginswith("as3://")) &&
+	 (!arg1.beginswith("gsiftp://")) &&
+	 (!arg1.beginswith("http://")) &&
+	 (!arg1.beginswith("https://")) &&
 	 (!arg1.beginswith("root://")) ){
       goto com_usage_transfer;
     }
@@ -107,8 +111,8 @@ com_transfer (char* argin) {
       goto com_usage_transfer;
     }
 
-    in += "&mgm.txsrc="; in += arg1;
-    in += "&mgm.txdst="; in += arg2;
+    in += "&mgm.txsrc="; in += XrdMqMessage::Seal(arg1);
+    in += "&mgm.txdst="; in += XrdMqMessage::Seal(arg2);
     in += "&mgm.txrate="; in += rate;
     in += "&mgm.txstreams="; in += streams;
     in += "&mgm.txgroup="; in += group;
@@ -129,14 +133,14 @@ com_transfer (char* argin) {
     return (0);
   }
 
-  if ( (subcmd == "enable") || (subcmd == "disable") || (subcmd == "reset") || (subcmd == "clear") )  {
+  if ( (subcmd == "enable") || (subcmd == "disable") || (subcmd == "clear") )  {
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
   
   if ( (subcmd == "cancel") || (subcmd == "log") || (subcmd == "resubmit") || (subcmd == "kill") || (subcmd == "purge") ) {
     xid = arg1;
-    if ((subcmd != "purge") && (!xid.length() && (!group.length()))) {
+    if ((subcmd != "purge") && ((subcmd != "reset")) && (!xid.length() && (!group.length()))) {
       goto com_usage_transfer;
     }
     if (!xid.length()) {
@@ -172,7 +176,7 @@ com_transfer (char* argin) {
   fprintf(stdout,"                       : start the transfer engine (you have to be root to do that)\n");
   fprintf(stdout,"transfer disable\n");  
   fprintf(stdout,"                       : stop the transfer engine (you have to be root to do that)\n");
-  fprintf(stdout,"transfer reset [--group=<groupname>]\n");    
+  fprintf(stdout,"transfer reset [<id>|--group=<groupname>]\n");    
   fprintf(stdout,"                       : reset all transfers to 'inserted' state (you have to be root to do that)\n");
   fprintf(stdout,"transfer clear \n");    
   fprintf(stdout,"                       : clear's the transfer database (you have to be root to do that)\n");
@@ -181,6 +185,6 @@ com_transfer (char* argin) {
   fprintf(stdout,"transfer kill <id>|--group=<groupname>\n");
   fprintf(stdout,"                       : kill a running transfer\n");
   fprintf(stdout,"transfer purge [<id>|--group=<groupname>]\n");
-  fprintf(stdout,"                       : remove 'done' transfers from the transfer queue by id, group or all if not specified\n");
+  fprintf(stdout,"                       : remove 'failed' transfers from the transfer queue by id, group or all if not specified\n");
   return (0);
 }
