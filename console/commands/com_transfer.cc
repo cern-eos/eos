@@ -182,25 +182,28 @@ com_transfer (char* argin) {
 	      while(info.replace(" ","&")) {}
 	      XrdOucEnv txinfo(info.c_str());
 
+	      XrdOucString status=txinfo.Get("tx.status");
+
 	      if (!noprogress) {
-		fprintf(stdout,"[eoscp TX] [ %-10s ]\t|", txinfo.Get("tx.status"));
-		int progress = atoi(txinfo.Get("tx.progress"));
-		for (int l=0; l< 20; l++) {
-		  if (l < ( (int) (0.2 * progress))) {
-		    fprintf(stdout,"=");
+		if ( (status!= "done") && (status!= "failed") ) {
+		  fprintf(stdout,"[eoscp TX] [ %-10s ]\t|", txinfo.Get("tx.status"));
+		  int progress = atoi(txinfo.Get("tx.progress"));
+		  for (int l=0; l< 20; l++) {
+		    if (l < ( (int) (0.2 * progress))) {
+		      fprintf(stdout,"=");
+		    }
+		    if (l ==( (int) (0.2 * progress))) {
+		      fprintf(stdout,">");
+		    }
+		    if (l > ( (int) (0.2 * progress))) {
+		      fprintf(stdout,".");
+		    }
 		  }
-		  if (l ==( (int) (0.2 * progress))) {
-		    fprintf(stdout,">");
-		  }
-		  if (l > ( (int) (0.2 * progress))) {
-		    fprintf(stdout,".");
+		  fprintf(stdout,"| %5s%% : %us\r",txinfo.Get("tx.progress"), (unsigned int)(time(NULL)-starttime));
+		  fflush(stdout);
 		}
-		}
-		fprintf(stdout,"| %5s%% : %us\r",txinfo.Get("tx.progress"), (unsigned int)(time(NULL)-starttime));
-		fflush(stdout);
 	      }
 
-	      XrdOucString status=txinfo.Get("tx.status");
 	      if ( (status=="done") || (status=="failed") ) {
 
 		if (!noprogress) {

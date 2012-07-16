@@ -30,12 +30,13 @@
 
 extern XrdOucString serveruri;
 extern char* com_fileinfo (char* arg1);
-
+extern int com_transfer (char* argin);
 int com_cp_usage() {
-  fprintf(stdout,"Usage: cp [--rate=<rate>] [--streams=<n>] [--recursive|-R|-r] [-a] [-n] [-S] [-s|--silent] [-d] [--checksum] <src> <dst>");
+  fprintf(stdout,"Usage: cp [--async] [--rate=<rate>] [--streams=<n>] [--recursive|-R|-r] [-a] [-n] [-S] [-s|--silent] [-d] [--checksum] <src> <dst>");
   fprintf(stdout,"'[eos] cp ..' provides copy functionality to EOS.\n");
   fprintf(stdout,"Options:\n");
   fprintf(stdout,"                                                             <src>|<dst> can be root://<host>/<path>, a local path /tmp/../ or an eos path /eos/ in the connected instanace...\n");
+  fprintf(stdout,"       --async         : run an asynchronous transfer via a gateway server (see 'transfer submit --sync' for the full options)\n");
   fprintf(stdout,"       --rate          : limit the cp rate to <rate>\n");
   fprintf(stdout,"       --streams       : use <#> parallel streams\n");
   fprintf(stdout,"       --checksum      : output the checksums\n");
@@ -77,6 +78,9 @@ int com_cp_usage() {
 /* Cp Interface */
 int
 com_cp (char* argin) {
+  char fullcmd[4096];
+  XrdOucString sarg=argin;
+
   // split subcommands
   XrdOucTokenizer subtokenizer(argin);
   subtokenizer.GetLine();
@@ -111,6 +115,12 @@ com_cp (char* argin) {
   struct timeval tv1,tv2;
   struct timezone tz;
 
+  // check if this is an 'async' command
+  if ( (sarg.find("--async"))!=STR_NPOS) {
+    sarg.replace("--async","submit --sync");
+    snprintf(fullcmd,sizeof(fullcmd)-1, "%s", sarg.c_str());
+    return com_transfer(fullcmd);
+  }
   do {
     option = subtokenizer.GetToken();
     if (!option.length())
