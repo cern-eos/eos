@@ -36,6 +36,7 @@
 #include <stdarg.h>
 #include <iostream>
 #include <openssl/md5.h>
+#include <math.h>
 
 #include <XrdPosix/XrdPosixXrootd.hh>
 #include <XrdOuc/XrdOucString.hh>
@@ -105,10 +106,12 @@ struct timeval abs_start_time;
 struct timeval abs_stop_time;
 struct timezone tz;
 
+std::string progressFile="";
+
 XrdPosixXrootd posixsingleton;
 
 void usage() {
-  fprintf(stderr, "Usage: %s [-5] [-X <type>] [-t <mb/s>] [-h] [-v] [-d] [-l] [-b <size>] [-T <size>] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n",PROGRAM);
+  fprintf(stderr, "Usage: %s [-5] [-X <type>] [-t <mb/s>] [-h] [-v] [-d] [-l] [-b <size>] [-T <size>] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-O <filename>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n",PROGRAM);
   fprintf(stderr, "       -h           : help\n");
   fprintf(stderr, "       -d           : debug mode\n");
   fprintf(stderr, "       -v           : verbose mode\n");
@@ -125,6 +128,7 @@ void usage() {
   fprintf(stderr, "       -t <mb/s>    : reduce the traffic to an average of <mb/s> mb/s\n");
   fprintf(stderr, "       -S <#>       : read from <#> sources in 'parallel'\n");
   fprintf(stderr, "       -D <#>       : write to <#> sources in 'parallel'\n");
+  fprintf(stderr, "       -O <file>    : write progress file to <file> (0.00 - 100.00%%)\n");
   fprintf(stderr, "       -i           : enable transparent staging\n");
   fprintf(stderr, "       -p           : create all needed subdirectories for destination paths\n");
   fprintf(stderr, "       <srcN>       : path/url or - for STDIN\n");
@@ -247,6 +251,26 @@ void print_summary(char* src[MAXSRCDST], char* dst[MAXSRCDST], unsigned long lon
   }
 }
 
+void write_progress(unsigned long long bytesread, unsigned long long size) {
+  static double lastprogress=0;
+  double progress = 100* bytesread / (size?size:1);
+  if (progress >100)progress=100;
+  if ( (fabs(progress - lastprogress) <=1.0) && (progress != 100.))  {
+    // skip this update
+    return;
+  }
+  std::string pf= progressFile; pf += ".tmp";
+  FILE* fd = fopen(pf.c_str(),"w+");
+  if (fd) {
+    fprintf(fd,"%.02f %llu %llu\n", progress, bytesread, size);
+    fclose(fd);
+    if (rename(pf.c_str(), progressFile.c_str())) {
+      fprintf(stderr,"error: renaming of progress file failed (%s=>%s)\n", pf.c_str(), progressFile.c_str());
+    }
+  }
+}
+
+
 void print_progbar(unsigned long long bytesread, unsigned long long size) {
   CERR(("[eoscp] %-24s Total %.02f MB\t|",cpname.c_str(), (float)size/1024/1024));
   for (int l=0; l< 20;l++) {
@@ -278,7 +302,7 @@ int main(int argc, char* argv[]) {
     dest_mode[i] = S_IRWXU | S_IRGRP | S_IROTH;
   }
 
-  while ( (c = getopt(argc, argv, "nshdvlipfe:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:")) != -1) {
+  while ( (c = getopt(argc, argv, "nshdvlipfe:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:O:")) != -1) {
     switch(c) {
     case 'v':
       verbose = 1;
@@ -353,6 +377,9 @@ int main(int argc, char* argv[]) {
         fprintf(stderr,"error: number of parity stripes >= 2\n");
         exit(-1);
       }
+      break;
+    case 'O':
+      progressFile = optarg;
       break;
     case 'u':
       euid = atoi(optarg);
@@ -1048,6 +1075,10 @@ int main(int argc, char* argv[]) {
 
   stopwritebyte = startwritebyte;
   while (1) {
+    if (progressFile.length()) {
+      write_progress(totalbytes, st[0].st_size);
+    }
+
     if (progbar) {
       gettimeofday(&abs_stop_time, &tz);
       for (int i = 0; i < nsrc; i++) {

@@ -48,7 +48,12 @@ private:
   int mStreams;   // number of streams to use
   XrdOucString mSourceUrl;
   XrdOucString mTargetUrl;
+  XrdOucString mProgressFile;
+  float mLastProgress; // last progress value which was broadcasted to the MGM
+
   long long mId;  // the ID is only used for scheduled gateway transfers (managed via 'transfer' console)
+
+  pthread_t mProgressThread; // the id of the thread posting the transfer progress
 
 public:
 
@@ -60,8 +65,13 @@ public:
 
   const char* GetSourceUrl();
   const char* GetTargetUrl();
+  
+  XrdSysMutex SendMutex;  // protecting the send state function against paralle usage
 
-  void SendState(int state, const char* logfile=0);
+  void SendState(int state, const char* logfile=0, float progress=0.0);
+  
+  static void* StaticProgress(void*);
+  void* Progress();
 };
 
 EOSFSTNAMESPACE_END

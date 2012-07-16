@@ -40,6 +40,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <uuid/uuid.h>
+#include <math.h>
 /* ------------------------------------------------------------------------- */
 
 EOSFSTNAMESPACE_BEGIN
@@ -62,6 +63,9 @@ TransferJob::TransferJob(TransferQueue* queue, eos::common::TransferJob* job,  i
   mTargetUrl = "";
   mStreams = 1;
   mId = 0;
+  mProgressThread = 0;
+  mProgressFile = "";
+  mLastProgress = 0.0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -70,10 +74,51 @@ TransferJob::~TransferJob()
   if (mJob) {
     delete mJob;
   }
+
+  if (mProgressThread) {
+    XrdSysThread::Cancel(mProgressThread);
+    XrdSysThread::Join(mProgressThread,NULL);
+    mProgressThread = 0;
+  }
 }
 
 
 /* ------------------------------------------------------------------------- */
+void* TransferJob::StaticProgress(void* arg){
+  return reinterpret_cast<TransferJob*>(arg)->Progress();
+}
+
+/* ------------------------------------------------------------------------- */
+void*
+TransferJob::Progress()
+{
+  XrdSysThread::SetCancelOn();
+  while (1) {
+    eos_static_debug("progress loop");
+    float progress=0;
+    // try to read the progress filename
+    XrdSysThread::SetCancelOff();
+    FILE* fd = fopen(mProgressFile.c_str(),"r");
+    if (fd) {
+      int item = fscanf(fd,"%f\n",&progress);
+      eos_static_debug("progress=%.02f", progress);
+      if (item == 1) {
+	if ( fabs(mLastProgress - progress) > 1) {
+	  // send only if there is a significant change
+	  SendState(0,0,progress);
+	  mLastProgress = progress;
+	}
+      }
+      fclose(fd);
+    }
+    XrdSysThread::SetCancelOn();
+    XrdSysTimer sleeper;
+    sleeper.Wait(1000); // don't report more than 1 Hz
+  }
+  return 0;
+}
+
+
 std::string TransferJob::NewUuid() {
   // create message ID;
   std::string sTmp;
@@ -136,29 +181,40 @@ TransferJob::GetTargetUrl()
 }
 
 /* ------------------------------------------------------------------------- */
-void TransferJob::SendState(int state, const char* logfile) 
+void TransferJob::SendState(int state, const char* logfile, float progress) 
 {
+  XrdSysMutexHelper lock(SendMutex);
   // assemble the opaque tags to be send to the manager
   XrdOucString txinfo = "/?mgm.pcmd=txstate&tx.id=";
   XrdOucString sizestring;
+
   txinfo += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) mId);
-  txinfo += "&tx.state="; txinfo += state;
 
-  // log state transitions in the FST log file
-  eos_static_info("txid=%lld state=%s", mId, eos::mgm::TransferEngine::GetTransferState(state));
-  if (logfile) {
-    XrdOucString loginfob64="";
-    std::string loginfo;
-    eos::common::StringConversion::LoadFileIntoString(logfile, loginfo);
-
-    eos::common::SymKey::Base64Encode((char*)loginfo.c_str(), loginfo.length(),loginfob64);
-    if (loginfob64.length()) {
-      // append this log
-      txinfo += "&tx.log.b64=";
-      txinfo += loginfob64.c_str();
+  if (progress) {
+    char sprogress[16];
+    snprintf(sprogress,sizeof(sprogress)-1,"%.02f",progress);
+    // progress information only
+    txinfo += "&tx.progress="; txinfo += sprogress;
+  } else {
+    // state and/or log
+    txinfo += "&tx.state="; txinfo += state;
+    
+    // log state transitions in the FST log file
+    eos_static_info("txid=%lld state=%s", mId, eos::mgm::TransferEngine::GetTransferState(state));
+    if (logfile) {
+      XrdOucString loginfob64="";
+      std::string loginfo;
+      eos::common::StringConversion::LoadFileIntoString(logfile, loginfo);
+      
+      eos::common::SymKey::Base64Encode((char*)loginfo.c_str(), loginfo.length(),loginfob64);
+      if (loginfob64.length()) {
+	// append this log
+	txinfo += "&tx.log.b64=";
+	txinfo += loginfob64.c_str();
+      }
     }
-    eos_static_debug("sending %s", txinfo.c_str());
   }
+  eos_static_debug("sending %s", txinfo.c_str());
   
   std::string manager = "";
   {
@@ -196,6 +252,10 @@ void TransferJob::DoIt(){
   std::string fileStageOutput = fileName + uuid + ".stageout";          // output file of the stageout script
   std::string fileStageResult = fileName + uuid + ".stageout" + ".ok";  // file containing credentails
   std::string fileCredential = fileName + "." + uuid + ".cred";
+
+  std::string progressFileName = fileName + "." + uuid + ".progress";
+
+  mProgressFile = progressFileName.c_str(); // used by the progress report thread
 
   std::string downloadcmd="";
   std::string uploadcmd="";
@@ -426,6 +486,7 @@ void TransferJob::DoIt(){
   ss << "BANDWIDTH=$4" << std::endl;
   ss << "FILEOUTPUT=$5" << std::endl;
   ss << "FILERETURN=$6" << std::endl;
+  ss << "PROGRESS=$7" << std::endl;
   ss << "BEFORE=$(date +%s)" << std::endl;
   ss << "[ -f $FILEOUTPUT ] && rm $FILEOUTPUT" << std::endl;
   ss << "[ -f $FILERETURN ] && rm $FILERETURN" << std::endl;
@@ -434,10 +495,19 @@ void TransferJob::DoIt(){
   if (downloadcmd.length()) {
     // if we use an external protocol
     ss << downloadcmd.c_str();
-    ss << "eoscp -u 2 -g 2 -R -n -p -t $BANDWIDTH \"-\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+    if (mId) {
+      ss << "eoscp -u 2 -g 2 -R -n -p -O $PROGRESS -t $BANDWIDTH \"-\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+    } else {
+      ss << "eoscp -u 2 -g 2 -n -p -O $PROGRESS -t $BANDWIDTH \"-\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+    }
+
   } else {
     // if we use XRootD protocol on both ends
-    ss << "eoscp -u 2 -g 2 -R -n -p -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+    if (mId) {
+      ss << "eoscp -u 2 -g 2 -n -p -O $PROGRESS -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+    } else {
+      ss << "eoscp -u 2 -g 2 -R -n -p -O $PROGRESS -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+    }
   }
   ss << "PID=$!" << std::endl;
   ss << "AFTER=$(date +%s)" << std::endl;
@@ -480,6 +550,7 @@ void TransferJob::DoIt(){
     so << "BANDWIDTH=$4" << std::endl;
     so << "FILEOUTPUT=$5" << std::endl;
     so << "FILERETURN=$6" << std::endl;
+    so << "PROGRESS=$7" << std::endl;
     so << "BEFORE=$(date +%s)" << std::endl;
     so << "[ -f $FILEOUTPUT ] && rm $FILEOUTPUT" << std::endl;
     so << "[ -f $FILERETURN ] && rm $FILERETURN" << std::endl;
@@ -554,6 +625,7 @@ void TransferJob::DoIt(){
   command << ToString(mBandWidth) + " ";
   command << fileOutput + " ";
   command << fileResult + " ";
+  command << progressFileName + " ";
 
   eos_static_debug("executing transfer/stagein %s", command.str().c_str());
   
@@ -565,11 +637,17 @@ void TransferJob::DoIt(){
     commando << ToString(mBandWidth) + " ";
     commando << fileStageOutput + " ";
     commando << fileResult + " ";
+    commando << progressFileName + " ";
     eos_static_debug("executing stagout %s", commando.str().c_str());
   }
 
   // avoid cloning of FDs on fork
   eos::common::CloExec::All();
+
+  if (mId) {
+    // start the progress thread
+    XrdSysThread::Run(&mProgressThread, TransferJob::StaticProgress, static_cast<void *>(this), XRDSYSTHREAD_HOLD, "Progress Report Thread");
+  }
 
   int rc = system(command.str().c_str());
 
@@ -609,7 +687,7 @@ void TransferJob::DoIt(){
 
   // ---- release the static log lock mutex ----
   eoscpLogMutex.UnLock();
-
+  
   // remove the result files
   rc = unlink(fileOutput.c_str());
   if (rc) rc = 0; // for compiler happyness
@@ -623,12 +701,16 @@ void TransferJob::DoIt(){
   if (rc) rc = 0; // for compiler happyness
   rc = unlink(fileStageName.c_str());
   if (rc) rc = 0; // for compiler happyness
+  rc = unlink(progressFileName.c_str());
+  if (rc) rc = 0; // for compiler happyness
+
   if (stagefile.length()) {
     rc = unlink(stagefile.c_str());
     if (rc) rc = 0; // for compiler happyness
   }
   // we are over running
   mQueue->DecRunning();
+  delete this;
 }
   
 EOSFSTNAMESPACE_END
