@@ -171,9 +171,11 @@ com_transfer (char* argin) {
 	  }
 	  // prepare the get progress command
 	  in = "mgm.cmd=transfer&mgm.subcmd=ls&mgm.txoption=mp&mgm.txid=";in += id.c_str();
+	  XrdOucString incp=in;
 	  while (1) {
 	    lines.clear();
 	    XrdOucEnv* result = client_admin_command(in);
+	    in = incp;
 	    command_result_stdout_to_vector(lines);
 	    if (result) delete result;
 	    if (lines.size()==2) {
@@ -243,9 +245,11 @@ com_transfer (char* argin) {
 		}
 		return (0);
 	      }
+	    } else {
+	      fprintf(stderr,"error: transfer has been canceled externnaly!\n");
+	      global_retc= EFAULT;
+	      return (0);
 	    }
-	    
-	    sleep(1);
 	  }
 	}
       }
