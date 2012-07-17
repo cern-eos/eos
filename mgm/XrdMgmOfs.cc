@@ -5418,6 +5418,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    float progress = atof(sprogress);
 	    if (!gTransferEngine.SetProgress(id, progress)) {
 	      eos_thread_err("unable to set progress for transfer id=%lld progress=%.02f", id, progress);
+	      return Emsg(epname,error, ENOENT, "set transfer state - transfer has been canceled [EIDRM]","");
 	    } else {
 	      eos_thread_info("id=%lld progress=%.02f", id, progress);
 	    }

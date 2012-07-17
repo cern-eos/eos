@@ -108,6 +108,9 @@ struct timezone tz;
 
 std::string progressFile="";
 
+char *source[MAXSRCDST];
+char *destination[MAXSRCDST];
+
 XrdPosixXrootd posixsingleton;
 
 void usage() {
@@ -287,13 +290,24 @@ void print_progbar(unsigned long long bytesread, unsigned long long size) {
   CERR(("| %.02f %% [%.01f MB/s]\r",100.0*bytesread/size,bytesread/abs_time/1000.0));
 }
 
+//////////////////////////////////////////////////////////////////////
+void abort_handler(int)
+{
+  print_summary_header(source, destination);
+  fprintf(stdout,"error: [eoscp] has been aborted\n");
+  exit(-1);
+}
+
+
 
 int main(int argc, char* argv[]) {
+  signal(SIGINT,abort_handler);
+  signal(SIGQUIT,abort_handler);
   int c;
   mode_t dest_mode[MAXSRCDST];
   int set_mode = 0;
   MD5_Init(&md5ctx);
- 
+
   // analyse source and destination url
   extern char *optarg;
   extern int optind;

@@ -416,14 +416,17 @@ TransferEngine::Scheduler()
 	  // ------------------------------------------------------------
 
 	  // ------------------------------------------------------------
-	  // select random a gw to deal with it
+	  // select round-robin a gw to deal with it
 	  // ------------------------------------------------------------
 	  std::set<std::string>::const_iterator it;
-	  eos::common::RWMutexReadLock viewlock(FsView::gFsView.GwMutex);
+	  eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
+	  eos::common::RWMutexReadLock gwlock(FsView::gFsView.GwMutex);
+
 	  gwpos++;
 	  size_t gwnpos = gwpos%FsView::gFsView.mGwNodes.size();
 	  it = FsView::gFsView.mGwNodes.begin();
 	  std::advance(it, gwnpos);
+	
 	  eos_static_info("selected gw: %s", it->c_str());
 
 	  // ------------------------------------------------------------------------
@@ -470,16 +473,21 @@ TransferEngine::Scheduler()
 	      eos::common::TransferJob* txjob = 0;
 	      for (size_t n=0; n<FsView::gFsView.mGwNodes.size();n++) {
 		if (FsView::gFsView.mNodeView.count(*it)) {
-		  if ( FsView::gFsView.mNodeView[*it]->mGwQueue->Size() < 20 ) {
+		  std::string status = FsView::gFsView.mNodeView[*it]->GetStatus();
+		  // the node should not have the queue filled, have heartbeat and status on
+		  if ( (FsView::gFsView.mNodeView[*it]->mGwQueue->Size() < 20) &&
+		       ((time(NULL)-FsView::gFsView.mNodeView[*it]->GetHeartBeat()) < 10) &&
+		       (status == "online")) {
 		    txjob = new eos::common::TransferJob(transferjob.c_str());
 		    if ( txjob && FsView::gFsView.mNodeView[*it]->mGwQueue->Add(txjob)) {
-		      eos_static_info("Submitted id=%lld to node=%s\n", id, it->c_str());
+		      eos_static_info("msg=submitted id=%lld node=%s\n", id, it->c_str());
 		      SetState(id, kScheduled);
 		      std::string exechost = it->c_str();
 		      SetExecutionHost(id, exechost);
 		      break;
 		    }
 		  } else {
+		    gwpos++;
 		    it++;
 		    if (it == FsView::gFsView.mGwNodes.end()) {
 		      it = FsView::gFsView.mGwNodes.begin();

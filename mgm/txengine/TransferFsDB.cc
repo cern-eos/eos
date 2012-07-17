@@ -287,6 +287,12 @@ bool
 TransferFsDB::SetState(long long id, int state) 
 {
   XrdSysMutexHelper lock(Lock);
+  
+  TransferDB::transfer_t transfer = GetTransfer(id, true);
+
+  if (!transfer.count("status")) {
+    return false;
+  }
   // for id=0 it sets the state on all ids
   XrdOucString query="";
   
@@ -301,7 +307,7 @@ TransferFsDB::SetState(long long id, int state)
     query += ", progress=0.0";
   } else {
     if ( state == TransferEngine::kDone ) {
-      query += "', progress=100.0'";
+      query += "', progress=100.0";
     } else {
       query += "'";
     }
@@ -323,7 +329,6 @@ TransferFsDB::SetState(long long id, int state)
 
   if ( state == TransferEngine::kDone ) {
     // check if this is an interactive transfer or asynchronous
-    TransferDB::transfer_t transfer = GetTransfer(id, true);
     if (transfer["sync"]!="1") {
       // auto archive this transfer
       XrdOucString out,err;
@@ -349,10 +354,17 @@ bool
 TransferFsDB::SetProgress(long long id, float progress) 
 {
   XrdSysMutexHelper lock(Lock);
+
+  TransferDB::transfer_t transfer = GetTransfer(id, true);
+
+  if (!transfer.count("status")) {
+    return false;
+  }
+
   // for id=0 it sets the state on all ids
   XrdOucString query="";
   char sprogress[16];
-  snprintf(sprogress,sizeof(progress)-1,"%.02f", progress);
+  snprintf(sprogress,sizeof(sprogress)-1,"%.02f", progress);
 
   query = "update transfers set progress=";  query += sprogress;
   

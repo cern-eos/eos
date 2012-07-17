@@ -52,9 +52,11 @@ private:
   float mLastProgress; // last progress value which was broadcasted to the MGM
 
   long long mId;  // the ID is only used for scheduled gateway transfers (managed via 'transfer' console)
-
+  
   pthread_t mProgressThread; // the id of the thread posting the transfer progress
-
+  pthread_t mDoItThread;     // the id of the thread running the DoIt function
+  XrdSysMutex mCancelMutex;  // protects the canceled variable
+  bool      mCanceled;       // this indicates that the thread should
 public:
 
   TransferJob(TransferQueue* queue, eos::common::TransferJob* cjob,  int bw, int timeout=7200);
@@ -68,7 +70,7 @@ public:
   
   XrdSysMutex SendMutex;  // protecting the send state function against paralle usage
 
-  void SendState(int state, const char* logfile=0, float progress=0.0);
+  int SendState(int state, const char* logfile=0, float progress=0.0);
   
   static void* StaticProgress(void*);
   void* Progress();

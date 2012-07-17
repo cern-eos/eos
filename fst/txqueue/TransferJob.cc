@@ -66,6 +66,8 @@ TransferJob::TransferJob(TransferQueue* queue, eos::common::TransferJob* job,  i
   mProgressThread = 0;
   mProgressFile = "";
   mLastProgress = 0.0;
+  mDoItThread = 0;
+  mCanceled = false;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -105,7 +107,15 @@ TransferJob::Progress()
       if (item == 1) {
 	if ( fabs(mLastProgress - progress) > 1) {
 	  // send only if there is a significant change
-	  SendState(0,0,progress);
+	  int rc = SendState(0,0,progress);
+	  if (rc == -EIDRM) {
+	    eos_static_warning("job %lld has been canceled", mId);
+	    // cancel this job !
+	    mCancelMutex.Lock();
+	    mCanceled=true;
+	    mCancelMutex.UnLock();
+	    return 0;
+	  }
 	  mLastProgress = progress;
 	}
       }
@@ -181,7 +191,7 @@ TransferJob::GetTargetUrl()
 }
 
 /* ------------------------------------------------------------------------- */
-void TransferJob::SendState(int state, const char* logfile, float progress) 
+int TransferJob::SendState(int state, const char* logfile, float progress) 
 {
   XrdSysMutexHelper lock(SendMutex);
   // assemble the opaque tags to be send to the manager
@@ -222,17 +232,21 @@ void TransferJob::SendState(int state, const char* logfile, float progress)
     manager = eos::fst::Config::gConfig.Manager.c_str();
   }
   
+  int rc=0;
   if (manager.length()) {
-    int rc = gOFS.CallManager(0,0, manager.c_str(), txinfo,0);
+    rc = gOFS.CallManager(0,0, manager.c_str(), txinfo,0);
     if (rc) {
-      eos_static_err("unable to contact manager %s", manager.c_str());
+      if (rc != -EIDRM) {
+	eos_static_err("unable to contact manager %s", manager.c_str());
+      } 
     } else {
       eos_static_debug("send %s to manager %s", txinfo.c_str(), manager.c_str());
     }
   } else {
     eos_static_err("don't know our manager");
+    rc=EINVAL;
   }
-  return ;
+  return rc ;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -243,6 +257,8 @@ void TransferJob::DoIt(){
   // - if we use an external protocol for the destination the transfer is split into two parts
   //   - stagein 
   //   - stageout
+
+  mDoItThread = XrdSysThread::ID();
   std::string fileName = "/var/eos/auth/", sTmp, strBand; // script name for the transfer script
   std::string fileStageName = fileName;
   std::stringstream command, ss, commando, so;
@@ -641,15 +657,61 @@ void TransferJob::DoIt(){
     eos_static_debug("executing stagout %s", commando.str().c_str());
   }
 
-  // avoid cloning of FDs on fork
-  eos::common::CloExec::All();
-
   if (mId) {
     // start the progress thread
     XrdSysThread::Run(&mProgressThread, TransferJob::StaticProgress, static_cast<void *>(this), XRDSYSTHREAD_HOLD, "Progress Report Thread");
   }
 
-  int rc = system(command.str().c_str());
+  // avoid cloning of FDs on fork
+  eos::common::CloExec::All();
+  std::string cattolog;
+  int rc=0;
+
+  if (mId) {
+    int spid=0;
+    if (!(spid=fork())) {
+      setpgrp();
+      execlp("/bin/sh","sh","-c",command.str().c_str(),NULL);
+    } else {
+      // check if we should cancel the call
+      do {
+	if ((waitpid(spid, &rc, WNOHANG))==0) {
+	  bool canceled=false;
+	  // check if we should cancel
+	  mCancelMutex.Lock();
+	  canceled = mCanceled;
+	  mCancelMutex.UnLock();
+	  if (canceled) {
+	    eos_static_warning("sending kill to %d\n", spid);
+	    kill(-spid,SIGKILL);
+	    waitpid(spid,&rc,0);
+	    eoscpLogMutex.Lock(); 
+	    FILE* fout = fopen("/var/log/eos/fst/eoscp.log","a+");
+	    if (fout) {
+	      time_t rawtime;
+	      struct tm* timeinfo;
+	      time(&rawtime);
+	      timeinfo = localtime(&rawtime);
+	      fprintf(fout,"[eoscp] #################################################################\n");
+	      fprintf(fout,"[eoscp] # Date                     : ( %lu ) %s", (unsigned long) rawtime, asctime(timeinfo));
+	      fprintf(fout,"[eoscp] # Aborted transfer id=%lld\n", mId);
+	      fprintf(fout,"[eoscp] # Source Name [00]         : %s\n", mSource.c_str());
+	      fprintf(fout,"[eoscp] # Destination Name [00]    : %s\n", mDestination.c_str());
+	      fclose(fout);
+	    }
+	    eoscpLogMutex.UnLock(); 
+	    goto cleanup;
+	  }
+	  XrdSysTimer sleeper;
+	  sleeper.Wait(100);
+	  continue;
+	}
+	break;
+      } while(1);
+    }
+  } else {
+    rc = system(command.str().c_str());
+  }
 
   // now set the transfer state and send the log output
   if (WEXITSTATUS(rc)) {
@@ -659,7 +721,51 @@ void TransferJob::DoIt(){
     if (stagefile.length()) {
       SendState(eos::mgm::TransferEngine::kStageOut);
       // we have still to do the stage-out step with the external protocol
-      rc = system(commando.str().c_str());
+      if (mId) {
+	int spid=0;
+	if (!(spid=fork())) {
+	  setpgrp();
+	  execlp("/bin/sh","sh","-c",commando.str().c_str(),NULL);
+	} else {
+	  // check if we should cancel the call
+	  do {
+	    if ((waitpid(spid, &rc, WNOHANG))==0) {
+	      bool canceled=false;
+	      // check if we should cancel
+	      mCancelMutex.Lock();
+	      canceled = mCanceled;
+	      mCancelMutex.UnLock();
+	      if (canceled) {
+		eos_static_crit("sending kill to %d\n", spid);
+		kill(-spid,SIGKILL);
+		waitpid(spid,&rc,0);
+		eoscpLogMutex.Lock(); 
+		FILE* fout = fopen("/var/log/eos/fst/eoscp.log","a+");
+		if (fout) {
+		  time_t rawtime;
+		  struct tm* timeinfo;
+		  time(&rawtime);
+		  timeinfo = localtime(&rawtime);
+		  fprintf(fout,"[eoscp] #################################################################\n");
+		  fprintf(fout,"[eoscp] # Date                     : ( %lu ) %s", (unsigned long) rawtime, asctime(timeinfo));
+		  fprintf(fout,"[eoscp] # Aborted transfer id=%lld\n", mId);
+		  fprintf(fout,"[eoscp] # Source Name [00]         : %s\n", mSource.c_str());
+		  fprintf(fout,"[eoscp] # Destination Name [00]    : %s\n", mDestination.c_str());
+		  fclose(fout);
+		}
+		eoscpLogMutex.UnLock(); 
+		goto cleanup;
+	      }
+	      XrdSysTimer sleeper;
+	      sleeper.Wait(100);
+	      continue;
+	    }
+	    break;
+	  } while(1);
+	}
+      } else {
+	rc = system(commando.str().c_str());
+      }
       if (WEXITSTATUS(rc)) {
 	eos_static_err("transfer returned %d", commando.str().c_str(), rc);
 	// send failed status
@@ -676,8 +782,10 @@ void TransferJob::DoIt(){
 
   // ---- get the static log lock mutex ----
   eoscpLogMutex.Lock(); 
-  // move the output to the log file
-  std::string cattolog = "touch /var/log/eos/fst/eoscp.log; cat "; cattolog += fileOutput.c_str(); cattolog +=" >> /var/log/eos/fst/eoscp.log 2>/dev/null";
+
+
+  // move the output to the log file  
+  cattolog = "touch /var/log/eos/fst/eoscp.log; cat "; cattolog += fileOutput.c_str(); cattolog +=" >> /var/log/eos/fst/eoscp.log 2>/dev/null";
   system(cattolog.c_str());
   
   if (stagefile.length()) {
@@ -687,7 +795,9 @@ void TransferJob::DoIt(){
 
   // ---- release the static log lock mutex ----
   eoscpLogMutex.UnLock();
-  
+
+ cleanup:
+
   // remove the result files
   rc = unlink(fileOutput.c_str());
   if (rc) rc = 0; // for compiler happyness
