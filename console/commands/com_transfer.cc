@@ -25,6 +25,15 @@
 #include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
+/* Control-C handler for interactive transfers */
+
+bool txcancel=false;
+
+void txcancel_handler(int) {
+  txcancel=true;
+  signal (SIGINT,  exit_handler);
+}
+
 /* Transfer Interface */
 int
 com_transfer (char* argin) {
@@ -145,6 +154,8 @@ com_transfer (char* argin) {
     if (!sync) {
       global_retc = output_result(client_admin_command(in));
     } else {
+      signal(SIGINT, txcancel_handler);
+
       time_t starttime=time(NULL);
       in += "&mgm.txoption=s";
 
@@ -244,6 +255,16 @@ com_transfer (char* argin) {
 		  global_retc= EFAULT;
 		}
 		return (0);
+	      }
+	      for (size_t i=0; i< 10; i++) {
+		usleep(100000);
+		if (txcancel) {
+		  fprintf(stdout,"\n<Control-C>\n");
+		  in = "mgm.cmd=transfer&mgm.subcmd=cancel&mgm.txid="; in += id.c_str();
+		  output_result(client_admin_command(in));
+		  global_retc=ECONNABORTED;
+		  return (0);
+		}
 	      }
 	    } else {
 	      fprintf(stderr,"error: transfer has been canceled externnaly!\n");
