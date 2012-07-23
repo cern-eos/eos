@@ -205,7 +205,6 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   //............................................................................
   // Add the invalid data blocks to be recovered
   //............................................................................
-  int countOut = 0;
   bool data_corrupted = false;
   bool parity_corrupted = false;
 
@@ -216,8 +215,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   sort( invalid_ids.begin(), invalid_ids.end() );
   
   for ( unsigned int i = 0; i < invalid_ids.size(); i++ ) {
-    outpkts[countOut] = ( unsigned char* ) mDataBlocks[invalid_ids[i]];
-    countOut++;
+    outpkts[i] = ( unsigned char* ) mDataBlocks[invalid_ids[i]];
 
     if ( invalid_ids[i] >= mNbDataFiles )
       parity_corrupted = true;

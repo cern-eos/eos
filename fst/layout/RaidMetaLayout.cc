@@ -489,15 +489,12 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
       return 0;
     }
 
-    /*
-      if ( offset + length > mFileSize ) {
+    if ( offset + length > mFileSize ) {
       eos_warning( "Read range larger than file, resizing the read length" );
       length = mFileSize - offset;
-      }
-    */
-
+    }
+    
     if ( ( offset < 0 ) && ( mIsRw ) ) {
-      /*
       //..........................................................................
       // Recover file mode
       //..........................................................................
@@ -511,28 +508,26 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
       if ( mFileSize < mSizeGroup ) {
         len = mSizeGroup;
       }
-
-      while ( len >= 0 ) {
-        nread = ( len > mStripeWidth ) ? mStripeWidth : len;
+      
+      while ( len >= mStripeWidth ) {
+        nread = mStripeWidth;
         map_errors.insert( std::make_pair<off_t, size_t>( offset, nread ) );
-
+        
         if ( offset % mSizeGroup == 0 ) {
           if ( !RecoverPieces( offset, dummy_buf, map_errors ) ) {
             free( dummy_buf );
             eos_err( "error=failed recovery of stripe" );
-            return -1;
+            return SFS_ERROR;
           } else {
             map_errors.clear();
           }
         }
-
+        
         len -= mSizeGroup;
         offset += mSizeGroup;
       }
-
-      // free memory
+      
       free( dummy_buf );
-      */
     } else {
       //..........................................................................
       // Normal reading mode
@@ -919,7 +914,10 @@ RaidMetaLayout::RecoverPieces( off_t                    offsetInit,
         tmp_map.insert( std::make_pair( iter->first, iter->second ) );
         rMapToRecover.erase( iter++ );
       } else {
-        ++iter;
+        //TODO: this could be improved by adding a break as the elements in the
+        //      map are always sorted
+        //++iter;
+        break;
       }
     }
 
