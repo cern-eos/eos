@@ -247,7 +247,7 @@ Balancer::Balance(void)
     }
     XrdSysThread::SetCancelOn();
     // hang a little bit around ...
-    for (size_t sleeper = 0; sleeper < 10; sleeper++) {
+    for (size_t i = 0; i < 10; i++) {
       XrdSysTimer sleeper;
       sleeper.Snooze(1);
       XrdSysThread::CancelPoint();
