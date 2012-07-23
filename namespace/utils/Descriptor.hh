@@ -1,3 +1,4 @@
+
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2011 CERN/Switzerland                                  *
@@ -29,6 +30,7 @@
 #include <sstream>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 namespace eos
 {
