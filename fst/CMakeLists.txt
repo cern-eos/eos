@@ -46,6 +46,8 @@ add_library ( XrdEosFst MODULE
 	      io/HeaderCRC.cc                io/HeaderCRC.hh
 	      io/AsyncReadHandler.cc         io/AsyncReadHandler.hh
 	      io/AsyncWriteHandler.cc        io/AsyncWriteHandler.hh
+	      io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
+	      io/ChunkHandler.cc             io/ChunkHandler.hh
 
   	      layout/FileIoPlugin.hh
 	      layout/FileIo.hh 

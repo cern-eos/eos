@@ -31,9 +31,8 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/Layout.hh"
 #include "fst/io/HeaderCRC.hh"
-#include "fst/io/AsyncReadHandler.hh"
-#include "fst/io/AsyncWriteHandler.hh"
 #include "fst/XrdFstOfsFile.hh"
+#include "fst/io/AsyncMetaHandler.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
 /*----------------------------------------------------------------------------*/
@@ -239,18 +238,19 @@ class RaidMetaLayout : public Layout
     off_t mSizeHeader;     ///< size of header = 4KB
     off_t mFileSize;       ///< total size of current file
     off_t mTargetSize;     ///< expected final size (?!)
+    off_t mSizeLine;       ///< size of a line in a group
     off_t mOffGroupParity; ///< offset of the last group for which we
                            ///< computed the parity blocks
     off_t mSizeGroup;      ///< size of a group of blocks
                            ///< eg. RAIDDP: group = noDataStr^2 blocks
+  
 
     std::string mAlgorithmType;                     ///< layout type used
     std::string mBookingOpaque;                     ///< opaque information
     std::vector<char*> mDataBlocks;                 ///< vector containing the data in a group
-    std::vector<FileIo*> mStripeFiles;
+    std::vector<FileIo*> mStripeFiles;              ///< vector containing the file IO layout
     std::vector<HeaderCRC*> mHdUrls;                ///< headers of the stripe files
-    std::vector<AsyncReadHandler*> mReadHandlers;   ///< async read handlers for each stripe
-    std::vector<AsyncWriteHandler*> mWriteHandlers; ///< async write handlers for each stripe
+    std::vector<AsyncMetaHandler*> mMetaHandlers;   ///< rd/wr handlers for each stripe
     std::map<unsigned int, unsigned int> mapLP;     ///< map of url to stripes
     std::map<unsigned int, unsigned int> mapPL;     ///< map of stripes to url
     std::map<off_t, size_t> mMapPieces;             ///< map of pieces written for which parity
