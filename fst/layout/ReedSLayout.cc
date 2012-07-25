@@ -127,7 +127,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   off_t offset_local = ( offset / mSizeGroup ) * mStripeWidth;
   off_t offset_group = ( offset / mSizeGroup ) * mSizeGroup;
   size_t length = 0;
-  ChunkHandler* chunk = NULL;
+  ChunkHandler* handler = NULL;
   num_blocks_corrupted = 0;
 
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
@@ -138,11 +138,11 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       //........................................................................
       // Do remote read operation
       //........................................................................
-      chunk = mMetaHandlers[physical_id]->Register( 0, 0 );
+      handler = mMetaHandlers[physical_id]->Register( 0, 0 );
       mStripeFiles[physical_id]->Read( offset_local +  mSizeHeader,
                                        mDataBlocks[i],
                                        mStripeWidth,
-                                       static_cast<void*>( chunk ) );
+                                       static_cast<void*>( handler ) );
     } else {
       //........................................................................
       // Do local read operation
@@ -254,11 +254,11 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
         // Do remote write operation
         //......................................................................
         mMetaHandlers[physical_id]->Reset();
-        chunk = mMetaHandlers[physical_id]->Register( 0, 0 );
+        handler = mMetaHandlers[physical_id]->Register( 0, 0 );
         mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
                                           mDataBlocks[stripe_id],
                                           mStripeWidth,
-                                          static_cast<void*>( chunk ) );
+                                          static_cast<void*>( handler ) );
       } else {
         //......................................................................
         // Do local write operation
@@ -471,7 +471,7 @@ ReedSLayout::WriteParityToFiles( off_t offsetGroup )
 {
   int ret = SFS_OK;
   unsigned int physical_id;
-  ChunkHandler* chunk = NULL;
+  ChunkHandler* handler = NULL;
   off_t offset_local = offsetGroup / mNbDataFiles;
 
   for ( unsigned int i = mNbDataFiles; i < mNbTotalFiles; i++ ) {
@@ -482,11 +482,11 @@ ReedSLayout::WriteParityToFiles( off_t offsetGroup )
       // Do local write operation
       //......................................................................
       mMetaHandlers[physical_id]->Reset();
-      chunk = mMetaHandlers[physical_id]->Register( 0, 0 );
+      handler = mMetaHandlers[physical_id]->Register( 0, 0 );
       mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
                                         mDataBlocks[i],
                                         mStripeWidth,
-                                        static_cast<void*>( chunk ) );
+                                        static_cast<void*>( handler ) );
     } else {
       //......................................................................
       // Do local write operation

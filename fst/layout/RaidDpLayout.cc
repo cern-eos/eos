@@ -214,7 +214,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   bool ret = true;
   bool* status_blocks;
   char* pBuff;
-  ChunkHandler* chunk = NULL;
+  ChunkHandler* handler = NULL;
   size_t length;
   off_t offset_local;
   unsigned int stripe_id;
@@ -249,11 +249,11 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       //........................................................................
       uint64_t line_offset = offset_group + ( i / mNbTotalFiles ) *
                              ( mStripeWidth * mNbDataFiles );
-      chunk = mMetaHandlers[physical_id]->Register( line_offset, mStripeWidth );
+      handler = mMetaHandlers[physical_id]->Register( line_offset, mStripeWidth );
       mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
                                        mDataBlocks[i],
                                        mStripeWidth,
-                                       static_cast<void*>( chunk ) );
+                                       static_cast<void*>( handler ) );
     } else {
       //........................................................................
       // Do local read operation
@@ -340,11 +340,11 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
           //....................................................................
           // Do remote write operation
           //....................................................................
-          chunk = mMetaHandlers[physical_id]->Register( 0, 0 );
+          handler = mMetaHandlers[physical_id]->Register( 0, 0 );
           mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
                                             mDataBlocks[id_corrupted],
                                             mStripeWidth,
-                                            static_cast<void*>( chunk ) );
+                                            static_cast<void*>( handler ) );
         } else {
           //....................................................................
           // Do local write operation
@@ -426,11 +426,11 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
             //....................................................................
             // Do remote write operation
             //....................................................................
-            chunk = mMetaHandlers[physical_id]->Register( 0, 0 );
+            handler = mMetaHandlers[physical_id]->Register( 0, 0 );
             mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
                                               mDataBlocks[id_corrupted],
                                               mStripeWidth,
-                                              static_cast<void*>( chunk ) );
+                                              static_cast<void*>( handler ) );
           } else {
             //....................................................................
             // Do local write operation
@@ -579,7 +579,7 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
   off_t off_parity_local;
   unsigned int index_pblock;
   unsigned int index_dpblock;
-  ChunkHandler* chunk = NULL;
+  ChunkHandler* handler = NULL;
   unsigned int physical_pindex = mapLP[mNbTotalFiles - 2];
   unsigned int physical_dpindex = mapLP[mNbTotalFiles - 1];
   mMetaHandlers[physical_pindex]->Reset();
@@ -597,11 +597,11 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
       //........................................................................
       // Do remote write operation
       //........................................................................
-      chunk = mMetaHandlers[physical_pindex]->Register( 0, 0 );
+      handler = mMetaHandlers[physical_pindex]->Register( 0, 0 );
       mStripeFiles[physical_pindex]->Write( off_parity_local + mSizeHeader,
                                             mDataBlocks[index_pblock],
                                             mStripeWidth,
-                                            static_cast<void*>( chunk ) );
+                                            static_cast<void*>( handler ) );
     } else {
       //........................................................................
       // Do local write operation
@@ -618,11 +618,11 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
       //........................................................................
       // Do remote write operation
       //........................................................................
-      chunk = mMetaHandlers[physical_dpindex]->Register( 0, 0 );
+      handler = mMetaHandlers[physical_dpindex]->Register( 0, 0 );
       mStripeFiles[physical_dpindex]->Write( off_parity_local + mSizeHeader,
                                              mDataBlocks[index_dpblock],
                                              mStripeWidth,
-                                             static_cast<void*>( chunk ) );
+                                             static_cast<void*>( handler ) );
     } else {
       //........................................................................
       // Do local write operation

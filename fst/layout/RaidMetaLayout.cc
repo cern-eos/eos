@@ -458,7 +458,7 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
   off_t offset_init = offset;
   std::map<off_t, size_t> map_all_errors;
   std::map<uint64_t, uint32_t> map_tmp_errors;
-  ChunkHandler* chunk = NULL;
+  ChunkHandler* handler = NULL;
 
   if ( !mIsEntryServer ) {
     //..........................................................................
@@ -577,12 +577,12 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
           //....................................................................
           // Do remote read operation
           //....................................................................
-          chunk = mMetaHandlers[physical_id]->Register( align_offset,
+          handler = mMetaHandlers[physical_id]->Register( align_offset,
                                                         mStripeWidth );
           mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
                                            ptr_buff,
                                            mStripeWidth,
-                                           static_cast<void*>( chunk ) );
+                                           static_cast<void*>( handler ) );
         } else {
           //....................................................................
           // Do local read operation
@@ -758,7 +758,7 @@ RaidMetaLayout::Write( XrdSfsFileOffset offset,
   off_t offset_end = offset + length;
   unsigned int stripe_id;
   unsigned int physical_id;
-  ChunkHandler* chunk = NULL;
+  ChunkHandler* handler = NULL;
 
   if ( !mIsEntryServer ) {
     //..........................................................................
@@ -785,11 +785,11 @@ RaidMetaLayout::Write( XrdSfsFileOffset offset,
         //......................................................................
         // Do remote write operation - chunk info is not interesting
         //......................................................................
-        chunk = mMetaHandlers[physical_id]->Register( 0, 0 );
+        handler = mMetaHandlers[physical_id]->Register( 0, 0 );
         mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
                                           buffer,
                                           nwrite,
-                                          static_cast<void*>( chunk ) );
+                                          static_cast<void*>( handler ) );
       } else {
         //......................................................................
         // Do local write operation
@@ -968,7 +968,7 @@ RaidMetaLayout::ReadGroup( off_t offsetGroup )
   off_t offset_local;
   bool ret = true;
   int id_stripe;
-  ChunkHandler* chunk = NULL;
+  ChunkHandler* handler = NULL;
 
   for ( unsigned int i = 0; i < mMetaHandlers.size(); i++ ) {
     mMetaHandlers[i]->Reset();
@@ -988,11 +988,11 @@ RaidMetaLayout::ReadGroup( off_t offsetGroup )
       //........................................................................
       // Do remote read operation - chunk info is not interesting at this point
       //........................................................................
-      chunk = mMetaHandlers[physical_id]->Register( 0, 0 );
+      handler = mMetaHandlers[physical_id]->Register( 0, 0 );
       mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
                                        mDataBlocks[MapSmallToBig( i )],
                                        mStripeWidth,
-                                       static_cast<void*>( chunk ) );
+                                       static_cast<void*>( handler ) );
     } else {
       //........................................................................
       // Do local read operation
