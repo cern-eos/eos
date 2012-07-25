@@ -654,10 +654,15 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
       break;
     }
   
+  XrdOucString pinfo = info?info:"";
+  eos::common::StringConversion::MaskTag(pinfo,"cap.msg");
+  eos::common::StringConversion::MaskTag(pinfo,"cap.sym");
+  eos::common::StringConversion::MaskTag(pinfo,"authz");
+  
   if (isRW) {
-    eos_info("op=write trunc=%d path=%s info=%s",open_mode & SFS_O_TRUNC, path,info);
+    eos_info("op=write trunc=%d path=%s info=%s",open_mode & SFS_O_TRUNC, path,pinfo.c_str());
   } else {
-    eos_info("op=read path=%s info=%s",path,info);
+    eos_info("op=read path=%s info=%s",path,pinfo.c_str());
   }
 
   ACCESSMODE_R;
@@ -818,7 +823,13 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 	  rcode = SFS_REDIRECT;
 	  error.setErrInfo(ecode, redirectionhost.c_str());
 	  gOFS->MgmStats.Add("RedirectENOENT",vid.uid,vid.gid,1);  
-	  eos_info("info=\"redirecting\" hostport=%s:%d", redirectionhost.c_str(), ecode);
+
+	  XrdOucString predirectionhost = redirectionhost.c_str();
+	  eos::common::StringConversion::MaskTag(predirectionhost,"cap.msg");
+	  eos::common::StringConversion::MaskTag(predirectionhost,"cap.sym");
+	  eos::common::StringConversion::MaskTag(pinfo,"authz");
+
+	  eos_info("info=\"redirecting\" hostport=%s:%d", predirectionhost.c_str(), ecode);
 	  return rcode;
 	}    
       }
@@ -1366,9 +1377,10 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     return Emsg(epname, error, ENOMEM, "open file - capability exceeds 2kb limit", path);
   }
 
-  //  ZTRACE(open, "Return redirection " << redirectionhost.c_str() << "Targetport: " << ecode);
-
-  eos_info("info=\"redirection\" hostport=%s:%d", redirectionhost.c_str(), ecode);
+  XrdOucString predirectionhost = redirectionhost.c_str();
+  eos::common::StringConversion::MaskTag(predirectionhost,"cap.msg");
+  eos::common::StringConversion::MaskTag(predirectionhost,"cap.sym");
+  eos_info("info=\"redirection\" hostport=%s:%d", predirectionhost.c_str(), ecode);
 
   if (capabilityenv)
     delete capabilityenv;

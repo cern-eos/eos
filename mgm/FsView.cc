@@ -924,6 +924,8 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create, std::
       if (value == "on") {
 	// we have to register this queue into the gw set for fast lookups
 	FsView::gFsView.mGwNodes.insert(broadcastqueue);
+	// clear the queue if a machine is enabled
+	FsView::gFsView.mNodeView[broadcastqueue]->mGwQueue->Clear();
       } else {
 	FsView::gFsView.mGwNodes.erase(broadcastqueue);
       }

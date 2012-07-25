@@ -590,7 +590,13 @@ XrdFstOfsFile::open(const char                *path,
 
   int envlen;
   //ZTRACE(open,"capability contains: " << capOpaque->Env(envlen));
-  eos_info("path=%s info=%s capability=%s", path, opaque, capOpaque->Env(envlen));
+  
+  XrdOucString maskOpaque = opaque?opaque:"";
+  // mask some opaque parameters to shorten the logging
+  eos::common::StringConversion::MaskTag(maskOpaque,"cap.sym");
+  eos::common::StringConversion::MaskTag(maskOpaque,"cap.msg");
+  eos::common::StringConversion::MaskTag(maskOpaque,"authz");
+  eos_info("path=%s info=%s capability=%s", path, maskOpaque.c_str(), capOpaque->Env(envlen));
 
   const char* hexfid=0;
   const char* sfsid=0;

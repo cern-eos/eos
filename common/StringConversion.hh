@@ -565,6 +565,31 @@ public:
   }
 
   // ---------------------------------------------------------------------------
+  /** 
+   * Mask a tag 'key=val' as 'key=<...>' in an opaque string
+   * @param XrdOucString where to mask
+   * @return pointer to string where the masked string is stored
+   */
+  // ---------------------------------------------------------------------------  
+  static const char*
+  MaskTag(XrdOucString& line, const char* tag)
+  {
+    XrdOucString smask=tag; smask += "=";
+    int spos=line.find(smask.c_str());
+    int epos=line.find("&", spos+1);
+    if (spos != STR_NPOS) {
+      if (epos != STR_NPOS) {
+	line.erase(spos,epos-spos);
+      } else {
+	line.erase(spos);
+      }
+      smask += "<...>";
+      line.insert(smask.c_str(),spos);
+    }
+    return line.c_str();
+  }
+
+  // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
   StringConversion() {};

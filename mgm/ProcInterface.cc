@@ -5273,13 +5273,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           XrdOucString sizestring3;
           XrdOucString sizestring4;
           unsigned long long avgsize = (unsigned long long ) (sizedistributionn[itsd->first]?itsd->second/sizedistributionn[itsd->first]:0);
-          fprintf(fstdout,"sizeorder=%02d \trange=[ %-12s ... %-12s ] volume=%-12s \tavgsize=%-12s \tnbyptes=%llu \t avgnbytes=%llu\n", itsd->first
+          fprintf(fstdout,"sizeorder=%02d \trange=[ %-12s ... %-12s ] volume=%-12s \tavgsize=%-12s \tnbyptes=%llu \t avgnbytes=%llu \t nfiles=%llu\n", itsd->first
                   , eos::common::StringConversion::GetReadableSizeString(sizestring1, lowerlimit,"B")
                   , eos::common::StringConversion::GetReadableSizeString(sizestring2, upperlimit,"B")
                   , eos::common::StringConversion::GetReadableSizeString(sizestring3, itsd->second,"B")
                   , eos::common::StringConversion::GetReadableSizeString(sizestring4, avgsize,"B")
                   , itsd->second
                   , avgsize
+		  , sizedistributionn[itsd->first]
                   );
         }
       }
