@@ -928,7 +928,7 @@ Storage::Scrub()
     {
       eos::common::RWMutexReadLock lock (fsMutex);
       nfs = fileSystemsVector.size();
-      eos_static_info("FileSystem Vector %u",nfs);
+      eos_static_debug("FileSystem Vector %u",nfs);
     }    
     for (unsigned int i=0; i< nfs; i++) {
       fsMutex.LockRead();
