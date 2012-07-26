@@ -249,7 +249,10 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       //........................................................................
       uint64_t line_offset = offset_group + ( i / mNbTotalFiles ) *
                              ( mStripeWidth * mNbDataFiles );
-      handler = mMetaHandlers[physical_id]->Register( line_offset, mStripeWidth );
+      handler = mMetaHandlers[physical_id]->Register( line_offset,
+                                                      mStripeWidth,
+                                                      false );
+      
       mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
                                        mDataBlocks[i],
                                        mStripeWidth,
@@ -340,7 +343,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
           //....................................................................
           // Do remote write operation
           //....................................................................
-          handler = mMetaHandlers[physical_id]->Register( 0, 0 );
+          handler = mMetaHandlers[physical_id]->Register( 0, mStripeWidth, true );
           mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
                                             mDataBlocks[id_corrupted],
                                             mStripeWidth,
@@ -426,7 +429,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
             //....................................................................
             // Do remote write operation
             //....................................................................
-            handler = mMetaHandlers[physical_id]->Register( 0, 0 );
+            handler = mMetaHandlers[physical_id]->Register( 0, mStripeWidth, true );
             mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
                                               mDataBlocks[id_corrupted],
                                               mStripeWidth,
@@ -597,7 +600,7 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
       //........................................................................
       // Do remote write operation
       //........................................................................
-      handler = mMetaHandlers[physical_pindex]->Register( 0, 0 );
+      handler = mMetaHandlers[physical_pindex]->Register( 0, mStripeWidth, true );
       mStripeFiles[physical_pindex]->Write( off_parity_local + mSizeHeader,
                                             mDataBlocks[index_pblock],
                                             mStripeWidth,
@@ -618,7 +621,7 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
       //........................................................................
       // Do remote write operation
       //........................................................................
-      handler = mMetaHandlers[physical_dpindex]->Register( 0, 0 );
+      handler = mMetaHandlers[physical_dpindex]->Register( 0, mStripeWidth, true );
       mStripeFiles[physical_dpindex]->Write( off_parity_local + mSizeHeader,
                                              mDataBlocks[index_dpblock],
                                              mStripeWidth,

@@ -138,7 +138,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       //........................................................................
       // Do remote read operation
       //........................................................................
-      handler = mMetaHandlers[physical_id]->Register( 0, 0 );
+      handler = mMetaHandlers[physical_id]->Register( 0, mStripeWidth, false );
       mStripeFiles[physical_id]->Read( offset_local +  mSizeHeader,
                                        mDataBlocks[i],
                                        mStripeWidth,
@@ -254,7 +254,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
         // Do remote write operation
         //......................................................................
         mMetaHandlers[physical_id]->Reset();
-        handler = mMetaHandlers[physical_id]->Register( 0, 0 );
+        handler = mMetaHandlers[physical_id]->Register( 0, mStripeWidth, true );
         mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
                                           mDataBlocks[stripe_id],
                                           mStripeWidth,
@@ -482,7 +482,7 @@ ReedSLayout::WriteParityToFiles( off_t offsetGroup )
       // Do local write operation
       //......................................................................
       mMetaHandlers[physical_id]->Reset();
-      handler = mMetaHandlers[physical_id]->Register( 0, 0 );
+      handler = mMetaHandlers[physical_id]->Register( 0, mStripeWidth, true );
       mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
                                         mDataBlocks[i],
                                         mStripeWidth,

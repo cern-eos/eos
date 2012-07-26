@@ -32,10 +32,12 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 ChunkHandler::ChunkHandler( AsyncMetaHandler* metaHandler,
                             uint64_t          offset,
-                            uint32_t          length ):
+                            uint32_t          length,
+                            bool              isWrite):
     mMetaHandler( metaHandler ),
     mOffset( offset ),
-    mLength( length )
+    mLength( length ),
+    mIsWrite( isWrite )
 {
   // empty
 }
@@ -57,8 +59,25 @@ void
 ChunkHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
                               XrdCl::AnyObject*    pResponse )
 {
-  mMetaHandler->HandleResponse( pStatus, mOffset, mLength );
+  //............................................................................
+  // Do some extra check for the read case
+  //............................................................................
+  if ( mIsWrite == false ) {  
+    XrdCl::Chunk* chunk = 0;
+    pResponse->Get( chunk );
+    
+    //..........................................................................
+    // Notice if we received less then we initially requested - usually this means
+    // we reached the end of the file, but we will treat it as an error
+    //..........................................................................
+    if ( mLength != chunk->length ) {
+      pStatus->status = XrdCl::stError;
+      pStatus->errNo = EFAULT;
+    }
+
+  }
+
+  mMetaHandler->HandleResponse( pStatus, this );
+  
 }
-
-
 EOSFSTNAMESPACE_END

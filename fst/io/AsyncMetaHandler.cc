@@ -50,15 +50,16 @@ AsyncMetaHandler::~AsyncMetaHandler()
 
 
 //------------------------------------------------------------------------------
-// Handle response
+// Register a new handler for the current file
 //------------------------------------------------------------------------------
 ChunkHandler*
 AsyncMetaHandler::Register( uint64_t offset,
-                            uint32_t length )
+                            uint32_t length,
+                            bool     isWrite )
 {
 
   // TODO: add some caching of request objects maybe ?!
-  ChunkHandler* ptr_chunk = new ChunkHandler( this, offset, length );
+  ChunkHandler* ptr_chunk = new ChunkHandler( this, offset, length, isWrite );
   mCond.Lock();   // --> 
   
   listReq.push_back( ptr_chunk );
@@ -75,14 +76,14 @@ AsyncMetaHandler::Register( uint64_t offset,
 //------------------------------------------------------------------------------
 void
 AsyncMetaHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
-                                  uint64_t             offset,
-                                  uint32_t             length )
+                                  ChunkHandler*        chunk )
 {
   mCond.Lock();
   mNumReceivedResp++;
 
-  if ( pStatus->status != XrdCl::stOK ) {
-    mMapErrors.insert( std::make_pair( offset, length ) );
+  if ( pStatus->status != XrdCl::stOK )
+  {
+    mMapErrors.insert( std::make_pair( chunk->GetOffset(), chunk->GetLength() ) );
     mState = false;
   }
 

@@ -1384,12 +1384,6 @@ XrdFstOfsFile::readofs( XrdSfsFileOffset   fileOffset,
 
   if ( fstBlockXS ) {
     XrdSysMutexHelper cLock( BlockXsMutex );
-
-    // Obs: might have to move this comparison to XrdFileIo for consistency
-    if ( retc != buffer_size ) {
-      eos_debug( "Error while reading the requested range." );
-      return gOFS.Emsg( "readofs", error, EIO, "read file - return value missmatch" );       
-    }
     
     if ( ( retc > 0 ) && ( !fstBlockXS->CheckBlockSum( fileOffset, buffer, retc ) ) ) {
       int envlen = 0;

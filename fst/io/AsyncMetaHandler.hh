@@ -65,13 +65,11 @@ class AsyncMetaHandler
     //! Handle response
     //!
     //! @param pStatus status of the request
-    //! @param offset request offset
-    //! @param length request length
+    //! @param chunk received chunk response
     //!
     //--------------------------------------------------------------------------
     void HandleResponse( XrdCl::XRootDStatus* pStatus,
-                         uint64_t             offset,
-                         uint32_t             length );
+                         ChunkHandler*        chunk );
 
   
     //--------------------------------------------------------------------------
@@ -89,7 +87,7 @@ class AsyncMetaHandler
     //! @return new chunk async handler object
     //! 
     //--------------------------------------------------------------------------
-    ChunkHandler* Register( uint64_t offset, uint32_t length );
+    ChunkHandler* Register( uint64_t offset, uint32_t length, bool isWrite );
 
 
     //--------------------------------------------------------------------------

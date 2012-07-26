@@ -259,9 +259,9 @@ RaidMetaLayout::Open( const std::string& path,
         stripe_urls[i] += remoteOpenOpaque.c_str();
         int ret = -1;
         FileIo* file = FileIoPlugin::GetIoObject( mOfsFile,
-                       eos::common::LayoutId::kXrdCl,
-                       mSecEntity,
-                       mError );
+                                                  eos::common::LayoutId::kXrdCl,
+                                                  mSecEntity,
+                                                  mError );
 
         if ( mOfsFile->isRW && file ) {
           //....................................................................
@@ -578,7 +578,8 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
           // Do remote read operation
           //....................................................................
           handler = mMetaHandlers[physical_id]->Register( align_offset,
-                                                        mStripeWidth );
+                                                          mStripeWidth,
+                                                          false );
           mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
                                            ptr_buff,
                                            mStripeWidth,
@@ -785,7 +786,7 @@ RaidMetaLayout::Write( XrdSfsFileOffset offset,
         //......................................................................
         // Do remote write operation - chunk info is not interesting
         //......................................................................
-        handler = mMetaHandlers[physical_id]->Register( 0, 0 );
+        handler = mMetaHandlers[physical_id]->Register( 0, nwrite, true );
         mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
                                           buffer,
                                           nwrite,
@@ -988,7 +989,7 @@ RaidMetaLayout::ReadGroup( off_t offsetGroup )
       //........................................................................
       // Do remote read operation - chunk info is not interesting at this point
       //........................................................................
-      handler = mMetaHandlers[physical_id]->Register( 0, 0 );
+      handler = mMetaHandlers[physical_id]->Register( 0, mStripeWidth, false );
       mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
                                        mDataBlocks[MapSmallToBig( i )],
                                        mStripeWidth,

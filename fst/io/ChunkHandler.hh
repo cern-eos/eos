@@ -49,11 +49,13 @@ class ChunkHandler: public XrdCl::ResponseHandler
   //! @param reqHandler handler to the file meta handler
   //! @param offset request offset
   //! @param length request length
+  //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
   ChunkHandler( AsyncMetaHandler* reqHandler,
                 uint64_t          offset,
-                uint32_t          length );
+                uint32_t          length,
+                bool              isWrite);
 
 
   //----------------------------------------------------------------------------
@@ -62,13 +64,37 @@ class ChunkHandler: public XrdCl::ResponseHandler
   ~ChunkHandler();
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Get chunk offset
+  //----------------------------------------------------------------------------
+  inline uint64_t GetOffset() const {
+    return mOffset;
+  };
+
+
+  //----------------------------------------------------------------------------
+  //! Get chunk length
+  //----------------------------------------------------------------------------
+  inline uint32_t GetLength() const {
+    return mLength;
+  };
+
+  
+  //----------------------------------------------------------------------------
+  //! Test if chunk is from a write operation 
+  //----------------------------------------------------------------------------
+  inline bool IsWrite() const {
+    return mIsWrite;
+  };
+
+
+  //----------------------------------------------------------------------------
   //! Handle response
   //!
   //! @param pStatus status of the response
   //! @param pResponse object containing extra info about the response
   //! 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual void HandleResponse( XrdCl::XRootDStatus* pStatus,
                                XrdCl::AnyObject*    pResponse );
 
@@ -78,6 +104,7 @@ class ChunkHandler: public XrdCl::ResponseHandler
   AsyncMetaHandler* mMetaHandler; ///< handler to the whole file meta handler
   uint64_t          mOffset;      ///< offset of the request
   uint32_t          mLength;      ///< length of the request
+  bool              mIsWrite;     ///< operation type is write 
   
 };
 
