@@ -45,7 +45,6 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-
 /*----------------------------------------------------------------------------*/
 template <class T>
 inline std::string ToString(const T& t){
@@ -68,6 +67,7 @@ TransferJob::TransferJob(TransferQueue* queue, eos::common::TransferJob* job,  i
   mLastProgress = 0.0;
   mDoItThread = 0;
   mCanceled = false;
+  mLastState = 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -208,7 +208,6 @@ int TransferJob::SendState(int state, const char* logfile, float progress)
   } else {
     // state and/or log
     txinfo += "&tx.state="; txinfo += state;
-    
     // log state transitions in the FST log file
     eos_static_info("txid=%lld state=%s", mId, eos::mgm::TransferEngine::GetTransferState(state));
     if (logfile) {
@@ -224,6 +223,17 @@ int TransferJob::SendState(int state, const char* logfile, float progress)
       }
     }
   }
+  
+  if ( (mLastState == eos::mgm::TransferEngine::kDone) ) {
+    eos_static_debug("txid=%lld skipping update - we have already a 'done' state", mId);
+    // when the done state is reached, it does not make sense to update the progress - moreover the transfer can be autoarchived and the update would fail
+    return 0;
+  }
+  
+  if (!progress) {
+    mLastState = state;
+  }
+
   eos_static_debug("sending %s", txinfo.c_str());
   
   std::string manager = "";
@@ -257,7 +267,7 @@ void TransferJob::DoIt(){
   // - if we use an external protocol for the destination the transfer is split into two parts
   //   - stagein 
   //   - stageout
-
+  
   mDoItThread = XrdSysThread::ID();
   std::string fileName = "/var/eos/auth/", sTmp, strBand; // script name for the transfer script
   std::string fileStageName = fileName;
@@ -667,12 +677,17 @@ void TransferJob::DoIt(){
   std::string cattolog;
   int rc=0;
 
+  static XrdSysMutex forkMutex;
+
   if (mId) {
     int spid=0;
+    forkMutex.Lock();
     if (!(spid=fork())) {
+      forkMutex.UnLock();
       setpgrp();
       execlp("/bin/sh","sh","-c",command.str().c_str(),NULL);
     } else {
+      forkMutex.UnLock();
       // check if we should cancel the call
       do {
 	if ((waitpid(spid, &rc, WNOHANG))==0) {
@@ -723,10 +738,13 @@ void TransferJob::DoIt(){
       // we have still to do the stage-out step with the external protocol
       if (mId) {
 	int spid=0;
+	forkMutex.Lock();
 	if (!(spid=fork())) {
+	  forkMutex.UnLock();
 	  setpgrp();
 	  execlp("/bin/sh","sh","-c",commando.str().c_str(),NULL);
 	} else {
+	  forkMutex.UnLock();
 	  // check if we should cancel the call
 	  do {
 	    if ((waitpid(spid, &rc, WNOHANG))==0) {

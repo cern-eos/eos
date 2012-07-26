@@ -480,12 +480,11 @@ TransferFsDB::GetTransfer(long long id,bool nolock)
   }
 
   if (Qr.size() == 1) {
-    if (!nolock) { Lock.UnLock(); }
-    return Qr[0];
-  } else {
-    if (!nolock) { Lock.UnLock(); }
-    return transfer;
+    transfer =  Qr[0];
   }
+  if (!nolock) { Lock.UnLock(); }
+  return transfer;
+
 }
 
 /*----------------------------------------------------------------------------*/

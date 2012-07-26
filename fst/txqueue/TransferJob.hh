@@ -50,7 +50,7 @@ private:
   XrdOucString mTargetUrl;
   XrdOucString mProgressFile;
   float mLastProgress; // last progress value which was broadcasted to the MGM
-
+  int mLastState; // last state set
   long long mId;  // the ID is only used for scheduled gateway transfers (managed via 'transfer' console)
   
   pthread_t mProgressThread; // the id of the thread posting the transfer progress
@@ -58,6 +58,8 @@ private:
   XrdSysMutex mCancelMutex;  // protects the canceled variable
   bool      mCanceled;       // this indicates that the thread should
 public:
+
+  static void ignorefork();
 
   TransferJob(TransferQueue* queue, eos::common::TransferJob* cjob,  int bw, int timeout=7200);
   ~TransferJob();
