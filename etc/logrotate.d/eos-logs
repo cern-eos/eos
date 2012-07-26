@@ -1,3 +1,13 @@
+/var/eos/tx/transfer-archive.log {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
 /var/log/eos/mgm/error.log {
 	missingok
 	daily
