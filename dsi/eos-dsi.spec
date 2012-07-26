@@ -4,11 +4,11 @@
 
 Summary: EOS gridftp DSI plugin
 Name: eos-dsi
-Version: 0.2.3
+Version: 0.2.4
 Release: 1
 License: none
 Group: Applications/File
-Source0: eos-dsi-0.2.3-%{release}.tar.gz
+Source0: eos-dsi-0.2.4-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 Requires: xrootd-client >= 3.1.0
@@ -27,7 +27,7 @@ BuildRequires: autoconf, automake, libtool
 EOS gridftp DSI plugin
 
 %prep
-%setup -n eos-dsi-0.2.3-%{release}
+%setup -n eos-dsi-0.2.4-%{release}
 
 %build
 ./bootstrap.sh

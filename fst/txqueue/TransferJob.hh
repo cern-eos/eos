@@ -59,8 +59,6 @@ private:
   bool      mCanceled;       // this indicates that the thread should
 public:
 
-  static void ignorefork();
-
   TransferJob(TransferQueue* queue, eos::common::TransferJob* cjob,  int bw, int timeout=7200);
   ~TransferJob();
 
