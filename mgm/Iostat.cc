@@ -1091,17 +1091,17 @@ Iostat::Circulate() {
     }
     
     // loop over domain accounting
-    for (dit = IostatAvgDomainIOrb.begin(); dit != IostatAvgDomainIOrb.begin(); dit++) {
+    for (dit = IostatAvgDomainIOrb.begin(); dit != IostatAvgDomainIOrb.end(); dit++) {
       dit->second.StampZero();
       }
-    for (dit = IostatAvgDomainIOwb.begin(); dit != IostatAvgDomainIOwb.begin(); dit++) {
+    for (dit = IostatAvgDomainIOwb.begin(); dit != IostatAvgDomainIOwb.end(); dit++) {
       dit->second.StampZero();
     }
     // loop over app accounting
-    for (dit = IostatAvgAppIOrb.begin(); dit != IostatAvgAppIOrb.begin(); dit++) {
+    for (dit = IostatAvgAppIOrb.begin(); dit != IostatAvgAppIOrb.end(); dit++) {
       dit->second.StampZero();
       }
-    for (dit = IostatAvgAppIOwb.begin(); dit != IostatAvgAppIOwb.begin(); dit++) {
+    for (dit = IostatAvgAppIOwb.begin(); dit != IostatAvgAppIOwb.end(); dit++) {
       dit->second.StampZero();
     }
     

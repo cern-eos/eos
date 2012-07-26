@@ -1623,29 +1623,40 @@ Storage::Communicator()
         eos_static_info("received deletion notification of subject <%s> - we are <%s>", newsubject.c_str(), Config::gConfig.FstQueue.c_str());
       }
 
-      eos::common::RWMutexWriteLock lock(fsMutex);
-      if ((fileSystems.count(queue.c_str()))) {
-        if (fileSystems.count(queue.c_str())) {
-          std::map<eos::common::FileSystem::fsid_t , FileSystem*>::iterator mit;
+      if (0) {
+	// --------------------------------------------------------------------------------------------------------
+	// deletion of filesystem objects is a problem, we delete them only if we are not in healthy rw state
+	// --------------------------------------------------------------------------------------------------------
+	eos::common::RWMutexWriteLock lock(fsMutex);
+	if (fileSystems.count(queue.c_str())) {
+	  std::map<eos::common::FileSystem::fsid_t , FileSystem*>::iterator mit;
+	  
+	  eos::common::FileSystem::fsstatus_t bootstatus = fileSystems[queue.c_str()]->GetStatus();
+	  eos::common::FileSystem::fsstatus_t configstatus = fileSystems[queue.c_str()]->GetConfigStatus();
 
-          for (mit = fileSystemsMap.begin(); mit != fileSystemsMap.end(); mit++) {
-            if (mit->second == fileSystems[queue.c_str()]) {
-              fileSystemsMap.erase(mit);
-              break;
-            }
-          }
-
-          std::vector <FileSystem*>::iterator it;
-          for (it=fileSystemsVector.begin(); it!=fileSystemsVector.end(); it++) {
-            if (*it == fileSystems[queue.c_str()]) {
-              fileSystemsVector.erase(it);
-              break;
-            }
-          }
-          delete fileSystems[queue.c_str()];
-          fileSystems.erase(queue.c_str());
-        }
-        eos_static_info("deleting filesystem %s", queue.c_str());
+	  if ( (bootstatus != eos::common::FileSystem::kBooted) || 
+	     (configstatus == eos::common::FileSystem::kRW) ) {
+	    for (mit = fileSystemsMap.begin(); mit != fileSystemsMap.end(); mit++) {
+	      if (mit->second == fileSystems[queue.c_str()]) {
+		fileSystemsMap.erase(mit);
+		break;
+	      }
+	    }
+	    
+	    std::vector <FileSystem*>::iterator it;
+	    for (it=fileSystemsVector.begin(); it!=fileSystemsVector.end(); it++) {
+	      if (*it == fileSystems[queue.c_str()]) {
+		fileSystemsVector.erase(it);
+		break;
+	      }
+	    }
+	    delete fileSystems[queue.c_str()];
+	    fileSystems.erase(queue.c_str());
+	    eos_static_info("deleting filesystem %s", queue.c_str());
+	  }
+	} else {
+	  eos_static_info("keeping filesystem %s alive", queue.c_str());
+	}
       }
     }
 

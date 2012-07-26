@@ -993,8 +993,27 @@ FsView::CreateMapping(std::string fsuuid)
     if (!NextFsId) 
       SetNextFsId(1);
 
+    std::map<eos::common::FileSystem::fsid_t , std::string>::const_iterator it;
+
+    // use the maximum fsid
+    for (it = Fs2UuidMap.begin(); it != Fs2UuidMap.end(); it++) {
+      if (it->first > NextFsId) {
+	NextFsId=it->first;
+      }
+    }
+
+    if (NextFsId > 64000) {
+      // we don't support more than 64.000 filesystems
+      NextFsId=1;
+    }
+
     while (Fs2UuidMap.count(NextFsId)) {
       NextFsId++;
+      if (NextFsId > 640000) {
+	// if all filesystem id's are exhausted we better abort the program to avoid a mess!
+	eos_static_crit("all filesystem id's exhausted (64.000) - aborting the program");
+	exit(-1);
+      }
     }
     
     SetNextFsId(NextFsId);
