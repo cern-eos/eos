@@ -45,6 +45,8 @@ PlainLayout::PlainLayout( XrdFstOfsFile*      file,
                                           eos::common::LayoutId::kLocal,
                                           mSecEntity,
                                           mError );
+
+  mIsEntryServer = true;
 }
 
 
