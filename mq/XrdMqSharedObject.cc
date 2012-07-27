@@ -588,9 +588,9 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message, XrdOucString &e
         bool success = true;
         for (unsigned int l=0; l< subjectlist.size(); l++) {
           // try 'queue' and 'hash' to have wildcard broadcasts for both
-          sh = GetObject(subjectlist[l].c_str(), "hash");
+	  sh = GetObject(subjectlist[l].c_str(),"queue");
           if (!sh) {
-            sh = GetObject(subjectlist[l].c_str(),"queue");
+	    sh = GetObject(subjectlist[l].c_str(), "hash");
           }
           
           if (sh) {
