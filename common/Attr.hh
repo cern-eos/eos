@@ -37,6 +37,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <sys/types.h>
@@ -53,6 +54,8 @@ EOSCOMMONNAMESPACE_BEGIN
 class Attr {
 private:
   std::string fName; //< File Name storing the attributes
+  static char gBuffer[1024];
+  static XrdSysMutex gBufferMutex; 
 
 public:
   // ------------------------------------------------------------------------

@@ -31,6 +31,8 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+char Attr::gBuffer[1024];
+XrdSysMutex Attr::gBufferMutex;
 
 /*----------------------------------------------------------------------------*/
 /** 
@@ -133,7 +135,7 @@ Attr::Get(const char* name, char* value, size_t &size)
 
   if ((!name) || (!value))
     return -1;
-
+  
   int retc = lgetxattr (fName.c_str(), name, value,size);
   if (retc!=-1) {
     size = retc;
@@ -155,15 +157,14 @@ Attr::Get(const char* name, char* value, size_t &size)
 std::string
 Attr::Get(std::string name)
 {
-
-  char buffer[65536];
-  size_t size = sizeof(buffer)-1;
-
-  if (!Get(name.c_str(), buffer, size))
-    return "";
-
-  buffer[size] = 0;
-  return std::string(buffer);
+  XrdSysMutexHelper bMutex(gBufferMutex);
+  gBuffer[0] = 0;
+  size_t size = sizeof(gBuffer)-1;
+  if (!Get(name.c_str(), gBuffer, size));
+  return "";
+  
+  gBuffer[size] = 0;
+  return std::string(gBuffer);
 }
 
 /*----------------------------------------------------------------------------*/
