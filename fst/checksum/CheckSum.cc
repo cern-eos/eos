@@ -415,9 +415,11 @@ CheckSum::CloseMap()
       
       if (munmap(ChecksumMap, ChecksumMapSize)) {
         close(ChecksumMapFd);
+	ChecksumMapFd=0;
         return false;
       } else {
         close(ChecksumMapFd);
+	ChecksumMapFd=0;
         return true;
       }
     }
