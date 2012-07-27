@@ -111,6 +111,7 @@ public:
     (void) signal(SIGINT,xrdfstofs_shutdown);
     (void) signal(SIGTERM,xrdfstofs_shutdown);
     (void) signal(SIGQUIT,xrdfstofs_shutdown);
+    Simulate_IO_read_error = Simulate_IO_write_error = Simulate_XS_read_error = Simulate_XS_write_error = false;
   }
 
   XrdSysError*        Eroute;          // used by the 
@@ -222,6 +223,12 @@ public:
 
   XrdScheduler* TransferScheduler;      // -> TransferScheduler
   XrdSysMutex   TransferSchedulerMutex; // -> protecting the TransferScheduler
+
+  void SetSimulationError(const char* tag); // -> allows to switch on error simulation in the OfsFile stack
+  bool Simulate_IO_read_error;          // -> simulate an IO error on read
+  bool Simulate_IO_write_error;         // -> simulate an IO error on write
+  bool Simulate_XS_read_error;          // -> simulate a checksum error on read
+  bool Simulate_XS_write_error;         // -> simulate a checksum error on write
 
   virtual ~XrdFstOfs() {};
 };

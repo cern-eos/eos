@@ -1656,9 +1656,9 @@ Storage::Communicator()
 	    delete fileSystems[queue.c_str()];
 	    fileSystems.erase(queue.c_str());
 	    eos_static_info("deleting filesystem %s", queue.c_str());
+	  } else {
+	    eos_static_info("keeping filesystem %s alive", queue.c_str());
 	  }
-	} else {
-	  eos_static_info("keeping filesystem %s alive", queue.c_str());
 	}
       }
     }
@@ -1766,6 +1766,17 @@ Storage::Communicator()
 	    mGwMultiplexer.SetSlots(atoi(ntx.c_str()));
 	  }
 	  gOFS.ObjectManager.HashMutex.UnLockRead();		  	  
+	}
+
+	if ( key == "error.simulation" ) {
+	  gOFS.ObjectManager.HashMutex.LockRead();
+          XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(),"hash");
+          if (hash) {
+	    std::string value = hash->Get("error.simulation");
+            eos_static_info("cmd=set error.simulation=%s", value.c_str());
+	    gOFS.SetSimulationError(value.c_str());
+          }
+          gOFS.ObjectManager.HashMutex.UnLockRead();
 	}
       } else {
 	fsMutex.LockRead();
@@ -1959,7 +1970,7 @@ Storage::Publish()
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes
       eos::common::RWMutexReadLock lock (fsMutex);
-      
+
       if (!gOFS.ObjectManager.OpenMuxTransaction()) {
         eos_static_err("cannot open mux transaction");
       } else {
@@ -1974,8 +1985,7 @@ Storage::Publish()
             // during the boot phase we can find a filesystem without ID
             continue;
           }
-
-
+	  
 	  // Retrieve Statistics from the SQLITE DB
 	  std::map<std::string, size_t>::const_iterator isit;
 

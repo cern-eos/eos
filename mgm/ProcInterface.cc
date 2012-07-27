@@ -914,6 +914,36 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         }
       }
 
+      if (subcmd == "status") {
+        std::string node = (opaque.Get("mgm.node"))?opaque.Get("mgm.node"):"";
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+	if ( (node.find(":") == std::string::npos) ) {
+	  node += ":1095"; // default eos fst port
+	}
+	if ((node.find("/eos/") == std::string::npos)) {
+	  node.insert(0,"/eos/");
+	  node.append("/fst");
+	}
+	
+        if (FsView::gFsView.mNodeView.count(node)) {
+          stdOut += "# ------------------------------------------------------------------------------------\n";
+          stdOut += "# Node Variables\n";
+          stdOut += "# ....................................................................................\n";
+          std::vector<std::string> keylist;
+          FsView::gFsView.mNodeView[node]->GetConfigKeys(keylist);
+          std::sort(keylist.begin(), keylist.end());
+          for (size_t i=0; i< keylist.size(); i++) {
+            char line[1024];
+	    snprintf(line,sizeof(line)-1,"%-32s := %s\n",keylist[i].c_str(),FsView::gFsView.mNodeView[node]->GetConfigMember(keylist[i].c_str()).c_str());
+            stdOut += line;
+          }
+        } else {
+          stdErr="error: cannot find node - no node with name="; stdErr += node.c_str();
+          retc = ENOENT;
+        }
+      }
+
       if (subcmd == "set") {      
         std::string nodename = (opaque.Get("mgm.node"))?opaque.Get("mgm.node"):"";
         std::string status   = (opaque.Get("mgm.node.state"))?opaque.Get("mgm.node.state"):"";
@@ -1102,6 +1132,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		      stdErr += "error: failed to store the config value gw.rate\n";
 		      retc = EFAULT;
 		    }
+		  }
+		}
+
+		if ( key == "error.simulation" ) {
+		  keyok=true;
+		  if (FsView::gFsView.mNodeView[identifier]->SetConfigMember(key,value,false)) {
+		    stdOut += "success: setting error simulation tag '"; stdOut += value.c_str(); stdOut += "'";
+		  } else {
+		    stdErr += "error: failed to store the error simulation tag\n";
+		    retc = EFAULT;
 		  }
 		}
 		if (!keyok) {
@@ -1392,23 +1432,23 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
                 std::set<eos::common::FileSystem::fsid_t>::iterator it;
                 
-                // store these as a global parameter of the space
-                if ( ( (key == "headroom") || ( key == "scaninterval" ) || ( key == "graceperiod" ) || ( key == "drainperiod" ) ) ) {
-                  if ( (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value,true, "/eos/*/mgm"))) {
-                    stdErr += "error: failed to set space parameter <"; stdErr += key.c_str(); stdErr += ">\n";
-                    retc = EINVAL;
-                  }
-                } else {
-                  stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
-                  retc = EINVAL;
-                }
+		// store these as a global parameter of the space
+		if ( ( (key == "headroom") || ( key == "scaninterval" ) || ( key == "graceperiod" ) || ( key == "drainperiod" ) ) ) {
+		  if ( (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value,true, "/eos/*/mgm"))) {
+		    stdErr += "error: failed to set space parameter <"; stdErr += key.c_str(); stdErr += ">\n";
+		    retc = EINVAL;
+		  }
+		} else {
+		  stdErr += "error: not an allowed parameter <"; stdErr += key.c_str(); stdErr += ">\n";
+		  retc = EINVAL;
+		}
                 
                 for (it = FsView::gFsView.mSpaceView[identifier]->begin(); it != FsView::gFsView.mSpaceView[identifier]->end();  it++) {
                   if ( FsView::gFsView.mIdView.count(*it)) {
                     fs = FsView::gFsView.mIdView[*it];
                     if (fs) {
                       // check the allowed strings
-                      if ( ((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ))) {
+                      if (((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown ))) {
 
                         fs->SetString(key.c_str(),value.c_str());
 			if (value == "off") {

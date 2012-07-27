@@ -106,6 +106,17 @@ com_node (char* arg1) {
     ok = true;
   }
 
+  if ( subcommand == "status" ) {
+    in ="mgm.cmd=node&mgm.subcmd=status";
+    XrdOucString nodename = subtokenizer.GetToken();
+
+    if (!nodename.length())
+      printusage=true;
+    in += "&mgm.node=";
+    in += nodename;
+    ok = true;
+  }
+
   if ( subcommand == "gw" ) {
     in ="mgm.cmd=node&mgm.subcmd=set";
     XrdOucString nodename = subtokenizer.GetToken();
@@ -244,6 +255,11 @@ com_node (char* arg1) {
   fprintf(stdout,"       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node\n");
   fprintf(stdout,"                                                               <key> : gw.rate=<mb/s> - set the transfer speed per gateway transfer\n");
   fprintf(stdout,"                                                               <key> : gw.ntx=<#>     - set the number of concurrent transfers for a gateway node\n");
+  fprintf(stdout,"                                                               <key> : error.simulation=io_read|io_write|xs_read|xs_write\n");
+  fprintf(stdout,"                                                                       io_read  : simulate read  errors\n");
+  fprintf(stdout,"                                                                       io_write : simulate write errors\n");
+  fprintf(stdout,"                                                                       xs_read  : simulate checksum errors when reading a file\n");
+  fprintf(stdout,"                                                                       xs_write : simulate checksum errors when writing a file\n");
   fprintf(stdout,"                                                               <key> : for other keys see help of 'fs config' for details\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
@@ -255,5 +271,6 @@ com_node (char* arg1) {
   fprintf(stdout,"                                                                  <space2register> is formed as <space>:<n> where <space> is the space name and <n> must be equal to the number of filesystems which are matched by <path2register> e.g. data:4 or spare:22 ...\n");
   fprintf(stdout,"                                                                --force : removes any existing filesystem label and re-registers\n");
   fprintf(stdout,"                                                                --root  : allows to register paths on the root partition\n");
+  fprintf(stdout,"       node status <queue-name>|<host:port>                     : print's all defined variables for a node\n");
   return (0);
 }

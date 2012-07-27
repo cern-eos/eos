@@ -328,6 +328,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   std::string watch_gateway      = "txgw";
   std::string watch_gateway_rate = "gw.rate";
   std::string watch_gateway_ntx  = "gw.ntx";
+  std::string watch_error_simulation  = "error.simulation";
 
   ObjectManager.ModificationWatchKeys.insert(watch_id);
   ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
@@ -337,6 +338,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   ObjectManager.ModificationWatchKeys.insert(watch_gateway);
   ObjectManager.ModificationWatchKeys.insert(watch_gateway_rate);
   ObjectManager.ModificationWatchKeys.insert(watch_gateway_ntx);
+  ObjectManager.ModificationWatchKeys.insert(watch_error_simulation);
   ObjectManager.SubjectsMutex.UnLock();
 
 
@@ -439,6 +441,30 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   eos_notice("FST_HOST=%s FST_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s", HostName, myPort, VERSION,RELEASE, keytabcks.c_str());
 
   return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+
+void 
+XrdFstOfs::SetSimulationError(const char* tag) {
+  // -----------------------------------------------
+  // define error bool variables to en-/disable error simulation in the OFS layer
+
+  XrdOucString stag = tag;
+  gOFS.Simulate_IO_read_error = gOFS.Simulate_IO_write_error = gOFS.Simulate_XS_read_error = gOFS.Simulate_XS_write_error = false;
+  
+  if (stag == "io_read") {
+    gOFS.Simulate_IO_read_error = true;
+  }
+  if (stag == "io_write") {
+    gOFS.Simulate_IO_write_error = true;
+  } 
+  if (stag == "xs_read") {
+    gOFS.Simulate_XS_read_error = true;
+  }
+  if (stag == "xs_write") {
+    gOFS.Simulate_XS_write_error = true;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1219,6 +1245,18 @@ XrdFstOfsFile::close()
       checksumerror = verifychecksum();
       targetsizeerror = (targetsize)?(targetsize!=(off_t)maxOffsetWritten):false;
 
+      // ---- add error simulation for checksum errors on read
+      if ((!isRW) && gOFS.Simulate_XS_read_error) {
+	checksumerror = true;
+	eos_warning("simlating checksum errors on read");
+      }
+      
+      // ---- add error simulation for checksum errors on write
+      if (isRW && gOFS.Simulate_XS_write_error) {
+	checksumerror = true;
+	eos_warning("simlating checksum errors on write");
+      }
+
       if (isCreation && (checksumerror||targetsizeerror)) {
 	// -------------------------------------------------------------------------------------------------------
 	// we have a checksum error if the checksum was preset and does not match!
@@ -1230,6 +1268,7 @@ XrdFstOfsFile::close()
 	layOut->remove();
 	
 	if (fstBlockXS) {
+	  fstBlockXS->CloseMap();
 	  // delete also the block checksum file
 	  fstBlockXS->UnlinkXSPath();
 	  delete fstBlockXS;
@@ -1466,11 +1505,6 @@ XrdFstOfsFile::close()
     }
   }
   
-  if (fstBlockXS) {
-    delete fstBlockXS;
-    fstBlockXS=0;
-  }
-
   return rc;
 }
 
@@ -1578,6 +1612,11 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
   int retc = XrdOfsFile::read(fileOffset,buffer,buffer_size);
 
   eos_debug("read %llu %llu %lu", this, fileOffset, buffer_size);
+
+  if (gOFS.Simulate_IO_read_error) {
+    return gOFS.Emsg("readofs", error, EIO, "read file - simulated IO error fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
+  }
+  
   if (fstBlockXS) {
     XrdSysMutexHelper cLock (BlockXsMutex);
     if ((retc>0) && (!fstBlockXS->CheckBlockSum(fileOffset, buffer, retc))) {
@@ -1680,11 +1719,16 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset   fileOffset,
                         const char        *buffer,
                         XrdSfsXferSize     buffer_size)
 {
+
+  if (gOFS.Simulate_IO_write_error) {
+    return gOFS.Emsg("readofs", error, EIO, "write file - simulated IO error fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
+  }
+
   if (fsid) {
     // check if the file system is full
     XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
     if (gOFS.Storage->fileSystemFullMap[fsid]) {
-      return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space (headroom) exceeded fn=", FName());      
+      return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space (headroom) exceeded fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
     }
   }
 
