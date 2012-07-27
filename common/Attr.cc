@@ -134,7 +134,7 @@ Attr::Get(const char* name, char* value, size_t &size)
 {
 
   if ((!name) || (!value))
-    return -1;
+    return false;
   
   int retc = lgetxattr (fName.c_str(), name, value,size);
   if (retc!=-1) {
@@ -160,8 +160,9 @@ Attr::Get(std::string name)
   XrdSysMutexHelper bMutex(gBufferMutex);
   gBuffer[0] = 0;
   size_t size = sizeof(gBuffer)-1;
-  if (!Get(name.c_str(), gBuffer, size));
-  return "";
+  if (!Get(name.c_str(), gBuffer, size)) {
+    return "";
+  }
   
   gBuffer[size] = 0;
   return std::string(gBuffer);
