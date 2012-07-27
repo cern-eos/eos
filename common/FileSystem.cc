@@ -52,6 +52,7 @@ FileSystem::FileSystem(const char* queuepath, const char* queue, XrdMqSharedObje
   mPath      = queuepath;
   mPath.erase(0, mQueue.length());
   mSom       = som;
+  mInternalBootStatus = kDown;
   PreBookedSpace = 0;
   cActive = 0;
   cStatus = 0;

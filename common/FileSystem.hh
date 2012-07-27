@@ -92,6 +92,9 @@ protected:
   // Counter for prebooked space on that filesystem
   unsigned long long PreBookedSpace;
 
+  // boot status stored inside the object not the hash
+  int32_t mInternalBootStatus;
+
 public:
   // ------------------------------------------------------------------------
   //!  Struct & Type definitions
@@ -177,6 +180,8 @@ public:
   enum eConfigStatus { kUnknown=-1, kOff=0, kEmpty, kDrainDead, kDrain, kRO, kWO, kRW};
   enum eDrainStatus  { kNoDrain=0, kDrainPrepare=1, kDrainWait=2,  kDraining=3, kDrained=4, kDrainStalling=5, kDrainExpired=6, kDrainLostFiles=7};
   enum eActiveStatus { kOffline=0, kOnline=1};
+  enum eBootConfig   { kBootOptional=0, kBootForced=1, kBootResync=2};
+
   //------------------------------------------------------------------------
   //! Conversion Functions
   //------------------------------------------------------------------------
@@ -289,7 +294,7 @@ public:
   //! Set the filesystem status.
   //------------------------------------------------------------------------
   bool SetStatus(fsstatus_t status, bool broadcast=true) {
-    
+    mInternalBootStatus=status;
     return SetString("stat.boot", GetStatusAsString(status), broadcast);
   }
 
@@ -531,6 +536,10 @@ public:
     if (cached)
       cStatusLock.UnLock();
     return rStatus;
+  }
+
+  fsstatus_t GetInternalBootStatus() { 
+    return mInternalBootStatus;
   }
 
   //------------------------------------------------------------------------
