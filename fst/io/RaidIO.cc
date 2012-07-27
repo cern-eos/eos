@@ -54,13 +54,10 @@ RaidIO::RaidIO( std::string              algorithm,
   mStripeWidth = GetSizeStripe();
   mNbTotalFiles = mStripeUrls.size();
   mNbDataFiles = mNbTotalFiles - mNbParityFiles;
-  //mpHdUrl = new HeaderCRC[mNbTotalFiles];
-  mpXrdFile = new File*[mNbTotalFiles];
-  //mSizeHeader = mpHdUrl[0].GetSize();
   mSizeHeader = mStripeWidth;
 
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
-    mpXrdFile[i] = new File();
+    mFiles.push_back( new XrdCl::File() );
     mpHdUrl.push_back( new HeaderCRC( mStripeWidth ) );
     mReadHandlers.push_back( new AsyncReadHandler() );
     mWriteHandlers.push_back( new AsyncWriteHandler() );
@@ -81,8 +78,12 @@ RaidIO::RaidIO( std::string              algorithm,
 //------------------------------------------------------------------------------
 RaidIO::~RaidIO()
 {
-  delete[] mpXrdFile;
- 
+  while ( !mFiles.empty() ) {
+    XrdCl::File* ptr_file = mFiles.back();
+    mFiles.pop_back();
+    delete ptr_file;
+  }
+
   while ( !mReadHandlers.empty() ) {
     AsyncReadHandler* ptr_handler = mReadHandlers.back();
     mReadHandlers.pop_back();
@@ -97,7 +98,7 @@ RaidIO::~RaidIO()
 
   while ( !mpHdUrl.empty() ) {
     HeaderCRC* ptr_header = mpHdUrl.back();
-    mReadHandlers.pop_back();
+    mpHdUrl.pop_back();
     delete ptr_header;
   }
     
@@ -108,7 +109,7 @@ RaidIO::~RaidIO()
 // Open file layout
 //------------------------------------------------------------------------------
 int
-RaidIO::open( int flags )
+RaidIO::Open( int flags )
 {
   if ( mNbTotalFiles < 2 ) {
     eos_err( "Failed open layout - stripe size at least 2" );
@@ -122,55 +123,52 @@ RaidIO::open( int flags )
     return -1;
   }
 
-  XRootDStatus status;
+  XrdCl::XRootDStatus status;
 
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
     if ( !( flags | O_RDONLY ) ) {
-      if ( !( mpXrdFile[i]->Open( mStripeUrls[i], OpenFlags::Read ).IsOK() ) ) {
-        eos_err( "opening for read stripeUrl[%i] = %s.", i, mStripeUrls[i].c_str() );
-        fprintf( stdout, "error opening for read stripeUrl[%i] = %s. \n",
+      if ( !( mFiles[i]->Open( mStripeUrls[i], XrdCl::OpenFlags::Read ).IsOK() ) )
+      {
+        fprintf( stdout, "RD: failed open stripeUrl[%i] = %s. \n",
                  i, mStripeUrls[i].c_str() );
         return -1;
       } else {
-        fprintf( stdout, "opening for read stripeUrl[%i] = %s. \n",
+        fprintf( stdout, "RD: successful open stripeUrl[%i] = %s. \n",
                  i, mStripeUrls[i].c_str() );
       }
     } else if ( flags & O_WRONLY ) {
       mIsRw = true;
 
-      if ( !( mpXrdFile[i]->Open( mStripeUrls[i],
-                                  OpenFlags::Delete | OpenFlags::Update,
-                                  Access::UR | Access::UW ).IsOK() ) ) {
-        eos_err( "opening for write stripeUrl[%i] = %s.", i, mStripeUrls[i].c_str() );
-        fprintf( stdout, "opening for write stripeUrl[%i] = %s \n.",
+      if ( !( mFiles[i]->Open( mStripeUrls[i],
+                               XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update,
+                               XrdCl::Access::UR | XrdCl::Access::UW ).IsOK() ) ) {
+        fprintf( stdout, "WR: failed open stripeUrl[%i] = %s. \n",
                  i, mStripeUrls[i].c_str() );
         return -1;
       } else {
-        fprintf( stdout, "error opening for write stripeUrl[%i] = %s \n.",
+        fprintf( stdout, "WR: successful open stripeUrl[%i] = %s. \n",
                  i, mStripeUrls[i].c_str() );
       }
     } else if ( flags & O_RDWR ) {
       mIsRw = true;
 
-      if ( !( mpXrdFile[i]->Open( mStripeUrls[i],
-                                  OpenFlags::Update,
-                                  Access::UR | Access::UW ).IsOK() ) ) {
-        eos_err( "opening failed for update stripeUrl[%i] = %s.",
+      if ( !( mFiles[i]->Open( mStripeUrls[i],
+                               XrdCl::OpenFlags::Update,
+                               XrdCl::Access::UR | XrdCl::Access::UW ).IsOK() ) )
+      {
+        fprintf( stdout, "RDWR: failed open stripeUrl[%i] = %s. \n",
                  i, mStripeUrls[i].c_str() );
-        fprintf( stdout, "opening failed for update stripeUrl[%i] = %s. \n",
-                 i, mStripeUrls[i].c_str() );
-        mpXrdFile[i]->Close();
+        mFiles[i]->Close();
         //TODO: this should be fixed to be able to issue a new open
         //      on the same object (Lukasz?)
-        delete mpXrdFile[i];
-        mpXrdFile[i] = new File();
-
-        if ( !( mpXrdFile[i]->Open( mStripeUrls[i],
-                                    OpenFlags::Delete | OpenFlags::Update,
-                                    Access::UR | Access::UW ).IsOK() ) ) {
-          eos_err( "opening failed new stripeUrl[%i] = %s.",
-                   i, mStripeUrls[i].c_str() );
-          fprintf( stdout, "opening failed new stripeUrl[%i] = %s. \n",
+        delete mFiles[i];
+        mFiles[i] = new XrdCl::File();
+        
+        if ( !( mFiles[i]->Open( mStripeUrls[i],
+                                 XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update,
+                                 XrdCl::Access::UR | XrdCl::Access::UW ).IsOK() ) )
+        {
+          fprintf( stdout, "NEW:: failed open stripeUrl[%i] = %s. \n",
                    i, mStripeUrls[i].c_str() );
           return -1;
         }
@@ -179,18 +177,17 @@ RaidIO::open( int flags )
   }
 
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
-    if ( mpHdUrl[i]->ReadFromFile( mpXrdFile[i] ) ) {
-      mapUS.insert( std::pair<unsigned int, unsigned int>( i, mpHdUrl[i]->GetIdStripe() ) );
-      mapSU.insert( std::pair<unsigned int, unsigned int>( mpHdUrl[i]->GetIdStripe(), i ) );
+    if ( mpHdUrl[i]->ReadFromFile( mFiles[i] ) ) {
+      mapUS.insert( std::make_pair( i, mpHdUrl[i]->GetIdStripe() ) );
+      mapSU.insert( std::make_pair( mpHdUrl[i]->GetIdStripe(), i ) );
     } else {
-      mapUS.insert( std::pair<int, int>( i, i ) );
-      mapSU.insert( std::pair<int, int>( i, i ) );
+      mapUS.insert( std::make_pair( i, i ) );
+      mapSU.insert( std::make_pair( i, i ) );
     }
   }
 
   if ( !ValidateHeader() ) {
-    eos_err( "Header invalid - can not continue" );
-    fprintf( stdout, "Header invalid - can not continue.\n" );
+    fprintf( stderr, "Header invalid - can not continue.\n" );
     return -1;
   }
 
@@ -289,25 +286,25 @@ RaidIO::ValidateHeader()
         mpHdUrl[id_url]->SetSizeLastBlock( mpHdUrl[id_hd_valid]->GetSizeLastBlock() );
 
         if ( mStoreRecovery ) {
-          mpXrdFile[id_url]->Close();
-          delete mpXrdFile[id_url];
-          mpXrdFile[id_url] = new File();
+          mFiles[id_url]->Close();
+          delete mFiles[id_url];
+          mFiles[id_url] = new XrdCl::File();
 
-          if ( !( mpXrdFile[id_url]->Open( mStripeUrls[i],
-                                           OpenFlags::Update,
-                                           Access::UR | Access::UW ).IsOK() ) ) {
+          if ( !( mFiles[id_url]->Open( mStripeUrls[i],
+                                        XrdCl::OpenFlags::Update,
+                                        XrdCl::Access::UR | XrdCl::Access::UW ).IsOK() ) ) {
             eos_err( "open failed for stripeUrl[%i] = %s.", i, mStripeUrls[i].c_str() );
             return false;
           }
 
           //TODO:: compare with the current file size and if different
           //       then truncate to the theoritical size of the file
-          size_t tmp_size = ( mpHdUrl[id_url]->GetNoBlocks() - 1 ) * mStripeWidth +
-                            mpHdUrl[id_url]->GetSizeLastBlock();
-          size_t stripe_size = std::ceil( ( tmp_size * 1.0 ) / mSizeGroup ) *
-                               ( mNbDataFiles * mStripeWidth ) + mSizeHeader;
-          mpXrdFile[id_url]->Truncate( stripe_size );
-          mpHdUrl[id_url]->WriteToFile( mpXrdFile[id_url] );
+          //size_t tmp_size = ( mpHdUrl[id_url]->GetNoBlocks() - 1 ) * mStripeWidth +
+          //                  mpHdUrl[id_url]->GetSizeLastBlock();
+          //size_t stripe_size = std::ceil( ( tmp_size * 1.0 ) / mSizeGroup ) *
+          //                     ( mNbDataFiles * mStripeWidth ) + mSizeHeader;
+          //mFiles[id_url]->Truncate( stripe_size );
+          mpHdUrl[id_url]->WriteToFile( mFiles[id_url] );
         }
 
         break;
@@ -409,9 +406,9 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
                      + ( offset %  mStripeWidth );
       COMMONTIMING( "read remote in", &rt );
 
-      if ( mpXrdFile[url_id] ) {
+      if ( mFiles[url_id] ) {
         mReadHandlers[stripe_id]->Increment();
-        mpXrdFile[url_id]->Read( offset_local + mSizeHeader, nread,
+        mFiles[url_id]->Read( offset_local + mSizeHeader, nread,
                                  pBuff, mReadHandlers[stripe_id] );
       }
 
@@ -501,7 +498,7 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
     // Send write request
     //..........................................................................
     mWriteHandlers[stripe_id]->Increment();
-    mpXrdFile[mapSU[stripe_id]]->Write( offset_local + mSizeHeader, nwrite,
+    mFiles[mapSU[stripe_id]]->Write( offset_local + mSizeHeader, nwrite,
                                         buffer, mWriteHandlers[stripe_id] );
 
     //..........................................................................
@@ -640,7 +637,7 @@ RaidIO::ReadGroup( off_t offsetGroup )
     offset_local = ( offsetGroup / ( mNbDataFiles * mStripeWidth ) ) *  mStripeWidth +
                    ( ( i / mNbDataFiles ) * mStripeWidth );
     mReadHandlers[id_stripe]->Increment();
-    mpXrdFile[mapSU[id_stripe]]->Read( offset_local + mSizeHeader,
+    mFiles[mapSU[id_stripe]]->Read( offset_local + mSizeHeader,
                                        mStripeWidth,
                                        mDataBlocks[MapSmallToBig( i )],
                                        mReadHandlers[id_stripe] );
@@ -758,7 +755,7 @@ RaidIO::sync()
 
   if ( mIsOpen ) {
     for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
-      if ( !( mpXrdFile[i]->Sync().IsOK() ) ) {
+      if ( !( mFiles[i]->Sync().IsOK() ) ) {
         eos_err( "sync error=file %i could not be synced", i );
         return -1;
       }
@@ -811,9 +808,9 @@ int
 RaidIO::stat( struct stat* buf )
 {
   int rc = 0;
-  StatInfo* stat;
+  XrdCl::StatInfo* stat;
 
-  if ( !( mpXrdFile[0]->Stat( true, stat ).IsOK() ) ) {
+  if ( !( mFiles[0]->Stat( true, stat ).IsOK() ) ) {
     eos_err( "stat error=error in stat" );
     return -1;
   }
@@ -875,7 +872,7 @@ RaidIO::close()
         eos_info( "Write Stripe Header local" );
         mpHdUrl[i]->SetIdStripe( mapUS[i] );
 
-        if ( !mpHdUrl[i]->WriteToFile( mpXrdFile[i] ) ) {
+        if ( !mpHdUrl[i]->WriteToFile( mFiles[i] ) ) {
           eos_err( "error=write header to file failed for stripe:%i", i );
           return -1;
         }
@@ -885,7 +882,7 @@ RaidIO::close()
     }
 
     for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
-      if ( !( mpXrdFile[i]->Close().IsOK() ) ) {
+      if ( !( mFiles[i]->Close().IsOK() ) ) {
         rc = -1;
       }
     }

@@ -915,11 +915,11 @@ int main(int argc, char* argv[]) {
       redundancyObj = new eos::fst::ReedSFile(vectUrl, nparitystripes, doStoreRecovery, isStreamFile);
     }
     
-    if (isSrcRaid && redundancyObj->open(flags)) {
+    if (isSrcRaid && redundancyObj->Open(flags)) {
       fprintf(stderr, "error: can not open RAIDIO object for read\n");
       exit(-EIO);
     }
-    else if (!isSrcRaid && redundancyObj->open(flags))
+    else if (!isSrcRaid && redundancyObj->Open(flags))
     {
       fprintf(stderr, "error: can not open RAIDIO object for write\n");
       exit(-ENOENT);
@@ -933,7 +933,7 @@ int main(int argc, char* argv[]) {
         srcfd[i] = open(source[i], O_RDONLY);
         break;
       case 1:
-        //already taken care of
+        //already took care of
         break;
       case 2:
         if (debug) {fprintf(stdout, "[eoscp]: doing XROOT open to read  %s\n", source[i]);}
@@ -994,7 +994,7 @@ int main(int argc, char* argv[]) {
       }
       break;
     case 1:
-      //already taken care of
+      //already took care of
       break;
     case 2:
       if (debug) {fprintf(stdout, "[eoscp]: doing XROOT open to write  %s\n", destination[i]);}

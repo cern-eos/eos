@@ -246,7 +246,7 @@ RaidDpFile::DoubleParityRecover( off_t                    offsetInit,
     offset_local = ( offset_group / ( mNbDataFiles * mStripeWidth ) ) *  mStripeWidth +
                    ( ( i / mNbTotalFiles ) * mStripeWidth );
     mReadHandlers[id_stripe]->Increment();
-    mpXrdFile[mapSU[id_stripe]]->Read( offset_local + mSizeHeader, mStripeWidth,
+    mFiles[mapSU[id_stripe]]->Read( offset_local + mSizeHeader, mStripeWidth,
                                        mDataBlocks[i], mReadHandlers[id_stripe] );
   }
 
@@ -304,7 +304,7 @@ RaidDpFile::DoubleParityRecover( off_t                    offsetInit,
 
       if ( mStoreRecovery ) {
         mWriteHandlers[id_stripe]->Increment();
-        mpXrdFile[mapSU[id_stripe]]->Write( offset_local + mSizeHeader,
+        mFiles[mapSU[id_stripe]]->Write( offset_local + mSizeHeader,
                                             mStripeWidth,
                                             mDataBlocks[id_corrupted],
                                             mWriteHandlers[id_stripe] );
@@ -364,7 +364,7 @@ RaidDpFile::DoubleParityRecover( off_t                    offsetInit,
 
         if ( mStoreRecovery ) {
           mWriteHandlers[id_stripe]->Increment();
-          mpXrdFile[mapSU[id_stripe]]->Write( offset_local + mSizeHeader, mStripeWidth,
+          mFiles[mapSU[id_stripe]]->Write( offset_local + mSizeHeader, mStripeWidth,
                                               mDataBlocks[id_corrupted], mWriteHandlers[id_stripe] );
         }
 
@@ -510,14 +510,14 @@ RaidDpFile::WriteParityToFiles( off_t offsetGroup )
     // Writing simple parity
     //..........................................................................
     mWriteHandlers[id_pfile]->Increment();
-    mpXrdFile[mapSU[id_pfile]]->Write( off_parity_local + mSizeHeader, mStripeWidth,
+    mFiles[mapSU[id_pfile]]->Write( off_parity_local + mSizeHeader, mStripeWidth,
                                        mDataBlocks[index_pblock], mWriteHandlers[id_pfile] );
 
     //..........................................................................
     // Writing double parity
     //..........................................................................
     mWriteHandlers[id_dpfile]->Increment();
-    mpXrdFile[mapSU[id_dpfile]]->Write( off_parity_local + mSizeHeader, mStripeWidth,
+    mFiles[mapSU[id_dpfile]]->Write( off_parity_local + mSizeHeader, mStripeWidth,
                                         mDataBlocks[index_dpblock], mWriteHandlers[id_dpfile] );
   }
 
@@ -795,7 +795,7 @@ RaidDpFile::truncate( off_t offset )
   truncate_offset += mSizeHeader;
 
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
-    if ( !( mpXrdFile[i]->Truncate( truncate_offset ).IsOK() ) ) {
+    if ( !( mFiles[i]->Truncate( truncate_offset ).IsOK() ) ) {
       eos_err( "error=error while truncating" );
       return -1;
     }
@@ -874,7 +874,7 @@ RaidDpFile::SimpleParityRecover( off_t                    offsetInit,
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
     memset( mDataBlocks[i], 0, mStripeWidth );
     mReadHandlers[i]->Increment();
-    mpXrdFile[mapSU[i]]->Read( offset_local + mSizeHeader, mStripeWidth,
+    mFiles[mapSU[i]]->Read( offset_local + mSizeHeader, mStripeWidth,
                              mDataBlocks[i], mReadHandlers[i] );
   }
 
@@ -924,7 +924,7 @@ RaidDpFile::SimpleParityRecover( off_t                    offsetInit,
 
   if ( mStoreRecovery ) {
     mWriteHandlers[id_corrupted]->Increment();
-    mpXrdFile[mapSU[id_corrupted]]->Write( offset_local + mSizeHeader, mStripeWidth,
+    mFiles[mapSU[id_corrupted]]->Write( offset_local + mSizeHeader, mStripeWidth,
                                      mDataBlocks[id_corrupted], mWriteHandlers[id_corrupted] );
   }
 

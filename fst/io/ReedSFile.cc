@@ -114,7 +114,7 @@ ReedSFile::RecoverPieces( off_t                    offsetInit,
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
     mReadHandlers[i]->Reset();
     mReadHandlers[i]->Increment();
-    mpXrdFile[mapSU[i]]->Read( offset_local +  mSizeHeader, mStripeWidth,
+    mFiles[mapSU[i]]->Read( offset_local +  mSizeHeader, mStripeWidth,
                                mDataBlocks[i], mReadHandlers[i] );
   }
 
@@ -223,7 +223,7 @@ ReedSFile::RecoverPieces( off_t                    offsetInit,
     if ( mStoreRecovery ) {
       mWriteHandlers[stripe_id]->Reset();
       mWriteHandlers[stripe_id]->Increment();
-      mpXrdFile[mapSU[stripe_id]]->Write( offset_local + mSizeHeader, mStripeWidth,
+      mFiles[mapSU[stripe_id]]->Write( offset_local + mSizeHeader, mStripeWidth,
                                           mDataBlocks[stripe_id], mWriteHandlers[stripe_id] );
     }
 
@@ -414,7 +414,7 @@ ReedSFile::WriteParityToFiles( off_t offsetGroup )
   for ( unsigned int i = mNbDataFiles; i < mNbTotalFiles; i++ ) {
     mWriteHandlers[i]->Reset();
     mWriteHandlers[i]->Increment();
-    mpXrdFile[mapSU[i]]->Write( offset_local + mSizeHeader, mStripeWidth,
+    mFiles[mapSU[i]]->Write( offset_local + mSizeHeader, mStripeWidth,
                                 mDataBlocks[i], mWriteHandlers[i] );
   }
 
@@ -444,7 +444,7 @@ ReedSFile::truncate( off_t offset )
   truncateOffset += mSizeHeader;
 
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
-    if ( !( mpXrdFile[i]->Truncate( truncateOffset ).IsOK() ) ) {
+    if ( !( mFiles[i]->Truncate( truncateOffset ).IsOK() ) ) {
       eos_err( "error=error while truncating" );
       return -1;
     }

@@ -46,7 +46,6 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-using namespace XrdCl;
 
 //------------------------------------------------------------------------------
 //! Generic class to read/write different layout files
@@ -83,7 +82,7 @@ class RaidIO : public eos::common::LogId
     //! @return 0 if successful, otherwise error
     //!
     //--------------------------------------------------------------------------
-    virtual int open( int flags );
+    virtual int Open( int flags );
 
     //--------------------------------------------------------------------------
     //! Read from file
@@ -172,9 +171,7 @@ class RaidIO : public eos::common::LogId
 
   protected:
 
-    File** mpXrdFile;            ///< xrd clients corresponding to the stripes
-
-  bool mIsRw;                  ///< mark for writing
+    bool mIsRw;                  ///< mark for writing
     bool mIsOpen;                ///< mark if open
     bool mDoTruncate;            ///< mark if there is a need to truncate
     bool mUpdateHeader;          ///< mark if header updated
@@ -203,6 +200,7 @@ class RaidIO : public eos::common::LogId
 
     std::string mAlgorithmType;                     ///< layout type used
     std::string mBookingOpaque;                     ///< opaque information
+    std::vector<XrdCl::File*> mFiles;               ///< files corresponding to the stripes
     std::vector<char*> mDataBlocks;                 ///< vector containing the data in a group
     std::vector<HeaderCRC*> mpHdUrl;                ///< vector of header objects
     std::vector<std::string> mStripeUrls;           ///< urls of the stripe files
