@@ -252,11 +252,8 @@ class RaidMetaLayout : public Layout
   
     //--------------------------------------------------------------------------
     //! Test and recover any corrupted headers in the stripe files
-    //!
-    //! @param opqaue opaque information to be forwarded if needed
-    //!
     //--------------------------------------------------------------------------
-    virtual bool ValidateHeader( const char* opaque );
+    virtual bool ValidateHeader();
 
 
     //--------------------------------------------------------------------------

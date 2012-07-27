@@ -915,7 +915,7 @@ RaidDpLayout::Truncate( XrdSfsFileOffset offset )
 
   if ( !offset ) return rc;
 
-  truncate_offset = ceil( ( offset * 1.0 ) / mSizeGroup ) * mSizeGroup;
+  truncate_offset = ceil( ( offset * 1.0 ) / mSizeGroup ) * mSizeLine;
   truncate_offset += mSizeHeader;
   eos_debug( "Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
              offset, truncate_offset );

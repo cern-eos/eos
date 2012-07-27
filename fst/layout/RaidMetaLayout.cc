@@ -321,7 +321,7 @@ RaidMetaLayout::Open( const std::string& path,
     //..........................................................................
     // Only the head node does the validation of the headers
     //..........................................................................
-    if ( !ValidateHeader( opaque ) ) {
+    if ( !ValidateHeader() ) {
       eos_err( "error=headers invalid - can not continue" );
       return gOFS.Emsg( "RaidMetaLayoutOpen", *mError, EIO, "headers invalid " );
     }
@@ -346,7 +346,7 @@ RaidMetaLayout::Open( const std::string& path,
 // Test and recover if headers are corrupted
 //------------------------------------------------------------------------------
 bool
-RaidMetaLayout::ValidateHeader( const char* opaque )
+RaidMetaLayout::ValidateHeader()
 {
   bool new_file = true;
   bool all_hd_valid = true;
@@ -1192,13 +1192,26 @@ RaidMetaLayout::Remove()
 {
   int ret = SFS_OK;
 
-  for ( unsigned int i = 0; i < mStripeFiles.size(); i++ ) {
-    if ( mStripeFiles[i]->Remove() ) {
-      eos_err( "error=failed to remove stripe %i", i );
-      ret = SFS_ERROR;
+  if ( mIsEntryServer ) {
+    //..........................................................................
+    // Unlink remote stripes
+    //..........................................................................
+    for ( unsigned int i = 1; i < mStripeFiles.size(); i++ ) {
+      if ( mStripeFiles[i]->Remove() ) {
+        eos_err( "error=failed to remove remote stripe %i", i );
+        ret = SFS_ERROR;
+      }
     }
   }
 
+  //..........................................................................
+  // Unlink local stripe
+  //..........................................................................
+  if ( mStripeFiles[0]->Remove() ) {
+    eos_err( "error=failed to remove local stripe" );
+    ret = SFS_ERROR;
+  }
+    
   return ret;
 }
 
