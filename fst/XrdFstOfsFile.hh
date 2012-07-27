@@ -118,6 +118,7 @@ public:
     if (fMd) {delete fMd; fMd = 0;}
     if (checkSum) { delete checkSum; checkSum = 0;}
     if (layOut) { delete layOut; layOut = 0;}
+    if (fstBlockXS) { fstBlockXS->CloseMap(); delete fstBlockXS; fstBlockXS=0; }
   }
 
 protected:

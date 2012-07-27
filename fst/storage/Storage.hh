@@ -77,6 +77,7 @@ public:
 
   void RunScanner(Load* fstLoad, time_t interval);
 
+  
   std::string  GetPath() {return GetString("path");}
 
   const char* GetTransactionDirectory() {return transactionDirectory.c_str();}
@@ -109,6 +110,7 @@ public:
   }
   
   eos::common::Statfs* GetStatfs();
+
 }; 
 
 
@@ -179,7 +181,8 @@ public:
   std::map<eos::common::FileSystem::fsid_t , FileSystem*> fileSystemsMap;
 
   XrdSysMutex fileSystemFullMapMutex;
-  std::map<eos::common::FileSystem::fsid_t , bool> fileSystemFullMap;
+  std::map<eos::common::FileSystem::fsid_t , bool> fileSystemFullMap;     // map indicating if a filesystem has less than the headroom space free 
+  std::map<eos::common::FileSystem::fsid_t , bool> fileSystemFullWarnMap; // map indicating if a filesystem has less than (headroom +1G) space free (disables drain + balancing)
   
   //  static int HasStatfsChanged(const char* key, FileSystem* filesystem, void* arg);
   int ScrubFs(const char* path, unsigned long long free, unsigned long long lbocks, unsigned long id);

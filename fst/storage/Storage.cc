@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------
+ // ----------------------------------------------------------------------
 // File: Storage.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
@@ -190,6 +190,7 @@ FileSystem::CleanTransactions()
 	}
       }
     }
+    closedir(tdir);
   } else {
     eos_static_err("Unable to open transactiondirectory %s",GetTransactionDirectory());
   }
@@ -529,8 +530,8 @@ Storage::Boot(FileSystem *fs)
     return;
   }
 
-  bool resyncmgm =   (gFmdSqliteHandler.IsDirty(fsid) || (fs->GetLongLong("bootcheck")));
-
+  bool resyncmgm =   (gFmdSqliteHandler.IsDirty(fsid) || (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
+  
   // resync the SQLITE DB 
   if (!gFmdSqliteHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
@@ -539,10 +540,12 @@ Storage::Boot(FileSystem *fs)
   }
 
   // if we detect an unclean shutdown, we resync with the MGM
-  // if we see the stat.bootcheck flag for the filesystem, we also resync
+  // if we see the stat.bootcheck resyncflag for the filesystem, we also resync
+
+  // remove the bootcheck flag
+  fs->SetLongLong("bootcheck",0);
+
   if (resyncmgm) {
-    // remove the bootcheck flag
-    fs->SetLongLong("bootcheck",0);
     // resync the MGM meta data
     if (!gFmdSqliteHandler.ResyncAllMgm(fsid, manager.c_str())) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
@@ -1796,7 +1799,18 @@ Storage::Communicator()
 		gOFS.ObjectManager.HashMutex.UnLockRead();
 		// this is a request to (re-)boot a filesystem
 		if (fileSystems.count(queue.c_str())) {
-		  Boot(fileSystems[queue.c_str()]);
+		  if ( (fileSystems[queue.c_str()]->GetInternalBootStatus() == eos::common::FileSystem::kBooted) ) {
+		    if (fileSystems[queue.c_str()]->GetLongLong("bootcheck")) {
+		      eos_static_info("queue=%s status=%d check=%lld msg='boot enforced'", queue.c_str(), fileSystems[queue.c_str()]->GetStatus(), fileSystems[queue.c_str()]->GetLongLong("bootcheck"));
+		      Boot(fileSystems[queue.c_str()]);
+		    } else {
+		      eos_static_info("queue=%s status=%d check=%lld msg='skip boot - we are already booted'", queue.c_str(), fileSystems[queue.c_str()]->GetStatus(), fileSystems[queue.c_str()]->GetLongLong("bootcheck"));
+		      fileSystems[queue.c_str()]->SetStatus(eos::common::FileSystem::kBooted);
+		    }
+		  } else {
+		    eos_static_info("queue=%s status=%d check=%lld msg='booting - we are not booted yet'", queue.c_str(), fileSystems[queue.c_str()]->GetStatus(), fileSystems[queue.c_str()]->GetLongLong("bootcheck"));
+		    Boot(fileSystems[queue.c_str()]);
+		  }
 		} else {
 		  eos_static_err("got boot time update on not existant filesystem %s", queue.c_str());
 		}
@@ -2020,8 +2034,14 @@ Storage::Publish()
 	    } else {
 	      fileSystemFullMap[fsid] = false;
 	    }
+	    
+	    if ( (fbytes < 1024ll*1024ll*1024ll) || (fbytes <= (fileSystemsVector[i]->GetLongLong("headroom") + (1024ll*1024ll*1024ll)) ) ) {
+	      fileSystemFullWarnMap[fsid] = true;
+	    } else {
+	      fileSystemFullWarnMap[fsid] = false;
+	    }
 	  }
-
+	  
           if (!success) {
             eos_static_err("cannot set net parameters on filesystem %s", fileSystemsVector[i]->GetPath().c_str());
           }
@@ -2145,9 +2165,16 @@ Storage::Drainer()
 	
 	eos_static_info("id=%u nscheduled=%llu nparalleltx=%llu", id, nscheduled, nparalleltx);
 	
-	// we drain into filesystems which are booted and 'in production' e.g. not draining or down
+	bool full=false;
+	{
+	  XrdSysMutexHelper(fileSystemFullMapMutex);
+	  full = fileSystemFullWarnMap[id];
+	}
+
+	// we drain into filesystems which are booted and 'in production' e.g. not draining or down or RO and which are not FULL !
 	if ( (bootstatus == eos::common::FileSystem::kBooted) && 
-	     (configstatus > eos::common::FileSystem::kDrain) ) {
+	     (configstatus > eos::common::FileSystem::kRO) && 
+	     ( !full ) ) {
 	  should_ask[index] = true;
 	  // we allows max. <nparalleltx> transfers to run at the same time
 	  if (nscheduled < nparalleltx) {
@@ -2355,10 +2382,18 @@ Storage::Balancer()
 	  eos_static_debug("id=%u nscheduled=%llu nparalleltx=%llu", id, nscheduled, nparalleltx);
 
 	  // ---------------------------------------------------------------------------------------------
-	  // we balance filesystems which are booted and 'in production' e.g. not draining or down
+	  // we balance filesystems which are booted and 'in production' e.g. not draining or down or RO
 	  // ---------------------------------------------------------------------------------------------
+	  
+	  bool full=false;
+	  {
+	    XrdSysMutexHelper(fileSystemFullMapMutex);
+	    full = fileSystemFullWarnMap[id];
+	  }
+	  
 	  if ( (bootstatus == eos::common::FileSystem::kBooted) && 
-	       (configstatus > eos::common::FileSystem::kDrain) ) {
+	       (configstatus > eos::common::FileSystem::kRO) && 
+	       (!full) ) {
 
 	    if (nscheduled < nparalleltx) {	    
 	      XrdOucErrInfo error;

@@ -1986,7 +1986,7 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
   if (stdOut.length()) {
     XrdMqMessage repmessage("fsck reply message");
     repmessage.SetBody(stdOut.c_str());
-    fprintf(stderr,"Sending %s\n", stdOut.c_str());
+    //    fprintf(stderr,"Sending %s\n", stdOut.c_str());
     if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
       eos_err("unable to send fsck reply message to %s", message->kMessageHeader.kSenderId.c_str());
     }
