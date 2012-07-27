@@ -542,6 +542,8 @@ DrainJob::Drain(void)
 
     fs->SetLongLong("stat.drainfiles",     filesleft);    
     fs->SetDrainStatus(eos::common::FileSystem::kDrained);    
+    fs->SetLongLong("stat.drainbytesleft", 0);
+    fs->SetLongLong("stat.timeleft", 0);
     SetDrainer();
     // we automatically switch this filesystem to the 'empty' state
     fs->SetString("configstatus","empty");
