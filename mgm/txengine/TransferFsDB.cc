@@ -290,7 +290,7 @@ TransferFsDB::SetState(long long id, int state)
   
   TransferDB::transfer_t transfer = GetTransfer(id, true);
 
-  if (!transfer.count("status")) {
+  if ((id!=0) && (!transfer.count("status"))) {
     return false;
   }
   // for id=0 it sets the state on all ids
