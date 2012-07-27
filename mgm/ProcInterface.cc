@@ -1719,7 +1719,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 if ( (it->second->GetConfigStatus() > eos::common::FileSystem::kOff) ) {
 		  if (forcemgmsync.length()) {
 		    // set the check flag
-		    it->second->SetLongLong("bootcheck",1);
+		    it->second->SetLongLong("bootcheck",eos::common::FileSystem::kBootResync);
+		  } else {
+		    // set the force flag
+		    it->second->SetLongLong("bootcheck",eos::common::FileSystem::kBootForced);
 		  }
 
                   it->second->SetLongLong("bootsenttime",(unsigned long long)time(NULL));
@@ -1751,7 +1754,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                   if (fs) {
 		    if (forcemgmsync.length()) {
 		      // set the check flag
-		      fs->SetLongLong("bootcheck",1);
+		      fs->SetLongLong("bootcheck",eos::common::FileSystem::kBootResync);
+		    } else {
+		      // set the force flag
+		      fs->SetLongLong("bootcheck",eos::common::FileSystem::kBootForced);
 		    }
                     fs->SetLongLong("bootsenttime",(unsigned long long)time(NULL));
                     stdOut += " ";
@@ -1771,13 +1777,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 if (fs) {
 		  if (forcemgmsync.length()) {
 		    // set the check flag
-		    fs->SetLongLong("bootcheck",1);
+		    fs->SetLongLong("bootcheck",eos::common::FileSystem::kBootResync);;
+		  } else {
+		    // set the force flag
+		    fs->SetLongLong("bootcheck",eos::common::FileSystem::kBootForced);
 		  }
-
-                  fs->SetLongLong("bootsenttime",(unsigned long long)time(NULL));
-                  stdOut += " ";
-                  stdOut += fs->GetString("host").c_str();
-                  stdOut += ":";
+		  fs->SetLongLong("bootsenttime",(unsigned long long)time(NULL));
+		  stdOut += " ";
+		  stdOut += fs->GetString("host").c_str();
+		  stdOut += ":";
                   stdOut += fs->GetString("path").c_str();
                 }
               } else {
