@@ -392,7 +392,7 @@ XrdMgmOfs::PathRemap(const char* inpath, XrdOucString &outpath)
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfsDirectory::open(const char              *inpath, // In
                              const XrdSecEntity  *client,   // In
-                             const char              *info)     // In
+                             const char              *ininfo)     // In
 /*
   Function: Open the directory `path' and prepare for reading.
 
@@ -406,10 +406,10 @@ int XrdMgmOfsDirectory::open(const char              *inpath, // In
   static const char *epname = "opendir";
   const char *tident = error.getErrUser();
 
-  XrdOucEnv Open_Env(info);
-
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
+
+  XrdOucEnv Open_Env(info);
 
   eos_info("path=%s",path);
 
@@ -578,7 +578,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
                         XrdSfsFileOpenMode   open_mode, // In
                         mode_t               Mode,      // In
                         const XrdSecEntity        *client,    // In
-                        const char                *info)      // In
+                        const char                *ininfo)      // In
 /*
   Function: Open the file `path' in the mode indicated by `open_mode'.  
 
@@ -607,7 +607,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   EXEC_TIMING_BEGIN("Open");
   SetLogId(logId, tident);
   
-  eos::common::Mapping::IdMap(client,info,tident,vid);
+  eos::common::Mapping::IdMap(client,ininfo,tident,vid);
 
   SetLogId(logId, vid, tident);
 
@@ -1569,7 +1569,7 @@ XrdMgmOfs::chksum(      XrdSfsFileSystem::csFunc            Func,
 			    const char             *inpath,
 			    XrdOucErrInfo          &error,
 			    const XrdSecEntity     *client,
-			    const char             *opaque)
+			    const char             *ininfo)
   /*
   Function: Compute and return file checksum.
 
@@ -1580,7 +1580,7 @@ XrdMgmOfs::chksum(      XrdSfsFileSystem::csFunc            Func,
             path      - Pathname of file for csCalc and csSize.
             einfo     - Error information object to hold error details.
             client    - Authentication credentials, if any.
-            opaque    - Opaque information to be used as seen fit.
+            ininfo    - Opaque information to be used as seen fit.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
   */
@@ -1593,9 +1593,6 @@ XrdMgmOfs::chksum(      XrdSfsFileSystem::csFunc            Func,
 
   XrdSecEntity mappedclient();
 
-  XrdOucEnv Open_Env(opaque);
-
-  XrdOucEnv  cksEnv(opaque,0,client);
   char buff[MAXPATHLEN+8];
   int rc;
   
@@ -1625,9 +1622,11 @@ XrdMgmOfs::chksum(      XrdSfsFileSystem::csFunc            Func,
   
   NAMESPACEMAP;
 
+  XrdOucEnv Open_Env(info);
+
   AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",path,error);
 
-  eos::common::Mapping::IdMap(client,opaque,tident,vid);
+  eos::common::Mapping::IdMap(client,info,tident,vid);
 
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
@@ -1699,7 +1698,7 @@ int XrdMgmOfs::chmod(const char                *inpath,    // In
                      XrdSfsMode        Mode,    // In
                      XrdOucErrInfo    &error,   // Out
                      const XrdSecEntity     *client,  // In
-                     const char             *info)    // In
+                     const char             *ininfo)    // In
 /*
   Function: Change the mode on a file or directory.
 
@@ -1718,10 +1717,11 @@ int XrdMgmOfs::chmod(const char                *inpath,    // In
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
-  XrdOucEnv chmod_Env(info);
 
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
+
+  XrdOucEnv chmod_Env(info);
 
   AUTHORIZE(client,&chmod_Env,AOP_Chmod,"chmod",path,error);
 
@@ -1741,7 +1741,7 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
                       XrdSfsMode        Mode,    // In
                       XrdOucErrInfo    &error,   // Out
                       eos::common::Mapping::VirtualIdentity &vid,   // In
-                      const char             *info)    // In
+                      const char             *ininfo)    // In
 
 {
   static const char *epname = "chmod";
@@ -1818,7 +1818,7 @@ int XrdMgmOfs::_chown(const char               *path,    // In
                       gid_t             gid,     // In
                       XrdOucErrInfo    &error,   // Out
                       eos::common::Mapping::VirtualIdentity &vid,   // In
-                      const char             *info)    // In
+                      const char             *ininfo)    // In
 
 {
   static const char *epname = "chown";
@@ -1916,7 +1916,7 @@ int XrdMgmOfs::exists(const char                *inpath,        // In
                       XrdSfsFileExistence &file_exists, // Out
                       XrdOucErrInfo       &error,       // Out
                       const XrdSecEntity    *client,          // In
-                      const char                *info)        // In
+                      const char                *ininfo)        // In
 
 {
   static const char *epname = "exists";
@@ -1926,10 +1926,10 @@ int XrdMgmOfs::exists(const char                *inpath,        // In
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
-  XrdOucEnv exists_Env(info);
-
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
+
+  XrdOucEnv exists_Env(info);
 
   AUTHORIZE(client,&exists_Env,AOP_Stat,"execute exists",path,error);
 
@@ -1948,7 +1948,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
                        XrdSfsFileExistence &file_exists, // Out
                        XrdOucErrInfo       &error,       // Out
                        const XrdSecEntity       *client,       // In
-                       const char                *info)        // In
+                       const char                *ininfo)        // In
 /*
   Function: Determine if file 'path' actually exists.
 
@@ -2060,7 +2060,7 @@ int XrdMgmOfs::_exists(const char                *path,        // In
                        XrdSfsFileExistence &file_exists, // Out
                        XrdOucErrInfo       &error,       // Out
                        eos::common::Mapping::VirtualIdentity &vid,   // In
-                       const char                *info)        // In
+                       const char                *ininfo)        // In
 /*
   Function: Determine if file 'path' actually exists.
 
@@ -2136,18 +2136,18 @@ int XrdMgmOfs::mkdir(const char              *inpath,    // In
                      XrdSfsMode        Mode,    // In
                      XrdOucErrInfo    &error,   // Out
                      const XrdSecEntity     *client,  // In
-                     const char             *info)    // In
+                     const char             *ininfo)    // In
 {
   static const char *epname = "mkdir";
   const char *tident = error.getErrUser();
   
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-  
-  XrdOucEnv mkdir_Env(info);
-  
+    
   NAMESPACEMAP; 
   BOUNCE_ILLEGAL_NAMES;
+
+  XrdOucEnv mkdir_Env(info);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
@@ -2166,7 +2166,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
                       XrdSfsMode             Mode,    // In
                       XrdOucErrInfo         &error,   // Out
                       eos::common::Mapping::VirtualIdentity &vid, // In
-                      const char            *info)    // In
+                      const char            *ininfo)    // In
 /*
   Function: Create a directory entry.
 
@@ -2442,7 +2442,7 @@ int XrdMgmOfs::prepare( XrdSfsPrep       &pargs,
 int XrdMgmOfs::rem(const char             *inpath,    // In
                    XrdOucErrInfo    &error,   // Out
                    const XrdSecEntity *client,  // In
-                   const char             *info)    // In
+                   const char             *ininfo)    // In
 /*
   Function: Delete a file from the namespace.
 
@@ -2481,7 +2481,7 @@ int XrdMgmOfs::rem(const char             *inpath,    // In
 int XrdMgmOfs::_rem(   const char             *path,    // In
                        XrdOucErrInfo          &error,   // Out
                        eos::common::Mapping::VirtualIdentity &vid, //In
-                       const char             *info)    // In
+                       const char             *ininfo)    // In
 /*
   Function: Delete a file from the namespace.
 
@@ -2630,7 +2630,7 @@ int XrdMgmOfs::_rem(   const char             *path,    // In
 int XrdMgmOfs::remdir(const char             *inpath,    // In
                       XrdOucErrInfo    &error,   // Out
                       const XrdSecEntity *client,  // In
-                      const char             *info)    // In
+                      const char             *ininfo)    // In
 /*
   Function: Delete a directory from the namespace.
 
@@ -2648,13 +2648,13 @@ int XrdMgmOfs::remdir(const char             *inpath,    // In
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
   
-  XrdOucEnv remdir_Env(info);
-  
   XrdSecEntity mappedclient();
 
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
 
+  XrdOucEnv remdir_Env(info);
+  
   AUTHORIZE(client,&remdir_Env,AOP_Delete,"remove",path, error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
@@ -2671,7 +2671,7 @@ int XrdMgmOfs::remdir(const char             *inpath,    // In
 int XrdMgmOfs::_remdir(const char             *path,    // In
                        XrdOucErrInfo          &error,   // Out
                        eos::common::Mapping::VirtualIdentity &vid, // In
-                       const char             *info)    // In
+                       const char             *ininfo)    // In
 /*
   Function: Delete a directory from the namespace.
 
@@ -2883,7 +2883,7 @@ int XrdMgmOfs::stat(const char              *inpath,      // In
                     struct stat             *buf,         // Out
                     XrdOucErrInfo           &error,       // Out
                     const XrdSecEntity      *client,      // In
-                    const char              *info)        // In
+                    const char              *ininfo)        // In
 /*
   Function: Get info on 'path'.
 
@@ -2904,10 +2904,10 @@ int XrdMgmOfs::stat(const char              *inpath,      // In
 
   XrdSecEntity mappedclient();
 
-  XrdOucEnv Open_Env(info);
-
   NAMESPACEMAP;   
   BOUNCE_ILLEGAL_NAMES;
+
+  XrdOucEnv Open_Env(info);
 
   AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",path,error);
 
@@ -2926,7 +2926,7 @@ int XrdMgmOfs::_stat(const char              *path,        // In
                      struct stat       *buf,         // Out
                      XrdOucErrInfo     &error,       // Out
                      eos::common::Mapping::VirtualIdentity &vid,  // In
-                     const char              *info)        // In
+                     const char              *ininfo)        // In
 {
   static const char *epname = "_stat";
 
@@ -3094,18 +3094,18 @@ int XrdMgmOfs::readlink(const char             *inpath,      // In
                         XrdOucString        &linkpath,    // Out
                         XrdOucErrInfo       &error,       // Out
                         const XrdSecEntity  *client,       // In
-                        const char          *info)        // In
+                        const char          *ininfo)        // In
 {
   static const char *epname = "readlink";
   const char *tident = error.getErrUser(); 
-
-  XrdOucEnv rl_Env(info);
 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
   NAMESPACEMAP; 
   BOUNCE_ILLEGAL_NAMES;
+
+  XrdOucEnv rl_Env(info);
 
   AUTHORIZE(client,&rl_Env,AOP_Stat,"readlink",path,error);
   
@@ -3126,12 +3126,10 @@ int XrdMgmOfs::symlink(const char            *inpath,        // In
                        const char           *linkpath,    // In
                        XrdOucErrInfo        &error,       // Out
                        const XrdSecEntity   *client,      // In
-                       const char           *info)        // In
+                       const char           *ininfo)        // In
 {
   static const char *epname = "symlink";
   const char *tident = error.getErrUser(); 
-
-  XrdOucEnv sl_Env(info);
 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
@@ -3140,6 +3138,8 @@ int XrdMgmOfs::symlink(const char            *inpath,        // In
   BOUNCE_ILLEGAL_NAMES;
 
   XrdOucString source, destination;
+
+  XrdOucEnv sl_Env(info);
 
   AUTHORIZE(client,&sl_Env,AOP_Create,"symlink",linkpath,error);
   
@@ -3165,15 +3165,16 @@ int XrdMgmOfs::access( const char            *inpath,        // In
                        int                   mode,        // In
                        XrdOucErrInfo        &error,       // Out
                        const XrdSecEntity   *client,      // In
-                       const char           *info)        // In
+                       const char           *ininfo)        // In
 {
   static const char *epname = "access";
   const char *tident = error.getErrUser(); 
 
-  XrdOucEnv access_Env(info);
 
   NAMESPACEMAP; 
   BOUNCE_ILLEGAL_NAMES;
+
+  XrdOucEnv access_Env(info);
 
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
 
@@ -3276,18 +3277,18 @@ int XrdMgmOfs::utimes(  const char            *inpath,        // In
                         struct timespec      *tvp,         // In
                         XrdOucErrInfo       &error,        // Out
                         const XrdSecEntity  *client,       // In
-                        const char          *info)         // In
+                        const char          *ininfo)         // In
 {
   static const char *epname = "utimes";
   const char *tident = error.getErrUser(); 
-
-  XrdOucEnv utimes_Env(info);
 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
+
+  XrdOucEnv utimes_Env(info);
 
   AUTHORIZE(client,&utimes_Env,AOP_Update,"set utimes",path,error);
 
@@ -3306,7 +3307,7 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
                          struct timespec      *tvp,         // In
                          XrdOucErrInfo       &error,       // Out
                          eos::common::Mapping::VirtualIdentity &vid, // In
-                         const char          *info)        // In
+                         const char          *ininfo)        // In
 {
   bool done=false;
   eos::ContainerMD* cmd=0;
@@ -3760,8 +3761,11 @@ XrdMgmOfs::FSctl(const int               cmd,
   }
 
   const char* inpath = ipath;
+  const char* ininfo = iopaque;
 
   NAMESPACEMAP;
+  info=0; // for compiler happyness;
+
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
 
@@ -5479,17 +5483,19 @@ int
 XrdMgmOfs::attr_ls(const char             *inpath,
                    XrdOucErrInfo          &error,
                    const XrdSecEntity     *client,
-                   const char             *info,
+                   const char             *ininfo,
                    eos::ContainerMD::XAttrMap &map)
 {
   static const char *epname = "attr_ls";
   const char *tident = error.getErrUser(); 
-  XrdOucEnv access_Env(info);
+
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
   NAMESPACEMAP; 
   BOUNCE_ILLEGAL_NAMES;
+
+  XrdOucEnv access_Env(info);
 
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
   
@@ -5504,7 +5510,7 @@ int
 XrdMgmOfs::attr_set(const char             *inpath,
                     XrdOucErrInfo          &error,
                     const XrdSecEntity     *client,
-                    const char             *info,
+                    const char             *ininfo,
                     const char             *key,
                     const char             *value)
 {
@@ -5513,10 +5519,10 @@ XrdMgmOfs::attr_set(const char             *inpath,
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
-  XrdOucEnv access_Env(info);
-
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
+
+  XrdOucEnv access_Env(info);
 
   AUTHORIZE(client,&access_Env,AOP_Update,"update",path,error);
   
@@ -5532,7 +5538,7 @@ int
 XrdMgmOfs::attr_get(const char             *inpath,
 		    XrdOucErrInfo          &error,
 		    const XrdSecEntity     *client,
-		    const char             *info,
+		    const char             *ininfo,
 		    const char             *key,
 		    XrdOucString           &value)
 {
@@ -5541,10 +5547,11 @@ XrdMgmOfs::attr_get(const char             *inpath,
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
-  XrdOucEnv access_Env(info);
 
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
+
+  XrdOucEnv access_Env(info);
 
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
   
@@ -5560,18 +5567,18 @@ int
 XrdMgmOfs::attr_rem(const char             *inpath,
 		    XrdOucErrInfo          &error,
 		    const XrdSecEntity     *client,
-		    const char             *info,
+		    const char             *ininfo,
 		    const char             *key)
 {
   static const char *epname = "attr_rm"; const char *tident = error.getErrUser(); 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
-  XrdOucEnv access_Env(info); 
-
   NAMESPACEMAP;
 
   BOUNCE_ILLEGAL_NAMES;
+
+  XrdOucEnv access_Env(info); 
 
   AUTHORIZE(client,&access_Env,AOP_Delete,"delete",path,error);
   

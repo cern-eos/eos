@@ -2497,6 +2497,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	{
 	  inpath = scheck.c_str();
 	  NAMESPACEMAP;
+	  info=0; // for compiler happyness
 	  if (!path) {
 	    // illegal source path
 	    retc = EILSEQ;
@@ -2509,6 +2510,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	{
 	  inpath = dcheck.c_str();
 	  NAMESPACEMAP;
+	  info=0; // for compiler happyness
 	  if (!path) {
 	    // illegal destination path
 	    retc = EILSEQ;
@@ -2988,6 +2990,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       const char* inpath = spath.c_str();
 
       NAMESPACEMAP;
+      info=0; // for compiler happyness
       PROC_BOUNCE_ILLEGAL_NAMES;
       PROC_BOUNCE_NOT_ALLOWED;
 
@@ -3543,6 +3546,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       const char* inpath = spath.c_str();
 
       NAMESPACEMAP;
+      info=0; // for compiler happyness
       PROC_BOUNCE_ILLEGAL_NAMES;
       PROC_BOUNCE_NOT_ALLOWED;
 
@@ -4149,6 +4153,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           const char* inpath = spath.c_str();
           
           NAMESPACEMAP;
+	  info=0; // for compiler happyness
 	  PROC_BOUNCE_ILLEGAL_NAMES;
 	  PROC_BOUNCE_NOT_ALLOWED;
           
@@ -4237,6 +4242,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       const char* inpath = spath.c_str();
 
       NAMESPACEMAP;
+      info=0; // for compiler happyness
       PROC_BOUNCE_ILLEGAL_NAMES;
       PROC_BOUNCE_NOT_ALLOWED;
       
@@ -4528,6 +4534,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       const char* inpath=spath.c_str();
 
       NAMESPACEMAP;
+      info=0; // for compiler happyness
       PROC_BOUNCE_ILLEGAL_NAMES;
       PROC_BOUNCE_NOT_ALLOWED;
 
@@ -4556,6 +4563,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       const char* inpath = spath.c_str();
 
       NAMESPACEMAP;
+      info=0; // for compiler happyness
       PROC_BOUNCE_ILLEGAL_NAMES;
       PROC_BOUNCE_NOT_ALLOWED;
 
@@ -4582,6 +4590,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       const char* inpath = spath.c_str();
 
       NAMESPACEMAP;
+      info=0; // for compiler happyness
 
       spath = path;
 
@@ -4616,6 +4625,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       const char* inpath=cPath.GetPath();
 
       NAMESPACEMAP;
+      info=0; // for compiler happyness
       PROC_BOUNCE_ILLEGAL_NAMES;
       PROC_BOUNCE_NOT_ALLOWED;
 
@@ -4786,6 +4796,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       eos::common::Path cPath(inpath);
 
       NAMESPACEMAP;
+      info=0; // for compiler happyness
       PROC_BOUNCE_ILLEGAL_NAMES;
       PROC_BOUNCE_NOT_ALLOWED;
 
@@ -4880,6 +4891,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       static XrdSysMutex deepQueryMutex;
       static std::map<std::string, std::set<std::string> > * globalfound = 0;
       NAMESPACEMAP;
+      info=0; // for compiler happyness
       PROC_BOUNCE_ILLEGAL_NAMES;
       PROC_BOUNCE_NOT_ALLOWED;
 
@@ -5423,6 +5435,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       const char* inpath = spath.c_str();
 
       NAMESPACEMAP;
+      info=0; // for compiler happyness
       PROC_BOUNCE_ILLEGAL_NAMES;
       PROC_BOUNCE_NOT_ALLOWED;
 
@@ -5533,6 +5546,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       const char* inpath = spath.c_str();
 
       NAMESPACEMAP;
+      info=0; // for compiler happyness
       PROC_BOUNCE_ILLEGAL_NAMES;
       PROC_BOUNCE_NOT_ALLOWED;
 

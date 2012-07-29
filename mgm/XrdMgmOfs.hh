@@ -92,6 +92,7 @@ USE_EOSMGMNAMESPACE
 
 #define NAMESPACEMAP							\
   const char*path = inpath;						\
+  const char*info = ininfo;						\
   XrdOucString store_path=path;						\
   gOFS->PathRemap(inpath,store_path);					\
   size_t __i=0;								\
@@ -118,6 +119,11 @@ USE_EOSMGMNAMESPACE
   if ( (vid.uid != 0) && (__i != (__n) ) ) { /* root can use all letters */ \
     path = 0;								\
   } else {								\
+    const char* pf=0;							\
+    if ( ininfo && (pf=strstr(ininfo,"eos.prefix")) ) {			\
+      XrdOucEnv env(pf);						\
+      store_path.insert(env.Get("eos.prefix"),0);			\
+    }									\
     path = store_path.c_str();						\
   }								
   
