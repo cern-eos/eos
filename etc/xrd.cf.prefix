@@ -1,8 +1,14 @@
 ###########################################################
+# --------------------------------------------------------
+# prefix redirector configuration on port 2000
+# 'eos -b set redirect eosdev.cern.ch?eos.prefix=/eos/dev/'
+# --------------------------------------------------------
+###########################################################
 xrootd.fslib libXrdEosMgm.so
 xrootd.seclib libXrdSec.so
 xrootd.async off nosf
 xrootd.chksum eos
+xrd.port 2000
 ###########################################################
 
 xrd.sched mint 8 maxt 256 idle 64
@@ -14,17 +20,9 @@ oss.fdlimit 16384 32768
 ###########################################################
 # UNIX authentication
 sec.protocol unix
-# SSS authentication
-sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
-# KRB  authentication
-sec.protocol krb5 -exptkn:/var/eos/auth/krb5#<uid> host/<host>@CERN.CH
-# GSI authentication
-sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2 -vomsat:1 -moninfo:1 -exppxy:/var/eos/auth/gsi#<uid>
 
 ###########################################################
-sec.protbind localhost.localdomain krb5 gsi unix sss
-sec.protbind localhost krb5 gsi unix sss
-sec.protbind * only krb5 gsi sss unix
+sec.protbind * only unix
 ###########################################################
 mgmofs.fs /
 mgmofs.targetport 1095
@@ -34,19 +32,22 @@ mgmofs.targetport 1095
 #mgmofs.trace all debug
 # this URL can be overwritten by EOS_BROKER_URL defined in /etc/sysconfig/eos
 
-mgmofs.broker root://localhost:1097//eos/
+mgmofs.broker root://localhost:2000//eos/
 # this name can be overwritten by EOS_INSTANCE_NAME defined in /etc/sysconfig/eos
 
-mgmofs.instance eosdev
+mgmofs.instance eosdevpf1
 
-# configuration, namespace , transfer and authentication export directory 
-mgmofs.configdir /var/eos/config
-mgmofs.metalog /var/eos/md
-mgmofs.txdir /var/eos/tx
-mgmofs.auth /var/eos/auth
-	
+# startup with reduced functinoality if we are just a request redirecto
+mgmofs.redirector true
+
+# configuration and namespace location
+mgmofs.configdir /var/eos/prefix/config
+mgmofs.metalog /var/eos/prefix/md
+mgmofs.txdir /var/eos/prefix/tx/
+mgmofs.authdir /var/eos/prefix/auth/
+
 # report store path
-mgmofs.reportstorepath /var/eos/report
+mgmofs.reportstorepath /var/eos/prefix/report
 
 # this defines the default config to load
 mgmofs.autoloadconfig default

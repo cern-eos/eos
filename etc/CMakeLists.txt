@@ -22,7 +22,7 @@
 # ************************************************************************
 
 INSTALL ( FILES eos.keytab DESTINATION ${SYSCONFDIR}/ PERMISSIONS OWNER_READ OWNER_WRITE )
-INSTALL ( FILES xrd.cf.fst xrd.cf.mgm xrd.cf.mq xrd.cf.sync xrd.cf.fed fuse.conf DESTINATION ${SYSCONFDIR}/ )
+INSTALL ( FILES xrd.cf.fst xrd.cf.mgm xrd.cf.mq xrd.cf.sync xrd.cf.fed xrd.cf.prefix fuse.conf DESTINATION ${SYSCONFDIR}/ )
 INSTALL ( FILES rc.d/init.d/eos rc.d/init.d/eosha rc.d/init.d/eossync rc.d/init.d/eosd rc.d/init.d/eoshttpd DESTINATION ${SYSCONFDIR}/rc.d/init.d PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 INSTALL ( FILES sysconfig/eos.example sysconfig/xrootd.example sysconfig/eoshttpd DESTINATION ${SYSCONFDIR}/sysconfig/ )
 INSTALL ( FILES cron.d/eos-logs cron.d/eos-reports DESTINATION ${SYSCONFDIR}/cron.d/ )
