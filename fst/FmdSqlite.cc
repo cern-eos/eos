@@ -164,7 +164,7 @@ FmdSqliteHandler::SetDBFile(const char* dbfileprefix, int fsid, XrdOucString opt
 
   // create the SQLITE DB
   if ((sqlite3_open(fsDBFileName,&DB[fsid]) == SQLITE_OK)) {
-    XrdOucString createtable = "CREATE TABLE if not exists fst ( fid integer PRIMARY KEY, cid integer, fsid integer, ctime integer, ctime_ns integer, mtime integer, mtime_ns integer, atime integer, atime_ns integer, checktime integer, size integer default 4294967281, disksize integer default 4294967281, mgmsize integer default 4294967281, checksum varchar(32), diskchecksum varchar(32), mgmchecksum varchar(32), lid integer, uid integer, gid integer, name varchar(1024), container varchar(1024), filecxerror integer, blockcxerror integer, layouterror integer, locations varchar(128))";
+    XrdOucString createtable = "CREATE TABLE if not exists fst ( fid integer PRIMARY KEY, cid integer, fsid integer, ctime integer, ctime_ns integer, mtime integer, mtime_ns integer, atime integer, atime_ns integer, checktime integer, size integer default 281474976710641, disksize integer default 281474976710641, mgmsize integer default 281474976710641, checksum varchar(32), diskchecksum varchar(32), mgmchecksum varchar(32), lid integer, uid integer, gid integer, name varchar(1024), container varchar(1024), filecxerror integer, blockcxerror integer, layouterror integer, locations varchar(128))";
     if ((sqlite3_exec(DB[fsid],createtable.c_str(), CallBack, this, &ErrMsg))) {
       eos_err("unable to create <fst> table - msg=%s\n",ErrMsg);
       return false;
@@ -364,7 +364,7 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
       if (!force) {
 	// if we have a mismatch between the mgm/disk and 'ref' value in size,  we don't return the FMD record
 	if ( (!isRW) && ((fmd->fMd.disksize && (fmd->fMd.disksize != fmd->fMd.size)) ||
-			 (fmd->fMd.mgmsize &&  (fmd->fMd.mgmsize != 0xfffffff1ULL) && (fmd->fMd.mgmsize  != fmd->fMd.size))) ) {
+			 (fmd->fMd.mgmsize &&  (fmd->fMd.mgmsize != 0xfffffffffff1ULL) && (fmd->fMd.mgmsize  != fmd->fMd.size))) ) {
 	  eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu", fid, (unsigned long) fsid, fmd->fMd.size, fmd->fMd.disksize, fmd->fMd.mgmsize);
 	  
 	  delete fmd;
@@ -663,7 +663,7 @@ FmdSqliteHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid, eos::commo
 		
   if (FmdSqliteMap.count(fsid)) {
     if (!FmdSqliteMap[fsid].count(fid)) {
-      FmdSqliteMap[fsid][fid].disksize = 0xfffffff1ULL;  
+      FmdSqliteMap[fsid][fid].disksize = 0xfffffffffff1ULL;  
     }	
     // update in-memory
     FmdSqliteMap[fsid][fid].mgmsize = mgmsize;
@@ -711,7 +711,7 @@ FmdSqliteHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
     google::dense_hash_map<unsigned long long, struct FmdSqlite::FMD >::iterator it;
     for (it = FmdSqliteMap[fsid].begin(); it != FmdSqliteMap[fsid].end(); it++) {
       // update in-memory
-      it->second.disksize = 0xfffffff1ULL;
+      it->second.disksize = 0xfffffffffff1ULL;
       it->second.diskchecksum = "";
       it->second.checktime = 0;
       it->second.filecxerror = -1;
@@ -720,7 +720,7 @@ FmdSqliteHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
 
     // update SQLITE DB
     char updateentry[16384];
-    snprintf(updateentry,sizeof(updateentry),"update fst set disksize=1152921504606846961,diskchecksum='',checktime=0,filecxerror=-1,blockcxerror=-1 where 1");
+    snprintf(updateentry,sizeof(updateentry),"update fst set disksize=281474976710641,diskchecksum='',checktime=0,filecxerror=-1,blockcxerror=-1 where 1");
     
     if ((sqlite3_exec(DB[fsid],updateentry, CallBack, this, &ErrMsg))) {
       eos_err("unable to update fsid=%lu - msg=%s\n",fsid,ErrMsg);
@@ -751,14 +751,14 @@ FmdSqliteHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
     google::dense_hash_map<unsigned long long, struct FmdSqlite::FMD >::iterator it;
     for (it = FmdSqliteMap[fsid].begin(); it != FmdSqliteMap[fsid].end(); it++) {
       // update in-memory
-      it->second.mgmsize = 0xfffffff1ULL;
+      it->second.mgmsize = 0xfffffffffff1ULL;
       it->second.mgmchecksum = "";
       it->second.locations="";
     }
 
     // update SQLITE DB
     char updateentry[16384];
-    snprintf(updateentry,sizeof(updateentry),"update fst set mgmsize=1152921504606846961,mgmchecksum='',locations='' where 1");
+    snprintf(updateentry,sizeof(updateentry),"update fst set mgmsize=281474976710641,mgmchecksum='',locations='' where 1");
     
     if ((sqlite3_exec(DB[fsid],updateentry, CallBack, this, &ErrMsg))) {
       eos_err("unable to update fsid=%lu - msg=%s\n",fsid,ErrMsg);
@@ -941,7 +941,7 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
     FmdSqlite* fmd = GetFmd(fMd.fid, fsid, fMd.uid, fMd.gid, fMd.lid, false, true);
     if (fmd) {
       // check if there was a disk replica
-      if ( fmd->fMd.disksize == 0xfffffff1ULL) {
+      if ( fmd->fMd.disksize == 0xfffffffffff1ULL) {
 	if (fMd.layouterror && eos::common::LayoutId::kUnregistered) {
 	  // there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
 	  eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fMd.fid, (unsigned long) fsid);
@@ -973,13 +973,13 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
 	return false;
       }
       // check if it exists on disk
-      if (fmd->fMd.disksize == 0xfffffff1ULL) {
+      if (fmd->fMd.disksize == 0xfffffffffff1ULL) {
 	fMd.layouterror |= eos::common::LayoutId::kMissing;
 	eos_warning("found missing replica for fid=%llu on fsid=%lu", fMd.fid, (unsigned long) fsid);
       }
 
       // check if it exists on disk and on the mgm
-      if ( (fmd->fMd.disksize == 0xfffffff1ULL) && (fmd->fMd.mgmsize == 0xfffffff1ULL) ) {
+      if ( (fmd->fMd.disksize == 0xfffffffffff1ULL) && (fmd->fMd.mgmsize == 0xfffffffffff1ULL) ) {
 	// there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
 	eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fMd.fid, (unsigned long) fsid);
 	delete fmd;
@@ -1048,7 +1048,7 @@ FmdSqliteHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const char*
 	
 	if (fmd) {
 	  // check if it exists on disk
-	  if (fmd->fMd.disksize == 0xfffffff1ULL) {
+	  if (fmd->fMd.disksize == 0xfffffffffff1ULL) {
 	    fMd.layouterror |= eos::common::LayoutId::kMissing;
 	    eos_warning("found missing replica for fid=%llu on fsid=%lu", fMd.fid, (unsigned long)fsid);
 	  }
@@ -1184,10 +1184,10 @@ FmdSqliteHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsi
 	}
       }
       
-      if (it->second.mgmsize != 0xfffffff1ULL) {
+      if (it->second.mgmsize != 0xfffffffffff1ULL) {
 	statistics["m_sync_n"]++;
 	fidset["m_sync_n"].insert(it->second.fid);
-	if (it->second.size != 0xfffffff1ULL) {
+	if (it->second.size != 0xfffffffffff1ULL) {
 	  if (it->second.size != it->second.mgmsize) {
 	    statistics["m_mem_sz_diff"]++;
 	    fidset["m_mem_sz_diff"].insert(it->second.fid);
@@ -1210,10 +1210,10 @@ FmdSqliteHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsi
       statistics["mem_n"]++;
       fidset["mem_n"].insert(it->second.fid);
       
-      if (it->second.disksize != 0xfffffff1ULL) {
+      if (it->second.disksize != 0xfffffffffff1ULL) {
 	statistics["d_sync_n"]++;
 	fidset["d_sync_n"].insert(it->second.fid);
-	if (it->second.size != 0xfffffff1ULL) {
+	if (it->second.size != 0xfffffffffff1ULL) {
 	  if (it->second.size != it->second.disksize) {
 	    statistics["d_mem_sz_diff"]++;
 	    fidset["d_mem_sz_diff"].insert(it->second.fid);
@@ -1630,3 +1630,5 @@ FmdSqliteHandler::GetRemoteAttribute(const char* manager, const char* key, const
 EOSFSTNAMESPACE_END
 
 
+
+//  LocalWords:  ResyncAllMgm
