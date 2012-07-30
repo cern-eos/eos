@@ -1122,7 +1122,7 @@ XrdFstOfsFile::verifychecksum()
       // copy checksum into meta data
       fMd->fMd.checksum = checkSum->GetHexChecksum();
 
-      if (haswrite) {
+      if (haswrite || isReplication) {
         // if we have no write, we don't set this attributes (xrd3cp!)  
         // set the eos checksum extended attributes
         eos::common::Attr* attr = eos::common::Attr::OpenAttr(fstPath.c_str());

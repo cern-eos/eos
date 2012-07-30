@@ -944,7 +944,7 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
       if ( fmd->fMd.disksize == 0xfffffffffff1ULL) {
 	if (fMd.layouterror && eos::common::LayoutId::kUnregistered) {
 	  // there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
-	  eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fMd.fid, (unsigned long) fsid);
+	  eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fid, (unsigned long) fsid);
 	  delete fmd;
 	  return DeleteFmd(fMd.fid, fsid);
 	} else {
@@ -969,28 +969,28 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
     fmd = GetFmd(fMd.fid, fsid, fMd.uid, fMd.gid, fMd.lid, true, true);
     if (fmd) {
       if (!UpdateFromMgm(fsid, fMd.fid, fMd.cid, fMd.lid, fMd.mgmsize, fMd.mgmchecksum, fMd.name, fMd.container, fMd.uid,fMd.gid, fMd.ctime, fMd.ctime_ns, fMd.mtime, fMd.mtime_ns, fMd.layouterror, fMd.locations)) {
-	eos_err("failed to update fmd for fid=%08llx", fMd.fid);
+	eos_err("failed to update fmd for fid=%08llx", fid);
 	return false;
       }
       // check if it exists on disk
       if (fmd->fMd.disksize == 0xfffffffffff1ULL) {
 	fMd.layouterror |= eos::common::LayoutId::kMissing;
-	eos_warning("found missing replica for fid=%llu on fsid=%lu", fMd.fid, (unsigned long) fsid);
+	eos_warning("found missing replica for fid=%llu on fsid=%lu", fid, (unsigned long) fsid);
       }
 
       // check if it exists on disk and on the mgm
       if ( (fmd->fMd.disksize == 0xfffffffffff1ULL) && (fmd->fMd.mgmsize == 0xfffffffffff1ULL) ) {
 	// there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
-	eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fMd.fid, (unsigned long) fsid);
+	eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fid, (unsigned long) fsid);
 	delete fmd;
 	return DeleteFmd(fMd.fid, fsid);
       }
     } else {
-      eos_err("failed to get/create fmd for fid=%08llx", fMd.fid);
+      eos_err("failed to get/create fmd for fid=%08llx", fid);
       return false;
     }
   } else {
-    eos_err("failed to retrieve MGM fmd for fid=%08llx", fMd.fid);
+    eos_err("failed to retrieve MGM fmd for fid=%08llx", fid);
     return false;
   }  
   
@@ -1440,7 +1440,7 @@ FmdSqliteHandler::GetRemoteFmdSqlite(const char* manager, const char* shexfid, c
 
   if (!strncmp(result,"ERROR", 5)) {
     // remote side couldn't get the record
-    eos_static_err("Unable to retrieve meta data on remote server %s for fid=%s fsid=%s",manager, shexfid, sfsid);
+    eos_static_info("Unable to retrieve meta data on remote server %s for fid=%s fsid=%s",manager, shexfid, sfsid);
     return ENODATA;
   }
   // get the remote file meta data into an env hash
