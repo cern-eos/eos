@@ -104,6 +104,7 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) /etc/xrd.cf.mq
 %config(noreplace) /etc/xrd.cf.sync
 %config(noreplace) /etc/xrd.cf.fed
+%config(noreplace) /etc/xrd.cf.prefix
 %config(noreplace) /etc/sysconfig/eos.example
 %_sysconfdir/rc.d/init.d/eos
 %_sysconfdir/rc.d/init.d/eosha

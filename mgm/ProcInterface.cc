@@ -509,7 +509,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      Access::gRedirectionRules[std::string("*")] = redirect;
 	    }
 	  }
-          stdOut = "success: setting global redirection to '"; stdOut += redirect.c_str(); stdOut += "'"; if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+	  if (Access::StoreAccessConfig()) {
+	    stdOut = "success: setting global redirection to '"; stdOut += redirect.c_str(); stdOut += "'"; if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+	    retc = 0;
+	  } else {
+	    stdErr = "error: unable to store access configuration";
+	    retc = EIO;
+	  }
         } else {
           if (stall.length()) {
             if ( (atoi(stall.c_str()) >0) && ( (type.length()==0) || (type=="r") || (type=="w"))) {
@@ -522,7 +528,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  Access::gStallRules[std::string("*")] = stall;
 		}
 	      }
-              stdOut += "success: setting global stall to "; stdOut += stall.c_str(); stdOut += " seconds"; if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+	      if (Access::StoreAccessConfig()) {
+		stdOut += "success: setting global stall to "; stdOut += stall.c_str(); stdOut += " seconds"; if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+		retc = 0;
+	      } else {
+		stdErr = "error: unable to store access configuration";
+		retc = EIO;
+	      }
             } else {
               stdErr = "error: <stalltime> has to be > 0";
               retc = EINVAL;
@@ -550,6 +562,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		Access::gRedirectionRules.erase(std::string("*"));
 	      }
 	    }
+	    if (Access::StoreAccessConfig()) {
+	      stdOut = "success: removing redirection ";  if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+	      retc = 0;
+	    } else {
+	      stdErr = "error: unable to store access configuration";
+	      retc = EIO;
+	    }
           } else {
             stdErr = "error: there is no global redirection defined";
             retc = EINVAL;
@@ -568,6 +587,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		} else {
 		  Access::gStallRules.erase(std::string("*"));
 		}
+	      }
+	      if (Access::StoreAccessConfig()) {
+		stdOut = "success: removing stall ";  if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+		retc = 0;
+	      } else {
+		stdErr = "error: unable to store access configuration";
+		retc = EIO;
 	      }
             } else {
               stdErr = "error: there is no global stall time defined";

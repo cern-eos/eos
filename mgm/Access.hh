@@ -67,6 +67,8 @@ public:
   static const char* gAllowedUserKey;   //< static key defining the allowed users key in the global configuration key-value map
   static const char* gAllowedGroupKey;  //< static key defining the allowed group key in the global configuration key-value map
   static const char* gAllowedHostKey;   //< static key defining the allowed host key in the global configuration key-value map
+  static const char* gStallKey;         //< static key defining the stall rules in the global configuration key-value map
+  static const char* gRedirectionKey;   //< static key defining the redirection rules in the global configuration key-value map
   static std::set<uid_t> gBannedUsers;  //< set containing the banned user IDs
   static std::set<gid_t> gBannedGroups; //< set containing the banned group IDs
   static std::set<uid_t> gAllowedUsers; //< set containing the allowed user IDs

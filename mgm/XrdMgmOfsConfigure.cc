@@ -195,6 +195,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   Authorization = 0;
   pthread_t tid = 0;
   IssueCapability = false;
+  MgmRedirector = false;
 
   setenv("XrdSecPROTOCOL","sss",1);
   Eroute.Say("=====> mgmofs enforces SSS authentication for XROOT clients");
@@ -205,8 +206,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   MgmOfsBrokerUrl = "root://localhost:1097//eos/";
   MgmOfsInstanceName = "testinstance";
 
-  MgmConfigDir = "/var/tmp/";
-  MgmMetaLogDir = "/var/tmp/eos/md/";
+  MgmConfigDir  = "";
+  MgmMetaLogDir = "";
+  MgmTxDir   ="";
+  MgmAuthDir ="";
+
   MgmHealMap.set_deleted_key(0);
   MgmDirectoryModificationTime.set_deleted_key(0);
 
@@ -408,6 +412,21 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
           else
             Eroute.Say("=====> mgmofs.errorlog : false");
         }
+
+        if (!strcmp("redirector",var)) {
+          if ((!(val = Config.GetWord())) || (strcmp("true",val) && strcmp("false",val) && strcmp("1",val) && strcmp("0",val))) {
+            Eroute.Emsg("Config","argument 2 for redirector illegal or missing. Must be <true>,<false>,<1> or <0>!"); NoGo=1;} else {
+            if ((!strcmp("true",val) || (!strcmp("1",val)))) {
+              MgmRedirector = true;
+            } else {
+	      MgmRedirector = false;
+	    }
+          }
+          if (ErrorLog)
+            Eroute.Say("=====> mgmofs.errorlog : true");
+          else
+            Eroute.Say("=====> mgmofs.errorlog : false");
+        }
         
         if (!strcmp("configdir",var)) {
           if (!(val = Config.GetWord())) {
@@ -470,6 +489,55 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
               Eroute.Emsg("Config","I cannot acccess the meta data changelog directory for r/w!", MgmMetaLogDir.c_str()); NoGo=1;
             } else {
               Eroute.Say("=====> mgmofs.metalog: ", MgmMetaLogDir.c_str(),"");
+            }
+          }
+        }
+
+	if (!strcmp("txdir",var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config","argument 2 for txdir missing"); NoGo=1;
+          } else {
+            MgmTxDir = val;
+            // just try to create it in advance
+            XrdOucString makeit="mkdir -p "; makeit+= MgmTxDir; int src =system(makeit.c_str());
+            if (src)
+              eos_err("%s returned %d", makeit.c_str(), src);
+            XrdOucString chownit="chown -R "; chownit += (int) geteuid(); chownit += " "; chownit += MgmTxDir;
+            src = system(chownit.c_str());
+            if (src)
+              eos_err("%s returned %d", chownit.c_str(), src);
+
+            if (::access(MgmTxDir.c_str(), W_OK|R_OK|X_OK)) {
+              Eroute.Emsg("Config","I cannot acccess the transfer directory for r/w!", MgmTxDir.c_str()); NoGo=1;
+            } else {
+              Eroute.Say("=====> mgmofs.txdir:   ", MgmTxDir.c_str(),"");
+            }
+          }
+        }
+
+        if (!strcmp("authdir",var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config","argument 2 for authdir missing"); NoGo=1;
+          } else {
+            MgmAuthDir = val;
+            // just try to create it in advance
+            XrdOucString makeit="mkdir -p "; makeit+= MgmAuthDir; int src =system(makeit.c_str());
+            if (src)
+              eos_err("%s returned %d", makeit.c_str(), src);
+            XrdOucString chownit="chown -R "; chownit += (int) geteuid(); chownit += " "; chownit += MgmAuthDir;
+            src = system(chownit.c_str());
+            if (src)
+              eos_err("%s returned %d", chownit.c_str(), src);
+
+	    if ( (src = ::chmod(MgmAuthDir.c_str(),S_IRUSR|S_IWUSR|S_IXUSR)) ) {
+	      eos_err("chmod 700 %s returned %d", MgmAuthDir.c_str(), src);
+	      NoGo =1;
+	    }
+
+            if (::access(MgmAuthDir.c_str(), W_OK|R_OK|X_OK)) {
+              Eroute.Emsg("Config","I cannot acccess the transfer directory for r/w!", MgmAuthDir.c_str()); NoGo=1;
+            } else {
+              Eroute.Say("=====> mgmofs.authdir:   ", MgmAuthDir.c_str(),"");
             }
           }
         }
@@ -560,6 +628,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
       }
     }
   }
+  
+  if (MgmRedirector)
+    Eroute.Say("=====> mgmofs.redirector : true");
+  else
+    Eroute.Say("=====> mgmofs.redirector : false");
 
   if (! MgmOfsBrokerUrl.endswith("/")) {
     MgmOfsBrokerUrl += "/";
@@ -567,6 +640,26 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   if (! MgmOfsBrokerUrl.endswith("//eos/")) {
     Eroute.Say("Config error: the broker url has to be of the form <rood://<hostname>[:<port>]//eos");
+    return 1;
+  }
+
+  if (!MgmConfigDir.length()) {
+    Eroute.Say("Config error: configuration directory is not defined : mgm.configdir=</var/eos/config/>");
+    return 1;
+  }
+  
+  if (!MgmMetaLogDir.length()) {
+    Eroute.Say("Config error: meta data log directory is not defined : mgm.metalog=</var/eos/md/>");
+    return 1;
+  }
+
+  if (!MgmTxDir.length()) {
+    Eroute.Say("Config error: transfer directory is not defined : mgm.txdir=</var/eos/tx/>");
+    return 1;
+  }
+  
+  if (!MgmAuthDir.length()) {
+    Eroute.Say("Config error: auth directory is not defined: mgm.authdir=</var/eos/auth/>");
     return 1;
   }
   
@@ -949,38 +1042,43 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   //-------------------------------------------
 
-  // create the specific listener class
-  MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),MgmDefaultReceiverQueue.c_str(), true, true, &ObjectManager);
-  if( !MgmOfsMessaging->StartListenerThread() ) NoGo = 1;
-  MgmOfsMessaging->SetLogId("MgmOfsMessaging");
+  XrdMqSharedHash* hash = 0;
 
-  if ( (!MgmOfsMessaging) || (MgmOfsMessaging->IsZombie()) ) {
-    Eroute.Emsg("Config","cannot create messaging object(thread)");
-    return NoGo;
-  }
-  
+  // - we disable a lot of features if we are only a redirector
+  if (!MgmRedirector) {
+    // create the specific listener class
+    MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),MgmDefaultReceiverQueue.c_str(), true, true, &ObjectManager);
+    if( !MgmOfsMessaging->StartListenerThread() ) NoGo = 1;
+    MgmOfsMessaging->SetLogId("MgmOfsMessaging");
+    
+    if ( (!MgmOfsMessaging) || (MgmOfsMessaging->IsZombie()) ) {
+      Eroute.Emsg("Config","cannot create messaging object(thread)");
+      return NoGo;
+    }
+    
 #ifdef HAVE_ZMQ
-  //-------------------------------------------
-  // create the ZMQ processor
-  zMQ = new ZMQ("tcp://*:5555");
-  if (!zMQ || zMQ->IsZombie()) {
-    Eroute.Emsg("Config","cannto start ZMQ processor");
-    return 1;
-  }
+    //-------------------------------------------
+    // create the ZMQ processor
+    zMQ = new ZMQ("tcp://*:5555");
+    if (!zMQ || zMQ->IsZombie()) {
+      Eroute.Emsg("Config","cannto start ZMQ processor");
+      return 1;
+    }
 #endif
-
-  ObjectManager.CreateSharedHash("/eos/*","/eos/*/fst");
-  ObjectManager.HashMutex.LockRead();
-  XrdMqSharedHash* hash = ObjectManager.GetHash("/eos/*");
-
-
-  ObjectManager.HashMutex.UnLockRead();
-
-  XrdOucString dumperfile = MgmMetaLogDir ;
-  dumperfile += "/so.mgm.dump";
-
-  ObjectManager.StartDumper(dumperfile.c_str());
-  ObjectManager.SetAutoReplyQueueDerive(true);
+    
+    ObjectManager.CreateSharedHash("/eos/*","/eos/*/fst");
+    ObjectManager.HashMutex.LockRead();
+    hash = ObjectManager.GetHash("/eos/*");
+    
+    
+    ObjectManager.HashMutex.UnLockRead();
+    
+    XrdOucString dumperfile = MgmMetaLogDir ;
+    dumperfile += "/so.mgm.dump";
+    
+    ObjectManager.StartDumper(dumperfile.c_str());
+    ObjectManager.SetAutoReplyQueueDerive(true);
+  }
 
   if (ConfigAutoLoad.length()) {
     eos_info("autoload config=%s", ConfigAutoLoad.c_str());
@@ -995,63 +1093,68 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     }
   }
 
-  if (ErrorLog) {
-    // this 
-    XrdOucString errorlogkillline="pkill -9 -f \"eos -b console log _MGMID_\"";
-    int rrc = system(errorlogkillline.c_str());
-    if (WEXITSTATUS(rrc)) {
-      eos_info("%s returned %d", errorlogkillline.c_str(), rrc);
+  if (!MgmRedirector) {
+    if (ErrorLog) {
+      // this 
+      XrdOucString errorlogkillline="pkill -9 -f \"eos -b console log _MGMID_\"";
+      int rrc = system(errorlogkillline.c_str());
+      if (WEXITSTATUS(rrc)) {
+	eos_info("%s returned %d", errorlogkillline.c_str(), rrc);
+      }
+      
+      XrdOucString errorlogline="eos -b console log _MGMID_ >& /dev/null &";
+      rrc = system(errorlogline.c_str());
+      if (WEXITSTATUS(rrc)) {
+	eos_info("%s returned %d", errorlogline.c_str(), rrc);
+      }
     }
-
-    XrdOucString errorlogline="eos -b console log _MGMID_ >& /dev/null &";
-    rrc = system(errorlogline.c_str());
-    if (WEXITSTATUS(rrc)) {
-      eos_info("%s returned %d", errorlogline.c_str(), rrc);
+    
+    
+    eos_info("starting file view loader thread");
+    if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView, static_cast<void *>(this),
+			   0, "File View Loader"))) {
+      eos_crit("cannot start file view loader");
+      NoGo = 1;
+    }
+    
+    // create deletion thread
+    eos_info("starting deletion thread");
+    if ((XrdSysThread::Run(&deletion_tid, XrdMgmOfs::StartMgmDeletion, static_cast<void *>(this),
+			   0, "Deletion Thread"))) {
+      eos_crit("cannot start deletion thread");
+      NoGo = 1;
     }
   }
-
-
-  eos_info("starting file view loader thread");
-  if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView, static_cast<void *>(this),
-                         0, "File View Loader"))) {
-    eos_crit("cannot start file view loader");
-    NoGo = 1;
-  }
-
-  // create deletion thread
-  eos_info("starting deletion thread");
-  if ((XrdSysThread::Run(&deletion_tid, XrdMgmOfs::StartMgmDeletion, static_cast<void *>(this),
-                         0, "Deletion Thread"))) {
-    eos_crit("cannot start deletion thread");
-    NoGo = 1;
-  }
-
+  
   eos_info("starting statistics thread");
   if ((XrdSysThread::Run(&stats_tid, XrdMgmOfs::StartMgmStats, static_cast<void *>(this),
                          0, "Statistics Thread"))) {
     eos_crit("cannot start statistics thread");
     NoGo = 1;
   }
-
   
-  eos_info("starting fs listener thread");
-  if ((XrdSysThread::Run(&fslistener_tid, XrdMgmOfs::StartMgmFsListener, static_cast<void *>(this),
-                         0, "FsListener Thread"))) {
-    eos_crit("cannot start fs listener thread");
-    NoGo = 1;
+  
+  if (!MgmRedirector) {
+    eos_info("starting fs listener thread");
+    if ((XrdSysThread::Run(&fslistener_tid, XrdMgmOfs::StartMgmFsListener, static_cast<void *>(this),
+			   0, "FsListener Thread"))) {
+      eos_crit("cannot start fs listener thread");
+      NoGo = 1;
+    }
+    
   }
   
   // load all the quota nodes from the namespace
   Quota::LoadNodes();
   // fill the current accounting
   Quota::NodesToSpaceQuota();
-
+  
   // initialize the transfer database
   if (!gTransferEngine.Init("/var/eos/tx")) {
-    eos_crit("cannot intialize transfer database");
-    NoGo = 1;
+      eos_crit("cannot intialize transfer database");
+      NoGo = 1;
   }
-
+  
   // create the 'default' quota space which is needed if quota is disabled!
   {
     eos::common::RWMutexReadLock qLock(Quota::gQuotaMutex);
@@ -1059,7 +1162,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
       eos_crit("failed to get default quota space");
     }
   }
-
+  
   // add all stat entries with 0
   gOFS->MgmStats.Add("HashSet",0,0,0);
   gOFS->MgmStats.Add("HashSetNoLock",0,0,0);
@@ -1163,9 +1266,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   // start IO ciruclate thread
   gOFS->IoStats.StartCirculate();
 
-  if (hash) {
-    // ask for a broadcast from fst's
-    hash->BroadCastRequest("/eos/*/fst");
+  if (!MgmRedirector) {
+    if (hash) {
+      // ask for a broadcast from fst's
+      hash->BroadCastRequest("/eos/*/fst");
+    }
   }
 
   // add shutdown handler

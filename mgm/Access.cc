@@ -56,6 +56,9 @@ const char* Access::gAllowedUserKey  = "AllowedUsers";  //! constant used in the
 const char* Access::gAllowedGroupKey = "AllowedGroups"; //! constant used in the configuration store
 const char* Access::gAllowedHostKey  = "AllowedHosts";  //! constant used in the configuration store
 
+const char* Access::gStallKey        = "Stall";  //! constant used in the configuration store
+const char* Access::gRedirectionKey  = "Redirection";  //! constant used in the configuration store
+
 /*----------------------------------------------------------------------------*/
 /** 
  * Static Function to reset all singleton objects defining access rules
@@ -98,9 +101,15 @@ Access::ApplyAccessConfig()
   std::string groupaval = FsView::gFsView.GetGlobalConfig(gAllowedGroupKey);
   std::string hostaval  = FsView::gFsView.GetGlobalConfig(gAllowedHostKey);
 
+  std::string stall     = FsView::gFsView.GetGlobalConfig(gStallKey);
+  std::string redirect  = FsView::gFsView.GetGlobalConfig(gRedirectionKey);
+
   // parse the list's and fill the hash
   std::vector<std::string> tokens;
   std::string delimiter =":";
+
+  std::vector<std::string> subtokens;
+  std::string subdelimiter ="~";
   
   tokens.clear();
   eos::common::StringConversion::Tokenize(userval,tokens, delimiter);
@@ -154,6 +163,32 @@ Access::ApplyAccessConfig()
       Access::gAllowedHosts.insert(tokens[i]);
     }
   }
+
+  tokens.clear();
+  delimiter = ",";
+  eos::common::StringConversion::Tokenize(stall,tokens, delimiter);
+  for (size_t i=0; i< tokens.size(); i++) {
+    if (tokens[i].length()) {
+      subtokens.clear();
+      eos::common::StringConversion::Tokenize(tokens[i],subtokens, subdelimiter);
+      if (subtokens.size()==2) {
+	Access::gStallRules[subtokens[0]]= subtokens[1];
+      }
+    }
+  }
+
+  tokens.clear();
+  delimiter = ",";
+  eos::common::StringConversion::Tokenize(redirect,tokens, delimiter);
+  for (size_t i=0; i< tokens.size(); i++) {
+    if (tokens[i].length()) {
+      subtokens.clear();
+      eos::common::StringConversion::Tokenize(tokens[i],subtokens, subdelimiter);
+      if (subtokens.size()==2) {
+	Access::gRedirectionRules[subtokens[0]]= subtokens[1];
+      }
+    }
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -171,6 +206,8 @@ Access::StoreAccessConfig()
   std::set<uid_t>::const_iterator ituid;
   std::set<gid_t>::const_iterator itgid;
   std::set<std::string>::const_iterator ithost;
+  std::map<std::string,std::string>::const_iterator itstall;
+  std::map<std::string,std::string>::const_iterator itredirect;
 
   std::string userval="";
   std::string groupval="";
@@ -178,6 +215,8 @@ Access::StoreAccessConfig()
   std::string useraval="";
   std::string groupaval="";
   std::string hostaval="";
+  std::string stall="";
+  std::string redirect="";
 
   for (ituid = Access::gBannedUsers.begin(); ituid != Access::gBannedUsers.end(); ituid++) {
     userval  += eos::common::Mapping::UidAsString(*ituid);
@@ -204,6 +243,19 @@ Access::StoreAccessConfig()
     hostaval  += ithost->c_str();
     hostaval  += ":";
   }
+  for (itstall = Access::gStallRules.begin(); itstall != Access::gStallRules.end(); itstall++) {
+    stall += itstall->first.c_str();
+    stall += "~";
+    stall += itstall->second.c_str();
+    stall += ",";
+  }
+  for (itredirect = Access::gRedirectionRules.begin(); itredirect != Access::gRedirectionRules.end(); itredirect++) {
+    redirect += itredirect->first.c_str();
+    redirect += "~";
+    redirect += itredirect->second.c_str();
+    redirect += ",";
+  }
+
 
   std::string ukey = gUserKey;
   std::string gkey = gGroupKey;
@@ -219,6 +271,9 @@ Access::StoreAccessConfig()
   ok &= FsView::gFsView.SetGlobalConfig(uakey,  useraval);
   ok &= FsView::gFsView.SetGlobalConfig(gakey, groupaval);
   ok &= FsView::gFsView.SetGlobalConfig(hakey,  hostaval);
+  ok &= FsView::gFsView.SetGlobalConfig(gStallKey, stall);
+  ok &= FsView::gFsView.SetGlobalConfig(gRedirectionKey, redirect);
+
   if (!ok) {
     eos_static_err("unable to store <access> configuration");
     return false;

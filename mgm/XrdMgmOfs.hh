@@ -121,8 +121,10 @@ USE_EOSMGMNAMESPACE
   } else {								\
     const char* pf=0;							\
     if ( ininfo && (pf=strstr(ininfo,"eos.prefix")) ) {			\
-      XrdOucEnv env(pf);						\
-      store_path.insert(env.Get("eos.prefix"),0);			\
+      if (!store_path.beginswith("/proc")) {				\
+	XrdOucEnv env(pf);						\
+	store_path.insert(env.Get("eos.prefix"),0);			\
+      }									\
     }									\
     path = store_path.c_str();						\
   }								
@@ -622,7 +624,7 @@ public:
   XrdOucString     MgmOfsTargetPort;   // -> xrootd port where redirections go on the OSTs -default is 1094
   XrdOucString     MgmOfsQueue;        // -> our mgm queue name
   XrdOucString     MgmOfsInstanceName; // -> name of the EOS instance
-  XrdOucString     MgmConfigDir;       // Directory where config files are stored
+  XrdOucString     MgmConfigDir;       // Directory where config files are stored 
   XrdOucString     MgmProcPath;        // Directory with proc files
   XrdOucString     AuthLib;            // -> path to a possible authorizationn library
   XrdOucString     MgmNsFileChangeLogFile; // -> path to namespace changelog file for files
@@ -651,6 +653,9 @@ public:
   XrdSysMutex      eosViewMutex;       // -> mutex making the namespace single threaded
   eos::common::RWMutex eosViewRWMutex;     // -> rw namespace mutex
   XrdOucString     MgmMetaLogDir;      //  Directory containing the meta data (change) log files
+  XrdOucString     MgmTxDir;           //  Directory containing the transfer database and archive 
+  XrdOucString     MgmAuthDir;         //  Directory containing exported authentication token
+  bool             MgmRedirector;      //  Act's only as a redirector, disables many components in the MGM
   Stat             MgmStats;           //  Mgm Namespace Statistics
   Iostat           IoStats;            //  Mgm IO Statistics
   XrdOucString     IoReportStorePath;  //  Mgm IO Report store path by default is /var/tmp/eos/report
