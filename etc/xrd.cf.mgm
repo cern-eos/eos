@@ -43,7 +43,7 @@ mgmofs.instance eosdev
 mgmofs.configdir /var/eos/config
 mgmofs.metalog /var/eos/md
 mgmofs.txdir /var/eos/tx
-mgmofs.auth /var/eos/auth
+mgmofs.authdir /var/eos/auth
 	
 # report store path
 mgmofs.reportstorepath /var/eos/report
