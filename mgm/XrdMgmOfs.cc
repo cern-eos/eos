@@ -4061,7 +4061,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       EXEC_TIMING_BEGIN("Drop");      
       // drops a replica
       int envlen;
-      eos_thread_debug("drop request for %s",env.Env(envlen));
+      eos_thread_info("drop request for %s",env.Env(envlen));
       char* afid   = env.Get("mgm.fid");      
       char* afsid  = env.Get("mgm.fsid");
       if (afid && afsid) {
@@ -4098,15 +4098,20 @@ XrdMgmOfs::FSctl(const int               cmd,
             quotanode = 0;
           }
 	}
-
+	
         if (fmd) {
           try {
             eos_thread_debug("removing location %u of fid=%s", fsid,afid);
+	    
+	    if (fmd->hasLocation(fsid)) {
+	      fmd->unlinkLocation(fsid);
+	    }
+	    
             fmd->removeLocation(fsid);
             gOFS->eosView->updateFileStore(fmd);
             
             // after update we have to get the new address - who knows ...
-            fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
+	    fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
             if (quotanode) 
               quotanode->addFile(fmd);
 

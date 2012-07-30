@@ -1163,6 +1163,7 @@ XrdFstOfsFile::close()
   int rc = 0;
   bool checksumerror=false;
   bool targetsizeerror=false;
+  bool committed=false;
 
   // -------------------------------------------------------------------------------------------------------
   // we enter the close logic only once since there can be an explicit close or a close via the destructor
@@ -1281,7 +1282,7 @@ XrdFstOfsFile::close()
 	int rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueString);
 	if (rc) {
 	  eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",hexstring.c_str(), fMd->fMd.fid, capOpaque->Get("mgm.manager"));
-	}
+	} 
       }
       
       // store the entry server information before closing the layout
@@ -1348,7 +1349,9 @@ XrdFstOfsFile::close()
 	    // commit local
 	    if (!gFmdSqliteHandler.Commit(fMd))
 	      rc = gOFS.Emsg(epname,error,EIO,"close - unable to commit meta data",Path.c_str());
-	    
+	    else {
+	      committed=true;
+	    }
 	    // commit to central mgm cache
 	    int envlen=0;
 	    XrdOucString capOpaqueFile="";
@@ -1490,7 +1493,34 @@ XrdFstOfsFile::close()
       eos_debug("<rem> returned retc=%d", retc);
     }
 
+    if (committed) {
+      // if we commit the replica and an error happened remote, we have to unlink it again
+      XrdOucString hexstring="";
+      eos::common::FileId::Fid2Hex(fileid,hexstring);
+      XrdOucErrInfo error;
+      
+      XrdOucString capOpaqueString="/?mgm.pcmd=drop";
+      XrdOucString OpaqueString = "";
+      OpaqueString+="&mgm.fsid="; OpaqueString += (int)fsid;
+      OpaqueString+="&mgm.fid=";  OpaqueString += hexstring;
+      XrdOucEnv Opaque(OpaqueString.c_str());
+      capOpaqueString += OpaqueString;
+      
+      // -------------------------------------------------------------------------------------------------------
+      // delete the replica in the MGM
+      // -------------------------------------------------------------------------------------------------------
+      int rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueString);
+      if (rc) {
+	if (rc != -EIDRM) {
+	  eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",hexstring.c_str(), fileid, capOpaque->Get("mgm.manager"));
+	}
+      }
+      eos_info("info=\"removing on manager\" manager=%s fid=%llu fsid=%d fn=%s fstpath=%s rc=%d\n", capOpaque->Get("mgm.manager"), (unsigned long long)fileid, (int)fsid, capOpaque->Get("mgm.path"), fstPath.c_str(),rc);
+    }
+
     rc = SFS_ERROR;
+ 
+    gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because of a consistency error (either IO, checksum or size error)",Path.c_str());
     
     if (fstBlockXS) {
       // delete also the block checksum file
