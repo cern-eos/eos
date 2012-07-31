@@ -556,9 +556,7 @@ xrd_dir_cache_sync(unsigned long long inode, char *fullpath, int nentries,
  * @param efullpath full path of the subentry
  *
  * @return SubentryStatus value
- *         -3 - directory filled but entry not found, the entry should be ignored
- *         -2 - directory not in cache
- *         -1 - directory in cache but not filled
+ *         -1 - directory not filled or entry not found
  *          0 - entry found
  *
  */
@@ -567,7 +565,7 @@ int
 xrd_dir_cache_get_entry(fuse_req_t req, unsigned long long inode,
                         unsigned long long einode, const char *efullpath)
 {
-  int retc;
+  int retc = 0;
   eos::common::RWMutexReadLock rLock(FuseCacheMutex);
   FuseCacheEntry *dir;
 
@@ -577,18 +575,9 @@ xrd_dir_cache_get_entry(fuse_req_t req, unsigned long long inode,
       if (dir->getEntry(einode, e)) {
         xrd_store_p2i(einode, efullpath);
         fuse_reply_entry(req, &e);
-        retc = eFound;  //success
-      }
-      else {
-        retc = eIgnore;       
+        retc = 1;  //success
       }
     }
-    else {
-      retc = eDirNotFilled;
-    }
-  }
-  else {
-    retc = eDirNotFound;
   }
   
   return retc;
@@ -621,7 +610,6 @@ xrd_dir_cache_add_entry(unsigned long long inode, unsigned long long entry_inode
 
 
 
-
 // ---------------------------------------------------------------
 // Implementation the open File Descriptor map
 // ---------------------------------------------------------------
@@ -635,22 +623,24 @@ public:
   PosixFd() {
     fd = 0;
     nuser = 0;
-  }
+  };
+  
   ~PosixFd() {
-  }
+  };
 
-  void   setFd(int FD) { fd = FD;   }
-  int    getFd()       { Inc(); return fd;}
-  size_t getUser()     { return nuser;    }
 
-  void Inc() { nuser++;}
-  void Dec() { if(nuser) nuser--;}
+  void   setFd(int FD) { fd = FD; };
+  int    getFd()       { Inc(); return fd; };
+  size_t getUser()     { return nuser;     };
+
+  void Inc() { nuser++;};
+  void Dec() { if (nuser) nuser--;};
 
   static std::string Index(unsigned long long inode, uid_t uid) {
     char index[256];
     snprintf(index, sizeof(index)-1,"%llu-%u", inode,uid);
     return index;
-  }
+  };
 
 private:
   int fd;       // POSIX fd to store
@@ -659,6 +649,8 @@ private:
 
 google::dense_hash_map<std::string, PosixFd> OpenPosixXrootdFd; 
 
+
+/*----------------------------------------------------------------------------*/
 void
 xrd_add_open_fd(int fd, unsigned long long inode, uid_t uid)
 {
@@ -668,6 +660,8 @@ xrd_add_open_fd(int fd, unsigned long long inode, uid_t uid)
   OpenPosixXrootdFd[PosixFd::Index(inode,uid)].setFd(fd);
 }
 
+
+/*----------------------------------------------------------------------------*/
 int
 xrd_get_open_fd(unsigned long long inode, uid_t uid)
 {
@@ -677,17 +671,21 @@ xrd_get_open_fd(unsigned long long inode, uid_t uid)
   return OpenPosixXrootdFd[PosixFd::Index(inode,uid)].getFd();
 }
 
+
+/*----------------------------------------------------------------------------*/
 void
 xrd_lease_open_fd(unsigned long long inode, uid_t uid)
 {
   // release an attached file descriptor
   XrdSysMutexHelper vLock(OpenPosixXrootFdLock);
+
   OpenPosixXrootdFd[PosixFd::Index(inode,uid)].Dec();
   OpenPosixXrootdFd[PosixFd::Index(inode,uid)].Dec();
   if(!OpenPosixXrootdFd[PosixFd::Index(inode,uid)].getUser()) {
     OpenPosixXrootdFd.erase(PosixFd::Index(inode,uid));
   }
 }
+
 
 // ---------------------------------------------------------------
 // Implementation IO Buffer Management
@@ -888,13 +886,16 @@ xrd_setxattr(const char *path, const char *xattr_name, const char *xattr_value, 
     items = sscanf(response, "%s retc=%i", tag, &retc);
     if ((items != 2) || (strcmp(tag,"setxattr:"))) {
       errno = ENOENT;
+      eos_static_err( "Response not matching expectations.");
       return EFAULT;
     }
     else
       setxattr = retc;
   }
-  else 
+  else {
+    eos_static_err( "Error getting response.");
     return EFAULT;
+  }
 
   COMMONTIMING("END", &setxattrtiming);
   if (EOS_LOGS_DEBUG) {
@@ -1477,7 +1478,7 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
 
   xrd_lock_w_dirview(); // =>
 
-  if (nbytes>= 0) {
+  if (nbytes >= 0) {
     char dirpath[4096];
     unsigned long long inode;
     char tag[128];
@@ -1504,7 +1505,7 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
     char* endptr = value + strlen(value) -1 ;
     
     while ((ptr) && (ptr < endptr)) {
-      int items = sscanf(ptr,"%s %llu", dirpath,&inode);
+      int items = sscanf(ptr,"%s %llu", dirpath, &inode);
       if (items != 2) {
         free(value);
 	xrd_unlock_w_dirview(); // <=
@@ -1520,7 +1521,7 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
       // to the next entries
       if (ptr) ptr = strchr(ptr+1,' ');
       if (ptr) ptr = strchr(ptr+1,' ');
-      eos_static_info("name=%s inode=%llu",whitespacedirpath.c_str(), inode);
+      eos_static_info("name=%s inode=%llu", whitespacedirpath.c_str(), inode);
     } 
     doinodirlist = 0;
   }
@@ -1673,7 +1674,7 @@ xrd_truncate(int fildes, off_t offset, unsigned long inode)
     XFC->waitFinishWrites(inode);
   }
   
-  return XrdPosixXrootd::Ftruncate(fildes,offset);
+  return XrdPosixXrootd::Ftruncate(fildes, offset);
 }
 
 
@@ -1782,7 +1783,8 @@ xrd_pwrite(int fildes, const void *buf, size_t nbyte, off_t offset, unsigned lon
   eos::common::Timing xpw("xrd_pwrite");
   COMMONTIMING("start", &xpw);
   
-  eos_static_debug("fd=%d nbytes=%lu inode=%lu cache=%d cache-w=%d", fildes, (unsigned long)nbyte, (unsigned long) inode, XFC?1:0, fuse_cache_write);
+  eos_static_debug("fd=%d nbytes=%lu inode=%lu cache=%d cache-w=%d", 
+                   fildes, (unsigned long)nbyte, (unsigned long) inode, XFC?1:0, fuse_cache_write);
   size_t ret;
 
   if (XFC && fuse_cache_write && inode) {
@@ -1921,7 +1923,7 @@ xrd_init()
   if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0")) {
     eos::common::Logging::SetLogPriority(LOG_DEBUG);
   } else {
-    eos::common::Logging::SetLogPriority(LOG_INFO);
+    eos::common::Logging::SetLogPriority(LOG_DEBUG);
   }
   
   XrdPosixXrootd::setEnv(NAME_DATASERVERCONN_TTL,300);
@@ -1946,8 +1948,13 @@ xrd_init()
     if (!getenv("EOS_FUSE_CACHE_SIZE")) {
       setenv("EOS_FUSE_CACHE_SIZE", "30000000", 1);   // ~300MB
     }
-    eos_static_notice("cache=true size=%s cache-read=%s, cache-write=%s",getenv("EOS_FUSE_CACHE_SIZE"), getenv("EOS_FUSE_CACHE_READ"), getenv("EOS_FUSE_CACHE_WRITE"));
+    eos_static_notice("cache=true size=%s cache-read=%s, cache-write=%s",
+                      getenv("EOS_FUSE_CACHE_SIZE"), 
+                      getenv("EOS_FUSE_CACHE_READ"), 
+                      getenv("EOS_FUSE_CACHE_WRITE"));
+
     XFC = XrdFileCache::getInstance(static_cast<size_t>(atol(getenv("EOS_FUSE_CACHE_SIZE"))));   
+
     if (getenv("EOS_FUSE_CACHE_READ") && atoi(getenv("EOS_FUSE_CACHE_READ"))) {
       fuse_cache_read = true;
     }

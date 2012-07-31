@@ -45,7 +45,7 @@
 
 #include "xrdposix.hh"
 
-int isdebug=0;
+int isdebug = 0;
 // mount hostport;
 char mounthostport[1024];
 
@@ -124,7 +124,7 @@ static void eosfs_ll_getattr(fuse_req_t req, fuse_ino_t ino,
 
 //--------------------------------------------------------------------------------------------------
 static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
-				int to_set, struct fuse_file_info *fi)
+                             int to_set, struct fuse_file_info *fi)
 {
   int retc=0;
   char fullpath[16384];
@@ -162,7 +162,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
 
       if (isdebug) fprintf(stderr,"[%s]: truncate\n",__FUNCTION__);
       if (fi->fh) {
-        retc = xrd_truncate(fi->fh,attr->st_size, ino);
+        retc = xrd_truncate(fi->fh, attr->st_size, ino);
       } else {
         if (isdebug) fprintf(stderr,"[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__,(long long)attr->st_size, (long long)ino);
         int fd;
@@ -195,6 +195,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     retc = xrd_utimes(fullpath, tvp);
   }
   if (isdebug) fprintf(stderr,"[%s]: return code =%d\n",__FUNCTION__, retc);
+
   struct stat newattr;
   memset(&newattr,0,sizeof(struct stat));
   if (!retc) {
@@ -213,7 +214,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
 //--------------------------------------------------------------------------------------------------
 static void eosfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
 {
-  int entry_status;
+  int entry_found = 0;
   unsigned long long entry_inode;
   const char* parentpath = NULL;
   char fullpath[16384];
@@ -250,46 +251,36 @@ static void eosfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
 
   if (entry_inode) {
     //try to get entry from cache
-    entry_status = xrd_dir_cache_get_entry(req, parent, entry_inode, ifullpath);
-  }
-  else {
-    entry_status = eDirNotFound;
+    entry_found = xrd_dir_cache_get_entry(req, parent, entry_inode, ifullpath);
   }
 
-  if (entry_status != eFound) {
+  if ( !entry_found ) {
     struct fuse_entry_param e;
     memset(&e, 0, sizeof(e));
-    if (isdebug) fprintf(stderr, "[%s] subentry_status = %i \n", __FUNCTION__, entry_status);
-
-    if (entry_status == eIgnore) {
-      //entry should be ignored
-      e.ino = 0;
-      fuse_reply_entry(req, &e);
-    }
-    else if ((entry_status == eDirNotFound) || (entry_status == eDirNotFilled)) {
-      //add entry to dir
-      e.attr_timeout = attrcachetime;
-      e.entry_timeout = entrycachetime;
-      int retc = xrd_stat(fullpath, &e.attr);
-      if (!retc) {
-        if (isdebug) {
-          fprintf(stderr,"[%s]: storeinode=%lld path=%s\n",
-                  __FUNCTION__,(long long) e.attr.st_ino,ifullpath);
-        }
-
-        e.ino = e.attr.st_ino;
-        xrd_store_p2i(e.attr.st_ino, ifullpath);
-        fuse_reply_entry(req, &e);
+    if (isdebug) fprintf(stderr, "[%s] subentry_found = %i \n", __FUNCTION__, entry_found);
+    
+    //add entry to dir
+    e.attr_timeout = attrcachetime;
+    e.entry_timeout = entrycachetime;
+    int retc = xrd_stat(fullpath, &e.attr);
+    if (!retc) {
+      if (isdebug) {
+        fprintf(stderr,"[%s]: storeinode=%lld path=%s\n",
+                __FUNCTION__,(long long) e.attr.st_ino,ifullpath);
+      }
       
-        //add entry to cached dir
-        xrd_dir_cache_add_entry(parent, e.attr.st_ino, &e);
+      e.ino = e.attr.st_ino;
+      xrd_store_p2i(e.attr.st_ino, ifullpath);
+      fuse_reply_entry(req, &e);
+      
+      //add entry to cached dir
+      xrd_dir_cache_add_entry(parent, e.attr.st_ino, &e);
+    } else {
+      if (errno == EFAULT) {
+        e.ino = 0;
+        fuse_reply_entry(req, &e);
       } else {
-        if (errno == EFAULT) {
-          e.ino = 0;
-          fuse_reply_entry(req, &e);
-        } else {
           fuse_reply_err(req, errno);
-        }
       }
     }
   }
@@ -918,8 +909,9 @@ static void eosfs_ll_access(fuse_req_t req, fuse_ino_t ino, int mask)
 
 
 //--------------------------------------------------------------------------------------------------
-static void eosfs_ll_open(fuse_req_t req, fuse_ino_t ino,
-			     struct fuse_file_info *fi)
+static void eosfs_ll_open( fuse_req_t             req,
+                           fuse_ino_t             ino,
+                           struct fuse_file_info *fi )
 {
   struct stat stbuf;
   char fullpath[16384];
@@ -939,9 +931,14 @@ static void eosfs_ll_open(fuse_req_t req, fuse_ino_t ino,
 
   int res;
   if ( fi->flags & ( O_RDWR | O_WRONLY | O_CREAT) ) {
-    if ( (res = xrd_get_open_fd((unsigned long long)ino, req->ctx.uid)) >0) {
-      if (isdebug) fprintf(stderr,"[%s]: inode=%llu path=%s attaching to res=%d\n", __FUNCTION__,(long long)ino,fullpath,res);
-      xrd_lease_open_fd(ino,req->ctx.uid);
+    if ( (res = xrd_get_open_fd((unsigned long long)ino, req->ctx.uid)) > 0) {
+
+      if (isdebug) {
+        fprintf(stderr,"[%s]: inode=%llu path=%s attaching to res=%d\n",
+                __FUNCTION__,(long long)ino,fullpath,res);
+      }
+
+      xrd_lease_open_fd(ino, req->ctx.uid);
     } else {
       res = xrd_open(fullpath, fi->flags,S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     }
@@ -1009,7 +1006,10 @@ static void eosfs_ll_write(fuse_req_t req, fuse_ino_t ino, const char *buf, size
 			    off_t off, struct fuse_file_info *fi)
 {
   if (fi->fh) {
-    if (isdebug) fprintf(stderr,"[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)size,(long long)off,(long long)buf,(long long)fi->fh);
+    if (isdebug) fprintf(stderr,"[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n", 
+                         __FUNCTION__, (long long)ino,(long long)size,(long long)off,
+                         (long long)buf,(long long)fi->fh);
+
     int res = xrd_pwrite(fi->fh, buf, size, off, ino);
     if (res == -1) {
       fuse_reply_err(req, errno);

@@ -150,17 +150,6 @@ extern "C" {
     dValid      =  0
   };
 
-
-  // ---------------------------------------------------------------------------
-  //! Definition of cache subentries return values
-  // ---------------------------------------------------------------------------
-  enum SubentryStatus {
-    eIgnore        = -3,
-    eDirNotFound   = -2,
-    eDirNotFilled  = -1,
-    eFound         =  0
-  };
-
   int            xrd_dir_cache_get(unsigned long long inode, struct timespec mtime, char *fullpath, struct dirbuf **b);
   int            xrd_dir_cache_get_entry(fuse_req_t req, unsigned long long inode, unsigned long long einode, const char* ifullpath);  
   void           xrd_dir_cache_add_entry(unsigned long long inode, unsigned long long entry_inode, struct fuse_entry_param *e); 

@@ -4686,10 +4686,12 @@ XrdMgmOfs::FSctl(const int               cmd,
             error.setErrInfo(response.length() + 1, response.c_str());
           }
           else if (subcmd == "rm") {  //rmxattr
-            response += "1 "; //error
+            response = "rmxattr: retc=0"; //error
+            error.setErrInfo(response.length() + 1, response.c_str());
           }
           else if (subcmd == "set") { //setxattr
-            response += "1 "; //error
+            response = "setxattr: retc=0"; //error
+            error.setErrInfo(response.length() + 1, response.c_str());
           }
                        
           return SFS_DATA;
