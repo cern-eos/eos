@@ -165,7 +165,6 @@ extern "C" {
   int            xrd_dir_cache_get_entry(fuse_req_t req, unsigned long long inode, unsigned long long einode, const char* ifullpath);  
   void           xrd_dir_cache_add_entry(unsigned long long inode, unsigned long long entry_inode, struct fuse_entry_param *e); 
   void           xrd_dir_cache_sync(unsigned long long inode, char *fullpath, int nentries, struct timespec mtime, struct dirbuf *b); 
-  int            xrd_dir_isfull(unsigned long long inode);  
 
   // - SOCKS4 settings
   void           xrd_socks4(const char* host, const char* port);
