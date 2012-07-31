@@ -308,27 +308,56 @@ com_cp (char* argin) {
 	return com_cp_usage();
       }
 
-      if (source_find_list[nfile].beginswith("/eos")) {
+      XrdOucString l="";
+      XrdOucString sourceprefix=""; // this is the URL part of root://<host>/ for XRootD or as3://<hostname>/
 
-      } else {
-	XrdOucString l="";
-	l+= "find "; l += source_find_list[nfile]; l+= " -type f";
-	if (debug) fprintf(stderr,"[eos-cp] running %s\n", l.c_str());
-	FILE* fp = popen(l.c_str(),"r");
-	if (!fp) {
-	  fprintf(stderr, "error: unable to run 'eos' - I need it in the path");
-	  exit(-1);
+      if (source_find_list[nfile].beginswith("/eos")) {
+	// -------------------------------------------------
+	// eos
+	// -------------------------------------------------
+	l+= "eos -b find -f "; l += source_find_list[nfile];
+      }  else {
+	// -------------------------------------------------
+	// XRootd
+	// -------------------------------------------------
+	if (source_find_list[nfile].beginswith("root://")) {
+	  XrdOucString url = source_find_list[nfile].c_str();
+	  int epos = source_find_list[nfile].find("//",6);
+	  if (epos==STR_NPOS) {
+	    fprintf(stderr,"error: malformed URL <%s>\n", source_find_list[nfile].c_str());
+	    exit(-1);
+	  }
+	  XrdOucString host; host.assign(url,7,epos);
+	  XrdOucString path; path.assign(url,epos+1);
+	  sourceprefix.assign(url,0,epos);
+	  l+= "xrd "; l+= host; l += " dirlistrec "; l += path; l += " | grep -v \"^d\" | grep \"^-\"| awk '{print $5}'";
+	} else {
+	  // -------------------------------------------------
+	  // mounted FS
+	  // -------------------------------------------------
+	  l+= "find "; l += source_find_list[nfile]; l+= " -type f";
 	}
+      }
+      
+      if (debug) fprintf(stderr,"[eos-cp] running %s\n", l.c_str());
+      FILE* fp = popen(l.c_str(),"r");
+      if (!fp) {
+	fprintf(stderr, "error; unable to run 'eos' - I need it in the path");
+	exit(-1);
+      }
+      
+      if (l.length()) {
 	int item;
 	char f2c[4096];
 	while ( (item = fscanf(fp,"%s", f2c) == 1)) {
 	  if (debug) fprintf(stdout,"[eos-cp] add file %s\n",f2c);
-	  source_list.push_back(f2c);
+	  XrdOucString sf2c=f2c;
+	  sf2c.insert(sourceprefix,0);
+	  source_list.push_back(sf2c.c_str());
 	  source_base_list.push_back(source_find_list[nfile]);
 	}
-	fclose(fp);
       }
-
+      if (fp)fclose(fp);
     }
   }
 
