@@ -416,7 +416,14 @@ static void eosfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
     // dir not in cache or invalid
     if (!xrd_dirview_entry(ino, 0)) {
       // there is no listing yet, create one!
-      xrd_inodirlist((unsigned long long)ino, fullpath);
+      retc = xrd_inodirlist((unsigned long long)ino, fullpath);
+      if (retc) {
+        fuse_reply_err(req, retc);
+        if (name)
+          free(name);
+        return;
+      }
+      
       b = xrd_dirview_getbuffer((unsigned long long)ino);
       if (!b) {
         fuse_reply_err(req, EPERM);

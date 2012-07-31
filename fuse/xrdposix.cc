@@ -1439,7 +1439,7 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
   COMMONTIMING("GETSTSTREAM",&inodirtiming);
 
   int doinodirlist=-1;
-  int retc;
+  int retc = -1;
   xrd_sync_env();
   XrdClient* listclient = new XrdClient(request.c_str());
   
@@ -1458,9 +1458,9 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
   int npages=1;
   off_t offset=0;
   COMMONTIMING("READSTSTREAM",&inodirtiming);
-  while ( (nbytes = listclient->Read(value+offset ,offset,PAGESIZE)) == PAGESIZE) {
+  while ( (nbytes = listclient->Read(value+offset, offset, PAGESIZE)) == PAGESIZE) {
     npages++;
-    value = (char*) realloc(value,npages*PAGESIZE+1);
+    value = (char*) realloc(value, npages * PAGESIZE + 1);
     offset += PAGESIZE;
   }
   if (nbytes >= 0) offset += nbytes;
@@ -1492,6 +1492,13 @@ xrd_inodirlist(unsigned long long dirinode, const char *path)
       xrd_dirview_delete( (unsigned long long ) dirinode);
       return EFAULT;
     }
+
+    if (retc) {
+      xrd_unlock_w_dirview(); // <=
+      xrd_dirview_delete( (unsigned long long ) dirinode);
+      return retc;
+    }
+    
     ptr = strchr(value,' ');
     if (ptr) ptr = strchr(ptr+1,' ');
     char* endptr = value + strlen(value) -1 ;

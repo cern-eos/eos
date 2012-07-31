@@ -3465,7 +3465,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         
         if ((retc = inodir->open(path.c_str(),vid_in,0)) != SFS_OK) {
           delete inodir;
-          return retc;
+          retc = -retc;
+          resultStream += retc;
+          len = resultStream.length();
+          offset = 0;
+          return SFS_OK;
         }
         
         const char* entry;

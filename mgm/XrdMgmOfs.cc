@@ -530,7 +530,7 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
   //
   dh_it = dh_list.begin();
 
-  EXEC_TIMING_END("OpenDir");   
+  EXEC_TIMING_END("OpenDir");
   return  SFS_OK;
 }
 
