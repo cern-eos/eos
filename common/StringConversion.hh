@@ -549,7 +549,7 @@ public:
   // ---------------------------------------------------------------------------
   /** 
    * Return the time as <seconds>.<nanoseconds> in a string
-   * @param XrdOucString where to store the time as text
+   * @param stime XrdOucString where to store the time as text
    * @return const char* to XrdOucString object passed
    */
   // ---------------------------------------------------------------------------  
@@ -587,6 +587,134 @@ public:
       line.insert(smask.c_str(),spos);
     }
     return line.c_str();
+  }
+
+
+  // ---------------------------------------------------------------------------
+  /** 
+   * Parse a string as an URL (does not deal with opaque information)
+   * @param url string to parse
+   * @param &protocol - return of the protocol identifier
+   * @param &hostport - return of the host(port) identifier
+   * @return pointer to file path inside the url
+   */
+  // ---------------------------------------------------------------------------  
+  static const char*
+  ParseUrl(const char* url, XrdOucString& protocol, XrdOucString& hostport)
+  {
+    protocol=url;
+    hostport=url;
+    int ppos = protocol.find(":/");
+    if (ppos != STR_NPOS) {
+      protocol.erase(ppos);
+    } else {
+      if (protocol.beginswith("as3:")) {
+	protocol="as3";
+      } else {
+	protocol="file";
+      }
+    }
+    if (protocol == "file") {
+      if (hostport.beginswith("file:")) {
+	hostport="";
+	return (url+5);
+      } else {
+	hostport="";
+	return url;
+      }
+    }
+    if (protocol == "root") {
+      int spos = hostport.find("//",ppos+2);
+      if (spos == STR_NPOS) {
+	return 0;
+      }
+      hostport.erase(spos);
+      hostport.erase(0,7);
+      return (url+spos+1);
+    }
+
+    if (protocol == "as3") {
+      if (hostport.beginswith("as3://")) {
+	// as3://<hostname>/<bucketname>/<filename> like in ROOT
+	int spos = hostport.find("/",6);
+	if (spos != STR_NPOS) {
+	  hostport.erase(spos);
+	  hostport.erase(0,6);
+	  return (url+spos+1);
+	} else {
+	  return 0;
+	}
+      } else {
+	// as3:<bucketname>/<filename>
+	hostport ="";
+	return (url+4);
+      }
+      
+    }
+    if (protocol == "http") {
+      // http://<hostname><path>
+      int spos = hostport.find("/",7);
+      if (spos == STR_NPOS) {
+	return 0;
+      }
+      hostport.erase(spos);
+      hostport.erase(0,7);
+      return (url+spos);
+    }
+    if (protocol == "gsiftp") {
+      // gsiftp://<hostname><path>
+      int spos = hostport.find("/",9);
+      if (spos == STR_NPOS) {
+	return 0;
+      }
+      hostport.erase(spos);
+      hostport.erase(0,9);
+      return (url+spos);
+    }
+    return 0;
+  }
+
+  // ---------------------------------------------------------------------------
+  /** 
+   * Create an Url 
+   * @param protocol - name of the protocol
+   * @param hostport - host[+port] 
+   * @param path     - path name
+   * @param @url     - returned URL string
+   * @return char* to returned URL string
+   */
+  // ---------------------------------------------------------------------------  
+  static const char*
+  CreateUrl(const char* protocol, const char* hostport, const char* path, XrdOucString& url)
+  {
+    if (!strcmp(protocol,"file")) {
+      url = path;
+      return url.c_str();
+    }
+    if (!strcmp(protocol,"root")) {
+      url = "root://"; url+= hostport; url += "/"; url += path;
+      return url.c_str();
+    }
+
+    if (!strcmp(protocol,"as3")) {
+      if (hostport && strlen(hostport)) {
+	url = "as3://"; url += hostport; url += path;
+	return url.c_str();
+      } else {
+	url = "as3:"; url += path;
+	return url.c_str();
+      }
+    }
+    if (!strcmp(protocol,"http")) {
+      url = "http://"; url += hostport; url += path;
+      return url.c_str();
+    }
+    if (!strcmp(protocol,"gsiftp")) {
+      url = "gsiftp://"; url += hostport; url += path;
+      return url.c_str();
+    }
+    url="";
+    return 0;
   }
 
   // ---------------------------------------------------------------------------

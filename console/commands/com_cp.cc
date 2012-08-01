@@ -212,88 +212,60 @@ com_cp (char* argin) {
     source_find_list = source_list;
     source_list.clear();
     for (size_t l =0; l< source_find_list.size(); l++) {
+      if ( (source_find_list[l].beginswith("http:")) ||
+	   (source_find_list[l].beginswith("gsiftp:")) ) {
+	fprintf(stderr,"error: directory copy not implemented for that protocol\n");
+	continue;
+      }
+
       // one wildcard file or directory
-      if ( (source_find_list[l].endswith("*") || (source_find_list[0].endswith("/")))) {
+      if ( ( (source_find_list[l].find("*")!=STR_NPOS) || (source_find_list[l].endswith("/")))) {
 	arg1 = source_find_list[l];
-	// translate the wildcard
-	if ( (arg1.endswith("*") != STR_NPOS ) || (arg1.endswith("/")) ) {
-	  if ( arg1.beginswith("/eos/")) {
-	    if (arg1.endswith("*")) {
-	      arg1.erase(arg1.length()-1);
-	    }
-	    eos::common::Path cPath(arg1.c_str());
-	    std::string dname = "";
-	    XrdOucString l = "eos -b ls -l "; 
-	    if (!arg1.endswith("/")) {
-	      dname = cPath.GetParentPath() ;
-	    } else {
-	      dname = arg1.c_str();
-	    }
-	    l += dname.c_str();
-	    
-	    l += " | grep -v ^d | awk '{print $9}'" ; 
-	    if (!arg1.endswith("/")) {
-	      std::string match=cPath.GetName();
-	      if (match.length()) {
-		l += " | grep -w "; l+= match.c_str();
-	      }
-	    }
-	    if (debug) fprintf(stderr,"[eos-cp] running %s\n", l.c_str());
-	    FILE* fp = popen(l.c_str(),"r");
-	    if (!fp) {
-	      fprintf(stderr, "error: unable to run 'eos' - I need it in the path");
-	      exit(-1);
-	    }
-	    int item;
-	    char f2c[4096];
-	    while ( (item = fscanf(fp,"%s", f2c) == 1)) {
-	      std::string fullpath = dname;
-	      fullpath += f2c;
-	      if (debug) fprintf(stdout,"[eos-cp] add file %s\n",fullpath.c_str());
-	      source_list.push_back(fullpath.c_str());
-	    }
-	    pclose(fp);
-	  } else {
-	    if (debug) fprintf(stderr,"[eos-cp] %s\n", arg1.c_str());
-	    if (arg1.endswith("*")) {
-	      arg1.erase(arg1.length()-1);
-	    }
-	    eos::common::Path cPath(arg1.c_str());
-	    std::string dname = "";
-	    XrdOucString l = "ls -l "; 
-	    if (!arg1.endswith("/")) {
-	      dname = cPath.GetParentPath() ;
-	    } else {
-	      dname = arg1.c_str();
-	    }
-	    l += dname.c_str();
-	    
-	    l += " | grep -v ^d | awk '{print $9}'" ; 
-	    if (!arg1.endswith("/")) {
-	      std::string match=cPath.GetName();
-	      if (match.length()) {
-		l += " | grep -w "; l+= match.c_str();
-	      }
-	    }
-	    if (debug) fprintf(stderr,"[eos-cp] running %s\n", l.c_str());
-	    FILE* fp = popen(l.c_str(),"r");
-	    if (!fp) {
-	      fprintf(stderr, "error: unable to run 'ls' - I need it in the path");
-	      exit(-1);
-	    }
-	    int item;
-	    char f2c[4096];
-	    while ( (item = fscanf(fp,"%s", f2c) == 1)) {
-	      std::string fullpath = dname;
-	      fullpath += f2c;
-	      if (debug) fprintf(stdout,"[eos-cp] add file %s\n",fullpath.c_str());
-	      source_list.push_back(fullpath.c_str());
-	    }
-	    pclose(fp);
-	  }
+	eos::common::Path cPath(arg1.c_str());
+	std::string dname = "";
+	
+	XrdOucString l = "eos -b ls -l "; 
+	if (!arg1.endswith("/")) {
+	  dname = cPath.GetParentPath() ;
 	} else {
-	  source_list.push_back(arg1.c_str());
+	  dname = arg1.c_str();
 	}
+	
+	l += dname.c_str();
+	
+	l += " | grep -v ^d | awk '{print $9}'" ; 
+
+	if (!arg1.endswith("/")) {
+	  XrdOucString match=cPath.GetName();
+	  if (match.endswith("*")) {
+	    match.erase(match.length()-1);
+	    match.insert("^",0);
+	  }
+	  if (match.beginswith("*")) {
+	    match.erase(0,1);
+	    match+= "$";
+	  }
+	  if (match.length()) {
+	    l += " | egrep \""; l+= match.c_str(); l += "\"";
+	  }
+	}
+
+	l += " 2>/dev/null";
+	if (debug) fprintf(stderr,"[eos-cp] running %s\n", l.c_str());
+	FILE* fp = popen(l.c_str(),"r");
+	if (!fp) {
+	  fprintf(stderr, "error: unable to run 'eos' - I need it in the path");
+	  exit(-1);
+	}
+	int item;
+	char f2c[4096];
+	while ( (item = fscanf(fp,"%s", f2c) == 1)) {
+	  std::string fullpath = dname;
+	  fullpath += f2c;
+	  if (debug) fprintf(stdout,"[eos-cp] add file %s\n",fullpath.c_str());
+	  source_list.push_back(fullpath.c_str());
+	}
+	pclose(fp);
       } else {
 	source_list.push_back(source_find_list[l].c_str());
       }
@@ -303,42 +275,29 @@ com_cp (char* argin) {
     source_find_list = source_list;
     source_list.clear();
     for (size_t nfile = 0 ; nfile < source_find_list.size(); nfile++) {
-      if (!source_find_list[nfile].endswith("/")) {
-	fprintf(stderr,"error: for recursive copy you have to give a directory name ending with '/'\n");
-	return com_cp_usage();
+      if (!source_find_list[nfile].beginswith("as3:")) {
+	if (!source_find_list[nfile].endswith("/")) {
+	  fprintf(stderr,"error: for recursive copy you have to give a directory name ending with '/'\n");
+	  return com_cp_usage();
+	}
       }
-
+      if ( (source_find_list[nfile].beginswith("http:")) ||
+	   (source_find_list[nfile].beginswith("gsiftp:")) ) {
+	fprintf(stderr,"error: recursive copy not implemented for that protocol\n");
+	continue;
+      }
       XrdOucString l="";
       XrdOucString sourceprefix=""; // this is the URL part of root://<host>/ for XRootD or as3://<hostname>/
 
-      if (source_find_list[nfile].beginswith("/eos")) {
-	// -------------------------------------------------
-	// eos
-	// -------------------------------------------------
-	l+= "eos -b find -f "; l += source_find_list[nfile];
-      }  else {
-	// -------------------------------------------------
-	// XRootd
-	// -------------------------------------------------
-	if (source_find_list[nfile].beginswith("root://")) {
-	  XrdOucString url = source_find_list[nfile].c_str();
-	  int epos = source_find_list[nfile].find("//",6);
-	  if (epos==STR_NPOS) {
-	    fprintf(stderr,"error: malformed URL <%s>\n", source_find_list[nfile].c_str());
-	    exit(-1);
-	  }
-	  XrdOucString host; host.assign(url,7,epos);
-	  XrdOucString path; path.assign(url,epos+1);
-	  sourceprefix.assign(url,0,epos);
-	  l+= "xrd "; l+= host; l += " dirlistrec "; l += path; l += " | grep -v \"^d\" | grep \"^-\"| awk '{print $5}'";
-	} else {
-	  // -------------------------------------------------
-	  // mounted FS
-	  // -------------------------------------------------
-	  l+= "find "; l += source_find_list[nfile]; l+= " -type f";
-	}
-      }
+      l+= "eos -b find -f "; 
+      if (source_find_list[nfile].beginswith("/") && (!source_find_list[nfile].beginswith("/eos"))) {
+	l += "file:";
+	
+      } 
       
+      l += source_find_list[nfile];
+      
+      l += " 2> /dev/null";
       if (debug) fprintf(stderr,"[eos-cp] running %s\n", l.c_str());
       FILE* fp = popen(l.c_str(),"r");
       if (!fp) {
@@ -363,8 +322,10 @@ com_cp (char* argin) {
 
   // check if there is any file in the list
   if (!source_list.size()) {
-    fprintf(stderr,"error: your source seems not to exist or match any file!\n");
-    return com_cp_usage();
+    fprintf(stderr,"warning: there is no file to copy!\n");
+    //    fprintf(stderr,"error: your source seems not to exist or does not match any file!\n");
+    global_retc=0;
+    exit(0);
   }
 
   // create the target directory if it is a local one
@@ -421,12 +382,19 @@ com_cp (char* argin) {
     if (source_list[nfile].beginswith("as3:")) {
       // extract evt. the hostname
       // the hostname is part of the URL like in ROOT
-      int spos = source_list[nfile].find("/",6);
-      if (spos != STR_NPOS) {
-	XrdOucString hname;
-	hname.assign(source_list[nfile],6,spos-1);
-	setenv("S3_HOSTNAME",hname.c_str(),1);
-	source_list[nfile].erase(4, spos-3);
+      XrdOucString hostport;
+      XrdOucString protocol;
+      XrdOucString sPath;
+      const char* v=0;
+      if (!(v=eos::common::StringConversion::ParseUrl(source_list[nfile].c_str(),protocol,hostport))) {
+	fprintf(stderr,"error: illegal url <%s>\n", source_list[nfile].c_str());
+	global_retc = EINVAL;
+	return (0);
+      }
+      sPath = v;
+      
+      if (hostport.length()) {
+	setenv("S3_HOSTNAME",hostport.c_str(),1);
       }
 
       XrdOucString envString = source_list[nfile];
@@ -442,6 +410,7 @@ com_cp (char* argin) {
 	  setenv("S3_ACCESS_KEY_ID", env.Get("s3.id"),1);
 	}
 	source_list[nfile].erase(source_list[nfile].find("?"));      
+	sPath.erase(sPath.find("?"));
       }
 
       // apply the ROOT compatability environment variables
@@ -459,7 +428,7 @@ com_cp (char* argin) {
       s3env +=         " S3_HOSTNAME="; s3env += getenv("S3_HOSTNAME");
       s3env +=" S3_SECRET_ACCESS_KEY="; s3env += getenv("S3_SECRET_ACCESS_KEY");
 
-      XrdOucString s3arg= source_list[nfile].c_str(); s3arg.replace("as3:","");
+      XrdOucString s3arg= sPath.c_str();
 
       // do some bash magic ... sigh
       XrdOucString sizecmd = "bash -c \""; sizecmd +=s3env; sizecmd += " s3 head "; sizecmd += s3arg; sizecmd += " | grep Content-Length| awk '{print \\$2}' 2>/dev/null"; sizecmd += "\"";

@@ -646,10 +646,21 @@ output_result(XrdOucEnv* result, bool highlighting) {
   }
   if (json) {
     if (rstdjson.length()) 
-      if (!silent)fprintf(stdout,"%s\n",rstdjson.c_str());
+      if (!silent) {
+	fprintf(stdout,"%s",rstdjson.c_str());
+	if (rstdjson.endswith('\n')) {
+	  fprintf(stdout,"\n");
+	}
+      }
   } else {
     if (rstdout.length()) 
-      if (!silent)fprintf(stdout,"%s\n",rstdout.c_str());
+      if (!silent) {
+	fprintf(stdout,"%s",rstdout.c_str());
+	if (!rstdout.endswith('\n')) {
+	  fprintf(stdout,"\n");
+	}
+      }
+    
     if (rstderr.length()) {
       fprintf(stderr,"%s (errc=%d) (%s)\n",rstderr.c_str(), retc, strerror(retc));
     }

@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT(eos-dsi, 0.2.4,[andreas.joachim.peters@cern.ch])
+AC_INIT(eos-dsi, 0.2.5,[andreas.joachim.peters@cern.ch])
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 AC_CONFIG_SRCDIR([dsi_eos.hh])
