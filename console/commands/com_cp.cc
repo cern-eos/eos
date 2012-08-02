@@ -212,8 +212,9 @@ com_cp (char* argin) {
     source_find_list = source_list;
     source_list.clear();
     for (size_t l =0; l< source_find_list.size(); l++) {
-      if ( (source_find_list[l].beginswith("http:")) ||
-	   (source_find_list[l].beginswith("gsiftp:")) ) {
+      if ( ( (source_find_list[l].beginswith("http:")) ||
+	     (source_find_list[l].beginswith("gsiftp:"))) &&
+	   (source_find_list[l].endswith("/") ) ){
 	fprintf(stderr,"error: directory copy not implemented for that protocol\n");
 	continue;
       }
