@@ -286,8 +286,7 @@ com_find (char* arg1) {
 		    cpath+= "/";
 		    found_dirs[deepness+1].push_back(cpath.c_str());
 		    found[curl.c_str()].size();
-		  }
-		  if (S_ISREG(buf.st_mode)) {
+		  } else {
 		    found[url.c_str()].insert(entry->d_name);
 		  }
 		}
