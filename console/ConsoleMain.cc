@@ -897,7 +897,6 @@ int main (int argc, char* argv[]) {
     
     if ( (in1 == "--version") || (in1 == "-v") ) {
       fprintf(stderr,"EOS %s (CERN)\n\n", VERSION);
-      fprintf(stderr,"%s\n", license);
       fprintf(stderr,"Written by CERN-IT-DSS (Andreas-Joachim Peters, Lukasz Janyst & Elvin Sindrilaru)\n");
       exit(-1);
     }
