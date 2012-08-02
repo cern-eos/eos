@@ -158,7 +158,7 @@ The EOS shell client.
 %doc %_mandir/man1/eos-dropbox.1.gz
 %doc %_mandir/man1/eos-file.1.gz
 %doc %_mandir/man1/eos-fileinfo.1.gz
-%doc %_mandir/man1/eos-find.1.gz%
+%doc %_mandir/man1/eos-find.1.gz
 %doc %_mandir/man1/eos-fs.1.gz
 #%doc %_mandir/man1/eos-fuse.1.gz
 #%doc %_mandir/man1/eos-group.1.gz
