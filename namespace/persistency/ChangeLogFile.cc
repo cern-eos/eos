@@ -411,6 +411,17 @@ namespace eos
   void ChangeLogFile::scanAllRecords( ILogRecordScanner *scanner )
     throw( MDException )
   {
+    scanAllRecordsAtOffset( scanner, 8 );
+  }
+
+  //----------------------------------------------------------------------------
+  // Scan all the records in the changelog file starting from a given
+  // offset
+  //----------------------------------------------------------------------------
+  void ChangeLogFile::scanAllRecordsAtOffset( ILogRecordScanner *scanner,
+                                              uint64_t           startOffset )
+    throw( MDException )
+  {
     if( !pIsOpen )
     {
       MDException ex( EFAULT );
@@ -430,12 +441,12 @@ namespace eos
       throw ex;
     }
 
-    off_t offset = ::lseek( pFd, 8, SEEK_SET );
-    if( offset != 8 )
+    off_t offset = ::lseek( pFd, startOffset, SEEK_SET );
+    if( offset != (off_t)startOffset )
     {
       MDException ex( EFAULT );
       ex.getMessage() << "Scan: Unable to find the record data at offset 0x";
-      ex.getMessage() << std::setbase(16) << 6 << "; ";
+      ex.getMessage() << std::setbase(16) << startOffset << "; ";
       ex.getMessage() << strerror( errno );
       throw ex;
     }

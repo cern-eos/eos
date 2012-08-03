@@ -184,6 +184,14 @@ namespace eos
       void scanAllRecords( ILogRecordScanner *scanner ) throw( MDException );
 
       //------------------------------------------------------------------------
+      //! Scan all the records in the changelog file starting from a given
+      //! offset
+      //------------------------------------------------------------------------
+      void scanAllRecordsAtOffset( ILogRecordScanner *scanner,
+                                   uint64_t           startOffset )
+        throw( MDException );
+
+      //------------------------------------------------------------------------
       //! Follow a file
       //!
       //! @param scanner a listener to be notified about a new record
