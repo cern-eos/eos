@@ -1644,7 +1644,6 @@ XrdFstOfsFile::truncate( XrdSfsFileOffset fileOffset )
     return SFS_OK;
   }
 
-  //  fprintf(stderr,"truncate called %llu\n", fileOffset);
   eos_info( "subcmd=truncate openSize=%llu fileOffset=%llu ", openSize, fileOffset );
 
   if ( fileOffset != openSize ) {
