@@ -187,6 +187,18 @@ class HeaderCRC: public eos::common::LogId
       mValid = state;
     }
 
+
+    //--------------------------------------------------------------------------
+    //! Get size of the file based on the info in the header
+    //--------------------------------------------------------------------------
+    off_t GetSizeFile() const {
+      if ( mNumBlocks ) {
+        return static_cast<off_t>( ( mNumBlocks - 1 ) * mSizeHeader +
+                                   mSizeLastBlock );
+      }
+      else return 0;
+    }
+  
   private:
 
     char mTag[16];            ///< layout tag

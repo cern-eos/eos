@@ -176,6 +176,7 @@ RaidMetaLayout::Open( const std::string& path,
   mHdrInfo.push_back( new HeaderCRC( mStripeWidth ) );
   mMetaHandlers.push_back( new AsyncMetaHandler() );
   mSizeHeader = mStripeWidth;
+
   
   //......................................................................
   // Read header information for the local file
@@ -325,6 +326,14 @@ RaidMetaLayout::Open( const std::string& path,
       eos_err( "error=headers invalid - can not continue" );
       return gOFS.Emsg( "RaidMetaLayoutOpen", *mError, EIO, "headers invalid " );
     }
+
+    //..........................................................................
+    // Do truncate just to be sure that the files are not bigger than expected
+    //..........................................................................
+    for ( unsigned int i = 0; i < mStripeFiles.size(); i++ ) {
+      mStripeFiles[i]->Truncate( mHdrInfo[0]->GetSizeFile());
+    }
+    
   }
 
   //............................................................................
@@ -333,8 +342,7 @@ RaidMetaLayout::Open( const std::string& path,
   if ( !mHdrInfo[0]->IsValid() ) {
     mFileSize = -1;
   } else {
-    mFileSize = ( mHdrInfo[0]->GetNoBlocks() - 1 ) * mStripeWidth +
-                mHdrInfo[0]->GetSizeLastBlock();
+    mFileSize =  mHdrInfo[0]->GetSizeFile();
   }
 
   mIsOpen = true;

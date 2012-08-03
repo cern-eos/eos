@@ -62,8 +62,8 @@ ChunkHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
   //............................................................................
   // Do some extra check for the read case
   //............................................................................
-  if ( mIsWrite == false ) {  
-    XrdCl::Chunk* chunk = 0;
+  if ( ( mIsWrite == false ) && ( pResponse ) ) {  
+    XrdCl::ChunkInfo* chunk = 0;
     pResponse->Get( chunk );
     
     //..........................................................................
