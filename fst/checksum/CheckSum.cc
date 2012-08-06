@@ -270,21 +270,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
 
   if (isRW) {
     int rc=0;
-    if(platform_test_xfs_fd(ChecksumMapFd)) {
-      // select the fast XFS allocation function if available
-      xfs_flock64_t fl;
-      fl.l_whence= 0;
-      fl.l_start= 0;
-      fl.l_len= (off64_t)ChecksumMapSize;
-      //      rc = xfsctl(NULL, ChecksumMapFd, XFS_IOC_RESVSP64, &fl);
-      rc = 0;
-      if (!rc) {
-	// if successfull truncate to this length
-	rc = ftruncate(ChecksumMapFd, ChecksumMapSize);
-      }
-    } else {
-      rc = posix_fallocate(ChecksumMapFd,0,ChecksumMapSize);
-    }
+    rc = posix_fallocate(ChecksumMapFd,0,ChecksumMapSize);
     if (rc) {
       close(ChecksumMapFd);
       //      fprintf(stderr,"posix allocate failed\n")
@@ -398,28 +384,11 @@ CheckSum::CloseMap()
 
   if (ChecksumMapFd) {
     if (ChecksumMap) {
-      if (ChecksumMapSize < ChecksumMapOpenSize) {
-	// if the file is smaller than the first assumed map size during OpenMap, we have to deallocate the XFS space!
-	if(platform_test_xfs_fd(ChecksumMapFd)) {
-	  // select the fast XFS deallocation function if available
-	  xfs_flock64_t fl;
-	  fl.l_whence= 0;
-	  fl.l_start= ChecksumMapSize;
-	  fl.l_len= (off64_t)ChecksumMapOpenSize-ChecksumMapSize;
-	  int rc= xfsctl(NULL, ChecksumMapFd, XFS_IOC_UNRESVSP64, &fl);
-	  if (rc) {
-	    fprintf(stderr,"Fatal: [CheckSum::CloseMap] XFS deallocation returned retc=%d", rc);
-	  }
-	} 
-      }
-      
       if (munmap(ChecksumMap, ChecksumMapSize)) {
         close(ChecksumMapFd);
-	ChecksumMapFd=0;
         return false;
       } else {
         close(ChecksumMapFd);
-	ChecksumMapFd=0;
         return true;
       }
     }
@@ -456,7 +425,7 @@ CheckSum::AlignBlockShrink(off_t offset, size_t len, off_t &aligned_offset, size
   }
 
   aligned_offset = start;
-  aligned_len = ((stop-start)>0)?(stop-start):0;
+  aligned_len = (stop-start);
 
   return;
 }
