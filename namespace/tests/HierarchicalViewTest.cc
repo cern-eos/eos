@@ -645,7 +645,7 @@ struct CompactData
 void *compactThread( void *arg )
 {
   CompactData *cd = (CompactData*)arg;
-  cd->svc->Compact( cd->compactData );
+  cd->svc->compact( cd->compactData );
   return 0;
 }
 
@@ -691,8 +691,6 @@ void HierarchicalViewTest::onlineCompactingTest()
   fileSettings["changelog_path"] = fileNameFileMD;
   fileSvc->configure( fileSettings );
 
-
-
   view->setContainerMDSvc( contSvc );
   view->setFileMDSvc( fileSvc );
 
@@ -727,7 +725,7 @@ void HierarchicalViewTest::onlineCompactingTest()
   std::string newFileLogName = getTempName( "/tmp", "eosns" );
   eos::ChangeLogFileMDSvc *clFileSvc = dynamic_cast<eos::ChangeLogFileMDSvc*>(view->getFileMDSvc());
   void *compData = 0;
-  CPPUNIT_ASSERT_NO_THROW( compData = clFileSvc->CompactPrepare( newFileLogName ) );
+  CPPUNIT_ASSERT_NO_THROW( compData = clFileSvc->compactPrepare( newFileLogName ) );
 
   //----------------------------------------------------------------------------
   // Start the compacting
@@ -783,7 +781,7 @@ void HierarchicalViewTest::onlineCompactingTest()
     }
   }
 
-  CPPUNIT_ASSERT_NO_THROW( clFileSvc->CompactCommit( compData ) );
+  CPPUNIT_ASSERT_NO_THROW( clFileSvc->compactCommit( compData ) );
 
   //----------------------------------------------------------------------------
   // Create some new files
