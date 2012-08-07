@@ -143,7 +143,7 @@ namespace eos
       //! @throw  MDException    preparation stage failed, cannot proceed with
       //!                        compacting
       //------------------------------------------------------------------------
-      void *CompactPrepare( const std::string &newLogFileName ) const
+      void *compactPrepare( const std::string &newLogFileName ) const
         throw( MDException );
 
       //------------------------------------------------------------------------
@@ -156,7 +156,7 @@ namespace eos
       //! @param  compactingData state information returned by CompactPrepare
       //! @throw  MDException    failure, cannot proceed with CompactCommit
       //------------------------------------------------------------------------
-      static void Compact( void *&compactingData ) throw( MDException );
+      static void compact( void *&compactingData ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Commit the compacting infomrmation.
@@ -170,7 +170,7 @@ namespace eos
       //! @throw MDExcetion     failure, results of the compacting are
       //!                       are discarded, the old log will be used for
       //------------------------------------------------------------------------
-      void CompactCommit( void *compactingData ) throw( MDException );
+      void compactCommit( void *compactingData ) throw( MDException );
 
     private:
       //------------------------------------------------------------------------

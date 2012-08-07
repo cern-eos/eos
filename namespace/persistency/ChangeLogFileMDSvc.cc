@@ -344,7 +344,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Prepare for online compacting.
   //----------------------------------------------------------------------------
-  void *ChangeLogFileMDSvc::CompactPrepare( const std::string &newLogFileName ) const
+  void *ChangeLogFileMDSvc::compactPrepare( const std::string &newLogFileName ) const
    throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -376,7 +376,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Do the compacting.
   //----------------------------------------------------------------------------
-  void ChangeLogFileMDSvc::Compact( void *&compactingData ) throw( MDException )
+  void ChangeLogFileMDSvc::compact( void *&compactingData ) throw( MDException )
   {
     //--------------------------------------------------------------------------
     // Sort the records to avoid random seeks
@@ -417,7 +417,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Commit the compacting infomrmation.
   //----------------------------------------------------------------------------
-  void ChangeLogFileMDSvc::CompactCommit( void *compactingData )
+  void ChangeLogFileMDSvc::compactCommit( void *compactingData )
     throw( MDException )
   {
     ::CompactingData *data = (::CompactingData*)compactingData;
