@@ -543,8 +543,13 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
         
         if (!getgrgid_r(sortgidarray[lid], &grbuf, buffer, buflen, &grbufp)) {
           char gidlimit[16];
-          snprintf(gidlimit,11,"%s",grbuf.gr_name);
-          id = gidlimit;
+	  if (grbufp && grbuf.gr_name) {
+	    snprintf(gidlimit,11,"%s",grbuf.gr_name);
+	    id = gidlimit;
+	  } else {
+	    snprintf(gidlimit,11,"#notrans#");
+	    id = gidlimit;
+	  }
         }
       }
 
