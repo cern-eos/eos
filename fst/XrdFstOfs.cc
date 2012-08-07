@@ -1013,15 +1013,6 @@ XrdFstOfsFile::closeofs()
       gOFS.OpenFidMutex.Lock();
       eos_info("%s wopen=%d ropen=%d fsid=%ld fid=%lld",fstPath.c_str(), (gOFS.WOpenFid[fsid].count(fileid))?gOFS.WOpenFid[fsid][fileid]:0 , (gOFS.ROpenFid[fsid].count(fileid))?gOFS.ROpenFid[fsid][fileid]:0, fsid, fileid);
       if ( (gOFS.WOpenFid[fsid].count(fileid) && (gOFS.WOpenFid[fsid][fileid]==1) && ((!gOFS.ROpenFid[fsid].count(fileid)) || (gOFS.ROpenFid[fsid][fileid]==0)))) {
-        if (isRW) {
-          if (!fstBlockXS->ChangeMap(statinfo.st_size, true)) {
-            eos_err("unable to change block checksum map");
-            rc = SFS_ERROR;
-          } else {
-            eos_info("info=\"adjusting block XS map to %llu\"", statinfo.st_size);
-          }
-        }
-
         XrdOucErrInfo error;
         if(!fctl(SFS_FCTL_GETFD,0,error)) {
           int fd = error.getErrInfo();
@@ -1039,7 +1030,7 @@ XrdFstOfsFile::closeofs()
       if (!fstBlockXS->CloseMap()) {
         eos_err("unable to close block checksum map");
         rc = SFS_ERROR;
-      }
+      } 
     }
   }
     
@@ -1523,8 +1514,11 @@ XrdFstOfsFile::close()
     gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because of a consistency error (either IO, checksum or size error)",Path.c_str());
     
     if (fstBlockXS) {
+      fstBlockXS->CloseMap();
       // delete also the block checksum file
       fstBlockXS->UnlinkXSPath();
+      delete fstBlockXS;
+      fstBlockXS=0;
     }
   } else {
     if (checksumerror) {
@@ -1652,7 +1646,6 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
     if ((retc>0) && (!fstBlockXS->CheckBlockSum(fileOffset, buffer, retc))) {
       int envlen=0;
       eos_crit("block-xs error offset=%llu len=%llu file=%s",(unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());
-      BlockXsMutex.UnLock();
       return gOFS.Emsg("readofs", error, EIO, "read file - wrong block checksum fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
     }
   }

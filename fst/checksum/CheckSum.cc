@@ -313,6 +313,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     return false;
   }
 
+  //  fprintf(stderr,"[Checksum::OpenMap] %d %llu %llu\n", ChecksumMapFd, ChecksumMap, ChecksumMapSize);
   return true;
 }
 
@@ -325,7 +326,12 @@ CheckSum::SyncMap()
       if (!msync(ChecksumMap, ChecksumMapSize,MS_ASYNC)) {
         return true;
       }
+      fprintf(stderr,"Fatal: [CheckSum::SyncMap] fd=%d errno=%d %llu %llu\n", (int)ChecksumMapFd, (int)errno, (unsigned long long)ChecksumMap, (unsigned long long)ChecksumMapSize);
+    } else {
+      fprintf(stderr,"Fatal: [CheckSum::SyncMap] fd=%d map=0\n", ChecksumMapFd);
     }
+  } else {
+    fprintf(stderr,"Fatal: [CheckSum::SyncMap] fd=0\n");
   }
   return false;
   
@@ -337,8 +343,10 @@ CheckSum::ChangeMap(size_t newsize, bool shrink)
 {
   // newsize is the real file size
   newsize = ((newsize / BlockSize)+1) * (GetCheckSumLen());
-  if ((!ChecksumMapFd) || (!ChecksumMap)) 
+  if ((!ChecksumMapFd) || (!ChecksumMap)) {
+    fprintf(stderr,"Fatal: [CheckSum:ChangeMap] no fd/map %d %llu\n", (int)ChecksumMapFd, (unsigned long long)ChecksumMap);
     return false;
+  }
 
   if (ChecksumMapSize == newsize) {
     return true;
@@ -350,28 +358,28 @@ CheckSum::ChangeMap(size_t newsize, bool shrink)
     newsize = ChecksumMapSize + (64*1024);// to avoid to many truncs/msync's here we increase the desired value by 64k
   
   if (!SyncMap()) {
-    //    fprintf(stderr,"CheckSum:ChangeMap sync failed\n");
+    fprintf(stderr,"Fatal: [CheckSum:ChangeMap] sync failed [ fd=%d map=%llu mapsize=%llu\n", (int)ChecksumMapFd, (unsigned long long)ChecksumMap, (unsigned long long) ChecksumMapSize);
     return false;
   }
 
   //  fprintf(stderr,"truncating %d to %llu\n", ChecksumMapFd, newsize);
   if (ftruncate(ChecksumMapFd, newsize)) {
     ChecksumMapSize = 0;
-    //    fprintf(stderr,"CheckSum:ChangeMap ftruncate failed\n");
+    fprintf(stderr,"Fatal: [CheckSum:ChangeMap] ftruncate failed [ fd=%d map=%llu mapsize=%llu errno=%d]\n", (int)ChecksumMapFd, (unsigned long long)ChecksumMap, (unsigned long long)ChecksumMapSize, (int)errno);
     return false;
   }
 
-  //  fprintf(stderr,"remapping %llu %llu %llu\n", ChecksumMap, ChecksumMapSize, newsize);
+  //  fprintf(stderr,"remapping %d %llu %llu %llu\n", ChecksumMapFd, ChecksumMap, ChecksumMapSize, newsize);
   ChecksumMap = (char*)mremap(ChecksumMap, ChecksumMapSize, newsize, MREMAP_MAYMOVE);
   if (ChecksumMap == MAP_FAILED) {
-    fprintf(stderr,"Fatal: [CheckSum::ChangeMap] mremap errno is %d\n", errno);
+    fprintf(stderr,"Fatal: [CheckSum::ChangeMap] mremap [ errno=%d ]\n", errno);
     ChecksumMapSize = 0;
     ChecksumMap = 0;
     return false;
   }
 
   ChecksumMapSize = newsize;
-
+  //  fprintf(stderr,"remapped %d %llu %llu %llu\n", ChecksumMapFd, ChecksumMap, ChecksumMapSize, newsize);
 
   return true;
 }
@@ -380,20 +388,23 @@ CheckSum::ChangeMap(size_t newsize, bool shrink)
 bool 
 CheckSum::CloseMap()
 {
-  SyncMap();
-
+  //  fprintf(stderr,"[Checksum::CloseMap] %d %llu %llu\n", ChecksumMapFd, ChecksumMap, ChecksumMapSize);
   if (ChecksumMapFd) {
     if (ChecksumMap) {
+      SyncMap();
       if (munmap(ChecksumMap, ChecksumMapSize)) {
         close(ChecksumMapFd);
+	ChecksumMap=0;
         return false;
       } else {
         close(ChecksumMapFd);
+	ChecksumMap=0;
         return true;
       }
     }
-    close (ChecksumMapFd);
   }
+  ChecksumMap=0;
+  ChecksumMapFd=0;
   return false;
 }
 
@@ -540,7 +551,7 @@ CheckSum::SetXSMap(off_t offset)
     }
   } else {
     // return point from signal handler
-    fprintf(stderr,"Fatal: [CheckSum::SignalHandler] recovered SIGBUS by illegal write access to mmaped XS map file\n");
+    fprintf(stderr,"Fatal: [CheckSum::SetXSMap] recovered SIGBUS by illegal write access to mmaped XS map file [ len=%d mapoffset=%llu offset=%llu map=%llu mapsize=%llu ]\n",(int)len, (unsigned long long)mapoffset, (unsigned long long)offset, (unsigned long long)ChecksumMap, (unsigned long long)ChecksumMapSize);
     return false;
   }
 
@@ -556,7 +567,7 @@ CheckSum::VerifyXSMap(off_t offset)
     return false;
   }
   off_t mapoffset = (offset / BlockSize) * GetCheckSumLen();
-  //  fprintf(stderr,"Verifying %llu %llu\n", offset, mapoffset);
+  //  fprintf(stderr,"Verifying %llu %llu %d %llu %llu\n", offset, mapoffset, ChecksumMapFd, ChecksumMap, ChecksumMapSize);
   int len=0;
   const char* cks = GetBinChecksum(len);
 
@@ -570,7 +581,7 @@ CheckSum::VerifyXSMap(off_t offset)
     }
   } else {
     // return point from signal handler
-    fprintf(stderr,"Fatal: [CheckSum::VerifyXSMap] recovered SIGBUS by illegal read access to mmaped XS map file\n");
+    fprintf(stderr,"Fatal: [CheckSum::VerifyXSMap] recovered SIGBUS by illegal read access to mmaped XS map file [ offset=%llu mapoffset=%llu fd=%d map=%llu mapsize=%llu ]\n", (unsigned long long) offset, (unsigned long long)mapoffset, (int)ChecksumMapFd, (unsigned long long) ChecksumMap, (unsigned long long) ChecksumMapSize);
     return false;
   }
 
@@ -633,12 +644,13 @@ CheckSum::AddBlockSumHoles(int fd)
 	}
       } else {
 	// return point from signal handler
-	fprintf(stderr,"Fatal: [CheckSum::AddBlockSumHoles] recovered SIGBUS by illegal write access to mmaped XS map file\n");
+	fprintf(stderr,"Fatal: [CheckSum::AddBlockSumHoles] recovered SIGBUS by illegal write access to mmaped XS map file [ nblocks=%u map=%llu ]\n",(unsigned int) nblocks, (unsigned long long) ChecksumMapSize);
 	free (buffer);
 	return false;
       }
 
       free (buffer);
+
       return true;
     } else {
       //      fprintf(stderr,"AddBlockSumHoles: malloc failed\n");
