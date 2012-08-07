@@ -213,6 +213,14 @@ namespace eos
                           const std::string  &newFilename,
                           LogRepairStats     &stats,
                           ILogRepairFeedback *feedback ) throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Get the offset of the next record
+      //------------------------------------------------------------------------
+      uint64_t getNextOffset() const
+      {
+        return ::lseek( pFd, 0, SEEK_END );
+      }
     private:
 
       //------------------------------------------------------------------------
