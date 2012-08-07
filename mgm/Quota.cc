@@ -536,7 +536,7 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
 
       if (translateids) {
         // try to translate with password database
-        char buffer[16384];
+        char buffer[65536];
         int buflen = sizeof(buffer);
         struct group grbuf;
         struct group *grbufp=0;
