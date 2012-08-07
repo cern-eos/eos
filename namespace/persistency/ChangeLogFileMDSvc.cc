@@ -50,12 +50,17 @@ namespace
   //----------------------------------------------------------------------------
   struct CompactingData
   {
-    CompactingData(): newLog( new eos::ChangeLogFile() ), originalLog(0) {}
+    CompactingData():
+      newLog( new eos::ChangeLogFile() ),
+      originalLog(0),
+      newRecord(0)
+    {}
     ~CompactingData() { delete newLog; }
     std::string              logFileName;
     eos::ChangeLogFile      *newLog;
     eos::ChangeLogFile      *originalLog;
     std::vector<RecordData>  records;
+    uint64_t                 newRecord;
   };
 
   //----------------------------------------------------------------------------
@@ -81,7 +86,7 @@ namespace
       //------------------------------------------------------------------------
       UpdateHandler( std::map<eos::FileMD::id_t, RecordData> &updates,
                      eos::ChangeLogFile                      *newLog ):
-        pUpdates( updates ), pNewLog( newLog ), pCounter( 0 ) {}
+        pUpdates( updates ), pNewLog( newLog ) {}
 
       //------------------------------------------------------------------------
       // Process the records
@@ -90,13 +95,6 @@ namespace
                                   char               type,
                                   const eos::Buffer &buffer )
       {
-        //----------------------------------------------------------------------
-        // We discard the first record because it has already been processed
-        //----------------------------------------------------------------------
-        ++pCounter;
-        if( pCounter == 1 )
-          return;
-
         //----------------------------------------------------------------------
         // Write to the new change log - we need to cast - nasty, but safe in
         // this case
@@ -357,6 +355,7 @@ namespace eos
                            FILE_LOG_MAGIC );
       data->logFileName = newLogFileName;
       data->originalLog = pChangeLog;
+      data->newRecord   = pChangeLog->getNextOffset();
     }
     catch( MDException &e )
     {
@@ -435,10 +434,9 @@ namespace eos
     std::map<eos::FileMD::id_t, RecordData> updates;
     try
     {
-      uint64_t lastKnownOffset = data->records.back().offset;
       ::UpdateHandler updateHandler( updates, data->newLog );
       data->originalLog->scanAllRecordsAtOffset( &updateHandler,
-                                                  lastKnownOffset );
+                                                  data->newRecord );
     }
     catch( MDException &e )
     {
