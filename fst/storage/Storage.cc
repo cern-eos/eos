@@ -1992,6 +1992,7 @@ Storage::Publish()
 
 	  bool success = true;
 	  if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted) {
+	    XrdSysMutexHelper ISLock (fileSystemsVector[i]->InconsistencyStatsMutex);
 	    gFmdSqliteHandler.GetInconsistencyStatistics(fsid, *fileSystemsVector[i]->GetInconsistencyStats(), *fileSystemsVector[i]->GetInconsistencySets());
 	    for (isit = fileSystemsVector[i]->GetInconsistencyStats()->begin(); isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++) {
 	      eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);

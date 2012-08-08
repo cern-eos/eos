@@ -86,6 +86,7 @@ public:
   TransferQueue* GetBalanceQueue() { return mTxBalanceQueue;}
   TransferQueue* GetExternQueue()  { return mTxExternQueue; }
 
+  XrdSysMutex InconsistencyStatsMutex; // mutex protecting inconsistency_stats
   std::map<std::string, size_t> *GetInconsistencyStats() { return &inconsistency_stats;}
   std::map<std::string, std::set<eos::common::FileId::fileid_t> > *GetInconsistencySets() { return &inconsistency_sets;}
  
