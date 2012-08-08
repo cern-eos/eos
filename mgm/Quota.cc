@@ -536,15 +536,19 @@ SpaceQuota::PrintOut(XrdOucString &output, long uid_sel, long gid_sel, bool moni
 
       if (translateids) {
         // try to translate with password database
-        char buffer[16384];
+        char buffer[65536];
         int buflen = sizeof(buffer);
         struct group grbuf;
         struct group *grbufp=0;
         
         if (!getgrgid_r(sortgidarray[lid], &grbuf, buffer, buflen, &grbufp)) {
           char gidlimit[16];
-          snprintf(gidlimit,11,"%s",grbuf.gr_name);
-          id = gidlimit;
+	  if (grbufp) {
+	    snprintf(gidlimit,11,"%s",grbuf.gr_name);
+	  } else {
+	    snprintf(gidlimit,11,"<nn>");
+	  }
+	  id = gidlimit;
         }
       }
 
