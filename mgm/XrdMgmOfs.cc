@@ -413,7 +413,7 @@ int XrdMgmOfsDirectory::open(const char              *inpath, // In
 
   eos_info("path=%s",path);
 
-  AUTHORIZE(client,&Open_Env,AOP_Readdir,"open directory",path,error);
+  AUTHORIZE(client,&Open_Env,AOP_Readdir,"open directory",inpath,error);
 
   eos::common::Mapping::IdMap(client,info,tident, vid);
 
@@ -715,9 +715,9 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   eos_debug("authorize start");
 
   if (open_flag & O_CREAT) {
-    AUTHORIZE(client,openOpaque,AOP_Create,"create",path,error);
+    AUTHORIZE(client,openOpaque,AOP_Create,"create",inpath,error);
   } else {
-    AUTHORIZE(client,openOpaque,(isRW?AOP_Update:AOP_Read),"open",path,error);
+    AUTHORIZE(client,openOpaque,(isRW?AOP_Update:AOP_Read),"open",inpath,error);
   }
 
   eos_debug("msg=\"authorize done\"");
@@ -1624,7 +1624,7 @@ XrdMgmOfs::chksum(      XrdSfsFileSystem::csFunc            Func,
 
   XrdOucEnv Open_Env(info);
 
-  AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",path,error);
+  AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",inpath,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
@@ -1723,7 +1723,7 @@ int XrdMgmOfs::chmod(const char                *inpath,    // In
 
   XrdOucEnv chmod_Env(info);
 
-  AUTHORIZE(client,&chmod_Env,AOP_Chmod,"chmod",path,error);
+  AUTHORIZE(client,&chmod_Env,AOP_Chmod,"chmod",inpath,error);
 
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
@@ -1931,7 +1931,7 @@ int XrdMgmOfs::exists(const char                *inpath,        // In
 
   XrdOucEnv exists_Env(info);
 
-  AUTHORIZE(client,&exists_Env,AOP_Stat,"execute exists",path,error);
+  AUTHORIZE(client,&exists_Env,AOP_Stat,"execute exists",inpath,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
@@ -2465,7 +2465,7 @@ int XrdMgmOfs::rem(const char             *inpath,    // In
 
   XrdOucEnv env(info);
   
-  AUTHORIZE(client,&env,AOP_Delete,"remove",path,error);
+  AUTHORIZE(client,&env,AOP_Delete,"remove",inpath,error);
   
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
@@ -2655,7 +2655,7 @@ int XrdMgmOfs::remdir(const char             *inpath,    // In
 
   XrdOucEnv remdir_Env(info);
   
-  AUTHORIZE(client,&remdir_Env,AOP_Delete,"remove",path, error);
+  AUTHORIZE(client,&remdir_Env,AOP_Delete,"remove",inpath, error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
@@ -2909,7 +2909,7 @@ int XrdMgmOfs::stat(const char              *inpath,      // In
 
   XrdOucEnv Open_Env(info);
 
-  AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",path,error);
+  AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",inpath,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid, false);
 
@@ -3107,7 +3107,7 @@ int XrdMgmOfs::readlink(const char             *inpath,      // In
 
   XrdOucEnv rl_Env(info);
 
-  AUTHORIZE(client,&rl_Env,AOP_Stat,"readlink",path,error);
+  AUTHORIZE(client,&rl_Env,AOP_Stat,"readlink",inpath,error);
   
   eos::common::Mapping::IdMap(client,info,tident,vid);
 
@@ -3176,7 +3176,7 @@ int XrdMgmOfs::access( const char            *inpath,        // In
 
   XrdOucEnv access_Env(info);
 
-  AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
+  AUTHORIZE(client,&access_Env,AOP_Stat,"access",inpath,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);  
 
@@ -3290,7 +3290,7 @@ int XrdMgmOfs::utimes(  const char            *inpath,        // In
 
   XrdOucEnv utimes_Env(info);
 
-  AUTHORIZE(client,&utimes_Env,AOP_Update,"set utimes",path,error);
+  AUTHORIZE(client,&utimes_Env,AOP_Update,"set utimes",inpath,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);  
 
@@ -3492,9 +3492,12 @@ int XrdMgmOfs::_find(const char       *path,             // In
   //-------------------------------------------  
   // include also the directory which was specified in the query if it is accessible and a directory since it can evt. be missing if it is empty
   XrdSfsFileExistence dir_exists;
-  if (((_exists(Path.c_str(),dir_exists,out_error,vid,0))==SFS_OK) && (dir_exists==XrdSfsFileExistIsDirectory)) {
-    eos::common::Path cPath(Path.c_str());
-    found[Path.c_str()].size();
+  if (((_exists(found_dirs[0][0].c_str(),dir_exists,out_error,vid,0))==SFS_OK) && (dir_exists==XrdSfsFileExistIsDirectory)) {
+    eos::common::Path cPath(found_dirs[0][0].c_str());
+    found[found_dirs[0][0].c_str()].size();
+    fprintf(stderr,"##### adding %s\n", found_dirs[0][0].c_str());
+  } else {
+    fprintf(stderr,"##### not adding %s\n", found_dirs[0][0].c_str());
   }
 
   EXEC_TIMING_END("Find");      
@@ -5504,7 +5507,7 @@ XrdMgmOfs::attr_ls(const char             *inpath,
 
   XrdOucEnv access_Env(info);
 
-  AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
+  AUTHORIZE(client,&access_Env,AOP_Stat,"access",inpath,error);
   
   eos::common::Mapping::IdMap(client,info,tident,vid);  
   BOUNCE_NOT_ALLOWED;
@@ -5531,7 +5534,7 @@ XrdMgmOfs::attr_set(const char             *inpath,
 
   XrdOucEnv access_Env(info);
 
-  AUTHORIZE(client,&access_Env,AOP_Update,"update",path,error);
+  AUTHORIZE(client,&access_Env,AOP_Update,"update",inpath,error);
   
   eos::common::Mapping::IdMap(client,info,tident,vid);  
 
@@ -5560,7 +5563,7 @@ XrdMgmOfs::attr_get(const char             *inpath,
 
   XrdOucEnv access_Env(info);
 
-  AUTHORIZE(client,&access_Env,AOP_Stat,"access",path,error);
+  AUTHORIZE(client,&access_Env,AOP_Stat,"access",inpath,error);
   
   eos::common::Mapping::IdMap(client,info,tident,vid);  
 
@@ -5587,7 +5590,7 @@ XrdMgmOfs::attr_rem(const char             *inpath,
 
   XrdOucEnv access_Env(info); 
 
-  AUTHORIZE(client,&access_Env,AOP_Delete,"delete",path,error);
+  AUTHORIZE(client,&access_Env,AOP_Delete,"delete",inpath,error);
   
   eos::common::Mapping::IdMap(client,info,tident,vid);  
 
