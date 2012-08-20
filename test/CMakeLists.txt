@@ -79,6 +79,10 @@ add_executable (eos-udp-dumper
 	       EosUdpDumper.cc
 )
 
+add_executable (eos-mmap
+	       EosMmap.cc
+)
+
 target_link_libraries(xrdstress.exe XrdPosix uuid)
 target_link_libraries(xrdcpabort XrdPosix)
 target_link_libraries(xrdcprandom XrdPosix)
@@ -104,7 +108,7 @@ set_target_properties ( xrdcptruncate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_B
 set_target_properties ( xrdcpposixcache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2" )
 
-INSTALL_PROGRAMS( /sbin FILES xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcpposixcache eoschecksumbench eos-udp-dumper)
+INSTALL_PROGRAMS( /sbin FILES xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap)
 
 INSTALL ( FILES xrdstress DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ PERMISSIONS OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
 INSTALL ( FILES eos-instance-test DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ PERMISSIONS OWNER_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
