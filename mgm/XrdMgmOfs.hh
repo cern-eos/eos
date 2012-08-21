@@ -94,7 +94,7 @@ USE_EOSMGMNAMESPACE
   const char*path = inpath;						\
   const char*info = ininfo;						\
   XrdOucString store_path=path;						\
-  if ( ininfo && (!strstr(ininfo,"eos.prefix")) ) {			\
+  if ( !(ininfo) || (ininfo && (!strstr(ininfo,"eos.prefix")))) {	\
     gOFS->PathRemap(inpath,store_path);					\
   }									\
   size_t __i=0;								\
