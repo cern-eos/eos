@@ -28,6 +28,7 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
+#include <numeric>
 #include <pthread.h>
 
 #include "namespace/views/HierarchicalView.hh"
