@@ -116,7 +116,7 @@ com_file (char* arg1) {
   if (wants_help(savearg.c_str())) 
     goto com_file_usage;
 
-  if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) && (cmd != "check") && ( cmd != "adjustreplica" ) && ( cmd != "info" ) && (cmd != "layout") && (cmd != "verify")) {
+  if ( ( cmd != "drop") && ( cmd != "move") && ( cmd != "replicate" ) && (cmd != "check") && ( cmd != "adjustreplica" ) && ( cmd != "info" ) && (cmd != "layout") && (cmd != "verify") && (cmd != "rename")) {
     goto com_file_usage;
   }
 
@@ -125,6 +125,19 @@ com_file (char* arg1) {
     arg.replace("info ","");
     return com_fileinfo((char*) arg.c_str());
   }
+
+  if (cmd == "rename") {
+    if ( !path.length() || !fsid1.length()) 
+      goto com_file_usage;
+    
+    fsid1 = abspath(fsid1.c_str());
+    in += "&mgm.path=";
+    in += path;
+    in += "&mgm.subcmd=rename";
+    in += "&mgm.file.source="; in += path.c_str();
+    in += "&mgm.file.target="; in += fsid1.c_str();
+  }
+
 
   if (cmd == "drop") {
     if ( !path.length() || !fsid1.length()) 
@@ -434,9 +447,11 @@ com_file (char* arg1) {
   return (0);
 
  com_file_usage:
-  fprintf(stdout,"Usage: file drop|move|replicate|adjustreplica|check|info|layout|verify ...\n");
+  fprintf(stdout,"Usage: file rename|drop|move|replicate|adjustreplica|check|info|layout|verify ...\n");
   fprintf(stdout,"'[eos] file ..' provides the file management interface of EOS.\n");
   fprintf(stdout,"Options:\n");
+  fprintf(stdout,"file rename <old> <new> :\n");
+  fprintf(stdout,"                                                  rename from <old> to <new> name. This only works for the 'root' user and the renamed files has to be in the same directory\n");
   fprintf(stdout,"file drop <path> <fsid> [-f] :\n");
   fprintf(stdout,"                                                  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
   fprintf(stdout,"file move <path> <fsid1> <fsid2> :\n");
