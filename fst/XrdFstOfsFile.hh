@@ -168,6 +168,7 @@ protected:
   struct timeval openTime;
   struct timeval closeTime;
   struct timezone tz;
+  XrdSysMutex vecMutex;                 // protecting the rvec/wvec variables
   std::vector<unsigned long long> rvec; // vector with all read  sizes -> to compute sigma,min,max,total
   std::vector<unsigned long long> wvec; // vector with all write sizes -> to compute sigma,min,max,total
   unsigned long long srBytes;// sum bytes seeked

@@ -485,40 +485,43 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString &reportString)
   rmin=0xffffffff;
   ravg=rsum2=rsigma=0;
 
-  for (size_t i=0; i< rvec.size(); i++) {
-    if (rvec[i]>rmax) rmax = rvec[i];
-    if (rvec[i]<rmin) rmin = rvec[i];
-    rsum += rvec[i];
+  {
+    XrdSysMutexHelper vecLock(vecMutex);
+    for (size_t i=0; i< rvec.size(); i++) {
+      if (rvec[i]>rmax) rmax = rvec[i];
+      if (rvec[i]<rmin) rmin = rvec[i];
+      rsum += rvec[i];
+    }
+    ravg = rvec.size()?(1.0*rsum/rvec.size()):0;
+    
+    for (size_t i=0; i< rvec.size(); i++) {
+      rsum2 += ((rvec[i]-ravg)*(rvec[i]-ravg));
+    }
+    rsigma = rvec.size()?( sqrt(rsum2/rvec.size()) ):0;
+    
+    // ---------------------------------------
+    // compute for write
+    // ---------------------------------------
+    wmax=wsum=0;
+    wmin=0xffffffff;
+    wavg=wsum2=wsigma=0;
+    
+    for (size_t i=0; i< wvec.size(); i++) {
+      if (wvec[i]>wmax) wmax = wvec[i];
+      if (wvec[i]<wmin) wmin = wvec[i];
+      wsum += wvec[i];
+    }
+    wavg = wvec.size()?(1.0*wsum/rvec.size()):0;
+    
+    for (size_t i=0; i< wvec.size(); i++) {
+      wsum2 += ((wvec[i]-wavg)*(wvec[i]-wavg));
+    }
+    wsigma = wvec.size()?( sqrt(wsum2/wvec.size()) ):0;
+    
+    char report[16384];
+    sprintf(report,"log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&cts=%lu&ctms=%lu&rb=%llu&rb_min=%llu&rb_max=%llu&rb_sigma=%.02f&wb=%llu&wb_min=%llu&wb_max=%llu&&wb_sigma=%.02f&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f&osize=%llu&csize=%llu&%s",this->logId,Path.c_str(),this->vid.uid,this->vid.gid, tIdent.c_str(), hostName.c_str(),lid, fileid, fsid, openTime.tv_sec, (unsigned long)openTime.tv_usec/1000,closeTime.tv_sec,(unsigned long)closeTime.tv_usec/1000,rsum,rmin,rmax,rsigma,wsum,wmin,wmax,wsigma,srBytes,swBytes,rCalls, wCalls,((rTime.tv_sec*1000.0)+(rTime.tv_usec/1000.0)), ((wTime.tv_sec*1000.0) + (wTime.tv_usec/1000.0)), (unsigned long long) openSize, (unsigned long long) closeSize, eos::common::SecEntity::ToEnv(SecString.c_str()).c_str());
+    reportString = report;
   }
-  ravg = rvec.size()?(1.0*rsum/rvec.size()):0;
-  
-  for (size_t i=0; i< rvec.size(); i++) {
-    rsum2 += ((rvec[i]-ravg)*(rvec[i]-ravg));
-  }
-  rsigma = rvec.size()?( sqrt(rsum2/rvec.size()) ):0;
-
-  // ---------------------------------------
-  // compute for write
-  // ---------------------------------------
-  wmax=wsum=0;
-  wmin=0xffffffff;
-  wavg=wsum2=wsigma=0;
-
-  for (size_t i=0; i< wvec.size(); i++) {
-    if (wvec[i]>wmax) wmax = wvec[i];
-    if (wvec[i]<wmin) wmin = wvec[i];
-    wsum += wvec[i];
-  }
-  wavg = wvec.size()?(1.0*wsum/rvec.size()):0;
-  
-  for (size_t i=0; i< wvec.size(); i++) {
-    wsum2 += ((wvec[i]-wavg)*(wvec[i]-wavg));
-  }
-  wsigma = wvec.size()?( sqrt(wsum2/wvec.size()) ):0;
-
-  char report[16384];
-  sprintf(report,"log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&cts=%lu&ctms=%lu&rb=%llu&rb_min=%llu&rb_max=%llu&rb_sigma=%.02f&wb=%llu&wb_min=%llu&wb_max=%llu&&wb_sigma=%.02f&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f&osize=%llu&csize=%llu&%s",this->logId,Path.c_str(),this->vid.uid,this->vid.gid, tIdent.c_str(), hostName.c_str(),lid, fileid, fsid, openTime.tv_sec, (unsigned long)openTime.tv_usec/1000,closeTime.tv_sec,(unsigned long)closeTime.tv_usec/1000,rsum,rmin,rmax,rsigma,wsum,wmin,wmax,wsigma,srBytes,swBytes,rCalls, wCalls,((rTime.tv_sec*1000.0)+(rTime.tv_usec/1000.0)), ((wTime.tv_sec*1000.0) + (wTime.tv_usec/1000.0)), (unsigned long long) openSize, (unsigned long long) closeSize, eos::common::SecEntity::ToEnv(SecString.c_str()).c_str());
-  reportString = report;
 }
 
 
@@ -1691,6 +1694,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
   }
   
   if (rc > 0) {
+    XrdSysMutexHelper vecLock(vecMutex);
     rvec.push_back(rc);
     rOffset += rc;
   }
@@ -1788,6 +1792,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
   }
 
   if (rc > 0) {
+    XrdSysMutexHelper(vecMutex);
     wvec.push_back(rc);
     wOffset += rc;
 
