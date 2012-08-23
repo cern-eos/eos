@@ -98,7 +98,8 @@ namespace eos
   QuotaNode *QuotaStats::registerNewNode( ContainerMD::id_t nodeId )
     throw( MDException )
   {
-    if( pNodeMap.find( nodeId ) != pNodeMap.end() )
+    NodeMap::iterator it = pNodeMap.find( nodeId );
+    if( it != pNodeMap.end() )
     {
       MDException e;
       e.getMessage() << "Quota node already exist: " << nodeId;
@@ -122,8 +123,8 @@ namespace eos
       e.getMessage() << "Quota node does not exist: " << nodeId;
       throw e;
     }
-    QuotaNode *node = new QuotaNode( this );
-    pNodeMap[nodeId] = node;
+    delete it->second;
+    pNodeMap.erase( it );
   }
 
 }

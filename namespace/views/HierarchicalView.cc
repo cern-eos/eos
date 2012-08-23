@@ -109,6 +109,8 @@ namespace eos
   {
     pContainerSvc->finalize();
     pFileSvc->finalize();
+    delete pQuotaStats;
+    pQuotaStats = new QuotaStats();
   }
 
   //----------------------------------------------------------------------------

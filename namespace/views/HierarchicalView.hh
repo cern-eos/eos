@@ -1,3 +1,4 @@
+
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2011 CERN/Switzerland                                  *
@@ -43,7 +44,7 @@ namespace eos
       //------------------------------------------------------------------------
       HierarchicalView(): pContainerSvc( 0 ), pFileSvc( 0 ), pRoot( 0 )
       {
-        pQuotaStats = new QuotaStats;
+        pQuotaStats = new QuotaStats();
       }
 
       //------------------------------------------------------------------------
