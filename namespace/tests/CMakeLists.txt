@@ -40,6 +40,8 @@ target_link_libraries( eosNamespaceTests ${CPPUNIT_LIBRARIES} eosNamespace)
 add_executable(text-runner TextRunner.cc)
 target_link_libraries( text-runner eosNamespaceTests dl)
 
+add_executable( ns-benchmark NSBenchmark.cc)
+target_link_libraries( ns-benchmark eosNamespace )
 
 if (Linux)
   set_target_properties( eosNamespaceTests PROPERTIES COMPILE_FLAGS -fPIC )
