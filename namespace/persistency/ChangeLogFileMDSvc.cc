@@ -49,11 +49,11 @@ namespace eos
     IdMap::iterator it;
     for( it = pIdMap.begin(); it != pIdMap.end(); ++it )
     {
-      Buffer buffer;
-      pChangeLog->readRecord( it->second.logOffset, buffer );
       FileMD *file = new FileMD( 0, this );
-      file->deserialize( buffer );
+      file->deserialize( *it->second.buffer );
       it->second.ptr = file;
+      delete it->second.buffer;
+      it->second.buffer = 0;
       ListenerList::iterator it;
       for( it = pListeners.begin(); it != pListeners.end(); ++it )
         (*it)->fileMDRead( file );
@@ -218,7 +218,11 @@ namespace eos
     {
       FileMD::id_t id;
       buffer.grabData( 0, &id, sizeof( FileMD::id_t ) );
-      pIdMap[id] = DataInfo( offset, 0 );
+      DataInfo &d = pIdMap[id];
+      d.logOffset = offset;
+      if( !d.buffer )
+        d.buffer = new Buffer();
+      (*d.buffer) = buffer;
       if( pLargestId < id ) pLargestId = id;
     }
 
@@ -231,7 +235,10 @@ namespace eos
       buffer.grabData( 0, &id, sizeof( FileMD::id_t ) );
       IdMap::iterator it = pIdMap.find( id );
       if( it != pIdMap.end() )
+      {
+        delete it->second.buffer;
         pIdMap.erase( it );
+      }
       if( pLargestId < id ) pLargestId = id;
     }
   }

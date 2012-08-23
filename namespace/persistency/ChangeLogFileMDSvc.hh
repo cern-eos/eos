@@ -137,14 +137,16 @@ namespace eos
       //------------------------------------------------------------------------
       struct DataInfo
       {
-        DataInfo(): logOffset(0), ptr(0) {} // for some reason needed by sparse_hash_map::erase
+        DataInfo(): logOffset(0), ptr(0), buffer(0) {} // for some reason needed by sparse_hash_map::erase
         DataInfo( uint64_t logOffset, FileMD *ptr )
         {
           this->logOffset = logOffset;
           this->ptr       = ptr;
+          this->buffer    = 0;
         }
         uint64_t  logOffset;
         FileMD   *ptr;
+        Buffer   *buffer;
       };
 
       typedef google::dense_hash_map<FileMD::id_t, DataInfo> IdMap;
