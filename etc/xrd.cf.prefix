@@ -1,7 +1,7 @@
 ###########################################################
 # --------------------------------------------------------
 # prefix redirector configuration on port 2000
-# 'eos -b set redirect eosdev.cern.ch?eos.prefix=/eos/dev/'
+# 'eos -b set access redirect eosdev.cern.ch?eos.prefix=/eos/dev/'
 # --------------------------------------------------------
 ###########################################################
 xrootd.fslib libXrdEosMgm.so
