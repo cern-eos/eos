@@ -749,4 +749,108 @@ namespace eos
 
     pQuotaStats->removeNode( container->getId() );
   }
+
+  //----------------------------------------------------------------------------
+  // Rename container
+  //----------------------------------------------------------------------------
+  void HierarchicalView::renameContainer( ContainerMD *container,
+                                          const std::string &newName )
+    throw( MDException )
+  {
+    if( !container )
+    {
+      MDException ex;
+      ex.getMessage() << "Invalid container (zero pointer)";
+      throw ex;
+    }
+
+    if( newName.empty() )
+    {
+      MDException ex;
+      ex.getMessage() << "Invalid new name (empty)";
+      throw ex;
+    }
+
+    if( newName.find( '/' ) != std::string::npos )
+    {
+      MDException ex;
+      ex.getMessage() << "Name cannot contain slashes: " << newName;
+      throw ex;
+    }
+
+    if( container->getId() == container->getParentId() )
+    {
+      MDException ex;
+      ex.getMessage() << "Cannot rename /";
+      throw ex;
+    }
+
+    ContainerMD *parent = pContainerSvc->getContainerMD( container->getParentId() );
+    if( parent->findContainer( newName ) )
+    {
+      MDException ex;
+      ex.getMessage() << "Container exists: " << newName;
+      throw ex;
+    }
+
+    if( parent->findFile( newName ) )
+    {
+      MDException ex;
+      ex.getMessage() << "File exists: " << newName;
+      throw ex;
+    }
+
+    parent->removeContainer( container->getName() );
+    container->setName( newName );
+    parent->addContainer( container );
+    updateContainerStore( container );
+  }
+
+  //----------------------------------------------------------------------------
+  // Rename file
+  //----------------------------------------------------------------------------
+  void HierarchicalView::renameFile( FileMD *file, const std::string &newName )
+    throw( MDException )
+  {
+    if( !file )
+    {
+      MDException ex;
+      ex.getMessage() << "Invalid file (zero pointer)";
+      throw ex;
+    }
+
+    if( newName.empty() )
+    {
+      MDException ex;
+      ex.getMessage() << "Invalid new name (empty)";
+      throw ex;
+    }
+
+    if( newName.find( '/' ) != std::string::npos )
+    {
+      MDException ex;
+      ex.getMessage() << "Name cannot contain slashes: " << newName;
+      throw ex;
+    }
+
+    ContainerMD *parent = pContainerSvc->getContainerMD( file->getContainerId() );
+    if( parent->findContainer( newName ) )
+    {
+      MDException ex;
+      ex.getMessage() << "Container exists: " << newName;
+      throw ex;
+    }
+
+    if( parent->findFile( newName ) )
+    {
+      MDException ex;
+      ex.getMessage() << "File exists: " << newName;
+      throw ex;
+    }
+
+    parent->removeFile( file->getName() );
+    file->setName( newName );
+    parent->addFile( file );
+    updateFileStore( file );
+  }
 };

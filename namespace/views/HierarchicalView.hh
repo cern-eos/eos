@@ -214,6 +214,19 @@ namespace eos
         pQuotaStats = quotaStats;
       }
 
+      //------------------------------------------------------------------------
+      //! Rename container
+      //------------------------------------------------------------------------
+      virtual void renameContainer( ContainerMD *container,
+                                    const std::string &newName )
+        throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Rename file
+      //------------------------------------------------------------------------
+      virtual void renameFile( FileMD *file, const std::string &newName )
+        throw( MDException );
+
     private:
       ContainerMD *findLastContainer( std::vector<char*> &elements, size_t end,
                                       size_t &index );

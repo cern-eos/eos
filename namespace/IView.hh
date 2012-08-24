@@ -183,6 +183,19 @@ namespace eos
       //! won't beX deleted.
       //------------------------------------------------------------------------
       virtual void setQuotaStats( QuotaStats *quotaStats ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Rename container
+      //------------------------------------------------------------------------
+      virtual void renameContainer( ContainerMD *container,
+                                    const std::string &newName )
+        throw( MDException ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Rename file
+      //------------------------------------------------------------------------
+      virtual void renameFile( FileMD *file, const std::string &newName )
+        throw( MDException ) = 0;
   };
 };
 
