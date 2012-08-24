@@ -146,13 +146,23 @@ namespace eos
       feedback->reportProgress( stats, ILogCompactingFeedback::CopyPreparation );
 
     //--------------------------------------------------------------------------
+    // Sort all the offsets to avoid random seeks
+    //--------------------------------------------------------------------------
+    std::vector<uint64_t> records;
+    RecordMap::iterator it;
+    for( it = map.begin(); it != map.end(); ++it )
+      records.push_back( it->second );
+    std::sort( records.begin(), records.end() );
+    map.clear();
+
+    //--------------------------------------------------------------------------
     // Copy the records
     //--------------------------------------------------------------------------
-    RecordMap::iterator it;
-    Buffer              buffer;
-    for( it = map.begin(); it != map.end(); ++it )
+    std::vector<uint64_t>::iterator recIt;
+    Buffer buffer;
+    for( recIt = records.begin(); recIt != records.end(); ++recIt )
     {
-      uint8_t type = inputFile.readRecord( it->second, buffer );
+      uint8_t type = inputFile.readRecord( *recIt, buffer );
       outputFile.storeRecord( type, buffer );
       ++stats.recordsWritten;
       stats.timeElapsed = time(0) - startTime;
