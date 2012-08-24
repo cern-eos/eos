@@ -77,8 +77,8 @@ void HierarchicalViewTest::reloadTest()
     contSettings["changelog_path"] = fileNameContMD;
     fileSettings["changelog_path"] = fileNameFileMD;
 
-    fileSvc->configure( contSettings );
-    contSvc->configure( fileSettings );
+    fileSvc->configure( fileSettings );
+    contSvc->configure( contSettings );
 
     view->setContainerMDSvc( contSvc );
     view->setFileMDSvc( fileSvc );
@@ -815,6 +815,7 @@ void HierarchicalViewTest::onlineCompactingTest()
   fileSvc->configure( fileSettings );
   view->initialize();
   CheckOnlineComp( view, 21000, changed );
+  view->finalize();
 
   //----------------------------------------------------------------------------
   // Cleanup
