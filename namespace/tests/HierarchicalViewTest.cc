@@ -83,6 +83,7 @@ void HierarchicalViewTest::reloadTest()
     eos::ContainerMD *cont1 = view->createContainer( "/test/embed/embed1", true );
     eos::ContainerMD *cont2 = view->createContainer( "/test/embed/embed2", true );
     eos::ContainerMD *cont3 = view->createContainer( "/test/embed/embed3", true );
+    eos::ContainerMD *cont4 = view->createContainer( "/test/embed/embed4", true );
 
     eos::ContainerMD *root  = view->getContainer( "/" );
     eos::ContainerMD *test  = view->getContainer( "/test" );
@@ -108,12 +109,28 @@ void HierarchicalViewTest::reloadTest()
     view->createFile( "/test/embed/embed1/file1" );
     view->createFile( "/test/embed/embed1/file2" );
     view->createFile( "/test/embed/embed1/file3" );
+    eos::FileMD *fileR = view->createFile( "/test/embed/embed1/fileR" );
 
     CPPUNIT_ASSERT( view->getFile( "/test/embed/file1" ) );
     CPPUNIT_ASSERT( view->getFile( "/test/embed/file2" ) );
     CPPUNIT_ASSERT( view->getFile( "/test/embed/embed1/file1" ) );
     CPPUNIT_ASSERT( view->getFile( "/test/embed/embed1/file2" ) );
     CPPUNIT_ASSERT( view->getFile( "/test/embed/embed1/file3" ) );
+
+    //--------------------------------------------------------------------------
+    // Rename
+    //--------------------------------------------------------------------------
+    CPPUNIT_ASSERT_NO_THROW( view->renameContainer( cont4, "embed4.renamed" ) );
+    CPPUNIT_ASSERT( cont4->getName() == "embed4.renamed" );
+    CPPUNIT_ASSERT_THROW( view->renameContainer( cont4, "embed1" ), eos::MDException );
+    CPPUNIT_ASSERT_THROW( view->renameContainer( cont4, "embed1/asd" ), eos::MDException );
+    CPPUNIT_ASSERT_NO_THROW( view->getContainer( "/test/embed/embed4.renamed" ) );
+    CPPUNIT_ASSERT_NO_THROW( view->renameFile( fileR, "fileR.renamed" ) );
+    CPPUNIT_ASSERT( fileR->getName() == "fileR.renamed" );
+    CPPUNIT_ASSERT_THROW( view->renameFile( fileR, "file1" ), eos::MDException );
+    CPPUNIT_ASSERT_THROW( view->renameFile( fileR, "file1/asd" ), eos::MDException );
+    CPPUNIT_ASSERT_NO_THROW( view->getFile( "/test/embed/embed1/fileR.renamed" ) );
+    CPPUNIT_ASSERT_THROW( view->renameContainer( root, "rename" ), eos::MDException );
 
     //--------------------------------------------------------------------------
     // Test the "reverse" lookup
@@ -163,6 +180,8 @@ void HierarchicalViewTest::reloadTest()
     CPPUNIT_ASSERT( view->getFile( "/test/embed/file2" ) );
     CPPUNIT_ASSERT( view->getFile( "/test/embed/embed1/file1" ) );
     CPPUNIT_ASSERT( view->getFile( "/test/embed/embed1/file3" ) );
+    CPPUNIT_ASSERT_NO_THROW( view->getContainer( "/test/embed/embed4.renamed" ) );
+    CPPUNIT_ASSERT_NO_THROW( view->getFile( "/test/embed/embed1/fileR.renamed" ) );
     view->finalize();
 
     unlink( fileNameFileMD.c_str() );
