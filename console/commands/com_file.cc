@@ -451,7 +451,7 @@ com_file (char* arg1) {
   fprintf(stdout,"'[eos] file ..' provides the file management interface of EOS.\n");
   fprintf(stdout,"Options:\n");
   fprintf(stdout,"file rename <old> <new> :\n");
-  fprintf(stdout,"                                                  rename from <old> to <new> name. This only works for the 'root' user and the renamed files has to be in the same directory\n");
+  fprintf(stdout,"                                                  rename from <old> to <new> name (works for files and directories!). This only works for the 'root' user and the renamed file/directory has to stay in the same parent directory\n");
   fprintf(stdout,"file drop <path> <fsid> [-f] :\n");
   fprintf(stdout,"                                                  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
   fprintf(stdout,"file move <path> <fsid1> <fsid2> :\n");
