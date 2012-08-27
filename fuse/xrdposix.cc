@@ -1923,7 +1923,7 @@ xrd_init()
   if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0")) {
     eos::common::Logging::SetLogPriority(LOG_DEBUG);
   } else {
-    eos::common::Logging::SetLogPriority(LOG_DEBUG);
+    eos::common::Logging::SetLogPriority(LOG_INFO);
   }
   
   XrdPosixXrootd::setEnv(NAME_DATASERVERCONN_TTL,300);
