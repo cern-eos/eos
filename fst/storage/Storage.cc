@@ -287,6 +287,7 @@ Storage::Storage(const char* metadirectory)
     zombie = true;
   }
 
+  XrdSysMutexHelper tsLock(ThreadSetMutex);
   ThreadSet.insert(tid);
 
   eos_info("starting trim thread");
@@ -907,6 +908,60 @@ Storage::StartMgmSyncer(void * pp)
   storage->MgmSyncer();
   return 0;
 }    
+
+/*----------------------------------------------------------------------------*/
+void*
+Storage::StartBoot(void * pp)
+{
+  if (pp) {
+    BootThreadInfo* info = (BootThreadInfo*)pp;
+    info->storage->Boot(info->filesystem);
+    // remove from the set containing the ids of booting filesystems
+    XrdSysMutexHelper bootLock(info->storage->BootSetMutex);
+    info->storage->BootSet.erase(info->filesystem->GetId());
+    XrdSysMutexHelper tsLock(info->storage->ThreadSetMutex);
+    info->storage->ThreadSet.erase(XrdSysThread::ID());
+    delete info;
+  }
+  return 0;
+}    
+
+/*----------------------------------------------------------------------------*/
+bool
+Storage::RunBootThread(FileSystem* fs) 
+{
+  bool retc=false;
+  if (fs) {
+    XrdSysMutexHelper bootLock(BootSetMutex);
+    // check if this filesystem is currently already booting
+    if (BootSet.count(fs->GetId())) {
+      eos_warning("discard boot request: filesytem id=%ld is currently booting", fs->GetId());
+      return false;
+    } else {
+      // insert into the set of booting filesystems
+      BootSet.insert(fs->GetId());
+    }
+    
+    BootThreadInfo* info = new BootThreadInfo;
+    if (info) {
+      info->storage = this;
+      info->filesystem = fs;
+      pthread_t tid;
+      if ((XrdSysThread::Run(&tid, Storage::StartBoot, static_cast<void *>(info),
+				  0, "Booter"))) {
+	eos_crit("cannot start boot thread");
+	retc = false;
+	BootSet.erase(fs->GetId());
+      } else {
+	retc = true;
+	XrdSysMutexHelper tsLock(ThreadSetMutex);
+	ThreadSet.insert(tid);
+	eos_notice("msg=\"started boot thread\" fsid=%ld",info->filesystem->GetId());
+      }
+    }
+  }
+  return retc;
+}
 
 /*----------------------------------------------------------------------------*/
 void
@@ -1803,7 +1858,8 @@ Storage::Communicator()
 	      }
 	      // check if we are autobooting
 	      if (eos::fst::Config::gConfig.autoBoot && (fileSystems[queue.c_str()]->GetStatus() <= eos::common::FileSystem::kDown) && (fileSystems[queue.c_str()]->GetConfigStatus() > eos::common::FileSystem::kOff) ) {
-		Boot(fileSystems[queue.c_str()]);
+		// start a boot thread
+		RunBootThread(fileSystems[queue.c_str()]);
 	      }
 	    } else {
 	      if (key == "bootsenttime") {
@@ -1813,14 +1869,15 @@ Storage::Communicator()
 		  if ( (fileSystems[queue.c_str()]->GetInternalBootStatus() == eos::common::FileSystem::kBooted) ) {
 		    if (fileSystems[queue.c_str()]->GetLongLong("bootcheck")) {
 		      eos_static_info("queue=%s status=%d check=%lld msg='boot enforced'", queue.c_str(), fileSystems[queue.c_str()]->GetStatus(), fileSystems[queue.c_str()]->GetLongLong("bootcheck"));
-		      Boot(fileSystems[queue.c_str()]);
+		      RunBootThread(fileSystems[queue.c_str()]);
 		    } else {
 		      eos_static_info("queue=%s status=%d check=%lld msg='skip boot - we are already booted'", queue.c_str(), fileSystems[queue.c_str()]->GetStatus(), fileSystems[queue.c_str()]->GetLongLong("bootcheck"));
 		      fileSystems[queue.c_str()]->SetStatus(eos::common::FileSystem::kBooted);
 		    }
 		  } else {
 		    eos_static_info("queue=%s status=%d check=%lld msg='booting - we are not booted yet'", queue.c_str(), fileSystems[queue.c_str()]->GetStatus(), fileSystems[queue.c_str()]->GetLongLong("bootcheck"));
-		    Boot(fileSystems[queue.c_str()]);
+		    // start a boot thread;
+		    RunBootThread(fileSystems[queue.c_str()]);
 		  }
 		} else {
 		  eos_static_err("got boot time update on not existant filesystem %s", queue.c_str());

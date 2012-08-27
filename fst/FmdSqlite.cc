@@ -889,8 +889,8 @@ FmdSqliteHandler::ResyncAllDisk(const char* path, eos::common::FileSystem::fsid_
     } else {
       if (node->fts_info == FTS_F) {
         XrdOucString filePath = node->fts_accpath;
-	eos_info("file=%s", filePath.c_str());
         if (!filePath.matches("*.xsmap")){
+	  eos_info("file=%s", filePath.c_str());
 	  ResyncDisk(filePath.c_str(), fsid, flaglayouterror);
         }
       }

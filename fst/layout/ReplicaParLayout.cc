@@ -163,7 +163,7 @@ ReplicaParLayout::open(const char                *path,
       if ( (isGateWay && i == replicaHead) ||
            (isHeadServer && (i != replicaIndex)) ) {
         if (ofsFile->isRW) {
-	  EnvPutInt(NAME_READCACHESIZE,1024*1024*4ll);
+	  EnvPutInt(NAME_READCACHESIZE,0);
           replicaClient[i] = new XrdClient(replicaUrl[i].c_str());
           
           eos_info("Opening Layout Stripe %s\n", replicaUrl[i].c_str());

@@ -101,10 +101,13 @@ XrdFstOfs::xrdfstofs_shutdown(int sig) {
   // handler to shutdown the daemon for valgrinding and clean server stop (e.g. let's time to finish write operations
 
   std::set<pthread_t>::const_iterator it;
-  for (it= gOFS.Storage->ThreadSet.begin(); it != gOFS.Storage->ThreadSet.end(); it++) {
-    eos_static_warning("op=shutdown threadid=%llx", (unsigned long long) *it);
-    XrdSysThread::Cancel(*it);
-    XrdSysThread::Join(*it,0);
+  {
+    XrdSysMutexHelper(gOFS.Storage->ThreadSetMutex);
+    for (it= gOFS.Storage->ThreadSet.begin(); it != gOFS.Storage->ThreadSet.end(); it++) {
+      eos_static_warning("op=shutdown threadid=%llx", (unsigned long long) *it);
+      XrdSysThread::Cancel(*it);
+      XrdSysThread::Join(*it,0);
+    }
   }
 
   // sync all file descriptors

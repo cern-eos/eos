@@ -133,6 +133,8 @@ private:
 
 protected:
   eos::common::RWMutex fsMutex;
+
+  XrdSysMutex ThreadSetMutex;
   std::set<pthread_t> ThreadSet;
 
 public:
@@ -152,6 +154,17 @@ public:
   static void* StartFsDrainer(void* pp);
   static void* StartFsCleaner(void* pp);
   static void* StartMgmSyncer(void* pp);
+
+  struct BootThreadInfo {
+    Storage*    storage;
+    FileSystem* filesystem;
+  };
+
+  static void* StartBoot(void* pp);
+
+  XrdSysMutex BootSetMutex;                          // Mutex protecting the boot set
+  std::set<eos::common::FileSystem::fsid_t> BootSet; // set containing the filesystems currently booting
+  bool RunBootThread(FileSystem* fs);
 
   void Scrub();
   void Trim();
