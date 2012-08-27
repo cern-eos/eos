@@ -1,10 +1,6 @@
-%define _unpackaged_files_terminate_build 0
-%define __os_install_post       /bin/true
-%define debug_package %{nil} 
-
 Summary: The EOS project
 Name: eos
-Version: 0.2.10
+Version: 0.2.11
 Release: 1
 Prefix: /usr
 License: none
@@ -55,20 +51,21 @@ export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 
 mkdir -p build
 cd build
-cmake ../ -DRELEASE=%{release}
+cmake ../ -DRELEASE=%{release} -DCMAKE_BUILD_TYPE=RelWithDebInfo
 %{__make} %{_smp_mflags} 
 
 %{__make} install DESTDIR=$RPM_BUILD_ROOT
-
+%install
+echo "Installed!"
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %files -n eos-server
 %defattr(-,root,root)
-/usr/lib64/libXrdMqClient.so.0.2.10
+/usr/lib64/libXrdMqClient.so.0.2.11
 /usr/lib64/libXrdMqClient.so.0
 /usr/lib64/libXrdMqClient.so
-/usr/lib64/libXrdMqOfs.so.0.2.10
+/usr/lib64/libXrdMqOfs.so.0.2.11
 /usr/lib64/libXrdMqOfs.so.0
 /usr/lib64/libXrdMqOfs.so
 /usr/bin/xrdmqdumper
@@ -76,13 +73,13 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eoshapl
 /usr/sbin/eosfilesync
 /usr/sbin/eosdirsync
-/usr/lib64/libeosCommon.so.0.2.10
+/usr/lib64/libeosCommon.so.0.2.11
 /usr/lib64/libeosCommon.so.0
 /usr/lib64/libeosCommon.so
-/usr/lib64/libXrdEosAuth.so.0.2.10
+/usr/lib64/libXrdEosAuth.so.0.2.11
 /usr/lib64/libXrdEosAuth.so.0
 /usr/lib64/libXrdEosAuth.so
-/usr/lib64/libXrdEosFst.so.0.2.10
+/usr/lib64/libXrdEosFst.so.0.2.11
 /usr/lib64/libXrdEosFst.so.0
 /usr/lib64/libXrdEosFst.so
 /usr/sbin/eosfstregister
@@ -93,7 +90,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eos-scan-fs
 /usr/sbin/eos-adler32
 /usr/sbin/eos-mmap
-/usr/lib64/libXrdEosMgm.so.0.2.10
+/usr/lib64/libXrdEosMgm.so.0.2.11
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so
 /usr/sbin/eos-log-compact
@@ -224,7 +221,6 @@ if [ $1 = 0 ]; then
         /sbin/chkconfig --del eosd
 fi
 
-
 #######################################################################################
 # the srm scripts package 
 #######################################################################################
@@ -282,4 +278,3 @@ Contains an instance test script and some test executables
 /usr/sbin/xrdcptruncate
 /usr/sbin/xrdstress
 /usr/sbin/xrdstress.exe
-
