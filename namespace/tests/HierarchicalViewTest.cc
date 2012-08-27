@@ -71,8 +71,8 @@ void HierarchicalViewTest::reloadTest()
     contSettings["changelog_path"] = fileNameContMD;
     fileSettings["changelog_path"] = fileNameFileMD;
 
-    fileSvc->configure( contSettings );
-    contSvc->configure( fileSettings );
+    fileSvc->configure( fileSettings );
+    contSvc->configure( contSettings );
 
     view->setContainerMDSvc( contSvc );
     view->setFileMDSvc( fileSvc );
@@ -645,3 +645,4 @@ void HierarchicalViewTest::lostContainerTest()
   delete contSvc;
   delete fileSvc;
 }
+
