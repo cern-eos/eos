@@ -88,6 +88,42 @@ ProcInterface::IsProcAccess(const char* path)
 
 /*----------------------------------------------------------------------------*/
 bool 
+ProcInterface::IsWriteAccess(const char* path, const char* info)
+{
+  XrdOucString inpath = (path?path:"");
+  XrdOucString ininfo = (info?info:"");
+
+  if (!inpath.beginswith("/proc/")) {
+    return false;
+  }
+
+  XrdOucEnv procEnv(ininfo.c_str());
+  XrdOucString cmd = procEnv.Get("mgm.cmd");
+  XrdOucString subcmd = procEnv.Get("mgm.subcmd");
+
+  // filter here all namespace modifying proc messages
+  if ( ( ( cmd == "file" ) && 
+	 ( ( subcmd == "adjustreplica" ) || 
+	   ( subcmd == "drop" ) || 
+	   ( subcmd == "layout" ) || 
+	   ( subcmd == "verify") || 
+	   ( subcmd == "rename" ) ) ) ||
+       ( ( cmd == "attr" ) && 
+	 ( ( subcmd == "set" ) || 
+	   ( subcmd == "rm" ) ) ) || 
+       ( ( cmd == "mkdir") ) || 
+       ( ( cmd == "rmdir") ) || 
+       ( ( cmd == "rm") ) || 
+       ( ( cmd == "chown") ) ||
+       ( ( cmd == "chmod") ) ) {
+    return true;
+  }
+  
+  return false;
+}
+
+/*----------------------------------------------------------------------------*/
+bool 
 ProcInterface::Authorize(const char* path, const char* info, eos::common::Mapping::VirtualIdentity &vid , const XrdSecEntity* entity) {
   XrdOucString inpath = path;
 
@@ -3574,6 +3610,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       XrdOucString spath = opaque.Get("mgm.path");
 
       const char* inpath = spath.c_str();
+      if (!inpath) {
+	inpath ="";
+      }
 
       NAMESPACEMAP;
       info=0; // for compiler happyness
@@ -3820,6 +3859,19 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             retc = errno;
           } else {
             stdOut += "success: scheduled replication from source fs="; stdOut += sfsidsource; stdOut += " => target fs="; stdOut += sfsidtarget;
+          }
+        }
+
+
+        if (subcmd == "rename") {
+          XrdOucString source  = opaque.Get("mgm.file.source");
+          XrdOucString target  = opaque.Get("mgm.file.target");
+
+	  if (gOFS->rename(source.c_str(),target.c_str(), *error, vid_in, 0,0 )) {
+            stdErr += "error: unable to rename";
+            retc = errno;
+          } else {
+            stdOut += "success: renamed '"; stdOut += source.c_str(); stdOut += "' to '"; stdOut += target.c_str(); stdOut += "'";
           }
         }
 

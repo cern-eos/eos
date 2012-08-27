@@ -417,7 +417,7 @@ int XrdMgmOfsDirectory::open(const char              *inpath, // In
 
   eos::common::Mapping::IdMap(client,info,tident, vid);
 
-
+  
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
   MAYSTALL;
@@ -667,6 +667,10 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 
   ACCESSMODE_R;
   if (isRW) {
+    SET_ACCESSMODE_W;
+  }
+
+  if (ProcInterface::IsWriteAccess(path, pinfo.c_str())) {
     SET_ACCESSMODE_W;
   }
 
@@ -1291,6 +1295,8 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
   }
 
+  XrdOucString infolog="";
+
   if ((eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReplica) || 
       (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kRaidDP) || 
       (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReedS)) {
@@ -1337,6 +1343,13 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
       capability += "&mgm.fsid"; capability += i; capability += "="; capability += (int)repfilesystem->GetId();
 
       eos_debug("Redirection Url %d => %s", i, replicahost.c_str());
+      infolog += "target["; 
+      infolog += (int) i; 
+      infolog += "]=("; 
+      infolog += replicahost.c_str(); 
+      infolog += ","; 
+      infolog += (int)repfilesystem->GetId();
+      infolog += ") ";
     }
   }
   
@@ -1357,7 +1370,12 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   if (openOpaque->Get("eos.blockchecksum")) {
     redirectionhost += "&mgm.blockchecksum=";
     redirectionhost += openOpaque->Get("eos.blockchecksum");
+  } else {
+    if ( (!isRW) && ( eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReplica) ) {
+      redirectionhost += "&mgm.blockchecksum=ignore";
+    }
   }
+    
   if (openOpaque->Get("eos.checksum")) {
     redirectionhost += "&mgm.checksum=";
     redirectionhost += openOpaque->Get("eos.checksum");
@@ -1380,6 +1398,13 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   XrdOucString predirectionhost = redirectionhost.c_str();
   eos::common::StringConversion::MaskTag(predirectionhost,"cap.msg");
   eos::common::StringConversion::MaskTag(predirectionhost,"cap.sym");
+
+  if (isRW) {
+    eos_info("op=write path=%s info=%s %s redirection=%s:%d",path,pinfo.c_str(), infolog.c_str(), predirectionhost.c_str(),ecode);
+  } else {
+    eos_info("op=read  path=%s info=%s %s redirection=%s:%d",path,pinfo.c_str(), infolog.c_str(), predirectionhost.c_str(),ecode);
+  }
+
   eos_info("info=\"redirection\" hostport=%s:%d", predirectionhost.c_str(), ecode);
 
   if (capabilityenv)
@@ -2792,7 +2817,7 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
 int XrdMgmOfs::rename(const char             *old_name,  // In
                       const char             *new_name,  // In
                       XrdOucErrInfo    &error,     //Out
-                      const XrdSecEntity *client,    // In
+		      eos::common::Mapping::VirtualIdentity& vid,                 
                       const char             *infoO,     // In
                       const char             *infoN)     // In
 /*
@@ -2801,7 +2826,7 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
   Input:    old_name  - Is the fully qualified name of the file to be renamed.
   new_name  - Is the fully qualified name that the file is to have.
   error     - Error information structure, if an error occurs.
-  client    - Authentication credentials, if any.
+  vid       - virtual id of the client
   info      - old_name opaque information, if any.
   info      - new_name opaque information, if any.
 
@@ -2809,73 +2834,153 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
 */
 {
   static const char *epname = "rename";
-  const char *tident = error.getErrUser();
   errno = 0;
-
-  EXEC_TIMING_BEGIN("Rename");
-   
-  // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
 
   XrdOucString source, destination;
   XrdOucString oldn,newn;
   XrdOucEnv renameo_Env(infoO);
   XrdOucEnv renamen_Env(infoN);
   
-  AUTHORIZE(client,&renameo_Env,AOP_Update,"rename",old_name, error);
-  AUTHORIZE(client,&renamen_Env,AOP_Update,"rename",new_name, error);
+  //  AUTHORIZE(client,&renameo_Env,AOP_Update,"rename",old_name, error);
+  //  AUTHORIZE(client,&renamen_Env,AOP_Update,"rename",new_name, error);
 
   // we need to add also the namespace re mapping here ...
   oldn = old_name;
   newn = new_name;
 
-  eos::common::Mapping::IdMap(client,infoO,tident,vid);
+  {
+    const char* inpath = old_name;
+    const char* ininfo = infoO;
+    NAMESPACEMAP;   
+    oldn = path;
+    info = 0;
+  }
 
+  {
+    const char* inpath = new_name;
+    const char* ininfo = infoN;
+    NAMESPACEMAP;
+    BOUNCE_ILLEGAL_NAMES;   
+    newn = path;
+    info = 0;
+  }
+  
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
 
-  //  int r1,r2;
-  
-  //  r1=r2=SFS_OK;
+  return _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN);
+}
 
+/*----------------------------------------------------------------------------*/
+int XrdMgmOfs::_rename(const char             *old_name,  // In
+		       const char             *new_name,  // In
+		       XrdOucErrInfo          &error,     //Out
+		       eos::common::Mapping::VirtualIdentity& vid,                 
+		       const char             *infoO,     // In
+		       const char             *infoN)     // In
+/*
+  Function: Renames a file/directory with name 'old_name' to 'new_name'.
+
+  Input:    old_name  - Is the fully qualified name of the file to be renamed.
+  new_name  - Is the fully qualified name that the file is to have.
+  error     - Error information structure, if an error occurs.
+  vid       - virtual identity of the client
+  info      - old_name opaque information, if any.
+  info      - new_name opaque information, if any.
+
+  Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
+*/
+{
+  static const char *epname = "_rename";
+  errno = 0;
+
+  EXEC_TIMING_BEGIN("Rename");
+
+  // only 'root' can rename for the moment
+  if (vid.uid) {
+    errno = EACCES;
+    return Emsg(epname, error, EACCES,"rename - user access restricted - only the root user might rename files");
+  }
+  
+  eos::common::Path oPath(old_name);
+  eos::common::Path nPath(new_name);
+  std::string oP = oPath.GetParentPath();
+  std::string nP = nPath.GetParentPath();
+
+  // we can only 'rename' within the same directory
+  if (oP != nP) {
+    return Emsg(epname, error, EINVAL,"rename - files can only be renamed within a directory, use cp to move files into different directories");
+  }
+  
+
+  if ((!old_name) || (!new_name) ) {
+    errno = EINVAL;
+    return Emsg(epname, error, EINVAL,"rename - 0 source or target name");
+  }
 
   gOFS->MgmStats.Add("Rename",vid.uid,vid.gid,1);  
 
-  // check if dest is existing
-  //  XrdSfsFileExistence file_exists;
+  XrdSfsFileExistence file_exists;
 
-  //  if (!_exists(newn.c_str(),file_exists,error,vid,infoN)) {
-  //    // it exists
-  //    if (file_exists == XrdSfsFileExistIsDirectory) {
-  //      // we have to path the destination name since the target is a directory
-  //      XrdOucString sourcebase = oldn.c_str();
-  //      int npos = oldn.rfind("/");
-  //      if (npos == STR_NPOS) {
-  //    return Emsg(epname, error, EINVAL, "rename", oldn.c_str());
-  //      }
-  //      sourcebase.assign(oldn, npos);
-  //      newn+= "/";
-  //      newn+= sourcebase;
-  //      while (newn.replace("//","/")) {};
-  //    }
-  //    if (file_exists == XrdSfsFileExistIsFile) {
-  // remove the target file first!
-  //      int remrc = 0;//_rem(newn.c_str(),error,&mappedclient,infoN);
-  //      if (remrc) {
-  //    return remrc;
-  //      }
-  //    }
-  //  }
+  if (!_exists(new_name,file_exists,error,vid,infoN)) {
+    if (file_exists == XrdSfsFileExistIsFile) {
+      errno = EEXIST;
+      return Emsg(epname, error, EEXIST,"rename - target file name exists");
+    }
+    if (file_exists == XrdSfsFileExistIsDirectory) {
+      errno = EEXIST;
+      return Emsg(epname, error, EEXIST,"rename - target directory name exists");
+    }
+  }
 
-  //  r1 = XrdMgmOfsUFS::Rename(oldn.c_str(), newn.c_str());
+  eos::ContainerMD* dir=0;
+  eos::ContainerMD* rdir=0;
+  eos::FileMD* file=0;
+  bool renameFile=true;
+  bool renameDir=true;
 
-  //  if (r1) 
-  //    return Emsg(epname, error, serrno, "rename", oldn.c_str());
+  if (_exists(old_name,file_exists,error,vid,infoN)) {
+    errno = ENOENT;
+    return Emsg(epname, error, ENOENT,"rename - source does not exist");
+  } else {
+    if (file_exists == XrdSfsFileExistIsFile) {
+      renameFile=true;
+    }
+    if (file_exists == XrdSfsFileExistIsDirectory) {
+      renameDir=true;
+    }
+  }
 
+  //-------------------------------------------
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);    
+  try {
+    dir = eosView->getContainer(oPath.GetParentPath());
+    if (renameFile) {
+      file = dir->findFile( oPath.GetName());
+      if (file) {
+	eosView->renameFile(file, nPath.GetName());
+      }
+    }
+    if (renameDir) {
+      rdir = dir->findContainer(oPath.GetName());
+      if (rdir) {
+	eosView->renameContainer(rdir, nPath.GetName());
+      }
+    }
+  } catch( eos::MDException &e ) {
+    dir = 0;
+    file = 0;
+  }    
+  
+  if ( (!dir) || ( (!file) && (!rdir) ) ) {
+    errno = ENOENT;
+    return Emsg(epname, error, ENOENT, "rename", old_name);
+  } 
+  
   EXEC_TIMING_END("Rename");
 
-  return Emsg(epname, error, EOPNOTSUPP, "rename", oldn.c_str());
+  return SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/

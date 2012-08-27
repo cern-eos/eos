@@ -97,6 +97,7 @@ private:
 public:
 
   static bool IsProcAccess(const char* path);
+  static bool IsWriteAccess(const char* path, const char* info);
   static bool Authorize(const char* path, const char* info, eos::common::Mapping::VirtualIdentity &vid, const XrdSecEntity* entity);
 
   ProcInterface();

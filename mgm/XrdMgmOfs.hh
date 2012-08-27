@@ -94,7 +94,7 @@ USE_EOSMGMNAMESPACE
   const char*path = inpath;						\
   const char*info = ininfo;						\
   XrdOucString store_path=path;						\
-  if ( !(ininfo) || (ininfo && (!strstr(ininfo,"eos.prefix")))) {	\
+  if ( inpath && ( !(ininfo) || (ininfo && (!strstr(ininfo,"eos.prefix"))))) { \
     gOFS->PathRemap(inpath,store_path);					\
   }									\
   size_t __i=0;								\
@@ -427,6 +427,20 @@ public:
                         const char             *newFileName,
                         XrdOucErrInfo    &out_error,
                         const XrdSecEntity *client = 0,
+                        const char             *opaqueO = 0,
+                        const char             *opaqueN = 0) { return 0;}
+
+  int            rename(const char             *oldFileName,
+                        const char             *newFileName,
+                        XrdOucErrInfo    &out_error,
+			eos::common::Mapping::VirtualIdentity &vid,
+                        const char             *opaqueO = 0,
+                        const char             *opaqueN = 0);
+
+  int            _rename(const char             *oldFileName,
+                        const char             *newFileName,
+                        XrdOucErrInfo    &out_error,
+			eos::common::Mapping::VirtualIdentity &vid,
                         const char             *opaqueO = 0,
                         const char             *opaqueN = 0);
 
