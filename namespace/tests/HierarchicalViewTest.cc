@@ -646,3 +646,198 @@ void HierarchicalViewTest::lostContainerTest()
   delete fileSvc;
 }
 
+//------------------------------------------------------------------------------
+// Compact thread
+//------------------------------------------------------------------------------
+struct CompactData
+{
+  CompactData(): compactData(0), svc(0) {}
+  void                    *compactData;
+  eos::ChangeLogFileMDSvc *svc;
+};
+
+void *compactThread( void *arg )
+{
+  CompactData *cd = (CompactData*)arg;
+  cd->svc->compact( cd->compactData );
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Check if everything is as expected
+//------------------------------------------------------------------------------
+void CheckOnlineComp( eos::IView *view,
+                      uint32_t    totalFiles,
+                      uint32_t    changedFiles )
+{
+  eos::ContainerMD *cont = 0;
+  CPPUNIT_ASSERT_NO_THROW( cont = view->getContainer( "/test/" ) );
+  eos::ContainerMD::FileMap::iterator fileIt;
+  uint32_t changedFound = 0;
+  for( fileIt = cont->filesBegin(); fileIt != cont->filesEnd(); ++fileIt )
+  {
+    if( fileIt->second->getSize() == 99999 )
+      ++changedFound;
+  }
+  CPPUNIT_ASSERT( totalFiles == cont->getNumFiles() );
+  CPPUNIT_ASSERT( changedFiles == changedFound );
+}
+
+//------------------------------------------------------------------------------
+// Online compacting test
+//------------------------------------------------------------------------------
+void HierarchicalViewTest::onlineCompactingTest()
+{
+  //----------------------------------------------------------------------------
+  // Initializer
+  //----------------------------------------------------------------------------
+  eos::IContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
+  eos::IFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
+  eos::IView           *view    = new eos::HierarchicalView;
+
+  std::map<std::string, std::string> fileSettings;
+  std::map<std::string, std::string> contSettings;
+  std::map<std::string, std::string> settings;
+  std::string fileNameFileMD = getTempName( "/tmp", "eosns" );
+  std::string fileNameContMD = getTempName( "/tmp", "eosns" );
+  contSettings["changelog_path"] = fileNameContMD;
+  contSvc->configure( contSettings );
+  fileSettings["changelog_path"] = fileNameFileMD;
+  fileSvc->configure( fileSettings );
+
+  view->setContainerMDSvc( contSvc );
+  view->setFileMDSvc( fileSvc );
+
+  view->configure( settings );
+  view->initialize();
+
+  //----------------------------------------------------------------------------
+  // Create some files
+  //----------------------------------------------------------------------------
+  eos::ContainerMD *cont = 0;
+  CPPUNIT_ASSERT_NO_THROW( cont = view->createContainer( "/test/", true ) );
+  for( int i = 0; i < 10000; ++i )
+  {
+    std::ostringstream s; s << "/test/file" << i;
+    CPPUNIT_ASSERT_NO_THROW( view->createFile( s.str() ) );
+  }
+
+  //----------------------------------------------------------------------------
+  // Remove some files
+  //----------------------------------------------------------------------------
+  std::vector<int> td( 10000 );
+  std::iota( td.begin(), td.end(), 0 );
+  std::random_shuffle( td.begin(), td.end() );
+  td.resize( 1000 );
+  std::vector<int>::iterator it;
+  for( it = td.begin(); it != td.end(); ++it )
+  {
+    std::ostringstream s; s << "/test/file" << *it;
+    CPPUNIT_ASSERT_NO_THROW( view->removeFile( view->getFile( s.str() ) ) );
+  }
+
+  std::string newFileLogName = getTempName( "/tmp", "eosns" );
+  eos::ChangeLogFileMDSvc *clFileSvc = dynamic_cast<eos::ChangeLogFileMDSvc*>(view->getFileMDSvc());
+  void *compData = 0;
+  CPPUNIT_ASSERT_NO_THROW( compData = clFileSvc->compactPrepare( newFileLogName ) );
+
+  //----------------------------------------------------------------------------
+  // Start the compacting
+  //----------------------------------------------------------------------------
+  CompactData cd;
+  cd.compactData = compData;
+  cd.svc         = clFileSvc;
+  pthread_t thread;
+  CPPUNIT_ASSERT( pthread_create( &thread, 0, compactThread, &cd ) == 0 );
+
+  //----------------------------------------------------------------------------
+  // Do stuff - create some new files, modify existing ones
+  //----------------------------------------------------------------------------
+  for( int i = 10000; i < 20000; ++i )
+  {
+    std::ostringstream s; s << "/test/file" << i;
+    CPPUNIT_ASSERT_NO_THROW( view->createFile( s.str() ) );
+  }
+
+  eos::ContainerMD::FileMap::iterator fileIt;
+  int changed = 0;
+  for( fileIt = cont->filesBegin(); fileIt != cont->filesEnd(); ++fileIt )
+  {
+    if( random() % 100 < 70 )
+    {
+      fileIt->second->setSize( 99999 );
+      CPPUNIT_ASSERT_NO_THROW( view->updateFileStore( fileIt->second ) );
+      changed++;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Commit the log and check
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT( pthread_join( thread, 0 ) == 0 );
+
+  for( int i = 20000; i < 21000; ++i )
+  {
+    std::ostringstream s; s << "/test/file" << i;
+    CPPUNIT_ASSERT_NO_THROW( view->createFile( s.str() ) );
+  }
+
+  for( fileIt = cont->filesBegin(); fileIt != cont->filesEnd(); ++fileIt )
+  {
+    if( fileIt->second->getSize() == 0 )
+    {
+      if( random() % 100 < 10 )
+      {
+        fileIt->second->setSize( 99999 );
+        CPPUNIT_ASSERT_NO_THROW( view->updateFileStore( fileIt->second ) );
+        changed++;
+      }
+    }
+  }
+
+  CPPUNIT_ASSERT_NO_THROW( clFileSvc->compactCommit( compData ) );
+
+  //----------------------------------------------------------------------------
+  // Create some new files
+  //----------------------------------------------------------------------------
+  for( int i = 21000; i < 22000; ++i )
+  {
+    std::ostringstream s; s << "/test/file" << i;
+    CPPUNIT_ASSERT_NO_THROW( view->createFile( s.str() ) );
+  }
+
+  for( fileIt = cont->filesBegin(); fileIt != cont->filesEnd(); ++fileIt )
+  {
+    if( fileIt->second->getSize() == 0 )
+    {
+      if( random() % 100 < 10 )
+      {
+        fileIt->second->setSize( 99999 );
+        CPPUNIT_ASSERT_NO_THROW( view->updateFileStore( fileIt->second ) );
+        changed++;
+      }
+    }
+  }
+  CheckOnlineComp( view, 21000, changed );
+
+  //----------------------------------------------------------------------------
+  // Reinitialize and check again
+  //----------------------------------------------------------------------------
+  view->finalize();
+  fileSettings["changelog_path"] = newFileLogName;
+  fileSvc->configure( fileSettings );
+  view->initialize();
+  CheckOnlineComp( view, 21000, changed );
+  view->finalize();
+
+  //----------------------------------------------------------------------------
+  // Cleanup
+  //----------------------------------------------------------------------------
+  unlink( fileNameFileMD.c_str() );
+  unlink( fileNameContMD.c_str() );
+  unlink( newFileLogName.c_str() );
+  delete view;
+  delete contSvc;
+  delete fileSvc;
+}
+
