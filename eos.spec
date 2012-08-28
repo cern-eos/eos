@@ -54,9 +54,9 @@ mkdir -p build
 cd build
 cmake ../ -DRELEASE=%{release} -DCMAKE_BUILD_TYPE=RelWithDebInfo
 %{__make} %{_smp_mflags} 
-
-%{__make} install DESTDIR=$RPM_BUILD_ROOT
 %install
+cd build
+%{__make} install DESTDIR=$RPM_BUILD_ROOT
 echo "Installed!"
 %clean
 rm -rf $RPM_BUILD_ROOT
