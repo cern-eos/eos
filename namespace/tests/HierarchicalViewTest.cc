@@ -584,7 +584,7 @@ void HierarchicalViewTest::lostContainerTest()
   //----------------------------------------------------------------------------
   eos::ContainerMD::id_t removedId        = cont1->getId();
   eos::ContainerMD::id_t removedEmbId     = cont4->getId();
-  eos::ContainerMD::id_t conflictId       = cont5->getId();
+  eos::ContainerMD::id_t conflictId       = cont3->getId();
   eos::ContainerMD::id_t conflictParentId = cont5->getParentId();
   view->getContainerMDSvc()->removeContainer( cont1 );
   cont5->setName( "embed3" );
@@ -620,6 +620,7 @@ void HierarchicalViewTest::lostContainerTest()
   CPPUNIT_ASSERT( cont2->getNumFiles() == 1001 ); // 1000 + 1 conflict
   CPPUNIT_ASSERT( cont3->getNumFiles() == 1000 );
   CPPUNIT_ASSERT( cont4->getNumFiles() == 1000 );
+  CPPUNIT_ASSERT( cont5->getNumFiles() == 1000 );
   CPPUNIT_ASSERT( cont6->getNumFiles() == 999 );  // 1000 conflicts - 1
 
   //----------------------------------------------------------------------------
