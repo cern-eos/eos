@@ -228,10 +228,14 @@ namespace eos
         recreateContainer( parentIt, orphans, nameConflicts );
 
       ContainerMD *parent = parentIt->second.ptr;
-      if( !parent->findContainer( container->getName() ) )
+      ContainerMD *child  = parent->findContainer( container->getName() );
+      if( !child )
         parent->addContainer( container );
       else
-        nameConflicts.push_back( container );
+      {
+        nameConflicts.push_back( child );
+        parent->addContainer( container );
+      }
     }
   }
 
