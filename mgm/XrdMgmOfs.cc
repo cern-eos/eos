@@ -2908,12 +2908,6 @@ int XrdMgmOfs::_rename(const char             *old_name,  // In
   std::string oP = oPath.GetParentPath();
   std::string nP = nPath.GetParentPath();
 
-  // we can only 'rename' within the same directory
-  if (oP != nP) {
-    return Emsg(epname, error, EINVAL,"rename - files can only be renamed within a directory, use cp to move files into different directories");
-  }
-  
-
   if ((!old_name) || (!new_name) ) {
     errno = EINVAL;
     return Emsg(epname, error, EINVAL,"rename - 0 source or target name");
@@ -2935,10 +2929,11 @@ int XrdMgmOfs::_rename(const char             *old_name,  // In
   }
 
   eos::ContainerMD* dir=0;
+  eos::ContainerMD* newdir=0;
   eos::ContainerMD* rdir=0;
   eos::FileMD* file=0;
-  bool renameFile=true;
-  bool renameDir=true;
+  bool renameFile=false;
+  bool renameDir=false;
 
   if (_exists(old_name,file_exists,error,vid,infoN)) {
     errno = ENOENT;
@@ -2952,14 +2947,32 @@ int XrdMgmOfs::_rename(const char             *old_name,  // In
     }
   }
 
+  // we can only 'rename' within the same directory
+  if (renameDir) {
+    if (oP != nP) {
+      return Emsg(epname, error, EINVAL,"rename - directories can only be renamed within a directory, use cp to move files into different directories");
+    }
+  }
+
+
   //-------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);    
   try {
     dir = eosView->getContainer(oPath.GetParentPath());
+    newdir = eosView->getContainer(nPath.GetParentPath());
     if (renameFile) {
-      file = dir->findFile( oPath.GetName());
-      if (file) {
-	eosView->renameFile(file, nPath.GetName());
+      if (oP == nP) { 
+	file = dir->findFile( oPath.GetName());
+	if (file) {
+	  eosView->renameFile(file, nPath.GetName());
+	}
+      } else {
+	// move to a new directory
+	dir->removeFile ( oPath.GetName() );
+	file->setName ( nPath.GetName() );
+	file->setContainerId ( newdir->getId() );
+	newdir->addFile ( file );
+	eosView->updateFileStore ( file );
       }
     }
     if (renameDir) {
