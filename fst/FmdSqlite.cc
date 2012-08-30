@@ -1344,7 +1344,6 @@ FmdSqlite::EnvMgmToFmdSqlite(XrdOucEnv &env, struct FmdSqlite::FMD &fmd)
   // check that all tags are present
   if ( !env.Get("id") ||
        !env.Get("cid") ||
-       !env.Get("location") ||
        !env.Get("ctime") ||
        !env.Get("ctime_ns") ||
        !env.Get("mtime") ||
@@ -1371,7 +1370,7 @@ FmdSqlite::EnvMgmToFmdSqlite(XrdOucEnv &env, struct FmdSqlite::FMD &fmd)
   fmd.name            = env.Get("name");
   fmd.container       = env.Get("container");
   fmd.mgmchecksum     = env.Get("checksum");
-  fmd.locations       = env.Get("location");
+  fmd.locations       = env.Get("location")?env.Get("location"):"";
   return true;
 }
 
