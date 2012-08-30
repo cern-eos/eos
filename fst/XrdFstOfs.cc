@@ -1055,8 +1055,8 @@ XrdFstOfsFile::verifychecksum()
   // deal with checksums
   if (checkSum) {
     if (!isRW) {
-      // for read's we don't scan the whole file if the file was not read upto the end - we skip checksumming for large files > 64M
-      if ( (checkSum->GetMaxOffset() != openSize) && ( openSize > (1024*1024*64)) ) {
+      // we don't rescan files if they are read non-sequential
+      if ( (checkSum->GetMaxOffset() != openSize) ) {
         eos_info("info=\"skipping checksum (re-scan) for files > 64M ...\"");
         // remove the checksum object
         delete checkSum;
@@ -1078,6 +1078,7 @@ XrdFstOfsFile::verifychecksum()
       unsigned long long scansize=0;
       float scantime = 0; // is ms
 
+      // WARNING: currently we don't run into this code anymore - it failed with 0.2.11 and xrootd 3.2.2 - to be investigaed more
       if(!fctl(SFS_FCTL_GETFD,0,error)) {
 	int fd = error.getErrInfo();
 	if (checkSum->ScanFile(fd, scansize, scantime)) {
