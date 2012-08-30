@@ -2967,12 +2967,15 @@ int XrdMgmOfs::_rename(const char             *old_name,  // In
 	  eosView->renameFile(file, nPath.GetName());
 	}
       } else {
-	// move to a new directory
-	dir->removeFile ( oPath.GetName() );
-	file->setName ( nPath.GetName() );
-	file->setContainerId ( newdir->getId() );
-	newdir->addFile ( file );
-	eosView->updateFileStore ( file );
+	file = dir->findFile( oPath.GetName());
+	if (file) {
+	  // move to a new directory
+	  dir->removeFile ( oPath.GetName() );
+	  file->setName ( nPath.GetName() );
+	  file->setContainerId ( newdir->getId() );
+	  newdir->addFile ( file );
+	  eosView->updateFileStore ( file );
+	}
       }
     }
     if (renameDir) {
