@@ -2256,9 +2256,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             try {
               gOFS->eosView->finalize();
               gOFS->eosFsView->finalize();
+	      gOFS->Initialized=XrdMgmOfs::kBooting;
               gOFS->eosView->initialize();
               gOFS->eosFsView->initialize();
-              
+	      gOFS->Initialized=XrdMgmOfs::kBooted;
               time_t tstop  = time(0);
               eos_notice("eos view configure stopped after %d seconds", (tstop-tstart));
               stdOut += "# eos view configured after "; stdOut += (int) (tstop-tstart); stdOut += " seconds!";
@@ -2268,6 +2269,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               errno = e.getErrno();
               eos_crit("initialization returnd ec=%d %s\n", e.getErrno(),e.getMessage().str().c_str());
               stdErr += "error: initialization returnd ec="; stdErr += (int) e.getErrno(); stdErr += " msg='"; stdErr += e.getMessage().str().c_str();stdErr += "'";
+	      gOFS->Initialized=XrdMgmOfs::kFailed;
             }                              
           } else {
             retc = EFAULT;
