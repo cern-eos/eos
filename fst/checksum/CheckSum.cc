@@ -112,7 +112,7 @@ CheckSum::ScanFile(int fd, unsigned long long &scansize, float &scantime, int ra
 
   do {
     errno = 0;
-    nread = read(fd,buffer,buffersize);
+    nread = pread(fd,buffer,buffersize, offset);
     if (nread<0) {
       free(buffer);
       return false;
