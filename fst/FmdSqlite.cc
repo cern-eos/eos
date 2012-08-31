@@ -204,12 +204,8 @@ FmdSqliteHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid)
       }
     }
     if ( (sqlite3_close(DB[fsid]) ==  SQLITE_OK) ) {
-      DB.erase(fsid);
-      DBfilename.erase(fsid);
       return true;
     }
-    DB.erase(fsid);
-    DBfilename.erase(fsid);
   }
   return false;
 }
