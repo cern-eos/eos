@@ -176,7 +176,7 @@ public:
     int rc=0;
     
     if ((rc = XrdSysThread::Run(&tid, Load::StartLoadThread, static_cast<void *>(this),
-                                0, "Scrubber"))) {
+                                XRDSYSTHREAD_HOLD, "Scrubber"))) {
       return false;
     } else {
       return true;
@@ -185,6 +185,7 @@ public:
 
   virtual ~Load() {
     if (tid) {
+      XrdSysThread::Join(tid,0);
       XrdSysThread::Cancel(tid);
       tid=0;
     }
@@ -193,6 +194,7 @@ public:
   void Measure() {
     while (1) {
       Mutex.Lock();
+      XrdSysThread::SetCancelOff();
       if (!fDiskStat.Measure()) {
         fprintf(stderr,"error: cannot get disk IO statistic\n");
       }
@@ -201,6 +203,7 @@ public:
         fprintf(stderr,"error: cannot get network IO statistic\n");
       }
       Mutex.UnLock();
+      XrdSysThread::SetCancelOn();
       sleep(interval);
     }
   }
