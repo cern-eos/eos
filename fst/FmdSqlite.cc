@@ -62,10 +62,62 @@ FmdSqliteHandler::CallBack(void *object, int argc, char **argv, char **ColName)
   tx->Qr.resize(i+1);
   for (int k=0; k< argc; k++) {
     tx->Qr[i][ColName[k]] = argv[k]?argv[k]:"";
+    //    tx->Qr[i].swap(tx->Qr[i]);
+    //    tx->Qr[i][ColName[k]].swap(tx->Qr[i][ColName[k]]);
   }
   return 0;
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Specialized Callback function to fill the memory objects from the FST SQLITE3 select * 
+ * 
+ * @param see sqlite manual
+ * 
+ * @return fills FmdSqliteMap for the referenced filesystem
+ */
+/*----------------------------------------------------------------------------*/
+int
+FmdSqliteHandler::ReadDBCallBack(void *object, int argc, char **argv, char **ColName)
+{
+  fs_callback_info_t* cbinfo = (fs_callback_info_t*) object;
+  // the object contains the particular map for the used <fsid> 
+
+  eos::fst::FmdSqliteHandler::qr_result_t Qr; // local variable!
+  Qr.resize(1);
+  // fill them into the Qr map
+  for (int k=0; k< argc; k++) {
+    Qr[0][ColName[k]] = argv[k]?argv[k]:"";
+  }
+  eos::common::FileId::fileid_t fid = strtoull(Qr[0]["fid"].c_str(),0,10);
+
+  (*(cbinfo->fmdmap))[fid].fid      = fid;
+  (*(cbinfo->fmdmap))[fid].fsid     = cbinfo->fsid;
+  (*(cbinfo->fmdmap))[fid].cid      = strtoull(Qr[0]["cid"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].ctime    = strtoul(Qr[0]["ctime"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].ctime_ns = strtoul(Qr[0]["ctime_ns"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].mtime    = strtoul(Qr[0]["mtime"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].mtime_ns = strtoul(Qr[0]["mtime_ns"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].atime    = strtoul(Qr[0]["atime"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].atime_ns = strtoul(Qr[0]["atime_ns"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].checktime= strtoul(Qr[0]["checktime"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].size     = strtoull(Qr[0]["size"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].disksize = strtoull(Qr[0]["disksize"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].mgmsize  = strtoull(Qr[0]["mgmsize"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].checksum     = Qr[0]["checksum"].c_str();
+  (*(cbinfo->fmdmap))[fid].diskchecksum = Qr[0]["diskchecksum"].c_str();
+  (*(cbinfo->fmdmap))[fid].mgmchecksum  = Qr[0]["mgmchecksum"].c_str();
+  (*(cbinfo->fmdmap))[fid].lid      = strtoul(Qr[0]["lid"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].uid      = strtoul(Qr[0]["uid"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].gid      = strtoul(Qr[0]["gid"].c_str(),0,10);
+  (*(cbinfo->fmdmap))[fid].name     = Qr[0]["name"].c_str();
+  (*(cbinfo->fmdmap))[fid].container = Qr[0]["container"].c_str();
+  (*(cbinfo->fmdmap))[fid].filecxerror = atoi(Qr[0]["filecxerror"].c_str());
+  (*(cbinfo->fmdmap))[fid].blockcxerror = atoi(Qr[0]["blockcxerror"].c_str());
+  (*(cbinfo->fmdmap))[fid].layouterror = atoi(Qr[0]["layouterror"].c_str());
+  (*(cbinfo->fmdmap))[fid].locations = Qr[0]["locations"].c_str();
+  return 0;
+}
 
 /*----------------------------------------------------------------------------*/
 /** 
@@ -262,42 +314,14 @@ bool FmdSqliteHandler::ReadDBFile(eos::common::FileSystem::fsid_t fsid, XrdOucSt
   XrdOucString query="";
   query = "select * from fst";
   
-  if ((sqlite3_exec(DB[fsid],query.c_str(), CallBack, this, &ErrMsg))) {
+  fs_callback_info_t cbinfo;
+  cbinfo.fsid = fsid;
+  cbinfo.fmdmap = &(FmdSqliteMap[fsid]);
+  // we use a specialized callback to avoid to have everything again in memory at once
+  if ((sqlite3_exec(DB[fsid],query.c_str(), ReadDBCallBack, &cbinfo, &ErrMsg))) {
     eos_err("unable to query - msg=%s\n",ErrMsg);
     return false;
   }
-  
-  qr_result_t::const_iterator it;
-  eos_info("Preloading %lu files into the memory hash", Qr.size());
-  for (size_t i = 0; i< Qr.size(); i++) {
-    eos::common::FileId::fileid_t fid = strtoull(Qr[i]["fid"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].fid      = fid;
-    FmdSqliteMap[fsid][fid].fsid     = fsid;
-    FmdSqliteMap[fsid][fid].cid      = strtoull(Qr[i]["cid"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].ctime    = strtoul(Qr[i]["ctime"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].ctime_ns = strtoul(Qr[i]["ctime_ns"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].mtime    = strtoul(Qr[i]["mtime"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].mtime_ns = strtoul(Qr[i]["mtime_ns"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].atime    = strtoul(Qr[i]["atime"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].atime_ns = strtoul(Qr[i]["atime_ns"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].checktime= strtoul(Qr[i]["checktime"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].size     = strtoull(Qr[i]["size"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].disksize = strtoull(Qr[i]["disksize"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].mgmsize  = strtoull(Qr[i]["mgmsize"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].checksum     = Qr[i]["checksum"];
-    FmdSqliteMap[fsid][fid].diskchecksum = Qr[i]["diskchecksum"];
-    FmdSqliteMap[fsid][fid].mgmchecksum  = Qr[i]["mgmchecksum"];
-    FmdSqliteMap[fsid][fid].lid      = strtoul(Qr[i]["lid"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].uid      = strtoul(Qr[i]["uid"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].gid      = strtoul(Qr[i]["gid"].c_str(),0,10);
-    FmdSqliteMap[fsid][fid].name     = Qr[i]["name"];
-    FmdSqliteMap[fsid][fid].container = Qr[i]["container"];
-    FmdSqliteMap[fsid][fid].filecxerror = atoi(Qr[i]["filecxerror"].c_str());
-    FmdSqliteMap[fsid][fid].blockcxerror = atoi(Qr[i]["blockcxerror"].c_str());
-    FmdSqliteMap[fsid][fid].layouterror = atoi(Qr[i]["layouterror"].c_str());
-    FmdSqliteMap[fsid][fid].locations = Qr[i]["locations"].c_str();
-  }
-  
   return true;
 }
 
@@ -1101,6 +1125,7 @@ FmdSqliteHandler::Query(eos::common::FileSystem::fsid_t fsid, std::string query,
       eos::common::FileId::fileid_t fid = strtoull(Qr[i]["fid"].c_str(),0,10);
       fidvector.push_back(fid);
     }
+    Qr.clear();
     return fidvector.size();
   } else {
     eos_err("no SQL DB open for fsid=%lu", (unsigned long) fsid);

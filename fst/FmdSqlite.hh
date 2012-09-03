@@ -248,21 +248,17 @@ public:
 // ---------------------------------------------------------------------------
 
 class FmdSqliteHandler : public eos::common::LogId {
-  typedef std::vector<std::map< std::string, std::string > > qr_result_t;
-private:
-  bool isOpen;
-  qr_result_t Qr;
-  std::map<eos::common::FileSystem::fsid_t, sqlite3*> DB;
-  std::map<eos::common::FileSystem::fsid_t, std::string> DBfilename;
-
-
-  char* ErrMsg;
-  static int CallBack(void * object, int argc, char **argv, char **ColName);
-  std::map<eos::common::FileSystem::fsid_t, bool> isDirty;
-
-  std::map<eos::common::FileSystem::fsid_t, bool> isSyncing;
 
 public:
+  typedef std::vector<std::map< std::string, XrdOucString > > qr_result_t;
+
+  struct FsCallBackInfo {
+    eos::common::FileSystem::fsid_t fsid;
+    google::dense_hash_map<unsigned long long, struct FmdSqlite::FMD >* fmdmap;
+  };
+
+  typedef struct FsCallBackInfo fs_callback_info_t;
+
   XrdOucString DBDir;            //< path to the directory with the SQLITE DBs
   eos::common::RWMutex Mutex;                 //< Mutex protecting the FMD handler
 
@@ -425,6 +421,20 @@ public:
       ShutdownDB(it->first);
     }
   }
+
+private:
+  bool isOpen;
+  qr_result_t Qr;
+  std::map<eos::common::FileSystem::fsid_t, sqlite3*> DB;
+  std::map<eos::common::FileSystem::fsid_t, std::string> DBfilename;
+
+
+  char* ErrMsg;
+  static int CallBack(void * object, int argc, char **argv, char **ColName);
+  static int ReadDBCallBack(void * object, int argc, char **argv, char **ColName);
+  std::map<eos::common::FileSystem::fsid_t, bool> isDirty;
+
+  std::map<eos::common::FileSystem::fsid_t, bool> isSyncing;
 };
 
 
