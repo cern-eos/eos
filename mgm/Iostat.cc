@@ -276,9 +276,9 @@ Iostat::Receive(void)
 	}
 
 	size_t pos=0;
-	if ( (pos = report->sec_host.rfind(".")) != std::string::npos) {
+	if ( (pos = report->sec_domain.rfind(".")) != std::string::npos) {
 	  // we can sort in by domain
-	  std::string sdomain = report->sec_host.substr(pos);
+	  std::string sdomain = report->sec_domain.substr(pos);
 	  if (IoDomains.find(sdomain) != IoDomains.end()) {
 	    Mutex.Lock();
 	    if (report->rb) 
