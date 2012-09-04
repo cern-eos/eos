@@ -1,0 +1,214 @@
+# ----------------------------------------------------------------------
+# File: eos-repair-tool
+# Author: Andreas-Joachim Peters - CERN
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2011 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+
+# ---------------------------------------------------------------------- #
+# Lightweight terminal tool to ease repair operations on EOS MGMs        #
+# ---------------------------------------------------------------------- #
+
+#!/usr/bin/perl
+
+use Term::ReadKey;
+ReadMode('cbreak');
+
+my $lfnhash=();
+
+while (1) {
+    system("clear");
+    printf("Actions:\n");
+    printf("     r      - grab fsck report\n");
+    printf("     f      - read fsck report from default file /tmp/eos.fsck.report\n");
+    printf("     p      - process fsck report\n");
+    printf("     u      - update fsck report\n");
+    printf("     s      - show fsck status\n");
+    $char = ReadKey(0);
+    last unless defined $char;
+    printf(" Decimal: %d\tHex: %x\n", ord($char), ord($char));
+    if ( $char eq "u" ) {
+	printf(" ===> disabling fsck report and re-enabling to force a quick update\n");
+	system("eos -b fsck disable");
+	sleep(1);
+	system("eos -b fsck enable");
+    }
+    if ( $char eq "s") {
+	system("eos -b fsck stat");
+    }
+    if ( $char eq "r") {
+	printf(" ===> grab fsck report from MGM ...\n");
+	system("eos -b fsck report -a -l > /tmp/eos.fsck.report");
+    }
+    if ( $char eq "f") {
+	my $file = "/tmp/eos.fsck.report";
+	if ( -r "$file" ) {
+	    printf(" ===> loading from $file ...\n");
+	    open IN, "$file";
+	    while (<IN>) {
+		my @args=split(" ", $_);
+		my $item;
+		my $subhash;
+		foreach $item (@args) {
+		    my ($key,$value) = split("=",$item);
+		    $subhash->{$key} = $value;
+		}
+		my @lfns = split(",", $subhash->{"lfn"});
+		my $lfn;
+		foreach $lfn (@lfns) {
+		    $lfnhash->{$subhash->{"tag"}}->{$lfn}=1;
+#		    print $subhash->{"tag"}," $lfn \n";
+		}
+	    }
+	    close IN;
+	    my @sets;
+	    my $cnt=0;
+	    print "Set's to operate:\n";
+	    print "---------------------------------------------\n";
+	    for my $key (keys %$lfnhash) {
+		$count = keys %{$lfnhash->{$key}};
+		printf "[ $cnt ] $key \t %d\n", $count;
+		push @sets, $key;
+		$cnt++;
+	    }
+
+	    $char = ReadKey(0);
+	    my $nfile=0;
+	    my @lfsn;
+	    for my $lfn (keys %{$lfnhash->{@sets[$char]}}) {
+		push @lfns, $lfn;
+	    }
+
+	    my $index=1;
+	    while (1) {
+		$count = $#lfns + 1;
+		system("clear");
+		my $lfn = @lfns[$index-1];
+
+		print "###################################################################################################################\n";
+		print "==> Set to in use is @sets[$char]\n";
+		print "###################################################################################################################\n";
+		printf " LFN ( %10s / %-10s ) $lfn\n", $index, $count;
+		print "\n";
+		print "-------------------------------------------------------------------------------------------------------------------\n";
+		print "- file info -------------------------------------------------------------------------------------------------------\n";
+		print "-------------------------------------------------------------------------------------------------------------------\n";
+		system("eos -b file info $lfn");
+		print "\n";
+		print "-------------------------------------------------------------------------------------------------------------------\n";
+		print "- file check -------------------------------------------------------------------------------------------------------\n";
+		print "-------------------------------------------------------------------------------------------------------------------\n";
+		system("eos -b file check $lfn");
+		print "-------------------------------------------------------------------------------------------------------------------\n";
+		print "\n";
+		print "- error \n";
+		print "-------------------------------------------------------------------------------------------------------------------\n";
+		system("eos -b file check $lfn %silent%output%size%checksum%checksumattr%nrep");
+		print "###################################################################################################################\n";
+		print " Options:\n";
+		print "   <Space>                             : update information\n";
+		print "     'n'                               : next file\n";
+		print "     'p'                               : previous file\n";
+		print "     'q'                               : leave operation mode\n";
+		print "     'r'                               : rescan all and remove entries which don't show an error with 'eos file check'\n";
+		print "     --- \n";
+		print "     'a'                               : send adjustreplica\n";
+		print "     'A'                               : send adjustreplica to all in this set\n";
+		print "     'd'                               : drop a replica\n";
+		print "     'v'                               : send verify\n";
+		print "     'c'                               : send verify + checksum\n";
+		print "     'C'                               : send verify + commit checksum + size\n";
+		print "     'X'                               : send verify + commit checksum\n";
+
+		my $wkey = ReadKey(0);
+		if ($wkey eq "n") {
+		    $index++;
+		    if ($index > $count) {
+			print " WARNING => you are already editing the last file\n";
+			sleep(2);
+			$index--;
+		    }
+		}
+		if ($wkey eq "p") {
+		    $index--;
+		    if ($index < 1) {
+			print " WARNING => you are already editing the first file\n";
+			sleep(2);
+			$index++;
+		    }
+		}
+		if ($wkey eq "a") {
+		    system("eos -b file adjustreplica $lfn");
+		}
+
+		if ($wkey eq "v" ) {
+		    system("eos -b file verify $lfn");
+		}
+
+		if ($wkey eq "c") {
+		    system("eos -b file verify $lfn -checksum");
+		}
+		
+		if ($wkey eq "C") {
+		    system("eos -b file verify $lfn -checksum -commitsize -commitchecksum");
+		}
+		
+		if ($wkey eq "X") {
+		    system("eos -b file verify $lfn -checksum -commitchecksum");
+		}
+		
+		if ($wkey eq "A") {
+		    for my $n (@lfns) {
+			system("eos -b file adjustreplica $n");
+		    }
+		}
+		if ($wkey eq "d") {
+		    printf " Enter Filesystem ID where to drop : ";
+		    ReadMode('normal');
+		    my $replica = <STDIN>;
+		    chomp $replica;
+		    ReadMode('cbreak');
+		    print "? Drop replica on filesystem $replica ? <y/n> \n";
+		    my $conf = ReadKey(0);
+		    if ($conf eq "y") {
+			system("eos -b file drop $lfn $replica");
+		    }  else {
+
+			print " <drop aborted\n";
+			sleep(1);
+		    }
+ 		}
+
+		if ($wkey eq "q" ) {
+		    last;
+		}		
+	    }
+	} else {
+	    printf(" ---- file does not exist!\n");
+	}
+    }
+    if ( $char eq "p") {
+	printf(" ===> process fsck report ...\n");
+    }
+    $char = ReadKey(0);
+    last unless defined $char;
+}
+
+ReadMode('normal');
