@@ -41,6 +41,7 @@ std::set<std::string> Access::gAllowedHosts;//! singleton set for allowed host n
 
 std::map<std::string, std::string> Access::gRedirectionRules; //! singleton map for redirection rules
 std::map<std::string, std::string> Access::gStallRules;       //! singleton map for stall rules
+std::map<std::string,std::string> Access::gStallComment;//! singleton map for stall comments
 
 std::map<uid_t, std::string> Access::gUserRedirection;  //! singleton map for UID based redirection (not used yet)
 std::map<gid_t, std::string> Access::gGroupRedirection; //! singleton map for GID based redirection (not used yet)
@@ -77,6 +78,7 @@ Access::Reset() {
   Access::gAllowedHosts.clear();
   Access::gRedirectionRules.clear();
   Access::gStallRules.clear();
+  Access::gStallComment.clear();
   Access::gUserRedirection.clear();
   Access::gGroupRedirection.clear();
 }
@@ -171,8 +173,14 @@ Access::ApplyAccessConfig()
     if (tokens[i].length()) {
       subtokens.clear();
       eos::common::StringConversion::Tokenize(tokens[i],subtokens, subdelimiter);
-      if (subtokens.size()==2) {
+      if (subtokens.size()>=2) {
 	Access::gStallRules[subtokens[0]]= subtokens[1];
+	if (subtokens.size()==3) {
+	  XrdOucString comment = subtokens[2].c_str();
+	  while (comment.replace("_#KOMMA#_",",")) {}
+	  while (comment.replace("_#TILDE#_","~")) {}
+	  Access::gStallComment[subtokens[0]] = comment.c_str();
+	}
       }
     }
   }
@@ -247,6 +255,11 @@ Access::StoreAccessConfig()
     stall += itstall->first.c_str();
     stall += "~";
     stall += itstall->second.c_str();
+    stall += "~";
+    XrdOucString comment = Access::gStallComment[itstall->first].c_str();
+    while (comment.replace(",","_#KOMMA#_")) {}
+    while (comment.replace("~","_#TILDE#_")) {}
+    stall += comment.c_str();
     stall += ",";
   }
   for (itredirect = Access::gRedirectionRules.begin(); itredirect != Access::gRedirectionRules.end(); itredirect++) {

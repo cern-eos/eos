@@ -213,6 +213,7 @@ XrdMgmOfs::ShouldStall(const char* function,  int __AccessMode__, eos::common::M
 {
   // check for user, group or host banning
   eos::common::RWMutexReadLock lock(Access::gAccessMutex);
+  std::string smsg="";
   if ( (vid.uid > 3) && 
        ( Access::gBannedUsers.count(vid.uid) ||
          Access::gBannedGroups.count(vid.gid) ||
@@ -224,19 +225,22 @@ XrdMgmOfs::ShouldStall(const char* function,  int __AccessMode__, eos::common::M
     if (Access::gStallRules.size()) {
       if (Access::gStallRules.count(std::string("*"))) {
 	stalltime = atoi(Access::gStallRules[std::string("*")].c_str());
+	smsg = Access::gStallComment[std::string("*")];
       } else {
 	if ( IS_ACCESSMODE_R) {
 	  stalltime = atoi(Access::gStallRules[std::string("r:*")].c_str());
+	  smsg = Access::gStallComment[std::string("r:*")];
 	} else {
 	  stalltime = atoi(Access::gStallRules[std::string("w:*")].c_str());
+	  smsg = Access::gStallComment[std::string("w:*")];
 	}
       }
     } else {
       stalltime = 300;
     }
     stallmsg="Attention: you are currently hold in this instance and each request is stalled for ";
-    stallmsg += (int) stalltime; stallmsg += " seconds ...";
-    eos_static_info("info=\"denying access to\" uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
+    stallmsg += (int) stalltime; stallmsg += " seconds ... ";stallmsg += smsg.c_str();
+    eos_static_info("info=\"stalling access to\" uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
     return true;
   } else {
     if (Access::gStallRules.size()) {
@@ -245,7 +249,7 @@ XrdMgmOfs::ShouldStall(const char* function,  int __AccessMode__, eos::common::M
 	  stalltime = atoi(Access::gStallRules[std::string("*")].c_str());
 	  stallmsg="Attention: you are currently hold in this instance and each request is stalled for ";
 	  stallmsg += (int) stalltime; stallmsg += " seconds ...";
-	  eos_static_info("info=\"denying access to\" uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
+	  eos_static_info("info=\"stalling access to\" uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
 	  return true;
 	}
       }

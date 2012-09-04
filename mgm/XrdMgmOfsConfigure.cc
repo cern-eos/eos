@@ -74,13 +74,16 @@ XrdMgmOfs::InitializeFileView()
   }
   time_t tstart = time(0);
   std::string oldstallrule="";
+  std::string oldstallcomment="";
   // set the client stall
   {
     eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
     if (Access::gStallRules.count(std::string("*"))) {
       oldstallrule = Access::gStallRules[std::string("*")];
+      oldstallcomment = Access::gStallComment[std::string("*")];
     }
     Access::gStallRules[std::string("*")] = "10";
+    Access::gStallComment[std::string("*")] = "namespace is booting";
   }
 
   try {
@@ -160,6 +163,11 @@ XrdMgmOfs::InitializeFileView()
 	Access::gStallRules[std::string("*")] = oldstallrule;
       } else {
 	Access::gStallRules.erase(std::string("*"));
+      }
+      if (oldstallcomment.length()) {
+	Access::gStallComment[std::string("*")] = oldstallcomment;
+      } else {
+	Access::gStallComment.erase(std::string("*"));
       }
     }
     gOFS->eosViewRWMutex.UnLockWrite();

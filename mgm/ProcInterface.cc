@@ -557,11 +557,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             if ( (atoi(stall.c_str()) >0) && ( (type.length()==0) || (type=="r") || (type=="w"))) {
 	      if (type == "r") {
 		Access::gStallRules[std::string("r:*")] = stall;
+		Access::gStallComment[std::string("r:*")] = comment.c_str();
 	      } else {
 		if (type == "w") {
 		  Access::gStallRules[std::string("w:*")] = stall;
+		  Access::gStallComment[std::string("w:*")] = comment.c_str();
 		} else {
 		  Access::gStallRules[std::string("*")] = stall;
+		  Access::gStallComment[std::string("*")] = comment.c_str();
 		}
 	      }
 	      if (Access::StoreAccessConfig()) {
@@ -617,11 +620,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      stdOut = "success: removing global stall time"; if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
 	      if (type == "r") {
 		Access::gStallRules.erase(std::string("r:*"));
+		Access::gStallComment.erase(std::string("r:*"));
 	      } else {
 		if (type == "w") {
 		  Access::gStallRules.erase(std::string("w:*"));
+		  Access::gStallComment.erase(std::string("w:*"));
 		} else {
 		  Access::gStallRules.erase(std::string("*"));
+		  Access::gStallComment.erase(std::string("*"));
 		}
 	      }
 	      if (Access::StoreAccessConfig()) {
@@ -839,9 +845,18 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             } else {
               char counter[1024]; snprintf(counter,sizeof(counter)-1, "[ %02d ] %32s => ",cnt, itred->first.c_str());
               stdOut += counter;
+	      
             }
             
             stdOut += itred->second.c_str();
+	    if (monitoring) {
+	      stdOut += " comment=\""; 
+	      stdOut += Access::gStallComment[itred->first].c_str();
+	      stdOut += "\"";
+	    } else {
+	      stdOut += "\t";
+	      stdOut += Access::gStallComment[itred->first].c_str();
+	    }
             stdOut += "\n";
           }
         }
