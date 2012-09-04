@@ -118,7 +118,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig) {
     gOFS.Messaging=0;
   }
 
-  eos_static_warning("op=shutdown status=completed");
+  eos_static_warning("%s","op=shutdown status=completed");
 
   exit(0);
 }
@@ -661,6 +661,30 @@ XrdFstOfsFile::open(const char                *path,
     SecString = secinfo;
   }
 
+  if ((val = capOpaque->Get("mgm.minsize"))) {
+    errno=0;
+    minsize = strtoull(val,0,10);
+    if (errno) {
+      eos_err("illegal minimum file size specified <%s>- restricting to 1 byte", val);
+      minsize=1;
+    }
+  } else {
+    minsize=0;
+  }
+
+  if ((val = capOpaque->Get("mgm.maxsize"))) {
+    errno=0;
+    maxsize = strtoull(val,0,10);
+    if (errno) {
+      eos_err("illegal maximum file size specified <%s>- restricting to 1 byte", val);
+      maxsize=1;
+    }
+  } else {
+    maxsize=0;
+  }
+
+
+
   // if we open a replica we have to take the right filesystem id and filesystem prefix for that replica
   if (openOpaque->Get("mgm.replicaindex")) {
     XrdOucString replicafsidtag="mgm.fsid"; replicafsidtag += (int) atoi(openOpaque->Get("mgm.replicaindex"));
@@ -1057,11 +1081,11 @@ XrdFstOfsFile::verifychecksum()
     if (!isRW) {
       // we don't rescan files if they are read non-sequential
       if ( (checkSum->GetMaxOffset() != openSize) ) {
-        eos_info("info=\"skipping checksum (re-scan) for files > 64M ...\"");
-        // remove the checksum object
-        delete checkSum;
-        checkSum=0;
-        return false;
+	eos_info("info=\"skipping checksum (re-scan) for non-sequential reading ...\"");
+	// remove the checksum object
+	delete checkSum;
+	checkSum=0;
+	return false;
       }
     }
 
@@ -1073,7 +1097,7 @@ XrdFstOfsFile::verifychecksum()
       checkSum=0;
       return false;
     }
-    
+
     if (checkSum->NeedsRecalculation()) {
       unsigned long long scansize=0;
       float scantime = 0; // is ms
@@ -1162,6 +1186,7 @@ XrdFstOfsFile::close()
   bool checksumerror=false;
   bool targetsizeerror=false;
   bool committed=false;
+  bool minimumsizeerror=false;
 
   // -------------------------------------------------------------------------------------------------------
   // we enter the close logic only once since there can be an explicit close or a close via the destructor
@@ -1243,7 +1268,14 @@ XrdFstOfsFile::close()
       // call checksum verification
       checksumerror = verifychecksum();
       targetsizeerror = (targetsize)?(targetsize!=(off_t)maxOffsetWritten):false;
-
+      if (isCreation) {
+	// check that the minimum file size policy is met!
+	minimumsizeerror = (minsize)?( (off_t)maxOffsetWritten < minsize):false;
+	
+	if (minimumsizeerror) {
+	  eos_warning("written file %s is smaller than required minimum file size=%llu written=%llu", Path.c_str(), minsize, maxOffsetWritten);
+	}
+      }
       // ---- add error simulation for checksum errors on read
       if ((!isRW) && gOFS.Simulate_XS_read_error) {
 	checksumerror = true;
@@ -1256,7 +1288,7 @@ XrdFstOfsFile::close()
 	eos_warning("simlating checksum errors on write");
       }
 
-      if (isCreation && (checksumerror||targetsizeerror)) {
+      if (isCreation && (checksumerror||targetsizeerror||minimumsizeerror)) {
 	// -------------------------------------------------------------------------------------------------------
 	// we have a checksum error if the checksum was preset and does not match!
 	// we have a target size error, if the target size was preset and does not match!
@@ -1292,7 +1324,7 @@ XrdFstOfsFile::close()
       // first we assume that, if we have writes, we update it
       closeSize = openSize;
       
-      if ((!checksumerror) && (haswrite || isCreation)) {
+      if ((!checksumerror) && (haswrite || isCreation) && (!minimumsizeerror)) {
 	// commit meta data
 	struct stat statinfo;
 	if ((rc = layOut->stat(&statinfo))) {
@@ -1517,8 +1549,12 @@ XrdFstOfsFile::close()
     }
 
     rc = SFS_ERROR;
- 
-    gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because of a consistency error (either IO, checksum or size error)",Path.c_str());
+
+    if (minimumsizeerror) {
+      gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because it is smaller than the required minimum file size in that directory", Path.c_str());
+    } else {
+      gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because of a consistency error (either IO, checksum or size error)",Path.c_str());
+    }
     
     if (fstBlockXS) {
       fstBlockXS->CloseMap();
@@ -1752,6 +1788,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset   fileOffset,
 {
 
   if (gOFS.Simulate_IO_write_error) {
+    writeErrorFlag=kOfsSimulatedIoError;
     return gOFS.Emsg("readofs", error, EIO, "write file - simulated IO error fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
   }
 
@@ -1759,16 +1796,30 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset   fileOffset,
     // check if the file system is full
     XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
     if (gOFS.Storage->fileSystemFullMap[fsid]) {
+      writeErrorFlag=kOfsDiskFullError;
+
       return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space (headroom) exceeded fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
     }
   }
 
+  if (maxsize) {
+    // check that the user didn't exceed the maximum file size policy
+    if ( (fileOffset + buffer_size) > maxsize ) {
+      writeErrorFlag=kOfsMaxSizeError;
+      return gOFS.Emsg("writeofs", error, ENOSPC, "write file - your file exceeds the maximum file size setting of bytes<=", capOpaque?(capOpaque->Get("mgm.maxsize")?capOpaque->Get("mgm.maxsize"):"<undef>"):"undef");
+    }
+  }
   if (fstBlockXS) {
     XrdSysMutexHelper cLock(BlockXsMutex);
     fstBlockXS->AddBlockSum(fileOffset, buffer, buffer_size);
   }
   
-  return XrdOfsFile::write(fileOffset,buffer,buffer_size);
+  int rc = XrdOfsFile::write(fileOffset,buffer,buffer_size);
+  if (rc!=buffer_size) {
+    writeErrorFlag=kOfsIoError;
+  };
+
+  return rc;
 }
 
 
@@ -1819,7 +1870,27 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
     if (isCreation) {
       // add to the error message that this file has been removed after the error - which happens for creations
       XrdOucString newerr = error.getErrText();
-      newerr += " => file has been removed";
+      if (writeErrorFlag == kOfsSimulatedIoError) {
+	newerr += " => file has been removed because of a simulated IO error";
+      } else {
+	if (writeErrorFlag == kOfsDiskFullError) {
+	  newerr += " => file has been removed because the target filesystem  was full";
+	} else {
+	  if (writeErrorFlag == kOfsMaxSizeError) {
+	    newerr += " => file has been removed because the maximum target filesize defined for that subtree was exceeded (maxsize=";
+	    char smaxsize[16];
+	    snprintf(smaxsize,sizeof(smaxsize)-1, "%llu", (unsigned long long) maxsize);
+	    newerr += smaxsize;
+	    newerr += " bytes)";
+	  } else {
+	    if (writeErrorFlag == kOfsIoError) {
+	      newerr += " => file has been removed due to an IO error on the target filesystem";
+	    } else {
+	      newerr += " => file has been removed due to an IO error (unspecified)";
+	    }
+	  }
+	}
+      }
       error.setErrInfo(error.getErrInfo(),newerr.c_str());
     }
   }
