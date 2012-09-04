@@ -756,6 +756,10 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   Acl acl;
   bool stdpermcheck=false;
 
+  uid_t d_uid = vid.uid;
+  gid_t d_gid = vid.gid;
+
+
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     //-------------------------------------------
@@ -779,6 +783,8 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 	  fmdlid = fmd->getLayoutId();
 	  cid    = fmd->getContainerId();
 	}
+	d_uid = dmd->getCUid();
+	d_gid = dmd->getCGid();
       }
       else
 	fmd = 0;
@@ -791,7 +797,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     
     //-------------------------------------------
     // check permissions
-    
+
     if (!dmd) {
       if (cPath.GetSubPath(2)) {
 	eos_info("info=\"checking l2 path\" path=%s", cPath.GetSubPath(2));
@@ -840,6 +846,24 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
       gOFS->MgmStats.Add("OpenFailedENOENT",vid.uid,vid.gid,1);  
       return Emsg(epname, error, errno, "open file", path);
     } 
+
+    //-------------------------------------------
+    // Check for sys.ownerauth entries, which let people operate as the owner of the directory
+    if (attrmap.count("sys.owner.auth")) {
+      attrmap["sys.owner.auth"] += ",";
+      std::string ownerkey=vid.prot.c_str(); ownerkey += ":"; 
+      if (vid.prot == "gsi") {
+	ownerkey += vid.dn.c_str();
+      } else {
+	ownerkey += vid.name.c_str();
+      }
+      if ( (attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos) {
+	eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path,  vid.uid, vid.gid, d_uid, d_gid);
+	// yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
+	vid.uid = d_uid;
+	vid.gid = d_gid;
+      }
+    }
     
     // ACL and permission check
     acl.Set(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
@@ -1072,6 +1096,8 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 
   unsigned long long bookingsize; // the size which will be reserved with a placement of one replica for that file
   unsigned long long targetsize = 0;
+  unsigned long long minimumsize = 0;
+  unsigned long long maximumsize = 0;
 
   if (attrmap.count("sys.forced.bookingsize")) {
     // we allow only a system attribute not to get fooled by a user
@@ -1089,6 +1115,14 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
         }
       }
     }
+  }
+
+  if (attrmap.count("sys.forced.minsize")) {
+    minimumsize = strtoull(attrmap["sys.forced.minsize"].c_str(), 0,10);
+  }
+
+  if (attrmap.count("sys.forced.maxsize")) {
+    maximumsize = strtoull(attrmap["sys.forced.maxsize"].c_str(), 0,10);
   }
 
   if (openOpaque->Get("oss.asize")) {
@@ -1284,7 +1318,17 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   // space to be prebooked/allocated
   capability += "&mgm.bookingsize=";
   capability += eos::common::StringConversion::GetSizeString(sizestring,bookingsize);
+  
+  if (minimumsize) {
+    capability += "&mgm.minsize=";
+    capability += eos::common::StringConversion::GetSizeString(sizestring, minimumsize);
+  }
 
+  if (maximumsize) {
+    capability += "&mgm.maxsize=";
+    capability += eos::common::StringConversion::GetSizeString(sizestring, maximumsize);
+  }
+  
   // expected size of the target file on close
   if (targetsize) {
     capability += "&mgm.targetsize=";
@@ -2253,11 +2297,31 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	noParent = true;
       }
     }
-    
+
     // check permission
     if (dir ) {
+      uid_t d_uid = dir->getCUid();
+      gid_t d_gid = dir->getCGid();
+
       // ACL and permission check
       Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
+
+      // Check for sys.owner.auth entries, which let people operate as the owner of the directory
+      if (attrmap.count("sys.owner.auth")) {
+	attrmap["sys.owner.auth"] += ",";
+	std::string ownerkey=vid.prot.c_str(); ownerkey += ":"; 
+	if (vid.prot == "gsi") {
+	  ownerkey += vid.dn.c_str();
+	} else {
+	  ownerkey += vid.name.c_str();
+	}
+	if ( (attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos) {
+	  eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path,  vid.uid, vid.gid, d_uid, d_gid);
+	  // yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
+	  vid.uid = d_uid;
+	  vid.gid = d_gid;
+	}
+      }
       
       eos_info("acl=%d r=%d w=%d wo=%d egroup=%d", acl.HasAcl(),acl.CanRead(),acl.CanWrite(),acl.CanWriteOnce(), acl.HasEgroup());
       bool stdpermcheck=false;
