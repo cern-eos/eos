@@ -1677,6 +1677,52 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 stdErr="error: cannto set config status";
                 retc = EIO;
               }
+	      if (status == "on") {
+		// recompute the drain status in this group
+		FsGroup::const_iterator git;
+		bool setactive=false;
+		FileSystem* fs = 0;
+		if (FsView::gFsView.mGroupView.count(groupname)) {
+		  for ( git = FsView::gFsView.mGroupView[groupname]->begin(); git != FsView::gFsView.mGroupView[groupname]->end(); git++) {
+		    if (FsView::gFsView.mIdView.count(*git)) {
+		      int drainstatus = (eos::common::FileSystem::GetDrainStatusFromString(FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str()));
+		      if ( (drainstatus == eos::common::FileSystem::kDraining) ||
+			   (drainstatus == eos::common::FileSystem::kDrainStalling ) ) {
+			// if any group filesystem is draining, all the others have to enable the pull for draining!
+			setactive=true;
+		      }
+		    }
+		  }
+		  for ( git = FsView::gFsView.mGroupView[groupname]->begin(); git != FsView::gFsView.mGroupView[groupname]->end(); git++) {
+		    fs = FsView::gFsView.mIdView[*git];
+		    if (fs) {
+		      if (setactive) {
+			if (fs->GetString("stat.drainer") != "on") {
+			  fs->SetString("stat.drainer","on");
+			}
+		      } else {
+			if (fs->GetString("stat.drainer") != "off") {
+			  fs->SetString("stat.drainer","off");
+			}
+		      }
+		    }
+		  }
+		}		
+	      } 
+	      if (status == "off") {
+		// disable all draining in this group
+		// recompute the drain status in this group
+		FsGroup::const_iterator git;
+		FileSystem* fs = 0;
+		if (FsView::gFsView.mGroupView.count(groupname)) {
+		  for ( git = FsView::gFsView.mGroupView[groupname]->begin(); git != FsView::gFsView.mGroupView[groupname]->end(); git++) {
+		    fs = FsView::gFsView.mIdView[*git];
+		    if (fs) {
+		      fs->SetString("stat.drainer","off");
+		    }
+		  }
+		}
+	      }
             }
           }
         } else {

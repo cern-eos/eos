@@ -122,7 +122,7 @@ DrainJob::SetDrainer()
 	    fs->SetString("stat.drainer","on");
 	  }
 	} else {
-	  if (fs->GetString("stat.drainer") == "on") {
+	  if (fs->GetString("stat.drainer") != "off") {
 	    fs->SetString("stat.drainer","off");
 	  }
 	}
