@@ -131,6 +131,7 @@ while (1) {
 		print "     --- \n";
 		print "     'a'                               : send adjustreplica\n";
 		print "     'A'                               : send adjustreplica to all in this set\n";
+		print "     'V'                               : send verify to all in this set\n";
 		print "     'd'                               : drop a replica\n";
 		print "     'v'                               : send verify\n";
 		print "     'c'                               : send verify + checksum\n";
@@ -179,6 +180,13 @@ while (1) {
 			system("eos -b file adjustreplica $n");
 		    }
 		}
+
+		if ($wkey eq "V") {
+		    for my $n (@lfns) {
+			system("eos -b file verify $n");
+		    }	
+		}   	
+			
 		if ($wkey eq "d") {
 		    printf " Enter Filesystem ID where to drop : ";
 		    ReadMode('normal');
