@@ -146,5 +146,7 @@ com_group (char* arg1) {
   fprintf(stdout,"                                                                --IO : print IO statistics for each filesystem\n");
   fprintf(stdout,"       group rm <group-name>                                         : remove group\n");
   fprintf(stdout,"       group set <group-name> on|off                                 : activate/deactivate group\n");
+  fprintf(stdout,"                                                                       => when a group is (re-)enabled, the drain pull flag is recomputed for all filesystems within a group\n");
+  fprintf(stdout,"                                                                       => when a group is (re-)disabled, the drain pull flag is removed from all members in the group\n");
   return (0);
 }

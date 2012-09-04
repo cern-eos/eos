@@ -1660,10 +1660,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
             if (!FsView::gFsView.mGroupView.count(groupname)) {
               stdOut="info: creating group '"; stdOut += groupname.c_str(); stdOut += "'";
-              
-              //            stdErr="error: no such group '"; stdErr += groupname.c_str(); stdErr += "'";
-              //retc = ENOENT;
-              
+
               if (!FsView::gFsView.RegisterGroup(groupname.c_str())) {
                 std::string groupconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(gOFS->GroupConfigQueuePrefix.c_str(), groupname.c_str());
                 retc= EIO;

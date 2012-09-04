@@ -114,6 +114,10 @@ DrainJob::SetDrainer()
 	}
       }
     }
+    // if the group get's disabled we stop the draining
+    if (FsView::gFsView.mGroupView[group]->GetConfigMember("status") != "on") {
+      setactive=false;
+    }
     for ( git = FsView::gFsView.mGroupView[group]->begin(); git != FsView::gFsView.mGroupView[group]->end(); git++) {
       fs = FsView::gFsView.mIdView[*git];
       if (fs) {
