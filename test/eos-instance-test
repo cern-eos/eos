@@ -344,6 +344,23 @@ runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instance
 runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-ODeos.space=default"
 
 
+# --------------------------
+# Constrain minimum file size
+# --------------------------
+runtest "### Mkdir     " unix 0 "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/minsize"
+runtest "### Attr      " unix 0 "" eos attr set sys.forced.minimumsize=1000000 /eos/$EOS_TEST_INSTANCE/test/instancetest/minsize
+runtest "### Upload    " unix 1 "" upload   "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/minsize/f1"
+runtest "### Upload    " unix 0 "" upload   "$TESTSYSFILE1M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/minsize/f1"
+runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/minsize"
+
+# --------------------------
+# Constrain maximum file size
+# --------------------------
+runtest "### Mkdir     " unix 0 "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/maxsize"
+runtest "### Attr      " unix 0 "" eos attr set sys.forced.maximumsize=1000000 /eos/$EOS_TEST_INSTANCE/test/instancetest/minsize
+runtest "### Upload    " unix 1 "" upload   "$TESTSYSFILE1M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/maxsize/f1"
+runtest "### Upload    " unix 0 "" upload   "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/maxsize/f1"
+runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/maxsize"
 
 # --------------------------
 # Control-C
