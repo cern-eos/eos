@@ -166,7 +166,12 @@ ReplicaParLayout::open(const char                *path,
 	  EnvPutInt(NAME_READCACHESIZE,0);
           replicaClient[i] = new XrdClient(replicaUrl[i].c_str());
           
-          eos_info("Opening Layout Stripe %s\n", replicaUrl[i].c_str());
+	  XrdOucString maskUrl = replicaUrl[i].c_str()?replicaUrl[i].c_str():"";
+	  // mask some opaque parameters to shorten the logging                                                                                                                                                
+	  eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
+	  eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
+	  eos::common::StringConversion::MaskTag(maskUrl,"authz");
+          eos_info("Opening Layout Stripe %s\n", maskUrl.c_str());
           // write case
           if (!replicaClient[i]->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or, kXR_async | kXR_mkpath | kXR_open_updt | kXR_new, false)) {
             // open failed
