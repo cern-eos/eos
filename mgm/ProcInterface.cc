@@ -214,6 +214,11 @@ ProcCommand::OpenTemporaryOutputFiles() {
     return false;
   }
 
+  // own the directory by daemon
+  if (::chown(cPath.GetParentPath(),2,2)) {
+    eos_err("Unable to own temporary outputfile directory %s", cPath.GetParentPath());
+  }
+
   fstdout       = fopen(fstdoutfilename.c_str(),"w");
   fstderr       = fopen(fstderrfilename.c_str(),"w");
   fresultStream = fopen(fresultStreamfilename.c_str(),"w+");
