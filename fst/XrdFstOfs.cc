@@ -1517,7 +1517,6 @@ XrdFstOfsFile::close()
   }
   
   if (deleteOnClose && isCreation) {
-    eos_info("info=\"deleting on close\" fn=%s fstpath=%s\n", capOpaque->Get("mgm.path"), fstPath.c_str());
     int retc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid, true);
     if (retc) {
       eos_debug("<rem> returned retc=%d", retc);
@@ -1552,8 +1551,35 @@ XrdFstOfsFile::close()
 
     if (minimumsizeerror) {
       gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because it is smaller than the required minimum file size in that directory", Path.c_str());
+      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"minimum file size criteria\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());    
     } else {
-      gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because of a consistency error (either IO, checksum or size error)",Path.c_str());
+      if (checksumerror) {
+	gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because of a checksum error ",Path.c_str());
+	eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"checksum error\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+      } else {
+	if (writeErrorFlag == kOfsSimulatedIoError) {
+	  gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because of a simulated IO error ",Path.c_str());
+	  eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"simulated IO error\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+	} else {
+	  if (writeErrorFlag == kOfsMaxSizeError) {
+	    gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because you exceeded the maximum file size settings for this namespace branch",Path.c_str());
+	    eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"maximum file size criteria\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+	  } else {
+	    if (writeErrorFlag == kOfsDiskFullError) {
+	      gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because the target disk filesystem got full and you didn't use reservation",Path.c_str());
+	      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"filesystem full\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+	    } else {
+	      if (writeErrorFlag == kOfsIoError) {
+		gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because of an IO error during a write operation",Path.c_str());
+	      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"write IO error\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+	      } else {
+		gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because of a generic IO error)",Path.c_str());
+		eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"generic IO error\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+	      }		
+	    }
+	  }
+	}
+      }
     }
     
     if (fstBlockXS) {
@@ -1688,7 +1714,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
     XrdSysMutexHelper cLock (BlockXsMutex);
     if ((retc>0) && (!fstBlockXS->CheckBlockSum(fileOffset, buffer, retc))) {
       int envlen=0;
-      eos_crit("block-xs error offset=%llu len=%llu file=%s",(unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());
+      eos_err("block-xs error offset=%llu len=%llu file=%s",(unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());
       return gOFS.Emsg("readofs", error, EIO, "read file - wrong block checksum fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
     }
   }
@@ -1746,7 +1772,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
   if (rc < 0) {
     // here we might take some other action
     int envlen=0;
-    eos_crit("block-read error=%d offset=%llu len=%llu file=%s",error.getErrInfo(), (unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());      
+    eos_err("block-read error=%d offset=%llu len=%llu file=%s",error.getErrInfo(), (unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());      
   }
 
   eos_debug("rc=%d offset=%lu size=%llu",rc, fileOffset,(unsigned long long) buffer_size);
@@ -1864,35 +1890,39 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
 
   if (rc <0) {
     int envlen=0;
-    eos_crit("block-write error=%d offset=%llu len=%llu file=%s",error.getErrInfo(), (unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());      
     // indicate the deletion flag for write errors
     viaDelete = true;
+    XrdOucString errdetail;
     if (isCreation) {
+      XrdOucString newerr;
+      
       // add to the error message that this file has been removed after the error - which happens for creations
-      XrdOucString newerr = error.getErrText();
+      newerr = error.getErrText();
       if (writeErrorFlag == kOfsSimulatedIoError) {
-	newerr += " => file has been removed because of a simulated IO error";
+	errdetail += " => file has been removed because of a simulated IO error";
       } else {
 	if (writeErrorFlag == kOfsDiskFullError) {
-	  newerr += " => file has been removed because the target filesystem  was full";
+	  errdetail += " => file has been removed because the target filesystem  was full";
 	} else {
 	  if (writeErrorFlag == kOfsMaxSizeError) {
-	    newerr += " => file has been removed because the maximum target filesize defined for that subtree was exceeded (maxsize=";
+	    errdetail += " => file has been removed because the maximum target filesize defined for that subtree was exceeded (maxsize=";
 	    char smaxsize[16];
 	    snprintf(smaxsize,sizeof(smaxsize)-1, "%llu", (unsigned long long) maxsize);
-	    newerr += smaxsize;
-	    newerr += " bytes)";
+	    errdetail += smaxsize;
+	    errdetail += " bytes)";
 	  } else {
 	    if (writeErrorFlag == kOfsIoError) {
-	      newerr += " => file has been removed due to an IO error on the target filesystem";
+	      errdetail += " => file has been removed due to an IO error on the target filesystem";
 	    } else {
-	      newerr += " => file has been removed due to an IO error (unspecified)";
+	      errdetail += " => file has been removed due to an IO error (unspecified)";
 	    }
 	  }
 	}
       }
+      newerr += errdetail.c_str();
       error.setErrInfo(error.getErrInfo(),newerr.c_str());
     }
+    eos_err("block-write error=%d offset=%llu len=%llu file=%s error=\"%s\"",error.getErrInfo(), (unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName(), errdetail.c_str());      
   }
 
   return rc;

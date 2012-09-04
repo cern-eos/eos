@@ -175,8 +175,8 @@ ReplicaParLayout::open(const char                *path,
           // write case
           if (!replicaClient[i]->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or, kXR_async | kXR_mkpath | kXR_open_updt | kXR_new, false)) {
             // open failed
-            eos_err("Failed to open stripes - remote open failed on ", replicaUrl[i].c_str());
-            return gOFS.Emsg("ReplicaParOpen",*error, EREMOTEIO, "open stripes - remote open failed ", replicaUrl[i].c_str());
+            eos_err("Failed to open stripes - remote open failed on ", maskUrl.c_str());
+            return gOFS.Emsg("ReplicaParOpen",*error, EREMOTEIO, "open stripes - remote open failed ", maskUrl.c_str());
           }
         } else {
           // read case just uses one replica
@@ -213,15 +213,27 @@ ReplicaParLayout::read(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize len
     if (replicaClient[0]) {
       rc2 = replicaClient[0]->Read(buffer, offset, length);
       if (rc2 != length) {
-        eos_err("Failed to read remote replica - read failed - %llu %llu %s", offset, length, replicaUrl[0].c_str());
-        return gOFS.Emsg("ReplicaParRead",*error, EREMOTEIO, "read remote replica - read failed", replicaUrl[0].c_str());
+	XrdOucString maskUrl = replicaUrl[0].c_str()?replicaUrl[0].c_str():"";
+	// mask some opaque parameters to shorten the logging                                                                                                                                                
+	eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
+	eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
+	eos::common::StringConversion::MaskTag(maskUrl,"authz");
+	
+        eos_err("Failed to read remote replica - read failed - %llu %llu %s", offset, length, maskUrl.c_str());
+        return gOFS.Emsg("ReplicaParRead",*error, EREMOTEIO, "read remote replica - read failed", maskUrl.c_str());
       }
     }
   }
 
   if (rc1 <0) {
-    eos_err("Failed to read local replica - read failed - %llu %llu %s", offset, length, replicaUrl[0].c_str());
-    return gOFS.Emsg("ReplicaParRead",*error, errno, "read local replica - read failed", replicaUrl[0].c_str());
+    XrdOucString maskUrl = replicaUrl[0].c_str()?replicaUrl[0].c_str():"";
+    // mask some opaque parameters to shorten the logging                                                                                                                                                
+    eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
+    eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
+    eos::common::StringConversion::MaskTag(maskUrl,"authz");
+	  
+    eos_err("Failed to read local replica - read failed - %llu %llu %s", offset, length, maskUrl.c_str());
+    return gOFS.Emsg("ReplicaParRead",*error, errno, "read local replica - read failed", maskUrl.c_str());
   }
 
   return rc1;
@@ -241,15 +253,27 @@ ReplicaParLayout::write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize le
   for (int i=0; i< nStripes; i++) {
     if (replicaClient[i]) {
       if (!replicaClient[i]->Write(buffer, offset, length)) {
-        eos_err("Failed to write remote replica - write failed - %llu %llu %s", offset, length, replicaUrl[i].c_str());
+	XrdOucString maskUrl = replicaUrl[i].c_str()?replicaUrl[i].c_str():"";
+	// mask some opaque parameters to shorten the logging                                                                                                                                                
+	eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
+	eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
+	eos::common::StringConversion::MaskTag(maskUrl,"authz");
+	
+        eos_err("Failed to write remote replica - write failed - %llu %llu %s", offset, length, maskUrl.c_str());
         rc2 = 0;
       }
     }
   }
 
   if (rc1 <0) {
-    eos_err("Failed to write local replica - write failed - %llu %llu %s", offset, length, replicaUrl[0].c_str());
-    return gOFS.Emsg("ReplicaWrite",*error, errno, "write local replica - write failed", replicaUrl[0].c_str());
+    XrdOucString maskUrl = replicaUrl[0].c_str()?replicaUrl[0].c_str():"";
+    // mask some opaque parameters to shorten the logging                                                                                                                                                
+    eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
+    eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
+    eos::common::StringConversion::MaskTag(maskUrl,"authz");
+    
+    eos_err("Failed to write local replica - write failed - %llu %llu %s", offset, length, maskUrl.c_str());
+    return gOFS.Emsg("ReplicaWrite",*error, errno, "write local replica - write failed", maskUrl.c_str());
   }
 
   if (!rc2) {
@@ -273,15 +297,27 @@ ReplicaParLayout::truncate(XrdSfsFileOffset offset)
   for (int i=0; i< nStripes; i++) {
     if (replicaClient[i]) {
       if (!replicaClient[i]->Truncate(offset)) {
-        eos_err("Failed to truncate remote replica - %llu %s", offset, replicaUrl[i].c_str());
+	XrdOucString maskUrl = replicaUrl[i].c_str()?replicaUrl[i].c_str():"";
+	// mask some opaque parameters to shorten the logging                                                                                                                                                
+	eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
+	eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
+	eos::common::StringConversion::MaskTag(maskUrl,"authz");
+	
+	eos_err("Failed to truncate remote replica - %llu %s", offset, maskUrl.c_str());
         rc2=0;
       }
     }
   }
 
-  if (rc1 <0) {
-    eos_err("Failed to truncate local replica - %llu %s", offset, replicaUrl[0].c_str());
-    return gOFS.Emsg("ReplicaParTruncate",*error, errno, "truncate local replica", replicaUrl[0].c_str());
+  if (rc1 <0) {	
+    XrdOucString maskUrl = replicaUrl[0].c_str()?replicaUrl[0].c_str():"";
+    // mask some opaque parameters to shorten the logging                                                                                                                                                
+    eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
+    eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
+    eos::common::StringConversion::MaskTag(maskUrl,"authz");
+    
+    eos_err("Failed to truncate local replica - %llu %s", offset, maskUrl.c_str());
+    return gOFS.Emsg("ReplicaParTruncate",*error, errno, "truncate local replica", maskUrl.c_str());;
   }
   if (!rc2) {
     return gOFS.Emsg("ReplicaParTruncate",*error, EREMOTEIO, "truncate remote replica");
@@ -310,15 +346,27 @@ ReplicaParLayout::sync()
   for (int i=0; i< nStripes; i++) {
     if (replicaClient[i]) {
       if (!replicaClient[i]->Sync()) {
-        eos_err("Failed to sync remote replica - %s", replicaUrl[i].c_str());
+	XrdOucString maskUrl = replicaUrl[i].c_str()?replicaUrl[i].c_str():"";
+	// mask some opaque parameters to shorten the logging                                                                                                                                                
+	eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
+	eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
+	eos::common::StringConversion::MaskTag(maskUrl,"authz");
+	
+        eos_err("Failed to sync remote replica - %s", maskUrl.c_str());
         rc2=0;
       }
     }
   }  
   
   if (rc1 <0) {
-    eos_err("Failed to sync local replica - %s", replicaUrl[0].c_str());
-    return gOFS.Emsg("ReplicaParSync",*error, errno, "sync local replica", replicaUrl[0].c_str());
+    XrdOucString maskUrl = replicaUrl[0].c_str()?replicaUrl[0].c_str():"";
+    // mask some opaque parameters to shorten the logging                                                                                                                                                
+    eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
+    eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
+    eos::common::StringConversion::MaskTag(maskUrl,"authz");
+    
+    eos_err("Failed to sync local replica - %s", maskUrl.c_str());
+    return gOFS.Emsg("ReplicaParSync",*error, errno, "sync local replica", maskUrl.c_str());
   }
   if (!rc2) {
     return gOFS.Emsg("ReplicaParSync",*error, EREMOTEIO, "sync remote replica");
@@ -342,16 +390,28 @@ ReplicaParLayout::remove()
 
   for (int i=0; i< nStripes; i++) {
     if (replicaClient[i]) {
+      XrdOucString maskUrl = replicaUrl[i].c_str()?replicaUrl[i].c_str():"";
+      // mask some opaque parameters to shorten the logging                                                                                                                                                
+      eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
+      eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
+      eos::common::StringConversion::MaskTag(maskUrl,"authz");
+      
       if (!replicaClient[i]->Truncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN)) {
-        eos_err("Failed to truncate remote replica with deletion offset - %s", replicaUrl[i].c_str());
+        eos_err("Failed to truncate remote replica with deletion offset - %s", maskUrl.c_str());
         rc2=0;
       } 
     } 
   }
   
   if (rc1 <0) {
-    eos_err("Failed to remove local replica - %s", replicaUrl[0].c_str());
-    return gOFS.Emsg("ReplicaClose",*error, errno, "remove local replica", replicaUrl[0].c_str());
+    XrdOucString maskUrl = replicaUrl[0].c_str()?replicaUrl[0].c_str():"";
+    // mask some opaque parameters to shorten the logging                                                                                                                                                
+    eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
+    eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
+    eos::common::StringConversion::MaskTag(maskUrl,"authz");
+    
+    eos_err("Failed to remove local replica - %s", maskUrl.c_str());
+    return gOFS.Emsg("ReplicaClose",*error, errno, "remove local replica", maskUrl.c_str());
   }
 
   if (!rc2) {
@@ -375,15 +435,27 @@ ReplicaParLayout::close()
   for (int i=0; i< nStripes; i++) {
     if (replicaClient[i]) {
       if (!replicaClient[i]->Close()) {
-        eos_err("Failed to close remote replica - %s", replicaUrl[i].c_str());
+	XrdOucString maskUrl = replicaUrl[i].c_str()?replicaUrl[i].c_str():"";
+	// mask some opaque parameters to shorten the logging                                                                                                                                                
+	eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
+	eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
+	eos::common::StringConversion::MaskTag(maskUrl,"authz");
+	
+        eos_err("Failed to close remote replica - %s", maskUrl.c_str());
         rc2=0;
       } 
     } 
   }
   
   if (rc1 <0) {
-    eos_err("Failed to close local replica - %s", replicaUrl[0].c_str());
-    return gOFS.Emsg("ReplicaClose",*error, errno, "close local replica", replicaUrl[0].c_str());
+    XrdOucString maskUrl = replicaUrl[0].c_str()?replicaUrl[0].c_str():"";
+    // mask some opaque parameters to shorten the logging                                                                                                                                                
+    eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
+    eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
+    eos::common::StringConversion::MaskTag(maskUrl,"authz");
+    
+    eos_err("Failed to close local replica - %s", maskUrl.c_str());
+    return gOFS.Emsg("ReplicaClose",*error, errno, "close local replica", maskUrl.c_str());
   }
 
   if (!rc2) {
