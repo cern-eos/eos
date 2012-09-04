@@ -1,3 +1,5 @@
+#!/usr/bin/perl
+
 # ----------------------------------------------------------------------
 # File: eos-repair-tool
 # Author: Andreas-Joachim Peters - CERN
@@ -25,8 +27,6 @@
 # ---------------------------------------------------------------------- #
 # Lightweight terminal tool to ease repair operations on EOS MGMs        #
 # ---------------------------------------------------------------------- #
-
-#!/usr/bin/perl
 
 use Term::ReadKey;
 ReadMode('cbreak');
