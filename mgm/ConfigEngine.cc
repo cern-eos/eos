@@ -88,9 +88,8 @@ ConfigEngineChangeLog::AddEntry(const char* info)
     }
   }
 
-  Mutex.UnLock();
   configChanges += info; configChanges+="\n";
-
+  Mutex.UnLock();
   return true;
 }
 
