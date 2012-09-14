@@ -1868,7 +1868,6 @@ int XrdMgmOfs::_chmod(const char               *path,    // In
       UpdateNowInmemoryDirectoryModificationTime(cmd->getId());
 
       eosView->updateContainerStore(cmd);
-      errno = 0;
     } else {
       errno = EPERM;
     }
@@ -1922,7 +1921,6 @@ int XrdMgmOfs::_chown(const char               *path,    // In
         cmd->setCGid(gid);
       }
       eosView->updateContainerStore(cmd);
-      errno = 0;
     }
   } catch ( eos::MDException &e ) {
     errno = e.getErrno();
@@ -5870,7 +5868,6 @@ XrdMgmOfs::_attr_set(const char             *path,
       } else {
 	dh->setAttribute(key,value);
 	eosView->updateContainerStore(dh);
-	errno = 0;
       }
     }
   } catch( eos::MDException &e ) {

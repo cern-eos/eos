@@ -5709,7 +5709,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	std::set<std::string>::const_iterator fileit;
 
         if (option == "r") {
-          if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found, 0, 0, true)) {
+          if (gOFS->_find(spath.c_str(), *error, stdErr, vid_in, found)) {
             stdErr += "error: unable to search in path";
             retc = errno;
           } 
@@ -5729,13 +5729,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  for (foundit = found.begin(); foundit != found.end(); foundit++) {
 	    {
               if (gOFS->_chmod(foundit->first.c_str(), Mode, *error, vid_in, (char*)0)) {
-                stdErr += "error: unable to chmod of directory "; stdErr += foundit->first.c_str(); stdErr += "\n";
+                stdErr += "error: unable to chmod of directory "; stdErr += foundit->first.c_str();
                 retc = errno;
               } else {
                 if (vid_in.uid) {
-                  stdOut += "success: mode of directory "; stdOut += foundit->first.c_str(); stdOut += " is now '2"; stdOut += mode; stdOut += "'\n";
+                  stdOut += "success: mode of directory "; stdOut += foundit->first.c_str(); stdOut += " is now '2"; stdOut += mode; stdOut += "'";
                 } else {
-                  stdOut += "success: mode of directory "; stdOut += foundit->first.c_str(); stdOut += " is now '"; stdOut += mode; stdOut += "'\n";
+                  stdOut += "success: mode of directory "; stdOut += foundit->first.c_str(); stdOut += " is now '"; stdOut += mode; stdOut += "'";
                 }
               }
             }
