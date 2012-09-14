@@ -73,6 +73,7 @@ add_executable ( eos-compute-blockxs
 add_executable( eos-scan-fs 
                 ScanDir.cc
                 tools/ScanXS.cc
+		FmdSqlite.cc
 		 checksum/Adler.cc
                 checksum/CheckSum.cc
                 ../checksum/crc32c.cc

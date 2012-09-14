@@ -28,6 +28,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/Load.hh"
 #include "fst/Namespace.hh"
+#include "fst/FmdSqlite.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -72,6 +73,7 @@ private:
   pthread_t thread;
 
   bool bgThread;
+
 public:
 
   ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid, eos::fst::Load* fstload, bool bgthread=true, long int testinterval = 10, int ratebandwidth = 100, bool setchecksum=false): 

@@ -269,6 +269,12 @@ void ScanDir::CheckFile(const char* filepath)
               fprintf(stderr, "error: [CheckFile] Can not set extended attributes to file. \n");
             }
           }
+	if (bgThread) {
+	  if (filecxerror || blockcxerror) {
+	    // ask the meta data handling class to update the error flags for this file
+	    gFmdSqliteHandler.ResyncDisk(filePath.c_str(), fsId, false);
+	  }
+	}
       } else {
         noNoChecksumFiles++;
       }

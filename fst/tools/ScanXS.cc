@@ -25,10 +25,14 @@
 #include "fst/ScanDir.hh"
 #include "common/Attr.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/FmdSqlite.hh"
 #include "common/LayoutId.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+eos::fst::FmdSqliteHandler gFmdSqliteHandler; // needed for compilation
+
 /*----------------------------------------------------------------------------*/
 
 int main (int argc, char *argv[]){
