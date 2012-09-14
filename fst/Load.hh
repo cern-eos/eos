@@ -185,8 +185,8 @@ public:
 
   virtual ~Load() {
     if (tid) {
-      XrdSysThread::Join(tid,0);
       XrdSysThread::Cancel(tid);
+      XrdSysThread::Join(tid,0);
       tid=0;
     }
   };
