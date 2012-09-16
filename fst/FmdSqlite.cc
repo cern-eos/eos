@@ -990,6 +990,7 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
     if (fmd) {
       if (!UpdateFromMgm(fsid, fMd.fid, fMd.cid, fMd.lid, fMd.mgmsize, fMd.mgmchecksum, fMd.name, fMd.container, fMd.uid,fMd.gid, fMd.ctime, fMd.ctime_ns, fMd.mtime, fMd.mtime_ns, fMd.layouterror, fMd.locations)) {
 	eos_err("failed to update fmd for fid=%08llx", fid);
+	delete fmd;
 	return false;
       }
       // check if it exists on disk
@@ -1005,6 +1006,7 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
 	delete fmd;
 	return DeleteFmd(fMd.fid, fsid);
       }
+      delete fmd;
     } else {
       eos_err("failed to get/create fmd for fid=%08llx", fid);
       return false;
@@ -1076,13 +1078,15 @@ FmdSqliteHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const char*
 	  if (!UpdateFromMgm(fsid, fMd.fid, fMd.cid, fMd.lid, fMd.mgmsize, fMd.mgmchecksum, fMd.name, fMd.container, fMd.uid,fMd.gid, fMd.ctime, fMd.ctime_ns, fMd.mtime, fMd.mtime_ns, fMd.layouterror,fMd.locations)) {
 	    eos_err("failed to update fmd %s", dumpentry.c_str());
 	  }
+	  delete fmd;
 	} else {
 	  eos_err("failed to get/create fmd %s", dumpentry.c_str());
 	}
       } else {
 	eos_err("failed to convert %s", dumpentry.c_str());
       }
-    }    
+      delete env;
+    }
   }
 
   isSyncing[fsid] = false;  
