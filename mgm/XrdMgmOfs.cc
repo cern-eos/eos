@@ -1201,7 +1201,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
           gOFS->MgmHealMapMutex.UnLock();
           gOFS->MgmStats.Add("OpenFailedHeal",vid.uid,vid.gid,1);  
           XrdOucString msg = "heal file with inaccesible replica's after "; msg += (int) nmaxheal; msg += " tries - giving up";
-          eos_info(msg.c_str());
+          eos_info("%s",msg.c_str());
           return Emsg(epname, error, ENOSR, msg.c_str(), path);     
         } else {
           // increase the heal counter for that file id

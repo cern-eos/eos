@@ -224,9 +224,9 @@ void Messaging::Process(XrdMqMessage* newmessage)
       if (!result) {
         if ( (error != "no subject in message body") && (error != "no pairs in message body")) {
           //          newmessage->Print();
-          eos_err(error.c_str());
+          eos_err("%s",error.c_str());
         } else {
-          eos_debug(error.c_str());
+          eos_debug("%s",error.c_str());
         }
         return;
       } else {
