@@ -650,7 +650,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      }
 	    }
 	    if (Access::StoreAccessConfig()) {
-	      stdOut = "success: removing stall ";  if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+	      if ( (type.find("rate:user:")==0) || (type.find("rate:group:")==0)  ){
+		stdOut = "success: removing limit ";  if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+	      } else {
+		stdOut = "success: removing stall ";  if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+	      }
 	      retc = 0;
 	    } else {
 	      stdErr = "error: unable to store access configuration";

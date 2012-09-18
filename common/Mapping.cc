@@ -491,6 +491,13 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
 
   vid.host = host.c_str();
 
+  {
+    int errc=0;
+    // add the uid/gid as strings
+    vid.uid_string = UidToUserName(vid.uid,errc);
+    vid.gid_string = GidToGroupName(vid.gid,errc);
+  }
+
   time_t now = time(NULL);
 
   // ---------------------------------------------------------------------------
@@ -641,7 +648,7 @@ void
 Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
 {
   struct passwd passwdinfo;
-  char buffer[16384];
+  char buffer[131072];
 
   if (!name)
     return;
@@ -740,7 +747,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
 std::string 
 Mapping::UidToUserName(uid_t uid, int &errc)
 {
-  char buffer[65536];
+  char buffer[131072];
   int buflen = sizeof(buffer);
   std::string uid_string="";
   struct passwd pwbuf;
@@ -770,7 +777,7 @@ Mapping::UidToUserName(uid_t uid, int &errc)
 std::string 
 Mapping::GidToGroupName(gid_t gid, int &errc)
 {
-  char buffer[65536];
+  char buffer[131072];
   int buflen = sizeof(buffer);
   struct group grbuf;
   struct group *grbufp=0;
@@ -802,7 +809,7 @@ Mapping::GidToGroupName(gid_t gid, int &errc)
 uid_t 
 Mapping::UserNameToUid(std::string &username, int &errc)
 {
-  char buffer[65536];
+  char buffer[131072];
   int buflen = sizeof(buffer);
   uid_t uid=99;
   struct passwd pwbuf;
@@ -836,7 +843,7 @@ Mapping::UserNameToUid(std::string &username, int &errc)
 gid_t 
 Mapping::GroupNameToGid(std::string &groupname, int &errc)
 {
-  char buffer[65536];
+  char buffer[131072];
   int buflen = sizeof(buffer);
   struct group grbuf;
   struct group *grbufp=0;

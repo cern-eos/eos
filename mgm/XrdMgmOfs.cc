@@ -254,11 +254,11 @@ XrdMgmOfs::ShouldStall(const char* function,  int __AccessMode__, eos::common::M
 		  std::map<std::string, std::string>::const_iterator it;
 		  for (it = Access::gStallRules.begin(); it != Access::gStallRules.end(); it++) {
 		    std::string cmd = it->first.substr(it->first.rfind(":")+1);
-		    double cutoff = strtod(it->second.c_str(),0);
+		    double cutoff = strtod(it->second.c_str(),0) * 1.33;
 		    if ( (it->first.find(userwildcardmatch)==0 ) ) {
 		      // catch all rule = global user rate cut
 		      XrdSysMutexHelper statLock(gOFS->MgmStats.Mutex);
-		      if (gOFS->MgmStats.StatAvgUid.count(cmd) && gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) && (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg60()>cutoff) ) {
+		      if (gOFS->MgmStats.StatAvgUid.count(cmd) && gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) && (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5()>cutoff) ) {
 			stalltime = 5;
 			smsg = Access::gStallComment[it->first];
 		      }
@@ -266,14 +266,14 @@ XrdMgmOfs::ShouldStall(const char* function,  int __AccessMode__, eos::common::M
 		      if ( (it->first.find(groupwildcardmatch)==0 ) ) {
 			// catch all rule = global user rate cut
 			XrdSysMutexHelper statLock(gOFS->MgmStats.Mutex);
-			if (gOFS->MgmStats.StatAvgGid.count(cmd) && gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) && (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg60()>cutoff) ) {
+			if (gOFS->MgmStats.StatAvgGid.count(cmd) && gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) && (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5()>cutoff) ) {
 			  stalltime = 5;
 			  smsg = Access::gStallComment[it->first];
 			}
 		      } else {
 			if ( (it->first.find(usermatch) == 0) ) {
 			  // check user rule 
-			  if (gOFS->MgmStats.StatAvgUid.count(cmd) && gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) && (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg60()>cutoff)) {
+			  if (gOFS->MgmStats.StatAvgUid.count(cmd) && gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) && (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5()>cutoff)) {
 			    // rate exceeded
 			    stalltime = 5;
 			    smsg = Access::gStallComment[it->first];
@@ -281,7 +281,7 @@ XrdMgmOfs::ShouldStall(const char* function,  int __AccessMode__, eos::common::M
 			} else {
 			  if ( (it->first.find(groupmatch) == 0) ) {
 			    // check group rule
-			    if (gOFS->MgmStats.StatAvgGid.count(cmd) && gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) && (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg60()>cutoff)) {
+			    if (gOFS->MgmStats.StatAvgGid.count(cmd) && gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) && (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5()>cutoff)) {
 			      // rate exceeded
 			      stalltime = 5;
 			      smsg = Access::gStallComment[it->first];

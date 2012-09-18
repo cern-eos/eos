@@ -152,21 +152,22 @@ com_access (char* arg1) {
 	    if (rtype == "w") {
 	      in += "&mgm.access.type=w";
 	      ok = true;
-	    }  else {
-	      if ( (rtype.beginswith("rate:user:")) || (rtype.beginswith("rate:group:")) ) {
-		if ( (rtype.find(":"),11) != STR_NPOS) {
-		  in += "&mgm.access.type=";
-		  in += rtype;
-		  ok = true;
-		}
-	      }
-	    }
+	    }  
 	  }
 	} else {
 	  ok = true;
 	}
       }
-
+      if (type == "limit") {
+        in += "&mgm.access.stall="; in += id;
+	if ( (rtype.beginswith("rate:user:")) || (rtype.beginswith("rate:group:")) ) {
+	  if ( (rtype.find(":"),11) != STR_NPOS) {
+	    in += "&mgm.access.type=";
+	    in += rtype;
+	    ok = true;
+	  }
+	}
+      }
     }
     if (!ok) 
       goto com_access_usage;
@@ -203,14 +204,20 @@ com_access (char* arg1) {
   fprintf(stdout,"                                  <target-host> : hostname to which all requests get redirected\n");
   fprintf(stdout,"access rm  redirect :\n");
   fprintf(stdout,"                                                  removes global redirection\n");
-  fprintf(stdout,"access set stall <stall-time> [r|w|rate:{user:group}:{name}:<counter>:<max>]:\n");
+  fprintf(stdout,"access set stall <stall-time> [r|w]\n");
   fprintf(stdout,"                                                  allows to set a global stall time\n");
   fprintf(stdout,"                                   <stall-time> : time in seconds after which clients should rebounce\n");
   fprintf(stdout,"                                          [r|w] : optional set stall time for read/write requests seperatly\n");
-  fprintf(stdout,"       rate:{user:group}:{name}:<counter>:<max> : optional put a stall when a namespace counter <counter> (see ns stat) exceeds <max> (float or integer) for the defined user/group\n");
+  fprintf(stdout,"access set limit <frequency> rate:{user,group}:{name}:<counter>\n");
+  fprintf(stdout,"       rate:{user:group}:{name}:<counter>       : stall the defined user group for 5s if the <counter> exceeds a frequency of <frequency> in a 5s interval\n");
+  fprintf(stdout,"                                                  - the instantanious rate can exceed this value by 33%%\n");
+  fprintf(stdout,"                                                  rate:user:*:<counter> : apply to all users based on user counter\n");
+  fprintf(stdout,"                                                  rate:group:*:<counter>: apply to all groups based on group counter\n");
   fprintf(stdout,"access rm  stall [r|w]:\n");
   fprintf(stdout,"                                                  removes global stall time\n");
   fprintf(stdout,"                                          [r|w] : removes stall time for read or write requests\n");
+  fprintf(stdout,"       rm limit rate:{user,group}:{name}:<counter\n");
+  fprintf(stdout,"                                                : remove rate limitation\n");
   fprintf(stdout,"access ls [-m] [-n] :\n");
   fprintf(stdout,"                                                  print banned,unbanned user,group, hosts\n");
   fprintf(stdout,"                                                                  -m    : output in monitoring format with <key>=<value>\n");
@@ -221,5 +228,8 @@ com_access (char* arg1) {
   fprintf(stdout,"  access rm redirect       Remove redirection to previously defined host foo\n");
   fprintf(stdout,"  access set stall 60      Stall all clients by 60 seconds\n");
   fprintf(stdout,"  access ls                Print all defined access rules\n");
+  fprintf(stdout,"  access set limit 100  rate:user:*:OpenRead      Limit the rate of open for read to a frequency of 100 Hz for all users\n");
+  fprintf(stdout,"  access set limit 2000 rate:group:zp:Stat        Limit the stat rate for the zp group to 2kHz\n");
+  fprintf(stdout,"  access rm limit rate:user:*:OpenRead            Removes the defined limit\n");
   return (0);
 }
