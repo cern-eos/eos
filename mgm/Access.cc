@@ -42,6 +42,10 @@ std::set<std::string> Access::gAllowedHosts;//! singleton set for allowed host n
 std::map<std::string, std::string> Access::gRedirectionRules; //! singleton map for redirection rules
 std::map<std::string, std::string> Access::gStallRules;       //! singleton map for stall rules
 std::map<std::string,std::string> Access::gStallComment;//! singleton map for stall comments
+bool Access::gStallGlobal = false;                            //! indicates global stall rule
+bool Access::gStallRead   = false;                            //! indicates global read stall                                                                                                             
+bool Access::gStallWrite  = false;                            //! indicates global write stall                                                                                                                  
+bool Access::gStallUserGroup = false;                         //! indicates a user or group rate stall entry
 
 std::map<uid_t, std::string> Access::gUserRedirection;  //! singleton map for UID based redirection (not used yet)
 std::map<gid_t, std::string> Access::gGroupRedirection; //! singleton map for GID based redirection (not used yet)
@@ -81,6 +85,7 @@ Access::Reset() {
   Access::gStallComment.clear();
   Access::gUserRedirection.clear();
   Access::gGroupRedirection.clear();
+  Access::gStallGlobal=Access::gStallRead=Access::gStallWrite=Access::gStallUserGroup = false;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -175,6 +180,18 @@ Access::ApplyAccessConfig()
       eos::common::StringConversion::Tokenize(tokens[i],subtokens, subdelimiter);
       if (subtokens.size()>=2) {
 	Access::gStallRules[subtokens[0]]= subtokens[1];
+	if (subtokens[0]==("r:*")) {
+	  gStallRead = true;
+	}
+	if (subtokens[0]==("w:*")) {
+	  gStallWrite = true;
+	} 
+	if (subtokens[0]==("*")) {
+	  gStallGlobal = true;
+	}
+	if ( (subtokens[0].find("rate:")==0) ) {
+	  gStallUserGroup = true;
+	}
 	if (subtokens.size()==3) {
 	  XrdOucString comment = subtokens[2].c_str();
 	  while (comment.replace("_#KOMMA#_",",")) {}
@@ -251,6 +268,8 @@ Access::StoreAccessConfig()
     hostaval  += ithost->c_str();
     hostaval  += ":";
   }
+
+  gStallRead = gStallWrite = gStallGlobal = gStallUserGroup = false;
   for (itstall = Access::gStallRules.begin(); itstall != Access::gStallRules.end(); itstall++) {
     stall += itstall->first.c_str();
     stall += "~";
@@ -261,7 +280,21 @@ Access::StoreAccessConfig()
     while (comment.replace("~","_#TILDE#_")) {}
     stall += comment.c_str();
     stall += ",";
+
+    if (itstall->first==("r:*")) {
+      gStallRead = true;
+    }
+    if (itstall->first==("w:*")) {
+      gStallWrite = true;
+    }
+    if (itstall->first==("*")) {
+      gStallGlobal = true;
+    }
+    if ( (itstall->first.find("rate:") == 0 ) ) {
+      gStallUserGroup = true;
+    }
   }
+
   for (itredirect = Access::gRedirectionRules.begin(); itredirect != Access::gRedirectionRules.end(); itredirect++) {
     redirect += itredirect->first.c_str();
     redirect += "~";

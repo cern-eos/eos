@@ -122,14 +122,20 @@ USE_EOSMGMNAMESPACE
     path = 0;								\
   } else {								\
     const char* pf=0;							\
-    if ( ininfo && (pf=strstr(ininfo,"eos.prefix")) ) {			\
+    if ( ininfo && (pf=strstr(ininfo,"eos.prefix=")) ) {		/* check for redirection with prefixes */ \
       if (!store_path.beginswith("/proc")) {				\
 	XrdOucEnv env(pf);						\
-	store_path.insert(env.Get("eos.prefix"),0);			\
+	store_path.insert(env.Get("eos.prefix"),0);			/* check for redirection with LFN rewrite */ \
+      }									\
+    }									\
+    if ( ininfo && (pf=strstr(ininfo,"eos.lfn=")) ) {			\
+      if ((!store_path.beginswith("/proc"))) {				\
+      XrdOucEnv env(pf);						\
+      store_path = env.Get("eos.lfn");					\
       }									\
     }									\
     path = store_path.c_str();						\
-  }								
+  }									
   
 #define BOUNCE_ILLEGAL_NAMES						\
   if (!path) {								\

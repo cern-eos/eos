@@ -690,6 +690,11 @@ Iostat::PrintOut(XrdOucString &out, bool summary, bool details, bool monitoring,
 
   if (domain) {
     XrdOucString sizestring;
+    XrdOucString sa1;
+    XrdOucString sa2;
+    XrdOucString sa3;
+    XrdOucString sa4;
+
     if (!monitoring) {
       out +="# --------------------------------------------------------------------------------------\n";
       out +="# IO by domain/node name: \n";
@@ -699,10 +704,6 @@ Iostat::PrintOut(XrdOucString &out, bool summary, bool details, bool monitoring,
       out +="# --------------------------------------------------------------------------------------\n";
     }
 
-    XrdOucString sa1;
-    XrdOucString sa2;
-    XrdOucString sa3;
-    XrdOucString sa4;    
     // IO out bytes
     google::sparse_hash_map<std::string, IostatAvg>::iterator it;
     for (it=IostatAvgDomainIOrb.begin(); it!=IostatAvgDomainIOrb.end(); it++) {
@@ -737,6 +738,11 @@ Iostat::PrintOut(XrdOucString &out, bool summary, bool details, bool monitoring,
 
   if (apps) {
     XrdOucString sizestring;
+    XrdOucString sa1;
+    XrdOucString sa2;
+    XrdOucString sa3;
+    XrdOucString sa4;
+
     if (!monitoring) {
       out +="# --------------------------------------------------------------------------------------\n";
       out +="# IO by application name: \n";
@@ -751,10 +757,10 @@ Iostat::PrintOut(XrdOucString &out, bool summary, bool details, bool monitoring,
     for (it=IostatAvgAppIOrb.begin(); it!=IostatAvgAppIOrb.end(); it++) {
       if (!monitoring) {
 	sprintf(outline,"%-10s %-32s %9s %8s %8s %8s %8s\n", "OUT", it->first.c_str(),""
-		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg60(),"")
-		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg300(),"")
-		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg3600(),"")
-		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg86400(),""));
+		,eos::common::StringConversion::GetReadableSizeString(sa1, (unsigned long long) it->second.GetAvg60(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sa2, (unsigned long long) it->second.GetAvg300(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sa3, (unsigned long long) it->second.GetAvg3600(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sa4, (unsigned long long) it->second.GetAvg86400(),""));
       } else {
 	sprintf(outline,"measurement=%s app=\"%s\" 60s=%llu 300s=%llu 3600s=%llu 86400s=%llu\n", "app_io_out", it->first.c_str(), (unsigned long long) it->second.GetAvg60(),(unsigned long long) it->second.GetAvg300(),(unsigned long long) it->second.GetAvg3600(),(unsigned long long) it->second.GetAvg86400());
         }      
@@ -767,10 +773,10 @@ Iostat::PrintOut(XrdOucString &out, bool summary, bool details, bool monitoring,
     for (it=IostatAvgAppIOwb.begin(); it!=IostatAvgAppIOwb.end(); it++) {
       if (!monitoring) {
 	sprintf(outline,"%-10s %-32s %9s %8s %8s %8s %8s\n", "IN", it->first.c_str(),""
-		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg60(),"")
-		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg300(),"")
-		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg3600(),"")
-		,eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) it->second.GetAvg86400(),""));
+		,eos::common::StringConversion::GetReadableSizeString(sa1, (unsigned long long) it->second.GetAvg60(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sa2, (unsigned long long) it->second.GetAvg300(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sa3, (unsigned long long) it->second.GetAvg3600(),"")
+		,eos::common::StringConversion::GetReadableSizeString(sa4, (unsigned long long) it->second.GetAvg86400(),""));
       } else {
 	sprintf(outline,"measurement=%s app=\"%s\" 60s=%llu 300s=%llu 3600s=%llu 86400s=%llu\n", "app_io_in", it->first.c_str(), (unsigned long long) it->second.GetAvg60(),(unsigned long long) it->second.GetAvg300(),(unsigned long long) it->second.GetAvg3600(),(unsigned long long) it->second.GetAvg86400());
         }      

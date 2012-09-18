@@ -214,35 +214,99 @@ XrdMgmOfs::ShouldStall(const char* function,  int __AccessMode__, eos::common::M
   // check for user, group or host banning
   eos::common::RWMutexReadLock lock(Access::gAccessMutex);
   std::string smsg="";
-  if ( (vid.uid > 3) && 
-       ( Access::gBannedUsers.count(vid.uid) ||
-         Access::gBannedGroups.count(vid.gid) ||
-         Access::gBannedHosts.count(vid.host) || 
-         (Access::gStallRules.size() && (Access::gStallRules.count(std::string("*")))) ||
-	 ( IS_ACCESSMODE_R && (Access::gStallRules.count(std::string("r:*")))) ||
-	 ( IS_ACCESSMODE_W && (Access::gStallRules.count(std::string("w:*"))))
-         )) {
-    if (Access::gStallRules.size()) {
-      if (Access::gStallRules.count(std::string("*"))) {
-	stalltime = atoi(Access::gStallRules[std::string("*")].c_str());
-	smsg = Access::gStallComment[std::string("*")];
+  stalltime = 0;
+  if ( (vid.uid > 3) ) {
+    if ( Access::gBannedUsers.count(vid.uid) ) { 
+      // BANNED USER
+      stalltime = 300;
+      smsg = "you are banned in this instance - contact an administrator";
+    } else {
+      if ( Access::gBannedGroups.count(vid.gid) ) {
+	// BANNED GROUP
+	stalltime = 300;
+	smsg = "your group is banned in this instance - contact an administrator";
       } else {
-	if ( IS_ACCESSMODE_R) {
-	  stalltime = atoi(Access::gStallRules[std::string("r:*")].c_str());
-	  smsg = Access::gStallComment[std::string("r:*")];
+	if (Access::gBannedHosts.count(vid.host) ) {
+	  // BANNED HOST
+	  stalltime = 300;
+	  smsg = "your client host is banned in this instance - contact an administrator";
 	} else {
-	  stalltime = atoi(Access::gStallRules[std::string("w:*")].c_str());
-	  smsg = Access::gStallComment[std::string("w:*")];
+	  if (Access::gStallRules.size() && (Access::gStallGlobal) ) {
+	    // GLOBAL STALL
+	    stalltime = atoi(Access::gStallRules[std::string("*")].c_str());
+	    smsg = Access::gStallComment[std::string("*")];
+	  } else {
+	    if ( IS_ACCESSMODE_R && (Access::gStallRead) ) {
+	      // READ STALL
+	      stalltime = atoi(Access::gStallRules[std::string("r:*")].c_str());
+	      smsg = Access::gStallComment[std::string("r:*")];
+	    } else {
+	      if ( IS_ACCESSMODE_W && (Access::gStallWrite) ) {
+		stalltime = atoi(Access::gStallRules[std::string("w:*")].c_str());
+		smsg = Access::gStallComment[std::string("w:*")];		
+	      } else {
+		if ( Access::gStallUserGroup ) {
+		  std::string usermatch="rate:user:"; usermatch += vid.uid_string;
+		  std::string groupmatch="rate:group:"; groupmatch += vid.gid_string;
+		  std::string userwildcardmatch="rate:user:*"; 
+		  std::string groupwildcardmatch="rate:group:*"; 
+
+		  std::map<std::string, std::string>::const_iterator it;
+		  for (it = Access::gStallRules.begin(); it != Access::gStallRules.end(); it++) {
+		    std::string cmd = it->first.substr(it->first.rfind(":")+1);
+		    double cutoff = strtod(it->second.c_str(),0);
+		    if ( (it->first.find(userwildcardmatch)==0 ) ) {
+		      // catch all rule = global user rate cut
+		      XrdSysMutexHelper statLock(gOFS->MgmStats.Mutex);
+		      if (gOFS->MgmStats.StatAvgUid.count(cmd) && gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) && (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg60()>cutoff) ) {
+			stalltime = 5;
+			smsg = Access::gStallComment[it->first];
+		      }
+		    } else {
+		      if ( (it->first.find(groupwildcardmatch)==0 ) ) {
+			// catch all rule = global user rate cut
+			XrdSysMutexHelper statLock(gOFS->MgmStats.Mutex);
+			if (gOFS->MgmStats.StatAvgGid.count(cmd) && gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) && (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg60()>cutoff) ) {
+			  stalltime = 5;
+			  smsg = Access::gStallComment[it->first];
+			}
+		      } else {
+			if ( (it->first.find(usermatch) == 0) ) {
+			  // check user rule 
+			  if (gOFS->MgmStats.StatAvgUid.count(cmd) && gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) && (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg60()>cutoff)) {
+			    // rate exceeded
+			    stalltime = 5;
+			    smsg = Access::gStallComment[it->first];
+			  }
+			} else {
+			  if ( (it->first.find(groupmatch) == 0) ) {
+			    // check group rule
+			    if (gOFS->MgmStats.StatAvgGid.count(cmd) && gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) && (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg60()>cutoff)) {
+			      // rate exceeded
+			      stalltime = 5;
+			      smsg = Access::gStallComment[it->first];
+			    }
+			  }
+			}
+		      }
+		    }
+		  }
+		}
+	      }
+	    }
+	  }
 	}
       }
-    } else {
-      stalltime = 300;
     }
-    stallmsg="Attention: you are currently hold in this instance and each request is stalled for ";
-    stallmsg += (int) stalltime; stallmsg += " seconds ... ";stallmsg += smsg.c_str();
-    eos_static_info("info=\"stalling access to\" uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
-    return true;
+    if (stalltime) {
+      stallmsg="Attention: you are currently hold in this instance and each request is stalled for ";
+      stallmsg += (int) stalltime; stallmsg += " seconds ... ";stallmsg += smsg.c_str();
+      eos_static_info("info=\"stalling access to\" uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
+      gOFS->MgmStats.Add("Stall",vid.uid,vid.gid,1);  
+      return true;
+    }
   } else {
+    // admin/root is only stalled for global stalls not, for write-only or read-only stalls
     if (Access::gStallRules.size()) {
       if (Access::gStallRules.count(std::string("*"))) {
 	if ( (vid.host != "localhost.localdomain") && (vid.host != "localhost") ) {
@@ -250,6 +314,7 @@ XrdMgmOfs::ShouldStall(const char* function,  int __AccessMode__, eos::common::M
 	  stallmsg="Attention: you are currently hold in this instance and each request is stalled for ";
 	  stallmsg += (int) stalltime; stallmsg += " seconds ...";
 	  eos_static_info("info=\"stalling access to\" uid=%u gid=%u host=%s", vid.uid,vid.gid,vid.host.c_str());
+	  gOFS->MgmStats.Add("Stall",vid.uid,vid.gid,1);  
 	  return true;
 	}
       }

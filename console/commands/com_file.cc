@@ -248,16 +248,16 @@ com_file (char* arg1) {
               if (option[i] == "-commitfmd") {
                 in += "&mgm.file.commit.fmd=1";
               } else {
-                if (option[i] == "-rate") {
-                  in += "&mgm.file.verify.rate=";
-                  if ( (i==5) || (!option[i+1].length()))
-                    goto com_file_usage;
-                  in += option[i+1];
-                  i++;
-                  continue;
-                } else {
-                  goto com_file_usage;
-                }
+		if (option[i] == "-rate") {
+		  in += "&mgm.file.verify.rate=";
+		  if ( (i==5) || (!option[i+1].length()))
+		    goto com_file_usage;
+		  in += option[i+1];
+		  i++;
+		   continue;
+		} else {
+		  goto com_file_usage;
+		}
               }
             }
           }

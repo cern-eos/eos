@@ -559,7 +559,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  }
         } else {
           if (stall.length()) {
-            if ( (atoi(stall.c_str()) >0) && ( (type.length()==0) || (type=="r") || (type=="w"))) {
+            if ( (atoi(stall.c_str()) >0) && ( (type.length()==0) || (type=="r") || (type=="w") || ( (type.find("rate:")==0)) ) ) {
 	      if (type == "r") {
 		Access::gStallRules[std::string("r:*")] = stall;
 		Access::gStallComment[std::string("r:*")] = comment.c_str();
@@ -568,12 +568,21 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  Access::gStallRules[std::string("w:*")] = stall;
 		  Access::gStallComment[std::string("w:*")] = comment.c_str();
 		} else {
-		  Access::gStallRules[std::string("*")] = stall;
-		  Access::gStallComment[std::string("*")] = comment.c_str();
+		  if ( (type.find("rate:user:")==0) || (type.find("rate:group:")==0) ) {
+		    Access::gStallRules[std::string(type.c_str())] = stall;
+		    Access::gStallComment[std::string(type.c_str())] = comment.c_str();
+		  } else {
+		    Access::gStallRules[std::string("*")] = stall;
+		    Access::gStallComment[std::string("*")] = comment.c_str();
+		  }
 		}
 	      }
 	      if (Access::StoreAccessConfig()) {
-		stdOut += "success: setting global stall to "; stdOut += stall.c_str(); stdOut += " seconds"; if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+		if (type.find("rate:")==0) {
+		  stdOut += "success: setting rate cutoff at "; stdOut += stall.c_str(); stdOut += " Hz for rate:<user|group>:<operation>="; stdOut += type.c_str();
+		} else {
+		  stdOut += "success: setting global stall to "; stdOut += stall.c_str(); stdOut += " seconds"; if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+		}
 		retc = 0;
 	      } else {
 		stdErr = "error: unable to store access configuration";
@@ -618,34 +627,35 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             retc = EINVAL;
           }
         } else {
-          if (stall.length()) {
-	    if ( (Access::gStallRules.count(std::string("*")) && ((type.length()==0))) ||
-		 (Access::gStallRules.count(std::string("r:*")) && (type=="r")) || 
-		 (Access::gStallRules.count(std::string("w:*")) && (type=="w")) ) {
-	      stdOut = "success: removing global stall time"; if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
-	      if (type == "r") {
-		Access::gStallRules.erase(std::string("r:*"));
-		Access::gStallComment.erase(std::string("r:*"));
-	      } else {
-		if (type == "w") {
-		  Access::gStallRules.erase(std::string("w:*"));
+	  if ( (Access::gStallRules.count(std::string("*")) && ((type.length()==0))) ||
+	       (Access::gStallRules.count(std::string("r:*")) && (type=="r")) || 
+	       (Access::gStallRules.count(std::string("w:*")) && (type=="w")) || 
+	       (Access::gStallRules.count(std::string(type.c_str()))) ) {
+	    stdOut = "success: removing global stall time"; if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+	    if (type == "r") {
+	      Access::gStallRules.erase(std::string("r:*"));
+	      Access::gStallComment.erase(std::string("r:*"));
+	    } else {
+	      if (type == "w") {
+		Access::gStallRules.erase(std::string("w:*"));
 		  Access::gStallComment.erase(std::string("w:*"));
+	      } else {
+		if ( (type.find("rate:user:")==0) || (type.find("rate:group:")==0)  ){
+		  Access::gStallRules.erase(std::string(type.c_str()));
+		  Access::gStallComment.erase(std::string(type.c_str()));
 		} else {
 		  Access::gStallRules.erase(std::string("*"));
 		  Access::gStallComment.erase(std::string("*"));
 		}
 	      }
-	      if (Access::StoreAccessConfig()) {
-		stdOut = "success: removing stall ";  if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
-		retc = 0;
-	      } else {
-		stdErr = "error: unable to store access configuration";
-		retc = EIO;
-	      }
-            } else {
-              stdErr = "error: there is no global stall time defined";
-              retc = EINVAL;
-            }
+	    }
+	    if (Access::StoreAccessConfig()) {
+	      stdOut = "success: removing stall ";  if (type.length()) { stdOut += " for <"; stdOut += type.c_str(); stdOut += ">"; }
+	      retc = 0;
+	    } else {
+	      stdErr = "error: unable to store access configuration";
+	      retc = EIO;
+	    }
           } else {
             stdErr = "error: redirect or stall has to be defined";
             retc = EINVAL;

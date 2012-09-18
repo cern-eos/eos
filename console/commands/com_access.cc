@@ -152,7 +152,15 @@ com_access (char* arg1) {
 	    if (rtype == "w") {
 	      in += "&mgm.access.type=w";
 	      ok = true;
-	    } 
+	    }  else {
+	      if ( (rtype.beginswith("rate:user:")) || (rtype.beginswith("rate:group:")) ) {
+		if ( (rtype.find(":"),11) != STR_NPOS) {
+		  in += "&mgm.access.type=";
+		  in += rtype;
+		  ok = true;
+		}
+	      }
+	    }
 	  }
 	} else {
 	  ok = true;
@@ -195,10 +203,11 @@ com_access (char* arg1) {
   fprintf(stdout,"                                  <target-host> : hostname to which all requests get redirected\n");
   fprintf(stdout,"access rm  redirect :\n");
   fprintf(stdout,"                                                  removes global redirection\n");
-  fprintf(stdout,"access set stall <stall-time> [r|w]:\n");
+  fprintf(stdout,"access set stall <stall-time> [r|w|rate:{user:group}:{name}:<counter>:<max>]:\n");
   fprintf(stdout,"                                                  allows to set a global stall time\n");
   fprintf(stdout,"                                   <stall-time> : time in seconds after which clients should rebounce\n");
   fprintf(stdout,"                                          [r|w] : optional set stall time for read/write requests seperatly\n");
+  fprintf(stdout,"       rate:{user:group}:{name}:<counter>:<max> : optional put a stall when a namespace counter <counter> (see ns stat) exceeds <max> (float or integer) for the defined user/group\n");
   fprintf(stdout,"access rm  stall [r|w]:\n");
   fprintf(stdout,"                                                  removes global stall time\n");
   fprintf(stdout,"                                          [r|w] : removes stall time for read or write requests\n");

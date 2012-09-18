@@ -79,6 +79,10 @@ public:
   static std::map<std::string, std::string> gRedirectionRules; //< map containing redirection rules
   static std::map<std::string, std::string> gStallRules;       //< map containing stall rules
   static std::map<std::string, std::string> gStallComment;     //< map containint stall message comment
+  static bool gStallGlobal;                                    //< indicates global stall rule
+  static bool gStallRead;                                      //< indicates global read stall
+  static bool gStallWrite;                                     //< indicates global write stall
+  static bool gStallUserGroup;                                 //< indicates a user or group rate stall entry
   static std::map<uid_t, std::string> gUserRedirection;        //< map containing user based redirection
   static std::map<gid_t, std::string> gGroupRedirection;       //< map containing group based redirection
 

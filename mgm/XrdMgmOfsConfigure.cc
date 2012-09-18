@@ -1250,6 +1250,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("Scheduled2Balance",0,0,0);
   gOFS->MgmStats.Add("Scheduled2Drain",0,0,0);
   gOFS->MgmStats.Add("SendResync",0,0,0);
+  gOFS->MgmStats.Add("Stall",0,0,0);
   gOFS->MgmStats.Add("Stat",0,0,0);
   gOFS->MgmStats.Add("Symlink",0,0,0);
   gOFS->MgmStats.Add("TxState",0,0,0);
