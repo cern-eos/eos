@@ -44,12 +44,14 @@ Egroup::Member(std::string &username, std::string &egroupname)
       // we now that user
       if (LifeTime[egroupname][username] > now) {
         // that is ok, we can return member or not member from the cache
+	bool member = Map[egroupname][username];
         Mutex.UnLock();
-        return Map[egroupname][username];
+	return member;
       }
     }
   }
-
+  Mutex.UnLock();
+  // run the command not in the locked section !!!
   std::string cmd = "ldapsearch -LLL -h xldap -x -b 'OU=Users,Ou=Organic Units,DC=cern,DC=ch' 'sAMAccountName=";
   cmd += username;
   cmd += "' memberOf | grep CN=";
@@ -57,6 +59,8 @@ Egroup::Member(std::string &username, std::string &egroupname)
   cmd += ",";
   cmd += ">& /dev/null";
   int rc = system(cmd.c_str());
+
+  Mutex.Lock();
 
   if (!WEXITSTATUS(rc)) {
     Map[egroupname][username] = true;

@@ -27,6 +27,7 @@
 #include "common/Mapping.hh"
 #include "common/StringConversion.hh"
 #include "common/Path.hh"
+#include "common/LinuxMemConsumption.hh"
 #include "mgm/Acl.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
@@ -2145,10 +2146,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       struct stat statd;
       memset(&statf, 0, sizeof(struct stat));
       memset(&statd, 0, sizeof(struct stat));
-      XrdOucString clfsize="";
-      XrdOucString cldsize="";
-      XrdOucString clfratio="";
-      XrdOucString cldratio="";
+      XrdOucString clfsize;
+      XrdOucString cldsize;
+      XrdOucString clfratio;
+      XrdOucString cldratio;
+      XrdOucString sizestring;
 
       // statistic for the changelog files
       if ( (!::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &statf)) && (!::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &statd)) ) {
@@ -2158,6 +2160,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         eos::common::StringConversion::GetReadableSizeString(cldratio,(unsigned long long) d?(1.0*statd.st_size)/d:0 ,"B");
       }
 
+      // statistic for the memory usage
+      eos::common::LinuxMemConsumption::linux_mem_t mem; 
+      if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem)) {
+	stdErr += "failed to get the memory usage information\n";
+      }
+      
       XrdOucString bootstring;
       time_t boottime;
 
@@ -2187,6 +2195,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         stdOut+="ALL      avg. File Entry Size             ";stdOut += clfratio; stdOut += "\n";
         stdOut+="ALL      avg. Dir  Entry Size             ";stdOut += cldratio; stdOut += "\n";
         stdOut+="# ------------------------------------------------------------------------------------\n";
+	stdOut+="ALL      memory virtual                   ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.vmsize,"B"); stdOut += "\n";
+	stdOut+="ALL      memory resident                  ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.resident,"B"); stdOut += "\n";
+	stdOut+="ALL      memory share                     ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.share,"B"); stdOut += "\n";
+        stdOut+="# ------------------------------------------------------------------------------------\n";
       } else {
         stdOut += "uid=all gid=all ns.total.files=";       stdOut += files; stdOut += "\n";
         stdOut += "uid=all gid=all ns.total.directories="; stdOut += dirs;  stdOut += "\n";
@@ -2196,6 +2208,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         stdOut += "uid=all gid=all ns.total.directories.changelog.avg_entry_size="; stdOut += eos::common::StringConversion::GetSizeString(cldratio, (unsigned long long) d?(1.0*statd.st_size)/d:0); stdOut += "\n";
 	stdOut += "uid=all gid=all ns.boot.status="; stdOut += bootstring; stdOut += "\n";
 	stdOut += "uid=all gid=all ns.boot.time="; stdOut += (int) boottime; stdOut += "\n";
+	stdOut += "uid=all gid=all ns.memory.virtual="; stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.vmsize);
+	stdOut += "uid=all gid=all ns.memory.resident="; stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.resident);
+	stdOut += "uid=all gid=all ns.memory.share="; stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.share);
       }
 
       if (subcmd == "stat") {
