@@ -85,7 +85,7 @@ Report::Report(XrdOucEnv &report)
   }
   sec_vorg = report.Get("sec.vorg")?report.Get("sec.vorg"):"";
   sec_role = report.Get("sec.role")?report.Get("sec.role"):"";
-  sec_dn   = report.Get("sec.dn")?report.Get("sec.dn"):"";
+  sec_info = report.Get("sec.info")?report.Get("sec.info"):"";
   sec_app  = report.Get("sec.app")?report.Get("sec.app"):"";
 }
 
@@ -103,7 +103,7 @@ Report::Dump(XrdOucString &out, bool dumpsec)
   snprintf(dumpline,sizeof(dumpline)-1,"uid=%d gid=%d rb=%llu rb_min=%llu rb_max=%llu rb_sigma=%.02f wb=%llu wb_min=%llu wb_max=%llu wb_sigma=%.02fsrb=%llu swb=%llu nrc=%llu nwc=%llu rt=%.02f wt=%.02f osize=%llu csize=%llu ots=%llu.%llu cts=%llu.%llu td=%s host=%s logid=%s", uid, gid, rb, rb_min, rb_max, rb_sigma, wb, wb_min, wb_max, wb_sigma, srb, swb, nrc,nwc, rt,wt,osize,csize, ots,otms, cts,ctms, td.c_str(),host.c_str(), logid.c_str());
   out+=dumpline;
   if (dumpsec) {
-    snprintf(dumpline,sizeof(dumpline)-1," sec_prot=\"%s\" sec_name=\"%s\" sec_host=\"%s\" sec_vorg=\"%s\" sec_grps=\"%s\" sec_role=\"%s\" sec_dn=\"%s\" sec_app=\"%s\"", sec_prot.c_str(), sec_name.c_str(), sec_host.c_str(), sec_vorg.c_str(), sec_grps.c_str(), sec_role.c_str(), sec_dn.c_str(), sec_app.c_str());
+    snprintf(dumpline,sizeof(dumpline)-1," sec_prot=\"%s\" sec_name=\"%s\" sec_host=\"%s\" sec_vorg=\"%s\" sec_grps=\"%s\" sec_role=\"%s\" sec_info=\"%s\" sec_app=\"%s\"", sec_prot.c_str(), sec_name.c_str(), sec_host.c_str(), sec_vorg.c_str(), sec_grps.c_str(), sec_role.c_str(), sec_info.c_str(), sec_app.c_str());
     out+=dumpline;
   }
   out+= "\n";

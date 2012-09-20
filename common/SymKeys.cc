@@ -75,7 +75,9 @@ SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString &out) {
   // retrieve buffer pointer
   BIO_get_mem_ptr(b64, &bptr);
 
-  out.assign((char*)bptr->data,0, size-1);
+  if (bptr->data) {
+    out.assign((char*)bptr->data,0, size-1);
+  }
   BIO_free_all(b64);
   return true;
 }

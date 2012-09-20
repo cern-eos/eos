@@ -93,7 +93,7 @@ public:
   std::string sec_vorg;    //< auth vorg
   std::string sec_grps;    //< auth grps
   std::string sec_role;    //< auth role
-  std::string sec_dn;      //< auth dn
+  std::string sec_info;    //< auth info (=dn if moninfo configuredin GSI plugin)
   std::string sec_app;     //< auth application
 
   // ---------------------------------------------------------------------------

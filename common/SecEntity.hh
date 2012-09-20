@@ -133,7 +133,7 @@ public:
     std::vector<std::string> tokens;
     std::string entitystring = s;
     eos::common::StringConversion::EmptyTokenize(entitystring,tokens,"|");
-    std::string rs="prot=";
+    std::string rs="sec.prot=";
 
     if (tokens.size()>7) {
       rs+=tokens[0];

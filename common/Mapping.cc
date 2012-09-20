@@ -49,6 +49,11 @@ google::dense_hash_map<std::string, time_t> Mapping::ActiveTidents;
 XrdOucHash<Mapping::id_pair>    Mapping::gPhysicalUidCache;
 XrdOucHash<Mapping::gid_vector> Mapping::gPhysicalGidCache;
 
+XrdSysMutex                     Mapping::gPhysicalNameCacheMutex;
+std::map<uid_t, std::string>    Mapping::gPhysicalUserNameCache;
+std::map<gid_t, std::string>    Mapping::gPhysicalGroupNameCache;
+
+
 /*----------------------------------------------------------------------------*/
 /** 
  * Initialize Google maps
@@ -660,7 +665,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
 
   eos_static_debug("find in uid cache %s", name);
 
-  gPhysicalIdMutex.Lock();
+  XrdSysMutexHelper cLock(gPhysicalIdMutex);
 
   // cache short cut's
   if (!(id = gPhysicalUidCache.Find(name))) {
@@ -668,7 +673,6 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
     struct passwd *pwbufp=0;
     
     if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
-      gPhysicalIdMutex.UnLock();
       return;
     }
     id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
@@ -685,7 +689,6 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
     vid.uid = id->uid;
     vid.gid = id->gid;
     eos_static_debug("returning uid=%u gid=%u", id->uid,id->gid);
-    gPhysicalIdMutex.UnLock();
     return; 
   }
 
@@ -729,8 +732,6 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
 
   gPhysicalGidCache.Add(name,vec, 3600);
 
-  gPhysicalIdMutex.UnLock(); 
-
   return ;
 }
 
@@ -747,21 +748,27 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
 std::string 
 Mapping::UidToUserName(uid_t uid, int &errc)
 {
-  char buffer[131072];
-  int buflen = sizeof(buffer);
-  std::string uid_string="";
-  struct passwd pwbuf;
-  struct passwd *pwbufp=0;
-  if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp) || (!pwbufp)) {
-    char suid[1024];
-    snprintf(suid,sizeof(suid)-1,"%u", uid);
-    uid_string = suid;
-    errc = EINVAL;
+  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+  if (gPhysicalUserNameCache.count(uid)) {
+    return gPhysicalUserNameCache[uid];
   } else {
-    uid_string = pwbuf.pw_name;
-    errc = 0;
+    char buffer[131072];
+    int buflen = sizeof(buffer);
+    std::string uid_string="";
+    struct passwd pwbuf;
+    struct passwd *pwbufp=0;
+    if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp) || (!pwbufp)) {
+      char suid[1024];
+      snprintf(suid,sizeof(suid)-1,"%u", uid);
+      uid_string = suid;
+      errc = EINVAL;
+    } else {
+      uid_string = pwbuf.pw_name;
+      errc = 0;
+    }
+    gPhysicalUserNameCache[uid]=uid_string;
+    return uid_string;
   }
-  return uid_string;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -777,23 +784,29 @@ Mapping::UidToUserName(uid_t uid, int &errc)
 std::string 
 Mapping::GidToGroupName(gid_t gid, int &errc)
 {
-  char buffer[131072];
-  int buflen = sizeof(buffer);
-  struct group grbuf;
-  struct group *grbufp=0;
-  std::string gid_string="";
-  
-  if (getgrgid_r(gid, &grbuf, buffer, buflen, &grbufp)|| (!grbufp)) {
-    // cannot translate this name
-    char sgid[1024];
-    snprintf(sgid,sizeof(sgid)-1,"%u", gid);
-    gid_string = sgid;
-    errc = EINVAL;
+  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+  if (gPhysicalGroupNameCache.count(gid)) {
+    return gPhysicalGroupNameCache[gid];
   } else {
-    gid_string= grbuf.gr_name;
-    errc = 0;
+    char buffer[131072];
+    int buflen = sizeof(buffer);
+    struct group grbuf;
+    struct group *grbufp=0;
+    std::string gid_string="";
+    
+    if (getgrgid_r(gid, &grbuf, buffer, buflen, &grbufp)|| (!grbufp)) {
+      // cannot translate this name
+      char sgid[1024];
+      snprintf(sgid,sizeof(sgid)-1,"%u", gid);
+      gid_string = sgid;
+      errc = EINVAL;
+    } else {
+      gid_string= grbuf.gr_name;
+      errc = 0;
+    }
+    gPhysicalGroupNameCache[gid]=gid_string;
+    return gid_string;
   }
-  return gid_string;
 }
 
 /*----------------------------------------------------------------------------*/

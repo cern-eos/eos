@@ -176,6 +176,20 @@ public:
   static XrdOucHash<gid_vector> gPhysicalGidCache;
 
   // ---------------------------------------------------------------------------
+  //! A mutex protecting the physical id->name caches
+  // ---------------------------------------------------------------------------
+  static XrdSysMutex gPhysicalNameCacheMutex;
+
+  // ---------------------------------------------------------------------------
+  //! A cache for physical user name caching (e.g. from uid to name)
+  static std::map<uid_t, std::string> gPhysicalUserNameCache;
+
+  // ---------------------------------------------------------------------------
+  //! A cache for physical group id caching (e.g. from gid name to name)
+  // ---------------------------------------------------------------------------
+  static std::map<gid_t, std::string> gPhysicalGroupNameCache;
+
+  // ---------------------------------------------------------------------------
   //! Mutex to protect the physical ID caches
   // ---------------------------------------------------------------------------
   static XrdSysMutex gPhysicalIdMutex; 
