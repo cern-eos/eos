@@ -203,7 +203,8 @@ FmdSqliteHandler::SetDBFile(const char* dbfileprefix, int fsid, XrdOucString opt
   struct stat buf;
   int src=0;
   if ((src=stat(fsDBFileName, &buf)) || ((buf.st_mode&S_IRWXU)!= S_IRWXU) ) {
-    isDirty[fsid] = true;
+    isDirty[fsid]   = true;
+    stayDirty[fsid] = true;
     eos_warning("setting sqlite3 file dirty - unclean shutdown detected");
     if (!src) {
       if (chmod(DBfilename[fsid].c_str(),S_IRWXU)) {
@@ -212,8 +213,19 @@ FmdSqliteHandler::SetDBFile(const char* dbfileprefix, int fsid, XrdOucString opt
     }
   } else {
     isDirty[fsid] = false;
+    stayDirty[fsid] = false;
   }
 
+  // run 'sqlite3' to commit a pending journal
+  std::string sqlite3cmd="test -r "; sqlite3cmd += fsDBFileName; sqlite3cmd += " && sqlite3 "; sqlite3cmd += fsDBFileName;
+  sqlite3cmd += " \"select count(*) from fst where 1;\"" ;
+  int rc = system(sqlite3cmd.c_str());
+  if (WEXITSTATUS(rc)) {
+    eos_warning("sqlite3 command execution failed");
+  } else {
+    eos_info("msg=\"sqlite3 clean-procedure succeeded\"");
+  }
+  
   // create the SQLITE DB
   if ((sqlite3_open(fsDBFileName,&DB[fsid]) == SQLITE_OK)) {
     XrdOucString createtable = "CREATE TABLE if not exists fst ( fid integer PRIMARY KEY, cid integer, fsid integer, ctime integer, ctime_ns integer, mtime integer, mtime_ns integer, atime integer, atime_ns integer, checktime integer, size integer default 281474976710641, disksize integer default 281474976710641, mgmsize integer default 281474976710641, checksum varchar(32), diskchecksum varchar(32), mgmchecksum varchar(32), lid integer, uid integer, gid integer, name varchar(1024), container varchar(1024), filecxerror integer, blockcxerror integer, layouterror integer, locations varchar(128))";
@@ -250,9 +262,12 @@ FmdSqliteHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid)
   eos_info("SQLITE DB shutdown for fsid=%lu\n", (unsigned long)fsid);
   if (DB.count(fsid)) {
     if (DBfilename.count(fsid)) {
-      // set the mode back to S_IRWXU
-      if (chmod(DBfilename[fsid].c_str(),S_IRWXU)) {
-	eos_crit("failed to switch the sqlite3 database file to S_IRWXU errno=%d", errno);
+      if (!stayDirty[fsid]) {
+	// if there was a complete boot procedure done, we remove the dirty flag
+	// set the mode back to S_IRWXU
+	if (chmod(DBfilename[fsid].c_str(),S_IRWXU)) {
+	  eos_crit("failed to switch the sqlite3 database file to S_IRWXU errno=%d", errno);
+	}
       }
     }
     if ( (sqlite3_close(DB[fsid]) ==  SQLITE_OK) ) {
@@ -342,8 +357,7 @@ bool FmdSqliteHandler::ReadDBFile(eos::common::FileSystem::fsid_t fsid, XrdOucSt
 FmdSqlite*
 FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid, uid_t uid, gid_t gid, eos::common::LayoutId::layoutid_t layoutid, bool isRW, bool force) 
 {
-
-  eos_info("fid=%08llx fsid=%lu", fid, (unsigned long) fsid);
+  // eos_info("fid=%08llx fsid=%lu", fid, (unsigned long) fsid);
 
   if (fid == 0) {
     eos_warning("fid=0 requested for fsid=", fsid);
@@ -622,7 +636,7 @@ FmdSqliteHandler::UpdateFromDisk(eos::common::FileSystem::fsid_t fsid, eos::comm
 {
   eos::common::RWMutexWriteLock lock(Mutex);
   
-  eos_info("fsid=%lu fid=%08llx disksize=%llu diskchecksum=%s checktime=%llu fcxerror=%d bcxerror=%d flaglayouterror=%d", (unsigned long) fsid, fid, disksize, diskchecksum.c_str(), checktime, filecxerror, blockcxerror, flaglayouterror);
+  eos_debug("fsid=%lu fid=%08llx disksize=%llu diskchecksum=%s checktime=%llu fcxerror=%d bcxerror=%d flaglayouterror=%d", (unsigned long) fsid, fid, disksize, diskchecksum.c_str(), checktime, filecxerror, blockcxerror, flaglayouterror);
 	
   if (!fid) {
     eos_info("skipping to insert a file with fid 0");
@@ -674,7 +688,7 @@ FmdSqliteHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid, eos::commo
 {
   eos::common::RWMutexWriteLock lock(Mutex);
   
-  eos_info("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s name=%s container=%s", (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str(), name.c_str(), container.c_str());
+  eos_debug("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s name=%s container=%s", (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str(), name.c_str(), container.c_str());
 
   if (!fid) {
     eos_info("skipping to insert a file with fid 0");
@@ -829,7 +843,6 @@ FmdSqliteHandler::ResyncDisk(const char* path, eos::common::FileSystem::fsid_t f
 	}
 	
 	checksumType    = attr->Get("user.eos.checksumtype");
-	checksumStamp   = attr->Get("user.eos.timestamp");
 	filecxError     = attr->Get("user.eos.filecxerror");
 	blockcxError    = attr->Get("user.eos.blockcxerror");
 	
@@ -903,6 +916,7 @@ FmdSqliteHandler::ResyncAllDisk(const char* path, eos::common::FileSystem::fsid_
   }
   
   FTSENT *node;
+  unsigned long long cnt=0;
   while ((node = fts_read(tree))) {
     if (node->fts_level > 0 && node->fts_name[0] == '.') {
       fts_set(tree, node, FTS_SKIP);
@@ -910,8 +924,12 @@ FmdSqliteHandler::ResyncAllDisk(const char* path, eos::common::FileSystem::fsid_
       if (node->fts_info == FTS_F) {
         XrdOucString filePath = node->fts_accpath;
         if (!filePath.matches("*.xsmap")){
-	  eos_info("file=%s", filePath.c_str());
+	  cnt++;
+	  eos_debug("file=%s", filePath.c_str());
 	  ResyncDisk(filePath.c_str(), fsid, flaglayouterror);
+	  if (!(cnt %10000)) {
+	    eos_info("msg=\"synced files so far\" nfiles=%llu fsid=%lu",cnt, (unsigned long)fsid);
+	  }
         }
       }
     }    
@@ -1056,7 +1074,9 @@ FmdSqliteHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const char*
   std::ifstream inFile(tmpfile);
   std::string dumpentry;
 
+  unsigned long long cnt=0;
   while (std::getline(inFile, dumpentry)) {
+    cnt++;
     eos_debug("line=%s", dumpentry.c_str());
     XrdOucEnv* env = new XrdOucEnv(dumpentry.c_str());
     if (env) {
@@ -1086,6 +1106,9 @@ FmdSqliteHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const char*
 	eos_err("failed to convert %s", dumpentry.c_str());
       }
       delete env;
+    }
+    if (!(cnt %10000)) {
+      eos_info("msg=\"synced files so far\" nfiles=%llu fsid=%lu",cnt, (unsigned long) fsid);
     }
   }
 

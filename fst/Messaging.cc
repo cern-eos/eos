@@ -38,14 +38,15 @@ Messaging::Listen()
   while(1) {
     XrdSysThread::SetCancelOff();
     XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
-    if (newmessage) newmessage->Print();
+    //    if (newmessage) newmessage->Print(); -> don't print them, too much output
     if (newmessage) {
       Process(newmessage);
       delete newmessage;
       XrdSysThread::SetCancelOn();
     } else {
       XrdSysThread::SetCancelOn();
-      sleep(1);
+      XrdSysTimer sleeper;
+      sleeper.Wait(2000);
     }
 
     XrdSysThread::CancelPoint();

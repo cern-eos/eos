@@ -98,7 +98,18 @@ EOSFSTNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 void
 XrdFstOfs::xrdfstofs_shutdown(int sig) {
+  static XrdSysMutex ShutDownMutex;
+
+  ShutDownMutex.Lock(); // this handler goes only one-shot .. sorry !
+
   // handler to shutdown the daemon for valgrinding and clean server stop (e.g. let's time to finish write operations
+
+  if (gOFS.Messaging) {
+    gOFS.Messaging->StopListener(); // stop any communication
+  }
+
+  XrdSysTimer sleeper;
+  sleeper.Wait(1000);
 
   std::set<pthread_t>::const_iterator it;
   {
@@ -110,15 +121,20 @@ XrdFstOfs::xrdfstofs_shutdown(int sig) {
     }
   }
 
-  // sync all file descriptors
-  eos::common::SyncAll::All();
-
+  eos_static_warning("op=shutdown msg=\"stop messaging\""); 
   if (gOFS.Messaging) {
     delete gOFS.Messaging; // shutdown messaging thread
     gOFS.Messaging=0;
   }
 
+  eos_static_warning("%s","op=shutdown msg=\"shutdown fmdsqlite handler\"");
+  gFmdSqliteHandler.Shutdown();
   eos_static_warning("%s","op=shutdown status=completed");
+
+  // sync & close all file descriptors
+  eos::common::SyncAll::AllandClose();
+  
+
 
   exit(0);
 }
@@ -154,8 +170,6 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   }
 
   eos::fst::Config::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
-
-  eos::fst::Config::gConfig.FstQuotaReportInterval = 60;
 
   setenv("XrdClientEUSER", "daemon", 1);
 
@@ -217,16 +231,6 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
             eos::fst::Config::gConfig.FstMetaLogDir = val;
           }
         }
-
-        if (!strcmp("quotainterval",var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config","argument 2 for quotainterval missing"); NoGo=1;
-          } else {
-            eos::fst::Config::gConfig.FstQuotaReportInterval = atoi(val);
-            if (eos::fst::Config::gConfig.FstQuotaReportInterval < 10) eos::fst::Config::gConfig.FstQuotaReportInterval = 10;
-            if (eos::fst::Config::gConfig.FstQuotaReportInterval > 3600) eos::fst::Config::gConfig.FstQuotaReportInterval = 3600;
-          }
-        }
       }
     }
     Config.Close();
@@ -237,10 +241,6 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   } else {
     Eroute.Say("=====> fstofs.autoboot : false");
   }
-
-  XrdOucString sayquotainterval =""; sayquotainterval += eos::fst::Config::gConfig.FstQuotaReportInterval;
-
-  Eroute.Say("=====> fstofs.quotainterval : ",sayquotainterval.c_str());
 
   if (! eos::fst::Config::gConfig.FstOfsBrokerUrl.endswith("/")) {
     eos::fst::Config::gConfig.FstOfsBrokerUrl += "/";
@@ -328,6 +328,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   std::string watch_scaninterval = "scaninterval";
   std::string watch_symkey       = "symkey";
   std::string watch_manager      = "manager";
+  std::string watch_publishinterval = "publish.interval";
   std::string watch_gateway      = "txgw";
   std::string watch_gateway_rate = "gw.rate";
   std::string watch_gateway_ntx  = "gw.ntx";
@@ -338,6 +339,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   ObjectManager.ModificationWatchKeys.insert(watch_scaninterval);
   ObjectManager.ModificationWatchKeys.insert(watch_symkey);
   ObjectManager.ModificationWatchKeys.insert(watch_manager);
+  ObjectManager.ModificationWatchKeys.insert(watch_publishinterval);
   ObjectManager.ModificationWatchKeys.insert(watch_gateway);
   ObjectManager.ModificationWatchKeys.insert(watch_gateway_rate);
   ObjectManager.ModificationWatchKeys.insert(watch_gateway_ntx);

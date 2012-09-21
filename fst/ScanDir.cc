@@ -438,7 +438,8 @@ void* ScanDir::ThreadProc(void)
     for (size_t s=0; s < (sleeper); s++) {
       if (bgThread)
 	XrdSysThread::CancelPoint();
-      sleep(1);
+      XrdSysTimer sleeper;
+      sleeper.Wait(1000);
     }
   }
 
@@ -472,7 +473,8 @@ void* ScanDir::ThreadProc(void)
       for (size_t s=0; s < (4*3600); s++) {
         if (bgThread)
 	  XrdSysThread::CancelPoint();
-        sleep(1);
+	XrdSysTimer sleeper;
+        sleeper.Wait(1000);
       }
     }
 
@@ -553,7 +555,8 @@ bool ScanDir::ScanFileLoadAware(const char* path, unsigned long long &scansize, 
         scantime = ( ((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec)/1000.0 ));
         float expecttime = (1.0 * offset / currentRate) / 1000.0;
         if (expecttime > scantime) {
-          usleep(1000.0*(expecttime - scantime));
+	  XrdSysTimer sleeper;
+	  sleeper.Wait(expecttime-scantime);
         }
         //adjust the rate according to the load information
         load = fstLoad->GetDiskRate("sda", "millisIO") / 1000.0;

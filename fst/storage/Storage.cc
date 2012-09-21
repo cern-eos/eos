@@ -453,7 +453,7 @@ Storage::Boot(FileSystem *fs)
 
     XrdSysTimer sleeper;
     sleeper.Snooze(5);
-    eos_info("Waiting to know our manager ...");    
+    eos_info("msg=\"waiting to know manager\"");    
     if (cnt > 20) {
       eos_static_alert("didn't receive manager name, aborting");
       XrdSysTimer sleeper;
@@ -462,6 +462,8 @@ Storage::Boot(FileSystem *fs)
     }
   } while(1);
   
+  eos_info("msg=\"manager known\" manager=\"%s\"", manager.c_str());    
+
   eos::common::FileSystem::fsid_t fsid = fs->GetId();
   std::string uuid = fs->GetString("uuid");
 
@@ -533,13 +535,16 @@ Storage::Boot(FileSystem *fs)
 
   bool resyncmgm =   (gFmdSqliteHandler.IsDirty(fsid) || (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
   
+  eos_info("msg=\"start disk synchronisation\"");
   // resync the SQLITE DB 
+  gFmdSqliteHandler.StayDirty(fsid,true); // indicate the flag to keep the DP dirty
+
   if (!gFmdSqliteHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(EFAULT,"cannot resync the SQLITE DB from local disk");
     return;
   }
-
+  eos_info("msg=\"finished disk synchronisation\" fsid=%lu", (unsigned long) fsid);
   // if we detect an unclean shutdown, we resync with the MGM
   // if we see the stat.bootcheck resyncflag for the filesystem, we also resync
 
@@ -547,17 +552,20 @@ Storage::Boot(FileSystem *fs)
   fs->SetLongLong("bootcheck",0);
 
   if (resyncmgm) {
+    eos_info("msg=\"start mgm synchronisation\" fsid=%lu", (unsigned long) fsid);
     // resync the MGM meta data
     if (!gFmdSqliteHandler.ResyncAllMgm(fsid, manager.c_str())) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
       fs->SetError(EFAULT,"cannot resync the mgm meta data");
       return;
     }
+    eos_info("msg=\"finished mgm synchronization\" fsid=%lu", (unsigned long) fsid);
   } else {
-    eos_info("Skip MGM resynchronization for fsid=%lu - had clean shutdown", (unsigned long) fsid);
+    eos_info("msg=\"skip mgm resynchronization - had clean shutdown\" fsid=%lu", (unsigned long) fsid);
   }
  
-  
+  gFmdSqliteHandler.StayDirty(fsid,false); // indicate the flag to unset the DB dirty flag at shutdown
+
   // check if there is a lable on the disk and if the configuration shows the same fsid + uuid
   if (!CheckLabel(fs->GetPath(),fsid,uuid)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
@@ -1760,6 +1768,7 @@ Storage::Communicator()
 	  }
 	  gOFS.ObjectManager.HashMutex.UnLockRead();
 	}
+
 	if (key == "manager") {
 	  gOFS.ObjectManager.HashMutex.LockRead();
 	  // we received a manager 
@@ -1772,7 +1781,21 @@ Storage::Communicator()
 	  }
 	  gOFS.ObjectManager.HashMutex.UnLockRead();
 	}
-	
+
+	if (key == "publish.interval") {
+	  gOFS.ObjectManager.HashMutex.LockRead();
+	  // we received a manager 
+	  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(),"hash");
+	  if (hash) {
+	    std::string publishinterval = hash->Get("publish.interval");
+	    eos_static_info("publish.interval=%s", publishinterval.c_str());
+	    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+	    Config::gConfig.PublishInterval = atoi(publishinterval.c_str());
+	  }
+	  gOFS.ObjectManager.HashMutex.UnLockRead();
+	}
+
+
 	// creation/deletion of gateway transfer queue
 	if ( key == "txgw" ) {
 	  gOFS.ObjectManager.HashMutex.LockRead();
@@ -2021,8 +2044,18 @@ Storage::Publish()
     gettimeofday(&tv1, &tz);
 
     // TODO: derive this from a global variable
-    // smear the publishing cycle around 5+-5 seconds
-    unsigned int lReportIntervalMilliSeconds = 5000 + (unsigned int)(10000.0*rand()/RAND_MAX);
+    // smear the publishing cycle around x +- x/2 seconds
+    int PublishInterval=10;
+    {
+      XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+      PublishInterval = eos::fst::Config::gConfig.PublishInterval;
+    } 
+    if ( (PublishInterval < 2) || (PublishInterval > 3600 ) ) {
+      // default to 10 +- 5 seconds
+      PublishInterval = 10;
+    }
+    
+    unsigned int lReportIntervalMilliSeconds =  (PublishInterval*500)+ (unsigned int)((PublishInterval*1000)*rand()/RAND_MAX);
 
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes
@@ -2595,6 +2628,8 @@ void
 Storage::MgmSyncer()
 {
   // this thread checks the synchronization between the local MD after a file modification/write against the MGM server
+  bool knowmanager=false;
+
   while(1) {
     XrdOucString manager="";
     size_t cnt=0;
@@ -2605,12 +2640,17 @@ Storage::MgmSyncer()
 	XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
 	manager = eos::fst::Config::gConfig.Manager.c_str();
       }
-      if (manager != "") 
+      if (manager != "")  {
+	if (!knowmanager) {
+	  eos_info("msg=\"manager known\" manager=\"%s\"", manager.c_str());    
+	  knowmanager=true;
+	} 
 	break;
+      }
       
       XrdSysTimer sleeper;
       sleeper.Snooze(5);
-      eos_info("Waiting to know our manager ...");    
+      eos_info("msg=\"waiting to know manager\"");    
       if (cnt > 20) {
 	eos_static_alert("didn't receive manager name, aborting");
 	XrdSysTimer sleeper;
@@ -2618,7 +2658,6 @@ Storage::MgmSyncer()
 	kill(SIGQUIT,getpid());
       }
     } while(1);
-
     bool failure = false;
     
     gOFS.WrittenFilesQueueMutex.Lock();

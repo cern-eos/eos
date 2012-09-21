@@ -36,7 +36,6 @@ class Config {
 public:
   bool             autoBoot;             // -> indicates if the node tries to boot automatically or waits for a boot message from a master
   XrdOucString     FstMetaLogDir;        //  Directory containing the meta data log files
-  int              FstQuotaReportInterval; // Interval after which Quota has to be published even if it didn't change
   XrdOucString     FstOfsBrokerUrl;      // Url of the message broker
   XrdOucString     FstDefaultReceiverQueue; // Queue where we are sending to by default
   XrdOucString     FstQueue;             // our queue name
@@ -46,9 +45,10 @@ public:
   XrdOucString     FstNodeConfigQueue;   // our queue holding this node's configuration settings
   XrdOucString     FstHostPort;          // <host>:<port>
   XrdOucString     Manager;              // <host>:<port> 
+  int              PublishInterval;      // Interval after which filesystem information should be published
   XrdSysMutex      Mutex;                // lock for dynamic updates like 'Manager' 
   static Config gConfig;
-  Config() {FstQuotaReportInterval=0;autoBoot=false;Manager = "";}
+  Config() {autoBoot=false;Manager = "";PublishInterval=10;}
   ~Config() {}
 };
 

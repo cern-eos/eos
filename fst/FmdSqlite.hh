@@ -276,6 +276,11 @@ public:
   bool IsDirty(eos::common::FileSystem::fsid_t fsid) { return isDirty[fsid];}
 
   // ---------------------------------------------------------------------------
+  //! Set the stay dirty flag indicating a non completed bootup
+  // ---------------------------------------------------------------------------
+  void StayDirty(eos::common::FileSystem::fsid_t fsid, bool dirty) { stayDirty[fsid] = dirty;}
+
+  // ---------------------------------------------------------------------------
   //! Define a DB file for a filesystem id
   // ---------------------------------------------------------------------------
   bool SetDBFile(const char* dbfile, int fsid, XrdOucString option="") ;
@@ -415,10 +420,22 @@ public:
   //! Destructor
   // ---------------------------------------------------------------------------
   ~FmdSqliteHandler() {
+    Shutdown();
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Shutdown
+  // ---------------------------------------------------------------------------
+  void Shutdown() {
     // clean-up all open DB handles
     std::map<eos::common::FileSystem::fsid_t, sqlite3*>::const_iterator it;
     for (it = DB.begin(); it != DB.end(); it++) {
       ShutdownDB(it->first);
+    }
+    {
+      // remove all
+      eos::common::RWMutexWriteLock lock(Mutex);
+      DB.clear();
     }
   }
 
@@ -433,6 +450,7 @@ private:
   static int CallBack(void * object, int argc, char **argv, char **ColName);
   static int ReadDBCallBack(void * object, int argc, char **argv, char **ColName);
   std::map<eos::common::FileSystem::fsid_t, bool> isDirty;
+  std::map<eos::common::FileSystem::fsid_t, bool> stayDirty;
 
   std::map<eos::common::FileSystem::fsid_t, bool> isSyncing;
 };

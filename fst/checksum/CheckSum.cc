@@ -23,14 +23,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/checksum/CheckSum.hh"
-/*----------------------------------------------------------------------------*/
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/time.h>
-#include <sys/mman.h>
-#include <xfs/xfs.h>
-/*----------------------------------------------------------------------------*/
 #include "fst/checksum/Adler.hh"
 #include "fst/checksum/CRC32.hh"
 #include "fst/checksum/CRC32C.hh"
@@ -40,6 +32,15 @@
 #include "common/Path.hh"
 #include "common/Logging.hh"
 #include "common/CloExec.hh"
+/*----------------------------------------------------------------------------*/
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/time.h>
+#include <sys/mman.h>
+#include <xfs/xfs.h>
+/*----------------------------------------------------------------------------*/
+#include <XrdSys/XrdSysTimer.hh>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -127,7 +128,8 @@ CheckSum::ScanFile(int fd, unsigned long long &scansize, float &scantime, int ra
       scantime = ( ((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec)/1000.0 ));
       float expecttime = (1.0 * offset / rate) / 1000.0;
       if (expecttime > scantime) {
-        usleep(1000.0*(expecttime - scantime));
+	XrdSysTimer sleeper;
+        sleeper.Wait((int)(expecttime - scantime));
       }
     }
   } while (nread == buffersize);

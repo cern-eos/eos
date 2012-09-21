@@ -138,7 +138,8 @@ void* TransferMultiplexer::ThreadProc(void){
     }
     XrdSysThread::SetCancelOn();
     for (size_t i=0; i< loopsleep/10000; i++) {
-      usleep(10000);
+      XrdSysTimer sleeper;
+      sleeper.Wait(10);
       XrdSysThread::CancelPoint();
     }
   }
