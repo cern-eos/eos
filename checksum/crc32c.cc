@@ -5,7 +5,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
-
+#include <stdlib.h>
 #include "checksum/crc32c.h"
 #include "checksum/crc32ctables.h"
 
@@ -54,7 +54,20 @@ namespace checksum {
     static const int SSE42_BIT = 20;
     uint32_t ecx = cpuid(1);
     bool hasSSE42 = ecx & (1 << SSE42_BIT);
-    
+
+    // test if living in a virtual machine
+    int rc = system("dmidecode | egrep -i 'manufacturer|product' | grep 'Virtual Machine'");
+    if (!WEXITSTATUS(rc)){
+      fprintf(stderr,"------ --:--:-- ----- CRC32C configured for virtual machines running without SSE42\n");
+      hasSSE42 = 0;
+    } else {
+      if (hasSSE42) {
+	fprintf(stderr,"------ --:--:-- ----- CRC32C configured for machine with SSE42 extension\n");
+      } else {
+	fprintf(stderr,"------ --:--:-- ----- CRC32C configured for machine without SSE42 extension\n");
+      }
+    }
+
     if (hasSSE42) {
 #ifdef __LP64__
       return crc32cHardware64;
