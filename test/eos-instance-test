@@ -321,6 +321,8 @@ runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
 runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" 
 runtest "### Download  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
+runtest "### Dowl Lfn  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/enoent" "-OSeos.lfn=/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
+runtest "### Dowl Lfn  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/enoent" "-OSeos.lfn=/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
 runtest "### Dowl Pfx  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/test/instancetest/passwd" "-OSeos.prefix=/eos/$EOS_TEST_INSTANCE/" 
 runtest "### Dowl Pfx  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/test/instancetest/passwd" "-OSeos.prefix=/eos/faulty/" 
 runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=1"
