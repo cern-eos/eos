@@ -30,6 +30,7 @@
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
+#include "common/LinuxStat.hh"
 #include "mq/XrdMqMessaging.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/dense_hash_map>
@@ -602,6 +603,8 @@ Storage::Boot(FileSystem *fs)
   fs->SetLongLong("stat.bootdonetime", (unsigned long long) time(NULL));
   fs->SetStatus(eos::common::FileSystem::kBooted);
   fs->SetError(0,"");
+  eos_info("msg=\"finished boot procedure\" fsid=%lu", (unsigned long) fsid);
+
   return;
 }
 
@@ -2017,9 +2020,8 @@ Storage::Publish()
   // ---------------------------------------------------------------------
   char* tmpname = tmpnam(NULL);
   XrdOucString getnetspeed = "ip route list | sed -ne '/^default/s/.*dev //p' | xargs ethtool | grep Speed | cut -d ':' -f2 | cut -d 'M' -f1 >> "; getnetspeed += tmpname;
-
   system(getnetspeed.c_str());
-  
+
   FILE* fnetspeed = fopen(tmpname,"r");
   if (fnetspeed) {
     if ( (fscanf(fnetspeed,"%llu", &netspeed)) == 1) {
@@ -2029,7 +2031,7 @@ Storage::Publish()
     } 
     fclose(fnetspeed);
   }
-  
+
   eos_static_info("publishing:networkspeed=%.02f GB/s", 1.0*netspeed/1000000000.0);
 
   // ---------------------------------------------------------------------
@@ -2039,8 +2041,28 @@ Storage::Publish()
   sleeper.Snooze(3);
 
   eos::common::FileSystem::fsid_t fsid=0;
+  std::string publish_uptime="";
+  std::string publish_sockets="";
 
   while (1) {
+    {
+      // ---------------------------------------------------------------------
+      // retrieve uptime information
+      // ---------------------------------------------------------------------
+      XrdOucString uptime = "uptime | tr -d \"\n\" > "; uptime += tmpname;
+      int rc = system(uptime.c_str());
+      if (WEXITSTATUS(rc)) {
+	eos_static_err("retrieve uptime call failed");
+      }
+      eos::common::StringConversion::LoadFileIntoString(tmpname,publish_uptime);
+      XrdOucString sockets = "cat /proc/net/tcp | wc -l | tr -d \"\n\" >"; sockets += tmpname;
+      rc = system(sockets.c_str());
+      if (WEXITSTATUS(rc)) {
+	eos_static_err("retrieve #socket call failed");
+      } 
+      eos::common::StringConversion::LoadFileIntoString(tmpname,publish_sockets);
+    }
+
     gettimeofday(&tv1, &tz);
 
     // TODO: derive this from a global variable
@@ -2057,6 +2079,14 @@ Storage::Publish()
     
     unsigned int lReportIntervalMilliSeconds =  (PublishInterval*500)+ (unsigned int)((PublishInterval*1000)*rand()/RAND_MAX);
 
+    // retrieve the process memory and thread state
+
+    eos::common::LinuxStat::linux_stat_t osstat; 
+
+    if (!eos::common::LinuxStat::GetStat(osstat)) {
+      eos_err("failed to get the memory usage information");
+    }
+    
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes
       eos::common::RWMutexReadLock lock (fsMutex);
@@ -2125,6 +2155,7 @@ Storage::Publish()
           success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetString("stat.boot").c_str());
 	  success &= fileSystemsVector[i]->SetLongLong("stat.drainer.running",fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued());
 	  success &= fileSystemsVector[i]->SetLongLong("stat.balancer.running",fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued());
+
           gOFS.OpenFidMutex.UnLock();
 
 	  {
@@ -2147,6 +2178,25 @@ Storage::Publish()
             eos_static_err("cannot set net parameters on filesystem %s", fileSystemsVector[i]->GetPath().c_str());
           }
         }
+
+	{
+	  // set node status values
+	  gOFS.ObjectManager.HashMutex.LockRead();
+	  // we received a new symkey 
+	  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(Config::gConfig.FstNodeConfigQueue.c_str(),"hash");
+	  if (hash) {
+	    hash->Set("stat.sys.kernel", eos::fst::Config::gConfig.KernelVersion.c_str());
+	    hash->SetLongLong("stat.sys.vsize",osstat.vsize);
+	    hash->SetLongLong("stat.sys.rss",osstat.rss);
+	    hash->SetLongLong("stat.sys.threads",osstat.threads);
+	    hash->Set("stat.sys.eos.version",VERSION);
+	    hash->Set("stat.sys.keytab", eos::fst::Config::gConfig.KeyTabAdler.c_str());
+	    hash->Set("stat.sys.uptime", publish_uptime.c_str());
+	    hash->Set("stat.sys.sockets", publish_sockets.c_str());
+	    hash->Set("stat.sys.eos.start", eos::fst::Config::gConfig.StartDate.c_str());
+	  }
+	  gOFS.ObjectManager.HashMutex.UnLockRead();
+	}
 	gOFS.ObjectManager.CloseMuxTransaction();
       }
     }

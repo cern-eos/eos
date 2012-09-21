@@ -548,6 +548,31 @@ public:
 
   // ---------------------------------------------------------------------------
   /** 
+   * Read a string as output of a shell command - this is not usefull in multi-threaded environments
+   * 
+   * @param shellcommand to execute
+   * @return XrdOucString
+   */
+  // ---------------------------------------------------------------------------  
+  static std::string
+  StringFromShellCmd(const char* shellcommand)
+  {
+    FILE* fd = popen(shellcommand, "r");
+    if (fd) {
+      char buffer[1024];
+      buffer[0]=0;
+      int nread = fread((void*)buffer,1,1024,fd);
+      pclose(fd);
+      if ( (nread >0) && (nread <1024) ) {
+	buffer[nread]=0;
+	return std::string(buffer);
+      }
+    }
+    return "<none>";
+  }
+
+  // ---------------------------------------------------------------------------
+  /** 
    * Return the time as <seconds>.<nanoseconds> in a string
    * @param stime XrdOucString where to store the time as text
    * @return const char* to XrdOucString object passed

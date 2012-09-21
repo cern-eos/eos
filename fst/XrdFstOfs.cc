@@ -171,6 +171,17 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 
   eos::fst::Config::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
 
+  {
+    // set the start date as string
+    XrdOucString out="";
+    time_t t= time(NULL);
+    struct tm * timeinfo;
+    timeinfo = localtime (&t);
+    
+    out = asctime(timeinfo); out.erase(out.length()-1); 
+    eos::fst::Config::gConfig.StartDate = out.c_str();
+  }
+
   setenv("XrdClientEUSER", "daemon", 1);
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -257,6 +268,8 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   eos::fst::Config::gConfig.FstHostPort = HostName; 
   eos::fst::Config::gConfig.FstHostPort += ":";
   eos::fst::Config::gConfig.FstHostPort += myPort;
+  eos::fst::Config::gConfig.KernelVersion = eos::common::StringConversion::StringFromShellCmd("uname -r | tr -d \"\n\"").c_str();
+
 
   Eroute.Say("=====> fstofs.broker : ", eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(),"");
 
@@ -445,6 +458,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
 
   eos_notice("FST_HOST=%s FST_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s", HostName, myPort, VERSION,RELEASE, keytabcks.c_str());
 
+  eos::fst::Config::gConfig.KeyTabAdler = keytabcks.c_str();
   return 0;
 }
 
