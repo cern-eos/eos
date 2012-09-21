@@ -40,16 +40,22 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-//! Static Class to sync all file descriptors
+//! Static Class to sync(+close) all file descriptors
 //! 
 //! Example
-//! eos::common::SyncAll::Set(fd);
+//! eos::common::SyncAll::All();
 /*----------------------------------------------------------------------------*/
 class SyncAll {
 public:
   static void All() {
     for (size_t i = getdtablesize(); i --> 3;) {
       fsync(i);
+    }
+  }
+  static void AllandClose() {
+    for (size_t i = getdtablesize(); i --> 3;) {
+      fsync(i);
+      close(i);
     }
   }
 };
