@@ -56,7 +56,7 @@ com_who (char* arg1) {
               options += "m";
             } else {
 	      if ( option == "-s") {
-		option += "s";
+		options += "s";
 	      } else {
 		goto com_who_usage;
 	      }

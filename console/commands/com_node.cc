@@ -261,6 +261,7 @@ com_node (char* arg1) {
   fprintf(stdout,"                                                                       xs_read  : simulate checksum errors when reading a file\n");
   fprintf(stdout,"                                                                       xs_write : simulate checksum errors when writing a file\n");
   fprintf(stdout,"                                                                       <none>   : disable error simulation (every value than the previous ones are fine!)\n");
+  fprintf(stdout,"                                                               <key> : publish.interval=<sec> - set the filesystem state publication interval to <sec> seconds\n");
   fprintf(stdout,"                                                               <key> : for other keys see help of 'fs config' for details\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
