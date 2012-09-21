@@ -32,6 +32,7 @@
 #include <unistd.h>
 
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "common/Logging.hh"
@@ -98,7 +99,8 @@ int main (int argc, char* argv[]) {
     fd= open (sourcefile.c_str(),O_RDONLY);
     
     if (fd<0) {
-      sleep(1);
+      XrdSysTimer sleeper;
+      sleeper.Wait(1000);
     }
   } while(fd <0 );
 

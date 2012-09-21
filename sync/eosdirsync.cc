@@ -33,6 +33,7 @@
 #include <dirent.h>
 
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientAdmin.hh"
 #include "XrdClient/XrdClientEnv.hh"
@@ -186,7 +187,8 @@ int main (int argc, char* argv[]) {
   do {
     if (stat(sourcedir.c_str(), &presentstat)) {
       eos_static_err("cannot stat source directory %s - errno=%d - retry in 1 minute ...", sourcedir.c_str(),errno);
-      sleep(60);
+      XrdSysTimer sleeper;
+      sleeper.Wait(60000);
       continue;
     }
 
@@ -195,7 +197,8 @@ int main (int argc, char* argv[]) {
       DIR* dir = opendir(sourcedir.c_str());
       if (!dir) {
         eos_static_err("cannot open source directory %s - errno=%d - retry in 1 minute ...", sourcedir.c_str(),errno);
-        sleep(60);
+	XrdSysTimer sleeper;
+	sleeper.Wait(60000);
         continue;
       }
       struct dirent *entry;
