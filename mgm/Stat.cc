@@ -398,7 +398,8 @@ Stat::Circulate()
 
   // empty the circular buffer and extract some Mq statistic values
   while(1) {
-    usleep(512345);
+    XrdSysTimer sleeper;
+    sleeper.Wait(512);
     // --------------------------------------------
     // mq statistics extraction
     l1tmp = AtomicGet(XrdMqSharedHash::SetCounter);

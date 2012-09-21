@@ -90,7 +90,7 @@ xrdmgmofs_shutdown(int sig) {
   // ----------------------------------------------------------------------------------------------------------------
   eos_static_warning("Shutdown:: set stall rule");
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
-  Access::gStallRules[std::string("*")] = 60;
+  Access::gStallRules[std::string("*")] = "300";
 
   if (gOFS->ErrorLog) {
     XrdOucString errorlogkillline="pkill -9 -f \"eos -b console log _MGMID_\"";
@@ -114,6 +114,9 @@ xrdmgmofs_shutdown(int sig) {
     gOFS->zMQ = 0;
   }
 #endif
+  // ----------------------------------------------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop messaging ... ");
+  if (gOFS->MgmOfsMessaging) { gOFS->MgmOfsMessaging->StopListener(); }
 
   // ----------------------------------------------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop deletion thread ... ");
@@ -128,7 +131,7 @@ xrdmgmofs_shutdown(int sig) {
   if (gOFS->fslistener_tid) { XrdSysThread::Cancel(gOFS->fslistener_tid); XrdSysThread::Join(gOFS->fslistener_tid,0); }
   // ----------------------------------------------------------------------------------------------------------------
 
-  eos_static_warning("Shutdown:: stop messaging ... ");
+  eos_static_warning("Shutdown:: remove messaging ... ");
   if (gOFS->MgmOfsMessaging) { delete gOFS->MgmOfsMessaging; }
 
   // ----------------------------------------------------------------------------------------------------------------

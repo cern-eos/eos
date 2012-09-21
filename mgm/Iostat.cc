@@ -1079,7 +1079,8 @@ Iostat::Circulate() {
       }
     }
     sc++;
-    usleep(512345);
+    XrdSysTimer sleeper;
+    sleeper.Wait(512);
     Mutex.Lock();
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatAvg> >::iterator tit;
     google::sparse_hash_map<std::string, IostatAvg >::iterator dit;
@@ -1392,7 +1393,7 @@ Iostat::UdpBroadCast(eos::common::Report* report)
       u += " \"start_time\": \"";           u += eos::common::StringConversion::GetSizeString(sizestring, report->ots); u += "\",\n";
       XrdOucString stime; // stores the current time in <s>.<ns> 
       u += " \"unique_id\": \"";            u += gOFS->MgmOfsInstanceName.c_str(); u += "-"; u += eos::common::StringConversion::TimeNowAsString(stime); u += "\",\n";
-      u += " \"user_dn\": \"";               u += report->sec_dn;  u += "\",\n";
+      u += " \"user_dn\": \"";               u += report->sec_info;  u += "\",\n";
       u += " \"user_fqan\": \"";            u += report->sec_grps; u += "\",\n";
       u += " \"user_role\": \"";            u += report->sec_role; u += "\",\n";
       u += " \"user_vo\": \"";              u += report->sec_vorg; u += "\",\n";
@@ -1445,7 +1446,7 @@ Iostat::UdpBroadCast(eos::common::Report* report)
       u += "start_time=";           u += eos::common::StringConversion::GetSizeString(sizestring, report->ots); u += "\n";
       XrdOucString stime; // stores the current time in <s>.<ns> 
       u += "unique_id=";            u += gOFS->MgmOfsInstanceName.c_str(); u += "-"; u += eos::common::StringConversion::TimeNowAsString(stime); u += "\n";
-      u += "user_dn = ";             u += report->sec_dn; u += "\n";
+      u += "user_dn = ";             u += report->sec_info; u += "\n";
       u += "user_fqan=";            u += report->sec_grps; u += "\n";
       u += "user_role=";            u += report->sec_role; u += "\n";
       u += "user_vo=";              u += report->sec_vorg; u += "\n";

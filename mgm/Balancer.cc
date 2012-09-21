@@ -86,7 +86,8 @@ Balancer::Balance(void)
       }
     }
     XrdSysThread::SetCancelOn();
-    sleep(1);
+    XrdSysTimer sleeper;
+    sleeper.Wait(1000);
   } while (!go);
 
   // loop forever until cancelled

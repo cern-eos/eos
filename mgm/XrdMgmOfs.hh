@@ -31,6 +31,7 @@
 #include "common/Logging.hh"
 #include "common/GlobalConfig.hh"
 #include "common/CommentLog.hh"
+#include "common/LinuxStat.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "mgm/ProcInterface.hh"
@@ -605,8 +606,7 @@ public:
                       const char *y="");
 
   XrdMgmOfs(XrdSysError *lp);
-  virtual               ~XrdMgmOfs() {
-}
+  virtual               ~XrdMgmOfs() {}
 
   virtual int            Configure(XrdSysError &);
   static void*           StaticInitializeFileView(void* arg);
@@ -725,6 +725,9 @@ public:
   XrdOucString     ManagerId;          // -> manager id in <host>:<port> format
   XrdOucString     ManagerIp;          // -> manager ip in <xxx.yyy.zzz.vvv> format
   int              ManagerPort;        // -> manager port as number e.g. 1094
+
+  eos::common::LinuxStat::linux_stat_t LinuxStatsStartup; // => process state after namespace load time
+
 protected:
   char*            HostName;           // -> our hostname as derived in XrdOfs
   char*            HostPref;           // -> our hostname as derived in XrdOfs without domain

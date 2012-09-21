@@ -1161,22 +1161,34 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             retc = EINVAL;
           } else {      
             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-            
+	    std::vector<FsNode*> nodes;
             FileSystem* fs = 0;
+	    
+	    if ((identifier.find("*") == std::string::npos)) {
+	      // apply this to all nodes !
+	      std::map<std::string , FsNode*>::const_iterator it;
+	      for (it = FsView::gFsView.mNodeView.begin(); it != FsView::gFsView.mNodeView.end(); it++) {
+		nodes.push_back(it->second);
+	      }
+	    } else {
             // by host:port name
-            std::string path = identifier;
-            if ( (identifier.find(":") == std::string::npos) ) {
-              identifier += ":1095"; // default eos fst port
-            }
-            if ((identifier.find("/eos/") == std::string::npos)) {
-              identifier.insert(0,"/eos/");
-              identifier.append("/fst");
-            }
-            if (FsView::gFsView.mNodeView.count(identifier)) {
-
+	      std::string path = identifier;
+	      if ( (identifier.find(":") == std::string::npos) ) {
+		identifier += ":1095"; // default eos fst port
+	      }
+	      if ((identifier.find("/eos/") == std::string::npos)) {
+		identifier.insert(0,"/eos/");
+		identifier.append("/fst");
+	      }
+	      if (FsView::gFsView.mNodeView.count(identifier)) {
+		nodes.push_back(FsView::gFsView.mNodeView[identifier]);
+	      }
+	    }
+	    
+	    for (size_t i=0; i< nodes.size(); i++) {
 	      if ( key == "configstatus") {
 		std::set<eos::common::FileSystem::fsid_t>::iterator it;
-		for (it = FsView::gFsView.mNodeView[identifier]->begin(); it != FsView::gFsView.mNodeView[identifier]->end();  it++) {
+		for (it = nodes[i]->begin(); it != nodes[i]->end();  it++) {
 		  if ( FsView::gFsView.mIdView.count(*it)) {
 		    fs = FsView::gFsView.mIdView[*it];
 		    if (fs) {
@@ -1207,7 +1219,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		    stdErr += "error: number of gateway transfer slots must be between 1-100\n";
 		    retc = EINVAL;
 		  } else {
-		    if (FsView::gFsView.mNodeView[identifier]->SetConfigMember(key,value,false)) {
+		    if (nodes[i]->SetConfigMember(key,value,false)) {
 		      stdOut += "success: number of gateway transfer slots set to gw.ntx="; stdOut += (int)slots;
 		    } else {
 		      stdErr += "error: failed to store the config value gw.ntx\n";
@@ -1223,7 +1235,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		    stdErr += "error: gateway transfer speed must be 1-10000 (MB/s)\n";
 		    retc = EINVAL;
 		  } else {
-		    if (FsView::gFsView.mNodeView[identifier]->SetConfigMember(key,value,false)) {
+		    if (nodes[i]->SetConfigMember(key,value,false)) {
 		      stdOut += "success: gateway transfer rate set to gw.rate="; stdOut += (int)bw; stdOut += " Mb/s";
 		    } else {
 		      stdErr += "error: failed to store the config value gw.rate\n";
@@ -1234,19 +1246,31 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 		if ( key == "error.simulation" ) {
 		  keyok=true;
-		  if (FsView::gFsView.mNodeView[identifier]->SetConfigMember(key,value,false)) {
+		  if (nodes[i]->SetConfigMember(key,value,false)) {
 		    stdOut += "success: setting error simulation tag '"; stdOut += value.c_str(); stdOut += "'";
 		  } else {
 		    stdErr += "error: failed to store the error simulation tag\n";
 		    retc = EFAULT;
 		  }
 		}
+
+		if ( key == "publish.interval" ) {
+		  keyok=true;
+		  if (nodes[i]->SetConfigMember(key,value,false)) {
+		    stdOut += "success: setting publish interval to '"; stdOut += value.c_str(); stdOut += "'";
+		  } else {
+		    stdErr += "error: failed to store publish interval\n";
+		    retc = EFAULT;
+		  }
+		}
+		
 		if (!keyok) {
 		  stdErr += "error: the specified key is not known - consult the usage information of the command\n";
 		  retc = EINVAL;
 		}
 	      }		 
-            } else {
+            } 
+	    if (!nodes.size()) {
               retc = EINVAL;
               stdErr = "error: cannot find node <"; stdErr += identifier.c_str(); stdErr += ">";
             }
@@ -2162,8 +2186,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
       // statistic for the memory usage
       eos::common::LinuxMemConsumption::linux_mem_t mem; 
+
       if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem)) {
 	stdErr += "failed to get the memory usage information\n";
+      }
+
+      eos::common::LinuxStat::linux_stat_t pstat;
+
+      if (!eos::common::LinuxStat::GetStat(pstat)) {
+	stdErr += "failed to get the process stat information\n";
       }
       
       XrdOucString bootstring;
@@ -2198,6 +2229,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	stdOut+="ALL      memory virtual                   ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.vmsize,"B"); stdOut += "\n";
 	stdOut+="ALL      memory resident                  ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.resident,"B"); stdOut += "\n";
 	stdOut+="ALL      memory share                     ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.share,"B"); stdOut += "\n";
+	stdOut+="ALL      memory growths                   ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)(pstat.vsize-gOFS->LinuxStatsStartup.vsize),"B"); stdOut += "\n";
+	stdOut+="ALL      threads                          ";stdOut += eos::common::StringConversion::GetSizeString        (sizestring, (unsigned long long)pstat.threads);stdOut += "\n";
+
         stdOut+="# ------------------------------------------------------------------------------------\n";
       } else {
         stdOut += "uid=all gid=all ns.total.files=";       stdOut += files; stdOut += "\n";
@@ -2208,9 +2242,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         stdOut += "uid=all gid=all ns.total.directories.changelog.avg_entry_size="; stdOut += eos::common::StringConversion::GetSizeString(cldratio, (unsigned long long) d?(1.0*statd.st_size)/d:0); stdOut += "\n";
 	stdOut += "uid=all gid=all ns.boot.status="; stdOut += bootstring; stdOut += "\n";
 	stdOut += "uid=all gid=all ns.boot.time="; stdOut += (int) boottime; stdOut += "\n";
-	stdOut += "uid=all gid=all ns.memory.virtual="; stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.vmsize);
-	stdOut += "uid=all gid=all ns.memory.resident="; stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.resident);
-	stdOut += "uid=all gid=all ns.memory.share="; stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.share);
+	stdOut += "uid=all gid=all ns.memory.virtual=";  stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.vmsize);stdOut += "\n";
+	stdOut += "uid=all gid=all ns.memory.resident="; stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.resident);stdOut += "\n";
+	stdOut += "uid=all gid=all ns.memory.share=";    stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.share);stdOut += "\n";
+	stdOut += "uid=all gid=all ns.stat.threads=";    stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)pstat.threads);stdOut += "\n";
+   	stdOut += "uid=all gid=all ns.memory.growth=";   stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)(pstat.vsize-gOFS->LinuxStatsStartup.vsize));stdOut += "\n";
       }
 
       if (subcmd == "stat") {
@@ -3501,7 +3537,6 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       }
       for (it = eos::common::Mapping::ActiveTidents.begin(); it != eos::common::Mapping::ActiveTidents.end(); it++) {
         std::string username="";
-        
         tokens.clear();
 	std::string intoken=it->first.c_str();
         eos::common::StringConversion::Tokenize(intoken, tokens, delimiter);
@@ -3543,32 +3578,34 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
       eos::common::Mapping::ActiveLock.Lock();
       unsigned long long cnt=0;
-      if (showclients || showall) {
+      if (showclients || showall || showsummary) {
         for (it = eos::common::Mapping::ActiveTidents.begin(); it != eos::common::Mapping::ActiveTidents.end(); it++) {
 	  cnt++;
-          std::string username="";
-          tokens.clear();
+	  std::string username="";
+	  tokens.clear();
 	  std::string intoken = it->first.c_str();
-          eos::common::StringConversion::Tokenize(intoken, tokens, delimiter);
-          uid_t uid = atoi(tokens[0].c_str());
-          int terrc=0;
-          username = eos::common::Mapping::UidToUserName(uid,terrc);
-
-          char formatline[1024];
-          time_t now = time(NULL);
-          if (!monitoring) {
-            snprintf(formatline,sizeof(formatline)-1, "client : %-10s               := %-30s (%4s) %lds idle time\n", username.c_str(), tokens[1].c_str(), tokens[2].c_str(), now-it->second);
-          } else {
-            snprintf(formatline,sizeof(formatline)-1, "client=%s uid=%s auth=%s idle=%ld\n", tokens[1].c_str(),username.c_str(), tokens[2].c_str(), now-it->second);
-          }
-          stdOut += formatline;
-        }
+	  eos::common::StringConversion::Tokenize(intoken, tokens, delimiter);
+	  uid_t uid = atoi(tokens[0].c_str());
+	  int terrc=0;
+	  username = eos::common::Mapping::UidToUserName(uid,terrc);
+	  
+	  char formatline[1024];
+	  time_t now = time(NULL);
+	  if (!monitoring) {
+	    snprintf(formatline,sizeof(formatline)-1, "client : %-10s               := %-30s (%4s) %lds idle time\n", username.c_str(), tokens[1].c_str(), tokens[2].c_str(), now-it->second);
+	  } else {
+	    snprintf(formatline,sizeof(formatline)-1, "client=%s uid=%s auth=%s idle=%ld\n", tokens[1].c_str(),username.c_str(), tokens[2].c_str(), now-it->second);
+	  }
+	  if (showsummary && (!monitoring)) {
+	  } else {
+	    stdOut += formatline;
+	  }
+	}       
       }
       eos::common::Mapping::ActiveLock.UnLock();
 
       if (showsummary) {
 	char formatline[1024];
-	
 	if (!monitoring) {
 	  snprintf(formatline,sizeof(formatline)-1,"sum(clients) : %llu\n", cnt);
 	} else {

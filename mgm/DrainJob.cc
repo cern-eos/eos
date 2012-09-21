@@ -256,7 +256,8 @@ DrainJob::Drain(void)
       }
     }
     XrdSysThread::SetCancelOn();
-    sleep(1);
+    XrdSysTimer sleeper;
+    sleeper.Wait(1000);
   } while (!go);
   
 
@@ -332,7 +333,8 @@ DrainJob::Drain(void)
     waitreporttime = time(NULL) + 10; // we report every 10 seconds
 
     while ( (now = time(NULL)) < waitendtime) {
-      usleep(50000);
+      XrdSysTimer sleeper;
+      sleeper.Wait(50);
 
       // check if we should abort
       XrdSysThread::CancelPoint();
@@ -523,7 +525,8 @@ DrainJob::Drain(void)
     for (int k=0; k< 10; k++) {
       // check if we should abort
       XrdSysThread::CancelPoint();
-      usleep(100000);
+      XrdSysTimer sleep;
+      sleep.Wait(100);
     }
     XrdSysThread::SetCancelOff();
   } while (1);

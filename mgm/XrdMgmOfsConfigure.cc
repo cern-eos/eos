@@ -185,6 +185,11 @@ XrdMgmOfs::InitializeFileView()
   {
     InitializationTime=(time(0)-InitializationTime);
     XrdSysMutexHelper lock(InitializationMutex);
+
+    // grab process status after boot
+    if (!eos::common::LinuxStat::GetStat(gOFS->LinuxStatsStartup)) {
+      eos_crit("failed to grab /proc/self/stat information");
+    }
   }
   return 0;
 }
@@ -1287,7 +1292,8 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   (void) signal(SIGTERM,xrdmgmofs_shutdown);
   (void) signal(SIGQUIT,xrdmgmofs_shutdown);
 
-  usleep(2000000);
+  XrdSysTimer sleeper;
+  sleeper.Wait(200);
 
   return NoGo;
 }
