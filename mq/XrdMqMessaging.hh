@@ -49,6 +49,7 @@ public:
   
   XrdMqMessaging() {tid=0;};
   XrdMqMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false, XrdMqSharedObjectManager* som=0);
+  virtual void StopListener();
   virtual ~XrdMqMessaging();
 
   bool IsZombie() {return zombie;}

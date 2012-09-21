@@ -27,6 +27,7 @@
 #include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
 #include <XrdClient/XrdClientEnv.hh>
+#include <XrdSys/XrdSysTimer.hh>
 
 int main (int argc, char* argv[]) {
   XrdMqClient mqc;
@@ -81,7 +82,8 @@ int main (int argc, char* argv[]) {
       fflush(stdout);
       delete newmessage;
     } else {
-      usleep(sleeper);
+      XrdSysTimer mySleeper;
+      mySleeper.Wait(sleeper/1000);
     }
     // we exit after maxdumps messages
     if (maxdumps && (dumped >= maxdumps)) 

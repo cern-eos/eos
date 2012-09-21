@@ -29,6 +29,7 @@ const char *XrdMqClientCVSID = "$Id: XrdMqClient.cc,v 1.0.0 2007/10/04 01:34:19 
 #include <mq/XrdMqTiming.hh>
 
 #include <XrdSys/XrdSysDNS.hh>
+#include <XrdSys/XrdSysTimer.hh>
 #include <XrdClient/XrdClientUrlSet.hh>
 
 #include <setjmp.h>
@@ -277,7 +278,8 @@ XrdMqClient::RecvMessage() {
     while (!client->Stat(&stinfo,true)) {
       ReNewBrokerXrdClientReceiver(0);
       client = GetBrokerXrdClientReceiver(0);
-      sleep(1);
+      XrdSysTimer sleeper;
+      sleeper.Wait(2000);
     }
     
     if (!stinfo.size) {
@@ -369,7 +371,7 @@ XrdMqClient::GetBrokerUrl(int i) {
       }
     }
     if (hostname == "localhost") {
-      hostname = "localhost.localdomain";
+      //      hostname = "localhost.localdomain";
     }
     XrdOucString* alias = new XrdOucString();
     *alias = "root://"; *alias += hostname; *alias += port; *alias += queue;
@@ -432,7 +434,8 @@ void XrdMqClient::CheckBrokerXrdClientReceiver(int i) {
   // SIGBUS re-entry
   if (sigsetjmp(xrdmqclient_sj_env, 1)) { 
     fprintf(stderr,"Fatal: recovered SIGBUS error - backoff for 5s\n");
-    sleep(5);
+    XrdSysTimer sleeper;
+    sleeper.Wait(5000);
   } 
 
   XrdClient* client = GetBrokerXrdClientReceiver(i);

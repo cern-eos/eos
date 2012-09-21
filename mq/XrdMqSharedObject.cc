@@ -27,6 +27,7 @@
 #include "mq/XrdMqStringConversion.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysAtomics.hh"
+#include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/
 // system includes
 
@@ -260,7 +261,7 @@ XrdMqSharedObjectManager::StartDumper(const char* file)
   int rc=0;
   DumperFile = file;
   if ((rc = XrdSysThread::Run(&dumper_tid, XrdMqSharedObjectManager::StartHashDumper, static_cast<void *>(this),
-                              0, "HashDumper"))) {
+                              XRDSYSTHREAD_HOLD, "HashDumper"))) {
     fprintf(stderr,"XrdMqSharedObjectManager::StartDumper=> failed to run dumper thread\n");
   }
 }
@@ -280,6 +281,7 @@ void
 XrdMqSharedObjectManager::FileDumper()
 {
   while (1) {
+    XrdSysThread::SetCancelOff();
     XrdOucString s;
     DumpSharedObjects(s);
     std::string df = DumperFile;
@@ -292,8 +294,11 @@ XrdMqSharedObjectManager::FileDumper()
     if (rename(df.c_str(),DumperFile.c_str())) {
       fprintf(stderr,"XrdMqSharedObjectManager::FileDumper=> unable to write dumper file %s\n", DumperFile.c_str());
     }
-    for (size_t i=0; i< 1000; i++) {
-      usleep(10000);
+    XrdSysThread::SetCancelOn();
+    for (size_t i=0; i< 6000; i++) {
+      XrdSysTimer sleeper;
+      sleeper.Wait(10);
+      XrdSysThread::CancelPoint();
     }
   }
 }

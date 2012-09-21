@@ -25,6 +25,7 @@
 #include <mq/XrdMqClient.hh>
 #include <mq/XrdMqTiming.hh>
 #include <XrdSys/XrdSysLogger.hh>
+#include <XrdSys/XrdSysTimer.hh>
 #include <stdio.h>
 
 
@@ -101,6 +102,7 @@ int main (int argc, char* argv[]) {
     // we exit after maxfeeds messages
     if (maxfeeds && (feeded >= maxfeeds)) 
       exit(0);
-    usleep(sleeper);
+    XrdSysTimer mySleeper;
+    mySleeper.Wait(sleeper/1000);
   }
 }

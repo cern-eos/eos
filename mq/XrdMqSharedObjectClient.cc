@@ -90,9 +90,6 @@ int main (int argc, char* argv[]) {
       XrdOucString out;
       out += "---------------------------\n";
       out += "subject="; out += str.c_str(); out += "\n";
-      //      hash->Dump(out);
-      //      printf("%s", out.c_str());
-      //      sleep(1);
     }
 
     ObjectManager.HashMutex.UnLockRead();

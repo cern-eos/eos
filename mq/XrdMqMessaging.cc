@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mq/XrdMqMessaging.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdSys/XrdSysTimer.hh"
 
 XrdMqClient XrdMqMessaging::gMessageClient;
 
@@ -51,7 +52,8 @@ XrdMqMessaging::Listen()
     if (newmessage) {
       delete newmessage;
     } else {
-      sleep(1);
+      XrdSysTimer sleeper;
+      sleeper.Wait(1000);
     }
   }
 }
@@ -99,14 +101,24 @@ bool XrdMqMessaging::StartListenerThread()
 }
 
 /*----------------------------------------------------------------------------*/
-XrdMqMessaging::~XrdMqMessaging() 
+void
+XrdMqMessaging::StopListener()
 {
   if (tid) {
     XrdSysThread::Cancel(tid);
     XrdSysThread::Join(tid,0);
+    tid = 0;
   }
   gMessageClient.Unsubscribe();
 }
+/*----------------------------------------------------------------------------*/
+
+
+XrdMqMessaging::~XrdMqMessaging() 
+{
+  StopListener();
+}
+
 /*----------------------------------------------------------------------------*/
 
 
@@ -133,8 +145,11 @@ XrdMqMessaging::BroadCastAndCollect(XrdOucString broadcastresponsequeue, XrdOucS
     return false;
   }
 
+  // sleep 
+  XrdSysTimer sleeper;
+  sleeper.Wait(waittime*1000);
   // now collect:
-  sleep(waittime);
+
   XrdMqMessage* newmessage = MessageClient.RecvMessage();
   if (newmessage) {
     responses += newmessage->GetBody();
