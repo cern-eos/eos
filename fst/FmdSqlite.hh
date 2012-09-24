@@ -380,7 +380,12 @@ public:
     // you need to lock the RWMutex Mutex before calling this
     FmdSqliteMap[fsid].clear();
   }
-    
+
+  // ---------------------------------------------------------------------------
+  //! Initialize the SQL DB
+  // ---------------------------------------------------------------------------
+  bool ResetDB(eos::common::FileSystem::fsid_t fsid);
+
   // ---------------------------------------------------------------------------
   //! Comparison function for modification times
   // ---------------------------------------------------------------------------

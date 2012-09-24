@@ -542,6 +542,14 @@ Storage::Boot(FileSystem *fs)
   gFmdSqliteHandler.StayDirty(fsid,true); // indicate the flag to keep the DP dirty
 
   if (resyncdisk) {
+    if (resyncmgm) {
+      // clean-up the DB
+      if (!gFmdSqliteHandler.ResetDB(fsid)) {
+	fs->SetStatus(eos::common::FileSystem::kBootFailure);
+	fs->SetError(EFAULT,"cannot clean SQLITE DB on local disk");
+	return;
+      }
+    }
     if (!gFmdSqliteHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
       fs->SetError(EFAULT,"cannot resync the SQLITE DB from local disk");
@@ -2237,13 +2245,10 @@ Storage::Drainer()
   nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
   unsigned int cycler=0;
 
-  std::vector<bool> should_ask; // vector describing if a file system is within the treshould to be a balancing source
-  std::vector<bool> has_work;   // vector describing if a file system got a transfer scheduled in the last balancing round
+  std::map<unsigned int, bool>   got_work;   // map having the result of last scheduling request
+  std::map<unsigned int, time_t> last_asked; // map having the last scheduling request time
 
   unsigned long long nscheduled=0;
-  unsigned long long nscheduled_new=0;
-
-  int expsleep=50000;
 
   while(1) {
     eos_static_debug("Doing draining round ...");
@@ -2270,8 +2275,6 @@ Storage::Drainer()
     {
       eos::common::RWMutexReadLock lock (fsMutex);
       nfs = fileSystemsVector.size();
-      should_ask.resize(nfs);
-      has_work.resize(nfs);
 
       // if we didn't schedule yet, we just look into the queues what is there
       if (!nscheduled) {
@@ -2283,15 +2286,11 @@ Storage::Drainer()
       }
     }
 
-    nscheduled_new = 0;
-
+    
     for (unsigned int i=0; i< nfs; i++) {
       unsigned int index = (i+cycler) % nfs;
       eos::common::RWMutexReadLock lock(fsMutex);
       if (index < fileSystemsVector.size()) {
-	should_ask[index] = false;
-	has_work[index]   = false;
-
         std::string path = fileSystemsVector[index]->GetPath();
 	unsigned long id = fileSystemsVector[index]->GetId();
 	eos_static_debug("FileSystem %lu ",id);
@@ -2305,6 +2304,18 @@ Storage::Drainer()
 
 	ask = true;
 
+	if (!got_work[index]) {
+	  if ( (time(NULL) - last_asked[index]) < 60 ) {
+	    // if we didn't get a file during the last scheduling call we don't ask until 1 minute has passed
+	    continue;
+	  } else {
+	    // after one minute we just ask again
+	    last_asked[index] = time(NULL);
+	  }
+	}
+
+	got_work[index]   = false; 
+	
 	unsigned long long freebytes   = fileSystemsVector[index]->GetLongLong("stat.statfs.freebytes");
 
 	if (fileSystemsVector[index]->GetDrainQueue()->GetBandwidth() != ratetx) {
@@ -2332,7 +2343,6 @@ Storage::Drainer()
 	if ( (bootstatus == eos::common::FileSystem::kBooted) && 
 	     (configstatus > eos::common::FileSystem::kRO) && 
 	     ( !full ) ) {
-	  should_ask[index] = true;
 	  // we allows max. <nparalleltx> transfers to run at the same time
 	  if (nscheduled < nparalleltx) {
 	    eos_static_debug("asking for new job %d/%d", nscheduled, nparalleltx);
@@ -2356,8 +2366,7 @@ Storage::Drainer()
 	      if (response == "submitted") {
 		eos_static_info("got a new job");
 		nscheduled++;
-		nscheduled_new++;
-		has_work[index] = true;
+		got_work[index] = true;
 		eos_static_debug("manager scheduled a transfer for us!");
 	      } else {
 		eos_static_debug("manager returned no file to schedule [ENODATA]");
@@ -2379,57 +2388,10 @@ Storage::Drainer()
       nscheduled = 0;
       XrdSysTimer sleeper;
       // go to sleep for a while if there was nothing to do
-      eos_static_debug("doing a long sleep of 30s");
-      sleeper.Snooze(30);
-    } else {
-      if (nscheduled_new) {
-	// ---------------------------------------------------------------------------------------------
-	// if we scheduled in the last round, we go one more until we cannot schedule anymore
-	// ---------------------------------------------------------------------------------------------
-	eos_static_debug("asking for new job sleep 100000");
-	XrdSysTimer msSleep; 
-	msSleep.Wait(100);
-	expsleep = 100000;
-      } else {
-	// ---------------------------------------------------------------------------------------------
-	// we are actually running transfers, we check more frequently, if we have to ask for more 
-	// and interrupt the sleepy period as soon as we have a slot free
-	// ---------------------------------------------------------------------------------------------
-	for (unsigned int sleeper = 0; sleeper < 30; sleeper++) {
-	  eos::common::RWMutexReadLock lock(fsMutex);     
-	  nfs = fileSystemsVector.size();
-	  should_ask.resize(nfs);
-	  unsigned long total_running=0;
-	  for (unsigned int i=0; i< nfs; i++) {
-	    if (should_ask[i]) {
-	      total_running += fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued();
-	    }
-	  }
-	  if ( (total_running >= nparalleltx) || (nscheduled == nparalleltx) ) {
-	    XrdSysTimer sleeper;
-	    sleeper.Snooze(1);
-	    nscheduled = 0; // this trick allows that we give atleast a second time for a transfer job to appear in the FST queue
-	  } else {
-	    if (total_running == 0) {
-	      // we don't run anything
-	      XrdSysTimer sleeper;
-	      sleeper.Snooze(1);
-	      expsleep = 50000;
-	    } else {
-	      // we run something, we could ask for more immedeatly but we ramp up the sleep
-	      XrdSysTimer msSleep; 
-	      msSleep.Wait(expsleep/1000);
-	      expsleep *=2;
-	      if (expsleep > 10000000) {
-		expsleep = 10000000;
-	      }
-	    }
-	    break;
-	  }
-	}
-	nscheduled=0;
-      }
-    }
+      eos_static_debug("doing a long sleep of 60s");
+      sleeper.Snooze(60);
+    } 
+    nscheduled=0;
     cycler++;
   }
 }
@@ -2454,11 +2416,10 @@ Storage::Balancer()
 
   unsigned int cycler=0;
 
-  std::vector<bool> should_ask; // vector describing if a file system is within the treshould to be a balancing source
-  std::vector<bool> has_work;   // vector describing if a file system got a transfer scheduled in the last balancing round
+  std::map<unsigned int, bool>   got_work;   // map having the result of last scheduling request
+  std::map<unsigned int, time_t> last_asked; // map having the last scheduling request time
 
   unsigned long long nscheduled=0;
-  unsigned long long nscheduled_new=0;
 
   while(1) {
     eos_static_debug("Doing balancing round ...");
@@ -2485,9 +2446,7 @@ Storage::Balancer()
     {
       // determin the number of configured filesystems
       eos::common::RWMutexReadLock lock (fsMutex);
-      nfs = fileSystemsVector.size();
-      should_ask.resize(nfs);
-      has_work.resize(nfs);
+      nfs = fileSystemsVector.size();    
 
       // if we didn't schedule yet, we just look into the queues what is there
       if (!nscheduled) {
@@ -2499,26 +2458,32 @@ Storage::Balancer()
       }
     }    
 
-    nscheduled_new = 0;
-
     for (unsigned int i=0; i< nfs; i++) {
       unsigned int index = (i+cycler) % nfs;
       eos::common::RWMutexReadLock lock(fsMutex);     
-      if (index < fileSystemsVector.size()) {
-	should_ask[index] = false;
-	has_work[index]   = false;
-
+      if (index < fileSystemsVector.size()) {  
         std::string path = fileSystemsVector[index]->GetPath();
 	double nominal = fileSystemsVector[index]->GetDouble("stat.nominal.filled");
 	double filled  = fileSystemsVector[index]->GetDouble("stat.statfs.filled");
 
 	unsigned long id = fileSystemsVector[index]->GetId();
 
+	if (!got_work[index]) {
+	  if ( (time(NULL) - last_asked[index]) < 60 ) {
+	    // if we didn't get a file during the last scheduling call we don't ask until 1 minute has passed
+	    continue;
+	  } else {
+	    // after one minute we just ask again
+	    last_asked[index] = time(NULL);
+	  }
+	}
+
+	got_work[index]   = false; 
+
 	eos_static_debug("FileSystem %lu %.02f %.02f",id, filled, nominal);
       
 	// don't adjust more than a percent 
 	if ( (nominal) && (((filled>0.5)?(filled-0.5):filled) < nominal)) {
-	  should_ask[index] = true;
 	  ask = true;
 	  // if the fill status is less than nominal we can ask a balancer transfer to the MGM
 	  unsigned long long freebytes   = fileSystemsVector[index]->GetLongLong("stat.statfs.freebytes");
@@ -2573,8 +2538,7 @@ Storage::Balancer()
 		if (response == "submitted") {
 		  eos_static_debug("id=%u result=%s", id, response.c_str());
 		  nscheduled++;
-		  nscheduled_new++;
-		  has_work[index]=true;
+		  got_work[index]=true;
 		} else {
 		  eos_static_debug("manager returned no file to schedule [ENODATA]");
 		}
@@ -2595,45 +2559,9 @@ Storage::Balancer()
       // ---------------------------------------------------------------------------------------------
       XrdSysTimer sleeper;
       // go to sleep for a while if there was nothing to do
-      sleeper.Snooze(30);
-    } else {
-      if (nscheduled_new) {
-	// ---------------------------------------------------------------------------------------------
-	// if we scheduled in the last round, we go one more until we cannot schedule anymore
-	// ---------------------------------------------------------------------------------------------
-	eos_static_debug("asking for new job sleep 100ms");
-	XrdSysTimer msSleep; 
-	msSleep.Wait(100);
-      } else {
-	// ---------------------------------------------------------------------------------------------
-	// we are actually running transfers, we check more frequently, if we have to ask for more 
-	// and interrupt the sleepy period as soon as we have a slot free
-	// ---------------------------------------------------------------------------------------------
-	for (unsigned int sleeper = 0; sleeper < 30; sleeper++) {
-	  eos::common::RWMutexReadLock lock(fsMutex);     
-	  nfs = fileSystemsVector.size();
-	  should_ask.resize(nfs);
-	  unsigned long total_running=0;
-	  for (unsigned int i=0; i< nfs; i++) {
-	    if (should_ask[i]) {
-	      total_running += fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued();
-	    }
-	  }
-	  if ( (total_running >= nparalleltx) || (nscheduled == nparalleltx) ) {
-            XrdSysTimer sleeper;
-            sleeper.Snooze(1);
-            nscheduled = 0; // this trick allows that we give atleast a second time for a transfer job to appear in the FST queue
-          } else {
-            if (total_running == 0) {
-              XrdSysTimer sleeper;
-              sleeper.Snooze(1);
-            }
-            break;
-          }
-	}
-	nscheduled=0;
-      }
-    }    
+      sleeper.Snooze(60);
+    } 
+    nscheduled=0;
     cycler++;
   }
 }

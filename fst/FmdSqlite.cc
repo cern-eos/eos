@@ -1274,6 +1274,45 @@ FmdSqliteHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsi
   return true;
 }
 
+
+/*----------------------------------------------------------------------------*/
+/** 
+ * Reset(clear) the contents of the DB
+ * 
+ * @param fsid filesystem id
+ * 
+ * @return true if deleted, false if it does not exist
+ */
+/*----------------------------------------------------------------------------*/
+bool
+FmdSqliteHandler::ResetDB(eos::common::FileSystem::fsid_t fsid) 
+{
+  bool rc = true;
+  eos_static_info("");
+  eos::common::RWMutexWriteLock lock(Mutex);
+  // erase the hash entry
+  if (FmdSqliteMap.count(fsid)) {
+    // delete in the in-memory hash
+    FmdSqliteMap[fsid].clear();
+
+    char deleteentry[16384];
+    snprintf(deleteentry,sizeof(deleteentry),"delete from fst where 1");
+    Qr.clear();
+
+    // delete in the local DB
+    if ((sqlite3_exec(DB[fsid],deleteentry, CallBack, this, &ErrMsg))) {
+      eos_err("unable to delete all from fst table - msg=%s\n",ErrMsg);
+      rc = false;
+    } else {
+      rc = true;
+    }
+  } else {
+    rc = false;
+  }
+  return rc;
+}
+
+
 /*----------------------------------------------------------------------------*/
 /** 
  * Trim the SQLITE DB for a given filesystem id
