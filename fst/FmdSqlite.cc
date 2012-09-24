@@ -110,8 +110,6 @@ FmdSqliteHandler::ReadDBCallBack(void *object, int argc, char **argv, char **Col
   (*(cbinfo->fmdmap))[fid].lid      = strtoul(Qr[0]["lid"].c_str(),0,10);
   (*(cbinfo->fmdmap))[fid].uid      = strtoul(Qr[0]["uid"].c_str(),0,10);
   (*(cbinfo->fmdmap))[fid].gid      = strtoul(Qr[0]["gid"].c_str(),0,10);
-  (*(cbinfo->fmdmap))[fid].name     = Qr[0]["name"].c_str();
-  (*(cbinfo->fmdmap))[fid].container = Qr[0]["container"].c_str();
   (*(cbinfo->fmdmap))[fid].filecxerror = atoi(Qr[0]["filecxerror"].c_str());
   (*(cbinfo->fmdmap))[fid].blockcxerror = atoi(Qr[0]["blockcxerror"].c_str());
   (*(cbinfo->fmdmap))[fid].layouterror = atoi(Qr[0]["layouterror"].c_str());
@@ -128,7 +126,7 @@ FmdSqliteHandler::ReadDBCallBack(void *object, int argc, char **argv, char **Col
 /*----------------------------------------------------------------------------*/
 void
 FmdSqlite::Dump(struct FMD* fmd) {
-  fprintf(stderr,"%08llx %06llu %04lu %010lu %010lu %010lu %010lu %010lu %010lu %010lu %08llu %08llu %08llu %s %s %s %03lu %05u %05u %32s %s\n",
+  fprintf(stderr,"%08llx %06llu %04lu %010lu %010lu %010lu %010lu %010lu %010lu %010lu %08llu %08llu %08llu %s %s %s %03lu %05u %05u\n",
           fmd->fid,
           fmd->cid,
           (unsigned long)fmd->fsid,
@@ -147,9 +145,7 @@ FmdSqlite::Dump(struct FMD* fmd) {
 	  fmd->mgmchecksum.c_str(),
           fmd->lid,
           fmd->uid,
-          fmd->gid,
-          fmd->name.c_str(),
-          fmd->container.c_str());
+          fmd->gid);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -228,7 +224,7 @@ FmdSqliteHandler::SetDBFile(const char* dbfileprefix, int fsid, XrdOucString opt
   
   // create the SQLITE DB
   if ((sqlite3_open(fsDBFileName,&DB[fsid]) == SQLITE_OK)) {
-    XrdOucString createtable = "CREATE TABLE if not exists fst ( fid integer PRIMARY KEY, cid integer, fsid integer, ctime integer, ctime_ns integer, mtime integer, mtime_ns integer, atime integer, atime_ns integer, checktime integer, size integer default 281474976710641, disksize integer default 281474976710641, mgmsize integer default 281474976710641, checksum varchar(32), diskchecksum varchar(32), mgmchecksum varchar(32), lid integer, uid integer, gid integer, name varchar(1024), container varchar(1024), filecxerror integer, blockcxerror integer, layouterror integer, locations varchar(128))";
+    XrdOucString createtable = "CREATE TABLE if not exists fst ( fid integer PRIMARY KEY, cid integer, fsid integer, ctime integer, ctime_ns integer, mtime integer, mtime_ns integer, atime integer, atime_ns integer, checktime integer, size integer default 281474976710641, disksize integer default 281474976710641, mgmsize integer default 281474976710641, checksum varchar(32), diskchecksum varchar(32), mgmchecksum varchar(32), lid integer, uid integer, gid integer, filecxerror integer, blockcxerror integer, layouterror integer, locations varchar(128))";
     if ((sqlite3_exec(DB[fsid],createtable.c_str(), CallBack, this, &ErrMsg))) {
       eos_err("unable to create <fst> table - msg=%s\n",ErrMsg);
       return false;
@@ -581,7 +577,7 @@ FmdSqliteHandler::CommitFromMemory(eos::common::FileId::fileid_t fid, eos::commo
     return false;
   }
   char insertentry[16384];
-  snprintf(insertentry,sizeof(insertentry),"insert or replace into fst(fid,fsid,cid,ctime,ctime_ns,mtime,mtime_ns,atime,atime_ns,checktime,size,disksize,mgmsize,checksum,diskchecksum,mgmchecksum, lid,uid,gid,name,container,filecxerror,blockcxerror,layouterror,locations) values ('%llu','%lu','%llu','%lu','%lu','%lu','%lu','%lu','%lu','%lu','%llu','%llu','%llu','%s','%s','%s','%lu','%u','%u','%s','%s','%d','%d','%d','%s')",
+  snprintf(insertentry,sizeof(insertentry),"insert or replace into fst(fid,fsid,cid,ctime,ctime_ns,mtime,mtime_ns,atime,atime_ns,checktime,size,disksize,mgmsize,checksum,diskchecksum,mgmchecksum, lid,uid,gid,filecxerror,blockcxerror,layouterror,locations) values ('%llu','%lu','%llu','%lu','%lu','%lu','%lu','%lu','%lu','%lu','%llu','%llu','%llu','%s','%s','%s','%lu','%u','%u','%d','%d','%d','%s')",
 	   FmdSqliteMap[fsid][fid].fid,
 	   (unsigned long)FmdSqliteMap[fsid][fid].fsid,
 	   FmdSqliteMap[fsid][fid].cid,
@@ -601,8 +597,6 @@ FmdSqliteHandler::CommitFromMemory(eos::common::FileId::fileid_t fid, eos::commo
 	   FmdSqliteMap[fsid][fid].lid,
 	   FmdSqliteMap[fsid][fid].uid,
 	   FmdSqliteMap[fsid][fid].gid,
-	   FmdSqliteMap[fsid][fid].name.c_str(),
-	   FmdSqliteMap[fsid][fid].container.c_str(),
 	   FmdSqliteMap[fsid][fid].filecxerror,
 	   FmdSqliteMap[fsid][fid].blockcxerror,
 	   FmdSqliteMap[fsid][fid].layouterror,
@@ -677,18 +671,16 @@ FmdSqliteHandler::UpdateFromDisk(eos::common::FileSystem::fsid_t fsid, eos::comm
  * @param lid  layout id
  * @param mgmsize size of the file in the mgm namespace
  * @param mgmchecksum checksum of the file in the mgm namespace
- * @param name file name
- * @param container container/dir name
  * 
  * @return true if record has been commited
  */
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid, eos::common::FileId::fileid_t cid, eos::common::LayoutId::layoutid_t lid, unsigned long long mgmsize, std::string mgmchecksum, std::string name, std::string container, uid_t uid, gid_t gid, unsigned long long ctime, unsigned long long ctime_ns, unsigned long long mtime, unsigned long long mtime_ns, int layouterror, std::string locations)
+FmdSqliteHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid, eos::common::FileId::fileid_t cid, eos::common::LayoutId::layoutid_t lid, unsigned long long mgmsize, std::string mgmchecksum, uid_t uid, gid_t gid, unsigned long long ctime, unsigned long long ctime_ns, unsigned long long mtime, unsigned long long mtime_ns, int layouterror, std::string locations)
 {
   eos::common::RWMutexWriteLock lock(Mutex);
   
-  eos_debug("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s name=%s container=%s", (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str(), name.c_str(), container.c_str());
+  eos_debug("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s", (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str());
 
   if (!fid) {
     eos_info("skipping to insert a file with fid 0");
@@ -712,8 +704,6 @@ FmdSqliteHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid, eos::commo
     FmdSqliteMap[fsid][fid].ctime_ns = ctime_ns;
     FmdSqliteMap[fsid][fid].mtime = mtime;
     FmdSqliteMap[fsid][fid].mtime_ns = mtime_ns;
-    FmdSqliteMap[fsid][fid].name = name;
-    FmdSqliteMap[fsid][fid].container = container;
     FmdSqliteMap[fsid][fid].layouterror = layouterror;
     FmdSqliteMap[fsid][fid].locations = locations;
     
@@ -1006,7 +996,7 @@ FmdSqliteHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::F
     // get/create a record
     fmd = GetFmd(fMd.fid, fsid, fMd.uid, fMd.gid, fMd.lid, true, true);
     if (fmd) {
-      if (!UpdateFromMgm(fsid, fMd.fid, fMd.cid, fMd.lid, fMd.mgmsize, fMd.mgmchecksum, fMd.name, fMd.container, fMd.uid,fMd.gid, fMd.ctime, fMd.ctime_ns, fMd.mtime, fMd.mtime_ns, fMd.layouterror, fMd.locations)) {
+      if (!UpdateFromMgm(fsid, fMd.fid, fMd.cid, fMd.lid, fMd.mgmsize, fMd.mgmchecksum, fMd.uid,fMd.gid, fMd.ctime, fMd.ctime_ns, fMd.mtime, fMd.mtime_ns, fMd.layouterror, fMd.locations)) {
 	eos_err("failed to update fmd for fid=%08llx", fid);
 	delete fmd;
 	return false;
@@ -1095,7 +1085,7 @@ FmdSqliteHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const char*
 	    eos_warning("found missing replica for fid=%llu on fsid=%lu", fMd.fid, (unsigned long)fsid);
 	  }
 
-	  if (!UpdateFromMgm(fsid, fMd.fid, fMd.cid, fMd.lid, fMd.mgmsize, fMd.mgmchecksum, fMd.name, fMd.container, fMd.uid,fMd.gid, fMd.ctime, fMd.ctime_ns, fMd.mtime, fMd.mtime_ns, fMd.layouterror,fMd.locations)) {
+	  if (!UpdateFromMgm(fsid, fMd.fid, fMd.cid, fMd.lid, fMd.mgmsize, fMd.mgmchecksum, fMd.uid,fMd.gid, fMd.ctime, fMd.ctime_ns, fMd.mtime, fMd.mtime_ns, fMd.layouterror,fMd.locations)) {
 	    eos_err("failed to update fmd %s", dumpentry.c_str());
 	  }
 	  delete fmd;
@@ -1352,7 +1342,7 @@ XrdOucEnv*
 FmdSqlite::FmdSqliteToEnv() 
 {
   char serialized[1024*64];
-  sprintf(serialized,"id=%llu&cid=%llu&ctime=%lu&ctime_ns=%lu&mtime=%lu&mtime_ns=%lu&size=%llu&checksum=%s&lid=%lu&uid=%u&gid=%u&name=%s&container=%s",fMd.fid,fMd.cid,fMd.ctime,fMd.ctime_ns,fMd.mtime,fMd.mtime_ns,fMd.size, fMd.checksum.c_str(),fMd.lid,fMd.uid,fMd.gid,fMd.name.c_str(),fMd.container.c_str());
+  sprintf(serialized,"id=%llu&cid=%llu&ctime=%lu&ctime_ns=%lu&mtime=%lu&mtime_ns=%lu&size=%llu&checksum=%s&lid=%lu&uid=%u&gid=%u&",fMd.fid,fMd.cid,fMd.ctime,fMd.ctime_ns,fMd.mtime,fMd.mtime_ns,fMd.size, fMd.checksum.c_str(),fMd.lid,fMd.uid,fMd.gid);
   return new XrdOucEnv(serialized);
 };
 
@@ -1379,8 +1369,7 @@ FmdSqlite::EnvFstToFmdSqlite(XrdOucEnv &env, struct FmdSqlite::FMD &fmd)
        !env.Get("size") ||
        !env.Get("lid") ||
        !env.Get("uid") ||
-       !env.Get("gid") ||
-       !env.Get("name") )
+       !env.Get("gid"))
 
     return false;
   
@@ -1394,18 +1383,6 @@ FmdSqlite::EnvFstToFmdSqlite(XrdOucEnv &env, struct FmdSqlite::FMD &fmd)
   fmd.lid             = strtoul(env.Get("lid"),0,10);
   fmd.uid             = (uid_t) strtoul(env.Get("uid"),0,10);
   fmd.gid             = (gid_t) strtoul(env.Get("gid"),0,10);
-  if (env.Get("name")) {
-    fmd.name = env.Get("name");
-  } else {
-    fmd.name ="";
-  }
-
-  if (env.Get("container")) {
-    fmd.container = env.Get("container");
-  } else {
-    fmd.container="";
-  }
-
   if (env.Get("checksum")) {
     fmd.checksum =env.Get("checksum");
   } else {
@@ -1439,9 +1416,7 @@ FmdSqlite::EnvMgmToFmdSqlite(XrdOucEnv &env, struct FmdSqlite::FMD &fmd)
        !env.Get("checksum") ||
        !env.Get("lid") ||
        !env.Get("uid") ||
-       !env.Get("gid") ||
-       !env.Get("name") ||
-       !env.Get("container"))
+       !env.Get("gid"))
     return false;
   
   fmd.fid             = strtoull(env.Get("id"),0,10);
@@ -1454,8 +1429,6 @@ FmdSqlite::EnvMgmToFmdSqlite(XrdOucEnv &env, struct FmdSqlite::FMD &fmd)
   fmd.lid             = strtoul(env.Get("lid"),0,10);
   fmd.uid             = (uid_t) strtoul(env.Get("uid"),0,10);
   fmd.gid             = (gid_t) strtoul(env.Get("gid"),0,10);
-  fmd.name            = env.Get("name");
-  fmd.container       = env.Get("container");
   fmd.mgmchecksum     = env.Get("checksum");
   fmd.locations       = env.Get("location")?env.Get("location"):"";
   return true;

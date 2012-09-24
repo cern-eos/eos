@@ -1547,9 +1547,6 @@ Storage::Verify()
           }
 
           eos::common::Path cPath(verifyfile->path.c_str());
-	  fMd->fMd.name = cPath.GetName();
-          if (verifyfile->container.length()) 
-	    fMd->fMd.container = verifyfile->container.c_str();
           
           // commit local
           if (localUpdate && (!gFmdSqliteHandler.Commit(fMd))) {

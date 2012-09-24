@@ -94,8 +94,6 @@ public:
     eos::common::LayoutId::layoutid_t lid ;    //< layout id
     uid_t uid;                    //< user  id
     gid_t gid;                    //< roup id
-    std::string name;             //< name
-    std::string container;        //< container
     int filecxerror;              //< indicator for file checksum error
     int blockcxerror;             //< indicator for block checksum error
     int layouterror;              //< indicator for resync errors e.g. the mgm layout information is inconsistent e.g. only 1 of 2 replicas exist
@@ -122,8 +120,6 @@ public:
       lid      = fmd.lid;
       uid      = fmd.uid;
       gid      = fmd.gid;
-      name     = fmd.name;
-      container    = fmd.container;
       filecxerror  = fmd.filecxerror;
       blockcxerror = fmd.blockcxerror;
       layouterror  = fmd.layouterror;
@@ -204,8 +200,6 @@ public:
     fmd.lid   = 0;
     fmd.uid   = 0;
     fmd.gid   = 0;
-    fmd.name  = "";
-    fmd.container = "";
     fmd.filecxerror = 0;
     fmd.blockcxerror = 0;
     fmd.layouterror = 0;
@@ -341,7 +335,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Update fmd from mgm contents
   // ---------------------------------------------------------------------------
-  bool UpdateFromMgm(eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid, eos::common::FileId::fileid_t cid, eos::common::LayoutId::layoutid_t lid, unsigned long long mgmsize, std::string mgmchecksum, std::string name, std::string container, uid_t uid, gid_t gid, unsigned long long ctime, unsigned long long ctime_ns, unsigned long long mtime, unsigned long long mtime_ns, int layouterror, std::string locations);
+  bool UpdateFromMgm(eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid, eos::common::FileId::fileid_t cid, eos::common::LayoutId::layoutid_t lid, unsigned long long mgmsize, std::string mgmchecksum, uid_t uid, gid_t gid, unsigned long long ctime, unsigned long long ctime_ns, unsigned long long mtime, unsigned long long mtime_ns, int layouterror, std::string locations);
 
   // ---------------------------------------------------------------------------
   //! Resync File meta data found under path
