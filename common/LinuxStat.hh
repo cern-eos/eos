@@ -109,6 +109,7 @@ public:
 	perror(stat_path);
 	return false;
       }
+    result.rss *= 4096; // comes in 4k pages on Linux
     fclose(f);
     return true;
   }
