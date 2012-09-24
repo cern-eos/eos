@@ -59,7 +59,7 @@ FsView::GetNodeFormat(std::string option) {
   }
 
   if (option == "sys") {
-    return "header=1:key=hostport:width=30:format=s|sep= |member=cfg.stat.sys.vsize:width=12:format=+l|tag=vsize|sep= |member=cfg.stat.sys.rss:width=12:format=+l:tag=rss|sep= |member=cfg.stat.sys.threads:width=12:format=+l:tag=threads|sep= |member=cfg.stat.sys.sockets:width=10:format=s:tag=sockets|sep= |member=cfg.stat.sys.eos.version:width=12:format=s:tag=eos|sep= |member=cfg.stat.sys.kernel:width=30:format=s:tag=kernel version|sep= |member=cfg.stat.sys.eos.start:width=32:format=s:tag=start|sep= |member=cfg.stat.sys.uptime:width=80:format=s:tag=uptime";
+    return "header=1:member=hostport:width=30:format=s|sep= |member=cfg.stat.sys.vsize:width=12:format=+l|tag=vsize|sep= |member=cfg.stat.sys.rss:width=12:format=+l:tag=rss|sep= |member=cfg.stat.sys.threads:width=12:format=+l:tag=threads|sep= |member=cfg.stat.sys.sockets:width=10:format=s:tag=sockets|sep= |member=cfg.stat.sys.eos.version:width=12:format=s:tag=eos|sep= |member=cfg.stat.sys.kernel:width=30:format=s:tag=kernel version|sep= |member=cfg.stat.sys.eos.start:width=32:format=s:tag=start|sep= |member=cfg.stat.sys.uptime:width=80:format=s:tag=uptime";
   }
 
   if (option == "fsck") {
