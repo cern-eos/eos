@@ -197,6 +197,46 @@ FileSystem::CleanTransactions()
   }
 }
 
+
+/*----------------------------------------------------------------------------*/
+void
+FileSystem::SyncTransactions()
+{
+  DIR* tdir = opendir(GetTransactionDirectory());
+  if (tdir) {
+    struct dirent* name;
+    while ( ( name = readdir(tdir) ) ) {
+      XrdOucString sname = name->d_name;
+      // skipp . & ..
+      if ( sname.beginswith("."))
+	continue;
+      XrdOucString fulltransactionpath = GetTransactionDirectory();
+      fulltransactionpath += "/"; fulltransactionpath += name->d_name;
+      struct stat buf;
+      if (!stat(fulltransactionpath.c_str(), &buf)) {
+	XrdOucString hexfid = name->d_name;
+	const char* localprefix = GetPath().c_str();
+	XrdOucString fstPath;
+	eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), localprefix, fstPath);
+	unsigned long long fid = eos::common::FileId::Hex2Fid(hexfid.c_str());
+	FmdSqlite* fMd = 0;
+	fMd = gFmdSqliteHandler.GetFmd(fid, GetId(), 0, 0, 0, 0, true);
+	if (fMd) {
+	  
+	  gOFS.WrittenFilesQueueMutex.Lock();
+	  gOFS.WrittenFilesQueue.push(fMd->fMd);
+	  gOFS.WrittenFilesQueueMutex.UnLock();
+	  delete fMd;
+	  eos_static_info("action=sync transaction=%llx fstpath=%s",sname.c_str(), fulltransactionpath.c_str());
+	}
+      }
+    }
+    closedir(tdir);
+  } else {
+    eos_static_err("Unable to open transactiondirectory %s",GetTransactionDirectory());
+  }
+}
+
 /*----------------------------------------------------------------------------*/
 void
 FileSystem::RunScanner(Load* fstLoad, time_t interval) 
@@ -613,6 +653,7 @@ Storage::Boot(FileSystem *fs)
   }
 
   fs->SetTransactionDirectory(transactionDirectory.c_str());
+  fs->SyncTransactions();
   fs->CleanTransactions();
   fs->SetLongLong("stat.bootdonetime", (unsigned long long) time(NULL));
   fs->SetStatus(eos::common::FileSystem::kBooted);

@@ -74,6 +74,7 @@ public:
 
   void SetTransactionDirectory(const char* tx) { transactionDirectory= tx;}
   void CleanTransactions();
+  void SyncTransactions();
 
   void RunScanner(Load* fstLoad, time_t interval);
 

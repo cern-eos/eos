@@ -2229,7 +2229,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	stdOut+="ALL      memory virtual                   ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.vmsize,"B"); stdOut += "\n";
 	stdOut+="ALL      memory resident                  ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.resident,"B"); stdOut += "\n";
 	stdOut+="ALL      memory share                     ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.share,"B"); stdOut += "\n";
-	stdOut+="ALL      memory growths                   ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)(pstat.vsize-gOFS->LinuxStatsStartup.vsize),"B"); stdOut += "\n";
+	if (pstat.vsize> gOFS->LinuxStatsStartup.vsize) {
+	  stdOut+="ALL      memory growths                   ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)(pstat.vsize-gOFS->LinuxStatsStartup.vsize),"B"); stdOut += "\n";
+	} else {
+	  stdOut+="ALL      memory growths                  -";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)(-pstat.vsize+gOFS->LinuxStatsStartup.vsize),"B"); stdOut += "\n";
+	}
 	stdOut+="ALL      threads                          ";stdOut += eos::common::StringConversion::GetSizeString        (sizestring, (unsigned long long)pstat.threads);stdOut += "\n";
 
         stdOut+="# ------------------------------------------------------------------------------------\n";
@@ -2246,7 +2250,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	stdOut += "uid=all gid=all ns.memory.resident="; stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.resident);stdOut += "\n";
 	stdOut += "uid=all gid=all ns.memory.share=";    stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.share);stdOut += "\n";
 	stdOut += "uid=all gid=all ns.stat.threads=";    stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)pstat.threads);stdOut += "\n";
-   	stdOut += "uid=all gid=all ns.memory.growth=";   stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)(pstat.vsize-gOFS->LinuxStatsStartup.vsize));stdOut += "\n";
+	if (pstat.vsize> gOFS->LinuxStatsStartup.vsize) {
+	  stdOut += "uid=all gid=all ns.memory.growth=";   stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)(pstat.vsize-gOFS->LinuxStatsStartup.vsize));stdOut += "\n";
+	} else {
+	  stdOut += "uid=all gid=all ns.memory.growth=-";   stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)(-pstat.vsize+gOFS->LinuxStatsStartup.vsize));stdOut += "\n";
+	}
       }
 
       if (subcmd == "stat") {
