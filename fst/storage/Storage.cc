@@ -534,18 +534,24 @@ Storage::Boot(FileSystem *fs)
     return;
   }
 
-  bool resyncmgm =   (gFmdSqliteHandler.IsDirty(fsid) || (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
-  
+  bool resyncmgm  =   (gFmdSqliteHandler.IsDirty(fsid) || (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
+  bool resyncdisk =   (gFmdSqliteHandler.IsDirty(fsid) || (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced)); 
+
   eos_info("msg=\"start disk synchronisation\"");
   // resync the SQLITE DB 
   gFmdSqliteHandler.StayDirty(fsid,true); // indicate the flag to keep the DP dirty
 
-  if (!gFmdSqliteHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
-    fs->SetStatus(eos::common::FileSystem::kBootFailure);
-    fs->SetError(EFAULT,"cannot resync the SQLITE DB from local disk");
-    return;
+  if (resyncdisk) {
+    if (!gFmdSqliteHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
+      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+      fs->SetError(EFAULT,"cannot resync the SQLITE DB from local disk");
+      return;
+    }
+    eos_info("msg=\"finished disk synchronisation\" fsid=%lu", (unsigned long) fsid);
+  } else {
+    eos_info("msg=\"skipped disk synchronisization\" fsid=%lu", (unsigned long) fsid);
   }
-  eos_info("msg=\"finished disk synchronisation\" fsid=%lu", (unsigned long) fsid);
+
   // if we detect an unclean shutdown, we resync with the MGM
   // if we see the stat.bootcheck resyncflag for the filesystem, we also resync
 
