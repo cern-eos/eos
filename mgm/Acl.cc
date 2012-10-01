@@ -187,6 +187,7 @@ Acl::Set(std::string sysacl, std::string useracl, eos::common::Mapping::VirtualI
       if ((entry[2].find("+d"))!= std::string::npos) {
 	canDelete = true;
 	canNotDelete = false;
+	canWriteOnce = false;
         hasAcl = true;
       }
 
