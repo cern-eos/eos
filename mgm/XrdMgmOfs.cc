@@ -3113,12 +3113,32 @@ int XrdMgmOfs::_rename(const char             *old_name,  // In
 	  file->setContainerId ( newdir->getId() );
 	  newdir->addFile ( file );
 	  eosView->updateFileStore ( file );
+	  // adjust the quota
+	  SpaceQuota* oldspace = Quota::GetResponsibleSpaceQuota(oP.c_str());
+	  SpaceQuota* newspace = Quota::GetResponsibleSpaceQuota(nP.c_str());
+	  eos::QuotaNode* oldquotanode = 0;
+	  eos::QuotaNode* newquotanode = 0;
+	  if (oldspace) {
+	    oldquotanode = oldspace->GetQuotaNode();
+	    // remove quota
+	    if (oldquotanode) {
+	      oldquotanode->removeFile( file );
+	    }
+	  }           
+	  if (newspace) {
+	    newquotanode = newspace->GetQuotaNode();
+	    // add quota
+	    if (newquotanode) {
+	      newquotanode->addFile( file );
+	    }
+	  }
 	}
       }
     }
     if (renameDir) {
       rdir = dir->findContainer(oPath.GetName());
       if (rdir) {
+	// TODO: in this case we currently don't recompute all the quota 
 	eosView->renameContainer(rdir, nPath.GetName());
       }
     }
