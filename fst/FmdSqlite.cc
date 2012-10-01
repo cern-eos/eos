@@ -1586,7 +1586,7 @@ FmdSqliteHandler::GetMgmFmdSqlite(const char* manager, eos::common::FileId::file
   std::string sresult = result;
   if ( (sresult.find("getfmd: retc=0 ")) == std::string::npos ) {
     // remote side couldn't get the record
-    eos_static_err("Unable to retrieve meta data on remote mgm %s for fid=%08llx - result=%s",manager, fid, result);
+    eos_static_info("Unable to retrieve meta data on remote mgm %s for fid=%08llx - result=%s",manager, fid, result);
     return ENODATA;
   } else {
     // truncate 'getfmd: retc=0 '  away
@@ -1676,7 +1676,7 @@ FmdSqliteHandler::GetRemoteAttribute(const char* manager, const char* key, const
 
   if (!strncmp(result,"ERROR", 5)) {
     // remote side couldn't get the record
-    eos_static_err("Unable to retrieve meta data on remote server %s for key=%s path=%s",manager, key, path);
+    eos_static_info("Unable to retrieve meta data on remote server %s for key=%s path=%s",manager, key, path);
     return ENODATA;
   }
 
