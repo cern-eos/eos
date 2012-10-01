@@ -87,6 +87,7 @@ Report::Report(XrdOucEnv &report)
   sec_role = report.Get("sec.role")?report.Get("sec.role"):"";
   sec_info = report.Get("sec.info")?report.Get("sec.info"):"";
   sec_app  = report.Get("sec.app")?report.Get("sec.app"):"";
+  if (sec_app.find("?")!=std::string::npos) {sec_app.erase(sec_app.find("?"));}
 }
 
 /*----------------------------------------------------------------------------*/
