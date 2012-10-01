@@ -96,6 +96,7 @@ Balancer::Balance(void)
     double SpaceDifferenceThreshold=0;
     std::string SpaceNodeTransfers="";
     std::string SpaceNodeTransferRate="";
+    std::string SpaceNodeThreshold="";
 
     XrdSysThread::SetCancelOff();
     {
@@ -110,7 +111,8 @@ Balancer::Balance(void)
       else 
         IsSpaceBalancing=false;
 
-      SpaceDifferenceThreshold = strtod(FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("balancer.threshold").c_str(),0);
+      SpaceNodeThreshold       = FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("balancer.threshold");
+      SpaceDifferenceThreshold = strtod(SpaceNodeThreshold.c_str(),0);
       SpaceNodeTransfers       = FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("balancer.node.ntx");
       SpaceNodeTransferRate    = FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("balancer.node.rate");
 
@@ -177,6 +179,9 @@ Balancer::Balance(void)
 		  }
 		  if (node->GetConfigMember("stat.balance.rate") != SpaceNodeTransferRate) {
 		    node->SetConfigMember("stat.balance.rate", SpaceNodeTransferRate, false, "", true);
+		  }
+		  if (node->GetConfigMember("stat.balance.threshold") != SpaceNodeThreshold) {
+		    node->SetConfigMember("stat.balance.threshold", SpaceNodeThreshold, false, "", true);
 		  }
 		}
 
