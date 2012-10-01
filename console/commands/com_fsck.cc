@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: com_fsck.cc
+// FiBle: com_fsck.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -35,6 +35,7 @@ com_fsck (char* arg1) {
   XrdOucString options="";
   XrdOucString path="";
   XrdOucString in ="";
+  XrdOucString selection="";
 
   if ( ( cmd != "stat") && ( cmd != "enable" ) && ( cmd != "disable") && ( cmd != "report" ) && ( cmd != "repair" ) ) {
     goto com_fsck_usage;
@@ -64,6 +65,13 @@ com_fsck (char* arg1) {
     do {
       option = subtokenizer.GetToken();
       if (option.length()) {
+	if (option == "--error") {
+	  selection = subtokenizer.GetToken();
+	  if (!selection.length()) {
+	    goto com_fsck_usage;
+	  }
+	  continue;
+	}
         while (option.replace("-","")) {}
         options += option;
       }
@@ -94,6 +102,11 @@ com_fsck (char* arg1) {
     in += "&mgm.option="; in += options;
   }  
 
+  if (selection.length()) {
+    in += "&mgm.fsck.selection=";
+    in += selection;
+  }
+
   global_retc = output_result(client_admin_command(in));
   return (0);
 
@@ -102,11 +115,12 @@ com_fsck (char* arg1) {
   fprintf(stdout,"       fsck enable [<interval>]                                   :  enable fsck\n");
   fprintf(stdout,"                                                       <interval> :  check interval in minutes - default 30 minutes");
   fprintf(stdout,"       fsck disable                                               :  disable fsck\n");
-  fprintf(stdout,"       fsck report [-h] [-g] [-a] [-i] [-l] [--json]              :  report consistency check results");
+  fprintf(stdout,"       fsck report [-h] [-g] [-a] [-i] [-l] [--json] [--error <tag> ]:  report consistency check results");
   fprintf(stdout,"                                                               -a :  break down statistics per filesystem\n");
   fprintf(stdout,"                                                               -i :  print concerned file ids\n");
   fprintf(stdout,"                                                               -l :  print concerned logical names\n");
   fprintf(stdout,"                                                           --json :  select JSON output format\n");
+  fprintf(stdout,"                                                          --error :  select to report only error tag <tag>\n");
   fprintf(stdout,"                                                               -h :  print help explaining the individual tags!\n");
 
   fprintf(stdout,"       fsck repair --checksum\n");

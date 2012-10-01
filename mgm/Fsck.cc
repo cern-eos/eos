@@ -444,26 +444,87 @@ Fsck::Report(XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucSt
   char stimestamp[1024]; 
   snprintf(stimestamp,sizeof(stimestamp)-1,"%lu",(unsigned long) eTimeStamp);
 
-  // currently 'selection' is not used
-  if (!selection.length()) {
-    if ( (option.find("json")!= STR_NPOS) || (option.find("j") != STR_NPOS) ) {
-      // json output
-      out += "{\n";
-      // put the check timestamp
-      out += "  \"timestamp\": "; out += stimestamp; out += ",\n";
-
-      if (! (option.find("a") != STR_NPOS) ) {
-	// give global table
-	std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
- 	for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
-	  char sn[1024];
-	  snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )emapit->second.size());
-	  out += "  \""; out += emapit->first.c_str(); out += "\": {\n";
-	  out += "    \"n\": "; out += sn; out += "\",\n";
+  if ( (option.find("json")!= STR_NPOS) || (option.find("j") != STR_NPOS) ) {
+    // json output
+    out += "{\n";
+    // put the check timestamp
+    out += "  \"timestamp\": "; out += stimestamp; out += ",\n";
+    
+    if (! (option.find("a") != STR_NPOS) ) {
+      // give global table
+      std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
+      for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
+	if (selection.length() && ( selection.find(emapit->first.c_str()) == STR_NPOS)) continue; // skip unselected
+	char sn[1024];
+	snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )emapit->second.size());
+	out += "  \""; out += emapit->first.c_str(); out += "\": {\n";
+	out += "    \"n\": "; out += sn; out += "\",\n";
+	if (printfid) {
+	  out += "    \"fxid\": ["; 
+	  std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
+	  for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+	    XrdOucString hexstring;
+	    eos::common::FileId::Fid2Hex(*fidit,hexstring);
+	    out += hexstring.c_str();
+	      out += ",";
+	  }
+	  if (out.endswith(",")) {
+	    out.erase(out.length()-1);
+	  }
+	  out += "]\n";
+	}
+	if (printlfn) {
+	  out += "    \"lfn\": ["; 
+	  std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
+	  for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+	    eos::FileMD* fmd=0;
+	    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	    try {
+	      fmd = gOFS->eosFileService->getFileMD(*fidit);
+	      std::string fullpath = gOFS->eosView->getUri(fmd);
+	      out += "\""; out += fullpath.c_str(); out += "\"";
+	    } catch ( eos::MDException &e ) {
+	      out += "\"undefined\"";
+	    }
+	    out += ",";
+	  } 
+	  if (out.endswith(",")) {
+	    out.erase(out.length()-1);
+	  }
+	  out += "]\n";
+	}
+	if (out.endswith(",\n")) {
+	  out.erase(out.length()-2);
+	  out += "\n";
+	}
+	out += "  },\n";
+      }
+    } else {
+      // do output per filesystem
+      std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
+      for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
+	if (selection.length() && ( selection.find(emapit->first.c_str()) == STR_NPOS)) continue; // skip unselected
+	// loop over errors
+	char sn[1024];
+	snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )emapit->second.size());
+	out += "  \""; out += emapit->first.c_str(); out += "\": {\n";
+	out += "    \"n\": "; out += sn; out += "\",\n";
+	out += "    \"fsid\":"; out += " {\n";
+	std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>>::const_iterator efsmapit;
+	
+	for (efsmapit = eFsMap[emapit->first].begin(); efsmapit != eFsMap[emapit->first].end(); efsmapit++) {
+	  if (emapit->first == "zero_replica") {
+	    // this we cannot break down by filesystem id
+	    continue;
+	  }
+	  // loop over filesystems
+	  out += "      \""; out += (int)efsmapit->first; out += "\": {\n";
+	  snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )efsmapit->second.size());
+	  out += "        \"n\": "; out += sn ; out += ",\n";
 	  if (printfid) {
-	    out += "    \"fxid\": ["; 
+	    out += "        \"fxid\": ["; 
 	    std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
-	    for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+	    for (fidit = efsmapit->second.begin(); fidit != efsmapit->second.end(); fidit++) {
 	      XrdOucString hexstring;
 	      eos::common::FileId::Fid2Hex(*fidit,hexstring);
 	      out += hexstring.c_str();
@@ -475,18 +536,18 @@ Fsck::Report(XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucSt
 	    out += "]\n";
 	  }
 	  if (printlfn) {
-	    out += "    \"lfn\": ["; 
+	    out += "        \"lfn\": ["; 
 	    std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
-	    for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+	    for (fidit = efsmapit->second.begin(); fidit != efsmapit->second.end(); fidit++) {
 	      eos::FileMD* fmd=0;
 	      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-              try {
-                fmd = gOFS->eosFileService->getFileMD(*fidit);
+	      try {
+		fmd = gOFS->eosFileService->getFileMD(*fidit);
 		std::string fullpath = gOFS->eosView->getUri(fmd);
 		out += "\""; out += fullpath.c_str(); out += "\"";
-              } catch ( eos::MDException &e ) {
+	      } catch ( eos::MDException &e ) {
 		out += "\"undefined\"";
-              }
+	      }
 	      out += ",";
 	    } 
 	    if (out.endswith(",")) {
@@ -498,46 +559,125 @@ Fsck::Report(XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucSt
 	    out.erase(out.length()-2);
 	    out += "\n";
 	  }
-	  out += "  },\n";
+	  out += "      },\n";
+	}
+	out += "    },\n";
+      }
+    }
+    
+    // list shadow filesystems
+    std::map<eos::common::FileSystem::fsid_t, unsigned long long >::const_iterator fsit;
+    out += "  \"shadow_fsid\": [";
+    for (fsit = eFsDark.begin(); fsit != eFsDark.end(); fsit++) {
+      char sfsid[1024];
+      snprintf(sfsid,sizeof(sfsid)-1,"%lu", (unsigned long)fsit->first);
+      out += sfsid;
+      out += ",";
+    }
+    if (out.endswith(",")) {
+      out.erase(out.length()-1);
+    }
+    
+    out += "  ]\n";
+    out += "}\n";
+    
+  } else {
+    // greppable format
+    if (! (option.find("a") != STR_NPOS) ) {
+      // give global table
+      std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
+      for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
+	if (selection.length() && ( selection.find(emapit->first.c_str()) == STR_NPOS)) continue; // skip unselected
+	char sn[1024];
+	snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )emapit->second.size());
+	out += "timestamp="; out += stimestamp; out += " ";
+	out += "tag=\""; out += emapit->first.c_str(); out +="\"";
+	out += " n="; out += sn; 
+	if (printfid) {
+	  out += " fxid="; 
+	  std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
+	  for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+	    XrdOucString hexstring;
+	    eos::common::FileId::Fid2Hex(*fidit,hexstring);
+	    out += hexstring.c_str();
+	    out += ",";
+	  }
+	  if (out.endswith(",")) {
+	    out.erase(out.length()-1);
+	  }
+	  out += "\n";
+	}
+	if (printlfn) {
+	  out += " lfn="; 
+	  std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
+	  for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
+	    eos::FileMD* fmd=0;
+	    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	    try {
+	      fmd = gOFS->eosFileService->getFileMD(*fidit);
+	      std::string fullpath = gOFS->eosView->getUri(fmd);
+	      out += "\""; out += fullpath.c_str(); out += "\"";
+	    } catch ( eos::MDException &e ) {
+	      out += "\"undefined\"";
+	    }
+	    out += ",";
+	  } 
+	  if (out.endswith(",")) {
+	    out.erase(out.length()-1);
+	  }
+	  out += "\n";
 	}
 	
-      } else {
-	// do output per filesystem
-	std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
-	for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
-	  // loop over errors
+	// list shadow filesystems
+	std::map<eos::common::FileSystem::fsid_t, unsigned long long >::const_iterator fsit;
+	out += " shadow_fsid=";
+	for (fsit = eFsDark.begin(); fsit != eFsDark.end(); fsit++) {
+	  char sfsid[1024];
+	  snprintf(sfsid,sizeof(sfsid)-1,"%lu", (unsigned long)fsit->first);
+	  out += sfsid;
+	  out += ",";
+	}
+	  if (out.endswith(",")) {
+	    out.erase(out.length()-1);
+	  }
+	  out += "\n";
+      }
+    } else {
+      // do output per filesystem
+      std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
+      std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>>::const_iterator efsmapit;
+      
+      for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
+	if (selection.length() && ( selection.find(emapit->first.c_str()) == STR_NPOS)) continue; // skip unselected
+	// loop over filesystems
+	for (efsmapit = eFsMap[emapit->first].begin(); efsmapit != eFsMap[emapit->first].end(); efsmapit++) {
+	  if (emapit->first == "zero_replica") {
+	    // this we cannot break down by filesystem id
+	    continue;
+	  }
+	  
 	  char sn[1024];
-	  snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )emapit->second.size());
-	  out += "  \""; out += emapit->first.c_str(); out += "\": {\n";
-	  out += "    \"n\": "; out += sn; out += "\",\n";
-	  out += "    \"fsid\":"; out += " {\n";
-	  std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>>::const_iterator efsmapit;
-
-	  for (efsmapit = eFsMap[emapit->first].begin(); efsmapit != eFsMap[emapit->first].end(); efsmapit++) {
- 	    if (emapit->first == "zero_replica") {
-	      // this we cannot break down by filesystem id
-	      continue;
+	  out += "timestamp="; out += stimestamp; out += " ";
+	  out += "tag=\""; out += emapit->first.c_str(); out +="\""; out += " ";
+	  out += "fsid="; out += (int) efsmapit->first;
+	  snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )efsmapit->second.size());
+	  out += " n="; out += sn; 
+	  if (printfid) {
+	    out += " fxid="; 
+	    std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
+	    for (fidit = efsmapit->second.begin(); fidit != efsmapit->second.end(); fidit++) {
+	      XrdOucString hexstring;
+	      eos::common::FileId::Fid2Hex(*fidit,hexstring);
+	      out += hexstring.c_str();
+	      out += ",";
 	    }
-	    // loop over filesystems
-	    out += "      \""; out += (int)efsmapit->first; out += "\": {\n";
-	    snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )efsmapit->second.size());
-	    out += "        \"n\": "; out += sn ; out += ",\n";
-	    if (printfid) {
-	      out += "        \"fxid\": ["; 
-	      std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
-	      for (fidit = efsmapit->second.begin(); fidit != efsmapit->second.end(); fidit++) {
-		XrdOucString hexstring;
-		eos::common::FileId::Fid2Hex(*fidit,hexstring);
-		out += hexstring.c_str();
-		out += ",";
-	      }
-	      if (out.endswith(",")) {
-		out.erase(out.length()-1);
-	      }
-	      out += "]\n";
+	    if (out.endswith(",")) {
+	      out.erase(out.length()-1);
 	    }
+	    out += "\n";
+	  } else {
 	    if (printlfn) {
-	      out += "        \"lfn\": ["; 
+	      out += " lfn="; 
 	      std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
 	      for (fidit = efsmapit->second.begin(); fidit != efsmapit->second.end(); fidit++) {
 		eos::FileMD* fmd=0;
@@ -554,156 +694,14 @@ Fsck::Report(XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucSt
 	      if (out.endswith(",")) {
 		out.erase(out.length()-1);
 	      }
-	      out += "]\n";
-	    }
-	    if (out.endswith(",\n")) {
-	      out.erase(out.length()-2);
-	      out += "\n";
-	    }
-	    out += "      },\n";
-	  }
-	  out += "    },\n";
-	}
-      }
-
-      // list shadow filesystems
-      std::map<eos::common::FileSystem::fsid_t, unsigned long long >::const_iterator fsit;
-      out += "  \"shadow_fsid\": [";
-      for (fsit = eFsDark.begin(); fsit != eFsDark.end(); fsit++) {
-	char sfsid[1024];
-	snprintf(sfsid,sizeof(sfsid)-1,"%lu", (unsigned long)fsit->first);
-	out += sfsid;
-	out += ",";
-      }
-      if (out.endswith(",")) {
-	out.erase(out.length()-1);
-      }
-
-      out += "  ]\n";
-      out += "}\n";
-
-    } else {
-      // greppable format
-      if (! (option.find("a") != STR_NPOS) ) {
-	// give global table
-	std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
-	for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
-	  char sn[1024];
-	  snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )emapit->second.size());
-	  out += "timestamp="; out += stimestamp; out += " ";
-	  out += "tag=\""; out += emapit->first.c_str(); out +="\"";
-	  out += " n="; out += sn; 
-	  if (printfid) {
-	    out += " fxid="; 
-	    std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
-	    for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
-	      XrdOucString hexstring;
-	      eos::common::FileId::Fid2Hex(*fidit,hexstring);
-	      out += hexstring.c_str();
-	      out += ",";
-	    }
-	    if (out.endswith(",")) {
-	      out.erase(out.length()-1);
-	    }
-	    out += "\n";
-	  }
-	  if (printlfn) {
-	    out += " lfn="; 
-	    std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
-	    for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++) {
-	      eos::FileMD* fmd=0;
-	      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-              try {
-                fmd = gOFS->eosFileService->getFileMD(*fidit);
-		std::string fullpath = gOFS->eosView->getUri(fmd);
-		out += "\""; out += fullpath.c_str(); out += "\"";
-              } catch ( eos::MDException &e ) {
-		out += "\"undefined\"";
-              }
-	      out += ",";
-	    } 
-	    if (out.endswith(",")) {
-	      out.erase(out.length()-1);
-	    }
-	    out += "\n";
-	  }
-	  
-	  // list shadow filesystems
-	  std::map<eos::common::FileSystem::fsid_t, unsigned long long >::const_iterator fsit;
-	  out += " shadow_fsid=";
-	  for (fsit = eFsDark.begin(); fsit != eFsDark.end(); fsit++) {
-	    char sfsid[1024];
-	    snprintf(sfsid,sizeof(sfsid)-1,"%lu", (unsigned long)fsit->first);
-	    out += sfsid;
-	    out += ",";
-	  }
-	  if (out.endswith(",")) {
-	    out.erase(out.length()-1);
-	  }
-	  out += "\n";
-	}
-      } else {
-	// do output per filesystem
-	std::map<std::string, std::set <eos::common::FileId::fileid_t> >::const_iterator emapit;
-	std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t>>::const_iterator efsmapit;
-
-	for (emapit = eMap.begin(); emapit != eMap.end(); emapit++) {  
-	  // loop over filesystems
-	  for (efsmapit = eFsMap[emapit->first].begin(); efsmapit != eFsMap[emapit->first].end(); efsmapit++) {
- 	    if (emapit->first == "zero_replica") {
-	      // this we cannot break down by filesystem id
-	      continue;
-	    }
-	    
-	    char sn[1024];
-	    out += "timestamp="; out += stimestamp; out += " ";
-	    out += "tag=\""; out += emapit->first.c_str(); out +="\""; out += " ";
-	    out += "fsid="; out += (int) efsmapit->first;
-	    snprintf(sn,sizeof(sn)-1,"%llu", (unsigned long long )efsmapit->second.size());
-	    out += " n="; out += sn; 
-	    if (printfid) {
-	      out += " fxid="; 
-	      std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
-	      for (fidit = efsmapit->second.begin(); fidit != efsmapit->second.end(); fidit++) {
-		XrdOucString hexstring;
-		eos::common::FileId::Fid2Hex(*fidit,hexstring);
-		out += hexstring.c_str();
-		out += ",";
-	      }
-	      if (out.endswith(",")) {
-		out.erase(out.length()-1);
-	      }
 	      out += "\n";
 	    } else {
-	      if (printlfn) {
-		out += " lfn="; 
-		std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
-		for (fidit = efsmapit->second.begin(); fidit != efsmapit->second.end(); fidit++) {
-		  eos::FileMD* fmd=0;
-		  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-		  try {
-		    fmd = gOFS->eosFileService->getFileMD(*fidit);
-		    std::string fullpath = gOFS->eosView->getUri(fmd);
-		    out += "\""; out += fullpath.c_str(); out += "\"";
-		  } catch ( eos::MDException &e ) {
-		    out += "\"undefined\"";
-		  }
-		  out += ",";
-		} 
-		if (out.endswith(",")) {
-		  out.erase(out.length()-1);
-		}
-		out += "\n";
-	      } else {
-		out += "\n";
+	      out += "\n";
 	      }
-	    }
 	  }
-	}
+	  }
       }
     }
-  } else {
-    // output the selected tag - currently we have disabled this feature in the command line
   }
   return true;
 }
