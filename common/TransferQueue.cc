@@ -51,6 +51,7 @@ TransferQueue::TransferQueue(const char* queue, const char* queuepath, const cha
   mFullQueue += "/txqueue/";
   mFullQueue += subqueue;
   mTxQueue        = subqueue;
+  mJobGetCount    = 0;
 
   if (bc2mgm) {
     // the fst has to reply to the mgm and set up the right broadcast queue
@@ -158,6 +159,7 @@ TransferQueue::Get()
         // remove it from the queue
         mHashQueue->Delete(entry);
         mSom->HashMutex.UnLockRead();
+	IncGetJobCount();
         return job;
       }
     } else {

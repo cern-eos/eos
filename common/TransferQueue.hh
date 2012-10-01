@@ -89,6 +89,12 @@ private:
   XrdMqSharedObjectManager* mSom;
   XrdSysMutex constructorLock;
 
+  // ---------------------------------------------------------------------------
+  //! Count number of jobs executed + mutex
+  // ---------------------------------------------------------------------------
+  XrdSysMutex mJobGetCountMutex;
+  unsigned long long mJobGetCount;
+
 public:
   // ---------------------------------------------------------------------------
   //! Constructor
@@ -109,6 +115,26 @@ public:
   //! Remove a transfer job from the queue
   // ---------------------------------------------------------------------------
   bool Remove(eos::common::TransferJob* job);
+
+  // ---------------------------------------------------------------------------
+  //! Get the count of retrieved transfers
+  // ---------------------------------------------------------------------------
+  unsigned long long GetJobCount() {
+    unsigned long long count;
+    {
+      XrdSysMutexHelper cLock(mJobGetCountMutex);
+      count = mJobGetCount;
+    }
+    return count;
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Increment the count of retrieved transfers
+  // ---------------------------------------------------------------------------
+  void IncGetJobCount() {
+    XrdSysMutexHelper cLock(mJobGetCountMutex);
+    mJobGetCount++;
+  }
 
   // ---------------------------------------------------------------------------
   //! Get the current size of the queue
