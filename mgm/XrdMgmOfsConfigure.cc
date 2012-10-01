@@ -82,7 +82,7 @@ XrdMgmOfs::InitializeFileView()
       oldstallrule = Access::gStallRules[std::string("*")];
       oldstallcomment = Access::gStallComment[std::string("*")];
     }
-    Access::gStallRules[std::string("*")] = "10";
+    Access::gStallRules[std::string("*")] = "100";
     Access::gStallComment[std::string("*")] = "namespace is booting";
   }
 
