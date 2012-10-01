@@ -934,13 +934,26 @@ XrdFstOfsFile::open(const char                *path,
   int rc = layOut->open(fstPath.c_str(), open_mode, create_mode, client, stringOpaque.c_str());
 
   if ( (!rc) && isCreation && bookingsize) {
+    // ----------------------------------
+    // check if the file system is full
+    // ----------------------------------
+    XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
+    if (gOFS.Storage->fileSystemFullMap[fsid]) {
+      writeErrorFlag=kOfsDiskFullError;
+      
+      return gOFS.Emsg("writeofs", error, ENOSPC, "create file - disk space (headroom) exceeded fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
+      }
     rc = layOut->fallocate(bookingsize);
     if (rc) {
       eos_crit("file allocation gave return code %d errno=%d for allocation of size=%llu" , rc, errno, bookingsize);
-      layOut->remove();
-      int ecode=1094;
-      eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",RedirectManager.c_str(), ecode);
-      return gOFS.Redirect(error,RedirectManager.c_str(),ecode);
+      if (layOut->IsEntryServer()) {
+	layOut->remove();
+	int ecode=1094;
+	eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",RedirectManager.c_str(), ecode);
+	return gOFS.Redirect(error,RedirectManager.c_str(),ecode);
+      } else {
+	return gOFS.Emsg(epname, error, ENOSPC, "open - cannot allocate required space", Path.c_str());
+      }
     }
   }
 
@@ -1033,7 +1046,7 @@ XrdFstOfsFile::open(const char                *path,
     }
   }
 
-  eos_debug("OPEN FINISHED!\n");
+  eos_debug("OPEN FINISHED!");
   return rc;
 }
 
@@ -1198,7 +1211,8 @@ int
 XrdFstOfsFile::close()
 {
   EPNAME("close");
-  int rc = 0;
+  int rc = 0;  // return code
+  int brc = 0; // return code before 'close' is called
   bool checksumerror=false;
   bool targetsizeerror=false;
   bool committed=false;
@@ -1224,12 +1238,20 @@ XrdFstOfsFile::close()
     XrdOucEnv Opaque(OpaqueString.c_str());
     capOpaqueString += OpaqueString;
       
-    if (viaDelete && isCreation) {
+    if ( (viaDelete||writeDelete||remoteDelete) && isCreation) {
       // -------------------------------------------------------------------------------------------------------
       // it is closed by the constructor e.g. no proper close 
-      // or the specified checksum does not match the computed one
       // -------------------------------------------------------------------------------------------------------
-      eos_static_debug("(unpersist): deleting File Id=%llu on Fs=%u", fMd->fMd.fsid, fMd->fMd.fid);
+      if (viaDelete) {
+	eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\"  fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
+      }
+      if (writeDelete) {
+	eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\" fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
+      }
+      if (remoteDelete) {
+	eos_info("msg=\"(unpersist): deleting file\" reason=\"remote deletion\"    fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
+      }
+
       // delete the file
 
       // -------------------------------------------------------------------------------------------------------
@@ -1474,18 +1496,25 @@ XrdFstOfsFile::close()
       }
     }
 
+    int closerc=0; // return of the close
+    brc = rc;  // return before the close
+    
     if (layOut) {
-      rc |= layOut->close();
+      closerc = layOut->close();
+      rc |= closerc;
     } else {
       rc |= closeofs();
     }
     
     closed = true;
     
-    if (rc) {
-      deleteOnClose = true;
+    if (closerc) {
+      // some (remote) replica didn't make it through ... trigger an auto-repair
+      if (!deleteOnClose) {
+	repairOnClose = true;
+      }
     }
-
+    
     gOFS.OpenFidMutex.Lock();
     if (isRW) 
       gOFS.WOpenFid[fMd->fMd.fsid][fMd->fMd.fid]--;
@@ -1551,37 +1580,37 @@ XrdFstOfsFile::close()
 	  eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",hexstring.c_str(), fileid, capOpaque->Get("mgm.manager"));
 	}
       }
-      eos_info("info=\"removing on manager\" manager=%s fid=%llu fsid=%d fn=%s fstpath=%s rc=%d\n", capOpaque->Get("mgm.manager"), (unsigned long long)fileid, (int)fsid, capOpaque->Get("mgm.path"), fstPath.c_str(),rc);
+      eos_info("info=\"removing on manager\" manager=%s fid=%llu fsid=%d fn=%s fstpath=%s rc=%d", capOpaque->Get("mgm.manager"), (unsigned long long)fileid, (int)fsid, capOpaque->Get("mgm.path"), fstPath.c_str(),rc);
     }
 
     rc = SFS_ERROR;
 
     if (minimumsizeerror) {
-      gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because it is smaller than the required minimum file size in that directory", Path.c_str());
-      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"minimum file size criteria\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());    
+      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because it is smaller than the required minimum file size in that directory", Path.c_str());
+      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"minimum file size criteria\"", capOpaque->Get("mgm.path"), fstPath.c_str());    
     } else {
       if (checksumerror) {
-	gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because of a checksum error ",Path.c_str());
-	eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"checksum error\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+	gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a checksum error ",Path.c_str());
+	eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"checksum error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
       } else {
 	if (writeErrorFlag == kOfsSimulatedIoError) {
-	  gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because of a simulated IO error ",Path.c_str());
-	  eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"simulated IO error\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+	  gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a simulated IO error ",Path.c_str());
+	  eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"simulated IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 	} else {
 	  if (writeErrorFlag == kOfsMaxSizeError) {
-	    gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because you exceeded the maximum file size settings for this namespace branch",Path.c_str());
-	    eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"maximum file size criteria\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+	    gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because you exceeded the maximum file size settings for this namespace branch",Path.c_str());
+	    eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"maximum file size criteria\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 	  } else {
 	    if (writeErrorFlag == kOfsDiskFullError) {
-	      gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because the target disk filesystem got full and you didn't use reservation",Path.c_str());
-	      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"filesystem full\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+	      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the target disk filesystem got full and you didn't use reservation",Path.c_str());
+	      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"filesystem full\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 	    } else {
 	      if (writeErrorFlag == kOfsIoError) {
-		gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because of an IO error during a write operation",Path.c_str());
-	      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"write IO error\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+		gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of an IO error during a write operation",Path.c_str());
+	      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"write IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 	      } else {
-		gOFS.Emsg(epname,error, EIO, "write failed - file has been cleaned because of a generic IO error)",Path.c_str());
-		eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"generic IO error\"\n", capOpaque->Get("mgm.path"), fstPath.c_str());
+		gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a client disconnect)",Path.c_str());
+		eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"client disconnect\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 	      }		
 	    }
 	  }
@@ -1604,7 +1633,27 @@ XrdFstOfsFile::close()
       eos_crit("file-xs error file=%s", capOpaque->Env(envlen));
     }
   }
-  
+
+  if (repairOnClose) {
+    // do an upcall to the MGM and ask to adjust the replica of the uploaded file
+    XrdOucString OpaqueString="/?mgm.pcmd=adjustreplica&mgm.path=";
+    OpaqueString += capOpaque->Get("mgm.path");
+    
+    eos_info("info=\"repair on close\" path=%s",  capOpaque->Get("mgm.path"));
+    if (gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), OpaqueString)) {
+      eos_warning("failed to execute 'adjustreplica' for path=%s", capOpaque->Get("mgm.path"));
+      gOFS.Emsg(epname, error, EIO, "create all replicas - uploaded file is at risk - only one replica has been successfully stored for fn=", capOpaque->Get("mgm.path"));   
+    } else {
+      if (!brc) {
+	// reset the return code
+	rc = 0 ;
+	// clean error message
+	gOFS.Emsg(epname, error, 0, "no error");
+      }
+    }
+    eos_warning("executed 'adjustreplica' for path=%s - file is at low risk due to missing replica's", capOpaque->Get("mgm.path"));
+  }
+
   return rc;
 }
 
@@ -1721,7 +1770,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
     XrdSysMutexHelper cLock (BlockXsMutex);
     if ((retc>0) && (!fstBlockXS->CheckBlockSum(fileOffset, buffer, retc))) {
       int envlen=0;
-      eos_err("block-xs error offset=%llu len=%llu file=%s",(unsigned long long)fileOffset, (unsigned long long)buffer_size,FName(), capOpaque?capOpaque->Env(envlen):FName());
+      eos_err("block-xs error offset=%llu file=%s",(unsigned long long)fileOffset, (unsigned long long)buffer_size, capOpaque?capOpaque->Env(envlen):FName());
       return gOFS.Emsg("readofs", error, EIO, "read file - wrong block checksum fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
     }
   }
@@ -1753,7 +1802,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
   gettimeofday(&cTime,&tz);
   rCalls++;
 
-  eos_debug("XrdFstOfsFile: read - fileOffset: %lli, buffer_size: %i\n", fileOffset, buffer_size);
+  eos_debug("XrdFstOfsFile: read - fileOffset: %lli, buffer_size: %i", fileOffset, buffer_size);
 
   int rc = layOut->read(fileOffset,buffer,buffer_size);
 
@@ -1826,12 +1875,16 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset   fileOffset,
   }
 
   if (fsid) {
-    // check if the file system is full
-    XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
-    if (gOFS.Storage->fileSystemFullMap[fsid]) {
-      writeErrorFlag=kOfsDiskFullError;
-
-      return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space (headroom) exceeded fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
+    if (targetsize && (targetsize == bookingsize) ) {
+      // space has been successfully pre-allocated, let him write
+    } else {
+      // check if the file system is full
+      XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
+      if (gOFS.Storage->fileSystemFullMap[fsid]) {
+	writeErrorFlag=kOfsDiskFullError;
+	
+	return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space (headroom) exceeded fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
+      }
     }
   }
 
@@ -1869,8 +1922,15 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
 
   int rc = layOut->write(fileOffset,(char*)buffer,buffer_size);
 
+  if ( (rc <0) && isCreation && (error.getErrInfo() == EREMOTEIO) ) {
+    if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
+      // if we see a remote IO error, we don't fail, we just call a repair action afterwards (only for replica layouts!)
+      repairOnClose = true;
+      rc = buffer_size;
+    }
+  }
   // evt. add checksum
-  if ((rc >0) && (checkSum)){
+  if ((rc >0) && (checkSum) ) {
     XrdSysMutexHelper cLock (ChecksumMutex);
     checkSum->Add(buffer, (size_t) rc, (off_t) fileOffset);
   }
@@ -1898,7 +1958,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
   if (rc <0) {
     int envlen=0;
     // indicate the deletion flag for write errors
-    viaDelete = true;
+    writeDelete = true;
     XrdOucString errdetail;
     if (isCreation) {
       XrdOucString newerr;
@@ -1982,9 +2042,9 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
 {
 
   if (fileOffset == EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN) {
-    eos_warning("Deletion flag for file %s indicated",fstPath.c_str());
+    eos_info("msg=\"deletion flag indicated\" path=%s",fstPath.c_str());
     // this truncate offset indicates to delete the file during the close operation
-    viaDelete = true;
+    remoteDelete = true;
     return SFS_OK;
   }
 
@@ -2580,7 +2640,7 @@ XrdFstOfsDirectory::open(const char              *dirName,
   /* --------------------------------------------------------------------------------- */
   XrdOucEnv Opaque(opaque?opaque:"disk=1");
 
-  eos_info("info=\"calling opendir\" dir=%s\n", dirName);
+  eos_info("info=\"calling opendir\" dir=%s", dirName);
   dirname = dirName;
   if (!client || (strcmp(client->prot,"sss"))) {
     return gOFS.Emsg("opendir",error,EPERM, "open directory - you need to connect via sss",dirName);
