@@ -4076,6 +4076,46 @@ XrdMgmOfs::FSctl(const int               cmd,
     XrdOucString execmd = scmd;
 
     // ----------------------------------------------------------------------
+    // Adjust replica (repairOnClose from FST)
+    // ----------------------------------------------------------------------
+
+    if (execmd == "adjustreplica") {
+
+      REQUIRE_SSS_OR_LOCAL_AUTH;
+      ACCESSMODE_W;
+      MAYSTALL;
+      MAYREDIRECT;
+
+      EXEC_TIMING_BEGIN("AdjustReplica");      
+
+      // execute adjust replica                                                                                                                                                                            
+      eos::common::Mapping::VirtualIdentity vid;
+      eos::common::Mapping::Root(vid);
+      XrdOucErrInfo error;
+
+      // execute a proc command                                                                                                                                                                            
+      ProcCommand Cmd;
+      XrdOucString info="mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
+      char* spath  = env.Get("mgm.path");
+      if (spath) {
+	info += spath;
+	info += "&mgm.format=fuse";
+	Cmd.open("/proc/user",info.c_str(), vid, &error);
+	Cmd.close();
+	gOFS->MgmStats.Add("AdjustReplica",0,0,1);  
+      }
+      if (Cmd.GetRetc()) {
+	// the adjustreplica failed
+	return Emsg(epname,error, EIO,"[EIO] repair", spath);
+      } else {
+	// the adjustreplica succeede!
+	const char* ok = "OK";
+	error.setErrInfo(strlen(ok)+1,ok);
+	EXEC_TIMING_END("AdjustReplica");      
+	return SFS_DATA;
+      }
+    }
+    // ----------------------------------------------------------------------
     // Commit a replica
     // ----------------------------------------------------------------------
     if (execmd == "commit") {

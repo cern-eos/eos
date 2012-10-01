@@ -1192,6 +1192,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("NsLockW",0,0,0);
 
   gOFS->MgmStats.Add("Access",0,0,0);
+  gOFS->MgmStats.Add("AdjustReplica",0,0,0);
   gOFS->MgmStats.Add("AttrGet",0,0,0);
   gOFS->MgmStats.Add("AttrLs",0,0,0);
   gOFS->MgmStats.Add("AttrRm",0,0,0);
