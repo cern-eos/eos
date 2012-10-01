@@ -112,6 +112,7 @@ USE_EOSMGMNAMESPACE
 	 (store_path[__i] == 126)|| /* ~ */				\
 	 (store_path[__i] == 35) || /* # */				\
 	 (store_path[__i] == 58) || /* : */				\
+	 (store_path[__i] == 43) || /* + */				\
 	 (store_path[__i] == 94)    /* ^ */				\
 	 ) {								\
       continue;								\

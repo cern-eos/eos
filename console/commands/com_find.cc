@@ -109,6 +109,10 @@ com_find (char* arg1) {
       option += "Z";
     }
 
+    if (s1 == "--childcount") {
+      option += "l";
+    }
+
     if (s1 == "-1") {
       option += "1";
     }
@@ -528,7 +532,7 @@ com_find (char* arg1) {
   return (0);
 
  com_find_usage:
-  fprintf(stdout,"usage: find [--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
+  fprintf(stdout,"usage: find [--childcount] [--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
   fprintf(stdout,"                                                                        -f -d :  find files(-f) or directories (-d) in <path>\n");
   fprintf(stdout,"                                                               -x <key>=<val> :  find entries with <key>=<val>\n");
   fprintf(stdout,"                                                                           -0 :  find 0-size files \n");
@@ -542,7 +546,8 @@ com_find (char* arg1) {
   fprintf(stdout,"                                                           -layoutstripes <n> :  apply new layout with <n> stripes to all files found\n");
   fprintf(stdout,"                                                                           -1 :  find files which are atleast 1 hour old\n");
   fprintf(stdout,"                                                                 --stripediff :  find files which have not the nominal number of stripes(replicas)\n");
-  fprintf(stdout,"                                                                      --count :  just print counters for files/dirs found\n");
+  fprintf(stdout,"                                                                      --count :  just print global counters for files/dirs found\n");
+  fprintf(stdout,"                                                                 --childcount :  print the number of children in each directory\n");
   fprintf(stdout,"                                                                      default :  find files and directories\n");
   fprintf(stdout,"       find [--nrep] [--nunlink] [--size] [--fid] [--fs] [--checksum] [--ctime] [--mtime] <path>   :  find files and print out the requested meta data as key value pairs\n");              
   fprintf(stdout,"                                                               path=file:...  :  do a find in the local file system (options ignored) - 'file:' is the current working directory \n");

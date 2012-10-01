@@ -5163,6 +5163,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       bool selectonehour  = false;
       bool printunlink   = false;
       bool printcounter  = false;
+      bool printchildcount = true;
       time_t selectoldertime = 0;
       time_t selectyoungertime = 0;
 
@@ -5229,6 +5230,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
       if (option.find("Z")!=STR_NPOS) {
 	printcounter = true;
       }
+
+      if (option.find("l")!=STR_NPOS) {
+	printchildcount = true;
+      }
+
       if (attribute.length()) {
         key.erase(attribute.find("="));
         val.erase(0, attribute.find("=")+1);
@@ -5508,7 +5514,29 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		if (!printcounter)fprintf(fstdout,"%s=%-32s path=",printkey.c_str(),attr.c_str());
 	      }
 	    }
-	    if (!printcounter)fprintf(fstdout,"%s\n", foundit->first.c_str());
+	    if (!printcounter) {
+	      if (printchildcount) {
+		//-------------------------------------------
+		gOFS->eosViewRWMutex.LockRead();
+		eos::ContainerMD* cmd = 0;
+		unsigned long long childfiles=0;
+		unsigned long long childdirs=0;
+		try {
+		  cmd = gOFS->eosView->getContainer(foundit->first.c_str());
+		  childfiles = cmd->getNumFiles();
+		  childdirs  = cmd->getNumContainers();
+		  gOFS->eosViewRWMutex.UnLockRead();
+		  fprintf(fstdout,"%s ndir=%llu nfiles=%llu\n", foundit->first.c_str(), childdirs, childfiles);
+		  //-------------------------------------------
+		} catch( eos::MDException &e ) {
+		  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());
+		  gOFS->eosViewRWMutex.UnLockRead();
+		  //-------------------------------------------
+		}
+	      } else {
+		fprintf(fstdout,"%s\n", foundit->first.c_str());
+	      }
+	    }
           }
 	  dircounter++;
         }
