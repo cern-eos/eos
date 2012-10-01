@@ -34,6 +34,7 @@
 #include "mq/XrdMqMessaging.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/dense_hash_map>
+#include <math.h>
 /*----------------------------------------------------------------------------*/
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -610,7 +611,7 @@ Storage::Boot(FileSystem *fs)
     eos_info("msg=\"start mgm synchronisation\" fsid=%lu", (unsigned long) fsid);
     // resync the MGM meta data
     if (!gFmdSqliteHandler.ResyncAllMgm(fsid, manager.c_str())) {
-      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+     fs->SetStatus(eos::common::FileSystem::kBootFailure);
       fs->SetError(EFAULT,"cannot resync the mgm meta data");
       return;
     }
@@ -1491,156 +1492,146 @@ Storage::Verify()
     struct stat statinfo;
     if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
       eos_static_err("unable to verify file id=%x on fs=%u path=%s - stat on local disk failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+      // if there is no file, we should not commit anything to the MGM
+      verifyfile->commitSize = 0;
+      verifyfile->commitChecksum = 0 ;
+      statinfo.st_size=0; // indicates the missing file - not perfect though
+    } 
+
+    // even if the stat failed, we run this code to tag the file as is ...
+    // attach meta data
+    FmdSqlite* fMd = 0;
+    fMd = gFmdSqliteHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, verifyfile->commitFmd, true);
+    bool localUpdate = false;
+    if (!fMd) {
+      eos_static_err("unable to verify id=%x on fs=%u path=%s - no local MD stored", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+    } else {
+      if ( fMd->fMd.size != (unsigned long long)statinfo.st_size) {
+	eos_static_err("updating file size: path=%s fid=%s fs value %llu - changelog value %llu",verifyfile->path.c_str(),hexfid.c_str(), statinfo.st_size, fMd->fMd.size);
+	localUpdate = true;
+      }
       
-      // get a record if
-      FmdSqlite* fMd = 0;
-      fMd = gFmdSqliteHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, 0, true);
-      if (fMd) {
-	if (fMd->fMd.layouterror && eos::common::LayoutId::kUnregistered) {
-	  // the file is neither on disk nor should it be there
-	  if (!gFmdSqliteHandler.DeleteFmd(verifyfile->fId, verifyfile->fsId)) {
-	    eos_static_err("failed to remove fmd for id=%x on fs=%u path=%s - stat on local disk failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+      if ( fMd->fMd.lid != verifyfile->lId) {
+	eos_static_err("updating layout id: path=%s fid=%s central value %u - changelog value %u", verifyfile->path.c_str(),hexfid.c_str(),verifyfile->lId, fMd->fMd.lid);
+	localUpdate = true;
+      }
+      
+      if ( fMd->fMd.cid != verifyfile->cId) {
+	eos_static_err("updating container: path=%s fid=%s central value %llu - changelog value %llu", verifyfile->path.c_str(),hexfid.c_str(),verifyfile->cId, fMd->fMd.cid);
+	localUpdate = true;
+      }
+      
+      // update size
+      fMd->fMd.size     = statinfo.st_size;
+      fMd->fMd.lid      = verifyfile->lId;
+      fMd->fMd.cid      = verifyfile->cId;
+      
+      // if set recalculate the checksum
+      CheckSum* checksummer = ChecksumPlugins::GetChecksumObject(fMd->fMd.lid);
+      
+      unsigned long long scansize=0;
+      float scantime = 0; // is ms
+      
+      if ((checksummer) && verifyfile->computeChecksum && (!checksummer->ScanFile(fstPath.c_str(), scansize, scantime, verifyfile->verifyRate))) {
+	eos_static_crit("cannot scan file to recalculate the checksum id=%llu on fs=%u path=%s",verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+      } else {
+	XrdOucString sizestring;
+	if (checksummer && verifyfile->computeChecksum) 
+	  eos_static_info("rescanned checksum - size=%s time=%.02fms rate=%.02f MB/s limit=%d MB/s", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL), verifyfile->verifyRate);
+	
+	if (checksummer && verifyfile->computeChecksum) { 
+	  int checksumlen=0;
+	  checksummer->GetBinChecksum(checksumlen);
+          
+	  // check if the computed checksum differs from the one in the change log
+	  bool cxError=false;
+	  std::string computedchecksum = checksummer->GetHexChecksum();
+	  
+	  if (fMd->fMd.checksum != computedchecksum) 
+	    cxError = true;
+	  
+	  // commit the disk checksum in case of differences between the in-memory value
+	  if (fMd->fMd.diskchecksum != computedchecksum)
+	    localUpdate = true;
+	  
+	  if (cxError) {
+	    eos_static_err("checksum invalid   : path=%s fid=%s checksum=%s stored-checksum=%s", verifyfile->path.c_str(),hexfid.c_str(), checksummer->GetHexChecksum(), fMd->fMd.checksum.c_str());
+	    fMd->fMd.checksum     = computedchecksum;
+	    fMd->fMd.diskchecksum = computedchecksum;
+	    fMd->fMd.disksize     = fMd->fMd.size;
+	    if (verifyfile->commitSize) {
+	      fMd->fMd.mgmsize    = fMd->fMd.size;
+	    }
+	    
+	    if (verifyfile->commitChecksum) {
+	      fMd->fMd.mgmchecksum = computedchecksum;
+	    }
+	    localUpdate =true;
 	  } else {
-	    eos_static_info("removed fmd for id=%x on fs=%u path=%s - stat on local disk failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+              eos_static_info("checksum OK        : path=%s fid=%s checksum=%s", verifyfile->path.c_str(),hexfid.c_str(), checksummer->GetHexChecksum());
+	  }
+	  eos::common::Attr *attr = eos::common::Attr::OpenAttr(fstPath.c_str());
+	  if (attr) {
+	    // update the extended attributes
+	    attr->Set("user.eos.checksum",checksummer->GetBinChecksum(checksumlen), checksumlen);
+	    attr->Set(std::string("user.eos.checksumtype"), std::string(checksummer->GetName()));
+	    delete attr;
 	  }
 	}
-	delete fMd;
-      }
-    } else {
-      // attach meta data
-      FmdSqlite* fMd = 0;
-      fMd = gFmdSqliteHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, verifyfile->commitFmd, true);
-      bool localUpdate = false;
-      if (!fMd) {
-        eos_static_err("unable to verify id=%x on fs=%u path=%s - no local MD stored", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
-      } else {
-        if ( fMd->fMd.size != (unsigned long long)statinfo.st_size) {
-          eos_static_err("updating file size: path=%s fid=%s changelog value %x - fs value %llu",verifyfile->path.c_str(),hexfid.c_str(), statinfo.st_size, fMd->fMd.size);
-          localUpdate = true;
-        }
+	
+	eos::common::Path cPath(verifyfile->path.c_str());
         
-        if ( fMd->fMd.lid != verifyfile->lId) {
-          eos_static_err("updating layout id: path=%s fid=%s central value %u - changelog value %u", verifyfile->path.c_str(),hexfid.c_str(),verifyfile->lId, fMd->fMd.lid);
-          localUpdate = true;
-        }
-
-        if ( fMd->fMd.cid != verifyfile->cId) {
-          eos_static_err("updating container: path=%s fid=%s central value %llu - changelog value %llu", verifyfile->path.c_str(),hexfid.c_str(),verifyfile->cId, fMd->fMd.cid);
-          localUpdate = true;
-        }
-
-        // update size
-        fMd->fMd.size     = statinfo.st_size;
-        fMd->fMd.lid      = verifyfile->lId;
-        fMd->fMd.cid      = verifyfile->cId;
-        
-        // if set recalculate the checksum
-        CheckSum* checksummer = ChecksumPlugins::GetChecksumObject(fMd->fMd.lid);
-        
-        unsigned long long scansize=0;
-        float scantime = 0; // is ms
-        
-        if ((checksummer) && verifyfile->computeChecksum && (!checksummer->ScanFile(fstPath.c_str(), scansize, scantime, verifyfile->verifyRate))) {
-          eos_static_crit("cannot scan file to recalculate the checksum id=%llu on fs=%u path=%s",verifyfile->fId, verifyfile->fsId, fstPath.c_str());
-        } else {
-          XrdOucString sizestring;
-          if (checksummer && verifyfile->computeChecksum) 
-            eos_static_info("rescanned checksum - size=%s time=%.02fms rate=%.02f MB/s limit=%d MB/s", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL), verifyfile->verifyRate);
-
-          if (checksummer && verifyfile->computeChecksum) { 
-            int checksumlen=0;
-            checksummer->GetBinChecksum(checksumlen);
-            
-            // check if the computed checksum differs from the one in the change log
-            bool cxError=false;
-	    std::string computedchecksum = checksummer->GetHexChecksum();
-
-	    if (fMd->fMd.checksum != computedchecksum) 
-	      cxError = true;
-
-	    // commit the disk checksum in case of differences between the in-memory value
-	    if (fMd->fMd.diskchecksum != computedchecksum)
-	      localUpdate = true;
-
-            if (cxError) {
-              eos_static_err("checksum invalid   : path=%s fid=%s checksum=%s stored-checksum=%s", verifyfile->path.c_str(),hexfid.c_str(), checksummer->GetHexChecksum(), fMd->fMd.checksum.c_str());
-	      fMd->fMd.checksum     = computedchecksum;
-	      fMd->fMd.diskchecksum = computedchecksum;
-	      fMd->fMd.disksize     = fMd->fMd.size;
-	      if (verifyfile->commitSize) {
-		fMd->fMd.mgmsize    = fMd->fMd.size;
-	      }
-
-	      if (verifyfile->commitChecksum) {
-		fMd->fMd.mgmchecksum = computedchecksum;
-	      }
-              localUpdate =true;
-            } else {
-              eos_static_info("checksum OK        : path=%s fid=%s checksum=%s", verifyfile->path.c_str(),hexfid.c_str(), checksummer->GetHexChecksum());
-            }
-            eos::common::Attr *attr = eos::common::Attr::OpenAttr(fstPath.c_str());
-            if (attr) {
-              // update the extended attributes
-              attr->Set("user.eos.checksum",checksummer->GetBinChecksum(checksumlen), checksumlen);
-	      attr->Set(std::string("user.eos.checksumtype"), std::string(checksummer->GetName()));
-              delete attr;
-            }
-          }
-
-          eos::common::Path cPath(verifyfile->path.c_str());
-          
-          // commit local
-          if (localUpdate && (!gFmdSqliteHandler.Commit(fMd))) {
-            eos_static_err("unable to verify file id=%llu on fs=%u path=%s - commit to local MD storage failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
-          } else {
-            if (localUpdate) eos_static_info("commited verified meta data locally id=%llu on fs=%u path=%s",verifyfile->fId, verifyfile->fsId, fstPath.c_str());
-
-            // commit to central mgm cache, only if commitSize or commitChecksum is set
-            XrdOucString capOpaqueFile="";
-            XrdOucString mTimeString="";
-            capOpaqueFile += "/?";
-            capOpaqueFile += "&mgm.pcmd=commit";
-            capOpaqueFile += "&mgm.verify.checksum=1";
-            capOpaqueFile += "&mgm.size=";
-            char filesize[1024]; sprintf(filesize,"%llu", fMd->fMd.size);
-            capOpaqueFile += filesize;
-            capOpaqueFile += "&mgm.fid=";
-            capOpaqueFile += hexfid;
-            capOpaqueFile += "&mgm.path=";
-            capOpaqueFile += verifyfile->path.c_str();
-
-            if (checksummer && verifyfile->computeChecksum) {
-              capOpaqueFile += "&mgm.checksum=";
-              capOpaqueFile += checksummer->GetHexChecksum();
-              if (verifyfile->commitChecksum) {
+	// commit local
+	if (localUpdate && (!gFmdSqliteHandler.Commit(fMd))) {
+	  eos_static_err("unable to verify file id=%llu on fs=%u path=%s - commit to local MD storage failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+	} else {
+	  if (localUpdate) eos_static_info("commited verified meta data locally id=%llu on fs=%u path=%s",verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+	  
+	  // commit to central mgm cache, only if commitSize or commitChecksum is set
+	  XrdOucString capOpaqueFile="";
+	  XrdOucString mTimeString="";
+	  capOpaqueFile += "/?";
+	  capOpaqueFile += "&mgm.pcmd=commit";
+	  capOpaqueFile += "&mgm.verify.checksum=1";
+	  capOpaqueFile += "&mgm.size=";
+	  char filesize[1024]; sprintf(filesize,"%llu", fMd->fMd.size);
+	  capOpaqueFile += filesize;
+	  capOpaqueFile += "&mgm.fid=";
+	  capOpaqueFile += hexfid;
+	  capOpaqueFile += "&mgm.path=";
+	  capOpaqueFile += verifyfile->path.c_str();
+	  
+	  if (checksummer && verifyfile->computeChecksum) {
+	    capOpaqueFile += "&mgm.checksum=";
+	    capOpaqueFile += checksummer->GetHexChecksum();
+	    if (verifyfile->commitChecksum) {
                 capOpaqueFile += "&mgm.commit.checksum=1";
-              }
-            }
-
-            if (verifyfile->commitSize) {
-              capOpaqueFile += "&mgm.commit.size=1";
-            }
-            
-            capOpaqueFile += "&mgm.mtime=";
-            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fMd->fMd.mtime);
-            capOpaqueFile += "&mgm.mtime_ns=";
-            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fMd->fMd.mtime_ns);
-            
-            capOpaqueFile += "&mgm.add.fsid=";
-            capOpaqueFile += (int)fMd->fMd.fsid;
-
-            if (verifyfile->commitSize || verifyfile->commitChecksum) {
-              if (localUpdate) eos_static_info("commited verified meta data centrally id=%llu on fs=%u path=%s",verifyfile->fId, verifyfile->fsId, fstPath.c_str());
-              int rc = gOFS.CallManager(&error, verifyfile->path.c_str(),verifyfile->managerId.c_str(), capOpaqueFile);
+	    }
+	  }
+	  
+	  if (verifyfile->commitSize) {
+	    capOpaqueFile += "&mgm.commit.size=1";
+	  }
+          
+	  capOpaqueFile += "&mgm.mtime=";
+	  capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fMd->fMd.mtime);
+	  capOpaqueFile += "&mgm.mtime_ns=";
+	  capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long)fMd->fMd.mtime_ns);
+          
+	  capOpaqueFile += "&mgm.add.fsid=";
+	  capOpaqueFile += (int)fMd->fMd.fsid;
+	  
+	  if (verifyfile->commitSize || verifyfile->commitChecksum) {
+	    if (localUpdate) eos_static_info("commited verified meta data centrally id=%llu on fs=%u path=%s",verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+	    int rc = gOFS.CallManager(&error, verifyfile->path.c_str(),verifyfile->managerId.c_str(), capOpaqueFile);
               if (rc) {
                 eos_static_err("unable to verify file id=%s fs=%u at manager %s",hexfid.c_str(), verifyfile->fsId, verifyfile->managerId.c_str()); 
               }
-            }
+	  }
           }
-        }
-        if (checksummer) {delete checksummer;}
-        if (fMd) {delete fMd;}
       }
+      if (checksummer) {delete checksummer;}
+      if (fMd) {delete fMd;}
     }
     runningVerify=0;
     if (verifyfile) delete verifyfile;
@@ -2287,6 +2278,8 @@ Storage::Drainer()
   std::map<unsigned int, time_t> last_asked; // map having the last scheduling request time
 
   unsigned long long nscheduled=0;
+  unsigned long long totalscheduled=0;;
+  unsigned long long totalexecuted =0;
 
   while(1) {
     eos_static_debug("Doing draining round ...");
@@ -2313,15 +2306,15 @@ Storage::Drainer()
     {
       eos::common::RWMutexReadLock lock (fsMutex);
       nfs = fileSystemsVector.size();
+      totalexecuted = 0;
 
-      // if we didn't schedule yet, we just look into the queues what is there
-      if (!nscheduled) {
-	for (unsigned int s=0; s < nfs; s++) {
-	  if (s < fileSystemsVector.size()) {
-	    nscheduled += fileSystemsVector[s]->GetDrainQueue()->GetRunningAndQueued();
-	  }
+      // sum up the current execution state e.g. number of jobs taken from the queue
+      for (unsigned int s=0; s < nfs; s++) {
+	if (s < fileSystemsVector.size()) {
+	  totalexecuted += fileSystemsVector[s]->GetDrainQueue()->GetQueue()->GetJobCount();
 	}
       }
+      nscheduled = totalscheduled - totalexecuted;
     }
 
     
@@ -2381,8 +2374,8 @@ Storage::Drainer()
 	if ( (bootstatus == eos::common::FileSystem::kBooted) && 
 	     (configstatus > eos::common::FileSystem::kRO) && 
 	     ( !full ) ) {
-	  // we allows max. <nparalleltx> transfers to run at the same time
-	  if (nscheduled < nparalleltx) {
+	  // we schedule one transfer ahead
+	  if (nscheduled < (nparalleltx+1)) {
 	    eos_static_debug("asking for new job %d/%d", nscheduled, nparalleltx);
 	    XrdOucErrInfo error;
 	    XrdOucString managerQuery="/?";
@@ -2403,6 +2396,7 @@ Storage::Drainer()
 	    } else {
 	      if (response == "submitted") {
 		eos_static_info("got a new job");
+		totalscheduled++;
 		nscheduled++;
 		got_work[index] = true;
 		eos_static_debug("manager scheduled a transfer for us!");
@@ -2423,12 +2417,47 @@ Storage::Drainer()
       // ---------------------------------------------------------------------------------------------
       // we have no filesystem which is member of a draining group at the moment
       // ---------------------------------------------------------------------------------------------
-      nscheduled = 0;
       XrdSysTimer sleeper;
       // go to sleep for a while if there was nothing to do
       eos_static_debug("doing a long sleep of 60s");
       sleeper.Snooze(60);
-    } 
+      eos::common::RWMutexReadLock lock (fsMutex);
+      nfs = fileSystemsVector.size();    
+      nscheduled = 0;
+      totalexecuted = 0;
+      for (unsigned int s=0; s < nfs; s++) {
+	if (s < fileSystemsVector.size()) {
+	  nscheduled += fileSystemsVector[s]->GetDrainQueue()->GetRunningAndQueued();
+	  totalexecuted += fileSystemsVector[s]->GetDrainQueue()->GetQueue()->GetJobCount();
+	}
+      }
+      if (!nscheduled) {
+	// if there is nothing visible totalexecuted must be set equal to totalscheduled - this is to prevent any kind of 'dead lock' situation by missing a job/message etc.
+	totalscheduled = totalexecuted;
+      }
+    } else {
+      // wait until we have slot's to fill
+      while (1) {
+	eos::common::RWMutexReadLock lock (fsMutex);
+	nfs = fileSystemsVector.size();    
+	totalexecuted = 0;
+	for (unsigned int s=0; s < nfs; s++) {
+	  
+	  if (s < fileSystemsVector.size()) {
+	    totalexecuted += fileSystemsVector[s]->GetDrainQueue()->GetQueue()->GetJobCount();
+	  }
+	}
+	nscheduled = (totalscheduled - totalexecuted);
+	
+	if (nscheduled < (nparalleltx+1)) {
+	  // free slots, leave the loop
+	  break;
+	}
+	XrdSysTimer sleeper;
+	sleeper.Wait(100);
+      }
+    }
+
     nscheduled=0;
     cycler++;
   }
@@ -2454,11 +2483,12 @@ Storage::Balancer()
 
   unsigned int cycler=0;
 
-  std::map<unsigned int, bool>   got_work;   // map having the result of last scheduling request
-  std::map<unsigned int, time_t> last_asked; // map having the last scheduling request time
+  std::map<unsigned int, bool>   got_work;       // map having the result of last scheduling request
+  std::map<unsigned int, time_t> last_asked;     // map having the last scheduling request time
 
   unsigned long long nscheduled=0;
-
+  unsigned long long totalscheduled=0;
+  unsigned long long totalexecuted =0;
   while(1) {
     eos_static_debug("Doing balancing round ...");
 
@@ -2485,15 +2515,15 @@ Storage::Balancer()
       // determin the number of configured filesystems
       eos::common::RWMutexReadLock lock (fsMutex);
       nfs = fileSystemsVector.size();    
+      totalexecuted = 0;
 
-      // if we didn't schedule yet, we just look into the queues what is there
-      if (!nscheduled) {
-	for (unsigned int s=0; s < nfs; s++) {
-	  if (s < fileSystemsVector.size()) {
-	    nscheduled += fileSystemsVector[s]->GetBalanceQueue()->GetRunningAndQueued();
-	  }
+      // sum up the current execution state e.g. number of jobs taken from the queue
+      for (unsigned int s=0; s < nfs; s++) {
+	if (s < fileSystemsVector.size()) {
+	  totalexecuted += fileSystemsVector[s]->GetBalanceQueue()->GetQueue()->GetJobCount();
 	}
       }
+      nscheduled = totalscheduled - totalexecuted;
     }    
 
     for (unsigned int i=0; i< nfs; i++) {
@@ -2503,7 +2533,7 @@ Storage::Balancer()
         std::string path = fileSystemsVector[index]->GetPath();
 	double nominal = fileSystemsVector[index]->GetDouble("stat.nominal.filled");
 	double filled  = fileSystemsVector[index]->GetDouble("stat.statfs.filled");
-
+	double threshold = fileSystemsVector[index]->GetDouble("stat.balance.threshold");
 	unsigned long id = fileSystemsVector[index]->GetId();
 
 	if (!got_work[index]) {
@@ -2519,9 +2549,9 @@ Storage::Balancer()
 	got_work[index]   = false; 
 
 	eos_static_debug("FileSystem %lu %.02f %.02f",id, filled, nominal);
-      
-	// don't adjust more than a percent 
-	if ( (nominal) && (((filled>0.5)?(filled-0.5):filled) < nominal)) {
+
+	// don't adjust more than the deviation defined by threshold
+	if ( (nominal) && (fabs(filled-threshold) < nominal)) {
 	  ask = true;
 	  // if the fill status is less than nominal we can ask a balancer transfer to the MGM
 	  unsigned long long freebytes   = fileSystemsVector[index]->GetLongLong("stat.statfs.freebytes");
@@ -2539,7 +2569,7 @@ Storage::Balancer()
 	  eos::common::FileSystem::fsstatus_t bootstatus   = fileSystemsVector[index]->GetStatus();
 	  eos::common::FileSystem::fsstatus_t configstatus = fileSystemsVector[index]->GetConfigStatus();
 
-	  eos_static_debug("id=%u nscheduled=%llu nparalleltx=%llu", id, nscheduled, nparalleltx);
+	  eos_static_info("id=%u nscheduled=%llu nparalleltx=%llu totalscheduled=%llu totalexecuted=%llu", id, nscheduled, nparalleltx, totalscheduled, totalexecuted);
 
 	  // ---------------------------------------------------------------------------------------------
 	  // we balance filesystems which are booted and 'in production' e.g. not draining or down or RO
@@ -2555,7 +2585,8 @@ Storage::Balancer()
 	       (configstatus > eos::common::FileSystem::kRO) && 
 	       (!full) ) {
 
-	    if (nscheduled < nparalleltx) {	    
+	    // we schedule one transfer ahead !!
+	    if (nscheduled < (nparalleltx+1)) {	    
 	      XrdOucErrInfo error;
 	      XrdOucString managerQuery="/?";
 	      managerQuery += "mgm.pcmd=schedule2balance";
@@ -2575,6 +2606,7 @@ Storage::Balancer()
 	      } else {
 		if (response == "submitted") {
 		  eos_static_debug("id=%u result=%s", id, response.c_str());
+		  totalscheduled++;
 		  nscheduled++;
 		  got_work[index]=true;
 		} else {
@@ -2598,8 +2630,41 @@ Storage::Balancer()
       XrdSysTimer sleeper;
       // go to sleep for a while if there was nothing to do
       sleeper.Snooze(60);
-    } 
-    nscheduled=0;
+      eos::common::RWMutexReadLock lock (fsMutex);
+      nfs = fileSystemsVector.size();    
+      nscheduled = 0;
+      totalexecuted = 0;
+      for (unsigned int s=0; s < nfs; s++) {
+	if (s < fileSystemsVector.size()) {
+	  nscheduled += fileSystemsVector[s]->GetBalanceQueue()->GetRunningAndQueued();
+	  totalexecuted += fileSystemsVector[s]->GetBalanceQueue()->GetQueue()->GetJobCount();
+	}
+	if (!nscheduled) {
+	  // if there is nothing visible totalexecuted must be set equal to totalscheduled - this is to prevent any kind of 'dead lock' situation by missing a job/message etc.
+	  totalscheduled = totalexecuted;
+	}
+      }
+    } else {
+      // wait until we have slot's to fill
+      while (1) {
+	eos::common::RWMutexReadLock lock (fsMutex);
+	nfs = fileSystemsVector.size();    
+	totalexecuted = 0;
+	for (unsigned int s=0; s < nfs; s++) {
+	  if (s < fileSystemsVector.size()) {
+	    totalexecuted += fileSystemsVector[s]->GetBalanceQueue()->GetQueue()->GetJobCount();
+	  }
+	}
+	nscheduled = (totalscheduled - totalexecuted);
+
+	if (nscheduled < (nparalleltx+1)) {
+	  // free slots, leave the loop
+	  break;
+	}
+      XrdSysTimer sleeper;
+      sleeper.Wait(100);
+      }
+    }
     cycler++;
   }
 }
