@@ -87,6 +87,8 @@ public:
 
   bool OpenTemporaryOutputFiles();
 
+  int GetRetc() { return retc;}
+
   ProcCommand();
   ~ProcCommand();
 }; 
