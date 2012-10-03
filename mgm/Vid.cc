@@ -64,14 +64,16 @@ Vid::Set(const char* value)
       // fill uid target list
       eos::common::Mapping::gUserRoleVector[uid].clear();
       eos::common::Mapping::KommaListToUidVector(val, eos::common::Mapping::gUserRoleVector[uid]);
-      set = true;
+      gOFS->ConfEngine->SetConfigValue("vid",skey.c_str(),value);
+      set=true;
     }
     
     if ((val=env.Get("mgm.vid.target.gid"))) {
       // fill gid target list
       eos::common::Mapping::gGroupRoleVector[uid].clear();
       eos::common::Mapping::KommaListToGidVector(val, eos::common::Mapping::gGroupRoleVector[uid]);
-      set = true;
+      gOFS->ConfEngine->SetConfigValue("vid",skey.c_str(),value);
+      set=true;
     }
     
     if ((val=env.Get("mgm.vid.target.sudo"))) {
