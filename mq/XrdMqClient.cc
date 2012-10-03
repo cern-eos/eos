@@ -371,7 +371,7 @@ XrdMqClient::GetBrokerUrl(int i) {
       }
     }
     if (hostname == "localhost") {
-      //      hostname = "localhost.localdomain";
+      hostname = "localhost.localdomain";
     }
     XrdOucString* alias = new XrdOucString();
     *alias = "root://"; *alias += hostname; *alias += port; *alias += queue;
@@ -447,7 +447,7 @@ void XrdMqClient::CheckBrokerXrdClientReceiver(int i) {
       if (client && client->GetClientConn()) {
 	//	fprintf(stderr,"Checking Broker\n");
 	XrdOucString* bk = GetBrokerUrl(i);
-	if ( (!kBrokerXrdClientReceiverAliasTimeStamp[i]) || ((bk) && (*bk != client->GetClientConn()->GetCurrentUrl().GetUrl()))) {
+	if ( (!kBrokerXrdClientReceiverAliasTimeStamp[i]) || ((bk) && (*bk != client->GetClientConn()->GetCurrentUrl().GetUrl()) && (bk->find("localhost")!=STR_NPOS))) {
 	  if (*bk != client->GetClientConn()->GetCurrentUrl().GetUrl()) {
 	    fprintf(stderr,"XrdMqClient::CheckBrokerXrdClientReceiver => Broker alias changed from %s => %s\n", client->GetClientConn()->GetCurrentUrl().GetUrl().c_str(), bk->c_str());
 	  }
