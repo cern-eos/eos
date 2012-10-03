@@ -106,7 +106,7 @@ USE_EOSMGMNAMESPACE
 	 ((store_path[__i] >= 48) && (store_path[__i] <= 57 ))  || /* 0-9   */ \
 	 (store_path[__i] == 47) || /* / */				\
 	 (store_path[__i] == 46) || /* . */				\
-	 (store_path[__i] == 20) || /* SPACE */				\
+	 (store_path[__i] == 32) || /* SPACE */				\
 	 (store_path[__i] == 45) || /* - */				\
 	 (store_path[__i] == 95) || /* _ */				\
 	 (store_path[__i] == 126)|| /* ~ */				\
@@ -412,7 +412,7 @@ public:
                       XrdOucErrInfo    &out_error,
                       eos::common::Mapping::VirtualIdentity &vid,
                       const char             *opaque = 0);
-
+  
   int            _find(const char             *path,
                        XrdOucErrInfo    &out_error,
                        XrdOucString &stdErr,
