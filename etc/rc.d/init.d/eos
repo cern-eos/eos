@@ -302,10 +302,15 @@ restart() {
 
 # Determine the role
 if [ -n "$2" ]; then
-        XRD_ROLES=$2
-	if [ "$XRD_ROLES" = "mgm" ]; then
-   		XRD_ROLEFLAG="-m "
-	fi
+     	if [[ "$XRD_ROLES" =~ "$2" ]];  then
+	     XRD_ROLES=$2
+	     if [ "$XRD_ROLES" = "mgm" ]; then
+   	     	XRD_ROLEFLAG="-m "
+             fi
+	else 
+	     echo $"service $2 is not configured here"
+	     exit 0
+        fi	     
 
 elif [ -z "${XRD_ROLES}" ]; then
         # No roles defined in the sysconfig file so lets automatically find out

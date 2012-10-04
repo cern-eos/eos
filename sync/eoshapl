@@ -50,6 +50,7 @@ my $eossyncstatus="";
 my $mastermgm=0;
 my $mastermq=0;
 my $mastersync=0;
+my $masterfed=0;
 my $eossync=0;
 my $confdir="";
 my $metadir="";
@@ -131,10 +132,12 @@ while(1) {
     $mastermgm =system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mgm >&/dev/null");
     $mastermq  =system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mq >&/dev/null");
     $mastersync=system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status sync >&/dev/null");
+    $masterfed =system("env CONSOLETYPE=serial /etc/rc.d.init.d/eos status fed >&/dev/null");
     $eossync=system("env CONSOLETYPE=serial /etc/rc.d/init.d/eossync status >&/dev/null");
     $mastermgm = ($mastermgm >> 8);
     $mastermq  = ($mastermq >> 8);
     $mastersync= ($mastersync >> 8);
+    $masterfed = ($masterfed >> 8);
     $eossync= ($eossync >> 8);
 
     if (!$mastermgm) {
@@ -168,7 +171,13 @@ while(1) {
     if (defined $palias_ip) {
         $alias_ip = inet_ntoa($palias_ip);
     } else {
-        $alias_ip = "-undef-";
+	if ($mastermgm) {
+	    # if we are the master we stay the master
+	    $alias_ip = $host_ip;
+	} else {
+	    # if we are a slave and cannot resolve we can set it to undef
+	    $alias_ip = "-undef-";
+	}
     }
 
     if ($debug || (!$cnt)) {print "$now hostname=$host [$host_ip]  aliastarget=$alias_ip aliases=$aliasname\n";}
@@ -274,9 +283,10 @@ while(1) {
             printf "$now ===================================================================\n";
             printf "$now Skipping FAILOVER procedure (probably we have been the master before or the system is new) ... starting MASTER ...\n";
             printf "$now ___________________________________________________________________\n";
-            my $startupmq  = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos start mq >> $logfile 2>&1 ");
-            my $startupmq  = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos start mgm >> $logfile 2>&1 ");
-            my $startupmq  = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart sync >> $logfile 2>&1 ");
+            my $startupmq   = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos start mq >> $logfile 2>&1 ");
+            my $startupmgm  = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos start mgm >> $logfile 2>&1 ");
+            my $startupsync = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart sync >> $logfile 2>&1 ");
+            my $startupfed  = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart fed >> $logfile 2>&1 ");
         }
             
         if ( ($isfailover) && (($mastermgm == 2) || ($mastermq == 2)) ) {
@@ -435,10 +445,12 @@ while(1) {
             $mastermgm =system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mgm >&/dev/null");
             $mastermq  =system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mq >&/dev/null");
             $mastersync=system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status sync >&/dev/null");
+            $mastersync=system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status fed >&/dev/null");
             $eossync=system("env CONSOLETYPE=serial /etc/rc.d/init.d/eossync status >&/dev/null");
             $mastermgm = ($mastermgm >> 8);
             $mastermq  = ($mastermq >> 8);
             $mastersync= ($mastersync >>8);
+	    $masterfed = system($masterfed >>8);
             $eossync = ($eossync >>8);
             
             if ( (!$mastermgm) && (!$mastermq) &&(!$mastersync) ) {
@@ -476,6 +488,14 @@ while(1) {
             my $startupsync = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart sync >> $logfile 2>&1 ");
         }
 
+	if ( $masterfed ) {
+	    now();
+            printf "$now ===================================================================\n";
+            printf("$now (re-)start FED ...\n");
+            printf "$now ___________________________________________________________________\n";
+            # service dead ... let's restart
+            my $startupfed = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart fed >> $logfile 2>&1 ");
+	}
         if ( $eossync ) {
             now();
             printf "$now ===================================================================\n";
