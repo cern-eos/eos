@@ -1770,7 +1770,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
     XrdSysMutexHelper cLock (BlockXsMutex);
     if ((retc>0) && (!fstBlockXS->CheckBlockSum(fileOffset, buffer, retc))) {
       int envlen=0;
-      eos_err("block-xs error offset=%llu file=%s",(unsigned long long)fileOffset, (unsigned long long)buffer_size, capOpaque?capOpaque->Env(envlen):FName());
+      eos_err("block-xs error offset=%llu size=%llu file=%s",(unsigned long long)fileOffset, (unsigned long long)buffer_size, capOpaque?capOpaque->Env(envlen):FName());
       return gOFS.Emsg("readofs", error, EIO, "read file - wrong block checksum fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
     }
   }
