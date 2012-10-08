@@ -1164,7 +1164,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    std::vector<FsNode*> nodes;
             FileSystem* fs = 0;
 	    
-	    if ((identifier.find("*") == std::string::npos)) {
+	    if ((identifier.find("*") != std::string::npos)) {
 	      // apply this to all nodes !
 	      std::map<std::string , FsNode*>::const_iterator it;
 	      for (it = FsView::gFsView.mNodeView.begin(); it != FsView::gFsView.mNodeView.end(); it++) {
