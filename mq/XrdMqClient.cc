@@ -447,7 +447,7 @@ void XrdMqClient::CheckBrokerXrdClientReceiver(int i) {
       if (client && client->GetClientConn()) {
 	//	fprintf(stderr,"Checking Broker\n");
 	XrdOucString* bk = GetBrokerUrl(i);
-	if ( (!kBrokerXrdClientReceiverAliasTimeStamp[i]) || ((bk) && (*bk != client->GetClientConn()->GetCurrentUrl().GetUrl()) && (bk->find("localhost")!=STR_NPOS))) {
+	if ( (!kBrokerXrdClientReceiverAliasTimeStamp[i]) || ((bk) && (*bk != client->GetClientConn()->GetCurrentUrl().GetUrl()) && (bk->find("localhost")==STR_NPOS))) {
 	  if (*bk != client->GetClientConn()->GetCurrentUrl().GetUrl()) {
 	    fprintf(stderr,"XrdMqClient::CheckBrokerXrdClientReceiver => Broker alias changed from %s => %s\n", client->GetClientConn()->GetCurrentUrl().GetUrl().c_str(), bk->c_str());
 	  }

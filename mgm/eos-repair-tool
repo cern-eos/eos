@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-
 # ----------------------------------------------------------------------
 # File: eos-repair-tool
 # Author: Andreas-Joachim Peters - CERN
@@ -32,12 +31,12 @@ use Term::ReadKey;
 ReadMode('cbreak');
 
 my $lfnhash=();
-
+my $empty=();
 while (1) {
     system("clear");
     printf("Actions:\n");
     printf("     r      - grab fsck report\n");
-    printf("     f      - read fsck report from default file /tmp/eos.fsck.report\n");
+    printf("     f      - read fsck report from default file /tmp/eos.fsck.report and /tmp/eos.external.lfn\n");
     printf("     p      - process fsck report\n");
     printf("     u      - update fsck report\n");
     printf("     s      - show fsck status\n");
@@ -57,164 +56,300 @@ while (1) {
 	printf(" ===> grab fsck report from MGM ...\n");
 	system("eos -b fsck report -a -l > /tmp/eos.fsck.report");
     }
-    if ( $char eq "f") {
-	my $file = "/tmp/eos.fsck.report";
-	if ( -r "$file" ) {
-	    printf(" ===> loading from $file ...\n");
-	    open IN, "$file";
-	    while (<IN>) {
-		my @args=split(" ", $_);
-		my $item;
-		my $subhash;
-		foreach $item (@args) {
-		    my ($key,$value) = split("=",$item);
-		    $subhash->{$key} = $value;
+    if ( ($char eq "f") || ($char eq "p") ) {
+	if ( $char ne "p" ) {
+	    my $extfile = "/tmp/eos.external.lfn";
+	    if ( -r "$extfile" ) {
+		printf(" ===> loading from $extfile ...\n");
+		open IN, "$extfile";
+		while (<IN>) {
+		    chomp $_;
+		    $lfnhash->{"\"external\""}->{$_}=1;
 		}
-		my @lfns = split(",", $subhash->{"lfn"});
-		my $lfn;
-		foreach $lfn (@lfns) {
-		    $lfnhash->{$subhash->{"tag"}}->{$lfn}=1;
+		close IN;
+	    }
+
+	    my $file = "/tmp/eos.fsck.report";
+	    if ( -r "$file" ) {
+		printf(" ===> loading from $file ...\n");
+		open IN, "$file";
+		while (<IN>) {
+		    my @args=split(" ", $_);
+		    my $item;
+		    my $subhash;
+		    foreach $item (@args) {
+			my ($key,$value) = split("=",$item);
+			$subhash->{$key} = $value;
+		    }
+		    my @lfns = split(",", $subhash->{"lfn"});
+		    my $lfn;
+		    foreach $lfn (@lfns) {
+			if ($lfn ne "\"undefined\"") {
+			    $lfnhash->{$subhash->{"tag"}}->{$lfn}=1;
+			}
 #		    print $subhash->{"tag"}," $lfn \n";
-		}
-	    }
-	    close IN;
-	    my @sets;
-	    my $cnt=0;
-	    print "Set's to operate:\n";
-	    print "---------------------------------------------\n";
-	    for my $key (keys %$lfnhash) {
-		$count = keys %{$lfnhash->{$key}};
-		printf "[ $cnt ] $key \t %d\n", $count;
-		push @sets, $key;
-		$cnt++;
-	    }
-
-	    $char = ReadKey(0);
-	    my $nfile=0;
-	    my @lfsn;
-	    for my $lfn (keys %{$lfnhash->{@sets[$char]}}) {
-		push @lfns, $lfn;
-	    }
-
-	    my $index=1;
-	    while (1) {
-		$count = $#lfns + 1;
-		system("clear");
-		my $lfn = @lfns[$index-1];
-
-		print "###################################################################################################################\n";
-		print "==> Set to in use is @sets[$char]\n";
-		print "###################################################################################################################\n";
-		printf " LFN ( %10s / %-10s ) $lfn\n", $index, $count;
-		print "\n";
-		print "-------------------------------------------------------------------------------------------------------------------\n";
-		print "- file info -------------------------------------------------------------------------------------------------------\n";
-		print "-------------------------------------------------------------------------------------------------------------------\n";
-		system("eos -b file info $lfn");
-		print "\n";
-		print "-------------------------------------------------------------------------------------------------------------------\n";
-		print "- file check -------------------------------------------------------------------------------------------------------\n";
-		print "-------------------------------------------------------------------------------------------------------------------\n";
-		system("eos -b file check $lfn");
-		print "-------------------------------------------------------------------------------------------------------------------\n";
-		print "\n";
-		print "- error \n";
-		print "-------------------------------------------------------------------------------------------------------------------\n";
-		system("eos -b file check $lfn %silent%output%size%checksum%checksumattr%nrep");
-		print "###################################################################################################################\n";
-		print " Options:\n";
-		print "   <Space>                             : update information\n";
-		print "     'n'                               : next file\n";
-		print "     'p'                               : previous file\n";
-		print "     'q'                               : leave operation mode\n";
-		print "     'r'                               : rescan all and remove entries which don't show an error with 'eos file check'\n";
-		print "     --- \n";
-		print "     'a'                               : send adjustreplica\n";
-		print "     'A'                               : send adjustreplica to all in this set\n";
-		print "     'V'                               : send verify to all in this set\n";
-		print "     'd'                               : drop a replica\n";
-		print "     'v'                               : send verify\n";
-		print "     'c'                               : send verify + checksum\n";
-		print "     'C'                               : send verify + commit checksum + size\n";
-		print "     'X'                               : send verify + commit checksum\n";
-
-		my $wkey = ReadKey(0);
-		if ($wkey eq "n") {
-		    $index++;
-		    if ($index > $count) {
-			print " WARNING => you are already editing the last file\n";
-			sleep(2);
-			$index--;
 		    }
 		}
-		if ($wkey eq "p") {
-		    $index--;
-		    if ($index < 1) {
-			print " WARNING => you are already editing the first file\n";
-			sleep(2);
-			$index++;
-		    }
-		}
-		if ($wkey eq "a") {
-		    system("eos -b file adjustreplica $lfn");
-		}
-
-		if ($wkey eq "v" ) {
-		    system("eos -b file verify $lfn");
-		}
-
-		if ($wkey eq "c") {
-		    system("eos -b file verify $lfn -checksum");
-		}
-		
-		if ($wkey eq "C") {
-		    system("eos -b file verify $lfn -checksum -commitsize -commitchecksum");
-		}
-		
-		if ($wkey eq "X") {
-		    system("eos -b file verify $lfn -checksum -commitchecksum");
-		}
-		
-		if ($wkey eq "A") {
-		    for my $n (@lfns) {
-			system("eos -b file adjustreplica $n");
-		    }
-		}
-
-		if ($wkey eq "V") {
-		    for my $n (@lfns) {
-			system("eos -b file verify $n");
-		    }	
-		}   	
-			
-		if ($wkey eq "d") {
-		    printf " Enter Filesystem ID where to drop : ";
-		    ReadMode('normal');
-		    my $replica = <STDIN>;
-		    chomp $replica;
+		close IN;
+	    } else {
+		if ( (! -r "$extfile") && (! -r "$file") ) {
+		    printf(" ---- file does not exist!\n");
 		    ReadMode('cbreak');
-		    print "? Drop replica on filesystem $replica ? <y/n> \n";
+		    print "<any key to continue>\n";
 		    my $conf = ReadKey(0);
-		    if ($conf eq "y") {
-			system("eos -b file drop $lfn $replica");
-		    }  else {
-
-			print " <drop aborted\n";
-			sleep(1);
-		    }
- 		}
-
-		if ($wkey eq "q" ) {
-		    last;
-		}		
+		}
 	    }
-	} else {
-	    printf(" ---- file does not exist!\n");
+	}
+	my @sets;
+	my $cnt=0;
+	print "Set's to operate:\n";
+	print "---------------------------------------------\n";
+	for my $key (keys %$lfnhash) {
+	    $count = keys %{$lfnhash->{$key}};
+	    printf "[ $cnt ] $key \t %d\n", $count;
+	    push @sets, $key;
+	    $cnt++;
+	}
+	
+	$char = ReadKey(0);
+	my $nfile=0;
+	my @lfns;
+	for my $lfn (keys %{$lfnhash->{@sets[$char]}}) {
+	    push @lfns, $lfn;
+	}
+	
+	my $index=1;
+	while (1) {
+	    $count = $#lfns + 1;
+	    system("clear");
+	    my $lfn = @lfns[$index-1];
+	    
+	    print "###################################################################################################################\n";
+	    print "==> Set to in use is @sets[$char]\n";
+	    print "###################################################################################################################\n";
+	    printf " LFN ( %10s / %-10s ) $lfn\n", $index, $count;
+	    print "\n";
+	    print "-------------------------------------------------------------------------------------------------------------------\n";
+	    print "- file info -------------------------------------------------------------------------------------------------------\n";
+	    print "-------------------------------------------------------------------------------------------------------------------\n";
+	    system("eos -b file info $lfn");
+	    print "\n";
+	    print "-------------------------------------------------------------------------------------------------------------------\n";
+	    print "- file check -------------------------------------------------------------------------------------------------------\n";
+	    print "-------------------------------------------------------------------------------------------------------------------\n";
+	    system("eos -b file check $lfn");
+	    print "-------------------------------------------------------------------------------------------------------------------\n";
+	    print "\n";
+	    print "- error \n";
+	    print "-------------------------------------------------------------------------------------------------------------------\n";
+	    system("eos -b file check $lfn %silent%output%size%checksum%checksumattr%nrep");
+	    print "###################################################################################################################\n";
+	    print " Options:\n";
+	    print "   <Space>                             : update information\n";
+	    print "     'n'                               : next file\n";
+	    print "     'p'                               : previous file\n";
+	    print "     'q'                               : leave operation mode\n";
+	    print "     'r'                               : rescan all and remove entries which don't show an error with 'eos file check'\n";
+	    print "     --- \n";
+	    print "     'a'                               : send adjustreplica\n";
+	    print "     'A'                               : send adjustreplica to all in this set\n";
+	    print "     'D'                               : drop all files with statsize=-1 or statsize=0\n";
+	    print "     'V'                               : send verify to all in this set\n";
+	    print "     'd'                               : drop a replica\n";
+	    print "     'v'                               : send verify\n";
+	    print "     'c'                               : send verify + checksum\n";
+	    print "     'C'                               : send verify + commit checksum + size\n";
+	    print "     'X'                               : send verify + commit checksum\n";
+	    print "     'E'                               : run check on all files and remove fixed files from edit set\n";
+	    print "     'e'                               : export file list of current set to /tmp/eos.set.lfn\n";
+	    print "     'y'                               : show check with %checksum attribute\n";
+	    
+	    my $wkey = ReadKey(0);
+	    if ($wkey eq "n") {
+		$index++;
+		if ($index > $count) {
+		    print " WARNING => you are already editing the last file\n";
+			sleep(2);
+		    $index--;
+		}
+	    }
+	    if ($wkey eq "p") {
+		$index--;
+		if ($index < 1) {
+		    print " WARNING => you are already editing the first file\n";
+		    sleep(2);
+		    $index++;
+		}
+	    }
+	    if ($wkey eq "a") {
+		system("eos -b file adjustreplica $lfn");
+	    }
+	    
+	    if ($wkey eq "v" ) {
+		system("eos -b file verify $lfn");
+	    }
+	    
+	    if ($wkey eq "c") {
+		system("eos -b file verify $lfn -checksum");
+	    }
+	    
+	    if ($wkey eq "C") {
+		system("eos -b file verify $lfn -checksum -commitsize -commitchecksum");
+	    }
+	    
+	    if ($wkey eq "D") {
+		for my $n (@lfns) {
+		    print "=> Processing $n\n";
+                    open IN, "eos -b file check $n|";
+                    my $mode=0;
+                    while (<IN>) {
+			
+			if ($_ =~ /^path=/) {
+			    $mode=0;
+			} else {
+			    $mode++;
+			}
+			# grep the path info
+			my @keyval= split (" ", $_);
+			for my $s (@keyval) {
+			    my ($key,$val) = split( "=",$s);
+			    $val =~ s/\"//g;
+			    if ("$mode" eq "0") {
+				$hash->{"generic"}->{"$key"} = $val;
+			    } else {
+				$hash->{"replica"}->{"$mode"}->{"$key"}=$val;
+			    }
+			}
+                    }
+                    if ($mode ne "2") {
+			printf "==> nothing to do for $n - only one replica\n";
+		    }
+                    # check which one to drop
+#		    print "$hash->{'replica'}->{'1'}->{'statsize'} $hash->{'replica'}->{'2'}->{'statsize'} \n";
+		    
+                    if  ( ( ($hash->{"replica"}->{'1'}->{"statsize"} eq "0") || (($hash->{"replica"}->{'1'}->{"statsize"} eq "-1") ) ) && (hash->{"replica"}->{'2'}->{"statsize"} ne "0") && (hash->{"replica"}->{'2'}->{"statsize"} ne "-1") ) {
+			# drop replica 0
+			my $p = $hash->{"generic"}->{"path"};
+			system("eos -b file drop $p $hash->{'replica'}->{'1'}->{'fsid'}");
+		    }  else {
+			if  ( ( ($hash->{"replica"}->{'2'}->{"statsize"} eq "0") || ($hash->{"replica"}->{'2'}->{"statsize"} eq "-1") )  && (hash->{"replica"}->{'1'}->{"statsize"} ne "0") && (hash->{"replica"}->{'1'}->{"statsize"} ne "-1") ) {
+			    # drop replica 0
+			    my $p = $hash->{"generic"}->{"path"};
+			    system("eos -b file drop $p $hash->{'replica'}->{'2'}->{'fsid'}");
+			} else {
+			    if ( int(($hash->{"replica"}->{'1'}->{"statsize"}) > 0 ) && ( int ($hash->{"replica"}->{'2'}->{"statsize"} > 0))) {
+				my $p = $hash->{"generic"}->{"path"};
+				if ( int(($hash->{"replica"}->{'1'}->{"statsize"}) ) > ( int ($hash->{"replica"}->{'2'}->{"statsize"} ))) {
+                                    system("eos -b file drop $p $hash->{'replica'}->{'2'}->{'fsid'}");
+                                    system("eos -b file verify $p -checksum -commitsize -commitchecksum");
+                                    print "$hash->{'replica'}->{'1'}->{'statsize'} $hash->{'replica'}->{'2'}->{'statsize'} \n";
+                                }  else {
+                                    if ( int(($hash->{"replica"}->{'1'}->{"statsize"}) ) < ( int ($hash->{"replica"}->{'2'}->{"statsize"} ))) {
+                                        system("eos -b file drop $p $hash->{'replica'}->{'1'}->{'fsid'}");
+                                        system("eos -b file verify $p -checksum -commitsize -commitchecksum");
+                                        print "$hash->{'replica'}->{'1'}->{'statsize'} $hash->{'replica'}->{'2'}->{'statsize'} \n";
+                                    }
+                                }
+			    } else {
+				print "!!> nothing we can do for $n\n";
+				print "$hash->{'replica'}->{'1'}->{'statsize'} $hash->{'replica'}->{'2'}->{'statsize'} \n";
+			    }
+			}
+		    }
+		    
+                    close IN;
+		}
+		ReadMode('cbreak');
+		print "<any key to continue>\n";
+		my $conf = ReadKey(0);
+	    }
+	    
+	    if ($wkey eq "E") {
+		my $lcnt=0;
+		my $gcnt=0;
+		print "---- running check loop ...\n";
+		my @reducedlfns;
+		for my $n (@lfns) {
+		    $gcnt++;
+		    system("eos -b stat $n >& /dev/null");
+		    if ( $? != 0) {
+			$lcnt++;
+			print "miss: $n \n";
+			push @reducedlfns, $n;
+			next;
+		    } 
+		    system("eos -b file check $n %silent%output%size%checksum%checksumattr%nrep 2>/dev/null | grep INCON >& /dev/null");
+		    if ( $? == 0) {
+			$lcnt++;
+			print "cons: $n \n";
+			push @reducedlfns, $n;
+			next;
+		    }
+		}
+		print "---- finished check loop ( error=$lcnt total=$gcnt ) ...\n";
+		@lfns = @reducedlfns;
+		$index=1;
+		ReadMode('cbreak');
+		print "<any key to continue>\n";
+		my $conf = ReadKey(0);
+	    }
+	    
+	    if ($wkey eq "e") {
+		print "---- exporting lfn's to /tmp/eos.set.lfn\n";
+		system("unlink /tmp/eos.set.lfn>/dev/null;");
+		foreach (@lfns) {
+		    system("echo \"$_\" >> /tmp/eos.set.lfn");
+		} 
+		ReadMode('cbreak');
+		print "<any key to continue>\n";
+		my $conf = ReadKey(0);
+	    }
+
+	    if ($wkey eq "X") {
+		system("eos -b file verify $lfn -checksum -commitchecksum");
+	    }
+	    
+	    if ($wkey eq "A") {
+		for my $n (@lfns) {
+		    system("eos -b file adjustreplica $n");
+		}
+	    }
+	    
+	    if ($wkey eq "V") {
+		for my $n (@lfns) {
+		    system("eos -b file verify $n -checksum");
+		}	
+	    }   	
+	    
+	    if ($wkey eq "d") {
+		printf " Enter Filesystem ID where to drop : ";
+		ReadMode('normal');
+		my $replica = <STDIN>;
+		chomp $replica;
+		ReadMode('cbreak');
+		print "? Drop replica on filesystem $replica ? <y/n> \n";
+		my $conf = ReadKey(0);
+		if ($conf eq "y") {
+		    system("eos -b file drop $lfn $replica");
+		}  else {
+		    
+		    print " <drop aborted\n";
+		    sleep(1);
+		}
+	    }
+
+	    if ($wkey eq "y") {
+		system("eos -b file check $lfn %checksumattr");
+		ReadKey(0);
+	    }
+
+	    if ($wkey eq "q" ) {
+		last;
+	    }		
 	}
     }
-    if ( $char eq "p") {
-	printf(" ===> process fsck report ...\n");
-    }
+    ReadMode('cbreak');
+    print "<any key to continue>\n";
     $char = ReadKey(0);
     last unless defined $char;
 }
