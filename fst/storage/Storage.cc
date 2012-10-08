@@ -1575,6 +1575,7 @@ Storage::Verify()
 	    // update the extended attributes
 	    attr->Set("user.eos.checksum",checksummer->GetBinChecksum(checksumlen), checksumlen);
 	    attr->Set(std::string("user.eos.checksumtype"), std::string(checksummer->GetName()));
+	    attr->Set("user.eos.filecxerror","0");
 	    delete attr;
 	  }
 	}
