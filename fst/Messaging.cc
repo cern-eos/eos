@@ -146,10 +146,10 @@ Messaging::Process(XrdMqMessage* newmessage)
       if (newdeletion) {
         gOFS.Storage->deletionsMutex.Lock();
 
-        if (gOFS.Storage->deletions.size() < 1000) {
+        if (gOFS.Storage->deletionsSize() < 1024) {
           gOFS.Storage->deletions.push_back(*newdeletion);
         } else {
-          eos_info("deletion list has already 1000 entries - discarding deletion message");
+          eos_info("deletion list has already 1024 entries - discarding deletion message");
         }
         delete newdeletion;
         gOFS.Storage->deletionsMutex.UnLock();

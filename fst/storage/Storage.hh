@@ -187,6 +187,15 @@ public:
 
   XrdSysMutex deletionsMutex;
   std::vector <Deletion> deletions;
+
+  off_t deletionsSize() {
+    off_t totalsize=0;
+    XrdSysMutexHelper dLock(deletionsMutex);
+    for (size_t i=0; i< deletions.size(); i++) {
+      totalsize=deletions[i].fIdVector.size();
+    }
+    return totalsize;
+  }
   
   XrdSysMutex verificationsMutex;
   std::queue <eos::fst::Verify*> verifications;
