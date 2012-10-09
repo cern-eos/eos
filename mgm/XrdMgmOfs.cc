@@ -6717,13 +6717,14 @@ XrdMgmOfs::Deletion()
             }
 
             if (fs) {
+	      eos::common::FileSystem::fsstatus_t bootstatus = fs->GetBootStatus();
               // check the state of the filesystem (if it can actually delete in this moment!)
-              //              if ( (fs->GetConfigStatus() <= eos::common::FileSystem::kOff) || 
-              //                   (fs->GetBootStatus()  != eos::common::FileSystem::kBooted) ) {
-              //                // we don't need to send messages, this one is anyway down
-              //                break;
-              //              }
-
+	      if ( (fs->GetConfigStatus() <= eos::common::FileSystem::kOff) || 
+		   (bootstatus != eos::common::FileSystem::kBooted) ) {
+		// we don't need to send messages, this one is anyway down or currently booting
+		break;
+	      }
+	      
               if ( (fs->GetActiveStatus() == eos::common::FileSystem::kOffline) ) {
                 break;
               }
