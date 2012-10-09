@@ -1104,7 +1104,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     XrdOucEnv configenv(configloader.c_str());
     XrdOucString stdErr="";
     if (!ConfEngine->LoadConfig(configenv, stdErr)) {
-      eos_crit("Unable to auto-load config %s", ConfigAutoLoad.c_str());
+      eos_crit("Unable to auto-load config %s - fix your configuration file!", ConfigAutoLoad.c_str());
+      eos_crit("%s\n", stdErr.c_str());
+      return 1;
     } else {
       eos_info("Successful auto-load config %s", ConfigAutoLoad.c_str());
     }

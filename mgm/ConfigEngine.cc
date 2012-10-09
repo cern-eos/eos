@@ -591,24 +591,24 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
     skey.erase(0,3);
     if (!FsView::gFsView.ApplyFsConfig(skey.c_str(),sdef)) {
       *err += "error: unable to apply config "; *err += key, *err += " => "; *err += def->c_str(); *err +="\n";
-      return 0;
     }
+    return 0;
   }
   
   if (skey.beginswith("global:")) {
     skey.erase(0,7);
     if (!FsView::gFsView.ApplyGlobalConfig(skey.c_str(),sdef)) {
       *err += "error: unable to apply config "; *err += key, *err += " => "; *err += def->c_str(); *err +="\n";
-      return 0;
     }
+    return 0;
   }
 
   if (skey.beginswith("map:")) {
     skey.erase(0,4);
     if (!gOFS->AddPathMap(skey.c_str(),sdef.c_str())) {
       *err += "error: unable to apply config "; *err += key, *err += " => "; *err += def->c_str(); *err +="\n";
-      return 0;
     }
+    return 0;
   }
   
   if (skey.beginswith("quota:")) {
@@ -626,7 +626,7 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
          (ugequaloffset == STR_NPOS) ||
          (tagoffset     == STR_NPOS) ) {
       eos_static_err("cannot parse config line key: |%s|",skey.c_str());
-      *err += "error: cannot parse config line key: "; *err += skey.c_str();
+      *err += "error: cannot parse config line key: "; *err += skey.c_str(); *err +="\n";
     }
 
     XrdOucString space="";
@@ -649,15 +649,17 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
       if (id>0 || (ugid == "0")) {
         spacequota->SetQuota(SpaceQuota::GetTagFromString(tag), id, value, false);
       } else {
-        *err += "error: illegal id found: "; *err += ugid;
+        *err += "error: illegal id found: "; *err += ugid; *err +="\n";
         eos_static_err("config id is negative");
       }
     }
+    return 0;
   }
 
   if (skey.beginswith("policy:")) {
     // set a policy
     skey.erase(0,7);
+    return 0;
   }
 
   if (skey.beginswith("vid:")) {
@@ -665,10 +667,12 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
     // set a virutal Identity
     if (!Vid::Set(envdev.Env(envlen))) {
       eos_static_err("cannot apply config line key: |%s| => |%s|",skey.c_str(), def->c_str());
-      *err += "error: cannot apply config line key: "; *err += skey.c_str();
+      *err += "error: cannot apply config line key: "; *err += skey.c_str(); *err +="\n";
     } 
+    return 0;
   }
 
+  *err += "error: don't know what to do with this configuration line: "; *err += sdef.c_str();  *err +="\n";
   return 0;
 }
 
