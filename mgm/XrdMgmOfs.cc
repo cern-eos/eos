@@ -6717,7 +6717,7 @@ XrdMgmOfs::Deletion()
             }
 
             if (fs) {
-	      eos::common::FileSystem::fsstatus_t bootstatus = fs->GetBootStatus();
+	      eos::common::FileSystem::fsstatus_t bootstatus = fs->GetStatus();
               // check the state of the filesystem (if it can actually delete in this moment!)
 	      if ( (fs->GetConfigStatus() <= eos::common::FileSystem::kOff) || 
 		   (bootstatus != eos::common::FileSystem::kBooted) ) {
