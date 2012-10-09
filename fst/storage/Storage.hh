@@ -189,8 +189,9 @@ public:
   std::vector <Deletion> deletions;
 
   off_t deletionsSize() {
+    // take the lock 'deletionsMutex' outside: 
     off_t totalsize=0;
-    XrdSysMutexHelper dLock(deletionsMutex);
+
     for (size_t i=0; i< deletions.size(); i++) {
       totalsize=deletions[i].fIdVector.size();
     }
