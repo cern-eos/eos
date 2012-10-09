@@ -51,7 +51,7 @@ public:
   XrdOucString     KeyTabAdler;          // adler string of the keytab file
   XrdSysMutex      Mutex;                // lock for dynamic updates like 'Manager' 
   static Config gConfig;
-  Config() {autoBoot=false;PublishInterval=10;}
+  Config() {autoBoot=false;PublishInterval=10;Manager="";}
   ~Config() {}
 };
 
