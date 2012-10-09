@@ -29,8 +29,9 @@
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/
-// system includes
-
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 /*----------------------------------------------------------------------------*/
 
 bool XrdMqSharedObjectManager::debug=0;
@@ -291,6 +292,10 @@ XrdMqSharedObjectManager::FileDumper()
       fprintf(f,"%s\n", s.c_str());
       fclose(f);
     }
+    if (chmod(DumperFile.c_str(),S_IRWXU| S_IRGRP | S_IROTH)) {
+      fprintf(stderr,"XrdMqSharedObjectManager::FileDumper=> unable to set 755 permissions on file %s\n", DumperFile.c_str());
+    }
+
     if (rename(df.c_str(),DumperFile.c_str())) {
       fprintf(stderr,"XrdMqSharedObjectManager::FileDumper=> unable to write dumper file %s\n", DumperFile.c_str());
     }
