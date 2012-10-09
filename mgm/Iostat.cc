@@ -951,6 +951,10 @@ Iostat::Store()
   if (!fout)
     return false;
 
+  if (chmod(tmpname.c_str(),S_IRWXU| S_IRGRP | S_IROTH)) {
+    return false;
+  }
+
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator tuit;
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator tgit;
   Mutex.Lock();
