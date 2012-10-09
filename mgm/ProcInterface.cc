@@ -1108,6 +1108,11 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               stdErr = "error: cannot set node config value";
             }
           }
+	  // set also the manager name
+	  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", FsNode::gManagerId, true, nodename.c_str(), true)) {
+	    retc = EIO;
+	    stdErr = "error: cannot set the manager name";
+	  }
         }
       }
       
