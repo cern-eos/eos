@@ -505,30 +505,3 @@ XrdFstOss::Unlink( const char* path, int opts, XrdOucEnv* ep )
 
 EOSFSTNAMESPACE_END
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

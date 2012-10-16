@@ -24,7 +24,6 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/PlainLayout.hh"
 /*----------------------------------------------------------------------------*/
-//#include "XrdOss/XrdOssApi.hh"
 #include "fst/XrdFstOss.hh"
 /*----------------------------------------------------------------------------*/
 #include <xfs/xfs.h>
@@ -140,7 +139,6 @@ PlainLayout::close()
 int
 PlainLayout::remove()
 {
-  XrdOucEnv env;
   return ::unlink(LocalReplicaPath.c_str());
 }
 
