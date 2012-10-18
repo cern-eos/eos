@@ -802,7 +802,7 @@ FsView::HeartBeatCheck()
       }
     }
     XrdSysTimer sleeper;
-    sleeper.Snooze(1);   
+    sleeper.Snooze(10);   
     XrdSysThread::CancelPoint();
   }
   
