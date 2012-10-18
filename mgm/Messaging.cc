@@ -75,10 +75,13 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
     return false;
 
   std::string nodequeue = advmsg->kQueue.c_str();
+
+  eos_static_debug("View Lock");
   
   // new implementations uses mainly read locks
   FsView::gFsView.ViewMutex.LockRead();            // =========| LockRead
 
+  eos_static_debug("View Locked");
   if (!FsView::gFsView.mNodeView.count(nodequeue)) {
     // -----------------------------------------------------
     // rare case where a node is not yet known
@@ -135,7 +138,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
           FsView::gFsView.mIdView[*it]->SetStatus(eos::common::FileSystem::kDown, false);
         }
       }
-      eos_static_info("Setting heart beat to %llu\n", (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec);
+      eos_static_debug("Setting heart beat to %llu\n", (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec);
       
       FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(advmsg->kMessageHeader.kSenderTime_sec);
       
@@ -146,6 +149,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
       }
     }
     FsView::gFsView.ViewMutex.UnLockRead(); // |========= UnLockRead
+    eos_static_debug("View UnLocked");
     return true;
   }
 }
@@ -156,6 +160,7 @@ Messaging::Listen()
 {
   while(1) {
     XrdSysThread::SetCancelOff();
+    eos_static_debug("RecvMessage");
     XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
     //    if (newmessage) newmessage->Print();  
     
