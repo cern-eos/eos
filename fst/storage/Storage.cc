@@ -2107,6 +2107,7 @@ Storage::Publish()
       eos::common::StringConversion::LoadFileIntoString(tmpname,publish_sockets);
     }
 
+    time_t now = time(NULL);
     gettimeofday(&tv1, &tz);
 
     // TODO: derive this from a global variable
@@ -2121,7 +2122,7 @@ Storage::Publish()
       PublishInterval = 10;
     }
     
-    unsigned int lReportIntervalMilliSeconds =  (PublishInterval*500)+ (unsigned int)((PublishInterval*1000)*rand()/RAND_MAX);
+    unsigned int lReportIntervalMilliSeconds =  (PublishInterval*500)+ (unsigned int)((PublishInterval*1000.0)*rand()/RAND_MAX);
 
     // retrieve the process memory and thread state
 
@@ -2134,6 +2135,8 @@ Storage::Publish()
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes
       eos::common::RWMutexReadLock lock (fsMutex);
+      static time_t last_consistency_stats = 0; 
+      static time_t next_consistency_stats = 0; 
 
       if (!gOFS.ObjectManager.OpenMuxTransaction()) {
         eos_static_err("cannot open mux transaction");
@@ -2156,12 +2159,16 @@ Storage::Publish()
 
 	  bool success = true;
 	  if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted) {
-	    XrdSysMutexHelper ISLock (fileSystemsVector[i]->InconsistencyStatsMutex);
-	    gFmdSqliteHandler.GetInconsistencyStatistics(fsid, *fileSystemsVector[i]->GetInconsistencyStats(), *fileSystemsVector[i]->GetInconsistencySets());
-	    for (isit = fileSystemsVector[i]->GetInconsistencyStats()->begin(); isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++) {
-	      eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);
-	      std::string sname = "stat.fsck."; sname += isit->first;
-	      success &= fileSystemsVector[i]->SetLongLong(sname.c_str(),isit->second);
+	    if (next_consistency_stats < now) {
+	      eos_static_debug("msg=\"publish consistency stats\"");
+	      last_consistency_stats = now;
+	      XrdSysMutexHelper ISLock (fileSystemsVector[i]->InconsistencyStatsMutex);
+	      gFmdSqliteHandler.GetInconsistencyStatistics(fsid, *fileSystemsVector[i]->GetInconsistencyStats(), *fileSystemsVector[i]->GetInconsistencySets());
+	      for (isit = fileSystemsVector[i]->GetInconsistencyStats()->begin(); isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++) {
+		eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);
+		std::string sname = "stat.fsck."; sname += isit->first;
+		success &= fileSystemsVector[i]->SetLongLong(sname.c_str(),isit->second);
+	      }
 	    }
 	  }
 
@@ -2205,13 +2212,15 @@ Storage::Publish()
 	  {
 	    XrdSysMutexHelper(fileSystemFullMapMutex);
 	    long long fbytes = fileSystemsVector[i]->GetLongLong("stat.statfs.freebytes");
-	    if ( (fbytes < 1024ll*1024ll*1024ll) || (fbytes <= fileSystemsVector[i]->GetLongLong("headroom")) ) {
+	    // stop the writers if it get's critical under 5 GB space
+
+	    if ( (fbytes < 5*1024ll*1024ll*1024ll) ) {
 	      fileSystemFullMap[fsid] = true;
 	    } else {
 	      fileSystemFullMap[fsid] = false;
 	    }
 	    
-	    if ( (fbytes < 1024ll*1024ll*1024ll) || (fbytes <= (fileSystemsVector[i]->GetLongLong("headroom") + (1024ll*1024ll*1024ll)) ) ) {
+	    if ( (fbytes < 1024ll*1024ll*1024ll) || (fbytes <= fileSystemsVector[i]->GetLongLong("headroom")) ) {
 	      fileSystemFullWarnMap[fsid] = true;
 	    } else {
 	      fileSystemFullWarnMap[fsid] = false;
@@ -2242,11 +2251,13 @@ Storage::Publish()
 	  gOFS.ObjectManager.HashMutex.UnLockRead();
 	}
 	gOFS.ObjectManager.CloseMuxTransaction();
+	next_consistency_stats = last_consistency_stats+60; // report the consistency only once per minute
       }
     }
     gettimeofday(&tv2, &tz);
     int lCycleDuration = (int)( (tv2.tv_sec*1000.0)-(tv1.tv_sec*1000.0) + (tv2.tv_usec/1000.0) - (tv1.tv_usec/1000.0) );
     int lSleepTime = lReportIntervalMilliSeconds - lCycleDuration;
+    eos_static_debug("msg=\"publish interval\" %d %d", lReportIntervalMilliSeconds, lCycleDuration);
     if (lSleepTime < 0) {
       eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds", lReportIntervalMilliSeconds,lCycleDuration);
     } else {
@@ -2318,7 +2329,8 @@ Storage::Drainer()
       nscheduled = totalscheduled - totalexecuted;
     }
 
-    
+    time_t skiptime=0;
+
     for (unsigned int i=0; i< nfs; i++) {
       unsigned int index = (i+cycler) % nfs;
       eos::common::RWMutexReadLock lock(fsMutex);
@@ -2339,6 +2351,15 @@ Storage::Drainer()
 	if (!got_work[index]) {
 	  if ( (time(NULL) - last_asked[index]) < 60 ) {
 	    // if we didn't get a file during the last scheduling call we don't ask until 1 minute has passed
+	    time_t tdiff = time(NULL)-last_asked[index];
+	    if (!skiptime) {
+	      skiptime = 60 -tdiff;
+	    } else {
+	      // we have to wait the minimum time
+	      if ( (60-tdiff) < skiptime ) {
+		skiptime = 60-tdiff;
+	      }
+	    }
 	    continue;
 	  } else {
 	    // after one minute we just ask again
@@ -2346,6 +2367,7 @@ Storage::Drainer()
 	  }
 	}
 
+	skiptime = 0;
 	got_work[index]   = false; 
 	
 	unsigned long long freebytes   = fileSystemsVector[index]->GetLongLong("stat.statfs.freebytes");
@@ -2458,7 +2480,12 @@ Storage::Drainer()
 	sleeper.Wait(100);
       }
     }
-
+    
+    if (skiptime) {
+      eos_static_debug("skiptime=%d", skiptime);
+      XrdSysTimer sleeper;
+      sleeper.Snooze(skiptime);
+    }
     nscheduled=0;
     cycler++;
   }
@@ -2527,6 +2554,8 @@ Storage::Balancer()
       nscheduled = totalscheduled - totalexecuted;
     }    
 
+    time_t skiptime=0;
+
     for (unsigned int i=0; i< nfs; i++) {
       unsigned int index = (i+cycler) % nfs;
       eos::common::RWMutexReadLock lock(fsMutex);     
@@ -2540,6 +2569,15 @@ Storage::Balancer()
 	if (!got_work[index]) {
 	  if ( (time(NULL) - last_asked[index]) < 60 ) {
 	    // if we didn't get a file during the last scheduling call we don't ask until 1 minute has passed
+	    time_t tdiff = time(NULL)-last_asked[index];
+	    if (!skiptime) {
+	      skiptime = 60 -tdiff;
+	    } else {
+	      // we have to wait the minimum time
+	      if ( (60-tdiff) < skiptime ) {
+		skiptime = 60-tdiff;
+	      }
+	    }
 	    continue;
 	  } else {
 	    // after one minute we just ask again
@@ -2547,7 +2585,8 @@ Storage::Balancer()
 	  }
 	}
 
-	got_work[index]   = false; 
+	skiptime = 0;
+	got_work[index]   = false;        
 
 	eos_static_debug("FileSystem %lu %.02f %.02f",id, filled, nominal);
 
@@ -2664,6 +2703,11 @@ Storage::Balancer()
 	}
       XrdSysTimer sleeper;
       sleeper.Wait(100);
+      }
+      if (skiptime) {
+	eos_static_debug("skiptime=%d", skiptime);
+	XrdSysTimer sleeper;
+	sleeper.Snooze(skiptime);
       }
     }
     cycler++;
