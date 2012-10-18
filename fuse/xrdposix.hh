@@ -193,6 +193,7 @@ extern "C" {
   int            xrd_access(const char* path, int mode);
   int            xrd_utimes(const char* path, struct timespec *tvp);
   int            xrd_inodirlist(unsigned long long dirinode, const char *path);
+  int            xrd_flush(int fd, unsigned long long inode);
 
   // - USER mapping
   const char*    xrd_mapuser(uid_t uid);

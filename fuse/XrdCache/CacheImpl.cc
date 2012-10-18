@@ -280,7 +280,7 @@ CacheImpl::processWriteReq(CacheEntry* pEntry)
 
   //put error code in error queue
   if (retc) {
-    error = std::make_pair(retc, pEntry->getOffsetStart());
+    error = std::make_pair(errno, pEntry->getOffsetStart());
     pEntry->getParentFile()->errorsQueue->push(error);
   }
 

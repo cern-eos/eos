@@ -1667,6 +1667,31 @@ xrd_close(int fildes, unsigned long inode)
 
 //------------------------------------------------------------------------------
 int
+xrd_flush(int fd, unsigned long long inode)
+{
+  int errc = 0;
+  eos_static_info("fd=%d ", fd);
+  
+  if (XFC && inode) {
+    FileAbstraction* fAbst = XFC->getFileObj(inode, true);
+    XFC->waitFinishWrites(inode);
+
+    ConcurrentQueue<error_type> err_queue = fAbst->getErrorQueue();
+    error_type error;
+    
+    if ( err_queue.try_pop( error ) ) {
+      eos_static_info("Extract error from queue ");
+      errc = error.first;
+    }
+    fAbst->decrementNoReferences();
+  }
+
+  return errc;
+}
+
+
+//------------------------------------------------------------------------------
+int
 xrd_truncate(int fildes, off_t offset, unsigned long inode)
 {
   eos_static_info("fd=%d offset=%llu inode=%lu", fildes, (unsigned long long)offset, inode);

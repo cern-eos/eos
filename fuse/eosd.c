@@ -34,7 +34,6 @@
 
 #define FUSE_USE_VERSION 26
 
-#include <fuse/fuse_lowlevel.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1071,11 +1070,16 @@ static void eosfs_ll_forget (fuse_req_t req, fuse_ino_t ino, unsigned long nlook
 }
 
 
-//--------------------------------------------------------------------------------------------------
-static void eosfs_ll_flush (fuse_req_t req, fuse_ino_t ino,
-			     struct fuse_file_info *fi) 
+//-------------------------------------------------------------------------------------------------
+static void eosfs_ll_flush (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) 
 {
-  fuse_reply_err(req,0);
+  int errc = 0;
+
+  if ( fi->fh ) {
+    errc = xrd_flush( fi->fh, (unsigned long long) ino );
+  }
+  
+  fuse_reply_err( req, errc );
 }
 
 

@@ -389,7 +389,7 @@ XrdFileCache::getErrorQueue(unsigned long inode)
   FileAbstraction* pFileAbst = getFileObj(inode, false);
 
   if (pFileAbst) {
-    *tmp = pFileAbst->getErrorQueue();
+    tmp = &(pFileAbst->getErrorQueue());
     pFileAbst->decrementNoReferences();
   }
 
