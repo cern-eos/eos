@@ -143,6 +143,7 @@ Messaging::Process(XrdMqMessage* newmessage)
       int envlen=0;
       eos_debug("opaque is %s", capOpaque->Env(envlen));
       Deletion* newdeletion = Deletion::Create(capOpaque);
+      if (capOpaque) delete capOpaque;
       if (newdeletion) {
         gOFS.Storage->deletionsMutex.Lock();
 
