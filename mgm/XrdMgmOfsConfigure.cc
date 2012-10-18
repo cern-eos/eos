@@ -213,6 +213,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   pthread_t tid = 0;
   IssueCapability = false;
   MgmRedirector = false;
+  Shutdown = false;
 
   setenv("XrdSecPROTOCOL","sss",1);
   Eroute.Say("=====> mgmofs enforces SSS authentication for XROOT clients");
@@ -1214,7 +1215,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("CommitFailedUnlinked",0,0,0);
   gOFS->MgmStats.Add("CopyStripe",0,0,0);
   gOFS->MgmStats.Add("DumpMd",0,0,0);
-  gOFS->MgmStats.Add("Statvfs",0,0,0);
   gOFS->MgmStats.Add("DropStripe",0,0,0);
   gOFS->MgmStats.Add("Exists",0,0,0);
   gOFS->MgmStats.Add("Exists",0,0,0);
@@ -1222,8 +1222,18 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("FindEntries",0,0,0);
   gOFS->MgmStats.Add("Find",0,0,0);
   gOFS->MgmStats.Add("Fuse",0,0,0);
+  gOFS->MgmStats.Add("Fuse-Statvfs",0,0,0);
+  gOFS->MgmStats.Add("Fuse-Stat",0,0,0);
+  gOFS->MgmStats.Add("Fuse-Chmod",0,0,0);
+  gOFS->MgmStats.Add("Fuse-Chown",0,0,0);
+  gOFS->MgmStats.Add("Fuse-Access",0,0,0);
+  gOFS->MgmStats.Add("Fuse-Access",0,0,0);
+  gOFS->MgmStats.Add("Fuse-Checksum",0,0,0);
+  gOFS->MgmStats.Add("Fuse-XAttr",0,0,0);
+  gOFS->MgmStats.Add("Fuse-Utimes",0,0,0);
   gOFS->MgmStats.Add("GetMdLocation",0,0,0);
   gOFS->MgmStats.Add("GetMd",0,0,0);
+  gOFS->MgmStats.Add("IdMap",0,0,0);
   gOFS->MgmStats.Add("Ls",0,0,0);
   gOFS->MgmStats.Add("MarkDirty",0,0,0);
   gOFS->MgmStats.Add("MarkClean",0,0,0);
@@ -1231,6 +1241,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("Motd",0,0,0);
   gOFS->MgmStats.Add("MoveStripe",0,0,0);
   gOFS->MgmStats.Add("OpenDir",0,0,0);
+  gOFS->MgmStats.Add("OpenDir-Entry",0,0,0);
   gOFS->MgmStats.Add("OpenFailedCreate",0,0,0);
   gOFS->MgmStats.Add("OpenFailedENOENT",0,0,0);
   gOFS->MgmStats.Add("OpenFailedExists",0,0,0);
@@ -1267,7 +1278,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("Symlink",0,0,0);
   gOFS->MgmStats.Add("TxState",0,0,0);
   gOFS->MgmStats.Add("Truncate",0,0,0);
-  gOFS->MgmStats.Add("Utimes",0,0,0);
   gOFS->MgmStats.Add("VerifyStripe",0,0,0);
   gOFS->MgmStats.Add("Version",0,0,0);
   gOFS->MgmStats.Add("WhoAmI",0,0,0);
