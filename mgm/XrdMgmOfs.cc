@@ -81,6 +81,8 @@ xrdmgmofs_shutdown(int sig) {
   (void) signal(SIGTERM,SIG_IGN);
   (void) signal(SIGQUIT,SIG_IGN);
 
+  gOFS->Shutdown = true;
+
   // ----------------------------------------------------------------------------------------------------------------
   // handler to shutdown the daemon for valgrinding and clean server stop (e.g. let's time to finish write operations
   // ----------------------------------------------------------------------------------------------------------------
@@ -488,6 +490,7 @@ int XrdMgmOfsDirectory::open(const char              *inpath, // In
   AUTHORIZE(client,&Open_Env,AOP_Readdir,"open directory",inpath,error);
 
   eos::common::Mapping::IdMap(client,info,tident, vid);
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   
   BOUNCE_NOT_ALLOWED;
@@ -563,6 +566,8 @@ int XrdMgmOfsDirectory::open(const char              *dir_path, // In
         dh_list.insert(dh_files->first);
       }
        
+      gOFS->MgmStats.Add("OpenDir-Entry",vid.uid,vid.gid,dh->getNumContainers() + dh->getNumFiles());
+
       for (dh_dirs = dh->containersBegin(); dh_dirs != dh->containersEnd(); dh_dirs++) {
         dh_list.insert(dh_dirs->first);
       }
@@ -680,6 +685,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   SetLogId(logId, tident);
   
   eos::common::Mapping::IdMap(client,ininfo,tident,vid);
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   SetLogId(logId, vid, tident);
 
@@ -1766,8 +1772,9 @@ XrdMgmOfs::chksum(      XrdSfsFileSystem::csFunc            Func,
   XrdOucEnv Open_Env(info);
 
   AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",inpath,error);
-
+  
   eos::common::Mapping::IdMap(client,info,tident,vid);
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
@@ -1866,8 +1873,8 @@ int XrdMgmOfs::chmod(const char                *inpath,    // In
 
   AUTHORIZE(client,&chmod_Env,AOP_Chmod,"chmod",inpath,error);
 
-
   eos::common::Mapping::IdMap(client,info,tident,vid);
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
@@ -2077,6 +2084,7 @@ int XrdMgmOfs::exists(const char                *inpath,        // In
   AUTHORIZE(client,&exists_Env,AOP_Stat,"execute exists",inpath,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
@@ -2293,6 +2301,7 @@ int XrdMgmOfs::mkdir(const char              *inpath,    // In
   XrdOucEnv mkdir_Env(info);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   eos_info("path=%s",path);
 
@@ -2592,7 +2601,9 @@ int XrdMgmOfs::prepare( XrdSfsPrep       &pargs,
   const char *tident = error.getErrUser();  
 
   eos::common::Mapping::VirtualIdentity vid;
+  
   eos::common::Mapping::IdMap(client,0,tident, vid);
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   ACCESSMODE_R;
   MAYSTALL;
@@ -2629,8 +2640,9 @@ int XrdMgmOfs::rem(const char             *inpath,    // In
   XrdOucEnv env(info);
   
   AUTHORIZE(client,&env,AOP_Delete,"remove",inpath,error);
-  
+
   eos::common::Mapping::IdMap(client,info,tident,vid);
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
@@ -2821,6 +2833,7 @@ int XrdMgmOfs::remdir(const char             *inpath,    // In
   AUTHORIZE(client,&remdir_Env,AOP_Delete,"remove",inpath, error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
@@ -3191,6 +3204,7 @@ int XrdMgmOfs::stat(const char              *inpath,      // In
   AUTHORIZE(client,&Open_Env,AOP_Stat,"stat",inpath,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid, false);
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
@@ -3358,7 +3372,9 @@ int XrdMgmOfs::truncate(const char*,
   const char *tident = error.getErrUser(); 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
+
   eos::common::Mapping::IdMap(client,0,tident, vid);
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
   
   ACCESSMODE_W;
   MAYSTALL;
@@ -3387,8 +3403,9 @@ int XrdMgmOfs::readlink(const char             *inpath,      // In
   XrdOucEnv rl_Env(info);
 
   AUTHORIZE(client,&rl_Env,AOP_Stat,"readlink",inpath,error);
-  
+
   eos::common::Mapping::IdMap(client,info,tident,vid);
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
@@ -3426,6 +3443,7 @@ int XrdMgmOfs::symlink(const char            *inpath,        // In
   source = path;
 
   eos::common::Mapping::IdMap(client,info,tident,vid);
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
@@ -3458,6 +3476,7 @@ int XrdMgmOfs::access( const char            *inpath,        // In
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",inpath,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);  
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
@@ -3572,6 +3591,7 @@ int XrdMgmOfs::utimes(  const char            *inpath,        // In
   AUTHORIZE(client,&utimes_Env,AOP_Update,"set utimes",inpath,error);
 
   eos::common::Mapping::IdMap(client,info,tident,vid);  
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
@@ -4016,6 +4036,7 @@ XrdMgmOfs::FSctl(const int               cmd,
   eos::common::Mapping::VirtualIdentity vid;
 
   eos::common::Mapping::IdMap(client,"",tident,vid, false);  
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
   
   eos::common::LogId ThreadLogId;
   ThreadLogId.SetSingleShotLogId(tident);
@@ -4516,6 +4537,8 @@ XrdMgmOfs::FSctl(const int               cmd,
       MAYSTALL;
       MAYREDIRECT;
 
+      gOFS->MgmStats.Add("Fuse-Dirlist",vid.uid,vid.gid,1);  
+
       struct stat buf;
 
       int retc = lstat(spath.c_str(),
@@ -4563,6 +4586,8 @@ XrdMgmOfs::FSctl(const int               cmd,
       MAYSTALL;
       MAYREDIRECT;
 
+      gOFS->MgmStats.Add("Fuse-Chmod",vid.uid,vid.gid,1);  
+
       char* smode;
       if ((smode = env.Get("mode"))) {
         struct stat buf;
@@ -4608,6 +4633,8 @@ XrdMgmOfs::FSctl(const int               cmd,
       ACCESSMODE_W;
       MAYSTALL;
       MAYREDIRECT;
+
+      gOFS->MgmStats.Add("Fuse-Chown",vid.uid,vid.gid,1);  
 
       char* suid;
       char* sgid;
@@ -4687,6 +4714,8 @@ XrdMgmOfs::FSctl(const int               cmd,
       MAYSTALL;
       MAYREDIRECT;
 
+      gOFS->MgmStats.Add("Fuse-Access",vid.uid,vid.gid,1);  
+
       char* smode;
         if ((smode = env.Get("mode"))) {
         int newmode = atoi(smode);
@@ -4713,6 +4742,8 @@ XrdMgmOfs::FSctl(const int               cmd,
       ACCESSMODE_W;
       MAYSTALL;
       MAYREDIRECT;
+
+      gOFS->MgmStats.Add("Fuse-Utimes",vid.uid,vid.gid,1);  
       
       char* tv1_sec;
       char* tv1_nsec;
@@ -4757,6 +4788,8 @@ XrdMgmOfs::FSctl(const int               cmd,
       MAYSTALL;
       MAYREDIRECT;
 
+      gOFS->MgmStats.Add("Fuse-Checksum",vid.uid,vid.gid,1);  
+
       // get the checksum 
       XrdOucString checksum="";
       eos::FileMD* fmd=0;
@@ -4794,7 +4827,8 @@ XrdMgmOfs::FSctl(const int               cmd,
       MAYSTALL;
       MAYREDIRECT;
 
-      gOFS->MgmStats.Add("Statvfs",vid.uid,vid.gid,1);
+      gOFS->MgmStats.Add("Fuse-Statvfs",vid.uid,vid.gid,1);
+
       XrdOucString space = env.Get("path");
       static XrdSysMutex statvfsmutex;
       static unsigned long long freebytes = 0;
@@ -4861,6 +4895,8 @@ XrdMgmOfs::FSctl(const int               cmd,
       ACCESSMODE_W;
       MAYSTALL;
       MAYREDIRECT;
+
+      gOFS->MgmStats.Add("Fuse-XAttr",vid.uid,vid.gid,1);  
 
       eos_thread_debug("cmd=xattr subcmd=%s path=%s", env.Get("mgm.subcmd"), spath.c_str());
       
@@ -5827,8 +5863,10 @@ XrdMgmOfs::attr_ls(const char             *inpath,
   XrdOucEnv access_Env(info);
 
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",inpath,error);
-  
+
   eos::common::Mapping::IdMap(client,info,tident,vid);  
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
+
   BOUNCE_NOT_ALLOWED;
 
   return _attr_ls(path, error,vid,info,map);
@@ -5854,8 +5892,9 @@ XrdMgmOfs::attr_set(const char             *inpath,
   XrdOucEnv access_Env(info);
 
   AUTHORIZE(client,&access_Env,AOP_Update,"update",inpath,error);
-  
+
   eos::common::Mapping::IdMap(client,info,tident,vid);  
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   BOUNCE_NOT_ALLOWED;
   
@@ -5883,8 +5922,9 @@ XrdMgmOfs::attr_get(const char             *inpath,
   XrdOucEnv access_Env(info);
 
   AUTHORIZE(client,&access_Env,AOP_Stat,"access",inpath,error);
-  
+
   eos::common::Mapping::IdMap(client,info,tident,vid);  
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   BOUNCE_NOT_ALLOWED;
 
@@ -5910,8 +5950,9 @@ XrdMgmOfs::attr_rem(const char             *inpath,
   XrdOucEnv access_Env(info); 
 
   AUTHORIZE(client,&access_Env,AOP_Delete,"delete",inpath,error);
-  
+
   eos::common::Mapping::IdMap(client,info,tident,vid);  
+  gOFS->MgmStats.Add("IdMap",vid.uid,vid.gid,1);
 
   BOUNCE_NOT_ALLOWED;
   
