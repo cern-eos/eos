@@ -198,34 +198,31 @@ stop() {
 	        if [ "$role" = "fed" ]; then
 	        	/etc/rc.d/init.d/cmsd stop
 			GRETVAL=$?
-	        else 
-			RETVAL=1
-			echo -n $"Stopping $prog: $role"
-	  	       	# try killing by grep
-			for pid in `ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $role -c /etc/xrd" | awk '{print $1}'`; do
-
-		        	if [ -n "$pid" ]; then
-					kill -15 $pid;
-					usleep 200000
-					[ -d "/proc/$pid" ] && sleep 1 
-					[ -d "/proc/$pid" ] && sleep 1 
-					[ -d "/proc/$pid" ] && sleep 1 
-					[ -d "/proc/$pid" ] && sleep 1 
-					[ -d "/proc/$pid" ] && sleep 1 
-					[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
-					[ -d "/proc/$pid" ] || RETVAL=0
-					[ "$RETVAL" != "0" ] && GRETVAL=$RETVAL
-					[ $USER = "root" ] && [ "$RETVAL" = "0" ] && [ -f /var/lock/subsys/$prog.$role ] && rm -f /var/lock/subsys/$prog.$role
-					[ $USER = "root" ] && [ "$RETVAL" = "0" ] && [ -f /var/run/$prog.$role.pid ] && rm -f /var/run/$prog.$role.pid
-					
-				fi
-			done	
-	   	        [ -f /var/lock/subsys/$prog.$role ] && rm -f /var/lock/subsys/$prog.$role
-                        [ -f /var/run/$prog.$role.pid ] && rm -f /var/run/$prog.$role.pid
-
+	        fi 
+		RETVAL=1
+		echo -n $"Stopping $prog: $role"
+	  	      	# try killing by grep
+		for pid in `ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $role -c /etc/xrd" | awk '{print $1}'`; do
+	        	if [ -n "$pid" ]; then
+				kill -15 $pid;
+				usleep 200000
+				[ -d "/proc/$pid" ] && sleep 1 
+				[ -d "/proc/$pid" ] && sleep 1 
+				[ -d "/proc/$pid" ] && sleep 1 
+				[ -d "/proc/$pid" ] && sleep 1 
+				[ -d "/proc/$pid" ] && sleep 1 
+				[ -d "/proc/$pid" ] && sleep 1 && kill -9 $pid 2>/dev/null && usleep 200000
+				[ -d "/proc/$pid" ] || RETVAL=0
+				[ "$RETVAL" != "0" ] && GRETVAL=$RETVAL
+				[ $USER = "root" ] && [ "$RETVAL" = "0" ] && [ -f /var/lock/subsys/$prog.$role ] && rm -f /var/lock/subsys/$prog.$role
+				[ $USER = "root" ] && [ "$RETVAL" = "0" ] && [ -f /var/run/$prog.$role.pid ] && rm -f /var/run/$prog.$role.pid
+				
+			fi
+		done	
+   	        [ -f /var/lock/subsys/$prog.$role ] && rm -f /var/lock/subsys/$prog.$role
+                       [ -f /var/run/$prog.$role.pid ] && rm -f /var/run/$prog.$role.pid
 			[ "$RETVAL" = "0" ] && success || failure 	
-			echo
-		fi
+		echo
 	done
         return $GRETVAL
 }
