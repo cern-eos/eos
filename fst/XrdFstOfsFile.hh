@@ -38,7 +38,6 @@
 #include "fst/FmdSqlite.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOfs/XrdOfs.hh"
-#include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
