@@ -208,7 +208,7 @@ XrdMqSharedObjectManager::DeleteSharedQueue(const char* subject, bool broadcast)
 void 
 XrdMqSharedObjectManager::DumpSharedObjects(XrdOucString& out) 
 {
-  out="";
+  //  out="";
 
   XrdMqRWMutexReadLock lock(HashMutex);
   std::map<std::string , XrdMqSharedHash*>::iterator it_hash;
@@ -300,9 +300,9 @@ XrdMqSharedObjectManager::FileDumper()
       fprintf(stderr,"XrdMqSharedObjectManager::FileDumper=> unable to write dumper file %s\n", DumperFile.c_str());
     }
     XrdSysThread::SetCancelOn();
-    for (size_t i=0; i< 6000; i++) {
+    for (size_t i=0; i< 60; i++) {
       XrdSysTimer sleeper;
-      sleeper.Wait(10);
+      sleeper.Wait(1000);
       XrdSysThread::CancelPoint();
     }
   }

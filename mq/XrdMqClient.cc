@@ -280,6 +280,7 @@ XrdMqClient::RecvMessage() {
       client = GetBrokerXrdClientReceiver(0);
       XrdSysTimer sleeper;
       sleeper.Wait(2000);
+      fprintf(stderr,"XrdMqClient::RecvMessage => Stat failed\n");
     }
     
     if (!stinfo.size) {
