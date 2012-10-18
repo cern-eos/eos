@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/
 
 #include <sys/types.h>
@@ -134,7 +135,8 @@ com_console (char *arg) {
 	}
         delete newmessage;
       } else {
-        usleep(100000);
+        XrdSysTimer sleeper;
+	sleeper.Wait(100);
       }
     }
     
