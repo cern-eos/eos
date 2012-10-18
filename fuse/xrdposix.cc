@@ -1674,7 +1674,7 @@ xrd_flush(int fd, unsigned long long inode)
   
   if (XFC && inode) {
     FileAbstraction* fAbst = XFC->getFileObj(inode, true);
-    XFC->waitFinishWrites(inode);
+    XFC->waitFinishWrites(*fAbst);
 
     ConcurrentQueue<error_type> err_queue = fAbst->getErrorQueue();
     error_type error;
