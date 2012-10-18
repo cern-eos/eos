@@ -412,12 +412,7 @@ XrdFileCache::waitFinishWrites(FileAbstraction &fileAbst)
   if (fileAbst.getSizeWrites() != 0) {
     cacheImpl->flushWrites(fileAbst);
     fileAbst.waitFinishWrites();
-    if (!fileAbst.isInUse(false)) {
-      removeFileInode(fileAbst.getInode(), false);
-    }
   }
-
-  return;
 }
 
 
@@ -432,24 +427,15 @@ XrdFileCache::waitFinishWrites(FileAbstraction &fileAbst)
  */
 /*----------------------------------------------------------------------------*/
 void
-XrdFileCache::waitFinishWrites(unsigned long inode)
+XrdFileCache::waitWritesAndRemove(FileAbstraction &fileAbst)
 {
-  FileAbstraction* pFileAbst = getFileObj(inode, false);
-  
-  if (pFileAbst && (pFileAbst->getSizeWrites() != 0)) {
-    cacheImpl->flushWrites(*pFileAbst);
-    pFileAbst->waitFinishWrites();
-    if (!pFileAbst->isInUse(false)) {
-      if (removeFileInode(pFileAbst->getInode(), false)) {
-        return;
-      }
+  if (fileAbst.getSizeWrites() != 0) {
+    cacheImpl->flushWrites(fileAbst);
+    fileAbst.waitFinishWrites();
+    if (!fileAbst.isInUse(false)) {
+      removeFileInode(fileAbst.getInode(), false);
     }
   }
-
-  if (pFileAbst) {
-    pFileAbst->decrementNoReferences();
-  }
-  return;
 }
 
 

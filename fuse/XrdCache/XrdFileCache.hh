@@ -79,7 +79,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Wait for all writes of a file to be done
   // ---------------------------------------------------------------------------
-  void waitFinishWrites(unsigned long inode);
+  void waitWritesAndRemove(FileAbstraction &fAbst);
 
   // ---------------------------------------------------------------------------
   //! Wait for all writes of a file to be done 

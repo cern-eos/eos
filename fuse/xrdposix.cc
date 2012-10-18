@@ -1658,7 +1658,10 @@ xrd_close(int fildes, unsigned long inode)
 {
   eos_static_info("fd=%d inode=%lu", fildes, inode);
   if (XFC && inode) {
-    XFC->waitFinishWrites(inode);
+    FileAbstraction* fAbst = XFC->getFileObj(inode, false);
+    if (fAbst && (fAbst->getSizeWrites() != 0)) {
+      XFC->waitWritesAndRemove(*fAbst);
+    }
   }
 
   return XrdPosixXrootd::Close(fildes);
@@ -1673,17 +1676,19 @@ xrd_flush(int fd, unsigned long long inode)
   eos_static_info("fd=%d ", fd);
   
   if (XFC && inode) {
-    FileAbstraction* fAbst = XFC->getFileObj(inode, true);
-    XFC->waitFinishWrites(*fAbst);
-
-    ConcurrentQueue<error_type> err_queue = fAbst->getErrorQueue();
-    error_type error;
-    
-    if ( err_queue.try_pop( error ) ) {
-      eos_static_info("Extract error from queue ");
-      errc = error.first;
+    FileAbstraction* fAbst = XFC->getFileObj(inode, false);
+    if (fAbst) {
+      XFC->waitFinishWrites(*fAbst);
+      ConcurrentQueue<error_type> err_queue = fAbst->getErrorQueue();
+      error_type error;
+      
+      if ( err_queue.try_pop( error ) ) {
+        eos_static_info("Extract error from queue ");
+        errc = error.first;
+      }
+      
+      fAbst->decrementNoReferences();
     }
-    fAbst->decrementNoReferences();
   }
 
   return errc;
@@ -1696,7 +1701,11 @@ xrd_truncate(int fildes, off_t offset, unsigned long inode)
 {
   eos_static_info("fd=%d offset=%llu inode=%lu", fildes, (unsigned long long)offset, inode);
   if (XFC && inode) {
-    XFC->waitFinishWrites(inode);
+    FileAbstraction* fAbst = XFC->getFileObj(inode, false);
+    if (fAbst) {
+      XFC->waitFinishWrites(*fAbst);
+      fAbst->decrementNoReferences();
+    }
   }
   
   return XrdPosixXrootd::Ftruncate(fildes, offset);
@@ -1709,7 +1718,11 @@ xrd_lseek(int fildes, off_t offset, int whence, unsigned long inode)
 {
   eos_static_info("fd=%d offset=%llu whence=%d indoe=%lu", fildes, (unsigned long long)offset, whence, inode);    
   if (XFC && inode) {
-    XFC->waitFinishWrites(inode);
+    FileAbstraction* fAbst = XFC->getFileObj(inode, false);
+    if (fAbst) {
+      XFC->waitFinishWrites(*fAbst);
+      fAbst->decrementNoReferences();
+    }
   }
   return XrdPosixXrootd::Lseek(fildes, (long long)offset, whence);
 }
@@ -1834,7 +1847,11 @@ xrd_fsync(int fildes, unsigned long inode)
 {
   eos_static_info("fd=%d inode=%lu", fildes, (unsigned long)inode);
   if (XFC && inode) {
-    XFC->waitFinishWrites(inode);
+    FileAbstraction* fAbst = XFC->getFileObj(inode, false);
+    if (fAbst) {
+      XFC->waitFinishWrites(*fAbst);
+      fAbst->decrementNoReferences();
+    }
   }
   
   return XrdPosixXrootd::Fsync(fildes);
