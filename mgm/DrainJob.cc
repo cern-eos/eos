@@ -44,7 +44,7 @@ DrainJob::~DrainJob() {
   eos_static_info("waiting for join ...");
   if (thread) {
     XrdSysThread::Cancel(thread);
-    XrdSysThread::Join(thread,NULL);
+    if (!gOFS->Shutdown) { XrdSysThread::Join(thread,NULL); }
     thread=0;
   }
   ResetCounter();

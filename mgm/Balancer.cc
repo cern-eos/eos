@@ -50,7 +50,7 @@ Balancer::~Balancer()
   //----------------------------------------------------------------
 
   XrdSysThread::Cancel(thread);
-  XrdSysThread::Join(thread,NULL);
+  if (!gOFS->Shutdown) { XrdSysThread::Join(thread,NULL); }
 }
 
 /* ------------------------------------------------------------------------- */
