@@ -159,9 +159,9 @@ FileSystem::CleanTransactions()
       struct stat buf;
       if (!stat(fulltransactionpath.c_str(), &buf)) {
 	XrdOucString hexfid = name->d_name;
-	const char* localprefix = GetPath().c_str();
+	XrdOucString localprefix = GetPath().c_str();
 	XrdOucString fstPath;
-	eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), localprefix, fstPath);
+	eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), localprefix.c_str(), fstPath);
 	unsigned long long fileid = eos::common::FileId::Hex2Fid(hexfid.c_str());
 	
 	// we allow to keep files open for 1 week
@@ -1036,7 +1036,7 @@ Storage::Scrub()
 {
   // create a 1M pattern
   eos_static_info("Creating Scrubbing pattern ...");
-  for (int i=0;i< 1024*1024/16; i+=2) {
+  for (int i=0;i< 1024*1024/8; i+=2) {
     scrubPattern[0][i]=0xaaaa5555aaaa5555ULL;
     scrubPattern[0][i+1]=0x5555aaaa5555aaaaULL;
     scrubPattern[1][i]=0x5555aaaa5555aaaaULL;
