@@ -518,8 +518,9 @@ TransferEngine::Scheduler()
       }
     }
     XrdSysThread::SetCancelOn();
-    for (size_t i=0; i< pacifier*loopsleep/10000; i++) {
-      usleep(10000);
+    for (size_t i=0; i< pacifier*loopsleep/100000; i++) {
+      XrdSysTimer sleeper;
+      sleeper.Wait(100);
       XrdSysThread::CancelPoint();
     }
   }
@@ -553,8 +554,9 @@ TransferEngine::Watch()
     }
 
     XrdSysThread::SetCancelOn();
-    for (size_t i=0; i< loopsleep/10000; i++) {
-      usleep(10000);
+    for (size_t i=0; i< loopsleep/100000; i++) {
+      XrdSysTimer sleeper;
+      sleeper.Wait(100);
       XrdSysThread::CancelPoint();
     }
   }
