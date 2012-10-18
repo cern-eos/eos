@@ -52,7 +52,6 @@
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTable.hh"
 #include "XrdOuc/XrdOucTrace.hh"
-#include "XrdOfs/XrdOfsEvr.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -620,6 +619,7 @@ public:
   int                    Initialized;
   time_t                 InitializationTime;
   XrdSysMutex            InitializationMutex;
+  bool                   Shutdown;              // true if the shutdown function was called => avoid to join some threads
 
   static const char*     gNameSpaceState[];
 
