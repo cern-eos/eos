@@ -76,23 +76,27 @@ Mapping::Init()
  */
 /*----------------------------------------------------------------------------*/
 void 
-Mapping::ActiveExpire(int interval) 
+Mapping::ActiveExpire(int interval, bool force) 
 {
+  static time_t expire=0;
   // needs to have Active Lock locked
   time_t now = time(NULL);
-  // expire tidents older than interval
-  google::dense_hash_map<std::string, time_t>::iterator it1;
-  google::dense_hash_map<std::string, time_t>::iterator it2;
-  for (it1 = Mapping::ActiveTidents.begin(); it1 != Mapping::ActiveTidents.end();) {
-    if ((now-it1->second) > interval) {
-      it2=it1;
-      it1++;
-      Mapping::ActiveTidents.erase(it2);
-    } else {
-      it1++;
+  if (force || (now > expire)) {
+    // expire tidents older than interval
+    google::dense_hash_map<std::string, time_t>::iterator it1;
+    google::dense_hash_map<std::string, time_t>::iterator it2;
+    for (it1 = Mapping::ActiveTidents.begin(); it1 != Mapping::ActiveTidents.end();) {
+      if ((now-it1->second) > interval) {
+	it2=it1;
+	it1++;
+	Mapping::ActiveTidents.erase(it2);
+      } else {
+	it1++;
+      }
     }
-  }
-  Mapping::ActiveTidents.resize(0);
+    Mapping::ActiveTidents.resize(0);
+    expire = now + 1800;
+  } 
 }
 
 /*----------------------------------------------------------------------------*/
@@ -513,10 +517,10 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
   // ---------------------------------------------------------------------------
   // safty measures not to exceed memory by 'nasty' clients
   // ---------------------------------------------------------------------------
-  if (ActiveTidents.size() > 1000) {
+  if (ActiveTidents.size() > 25000) {
     ActiveExpire();
   }
-  if (ActiveTidents.size() < 10000) {
+  if (ActiveTidents.size() < 60000) {
     char actident[1024];
     snprintf(actident, sizeof(actident)-1, "%d:%s:%s",vid.uid, mytident.c_str(), vid.prot.c_str());
     std::string intident = actident;

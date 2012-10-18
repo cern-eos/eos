@@ -206,7 +206,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Function to expire unused ActiveTident entries by default after 1 day
   // ---------------------------------------------------------------------------
-  static void ActiveExpire(int interval=300);
+  static void ActiveExpire(int interval=300, bool force=false);
 
   // ---------------------------------------------------------------------------
   //! Function initializing static maps

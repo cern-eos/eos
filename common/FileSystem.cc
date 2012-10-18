@@ -567,7 +567,7 @@ FileSystem::ReserveSpace(fs_snapshot_t &fs, unsigned long long bookingsize)
  * 
  * @param fs Snapshot of the filesystem
  * 
- * @return true if filesystem got a heartbeat during the last 10 seconds - otherwise false
+ * @return true if filesystem got a heartbeat during the last 300 seconds - otherwise false
  */
 /*----------------------------------------------------------------------------*/
 bool
@@ -575,8 +575,8 @@ FileSystem::HasHeartBeat(fs_snapshot_t &fs)
 {
   time_t now = time(NULL);
   time_t hb  = fs.mHeartBeatTime;
-  if ( (now - hb) < 10) {
-    // we allow some time drift plus overload delay of 10 seconds
+  if ( (now - hb) < 300) {
+    // we allow some time drift plus overload delay of 300 seconds
     return true;
   }
   return false;
