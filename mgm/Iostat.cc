@@ -952,6 +952,7 @@ Iostat::Store()
     return false;
 
   if (chmod(tmpname.c_str(),S_IRWXU| S_IRGRP | S_IROTH)) {
+    fclose(fout);
     return false;
   }
 
