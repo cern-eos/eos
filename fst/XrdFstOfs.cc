@@ -2363,8 +2363,10 @@ XrdFstOfs::_rem(const char             *path,
   }
 
   if (!gFmdSqliteHandler.DeleteFmd(fid, fsid)) {
-    eos_notice("unable to delete fmd for fid %llu on filesystem %lu",fid,fsid);
-    return gOFS.Emsg(epname,error,EIO,"delete file meta data ",fstPath.c_str());
+    if (!ignoreifnotexist) {
+      eos_notice("unable to delete fmd for fid %llu on filesystem %lu",fid,fsid);
+      return gOFS.Emsg(epname,error,EIO,"delete file meta data ",fstPath.c_str());
+    }
   }
 
   return SFS_OK;
