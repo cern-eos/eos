@@ -490,11 +490,11 @@ while(1) {
 
 	if ( $masterfed ) {
 	    now();
-            printf "$now ===================================================================\n";
-            printf("$now (re-)start FED ...\n");
-            printf "$now ___________________________________________________________________\n";
+#            printf "$now ===================================================================\n";
+#            printf("$now (re-)start FED ...\n");
+#            printf "$now ___________________________________________________________________\n";
             # service dead ... let's restart
-            my $startupfed = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart fed >> $logfile 2>&1 ");
+            my $startupfed = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart fed >> /dev/null 2>&1 ");
 	}
         if ( $eossync ) {
             now();
