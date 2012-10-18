@@ -1199,7 +1199,7 @@ FmdSqliteHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsi
   fidset["unreg_n"].clear();
   fidset["rep_diff_n"].clear();
   fidset["rep_missing_n"].clear();
-  
+
   if (!IsSyncing(fsid)) {
     // we report values only when we are not in the sync phase from disk/mgm
     for (it = FmdSqliteMap[fsid].begin(); it != FmdSqliteMap[fsid].end(); it++) {
@@ -1224,7 +1224,6 @@ FmdSqliteHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsi
       
       if (it->second.mgmsize != 0xfffffffffff1ULL) {
 	statistics["m_sync_n"]++;
-	fidset["m_sync_n"].insert(it->second.fid);
 	if (it->second.size != 0xfffffffffff1ULL) {
 	  if (it->second.size != it->second.mgmsize) {
 	    statistics["m_mem_sz_diff"]++;
@@ -1246,11 +1245,9 @@ FmdSqliteHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsi
       }
       
       statistics["mem_n"]++;
-      fidset["mem_n"].insert(it->second.fid);
       
       if (it->second.disksize != 0xfffffffffff1ULL) {
 	statistics["d_sync_n"]++;
-	fidset["d_sync_n"].insert(it->second.fid);
 	if (it->second.size != 0xfffffffffff1ULL) {
 	  if (it->second.size != it->second.disksize) {
 	    statistics["d_mem_sz_diff"]++;
@@ -1260,7 +1257,6 @@ FmdSqliteHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsi
       }
     }
   }
-  
   return true;
 }
 
