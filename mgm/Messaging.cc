@@ -164,7 +164,7 @@ Messaging::Listen()
       delete newmessage;
     } else {
       XrdSysTimer sleeper;
-      sleeper.Snooze(1);     
+      sleeper.Wait(1000);     
     }
     XrdSysThread::SetCancelOn();
     XrdSysThread::CancelPoint();
