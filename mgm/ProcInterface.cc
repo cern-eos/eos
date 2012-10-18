@@ -3530,7 +3530,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
       // call the expiration functions
       eos::common::Mapping::ActiveLock.Lock();
-      eos::common::Mapping::ActiveExpire();
+      eos::common::Mapping::ActiveExpire(300, true);
 
       google::dense_hash_map<std::string, time_t>::const_iterator it;
       if ( (option.find("m")) != std::string::npos ) {
@@ -3631,7 +3631,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     }
 
     if ( cmd == "fuse" ) {
-      gOFS->MgmStats.Add("Fuse",vid_in.uid,vid_in.gid,1);
+      gOFS->MgmStats.Add("Fuse-Dirlist",vid_in.uid,vid_in.gid,1);
       XrdOucString path = opaque.Get("mgm.path");
       resultStream = "inodirlist: retc=";
       if (!path.length()) {
