@@ -1027,21 +1027,14 @@ static void eosfs_ll_release(fuse_req_t req, fuse_ino_t ino,
 {
   if (fi->fh) {
     if (isdebug) fprintf(stderr,"[%s]: inode=%lld fh=%lld\n", __FUNCTION__,(long long)ino,(long long)fi->fh);
-    int fd = (int)fi->fh;
 
     xrd_release_read_buffer(fi->fh);
     
-    int res=0;
-
     xrd_lease_open_fd((unsigned long long) ino, req->ctx.uid);
 
-    res = xrd_close(fd, ino);
-
     fi->fh = 0;
-    if (res == -1) {
-      fuse_reply_err(req, errno);
-      return;
-    }
+
+    // the close is moved to flush
   }
   fuse_reply_err(req,0);
 }
@@ -1073,12 +1066,45 @@ static void eosfs_ll_forget (fuse_req_t req, fuse_ino_t ino, unsigned long nlook
 //-------------------------------------------------------------------------------------------------
 static void eosfs_ll_flush (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) 
 {
+  int errc_flush = 0;
+  int errc_close = 0;
   int errc = 0;
 
   if ( fi->fh ) {
-    errc = xrd_flush( fi->fh, (unsigned long long) ino );
+    int fd = (int)fi->fh;
+    errc_flush = xrd_flush( fi->fh, (unsigned long long) ino );
+    errc_close = xrd_close(fd, ino);
+
+    // XrdPoxis does not return anything ... sigh ... keep it for future however
+    if (errc_close) {      
+      errc = errc_close;
+    }
+
+    if (errc_flush) {      
+      errc = EIO;
+    } else {
+      // we have to stat the namespace to check if the file has not been cleaned
+      struct stat stbuf;
+      memset(&stbuf,0,sizeof(struct stat));
+      char fullpath[16384];
+      fullpath[0]=0;
+      {
+	xrd_lock_r_p2i(); // =>
+	const char* name = xrd_path((unsigned long long)ino);
+	if (name) {
+	  sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
+	  if (isdebug) fprintf(stderr,"[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);
+	}
+	xrd_unlock_r_p2i(); // <=
+      }
+      
+      int retc = (fullpath[0]?xrd_stat(fullpath,&stbuf):-1);
+      if (retc) {
+	errc = EIO;
+      }
+    }
   }
-  
+
   fuse_reply_err( req, errc );
 }
 
