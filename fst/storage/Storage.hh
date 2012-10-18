@@ -206,8 +206,8 @@ public:
   std::map<eos::common::FileSystem::fsid_t , FileSystem*> fileSystemsMap;
 
   XrdSysMutex fileSystemFullMapMutex;
-  std::map<eos::common::FileSystem::fsid_t , bool> fileSystemFullMap;     // map indicating if a filesystem has less than the headroom space free 
-  std::map<eos::common::FileSystem::fsid_t , bool> fileSystemFullWarnMap; // map indicating if a filesystem has less than (headroom +1G) space free (disables drain + balancing)
+  std::map<eos::common::FileSystem::fsid_t , bool> fileSystemFullMap;     // map indicating if a filesystem has less than  5 GB free
+  std::map<eos::common::FileSystem::fsid_t , bool> fileSystemFullWarnMap; // map indicating if a filesystem has less than (headroom) space free (disables drain + balancing)
   
   //  static int HasStatfsChanged(const char* key, FileSystem* filesystem, void* arg);
   int ScrubFs(const char* path, unsigned long long free, unsigned long long lbocks, unsigned long id);
