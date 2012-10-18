@@ -1107,24 +1107,16 @@ XrdFstOfsFile::verifychecksum()
 
   // deal with checksums
   if (checkSum) {
-    if (!isRW) {
-      // we don't rescan files if they are read non-sequential
-      if ( (checkSum->GetMaxOffset() != openSize) ) {
-	eos_info("info=\"skipping checksum (re-scan) for non-sequential reading ...\"");
+    checkSum->Finalize();
+    if (checkSum->NeedsRecalculation()) {
+      if ( (!isRW) && ( (srBytes)  || (checkSum->GetMaxOffset() != openSize) ) ) {
+	// we don't rescan files if they are read non-sequential or only partially
+	eos_debug("info=\"skipping checksum (re-scan) for non-sequential reading ...\"");
 	// remove the checksum object
 	delete checkSum;
 	checkSum=0;
 	return false;
       }
-    }
-
-    checkSum->Finalize();
-
-    if (checkSum->NeedsRecalculation() && (!isRW) && fstBlockXS) {
-      // if we didn't have streaming IO, but we have block checksumming, we don't need to rescan the file
-      delete checkSum;
-      checkSum=0;
-      return false;
     }
 
     if (checkSum->NeedsRecalculation()) {
@@ -1143,17 +1135,8 @@ XrdFstOfsFile::verifychecksum()
       } else {
 	eos_err("Couldn't get file descriptor");
       }
-    } else {
-      // this was prefect streaming I/O
-      if ((!isRW) && (checkSum->GetMaxOffset() != openSize)) {
-        eos_info("info=\"skipping checksum (re-scan) since file was not read completely %llu %llu...\"", checkSum->GetMaxOffset(), openSize);
-        // remove the checksum object
-        delete checkSum;
-        checkSum=0;
-        return false;
-      }
     }
-    
+
     if (isRW) {
       eos_info("(write) checksum type: %s checksum hex: %s requested-checksum hex: %s", checkSum->GetName(), checkSum->GetHexChecksum(), openOpaque->Get("mgm.checksum")?openOpaque->Get("mgm.checksum"):"-none-");
 
@@ -1172,7 +1155,7 @@ XrdFstOfsFile::verifychecksum()
       checkSum->GetBinChecksum(checksumlen);
       // copy checksum into meta data
       fMd->fMd.checksum = checkSum->GetHexChecksum();
-
+      
       if (haswrite || isReplication) {
         // if we have no write, we don't set this attributes (xrd3cp!)  
         // set the eos checksum extended attributes
@@ -1609,8 +1592,13 @@ XrdFstOfsFile::close()
 		gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of an IO error during a write operation",Path.c_str());
 	      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"write IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 	      } else {
-		gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a client disconnect)",Path.c_str());
-		eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"client disconnect\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+		if (targetsizeerror) {
+		  gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the stored file does not match the provided targetsize",Path.c_str());
+		  eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"target size mismatch\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+		} else {
+		  gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a client disconnect",Path.c_str());
+		  eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"client disconnect\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+		}
 	      }		
 	    }
 	  }
