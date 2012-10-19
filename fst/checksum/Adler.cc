@@ -95,8 +95,14 @@ Adler::ValidateAdlerMap()
   unsigned int value;
   adler = adler32(0L, Z_NULL,0);
 
+  if (map.begin()==map.end()) {
+    adler = adler32(0L, Z_NULL,0);
+    return ;
+  }
+
   IterMap iter1 = map.begin();
   IterMap iter2 = iter1;
+
   value = iter1->second.adler;
 
   IterMap iter3;
