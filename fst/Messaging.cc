@@ -146,12 +146,7 @@ Messaging::Process(XrdMqMessage* newmessage)
       if (capOpaque) delete capOpaque;
       if (newdeletion) {
         gOFS.Storage->deletionsMutex.Lock();
-
-        if (gOFS.Storage->deletionsSize() < 1024) {
-          gOFS.Storage->deletions.push_back(*newdeletion);
-        } else {
-          eos_info("deletion list has already 1024 entries - discarding deletion message");
-        }
+	gOFS.Storage->deletions.push_back(*newdeletion);
         delete newdeletion;
         gOFS.Storage->deletionsMutex.UnLock();
       } else {
