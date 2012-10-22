@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
 // File: xrdposix.cc
-// Author: Andreas-Joachim Peters - CERN
+// Author: Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -47,6 +47,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdCache/XrdFileCache.hh"
 #include "XrdCache/FileAbstraction.hh"
+/*----------------------------------------------------------------------------*/
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientAdmin.hh"
 #include "XrdClient/XrdClientConn.hh"
@@ -112,7 +113,7 @@ STRINGSTORE( const char* __charptr__ )
 
 
 //------------------------------------------------------------------------------
-// Implementation Translations
+// ******* Implementation Translations *******
 //------------------------------------------------------------------------------
 
 // protecting the path/inode translation table
@@ -272,56 +273,56 @@ xrd_forget_p2i( unsigned long long inode )
 
 
 
-// -----------------------------------------------------------------------------
-// Implementation of the directory listing table
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// ******* Implementation of the directory listing table *******
+//------------------------------------------------------------------------------
 
 // protecting the directory listing table
 eos::common::RWMutex mutex_dir2inodelist;
 
 // dir listing map
-google::dense_hash_map<unsigned long long, std::vector<unsigned long long> >dir2inodelist;
+google::dense_hash_map<unsigned long long, std::vector<unsigned long long> > dir2inodelist;
 google::dense_hash_map<unsigned long long, struct dirbuf> dir2dirbuf;
 
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Lock read
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void xrd_lock_r_dirview()
 {
   mutex_dir2inodelist.LockRead();
 }
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Unlock read
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void xrd_unlock_r_dirview()
 {
   mutex_dir2inodelist.UnLockRead();
 }
 
 
-// -----------------------------------------------------------------------------
-// Lock write 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Lock write
+//------------------------------------------------------------------------------
 void xrd_lock_w_dirview()
 {
   mutex_dir2inodelist.LockWrite();
 }
 
 
-// -----------------------------------------------------------------------------
-// Unlock write 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Unlock write
+//------------------------------------------------------------------------------
 void xrd_unlock_w_dirview()
 {
   mutex_dir2inodelist.UnLockWrite();
 }
 
 
-// -----------------------------------------------------------------------------
-// Create a new entry in the maps for the current inode
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Create a new entry in the maps for the current inode (directory)
+//------------------------------------------------------------------------------
 void
 xrd_dirview_create( unsigned long long inode )
 {
@@ -334,9 +335,9 @@ xrd_dirview_create( unsigned long long inode )
 }
 
 
-// -----------------------------------------------------------------------------
-// Delete entry from maps for current inode
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Delete entry from maps for current inode (directory)
+//------------------------------------------------------------------------------
 void
 xrd_dirview_delete( unsigned long long inode )
 {
@@ -352,21 +353,20 @@ xrd_dirview_delete( unsigned long long inode )
     dir2inodelist[inode].clear();
     dir2inodelist.erase( inode );
   }
-
 }
 
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Get entry's inode with index 'index' from directory
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 unsigned long long
 xrd_dirview_entry( unsigned long long dirinode, size_t index, int get_lock )
 {
   //Obj:  should have xrd_lock_dirview in the scope of the call
   eos_static_debug( "dirinode=%llu, index=%zu", dirinode, index );
-  
-  if ( get_lock )  eos::common::RWMutexReadLock rd_lock ( mutex_dir2inodelist );
-  
+
+  if ( get_lock )  eos::common::RWMutexReadLock rd_lock( mutex_dir2inodelist );
+
   if ( ( dir2inodelist.count( dirinode ) ) &&
        ( dir2inodelist[dirinode].size() > index ) ) {
     return dir2inodelist[dirinode][index];
@@ -376,57 +376,47 @@ xrd_dirview_entry( unsigned long long dirinode, size_t index, int get_lock )
 }
 
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Get dirbuf corresponding to inode
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 struct dirbuf* xrd_dirview_getbuffer( unsigned long long inode, int get_lock ) {
   //Obs: should have xrd_lock_dirview in the scope of the call
-  
-  if ( get_lock )  eos::common::RWMutexReadLock rd_lock ( mutex_dir2inodelist );
+
+  if ( get_lock )  eos::common::RWMutexReadLock rd_lock( mutex_dir2inodelist );
 
   if ( dir2dirbuf.count( inode ) )
     return &dir2dirbuf[inode];
   else
-    return 0;  
+    return 0;
 }
 
 
 
-// -----------------------------------------------------------------------------
-// Implementation of the FUSE directory cache
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// ******* Implementation of the FUSE directory cache *******
+//------------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Get maximum number of directories in cache
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 static const unsigned long long GetMaxCacheSize()
 {
   return 1024;
 }
 
+// protecting the cache entry map
+eos::common::RWMutex mutex_fuse_cache;
 
-eos::common::RWMutex mutex_fuse_cache;  //< protecting the cache entry map
-google::dense_hash_map<unsigned long long, FuseCacheEntry*> inode2cache;  //< inode cache
+// directory cache
+google::dense_hash_map<unsigned long long, FuseCacheEntry*> inode2cache;
 
 
-/*----------------------------------------------------------------------------*/
-/**
- *
- * Get a cached directory
- *
- * @param inode inode value of the directory to be cached
- * @param mtime modification time
- * @param fullpath full path of the directory
- * @param b dirbuf structure
- *
- * @return true if found, otherwise false
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get a cached directory
+//------------------------------------------------------------------------------
 int
 xrd_dir_cache_get( unsigned long long inode,
                    struct timespec    mtime,
-                   char*              fullpath,
                    struct dirbuf**    b )
 {
   int retc = 0;
@@ -439,34 +429,24 @@ xrd_dir_cache_get( unsigned long long inode,
   if ( inode2cache.count( inode ) && ( dir = inode2cache[inode] ) ) {
     struct timespec oldtime = dir->GetModifTime();
 
-    if ( ( oldtime.tv_sec == mtime.tv_sec ) && ( oldtime.tv_nsec == mtime.tv_nsec ) ) {
+    if ( ( oldtime.tv_sec == mtime.tv_sec ) &&
+         ( oldtime.tv_nsec == mtime.tv_nsec ) ) {
       // dir in cache and valid
       *b = static_cast<struct dirbuf*>( calloc( 1, sizeof( dirbuf ) ) );
       dir->GetDirbuf( *b );
       retc = 1;   // found
     }
   }
-  
+
   return retc;
 }
 
 
-/*----------------------------------------------------------------------------*/
-/**
- *
- * Add or update a cache directory entry
- *
- * @param inode directory inode value
- * @param fullpath directory full path
- * @param number of entries in the current directory
- * @param mtime modifcation time
- * @param b dirbuf structure
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Add or update a cache directory entry
+//------------------------------------------------------------------------------
 void
 xrd_dir_cache_sync( unsigned long long inode,
-                    char*              fullpath,
                     int                nentries,
                     struct timespec    mtime,
                     struct dirbuf*     b )
@@ -475,20 +455,22 @@ xrd_dir_cache_sync( unsigned long long inode,
   FuseCacheEntry* dir = 0;
 
   if ( ( inode2cache.count( inode ) ) && ( dir = inode2cache[inode] ) ) {
-    // update
     dir->Update( nentries, mtime, b );
   } else {
-    // add new entry
+    //--------------------------------------------------------------------------
+    // Add new entry
+    //--------------------------------------------------------------------------
     if ( inode2cache.size() >= GetMaxCacheSize() ) {
-      // size control of the cache
-      fprintf( stderr, "[%s] Doing size control of the cache.! \n", __FUNCTION__ );
+      //------------------------------------------------------------------------
+      // Size control of the cache
+      //------------------------------------------------------------------------
       unsigned long long indx = 0;
-      unsigned long long entries_del = ( unsigned long long )( 0.25 * GetMaxCacheSize() );
+      unsigned long long entries_del =
+        static_cast<unsigned long long>( 0.25 * GetMaxCacheSize() );
       google::dense_hash_map<unsigned long long, FuseCacheEntry*>::iterator iter;
       iter = inode2cache.begin();
 
       while ( ( indx <= entries_del ) && ( iter != inode2cache.end() ) ) {
-        fprintf( stderr, "[%s] Dropping directory %s from cache. \n", __FUNCTION__, xrd_path( iter->first ) );
         dir = ( FuseCacheEntry* ) iter->second;
         inode2cache.erase( iter++ );
         delete dir;
@@ -505,28 +487,15 @@ xrd_dir_cache_sync( unsigned long long inode,
 
 
 /*----------------------------------------------------------------------------*/
-/**
- *
- * Get a subentry from a cached directory
- *
- * @param req
- * @param inode directory inode
- * @param einode entry inode
- * @param efullpath full path of the subentry
- *
- * @return SubentryStatus value
- *         -1 - directory not filled or entry not found
- *          0 - entry found
- *
- */
-/*----------------------------------------------------------------------------*/
+A// Get a subentry from a cached directory
+//------------------------------------------------------------------------------
 int
 xrd_dir_cache_get_entry( fuse_req_t         req,
                          unsigned long long inode,
                          unsigned long long entry_inode,
                          const char*        efullpath )
 {
-  int retc = eDirNotFound;
+  int retc = 0;
   eos::common::RWMutexReadLock rd_lock( mutex_fuse_cache );
   FuseCacheEntry* dir;
 
@@ -536,7 +505,7 @@ xrd_dir_cache_get_entry( fuse_req_t         req,
       if ( dir->GetEntry( entry_inode, e ) ) {
         xrd_store_p2i( entry_inode, efullpath );
         fuse_reply_entry( req, &e );
-        retc = eFound;  //success
+        retc = 1;  //success
       }
     }
   }
@@ -545,17 +514,9 @@ xrd_dir_cache_get_entry( fuse_req_t         req,
 }
 
 
-/*----------------------------------------------------------------------------*/
-/**
- *
- * Add new subentry to a cached directory
- *
- * @param inode directory inode
- * @param entry_inode subentry inode
- * @param e fuse_entry_param structure
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Add new subentry to a cached directory
+//------------------------------------------------------------------------------
 void
 xrd_dir_cache_add_entry( unsigned long long       inode,
                          unsigned long long       entry_inode,
@@ -573,9 +534,9 @@ xrd_dir_cache_add_entry( unsigned long long       inode,
 
 
 
-// ---------------------------------------------------------------
-// Implementation the open File Descriptor map
-// ---------------------------------------------------------------
+//------------------------------------------------------------------------------
+// ******* Implementation of the open File Descriptor map *******
+//------------------------------------------------------------------------------
 
 // protecting the open filedescriptor map
 XrdSysMutex OpenPosixXrootFdLock;
@@ -966,6 +927,9 @@ xrd_listxattr( const char* path, char** xattr_list, size_t* size )
 
 
 //------------------------------------------------------------------------------
+// Return file attributes. If a field is meaningless or semi-meaningless
+// (e.g., st_ino) then it should be set to 0 or given a "reasonable" value.
+//------------------------------------------------------------------------------
 int
 xrd_stat( const char* path, struct stat* buf )
 {
@@ -995,7 +959,8 @@ xrd_stat( const char* path, struct stat* buf )
 
     // parse the stat output
     int items = sscanf( response->GetBuffer(),
-                        "%s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+                        "%s %llu %llu %llu %llu %llu %llu %llu %llu "
+                        "%llu %llu %llu %llu %llu %llu %llu %llu",
                         tag, ( unsigned long long* )&sval[0],
                         ( unsigned long long* )&sval[1],
                         ( unsigned long long* )&sval[2],
@@ -1014,9 +979,8 @@ xrd_stat( const char* path, struct stat* buf )
                         ( unsigned long long* )&ival[5] );
 
     if ( ( items != 17 ) || ( strcmp( tag, "stat:" ) ) ) {
-      errno = ENOENT;
       delete response;
-      return EFAULT;
+      return -EFAULT;
     } else {
       buf->st_dev = ( dev_t ) sval[0];
       buf->st_ino = ( ino_t ) sval[1];
@@ -1040,13 +1004,13 @@ xrd_stat( const char* path, struct stat* buf )
       retc = 0;
     }
   } else {
-    retc = EFAULT;
+    retc = -EFAULT;
   }
 
   COMMONTIMING( "END", &stattiming );
 
   if ( EOS_LOGS_DEBUG ) {
-    //stattiming.Print();
+    stattiming.Print();
   }
 
   delete response;
@@ -1054,6 +1018,8 @@ xrd_stat( const char* path, struct stat* buf )
 }
 
 
+//------------------------------------------------------------------------------
+//
 //------------------------------------------------------------------------------
 int
 xrd_statfs( const char* url, const char* path, struct statvfs* stbuf )
@@ -1069,15 +1035,15 @@ xrd_statfs( const char* url, const char* path, struct statvfs* stbuf )
   statmutex.Lock();
 
   if ( ( time( NULL ) - laststat ) < ( ( 15 + ( int )5.0 * rand() / RAND_MAX ) ) ) {
-    stbuf->f_bsize  = 4096;
-    stbuf->f_frsize = 4096;
-    stbuf->f_blocks = a3 / 4096;
-    stbuf->f_bfree  = a1 / 4096;
-    stbuf->f_bavail = a1 / 4096;
-    stbuf->f_files  = a4;
-    stbuf->f_ffree  = a2;
-    stbuf->f_fsid     = 0xcafe;
-    stbuf->f_namemax  = 256;
+    stbuf->f_bsize   = 4096;
+    stbuf->f_frsize  = 4096;
+    stbuf->f_blocks  = a3 / 4096;
+    stbuf->f_bfree   = a1 / 4096;
+    stbuf->f_bavail  = a1 / 4096;
+    stbuf->f_files   = a4;
+    stbuf->f_ffree   = a2;
+    stbuf->f_fsid    = 0xcafe;
+    stbuf->f_namemax = 256;
     statmutex.UnLock();
     return 0;
   }
@@ -1147,14 +1113,14 @@ xrd_statfs( const char* url, const char* path, struct statvfs* stbuf )
 
 
 //------------------------------------------------------------------------------
+// Change permissions for the file
+//------------------------------------------------------------------------------
 int
 xrd_chmod( const char* path, mode_t mode )
 {
   eos_static_info( "path=%s mode=%x", path, mode );
   eos::common::Timing chmodtiming( "xrd_chmod" );
   COMMONTIMING( "START", &chmodtiming );
-
-
 
   int retc;
   std::string request;
@@ -1184,7 +1150,6 @@ xrd_chmod( const char* path, mode_t mode )
       return -EFAULT;
     }
 
-    // parse the stat output
     int items = sscanf( response->GetBuffer(), "%s retc=%d", tag, &retc );
 
     if ( ( items != 2 ) || ( strcmp( tag, "chmod:" ) ) ) {
@@ -1295,6 +1260,8 @@ xrd_link( const char* url, const char* destpath, const char* sourcepath )
 
 
 //------------------------------------------------------------------------------
+// If path is a symbolic link, fill buf with its target, up to size.
+//------------------------------------------------------------------------------
 int
 xrd_readlink( const char* path, char* buf, size_t bufsize )
 {
@@ -1322,8 +1289,8 @@ xrd_readlink( const char* path, char* buf, size_t bufsize )
     char tag[1024];
     char link[4096];
     link[0] = 0;
-    // parse the stat output
-    int items = sscanf( response->GetBuffer(), "%s retc=%d link=%s", tag, &retc, link );
+    int items = sscanf( response->GetBuffer(), "%s retc=%d link=%s",
+                        tag, &retc, link );
 
     if ( ( items != 3 ) || ( strcmp( tag, "readlink:" ) ) ) {
       delete response;
@@ -1344,6 +1311,8 @@ xrd_readlink( const char* path, char* buf, size_t bufsize )
 }
 
 
+//------------------------------------------------------------------------------
+// Update the last access time and last modification time
 //------------------------------------------------------------------------------
 int
 xrd_utimes( const char* path, struct timespec* tvp )
@@ -1541,7 +1510,7 @@ xrd_inodirlist( unsigned long long dirinode, const char* path )
       int items = sscanf( ptr, "%s %llu", dirpath, &inode );
 
       if ( items != 2 ) {
-      fprintf( stderr, "[%s] Got an error(2).\n", __FUNCTION__ );
+        fprintf( stderr, "[%s] Got an error(2).\n", __FUNCTION__ );
         free( value );
         xrd_unlock_w_dirview(); // <=
         xrd_dirview_delete( ( unsigned long long ) dirinode );
@@ -1573,7 +1542,7 @@ xrd_inodirlist( unsigned long long dirinode, const char* path )
   }
 
   free( value );
-  fprintf( stderr, "[%s] Return. \n", __FUNCTION__);
+  fprintf( stderr, "[%s] Return. \n", __FUNCTION__ );
   return doinodirlist;
 }
 

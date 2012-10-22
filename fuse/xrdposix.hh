@@ -61,7 +61,7 @@ struct dirbuf {
 #ifdef __cplusplus
 extern "C" {
 #endif
-  
+
   /*****************************************************************************/
   /* be carefull - this structure was copied out of the fuse<XX>.c source code */
   /* it might change in newer fuse version                                     */
@@ -106,7 +106,10 @@ extern "C" {
   // C interface functions
   // ---------------------------------------------------------------------------
 
-  // - Path translation
+  //----------------------------------------------------------------------------
+  // ******* Path translation *******
+  //----------------------------------------------------------------------------
+
   void           xrd_lock_r_p2i();   // lock for path or inode translation (read)
   void           xrd_unlock_r_p2i(); // unlock after path or inode translation (read)
   void           xrd_lock_w_p2i();   // lock for path or inode translation (write)
@@ -119,7 +122,7 @@ extern "C" {
   char*          xrd_basename( unsigned long long inode );
 
   // translate from path          to inode
-  unsigned long  long xrd_inode( const char* path );    
+  unsigned long  long xrd_inode( const char* path );
 
   // store an inode/path mapping
   void           xrd_store_p2i( unsigned long long inode, const char* path );
@@ -133,30 +136,41 @@ extern "C" {
   // forget an inode/path mapping by inode
   void           xrd_forget_p2i( unsigned long long inode );
 
-  // - IO buffers
+  //----------------------------------------------------------------------------
+  // IO buffers
+  //----------------------------------------------------------------------------
+
   // guarantee a buffer for reading of at least 'size' for the specified fd
   char*          xrd_attach_read_buffer( int fd, size_t  size );
-  
-  // release a read buffer for the specified fd
-  void           xrd_release_read_buffer( int fd );            
 
-  // - DIR Listrings
+  // release a read buffer for the specified fd
+  void           xrd_release_read_buffer( int fd );
+
+  //----------------------------------------------------------------------------
+  // ******* DIR Listrings *******
+  //----------------------------------------------------------------------------
+
   void           xrd_lock_r_dirview();   // lock dirview (read)
   void           xrd_unlock_r_dirview(); // unlock dirview (read)
   void           xrd_lock_w_dirview();   // lock dirview (write)
   void           xrd_unlock_w_dirview(); // unlock dirview (write)
 
   // path should be attached beforehand into path translation
-  void           xrd_dirview_create( unsigned long long inode ); 
+  void           xrd_dirview_create( unsigned long long inode );
   void           xrd_dirview_delete( unsigned long long inode );
 
   // returns entry with index 'index'
-  unsigned long long xrd_dirview_entry( unsigned long long dirinode, size_t index, int get_lock );
+  unsigned long long xrd_dirview_entry( unsigned long long dirinode,
+                                        size_t             index,
+                                        int                get_lock );
 
   // returns a buffer for a directory inode
-  struct dirbuf* xrd_dirview_getbuffer( unsigned long long dirinode, int get_lock ); 
+  struct dirbuf* xrd_dirview_getbuffer( unsigned long long dirinode,
+                                        int                get_lock );
 
-  // - POSIX opened files
+  //----------------------------------------------------------------------------
+  // ******* POSIX opened files *******
+  //----------------------------------------------------------------------------
 
   // add fd as an open file descriptor to speed-up mknod
   void           xrd_add_open_fd( int fd, unsigned long long inode, uid_t uid );
@@ -165,75 +179,105 @@ extern "C" {
   int            xrd_get_open_fd( unsigned long long inode, uid_t uid );
 
   // release an attached file descriptor
-  void           xrd_lease_open_fd( unsigned long long inode, uid_t uid ); 
-
-  // - FUSE Cache
-
-  // ---------------------------------------------------------------------------
-  //! Definition of cache directory return values
-  // ---------------------------------------------------------------------------
-  enum DirStatus {
-    dError      = -3,
-    dNotInCache = -2,
-    dOutdated   = -1,
-    dValid      =  0
-  };
+  void           xrd_lease_open_fd( unsigned long long inode, uid_t uid );
 
 
-  // ---------------------------------------------------------------------------
-  //! Definition of cache subentries return values
-  // ---------------------------------------------------------------------------
-  enum SubentryStatus {
-    eIgnore        = -3,
-    eDirNotFound   = -2,
-    eDirNotFilled  = -1,
-    eFound         =  0
-  };
 
-  int            xrd_dir_cache_get( unsigned long long inode,
-                                    struct timespec    mtime,
-                                    char              *fullpath,
-                                    struct dirbuf    **b );
+  //----------------------------------------------------------------------------
+  // ******* FUSE Directory Cache *******
+  //----------------------------------------------------------------------------
 
-  int            xrd_dir_cache_get_entry( fuse_req_t          req,
-                                          unsigned long long  inode,
-                                          unsigned long long  einode,
-                                          const char         *ifullpath );
-  
-  void           xrd_dir_cache_add_entry( unsigned long long        inode,
-                                          unsigned long long        entry_inode,
-                                          struct fuse_entry_param  *e );
-  
-  void           xrd_dir_cache_sync( unsigned long long inode,
-                                     char              *fullpath,
-                                     int                nentries,
-                                     struct timespec    mtime,
-                                     struct dirbuf     *b );
+  //----------------------------------------------------------------------------
+  //!
+  //! Get a cached directory
+  //!
+  //! @param inode inode value of the directory to be cached
+  //! @param mtime modification time
+  //! @param fullpath full path of the directory
+  //! @param b dirbuf structure
+  //!
+  //! @return true if found, otherwise false
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_dir_cache_get( unsigned long long inode,
+                         struct timespec    mtime,
+                         struct dirbuf**    b );
 
-  // - XROOT interfacing
+
+  //----------------------------------------------------------------------------
+  //! Get a subentry from a cached directory
+  //!
+  //! @param req
+  //! @param inode directory inode
+  //! @param einode entry inode
+  //! @param efullpath full path of the subentry
+  //!
+  //! @return true if entry found, otherwise false
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_dir_cache_get_entry( fuse_req_t          req,
+                               unsigned long long  inode,
+                               unsigned long long  einode,
+                               const char*         ifullpath );
+
+
+  //----------------------------------------------------------------------------
+  //!
+  //!Add new subentry to a cached directory
+  //!
+  //! @param inode directory inode
+  //! @param entry_inode subentry inode
+  //! @param e fuse_entry_param structure
+  //!
+  //----------------------------------------------------------------------------
+  void xrd_dir_cache_add_entry( unsigned long long       inode,
+                                unsigned long long       entry_inode,
+                                struct fuse_entry_param* e );
+
+
+  //----------------------------------------------------------------------------
+  //! Add or update a cache directory entry
+  //!
+  //! @param inode directory inode value
+  //! @param fullpath directory full path
+  //! @param number of entries in the current directory
+  //! @param mtime modifcation time
+  //! @param b dirbuf structure
+  //!
+  //----------------------------------------------------------------------------
+  void xrd_dir_cache_sync( unsigned long long inode,
+                           int                nentries,
+                           struct timespec    mtime,
+                           struct dirbuf*     b );
+
+
+
+  //----------------------------------------------------------------------------
+  // ******* XROOT interfacing ********
+  //----------------------------------------------------------------------------
   int            xrd_stat( const char* file_name, struct stat* buf );
-  
-  int            xrd_statfs( const char     *url,
-                             const char     *path,
-                             struct statvfs *stbuf );
 
-  int            xrd_getxattr( const char *path,
-                               const char *xattr_name,
-                               char      **xattr_value,
-                               size_t     *size );
-  
-  int            xrd_listxattr( const char *path,
-                                char      **xattr_list,
-                                size_t     *size );
-  
-  int            xrd_setxattr( const char *path,
-                               const char *xattr_name,
-                               const char *xattr_value,
+  int            xrd_statfs( const char*     url,
+                             const char*     path,
+                             struct statvfs* stbuf );
+
+  int            xrd_getxattr( const char* path,
+                               const char* xattr_name,
+                               char**      xattr_value,
+                               size_t*     size );
+
+  int            xrd_listxattr( const char* path,
+                                char**      xattr_list,
+                                size_t*     size );
+
+  int            xrd_setxattr( const char* path,
+                               const char* xattr_name,
+                               const char* xattr_value,
                                size_t      size );
-  
+
   int            xrd_rmxattr( const char* path, const char* xattr_name );
 
-  struct dirent* xrd_readdir(const char* path_dir );
+  struct dirent* xrd_readdir( const char* path_dir );
 
   int            xrd_mkdir( const char* path, mode_t mode );
   int            xrd_rmdir( const char* path );
@@ -241,41 +285,41 @@ extern "C" {
   int            xrd_open( const char* pathname, int flags, mode_t mode );
 
   int            xrd_truncate( int fildes, off_t offset, unsigned long inode );
-  
+
   ssize_t        xrd_read( int fd, void* buf, size_t count, unsigned long inode );
 
   ssize_t        xrd_pread( int           fildes,
-                            void         *buf,
+                            void*         buf,
                             size_t        nbyte,
                             off_t         offset,
                             unsigned long inode );
-  
+
   int            xrd_close( int fd, unsigned long inode );
-  
+
   ssize_t        xrd_write( int           fildes,
-                            const void   *buf,
+                            const void*   buf,
                             size_t        nbyte,
                             unsigned long inode );
-  
+
   ssize_t        xrd_pwrite( int           fildes,
-                             const void   *buf,
+                             const void*   buf,
                              size_t        nbyte,
                              off_t         offset,
                              unsigned long inode );
-  
+
   int            xrd_fsync( int fildes, unsigned long inode );
 
-  int            xrd_unlink( const char *path );
-  int            xrd_rename( const char *oldpath, const char *newpath );
-  int            xrd_chmod( const char *path, mode_t mode );
-  
-  int            xrd_symlink( const char *url,
-                              const char *oldpath,
-                              const char *newpath );
-  
-  int            xrd_link( const char *url,
-                           const char *oldpath,
-                           const char *newpath );
+  int            xrd_unlink( const char* path );
+  int            xrd_rename( const char* oldpath, const char* newpath );
+  int            xrd_chmod( const char* path, mode_t mode );
+
+  int            xrd_symlink( const char* url,
+                              const char* oldpath,
+                              const char* newpath );
+
+  int            xrd_link( const char* url,
+                           const char* oldpath,
+                           const char* newpath );
   int            xrd_readlink( const char* path, char* buf, size_t bufsize );
   int            xrd_access( const char* path, int mode );
   int            xrd_utimes( const char* path, struct timespec* tvp );

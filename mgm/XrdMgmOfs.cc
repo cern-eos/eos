@@ -1884,12 +1884,11 @@ int XrdMgmOfs::chmod(const char                *inpath,    // In
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::_chmod(const char               *path,    // In
-                      XrdSfsMode        Mode,    // In
-                      XrdOucErrInfo    &error,   // Out
-                      eos::common::Mapping::VirtualIdentity &vid,   // In
-                      const char             *ininfo)    // In
-
+int XrdMgmOfs::_chmod(const char                           *path,     // In
+                      XrdSfsMode                            Mode,     // In
+                      XrdOucErrInfo                         &error,   // Out
+                      eos::common::Mapping::VirtualIdentity &vid,     // In
+                      const char                          *ininfo)    // In
 {
   static const char *epname = "chmod";
 
