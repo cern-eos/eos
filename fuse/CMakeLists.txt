@@ -48,8 +48,6 @@ add_executable ( eosd
 set_target_properties ( eosfsd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 target_link_libraries ( eosfsd 
      		      	${XRDCL_LIB}		      	     
-		      	XrdPosix 
-			XrdClient 
 			XrdUtils 
 			XrdCache-static 
 			eosCommon-Static 

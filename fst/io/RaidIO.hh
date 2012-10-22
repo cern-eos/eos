@@ -254,7 +254,7 @@ class RaidIO : public eos::common::LogId
     // -------------------------------------------------------------------------
     //! Write parity information corresponding to a group to files
     //!
-    //! @param offset_group offset of the group of blocks
+    //! @param offsetGroup offset of the group of blocks
     //!
     //! @return 0 if successful, otherwise error
     //!

@@ -49,12 +49,6 @@
 
 #define min(x, y) ((x) < (y) ? (x) : (y))
 
-typedef struct fd_user_info {
-  unsigned long long fd;
-  uid_t uid;
-} fd_user_info;
-
-
 // set debug on/off
 int isdebug = 0;
 

@@ -65,6 +65,12 @@ struct dirbuf {
 extern "C" {
 #endif
 
+  typedef struct fd_user_info {
+    unsigned long long fd;
+    uid_t uid;
+  } fd_user_info;
+  
+ 
   /*****************************************************************************/
   /* be carefull - this structure was copied out of the fuse<XX>.c source code */
   /* it might change in newer fuse version                                     */
@@ -396,7 +402,7 @@ extern "C" {
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  struct dirent* xrd_readdir( const char* path_dir );
+  struct dirent* xrd_readdir( const char* path_dir, size_t *size );
 
   //----------------------------------------------------------------------------
   //!

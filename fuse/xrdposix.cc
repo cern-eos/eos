@@ -1,8 +1,7 @@
-
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: xrdposix.cc
 // Author: Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -1100,6 +1099,7 @@ int xrd_stat( const char* path, struct stat* buf )
     }
   } else {
     fprintf( stderr, "[%s] Status is NOT ok. \n", __FUNCTION__ );
+    errno = EFAULT;
     retc = -EFAULT;
   }
 
@@ -1645,11 +1645,54 @@ int xrd_inodirlist( unsigned long long dirinode, const char* path )
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-struct dirent* xrd_readdir( const char* path_dir ) {
+struct dirent* xrd_readdir( const char* path_dir, size_t *size )
+{
   eos_static_info( "path=%s", path_dir );
-  //TODO:
+
+  struct dirent* dirs = NULL;
+  XrdCl::DirectoryList* response = 0;
+  uint8_t flags = 0; //nothing special
+  string path_str = path_dir;
+  XrdCl::XRootDStatus status = fs->DirList( path_str, flags, response );
+
+  if ( status.IsOK() ) {
+    fprintf( stderr, "[%s] Response is ok. \n ", __FUNCTION__ );
+    *size = response->GetSize();
+    
+    dirs = static_cast<struct dirent*>( calloc( *size, sizeof( struct dirent ) ) ); 
+
+    int i = 0;
+    for (XrdCl::DirectoryList::ConstIterator iter = response->Begin();
+         iter != response->End();
+         ++iter)
+      {
+        XrdCl::DirectoryList::ListEntry* list_entry = 
+          static_cast<XrdCl::DirectoryList::ListEntry*>(*iter);
+        fprintf( stderr, "Listing: %s. \n", list_entry->GetName().c_str() );
+        size_t len = list_entry->GetName().length();
+        const char* cp = list_entry->GetName().c_str();
+        const int dirhdrln = dirs[i].d_name - (char *)&dirs[i];
+#if defined(__macos__) || defined(__FreeBSD__)
+        dirs[i].d_fileno = i;
+        dirs[i].d_type   = DT_UNKNOWN;
+        dirs[i].d_namlen = len;
+#else
+        dirs[i].d_ino    = i;
+        dirs[i].d_off    = i*NAME_MAX;
+#endif
+        dirs[i].d_reclen = len + dirhdrln;
+        dirs[i].d_type = DT_UNKNOWN;
+        strncpy( dirs[i].d_name, cp, len);
+        dirs[i].d_name[len] = '\0';
+        i++;
+      }
+
+    return dirs;
+  } 
+  
+  fprintf( stderr, "[%s] Response is NOT ok. \n ", __FUNCTION__ );
+  *size = 0;
   return NULL;
-  //return XrdPosixXrootd::Readdir(  );
 }
 
 
@@ -2170,13 +2213,13 @@ void xrd_init()
   XrdCl::URL url( address );
 
   if ( !url.IsValid() ) {
-    eos_static_info( "URL is not valid. \n" );
+    eos_static_info( "URL is not valid." );
   }
 
   fs = new XrdCl::FileSystem( url );
 
   if ( fs ) {
-    eos_static_info( "Got new FileSystem object. \n" );
+    eos_static_info( "Got new FileSystem object." );
   }
 
   //............................................................................
@@ -2210,6 +2253,7 @@ void xrd_init()
 
   passwdstore = new XrdOucHash<XrdOucString> ();
   stringstore = new XrdOucHash<XrdOucString> ();
+ 
 }
 
 
