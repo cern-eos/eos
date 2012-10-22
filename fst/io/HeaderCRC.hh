@@ -31,46 +31,47 @@
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
 /*----------------------------------------------------------------------------*/
-#include <XrdPosix/XrdPosixXrootd.hh>
+#include <XrdCl/XrdClFile.hh>
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 #define HEADER ("_HEADER_RAIDIO_")
 
-class HeaderCRC : public eos::common::LogId {
+class HeaderCRC : public eos::common::LogId
+{
 
 private:
 
   bool valid;
   char tag[16];
-  long int noBlocks;                           //total number of blocks 
+  long int noBlocks;                           //total number of blocks
   size_t sizeLastBlock;                        //size of the last block of data
   unsigned int idStripe;                       //index of the stripe the header belongs to
-  
-  static const size_t sizeHeader = 4 *1024;   //size of header
+
+  static const size_t sizeHeader = 4 * 1024;  //size of header
 
 public:
 
-  HeaderCRC();  
-  HeaderCRC(long);  
+  HeaderCRC();
+  HeaderCRC( long );
   ~HeaderCRC();
 
-  int writeToFile(int fd);            
-  bool readFromFile(int fd);         
-  
+  int writeToFile( XrdCl::File* f );
+  bool readFromFile( XrdCl::File* f );
+
   char*        getTag();
-  int          getSize() const;   
+  int          getSize() const;
   size_t       getSizeLastBlock() const;
   long int     getNoBlocks() const;
-  unsigned int getIdStripe() const; 
-  
-  void setNoBlocks(long int nblocks);
-  void setSizeLastBlock(size_t sizelastblock);  
-  void setIdStripe(unsigned int idstripe); 
+  unsigned int getIdStripe() const;
+
+  void setNoBlocks( long int nblocks );
+  void setSizeLastBlock( size_t sizelastblock );
+  void setIdStripe( unsigned int idstripe );
 
   bool isValid() const;
-  void setState(bool state);  
+  void setState( bool state );
 };
 
 EOSFSTNAMESPACE_END

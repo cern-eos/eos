@@ -40,9 +40,9 @@ HeaderCRC::HeaderCRC()
 
 /*----------------------------------------------------------------------------*/
 //constructor
-HeaderCRC::HeaderCRC(long int noblocks)
+HeaderCRC::HeaderCRC( long int noblocks )
 {
-  strcpy(tag, HEADER);
+  strcpy( tag, HEADER );
   noBlocks = noblocks;
   sizeLastBlock = -1;
   idStripe = -1;
@@ -60,36 +60,36 @@ HeaderCRC::~HeaderCRC()
 
 /*----------------------------------------------------------------------------*/
 //read the header from the file via XrdPosixXrootd
-bool HeaderCRC::readFromFile(int fd)
+bool HeaderCRC::readFromFile( XrdCl::File* f )
 {
   unsigned int ret;
   long int offset = 0;
-  char* buff = (char*)calloc(sizeHeader, sizeof(char));
+  char* buff = ( char* ) calloc( sizeHeader, sizeof( char ) );
 
-  eos_debug("HeaderCRC::ReadFromFile: offset: %li, sizeHeader: %i \n", offset, sizeHeader);
+  eos_debug( "HeaderCRC::ReadFromFile: offset: %li, sizeHeader: %i \n", offset, sizeHeader );
 
-  ret = XrdPosixXrootd::Pread(fd, buff, sizeHeader, offset);
-  if ((!ret) || (ret != sizeHeader)) {
-    free(buff);
+  if ( !( f->Read( offset, sizeHeader, buff, ret ).IsOK() ) || ( ret != sizeHeader ) ) {
+    free( buff );
     valid = false;
     return false;
   }
- 
-  memcpy(tag, buff, sizeof tag);
-  if (strncmp(tag, HEADER, strlen(HEADER))){
-    free(buff);
+
+  memcpy( tag, buff, sizeof tag );
+
+  if ( strncmp( tag, HEADER, strlen( HEADER ) ) ) {
+    free( buff );
     valid = false;
     return false;
   }
 
   offset += sizeof tag;
-  memcpy(&idStripe, buff + offset, sizeof idStripe);
+  memcpy( &idStripe, buff + offset, sizeof idStripe );
   offset += sizeof idStripe;
-  memcpy(&noBlocks, buff + offset, sizeof noBlocks);
+  memcpy( &noBlocks, buff + offset, sizeof noBlocks );
   offset += sizeof noBlocks;
-  memcpy(&sizeLastBlock, buff + offset, sizeof sizeLastBlock);
+  memcpy ( &sizeLastBlock, buff + offset, sizeof sizeLastBlock );
 
-  free(buff);
+  free( buff );
   valid = true;
   return true;
 }
@@ -97,30 +97,29 @@ bool HeaderCRC::readFromFile(int fd)
 
 /*----------------------------------------------------------------------------*/
 //write the header to the file via XrdPosixXrootd
-int HeaderCRC::writeToFile(int fd)
+int HeaderCRC::writeToFile( XrdCl::File* f )
 {
   size_t nwrite;
   int offset = 0;
-  char* buff = (char*) calloc(sizeHeader, sizeof(char));
+  char* buff = ( char* ) calloc( sizeHeader, sizeof( char ) );
 
-  memcpy(buff + offset, HEADER, sizeof tag);
+  memcpy( buff + offset, HEADER, sizeof tag );
   offset += sizeof tag;
-  memcpy(buff + offset, &idStripe, sizeof idStripe);
+  memcpy( buff + offset, &idStripe, sizeof idStripe );
   offset += sizeof idStripe;
-  memcpy(buff + offset, &noBlocks, sizeof noBlocks);
+  memcpy( buff + offset, &noBlocks, sizeof noBlocks );
   offset += sizeof noBlocks;
-  memcpy(buff + offset, &sizeLastBlock, sizeof sizeLastBlock);
+  memcpy( buff + offset, &sizeLastBlock, sizeof sizeLastBlock );
   offset += sizeof sizeLastBlock;
-  memset(buff + offset, 0, sizeHeader - offset);
+  memset( buff + offset, 0, sizeHeader - offset );
 
-  nwrite = XrdPosixXrootd::Pwrite(fd, buff, sizeHeader, 0); 
-  if (nwrite != sizeHeader) {
-    free(buff);
+  if ( !( f->Write( 0, sizeHeader, buff ).IsOK() ) ) {
+    free( buff );
     valid = false;
     return -1;
   }
-    
-  free(buff);
+
+  free( buff );
   valid = true;
   return 0;
 }
@@ -128,43 +127,73 @@ int HeaderCRC::writeToFile(int fd)
 
 /*----------------------------------------------------------------------------*/
 char*
-HeaderCRC::getTag() { return tag; }
+HeaderCRC::getTag()
+{
+  return tag;
+}
 
 /*----------------------------------------------------------------------------*/
 int
-HeaderCRC::getSize() const { return sizeHeader; }
+HeaderCRC::getSize() const
+{
+  return sizeHeader;
+}
 
 /*----------------------------------------------------------------------------*/
 long int
-HeaderCRC::getNoBlocks() const { return noBlocks; }
+HeaderCRC::getNoBlocks() const
+{
+  return noBlocks;
+}
 
 /*----------------------------------------------------------------------------*/
 size_t
-HeaderCRC::getSizeLastBlock() const { return sizeLastBlock; } 
+HeaderCRC::getSizeLastBlock() const
+{
+  return sizeLastBlock;
+}
 
 /*----------------------------------------------------------------------------*/
 unsigned int
-HeaderCRC::getIdStripe() const { return idStripe; }
+HeaderCRC::getIdStripe() const
+{
+  return idStripe;
+}
 
 /*----------------------------------------------------------------------------*/
 void
-HeaderCRC::setNoBlocks(long int nblocks) { noBlocks = nblocks; }
+HeaderCRC::setNoBlocks( long int nblocks )
+{
+  noBlocks = nblocks;
+}
 
 /*----------------------------------------------------------------------------*/
 void
-HeaderCRC::setSizeLastBlock(size_t sizelastblock) { sizeLastBlock = sizelastblock; }
+HeaderCRC::setSizeLastBlock( size_t sizelastblock )
+{
+  sizeLastBlock = sizelastblock;
+}
 
 /*----------------------------------------------------------------------------*/
 void
-HeaderCRC::setIdStripe(unsigned int idstripe) { idStripe = idstripe; }
+HeaderCRC::setIdStripe( unsigned int idstripe )
+{
+  idStripe = idstripe;
+}
 
 /*----------------------------------------------------------------------------*/
 bool
-HeaderCRC::isValid() const { return valid; }
+HeaderCRC::isValid() const
+{
+  return valid;
+}
 
 /*----------------------------------------------------------------------------*/
 void
-HeaderCRC::setState(bool state) { valid = state; }
+HeaderCRC::setState( bool state )
+{
+  valid = state;
+}
 
 /*----------------------------------------------------------------------------*/
 

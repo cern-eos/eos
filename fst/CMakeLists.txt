@@ -21,8 +21,8 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} )
-link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
+include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} ${XRDCL_INCLUDES} ${LIBEVENT_INCLUDE_DIR} )
+link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR} ${XRDCL_LIB_DIR} ${LIBEVENT_LIB_DIR} )
 
 add_library( EosFstOss MODULE
 	     XrdFstOss.cc                 XrdFstOss.hh
@@ -151,7 +151,7 @@ target_link_libraries ( eos-check-blockxs eosCommon )
 target_link_libraries ( eos-compute-blockxs eosCommon )
 target_link_libraries ( eos-scan-fs eosCommon rt ) 
 target_link_libraries ( eos-adler32 eosCommon ) 
-target_link_libraries ( eoscp XrdUtils XrdPosix XrdCrypto ${OPENSSL_LIBRARIES} uuid )
+target_link_libraries ( eoscp XrdUtils XrdPosix XrdCrypto ${OPENSSL_LIBRARIES} uuid XrdCl ${LIBEVENT_LIB} )
 target_link_libraries ( eos-raid-recover eosCommon)
 
 if (Linux)

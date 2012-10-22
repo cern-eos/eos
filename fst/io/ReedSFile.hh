@@ -33,28 +33,28 @@ EOSFSTNAMESPACE_BEGIN
 
 class ReedSFile : public RaidIO
 {
- public:
+public:
 
-  ReedSFile(std::vector<std::string> stripeurl, int nparitystripes, bool storerecovery,
-             off_t targetsize = 0, std::string bookingopaque="oss.size");
+  ReedSFile( std::vector<std::string> stripeurl, int nparitystripes, bool storerecovery,
+             off_t targetsize = 0, std::string bookingopaque = "oss.size" );
 
-  virtual int truncate(off_t offset);
+  virtual int truncate( off_t offset );
   virtual ~ReedSFile();
 
- private:
+private:
 
-  void computeParity();                        
-  int writeParityToFiles(off_t offsetGroup);
-  
-  virtual bool recoverBlock(char *buffer, off_t offset, size_t length);
-  virtual void addDataBlock(off_t offset, char* buffer, size_t length);
-  virtual void computeDataBlocksParity(off_t offsetGroup);
+  void computeParity();
+  int writeParityToFiles( off_t offsetGroup );
+
+  virtual bool recoverBlock( char* buffer, off_t offset, size_t length );
+  virtual void addDataBlock( off_t offset, char* buffer, size_t length );
+  virtual void computeDataBlocksParity( off_t offsetGroup );
   //  virtual int updateParityForGroups(off_t offsetStart, off_t offsetEnd);
-  
+
   //methods used for backtracking
-  bool solutionBkt(unsigned int k, unsigned int *indexes, vector<unsigned int> validId);
-  bool validBkt(unsigned int k, unsigned int *indexes, vector<unsigned int> validId);
-  bool backtracking(unsigned int *indexes, vector<unsigned int> validId, unsigned int k);
+  bool solutionBkt( unsigned int k, unsigned int* indexes, vector<unsigned int> validId );
+  bool validBkt( unsigned int k, unsigned int* indexes, vector<unsigned int> validId );
+  bool backtracking( unsigned int* indexes, vector<unsigned int> validId, unsigned int k );
 };
 
 EOSFSTNAMESPACE_END

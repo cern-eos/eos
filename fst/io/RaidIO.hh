@@ -29,7 +29,7 @@
 #include "fst/io/HeaderCRC.hh"
 #include "fst/XrdFstOfsFile.hh"
 /*----------------------------------------------------------------------------*/
-#include <XrdPosix/XrdPosixXrootd.hh>
+#include "XrdCl/XrdClFile.hh"
 /*----------------------------------------------------------------------------*/
 
 #ifndef __EOSFST_RAIDIO_HH__
@@ -39,30 +39,34 @@ EOSFSTNAMESPACE_BEGIN
 
 #define STRIPESIZE 1024*1024      //size width of a block
 
+using namespace XrdCl;
+
 class RaidIO : public eos::common::LogId
 {
- public:
+public:
 
-  RaidIO(std::string algorithm, std::vector<std::string> stripeurl, unsigned int nparitystripes,
-         bool storerecovery, off_t targetsize = 0, std::string bookingopaque="oss.size");
-  
-  virtual int open(int flags);
-  virtual int read(off_t offset, char* buffer, size_t length);
-  virtual int write(off_t offset, char* buffer, size_t length);
-  virtual int truncate(off_t offset) = 0;
+  RaidIO( std::string algorithm, std::vector<std::string> stripeurl, unsigned int nparitystripes,
+          bool storerecovery, off_t targetsize = 0, std::string bookingopaque = "oss.size" );
+
+  virtual int open( int flags );
+  virtual int read( off_t offset, char* buffer, size_t length );
+  virtual int write( off_t offset, char* buffer, size_t length );
+  virtual int truncate( off_t offset ) = 0;
   virtual int remove();  // unlinks all connected pieces
   virtual int sync();
   virtual int close();
-  virtual int stat(struct stat *buf);
+  virtual int stat( struct stat* buf );
   virtual off_t size(); // returns the total size of the file
 
   virtual ~RaidIO();
 
- protected:
+protected:
 
   int* fdUrl;                    //array of file descriptors
+
+  File** xrdFile;
   HeaderCRC* hdUrl;              //array of header objects
-  
+
   bool isRW;                     //mark for writing
   bool isOpen;                   //mark if open
   bool doTruncate;               //mark if there is a need to truncate
@@ -70,7 +74,7 @@ class RaidIO : public eos::common::LogId
   bool doneRecovery;             //mark if recovery done
   bool fullDataBlocks;           //mark if we have all data blocks to compute parity
   bool storeRecovery;            //set if recovery also triggers writing back to the files
-                                 //this also means that all files must be available
+  //this also means that all files must be available
 
   unsigned int nParityStripes;
   unsigned int nDataStripes;
@@ -78,7 +82,7 @@ class RaidIO : public eos::common::LogId
 
   off_t targetSize;
   off_t offsetGroupParity;       //offset of the last group for which we computed the parity blocks
-  
+
   size_t sizeHeader;             //size of header = 4KB
   size_t stripeWidth;            //stripe with
   size_t fileSize;               //total size of current file
@@ -86,16 +90,16 @@ class RaidIO : public eos::common::LogId
 
   std::string algorithmType;
   std::string bookingOpaque;
-  std::vector<char*> dataBlocks;                       
+  std::vector<char*> dataBlocks;
   std::vector<std::string> stripeUrls;                 //urls of the files
   std::map<unsigned int, unsigned int> mapUrl_Stripe;  //map of url to stripes
   std::map<unsigned int, unsigned int> mapStripe_Url;  //map os stripes to url
 
   virtual bool validateHeader();
-  virtual bool recoverBlock(char *buffer, off_t offset, size_t length) = 0;
-  virtual void addDataBlock(off_t offset, char* buffer, size_t length) = 0;
-  virtual void computeDataBlocksParity(off_t offsetGroup) = 0;
-  //virtual int updateParityForGroups(off_t offsetStart, off_t offsetEnd) = 0;  
+  virtual bool recoverBlock( char* buffer, off_t offset, size_t length ) = 0;
+  virtual void addDataBlock( off_t offset, char* buffer, size_t length ) = 0;
+  virtual void computeDataBlocksParity( off_t offsetGroup ) = 0;
+  //virtual int updateParityForGroups(off_t offsetStart, off_t offsetEnd) = 0;
 };
 
 EOSFSTNAMESPACE_END

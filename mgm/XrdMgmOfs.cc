@@ -651,11 +651,11 @@ int XrdMgmOfsDirectory::close()
 
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfsFile::open(const char          *inpath,      // In
+int XrdMgmOfsFile::open(const char          *inpath,    // In
                         XrdSfsFileOpenMode   open_mode, // In
                         mode_t               Mode,      // In
-                        const XrdSecEntity        *client,    // In
-                        const char                *ininfo)      // In
+                        const XrdSecEntity  *client,    // In
+                        const char          *info)      // In
 /*
   Function: Open the file `path' in the mode indicated by `open_mode'.  
 
@@ -694,7 +694,6 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   BOUNCE_NOT_ALLOWED;
 
   int open_flag = 0;
-  
   int isRW = 0;
   int isRewrite = 0;
   bool isCreation = false;
@@ -738,7 +737,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   eos::common::StringConversion::MaskTag(pinfo,"authz");
   
   if (isRW) {
-    eos_info("op=write trunc=%d path=%s info=%s",open_mode & SFS_O_TRUNC, path,pinfo.c_str());
+    eos_info("op=write trunc=%d path=%s info=%s",open_mode & SFS_O_TRUNC, path, pinfo.c_str());
   } else {
     eos_info("op=read path=%s info=%s",path,pinfo.c_str());
   }
@@ -772,8 +771,8 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   int ecode=0;
   unsigned long fmdlid=0;
   unsigned long long cid = 0;
-  
-  eos_debug("mode=%x create=%x truncate=%x", open_mode, SFS_O_CREAT, SFS_O_TRUNC);
+
+  eos_debug( "mode=%x create=%x truncate=%x", open_mode, SFS_O_CREAT, SFS_O_TRUNC );
 
   // proc filter
   if (ProcInterface::IsProcAccess(path)) {
@@ -1023,7 +1022,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     if ((!fmd)) {
       if (!(open_flag & O_CREAT))  {
         // write open of not existing file without creation flag
-        return Emsg(epname, error, errno, "open file", path);      
+        return Emsg(epname, error, errno, "open file without creation flag", path);      
       } else {
         // creation of a new file
 

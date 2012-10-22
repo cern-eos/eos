@@ -140,11 +140,11 @@ void usage() {
   fprintf(stderr, "       -r <start>:<stop> : read only the range from <start> bytes to <stop> bytes\n");
   fprintf(stderr, "       -L <linkname>: create a symbolic link to the 1st target file with name <linkname>\n");
   fprintf(stderr, "       -R           : replication mode - avoid dir creation and stat's\n");
-  fprintf(stderr, "       -e           : error correction layout: raidDP/reedS\n");
-  fprintf(stderr, "       -P           : number of parity stripes\n");
   fprintf(stderr, "       -X           : checksum type: adler, crc32, crc32c, sha1, md5\n");
-  fprintf(stderr, "       -f           : force the recovery of the corrupted files and store the modifications\n");
-  
+  fprintf(stderr, "       -e           : RAID layouts - error correction layout: raidDP/reedS\n");
+  fprintf(stderr, "       -P           : RAID layouts - number of parity stripes\n");
+  fprintf(stderr, "       -f           : RAID layouts - force the recovery of corrupted blocks and store the modifications\n");
+ 
   exit(-1);
 }
 

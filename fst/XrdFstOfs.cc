@@ -756,14 +756,14 @@ XrdFstOfsFile::open(const char*         path,
     isReplication=true;
   }
   
-
   open_mode |= SFS_O_MKPTH;
-  create_mode|= SFS_O_MKPTH;
-
+  create_mode |= SFS_O_MKPTH;
+    
   if ( (open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
-                     SFS_O_CREAT  | SFS_O_TRUNC) ) != 0) 
+                     SFS_O_CREAT  | SFS_O_TRUNC) ) != 0 )
+  {
     isRW = true;
-
+  }
 
   struct stat statinfo;
 

@@ -36,12 +36,12 @@ typedef uint32_t u32;
 
 class RaidDpFile : public eos::fst::RaidIO
 {
- public:
+public:
 
-  RaidDpFile(std::vector<std::string> stripeurl, int nparitystripes, bool storerecovery,
-             off_t targetsize = 0, std::string bookingopaque="oss.size");
+  RaidDpFile( std::vector<std::string> stripeurl, int nparitystripes, bool storerecovery,
+              off_t targetsize = 0, std::string bookingopaque = "oss.size" );
 
-  virtual int truncate(off_t offset);
+  virtual int truncate( off_t offset );
   virtual ~RaidDpFile();
 
 private:
@@ -50,29 +50,29 @@ private:
   unsigned int nTotalBlocks;         //no. data and parity blocks in a group
 
   //  virtual int updateParityForGroups(off_t offsetStart, off_t offsetEnd);
-  virtual bool recoverBlock(char *buffer, off_t offset, size_t length);
-  virtual void addDataBlock(off_t offset, char* buffer, size_t length);
-  virtual void computeDataBlocksParity(off_t offsetGroup);
- 
+  virtual bool recoverBlock( char* buffer, off_t offset, size_t length );
+  virtual void addDataBlock( off_t offset, char* buffer, size_t length );
+  virtual void computeDataBlocksParity( off_t offsetGroup );
+
   void computeParity();                            //compute and write the simple and double parity blocks to files
-  void operationXOR(char*, char*, char*, size_t);  //compute the XOR result of two blocks of any size
+  void operationXOR( char*, char*, char*, size_t ); //compute the XOR result of two blocks of any size
 
-  int writeParityToFiles(off_t offsetGroup);
-  bool simpleParityRecover(char *buffer, off_t offset, size_t length, int &blockCorrupted);  
-  bool doubleParityRecover(char *buffer, off_t offset, size_t lenfth);                       
+  int writeParityToFiles( off_t offsetGroup );
+  bool simpleParityRecover( char* buffer, off_t offset, size_t length, int& blockCorrupted );
+  bool doubleParityRecover( char* buffer, off_t offset, size_t lenfth );
 
-  std::vector<unsigned int> getDiagonalStripe(unsigned int);  //return diagonal stripe corresponding to current block
-  bool validHorizStripe(std::vector<unsigned int>&, bool*, unsigned int); //validate horizontal stripe 
-  bool validDiagStripe(std::vector<unsigned int>&, bool*, unsigned int);  //validate diagonal stripe 
- 
+  std::vector<unsigned int> getDiagonalStripe( unsigned int ); //return diagonal stripe corresponding to current block
+  bool validHorizStripe( std::vector<unsigned int>&, bool*, unsigned int ); //validate horizontal stripe
+  bool validDiagStripe( std::vector<unsigned int>&, bool*, unsigned int ); //validate diagonal stripe
+
   std::vector<unsigned int> getSimpleParityIndices();       //indices of the simple parity blocks
   std::vector<unsigned int> getDoubleParityIndices();       //indices of the double parity blocks
 
-  unsigned int getParityBlockId(unsigned int);              //SP blocks corresponding to current block
-  unsigned int getDParityBlockId(std::vector<unsigned int>);//DP block corresponding to current block
- 
-  unsigned int mapBigToSmallBlock(unsigned int);  //map index from nTotalBlocks representation to nBlocks
-  unsigned int mapSmallToBigBlock(unsigned int);  //map index from nBlocks representation to nTotalBlocks
+  unsigned int getParityBlockId( unsigned int );            //SP blocks corresponding to current block
+  unsigned int getDParityBlockId( std::vector<unsigned int> ); //DP block corresponding to current block
+
+  unsigned int mapBigToSmallBlock( unsigned int ); //map index from nTotalBlocks representation to nBlocks
+  unsigned int mapSmallToBigBlock( unsigned int ); //map index from nBlocks representation to nTotalBlocks
 
 };
 
