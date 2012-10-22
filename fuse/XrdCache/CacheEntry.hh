@@ -65,9 +65,8 @@ public:
   //! Maximum size of the cache
   //------------------------------------------------------------------------------
   static const size_t getMaxSize() {
-    return 4*1048576;
-  };    //1MB=1048576 512KB=524288
-
+    return maxSize;
+  }
 
   //------------------------------------------------------------------------------
   //! Get file descriptor
@@ -143,6 +142,7 @@ public:
   size_t capacity;                   //< total capcity 512 KB ~ 4MB
   size_t sizeData;                   //< size of useful data
   off_t  offsetStart;                //< offset relative to the file
+  static size_t maxSize;       //< max size of entry
 
   std::map<off_t, size_t> mapPieces; //< pieces read/to be written
   FileAbstraction* pParentFile;      //< pointer to parent file

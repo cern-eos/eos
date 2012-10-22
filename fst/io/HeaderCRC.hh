@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
-// File: HeaderCRC.cc
+//------------------------------------------------------------------------------
+// File: HeaderCRC.hh
 // Author: Elvin-Alin Sindrilaru - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -25,55 +25,147 @@
 #define __EOSFST_HEADERCRC_HH__
 
 /*----------------------------------------------------------------------------*/
-#include <sys/types.h>
-/*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
-#include "fst/XrdFstOfsFile.hh"
 /*----------------------------------------------------------------------------*/
 #include <XrdCl/XrdClFile.hh>
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-#define HEADER ("_HEADER_RAIDIO_")
-
-class HeaderCRC : public eos::common::LogId
+//------------------------------------------------------------------------------
+//! Header information present at the start of each stripe file
+//------------------------------------------------------------------------------
+class HeaderCRC: public eos::common::LogId
 {
+  public:
 
-private:
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
+    HeaderCRC();
 
-  bool valid;                                  //! status of the file
-  char tag[16];                                //! layout tag
-  long int noBlocks;                           //! total number of blocks
-  size_t sizeLastBlock;                        //! size of the last block of data
-  unsigned int idStripe;                       //! index of the stripe the header belongs to
+    //--------------------------------------------------------------------------
+    //! Constructor with parameter
+    //--------------------------------------------------------------------------
+    HeaderCRC( long noblocks );
 
-  static const size_t sizeHeader = 4 * 1024;   //! size of the header
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    ~HeaderCRC();
 
-public:
+    //--------------------------------------------------------------------------
+    //! Write header to file
+    //!
+    //! @param f file to which to header will be written
+    //!
+    //! @return status of the operation
+    //--------------------------------------------------------------------------
+    bool writeToFile( XrdCl::File* f );
 
-  HeaderCRC();
-  HeaderCRC( long );
-  ~HeaderCRC();
+    //--------------------------------------------------------------------------
+    //! Read header from file
+    //!
+    //! @param f file from which the header will be read
+    //!
+    //! @return status of the operation
+    //--------------------------------------------------------------------------
+    bool readFromFile( XrdCl::File* f );
 
-  bool writeToFile( XrdCl::File* f );
-  bool readFromFile( XrdCl::File* f );
+    //--------------------------------------------------------------------------
+    //! Get tag of the header
+    //--------------------------------------------------------------------------
+    const char* getTag() const
+    {
+      return tag;
+    };
 
-  char*        getTag();
-  int          getSize() const;
-  size_t       getSizeLastBlock() const;
-  long int     getNoBlocks() const;
-  unsigned int getIdStripe() const;
+    //--------------------------------------------------------------------------
+    //! Get size of header
+    //--------------------------------------------------------------------------
+    static const int getSize()
+    {
+      return sizeHeader;
+    };
 
-  void setNoBlocks( long int nblocks );
-  void setSizeLastBlock( size_t sizelastblock );
-  void setIdStripe( unsigned int idstripe );
+    //--------------------------------------------------------------------------
+    //! Get size of last block in file
+    //--------------------------------------------------------------------------
+    const size_t getSizeLastBlock() const
+    {
+      return sizeLastBlock;
+    };
 
-  bool isValid() const;
-  void setState( bool state );
+    //--------------------------------------------------------------------------
+    //! Get number of blocks in file
+    //--------------------------------------------------------------------------
+    const long int getNoBlocks() const
+    {
+      return noBlocks;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Get id of the stripe the header belongs to
+    //--------------------------------------------------------------------------
+    const unsigned int getIdStripe() const
+    {
+      return idStripe;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Set number of blocks in the file
+    //--------------------------------------------------------------------------
+    void setNoBlocks( long int nblocks )
+    {
+      noBlocks = nblocks;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Set size of last block in the file
+    //--------------------------------------------------------------------------
+    void setSizeLastBlock( size_t sizelastblock )
+    {
+      sizeLastBlock = sizelastblock;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Set id of the stripe the header belongs to
+    //--------------------------------------------------------------------------
+    void setIdStripe( unsigned int idstripe )
+    {
+      idStripe = idstripe;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Test if header is valid
+    //--------------------------------------------------------------------------
+    const bool isValid() const
+    {
+      return valid;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Set the header state (valid/corrupted)
+    //--------------------------------------------------------------------------
+    void setState( bool state )
+    {
+      valid = state;
+    };
+
+  private:
+
+    char tag[16];            //< layout tag
+    bool valid;              //< status of the file
+    long int noBlocks;       //< total number of blocks
+    unsigned int idStripe;   //< index of the stripe the header belongs to
+    size_t sizeLastBlock;    //< size of the last block of data
+
+    static int sizeHeader;   //< size of the header
+    static char tagName[];   //< default tag name
+
 };
 
 EOSFSTNAMESPACE_END
 
-#endif
+#endif     // __EOSFST_HEADERCRC_HH__

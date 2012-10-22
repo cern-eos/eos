@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // File: RaidIO.hh
 // Author: Elvin-Alin Sindrilaru - CERN
-// ----------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -39,70 +39,182 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-#define STRIPESIZE 1024*1024      //size width of a block
-
 using namespace XrdCl;
 
+//------------------------------------------------------------------------------
+//! Generic class to read/write different layout files
+//------------------------------------------------------------------------------
 class RaidIO : public eos::common::LogId
 {
-public:
+  public:
 
-  RaidIO( std::string algorithm, std::vector<std::string> stripeurl, unsigned int nparitystripes,
-          bool storerecovery, off_t targetsize = 0, std::string bookingopaque = "oss.size" );
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //!
+    //! @param algorithm type of layout used
+    //! @param stripeurl vector containing the location of the stripe files
+    //! @param nparitystripes number of stripes used for parity
+    //! @param stroerecovery force writing back the recovered blocks to the files
+    //! @param targetsize exepected size (?!)
+    //! @param bookingopaque opaque information
+    //!
+    //--------------------------------------------------------------------------
+    RaidIO( std::string              algorithm,
+            std::vector<std::string> stripeurl,
+            unsigned int             nparitystripes,
+            bool                     storerecovery,
+            off_t                    targetsize = 0,
+            std::string              bookingopaque = "oss.size" );
 
-  virtual int open( int flags );
-  virtual int read( off_t offset, char* buffer, size_t length );
-  virtual int write( off_t offset, char* buffer, size_t length );
-  virtual int truncate( off_t offset ) = 0;
-  virtual int remove();  // unlinks all connected pieces
-  virtual int sync();
-  virtual int close();
-  virtual int stat( struct stat* buf );
-  virtual off_t size(); // returns the total size of the file
+    //--------------------------------------------------------------------------
+    //! Open file
+    //!
+    //! @param flags flags O_RDWR/O_RDONLY/O_WRONLY
+    //!
+    //! @return o if successful, otherwise error
+    //--------------------------------------------------------------------------
+    virtual int open( int flags );
 
-  virtual ~RaidIO();
+    //--------------------------------------------------------------------------
+    //! Read from file
+    //!
+    //! @param offset file offset
+    //! @param buffer data to be read
+    //! @param length length of the data
+    //!
+    //! @return length of data read
+    //--------------------------------------------------------------------------
+    virtual int read( off_t offset, char* buffer, size_t length );
 
-protected:
+    //--------------------------------------------------------------------------
+    //! Write to file
+    //!
+    //! @param offset file offset
+    //! @param buffer data to be written
+    //! @param length length of the data
+    //!
+    //! @return length of data written
+    //--------------------------------------------------------------------------
+    virtual int write( off_t offset, char* buffer, size_t length );
 
-  File** xrdFile;                //! xrd clients corresponding to the stripes
-  HeaderCRC* hdUrl;              //! array of header objects
+    //--------------------------------------------------------------------------
+    //! Truncate file
+    //!
+    //! @param offset size to truncate
+    //!
+    //! @return 0 if successful, otherwise error
+    //--------------------------------------------------------------------------
+    virtual int truncate( off_t offset ) = 0;
 
-  bool isRW;                     //! mark for writing
-  bool isOpen;                   //! mark if open
-  bool doTruncate;               //! mark if there is a need to truncate
-  bool updateHeader;             //! mark if header updated
-  bool doneRecovery;             //! mark if recovery done
-  bool fullDataBlocks;           //! mark if we have all data blocks to compute parity
-  bool storeRecovery;            //! set if recovery also triggers writing back to the files
-  //this also means that all files must be available
+    //--------------------------------------------------------------------------
+    //! Unlink all connected pieces
+    //!
+    //! @return 0 if successful, otherwise error
+    //--------------------------------------------------------------------------
+    virtual int remove();
 
-  unsigned int nParityStripes;
-  unsigned int nDataStripes;
-  unsigned int nTotalStripes;
+    //--------------------------------------------------------------------------
+    //! Sync all connected pieces to disk
+    //!
+    //! @return 0 if successful, otherwise error
+    //--------------------------------------------------------------------------
+    virtual int sync();
 
-  off_t targetSize;
-  off_t offsetGroupParity;       //offset of the last group for which we computed the parity blocks
+    //--------------------------------------------------------------------------
+    //! Close file
+    //!
+    //! @return 0 if successful, otherwise error
+    //--------------------------------------------------------------------------
+    virtual int close();
 
-  size_t sizeHeader;             //size of header = 4KB
-  size_t stripeWidth;            //stripe with
-  size_t fileSize;               //total size of current file
-  size_t sizeGroupBlocks;        //eg. RAIDDP: group = nDataStripes^2 blocks
+    //--------------------------------------------------------------------------
+    //! Get stats about the file
+    //!
+    //! @param buf stat structure for the file
+    //!
+    //! @return 0 if successful, otherwise error
+    //!
+    //--------------------------------------------------------------------------
+    virtual int stat( struct stat* buf );
 
-  std::string algorithmType;
-  std::string bookingOpaque;
-  std::vector<char*> dataBlocks;
-  std::vector<std::string> stripeUrls;                  //! urls of the files
-  std::vector<AsyncReadHandler*> vectReadHandler;       //! async response handlers for each stripe
-  std::vector<AsyncWriteHandler*> vectWriteHandler;     //! async response handlers for each stripe
-  std::map<unsigned int, unsigned int> mapUrl_Stripe;   //! map of url to stripes
-  std::map<unsigned int, unsigned int> mapStripe_Url;   //! map os stripes to url
+    //--------------------------------------------------------------------------
+    //! Get size of file
+    //--------------------------------------------------------------------------
+    virtual off_t size(); // returns the total size of the file
 
-  virtual bool validateHeader();
-  virtual bool recoverBlock( char* buffer, std::map<off_t, size_t> &mapPieces, off_t offsetInit ) = 0;
-  virtual void addDataBlock( off_t offset, char* buffer, size_t length ) = 0;
-  virtual void computeDataBlocksParity( off_t offsetGroup ) = 0;
+    //--------------------------------------------------------------------------
+    //! Get size of the stripe
+    //--------------------------------------------------------------------------
+    static const int getSizeStripe() {
+      return 1024 * 1024;     // 1MB
+    };
+
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    virtual ~RaidIO();
+
+  protected:
+
+    File** xrdFile;              //< xrd clients corresponding to the stripes
+    HeaderCRC* hdUrl;            //< array of header objects
+
+    bool isRW;                   //< mark for writing
+    bool isOpen;                 //< mark if open
+    bool doTruncate;             //< mark if there is a need to truncate
+    bool updateHeader;           //< mark if header updated
+    bool doneRecovery;           //< mark if recovery done
+    bool fullDataBlocks;         //< mark if we have all data blocks to compute parity
+    bool storeRecovery;          //< set if recovery also triggers writing back to the
+                                 //< files this also means that all files must be available
+
+    unsigned int noParity;       //< number of parity files
+    unsigned int noData;         //< number of data files
+    unsigned int noTotal;        //< total number of files ( data + parity )
+
+    off_t targetSize;            //< expected final size (?!)
+    off_t offGroupParity;        //< offset of the last group for which we
+                                 //< computed the parity blocks
+
+    size_t sizeHeader;           //< size of header = 4KB
+    size_t stripeWidth;          //< stripe width
+    size_t fileSize;             //< total size of current file
+    size_t sizeGroup;            //< size of a gourp of blocks
+                                 //< eg. RAIDDP: group = noDataStr^2 blocks
+
+    std::string algorithmType;   //< layout type used
+    std::string bookingOpaque;   //< opaque information
+    std::vector<char*> dataBlocks;                 //< vector containg the data in a group
+    std::vector<std::string> stripeUrls;           //< urls of the stripe files
+    std::vector<AsyncReadHandler*> vReadHandler;   //< async read handlers for each stripe
+    std::vector<AsyncWriteHandler*> vWriteHandler; //< async write handlers for each stripe
+    std::map<unsigned int, unsigned int> mapUS;    //< map of url to stripes
+    std::map<unsigned int, unsigned int> mapSU;    //< map os stripes to url
+
+    //--------------------------------------------------------------------------
+    //! Test and recover any corrupted headers in the stripe files
+    //--------------------------------------------------------------------------
+    virtual bool validateHeader();
+
+    //--------------------------------------------------------------------------
+    //! Recover corrupted pieces
+    //--------------------------------------------------------------------------
+    virtual bool recoverPieces( off_t                    offsetInit,
+                                char*                    buffer,
+                                 std::map<off_t, size_t>& mapPieces ) = 0;
+
+    //--------------------------------------------------------------------------
+    //! Add new data block to the current group for parity computation
+    //--------------------------------------------------------------------------
+    virtual void addDataBlock( off_t offset, char* buffer, size_t length ) = 0;
+
+    //--------------------------------------------------------------------------
+    //! Compute and write parity blocks corresponding to a group
+    //--------------------------------------------------------------------------
+    virtual void doBlockParity( off_t offsetGroup ) = 0;
+
 };
 
 EOSFSTNAMESPACE_END
 
-#endif
+#endif  // __EOSFST_RAIDIO_HH__

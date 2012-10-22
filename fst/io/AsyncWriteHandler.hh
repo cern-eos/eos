@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // File: AsyncWriteHandler.hh
 // Author: Elvin-Alin Sindrilaru - CERN
-// ----------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -22,6 +22,8 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include "fst/Namespace.hh"
+/*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
@@ -31,95 +33,56 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-//----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 //! Class for handling async write responses
-//----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 class AsyncWriteHandler: public XrdCl::ResponseHandler
 {
-public:
+  public:
 
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  AsyncWriteHandler() {
-    state = true;
-    nExpectedRes = 0;
-    nReceivedRes = 0;
-    cond = XrdSysCondVar(0);
-  };
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
+    AsyncWriteHandler();
 
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    ~AsyncWriteHandler();
 
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~AsyncWriteHandler() {
-  }
+    //--------------------------------------------------------------------------
+    //! Handle response
+    //--------------------------------------------------------------------------
+    void HandleResponse( XrdCl::XRootDStatus* status,
+                         XrdCl::AnyObject*    response );
 
-  //----------------------------------------------------------------------------
-  //! Handle response 
-  //----------------------------------------------------------------------------
-  virtual void HandleResponse( XrdCl::XRootDStatus* status,
-                               XrdCl::AnyObject*    response ) {
-    cond.Lock();
-    nReceivedRes++;
-    if ( status->status != XrdCl::stOK ) {
-      state = false;
-    }
+    //--------------------------------------------------------------------------
+    // Wait for responses
+    //--------------------------------------------------------------------------
+    bool WaitOK();
 
-    if ( nReceivedRes == nExpectedRes ) {
-      cond.Signal();
-    }
-    cond.UnLock();
-  };
+    //--------------------------------------------------------------------------
+    //! Increment the number of expected responses
+    //--------------------------------------------------------------------------
+    void Increment();
 
-  
-  //----------------------------------------------------------------------------
-  //! Wait for responses
-  //----------------------------------------------------------------------------
-  virtual bool WaitOK() {
-    cond.Lock();
-    if ( nReceivedRes == nExpectedRes ) {
-      cond.UnLock();
-      return state;
-    }
+    //--------------------------------------------------------------------------
+    //! Reset
+    //--------------------------------------------------------------------------
+    void Reset();
 
-    cond.Wait();
-    cond.UnLock();
-    
-    return state;
-  };
+  private:
 
-  
-  //----------------------------------------------------------------------------
-  //! Increment the number fo expected responses
-  //----------------------------------------------------------------------------
-  virtual void Increment() {
-    cond.Lock();
-    nExpectedRes++;
-    cond.UnLock();
-  };
-
- 
-  //----------------------------------------------------------------------------
-  //! Reset
-  //----------------------------------------------------------------------------
-  virtual void Reset() {
-    state = true;
-    nExpectedRes = 0;
-    nReceivedRes = 0;
-  };
-
-private:
-
-  bool state;              //! true if all requests are ok, otherwise false
-  int nExpectedRes;        //! expected number of responses
-  int nReceivedRes;        //! received number of responses
-  XrdSysCondVar cond;      //! condition variable to signal the receival of all responses
+    bool state;          //< true if all requests are ok, otherwise false
+    int nExpectedRes;    //< expected number of responses
+    int nReceivedRes;    //< received number of responses
+    XrdSysCondVar cond;  //< condition variable to signal the receival of
+                         //< all responses
 };
 
 EOSFSTNAMESPACE_END
 
-#endif
+#endif // __EOS_ASYNCWRITEHANDLER_HH__ 
 
 
 

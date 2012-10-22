@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // File: RaidIO.cc
 // Author: Elvin-Alin Sindrilaru - CERN
-// ----------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -22,7 +22,6 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include <set>
 #include <cmath>
 #include <string>
 #include <utility>
@@ -30,35 +29,38 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Timing.hh"
 #include "fst/io/RaidIO.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-
-/*----------------------------------------------------------------------------*/
-RaidIO::RaidIO( std::string algorithm, std::vector<std::string> stripeurl,
-                unsigned int nparitystripes, bool storerecovery, off_t targetsize,
-                std::string bookingopaque ):
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+RaidIO::RaidIO( std::string              algorithm,
+                std::vector<std::string> stripeurl,
+                unsigned int             nparity,
+                bool                     storerecovery,
+                off_t                    targetsize,
+                std::string              bookingopaque ):    
   storeRecovery( storerecovery ),
-  nParityStripes( nparitystripes ),
+  noParity( nparity ),
   targetSize( targetsize ),
   algorithmType( algorithm ),
   bookingOpaque( bookingopaque ),
   stripeUrls( stripeurl )
 {
-  stripeWidth = STRIPESIZE;
-  nTotalStripes = stripeUrls.size();
-  nDataStripes = nTotalStripes - nParityStripes;
+  stripeWidth = getSizeStripe();
+  noTotal = stripeUrls.size();
+  noData = noTotal - noParity;
 
-  hdUrl = new HeaderCRC[nTotalStripes];
-  xrdFile = new File*[nTotalStripes];
+  hdUrl = new HeaderCRC[noTotal];
+  xrdFile = new File*[noTotal];
   sizeHeader = hdUrl[0].getSize();
 
-  for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
+  for ( unsigned int i = 0; i < noTotal; i++ ) {
     xrdFile[i] = new File();
-    vectReadHandler.push_back(new AsyncReadHandler());
-    vectWriteHandler.push_back(new AsyncWriteHandler());
+    vReadHandler.push_back( new AsyncReadHandler() );
+    vWriteHandler.push_back( new AsyncWriteHandler() );
   }
 
   isRW = false;
@@ -67,42 +69,46 @@ RaidIO::RaidIO( std::string algorithm, std::vector<std::string> stripeurl,
   updateHeader = false;
   doneRecovery = false;
   fullDataBlocks = false;
-  offsetGroupParity = -1;
+  offGroupParity = -1;
 }
 
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 RaidIO::~RaidIO()
 {
   delete[] xrdFile;
   delete[] hdUrl;
 
-  while (! vectReadHandler.empty()) {
-    vectReadHandler.pop_back();
-    vectWriteHandler.pop_back();
-  }  
+  while ( ! vReadHandler.empty() ) {
+    vReadHandler.pop_back();
+    vWriteHandler.pop_back();
+  }
 }
 
 
 //------------------------------------------------------------------------------
+// Open file layout
+//------------------------------------------------------------------------------
 int
 RaidIO::open( int flags )
 {
-  if ( nTotalStripes < 2 ) {
-    eos_err( "Failed to open raidDP layout - stripe size should be at least 2" );
-    fprintf( stdout, "Failed to open raidDP layout - stripe size should be at least 2.\n" );
+  if ( noTotal < 2 ) {
+    eos_err( "Failed open layout - stripe size at least 2" );
+    fprintf( stdout, "Failed open layout - stripe size at least 2.\n" );
     return -1;
   }
 
   if ( stripeWidth < 64 ) {
-    eos_err( "Failed to open raidDP layout - stripe width should be at least 64" );
-    fprintf( stdout, "Failed to open raidDP layout - stripe width should be at least 64.\n" );
+    eos_err( "Failed open layout - stripe width at least 64" );
+    fprintf( stdout, "Failed open layout - stripe width at least 64.\n" );
     return -1;
   }
 
   XRootDStatus status;
 
-  for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
+  for ( unsigned int i = 0; i < noTotal; i++ ) {
     if ( !( flags | O_RDONLY ) ) {
       if ( !( xrdFile[i]->Open( stripeUrls[i], OpenFlags::Read ).IsOK() ) ) {
         eos_err( "opening for read stripeUrl[%i] = %s.", i, stripeUrls[i].c_str() );
@@ -112,6 +118,7 @@ RaidIO::open( int flags )
 
     } else if ( flags & O_WRONLY ) {
       isRW = true;
+
       if ( !( xrdFile[i]->Open( stripeUrls[i], OpenFlags::Delete | OpenFlags::Update,
                                 Access::UR | Access::UW ).IsOK() ) ) {
         eos_err( "opening for write stripeUrl[%i] = %s.", i, stripeUrls[i].c_str() );
@@ -121,6 +128,7 @@ RaidIO::open( int flags )
 
     } else if ( flags & O_RDWR ) {
       isRW = true;
+
       if ( !( xrdFile[i]->Open( stripeUrls[i], OpenFlags::Update,
                                 Access::UR | Access::UW ).IsOK() ) ) {
         eos_err( "opening failed for update stripeUrl[%i] = %s.", i, stripeUrls[i].c_str() );
@@ -136,18 +144,18 @@ RaidIO::open( int flags )
           eos_err( "opening failed new stripeUrl[%i] = %s.", i, stripeUrls[i].c_str() );
           fprintf( stdout, "opening failed new stripeUrl[%i] = %s. \n", i, stripeUrls[i].c_str() );
           return -1;
-        } 
+        }
       }
     }
   }
 
-  for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
+  for ( unsigned int i = 0; i < noTotal; i++ ) {
     if ( hdUrl[i].readFromFile( xrdFile[i] ) ) {
-      mapUrl_Stripe.insert( std::pair<unsigned int, unsigned int>( i, hdUrl[i].getIdStripe() ) );
-      mapStripe_Url.insert( std::pair<unsigned int, unsigned int>( hdUrl[i].getIdStripe(), i ) );
+      mapUS.insert( std::pair<unsigned int, unsigned int>( i, hdUrl[i].getIdStripe() ) );
+      mapSU.insert( std::pair<unsigned int, unsigned int>( hdUrl[i].getIdStripe(), i ) );
     } else {
-      mapUrl_Stripe.insert( std::pair<int, int>( i, i ) );
-      mapStripe_Url.insert( std::pair<int, int>( i, i ) );
+      mapUS.insert( std::pair<int, int>( i, i ) );
+      mapSU.insert( std::pair<int, int>( i, i ) );
     }
   }
 
@@ -171,8 +179,9 @@ RaidIO::open( int flags )
 }
 
 
-/*----------------------------------------------------------------------------*/
-//recover in case the header is corrupted
+//------------------------------------------------------------------------------
+// Test and recover if headers corrupted
+//------------------------------------------------------------------------------
 bool
 RaidIO::validateHeader()
 {
@@ -180,7 +189,7 @@ RaidIO::validateHeader()
   bool allHdValid = true;
   vector<unsigned int> idUrlInvalid;
 
-  for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
+  for ( unsigned int i = 0; i < noTotal; i++ ) {
     if ( hdUrl[i].isValid() ) {
       newFile = false;
     } else {
@@ -190,11 +199,11 @@ RaidIO::validateHeader()
   }
 
   if ( newFile || allHdValid ) {
-    eos_debug( "File is either new or there are no corruptions in the headers." );
-    fprintf( stdout, "File is either new or there are no corruptions in the headers.\n" );
+    eos_debug( "File is either new or there are no corruptions." );
+    fprintf( stdout, "File is either new or there are no corruptions.\n" );
 
     if ( newFile ) {
-      for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
+      for ( unsigned int i = 0; i < noTotal; i++ ) {
         hdUrl[i].setState( true );  //set valid header
         hdUrl[i].setNoBlocks( 0 );
         hdUrl[i].setSizeLastBlock( 0 );
@@ -204,37 +213,43 @@ RaidIO::validateHeader()
     return true;
   }
 
-  //can not recover from more than two corruptions
-  if ( idUrlInvalid.size() > nParityStripes ) {
-    eos_debug( "Can not recover from more than %u corruptions.", nParityStripes );
-    fprintf( stdout, "Can not recover from more than %u corruptions.\n", nParityStripes );
+  //----------------------------------------------------------------------------
+  // Can not recover from more than two corruptions
+  //----------------------------------------------------------------------------
+  if ( idUrlInvalid.size() > noParity ) {
+    eos_debug( "Can not recover more than %u corruptions.", noParity );
+    fprintf( stdout, "Can not recover more than %u corruptions.\n", noParity );
     return false;
   }
 
-  //get stripe id's already used and a valid header
+  //----------------------------------------------------------------------------
+  // Get stripe id's already used and a valid header
+  //----------------------------------------------------------------------------
   unsigned int idHdValid = -1;
   std::set<unsigned int> usedStripes;
 
-  for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
+  for ( unsigned int i = 0; i < noTotal; i++ ) {
     if ( hdUrl[i].isValid() ) {
-      usedStripes.insert( mapUrl_Stripe[i] );
+      usedStripes.insert( mapUS[i] );
       idHdValid = i;
     } else {
-      mapUrl_Stripe.erase( i );
+      mapUS.erase( i );
     }
-  }
+  } 
 
-  mapStripe_Url.clear();
+  mapSU.clear();
 
   while ( idUrlInvalid.size() ) {
     unsigned int idUrl = idUrlInvalid.back();
     idUrlInvalid.pop_back();
 
-    for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
+    for ( unsigned int i = 0; i < noTotal; i++ ) {
       if ( find( usedStripes.begin(), usedStripes.end(), i ) == usedStripes.end() ) {
-        //add the new mapping
+        //----------------------------------------------------------------------
+        // Add the new mapping
+        //----------------------------------------------------------------------
         eos_debug( "Add new mapping: stripe: %u, fid: %u", i, idUrl );
-        mapUrl_Stripe[idUrl] = i;
+        mapUS[idUrl] = i;
         usedStripes.insert( i );
         hdUrl[idUrl].setIdStripe( i );
         hdUrl[idUrl].setState( true );
@@ -247,7 +262,7 @@ RaidIO::validateHeader()
           delete xrdFile[idUrl];
           xrdFile[idUrl] = new File();
 
-          if ( !( xrdFile[idUrl]->Open( stripeUrls[i], OpenFlags::Delete | OpenFlags::Update,
+          if ( !( xrdFile[idUrl]->Open( stripeUrls[i], OpenFlags::Update,
                                         Access::UR | Access::UW ).IsOK() ) ) {
             eos_err( "open stripeUrl[%i] = %s.", i, stripeUrls[i].c_str() );
             return false;
@@ -255,7 +270,6 @@ RaidIO::validateHeader()
 
           hdUrl[idUrl].writeToFile( xrdFile[idUrl] );
         }
-
         break;
       }
     }
@@ -263,16 +277,20 @@ RaidIO::validateHeader()
 
   usedStripes.clear();
 
-  //populate the stripe url map
-  for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
-    mapStripe_Url[mapUrl_Stripe[i]] = i;
+  //----------------------------------------------------------------------------
+  // Populate the stripe url map
+  //----------------------------------------------------------------------------
+  for ( unsigned int i = 0; i < noTotal; i++ ) {
+    mapSU[mapUS[i]] = i;
   }
 
   return true;
 }
 
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Read from file
+//------------------------------------------------------------------------------
 int
 RaidIO::read( off_t offset, char* buffer, size_t length )
 {
@@ -302,20 +320,26 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
   }
 
   if ( ( offset < 0 ) && ( isRW ) ) {
-    // recover file mode
+    //--------------------------------------------------------------------------
+    // Recover file mode
+    //--------------------------------------------------------------------------
     offset = 0;
     char* dummyBuf = ( char* ) calloc( stripeWidth, sizeof( char ) );
 
-    // if file smaller than a group, set the read size to the size of the group
-    if ( fileSize < sizeGroupBlocks ) {
-      length = sizeGroupBlocks;
+    //--------------------------------------------------------------------------
+    // If file smaller than a group, set the read size to the size of the group
+    //--------------------------------------------------------------------------
+    if ( fileSize < sizeGroup ) {
+      length = sizeGroup;
     }
 
     while ( length ) {
       nread = ( length > stripeWidth ) ? stripeWidth : length;
-
       mapPieces.insert( std::make_pair<off_t, size_t>( offset, nread ) );
-      if( ( offset % sizeGroupBlocks == 0 ) && ( !recoverBlock( dummyBuf, mapPieces, offsetInit ) ) ) {
+
+      if ( ( offset % sizeGroup == 0 ) &&
+           ( !recoverPieces( offsetInit, dummyBuf, mapPieces ) ) )
+      {
         free( dummyBuf );
         eos_err( "error=failed recovery of stripe" );
         return -1;
@@ -330,95 +354,98 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
     // free memory
     free( dummyBuf );
   } else {
-    // normal reading mode
+    //--------------------------------------------------------------------------
+    // Normal reading mode
+    //--------------------------------------------------------------------------
 
     while ( length ) {
       index++;
-      stripeId = ( offset / stripeWidth ) % nDataStripes;
-      urlId = mapStripe_Url[stripeId];
+      stripeId = ( offset / stripeWidth ) % noData;
+      urlId = mapSU[stripeId];
       nread = ( length > stripeWidth ) ? stripeWidth : length;
-      offsetLocal = ( ( offset / ( nDataStripes * stripeWidth ) ) * stripeWidth ) + ( offset %  stripeWidth );
+      offsetLocal = ( ( offset / ( noData * stripeWidth ) ) * stripeWidth )
+                    + ( offset %  stripeWidth );
 
       COMMONTIMING( "read remote in", &rt );
 
-      //do reading
       if ( xrdFile[urlId] ) {
-        vectReadHandler[stripeId]->Increment();
-        
-        xrdFile[urlId]->Read( offsetLocal + sizeHeader, nread, pBuff, vectReadHandler[stripeId] );
+        vReadHandler[stripeId]->Increment();
+
+        xrdFile[urlId]->Read( offsetLocal + sizeHeader, nread, pBuff, vReadHandler[stripeId] );
         //fprintf( stdout, "From stripe %i, we expect %i responses. \n",
-        //         stripeId, vectReadHandler[stripeId]->GetNoResponses() );
+        //         stripeId, vReadHandler[stripeId]->GetNoResponses() );
       }
-    
+
       length -= nread;
       offset += nread;
       readLength += nread;
       pBuff = buffer + readLength;
 
       int nGroupBlocks;
+
       if ( algorithmType == "raidDP" ) {
-        nGroupBlocks = static_cast<int>( pow( nDataStripes, 2 ) );
-      }
-      else if ( algorithmType == "reedS" ) {
-        nGroupBlocks = nDataStripes;
-      }
-      else {
-        eos_err( "error=no such algorithm");
+        nGroupBlocks = static_cast<int>( pow( noData, 2 ) );
+      } else if ( algorithmType == "reedS" ) {
+        nGroupBlocks = noData;
+      } else {
+        eos_err( "error=no such algorithm" );
         fprintf( stderr, "error=no such algorithm " );
         return 0;
       }
-      
+
       bool doRecovery = false;
       int nWaitReq = index % nGroupBlocks;
-      //fprintf( stdout, "Index: %li, nDataStripes = %u, length = %zu. \n", index, nDataStripes, length );
-      
+      //fprintf( stdout, "Index: %li, noData = %u, length = %zu. \n",
+      //         index, noData, length );
+
       if ( ( length == 0 ) || ( nWaitReq == 0 ) ) {
         mapPieces.clear();
         nWaitReq = ( nWaitReq == 0 ) ? nGroupBlocks : nWaitReq;
-        
-        for ( unsigned int i = 0; i < nDataStripes; i++ ) {
-          if ( !vectReadHandler[i]->WaitOK() ) {
-            mapErrors = vectReadHandler[i]->GetErrorsMap();
-            
-            for (std::map<uint64_t, uint32_t>::iterator iter = mapErrors.begin();
-                 iter != mapErrors.end();
-                 iter++)
-            {
+
+        for ( unsigned int i = 0; i < noData; i++ ) {
+          if ( !vReadHandler[i]->WaitOK() ) {
+            mapErrors = vReadHandler[i]->GetErrorsMap();
+
+            for ( std::map<uint64_t, uint32_t>::iterator iter = mapErrors.begin();
+                  iter != mapErrors.end();
+                  iter++ ) {
               off_t offStripe = iter->first - sizeHeader;
-              off_t offRel = ( offStripe / stripeWidth ) * ( nDataStripes * stripeWidth ) +
-                             (offStripe % stripeWidth) + i * stripeWidth;
+              off_t offRel = ( offStripe / stripeWidth ) * ( noData * stripeWidth ) +
+                             ( offStripe % stripeWidth ) + i * stripeWidth;
               //fprintf( stdout, "Error offset: %zu, length, %u and offsetInit: %zu. \n",
               //         offRel, iter->second, offsetInit );
-              mapPieces.insert(std::make_pair<off_t, size_t>( offRel, iter->second ) );
+              mapPieces.insert( std::make_pair<off_t, size_t>( offRel, iter->second ) );
             }
-            
+
             doRecovery = true;
           }
         }
 
-        // reset the asynx response handlers
-        for ( unsigned int i = 0; i < nDataStripes; i++ ) {
-          vectReadHandler[i]->Reset();
+        for ( unsigned int i = 0; i < noData; i++ ) {
+          vReadHandler[i]->Reset();
         }
       }
-      
-      // try to recover blocks from group
-      if  ( doRecovery && ( !recoverBlock( buffer, mapPieces, offsetInit ) ) ) {
+
+      //------------------------------------------------------------------------
+      // Try to recover blocks from group
+      //------------------------------------------------------------------------
+      if ( doRecovery && ( !recoverPieces( offsetInit, buffer, mapPieces ) ) ) {
         eos_err( "error=read recovery failed" );
         return -1;
       }
     }
   }
-  if ( index && ( index % nDataStripes != 0 ) ) {
-    respHandler->Wait( index % nDataStripes );
-  }
+
   COMMONTIMING( "read return", &rt );
+
   //  rt.Print();
   return readLength;
 }
 
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Write to file
+//------------------------------------------------------------------------------
 int
 RaidIO::write( off_t offset, char* buffer, size_t length )
 {
@@ -435,24 +462,32 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
   offsetStart = offset;
   offsetEnd = offset + length;
 
-  //reset write handlers
-  for (unsigned int i = 0; i < nTotalStripes; i++ ) {
-    vectWriteHandler[i]->Reset();
+  //----------------------------------------------------------------------------
+  // Reset write handlers
+  //----------------------------------------------------------------------------
+  for ( unsigned int i = 0; i < noTotal; i++ ) {
+    vWriteHandler[i]->Reset();
   }
-  
+
   while ( length ) {
-    stripeId = ( offset / stripeWidth ) % nDataStripes;
+    stripeId = ( offset / stripeWidth ) % noData;
     nwrite = ( length < stripeWidth ) ? length : stripeWidth;
-    offsetLocal = ( ( offset / ( nDataStripes * stripeWidth ) ) * stripeWidth ) + ( offset % stripeWidth );
+    offsetLocal = ( ( offset / ( noData * stripeWidth ) ) * stripeWidth ) +
+                  ( offset % stripeWidth );
 
     COMMONTIMING( "write remote", &wt );
-    eos_info( "Write stripe=%u offset=%llu size=%u", stripeId, offsetLocal + sizeHeader, nwrite );
+    eos_info( "Write stripe=%u offset=%llu size=%u",
+              stripeId, offsetLocal + sizeHeader, nwrite );
 
-    //send write request
-    vectWriteHandler[stripeId]->Increment();
-    xrdFile[mapStripe_Url[stripeId]]->Write( offsetLocal + sizeHeader, nwrite, buffer, vectWriteHandler[stripeId] );
+    //--------------------------------------------------------------------------
+    // Send write request
+    //--------------------------------------------------------------------------
+    vWriteHandler[stripeId]->Increment();
+    xrdFile[mapSU[stripeId]]->Write( offsetLocal + sizeHeader, nwrite, buffer, vWriteHandler[stripeId] );
 
-    //add data to the dataBlocks array and compute parity if enough information
+    //--------------------------------------------------------------------------
+    // Add data to the dataBlocks array and compute parity if enough information
+    //--------------------------------------------------------------------------
     addDataBlock( offset, buffer, nwrite );
 
     offset += nwrite;
@@ -461,14 +496,16 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
     writeLength += nwrite;
   }
 
-  //collect the responses
-  for (unsigned int i = 0; i < nDataStripes; i++ ) {
-     if ( !vectWriteHandler[i]->WaitOK() ){
+  //------------------------------------------------------------------------------
+  // Collect the responses
+  //------------------------------------------------------------------------------
+  for ( unsigned int i = 0; i < noData; i++ ) {
+    if ( !vWriteHandler[i]->WaitOK() ) {
       eos_err( "Write failed." );
       return -1;
     }
   }
-  
+
   if ( offsetEnd > ( off_t )fileSize ) {
     fileSize = offsetEnd;
     doTruncate = true;
@@ -479,14 +516,17 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
   return writeLength;
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Sync files to disk
+//------------------------------------------------------------------------------
 int
 RaidIO::sync()
 {
   int rc = SFS_OK;
 
   if ( isOpen ) {
-    for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
+    for ( unsigned int i = 0; i < noTotal; i++ ) {
       if ( !( xrdFile[i]->Sync().IsOK() ) ) {
         eos_err( "sync error=file %i could not be synced", i );
         return -1;
@@ -501,7 +541,9 @@ RaidIO::sync()
 }
 
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get size of file
+//------------------------------------------------------------------------------
 off_t
 RaidIO::size()
 {
@@ -514,13 +556,15 @@ RaidIO::size()
 }
 
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Unlink all connected pieces
+//------------------------------------------------------------------------------
 int
 RaidIO::remove()
 {
   int rc = SFS_OK;
 
-  for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
+  for ( unsigned int i = 0; i < noTotal; i++ ) {
     //rc -= XrdPosixXrootd::Unlink(stripeUrls[i].c_str());
   }
 
@@ -528,7 +572,9 @@ RaidIO::remove()
 }
 
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get stat about file
+//------------------------------------------------------------------------------
 int
 RaidIO::stat( struct stat* buf )
 {
@@ -545,7 +591,9 @@ RaidIO::stat( struct stat* buf )
 }
 
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Close file
+//------------------------------------------------------------------------------
 int
 RaidIO::close()
 {
@@ -555,15 +603,19 @@ RaidIO::close()
   int rc = SFS_OK;
 
   if ( isOpen ) {
-    if ( ( offsetGroupParity != -1 ) && ( offsetGroupParity < static_cast<off_t>( fileSize ) ) ) {
-      computeDataBlocksParity( offsetGroupParity );
+    if ( ( offGroupParity != -1 ) &&
+         ( offGroupParity < static_cast<off_t>( fileSize ) ) )
+    {
+      doBlockParity( offGroupParity );
     }
 
-    //update the header information and write it to all stripes
+    //--------------------------------------------------------------------------
+    // Update the header information and write it to all stripes
+    //--------------------------------------------------------------------------
     long int nblocks = ceil( ( fileSize * 1.0 ) / stripeWidth );
     size_t sizelastblock = fileSize % stripeWidth;
 
-    for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
+    for ( unsigned int i = 0; i < noTotal; i++ ) {
       if ( nblocks != hdUrl[i].getNoBlocks() ) {
         hdUrl[i].setNoBlocks( nblocks );
         updateHeader = true;
@@ -578,9 +630,9 @@ RaidIO::close()
     COMMONTIMING( "updateheader", &ct );
 
     if ( updateHeader ) {
-      for ( unsigned int i = 0; i < nTotalStripes; i++ ) { //fstid's
+      for ( unsigned int i = 0; i < noTotal; i++ ) { //fstid's
         eos_info( "Write Stripe Header local" );
-        hdUrl[i].setIdStripe( mapUrl_Stripe[i] );
+        hdUrl[i].setIdStripe( mapUS[i] );
 
         if ( !hdUrl[i].writeToFile( xrdFile[i] ) ) {
           eos_err( "error=write header to file failed for stripe:%i", i );
@@ -598,7 +650,7 @@ RaidIO::close()
       truncate( fileSize );
     }
 
-    for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
+    for ( unsigned int i = 0; i < noTotal; i++ ) {
       if ( !( xrdFile[i]->Close().IsOK() ) ) {
         rc = -1;
       }
@@ -612,6 +664,5 @@ RaidIO::close()
   return rc;
 }
 
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_END

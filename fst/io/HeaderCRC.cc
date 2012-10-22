@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: HeaderCRC.cc
 // Author: Elvin-Alin Sindrilaru - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -22,53 +22,65 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include <stdint.h>
+/*----------------------------------------------------------------------------*/
 #include "fst/io/HeaderCRC.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-//default constructor
-HeaderCRC::HeaderCRC()
+int HeaderCRC::sizeHeader = 4096;             // 4kb
+char HeaderCRC::tagName[] = "_HEADER_RAIDIO_";
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+HeaderCRC::HeaderCRC():
+  valid( true ),
+  noBlocks( -1 ),
+  idStripe( -1 ),
+  sizeLastBlock( -1 )
 {
-  idStripe = -1;
-  noBlocks = -1;
-  sizeLastBlock = -1;
-  valid = true;
+  //empty
 }
 
 
-/*----------------------------------------------------------------------------*/
-//constructor
-HeaderCRC::HeaderCRC( long int noblocks )
+//------------------------------------------------------------------------------
+// Constructor with parameter
+//------------------------------------------------------------------------------
+HeaderCRC::HeaderCRC( long int noblocks ):
+  valid( true ),
+  noBlocks( noblocks ),
+  idStripe( -1 ),
+  sizeLastBlock( -1 )
 {
-  strcpy( tag, HEADER );
-  noBlocks = noblocks;
-  sizeLastBlock = -1;
-  idStripe = -1;
-  valid = true;
+  strncpy( tag, tagName, strlen( tagName ) );
 }
 
 
-/*----------------------------------------------------------------------------*/
-//destructor
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 HeaderCRC::~HeaderCRC()
 {
   //empty
 }
 
 
-/*----------------------------------------------------------------------------*/
-//read the header from the file via XrdPosixXrootd
-bool HeaderCRC::readFromFile( XrdCl::File* f )
+//------------------------------------------------------------------------------
+// Read header from file
+//------------------------------------------------------------------------------
+bool
+HeaderCRC::readFromFile( XrdCl::File* f )
 {
-  unsigned int ret;
+  uint32_t ret;
   long int offset = 0;
-  char* buff = ( char* ) calloc( sizeHeader, sizeof( char ) );
+  char* buff = static_cast< char* >( calloc( sizeHeader, sizeof( char ) ) );
 
-  eos_debug( "HeaderCRC::ReadFromFile: offset: %li, sizeHeader: %i \n", offset, sizeHeader );
+  eos_debug( "offset: %li, sizeHeader: %i \n", offset, sizeHeader );
 
-  if ( !( f->Read( offset, sizeHeader, buff, ret ).IsOK() ) || ( ret != sizeHeader ) ) {
+  if ( !( f->Read( offset, sizeHeader, buff, ret ).IsOK() )
+       || ( ret != static_cast< uint32_t >( sizeHeader ) ) ) {
     free( buff );
     valid = false;
     return valid;
@@ -76,7 +88,7 @@ bool HeaderCRC::readFromFile( XrdCl::File* f )
 
   memcpy( tag, buff, sizeof tag );
 
-  if ( strncmp( tag, HEADER, strlen( HEADER ) ) ) {
+  if ( strncmp( tag, tagName, strlen( tagName ) ) ) {
     free( buff );
     valid = false;
     return valid;
@@ -87,7 +99,7 @@ bool HeaderCRC::readFromFile( XrdCl::File* f )
   offset += sizeof idStripe;
   memcpy( &noBlocks, buff + offset, sizeof noBlocks );
   offset += sizeof noBlocks;
-  memcpy ( &sizeLastBlock, buff + offset, sizeof sizeLastBlock );
+  memcpy( &sizeLastBlock, buff + offset, sizeof sizeLastBlock );
 
   free( buff );
   valid = true;
@@ -95,14 +107,16 @@ bool HeaderCRC::readFromFile( XrdCl::File* f )
 }
 
 
-/*----------------------------------------------------------------------------*/
-//write the header to the file via XrdPosixXrootd
-bool HeaderCRC::writeToFile( XrdCl::File* f )
+//------------------------------------------------------------------------------
+// Write header to file
+//------------------------------------------------------------------------------
+bool
+HeaderCRC::writeToFile( XrdCl::File* f )
 {
   int offset = 0;
-  char* buff = ( char* ) calloc( sizeHeader, sizeof( char ) );
+  char* buff = static_cast< char* >( calloc( sizeHeader, sizeof( char ) ) );
 
-  memcpy( buff + offset, HEADER, sizeof tag );
+  memcpy( buff + offset, tagName, sizeof tagName );
   offset += sizeof tag;
   memcpy( buff + offset, &idStripe, sizeof idStripe );
   offset += sizeof idStripe;
@@ -113,87 +127,13 @@ bool HeaderCRC::writeToFile( XrdCl::File* f )
   memset( buff + offset, 0, sizeHeader - offset );
 
   if ( !( f->Write( 0, sizeHeader, buff ).IsOK() ) ) {
-    free( buff );
     valid = false;
-    return valid;
+  } else {
+    valid = true;
   }
 
   free( buff );
-  valid = true;
   return valid;
 }
-
-
-/*----------------------------------------------------------------------------*/
-char*
-HeaderCRC::getTag()
-{
-  return tag;
-}
-
-/*----------------------------------------------------------------------------*/
-int
-HeaderCRC::getSize() const
-{
-  return sizeHeader;
-}
-
-/*----------------------------------------------------------------------------*/
-long int
-HeaderCRC::getNoBlocks() const
-{
-  return noBlocks;
-}
-
-/*----------------------------------------------------------------------------*/
-size_t
-HeaderCRC::getSizeLastBlock() const
-{
-  return sizeLastBlock;
-}
-
-/*----------------------------------------------------------------------------*/
-unsigned int
-HeaderCRC::getIdStripe() const
-{
-  return idStripe;
-}
-
-/*----------------------------------------------------------------------------*/
-void
-HeaderCRC::setNoBlocks( long int nblocks )
-{
-  noBlocks = nblocks;
-}
-
-/*----------------------------------------------------------------------------*/
-void
-HeaderCRC::setSizeLastBlock( size_t sizelastblock )
-{
-  sizeLastBlock = sizelastblock;
-}
-
-/*----------------------------------------------------------------------------*/
-void
-HeaderCRC::setIdStripe( unsigned int idstripe )
-{
-  idStripe = idstripe;
-}
-
-/*----------------------------------------------------------------------------*/
-bool
-HeaderCRC::isValid() const
-{
-  return valid;
-}
-
-/*----------------------------------------------------------------------------*/
-void
-HeaderCRC::setState( bool state )
-{
-  valid = state;
-}
-
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_END

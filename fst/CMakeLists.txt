@@ -130,11 +130,12 @@ add_executable( eos-raid-recover
 
 add_executable( eoscp 
                 txqueue/eoscp.cc
-		io/RaidIO.cc
-		io/RaidDpFile.cc
-		io/ReedSFile.cc
-		io/HeaderCRC.cc
-		io/AsyncRespHandler.hh
+		io/RaidIO.cc               io/RaidIO.hh
+		io/RaidDpFile.cc           io/RaidDpFile.hh
+		io/ReedSFile.cc            io/ReedSFile.hh
+		io/HeaderCRC.cc            io/HeaderCRC.hh
+		io/AsyncReadHandler.cc     io/AsyncReadHandler.hh
+		io/AsyncWriteHandler.cc    io/AsyncWriteHandler.hh
 		../common/Logging.cc
 		../common/Attr.cc
 		checksum/Adler.cc
