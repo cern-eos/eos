@@ -40,6 +40,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdClient/XrdClientConn.hh"
 /*----------------------------------------------------------------------------*/
 // this is needed because of some openssl definition conflict!
 #undef des_set_key

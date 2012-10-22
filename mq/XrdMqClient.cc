@@ -31,6 +31,7 @@ const char *XrdMqClientCVSID = "$Id: XrdMqClient.cc,v 1.0.0 2007/10/04 01:34:19 
 #include <XrdSys/XrdSysDNS.hh>
 #include <XrdSys/XrdSysTimer.hh>
 #include <XrdClient/XrdClientUrlSet.hh>
+#include <XrdClient/XrdClientConn.hh>
 
 #include <setjmp.h>
 #include <signal.h>

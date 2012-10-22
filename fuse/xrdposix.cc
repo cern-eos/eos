@@ -44,6 +44,7 @@
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientAdmin.hh"
+#include "XrdClient/XrdClientConn.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTable.hh"
 #include "XrdOuc/XrdOucString.hh"

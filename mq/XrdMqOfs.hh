@@ -57,6 +57,7 @@
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysSemWait.hh"
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "Xrd/XrdScheduler.hh"
