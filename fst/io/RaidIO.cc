@@ -42,7 +42,7 @@ RaidIO::RaidIO( std::string              algorithm,
                 bool                     storerecovery,
                 bool                     isstreaming,
                 off_t                    targetsize,
-                std::string              bookingopaque ):    
+                std::string              bookingopaque ):
   storeRecovery( storerecovery ),
   isStreaming( isstreaming ),
   nParityFiles( nparity ),
@@ -51,7 +51,7 @@ RaidIO::RaidIO( std::string              algorithm,
   bookingOpaque( bookingopaque ),
   stripeUrls( stripeurl )
 {
-  stripeWidth = getSizeStripe();
+  stripeWidth = GetSizeStripe();
   nTotalFiles = stripeUrls.size();
   nDataFiles = nTotalFiles - nParityFiles;
 
@@ -82,11 +82,11 @@ RaidIO::~RaidIO()
 {
   delete[] xrdFile;
   delete[] hdUrl;
-  
+
   while ( ! vReadHandler.empty() ) {
     vReadHandler.pop_back();
   }
-  
+
   while ( ! vWriteHandler.empty() ) {
     vWriteHandler.pop_back();
   }
@@ -120,8 +120,7 @@ RaidIO::open( int flags )
         fprintf( stdout, "error opening for read stripeUrl[%i] = %s. \n",
                  i, stripeUrls[i].c_str() );
         return -1;
-      }
-      else {
+      } else {
         fprintf( stdout, "opening for read stripeUrl[%i] = %s. \n", i, stripeUrls[i].c_str() );
       }
 
@@ -133,8 +132,7 @@ RaidIO::open( int flags )
         eos_err( "opening for write stripeUrl[%i] = %s.", i, stripeUrls[i].c_str() );
         fprintf( stdout, "opening for write stripeUrl[%i] = %s \n.", i, stripeUrls[i].c_str() );
         return -1;
-      }
-      else {
+      } else {
         fprintf( stdout, "error opening for write stripeUrl[%i] = %s \n.", i, stripeUrls[i].c_str() );
       }
 
@@ -171,7 +169,7 @@ RaidIO::open( int flags )
     }
   }
 
-  if ( !validateHeader() ) {
+  if ( !ValidateHeader() ) {
     eos_err( "Header invalid - can not continue" );
     fprintf( stdout, "Header invalid - can not continue.\n" );
     return -1;
@@ -197,7 +195,7 @@ RaidIO::open( int flags )
 // Test and recover if headers corrupted
 //------------------------------------------------------------------------------
 bool
-RaidIO::validateHeader()
+RaidIO::ValidateHeader()
 {
   bool newFile = true;
   bool allHdValid = true;
@@ -249,7 +247,7 @@ RaidIO::validateHeader()
     } else {
       mapUS.erase( i );
     }
-  } 
+  }
 
   mapSU.clear();
 
@@ -284,6 +282,7 @@ RaidIO::validateHeader()
 
           hdUrl[idUrl].writeToFile( xrdFile[idUrl] );
         }
+
         break;
       }
     }
@@ -352,12 +351,11 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
       mapErrors.insert( std::make_pair<off_t, size_t>( offset, nread ) );
 
       if ( ( offset % sizeGroup == 0 ) ) {
-        if ( !recoverPieces( offsetInit, dummyBuf, mapErrors ) ) {
+        if ( !RecoverPieces( offsetInit, dummyBuf, mapErrors ) ) {
           free( dummyBuf );
           eos_err( "error=failed recovery of stripe" );
           return -1;
-        }
-        else {
+        } else {
           mapErrors.clear();
         }
       }
@@ -374,7 +372,7 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
     // Normal reading mode
     //--------------------------------------------------------------------------
     int nGroupBlocks;
-    
+
     if ( algorithmType == "raidDP" ) {
       nGroupBlocks = static_cast<int>( pow( nDataFiles, 2 ) );
     } else if ( algorithmType == "reedS" ) {
@@ -404,9 +402,8 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
 
       if ( xrdFile[urlId] ) {
         vReadHandler[stripeId]->Increment();
-        xrdFile[urlId]->Read( offsetLocal + sizeHeader, nread, pBuff, vReadHandler[stripeId] );
-        //fprintf( stdout, "From stripe %i, we expect %i responses. \n",
-        //          stripeId, vReadHandler[stripeId]->GetNoResponses() );
+        xrdFile[urlId]->Read( offsetLocal + sizeHeader, nread,
+                              pBuff, vReadHandler[stripeId] );
       }
 
       length -= nread;
@@ -416,8 +413,6 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
 
       bool doRecovery = false;
       int nWaitReq = index % nGroupBlocks;
-      //fprintf( stdout, "Index: %li, nDataFiles = %u, length = %zu. \n",
-      //       index, nDataFiles, length );
 
       if ( ( length == 0 ) || ( nWaitReq == 0 ) ) {
         mapErrors.clear();
@@ -433,8 +428,7 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
               off_t offStripe = iter->first - sizeHeader;
               off_t offRel = ( offStripe / stripeWidth ) * ( nDataFiles * stripeWidth ) +
                              ( offStripe % stripeWidth ) + i * stripeWidth;
-              fprintf( stdout, "Error offset: %zu, length, %u and offsetInit: %zu. \n",
-                       offRel, iter->second, offsetInit );
+
               mapErrors.insert( std::make_pair<off_t, size_t>( offRel, iter->second ) );
             }
 
@@ -453,7 +447,7 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
       //------------------------------------------------------------------------
       // Try to recover blocks from group
       //------------------------------------------------------------------------
-      if ( doRecovery && ( !recoverPieces( offsetInit, buffer, mapErrors ) ) ) {
+      if ( doRecovery && ( !RecoverPieces( offsetInit, buffer, mapErrors ) ) ) {
         eos_err( "error=read recovery failed" );
         return -1;
       }
@@ -506,16 +500,15 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
     // Send write request
     //--------------------------------------------------------------------------
     vWriteHandler[stripeId]->Increment();
-    xrdFile[mapSU[stripeId]]->Write( offsetLocal + sizeHeader, nwrite, buffer, vWriteHandler[stripeId] );
+    xrdFile[mapSU[stripeId]]->Write( offsetLocal + sizeHeader, nwrite,
+                                     buffer, vWriteHandler[stripeId] );
 
     //--------------------------------------------------------------------------
     // Streaming mode - add data and try to compute parity, else add pice to map
     //--------------------------------------------------------------------------
     if ( isStreaming ) {
-     addDataBlock( offset, buffer, nwrite );
-    }
-    else {
-      fprintf( stdout, "Calling AddPiece in non-streaming mode. \n");
+      AddDataBlock( offset, buffer, nwrite );
+    } else {
       AddPiece( offset, nwrite );
     }
 
@@ -539,10 +532,10 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
   // Non-streaming mode - try to compute parity if enough data
   //------------------------------------------------------------------------------
   if ( !isStreaming && !SparseParityComputation( false ) ) {
-    eos_err("error= failed while doing SparseParityComputation");
+    eos_err( "error=failed while doing SparseParityComputation" );
     return -1;
   }
-    
+
   if ( offsetEnd > ( off_t )fileSize ) {
     fileSize = offsetEnd;
     doTruncate = true;
@@ -554,65 +547,54 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
 }
 
 
-//--------------------------------------------------------------------------
-//! Compute parity for the non-streaming case and write it to files
-//--------------------------------------------------------------------------
-bool RaidIO::SparseParityComputation( bool force ) {
+// -----------------------------------------------------------------------------
+// Compute and write parity blocks to files
+// -----------------------------------------------------------------------------
+void
+RaidIO::DoBlockParity( off_t offsetGroup )
+{
+  eos::common::Timing up( "parity" );
 
-  fprintf( stdout, "Calling SparseParityComputation. \n" );
-  bool ret = true;
-  std::set<off_t> offGroups;
+  COMMONTIMING( "Compute-In", &up );
+  // ---------------------------------------------------------------------------
+  // Compute parity blocks
+  // ---------------------------------------------------------------------------
+  ComputeParity();
+  COMMONTIMING( "Compute-Out", &up );
 
-  if ( mapPieces.empty() ) return false;
-  
-  MergePieces();
-  GetOffsetGroups(offGroups, force);
+  // ---------------------------------------------------------------------------
+  // Write parity blocks to files
+  // ---------------------------------------------------------------------------
+  WriteParityToFiles( offsetGroup );
+  COMMONTIMING( "WriteParity", &up );
 
-  if ( !offGroups.empty() ) {
-    for ( std::set<off_t>::iterator it = offGroups.begin();
-          it != offGroups.end();
-          it++ )
-      {
-        if ( ReadGroup( static_cast<off_t>( *it ) ) ) {
-          fprintf( stdout, "Do block parity for offsetGroup = %zu", *it );
-          doBlockParity( *it );
-        }
-        else {
-          ret = false;
-          break;
-        }
-      }
-  }
-
-  return ret;
+  fullDataBlocks = false;
+  //  up.Print();
 }
 
 
 //--------------------------------------------------------------------------
-//! Add a new piece to the map of pieces written to the file
-//!
-//! @param offset piece offset
-//! @param length piece length
-//!
+// Add a new piece to the map of pieces written to the file
 //--------------------------------------------------------------------------
-void RaidIO::AddPiece(off_t offset, size_t length) {
-
+void RaidIO::AddPiece( off_t offset, size_t length )
+{
   if ( mapPieces.count( offset ) ) {
     std::map<off_t, size_t>::iterator it = mapPieces.find( offset );
+
     if ( length > it->second ) {
       it->second = length;
     }
-  }
-  else {
-    mapPieces.insert(std::make_pair( offset, length ) );
+  } else {
+    mapPieces.insert( std::make_pair( offset, length ) );
   }
 }
 
 
 //--------------------------------------------------------------------------
-//! Merge pieces in the map
+// Merge pieces in the map
 //--------------------------------------------------------------------------
-void RaidIO::MergePieces() {
+void RaidIO::MergePieces()
+{
   off_t offsetEnd;
   std::map<off_t, size_t>::iterator it1 = mapPieces.begin();
   std::map<off_t, size_t>::iterator it2 = it1;
@@ -620,20 +602,152 @@ void RaidIO::MergePieces() {
 
   while ( it2 != mapPieces.end() ) {
     offsetEnd = it1->first + it1->second;
-    if ( offsetEnd >= it2->first ){
+
+    if ( offsetEnd >= it2->first ) {
       if ( offsetEnd >= static_cast<off_t>( it2->first + it2->second ) ) {
         mapPieces.erase( it2++ );
-      }
-      else {
+      } else {
         it1->second += ( it2->second - ( offsetEnd - it2->first ) );
-        mapPieces.erase(it2++);
+        mapPieces.erase( it2++ );
       }
-    }
-    else {
+    } else {
       it1++;
       it2++;
     }
   }
+}
+
+
+//--------------------------------------------------------------------------
+// Read data from the current group for parity computation
+//--------------------------------------------------------------------------
+bool
+RaidIO::ReadGroup( off_t offsetGroup )
+{
+  off_t offsetLocal;
+  bool ret = true;
+  int idStripe;
+
+  for ( unsigned int i = 0; i < nDataFiles; i++ ) {
+    vReadHandler[i]->Reset();
+  }
+
+  for ( unsigned int i = 0; i < nTotalBlocks; i++ ) {
+    memset( dataBlocks[i], 0, stripeWidth );
+  }
+
+  for ( unsigned int i = 0; i < nDataBlocks; i++ ) {
+    idStripe = i % nDataFiles;
+    offsetLocal = ( offsetGroup / ( nDataFiles * stripeWidth ) ) *  stripeWidth +
+                  ( ( i / nDataFiles ) * stripeWidth );
+
+    vReadHandler[idStripe]->Increment();
+    xrdFile[mapSU[idStripe]]->Read( offsetLocal + sizeHeader, stripeWidth,
+                                    dataBlocks[MapSmallToBig( i )], vReadHandler[idStripe] );
+  }
+
+  for ( unsigned int i = 0; i < nDataFiles; i++ ) {
+    if ( !vReadHandler[i]->WaitOK() ) {
+      eos_err( "err=error while reading data blocks" );
+      ret = false;
+    }
+  }
+
+  return ret;
+}
+
+
+//--------------------------------------------------------------------------
+// Get a list of the group offsets for which we can compute the parity info
+//--------------------------------------------------------------------------
+void
+RaidIO::GetOffsetGroups( std::set<off_t>& offGroups, bool forceAll )
+{
+  size_t length;
+  off_t offset;
+  off_t offGroup;
+  off_t offPieceEnd;
+  bool doneDelete ;
+
+  std::map<off_t, size_t>::iterator it = mapPieces.begin();
+
+  while ( it != mapPieces.end() ) {
+    doneDelete = false;
+    offset = it->first;
+    length = it->second;
+    offPieceEnd = offset + length;
+    offGroup = ( offset / sizeGroup ) *  sizeGroup;
+
+    if ( forceAll ) {
+      mapPieces.erase( it++ );
+      offGroups.insert( offGroup );
+      offGroup += sizeGroup;
+
+      while ( ( offGroup >= offset ) && ( offGroup <= offPieceEnd ) ) {
+        offGroups.insert( offGroup );
+        offGroup += sizeGroup;
+      }
+    } else {
+
+      if ( offGroup < offset ) offGroup += sizeGroup;
+
+      while ( ( offGroup <= offPieceEnd ) &&
+              ( static_cast<off_t>( offGroup + sizeGroup ) <= offPieceEnd ) ) {
+        if ( !doneDelete ) {
+          mapPieces.erase( it++ );
+          doneDelete = true;
+        }
+
+        if ( offGroup > offset ) {
+          mapPieces.insert( std::make_pair( offset, offGroup - offset ) );
+        }
+
+        //------------------------------------------------------------------------
+        // Save group offset in the list
+        //------------------------------------------------------------------------
+        offGroups.insert( offGroup );
+        offGroup += sizeGroup;
+      }
+
+      if ( doneDelete && ( static_cast<off_t>( offGroup + sizeGroup ) > offPieceEnd ) ) {
+        mapPieces.insert( std::make_pair( offGroup, offPieceEnd - offGroup ) );
+      }
+
+      if ( !doneDelete ) it++;
+    }
+  }
+}
+
+
+//--------------------------------------------------------------------------
+// Compute parity for the non-streaming case and write it to files
+//--------------------------------------------------------------------------
+bool
+RaidIO::SparseParityComputation( bool force )
+{
+
+  bool ret = true;
+  std::set<off_t> offGroups;
+
+  if ( mapPieces.empty() ) return false;
+
+  MergePieces();
+  GetOffsetGroups( offGroups, force );
+
+  if ( !offGroups.empty() ) {
+    for ( std::set<off_t>::iterator it = offGroups.begin();
+          it != offGroups.end();
+          it++ ) {
+      if ( ReadGroup( static_cast<off_t>( *it ) ) ) {
+        DoBlockParity( *it );
+      } else {
+        ret = false;
+        break;
+      }
+    }
+  }
+
+  return ret;
 }
 
 
@@ -685,6 +799,7 @@ RaidIO::remove()
   int rc = SFS_OK;
 
   for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
+    //TODO::
     //rc -= XrdPosixXrootd::Unlink(stripeUrls[i].c_str());
   }
 
@@ -731,16 +846,15 @@ RaidIO::close()
       truncate( fileSize );
     }
 
-    if ( isStreaming ){
+    if ( isStreaming ) {
       if ( ( offGroupParity != -1 ) &&
-           ( offGroupParity < static_cast<off_t>( fileSize ) ) )
-        {
-          doBlockParity( offGroupParity );
-        }
-    }
-    else {
+           ( offGroupParity < static_cast<off_t>( fileSize ) ) ) {
+        DoBlockParity( offGroupParity );
+      }
+    } else {
       SparseParityComputation( true );
     }
+
     //--------------------------------------------------------------------------
     // Update the header information and write it to all stripes
     //--------------------------------------------------------------------------

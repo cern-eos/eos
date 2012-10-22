@@ -32,7 +32,6 @@
 EOSFSTNAMESPACE_BEGIN
 
 #define VECTOR_SIZE 16    //used for computing XOR or 128 bits = 8 * 16
-typedef uint32_t u32;
 
 class RaidDpFile : public eos::fst::RaidIO
 {
@@ -62,6 +61,7 @@ class RaidDpFile : public eos::fst::RaidIO
     //! @param offset truncate value
     //!
     //! @return 0 if successful, otherwise error
+    //!
     // -------------------------------------------------------------------------
     virtual int truncate( off_t offset );
 
@@ -71,12 +71,6 @@ class RaidDpFile : public eos::fst::RaidIO
     virtual ~RaidDpFile();
 
   private:
-
-    unsigned int nDataBlocks;    //< no. data blocks in a group = nDataStripes^2
-    unsigned int nTotalBlocks;   //< no. data and parity blocks in a group
-
-    // virtual int updateParityForGroups(off_t offsetStart, off_t offsetEnd);
-    // virtual bool recoverPieces( char* buffer, off_t offset, size_t length );
 
     // -------------------------------------------------------------------------
     //! Recover pieces of corrupted data
@@ -88,54 +82,49 @@ class RaidDpFile : public eos::fst::RaidIO
     //! @return true if recovery was successful, otherwise false
     //!
     // -------------------------------------------------------------------------
-    virtual bool recoverPieces( off_t offsetInit,
+    virtual bool RecoverPieces( off_t offsetInit,
                                 char* buffer,
                                 std::map<off_t, size_t>& mapPiece );
 
     // -------------------------------------------------------------------------
     //! Add data block to compute parity stripes for current group of blocks
+    //!  - used for the streaming mode
     //!
     //! @param offset block offset
     //! @param buffer data buffer
     //! @param length data length
     //!
     // -------------------------------------------------------------------------
-    virtual void addDataBlock( off_t offset, char* buffer, size_t length );
-
-    // -------------------------------------------------------------------------
-    //! Compute and write parity blocks to files
-    //!
-    //! @param offsetGroup offset of group
-    //!
-    // -------------------------------------------------------------------------
-    virtual void doBlockParity( off_t offsetGroup );
+    virtual void AddDataBlock( off_t offset, char* buffer, size_t length );
 
     // -------------------------------------------------------------------------
     //! Compute parity information
     // -------------------------------------------------------------------------
-    void computeParity();
+    virtual void ComputeParity();
 
     // -------------------------------------------------------------------------
-    //! Compute XOR operation for two blocks of any size
-    //! @param input1 first input block
-    //! @param input2 second input block
-    //! @param result result of XOR operation
-    //! @param size size of input blocks
-    //!
-    // -------------------------------------------------------------------------
-    void operationXOR( char* /*block1*/,
-                       char* /*block2*/,
-                       char* /*result*/,
-                       size_t /*totalBytes*/ );
-
-    // -------------------------------------------------------------------------
-    //! Write parity inforamtion corresponding to a group to files
+    //! Write parity information corresponding to a group to files
     //!
     //! @param offsetGroup offset of the group of blocks
     //!
     //! @return 0 if successful, otherwise error
+    //!
     // -------------------------------------------------------------------------
-    int writeParityToFiles( off_t offsetGroup );
+    virtual int WriteParityToFiles( off_t offsetGroup );
+
+    // -------------------------------------------------------------------------
+    //! Compute XOR operation for two blocks of any size
+    //!
+    //! @param block1 first input block
+    //! @param block2 second input block
+    //! @param result result of XOR operation
+    //! @param totalBytes size of input blocks
+    //!
+    // -------------------------------------------------------------------------
+    void OperationXOR( char*  block1,
+                       char*  block2,
+                       char*  result,
+                       size_t totalBytes );
 
     // -------------------------------------------------------------------------
     //! Do recovery using simple parity - NOT USED!!
@@ -148,13 +137,13 @@ class RaidDpFile : public eos::fst::RaidIO
     //! @return true if successful, otherwise false
     //!
     // -------------------------------------------------------------------------
-    bool simpleParityRecover( char*  buffer,
+    bool SimpleParityRecover( char*  buffer,
                               off_t  offset,
                               size_t length,
                               int&   blockCorrupted );
 
     // -------------------------------------------------------------------------
-    //! Do recovery using simple or doube parity
+    //! Do recovery using simple and/or double parity
     //!
     //! @param offsetInit file offset corresponding to byte 0 from the buffer
     //! @param buffer buffer where to save the recovered data
@@ -163,19 +152,19 @@ class RaidDpFile : public eos::fst::RaidIO
     //! @return true if successful, otherwise error
     //!
     // -------------------------------------------------------------------------
-    bool doubleParityRecover( off_t                    offsetInit,
+    bool DoubleParityRecover( off_t                    offsetInit,
                               char*                    buffer,
                               std::map<off_t, size_t>& mapPieces );
 
     // -------------------------------------------------------------------------
     //! Return diagonal stripe corresponding to current block
     //!
-    //! id block id
+    //! @param blockId block id
     //!
-    //! @return vector containg the blocks on the diagonal stripe
+    //! @return vector containing the blocks on the diagonal stripe
     //!
     // -------------------------------------------------------------------------
-    std::vector<unsigned int> getDiagonalStripe( unsigned int blockId );
+    std::vector<unsigned int> GetDiagonalStripe( unsigned int blockId );
 
     // -------------------------------------------------------------------------
     //! Validate horizontal stripe for a block index
@@ -184,10 +173,10 @@ class RaidDpFile : public eos::fst::RaidIO
     //! @param statusBlock status of the blocks
     //! @param blockId current block index
     //!
-    //! @return true if successfull, otherwise false
+    //! @return true if successful, otherwise false
     //!
     // -------------------------------------------------------------------------
-    bool validHorizStripe( std::vector<unsigned int>& horizStripe,
+    bool ValidHorizStripe( std::vector<unsigned int>& horizStripe,
                            bool*                      statusBlock,
                            unsigned int               blockId );
 
@@ -198,32 +187,48 @@ class RaidDpFile : public eos::fst::RaidIO
     //! @param statusBlock status of the blocks
     //! @param blockId current block index
     //!
-    //! @return true if successfull, otherwise false
+    //! @return true if successful, otherwise false
     //!
     // -------------------------------------------------------------------------
-    bool validDiagStripe( std::vector<unsigned int>& diagStripe,
+    bool ValidDiagStripe( std::vector<unsigned int>& diagStripe,
                           bool*                      statusBlock,
                           unsigned int               blockId );
 
     // -------------------------------------------------------------------------
     //! Get indices of the simple parity blocks
+    //!
+    //! @return vecttor containing the values of the simple parity indices
+    //!
     // -------------------------------------------------------------------------
-    std::vector<unsigned int> getSimpleParityIndices();
+    std::vector<unsigned int> GetSimpleParityIndices();
 
     // -------------------------------------------------------------------------
     //! Get indices of the double parity blocks
+    //!
+    //! @return vector containing the values of the double parity indices
+    //!
     // -------------------------------------------------------------------------
-    std::vector<unsigned int> getDoubleParityIndices();
+    std::vector<unsigned int> GetDoubleParityIndices();
 
     // -------------------------------------------------------------------------
-    //! Get simple parity blocks corresponding to current block
+    //! Get simple parity block corresponding to current block
+    //!
+    //! @param elemFromStripe any element from the current stripe
+    //!
+    //! @return value of the simple parity index
+    //!
     // -------------------------------------------------------------------------
-    unsigned int getParityBlockId( unsigned int );
+    unsigned int GetSParityBlock( unsigned int elemFromStripe );
 
     // -------------------------------------------------------------------------
-    //! Get double parity blocks corresponding to current block
+    //! Get double parity blocks corresponding to current stripe
+    //!
+    //! @param stripe elements from the current stripe
+    //!
+    //! @return value of the double parity block
+    //!
     // -------------------------------------------------------------------------
-    unsigned int getDParityBlockId( std::vector<unsigned int> );
+    unsigned int GetDParityBlock( std::vector<unsigned int> stripe );
 
     // -------------------------------------------------------------------------
     //! Map index from nTotalBlocks representation to nDataBlocks
@@ -233,7 +238,7 @@ class RaidDpFile : public eos::fst::RaidIO
     //! @return index with values between 0 and 15, -1 if error
     //!
     // -------------------------------------------------------------------------
-    unsigned int mapBigToSmall( unsigned int idBig );
+    unsigned int MapBigToSmall( unsigned int idBig );
 
     // -------------------------------------------------------------------------
     //! Map index from nDataBlocks representation to nTotalBlocks
@@ -243,29 +248,7 @@ class RaidDpFile : public eos::fst::RaidIO
     //! @return index with values between 0 and 23, -1 if error
     //!
     // -------------------------------------------------------------------------
-    unsigned int mapSmallToBig( unsigned int idSmall );
-
-    //--------------------------------------------------------------------------
-    //! Non-streaming operation 
-    //! Get a set of the group offsets for which we can compute the parity info
-    //!
-    //! @param offGroups set of offsets of the groups for which we can
-    //!                  compute the parity
-    //! @param forceAll  get also the offsets of the groups for which
-    //!                  we don't have all the data
-    //!
-    //--------------------------------------------------------------------------
-    virtual void GetOffsetGroups(std::set<off_t>& offGroups, bool forceAll);
-
-    //--------------------------------------------------------------------------
-    //! Non-streaming operation 
-    //! Read data from the current group ofr parity computation
-    //!
-    //! @param offsetGroup offset of the grou about to be read
-    //!
-    //! @return true if operation successful, otherwise error
-    //--------------------------------------------------------------------------
-    virtual bool ReadGroup(off_t offsetGroup);
+    virtual unsigned int MapSmallToBig( unsigned int idSmall );
 
 };
 

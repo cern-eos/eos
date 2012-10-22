@@ -55,7 +55,7 @@ class RaidIO : public eos::common::LogId
     //! @param algorithm type of layout used
     //! @param stripeurl vector containing the location of the stripe files
     //! @param nparitystripes number of stripes used for parity
-    //! @param stroerecovery force writing back the recovered blocks to the files
+    //! @param storerecovery force writing back the recovered blocks to the files
     //! @param isstreaming file is written in streaming mode
     //! @param targetsize exepected size (?!)
     //! @param bookingopaque opaque information
@@ -65,7 +65,7 @@ class RaidIO : public eos::common::LogId
             std::vector<std::string> stripeurl,
             unsigned int             nparitystripes,
             bool                     storerecovery,
-            bool                     isstreaming, 
+            bool                     isstreaming,
             off_t                    targetsize = 0,
             std::string              bookingopaque = "oss.size" );
 
@@ -74,7 +74,8 @@ class RaidIO : public eos::common::LogId
     //!
     //! @param flags flags O_RDWR/O_RDONLY/O_WRONLY
     //!
-    //! @return o if successful, otherwise error
+    //! @return 0 if successful, otherwise error
+    //!
     //--------------------------------------------------------------------------
     virtual int open( int flags );
 
@@ -86,6 +87,7 @@ class RaidIO : public eos::common::LogId
     //! @param length length of the data
     //!
     //! @return length of data read
+    //!
     //--------------------------------------------------------------------------
     virtual int read( off_t offset, char* buffer, size_t length );
 
@@ -97,6 +99,7 @@ class RaidIO : public eos::common::LogId
     //! @param length length of the data
     //!
     //! @return length of data written
+    //!
     //--------------------------------------------------------------------------
     virtual int write( off_t offset, char* buffer, size_t length );
 
@@ -106,6 +109,7 @@ class RaidIO : public eos::common::LogId
     //! @param offset size to truncate
     //!
     //! @return 0 if successful, otherwise error
+    //!
     //--------------------------------------------------------------------------
     virtual int truncate( off_t offset ) = 0;
 
@@ -113,6 +117,7 @@ class RaidIO : public eos::common::LogId
     //! Unlink all connected pieces
     //!
     //! @return 0 if successful, otherwise error
+    //!
     //--------------------------------------------------------------------------
     virtual int remove();
 
@@ -120,6 +125,7 @@ class RaidIO : public eos::common::LogId
     //! Sync all connected pieces to disk
     //!
     //! @return 0 if successful, otherwise error
+    //!
     //--------------------------------------------------------------------------
     virtual int sync();
 
@@ -127,6 +133,7 @@ class RaidIO : public eos::common::LogId
     //! Close file
     //!
     //! @return 0 if successful, otherwise error
+    //!
     //--------------------------------------------------------------------------
     virtual int close();
 
@@ -136,6 +143,7 @@ class RaidIO : public eos::common::LogId
     //! @param buf stat structure for the file
     //!
     //! @return 0 if successful, otherwise error
+    //!
     //--------------------------------------------------------------------------
     virtual int stat( struct stat* buf );
 
@@ -147,7 +155,7 @@ class RaidIO : public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Get size of the stripe
     //--------------------------------------------------------------------------
-    static const int getSizeStripe() {
+    static const int GetSizeStripe() {
       return 1024 * 1024;     // 1MB
     };
 
@@ -168,12 +176,15 @@ class RaidIO : public eos::common::LogId
     bool doneRecovery;           //< mark if recovery done
     bool fullDataBlocks;         //< mark if we have all data blocks to compute parity
     bool storeRecovery;          //< set if recovery also triggers writing back to the
-                                 //< files this also means that all files must be available
+                                 //< files, this also means that all files must be available
     bool isStreaming;            //< file is written in streaming mode
 
     unsigned int nParityFiles;   //< number of parity files
     unsigned int nDataFiles;     //< number of data files
     unsigned int nTotalFiles;    //< total number of files ( data + parity )
+
+    unsigned int nDataBlocks;    //< no. data blocks in a group
+    unsigned int nTotalBlocks;   //< no. data and parity blocks in a group
 
     off_t targetSize;            //< expected final size (?!)
     off_t offGroupParity;        //< offset of the last group for which we
@@ -187,75 +198,128 @@ class RaidIO : public eos::common::LogId
 
     std::string algorithmType;   //< layout type used
     std::string bookingOpaque;   //< opaque information
-    std::vector<char*> dataBlocks;                 //< vector containg the data in a group
+    std::vector<char*> dataBlocks;                 //< vector containing the data in a group
     std::vector<std::string> stripeUrls;           //< urls of the stripe files
     std::vector<AsyncReadHandler*> vReadHandler;   //< async read handlers for each stripe
     std::vector<AsyncWriteHandler*> vWriteHandler; //< async write handlers for each stripe
     std::map<unsigned int, unsigned int> mapUS;    //< map of url to stripes
-    std::map<unsigned int, unsigned int> mapSU;    //< map os stripes to url
+    std::map<unsigned int, unsigned int> mapSU;    //< map of stripes to url
     std::map<off_t, size_t> mapPieces;             //< map of pieces written without doing
-                                                   //< parity computation for them 
+                                                   //< parity computation for them
 
     //--------------------------------------------------------------------------
     //! Test and recover any corrupted headers in the stripe files
     //--------------------------------------------------------------------------
-    virtual bool validateHeader();
+    virtual bool ValidateHeader();
 
     //--------------------------------------------------------------------------
     //! Recover corrupted pieces
+    //!
+    //! @param offsetInit file offset corresponding to byte 0 from the buffer
+    //! @param buffer container where we read the data
+    //! @param mapPieces map of corrupted pieces
+    //!
+    //! @return true if recovery successful, false otherwise
+    //!
     //--------------------------------------------------------------------------
-    virtual bool recoverPieces( off_t                    offsetInit,
+    virtual bool RecoverPieces( off_t                    offsetInit,
                                 char*                    buffer,
-                                 std::map<off_t, size_t>& mapPieces ) = 0;
+                                std::map<off_t, size_t>& mapPieces ) = 0;
 
     //--------------------------------------------------------------------------
-    //! Add new data block to the current group for parity computation
-    //--------------------------------------------------------------------------
-    virtual void addDataBlock( off_t offset, char* buffer, size_t length ) = 0;
-
-    //--------------------------------------------------------------------------
-    //! Compute and write parity blocks corresponding to a group
-    //--------------------------------------------------------------------------
-    virtual void doBlockParity( off_t offsetGroup ) = 0;
-
-    //--------------------------------------------------------------------------
-    //! Non-streaming operation 
-    //! Get a list of the group offsets for which we can compute the parity info
-    //--------------------------------------------------------------------------
-  virtual void GetOffsetGroups(std::set<off_t>& offGroups, bool forceAll) = 0;
-
-    //--------------------------------------------------------------------------
-    //! Non-streaming operation 
-    //! Read data from the current group ofr parity computation
+    //! Add new data block to the current group for parity computation, used
+    //! when writing a file in streaming mode
     //!
-    //! @param offsetGroup offset of the grou about to be read
+    //! @param offset offset of the block added
+    //! @param buffer data contained in the block
+    //! @param length length of the data
     //!
-    //! @return true if operation successful, otherwise error
     //--------------------------------------------------------------------------
-    virtual bool ReadGroup(off_t offsetGroup) = 0;
+    virtual void AddDataBlock( off_t offset, char* buffer, size_t length ) = 0;
 
- private:
+    // -------------------------------------------------------------------------
+    //! Compute and write parity blocks corresponding to a group of blocks
+    //!
+    //! @param offsetGroup offset of group
+    //!
+    // -------------------------------------------------------------------------
+    void DoBlockParity( off_t offsetGroup );
+
+    // -------------------------------------------------------------------------
+    //! Compute parity information for a group of blocks
+    // -------------------------------------------------------------------------
+    virtual void ComputeParity() = 0;
+
+    // -------------------------------------------------------------------------
+    //! Write parity information corresponding to a group to files
+    //!
+    //! @param offsetGroup offset of the group of blocks
+    //!
+    //! @return 0 if successful, otherwise error
+    //!
+    // -------------------------------------------------------------------------
+    virtual int WriteParityToFiles( off_t offsetGroup ) = 0;
+
+    // -------------------------------------------------------------------------
+    //! Map index from nDataBlocks representation to nTotalBlocks
+    //!
+    //! @param idSmall with values between 0 and 15, for exmaple in RAID-DP
+    //!
+    //! @return index with values between 0 and 23, -1 if error
+    //!
+    // -------------------------------------------------------------------------
+    virtual unsigned int MapSmallToBig( unsigned int idSmall ) = 0;
+
+  private:
 
     //--------------------------------------------------------------------------
     //! Non-streaming operation
     //! Add a new piece to the map of pieces written to the file
+    //!
+    //! @param offset offset of the new piece added
+    //! @param length length of the new piece added
+    //!
     //--------------------------------------------------------------------------
-    void AddPiece(off_t offset, size_t length);
+    void AddPiece( off_t offset, size_t length );
 
     //--------------------------------------------------------------------------
     //! Non-streaming operation
-    //! Merge the pieces from the map
+    //! Merge in place the pieces from the map
     //--------------------------------------------------------------------------
     void MergePieces();
-  
+
+    //--------------------------------------------------------------------------
+    //! Non-streaming operation
+    //! Get a list of the group offsets for which we can compute the parity info
+    //!
+    //! @param offGroup set of group offsets
+    //! @param forceAll if true return also offsets of incomplete groups
+    //!
+    //--------------------------------------------------------------------------
+    void GetOffsetGroups( std::set<off_t>& offGroups, bool forceAll );
+
+    //--------------------------------------------------------------------------
+    //! Non-streaming operation
+    //! Read data from the current group for parity computation
+    //!
+    //! @param offsetGroup offset of the group about to be read
+    //!
+    //! @return true if operation successful, otherwise error
+    //!
+    //--------------------------------------------------------------------------
+    bool ReadGroup( off_t offsetGroup );
+
     //--------------------------------------------------------------------------
     //! Non-streaming operation
     //! Compute parity for the non-streaming case and write it to files
     //!
-    //! @return true if successful, otherwise erro
+    //! @param force if true force parity computation of incomplete groups
+    //!
+    //! @return true if successful, otherwise error
+    //!
     //--------------------------------------------------------------------------
     bool SparseParityComputation( bool force );
- 
+
 };
 
 EOSFSTNAMESPACE_END
