@@ -464,9 +464,9 @@ XrdMgmOfs::PathRemap(const char* inpath, XrdOucString &outpath)
 
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfsDirectory::open(const char              *inpath, // In
+int XrdMgmOfsDirectory::open(const char          *inpath,   // In
                              const XrdSecEntity  *client,   // In
-                             const char              *ininfo)     // In
+                             const char        *ininfo)     // In
 /*
   Function: Open the directory `path' and prepare for reading.
 
@@ -3453,7 +3453,7 @@ int XrdMgmOfs::symlink(const char            *inpath,        // In
 /*----------------------------------------------------------------------------*/
 /* This function operations ONLY on directories !!!                           */
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::access( const char            *inpath,        // In
+int XrdMgmOfs::access( const char           *inpath,        // In
                        int                   mode,        // In
                        XrdOucErrInfo        &error,       // Out
                        const XrdSecEntity   *client,      // In
@@ -4711,7 +4711,7 @@ XrdMgmOfs::FSctl(const int               cmd,
         return SFS_DATA;
       */
     }
-
+    
     if (execmd == "access") {
       // ----------------------------------------------------------------------
       // check access rights
@@ -4723,22 +4723,22 @@ XrdMgmOfs::FSctl(const int               cmd,
       gOFS->MgmStats.Add("Fuse-Access",vid.uid,vid.gid,1);  
 
       char* smode;
-        if ((smode = env.Get("mode"))) {
+      if ((smode = env.Get("mode"))) {
         int newmode = atoi(smode);
         int retc =0;
-	if (access(spath.c_str(),newmode, error,client,0)) {
-	  retc = error.getErrInfo();
-	}
+        if (access(spath.c_str(),newmode, error,client,0)) {
+          retc = error.getErrInfo();
+        }
         XrdOucString response="access: retc=";
         response += retc;
         error.setErrInfo(response.length()+1,response.c_str());
         return SFS_DATA;
-        } else {
+      } else {
         XrdOucString response="access: retc=";
         response += EINVAL;
         error.setErrInfo(response.length()+1,response.c_str());
         return SFS_DATA;
-        }
+      }
     }
 
     if (execmd == "utimes") {

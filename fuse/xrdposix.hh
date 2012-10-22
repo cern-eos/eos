@@ -286,8 +286,6 @@ extern "C" {
 
   int            xrd_truncate( int fildes, off_t offset, unsigned long inode );
 
-  ssize_t        xrd_read( int fd, void* buf, size_t count, unsigned long inode );
-
   ssize_t        xrd_pread( int           fildes,
                             void*         buf,
                             size_t        nbyte,
@@ -295,11 +293,6 @@ extern "C" {
                             unsigned long inode );
 
   int            xrd_close( int fd, unsigned long inode );
-
-  ssize_t        xrd_write( int           fildes,
-                            const void*   buf,
-                            size_t        nbyte,
-                            unsigned long inode );
 
   ssize_t        xrd_pwrite( int           fildes,
                              const void*   buf,

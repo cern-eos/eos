@@ -81,8 +81,6 @@ void FuseCacheEntry::Update( int             no_entries,
   }
 
   b.p = static_cast<char*>( memcpy( b.p, buf->p, b.size * sizeof( char ) ) );
-
-  fprintf( stderr, "The buff contains: %s. \n", b.p );
 }
 
 //------------------------------------------------------------------------------
@@ -90,12 +88,10 @@ void FuseCacheEntry::Update( int             no_entries,
 //------------------------------------------------------------------------------
 void FuseCacheEntry::GetDirbuf( struct dirbuf*& buf )
 {
-  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__ );
   eos::common::RWMutexReadLock rd_lock( mutex );
   buf->size = b.size;
   buf->p = static_cast<char*>( calloc( buf->size, sizeof( char ) ) );
   buf->p = static_cast<char*>( memcpy( buf->p, b.p, buf->size * sizeof( char ) ) );
-  fprintf( stderr, "[%s] Returning from function. \n", __FUNCTION__ );
 }
 
 
