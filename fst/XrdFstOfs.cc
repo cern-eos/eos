@@ -342,6 +342,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   std::string watch_symkey       = "symkey";
   std::string watch_manager      = "manager";
   std::string watch_publishinterval = "publish.interval";
+  std::string watch_debuglevel   = "debug.level";
   std::string watch_gateway      = "txgw";
   std::string watch_gateway_rate = "gw.rate";
   std::string watch_gateway_ntx  = "gw.ntx";
@@ -353,6 +354,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   ObjectManager.ModificationWatchKeys.insert(watch_symkey);
   ObjectManager.ModificationWatchKeys.insert(watch_manager);
   ObjectManager.ModificationWatchKeys.insert(watch_publishinterval);
+  ObjectManager.ModificationWatchKeys.insert(watch_debuglevel);
   ObjectManager.ModificationWatchKeys.insert(watch_gateway);
   ObjectManager.ModificationWatchKeys.insert(watch_gateway_rate);
   ObjectManager.ModificationWatchKeys.insert(watch_gateway_ntx);
