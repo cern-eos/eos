@@ -655,7 +655,7 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
                         XrdSfsFileOpenMode   open_mode, // In
                         mode_t               Mode,      // In
                         const XrdSecEntity  *client,    // In
-                        const char          *info)      // In
+                        const char          *ininfo)    // In
 /*
   Function: Open the file `path' in the mode indicated by `open_mode'.  
 

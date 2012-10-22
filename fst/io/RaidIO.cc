@@ -331,11 +331,11 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
       if ( xrdFile[mapStripe_Url[stripeId]] &&
            ( !( xrdFile[mapStripe_Url[stripeId]]->Read( offsetLocal + sizeHeader, nread, buffer, aread ).IsOK() )  || ( aread != nread ) ) ) {
         eos_warning( "Read returned %ld instead of %ld bytes", aread, nread );
-        fprintf( stdout, "Read returned %zu instead of %ld bytes. \n", aread, nread );
+        fprintf( stdout, "Read returned %zu instead of %ld bytes. \n", (size_t)aread, (size_t)nread );
         doRecovery = true;
       }
 
-      TIMING( "read recovery", &rt );
+      COMMONTIMING( "read recovery", &rt );
 
       if ( doRecovery ) {
         if ( !recoverBlock( buffer, offset, nread ) ) {
@@ -379,7 +379,7 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
     nwrite = ( length < stripeWidth ) ? length : stripeWidth;
     offsetLocal = ( ( offset / ( nDataStripes * stripeWidth ) ) * stripeWidth ) + ( offset % stripeWidth );
 
-    TIMING( "write remote", &wt );
+    COMMONTIMING( "write remote", &wt );
     eos_info( "Write stripe=%u offset=%llu size=%u", stripeId, offsetLocal + sizeHeader, nwrite );
 
     if ( !( xrdFile[mapStripe_Url[stripeId]]->Write( offsetLocal + sizeHeader, nwrite, buffer ).IsOK() ) ) {

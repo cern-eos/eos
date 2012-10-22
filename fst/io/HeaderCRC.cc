@@ -99,7 +99,6 @@ bool HeaderCRC::readFromFile( XrdCl::File* f )
 //write the header to the file via XrdPosixXrootd
 int HeaderCRC::writeToFile( XrdCl::File* f )
 {
-  size_t nwrite;
   int offset = 0;
   char* buff = ( char* ) calloc( sizeHeader, sizeof( char ) );
 
