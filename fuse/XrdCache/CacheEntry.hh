@@ -38,7 +38,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 //------------------------------------------------------------------------------
-#include <XrdPosix/XrdPosixXrootd.hh>
+//TODO:: #include "XrdCl/XrdClFile.hh"
+//#include <XrdPosix/XrdPosixXrootd.hh>
 //------------------------------------------------------------------------------
 #include "FileAbstraction.hh"
 //------------------------------------------------------------------------------

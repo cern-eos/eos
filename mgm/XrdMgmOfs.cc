@@ -2345,7 +2345,7 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 
   eos_info("path=%s\n", spath.c_str());
 
-  if (!spath.beginswith("/")) {
+  if ( !spath.beginswith("/") ) { 
     errno = EINVAL;
     return Emsg(epname,error,EINVAL,"create directory - you have to specifiy an absolute pathname",path);
   }
@@ -2366,11 +2366,11 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
     // check for the parent directory
     if (spath != "/") {
       try {
-	dir = eosView->getContainer(cPath.GetParentPath());
+	dir = eosView->getContainer( cPath.GetParentPath() );
 	copydir = new eos::ContainerMD(*dir);
 	dir = copydir;
 	eos::ContainerMD::XAttrMap::const_iterator it;
-	for ( it = dir->attributesBegin(); it != dir->attributesEnd(); ++it) {
+	for ( it = dir->attributesBegin(); it != dir->attributesEnd(); ++it ) {
 	  attrmap[it->first] = it->second;
 	}
       } catch( eos::MDException &e ) {
@@ -2405,25 +2405,22 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	}
       }
       
-      eos_info("acl=%d r=%d w=%d wo=%d egroup=%d", acl.HasAcl(),acl.CanRead(),acl.CanWrite(),acl.CanWriteOnce(), acl.HasEgroup());
       bool stdpermcheck=false;
-      if (acl.HasAcl()) {
+      if ( acl.HasAcl() ) {
 	if ( (!acl.CanWrite()) && (!acl.CanWriteOnce()) ) {
 	  // we have to check the standard permissions
 	  stdpermcheck = true;
 	}
       } else {
-	stdpermcheck = true;
+	stdpermcheck = false;
       }
       
       // admin's can always create a directory
-      if (stdpermcheck && 
-	  (!dir->access(vid.uid,vid.gid, X_OK|W_OK))
-	  ) {
+      if ( stdpermcheck &&  ( !dir->access(vid.uid,vid.gid, X_OK|W_OK ) ) ) {
 	if (copydir) delete copydir;
-	errno = EPERM;
-	
-      return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
+
+        errno = EPERM;
+        return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
       }
     }
   }
@@ -3960,6 +3957,7 @@ int XrdMgmOfs::Redirect(XrdOucErrInfo   &error, // Error text & code
 }
 
 
+/*----------------------------------------------------------------------------*/
 int       
 XrdMgmOfs::fsctl(const int               cmd,
                  const char             *args,
@@ -4025,7 +4023,9 @@ XrdMgmOfs::FSctl(const int               cmd,
                  XrdSfsFSctl            &args,
                  XrdOucErrInfo          &error,
                  const XrdSecEntity     *client) 
-{  
+{
+
+  eos_static_info ("Calling FSctl. !!\n" );
   char ipath[16384];
   char iopaque[16384];
   
@@ -4072,7 +4072,7 @@ XrdMgmOfs::FSctl(const int               cmd,
   BOUNCE_NOT_ALLOWED;
 
   // from here on we can deal with XrdOucString which is more 'comfortable'
-  XrdOucString spath    = path;
+  XrdOucString spath   = path;
   XrdOucString opaque  = iopaque;
   XrdOucString result  = "";
   XrdOucEnv env(opaque.c_str());
@@ -4911,6 +4911,7 @@ XrdMgmOfs::FSctl(const int               cmd,
       struct stat buf;
 
       // check if it is a file or directory ....
+      eos_info( "Do stat on the path: %s. \n", spath.c_str() );
       int retc = lstat(spath.c_str(),
                        &buf,  
                        error, 

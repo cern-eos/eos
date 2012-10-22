@@ -2325,7 +2325,7 @@ XrdFstOfs::FSctl(const int               cmd,
   
   // accept only plugin calls!
 
-  if (cmd!=SFS_FSCTL_PLUGIN) {
+  if (cmd != SFS_FSCTL_PLUGIN) {
     return gOFS.Emsg(epname, error, EPERM, "execute non-plugin function", "");
   }
 

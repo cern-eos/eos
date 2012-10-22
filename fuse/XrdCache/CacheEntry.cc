@@ -412,7 +412,9 @@ CacheEntry::doWrite()
   
   for( ; iCurrent != iEnd; iCurrent++) {
     offsetRelative = iCurrent->first % getMaxSize();
-    retc = XrdPosixXrootd::Pwrite(fd, buffer + offsetRelative, iCurrent->second, iCurrent->first);
+    //TODO:: fix this by using the new client
+    //retc = XrdPosixXrootd::Pwrite(fd, buffer + offsetRelative, iCurrent->second, iCurrent->first);
+    retc = 0;
     if (retc != (int)iCurrent->second) {
       fprintf(stderr, "error=error while writing using XrdPosixXrootd\n");
       return retc;

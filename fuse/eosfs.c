@@ -137,7 +137,6 @@ static int eosdfs_readlink(const char *path, char *buf, size_t size)
 static int eosdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			    off_t offset, struct fuse_file_info *fi)
 {
-  DIR *dp;
   struct dirent *de;
   eosatime = time(0);    
   (void) offset;
@@ -149,20 +148,16 @@ static int eosdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
   strcat(rootpath,rdr);
   strcat(rootpath,path);
   
-  dp = xrd_opendir(rootpath);
-  if (dp == NULL)
-    return -errno;
-
   if (!strcmp(path,"/")) {
     filler(buf,".",NULL,0);
     filler(buf,"..",NULL,0);
   }
 
-  while ((de = xrd_readdir(dp)) != NULL) {
+  while ( (de = xrd_readdir( path ) ) != NULL) {
     if (filler(buf, de->d_name, NULL, 0))
       break;
   }
-  xrd_closedir(dp);
+
   return 0;
 }
 
@@ -182,7 +177,7 @@ static int eosdfs_mknod(const char *path, mode_t mode, dev_t rdev)
     res = xrd_open(rootpath, O_CREAT | O_EXCL | O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); 
     if (res == -1)
       return -errno;
-    xrd_close(res, xrd_simulate_p2i(path));
+    xrd_close(res, 0);
   }    
   return 0;
 }
@@ -227,12 +222,12 @@ static int eosdfs_unlink(const char *path)
   if (res == -1 && errno != ENOENT)  /* ofs.notify rm may have already done the job on CNS */
     return -errno;
 
-  xrd_forget_p2i(xrd_simulate_p2i(path));
+  xrd_forget_p2i( xrd_inode( path ) );
 
   return 0;
 }
 
-static int eosdfs_rmdir(const char *path)
+static int eosdfs_rmdir(const char* path)
 {
   int res;
   char rootpath[4096];
@@ -246,7 +241,7 @@ static int eosdfs_rmdir(const char *path)
   if (res == -1 && errno != ENOENT)
     return -errno;
 
-  xrd_forget_p2i(xrd_simulate_p2i(path));
+  xrd_forget_p2i( xrd_inode( path ) );
 
   return 0;
 }
@@ -341,8 +336,8 @@ static int eosdfs_truncate(const char *path, off_t size)
   if (res == -1)
     return -errno;
   
-  xrd_truncate(res, size,xrd_simulate_p2i(path));
-  xrd_close(res, xrd_simulate_p2i(path));
+  xrd_truncate(res, size, 0);
+  xrd_close(res, 0);
   return 0;
 }
 
@@ -392,7 +387,7 @@ static int eosdfs_read(const char *path, char *buf, size_t size, off_t offset,
   int res;
   eosatime = time(0);    
   fd = (int) fi->fh;
-  res = xrd_pread(fd, buf, size, offset, xrd_simulate_p2i(path));
+  res = xrd_pread(fd, buf, size, offset, 0);
   if (res == -1) {
     if (errno == ENOSYS)
       errno = EIO;
@@ -413,7 +408,7 @@ static int eosdfs_write(const char *path, const char *buf, size_t size,
   */
   eosatime = time(0);    
   fd = (int) fi->fh;
-  res = xrd_pwrite(fd, buf, size, offset, xrd_simulate_p2i(path));
+  res = xrd_pwrite(fd, buf, size, offset, 0);
   if (res == -1)
     res = -errno;
   
@@ -447,7 +442,7 @@ static int eosdfs_release(const char *path, struct fuse_file_info *fi)
   char rootpath[4096];
   eosatime = time(0);    
   fd = (int) fi->fh;
-  xrd_close(fd,xrd_simulate_p2i(path));
+  xrd_close(fd, 0);
   fi->fh = 0;
   return 0;
 }
@@ -602,7 +597,6 @@ int main(int argc, char *argv[])
   if (getenv("EOS_SOCKS4_HOST") && getenv("EOS_SOCKS4_PORT")) {
     fprintf(stdout,"EOS_SOCKS4_HOST=%s\n", getenv("EOS_SOCKS4_HOST"));
     fprintf(stdout,"EOS_SOCKS4_PORT=%s\n", getenv("EOS_SOCKS4_PORT"));
-    xrd_socks4(getenv("EOS_SOCKS4_HOST"),getenv("EOS_SOCKS4_PORT"));
   }
 
   rdr = rdrurl;
