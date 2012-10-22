@@ -1,7 +1,8 @@
-// ----------------------------------------------------------------------
-// File: ReplicaParLayout.hh
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file ReplicaParLayout.hh
+//! @author Andreas-Joachim Peters - CERN
+//! @brief Physical layout of a file with replicas
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -25,49 +26,168 @@
 #define __EOSFST_REPLICAPARLAYOUT_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "common/LayoutId.hh"
-#include "fst/Namespace.hh"
-#include "fst/XrdFstOfsFile.hh"
 #include "fst/layout/Layout.hh"
-/*----------------------------------------------------------------------------*/
-#include "XrdClient/XrdClient.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOfs/XrdOfs.hh"
-/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-class ReplicaParLayout : public Layout {
-private:
-  int nStripes;
+//------------------------------------------------------------------------------
+//! Class abstracting the phsysical layout of a file with replicas
+//------------------------------------------------------------------------------
+class ReplicaParLayout : public Layout
+{
+  public:
 
-  XrdClient* replicaClient[eos::common::LayoutId::kSixteenStripe];
-  XrdOucString replicaUrl[eos::common::LayoutId::kSixteenStripe];;
-  bool ioLocal;
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //!
+    //! @param file file handler
+    //! @param lid layout id
+    //! @param client security information
+    //! @param error error information
+    //!
+    //--------------------------------------------------------------------------
+    ReplicaParLayout( XrdFstOfsFile*      file,
+                      int                 lid,
+                      const XrdSecEntity* client,
+                      XrdOucErrInfo*      outError );
 
-public:
 
-  ReplicaParLayout(XrdFstOfsFile* thisFile,int lid, XrdOucErrInfo *error);
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    virtual ~ReplicaParLayout();
 
-  virtual int open(const char                *path,
-                   XrdSfsFileOpenMode   open_mode,
-                   mode_t               create_mode,
-                   const XrdSecEntity        *client,
-                   const char                *opaque);
-  
-  virtual int read(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length);
-  virtual int write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length);
-  virtual int truncate(XrdSfsFileOffset offset);
-  virtual int fallocate(XrdSfsFileOffset lenght);
-  virtual int fdeallocate(XrdSfsFileOffset fromoffset , XrdSfsFileOffset tooffset);
-  virtual int sync();
-  virtual int close();
-  virtual int remove();
 
-  virtual int stat(struct stat *buf);
+    //--------------------------------------------------------------------------
+    //! Open file
+    //!
+    //! @param path file path
+    //! @param flags open flags
+    //! @param mode open mode
+    //! @param opaque opaque information
+    //!
+    //! @return 0 on success, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Open( const std::string& path,
+                      XrdSfsFileOpenMode flags,
+                      mode_t             mode,
+                      const char*        opaque );
 
-  virtual ~ReplicaParLayout();
+
+    //--------------------------------------------------------------------------
+    //! Read from file
+    //!
+    //! @param offset offset
+    //! @param buffer place to hold the read data
+    //! @param length length
+    //!
+    //! @return number of bytes read or -1 if error
+    //!
+    //--------------------------------------------------------------------------
+    virtual int64_t Read( XrdSfsFileOffset offset,
+                          char*            buffer,
+                          XrdSfsXferSize   length );
+
+
+    //--------------------------------------------------------------------------
+    //! Write to file
+    //!
+    //! @param offset offset
+    //! @paramm buffer data to be written
+    //! @param length length
+    //!
+    //! @return number of bytes written or -1 if error
+    //!
+    //--------------------------------------------------------------------------
+    virtual int64_t Write( XrdSfsFileOffset offset,
+                           char*            buffer,
+                           XrdSfsXferSize   length );
+
+
+    //--------------------------------------------------------------------------
+    //! Truncate
+    //!
+    //! @param offset truncate file to this value
+    //!
+    //! @return 0 on success, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Truncate( XrdSfsFileOffset offset );
+
+
+    //--------------------------------------------------------------------------
+    //! Allocate file space
+    //!
+    //! @param length space to be allocated
+    //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Fallocate( XrdSfsFileOffset length );
+
+
+    //--------------------------------------------------------------------------
+    //! Deallocate file space
+    //!
+    //! @param fromOffset offset start
+    //! @param toOffset offset end
+    //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Fdeallocate( XrdSfsFileOffset fromOffset,
+                             XrdSfsFileOffset toOffset );
+
+
+    //--------------------------------------------------------------------------
+    //! Remove file
+    //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Remove();
+
+
+    //--------------------------------------------------------------------------
+    //! Sync file to disk
+    //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Sync();
+
+
+    //--------------------------------------------------------------------------
+    //! Get stats about the file
+    //!
+    //! @param buf stat buffer
+    //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Stat( struct stat* buf );
+
+
+    //--------------------------------------------------------------------------
+    //! Close file
+    //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Close();
+
+
+  private:
+    int mNumReplicas;         ///< number of replicas for current file
+    bool ioLocal;             ///< mark if we are to do local IO
+ 
+    std::vector<std::string> mReplicaUrl;  ///< URLs of the replica files
+
+    //! replica file object, index 0 is the local file 
+    std::vector<FileIo*>     mReplicaFile; 
+
 };
 
 EOSFSTNAMESPACE_END

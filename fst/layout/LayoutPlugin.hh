@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file FileIoPlugin.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class generating an IO plugin object
+//! @file LayoutPlugin.hh
+//! @author Andreas-Joachim Peters - CERN
+//! @brief Class generating a layout plugin object
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,15 +22,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_FILEIOPLUGIN_HH__
-#define __EOSFST_FILEIOPLUGIN_HH__
+#ifndef __EOSFST_LAYOUTPLUGIN_HH__
+#define __EOSFST_LAYOUTPLUGIN_HH__
 
 /*----------------------------------------------------------------------------*/
+#include "common/LayoutId.hh"
+#include "fst/layout/Layout.hh"
 #include "fst/Namespace.hh"
-#include "fst/XrdFstOfsFile.hh"
-/*----------------------------------------------------------------------------*/
-#include "fst/layout/LocalFileIo.hh"
-#include "fst/layout/XrdFileIo.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -38,28 +36,24 @@ EOSFSTNAMESPACE_BEGIN
 using eos::common::LayoutId;
 
 //------------------------------------------------------------------------------
-//! Class used to obtain a IO plugin object
+//! Class used to obtain a layout plugin object
 //------------------------------------------------------------------------------
-class FileIoPlugin
+class LayoutPlugin
 {
   public:
 
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    FileIoPlugin() {
-      //empty
-    };
+    LayoutPlugin();
 
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
-    ~FileIoPlugin() {
-      //empty
-    };
+    ~LayoutPlugin();
 
     //--------------------------------------------------------------------------
-    //! Get IO object
+    //! Get layout object
     //!
     //! @param file file handler
     //! @param layoutId layout id type
@@ -68,21 +62,10 @@ class FileIoPlugin
     //! @return requested layout type object
     //!
     //--------------------------------------------------------------------------
-    static FileIo* GetIoObject( XrdFstOfsFile*      file,
-                                int                 ioType,
-                                const XrdSecEntity* client,
-                                XrdOucErrInfo*      error ) {
-      
-      if ( ioType == LayoutId::kLocal ) {
-        return static_cast<FileIo*>( new LocalFileIo( file, client, error ) );
-      }
-
-      if ( ioType == LayoutId::kXrdCl ) {
-        return static_cast<FileIo*>( new XrdFileIo( file, client, error ) );
-      }
- 
-      return 0;
-    }
+    static Layout* GetLayoutObject( XrdFstOfsFile*      file,
+                                    unsigned int        layoutId,
+                                    const XrdSecEntity* client,
+                                    XrdOucErrInfo*      error );
 };
 
 EOSFSTNAMESPACE_END

@@ -31,7 +31,6 @@
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
-#include "fst/XrdFstOfsFile.hh"
 #include "fst/layout/FileIo.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -40,15 +39,8 @@
 
 EOSFSTNAMESPACE_BEGIN
 
+
 class XrdFstOfsFile;
-
-//------------------------------------------------------------------------------
-//! The truncate offset (1TB) is used to indicate that a file should be deleted
-//! during the close as there is no better interface usable via XrdClient to
-//! communicate a deletion on a open file
-//------------------------------------------------------------------------------
-#define EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN 1024 * 1024 * 1024 * 1024ll
-
 
 //------------------------------------------------------------------------------
 //! Class which abstracts the physical layout of the file
@@ -63,10 +55,7 @@ class Layout: public eos::common::LogId
     //! @param file file handler
     //!
     //--------------------------------------------------------------------------
-    Layout( XrdFstOfsFile* file ):
-      mOfsFile( file ) {
-      mName = "";
-    }
+    Layout( XrdFstOfsFile* file );
 
 
     //--------------------------------------------------------------------------
@@ -82,30 +71,13 @@ class Layout: public eos::common::LogId
     Layout( XrdFstOfsFile*      file,
             int                 lid,
             const XrdSecEntity* client,
-            XrdOucErrInfo*      outError ):
-      mLayoutId( lid ),
-      mOfsFile( file ),
-      mError( outError )
-    {
-      mSecEntity = const_cast<XrdSecEntity*>( client );
-      mName = eos::common::LayoutId::GetLayoutTypeString( mLayoutId );
-      mBlockChecksum = eos::common::LayoutId::GetBlockChecksum( lid );
-      mIsEntryServer = true;
-      mLocalPath = "";
-    }
+            XrdOucErrInfo*      outError );
 
 
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
-    virtual ~Layout() {
-      
-      while ( !mPhysicalFile.empty() ) {
-        FileIo* file_io = mPhysicalFile.back();
-        mPhysicalFile.pop_back();
-        delete file_io;
-      }
-    }
+    virtual ~Layout(); 
 
 
     //--------------------------------------------------------------------------
@@ -148,12 +120,12 @@ class Layout: public eos::common::LogId
     //! @param mode open mode
     //! @param opaque opaque information
     //!
-    //! @return 0 if successfull, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Open( const std::string&  path,
-                      uint16_t            flags,
-                      uint16_t            mode,
+                      XrdSfsFileOpenMode  flags,
+                      mode_t              mode,
                       const char*         opaque ) = 0;
 
 
@@ -164,12 +136,12 @@ class Layout: public eos::common::LogId
     //! @param buffer place to hold the read data
     //! @param length length
     //!
-    //! @return number fo bytes read
+    //! @return number of bytes read or -1 if error
     //!
     //--------------------------------------------------------------------------
-    virtual int Read( uint64_t offset,
-                      char*    buffer,
-                      uint32_t length ) = 0;
+    virtual int64_t Read( XrdSfsFileOffset offset,
+                          char*            buffer,
+                          XrdSfsXferSize   length ) = 0;
 
 
     //--------------------------------------------------------------------------
@@ -179,12 +151,12 @@ class Layout: public eos::common::LogId
     //! @paramm buffer data to be written
     //! @param length length
     //!
-    //! @return number of bytes written
+    //! @return number of bytes written or -1 if error
     //!
     //--------------------------------------------------------------------------
-    virtual int Write( uint64_t offset,
-                       char*    buffer,
-                       uint32_t length ) = 0;
+    virtual int64_t Write( XrdSfsFileOffset offset,
+                           char*            buffer,
+                           XrdSfsXferSize   length ) = 0;
 
 
     //--------------------------------------------------------------------------
@@ -192,10 +164,10 @@ class Layout: public eos::common::LogId
     //!
     //! @param offset truncate file to this value
     //!
-    //! @return 0 if successful, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Truncate( uint64_t offset ) = 0;
+    virtual int Truncate( XrdSfsFileOffset offset ) = 0;
 
 
     //--------------------------------------------------------------------------
@@ -203,10 +175,10 @@ class Layout: public eos::common::LogId
     //!
     //! @param length space to be allocated
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Fallocate( uint64_t lenght ) {
+    virtual int Fallocate( XrdSfsFileOffset lenght ) {
       return 0;
     }
 
@@ -217,11 +189,11 @@ class Layout: public eos::common::LogId
     //! @param fromOffset offset start
     //! @param toOffset offset end
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Fdeallocate( uint64_t fromOffset,
-                             uint64_t toOffset ) {
+    virtual int Fdeallocate( XrdSfsFileOffset fromOffset,
+                             XrdSfsFileOffset toOffset ) {
       return 0;
     }
 
@@ -229,7 +201,7 @@ class Layout: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Remove file
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Remove() {
@@ -240,7 +212,7 @@ class Layout: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Sync file to disk
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Sync() = 0;
@@ -249,7 +221,7 @@ class Layout: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Close file
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Close() = 0;
@@ -260,7 +232,7 @@ class Layout: public eos::common::LogId
     //!
     //! @param buf stat buffer
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Stat( struct stat* buf ) = 0;
@@ -277,8 +249,6 @@ class Layout: public eos::common::LogId
     XrdOucErrInfo* mError;              ///< error information for current file
     XrdSecEntity*  mSecEntity;          ///< security information
 
-    std::vector<FileIo*> mPhysicalFile; ///< vector of physical files depending on
-                                        ///< access protocol
 };
 
 EOSFSTNAMESPACE_END

@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/FileIoPlugin.hh"
+#include "fst/XrdFstOfsFile.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -34,17 +35,16 @@ EOSFSTNAMESPACE_BEGIN
 PlainLayout::PlainLayout( XrdFstOfsFile*      file,
                           int                 lid,
                           const XrdSecEntity* client,
-                          XrdOucErrInfo*      error ) :
-  Layout( file, lid, client, error )
+                          XrdOucErrInfo*      outError ) :
+  Layout( file, lid, client, outError )
 {
   //............................................................................
   // For the plain layout we use only LocalFileIo type
   //............................................................................
-  FileIo* fileIo = FileIoPlugin::GetIoObject( mOfsFile,
-                                              eos::common::LayoutId::kLocal,
-                                              mSecEntity,
-                                              mError );
-  mPhysicalFile.push_back( fileIo );
+  mPlainFile = FileIoPlugin::GetIoObject( mOfsFile,
+                                          eos::common::LayoutId::kLocal,
+                                          mSecEntity,
+                                          mError );
 }
 
 
@@ -54,7 +54,7 @@ PlainLayout::PlainLayout( XrdFstOfsFile*      file,
 
 PlainLayout::~PlainLayout()
 {
-  //empty
+  delete mPlainFile;
 }
 
 
@@ -62,36 +62,36 @@ PlainLayout::~PlainLayout()
 // Open File
 //------------------------------------------------------------------------------
 int
-PlainLayout::Open( const std::string&  path,
-                   uint16_t            flags,
-                   uint16_t            mode,
-                   const char*         opaque )
+PlainLayout::Open( const std::string& path,
+                   XrdSfsFileOpenMode flags,
+                   mode_t             mode,
+                   const char*        opaque )
 {
   eos_debug( "path = %s", path.c_str() );
   mLocalPath = path;
-  return mPhysicalFile[0]->Open( path, flags, mode, opaque );
+  return mPlainFile->Open( path, flags, mode, opaque );
 }
 
 
 //------------------------------------------------------------------------------
 // Read from file
 //------------------------------------------------------------------------------
-int
-PlainLayout::Read( uint64_t offset, char* buffer, uint32_t length )
+int64_t
+PlainLayout::Read( XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length )
 {
   eos_debug( "offset = %llu, length = %lu", offset, length );
-  return mPhysicalFile[0]->Read( offset, buffer, length );
+  return mPlainFile->Read( offset, buffer, length );
 }
 
 
 //------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
-int
-PlainLayout::Write( uint64_t offset, char* buffer, uint32_t length )
+int64_t
+PlainLayout::Write( XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length )
 {
   eos_debug( "offset = %llu, length = %lu", offset, length );
-  return mPhysicalFile[0]->Write( offset, buffer, length );
+  return mPlainFile->Write( offset, buffer, length );
 }
 
 
@@ -99,10 +99,10 @@ PlainLayout::Write( uint64_t offset, char* buffer, uint32_t length )
 // Truncate file
 //------------------------------------------------------------------------------
 int
-PlainLayout::Truncate( uint64_t offset )
+PlainLayout::Truncate( XrdSfsFileOffset offset )
 {
   eos_debug( "offset = %llu", offset );
-  return mPhysicalFile[0]->Truncate( offset );
+  return mPlainFile->Truncate( offset );
 }
 
 
@@ -110,10 +110,10 @@ PlainLayout::Truncate( uint64_t offset )
 // Reserve space for file
 //------------------------------------------------------------------------------
 int
-PlainLayout::Fallocate( uint64_t length )
+PlainLayout::Fallocate( XrdSfsFileOffset length )
 {
   eos_debug( "length = %llu", length );
-  return mPhysicalFile[0]->Fallocate( length );
+  return mPlainFile->Fallocate( length );
 }
 
 
@@ -121,10 +121,10 @@ PlainLayout::Fallocate( uint64_t length )
 // Deallocate reserved space
 //------------------------------------------------------------------------------
 int
-PlainLayout::Fdeallocate( uint64_t fromOffset, uint64_t toOffset )
+PlainLayout::Fdeallocate( XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset )
 {
   eos_debug( "from = %llu, to = %llu", fromOffset, toOffset );
-  return mPhysicalFile[0]->Fdeallocate( fromOffset, toOffset );
+  return mPlainFile->Fdeallocate( fromOffset, toOffset );
 }
 
 
@@ -135,7 +135,7 @@ int
 PlainLayout::Sync()
 {
   eos_debug( " " );
-  return mPhysicalFile[0]->Sync();
+  return mPlainFile->Sync();
 }
 
 
@@ -146,7 +146,7 @@ int
 PlainLayout::Stat( struct stat* buf )
 {
   eos_debug( " " );
-  return mPhysicalFile[0]->Stat( buf );
+  return mPlainFile->Stat( buf );
 }
 
 
@@ -157,7 +157,7 @@ int
 PlainLayout::Close()
 {
   eos_debug( " " );
-  return mPhysicalFile[0]->Close();
+  return mPlainFile->Close();
 }
 
 
@@ -168,7 +168,7 @@ int
 PlainLayout::Remove()
 {
   eos_debug( " " );
-  return mPhysicalFile[0]->Remove();
+  return mPlainFile->Remove();
 }
 
 EOSFSTNAMESPACE_END

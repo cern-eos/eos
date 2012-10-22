@@ -50,10 +50,10 @@
 #include <attr/xattr.h>
 #include <math.h>
 /*----------------------------------------------------------------------------*/
-// the global OFS handle
+
+
+// The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
-// the client admin table
-// the capability engine
 
 extern eos::fst::XrdFstOss* XrdOfsOss;
 extern XrdSysError          OfsEroute;
@@ -65,8 +65,9 @@ extern XrdOss*              XrdOssGetSS( XrdSysLogger*,
                                          const char*, 
                                          XrdVersionInfo& );
 
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 extern "C"
 {
   XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs, 
@@ -105,6 +106,44 @@ extern "C"
 }
 
 EOSFSTNAMESPACE_BEGIN
+
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+XrdFstOfs::XrdFstOfs() {
+  eos::common::LogId(); Eroute = 0; Messaging = 0; Storage = 0; TransferScheduler = 0; 
+  (void) signal(SIGINT,xrdfstofs_shutdown);
+  (void) signal(SIGTERM,xrdfstofs_shutdown);
+  (void) signal(SIGQUIT,xrdfstofs_shutdown);
+}
+
+
+//------------------------------------------------------------------------------
+// Destructor
+//-----------------------------------------------------------------------------
+XrdFstOfs::~XrdFstOfs() {
+  // empty
+}
+
+
+//------------------------------------------------------------------------------
+// Function newDir
+//-----------------------------------------------------------------------------
+XrdSfsDirectory*
+XrdFstOfs::newDir( char* user, int MonID ) {
+  return static_cast<XrdSfsDirectory*>( new XrdFstOfsDirectory( user, MonID ) );
+}
+
+
+//------------------------------------------------------------------------------
+// Function newFile
+//-----------------------------------------------------------------------------
+XrdSfsFile*
+XrdFstOfs::newFile( char* user, int MonID ) {
+  return static_cast<XrdSfsFile*>( new XrdFstOfsFile( user, MonID ) );
+}
+
 
 /*----------------------------------------------------------------------------*/
 void
@@ -476,7 +515,6 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   return 0;
 }
 
-/*----------------------------------------------------------------------------*/
 
 void 
 XrdFstOfs::SetSimulationError(const char* tag) {

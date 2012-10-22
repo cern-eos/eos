@@ -39,9 +39,13 @@ EOSFSTNAMESPACE_BEGIN
 LocalFileIo::LocalFileIo( XrdFstOfsFile*      file,
                           const XrdSecEntity* client,
                           XrdOucErrInfo*      error ):
-  FileIo( client, error )
+    FileIo( file, client, error )
 {
-  mOfsFile = file;
+  //............................................................................
+  // In this case the logical file is the same as the local file
+  //............................................................................
+
+  // empty
 }
 
 
@@ -59,36 +63,41 @@ LocalFileIo::~LocalFileIo()
 //------------------------------------------------------------------------------
 int
 LocalFileIo::Open( const std::string& path,
-                   uint16_t           flags,
-                   uint16_t           mode,
+                   XrdSfsFileOpenMode flags,
+                   mode_t             mode,
                    const std::string& opaque )
 {
   eos_debug( "path = %s", path.c_str() );
-  mIsOpen = true;
-  mPath = path;
-  return mOfsFile->openofs( path.c_str(), flags, mode, mSecEntity, opaque.c_str() );
+  return mLogicalFile->openofs( path.c_str(), flags, mode, mSecEntity, opaque.c_str() );
 }
 
 
 //------------------------------------------------------------------------------
 // Read from file
 //------------------------------------------------------------------------------
-uint32_t
-LocalFileIo::Read( uint64_t offset, char* buffer, uint32_t length )
+int64_t
+LocalFileIo::Read( XrdSfsFileOffset offset,
+                   char*            buffer,
+                   XrdSfsXferSize   length )
 {
-  eos_debug( "offset = %llu, length = %lu", offset, length );
-  return mOfsFile->readofs( offset, buffer, length );
+  eos_debug( "offset = %lli, length = %lli",
+             static_cast<int64_t>( offset ),
+             static_cast<int64_t>( length ) );
+  
+  return mLogicalFile->readofs( offset, buffer, length );
 }
 
 
 //------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
-uint32_t
-LocalFileIo::Write( uint64_t offset, char* buffer, uint32_t length )
+int64_t
+LocalFileIo::Write( XrdSfsFileOffset offset,
+                    char*            buffer,
+                    XrdSfsXferSize   length )
 {
   eos_debug( "offset = %llu, length = %lu", offset, length );
-  return mOfsFile->writeofs( offset, buffer, length );
+  return mLogicalFile->writeofs( offset, buffer, length );
 }
 
 
@@ -96,9 +105,9 @@ LocalFileIo::Write( uint64_t offset, char* buffer, uint32_t length )
 // Truncate file
 //------------------------------------------------------------------------------
 int
-LocalFileIo::Truncate( uint64_t offset )
+LocalFileIo::Truncate( XrdSfsFileOffset offset )
 {
-  return mOfsFile->truncateofs( offset );
+  return mLogicalFile->truncateofs( offset );
 }
 
 
@@ -106,11 +115,11 @@ LocalFileIo::Truncate( uint64_t offset )
 // Allocate space for file
 //------------------------------------------------------------------------------
 int
-LocalFileIo::Fallocate( uint64_t length )
+LocalFileIo::Fallocate( XrdSfsFileOffset length )
 {
   XrdOucErrInfo error;
 
-  if ( mOfsFile->fctl( SFS_FCTL_GETFD, 0, error ) )
+  if ( mLogicalFile->fctl( SFS_FCTL_GETFD, 0, error ) )
     return -1;
 
   int fd = error.getErrInfo();
@@ -136,11 +145,12 @@ LocalFileIo::Fallocate( uint64_t length )
 // Deallocate space reserved for file
 //------------------------------------------------------------------------------
 int
-LocalFileIo::Fdeallocate( uint64_t fromOffset, uint64_t toOffset )
+LocalFileIo::Fdeallocate( XrdSfsFileOffset fromOffset,
+                          XrdSfsFileOffset toOffset )
 {
   XrdOucErrInfo error;
 
-  if ( mOfsFile->fctl( SFS_FCTL_GETFD, 0, error ) )
+  if ( mLogicalFile->fctl( SFS_FCTL_GETFD, 0, error ) )
     return -1;
 
   int fd = error.getErrInfo();
@@ -170,7 +180,7 @@ LocalFileIo::Fdeallocate( uint64_t fromOffset, uint64_t toOffset )
 int
 LocalFileIo::Sync()
 {
-  return mOfsFile->syncofs();
+  return mLogicalFile->syncofs();
 }
 
 
@@ -181,7 +191,7 @@ int
 LocalFileIo::Stat( struct stat* buf )
 {
   eos_debug( " " );
-  return XrdOfsOss->Stat( mOfsFile->GetFstPath().c_str(), buf );
+  return XrdOfsOss->Stat( mLogicalFile->GetFstPath().c_str(), buf );
 }
 
 
@@ -192,7 +202,7 @@ int
 LocalFileIo::Close()
 {
   eos_debug( " " );
-  return mOfsFile->closeofs();
+  return mLogicalFile->closeofs();
 }
 
 
@@ -202,11 +212,21 @@ LocalFileIo::Close()
 int
 LocalFileIo::Remove()
 {
-  if ( mIsOpen ) {
-    return ::unlink( mPath.c_str() );
+  eos_debug( " " );
+  struct stat buf;
+  
+  if ( Stat( &buf ) ) {
+    //..........................................................................
+    // Only try to delete if there is something to delete!
+    //..........................................................................
+    eos_debug( "File exists, we are deleting it." );
+    return unlink( mLogicalFile->GetFstPath().c_str() );
   }
   
-  return 1;
+  return SFS_OK;
 }
 
+
 EOSFSTNAMESPACE_END
+
+

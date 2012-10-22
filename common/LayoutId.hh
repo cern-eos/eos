@@ -102,7 +102,29 @@ class LayoutId
     k1M      = 0x5,
   };
   
+  //--------------------------------------------------------------------------
+  //! Return layout type enum
+  //--------------------------------------------------------------------------
+  static unsigned long GetLayoutType( unsigned long layout )   {
+    return ( ( layout >> 4 ) & 0xf );
+  }
   
+  
+  //--------------------------------------------------------------------------
+  //! Return layout stripe enum
+  //--------------------------------------------------------------------------
+  static unsigned long GetStripeNumber( unsigned long layout ) {
+    return  ( ( layout >> 8 ) & 0xf );
+  }
+  
+  
+  //--------------------------------------------------------------------------
+  //! Return layout blocksize in bytes
+  //--------------------------------------------------------------------------
+  static unsigned long GetBlocksize( unsigned long layout )  {
+    return BlockSize( ( ( layout >> 16 ) & 0xf ) );
+  }
+
   //--------------------------------------------------------------------------
   //! Definition of stripe number
   //--------------------------------------------------------------------------

@@ -42,11 +42,14 @@ target_link_libraries (EosFstOss
 
 
 add_library (XrdEosFst MODULE
-	    layout/PlainLayout.cc
-	    layout/ReplicaParLayout.cc
+            XrdFstOfsFile.cc               XrdFstOfsFile.hh
   	    layout/FileIoPlugin.hh
 	    layout/LocalFileIo.cc         layout/LocalFileIo.hh
-
+            layout/XrdFileIo.cc            layout/XrdFileIo.hh
+	    layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
+	    layout/Layout.cc               layout/Layout.hh
+	    layout/PlainLayout.cc          layout/PlainLayout.hh
+	    layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
 	    checksum/Adler.cc
 	    checksum/CheckSum.cc
 	    storage/Storage.cc
@@ -172,7 +175,15 @@ if (Linux)
 
 endif(Linux)
 
-INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstinfo eos-adler32 eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-raid-recover)
+INSTALL_PROGRAMS( /sbin 
+		  FILES 
+		  tools/eosfstregister 
+		  tools/eosfstinfo 
+		  eos-adler32 
+		  eos-check-blockxs 
+		  eos-compute-blockxs 
+		  eos-scan-fs 
+		  eos-raid-recover)
 
 install ( TARGETS EosFstOss XrdEosFst eoscp
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}

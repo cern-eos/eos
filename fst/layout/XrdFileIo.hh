@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file FileIo.hh
+//! @file XrdClFileIo.hh
 //! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Abstract class modelling an IO plugin
+//! @brief Class used for doing remote IO operations unsing the xrd client
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,73 +22,59 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_FILEIO__HH__
-#define __EOSFST_FILEIO__HH__
-
+#ifndef __EOSFST_XRDFILEIO__HH__
+#define __EOSFST_XRDFILEIO__HH__
 
 /*----------------------------------------------------------------------------*/
-#include <string>
-/*----------------------------------------------------------------------------*/
-#include "common/Logging.hh"
-#include "fst/Namespace.hh"
+#include "fst/layout/FileIo.hh"
 #include "fst/XrdFstOfsFile.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+/*----------------------------------------------------------------------------*/
+#include "XrdCl/XrdClFile.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-class XrdFstOfsFile;
-
 //------------------------------------------------------------------------------
-//! The truncate offset (1TB) is used to indicate that a file should be deleted
-//! during the close as there is no better interface usable via XrdClient to
-//! communicate a deletion on a open file
+//! Class used for doing remote IO operations using the xrd client
 //------------------------------------------------------------------------------
-#define EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN 1024 * 1024 * 1024 * 1024ll
-
-
-//------------------------------------------------------------------------------
-//! Abstract class modelling an IO plugin
-//------------------------------------------------------------------------------
-class FileIo: public eos::common::LogId
+class XrdFileIo: public FileIo
 {
+
   public:
     //----------------------------------------------------------------------------
     //! Constructor
+    //!
+    //! @param handle to logical file
+    //! @param client security entity
+    //! @param error error information
+    //!
     //----------------------------------------------------------------------------
-    FileIo( XrdFstOfsFile*      file,
-            const XrdSecEntity* client,
-            XrdOucErrInfo*      error ):
-      mLogicalFile( file ),
-      mError( error ),
-      mSecEntity( client ) {
-      //empty
-    }
+    XrdFileIo( XrdFstOfsFile*      file,
+               const XrdSecEntity* client,
+               XrdOucErrInfo*      error );
 
 
     //----------------------------------------------------------------------------
     //! Destructor
     //----------------------------------------------------------------------------
-    virtual ~FileIo() {
-      //empty
-    }
+    virtual ~XrdFileIo();
 
 
     //----------------------------------------------------------------------------
     //! Open file
     //!
     //! @param path file path
-    //! @param flags open flags 
+    //! @param flags open flags
     //! @param mode open mode
     //! @param opaque opaque information
     //!
-    //! @return 0 if successful, -1 otherwise and error code is set
+    //! @return 0 on success, -1 otherwise and error code is set
     //!
     //----------------------------------------------------------------------------
     virtual int Open( const std::string& path,
                       XrdSfsFileOpenMode flags,
                       mode_t             mode,
-                      const std::string& opaque ) = 0;
+                      const std::string& opaque );
 
 
     //----------------------------------------------------------------------------
@@ -103,8 +89,8 @@ class FileIo: public eos::common::LogId
     //----------------------------------------------------------------------------
     virtual int64_t Read( XrdSfsFileOffset offset,
                           char*            buffer,
-                          XrdSfsXferSize   length ) = 0;
-  
+                          XrdSfsXferSize   length );
+
 
     //--------------------------------------------------------------------------
     //! Write to file
@@ -118,7 +104,8 @@ class FileIo: public eos::common::LogId
     //--------------------------------------------------------------------------
     virtual int64_t Write( XrdSfsFileOffset offset,
                            char*            buffer,
-                           XrdSfsXferSize   length ) = 0;
+                           XrdSfsXferSize   length );
+
 
 
     //--------------------------------------------------------------------------
@@ -126,38 +113,10 @@ class FileIo: public eos::common::LogId
     //!
     //! @param offset truncate file to this value
     //!
-    //! @return 0 if successful, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Truncate( XrdSfsFileOffset offset ) = 0;
-
-
-    //--------------------------------------------------------------------------
-    //! Allocate file space
-    //!
-    //! @param length space to be allocated
-    //!
     //! @return 0 on success, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Fallocate( XrdSfsFileOffset lenght ) {
-      return 0;
-    }
-
-
-    //--------------------------------------------------------------------------
-    //! Deallocate file space
-    //!
-    //! @param fromOffset offset start
-    //! @param toOffset offset end
-    //!
-    //! @return 0 on success, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Fdeallocate( XrdSfsFileOffset fromOffset,
-                             XrdSfsFileOffset toOffset ) {
-      return 0;
-    }
+    virtual int Truncate( XrdSfsFileOffset offset );
 
 
     //--------------------------------------------------------------------------
@@ -166,9 +125,7 @@ class FileIo: public eos::common::LogId
     //! @return 0 on success, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Remove() {
-      return 0;
-    }
+    virtual int Remove();
 
 
     //--------------------------------------------------------------------------
@@ -177,7 +134,7 @@ class FileIo: public eos::common::LogId
     //! @return 0 on success, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Sync() = 0;
+    virtual int Sync();
 
 
     //--------------------------------------------------------------------------
@@ -186,7 +143,7 @@ class FileIo: public eos::common::LogId
     //! @return 0 on success, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Close() = 0;
+    virtual int Close();
 
 
     //--------------------------------------------------------------------------
@@ -197,13 +154,13 @@ class FileIo: public eos::common::LogId
     //! @return 0 on success, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Stat( struct stat* buf ) = 0;
+    virtual int Stat( struct stat* buf );
 
-  protected:
+  private:
 
-    XrdFstOfsFile*      mLogicalFile; ///< handler to logical file
-    XrdOucErrInfo*      mError;       ///< error information
-    const XrdSecEntity* mSecEntity;   ///< security entity
+    std::string mPath;      ///< path to file
+    XrdCl::File* mXrdFile;  ///< handler to xrd file
+
 };
 
 EOSFSTNAMESPACE_END

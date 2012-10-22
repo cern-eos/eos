@@ -66,12 +66,12 @@ class LocalFileIo: public FileIo
     //! @param mode open mode
     //! @param opaque opaque information
     //!
-    //! @return 0 if successful, error code otherwise
+    //! @return 0 on success, -1 otherwise and error code is set
     //!
     //----------------------------------------------------------------------------
     virtual int Open( const std::string& path,
-                      uint16_t           flags,
-                      uint16_t           mode,
+                      XrdSfsFileOpenMode flags,
+                      mode_t           mode,
                       const std::string& opaque );
 
 
@@ -82,10 +82,12 @@ class LocalFileIo: public FileIo
     //! @param buffer where the data is read
     //! @param lenght read length
     //!
-    //! @return number of bytes read
+    //! @return number of bytes read or -1 if error
     //!
     //----------------------------------------------------------------------------
-    virtual uint32_t Read( uint64_t offset, char* buffer, uint32_t length );
+    virtual int64_t Read( XrdSfsFileOffset offset,
+                          char*            buffer,
+                          XrdSfsXferSize   length );
 
 
     //--------------------------------------------------------------------------
@@ -95,21 +97,23 @@ class LocalFileIo: public FileIo
     //! @paramm buffer data to be written
     //! @param length length
     //!
-    //! @return number of bytes written
+    //! @return number of bytes written or -1 if error
     //!
     //--------------------------------------------------------------------------
-    virtual uint32_t Write( uint64_t offset, char* buffer, uint32_t length );
-
-
+    virtual int64_t Write( XrdSfsFileOffset offset,
+                           char*            buffer,
+                           XrdSfsXferSize   length );
+  
+  
     //--------------------------------------------------------------------------
     //! Truncate
     //!
     //! @param offset truncate file to this value
     //!
-    //! @return 0 if successful, error code otherwise
+    //! @return 0 on success, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Truncate( uint64_t offset );
+    virtual int Truncate( XrdSfsFileOffset offset );
 
 
     //--------------------------------------------------------------------------
@@ -117,10 +121,10 @@ class LocalFileIo: public FileIo
     //!
     //! @param length space to be allocated
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 on success, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Fallocate( uint64_t lenght );
+    virtual int Fallocate( XrdSfsFileOffset lenght );
 
 
     //--------------------------------------------------------------------------
@@ -129,16 +133,17 @@ class LocalFileIo: public FileIo
     //! @param fromOffset offset start
     //! @param toOffset offset end
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 on success, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Fdeallocate( uint64_t fromOffset, uint64_t toOffset );
+    virtual int Fdeallocate( XrdSfsFileOffset fromOffset,
+                             XrdSfsFileOffset toOffset );
 
 
     //--------------------------------------------------------------------------
     //! Remove file
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 on success, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Remove();
@@ -147,7 +152,7 @@ class LocalFileIo: public FileIo
     //--------------------------------------------------------------------------
     //! Sync file to disk
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 on success, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Sync();
@@ -156,7 +161,7 @@ class LocalFileIo: public FileIo
     //--------------------------------------------------------------------------
     //! Close file
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 on success, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Close();
@@ -167,7 +172,7 @@ class LocalFileIo: public FileIo
     //!
     //! @param buf stat buffer
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 on success, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Stat( struct stat* buf );
@@ -175,8 +180,6 @@ class LocalFileIo: public FileIo
   private:
 
     bool mIsOpen;             ///< mark if file is opened
-    XrdFstOfsFile* mOfsFile;  ///< local file handler
-
 };
 
 EOSFSTNAMESPACE_END

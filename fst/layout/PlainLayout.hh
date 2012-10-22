@@ -26,17 +26,11 @@
 #define __EOSFST_PLAINLAYOUT_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "common/LayoutId.hh"
-#include "fst/Namespace.hh"
-#include "fst/XrdFstOfsFile.hh"
 #include "fst/layout/Layout.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOfs/XrdOfs.hh"
-/*----------------------------------------------------------------------------*/
+
 
 EOSFSTNAMESPACE_BEGIN
-
 
 //------------------------------------------------------------------------------
 //! Class abstracting the phsysical layout of a plain file
@@ -57,7 +51,7 @@ class PlainLayout : public Layout
     PlainLayout( XrdFstOfsFile*      file,
                  int                 lid,
                  const XrdSecEntity* client,
-                 XrdOucErrInfo*      error );
+                 XrdOucErrInfo*      outError );
 
   
     //--------------------------------------------------------------------------
@@ -74,11 +68,13 @@ class PlainLayout : public Layout
     //! @param mode open mode
     //! @param opaque opaque information
     //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
     //--------------------------------------------------------------------------
-    virtual int Open( const std::string&  path,
-                      uint16_t            flags,
-                      uint16_t            mode,
-                      const char*         opaque );
+    virtual int Open( const std::string& path,
+                      XrdSfsFileOpenMode flags,
+                      mode_t             mode,
+                      const char*        opaque );
 
   
     //--------------------------------------------------------------------------
@@ -88,12 +84,12 @@ class PlainLayout : public Layout
     //! @param buffer place to hold the read data
     //! @param length length
     //!
-    //! @return number of bytes read
+    //! @return number of bytes read or -1 if error
     //!
     //--------------------------------------------------------------------------
-    virtual int Read( uint64_t offset,
-                      char*    buffer,
-                      uint32_t length );
+    virtual int64_t Read( XrdSfsFileOffset offset,
+                          char*            buffer,
+                          XrdSfsXferSize   length );
 
 
     //--------------------------------------------------------------------------
@@ -103,12 +99,12 @@ class PlainLayout : public Layout
     //! @paramm buffer data to be written
     //! @param length length
     //!
-    //! @return number of bytes written
+    //! @return number of bytes written or -1 if error
     //!
     //--------------------------------------------------------------------------
-    virtual int Write( uint64_t offset,
-                       char*    buffer,
-                       uint32_t length );
+    virtual int64_t Write( XrdSfsFileOffset offset,
+                           char*            buffer,
+                           XrdSfsXferSize   length );
 
   
     //--------------------------------------------------------------------------
@@ -116,10 +112,10 @@ class PlainLayout : public Layout
     //!
     //! @param offset truncate file to this value
     //!
-    //! @return 0 if successful, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Truncate( uint64_t offset );
+    virtual int Truncate( XrdSfsFileOffset offset );
 
   
     //--------------------------------------------------------------------------
@@ -127,10 +123,10 @@ class PlainLayout : public Layout
     //!
     //! @param length space to be allocated
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Fallocate( uint64_t length );
+    virtual int Fallocate( XrdSfsFileOffset length );
 
   
     //--------------------------------------------------------------------------
@@ -139,17 +135,17 @@ class PlainLayout : public Layout
     //! @param fromOffset offset start
     //! @param toOffset offset end
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Fdeallocate( uint64_t fromOffset,
-                             uint64_t toOffset );
+    virtual int Fdeallocate( XrdSfsFileOffset fromOffset,
+                             XrdSfsFileOffset toOffset );
 
   
     //--------------------------------------------------------------------------
     //! Remove file
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Remove();
@@ -158,19 +154,10 @@ class PlainLayout : public Layout
     //--------------------------------------------------------------------------
     //! Sync file to disk
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Sync();
-
-  
-    //--------------------------------------------------------------------------
-    //! Close file
-    //!
-    //! @return 0 on success, error code otherwise
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Close();
 
   
     //--------------------------------------------------------------------------
@@ -178,11 +165,24 @@ class PlainLayout : public Layout
     //!
     //! @param buf stat buffer
     //!
-    //! @return 0 on success, error code otherwise
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Stat( struct stat* buf );
 
+
+    //--------------------------------------------------------------------------
+    //! Close file
+    //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Close();
+
+ private:
+
+  FileIo* mPlainFile; ///< file handler, in this case the same as the initial one  
+  
 };
 
 EOSFSTNAMESPACE_END
