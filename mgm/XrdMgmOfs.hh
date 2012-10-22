@@ -709,9 +709,6 @@ public:
   pthread_t stats_tid;                 // Thread Id of the stats thread
   pthread_t fslistener_tid;            // Thread ID of the fs listener thread
 
-  static void* StartMgmDeletion(void *pp);    //  Deletion Thread Starter
-  void  Deletion();                    //  Deletion Function
-
   bool  DeleteExternal(eos::common::FileSystem::fsid_t fsid, unsigned long long fid); // send an explicit deletion message to any fsid/fid pair
 
   static void* StartMgmStats(void *pp);       // Statistics circular buffer thread

@@ -1136,14 +1136,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
       eos_crit("cannot start file view loader");
       NoGo = 1;
     }
-    
-    // create deletion thread
-    eos_info("starting deletion thread");
-    if ((XrdSysThread::Run(&deletion_tid, XrdMgmOfs::StartMgmDeletion, static_cast<void *>(this),
-			   0, "Deletion Thread"))) {
-      eos_crit("cannot start deletion thread");
-      NoGo = 1;
-    }
   }
   
   eos_info("starting statistics thread");
@@ -1215,6 +1207,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("CommitFailedUnlinked",0,0,0);
   gOFS->MgmStats.Add("CopyStripe",0,0,0);
   gOFS->MgmStats.Add("DumpMd",0,0,0);
+  gOFS->MgmStats.Add("Drop",0,0,0);
   gOFS->MgmStats.Add("DropStripe",0,0,0);
   gOFS->MgmStats.Add("Exists",0,0,0);
   gOFS->MgmStats.Add("Exists",0,0,0);
@@ -1272,6 +1265,8 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("SchedulingFailedDrain",0,0,0);
   gOFS->MgmStats.Add("Scheduled2Balance",0,0,0);
   gOFS->MgmStats.Add("Scheduled2Drain",0,0,0);
+  gOFS->MgmStats.Add("Schedule2Delete",0,0,0);
+  gOFS->MgmStats.Add("Scheduled2Delete",0,0,0);
   gOFS->MgmStats.Add("SendResync",0,0,0);
   gOFS->MgmStats.Add("Stall",0,0,0);
   gOFS->MgmStats.Add("Stat",0,0,0);

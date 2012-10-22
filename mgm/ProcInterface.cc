@@ -1268,6 +1268,16 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		    retc = EFAULT;
 		  }
 		}
+
+		if ( key == "debug.level" ) {
+		  keyok=true;
+		  if (nodes[i]->SetConfigMember(key,value,false)) {
+		    stdOut += "success: setting debug level to '"; stdOut += value.c_str(); stdOut += "'";
+		  } else {
+		    stdErr += "error: failed to store debug level interval\n";
+		    retc = EFAULT;
+		  }
+		}
 		
 		if (!keyok) {
 		  stdErr += "error: the specified key is not known - consult the usage information of the command\n";
@@ -2069,10 +2079,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                 unsigned long long nfids_healthy =0;
                 unsigned long long nfids_risky   =0;
                 unsigned long long nfids_inaccessible =0;
+		unsigned long long nfids_todelete = 0;
 
 		eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);                         
                 try {
                   eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+                  eos::FileSystemView::FileList unlinkfilelist = gOFS->eosFsView->getUnlinkedFileList(fsid);
+		  nfids_todelete = unlinkfilelist.size();
+		  
                   nfids = (unsigned long long) filelist.size();
                   eos::FileSystemView::FileIterator it;
                   for (it = filelist.begin(); it != filelist.end(); ++it) {
@@ -2128,7 +2142,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                   stdOut += line;
                   snprintf(line,sizeof(line)-1,"%-32s := %10s (%.02f%%)\n","files inaccessbile", eos::common::StringConversion::GetSizeString(sizestring, nfids_inaccessible), nfids?(100.0*nfids_inaccessible)/nfids:100.0);
                   stdOut += line;
-
+                  snprintf(line,sizeof(line)-1,"%-32s := %10s\n","files pending deletion", eos::common::StringConversion::GetSizeString(sizestring, nfids_todelete));
+		  stdOut += line;
                   stdOut += "# ------------------------------------------------------------------------------------\n";
                 } catch ( eos::MDException &e ) {
                   errno = e.getErrno();

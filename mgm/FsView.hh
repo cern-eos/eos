@@ -218,6 +218,11 @@ public:
     if (!(GetConfigMember("symkey").length())) {
       SetConfigMember("symkey",symkey->GetKey64(),true, mName.c_str(), true); // we put the current sym key
     }
+
+    if (!(GetConfigMember("debug.level").length())) {
+      SetConfigMember("debug.level","notice",true, mName.c_str(), true); // we put to 'notice' by default
+    }
+
     if ( (GetConfigMember("txgw") != "on") && (GetConfigMember("txgw") != "off") ) {
       SetConfigMember("txgw","off", true, mName.c_str(), true); // by default node's aren't transfer gateways
     }
