@@ -91,6 +91,7 @@ int nparitystripes = 0;
 bool isSrcRaid = false;
 bool isRaidTransfer = false;
 bool storerecovery = false;
+bool isStreamFile= false;
 std::string replicationType ="";
 eos::fst::RaidIO* redundancyObj = NULL;
 
@@ -144,6 +145,7 @@ void usage() {
   fprintf(stderr, "       -e           : RAID layouts - error correction layout: raidDP/reedS\n");
   fprintf(stderr, "       -P           : RAID layouts - number of parity stripes\n");
   fprintf(stderr, "       -f           : RAID layouts - force the recovery of corrupted blocks and store the modifications\n");
+  fprintf(stderr, "       -F           : RAID layouts - streaming file\n");
  
   exit(-1);
 }
@@ -316,7 +318,7 @@ int main(int argc, char* argv[]) {
     dest_mode[i] = S_IRWXU | S_IRGRP | S_IROTH;
   }
 
-  while ( (c = getopt(argc, argv, "nshdvlipfe:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:O:")) != -1) {
+  while ( (c = getopt(argc, argv, "nshdvlipfe:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:O:F")) != -1) {
     switch(c) {
     case 'v':
       verbose = 1;
@@ -485,6 +487,9 @@ int main(int argc, char* argv[]) {
       break;
     case 'R':
       replicamode = 1;
+      break;
+    case 'F':
+      isStreamFile = true;
       break;
     case 'h':
     default:
@@ -897,10 +902,10 @@ int main(int argc, char* argv[]) {
     if (debug) {fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);}
     
     if (replicationType == "raidDP") {
-      redundancyObj = new eos::fst::RaidDpFile(vectUrl, nparitystripes, storerecovery);
+      redundancyObj = new eos::fst::RaidDpFile(vectUrl, nparitystripes, storerecovery, isStreamFile);
     }
     else if (replicationType == "reedS") {
-      redundancyObj = new eos::fst::ReedSFile(vectUrl, nparitystripes, storerecovery);
+      redundancyObj = new eos::fst::ReedSFile(vectUrl, nparitystripes, storerecovery, isStreamFile);
     }
     
     if (isSrcRaid && redundancyObj->open(flags)) {

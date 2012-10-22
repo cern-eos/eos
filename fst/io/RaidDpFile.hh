@@ -44,6 +44,7 @@ class RaidDpFile : public eos::fst::RaidIO
     //! @param stripeurl vector containing the urls of the stripe files
     //! @param nparity number of parity stripes
     //! @param storerecovery if true write back the recovered blocks to file
+    //! @param isstreaming file is written in streaming mode
     //! @param targetsize expected final size
     //! @param bookingpaque opaque information
     //!
@@ -51,6 +52,7 @@ class RaidDpFile : public eos::fst::RaidIO
     RaidDpFile( std::vector<std::string> stripeurl,
                 int                      nparity,
                 bool                     storerecovery,
+                bool                     isstreaming,
                 off_t                    targetsize = 0,
                 std::string              bookingopaque = "oss.size" );
 
@@ -242,6 +244,28 @@ class RaidDpFile : public eos::fst::RaidIO
     //!
     // -------------------------------------------------------------------------
     unsigned int mapSmallToBig( unsigned int idSmall );
+
+    //--------------------------------------------------------------------------
+    //! Non-streaming operation 
+    //! Get a set of the group offsets for which we can compute the parity info
+    //!
+    //! @param offGroups set of offsets of the groups for which we can
+    //!                  compute the parity
+    //! @param forceAll  get also the offsets of the groups for which
+    //!                  we don't have all the data
+    //!
+    //--------------------------------------------------------------------------
+    virtual void GetOffsetGroups(std::set<off_t>& offGroups, bool forceAll);
+
+    //--------------------------------------------------------------------------
+    //! Non-streaming operation 
+    //! Read data from the current group ofr parity computation
+    //!
+    //! @param offsetGroup offset of the grou about to be read
+    //!
+    //! @return true if operation successful, otherwise error
+    //--------------------------------------------------------------------------
+    virtual bool ReadGroup(off_t offsetGroup);
 
 };
 

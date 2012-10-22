@@ -48,6 +48,7 @@ class ReedSFile : public RaidIO
     ReedSFile( std::vector<std::string> stripeurl,
                int                      nparity,
                bool                     storerecovery,
+               bool                     isstreaming, 
                off_t                    targetsize = 0,
                std::string              bookingopaque = "oss.size" );
 
@@ -135,6 +136,28 @@ class ReedSFile : public RaidIO
                        unsigned int*        indexes,
                        vector<unsigned int> validId );
 
+    //--------------------------------------------------------------------------
+    //! Non-streaming operation 
+    //! Get a set of the group offsets for which we can compute the parity info
+    //!
+    //! @param offGroups set of offsets of the groups for which we can
+    //!                  compute the parity
+    //! @param forceAll  get also the offsets of the groups for which
+    //!                  we don't have all the data
+    //!
+    //--------------------------------------------------------------------------
+    virtual void GetOffsetGroups(std::set<off_t>& offGroups, bool forceAll);
+
+    //--------------------------------------------------------------------------
+    //! Non-streaming operation 
+    //! Read data from the current group ofr parity computation
+    //!
+    //! @param offsetGroup offset of the grou about to be read
+    //!
+    //! @return true if operation successful, otherwise error
+    //--------------------------------------------------------------------------
+    virtual bool ReadGroup(off_t offsetGroup);
+  
     //  virtual int updateParityForGroups(off_t offsetStart, off_t offsetEnd);
 };
 

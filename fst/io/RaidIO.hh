@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include <vector>
 #include <string>
+#include <list>
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "fst/io/HeaderCRC.hh"
@@ -55,6 +56,7 @@ class RaidIO : public eos::common::LogId
     //! @param stripeurl vector containing the location of the stripe files
     //! @param nparitystripes number of stripes used for parity
     //! @param stroerecovery force writing back the recovered blocks to the files
+    //! @param isstreaming file is written in streaming mode
     //! @param targetsize exepected size (?!)
     //! @param bookingopaque opaque information
     //!
@@ -63,6 +65,7 @@ class RaidIO : public eos::common::LogId
             std::vector<std::string> stripeurl,
             unsigned int             nparitystripes,
             bool                     storerecovery,
+            bool                     isstreaming, 
             off_t                    targetsize = 0,
             std::string              bookingopaque = "oss.size" );
 
@@ -133,7 +136,6 @@ class RaidIO : public eos::common::LogId
     //! @param buf stat structure for the file
     //!
     //! @return 0 if successful, otherwise error
-    //!
     //--------------------------------------------------------------------------
     virtual int stat( struct stat* buf );
 
@@ -167,10 +169,11 @@ class RaidIO : public eos::common::LogId
     bool fullDataBlocks;         //< mark if we have all data blocks to compute parity
     bool storeRecovery;          //< set if recovery also triggers writing back to the
                                  //< files this also means that all files must be available
+    bool isStreaming;            //< file is written in streaming mode
 
-    unsigned int noParity;       //< number of parity files
-    unsigned int noData;         //< number of data files
-    unsigned int noTotal;        //< total number of files ( data + parity )
+    unsigned int nParityFiles;   //< number of parity files
+    unsigned int nDataFiles;     //< number of data files
+    unsigned int nTotalFiles;    //< total number of files ( data + parity )
 
     off_t targetSize;            //< expected final size (?!)
     off_t offGroupParity;        //< offset of the last group for which we
@@ -190,6 +193,8 @@ class RaidIO : public eos::common::LogId
     std::vector<AsyncWriteHandler*> vWriteHandler; //< async write handlers for each stripe
     std::map<unsigned int, unsigned int> mapUS;    //< map of url to stripes
     std::map<unsigned int, unsigned int> mapSU;    //< map os stripes to url
+    std::map<off_t, size_t> mapPieces;             //< map of pieces written without doing
+                                                   //< parity computation for them 
 
     //--------------------------------------------------------------------------
     //! Test and recover any corrupted headers in the stripe files
@@ -213,6 +218,44 @@ class RaidIO : public eos::common::LogId
     //--------------------------------------------------------------------------
     virtual void doBlockParity( off_t offsetGroup ) = 0;
 
+    //--------------------------------------------------------------------------
+    //! Non-streaming operation 
+    //! Get a list of the group offsets for which we can compute the parity info
+    //--------------------------------------------------------------------------
+  virtual void GetOffsetGroups(std::set<off_t>& offGroups, bool forceAll) = 0;
+
+    //--------------------------------------------------------------------------
+    //! Non-streaming operation 
+    //! Read data from the current group ofr parity computation
+    //!
+    //! @param offsetGroup offset of the grou about to be read
+    //!
+    //! @return true if operation successful, otherwise error
+    //--------------------------------------------------------------------------
+    virtual bool ReadGroup(off_t offsetGroup) = 0;
+
+ private:
+
+    //--------------------------------------------------------------------------
+    //! Non-streaming operation
+    //! Add a new piece to the map of pieces written to the file
+    //--------------------------------------------------------------------------
+    void AddPiece(off_t offset, size_t length);
+
+    //--------------------------------------------------------------------------
+    //! Non-streaming operation
+    //! Merge the pieces from the map
+    //--------------------------------------------------------------------------
+    void MergePieces();
+  
+    //--------------------------------------------------------------------------
+    //! Non-streaming operation
+    //! Compute parity for the non-streaming case and write it to files
+    //!
+    //! @return true if successful, otherwise erro
+    //--------------------------------------------------------------------------
+    bool SparseParityComputation( bool force );
+ 
 };
 
 EOSFSTNAMESPACE_END
