@@ -46,7 +46,7 @@ private:
   void computeParity();
   int writeParityToFiles( off_t offsetGroup );
 
-  virtual bool recoverBlock( char* buffer, off_t offset, size_t length );
+  virtual bool recoverBlock( char* buffer, std::map<off_t, size_t> &mapPieces, off_t offset );
   virtual void addDataBlock( off_t offset, char* buffer, size_t length );
   virtual void computeDataBlocksParity( off_t offsetGroup );
   //  virtual int updateParityForGroups(off_t offsetStart, off_t offsetEnd);

@@ -1665,6 +1665,10 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
     return gOFS.Emsg("readofs", error, EIO, "read file - simulated IO error fn=",
                      capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
   }
+
+  /* !!!! THIS IS JUST A WORKAROUND (Lukasz?!) - return 0 when end of file !!!*/
+  if ( retc == 0 )
+    retc = -1;
   
   return retc;
 }

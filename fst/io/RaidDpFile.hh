@@ -50,7 +50,8 @@ private:
   unsigned int nTotalBlocks;         //no. data and parity blocks in a group
 
   //  virtual int updateParityForGroups(off_t offsetStart, off_t offsetEnd);
-  virtual bool recoverBlock( char* buffer, off_t offset, size_t length );
+  //virtual bool recoverBlock( char* buffer, off_t offset, size_t length );
+  virtual bool recoverBlock( char* buffer, std::map<off_t, size_t>& mapPiece, off_t offsetInit );
   virtual void addDataBlock( off_t offset, char* buffer, size_t length );
   virtual void computeDataBlocksParity( off_t offsetGroup );
 
@@ -59,7 +60,7 @@ private:
 
   int writeParityToFiles( off_t offsetGroup );
   bool simpleParityRecover( char* buffer, off_t offset, size_t length, int& blockCorrupted );
-  bool doubleParityRecover( char* buffer, off_t offset, size_t lenfth );
+  bool doubleParityRecover( char* buffer, std::map<off_t, size_t> &mapPieces, off_t offsetInit );
 
   std::vector<unsigned int> getDiagonalStripe( unsigned int ); //return diagonal stripe corresponding to current block
   bool validHorizStripe( std::vector<unsigned int>&, bool*, unsigned int ); //validate horizontal stripe

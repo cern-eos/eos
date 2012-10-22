@@ -175,10 +175,11 @@ RaidDpFile::operationXOR( char* stripe1, char* stripe2, char* result, size_t tot
 /*----------------------------------------------------------------------------*/
 //try to recover the block at the current offset
 bool
-RaidDpFile::recoverBlock( char* buffer, off_t offset, size_t length )
+//RaidDpFile::recoverBlock( char* buffer, off_t offset, size_t length )
+RaidDpFile::recoverBlock( char* buffer, std::map<off_t, size_t>& mapPieces, off_t offset )
 {
   //use double parity to check(recover) also diagonal parity blocks
-  doneRecovery = doubleParityRecover( buffer, offset, length );
+  doneRecovery = doubleParityRecover( buffer, mapPieces, offset );
   return doneRecovery;
 }
 
@@ -257,14 +258,17 @@ RaidDpFile::simpleParityRecover( char* buffer, off_t offset, size_t length, int&
 /*----------------------------------------------------------------------------*/
 //use double parity to recover the stripe, return true if successfully reconstruted
 bool
-RaidDpFile::doubleParityRecover( char* buffer, off_t offset, size_t length )
+RaidDpFile::doubleParityRecover( char* buffer, std::map<off_t, size_t> &mapPieces, off_t offsetInit )
 {
   uint32_t aread;
   bool* statusBlock;
+  char* pBuff;
+  size_t length;
+  off_t offsetLocal;
   unsigned int idStripe;
   vector<int> corruptId;
   vector<int> excludeId;
-  off_t offsetLocal;
+  off_t offset = mapPieces.begin()->first;
   off_t offsetGroup = ( offset / sizeGroupBlocks ) * sizeGroupBlocks;
 
   vector<unsigned int> simpleParityIndx = getSimpleParityIndices();
@@ -282,7 +286,7 @@ RaidDpFile::doubleParityRecover( char* buffer, off_t offset, size_t length )
     if ( xrdFile[mapStripe_Url[idStripe]] &&
          ( !( xrdFile[mapStripe_Url[idStripe]]->Read( offsetLocal + sizeHeader, stripeWidth, dataBlocks[i], aread ).IsOK() ) || ( aread != stripeWidth ) ) ) {
       eos_err( "Read stripe %s - corrupted block \n", stripeUrls[mapStripe_Url[i]].c_str() );
-      fprintf( stdout, "Read stripe %s - corrupted block \n", stripeUrls[mapStripe_Url[i]].c_str() );
+      //fprintf( stdout, "Read stripe %s - corrupted block \n", stripeUrls[mapStripe_Url[i]].c_str() );
       statusBlock[i] = false;
       corruptId.push_back( i );
     }
@@ -297,13 +301,13 @@ RaidDpFile::doubleParityRecover( char* buffer, off_t offset, size_t length )
 
   while ( !corruptId.empty() ) {
     idBlockCorrupted = corruptId.back();
-    fprintf( stdout, "Recovering block id %i from a number of %zu\n", idBlockCorrupted, corruptId.size() );
+    //fprintf( stdout, "Recovering block id %i from a number of %zu\n", idBlockCorrupted, corruptId.size() );
     corruptId.pop_back();
-    fprintf( stdout, "After pop there are %zu corrupted elem left\n", corruptId.size() );
+    //fprintf( stdout, "After pop there are %zu corrupted elem left\n", corruptId.size() );
 
     if ( validHorizStripe( horizontalStripe, statusBlock, idBlockCorrupted ) ) {
       //try to recover using simple parity
-      fprintf( stdout, "Recover using simple parity. \n" );
+      //fprintf( stdout, "Recover using simple parity. \n" );
       memset( dataBlocks[idBlockCorrupted], 0, stripeWidth );
 
       for ( unsigned int ind = 0;  ind < horizontalStripe.size(); ind++ ) {
@@ -321,22 +325,32 @@ RaidDpFile::doubleParityRecover( char* buffer, off_t offset, size_t length )
                     ( ( idBlockCorrupted / nTotalStripes ) * stripeWidth );
 
       if ( storeRecovery ) {
+        //fprintf( stdout, "Write stripe %i - offset = %zu, length = %zu",
+        //         stripeId, offsetLocal + sizeHeader, stripeWidth );
         if ( !( xrdFile[mapStripe_Url[stripeId]]->Write( offsetLocal + sizeHeader,
                 stripeWidth,
                 dataBlocks[idBlockCorrupted] ).IsOK() ) ) {
           free( statusBlock );
           eos_err( "Write stripe %s- write failed", stripeUrls[mapStripe_Url[stripeId]].c_str() );
-          fprintf( stdout, "Write stripe %s- write failed", stripeUrls[mapStripe_Url[stripeId]].c_str() );
+          //fprintf( stdout, "Write stripe %s- write failed", stripeUrls[mapStripe_Url[stripeId]].c_str() );
           return -1;
         }
       }
 
-      //if not SP or DP, maybe we have to return it
-      if ( find( simpleParityIndx.begin(), simpleParityIndx.end(), idBlockCorrupted ) == simpleParityIndx.end() &&
-           find( doubleParityIndx.begin(), doubleParityIndx.end(), idBlockCorrupted ) == doubleParityIndx.end() ) {
-        if ( ( offset >= ( off_t )( offsetGroup + mapBigToSmallBlock( idBlockCorrupted ) * stripeWidth ) ) &&
-             ( offset < ( off_t )( offsetGroup + ( mapBigToSmallBlock( idBlockCorrupted ) + 1 ) * stripeWidth ) ) ) {
-          memcpy( buffer, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length );
+      for ( std::map<off_t, size_t>::iterator iter = mapPieces.begin(); iter != mapPieces.end(); iter++ ){
+        offset = iter->first;
+        length = iter->second;
+        
+        //if not SP or DP, maybe we have to return it
+        if ( find( simpleParityIndx.begin(), simpleParityIndx.end(), idBlockCorrupted ) == simpleParityIndx.end() &&
+             find( doubleParityIndx.begin(), doubleParityIndx.end(), idBlockCorrupted ) == doubleParityIndx.end() ) {
+          if ( ( offset >= ( off_t )( offsetGroup + mapBigToSmallBlock( idBlockCorrupted ) * stripeWidth ) ) &&
+               ( offset < ( off_t )( offsetGroup + ( mapBigToSmallBlock( idBlockCorrupted ) + 1 ) * stripeWidth ) ) )
+          {
+            //fprintf( stdout, "Copy block back to calling buffer. \n" );
+            pBuff = buffer + ( offset - offsetInit);
+            memcpy( pBuff, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length );
+          }
         }
       }
 
@@ -350,7 +364,7 @@ RaidDpFile::doubleParityRecover( char* buffer, off_t offset, size_t length )
       statusBlock[idBlockCorrupted] = true;
     } else {
       //try to recover using double parity
-      fprintf( stdout, "Recover using simple double. \n" );
+      //fprintf( stdout, "Recover using double parity. \n" );
 
       if ( validDiagStripe( diagonalStripe, statusBlock, idBlockCorrupted ) ) {
         //reconstruct current block and write it back to file
@@ -380,12 +394,17 @@ RaidDpFile::doubleParityRecover( char* buffer, off_t offset, size_t length )
           }
         }
 
-        //if not sp or dp, maybe we have to return it
-        if ( find( simpleParityIndx.begin(), simpleParityIndx.end(), idBlockCorrupted ) == simpleParityIndx.end() &&
-             find( doubleParityIndx.begin(), doubleParityIndx.end(), idBlockCorrupted ) == doubleParityIndx.end() ) {
-          if ( ( offset >= ( off_t )( offsetGroup + mapBigToSmallBlock( idBlockCorrupted ) * stripeWidth ) ) &&
-               ( offset < ( off_t )( offsetGroup + ( mapBigToSmallBlock( idBlockCorrupted ) + 1 ) * stripeWidth ) ) ) {
-            memcpy( buffer, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length );
+        for ( std::map<off_t, size_t>::iterator iter = mapPieces.begin(); iter != mapPieces.end(); iter++ ){
+          offset = iter->first;
+          length = iter->second;
+          //if not sp or dp, maybe we have to return it
+          if ( find( simpleParityIndx.begin(), simpleParityIndx.end(), idBlockCorrupted ) == simpleParityIndx.end() &&
+               find( doubleParityIndx.begin(), doubleParityIndx.end(), idBlockCorrupted ) == doubleParityIndx.end() ) {
+            if ( ( offset >= ( off_t )( offsetGroup + mapBigToSmallBlock( idBlockCorrupted ) * stripeWidth ) ) &&
+                 ( offset < ( off_t )( offsetGroup + ( mapBigToSmallBlock( idBlockCorrupted ) + 1 ) * stripeWidth ) ) )
+            {
+              memcpy( buffer, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length );
+            }
           }
         }
 
@@ -398,7 +417,7 @@ RaidDpFile::doubleParityRecover( char* buffer, off_t offset, size_t length )
         statusBlock[idBlockCorrupted] = true;
       } else {
         //current block can not be recoverd in this configuration
-        fprintf( stdout, "Current block can not be recoverd in this configuration. \n" );
+        //fprintf( stdout, "Current block can not be recoverd in this configuration. \n" );
         excludeId.push_back( idBlockCorrupted );
       }
     }
@@ -408,11 +427,11 @@ RaidDpFile::doubleParityRecover( char* buffer, off_t offset, size_t length )
   free( statusBlock );
 
   if ( corruptId.empty() && !excludeId.empty() ) {
-    fprintf( stdout, "RecoverBlock: false. \n" );
+    //fprintf( stdout, "RecoverBlock: false. \n" );
     return false;
   }
 
-  fprintf( stdout, "RecoverBlock: true. \n" );
+  //fprintf( stdout, "RecoverBlock: true. \n" );
   return true;
 }
 

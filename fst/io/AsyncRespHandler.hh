@@ -23,10 +23,12 @@
 
 /*----------------------------------------------------------------------------*/
 #include <typeinfo>
+#include <map>
 /*----------------------------------------------------------------------------*/
 #include <semaphore.h>
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 
 #ifndef __EOS_ASYNCRESPONSEHANDLER_HH__
@@ -35,7 +37,7 @@
 EOSFSTNAMESPACE_BEGIN
 
 //----------------------------------------------------------------------------
-//! Handle an async response
+//! Class for handling async responses
 //----------------------------------------------------------------------------
 class AsyncRespHandler: public XrdCl::ResponseHandler
 {
@@ -45,6 +47,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   AsyncRespHandler() {
+    nResponses = 0;
     if ( sem_init( &semaphore, 0, 0 ) ) {
       fprintf( stderr, "Error while creating semaphore. \n" );
       return;
@@ -59,24 +62,85 @@ public:
     sem_destroy( &semaphore );
   }
 
+  //----------------------------------------------------------------------------
+  //! Handle response 
+  //----------------------------------------------------------------------------
   virtual void HandleResponse( XrdCl::XRootDStatus* status,
                                XrdCl::AnyObject*    response ) {
     XrdCl::Chunk* chunk = 0;
-    response->Get( chunk );
 
     if ( status->status == XrdCl::stOK ) {
+      //fprintf( stdout, "Response kXR_ok.\n");
+      response->Get( chunk );
+      sem_post( &semaphore );
+    }
+    else {
+      response->Get( chunk );
+      //fprintf( stdout, "Response kXR_err at offset = %zu, lenght = %u. \n",
+      //         chunk->offset, chunk->length );
+      mapErrors.insert( std::make_pair( chunk->offset, chunk->length ) );
       sem_post( &semaphore );
     }
   };
 
-  virtual void Wait( int nReq ) {
-    for ( int i = 0; i < nReq; i++ ) {
+  
+  //----------------------------------------------------------------------------
+  //! Wait for responses
+  //----------------------------------------------------------------------------
+  virtual bool WaitOK() {
+    int value;
+    for ( int i = 0; i < nResponses; i++ ) {
+      sem_getvalue(&semaphore, &value);
       sem_wait( &semaphore );
     }
+
+    //fprintf( stdout, "[%s] Got %i responses and error status is: %i. \n",
+    //         __FUNCTION__, nResponses, mapErrors.empty() );
+    
+    if ( mapErrors.empty() ) {
+      return true;
+    }
+
+    return false;
+  };
+  
+  //----------------------------------------------------------------------------
+  //! Get map of errors
+  //----------------------------------------------------------------------------
+  std::map<uint64_t, uint32_t>& GetErrorsMap() {
+    return mapErrors;
+  };
+
+
+  //----------------------------------------------------------------------------
+  //! Increment the number fo expected responses
+  //----------------------------------------------------------------------------
+  virtual void Increment() {
+    nResponses++;
+  }
+
+
+  //----------------------------------------------------------------------------
+  //! GetNoRes
+  //----------------------------------------------------------------------------
+  virtual int GetNoResponses() {
+    return nResponses;
+  }
+
+  
+  //----------------------------------------------------------------------------
+  //! Reset
+  //----------------------------------------------------------------------------
+  virtual void Reset() {
+    mapErrors.clear();
+    nResponses = 0;
   };
 
 private:
-  sem_t semaphore;
+
+  int nResponses;                            //! expected number of responses
+  sem_t semaphore;                           //! semaphore used for synchronising
+  std::map<uint64_t, uint32_t> mapErrors;    //! chunks for with the request failed
 };
 
 EOSFSTNAMESPACE_END

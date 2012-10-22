@@ -87,12 +87,14 @@ ReedSFile::computeParity()
 /*----------------------------------------------------------------------------*/
 //try to recover the block at the current offset
 bool
-ReedSFile::recoverBlock( char* buffer, off_t offset, size_t length )
+ReedSFile::recoverBlock( char* buffer, std::map<off_t, size_t> &mapPieces, off_t offsetInit )
 {
   uint32_t aread;
   unsigned int blocksCorrupted;
   vector<unsigned int> validId;
   vector<unsigned int> invalidId;
+  off_t offset = mapPieces.begin()->first;
+  size_t length = mapPieces.begin()->second;
   off_t offsetLocal = ( offset / sizeGroupBlocks ) * stripeWidth;
   off_t offsetGroup = ( offset / sizeGroupBlocks ) * sizeGroupBlocks;
 

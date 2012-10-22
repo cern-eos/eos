@@ -63,10 +63,7 @@ public:
 
 protected:
 
-  int* fdUrl;                    //! array of file descriptors
-  AsyncRespHandler* respHandler; //!
-
-  File** xrdFile;
+  File** xrdFile;                //! xrd clients corresponding to the stripes
   HeaderCRC* hdUrl;              //! array of header objects
 
   bool isRW;                     //! mark for writing
@@ -93,15 +90,15 @@ protected:
   std::string algorithmType;
   std::string bookingOpaque;
   std::vector<char*> dataBlocks;
-  std::vector<std::string> stripeUrls;                 //urls of the files
-  std::map<unsigned int, unsigned int> mapUrl_Stripe;  //map of url to stripes
-  std::map<unsigned int, unsigned int> mapStripe_Url;  //map os stripes to url
+  std::vector<std::string> stripeUrls;                 //! urls of the files
+  std::vector<AsyncRespHandler*> vectRespHandler;  //! async response handlers for each stripe
+  std::map<unsigned int, unsigned int> mapUrl_Stripe;  //! map of url to stripes
+  std::map<unsigned int, unsigned int> mapStripe_Url;  //! map os stripes to url
 
   virtual bool validateHeader();
-  virtual bool recoverBlock( char* buffer, off_t offset, size_t length ) = 0;
+  virtual bool recoverBlock( char* buffer, std::map<off_t, size_t> &mapPieces, off_t offsetInit ) = 0;
   virtual void addDataBlock( off_t offset, char* buffer, size_t length ) = 0;
   virtual void computeDataBlocksParity( off_t offsetGroup ) = 0;
-  //virtual int updateParityForGroups(off_t offsetStart, off_t offsetEnd) = 0;
 };
 
 EOSFSTNAMESPACE_END

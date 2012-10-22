@@ -25,6 +25,7 @@
 #include <set>
 #include <cmath>
 #include <string>
+#include <utility>
 #include <stdint.h>
 /*----------------------------------------------------------------------------*/
 #include "common/Timing.hh"
@@ -50,13 +51,13 @@ RaidIO::RaidIO( std::string algorithm, std::vector<std::string> stripeurl,
   nTotalStripes = stripeUrls.size();
   nDataStripes = nTotalStripes - nParityStripes;
 
-  respHandler = new AsyncRespHandler();
   hdUrl = new HeaderCRC[nTotalStripes];
   xrdFile = new File*[nTotalStripes];
   sizeHeader = hdUrl[0].getSize();
 
   for ( unsigned int i = 0; i < nTotalStripes; i++ ) {
     xrdFile[i] = new File();
+    vectRespHandler.push_back(new AsyncRespHandler());
   }
 
   isRW = false;
@@ -74,6 +75,10 @@ RaidIO::~RaidIO()
 {
   delete[] xrdFile;
   delete[] hdUrl;
+
+  while (! vectRespHandler.empty()) {
+    vectRespHandler.pop_back();
+  }  
 }
 
 
@@ -105,7 +110,6 @@ RaidIO::open( int flags )
 
     } else if ( flags & O_WRONLY ) {
       isRW = true;
-
       if ( !( xrdFile[i]->Open( stripeUrls[i], OpenFlags::Delete | OpenFlags::Update,
                                 Access::UR | Access::UW ).IsOK() ) ) {
         eos_err( "opening for write stripeUrl[%i] = %s.", i, stripeUrls[i].c_str() );
@@ -115,7 +119,6 @@ RaidIO::open( int flags )
 
     } else if ( flags & O_RDWR ) {
       isRW = true;
-
       if ( !( xrdFile[i]->Open( stripeUrls[i], OpenFlags::Update,
                                 Access::UR | Access::UW ).IsOK() ) ) {
         eos_err( "opening failed for update stripeUrl[%i] = %s.", i, stripeUrls[i].c_str() );
@@ -131,9 +134,7 @@ RaidIO::open( int flags )
           eos_err( "opening failed new stripeUrl[%i] = %s.", i, stripeUrls[i].c_str() );
           fprintf( stdout, "opening failed new stripeUrl[%i] = %s. \n", i, stripeUrls[i].c_str() );
           return -1;
-        } else {
-          fprintf( stdout, "opening succeeded new stripeUrl[%i] = %s. \n", i, stripeUrls[i].c_str() );
-        }
+        } 
       }
     }
   }
@@ -276,13 +277,19 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
   eos::common::Timing rt("read");
   COMMONTIMING("start", &rt);
 
-  long int index = 0;
+  int urlId = -1;
   size_t nread = 0;
+  long int index = 0;
+  unsigned int stripeId;
+  char* pBuff = buffer;
   size_t readLength = 0;
   off_t offsetLocal = 0;
-  unsigned int stripeId;
+  off_t offsetInit = offset;
 
-  if ( offset > ( off_t )fileSize ) {
+  std::map<off_t, size_t> mapPieces;
+  std::map<uint64_t, uint32_t> mapErrors;
+
+  if ( offset > static_cast<off_t>( fileSize ) ) {
     eos_err( "error=offset is larger then file size" );
     return 0;
   }
@@ -292,11 +299,12 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
     length = fileSize - offset;
   }
 
-  if ( ( offset < 0 ) && ( isRW ) ) { //recover file mode
+  if ( ( offset < 0 ) && ( isRW ) ) {
+    // recover file mode
     offset = 0;
     char* dummyBuf = ( char* ) calloc( stripeWidth, sizeof( char ) );
 
-    //if file smaller than a group set the read size to the size of the group
+    // if file smaller than a group, set the read size to the size of the group
     if ( fileSize < sizeGroupBlocks ) {
       length = sizeGroupBlocks;
     }
@@ -304,7 +312,8 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
     while ( length ) {
       nread = ( length > stripeWidth ) ? stripeWidth : length;
 
-      if( ( offset % sizeGroupBlocks == 0 ) && ( !recoverBlock( dummyBuf, offset, nread ) ) ) {
+      mapPieces.insert( std::make_pair<off_t, size_t>( offset, nread ) );
+      if( ( offset % sizeGroupBlocks == 0 ) && ( !recoverBlock( dummyBuf, mapPieces, offsetInit ) ) ) {
         free( dummyBuf );
         eos_err( "error=failed recovery of stripe" );
         return -1;
@@ -313,60 +322,97 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
       length -= nread;
       offset += nread;
       readLength += nread;
+      mapPieces.clear();
     }
 
-    //free memory
+    // free memory
     free( dummyBuf );
-  } else { //normal reading mode
-    bool doRecovery;
-    doRecovery = false;
+  } else {
+    // normal reading mode
 
     while ( length ) {
       index++;
       stripeId = ( offset / stripeWidth ) % nDataStripes;
+      urlId = mapStripe_Url[stripeId];
       nread = ( length > stripeWidth ) ? stripeWidth : length;
       offsetLocal = ( ( offset / ( nDataStripes * stripeWidth ) ) * stripeWidth ) + ( offset %  stripeWidth );
 
       COMMONTIMING( "read remote in", &rt );
 
-      if ( xrdFile[mapStripe_Url[stripeId]] ) {
-        xrdFile[mapStripe_Url[stripeId]]->Read( offsetLocal + sizeHeader, nread, buffer, respHandler );
+      //do reading
+      if ( xrdFile[urlId] ) {
+        xrdFile[urlId]->Read( offsetLocal + sizeHeader, nread, pBuff, vectRespHandler[stripeId] );
+        vectRespHandler[stripeId]->Increment();\
+        //fprintf( stdout, "From stripe %i, we expect %i responses. \n",
+        //         stripeId, vectRespHandler[stripeId]->GetNoResponses() );
       }
-
-      fprintf( stdout, "Index: %li, nDataStripes = %u. \n", index, nDataStripes );
-
-      if ( index % nDataStripes == 0 ) {
-        respHandler->Wait( nDataStripes );
-
-        //if error then do recovery
-      }
-
-      if ( doRecovery ) {
-        TIMING( "read recovery", &rt );
-
-        if ( !recoverBlock( buffer, offset, nread ) ) {
-          eos_err( "error=read recovery failed" );
-          return -1;
-        }
-      }
-
+    
       length -= nread;
       offset += nread;
-      buffer += nread;
       readLength += nread;
+      pBuff = buffer + readLength;
+
+      int nGroupBlocks;
+      if ( algorithmType == "raidDP" ) {
+        nGroupBlocks = static_cast<int>( pow( nDataStripes, 2 ) );
+      }
+      else if ( algorithmType == "reedS" ) {
+        nGroupBlocks = nDataStripes;
+      }
+      else {
+        eos_err( "error=no such algorithm");
+        fprintf( stderr, "error=no such algorithm " );
+        return 0;
+      }
+      
+      bool doRecovery = false;
+      int nWaitReq = index % nGroupBlocks;
+      //fprintf( stdout, "Index: %li, nDataStripes = %u, length = %zu. \n", index, nDataStripes, length );
+      
+      if ( ( length == 0 ) || ( nWaitReq == 0 ) ) {
+        mapPieces.clear();
+        nWaitReq = ( nWaitReq == 0 ) ? nGroupBlocks : nWaitReq;
+        //fprintf( stdout, "Wait for a total of %i requests. \n", nWaitReq );
+        //for ( unsigned int i = 0; i < nDataStripes; i++ ) {
+        //  fprintf( stdout, "From stripe: %i waiting for %i responses. \n", i, vectRespHandler[i]->GetNoResponses() );
+        //}
+        
+        for ( unsigned int i = 0; i < nDataStripes; i++ ) {
+          if ( !vectRespHandler[i]->WaitOK() ) {
+            //fprintf( stdout, "Dealing with errors from stripe %i. \n", i);
+            mapErrors = vectRespHandler[i]->GetErrorsMap();
+            
+            for (std::map<uint64_t, uint32_t>::iterator iter = mapErrors.begin();
+                 iter != mapErrors.end();
+                 iter++)
+            {
+              off_t offStripe = iter->first - sizeHeader;
+              off_t offRel = ( offStripe / stripeWidth ) * ( nDataStripes * stripeWidth ) +
+                             (offStripe % stripeWidth);
+              mapPieces.insert(std::make_pair<off_t, size_t>( offRel, iter->second ) );
+            }
+            
+            doRecovery = true;
+          }
+        }
+
+        //reset the asyn resp handler
+        for ( unsigned int i = 0; i < nDataStripes; i++ ) {
+          vectRespHandler[i]->Reset();
+        }
+      }
+      
+      // try to recover blocks from group
+      if  ( doRecovery && ( !recoverBlock( buffer, mapPieces, offsetInit ) ) ) {
+        eos_err( "error=read recovery failed" );
+        return -1;
+      }
     }
   }
-
-<<<<<<< HEAD
-  COMMONTIMING("read return", &rt);
-=======
   if ( index && ( index % nDataStripes != 0 ) ) {
     respHandler->Wait( index % nDataStripes );
   }
-
-
-  TIMING( "read return", &rt );
->>>>>>> 63ef31b... FST: Handle async responses and implement simple async reading in eoscp
+  COMMONTIMING( "read return", &rt );
   //  rt.Print();
   return readLength;
 }
