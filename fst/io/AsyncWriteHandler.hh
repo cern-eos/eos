@@ -1,6 +1,7 @@
 // -----------------------------------------------------------------------------
-// File: AsyncWriteHandler.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file AsyncWriteHandler.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Class for handling async write responses from xrootd
 // -----------------------------------------------------------------------------
 
 /************************************************************************
@@ -53,11 +54,11 @@ class AsyncWriteHandler: public XrdCl::ResponseHandler
     //--------------------------------------------------------------------------
     //! Handle response
     //--------------------------------------------------------------------------
-    void HandleResponse( XrdCl::XRootDStatus* status,
-                         XrdCl::AnyObject*    response );
+    void HandleResponse( XrdCl::XRootDStatus* pStatus,
+                         XrdCl::AnyObject*    pResponse );
 
     //--------------------------------------------------------------------------
-    // Wait for responses
+    //! Wait for responses
     //--------------------------------------------------------------------------
     bool WaitOK();
 
@@ -73,11 +74,11 @@ class AsyncWriteHandler: public XrdCl::ResponseHandler
 
   private:
 
-    bool state;          //< true if all requests are ok, otherwise false
-    int nExpectedRes;    //< expected number of responses
-    int nReceivedRes;    //< received number of responses
-    XrdSysCondVar cond;  //< condition variable to signal the receival of
-                         //< all responses
+    bool mState;           ///< true if all requests are ok, otherwise false
+    int mNumExpectedResp;  ///< expected number of responses
+    int mNumReceivedResp;  ///< received number of responses
+    XrdSysCondVar mCond;   ///< condition variable to signal the receival of
+    ///< all responses
 };
 
 EOSFSTNAMESPACE_END

@@ -31,11 +31,11 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 // -----------------------------------------------------------------------------
 AsyncWriteHandler::AsyncWriteHandler():
-  state( true ),
-  nExpectedRes( 0 ),
-  nReceivedRes( 0 )
+  mState( true ),
+  mNumExpectedResp( 0 ),
+  mNumReceivedResp( 0 )
 {
-  cond = XrdSysCondVar( 0 );
+  mCond = XrdSysCondVar( 0 );
 }
 
 
@@ -51,62 +51,65 @@ AsyncWriteHandler::~AsyncWriteHandler()
 // -----------------------------------------------------------------------------
 // Handle response
 // -----------------------------------------------------------------------------
-void AsyncWriteHandler::HandleResponse( XrdCl::XRootDStatus* status,
-                                        XrdCl::AnyObject*    response )
+void
+AsyncWriteHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
+                                   XrdCl::AnyObject*    pResponse )
 {
-  cond.Lock();
-  nReceivedRes++;
+  mCond.Lock();
+  mNumReceivedResp++;
 
-  if ( status->status != XrdCl::stOK ) {
-    state = false;
+  if ( pStatus->status != XrdCl::stOK ) {
+    mState = false;
   }
 
-  if ( nReceivedRes == nExpectedRes ) {
-    cond.Signal();
+  if ( mNumReceivedResp == mNumExpectedResp ) {
+    mCond.Signal();
   }
 
-  cond.UnLock();
+  mCond.UnLock();
 }
 
 
 // -----------------------------------------------------------------------------
 // Wait for responses
 // -----------------------------------------------------------------------------
-bool AsyncWriteHandler::WaitOK()
+bool
+AsyncWriteHandler::WaitOK()
 {
-  cond.Lock();
+  mCond.Lock();
 
-  if ( nReceivedRes == nExpectedRes ) {
-    cond.UnLock();
-    return state;
+  if ( mNumReceivedResp == mNumExpectedResp ) {
+    mCond.UnLock();
+    return mState;
   }
 
-  cond.Wait();
-  cond.UnLock();
-
-  return state;
+  mCond.Wait();
+  mCond.UnLock();
+  return mState;
 }
 
 
 // -----------------------------------------------------------------------------
 // Increment the number of expected responses
 // -----------------------------------------------------------------------------
-void AsyncWriteHandler::Increment()
+void
+AsyncWriteHandler::Increment()
 {
-  cond.Lock();
-  nExpectedRes++;
-  cond.UnLock();
+  mCond.Lock();
+  mNumExpectedResp++;
+  mCond.UnLock();
 }
 
 
 // -----------------------------------------------------------------------------
 // Reset
 // -----------------------------------------------------------------------------
-void AsyncWriteHandler::Reset()
+void
+AsyncWriteHandler::Reset()
 {
-  state = true;
-  nExpectedRes = 0;
-  nReceivedRes = 0;
+  mState = true;
+  mNumExpectedResp = 0;
+  mNumReceivedResp = 0;
 }
 
 

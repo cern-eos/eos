@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
-// File: ConcurrentQueue.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file ConcurrentQueue.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Implementation of a thread-safe queue.
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -20,14 +21,6 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-/**
- * @file   CooncurrentQueue.hh
- *
- * @brief  Implementation of a thread-safe queue.
- *
- *
- */
 
 //------------------------------------------------------------------------------
 #include <cstdio>

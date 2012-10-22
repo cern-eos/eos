@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: HeaderCRC.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file HeaderCRC.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Header information present at the start of each stripe file
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -48,7 +49,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Constructor with parameter
     //--------------------------------------------------------------------------
-    HeaderCRC( long noblocks );
+    HeaderCRC( long numBlocks );
 
     //--------------------------------------------------------------------------
     //! Destructor
@@ -58,111 +59,103 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Write header to file
     //!
-    //! @param f file to which to header will be written
+    //! @param pFile file to which to header will be written
     //!
     //! @return status of the operation
+    //!
     //--------------------------------------------------------------------------
-    bool WriteToFile( XrdCl::File* f );
+    bool WriteToFile( XrdCl::File* pFile );
 
     //--------------------------------------------------------------------------
     //! Read header from file
     //!
-    //! @param f file from which the header will be read
+    //! @param pFile file from which the header will be read
     //!
     //! @return status of the operation
+    //!
     //--------------------------------------------------------------------------
-    bool ReadFromFile( XrdCl::File* f );
+    bool ReadFromFile( XrdCl::File* pFile );
 
     //--------------------------------------------------------------------------
     //! Get tag of the header
     //--------------------------------------------------------------------------
-    const char* GetTag() const
-    {
-      return tag;
+    const char* GetTag() const {
+      return mTag;
     };
 
     //--------------------------------------------------------------------------
     //! Get size of header
     //--------------------------------------------------------------------------
-    static const int GetSize()
-    {
-      return sizeHeader;
+    static const int GetSize() {
+      return msSizeHeader;
     };
 
     //--------------------------------------------------------------------------
     //! Get size of last block in file
     //--------------------------------------------------------------------------
-    const size_t GetSizeLastBlock() const
-    {
-      return sizeLastBlock;
+    const size_t GetSizeLastBlock() const {
+      return mSizeLastBlock;
     };
 
     //--------------------------------------------------------------------------
     //! Get number of blocks in file
     //--------------------------------------------------------------------------
-    const long int GetNoBlocks() const
-    {
-      return noBlocks;
+    const long int GetNoBlocks() const {
+      return mNumBlocks;
     };
 
     //--------------------------------------------------------------------------
     //! Get id of the stripe the header belongs to
     //--------------------------------------------------------------------------
-    const unsigned int GetIdStripe() const
-    {
-      return idStripe;
+    const unsigned int GetIdStripe() const {
+      return mIdStripe;
     };
 
     //--------------------------------------------------------------------------
     //! Set number of blocks in the file
     //--------------------------------------------------------------------------
-    void SetNoBlocks( long int nblocks )
-    {
-      noBlocks = nblocks;
+    void SetNoBlocks( long int numBlocks ) {
+      mNumBlocks = numBlocks;
     };
 
     //--------------------------------------------------------------------------
     //! Set size of last block in the file
     //--------------------------------------------------------------------------
-    void SetSizeLastBlock( size_t sizelastblock )
-    {
-      sizeLastBlock = sizelastblock;
+    void SetSizeLastBlock( size_t sizeLastBlock ) {
+      mSizeLastBlock = sizeLastBlock;
     };
 
     //--------------------------------------------------------------------------
     //! Set id of the stripe the header belongs to
     //--------------------------------------------------------------------------
-    void SetIdStripe( unsigned int idstripe )
-    {
-      idStripe = idstripe;
+    void SetIdStripe( unsigned int stripe ) {
+      mIdStripe = stripe;
     };
 
     //--------------------------------------------------------------------------
     //! Test if header is valid
     //--------------------------------------------------------------------------
-    const bool IsValid() const
-    {
-      return valid;
+    const bool IsValid() const {
+      return mValid;
     };
 
     //--------------------------------------------------------------------------
     //! Set the header state (valid/corrupted)
     //--------------------------------------------------------------------------
-    void SetState( bool state )
-    {
-      valid = state;
+    void SetState( bool state ) {
+      mValid = state;
     };
 
   private:
 
-    char tag[16];            //< layout tag
-    bool valid;              //< status of the file
-    long int noBlocks;       //< total number of blocks
-    unsigned int idStripe;   //< index of the stripe the header belongs to
-    size_t sizeLastBlock;    //< size of the last block of data
+    char mTag[16];           ///< layout tag
+    bool mValid;             ///< status of the file
+    long int mNumBlocks;     ///< total number of blocks
+    unsigned int mIdStripe;  ///< index of the stripe the header belongs to
+    size_t mSizeLastBlock;   ///< size of the last block of data
 
-    static int sizeHeader;   //< size of the header
-    static char tagName[];   //< default tag name
+    static int msSizeHeader; ///< size of the header
+    static char msTagName[]; ///< default tag name
 
 };
 

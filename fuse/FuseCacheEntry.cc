@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
-// File: FuseCacehEntry.cc
+//-----------------------------------------------------------------------
+// File: FuseCacheEntry.cc
 // Author: Elvin-Alin Sindrilaru - CERN
-// ----------------------------------------------------------------------
+//-----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -29,17 +29,16 @@
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FuseCacheEntry::FuseCacheEntry( int             no_entries,
-                                struct timespec mt,
-                                struct dirbuf*  buf ):
-  num_entries( no_entries )
+FuseCacheEntry::FuseCacheEntry( int             noEntries,
+                                struct timespec modifTime,
+                                struct dirbuf*  pBuf ):
+  mNumEntries( noEntries )
 {
-  mtime.tv_sec = mt.tv_sec;
-  mtime.tv_nsec = mt.tv_nsec;
-
-  b.size = buf->size;
-  b.p = ( char* ) calloc( b.size, sizeof( char ) );
-  b.p = ( char* ) memcpy( b.p, buf->p, b.size * sizeof( char ) );
+  mModifTime.tv_sec = modifTime.tv_sec;
+  mModifTime.tv_nsec = modifTime.tv_nsec;
+  mBuf.size = pBuf->size;
+  mBuf.p = static_cast<char*>( calloc( mBuf.size, sizeof( char ) ) );
+  mBuf.p = static_cast<char*>( memcpy( mBuf.p, pBuf->p, mBuf.size * sizeof( char ) ) );
 }
 
 
@@ -48,73 +47,77 @@ FuseCacheEntry::FuseCacheEntry( int             no_entries,
 //------------------------------------------------------------------------------
 FuseCacheEntry::~FuseCacheEntry()
 {
-  free( b.p );
+  free( mBuf.p );
 }
 
 
 //------------------------------------------------------------------------------
 // Test if directory is filled
 //------------------------------------------------------------------------------
-bool FuseCacheEntry::IsFilled()
+bool
+FuseCacheEntry::IsFilled()
 {
-  eos::common::RWMutexReadLock rd_lock( mutex );
-  return ( children.size() == static_cast<unsigned int>( num_entries - 2 ) );
+  eos::common::RWMutexReadLock rd_lock( mMutex );
+  return ( mSubEntries.size() == static_cast<unsigned int>( mNumEntries - 2 ) );
 }
 
 
 //------------------------------------------------------------------------------
 // Update directory information
 //------------------------------------------------------------------------------
-void FuseCacheEntry::Update( int             no_entries,
-                             struct timespec mt,
-                             struct dirbuf*  buf )
+void
+FuseCacheEntry::Update( int             noEntries,
+                        struct timespec modifTime,
+                        struct dirbuf*  pBuf )
 {
-  eos::common::RWMutexWriteLock wLock( mutex );
-  mtime.tv_sec = mt.tv_sec;
-  mtime.tv_nsec = mt.tv_nsec;
-  num_entries = no_entries;
-  children.clear();
+  eos::common::RWMutexWriteLock wr_lock( mMutex );
+  mModifTime.tv_sec = modifTime.tv_sec;
+  mModifTime.tv_nsec = modifTime.tv_nsec;
+  mNumEntries = noEntries;
+  mSubEntries.clear();
 
-  if ( b.size != buf->size ) {
-    b.size = buf->size;
-    b.p = static_cast<char*>( realloc( b.p, b.size * sizeof( char ) ) );
+  if ( mBuf.size != pBuf->size ) {
+    mBuf.size = pBuf->size;
+    mBuf.p = static_cast<char*>( realloc( mBuf.p, mBuf.size * sizeof( char ) ) );
   }
 
-  b.p = static_cast<char*>( memcpy( b.p, buf->p, b.size * sizeof( char ) ) );
+  mBuf.p = static_cast<char*>( memcpy( mBuf.p, pBuf->p, mBuf.size * sizeof( char ) ) );
 }
 
 //------------------------------------------------------------------------------
 // Get the dirbuf structure
 //------------------------------------------------------------------------------
-void FuseCacheEntry::GetDirbuf( struct dirbuf*& buf )
+void
+FuseCacheEntry::GetDirbuf( struct dirbuf*& rpBuf )
 {
-  eos::common::RWMutexReadLock rd_lock( mutex );
-  buf->size = b.size;
-  buf->p = static_cast<char*>( calloc( buf->size, sizeof( char ) ) );
-  buf->p = static_cast<char*>( memcpy( buf->p, b.p, buf->size * sizeof( char ) ) );
+  eos::common::RWMutexReadLock rd_lock( mMutex );
+  rpBuf->size = mBuf.size;
+  rpBuf->p = static_cast<char*>( calloc( rpBuf->size, sizeof( char ) ) );
+  rpBuf->p = static_cast<char*>( memcpy( rpBuf->p, mBuf.p, rpBuf->size * sizeof( char ) ) );
 }
 
 
 //------------------------------------------------------------------------------
 // Get the modification time
 //------------------------------------------------------------------------------
-struct timespec FuseCacheEntry::GetModifTime()
-{
-  eos::common::RWMutexReadLock rd_lock( mutex );
-  return mtime;
+struct timespec
+FuseCacheEntry::GetModifTime() {
+  eos::common::RWMutexReadLock rd_lock( mMutex );
+  return mModifTime;
 }
 
 
 //------------------------------------------------------------------------------
 // Add subentry
 //------------------------------------------------------------------------------
-void FuseCacheEntry::AddEntry( unsigned long long       inode,
-                               struct fuse_entry_param* e )
+void
+FuseCacheEntry::AddEntry( unsigned long long       inode,
+                          struct fuse_entry_param* e )
 {
-  eos::common::RWMutexWriteLock wr_lock( mutex );
+  eos::common::RWMutexWriteLock wr_lock( mMutex );
 
-  if ( !children.count( inode ) ) {
-    children[inode] = *e;
+  if ( !mSubEntries.count( inode ) ) {
+    mSubEntries[inode] = *e;
   }
 }
 
@@ -122,13 +125,14 @@ void FuseCacheEntry::AddEntry( unsigned long long       inode,
 //------------------------------------------------------------------------------
 // Get subentry
 //------------------------------------------------------------------------------
-bool FuseCacheEntry::GetEntry( unsigned long long       inode,
-                               struct fuse_entry_param& e )
+bool
+FuseCacheEntry::GetEntry( unsigned long long       inode,
+                          struct fuse_entry_param& e )
 {
-  eos::common::RWMutexReadLock rd_lock( mutex );
+  eos::common::RWMutexReadLock rd_lock( mMutex );
 
-  if ( children.count( inode ) ) {
-    e = children[inode];
+  if ( mSubEntries.count( inode ) ) {
+    e = mSubEntries[inode];
     return true;
   }
 

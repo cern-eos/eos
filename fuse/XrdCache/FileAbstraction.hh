@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: FileAbstraction.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file FileAbstraction.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Class that keeps track of the operations done at file level
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -32,7 +33,8 @@
 #include "ConcurrentQueue.hh"
 //------------------------------------------------------------------------------
 
-typedef std::pair<int, off_t> error_type;
+//! Definition of an error occurring in a write operation 
+typedef std::pair<int, off_t> error_type; 
 
 //------------------------------------------------------------------------------
 //! Class that keeps track of the operations done at file level
@@ -41,7 +43,8 @@ class FileAbstraction
 {
   public:
 
-    ConcurrentQueue<error_type>* errorsQueue; //< errors collected during writes
+    //! Errors collected during writes
+    ConcurrentQueue<error_type>* errorsQueue; 
 
     // -------------------------------------------------------------------------
     //! Constructor
@@ -178,17 +181,17 @@ class FileAbstraction
 
   private:
 
-    int id_file;                  //< internally assigned key
-    int no_references;            //< number of held referencess to this file
-    unsigned long inode;          //< inode of current file
-    size_t size_writes;           //< the size of write blocks in cache
-    size_t size_reads;            //< the size of read blocks in cache
-    long long int no_wr_blocks;   //< no. of blocks in cache for this file
+    int id_file;                  ///< internally assigned key
+    int no_references;            ///< number of held referencess to this file
+    unsigned long inode;          ///< inode of current file
+    size_t size_writes;           ///< the size of write blocks in cache
+    size_t size_reads;            ///< the size of read blocks in cache
+    long long int no_wr_blocks;   ///< no. of blocks in cache for this file
 
-    long long last_possible_key;  //< last possible offset in file
-    long long first_possible_key; //< first possible offset in file
+    long long last_possible_key;  ///< last possible offset in file
+    long long first_possible_key; ///< first possible offset in file
 
-    XrdSysCondVar cond_update;    //< cond variable for updating file attributes
+    XrdSysCondVar cond_update;    ///< cond variable for updating file attributes
 };
 
 #endif

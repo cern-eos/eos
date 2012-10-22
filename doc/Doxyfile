@@ -19,6 +19,6 @@ DOT_IMAGE_FORMAT       = png
 GENERATE_LEGEND        = YES
 DOT_CLEANUP            = YES
 GENERATE_LATEX         = NO
-INPUT                  = ../common
+INPUT                  = ../fuse ../fst/io
 JAVADOC_AUTOBRIEF      = YES
 FILE_PATTERNS          = *.hh *.cc

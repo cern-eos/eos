@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: CacheEntry.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file: CacheEntry.hh
+//! @author: Elvin-Alin Sindrilaru - CERN
+//! @brief Class representing a block saved in cache
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -36,7 +37,6 @@
 #include "FileAbstraction.hh"
 /*----------------------------------------------------------------------------*/
 
-
 //------------------------------------------------------------------------------
 //! Class representing a block saved in cache
 //------------------------------------------------------------------------------
@@ -47,20 +47,20 @@ class CacheEntry
     //--------------------------------------------------------------------------
     //! Constructor
     //!
-    //! @param ref_file file handler
+    //! @param rpFile file handler
     //! @param buf data buffer
     //! @param off offset
     //! @param len length
-    //! @param ref FileAbstraction handler
-    //! @param iswr set if entry is for writing
+    //! @param rFileAbst FileAbstraction handler
+    //! @param isWr set if entry is for writing
     //!
     //--------------------------------------------------------------------------
-    CacheEntry( XrdCl::File*&    ref_file,
+    CacheEntry( XrdCl::File*&    rpFile,
                 char*            buf,
                 off_t            off,
                 size_t           len,
-                FileAbstraction& ref,
-                bool             iswr );
+                FileAbstraction& rFileAbst,
+                bool             isWr );
 
     //--------------------------------------------------------------------------
     //! Destructor
@@ -71,7 +71,7 @@ class CacheEntry
     //! Get maximum size of the cache
     //--------------------------------------------------------------------------
     static const size_t GetMaxSize() {
-      return maxSize;
+      return msMaxSize;
     }
 
     //--------------------------------------------------------------------------
@@ -146,35 +146,34 @@ class CacheEntry
     //--------------------------------------------------------------------------
     //! Method to recycle a previously used block
     //!
-    //! @param ref_file file handler
+    //! @param rpFile file handler
     //! @param buf data buffer
     //! @param off offset
     //! @param len length
-    //! @param ptr FileAbstraction handler
-    //! @param iswr set of entry is for writing
+    //! @param rFileAbst FileAbstraction handler
+    //! @param isWr set of entry is for writing
     //!
     //--------------------------------------------------------------------------
-    void   DoRecycle( XrdCl::File*&    ref_file,
+    void   DoRecycle( XrdCl::File*&    rpFile,
                       char*            buf,
                       off_t            off,
                       size_t           len,
-                      FileAbstraction& ptr,
-                      bool             iswr );
+                      FileAbstraction& rFileAbst,
+                      bool             isWr );
 
   private:
 
-    static size_t maxSize;       //< max size of entry
+    static size_t msMaxSize;     ///< max size of entry
 
-    XrdCl::File* file;           //< XrdCl file handler
-    bool isWrType;               //< is write block type
-    char*  buffer;               //< buffer of the object
-    size_t capacity;             //< total capcity 512 KB ~ 4MB
-    size_t size_data;            //< size of useful data
-    off_t  offset_start;         //< offset relative to the file
+    XrdCl::File* mpFile;         ///< XrdCl file handler
+    bool mIsWrType;              ///< is write block type
+    char*  mpBuffer;             ///< buffer of the object
+    size_t mCapacity;            ///< total capcity 512 KB ~ 4MB
+    size_t mSizeData;            ///< size of useful data
+    off_t  mOffsetStart;         ///< offset relative to the file
 
-
-    std::map<off_t, size_t> map_pieces; //< pieces read/to be written
-    FileAbstraction* pParentFile;       //< pointer to parent file
+    std::map<off_t, size_t> mMapPieces; ///< pieces read/to be written
+    FileAbstraction* pParentFile;       ///< pointer to parent file
 };
 
 #endif

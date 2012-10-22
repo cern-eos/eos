@@ -1,6 +1,7 @@
 // -----------------------------------------------------------------------------
-// File: RaidIO.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file RaidIO.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Generic class to read/write different layout files
 // -----------------------------------------------------------------------------
 
 /************************************************************************
@@ -53,21 +54,21 @@ class RaidIO : public eos::common::LogId
     //! Constructor
     //!
     //! @param algorithm type of layout used
-    //! @param stripeurl vector containing the location of the stripe files
-    //! @param nparitystripes number of stripes used for parity
-    //! @param storerecovery force writing back the recovered blocks to the files
-    //! @param isstreaming file is written in streaming mode
-    //! @param targetsize exepected size (?!)
-    //! @param bookingopaque opaque information
+    //! @param stripeUrl vector containing the location of the stripe files
+    //! @param nbParity number of stripes used for parity
+    //! @param storeRecovery force writing back the recovered blocks to the files
+    //! @param isStreaming file is written in streaming mode
+    //! @param targetSize exepected size (?!)
+    //! @param bookingOpaque opaque information
     //!
     //--------------------------------------------------------------------------
     RaidIO( std::string              algorithm,
-            std::vector<std::string> stripeurl,
-            unsigned int             nparitystripes,
-            bool                     storerecovery,
-            bool                     isstreaming,
-            off_t                    targetsize = 0,
-            std::string              bookingopaque = "oss.size" );
+            std::vector<std::string> stripeUrl,
+            unsigned int             nbParity,
+            bool                     storeRecovery,
+            bool                     isStreaming,
+            off_t                    targetSize = 0,
+            std::string              bookingOpaque = "oss.size" );
 
     //--------------------------------------------------------------------------
     //! Open file
@@ -166,46 +167,46 @@ class RaidIO : public eos::common::LogId
 
   protected:
 
-    File** xrdFile;              //< xrd clients corresponding to the stripes
-    HeaderCRC* hdUrl;            //< array of header objects
+    File** mpXrdFile;            ///< xrd clients corresponding to the stripes
+    HeaderCRC* mpHdUrl;          ///< array of header objects
 
-    bool isRW;                   //< mark for writing
-    bool isOpen;                 //< mark if open
-    bool doTruncate;             //< mark if there is a need to truncate
-    bool updateHeader;           //< mark if header updated
-    bool doneRecovery;           //< mark if recovery done
-    bool fullDataBlocks;         //< mark if we have all data blocks to compute parity
-    bool storeRecovery;          //< set if recovery also triggers writing back to the
-                                 //< files, this also means that all files must be available
-    bool isStreaming;            //< file is written in streaming mode
+    bool mIsRw;                  ///< mark for writing
+    bool mIsOpen;                ///< mark if open
+    bool mDoTruncate;            ///< mark if there is a need to truncate
+    bool mUpdateHeader;          ///< mark if header updated
+    bool mDoneRecovery;          ///< mark if recovery done
+    bool mFullDataBlocks;        ///< mark if we have all data blocks to compute parity
+    bool mStoreRecovery;         ///< set if recovery also triggers writing back to the
+                                 ///< files, this also means that all files must be available
+    bool mIsStreaming;           ///< file is written in streaming mode
 
-    unsigned int nParityFiles;   //< number of parity files
-    unsigned int nDataFiles;     //< number of data files
-    unsigned int nTotalFiles;    //< total number of files ( data + parity )
+    unsigned int mNbParityFiles; ///< number of parity files
+    unsigned int mNbDataFiles;   ///< number of data files
+    unsigned int mNbTotalFiles;  ///< total number of files ( data + parity )
 
-    unsigned int nDataBlocks;    //< no. data blocks in a group
-    unsigned int nTotalBlocks;   //< no. data and parity blocks in a group
+    unsigned int mNbDataBlocks;  ///< no. data blocks in a group
+    unsigned int mNbTotalBlocks; ///< no. data and parity blocks in a group
 
-    off_t targetSize;            //< expected final size (?!)
-    off_t offGroupParity;        //< offset of the last group for which we
-                                 //< computed the parity blocks
+    off_t mTargetSize;           ///< expected final size (?!)
+    off_t mOffGroupParity;       ///< offset of the last group for which we
+                                 ///< computed the parity blocks
 
-    size_t sizeHeader;           //< size of header = 4KB
-    size_t stripeWidth;          //< stripe width
-    size_t fileSize;             //< total size of current file
-    size_t sizeGroup;            //< size of a gourp of blocks
-                                 //< eg. RAIDDP: group = noDataStr^2 blocks
+    size_t mSizeHeader;          ///< size of header = 4KB
+    size_t mStripeWidth;         ///< stripe width
+    size_t mFileSize;            ///< total size of current file
+    size_t mSizeGroup;           ///< size of a gourp of blocks
+                                 ///< eg. RAIDDP: group = noDataStr^2 blocks
 
-    std::string algorithmType;   //< layout type used
-    std::string bookingOpaque;   //< opaque information
-    std::vector<char*> dataBlocks;                 //< vector containing the data in a group
-    std::vector<std::string> stripeUrls;           //< urls of the stripe files
-    std::vector<AsyncReadHandler*> vReadHandler;   //< async read handlers for each stripe
-    std::vector<AsyncWriteHandler*> vWriteHandler; //< async write handlers for each stripe
-    std::map<unsigned int, unsigned int> mapUS;    //< map of url to stripes
-    std::map<unsigned int, unsigned int> mapSU;    //< map of stripes to url
-    std::map<off_t, size_t> mapPieces;             //< map of pieces written without doing
-                                                   //< parity computation for them
+    std::string mAlgorithmType;                     ///< layout type used
+    std::string mBookingOpaque;                     ///< opaque information
+    std::vector<char*> mDataBlocks;                 ///< vector containing the data in a group
+    std::vector<std::string> mStripeUrls;           ///< urls of the stripe files
+    std::vector<AsyncReadHandler*> mReadHandlers;   ///< async read handlers for each stripe
+    std::vector<AsyncWriteHandler*> mWriteHandlers; ///< async write handlers for each stripe
+    std::map<unsigned int, unsigned int> mapUS;     ///< map of url to stripes
+    std::map<unsigned int, unsigned int> mapSU;     ///< map of stripes to url
+    std::map<off_t, size_t> mMapPieces;             ///< map of pieces written for which parity
+                                                    ///< computation has not been done yet
 
     //--------------------------------------------------------------------------
     //! Test and recover any corrupted headers in the stripe files
@@ -253,7 +254,7 @@ class RaidIO : public eos::common::LogId
     // -------------------------------------------------------------------------
     //! Write parity information corresponding to a group to files
     //!
-    //! @param offsetGroup offset of the group of blocks
+    //! @param offset_group offset of the group of blocks
     //!
     //! @return 0 if successful, otherwise error
     //!
@@ -261,7 +262,7 @@ class RaidIO : public eos::common::LogId
     virtual int WriteParityToFiles( off_t offsetGroup ) = 0;
 
     // -------------------------------------------------------------------------
-    //! Map index from nDataBlocks representation to nTotalBlocks
+    //! Map index from mNbDataBlocks representation to mNbTotalBlocks
     //!
     //! @param idSmall with values between 0 and 15, for exmaple in RAID-DP
     //!
@@ -292,11 +293,11 @@ class RaidIO : public eos::common::LogId
     //! Non-streaming operation
     //! Get a list of the group offsets for which we can compute the parity info
     //!
-    //! @param offGroup set of group offsets
+    //! @param offsetGroups set of group offsets
     //! @param forceAll if true return also offsets of incomplete groups
     //!
     //--------------------------------------------------------------------------
-    void GetOffsetGroups( std::set<off_t>& offGroups, bool forceAll );
+    void GetOffsetGroups( std::set<off_t>& offsetGroups, bool forceAll );
 
     //--------------------------------------------------------------------------
     //! Non-streaming operation

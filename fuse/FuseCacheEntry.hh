@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: FuseCachEntry.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file FuseCacheEntry.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Information stored in the FUSE dir. cache about a directory
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -34,7 +35,7 @@
 using eos::common::RWMutex;
 
 //------------------------------------------------------------------------------
-// Information about a directory saved in cache
+//! Information about a directory saved in cache
 //------------------------------------------------------------------------------
 class FuseCacheEntry
 {
@@ -43,12 +44,14 @@ class FuseCacheEntry
     //--------------------------------------------------------------------------
     //! Constructor
     //!
-    //! @param no_entries number of subentries in the directory
-    //! @param mt modification time
-    //! @param buf dirbuf structure
+    //! @param noEntries number of subentries in the directory
+    //! @param modifTime modification time
+    //! @param pBuf dirbuf structure
     //!
     //--------------------------------------------------------------------------
-    FuseCacheEntry( int no_entries, struct timespec mt, struct dirbuf* buf );
+    FuseCacheEntry( int             noEntries,
+                    struct timespec modifTime,
+                    struct dirbuf*  pBuf );
 
 
     //--------------------------------------------------------------------------
@@ -69,12 +72,14 @@ class FuseCacheEntry
     //--------------------------------------------------------------------------
     //! Update directory information
     //!
-    //! @param no_entries number of entries in the directory
-    //! @param mt modification time
-    //! @param buf dirbuf structure
+    //! @param noEntries number of entries in the directory
+    //! @param modifTime modification time
+    //! @param pBuf dirbuf structure
     //!
     //--------------------------------------------------------------------------
-    void Update( int no_entries, struct timespec mt, struct dirbuf* buf );
+    void Update( int             noEntries,
+                 struct timespec modifTime,
+                 struct dirbuf*  pBuf );
 
 
     //--------------------------------------------------------------------------
@@ -83,7 +88,7 @@ class FuseCacheEntry
     //! @param buf dirbuf structure
     //!
     //--------------------------------------------------------------------------
-    void GetDirbuf( struct dirbuf*& buf );
+    void GetDirbuf( struct dirbuf*& rpBuf );
 
 
     //--------------------------------------------------------------------------
@@ -118,11 +123,15 @@ class FuseCacheEntry
 
 
   private:
-    eos::common::RWMutex mutex;        //< mutex protecting the subentries map
-    int num_entries;                   //< number of subentries in directory
-    struct dirbuf b;                   //< dirbuf structure
-    struct timespec mtime;             //< modification time of the directory
-    std::map<unsigned long long, struct fuse_entry_param> children;  //< map of subentries
+
+    int mNumEntries;                   ///< number of subentries in directory
+    struct dirbuf mBuf;                ///< dirbuf structure
+    struct timespec mModifTime;        ///< modification time of the directory
+    eos::common::RWMutex mMutex;       ///< mutex protecting the subentries map
+    std::map<unsigned long long, struct fuse_entry_param> mSubEntries;  ///< map of subentries
 };
 
 #endif
+
+
+

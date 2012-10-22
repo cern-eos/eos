@@ -1,7 +1,8 @@
-// -----------------------------------------------------------------------------
-// File: ReedSFile.hh
-// Author: Elvin-Alin Sindrilaru - CERN
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file ReedSFile.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Implementation of the Reed-Solomon layout
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -31,112 +32,116 @@
 
 EOSFSTNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! Implementation of the Reed-Solomon layout
+//------------------------------------------------------------------------------
 class ReedSFile : public RaidIO
 {
   public:
 
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Constructor
     //!
-    //! @param stripeurl URLs of the stripe files
-    //! @param nparity number of parity stripes
-    //! @param storerecovery if true write recovered blocks back to file
-    //! @param targetsize expected final size (?!)
-    //! @param bookingopaque opaque information
+    //! @param stripeUrl URLs of the stripe files
+    //! @param numParity number of parity stripes
+    //! @param storeRecovery if true write recovered blocks back to file
+    //! @param isStreaming mark if file is written in streaming mode
+    //! @param targetSize expected final size (?!)
+    //! @param bookingOpaque opaque information
     //!
-    // -------------------------------------------------------------------------
-    ReedSFile( std::vector<std::string> stripeurl,
-               int                      nparity,
-               bool                     storerecovery,
-               bool                     isstreaming,
-               off_t                    targetsize = 0,
-               std::string              bookingopaque = "oss.size" );
+    //--------------------------------------------------------------------------
+    ReedSFile( std::vector<std::string> stripeUrl,
+               int                      numParity,
+               bool                     storeRecovery,
+               bool                     isStreaming,
+               off_t                    targetSize = 0,
+               std::string              bookingOpaque = "oss.size" );
 
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Truncate file
     //!
     //! @param offset truncate size value
     //!
     //! @return 0 if successful, otherwise error
     //!
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual int truncate( off_t offset );
 
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Destructor
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual ~ReedSFile();
 
   private:
 
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Compute error correction blocks
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual void ComputeParity();
 
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Write parity information corresponding to a group to files
     //!
     //! @param offsetGroup offset of the group of blocks
     //!
     //! @return 0 if successful, otherwise error
     //!
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual int WriteParityToFiles( off_t offsetGroup );
 
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Recover pieces of corrupted data
     //!
-    //! @param offsetInit file offset corresponding to byte 0 from the buffer
-    //! @param buffer place where to save the recovered piece
-    //! @mapPiece map of pieces to be recovered <offset in file, length>
+    //! @param offset file offset corresponding to byte 0 from the buffer
+    //! @param pBuffer place where to save the recovered piece
+    //! @param rMapPiece map of pieces to be recovered <offset in file, length>
     //!
     //! @return true if recovery was successful, otherwise false
     //!
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual bool RecoverPieces( off_t                    offset,
-                                char*                    buffer,
-                                std::map<off_t, size_t>& mapPieces );
+                                char*                    pBuffer,
+                                std::map<off_t, size_t>& rMapPieces );
 
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Add data block to compute parity stripes for current group of blocks
     //!
     //! @param offset block offset
-    //! @param buffer data buffer
+    //! @param pBuffer data buffer
     //! @param length data length
     //!
-    // -------------------------------------------------------------------------
-    virtual void AddDataBlock( off_t offset, char* buffer, size_t length );
+    //--------------------------------------------------------------------------
+    virtual void AddDataBlock( off_t offset, char* pBuffer, size_t length );
 
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Map index from nDataBlocks representation to nTotalBlocks
     //!
     //! @param idSmall with values between 0 and nDataBlocks
     //!
     //! @return index with the same values as idSmall, identical function
     //!
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual unsigned int MapSmallToBig( unsigned int idSmall );
 
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Get backtracking solution
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     bool SolutionBkt( unsigned int         k,
-                      unsigned int*        indexes,
+                      unsigned int*        pIndexes,
                       vector<unsigned int> validId );
 
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Validate backtracking solution
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     bool ValidBkt( unsigned int         k,
-                   unsigned int*        indexes,
+                   unsigned int*        pIndexes,
                    vector<unsigned int> validId );
 
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Backtracking method for getting the indices used in the recovery process
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     bool Backtracking( unsigned int         k,
-                       unsigned int*        indexes,
+                       unsigned int*        pIndexes,
                        vector<unsigned int> validId );
 
 };

@@ -1,6 +1,7 @@
 // -----------------------------------------------------------------------------
-// File: AsyncReadHandler.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file AsyncReadHandler.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Class for handling async read responses from xrootd
 // -----------------------------------------------------------------------------
 
 /************************************************************************
@@ -56,8 +57,8 @@ class AsyncReadHandler: public XrdCl::ResponseHandler
     //--------------------------------------------------------------------------
     //! Handle response
     //--------------------------------------------------------------------------
-    virtual void HandleResponse( XrdCl::XRootDStatus* status,
-                                 XrdCl::AnyObject*    response );
+    virtual void HandleResponse( XrdCl::XRootDStatus* pStatus,
+                                 XrdCl::AnyObject*    pResponse );
 
     //--------------------------------------------------------------------------
     //! Wait for responses
@@ -86,9 +87,9 @@ class AsyncReadHandler: public XrdCl::ResponseHandler
 
   private:
 
-    int nResponses;                         //< expected number of responses
-    sem_t semaphore;                        //< semaphore used for synchronisations
-    std::map<uint64_t, uint32_t> mapErrors; //< chunks for which the request failed
+    int mNumResponses;                       ///< expected number of responses
+    sem_t mSemaphore;                        ///< semaphore used for synchronisations
+    std::map<uint64_t, uint32_t> mMapErrors; ///< chunks for which the request failed
 };
 
 EOSFSTNAMESPACE_END

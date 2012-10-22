@@ -37,21 +37,21 @@ EOSFSTNAMESPACE_BEGIN
 // -----------------------------------------------------------------------------
 // Constructor
 // -----------------------------------------------------------------------------
-ReedSFile::ReedSFile( std::vector<std::string> stripeurl,
-                      int                      nparity,
-                      bool                     storerecovery,
-                      bool                     isstreaming,
-                      off_t                    targetsize,
-                      std::string              bookingopaque )
-  : RaidIO( "reedS", stripeurl, nparity, storerecovery,
-            isstreaming, targetsize, bookingopaque )
+ReedSFile::ReedSFile( std::vector<std::string> stripeUrl,
+                      int                      numParity,
+                      bool                     storeRecovery,
+                      bool                     isStreaming,
+                      off_t                    targetSize,
+                      std::string              bookingOpaque )
+  : RaidIO( "reedS", stripeUrl, numParity, storeRecovery,
+            isStreaming, targetSize, bookingOpaque )
 {
-  sizeGroup = nDataFiles * stripeWidth;
-  nDataBlocks = nDataFiles;
-  nTotalBlocks = nDataFiles + nParityFiles;
+  mSizeGroup = mNbDataFiles * mStripeWidth;
+  mNbDataBlocks = mNbDataFiles;
+  mNbTotalBlocks = mNbDataFiles + mNbParityFiles;
 
-  for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
-    dataBlocks.push_back( new char[stripeWidth] );
+  for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
+    mDataBlocks.push_back( new char[mStripeWidth] );
   }
 }
 
@@ -61,8 +61,8 @@ ReedSFile::ReedSFile( std::vector<std::string> stripeurl,
 // -----------------------------------------------------------------------------
 ReedSFile::~ReedSFile()
 {
-  for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
-    delete[] dataBlocks[i];
+  for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
+    delete[] mDataBlocks[i];
   }
 }
 
@@ -73,21 +73,21 @@ ReedSFile::~ReedSFile()
 void
 ReedSFile::ComputeParity()
 {
-  unsigned int block_nums[nParityFiles];
-  unsigned char* outblocks[nParityFiles];
-  const unsigned char* blocks[nDataFiles];
+  unsigned int block_nums[mNbParityFiles];
+  unsigned char* outblocks[mNbParityFiles];
+  const unsigned char* blocks[mNbDataFiles];
 
-  for ( unsigned int i = 0; i < nDataFiles; i++ )
-    blocks[i] = ( const unsigned char* ) dataBlocks[i];
+  for ( unsigned int i = 0; i < mNbDataFiles; i++ )
+    blocks[i] = ( const unsigned char* ) mDataBlocks[i];
 
-  for ( unsigned int i = 0; i < nParityFiles; i++ ) {
-    block_nums[i] = nDataFiles + i;
-    outblocks[i] = ( unsigned char* ) dataBlocks[nDataFiles + i];
-    memset( dataBlocks[nDataFiles + i], 0, stripeWidth );
+  for ( unsigned int i = 0; i < mNbParityFiles; i++ ) {
+    block_nums[i] = mNbDataFiles + i;
+    outblocks[i] = ( unsigned char* ) mDataBlocks[mNbDataFiles + i];
+    memset( mDataBlocks[mNbDataFiles + i], 0, mStripeWidth );
   }
 
-  fec_t* const fec = fec_new( nDataFiles, nTotalFiles );
-  fec_encode( fec, blocks, outblocks, block_nums, nParityFiles, stripeWidth );
+  fec_t* const fec = fec_new( mNbDataFiles, mNbTotalFiles );
+  fec_encode( fec, blocks, outblocks, block_nums, mNbParityFiles, mStripeWidth );
 
   //free memory
   fec_free( fec );
@@ -99,87 +99,77 @@ ReedSFile::ComputeParity()
 // -----------------------------------------------------------------------------
 bool
 ReedSFile::RecoverPieces( off_t                    offsetInit,
-                          char*                    buffer,
-                          std::map<off_t, size_t>& mapErrors )
+                          char*                    pBuffer,
+                          std::map<off_t, size_t>& rMapErrors )
 {
-  unsigned int blocksCorrupted;
-  vector<unsigned int> validId;
-  vector<unsigned int> invalidId;
-  off_t offset = mapErrors.begin()->first;
-  size_t length = mapErrors.begin()->second;
-  off_t offsetLocal = ( offset / sizeGroup ) * stripeWidth;
-  off_t offsetGroup = ( offset / sizeGroup ) * sizeGroup;
+  unsigned int num_blocks_corrupted;
+  vector<unsigned int> valid_ids;
+  vector<unsigned int> invalid_ids;
+  off_t offset = rMapErrors.begin()->first;
+  size_t length = rMapErrors.begin()->second;
+  off_t offset_local = ( offset / mSizeGroup ) * mStripeWidth;
+  off_t offset_group = ( offset / mSizeGroup ) * mSizeGroup;
+  num_blocks_corrupted = 0;
 
-  blocksCorrupted = 0;
-
-  for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
-    vReadHandler[i]->Reset();
-    vReadHandler[i]->Increment();
-    xrdFile[mapSU[i]]->Read( offsetLocal +  sizeHeader, stripeWidth,
-                             dataBlocks[i], vReadHandler[i] );
+  for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
+    mReadHandlers[i]->Reset();
+    mReadHandlers[i]->Increment();
+    mpXrdFile[mapSU[i]]->Read( offset_local +  mSizeHeader, mStripeWidth,
+                               mDataBlocks[i], mReadHandlers[i] );
   }
 
-  // ---------------------------------------------------------------------------
   // Wait for read responses and mark corrupted blocks
-  // ---------------------------------------------------------------------------
-  for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
-
-    if ( !vReadHandler[i]->WaitOK() ) {
-      eos_err( "Read stripe %s - corrupted block", stripeUrls[mapSU[i]].c_str() );
-      invalidId.push_back( i );
-      blocksCorrupted++;
+  for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
+    if ( !mReadHandlers[i]->WaitOK() ) {
+      eos_err( "Read stripe %s - corrupted block", mStripeUrls[mapSU[i]].c_str() );
+      invalid_ids.push_back( i );
+      num_blocks_corrupted++;
     } else {
-      validId.push_back( i );
+      valid_ids.push_back( i );
     }
 
-    vReadHandler[i]->Reset();
+    mReadHandlers[i]->Reset();
   }
 
-  if ( blocksCorrupted == 0 )
+  if ( num_blocks_corrupted == 0 )
     return true;
-  else if ( blocksCorrupted > nParityFiles )
+  else if ( num_blocks_corrupted > mNbParityFiles )
     return false;
 
-  // ---------------------------------------------------------------------------
   // ******* DECODE ******
-  // ---------------------------------------------------------------------------
-  const unsigned char* inpkts[nTotalFiles - blocksCorrupted];
-  unsigned char* outpkts[nParityFiles];
-  unsigned indexes[nDataFiles];
+  const unsigned char* inpkts[mNbTotalFiles - num_blocks_corrupted];
+  unsigned char* outpkts[mNbParityFiles];
+  unsigned indexes[mNbDataFiles];
   bool found = false;
 
-  // ---------------------------------------------------------------------------
   // Obtain a valid combination of blocks suitable for recovery
-  // ---------------------------------------------------------------------------
-  Backtracking( 0, indexes, validId );
+  Backtracking( 0, indexes, valid_ids );
 
-  for ( unsigned int i = 0; i < nDataFiles; i++ ) {
-    inpkts[i] = ( const unsigned char* ) dataBlocks[indexes[i]];
+  for ( unsigned int i = 0; i < mNbDataFiles; i++ ) {
+    inpkts[i] = ( const unsigned char* ) mDataBlocks[indexes[i]];
   }
 
-  // ---------------------------------------------------------------------------
   // Add the invalid data blocks to be recovered
-  // ---------------------------------------------------------------------------
   int countOut = 0;
-  bool dataCorrupted = false;
-  bool parityCorrupted = false;
+  bool data_corrupted = false;
+  bool parity_corrupted = false;
 
-  for ( unsigned int i = 0; i < invalidId.size(); i++ ) {
-    outpkts[i] = ( unsigned char* ) dataBlocks[invalidId[i]];
+  for ( unsigned int i = 0; i < invalid_ids.size(); i++ ) {
+    outpkts[i] = ( unsigned char* ) mDataBlocks[invalid_ids[i]];
     countOut++;
 
-    if ( invalidId[i] >= nDataFiles )
-      parityCorrupted = true;
+    if ( invalid_ids[i] >= mNbDataFiles )
+      parity_corrupted = true;
     else
-      dataCorrupted = true;
+      data_corrupted = true;
   }
 
-  for ( vector<unsigned int>::iterator iter = validId.begin();
-        iter != validId.end();
+  for ( vector<unsigned int>::iterator iter = valid_ids.begin();
+        iter != valid_ids.end();
         ++iter ) {
     found = false;
 
-    for ( unsigned int i = 0; i < nDataFiles; i++ ) {
+    for ( unsigned int i = 0; i < mNbDataFiles; i++ ) {
       if ( indexes[i] == *iter ) {
         found = true;
         break;
@@ -187,81 +177,70 @@ ReedSFile::RecoverPieces( off_t                    offsetInit,
     }
 
     if ( !found ) {
-      outpkts[countOut] = ( unsigned char* ) dataBlocks[*iter];
+      outpkts[countOut] = ( unsigned char* ) mDataBlocks[*iter];
       countOut++;
     }
   }
 
-  // ---------------------------------------------------------------------------
   // Actual decoding - recover primary blocks
-  // ---------------------------------------------------------------------------
-  if ( dataCorrupted ) {
-    fec_t* const fec = fec_new( nDataFiles, nTotalFiles );
-    fec_decode( fec, inpkts, outpkts, indexes, stripeWidth );
+  if ( data_corrupted ) {
+    fec_t* const fec = fec_new( mNbDataFiles, mNbTotalFiles );
+    fec_decode( fec, inpkts, outpkts, indexes, mStripeWidth );
     fec_free( fec );
   }
 
-  // ---------------------------------------------------------------------------
   // If there are also parity blocks corrupted then we encode again the blocks
   // - recover secondary blocks
-  // ---------------------------------------------------------------------------
-  if ( parityCorrupted ) {
+  if ( parity_corrupted ) {
     ComputeParity();
   }
 
-  // ---------------------------------------------------------------------------
   // Update the files in which we found invalid blocks
-  // ---------------------------------------------------------------------------
   char* pBuff ;
-  unsigned int stripeId;
+  unsigned int stripe_id;
 
-  for ( vector<unsigned int>::iterator iter = invalidId.begin();
-        iter != invalidId.end();
+  for ( vector<unsigned int>::iterator iter = invalid_ids.begin();
+        iter != invalid_ids.end();
         ++iter ) {
-    stripeId = *iter;
-    eos_debug( "Invalid index stripe: %i", stripeId );
-    eos_debug( "Writing to remote file stripe: %i, fstid: %i", stripeId, mapSU[stripeId] );
+    stripe_id = *iter;
+    eos_debug( "Invalid index stripe: %i", stripe_id );
+    eos_debug( "Writing to remote file stripe: %i, fstid: %i", stripe_id, mapSU[stripe_id] );
 
-    if ( storeRecovery ) {
-      vWriteHandler[stripeId]->Reset();
-      vWriteHandler[stripeId]->Increment();
-      xrdFile[mapSU[stripeId]]->Write( offsetLocal + sizeHeader, stripeWidth,
-                                       dataBlocks[stripeId], vWriteHandler[stripeId] );
+    if ( mStoreRecovery ) {
+      mWriteHandlers[stripe_id]->Reset();
+      mWriteHandlers[stripe_id]->Increment();
+      mpXrdFile[mapSU[stripe_id]]->Write( offset_local + mSizeHeader, mStripeWidth,
+                                          mDataBlocks[stripe_id], mWriteHandlers[stripe_id] );
     }
 
-    // -----------------------------------------------------------------------
     // Write the correct block to the reading buffer, if it is not parity info
-    // -----------------------------------------------------------------------
-    if ( *iter < nDataFiles ) { //if one of the data blocks
-      for ( std::map<off_t, size_t>::iterator itPiece = mapErrors.begin();
-            itPiece != mapErrors.end();
+    if ( *iter < mNbDataFiles ) { //if one of the data blocks
+      for ( std::map<off_t, size_t>::iterator itPiece = rMapErrors.begin();
+            itPiece != rMapErrors.end();
             itPiece++ ) {
         offset = itPiece->first;
         length = itPiece->second;
 
-        if ( ( offset >= ( off_t )( offsetGroup + ( *iter ) * stripeWidth ) ) &&
-             ( offset < ( off_t )( offsetGroup + ( ( *iter ) + 1 ) * stripeWidth ) ) ) {
-          pBuff = buffer + ( offset - offsetInit );
-          memcpy( pBuff, dataBlocks[*iter] + ( offset % stripeWidth ), length );
+        if ( ( offset >= ( off_t )( offset_group + ( *iter ) * mStripeWidth ) ) &&
+             ( offset < ( off_t )( offset_group + ( ( *iter ) + 1 ) * mStripeWidth ) ) ) {
+          pBuff = pBuffer + ( offset - offsetInit );
+          memcpy( pBuff, mDataBlocks[*iter] + ( offset % mStripeWidth ), length );
         }
       }
     }
   }
 
-  // -----------------------------------------------------------------------
   // Wait for write responses
-  // -----------------------------------------------------------------------
-  for ( vector<unsigned int>::iterator iter = invalidId.begin();
-        iter != invalidId.end();
+  for ( vector<unsigned int>::iterator iter = invalid_ids.begin();
+        iter != invalid_ids.end();
         ++iter ) {
-    if ( !vWriteHandler[*iter]->WaitOK() ) {
+    if ( !mWriteHandlers[*iter]->WaitOK() ) {
       eos_err( "ReedSRecovery - write stripe failed" );
       return false;
     }
   }
 
-
-  doneRecovery = true;
+  mDoneRecovery = true;
   return true;
 }
 
@@ -271,19 +250,19 @@ ReedSFile::RecoverPieces( off_t                    offsetInit,
 // -----------------------------------------------------------------------------
 bool
 ReedSFile::SolutionBkt( unsigned int         k,
-                        unsigned int*        indexes,
+                        unsigned int*        pIndexes,
                         vector<unsigned int> validId )
 {
   bool found = false;
 
-  if ( k != nDataFiles ) return found;
+  if ( k != mNbDataFiles ) return found;
 
-  for ( unsigned int i = nDataFiles; i < nTotalFiles; i++ ) {
+  for ( unsigned int i = mNbDataFiles; i < mNbTotalFiles; i++ ) {
     if ( find( validId.begin(), validId.end(), i ) != validId.end() ) {
       found = false;
 
       for ( unsigned int j = 0; j <= k; j++ ) {
-        if ( indexes[j] == i ) {
+        if ( pIndexes[j] == i ) {
           found  = true;
           break;
         }
@@ -302,19 +281,18 @@ ReedSFile::SolutionBkt( unsigned int         k,
 // -----------------------------------------------------------------------------
 bool
 ReedSFile::ValidBkt( unsigned int         k,
-                     unsigned int*        indexes,
+                     unsigned int*        pIndexes,
                      vector<unsigned int> validId )
 {
   // Obs: condition from zfec implementation:
   // If a primary block, i, is present then it must be at index i;
   // Secondary blocks can appear anywhere.
-
-  if ( find( validId.begin(), validId.end(), indexes[k] ) == validId.end() ||
-       ( ( indexes[k] < nDataFiles ) && ( indexes[k] != k ) ) )
+  if ( find( validId.begin(), validId.end(), pIndexes[k] ) == validId.end() ||
+       ( ( pIndexes[k] < mNbDataFiles ) && ( pIndexes[k] != k ) ) )
     return false;
 
   for ( unsigned int i = 0; i < k; i++ ) {
-    if ( indexes[i] == indexes[k] || ( indexes[i] < nDataFiles && indexes[i] != i ) )
+    if ( pIndexes[i] == pIndexes[k] || ( pIndexes[i] < mNbDataFiles && pIndexes[i] != i ) )
       return false;
   }
 
@@ -327,15 +305,15 @@ ReedSFile::ValidBkt( unsigned int         k,
 // -----------------------------------------------------------------------------
 bool
 ReedSFile::Backtracking( unsigned int         k,
-                         unsigned int*        indexes,
+                         unsigned int*        pIndexes,
                          vector<unsigned int> validId )
 {
-  if ( SolutionBkt( k, indexes, validId ) )
+  if ( SolutionBkt( k, pIndexes, validId ) )
     return true;
   else {
-    for ( indexes[k] = 0; indexes[k] < nTotalFiles; indexes[k]++ ) {
-      if ( ValidBkt( k, indexes, validId ) )
-        if ( Backtracking( k + 1, indexes, validId ) )
+    for ( pIndexes[k] = 0; pIndexes[k] < mNbTotalFiles; pIndexes[k]++ ) {
+      if ( ValidBkt( k, pIndexes, validId ) )
+        if ( Backtracking( k + 1, pIndexes, validId ) )
           return true;
     }
 
@@ -349,26 +327,24 @@ ReedSFile::Backtracking( unsigned int         k,
 // Add a new data used to compute parity block
 // -----------------------------------------------------------------------------
 void
-ReedSFile::AddDataBlock( off_t offset, char* buffer, size_t length )
+ReedSFile::AddDataBlock( off_t offset, char* pBuffer, size_t length )
 {
-  int indxBlock;
+  int indx_block;
   size_t nwrite;
-  off_t offsetInBlock;
-  off_t offsetInGroup = offset % sizeGroup;
+  off_t offset_in_block;
+  off_t offset_in_group = offset % mSizeGroup;
 
-  // ---------------------------------------------------------------------------
-  // In case the file is smaller than sizeGroup, we need to force it to compute
+  // In case the file is smaller than mSizeGroup, we need to force it to compute
   // the parity blocks
-  // ---------------------------------------------------------------------------
-  if ( ( offGroupParity == -1 ) && ( offset < static_cast<off_t>( sizeGroup ) ) ) {
-    offGroupParity = 0;
+  if ( ( mOffGroupParity == -1 ) && ( offset < static_cast<off_t>( mSizeGroup ) ) ) {
+    mOffGroupParity = 0;
   }
 
-  if ( offsetInGroup == 0 ) {
-    fullDataBlocks = false;
+  if ( offset_in_group == 0 ) {
+    mFullDataBlocks = false;
 
-    for ( unsigned int i = 0; i < nDataFiles; i++ ) {
-      memset( dataBlocks[i], 0, stripeWidth );
+    for ( unsigned int i = 0; i < mNbDataFiles; i++ ) {
+      memset( mDataBlocks[i], 0, mStripeWidth );
     }
   }
 
@@ -376,31 +352,27 @@ ReedSFile::AddDataBlock( off_t offset, char* buffer, size_t length )
   size_t availableLength;
 
   while ( length ) {
-    offsetInBlock = offsetInGroup % stripeWidth;
-    availableLength = stripeWidth - offsetInBlock;
-    indxBlock = offsetInGroup / stripeWidth;
-
+    offset_in_block = offset_in_group % mStripeWidth;
+    availableLength = mStripeWidth - offset_in_block;
+    indx_block = offset_in_group / mStripeWidth;
     nwrite = ( length > availableLength ) ? availableLength : length;
-    ptr = dataBlocks[indxBlock];
-    ptr += offsetInBlock;
-    ptr = ( char* )memcpy( ptr, buffer, nwrite );
-
+    ptr = mDataBlocks[indx_block];
+    ptr += offset_in_block;
+    ptr = ( char* )memcpy( ptr, pBuffer, nwrite );
     offset += nwrite;
     length -= nwrite;
-    buffer += nwrite;
-    offsetInGroup = offset % sizeGroup;
+    pBuffer += nwrite;
+    offset_in_group = offset % mSizeGroup;
 
-    if ( offsetInGroup == 0 ) {
-      // -----------------------------------------------------------------------
+    if ( offset_in_group == 0 ) {
       // We completed a group, we can compute parity
-      // -----------------------------------------------------------------------
-      offGroupParity = ( ( offset - 1 ) / sizeGroup ) *  sizeGroup;
-      fullDataBlocks = true;
-      DoBlockParity( offGroupParity );
-      offGroupParity = ( offset / sizeGroup ) *  sizeGroup;
+      mOffGroupParity = ( ( offset - 1 ) / mSizeGroup ) *  mSizeGroup;
+      mFullDataBlocks = true;
+      DoBlockParity( mOffGroupParity );
+      mOffGroupParity = ( offset / mSizeGroup ) *  mSizeGroup;
 
-      for ( unsigned int i = 0; i < nDataFiles; i++ ) {
-        memset( dataBlocks[i], 0, stripeWidth );
+      for ( unsigned int i = 0; i < mNbDataFiles; i++ ) {
+        memset( mDataBlocks[i], 0, mStripeWidth );
       }
     }
   }
@@ -408,22 +380,22 @@ ReedSFile::AddDataBlock( off_t offset, char* buffer, size_t length )
 
 
 // -----------------------------------------------------------------------------
-// Write the parity blocks from dataBlocks to the corresponding file stripes
+// Write the parity blocks from mDataBlocks to the corresponding file stripes
 // -----------------------------------------------------------------------------
 int
 ReedSFile::WriteParityToFiles( off_t offsetGroup )
 {
-  off_t offsetLocal = offsetGroup / nDataFiles;
+  off_t offset_local = offsetGroup / mNbDataFiles;
 
-  for ( unsigned int i = nDataFiles; i < nTotalFiles; i++ ) {
-    vWriteHandler[i]->Reset();
-    vWriteHandler[i]->Increment();
-    xrdFile[mapSU[i]]->Write( offsetLocal + sizeHeader, stripeWidth,
-                              dataBlocks[i], vWriteHandler[i] );
+  for ( unsigned int i = mNbDataFiles; i < mNbTotalFiles; i++ ) {
+    mWriteHandlers[i]->Reset();
+    mWriteHandlers[i]->Increment();
+    mpXrdFile[mapSU[i]]->Write( offset_local + mSizeHeader, mStripeWidth,
+                                mDataBlocks[i], mWriteHandlers[i] );
   }
 
-  for ( unsigned int i = nDataFiles; i < nTotalFiles; i++ ) {
-    if ( !vWriteHandler[i]->WaitOK() ) {
+  for ( unsigned int i = mNbDataFiles; i < mNbTotalFiles; i++ ) {
+    if ( !mWriteHandlers[i]->WaitOK() ) {
       eos_err( "ReedSWrite write local stripe - write failed" );
       return -1;
     }
@@ -439,17 +411,16 @@ ReedSFile::WriteParityToFiles( off_t offsetGroup )
 int
 ReedSFile::truncate( off_t offset )
 {
-
   int rc = SFS_OK;
   off_t truncateOffset = 0;
 
   if ( !offset ) return rc;
 
-  truncateOffset = ceil( ( offset * 1.0 ) / sizeGroup ) * stripeWidth;
-  truncateOffset += sizeHeader;
+  truncateOffset = ceil( ( offset * 1.0 ) / mSizeGroup ) * mStripeWidth;
+  truncateOffset += mSizeHeader;
 
-  for ( unsigned int i = 0; i < nTotalFiles; i++ ) {
-    if ( !( xrdFile[i]->Truncate( truncateOffset ).IsOK() ) ) {
+  for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
+    if ( !( mpXrdFile[i]->Truncate( truncateOffset ).IsOK() ) ) {
       eos_err( "error=error while truncating" );
       return -1;
     }
@@ -465,8 +436,8 @@ ReedSFile::truncate( off_t offset )
 unsigned int
 ReedSFile::MapSmallToBig( unsigned int idSmall )
 {
-  if ( idSmall >= nDataBlocks ) {
-    eos_err( "error=idSmall bugger than expected" );
+  if ( idSmall >= mNbDataBlocks ) {
+    eos_err( "error=idSmall bigger than expected" );
     return -1;
   }
 
@@ -482,22 +453,22 @@ OBS:: can be used if updated are allowed
 int
 ReedSFile::updateParityForGroups(off_t offsetStart, off_t offsetEnd)
 {
-  off_t offsetGroup;
-  off_t offsetBlock;
+  off_t offset_group;
+  off_t offset_block;
 
-  for (unsigned int i = (offsetStart / sizeGroup);
-       i < ceil((offsetEnd * 1.0 ) / sizeGroup); i++)
+  for (unsigned int i = (offsetStart / mSizeGroup);
+       i < ceil((offsetEnd * 1.0 ) / mSizeGroup); i++)
   {
-    offsetGroup = i * sizeGroup;
-    for(unsigned int j = 0; j < nDataFiles; j++)
+    offset_group = i * mSizeGroup;
+    for(unsigned int j = 0; j < mNbDataFiles; j++)
     {
-      offsetBlock = offsetGroup + j * stripeWidth;
-      read(offsetBlock, dataBlocks[j], stripeWidth);
+      offset_block = offset_group + j * mStripeWidth;
+      read(offset_block, mDataBlocks[j], mStripeWidth);
     }
 
     //compute parity blocks and write to files
     ComputeParity();
-    writeParityToFiles(offsetGroup/nDataFiles);
+    writeParityToFiles(offset_group/mNbDataFiles);
   }
 
   return SFS_OK;

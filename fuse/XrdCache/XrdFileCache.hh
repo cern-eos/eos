@@ -1,6 +1,8 @@
 //------------------------------------------------------------------------------
-// File: XrdFileCache.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file XrdFileCache.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Class implementing the high-level constructs needed to operate the
+//!        caching framenwork
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -46,10 +48,10 @@ class XrdFileCache
     // -------------------------------------------------------------------------
     //! Get instance of class
     //!
-    //! @param s_max maximum size
+    //! @param sizeMax maximum size
     //!
     // -------------------------------------------------------------------------
-    static XrdFileCache* GetInstance( size_t s_max );
+    static XrdFileCache* GetInstance( size_t sizeMax );
 
     // -------------------------------------------------------------------------
     //! Destructor
@@ -59,14 +61,14 @@ class XrdFileCache
     // -------------------------------------------------------------------------
     //! Add a write request
     //!
-    //! @param ref_file XrdCl file handler
+    //! @param rpFile XrdCl file handler
     //! @param inode file inode value
     //! @param buf data to be written
     //! @param off offset
     //! @param len length
     //!
     // -------------------------------------------------------------------------
-    void SubmitWrite( XrdCl::File*& ref_file,
+    void SubmitWrite( XrdCl::File*& rpFile,
                       unsigned long inode,
                       void*         buf,
                       off_t         off,
@@ -75,7 +77,7 @@ class XrdFileCache
     // -------------------------------------------------------------------------
     //! Try to get read from cache
     //!
-    //! @param fAbst FileAbstraction handler
+    //! @param rFileAbst FileAbstraction handler
     //! @param buf buffer where to read the data
     //! @param off offset
     //! @param len length
@@ -83,13 +85,16 @@ class XrdFileCache
     //! @return number of bytes read
     //!
     // -------------------------------------------------------------------------
-    size_t GetRead( FileAbstraction& fAbst, void* buf, off_t off, size_t len );
+    size_t GetRead( FileAbstraction& rFileAbst,
+                    void*            buf,
+                    off_t            off,
+                    size_t           len );
 
     // -------------------------------------------------------------------------
     //! Add read to cache
     //!
-    //! @param ref_file XrdCl file handler
-    //! @param fAbst FileAbstraction handler
+    //! @param rpFile XrdCl file handler
+    //! @param rFileAbst FileAbstraction handler
     //! @param buf buffer containing the data
     //! @param off offset
     //! @param len length
@@ -97,8 +102,8 @@ class XrdFileCache
     //! @return number of bytes saved in cache
     //!
     // -------------------------------------------------------------------------
-    size_t PutRead( XrdCl::File*&    ref_file,
-                    FileAbstraction& fAbst,
+    size_t PutRead( XrdCl::File*&    rpFile,
+                    FileAbstraction& rFileAbst,
                     void*            buf,
                     off_t            off,
                     size_t           len );
@@ -114,24 +119,24 @@ class XrdFileCache
     // -------------------------------------------------------------------------
     //! Wait for all pending writes on a file
     //!
-    //! @param fAbst FileAbstraction handler
+    //! @param rFileAbst FileAbstraction handler
     //!
     // -------------------------------------------------------------------------
-    void WaitFinishWrites( FileAbstraction& fAbst );
+    void WaitFinishWrites( FileAbstraction& rFileAbst );
 
     // -------------------------------------------------------------------------
     //! Remove file inode from mapping. If strongConstraint is true then we
     //! impose tighter constraints on when we consider a file as not beeing
     //! used (for the strong case the file has to have  no read or write blocks
-    //! in cache and the number of references to held to it has to be 0).
+    //! in cache and the number of references held to it has to be 0).
     //!
     //! @param inode file inode
-    //! @param strong_constraint enforce tighter constraints
+    //! @param strongConstraint enforce tighter constraints
     //!
     //! @return true if file obj was removed, otherwise false
     //!
     // -------------------------------------------------------------------------
-    bool RemoveFileInode( unsigned long inode, bool strong_constraint );
+    bool RemoveFileInode( unsigned long inode, bool strongConstraint );
 
     // -------------------------------------------------------------------------
     //! Get handler to the errors queue
@@ -147,12 +152,12 @@ class XrdFileCache
     //! Get handler to the file abstraction object
     //!
     //! @param inode file inode
-    //! @param get_new if true then force creation of a new object
+    //! @param getNew if true then force creation of a new object
     //!
     //! @return FileAbstraction handler
     //!
     // -------------------------------------------------------------------------
-    FileAbstraction* GetFileObj( unsigned long inode, bool get_new );
+    FileAbstraction* GetFileObj( unsigned long inode, bool getNew );
 
     //vector reads - no implemented
     /*size_t getReadV(unsigned long inode,
@@ -172,10 +177,10 @@ class XrdFileCache
 
   private:
 
-    //< maximum number of files concurrently in cache, has to be >=10
-    static const int max_index_files = 1000;
+    ///< maximum number of files concurrently in cache, has to be >=10
+    static const int msMaxIndexFiles = 1000;
 
-    //< singleton object
+    ///< singleton object
     static XrdFileCache* pInstance;
 
     // -------------------------------------------------------------------------
@@ -196,19 +201,19 @@ class XrdFileCache
     // -------------------------------------------------------------------------
     static void* WriteThreadProc( void* );
 
-    size_t cache_size_max;    //< read cache size
-    int indexFile;            //< last index assigned to a file
+    size_t msCacheSizeMax;    ///< read cache size
+    int mIndexFile;            ///< last index assigned to a file
 
-    pthread_t write_thread;   //< async thread doing the writes
-    XrdSysRWLock rw_lock;     //< rw lock for the key map
+    pthread_t mWriteThread;   ///< async thread doing the writes
+    XrdSysRWLock mRwLock;     ///< rw lock for the key map
 
-    //< file indices used and available to recycle
-    ConcurrentQueue<int>* queue_used_indx;
+    ///< file indices used and available to recycle
+    ConcurrentQueue<int>* mpUsedIndxQueue;
 
-    //< map inodes to FileAbst objects
-    std::map<unsigned long, FileAbstraction*> inode2fAbst;
+    ///< map inodes to FileAbst objects
+    std::map<unsigned long, FileAbstraction*> mInode2fAbst;
 
-    CacheImpl* cache_impl;    //< handler to the low-level cache implementation
+    CacheImpl* mpCacheImpl;    ///< handler to the low-level cache implementation
 };
 
 #endif

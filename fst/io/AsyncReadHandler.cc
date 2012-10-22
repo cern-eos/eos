@@ -31,9 +31,9 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 // -----------------------------------------------------------------------------
 AsyncReadHandler::AsyncReadHandler():
-  nResponses( 0 )
+  mNumResponses( 0 )
 {
-  if ( sem_init( &semaphore, 0, 0 ) ) {
+  if ( sem_init( &mSemaphore, 0, 0 ) ) {
     fprintf( stderr, "Error while creating semaphore. \n" );
     return;
   }
@@ -45,23 +45,24 @@ AsyncReadHandler::AsyncReadHandler():
 // -----------------------------------------------------------------------------
 AsyncReadHandler::~AsyncReadHandler()
 {
-  sem_destroy( &semaphore );
+  sem_destroy( &mSemaphore );
 }
 
 
 // -----------------------------------------------------------------------------
 // Handle response
 // -----------------------------------------------------------------------------
-void AsyncReadHandler::HandleResponse( XrdCl::XRootDStatus* status,
-                                       XrdCl::AnyObject*    response )
+void
+AsyncReadHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
+                                  XrdCl::AnyObject*    pResponse )
 {
-  if ( status->status == XrdCl::stOK ) {
-    sem_post( &semaphore );
+  if ( pStatus->status == XrdCl::stOK ) {
+    sem_post( &mSemaphore );
   } else {
     XrdCl::Chunk* chunk = 0;
-    response->Get( chunk );
-    mapErrors.insert( std::make_pair( chunk->offset, chunk->length ) );
-    sem_post( &semaphore );
+    pResponse->Get( chunk );
+    mMapErrors.insert( std::make_pair( chunk->offset, chunk->length ) );
+    sem_post( &mSemaphore );
   }
 }
 
@@ -69,13 +70,14 @@ void AsyncReadHandler::HandleResponse( XrdCl::XRootDStatus* status,
 // -----------------------------------------------------------------------------
 // Wait for responses
 // -----------------------------------------------------------------------------
-bool AsyncReadHandler::WaitOK()
+bool
+AsyncReadHandler::WaitOK()
 {
-  for ( int i = 0; i < nResponses; i++ ) {
-    sem_wait( &semaphore );
+  for ( int i = 0; i < mNumResponses; i++ ) {
+    sem_wait( &mSemaphore );
   }
 
-  if ( mapErrors.empty() ) {
+  if ( mMapErrors.empty() ) {
     return true;
   }
 
@@ -86,37 +88,41 @@ bool AsyncReadHandler::WaitOK()
 // -----------------------------------------------------------------------------
 // Get map of errors
 // -----------------------------------------------------------------------------
-const std::map<uint64_t, uint32_t>& AsyncReadHandler::GetErrorsMap()
+const std::map<uint64_t, uint32_t>&
+AsyncReadHandler::GetErrorsMap()
 {
-  return mapErrors;
+  return mMapErrors;
 }
 
 
 // -----------------------------------------------------------------------------
 // Increment the number of expected responses
 // -----------------------------------------------------------------------------
-void AsyncReadHandler::Increment()
+void
+AsyncReadHandler::Increment()
 {
-  nResponses++;
+  mNumResponses++;
 }
 
 
 // -----------------------------------------------------------------------------
 // Get number of expected responses
 // -----------------------------------------------------------------------------
-const int AsyncReadHandler::GetNoResponses() const
+const int
+AsyncReadHandler::GetNoResponses() const
 {
-  return nResponses;
+  return mNumResponses;
 }
 
 
 // -----------------------------------------------------------------------------
 // Reset
 // -----------------------------------------------------------------------------
-void AsyncReadHandler::Reset()
+void
+AsyncReadHandler::Reset()
 {
-  nResponses = 0;
-  mapErrors.clear();
+  mNumResponses = 0;
+  mMapErrors.clear();
 }
 
 

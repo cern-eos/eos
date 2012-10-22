@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
-// File: xrdposix.hh
-// Author: Andreas-Joachim Peters - CERN
+//! @file xrdposix.hh
+//! @author Andreas-Joachim Peters - CERN
+//! @author Elvin-Alin Sindrilaru - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -47,11 +48,14 @@
 #include <sys/vfs.h>
 #include <unistd.h>
 #include <pwd.h>
+/*----------------------------------------------------------------------------*/
 #include <fuse/fuse_lowlevel.h>
 /*----------------------------------------------------------------------------*/
 
 #define PAGESIZE 128 * 1024
 
+
+//! Dirbuf structure used to save the list of subentries in a directory
 struct dirbuf {
   char* p;
   size_t size;
@@ -67,6 +71,8 @@ extern "C" {
   /* it might change in newer fuse version                                     */
   /*****************************************************************************/
   struct fuse_ll;
+
+  //! Structure copied from fuse<XX>.cc - it might change in the future
   struct fuse_req {
     struct fuse_ll* f;
     uint64_t unique;
@@ -88,6 +94,7 @@ extern "C" {
     struct fuse_req* prev;
   };
 
+  //! Structure copied from fuse<XX>.cc - it might change in the future
   struct fuse_ll {
     int debug;
     int allow_root;
@@ -103,97 +110,181 @@ extern "C" {
   };
 
   // ---------------------------------------------------------------------------
-  // C interface functions
+  //                ******* C interface functions *******
   // ---------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
-  // ******* Path translation *******
+  //                ******* Path translation *******
   //----------------------------------------------------------------------------
 
-  void           xrd_lock_r_p2i();   // lock for path or inode translation (read)
-  void           xrd_unlock_r_p2i(); // unlock after path or inode translation (read)
-  void           xrd_lock_w_p2i();   // lock for path or inode translation (write)
-  void           xrd_unlock_w_p2i(); // unlock after path or inode translation (write)
+  //----------------------------------------------------------------------------
+  //! Lock for path or inode translation (read)
+  //----------------------------------------------------------------------------
+  void xrd_lock_r_p2i();
 
-  // translate from inode to path
-  const          char* xrd_path( unsigned long long inode );
+  //----------------------------------------------------------------------------
+  //! Unlock after path or inode translation (read)
+  //----------------------------------------------------------------------------
+  void xrd_unlock_r_p2i();
 
-  // return the basename of a file
-  char*          xrd_basename( unsigned long long inode );
+  //----------------------------------------------------------------------------
+  //! Lock for path or inode translation (write)
+  //----------------------------------------------------------------------------
+  void xrd_lock_w_p2i();
 
-  // translate from path          to inode
-  unsigned long  long xrd_inode( const char* path );
+  //----------------------------------------------------------------------------
+  //! Unlock after path or inode translation (write)
+  //----------------------------------------------------------------------------
+  void xrd_unlock_w_p2i();
 
-  // store an inode/path mapping
-  void           xrd_store_p2i( unsigned long long inode, const char* path );
+  //----------------------------------------------------------------------------
+  //! Translate from inode to path
+  //----------------------------------------------------------------------------
+  const char* xrd_path( unsigned long long inode );
 
-  // store an inode/path mapping starting from the parent
-  // inode + child inode + child base name
-  void           xrd_store_child_p2i( unsigned long long inode,
+  //----------------------------------------------------------------------------
+  //! Return the basename of a file
+  //----------------------------------------------------------------------------
+  char* xrd_basename( unsigned long long inode );
+
+  //----------------------------------------------------------------------------
+  //! Translate from path to inode
+  //----------------------------------------------------------------------------
+  unsigned long long xrd_inode( const char* path );
+
+  //----------------------------------------------------------------------------
+  //! Store an inode/path mapping
+  //----------------------------------------------------------------------------
+  void  xrd_store_p2i( unsigned long long inode, const char* path );
+
+  //----------------------------------------------------------------------------
+  //! Store an inode/path mapping starting from the parent:
+  //! inode + child inode + child base name
+  //----------------------------------------------------------------------------
+  void xrd_store_child_p2i( unsigned long long inode,
                                       unsigned long long childinode,
                                       const char* name );
 
-  // forget an inode/path mapping by inode
-  void           xrd_forget_p2i( unsigned long long inode );
+  //----------------------------------------------------------------------------
+  //! Forget an inode/path mapping by inode
+  //----------------------------------------------------------------------------
+  void xrd_forget_p2i( unsigned long long inode );
+
+
 
   //----------------------------------------------------------------------------
-  // IO buffers
+  //                ******* IO buffers *******
   //----------------------------------------------------------------------------
 
-  // guarantee a buffer for reading of at least 'size' for the specified fd
-  char*          xrd_attach_read_buffer( int fd, size_t  size );
-
-  // release a read buffer for the specified fd
-  void           xrd_release_read_buffer( int fd );
-
-  
   //----------------------------------------------------------------------------
-  // ******* DIR Listrings *******
+  //! Guarantee a buffer for reading of at least 'size' for the specified fd
+  //----------------------------------------------------------------------------
+  char* xrd_attach_read_buffer( int fd, size_t  size );
+
+  //----------------------------------------------------------------------------
+  //! Release a read buffer for the specified fd
+  //----------------------------------------------------------------------------
+  void xrd_release_read_buffer( int fd );
+
+
+
+  //----------------------------------------------------------------------------
+  //                ******* DIR Listrings *******
   //----------------------------------------------------------------------------
 
-  void           xrd_lock_r_dirview();   // lock dirview (read)
-  void           xrd_unlock_r_dirview(); // unlock dirview (read)
-  void           xrd_lock_w_dirview();   // lock dirview (write)
-  void           xrd_unlock_w_dirview(); // unlock dirview (write)
+  //----------------------------------------------------------------------------
+  //! Lock dirview (read)
+  //----------------------------------------------------------------------------
+  void xrd_lock_r_dirview();
 
-  // path should be attached beforehand into path translation
-  void           xrd_dirview_create( unsigned long long inode );
-  void           xrd_dirview_delete( unsigned long long inode );
+  //----------------------------------------------------------------------------
+  //! Unlock dirview (read)
+  //----------------------------------------------------------------------------
+  void xrd_unlock_r_dirview();
 
-  // returns entry with index 'index'
+  //----------------------------------------------------------------------------
+  //! Lock dirview (write)
+  //----------------------------------------------------------------------------
+  void xrd_lock_w_dirview();
+
+  //----------------------------------------------------------------------------
+  //! Unlock dirview (write)
+  //----------------------------------------------------------------------------
+  void xrd_unlock_w_dirview();
+
+  //----------------------------------------------------------------------------
+  //! Create a new directory listing. Path should be attached beforehand into
+  //! path translation.
+  //----------------------------------------------------------------------------
+  void xrd_dirview_create( unsigned long long inode );
+
+  //----------------------------------------------------------------------------
+  //! Delete a directory listing. Path should be attached beforehand into
+  //! path translation.
+  //----------------------------------------------------------------------------
+  void xrd_dirview_delete( unsigned long long inode );
+
+  //----------------------------------------------------------------------------
+  //! Returns subentry with index 'index' from the directory
+  //!
+  //! @param dirinode directory inode
+  //! @param index index of entry
+  //! @get_lock if true, used does not take care of locking
+  //!
+  //! @return inode of the subentry
+  //!
+  //----------------------------------------------------------------------------
   unsigned long long xrd_dirview_entry( unsigned long long dirinode,
                                         size_t             index,
                                         int                get_lock );
 
-  // returns a buffer for a directory inode
+  //----------------------------------------------------------------------------
+  //! Returns a buffer for a directory inode
+  //----------------------------------------------------------------------------
   struct dirbuf* xrd_dirview_getbuffer( unsigned long long dirinode,
                                         int                get_lock );
 
 
-  
+
   //----------------------------------------------------------------------------
-  // ******* POSIX opened file descriptors *******
+  //              ******* POSIX opened file descriptors *******
   //----------------------------------------------------------------------------
 
-  // remove file descriptor from mapping
+
+  //----------------------------------------------------------------------------
+  //! Create a simulated file descriptor
+  //----------------------------------------------------------------------------
+  int xrd_generate_fd();
+
+  //----------------------------------------------------------------------------
+  //! Return the fd value back to the pool
+  //----------------------------------------------------------------------------
+  void xrd_release_fd( int fd );
+
+  //----------------------------------------------------------------------------
+  //! Remove file descriptor from mapping
+  //----------------------------------------------------------------------------
   void xrd_remove_fd2file( int fd );
 
-  //release a file descriptor held by a user ona file
+  //----------------------------------------------------------------------------
+  //! Release a file descriptor held by a user ona file
+  //----------------------------------------------------------------------------
   void xrd_release_open_fd( unsigned long long inode, uid_t uid );
-  
-  // add fd as an open file descriptor to speed-up mknod
+
+  //----------------------------------------------------------------------------
+  //! Add fd as an open file descriptor to speed-up mknod
+  //----------------------------------------------------------------------------
   void xrd_add_open_fd( int fd, unsigned long long inode, uid_t uid );
 
-  // return posix fd for inode
+  //----------------------------------------------------------------------------
+  //! Return posix fd for inode
+  //----------------------------------------------------------------------------
   unsigned long long xrd_get_open_fd( unsigned long long inode, uid_t uid );
-
-  // release an attached file descriptor
-  void xrd_lease_open_fd( unsigned long long inode, uid_t uid );
 
 
 
   //----------------------------------------------------------------------------
-  // ******* FUSE Directory Cache *******
+  //              ******* FUSE Directory Cache *******
   //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
@@ -231,8 +322,7 @@ extern "C" {
 
 
   //----------------------------------------------------------------------------
-  //!
-  //!Add new subentry to a cached directory
+  //! Add new subentry to a cached directory
   //!
   //! @param inode directory inode
   //! @param entry_inode subentry inode
@@ -262,76 +352,161 @@ extern "C" {
 
 
   //----------------------------------------------------------------------------
-  // ******* XROOT interfacing ********
+  //              ******* XROOT interfacing ********
   //----------------------------------------------------------------------------
-  int            xrd_stat( const char* file_name, struct stat* buf );
 
-  int            xrd_statfs( const char*     url,
-                             const char*     path,
-                             struct statvfs* stbuf );
 
-  int            xrd_getxattr( const char* path,
-                               const char* xattr_name,
-                               char**      xattr_value,
-                               size_t*     size );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_stat( const char* file_name, struct stat* buf );
 
-  int            xrd_listxattr( const char* path,
-                                char**      xattr_list,
-                                size_t*     size );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int  xrd_statfs( const char*     url,
+                   const char*     path,
+                   struct statvfs* stbuf );
+  
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_getxattr( const char* path,
+                    const char* xattr_name,
+                    char**      xattr_value,
+                    size_t*     size );
 
-  int            xrd_setxattr( const char* path,
-                               const char* xattr_name,
-                               const char* xattr_value,
-                               size_t      size );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_listxattr( const char* path,
+                     char**      xattr_list,
+                     size_t*     size );
+  
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_setxattr( const char* path,
+                    const char* xattr_name,
+                    const char* xattr_value,
+                    size_t      size );
 
-  int            xrd_rmxattr( const char* path, const char* xattr_name );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_rmxattr( const char* path, const char* xattr_name );
 
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
   struct dirent* xrd_readdir( const char* path_dir );
 
-  int            xrd_mkdir( const char* path, mode_t mode );
-  int            xrd_rmdir( const char* path );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_mkdir( const char* path, mode_t mode );
 
-  int            xrd_open( const char* pathname, int flags, mode_t mode );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_rmdir( const char* path );
 
-  int            xrd_truncate( int fildes, off_t offset, unsigned long inode );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_open( const char* pathname, int flags, mode_t mode );
 
-  ssize_t        xrd_pread( int           fildes,
-                            void*         buf,
-                            size_t        nbyte,
-                            off_t         offset,
-                            unsigned long inode );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_truncate( int fildes, off_t offset, unsigned long inode );
 
-  int            xrd_close( int fd, unsigned long inode );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  ssize_t xrd_pread( int           fildes,
+                     void*         buf,
+                     size_t        nbyte,
+                     off_t         offset,
+                     unsigned long inode );
+  
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_close( int fd, unsigned long inode );
 
-  ssize_t        xrd_pwrite( int           fildes,
-                             const void*   buf,
-                             size_t        nbyte,
-                             off_t         offset,
-                             unsigned long inode );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  ssize_t xrd_pwrite( int           fildes,
+                      const void*   buf,
+                      size_t        nbyte,
+                      off_t         offset,
+                      unsigned long inode );
 
-  int            xrd_fsync( int fildes, unsigned long inode );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_fsync( int fildes, unsigned long inode );
 
-  int            xrd_unlink( const char* path );
-  int            xrd_rename( const char* oldpath, const char* newpath );
-  int            xrd_chmod( const char* path, mode_t mode );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_unlink( const char* path );
 
-  int            xrd_symlink( const char* url,
-                              const char* oldpath,
-                              const char* newpath );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_rename( const char* oldpath, const char* newpath );
 
-  int            xrd_link( const char* url,
-                           const char* oldpath,
-                           const char* newpath );
-  int            xrd_readlink( const char* path, char* buf, size_t bufsize );
-  int            xrd_access( const char* path, int mode );
-  int            xrd_utimes( const char* path, struct timespec* tvp );
-  int            xrd_inodirlist( unsigned long long dirinode, const char* path );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_chmod( const char* path, mode_t mode );
 
-  // - USER mapping
-  const char*    xrd_mapuser( uid_t uid );
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_symlink( const char* url,
+                   const char* oldpath,
+                   const char* newpath );
+  
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_link( const char* url,
+                const char* oldpath,
+                const char* newpath );
+  
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_readlink( const char* path, char* buf, size_t bufsize );
 
-  // - INITIALITZATION
-  void           xrd_init();
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_access( const char* path, int mode );
+
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_utimes( const char* path, struct timespec* tvp );
+
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_inodirlist( unsigned long long dirinode, const char* path );
+
+  //----------------------------------------------------------------------------
+  //! Do user mapping
+  //----------------------------------------------------------------------------
+  const char*  xrd_mapuser( uid_t uid );
+
+  //----------------------------------------------------------------------------
+  //! Initialisation function
+  //----------------------------------------------------------------------------
+  void xrd_init();
 
 
 #ifdef __cplusplus
