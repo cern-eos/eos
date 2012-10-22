@@ -157,7 +157,7 @@ CacheImpl::getRead(const long long int& k, char* buf, off_t off, size_t len)
 /** 
  * Insert a read block in the cache 
  * 
- * @param filed file descriptor
+ * @param file XrdCl file handler
  * @param k key
  * @param buf buffer containing the data
  * @param off offset
@@ -167,8 +167,12 @@ CacheImpl::getRead(const long long int& k, char* buf, off_t off, size_t len)
  */
 /*----------------------------------------------------------------------------*/
 void
-CacheImpl::addRead(int filed, const long long int& k, char* buf, off_t off,
-                   size_t len, FileAbstraction &pFileAbst) 
+CacheImpl::addRead(XrdCl::File*&        file,
+                   const long long int& k,
+                   char*                buf,
+                   off_t                off,
+                   size_t               len,
+                   FileAbstraction&     pFileAbst) 
 {
   eos::common::Timing ar("addRead");
   COMMONTIMING("start", &ar);
@@ -196,7 +200,7 @@ CacheImpl::addRead(int filed, const long long int& k, char* buf, off_t off,
     rwMap.UnLock();                                         //unlock map
 
     //get new block
-    pEntry = getRecycledBlock(filed, buf, off, len, pFileAbst, false);
+    pEntry = getRecycledBlock(file, buf, off, len, false, pFileAbst);
 
     while (getSize() + CacheEntry::getMaxSize() >= sizeMax) {
       COMMONTIMING("start evitc", &ar);
@@ -303,7 +307,7 @@ CacheImpl::processWriteReq(CacheEntry* pEntry)
 /** 
  * Add new write request
  *
- * @param filed file descriptor
+ * @param file XrdCl file handler
  * @param k key
  * @param buf buffer containing the data 
  * @param off offset
@@ -313,8 +317,12 @@ CacheImpl::processWriteReq(CacheEntry* pEntry)
  */
 /*----------------------------------------------------------------------------*/
 void
-CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off,
-                    size_t len, FileAbstraction &pFileAbst)
+CacheImpl::addWrite(XrdCl::File*&        file,
+                    const long long int& k,
+                    char*                buf,
+                    off_t                off,
+                    size_t               len,
+                    FileAbstraction&     pFileAbst)
 {
   CacheEntry* pEntry = 0;
 
@@ -372,7 +380,7 @@ CacheImpl::addWrite(int filed, const long long int& k, char* buf, off_t off,
     rwMap.UnLock();                                         //unlock map
  
     //get new block
-    pEntry = getRecycledBlock(filed, buf, off, len, pFileAbst, true);
+    pEntry = getRecycledBlock( file, buf, off, len, true, pFileAbst );
     
     while (getSize() + CacheEntry::getMaxSize() >= sizeMax) {
       eos_static_debug("size cache=%zu before adding write block", getSize());
@@ -421,7 +429,7 @@ CacheImpl::killWriteThread()
 /** 
  * Recycle an used block or create a new one if none available
  *
- * @param filed file descriptor
+ * @param file XrdCl file handler
  * @param k key
  * @param buf buffer containing the data
  * @param off offset
@@ -434,13 +442,18 @@ CacheImpl::killWriteThread()
  */
 /*----------------------------------------------------------------------------*/
 CacheEntry*
-CacheImpl::getRecycledBlock(int filed, char* buf, off_t off, size_t len, FileAbstraction &pFileAbst, bool iswr)
+CacheImpl::getRecycledBlock(XrdCl::File*&    file,
+                            char*            buf,
+                            off_t            off,
+                            size_t           len,
+                            bool             iswr,
+                            FileAbstraction& pFileAbst)
 {
   CacheEntry* pRecycledObj = 0;
 
   if (recycleQueue->try_pop(pRecycledObj)) {
     //got obj from pool
-    pRecycledObj->doRecycle(filed, buf, off, len, pFileAbst, iswr);
+    pRecycledObj->doRecycle(file, buf, off, len, pFileAbst, iswr);
   } else {
     XrdSysMutexHelper mHelper(mAllocSize);
     if (sizeAllocBlocks >= maxSizeAllocBlocks) {
@@ -451,7 +464,7 @@ CacheImpl::getRecycledBlock(int filed, char* buf, off_t off, size_t len, FileAbs
       //no obj in pool, allocate new one
       sizeAllocBlocks += CacheEntry::getMaxSize();
       mHelper.UnLock();
-      pRecycledObj = new CacheEntry(filed, buf, off, len, pFileAbst, iswr);
+      pRecycledObj = new CacheEntry(file, buf, off, len, pFileAbst, iswr);
     }
   }
   

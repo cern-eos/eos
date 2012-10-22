@@ -180,9 +180,9 @@ XrdFileCache::getFileObj(unsigned long inode, bool getNew)
 
 /*----------------------------------------------------------------------------*/
 /** 
- * 
- * @param inode file indode
- * @param filed file descriptor
+ *
+ * @param file XrdCl file handler
+ * @param inode file inode
  * @param buf handler to data to be written
  * @param offset offset
  * @param lenthe length
@@ -190,8 +190,11 @@ XrdFileCache::getFileObj(unsigned long inode, bool getNew)
  */
 /*----------------------------------------------------------------------------*/
 void
-XrdFileCache::submitWrite(unsigned long inode, int filed, void* buf,
-                          off_t offset, size_t length)
+XrdFileCache::submitWrite(XrdCl::File*& file,
+                          unsigned long inode,
+                          void*         buf,
+                          off_t         offset,
+                          size_t        length)
 {
   size_t nwrite;
   long long int key;
@@ -205,7 +208,7 @@ XrdFileCache::submitWrite(unsigned long inode, int filed, void* buf,
     nwrite = CacheEntry::getMaxSize() - (offset % CacheEntry::getMaxSize());
     key = fAbst->generateBlockKey(offset);
     eos_static_debug("(1) off=%zu, len=%zu", offset, nwrite);
-    cacheImpl->addWrite(filed, key, pBuf + writtenOffset, offset, nwrite, *fAbst);
+    cacheImpl->addWrite(file, key, pBuf + writtenOffset, offset, nwrite, *fAbst);
 
     offset += nwrite;
     length -= nwrite;
@@ -216,7 +219,7 @@ XrdFileCache::submitWrite(unsigned long inode, int filed, void* buf,
     nwrite = length;
     key = fAbst->generateBlockKey(offset);
     eos_static_debug("(2) off=%zu, len=%zu", offset, nwrite);
-    cacheImpl->addWrite(filed, key, pBuf + writtenOffset, offset, nwrite, *fAbst);
+    cacheImpl->addWrite(file, key, pBuf + writtenOffset, offset, nwrite, *fAbst);
     writtenOffset += nwrite;
   }
 
@@ -280,9 +283,9 @@ XrdFileCache::getRead(FileAbstraction &fileAbst, void* buf, off_t offset, size_t
 
 /*----------------------------------------------------------------------------*/
 /** 
- * 
+ *
+ * @param file XrdCl file handler
  * @param fileAbst file abstraction handler
- * @param filed file descriptor
  * @param buf handler where the data is saved
  * @param offset offset
  * @param length length
@@ -292,8 +295,11 @@ XrdFileCache::getRead(FileAbstraction &fileAbst, void* buf, off_t offset, size_t
  */
 /*----------------------------------------------------------------------------*/
 size_t
-XrdFileCache::putRead(FileAbstraction &fileAbst, int filed, void* buf,
-                      off_t offset, size_t length)
+XrdFileCache::putRead(XrdCl::File*&    file,
+                      FileAbstraction& fileAbst,
+                      void*            buf,
+                      off_t            offset,
+                      size_t           length)
 {
   size_t nread;
   long long int key;
@@ -305,7 +311,7 @@ XrdFileCache::putRead(FileAbstraction &fileAbst, int filed, void* buf,
     nread = CacheEntry::getMaxSize() - (offset % CacheEntry::getMaxSize());
     key = fileAbst.generateBlockKey(offset);
     eos_static_debug("(1) off=%zu, len=%zu key=%lli", offset, nread, key);
-    cacheImpl->addRead(filed, key, pBuf + readOffset, offset, nread, fileAbst);
+    cacheImpl->addRead(file, key, pBuf + readOffset, offset, nread, fileAbst);
     offset += nread;
     length -= nread;
     readOffset += nread;
@@ -315,7 +321,7 @@ XrdFileCache::putRead(FileAbstraction &fileAbst, int filed, void* buf,
     nread = length;
     key = fileAbst.generateBlockKey(offset);
     eos_static_debug("(2) off=%zu, len=%zu key=%lli", offset, nread, key);
-    cacheImpl->addRead(filed, key, pBuf + readOffset, offset, nread, fileAbst);
+    cacheImpl->addRead(file, key, pBuf + readOffset, offset, nread, fileAbst);
     readOffset += nread;
   }
 

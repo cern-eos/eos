@@ -526,18 +526,25 @@ void xrd_dir_cache_add_entry( unsigned long long       inode,
 
 
 // map used for associating file descriptors with XrdCl::File objects
-eos::common::RWMutex rwmutex_map;
-google::dense_hash_map<int, XrdCl::File*> map_fd2fobj;
+eos::common::RWMutex rwmutex_fd2fobj;
+google::dense_hash_map<int, XrdCl::File*> fd2fobj;
 
 // pool of available file descriptors
 unsigned int base_fd = 1;
 std::queue<int> pool_fd;
 
 
+static std::string generate_index(unsigned long long inode, uid_t uid) {
+  char index[256];
+  snprintf(index, sizeof(index)-1,"%llu-%u", inode,uid);
+  return index;
+}
+
+
 //------------------------------------------------------------------------------
 // Create a simulated file descriptor
 //------------------------------------------------------------------------------
-int GenerateFd()
+int xrd_generate_fd()
 {
   int retc = -1;
 
@@ -548,6 +555,10 @@ int GenerateFd()
     base_fd++;
     retc = base_fd;
   }
+  else {
+    fprintf( stderr, "[%s] error=no more file descirptors available. \n", __FUNCTION__ );
+    retc = -1;
+  }
 
   return retc;
 }
@@ -556,24 +567,26 @@ int GenerateFd()
 //------------------------------------------------------------------------------
 // Return the fd value to the pool
 //------------------------------------------------------------------------------
-void ReleaseFd( int fd )
+void xrd_release_fd2file( int fd )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__ );
   pool_fd.push( fd );
 }
 
 
 //------------------------------------------------------------------------------
-// Add new mappinf between fd and PosixFd object
+// Add new mapping between fd and XrdCl::File object
 //------------------------------------------------------------------------------
-int AddFd2File( XrdCl::File* obj )
+int xrd_add_fd2file( XrdCl::File* obj )
 {
-  int fd = -1;
-  eos::common::RWMutexWriteLock wr_lock( rwmutex_map );
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__ );
+  int fd;
+  eos::common::RWMutexWriteLock wr_lock( rwmutex_fd2fobj );
 
-  fd = GenerateFd();
+  fd = xrd_generate_fd();
 
-  if ( fd ) {
-    map_fd2fobj[fd] = obj;
+  if ( fd > 0 ) {
+    fd2fobj[fd] = obj;
   } else {
     fprintf( stderr, "Error while getting file descriptor. \n" );
   }
@@ -583,14 +596,15 @@ int AddFd2File( XrdCl::File* obj )
 
 
 //------------------------------------------------------------------------------
-// Get the PosixFd object corresponding to the fd
+// Get the XrdCl::File object corresponding to the fd
 //------------------------------------------------------------------------------
-XrdCl::File* GetFile( int fd )
+XrdCl::File* xrd_get_file( int fd )
 {
-  eos::common::RWMutexReadLock rd_lock( rwmutex_map );
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__ );
+  eos::common::RWMutexReadLock rd_lock( rwmutex_fd2fobj );
 
-  if ( map_fd2fobj.count( fd ) ) {
-    return map_fd2fobj[fd];
+  if ( fd2fobj.count( fd ) ) {
+    return fd2fobj[fd];
   }
   else {
     return 0;
@@ -601,117 +615,72 @@ XrdCl::File* GetFile( int fd )
 //------------------------------------------------------------------------------
 // Remove entry from mapping
 //------------------------------------------------------------------------------
-void RemoveFd2File( int fd )
+void xrd_remove_fd2file( int fd )
 {
-  eos::common::RWMutexWriteLock wr_lock( rwmutex_map );
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__ );
+  eos::common::RWMutexWriteLock wr_lock( rwmutex_fd2fobj );
   
-  if ( map_fd2fobj.count( fd ) ) {
-    //Obs: PosixFd pointer should have been saved already in the other map
-    //     otherwise we get a memory leak
-    map_fd2fobj.erase( fd );
-    ReleaseFd( fd );
+  if ( fd2fobj.count( fd ) ) {
+    fd2fobj.erase( fd );
+    xrd_release_fd2file( fd );
   }
+
 }
 
 
-// fd the open filedescriptor map
-XrdSysMutex OpenPosixXrootFdLock;
+//map <inode, user> to a file descriptor
+google::dense_hash_map<std::string, unsigned long long> inodeuser2fd;
 
-//------------------------------------------------------------------------------
-// Open xrootd fd table
-//------------------------------------------------------------------------------
-class PosixFd
-{
- public:
-  PosixFd():
-      num_users( 0 ),
-      fd( 0 ),
-      file( 0 )
-  {
-    // empty
-  };
-  
-  ~PosixFd() {
-    if ( file ) {
-      delete file;
-    }
-  };
-
-  void Update ( int fd_simulated, XrdCl::File* ptr_file ) 
-  {
-    fd = fd_simulated;
-    file = ptr_file;
-    num_users = 0;
-  };
-
-  
-  int GetFd() {
-    Inc();
-    return fd;
-  };
-  
-  size_t GetUser()     {
-    return num_users;
-    }
-  
-  void Inc() {
-    num_users++;
-  };
-  
-  void Dec() {
-    if ( num_users ) num_users--;
-  };
-
-  static std::string Index( unsigned long long inode, uid_t uid ) {
-    char index[256];
-    snprintf( index, sizeof( index ) - 1, "%llu-%u", inode, uid );
-    return index;
-  };
-  
- private:
-  size_t num_users;        //< number of users attached to this fd
-  int fd;                  //< POSIX fd to store
-  XrdCl::File* file;       //< XrdCl::File handler
-  
-};
-
-google::dense_hash_map<std::string, PosixFd> open_posixfd_xrdcl;
+// mutex to protecte the map
+XrdSysMutex mutex_inodeuser2fd;
 
 
 //------------------------------------------------------------------------------
-//
+// Add fd as an open file descriptor to speed-up mknod
 //------------------------------------------------------------------------------
 void xrd_add_open_fd( int fd, unsigned long long inode, uid_t uid )
 {
-  // add fd as an open file descriptor to speed-up mknod
-  XrdSysMutexHelper vLock( OpenPosixXrootFdLock );
+  XrdSysMutexHelper lock( mutex_inodeuser2fd );
 
-  open_posixfd_xrdcl[PosixFd::Index( inode, uid )].Update( fd, GetFile( fd ) );
+  fprintf( stderr, "[%s] Calling function inode = %llu, uid = %lu. \n",
+           __FUNCTION__, inode, (unsigned long ) uid );
+  
+  inodeuser2fd[generate_index( inode, uid )] = fd;
 }
 
 
 //------------------------------------------------------------------------------
-//
+// Return file descriptor held by a user for a file
 //------------------------------------------------------------------------------
-int xrd_get_open_fd( unsigned long long inode, uid_t uid )
+unsigned long long xrd_get_open_fd( unsigned long long inode, uid_t uid )
 {
-  // return posix fd for inode - increases 'num_users'
-  XrdSysMutexHelper vLock( OpenPosixXrootFdLock );
-
-  return open_posixfd_xrdcl[PosixFd::Index( inode, uid )].GetFd();
+  fprintf( stderr, "[%s] Calling function inode = %llu, uid = %lu. \n",
+           __FUNCTION__, inode, (unsigned long ) uid );
+  
+  XrdSysMutexHelper lock( mutex_inodeuser2fd );
+  std::string index =  generate_index( inode, uid );
+  
+  if ( inodeuser2fd.count( index ) ) {
+    return inodeuser2fd[index];
+  }
+  return 0;
 }
 
 
 //------------------------------------------------------------------------------
-// Relelase file descriptor if no other references held to it
+// Relelase file descriptor 
 //------------------------------------------------------------------------------
-void xrd_lease_open_fd( unsigned long long inode, uid_t uid )
+void xrd_release_open_fd( unsigned long long inode, uid_t uid )
 {
-  XrdSysMutexHelper vLock( OpenPosixXrootFdLock );
-  open_posixfd_xrdcl[PosixFd::Index( inode, uid )].Dec();
+  fprintf( stderr, "[%s] Calling function inode = %llu, uid = %lu. \n",
+           __FUNCTION__, inode, (unsigned long ) uid );
 
-  if ( !open_posixfd_xrdcl[PosixFd::Index( inode, uid )].GetUser() ) {
-    open_posixfd_xrdcl.erase( PosixFd::Index( inode, uid ) );
+  XrdSysMutexHelper vLock( mutex_inodeuser2fd );
+  std::string index = generate_index( inode, uid );
+  
+  if ( inodeuser2fd.count( index ) ) {
+    xrd_remove_fd2file( inodeuser2fd[index] ); 
+    inodeuser2fd.erase( index );
   }
 }
 
@@ -1070,10 +1039,10 @@ int xrd_stat( const char* path, struct stat* buf )
 
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
-
   COMMONTIMING( "GETPLUGIN", &stattiming );
 
   if ( status.IsOK() ) {
+    fprintf( stderr, "[%s] Status is ok. \n", __FUNCTION__ );
     unsigned long long sval[10];
     unsigned long long ival[6];
     char tag[1024];
@@ -1102,8 +1071,10 @@ int xrd_stat( const char* path, struct stat* buf )
                         ( unsigned long long* )&ival[5] );
 
     if ( ( items != 17 ) || ( strcmp( tag, "stat:" ) ) ) {
+      fprintf( stderr, "[%s] Not the message we were expecting. \n", __FUNCTION__ );
+      errno = ENOENT;
       delete response;
-      return -ENOENT;
+      return -EFAULT;
     } else {
       buf->st_dev = ( dev_t ) sval[0];
       buf->st_ino = ( ino_t ) sval[1];
@@ -1126,7 +1097,9 @@ int xrd_stat( const char* path, struct stat* buf )
       buf->st_ctim.tv_nsec = ( time_t ) ival[5];
       retc = 0;
     }
-  } else {
+  }
+  else {
+    fprintf( stderr, "[%s] Status is NOT ok. \n", __FUNCTION__ );
     retc = -EFAULT;
   }
 
@@ -1136,6 +1109,8 @@ int xrd_stat( const char* path, struct stat* buf )
     stattiming.Print();
   }
 
+  fprintf( stderr, "[%s] Return value is %i. \n", __FUNCTION__, retc );
+  
   delete response;
   return retc;
 }
@@ -1767,6 +1742,8 @@ int xrd_open( const char* path, int oflags, mode_t mode )
 
   if ( oflags & ( O_RDWR | O_WRONLY ) ) flags_xrdcl |= XrdCl::OpenFlags::Flags::Update;
 
+  if ( flags_xrdcl == 0 ) flags_xrdcl = XrdCl::OpenFlags::Flags::Read;
+  
   if ( mode & S_IRUSR ) mode_xrdcl |= XrdCl::Access::UR;
 
   if ( mode & S_IWUSR ) mode_xrdcl |= XrdCl::Access::UW;
@@ -1814,50 +1791,58 @@ int xrd_open( const char* path, int oflags, mode_t mode )
     // return the 'whoami' information in that file
     if ( spath.endswith( "/proc/whoami" ) ) {
       spath.replace( "/proc/whoami", "/proc/user/" );
-      spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
+      spath += "?mgm.cmd=whoami&mgm.format=fuse";
 
       XrdCl::File* file = new XrdCl::File();
       XrdCl::XRootDStatus status = file->Open( spath.c_str(), flags_xrdcl, mode_xrdcl );
 
       if ( status.IsOK() ) {
-        retc = AddFd2File( file );
+        retc = xrd_add_fd2file( file );
       }
     }
 
     if ( spath.endswith( "/proc/who" ) ) {
       spath.replace( "/proc/who", "/proc/user/" );
-      spath += "?mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
+      spath += "?mgm.cmd=who&mgm.format=fuse";
 
       XrdCl::File* file = new XrdCl::File();
       XrdCl::XRootDStatus status = file->Open( spath.c_str(), flags_xrdcl, mode_xrdcl );
 
       if ( status.IsOK() ) {
-        retc = AddFd2File( file );
+        retc = xrd_add_fd2file( file );
       }
     }
 
     if ( spath.endswith( "/proc/quota" ) ) {
       spath.replace( "/proc/quota", "/proc/user/" );
-      spath += "?mgm.cmd=quota&mgm.subcmd=ls&mgm.format=fuse&eos.app=fuse";
+      spath += "?mgm.cmd=quota&mgm.subcmd=ls&mgm.format=fuse";
 
       XrdCl::File* file = new XrdCl::File();
       XrdCl::XRootDStatus status = file->Open( spath.c_str(), flags_xrdcl, mode_xrdcl );
 
       if ( status.IsOK() ) {
-        retc = AddFd2File( file );
+        retc = xrd_add_fd2file( file );
       }
     }
   }
 
+  //spath += "?eos.app=fuse";
+  fprintf( stderr, "[%s] Before issuing the open command to path = %s. "
+           " with flags = %i, mode = %i\n",
+           __FUNCTION__, spath.c_str(), flags_xrdcl, mode_xrdcl );
 
-  spath += "?eos.app=fuse";
   XrdCl::File* file = new XrdCl::File();
   XrdCl::XRootDStatus status = file->Open( spath.c_str(), flags_xrdcl, mode_xrdcl );
 
   if ( status.IsOK() ) {
-    retc = AddFd2File( file );
+    fprintf( stderr, "[%s] Open succeded. \n", __FUNCTION__ );
+    retc = xrd_add_fd2file( file );
+  }
+  else {
+    fprintf( stderr, "[%s] Open failed. \n", __FUNCTION__ );
   }
 
+  fprintf( stderr, "[%s] Got file descriptor %i. \n", __FUNCTION__, retc );
   return retc;
 }
 
@@ -1876,7 +1861,7 @@ int xrd_close( int fildes, unsigned long inode )
     }
   }
 
-  XrdCl::File* file = GetFile( fildes );
+  XrdCl::File* file = xrd_get_file( fildes );
   XrdCl::XRootDStatus status = file->Close();
 
   return -status.errNo;
@@ -1919,11 +1904,19 @@ int xrd_truncate( int fildes, off_t offset, unsigned long inode )
                    fildes, ( unsigned long long )offset, inode );
 
   if ( XFC && inode ) {
+    fprintf( stderr, "[%s] Calling waitFinishWrites. \n" , __FUNCTION__ );
     XFC->waitFinishWrites( inode );
   }
 
-  XrdCl::File* file = GetFile( fildes );
+  XrdCl::File* file = xrd_get_file( fildes );
   XrdCl::XRootDStatus status = file->Truncate( offset );
+
+  if ( status.IsOK() ) {
+    fprintf( stderr, "[%s] Return is ok with value %i. \n", __FUNCTION__, status.errNo );
+  }
+  else {
+    fprintf( stderr, "[%s] Return is NOT ok with value %i. \n", __FUNCTION__, status.errNo );
+  }
 
   return -status.errNo;
 }
@@ -1961,11 +1954,11 @@ ssize_t xrd_pread( int           fildes,
       COMMONTIMING( "read in", &xpr );
       eos_static_debug( "Block not found in cache: off=%zu, len=%zu", offset, nbyte );
 
-      file = GetFile( fildes );
+      file = xrd_get_file( fildes );
       status = file->Read( offset, nbyte, buf, ret );
 
       TIMING( "read out", &xpr );
-      XFC->putRead( *fAbst, fildes, buf, offset, nbyte );
+      XFC->putRead( file, *fAbst, buf, offset, nbyte );
       COMMONTIMING( "put read", &xpr );
     } else {
       eos_static_debug( "Block found in cache: off=%zu, len=%zu", offset, nbyte );
@@ -1974,7 +1967,7 @@ ssize_t xrd_pread( int           fildes,
 
     fAbst->decrementNoReferences();
   } else {
-    file = GetFile( fildes );
+    file = xrd_get_file( fildes );
     status = file->Read( offset, nbyte, buf, ret );
   }
 
@@ -2008,15 +2001,17 @@ ssize_t xrd_pwrite( int           fildes,
   eos_static_debug( "fd=%d nbytes=%lu inode=%lu cache=%d cache-w=%d",
                     fildes, ( unsigned long )nbyte, ( unsigned long ) inode,
                     XFC ? 1 : 0, fuse_cache_write );
-  uint32_t ret = 0;
 
+  uint32_t ret = 0;
+  XrdCl::File* file = xrd_get_file( fildes );
+    
   if ( XFC && fuse_cache_write && inode ) {
-    XFC->submitWrite( inode, fildes, const_cast<void*>( buf ), offset, nbyte );
+    XFC->submitWrite( file, inode, const_cast<void*>( buf ), offset, nbyte );
     ret = nbyte;
   } else {
-    XrdCl::File* file = GetFile( fildes );
-    XrdCl::XRootDStatus status = file->Write( offset, nbyte, const_cast<void*>( buf ), ret );
-
+    XrdCl::XRootDStatus status =
+      file->Write( offset, nbyte, const_cast<void*>( buf ), ret );
+    
     if ( !status.IsOK() ) {
       errno = status.errNo;
       ret = -1;
@@ -2044,7 +2039,7 @@ int xrd_fsync( int fildes, unsigned long inode )
     XFC->waitFinishWrites( inode );
   }
 
-  XrdCl::File* file = GetFile( fildes );
+  XrdCl::File* file = xrd_get_file( fildes );
   XrdCl::XRootDStatus status = file->Sync();
   return -status.errNo;
 }
@@ -2154,16 +2149,16 @@ void xrd_init()
   dir2inodelist.set_empty_key( 0 );
   dir2dirbuf.set_empty_key( 0 );
   inode2cache.set_empty_key( 0 );
-  open_posixfd_xrdcl.set_empty_key( "" );
-  map_fd2fobj.set_empty_key( -1 );
+  inodeuser2fd.set_empty_key( "" );
+  fd2fobj.set_empty_key( -1 );
 
   path2inode.set_deleted_key( "#__deleted__#" );
   inode2path.set_deleted_key( 0xffffffffll );
   dir2inodelist.set_deleted_key( 0xffffffffll );
   dir2dirbuf.set_deleted_key( 0xffffffffll );
   inode2cache.set_deleted_key( 0xffffffffll );
-  open_posixfd_xrdcl.set_deleted_key( "#__deleted__#" );
-  map_fd2fobj.set_deleted_key( -2 );
+  inodeuser2fd.set_deleted_key( "#__deleted__#" );
+  fd2fobj.set_deleted_key( -2 );
 
   //----------------------------------------------------------------------------
   // Create the root entry

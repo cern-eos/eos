@@ -41,8 +41,13 @@ size_t CacheEntry::maxSize = 4*1048576;            //1MB=1048576 512KB=524288
  *
  */
 /*----------------------------------------------------------------------------*/
-CacheEntry::CacheEntry(int filed, char* buf, off_t off, size_t len, FileAbstraction &pFileAbst, bool iswr):
-  fd(filed),
+CacheEntry::CacheEntry(XrdCl::File*&    refFile,
+                       char*            buf,
+                       off_t            off,
+                       size_t           len,
+                       FileAbstraction& pFileAbst,
+                       bool             iswr):
+  file(refFile),
   isWrType(iswr),
   sizeData(len),
   pParentFile(&pFileAbst)
@@ -73,6 +78,7 @@ CacheEntry::CacheEntry(int filed, char* buf, off_t off, size_t len, FileAbstract
 /*----------------------------------------------------------------------------*/
 CacheEntry::~CacheEntry()
 {
+  file = NULL;
   free(buffer);
 }
 
@@ -91,12 +97,17 @@ CacheEntry::~CacheEntry()
  */
 /*----------------------------------------------------------------------------*/
 void
-CacheEntry::doRecycle(int filed, char* buf, off_t off, size_t len, FileAbstraction &pFileAbst, bool iswr)
+CacheEntry::doRecycle(XrdCl::File*&     refFile,
+                      char*            buf,
+                      off_t            off,
+                      size_t           len,
+                      FileAbstraction& pFileAbst,
+                      bool             iswr)
 {
   char* pBuffer; 
   off_t offsetRelative;
     
-  fd = filed;
+  file = refFile;
   isWrType = iswr;
   offsetStart = (off / getMaxSize()) * getMaxSize();
   pParentFile = &pFileAbst;
@@ -405,23 +416,25 @@ CacheEntry::getPiece(char* buf, off_t off, size_t len)
 int
 CacheEntry::doWrite()
 {
-  int retc;
+  int retc = 0;
   off_t offsetRelative;
   std::map<off_t, size_t>::iterator iCurrent = mapPieces.begin();
   const std::map<off_t, size_t>::iterator iEnd = mapPieces.end();
   
   for( ; iCurrent != iEnd; iCurrent++) {
     offsetRelative = iCurrent->first % getMaxSize();
-    //TODO:: fix this by using the new client
-    //retc = XrdPosixXrootd::Pwrite(fd, buffer + offsetRelative, iCurrent->second, iCurrent->first);
-    retc = 0;
-    if (retc != (int)iCurrent->second) {
-      fprintf(stderr, "error=error while writing using XrdPosixXrootd\n");
-      return retc;
+    XrdCl::XRootDStatus status =
+        file->Write( iCurrent->first, iCurrent->second, buffer + offsetRelative );
+
+    if ( status.IsOK() ) {
+      retc = iCurrent->second;
+    }
+    else {
+      fprintf(stderr, "\n[%s] error=error while writing using XrdCl::File\n\n", __FUNCTION__);
     }
   }
 
-  return 0;
+  return retc;
 }
 
 
@@ -450,20 +463,6 @@ bool
 CacheEntry::isFull()
 {
   return (capacity == sizeData);
-}
-
-
-/*----------------------------------------------------------------------------*/
-/** 
- *
- * @return file descriptor
- *
- */
-/*----------------------------------------------------------------------------*/
-int
-CacheEntry::getFd() const
-{
-  return fd;
 }
 
 

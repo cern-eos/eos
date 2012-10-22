@@ -64,7 +64,11 @@ public:
   // ---------------------------------------------------------------------------
   //! Add a write request
   // ---------------------------------------------------------------------------
-  void submitWrite(unsigned long inode, int filed, void* buff, off_t offset, size_t length);
+  void submitWrite(XrdCl::File*& file,
+                   unsigned long inode,
+                   void*         buff,
+                   off_t         offset,
+                   size_t        length);
 
   // ---------------------------------------------------------------------------
   //! Try to get read from cache
@@ -74,7 +78,11 @@ public:
   // ---------------------------------------------------------------------------
   //! Add read to cache
   // ---------------------------------------------------------------------------
-  size_t putRead(FileAbstraction &fAbst, int filed, void* buf, off_t offset, size_t length);
+  size_t putRead(XrdCl::File*&    file,
+                 FileAbstraction& fAbst,
+                 void*            buf,
+                 off_t            offset,
+                 size_t           length);
 
   // ---------------------------------------------------------------------------
   //! Wait for all writes of a file to be done

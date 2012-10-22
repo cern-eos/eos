@@ -146,6 +146,7 @@ extern "C" {
   // release a read buffer for the specified fd
   void           xrd_release_read_buffer( int fd );
 
+  
   //----------------------------------------------------------------------------
   // ******* DIR Listrings *******
   //----------------------------------------------------------------------------
@@ -168,18 +169,26 @@ extern "C" {
   struct dirbuf* xrd_dirview_getbuffer( unsigned long long dirinode,
                                         int                get_lock );
 
+
+  
   //----------------------------------------------------------------------------
-  // ******* POSIX opened files *******
+  // ******* POSIX opened file descriptors *******
   //----------------------------------------------------------------------------
 
+  // remove file descriptor from mapping
+  void xrd_remove_fd2file( int fd );
+
+  //release a file descriptor held by a user ona file
+  void xrd_release_open_fd( unsigned long long inode, uid_t uid );
+  
   // add fd as an open file descriptor to speed-up mknod
-  void           xrd_add_open_fd( int fd, unsigned long long inode, uid_t uid );
+  void xrd_add_open_fd( int fd, unsigned long long inode, uid_t uid );
 
   // return posix fd for inode
-  int            xrd_get_open_fd( unsigned long long inode, uid_t uid );
+  unsigned long long xrd_get_open_fd( unsigned long long inode, uid_t uid );
 
   // release an attached file descriptor
-  void           xrd_lease_open_fd( unsigned long long inode, uid_t uid );
+  void xrd_lease_open_fd( unsigned long long inode, uid_t uid );
 
 
 

@@ -49,6 +49,12 @@
 
 #define min(x, y) ((x) < (y) ? (x) : (y))
 
+typedef struct fd_user_info {
+  unsigned long long fd;
+  uid_t uid;
+} fd_user_info;
+
+
 // set debug on/off
 int isdebug = 0;
 
@@ -68,6 +74,7 @@ double readopentime = 5.0;
 //------------------------------------------------------------------------------
 static void eosfs_ll_readlink( fuse_req_t req, fuse_ino_t ino )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   char fullpath[16384];
 
   xrd_lock_r_p2i(); // =>
@@ -105,6 +112,7 @@ static void eosfs_ll_getattr( fuse_req_t             req,
                               fuse_ino_t             ino,
                               struct fuse_file_info* fi )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__ );
   struct stat stbuf;
   memset( &stbuf, 0, sizeof( struct stat ) );
   char fullpath[16384];
@@ -147,6 +155,7 @@ static void eosfs_ll_setattr( fuse_req_t             req,
                               int                    to_set,
                               struct fuse_file_info* fi )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__ );
   int retc = 0;
   char fullpath[16384];
 
@@ -160,8 +169,7 @@ static void eosfs_ll_setattr( fuse_req_t             req,
     return;
   }
 
-  sprintf( fullpath, "root://%s@%s/%s/%s", xrd_mapuser( req->ctx.uid ),
-           mounthostport, mountprefix, name );
+  sprintf( fullpath, "/%s/%s", mountprefix, name );
 
   xrd_unlock_r_p2i(); // <=
 
@@ -195,9 +203,11 @@ static void eosfs_ll_setattr( fuse_req_t             req,
     if ( fi ) {
 
       if ( isdebug ) fprintf( stderr, "[%s]: truncate\n", __FUNCTION__ );
+      fprintf( stderr, "[%s]: truncate\n", __FUNCTION__ );
 
       if ( fi->fh ) {
-        retc = xrd_truncate( fi->fh, attr->st_size, ino );
+        struct fd_user_info* info = (struct fd_user_info*) fi->fh;
+        retc = xrd_truncate( (unsigned long long) info->fd, attr->st_size, ino );
       } else {
         int fd;
 
@@ -210,6 +220,7 @@ static void eosfs_ll_setattr( fuse_req_t             req,
                               S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH ) ) >= 0 ) {
           retc = xrd_truncate( fd, attr->st_size, ino );
           xrd_close( fd, ino );
+          xrd_remove_fd2file( fd );
         } else {
           retc = -1;
         }
@@ -226,6 +237,7 @@ static void eosfs_ll_setattr( fuse_req_t             req,
                             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH ) ) >= 0 ) {
         retc = xrd_truncate( fd, attr->st_size, ino );
         xrd_close( fd, ino );
+        xrd_remove_fd2file( fd );
       }
     }
   }
@@ -249,14 +261,17 @@ static void eosfs_ll_setattr( fuse_req_t             req,
   }
 
   if ( isdebug ) fprintf( stderr, "[%s]: return code =%d\n", __FUNCTION__, retc );
+  fprintf( stderr, "[%s]: return code =%d\n", __FUNCTION__, retc );
 
   struct stat newattr;
   memset( &newattr, 0, sizeof( struct stat ) );
 
   if ( !retc ) {
     retc = xrd_stat( fullpath, &newattr );
-
+    fprintf( stderr, "[%s]: return code after stat = %d\n", __FUNCTION__, retc );
+    
     if ( !retc ) {
+      fprintf( stderr, "[%s] Return from function ok. \n", __FUNCTION__ );
       fuse_reply_attr( req, &newattr, attrcachetime );
     } else {
       fuse_reply_err( req, -retc );
@@ -274,6 +289,7 @@ static void eosfs_ll_lookup( fuse_req_t  req,
                              fuse_ino_t  parent,
                              const char* name )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__ );
   int entry_found = 0;
   unsigned long long entry_inode;
   const char* parentpath = NULL;
@@ -358,6 +374,7 @@ static void eosfs_ll_opendir( fuse_req_t             req,
                               fuse_ino_t             ino,
                               struct fuse_file_info* fi )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__ );
   // not used for the moment
   /*
   char fullpath[16384];
@@ -571,6 +588,7 @@ static void eosfs_ll_releasedir( fuse_req_t             req,
 //------------------------------------------------------------------------------
 static void eosfs_ll_statfs( fuse_req_t req, fuse_ino_t ino )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   int res = 0;
   char* path = NULL;
   char rootpath[16384];
@@ -626,11 +644,12 @@ static void eosfs_ll_mknod( fuse_req_t  req,
                             mode_t      mode,
                             dev_t       rdev )
 {
-  fprintf( stderr, "[%s] Calling function. \n" );
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   int res;
 
   if ( S_ISREG( mode ) ) {
     const char* parentpath = NULL;
+    char partialpath[16384];
     char fullpath[16384];
     char fullparentpath[16384];
     char ifullpath[16384];
@@ -644,6 +663,8 @@ static void eosfs_ll_mknod( fuse_req_t  req,
       return;
     }
 
+    sprintf( partialpath, "%s%s/%s", mountprefix, parentpath, name );
+        
     sprintf( fullpath, "root://%s@%s/%s%s/%s", xrd_mapuser( req->ctx.uid ),
              mounthostport, mountprefix, parentpath, name );
 
@@ -673,14 +694,14 @@ static void eosfs_ll_mknod( fuse_req_t  req,
     //--------------------------------------------------------------------------
     // Update the entry
     //--------------------------------------------------------------------------
-    int retc = xrd_stat( fullpath, &e.attr );
+    int retc = xrd_stat( partialpath, &e.attr );
     e.ino = e.attr.st_ino;
 
     if ( retc ) {
       fuse_reply_err( req, -retc );
       return;
     } else {
-      //xrd_add_open_fd( res, ( unsigned long long ) e.ino, req->ctx.uid );
+      xrd_add_open_fd( res, ( unsigned long long ) e.ino, req->ctx.uid );
       xrd_store_p2i( ( unsigned long long )e.ino, ifullpath );
 
       if ( isdebug ) {
@@ -705,6 +726,7 @@ static void eosfs_ll_mkdir( fuse_req_t  req,
                             const char* name,
                             mode_t      mode )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   const char* parentpath = NULL;
   char fullpath[16384];
 
@@ -757,6 +779,7 @@ static void eosfs_ll_mkdir( fuse_req_t  req,
 //------------------------------------------------------------------------------
 static void eosfs_ll_unlink( fuse_req_t req, fuse_ino_t parent, const char* name )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   const char* parentpath = NULL;
   char fullpath[16384];
 
@@ -793,6 +816,7 @@ static void eosfs_ll_unlink( fuse_req_t req, fuse_ino_t parent, const char* name
 //------------------------------------------------------------------------------
 static void eosfs_ll_rmdir( fuse_req_t req, fuse_ino_t parent, const char* name )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   const char* parentpath = NULL;
   char fullpath[16384];
 
@@ -832,6 +856,7 @@ static void eosfs_ll_symlink( fuse_req_t  req,
                               fuse_ino_t  parent,
                               const char* name )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   char linksource[16384];
   char linkdest[16384];
   char fullpath[16384];
@@ -902,6 +927,7 @@ static void eosfs_ll_rename( fuse_req_t  req,
                              fuse_ino_t  newparent,
                              const char* newname )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   const char* parentpath = NULL;
   const char* newparentpath = NULL;
   char fullpath[16384];
@@ -975,6 +1001,7 @@ static void eosfs_ll_link( fuse_req_t  req,
                            fuse_ino_t  parent,
                            const char* name )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   char linkdest[16384];
   const char* parentpath = NULL;
   char fullpath[16384];
@@ -1044,6 +1071,7 @@ static void eosfs_ll_link( fuse_req_t  req,
 //------------------------------------------------------------------------------
 static void eosfs_ll_access( fuse_req_t req, fuse_ino_t ino, int mask )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   char fullpath[16384];
   const char* name = NULL;
 
@@ -1081,14 +1109,14 @@ static void eosfs_ll_open( fuse_req_t             req,
                            fuse_ino_t             ino,
                            struct fuse_file_info* fi )
 {
-
-  fprintf( stderr, "[%s] Calling function.\n ", __FUNCTION__ );
   struct stat stbuf;
   char fullpath[16384];
   const char* name = NULL;
 
   xrd_lock_r_p2i(); // =>
   name = xrd_path( ( unsigned long long )ino );
+  
+  fprintf( stderr, "[%s] Calling function for path: %s.\n ", __FUNCTION__, name );
 
   if ( !name ) {
     fuse_reply_err( req, ENXIO );
@@ -1098,24 +1126,27 @@ static void eosfs_ll_open( fuse_req_t             req,
 
   sprintf( fullpath, "root://%s@%s/%s%s", xrd_mapuser( req->ctx.uid ),
            mounthostport, mountprefix, name );
-
+  
   xrd_unlock_r_p2i(); // <=
 
   int res;
+  int from_cache = 0;
 
   if ( fi->flags & ( O_RDWR | O_WRONLY | O_CREAT ) ) {
+    fprintf( stderr, "[%s] Here[1]. \n", __FUNCTION__ );
     if ( ( res = xrd_get_open_fd( ( unsigned long long )ino, req->ctx.uid ) ) > 0 ) {
 
       if ( isdebug ) {
         fprintf( stderr, "[%s]: inode=%llu path=%s attaching to res=%d\n",
                  __FUNCTION__, ( long long )ino, fullpath, res );
       }
-
-      xrd_lease_open_fd( ino, req->ctx.uid );
+      from_cache = 1;
     } else {
+      fprintf( stderr, "[%s] Here[2]. \n", __FUNCTION__ );
       res = xrd_open( fullpath, fi->flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
     }
   } else {
+    fprintf( stderr, "[%s] Here[3]. \n", __FUNCTION__ );
     res = xrd_open( fullpath, fi->flags, 0 );
   }
 
@@ -1129,7 +1160,13 @@ static void eosfs_ll_open( fuse_req_t             req,
     return;
   }
 
-  fi->fh = res;
+  if ( !from_cache )
+    xrd_add_open_fd( res, ( unsigned long long ) ino, req->ctx.uid );
+
+  fd_user_info* info = (struct fd_user_info*) calloc( 1, sizeof( struct fd_user_info ) );
+  info->fd = res;
+  info->uid =  req->ctx.uid;
+  fi->fh = (uint64_t) info;
 
   if ( ( getenv( "EOS_FUSE_KERNELCACHE" ) ) &&
        ( !strcmp( getenv( "EOS_FUSE_KERNELCACHE" ), "1" ) ) ) {
@@ -1150,6 +1187,7 @@ static void eosfs_ll_open( fuse_req_t             req,
     fi->direct_io = 0;
   }
 
+  fprintf( stderr, "[%s] Return from function. \n", __FUNCTION__ );
   fuse_reply_open( req, fi );
 }
 
@@ -1164,16 +1202,18 @@ static void eosfs_ll_read( fuse_req_t             req,
                            off_t                  off,
                            struct fuse_file_info* fi )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   if ( fi->fh ) {
-    char* buf = xrd_attach_read_buffer( fi->fh, size );
+    struct fd_user_info* info = (fd_user_info*) fi->fh;
+    char* buf = xrd_attach_read_buffer( info->fd, size );
 
     if ( isdebug ) {
       fprintf( stderr, "[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n",
                __FUNCTION__, ( long long )ino, ( long long )size,
-               ( long long )off, ( long long )buf, ( long long )fi->fh );
+               ( long long )off, ( long long )buf, ( long long )info->fd );
     }
 
-    int res = xrd_pread( fi->fh, buf, size, off, ino );
+    int res = xrd_pread( info->fd, buf, size, off, ino );
 
     if ( res == -1 ) {
       //------------------------------------------------------------------------
@@ -1204,14 +1244,17 @@ static void eosfs_ll_write( fuse_req_t             req,
                             off_t                  off,
                             struct fuse_file_info* fi )
 {
+  fprintf( stderr, "[%s] Calling with inode = %llu. \n",
+           __FUNCTION__, (unsigned long long) ino );
   if ( fi->fh ) {
+    struct fd_user_info* info = (fd_user_info*) fi->fh;
     if ( isdebug ) {
       fprintf( stderr, "[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n",
                __FUNCTION__, ( long long )ino, ( long long )size,
-               ( long long )off, ( long long )buf, ( long long )fi->fh );
+               ( long long )off, ( long long )buf, ( long long )info->fd );
     }
 
-    int res = xrd_pwrite( fi->fh, buf, size, off, ino );
+    int res = xrd_pwrite( info->fd, buf, size, off, ino );
 
     if ( res == -1 ) {
       //------------------------------------------------------------------------
@@ -1227,6 +1270,7 @@ static void eosfs_ll_write( fuse_req_t             req,
 
     fuse_reply_write( req, res );
   } else {
+    fprintf( stderr, "[%s] Returning ENXIO. \n", __FUNCTION__ );
     fuse_reply_err( req, ENXIO );
   }
 }
@@ -1240,19 +1284,24 @@ static void eosfs_ll_release( fuse_req_t             req,
                               fuse_ino_t             ino,
                               struct fuse_file_info* fi )
 {
+  fprintf( stderr, "[%s]: inode=%lld \n", __FUNCTION__, ( long long )ino );
+
   if ( fi->fh ) {
+    struct fd_user_info* info = (fd_user_info*) fi->fh;
     if ( isdebug ) {
       fprintf( stderr, "[%s]: inode=%lld fh=%lld\n",
-               __FUNCTION__, ( long long )ino, ( long long )fi->fh );
+               __FUNCTION__, ( long long )ino, ( long long )info->fd );
     }
 
     int res = 0;
-    int fd = ( int )fi->fh;
+    int fd = info->fd;
 
-    xrd_release_read_buffer( fi->fh );
     res = xrd_close( fd, ino );
-    xrd_lease_open_fd( ( unsigned long long ) ino, req->ctx.uid );
+    xrd_release_read_buffer( fd );
+    xrd_release_open_fd( ino, info->uid );
 
+    //free memory
+    free(info);
     fi->fh = 0;
 
     if ( res ) {
@@ -1273,13 +1322,15 @@ static void eosfs_ll_fsync( fuse_req_t             req,
                             int                    datasync,
                             struct fuse_file_info* fi )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   if ( fi->fh ) {
+    struct fd_user_info* info = (fd_user_info*) fi->fh;
     if ( isdebug ) {
       fprintf( stderr, "[%s]: inode=%lld fh=%lld\n",
-               __FUNCTION__, ( long long )ino, ( long long )fi->fh );
+               __FUNCTION__, ( long long )ino, ( long long )info->fd );
     }
 
-    int res = xrd_fsync( fi->fh, ino );
+    int res = xrd_fsync( info->fd, ino );
 
     if ( res ) {
       fuse_reply_err( req, -res );
@@ -1295,6 +1346,7 @@ static void eosfs_ll_fsync( fuse_req_t             req,
 //------------------------------------------------------------------------------
 static void eosfs_ll_forget( fuse_req_t req, fuse_ino_t ino, unsigned long nlookup )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   xrd_forget_p2i( ( unsigned long long ) ino );
   fuse_reply_none( req );
 }
@@ -1360,6 +1412,7 @@ static void eosfs_ll_getxattr( fuse_req_t  req,
                                const char* xattr_name,
                                size_t      size )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   if ( ( !strcmp( xattr_name, "system.posix_acl_access" ) ) ||
        ( !strcmp( xattr_name, "system.posix_acl_default" ) ||
          ( !strcmp( xattr_name, "security.capability" ) ) ) ) {
@@ -1419,7 +1472,7 @@ static void eosfs_ll_getxattr( fuse_req_t  req,
 //------------------------------------------------------------------------------
 static void eosfs_ll_listxattr( fuse_req_t req, fuse_ino_t ino, size_t size )
 {
-
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   int retc = 0;
   size_t init_size = size;
   char fullpath[16384];
@@ -1471,6 +1524,7 @@ static void eosfs_ll_removexattr( fuse_req_t  req,
                                   fuse_ino_t  ino,
                                   const char* xattr_name )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   int retc = 0;
   char fullpath[16384];
   const char* name = NULL;
@@ -1507,6 +1561,7 @@ static void eosfs_ll_setxattr( fuse_req_t  req,
                                size_t      size,
                                int         flags )
 {
+  fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
   int retc = 0;
   size_t init_size = size;
   char fullpath[16384];

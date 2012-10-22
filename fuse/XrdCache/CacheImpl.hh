@@ -79,7 +79,12 @@ public:
   // ---------------------------------------------------------------------------
   //! Add a read request to the cache
   // ---------------------------------------------------------------------------
-  void addRead(int filed, const long long int &k, char* buf, off_t off, size_t len, FileAbstraction &pFileAbst);
+  void addRead(XrdCl::File*&        file,
+               const long long int& k,
+               char*                buf,
+               off_t                off,
+               size_t               len,
+               FileAbstraction &pFileAbst);
 
   // ---------------------------------------------------------------------------
   //! Try to remove read block from the cache
@@ -99,7 +104,12 @@ public:
   // ---------------------------------------------------------------------------
   //! Add a write request to the cache
   // ---------------------------------------------------------------------------
-  void addWrite(int filed, const long long int& k, char* buf, off_t off, size_t len, FileAbstraction &pFileAbst);
+  void addWrite(XrdCl::File*&        file,
+                const long long int& k,
+                char*                buf,
+                off_t                off,
+                size_t               len,
+                FileAbstraction&     pFileAbst);
 
   // ---------------------------------------------------------------------------
   //! Execute a write request which is pending
@@ -119,8 +129,12 @@ public:
   // ---------------------------------------------------------------------------
   //! Get a block for the current request, either by recycling or allocate a new one
   // ---------------------------------------------------------------------------
-  CacheEntry* getRecycledBlock(int filed, char* buf, off_t offset,
-                               size_t length, FileAbstraction &pFileAbst, bool iswr);
+  CacheEntry* getRecycledBlock(XrdCl::File*&     file, 
+                               char*             buf,
+                               off_t             offset,
+                               size_t            length,
+                               bool              iswr,
+                               FileAbstraction&  pFileAbst);
 
   // ---------------------------------------------------------------------------
   //! Get total size of the block in cache (rd + wr)
