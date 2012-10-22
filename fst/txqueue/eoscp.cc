@@ -88,10 +88,12 @@ XrdOucString cpname="";
 //RAID related variables
 off_t offsetRaid = 0;
 int nparitystripes = 0;
-bool isSrcRaid = false;
-bool isRaidTransfer = false;
-bool storerecovery = false;
-bool isStreamFile= false;
+
+bool isRaidTransfer  = false;
+bool isSrcRaid       = false;
+bool isStreamFile    = false;
+bool doStoreRecovery = false;
+
 std::string replicationType ="";
 eos::fst::RaidIO* redundancyObj = NULL;
 
@@ -144,8 +146,9 @@ void usage() {
   fprintf(stderr, "       -X           : checksum type: adler, crc32, crc32c, sha1, md5\n");
   fprintf(stderr, "       -e           : RAID layouts - error correction layout: raidDP/reedS\n");
   fprintf(stderr, "       -P           : RAID layouts - number of parity stripes\n");
-  fprintf(stderr, "       -f           : RAID layouts - force the recovery of corrupted blocks and store the modifications\n");
-  fprintf(stderr, "       -F           : RAID layouts - streaming file\n");
+  fprintf(stderr, "       -f           : RAID layouts - store the modifications in case of errors\n");
+  fprintf(stderr, "       -c           : RAID layouts - force check and recover any corruptions in any stripe\n");
+  fprintf(stderr, "       -T           : RAID layouts - streaming file\n");
  
   exit(-1);
 }
@@ -344,8 +347,12 @@ int main(int argc, char* argv[]) {
     case 'a':
       appendmode = 1;
       break;
+    case 'c':
+      doStoreRecovery = true;
+      offsetRaid = -1;
+      break;
     case 'f':
-      storerecovery = true;
+      doStoreRecovery = true;
       break;
     case 'e':
       replicationType = optarg;
@@ -488,7 +495,7 @@ int main(int argc, char* argv[]) {
     case 'R':
       replicamode = 1;
       break;
-    case 'F':
+    case 'T':
       isStreamFile = true;
       break;
     case 'h':
@@ -885,7 +892,7 @@ int main(int argc, char* argv[]) {
     std::vector<std::string> vectUrl;
 
     if (nsrc > ndst) {
-      if (storerecovery)
+      if (doStoreRecovery)
         flags = O_RDWR;
       else
         flags = O_RDONLY;
@@ -902,10 +909,10 @@ int main(int argc, char* argv[]) {
     if (debug) {fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);}
     
     if (replicationType == "raidDP") {
-      redundancyObj = new eos::fst::RaidDpFile(vectUrl, nparitystripes, storerecovery, isStreamFile);
+      redundancyObj = new eos::fst::RaidDpFile(vectUrl, nparitystripes, doStoreRecovery, isStreamFile);
     }
     else if (replicationType == "reedS") {
-      redundancyObj = new eos::fst::ReedSFile(vectUrl, nparitystripes, storerecovery, isStreamFile);
+      redundancyObj = new eos::fst::ReedSFile(vectUrl, nparitystripes, doStoreRecovery, isStreamFile);
     }
     
     if (isSrcRaid && redundancyObj->open(flags)) {

@@ -196,14 +196,14 @@ RaidDpFile::OperationXOR( char*  block1,
 // Try to recover the block at the current offset
 // -----------------------------------------------------------------------------
 bool
-RaidDpFile::RecoverPieces( off_t                    offset,
+RaidDpFile::RecoverPieces( off_t                    offsetInit,
                            char*                    buffer,
                            std::map<off_t, size_t>& mapToRecover )
 {
   // ---------------------------------------------------------------------------
   // Obs: DoubleParityRecover also checks the simple and double parity blocks
   // ---------------------------------------------------------------------------
-  doneRecovery = DoubleParityRecover( offset, buffer, mapToRecover );
+  doneRecovery = DoubleParityRecover( offsetInit, buffer, mapToRecover );
   return doneRecovery;
 }
 
@@ -327,7 +327,7 @@ RaidDpFile::DoubleParityRecover( off_t                    offsetInit,
           if ( ( offset >= ( off_t )( offsetGroup + MapBigToSmall( idBlockCorrupted ) * stripeWidth ) ) &&
                ( offset < ( off_t )( offsetGroup + ( MapBigToSmall( idBlockCorrupted ) + 1 ) * stripeWidth ) ) ) {
             pBuff = buffer + ( offset - offsetInit );
-            memcpy( pBuff, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length );
+            pBuff = static_cast<char*>( memcpy( pBuff, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length ) );
           }
         }
       }
@@ -385,7 +385,7 @@ RaidDpFile::DoubleParityRecover( off_t                    offsetInit,
             if ( ( offset >= ( off_t )( offsetGroup + MapBigToSmall( idBlockCorrupted ) * stripeWidth ) ) &&
                  ( offset < ( off_t )( offsetGroup + ( MapBigToSmall( idBlockCorrupted ) + 1 ) * stripeWidth ) ) ) {
               pBuff = buffer + ( offset - offsetInit );
-              memcpy( pBuff, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length );
+              pBuff = static_cast<char*>(memcpy( pBuff, dataBlocks[idBlockCorrupted] + ( offset % stripeWidth ), length ));
             }
           }
         }

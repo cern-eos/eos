@@ -276,10 +276,16 @@ RaidIO::ValidateHeader()
 
           if ( !( xrdFile[idUrl]->Open( stripeUrls[i], OpenFlags::Update,
                                         Access::UR | Access::UW ).IsOK() ) ) {
-            eos_err( "open stripeUrl[%i] = %s.", i, stripeUrls[i].c_str() );
+            eos_err( "open failed for stripeUrl[%i] = %s.", i, stripeUrls[i].c_str() );
             return false;
           }
 
+          //TODO:: compare with the current file size and if different
+          //       then truncate to the theoritical size of the file
+          size_t tmpsize = ( hdUrl[idUrl].GetNoBlocks() - 1 ) * stripeWidth + hdUrl[idUrl].GetSizeLastBlock();
+          size_t stripesize = std::ceil( (tmpsize * 1.0) / sizeGroup ) *
+                                ( nDataFiles * stripeWidth ) + HeaderCRC::GetSize();
+          xrdFile[idUrl]->Truncate( stripesize );
           hdUrl[idUrl].WriteToFile( xrdFile[idUrl] );
         }
 
@@ -337,21 +343,22 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
     // Recover file mode
     //--------------------------------------------------------------------------
     offset = 0;
-    char* dummyBuf = ( char* ) calloc( stripeWidth, sizeof( char ) );
+    long long int len = fileSize;
+    char* dummyBuf = static_cast<char*>( calloc( stripeWidth, sizeof( char ) ) );
 
     //--------------------------------------------------------------------------
     // If file smaller than a group, set the read size to the size of the group
     //--------------------------------------------------------------------------
     if ( fileSize < sizeGroup ) {
-      length = sizeGroup;
+      len = sizeGroup;
     }
-
-    while ( length ) {
-      nread = ( length > stripeWidth ) ? stripeWidth : length;
+    
+    while ( len >= 0 ) {
+      nread = ( len > static_cast<long long int>( stripeWidth ) ) ? stripeWidth : len;
       mapErrors.insert( std::make_pair<off_t, size_t>( offset, nread ) );
 
       if ( ( offset % sizeGroup == 0 ) ) {
-        if ( !RecoverPieces( offsetInit, dummyBuf, mapErrors ) ) {
+        if ( !RecoverPieces( offset, dummyBuf, mapErrors ) ) {
           free( dummyBuf );
           eos_err( "error=failed recovery of stripe" );
           return -1;
@@ -360,9 +367,8 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
         }
       }
 
-      length -= nread;
-      offset += nread;
-      readLength += nread;
+      len -= sizeGroup;
+      offset += sizeGroup;
     }
 
     // free memory
@@ -379,7 +385,6 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
       nGroupBlocks = nDataFiles;
     } else {
       eos_err( "error=no such algorithm" );
-      fprintf( stderr, "error=no such algorithm " );
       return 0;
     }
 
