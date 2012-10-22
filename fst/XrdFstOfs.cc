@@ -845,7 +845,7 @@ XrdFstOfsFile::open(const char*         path,
 
   // call the checksum factory function with the selected layout
   
-  layOut = eos::fst::LayoutPlugins::GetLayoutObject(this, lid, &error);
+  layOut = eos::fst::LayoutPlugin::GetLayoutObject(this, lid, client, &error);
 
   if( !layOut) {
     int envlen;
@@ -873,7 +873,7 @@ XrdFstOfsFile::open(const char*         path,
 
   if (!isCreation) {
     // get the real size of the file, not the local stripe size!
-    if ((retc = layOut->stat(&statinfo))) {
+    if ((retc = layOut->Stat(&statinfo))) {
       return gOFS.Emsg(epname,error, EIO, "open - cannot stat layout to determine file size",Path.c_str());
     }
     // we feed the layout size, not the physical on disk!
@@ -917,7 +917,7 @@ XrdFstOfsFile::open(const char*         path,
       
       return gOFS.Emsg("writeofs", error, ENOSPC, "create file - disk space (headroom) exceeded fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
       }
-    rc = layOut->fallocate(bookingsize);
+    rc = layOut->Fallocate(bookingsize);
     if (rc) {
       eos_crit("file allocation gave return code %d errno=%d for allocation of size=%llu" , rc, errno, bookingsize);
       if (layOut->IsEntryServer()) {
@@ -1174,7 +1174,7 @@ XrdFstOfsFile::close()
       // set the file to be deleted
       // -------------------------------------------------------------------------------------------------------
       deleteOnClose = true;
-      layOut->remove();
+      layOut->Remove();
 
       // -------------------------------------------------------------------------------------------------------
       // delete the replica in the MGM
@@ -1193,7 +1193,7 @@ XrdFstOfsFile::close()
 	// -------------------------------------------------------------------------------------------------------
 	if ((strcmp(layOut->GetName(), "raidDP") == 0) || (strcmp(layOut->GetName(), "reedS") == 0)){
 	  if (layOut->IsEntryServer())
-	    layOut->truncate(maxOffsetWritten);
+	    layOut->Truncate(maxOffsetWritten);
 	} else {
 	  if ( (long long)maxOffsetWritten>(long long)openSize) {
 	    // -------------------------------------------------------------------------------------------------------
@@ -1201,9 +1201,9 @@ XrdFstOfsFile::close()
 	    // -------------------------------------------------------------------------------------------------------
 	    if ((bookingsize) && (bookingsize > (long long) maxOffsetWritten)) {
 	      eos_info("deallocationg %llu bytes", bookingsize - maxOffsetWritten);
-	      layOut->truncate(maxOffsetWritten);
+	      layOut->Truncate(maxOffsetWritten);
 	      // we have evt. to deallocate blocks which have not been written
-	      layOut->fdeallocate(maxOffsetWritten,bookingsize);
+	      layOut->Fdeallocate(maxOffsetWritten,bookingsize);
 	    }
 	  }
 	}
@@ -1242,7 +1242,7 @@ XrdFstOfsFile::close()
 	// set the file to be deleted
 	// ---------------------------------------------------------------------
 	deleteOnClose = true;
-	layOut->remove();
+	layOut->Remove();
 	
 
 	// ---------------------------------------------------------------------
@@ -1266,7 +1266,7 @@ XrdFstOfsFile::close()
       if ((!checksumerror) && (haswrite || isCreation) && (!minimumsizeerror)) {
 	// commit meta data
 	struct stat statinfo;
-	if ((rc = layOut->stat(&statinfo))) {
+	if ((rc = layOut->Stat(&statinfo))) {
 	  rc = gOFS.Emsg(epname,error, EIO, "close - cannot stat closed layout to determine file size",Path.c_str());
 	}
 	if (!rc) {
@@ -1401,7 +1401,7 @@ XrdFstOfsFile::close()
     brc = rc;  // return before the close
     
     if (layOut) {
-      closerc = layOut->close();
+      closerc = layOut->Close();
       rc |= closerc;
     } else {
       rc |= closeofs();
@@ -1696,7 +1696,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
 
   eos_debug("XrdFstOfsFile: read - fileOffset: %lli, buffer_size: %i", fileOffset, buffer_size);
 
-  int rc = layOut->read(fileOffset,buffer,buffer_size);
+  int rc = layOut->Read(fileOffset,buffer,buffer_size);
 
   if ((rc>0) && (checkSum)) {
     XrdSysMutexHelper cLock (ChecksumMutex);
@@ -1806,7 +1806,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset   fileOffset,
   gettimeofday(&cTime,&tz);
   wCalls++;
 
-  int rc = layOut->write(fileOffset,(char*)buffer,buffer_size);
+  int rc = layOut->Write(fileOffset,(char*)buffer,buffer_size);
 
   if ( (rc <0) && isCreation && (error.getErrInfo() == EREMOTEIO) ) {
     if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
@@ -1903,14 +1903,14 @@ XrdFstOfsFile::syncofs()
 int          
 XrdFstOfsFile::sync()
 {
-  return layOut->sync();
+  return layOut->Sync();
 }
 
 /*----------------------------------------------------------------------------*/
 int          
 XrdFstOfsFile::sync(XrdSfsAio *aiop)
 {
-  return layOut->sync();
+  return layOut->Sync();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1946,7 +1946,7 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
     }
   }
 
-  return layOut->truncate(fileOffset);
+  return layOut->Truncate(fileOffset);
 }
 
 
@@ -1958,7 +1958,7 @@ XrdFstOfsFile::stat(struct stat *buf)
   int rc = SFS_OK ;
 
   if (layOut) {
-    if ((rc = layOut->stat(buf))) {
+    if ((rc = layOut->Stat(buf))) {
       rc = gOFS.Emsg(epname,error, EIO, "stat - cannot stat layout to determine file size ",Path.c_str());
     }
   } else {
@@ -1966,6 +1966,14 @@ XrdFstOfsFile::stat(struct stat *buf)
   }
   
   return rc;
+}
+
+
+/*----------------------------------------------------------------------------*/
+std::string          
+XrdFstOfsFile::GetFstPath() {
+  std::string ret = fstPath.c_str();
+  return ret;
 }
 
 

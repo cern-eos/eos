@@ -105,6 +105,7 @@ public:
   int          truncateofs(XrdSfsFileOffset   fileOffset);
 
   XrdFstOfsFile(const char* user, int MonID=0) : XrdOfsFile(user,MonID){openOpaque = 0; capOpaque = 0; fstPath=""; hasBlockXs = false; eos::common::LogId(); closed=false; opened=false; haswrite=false; fMd = 0;checkSum = 0; layOut = 0; isRW= 0; isCreation = 0; srBytes=swBytes=rOffset=wOffset=0; rTime.tv_sec=wTime.tv_sec=lrTime.tv_sec=lwTime.tv_sec=rTime.tv_usec=wTime.tv_usec=lrTime.tv_usec=lwTime.tv_usec=cTime.tv_sec=cTime.tv_usec=0;fileid=0;fsid=0;lid=0;cid=0;rCalls=wCalls=0; localPrefix="";maxOffsetWritten=0;openSize=0;closeSize=0;isReplication=false; deleteOnClose=false; repairOnClose=false;closeTime.tv_sec = closeTime.tv_usec = openTime.tv_sec = openTime.tv_usec = tz.tz_dsttime = tz.tz_minuteswest = 0;viaDelete=remoteDelete=writeDelete=false;SecString="";writeErrorFlag=0;}
+  std::string  GetFstPath();
   virtual ~XrdFstOfsFile() {
     viaDelete = true;
     if (!closed) {

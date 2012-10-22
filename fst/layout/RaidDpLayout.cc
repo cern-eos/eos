@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RaidDPLayout.cc
+// File: RaidDpLayout.cc
 // Author: Elvin Sindrilaru - CERN
 // ----------------------------------------------------------------------
 
@@ -23,7 +23,7 @@
 
 
 /*----------------------------------------------------------------------------*/
-#include "fst/layout/RaidDPLayout.hh"
+#include "fst/layout/RaidDpLayout.hh"
 #include "fst/XrdFstOfs.hh"
 #include "common/Timing.hh"
 /*----------------------------------------------------------------------------*/
@@ -43,7 +43,7 @@ EOSFSTNAMESPACE_BEGIN
 typedef long v2do __attribute__((vector_size(VECTOR_SIZE)));
 
 //------------------------------------------------------------------------------
-RaidDPLayout::RaidDPLayout(XrdFstOfsFile* thisFile, int lid, XrdOucErrInfo *outerror) 
+RaidDpLayout::RaidDpLayout(XrdFstOfsFile* thisFile, int lid, XrdOucErrInfo *outerror) 
   : Layout(thisFile, "raidDP", lid, outerror)
 {
   nStripes = eos::common::LayoutId::GetStripeNumber(lid) - 1;    //TODO: *** fix this!!!! ***
@@ -79,7 +79,7 @@ RaidDPLayout::RaidDPLayout(XrdFstOfsFile* thisFile, int lid, XrdOucErrInfo *oute
 
 //------------------------------------------------------------------------------
 int
-RaidDPLayout::open(const char           *path,
+RaidDpLayout::open(const char           *path,
                    XrdSfsFileOpenMode    open_mode,
                    mode_t                create_mode,
                    const XrdSecEntity   *client,
@@ -266,7 +266,7 @@ RaidDPLayout::open(const char           *path,
 //------------------------------------------------------------------------------
 //recover in case the header is corrupted
 bool 
-RaidDPLayout::validateHeader(HeaderCRC *&hd, bool *hdValid, std::map<unsigned int, unsigned int>  &mapSF, 
+RaidDpLayout::validateHeader(HeaderCRC *&hd, bool *hdValid, std::map<unsigned int, unsigned int>  &mapSF, 
                              std::map<unsigned int, unsigned int> &mapFS)
 {
 
@@ -362,7 +362,7 @@ RaidDPLayout::validateHeader(HeaderCRC *&hd, bool *hdValid, std::map<unsigned in
 
 //------------------------------------------------------------------------------
 //destructor
-RaidDPLayout::~RaidDPLayout() 
+RaidDpLayout::~RaidDpLayout() 
 {
   dataBlock.clear();
   mapFst_Stripe.clear();
@@ -382,7 +382,7 @@ RaidDPLayout::~RaidDPLayout()
 //------------------------------------------------------------------------------
 //compute the parity and double parity blocks
 void 
-RaidDPLayout::computeParity()
+RaidDpLayout::computeParity()
 {
   int indexPBlock;
   int currentBlock;
@@ -442,7 +442,7 @@ RaidDPLayout::computeParity()
 //XOR the two stripes using 128 bits and return the result
 //usually the totalBytes value should be a multiple of 128
 void 
-RaidDPLayout::operationXOR(char *stripe1, char *stripe2, XrdSfsXferSize totalBytes, char* result)
+RaidDpLayout::operationXOR(char *stripe1, char *stripe2, XrdSfsXferSize totalBytes, char* result)
 {
   v2do *xor_res;
   v2do *idx1;
@@ -475,7 +475,7 @@ RaidDPLayout::operationXOR(char *stripe1, char *stripe2, XrdSfsXferSize totalByt
 
 //------------------------------------------------------------------------------
 int
-RaidDPLayout::read(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
+RaidDpLayout::read(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
 {
   eos::common::Timing rt("read");
   TIMING("start", &rt);
@@ -574,7 +574,7 @@ RaidDPLayout::read(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
 
 //------------------------------------------------------------------------------
 int 
-RaidDPLayout::write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
+RaidDpLayout::write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
 {
   eos::common::Timing wt("write");
   TIMING("start", &wt);
@@ -689,7 +689,7 @@ RaidDPLayout::write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length
 //------------------------------------------------------------------------------
 //try to recover the block at the current offset
 bool 
-RaidDPLayout::recoverBlock(char *buffer, XrdSfsFileOffset offset, XrdSfsXferSize length, bool storeRecovery)
+RaidDpLayout::recoverBlock(char *buffer, XrdSfsFileOffset offset, XrdSfsXferSize length, bool storeRecovery)
 {
   
   bool ret = false;
@@ -711,7 +711,7 @@ RaidDPLayout::recoverBlock(char *buffer, XrdSfsFileOffset offset, XrdSfsXferSize
 //------------------------------------------------------------------------------
 //use simple parity to recover the stripe, return true if successfully reconstruted
 bool 
-RaidDPLayout::simpleParityRecover(char* buffer, XrdSfsFileOffset offset, XrdSfsXferSize length, int &blocksCorrupted)
+RaidDpLayout::simpleParityRecover(char* buffer, XrdSfsFileOffset offset, XrdSfsXferSize length, int &blocksCorrupted)
 {
 
   int aread;
@@ -788,7 +788,7 @@ RaidDPLayout::simpleParityRecover(char* buffer, XrdSfsFileOffset offset, XrdSfsX
 //------------------------------------------------------------------------------
 //use double parity to recover the stripe, return true if successfully reconstruted
 bool 
-RaidDPLayout::doubleParityRecover(char* buffer, XrdSfsFileOffset offset, XrdSfsXferSize length, bool storeRecovery)
+RaidDpLayout::doubleParityRecover(char* buffer, XrdSfsFileOffset offset, XrdSfsXferSize length, bool storeRecovery)
 {
   int aread;
   bool* statusBlock;
@@ -966,7 +966,7 @@ RaidDPLayout::doubleParityRecover(char* buffer, XrdSfsFileOffset offset, XrdSfsX
 //------------------------------------------------------------------------------
 //recompute and write to files the parity blocks of the groups between the two limits
 int 
-RaidDPLayout::updateParityForGroups(XrdSfsFileOffset offsetStart, XrdSfsFileOffset offsetEnd)
+RaidDpLayout::updateParityForGroups(XrdSfsFileOffset offsetStart, XrdSfsFileOffset offsetEnd)
 {
   XrdSfsFileOffset offsetGroup;
   XrdSfsFileOffset offsetBlock;
@@ -1002,7 +1002,7 @@ RaidDPLayout::updateParityForGroups(XrdSfsFileOffset offsetStart, XrdSfsFileOffs
 //------------------------------------------------------------------------------
 //write the parity blocks from dataBlocks to the corresponding file stripes
 int 
-RaidDPLayout::writeParityToFiles(XrdSfsFileOffset offsetGroup)
+RaidDpLayout::writeParityToFiles(XrdSfsFileOffset offsetGroup)
 {
 
   int rc1;
@@ -1051,7 +1051,7 @@ RaidDPLayout::writeParityToFiles(XrdSfsFileOffset offsetGroup)
 //------------------------------------------------------------------------------
 //return the indices of the simple parity blocks from a big stripe
 vector<unsigned int> 
-RaidDPLayout::getSimpleParityIndices()
+RaidDpLayout::getSimpleParityIndices()
 {
   unsigned int val = nStripes;
   vector<unsigned int> values;
@@ -1072,7 +1072,7 @@ RaidDPLayout::getSimpleParityIndices()
 //------------------------------------------------------------------------------
 //return the indices of the double parity blocks from a big group
 vector<unsigned int> 
-RaidDPLayout::getDoubleParityIndices()
+RaidDpLayout::getDoubleParityIndices()
 {
   unsigned int val = nStripes;
   vector<unsigned int> values;
@@ -1094,7 +1094,7 @@ RaidDPLayout::getDoubleParityIndices()
 // check if the DIAGONAL stripe is valid in the sense that there is at most one
 // corrupted block in the current stripe and this is not the ommited diagonal 
 bool 
-RaidDPLayout::validDiagStripe(vector<unsigned int> &stripe, bool* statusBlock, unsigned int blockId)
+RaidDpLayout::validDiagStripe(vector<unsigned int> &stripe, bool* statusBlock, unsigned int blockId)
 {
   int corrupted = 0;
 
@@ -1123,7 +1123,7 @@ RaidDPLayout::validDiagStripe(vector<unsigned int> &stripe, bool* statusBlock, u
 // check if the HORIZONTAL stripe is valid in the sense that there is at
 // most one corrupted block in the current stripe 
 bool 
-RaidDPLayout::validHorizStripe(vector<unsigned int> &stripe, bool* statusBlock, unsigned int blockId)
+RaidDpLayout::validHorizStripe(vector<unsigned int> &stripe, bool* statusBlock, unsigned int blockId)
 {
   int corrupted = 0;
   long int baseId = (blockId / nFiles) * nFiles;
@@ -1152,7 +1152,7 @@ RaidDPLayout::validHorizStripe(vector<unsigned int> &stripe, bool* statusBlock, 
 //------------------------------------------------------------------------------
 //return the blocks corrsponding to the diagonal stripe of blockId
 vector<unsigned int> 
-RaidDPLayout::getDiagonalStripe(unsigned int blockId)
+RaidDpLayout::getDiagonalStripe(unsigned int blockId)
 {
   bool dpAdded = false;
   vector<unsigned int> lastColumn;
@@ -1221,7 +1221,7 @@ RaidDPLayout::getDiagonalStripe(unsigned int blockId)
 //return the id of stripe from a nTotalBlocks representation to a nBlocks representation
 //in which we exclude the parity and double parity blocks
 unsigned int 
-RaidDPLayout::mapBigToSmallBlock(unsigned int IdBig)
+RaidDpLayout::mapBigToSmallBlock(unsigned int IdBig)
 {
   if (IdBig % (nStripes + 2) == nStripes  || IdBig % (nStripes + 2) == nStripes + 1)
     return -1;
@@ -1233,7 +1233,7 @@ RaidDPLayout::mapBigToSmallBlock(unsigned int IdBig)
 //------------------------------------------------------------------------------
 //return the id of stripe from a nBlocks representation in a nTotalBlocks representation
 unsigned int 
-RaidDPLayout::mapSmallToBigBlock(unsigned int IdSmall)
+RaidDpLayout::mapSmallToBigBlock(unsigned int IdSmall)
 {
   return (IdSmall / nStripes) *(nStripes + 2) + IdSmall % nStripes;
 }
@@ -1242,7 +1242,7 @@ RaidDPLayout::mapSmallToBigBlock(unsigned int IdSmall)
 //------------------------------------------------------------------------------
 //return the id (out of nTotalBlocks) for the parity block corresponding to the current block
 unsigned int 
-RaidDPLayout::getParityBlockId(unsigned int elemFromStripe)
+RaidDpLayout::getParityBlockId(unsigned int elemFromStripe)
 {
   return (nStripes + (elemFromStripe / (nStripes + 2)) *(nStripes + 2));
 }
@@ -1251,7 +1251,7 @@ RaidDPLayout::getParityBlockId(unsigned int elemFromStripe)
 //------------------------------------------------------------------------------
 //return the id (out of nTotalBlocks) for the double parity block corresponding to the current block
 unsigned int 
-RaidDPLayout::getDParityBlockId(std::vector<unsigned int> stripe)
+RaidDpLayout::getDParityBlockId(std::vector<unsigned int> stripe)
 {
   int min = *(std::min_element(stripe.begin(), stripe.end()));
   return ((min + 1) *(nStripes + 1) + min);
@@ -1260,7 +1260,7 @@ RaidDPLayout::getDParityBlockId(std::vector<unsigned int> stripe)
 
 //------------------------------------------------------------------------------
 int 
-RaidDPLayout::truncate(XrdSfsFileOffset offset) {
+RaidDpLayout::truncate(XrdSfsFileOffset offset) {
 
   int rc = SFS_OK;
   XrdSfsFileOffset truncValue = 0;
@@ -1293,7 +1293,7 @@ RaidDPLayout::truncate(XrdSfsFileOffset offset) {
 
 //------------------------------------------------------------------------------
 int 
-RaidDPLayout::sync() {
+RaidDpLayout::sync() {
 
   int rc1 = SFS_OK;
   int rc2 = 1;
@@ -1326,7 +1326,7 @@ RaidDPLayout::sync() {
 
 //------------------------------------------------------------------------------
 int 
-RaidDPLayout::stat(struct stat *buf) 
+RaidDpLayout::stat(struct stat *buf) 
 {
 
   int rc=0;
@@ -1351,7 +1351,7 @@ RaidDPLayout::stat(struct stat *buf)
 
 //------------------------------------------------------------------------------
 int 
-RaidDPLayout::close() 
+RaidDpLayout::close() 
 {
   int rc1 = SFS_OK;
   int rc2 = SFS_OK;

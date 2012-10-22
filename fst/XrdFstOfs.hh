@@ -34,7 +34,7 @@
 #include "fst/storage/Storage.hh"
 #include "fst/Config.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/layout/LayoutPlugins.hh"
+#include "fst/layout/LayoutPlugin.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/Lock.hh"
 #include "fst/Messaging.hh"
@@ -77,9 +77,9 @@ public:
                    const XrdSecClientName  *client = 0,
                    const char              *opaque = 0); 
 
-  const char *nextEntry();
+  const char* nextEntry();
 
-  const   char       *FName() {return (const char *)dirname.c_str();}
+  const char* FName() {return (const char *)dirname.c_str();}
 
   int         close();
 };
@@ -90,13 +90,15 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId {
   friend class XrdFstOfsDirectory;
   friend class XrdFstOfsFile;
   friend class eos::fst::Layout;
-  friend class eos::fst::ReplicaLayout;
-  friend class eos::fst::ReplicaParLayout;
+  //  friend class eos::fst::ReplicaLayout;
+  // friend class eos::fst::ReplicaParLayout;
   friend class eos::fst::PlainLayout;
-  friend class eos::fst::Raid5Layout;
-private:
+  // friend class eos::fst::RaidDpLayout;
+  //friend class eos::fst::ReedSLayout;
 
-public:
+ private:
+
+ public:
   XrdSfsDirectory *newDir(char *user=0, int MonID=0) {return (XrdSfsDirectory *) new XrdFstOfsDirectory(user,MonID);}
   XrdSfsFile *newFile(char *user=0,int MonID=0) {return (XrdSfsFile *) new XrdFstOfsFile(user,MonID);}
  

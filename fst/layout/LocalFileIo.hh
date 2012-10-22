@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file PlainLayout.hh
-//! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
-//! @brief Physical layout of a plain file without any replication or striping
+//! @file LocalFileIo.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Class used for doing local IO operations
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,51 +22,43 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_PLAINLAYOUT_HH__
-#define __EOSFST_PLAINLAYOUT_HH__
+#ifndef __EOSFST_LOCALFILEIO__HH__
+#define __EOSFST_LOCALFILEIO__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "common/LayoutId.hh"
-#include "fst/Namespace.hh"
+#include "fst/layout/FileIo.hh"
 #include "fst/XrdFstOfsFile.hh"
-#include "fst/layout/Layout.hh"
-/*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOfs/XrdOfs.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-
 //------------------------------------------------------------------------------
-//! Class abstracting the phsysical layout of a plain file
+//! Class used for doing local IO operations
 //------------------------------------------------------------------------------
-class PlainLayout : public Layout
+class LocalFileIo: public FileIo
 {
-  public:
 
-    //--------------------------------------------------------------------------
+  public:
+    //----------------------------------------------------------------------------
     //! Constructor
     //!
-    //! @param file file handler
-    //! @param lid layout id
-    //! @param client security information
+    //! @param handle to logical file
+    //! @param client security entity
     //! @param error error information
     //!
-    //--------------------------------------------------------------------------
-    PlainLayout( XrdFstOfsFile*      file,
-                 int                 lid,
+    //----------------------------------------------------------------------------
+    LocalFileIo( XrdFstOfsFile*      file,
                  const XrdSecEntity* client,
                  XrdOucErrInfo*      error );
 
-  
-    //--------------------------------------------------------------------------
-    //! Destructor
-    //--------------------------------------------------------------------------
-    virtual ~PlainLayout();
 
-  
-    //--------------------------------------------------------------------------
+    //----------------------------------------------------------------------------
+    //! Destructor
+    //----------------------------------------------------------------------------
+    virtual ~LocalFileIo();
+
+
+    //----------------------------------------------------------------------------
     //! Open file
     //!
     //! @param path file path
@@ -74,26 +66,26 @@ class PlainLayout : public Layout
     //! @param mode open mode
     //! @param opaque opaque information
     //!
-    //--------------------------------------------------------------------------
-    virtual int Open( const std::string&  path,
-                      uint16_t            flags,
-                      uint16_t            mode,
-                      const char*         opaque );
+    //! @return 0 if successful, error code otherwise
+    //!
+    //----------------------------------------------------------------------------
+    virtual int Open( const std::string& path,
+                      uint16_t           flags,
+                      uint16_t           mode,
+                      const std::string& opaque );
 
-  
-    //--------------------------------------------------------------------------
+
+    //----------------------------------------------------------------------------
     //! Read from file
     //!
-    //! @param offset offset
-    //! @param buffer place to hold the read data
-    //! @param length length
+    //! @param offset offset in file
+    //! @param buffer where the data is read
+    //! @param lenght read length
     //!
     //! @return number of bytes read
     //!
-    //--------------------------------------------------------------------------
-    virtual int Read( uint64_t offset,
-                      char*    buffer,
-                      uint32_t length );
+    //----------------------------------------------------------------------------
+    virtual uint32_t Read( uint64_t offset, char* buffer, uint32_t length );
 
 
     //--------------------------------------------------------------------------
@@ -106,11 +98,9 @@ class PlainLayout : public Layout
     //! @return number of bytes written
     //!
     //--------------------------------------------------------------------------
-    virtual int Write( uint64_t offset,
-                       char*    buffer,
-                       uint32_t length );
+    virtual uint32_t Write( uint64_t offset, char* buffer, uint32_t length );
 
-  
+
     //--------------------------------------------------------------------------
     //! Truncate
     //!
@@ -121,7 +111,7 @@ class PlainLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int Truncate( uint64_t offset );
 
-  
+
     //--------------------------------------------------------------------------
     //! Allocate file space
     //!
@@ -130,9 +120,9 @@ class PlainLayout : public Layout
     //! @return 0 on success, error code otherwise
     //!
     //--------------------------------------------------------------------------
-    virtual int Fallocate( uint64_t length );
+    virtual int Fallocate( uint64_t lenght );
 
-  
+
     //--------------------------------------------------------------------------
     //! Deallocate file space
     //!
@@ -142,10 +132,9 @@ class PlainLayout : public Layout
     //! @return 0 on success, error code otherwise
     //!
     //--------------------------------------------------------------------------
-    virtual int Fdeallocate( uint64_t fromOffset,
-                             uint64_t toOffset );
+    virtual int Fdeallocate( uint64_t fromOffset, uint64_t toOffset );
 
-  
+
     //--------------------------------------------------------------------------
     //! Remove file
     //!
@@ -154,7 +143,7 @@ class PlainLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int Remove();
 
-  
+
     //--------------------------------------------------------------------------
     //! Sync file to disk
     //!
@@ -163,7 +152,7 @@ class PlainLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int Sync();
 
-  
+
     //--------------------------------------------------------------------------
     //! Close file
     //!
@@ -172,7 +161,7 @@ class PlainLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int Close();
 
-  
+
     //--------------------------------------------------------------------------
     //! Get stats about the file
     //!
@@ -183,7 +172,16 @@ class PlainLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int Stat( struct stat* buf );
 
+  private:
+
+    bool mIsOpen;             ///< mark if file is opened
+    XrdFstOfsFile* mOfsFile;  ///< local file handler
+
 };
 
 EOSFSTNAMESPACE_END
+
 #endif
+
+
+

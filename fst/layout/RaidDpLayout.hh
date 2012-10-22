@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RaidDPLayout.hh
+// File: RaidDpLayout.hh
 // Author: Elvin Sindrilaru - CERN
 // ----------------------------------------------------------------------
 
@@ -43,11 +43,11 @@ EOSFSTNAMESPACE_BEGIN
 #define VECTOR_SIZE 16    //used for computing XOR or 128 bits = 8 * 16
 typedef uint32_t u32;
 
-class RaidDPLayout : public Layout {
+class RaidDpLayout : public Layout {
 
 public:
 
-  RaidDPLayout(XrdFstOfsFile* thisFile,int lid, XrdOucErrInfo *error);
+  RaidDpLayout(XrdFstOfsFile* thisFile,int lid, XrdOucErrInfo *error);
 
   virtual int open(const char                *path,
 		   XrdSfsFileOpenMode   open_mode,
@@ -62,7 +62,7 @@ public:
   virtual int sync();
   virtual int close();
   
-  virtual ~RaidDPLayout();
+  virtual ~RaidDpLayout();
 
 private:
 

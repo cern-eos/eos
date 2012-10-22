@@ -43,9 +43,10 @@ target_link_libraries (EosFstOss
 
 add_library (XrdEosFst MODULE
 	    layout/PlainLayout.cc
-	    layout/Raid5Layout.cc
-	    layout/ReplicaLayout.cc
 	    layout/ReplicaParLayout.cc
+  	    layout/FileIoPlugin.hh
+	    layout/LocalFileIo.cc         layout/LocalFileIo.hh
+
 	    checksum/Adler.cc
 	    checksum/CheckSum.cc
 	    storage/Storage.cc

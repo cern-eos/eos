@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: PlainLayout.cc
-// Author: Andreas-Joachim Peters - CERN
+// File: LocalFileIo.cc
+// Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,76 +22,73 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "fst/layout/PlainLayout.hh"
-#include "fst/layout/FileIoPlugin.hh"
+#include "fst/layout/LocalFileIo.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdOss/XrdOssApi.hh"
+/*----------------------------------------------------------------------------*/
+#include <xfs/xfs.h>
+/*----------------------------------------------------------------------------*/
+
+extern XrdOssSys* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-PlainLayout::PlainLayout( XrdFstOfsFile*      file,
-                          int                 lid,
+LocalFileIo::LocalFileIo( XrdFstOfsFile*      file,
                           const XrdSecEntity* client,
-                          XrdOucErrInfo*      error ) :
-  Layout( file, lid, client, error )
+                          XrdOucErrInfo*      error ):
+  FileIo( client, error )
 {
-  //............................................................................
-  // For the plain layout we use only LocalFileIo type
-  //............................................................................
-  FileIo* fileIo = FileIoPlugin::GetIoObject( mOfsFile,
-                                              eos::common::LayoutId::kLocal,
-                                              mSecEntity,
-                                              mError );
-  mPhysicalFile.push_back( fileIo );
+  mOfsFile = file;
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
-PlainLayout::~PlainLayout()
+LocalFileIo::~LocalFileIo()
 {
   //empty
 }
 
 
 //------------------------------------------------------------------------------
-// Open File
+// Open file
 //------------------------------------------------------------------------------
 int
-PlainLayout::Open( const std::string&  path,
-                   uint16_t            flags,
-                   uint16_t            mode,
-                   const char*         opaque )
+LocalFileIo::Open( const std::string& path,
+                   uint16_t           flags,
+                   uint16_t           mode,
+                   const std::string& opaque )
 {
   eos_debug( "path = %s", path.c_str() );
-  mLocalPath = path;
-  return mPhysicalFile[0]->Open( path, flags, mode, opaque );
+  mIsOpen = true;
+  mPath = path;
+  return mOfsFile->openofs( path.c_str(), flags, mode, mSecEntity, opaque.c_str() );
 }
 
 
 //------------------------------------------------------------------------------
 // Read from file
 //------------------------------------------------------------------------------
-int
-PlainLayout::Read( uint64_t offset, char* buffer, uint32_t length )
+uint32_t
+LocalFileIo::Read( uint64_t offset, char* buffer, uint32_t length )
 {
   eos_debug( "offset = %llu, length = %lu", offset, length );
-  return mPhysicalFile[0]->Read( offset, buffer, length );
+  return mOfsFile->readofs( offset, buffer, length );
 }
 
 
 //------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
-int
-PlainLayout::Write( uint64_t offset, char* buffer, uint32_t length )
+uint32_t
+LocalFileIo::Write( uint64_t offset, char* buffer, uint32_t length )
 {
   eos_debug( "offset = %llu, length = %lu", offset, length );
-  return mPhysicalFile[0]->Write( offset, buffer, length );
+  return mOfsFile->writeofs( offset, buffer, length );
 }
 
 
@@ -99,54 +96,92 @@ PlainLayout::Write( uint64_t offset, char* buffer, uint32_t length )
 // Truncate file
 //------------------------------------------------------------------------------
 int
-PlainLayout::Truncate( uint64_t offset )
+LocalFileIo::Truncate( uint64_t offset )
 {
-  eos_debug( "offset = %llu", offset );
-  return mPhysicalFile[0]->Truncate( offset );
+  return mOfsFile->truncateofs( offset );
 }
 
 
 //------------------------------------------------------------------------------
-// Reserve space for file
+// Allocate space for file
 //------------------------------------------------------------------------------
 int
-PlainLayout::Fallocate( uint64_t length )
+LocalFileIo::Fallocate( uint64_t length )
 {
-  eos_debug( "length = %llu", length );
-  return mPhysicalFile[0]->Fallocate( length );
+  XrdOucErrInfo error;
+
+  if ( mOfsFile->fctl( SFS_FCTL_GETFD, 0, error ) )
+    return -1;
+
+  int fd = error.getErrInfo();
+
+  if ( platform_test_xfs_fd( fd ) ) {
+    //..........................................................................
+    // Select the fast XFS allocation function if available
+    //..........................................................................
+    xfs_flock64_t fl;
+    fl.l_whence = 0;
+    fl.l_start = 0;
+    fl.l_len = ( off64_t )length;
+    return xfsctl( NULL, fd, XFS_IOC_RESVSP64, &fl );
+  } else {
+    return posix_fallocate( fd, 0, length );
+  }
+
+  return -1;
 }
 
 
 //------------------------------------------------------------------------------
-// Deallocate reserved space
+// Deallocate space reserved for file
 //------------------------------------------------------------------------------
 int
-PlainLayout::Fdeallocate( uint64_t fromOffset, uint64_t toOffset )
+LocalFileIo::Fdeallocate( uint64_t fromOffset, uint64_t toOffset )
 {
-  eos_debug( "from = %llu, to = %llu", fromOffset, toOffset );
-  return mPhysicalFile[0]->Fdeallocate( fromOffset, toOffset );
+  XrdOucErrInfo error;
+
+  if ( mOfsFile->fctl( SFS_FCTL_GETFD, 0, error ) )
+    return -1;
+
+  int fd = error.getErrInfo();
+
+  if ( fd > 0 ) {
+    if ( platform_test_xfs_fd( fd ) ) {
+      //........................................................................
+      // Select the fast XFS deallocation function if available
+      //........................................................................
+      xfs_flock64_t fl;
+      fl.l_whence = 0;
+      fl.l_start = fromOffset;
+      fl.l_len = ( off64_t )toOffset - fromOffset;
+      return xfsctl( NULL, fd, XFS_IOC_UNRESVSP64, &fl );
+    } else {
+      return 0;
+    }
+  }
+
+  return -1;
 }
 
 
 //------------------------------------------------------------------------------
-// Syn file to disk
+// Sync file to disk
 //------------------------------------------------------------------------------
 int
-PlainLayout::Sync()
+LocalFileIo::Sync()
+{
+  return mOfsFile->syncofs();
+}
+
+
+//------------------------------------------------------------------------------
+// Get stats about the file
+//------------------------------------------------------------------------------
+int
+LocalFileIo::Stat( struct stat* buf )
 {
   eos_debug( " " );
-  return mPhysicalFile[0]->Sync();
-}
-
-
-//------------------------------------------------------------------------------
-// Get stats for file
-//------------------------------------------------------------------------------
-int
-PlainLayout::Stat( struct stat* buf )
-{
-  eos_debug( " " );
-  return mPhysicalFile[0]->Stat( buf );
+  return XrdOfsOss->Stat( mOfsFile->GetFstPath().c_str(), buf );
 }
 
 
@@ -154,10 +189,10 @@ PlainLayout::Stat( struct stat* buf )
 // Close file
 //------------------------------------------------------------------------------
 int
-PlainLayout::Close()
+LocalFileIo::Close()
 {
   eos_debug( " " );
-  return mPhysicalFile[0]->Close();
+  return mOfsFile->closeofs();
 }
 
 
@@ -165,10 +200,13 @@ PlainLayout::Close()
 // Remove file
 //------------------------------------------------------------------------------
 int
-PlainLayout::Remove()
+LocalFileIo::Remove()
 {
-  eos_debug( " " );
-  return mPhysicalFile[0]->Remove();
+  if ( mIsOpen ) {
+    return ::unlink( mPath.c_str() );
+  }
+  
+  return 1;
 }
 
 EOSFSTNAMESPACE_END

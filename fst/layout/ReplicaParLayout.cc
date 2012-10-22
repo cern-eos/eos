@@ -29,151 +29,159 @@
 /*----------------------------------------------------------------------------*/
 #include <xfs/xfs.h>
 /*----------------------------------------------------------------------------*/
-extern XrdOssSys  *XrdOfsOss;
+
+extern XrdOssSys*  XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-ReplicaParLayout::ReplicaParLayout(XrdFstOfsFile* thisFile,int lid, XrdOucErrInfo *outerror) : Layout(thisFile, "replica", lid, outerror)
+ReplicaParLayout::ReplicaParLayout( XrdFstOfsFile* thisFile,
+                                    int            lid,
+                                    XrdOucErrInfo* outerror ):
+  Layout( thisFile, "replica", lid, outerror )
 {
-  nStripes = eos::common::LayoutId::GetStripeNumber(lid) + 1; // this 1=0x0 16=0xf :-)
+  nStripes = eos::common::LayoutId::GetStripeNumber( lid ) + 1; // this 1=0x0 16=0xf :-)
 
-  for (int i=0; i< eos::common::LayoutId::kSixteenStripe; i++) {
+  for ( int i = 0; i < eos::common::LayoutId::kSixteenStripe; i++ ) {
     replicaClient[i] = 0;
     replicaUrl[i] = "";
   }
-  ioLocal=false;
+
+  ioLocal = false;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-ReplicaParLayout::open(const char                *path,
-                       XrdSfsFileOpenMode   open_mode,
-                       mode_t               create_mode,
-                       const XrdSecEntity        *client,
-                       const char                *opaque)
+ReplicaParLayout::open( const char*         path,
+                        XrdSfsFileOpenMode  open_mode,
+                        mode_t              create_mode,
+                        const XrdSecEntity* client,
+                        const char*         opaque )
 {
-
-  // no replica index definition indicates that this is gateway access just forwarding to another remote server
-
+  // no replica index definition indicates that this is gateway access just
+  // forwarding to another remote server
   int replicaIndex = 0;
   int replicaHead  = 0;
+  bool isGateWay = false;
+  bool isHeadServer = false;
+  const char* index = mOfsFile->openOpaque->Get( "mgm.replicaindex" );
 
-  bool isGateWay=false;
-  bool isHeadServer=false;
+  if ( index ) {
+    replicaIndex = atoi( index );
 
-  const char* index = ofsFile->openOpaque->Get("mgm.replicaindex");
-  
-  if (index) {
-    replicaIndex = atoi(index);
-    if ( (replicaIndex<0) || (replicaIndex>eos::common::LayoutId::kSixteenStripe) ) {
-      eos_err("illegal replica index %d", replicaIndex);
-      return gOFS.Emsg("ReplicaParOpen",*error, EINVAL, "open replica - illegal replica index found", index);
+    if ( ( replicaIndex < 0 ) || ( replicaIndex > eos::common::LayoutId::kSixteenStripe ) ) {
+      eos_err( "illegal replica index %d", replicaIndex );
+      return gOFS.Emsg( "ReplicaParOpen", *mError, EINVAL, "open replica - illegal replica index found", index );
     }
+
     ioLocal = true;
   } else {
     ioLocal = false;
     isGateWay = true;
   }
 
+  const char* head = mOfsFile->openOpaque->Get( "mgm.replicahead" );
 
-  const char* head = ofsFile->openOpaque->Get("mgm.replicahead");
-  if (head) {
-    replicaHead = atoi(head);
-    if ( (replicaHead<0) || (replicaHead>eos::common::LayoutId::kSixteenStripe) ) {
-      eos_err("illegal replica head %d", replicaHead);
-      return gOFS.Emsg("ReplicaParOpen",*error, EINVAL, "open replica - illegal replica head found", head);
+  if ( head ) {
+    replicaHead = atoi( head );
+
+    if ( ( replicaHead < 0 ) || ( replicaHead > eos::common::LayoutId::kSixteenStripe ) ) {
+      eos_err( "illegal replica head %d", replicaHead );
+      return gOFS.Emsg( "ReplicaParOpen", *mError, EINVAL, "open replica - illegal replica head found", head );
     }
   } else {
-    eos_err("replica head missing");
-    return gOFS.Emsg("ReplicaParOpen",*error, EINVAL, "open replica - no replica head defined");
+    eos_err( "replica head missing" );
+    return gOFS.Emsg( "ReplicaParOpen", *mError, EINVAL, "open replica - no replica head defined" );
   }
 
   // define the replication head
-  if (replicaIndex == replicaHead) {
+  if ( replicaIndex == replicaHead ) {
     isHeadServer = true;
   }
-  
+
   // define if this is the first client contact point
-  if (isGateWay || ( (!isGateWay) && (isHeadServer) )) {
-    isEntryServer = true;
+  if ( isGateWay || ( ( !isGateWay ) && ( isHeadServer ) ) ) {
+    mIsEntryServer = true;
   }
 
   int envlen;
-  XrdOucString remoteOpenOpaque = ofsFile->openOpaque->Env(envlen);
-
-  XrdOucString remoteOpenPath = ofsFile->openOpaque->Get("mgm.path");
+  XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env( envlen );
+  XrdOucString remoteOpenPath = mOfsFile->openOpaque->Get( "mgm.path" );
 
   // only a gateway or head server needs to contact others
-  if ( (isGateWay)  || (isHeadServer) ) {
+  if ( ( isGateWay )  || ( isHeadServer ) ) {
     // assign stripe urls'
-    for (int i=0; i< nStripes; i++) {
-      remoteOpenOpaque = ofsFile->openOpaque->Env(envlen);
-      XrdOucString reptag = "mgm.url"; reptag += i;
-      const char* rep = ofsFile->capOpaque->Get(reptag.c_str());
+    for ( int i = 0; i < nStripes; i++ ) {
+      remoteOpenOpaque = mOfsFile->openOpaque->Env( envlen );
+      XrdOucString reptag = "mgm.url";
+      reptag += i;
+      const char* rep = mOfsFile->capOpaque->Get( reptag.c_str() );
+
       if ( !rep ) {
-        eos_err("Failed to open replica - missing url for replica %s", reptag.c_str());
-        return gOFS.Emsg("ReplicaParOpen",*error, EINVAL, "open stripes - missing url for replica ", reptag.c_str());
+        eos_err( "Failed to open replica - missing url for replica %s", reptag.c_str() );
+        return gOFS.Emsg( "ReplicaParOpen", *mError, EINVAL, "open stripes - missing url for replica ", reptag.c_str() );
       }
-      
+
       // check if the first replica is remote
       replicaUrl[i] = rep;
       replicaUrl[i] += remoteOpenPath;
-      replicaUrl[i] +="?";
-      
+      replicaUrl[i] += "?";
+
       // prepare the index for the next target
-      if (index) {
+      if ( index ) {
         XrdOucString oldindex = "mgm.replicaindex=";
         XrdOucString newindex = "mgm.replicaindex=";
         oldindex += index;
         newindex += i;
-        remoteOpenOpaque.replace(oldindex.c_str(),newindex.c_str());
+        remoteOpenOpaque.replace( oldindex.c_str(), newindex.c_str() );
       } else {
         // this points now to the head
         remoteOpenOpaque += "&mgm.replicaindex=";
-        remoteOpenOpaque += head;       
+        remoteOpenOpaque += head;
       }
+
       replicaUrl[i] += remoteOpenOpaque;
     }
   }
 
-  for (int i=0; i< nStripes; i++) {
+  for ( int i = 0; i < nStripes; i++ ) {
     // open all the replica's needed
-    // local IO 
-    if ( (ioLocal) && (i == replicaIndex) )  {
+    // local IO
+    if ( ( ioLocal ) && ( i == replicaIndex ) )  {
       // only the referenced entry URL does local IO
-      LocalReplicaPath = path;
-      if (ofsFile->isRW) {
+      mLocalReplicaPath = path;
+
+      if ( mOfsFile->isRW ) {
         // write case
         // local handle
-        if (ofsFile->openofs(path, open_mode, create_mode, client, opaque)) {
-          eos_err("Failed to open replica - local open failed on ", path);
-          return gOFS.Emsg("ReplicaOpen",*error, EIO, "open replica - local open failed ", path);
+        if ( mOfsFile->openofs( path, open_mode, create_mode, client, opaque ) ) {
+          eos_err( "Failed to open replica - local open failed on ", path );
+          return gOFS.Emsg( "ReplicaOpen", *mError, EIO, "open replica - local open failed ", path );
         }
       } else {
         // read case
         // local handle
-        if (ofsFile->openofs(path, open_mode, create_mode, client, opaque)) {
-          eos_err("Failed to open replica - local open failed on ", path);
-          return gOFS.Emsg("ReplicaOpen",*error, EIO, "open replica - local open failed ", path);
+        if ( mOfsFile->openofs( path, open_mode, create_mode, client, opaque ) ) {
+          eos_err( "Failed to open replica - local open failed on ", path );
+          return gOFS.Emsg( "ReplicaOpen", *mError, EIO, "open replica - local open failed ", path );
         }
       }
     } else {
       // gateway contats the head, head contacts all
-      if ( (isGateWay && i == replicaHead) ||
-           (isHeadServer && (i != replicaIndex)) ) {
-        if (ofsFile->isRW) {
-	  EnvPutInt(NAME_READCACHESIZE,0);
-          replicaClient[i] = new XrdClient(replicaUrl[i].c_str());
-          
+      if ( ( isGateWay && i == replicaHead ) ||
+           ( isHeadServer && ( i != replicaIndex ) ) ) {
+        if ( mOfsFile->isRW ) {
+          EnvPutInt( NAME_READCACHESIZE, 1024 * 1024 * 4ll );
+          replicaClient[i] = new XrdClient( replicaUrl[i].c_str() );
 	  XrdOucString maskUrl = replicaUrl[i].c_str()?replicaUrl[i].c_str():"";
 	  // mask some opaque parameters to shorten the logging                                                                                                                                                
 	  eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
 	  eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
 	  eos::common::StringConversion::MaskTag(maskUrl,"authz");
           eos_info("Opening Layout Stripe %s\n", maskUrl.c_str());
+
           // write case
-          if (!replicaClient[i]->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or, kXR_async | kXR_mkpath | kXR_open_updt | kXR_new, false)) {
+          if ( !replicaClient[i]->Open( kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or, kXR_async | kXR_mkpath | kXR_open_updt | kXR_new, false ) ) {
             // open failed
             eos_err("Failed to open stripes - remote open failed on ", maskUrl.c_str());
             return gOFS.Emsg("ReplicaParOpen",*error, EREMOTEIO, "open stripes - remote open failed ", maskUrl.c_str());
@@ -190,10 +198,10 @@ ReplicaParLayout::open(const char                *path,
 }
 
 /*----------------------------------------------------------------------------*/
-ReplicaParLayout::~ReplicaParLayout() 
+ReplicaParLayout::~ReplicaParLayout()
 {
-  for (int i=0; i< nStripes; i++) {
-    if (replicaClient[i]) {
+  for ( int i = 0; i < nStripes; i++ ) {
+    if ( replicaClient[i] ) {
       delete replicaClient[i];
     }
   }
@@ -202,13 +210,13 @@ ReplicaParLayout::~ReplicaParLayout()
 
 /*----------------------------------------------------------------------------*/
 int
-ReplicaParLayout::read(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
+ReplicaParLayout::read( XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length )
 {
   int rc1 = 0;
   int rc2 = true;
 
-  if (ioLocal) {
-    rc1= ofsFile->readofs(offset, buffer, length);
+  if ( ioLocal ) {
+    rc1 = mOfsFile->readofs( offset, buffer, length );
   } else {
     if (replicaClient[0]) {
       rc2 = replicaClient[0]->Read(buffer, offset, length);
@@ -240,14 +248,14 @@ ReplicaParLayout::read(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize len
 }
 
 /*----------------------------------------------------------------------------*/
-int 
-ReplicaParLayout::write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
+int
+ReplicaParLayout::write( XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length )
 {
   int rc1 = SFS_OK;
   int rc2 = true;
 
-  if (ioLocal) {
-    rc1= ofsFile->writeofs(offset, buffer, length);
+  if ( ioLocal ) {
+    rc1 = mOfsFile->writeofs( offset, buffer, length );
   }
 
   for (int i=0; i< nStripes; i++) {
@@ -276,22 +284,22 @@ ReplicaParLayout::write(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize le
     return gOFS.Emsg("ReplicaWrite",*error, errno, "write local replica - write failed", maskUrl.c_str());
   }
 
-  if (!rc2) {
-    return gOFS.Emsg("ReplicaWrite",*error, EREMOTEIO, "write remote replica - write failed");
+  if ( !rc2 ) {
+    return gOFS.Emsg( "ReplicaWrite", *mError, EREMOTEIO, "write remote replica - write failed" );
   }
-  return length;
 
+  return length;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-ReplicaParLayout::truncate(XrdSfsFileOffset offset)
+ReplicaParLayout::truncate( XrdSfsFileOffset offset )
 {
   int rc1 = SFS_OK;
   int rc2 = true;
 
-  if (ioLocal) {
-    rc1= ofsFile->truncateofs(offset);
+  if ( ioLocal ) {
+    rc1 = mOfsFile->truncateofs( offset );
   }
 
   for (int i=0; i< nStripes; i++) {
@@ -319,28 +327,31 @@ ReplicaParLayout::truncate(XrdSfsFileOffset offset)
     eos_err("Failed to truncate local replica - %llu %s", offset, maskUrl.c_str());
     return gOFS.Emsg("ReplicaParTruncate",*error, errno, "truncate local replica", maskUrl.c_str());;
   }
-  if (!rc2) {
-    return gOFS.Emsg("ReplicaParTruncate",*error, EREMOTEIO, "truncate remote replica");
+
+  if ( !rc2 ) {
+    return gOFS.Emsg( "ReplicaParTruncate", *mError, EREMOTEIO, "truncate remote replica" );
   }
+
   return rc1;
 }
 
 
 /*----------------------------------------------------------------------------*/
 int
-ReplicaParLayout::stat(struct stat *buf) 
+ReplicaParLayout::stat( struct stat* buf )
 {
-  return XrdOfsOss->Stat(ofsFile->fstPath.c_str(),buf);
+  return XrdOfsOss->Stat( mOfsFile->fstPath.c_str(), buf );
 }
 
 /*----------------------------------------------------------------------------*/
 int
-ReplicaParLayout::sync() 
+ReplicaParLayout::sync()
 {
   int rc1 = SFS_OK;
   int rc2 = true;
-  if (ioLocal) {
-    rc1 = ofsFile->syncofs();
+
+  if ( ioLocal ) {
+    rc1 = mOfsFile->syncofs();
   }
 
   for (int i=0; i< nStripes; i++) {
@@ -380,11 +391,13 @@ ReplicaParLayout::remove()
 {
   int rc1 = SFS_OK;
   int rc2 = true;
-  if (ioLocal) {
+
+  if ( ioLocal ) {
     struct stat buf;
-    if (!::stat(LocalReplicaPath.c_str(),&buf)) {
+
+    if ( !::stat( mLocalReplicaPath.c_str(), &buf ) ) {
       // only try to delete if there is something to delete!
-      rc1 = unlink(LocalReplicaPath.c_str());
+      rc1 = unlink( mLocalReplicaPath.c_str() );
     }
   }
 
@@ -414,9 +427,6 @@ ReplicaParLayout::remove()
     return gOFS.Emsg("ReplicaClose",*error, errno, "remove local replica", maskUrl.c_str());
   }
 
-  if (!rc2) {
-    return gOFS.Emsg("ReplicaRemove",*error, EREMOTEIO, "remove remote replica", "");
-  }  
   return rc1;
 }
 
@@ -428,8 +438,18 @@ ReplicaParLayout::close()
 {
   int rc1 = SFS_OK;
   int rc2 = true;
-  if (ioLocal) {
-    rc1 = ofsFile->closeofs();
+
+  if ( ioLocal ) {
+    rc1 = mOfsFile->closeofs();
+  }
+
+  for ( int i = 0; i < nStripes; i++ ) {
+    if ( replicaClient[i] ) {
+      if ( !replicaClient[i]->Close() ) {
+        eos_err( "Failed to close remote replica - %s", replicaUrl[i].c_str() );
+        rc2 = 0;
+      }
+    }
   }
 
   for (int i=0; i< nStripes; i++) {
@@ -458,55 +478,60 @@ ReplicaParLayout::close()
     return gOFS.Emsg("ReplicaClose",*error, errno, "close local replica", maskUrl.c_str());
   }
 
-  if (!rc2) {
-    return gOFS.Emsg("ReplicaClose",*error, EREMOTEIO, "close remote replica", "");
-  }  
   return rc1;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-ReplicaParLayout::fallocate(XrdSfsFileOffset length)
+ReplicaParLayout::fallocate( XrdSfsFileOffset length )
 {
   XrdOucErrInfo error;
-  if(ofsFile->fctl(SFS_FCTL_GETFD,0,error))
+
+  if ( mOfsFile->fctl( SFS_FCTL_GETFD, 0, error ) )
     return -1;
+
   int fd = error.getErrInfo();
-  if (fd>0) {
-    if(platform_test_xfs_fd(fd)) {
+
+  if ( fd > 0 ) {
+    if ( platform_test_xfs_fd( fd ) ) {
       // select the fast XFS allocation function if available
       xfs_flock64_t fl;
-      fl.l_whence= 0;
-      fl.l_start= 0;
-      fl.l_len= (off64_t)length;
-      return xfsctl(NULL, fd, XFS_IOC_RESVSP64, &fl);
+      fl.l_whence = 0;
+      fl.l_start = 0;
+      fl.l_len = ( off64_t )length;
+      return xfsctl( NULL, fd, XFS_IOC_RESVSP64, &fl );
     } else {
-      return posix_fallocate(fd,0,length);
+      return posix_fallocate( fd, 0, length );
     }
   }
+
   return -1;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-ReplicaParLayout::fdeallocate(XrdSfsFileOffset fromoffset, XrdSfsFileOffset tooffset)
+ReplicaParLayout::fdeallocate( XrdSfsFileOffset fromoffset, XrdSfsFileOffset tooffset )
 {
   XrdOucErrInfo error;
-  if(ofsFile->fctl(SFS_FCTL_GETFD,0,error))
+
+  if ( mOfsFile->fctl( SFS_FCTL_GETFD, 0, error ) )
     return -1;
+
   int fd = error.getErrInfo();
-  if (fd>0) {
-    if(platform_test_xfs_fd(fd)) {
+
+  if ( fd > 0 ) {
+    if ( platform_test_xfs_fd( fd ) ) {
       // select the fast XFS deallocation function if available
       xfs_flock64_t fl;
-      fl.l_whence= 0;
-      fl.l_start= fromoffset;
-      fl.l_len= (off64_t)tooffset-fromoffset;
-      return xfsctl(NULL, fd, XFS_IOC_UNRESVSP64, &fl);
+      fl.l_whence = 0;
+      fl.l_start = fromoffset;
+      fl.l_len = ( off64_t )tooffset - fromoffset;
+      return xfsctl( NULL, fd, XFS_IOC_UNRESVSP64, &fl );
     } else {
       return 0;
     }
   }
+
   return -1;
 }
 
