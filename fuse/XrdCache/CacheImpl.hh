@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: CacheImpl.hh
 // Author: Elvin-Alin Sindrilaru - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -20,14 +20,6 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-/**
- * @file   CacheImpl.hh
- *
- * @brief  Caching class implementation.
- *
- *
- */
 
 #ifndef __EOS_CACHEIMPL_HH__
 #define __EOS_CACHEIMPL_HH__
@@ -53,141 +45,185 @@ class XrdFileCache;
 //------------------------------------------------------------------------------
 class CacheImpl
 {
-  // List <key> access history, most recent at the back. 
-  typedef std::list<long long int> key_list_type;
+    // List <key> access history, most recent at the back.
+    typedef std::list<long long int> key_list_type;
 
-  //< Map of Key and (value and history iterator) elements.
-  typedef std::map < long long int, std::pair <CacheEntry*, key_list_type::iterator> >  key_map_type;
- 
-public:
+    //< Map of Key and (value and history iterator) elements.
+    typedef std::map < long long int,
+                       std::pair <CacheEntry*, key_list_type::iterator>
+                       >  key_map_type;
 
-  // ---------------------------------------------------------------------------
-  //! Constructor
-  // ---------------------------------------------------------------------------
-  CacheImpl(size_t sMax, XrdFileCache *fc);
+  public:
 
-  // ---------------------------------------------------------------------------
-  //! Destructor
-  // ---------------------------------------------------------------------------
-  ~CacheImpl();
+    // ---------------------------------------------------------------------------
+    //! Constructor
+    //!
+    //! @param sMax maximum size
+    //! @param fc handler to upper cache management layer
+    //!
+    // ---------------------------------------------------------------------------
+    CacheImpl( size_t s_max, XrdFileCache* fc );
 
-  // ---------------------------------------------------------------------------
-  //! Try to get a read request from the cache
-  // ---------------------------------------------------------------------------
-  bool getRead(const long long int &k, char* buf, off_t off, size_t len);
+    // ---------------------------------------------------------------------------
+    //! Destructor
+    // ---------------------------------------------------------------------------
+    ~CacheImpl();
 
-  // ---------------------------------------------------------------------------
-  //! Add a read request to the cache
-  // ---------------------------------------------------------------------------
-  void addRead(XrdCl::File*&        file,
-               const long long int& k,
-               char*                buf,
-               off_t                off,
-               size_t               len,
-               FileAbstraction &pFileAbst);
+    // ---------------------------------------------------------------------------
+    //! Try to get a read request from the cache
+    //!
+    //! @param k key
+    //! @param buf buffer where to save the data
+    //! @param off offset
+    //! @param len length
+    //!
+    //! @return true if piece found, otherwise false
+    //!
+    // ---------------------------------------------------------------------------
+    bool GetRead( const long long int& k, char* buf, off_t off, size_t len );
 
-  // ---------------------------------------------------------------------------
-  //! Try to remove read block from the cache
-  // ---------------------------------------------------------------------------
-  bool removeReadBlock();
+    // ---------------------------------------------------------------------------
+    //! Add a read request to the cache
+    //!
+    //! @param ref_file XrdCl file handler
+    //! @param k key
+    //! @param buf buffer containing the data
+    //! @param off offset
+    //! @param len length
+    //! @param FileAbstraction handler
+    //!
+    // ---------------------------------------------------------------------------
+    void AddRead( XrdCl::File*&        ref_file,
+                  const long long int& k,
+                  char*                buf,
+                  off_t                off,
+                  size_t               len,
+                  FileAbstraction&     pFileAbst );
 
-  // ---------------------------------------------------------------------------
-  //! Force a write request to be done i.e send it to the writing thread
-  // ---------------------------------------------------------------------------
-  void forceWrite();
+    // ---------------------------------------------------------------------------
+    //! Try to remove read block from the cache
+    // ---------------------------------------------------------------------------
+    bool RemoveReadBlock();
 
-  // ---------------------------------------------------------------------------
-  //! Force all the writes corresponding to the file to be executed
-  // ---------------------------------------------------------------------------
-  void flushWrites(FileAbstraction &pFileAbst);
+    // ---------------------------------------------------------------------------
+    //! Force a write request to be done i.e send it to the writing thread
+    // ---------------------------------------------------------------------------
+    void ForceWrite();
 
-  // ---------------------------------------------------------------------------
-  //! Add a write request to the cache
-  // ---------------------------------------------------------------------------
-  void addWrite(XrdCl::File*&        file,
-                const long long int& k,
-                char*                buf,
-                off_t                off,
-                size_t               len,
-                FileAbstraction&     pFileAbst);
+    // ---------------------------------------------------------------------------
+    //! Force all the writes corresponding to the file to be executed
+    // ---------------------------------------------------------------------------
+    void FlushWrites( FileAbstraction& pFileAbst );
 
-  // ---------------------------------------------------------------------------
-  //! Execute a write request which is pending
-  // ---------------------------------------------------------------------------
-  void processWriteReq(CacheEntry* pEntry);
+    // ---------------------------------------------------------------------------
+    //! Add a write request to the cache
+    //!
+    //! @param ref_file XrdCl file handler
+    //! @param k key
+    //! @param buf buffer containing data
+    //! @param off offset
+    //! @param len length
+    //! @param pFileAbst FileAbstraction handler
+    //!
+    // ---------------------------------------------------------------------------
+    void AddWrite( XrdCl::File*&        ref_file,
+                   const long long int& k,
+                   char*                buf,
+                   off_t                off,
+                   size_t               len,
+                   FileAbstraction&     pFileAbst );
 
-  // ---------------------------------------------------------------------------
-  //! Method executed by the thread doing the writing opetrations
-  // ---------------------------------------------------------------------------
-  void runThreadWrites();
+    // ---------------------------------------------------------------------------
+    //! Execute a write request which is pending
+    //!
+    //! @param pEntry cache entry handler
+    //!
+    // ---------------------------------------------------------------------------
+    void ProcessWriteReq( CacheEntry* pEntry );
 
-  // ---------------------------------------------------------------------------
-  //! Kill the thread doing the write operations
-  // ---------------------------------------------------------------------------
-  void killWriteThread();
+    // ---------------------------------------------------------------------------
+    //! Method executed by the thread doing the writing opetrations
+    // ---------------------------------------------------------------------------
+    void RunThreadWrites();
 
-  // ---------------------------------------------------------------------------
-  //! Get a block for the current request, either by recycling or allocate a new one
-  // ---------------------------------------------------------------------------
-  CacheEntry* getRecycledBlock(XrdCl::File*&     file, 
-                               char*             buf,
-                               off_t             offset,
-                               size_t            length,
-                               bool              iswr,
-                               FileAbstraction&  pFileAbst);
+    // ---------------------------------------------------------------------------
+    //! Kill the thread doing the write operations
+    // ---------------------------------------------------------------------------
+    void KillWriteThread();
 
-  // ---------------------------------------------------------------------------
-  //! Get total size of the block in cache (rd + wr)
-  // ---------------------------------------------------------------------------
-  size_t getSize();
+    // ---------------------------------------------------------------------------
+    //! Get a block, either by recycling or allocating a new one
+    //!
+    //! @param ref_file XrdCl file handler
+    //! @param buf buffer containing the data
+    //! @param off offset
+    //! @param len length
+    //! @param iswr mark is block is for writing
+    //! @param pFileAbst FileAbstraction handler
+    //!
+    //! @return cache entry object
+    //!
+    // ---------------------------------------------------------------------------
+    CacheEntry* GetRecycledBlock( XrdCl::File*&     ref_file,
+                                  char*             buf,
+                                  off_t             off,
+                                  size_t            len,
+                                  bool              iswr,
+                                  FileAbstraction&  pFileAbst );
 
-  // ---------------------------------------------------------------------------
-  //! Increment the size of the blocks in cache
-  // ---------------------------------------------------------------------------
-  size_t incrementSize(size_t value);
+    // ---------------------------------------------------------------------------
+    //! Get total size of the block in cache (rd + wr)
+    // ---------------------------------------------------------------------------
+    size_t GetSize();
 
-  // ---------------------------------------------------------------------------
-  //! Decrement the size of the blocks in cache
-  // ---------------------------------------------------------------------------
-  size_t decrementSize(size_t value);
+    // ---------------------------------------------------------------------------
+    //! Increment the size of the blocks in cache
+    // ---------------------------------------------------------------------------
+    size_t IncrementSize( size_t value );
 
-  // ---------------------------------------------------------------------------
-  //! Get the timeout value after which a thread exits from a conditional wait
-  // ---------------------------------------------------------------------------
-  static const int getTimeWait() {
-    return 250;  //miliseconds
-  }
-    
-private:
+    // ---------------------------------------------------------------------------
+    //! Decrement the size of the blocks in cache
+    // ---------------------------------------------------------------------------
+    size_t DecrementSize( size_t value );
 
-  //! Percentage of the total cache size which represents the upper limit
-  //! to which we accept new write requests, after this point notifications
-  //! to threads that want to submit new req are delayed
-  static const double maxPercentWrites;
+    // ---------------------------------------------------------------------------
+    //! Get the timeout value after which a thread exits from a conditional wait
+    // ---------------------------------------------------------------------------
+    static const int GetTimeWait() {
+      return 250;  //miliseconds
+    }
 
-  //! Percentage from the size of the cache to which the allocated total
-  //! size of the blocks used in caching can grow
-  static const double maxPercentSizeBlocks;
+  private:
 
-  XrdFileCache*  mgmCache;            //< upper mgm. layer of the cache. 
+    //< Percentage of the total cache size which represents the upper limit
+    //< to which we accept new write requests, after this point notifications
+    //< to threads that want to submit new req are delayed
+    static const double max_percent_writes;
 
-  size_t         sizeMax;             //< maximum size of cache.
-  size_t         sizeVirtual;         //< sum of all blocks capacity in cache.
-  size_t         cacheThreshold;      //< max size write requests. 
-  size_t         sizeAllocBlocks;     //< total size of allocated blocks. 
-  size_t         maxSizeAllocBlocks;  //< max size of allocated blocks. 
-  
-  key_map_type   keyValueMap;         //< map <key pair<value, listIter> >. 
-  key_list_type  keyList;             //< list of recently accessed entries. 
+    //< Percentage from the size of the cache to which the allocated total
+    //< size of the blocks used in caching can grow
+    static const double max_percent_size_blocks;
 
-  XrdSysRWLock   rwMap;               //< rw lock for accessing the map. 
-  XrdSysMutex    mList;               //< mutex for accessing the list of priorities. 
-  XrdSysMutex    mAllocSize;          //< mutex for updating the size of allocated blocks. 
-  XrdSysMutex    mSize;               //< mutex for updating the cache size. 
-  XrdSysCondVar  cWriteDone;          //< condition for notifying waiting threads that a write op. has been done.
+    XrdFileCache*  mgm_cache;            //< upper mgm. layer of the cache.
 
-  ConcurrentQueue<CacheEntry*>* recycleQueue;     //< pool of reusable objects. 
-  ConcurrentQueue<CacheEntry*>* writeReqQueue;    //< write request queue. 
+    size_t         size_max;             //< maximum size of cache.
+    size_t         size_virtual;         //< sum of all blocks capacity in cache.
+    size_t         cache_threshold;      //< max size write requests.
+    size_t         size_alloc_blocks;    //< total size of allocated blocks.
+    size_t         max_size_alloc_blocks;//< max size of allocated blocks.
+
+    key_map_type   key2listIter;      //< map <key pair<value, listIter> >.
+    key_list_type  key_list;          //< list of recently accessed entries.
+
+    XrdSysRWLock   rw_mutex_map;      //< rw lock for accessing the map.
+    XrdSysMutex    mutex_list;        //< mutex for accessing the list of priorities.
+    XrdSysMutex    mutex_alloc_size;  //< mutex for updating the size of allocated blocks.
+    XrdSysMutex    mutex_size;        //< mutex for updating the cache size.
+    XrdSysCondVar  cond_wr_done;      //< condition for notifying waiting threads
+                                      //< that a write op. has been done.
+
+    ConcurrentQueue<CacheEntry*>* recycle_queue;   //< pool of reusable objects.
+    ConcurrentQueue<CacheEntry*>* wr_req_queue;    //< write request queue.
 };
 
 #endif

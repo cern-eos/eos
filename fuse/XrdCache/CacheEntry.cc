@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: CachEntry.cc
 // Author: Elvin-Alin Sindrilaru - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -25,375 +25,387 @@
 #include "CacheEntry.hh"
 //------------------------------------------------------------------------------
 
-size_t CacheEntry::maxSize = 4*1048576;            //1MB=1048576 512KB=524288
+size_t CacheEntry::maxSize = 4 * 1048576;          //1MB=1048576 512KB=524288
 
 
-/*----------------------------------------------------------------------------*/
-/** 
- * Construct a block object which is to be saved in cache
- * 
- * @param fildes file descriptor
- * @param buff buffer containing the data
- * @param off offset
- * @param len length
- * @param pFileAbst file object handler
- * @param iswr if true the block is for writing, otherwise for reading
- *
- */
-/*----------------------------------------------------------------------------*/
-CacheEntry::CacheEntry(XrdCl::File*&    refFile,
+//------------------------------------------------------------------------------
+// Construct a block object which is to be saved in cache
+//------------------------------------------------------------------------------
+CacheEntry::CacheEntry( XrdCl::File*&    ref_file,
+                        char*            buf,
+                        off_t            off,
+                        size_t           len,
+                        FileAbstraction& pFileAbst,
+                        bool             iswr ):
+  file( ref_file ),
+  isWrType( iswr ),
+  size_data( len ),
+  pParentFile( &pFileAbst )
+{
+  char* pBuffer;
+  off_t off_relative;
+
+  if ( len > GetMaxSize() ) {
+    fprintf( stderr, "error=len should be smaller than GetMaxSize()\n" );
+    exit( -1 );
+  }
+
+  capacity = GetMaxSize();
+  offset_start = ( off / GetMaxSize() ) * GetMaxSize();
+  off_relative = off % GetMaxSize();
+  buffer = static_cast<char*>( calloc( capacity, sizeof( char ) ) );
+  pBuffer = buffer + off_relative;
+  pBuffer = static_cast<char*>( memcpy( pBuffer, buf, len ) );
+  map_pieces.insert( std::make_pair( off, len ) );
+}
+
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+CacheEntry::~CacheEntry()
+{
+  file = NULL;
+  free( buffer );
+}
+
+
+//------------------------------------------------------------------------------
+// Reinitialise the block attributes for the recycling process
+//------------------------------------------------------------------------------
+void
+CacheEntry::DoRecycle( XrdCl::File*&    ref_file,
                        char*            buf,
                        off_t            off,
                        size_t           len,
                        FileAbstraction& pFileAbst,
-                       bool             iswr):
-  file(refFile),
-  isWrType(iswr),
-  sizeData(len),
-  pParentFile(&pFileAbst)
+                       bool             iswr )
 {
-  char* pBuffer; 
-  off_t offsetRelative;
+  char* pBuffer;
+  off_t off_relative;
 
-  if (len > getMaxSize()) {
-    fprintf(stderr, "error=len should be smaller than getMaxSize()\n");
-    exit(-1);
-  }
-
-  capacity = getMaxSize();
-  offsetStart = (off / getMaxSize()) * getMaxSize();
-  offsetRelative = off % getMaxSize();
-  buffer = (char*) calloc(capacity, sizeof(char));
-  pBuffer = buffer + offsetRelative;
-  pBuffer = (char*) memcpy(pBuffer, buf, len);
-  mapPieces.insert(std::make_pair(off, len));
-}
-
-
-/*----------------------------------------------------------------------------*/
-/** 
- * Destructor
- *
- */
-/*----------------------------------------------------------------------------*/
-CacheEntry::~CacheEntry()
-{
-  file = NULL;
-  free(buffer);
-}
-
-
-/*----------------------------------------------------------------------------*/
-/** 
- * Reinitialise the block attributes for the recycling process
- * 
- * @param filed new file descriptor
- * @param buff buffer containg the data
- * @param off offset
- * @param len length
- * @param pFileAbst file object handler
- * @param iswr if true the block is for writing, otherwise for reading
- *
- */
-/*----------------------------------------------------------------------------*/
-void
-CacheEntry::doRecycle(XrdCl::File*&     refFile,
-                      char*            buf,
-                      off_t            off,
-                      size_t           len,
-                      FileAbstraction& pFileAbst,
-                      bool             iswr)
-{
-  char* pBuffer; 
-  off_t offsetRelative;
-    
-  file = refFile;
+  file = ref_file;
   isWrType = iswr;
-  offsetStart = (off / getMaxSize()) * getMaxSize();
+  offset_start = ( off / GetMaxSize() ) * GetMaxSize();
   pParentFile = &pFileAbst;
 
-  if (len > capacity) {
-    fprintf(stderr, "error=len should never be bigger than capacity.\n");
-    exit(-1);
+  if ( len > capacity ) {
+    fprintf( stderr, "error=len should never be bigger than capacity.\n" );
+    exit( -1 );
   }
 
-  mapPieces.clear();
-  sizeData = len;
-  offsetRelative = off % getMaxSize();
-  pBuffer = buffer + offsetRelative;
-  pBuffer = (char*) memcpy(pBuffer, buf, len);
-  mapPieces.insert(std::make_pair(off, len));
+  map_pieces.clear();
+  size_data = len;
+  off_relative = off % GetMaxSize();
+  pBuffer = buffer + off_relative;
+  pBuffer = static_cast<char*>( memcpy( pBuffer, buf, len ) );
+  map_pieces.insert( std::make_pair( off, len ) );
 }
 
 
-/*----------------------------------------------------------------------------*/
-/** 
- * Add a new pice of data to the block. The new piece can overlap with previous
- * pieces existing the the block. In that case, the overlapping parts are
- * overwritten. The map containg the piece is also updated by doing any necessary
- * merging.
- * 
- * @param buff buffer containg the data
- * @param off offset
- * @param len length
- *
- * @return the actual size increase of the meaningful data after adding the current
- * piece (does not include the size of the overwritten sections)
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Add a new pice of data to the block. The new piece can overlap with previous
+// pieces existing the the block. In that case, the overlapping parts are
+// overwritten. The map containg the piece is also updated by doing any necessary
+// merging.
+//------------------------------------------------------------------------------
 size_t
-CacheEntry::addPiece(char* buf, off_t off, size_t len)
+CacheEntry::AddPiece( const char* buf, off_t off, size_t len )
 {
-  off_t offNew;
-  size_t sizeAdded;
-  size_t sizeNew;
-  size_t sizeErased = 0;
-  off_t offsetOldEnd;
-  off_t offsetRelative = off % getMaxSize();
-  off_t offsetPieceEnd = off + len;
-  char* pBuffer = buffer + offsetRelative;
-  bool addNewPiece = false;
+  off_t off_new;
+  size_t size_added;
+  size_t size_new;
+  size_t size_erased = 0;
+  off_t off_old_end;
+  off_t off_relative = off % GetMaxSize();
+  off_t off_piece_end = off + len;
+  char* pBuffer = buffer + off_relative;
+  bool add_new_piece = false;
 
   std::map<off_t, size_t>::iterator iBefore;
   std::map<off_t, size_t>::reverse_iterator iReverse;
-  std::map<off_t, size_t>::iterator iAfter = mapPieces.lower_bound(off);
+  std::map<off_t, size_t>::iterator iAfter = map_pieces.lower_bound( off );
 
-  if (iAfter->first == off) {
-    sizeAdded = (iAfter->second >= len) ? 0 : (len - iAfter->second);
+  if ( iAfter->first == off ) {
+    size_added = ( iAfter->second >= len ) ? 0 : ( len - iAfter->second );
     std::map<off_t, size_t>::iterator iTmp;
     iTmp = iAfter;
     iTmp++;
-    while ((iTmp != mapPieces.end()) && (offsetPieceEnd >= iTmp->first)) {
-      offsetOldEnd = iTmp->first + iTmp->second;
-      if (offsetPieceEnd > offsetOldEnd) {
-        sizeAdded -= iTmp->second;
-        sizeErased += iTmp->second;
-        mapPieces.erase(iTmp++);
-      }
-      else {
-        sizeAdded -= (offsetPieceEnd - iTmp->first);
-        sizeErased += iTmp->second;
-        mapPieces.erase(iTmp++);
+
+    while ( ( iTmp != map_pieces.end() ) && ( off_piece_end >= iTmp->first ) ) {
+      off_old_end = iTmp->first + iTmp->second;
+
+      if ( off_piece_end > off_old_end ) {
+        size_added -= iTmp->second;
+        size_erased += iTmp->second;
+        map_pieces.erase( iTmp++ );
+      } else {
+        size_added -= ( off_piece_end - iTmp->first );
+        size_erased += iTmp->second;
+        map_pieces.erase( iTmp++ );
         break;
       }
     }
-    pBuffer = (char*) memcpy(pBuffer, buf, len);
-    iAfter->second += (sizeAdded + sizeErased);
-    sizeData += sizeAdded;
+
+    pBuffer = static_cast<char*>( memcpy( pBuffer, buf, len ) );
+    iAfter->second += ( size_added + size_erased );
+    size_data += size_added;
   } else {
-    if (iAfter == mapPieces.begin()) {
-      //we only have pieces with bigger offset
-      if (offsetPieceEnd >= iAfter->first) {
-        //merge with next block
-        offsetOldEnd = iAfter->first + iAfter->second;
-        if (offsetPieceEnd > offsetOldEnd) {
-          //new block also longer then old block
-          sizeAdded = (iAfter->first - off) + (offsetPieceEnd - offsetOldEnd) ;
-          sizeErased += iAfter->second;
-          mapPieces.erase(iAfter++);
-          while ((iAfter != mapPieces.end()) && (offsetPieceEnd >= iAfter->first)) {
-            offsetOldEnd = iAfter->first + iAfter->second;
-            if (offsetPieceEnd > offsetOldEnd) {
-              sizeAdded -= iAfter->second;
-              sizeErased += iAfter->second;
-              mapPieces.erase(iAfter++);
-            }
-            else {
-              sizeAdded -= (offsetPieceEnd - iAfter->first);
-              sizeErased += iAfter->second;
-              mapPieces.erase(iAfter++);
+    if ( iAfter == map_pieces.begin() ) {
+      //------------------------------------------------------------------------
+      // We only have pieces with bigger offset
+      //------------------------------------------------------------------------
+      if ( off_piece_end >= iAfter->first ) {
+        //----------------------------------------------------------------------
+        // Merge with next block
+        //----------------------------------------------------------------------
+        off_old_end = iAfter->first + iAfter->second;
+
+        if ( off_piece_end > off_old_end ) {
+          //--------------------------------------------------------------------
+          // New block also longer then old block
+          //--------------------------------------------------------------------
+          size_added = ( iAfter->first - off ) + ( off_piece_end - off_old_end ) ;
+          size_erased += iAfter->second;
+          map_pieces.erase( iAfter++ );
+
+          while ( ( iAfter != map_pieces.end() ) &&
+                  ( off_piece_end >= iAfter->first ) ) {
+            off_old_end = iAfter->first + iAfter->second;
+
+            if ( off_piece_end > off_old_end ) {
+              size_added -= iAfter->second;
+              size_erased += iAfter->second;
+              map_pieces.erase( iAfter++ );
+            } else {
+              size_added -= ( off_piece_end - iAfter->first );
+              size_erased += iAfter->second;
+              map_pieces.erase( iAfter++ );
               break;
             }
           }
-          offNew = off;
-          sizeNew = sizeAdded + sizeErased;
+
+          off_new = off;
+          size_new = size_added + size_erased;
+        } else {
+          //--------------------------------------------------------------------
+          // New block shorter than old block
+          //--------------------------------------------------------------------
+          size_added = iAfter->first - off;
+          off_new = off;
+          size_new = iAfter->second + size_added;
+          map_pieces.erase( iAfter );
         }
-        else {
-          //new block shorter than old block
-          sizeAdded = iAfter->first - off;
-          offNew = off;
-          sizeNew = iAfter->second + sizeAdded;
-          mapPieces.erase(iAfter);
-        }
-        pBuffer = (char*) memcpy(pBuffer, buf, len);
-        mapPieces.insert(std::make_pair(offNew, sizeNew));
-        sizeData += sizeAdded;
+
+        pBuffer = static_cast<char*>( memcpy( pBuffer, buf, len ) );
+        map_pieces.insert( std::make_pair( off_new, size_new ) );
+        size_data += size_added;
       } else {
-        addNewPiece = true;
+        add_new_piece = true;
       }
-    } else if (iAfter == mapPieces.end()) {
-      //we only have pieces with smaller offset
-      iReverse = mapPieces.rbegin();
-      offsetOldEnd = iReverse->first + iReverse->second;
-      if (offsetOldEnd >= off) {
-        //merge with previous block
-        if (offsetOldEnd >= offsetPieceEnd) {
-          //just update the data, no off or len modification
-          sizeAdded = 0;
+    } else if ( iAfter == map_pieces.end() ) {
+      //------------------------------------------------------------------------
+      // We only have pieces with smaller offset
+      //------------------------------------------------------------------------
+      iReverse = map_pieces.rbegin();
+      off_old_end = iReverse->first + iReverse->second;
+
+      if ( off_old_end >= off ) {
+        //----------------------------------------------------------------------
+        // Merge with previous block
+        //----------------------------------------------------------------------
+        if ( off_old_end >= off_piece_end ) {
+          //--------------------------------------------------------------------
+          // Just update the data, no off or len modification
+          //--------------------------------------------------------------------
+          size_added = 0;
+        } else {
+          //--------------------------------------------------------------------
+          // Extend the current block at the end
+          //--------------------------------------------------------------------
+          size_added = off_piece_end - off_old_end;
+          iReverse->second += size_added;
         }
-        else {
-          //extend the current block at the end
-          sizeAdded = offsetPieceEnd - offsetOldEnd;
-          iReverse->second += sizeAdded;
-        }
-        pBuffer = (char*) memcpy(pBuffer, buf, len);
-        sizeData += sizeAdded;
+
+        pBuffer = static_cast<char*>( memcpy( pBuffer, buf, len ) );
+        size_data += size_added;
       } else {
-        addNewPiece = true;
+        add_new_piece = true;
       }
     } else {
-      //not first, not last, and bigger than new block offset
+      //------------------------------------------------------------------------
+      // Not first, not last, and bigger than new block offset
+      //------------------------------------------------------------------------
       iBefore = iAfter;
       iBefore--;
-      offsetOldEnd = iBefore->first + iBefore->second;
-      if (offsetOldEnd >= off) {
-        //merge with previous block
-        if (offsetOldEnd >= offsetPieceEnd) {
-          //just update the data, no off or len modification
-          pBuffer = (char*) memcpy(pBuffer, buf, len);
-          sizeAdded = 0;
-        }
-        else {
-          sizeAdded = offsetPieceEnd - offsetOldEnd;
-          if (offsetPieceEnd >= iAfter->first) {
-            //new block overlaps with iAfter block
-            if (offsetPieceEnd > (off_t)(iAfter->first + iAfter->second)) {
-              //new block spanns both old blocks and more
-              sizeAdded -= iAfter->second;
-              sizeErased = iAfter->second;
-              mapPieces.erase(iAfter++);
-              while ((iAfter != mapPieces.end()) && (offsetPieceEnd >= iAfter->first)) {
-                offsetOldEnd = iAfter->first + iAfter->second;
-                if (offsetPieceEnd > offsetOldEnd) {
-                  sizeAdded -= iAfter->second;
-                  sizeErased += iAfter->second;
-                  mapPieces.erase(iAfter++);
-                }
-                else {
-                  sizeAdded -= (offsetPieceEnd - iAfter->first);
-                  sizeErased += iAfter->second;
-                  mapPieces.erase(iAfter++);
+      off_old_end = iBefore->first + iBefore->second;
+
+      if ( off_old_end >= off ) {
+        //----------------------------------------------------------------------
+        // Merge with previous block
+        //----------------------------------------------------------------------
+        if ( off_old_end >= off_piece_end ) {
+          //--------------------------------------------------------------------
+          // Just update the data, no off or len modification
+          //--------------------------------------------------------------------
+          pBuffer = static_cast<char*>( memcpy( pBuffer, buf, len ) );
+          size_added = 0;
+        } else {
+          size_added = off_piece_end - off_old_end;
+
+          if ( off_piece_end >= iAfter->first ) {
+            //------------------------------------------------------------------
+            // New block overlaps with iAfter block
+            //------------------------------------------------------------------
+            if ( off_piece_end > ( off_t )( iAfter->first + iAfter->second ) ) {
+              //----------------------------------------------------------------
+              // New block spanns both old blocks and more
+              //----------------------------------------------------------------
+              size_added -= iAfter->second;
+              size_erased = iAfter->second;
+              map_pieces.erase( iAfter++ );
+
+              while ( ( iAfter != map_pieces.end() ) &&
+                      ( off_piece_end >= iAfter->first ) ) {
+                off_old_end = iAfter->first + iAfter->second;
+
+                if ( off_piece_end > off_old_end ) {
+                  size_added -= iAfter->second;
+                  size_erased += iAfter->second;
+                  map_pieces.erase( iAfter++ );
+                } else {
+                  size_added -= ( off_piece_end - iAfter->first );
+                  size_erased += iAfter->second;
+                  map_pieces.erase( iAfter++ );
                   break;
                 }
               }
-              iBefore->second += (sizeAdded + sizeErased);
-            }
-            else {
-              //new block spanns both old blocks but not more
-              sizeAdded -= (offsetPieceEnd - iAfter->first);
-              iBefore->second += (sizeAdded + iAfter->second);
-              mapPieces.erase(iAfter);
+
+              iBefore->second += ( size_added + size_erased );
+            } else {
+              //----------------------------------------------------------------
+              //  New block spanns both old blocks but not more
+              //----------------------------------------------------------------
+              size_added -= ( off_piece_end - iAfter->first );
+              iBefore->second += ( size_added + iAfter->second );
+              map_pieces.erase( iAfter );
             }
           } else {
-            //new block does no overlap with iAfter block
-            iBefore->second += sizeAdded;
+            //------------------------------------------------------------------
+            // New block does no overlap with iAfter block
+            //------------------------------------------------------------------
+            iBefore->second += size_added;
           }
-          pBuffer = (char*) memcpy(pBuffer, buf, len);
-          sizeData += sizeAdded;
+
+          pBuffer = static_cast<char*>( memcpy( pBuffer, buf, len ) );
+          size_data += size_added;
         }
-      } else if (offsetPieceEnd >= iAfter->first) {
-        //merge with next block
-        offsetOldEnd = iAfter->first + iAfter->second;
-        if (offsetPieceEnd > offsetOldEnd) {
-          //new block bigger than iAfter block
-          sizeAdded = len - iAfter->second;
-          sizeErased = iAfter->second;
-          mapPieces.erase(iAfter++);
-          while ((iAfter != mapPieces.end()) && (offsetPieceEnd >= iAfter->first)) {
-            offsetOldEnd = iAfter->first + iAfter->second;
-            if (offsetPieceEnd > offsetOldEnd) {
-              sizeAdded -= iAfter->second;
-              sizeErased += iAfter->second;
-              mapPieces.erase(iAfter++);
-            }
-            else {
-              sizeAdded -= (offsetPieceEnd - iAfter->first);
-              sizeErased += iAfter->second;
-              mapPieces.erase(iAfter++);
+      } else if ( off_piece_end >= iAfter->first ) {
+        //----------------------------------------------------------------------
+        // Merge with next block
+        //----------------------------------------------------------------------
+        off_old_end = iAfter->first + iAfter->second;
+
+        if ( off_piece_end > off_old_end ) {
+          //--------------------------------------------------------------------
+          // New block bigger than iAfter block
+          //--------------------------------------------------------------------
+          size_added = len - iAfter->second;
+          size_erased = iAfter->second;
+          map_pieces.erase( iAfter++ );
+
+          while ( ( iAfter != map_pieces.end() ) &&
+                  ( off_piece_end >= iAfter->first ) ) {
+            off_old_end = iAfter->first + iAfter->second;
+
+            if ( off_piece_end > off_old_end ) {
+              size_added -= iAfter->second;
+              size_erased += iAfter->second;
+              map_pieces.erase( iAfter++ );
+            } else {
+              size_added -= ( off_piece_end - iAfter->first );
+              size_erased += iAfter->second;
+              map_pieces.erase( iAfter++ );
               break;
             }
           }
-          offNew = off;
-          sizeNew = sizeErased + sizeAdded;
+
+          off_new = off;
+          size_new = size_erased + size_added;
+        } else {
+          //--------------------------------------------------------------------
+          // New block shorter than iAfter block
+          //--------------------------------------------------------------------
+          size_added = len - ( off_piece_end - iAfter->first );
+          off_new = off;
+          size_new = iAfter->second + size_added;
+          map_pieces.erase( iAfter );
         }
-        else {
-          //new block shorter than iAfter block
-          sizeAdded = len - (offsetPieceEnd - iAfter->first);
-          offNew = off;
-          sizeNew = iAfter->second + sizeAdded;        
-          mapPieces.erase(iAfter);
-        }
-        pBuffer = (char*) memcpy(pBuffer, buf, len);
-        mapPieces.insert(std::make_pair(offNew, sizeNew));
-        sizeData += sizeAdded;
+
+        pBuffer = static_cast<char*>( memcpy( pBuffer, buf, len ) );
+        map_pieces.insert( std::make_pair( off_new, size_new ) );
+        size_data += size_added;
+      } else {
+        add_new_piece = true;
       }
-      else {
-          addNewPiece = true;
-      } 
     }
   }
 
-  if (addNewPiece) {
-    pBuffer = (char*) memcpy(pBuffer, buf, len);
-    mapPieces.insert(std::make_pair(off, len));
-    sizeAdded = len;
-    sizeData += sizeAdded;
+  if ( add_new_piece ) {
+    pBuffer = static_cast<char*>( memcpy( pBuffer, buf, len ) );
+    map_pieces.insert( std::make_pair( off, len ) );
+    size_added = len;
+    size_data += size_added;
   }
 
-  return sizeAdded;
+  return size_added;
 }
 
 
-/*----------------------------------------------------------------------------*/
-/** 
- *
- * @param buff buffer where the data is to be saved 
- * @param off offset
- * @param len length
- *
- * @return whether or not the pice was found in the block
- *
- */
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Try to get a piece from the current block
+//------------------------------------------------------------------------------
 bool
-CacheEntry::getPiece(char* buf, off_t off, size_t len)
+CacheEntry::GetPiece( char* buf, off_t off, size_t len )
 {
   bool found = false;
-  off_t offsetRelative = off % getMaxSize();
+  off_t off_relative = off % GetMaxSize();
   std::map<off_t, size_t>::reverse_iterator iReverse;
-  std::map<off_t, size_t>::iterator i = mapPieces.lower_bound(off);
+  std::map<off_t, size_t>::iterator i = map_pieces.lower_bound( off );
 
-  if (i->first == off) {
-    //exact match
-    if (i->second >= len) {
-      buf = (char*)memcpy(buf, buffer + offsetRelative, len);
+  if ( i->first == off ) {
+    //--------------------------------------------------------------------------
+    // Exact match
+    //--------------------------------------------------------------------------
+    if ( i->second >= len ) {
+      buf = static_cast<char*>( memcpy( buf, buffer + off_relative, len ) );
       found = true;
     } else {
       found = false;
     }
   } else {
-    if (i == mapPieces.begin()) {
+    if ( i == map_pieces.begin() ) {
       found = false;
-    } else if (i == mapPieces.end()) {
-      iReverse = mapPieces.rbegin();
+    } else if ( i == map_pieces.end() ) {
+      iReverse = map_pieces.rbegin();
 
-      if ((iReverse->first <= off) &&
-          ((off_t)(iReverse->first + iReverse->second) > off) &&
-          (iReverse->first + iReverse->second >= off + len)) {
+      if ( ( iReverse->first <= off ) &&
+           ( static_cast<off_t>( ( iReverse->first + iReverse->second ) ) > off ) &&
+           ( iReverse->first + iReverse->second >= off + len ) ) {
         found = true;
-        buf = (char*)memcpy(buf, buffer + offsetRelative, len);
+        buf = static_cast<char*>( memcpy( buf, buffer + off_relative, len ) );
       } else {
         found = false;
       }
     } else {
       i--;
 
-      if ((i->first <= off) &&
-          ((off_t)(i->first + i->second) > off) &&
-          (i->first + i->second >= off + len)) {
+      if ( ( i->first <= off ) &&
+           ( static_cast<off_t>( ( i->first + i->second ) ) > off ) &&
+           ( i->first + i->second >= off + len ) ) {
         found = true;
-        buf = (char*)memcpy(buf, buffer + offsetRelative, len);
+        buf = static_cast<char*>( memcpy( buf, buffer + off_relative, len ) );
       } else {
         found = false;
       }
@@ -404,33 +416,27 @@ CacheEntry::getPiece(char* buf, off_t off, size_t len)
 }
 
 
-/*----------------------------------------------------------------------------*/
-/** 
- *
- * Write the whole part of the meaningful data in the block to the corresponding file.
- *
- * @return error code
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Write the whole part of the meaningful data to the corresponding file
+//------------------------------------------------------------------------------
 int
-CacheEntry::doWrite()
+CacheEntry::DoWrite()
 {
   int retc = 0;
-  off_t offsetRelative;
-  std::map<off_t, size_t>::iterator iCurrent = mapPieces.begin();
-  const std::map<off_t, size_t>::iterator iEnd = mapPieces.end();
-  
-  for( ; iCurrent != iEnd; iCurrent++) {
-    offsetRelative = iCurrent->first % getMaxSize();
+  off_t off_relative;
+  std::map<off_t, size_t>::iterator iCurrent = map_pieces.begin();
+  const std::map<off_t, size_t>::iterator iEnd = map_pieces.end();
+
+  for ( ; iCurrent != iEnd; iCurrent++ ) {
+    off_relative = iCurrent->first % GetMaxSize();
     XrdCl::XRootDStatus status =
-        file->Write( iCurrent->first, iCurrent->second, buffer + offsetRelative );
+      file->Write( iCurrent->first, iCurrent->second, buffer + off_relative );
 
     if ( status.IsOK() ) {
       retc = iCurrent->second;
-    }
-    else {
-      fprintf(stderr, "\n[%s] error=error while writing using XrdCl::File\n\n", __FUNCTION__);
+    } else {
+      fprintf( stderr, "\n[%s] error=error while writing using XrdCl::File\n\n",
+               __FUNCTION__ );
     }
   }
 
@@ -438,113 +444,81 @@ CacheEntry::doWrite()
 }
 
 
-/*----------------------------------------------------------------------------*/
-/** 
- *
- * @return true if block is for writing, false otherwise
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Test if block is for writing
+//------------------------------------------------------------------------------
 bool
-CacheEntry::isWr()
+CacheEntry::IsWr()
 {
   return isWrType;
 }
 
 
-/*----------------------------------------------------------------------------*/
-/** 
- *
- * @return true is block is full with meaningful data, false otherwise
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Test if block is full
+//------------------------------------------------------------------------------
 bool
-CacheEntry::isFull()
+CacheEntry::IsFull()
 {
-  return (capacity == sizeData);
+  return ( capacity == size_data );
 }
 
 
-/*----------------------------------------------------------------------------*/
-/** 
- *
- * @return handler to the data buffer
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get handler to data buffer
+//------------------------------------------------------------------------------
 char*
-CacheEntry::getDataBuffer()
+CacheEntry::GetDataBuffer()
 {
   return buffer;
 }
 
 
-/*----------------------------------------------------------------------------*/
-/** 
- *
- * @return capacity of the block
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get capacity of the block
+//------------------------------------------------------------------------------
 size_t
-CacheEntry::getCapacity() const
+CacheEntry::GetCapacity() const
 {
   return capacity;
 }
 
 
-/*----------------------------------------------------------------------------*/
-/** 
- *
- * @return size of the meaningful data currently in the block
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get size of the meaningful data currently in the block
+//------------------------------------------------------------------------------
 size_t
-CacheEntry::getSizeData() const
+CacheEntry::GetSizeData() const
 {
-  return sizeData;
+  return size_data;
 }
 
 
-/*----------------------------------------------------------------------------*/
-/** 
- *
- * @return absolute value of block start offset in the file
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get absolute value of block start offset in the file
+//------------------------------------------------------------------------------
 off_t
-CacheEntry::getOffsetStart() const
+CacheEntry::GetOffsetStart() const
 {
-  return offsetStart;
+  return offset_start;
 }
 
 
-/*----------------------------------------------------------------------------*/
-/** 
- *
- * @return absolute value of the block end offset in the file
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get absolute value of the block end offset in the file
+//------------------------------------------------------------------------------
 off_t
-CacheEntry::getOffsetEnd() const
+CacheEntry::GetOffsetEnd() const
 {
-  return (offsetStart + capacity);
+  return ( offset_start + capacity );
 }
 
 
-/*----------------------------------------------------------------------------*/
-/** 
- *
- * @return parent file handler
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get parent file handler
+//------------------------------------------------------------------------------
 FileAbstraction*
-CacheEntry::getParentFile() const
+CacheEntry::GetParentFile() const
 {
   return pParentFile;
 }

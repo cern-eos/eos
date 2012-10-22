@@ -217,7 +217,7 @@ static void eosfs_ll_setattr( fuse_req_t             req,
         }
 
         if ( ( fd = xrd_open( fullpath, O_WRONLY ,
-                              S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH ) ) >= 0 ) {
+                              S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH ) ) > 0 ) {
           retc = xrd_truncate( fd, attr->st_size, ino );
           xrd_close( fd, ino );
           xrd_remove_fd2file( fd );
@@ -234,7 +234,7 @@ static void eosfs_ll_setattr( fuse_req_t             req,
       }
 
       if ( ( fd = xrd_open( fullpath, O_WRONLY ,
-                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH ) ) >= 0 ) {
+                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH ) ) > 0 ) {
         retc = xrd_truncate( fd, attr->st_size, ino );
         xrd_close( fd, ino );
         xrd_remove_fd2file( fd );
@@ -1130,7 +1130,6 @@ static void eosfs_ll_open( fuse_req_t             req,
   xrd_unlock_r_p2i(); // <=
 
   int res;
-  int from_cache = 0;
 
   if ( fi->flags & ( O_RDWR | O_WRONLY | O_CREAT ) ) {
     fprintf( stderr, "[%s] Here[1]. \n", __FUNCTION__ );
@@ -1140,7 +1139,6 @@ static void eosfs_ll_open( fuse_req_t             req,
         fprintf( stderr, "[%s]: inode=%llu path=%s attaching to res=%d\n",
                  __FUNCTION__, ( long long )ino, fullpath, res );
       }
-      from_cache = 1;
     } else {
       fprintf( stderr, "[%s] Here[2]. \n", __FUNCTION__ );
       res = xrd_open( fullpath, fi->flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
@@ -1159,9 +1157,6 @@ static void eosfs_ll_open( fuse_req_t             req,
     fuse_reply_err( req, errno );
     return;
   }
-
-  if ( !from_cache )
-    xrd_add_open_fd( res, ( unsigned long long ) ino, req->ctx.uid );
 
   fd_user_info* info = (struct fd_user_info*) calloc( 1, sizeof( struct fd_user_info ) );
   info->fd = res;
@@ -1299,6 +1294,7 @@ static void eosfs_ll_release( fuse_req_t             req,
     res = xrd_close( fd, ino );
     xrd_release_read_buffer( fd );
     xrd_release_open_fd( ino, info->uid );
+    xrd_remove_fd2file( fd ); 
 
     //free memory
     free(info);

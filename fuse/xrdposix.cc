@@ -1,3 +1,4 @@
+
 // ----------------------------------------------------------------------
 // File: xrdposix.cc
 // Author: Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
@@ -567,7 +568,7 @@ int xrd_generate_fd()
 //------------------------------------------------------------------------------
 // Return the fd value to the pool
 //------------------------------------------------------------------------------
-void xrd_release_fd2file( int fd )
+void xrd_release_fd( int fd )
 {
   fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__ );
   pool_fd.push( fd );
@@ -621,10 +622,17 @@ void xrd_remove_fd2file( int fd )
   eos::common::RWMutexWriteLock wr_lock( rwmutex_fd2fobj );
   
   if ( fd2fobj.count( fd ) ) {
-    fd2fobj.erase( fd );
-    xrd_release_fd2file( fd );
+    google::dense_hash_map<int, XrdCl::File*>::iterator iter = fd2fobj.find( fd );
+    XrdCl::File* fobj = static_cast<XrdCl::File*>( iter->second );
+    delete fobj;
+    fobj = 0;
+    fd2fobj.erase( iter );
+    
+    //--------------------------------------------------------------------------
+    // Return fd to the pool
+    //--------------------------------------------------------------------------
+    xrd_release_fd( fd );
   }
-
 }
 
 
@@ -679,7 +687,6 @@ void xrd_release_open_fd( unsigned long long inode, uid_t uid )
   std::string index = generate_index( inode, uid );
   
   if ( inodeuser2fd.count( index ) ) {
-    xrd_remove_fd2file( inodeuser2fd[index] ); 
     inodeuser2fd.erase( index );
   }
 }
@@ -1709,7 +1716,9 @@ int xrd_mkdir( const char* path, mode_t mode )
 
   if ( mode & S_IXOTH ) dir_mode |= XrdCl::Access::Mode::OX;
 
-  XrdCl::XRootDStatus status = fs->MkDir( path, XrdCl::MkDirFlags::MakePath, dir_mode );
+  XrdCl::XRootDStatus status = fs->MkDir( path,
+                                          XrdCl::MkDirFlags::MakePath,
+                                          dir_mode );
   return -status.errNo;
 }
 
@@ -1738,9 +1747,13 @@ int xrd_open( const char* path, int oflags, mode_t mode )
   uint16_t flags_xrdcl = 0;
   uint16_t mode_xrdcl = 0;
 
-  if ( oflags & ( O_CREAT | O_EXCL ) ) flags_xrdcl |= XrdCl::OpenFlags::Flags::New;
+  if ( oflags & ( O_CREAT | O_EXCL ) ) {
+    flags_xrdcl |= XrdCl::OpenFlags::Flags::New;
+  }
 
-  if ( oflags & ( O_RDWR | O_WRONLY ) ) flags_xrdcl |= XrdCl::OpenFlags::Flags::Update;
+  if ( oflags & ( O_RDWR | O_WRONLY ) ) {
+    flags_xrdcl |= XrdCl::OpenFlags::Flags::Update;
+  }
 
   if ( flags_xrdcl == 0 ) flags_xrdcl = XrdCl::OpenFlags::Flags::Read;
   
@@ -1763,14 +1776,18 @@ int xrd_open( const char* path, int oflags, mode_t mode )
   if ( mode & S_IXOTH ) mode_xrdcl |= XrdCl::Access::OX;
 
   if ( ( t0 = spath.find( "/proc/" ) ) != STR_NPOS ) {
-    // clean the path
+    //--------------------------------------------------------------------------
+    // Clean the path
+    //--------------------------------------------------------------------------
     int t1 = spath.find( "//" );
     int t2 = spath.find( "//", t1 + 2 );
     spath.erase( t2 + 2, t0 - t2 - 2 );
 
     while ( spath.replace( "///", "//" ) ) {};
 
-    // force a reauthentication to the head node
+    //--------------------------------------------------------------------------
+    // Force a reauthentication to the head node
+    //--------------------------------------------------------------------------
     if ( spath.endswith( "/proc/reconnect" ) ) {
       XrdClientAdmin* client = new XrdClientAdmin( path );
 
@@ -1788,13 +1805,17 @@ int xrd_open( const char* path, int oflags, mode_t mode )
       return -1;
     }
 
-    // return the 'whoami' information in that file
+    //--------------------------------------------------------------------------
+    // Return the 'whoami' information in that file
+    //--------------------------------------------------------------------------
     if ( spath.endswith( "/proc/whoami" ) ) {
       spath.replace( "/proc/whoami", "/proc/user/" );
-      spath += "?mgm.cmd=whoami&mgm.format=fuse";
+      spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
 
       XrdCl::File* file = new XrdCl::File();
-      XrdCl::XRootDStatus status = file->Open( spath.c_str(), flags_xrdcl, mode_xrdcl );
+      XrdCl::XRootDStatus status = file->Open( spath.c_str(),
+                                               flags_xrdcl,
+                                               mode_xrdcl );
 
       if ( status.IsOK() ) {
         retc = xrd_add_fd2file( file );
@@ -1803,10 +1824,12 @@ int xrd_open( const char* path, int oflags, mode_t mode )
 
     if ( spath.endswith( "/proc/who" ) ) {
       spath.replace( "/proc/who", "/proc/user/" );
-      spath += "?mgm.cmd=who&mgm.format=fuse";
+      spath += "?mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
 
       XrdCl::File* file = new XrdCl::File();
-      XrdCl::XRootDStatus status = file->Open( spath.c_str(), flags_xrdcl, mode_xrdcl );
+      XrdCl::XRootDStatus status = file->Open( spath.c_str(),
+                                               flags_xrdcl,
+                                               mode_xrdcl );
 
       if ( status.IsOK() ) {
         retc = xrd_add_fd2file( file );
@@ -1815,10 +1838,12 @@ int xrd_open( const char* path, int oflags, mode_t mode )
 
     if ( spath.endswith( "/proc/quota" ) ) {
       spath.replace( "/proc/quota", "/proc/user/" );
-      spath += "?mgm.cmd=quota&mgm.subcmd=ls&mgm.format=fuse";
+      spath += "?mgm.cmd=quota&mgm.subcmd=ls&mgm.format=fuse&eos.app=fuse";
 
       XrdCl::File* file = new XrdCl::File();
-      XrdCl::XRootDStatus status = file->Open( spath.c_str(), flags_xrdcl, mode_xrdcl );
+      XrdCl::XRootDStatus status = file->Open( spath.c_str(),
+                                               flags_xrdcl,
+                                               mode_xrdcl );
 
       if ( status.IsOK() ) {
         retc = xrd_add_fd2file( file );
@@ -1826,13 +1851,15 @@ int xrd_open( const char* path, int oflags, mode_t mode )
     }
   }
 
-  //spath += "?eos.app=fuse";
+  spath += "?eos.app=fuse";
   fprintf( stderr, "[%s] Before issuing the open command to path = %s. "
            " with flags = %i, mode = %i\n",
            __FUNCTION__, spath.c_str(), flags_xrdcl, mode_xrdcl );
 
   XrdCl::File* file = new XrdCl::File();
-  XrdCl::XRootDStatus status = file->Open( spath.c_str(), flags_xrdcl, mode_xrdcl );
+  XrdCl::XRootDStatus status = file->Open( spath.c_str(),
+                                           flags_xrdcl,
+                                           mode_xrdcl );
 
   if ( status.IsOK() ) {
     fprintf( stderr, "[%s] Open succeded. \n", __FUNCTION__ );
@@ -1905,17 +1932,19 @@ int xrd_truncate( int fildes, off_t offset, unsigned long inode )
 
   if ( XFC && inode ) {
     fprintf( stderr, "[%s] Calling waitFinishWrites. \n" , __FUNCTION__ );
-    XFC->waitFinishWrites( inode );
+    XFC->WaitFinishWrites( inode );
   }
 
   XrdCl::File* file = xrd_get_file( fildes );
   XrdCl::XRootDStatus status = file->Truncate( offset );
 
   if ( status.IsOK() ) {
-    fprintf( stderr, "[%s] Return is ok with value %i. \n", __FUNCTION__, status.errNo );
+    fprintf( stderr, "[%s] Return is ok with value %i. \n",
+             __FUNCTION__, status.errNo );
   }
   else {
-    fprintf( stderr, "[%s] Return is NOT ok with value %i. \n", __FUNCTION__, status.errNo );
+    fprintf( stderr, "[%s] Return is NOT ok with value %i. \n",
+             __FUNCTION__, status.errNo );
   }
 
   return -status.errNo;
@@ -1946,26 +1975,26 @@ ssize_t xrd_pread( int           fildes,
 
   if ( XFC && fuse_cache_read && inode ) {
     FileAbstraction* fAbst = 0;
-    fAbst = XFC->getFileObj( inode, true );
-    XFC->waitFinishWrites( *fAbst );
+    fAbst = XFC->GetFileObj( inode, true );
+    XFC->WaitFinishWrites( *fAbst );
     COMMONTIMING( "wait writes", &xpr );
-
-    if ( ( ret = XFC->getRead( *fAbst, buf, offset, nbyte ) ) != nbyte ) {
-      COMMONTIMING( "read in", &xpr );
+    
+    if ( ( ret = XFC->GetRead( *fAbst, buf, offset, nbyte ) ) != nbyte ) {
+      TIMING( "read in", &xpr );
       eos_static_debug( "Block not found in cache: off=%zu, len=%zu", offset, nbyte );
 
       file = xrd_get_file( fildes );
       status = file->Read( offset, nbyte, buf, ret );
 
-      TIMING( "read out", &xpr );
-      XFC->putRead( file, *fAbst, buf, offset, nbyte );
+      COMMONTIMING( "read out", &xpr );
+      XFC->PutRead( file, *fAbst, buf, offset, nbyte );
       COMMONTIMING( "put read", &xpr );
     } else {
       eos_static_debug( "Block found in cache: off=%zu, len=%zu", offset, nbyte );
       COMMONTIMING( "block in cache", &xpr );
     }
 
-    fAbst->decrementNoReferences();
+    fAbst->DecrementNoReferences();
   } else {
     file = xrd_get_file( fildes );
     status = file->Read( offset, nbyte, buf, ret );
@@ -2006,7 +2035,7 @@ ssize_t xrd_pwrite( int           fildes,
   XrdCl::File* file = xrd_get_file( fildes );
     
   if ( XFC && fuse_cache_write && inode ) {
-    XFC->submitWrite( file, inode, const_cast<void*>( buf ), offset, nbyte );
+    XFC->SubmitWrite( file, inode, const_cast<void*>( buf ), offset, nbyte );
     ret = nbyte;
   } else {
     XrdCl::XRootDStatus status =
@@ -2036,7 +2065,7 @@ int xrd_fsync( int fildes, unsigned long inode )
   eos_static_info( "fd=%d inode=%lu", fildes, ( unsigned long )inode );
 
   if ( XFC && inode ) {
-    XFC->waitFinishWrites( inode );
+    XFC->WaitFinishWrites( inode );
   }
 
   XrdCl::File* file = xrd_get_file( fildes );
@@ -2115,8 +2144,10 @@ const char* xrd_mapuser( uid_t uid )
 void xrd_init()
 {
   FILE* fstderr ;
-
+  
+  //----------------------------------------------------------------------------
   // Open  log file
+  //----------------------------------------------------------------------------
   if ( getuid() ) {
     char logfile[1024];
     snprintf( logfile, sizeof( logfile ) - 1, "/tmp/eos-fuse.%d.log", getuid() );
@@ -2225,7 +2256,7 @@ void xrd_init()
                        getenv( "EOS_FUSE_CACHE_READ" ),
                        getenv( "EOS_FUSE_CACHE_WRITE" ) );
 
-    XFC = XrdFileCache::getInstance( static_cast<size_t>( atol( getenv( "EOS_FUSE_CACHE_SIZE" ) ) ) );
+    XFC = XrdFileCache::GetInstance( static_cast<size_t>( atol( getenv( "EOS_FUSE_CACHE_SIZE" ) ) ) );
 
     if ( getenv( "EOS_FUSE_CACHE_READ" ) && atoi( getenv( "EOS_FUSE_CACHE_READ" ) ) ) {
       fuse_cache_read = true;

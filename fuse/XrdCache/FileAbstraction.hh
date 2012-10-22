@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: FileAbstraction.hh
 // Author: Elvin-Alin Sindrilaru - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,13 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/**
- * @file   FileAbstraction.hh
- *
- * @brief  Class representing a file object.
- *
- *
- */
 
 #ifndef __EOS_FILEABSTRACTION_HH__
 #define __EOS_FILEABSTRACTION_HH__
@@ -46,128 +39,156 @@ typedef std::pair<int, off_t> error_type;
 //------------------------------------------------------------------------------
 class FileAbstraction
 {
-public:
+  public:
 
-  ConcurrentQueue<error_type>* errorsQueue; //< errors collected during writes
+    ConcurrentQueue<error_type>* errorsQueue; //< errors collected during writes
 
-  // ---------------------------------------------------------------------------
-  //! Constructor
-  // ---------------------------------------------------------------------------
-  FileAbstraction(int key, unsigned long ino);
+    // -------------------------------------------------------------------------
+    //! Constructor
+    //!
+    //! @param key key value
+    //! @param ino file inode
+    //!
+    // -------------------------------------------------------------------------
+    FileAbstraction( int key, unsigned long ino );
 
-  // ---------------------------------------------------------------------------
-  //! Destructor
-  // ---------------------------------------------------------------------------
-  ~FileAbstraction();
+    // -------------------------------------------------------------------------
+    //! Destructor
+    // -------------------------------------------------------------------------
+    ~FileAbstraction();
 
-  // ---------------------------------------------------------------------------
-  //! Get file id
-  // ---------------------------------------------------------------------------
-  int getId() const;
+    // -------------------------------------------------------------------------
+    //! Get file id
+    // -------------------------------------------------------------------------
+    int GetId() const;
 
-  // ---------------------------------------------------------------------------
-  //! Get number of refernces held to the file
-  // ---------------------------------------------------------------------------
-  int getNoReferences();
+    // -------------------------------------------------------------------------
+    //! Get number of refernces held to the file
+    // -------------------------------------------------------------------------
+    int GetNoReferences();
 
-  // ---------------------------------------------------------------------------
-  //! Get size of reads and writes in cache for the file
-  // ---------------------------------------------------------------------------
-  size_t getSizeRdWr();
+    // -------------------------------------------------------------------------
+    //! Get size of reads and writes in cache for the file
+    // -------------------------------------------------------------------------
+    size_t GetSizeRdWr();
 
-  // ---------------------------------------------------------------------------
-  //! Get size reads in cache for the file
-  // ---------------------------------------------------------------------------
-  size_t getSizeReads();
+    // -------------------------------------------------------------------------
+    //! Get size reads in cache for the file
+    // -------------------------------------------------------------------------
+    size_t GetSizeReads();
 
-  // ---------------------------------------------------------------------------
-  //! Get size of writes in cache for the file
-  // ---------------------------------------------------------------------------
-  size_t getSizeWrites();
+    // -------------------------------------------------------------------------
+    //! Get size of writes in cache for the file
+    // -------------------------------------------------------------------------
+    size_t GetSizeWrites();
 
-  // ---------------------------------------------------------------------------
-  //! Get number of write blocks in cache for the file
-  // ---------------------------------------------------------------------------
-  long long int getNoWriteBlocks();
+    // -------------------------------------------------------------------------
+    //! Get number of write blocks in cache for the file
+    // -------------------------------------------------------------------------
+    long long int GetNoWriteBlocks();
 
-  // ---------------------------------------------------------------------------
-  //! Get inode value
-  // ---------------------------------------------------------------------------
-  unsigned long getInode() const;
+    // -------------------------------------------------------------------------
+    //! Get inode value
+    // -------------------------------------------------------------------------
+    unsigned long GetInode() const;
 
-  // ---------------------------------------------------------------------------
-  //! Get last possible key value
-  // ---------------------------------------------------------------------------
-  long long getLastPossibleKey() const;
+    // -------------------------------------------------------------------------
+    //! Get last possible key value
+    // -------------------------------------------------------------------------
+    long long GetLastPossibleKey() const;
 
-  // ---------------------------------------------------------------------------
-  //! Get first possible key value
-  // ---------------------------------------------------------------------------
-  long long getFirstPossibleKey() const;
+    // -------------------------------------------------------------------------
+    //! Get first possible key value
+    // -------------------------------------------------------------------------
+    long long GetFirstPossibleKey() const;
 
-  // ---------------------------------------------------------------------------
-  //! Increment the size of writes 
-  // ---------------------------------------------------------------------------
-  void incrementWrites(size_t sWrite, bool newBlock);
+    // -------------------------------------------------------------------------
+    //! Increment the size of writes
+    //!
+    //! @param s_write size writes
+    //! @param new_block mark if a new write block is added
+    //!
+    // -------------------------------------------------------------------------
+    void IncrementWrites( size_t s_write, bool new_block );
 
-  // ---------------------------------------------------------------------------
-  //! Increment the size of reads
-  // ---------------------------------------------------------------------------
-  void incrementReads(size_t sRead);
+    // -------------------------------------------------------------------------
+    //! Increment the size of reads
+    //!
+    //! @param s_read size reads
+    //!
+    // -------------------------------------------------------------------------
+    void IncrementReads( size_t s_read );
 
-  // ---------------------------------------------------------------------------
-  //! Decrement the size of writes
-  // ---------------------------------------------------------------------------
-  void decrementWrites(size_t sWrite, bool fullBlock);
+    // -------------------------------------------------------------------------
+    //! Decrement the size of writes
+    //!
+    //! @param s_write size writes
+    //! @param full_block mark if it is a full block
+    //!
+    // -------------------------------------------------------------------------
+    void DecrementWrites( size_t s_write, bool full_block );
 
-  // ---------------------------------------------------------------------------
-  //! Decrement the size of reads 
-  // ---------------------------------------------------------------------------
-  void decrementReads(size_t sRead);
+    // -------------------------------------------------------------------------
+    //! Decrement the size of reads
+    //!
+    //! @param s_read size reads
+    //!
+    // -------------------------------------------------------------------------
+    void DecrementReads( size_t s_read );
 
-  // ---------------------------------------------------------------------------
-  //! Increment the number of references
-  // ---------------------------------------------------------------------------
-  void incrementNoReferences();
+    // -------------------------------------------------------------------------
+    //! Increment the number of references
+    // -------------------------------------------------------------------------
+    void IncrementNoReferences();
 
-  // ---------------------------------------------------------------------------
-  //! Decrement the number of references
-  // ---------------------------------------------------------------------------
-  void decrementNoReferences();
+    // -------------------------------------------------------------------------
+    //! Decrement the number of references
+    // -------------------------------------------------------------------------
+    void DecrementNoReferences();
 
-  // ---------------------------------------------------------------------------
-  //! Decide if the file is still in use
-  // ---------------------------------------------------------------------------
-  bool isInUse(bool strongConstraint);
+    // -------------------------------------------------------------------------
+    //! Decide if the file is still in use
+    //!
+    //! @param strong_constraint if set use strong constraints
+    //!
+    //! @return true if file is in use, otherwise false
+    //!
+    // -------------------------------------------------------------------------
+    bool IsInUse( bool strong_constraint );
 
-  // ---------------------------------------------------------------------------
-  //! Method used to wait for writes to be done
-  // ---------------------------------------------------------------------------
-  void waitFinishWrites();
+    // -------------------------------------------------------------------------
+    //! Method used to wait for writes to be done
+    // -------------------------------------------------------------------------
+    void WaitFinishWrites();
 
-  // ---------------------------------------------------------------------------
-  //! Genereate block key
-  // ---------------------------------------------------------------------------
-  long long int generateBlockKey(off_t offsetEnd);
+    // -------------------------------------------------------------------------
+    //! Genereate block key
+    //!
+    //! @param off_end offset end
+    //!
+    //! @return block key
+    //!
+    // -------------------------------------------------------------------------
+    long long int GenerateBlockKey( off_t off_end );
 
-  // ---------------------------------------------------------------------------
-  //! Get the queue of errros
-  // ---------------------------------------------------------------------------
-  ConcurrentQueue<error_type>& getErrorQueue() const;
+    // -------------------------------------------------------------------------
+    //! Get the queue of errros
+    // -------------------------------------------------------------------------
+    ConcurrentQueue<error_type>& GetErrorQueue() const;
 
-private:
+  private:
 
-  int idFile;                   //< internally assigned key
-  int nReferences;              //< number of held referencess to this file
-  unsigned long inode;          //< inode of current file
-  size_t sizeWrites;            //< the size of write blocks in cache
-  size_t sizeReads;             //< the size of read blocks in cache
-  long long int nWriteBlocks;   //< no of blocks in cache for this file
+    int id_file;                  //< internally assigned key
+    int no_references;            //< number of held referencess to this file
+    unsigned long inode;          //< inode of current file
+    size_t size_writes;           //< the size of write blocks in cache
+    size_t size_reads;            //< the size of read blocks in cache
+    long long int no_wr_blocks;   //< no. of blocks in cache for this file
 
-  long long lastPossibleKey;    //< last possible offset in file
-  long long firstPossibleKey;   //< first possible offset in file
+    long long last_possible_key;  //< last possible offset in file
+    long long first_possible_key; //< first possible offset in file
 
-  XrdSysCondVar cUpdate;        //< cond variable for updating file attributes
+    XrdSysCondVar cond_update;    //< cond variable for updating file attributes
 };
 
 #endif
