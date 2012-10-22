@@ -117,7 +117,7 @@ char *destination[MAXSRCDST];
 XrdPosixXrootd posixsingleton;
 
 void usage() {
-  fprintf(stderr, "Usage: %s [-5] [-X <type>] [-t <mb/s>] [-h] [-v] [-d] [-l] [-b <size>] [-T <size>] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-O <filename>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n",PROGRAM);
+  fprintf(stderr, "Usage: %s [-5] [-X <type>] [-t <mb/s>] [-h] [-v] [-d] [-l] [-b <size>] [-T <size>] [-Y] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-O <filename>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n",PROGRAM);
   fprintf(stderr, "       -h           : help\n");
   fprintf(stderr, "       -d           : debug mode\n");
   fprintf(stderr, "       -v           : verbose mode\n");
@@ -148,7 +148,7 @@ void usage() {
   fprintf(stderr, "       -P           : RAID layouts - number of parity stripes\n");
   fprintf(stderr, "       -f           : RAID layouts - store the modifications in case of errors\n");
   fprintf(stderr, "       -c           : RAID layouts - force check and recover any corruptions in any stripe\n");
-  fprintf(stderr, "       -T           : RAID layouts - streaming file\n");
+  fprintf(stderr, "       -Y           : RAID layouts - streaming file\n");
  
   exit(-1);
 }
@@ -321,7 +321,7 @@ int main(int argc, char* argv[]) {
     dest_mode[i] = S_IRWXU | S_IRGRP | S_IROTH;
   }
 
-  while ( (c = getopt(argc, argv, "nshdvlipfe:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:O:F")) != -1) {
+  while ( (c = getopt(argc, argv, "nshdvlipfe:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:O:FY")) != -1) {
     switch(c) {
     case 'v':
       verbose = 1;
@@ -495,7 +495,7 @@ int main(int argc, char* argv[]) {
     case 'R':
       replicamode = 1;
       break;
-    case 'T':
+    case 'Y':
       isStreamFile = true;
       break;
     case 'h':
