@@ -18,7 +18,7 @@ BuildRequires: libattr-devel
 BuildRequires: sparsehash
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
 BuildRequires: fuse-devel, fuse
-
+BuildRequires: xrootd-cl-devel
 %if 0%{?rhel} < 6
 BuildRequires: gcc44, gcc44-c++
 %else
@@ -38,6 +38,7 @@ The EOS server installation containing MGM, FST & MQ service.
 
 
 Requires: xrootd-server >= 3.2.0
+Requires: xrootd-cl
 Requires: eos-client
 
 %prep
@@ -198,7 +199,7 @@ The EOS shell client.
 Summary: The EOS fuse client
 Group: Applications/File
 
-Requires: xrootd-client >= 3.1.0
+Requires: xrootd-cl
 Requires: eos-client
 
 %description -n eos-fuse
