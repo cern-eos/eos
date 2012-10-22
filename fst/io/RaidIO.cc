@@ -437,7 +437,6 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
   }
 
   COMMONTIMING( "read return", &rt );
-
   //  rt.Print();
   return readLength;
 }
