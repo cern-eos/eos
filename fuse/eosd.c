@@ -1,6 +1,6 @@
 /* --------------------------------------------------------------------*/
-/* File: eosd.c                                                        */
-/* Author: Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN       */
+//! @file eosd.c                                                       
+//! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN      
 /* --------------------------------------------------------------------*/
 
 /************************************************************************
@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*
+/* -----------------------------------------------------------------------------
   FUSE: Filesystem in Userspace
   Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
 
@@ -29,7 +29,7 @@
   See the file COPYING.
 
   gcc -Wall `pkg-config fuse --cflags --libs` hello_ll.c -o hello_ll
-*/
+------------------------------------------------------------------------------*/
 
 
 #define FUSE_USE_VERSION 26
@@ -322,9 +322,9 @@ static void eosfs_ll_lookup( fuse_req_t  req,
   entry_inode = xrd_inode( ifullpath );
 
   if ( entry_inode ) {
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Try to get entry from cache
-    //--------------------------------------------------------------------------
+    //..........................................................................
     entry_found = xrd_dir_cache_get_entry( req, parent, entry_inode, ifullpath );
 
     if ( isdebug ) {
@@ -350,9 +350,9 @@ static void eosfs_ll_lookup( fuse_req_t  req,
       xrd_store_p2i( e.attr.st_ino, ifullpath );
       fuse_reply_entry( req, &e );
 
-      //------------------------------------------------------------------------
+      //..........................................................................
       // Add entry to cached dir
-      //------------------------------------------------------------------------
+      //..........................................................................
       xrd_dir_cache_add_entry( parent, e.attr.st_ino, &e );
     } else {
       if ( errno == EFAULT ) {
@@ -490,16 +490,16 @@ static void eosfs_ll_readdir( fuse_req_t             req,
   }
 
   if ( !( b = xrd_dirview_getbuffer( ino, 1 ) ) ) {
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // No dirview entry, try to use the directory cache
-    //--------------------------------------------------------------------------
+    //..........................................................................
     retc = xrd_stat( dirfullpath, &attr );
     dir_status = xrd_dir_cache_get( ino, attr.st_mtim, &tmp_buf );
 
     if ( !dir_status ) {
-      //------------------------------------------------------------------------
+      //........................................................................
       // Dir not in cache or invalid, fall-back to normal reading
-      //------------------------------------------------------------------------
+      //........................................................................
       xrd_inodirlist( ( unsigned long long )ino, fullpath );
       xrd_lock_r_dirview(); // =>
       b = xrd_dirview_getbuffer( ( unsigned long long )ino, 0 );
@@ -536,15 +536,15 @@ static void eosfs_ll_readdir( fuse_req_t             req,
         }
       }
 
-      //------------------------------------------------------------------------
+      //........................................................................
       // Add directory to cache or update it
-      //------------------------------------------------------------------------
+      //........................................................................
       xrd_dir_cache_sync( ino, cnt, attr.st_mtim, b );
       xrd_unlock_r_dirview(); // <=
     } else {
-      //------------------------------------------------------------------------
+      //........................................................................
       //Get info from cache
-      //------------------------------------------------------------------------
+      //........................................................................
       if ( isdebug ) {
         fprintf( stderr, "Getting buffer from cache and tmp_buf->size=%zu.\n ",
                  tmp_buf->size );
@@ -679,7 +679,9 @@ static void eosfs_ll_mknod( fuse_req_t  req,
                __FUNCTION__, ( long long )parent, fullpath, req->ctx.uid );
     }
 
-    res = xrd_open( fullpath, O_CREAT | O_EXCL | O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
+    res = xrd_open( fullpath,
+                    O_CREAT | O_EXCL | O_RDWR,
+                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
 
     if ( res == -1 ) {
       fuse_reply_err( req, errno );
@@ -691,9 +693,9 @@ static void eosfs_ll_mknod( fuse_req_t  req,
     e.attr_timeout = attrcachetime;
     e.entry_timeout = entrycachetime;
 
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Update the entry
-    //--------------------------------------------------------------------------
+    //..........................................................................
     int retc = xrd_stat( partialpath, &e.attr );
     e.ino = e.attr.st_ino;
 
@@ -971,9 +973,9 @@ static void eosfs_ll_rename( fuse_req_t  req,
   int retc = xrd_rename( fullpath, newfullpath );
 
   if ( !retc ) {
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Update the inode store
-    //--------------------------------------------------------------------------
+    //..........................................................................
     if ( !retcold ) {
       if ( isdebug ) {
         fprintf( stderr, "[%s]: forgetting inode=%lu \n",
@@ -1162,7 +1164,7 @@ static void eosfs_ll_open( fuse_req_t             req,
   info->fd = res;
   info->uid =  req->ctx.uid;
   fi->fh = (uint64_t) info;
-
+  
   if ( ( getenv( "EOS_FUSE_KERNELCACHE" ) ) &&
        ( !strcmp( getenv( "EOS_FUSE_KERNELCACHE" ), "1" ) ) ) {
     // TODO: this should be improved
@@ -1181,7 +1183,7 @@ static void eosfs_ll_open( fuse_req_t             req,
   } else {
     fi->direct_io = 0;
   }
-
+  
   fprintf( stderr, "[%s] Return from function. \n", __FUNCTION__ );
   fuse_reply_open( req, fi );
 }
@@ -1198,6 +1200,7 @@ static void eosfs_ll_read( fuse_req_t             req,
                            struct fuse_file_info* fi )
 {
   fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
+  
   if ( fi->fh ) {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     char* buf = xrd_attach_read_buffer( info->fd, size );
@@ -1211,9 +1214,9 @@ static void eosfs_ll_read( fuse_req_t             req,
     int res = xrd_pread( info->fd, buf, size, off, ino );
 
     if ( res == -1 ) {
-      //------------------------------------------------------------------------
+      //........................................................................
       // Map file system errors to IO errors!
-      //------------------------------------------------------------------------
+      //........................................................................
       if ( errno == ENOSYS ) {
         errno = EIO;
       }
@@ -1241,6 +1244,7 @@ static void eosfs_ll_write( fuse_req_t             req,
 {
   fprintf( stderr, "[%s] Calling with inode = %llu. \n",
            __FUNCTION__, (unsigned long long) ino );
+  
   if ( fi->fh ) {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     if ( isdebug ) {
@@ -1252,9 +1256,9 @@ static void eosfs_ll_write( fuse_req_t             req,
     int res = xrd_pwrite( info->fd, buf, size, off, ino );
 
     if ( res == -1 ) {
-      //------------------------------------------------------------------------
+      //........................................................................
       // Map file system errors to IO errors!
-      //------------------------------------------------------------------------
+      //........................................................................
       if ( errno == ENOSYS ) {
         errno = EIO;
       }
@@ -1409,12 +1413,13 @@ static void eosfs_ll_getxattr( fuse_req_t  req,
                                size_t      size )
 {
   fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__);
+  
   if ( ( !strcmp( xattr_name, "system.posix_acl_access" ) ) ||
        ( !strcmp( xattr_name, "system.posix_acl_default" ) ||
          ( !strcmp( xattr_name, "security.capability" ) ) ) ) {
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Filter out specific requests to increase performance
-    //--------------------------------------------------------------------------
+    //..........................................................................
     fuse_reply_err( req, ENODATA );
     return;
   }
@@ -1680,9 +1685,9 @@ int main( int argc, char* argv[] )
     exit( -1 );
   }
 
-  //--------------------------------------------------------------------------
+  //............................................................................
   // Move the mounthostport starting with the host name
-  //--------------------------------------------------------------------------
+  //............................................................................
   char* pmounthostport = 0;
   char* smountprefix = 0;
 
@@ -1723,9 +1728,9 @@ int main( int argc, char* argv[] )
       exit( -1 );
     }
 
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Kill the parent
-    //--------------------------------------------------------------------------
+    //..........................................................................
     if ( m_pid > 0 ) {
       exit( 0 );
     }
@@ -1745,9 +1750,9 @@ int main( int argc, char* argv[] )
 
     close( STDIN_FILENO );
     close( STDOUT_FILENO );
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // = > don't close STDERR because we redirect that to a file!
-    //--------------------------------------------------------------------------
+    //..........................................................................
   }
 
   xrd_init();

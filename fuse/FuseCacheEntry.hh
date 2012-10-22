@@ -85,7 +85,7 @@ class FuseCacheEntry
     //--------------------------------------------------------------------------
     //! Get the dirbuf structure
     //!
-    //! @param buf dirbuf structure
+    //! @param rpBuf dirbuf structure
     //!
     //--------------------------------------------------------------------------
     void GetDirbuf( struct dirbuf*& rpBuf );

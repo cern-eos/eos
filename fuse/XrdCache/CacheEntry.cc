@@ -112,10 +112,10 @@ CacheEntry::DoRecycle( XrdCl::File*&    rpFile,
 size_t
 CacheEntry::AddPiece( const char* buf, off_t off, size_t len )
 {
-  off_t off_new;
   size_t size_added;
   size_t size_new;
   size_t size_erased = 0;
+  off_t off_new;
   off_t off_old_end;
   off_t off_relative = off % GetMaxSize();
   off_t off_piece_end = off + len;
@@ -152,13 +152,19 @@ CacheEntry::AddPiece( const char* buf, off_t off, size_t len )
     mSizeData += size_added;
   } else {
     if ( iAfter == mMapPieces.begin() ) {
+      //........................................................................
       // We only have pieces with bigger offset
+      //........................................................................
       if ( off_piece_end >= iAfter->first ) {
+        //......................................................................
         // Merge with next block
+        //......................................................................
         off_old_end = iAfter->first + iAfter->second;
 
         if ( off_piece_end > off_old_end ) {
+          //....................................................................
           // New block also longer then old block
+          //....................................................................
           size_added = ( iAfter->first - off ) + ( off_piece_end - off_old_end ) ;
           size_erased += iAfter->second;
           mMapPieces.erase( iAfter++ );
@@ -182,7 +188,9 @@ CacheEntry::AddPiece( const char* buf, off_t off, size_t len )
           off_new = off;
           size_new = size_added + size_erased;
         } else {
+          //....................................................................
           // New block shorter than old block
+          //....................................................................
           size_added = iAfter->first - off;
           off_new = off;
           size_new = iAfter->second + size_added;
@@ -196,17 +204,25 @@ CacheEntry::AddPiece( const char* buf, off_t off, size_t len )
         add_new_piece = true;
       }
     } else if ( iAfter == mMapPieces.end() ) {
+      //........................................................................
       // We only have pieces with smaller offset
+      //........................................................................
       iReverse = mMapPieces.rbegin();
       off_old_end = iReverse->first + iReverse->second;
 
       if ( off_old_end >= off ) {
+        //......................................................................
         // Merge with previous block
+        //......................................................................
         if ( off_old_end >= off_piece_end ) {
+          //....................................................................
           // Just update the data, no off or len modification
+          //....................................................................
           size_added = 0;
         } else {
+          //....................................................................
           // Extend the current block at the end
+          //....................................................................
           size_added = off_piece_end - off_old_end;
           iReverse->second += size_added;
         }
@@ -217,24 +233,34 @@ CacheEntry::AddPiece( const char* buf, off_t off, size_t len )
         add_new_piece = true;
       }
     } else {
+      //........................................................................
       // Not first, not last, and bigger than new block offset
+      //........................................................................
       iBefore = iAfter;
       iBefore--;
       off_old_end = iBefore->first + iBefore->second;
 
       if ( off_old_end >= off ) {
+        //......................................................................
         // Merge with previous block
+        //......................................................................
         if ( off_old_end >= off_piece_end ) {
+          //....................................................................
           // Just update the data, no off or len modification
+          //....................................................................
           pBuffer = static_cast<char*>( memcpy( pBuffer, buf, len ) );
           size_added = 0;
         } else {
           size_added = off_piece_end - off_old_end;
 
           if ( off_piece_end >= iAfter->first ) {
+            //..................................................................
             // New block overlaps with iAfter block
+            //..................................................................
             if ( off_piece_end > ( off_t )( iAfter->first + iAfter->second ) ) {
+              //................................................................
               // New block spanns both old blocks and more
+              //................................................................
               size_added -= iAfter->second;
               size_erased = iAfter->second;
               mMapPieces.erase( iAfter++ );
@@ -257,13 +283,17 @@ CacheEntry::AddPiece( const char* buf, off_t off, size_t len )
 
               iBefore->second += ( size_added + size_erased );
             } else {
+              //................................................................
               //  New block spanns both old blocks but not more
+              //................................................................
               size_added -= ( off_piece_end - iAfter->first );
               iBefore->second += ( size_added + iAfter->second );
               mMapPieces.erase( iAfter );
             }
           } else {
+            //..................................................................
             // New block does no overlap with iAfter block
+            //..................................................................
             iBefore->second += size_added;
           }
 
@@ -271,11 +301,15 @@ CacheEntry::AddPiece( const char* buf, off_t off, size_t len )
           mSizeData += size_added;
         }
       } else if ( off_piece_end >= iAfter->first ) {
+        //......................................................................
         // Merge with next block
+        //......................................................................
         off_old_end = iAfter->first + iAfter->second;
 
         if ( off_piece_end > off_old_end ) {
+          //....................................................................
           // New block bigger than iAfter block
+          //....................................................................
           size_added = len - iAfter->second;
           size_erased = iAfter->second;
           mMapPieces.erase( iAfter++ );
@@ -299,7 +333,9 @@ CacheEntry::AddPiece( const char* buf, off_t off, size_t len )
           off_new = off;
           size_new = size_erased + size_added;
         } else {
+          //....................................................................
           // New block shorter than iAfter block
+          //....................................................................
           size_added = len - ( off_piece_end - iAfter->first );
           off_new = off;
           size_new = iAfter->second + size_added;
@@ -339,7 +375,9 @@ CacheEntry::GetPiece( char* buf, off_t off, size_t len )
   std::map<off_t, size_t>::iterator i = mMapPieces.lower_bound( off );
 
   if ( i->first == off ) {
+    //..........................................................................
     // Exact match
+    //..........................................................................
     if ( i->second >= len ) {
       buf = static_cast<char*>( memcpy( buf, mpBuffer + off_relative, len ) );
       found = true;
@@ -353,7 +391,7 @@ CacheEntry::GetPiece( char* buf, off_t off, size_t len )
       iReverse = mMapPieces.rbegin();
 
       if ( ( iReverse->first <= off ) &&
-           ( static_cast<off_t>( ( iReverse->first + iReverse->second ) ) > off ) &&
+           ( (off_t)( iReverse->first + iReverse->second ) > off ) &&
            ( iReverse->first + iReverse->second >= off + len ) ) {
         found = true;
         buf = static_cast<char*>( memcpy( buf, mpBuffer + off_relative, len ) );

@@ -182,7 +182,9 @@ RaidIO::open( int flags )
     return -1;
   }
 
+  //............................................................................
   // Get the size of the file
+  //............................................................................
   if ( mpHdUrl[0].GetNoBlocks() == 0 ) {
     mFileSize = 0;
   } else {
@@ -231,14 +233,18 @@ RaidIO::ValidateHeader()
     return true;
   }
 
+  //............................................................................
   // Can not recover from more than two corruptions
+  //............................................................................
   if ( id_url_invalid.size() > mNbParityFiles ) {
     eos_debug( "Can not recover more than %u corruptions.", mNbParityFiles );
     fprintf( stdout, "Can not recover more than %u corruptions.\n", mNbParityFiles );
     return false;
   }
 
+  //............................................................................
   // Get stripe id's already used and a valid header
+  //............................................................................
   unsigned int id_hd_valid = -1;
   std::set<unsigned int> used_stripes;
 
@@ -259,7 +265,9 @@ RaidIO::ValidateHeader()
 
     for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
       if ( find( used_stripes.begin(), used_stripes.end(), i ) == used_stripes.end() ) {
+        //......................................................................
         // Add the new mapping
+        //......................................................................
         eos_debug( "Add new mapping: stripe: %u, fid: %u", i, id_url );
         mapUS[id_url] = i;
         used_stripes.insert( i );
@@ -297,7 +305,9 @@ RaidIO::ValidateHeader()
 
   used_stripes.clear();
 
+  //............................................................................
   // Populate the stripe url map
+  //............................................................................
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
     mapSU[mapUS[i]] = i;
   }
@@ -336,12 +346,16 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
   }
 
   if ( ( offset < 0 ) && ( mIsRw ) ) {
+    //..........................................................................
     // Recover file mode
+    //..........................................................................
     offset = 0;
     long long int len = mFileSize;
     char* dummy_buf = static_cast<char*>( calloc( mStripeWidth, sizeof( char ) ) );
 
+    //..........................................................................
     // If file smaller than a group, set the read size to the size of the group
+    //..........................................................................
     if ( mFileSize < mSizeGroup ) {
       len = mSizeGroup;
     }
@@ -367,29 +381,21 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
     // free memory
     free( dummy_buf );
   } else {
+    //..........................................................................
     // Normal reading mode
+    //..........................................................................
     for ( unsigned int i = 0; i < mNbDataFiles; i++ ) {
       mReadHandlers[i]->Reset();
     }
 
     while ( length ) {
       index++;
-<<<<<<< HEAD
-      stripeId = ( offset / stripeWidth ) % nDataFiles;
-      urlId = mapSU[stripeId];
-      nread = ( length > stripeWidth ) ? stripeWidth : length;
-      offsetLocal = ( ( offset / ( nDataFiles * stripeWidth ) ) * stripeWidth )
-                    + ( offset %  stripeWidth );
-
-      COMMONTIMING( "read remote in", &rt );
-=======
       stripe_id = ( offset / mStripeWidth ) % mNbDataFiles;
       url_id = mapSU[stripe_id];
       nread = ( length > mStripeWidth ) ? mStripeWidth : length;
       offset_local = ( ( offset / ( mNbDataFiles * mStripeWidth ) ) * mStripeWidth )
                      + ( offset %  mStripeWidth );
-      TIMING( "read remote in", &rt );
->>>>>>> 07ba47e... FUSE: Add Doxygen comments and follow coding style
+      COMMONTIMING( "read remote in", &rt );
 
       if ( mpXrdFile[url_id] ) {
         mReadHandlers[stripe_id]->Increment();
@@ -425,13 +431,17 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
           }
         }
 
+        //......................................................................
         // Reset read handlers
+        //......................................................................
         for ( unsigned int i = 0; i < mNbDataFiles; i++ ) {
           mReadHandlers[i]->Reset();
         }
       }
 
+      //........................................................................
       // Try to recover blocks from group
+      //........................................................................
       if ( do_recovery && ( !RecoverPieces( offset_init, buffer, map_errors ) ) ) {
         eos_err( "error=read recovery failed" );
         return -1;
@@ -459,7 +469,9 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
   off_t offset_end = offset + length;
   unsigned int stripe_id = -1;
 
+  //............................................................................
   // Reset write handlers
+  //............................................................................
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
     mWriteHandlers[i]->Reset();
   }
@@ -472,12 +484,17 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
     COMMONTIMING( "write remote", &wt );
     eos_info( "Write stripe=%u offset=%llu size=%u",
               stripe_id, offset_local + mSizeHeader, nwrite );
+
+    //..........................................................................
     // Send write request
+    //..........................................................................
     mWriteHandlers[stripe_id]->Increment();
     mpXrdFile[mapSU[stripe_id]]->Write( offset_local + mSizeHeader, nwrite,
                                         buffer, mWriteHandlers[stripe_id] );
 
+    //..........................................................................
     // Streaming mode - add data and try to compute parity, else add pice to map
+    //..........................................................................
     if ( mIsStreaming ) {
       AddDataBlock( offset, buffer, nwrite );
     } else {
@@ -490,7 +507,9 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
     writeLength += nwrite;
   }
 
-  // Collect the responses
+  //............................................................................
+  // Collect the responses\
+  //............................................................................
   for ( unsigned int i = 0; i < mNbDataFiles; i++ ) {
     if ( !mWriteHandlers[i]->WaitOK() ) {
       eos_err( "Write failed." );
@@ -498,7 +517,9 @@ RaidIO::write( off_t offset, char* buffer, size_t length )
     }
   }
 
+  //............................................................................
   // Non-streaming mode - try to compute parity if enough data
+  //............................................................................
   if ( !mIsStreaming && !SparseParityComputation( false ) ) {
     eos_err( "error=failed while doing SparseParityComputation" );
     return -1;
@@ -523,10 +544,15 @@ RaidIO::DoBlockParity( off_t offsetGroup )
 {
   eos::common::Timing up( "parity" );
   COMMONTIMING( "Compute-In", &up );
+  //............................................................................
   // Compute parity blocks
+  //............................................................................
   ComputeParity();
   COMMONTIMING( "Compute-Out", &up );
+
+  //............................................................................
   // Write parity blocks to files
+  //............................................................................
   WriteParityToFiles( offsetGroup );
   COMMONTIMING( "WriteParity", &up );
   mFullDataBlocks = false;
@@ -662,7 +688,9 @@ RaidIO::GetOffsetGroups( std::set<off_t>& offsetGroups, bool forceAll )
           mMapPieces.insert( std::make_pair( offset, off_group - offset ) );
         }
 
+        //......................................................................
         // Save group offset in the list
+        //......................................................................
         offsetGroups.insert( off_group );
         off_group += mSizeGroup;
       }
@@ -810,7 +838,9 @@ RaidIO::close()
       SparseParityComputation( true );
     }
 
+    //..........................................................................
     // Update the header information and write it to all stripes
+    //..........................................................................
     long int num_blocks = ceil( ( mFileSize * 1.0 ) / mStripeWidth );
     size_t size_last_block = mFileSize % mStripeWidth;
 

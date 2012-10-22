@@ -52,8 +52,8 @@ XrdFileCache::GetInstance( size_t sizeMax )
 // Constructor
 //------------------------------------------------------------------------------
 XrdFileCache::XrdFileCache( size_t sizeMax ):
-  msCacheSizeMax( sizeMax ),
-  mIndexFile( msMaxIndexFiles / 10 )
+  mIndexFile( msMaxIndexFiles / 10 ),
+  msCacheSizeMax( sizeMax )
 {
   mpUsedIndxQueue = new ConcurrentQueue<int>();
 }
@@ -67,8 +67,9 @@ void
 XrdFileCache::Init()
 {
   mpCacheImpl = new CacheImpl( msCacheSizeMax, this );
-
+  //............................................................................
   // Start worker thread
+  //............................................................................
   XrdSysThread::Run( &mWriteThread,
                      XrdFileCache::WriteThreadProc,
                      static_cast<void*>( this ) );
@@ -83,14 +84,13 @@ XrdFileCache::~XrdFileCache()
   void* ret;
   mpCacheImpl->KillWriteThread();
   XrdSysThread::Join( mWriteThread, &ret );
-
   delete mpCacheImpl;
   delete mpUsedIndxQueue;
 }
 
 
 //------------------------------------------------------------------------------
-// Function run by the async thread managing the cache
+// Function ran by the async thread managing the cache
 //------------------------------------------------------------------------------
 void*
 XrdFileCache::WriteThreadProc( void* arg )
@@ -110,17 +110,16 @@ XrdFileCache::GetFileObj( unsigned long inode, bool getNew )
 {
   int key = -1;
   FileAbstraction* fRet = NULL;
-
-  mRwLock.ReadLock();                                      //read lock
-
-  std::map<unsigned long, FileAbstraction*>::iterator iter = mInode2fAbst.find( inode );
+  mRwLock.ReadLock();                                  //read lock
+  std::map<unsigned long, FileAbstraction*>::iterator iter =
+    mInode2fAbst.find( inode );
 
   if ( iter != mInode2fAbst.end() ) {
     fRet = iter->second;
     key = fRet->GetId();
   } else if ( getNew ) {
-    mRwLock.UnLock();                                      //unlock map
-    mRwLock.WriteLock();                                   //write lock
+    mRwLock.UnLock();                                  //unlock map
+    mRwLock.WriteLock();                               //write lock
 
     if ( mIndexFile >= msMaxIndexFiles ) {
       while ( !mpUsedIndxQueue->try_pop( key ) ) {
@@ -136,16 +135,16 @@ XrdFileCache::GetFileObj( unsigned long inode, bool getNew )
       mIndexFile++;
     }
   } else {
-    mRwLock.UnLock();                                      //unlock map
+    mRwLock.UnLock();                                  //unlock map
     return 0;
   }
 
+  //............................................................................
   // Increase the number of references to this file
+  //............................................................................
   fRet->IncrementNoReferences();
-  mRwLock.UnLock();                                        //unlock map
-
+  mRwLock.UnLock();                                    //unlock map
   eos_static_debug( "inode=%lu, key=%i", inode, key );
-
   return fRet;
 }
 
@@ -162,29 +161,29 @@ XrdFileCache::SubmitWrite( XrdCl::File*& rpFile,
 {
   size_t nwrite;
   long long int key;
-  off_t writtenOffset = 0;
+  off_t written_offset = 0;
   char* pBuf = static_cast<char*>( buf );
-
   FileAbstraction* pAbst = GetFileObj( inode, true );
 
+  //............................................................................
   // While write bigger than block size, break in smaller blocks
+  //............................................................................
   while ( ( ( off % CacheEntry::GetMaxSize() ) + len ) > CacheEntry::GetMaxSize() ) {
     nwrite = CacheEntry::GetMaxSize() - ( off % CacheEntry::GetMaxSize() );
     key = pAbst->GenerateBlockKey( off );
     eos_static_debug( "(1) off=%zu, len=%zu", off, nwrite );
-    mpCacheImpl->AddWrite( rpFile, key, pBuf + writtenOffset, off, nwrite, *pAbst );
-
+    mpCacheImpl->AddWrite( rpFile, key, pBuf + written_offset, off, nwrite, *pAbst );
     off += nwrite;
     len -= nwrite;
-    writtenOffset += nwrite;
+    written_offset += nwrite;
   }
 
   if ( len != 0 ) {
     nwrite = len;
     key = pAbst->GenerateBlockKey( off );
     eos_static_debug( "(2) off=%zu, len=%zu", off, nwrite );
-    mpCacheImpl->AddWrite( rpFile, key, pBuf + writtenOffset, off, nwrite, *pAbst );
-    writtenOffset += nwrite;
+    mpCacheImpl->AddWrite( rpFile, key, pBuf + written_offset, off, nwrite, *pAbst );
+    written_offset += nwrite;
   }
 
   pAbst->DecrementNoReferences();
@@ -204,15 +203,17 @@ XrdFileCache::GetRead( FileAbstraction& rFileAbst,
   size_t nread;
   long long int key;
   bool found = true;
-  off_t readOffset = 0;
+  off_t read_offset = 0;
   char* pBuf = static_cast<char*>( buf );
 
+  //............................................................................
   // While read bigger than block size, break in smaller blocks
+  //............................................................................
   while ( ( ( off % CacheEntry::GetMaxSize() ) + len ) > CacheEntry::GetMaxSize() ) {
     nread = CacheEntry::GetMaxSize() - ( off % CacheEntry::GetMaxSize() );
     key = rFileAbst.GenerateBlockKey( off );
     eos_static_debug( "(1) off=%zu, len=%zu", off, nread );
-    found = mpCacheImpl->GetRead( key, pBuf + readOffset, off, nread );
+    found = mpCacheImpl->GetRead( key, pBuf + read_offset, off, nread );
 
     if ( !found ) {
       return 0;
@@ -220,23 +221,23 @@ XrdFileCache::GetRead( FileAbstraction& rFileAbst,
 
     off += nread;
     len -= nread;
-    readOffset += nread;
+    read_offset += nread;
   }
 
   if ( len != 0 ) {
     nread = len;
     key = rFileAbst.GenerateBlockKey( off );
     eos_static_debug( "(2) off=%zu, len=%zu", off, nread );
-    found = mpCacheImpl->GetRead( key, pBuf + readOffset, off, nread );
+    found = mpCacheImpl->GetRead( key, pBuf + read_offset, off, nread );
 
     if ( !found ) {
       return 0;
     }
 
-    readOffset += nread;
+    read_offset += nread;
   }
 
-  return readOffset;
+  return read_offset;
 }
 
 
@@ -252,29 +253,31 @@ XrdFileCache::PutRead( XrdCl::File*&    file,
 {
   size_t nread;
   long long int key;
-  off_t readOffset = 0;
+  off_t read_offset = 0;
   char* pBuf = static_cast<char*>( buf );
 
+  //............................................................................
   // Read bigger than block size, break in smaller blocks
+  //............................................................................
   while ( ( ( off % CacheEntry::GetMaxSize() ) + len ) > CacheEntry::GetMaxSize() ) {
     nread = CacheEntry::GetMaxSize() - ( off % CacheEntry::GetMaxSize() );
     key = rFileAbst.GenerateBlockKey( off );
     eos_static_debug( "(1) off=%zu, len=%zu key=%lli", off, nread, key );
-    mpCacheImpl->AddRead( file, key, pBuf + readOffset, off, nread, rFileAbst );
+    mpCacheImpl->AddRead( file, key, pBuf + read_offset, off, nread, rFileAbst );
     off += nread;
     len -= nread;
-    readOffset += nread;
+    read_offset += nread;
   }
 
   if ( len != 0 ) {
     nread = len;
     key = rFileAbst.GenerateBlockKey( off );
     eos_static_debug( "(2) off=%zu, len=%zu key=%lli", off, nread, key );
-    mpCacheImpl->AddRead( file, key, pBuf + readOffset, off, nread, rFileAbst );
-    readOffset += nread;
+    mpCacheImpl->AddRead( file, key, pBuf + read_offset, off, nread, rFileAbst );
+    read_offset += nread;
   }
 
-  return readOffset;
+  return read_offset;
 }
 
 
@@ -287,23 +290,29 @@ XrdFileCache::RemoveFileInode( unsigned long inode, bool strongConstraint )
   bool do_deletion = false;
   eos_static_debug( "inode=%lu", inode );
   FileAbstraction* ptr =  NULL;
-
-  mRwLock.WriteLock();                                     //write lock map
-  std::map<unsigned long, FileAbstraction*>::iterator iter = mInode2fAbst.find( inode );
+  mRwLock.WriteLock();                                 //write lock map
+  std::map<unsigned long, FileAbstraction*>::iterator iter =
+    mInode2fAbst.find( inode );
 
   if ( iter != mInode2fAbst.end() ) {
     ptr = static_cast<FileAbstraction*>( ( *iter ).second );
 
     if ( strongConstraint ) {
+      //........................................................................
       // Strong constraint
+      //........................................................................
       do_deletion = ( ptr->GetSizeRdWr() == 0 ) && ( ptr->GetNoReferences() == 0 );
     } else {
+      //........................................................................
       // Weak constraint
+      //........................................................................
       do_deletion = ( ptr->GetSizeRdWr() == 0 ) && ( ptr->GetNoReferences() <= 1 );
     }
 
     if ( do_deletion ) {
+      //........................................................................
       // Remove file from mapping
+      //........................................................................
       int id = ptr->GetId();
       delete ptr;
       mInode2fAbst.erase( iter );
@@ -311,7 +320,7 @@ XrdFileCache::RemoveFileInode( unsigned long inode, bool strongConstraint )
     }
   }
 
-  mRwLock.UnLock();                                        //unlock map
+  mRwLock.UnLock();                                    //unlock map
   return do_deletion;
 }
 

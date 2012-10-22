@@ -32,24 +32,24 @@
 // Constructor
 //------------------------------------------------------------------------------
 FileAbstraction::FileAbstraction( int id, unsigned long ino ):
-  id_file( id ),
-  no_references( 0 ),
-  inode( ino ),
-  size_writes( 0 ),
-  size_reads( 0 ),
-  no_wr_blocks( 0 )
+  mIdFile( id ),
+  mNoReferences( 0 ),
+  mInode( ino ),
+  mSizeWrites( 0 ),
+  mSizeReads( 0 ),
+  mNoWrBlocks( 0 )
 {
-  //----------------------------------------------------------------------------
+  //............................................................................
   // Max file size we can deal with is ~ 90TB
-  //----------------------------------------------------------------------------
-  first_possible_key = static_cast<long long>( 1e14 * id_file );
-  last_possible_key = static_cast<long long>( ( 1e14 * ( id_file + 1 ) ) );
+  //............................................................................
+  mFirstPossibleKey = static_cast<long long>( 1e14 * mIdFile );
+  mLastPossibleKey = static_cast<long long>( ( 1e14 * ( mIdFile + 1 ) ) );
 
-  eos_static_debug( "id_file=%i, first_possible_key=%llu, last_possible_key=%llu",
-                    id_file, first_possible_key, last_possible_key );
-
+  eos_static_debug( "mIdFile=%i, mFirstPossibleKey=%llu, mLastPossibleKey=%llu",
+                    mIdFile, mFirstPossibleKey, mLastPossibleKey );
+  
   errorsQueue = new ConcurrentQueue<error_type>();
-  cond_update = XrdSysCondVar( 0 );
+  mCondUpdate = XrdSysCondVar( 0 );
 }
 
 //------------------------------------------------------------------------------
@@ -67,8 +67,8 @@ FileAbstraction::~FileAbstraction()
 size_t
 FileAbstraction::GetSizeRdWr()
 {
-  XrdSysCondVarHelper cHepler( cond_update );
-  return ( size_writes + size_reads );
+  XrdSysCondVarHelper cond_helper( mCondUpdate );
+  return ( mSizeWrites + mSizeReads );
 }
 
 
@@ -78,8 +78,8 @@ FileAbstraction::GetSizeRdWr()
 size_t
 FileAbstraction::GetSizeWrites()
 {
-  XrdSysCondVarHelper cHepler( cond_update );
-  return size_writes;
+  XrdSysCondVarHelper cond_helper( mCondUpdate );
+  return mSizeWrites;
 }
 
 
@@ -89,8 +89,8 @@ FileAbstraction::GetSizeWrites()
 size_t
 FileAbstraction::GetSizeReads()
 {
-  XrdSysCondVarHelper cHepler( cond_update );
-  return  size_reads;
+  XrdSysCondVarHelper cond_helper( mCondUpdate );
+  return  mSizeReads;
 }
 
 
@@ -100,8 +100,8 @@ FileAbstraction::GetSizeReads()
 long long int
 FileAbstraction::GetNoWriteBlocks()
 {
-  XrdSysCondVarHelper cHepler( cond_update );
-  return no_wr_blocks;
+  XrdSysCondVarHelper cond_helper( mCondUpdate );
+  return mNoWrBlocks;
 }
 
 
@@ -111,7 +111,7 @@ FileAbstraction::GetNoWriteBlocks()
 long long
 FileAbstraction::GetFirstPossibleKey() const
 {
-  return first_possible_key;
+  return mFirstPossibleKey;
 }
 
 
@@ -121,7 +121,7 @@ FileAbstraction::GetFirstPossibleKey() const
 long long
 FileAbstraction::GetLastPossibleKey() const
 {
-  return last_possible_key;
+  return mLastPossibleKey;
 }
 
 
@@ -129,13 +129,13 @@ FileAbstraction::GetLastPossibleKey() const
 // Increment the value of accumulated writes size
 //------------------------------------------------------------------------------
 void
-FileAbstraction::IncrementWrites( size_t size, bool new_block )
+FileAbstraction::IncrementWrites( size_t sizeWrite, bool newBlock )
 {
-  XrdSysCondVarHelper cHepler( cond_update );
-  size_writes += size;
+  XrdSysCondVarHelper cond_helper( mCondUpdate );
+  mSizeWrites += sizeWrite;
 
-  if ( new_block ) {
-    no_wr_blocks++;
+  if ( newBlock ) {
+    mNoWrBlocks++;
   }
 }
 
@@ -144,10 +144,10 @@ FileAbstraction::IncrementWrites( size_t size, bool new_block )
 // Increment the value of accumulated reads size
 //------------------------------------------------------------------------------
 void
-FileAbstraction::IncrementReads( size_t size )
+FileAbstraction::IncrementReads( size_t sizeRead )
 {
-  XrdSysCondVarHelper cHepler( cond_update );
-  size_reads += size;
+  XrdSysCondVarHelper cond_helper( mCondUpdate );
+  mSizeReads += sizeRead;
 }
 
 
@@ -155,26 +155,26 @@ FileAbstraction::IncrementReads( size_t size )
 // Decrement the value of writes size
 //------------------------------------------------------------------------------
 void
-FileAbstraction::DecrementWrites( size_t size, bool full_block )
+FileAbstraction::DecrementWrites( size_t sizeWrite, bool fullBlock )
 {
-  cond_update.Lock();
-  eos_static_debug( "writes old size=%zu", size_writes );
-  size_writes -= size;
+  mCondUpdate.Lock();
+  eos_static_debug( "writes old size=%zu", mSizeWrites );
+  mSizeWrites -= sizeWrite;
 
-  if ( full_block ) {
-    no_wr_blocks--;
+  if ( fullBlock ) {
+    mNoWrBlocks--;
   }
 
-  eos_static_debug( "writes new size=%zu", size_writes );
+  eos_static_debug( "writes new size=%zu", mSizeWrites );
 
-  if ( size_writes == 0 ) {
-    //--------------------------------------------------------------------------
+  if ( mSizeWrites == 0 ) {
+    //..........................................................................
     // Notify pending reading processes
-    //--------------------------------------------------------------------------
-    cond_update.Signal();
+    //..........................................................................
+    mCondUpdate.Signal();
   }
 
-  cond_update.UnLock();
+  mCondUpdate.UnLock();
 }
 
 
@@ -182,10 +182,10 @@ FileAbstraction::DecrementWrites( size_t size, bool full_block )
 // Decrement the value of reads size
 //------------------------------------------------------------------------------
 void
-FileAbstraction::DecrementReads( size_t size )
+FileAbstraction::DecrementReads( size_t sizeRead )
 {
-  XrdSysCondVarHelper cHepler( cond_update );
-  size_reads -= size;
+  XrdSysCondVarHelper cond_helper( mCondUpdate );
+  mSizeReads -= sizeRead;
 }
 
 
@@ -195,8 +195,8 @@ FileAbstraction::DecrementReads( size_t size )
 int
 FileAbstraction::GetNoReferences()
 {
-  XrdSysCondVarHelper cHepler( cond_update );
-  return no_references;
+  XrdSysCondVarHelper cond_helper( mCondUpdate );
+  return mNoReferences;
 }
 
 
@@ -206,8 +206,8 @@ FileAbstraction::GetNoReferences()
 void
 FileAbstraction::IncrementNoReferences()
 {
-  XrdSysCondVarHelper cHepler( cond_update );
-  no_references++;
+  XrdSysCondVarHelper cond_helper( mCondUpdate );
+  mNoReferences++;
 }
 
 
@@ -217,8 +217,8 @@ FileAbstraction::IncrementNoReferences()
 void
 FileAbstraction::DecrementNoReferences()
 {
-  XrdSysCondVarHelper cHepler( cond_update );
-  no_references--;
+  XrdSysCondVarHelper cond_helper( mCondUpdate );
+  mNoReferences--;
 }
 
 
@@ -228,14 +228,14 @@ FileAbstraction::DecrementNoReferences()
 void
 FileAbstraction::WaitFinishWrites()
 {
-  cond_update.Lock();
-  eos_static_debug( "size_writes=%zu", size_writes );
+  mCondUpdate.Lock();
+  eos_static_debug( "mSizeWrites=%zu", mSizeWrites );
 
-  if ( size_writes != 0 ) {
-    cond_update.Wait();
+  if ( mSizeWrites != 0 ) {
+    mCondUpdate.Wait();
   }
 
-  cond_update.UnLock();
+  mCondUpdate.UnLock();
 }
 
 
@@ -246,7 +246,7 @@ long long int
 FileAbstraction::GenerateBlockKey( off_t offset )
 {
   offset = ( offset / CacheEntry::GetMaxSize() ) * CacheEntry::GetMaxSize();
-  return static_cast<long long int>( ( 1e14 * id_file ) + offset );
+  return static_cast<long long int>( ( 1e14 * mIdFile ) + offset );
 }
 
 
@@ -254,20 +254,19 @@ FileAbstraction::GenerateBlockKey( off_t offset )
 // Test if file is in use
 //------------------------------------------------------------------------------
 bool
-FileAbstraction::IsInUse( bool strong_constraint )
+FileAbstraction::IsInUse( bool strongConstraint )
 {
   bool retVal = false;
-  XrdSysCondVarHelper cHepler( cond_update );
+  XrdSysCondVarHelper cond_helper( mCondUpdate );
+  eos_static_debug( "mSizeReads=%zu, mSizeWrites=%zu, mNoReferences=%i",
+                    mSizeReads, mSizeWrites, mNoReferences );
 
-  eos_static_debug( "size_reads=%zu, size_writes=%zu, no_references=%i",
-                    size_reads, size_writes, no_references );
-
-  if ( strong_constraint ) {
-    if ( ( size_reads + size_writes != 0 ) || ( no_references >= 1 ) ) {
+  if ( strongConstraint ) {
+    if ( ( mSizeReads + mSizeWrites != 0 ) || ( mNoReferences >= 1 ) ) {
       retVal =  true;
     }
   } else {
-    if ( ( size_reads + size_writes != 0 ) || ( no_references > 1 ) ) {
+    if ( ( mSizeReads + mSizeWrites != 0 ) || ( mNoReferences > 1 ) ) {
       retVal =  true;
     }
   }
@@ -281,7 +280,7 @@ FileAbstraction::IsInUse( bool strong_constraint )
 int
 FileAbstraction::GetId() const
 {
-  return id_file;
+  return mIdFile;
 }
 
 
@@ -301,6 +300,6 @@ FileAbstraction::GetErrorQueue() const
 unsigned long
 FileAbstraction::GetInode() const
 {
-  return inode;
+  return mInode;
 }
 

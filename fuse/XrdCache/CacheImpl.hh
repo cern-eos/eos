@@ -2,7 +2,6 @@
 //! @file CacheImpl.hh
 //! @author Elvin-Alin Sindrilaru - CERN
 //! @brief Class implementing the caching mechanism for both reading and writing
-//!        of files
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -43,14 +42,14 @@
 class XrdFileCache;
 
 //------------------------------------------------------------------------------
-//! Class implementing the caching mechanism for both reading and writing of files
+//! Class implementing the caching mechanism for both reading and writing
 //------------------------------------------------------------------------------
 class CacheImpl
 {
     ///< List <key> access history, most recent at the back
     typedef std::list<long long int> key_list_type;
 
-    ///< Map of Key and (value and history iterator) elements
+    ///< Map of key <-> (value and history iterator) elements
     typedef std::map < long long int,
                        std::pair <CacheEntry*, key_list_type::iterator>
                        >  key_map_type;
@@ -103,7 +102,10 @@ class CacheImpl
                   FileAbstraction&     rFileAbst );
 
     // ---------------------------------------------------------------------------
-    //! Try to remove read block from the cache
+    //! Try to remove least-recently used read block from the cache
+    //!
+    //! @return true if read block removed, otherwise false
+    //!
     // ---------------------------------------------------------------------------
     bool RemoveReadBlock();
 
@@ -147,7 +149,7 @@ class CacheImpl
     void ProcessWriteReq( CacheEntry* pEntry );
 
     // ---------------------------------------------------------------------------
-    //! Method executed by the thread doing the writing opetrations
+    //! Method executed by the thread doing the write operations
     // ---------------------------------------------------------------------------
     void RunThreadWrites();
 
@@ -163,7 +165,7 @@ class CacheImpl
     //! @param buf buffer containing the data
     //! @param off offset
     //! @param len length
-    //! @param iswr mark is block is for writing
+    //! @param isWr mark if block is for writing
     //! @param rFileAbst FileAbstraction handler
     //!
     //! @return cache entry object
@@ -173,7 +175,7 @@ class CacheImpl
                                   char*             buf,
                                   off_t             off,
                                   size_t            len,
-                                  bool              iswr,
+                                  bool              isWr,
                                   FileAbstraction&  rFileAbst );
 
     // ---------------------------------------------------------------------------
@@ -213,7 +215,7 @@ class CacheImpl
     size_t         mSizeMax;            ///< maximum size of cache
     size_t         mSizeVirtual;        ///< sum of all blocks capacity in cache
     size_t         mCacheThreshold;     ///< max size write requests
-    size_t         size_alloc_blocks;   ///< total size of allocated blocks
+    size_t         mSizeAllocBlocks;    ///< size of allocated blocks
     size_t         mMaxSizeAllocBlocks; ///< max size of allocated blocks
 
     key_map_type   mKey2ListIter;       ///< map <key pair<value, listIter> >

@@ -1,7 +1,6 @@
 // ----------------------------------------------------------------------
 //! @file xrdposix.hh
-//! @author Andreas-Joachim Peters - CERN
-//! @author Elvin-Alin Sindrilaru - CERN
+//! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -162,8 +161,8 @@ extern "C" {
   //! inode + child inode + child base name
   //----------------------------------------------------------------------------
   void xrd_store_child_p2i( unsigned long long inode,
-                                      unsigned long long childinode,
-                                      const char* name );
+                            unsigned long long childinode,
+                            const char* name );
 
   //----------------------------------------------------------------------------
   //! Forget an inode/path mapping by inode
@@ -229,7 +228,7 @@ extern "C" {
   //!
   //! @param dirinode directory inode
   //! @param index index of entry
-  //! @get_lock if true, used does not take care of locking
+  //! @param get_lock if true, user does not take care of locking
   //!
   //! @return inode of the subentry
   //!
@@ -252,7 +251,7 @@ extern "C" {
 
 
   //----------------------------------------------------------------------------
-  //! Create a simulated file descriptor
+  //! Create an artificial file descriptor
   //----------------------------------------------------------------------------
   int xrd_generate_fd();
 
@@ -293,7 +292,6 @@ extern "C" {
   //!
   //! @param inode inode value of the directory to be cached
   //! @param mtime modification time
-  //! @param fullpath full path of the directory
   //! @param b dirbuf structure
   //!
   //! @return true if found, otherwise false
@@ -310,7 +308,7 @@ extern "C" {
   //! @param req
   //! @param inode directory inode
   //! @param einode entry inode
-  //! @param efullpath full path of the subentry
+  //! @param ifullpath full path of the subentry
   //!
   //! @return true if entry found, otherwise false
   //!
@@ -338,8 +336,7 @@ extern "C" {
   //! Add or update a cache directory entry
   //!
   //! @param inode directory inode value
-  //! @param fullpath directory full path
-  //! @param number of entries in the current directory
+  //! @param nentries number of entries in the current directory
   //! @param mtime modifcation time
   //! @param b dirbuf structure
   //!

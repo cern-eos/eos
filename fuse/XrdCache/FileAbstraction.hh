@@ -33,8 +33,8 @@
 #include "ConcurrentQueue.hh"
 //------------------------------------------------------------------------------
 
-//! Definition of an error occurring in a write operation 
-typedef std::pair<int, off_t> error_type; 
+//! Definition of an error occurring in a write operation
+typedef std::pair<int, off_t> error_type;
 
 //------------------------------------------------------------------------------
 //! Class that keeps track of the operations done at file level
@@ -44,16 +44,16 @@ class FileAbstraction
   public:
 
     //! Errors collected during writes
-    ConcurrentQueue<error_type>* errorsQueue; 
+    ConcurrentQueue<error_type>* errorsQueue;
 
     // -------------------------------------------------------------------------
     //! Constructor
     //!
-    //! @param key key value
+    //! @param id file id
     //! @param ino file inode
     //!
     // -------------------------------------------------------------------------
-    FileAbstraction( int key, unsigned long ino );
+    FileAbstraction( int id, unsigned long ino );
 
     // -------------------------------------------------------------------------
     //! Destructor
@@ -66,7 +66,7 @@ class FileAbstraction
     int GetId() const;
 
     // -------------------------------------------------------------------------
-    //! Get number of refernces held to the file
+    //! Get number of references held to the file
     // -------------------------------------------------------------------------
     int GetNoReferences();
 
@@ -108,36 +108,36 @@ class FileAbstraction
     // -------------------------------------------------------------------------
     //! Increment the size of writes
     //!
-    //! @param s_write size writes
-    //! @param new_block mark if a new write block is added
+    //! @param sizeWrite size writes
+    //! @param newBlock mark if a new write block is added
     //!
     // -------------------------------------------------------------------------
-    void IncrementWrites( size_t s_write, bool new_block );
+    void IncrementWrites( size_t sizeWrite, bool newBlock );
 
     // -------------------------------------------------------------------------
     //! Increment the size of reads
     //!
-    //! @param s_read size reads
+    //! @param sizeRead size reads
     //!
     // -------------------------------------------------------------------------
-    void IncrementReads( size_t s_read );
+    void IncrementReads( size_t sizeRead );
 
     // -------------------------------------------------------------------------
     //! Decrement the size of writes
     //!
-    //! @param s_write size writes
-    //! @param full_block mark if it is a full block
+    //! @param sizeWrite size writes
+    //! @param fullBlock mark if it is a full block
     //!
     // -------------------------------------------------------------------------
-    void DecrementWrites( size_t s_write, bool full_block );
+    void DecrementWrites( size_t sizeWrite, bool fullBlock );
 
     // -------------------------------------------------------------------------
     //! Decrement the size of reads
     //!
-    //! @param s_read size reads
+    //! @param sizeRead size reads
     //!
     // -------------------------------------------------------------------------
-    void DecrementReads( size_t s_read );
+    void DecrementReads( size_t sizeRead );
 
     // -------------------------------------------------------------------------
     //! Increment the number of references
@@ -152,12 +152,12 @@ class FileAbstraction
     // -------------------------------------------------------------------------
     //! Decide if the file is still in use
     //!
-    //! @param strong_constraint if set use strong constraints
+    //! @param strongConstraint if set use strong constraints
     //!
     //! @return true if file is in use, otherwise false
     //!
     // -------------------------------------------------------------------------
-    bool IsInUse( bool strong_constraint );
+    bool IsInUse( bool strongConstraint );
 
     // -------------------------------------------------------------------------
     //! Method used to wait for writes to be done
@@ -167,12 +167,12 @@ class FileAbstraction
     // -------------------------------------------------------------------------
     //! Genereate block key
     //!
-    //! @param off_end offset end
+    //! @param offset offset piece
     //!
     //! @return block key
     //!
     // -------------------------------------------------------------------------
-    long long int GenerateBlockKey( off_t off_end );
+    long long int GenerateBlockKey( off_t offset );
 
     // -------------------------------------------------------------------------
     //! Get the queue of errros
@@ -181,17 +181,16 @@ class FileAbstraction
 
   private:
 
-    int id_file;                  ///< internally assigned key
-    int no_references;            ///< number of held referencess to this file
-    unsigned long inode;          ///< inode of current file
-    size_t size_writes;           ///< the size of write blocks in cache
-    size_t size_reads;            ///< the size of read blocks in cache
-    long long int no_wr_blocks;   ///< no. of blocks in cache for this file
+    int mIdFile;                  ///< internally assigned key
+    int mNoReferences;            ///< number of held referencess to this file
+    unsigned long mInode;         ///< inode of current file
+    size_t mSizeWrites;           ///< the size of write blocks in cache
+    size_t mSizeReads;            ///< the size of read blocks in cache
+    long long int mNoWrBlocks;    ///< no. of blocks in cache for this file
 
-    long long last_possible_key;  ///< last possible offset in file
-    long long first_possible_key; ///< first possible offset in file
-
-    XrdSysCondVar cond_update;    ///< cond variable for updating file attributes
+    long long mLastPossibleKey;   ///< last possible offset in file
+    long long mFirstPossibleKey;  ///< first possible offset in file
+    XrdSysCondVar mCondUpdate;    ///< cond variable for updating file attributes
 };
 
 #endif

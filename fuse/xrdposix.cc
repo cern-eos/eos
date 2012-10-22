@@ -91,7 +91,7 @@ int  fuse_cache_write;
 
 
 //------------------------------------------------------------------------------
-//
+//! String store
 //------------------------------------------------------------------------------
 char*
 STRINGSTORE( const char* __charptr__ )
@@ -117,7 +117,7 @@ STRINGSTORE( const char* __charptr__ )
 // ******* Implementation Translations *******
 //------------------------------------------------------------------------------
 
-// protecting the path/inode translation table
+// Protecting the path/inode translation table
 eos::common::RWMutex mutex_inode_path;
 
 // Mapping path name to inode
@@ -271,10 +271,10 @@ void xrd_forget_p2i( unsigned long long inode )
 // ******* Implementation of the directory listing table *******
 //------------------------------------------------------------------------------
 
-// protecting the directory listing table
+// Protecting the directory listing table
 eos::common::RWMutex mutex_dir2inodelist;
 
-// dir listing map
+// Dir listing map
 google::dense_hash_map<unsigned long long, std::vector<unsigned long long> > dir2inodelist;
 google::dense_hash_map<unsigned long long, struct dirbuf> dir2dirbuf;
 
@@ -320,7 +320,9 @@ void xrd_unlock_w_dirview()
 void xrd_dirview_create( unsigned long long inode )
 {
   eos_static_debug( "inode=%llu", inode );
+  //............................................................................
   //Obs: path should be attached beforehand into path translation
+  //............................................................................
   eos::common::RWMutexWriteLock vLock( mutex_dir2inodelist );
   dir2inodelist[inode].clear();
   dir2dirbuf[inode].p    = 0;
@@ -355,7 +357,6 @@ unsigned long long xrd_dirview_entry( unsigned long long dirinode,
                                       size_t             index,
                                       int                get_lock )
 {
-  //Obj: should have xrd_lock_dirview in the scope of the call
   eos_static_debug( "dirinode=%llu, index=%zu", dirinode, index );
 
   if ( get_lock )  eos::common::RWMutexReadLock rd_lock( mutex_dir2inodelist );
@@ -372,9 +373,8 @@ unsigned long long xrd_dirview_entry( unsigned long long dirinode,
 //------------------------------------------------------------------------------
 // Get dirbuf corresponding to inode
 //------------------------------------------------------------------------------
-struct dirbuf* xrd_dirview_getbuffer( unsigned long long inode, int get_lock ) {
-  //Obs: should have xrd_lock_dirview in the scope of the call
-
+struct dirbuf* xrd_dirview_getbuffer( unsigned long long inode, int get_lock )
+{
   if ( get_lock )  eos::common::RWMutexReadLock rd_lock( mutex_dir2inodelist );
 
   if ( dir2dirbuf.count( inode ) )
@@ -397,10 +397,10 @@ static const unsigned long long GetMaxCacheSize()
   return 1024;
 }
 
-// protecting the cache entry map
+// Protecting the cache entry map
 eos::common::RWMutex mutex_fuse_cache;
 
-// directory cache
+// Directory cache
 google::dense_hash_map<unsigned long long, FuseCacheEntry*> inode2cache;
 
 
@@ -420,7 +420,9 @@ int xrd_dir_cache_get( unsigned long long inode,
 
     if ( ( oldtime.tv_sec == mtime.tv_sec ) &&
          ( oldtime.tv_nsec == mtime.tv_nsec ) ) {
-      // dir in cache and valid
+      //........................................................................
+      // Dir in cache and valid
+      //........................................................................
       *b = static_cast<struct dirbuf*>( calloc( 1, sizeof( dirbuf ) ) );
       dir->GetDirbuf( *b );
       retc = 1;   // found
@@ -445,13 +447,13 @@ void xrd_dir_cache_sync( unsigned long long inode,
   if ( ( inode2cache.count( inode ) ) && ( dir = inode2cache[inode] ) ) {
     dir->Update( nentries, mtime, b );
   } else {
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Add new entry
-    //--------------------------------------------------------------------------
+    //..........................................................................
     if ( inode2cache.size() >= GetMaxCacheSize() ) {
-      //------------------------------------------------------------------------
+      //........................................................................
       // Size control of the cache
-      //------------------------------------------------------------------------
+      //........................................................................
       unsigned long long indx = 0;
       unsigned long long entries_del =
         static_cast<unsigned long long>( 0.25 * GetMaxCacheSize() );
@@ -525,11 +527,11 @@ void xrd_dir_cache_add_entry( unsigned long long       inode,
 //------------------------------------------------------------------------------
 
 
-// map used for associating file descriptors with XrdCl::File objects
+// Map used for associating file descriptors with XrdCl::File objects
 eos::common::RWMutex rwmutex_fd2fobj;
 google::dense_hash_map<int, XrdCl::File*> fd2fobj;
 
-// pool of available file descriptors
+// Pool of available file descriptors
 unsigned int base_fd = 1;
 std::queue<int> pool_fd;
 
@@ -556,7 +558,8 @@ int xrd_generate_fd()
     base_fd++;
     retc = base_fd;
   } else {
-    fprintf( stderr, "[%s] error=no more file descirptors available. \n", __FUNCTION__ );
+    fprintf( stderr, "[%s] error=no more file descirptors available. \n",
+             __FUNCTION__ );
     retc = -1;
   }
 
@@ -624,18 +627,18 @@ void xrd_remove_fd2file( int fd )
     delete fobj;
     fobj = 0;
     fd2fobj.erase( iter );
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Return fd to the pool
-    //--------------------------------------------------------------------------
+    //..........................................................................
     xrd_release_fd( fd );
   }
 }
 
 
-//map <inode, user> to a file descriptor
+// Map <inode, user> to a file descriptor
 google::dense_hash_map<std::string, unsigned long long> inodeuser2fd;
 
-// mutex to protecte the map
+// Mutex to protecte the map
 XrdSysMutex mutex_inodeuser2fd;
 
 
@@ -690,10 +693,10 @@ void xrd_release_open_fd( unsigned long long inode, uid_t uid )
 // ******* Implementation IO Buffer Management *******
 //------------------------------------------------------------------------------
 
-// forward declaration
+// Forward declaration
 class IoBuf;
 
-// protecting the IO buffer map
+// Protecting the IO buffer map
 XrdSysMutex IoBufferLock;
 
 // IO buffer table
@@ -701,7 +704,7 @@ std::map<int, IoBuf> IoBufferMap;
 
 
 //------------------------------------------------------------------------------
-// Class IoBuf
+//! Class IoBuf 
 //------------------------------------------------------------------------------
 class IoBuf
 {
@@ -711,21 +714,39 @@ class IoBuf
 
   public:
 
+    //..........................................................................
+    //! Constructor
+    //..........................................................................
     IoBuf() {
       buffer = 0;
       size = 0;
     }
 
+    //..........................................................................
+    //! Destructor 
+    //..........................................................................
     virtual ~IoBuf() {
       if ( buffer && size ) free( buffer );
     }
-    char* getBuffer() {
+
+    //..........................................................................
+    //! Get buffer
+    //..........................................................................
+    char* GetBuffer() {
       return ( char* )buffer;
     }
-    size_t getSize() {
+
+    //..........................................................................
+    //! Get size of buffer
+    //..........................................................................
+    size_t GetSize() {
       return size;
     }
-    void resize( size_t newsize ) {
+
+    //..........................................................................
+    //! Resize buffer
+    //..........................................................................
+    void Resize( size_t newsize ) {
       if ( newsize > size ) {
         size = ( newsize < ( 128 * 1024 ) ) ? 128 * 1024 : newsize;
         buffer = realloc( buffer, size );
@@ -735,23 +756,21 @@ class IoBuf
 
 
 //------------------------------------------------------------------------------
-//
+// Guarantee a buffer for reading of at least 'size' for the specified fd
 //------------------------------------------------------------------------------
 char* xrd_attach_read_buffer( int fd, size_t  size )
 {
-  // guarantee a buffer for reading of at least 'size' for the specified fd
   XrdSysMutexHelper vlock( IoBufferLock );
-  IoBufferMap[fd].resize( size );
-  return ( char* )IoBufferMap[fd].getBuffer();
+  IoBufferMap[fd].Resize( size );
+  return ( char* )IoBufferMap[fd].GetBuffer();
 }
 
 
 //------------------------------------------------------------------------------
-//
+// Release read buffer corresponding to the file
 //------------------------------------------------------------------------------
 void xrd_release_read_buffer( int fd )
 {
-  // release a read buffer for the specified fd
   XrdSysMutexHelper vlock( IoBufferLock );
   IoBufferMap.erase( fd );
   return;
@@ -788,9 +807,9 @@ int xrd_rmxattr( const char* path, const char* xattr_name )
   if ( status.IsOK() ) {
     int items = 0;
     char tag[1024];
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Parse output
-    //--------------------------------------------------------------------------
+    //..........................................................................
     items = sscanf( response->GetBuffer(), "%s retc=%i", tag, &retc );
 
     if ( ( items != 2 ) || ( strcmp( tag, "rmxattr:" ) ) ) {
@@ -821,7 +840,8 @@ int xrd_setxattr( const char* path,
                   const char* xattr_value,
                   size_t      size )
 {
-  eos_static_info( "path=%s xattr_name=%s xattr_value=%s", path, xattr_name, xattr_value );
+  eos_static_info( "path=%s xattr_name=%s xattr_value=%s",
+                   path, xattr_name, xattr_value );
   eos::common::Timing setxattrtiming( "setxattr" );
   COMMONTIMING( "START", &setxattrtiming );
   int retc;
@@ -845,9 +865,9 @@ int xrd_setxattr( const char* path,
   if ( status.IsOK() ) {
     int items = 0;
     char tag[1024];
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Parse output
-    //--------------------------------------------------------------------------
+    //..........................................................................
     items = sscanf( response->GetBuffer(), "%s retc=%i", tag, &retc );
 
     if ( ( items != 2 ) || ( strcmp( tag, "setxattr:" ) ) ) {
@@ -901,9 +921,9 @@ int xrd_getxattr( const char* path,
     int items = 0;
     char tag[1024];
     char rval[4096];
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Parse output
-    //--------------------------------------------------------------------------
+    //..........................................................................
     items = sscanf( response->GetBuffer(), "%s retc=%i value=%s", tag, &retc, rval );
 
     if ( ( items != 3 ) || ( strcmp( tag, "getxattr:" ) ) ) {
@@ -965,9 +985,9 @@ int xrd_listxattr( const char* path, char** xattr_list, size_t* size )
     int items = 0;
     char tag[1024];
     char rval[16384];
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Parse output
-    //--------------------------------------------------------------------------
+    //..........................................................................
     items = sscanf( response->GetBuffer(), "%s retc=%i %s", tag, &retc, rval );
 
     if ( ( items != 3 ) || ( strcmp( tag, "lsxattr:" ) ) ) {
@@ -1028,9 +1048,9 @@ int xrd_stat( const char* path, struct stat* buf )
     unsigned long long sval[10];
     unsigned long long ival[6];
     char tag[1024];
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Parse output
-    //--------------------------------------------------------------------------
+    //..........................................................................
     int items = sscanf( response->GetBuffer(),
                         "%s %llu %llu %llu %llu %llu %llu %llu %llu "
                         "%llu %llu %llu %llu %llu %llu %llu %llu",
@@ -1153,9 +1173,9 @@ int xrd_statfs( const char* url, const char* path, struct statvfs* stbuf )
       return -EFAULT;
     }
 
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Parse output
-    //--------------------------------------------------------------------------
+    //..........................................................................
     int items = sscanf( response->GetBuffer(),
                         "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
                         "f_max_bytes=%llu f_max_files=%llu",
@@ -1220,9 +1240,9 @@ int xrd_chmod( const char* path, mode_t mode )
       return -EFAULT;
     }
 
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Parse output
-    //--------------------------------------------------------------------------
+    //..........................................................................
     int items = sscanf( response->GetBuffer(), "%s retc=%d", tag, &retc );
 
     if ( ( items != 2 ) || ( strcmp( tag, "chmod:" ) ) ) {
@@ -1270,9 +1290,9 @@ int xrd_symlink( const char* url, const char* destpath, const char* sourcepath )
 
   if ( status.IsOK() ) {
     char tag[1024];
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Parse output
-    //--------------------------------------------------------------------------
+    //..........................................................................
     int items = sscanf( response->GetBuffer(), "%s retc=%d", tag, &retc );
 
     if ( ( items != 2 ) || ( strcmp( tag, "symlink:" ) ) ) {
@@ -1318,9 +1338,9 @@ int xrd_link( const char* url, const char* destpath, const char* sourcepath )
 
   if ( status.IsOK() ) {
     char tag[1024];
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Parse output
-    //--------------------------------------------------------------------------
+    //..........................................................................
     int items = sscanf( response->GetBuffer(), "%s retc=%d", tag, &retc );
 
     if ( ( items != 2 ) || ( strcmp( tag, "link:" ) ) ) {
@@ -1362,9 +1382,9 @@ int xrd_readlink( const char* path, char* buf, size_t bufsize )
     char tag[1024];
     char link[4096];
     link[0] = 0;
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Parse output
-    //--------------------------------------------------------------------------
+    //..........................................................................
     int items = sscanf( response->GetBuffer(), "%s retc=%d link=%s",
                         tag, &retc, link );
 
@@ -1426,9 +1446,9 @@ int xrd_utimes( const char* path, struct timespec* tvp )
 
   if ( status.IsOK() ) {
     char tag[1024];
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Parse output
-    //--------------------------------------------------------------------------
+    //..........................................................................
     int items = sscanf( response->GetBuffer(), "%s retc=%d", tag, &retc );
 
     if ( ( items != 2 ) || ( strcmp( tag, "utimes:" ) ) ) {
@@ -1482,9 +1502,9 @@ int xrd_access( const char* path, int mode )
 
   if ( status.IsOK() ) {
     char tag[1024];
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Parse output
-    //--------------------------------------------------------------------------
+    //..........................................................................
     int items = sscanf( response->GetBuffer(), "%s retc=%d", tag, &retc );
 
     if ( ( items != 2 ) || ( strcmp( tag, "access:" ) ) ) {
@@ -1502,7 +1522,7 @@ int xrd_access( const char* path, int mode )
 
 
 //------------------------------------------------------------------------------
-//
+// Get list of entries in directory
 //------------------------------------------------------------------------------
 int xrd_inodirlist( unsigned long long dirinode, const char* path )
 {
@@ -1519,7 +1539,8 @@ int xrd_inodirlist( unsigned long long dirinode, const char* path )
   COMMONTIMING( "GETSTSTREAM", &inodirtiming );
 
   XrdCl::File* file = new XrdCl::File();
-  XrdCl::XRootDStatus status = file->Open( request.c_str(), XrdCl::OpenFlags::Flags::Read );
+  XrdCl::XRootDStatus status = file->Open( request.c_str(),
+                                           XrdCl::OpenFlags::Flags::Read );
 
   if ( !status.IsOK() ) {
     fprintf( stderr, "[%s] Got an error to request. \n", __FUNCTION__ );
@@ -1527,9 +1548,9 @@ int xrd_inodirlist( unsigned long long dirinode, const char* path )
     return ENOENT;
   }
 
-  //----------------------------------------------------------------------------
+  //............................................................................
   // Start to read
-  //----------------------------------------------------------------------------
+  //............................................................................
   int npages = 1;
   off_t offset = 0;
   unsigned int nbytes = 0;
@@ -1561,9 +1582,9 @@ int xrd_inodirlist( unsigned long long dirinode, const char* path )
     unsigned long long inode;
     char tag[128];
     retc = 0;
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Parse output
-    //--------------------------------------------------------------------------
+    //..........................................................................
     int items = sscanf( value, "%s retc=%d", tag, &retc );
 
     if ( ( items != 2 ) || ( strcmp( tag, "inodirlist:" ) ) ) {
@@ -1715,18 +1736,18 @@ int xrd_open( const char* path, int oflags, mode_t mode )
   if ( mode & S_IXOTH ) mode_xrdcl |= XrdCl::Access::OX;
 
   if ( ( t0 = spath.find( "/proc/" ) ) != STR_NPOS ) {
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Clean the path
-    //--------------------------------------------------------------------------
+    //..........................................................................
     int t1 = spath.find( "//" );
     int t2 = spath.find( "//", t1 + 2 );
     spath.erase( t2 + 2, t0 - t2 - 2 );
 
     while ( spath.replace( "///", "//" ) ) {};
 
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Force a reauthentication to the head node
-    //--------------------------------------------------------------------------
+    //..........................................................................
     if ( spath.endswith( "/proc/reconnect" ) ) {
       XrdClientAdmin* client = new XrdClientAdmin( path );
 
@@ -1744,9 +1765,9 @@ int xrd_open( const char* path, int oflags, mode_t mode )
       return -1;
     }
 
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Return the 'whoami' information in that file
-    //--------------------------------------------------------------------------
+    //..........................................................................
     if ( spath.endswith( "/proc/whoami" ) ) {
       spath.replace( "/proc/whoami", "/proc/user/" );
       spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
@@ -2050,16 +2071,16 @@ const char* xrd_mapuser( uid_t uid )
   }
 
   passwdstoremutex.UnLock();
-  //----------------------------------------------------------------------------
+  //............................................................................
   // Setup the default locations for GSI authentication and KRB5 Authentication
-  //----------------------------------------------------------------------------
+  //............................................................................
   XrdOucString userproxy  = "/tmp/x509up_u";
   XrdOucString krb5ccname = "/tmp/krb5cc_";
   userproxy  += ( int ) uid;
   krb5ccname += ( int ) uid;
   setenv( "X509_USER_PROXY",  userproxy.c_str(), 1 );
   setenv( "KRB5CCNAME", krb5ccname.c_str(), 1 );
-  // ---------------------------------------------------------------------------
+  //............................................................................
   return STRINGSTORE( spw->c_str() );
 }
 
@@ -2071,23 +2092,23 @@ void xrd_init()
 {
   FILE* fstderr ;
 
-  //----------------------------------------------------------------------------
-  // Open  log file
-  //----------------------------------------------------------------------------
+  //............................................................................
+  // Open log file
+  //..........................................................................
   if ( getuid() ) {
     char logfile[1024];
     snprintf( logfile, sizeof( logfile ) - 1, "/tmp/eos-fuse.%d.log", getuid() );
 
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Running as a user ... we log into /tmp/eos-fuse.$UID.log
-    //--------------------------------------------------------------------------
+    //..........................................................................
     if ( !( fstderr = freopen( logfile, "a+", stderr ) ) ) {
       fprintf( stderr, "error: cannot open log file %s\n", logfile );
     }
   } else {
-    //--------------------------------------------------------------------------
+    //..........................................................................
     // Running as root ... we log into /var/log/eos/fuse
-    //--------------------------------------------------------------------------
+    //..........................................................................
     eos::common::Path cPath( "/var/log/eos/fuse/fuse.log" );
     cPath.MakeParentPath( S_IRWXU | S_IRGRP | S_IROTH );
 
@@ -2097,9 +2118,9 @@ void xrd_init()
   }
 
   setvbuf( fstderr, ( char* ) NULL, _IONBF, 0 );
-  //----------------------------------------------------------------------------
+  //............................................................................
   // Initialize hashes
-  //----------------------------------------------------------------------------
+  //............................................................................
   path2inode.set_empty_key( "" );
   inode2path.set_empty_key( 0 );
   dir2inodelist.set_empty_key( 0 );
@@ -2115,9 +2136,9 @@ void xrd_init()
   inodeuser2fd.set_deleted_key( "#__deleted__#" );
   fd2fobj.set_deleted_key( -2 );
 
-  //----------------------------------------------------------------------------
+  //............................................................................
   // Create the root entry
-  //----------------------------------------------------------------------------
+  //............................................................................
   path2inode["/"] = 1;
   inode2path[1] = "/";
   eos::common::Mapping::VirtualIdentity_t vid;
@@ -2137,9 +2158,9 @@ void xrd_init()
   EnvPutInt( "NAME_RECONNECTWAIT", 10 );
   setenv( "XRDPOSIX_POPEN", "1", 1 );
 
-  //----------------------------------------------------------------------------
+  //............................................................................
   // Initialise the XrdClFileSystem object
-  //----------------------------------------------------------------------------
+  //............................................................................
   if ( fs ) {
     delete fs;
     fs = 0;
@@ -2158,9 +2179,9 @@ void xrd_init()
     eos_static_info( "Got new FileSystem object. \n" );
   }
 
-  //----------------------------------------------------------------------------
+  //............................................................................
   // Initialise the XrdFileCache
-  //----------------------------------------------------------------------------
+  //............................................................................
   fuse_cache_read = false;
   fuse_cache_write = false;
 

@@ -77,7 +77,7 @@ class CacheEntry
     //--------------------------------------------------------------------------
     //! Get handler to the data buffer
     //--------------------------------------------------------------------------
-    char*  GetDataBuffer();
+    char* GetDataBuffer();
 
     //--------------------------------------------------------------------------
     //! Get the size of meaningful data
@@ -107,6 +107,7 @@ class CacheEntry
     //! @param len length
     //!
     //! @return true if piece found, otherwise false
+    //!
     //--------------------------------------------------------------------------
     bool GetPiece( char* buf, off_t off, size_t len );
 
@@ -146,7 +147,7 @@ class CacheEntry
     //--------------------------------------------------------------------------
     //! Method to recycle a previously used block
     //!
-    //! @param rpFile file handler
+    //! @param rpFile XrdCl file handler
     //! @param buf data buffer
     //! @param off offset
     //! @param len length
@@ -154,12 +155,12 @@ class CacheEntry
     //! @param isWr set of entry is for writing
     //!
     //--------------------------------------------------------------------------
-    void   DoRecycle( XrdCl::File*&    rpFile,
-                      char*            buf,
-                      off_t            off,
-                      size_t           len,
-                      FileAbstraction& rFileAbst,
-                      bool             isWr );
+    void DoRecycle( XrdCl::File*&    rpFile,
+                    char*            buf,
+                    off_t            off,
+                    size_t           len,
+                    FileAbstraction& rFileAbst,
+                    bool             isWr );
 
   private:
 

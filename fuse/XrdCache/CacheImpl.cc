@@ -35,7 +35,7 @@ CacheImpl::CacheImpl( size_t sizeMax, XrdFileCache* pMgmCache ):
   mpMgmCache( pMgmCache ),
   mSizeMax( sizeMax ),
   mSizeVirtual( 0 ),
-  size_alloc_blocks( 0 )
+  mSizeAllocBlocks( 0 )
 {
   mRecycleQueue = new ConcurrentQueue<CacheEntry*>();
   mWrReqQueue = new ConcurrentQueue<CacheEntry*>();
@@ -60,9 +60,9 @@ CacheImpl::~CacheImpl()
   mKey2ListIter.clear();
   mRwMutex.UnLock();                                   //unlock map
 
-  //----------------------------------------------------------------------------
+  //............................................................................
   // Delete recyclabe objects
-  //----------------------------------------------------------------------------
+  //............................................................................
   CacheEntry* ptr = 0;
 
   while ( mRecycleQueue->try_pop( ptr ) ) {
@@ -92,7 +92,9 @@ CacheImpl::RunThreadWrites()
     if ( pEntry == 0 ) {
       break;
     } else {
+      //........................................................................
       // Do write element
+      //........................................................................
       ProcessWriteReq( pEntry );
     }
   }
@@ -107,7 +109,9 @@ CacheImpl::RunThreadWrites()
 bool
 CacheImpl::GetRead( const long long int& k, char* buf, off_t off, size_t len )
 {
+  //............................................................................
   // Block requested is aligned with respect to the maximum CacheEntry size
+  //............................................................................
   eos::common::Timing gr( "getRead" );
   COMMONTIMING( "start", &gr );
 
@@ -124,7 +128,9 @@ CacheImpl::GetRead( const long long int& k, char* buf, off_t off, size_t len )
     COMMONTIMING( "getPiece out", &gr );
 
     if ( found_piece ) {
+      //........................................................................
       // Update access record
+      //........................................................................
       XrdSysMutexHelper mutex_helper( mMutexList );
       mKeyList.splice( mKeyList.end(), mKeyList, it->second.second );
     }
@@ -156,7 +162,9 @@ CacheImpl::AddRead( XrdCl::File*&        rpFile,
   const key_map_type::iterator it = mKey2ListIter.find( k );
 
   if ( it != mKey2ListIter.end() ) {
+    //..........................................................................
     // Block entry found
+    //..........................................................................
     size_t size_added;
     pEntry = it->second.first;
     size_added = pEntry->AddPiece( buf, off, len );
@@ -171,8 +179,9 @@ CacheImpl::AddRead( XrdCl::File*&        rpFile,
   } else {
     mRwMutex.UnLock();                                 //unlock map
 
+    //..........................................................................
     // Get new block
-
+    //..........................................................................
     pEntry = GetRecycledBlock( rpFile, buf, off, len, false, rFileAbst );
 
     while ( GetSize() + CacheEntry::GetMaxSize() >= mSizeMax ) {
@@ -185,13 +194,17 @@ CacheImpl::AddRead( XrdCl::File*&        rpFile,
 
     COMMONTIMING( "after evict", &ar );
     XrdSysRWLockHelper rw_helper( mRwMutex, false );   //write lock map
-    XrdSysMutexHelper mutex_helper( mMutexList );          //lock list
+    XrdSysMutexHelper mutex_helper( mMutexList );      //lock list
 
+    //..........................................................................
     // Update cache and file size
+    //..........................................................................
     IncrementSize( CacheEntry::GetMaxSize() );
     pEntry->GetParentFile()->IncrementReads( pEntry->GetSizeData() );
 
+    //..........................................................................
     // Update most-recently-used key
+    //..........................................................................
     key_list_type::iterator it = mKeyList.insert( mKeyList.end(), k );
     mKey2ListIter.insert( std::make_pair( k, std::make_pair( pEntry, it ) ) );
 
@@ -212,13 +225,17 @@ CacheImpl::FlushWrites( FileAbstraction& rFileAbst )
   CacheEntry* pEntry = 0;
 
   if ( rFileAbst.GetSizeWrites() == 0 ) {
-    eos_static_debug( "info=no writes for this file" );
+    eos_static_debug( "no writes for this file" );
     return;
   }
 
   XrdSysRWLockHelper rw_helper( mRwMutex );             //read lock map
-  key_map_type::iterator iStart = mKey2ListIter.lower_bound( rFileAbst.GetFirstPossibleKey() );
-  const key_map_type::iterator iEnd = mKey2ListIter.lower_bound( rFileAbst.GetLastPossibleKey() );
+
+  key_map_type::iterator iStart = 
+    mKey2ListIter.lower_bound( rFileAbst.GetFirstPossibleKey() );
+
+  const key_map_type::iterator iEnd = 
+    mKey2ListIter.lower_bound( rFileAbst.GetLastPossibleKey() );
 
   while ( iStart != iEnd ) {
     pEntry = iStart->second.first;
@@ -247,7 +264,9 @@ CacheImpl::ProcessWriteReq( CacheEntry* pEntry )
 
   retc = pEntry->DoWrite();
 
+  //............................................................................
   // Put error code in error queue
+  //............................................................................
   if ( retc ) {
     error = std::make_pair( retc, pEntry->GetOffsetStart() );
     pEntry->GetParentFile()->errorsQueue->push( error );
@@ -258,13 +277,17 @@ CacheImpl::ProcessWriteReq( CacheEntry* pEntry )
 
   if ( ( current_size < mCacheThreshold ) &&
        ( current_size + CacheEntry::GetMaxSize() >= mCacheThreshold ) ) {
+    //..........................................................................
     // Notify possible waiting threads that a write was done
     // (i.e. possible free space in cache available)
+    //..........................................................................
     eos_static_debug( "Thread broadcasting writes done." );
     mCondWrDone.Broadcast();                           //send broadcast
   }
 
+  //............................................................................
   // Add block to recycle list
+  //............................................................................
   mRecycleQueue->push( pEntry );
 }
 
@@ -287,11 +310,16 @@ CacheImpl::AddWrite( XrdCl::File*&        rpFile,
     // Delete all read blocks from cache
     //--------------------------------------------------------------------------
     XrdSysRWLockHelper rw_helper( mRwMutex, false );   //write lock map
-    XrdSysMutexHelper mutex_helper( mMutexList );          //mutex lock
+    XrdSysMutexHelper mutex_helper( mMutexList );      //mutex lock
 
     key_list_type::iterator itList;
-    const key_map_type::iterator iStart = mKey2ListIter.lower_bound( rFileAbst.GetFirstPossibleKey() );
-    const key_map_type::iterator iEnd = mKey2ListIter.lower_bound( rFileAbst.GetLastPossibleKey() );
+
+    const key_map_type::iterator iStart = 
+      mKey2ListIter.lower_bound( rFileAbst.GetFirstPossibleKey() );
+
+    const key_map_type::iterator iEnd = 
+      mKey2ListIter.lower_bound( rFileAbst.GetLastPossibleKey() );
+
     key_map_type::iterator iTmp = iStart;
 
     while ( iTmp != iEnd ) {
@@ -340,7 +368,9 @@ CacheImpl::AddWrite( XrdCl::File*&        rpFile,
   } else {
     mRwMutex.UnLock();                                 //unlock map
 
+    //..........................................................................
     // Get new block
+    //..........................................................................
     pEntry = GetRecycledBlock( rpFile, buf, off, len, true, rFileAbst );
 
     while ( GetSize() + CacheEntry::GetMaxSize() >= mSizeMax ) {
@@ -358,7 +388,9 @@ CacheImpl::AddWrite( XrdCl::File*&        rpFile,
                       "size_added=%zu parentWrites=%zu",
                       k, off, len, len, pEntry->GetParentFile()->GetSizeWrites() );
 
+    //..........................................................................
     // Deal with new entry
+    //..........................................................................
     if ( pEntry->IsFull() ) {
       mWrReqQueue->push( pEntry );
     } else {
@@ -394,25 +426,29 @@ CacheImpl::GetRecycledBlock( XrdCl::File*&    rpFile,
                              char*            buf,
                              off_t            off,
                              size_t           len,
-                             bool             iswr,
+                             bool             isWr,
                              FileAbstraction& rFileAbst )
 {
   CacheEntry* pRecycledObj = 0;
 
   if ( mRecycleQueue->try_pop( pRecycledObj ) ) {
+    //..........................................................................
     // Got obj from pool
-    pRecycledObj->DoRecycle( rpFile, buf, off, len, rFileAbst, iswr );
+    //..........................................................................
+    pRecycledObj->DoRecycle( rpFile, buf, off, len, rFileAbst, isWr );
   } else {
     XrdSysMutexHelper mutex_helper( mMutexAllocSize );
 
-    if ( size_alloc_blocks >= mMaxSizeAllocBlocks ) {
+    if ( mSizeAllocBlocks >= mMaxSizeAllocBlocks ) {
       mutex_helper.UnLock();
       mRecycleQueue->wait_pop( pRecycledObj );
     } else {
+      //........................................................................
       // No obj in pool, allocate new one
-      size_alloc_blocks += CacheEntry::GetMaxSize();
+      //........................................................................
+      mSizeAllocBlocks += CacheEntry::GetMaxSize();
       mutex_helper.UnLock();
-      pRecycledObj = new CacheEntry( rpFile, buf, off, len, rFileAbst, iswr );
+      pRecycledObj = new CacheEntry( rpFile, buf, off, len, rFileAbst, isWr );
     }
   }
 
@@ -460,7 +496,7 @@ bool
 CacheImpl::RemoveReadBlock()
 {
   bool found_candidate = false;
-  XrdSysRWLockHelper rw_helper( mRwMutex, 0 );           //write lock map
+  XrdSysRWLockHelper rw_helper( mRwMutex, 0 );         //write lock map
   XrdSysMutexHelper mutex_helper( mMutexList );        //lock list
 
   key_list_type::iterator iter = mKeyList.begin();
@@ -479,15 +515,19 @@ CacheImpl::RemoveReadBlock()
     mKey2ListIter.erase( it );
     mKeyList.erase( iter );
 
+    //..........................................................................
     // Remove file id from mapping if no more blocks in cache and
     // there are no references to the file object.
+    //..........................................................................
     pEntry->GetParentFile()->DecrementReads( pEntry->GetSizeData() );
 
     if ( !pEntry->GetParentFile()->IsInUse( true ) ) {
       mpMgmCache->RemoveFileInode( pEntry->GetParentFile()->GetInode(), true );
     }
 
+    //..........................................................................
     // Add block to the recycle pool
+    //..........................................................................
     mRecycleQueue->push( pEntry );
   }
 

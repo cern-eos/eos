@@ -39,7 +39,7 @@ class CacheImpl;
 
 //------------------------------------------------------------------------------
 //! Class implementing the high-level constructs needed to operate the caching
-//! framenwork
+//! framework
 //------------------------------------------------------------------------------
 class XrdFileCache
 {
@@ -159,7 +159,7 @@ class XrdFileCache
     // -------------------------------------------------------------------------
     FileAbstraction* GetFileObj( unsigned long inode, bool getNew );
 
-    //vector reads - no implemented
+    //vector reads - not implemented
     /*size_t getReadV(unsigned long inode,
                       int           filed,
                       void*         buf,
@@ -177,19 +177,19 @@ class XrdFileCache
 
   private:
 
-    ///< maximum number of files concurrently in cache, has to be >=10
+    //! Maximum number of files concurrently in cache, has to be >=10
     static const int msMaxIndexFiles = 1000;
 
-    ///< singleton object
+    //! Singleton object
     static XrdFileCache* pInstance;
 
     // -------------------------------------------------------------------------
     //! Constructor
     //!
-    //! @param s_max maximum size
+    //! @param sizeMax maximum size
     //!
     // -------------------------------------------------------------------------
-    XrdFileCache( size_t s_max );
+    XrdFileCache( size_t sizeMax );
 
     // -------------------------------------------------------------------------
     //! Initialization method
@@ -201,19 +201,19 @@ class XrdFileCache
     // -------------------------------------------------------------------------
     static void* WriteThreadProc( void* );
 
+    int mIndexFile;           ///< last index assigned to a file
     size_t msCacheSizeMax;    ///< read cache size
-    int mIndexFile;            ///< last index assigned to a file
 
     pthread_t mWriteThread;   ///< async thread doing the writes
     XrdSysRWLock mRwLock;     ///< rw lock for the key map
 
-    ///< file indices used and available to recycle
+    //! File indices used and available to recycle
     ConcurrentQueue<int>* mpUsedIndxQueue;
 
-    ///< map inodes to FileAbst objects
+    //! Map of inodes <-> FileAbst objects
     std::map<unsigned long, FileAbstraction*> mInode2fAbst;
 
-    CacheImpl* mpCacheImpl;    ///< handler to the low-level cache implementation
+    CacheImpl* mpCacheImpl;   ///< handler to the low-level cache implementation
 };
 
 #endif

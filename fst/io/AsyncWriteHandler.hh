@@ -78,7 +78,7 @@ class AsyncWriteHandler: public XrdCl::ResponseHandler
     int mNumExpectedResp;  ///< expected number of responses
     int mNumReceivedResp;  ///< received number of responses
     XrdSysCondVar mCond;   ///< condition variable to signal the receival of
-    ///< all responses
+                           ///< all responses
 };
 
 EOSFSTNAMESPACE_END

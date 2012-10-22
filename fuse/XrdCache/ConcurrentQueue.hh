@@ -144,7 +144,8 @@ ConcurrentQueue<Data>::try_pop(Data& popped_value)
 
 
 //------------------------------------------------------------------------------
-//! Get data from queue, if empty queue then block until at least one element is added
+//! Get data from queue, if empty queue then block until at least one element 
+//! is added
 //------------------------------------------------------------------------------
 template <typename Data>
 void

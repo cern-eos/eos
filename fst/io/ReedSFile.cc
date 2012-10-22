@@ -118,7 +118,9 @@ ReedSFile::RecoverPieces( off_t                    offsetInit,
                                mDataBlocks[i], mReadHandlers[i] );
   }
 
+  //............................................................................
   // Wait for read responses and mark corrupted blocks
+  //............................................................................
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
     if ( !mReadHandlers[i]->WaitOK() ) {
       eos_err( "Read stripe %s - corrupted block", mStripeUrls[mapSU[i]].c_str() );
@@ -135,21 +137,27 @@ ReedSFile::RecoverPieces( off_t                    offsetInit,
     return true;
   else if ( num_blocks_corrupted > mNbParityFiles )
     return false;
-
+  
+  //............................................................................
   // ******* DECODE ******
+  //............................................................................
   const unsigned char* inpkts[mNbTotalFiles - num_blocks_corrupted];
   unsigned char* outpkts[mNbParityFiles];
   unsigned indexes[mNbDataFiles];
   bool found = false;
 
+  //............................................................................
   // Obtain a valid combination of blocks suitable for recovery
+  //............................................................................
   Backtracking( 0, indexes, valid_ids );
 
   for ( unsigned int i = 0; i < mNbDataFiles; i++ ) {
     inpkts[i] = ( const unsigned char* ) mDataBlocks[indexes[i]];
   }
 
+  //............................................................................
   // Add the invalid data blocks to be recovered
+  //............................................................................
   int countOut = 0;
   bool data_corrupted = false;
   bool parity_corrupted = false;
@@ -182,20 +190,26 @@ ReedSFile::RecoverPieces( off_t                    offsetInit,
     }
   }
 
+  //............................................................................
   // Actual decoding - recover primary blocks
+  //............................................................................
   if ( data_corrupted ) {
     fec_t* const fec = fec_new( mNbDataFiles, mNbTotalFiles );
     fec_decode( fec, inpkts, outpkts, indexes, mStripeWidth );
     fec_free( fec );
   }
 
+  //............................................................................
   // If there are also parity blocks corrupted then we encode again the blocks
   // - recover secondary blocks
+  //............................................................................
   if ( parity_corrupted ) {
     ComputeParity();
   }
 
+  //............................................................................
   // Update the files in which we found invalid blocks
+  //............................................................................
   char* pBuff ;
   unsigned int stripe_id;
 
@@ -213,7 +227,9 @@ ReedSFile::RecoverPieces( off_t                    offsetInit,
                                           mDataBlocks[stripe_id], mWriteHandlers[stripe_id] );
     }
 
+    //..........................................................................
     // Write the correct block to the reading buffer, if it is not parity info
+    //..........................................................................
     if ( *iter < mNbDataFiles ) { //if one of the data blocks
       for ( std::map<off_t, size_t>::iterator itPiece = rMapErrors.begin();
             itPiece != rMapErrors.end();
@@ -230,7 +246,9 @@ ReedSFile::RecoverPieces( off_t                    offsetInit,
     }
   }
 
+  //............................................................................
   // Wait for write responses
+  //............................................................................
   for ( vector<unsigned int>::iterator iter = invalid_ids.begin();
         iter != invalid_ids.end();
         ++iter ) {
@@ -284,9 +302,11 @@ ReedSFile::ValidBkt( unsigned int         k,
                      unsigned int*        pIndexes,
                      vector<unsigned int> validId )
 {
+  //............................................................................
   // Obs: condition from zfec implementation:
   // If a primary block, i, is present then it must be at index i;
   // Secondary blocks can appear anywhere.
+  //............................................................................
   if ( find( validId.begin(), validId.end(), pIndexes[k] ) == validId.end() ||
        ( ( pIndexes[k] < mNbDataFiles ) && ( pIndexes[k] != k ) ) )
     return false;
@@ -334,8 +354,10 @@ ReedSFile::AddDataBlock( off_t offset, char* pBuffer, size_t length )
   off_t offset_in_block;
   off_t offset_in_group = offset % mSizeGroup;
 
+  //............................................................................
   // In case the file is smaller than mSizeGroup, we need to force it to compute
   // the parity blocks
+  //............................................................................
   if ( ( mOffGroupParity == -1 ) && ( offset < static_cast<off_t>( mSizeGroup ) ) ) {
     mOffGroupParity = 0;
   }
@@ -365,7 +387,9 @@ ReedSFile::AddDataBlock( off_t offset, char* pBuffer, size_t length )
     offset_in_group = offset % mSizeGroup;
 
     if ( offset_in_group == 0 ) {
+      //........................................................................
       // We completed a group, we can compute parity
+      //........................................................................
       mOffGroupParity = ( ( offset - 1 ) / mSizeGroup ) *  mSizeGroup;
       mFullDataBlocks = true;
       DoBlockParity( mOffGroupParity );
