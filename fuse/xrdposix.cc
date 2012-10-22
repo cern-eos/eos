@@ -245,7 +245,6 @@ void xrd_store_child_p2i( unsigned long long inode,
 
     fprintf( stderr, "sname=%s fullpath=%s inode=%llu childinode=%llu\n",
              sname.c_str(), fullpath.c_str(), inode, childinode );
-
     path2inode[fullpath] = childinode;
     inode2path[childinode] = fullpath;
   }
@@ -535,9 +534,10 @@ unsigned int base_fd = 1;
 std::queue<int> pool_fd;
 
 
-static std::string generate_index(unsigned long long inode, uid_t uid) {
+static std::string generate_index( unsigned long long inode, uid_t uid )
+{
   char index[256];
-  snprintf(index, sizeof(index)-1,"%llu-%u", inode,uid);
+  snprintf( index, sizeof( index ) - 1, "%llu-%u", inode, uid );
   return index;
 }
 
@@ -555,8 +555,7 @@ int xrd_generate_fd()
   } else if ( base_fd < UINT_MAX ) {
     base_fd++;
     retc = base_fd;
-  }
-  else {
+  } else {
     fprintf( stderr, "[%s] error=no more file descirptors available. \n", __FUNCTION__ );
     retc = -1;
   }
@@ -583,7 +582,6 @@ int xrd_add_fd2file( XrdCl::File* obj )
   fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__ );
   int fd;
   eos::common::RWMutexWriteLock wr_lock( rwmutex_fd2fobj );
-
   fd = xrd_generate_fd();
 
   if ( fd > 0 ) {
@@ -606,8 +604,7 @@ XrdCl::File* xrd_get_file( int fd )
 
   if ( fd2fobj.count( fd ) ) {
     return fd2fobj[fd];
-  }
-  else {
+  } else {
     return 0;
   }
 }
@@ -620,14 +617,13 @@ void xrd_remove_fd2file( int fd )
 {
   fprintf( stderr, "[%s] Calling function. \n", __FUNCTION__ );
   eos::common::RWMutexWriteLock wr_lock( rwmutex_fd2fobj );
-  
+
   if ( fd2fobj.count( fd ) ) {
     google::dense_hash_map<int, XrdCl::File*>::iterator iter = fd2fobj.find( fd );
     XrdCl::File* fobj = static_cast<XrdCl::File*>( iter->second );
     delete fobj;
     fobj = 0;
     fd2fobj.erase( iter );
-    
     //--------------------------------------------------------------------------
     // Return fd to the pool
     //--------------------------------------------------------------------------
@@ -649,10 +645,8 @@ XrdSysMutex mutex_inodeuser2fd;
 void xrd_add_open_fd( int fd, unsigned long long inode, uid_t uid )
 {
   XrdSysMutexHelper lock( mutex_inodeuser2fd );
-
   fprintf( stderr, "[%s] Calling function inode = %llu, uid = %lu. \n",
-           __FUNCTION__, inode, (unsigned long ) uid );
-  
+           __FUNCTION__, inode, ( unsigned long ) uid );
   inodeuser2fd[generate_index( inode, uid )] = fd;
 }
 
@@ -663,29 +657,28 @@ void xrd_add_open_fd( int fd, unsigned long long inode, uid_t uid )
 unsigned long long xrd_get_open_fd( unsigned long long inode, uid_t uid )
 {
   fprintf( stderr, "[%s] Calling function inode = %llu, uid = %lu. \n",
-           __FUNCTION__, inode, (unsigned long ) uid );
-  
+           __FUNCTION__, inode, ( unsigned long ) uid );
   XrdSysMutexHelper lock( mutex_inodeuser2fd );
   std::string index =  generate_index( inode, uid );
-  
+
   if ( inodeuser2fd.count( index ) ) {
     return inodeuser2fd[index];
   }
+
   return 0;
 }
 
 
 //------------------------------------------------------------------------------
-// Relelase file descriptor 
+// Relelase file descriptor
 //------------------------------------------------------------------------------
 void xrd_release_open_fd( unsigned long long inode, uid_t uid )
 {
   fprintf( stderr, "[%s] Calling function inode = %llu, uid = %lu. \n",
-           __FUNCTION__, inode, (unsigned long ) uid );
-
+           __FUNCTION__, inode, ( unsigned long ) uid );
   XrdSysMutexHelper vLock( mutex_inodeuser2fd );
   std::string index = generate_index( inode, uid );
-  
+
   if ( inodeuser2fd.count( index ) ) {
     inodeuser2fd.erase( index );
   }
@@ -748,7 +741,6 @@ char* xrd_attach_read_buffer( int fd, size_t  size )
 {
   // guarantee a buffer for reading of at least 'size' for the specified fd
   XrdSysMutexHelper vlock( IoBufferLock );
-
   IoBufferMap[fd].resize( size );
   return ( char* )IoBufferMap[fd].getBuffer();
 }
@@ -778,12 +770,10 @@ int xrd_rmxattr( const char* path, const char* xattr_name )
   eos_static_info( "path=%s xattr_name=%s", path, xattr_name );
   eos::common::Timing rmxattrtiming( "rmxattr" );
   TIMING( "START", &rmxattrtiming );
-
   int retc;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-
   request = path;
   request += "?";
   request += "mgm.pcmd=xattr&";
@@ -791,16 +781,13 @@ int xrd_rmxattr( const char* path, const char* xattr_name )
   request += "mgm.xattrname=";
   request +=  xattr_name;
   arg.FromString( request );
-
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
-
   TIMING( "GETPLUGIN", &rmxattrtiming );
 
   if ( status.IsOK() ) {
     int items = 0;
     char tag[1024];
-
     //--------------------------------------------------------------------------
     // Parse output
     //--------------------------------------------------------------------------
@@ -837,12 +824,10 @@ int xrd_setxattr( const char* path,
   eos_static_info( "path=%s xattr_name=%s xattr_value=%s", path, xattr_name, xattr_value );
   eos::common::Timing setxattrtiming( "setxattr" );
   COMMONTIMING( "START", &setxattrtiming );
-
   int retc;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-
   request = path;
   request += "?";
   request += "mgm.pcmd=xattr&";
@@ -853,16 +838,13 @@ int xrd_setxattr( const char* path,
   request += "mgm.xattrvalue=";
   request += xattr_value;
   arg.FromString( request );
-
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
-
   COMMONTIMING( "GETPLUGIN", &setxattrtiming );
 
   if ( status.IsOK() ) {
     int items = 0;
     char tag[1024];
-
     //--------------------------------------------------------------------------
     // Parse output
     //--------------------------------------------------------------------------
@@ -897,13 +879,13 @@ int xrd_getxattr( const char* path,
 {
   eos_static_info( "path=%s xattr_name=%s", path, xattr_name );
   eos::common::Timing getxattrtiming( "getxattr" );
+
   COMMONTIMING( "START", &getxattrtiming );
 
   int retc;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-
   request = path;
   request += "?";
   request += "mgm.pcmd=xattr&";
@@ -911,17 +893,14 @@ int xrd_getxattr( const char* path,
   request += "mgm.xattrname=";
   request +=  xattr_name;
   arg.FromString( request );
-
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
-
   COMMONTIMING( "GETPLUGIN", &getxattrtiming );
 
   if ( status.IsOK() ) {
     int items = 0;
     char tag[1024];
     char rval[4096];
-
     //--------------------------------------------------------------------------
     // Parse output
     //--------------------------------------------------------------------------
@@ -966,29 +945,26 @@ int xrd_listxattr( const char* path, char** xattr_list, size_t* size )
 {
   eos_static_info( "path=%s", path );
   eos::common::Timing listxattrtiming( "listxattr" );
+
   COMMONTIMING( "START", &listxattrtiming );
 
   int retc;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-
   request = path;
   request += "?";
   request += "mgm.pcmd=xattr&";
   request += "mgm.subcmd=ls";
   arg.FromString( request );
-
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
-
   TIMING( "GETPLUGIN", &listxattrtiming );
 
   if ( status.IsOK() ) {
     int items = 0;
     char tag[1024];
     char rval[16384];
-
     //--------------------------------------------------------------------------
     // Parse output
     //--------------------------------------------------------------------------
@@ -1032,18 +1008,17 @@ int xrd_stat( const char* path, struct stat* buf )
 {
   eos_static_info( "path=%s", path );
   eos::common::Timing stattiming( "xrd_stat" );
+
   COMMONTIMING( "START", &stattiming );
 
   int retc;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-
   request = path;
   request += "?";
   request += "mgm.pcmd=stat";
   arg.FromString( request );
-
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
   COMMONTIMING( "GETPLUGIN", &stattiming );
@@ -1053,7 +1028,6 @@ int xrd_stat( const char* path, struct stat* buf )
     unsigned long long sval[10];
     unsigned long long ival[6];
     char tag[1024];
-
     //--------------------------------------------------------------------------
     // Parse output
     //--------------------------------------------------------------------------
@@ -1104,8 +1078,7 @@ int xrd_stat( const char* path, struct stat* buf )
       buf->st_ctim.tv_nsec = ( time_t ) ival[5];
       retc = 0;
     }
-  }
-  else {
+  } else {
     fprintf( stderr, "[%s] Status is NOT ok. \n", __FUNCTION__ );
     retc = -EFAULT;
   }
@@ -1117,7 +1090,6 @@ int xrd_stat( const char* path, struct stat* buf )
   }
 
   fprintf( stderr, "[%s] Return value is %i. \n", __FUNCTION__, retc );
-  
   delete response;
   return retc;
 }
@@ -1133,7 +1105,6 @@ int xrd_statfs( const char* url, const char* path, struct statvfs* stbuf )
   static unsigned long long a2 = 0;
   static unsigned long long a3 = 0;
   static unsigned long long a4 = 0;
-
   static XrdSysMutex statmutex;
   static time_t laststat = 0;
   statmutex.Lock();
@@ -1159,17 +1130,14 @@ int xrd_statfs( const char* url, const char* path, struct statvfs* stbuf )
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-
   request = url;
   request += "?";
   request += "mgm.pcmd=statvfs&";
   request += "path=";
   request += path;
   arg.FromString( request );
-
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
-
   COMMONTIMING( "END", &statfstiming );
 
   if ( EOS_LOGS_DEBUG ) {
@@ -1227,21 +1195,17 @@ int xrd_chmod( const char* path, mode_t mode )
   eos_static_info( "path=%s mode=%x", path, mode );
   eos::common::Timing chmodtiming( "xrd_chmod" );
   COMMONTIMING( "START", &chmodtiming );
-
   int retc;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-
   request = path;
   request += "?";
   request += "mgm.pcmd=chmod&mode=";
   request += ( int )mode;
   arg.FromString( request );
-
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
-
   COMMONTIMING( "END", &chmodtiming );
 
   if ( EOS_LOGS_DEBUG ) {
@@ -1276,7 +1240,7 @@ int xrd_chmod( const char* path, mode_t mode )
 
 
 //------------------------------------------------------------------------------
-// Create a symbolic link 
+// Create a symbolic link
 //------------------------------------------------------------------------------
 int xrd_symlink( const char* url, const char* destpath, const char* sourcepath )
 {
@@ -1288,7 +1252,6 @@ int xrd_symlink( const char* url, const char* destpath, const char* sourcepath )
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-
   request = url;
   request += "?";
   request += "mgm.pcmd=symlink&linkdest=";
@@ -1296,7 +1259,6 @@ int xrd_symlink( const char* url, const char* destpath, const char* sourcepath )
   request += "&linksource=";
   request += sourcepath;
   arg.FromString( request );
-
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
 
@@ -1308,7 +1270,6 @@ int xrd_symlink( const char* url, const char* destpath, const char* sourcepath )
 
   if ( status.IsOK() ) {
     char tag[1024];
-
     //--------------------------------------------------------------------------
     // Parse output
     //--------------------------------------------------------------------------
@@ -1336,12 +1297,10 @@ int xrd_link( const char* url, const char* destpath, const char* sourcepath )
   eos_static_info( "url=%s destpath=%s sourcepath=%s", url, destpath, sourcepath );
   eos::common::Timing linktiming( "xrd_link" );
   COMMONTIMING( "START", &linktiming );
-
   int retc;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-
   request = url;
   request += "?";
   request += "mgm.pcmd=link&linkdest=";
@@ -1349,10 +1308,8 @@ int xrd_link( const char* url, const char* destpath, const char* sourcepath )
   request += "&linksource=";
   request += sourcepath;
   arg.FromString( request );
-
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
-
   COMMONTIMING( "END", &linktiming );
 
   if ( EOS_LOGS_DEBUG ) {
@@ -1361,7 +1318,6 @@ int xrd_link( const char* url, const char* destpath, const char* sourcepath )
 
   if ( status.IsOK() ) {
     char tag[1024];
-
     //--------------------------------------------------------------------------
     // Parse output
     //--------------------------------------------------------------------------
@@ -1378,7 +1334,6 @@ int xrd_link( const char* url, const char* destpath, const char* sourcepath )
 
   delete response;
   return retc;
-
 }
 
 
@@ -1391,27 +1346,22 @@ int xrd_readlink( const char* path, char* buf, size_t bufsize )
   eos_static_info( "path=%s", path );
   eos::common::Timing readlinktiming( "xrd_readlink" );
   COMMONTIMING( "START", &readlinktiming );
-
   int retc;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-
   request = path;
   request += "?";
   request += "mgm.pcmd=readlink";
   arg.FromString( request );
-
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
-
   COMMONTIMING( "END", &readlinktiming );
 
   if ( status.IsOK() ) {
     char tag[1024];
     char link[4096];
     link[0] = 0;
-
     //--------------------------------------------------------------------------
     // Parse output
     //--------------------------------------------------------------------------
@@ -1444,13 +1394,12 @@ int xrd_utimes( const char* path, struct timespec* tvp )
 {
   eos_static_info( "path=%s", path );
   eos::common::Timing utimestiming( "xrd_utimes" );
-  COMMONTIMING( "START", &utimestiming );
 
+  COMMONTIMING( "START", &utimestiming );
   int retc;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-
   request = path;
   request += "?";
   request += "mgm.pcmd=utimes&tv1_sec=";
@@ -1467,10 +1416,8 @@ int xrd_utimes( const char* path, struct timespec* tvp )
   sprintf( lltime, "%llu", ( unsigned long long )tvp[1].tv_nsec );
   request += lltime;
   arg.FromString( request );
-
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
-
   COMMONTIMING( "END", &utimestiming );
 
   if ( EOS_LOGS_DEBUG ) {
@@ -1479,7 +1426,6 @@ int xrd_utimes( const char* path, struct timespec* tvp )
 
   if ( status.IsOK() ) {
     char tag[1024];
-
     //--------------------------------------------------------------------------
     // Parse output
     //--------------------------------------------------------------------------
@@ -1525,10 +1471,8 @@ int xrd_access( const char* path, int mode )
   request += "mgm.pcmd=access&mode=";
   request += ( int )mode;
   arg.FromString( request );
-
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
-
 
   COMMONTIMING( "STOP", &accesstiming );
 
@@ -1538,7 +1482,6 @@ int xrd_access( const char* path, int mode )
 
   if ( status.IsOK() ) {
     char tag[1024];
-
     //--------------------------------------------------------------------------
     // Parse output
     //--------------------------------------------------------------------------
@@ -1607,7 +1550,6 @@ int xrd_inodirlist( unsigned long long dirinode, const char* path )
 
   value[offset] = 0;
   delete file;
-
   xrd_dirview_create( ( unsigned long long ) dirinode );
 
   COMMONTIMING( "PARSESTSTREAM", &inodirtiming );
@@ -1618,9 +1560,7 @@ int xrd_inodirlist( unsigned long long dirinode, const char* path )
     char dirpath[4096];
     unsigned long long inode;
     char tag[128];
-
     retc = 0;
-
     //--------------------------------------------------------------------------
     // Parse output
     //--------------------------------------------------------------------------
@@ -1743,7 +1683,6 @@ int xrd_open( const char* path, int oflags, mode_t mode )
   int t0;
   int retc = -1;
   XrdOucString spath = path;
-
   uint16_t flags_xrdcl = 0;
   uint16_t mode_xrdcl = 0;
 
@@ -1756,7 +1695,7 @@ int xrd_open( const char* path, int oflags, mode_t mode )
   }
 
   if ( flags_xrdcl == 0 ) flags_xrdcl = XrdCl::OpenFlags::Flags::Read;
-  
+
   if ( mode & S_IRUSR ) mode_xrdcl |= XrdCl::Access::UR;
 
   if ( mode & S_IWUSR ) mode_xrdcl |= XrdCl::Access::UW;
@@ -1811,7 +1750,6 @@ int xrd_open( const char* path, int oflags, mode_t mode )
     if ( spath.endswith( "/proc/whoami" ) ) {
       spath.replace( "/proc/whoami", "/proc/user/" );
       spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
-
       XrdCl::File* file = new XrdCl::File();
       XrdCl::XRootDStatus status = file->Open( spath.c_str(),
                                                flags_xrdcl,
@@ -1825,7 +1763,6 @@ int xrd_open( const char* path, int oflags, mode_t mode )
     if ( spath.endswith( "/proc/who" ) ) {
       spath.replace( "/proc/who", "/proc/user/" );
       spath += "?mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
-
       XrdCl::File* file = new XrdCl::File();
       XrdCl::XRootDStatus status = file->Open( spath.c_str(),
                                                flags_xrdcl,
@@ -1839,7 +1776,6 @@ int xrd_open( const char* path, int oflags, mode_t mode )
     if ( spath.endswith( "/proc/quota" ) ) {
       spath.replace( "/proc/quota", "/proc/user/" );
       spath += "?mgm.cmd=quota&mgm.subcmd=ls&mgm.format=fuse&eos.app=fuse";
-
       XrdCl::File* file = new XrdCl::File();
       XrdCl::XRootDStatus status = file->Open( spath.c_str(),
                                                flags_xrdcl,
@@ -1855,7 +1791,6 @@ int xrd_open( const char* path, int oflags, mode_t mode )
   fprintf( stderr, "[%s] Before issuing the open command to path = %s. "
            " with flags = %i, mode = %i\n",
            __FUNCTION__, spath.c_str(), flags_xrdcl, mode_xrdcl );
-
   XrdCl::File* file = new XrdCl::File();
   XrdCl::XRootDStatus status = file->Open( spath.c_str(),
                                            flags_xrdcl,
@@ -1864,12 +1799,10 @@ int xrd_open( const char* path, int oflags, mode_t mode )
   if ( status.IsOK() ) {
     fprintf( stderr, "[%s] Open succeded. \n", __FUNCTION__ );
     retc = xrd_add_fd2file( file );
-  }
-  else {
+  } else {
     fprintf( stderr, "[%s] Open failed. \n", __FUNCTION__ );
   }
 
-  fprintf( stderr, "[%s] Got file descriptor %i. \n", __FUNCTION__, retc );
   return retc;
 }
 
@@ -1890,7 +1823,6 @@ int xrd_close( int fildes, unsigned long inode )
 
   XrdCl::File* file = xrd_get_file( fildes );
   XrdCl::XRootDStatus status = file->Close();
-
   return -status.errNo;
 }
 
@@ -1941,8 +1873,7 @@ int xrd_truncate( int fildes, off_t offset, unsigned long inode )
   if ( status.IsOK() ) {
     fprintf( stderr, "[%s] Return is ok with value %i. \n",
              __FUNCTION__, status.errNo );
-  }
-  else {
+  } else {
     fprintf( stderr, "[%s] Return is NOT ok with value %i. \n",
              __FUNCTION__, status.errNo );
   }
@@ -1962,13 +1893,13 @@ ssize_t xrd_pread( int           fildes,
                    unsigned long inode )
 {
   eos::common::Timing xpr( "xrd_pread" );
+
   COMMONTIMING( "start", &xpr );
 
   eos_static_debug( "fd=%d nbytes=%lu offset=%llu inode=%lu",
                     fildes, ( unsigned long )nbyte,
                     ( unsigned long long )offset,
                     ( unsigned long ) inode );
-
   uint32_t ret;
   XrdCl::File* file;
   XrdCl::XRootDStatus status;
@@ -1982,10 +1913,8 @@ ssize_t xrd_pread( int           fildes,
     if ( ( ret = XFC->GetRead( *fAbst, buf, offset, nbyte ) ) != nbyte ) {
       TIMING( "read in", &xpr );
       eos_static_debug( "Block not found in cache: off=%zu, len=%zu", offset, nbyte );
-
       file = xrd_get_file( fildes );
       status = file->Read( offset, nbyte, buf, ret );
-
       COMMONTIMING( "read out", &xpr );
       XFC->PutRead( file, *fAbst, buf, offset, nbyte );
       COMMONTIMING( "put read", &xpr );
@@ -2025,22 +1954,21 @@ ssize_t xrd_pwrite( int           fildes,
                     unsigned long inode )
 {
   eos::common::Timing xpw( "xrd_pwrite" );
-  COMMONTIMING( "start", &xpw );
 
+  COMMONTIMING( "start", &xpw );
   eos_static_debug( "fd=%d nbytes=%lu inode=%lu cache=%d cache-w=%d",
                     fildes, ( unsigned long )nbyte, ( unsigned long ) inode,
                     XFC ? 1 : 0, fuse_cache_write );
-
   uint32_t ret = 0;
   XrdCl::File* file = xrd_get_file( fildes );
-    
+
   if ( XFC && fuse_cache_write && inode ) {
     XFC->SubmitWrite( file, inode, const_cast<void*>( buf ), offset, nbyte );
     ret = nbyte;
   } else {
     XrdCl::XRootDStatus status =
       file->Write( offset, nbyte, const_cast<void*>( buf ), ret );
-    
+
     if ( !status.IsOK() ) {
       errno = status.errNo;
       ret = -1;
@@ -2122,7 +2050,6 @@ const char* xrd_mapuser( uid_t uid )
   }
 
   passwdstoremutex.UnLock();
-
   //----------------------------------------------------------------------------
   // Setup the default locations for GSI authentication and KRB5 Authentication
   //----------------------------------------------------------------------------
@@ -2133,18 +2060,17 @@ const char* xrd_mapuser( uid_t uid )
   setenv( "X509_USER_PROXY",  userproxy.c_str(), 1 );
   setenv( "KRB5CCNAME", krb5ccname.c_str(), 1 );
   // ---------------------------------------------------------------------------
-
   return STRINGSTORE( spw->c_str() );
 }
 
 
 //------------------------------------------------------------------------------
-// Init function 
+// Init function
 //------------------------------------------------------------------------------
 void xrd_init()
 {
   FILE* fstderr ;
-  
+
   //----------------------------------------------------------------------------
   // Open  log file
   //----------------------------------------------------------------------------
@@ -2171,7 +2097,6 @@ void xrd_init()
   }
 
   setvbuf( fstderr, ( char* ) NULL, _IONBF, 0 );
-
   //----------------------------------------------------------------------------
   // Initialize hashes
   //----------------------------------------------------------------------------
@@ -2182,7 +2107,6 @@ void xrd_init()
   inode2cache.set_empty_key( 0 );
   inodeuser2fd.set_empty_key( "" );
   fd2fobj.set_empty_key( -1 );
-
   path2inode.set_deleted_key( "#__deleted__#" );
   inode2path.set_deleted_key( 0xffffffffll );
   dir2inodelist.set_deleted_key( 0xffffffffll );
@@ -2196,13 +2120,11 @@ void xrd_init()
   //----------------------------------------------------------------------------
   path2inode["/"] = 1;
   inode2path[1] = "/";
-
   eos::common::Mapping::VirtualIdentity_t vid;
   eos::common::Mapping::Root( vid );
   eos::common::Logging::Init();
   eos::common::Logging::SetUnit( "FUSE@localhost" );
   eos::common::Logging::gShortFormat = true;
-
   XrdOucString fusedebug = getenv( "EOS_FUSE_DEBUG" );
 
   if ( ( getenv( "EOS_FUSE_DEBUG" ) ) && ( fusedebug != "0" ) ) {
@@ -2213,7 +2135,6 @@ void xrd_init()
 
   EnvPutInt( "NAME_MAXREDIRECTCOUNT", 3 );
   EnvPutInt( "NAME_RECONNECTWAIT", 10 );
-
   setenv( "XRDPOSIX_POPEN", "1", 1 );
 
   //----------------------------------------------------------------------------
@@ -2255,7 +2176,6 @@ void xrd_init()
                        getenv( "EOS_FUSE_CACHE_SIZE" ),
                        getenv( "EOS_FUSE_CACHE_READ" ),
                        getenv( "EOS_FUSE_CACHE_WRITE" ) );
-
     XFC = XrdFileCache::GetInstance( static_cast<size_t>( atol( getenv( "EOS_FUSE_CACHE_SIZE" ) ) ) );
 
     if ( getenv( "EOS_FUSE_CACHE_READ" ) && atoi( getenv( "EOS_FUSE_CACHE_READ" ) ) ) {
