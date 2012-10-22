@@ -134,7 +134,7 @@ ReplicaLayout::open(const char                *path,
         eos_err("Failed to open replica - remote open failed on ", replicaUrl.c_str());
         return gOFS.Emsg("ReplicaOpen",*error, EREMOTEIO, "open replica - remote open failed ", replicaUrl.c_str());
       }
-    } 
+    }
     if (ioLocal) 
       return ofsFile->openofs(path, open_mode, create_mode, client, opaque);
     return SFS_OK;

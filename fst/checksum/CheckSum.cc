@@ -414,10 +414,10 @@ CheckSum::CloseMap()
 void
 CheckSum::AlignBlockExpand(off_t offset, size_t len, off_t &aligned_offset, size_t &aligned_len)
 {
-  aligned_offset = offset- (offset%BlockSize);
-  aligned_len    = len + (offset%BlockSize);
+  aligned_offset = offset - ( offset % BlockSize );
+  aligned_len    = len + ( offset % BlockSize );
   if (aligned_len % BlockSize) {
-    aligned_len += ((BlockSize - (aligned_len%BlockSize)));
+    aligned_len += ((BlockSize - (aligned_len % BlockSize)));
   }
   return;
 }
@@ -659,6 +659,51 @@ CheckSum::AddBlockSumHoles(int fd)
       return false;
     }
   }  
+}
+
+
+//------------------------------------------------------------------------------
+// Get number of rd/wr references
+//------------------------------------------------------------------------------
+unsigned int
+CheckSum::GetNumRef( bool isRW )
+{
+  if ( isRW ) {
+    return mNumWr;
+  }
+  else {
+    return mNumRd;
+  }
+}
+
+  
+//------------------------------------------------------------------------------
+// Increment the number of references
+//-----------------------------------------------------------------------------
+void
+CheckSum::IncrementRef( bool isRW )
+{
+  if ( isRW ) {
+    mNumWr++;
+  }
+  else {
+    mNumRd++;
+  }
+}
+
+
+//------------------------------------------------------------------------------
+// Decrement the number of references
+//------------------------------------------------------------------------------
+void
+CheckSum::DecrementRef( bool isRW )
+{
+  if ( isRW ) {
+    mNumWr-- ;
+  }
+  else {
+    mNumRd--;
+  }
 }
   
 /*----------------------------------------------------------------------------*/

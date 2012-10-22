@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __XRDFSTOFS_FSTOFS_HH__
-#define __XRDFSTOFS_FSTOFS_HH__
+#ifndef __EOSFST_FSTOFS_HH__
+#define __EOSFST_FSTOFS_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "authz/XrdCapability.hh"
@@ -40,7 +40,6 @@
 #include "fst/Messaging.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
-
 /*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdOfs/XrdOfs.hh"

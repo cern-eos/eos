@@ -24,12 +24,13 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/PlainLayout.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOss/XrdOssApi.hh"
+//#include "XrdOss/XrdOssApi.hh"
+#include "fst/XrdFstOss.hh"
 /*----------------------------------------------------------------------------*/
 #include <xfs/xfs.h>
 /*----------------------------------------------------------------------------*/
 
-extern XrdOssSys *XrdOfsOss;
+extern eos::fst::XrdFstOss *XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -139,6 +140,7 @@ PlainLayout::close()
 int
 PlainLayout::remove()
 {
+  XrdOucEnv env;
   return ::unlink(LocalReplicaPath.c_str());
 }
 

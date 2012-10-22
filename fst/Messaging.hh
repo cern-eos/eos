@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_FSTOFS_HH__
-#define __EOSFST_FSTOFS_HH__
+#ifndef __EOSFST_MESSAGING_HH__
+#define __EOSFST_MESSAGING_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"

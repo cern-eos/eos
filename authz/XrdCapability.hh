@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __XRDCAPABILITY_CAPABILITY_HH___
-#define __XRDCAPABILITY_CAPABILITY_HH__
+#ifndef __EOSAUTHZ_CAPABILITY_HH__
+#define __EOSAUTHZ_CAPABILITY_HH__
 /*----------------------------------------------------------------------------*/
 #include "mq/XrdMqMessage.hh"
 #include "common/SymKeys.hh"

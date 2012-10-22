@@ -24,6 +24,23 @@
 include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} )
 link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
 
+add_library( EosFstOss MODULE
+	     XrdFstOss.cc                 XrdFstOss.hh
+ 	     checksum/CheckSum.cc         checksum/CheckSum.hh
+	     checksum/Adler.cc	          checksum/Adler.hh
+	     ../checksum/crc32c.cc
+             ../checksum/crc32ctables.cc
+	     )
+
+
+target_link_libraries (EosFstOss 
+		      eosCapability-Static
+		      eosCommon-Static
+		      XrdServer	      
+		      uuid 
+		      )
+
+
 add_library (XrdEosFst MODULE
 	    layout/PlainLayout.cc
 	    layout/Raid5Layout.cc
@@ -37,7 +54,7 @@ add_library (XrdEosFst MODULE
             ScanDir.cc
             RaidDPScan.cc
 	    Messaging.cc
-	    XrdFstOfs.cc
+	    XrdFstOfs.cc         XrdFstOfsFile.hh
             ../checksum/crc32c.cc
             ../checksum/crc32ctables.cc
             txqueue/TransferMultiplexer.cc
@@ -47,7 +64,21 @@ add_library (XrdEosFst MODULE
 	    FmdSqlite.cc
 	    )
 
-target_link_libraries (XrdEosFst eosCapability-Static eosCommon-Static XrdMqClient-Static XrdClient XrdUtils XrdOfs crypto uuid curses pthread dl z attr rt)
+target_link_libraries (XrdEosFst 
+		      eosCapability-Static 
+		      eosCommon-Static 
+		      XrdMqClient-Static 
+		      XrdClient 
+		      XrdUtils 
+		      XrdOfs 
+		      crypto 
+		      uuid 
+		      curses 
+		      pthread 
+		      dl 
+		      z  
+		      attr 
+		      rt)
 
 add_executable ( FstLoad
                  Load.cc
@@ -129,11 +160,18 @@ if (Linux)
     SOVERSION ${VERSION_MAJOR}
     CLEAN_DIRECT_OUTPUT 1
   )
+
+  set_target_properties (EosFstOss PROPERTIES
+    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+    SOVERSION ${VERSION_MAJOR}
+    CLEAN_DIRECT_OUTPUT 1
+  )
+
 endif(Linux)
 
 INSTALL_PROGRAMS( /sbin FILES tools/eosfstregister tools/eosfstinfo eos-adler32 eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-raid-recover)
 
-install ( TARGETS XrdEosFst eoscp
+install ( TARGETS EosFstOss XrdEosFst eoscp
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
           RUNTIME DESTINATION bin
           ARCHIVE DESTINATION ${LIB_INSTALL_DIR}

@@ -58,8 +58,28 @@ protected:
   unsigned long long nXSBlocksWrittenHoles;
 
 public:
-  CheckSum(){Name = "";ChecksumMap = 0;}
-  CheckSum(const char* name){Name = name;needsRecalculation = false;ChecksumMap=0; ChecksumMapSize=0;ChecksumMapOpenSize=0;BlockSize=0;nXSBlocksChecked=0; nXSBlocksWritten=0; nXSBlocksWrittenHoles=0;BlockXSPath="";ChecksumMapFd=-1;}
+  CheckSum(){
+    Name = "";
+    ChecksumMap = 0;
+    mNumRd = 0;
+    mNumWr = 0;
+  }
+  
+  CheckSum(const char* name){
+    Name = name;
+    needsRecalculation = false;
+    ChecksumMap=0;
+    ChecksumMapSize=0;
+    ChecksumMapOpenSize=0;
+    BlockSize=0;
+    nXSBlocksChecked=0;
+    nXSBlocksWritten=0;
+    nXSBlocksWrittenHoles=0;
+    BlockXSPath="";
+    ChecksumMapFd=-1;
+    mNumRd = 0;
+    mNumWr = 0;    
+  }
 
   virtual bool Add(const char* buffer, size_t length, off_t offset) = 0;
   virtual void Finalize() {};
@@ -131,7 +151,51 @@ public:
   }
 
 
+  //----------------------------------------------------------------------------
+  //! Get total number of references
+  //!
+  //! @return total number of references to this xs obj
+  //!
+  //----------------------------------------------------------------------------
+  inline unsigned int GetTotalRef() { return ( mNumWr + mNumRd ); };
+
+  
+  //----------------------------------------------------------------------------
+  //! Get number of rd/wr references
+  //!
+  //! @param isRW the type of references returned rd/wr
+  //!
+  //! @return number of rd/wr references to this xs obj
+  //!
+  //----------------------------------------------------------------------------
+  unsigned int GetNumRef( bool isRW );
+
+  
+  //----------------------------------------------------------------------------
+  //! Increment the number of references
+  //!
+  //! @param isRW the type of references added rd/wr
+  //!
+  //----------------------------------------------------------------------------
+  void IncrementRef( bool isRW );
+
+
+  //----------------------------------------------------------------------------
+  //! Decrement the number of references
+  //!
+  //! @param isRW the type of references substracted rd/wr
+  //!
+  //----------------------------------------------------------------------------
+  void DecrementRef( bool isRW ); 
+
+
   std::string CheckSumMapFile; 
+
+private:
+  
+  unsigned int mNumRd;  ///< number of reader references
+  unsigned int mNumWr;  ///< number of writer references
+
 };
 
 EOSFSTNAMESPACE_END

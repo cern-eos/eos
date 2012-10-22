@@ -36,9 +36,11 @@
 #include <google/dense_hash_map>
 #include <math.h>
 /*----------------------------------------------------------------------------*/
-#include "XrdOss/XrdOssApi.hh"
+#include "fst/XrdFstOss.hh"
 #include "XrdSys/XrdSysTimer.hh"
-extern XrdOssSys  *XrdOfsOss;
+/*----------------------------------------------------------------------------*/
+
+extern eos::fst::XrdFstOss  *XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 

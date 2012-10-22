@@ -143,7 +143,7 @@ RaidDPLayout::open(const char           *path,
   }
   
   //doing local operation for current stripe
-  rc = ofsFile->openofs(path, open_mode, create_mode, client, opaque, true, layOutId);
+  rc = ofsFile->openofs(path, open_mode, create_mode, client, opaque );
   eos_info("openofs gave rc=%d", rc);
   if (rc) {
     eos_info("openofs failed for path=%s open_mode=%x create_mode=%x", path, open_mode, create_mode);
@@ -152,7 +152,7 @@ RaidDPLayout::open(const char           *path,
       gOFS.Emsg("RaidDPOpen",*error, EIO, "open stripes - local open failed in read mode");
     open_mode |= SFS_O_CREAT;
     create_mode |= SFS_O_MKPTH;
-    rc = ofsFile->openofs(path, open_mode, create_mode, client, opaque, true, layOutId);
+    rc = ofsFile->openofs(path, open_mode, create_mode, client, opaque );
     if (rc)
       return gOFS.Emsg("RaidDPOpen",*error, EIO, "open stripes - local open failed");
     eos_info("openofs with create flag ok for path=%s open_mode=%x create_mode=%x", path, open_mode, create_mode);

@@ -113,14 +113,14 @@ ReedSLayout::open(const char           *path,
   }
   
   //doing local operation for current stripe
-  rc = ofsFile->openofs(path, open_mode, create_mode, client, opaque, true, layOutId);
+  rc = ofsFile->openofs(path, open_mode, create_mode, client, opaque );
   if (rc) {
     //if file does not exist then we create it
     if (!ofsFile->isRW)
       gOFS.Emsg("ReedSOpen",*error, EIO, "open stripes - local open failed in read mode");
     open_mode |= SFS_O_CREAT;
     create_mode |= SFS_O_MKPTH;
-    rc = ofsFile->openofs(path, open_mode, create_mode, client, opaque, true, layOutId);
+    rc = ofsFile->openofs(path, open_mode, create_mode, client, opaque );
     if (rc)
       return gOFS.Emsg("ReedSOpen",*error, EIO, "open stripes - local open failed");
   }

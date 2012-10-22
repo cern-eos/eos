@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __XRDFSTOFS_FSTOFSFILE_HH__
-#define __XRDFSTOFS_FSTOFSFILE_HH__
+#ifndef __EOSFST_FSTOFSFILE_HH__
+#define __EOSFST_FSTOFSFILE_HH__
 
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
@@ -53,13 +53,12 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId {
   friend class Raid5Layout;
 
 public:
-  int          openofs(const char                *fileName,
-		       XrdSfsFileOpenMode   openMode,
-		       mode_t               createMode,
-		       const XrdSecEntity        *client,
-		       const char                *opaque = 0, 
-		       bool openBlockXS=false,
-		       unsigned long lid=0 );
+  
+  int          openofs(const char*         fileName,
+		       XrdSfsFileOpenMode  openMode,
+		       mode_t              createMode,
+		       const XrdSecEntity* client,
+		       const char*         opaque = 0 );
   
   int          open(const char                *fileName,
                     XrdSfsFileOpenMode   openMode,
@@ -105,7 +104,7 @@ public:
   int          truncate(XrdSfsFileOffset   fileOffset);
   int          truncateofs(XrdSfsFileOffset   fileOffset);
 
-  XrdFstOfsFile(const char* user, int MonID=0) : XrdOfsFile(user,MonID){openOpaque = 0; capOpaque = 0; fstPath=""; fstBlockXS=0; fstBlockSize=0; eos::common::LogId(); closed=false; opened=false; haswrite=false; fMd = 0;checkSum = 0; layOut = 0; isRW= 0; isCreation = 0; srBytes=swBytes=rOffset=wOffset=0; rTime.tv_sec=wTime.tv_sec=lrTime.tv_sec=lwTime.tv_sec=rTime.tv_usec=wTime.tv_usec=lrTime.tv_usec=lwTime.tv_usec=cTime.tv_sec=cTime.tv_usec=0;fileid=0;fsid=0;lid=0;cid=0;rCalls=wCalls=0; localPrefix="";maxOffsetWritten=0;openSize=0;closeSize=0;isReplication=false; deleteOnClose=false; repairOnClose=false;closeTime.tv_sec = closeTime.tv_usec = openTime.tv_sec = openTime.tv_usec = tz.tz_dsttime = tz.tz_minuteswest = 0;viaDelete=remoteDelete=writeDelete=false;SecString="";writeErrorFlag=0;}
+  XrdFstOfsFile(const char* user, int MonID=0) : XrdOfsFile(user,MonID){openOpaque = 0; capOpaque = 0; fstPath=""; hasBlockXs = false; eos::common::LogId(); closed=false; opened=false; haswrite=false; fMd = 0;checkSum = 0; layOut = 0; isRW= 0; isCreation = 0; srBytes=swBytes=rOffset=wOffset=0; rTime.tv_sec=wTime.tv_sec=lrTime.tv_sec=lwTime.tv_sec=rTime.tv_usec=wTime.tv_usec=lrTime.tv_usec=lwTime.tv_usec=cTime.tv_sec=cTime.tv_usec=0;fileid=0;fsid=0;lid=0;cid=0;rCalls=wCalls=0; localPrefix="";maxOffsetWritten=0;openSize=0;closeSize=0;isReplication=false; deleteOnClose=false; repairOnClose=false;closeTime.tv_sec = closeTime.tv_usec = openTime.tv_sec = openTime.tv_usec = tz.tz_dsttime = tz.tz_minuteswest = 0;viaDelete=remoteDelete=writeDelete=false;SecString="";writeErrorFlag=0;}
   virtual ~XrdFstOfsFile() {
     viaDelete = true;
     if (!closed) {
@@ -117,14 +116,12 @@ public:
     if (fMd) {delete fMd; fMd = 0;}
     if (checkSum) { delete checkSum; checkSum = 0;}
     if (layOut) { delete layOut; layOut = 0;}
-    if (fstBlockXS) { fstBlockXS->CloseMap(); delete fstBlockXS; fstBlockXS=0; }
   }
 
 protected:
   XrdOucEnv*   openOpaque;
   XrdOucEnv*   capOpaque;
   XrdOucString fstPath;
-  CheckSum*    fstBlockXS;
   off_t        bookingsize;
   off_t        targetsize;
   off_t        minsize; 
@@ -132,9 +129,6 @@ protected:
   bool         viaDelete;
   bool         remoteDelete;
   bool         writeDelete;
-
-  unsigned long long fstBlockSize;
-
   
   XrdOucString Path;
   XrdOucString localPrefix;
@@ -143,6 +137,7 @@ protected:
   XrdSysMutex  BlockXsMutex;
   XrdSysMutex  ChecksumMutex;
 
+  bool hasBlockXs;           ///< mark if file has blockxs assigned 
   unsigned long long fileid; // file id
   unsigned long fsid;        // file system id
   unsigned long lid;         // layout id
