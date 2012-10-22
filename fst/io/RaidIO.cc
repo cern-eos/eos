@@ -80,9 +80,12 @@ RaidIO::~RaidIO()
 {
   delete[] xrdFile;
   delete[] hdUrl;
-
+  
   while ( ! vReadHandler.empty() ) {
     vReadHandler.pop_back();
+  }
+  
+  while ( ! vWriteHandler.empty() ) {
     vWriteHandler.pop_back();
   }
 }
@@ -165,7 +168,9 @@ RaidIO::open( int flags )
     return -1;
   }
 
-  //get the size of the file
+  //----------------------------------------------------------------------------
+  // Get the size of the file
+  //----------------------------------------------------------------------------
   if ( hdUrl[0].getNoBlocks() == 0 ) {
     fileSize = 0;
   } else {
@@ -337,18 +342,20 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
       nread = ( length > stripeWidth ) ? stripeWidth : length;
       mapPieces.insert( std::make_pair<off_t, size_t>( offset, nread ) );
 
-      if ( ( offset % sizeGroup == 0 ) &&
-           ( !recoverPieces( offsetInit, dummyBuf, mapPieces ) ) )
-      {
-        free( dummyBuf );
-        eos_err( "error=failed recovery of stripe" );
-        return -1;
+      if ( ( offset % sizeGroup == 0 ) ) {
+        if ( !recoverPieces( offsetInit, dummyBuf, mapPieces ) ) {
+          free( dummyBuf );
+          eos_err( "error=failed recovery of stripe" );
+          return -1;
+        }
+        else {
+          mapPieces.clear();
+        }
       }
 
       length -= nread;
       offset += nread;
       readLength += nread;
-      mapPieces.clear();
     }
 
     // free memory
@@ -357,6 +364,24 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
     //--------------------------------------------------------------------------
     // Normal reading mode
     //--------------------------------------------------------------------------
+    int nGroupBlocks;
+    
+    if ( algorithmType == "raidDP" ) {
+      nGroupBlocks = static_cast<int>( pow( noData, 2 ) );
+    } else if ( algorithmType == "reedS" ) {
+      nGroupBlocks = noData;
+    } else {
+      eos_err( "error=no such algorithm" );
+      fprintf( stderr, "error=no such algorithm " );
+      return 0;
+    }
+
+    //--------------------------------------------------------------------------
+    // Reset read handlers
+    //--------------------------------------------------------------------------
+    for ( unsigned int i = 0; i < noData; i++ ) {
+      vReadHandler[i]->Reset();
+    }
 
     while ( length ) {
       index++;
@@ -370,10 +395,9 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
 
       if ( xrdFile[urlId] ) {
         vReadHandler[stripeId]->Increment();
-
         xrdFile[urlId]->Read( offsetLocal + sizeHeader, nread, pBuff, vReadHandler[stripeId] );
         //fprintf( stdout, "From stripe %i, we expect %i responses. \n",
-        //         stripeId, vReadHandler[stripeId]->GetNoResponses() );
+        //          stripeId, vReadHandler[stripeId]->GetNoResponses() );
       }
 
       length -= nread;
@@ -381,22 +405,10 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
       readLength += nread;
       pBuff = buffer + readLength;
 
-      int nGroupBlocks;
-
-      if ( algorithmType == "raidDP" ) {
-        nGroupBlocks = static_cast<int>( pow( noData, 2 ) );
-      } else if ( algorithmType == "reedS" ) {
-        nGroupBlocks = noData;
-      } else {
-        eos_err( "error=no such algorithm" );
-        fprintf( stderr, "error=no such algorithm " );
-        return 0;
-      }
-
       bool doRecovery = false;
       int nWaitReq = index % nGroupBlocks;
       //fprintf( stdout, "Index: %li, noData = %u, length = %zu. \n",
-      //         index, noData, length );
+      //       index, noData, length );
 
       if ( ( length == 0 ) || ( nWaitReq == 0 ) ) {
         mapPieces.clear();
@@ -421,6 +433,9 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
           }
         }
 
+        //----------------------------------------------------------------------
+        // Reset read handlers
+        //----------------------------------------------------------------------
         for ( unsigned int i = 0; i < noData; i++ ) {
           vReadHandler[i]->Reset();
         }

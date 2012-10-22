@@ -98,7 +98,6 @@ ReedSFile::recoverPieces( off_t                    offsetInit,
                           char*                    buffer,
                           std::map<off_t, size_t>& mapPieces )
 {
-  uint32_t aread;
   unsigned int blocksCorrupted;
   vector<unsigned int> validId;
   vector<unsigned int> invalidId;
@@ -109,17 +108,28 @@ ReedSFile::recoverPieces( off_t                    offsetInit,
 
   blocksCorrupted = 0;
 
-  for ( unsigned int i = 0; i < noTotal;  i++ ) {
-    if ( !( xrdFile[mapSU[i]]->Read( offsetLocal +  sizeHeader, stripeWidth, dataBlocks[i], aread ).IsOK() ) ||
-         ( aread != stripeWidth ) ) {
+  for ( unsigned int i = 0; i < noTotal; i++ ) {
+    vReadHandler[i]->Reset();
+    vReadHandler[i]->Increment();
+    xrdFile[mapSU[i]]->Read( offsetLocal +  sizeHeader, stripeWidth, dataBlocks[i], vReadHandler[i] );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Wait for read responses and mark corrupted blocks
+  // -----------------------------------------------------------------------------
+  for ( unsigned int i = 0; i < noTotal; i++ ) {
+
+    if ( !vReadHandler[i]->WaitOK() ) {
       eos_err( "Read stripe %s - corrupted block", stripeUrls[mapSU[i]].c_str() );
       invalidId.push_back( i );
       blocksCorrupted++;
     } else {
       validId.push_back( i );
     }
-  }
 
+    vReadHandler[i]->Reset();
+  }
+  
   if ( blocksCorrupted == 0 )
     return true;
   else if ( blocksCorrupted > noParity )
@@ -188,7 +198,7 @@ ReedSFile::recoverPieces( off_t                    offsetInit,
   }
 
   // ---------------------------------------------------------------------------
-  // If there are also parity block corrupted then we encode again the blocks
+  // If there are also parity blocks corrupted then we encode again the blocks
   // - recover secondary blocks
   // ---------------------------------------------------------------------------
   if ( parityCorrupted ) {
@@ -198,33 +208,55 @@ ReedSFile::recoverPieces( off_t                    offsetInit,
   // ---------------------------------------------------------------------------
   // Update the files in which we found invalid blocks
   // ---------------------------------------------------------------------------
-  if ( storeRecovery ) {
-    unsigned int stripeId;
+  char* pBuff ;
+  unsigned int stripeId;
 
-    for ( vector<unsigned int>::iterator iter = invalidId.begin();
-          iter != invalidId.end();
-          ++iter )
-    {
-      stripeId = *iter;
-      eos_debug( "Invalid index stripe: %i", stripeId );
-      eos_debug( "Writing to remote file stripe: %i, fstid: %i", stripeId, mapSU[stripeId] );
+  for ( vector<unsigned int>::iterator iter = invalidId.begin();
+        iter != invalidId.end();
+        ++iter ) {
+    stripeId = *iter;
+    eos_debug( "Invalid index stripe: %i", stripeId );
+    eos_debug( "Writing to remote file stripe: %i, fstid: %i", stripeId, mapSU[stripeId] );
+    
+    if ( storeRecovery ) {
+      vWriteHandler[stripeId]->Reset();
+      vWriteHandler[stripeId]->Increment();
+      xrdFile[mapSU[stripeId]]->Write( offsetLocal + sizeHeader, stripeWidth, 
+                                       dataBlocks[stripeId], vWriteHandler[stripeId] );
+    }      
 
-      if ( !( xrdFile[mapSU[stripeId]]->Write( offsetLocal + sizeHeader, stripeWidth, dataBlocks[stripeId] ).IsOK() ) ) {
-        eos_err( "ReedSRecovery - write stripe failed" );
-        return false;
-      }
+    // -----------------------------------------------------------------------
+    // Write the correct block to the reading buffer, if it is not parity info
+    // -----------------------------------------------------------------------
+    if ( *iter < noData ) { //if one of the data blocks
+      for ( std::map<off_t, size_t>::iterator itPiece = mapPieces.begin();
+            itPiece != mapPieces.end();
+            itPiece++)
+        {
+          offset = itPiece->first;
+          length = itPiece->second;
 
-      // -----------------------------------------------------------------------
-      // Write the correct block to the reading buffer, if it not parity info
-      // -----------------------------------------------------------------------
-      if ( *iter < noData ) { //if one of the data blocks
-        if ( ( offset >= ( off_t )( offsetGroup + ( *iter ) * stripeWidth ) ) &&
-             ( offset < ( off_t )( offsetGroup + ( ( *iter ) + 1 ) * stripeWidth ) ) ) {
-          memcpy( buffer, dataBlocks[*iter] + ( offset % stripeWidth ), length );
+          if ( ( offset >= ( off_t )( offsetGroup + ( *iter ) * stripeWidth ) ) &&
+               ( offset < ( off_t )( offsetGroup + ( ( *iter ) + 1 ) * stripeWidth ) ) ) {
+            pBuff = buffer + (offset - offsetInit);
+            memcpy( pBuff, dataBlocks[*iter] + ( offset % stripeWidth ), length );
+          }
         }
-      }
     }
   }
+  
+  // -----------------------------------------------------------------------
+  // Wait for write responses
+  // -----------------------------------------------------------------------
+  for ( vector<unsigned int>::iterator iter = invalidId.begin();
+        iter != invalidId.end();
+        ++iter ) {
+    if ( !vWriteHandler[*iter]->WaitOK() ) {
+      eos_err( "ReedSRecovery - write stripe failed" );
+      return false;
+    }
+  }
+
 
   doneRecovery = true;
   return true;
@@ -300,7 +332,7 @@ ReedSFile::backtracking(  unsigned int         k,
   else {
     for ( indexes[k] = 0; indexes[k] < noTotal; indexes[k]++ ) {
       if ( this->validBkt( k, indexes, validId ) )
-        if ( this->backtracking( k + 1,indexes, validId ) )
+        if ( this->backtracking( k + 1, indexes, validId ) )
           return true;
     }
 
@@ -404,8 +436,14 @@ int
 ReedSFile::writeParityToFiles( off_t offsetParityLocal )
 {
   for ( unsigned int i = noData; i < noTotal; i++ ) {
+    vWriteHandler[i]->Reset();
+    vWriteHandler[i]->Increment();
+    xrdFile[mapSU[i]]->Write( offsetParityLocal + sizeHeader, stripeWidth, 
+                              dataBlocks[i], vWriteHandler[i] );
+  }
 
-    if ( !( xrdFile[mapSU[i]]->Write( offsetParityLocal + sizeHeader, stripeWidth, dataBlocks[i] ).IsOK() ) ) {
+  for ( unsigned int i = noData; i < noTotal; i++ ) {
+    if ( !vWriteHandler[i]->WaitOK() ) {
       eos_err( "ReedSWrite write local stripe - write failed" );
       return -1;
     }
@@ -441,7 +479,6 @@ ReedSFile::truncate( off_t offset )
 }
 
 
-/*----------------------------------------------------------------------------*/
 /*
 OBS:: can be used if updated are allowed
 // -----------------------------------------------------------------------------
