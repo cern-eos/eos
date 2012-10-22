@@ -85,9 +85,9 @@ CacheImpl::RunThreadWrites()
   COMMONTIMING( "start", &rtw );
 
   while ( 1 ) {
-    TIMING( "before pop", &rtw );
+    COMMONTIMING( "before pop", &rtw );
     mWrReqQueue->wait_pop( pEntry );
-    TIMING( "after pop", &rtw );
+    COMMONTIMING( "after pop", &rtw );
 
     if ( pEntry == 0 ) {
       break;
@@ -137,7 +137,7 @@ CacheImpl::GetRead( const long long int& k, char* buf, off_t off, size_t len )
   }
 
   mRwMutex.UnLock();                                   //unlock map
-  TIMING( "return", &gr );
+  COMMONTIMING( "return", &gr );
   //gr.Print();
   return found_piece;
 }
@@ -185,7 +185,7 @@ CacheImpl::AddRead( XrdCl::File*&        rpFile,
     pEntry = GetRecycledBlock( rpFile, buf, off, len, false, rFileAbst );
 
     while ( GetSize() + CacheEntry::GetMaxSize() >= mSizeMax ) {
-      TIMING( "start evitc", &ar );
+      COMMONTIMING( "start evitc", &ar );
 
       if ( !RemoveReadBlock() ) {
         ForceWrite();

@@ -462,7 +462,7 @@ int
 RaidIO::write( off_t offset, char* buffer, size_t length )
 {
   eos::common::Timing wt( "write" );
-  TIMING( "start", &wt );
+  COMMONTIMING( "start", &wt );
   size_t nwrite;
   size_t writeLength = 0;
   off_t offset_local;
