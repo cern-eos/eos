@@ -22,6 +22,8 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+
+#include "fst/XrdFstOss.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/FmdSqlite.hh"
@@ -32,10 +34,10 @@
 #include "common/Attr.hh"
 #include "common/SyncAll.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdVersion.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
-#include "XrdOss/XrdOssApi.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSfs/XrdSfsAio.hh"
@@ -45,7 +47,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/types.h>
 #include <attr/xattr.h>
 #include <math.h>
 /*----------------------------------------------------------------------------*/
@@ -54,11 +55,15 @@ eos::fst::XrdFstOfs eos::fst::gOFS;
 // the client admin table
 // the capability engine
 
-extern XrdSysError OfsEroute;
-extern XrdOssSys  *XrdOfsOss;
-extern XrdOfs     *XrdOfsFS;
-extern XrdOss     *XrdOssGetSS(XrdSysLogger *, const char *, const char *);
-extern XrdOucTrace OfsTrace;
+extern eos::fst::XrdFstOss* XrdOfsOss;
+extern XrdSysError          OfsEroute;
+extern XrdOucTrace          OfsTrace;
+extern XrdOfs*              XrdOfsFS;
+extern XrdOss*              XrdOssGetSS( XrdSysLogger*, 
+                                         const char*, 
+                                         const char*, 
+                                         const char*, 
+                                         XrdVersionInfo& );
 
 
 /*----------------------------------------------------------------------------*/
@@ -77,15 +82,21 @@ extern "C"
     OfsEroute.Say("++++++ (c) 2010 CERN/IT-DSS ",
                   version.c_str());
 
+    static XrdVERSIONINFODEF( info, XrdOss, XrdVNUMBER, XrdVERSION);
+    
     // Initialize the subsystems
     //
     eos::fst::gOFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
-
+    
     if ( eos::fst::gOFS.Configure(OfsEroute) ) return 0;
     // Initialize the target storage system
     //
-    if (!(XrdOfsOss = (XrdOssSys*) XrdOssGetSS(lp, configfn, eos::fst::gOFS.OssLib))) return 0;
-
+    if (!(XrdOfsOss = (eos::fst::XrdFstOss*) XrdOssGetSS(lp, configfn, 
+                                                         eos::fst::gOFS.OssLib, 
+                                                         0, info))) {
+      return 0;
+    }
+    
     XrdOfsFS = &eos::fst::gOFS;
     // All done, we can return the callout vector to these routines.
     //
@@ -102,7 +113,8 @@ XrdFstOfs::xrdfstofs_shutdown(int sig) {
 
   ShutDownMutex.Lock(); // this handler goes only one-shot .. sorry !
 
-  // handler to shutdown the daemon for valgrinding and clean server stop (e.g. let's time to finish write operations
+  // handler to shutdown the daemon for valgrinding and clean server stop 
+  // (e.g. let's time to finish write operations
 
   if (gOFS.Messaging) {
     gOFS.Messaging->StopListener(); // stop any communication
@@ -546,50 +558,29 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString &reportString)
 }
 
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 int          
-XrdFstOfsFile::openofs(const char                *path,
-		    XrdSfsFileOpenMode       open_mode,
-		    mode_t                 create_mode,
-		    const XrdSecEntity         *client,
-                    const char                 *opaque,
-                    bool                   openBlockXS, 
-                    unsigned long              lid)
+XrdFstOfsFile::openofs(const char*         path,
+                       XrdSfsFileOpenMode  open_mode,
+                       mode_t              create_mode,
+                       const XrdSecEntity* client,
+                       const char*         oss_opaque )
 {
-  bool isRead = true;
-
-  if ( (open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
-		     SFS_O_CREAT  | SFS_O_TRUNC) ) != 0) {
-    isRead = false;
-  }
-  else{
-    //anyway we need to open for writing for the recovery case
-    open_mode |= SFS_O_RDWR;
-  }
-  
-  if (openBlockXS && isRead ) {
-    fstBlockXS = ChecksumPlugins::GetChecksumObject(lid, true);
-    fstBlockSize = eos::common::LayoutId::GetBlocksize(lid);
-    XrdOucString fstXSPath = fstBlockXS->MakeBlockXSPath(path);
-    struct stat buf;
-    if (!XrdOfsOss->Stat(path, &buf)) {
-      if (!fstBlockXS->OpenMap(fstXSPath.c_str(), buf.st_size, fstBlockSize, false)) {
-        eos_err("unable to create block checksum file");
-        return gOFS.Emsg("XrdFstOfsFile",error, EIO,"open - cannot get block checksum file",fstXSPath.c_str());
-      }
-    }
-  }
-  return XrdOfsFile::open(path, open_mode, create_mode, client, opaque);
+  return XrdOfsFile::open(path, open_mode, create_mode, client, oss_opaque);
 }
 
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 int          
-XrdFstOfsFile::open(const char                *path,
-                    XrdSfsFileOpenMode   open_mode,
-                    mode_t               create_mode,
-                    const XrdSecEntity        *client,
-                    const char                *opaque)
+XrdFstOfsFile::open(const char*         path,
+                    XrdSfsFileOpenMode  open_mode,
+                    mode_t              create_mode,
+                    const XrdSecEntity* client,
+                    const char*         opaque)
 {
   EPNAME("open");
 
@@ -613,7 +604,7 @@ XrdFstOfsFile::open(const char                *path,
   stringOpaque += "&mgm.path="; stringOpaque += path;
 
   openOpaque  = new XrdOucEnv(stringOpaque.c_str());
-  
+ 
   if ((val = openOpaque->Get("mgm.logid"))) {
     SetLogId(val, tident);
   }
@@ -627,7 +618,7 @@ XrdFstOfsFile::open(const char                *path,
   }
 
   int caprc = 0;
-
+  
   if ((caprc=gCapabilityEngine.Extract(openOpaque, capOpaque))) {
     if (caprc == ENOKEY) {
       // if we just miss the key, better stall the client
@@ -748,12 +739,7 @@ XrdFstOfsFile::open(const char                *path,
   lid = atoi(slid);
   cid = strtoull(scid,0,10);
 
-  // extract blocksize from the layout
-  fstBlockSize = eos::common::LayoutId::GetBlocksize(lid);
-
-  eos_info("blocksize=%llu lid=%x", fstBlockSize, lid);
   // check if this is an open for replication
-  
   if (Path.beginswith("/replicate:")) {
     bool isopenforwrite=false;
     gOFS.OpenFidMutex.Lock();
@@ -809,40 +795,7 @@ XrdFstOfsFile::open(const char                *path,
     }
   }
 
-
-  // ------------------------------------------------------------------------
-  // Code dealing with block checksums
-  // ------------------------------------------------------------------------
-
-  eos_info("blocksize=%llu layoutid=%x oxs=<%s>", fstBlockSize,lid, opaqueBlockCheckSum.c_str());
-  // create a block checksum object if blocksize is defined and the feature is not explicitly disabled by the client
-  if ((opaqueBlockCheckSum != "ignore"))
-    fstBlockXS = ChecksumPlugins::GetChecksumObject(lid, true);
-  else
-    fstBlockXS = 0;
-
-  if (fstBlockXS) {
-    eos_info("info=\"created/got blocklevel checksum\"");
-    XrdOucString fstXSPath = fstBlockXS->MakeBlockXSPath(fstPath.c_str());
-
-    if (!fstBlockXS->OpenMap(fstXSPath.c_str(), isCreation?bookingsize:statinfo.st_size,fstBlockSize, isRW)) {
-      eos_err("unable to create block checksum file");
-
-      if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
-        // there was a blockchecksum open error
-        if (!isRW) {
-          int ecode=1094;
-          eos_warning("rebouncing client since we failed to open the block checksum file back to MGM %s:%d",RedirectManager.c_str(), ecode);
-          return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
-        }
-      } else {
-        return gOFS.Emsg(epname,error, EIO,"open - cannot create/get block checksum file",fstXSPath.c_str());
-      }
-    }
-  } 
-  
   // get the identity
-
   eos::common::Mapping::VirtualIdentity vid;
   eos::common::Mapping::Nobody(vid);
   
@@ -932,8 +885,27 @@ XrdFstOfsFile::open(const char                *path,
     }
   }
 
+  //............................................................................
+  // Save block xs opaque information for the OSS layer
+  //............................................................................
+  XrdOucString oss_opaque = "";
+  oss_opaque += "&mgm.blockchecksum=";
+  oss_opaque += opaqueBlockCheckSum;
+  oss_opaque += "&mgm.lid=";
+  oss_opaque += slid;
+  oss_opaque += "&mgm.bookingsize=";
+  oss_opaque += static_cast<int>( bookingsize );
+  oss_opaque += "&mgm.targetsize=";
+  oss_opaque += static_cast<int>( targetsize );
 
-  int rc = layOut->open(fstPath.c_str(), open_mode, create_mode, client, stringOpaque.c_str());
+  //............................................................................
+  // Mark that we have block xs for the current file
+  //............................................................................
+  if ( opaqueBlockCheckSum != "ignore" ) {
+    hasBlockXs = true;
+  }
+
+  int rc = layOut->open(fstPath.c_str(), open_mode, create_mode, client, oss_opaque.c_str());
 
   if ( (!rc) && isCreation && bookingsize) {
     // ----------------------------------
@@ -1056,48 +1028,7 @@ XrdFstOfsFile::open(const char                *path,
 int
 XrdFstOfsFile::closeofs()
 {
-  int rc = 0;
-
-  // ------------------------------------------------------------------------
-  // Code dealing with block checksums
-  // ------------------------------------------------------------------------
-  if (fstBlockXS) {
-    struct stat statinfo;
-    if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
-      eos_warning("close - cannot stat closed file %s- probably already unlinked!", Path.c_str());
-      return XrdOfsFile::close();
-    }
-
-    if (!rc) {
-      // check if there is more than one writer in this moment or a reader , if yes, we don't recompute wholes in the checksum and we don't truncate the checksum map, the last single writer will do that
-      // ---->
-      gOFS.OpenFidMutex.Lock();
-      eos_info("%s wopen=%d ropen=%d fsid=%ld fid=%lld",fstPath.c_str(), (gOFS.WOpenFid[fsid].count(fileid))?gOFS.WOpenFid[fsid][fileid]:0 , (gOFS.ROpenFid[fsid].count(fileid))?gOFS.ROpenFid[fsid][fileid]:0, fsid, fileid);
-      if ( (gOFS.WOpenFid[fsid].count(fileid) && (gOFS.WOpenFid[fsid][fileid]==1) && ((!gOFS.ROpenFid[fsid].count(fileid)) || (gOFS.ROpenFid[fsid][fileid]==0)))) {
-        XrdOucErrInfo error;
-        if(!fctl(SFS_FCTL_GETFD,0,error)) {
-          int fd = error.getErrInfo();
-          if (!fstBlockXS->AddBlockSumHoles(fd)) {
-            eos_err("unable to fill holes of block checksum map");
-          }
-        }       
-      } else {
-        eos_info("info=\"block-xs skipping hole check and changemap\" nwriter=%d nreader=%d", (gOFS.WOpenFid[fsid].count(fileid))?gOFS.WOpenFid[fsid][fileid]:0 , (gOFS.ROpenFid[fsid].count(fileid))?gOFS.ROpenFid[fsid][fileid]:0);
-      }
-      gOFS.OpenFidMutex.UnLock();
-      // -----|
-
-      eos_info("block-xs wblocks=%llu rblocks=%llu holes=%llu", fstBlockXS->GetXSBlocksWritten(), fstBlockXS->GetXSBlocksChecked(), fstBlockXS->GetXSBlocksWrittenHoles());
-      if (!fstBlockXS->CloseMap()) {
-        eos_err("unable to close block checksum map");
-        rc = SFS_ERROR;
-      } 
-    }
-  }
-    
-  rc |= XrdOfsFile::close();
-
-  return rc;
+  return XrdOfsFile::close();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1244,14 +1175,6 @@ XrdFstOfsFile::close()
       // -------------------------------------------------------------------------------------------------------
       deleteOnClose = true;
       layOut->remove();
-      
-      if (fstBlockXS) {
-	fstBlockXS->CloseMap();
-	// delete also the block checksum file
-	fstBlockXS->UnlinkXSPath();
-	delete fstBlockXS;
-	fstBlockXS=0;
-      }
 
       // -------------------------------------------------------------------------------------------------------
       // delete the replica in the MGM
@@ -1312,26 +1235,19 @@ XrdFstOfsFile::close()
       }
 
       if (isCreation && (checksumerror||targetsizeerror||minimumsizeerror)) {
-	// -------------------------------------------------------------------------------------------------------
+	// ---------------------------------------------------------------------
 	// we have a checksum error if the checksum was preset and does not match!
 	// we have a target size error, if the target size was preset and does not match!
-	// -------------------------------------------------------------------------------------------------------
+	// ---------------------------------------------------------------------
 	// set the file to be deleted
-	// -------------------------------------------------------------------------------------------------------
+	// ---------------------------------------------------------------------
 	deleteOnClose = true;
 	layOut->remove();
 	
-	if (fstBlockXS) {
-	  fstBlockXS->CloseMap();
-	  // delete also the block checksum file
-	  fstBlockXS->UnlinkXSPath();
-	  delete fstBlockXS;
-	  fstBlockXS=0;
-	}
 
-	// -------------------------------------------------------------------------------------------------------
+	// ---------------------------------------------------------------------
 	// delete the replica in the MGM
-	// -------------------------------------------------------------------------------------------------------
+	// ---------------------------------------------------------------------
 	int rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueString);
 	if (rc) {
 	  eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",hexstring.c_str(), fMd->fMd.fid, capOpaque->Get("mgm.manager"));
@@ -1608,13 +1524,6 @@ XrdFstOfsFile::close()
       }
     }
     
-    if (fstBlockXS) {
-      fstBlockXS->CloseMap();
-      // delete also the block checksum file
-      fstBlockXS->UnlinkXSPath();
-      delete fstBlockXS;
-      fstBlockXS=0;
-    }
   } else {
     if (checksumerror) {
       rc = SFS_ERROR;
@@ -1753,17 +1662,10 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset   fileOffset,
   eos_debug("read %llu %llu %lu", this, fileOffset, buffer_size);
 
   if (gOFS.Simulate_IO_read_error) {
-    return gOFS.Emsg("readofs", error, EIO, "read file - simulated IO error fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
+    return gOFS.Emsg("readofs", error, EIO, "read file - simulated IO error fn=",
+                     capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
   }
   
-  if (fstBlockXS) {
-    XrdSysMutexHelper cLock (BlockXsMutex);
-    if ((retc>0) && (!fstBlockXS->CheckBlockSum(fileOffset, buffer, retc))) {
-      int envlen=0;
-      eos_err("block-xs error offset=%llu size=%llu file=%s",(unsigned long long)fileOffset, (unsigned long long)buffer_size, capOpaque?capOpaque->Env(envlen):FName());
-      return gOFS.Emsg("readofs", error, EIO, "read file - wrong block checksum fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
-    }
-  }
   return retc;
 }
 
@@ -1834,8 +1736,6 @@ XrdFstOfsFile::read(XrdSfsFileOffset   fileOffset,
     }
   }
 
-
-
   return rc;
 }
 
@@ -1884,10 +1784,6 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset   fileOffset,
       writeErrorFlag=kOfsMaxSizeError;
       return gOFS.Emsg("writeofs", error, ENOSPC, "write file - your file exceeds the maximum file size setting of bytes<=", capOpaque?(capOpaque->Get("mgm.maxsize")?capOpaque->Get("mgm.maxsize"):"<undef>"):"undef");
     }
-  }
-  if (fstBlockXS) {
-    XrdSysMutexHelper cLock(BlockXsMutex);
-    fstBlockXS->AddBlockSum(fileOffset, buffer, buffer_size);
   }
   
   int rc = XrdOfsFile::write(fileOffset,buffer,buffer_size);
