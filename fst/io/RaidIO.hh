@@ -27,6 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "fst/io/HeaderCRC.hh"
+#include "fst/io/AsyncRespHandler.hh"
 #include "fst/XrdFstOfsFile.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
@@ -62,18 +63,19 @@ public:
 
 protected:
 
-  int* fdUrl;                    //array of file descriptors
+  int* fdUrl;                    //! array of file descriptors
+  AsyncRespHandler* respHandler; //!
 
   File** xrdFile;
-  HeaderCRC* hdUrl;              //array of header objects
+  HeaderCRC* hdUrl;              //! array of header objects
 
-  bool isRW;                     //mark for writing
-  bool isOpen;                   //mark if open
-  bool doTruncate;               //mark if there is a need to truncate
-  bool updateHeader;             //mark if header updated
-  bool doneRecovery;             //mark if recovery done
-  bool fullDataBlocks;           //mark if we have all data blocks to compute parity
-  bool storeRecovery;            //set if recovery also triggers writing back to the files
+  bool isRW;                     //! mark for writing
+  bool isOpen;                   //! mark if open
+  bool doTruncate;               //! mark if there is a need to truncate
+  bool updateHeader;             //! mark if header updated
+  bool doneRecovery;             //! mark if recovery done
+  bool fullDataBlocks;           //! mark if we have all data blocks to compute parity
+  bool storeRecovery;            //! set if recovery also triggers writing back to the files
   //this also means that all files must be available
 
   unsigned int nParityStripes;

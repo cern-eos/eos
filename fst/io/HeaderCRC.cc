@@ -71,7 +71,7 @@ bool HeaderCRC::readFromFile( XrdCl::File* f )
   if ( !( f->Read( offset, sizeHeader, buff, ret ).IsOK() ) || ( ret != sizeHeader ) ) {
     free( buff );
     valid = false;
-    return false;
+    return valid;
   }
 
   memcpy( tag, buff, sizeof tag );
@@ -79,7 +79,7 @@ bool HeaderCRC::readFromFile( XrdCl::File* f )
   if ( strncmp( tag, HEADER, strlen( HEADER ) ) ) {
     free( buff );
     valid = false;
-    return false;
+    return valid;
   }
 
   offset += sizeof tag;
@@ -91,13 +91,13 @@ bool HeaderCRC::readFromFile( XrdCl::File* f )
 
   free( buff );
   valid = true;
-  return true;
+  return valid;
 }
 
 
 /*----------------------------------------------------------------------------*/
 //write the header to the file via XrdPosixXrootd
-int HeaderCRC::writeToFile( XrdCl::File* f )
+bool HeaderCRC::writeToFile( XrdCl::File* f )
 {
   int offset = 0;
   char* buff = ( char* ) calloc( sizeHeader, sizeof( char ) );
@@ -115,12 +115,12 @@ int HeaderCRC::writeToFile( XrdCl::File* f )
   if ( !( f->Write( 0, sizeHeader, buff ).IsOK() ) ) {
     free( buff );
     valid = false;
-    return -1;
+    return valid;
   }
 
   free( buff );
   valid = true;
-  return 0;
+  return valid;
 }
 
 

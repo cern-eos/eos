@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: HeaderCRC.cc
+// File: AsyncRespHandler.hh
 // Author: Elvin-Alin Sindrilaru - CERN
 // ----------------------------------------------------------------------
 
@@ -21,59 +21,67 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_HEADERCRC_HH__
-#define __EOSFST_HEADERCRC_HH__
+/*----------------------------------------------------------------------------*/
+#include <typeinfo>
+/*----------------------------------------------------------------------------*/
+#include <semaphore.h>
+/*----------------------------------------------------------------------------*/
+#include "XrdCl/XrdClXRootDResponses.hh"
+/*----------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------------*/
-#include <sys/types.h>
-/*----------------------------------------------------------------------------*/
-#include "common/Logging.hh"
-#include "fst/Namespace.hh"
-#include "fst/XrdFstOfsFile.hh"
-/*----------------------------------------------------------------------------*/
-#include <XrdCl/XrdClFile.hh>
-/*----------------------------------------------------------------------------*/
+#ifndef __EOS_ASYNCRESPONSEHANDLER_HH__
+#define __EOS_ASYNCRESPONSEHANDLER_HH__
 
 EOSFSTNAMESPACE_BEGIN
 
-#define HEADER ("_HEADER_RAIDIO_")
-
-class HeaderCRC : public eos::common::LogId
+//----------------------------------------------------------------------------
+//! Handle an async response
+//----------------------------------------------------------------------------
+class AsyncRespHandler: public XrdCl::ResponseHandler
 {
-
-private:
-
-  bool valid;                                  //! status of the file
-  char tag[16];                                //! layout tag
-  long int noBlocks;                           //! total number of blocks
-  size_t sizeLastBlock;                        //! size of the last block of data
-  unsigned int idStripe;                       //! index of the stripe the header belongs to
-
-  static const size_t sizeHeader = 4 * 1024;   //! size of the header
-
 public:
 
-  HeaderCRC();
-  HeaderCRC( long );
-  ~HeaderCRC();
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  AsyncRespHandler() {
+    if ( sem_init( &semaphore, 0, 0 ) ) {
+      fprintf( stderr, "Error while creating semaphore. \n" );
+      return;
+    }
+  };
 
-  bool writeToFile( XrdCl::File* f );
-  bool readFromFile( XrdCl::File* f );
 
-  char*        getTag();
-  int          getSize() const;
-  size_t       getSizeLastBlock() const;
-  long int     getNoBlocks() const;
-  unsigned int getIdStripe() const;
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~AsyncRespHandler() {
+    sem_destroy( &semaphore );
+  }
 
-  void setNoBlocks( long int nblocks );
-  void setSizeLastBlock( size_t sizelastblock );
-  void setIdStripe( unsigned int idstripe );
+  virtual void HandleResponse( XrdCl::XRootDStatus* status,
+                               XrdCl::AnyObject*    response ) {
+    XrdCl::Chunk* chunk = 0;
+    response->Get( chunk );
 
-  bool isValid() const;
-  void setState( bool state );
+    if ( status->status == XrdCl::stOK ) {
+      sem_post( &semaphore );
+    }
+  };
+
+  virtual void Wait( int nReq ) {
+    for ( int i = 0; i < nReq; i++ ) {
+      sem_wait( &semaphore );
+    }
+  };
+
+private:
+  sem_t semaphore;
 };
 
 EOSFSTNAMESPACE_END
 
 #endif
+
+
+

@@ -50,6 +50,7 @@ RaidIO::RaidIO( std::string algorithm, std::vector<std::string> stripeurl,
   nTotalStripes = stripeUrls.size();
   nDataStripes = nTotalStripes - nParityStripes;
 
+  respHandler = new AsyncRespHandler();
   hdUrl = new HeaderCRC[nTotalStripes];
   xrdFile = new File*[nTotalStripes];
   sizeHeader = hdUrl[0].getSize();
@@ -121,8 +122,8 @@ RaidIO::open( int flags )
         fprintf( stdout, "opening failed for update stripeUrl[%i] = %s. \n", i, stripeUrls[i].c_str() );
         xrdFile[i]->Close();
 
+        //TODO: this should be fixed to be able to issue a new open on the same object (Lukasz?)
         delete xrdFile[i];
-
         xrdFile[i] = new File();
 
         if ( !( xrdFile[i]->Open( stripeUrls[i], OpenFlags::Delete | OpenFlags::Update,
@@ -275,8 +276,7 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
   eos::common::Timing rt("read");
   COMMONTIMING("start", &rt);
 
-  uint32_t aread = 0;
-
+  long int index = 0;
   size_t nread = 0;
   size_t readLength = 0;
   off_t offsetLocal = 0;
@@ -322,22 +322,28 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
     doRecovery = false;
 
     while ( length ) {
+      index++;
       stripeId = ( offset / stripeWidth ) % nDataStripes;
       nread = ( length > stripeWidth ) ? stripeWidth : length;
       offsetLocal = ( ( offset / ( nDataStripes * stripeWidth ) ) * stripeWidth ) + ( offset %  stripeWidth );
 
       COMMONTIMING( "read remote in", &rt );
 
-      if ( xrdFile[mapStripe_Url[stripeId]] &&
-           ( !( xrdFile[mapStripe_Url[stripeId]]->Read( offsetLocal + sizeHeader, nread, buffer, aread ).IsOK() )  || ( aread != nread ) ) ) {
-        eos_warning( "Read returned %ld instead of %ld bytes", aread, nread );
-        fprintf( stdout, "Read returned %zu instead of %ld bytes. \n", (size_t)aread, (size_t)nread );
-        doRecovery = true;
+      if ( xrdFile[mapStripe_Url[stripeId]] ) {
+        xrdFile[mapStripe_Url[stripeId]]->Read( offsetLocal + sizeHeader, nread, buffer, respHandler );
       }
 
-      COMMONTIMING( "read recovery", &rt );
+      fprintf( stdout, "Index: %li, nDataStripes = %u. \n", index, nDataStripes );
+
+      if ( index % nDataStripes == 0 ) {
+        respHandler->Wait( nDataStripes );
+
+        //if error then do recovery
+      }
 
       if ( doRecovery ) {
+        TIMING( "read recovery", &rt );
+
         if ( !recoverBlock( buffer, offset, nread ) ) {
           eos_err( "error=read recovery failed" );
           return -1;
@@ -351,7 +357,16 @@ RaidIO::read( off_t offset, char* buffer, size_t length )
     }
   }
 
+<<<<<<< HEAD
   COMMONTIMING("read return", &rt);
+=======
+  if ( index && ( index % nDataStripes != 0 ) ) {
+    respHandler->Wait( index % nDataStripes );
+  }
+
+
+  TIMING( "read return", &rt );
+>>>>>>> 63ef31b... FST: Handle async responses and implement simple async reading in eoscp
   //  rt.Print();
   return readLength;
 }
@@ -509,7 +524,7 @@ RaidIO::close()
         eos_info( "Write Stripe Header local" );
         hdUrl[i].setIdStripe( mapUrl_Stripe[i] );
 
-        if ( hdUrl[i].writeToFile( xrdFile[i] ) ) {
+        if ( !hdUrl[i].writeToFile( xrdFile[i] ) ) {
           eos_err( "error=write header to file failed for stripe:%i", i );
           return -1;
         }

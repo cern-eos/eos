@@ -134,6 +134,7 @@ add_executable( eoscp
 		io/RaidDpFile.cc
 		io/ReedSFile.cc
 		io/HeaderCRC.cc
+		io/AsyncRespHandler.hh
 		../common/Logging.cc
 		../common/Attr.cc
 		checksum/Adler.cc
