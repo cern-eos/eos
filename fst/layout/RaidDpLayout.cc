@@ -198,52 +198,17 @@ RaidDpLayout::OperationXOR( char*  pBlock1,
 
 
 //------------------------------------------------------------------------------
-// Try to recover the block at the current offset
+// Use simple and double parity to recover corrupted pieces in the curerent
+// group, all errors in the map belonging to the same group
 //------------------------------------------------------------------------------
 bool
-RaidDpLayout::RecoverPieces( off_t                    offsetInit,
-                             char*                    pBuffer,
-                             std::map<off_t, size_t>& rMapToRecover )
+RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
+                                    char*                    pBuffer,
+                                    std::map<off_t, size_t>& rMapToRecover )
 {
   //............................................................................
-  // Obs: DoubleParityRecover also checks the simple and double parity blocks
+  // Obs: RecoverPiecesInGroup also checks the simple and double parity blocks
   //............................................................................
-  bool success = true;
-  std::map<off_t, size_t> tmp_map;
-
-  while ( !rMapToRecover.empty() ) {
-    off_t group_off = ( rMapToRecover.begin()->first / mSizeGroup ) * mSizeGroup;
-
-    for ( std::map<off_t, size_t>::iterator iter = rMapToRecover.begin();
-          iter != rMapToRecover.end(); /*empty*/ ) {
-      if ( ( iter->first >= group_off ) &&
-           ( iter->first < group_off + mSizeGroup ) ) {
-        tmp_map.insert( std::make_pair( iter->first, iter->second ) );
-        rMapToRecover.erase( iter++ );
-      } else {
-        ++iter;
-      }
-    }
-
-    if ( !tmp_map.empty() ) {
-      success = success && DoubleParityRecover( offsetInit, pBuffer, tmp_map );
-      tmp_map.clear();
-    }
-  }
-
-  mDoneRecovery = success;
-  return success;
-}
-
-
-//------------------------------------------------------------------------------
-// Use simple and double parity to recover corrupted pieces
-//------------------------------------------------------------------------------
-bool
-RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
-                                   char*                    pBuffer,
-                                   std::map<off_t, size_t>& rMapToRecover )
-{
   eos_debug( "_" );
   bool ret = true;
   bool* status_blocks;
@@ -375,8 +340,8 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
           // Do local write operation
           //....................................................................
           int nwrite = mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
-                       mDataBlocks[id_corrupted],
-                       mStripeWidth );
+                                                         mDataBlocks[id_corrupted],
+                                                         mStripeWidth );
 
           if ( nwrite != mStripeWidth ) {
             eos_err( "error=while doing local write operation offset=%lli",
@@ -391,7 +356,8 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
       //......................................................................
       for ( std::map<off_t, size_t>::iterator iter = rMapToRecover.begin();
             iter != rMapToRecover.end();
-            ++iter ) {
+            ++iter )
+      {
         offset = iter->first;
         length = iter->second;
 
@@ -399,9 +365,11 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
         // If not SP or DP, maybe we have to return it
         //......................................................................
         if ( find( simple_parity.begin(), simple_parity.end(), id_corrupted ) == simple_parity.end() &&
-             find( double_parity.begin(), double_parity.end(), id_corrupted ) == double_parity.end() ) {
+             find( double_parity.begin(), double_parity.end(), id_corrupted ) == double_parity.end() )
+        {
           if ( ( offset >= ( off_t )( offset_group + MapBigToSmall( id_corrupted ) * mStripeWidth ) ) &&
-               ( offset < ( off_t )( offset_group + ( MapBigToSmall( id_corrupted ) + 1 ) * mStripeWidth ) ) ) {
+               ( offset < ( off_t )( offset_group + ( MapBigToSmall( id_corrupted ) + 1 ) * mStripeWidth ) ) )
+          {
             pBuff = pBuffer + ( offset - offsetInit );
             pBuff = static_cast<char*>( memcpy( pBuff,
                                                 mDataBlocks[id_corrupted] + ( offset % mStripeWidth ),
@@ -474,7 +442,8 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
         //......................................................................
         for ( std::map<off_t, size_t>::iterator iter = rMapToRecover.begin();
               iter != rMapToRecover.end();
-              ++iter ) {
+              ++iter )
+        {
           offset = iter->first;
           length = iter->second;
 
@@ -482,9 +451,11 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
           // If not SP or DP, maybe we have to return it
           //....................................................................
           if ( find( simple_parity.begin(), simple_parity.end(), id_corrupted ) == simple_parity.end() &&
-               find( double_parity.begin(), double_parity.end(), id_corrupted ) == double_parity.end() ) {
+               find( double_parity.begin(), double_parity.end(), id_corrupted ) == double_parity.end() )
+          {
             if ( ( offset >= ( off_t )( offset_group + MapBigToSmall( id_corrupted ) * mStripeWidth ) ) &&
-                 ( offset < ( off_t )( offset_group + ( MapBigToSmall( id_corrupted ) + 1 ) * mStripeWidth ) ) ) {
+                 ( offset < ( off_t )( offset_group + ( MapBigToSmall( id_corrupted ) + 1 ) * mStripeWidth ) ) )
+            {
               pBuff = pBuffer + ( offset - offsetInit );
               pBuff = static_cast<char*>( memcpy( pBuff,
                                                   mDataBlocks[id_corrupted] + ( offset % mStripeWidth ),

@@ -93,21 +93,6 @@ class RaidDpLayout : public RaidMetaLayout
   private:
 
     //--------------------------------------------------------------------------
-    //! Recover pieces of corrupted data
-    //!
-    //! @param offsetInit file offset corresponding to byte 0 from the buffer
-    //! @param buffer place where to save the recovered piece
-    //! @param mapPiece map of pieces to be recovered <offset in file, length>
-    //!
-    //! @return true if recovery was successful, otherwise false
-    //!
-    //--------------------------------------------------------------------------
-    virtual bool RecoverPieces( off_t offsetInit,
-                                char* buffer,
-                                std::map<off_t, size_t>& mapPiece );
-
-
-    //--------------------------------------------------------------------------
     //! Add data block to compute parity stripes for current group of blocks
     //!  - used for the streaming mode
     //!
@@ -152,19 +137,19 @@ class RaidDpLayout : public RaidMetaLayout
 
 
     //--------------------------------------------------------------------------
-    //! Do recovery using simple and/or double parity
+    //! Do recovery in the current group using simple and/or double parity 
     //!
     //! @param offsetInit file offset corresponding to byte 0 from the buffer
     //! @param pBuffer buffer where to save the recovered data
-    //! @param rMapPieces map containing corrupted pieces
+    //! @param rMapPieces map containing corrupted pieces only from a group
     //!
     //! @return true if successful, otherwise error
     //!
     //--------------------------------------------------------------------------
-    bool DoubleParityRecover( off_t                    offsetInit,
-                              char*                    pBuffer,
-                              std::map<off_t, size_t>& rMapPieces );
-
+    bool RecoverPiecesInGroup( off_t                    offsetInit,
+                               char*                    pBuffer,
+                               std::map<off_t, size_t>& rMapPieces );
+  
 
     //--------------------------------------------------------------------------
     //! Return diagonal stripe corresponding to current block

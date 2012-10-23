@@ -96,19 +96,20 @@ class ReedSLayout : public RaidMetaLayout
     virtual int WriteParityToFiles( off_t offsetGroup );
 
     //--------------------------------------------------------------------------
-    //! Recover pieces of corrupted data
+    //! Recover pieces of corrupted data in the current group
     //!
     //! @param offset file offset corresponding to byte 0 from the buffer
     //! @param pBuffer place where to save the recovered piece
     //! @param rMapPiece map of pieces to be recovered <offset in file, length>
+    //!                  which belong to the same group
     //!
     //! @return true if recovery was successful, otherwise false
     //!
     //--------------------------------------------------------------------------
-    virtual bool RecoverPieces( off_t                    offset,
-                                char*                    pBuffer,
-                                std::map<off_t, size_t>& rMapPieces );
-
+    virtual bool RecoverPiecesInGroup( off_t                    offset,
+                                       char*                    pBuffer,
+                                       std::map<off_t, size_t>& rMapPieces );
+  
     //--------------------------------------------------------------------------
     //! Add data block to compute parity stripes for current group of blocks
     //!
@@ -132,23 +133,23 @@ class ReedSLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     //! Get backtracking solution
     //--------------------------------------------------------------------------
-    bool SolutionBkt( unsigned int         k,
-                      unsigned int*        pIndexes,
-                      vector<unsigned int> validId );
+    bool SolutionBkt( unsigned int               k,
+                      unsigned int*              pIndexes,
+                      std::vector<unsigned int>& validId );
 
     //--------------------------------------------------------------------------
     //! Validate backtracking solution
     //--------------------------------------------------------------------------
-    bool ValidBkt( unsigned int         k,
-                   unsigned int*        pIndexes,
-                   vector<unsigned int> validId );
+    bool ValidBkt( unsigned int               k,
+                   unsigned int*              pIndexes,
+                   std::vector<unsigned int>& validId );
 
     //--------------------------------------------------------------------------
     //! Backtracking method for getting the indices used in the recovery process
     //--------------------------------------------------------------------------
-    bool Backtracking( unsigned int         k,
-                       unsigned int*        pIndexes,
-                       vector<unsigned int> validId );
+    bool Backtracking( unsigned int               k,
+                       unsigned int*              pIndexes,
+                       std::vector<unsigned int>& validId );
 
 };
 

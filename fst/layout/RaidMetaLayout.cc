@@ -897,6 +897,47 @@ RaidMetaLayout::DoBlockParity( off_t offsetGroup )
 
 
 //------------------------------------------------------------------------------
+// Recover pieces from the whole file
+//------------------------------------------------------------------------------
+bool
+RaidMetaLayout::RecoverPieces( off_t                    offsetInit,
+                               char*                    pBuffer,
+                               std::map<off_t, size_t>& rMapToRecover )
+{
+  bool success = true;
+  std::map<off_t, size_t> tmp_map;
+
+  while ( !rMapToRecover.empty() ) {
+    off_t group_off = ( rMapToRecover.begin()->first / mSizeGroup ) * mSizeGroup;
+
+    for ( std::map<off_t, size_t>::iterator iter = rMapToRecover.begin();
+          iter != rMapToRecover.end(); /*empty*/ )
+    {
+      if ( ( iter->first >= group_off ) &&
+           ( iter->first < group_off + mSizeGroup ) )
+      {
+        tmp_map.insert( std::make_pair( iter->first, iter->second ) );
+        rMapToRecover.erase( iter++ );
+      } else {
+        ++iter;
+      }
+    }
+
+    if ( !tmp_map.empty() ) {
+      success = success && RecoverPiecesInGroup( offsetInit, pBuffer, tmp_map );
+      tmp_map.clear();
+    }
+    else {
+      eos_warning( "warning=no elements in the group, although there were some before" );
+    }
+  }
+
+  mDoneRecovery = success; // maybe change it to true
+  return success;
+}
+
+
+//------------------------------------------------------------------------------
 // Add a new piece to the map of pieces written to the file
 //------------------------------------------------------------------------------
 void

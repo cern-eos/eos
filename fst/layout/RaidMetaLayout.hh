@@ -266,19 +266,34 @@ class RaidMetaLayout : public Layout
 
 
     //--------------------------------------------------------------------------
-    //! Recover corrupted pieces
+    //! Recover corrupted pieces for the whole file
     //!
     //! @param offsetInit file offset corresponding to byte 0 from the buffer
     //! @param buffer container where we read the data
-    //! @param mapPieces map of corrupted pieces
+    //! @param mapPieces map of corrupted pieces from the whole file
     //!
     //! @return true if recovery successful, false otherwise
     //!
     //--------------------------------------------------------------------------
     virtual bool RecoverPieces( off_t                    offsetInit,
                                 char*                    buffer,
-                                std::map<off_t, size_t>& mapPieces ) = 0;
+                                std::map<off_t, size_t>& mapPieces );
 
+  
+    //--------------------------------------------------------------------------
+    //! Recover corrupted pieces from the current group
+    //!
+    //! @param offsetInit file offset corresponding to byte 0 from the buffer
+    //! @param buffer container where we read the data
+    //! @param mapPieces map of corrupted pieces in the current group
+    //!
+    //! @return true if recovery successful, false otherwise
+    //!
+    //--------------------------------------------------------------------------
+    virtual bool RecoverPiecesInGroup( off_t                    offsetInit,
+                                       char*                    buffer,
+                                       std::map<off_t, size_t>& mapPieces ) = 0;
+  
 
     //--------------------------------------------------------------------------
     //! Add new data block to the current group for parity computation, used
