@@ -51,7 +51,8 @@ class LayoutId
     // this is used on FSTs in the Fmd Synchronization
     kOrphan = 0x1,        ///< layout produces an orphan
     kUnregistered = 0x2,  ///< layout has an unregistered stripe
-    kReplicaWrong = 0x4   ///< layout has the wrong number of replicas
+    kReplicaWrong = 0x4,  ///< layout has the wrong number of replicas
+    kMissing      = 0x8   ///< layout has an entry which is missing on disk
   };
   
   
@@ -102,29 +103,6 @@ class LayoutId
     k1M      = 0x5,
   };
   
-  //--------------------------------------------------------------------------
-  //! Return layout type enum
-  //--------------------------------------------------------------------------
-  static unsigned long GetLayoutType( unsigned long layout )   {
-    return ( ( layout >> 4 ) & 0xf );
-  }
-  
-  
-  //--------------------------------------------------------------------------
-  //! Return layout stripe enum
-  //--------------------------------------------------------------------------
-  static unsigned long GetStripeNumber( unsigned long layout ) {
-    return  ( ( layout >> 8 ) & 0xf );
-  }
-  
-  
-  //--------------------------------------------------------------------------
-  //! Return layout blocksize in bytes
-  //--------------------------------------------------------------------------
-  static unsigned long GetBlocksize( unsigned long layout )  {
-    return BlockSize( ( ( layout >> 16 ) & 0xf ) );
-  }
-
   //--------------------------------------------------------------------------
   //! Definition of stripe number
   //--------------------------------------------------------------------------

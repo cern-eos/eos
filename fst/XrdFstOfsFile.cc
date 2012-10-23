@@ -1150,17 +1150,6 @@ XrdFstOfsFile::close()
               fMd->fMd.uid = atoi( capOpaque->Get( "mgm.source.rgid" ) );
             }
 
-            eos::common::Path cPath( capOpaque->Get( "mgm.path" ) );
-
-            if ( cPath.GetName() ) {
-              fMd->fMd.name = cPath.GetName();
-            }
-
-            const char* val = 0;
-
-            if ( ( val = capOpaque->Get( "container" ) ) ) {
-              fMd->fMd.container = val;
-            }
 
             //..................................................................
             // Commit local

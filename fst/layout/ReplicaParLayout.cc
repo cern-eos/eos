@@ -214,7 +214,7 @@ ReplicaParLayout::Open( const std::string&  path,
            ( is_head_server && ( i != replica_index ) ) )
       {
         if ( mOfsFile->isRW ) {
-	  XrdOucString maskUrl = replicaUrl[i].c_str()?replicaUrl[i].c_str():"";
+	  XrdOucString maskUrl = mReplicaUrl[i].c_str()?mReplicaUrl[i].c_str():"";
 	  // mask some opaque parameters to shorten the logging                                                                                                                                                
 	  eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
 	  eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
@@ -292,7 +292,7 @@ ReplicaParLayout::Read( XrdSfsFileOffset offset,
     rc = mReplicaFile[i]->Read( offset, buffer, length );
     
     if ( rc == SFS_ERROR ) {
-      XrdOucString maskUrl = replicaUrl[i].c_str()?replicaUrl[i].c_str():"";
+      XrdOucString maskUrl = mReplicaUrl[i].c_str()?mReplicaUrl[i].c_str():"";
       // mask some opaque parameters to shorten the logging                                                                                                                                                
       eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
       eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
@@ -333,7 +333,7 @@ ReplicaParLayout::Write( XrdSfsFileOffset offset,
   for (unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
     rc = mReplicaFile[i]->Write( offset, buffer, length );
     if ( rc != length ) {
-      XrdOucString maskUrl = replicaUrl[i].c_str()?replicaUrl[i].c_str():"";
+      XrdOucString maskUrl = mReplicaUrl[i].c_str()?mReplicaUrl[i].c_str():"";
       // mask some opaque parameters to shorten the logging                                                                                                                                                
       eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
       eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
@@ -365,7 +365,7 @@ ReplicaParLayout::Truncate( XrdSfsFileOffset offset )
     rc = mReplicaFile[i]->Truncate( offset );
     if ( rc != SFS_OK ) {
       if ( i != 0 ) errno = EREMOTEIO;
-      XrdOucString maskUrl = replicaUrl[i].c_str()?replicaUrl[i].c_str():"";
+      XrdOucString maskUrl = mReplicaUrl[i].c_str()?mReplicaUrl[i].c_str():"";
       // mask some opaque parameters to shorten the logging                                                                                                                                                
       eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
       eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
@@ -373,7 +373,7 @@ ReplicaParLayout::Truncate( XrdSfsFileOffset offset )
       
       eos_err( "Failed to truncate replica %i", i );
       return gOFS.Emsg( "ReplicaParTuncate", *mError, errno, "truncate failed",
-                        maskurl.c_str() );
+                        maskUrl.c_str() );
     }
   }
 
@@ -402,21 +402,21 @@ ReplicaParLayout::Sync()
   if ( ioLocal ) {
     struct stat buf;
 
-    if ( !::stat( mLocalReplicaPath.c_str(), &buf ) ) {
+    if ( !::stat( mLocalPath.c_str(), &buf ) ) {
       // only try to delete if there is something to delete!
-      rc1 = unlink( mLocalReplicaPath.c_str() );
+      rc1 = unlink( mLocalPath.c_str() );
     }
   }
 
-  for (int i=0; i< nStripes; i++) {
-    if (replicaClient[i]) {
-      XrdOucString maskUrl = replicaUrl[i].c_str()?replicaUrl[i].c_str():"";
+  for (int i=0; i< mNumReplicas; i++) {
+    if (mReplicaFile[i]) {
+      XrdOucString maskUrl = mReplicaUrl[i].c_str()?mReplicaUrl[i].c_str():"";
       // mask some opaque parameters to shorten the logging                                                                                                                                                
       eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
       eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
       eos::common::StringConversion::MaskTag(maskUrl,"authz");
       
-      if (!replicaClient[i]->Truncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN)) {
+      if (!mReplicaFile[i]->Truncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN)) {
         eos_err("Failed to truncate remote replica with deletion offset - %s", maskUrl.c_str());
         rc2=0;
       } 
@@ -424,14 +424,14 @@ ReplicaParLayout::Sync()
   }
   
   if (rc1 <0) {
-    XrdOucString maskUrl = replicaUrl[0].c_str()?replicaUrl[0].c_str():"";
+    XrdOucString maskUrl = mReplicaUrl[0].c_str()?mReplicaUrl[0].c_str():"";
     // mask some opaque parameters to shorten the logging                                                                                                                                                
     eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
     eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
     eos::common::StringConversion::MaskTag(maskUrl,"authz");
     
     eos_err("Failed to remove local replica - %s", maskUrl.c_str());
-    return gOFS.Emsg("ReplicaClose",*error, errno, "remove local replica", maskUrl.c_str());
+    return gOFS.Emsg("ReplicaClose",*mError, errno, "remove local replica", maskUrl.c_str());
   }
 
   return rc1;
@@ -450,7 +450,7 @@ ReplicaParLayout::Remove()
   for (unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
     rc = mReplicaFile[i]->Remove();
     if ( rc != SFS_OK ) {
-      XrdOucString maskUrl = replicaUrl[0].c_str()?replicaUrl[i].c_str():"";
+      XrdOucString maskUrl = mReplicaUrl[0].c_str()?mReplicaUrl[i].c_str():"";
       // mask some opaque parameters to shorten the logging                                                                                                                                                
       eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
       eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");

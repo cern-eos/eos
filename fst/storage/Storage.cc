@@ -1979,7 +1979,7 @@ Storage::Communicator()
           if (hash) {
 	    std::string value = hash->Get("error.simulation");
             eos_static_info("cmd=set error.simulation=%s", value.c_str());
-	    gOFS.SetSimulationError(value.c_str());
+	    //	    gOFS.SetSimulationError(value.c_str());
           }
           gOFS.ObjectManager.HashMutex.UnLockRead();
 	}

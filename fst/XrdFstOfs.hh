@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_FSTOFS_HH__
-#define __EOSFST_FSTOFS_HH__
+#ifndef __XRDFSTOFS_FSTOFS_HH__
+#define __XRDFSTOFS_FSTOFS_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOfsFile.hh"
@@ -38,9 +38,11 @@
 #include "fst/Messaging.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
+
 /*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdOfs/XrdOfs.hh"
+#include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "Xrd/XrdScheduler.hh"
@@ -106,9 +108,9 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId
     friend class XrdFstOfsFile;
     friend class ReplicaParLayout;
 
- private:
+  private:
 
- public:
+  public:
   
     XrdSfsDirectory* newDir( char* user = 0, int MonID = 0 );
 
@@ -121,13 +123,7 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId
     //----------------------------------------------------------------------------
     //! Constructor
     //----------------------------------------------------------------------------
-  XrdFstOfs() {
-    eos::common::LogId(); Eroute = 0; Messaging = 0; Storage = 0; TransferScheduler = 0; 
-    (void) signal(SIGINT,xrdfstofs_shutdown);
-    (void) signal(SIGTERM,xrdfstofs_shutdown);
-    (void) signal(SIGQUIT,xrdfstofs_shutdown);
-    Simulate_IO_read_error = Simulate_IO_write_error = Simulate_XS_read_error = Simulate_XS_write_error = false;
-  }
+    XrdFstOfs();
 
 
     //----------------------------------------------------------------------------
@@ -240,15 +236,6 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId
     google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > XSLockFid;
 
 
-<<<<<<< HEAD
-  void SetSimulationError(const char* tag); // -> allows to switch on error simulation in the OfsFile stack
-  bool Simulate_IO_read_error;          // -> simulate an IO error on read
-  bool Simulate_IO_write_error;         // -> simulate an IO error on write
-  bool Simulate_XS_read_error;          // -> simulate a checksum error on read
-  bool Simulate_XS_write_error;         // -> simulate a checksum error on write
-
-  virtual ~XrdFstOfs() {};
-=======
     XrdSysMutex ReportQueueMutex;
     std::queue <XrdOucString> ReportQueue; // queue where file transaction reports get stored and picked up by a thread running in Storage
 
