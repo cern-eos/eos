@@ -293,7 +293,7 @@ RaidIo::Read( XrdSfsFileOffset offset,
               XrdSfsXferSize   length )
 {
   eos::common::Timing rt( "read" );
-  TIMING( "start", &rt );
+  COMMONTIMING( "start", &rt );
   off_t nread = 0;
   unsigned int stripe_id;
   unsigned int physical_id;
@@ -376,7 +376,7 @@ RaidIo::Read( XrdSfsFileOffset offset,
     bool extra_block_end = false;
     
     while ( align_length > 0 ) {
-      TIMING( "read remote in", &rt );
+      COMMONTIMING( "read remote in", &rt );
       extra_block_begin = false;
       extra_block_end = false;
       stripe_id = ( align_offset / mStripeWidth ) % mNbDataFiles;
@@ -544,7 +544,7 @@ RaidIo::Read( XrdSfsFileOffset offset,
   }
 
 
-  TIMING( "read return", &rt );
+  COMMONTIMING( "read return", &rt );
   //rt.Print();
   return read_length;
 }
@@ -559,7 +559,7 @@ RaidIo::Write( XrdSfsFileOffset offset,
                XrdSfsXferSize   length )
 {
   eos::common::Timing wt( "write" );
-  TIMING( "start", &wt );
+  COMMONTIMING( "start", &wt );
   size_t nwrite;
   int64_t write_length = 0;
   off_t offset_local;
@@ -581,7 +581,7 @@ RaidIo::Write( XrdSfsFileOffset offset,
     nwrite = ( length < mStripeWidth ) ? length : mStripeWidth;
     offset_local = ( ( offset / mSizeLine ) * mStripeWidth ) +
         ( offset % mStripeWidth );
-    TIMING( "write remote", &wt );
+    COMMONTIMING( "write remote", &wt );
 
     //......................................................................
     // Do remote write operation
@@ -630,7 +630,7 @@ RaidIo::Write( XrdSfsFileOffset offset,
     mDoTruncate = true;
   }
   
-  TIMING( "end", &wt );
+  COMMONTIMING( "end", &wt );
   //  wt.Print();
   return write_length;
 }
@@ -643,19 +643,19 @@ void
 RaidIo::DoBlockParity( off_t offsetGroup )
 {
   eos::common::Timing up( "parity" );
-  TIMING( "Compute-In", &up );
+  COMMONTIMING( "Compute-In", &up );
   
   //............................................................................
   // Compute parity blocks
   //............................................................................
   ComputeParity();
-  TIMING( "Compute-Out", &up );
+  COMMONTIMING( "Compute-Out", &up );
   
   //............................................................................
   // Write parity blocks to files
   //............................................................................
   WriteParityToFiles( offsetGroup );
-  TIMING( "WriteParity", &up );
+  COMMONTIMING( "WriteParity", &up );
   mFullDataBlocks = false;
   //  up.Print();
 }
@@ -977,7 +977,7 @@ int
 RaidIo::Close()
 {
   eos::common::Timing ct( "close" );
-  TIMING( "start", &ct );
+  COMMONTIMING( "start", &ct );
   int rc = SFS_OK;
 
   if ( mIsOpen ) {
@@ -1015,7 +1015,7 @@ RaidIo::Close()
       }
     }
 
-    TIMING( "updateheader", &ct );
+    COMMONTIMING( "updateheader", &ct );
 
     if ( mUpdateHeader ) {
       for ( unsigned int i = 0; i < mStripeFiles.size(); i++ ) {

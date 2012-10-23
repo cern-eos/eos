@@ -787,7 +787,7 @@ int xrd_rmxattr( const char* path, const char* xattr_name )
 {
   eos_static_info( "path=%s xattr_name=%s", path, xattr_name );
   eos::common::Timing rmxattrtiming( "rmxattr" );
-  TIMING( "START", &rmxattrtiming );
+  COMMONTIMING( "START", &rmxattrtiming );
   int retc;
   std::string request;
   XrdCl::Buffer arg;
@@ -801,7 +801,7 @@ int xrd_rmxattr( const char* path, const char* xattr_name )
   arg.FromString( request );
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
-  TIMING( "GETPLUGIN", &rmxattrtiming );
+  COMMONTIMING( "GETPLUGIN", &rmxattrtiming );
 
   if ( status.IsOK() ) {
     int items = 0;
@@ -978,7 +978,7 @@ int xrd_listxattr( const char* path, char** xattr_list, size_t* size )
   arg.FromString( request );
   XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
                                           arg, response );
-  TIMING( "GETPLUGIN", &listxattrtiming );
+  COMMONTIMING( "GETPLUGIN", &listxattrtiming );
 
   if ( status.IsOK() ) {
     int items = 0;
@@ -1975,7 +1975,7 @@ ssize_t xrd_pread( int           fildes,
     COMMONTIMING( "wait writes", &xpr );
     
     if ( ( ret = XFC->GetRead( *fAbst, buf, offset, nbyte ) ) != nbyte ) {
-      TIMING( "read in", &xpr );
+      COMMONTIMING( "read in", &xpr );
       eos_static_debug( "Block not found in cache: off=%zu, len=%zu", offset, nbyte );
       file = xrd_get_file( fildes );
       status = file->Read( offset, nbyte, buf, ret );

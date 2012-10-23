@@ -381,6 +381,7 @@ ReplicaParLayout::Stat( struct stat* buf )
 int
 ReplicaParLayout::Sync()
 {
+  int rc = 0;
   for ( unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
     XrdOucString maskUrl = mReplicaUrl[i].c_str()?mReplicaUrl[i].c_str():"";
     // mask some opaque parameters to shorten the logging                                                                                                                                                

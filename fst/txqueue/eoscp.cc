@@ -25,6 +25,7 @@
 #include <set>
 #include <string>
 #include <algorithm>
+#include <math.h>
 /*----------------------------------------------------------------------------*/
 #include <unistd.h>
 #include <errno.h>
@@ -233,13 +234,8 @@ extern "C" {
 //------------------------------------------------------------------------------
 // Printing summary
 //------------------------------------------------------------------------------
-void print_summary( VectLocationType&  src,
-                    VectLocationType&  dst,
-                    unsigned long long bytesread )
-{
-  gettimeofday( &abs_stop_time, &tz );
-  float abs_time = ( ( float )( ( abs_stop_time.tv_sec - abs_start_time.tv_sec ) * 1000 +
-                                ( abs_stop_time.tv_usec - abs_start_time.tv_usec ) / 1000 ) );
+void print_summary_header( VectLocationType&  src,
+			   VectLocationType&  dst ) {
   XrdOucString xsrc[MAXSRCDST];
   XrdOucString xdst[MAXSRCDST];
 
@@ -263,26 +259,41 @@ void print_summary( VectLocationType&  src,
   COUT(("[eoscp] #################################################################\n"));
   COUT(("[eoscp] # Date                     : ( %lu ) %s", (unsigned long) rawtime, asctime(timeinfo)));
   COUT(("[eoscp} # auth forced=%s krb5=%s gsi=%s\n", getenv("XrdSecPROTOCOL")?(getenv("XrdSecPROTOCOL")):"<none>", getenv("KRB5CCNAME")?getenv("KRB5CCNAME"):"<none>",getenv("X509_USER_PROXY")?getenv("X509_USER_PROXY"):"<none>"));
+  for (int i = 0; i < nsrc; i++) 
+    COUT(("[eoscp] # Source Name [%02d]         : %s\n", i, xsrc[i].c_str()));
+
+  for (int i = 0; i < ndst; i++)
+    COUT(("[eoscp] # Destination Name [%02d]    : %s\n", i, xdst[i].c_str()));
+}
+
+
+void print_summary( VectLocationType&  src,
+                    VectLocationType&  dst,
+                    unsigned long long bytesread )
+{
+  gettimeofday( &abs_stop_time, &tz );
+  float abs_time = ( ( float )( ( abs_stop_time.tv_sec - abs_start_time.tv_sec ) * 1000 +
+                                ( abs_stop_time.tv_usec - abs_start_time.tv_usec ) / 1000 ) );
+
+  time_t rawtime;
+  struct tm* timeinfo;
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+
   XrdOucString xsrc[MAXSRCDST];
   XrdOucString xdst[MAXSRCDST];
 
-  for (int i = 0; i < nsrc; i++) { 
-    xsrc[i] = src[i];
-    xsrc[i].erase(xsrc[i].rfind('?'));
+  for ( int i = 0; i < nsrc; i++ ) {
+    xsrc[i] = src[i].first.c_str();
+    xsrc[i] += src[i].second.c_str();
+    xsrc[i].erase( xsrc[i].rfind( '?' ) );
   }
 
-  for (int i = 0; i < ndst; i++) {
-    xdst[i] = dst[i];
-    xdst[i].erase(xdst[i].rfind('?'));
+  for ( int i = 0; i < ndst; i++ ) {
+    xdst[i] = dst[i].first.c_str(); 
+    xdst[i] += dst[i].second.c_str();
+    xdst[i].erase( xdst[i].rfind( '?' ) );
   }
-
-  COUT( ( "[eoscp] #########################################################\n" ) );
-
-  for ( int i = 0; i < nsrc; i++ )
-    COUT( ( "[eoscp] # Source Name [%02d]         : %s\n", i, xsrc[i].c_str() ) );
-
-  for ( int i = 0; i < ndst; i++ )
-    COUT( ( "[eoscp] # Destination Name [%02d]    : %s\n", i, xdst[i].c_str() ) );
 
   COUT( ( "[eoscp] # Data Copied [bytes]      : %lld\n", bytesread ) );
 
@@ -427,7 +438,7 @@ do_readahead( uint64_t& offset, uint32_t length, char*& pbuff )
 //////////////////////////////////////////////////////////////////////
 void abort_handler(int)
 {
-  print_summary_header(source, destination);
+  print_summary_header(src_location, dst_location);
   fprintf(stdout,"error: [eoscp] has been aborted\n");
   exit(-1);
 }
@@ -503,8 +514,8 @@ int main( int argc, char* argv[] )
       xsString  = optarg;
       
       if ( find( xsTypeSet.begin(), xsTypeSet.end(), xsString ) == xsTypeSet.end() ) {
-          fprintf( stderr, "error: no such checksum type: %s\n", optarg );
-          exit( -1 );
+	fprintf( stderr, "error: no such checksum type: %s\n", optarg );
+	exit( -1 );
       }
       
       int layout = 0;
@@ -522,81 +533,12 @@ int main( int argc, char* argv[] )
 	layoutId = eos::common::LayoutId::GetId( layout, eos::common::LayoutId::kCRC32C );
       }
       
-      xsObj = eos::fst::ChecksumPlugins::GetChecksumObject( layoutId );
-      xsObj->Reset();
-      computeXS = true;
-    }
-      break;
-      
-    case 'P':
-      nparitystripes = atoi( optarg );
-      
-      if ( nparitystripes < 2 ) {
-	fprintf( stderr, "error: number of parity stripes >= 2\n" );
-	exit( -1 );
-      }
-      
-      break;
-      
-    case 'u':
-      euid = atoi( optarg );
-      char tuid[128];
-      sprintf( tuid, "%d", euid );
-      
-      if ( strcmp( tuid, optarg ) ) {
-	// this is not a number, try to map it with getpwnam
-	struct passwd* pwinfo = getpwnam( optarg );
-	
-	if ( pwinfo ) {
-	  euid = pwinfo->pw_uid;
-	  
-	  if ( debug ) {
-	    fprintf( stdout, "[eoscp]: mapping user  %s=>UID:%d\n", optarg, euid );
-	  }
-	} else {
-	  fprintf( stderr, "error: cannot map user %s to any unix id!\n", optarg );
-	  exit( -ENOENT );
-          }
-      }
-      
-      break;
-      
-    case 'g':
-      egid = atoi( optarg );
-      char tgid[128];
-      sprintf( tgid, "%d", egid );
-      
-      if ( strcmp( tgid, optarg ) ) {
-	// this is not a number, try to map it with getgrnam
-	struct group* grinfo = getgrnam( optarg );
-	
-	if ( grinfo ) {
-	  egid = grinfo->gr_gid;
-
-	  if ( debug ) {
-	    fprintf( stdout, "[eoscp]: mapping group %s=>GID:%d\n", optarg, egid );
-	  }
-	} else {
-	  fprintf( stderr, "error: cannot map group %s to any unix id!\n", optarg );
-	  exit( -ENOENT );
-	}
-      }
-      
-      break;
-      
-    case 't':
-      bandwidth = atoi( optarg );
-      
-      if ( ( bandwidth < 1 ) || ( bandwidth > 2000 ) ) {
-	fprintf( stderr, "error: bandwidth can only be 1 <= bandwidth <= 2000 Mb/s\n" );
-	exit( -1 );
-      }
-      
       xsObj = eos::fst::ChecksumPlugins::GetChecksumObject(layoutId);
       xsObj->Reset();
       computeXS = true;
       
       break;
+    }
     case 'P':
       nparitystripes = atoi(optarg);
       if (nparitystripes < 2) {
@@ -621,25 +563,6 @@ int main( int argc, char* argv[] )
           fprintf(stderr,"error: cannot map user %s to any unix id!\n", optarg);
           exit(-ENOENT);
 	}
-      }
-      break;
-      
-    case 'S':
-      nsrc = atoi( optarg );
-      
-      if ( ( nsrc < 1 ) || ( nsrc > MAXSRCDST ) ) {
-	fprintf( stderr, "error: # of sources must be 1 <= # <= %d\n", MAXSRCDST );
-	exit( -1 );
-      }
-      
-      break;
-      
-    case 'D':
-      ndst = atoi( optarg );
-      
-      if ( ( ndst < 1 ) || ( ndst > MAXSRCDST ) ) {
-	fprintf( stderr, "error: # of sources must be 1 <= # <= %d\n", MAXSRCDST );
-	exit( -1 );
       }
       break;
       
@@ -887,25 +810,6 @@ int main( int argc, char* argv[] )
   if ( !replicamode ) {
     for ( int i = 0 ; i < nsrc; i++ ) {
       // stat the source
-<<<<<<< HEAD
-      switch(sid[i]) {
-      case 0:
-        if (debug) {fprintf(stdout, "[eoscp]: doing POSIX stat on %s\n", source[i]);}
-        stat_failed = lstat(source[i], &st[i]);
-        break;
-      case 1:
-        if (debug) {fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) stat on %s\n", source[i]);}
-        stat_failed = XrdPosixXrootd::Stat(source[i], &st[i]);
-        break;
-      case 2:
-        if (debug) {fprintf(stdout, "[eoscp]: doing XROOT stat on %s\n", source[i]);}
-        stat_failed = XrdPosixXrootd::Stat(source[i], &st[i]);
-        break;
-      case 3:
-        stat_failed = 0;
-	st[i].st_size = targetsize;
-        break;
-=======
       switch ( src_type[i] ) {
         case LOCAL_ACCESS:
           {
@@ -1267,39 +1171,6 @@ int main( int argc, char* argv[] )
     }
   }
 
-<<<<<<< HEAD
-  for (int i = 0; i < ndst; i++) {
-    if (!set_mode) {
-      if (sid[i] != 3) {
-	// if not specified on the command line, take the source mode
-	dest_mode[i] = st[i].st_mode;
-      }
-    }
-
-    switch(did[i]) {
-    case 0:
-      if (debug) {fprintf(stdout, "[eoscp]: doing POSIX open to write  %s\n", destination[i]);}
-      if (appendmode) {
-        dstfd[i] = open(destination[i], O_WRONLY|O_CREAT, dest_mode[i]);
-      } else {
-        dstfd[i] = open(destination[i], O_WRONLY|O_TRUNC|O_CREAT, dest_mode[i]);
-      }
-      break;
-    case 1:
-      //already took care of
-      break;
-    case 2:
-      if (debug) {fprintf(stdout, "[eoscp]: doing XROOT open to write  %s\n", destination[i]);}
-      if (appendmode) {
-	struct stat buf;
-	if (XrdPosixXrootd::Stat((char*)destination[i],&buf)) {
-	  dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY|O_CREAT,dest_mode[i]);
-	} else {
-	  dstfd[i] = XrdPosixXrootd::Open(destination[i],O_WRONLY,dest_mode[i]);
-	}
-      } else {
-        dstfd[i] = XrdPosixXrootd::Open(destination[i], O_WRONLY|O_TRUNC|O_CREAT, dest_mode[i]);
-=======
   //............................................................................
   // Seek the required start position
   //............................................................................
@@ -1461,38 +1332,20 @@ int main( int argc, char* argv[] )
         break;
     }
     
-    switch(did[i]) {
-    case 0:
-      chmod_failed = chmod(destination[i], dest_mode[i]);
-      break;
-    case 1:
-      // we don't have that here in the std. xrootd
-      chmod_failed = 0;
-    case 2:
-      // we don't have that here in the std. xrootd
-      chmod_failed = 0;
-      break;
-    case 3:
-      chmod_failed = 0;
-
-      
-      if ( ( !isRaidTransfer ) &&
-	   ( dst_handler[i].first <= 0 ) &&
-	   ( dst_handler[i].second == NULL ) )
-	{
-	  fprintf( stderr, "error: cannot open destination file %s\n",
-		   dst_location[i].second.c_str() );
-	  exit( -EPERM );
-	}
-      
-      if ( isRaidTransfer && !isSrcRaid ) {
-	>>>>>>> 47bcc0c... FST: Update the eoscp command to used the new XrdCl
-	  break;
+    if ( ( !isRaidTransfer ) &&
+	 ( dst_handler[i].first <= 0 ) &&
+	 ( dst_handler[i].second == NULL ) )
+      {
+	fprintf( stderr, "error: cannot open destination file %s\n",
+		 dst_location[i].second.c_str() );
+	exit( -EPERM );
       }
+    
+    if ( isRaidTransfer && !isSrcRaid ) {
+      break;
     }
   }
-
-  
+    
   //............................................................................
   // In case the file exists, seek the end and print the offset
   //............................................................................
@@ -1589,7 +1442,7 @@ int main( int argc, char* argv[] )
     if (progbar) {
       gettimeofday(&abs_stop_time, &tz);
       for (int i = 0; i < nsrc; i++) {
-        if ( (sid[i] == 3) && (!targetsize) ) {
+	if ( (src_type[i] == XRD_ACCESS ) && (!targetsize) ) {
           st[i].st_size = totalbytes;
         }
       }
