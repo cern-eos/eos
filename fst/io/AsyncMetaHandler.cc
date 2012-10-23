@@ -45,7 +45,19 @@ AsyncMetaHandler::AsyncMetaHandler():
 //------------------------------------------------------------------------------
 AsyncMetaHandler::~AsyncMetaHandler()
 {
-  //empty
+  ChunkHandler* ptr_chunk = NULL;
+  
+  while ( !listReq.empty() ) {
+    ptr_chunk = listCache.back();
+    listCache.pop_back();
+    delete ptr_chunk;
+  }
+
+  while ( !listCache.empty() ) {
+    ptr_chunk = listCache.back();
+    listCache.pop_back();
+    delete ptr_chunk;
+  }
 }
 
 
@@ -57,15 +69,24 @@ AsyncMetaHandler::Register( uint64_t offset,
                             uint32_t length,
                             bool     isWrite )
 {
-
-  // TODO: add some caching of request objects maybe ?!
-  ChunkHandler* ptr_chunk = new ChunkHandler( this, offset, length, isWrite );
-  mCond.Lock();   // --> 
+  ChunkHandler* ptr_chunk = NULL;
   
+  mCond.Lock();          // --> 
+  if ( listCache.size() ) {
+    ptr_chunk = listCache.back();
+    listCache.pop_back();
+  }
+
+  if ( !ptr_chunk ) {
+    ptr_chunk = new ChunkHandler( this, offset, length, isWrite );
+  }
+  else {
+    ptr_chunk->Update( this, offset, length, isWrite );
+  }
+
   listReq.push_back( ptr_chunk );
   mNumExpectedResp++;
-  
-  mCond.UnLock(); // <--
+  mCond.UnLock();        // <--
   
   return ptr_chunk;
 }
@@ -132,18 +153,23 @@ AsyncMetaHandler::Reset()
 {
   ChunkHandler* ptr_chunk = NULL;
 
-  mCond.Lock();  // -->
+  mCond.Lock();          // -->
   mState = true;
   mNumExpectedResp = 0;
   mNumReceivedResp = 0;
   mMapErrors.clear();  
-  
+
   while ( !listReq.empty() ) {
     ptr_chunk = listReq.back();
     listReq.pop_back();
-    delete ptr_chunk;    
+    if ( listCache.size() < msMaxCacheSize ) {
+      listCache.push_back( ptr_chunk );
+    }
+    else {
+      delete ptr_chunk;
+    }
   }
-  mCond.UnLock(); // <--
+  mCond.UnLock();        // <--
 }
 
 

@@ -37,7 +37,9 @@ ChunkHandler::ChunkHandler( AsyncMetaHandler* metaHandler,
     mMetaHandler( metaHandler ),
     mOffset( offset ),
     mLength( length ),
-    mIsWrite( isWrite )
+    mRespLength( 0 ),
+    mIsWrite( isWrite ),
+    mErrorNo( 0 )
 {
   // empty
 }
@@ -49,6 +51,23 @@ ChunkHandler::ChunkHandler( AsyncMetaHandler* metaHandler,
 ChunkHandler::~ChunkHandler()
 {
   // emtpy
+}
+
+
+//------------------------------------------------------------------------------
+// Update function
+//------------------------------------------------------------------------------
+void ChunkHandler::Update( AsyncMetaHandler* metaHandler,
+                           uint64_t          offset,
+                           uint32_t          length,
+                           bool              isWrite)
+{
+  mMetaHandler =  metaHandler;
+  mOffset = offset;
+  mLength = length;
+  mRespLength = 0;
+  mIsWrite = isWrite;
+  mErrorNo = 0;
 }
 
 
@@ -65,6 +84,7 @@ ChunkHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
   if ( ( mIsWrite == false ) && ( pResponse ) ) {  
     XrdCl::ChunkInfo* chunk = 0;
     pResponse->Get( chunk );
+    mRespLength = chunk->length;
     
     //..........................................................................
     // Notice if we received less then we initially requested - usually this means
@@ -73,8 +93,8 @@ ChunkHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
     if ( mLength != chunk->length ) {
       pStatus->status = XrdCl::stError;
       pStatus->errNo = EFAULT;
+      mErrorNo = EFAULT;
     }
-
   }
 
   mMetaHandler->HandleResponse( pStatus, this );

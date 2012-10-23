@@ -172,7 +172,7 @@ target_link_libraries ( eos-check-blockxs eosCommon )
 target_link_libraries ( eos-compute-blockxs eosCommon )
 target_link_libraries ( eos-scan-fs eosCommon rt ) 
 target_link_libraries ( eos-adler32 eosCommon ) 
-target_link_libraries ( eoscp XrdUtils XrdPosix XrdCrypto ${OPENSSL_LIBRARIES} uuid XrdCl ${LIBEVENT_LIB} )
+target_link_libraries ( eoscp XrdUtils XrdCrypto ${OPENSSL_LIBRARIES} uuid XrdCl ${LIBEVENT_LIB} )
 target_link_libraries ( eos-raid-recover eosCommon)
 
 if (Linux)

@@ -57,7 +57,7 @@ class ChunkHandler: public XrdCl::ResponseHandler
                 uint32_t          length,
                 bool              isWrite);
 
-
+  
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
@@ -65,7 +65,22 @@ class ChunkHandler: public XrdCl::ResponseHandler
 
 
   //----------------------------------------------------------------------------
-  //! Get chunk offset
+  //! Update function
+  //!
+  //! @param reqHandler handler to the file meta handler
+  //! @param offset request offset
+  //! @param length request length
+  //! @param isWrite chunk belongs to a write request
+  //!
+  //----------------------------------------------------------------------------
+  void Update( AsyncMetaHandler* reqHandler,
+               uint64_t          offset,
+               uint32_t          length,
+               bool              isWrite);
+
+  
+  //----------------------------------------------------------------------------
+  //! Get request chunk offset
   //----------------------------------------------------------------------------
   inline uint64_t GetOffset() const {
     return mOffset;
@@ -73,10 +88,26 @@ class ChunkHandler: public XrdCl::ResponseHandler
 
 
   //----------------------------------------------------------------------------
-  //! Get chunk length
+  //! Get request chunk length
   //----------------------------------------------------------------------------
   inline uint32_t GetLength() const {
     return mLength;
+  };
+
+
+  //----------------------------------------------------------------------------
+  //! Get response chunk length
+  //----------------------------------------------------------------------------
+  inline uint32_t GetRespLength() const {
+    return mRespLength;
+  };
+
+
+  //----------------------------------------------------------------------------
+  //! Get errno
+  //----------------------------------------------------------------------------
+  inline uint32_t GetErrno() const {
+    return mErrorNo;
   };
 
   
@@ -104,7 +135,9 @@ class ChunkHandler: public XrdCl::ResponseHandler
   AsyncMetaHandler* mMetaHandler; ///< handler to the whole file meta handler
   uint64_t          mOffset;      ///< offset of the request
   uint32_t          mLength;      ///< length of the request
-  bool              mIsWrite;     ///< operation type is write 
+  uint32_t          mRespLength;  ///< length of response received, only for reads
+  bool              mIsWrite;     ///< operation type is write
+  int               mErrorNo;     ///< error no for this request
   
 };
 
