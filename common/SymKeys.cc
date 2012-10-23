@@ -33,17 +33,50 @@ EOSCOMMONNAMESPACE_BEGIN
 SymKeyStore gSymKeyStore;//< global SymKey store singleton
 /*----------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------------*/
-/** 
- * Base64 encoding function
- * 
- * @param in binary pointer to encode
- * @param inlen length of buffer in
- * @param out base64 encoded string
- * 
- * @return true if successful, false if failure
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Compute the HMAC SHA-256 value
+//------------------------------------------------------------------------------
+std::string
+SymKey::HmacSha256( std::string& key,
+                    std::string& data,
+                    unsigned int blockSize, 
+                    unsigned int resultSize )
+{
+  HMAC_CTX ctx;
+  std::string result;
+  unsigned int data_len = data.length();
+  unsigned int key_len = key.length();
+  unsigned char* pKey = ( unsigned char* ) key.c_str();
+  unsigned char* pData = ( unsigned char* ) data.c_str();
+  result.resize( resultSize );
+  unsigned char* pResult = ( unsigned char* ) result.c_str();
+
+  ENGINE_load_builtin_engines();
+  ENGINE_register_all_complete();
+  
+  HMAC_CTX_init(&ctx);
+  HMAC_Init_ex(&ctx, pKey, key_len, EVP_sha256(), NULL);
+ 
+  while ( data_len > blockSize ) {
+    HMAC_Update( &ctx, pData, blockSize );
+    data_len -= blockSize;
+    pData += blockSize;
+  }
+ 
+  if ( data_len ) {
+    HMAC_Update( &ctx, pData, data_len );
+  }
+ 
+  HMAC_Final(&ctx, pResult, &resultSize);
+  HMAC_CTX_cleanup(&ctx);
+
+  return result;
+}
+
+
+//------------------------------------------------------------------------------
+// Base64 encoding function
+//------------------------------------------------------------------------------
 bool
 SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString &out) {
   BIO *bmem, *b64;
@@ -82,18 +115,10 @@ SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString &out) {
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
-/** 
- * Base64 decoding function
- * 
- * @param in base64 string to decode
- * @param out binary buffer pointer where to store the decoded string
- * @param outlen length of the decoded string
- * 
- * @return true if successful otherwise false
- */
-/* Base64 Decoding                                                            */
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Base64 decoding function
+//------------------------------------------------------------------------------
 bool
 SymKey::Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen) {
   BIO *b64, *bmem;
@@ -120,30 +145,28 @@ SymKey::Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen) {
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
-//! Constructor
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 SymKeyStore::SymKeyStore() 
 {
   currentKey=0;
 }
 
-/*----------------------------------------------------------------------------*/
-//! Destructor
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 SymKeyStore::~SymKeyStore()
 {
+  // empty
 }
 
-/*----------------------------------------------------------------------------*/
-/** 
- * Set a key providing its base64 encoded representation and validity
- * 
- * @param inkey64 base64 encoded key
- * @param invalidity time when key get's invalid
- * 
- * @return pointer to SymKey object in store
- */
+
+//------------------------------------------------------------------------------
+// Set a key providing its base64 encoded representation and validity
+//------------------------------------------------------------------------------
 SymKey* 
 SymKeyStore::SetKey64(const char* inkey64, time_t invalidity) 
 {
@@ -163,16 +186,10 @@ SymKeyStore::SetKey64(const char* inkey64, time_t invalidity)
   return SetKey(binarykey, invalidity);
 }
 
-/*----------------------------------------------------------------------------*/
-/** 
- * Set a key providing it's binary representation and validity
- * 
- * @param inkey binary key of SHA_DIGEST_LENGTH length
- * @param invalidity time when key gets invalid
- * 
- * @return pointer SymKey object in store
- */
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Set a key providing it's binary representation and validity
+//------------------------------------------------------------------------------
 SymKey* 
 SymKeyStore::SetKey(const char* inkey, time_t invalidity) 
 {
@@ -199,15 +216,10 @@ SymKeyStore::SetKey(const char* inkey, time_t invalidity)
   return key;
 }
 
-/*----------------------------------------------------------------------------*/
-/** 
- * Retrieve key by keydigest in base64 format
- * 
- * @param inkeydigest64 digest base64 encoded
- * 
- * @return pointer to SymKey in store 
- */
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Retrieve key by keydigest in base64 format
+//------------------------------------------------------------------------------
 SymKey*
 SymKeyStore::GetKey(const char* inkeydigest64) 
 {
@@ -218,14 +230,10 @@ SymKeyStore::GetKey(const char* inkeydigest64)
   return key;
 }
 
-/*----------------------------------------------------------------------------*/
-/** 
- * Retrieve last added valid key from the store
- * 
- * 
- * @return pointer to current Symkey in the store
- */
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Retrieve last added valid key from the store
+//------------------------------------------------------------------------------
 SymKey*
 SymKeyStore::GetCurrentKey() 
 {
