@@ -1,7 +1,7 @@
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: RaidMetaLayout.hh
 // Author: Elvin-Alin Sindrilaru - CERN
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -42,12 +42,10 @@
 //------------------------------------------------------------------------------
 //! @file RaidMetaLayout.hh
 //! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Generic class to read/write different layout files
+//! @brief Generic class to read/write RAID-like layout files
 //------------------------------------------------------------------------------
 
 EOSFSTNAMESPACE_BEGIN
-
-using namespace XrdCl;
 
 //------------------------------------------------------------------------------
 //! Generic class to read/write different layout files
@@ -59,30 +57,42 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     //! Constructor
     //!
-    //! @param algorithm type of layout used
-    //! @param stripeUrl vector containing the location of the stripe files
-    //! @param nbParity number of stripes used for parity
+    //! @param file handler to current file
+    //! @param name name of the layout
+    //! @param lid layout id
+    //! @param client security information
+    //! @param outError error information
     //! @param storeRecovery force writing back the recovered blocks to the files
     //! @param isStreaming file is written in streaming mode
-    //! @param targetSize exepected size (?!)
+    //! @param targetSize expected final size
     //! @param bookingOpaque opaque information
     //!
     //--------------------------------------------------------------------------
-    RaidMetaLayout(  XrdFstOfsFile*      file,
-                     int                 lid,
-                     const XrdSecEntity* client,
-                     XrdOucErrInfo*      outError,
-                     bool                storeRecovery,
-                     bool                isStreaming,
-                     off_t               targetSize,
-                     std::string         bookingOpaque );
+    RaidMetaLayout( XrdFstOfsFile*      file,
+                    int                 lid,
+                    const XrdSecEntity* client,
+                    XrdOucErrInfo*      outError,
+                    bool                storeRecovery,
+                    bool                isStreaming,
+                    off_t               targetSize,
+                    std::string         bookingOpaque );
+
+
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    virtual ~RaidMetaLayout();
+
 
     //--------------------------------------------------------------------------
     //! Open file
     //!
+    //! @param path path to the file 
     //! @param flags flags O_RDWR/O_RDONLY/O_WRONLY
+    //! @param mode creation permissions
+    //! @param opaque information
     //!
-    //! @return 0 if successful, otherwise error
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Open( const std::string& path,
@@ -90,14 +100,15 @@ class RaidMetaLayout : public Layout
                       mode_t             mode,
                       const char*        opaque );
 
+  
     //--------------------------------------------------------------------------
     //! Read from file
     //!
-    //! @param offset file offset
-    //! @param buffer data to be read
-    //! @param length length of the data
+    //! @param offset offset
+    //! @param buffer place to hold the read data
+    //! @param length length
     //!
-    //! @return length of data read
+    //! @return number of bytes read or -1 if error
     //!
     //--------------------------------------------------------------------------
     virtual int64_t Read( XrdSfsFileOffset offset,
@@ -108,51 +119,27 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     //! Write to file
     //!
-    //! @param offset file offset
-    //! @param buffer data to be written
-    //! @param length length of the data
+    //! @param offset offset
+    //! @paramm buffer data to be written
+    //! @param length length
     //!
-    //! @return length of data written
+    //! @return number of bytes written or -1 if error
     //!
     //--------------------------------------------------------------------------
     virtual int64_t Write( XrdSfsFileOffset offset,
                            char*            buffer,
                            XrdSfsXferSize   length );
-        
 
+  
     //--------------------------------------------------------------------------
-    //! Truncate file
+    //! Truncate
     //!
-    //! @param offset size to truncate
+    //! @param offset truncate file to this value
     //!
-    //! @return 0 if successful, otherwise error
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Truncate( XrdSfsFileOffset offset ) = 0;
-
-    //--------------------------------------------------------------------------
-    //! Unlink all connected pieces
-    //!
-    //! @return 0 if successful, otherwise error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Remove();
-
-    //--------------------------------------------------------------------------
-    //! Sync all connected pieces to disk
-    //!
-    //! @return 0 if successful, otherwise error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Sync();
-
-    //--------------------------------------------------------------------------
-    //! Close file
-    //!
-    //! @return 0 if successful, otherwise error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Close();
 
 
     //--------------------------------------------------------------------------
@@ -163,7 +150,7 @@ class RaidMetaLayout : public Layout
     //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Fallocate( XrdSfsFileOffset lenght ); 
+    virtual int Fallocate( XrdSfsFileOffset lenght );
 
 
     //--------------------------------------------------------------------------
@@ -177,32 +164,58 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int Fdeallocate( XrdSfsFileOffset fromOffset,
                              XrdSfsFileOffset toOffset );
-  
+
+
+    //--------------------------------------------------------------------------
+    //! Remove file
+    //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Remove();
+
+
+    //--------------------------------------------------------------------------
+    //! Sync file to disk
+    //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Sync();
+
+
+    //--------------------------------------------------------------------------
+    //! Close file
+    //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Close();
+
+
     //--------------------------------------------------------------------------
     //! Get stats about the file
     //!
-    //! @param buf stat structure for the file
+    //! @param buf stat buffer
     //!
-    //! @return 0 if successful, otherwise error
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
     virtual int Stat( struct stat* buf );
 
+  
     //--------------------------------------------------------------------------
     //! Get size of file
     //--------------------------------------------------------------------------
     virtual uint64_t Size(); // returns the total size of the file
 
+  
     //--------------------------------------------------------------------------
     //! Get size of the stripe
     //--------------------------------------------------------------------------
     static const int GetSizeStripe();
 
-    //--------------------------------------------------------------------------
-    //! Destructor
-    //--------------------------------------------------------------------------
-    virtual ~RaidMetaLayout();
-
+  
   protected:
 
     bool mIsRw;                  ///< mark for writing
@@ -225,13 +238,13 @@ class RaidMetaLayout : public Layout
     unsigned int mNbDataBlocks;  ///< no. data blocks in a group
     unsigned int mNbTotalBlocks; ///< no. data and parity blocks in a group
 
-    off_t mStripeWidth;         ///< stripe width
+    off_t mStripeWidth;          ///< stripe width
     off_t mSizeHeader;           ///< size of header = 4KB
     off_t mFileSize;             ///< total size of current file
     off_t mTargetSize;           ///< expected final size (?!)
     off_t mOffGroupParity;       ///< offset of the last group for which we
                                  ///< computed the parity blocks
-    off_t mSizeGroup;           ///< size of a gourp of blocks
+    off_t mSizeGroup;            ///< size of a gourp of blocks
                                  ///< eg. RAIDDP: group = noDataStr^2 blocks
 
     std::string mAlgorithmType;                     ///< layout type used
@@ -248,8 +261,12 @@ class RaidMetaLayout : public Layout
 
     //--------------------------------------------------------------------------
     //! Test and recover any corrupted headers in the stripe files
+    //!
+    //! @param opqaue opaque information to be forwarded if needed
+    //!
     //--------------------------------------------------------------------------
-    virtual bool ValidateHeader( const char* opaque);
+    virtual bool ValidateHeader( const char* opaque );
+  
 
     //--------------------------------------------------------------------------
     //! Recover corrupted pieces
@@ -265,6 +282,7 @@ class RaidMetaLayout : public Layout
                                 char*                    buffer,
                                 std::map<off_t, size_t>& mapPieces ) = 0;
 
+  
     //--------------------------------------------------------------------------
     //! Add new data block to the current group for parity computation, used
     //! when writing a file in streaming mode
@@ -276,39 +294,44 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     virtual void AddDataBlock( off_t offset, char* buffer, size_t length ) = 0;
 
-    // -------------------------------------------------------------------------
+  
+    //--------------------------------------------------------------------------
     //! Compute and write parity blocks corresponding to a group of blocks
     //!
-    //! @param offsetGroup offset of group
+    //! @param offsetGroup offset of group of blocks
     //!
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     void DoBlockParity( off_t offsetGroup );
 
-    // -------------------------------------------------------------------------
+  
+    //--------------------------------------------------------------------------
     //! Compute parity information for a group of blocks
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual void ComputeParity() = 0;
 
-    // -------------------------------------------------------------------------
+  
+    //--------------------------------------------------------------------------
     //! Write parity information corresponding to a group to files
     //!
     //! @param offsetGroup offset of the group of blocks
     //!
     //! @return 0 if successful, otherwise error
     //!
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual int WriteParityToFiles( off_t offsetGroup ) = 0;
 
-    // -------------------------------------------------------------------------
+  
+    //--------------------------------------------------------------------------
     //! Map index from mNbDataBlocks representation to mNbTotalBlocks
     //!
     //! @param idSmall with values between 0 and 15, for exmaple in RAID-DP
     //!
     //! @return index with values between 0 and 23, -1 if error
     //!
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual unsigned int MapSmallToBig( unsigned int idSmall ) = 0;
 
+  
   private:
 
     //--------------------------------------------------------------------------
@@ -321,12 +344,14 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     void AddPiece( off_t offset, size_t length );
 
+  
     //--------------------------------------------------------------------------
     //! Non-streaming operation
     //! Merge in place the pieces from the map
     //--------------------------------------------------------------------------
     void MergePieces();
 
+  
     //--------------------------------------------------------------------------
     //! Non-streaming operation
     //! Get a list of the group offsets for which we can compute the parity info
@@ -337,6 +362,7 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     void GetOffsetGroups( std::set<off_t>& offsetGroups, bool forceAll );
 
+  
     //--------------------------------------------------------------------------
     //! Non-streaming operation
     //! Read data from the current group for parity computation
@@ -348,11 +374,15 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     bool ReadGroup( off_t offsetGroup );
 
+  
     //--------------------------------------------------------------------------
     //! Non-streaming operation
     //! Compute parity for the non-streaming case and write it to files
     //!
-    //! @param force if true force parity computation of incomplete groups
+    //! @param force if true force parity computation of incomplete groups,
+    //!              this means that parity will be computed even if there are
+    //!              still some pieces missing - this is useful at the end of
+    //!              a write operation when closing the file
     //!
     //! @return true if successful, otherwise error
     //!
@@ -363,4 +393,4 @@ class RaidMetaLayout : public Layout
 
 EOSFSTNAMESPACE_END
 
-#endif  // __EOSFST_IO_RAIDIO_HH__
+#endif  // __EOSFST_IO_RAIDMETALAYOUT_HH__

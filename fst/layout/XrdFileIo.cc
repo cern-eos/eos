@@ -38,7 +38,7 @@ EOSFSTNAMESPACE_BEGIN
 XrdFileIo::XrdFileIo( XrdFstOfsFile*      file,
                       const XrdSecEntity* client,
                       XrdOucErrInfo*      error ):
-    FileIo( file, client, error )
+  FileIo( file, client, error )
 {
   // empty
 }
@@ -49,7 +49,7 @@ XrdFileIo::XrdFileIo( XrdFstOfsFile*      file,
 //------------------------------------------------------------------------------
 XrdFileIo::~XrdFileIo()
 {
-  if (mXrdFile) {
+  if ( mXrdFile ) {
     delete mXrdFile;
   }
 }
@@ -66,19 +66,17 @@ XrdFileIo::Open( const std::string& path,
 {
   eos_debug( "path = %s", path.c_str() );
   mLocalPath = path;
-
   mXrdFile = new XrdCl::File();
   XrdCl::XRootDStatus status = mXrdFile->Open( path,
                                                static_cast<uint16_t>( flags ),
                                                static_cast<uint16_t>( mode ) );
 
-  if ( !status.IsOK() ){
+  if ( !status.IsOK() ) {
     eos_err( "error=opening remote file" );
     errno = status.errNo;
     return SFS_ERROR;
   }
 
-  eos_info( "Finish open." );
   return SFS_OK;
 }
 
@@ -94,23 +92,24 @@ XrdFileIo::Read( XrdSfsFileOffset offset,
   eos_debug( "offset = %lli, length = %lli",
              static_cast<int64_t>( offset ),
              static_cast<int64_t>( length ) );
-
+  
   uint32_t bytes_read;
   XrdCl::XRootDStatus status = mXrdFile->Read( static_cast<uint64_t>( offset ),
                                                static_cast<uint32_t>( length ),
                                                buffer,
                                                bytes_read );
+
   if ( !status.IsOK() ) {
     errno = status.errNo;
     return SFS_ERROR;
   }
-  
-  return length;  
+
+  return length;
 }
 
 
 //------------------------------------------------------------------------------
-// Write to file - sync 
+// Write to file - sync
 //------------------------------------------------------------------------------
 int64_t
 XrdFileIo::Write( XrdSfsFileOffset offset,
@@ -123,13 +122,13 @@ XrdFileIo::Write( XrdSfsFileOffset offset,
 
   XrdCl::XRootDStatus status = mXrdFile->Write( static_cast<uint64_t>( offset ),
                                                 static_cast<uint32_t>( length ),
-                                                 buffer );
+                                                buffer );
 
   if ( !status.IsOK() ) {
     errno = status.errNo;
     return SFS_ERROR;
   }
-    
+
   return length;
 }
 
@@ -141,23 +140,23 @@ int64_t
 XrdFileIo::Read( XrdSfsFileOffset offset,
                  char*            buffer,
                  XrdSfsXferSize   length,
-                 void*            handler)
+                 void*            handler )
 {
   eos_debug( "offset = %lli, length = %lli",
              static_cast<int64_t>( offset ),
              static_cast<int64_t>( length ) );
-
+  
   XrdCl::XRootDStatus status;
   status = mXrdFile->Read( static_cast<uint64_t>( offset ),
                            static_cast<uint32_t>( length ),
                            buffer,
                            static_cast<XrdCl::ResponseHandler*>( handler ) );
-  return length;  
+  return length;
 }
 
 
 //------------------------------------------------------------------------------
-// Write to file - async 
+// Write to file - async
 //------------------------------------------------------------------------------
 int64_t
 XrdFileIo::Write( XrdSfsFileOffset offset,
@@ -168,7 +167,7 @@ XrdFileIo::Write( XrdSfsFileOffset offset,
   eos_debug( "offset = %lli, length = %lli",
              static_cast<int64_t>( offset ),
              static_cast<int64_t>( length ) );
-
+  
   XrdCl::XRootDStatus status;
   status = mXrdFile->Write( static_cast<uint64_t>( offset ),
                             static_cast<uint32_t>( length ),
@@ -184,13 +183,13 @@ XrdFileIo::Write( XrdSfsFileOffset offset,
 int
 XrdFileIo::Truncate( XrdSfsFileOffset offset )
 {
-  XrdCl::XRootDStatus status = mXrdFile->Truncate( static_cast<uint64_t>(offset ) );
+  XrdCl::XRootDStatus status = mXrdFile->Truncate( static_cast<uint64_t>( offset ) );
 
   if ( !status.IsOK() ) {
     errno = status.errNo;
     return SFS_ERROR;
   }
-  
+
   return SFS_OK;
 }
 
@@ -203,12 +202,12 @@ XrdFileIo::Sync()
 {
   eos_debug( " " );
   XrdCl::XRootDStatus status = mXrdFile->Sync();
-  
+
   if ( !status.IsOK() ) {
     errno = status.errNo;
     return SFS_ERROR;
   }
-  
+
   return SFS_OK;
 }
 
@@ -221,19 +220,17 @@ XrdFileIo::Stat( struct stat* buf )
 {
   eos_debug( " " );
   int rc = SFS_ERROR;
-  
   XrdCl::StatInfo* stat;
   XrdCl::XRootDStatus status = mXrdFile->Stat( true, stat );
 
   if ( !status.IsOK() ) {
     errno = status.errNo;
-  }
-  else {
+  } else {
     buf->st_dev = static_cast<dev_t>( atoi( stat->GetId().c_str() ) );
     buf->st_mode = static_cast<mode_t>( stat->GetFlags() );
     buf->st_size = static_cast<off_t>( stat->GetSize() );
     buf->st_mtime = static_cast<time_t>( stat->GetModTime() );
-    rc = SFS_OK;    
+    rc = SFS_OK;
   }
 
   delete stat;
@@ -254,7 +251,7 @@ XrdFileIo::Close()
     errno = status.errNo;
     return SFS_ERROR;
   }
-  
+
   return SFS_OK;
 }
 
@@ -269,12 +266,12 @@ XrdFileIo::Remove()
   // Remove the file by truncating using the special value offset
   //............................................................................
   XrdCl::XRootDStatus status = mXrdFile->Truncate( EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN );
-  
-  if ( !status.IsOK() ){
+
+  if ( !status.IsOK() ) {
     eos_err( "Filed to truncate file with deletion offset - %s", mPath.c_str() );
     return SFS_ERROR;
-  }       
-    
+  }
+
   return SFS_OK;
 }
 

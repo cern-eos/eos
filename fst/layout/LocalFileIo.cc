@@ -39,12 +39,11 @@ EOSFSTNAMESPACE_BEGIN
 LocalFileIo::LocalFileIo( XrdFstOfsFile*      file,
                           const XrdSecEntity* client,
                           XrdOucErrInfo*      error ):
-    FileIo( file, client, error )
+  FileIo( file, client, error )
 {
   //............................................................................
   // In this case the logical file is the same as the local file
   //............................................................................
-
   // empty
 }
 
@@ -69,12 +68,13 @@ LocalFileIo::Open( const std::string& path,
 {
   eos_debug( "path = %s", path.c_str() );
   mLocalPath = path;
-  return mLogicalFile->openofs( path.c_str(), flags, mode, mSecEntity, opaque.c_str() );
+  return mLogicalFile->openofs( path.c_str(), flags, mode,
+                                mSecEntity, opaque.c_str() );
 }
 
 
 //------------------------------------------------------------------------------
-// Read from file - sync 
+// Read from file - sync
 //------------------------------------------------------------------------------
 int64_t
 LocalFileIo::Read( XrdSfsFileOffset offset,
@@ -90,7 +90,7 @@ LocalFileIo::Read( XrdSfsFileOffset offset,
 
 
 //------------------------------------------------------------------------------
-// Write to file - sync 
+// Write to file - sync
 //------------------------------------------------------------------------------
 int64_t
 LocalFileIo::Write( XrdSfsFileOffset offset,
@@ -100,13 +100,13 @@ LocalFileIo::Write( XrdSfsFileOffset offset,
   eos_debug( "offset = %lli, length = %lli",
              static_cast<int64_t>( offset ),
              static_cast<int64_t>( length ) );
-
+  
   return mLogicalFile->writeofs( offset, buffer, length );
 }
 
 
 //------------------------------------------------------------------------------
-// Read from file - async 
+// Read from file - async
 //------------------------------------------------------------------------------
 int64_t
 LocalFileIo::Read( XrdSfsFileOffset offset,
@@ -116,10 +116,10 @@ LocalFileIo::Read( XrdSfsFileOffset offset,
 {
   return SFS_ERROR;
 }
-  
+
 
 //------------------------------------------------------------------------------
-// Write to file - async 
+// Write to file - async
 //------------------------------------------------------------------------------
 int64_t
 LocalFileIo::Write( XrdSfsFileOffset offset,
@@ -220,7 +220,7 @@ LocalFileIo::Sync()
 int
 LocalFileIo::Stat( struct stat* buf )
 {
-  eos_debug( " " );
+  eos_debug( "_" );
   return XrdOfsOss->Stat( mLogicalFile->GetFstPath().c_str(), buf );
 }
 
@@ -231,7 +231,7 @@ LocalFileIo::Stat( struct stat* buf )
 int
 LocalFileIo::Close()
 {
-  eos_debug( " " );
+  eos_debug( "_" );
   return mLogicalFile->closeofs();
 }
 
@@ -242,9 +242,9 @@ LocalFileIo::Close()
 int
 LocalFileIo::Remove()
 {
-  eos_debug( " " );
+  eos_debug( "_" );
   struct stat buf;
-  
+
   if ( Stat( &buf ) ) {
     //..........................................................................
     // Only try to delete if there is something to delete!
@@ -252,7 +252,7 @@ LocalFileIo::Remove()
     eos_debug( "File exists, we are deleting it." );
     return unlink( mLogicalFile->GetFstPath().c_str() );
   }
-  
+
   return SFS_OK;
 }
 

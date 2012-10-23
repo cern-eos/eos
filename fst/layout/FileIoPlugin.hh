@@ -76,8 +76,8 @@ class FileIoPlugin
     static FileIo* GetIoObject( XrdFstOfsFile*      file,
                                 int                 ioType,
                                 const XrdSecEntity* client,
-                                XrdOucErrInfo*      error ) {
-      
+                                XrdOucErrInfo*      error )
+    {
       if ( ioType == LayoutId::kLocal ) {
         return static_cast<FileIo*>( new LocalFileIo( file, client, error ) );
       }
@@ -85,7 +85,7 @@ class FileIoPlugin
       if ( ioType == LayoutId::kXrdCl ) {
         return static_cast<FileIo*>( new XrdFileIo( file, client, error ) );
       }
- 
+
       return 0;
     }
 };

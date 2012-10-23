@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File Layout.cc
-// Author Andreas-Joachim Peters - CERN
+// File: Layout.cc
+// Author: Andreas-Joachim Peters - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -32,7 +32,8 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 Layout::Layout( XrdFstOfsFile* file ):
-    mOfsFile( file ) {
+  mOfsFile( file )
+{
   mName = "";
 }
 
@@ -44,22 +45,22 @@ Layout::Layout( XrdFstOfsFile*      file,
                 int                 lid,
                 const XrdSecEntity* client,
                 XrdOucErrInfo*      outError ):
-      mLayoutId( lid ),
-      mOfsFile( file ),
-      mError( outError )
-    {
-      mSecEntity = const_cast<XrdSecEntity*>( client );
-      mName = eos::common::LayoutId::GetLayoutTypeString( mLayoutId );
-      mIsEntryServer = true;
-      mLocalPath = "";
-    }
+  mLayoutId( lid ),
+  mOfsFile( file ),
+  mError( outError )
+{
+  mSecEntity = const_cast<XrdSecEntity*>( client );
+  mName = eos::common::LayoutId::GetLayoutTypeString( mLayoutId );
+  mIsEntryServer = true;
+  mLocalPath = "";
+}
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-Layout::~Layout() {
-
+Layout::~Layout()
+{
   // empty
 }
 

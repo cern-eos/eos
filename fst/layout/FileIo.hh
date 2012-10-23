@@ -84,20 +84,20 @@ class FileIo: public eos::common::LogId
     //! Open file
     //!
     //! @param path file path
-    //! @param flags open flags 
+    //! @param flags open flags
     //! @param mode open mode
     //! @param opaque opaque information
     //!
     //! @return 0 if successful, -1 otherwise and error code is set
     //!
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual int Open( const std::string& path,
                       XrdSfsFileOpenMode flags,
                       mode_t             mode,
                       const std::string& opaque ) = 0;
 
 
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Read from file - sync
     //!
     //! @param offset offset in file
@@ -106,14 +106,14 @@ class FileIo: public eos::common::LogId
     //!
     //! @return number of bytes read or -1 if error
     //!
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual int64_t Read( XrdSfsFileOffset offset,
                           char*            buffer,
                           XrdSfsXferSize   length ) = 0;
-  
+
 
     //--------------------------------------------------------------------------
-    //! Write to file - sync 
+    //! Write to file - sync
     //!
     //! @param offset offset
     //! @paramm buffer data to be written
@@ -127,7 +127,7 @@ class FileIo: public eos::common::LogId
                            XrdSfsXferSize   length ) = 0;
 
 
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Read from file - async
     //!
     //! @param offset offset in file
@@ -137,15 +137,15 @@ class FileIo: public eos::common::LogId
     //!
     //! @return number of bytes read or -1 if error
     //!
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual int64_t Read( XrdSfsFileOffset offset,
                           char*            buffer,
                           XrdSfsXferSize   length,
                           void*            handler ) = 0;
-  
+
 
     //--------------------------------------------------------------------------
-    //! Write to file - async 
+    //! Write to file - async
     //!
     //! @param offset offset
     //! @paramm buffer data to be written
@@ -256,7 +256,7 @@ class FileIo: public eos::common::LogId
 
 EOSFSTNAMESPACE_END
 
-#endif
+#endif  // __EOSFST_FILEIO_HH__
 
 
 

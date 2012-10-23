@@ -82,7 +82,7 @@ class Layout: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
-    virtual ~Layout(); 
+    virtual ~Layout();
 
 
     //--------------------------------------------------------------------------
@@ -256,4 +256,4 @@ class Layout: public eos::common::LogId
 
 EOSFSTNAMESPACE_END
 
-#endif
+#endif  // __EOSFST_LAYOUT_HH__

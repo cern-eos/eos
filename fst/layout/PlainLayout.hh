@@ -24,7 +24,7 @@
 //------------------------------------------------------------------------------
 //! @file PlainLayout.hh
 //! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
-//! @brief Physical layout of a plain file without any replication or striping
+//! @brief Layout of a plain file without any replication or striping
 //------------------------------------------------------------------------------
 
 #ifndef __EOSFST_PLAINLAYOUT_HH__
@@ -58,13 +58,13 @@ class PlainLayout : public Layout
                  const XrdSecEntity* client,
                  XrdOucErrInfo*      outError );
 
-  
+
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
     virtual ~PlainLayout();
 
-  
+
     //--------------------------------------------------------------------------
     //! Open file
     //!
@@ -81,7 +81,7 @@ class PlainLayout : public Layout
                       mode_t             mode,
                       const char*        opaque );
 
-  
+
     //--------------------------------------------------------------------------
     //! Read from file
     //!
@@ -111,7 +111,7 @@ class PlainLayout : public Layout
                            char*            buffer,
                            XrdSfsXferSize   length );
 
-  
+
     //--------------------------------------------------------------------------
     //! Truncate
     //!
@@ -122,7 +122,7 @@ class PlainLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int Truncate( XrdSfsFileOffset offset );
 
-  
+
     //--------------------------------------------------------------------------
     //! Allocate file space
     //!
@@ -133,7 +133,7 @@ class PlainLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int Fallocate( XrdSfsFileOffset length );
 
-  
+
     //--------------------------------------------------------------------------
     //! Deallocate file space
     //!
@@ -146,7 +146,7 @@ class PlainLayout : public Layout
     virtual int Fdeallocate( XrdSfsFileOffset fromOffset,
                              XrdSfsFileOffset toOffset );
 
-  
+
     //--------------------------------------------------------------------------
     //! Remove file
     //!
@@ -155,7 +155,7 @@ class PlainLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int Remove();
 
-  
+
     //--------------------------------------------------------------------------
     //! Sync file to disk
     //!
@@ -164,7 +164,7 @@ class PlainLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int Sync();
 
-  
+
     //--------------------------------------------------------------------------
     //! Get stats about the file
     //!
@@ -184,11 +184,12 @@ class PlainLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int Close();
 
- private:
+  private:
 
-  FileIo* mPlainFile; ///< file handler, in this case the same as the initial one  
-  
+    FileIo* mPlainFile; ///< file handler, in this case the same as the initial one
+
 };
 
 EOSFSTNAMESPACE_END
-#endif
+
+#endif  // __EOSFST_PLAINLAYOUT_HH__

@@ -44,26 +44,26 @@ class LocalFileIo: public FileIo
 {
 
   public:
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Constructor
     //!
     //! @param handle to logical file
     //! @param client security entity
     //! @param error error information
     //!
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     LocalFileIo( XrdFstOfsFile*      file,
                  const XrdSecEntity* client,
                  XrdOucErrInfo*      error );
 
 
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Destructor
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual ~LocalFileIo();
 
 
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Open file
     //!
     //! @param path file path
@@ -73,15 +73,15 @@ class LocalFileIo: public FileIo
     //!
     //! @return 0 on success, -1 otherwise and error code is set
     //!
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual int Open( const std::string& path,
                       XrdSfsFileOpenMode flags,
                       mode_t             mode,
                       const std::string& opaque );
 
 
-    //----------------------------------------------------------------------------
-    //! Read from file - sync 
+    //--------------------------------------------------------------------------
+    //! Read from file - sync
     //!
     //! @param offset offset in file
     //! @param buffer where the data is read
@@ -89,7 +89,7 @@ class LocalFileIo: public FileIo
     //!
     //! @return number of bytes read or -1 if error
     //!
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual int64_t Read( XrdSfsFileOffset offset,
                           char*            buffer,
                           XrdSfsXferSize   length );
@@ -98,7 +98,7 @@ class LocalFileIo: public FileIo
     //--------------------------------------------------------------------------
     //! Write to file - sync
     //!
-    //! @param offset offset
+    //! @param offset offset in file
     //! @paramm buffer data to be written
     //! @param length length
     //!
@@ -109,7 +109,41 @@ class LocalFileIo: public FileIo
                            char*            buffer,
                            XrdSfsXferSize   length );
 
-  
+
+    //----------------------------------------------------------------------------
+    //! Read from file - async
+    //!
+    //! @param offset offset in file
+    //! @param buffer where the data is read
+    //! @param lenght read length
+    //! @param handler async read handler
+    //!
+    //! @return number of bytes read or -1 if error
+    //!
+    //----------------------------------------------------------------------------
+    virtual int64_t Read( XrdSfsFileOffset offset,
+                          char*            buffer,
+                          XrdSfsXferSize   length,
+                          void*            handler );
+
+
+    //--------------------------------------------------------------------------
+    //! Write to file - async
+    //!
+    //! @param offset offset
+    //! @paramm buffer data to be written
+    //! @param length length
+    //! @param handler async write handler
+    //!
+    //! @return number of bytes written or -1 if error
+    //!
+    //--------------------------------------------------------------------------
+    virtual int64_t Write( XrdSfsFileOffset offset,
+                           char*            buffer,
+                           XrdSfsXferSize   length,
+                           void*            handler );
+
+
     //--------------------------------------------------------------------------
     //! Truncate
     //!
@@ -184,46 +218,12 @@ class LocalFileIo: public FileIo
 
   private:
 
-    bool mIsOpen;             ///< mark if file is opened
-
-    //----------------------------------------------------------------------------
-    //! Read from file - async 
-    //!
-    //! @param offset offset in file
-    //! @param buffer where the data is read
-    //! @param lenght read length
-    //! @param handler async read handler
-    //!
-    //! @return number of bytes read or -1 if error
-    //!
-    //----------------------------------------------------------------------------
-    virtual int64_t Read( XrdSfsFileOffset offset,
-                          char*            buffer,
-                          XrdSfsXferSize   length,
-                          void*            handler );
-
-
-    //--------------------------------------------------------------------------
-    //! Write to file - async
-    //!
-    //! @param offset offset
-    //! @paramm buffer data to be written
-    //! @param length length
-    //! @param handler async write handler
-    //!
-    //! @return number of bytes written or -1 if error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int64_t Write( XrdSfsFileOffset offset,
-                           char*            buffer,
-                           XrdSfsXferSize   length,
-                           void*            handler );
-
+    bool mIsOpen;  ///< mark if file is opened
 };
 
 EOSFSTNAMESPACE_END
 
-#endif
+#endif  // __EOSFST_LOCALFILEIO_HH__
 
 
 

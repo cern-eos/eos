@@ -37,7 +37,7 @@
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Class abstracting the phsysical layout of a file with replicas
+//! Class abstracting the physical layout of a file with replicas
 //------------------------------------------------------------------------------
 class ReplicaParLayout : public Layout
 {
@@ -184,11 +184,11 @@ class ReplicaParLayout : public Layout
     virtual int Close();
 
   private:
-  
+
     int  mNumReplicas;        ///< number of replicas for current file
     bool ioLocal;             ///< mark if we are to do local IO
- 
-    //! replica file object, index 0 is the local file 
+
+    //! replica file object, index 0 is the local file
     std::vector<FileIo*>     mReplicaFile;
     std::vector<std::string> mReplicaUrl;  ///< URLs of the replica files
 
@@ -196,4 +196,4 @@ class ReplicaParLayout : public Layout
 
 EOSFSTNAMESPACE_END
 
-#endif
+#endif  // __EOSFST_REPLICAPARLAYOUT_HH__

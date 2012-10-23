@@ -83,9 +83,9 @@ RaidDpLayout::~RaidDpLayout()
 void
 RaidDpLayout::ComputeParity()
 {
-  eos_debug( " " );
   int index_pblock;
   int current_block;
+
   //............................................................................
   // Compute simple parity
   //............................................................................
@@ -268,9 +268,9 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
       // Do local read operation
       //........................................................................
       int nread = mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
-                                                   mDataBlocks[i],
-                                                   mStripeWidth );
-      
+                  mDataBlocks[i],
+                  mStripeWidth );
+
       if ( nread != mStripeWidth ) {
         eos_debug( "Block corrupted %i.", i );
         status_blocks[i] = false;
@@ -288,11 +288,10 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
 
       for ( std::map<uint64_t, uint32_t>::iterator iter = mapErrors.begin();
             iter != mapErrors.end();
-            iter++ )
-      {
+            iter++ ) {
         off_t off_stripe = iter->first - mSizeHeader;
         int index_stripe = ( off_stripe % ( mNbDataFiles * mStripeWidth ) ) / mStripeWidth;
-        eos_debug( "Index stripe: %i, off_stripe: %zu", index_stripe, off_stripe ); 
+        eos_debug( "Index stripe: %i, off_stripe: %zu", index_stripe, off_stripe );
         int index = index_stripe * mNbTotalFiles + mapPL[i];
         eos_debug( "Block corrupted %i.", index );
         status_blocks[index] = false;
@@ -336,8 +335,9 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
                      ( ( id_corrupted / mNbTotalFiles ) * mStripeWidth );
 
       if ( mStoreRecovery ) {
-        eos_debug("store block offset=%zu, length=%zu, logical_id=%i, physical_id=%i, id_block=%i",
-                  offset_local + mSizeHeader, mStripeWidth, stripe_id, physical_id, id_corrupted );
+        eos_debug( "store block offset=%zu, length=%zu, logical_id=%i, physical_id=%i, id_block=%i",
+                   offset_local + mSizeHeader, mStripeWidth, stripe_id, physical_id, id_corrupted );
+
         if ( physical_id ) {
           //....................................................................
           // Do remote write operation
@@ -352,8 +352,8 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
           // Do local write operation
           //....................................................................
           int nwrite = mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
-                                                         mDataBlocks[id_corrupted],
-                                                         mStripeWidth );
+                       mDataBlocks[id_corrupted],
+                       mStripeWidth );
 
           if ( nwrite != mStripeWidth ) {
             eos_err( "error=while doing local write operation offset=%lli",
@@ -365,33 +365,24 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
 
       for ( std::map<off_t, size_t>::iterator iter = rMapToRecover.begin();
             iter != rMapToRecover.end();
-            iter++ )
-      {
+            iter++ ) {
         offset = iter->first;
         length = iter->second;
-        eos_debug( "YYY offset=%zu, length=%zu, offsetInit=%zu \n", offset, length, offsetInit );
 
         //......................................................................
         // If not SP or DP, maybe we have to return it
         //......................................................................
         if ( find( simple_parity.begin(), simple_parity.end(), id_corrupted ) == simple_parity.end() &&
              find( double_parity.begin(), double_parity.end(), id_corrupted ) == double_parity.end() ) {
-
           eos_debug( " This is not a SP or DP, we might need to return it and "
                      "offset_group=%zu, id=%i, mapBig[id]=%i. \n",
                      offset_group, id_corrupted, MapBigToSmall( id_corrupted ) );
-          eos_debug( " The boundaries are: %zu and %zu",
-                     ( off_t )( offset_group + MapBigToSmall( id_corrupted ) * mStripeWidth ),
-                     ( offset_group + ( MapBigToSmall( id_corrupted ) + 1 ) * mStripeWidth ) );
-          
-          
+
           if ( ( offset >= ( off_t )( offset_group + MapBigToSmall( id_corrupted ) * mStripeWidth ) ) &&
-               ( offset < ( off_t )( offset_group + ( MapBigToSmall( id_corrupted ) + 1 ) * mStripeWidth ) ) )
-          {
-          
+               ( offset < ( off_t )( offset_group + ( MapBigToSmall( id_corrupted ) + 1 ) * mStripeWidth ) ) ) {
             pBuff = pBuffer + ( offset - offsetInit );
             pBuff = static_cast<char*>( memcpy( pBuff,
-                                                mDataBlocks[id_corrupted] + (offset % mStripeWidth),
+                                                mDataBlocks[id_corrupted] + ( offset % mStripeWidth ),
                                                 length ) );
           }
         }
@@ -431,8 +422,6 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
                        ( ( id_corrupted / mNbTotalFiles ) * mStripeWidth );
 
         if ( mStoreRecovery ) {
-      
-
           if ( physical_id ) {
             //....................................................................
             // Do remote write operation
@@ -447,8 +436,8 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
             // Do local write operation
             //....................................................................
             int nwrite = mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
-                                                           mDataBlocks[id_corrupted],
-                                                           mStripeWidth );
+                         mDataBlocks[id_corrupted],
+                         mStripeWidth );
 
             if ( nwrite != mStripeWidth ) {
               eos_err( "error=while doing local write operation offset=%lli",
@@ -460,8 +449,7 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
 
         for ( std::map<off_t, size_t>::iterator iter = rMapToRecover.begin();
               iter != rMapToRecover.end();
-              iter++ )
-        {
+              iter++ ) {
           offset = iter->first;
           length = iter->second;
 
@@ -504,7 +492,7 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
   //............................................................................
   for ( unsigned int i = 0; i < mWriteHandlers.size(); i++ ) {
     if ( !mWriteHandlers[i]->WaitOK() ) {
-      eos_err( "Write stripe %i- write failed", i );
+      eos_err( "error=failed Write stripe %i", i );
       ret = false;
     }
 
@@ -534,9 +522,7 @@ RaidDpLayout::AddDataBlock( off_t offset, char* buffer, size_t length )
   off_t offset_in_block;
   off_t offset_in_group = offset % mSizeGroup;
 
-  if ( ( mOffGroupParity == -1 ) &&
-       ( offset < static_cast<off_t>( mSizeGroup ) ) )
-  {
+  if ( ( mOffGroupParity == -1 ) && ( offset < mSizeGroup ) ) {
     mOffGroupParity = 0;
   }
 
@@ -647,8 +633,9 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
       //........................................................................
       eos_debug( "Local double parity write operation to physical file %i", physical_dpindex );
       int64_t nwrite = mStripeFiles[physical_dpindex]->Write( off_parity_local + mSizeHeader,
-                                                              mDataBlocks[index_dpblock],
-                                                              mStripeWidth );
+                       mDataBlocks[index_dpblock],
+                       mStripeWidth );
+
       if ( nwrite != mStripeWidth ) {
         eos_err( "error=error while writing local parity information" );
         ret = SFS_ERROR;
@@ -662,7 +649,6 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
     ret = SFS_ERROR;
   }
 
-  eos_debug( "Finshed successfully" );
   return ret;
 }
 

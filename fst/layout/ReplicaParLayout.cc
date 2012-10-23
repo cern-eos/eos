@@ -33,6 +33,7 @@ extern XrdOssSys*  XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
+
 //------------------------------------------------------------------------------
 //! Constructor
 //------------------------------------------------------------------------------
@@ -69,8 +70,7 @@ ReplicaParLayout::Open( const std::string&  path,
     replica_index = atoi( index );
 
     if ( ( replica_index < 0 ) ||
-         ( replica_index > eos::common::LayoutId::kSixteenStripe ) )
-    {
+         ( replica_index > eos::common::LayoutId::kSixteenStripe ) ) {
       eos_err( "illegal replica index %d", replica_index );
       return gOFS.Emsg( "ReplicaPar::Open", *mError, EINVAL,
                         "open replica - illegal replica index found", index );
@@ -88,8 +88,7 @@ ReplicaParLayout::Open( const std::string&  path,
     replica_head = atoi( head );
 
     if ( ( replica_head < 0 ) ||
-         ( replica_head > eos::common::LayoutId::kSixteenStripe ) )
-    {
+         ( replica_head > eos::common::LayoutId::kSixteenStripe ) ) {
       eos_err( "illegal replica head %d", replica_head );
       return gOFS.Emsg( "ReplicaParOpen", *mError, EINVAL,
                         "open replica - illegal replica head found", head );
@@ -104,7 +103,7 @@ ReplicaParLayout::Open( const std::string&  path,
   // Define the replication head
   //............................................................................
   eos_info( "replica_head=%i, replica_index = %i.", replica_head, replica_index );
-  
+
   if ( replica_index == replica_head ) {
     is_head_server = true;
   }
@@ -120,8 +119,6 @@ ReplicaParLayout::Open( const std::string&  path,
   XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env( envlen );
   XrdOucString remoteOpenPath = mOfsFile->openOpaque->Get( "mgm.path" );
 
-  eos_info( "Is gateway: %i, is_head_server: %i.", is_gateway, is_head_server );
-  
   //............................................................................
   // Only a gateway or head server needs to contact others
   //............................................................................
@@ -130,8 +127,7 @@ ReplicaParLayout::Open( const std::string&  path,
     // Assign stripe URLs
     //..........................................................................
     std::string replica_url;
-    eos_info( "Number of replicas is: %i.", mNumReplicas );
-    
+
     for ( int i = 0; i < mNumReplicas; i++ ) {
       XrdOucString reptag = "mgm.url";
       reptag += i;
@@ -140,7 +136,6 @@ ReplicaParLayout::Open( const std::string&  path,
       if ( !rep ) {
         eos_err( "Failed to open replica - missing url for replica %s",
                  reptag.c_str() );
-        
         return gOFS.Emsg( "ReplicaParOpen", *mError, EINVAL,
                           "open stripes - missing url for replica ",
                           reptag.c_str() );
@@ -152,11 +147,11 @@ ReplicaParLayout::Open( const std::string&  path,
       replica_url = rep;
       replica_url += remoteOpenPath.c_str();
       replica_url += "?";
-
       //........................................................................
       // Prepare the index for the next target
       //........................................................................
       remoteOpenOpaque = mOfsFile->openOpaque->Env( envlen );
+
       if ( index ) {
         XrdOucString oldindex = "mgm.replicaindex=";
         XrdOucString newindex = "mgm.replicaindex=";
@@ -177,23 +172,22 @@ ReplicaParLayout::Open( const std::string&  path,
     }
   }
 
-  
   //............................................................................
   // Open all the replicas needed
   //............................................................................
   for ( int i = 0; i < mNumReplicas; i++ ) {
+    eos_debug( "Dealing with replica: %i.", i );
 
-    eos_info( "Dealing with replica: %i.", i );
     if ( ( ioLocal ) && ( i == replica_index ) )  {
       //........................................................................
       // Only the referenced entry URL does local IO
       //........................................................................
       mLocalPath = path;
       FileIo* file = FileIoPlugin::GetIoObject( mOfsFile,
-                                                eos::common::LayoutId::kLocal,
-                                                mSecEntity,
-                                                mError );
-          
+                     eos::common::LayoutId::kLocal,
+                     mSecEntity,
+                     mError );
+
       if ( file->Open( path, flags, mode, opaque ) ) {
         eos_err( "Failed to open replica - local open failed on ", path.c_str() );
         return gOFS.Emsg( "ReplicaOpen", *mError, EIO,
@@ -204,15 +198,13 @@ ReplicaParLayout::Open( const std::string&  path,
       // Local replica is always on the first position in the vector
       //........................................................................
       mReplicaFile.insert( mReplicaFile.begin(), file );
-      eos_info( "Opened local file for IO: %s.", path.c_str() );
-      
+      eos_debug( "Opened local file for IO: %s.", path.c_str() );
     } else {
       //........................................................................
       // Gateway contacts the head, head contacts all
       //........................................................................
       if ( ( is_gateway && ( i == replica_head ) ) ||
-           ( is_head_server && ( i != replica_index ) ) )
-      {
+           ( is_head_server && ( i != replica_index ) ) ) {
         if ( mOfsFile->isRW ) {
 	  XrdOucString maskUrl = mReplicaUrl[i].c_str()?mReplicaUrl[i].c_str():"";
 	  // mask some opaque parameters to shorten the logging                                                                                                                                                
@@ -222,10 +214,10 @@ ReplicaParLayout::Open( const std::string&  path,
           eos_info("Opening Layout Stripe %s\n", maskUrl.c_str());
 
           FileIo* file = FileIoPlugin::GetIoObject( mOfsFile,
-                                                    eos::common::LayoutId::kXrdCl,
-                                                    mSecEntity,
-                                                    mError );
-          
+                         eos::common::LayoutId::kXrdCl,
+                         mSecEntity,
+                         mError );
+
           //....................................................................
           // Write case
           //....................................................................
@@ -234,7 +226,6 @@ ReplicaParLayout::Open( const std::string&  path,
                            XrdCl::Access::UR | XrdCl::Access::UW |
                            XrdCl::Access::GR | XrdCl::Access::GW |
                            XrdCl::Access::OR , opaque ) ) {
-            
             eos_err( "Failed to open stripes - remote open failed on ",
                      maskUrl.c_str() );
             
@@ -242,22 +233,20 @@ ReplicaParLayout::Open( const std::string&  path,
                               "open stripes - remote open failed ",
                               maskUrl.c_str() );
           }
-         
-          mReplicaFile.push_back( file );
-          eos_info( "Opened remote file for IO: %s.", maskUrl.c_str() );
 
+          mReplicaFile.push_back( file );
+          eos_debug( "Opened remote file for IO: %s.", maskUrl.c_str() );
         } else {
           //....................................................................
           // Read case just uses one replica
           //....................................................................
-          eos_info( "Read case uses just one replica." );
+          eos_debug( "Read case uses just one replica." );
           continue;
         }
       }
     }
   }
 
-  eos_info( "Finished Open function." );
   return SFS_OK;
 }
 
@@ -283,12 +272,11 @@ ReplicaParLayout::Read( XrdSfsFileOffset offset,
                         XrdSfsXferSize   length )
 {
   int64_t rc = 0;
-  
   eos_info( "Offset = %lli, length = %lli",
             static_cast<int64_t>( offset ),
             static_cast<int64_t>( length ) );
-  
-  for ( unsigned int i = 0; i < mReplicaFile.size(); i++ ){
+
+  for ( unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
     rc = mReplicaFile[i]->Read( offset, buffer, length );
     
     if ( rc == SFS_ERROR ) {
@@ -298,16 +286,14 @@ ReplicaParLayout::Read( XrdSfsFileOffset offset,
       eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
       eos::common::StringConversion::MaskTag(maskUrl,"authz");
       
-      if ( rc == SFS_ERROR ) {
-	eos_warning( "Failed to read replica- %llu %llu %s",
-		     offset, length, maskUrl.c_str() );
-	continue;
-      } else {
-	//......................................................................
-	// Read was scucessful no need to read from another replica
-	//......................................................................
-	break;
-      }
+      eos_warning( "Failed to read replica- %llu %llu %s",
+                   offset, length, maskUrl.c_str() );
+      continue;
+    } else {
+      //......................................................................
+      // Read was scucessful no need to read from another replica
+      //......................................................................
+      break;
     }
   }
 
@@ -330,8 +316,9 @@ ReplicaParLayout::Write( XrdSfsFileOffset offset,
 {
   int64_t rc;
 
-  for (unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
+  for ( unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
     rc = mReplicaFile[i]->Write( offset, buffer, length );
+
     if ( rc != length ) {
       XrdOucString maskUrl = mReplicaUrl[i].c_str()?mReplicaUrl[i].c_str():"";
       // mask some opaque parameters to shorten the logging                                                                                                                                                
@@ -340,9 +327,9 @@ ReplicaParLayout::Write( XrdSfsFileOffset offset,
       eos::common::StringConversion::MaskTag(maskUrl,"authz");
       
       if ( i != 0 ) errno = EREMOTEIO;
+
       eos_err( "Failed to write replica %i - write failed - %llu %s",
                i, offset, maskUrl.c_str() );
-      
       return gOFS.Emsg( "ReplicaWrite", *mError, errno,
                         "write replica failed",
                         maskUrl.c_str() );
@@ -361,8 +348,9 @@ ReplicaParLayout::Truncate( XrdSfsFileOffset offset )
 {
   int rc = SFS_OK;
 
-  for (unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
+  for ( unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
     rc = mReplicaFile[i]->Truncate( offset );
+
     if ( rc != SFS_OK ) {
       if ( i != 0 ) errno = EREMOTEIO;
       XrdOucString maskUrl = mReplicaUrl[i].c_str()?mReplicaUrl[i].c_str():"";
@@ -396,45 +384,24 @@ ReplicaParLayout::Stat( struct stat* buf )
 int
 ReplicaParLayout::Sync()
 {
-  int rc1 = SFS_OK;
-  int rc2 = true;
-
-  if ( ioLocal ) {
-    struct stat buf;
-
-    if ( !::stat( mLocalPath.c_str(), &buf ) ) {
-      // only try to delete if there is something to delete!
-      rc1 = unlink( mLocalPath.c_str() );
-    }
-  }
-
-  for (int i=0; i< mNumReplicas; i++) {
-    if (mReplicaFile[i]) {
-      XrdOucString maskUrl = mReplicaUrl[i].c_str()?mReplicaUrl[i].c_str():"";
-      // mask some opaque parameters to shorten the logging                                                                                                                                                
-      eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
-      eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
-      eos::common::StringConversion::MaskTag(maskUrl,"authz");
-      
-      if (!mReplicaFile[i]->Truncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN)) {
-        eos_err("Failed to truncate remote replica with deletion offset - %s", maskUrl.c_str());
-        rc2=0;
-      } 
-    } 
-  }
-  
-  if (rc1 <0) {
-    XrdOucString maskUrl = mReplicaUrl[0].c_str()?mReplicaUrl[0].c_str():"";
+  for ( unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
+    XrdOucString maskUrl = mReplicaUrl[i].c_str()?mReplicaUrl[i].c_str():"";
     // mask some opaque parameters to shorten the logging                                                                                                                                                
     eos::common::StringConversion::MaskTag(maskUrl,"cap.sym");
     eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
     eos::common::StringConversion::MaskTag(maskUrl,"authz");
-    
-    eos_err("Failed to remove local replica - %s", maskUrl.c_str());
-    return gOFS.Emsg("ReplicaClose",*mError, errno, "remove local replica", maskUrl.c_str());
+    rc = mReplicaFile[i]->Sync();
+
+    if ( rc != SFS_OK ) {
+      if ( i != 0 ) errno = EREMOTEIO;
+
+      eos_err( "Failed to sync replica %i", i );
+      return gOFS.Emsg( "ReplicaParSync", *mError, errno, "sync failed",
+                        maskUrl.c_str() );
+    }
   }
 
-  return rc1;
+  return rc;
 }
 
 
@@ -447,8 +414,9 @@ ReplicaParLayout::Remove()
   int rc = SFS_OK;
   bool got_error = false;
 
-  for (unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
+  for ( unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
     rc = mReplicaFile[i]->Remove();
+
     if ( rc != SFS_OK ) {
       XrdOucString maskUrl = mReplicaUrl[0].c_str()?mReplicaUrl[i].c_str():"";
       // mask some opaque parameters to shorten the logging                                                                                                                                                
@@ -456,13 +424,15 @@ ReplicaParLayout::Remove()
       eos::common::StringConversion::MaskTag(maskUrl,"cap.msg");
       eos::common::StringConversion::MaskTag(maskUrl,"authz");
       got_error = true;
+
       if ( i != 0 ) errno = EREMOTEIO;
+
       eos_err( "Failed to remove replica %i", i );
     }
   }
   
   if ( got_error ) {
-    return gOFS.Emsg( "ReplicaParRemove", *mError, errno, "remove failed" );    
+    return gOFS.Emsg( "ReplicaParRemove", *mError, errno, "remove failed" );
   }
 
   return rc;
@@ -477,10 +447,12 @@ ReplicaParLayout::Close()
 {
   int rc = SFS_OK;
 
-  for (unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
+  for ( unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
     rc = mReplicaFile[i]->Close();
+
     if ( rc != SFS_OK ) {
       if ( i != 0 ) errno = EREMOTEIO;
+
       eos_err( "Failed to close replica %i", mReplicaUrl[i].c_str() );
       return gOFS.Emsg( "ReplicaParClose", *mError, errno, "close failed",
                         mReplicaUrl[i].c_str() );
@@ -496,7 +468,7 @@ ReplicaParLayout::Close()
 int
 ReplicaParLayout::Fallocate( XrdSfsFileOffset length )
 {
-  eos_debug( "length = %llu", length );
+  eos_debug( "length = %llu", static_cast<int64_t>( length ) );
   return mReplicaFile[0]->Fallocate( length );
 }
 
@@ -507,7 +479,10 @@ int
 ReplicaParLayout::Fdeallocate( XrdSfsFileOffset fromOffset,
                                XrdSfsFileOffset toOffset )
 {
-  eos_debug( "from = %llu, to = %llu", fromOffset, toOffset );
+  eos_debug( "from = %llu, to = %llu",
+             static_cast<int64_t>( fromOffset ),
+             static_cast<int64_t>( toOffset ) );
+  
   return mReplicaFile[0]->Fdeallocate( fromOffset, toOffset );
 }
 

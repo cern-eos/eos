@@ -27,7 +27,7 @@
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/ReplicaParLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
-//#include "fst/layout/ReedSParLayout.hh"
+//#include "fst/layout/ReedSLayout.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -35,17 +35,17 @@ EOSFSTNAMESPACE_BEGIN
 //--------------------------------------------------------------------------
 // Constructor
 //--------------------------------------------------------------------------
-LayoutPlugin::LayoutPlugin() {
-
-  // empty 
+LayoutPlugin::LayoutPlugin()
+{
+  // empty
 };
 
 
 //--------------------------------------------------------------------------
 // Destructor
 //--------------------------------------------------------------------------
-LayoutPlugin::~LayoutPlugin() {
-
+LayoutPlugin::~LayoutPlugin()
+{
   //empty
 };
 
@@ -57,25 +57,23 @@ Layout*
 LayoutPlugin::GetLayoutObject( XrdFstOfsFile*      file,
                                unsigned int        layoutId,
                                const XrdSecEntity* client,
-                               XrdOucErrInfo*      error ) {
-      
+                               XrdOucErrInfo*      error )
+{
   if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kPlain ) {
     return dynamic_cast<Layout*>( new PlainLayout( file, layoutId, client, error ) );
   }
 
-      
   if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kReplica ) {
     return dynamic_cast<Layout*>( new ReplicaParLayout( file, layoutId, client, error ) );
   }
-      
 
   if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kRaidDP ) {
     return static_cast<Layout*>( new RaidDpLayout( file, layoutId, client, error ) );
   }
-  
+
   /*
     if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kReedS ) {
-    return static_cast<Layout*>( new ReedSLayout( file, layoutId, error ) );
+    return static_cast<Layout*>( new ReedSLayout( file, layoutId, client, error ) );
     }
   */
   return 0;

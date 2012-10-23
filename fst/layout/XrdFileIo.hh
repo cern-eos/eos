@@ -114,7 +114,7 @@ class XrdFileIo: public FileIo
 
 
 
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Read from file - async
     //!
     //! @param offset offset in file
@@ -124,11 +124,11 @@ class XrdFileIo: public FileIo
     //!
     //! @return number of bytes read or -1 if error
     //!
-    //----------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual int64_t Read( XrdSfsFileOffset offset,
                           char*            buffer,
                           XrdSfsXferSize   length,
-                          void*            handler);
+                          void*            handler );
 
 
     //--------------------------------------------------------------------------
@@ -145,7 +145,7 @@ class XrdFileIo: public FileIo
     virtual int64_t Write( XrdSfsFileOffset offset,
                            char*            buffer,
                            XrdSfsXferSize   length,
-                           void*            handler);
+                           void*            handler );
 
 
 
@@ -206,7 +206,7 @@ class XrdFileIo: public FileIo
 
 EOSFSTNAMESPACE_END
 
-#endif
+#endif  // __EOSFST_XRDFILEIO_HH__
 
 
 

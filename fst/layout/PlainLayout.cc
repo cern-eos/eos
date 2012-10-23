@@ -134,7 +134,7 @@ PlainLayout::Fdeallocate( XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset
   eos_debug( "from = %lli, to = %lli",
              static_cast<int64_t>( fromOffset ),
              static_cast<int64_t>( toOffset ) );
-
+  
   return mPlainFile->Fdeallocate( fromOffset, toOffset );
 }
 

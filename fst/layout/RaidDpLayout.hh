@@ -52,8 +52,11 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     //! Constructor
     //!
-    //! @param stripeUrl vector containing the urls of the stripe files
-    //! @param numParity number of parity stripes
+    //! @param file handler to current file
+    //! @param name name of the layout
+    //! @param lid layout id
+    //! @param client security information
+    //! @param outError error information
     //! @param storeRecovery if true write back the recovered blocks to file
     //! @param isStreaming file is written in streaming mode
     //! @param targetSize expected final size
@@ -68,7 +71,8 @@ class RaidDpLayout : public RaidMetaLayout
                   bool                isStreaming = false,
                   off_t               targetSize = 0,
                   std::string         bookingOpaque = "oss.size" );
-    
+
+  
     //--------------------------------------------------------------------------
     //! Truncate file
     //!
@@ -79,11 +83,13 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     virtual int Truncate( XrdSfsFileOffset offset );
 
+  
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
     virtual ~RaidDpLayout();
 
+  
   private:
 
     //--------------------------------------------------------------------------
@@ -100,6 +106,7 @@ class RaidDpLayout : public RaidMetaLayout
                                 char* buffer,
                                 std::map<off_t, size_t>& mapPiece );
 
+  
     //--------------------------------------------------------------------------
     //! Add data block to compute parity stripes for current group of blocks
     //!  - used for the streaming mode
@@ -111,11 +118,13 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     virtual void AddDataBlock( off_t offset, char* buffer, size_t length );
 
+  
     //--------------------------------------------------------------------------
     //! Compute parity information
     //--------------------------------------------------------------------------
     virtual void ComputeParity();
 
+  
     //--------------------------------------------------------------------------
     //! Write parity information corresponding to a group to files
     //!
@@ -126,6 +135,7 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     virtual int WriteParityToFiles( off_t offsetGroup );
 
+  
     //--------------------------------------------------------------------------
     //! Compute XOR operation for two blocks of any size
     //!
@@ -155,7 +165,7 @@ class RaidDpLayout : public RaidMetaLayout
                               char*                    pBuffer,
                               std::map<off_t, size_t>& rMapPieces );
 
-  
+
     //--------------------------------------------------------------------------
     //! Return diagonal stripe corresponding to current block
     //!
@@ -166,7 +176,7 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     std::vector<unsigned int> GetDiagonalStripe( unsigned int blockId );
 
-  
+
     //--------------------------------------------------------------------------
     //! Validate horizontal stripe for a block index
     //!
@@ -181,12 +191,12 @@ class RaidDpLayout : public RaidMetaLayout
                            bool*                      pStatusBlock,
                            unsigned int               blockId );
 
-  
+
     //--------------------------------------------------------------------------
     //! Validate diagonal stripe for a block index
     //!
     //! @param rStripes diagonal stripe for current block id
-    //! @param pStatusBlock vector of block's status 
+    //! @param pStatusBlock vector of block's status
     //! @param blockId current block index
     //!
     //! @return true if successful, otherwise false
@@ -196,7 +206,7 @@ class RaidDpLayout : public RaidMetaLayout
                           bool*                      pStatusBlock,
                           unsigned int               blockId );
 
-  
+
     //--------------------------------------------------------------------------
     //! Get indices of the simple parity blocks
     //!
@@ -205,7 +215,7 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     std::vector<unsigned int> GetSimpleParityIndices();
 
-  
+
     //--------------------------------------------------------------------------
     //! Get indices of the double parity blocks
     //!
@@ -214,7 +224,7 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     std::vector<unsigned int> GetDoubleParityIndices();
 
-  
+
     //--------------------------------------------------------------------------
     //! Get simple parity block corresponding to current block
     //!
@@ -225,7 +235,7 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     unsigned int GetSParityBlock( unsigned int elemFromStripe );
 
-  
+
     //--------------------------------------------------------------------------
     //! Get double parity blocks corresponding to current stripe
     //!
@@ -236,7 +246,7 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     unsigned int GetDParityBlock( std::vector<unsigned int>& rStripe );
 
-  
+
     //--------------------------------------------------------------------------
     //! Map index from nTotalBlocks representation to nDataBlocks
     //!
@@ -247,7 +257,7 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     unsigned int MapBigToSmall( unsigned int idBig );
 
-  
+
     //--------------------------------------------------------------------------
     //! Map index from nDataBlocks representation to nTotalBlocks
     //!
@@ -258,7 +268,7 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     virtual unsigned int MapSmallToBig( unsigned int idSmall );
 
-  
+
     //--------------------------------------------------------------------------
     //! Do recovery using simple parity
     //!
@@ -281,5 +291,5 @@ class RaidDpLayout : public RaidMetaLayout
 
 EOSFSTNAMESPACE_END
 
-#endif  // __EOSFST_RAIDDPFILE_HH__
+#endif  // __EOSFST_RAIDDPLAYOUT_HH__
 
