@@ -1088,7 +1088,7 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
       } catch ( eos::MDException &e ) {
       }
       if (fmd) {
-	if ( (ctime.tv_sec + (0*3600)) < now) {
+	if ( (ctime.tv_sec + (24*3600)) < now) {
 	  // if the file is older than 48 hours, we do the cleanup
 	  // execute adjust replica
 	  eos::common::Mapping::VirtualIdentity vid;
