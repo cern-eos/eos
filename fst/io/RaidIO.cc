@@ -54,12 +54,14 @@ RaidIO::RaidIO( std::string              algorithm,
   mStripeWidth = GetSizeStripe();
   mNbTotalFiles = mStripeUrls.size();
   mNbDataFiles = mNbTotalFiles - mNbParityFiles;
-  mpHdUrl = new HeaderCRC[mNbTotalFiles];
+  //mpHdUrl = new HeaderCRC[mNbTotalFiles];
   mpXrdFile = new File*[mNbTotalFiles];
-  mSizeHeader = mpHdUrl[0].GetSize();
+  //mSizeHeader = mpHdUrl[0].GetSize();
+  mSizeHeader = mStripeWidth;
 
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
     mpXrdFile[i] = new File();
+    mpHdUrl.push_back( new HeaderCRC( mStripeWidth ) );
     mReadHandlers.push_back( new AsyncReadHandler() );
     mWriteHandlers.push_back( new AsyncWriteHandler() );
   }
@@ -80,15 +82,25 @@ RaidIO::RaidIO( std::string              algorithm,
 RaidIO::~RaidIO()
 {
   delete[] mpXrdFile;
-  delete[] mpHdUrl;
-
+ 
   while ( !mReadHandlers.empty() ) {
+    AsyncReadHandler* ptr_handler = mReadHandlers.back();
     mReadHandlers.pop_back();
+    delete ptr_handler;
   }
 
   while ( !mWriteHandlers.empty() ) {
+    AsyncWriteHandler* ptr_handler = mWriteHandlers.back();
     mWriteHandlers.pop_back();
+    delete ptr_handler;
   }
+
+  while ( !mpHdUrl.empty() ) {
+    HeaderCRC* ptr_header = mpHdUrl.back();
+    mReadHandlers.pop_back();
+    delete ptr_header;
+  }
+    
 }
 
 
@@ -167,9 +179,9 @@ RaidIO::open( int flags )
   }
 
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
-    if ( mpHdUrl[i].ReadFromFile( mpXrdFile[i] ) ) {
-      mapUS.insert( std::pair<unsigned int, unsigned int>( i, mpHdUrl[i].GetIdStripe() ) );
-      mapSU.insert( std::pair<unsigned int, unsigned int>( mpHdUrl[i].GetIdStripe(), i ) );
+    if ( mpHdUrl[i]->ReadFromFile( mpXrdFile[i] ) ) {
+      mapUS.insert( std::pair<unsigned int, unsigned int>( i, mpHdUrl[i]->GetIdStripe() ) );
+      mapSU.insert( std::pair<unsigned int, unsigned int>( mpHdUrl[i]->GetIdStripe(), i ) );
     } else {
       mapUS.insert( std::pair<int, int>( i, i ) );
       mapSU.insert( std::pair<int, int>( i, i ) );
@@ -185,11 +197,11 @@ RaidIO::open( int flags )
   //............................................................................
   // Get the size of the file
   //............................................................................
-  if ( mpHdUrl[0].GetNoBlocks() == 0 ) {
+  if ( mpHdUrl[0]->GetNoBlocks() == 0 ) {
     mFileSize = 0;
   } else {
-    mFileSize = ( mpHdUrl[0].GetNoBlocks() - 1 ) * mStripeWidth +
-                mpHdUrl[0].GetSizeLastBlock();
+    mFileSize = ( mpHdUrl[0]->GetNoBlocks() - 1 ) * mStripeWidth +
+                mpHdUrl[0]->GetSizeLastBlock();
   }
 
   mIsOpen = true;
@@ -210,7 +222,7 @@ RaidIO::ValidateHeader()
   vector<unsigned int> id_url_invalid;
 
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
-    if ( mpHdUrl[i].IsValid() ) {
+    if ( mpHdUrl[i]->IsValid() ) {
       new_file = false;
     } else {
       all_hd_valid = false;
@@ -224,9 +236,9 @@ RaidIO::ValidateHeader()
 
     if ( new_file ) {
       for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
-        mpHdUrl[i].SetState( true );  //set valid header
-        mpHdUrl[i].SetNoBlocks( 0 );
-        mpHdUrl[i].SetSizeLastBlock( 0 );
+        mpHdUrl[i]->SetState( true );  //set valid header
+        mpHdUrl[i]->SetNoBlocks( 0 );
+        mpHdUrl[i]->SetSizeLastBlock( 0 );
       }
     }
 
@@ -249,7 +261,7 @@ RaidIO::ValidateHeader()
   std::set<unsigned int> used_stripes;
 
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
-    if ( mpHdUrl[i].IsValid() ) {
+    if ( mpHdUrl[i]->IsValid() ) {
       used_stripes.insert( mapUS[i] );
       id_hd_valid = i;
     } else {
@@ -271,10 +283,10 @@ RaidIO::ValidateHeader()
         eos_debug( "Add new mapping: stripe: %u, fid: %u", i, id_url );
         mapUS[id_url] = i;
         used_stripes.insert( i );
-        mpHdUrl[id_url].SetIdStripe( i );
-        mpHdUrl[id_url].SetState( true );
-        mpHdUrl[id_url].SetNoBlocks( mpHdUrl[id_hd_valid].GetNoBlocks() );
-        mpHdUrl[id_url].SetSizeLastBlock( mpHdUrl[id_hd_valid].GetSizeLastBlock() );
+        mpHdUrl[id_url]->SetIdStripe( i );
+        mpHdUrl[id_url]->SetState( true );
+        mpHdUrl[id_url]->SetNoBlocks( mpHdUrl[id_hd_valid]->GetNoBlocks() );
+        mpHdUrl[id_url]->SetSizeLastBlock( mpHdUrl[id_hd_valid]->GetSizeLastBlock() );
 
         if ( mStoreRecovery ) {
           mpXrdFile[id_url]->Close();
@@ -290,12 +302,12 @@ RaidIO::ValidateHeader()
 
           //TODO:: compare with the current file size and if different
           //       then truncate to the theoritical size of the file
-          size_t tmp_size = ( mpHdUrl[id_url].GetNoBlocks() - 1 ) * mStripeWidth +
-                            mpHdUrl[id_url].GetSizeLastBlock();
+          size_t tmp_size = ( mpHdUrl[id_url]->GetNoBlocks() - 1 ) * mStripeWidth +
+                            mpHdUrl[id_url]->GetSizeLastBlock();
           size_t stripe_size = std::ceil( ( tmp_size * 1.0 ) / mSizeGroup ) *
-                               ( mNbDataFiles * mStripeWidth ) + HeaderCRC::GetSize();
+                               ( mNbDataFiles * mStripeWidth ) + mSizeHeader;
           mpXrdFile[id_url]->Truncate( stripe_size );
-          mpHdUrl[id_url].WriteToFile( mpXrdFile[id_url] );
+          mpHdUrl[id_url]->WriteToFile( mpXrdFile[id_url] );
         }
 
         break;
@@ -845,13 +857,13 @@ RaidIO::close()
     size_t size_last_block = mFileSize % mStripeWidth;
 
     for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
-      if ( num_blocks != mpHdUrl[i].GetNoBlocks() ) {
-        mpHdUrl[i].SetNoBlocks( num_blocks );
+      if ( num_blocks != mpHdUrl[i]->GetNoBlocks() ) {
+        mpHdUrl[i]->SetNoBlocks( num_blocks );
         mUpdateHeader = true;
       }
 
-      if ( size_last_block != mpHdUrl[i].GetSizeLastBlock() ) {
-        mpHdUrl[i].SetSizeLastBlock( size_last_block );
+      if ( size_last_block != mpHdUrl[i]->GetSizeLastBlock() ) {
+        mpHdUrl[i]->SetSizeLastBlock( size_last_block );
         mUpdateHeader =  true;
       }
     }
@@ -861,9 +873,9 @@ RaidIO::close()
     if ( mUpdateHeader ) {
       for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) { //fstid's
         eos_info( "Write Stripe Header local" );
-        mpHdUrl[i].SetIdStripe( mapUS[i] );
+        mpHdUrl[i]->SetIdStripe( mapUS[i] );
 
-        if ( !mpHdUrl[i].WriteToFile( mpXrdFile[i] ) ) {
+        if ( !mpHdUrl[i]->WriteToFile( mpXrdFile[i] ) ) {
           eos_err( "error=write header to file failed for stripe:%i", i );
           return -1;
         }

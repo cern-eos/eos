@@ -318,7 +318,7 @@ XrdFstOfsFile::open( const char*                path,
 
     isReplication = true;
   }
-
+  
   open_mode |= SFS_O_MKPTH;
   create_mode |= SFS_O_MKPTH;
 
@@ -758,7 +758,8 @@ XrdFstOfsFile::closeofs()
       gOFS.OpenFidMutex.Lock();
 
       if ( ( gOFS.WOpenFid[fsid].count( fileid ) && ( gOFS.WOpenFid[fsid][fileid] == 1 ) &&
-             ( ( !gOFS.ROpenFid[fsid].count( fileid ) ) || ( gOFS.ROpenFid[fsid][fileid] == 0 ) ) ) ) {
+             ( ( !gOFS.ROpenFid[fsid].count( fileid ) ) || ( gOFS.ROpenFid[fsid][fileid] == 0 ) ) ) )
+      {
         if ( isRW ) {
           if ( !fstBlockXS->ChangeMap( statinfo.st_size, true ) ) {
             eos_err( "unable to change block checksum map" );
@@ -1129,6 +1130,8 @@ XrdFstOfsFile::close()
                           Path.c_str() );
         }
 
+        
+
         if ( !rc ) {
           if ( ( statinfo.st_size == 0 ) || haswrite ) {
             //..................................................................
@@ -1378,13 +1381,11 @@ XrdFstOfsFile::readofs( XrdSfsFileOffset   fileOffset,
                         XrdSfsXferSize     buffer_size )
 {
   int retc = XrdOfsFile::read( fileOffset, buffer, buffer_size );
-  eos_debug( "read %llu %lli %lli", this,
-             static_cast<int64_t>( fileOffset ),
-             static_cast<int64_t>( buffer_size ) );
 
   if ( fstBlockXS ) {
     XrdSysMutexHelper cLock( BlockXsMutex );
-    
+
+    // Obs: might have to move this comparison to XrdFileIo for consistency
     if ( retc != buffer_size ) {
       eos_debug( "Error while reading the requested range." );
       return gOFS.Emsg( "readofs", error, EIO, "read file - return value missmatch" );       

@@ -173,9 +173,8 @@ class RaidIO : public eos::common::LogId
   protected:
 
     File** mpXrdFile;            ///< xrd clients corresponding to the stripes
-    HeaderCRC* mpHdUrl;          ///< array of header objects
 
-    bool mIsRw;                  ///< mark for writing
+  bool mIsRw;                  ///< mark for writing
     bool mIsOpen;                ///< mark if open
     bool mDoTruncate;            ///< mark if there is a need to truncate
     bool mUpdateHeader;          ///< mark if header updated
@@ -205,6 +204,7 @@ class RaidIO : public eos::common::LogId
     std::string mAlgorithmType;                     ///< layout type used
     std::string mBookingOpaque;                     ///< opaque information
     std::vector<char*> mDataBlocks;                 ///< vector containing the data in a group
+    std::vector<HeaderCRC*> mpHdUrl;                ///< vector of header objects
     std::vector<std::string> mStripeUrls;           ///< urls of the stripe files
     std::vector<AsyncReadHandler*> mReadHandlers;   ///< async read handlers for each stripe
     std::vector<AsyncWriteHandler*> mWriteHandlers; ///< async write handlers for each stripe

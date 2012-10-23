@@ -44,7 +44,6 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-
 class XrdFstOfsFile;
 
 //------------------------------------------------------------------------------
@@ -67,7 +66,6 @@ class Layout: public eos::common::LogId
     //! Constructor
     //!
     //! @param file handler to current file
-    //! @param name name of the layout
     //! @param lid layout id
     //! @param client security information
     //! @param outError error information
@@ -104,7 +102,7 @@ class Layout: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Get layout id
     //--------------------------------------------------------------------------
-    unsigned int GetLayOutId() {
+    inline unsigned int GetLayOutId() {
       return mLayoutId;
     }
 
@@ -153,7 +151,7 @@ class Layout: public eos::common::LogId
     //! Write to file
     //!
     //! @param offset offset
-    //! @paramm buffer data to be written
+    //! @param buffer data to be written
     //! @param length length
     //!
     //! @return number of bytes written or -1 if error

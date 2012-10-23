@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: Layout.cc
-// Author: Andreas-Joachim Peters - CERN
+// Author: Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -51,7 +51,7 @@ Layout::Layout( XrdFstOfsFile*      file,
 {
   mSecEntity = const_cast<XrdSecEntity*>( client );
   mName = eos::common::LayoutId::GetLayoutTypeString( mLayoutId );
-  mIsEntryServer = true;
+  mIsEntryServer = false;
   mLocalPath = "";
 }
 

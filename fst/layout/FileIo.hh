@@ -27,8 +27,8 @@
 //! @brief Abstract class modelling an IO plugin
 //------------------------------------------------------------------------------
 
-#ifndef __EOSFST_FILEIO__HH__
-#define __EOSFST_FILEIO__HH__
+#ifndef __EOSFST_FILEIO_HH__
+#define __EOSFST_FILEIO_HH__
 
 /*----------------------------------------------------------------------------*/
 #include <string>
@@ -102,7 +102,7 @@ class FileIo: public eos::common::LogId
     //!
     //! @param offset offset in file
     //! @param buffer where the data is read
-    //! @param lenght read length
+    //! @param length read length
     //!
     //! @return number of bytes read or -1 if error
     //!
@@ -116,7 +116,7 @@ class FileIo: public eos::common::LogId
     //! Write to file - sync
     //!
     //! @param offset offset
-    //! @paramm buffer data to be written
+    //! @param buffer data to be written
     //! @param length length
     //!
     //! @return number of bytes written or -1 if error
@@ -132,7 +132,7 @@ class FileIo: public eos::common::LogId
     //!
     //! @param offset offset in file
     //! @param buffer where the data is read
-    //! @param lenght read length
+    //! @param length read length
     //! @param handler async read handler
     //!
     //! @return number of bytes read or -1 if error
@@ -148,7 +148,7 @@ class FileIo: public eos::common::LogId
     //! Write to file - async
     //!
     //! @param offset offset
-    //! @paramm buffer data to be written
+    //! @param buffer data to be written
     //! @param length length
     //! @param handler async write handler
     //!
@@ -180,7 +180,7 @@ class FileIo: public eos::common::LogId
     //! @return 0 on success, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int Fallocate( XrdSfsFileOffset lenght ) {
+    virtual int Fallocate( XrdSfsFileOffset length ) {
       return 0;
     }
 

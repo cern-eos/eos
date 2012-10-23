@@ -62,7 +62,7 @@ class ReedSLayout : public RaidMetaLayout
                  bool                isStreaming = false,
                  off_t               targetSize = 0,
                  std::string         bookingOpaque = "oss.size" );
-  
+
     //--------------------------------------------------------------------------
     //! Truncate file
     //!

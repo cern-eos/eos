@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: PlainLayout.hh
-// Author: Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
+// Author: Andreas-Joachim Peters - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -101,7 +101,7 @@ class PlainLayout : public Layout
     //! Write to file
     //!
     //! @param offset offset
-    //! @paramm buffer data to be written
+    //! @param buffer data to be written
     //! @param length length
     //!
     //! @return number of bytes written or -1 if error

@@ -519,7 +519,7 @@ CheckSum::CheckBlockSum(off_t offset, const char* buffer, size_t len)
   size_t aligned_len;
 
   AlignBlockShrink(offset, len, aligned_offset, aligned_len);
-
+ 
   if (aligned_len) {
     off_t endoffset = aligned_offset + aligned_len;
     off_t position=offset;
@@ -531,12 +531,14 @@ CheckSum::CheckBlockSum(off_t offset, const char* buffer, size_t len)
       Add(bufferptr, BlockSize,0);
       Finalize();
       // compare the checksum page
-      if (!VerifyXSMap(position))
+      if (!VerifyXSMap(position)) {
         return false;
+      }
       nXSBlocksChecked++;
       bufferptr += BlockSize;
     }
   }
+  
   return true;
 }
 

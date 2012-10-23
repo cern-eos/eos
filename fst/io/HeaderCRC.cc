@@ -29,17 +29,18 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-int HeaderCRC::msSizeHeader = 4096;             // 4kb
 char HeaderCRC::msTagName[] = "_HEADER__RAIDIO_";
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-HeaderCRC::HeaderCRC():
+HeaderCRC::HeaderCRC( int sizeHeader):
   mValid( true ),
   mNumBlocks( -1 ),
   mIdStripe( -1 ),
-  mSizeLastBlock( -1 )
+  mSizeLastBlock( -1 ),
+  mSizeHeader( sizeHeader )
+  
 {
   //empty
 }
@@ -48,11 +49,12 @@ HeaderCRC::HeaderCRC():
 //------------------------------------------------------------------------------
 // Constructor with parameter
 //------------------------------------------------------------------------------
-HeaderCRC::HeaderCRC( long numBlocks ):
+HeaderCRC::HeaderCRC( int sizeHeader, long long numBlocks ):
   mValid( true ),
   mNumBlocks( numBlocks ),
   mIdStripe( -1 ),
-  mSizeLastBlock( -1 )
+  mSizeLastBlock( -1 ),
+  mSizeHeader( sizeHeader )
 {
   strncpy( mTag, msTagName, strlen( msTagName ) );
 }
@@ -75,10 +77,10 @@ HeaderCRC::ReadFromFile( XrdCl::File*& pFile )
 {
   uint32_t ret;
   long int offset = 0;
-  char* buff = static_cast< char* >( calloc( msSizeHeader, sizeof( char ) ) );
+  char* buff = static_cast< char* >( calloc( mSizeHeader, sizeof( char ) ) );
 
-  if ( !( pFile->Read( offset, msSizeHeader, buff, ret ).IsOK() )
-       || ( ret != static_cast< uint32_t >( msSizeHeader ) ) ) {
+  if ( !( pFile->Read( offset, mSizeHeader, buff, ret ).IsOK() )
+       || ( ret != static_cast< uint32_t >( mSizeHeader ) ) ) {
     free( buff );
     mValid = false;
     return mValid;
@@ -111,10 +113,10 @@ bool
 HeaderCRC::ReadFromFile( FileIo*& pFile )
 {
   long int offset = 0;
-  char* buff = static_cast< char* >( calloc( msSizeHeader, sizeof( char ) ) );
+  char* buff = static_cast< char* >( calloc( mSizeHeader, sizeof( char ) ) );
 
-  if ( pFile->Read( offset, buff, msSizeHeader ) !=
-       static_cast<uint32_t>( msSizeHeader ) )
+  if ( pFile->Read( offset, buff, mSizeHeader ) !=
+       static_cast<uint32_t>( mSizeHeader ) )
   {
     free( buff );
     mValid = false;
@@ -151,7 +153,7 @@ bool
 HeaderCRC::WriteToFile( XrdCl::File*& pFile )
 {
   int offset = 0;
-  char* buff = static_cast< char* >( calloc( msSizeHeader, sizeof( char ) ) );
+  char* buff = static_cast< char* >( calloc( mSizeHeader, sizeof( char ) ) );
 
   memcpy( buff + offset, msTagName, sizeof msTagName );
   offset += sizeof mTag;
@@ -161,9 +163,9 @@ HeaderCRC::WriteToFile( XrdCl::File*& pFile )
   offset += sizeof mNumBlocks;
   memcpy( buff + offset, &mSizeLastBlock, sizeof mSizeLastBlock );
   offset += sizeof mSizeLastBlock;
-  memset( buff + offset, 0, msSizeHeader - offset );
+  memset( buff + offset, 0, mSizeHeader - offset );
 
-  if ( !( pFile->Write( 0, msSizeHeader, buff ).IsOK() ) ) {
+  if ( !( pFile->Write( 0, mSizeHeader, buff ).IsOK() ) ) {
     mValid = false;
   } else {
     mValid = true;
@@ -181,7 +183,7 @@ bool
 HeaderCRC::WriteToFile( FileIo*& pFile )
 {
   int offset = 0;
-  char* buff = static_cast< char* >( calloc( msSizeHeader, sizeof( char ) ) );
+  char* buff = static_cast< char* >( calloc( mSizeHeader, sizeof( char ) ) );
   
   memcpy( buff + offset, msTagName, sizeof msTagName );
   offset += sizeof mTag;
@@ -191,9 +193,9 @@ HeaderCRC::WriteToFile( FileIo*& pFile )
   offset += sizeof mNumBlocks;
   memcpy( buff + offset, &mSizeLastBlock, sizeof mSizeLastBlock );
   offset += sizeof mSizeLastBlock;
-  memset( buff + offset, 0, msSizeHeader - offset );
+  memset( buff + offset, 0, mSizeHeader - offset );
 
-  if ( pFile->Write( 0, buff, msSizeHeader ) < 0 ) {
+  if ( pFile->Write( 0, buff, mSizeHeader ) < 0 ) {
     mValid = false;
   } else {
     mValid = true;

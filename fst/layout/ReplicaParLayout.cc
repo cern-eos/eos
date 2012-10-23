@@ -35,7 +35,7 @@ EOSFSTNAMESPACE_BEGIN
 
 
 //------------------------------------------------------------------------------
-//! Constructor
+// Constructor
 //------------------------------------------------------------------------------
 ReplicaParLayout::ReplicaParLayout( XrdFstOfsFile*      file,
                                     int                 lid,
@@ -48,7 +48,7 @@ ReplicaParLayout::ReplicaParLayout( XrdFstOfsFile*      file,
 }
 
 //------------------------------------------------------------------------------
-//! Open file
+// Open file
 //------------------------------------------------------------------------------
 int
 ReplicaParLayout::Open( const std::string&  path,
@@ -176,8 +176,6 @@ ReplicaParLayout::Open( const std::string&  path,
   // Open all the replicas needed
   //............................................................................
   for ( int i = 0; i < mNumReplicas; i++ ) {
-    eos_debug( "Dealing with replica: %i.", i );
-
     if ( ( ioLocal ) && ( i == replica_index ) )  {
       //........................................................................
       // Only the referenced entry URL does local IO
@@ -198,7 +196,6 @@ ReplicaParLayout::Open( const std::string&  path,
       // Local replica is always on the first position in the vector
       //........................................................................
       mReplicaFile.insert( mReplicaFile.begin(), file );
-      eos_debug( "Opened local file for IO: %s.", path.c_str() );
     } else {
       //........................................................................
       // Gateway contacts the head, head contacts all
@@ -251,7 +248,7 @@ ReplicaParLayout::Open( const std::string&  path,
 }
 
 //------------------------------------------------------------------------------
-//! Destructor
+// Destructor
 //------------------------------------------------------------------------------
 ReplicaParLayout::~ReplicaParLayout()
 {
@@ -264,17 +261,18 @@ ReplicaParLayout::~ReplicaParLayout()
 
 
 //------------------------------------------------------------------------------
-//! Read from file
+// Read from file
 //------------------------------------------------------------------------------
 int64_t
 ReplicaParLayout::Read( XrdSfsFileOffset offset,
                         char*            buffer,
                         XrdSfsXferSize   length )
 {
-  int64_t rc = 0;
   eos_info( "Offset = %lli, length = %lli",
             static_cast<int64_t>( offset ),
             static_cast<int64_t>( length ) );
+
+  int64_t rc = 0;
 
   for ( unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
     rc = mReplicaFile[i]->Read( offset, buffer, length );
@@ -307,7 +305,7 @@ ReplicaParLayout::Read( XrdSfsFileOffset offset,
 }
 
 //------------------------------------------------------------------------------
-//! Write to file
+// Write to file
 //------------------------------------------------------------------------------
 int64_t
 ReplicaParLayout::Write( XrdSfsFileOffset offset,
@@ -341,7 +339,7 @@ ReplicaParLayout::Write( XrdSfsFileOffset offset,
 
 
 //------------------------------------------------------------------------------
-//! Truncate file
+// Truncate file
 //------------------------------------------------------------------------------
 int
 ReplicaParLayout::Truncate( XrdSfsFileOffset offset )
@@ -370,7 +368,7 @@ ReplicaParLayout::Truncate( XrdSfsFileOffset offset )
 
 
 //------------------------------------------------------------------------------
-//! Get stats for file
+// Get stats for file
 //------------------------------------------------------------------------------
 int
 ReplicaParLayout::Stat( struct stat* buf )
@@ -379,7 +377,7 @@ ReplicaParLayout::Stat( struct stat* buf )
 }
 
 //------------------------------------------------------------------------------
-//! Sync file to disk
+// Sync file to disk
 //------------------------------------------------------------------------------
 int
 ReplicaParLayout::Sync()
@@ -395,7 +393,7 @@ ReplicaParLayout::Sync()
     if ( rc != SFS_OK ) {
       if ( i != 0 ) errno = EREMOTEIO;
 
-      eos_err( "Failed to sync replica %i", i );
+      eos_err( "error=failed to sync replica %i", i );
       return gOFS.Emsg( "ReplicaParSync", *mError, errno, "sync failed",
                         maskUrl.c_str() );
     }
@@ -406,7 +404,7 @@ ReplicaParLayout::Sync()
 
 
 //------------------------------------------------------------------------------
-//! Remove file and all replicas
+// Remove file and all replicas
 //------------------------------------------------------------------------------
 int
 ReplicaParLayout::Remove()
@@ -427,7 +425,7 @@ ReplicaParLayout::Remove()
 
       if ( i != 0 ) errno = EREMOTEIO;
 
-      eos_err( "Failed to remove replica %i", i );
+      eos_err( "error=failed to remove replica %i", i );
     }
   }
   
@@ -440,7 +438,7 @@ ReplicaParLayout::Remove()
 
 
 //------------------------------------------------------------------------------
-//! Close file
+// Close file
 //------------------------------------------------------------------------------
 int
 ReplicaParLayout::Close()
@@ -453,7 +451,7 @@ ReplicaParLayout::Close()
     if ( rc != SFS_OK ) {
       if ( i != 0 ) errno = EREMOTEIO;
 
-      eos_err( "Failed to close replica %i", mReplicaUrl[i].c_str() );
+      eos_err( "error=failed to close replica %i", mReplicaUrl[i].c_str() );
       return gOFS.Emsg( "ReplicaParClose", *mError, errno, "close failed",
                         mReplicaUrl[i].c_str() );
     }
@@ -462,27 +460,24 @@ ReplicaParLayout::Close()
   return rc;
 }
 
+
 //------------------------------------------------------------------------------
-//! Reserve space for file
+// Reserve space for file
 //------------------------------------------------------------------------------
 int
 ReplicaParLayout::Fallocate( XrdSfsFileOffset length )
 {
-  eos_debug( "length = %llu", static_cast<int64_t>( length ) );
   return mReplicaFile[0]->Fallocate( length );
 }
 
+
 //------------------------------------------------------------------------------
-//! Deallocate reserved space
+// Deallocate reserved space
 //------------------------------------------------------------------------------
 int
 ReplicaParLayout::Fdeallocate( XrdSfsFileOffset fromOffset,
                                XrdSfsFileOffset toOffset )
 {
-  eos_debug( "from = %llu, to = %llu",
-             static_cast<int64_t>( fromOffset ),
-             static_cast<int64_t>( toOffset ) );
-  
   return mReplicaFile[0]->Fdeallocate( fromOffset, toOffset );
 }
 

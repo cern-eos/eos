@@ -47,7 +47,7 @@
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Generic class to read/write different layout files
+//! Generic class to read/write different RAID-like layout files
 //------------------------------------------------------------------------------
 class RaidMetaLayout : public Layout
 {
@@ -57,7 +57,6 @@ class RaidMetaLayout : public Layout
     //! Constructor
     //!
     //! @param file handler to current file
-    //! @param name name of the layout
     //! @param lid layout id
     //! @param client security information
     //! @param outError error information
@@ -86,7 +85,7 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     //! Open file
     //!
-    //! @param path path to the file 
+    //! @param path path to the file
     //! @param flags flags O_RDWR/O_RDONLY/O_WRONLY
     //! @param mode creation permissions
     //! @param opaque information
@@ -99,7 +98,7 @@ class RaidMetaLayout : public Layout
                       mode_t             mode,
                       const char*        opaque );
 
-  
+
     //--------------------------------------------------------------------------
     //! Read from file
     //!
@@ -119,7 +118,7 @@ class RaidMetaLayout : public Layout
     //! Write to file
     //!
     //! @param offset offset
-    //! @paramm buffer data to be written
+    //! @param buffer data to be written
     //! @param length length
     //!
     //! @return number of bytes written or -1 if error
@@ -129,7 +128,7 @@ class RaidMetaLayout : public Layout
                            char*            buffer,
                            XrdSfsXferSize   length );
 
-  
+
     //--------------------------------------------------------------------------
     //! Truncate
     //!
@@ -202,19 +201,19 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int Stat( struct stat* buf );
 
-  
+
     //--------------------------------------------------------------------------
     //! Get size of file
     //--------------------------------------------------------------------------
     virtual uint64_t Size(); // returns the total size of the file
 
-  
+
     //--------------------------------------------------------------------------
     //! Get size of the stripe
     //--------------------------------------------------------------------------
     static const int GetSizeStripe();
 
-  
+
   protected:
 
     bool mIsRw;                  ///< mark for writing
@@ -227,24 +226,23 @@ class RaidMetaLayout : public Layout
                                  ///< files, this also means that all files must be available
     bool mIsStreaming;           ///< file is written in streaming mode
 
-    unsigned int mStripeHead;    ///< head stripe value
+    unsigned int mStripeHead;          ///< head stripe value
     unsigned int mPhysicalStripeIndex; ///< physical index of the current stripe
-    unsigned int mLogicalStripeIndex;
-    unsigned int mNbParityFiles; ///< number of parity files
-    unsigned int mNbDataFiles;   ///< number of data files
-    unsigned int mNbTotalFiles;  ///< total number of files ( data + parity )
+    unsigned int mLogicalStripeIndex;  ///< logical index of the current stripe 
+    unsigned int mNbParityFiles;       ///< number of parity files
+    unsigned int mNbDataFiles;         ///< number of data files
+    unsigned int mNbTotalFiles;        ///< total number of files ( data + parity )
+    unsigned int mNbDataBlocks;        ///< no. data blocks in a group
+    unsigned int mNbTotalBlocks;       ///< no. data and parity blocks in a group
 
-    unsigned int mNbDataBlocks;  ///< no. data blocks in a group
-    unsigned int mNbTotalBlocks; ///< no. data and parity blocks in a group
-
-    off_t mStripeWidth;          ///< stripe width
-    off_t mSizeHeader;           ///< size of header = 4KB
-    off_t mFileSize;             ///< total size of current file
-    off_t mTargetSize;           ///< expected final size (?!)
-    off_t mOffGroupParity;       ///< offset of the last group for which we
-                                 ///< computed the parity blocks
-    off_t mSizeGroup;            ///< size of a gourp of blocks
-                                 ///< eg. RAIDDP: group = noDataStr^2 blocks
+    off_t mStripeWidth;    ///< stripe width
+    off_t mSizeHeader;     ///< size of header = 4KB
+    off_t mFileSize;       ///< total size of current file
+    off_t mTargetSize;     ///< expected final size (?!)
+    off_t mOffGroupParity; ///< offset of the last group for which we
+                           ///< computed the parity blocks
+    off_t mSizeGroup;      ///< size of a group of blocks
+                           ///< eg. RAIDDP: group = noDataStr^2 blocks
 
     std::string mAlgorithmType;                     ///< layout type used
     std::string mBookingOpaque;                     ///< opaque information
@@ -265,7 +263,7 @@ class RaidMetaLayout : public Layout
     //!
     //--------------------------------------------------------------------------
     virtual bool ValidateHeader( const char* opaque );
-  
+
 
     //--------------------------------------------------------------------------
     //! Recover corrupted pieces
@@ -281,7 +279,7 @@ class RaidMetaLayout : public Layout
                                 char*                    buffer,
                                 std::map<off_t, size_t>& mapPieces ) = 0;
 
-  
+
     //--------------------------------------------------------------------------
     //! Add new data block to the current group for parity computation, used
     //! when writing a file in streaming mode
@@ -293,7 +291,7 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     virtual void AddDataBlock( off_t offset, char* buffer, size_t length ) = 0;
 
-  
+
     //--------------------------------------------------------------------------
     //! Compute and write parity blocks corresponding to a group of blocks
     //!
@@ -302,13 +300,13 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     void DoBlockParity( off_t offsetGroup );
 
-  
+
     //--------------------------------------------------------------------------
     //! Compute parity information for a group of blocks
     //--------------------------------------------------------------------------
     virtual void ComputeParity() = 0;
 
-  
+
     //--------------------------------------------------------------------------
     //! Write parity information corresponding to a group to files
     //!
@@ -319,7 +317,7 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int WriteParityToFiles( off_t offsetGroup ) = 0;
 
-  
+
     //--------------------------------------------------------------------------
     //! Map index from mNbDataBlocks representation to mNbTotalBlocks
     //!
@@ -330,7 +328,7 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     virtual unsigned int MapSmallToBig( unsigned int idSmall ) = 0;
 
-  
+
   private:
 
     //--------------------------------------------------------------------------
@@ -343,14 +341,14 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     void AddPiece( off_t offset, size_t length );
 
-  
+
     //--------------------------------------------------------------------------
     //! Non-streaming operation
     //! Merge in place the pieces from the map
     //--------------------------------------------------------------------------
     void MergePieces();
 
-  
+
     //--------------------------------------------------------------------------
     //! Non-streaming operation
     //! Get a list of the group offsets for which we can compute the parity info
@@ -361,7 +359,7 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     void GetOffsetGroups( std::set<off_t>& offsetGroups, bool forceAll );
 
-  
+
     //--------------------------------------------------------------------------
     //! Non-streaming operation
     //! Read data from the current group for parity computation
@@ -373,7 +371,7 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     bool ReadGroup( off_t offsetGroup );
 
-  
+
     //--------------------------------------------------------------------------
     //! Non-streaming operation
     //! Compute parity for the non-streaming case and write it to files
@@ -390,20 +388,21 @@ class RaidMetaLayout : public Layout
 
 
     //--------------------------------------------------------------------------
-    //! Expand the current range so that it is aligned with respect to 
+    //! Expand the current range so that it is aligned with respect to
     //! blockSize operations, either read or write
     //!
-    //! @param offset offset 
+    //! @param offset offset
     //! @param length length
+    //! @param blockSize size of a block of data
     //! @param alignedOffset aligned offset value
     //! @param alignedLength aligned length value
     //!
     //--------------------------------------------------------------------------
-    void AlignExpandBlocks( XrdSfsFileOffset  offset, 
+    void AlignExpandBlocks( XrdSfsFileOffset  offset,
                             XrdSfsXferSize    length,
                             XrdSfsFileOffset  blockSize,
-                            XrdSfsFileOffset &alignedOffset, 
-                            XrdSfsXferSize   &alignedLength );
+                            XrdSfsFileOffset& alignedOffset,
+                            XrdSfsXferSize&   alignedLength );
 
 };
 

@@ -1,7 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file HeaderCRC.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Header information present at the start of each stripe file
+// File: HeaderCRC.hh
+// Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,6 +20,12 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+
+//------------------------------------------------------------------------------
+//! @file HeaderCRC.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Header information present at the start of each stripe file
+//------------------------------------------------------------------------------
 
 #ifndef __EOSFST_HEADERCRC_HH__
 #define __EOSFST_HEADERCRC_HH__
@@ -45,13 +50,13 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    HeaderCRC();
+    HeaderCRC( int sizeHeader);
 
   
     //--------------------------------------------------------------------------
     //! Constructor with parameter
     //--------------------------------------------------------------------------
-    HeaderCRC( long numBlocks );
+    HeaderCRC( int sizeHeader, long long int numBlocks );
 
   
     //--------------------------------------------------------------------------
@@ -115,15 +120,15 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Get size of header
     //--------------------------------------------------------------------------
-    static const int GetSize() {
-      return msSizeHeader;
+    inline int GetSize() const {
+      return mSizeHeader;
     }
 
 
     //--------------------------------------------------------------------------
     //! Get size of last block in file
     //--------------------------------------------------------------------------
-    const size_t GetSizeLastBlock() const {
+    inline size_t GetSizeLastBlock() const {
       return mSizeLastBlock;
     }
 
@@ -131,7 +136,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Get number of blocks in file
     //--------------------------------------------------------------------------
-    const long int GetNoBlocks() const {
+    inline long int GetNoBlocks() const {
       return mNumBlocks;
     }
 
@@ -139,7 +144,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Get id of the stripe the header belongs to
     //--------------------------------------------------------------------------
-    const unsigned int GetIdStripe() const {
+    inline unsigned int GetIdStripe() const {
       return mIdStripe;
     }
 
@@ -147,7 +152,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Set number of blocks in the file
     //--------------------------------------------------------------------------
-    void SetNoBlocks( long int numBlocks ) {
+    void SetNoBlocks( long long int numBlocks ) {
       mNumBlocks = numBlocks;
     }
 
@@ -170,7 +175,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Test if header is valid
     //--------------------------------------------------------------------------
-    const bool IsValid() const {
+    inline const bool IsValid() const {
       return mValid;
     }
   
@@ -184,14 +189,14 @@ class HeaderCRC: public eos::common::LogId
 
   private:
 
-    char mTag[16];           ///< layout tag
-    bool mValid;             ///< status of the file
-    long int mNumBlocks;     ///< total number of blocks
-    unsigned int mIdStripe;  ///< index of the stripe the header belongs to
-    size_t mSizeLastBlock;   ///< size of the last block of data
+    char mTag[16];            ///< layout tag
+    bool mValid;              ///< status of the file
+    long long int mNumBlocks; ///< total number of blocks
+    unsigned int mIdStripe;   ///< index of the stripe the header belongs to
+    size_t mSizeLastBlock;    ///< size of the last block of data
 
-    static int msSizeHeader; ///< size of the header
-    static char msTagName[]; ///< default tag name
+    int mSizeHeader;         ///< size of the header
+    static char msTagName[];  ///< default tag name
 };
 
 EOSFSTNAMESPACE_END

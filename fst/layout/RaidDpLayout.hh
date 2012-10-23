@@ -72,7 +72,7 @@ class RaidDpLayout : public RaidMetaLayout
                   off_t               targetSize = 0,
                   std::string         bookingOpaque = "oss.size" );
 
-  
+
     //--------------------------------------------------------------------------
     //! Truncate file
     //!
@@ -83,13 +83,13 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     virtual int Truncate( XrdSfsFileOffset offset );
 
-  
+
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
     virtual ~RaidDpLayout();
 
-  
+
   private:
 
     //--------------------------------------------------------------------------
@@ -106,7 +106,7 @@ class RaidDpLayout : public RaidMetaLayout
                                 char* buffer,
                                 std::map<off_t, size_t>& mapPiece );
 
-  
+
     //--------------------------------------------------------------------------
     //! Add data block to compute parity stripes for current group of blocks
     //!  - used for the streaming mode
@@ -118,13 +118,13 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     virtual void AddDataBlock( off_t offset, char* buffer, size_t length );
 
-  
+
     //--------------------------------------------------------------------------
     //! Compute parity information
     //--------------------------------------------------------------------------
     virtual void ComputeParity();
 
-  
+
     //--------------------------------------------------------------------------
     //! Write parity information corresponding to a group to files
     //!
@@ -135,7 +135,7 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     virtual int WriteParityToFiles( off_t offsetGroup );
 
-  
+
     //--------------------------------------------------------------------------
     //! Compute XOR operation for two blocks of any size
     //!

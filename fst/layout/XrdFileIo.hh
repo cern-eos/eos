@@ -27,8 +27,8 @@
 //! @brief Class used for doing remote IO operations unsing the xrd client
 //------------------------------------------------------------------------------
 
-#ifndef __EOSFST_XRDFILEIO__HH__
-#define __EOSFST_XRDFILEIO__HH__
+#ifndef __EOSFST_XRDFILEIO_HH__
+#define __EOSFST_XRDFILEIO_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/FileIo.hh"
@@ -41,7 +41,7 @@
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Class used for doing remote IO operations using the xrd client
+//! Class used for doing remote IO operations using the Xrd client
 //------------------------------------------------------------------------------
 class XrdFileIo: public FileIo
 {
@@ -88,7 +88,7 @@ class XrdFileIo: public FileIo
     //!
     //! @param offset offset in file
     //! @param buffer where the data is read
-    //! @param lenght read length
+    //! @param length read length
     //!
     //! @return number of bytes read or -1 if error
     //!
@@ -102,7 +102,7 @@ class XrdFileIo: public FileIo
     //! Write to file - sync
     //!
     //! @param offset offset
-    //! @paramm buffer data to be written
+    //! @param buffer data to be written
     //! @param length length
     //!
     //! @return number of bytes written or -1 if error
@@ -119,7 +119,7 @@ class XrdFileIo: public FileIo
     //!
     //! @param offset offset in file
     //! @param buffer where the data is read
-    //! @param lenght read length
+    //! @param length read length
     //! @param handler async read handler
     //!
     //! @return number of bytes read or -1 if error
@@ -135,7 +135,7 @@ class XrdFileIo: public FileIo
     //! Write to file - async
     //!
     //! @param offset offset
-    //! @paramm buffer data to be written
+    //! @param buffer data to be written
     //! @param length length
     //! @param handler async write handler
     //!

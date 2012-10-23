@@ -100,7 +100,7 @@ class ReplicaParLayout : public Layout
     //! Write to file
     //!
     //! @param offset offset
-    //! @paramm buffer data to be written
+    //! @param buffer data to be written
     //! @param length length
     //!
     //! @return number of bytes written or -1 if error

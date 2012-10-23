@@ -62,6 +62,7 @@ class LayoutPlugin
     //!
     //! @param file file handler
     //! @param layoutId layout id type
+    //! @param client security entity
     //! @param error error information
     //!
     //! @return requested layout type object

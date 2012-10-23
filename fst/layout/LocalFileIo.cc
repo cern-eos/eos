@@ -68,8 +68,11 @@ LocalFileIo::Open( const std::string& path,
 {
   eos_debug( "path = %s", path.c_str() );
   mLocalPath = path;
-  return mLogicalFile->openofs( path.c_str(), flags, mode,
-                                mSecEntity, opaque.c_str() );
+  return mLogicalFile->openofs( path.c_str(),
+                                flags,
+                                mode,
+                                mSecEntity,
+                                opaque.c_str() );
 }
 
 
@@ -220,7 +223,6 @@ LocalFileIo::Sync()
 int
 LocalFileIo::Stat( struct stat* buf )
 {
-  eos_debug( "_" );
   return XrdOfsOss->Stat( mLogicalFile->GetFstPath().c_str(), buf );
 }
 
@@ -231,7 +233,6 @@ LocalFileIo::Stat( struct stat* buf )
 int
 LocalFileIo::Close()
 {
-  eos_debug( "_" );
   return mLogicalFile->closeofs();
 }
 
@@ -242,14 +243,12 @@ LocalFileIo::Close()
 int
 LocalFileIo::Remove()
 {
-  eos_debug( "_" );
   struct stat buf;
 
   if ( Stat( &buf ) ) {
     //..........................................................................
     // Only try to delete if there is something to delete!
     //..........................................................................
-    eos_debug( "File exists, we are deleting it." );
     return unlink( mLogicalFile->GetFstPath().c_str() );
   }
 

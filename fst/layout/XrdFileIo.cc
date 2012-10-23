@@ -64,12 +64,11 @@ XrdFileIo::Open( const std::string& path,
                  mode_t             mode,
                  const std::string& opaque )
 {
-  eos_debug( "path = %s", path.c_str() );
   mLocalPath = path;
   mXrdFile = new XrdCl::File();
   XrdCl::XRootDStatus status = mXrdFile->Open( path,
-                                               static_cast<uint16_t>( flags ),
-                                               static_cast<uint16_t>( mode ) );
+                               static_cast<uint16_t>( flags ),
+                               static_cast<uint16_t>( mode ) );
 
   if ( !status.IsOK() ) {
     eos_err( "error=opening remote file" );
@@ -99,7 +98,7 @@ XrdFileIo::Read( XrdSfsFileOffset offset,
                                                buffer,
                                                bytes_read );
 
-  if ( !status.IsOK() ) {
+  if ( !status.IsOK() || ( bytes_read != static_cast<uint32_t>( length ) ) ) {
     errno = status.errNo;
     return SFS_ERROR;
   }
@@ -119,7 +118,7 @@ XrdFileIo::Write( XrdSfsFileOffset offset,
   eos_debug( "offset = %lli, length = %lli",
              static_cast<int64_t>( offset ),
              static_cast<int64_t>( length ) );
-
+  
   XrdCl::XRootDStatus status = mXrdFile->Write( static_cast<uint64_t>( offset ),
                                                 static_cast<uint32_t>( length ),
                                                 buffer );
@@ -200,7 +199,6 @@ XrdFileIo::Truncate( XrdSfsFileOffset offset )
 int
 XrdFileIo::Sync()
 {
-  eos_debug( " " );
   XrdCl::XRootDStatus status = mXrdFile->Sync();
 
   if ( !status.IsOK() ) {
@@ -218,7 +216,6 @@ XrdFileIo::Sync()
 int
 XrdFileIo::Stat( struct stat* buf )
 {
-  eos_debug( " " );
   int rc = SFS_ERROR;
   XrdCl::StatInfo* stat;
   XrdCl::XRootDStatus status = mXrdFile->Stat( true, stat );
@@ -244,7 +241,6 @@ XrdFileIo::Stat( struct stat* buf )
 int
 XrdFileIo::Close()
 {
-  eos_debug( " " );
   XrdCl::XRootDStatus status = mXrdFile->Close();
 
   if ( !status.IsOK() ) {
@@ -268,7 +264,7 @@ XrdFileIo::Remove()
   XrdCl::XRootDStatus status = mXrdFile->Truncate( EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN );
 
   if ( !status.IsOK() ) {
-    eos_err( "Filed to truncate file with deletion offset - %s", mPath.c_str() );
+    eos_err( "error=failed to truncate file with deletion offset - %s", mPath.c_str() );
     return SFS_ERROR;
   }
 
