@@ -27,7 +27,6 @@
 //! @brief Implementation of the RAID-double parity layout
 //------------------------------------------------------------------------------
 
-
 #ifndef __EOSFST_RAIDDPLAYOUT_HH__
 #define __EOSFST_RAIDDPLAYOUT_HH__
 
@@ -53,7 +52,6 @@ class RaidDpLayout : public RaidMetaLayout
     //! Constructor
     //!
     //! @param file handler to current file
-    //! @param name name of the layout
     //! @param lid layout id
     //! @param client security information
     //! @param outError error information
@@ -94,7 +92,7 @@ class RaidDpLayout : public RaidMetaLayout
 
     //--------------------------------------------------------------------------
     //! Add data block to compute parity stripes for current group of blocks
-    //!  - used for the streaming mode
+    //! - used for the streaming mode
     //!
     //! @param offset block offset
     //! @param buffer data buffer
@@ -137,7 +135,7 @@ class RaidDpLayout : public RaidMetaLayout
 
 
     //--------------------------------------------------------------------------
-    //! Do recovery in the current group using simple and/or double parity 
+    //! Do recovery in the current group using simple and/or double parity
     //!
     //! @param offsetInit file offset corresponding to byte 0 from the buffer
     //! @param pBuffer buffer where to save the recovered data
@@ -149,7 +147,7 @@ class RaidDpLayout : public RaidMetaLayout
     bool RecoverPiecesInGroup( off_t                    offsetInit,
                                char*                    pBuffer,
                                std::map<off_t, size_t>& rMapPieces );
-  
+
 
     //--------------------------------------------------------------------------
     //! Return diagonal stripe corresponding to current block

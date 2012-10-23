@@ -148,7 +148,6 @@ class XrdFileIo: public FileIo
                            void*            handler );
 
 
-
     //--------------------------------------------------------------------------
     //! Truncate
     //!

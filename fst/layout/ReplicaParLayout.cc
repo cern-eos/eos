@@ -47,6 +47,7 @@ ReplicaParLayout::ReplicaParLayout( XrdFstOfsFile*      file,
   ioLocal = false;
 }
 
+
 //------------------------------------------------------------------------------
 // Open file
 //------------------------------------------------------------------------------
@@ -147,6 +148,7 @@ ReplicaParLayout::Open( const std::string&  path,
       replica_url = rep;
       replica_url += remoteOpenPath.c_str();
       replica_url += "?";
+      
       //........................................................................
       // Prepare the index for the next target
       //........................................................................
@@ -247,6 +249,7 @@ ReplicaParLayout::Open( const std::string&  path,
   return SFS_OK;
 }
 
+
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
@@ -268,10 +271,6 @@ ReplicaParLayout::Read( XrdSfsFileOffset offset,
                         char*            buffer,
                         XrdSfsXferSize   length )
 {
-  eos_info( "Offset = %lli, length = %lli",
-            static_cast<int64_t>( offset ),
-            static_cast<int64_t>( length ) );
-
   int64_t rc = 0;
 
   for ( unsigned int i = 0; i < mReplicaFile.size(); i++ ) {
@@ -480,5 +479,6 @@ ReplicaParLayout::Fdeallocate( XrdSfsFileOffset fromOffset,
 {
   return mReplicaFile[0]->Fdeallocate( fromOffset, toOffset );
 }
+
 
 EOSFSTNAMESPACE_END

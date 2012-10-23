@@ -39,7 +39,7 @@ PlainLayout::PlainLayout( XrdFstOfsFile*      file,
   Layout( file, lid, client, outError )
 {
   //............................................................................
-  // For the plain layout we use only LocalFileIo type
+  // For the plain layout we use only the LocalFileIo type
   //............................................................................
   mPlainFile = FileIoPlugin::GetIoObject( mOfsFile,
                                           eos::common::LayoutId::kLocal,
@@ -147,7 +147,6 @@ PlainLayout::Stat( struct stat* buf )
 int
 PlainLayout::Close()
 {
-  eos_debug( " " );
   return mPlainFile->Close();
 }
 

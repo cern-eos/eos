@@ -45,6 +45,11 @@ class ChunkHandler: public XrdCl::ResponseHandler
 
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param reqHandler handler to the file meta handler
+  //! @param offset request offset
+  //! @param length request length
+  //!
   //----------------------------------------------------------------------------
   ChunkHandler( AsyncMetaHandler* reqHandler,
                 uint64_t          offset,
@@ -59,6 +64,10 @@ class ChunkHandler: public XrdCl::ResponseHandler
 
   //--------------------------------------------------------------------------
   //! Handle response
+  //!
+  //! @param pStatus status of the response
+  //! @param pResponse object containing extra info about the response
+  //! 
   //--------------------------------------------------------------------------
   virtual void HandleResponse( XrdCl::XRootDStatus* pStatus,
                                XrdCl::AnyObject*    pResponse );
@@ -66,7 +75,7 @@ class ChunkHandler: public XrdCl::ResponseHandler
 
  private:
 
-  AsyncMetaHandler* mMetaHandler; ///< handler to the request handler of the whole file
+  AsyncMetaHandler* mMetaHandler; ///< handler to the whole file meta handler
   uint64_t          mOffset;      ///< offset of the request
   uint32_t          mLength;      ///< length of the request
   

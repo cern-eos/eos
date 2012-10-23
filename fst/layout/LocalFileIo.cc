@@ -66,7 +66,6 @@ LocalFileIo::Open( const std::string& path,
                    mode_t             mode,
                    const std::string& opaque )
 {
-  eos_debug( "path = %s", path.c_str() );
   mLocalPath = path;
   return mLogicalFile->openofs( path.c_str(),
                                 flags,
@@ -153,7 +152,7 @@ LocalFileIo::Fallocate( XrdSfsFileOffset length )
   XrdOucErrInfo error;
 
   if ( mLogicalFile->fctl( SFS_FCTL_GETFD, 0, error ) )
-    return -1;
+    return SFS_ERROR;
 
   int fd = error.getErrInfo();
 
@@ -170,7 +169,7 @@ LocalFileIo::Fallocate( XrdSfsFileOffset length )
     return posix_fallocate( fd, 0, length );
   }
 
-  return -1;
+  return SFS_ERROR;
 }
 
 
@@ -184,7 +183,7 @@ LocalFileIo::Fdeallocate( XrdSfsFileOffset fromOffset,
   XrdOucErrInfo error;
 
   if ( mLogicalFile->fctl( SFS_FCTL_GETFD, 0, error ) )
-    return -1;
+    return SFS_ERROR;
 
   int fd = error.getErrInfo();
 
@@ -203,7 +202,7 @@ LocalFileIo::Fdeallocate( XrdSfsFileOffset fromOffset,
     }
   }
 
-  return -1;
+  return SFS_ERROR;
 }
 
 

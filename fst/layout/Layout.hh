@@ -44,6 +44,7 @@
 
 EOSFSTNAMESPACE_BEGIN
 
+// Forward declaration 
 class XrdFstOfsFile;
 
 //------------------------------------------------------------------------------
@@ -242,13 +243,13 @@ class Layout: public eos::common::LogId
 
   protected:
 
-    bool           mIsEntryServer;      ///< mark entry server
-    unsigned int   mLayoutId;           ///< layout id
-    XrdOucString   mName;               ///< layout name
-    XrdFstOfsFile* mOfsFile;            ///< handler to logical file
-    std::string    mLocalPath;          ///< path to local file
-    XrdOucErrInfo* mError;              ///< error information for current file
-    XrdSecEntity*  mSecEntity;          ///< security information
+    bool           mIsEntryServer;  ///< mark entry server
+    unsigned int   mLayoutId;       ///< layout id
+    XrdOucString   mName;           ///< layout name
+    XrdFstOfsFile* mOfsFile;        ///< handler to logical file
+    std::string    mLocalPath;      ///< path to local file
+    XrdOucErrInfo* mError;          ///< error information
+    XrdSecEntity*  mSecEntity;      ///< security information
 
 };
 

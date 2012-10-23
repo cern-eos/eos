@@ -99,7 +99,6 @@ ReedSLayout::ComputeParity()
 
   fec_t* const fec = fec_new( mNbDataFiles, mNbTotalFiles );
   fec_encode( fec, blocks, outblocks, block_nums, mNbParityFiles, mStripeWidth );
-
   //............................................................................
   // Free memory
   //............................................................................
@@ -129,7 +128,6 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   off_t offset_group = ( offset / mSizeGroup ) * mSizeGroup;
   size_t length = 0;
   ChunkHandler* chunk = NULL;
-  
   num_blocks_corrupted = 0;
 
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
@@ -150,15 +148,14 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       // Do local read operation
       //........................................................................
       int nread = mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
-                                                   mDataBlocks[i],
-                                                   mStripeWidth );
+                  mDataBlocks[i],
+                  mStripeWidth );
 
       if ( nread != mStripeWidth ) {
         eos_err( "error=local block corrupted id=%i.", i );
         invalid_ids.push_back( i );
         num_blocks_corrupted++;
-      }
-      else {
+      } else {
         valid_ids.push_back( i );
       }
     }
@@ -170,7 +167,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
     physical_id = mapLP[i];
 
-    if (physical_id) {
+    if ( physical_id ) {
       if ( !mMetaHandlers[physical_id]->WaitOK() ) {
         eos_err( "error=remote block corrupted id=%i", i );
         invalid_ids.push_back( i );
@@ -180,21 +177,19 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       }
     }
   }
-    
+
   if ( num_blocks_corrupted == 0 ) {
     return true;
-  }
-  else if ( num_blocks_corrupted > mNbParityFiles ) {
+  } else if ( num_blocks_corrupted > mNbParityFiles ) {
     return false;
   }
-  
+
   //............................................................................
   // ******* DECODE ******
   //............................................................................
   const unsigned char* inpkts[valid_ids.size()];
   unsigned char* outpkts[invalid_ids.size()];
   unsigned int indexes[valid_ids.size()];
-  
   //............................................................................
   // Obtain a valid combination of blocks suitable for recovery
   //............................................................................
@@ -209,13 +204,12 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   //............................................................................
   bool data_corrupted = false;
   bool parity_corrupted = false;
-
   //............................................................................
   // Obs: The indices of the blocks to be recovered have to be sorted in ascending
   // order. So outpkts has to point to the corrupted blocks in ascending order.
   //............................................................................
   sort( invalid_ids.begin(), invalid_ids.end() );
-  
+
   for ( unsigned int i = 0; i < invalid_ids.size(); i++ ) {
     outpkts[i] = ( unsigned char* ) mDataBlocks[invalid_ids[i]];
 
@@ -250,8 +244,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
 
   for ( vector<unsigned int>::iterator iter = invalid_ids.begin();
         iter != invalid_ids.end();
-        ++iter )
-  {
+        ++iter ) {
     stripe_id = *iter;
     physical_id = mapLP[stripe_id];
 
@@ -288,14 +281,12 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
     if ( *iter < mNbDataFiles ) { //if one of the data blocks
       for ( std::map<off_t, size_t>::iterator itPiece = rMapErrors.begin();
             itPiece != rMapErrors.end();
-            itPiece++ )
-      {
+            itPiece++ ) {
         offset = itPiece->first;
         length = itPiece->second;
 
         if ( ( offset >= ( off_t )( offset_group + ( *iter ) * mStripeWidth ) ) &&
-             ( offset < ( off_t )( offset_group + ( ( *iter ) + 1 ) * mStripeWidth ) ) )
-        {
+             ( offset < ( off_t )( offset_group + ( ( *iter ) + 1 ) * mStripeWidth ) ) ) {
           pBuff = pBuffer + ( offset - offsetInit );
           pBuff = static_cast<char*>( memcpy( pBuff,
                                               mDataBlocks[*iter] + ( offset % mStripeWidth ),
@@ -335,9 +326,8 @@ ReedSLayout::SolutionBkt( unsigned int               k,
 
   //............................................................................
   // All valid blocks should be used in the recovery process
-  //............................................................................  
+  //............................................................................
   if ( k != validId.size() ) return found;
-
 
   //............................................................................
   // If we have a valid parity block then it should be among the input blocks
@@ -380,7 +370,8 @@ ReedSLayout::ValidBkt( unsigned int               k,
   }
 
   for ( unsigned int i = 0; i < k; i++ ) {
-    if ( pIndexes[i] == pIndexes[k] || ( pIndexes[i] < mNbDataFiles && pIndexes[i] != i ) ) {
+    if ( ( pIndexes[i] == pIndexes[k] ) ||
+         ( pIndexes[i] < mNbDataFiles && pIndexes[i] != i ) ) {
       return false;
     }
   }
@@ -427,7 +418,7 @@ ReedSLayout::AddDataBlock( off_t offset, char* pBuffer, size_t length )
   // In case the file is smaller than mSizeGroup, we need to force it to compute
   // the parity blocks
   //............................................................................
-  if ( ( mOffGroupParity == -1 ) && ( offset < static_cast<off_t>( mSizeGroup ) ) ) {
+  if ( ( mOffGroupParity == -1 ) && ( offset < mSizeGroup ) ) {
     mOffGroupParity = 0;
   }
 
@@ -449,7 +440,7 @@ ReedSLayout::AddDataBlock( off_t offset, char* pBuffer, size_t length )
     nwrite = ( length > availableLength ) ? availableLength : length;
     ptr = mDataBlocks[indx_block];
     ptr += offset_in_block;
-    ptr = ( char* )memcpy( ptr, pBuffer, nwrite );
+    ptr = static_cast<char*>( memcpy( ptr, pBuffer, nwrite ) );
     offset += nwrite;
     length -= nwrite;
     pBuffer += nwrite;
@@ -503,7 +494,7 @@ ReedSLayout::WriteParityToFiles( off_t offsetGroup )
       int nwrite = mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
                                                      mDataBlocks[i],
                                                      mStripeWidth );
-      
+
       if ( nwrite != mStripeWidth ) {
         eos_err( "error=while doing local write operation offset=%lli",
                  offset_local + mSizeHeader );

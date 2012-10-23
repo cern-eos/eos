@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_IO_RAIDMETALAYOUT_HH__
-#define __EOSFST_IO_RAIDMETALAYOUT_HH__
+#ifndef __EOSFST_RAIDMETALAYOUT_HH__
+#define __EOSFST_RAIDMETALAYOUT_HH__
 
 /*----------------------------------------------------------------------------*/
 #include <vector>
@@ -61,7 +61,7 @@ class RaidMetaLayout : public Layout
     //! @param outError error information
     //! @param storeRecovery force writing back the recovered blocks to the files
     //! @param isStreaming file is written in streaming mode
-    //! @param targetSize expected final size
+    //! @param targetSize initial file size
     //! @param bookingOpaque opaque information
     //!
     //--------------------------------------------------------------------------
@@ -206,56 +206,50 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     virtual uint64_t Size(); // returns the total size of the file
 
-
-    //--------------------------------------------------------------------------
-    //! Get size of the stripe
-    //--------------------------------------------------------------------------
-    static const int GetSizeStripe();
-
-
   protected:
 
-    bool mIsRw;                  ///< mark for writing
-    bool mIsOpen;                ///< mark if open
-    bool mDoTruncate;            ///< mark if there is a need to truncate
-    bool mUpdateHeader;          ///< mark if header updated
-    bool mDoneRecovery;          ///< mark if recovery done
-    bool mFullDataBlocks;        ///< mark if we have all data blocks to compute parity
-    bool mStoreRecovery;         ///< set if recovery also triggers writing back to the
-                                 ///< files, this also means that all files must be available
-    bool mIsStreaming;           ///< file is written in streaming mode
+    bool mIsRw;                        ///< mark for writing
+    bool mIsOpen;                      ///< mark if open
+    bool mDoTruncate;                  ///< mark if there is a need to truncate
+    bool mUpdateHeader;                ///< mark if header updated
+    bool mDoneRecovery;                ///< mark if recovery done
+    bool mFullDataBlocks;              ///< mark if we have all data blocks to compute parity
+    bool mStoreRecovery;               ///< set if recovery also triggers writing back to the
+                                       ///< files, this also means that all files must be available
+    bool mIsStreaming;                 ///< file is written in streaming mode
 
     unsigned int mStripeHead;          ///< head stripe value
     unsigned int mPhysicalStripeIndex; ///< physical index of the current stripe
-    unsigned int mLogicalStripeIndex;  ///< logical index of the current stripe 
+    unsigned int mLogicalStripeIndex;  ///< logical index of the current stripe
     unsigned int mNbParityFiles;       ///< number of parity files
     unsigned int mNbDataFiles;         ///< number of data files
     unsigned int mNbTotalFiles;        ///< total number of files ( data + parity )
     unsigned int mNbDataBlocks;        ///< no. data blocks in a group
     unsigned int mNbTotalBlocks;       ///< no. data and parity blocks in a group
 
-    off_t mStripeWidth;    ///< stripe width
-    off_t mSizeHeader;     ///< size of header = 4KB
-    off_t mFileSize;       ///< total size of current file
-    off_t mTargetSize;     ///< expected final size (?!)
-    off_t mSizeLine;       ///< size of a line in a group
-    off_t mOffGroupParity; ///< offset of the last group for which we
-                           ///< computed the parity blocks
-    off_t mSizeGroup;      ///< size of a group of blocks
-                           ///< eg. RAIDDP: group = noDataStr^2 blocks
-  
+    off_t mStripeWidth;                ///< stripe width
+    off_t mSizeHeader;                 ///< size of header = 4KB
+    off_t mFileSize;                   ///< total size of current file
+    off_t mTargetSize;                 ///< expected final size (?!)
+    off_t mSizeLine;                   ///< size of a line in a group
+    off_t mOffGroupParity;             ///< offset of the last group for which we
+                                       ///< computed the parity blocks
+    off_t mSizeGroup;                  ///< size of a group of blocks
+                                       ///< eg. RAIDDP: group = noDataStr^2 blocks
+
 
     std::string mAlgorithmType;                     ///< layout type used
     std::string mBookingOpaque;                     ///< opaque information
     std::vector<char*> mDataBlocks;                 ///< vector containing the data in a group
     std::vector<FileIo*> mStripeFiles;              ///< vector containing the file IO layout
-    std::vector<HeaderCRC*> mHdUrls;                ///< headers of the stripe files
+    std::vector<HeaderCRC*> mHdrInfo;               ///< headers of the stripe files
     std::vector<AsyncMetaHandler*> mMetaHandlers;   ///< rd/wr handlers for each stripe
     std::map<unsigned int, unsigned int> mapLP;     ///< map of url to stripes
     std::map<unsigned int, unsigned int> mapPL;     ///< map of stripes to url
     std::map<off_t, size_t> mMapPieces;             ///< map of pieces written for which parity
                                                     ///< computation has not been done yet
 
+  
     //--------------------------------------------------------------------------
     //! Test and recover any corrupted headers in the stripe files
     //!
@@ -279,7 +273,7 @@ class RaidMetaLayout : public Layout
                                 char*                    buffer,
                                 std::map<off_t, size_t>& mapPieces );
 
-  
+
     //--------------------------------------------------------------------------
     //! Recover corrupted pieces from the current group
     //!
@@ -293,7 +287,7 @@ class RaidMetaLayout : public Layout
     virtual bool RecoverPiecesInGroup( off_t                    offsetInit,
                                        char*                    buffer,
                                        std::map<off_t, size_t>& mapPieces ) = 0;
-  
+
 
     //--------------------------------------------------------------------------
     //! Add new data block to the current group for parity computation, used
@@ -423,4 +417,4 @@ class RaidMetaLayout : public Layout
 
 EOSFSTNAMESPACE_END
 
-#endif  // __EOSFST_IO_RAIDMETALAYOUT_HH__
+#endif  // __EOSFST_RAIDMETALAYOUT_HH__

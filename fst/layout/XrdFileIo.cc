@@ -67,8 +67,8 @@ XrdFileIo::Open( const std::string& path,
   mLocalPath = path;
   mXrdFile = new XrdCl::File();
   XrdCl::XRootDStatus status = mXrdFile->Open( path,
-                               static_cast<uint16_t>( flags ),
-                               static_cast<uint16_t>( mode ) );
+                                               static_cast<uint16_t>( flags ),
+                                               static_cast<uint16_t>( mode ) );
 
   if ( !status.IsOK() ) {
     eos_err( "error=opening remote file" );

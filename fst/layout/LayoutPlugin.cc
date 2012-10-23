@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: LayoutPlugin.cc
-// Author: Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
+// Author: Andreas-Joachim Peters - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -38,7 +38,7 @@ EOSFSTNAMESPACE_BEGIN
 LayoutPlugin::LayoutPlugin()
 {
   // empty
-};
+}
 
 
 //--------------------------------------------------------------------------
@@ -47,7 +47,7 @@ LayoutPlugin::LayoutPlugin()
 LayoutPlugin::~LayoutPlugin()
 {
   //empty
-};
+}
 
 
 //--------------------------------------------------------------------------
@@ -60,11 +60,11 @@ LayoutPlugin::GetLayoutObject( XrdFstOfsFile*      file,
                                XrdOucErrInfo*      error )
 {
   if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kPlain ) {
-    return dynamic_cast<Layout*>( new PlainLayout( file, layoutId, client, error ) );
+    return static_cast<Layout*>( new PlainLayout( file, layoutId, client, error ) );
   }
 
   if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kReplica ) {
-    return dynamic_cast<Layout*>( new ReplicaParLayout( file, layoutId, client, error ) );
+    return static_cast<Layout*>( new ReplicaParLayout( file, layoutId, client, error ) );
   }
 
   if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kRaidDP ) {

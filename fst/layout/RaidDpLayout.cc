@@ -248,8 +248,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       // Do remote read operation
       //........................................................................
       uint64_t line_offset = offset_group + ( i / mNbTotalFiles ) *
-          ( mStripeWidth * mNbDataFiles );
-      
+                             ( mStripeWidth * mNbDataFiles );
       chunk = mMetaHandlers[physical_id]->Register( line_offset, mStripeWidth );
       mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
                                        mDataBlocks[i],
@@ -262,7 +261,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       int nread = mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
                                                    mDataBlocks[i],
                                                    mStripeWidth );
-      
+
       if ( nread != mStripeWidth ) {
         status_blocks[i] = false;
         corrupt_ids.push_back( i );
@@ -291,7 +290,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
 
   if ( corrupt_ids.empty() ) {
     free( status_blocks );
-    eos_warning( "there are no corrupted blocks although we saw some before" );
+    eos_warning( "warning=no corrupted blocks, although we saw some before" );
     return true;
   }
 
@@ -302,14 +301,13 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   vector<unsigned int> horizontal_stripe;
   vector<unsigned int> diagonal_stripe;
 
-
   //............................................................................
   // Reset the async handlers
   //............................................................................
   for ( unsigned int i = 0; i < mMetaHandlers.size(); i++ ) {
     mMetaHandlers[i]->Reset();
   }
-  
+
   while ( !corrupt_ids.empty() ) {
     id_corrupted = corrupt_ids.back();
     corrupt_ids.pop_back();
@@ -438,8 +436,8 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
             // Do local write operation
             //....................................................................
             int nwrite = mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
-                                                           mDataBlocks[id_corrupted],
-                                                           mStripeWidth );
+                         mDataBlocks[id_corrupted],
+                         mStripeWidth );
 
             if ( nwrite != mStripeWidth ) {
               eos_err( "error=while doing local write operation offset=%lli",
@@ -584,7 +582,6 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
   ChunkHandler* chunk = NULL;
   unsigned int physical_pindex = mapLP[mNbTotalFiles - 2];
   unsigned int physical_dpindex = mapLP[mNbTotalFiles - 1];
-  
   mMetaHandlers[physical_pindex]->Reset();
   mMetaHandlers[physical_dpindex]->Reset();
 
@@ -625,7 +622,7 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
       mStripeFiles[physical_dpindex]->Write( off_parity_local + mSizeHeader,
                                              mDataBlocks[index_dpblock],
                                              mStripeWidth,
-                                             static_cast<void*>(chunk ) );
+                                             static_cast<void*>( chunk ) );
     } else {
       //........................................................................
       // Do local write operation
@@ -642,7 +639,7 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
   }
 
   if ( ( !mMetaHandlers[physical_pindex]->WaitOK() ) ||
-       ( !mMetaHandlers[physical_dpindex]->WaitOK() )  )
+       ( !mMetaHandlers[physical_dpindex]->WaitOK() ) )
   {
     eos_err( "error=error while writing remote parity information" );
     ret = SFS_ERROR;

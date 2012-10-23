@@ -38,7 +38,7 @@
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Class abstracting the phsysical layout of a plain file
+//! Class abstracting the physical layout of a plain file
 //------------------------------------------------------------------------------
 class PlainLayout : public Layout
 {
