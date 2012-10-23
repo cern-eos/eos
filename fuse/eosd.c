@@ -354,7 +354,6 @@ static void eosfs_ll_lookup( fuse_req_t  req,
         fuse_reply_entry( req, &e );
       } else {
         fuse_reply_err( req, errno );
->>>>>>> 08652b7... FUSE: Add the new XrdCl and refactor the fuse implementation
       }
     }
   }

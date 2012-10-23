@@ -31,6 +31,14 @@ link_directories( /usr/${LIB_INSTALL_DIR}/
 		  ${XROOTD_LIB_DIR} 
 		  ${XRDCL_LIB_DIR} )
 
+add_library ( EosFstOss MODULE
+	      XrdFstOss.cc XrdFstOss.hh
+	      checksum/CheckSum.cc checksum/CheckSum.hh
+	      checksum/Adler.cc checksum/Adler.hh
+	      ../checksum/crc32c.cc
+	      ../checksum/crc32ctables.cc
+)
+
 add_library ( XrdEosFst MODULE
 	      XrdFstOfs.cc                   XrdFstOfs.hh
 	      XrdFstOfsFile.cc               XrdFstOfsFile.hh

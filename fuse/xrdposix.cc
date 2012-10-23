@@ -476,7 +476,7 @@ void xrd_dir_cache_sync( unsigned long long inode,
 
 
 /*----------------------------------------------------------------------------*/
-A// Get a subentry from a cached directory
+// Get a subentry from a cached directory
 //------------------------------------------------------------------------------
 int xrd_dir_cache_get_entry( fuse_req_t         req,
                              unsigned long long inode,
