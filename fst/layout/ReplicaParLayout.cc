@@ -183,11 +183,11 @@ ReplicaParLayout::Open( const std::string&  path,
       // Only the referenced entry URL does local IO
       //........................................................................
       mLocalPath = path;
-      FileIo* file = FileIoPlugin::GetIoObject( mOfsFile,
-                     eos::common::LayoutId::kLocal,
-                     mSecEntity,
-                     mError );
-
+      FileIo* file = FileIoPlugin::GetIoObject( eos::common::LayoutId::kLocal,
+                                                mOfsFile,
+                                                mSecEntity,
+                                                mError );
+      
       if ( file->Open( path, flags, mode, opaque ) ) {
         eos_err( "Failed to open replica - local open failed on ", path.c_str() );
         return gOFS.Emsg( "ReplicaOpen", *mError, EIO,
@@ -212,11 +212,11 @@ ReplicaParLayout::Open( const std::string&  path,
 	  eos::common::StringConversion::MaskTag(maskUrl,"authz");
           eos_info("Opening Layout Stripe %s\n", maskUrl.c_str());
 
-          FileIo* file = FileIoPlugin::GetIoObject( mOfsFile,
-                         eos::common::LayoutId::kXrdCl,
-                         mSecEntity,
-                         mError );
-
+          FileIo* file = FileIoPlugin::GetIoObject( eos::common::LayoutId::kXrdCl,
+                                                    mOfsFile,
+                                                    mSecEntity,
+                                                    mError );
+          
           //....................................................................
           // Write case
           //....................................................................

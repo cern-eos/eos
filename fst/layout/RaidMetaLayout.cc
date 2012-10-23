@@ -151,10 +151,10 @@ RaidMetaLayout::Open( const std::string& path,
   // Do open on local stripe - force it in RDWR mode
   //..........................................................................
   mLocalPath = path;
-  FileIo* file = FileIoPlugin::GetIoObject( mOfsFile,
-                 eos::common::LayoutId::kLocal,
-                 mSecEntity,
-                 mError );
+  FileIo* file = FileIoPlugin::GetIoObject( eos::common::LayoutId::kLocal,
+                                            mOfsFile,
+                                            mSecEntity,
+                                            mError );
   flags |= SFS_O_RDWR;
 
   if ( file && file->Open( path, flags, mode, opaque ) ) {
@@ -258,8 +258,8 @@ RaidMetaLayout::Open( const std::string& path,
 
         stripe_urls[i] += remoteOpenOpaque.c_str();
         int ret = -1;
-        FileIo* file = FileIoPlugin::GetIoObject( mOfsFile,
-                                                  eos::common::LayoutId::kXrdCl,
+        FileIo* file = FileIoPlugin::GetIoObject( eos::common::LayoutId::kXrdCl,
+                                                  mOfsFile,
                                                   mSecEntity,
                                                   mError );
 

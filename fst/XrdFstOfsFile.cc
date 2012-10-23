@@ -525,8 +525,8 @@ XrdFstOfsFile::open( const char*                path,
     eos_info( "The layout size is: %zu, and the value stored in db is: %llu.",
               statinfo.st_size, fMd->fMd.size );
 
-    if ( statinfo.st_size < 0 ) {
-      // in a RAID0like layout if the header is corruptede there is no way to know
+    if ( statinfo.st_size != fMd->fMd.size ) {
+      // in a RAID-like layout if the header is corruptede there is no way to know
       // the size of the initial file, therefore we take the value from the DB
       openSize = fMd->fMd.size;
     }

@@ -41,8 +41,8 @@ PlainLayout::PlainLayout( XrdFstOfsFile*      file,
   //............................................................................
   // For the plain layout we use only the LocalFileIo type
   //............................................................................
-  mPlainFile = FileIoPlugin::GetIoObject( mOfsFile,
-                                          eos::common::LayoutId::kLocal,
+  mPlainFile = FileIoPlugin::GetIoObject( eos::common::LayoutId::kLocal,
+                                          mOfsFile,
                                           mSecEntity,
                                           mError );
 

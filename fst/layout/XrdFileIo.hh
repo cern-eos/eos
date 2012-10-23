@@ -79,8 +79,8 @@ class XrdFileIo: public FileIo
     //----------------------------------------------------------------------------
     virtual int Open( const std::string& path,
                       XrdSfsFileOpenMode flags,
-                      mode_t             mode,
-                      const std::string& opaque );
+                      mode_t             mode = 0,
+                      const std::string& opaque = "" );
 
 
     //----------------------------------------------------------------------------

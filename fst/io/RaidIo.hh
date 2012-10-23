@@ -1,7 +1,7 @@
-// -----------------------------------------------------------------------------
-// File: RaidIO.hh
+//------------------------------------------------------------------------------
+// File: RaidIo.hh
 // Author: Elvin-Alin Sindrilaru - CERN
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_IO_RAIDIO_HH__
-#define __EOSFST_IO_RAIDIO_HH__
+#ifndef __EOSFST_RAIDIO_HH__
+#define __EOSFST_RAIDIO_HH__
 
 /*----------------------------------------------------------------------------*/
 #include <vector>
@@ -30,27 +30,25 @@
 #include <list>
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
+/*----------------------------------------------------------------------------*/
 #include "fst/io/HeaderCRC.hh"
-#include "fst/io/AsyncReadHandler.hh"
-#include "fst/io/AsyncWriteHandler.hh"
-#include "fst/XrdFstOfsFile.hh"
+#include "fst/io/AsyncMetaHandler.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
 /*----------------------------------------------------------------------------*/
 
-// -----------------------------------------------------------------------------
-//! @file RaidIO.hh
+//------------------------------------------------------------------------------
+//! @file RaidIo.hh
 //! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Generic class to read/write different layout files
-// -----------------------------------------------------------------------------
+//! @brief Generic class to read/write RAID-like layout files
+//------------------------------------------------------------------------------
 
 EOSFSTNAMESPACE_BEGIN
 
-
 //------------------------------------------------------------------------------
-//! Generic class to read/write different layout files
+//! Generic class to read/write different RAID-like layout files
 //------------------------------------------------------------------------------
-class RaidIO : public eos::common::LogId
+class RaidIo: public eos::common::LogId
 {
   public:
 
@@ -66,13 +64,20 @@ class RaidIO : public eos::common::LogId
     //! @param bookingOpaque opaque information
     //!
     //--------------------------------------------------------------------------
-    RaidIO( std::string              algorithm,
-            std::vector<std::string> stripeUrl,
-            unsigned int             nbParity,
-            bool                     storeRecovery,
-            bool                     isStreaming,
-            off_t                    targetSize = 0,
-            std::string              bookingOpaque = "oss.size" );
+    RaidIo( std::vector<std::string>& stripeUrl,
+            unsigned int              nbParity,
+            bool                      storeRecovery,
+            bool                      isStreaming,
+            off_t                     stripeWidth,
+            off_t                     targetSize = 0,
+            std::string               bookingOpaque = "oss.size" );
+  
+
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    virtual ~RaidIo();
+
 
     //--------------------------------------------------------------------------
     //! Open file
@@ -84,151 +89,178 @@ class RaidIO : public eos::common::LogId
     //--------------------------------------------------------------------------
     virtual int Open( int flags );
 
+
     //--------------------------------------------------------------------------
     //! Read from file
     //!
-    //! @param offset file offset
-    //! @param buffer data to be read
-    //! @param length length of the data
+    //! @param offset offset
+    //! @param buffer place to hold the read data
+    //! @param length length
     //!
-    //! @return length of data read
+    //! @return number of bytes read or -1 if error
     //!
     //--------------------------------------------------------------------------
-    virtual int read( off_t offset, char* buffer, size_t length );
+    virtual int64_t Read( XrdSfsFileOffset offset,
+                          char*            buffer,
+                          XrdSfsXferSize   length );
+
 
     //--------------------------------------------------------------------------
     //! Write to file
     //!
-    //! @param offset file offset
+    //! @param offset offset
     //! @param buffer data to be written
-    //! @param length length of the data
+    //! @param length length
     //!
-    //! @return length of data written
+    //! @return number of bytes written or -1 if error
     //!
     //--------------------------------------------------------------------------
-    virtual int write( off_t offset, char* buffer, size_t length );
+    virtual int64_t Write( XrdSfsFileOffset offset,
+                           char*            buffer,
+                           XrdSfsXferSize   length );
+
 
     //--------------------------------------------------------------------------
-    //! Truncate file
+    //! Truncate
     //!
-    //! @param offset size to truncate
+    //! @param offset truncate file to this value
     //!
-    //! @return 0 if successful, otherwise error
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int truncate( off_t offset ) = 0;
+    virtual int Truncate( XrdSfsFileOffset offset ) = 0;
+
 
     //--------------------------------------------------------------------------
-    //! Unlink all connected pieces
+    //! Remove file
     //!
-    //! @return 0 if successful, otherwise error
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int remove();
+    virtual int Remove();
+
 
     //--------------------------------------------------------------------------
-    //! Sync all connected pieces to disk
+    //! Sync file to disk
     //!
-    //! @return 0 if successful, otherwise error
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int sync();
+    virtual int Sync();
+
 
     //--------------------------------------------------------------------------
     //! Close file
     //!
-    //! @return 0 if successful, otherwise error
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int close();
+    virtual int Close();
+
 
     //--------------------------------------------------------------------------
     //! Get stats about the file
     //!
-    //! @param buf stat structure for the file
+    //! @param buf stat buffer
     //!
-    //! @return 0 if successful, otherwise error
+    //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int stat( struct stat* buf );
+    virtual int Stat( struct stat* buf );
+
 
     //--------------------------------------------------------------------------
     //! Get size of file
     //--------------------------------------------------------------------------
-    virtual off_t size(); // returns the total size of the file
+    virtual uint64_t Size(); // returns the total size of the file
+
 
     //--------------------------------------------------------------------------
-    //! Get size of the stripe
+    //! Get size of the stripe - which is also the size of header
     //--------------------------------------------------------------------------
-    static const int GetSizeStripe() {
-      return 1024 * 1024;     // 1MB
-    };
+    inline int GetSizeStripe() const {
+      return mStripeWidth;
+    }
 
-    //--------------------------------------------------------------------------
-    //! Destructor
-    //--------------------------------------------------------------------------
-    virtual ~RaidIO();
 
   protected:
 
-    bool mIsRw;                  ///< mark for writing
-    bool mIsOpen;                ///< mark if open
-    bool mDoTruncate;            ///< mark if there is a need to truncate
-    bool mUpdateHeader;          ///< mark if header updated
-    bool mDoneRecovery;          ///< mark if recovery done
-    bool mFullDataBlocks;        ///< mark if we have all data blocks to compute parity
-    bool mStoreRecovery;         ///< set if recovery also triggers writing back to the
-                                 ///< files, this also means that all files must be available
-    bool mIsStreaming;           ///< file is written in streaming mode
+    bool mIsRw;                        ///< mark for writing
+    bool mIsOpen;                      ///< mark if open
+    bool mDoTruncate;                  ///< mark if there is a need to truncate
+    bool mUpdateHeader;                ///< mark if header updated
+    bool mDoneRecovery;                ///< mark if recovery done
+    bool mFullDataBlocks;              ///< mark if we have all data blocks to compute parity
+    bool mStoreRecovery;               ///< set if recovery also triggers writing back to the
+                                       ///< files, this also means that all files must be available
+    bool mIsStreaming;                 ///< file is written in streaming mode
 
-    unsigned int mNbParityFiles; ///< number of parity files
-    unsigned int mNbDataFiles;   ///< number of data files
-    unsigned int mNbTotalFiles;  ///< total number of files ( data + parity )
+    unsigned int mNbParityFiles;       ///< number of parity files
+    unsigned int mNbDataFiles;         ///< number of data files
+    unsigned int mNbTotalFiles;        ///< total number of files ( data + parity )
+    unsigned int mNbDataBlocks;        ///< no. data blocks in a group
+    unsigned int mNbTotalBlocks;       ///< no. data and parity blocks in a group
 
-    unsigned int mNbDataBlocks;  ///< no. data blocks in a group
-    unsigned int mNbTotalBlocks; ///< no. data and parity blocks in a group
+    off_t mStripeWidth;                ///< stripe width
+    off_t mSizeHeader;                 ///< size of header = 4KB
+    off_t mFileSize;                   ///< total size of current file
+    off_t mTargetSize;                 ///< expected final size (?!)
+    off_t mSizeLine;                   ///< size of a line in a group
+    off_t mOffGroupParity;             ///< offset of the last group for which we
+                                       ///< computed the parity blocks
+    off_t mSizeGroup;                  ///< size of a group of blocks
+                                       ///< eg. RAIDDP: group = noDataStr^2 blocks
 
-    off_t mTargetSize;           ///< expected final size (?!)
-    off_t mOffGroupParity;       ///< offset of the last group for which we
-                                 ///< computed the parity blocks
-
-    size_t mSizeHeader;          ///< size of header = 4KB
-    size_t mStripeWidth;         ///< stripe width
-    size_t mFileSize;            ///< total size of current file
-    size_t mSizeGroup;           ///< size of a gourp of blocks
-                                 ///< eg. RAIDDP: group = noDataStr^2 blocks
-
-    std::string mAlgorithmType;                     ///< layout type used
     std::string mBookingOpaque;                     ///< opaque information
-    std::vector<XrdCl::File*> mFiles;               ///< files corresponding to the stripes
     std::vector<char*> mDataBlocks;                 ///< vector containing the data in a group
-    std::vector<HeaderCRC*> mpHdUrl;                ///< vector of header objects
     std::vector<std::string> mStripeUrls;           ///< urls of the stripe files
-    std::vector<AsyncReadHandler*> mReadHandlers;   ///< async read handlers for each stripe
-    std::vector<AsyncWriteHandler*> mWriteHandlers; ///< async write handlers for each stripe
-    std::map<unsigned int, unsigned int> mapUS;     ///< map of url to stripes
-    std::map<unsigned int, unsigned int> mapSU;     ///< map of stripes to url
+    std::vector<FileIo*> mStripeFiles;              ///< vector containing the file IO layout
+    std::vector<HeaderCRC*> mHdrInfo;               ///< headers of the stripe files
+    std::vector<AsyncMetaHandler*> mMetaHandlers;   ///< rd/wr handlers for each stripe
+    std::map<unsigned int, unsigned int> mapLP;     ///< map of url to stripes
+    std::map<unsigned int, unsigned int> mapPL;     ///< map of stripes to url
     std::map<off_t, size_t> mMapPieces;             ///< map of pieces written for which parity
                                                     ///< computation has not been done yet
 
+  
     //--------------------------------------------------------------------------
     //! Test and recover any corrupted headers in the stripe files
+    //!
+    //! @param opqaue opaque information to be forwarded if needed
+    //!
     //--------------------------------------------------------------------------
     virtual bool ValidateHeader();
 
+
     //--------------------------------------------------------------------------
-    //! Recover corrupted pieces
+    //! Recover corrupted pieces for the whole file
     //!
     //! @param offsetInit file offset corresponding to byte 0 from the buffer
     //! @param buffer container where we read the data
-    //! @param mapPieces map of corrupted pieces
+    //! @param mapPieces map of corrupted pieces from the whole file
     //!
     //! @return true if recovery successful, false otherwise
     //!
     //--------------------------------------------------------------------------
     virtual bool RecoverPieces( off_t                    offsetInit,
                                 char*                    buffer,
-                                std::map<off_t, size_t>& mapPieces ) = 0;
+                                std::map<off_t, size_t>& mapPieces );
+
+
+    //--------------------------------------------------------------------------
+    //! Recover corrupted pieces from the current group
+    //!
+    //! @param offsetInit file offset corresponding to byte 0 from the buffer
+    //! @param buffer container where we read the data
+    //! @param mapPieces map of corrupted pieces in the current group
+    //!
+    //! @return true if recovery successful, false otherwise
+    //!
+    //--------------------------------------------------------------------------
+    virtual bool RecoverPiecesInGroup( off_t                    offsetInit,
+                                       char*                    buffer,
+                                       std::map<off_t, size_t>& mapPieces ) = 0;
+
 
     //--------------------------------------------------------------------------
     //! Add new data block to the current group for parity computation, used
@@ -241,38 +273,43 @@ class RaidIO : public eos::common::LogId
     //--------------------------------------------------------------------------
     virtual void AddDataBlock( off_t offset, char* buffer, size_t length ) = 0;
 
-    // -------------------------------------------------------------------------
+
+    //--------------------------------------------------------------------------
     //! Compute and write parity blocks corresponding to a group of blocks
     //!
-    //! @param offsetGroup offset of group
+    //! @param offsetGroup offset of group of blocks
     //!
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     void DoBlockParity( off_t offsetGroup );
 
-    // -------------------------------------------------------------------------
+
+    //--------------------------------------------------------------------------
     //! Compute parity information for a group of blocks
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual void ComputeParity() = 0;
 
-    // -------------------------------------------------------------------------
+
+    //--------------------------------------------------------------------------
     //! Write parity information corresponding to a group to files
     //!
     //! @param offsetGroup offset of the group of blocks
     //!
     //! @return 0 if successful, otherwise error
     //!
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual int WriteParityToFiles( off_t offsetGroup ) = 0;
 
-    // -------------------------------------------------------------------------
+
+    //--------------------------------------------------------------------------
     //! Map index from mNbDataBlocks representation to mNbTotalBlocks
     //!
     //! @param idSmall with values between 0 and 15, for exmaple in RAID-DP
     //!
     //! @return index with values between 0 and 23, -1 if error
     //!
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     virtual unsigned int MapSmallToBig( unsigned int idSmall ) = 0;
+
 
   private:
 
@@ -286,11 +323,13 @@ class RaidIO : public eos::common::LogId
     //--------------------------------------------------------------------------
     void AddPiece( off_t offset, size_t length );
 
+
     //--------------------------------------------------------------------------
     //! Non-streaming operation
     //! Merge in place the pieces from the map
     //--------------------------------------------------------------------------
     void MergePieces();
+
 
     //--------------------------------------------------------------------------
     //! Non-streaming operation
@@ -301,6 +340,7 @@ class RaidIO : public eos::common::LogId
     //!
     //--------------------------------------------------------------------------
     void GetOffsetGroups( std::set<off_t>& offsetGroups, bool forceAll );
+
 
     //--------------------------------------------------------------------------
     //! Non-streaming operation
@@ -313,19 +353,41 @@ class RaidIO : public eos::common::LogId
     //--------------------------------------------------------------------------
     bool ReadGroup( off_t offsetGroup );
 
+
     //--------------------------------------------------------------------------
     //! Non-streaming operation
     //! Compute parity for the non-streaming case and write it to files
     //!
-    //! @param force if true force parity computation of incomplete groups
+    //! @param force if true force parity computation of incomplete groups,
+    //!              this means that parity will be computed even if there are
+    //!              still some pieces missing - this is useful at the end of
+    //!              a write operation when closing the file
     //!
     //! @return true if successful, otherwise error
     //!
     //--------------------------------------------------------------------------
     bool SparseParityComputation( bool force );
 
+
+    //--------------------------------------------------------------------------
+    //! Expand the current range so that it is aligned with respect to
+    //! blockSize operations, either read or write
+    //!
+    //! @param offset offset
+    //! @param length length
+    //! @param blockSize size of a block of data
+    //! @param alignedOffset aligned offset value
+    //! @param alignedLength aligned length value
+    //!
+    //--------------------------------------------------------------------------
+    void AlignExpandBlocks( XrdSfsFileOffset  offset,
+                            XrdSfsXferSize    length,
+                            XrdSfsFileOffset  blockSize,
+                            XrdSfsFileOffset& alignedOffset,
+                            XrdSfsXferSize&   alignedLength );
+
 };
 
 EOSFSTNAMESPACE_END
 
-#endif  // __EOSFST_IO_RAIDIO_HH__
+#endif  // __EOSFST_RAIDIO_HH__

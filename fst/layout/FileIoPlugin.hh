@@ -75,10 +75,10 @@ class FileIoPlugin
     //! @return requested layout type object
     //!
     //--------------------------------------------------------------------------
-    static FileIo* GetIoObject( XrdFstOfsFile*      file,
-                                int                 ioType,
-                                const XrdSecEntity* client,
-                                XrdOucErrInfo*      error )
+    static FileIo* GetIoObject( int                 ioType,
+                                XrdFstOfsFile*      file   = 0,
+                                const XrdSecEntity* client = 0,
+                                XrdOucErrInfo*      error  = 0 )
     {
       if ( ioType == LayoutId::kLocal ) {
         return static_cast<FileIo*>( new LocalFileIo( file, client, error ) );

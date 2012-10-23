@@ -98,10 +98,15 @@ XrdFileIo::Read( XrdSfsFileOffset offset,
                                                buffer,
                                                bytes_read );
 
-  if ( !status.IsOK() || ( bytes_read != static_cast<uint32_t>( length ) ) ) {
+  if ( !status.IsOK() ) {
     errno = status.errNo;
     return SFS_ERROR;
   }
+  else if ( bytes_read != static_cast<uint32_t>( length ) ) {
+    errno = EFAULT;
+    return SFS_ERROR;
+  }
+
 
   return length;
 }

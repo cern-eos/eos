@@ -86,6 +86,7 @@ float bandwidth=0;
 XrdOucString cpname="";
 
 //RAID related variables
+off_t stripeWidth = 1024*1024;
 off_t offsetRaid = 0;
 int nparitystripes = 0;
 
@@ -95,7 +96,7 @@ bool isStreamFile    = false;
 bool doStoreRecovery = false;
 
 std::string replicationType ="";
-eos::fst::RaidIO* redundancyObj = NULL;
+eos::fst::RaidIo* redundancyObj = NULL;
 
 //checksum variables
 int kXS = 0;
@@ -158,7 +159,7 @@ extern "C" {
   // function + macro to allow formatted print via cout,cerr
   /////////////////////////////////////////////////////////////////////
   void cout_print(const char *format, ...)
-  {
+  {    
     char cout_buff[4096];
     va_list args;
     va_start(args, format);
@@ -356,7 +357,7 @@ int main(int argc, char* argv[]) {
       break;
     case 'e':
       replicationType = optarg;
-      if (replicationType != "raidDP" && replicationType != "reedS") {
+      if ( ( replicationType != "raidDP" ) && ( replicationType != "reedS" ) ) {
         fprintf(stderr, "error: no such RAID layout\n");
         exit(-1);
       }
@@ -909,10 +910,12 @@ int main(int argc, char* argv[]) {
     if (debug) {fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);}
     
     if (replicationType == "raidDP") {
-      redundancyObj = new eos::fst::RaidDpFile(vectUrl, nparitystripes, doStoreRecovery, isStreamFile);
+      redundancyObj = new eos::fst::RaidDpFile( vectUrl, nparitystripes, doStoreRecovery,
+                                               isStreamFile, stripeWidth );
     }
     else if (replicationType == "reedS") {
-      redundancyObj = new eos::fst::ReedSFile(vectUrl, nparitystripes, doStoreRecovery, isStreamFile);
+      redundancyObj = new eos::fst::ReedSFile( vectUrl, nparitystripes, doStoreRecovery,
+                                              isStreamFile, stripeWidth );
     }
     
     if (isSrcRaid && redundancyObj->Open(flags)) {
@@ -1139,7 +1142,7 @@ int main(int argc, char* argv[]) {
       nread = read(srcfd[0], (void*)(buffer), buffersize);
       break;
     case 1:
-      nread = redundancyObj->read(offsetRaid, (char*)buffer, buffersize);
+      nread = redundancyObj->Read(offsetRaid, (char*)buffer, buffersize);
       offsetRaid += nread;
       break;
     case 2:
@@ -1170,7 +1173,7 @@ int main(int argc, char* argv[]) {
         break;
       case 1:
         if (i == 0) {
-          nwrite = redundancyObj->write(stopwritebyte, (char*)buffer, nread);
+          nwrite = redundancyObj->Write(stopwritebyte, (char*)buffer, nread);
           i = ndst - 1;
         }
         break;
@@ -1223,7 +1226,7 @@ int main(int argc, char* argv[]) {
       break;
     case 1:
       if (i == 0) {
-        redundancyObj->close();
+        redundancyObj->Close();
         i = nsrc - 1;
       }
       break;
@@ -1242,7 +1245,7 @@ int main(int argc, char* argv[]) {
       break;
     case 1:
       if (i == 0) {
-        redundancyObj->close();
+        redundancyObj->Close();
         i = ndst - 1;
       }
       break;

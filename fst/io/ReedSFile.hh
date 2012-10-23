@@ -1,7 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file ReedSFile.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Implementation of the Reed-Solomon layout
+// File: ReedSFile.hh
+// Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,12 +21,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+//------------------------------------------------------------------------------
+//! @file ReedSFile.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Implementation of the Reed-Solomon layout
+//------------------------------------------------------------------------------
+
 #ifndef __EOSFST_REEDSFILE_HH__
 #define __EOSFST_REEDSFILE_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "fst/Namespace.hh"
-#include "fst/io/RaidIO.hh"
+#include "fst/io/RaidIo.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -35,7 +39,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Implementation of the Reed-Solomon layout
 //------------------------------------------------------------------------------
-class ReedSFile : public RaidIO
+class ReedSFile : public RaidIo
 {
   public:
 
@@ -54,9 +58,11 @@ class ReedSFile : public RaidIO
                int                      numParity,
                bool                     storeRecovery,
                bool                     isStreaming,
+               off_t                    stripeWidth,
                off_t                    targetSize = 0,
                std::string              bookingOpaque = "oss.size" );
 
+  
     //--------------------------------------------------------------------------
     //! Truncate file
     //!
@@ -65,8 +71,9 @@ class ReedSFile : public RaidIO
     //! @return 0 if successful, otherwise error
     //!
     //--------------------------------------------------------------------------
-    virtual int truncate( off_t offset );
+    virtual int Truncate( XrdSfsFileOffset offset );
 
+  
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
@@ -79,6 +86,7 @@ class ReedSFile : public RaidIO
     //--------------------------------------------------------------------------
     virtual void ComputeParity();
 
+  
     //--------------------------------------------------------------------------
     //! Write parity information corresponding to a group to files
     //!
@@ -89,20 +97,23 @@ class ReedSFile : public RaidIO
     //--------------------------------------------------------------------------
     virtual int WriteParityToFiles( off_t offsetGroup );
 
+  
     //--------------------------------------------------------------------------
-    //! Recover pieces of corrupted data
+    //! Recover pieces of corrupted data in the current group
     //!
     //! @param offset file offset corresponding to byte 0 from the buffer
     //! @param pBuffer place where to save the recovered piece
     //! @param rMapPiece map of pieces to be recovered <offset in file, length>
+    //!                  which belong to the same group
     //!
     //! @return true if recovery was successful, otherwise false
     //!
     //--------------------------------------------------------------------------
-    virtual bool RecoverPieces( off_t                    offset,
-                                char*                    pBuffer,
-                                std::map<off_t, size_t>& rMapPieces );
+    virtual bool RecoverPiecesInGroup( off_t                    offset,
+                                       char*                    pBuffer,
+                                       std::map<off_t, size_t>& rMapPieces );
 
+  
     //--------------------------------------------------------------------------
     //! Add data block to compute parity stripes for current group of blocks
     //!
@@ -113,6 +124,7 @@ class ReedSFile : public RaidIO
     //--------------------------------------------------------------------------
     virtual void AddDataBlock( off_t offset, char* pBuffer, size_t length );
 
+  
     //--------------------------------------------------------------------------
     //! Map index from nDataBlocks representation to nTotalBlocks
     //!
@@ -123,29 +135,32 @@ class ReedSFile : public RaidIO
     //--------------------------------------------------------------------------
     virtual unsigned int MapSmallToBig( unsigned int idSmall );
 
+  
     //--------------------------------------------------------------------------
     //! Get backtracking solution
     //--------------------------------------------------------------------------
-    bool SolutionBkt( unsigned int         k,
-                      unsigned int*        pIndexes,
-                      vector<unsigned int> validId );
+    bool SolutionBkt( unsigned int               k,
+                      unsigned int*              pIndexes,
+                      std::vector<unsigned int>& validId );
 
+  
     //--------------------------------------------------------------------------
     //! Validate backtracking solution
     //--------------------------------------------------------------------------
-    bool ValidBkt( unsigned int         k,
-                   unsigned int*        pIndexes,
-                   vector<unsigned int> validId );
+    bool ValidBkt( unsigned int               k,
+                   unsigned int*              pIndexes,
+                   std::vector<unsigned int>& validId );
 
+  
     //--------------------------------------------------------------------------
     //! Backtracking method for getting the indices used in the recovery process
     //--------------------------------------------------------------------------
-    bool Backtracking( unsigned int         k,
-                       unsigned int*        pIndexes,
-                       vector<unsigned int> validId );
+    bool Backtracking( unsigned int               k,
+                       unsigned int*              pIndexes,
+                       std::vector<unsigned int>& validId );
 
 };
 
 EOSFSTNAMESPACE_END
 
-#endif
+#endif  // __EOSFST_REEDSFILE_HH__

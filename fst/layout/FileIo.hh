@@ -93,8 +93,8 @@ class FileIo: public eos::common::LogId
     //--------------------------------------------------------------------------
     virtual int Open( const std::string& path,
                       XrdSfsFileOpenMode flags,
-                      mode_t             mode,
-                      const std::string& opaque ) = 0;
+                      mode_t             mode = 0,
+                      const std::string& opaque = "" ) = 0;
 
 
     //--------------------------------------------------------------------------

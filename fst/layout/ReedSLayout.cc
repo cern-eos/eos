@@ -204,6 +204,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   //............................................................................
   bool data_corrupted = false;
   bool parity_corrupted = false;
+  
   //............................................................................
   // Obs: The indices of the blocks to be recovered have to be sorted in ascending
   // order. So outpkts has to point to the corrupted blocks in ascending order.
