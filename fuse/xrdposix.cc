@@ -1879,9 +1879,9 @@ int xrd_close( int fildes, unsigned long inode )
 {
   eos_static_info("fd=%d inode=%lu", fildes, inode);
   if (XFC && inode) {
-    FileAbstraction* fAbst = XFC->getFileObj(inode, false);
-    if (fAbst && (fAbst->getSizeWrites() != 0)) {
-      XFC->waitWritesAndRemove(*fAbst);
+    FileAbstraction* fAbst = XFC->GetFileObj(inode, false);
+    if (fAbst && (fAbst->GetSizeWrites() != 0)) {
+      XFC->WaitWritesAndRemove(*fAbst);
     }
   }
 
@@ -1892,17 +1892,16 @@ int xrd_close( int fildes, unsigned long inode )
 
 
 //------------------------------------------------------------------------------
-int
-xrd_flush(int fd, unsigned long long inode)
+int xrd_flush(int fd, unsigned long inode)
 {
   int errc = 0;
   eos_static_info("fd=%d ", fd);
   
   if (XFC && inode) {
-    FileAbstraction* fAbst = XFC->getFileObj(inode, false);
+    FileAbstraction* fAbst = XFC->GetFileObj(inode, false);
     if (fAbst) {
-      XFC->waitFinishWrites(*fAbst);
-      ConcurrentQueue<error_type> err_queue = fAbst->getErrorQueue();
+      XFC->WaitFinishWrites(*fAbst);
+      ConcurrentQueue<error_type> err_queue = fAbst->GetErrorQueue();
       error_type error;
       
       if ( err_queue.try_pop( error ) ) {
@@ -1910,7 +1909,7 @@ xrd_flush(int fd, unsigned long long inode)
         errc = error.first;
       }
       
-      fAbst->decrementNoReferences();
+      fAbst->DecrementNoReferences();
     }
   }
 
@@ -1927,7 +1926,7 @@ int xrd_truncate( int fildes, off_t offset, unsigned long inode )
                    fildes, ( unsigned long long )offset, inode );
 
   if ( XFC && inode ) {
-    fprintf( stderr, "[%s] Calling waitFinishWrites. \n" , __FUNCTION__ );
+    fprintf( stderr, "[%s] Calling WaitFinishWrites. \n" , __FUNCTION__ );
     XFC->WaitFinishWrites( inode );
   }
 
@@ -1972,7 +1971,7 @@ ssize_t xrd_pread( int           fildes,
     FileAbstraction* fAbst = 0;
     fAbst = XFC->GetFileObj( inode, true );
     XFC->WaitFinishWrites( *fAbst );
-    COMMONTIMING( "wait writes", &xpr );
+    COMMONTIMING( "Wait writes", &xpr );
     
     if ( ( ret = XFC->GetRead( *fAbst, buf, offset, nbyte ) ) != nbyte ) {
       COMMONTIMING( "read in", &xpr );

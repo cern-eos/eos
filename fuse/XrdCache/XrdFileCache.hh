@@ -113,6 +113,14 @@ class XrdFileCache
     //!
     //! @param inode file inode
     //!
+
+    void WaitWritesAndRemove(FileAbstraction &fAbst);
+
+    // -------------------------------------------------------------------------
+    //! Wait for all pending writes on a file
+    //!
+    //! @param inode file inode
+    //!
     // -------------------------------------------------------------------------
     void WaitFinishWrites( unsigned long inode );
 

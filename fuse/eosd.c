@@ -1360,7 +1360,7 @@ static void eosfs_ll_flush( fuse_req_t             req,
 
   if ( fi->fh ) {
     int fd = (int)fi->fh;
-    errc_flush = xrd_flush( fi->fh, (unsigned long long) ino );
+    errc_flush = xrd_flush( fi->fh, (unsigned long ) ino );
     errc_close = xrd_close(fd, ino);
 
     // XrdPoxis does not return anything ... sigh ... keep it for future however

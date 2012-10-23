@@ -389,6 +389,27 @@ XrdFileCache::WaitFinishWrites( unsigned long inode )
   return;
 }
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * Method used to wait for the writes corresponding to a file to be commited.
+ * It also forces the incompletele (not full) write blocks from cache to be added
+ * to the writes queue and implicitly to be written to the file. 
+ * 
+ * @param fileAbst handler to file abstraction object
+ *
+ */
+/*----------------------------------------------------------------------------*/
+void
+XrdFileCache::WaitWritesAndRemove(FileAbstraction &fileAbst)
+{
+  if (fileAbst.GetSizeWrites() != 0) {
+    mpCacheImpl->FlushWrites(fileAbst);
+    fileAbst.WaitFinishWrites();
+    if (!fileAbst.IsInUse(false)) {
+      RemoveFileInode(fileAbst.GetInode(), false);
+    }
+  }
+}
 
 /*
 //------------------------------------------------------------------------------
