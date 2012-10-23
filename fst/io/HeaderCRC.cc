@@ -30,7 +30,7 @@
 EOSFSTNAMESPACE_BEGIN
 
 int HeaderCRC::msSizeHeader = 4096;             // 4kb
-char HeaderCRC::msTagName[] = "_HEADER_RAIDIO_";
+char HeaderCRC::msTagName[] = "_HEADER__RAIDIO_";
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -68,15 +68,14 @@ HeaderCRC::~HeaderCRC()
 
 
 //------------------------------------------------------------------------------
-// Read header from file
+// Read header from XrdCl file
 //------------------------------------------------------------------------------
 bool
-HeaderCRC::ReadFromFile( XrdCl::File* pFile )
+HeaderCRC::ReadFromFile( XrdCl::File*& pFile )
 {
   uint32_t ret;
   long int offset = 0;
   char* buff = static_cast< char* >( calloc( msSizeHeader, sizeof( char ) ) );
-  eos_debug( "offset: %li, msSizeHeader: %i \n", offset, msSizeHeader );
 
   if ( !( pFile->Read( offset, msSizeHeader, buff, ret ).IsOK() )
        || ( ret != static_cast< uint32_t >( msSizeHeader ) ) ) {
@@ -106,13 +105,54 @@ HeaderCRC::ReadFromFile( XrdCl::File* pFile )
 
 
 //------------------------------------------------------------------------------
-// Write header to file
+// Read header from generic file
 //------------------------------------------------------------------------------
 bool
-HeaderCRC::WriteToFile( XrdCl::File* pFile )
+HeaderCRC::ReadFromFile( FileIo*& pFile )
+{
+  long int offset = 0;
+  char* buff = static_cast< char* >( calloc( msSizeHeader, sizeof( char ) ) );
+
+  if ( pFile->Read( offset, buff, msSizeHeader ) !=
+       static_cast<uint32_t>( msSizeHeader ) )
+  {
+    free( buff );
+    mValid = false;
+    return mValid;
+  }
+
+  memcpy( mTag, buff, sizeof mTag );
+  std::string tag = mTag;
+
+  if ( strncmp( mTag, msTagName, strlen( msTagName ) ) ) {
+    free( buff );
+    mValid = false;
+    return mValid;
+  }
+
+  offset += sizeof mTag;
+  memcpy( &mIdStripe, buff + offset, sizeof mIdStripe );
+  offset += sizeof mIdStripe;
+  memcpy( &mNumBlocks, buff + offset, sizeof mNumBlocks );
+  offset += sizeof mNumBlocks;
+  memcpy( &mSizeLastBlock, buff + offset, sizeof mSizeLastBlock );
+
+  free( buff );
+  mValid = true;
+  return mValid;
+}
+
+
+
+//------------------------------------------------------------------------------
+// Write header to XrdCl file
+//------------------------------------------------------------------------------
+bool
+HeaderCRC::WriteToFile( XrdCl::File*& pFile )
 {
   int offset = 0;
   char* buff = static_cast< char* >( calloc( msSizeHeader, sizeof( char ) ) );
+
   memcpy( buff + offset, msTagName, sizeof msTagName );
   offset += sizeof mTag;
   memcpy( buff + offset, &mIdStripe, sizeof mIdStripe );
@@ -132,5 +172,36 @@ HeaderCRC::WriteToFile( XrdCl::File* pFile )
   free( buff );
   return mValid;
 }
+
+
+//------------------------------------------------------------------------------
+// Write header to generic file
+//------------------------------------------------------------------------------
+bool
+HeaderCRC::WriteToFile( FileIo*& pFile )
+{
+  int offset = 0;
+  char* buff = static_cast< char* >( calloc( msSizeHeader, sizeof( char ) ) );
+  
+  memcpy( buff + offset, msTagName, sizeof msTagName );
+  offset += sizeof mTag;
+  memcpy( buff + offset, &mIdStripe, sizeof mIdStripe );
+  offset += sizeof mIdStripe;
+  memcpy( buff + offset, &mNumBlocks, sizeof mNumBlocks );
+  offset += sizeof mNumBlocks;
+  memcpy( buff + offset, &mSizeLastBlock, sizeof mSizeLastBlock );
+  offset += sizeof mSizeLastBlock;
+  memset( buff + offset, 0, msSizeHeader - offset );
+
+  if ( pFile->Write( 0, buff, msSizeHeader ) < 0 ) {
+    mValid = false;
+  } else {
+    mValid = true;
+  }
+
+  free( buff );
+  return mValid;
+}
+
 
 EOSFSTNAMESPACE_END

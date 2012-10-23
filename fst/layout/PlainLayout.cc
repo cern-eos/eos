@@ -79,7 +79,10 @@ PlainLayout::Open( const std::string& path,
 int64_t
 PlainLayout::Read( XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length )
 {
-  eos_debug( "offset = %llu, length = %lu", offset, length );
+  eos_debug( "offset = %lli, length = %lli",
+             static_cast<int64_t>( offset ),
+             static_cast<int64_t>( length ) );
+  
   return mPlainFile->Read( offset, buffer, length );
 }
 
@@ -90,7 +93,10 @@ PlainLayout::Read( XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length 
 int64_t
 PlainLayout::Write( XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length )
 {
-  eos_debug( "offset = %llu, length = %lu", offset, length );
+  eos_debug( "offset = %lli, length = %lli",
+             static_cast<int64_t>( offset ),
+             static_cast<int64_t>( length ) );
+  
   return mPlainFile->Write( offset, buffer, length );
 }
 
@@ -101,7 +107,8 @@ PlainLayout::Write( XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length
 int
 PlainLayout::Truncate( XrdSfsFileOffset offset )
 {
-  eos_debug( "offset = %llu", offset );
+  eos_debug( "offset = %lli", static_cast<int64_t>( offset ) );
+  
   return mPlainFile->Truncate( offset );
 }
 
@@ -112,7 +119,8 @@ PlainLayout::Truncate( XrdSfsFileOffset offset )
 int
 PlainLayout::Fallocate( XrdSfsFileOffset length )
 {
-  eos_debug( "length = %llu", length );
+  eos_debug( "length = %lli", static_cast<int64_t>( length ) );
+  
   return mPlainFile->Fallocate( length );
 }
 
@@ -123,7 +131,10 @@ PlainLayout::Fallocate( XrdSfsFileOffset length )
 int
 PlainLayout::Fdeallocate( XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset )
 {
-  eos_debug( "from = %llu, to = %llu", fromOffset, toOffset );
+  eos_debug( "from = %lli, to = %lli",
+             static_cast<int64_t>( fromOffset ),
+             static_cast<int64_t>( toOffset ) );
+
   return mPlainFile->Fdeallocate( fromOffset, toOffset );
 }
 

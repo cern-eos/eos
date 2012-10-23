@@ -1,7 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file FileIo.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Abstract class modelling an IO plugin
+// File: FileIo.hh
+// Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,9 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+//------------------------------------------------------------------------------
+//! @file FileIo.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Abstract class modelling an IO plugin
+//------------------------------------------------------------------------------
+
 #ifndef __EOSFST_FILEIO__HH__
 #define __EOSFST_FILEIO__HH__
-
 
 /*----------------------------------------------------------------------------*/
 #include <string>
@@ -59,9 +63,11 @@ class FileIo: public eos::common::LogId
     FileIo( XrdFstOfsFile*      file,
             const XrdSecEntity* client,
             XrdOucErrInfo*      error ):
+      mLocalPath( "" ),
       mLogicalFile( file ),
       mError( error ),
-      mSecEntity( client ) {
+      mSecEntity( client )
+    {
       //empty
     }
 
@@ -199,8 +205,16 @@ class FileIo: public eos::common::LogId
     //--------------------------------------------------------------------------
     virtual int Stat( struct stat* buf ) = 0;
 
+    //--------------------------------------------------------------------------
+    //! Get path to current file
+    //--------------------------------------------------------------------------
+    const std::string& GetPath() {
+      return mLocalPath;
+    }
+
   protected:
 
+    std::string         mLocalPath;   ///< path to current file
     XrdFstOfsFile*      mLogicalFile; ///< handler to logical file
     XrdOucErrInfo*      mError;       ///< error information
     const XrdSecEntity* mSecEntity;   ///< security entity

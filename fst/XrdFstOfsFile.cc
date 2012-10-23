@@ -193,11 +193,14 @@ XrdFstOfsFile::openofs( const char*         path,
 {
   bool isRead = true;
 
+  eos_debug( "Open mod = %x", open_mode );
   if ( ( open_mode & ( SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
                        SFS_O_CREAT  | SFS_O_TRUNC ) ) != 0 ) {
+    eos_debug(" Set isRead = false" );
     isRead = false;
   } else {
     //..........................................................................
+    // TODO: drop this ....
     // Anyway we need to open for writing for the recovery case
     //..........................................................................
     open_mode |= SFS_O_RDWR;
@@ -558,28 +561,6 @@ XrdFstOfsFile::open( const char*                path,
     }
   }
 
-  if ( !isCreation ) {
-    //..........................................................................
-    // Get the real size of the file, not the local stripe size!
-    //..........................................................................
-    if ( ( retc = layOut->Stat( &statinfo ) ) ) {
-      return gOFS.Emsg( epname, error, EIO, "open - cannot stat layout to determine file size", Path.c_str() );
-    }
-
-    //........................................................................
-    // We feed the layout size, not the physical on disk!
-    //........................................................................
-    eos_info( "The layout size is: %zu.", statinfo.st_size );
-    openSize = statinfo.st_size;
-
-    if ( checkSum && isRW ) {
-      //........................................................................
-      // Preset with the last known checksum
-      //........................................................................
-      checkSum->ResetInit( 0, openSize, fMd->fMd.checksum.c_str() );
-    }
-  }
-
   //........................................................................
   // Get layout implementation
   //........................................................................
@@ -599,6 +580,38 @@ XrdFstOfsFile::open( const char*                path,
       eos_warning( "rebouncing client since we don't have enough space back to MGM %s:%d",
                    RedirectManager.c_str(), ecode );
       return gOFS.Redirect( error, RedirectManager.c_str(), ecode );
+    }
+  }
+
+  if ( !isCreation ) {
+    //..........................................................................
+    // Get the real size of the file, not the local stripe size!
+    //..........................................................................
+    eos_debug( "Get the real size of the file, not the local stripe size!" );
+    if ( ( retc = layOut->Stat( &statinfo ) ) ) {
+      return gOFS.Emsg( epname, error, EIO, "open - cannot stat layout to determine file size", Path.c_str() );
+    }
+
+    //........................................................................
+    // We feed the layout size, not the physical on disk!
+    //........................................................................
+    eos_info( "The layout size is: %zu, and the value stored in db is: %llu.",
+              statinfo.st_size, fMd->fMd.size );
+
+    if ( statinfo.st_size < 0 ) {
+      // in a RAID0like layout if the header is corruptede there is no way to know
+      // the size of the initial file, therefore we take the value from the DB
+      openSize = fMd->fMd.size;
+    }
+    else {
+      openSize = statinfo.st_size;
+    }
+
+    if ( checkSum && isRW ) {
+      //........................................................................
+      // Preset with the last known checksum
+      //........................................................................
+      checkSum->ResetInit( 0, openSize, fMd->fMd.checksum.c_str() );
     }
   }
 
@@ -679,7 +692,10 @@ XrdFstOfsFile::open( const char*                path,
           //........................................................................
           // Broadcast error for this FS
           //........................................................................
-          eos_crit( "disabling filesystem %u after IO error on path %s", gOFS.Storage->fileSystemsVector[i]->GetId(), gOFS.Storage->fileSystemsVector[i]->GetPath().c_str() );
+          eos_crit( "disabling filesystem %u after IO error on path %s",
+                    gOFS.Storage->fileSystemsVector[i]->GetId(),
+                    gOFS.Storage->fileSystemsVector[i]->GetPath().c_str() );
+          
           XrdOucString s = "local IO error";
           gOFS.Storage->fileSystemsVector[i]->BroadcastError( EIO, s.c_str() );
           // gOFS.Storage->fileSystemsVector[i]->BroadcastError(error.getErrInfo(), "local IO error");
@@ -729,7 +745,7 @@ XrdFstOfsFile::closeofs()
   //............................................................................
   if ( fstBlockXS ) {
     struct stat statinfo;
-
+    
     if ( ( XrdOfsOss->Stat( fstPath.c_str(), &statinfo ) ) ) {
       eos_warning( "close - cannot stat closed file %s- probably already unlinked!", Path.c_str() );
       return XrdOfsFile::close();
@@ -1050,7 +1066,19 @@ XrdFstOfsFile::close()
       //........................................................................
       checksumerror = verifychecksum();
       targetsizeerror = ( targetsize ) ? ( targetsize != ( off_t )maxOffsetWritten ) : false;
+      
+      if ( ( strcmp( layOut->GetName(), "raidDP" ) == 0 ) ||
+           !( strcmp( layOut->GetName(), "reedS" ) == 0 ) ) {
+        //......................................................................
+        // For RAID-like layouts don't do this check
+        //......................................................................
+        targetsizeerror = false;
+      }
 
+      eos_debug( "checksumerror = %i, targetsizerror= %i,"
+                 "maxOffsetWritten = %zu, targetsize = %lli",
+                 checksumerror, targetsizeerror, maxOffsetWritten, targetsize );
+      
       if ( isCreation && ( checksumerror || targetsizeerror ) ) {
         //......................................................................
         // We have a checksum error if the checksum was preset and does not match!
@@ -1110,6 +1138,7 @@ XrdFstOfsFile::close()
                           Path.c_str() );
         }
 
+        eos_debug (" XOXOXOXOX statinfo.st_size = %zu", statinfo.st_size );        
         if ( !rc ) {
           if ( ( statinfo.st_size == 0 ) || haswrite ) {
             //..................................................................
@@ -1264,7 +1293,7 @@ XrdFstOfsFile::close()
     }
 
     closed = true;
-
+    
     if ( rc ) {
       deleteOnClose = true;
     }
@@ -1379,6 +1408,7 @@ XrdFstOfsFile::readofs( XrdSfsFileOffset   fileOffset,
     }
   }
 
+  eos_debug( "return value=%i", retc );
   return retc;
 }
 
@@ -1600,7 +1630,7 @@ XrdFstOfsFile::sync( XrdSfsAio* aiop )
 //
 //------------------------------------------------------------------------------
 int
-XrdFstOfsFile::truncateofs( XrdSfsFileOffset   fileOffset )
+XrdFstOfsFile::truncateofs( XrdSfsFileOffset fileOffset )
 {
   // truncation moves the max offset written
   maxOffsetWritten = fileOffset;

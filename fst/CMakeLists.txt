@@ -21,52 +21,52 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} ${XRDCL_INCLUDES} ${LIBEVENT_INCLUDE_DIR} )
-link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR} ${XRDCL_LIB_DIR} ${LIBEVENT_LIB_DIR} )
+include_directories( ../ 
+		     ./
+		     ${XROOTD_INCLUDE_DIR} 
+		     ${SPARSEHASH_INCLUDE_DIR} 
+		     ${XRDCL_INCLUDE_DIR} )
 
-add_library( EosFstOss MODULE
-	     XrdFstOss.cc                 XrdFstOss.hh
- 	     checksum/CheckSum.cc         checksum/CheckSum.hh
-	     checksum/Adler.cc	          checksum/Adler.hh
-	     ../checksum/crc32c.cc
-             ../checksum/crc32ctables.cc
-	     )
+link_directories( /usr/${LIB_INSTALL_DIR}/ 
+		  ${XROOTD_LIB_DIR} 
+		  ${XRDCL_LIB_DIR} )
+
+add_library ( XrdEosFst MODULE
+	      XrdFstOfs.cc                   XrdFstOfs.hh
+	      XrdFstOfsFile.cc               XrdFstOfsFile.hh
+
+	      io/HeaderCRC.cc                io/HeaderCRC.hh
+	      io/AsyncReadHandler.cc         io/AsyncReadHandler.hh
+	      io/AsyncWriteHandler.cc        io/AsyncWriteHandler.hh
 
 
-target_link_libraries (EosFstOss 
-		      eosCapability-Static
-		      eosCommon-Static
-		      XrdServer	      
-		      uuid 
-		      )
+  	      layout/FileIoPlugin.hh
+	      layout/FileIo.hh 
+  	      layout/LocalFileIo.cc          layout/LocalFileIo.hh
+	      layout/XrdFileIo.cc            layout/XrdFileIo.hh
 
-
-add_library (XrdEosFst MODULE
-            XrdFstOfsFile.cc               XrdFstOfsFile.hh
-  	    layout/FileIoPlugin.hh
-	    layout/LocalFileIo.cc         layout/LocalFileIo.hh
-            layout/XrdFileIo.cc            layout/XrdFileIo.hh
-	    layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
-	    layout/Layout.cc               layout/Layout.hh
-	    layout/PlainLayout.cc          layout/PlainLayout.hh
-	    layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
-	    checksum/Adler.cc
-	    checksum/CheckSum.cc
-	    storage/Storage.cc
-	    Config.cc
-	    Load.cc
-            ScanDir.cc
-            RaidDPScan.cc
-	    Messaging.cc
-	    XrdFstOfs.cc         XrdFstOfsFile.hh
-            ../checksum/crc32c.cc
-            ../checksum/crc32ctables.cc
-            txqueue/TransferMultiplexer.cc
-            txqueue/TransferJob.cc
-            txqueue/TransferQueue.cc
-            zfec/fec.cc
-	    FmdSqlite.cc
-	    )
+	      layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
+	      layout/Layout.cc               layout/Layout.hh
+	      layout/PlainLayout.cc          layout/PlainLayout.hh
+	      layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
+	      layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
+	      layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
+	     
+	      checksum/Adler.cc
+	      checksum/CheckSum.cc
+	      storage/Storage.cc
+	      Config.cc
+	      Load.cc
+              ScanDir.cc
+              RaidDPScan.cc
+	      Messaging.cc
+              ../checksum/crc32c.cc
+              ../checksum/crc32ctables.cc
+              txqueue/TransferMultiplexer.cc
+              txqueue/TransferJob.cc
+              txqueue/TransferQueue.cc
+              zfec/fec.cc
+	      FmdSqlite.cc )
 
 target_link_libraries (XrdEosFst 
 		      eosCapability-Static 
@@ -134,6 +134,7 @@ add_executable( eos-raid-recover
 
 add_executable( eoscp 
                 txqueue/eoscp.cc
+		layout/FileIo.hh
 		io/RaidIO.cc               io/RaidIO.hh
 		io/RaidDpFile.cc           io/RaidDpFile.hh
 		io/ReedSFile.cc            io/ReedSFile.hh

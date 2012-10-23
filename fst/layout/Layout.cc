@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/Layout.hh"
 #include "fst/XrdFstOfsFile.hh"
@@ -51,7 +50,6 @@ Layout::Layout( XrdFstOfsFile*      file,
     {
       mSecEntity = const_cast<XrdSecEntity*>( client );
       mName = eos::common::LayoutId::GetLayoutTypeString( mLayoutId );
-      mBlockChecksum = eos::common::LayoutId::GetBlockChecksum( lid );
       mIsEntryServer = true;
       mLocalPath = "";
     }

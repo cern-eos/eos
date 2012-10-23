@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File LayoutPlugin.cc
-// Author Elvin-Alin Sindrilaru - CERN
+// File: LayoutPlugin.cc
+// Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -26,10 +26,11 @@
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/ReplicaParLayout.hh"
+//#include "fst/layout/RaidDpParLayout.hh"
+//#include "fst/layout/ReedSParLayout.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
-
 
 //--------------------------------------------------------------------------
 // Constructor
@@ -59,12 +60,12 @@ LayoutPlugin::GetLayoutObject( XrdFstOfsFile*      file,
                                XrdOucErrInfo*      error ) {
       
   if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kPlain ) {
-    return static_cast<Layout*>( new PlainLayout( file, layoutId, client, error ) );
+    return dynamic_cast<Layout*>( new PlainLayout( file, layoutId, client, error ) );
   }
 
       
   if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kReplica ) {
-    return static_cast<Layout*>( new ReplicaParLayout( file, layoutId, client, error ) );
+    return dynamic_cast<Layout*>( new ReplicaParLayout( file, layoutId, client, error ) );
   }
       
   /*

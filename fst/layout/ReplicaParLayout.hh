@@ -1,7 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file ReplicaParLayout.hh
-//! @author Andreas-Joachim Peters - CERN
-//! @brief Physical layout of a file with replicas
+// File: ReplicaParLayout.hh
+// Author: Andreas-Joachim Peters - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,6 +20,12 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+
+//------------------------------------------------------------------------------
+//! @file ReplicaParLayout.hh
+//! @author Andreas-Joachim Peters - CERN
+//! @brief Physical layout of a file with replicas
+//------------------------------------------------------------------------------
 
 #ifndef __EOSFST_REPLICAPARLAYOUT_HH__
 #define __EOSFST_REPLICAPARLAYOUT_HH__
@@ -178,15 +183,14 @@ class ReplicaParLayout : public Layout
     //--------------------------------------------------------------------------
     virtual int Close();
 
-
   private:
-    int mNumReplicas;         ///< number of replicas for current file
+  
+    int  mNumReplicas;        ///< number of replicas for current file
     bool ioLocal;             ///< mark if we are to do local IO
  
-    std::vector<std::string> mReplicaUrl;  ///< URLs of the replica files
-
     //! replica file object, index 0 is the local file 
-    std::vector<FileIo*>     mReplicaFile; 
+    std::vector<FileIo*>     mReplicaFile;
+    std::vector<std::string> mReplicaUrl;  ///< URLs of the replica files
 
 };
 

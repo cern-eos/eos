@@ -84,14 +84,16 @@ XrdFileIo::Open( const std::string& path,
 
 
 //------------------------------------------------------------------------------
-// Read from file
+// Read from file - sync
 //------------------------------------------------------------------------------
 int64_t
 XrdFileIo::Read( XrdSfsFileOffset offset,
                  char*            buffer,
                  XrdSfsXferSize   length )
 {
-  eos_debug( "offset = %llu, length = %lu", offset, length );
+  eos_debug( "offset = %lli, length = %lli",
+             static_cast<int64_t>( offset ),
+             static_cast<int64_t>( length ) );
 
   uint32_t bytes_read;
   XrdCl::XRootDStatus status = mXrdFile->Read( static_cast<uint64_t>( offset ),
@@ -108,14 +110,17 @@ XrdFileIo::Read( XrdSfsFileOffset offset,
 
 
 //------------------------------------------------------------------------------
-// Write to file
+// Write to file - sync 
 //------------------------------------------------------------------------------
 int64_t
 XrdFileIo::Write( XrdSfsFileOffset offset,
                   char*            buffer,
                   XrdSfsXferSize   length )
 {
-  eos_debug( "offset = %llu, length = %lu", offset, length );
+  eos_debug( "offset = %lli, length = %lli",
+             static_cast<int64_t>( offset ),
+             static_cast<int64_t>( length ) );
+
   XrdCl::XRootDStatus status = mXrdFile->Write( static_cast<uint64_t>( offset ),
                                                 static_cast<uint32_t>( length ),
                                                  buffer );
@@ -125,6 +130,48 @@ XrdFileIo::Write( XrdSfsFileOffset offset,
     return SFS_ERROR;
   }
     
+  return length;
+}
+
+
+//------------------------------------------------------------------------------
+// Read from file - async
+//------------------------------------------------------------------------------
+int64_t
+XrdFileIo::Read( XrdSfsFileOffset        offset,
+                 char*                   buffer,
+                 XrdSfsXferSize          length,
+                 XrdCl::ResponseHandler* handler)
+{
+  eos_debug( "offset = %lli, length = %lli",
+             static_cast<int64_t>( offset ),
+             static_cast<int64_t>( length ) );
+
+  XrdCl::XRootDStatus status = mXrdFile->Read( static_cast<uint64_t>( offset ),
+                                               static_cast<uint32_t>( length ),
+                                               buffer,
+                                               handler );
+  return length;  
+}
+
+
+//------------------------------------------------------------------------------
+// Write to file - async 
+//------------------------------------------------------------------------------
+int64_t
+XrdFileIo::Write( XrdSfsFileOffset        offset,
+                  char*                   buffer,
+                  XrdSfsXferSize          length,
+                  XrdCl::ResponseHandler* handler)
+{
+  eos_debug( "offset = %lli, length = %lli",
+             static_cast<int64_t>( offset ),
+             static_cast<int64_t>( length ) );
+
+  XrdCl::XRootDStatus status = mXrdFile->Write( static_cast<uint64_t>( offset ),
+                                                static_cast<uint32_t>( length ),
+                                                buffer,
+                                                handler);
   return length;
 }
 

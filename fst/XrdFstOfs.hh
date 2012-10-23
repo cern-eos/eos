@@ -60,6 +60,7 @@ EOSFSTNAMESPACE_BEGIN
 
 // Forward declarations
 class ReplicaParLayout;
+class RaidMetaLayout;
 
 
 class XrdFstOfsDirectory : public XrdSfsDirectory, public eos::common::LogId
@@ -107,6 +108,7 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId
     friend class XrdFstOfsDirectory;
     friend class XrdFstOfsFile;
     friend class ReplicaParLayout;
+    friend class RaidMetaLayout;
 
   private:
 

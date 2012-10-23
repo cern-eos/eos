@@ -1,7 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file PlainLayout.hh
-//! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
-//! @brief Physical layout of a plain file without any replication or striping
+// File: PlainLayout.hh
+// Author: Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,6 +20,12 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+
+//------------------------------------------------------------------------------
+//! @file PlainLayout.hh
+//! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
+//! @brief Physical layout of a plain file without any replication or striping
+//------------------------------------------------------------------------------
 
 #ifndef __EOSFST_PLAINLAYOUT_HH__
 #define __EOSFST_PLAINLAYOUT_HH__

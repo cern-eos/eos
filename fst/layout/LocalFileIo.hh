@@ -1,7 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file LocalFileIo.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class used for doing local IO operations
+// File: LocalFileIo.hh
+// Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,6 +20,12 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+
+//------------------------------------------------------------------------------
+//! @file LocalFileIo.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Class used for doing local IO operations
+//------------------------------------------------------------------------------
 
 #ifndef __EOSFST_LOCALFILEIO__HH__
 #define __EOSFST_LOCALFILEIO__HH__
@@ -71,7 +76,7 @@ class LocalFileIo: public FileIo
     //----------------------------------------------------------------------------
     virtual int Open( const std::string& path,
                       XrdSfsFileOpenMode flags,
-                      mode_t           mode,
+                      mode_t             mode,
                       const std::string& opaque );
 
 

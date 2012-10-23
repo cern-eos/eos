@@ -1,7 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file Layout.hh
-//! @author Andreas-Joachim Peters - CERN
-//! @brief Abstraction of the physical layout of a file
+// File: Layout.hh
+// Author: Andreas-Joachim Peters - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,6 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+//------------------------------------------------------------------------------
+//! @file Layout.hh
+//! @author Andreas-Joachim Peters - CERN
+//! @brief Abstraction of the physical layout of a file
+//------------------------------------------------------------------------------
+
 #ifndef __EOSFST_LAYOUT_HH__
 #define __EOSFST_LAYOUT_HH__
 
@@ -31,7 +36,7 @@
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
-#include "fst/layout/FileIo.hh"
+#include "fst/layout/FileIoPlugin.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -239,10 +244,8 @@ class Layout: public eos::common::LogId
 
   protected:
 
-    int            mBlockChecksum;      ///<
     bool           mIsEntryServer;      ///< mark entry server
     unsigned int   mLayoutId;           ///< layout id
-
     XrdOucString   mName;               ///< layout name
     XrdFstOfsFile* mOfsFile;            ///< handler to logical file
     std::string    mLocalPath;          ///< path to local file

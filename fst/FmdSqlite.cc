@@ -396,11 +396,10 @@ FmdSqliteHandler::GetFmd(eos::common::FileId::fileid_t fid, eos::common::FileSys
 	if ( (!isRW) && ((fmd->fMd.disksize && (fmd->fMd.disksize != fmd->fMd.size)) ||
 			 (fmd->fMd.mgmsize &&  (fmd->fMd.mgmsize != 0xfffffffffff1ULL) && (fmd->fMd.mgmsize  != fmd->fMd.size))) ) {
 	  eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu", fid, (unsigned long) fsid, fmd->fMd.size, fmd->fMd.disksize, fmd->fMd.mgmsize);
-	  
-	  delete fmd;
-	  Mutex.UnLockRead();
-	  return 0;
-	}
+            delete fmd;
+            Mutex.UnLockRead();
+            return 0;
+          }
 	   
 	// if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the FMD record
 	// this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)

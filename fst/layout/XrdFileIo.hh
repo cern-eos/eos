@@ -1,7 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file XrdClFileIo.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class used for doing remote IO operations unsing the xrd client
+// File: XrdClFileIo.hh
+// Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,6 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+//------------------------------------------------------------------------------
+//! @file XrdClFileIo.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Class used for doing remote IO operations unsing the xrd client
+//------------------------------------------------------------------------------
+
 #ifndef __EOSFST_XRDFILEIO__HH__
 #define __EOSFST_XRDFILEIO__HH__
 
@@ -30,6 +35,7 @@
 #include "fst/XrdFstOfsFile.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -78,7 +84,7 @@ class XrdFileIo: public FileIo
 
 
     //----------------------------------------------------------------------------
-    //! Read from file
+    //! Read from file - sync
     //!
     //! @param offset offset in file
     //! @param buffer where the data is read
@@ -93,7 +99,7 @@ class XrdFileIo: public FileIo
 
 
     //--------------------------------------------------------------------------
-    //! Write to file
+    //! Write to file - sync
     //!
     //! @param offset offset
     //! @paramm buffer data to be written
@@ -105,6 +111,39 @@ class XrdFileIo: public FileIo
     virtual int64_t Write( XrdSfsFileOffset offset,
                            char*            buffer,
                            XrdSfsXferSize   length );
+
+
+
+    //----------------------------------------------------------------------------
+    //! Read from file - async
+    //!
+    //! @param offset offset in file
+    //! @param buffer where the data is read
+    //! @param lenght read length
+    //!
+    //! @return number of bytes read or -1 if error
+    //!
+    //----------------------------------------------------------------------------
+    virtual int64_t Read( XrdSfsFileOffset        offset,
+                          char*                   buffer,
+                          XrdSfsXferSize          length,
+                          XrdCl::ResponseHandler* handler);
+
+
+    //--------------------------------------------------------------------------
+    //! Write to file - async
+    //!
+    //! @param offset offset
+    //! @paramm buffer data to be written
+    //! @param length length
+    //!
+    //! @return number of bytes written or -1 if error
+    //!
+    //--------------------------------------------------------------------------
+    virtual int64_t Write( XrdSfsFileOffset        offset,
+                           char*                   buffer,
+                           XrdSfsXferSize          length,
+                           XrdCl::ResponseHandler* handler);
 
 
 

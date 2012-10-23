@@ -96,7 +96,10 @@ LocalFileIo::Write( XrdSfsFileOffset offset,
                     char*            buffer,
                     XrdSfsXferSize   length )
 {
-  eos_debug( "offset = %llu, length = %lu", offset, length );
+  eos_debug( "offset = %lli, length = %lli",
+             static_cast<int64_t>( offset ),
+             static_cast<int64_t>( length ) );
+
   return mLogicalFile->writeofs( offset, buffer, length );
 }
 

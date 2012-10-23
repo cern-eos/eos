@@ -1,7 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file FileIoPlugin.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class generating an IO plugin object
+// File: FileIoPlugin.hh
+// Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,6 +20,12 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+
+//------------------------------------------------------------------------------
+//! @file FileIoPlugin.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Class generating an IO plugin object
+//------------------------------------------------------------------------------
 
 #ifndef __EOSFST_FILEIOPLUGIN_HH__
 #define __EOSFST_FILEIOPLUGIN_HH__
@@ -74,11 +79,11 @@ class FileIoPlugin
                                 XrdOucErrInfo*      error ) {
       
       if ( ioType == LayoutId::kLocal ) {
-        return static_cast<FileIo*>( new LocalFileIo( file, client, error ) );
+        return dynamic_cast<FileIo*>( new LocalFileIo( file, client, error ) );
       }
 
       if ( ioType == LayoutId::kXrdCl ) {
-        return static_cast<FileIo*>( new XrdFileIo( file, client, error ) );
+        return dynamic_cast<FileIo*>( new XrdFileIo( file, client, error ) );
       }
  
       return 0;

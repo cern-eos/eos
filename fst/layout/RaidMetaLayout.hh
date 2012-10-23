@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// File: RaidIO.hh
+// File: RaidMetaLayout.hh
 // Author: Elvin-Alin Sindrilaru - CERN
 // -----------------------------------------------------------------------------
 
@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_IO_RAIDIO_HH__
-#define __EOSFST_IO_RAIDIO_HH__
+#ifndef __EOSFST_IO_RAIDMETALAYOUT_HH__
+#define __EOSFST_IO_RAIDMETALAYOUT_HH__
 
 /*----------------------------------------------------------------------------*/
 #include <vector>
@@ -30,6 +30,7 @@
 #include <list>
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
+#include "fst/layout/Layout.hh"
 #include "fst/io/HeaderCRC.hh"
 #include "fst/io/AsyncReadHandler.hh"
 #include "fst/io/AsyncWriteHandler.hh"
@@ -38,11 +39,11 @@
 #include "XrdCl/XrdClFile.hh"
 /*----------------------------------------------------------------------------*/
 
-// -----------------------------------------------------------------------------
-//! @file RaidIO.hh
+//------------------------------------------------------------------------------
+//! @file RaidMetaLayout.hh
 //! @author Elvin-Alin Sindrilaru - CERN
 //! @brief Generic class to read/write different layout files
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -51,7 +52,7 @@ using namespace XrdCl;
 //------------------------------------------------------------------------------
 //! Generic class to read/write different layout files
 //------------------------------------------------------------------------------
-class RaidIO : public eos::common::LogId
+class RaidMetaLayout : public Layout
 {
   public:
 
@@ -67,13 +68,14 @@ class RaidIO : public eos::common::LogId
     //! @param bookingOpaque opaque information
     //!
     //--------------------------------------------------------------------------
-    RaidIO( std::string              algorithm,
-            std::vector<std::string> stripeUrl,
-            unsigned int             nbParity,
-            bool                     storeRecovery,
-            bool                     isStreaming,
-            off_t                    targetSize = 0,
-            std::string              bookingOpaque = "oss.size" );
+    RaidMetaLayout(  XrdFstOfsFile*      file,
+                     int                 lid,
+                     const XrdSecEntity* client,
+                     XrdOucErrInfo*      outError,
+                     bool                storeRecovery,
+                     bool                isStreaming,
+                     off_t               targetSize,
+                     std::string         bookingOpaque );
 
     //--------------------------------------------------------------------------
     //! Open file
@@ -83,7 +85,10 @@ class RaidIO : public eos::common::LogId
     //! @return 0 if successful, otherwise error
     //!
     //--------------------------------------------------------------------------
-    virtual int open( int flags );
+    virtual int Open( const std::string& path,
+                      XrdSfsFileOpenMode flags,
+                      mode_t             mode,
+                      const char*        opaque );
 
     //--------------------------------------------------------------------------
     //! Read from file
@@ -95,7 +100,10 @@ class RaidIO : public eos::common::LogId
     //! @return length of data read
     //!
     //--------------------------------------------------------------------------
-    virtual int read( off_t offset, char* buffer, size_t length );
+    virtual int64_t Read( XrdSfsFileOffset offset,
+                          char*            buffer,
+                          XrdSfsXferSize   length );
+
 
     //--------------------------------------------------------------------------
     //! Write to file
@@ -107,7 +115,10 @@ class RaidIO : public eos::common::LogId
     //! @return length of data written
     //!
     //--------------------------------------------------------------------------
-    virtual int write( off_t offset, char* buffer, size_t length );
+    virtual int64_t Write( XrdSfsFileOffset offset,
+                           char*            buffer,
+                           XrdSfsXferSize   length );
+        
 
     //--------------------------------------------------------------------------
     //! Truncate file
@@ -117,7 +128,7 @@ class RaidIO : public eos::common::LogId
     //! @return 0 if successful, otherwise error
     //!
     //--------------------------------------------------------------------------
-    virtual int truncate( off_t offset ) = 0;
+    virtual int Truncate( XrdSfsFileOffset offset ) = 0;
 
     //--------------------------------------------------------------------------
     //! Unlink all connected pieces
@@ -125,7 +136,7 @@ class RaidIO : public eos::common::LogId
     //! @return 0 if successful, otherwise error
     //!
     //--------------------------------------------------------------------------
-    virtual int remove();
+    virtual int Remove();
 
     //--------------------------------------------------------------------------
     //! Sync all connected pieces to disk
@@ -133,7 +144,7 @@ class RaidIO : public eos::common::LogId
     //! @return 0 if successful, otherwise error
     //!
     //--------------------------------------------------------------------------
-    virtual int sync();
+    virtual int Sync();
 
     //--------------------------------------------------------------------------
     //! Close file
@@ -141,8 +152,32 @@ class RaidIO : public eos::common::LogId
     //! @return 0 if successful, otherwise error
     //!
     //--------------------------------------------------------------------------
-    virtual int close();
+    virtual int Close();
 
+
+    //--------------------------------------------------------------------------
+    //! Allocate file space
+    //!
+    //! @param length space to be allocated
+    //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Fallocate( XrdSfsFileOffset lenght ); 
+
+
+    //--------------------------------------------------------------------------
+    //! Deallocate file space
+    //!
+    //! @param fromOffset offset start
+    //! @param toOffset offset end
+    //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int Fdeallocate( XrdSfsFileOffset fromOffset,
+                             XrdSfsFileOffset toOffset );
+  
     //--------------------------------------------------------------------------
     //! Get stats about the file
     //!
@@ -151,29 +186,24 @@ class RaidIO : public eos::common::LogId
     //! @return 0 if successful, otherwise error
     //!
     //--------------------------------------------------------------------------
-    virtual int stat( struct stat* buf );
+    virtual int Stat( struct stat* buf );
 
     //--------------------------------------------------------------------------
     //! Get size of file
     //--------------------------------------------------------------------------
-    virtual off_t size(); // returns the total size of the file
+    virtual uint64_t Size(); // returns the total size of the file
 
     //--------------------------------------------------------------------------
     //! Get size of the stripe
     //--------------------------------------------------------------------------
-    static const int GetSizeStripe() {
-      return 1024 * 1024;     // 1MB
-    };
+    static const int GetSizeStripe();
 
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
-    virtual ~RaidIO();
+    virtual ~RaidMetaLayout();
 
   protected:
-
-    File** mpXrdFile;            ///< xrd clients corresponding to the stripes
-    HeaderCRC* mpHdUrl;          ///< array of header objects
 
     bool mIsRw;                  ///< mark for writing
     bool mIsOpen;                ///< mark if open
@@ -185,6 +215,9 @@ class RaidIO : public eos::common::LogId
                                  ///< files, this also means that all files must be available
     bool mIsStreaming;           ///< file is written in streaming mode
 
+    unsigned int mStripeHead;    ///< head stripe value
+    unsigned int mPhysicalStripeIndex; ///< physical index of the current stripe
+    unsigned int mLogicalStripeIndex;
     unsigned int mNbParityFiles; ///< number of parity files
     unsigned int mNbDataFiles;   ///< number of data files
     unsigned int mNbTotalFiles;  ///< total number of files ( data + parity )
@@ -192,31 +225,31 @@ class RaidIO : public eos::common::LogId
     unsigned int mNbDataBlocks;  ///< no. data blocks in a group
     unsigned int mNbTotalBlocks; ///< no. data and parity blocks in a group
 
+    off_t mStripeWidth;         ///< stripe width
+    off_t mSizeHeader;           ///< size of header = 4KB
+    off_t mFileSize;             ///< total size of current file
     off_t mTargetSize;           ///< expected final size (?!)
     off_t mOffGroupParity;       ///< offset of the last group for which we
                                  ///< computed the parity blocks
-
-    size_t mSizeHeader;          ///< size of header = 4KB
-    size_t mStripeWidth;         ///< stripe width
-    size_t mFileSize;            ///< total size of current file
-    size_t mSizeGroup;           ///< size of a gourp of blocks
+    off_t mSizeGroup;           ///< size of a gourp of blocks
                                  ///< eg. RAIDDP: group = noDataStr^2 blocks
 
     std::string mAlgorithmType;                     ///< layout type used
     std::string mBookingOpaque;                     ///< opaque information
     std::vector<char*> mDataBlocks;                 ///< vector containing the data in a group
-    std::vector<std::string> mStripeUrls;           ///< urls of the stripe files
+    std::vector<FileIo*> mStripeFiles;
+    std::vector<HeaderCRC*> mHdUrls;                ///< headers of the stripe files
     std::vector<AsyncReadHandler*> mReadHandlers;   ///< async read handlers for each stripe
     std::vector<AsyncWriteHandler*> mWriteHandlers; ///< async write handlers for each stripe
-    std::map<unsigned int, unsigned int> mapUS;     ///< map of url to stripes
-    std::map<unsigned int, unsigned int> mapSU;     ///< map of stripes to url
+    std::map<unsigned int, unsigned int> mapLP;     ///< map of url to stripes
+    std::map<unsigned int, unsigned int> mapPL;     ///< map of stripes to url
     std::map<off_t, size_t> mMapPieces;             ///< map of pieces written for which parity
                                                     ///< computation has not been done yet
 
     //--------------------------------------------------------------------------
     //! Test and recover any corrupted headers in the stripe files
     //--------------------------------------------------------------------------
-    virtual bool ValidateHeader();
+    virtual bool ValidateHeader( const char* opaque);
 
     //--------------------------------------------------------------------------
     //! Recover corrupted pieces

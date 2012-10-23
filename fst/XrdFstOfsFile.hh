@@ -45,7 +45,10 @@ EOSFSTNAMESPACE_BEGIN
 
 // Forward declaration 
 class Layout;
-class ReplicaParLayout;
+//class ReplicaParLayout;
+//class RaidMetaLayout;
+//class RaidDpLayout;
+//class ReedSLayout;
 
 
 //------------------------------------------------------------------------------
@@ -54,6 +57,9 @@ class ReplicaParLayout;
 class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
 {
   friend class ReplicaParLayout;
+  friend class RaidMetaLayout;
+  friend class RaidDpLayout;
+  friend class ReedSLayout;
   
   public:
 

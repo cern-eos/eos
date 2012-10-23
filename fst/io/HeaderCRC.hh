@@ -28,6 +28,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
+#include "fst/layout/FileIo.hh"
 /*----------------------------------------------------------------------------*/
 #include <XrdCl/XrdClFile.hh>
 /*----------------------------------------------------------------------------*/
@@ -46,15 +47,29 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     HeaderCRC();
 
+  
     //--------------------------------------------------------------------------
     //! Constructor with parameter
     //--------------------------------------------------------------------------
     HeaderCRC( long numBlocks );
 
+  
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
     ~HeaderCRC();
+
+  
+    //--------------------------------------------------------------------------
+    //! Write header to file
+    //!
+    //! @param pFile file to which to header will be written
+    //!
+    //! @return status of the operation
+    //!
+    //--------------------------------------------------------------------------
+    bool WriteToFile( XrdCl::File*& pFile );
+
 
     //--------------------------------------------------------------------------
     //! Write header to file
@@ -64,8 +79,9 @@ class HeaderCRC: public eos::common::LogId
     //! @return status of the operation
     //!
     //--------------------------------------------------------------------------
-    bool WriteToFile( XrdCl::File* pFile );
+    bool WriteToFile( FileIo*& pFile );
 
+  
     //--------------------------------------------------------------------------
     //! Read header from file
     //!
@@ -74,77 +90,97 @@ class HeaderCRC: public eos::common::LogId
     //! @return status of the operation
     //!
     //--------------------------------------------------------------------------
-    bool ReadFromFile( XrdCl::File* pFile );
+    bool ReadFromFile( XrdCl::File*& pFile );
+
+  
+    //--------------------------------------------------------------------------
+    //! Read header from file
+    //!
+    //! @param pFile file from which the header will be read
+    //!
+    //! @return status of the operation
+    //!
+    //--------------------------------------------------------------------------
+    bool ReadFromFile( FileIo*& pFile );
+  
 
     //--------------------------------------------------------------------------
     //! Get tag of the header
     //--------------------------------------------------------------------------
     const char* GetTag() const {
       return mTag;
-    };
+    }
+
 
     //--------------------------------------------------------------------------
     //! Get size of header
     //--------------------------------------------------------------------------
     static const int GetSize() {
       return msSizeHeader;
-    };
+    }
+
 
     //--------------------------------------------------------------------------
     //! Get size of last block in file
     //--------------------------------------------------------------------------
     const size_t GetSizeLastBlock() const {
       return mSizeLastBlock;
-    };
+    }
 
+  
     //--------------------------------------------------------------------------
     //! Get number of blocks in file
     //--------------------------------------------------------------------------
     const long int GetNoBlocks() const {
       return mNumBlocks;
-    };
+    }
 
+  
     //--------------------------------------------------------------------------
     //! Get id of the stripe the header belongs to
     //--------------------------------------------------------------------------
     const unsigned int GetIdStripe() const {
       return mIdStripe;
-    };
+    }
 
+  
     //--------------------------------------------------------------------------
     //! Set number of blocks in the file
     //--------------------------------------------------------------------------
     void SetNoBlocks( long int numBlocks ) {
       mNumBlocks = numBlocks;
-    };
+    }
 
+  
     //--------------------------------------------------------------------------
     //! Set size of last block in the file
     //--------------------------------------------------------------------------
     void SetSizeLastBlock( size_t sizeLastBlock ) {
       mSizeLastBlock = sizeLastBlock;
-    };
+    }
 
     //--------------------------------------------------------------------------
     //! Set id of the stripe the header belongs to
     //--------------------------------------------------------------------------
     void SetIdStripe( unsigned int stripe ) {
       mIdStripe = stripe;
-    };
+    }
+  
 
     //--------------------------------------------------------------------------
     //! Test if header is valid
     //--------------------------------------------------------------------------
     const bool IsValid() const {
       return mValid;
-    };
+    }
+  
 
     //--------------------------------------------------------------------------
     //! Set the header state (valid/corrupted)
     //--------------------------------------------------------------------------
     void SetState( bool state ) {
       mValid = state;
-    };
+    }
 
   private:
 
@@ -156,7 +192,6 @@ class HeaderCRC: public eos::common::LogId
 
     static int msSizeHeader; ///< size of the header
     static char msTagName[]; ///< default tag name
-
 };
 
 EOSFSTNAMESPACE_END

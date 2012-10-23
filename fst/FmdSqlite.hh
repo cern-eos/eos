@@ -77,7 +77,7 @@ public:
   struct FMD {
     eos::common::FileId::fileid_t fid;       //< fileid
     eos::common::FileId::fileid_t cid;       //< container id (e.g. directory id)
-    eos::common::FileSystem::fsid_t fsid;//< filesystem id
+    eos::common::FileSystem::fsid_t fsid;    //< filesystem id
     unsigned long ctime;          //< creation time 
     unsigned long ctime_ns;       //< ns of creation time
     unsigned long mtime;          //< modification time | deletion time

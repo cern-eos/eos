@@ -147,6 +147,7 @@ class RaidDpFile : public eos::fst::RaidIO
                               char*                    pBuffer,
                               std::map<off_t, size_t>& rMapPieces );
 
+  
     //--------------------------------------------------------------------------
     //! Return diagonal stripe corresponding to current block
     //!
@@ -157,6 +158,7 @@ class RaidDpFile : public eos::fst::RaidIO
     //--------------------------------------------------------------------------
     std::vector<unsigned int> GetDiagonalStripe( unsigned int blockId );
 
+  
     //--------------------------------------------------------------------------
     //! Validate horizontal stripe for a block index
     //!
@@ -171,6 +173,7 @@ class RaidDpFile : public eos::fst::RaidIO
                            bool*                      pStatusBlock,
                            unsigned int               blockId );
 
+  
     //--------------------------------------------------------------------------
     //! Validate diagonal stripe for a block index
     //!
@@ -185,6 +188,7 @@ class RaidDpFile : public eos::fst::RaidIO
                           bool*                      pStatusBlock,
                           unsigned int               blockId );
 
+  
     //--------------------------------------------------------------------------
     //! Get indices of the simple parity blocks
     //!
@@ -193,6 +197,7 @@ class RaidDpFile : public eos::fst::RaidIO
     //--------------------------------------------------------------------------
     std::vector<unsigned int> GetSimpleParityIndices();
 
+  
     //--------------------------------------------------------------------------
     //! Get indices of the double parity blocks
     //!
@@ -201,6 +206,7 @@ class RaidDpFile : public eos::fst::RaidIO
     //--------------------------------------------------------------------------
     std::vector<unsigned int> GetDoubleParityIndices();
 
+  
     //--------------------------------------------------------------------------
     //! Get simple parity block corresponding to current block
     //!
@@ -211,6 +217,7 @@ class RaidDpFile : public eos::fst::RaidIO
     //--------------------------------------------------------------------------
     unsigned int GetSParityBlock( unsigned int elemFromStripe );
 
+  
     //--------------------------------------------------------------------------
     //! Get double parity blocks corresponding to current stripe
     //!
@@ -221,6 +228,7 @@ class RaidDpFile : public eos::fst::RaidIO
     //--------------------------------------------------------------------------
     unsigned int GetDParityBlock( std::vector<unsigned int>& rStripe );
 
+  
     //--------------------------------------------------------------------------
     //! Map index from nTotalBlocks representation to nDataBlocks
     //!
@@ -231,6 +239,7 @@ class RaidDpFile : public eos::fst::RaidIO
     //--------------------------------------------------------------------------
     unsigned int MapBigToSmall( unsigned int idBig );
 
+  
     //--------------------------------------------------------------------------
     //! Map index from nDataBlocks representation to nTotalBlocks
     //!
@@ -241,6 +250,7 @@ class RaidDpFile : public eos::fst::RaidIO
     //--------------------------------------------------------------------------
     virtual unsigned int MapSmallToBig( unsigned int idSmall );
 
+  
     //--------------------------------------------------------------------------
     //! Do recovery using simple parity
     //!
