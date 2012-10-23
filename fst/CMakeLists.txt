@@ -47,7 +47,6 @@ add_library ( XrdEosFst MODULE
 	      io/AsyncReadHandler.cc         io/AsyncReadHandler.hh
 	      io/AsyncWriteHandler.cc        io/AsyncWriteHandler.hh
 
-
   	      layout/FileIoPlugin.hh
 	      layout/FileIo.hh 
   	      layout/LocalFileIo.cc          layout/LocalFileIo.hh
@@ -59,6 +58,7 @@ add_library ( XrdEosFst MODULE
 	      layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
 	      layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
 	      layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
+	      layout/ReedSLayout.cc          layout/ReedSLayout.hh
 	     
 	      checksum/Adler.cc
 	      checksum/CheckSum.cc

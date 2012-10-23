@@ -29,7 +29,6 @@
 #include <string>
 #include <list>
 /*----------------------------------------------------------------------------*/
-#include "common/Logging.hh"
 #include "fst/layout/Layout.hh"
 #include "fst/io/HeaderCRC.hh"
 #include "fst/io/AsyncReadHandler.hh"

@@ -27,7 +27,7 @@
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/ReplicaParLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
-//#include "fst/layout/ReedSLayout.hh"
+#include "fst/layout/ReedSLayout.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -71,11 +71,10 @@ LayoutPlugin::GetLayoutObject( XrdFstOfsFile*      file,
     return static_cast<Layout*>( new RaidDpLayout( file, layoutId, client, error ) );
   }
 
-  /*
-    if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kReedS ) {
+  if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kReedS ) {
     return static_cast<Layout*>( new ReedSLayout( file, layoutId, client, error ) );
-    }
-  */
+  }
+  
   return 0;
 }
 

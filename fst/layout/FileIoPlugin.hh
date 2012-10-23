@@ -31,9 +31,9 @@
 #define __EOSFST_FILEIOPLUGIN_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
 /*----------------------------------------------------------------------------*/
+#include "fst/layout/FileIo.hh"
 #include "fst/layout/LocalFileIo.hh"
 #include "fst/layout/XrdFileIo.hh"
 /*----------------------------------------------------------------------------*/

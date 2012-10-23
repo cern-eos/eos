@@ -268,9 +268,9 @@ RaidDpLayout::DoubleParityRecover( off_t                    offsetInit,
       // Do local read operation
       //........................................................................
       int nread = mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
-                  mDataBlocks[i],
-                  mStripeWidth );
-
+                                                   mDataBlocks[i],
+                                                   mStripeWidth );
+      
       if ( nread != mStripeWidth ) {
         eos_debug( "Block corrupted %i.", i );
         status_blocks[i] = false;
@@ -918,6 +918,7 @@ RaidDpLayout::Truncate( XrdSfsFileOffset offset )
 
   truncate_offset = ceil( ( offset * 1.0 ) / mSizeGroup ) * mStripeWidth * mNbDataFiles;
   truncate_offset += mSizeHeader;
+  
   eos_debug( "Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
              offset, truncate_offset );
   mStripeFiles[0]->Truncate( truncate_offset );
@@ -939,6 +940,7 @@ RaidDpLayout::Truncate( XrdSfsFileOffset offset )
   //............................................................................
   mFileSize = offset;
   mOfsFile->maxOffsetWritten  = offset;
+  
   return rc;
 }
 
