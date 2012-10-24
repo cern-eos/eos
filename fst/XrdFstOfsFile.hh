@@ -31,6 +31,7 @@
 #include "common/Logging.hh"
 #include "common/Fmd.hh"
 #include "common/ClientAdmin.hh"
+#include "common/SecEntity.hh"
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
 #include "fst/FmdSqlite.hh"
@@ -220,15 +221,18 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
     CheckSum*    fstBlockXS;
     off_t        bookingsize;
     off_t        targetsize;
+    off_t        minsize;
+    off_t        maxsize;
     bool         viaDelete;
-
+    bool         remoteDelete;
+    bool         writeDelete;
     unsigned long long fstBlockSize;
 
 
     XrdOucString Path;
     XrdOucString localPrefix;
     XrdOucString RedirectManager; // -> host where we bounce back
-    XrdSysMutex  BlockXsMutex;
+    XrdOucString SecString;
     XrdSysMutex  ChecksumMutex;
 
     unsigned long long fileid; // file id
@@ -245,6 +249,17 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
     bool         isCreation;
     bool         isReplication;
     bool         deleteOnClose;
+    bool         repairOnClose;
+
+    enum {
+      kOfsIoError=1,
+      kOfsMaxSizeError=2,
+      kOfsDiskFullError=3,
+      kOfsSimulatedIoError=4
+    };
+  
+    int          writeErrorFlag; // uses the above enums to specify
+
     FmdSqlite*   fMd;
     eos::fst::CheckSum* checkSum;
     Layout*  layOut;
@@ -259,6 +274,9 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
     struct timeval openTime;
     struct timeval closeTime;
     struct timezone tz;
+    XrdSysMutex vecMutex;                 // protecting the rvec/wvec variables
+    std::vector<unsigned long long> rvec; // vector with all read  sizes -> to compute sigma,min,max,total
+    std::vector<unsigned long long> wvec; // vector with all write sizes -> to compute sigma,min,max,total
     unsigned long long rBytes;  ///< sum bytes read
     unsigned long long wBytes;  ///< sum bytes written
     unsigned long long srBytes; ///< sum bytes seeked

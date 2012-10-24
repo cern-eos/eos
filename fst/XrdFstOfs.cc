@@ -139,24 +139,43 @@ XrdFstOfs::newFile( char* user, int MonID ) {
 /*----------------------------------------------------------------------------*/
 void
 XrdFstOfs::xrdfstofs_shutdown(int sig) {
+  static XrdSysMutex ShutDownMutex;
+
+  ShutDownMutex.Lock(); // this handler goes only one-shot .. sorry !
+
   // handler to shutdown the daemon for valgrinding and clean server stop (e.g. let's time to finish write operations
 
-  std::set<pthread_t>::const_iterator it;
-  for (it= gOFS.Storage->ThreadSet.begin(); it != gOFS.Storage->ThreadSet.end(); it++) {
-    eos_static_warning("op=shutdown threadid=%llx", (unsigned long long) *it);
-    XrdSysThread::Cancel(*it);
-    XrdSysThread::Join(*it,0);
+  if (gOFS.Messaging) {
+    gOFS.Messaging->StopListener(); // stop any communication
   }
 
-  // sync all file descriptors
-  eos::common::SyncAll::All();
+  XrdSysTimer sleeper;
+  sleeper.Wait(1000);
 
+  std::set<pthread_t>::const_iterator it;
+  {
+    XrdSysMutexHelper(gOFS.Storage->ThreadSetMutex);
+    for (it= gOFS.Storage->ThreadSet.begin(); it != gOFS.Storage->ThreadSet.end(); it++) {
+      eos_static_warning("op=shutdown threadid=%llx", (unsigned long long) *it);
+      XrdSysThread::Cancel(*it);
+      XrdSysThread::Join(*it,0);
+    }
+  }
+
+  eos_static_warning("op=shutdown msg=\"stop messaging\""); 
   if (gOFS.Messaging) {
     delete gOFS.Messaging; // shutdown messaging thread
     gOFS.Messaging=0;
   }
 
-  eos_static_warning("op=shutdown status=completed");
+  eos_static_warning("%s","op=shutdown msg=\"shutdown fmdsqlite handler\"");
+  gFmdSqliteHandler.Shutdown();
+  eos_static_warning("%s","op=shutdown status=completed");
+
+  // sync & close all file descriptors
+  eos::common::SyncAll::AllandClose();
+  
+
 
   exit(0);
 }
@@ -345,14 +364,30 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   std::string watch_scaninterval = "scaninterval";
   std::string watch_symkey       = "symkey";
   std::string watch_manager      = "manager";
+  std::string watch_publishinterval = "publish.interval";
+  std::string watch_debuglevel   = "debug.level";
+  std::string watch_gateway      = "txgw";
+  std::string watch_gateway_rate = "gw.rate";
+  std::string watch_gateway_ntx  = "gw.ntx";
+  std::string watch_error_simulation  = "error.simulation";
 
   ObjectManager.ModificationWatchKeys.insert(watch_id);
   ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
   ObjectManager.ModificationWatchKeys.insert(watch_scaninterval);
   ObjectManager.ModificationWatchKeys.insert(watch_symkey);
   ObjectManager.ModificationWatchKeys.insert(watch_manager);
+  ObjectManager.ModificationWatchKeys.insert(watch_id);
+  ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
+  ObjectManager.ModificationWatchKeys.insert(watch_scaninterval);
+  ObjectManager.ModificationWatchKeys.insert(watch_symkey);
+  ObjectManager.ModificationWatchKeys.insert(watch_manager);
+  ObjectManager.ModificationWatchKeys.insert(watch_publishinterval);
+  ObjectManager.ModificationWatchKeys.insert(watch_debuglevel);
+  ObjectManager.ModificationWatchKeys.insert(watch_gateway);
+  ObjectManager.ModificationWatchKeys.insert(watch_gateway_rate);
+  ObjectManager.ModificationWatchKeys.insert(watch_gateway_ntx);
+  ObjectManager.ModificationWatchKeys.insert(watch_error_simulation);
   ObjectManager.SubjectsMutex.UnLock();
-
 
 
 
@@ -441,6 +476,29 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   return 0;
 }
 
+/*----------------------------------------------------------------------------*/
+
+void 
+XrdFstOfs::SetSimulationError(const char* tag) {
+  // -----------------------------------------------
+  // define error bool variables to en-/disable error simulation in the OFS layer
+
+  XrdOucString stag = tag;
+  gOFS.Simulate_IO_read_error = gOFS.Simulate_IO_write_error = gOFS.Simulate_XS_read_error = gOFS.Simulate_XS_write_error = false;
+  
+  if (stag == "io_read") {
+    gOFS.Simulate_IO_read_error = true;
+  }
+  if (stag == "io_write") {
+    gOFS.Simulate_IO_write_error = true;
+  } 
+  if (stag == "xs_read") {
+    gOFS.Simulate_XS_read_error = true;
+  }
+  if (stag == "xs_write") {
+    gOFS.Simulate_XS_write_error = true;
+  }
+}
 
 /*----------------------------------------------------------------------------*/
 int
@@ -696,12 +754,7 @@ XrdFstOfs::rem(const char             *path,
                const XrdSecEntity     *client,
                const char             *opaque) 
 {
-  
   EPNAME("rem");
-  // the OFS open is catched to set the access/modify time in the nameserver
-
-  //  const char *tident = error.getErrUser();
-  //  char *val=0;
 
   XrdOucString stringOpaque = opaque;
   stringOpaque.replace("?","&");
@@ -720,7 +773,7 @@ XrdFstOfs::rem(const char             *path,
   }
 
   int envlen;
-  //ZTRACE(open,"capability contains: " << capOpaque->Env(envlen));
+
   if (capOpaque) {
     eos_info("path=%s info=%s capability=%s", path, opaque, capOpaque->Env(envlen));
   } else {
