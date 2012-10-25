@@ -48,8 +48,8 @@ AsyncMetaHandler::~AsyncMetaHandler()
   ChunkHandler* ptr_chunk = NULL;
   
   while ( !listReq.empty() ) {
-    ptr_chunk = listCache.back();
-    listCache.pop_back();
+    ptr_chunk = listReq.back();
+    listReq.pop_back();
     delete ptr_chunk;
   }
 

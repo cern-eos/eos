@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOfs.hh"
+#include "fst/XrdFstOss.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/FmdSqlite.hh"
 #include "common/FileId.hh"
@@ -49,18 +50,25 @@
 #include <attr/xattr.h>
 /*----------------------------------------------------------------------------*/
 
-
+  
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
 
-// The client admin table
-// The capability engine
 extern XrdSysError OfsEroute;
 extern XrdOssSys  *XrdOfsOss;
 extern XrdOfs     *XrdOfsFS;
-extern XrdOss     *XrdOssGetSS(XrdSysLogger *, const char *, const char *);
 extern XrdOucTrace OfsTrace;
 
+/*extern XrdOss*              XrdOssGetSS( XrdSysLogger*, 
+                                         const char*, 
+                                         const char* );
+*/
+
+extern XrdOss*              XrdOssGetSS( XrdSysLogger*, 
+                                         const char*, 
+                                         const char*, 
+                                         const char*, 
+                                         XrdVersionInfo& );
 
 //------------------------------------------------------------------------------
 //
@@ -80,6 +88,8 @@ extern "C"
     OfsEroute.Say("++++++ (c) 2010 CERN/IT-DSS ",
                   version.c_str());
 
+    static XrdVERSIONINFODEF( info, XrdOss, XrdVNUMBER, XrdVERSION);
+
     // Initialize the subsystems
     //
     eos::fst::gOFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
@@ -87,11 +97,14 @@ extern "C"
     if ( eos::fst::gOFS.Configure(OfsEroute) ) return 0;
     // Initialize the target storage system
     //
-    if (!(XrdOfsOss = (XrdOssSys*) XrdOssGetSS(lp, configfn, eos::fst::gOFS.OssLib))) return 0;
+
+    if (!(XrdOfsOss = (eos::fst::XrdFstOss*) XrdOssGetSS(lp, configfn, 
+                                                         eos::fst::gOFS.OssLib, 
+                                                         0, info))) {
+      return 0;
+    } 
 
     XrdOfsFS = &eos::fst::gOFS;
-    // All done, we can return the callout vector to these routines.
-    //
     return &eos::fst::gOFS;
   }
 }

@@ -465,29 +465,16 @@ XrdFstOfsFile::open( const char*                path,
   }
 
   layOut->SetLogId( logId, vid, tident );
-
+  
   if ( isRW ||
-       ( ( opaqueCheckSum != "ignore" ) &&
-         ( ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kReplica ) ||
-           ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kPlain ) ) ) )
-  {
-    if ( ( ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kRaidDP ) ||
-           ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kReedS ) ) &&
-         ( !layOut->IsEntryServer() ) )
-    {
-      //........................................................................
-      // This case we need to exclude!
-      //........................................................................
-    } else {
-      //........................................................................
-      // We always do checksums for writes and reads for kPlain & kReplica if
-      // it was not explicitly switched off
-      //........................................................................
+       ( ( opaqueCheckSum != "ignore" ) ) ) {
       checkSum = eos::fst::ChecksumPlugins::GetChecksumObject( lid );
       eos_debug( "checksum requested %d %u", checkSum, lid );
-    }
   }
-  
+
+
+  eos_info("checksum=%llu entryserver=%d", checkSum, layOut->IsEntryServer());
+
   if ( !isCreation ) {
     //..........................................................................
     // Get the real size of the file, not the local stripe size!
@@ -548,6 +535,22 @@ XrdFstOfsFile::open( const char*                path,
       } else {
 	return gOFS.Emsg(epname, error, ENOSPC, "open - cannot allocate required space", Path.c_str());
       }
+    }
+  }
+
+  //.......................................................................................................
+  // if we are not the entry server for ReedS & RaidDP layouts we disable the checksum object now for write
+  // if we read we don't check checksums at all since we have block and parity checking
+  //.......................................................................................................
+  if ( ( ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kRaidDP ) ||
+	 ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kReedS ) ) &&
+       ( (!isRW) || (!layOut->IsEntryServer() ) ) ) {
+    //........................................................................
+    // This case we need to exclude!
+    //........................................................................
+    if (checkSum) {
+      delete checkSum;
+      checkSum = 0;
     }
   }
 
@@ -859,8 +862,8 @@ XrdFstOfsFile::verifychecksum()
         checkSum = 0;
         return false;
       }
-  }
-
+    }
+    
     if ( isRW ) {
       eos_info( "(write) checksum type: %s checksum hex: %s requested-checksum hex: %s",
                 checkSum->GetName(),
@@ -1228,49 +1231,51 @@ XrdFstOfsFile::close()
             rc = gOFS.CallManager( &error, capOpaque->Get( "mgm.path" ),
                                    capOpaque->Get( "mgm.manager" ), capOpaqueFile );
 
-            if ( ( rc == -EIDRM ) || ( rc == -EBADE ) || ( rc == -EBADR ) ) {
-              if ( !gOFS.Storage->CloseTransaction( fsid, fileid ) ) {
-                eos_crit( "cannot close transaction for fsid=%u fid=%llu", fsid, fileid );
-              }
+	    if ( rc ) {
+	      if ( ( rc == -EIDRM ) || ( rc == -EBADE ) || ( rc == -EBADR ) ) {
+		if ( !gOFS.Storage->CloseTransaction( fsid, fileid ) ) {
+		  eos_crit( "cannot close transaction for fsid=%u fid=%llu", fsid, fileid );
+		}
+		
+		if ( rc == -EIDRM ) {
+		  //..............................................................
+		  // This file has been deleted in the meanwhile ... we can
+		  // unlink that immedeatly
+		  //..............................................................
+		  eos_info( "info=\"unlinking fid=%08x path=%s - "
+			    "file has been already unlinked from the namespace\"",
+			    fMd->fMd.fid, Path.c_str() );
+		}
+		
+		if ( rc == -EBADE ) {
+		  eos_err( "info=\"unlinking fid=%08x path=%s - "
+			   "file size of replica does not match reference\"",
+			   fMd->fMd.fid, Path.c_str() );
+		}
+		
+		if ( rc == -EBADR ) {
+		  eos_err( "info=\"unlinking fid=%08x path=%s - "
+			   "checksum of replica does not match reference\"",
+			   fMd->fMd.fid, Path.c_str() );
+		}
+		
+		int retc =  gOFS._rem( Path.c_str(), error, 0, capOpaque,
+				       fstPath.c_str(), fileid, fsid );
 
-              if ( rc == -EIDRM ) {
-                //..............................................................
-                // This file has been deleted in the meanwhile ... we can
-                // unlink that immedeatly
-                //..............................................................
-                eos_info( "info=\"unlinking fid=%08x path=%s - "
-                          "file has been already unlinked from the namespace\"",
-                          fMd->fMd.fid, Path.c_str() );
-              }
-
-              if ( rc == -EBADE ) {
-                eos_err( "info=\"unlinking fid=%08x path=%s - "
-                         "file size of replica does not match reference\"",
-                         fMd->fMd.fid, Path.c_str() );
-              }
-
-              if ( rc == -EBADR ) {
-                eos_err( "info=\"unlinking fid=%08x path=%s - "
-                         "checksum of replica does not match reference\"",
-                         fMd->fMd.fid, Path.c_str() );
-              }
-
-              int retc =  gOFS._rem( Path.c_str(), error, 0, capOpaque,
-                                     fstPath.c_str(), fileid, fsid );
-
-              if ( !retc ) {
+		if ( !retc ) {
                 eos_debug( "<rem> returned retc=%d", retc );
-              }
-
-              deleteOnClose = true;
-            } else {
-	      eos_crit("commit returned an uncatched error msg=%s", error.getErrText());
+		}
+		
+		deleteOnClose = true;
+	      } else {
+		eos_crit("commit returned an uncatched error msg=%s", error.getErrText());
+	      }
 	    }
           }
         }
       }
     }
-
+    
     if ( isRW ) {
       if ( rc == SFS_OK ) {
         gOFS.Storage->CloseTransaction( fsid, fileid );

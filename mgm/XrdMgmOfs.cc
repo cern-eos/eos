@@ -4217,7 +4217,6 @@ XrdMgmOfs::FSctl(const int               cmd,
         eos::Buffer checksumbuffer;
         checksumbuffer.putData(binchecksum, SHA_DIGEST_LENGTH);
 
-        fprintf( stderr, "The size of the commit is: %s. ", asize );
         if (checksum) {
           eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu checksum=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, dropfsid, checksum, amtime, amtimensec);
         } else {
@@ -5843,7 +5842,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  XrdOucString msgbody = "mgm.cmd=drop"; 
 	  XrdOucString capability ="";
 	  XrdOucString idlist="";
-	  eos_static_info("got iterator ...");
 	  for ( it = unlinkpair.first; it != unlinkpair.second; ++it) {
 	    eos_static_info("msg=\"add to deletion message\" fxid=%08llx fsid=%lu", *it, (unsigned long)fslist[i]);
 	    

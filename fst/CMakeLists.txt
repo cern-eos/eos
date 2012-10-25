@@ -80,7 +80,7 @@ target_link_libraries (XrdEosFst
 		      eosCapability-Static 
 		      eosCommon-Static 
 		      XrdMqClient-Static 
-		      XrdClient 
+		      XrdCl
 		      XrdUtils 
 		      XrdOfs 
 		      crypto 
