@@ -249,6 +249,10 @@ class RaidMetaLayout : public Layout
     std::map<off_t, size_t> mMapPieces;             ///< map of pieces written for which parity
                                                     ///< computation has not been done yet
 
+    char* mFirstBlock;                 ///< first extra block for reading aligned 
+    char* mLastBlock;                  ///< last extra block for reading aligned
+    std::vector<char*> mPtrBlocks;     ///< vector containing pointers to where
+                                       ///< newly read block are placed
   
     //--------------------------------------------------------------------------
     //! Test and recover any corrupted headers in the stripe files
@@ -404,11 +408,24 @@ class RaidMetaLayout : public Layout
     //! @param alignedLength aligned length value
     //!
     //--------------------------------------------------------------------------
-    void AlignExpandBlocks( XrdSfsFileOffset  offset,
+    void AlignExpandBlocks( char* ptrBuffer,
+                            XrdSfsFileOffset  offset,
                             XrdSfsXferSize    length,
-                            XrdSfsFileOffset  blockSize,
                             XrdSfsFileOffset& alignedOffset,
                             XrdSfsXferSize&   alignedLength );
+
+     void CopyExtraBlocks( char*            buffer,
+                           XrdSfsFileOffset offset,
+                           XrdSfsXferSize   length,
+                           XrdSfsFileOffset alignedOffset,
+                           XrdSfsXferSize   alignedLength);
+
+
+     std::pair<off_t, size_t> GetMatchingPart( XrdSfsFileOffset offset,
+                                               XrdSfsXferSize   length,
+                                               XrdSfsFileOffset blockOffset );
+
+         
 
 };
 

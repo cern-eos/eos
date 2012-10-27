@@ -39,6 +39,14 @@ add_library ( EosFstOss MODULE
 	      ../checksum/crc32ctables.cc
 )
 
+
+target_link_libraries (EosFstOss 
+      		       eosCapability-Static
+		       eosCommon-Static
+		       XrdServer	      
+		       uuid 
+)
+										       
 add_library ( XrdEosFst MODULE
 	      XrdFstOfs.cc                   XrdFstOfs.hh
 	      XrdFstOfsFile.cc               XrdFstOfsFile.hh

@@ -160,7 +160,7 @@ Messaging::Listen()
 {
   while(1) {
     XrdSysThread::SetCancelOff();
-    eos_static_debug("RecvMessage");
+    //eos_static_debug("RecvMessage");
     XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
     //    if (newmessage) newmessage->Print();  
     

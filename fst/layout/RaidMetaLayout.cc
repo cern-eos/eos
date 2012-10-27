@@ -46,17 +46,17 @@ RaidMetaLayout::RaidMetaLayout( XrdFstOfsFile*      file,
                                 bool                isStreaming,
                                 off_t               targetSize,
                                 std::string         bookingOpaque ) :
-  Layout( file, lid, client, outError ),
-  mIsRw( false ),
-  mIsOpen( false ),
-  mDoTruncate( false ),
-  mUpdateHeader( false ),
-  mDoneRecovery( false ),
-  mFullDataBlocks( false ),
-  mStoreRecovery( storeRecovery ),
-  mIsStreaming( isStreaming ),
-  mTargetSize( targetSize ),
-  mBookingOpaque( bookingOpaque )
+    Layout( file, lid, client, outError ),
+    mIsRw( false ),
+    mIsOpen( false ),
+    mDoTruncate( false ),
+    mUpdateHeader( false ),
+    mDoneRecovery( false ),
+    mFullDataBlocks( false ),
+    mStoreRecovery( storeRecovery ),
+    mIsStreaming( isStreaming ),
+    mTargetSize( targetSize ),
+    mBookingOpaque( bookingOpaque )
 {
   mAlgorithmType = eos::common::LayoutId::GetLayoutTypeString( lid );
   mStripeWidth = eos::common::LayoutId::GetBlocksize( lid );
@@ -66,6 +66,8 @@ RaidMetaLayout::RaidMetaLayout( XrdFstOfsFile*      file,
   mOffGroupParity = -1;
   mPhysicalStripeIndex = -1;
   mIsEntryServer = false;
+  mFirstBlock = new char[mStripeWidth];
+  mLastBlock = new char[mStripeWidth];
 }
 
 
@@ -85,6 +87,9 @@ RaidMetaLayout::~RaidMetaLayout()
     mMetaHandlers.pop_back();
     delete meta_handler;
   }
+
+  delete[] mFirstBlock;
+  delete[] mLastBlock;
 }
 
 
@@ -236,6 +241,7 @@ RaidMetaLayout::Open( const std::string& path,
     //..........................................................................
     for ( unsigned int i = 0; i < stripe_urls.size(); i++ ) {
       if ( i != mPhysicalStripeIndex ) {
+        eos_info( "Open remote stipe i=%i ", i );
         int envlen;
         const char* val;
         XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env( envlen );
@@ -283,9 +289,11 @@ RaidMetaLayout::Open( const std::string& path,
 
         if ( ret ) {
           eos_err( "error=failed to open remote stripes", stripe_urls[i].c_str() );
-          return gOFS.Emsg( "RaidMetaOpen", *mError, EREMOTEIO,
-                            "open stripes - remote open failed ",
-                            stripe_urls[i].c_str() );
+          //return gOFS.Emsg( "RaidMetaOpen", *mError, EREMOTEIO,
+          //                  "open stripes - remote open failed ",
+          //                  stripe_urls[i].c_str() );
+          delete file;
+          file = NULL;
         }
 
         mStripeFiles.push_back( file );
@@ -299,7 +307,7 @@ RaidMetaLayout::Open( const std::string& path,
         hd = mHdrInfo.back();
         file = mStripeFiles.back();
 
-        if ( hd->ReadFromFile( file ) ) {
+        if ( file && hd->ReadFromFile( file ) ) {
           mapPL.insert( std::make_pair( pos, hd->GetIdStripe() ) );
           mapLP.insert( std::make_pair( hd->GetIdStripe(), pos ) );
         } else {
@@ -338,6 +346,23 @@ RaidMetaLayout::Open( const std::string& path,
   }
 
   mIsOpen = true;
+  eos_info( "Finsh calling open on the file and the files " );
+
+  for ( unsigned int i = 0; i < mStripeFiles.size(); i++ ) {
+    if ( mStripeFiles[i] ) {
+      fprintf( stderr, " indx=%i status=valid \n", i );
+    }
+    else {
+      fprintf( stderr, " indx=%i status=NULL \n", i );
+    }
+  }
+
+  eos_info( "Mapping " );
+
+  for ( unsigned int i = 0; i < mapPL.size(); i++ ) {
+    fprintf( stderr, "physical=%i, logical=%i \n", i, mapPL[i] );
+  }
+  
   return SFS_OK;
 }
 
@@ -416,7 +441,10 @@ RaidMetaLayout::ValidateHeader()
         mHdrInfo[physical_id]->SetNoBlocks( mHdrInfo[hd_id_valid]->GetNoBlocks() );
         mHdrInfo[physical_id]->SetSizeLastBlock( mHdrInfo[hd_id_valid]->GetSizeLastBlock() );
 
-        if ( mStoreRecovery ) {
+        //......................................................................
+        // If file successfully opened and we need to store the info
+        //......................................................................
+        if ( mStripeFiles[physical_id] && mStoreRecovery ) {
           mHdrInfo[physical_id]->WriteToFile( mStripeFiles[physical_id] );
         }
 
@@ -446,13 +474,12 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
                       char*            buffer,
                       XrdSfsXferSize   length )
 {
+  fprintf( stderr, "RaidMetaLayout::Read offset=%li, length=%lu ", offset, length );
   eos::common::Timing rt( "read" );
   COMMONTIMING( "start", &rt );
   off_t nread = 0;
   unsigned int stripe_id;
   unsigned int physical_id;
-  char* orig_buff = buffer;
-  char* ptr_buff = orig_buff;
   int64_t read_length = 0;
   off_t offset_local = 0;
   off_t offset_init = offset;
@@ -525,139 +552,92 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
       // Align to blockchecksum size by expanding the requested range
       //........................................................................
       XrdSfsFileOffset align_offset;
+      XrdSfsFileOffset current_offset;
       XrdSfsXferSize align_length;
-      char* tmp_buff = new char[( 2 * mStripeWidth )];
-      
-      AlignExpandBlocks( offset, length, mStripeWidth, align_offset, align_length );
-      
-      XrdSfsFileOffset saved_align_off = align_offset;
-      XrdSfsFileOffset req_offset = 0;
-      XrdSfsXferSize req_length = 0;
       bool do_recovery = false;
-      bool extra_block_begin = false;
-      bool extra_block_end = false;
+      bool got_error = false;
 
-      while ( align_length > 0 ) {
+      AlignExpandBlocks( buffer, offset, length, align_offset, align_length );
+      
+      for ( unsigned int i = 0; i < mPtrBlocks.size(); i++ ) {
         COMMONTIMING( "read remote in", &rt );
-        extra_block_begin = false;
-        extra_block_end = false;
-        stripe_id = ( align_offset / mStripeWidth ) % mNbDataFiles;
+        got_error = false;
+        current_offset = align_offset + i * mStripeWidth;
+        stripe_id = ( current_offset / mStripeWidth ) % mNbDataFiles;
         physical_id = mapLP[stripe_id];
-        //......................................................................
-        // The read size must be the same as the blockchecksum size
-        //......................................................................
-        nread = mStripeWidth;
-        offset_local = ( align_offset / mSizeLine ) * mStripeWidth ;
+        offset_local = ( current_offset / mSizeLine ) * mStripeWidth ;
 
-        if ( align_offset < offset ) {
-          //....................................................................
-          // We read in the first extra block
-          //....................................................................
-          ptr_buff = tmp_buff;
-          req_offset = offset;
-          extra_block_begin = true;
+        if ( mStripeFiles[physical_id] ) { 
+          if ( physical_id ) {
+            //....................................................................
+            // Do remote read operation
+            //....................................................................
+            eos_info( "Remote read stripe_id=%i, current_offset=%lli, local_offset=%lli",
+                      stripe_id, current_offset, offset_local + mStripeWidth );
 
-          if ( align_length == mStripeWidth ) {
-            req_length = length;
-          } else {
-            req_length  = align_offset + mStripeWidth - offset;
+            handler = mMetaHandlers[physical_id]->Register( current_offset,
+                                                            mStripeWidth,
+                                                            false );
+            mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
+                                             mPtrBlocks[i],
+                                             mStripeWidth,
+                                             static_cast<void*>( handler ) );
           }
-        } else if ( ( align_length == mStripeWidth ) &&
-                    ( align_offset + align_length > offset + length ) ) {
-          //....................................................................
-          // We read in the last extra block
-          //....................................................................
-          ptr_buff = tmp_buff + mStripeWidth;
-          req_offset = align_offset + align_length - mStripeWidth;
-          req_length = offset + length - req_offset;
-          extra_block_end = true;
-        }
+          else {
+            //....................................................................
+            // Do local read operation
+            //....................................................................
+            eos_info( "Local read stripe_id=%i, current_offset=%lli, local_offset=%lli",
+                      stripe_id, current_offset, offset_local + mStripeWidth );
 
-        if ( physical_id ) {
-          //....................................................................
-          // Do remote read operation
-          //....................................................................
-          handler = mMetaHandlers[physical_id]->Register( align_offset,
-                                                          mStripeWidth,
-                                                          false );
-          mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
-                                           ptr_buff,
-                                           mStripeWidth,
-                                           static_cast<void*>( handler ) );
-        } else {
-          //....................................................................
-          // Do local read operation
-          //....................................................................
-          int64_t nbytes = mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
-                                                            ptr_buff,
-                                                            mStripeWidth );
-
-          if ( nbytes != mStripeWidth ) {
-            off_t off_in_file = align_offset;
-
-            //..................................................................
-            // Error in the first extra block
-            //..................................................................
-            if ( extra_block_begin ) {
-              nread = off_in_file + mStripeWidth - offset;
-              off_in_file = offset;
+            int64_t nbytes = mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
+                                                              mPtrBlocks[i],
+                                                              mStripeWidth );
+               
+            if ( nbytes != mStripeWidth ) {
+              got_error = true;
             }
-
-            //..................................................................
-            // Error in the last extra block
-            //..................................................................
-            if ( extra_block_end ) {
-              nread = offset + length - off_in_file;
-            }
-
-            map_all_errors.insert( std::make_pair<off_t, size_t>( off_in_file, nread ) );
-            do_recovery = true;
           }
+        }      
+        else {
+          //..................................................................
+          // File not opened, we register it as a read error
+          //..................................................................
+          got_error = true;
         }
-
-        align_length -= nread;
-        align_offset += nread;
-
-        if ( extra_block_begin || extra_block_end ) {
-          read_length += req_length;
-        } else {
-          read_length += nread;
+      
+        //....................................................................
+        // Save errors in the map to be recovered
+        //....................................................................
+        if ( got_error ) {
+          std::pair<off_t, size_t> err_pair = GetMatchingPart( offset, length, current_offset );
+          map_all_errors.insert( err_pair );
+          eos_info( "Add error offset=%lli, length=%lu ", err_pair.first, err_pair.second );
+          do_recovery = true;
         }
-
-        ptr_buff = buffer + read_length;
       }
-
+    
       //........................................................................
       // Collect errros
       //........................................................................
-      for ( unsigned int i = 0; i < mMetaHandlers.size(); i++ ) {
-        if ( !mMetaHandlers[i]->WaitOK() ) {
-          map_tmp_errors = mMetaHandlers[i]->GetErrorsMap();
-          size_t entry_len;
-          off_t off_in_file;
-
+      for ( unsigned int j = 0; j < mMetaHandlers.size(); j++ ) {
+        if ( !mMetaHandlers[j]->WaitOK() ) {
+          map_tmp_errors = mMetaHandlers[j]->GetErrorsMap();
+          size_t block_len;
+          off_t block_off;
+        
           for ( std::map<uint64_t, uint32_t>::iterator iter = map_tmp_errors.begin();
                 iter != map_tmp_errors.end();
                 iter++ )
           {
-            off_in_file = iter->first;
-            entry_len = iter->second;
-
-            if ( off_in_file < offset ) {
-              //................................................................
-              // Error in the first extra block
-              //................................................................
-              entry_len = off_in_file + mStripeWidth - offset;
-              off_in_file = offset;
-              map_all_errors.insert( std::make_pair<off_t, size_t>( off_in_file, entry_len ) );
-            } else if ( off_in_file + mStripeWidth > offset + length ) {
-              //................................................................
-              // Error in the last extra block
-              //................................................................
-              entry_len = mStripeWidth - ( off_in_file + mStripeWidth - offset - length );
-              map_all_errors.insert( std::make_pair<off_t, size_t>( off_in_file, entry_len ) );
+            block_off = iter->first;
+            block_len = iter->second;
+          
+            if ( ( block_len < offset ) || ( block_off + block_len > offset + length ) ) {
+              std::pair<off_t, size_t> err_pair = GetMatchingPart( offset, length, block_off );
+              map_all_errors.insert( err_pair );              
             } else {
-              map_all_errors.insert( std::make_pair<off_t, size_t>( off_in_file, entry_len ) );
+              map_all_errors.insert( std::make_pair<off_t, size_t>( block_off, block_len ) );
             }
           }
 
@@ -665,75 +645,22 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
         }
       }
 
-      bool multiple_blocks = false;
-      bool have_first_block = false;
-      bool have_last_block = false;
-
-      if ( offset % mStripeWidth ) have_first_block = true;
-
-      if ( ( offset + length ) % mStripeWidth ) have_last_block = true;
-
-      if ( floor( 1.0 * offset / mStripeWidth ) != floor( ( 1.0 * offset + length ) / mStripeWidth ) ) {
-        multiple_blocks = true;
-      }
-
-      if ( !multiple_blocks ) {
-        //......................................................................
-        // We only have one block to copy back
-        //......................................................................
-        ptr_buff = buffer;
-
-        if ( have_first_block ) {
-          req_offset = offset - saved_align_off;
-          req_length = length;
-          ptr_buff = static_cast<char*>( memcpy( ptr_buff,
-                                                 tmp_buff + req_offset,
-                                                 req_length ) );
-        } else if ( have_last_block ) {
-          req_length = length;
-          ptr_buff = static_cast<char*>( memcpy( ptr_buff,
-                                                 tmp_buff + mStripeWidth,
-                                                 req_length ) );
-        }
-      } else {
-        //......................................................................
-        // Copy first block
-        //......................................................................
-        if ( have_first_block ) {
-          ptr_buff = buffer;
-          req_offset = offset - saved_align_off;
-          req_length = mStripeWidth - req_offset;
-          ptr_buff = static_cast<char*>( memcpy( ptr_buff,
-                                                 tmp_buff + req_offset,
-                                                 req_length ) );
-        }
-
-        //......................................................................
-        // Copy last block
-        //......................................................................
-        if ( have_last_block ) {
-          int64_t last_block_off = ( ( offset + length ) / mStripeWidth ) * mStripeWidth;
-          req_length  = offset + length - last_block_off;
-          ptr_buff = buffer + ( last_block_off - offset );
-          ptr_buff = static_cast<char*>( memcpy( ptr_buff,
-                                                 tmp_buff + mStripeWidth,
-                                                 req_length ) );
-        }
-      }
-
+      //........................................................................
+      // Copy any info from the extra blocks to the data buffer
+      //........................................................................
+      eos_info( "Copy info from extra blocks. " );
+      CopyExtraBlocks( buffer, offset, length, align_offset, align_length);
+            
+    
       //........................................................................
       // Try to recover blocks from group
       //........................................................................
       if ( do_recovery && ( !RecoverPieces( offset_init, buffer, map_all_errors ) ) ) {
         eos_err( "error=read recovery failed" );
-        delete[] tmp_buff;
         return SFS_ERROR;
       }
 
-      //........................................................................
-      // Free temporary memory
-      //........................................................................
-      delete[] tmp_buff;
+      read_length = length;
     }
   }
 
@@ -879,15 +806,25 @@ RaidMetaLayout::RecoverPieces( off_t                    offsetInit,
                                char*                    pBuffer,
                                std::map<off_t, size_t>& rMapToRecover )
 {
+  fprintf( stderr, "Calling method." );
   bool success = true;
   std::map<off_t, size_t> tmp_map;
+
+  for ( std::map<off_t, size_t>::iterator iter = rMapToRecover.begin();
+        iter != rMapToRecover.end();
+        iter++ )
+  {
+    fprintf( stderr, "offset=%zu length=%zu.", iter->first, iter->second );
+  }
+
 
   while ( !rMapToRecover.empty() ) {
     off_t group_off = ( rMapToRecover.begin()->first / mSizeGroup ) * mSizeGroup;
 
     for ( std::map<off_t, size_t>::iterator iter = rMapToRecover.begin();
           iter != rMapToRecover.end();
-          /*empty*/ ) {
+          /*empty*/ )
+    {
       if ( ( iter->first >= group_off ) &&
            ( iter->first < group_off + mSizeGroup ) ) {
         tmp_map.insert( std::make_pair( iter->first, iter->second ) );
@@ -1290,9 +1227,14 @@ RaidMetaLayout::Close()
         for ( unsigned int i = 0; i < mStripeFiles.size(); i++ ) {
           mHdrInfo[i]->SetIdStripe( mapPL[i] );
 
-          if ( !mHdrInfo[i]->WriteToFile( mStripeFiles[i] ) ) {
-            eos_err( "error=write header to file failed for stripe:%i", i );
-            return SFS_ERROR;
+          if ( mStripeFiles[i] ) {
+            if ( !mHdrInfo[i]->WriteToFile( mStripeFiles[i] ) ) {
+              eos_err( "error=write header to file failed for stripe:%i", i );
+              return SFS_ERROR;
+            }
+          }
+          else {
+            eos_warning("warning=could not write header info to unopened file.");                        
           }
         }
 
@@ -1303,9 +1245,14 @@ RaidMetaLayout::Close()
       // Close remote files
       //........................................................................
       for ( unsigned int i = 1; i < mStripeFiles.size(); i++ ) {
-        if ( mStripeFiles[i]->Close() ) {
-          eos_err( "error=failed to close remote file %i", i );
-          rc = SFS_ERROR;
+        if ( mStripeFiles[i] ) {
+          if ( mStripeFiles[i]->Close() ) {
+            eos_err( "error=failed to close remote file %i", i );
+            rc = SFS_ERROR;
+          }
+        }
+        else {
+          eos_warning("warning=can not close unopened file.");                        
         }
       }
     }
@@ -1329,19 +1276,160 @@ RaidMetaLayout::Close()
 
 //------------------------------------------------------------------------------
 // Expand the current range so that it is aligned with respect to
-// blockSize operations, either read or write
+// block size operations
 //------------------------------------------------------------------------------
-void RaidMetaLayout::AlignExpandBlocks( XrdSfsFileOffset  offset,
+void RaidMetaLayout::AlignExpandBlocks( char*             ptrBuffer,
+                                        XrdSfsFileOffset  offset,
                                         XrdSfsXferSize    length,
-                                        XrdSfsFileOffset  blockSize,
                                         XrdSfsFileOffset& alignedOffset,
                                         XrdSfsXferSize&   alignedLength )
 {
-  alignedOffset = ( offset / blockSize ) * blockSize;
-  XrdSfsFileOffset end_offset =
-    ceil( ( ( offset +  length ) * 1.0 ) / blockSize ) * blockSize;
-  alignedLength = end_offset - alignedOffset;
+  char* ptr_block;
+  XrdSfsFileOffset tmp_offset;
+  XrdSfsFileOffset end_aligned_offset;
+  XrdSfsFileOffset end_raw_offset = offset + length;
+  
+  alignedOffset = ( offset / mStripeWidth ) * mStripeWidth;
+  alignedLength = ( ceil( ( end_raw_offset * 1.0 ) / mStripeWidth ) * mStripeWidth ) - alignedOffset;
+  end_aligned_offset = alignedOffset + alignedLength;
+
+  mPtrBlocks.clear();
+
+  //............................................................................
+  // There is just one block
+  //............................................................................
+  if ( alignedLength == mStripeWidth ) {
+    if ( alignedOffset < offset ) {
+      // Read in the first extra block
+      mPtrBlocks.push_back( mFirstBlock );
+      eos_debug( "One block, read in the first extra space." );
+    }
+    else {
+      if ( end_aligned_offset > end_raw_offset ) {
+        // Read in the first extra block
+        mPtrBlocks.push_back( mFirstBlock );
+        eos_debug( "One block, read in the first extra space." );
+      }
+      else {
+        // Read directly in the buffer provided
+        ptr_block = ptrBuffer;
+        mPtrBlocks.push_back( ptr_block );
+        eos_debug( "One block, read in place." );
+      }
+    }
+  }
+  else {
+    //..........................................................................
+    // There are multiple blocks
+    //..........................................................................
+    tmp_offset = alignedOffset;
+    if ( alignedOffset < offset ) {
+      // Read in the first extra block
+      mPtrBlocks.push_back( mFirstBlock );
+      tmp_offset += mStripeWidth;
+      eos_debug( "Multiple blocks, one read in the first extra space." );
+    }
+
+    // Read in place the rest of the complete blocks
+    ptr_block = ptrBuffer + ( tmp_offset - offset );
+    while ( tmp_offset + mStripeWidth <= end_raw_offset ) {
+      mPtrBlocks.push_back( ptr_block );
+      ptr_block += mStripeWidth;
+      tmp_offset += mStripeWidth;
+      eos_debug( "Multiple blocks, one read in place." );
+    }
+
+    if ( end_aligned_offset > end_raw_offset ) {
+      // Read in the last extra block
+      mPtrBlocks.push_back( mLastBlock );
+      eos_debug( "Multiple blocks, one read in lastspace." );
+    }  
+  }
 }
+
+//------------------------------------------------------------------------------
+// Get matching part between the inital offset and length and the current
+// block of length mStripeWidth and 
+//------------------------------------------------------------------------------
+std::pair<off_t, size_t>
+RaidMetaLayout::GetMatchingPart( XrdSfsFileOffset offset,
+                                 XrdSfsXferSize   length,
+                                 XrdSfsFileOffset blockOffset )
+{
+  off_t ret_offset = blockOffset;
+  size_t ret_length = mStripeWidth;
+
+  if ( blockOffset < offset ) {
+    ret_offset = offset;
+  }
+
+  if ( blockOffset + ret_length > offset + length ) {
+    ret_length = offset + length -ret_offset;
+  }
+
+  return std::make_pair<off_t, size_t>( ret_offset, ret_length );
+}
+
+
+//..............................................................................
+// Copy any info from the extra blocks to the data buffer
+//..............................................................................
+void
+RaidMetaLayout::CopyExtraBlocks( char*            buffer,
+                                 XrdSfsFileOffset offset,
+                                 XrdSfsXferSize   length,
+                                 XrdSfsFileOffset alignedOffset,
+                                 XrdSfsXferSize   alignedLength )
+{
+  char* ptr_buff;
+  char* ptr_extra;
+  std::pair<off_t, size_t> match_pair;
+  XrdSfsFileOffset end_raw_offset = offset + length;
+  XrdSfsFileOffset end_aligned_offset = alignedOffset + alignedLength;
+
+  //............................................................................
+  // There is just one block
+  //............................................................................
+  if ( alignedLength == mStripeWidth ) {
+    if ( ( alignedOffset < offset ) || ( end_aligned_offset > end_raw_offset ) ) {
+      match_pair = GetMatchingPart( offset, length, alignedOffset );
+      eos_info( "Copy from the first extra block with matching offset=%lli, length=%lu",
+                match_pair.first, match_pair.second );
+      ptr_extra = mFirstBlock + ( match_pair.first - alignedOffset );
+      ptr_buff = buffer;
+      ptr_buff = static_cast<char*>( memcpy( ptr_buff, ptr_extra, match_pair.second ) );    
+    }
+  }  
+  else {
+    //..........................................................................
+    // There are multiple blocks
+    //..........................................................................
+    if ( alignedOffset < offset ) {
+      //........................................................................
+      // Copy the first extra block
+      //........................................................................
+      match_pair = GetMatchingPart( offset, length, alignedOffset );
+      eos_info( "Copy from the first extra block with matching offset=%lli, length=%lu",
+                match_pair.first, match_pair.second );
+      ptr_extra = mFirstBlock + ( match_pair.first - alignedOffset);
+      ptr_buff = buffer;
+      ptr_buff = static_cast<char*>( memcpy( ptr_buff, ptr_extra, match_pair.second ) );    
+    }
+
+    if ( end_aligned_offset > end_raw_offset  ) {
+      //........................................................................
+      // Copy the last extra block
+      //........................................................................
+      XrdSfsFileOffset tmp_offset = end_aligned_offset - mStripeWidth;
+      match_pair = GetMatchingPart( offset, length, tmp_offset );
+      eos_info( "Copy from the last extra block with matching offset=%lli, length=%lu",
+                match_pair.first, match_pair.second );
+      ptr_extra = mLastBlock + ( match_pair.first - tmp_offset );
+      ptr_buff = buffer + ( match_pair.first - offset );
+      ptr_buff = static_cast<char*>( memcpy( ptr_buff, ptr_extra, match_pair.second ) );    
+    }
+  }
+}  
 
 
 EOSFSTNAMESPACE_END

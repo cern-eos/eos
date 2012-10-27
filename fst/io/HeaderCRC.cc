@@ -35,7 +35,7 @@ char HeaderCRC::msTagName[] = "_HEADER__RAIDIO_";
 // Constructor
 //------------------------------------------------------------------------------
 HeaderCRC::HeaderCRC( int sizeHeader):
-  mValid( true ),
+  mValid( false ),
   mNumBlocks( -1 ),
   mIdStripe( -1 ),
   mSizeLastBlock( -1 ),
@@ -50,7 +50,7 @@ HeaderCRC::HeaderCRC( int sizeHeader):
 // Constructor with parameter
 //------------------------------------------------------------------------------
 HeaderCRC::HeaderCRC( int sizeHeader, long long numBlocks ):
-  mValid( true ),
+  mValid( false ),
   mNumBlocks( numBlocks ),
   mIdStripe( -1 ),
   mSizeLastBlock( -1 ),

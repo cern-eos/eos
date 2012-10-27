@@ -37,6 +37,8 @@ extern "C"
                                   const char*   config_fn,
                                   const char*   parms )
   {
+    OssEroute.SetPrefix( "FstOss_" );
+    OssEroute.logger( Logger );
     eos::fst::XrdFstOss* fstOss = new eos::fst::XrdFstOss();
     return ( fstOss->Init( Logger, config_fn ) ? 0 : ( XrdOss* ) fstOss );
   }
@@ -78,7 +80,6 @@ XrdFstOssFile::~XrdFstOssFile()
 int
 XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
 {
-  eos_debug( "Calling XrdFstOssFile::Open" );
   const char* val = 0;
   unsigned long lid = 0;
   off_t booking_size = 0;
@@ -158,7 +159,6 @@ XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
 ssize_t
 XrdFstOssFile::Read( void* buffer, off_t offset, size_t length )
 {
-  eos_debug( "Calling function. " );
   int retc = XrdOssFile::Read( buffer, offset, length );
 
   if ( mBlockXs ) {
@@ -183,7 +183,6 @@ XrdFstOssFile::Read( void* buffer, off_t offset, size_t length )
 ssize_t
 XrdFstOssFile::ReadRaw( void* buffer, off_t offset, size_t length )
 {
-  eos_debug( "Calling function." );
   ssize_t retc = XrdOssFile::ReadRaw( buffer, offset, length );
 
   if ( mBlockXs ) {
@@ -305,7 +304,7 @@ XrdFstOssFile::Close( long long* retsz )
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOss::XrdFstOss():
-  eos::common::LogId()
+    eos::common::LogId()
 {
   OssEroute.Say( "Calling the constructor of XrdFstOss. " );
 }

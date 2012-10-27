@@ -226,8 +226,19 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   std::map<uint64_t, uint32_t> mapErrors;
   vector<unsigned int> simple_parity = GetSimpleParityIndices();
   vector<unsigned int> double_parity = GetDoubleParityIndices();
+  fprintf( stderr, "Allocating %i slots for status_blocks. \n", mNbTotalBlocks );
   status_blocks = static_cast<bool*>( calloc( mNbTotalBlocks, sizeof( bool ) ) );
 
+  fprintf( stderr,"Size of rMapToRecover is: %li \n", rMapToRecover.size() );
+  for ( std::map<off_t, size_t>::iterator iter = rMapToRecover.begin();
+        iter != rMapToRecover.end();
+        iter++ )
+  {
+    fprintf( stderr, "Content rMapToRecover is offset=%zu, offset=%zu. \n",
+             iter->first, iter->second );
+  }    
+  
+  
   //............................................................................
   // Reset the async handlers
   //............................................................................
@@ -247,16 +258,22 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       //........................................................................
       // Do remote read operation
       //........................................................................
-      uint64_t line_offset = offset_group + ( i / mNbTotalFiles ) *
-                             ( mStripeWidth * mNbDataFiles );
-      handler = mMetaHandlers[physical_id]->Register( line_offset,
-                                                      mStripeWidth,
-                                                      false );
-      
-      mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
-                                       mDataBlocks[i],
-                                       mStripeWidth,
-                                       static_cast<void*>( handler ) );
+      if ( mStripeFiles[physical_id] ) {
+        uint64_t line_offset = offset_group + ( i / mNbTotalFiles ) *
+                               ( mStripeWidth * mNbDataFiles );
+        handler = mMetaHandlers[physical_id]->Register( line_offset,
+                                                        mStripeWidth,
+                                                        false );
+        
+        mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
+                                         mDataBlocks[i],
+                                         mStripeWidth,
+                                         static_cast<void*>( handler ) );
+      }
+      else {
+        status_blocks[i] = false;
+        corrupt_ids.push_back( i );
+      }
     } else {
       //........................................................................
       // Do local read operation
@@ -291,6 +308,17 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
     }
   }
 
+  fprintf( stderr, "The corrupted block are: \n" );
+  for ( unsigned int i = 0; i < corrupt_ids.size(); i++ ) {
+    fprintf( stderr, "corrupt_ids[%i]=%i \n", i, corrupt_ids[i] );
+  }
+
+  fprintf( stderr, "Status blocks: \n" );
+  for ( unsigned int i = 0; i < mNbTotalBlocks; i++ ) {
+    fprintf( stderr, "status_blocks[%i]=%i \n", i, status_blocks[i] );
+  }
+
+  
   if ( corrupt_ids.empty() ) {
     free( status_blocks );
     eos_warning( "warning=no corrupted blocks, although we saw some before" );
@@ -343,15 +371,23 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
           //....................................................................
           // Do remote write operation
           //....................................................................
-          handler = mMetaHandlers[physical_id]->Register( 0, mStripeWidth, true );
-          mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
-                                            mDataBlocks[id_corrupted],
-                                            mStripeWidth,
-                                            static_cast<void*>( handler ) );
+          if ( mStripeFiles[physical_id] ) {
+            eos_info( "Do remote write operation" );
+            handler = mMetaHandlers[physical_id]->Register( 0, mStripeWidth, true );
+            mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
+                                              mDataBlocks[id_corrupted],
+                                              mStripeWidth,
+                                              static_cast<void*>( handler ) );
+          }
+          else {
+            eos_warning("warning=could not write recovered block because file is "
+                        "not opened ( simple parity).");
+          }
         } else {
           //....................................................................
           // Do local write operation
           //....................................................................
+          eos_info( "Do local write operation" );
           int nwrite = mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
                                                          mDataBlocks[id_corrupted],
                                                          mStripeWidth );
@@ -369,11 +405,13 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       //......................................................................
       for ( std::map<off_t, size_t>::iterator iter = rMapToRecover.begin();
             iter != rMapToRecover.end();
-            ++iter )
+            iter++ )
       {
         offset = iter->first;
         length = iter->second;
 
+        fprintf( stderr, "Return offset=%zu, length=%zu. \n", offset, length );
+        
         //......................................................................
         // If not SP or DP, maybe we have to return it
         //......................................................................
@@ -383,6 +421,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
           if ( ( offset >= ( off_t )( offset_group + MapBigToSmall( id_corrupted ) * mStripeWidth ) ) &&
                ( offset < ( off_t )( offset_group + ( MapBigToSmall( id_corrupted ) + 1 ) * mStripeWidth ) ) )
           {
+            fprintf( stderr, "The block needs to be returned. \n" );
             pBuff = pBuffer + ( offset - offsetInit );
             pBuff = static_cast<char*>( memcpy( pBuff,
                                                 mDataBlocks[id_corrupted] + ( offset % mStripeWidth ),
@@ -429,11 +468,17 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
             //....................................................................
             // Do remote write operation
             //....................................................................
-            handler = mMetaHandlers[physical_id]->Register( 0, mStripeWidth, true );
-            mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
-                                              mDataBlocks[id_corrupted],
-                                              mStripeWidth,
-                                              static_cast<void*>( handler ) );
+            if ( mStripeFiles[physical_id] ) {
+              handler = mMetaHandlers[physical_id]->Register( 0, mStripeWidth, true );
+              mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
+                                                mDataBlocks[id_corrupted],
+                                                mStripeWidth,
+                                                static_cast<void*>( handler ) );
+            }
+            else {
+              eos_warning("warning=could not write recovered block because file is "
+                          "not opened ( double parity ).");
+            }
           } else {
             //....................................................................
             // Do local write operation
@@ -455,7 +500,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
         //......................................................................
         for ( std::map<off_t, size_t>::iterator iter = rMapToRecover.begin();
               iter != rMapToRecover.end();
-              ++iter )
+              iter++ )
         {
           offset = iter->first;
           length = iter->second;
@@ -740,6 +785,8 @@ RaidDpLayout::ValidHorizStripe( std::vector<unsigned int>& rStripes,
                                 bool*                      pStatusBlock,
                                 unsigned int               blockId )
 {
+  fprintf( stderr, "ValidHorzStripe: mNbTotalFiles=%i \n", mNbTotalFiles );
+  
   int corrupted = 0;
   long int base_id = ( blockId / mNbTotalFiles ) * mNbTotalFiles;
   rStripes.clear();
@@ -926,9 +973,11 @@ RaidDpLayout::Truncate( XrdSfsFileOffset offset )
       eos_debug( "Truncate stripe %i, to file_offset = %lli, stripe_offset = %zu",
                  i, offset, truncate_offset );
 
-      if ( mStripeFiles[i]->Truncate( offset ) ) {
-        eos_err( "error=error while truncating" );
-        return SFS_ERROR;
+      if ( mStripeFiles[i] ) {
+        if ( mStripeFiles[i]->Truncate( offset ) ) {
+          eos_err( "error=error while truncating" );
+          return SFS_ERROR;
+        }
       }
     }
   }
