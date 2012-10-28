@@ -1051,7 +1051,7 @@ XrdFstOfsFile::close()
 	}
       }
       if ( ( strcmp( layOut->GetName(), "raidDP" ) == 0 ) ||
-           !( strcmp( layOut->GetName(), "reedS" ) == 0 ) ) {
+           ( strcmp( layOut->GetName(), "reedS" ) == 0 ) ) {
         //......................................................................
         // For RAID-like layouts don't do this check
         //......................................................................

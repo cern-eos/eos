@@ -228,17 +228,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   vector<unsigned int> double_parity = GetDoubleParityIndices();
   fprintf( stderr, "Allocating %i slots for status_blocks. \n", mNbTotalBlocks );
   status_blocks = static_cast<bool*>( calloc( mNbTotalBlocks, sizeof( bool ) ) );
-
-  fprintf( stderr,"Size of rMapToRecover is: %li \n", rMapToRecover.size() );
-  for ( std::map<off_t, size_t>::iterator iter = rMapToRecover.begin();
-        iter != rMapToRecover.end();
-        iter++ )
-  {
-    fprintf( stderr, "Content rMapToRecover is offset=%zu, offset=%zu. \n",
-             iter->first, iter->second );
-  }    
-  
-  
+ 
   //............................................................................
   // Reset the async handlers
   //............................................................................

@@ -181,7 +181,6 @@ RaidMetaLayout::Open( const std::string& path,
   mHdrInfo.push_back( new HeaderCRC( mStripeWidth ) );
   mMetaHandlers.push_back( new AsyncMetaHandler() );
   mSizeHeader = mStripeWidth;
-
   
   //......................................................................
   // Read header information for the local file
@@ -806,17 +805,8 @@ RaidMetaLayout::RecoverPieces( off_t                    offsetInit,
                                char*                    pBuffer,
                                std::map<off_t, size_t>& rMapToRecover )
 {
-  fprintf( stderr, "Calling method." );
   bool success = true;
   std::map<off_t, size_t> tmp_map;
-
-  for ( std::map<off_t, size_t>::iterator iter = rMapToRecover.begin();
-        iter != rMapToRecover.end();
-        iter++ )
-  {
-    fprintf( stderr, "offset=%zu length=%zu.", iter->first, iter->second );
-  }
-
 
   while ( !rMapToRecover.empty() ) {
     off_t group_off = ( rMapToRecover.begin()->first / mSizeGroup ) * mSizeGroup;
