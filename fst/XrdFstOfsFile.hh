@@ -22,8 +22,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __XRDFST_FSTOFSFILE_HH__
-#define __XRDFST_FSTOFSFILE_HH__
+#ifndef __EOSFST_FSTOFSFILE_HH__
+#define __EOSFST_FSTOFSFILE_HH__
 
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
@@ -46,11 +46,6 @@ EOSFSTNAMESPACE_BEGIN
 
 // Forward declaration 
 class Layout;
-//class ReplicaParLayout;
-//class RaidMetaLayout;
-//class RaidDpLayout;
-//class ReedSLayout;
-
 
 //------------------------------------------------------------------------------
 //! Class
@@ -218,7 +213,6 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
     XrdOucEnv*   openOpaque;
     XrdOucEnv*   capOpaque;
     XrdOucString fstPath;
-    CheckSum*    fstBlockXS;
     off_t        bookingsize;
     off_t        targetsize;
     off_t        minsize;
@@ -226,8 +220,6 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
     bool         viaDelete;
     bool         remoteDelete;
     bool         writeDelete;
-    unsigned long long fstBlockSize;
-
 
     XrdOucString Path;
     XrdOucString localPrefix;
@@ -235,6 +227,7 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
     XrdOucString SecString;
     XrdSysMutex  ChecksumMutex;
 
+    bool hasBlockXs;           ///< mark if file has blockxs assigned
     unsigned long long fileid; // file id
     unsigned long fsid;        // file system id
     unsigned long lid;         // layout id

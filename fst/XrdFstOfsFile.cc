@@ -46,8 +46,7 @@ XrdFstOfsFile::XrdFstOfsFile( const char* user, int MonID ) :
   openOpaque = 0;
   capOpaque = 0;
   fstPath = "";
-  fstBlockXS = 0;
-  fstBlockSize = 0;
+  hasBlockXs = false;
   eos::common::LogId();
   closed = false;
   opened = false;
@@ -316,12 +315,6 @@ XrdFstOfsFile::open( const char*                path,
   cid = strtoull( scid, 0, 10 );
 
   //............................................................................
-  // Extract blocksize from the layout
-  //............................................................................
-  fstBlockSize = eos::common::LayoutId::GetBlocksize( lid );
-  eos_info( "blocksize=%llu lid=%x", fstBlockSize, lid );
-
-  //............................................................................
   // Check if this is an open for replication
   //............................................................................
   if ( Path.beginswith( "/replicate:" ) ) {
@@ -392,12 +385,6 @@ XrdFstOfsFile::open( const char*                path,
       }
     }
   }
-
-  //............................................................................
-  // Code dealing with block checksums
-  //............................................................................
-  eos_info( "blocksize=%llu layoutid=%x oxs=<%s>",
-            fstBlockSize, lid, opaqueBlockCheckSum.c_str() );
 
   //............................................................................
   // Get the identity
@@ -506,13 +493,27 @@ XrdFstOfsFile::open( const char*                path,
     }
   }
 
-//........................................................................
-  // Get layout implementation
-  //........................................................................
-  int rc = layOut->Open( fstPath.c_str(),
-                         open_mode,
-                         create_mode,
-                         stringOpaque.c_str() );
+  //............................................................................
+  // Save block xs opaque information for the OSS layer
+  //............................................................................
+  XrdOucString oss_opaque = "";
+  oss_opaque += "&mgm.blockchecksum=";
+  oss_opaque += opaqueBlockCheckSum;
+  oss_opaque += "&mgm.lid=";
+  oss_opaque += slid;
+  oss_opaque += "&mgm.bookingsize=";
+  oss_opaque += static_cast<int>( bookingsize );
+  oss_opaque += "&mgm.targetsize=";
+  oss_opaque += static_cast<int>( targetsize );
+  
+  if ( opaqueBlockCheckSum != "ignore" ) {
+    hasBlockXs = true;
+  }
+  
+  //............................................................................
+  // Open layout implementation
+  //............................................................................
+  int rc = layOut->Open( fstPath.c_str(), open_mode, create_mode, oss_opaque.c_str());
 
   if ( ( !rc ) && isCreation && bookingsize ) {
     // ----------------------------------
@@ -812,7 +813,7 @@ XrdFstOfsFile::verifychecksum()
   if ( checkSum ) {
     checkSum->Finalize();
     if (checkSum->NeedsRecalculation()) {
-      if ( (!isRW) && ( (srBytes)  || (checkSum->GetMaxOffset() != openSize) ) ) {
+      if ( (!isRW) && ( (srBytes)  || ( checkSum->GetMaxOffset() != openSize ) ) && hasBlockXs ) {
 	//............................................................................
 	// we don't rescan files if they are read non-sequential or only partially
 	//............................................................................
@@ -841,7 +842,11 @@ XrdFstOfsFile::verifychecksum()
         //......................................................................
 	if (checkSum->ScanFile(fd, scansize, scantime)) {
 	  XrdOucString sizestring;
-	  eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %x", eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"), scantime, 1.0*scansize/1000/(scantime?scantime:99999999999999LL), checkSum->GetHexChecksum());
+	  eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %x",
+                   eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"),
+                   scantime,
+                   1.0*scansize/1000/(scantime?scantime:99999999999999LL),
+                   checkSum->GetHexChecksum());
 	} else {
 	  eos_err("Rescanning of checksum failed");
 	}
@@ -981,13 +986,16 @@ XrdFstOfsFile::close()
       // or the specified checksum does not match the computed one
       //........................................................................
       if (viaDelete) {
-	eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\"  fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
+	eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\"  fsid=%u fxid=%08x on fsid=%u ",
+                 fMd->fMd.fsid, fMd->fMd.fid);
       }
       if (writeDelete) {
-	eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\" fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
+	eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\" fsid=%u fxid=%08x on fsid=%u ",
+                 fMd->fMd.fsid, fMd->fMd.fid);
       }
       if (remoteDelete) {
-	eos_info("msg=\"(unpersist): deleting file\" reason=\"remote deletion\"    fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
+	eos_info("msg=\"(unpersist): deleting file\" reason=\"remote deletion\"    fsid=%u fxid=%08x on fsid=%u ",
+                 fMd->fMd.fsid, fMd->fMd.fid);
       }
 
       //........................................................................
@@ -1037,19 +1045,19 @@ XrdFstOfsFile::close()
       }
 
       eos_info( "calling verifychecksum" );
-      //........................................................................
-      // Call checksum verification
-      //........................................................................
       checksumerror = verifychecksum();
       targetsizeerror = ( targetsize ) ? ( targetsize != ( off_t )maxOffsetWritten ) : false;
+      
       if (isCreation) {
-	// check that the minimum file size policy is met!
+	// Check that the minimum file size policy is met!
 	minimumsizeerror = (minsize)?( (off_t)maxOffsetWritten < minsize):false;
 	
 	if (minimumsizeerror) {
-	  eos_warning("written file %s is smaller than required minimum file size=%llu written=%llu", Path.c_str(), minsize, maxOffsetWritten);
+	  eos_warning("written file %s is smaller than required minimum file size=%llu written=%llu",
+                      Path.c_str(), minsize, maxOffsetWritten);
 	}
       }
+      
       if ( ( strcmp( layOut->GetName(), "raidDP" ) == 0 ) ||
            ( strcmp( layOut->GetName(), "reedS" ) == 0 ) ) {
         //......................................................................
@@ -1283,7 +1291,7 @@ XrdFstOfsFile::close()
     }
 
     int closerc =0; // return of the close
-    brc = rc; // return before the close
+    brc = rc;       // return before the close
 
     if ( layOut ) {
       closerc = layOut->Close();
@@ -1296,7 +1304,7 @@ XrdFstOfsFile::close()
     
     if (closerc) {
       //........................................................................
-      // some (remote) replica didn't make it through ... trigger an auto-repair
+      // Some (remote) replica didn't make it through ... trigger an auto-repair
       //........................................................................
       if (!deleteOnClose) {
 	repairOnClose = true;
