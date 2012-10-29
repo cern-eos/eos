@@ -473,7 +473,6 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
                       char*            buffer,
                       XrdSfsXferSize   length )
 {
-  fprintf( stderr, "RaidMetaLayout::Read offset=%li, length=%lu ", offset, length );
   eos::common::Timing rt( "read" );
   COMMONTIMING( "start", &rt );
   off_t nread = 0;
@@ -482,6 +481,7 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
   int64_t read_length = 0;
   off_t offset_local = 0;
   off_t offset_init = offset;
+  off_t end_raw_offset = offset + length;
   std::map<off_t, size_t> map_all_errors;
   std::map<uint64_t, uint32_t> map_tmp_errors;
   ChunkHandler* handler = NULL;
@@ -500,7 +500,7 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
       return 0;
     }
 
-    if ( offset + length > mFileSize ) {
+    if ( end_raw_offset > mFileSize ) {
       eos_warning( "warning=read to big, resizing the read length" );
       length = mFileSize - offset;
     }
@@ -619,12 +619,13 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
       //........................................................................
       // Collect errros
       //........................................................................
+      off_t block_off;
+      size_t block_len;
+      
       for ( unsigned int j = 0; j < mMetaHandlers.size(); j++ ) {
         if ( !mMetaHandlers[j]->WaitOK() ) {
           map_tmp_errors = mMetaHandlers[j]->GetErrorsMap();
-          size_t block_len;
-          off_t block_off;
-        
+       
           for ( std::map<uint64_t, uint32_t>::iterator iter = map_tmp_errors.begin();
                 iter != map_tmp_errors.end();
                 iter++ )
@@ -632,7 +633,9 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
             block_off = iter->first;
             block_len = iter->second;
           
-            if ( ( block_len < offset ) || ( block_off + block_len > offset + length ) ) {
+            if ( ( block_off < offset ) ||
+                 ( block_off + block_len > static_cast<size_t>( end_raw_offset ) ) )
+              {
               std::pair<off_t, size_t> err_pair = GetMatchingPart( offset, length, block_off );
               map_all_errors.insert( err_pair );              
             } else {
@@ -1349,11 +1352,11 @@ RaidMetaLayout::GetMatchingPart( XrdSfsFileOffset offset,
   off_t ret_offset = blockOffset;
   size_t ret_length = mStripeWidth;
 
-  if ( blockOffset < offset ) {
+  if ( blockOffset < static_cast<off_t>( offset ) ) {
     ret_offset = offset;
   }
 
-  if ( blockOffset + ret_length > offset + length ) {
+  if ( blockOffset + ret_length > static_cast<size_t>( offset + length ) ) {
     ret_length = offset + length -ret_offset;
   }
 

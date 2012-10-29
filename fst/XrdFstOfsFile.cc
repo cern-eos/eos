@@ -751,7 +751,11 @@ XrdFstOfsFile::MakeReportEnv( XrdOucString& reportString )
     wsigma = wvec.size()?( sqrt(wsum2/wvec.size()) ):0;
     
     char report[16384];
-    snprintf(report,sizeof(report)-1, "log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&cts=%lu&ctms=%lu&rb=%llu&rb_min=%llu&rb_max=%llu&rb_sigma=%.02f&wb=%llu&wb_min=%llu&wb_max=%llu&&wb_sigma=%.02f&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f&osize=%llu&csize=%llu&%s"
+    snprintf(report,sizeof(report)-1, "log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&"
+             "lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&cts=%lu&ctms=%lu&rb=%llu&"
+             "rb_min=%llu&rb_max=%llu&rb_sigma=%.02f&wb=%llu&wb_min=%llu&wb_max=%llu&&"
+             "wb_sigma=%.02f&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f&"
+             "osize=%llu&csize=%llu&%s"
 	     ,this->logId
 	     ,Path.c_str()
 	     ,this->vid.uid
