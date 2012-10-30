@@ -33,12 +33,59 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/FileIo.hh"
 #include "fst/XrdFstOfsFile.hh"
+#include "io/SimpleHandler.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
+
+class AsyncMetaHandler;
+
+static const uint64_t xrdDefaultBlocksize = 1024 * 1024;  ///< 1MB default
+
+//------------------------------------------------------------------------------
+//! Struct that holds a readahead buffer and corresponding handler
+//------------------------------------------------------------------------------
+struct ReadaheadBlock {
+
+  //----------------------------------------------------------------------------
+  //! Constuctor
+  //!
+  //! @param blocksize the size of the readahead
+  //!  
+  //----------------------------------------------------------------------------
+  ReadaheadBlock( uint64_t blocksize = xrdDefaultBlocksize ) {
+    buffer = new char[blocksize];
+    handler = new SimpleHandler();
+  }
+
+
+  //----------------------------------------------------------------------------
+  //! Update current request 
+  //!
+  //! @param offset offset
+  //! @param length length
+  //! @param isWrite true if write request, otherwise false
+  //!  
+  //----------------------------------------------------------------------------
+  void Update( uint64_t offset, uint32_t length, bool isWrite ) {
+    handler->Update( offset, length, isWrite);
+  }
+
+  
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~ReadaheadBlock() {
+    delete[] buffer;
+    delete handler;    
+  }
+  
+  char*          buffer;  ///< pointer to where the data is read
+  SimpleHandler* handler; ///< async handler for the requests
+};
+  
 
 //------------------------------------------------------------------------------
 //! Class used for doing remote IO operations using the Xrd client
@@ -198,9 +245,36 @@ class XrdFileIo: public FileIo
 
   private:
 
-    std::string mPath;      ///< path to file
-    XrdCl::File* mXrdFile;  ///< handler to xrd file
+    int              mIndex;        ///< inded of readahead block in use ( 0 or 1 )
+    bool             mDoReadahead;  ///< mark if readahead is enabled
+    uint32_t         mBlocksize;    ///< block size for rd/wr opertations
+    std::string      mPath;         ///< path to file
+    XrdCl::File*     mXrdFile;      ///< handler to xrd file
+    ReadaheadBlock** mReadahead;    ///< two blocks used for readahead
 
+
+    //--------------------------------------------------------------------------
+    //! Method used to prefetch the next block using the readahead mechanism
+    //!
+    //! @param offsetEnd end of the current block we are reading
+    //! @param isWrite true if block is for write, false otherwise
+    //!
+    //--------------------------------------------------------------------------
+    void PrefetchBlock( uint64_t offsetEnd, bool isWrite );
+
+  
+    //--------------------------------------------------------------------------
+    //! Disable copy constructor
+    //--------------------------------------------------------------------------
+    XrdFileIo( const XrdFileIo& ) = delete;
+
+  
+    //--------------------------------------------------------------------------
+    //! Disable assign operator
+    //--------------------------------------------------------------------------
+    XrdFileIo& operator =( const XrdFileIo& ) = delete;
+
+  
 };
 
 EOSFSTNAMESPACE_END

@@ -162,6 +162,18 @@ class ReedSLayout : public RaidMetaLayout
                        unsigned int*              pIndexes,
                        std::vector<unsigned int>& validId );
 
+  
+    //--------------------------------------------------------------------------
+    //! Disable copy constructor
+    //--------------------------------------------------------------------------
+    ReedSLayout( const ReedSLayout& ) = delete;
+
+  
+    //--------------------------------------------------------------------------
+    //! Disable assign operator
+    //--------------------------------------------------------------------------
+    ReedSLayout& operator =( const ReedSLayout& ) = delete;
+
 };
 
 EOSFSTNAMESPACE_END

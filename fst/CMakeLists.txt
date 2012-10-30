@@ -54,6 +54,7 @@ add_library ( XrdEosFst MODULE
 	      io/HeaderCRC.cc                io/HeaderCRC.hh
 	      io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
 	      io/ChunkHandler.cc             io/ChunkHandler.hh
+	      io/SimpleHandler.cc            io/SimpleHandler.hh
 
   	      layout/FileIoPlugin.hh
 	      layout/FileIo.hh 
@@ -154,6 +155,7 @@ add_executable( eoscp
 		io/HeaderCRC.cc                io/HeaderCRC.hh
 	        io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
 	        io/ChunkHandler.cc             io/ChunkHandler.hh
+		io/SimpleHandler.cc            io/SimpleHandler.hh	
 
 	        layout/FileIo.hh 
     	        layout/FileIoPlugin.hh

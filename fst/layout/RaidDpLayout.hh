@@ -253,6 +253,18 @@ class RaidDpLayout : public RaidMetaLayout
 
 
     //--------------------------------------------------------------------------
+    //! Disable copy constructor
+    //--------------------------------------------------------------------------
+    RaidDpLayout( const RaidDpLayout& ) = delete;
+
+  
+    //--------------------------------------------------------------------------
+    //! Disable assign operator
+    //--------------------------------------------------------------------------
+    RaidDpLayout& operator =( const RaidDpLayout& ) = delete;
+
+
+    //--------------------------------------------------------------------------
     //! Do recovery using simple parity
     //!
     //! @param offsetInit file offset corresponding to byte 0 from the buffer

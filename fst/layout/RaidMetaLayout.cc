@@ -152,6 +152,14 @@ RaidMetaLayout::Open( const std::string& path,
                       "open stripes - no stripe head defined" );
   }
 
+  //.........................................................................
+  // Add opaque information to enable readahead
+  //.........................................................................
+  XrdOucString enhanced_opaque = opaque;
+  enhanced_opaque += "&eos.readahead=true";
+  enhanced_opaque += "&eos.blocksize=";
+  enhanced_opaque += static_cast<int>( mStripeWidth );
+
   //..........................................................................
   // Do open on local stripe - force it in RDWR mode
   //..........................................................................
@@ -162,7 +170,7 @@ RaidMetaLayout::Open( const std::string& path,
                                             mError );
   flags |= SFS_O_RDWR;
 
-  if ( file && file->Open( path, flags, mode, opaque ) ) {
+  if ( file && file->Open( path, flags, mode, enhanced_opaque.c_str() ) ) {
     eos_err( "error=failed to open local ", path.c_str() );
     return gOFS.Emsg( "ReplicaOpen", *mError, EIO,
                       "open replica - local open failed ", path.c_str() );
@@ -278,19 +286,18 @@ RaidMetaLayout::Open( const std::string& path,
                             XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update,
                             XrdCl::Access::UR | XrdCl::Access::UW |
                             XrdCl::Access::GR | XrdCl::Access::GW |
-                            XrdCl::Access::OR , opaque );
+                            XrdCl::Access::OR , enhanced_opaque.c_str() );
         } else {
           //....................................................................
           // Read case - we always open in RDWR mode
           //....................................................................
-          ret = file->Open( stripe_urls[i], XrdCl::OpenFlags::Update, 0, opaque );
+          ret = file->Open( stripe_urls[i],
+                            XrdCl::OpenFlags::Update, 0,
+                            enhanced_opaque.c_str() );
         }
 
         if ( ret ) {
-          eos_err( "error=failed to open remote stripes", stripe_urls[i].c_str() );
-          //return gOFS.Emsg( "RaidMetaOpen", *mError, EREMOTEIO,
-          //                  "open stripes - remote open failed ",
-          //                  stripe_urls[i].c_str() );
+          eos_warning( "warning=failed to open remote stripes", stripe_urls[i].c_str() );
           delete file;
           file = NULL;
         }
@@ -484,7 +491,6 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
   off_t end_raw_offset = offset + length;
   std::map<off_t, size_t> map_all_errors;
   std::map<uint64_t, uint32_t> map_tmp_errors;
-  ChunkHandler* handler = NULL;
 
   if ( !mIsEntryServer ) {
     //..........................................................................
@@ -565,6 +571,7 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
         stripe_id = ( current_offset / mStripeWidth ) % mNbDataFiles;
         physical_id = mapLP[stripe_id];
         offset_local = ( current_offset / mSizeLine ) * mStripeWidth ;
+        offset_local += mStripeWidth;  //add header size
 
         if ( mStripeFiles[physical_id] ) { 
           if ( physical_id ) {
@@ -572,24 +579,20 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
             // Do remote read operation
             //....................................................................
             eos_info( "Remote read stripe_id=%i, current_offset=%lli, local_offset=%lli",
-                      stripe_id, current_offset, offset_local + mStripeWidth );
-
-            handler = mMetaHandlers[physical_id]->Register( current_offset,
-                                                            mStripeWidth,
-                                                            false );
-            mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
+                      stripe_id, current_offset, offset_local );
+            mStripeFiles[physical_id]->Read( offset_local,
                                              mPtrBlocks[i],
                                              mStripeWidth,
-                                             static_cast<void*>( handler ) );
+                                             mMetaHandlers[physical_id] );
           }
           else {
             //....................................................................
             // Do local read operation
             //....................................................................
             eos_info( "Local read stripe_id=%i, current_offset=%lli, local_offset=%lli",
-                      stripe_id, current_offset, offset_local + mStripeWidth );
+                      stripe_id, current_offset, offset_local );
 
-            int64_t nbytes = mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
+            int64_t nbytes = mStripeFiles[physical_id]->Read( offset_local,
                                                               mPtrBlocks[i],
                                                               mStripeWidth );
                
@@ -619,8 +622,7 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
       //........................................................................
       // Collect errros
       //........................................................................
-      off_t block_off;
-      size_t block_len;
+      size_t len;
       
       for ( unsigned int j = 0; j < mMetaHandlers.size(); j++ ) {
         if ( !mMetaHandlers[j]->WaitOK() ) {
@@ -630,13 +632,17 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
                 iter != map_tmp_errors.end();
                 iter++ )
           {
-            block_off = iter->first;
-            block_len = iter->second;
+            offset_local = iter->first;
+            offset_local -= mStripeWidth; // remove header size
+            
+            current_offset = ( offset_local / mStripeWidth ) * mSizeLine +
+              ( mStripeWidth * mapPL[j] ) + ( offset_local % mStripeWidth );
+            len = iter->second;
           
-            if ( ( block_off < offset ) ||
-                 ( block_off + block_len > static_cast<size_t>( end_raw_offset ) ) )
+            if ( ( current_offset < offset ) ||
+                 ( current_offset + len > static_cast<size_t>( end_raw_offset ) ) )
               {
-              std::pair<off_t, size_t> err_pair = GetMatchingPart( offset, length, block_off );
+              std::pair<off_t, size_t> err_pair = GetMatchingPart( offset, length, current_offset );
               map_all_errors.insert( err_pair );              
             } else {
               map_all_errors.insert( std::make_pair( block_off, block_len ) );
@@ -688,7 +694,6 @@ RaidMetaLayout::Write( XrdSfsFileOffset offset,
   off_t offset_end = offset + length;
   unsigned int stripe_id;
   unsigned int physical_id;
-  ChunkHandler* handler = NULL;
 
   if ( !mIsEntryServer ) {
     //..........................................................................
@@ -709,22 +714,22 @@ RaidMetaLayout::Write( XrdSfsFileOffset offset,
       nwrite = ( length < mStripeWidth ) ? length : mStripeWidth;
       offset_local = ( ( offset / mSizeLine ) * mStripeWidth ) +
                      ( offset % mStripeWidth );
+      offset_local += mStripeWidth;
       COMMONTIMING( "write remote", &wt );
 
       if ( physical_id ) {
         //......................................................................
         // Do remote write operation - chunk info is not interesting
         //......................................................................
-        handler = mMetaHandlers[physical_id]->Register( 0, nwrite, true );
-        mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
+        mStripeFiles[physical_id]->Write( offset_local,
                                           buffer,
                                           nwrite,
-                                          static_cast<void*>( handler ) );
+                                          mMetaHandlers[physical_id] );
       } else {
         //......................................................................
         // Do local write operation
         //......................................................................
-        mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
+        mStripeFiles[physical_id]->Write( offset_local,
                                           buffer,
                                           nwrite );
       }
@@ -899,7 +904,6 @@ RaidMetaLayout::ReadGroup( off_t offsetGroup )
   off_t offset_local;
   bool ret = true;
   int id_stripe;
-  ChunkHandler* handler = NULL;
 
   for ( unsigned int i = 0; i < mMetaHandlers.size(); i++ ) {
     mMetaHandlers[i]->Reset();
@@ -914,21 +918,21 @@ RaidMetaLayout::ReadGroup( off_t offsetGroup )
     physical_id = mapLP[id_stripe];
     offset_local = ( offsetGroup / ( mNbDataFiles * mStripeWidth ) ) *
                    mStripeWidth + ( ( i / mNbDataFiles ) * mStripeWidth );
+    offset_local += mStripeWidth;
 
     if ( physical_id ) {
       //........................................................................
       // Do remote read operation - chunk info is not interesting at this point
       //........................................................................
-      handler = mMetaHandlers[physical_id]->Register( 0, mStripeWidth, false );
-      mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
+      mStripeFiles[physical_id]->Read( offset_local,
                                        mDataBlocks[MapSmallToBig( i )],
                                        mStripeWidth,
-                                       static_cast<void*>( handler ) );
+                                       mMetaHandlers[physical_id] );
     } else {
       //........................................................................
       // Do local read operation
       //........................................................................
-      int64_t nbytes = mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
+      int64_t nbytes = mStripeFiles[physical_id]->Read( offset_local,
                                                         mDataBlocks[MapSmallToBig( i )],
                                                         mStripeWidth );
 
@@ -1344,6 +1348,8 @@ void RaidMetaLayout::AlignExpandBlocks( char*             ptrBuffer,
 // Get matching part between the inital offset and length and the current
 // block of length mStripeWidth and 
 //------------------------------------------------------------------------------
+
+//TODO: look into more efficient ways of copying this information4
 std::pair<off_t, size_t>
 RaidMetaLayout::GetMatchingPart( XrdSfsFileOffset offset,
                                  XrdSfsXferSize   length,

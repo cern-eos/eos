@@ -156,7 +156,7 @@ XrdFstOfsFile::open( const char*                path,
   hostName = gOFS.HostName;
   gettimeofday( &openTime, &tz );
   XrdOucString stringOpaque = opaque;
-  XrdOucString opaqueBlockCheckSum = "";
+  XrdOucString opaqueBlockCheckSum = "ignore";
   XrdOucString opaqueCheckSum = "";
 
   while ( stringOpaque.replace( "?", "&" ) ) {}
@@ -496,6 +496,12 @@ XrdFstOfsFile::open( const char*                path,
   //............................................................................
   // Save block xs opaque information for the OSS layer
   //............................................................................
+  if ( eos::common::LayoutId::GetBlockChecksum( lid ) ) {
+    opaqueBlockCheckSum = "";
+    hasBlockXs = true;
+  }
+  
+  
   XrdOucString oss_opaque = "";
   oss_opaque += "&mgm.blockchecksum=";
   oss_opaque += opaqueBlockCheckSum;
@@ -506,9 +512,6 @@ XrdFstOfsFile::open( const char*                path,
   oss_opaque += "&mgm.targetsize=";
   oss_opaque += static_cast<int>( targetsize );
   
-  if ( opaqueBlockCheckSum != "ignore" ) {
-    hasBlockXs = true;
-  }
   
   //............................................................................
   // Open layout implementation

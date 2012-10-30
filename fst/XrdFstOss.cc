@@ -136,7 +136,7 @@ XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
                    xs_path.c_str() );
           return -EIO;
         }
-
+        
         //......................................................................
         // Add the new file blockchecksum mapping
         //......................................................................
@@ -163,7 +163,6 @@ XrdFstOssFile::Read( void* buffer, off_t offset, size_t length )
 
   if ( mBlockXs ) {
     XrdSysRWLockHelper wr_lock( mRWLockXs, 0 );
-
     if ( ( retc > 0 ) &&
          ( !mBlockXs->CheckBlockSum( offset, static_cast<const char*>( buffer ), retc ) ) )
     {

@@ -188,6 +188,17 @@ class PlainLayout : public Layout
 
     FileIo* mPlainFile; ///< file handler, in this case the same as the initial one
 
+    //--------------------------------------------------------------------------
+    //! Disable copy constructor
+    //--------------------------------------------------------------------------
+    PlainLayout( const PlainLayout& ) = delete;
+
+  
+    //--------------------------------------------------------------------------
+    //! Disable assign operator
+    //--------------------------------------------------------------------------
+    PlainLayout& operator =( const PlainLayout& ) = delete;
+
 };
 
 EOSFSTNAMESPACE_END

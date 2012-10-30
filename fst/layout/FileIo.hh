@@ -63,6 +63,7 @@ class FileIo: public eos::common::LogId
     FileIo( XrdFstOfsFile*      file,
             const XrdSecEntity* client,
             XrdOucErrInfo*      error ):
+      eos::common::LogId(),
       mLocalPath( "" ),
       mLogicalFile( file ),
       mError( error ),

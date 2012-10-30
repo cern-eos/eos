@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: ChunkHandler.hh
+// File: SimpleHandler.hh
 // Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
@@ -22,17 +22,19 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-//! @file ChunkHandler.hh
+//! @file SimpleHandler.hh
 //! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class holding information about an asynchronous request and a pointer
-//!        to the file the request belongs to
+//! @brief Class holding information about an asynchronous request
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_CHUNKHANDLER_HH__
-#define __EOS_CHUNKHANDLER_HH__
+#ifndef __EOS_SIMPLEHANDLER_HH__
+#define __EOS_SIMPLEHANDLER_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "fst/io/AsyncMetaHandler.hh"
+#include "fst/Namespace.hh"
+/*----------------------------------------------------------------------------*/
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -40,44 +42,58 @@ EOSFSTNAMESPACE_BEGIN
 // -----------------------------------------------------------------------------
 //! Class holding information about an asynchronous request
 // -----------------------------------------------------------------------------
-class ChunkHandler: public XrdCl::ResponseHandler
+class SimpleHandler: public XrdCl::ResponseHandler
 {
  public:
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param reqHandler handler to the file meta handler
   //! @param offset request offset
   //! @param length request length
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
-  ChunkHandler( AsyncMetaHandler* reqHandler,
-                uint64_t          offset,
-                uint32_t          length,
-                bool              isWrite);
+  SimpleHandler(uint64_t  offset = 0,
+                uint32_t  length = 0,
+                bool      isWrite = false );
 
   
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~ChunkHandler();
+  ~SimpleHandler();
 
 
   //----------------------------------------------------------------------------
   //! Update function
   //!
-  //! @param reqHandler handler to the file meta handler
   //! @param offset request offset
   //! @param length request length
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
-  void Update( AsyncMetaHandler* reqHandler,
-               uint64_t          offset,
-               uint32_t          length,
-               bool              isWrite);
+  void Update( uint64_t  offset,
+               uint32_t  length,
+               bool      isWrite );
+
+  
+  //----------------------------------------------------------------------------
+  //! Wait for request to be done 
+  //!
+  //! @return status of the request
+  //!
+  //----------------------------------------------------------------------------
+  bool WaitOK();
+  
+
+  //----------------------------------------------------------------------------
+  //! Get if there is any request to process
+  //!
+  //! @return true if there is a request, false otherwise
+  //!
+  //----------------------------------------------------------------------------
+  bool HasRequest();  
 
   
   //----------------------------------------------------------------------------
@@ -105,10 +121,10 @@ class ChunkHandler: public XrdCl::ResponseHandler
 
 
   //----------------------------------------------------------------------------
-  //! Get errno
+  //! Get response chunk status
   //----------------------------------------------------------------------------
-  inline uint32_t GetErrno() const {
-    return mErrorNo;
+  inline bool GetRespStatus() const {
+    return mRespOK;
   };
 
   
@@ -133,15 +149,17 @@ class ChunkHandler: public XrdCl::ResponseHandler
 
  private:
 
-  AsyncMetaHandler* mMetaHandler; ///< handler to the whole file meta handler
-  uint64_t          mOffset;      ///< offset of the request
-  uint32_t          mLength;      ///< length of the request
-  uint32_t          mRespLength;  ///< length of response received, only for reads
-  bool              mIsWrite;     ///< operation type is write
-  int               mErrorNo;     ///< error no for this request
+  uint64_t      mOffset;      ///< offset of the request
+  uint32_t      mLength;      ///< length of the request
+  uint32_t      mRespLength;  ///< length of response received, only for reads
+  bool          mIsWrite;     ///< operation type is write
+  bool          mRespOK;      ///< mark if the resp status is ok
+  bool          mReqDone;     ///< mark if the request was done
+  bool          mHasReq;      ///< mark if there is any request to proceess
+  XrdSysCondVar mCond;        ///< cond. variable used for synchronisation
   
 };
 
 EOSFSTNAMESPACE_END
 
-#endif   // __EOS_CHUNKHANDLER_HH__
+#endif   // __EOS_SIMPLEHANDLER_HH__

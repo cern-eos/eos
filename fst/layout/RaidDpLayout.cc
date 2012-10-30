@@ -214,7 +214,6 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   bool ret = true;
   bool* status_blocks;
   char* pBuff;
-  ChunkHandler* handler = NULL;
   size_t length;
   off_t offset_local;
   unsigned int stripe_id;
@@ -243,22 +242,17 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
     physical_id = mapLP[stripe_id];
     offset_local = ( offset_group / mSizeLine ) *  mStripeWidth +
                    ( ( i / mNbTotalFiles ) * mStripeWidth );
+    offset_local += mStripeWidth;
 
     if ( physical_id ) {
       //........................................................................
       // Do remote read operation
       //........................................................................
       if ( mStripeFiles[physical_id] ) {
-        uint64_t line_offset = offset_group + ( i / mNbTotalFiles ) *
-                               ( mStripeWidth * mNbDataFiles );
-        handler = mMetaHandlers[physical_id]->Register( line_offset,
-                                                        mStripeWidth,
-                                                        false );
-        
-        mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
+        mStripeFiles[physical_id]->Read( offset_local,
                                          mDataBlocks[i],
                                          mStripeWidth,
-                                         static_cast<void*>( handler ) );
+                                         mMetaHandlers[physical_id] );
       }
       else {
         status_blocks[i] = false;
@@ -268,7 +262,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       //........................................................................
       // Do local read operation
       //........................................................................
-      int nread = mStripeFiles[physical_id]->Read( offset_local + mSizeHeader,
+      int nread = mStripeFiles[physical_id]->Read( offset_local,
                                                    mDataBlocks[i],
                                                    mStripeWidth );
 
@@ -290,7 +284,9 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
             iter != mapErrors.end();
             iter++ )
       {
-        int line = ( ( iter->first % mSizeGroup ) / mSizeLine );
+        offset_local = iter->first;
+        offset_local -= mStripeWidth;
+        int line = ( ( offset_local % mSizeLine ) / mStripeWidth );
         int index = line * mNbTotalFiles + mapPL[i];
         status_blocks[index] = false;
         corrupt_ids.push_back( index );
@@ -355,6 +351,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       physical_id = mapLP[stripe_id];
       offset_local = ( ( offset_group / mSizeLine ) * mStripeWidth ) +
                      ( ( id_corrupted / mNbTotalFiles ) * mStripeWidth );
+      offset_local += mStripeWidth;
 
       if ( mStoreRecovery ) {
         if ( physical_id ) {
@@ -362,12 +359,10 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
           // Do remote write operation
           //....................................................................
           if ( mStripeFiles[physical_id] ) {
-            eos_info( "Do remote write operation" );
-            handler = mMetaHandlers[physical_id]->Register( 0, mStripeWidth, true );
-            mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
+           mStripeFiles[physical_id]->Write( offset_local,
                                               mDataBlocks[id_corrupted],
                                               mStripeWidth,
-                                              static_cast<void*>( handler ) );
+                                              mMetaHandlers[physical_id] );
           }
           else {
             eos_warning("warning=could not write recovered block because file is "
@@ -378,7 +373,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
           // Do local write operation
           //....................................................................
           eos_info( "Do local write operation" );
-          int nwrite = mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
+          int nwrite = mStripeFiles[physical_id]->Write( offset_local,
                                                          mDataBlocks[id_corrupted],
                                                          mStripeWidth );
 
@@ -452,6 +447,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
         physical_id = mapLP[stripe_id];
         offset_local = ( ( offset_group / mSizeLine ) * mStripeWidth ) +
                        ( ( id_corrupted / mNbTotalFiles ) * mStripeWidth );
+        offset_local += mStripeWidth;
 
         if ( mStoreRecovery ) {
           if ( physical_id ) {
@@ -459,11 +455,10 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
             // Do remote write operation
             //....................................................................
             if ( mStripeFiles[physical_id] ) {
-              handler = mMetaHandlers[physical_id]->Register( 0, mStripeWidth, true );
-              mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
+              mStripeFiles[physical_id]->Write( offset_local,
                                                 mDataBlocks[id_corrupted],
                                                 mStripeWidth,
-                                                static_cast<void*>( handler ) );
+                                                mMetaHandlers[physical_id] );
             }
             else {
               eos_warning("warning=could not write recovered block because file is "
@@ -473,9 +468,9 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
             //....................................................................
             // Do local write operation
             //....................................................................
-            int nwrite = mStripeFiles[physical_id]->Write( offset_local + mSizeHeader,
-                         mDataBlocks[id_corrupted],
-                         mStripeWidth );
+            int nwrite = mStripeFiles[physical_id]->Write( offset_local,
+                                                           mDataBlocks[id_corrupted],
+                                                           mStripeWidth );
 
             if ( nwrite != mStripeWidth ) {
               eos_err( "error=while doing local write operation offset=%lli",
@@ -617,7 +612,6 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
   off_t off_parity_local;
   unsigned int index_pblock;
   unsigned int index_dpblock;
-  ChunkHandler* handler = NULL;
   unsigned int physical_pindex = mapLP[mNbTotalFiles - 2];
   unsigned int physical_dpindex = mapLP[mNbTotalFiles - 1];
   mMetaHandlers[physical_pindex]->Reset();
@@ -627,6 +621,7 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
     index_pblock = ( i + 1 ) * mNbDataFiles + 2 * i;
     index_dpblock = ( i + 1 ) * ( mNbDataFiles + 1 ) +  i;
     off_parity_local = ( offsetGroup / mNbDataFiles ) + ( i * mStripeWidth );
+    off_parity_local += mStripeWidth;
 
     //..........................................................................
     // Writing simple parity
@@ -635,16 +630,15 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
       //........................................................................
       // Do remote write operation
       //........................................................................
-      handler = mMetaHandlers[physical_pindex]->Register( 0, mStripeWidth, true );
-      mStripeFiles[physical_pindex]->Write( off_parity_local + mSizeHeader,
+      mStripeFiles[physical_pindex]->Write( off_parity_local,
                                             mDataBlocks[index_pblock],
                                             mStripeWidth,
-                                            static_cast<void*>( handler ) );
+                                            mMetaHandlers[physical_pindex] );
     } else {
       //........................................................................
       // Do local write operation
       //........................................................................
-      mStripeFiles[physical_pindex]->Write( off_parity_local + mSizeHeader,
+      mStripeFiles[physical_pindex]->Write( off_parity_local,
                                             mDataBlocks[index_pblock],
                                             mStripeWidth );
     }
@@ -656,16 +650,15 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
       //........................................................................
       // Do remote write operation
       //........................................................................
-      handler = mMetaHandlers[physical_dpindex]->Register( 0, mStripeWidth, true );
-      mStripeFiles[physical_dpindex]->Write( off_parity_local + mSizeHeader,
+      mStripeFiles[physical_dpindex]->Write( off_parity_local,
                                              mDataBlocks[index_dpblock],
                                              mStripeWidth,
-                                             static_cast<void*>( handler ) );
+                                             mMetaHandlers[physical_dpindex] );
     } else {
       //........................................................................
       // Do local write operation
       //........................................................................
-      int64_t nwrite = mStripeFiles[physical_dpindex]->Write( off_parity_local + mSizeHeader,
+      int64_t nwrite = mStripeFiles[physical_dpindex]->Write( off_parity_local,
                                                               mDataBlocks[index_dpblock],
                                                               mStripeWidth );
 

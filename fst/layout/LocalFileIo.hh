@@ -220,6 +220,19 @@ class LocalFileIo: public FileIo
                            XrdSfsXferSize   length,
                            void*            handler );
 
+  
+    //--------------------------------------------------------------------------
+    //! Disable copy constructor
+    //--------------------------------------------------------------------------
+    LocalFileIo( const LocalFileIo& ) = delete;
+
+  
+    //--------------------------------------------------------------------------
+    //! Disable assign operator
+    //--------------------------------------------------------------------------
+    LocalFileIo& operator =( const LocalFileIo& ) = delete;
+
+
 };
 
 EOSFSTNAMESPACE_END
