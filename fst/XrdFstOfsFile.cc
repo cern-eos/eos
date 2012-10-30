@@ -156,7 +156,6 @@ XrdFstOfsFile::open( const char*                path,
   hostName = gOFS.HostName;
   gettimeofday( &openTime, &tz );
   XrdOucString stringOpaque = opaque;
-  XrdOucString opaqueBlockCheckSum = "ignore";
   XrdOucString opaqueCheckSum = "";
 
   while ( stringOpaque.replace( "?", "&" ) ) {}
@@ -169,10 +168,6 @@ XrdFstOfsFile::open( const char*                path,
 
   if ( ( val = openOpaque->Get( "mgm.logid" ) ) ) {
     SetLogId( val, tident );
-  }
-
-  if ( ( val = openOpaque->Get( "mgm.blockchecksum" ) ) ) {
-    opaqueBlockCheckSum = val;
   }
 
   if ( ( val = openOpaque->Get( "mgm.checksum" ) ) ) {
@@ -496,15 +491,11 @@ XrdFstOfsFile::open( const char*                path,
   //............................................................................
   // Save block xs opaque information for the OSS layer
   //............................................................................
-  if ( eos::common::LayoutId::GetBlockChecksum( lid ) ) {
-    opaqueBlockCheckSum = "";
+  if ( eos::common::LayoutId::GetBlockChecksum( lid ) != eos::common::LayoutId::kNone ) {
     hasBlockXs = true;
   }
   
-  
   XrdOucString oss_opaque = "";
-  oss_opaque += "&mgm.blockchecksum=";
-  oss_opaque += opaqueBlockCheckSum;
   oss_opaque += "&mgm.lid=";
   oss_opaque += slid;
   oss_opaque += "&mgm.bookingsize=";
@@ -1151,13 +1142,13 @@ XrdFstOfsFile::close()
             closeSize = statinfo.st_size;
             fMd->fMd.size     = statinfo.st_size;
             fMd->fMd.disksize = statinfo.st_size;
-            fMd->fMd.mgmsize  = 0xfffffff1ULL;    // now again undefined
-            fMd->fMd.mgmchecksum = "";            // now again empty
-            fMd->fMd.layouterror = 0;             // reset layout errors
-            fMd->fMd.locations   = "";            // reset locations
+            fMd->fMd.mgmsize  = 0xfffffffffff1ULL; // now again undefined
+            fMd->fMd.mgmchecksum = "";             // now again empty
+            fMd->fMd.layouterror = 0;              // reset layout errors
+            fMd->fMd.locations   = "";             // reset locations
             fMd->fMd.filecxerror = 0;
             fMd->fMd.blockcxerror = 0;
-	    fMd->fMd.locations   = "";            // reset locations
+	    fMd->fMd.locations   = "";             // reset locations
 	    fMd->fMd.filecxerror = 0;
 	    fMd->fMd.blockcxerror= 0;
             fMd->fMd.mtime    = statinfo.st_mtime;

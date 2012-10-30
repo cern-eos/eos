@@ -26,6 +26,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOss.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+#include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
 
 extern XrdSysError OssEroute;
@@ -83,12 +84,7 @@ XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
   const char* val = 0;
   unsigned long lid = 0;
   off_t booking_size = 0;
-  XrdOucString block_xs_type = "";
   mPath = path;
-
-  if ( ( val = env.Get( "mgm.blockchecksum" ) ) ) {
-    block_xs_type = val;
-  }
 
   if ( ( val = env.Get( "mgm.lid" ) ) ) {
     lid = atol( val );
@@ -110,8 +106,8 @@ XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
          ( O_RDONLY | O_WRONLY | O_RDWR | O_CREAT  | O_TRUNC ) ) != 0 ) {
     mIsRW = true;
   }
-
-  if ( ( block_xs_type != "ignore" ) && ( lid ) ) {
+  
+  if ( eos::common::LayoutId::GetBlockChecksum( lid ) != eos::common::LayoutId::kNone ) {
     //..........................................................................
     // Look for a blockchecksum obj corresponding to this file
     //..........................................................................
@@ -243,7 +239,7 @@ XrdFstOssFile::Close( long long* retsz )
       //........................................................................
       // If multiple references
       //........................................................................
-      if ( mBlockXs->GetNumRef( true ) == 0 && mIsRW ) {
+      if ( ( mBlockXs->GetNumRef( true ) == 0 ) && mIsRW ) {
         //......................................................................
         // If one last writer and this is the current one
         //......................................................................
@@ -265,7 +261,7 @@ XrdFstOssFile::Close( long long* retsz )
       if ( mIsRW ) {
         if ( !mBlockXs->ChangeMap( statinfo.st_size, true ) ) {
           eos_err( "error=Unable to change block checksum map" );
-          retc = -1;
+          retc = 1;
         } else {
           eos_info( "info=\"adjusting block XS map\"" );
         }
@@ -277,7 +273,7 @@ XrdFstOssFile::Close( long long* retsz )
 
       if ( !mBlockXs->CloseMap() ) {
         eos_err( "error=unable to close block checksum map" );
-        retc = -1;
+        retc = 1;
       }
 
       delete_mapping = true;

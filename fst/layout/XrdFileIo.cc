@@ -212,12 +212,12 @@ XrdFileIo::Read( XrdSfsFileOffset offset,
     bool done_reading = false;
     SimpleHandler* sh= mReadahead[mIndex]->handler;
     if ( sh->HasRequest() ) {
-      eos_debug( "Have a request, now we wait for it" );
+      eos_debug( "Have a request, now we wait for it." );
       if ( sh->WaitOK() ) {
         if ( ( static_cast<uint64_t>( offset ) >= sh->GetOffset() ) &&
              ( static_cast<uint64_t>( offset + length ) <= sh->GetOffset() + sh->GetRespLength() ) )
         {
-          eos_debug( "Got error from readahead cache ##$$##!" );
+          eos_debug( "Got block from readahead cache ##$$##!" );
           uint64_t shift = offset - sh->GetOffset();
           char* ptr_buffer = mReadahead[mIndex]->buffer + shift;
           buffer = static_cast<char*>( memcpy( buffer, ptr_buffer, length ) );
