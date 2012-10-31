@@ -19,6 +19,7 @@ BuildRequires: sparsehash
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
 BuildRequires: fuse-devel, fuse
 BuildRequires: xrootd-cl-devel
+BuildRequires: leveldb-devel
 %if 0%{?rhel} < 6
 BuildRequires: gcc44, gcc44-c++
 %else
