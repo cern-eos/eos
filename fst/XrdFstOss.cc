@@ -378,7 +378,7 @@ XrdFstOss::AddMapping( const std::string& fileName,
     //..........................................................................
     if ( pair_value.second->GetTotalRef() == 0 ) {
       delete pair_value.second;
-      pair_value = std::make_pair<XrdSysRWLock*, CheckSum*>( pair_value.first, blockXs );
+      pair_value = std::make_pair( pair_value.first, blockXs );
       mMapFileXs[fileName] = pair_value;
       eos_info( "Update old entry, map size: %i. ", mMapFileXs.size() );
     } else {
@@ -390,7 +390,7 @@ XrdFstOss::AddMapping( const std::string& fileName,
     return pair_value.first;
   } else {
     XrdSysRWLock* mutex_xs = new XrdSysRWLock();
-    pair_value = std::make_pair<XrdSysRWLock*, CheckSum*>( mutex_xs, blockXs );
+    pair_value = std::make_pair( mutex_xs, blockXs );
     //..........................................................................
     // Can increment without the lock as no one knows about this obj yet
     //..........................................................................
@@ -424,7 +424,7 @@ XrdFstOss::GetXsObj( const std::string& fileName, bool isRW )
 
     if ( xs_obj->GetTotalRef() != 0 ) {
       xs_obj->IncrementRef( isRW );
-      return std::make_pair<XrdSysRWLock*, CheckSum*>( mutex_xs, xs_obj );
+      return std::make_pair( mutex_xs, xs_obj );
     } else {
       //........................................................................
       // If no refs., it means the obj was closed and waiting to be deleted

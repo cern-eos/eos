@@ -456,15 +456,15 @@ RaidIo::Read( XrdSfsFileOffset offset,
             //................................................................
             entry_len = off_in_file + mStripeWidth - offset;
             off_in_file = offset;
-            map_all_errors.insert( std::make_pair<off_t, size_t>( off_in_file, entry_len ) );
+            map_all_errors.insert( std::make_pair( off_in_file, entry_len ) );
           } else if ( off_in_file + mStripeWidth > offset + length ) {
             //................................................................
             // Error in the last extra block
             //................................................................
             entry_len = mStripeWidth - ( off_in_file + mStripeWidth - offset - length );
-            map_all_errors.insert( std::make_pair<off_t, size_t>( off_in_file, entry_len ) );
+            map_all_errors.insert( std::make_pair( off_in_file, entry_len ) );
           } else {
-            map_all_errors.insert( std::make_pair<off_t, size_t>( off_in_file, entry_len ) );
+            map_all_errors.insert( std::make_pair( off_in_file, entry_len ) );
           }
         }
         

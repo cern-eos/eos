@@ -639,7 +639,7 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
               std::pair<off_t, size_t> err_pair = GetMatchingPart( offset, length, block_off );
               map_all_errors.insert( err_pair );              
             } else {
-              map_all_errors.insert( std::make_pair<off_t, size_t>( block_off, block_len ) );
+              map_all_errors.insert( std::make_pair( block_off, block_len ) );
             }
           }
 
@@ -1360,7 +1360,7 @@ RaidMetaLayout::GetMatchingPart( XrdSfsFileOffset offset,
     ret_length = offset + length -ret_offset;
   }
 
-  return std::make_pair<off_t, size_t>( ret_offset, ret_length );
+  return std::make_pair( ret_offset, ret_length );
 }
 
 
