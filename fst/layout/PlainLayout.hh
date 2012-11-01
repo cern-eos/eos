@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: PlainLayout.hh
-// Author: Andreas-Joachim Peters - CERN
+//! @file PlainLayout.hh
+//! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
+//! @brief Layout of a plain file without any replication or striping
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,19 +22,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-//! @file PlainLayout.hh
-//! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
-//! @brief Layout of a plain file without any replication or striping
-//------------------------------------------------------------------------------
-
 #ifndef __EOSFST_PLAINLAYOUT_HH__
 #define __EOSFST_PLAINLAYOUT_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/Layout.hh"
 /*----------------------------------------------------------------------------*/
-
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -193,7 +187,7 @@ class PlainLayout : public Layout
     //--------------------------------------------------------------------------
     PlainLayout( const PlainLayout& ) = delete;
 
-  
+
     //--------------------------------------------------------------------------
     //! Disable assign operator
     //--------------------------------------------------------------------------

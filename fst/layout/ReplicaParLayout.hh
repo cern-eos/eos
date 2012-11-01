@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: ReplicaParLayout.hh
-// Author: Andreas-Joachim Peters - CERN
+//! @file ReplicaParLayout.hh
+//! @author Andreas-Joachim Peters - CERN
+//! @brief Physical layout of a file with replicas
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -20,12 +21,6 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-//------------------------------------------------------------------------------
-//! @file ReplicaParLayout.hh
-//! @author Andreas-Joachim Peters - CERN
-//! @brief Physical layout of a file with replicas
-//------------------------------------------------------------------------------
 
 #ifndef __EOSFST_REPLICAPARLAYOUT_HH__
 #define __EOSFST_REPLICAPARLAYOUT_HH__
@@ -197,3 +192,4 @@ class ReplicaParLayout : public Layout
 EOSFSTNAMESPACE_END
 
 #endif  // __EOSFST_REPLICAPARLAYOUT_HH__
+

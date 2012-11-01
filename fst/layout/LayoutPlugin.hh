@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: LayoutPlugin.hh
-// Author: Andreas-Joachim Peters - CERN
+//! @file LayoutPlugin.hh
+//! @author Andreas-Joachim Peters - CERN
+//! @brief Class generating a layout plugin object
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -20,12 +21,6 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-//------------------------------------------------------------------------------
-//! @file LayoutPlugin.hh
-//! @author Andreas-Joachim Peters - CERN
-//! @brief Class generating a layout plugin object
-//------------------------------------------------------------------------------
 
 #ifndef __EOSFST_LAYOUTPLUGIN_HH__
 #define __EOSFST_LAYOUTPLUGIN_HH__
@@ -51,13 +46,13 @@ class LayoutPlugin
     //! Constructor
     //--------------------------------------------------------------------------
     LayoutPlugin();
-  
+
 
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
     ~LayoutPlugin();
-  
+
 
     //--------------------------------------------------------------------------
     //! Get layout object

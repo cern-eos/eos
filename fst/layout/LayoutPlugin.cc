@@ -80,4 +80,3 @@ LayoutPlugin::GetLayoutObject( XrdFstOfsFile*      file,
 
 EOSFSTNAMESPACE_END
 
-

@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: LocalFileIo.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file LocalFileIo.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Class used for doing local IO operations
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -20,12 +21,6 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-//------------------------------------------------------------------------------
-//! @file LocalFileIo.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class used for doing local IO operations
-//------------------------------------------------------------------------------
 
 #ifndef __EOSFST_LOCALFILEIO__HH__
 #define __EOSFST_LOCALFILEIO__HH__
@@ -221,13 +216,13 @@ class LocalFileIo: public FileIo
                            XrdSfsXferSize   length,
                            void*            handler );
 
-  
+
     //--------------------------------------------------------------------------
     //! Disable copy constructor
     //--------------------------------------------------------------------------
     LocalFileIo( const LocalFileIo& ) = delete;
 
-  
+
     //--------------------------------------------------------------------------
     //! Disable assign operator
     //--------------------------------------------------------------------------
@@ -239,6 +234,5 @@ class LocalFileIo: public FileIo
 EOSFSTNAMESPACE_END
 
 #endif  // __EOSFST_LOCALFILEIO_HH__
-
 
 

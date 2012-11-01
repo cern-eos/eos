@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: RaidDpLayout.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file RaidDpLayout.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Implementation of the RAID-double parity layout
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -20,12 +21,6 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-//------------------------------------------------------------------------------
-//! @file RaidDpLayout.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Implementation of the RAID-double parity layout
-//------------------------------------------------------------------------------
 
 #ifndef __EOSFST_RAIDDPLAYOUT_HH__
 #define __EOSFST_RAIDDPLAYOUT_HH__
@@ -257,7 +252,7 @@ class RaidDpLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     RaidDpLayout( const RaidDpLayout& ) = delete;
 
-  
+
     //--------------------------------------------------------------------------
     //! Disable assign operator
     //--------------------------------------------------------------------------

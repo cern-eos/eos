@@ -1,4 +1,3 @@
-
 //------------------------------------------------------------------------------
 // File: ReedSLayout.cc
 // Author: Elvin-Alin Sindrilaru - CERN
@@ -23,14 +22,13 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "fst/layout/ReedSLayout.hh"
 #include "common/Timing.hh"
+#include "fst/layout/ReedSLayout.hh"
 /*----------------------------------------------------------------------------*/
 #include <cmath>
 #include <map>
 #include <set>
 #include <algorithm>
-#include <fcntl.h>
 #include "fst/zfec/fec.h"
 /*----------------------------------------------------------------------------*/
 
@@ -143,7 +141,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
                                          mDataBlocks[i],
                                          mStripeWidth,
                                          mMetaHandlers[physical_id],
-                                         true );
+                                         true ); //enable readahead
       } else {
         //........................................................................
         // Do local read operation
@@ -151,7 +149,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
         int nread = mStripeFiles[physical_id]->Read( offset_local,
                                                      mDataBlocks[i],
                                                      mStripeWidth );
-        
+
         if ( nread != mStripeWidth ) {
           eos_err( "error=local block corrupted id=%i.", i );
           invalid_ids.push_back( i );
@@ -160,14 +158,13 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
           valid_ids.push_back( i );
         }
       }
-    }
-    else {
+    } else {
       //........................................................................
       // File not opened, register it as an error
       //........................................................................
       invalid_ids.push_back( i );
       num_blocks_corrupted++;
-    }         
+    }
   }
 
   //............................................................................
@@ -191,7 +188,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       }
     }
   }
-  
+
   if ( num_blocks_corrupted == 0 ) {
     return true;
   } else if ( num_blocks_corrupted > mNbParityFiles ) {
@@ -212,19 +209,18 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   for ( unsigned int i = 0; i < valid_ids.size(); i++ ) {
     inpkts[i] = ( const unsigned char* ) mDataBlocks[indexes[i]];
   }
-  
+
   //............................................................................
   // Add the invalid data blocks to be recovered
   //............................................................................
   bool data_corrupted = false;
   bool parity_corrupted = false;
-  
   //............................................................................
   // Obs: The indices of the blocks to be recovered have to be sorted in ascending
   // order. So outpkts has to point to the corrupted blocks in ascending order.
   //............................................................................
   sort( invalid_ids.begin(), invalid_ids.end() );
-  
+
   for ( unsigned int i = 0; i < invalid_ids.size(); i++ ) {
     outpkts[i] = ( unsigned char* ) mDataBlocks[invalid_ids[i]];
 
@@ -259,8 +255,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
 
   for ( vector<unsigned int>::iterator iter = invalid_ids.begin();
         iter != invalid_ids.end();
-        ++iter )
-  {
+        ++iter ) {
     stripe_id = *iter;
     physical_id = mapLP[stripe_id];
 
@@ -318,8 +313,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   //............................................................................
   for ( vector<unsigned int>::iterator iter = invalid_ids.begin();
         iter != invalid_ids.end();
-        ++iter )
-  {
+        ++iter ) {
     if ( !mMetaHandlers[mapLP[*iter]]->WaitOK() ) {
       eos_err( "ReedSRecovery - write stripe failed" );
       ret = false;
@@ -489,7 +483,7 @@ ReedSLayout::WriteParityToFiles( off_t offsetGroup )
   int ret = SFS_OK;
   unsigned int physical_id;
   off_t offset_local = ( offsetGroup / mNbDataFiles ) + mStripeWidth;
-  
+
   for ( unsigned int i = mNbDataFiles; i < mNbTotalFiles; i++ ) {
     physical_id = mapLP[i];
 
@@ -584,37 +578,6 @@ ReedSLayout::MapSmallToBig( unsigned int idSmall )
 
   return idSmall;
 }
-
-
-/*
-OBS:: can be used if updated are allowed
-//------------------------------------------------------------------------------
-// Recompute and write to files the parity blocks of the groups between the two limits
-//------------------------------------------------------------------------------
-int
-ReedSLayout::updateParityForGroups(off_t offsetStart, off_t offsetEnd)
-{
-  off_t offset_group;
-  off_t offset_block;
-
-  for (unsigned int i = (offsetStart / mSizeGroup);
-       i < ceil((offsetEnd * 1.0 ) / mSizeGroup); i++)
-  {
-    offset_group = i * mSizeGroup;
-    for(unsigned int j = 0; j < mNbDataFiles; j++)
-    {
-      offset_block = offset_group + j * mStripeWidth;
-      read(offset_block, mDataBlocks[j], mStripeWidth);
-    }
-
-    //compute parity blocks and write to files
-    ComputeParity();
-    writeParityToFiles(offset_group/mNbDataFiles);
-  }
-
-  return SFS_OK;
-}
-*/
 
 EOSFSTNAMESPACE_END
 

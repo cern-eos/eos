@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: PlainLayout.cc
-// Author: Andreas-Joachim Peters - CERN
+// Author: Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -45,7 +45,6 @@ PlainLayout::PlainLayout( XrdFstOfsFile*      file,
                                           mOfsFile,
                                           mSecEntity,
                                           mError );
-
   mIsEntryServer = true;
 }
 

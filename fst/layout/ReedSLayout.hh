@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: ReedSLayout.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file ReedSLayout.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Implementation of the Reed-Solomon layout
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -20,12 +21,6 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-//------------------------------------------------------------------------------
-//! @file ReedSLayout.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Implementation of the Reed-Solomon layout
-//------------------------------------------------------------------------------
 
 #ifndef __EOSFST_REEDSFILE_HH__
 #define __EOSFST_REEDSFILE_HH__
@@ -65,7 +60,7 @@ class ReedSLayout : public RaidMetaLayout
                  off_t               targetSize = 0,
                  std::string         bookingOpaque = "oss.size" );
 
-  
+
     //--------------------------------------------------------------------------
     //! Truncate file
     //!
@@ -76,7 +71,7 @@ class ReedSLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     virtual int Truncate( XrdSfsFileOffset offset );
 
-  
+
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
@@ -89,7 +84,7 @@ class ReedSLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     virtual void ComputeParity();
 
-  
+
     //--------------------------------------------------------------------------
     //! Write parity information corresponding to a group to files
     //!
@@ -100,7 +95,7 @@ class ReedSLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     virtual int WriteParityToFiles( off_t offsetGroup );
 
-  
+
     //--------------------------------------------------------------------------
     //! Recover pieces of corrupted data in the current group
     //!
@@ -116,7 +111,7 @@ class ReedSLayout : public RaidMetaLayout
                                        char*                    pBuffer,
                                        std::map<off_t, size_t>& rMapPieces );
 
-  
+
     //--------------------------------------------------------------------------
     //! Add data block to compute parity stripes for current group of blocks
     //!
@@ -127,7 +122,7 @@ class ReedSLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     virtual void AddDataBlock( off_t offset, char* pBuffer, size_t length );
 
-  
+
     //--------------------------------------------------------------------------
     //! Map index from nDataBlocks representation to nTotalBlocks
     //!
@@ -138,7 +133,7 @@ class ReedSLayout : public RaidMetaLayout
     //--------------------------------------------------------------------------
     virtual unsigned int MapSmallToBig( unsigned int idSmall );
 
-  
+
     //--------------------------------------------------------------------------
     //! Get backtracking solution
     //--------------------------------------------------------------------------
@@ -146,7 +141,7 @@ class ReedSLayout : public RaidMetaLayout
                       unsigned int*              pIndexes,
                       std::vector<unsigned int>& validId );
 
-  
+
     //--------------------------------------------------------------------------
     //! Validate backtracking solution
     //--------------------------------------------------------------------------
@@ -154,7 +149,7 @@ class ReedSLayout : public RaidMetaLayout
                    unsigned int*              pIndexes,
                    std::vector<unsigned int>& validId );
 
-  
+
     //--------------------------------------------------------------------------
     //! Backtracking method for getting the indices used in the recovery process
     //--------------------------------------------------------------------------
@@ -162,13 +157,13 @@ class ReedSLayout : public RaidMetaLayout
                        unsigned int*              pIndexes,
                        std::vector<unsigned int>& validId );
 
-  
+
     //--------------------------------------------------------------------------
     //! Disable copy constructor
     //--------------------------------------------------------------------------
     ReedSLayout( const ReedSLayout& ) = delete;
 
-  
+
     //--------------------------------------------------------------------------
     //! Disable assign operator
     //--------------------------------------------------------------------------

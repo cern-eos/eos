@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: FileIo.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file FileIo.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Abstract class modelling an IO plugin
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -20,12 +21,6 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-//------------------------------------------------------------------------------
-//! @file FileIo.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Abstract class modelling an IO plugin
-//------------------------------------------------------------------------------
 
 #ifndef __EOSFST_FILEIO_HH__
 #define __EOSFST_FILEIO_HH__
@@ -135,6 +130,7 @@ class FileIo: public eos::common::LogId
     //! @param buffer where the data is read
     //! @param length read length
     //! @param handler async read handler
+    //! @param readahead set if readahead is to be used
     //!
     //! @return number of bytes read or -1 if error
     //!
@@ -241,7 +237,7 @@ class FileIo: public eos::common::LogId
     //--------------------------------------------------------------------------
     virtual int Stat( struct stat* buf ) = 0;
 
-  
+
     //--------------------------------------------------------------------------
     //! Get path to current file
     //--------------------------------------------------------------------------
@@ -260,6 +256,4 @@ class FileIo: public eos::common::LogId
 EOSFSTNAMESPACE_END
 
 #endif  // __EOSFST_FILEIO_HH__
-
-
 

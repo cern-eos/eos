@@ -42,7 +42,7 @@ LocalFileIo::LocalFileIo( XrdFstOfsFile*      file,
   FileIo( file, client, error )
 {
   //............................................................................
-  // In this case the logical file is the same as the local file
+  // In this case the logical file is the same as the local physical file
   //............................................................................
   // empty
 }
@@ -86,7 +86,6 @@ LocalFileIo::Read( XrdSfsFileOffset offset,
   eos_debug( "offset = %lli, length = %lli",
              static_cast<int64_t>( offset ),
              static_cast<int64_t>( length ) );
-  
   return mLogicalFile->readofs( offset, buffer, length );
 }
 
@@ -102,7 +101,6 @@ LocalFileIo::Write( XrdSfsFileOffset offset,
   eos_debug( "offset = %lli, length = %lli",
              static_cast<int64_t>( offset ),
              static_cast<int64_t>( length ) );
-  
   return mLogicalFile->writeofs( offset, buffer, length );
 }
 

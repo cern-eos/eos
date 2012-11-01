@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: FileIoPlugin.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file FileIoPlugin.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Class generating an IO plugin object
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -20,12 +21,6 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-//------------------------------------------------------------------------------
-//! @file FileIoPlugin.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class generating an IO plugin object
-//------------------------------------------------------------------------------
 
 #ifndef __EOSFST_FILEIOPLUGIN_HH__
 #define __EOSFST_FILEIOPLUGIN_HH__
@@ -56,7 +51,7 @@ class FileIoPlugin
       //empty
     }
 
-  
+
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
@@ -64,7 +59,7 @@ class FileIoPlugin
       //empty
     }
 
-  
+
     //--------------------------------------------------------------------------
     //! Get IO object
     //!
@@ -78,8 +73,7 @@ class FileIoPlugin
     static FileIo* GetIoObject( int                 ioType,
                                 XrdFstOfsFile*      file   = 0,
                                 const XrdSecEntity* client = 0,
-                                XrdOucErrInfo*      error  = 0 )
-    {
+                                XrdOucErrInfo*      error  = 0 ) {
       if ( ioType == LayoutId::kLocal ) {
         return static_cast<FileIo*>( new LocalFileIo( file, client, error ) );
       }
@@ -95,3 +89,4 @@ class FileIoPlugin
 EOSFSTNAMESPACE_END
 
 #endif // __ EOSFST_FILEIOPLUGIN_HH__
+

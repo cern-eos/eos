@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: RaidMetaLayout.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file RaidMetaLayout.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Generic class to read/write RAID-like layout files
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -36,12 +37,6 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
 /*----------------------------------------------------------------------------*/
-
-//------------------------------------------------------------------------------
-//! @file RaidMetaLayout.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Generic class to read/write RAID-like layout files
-//------------------------------------------------------------------------------
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -87,7 +82,7 @@ class RaidMetaLayout : public Layout
     //! @param path path to the file
     //! @param flags flags O_RDWR/O_RDONLY/O_WRONLY
     //! @param mode creation permissions
-    //! @param opaque information
+    //! @param opaque opaque information
     //!
     //! @return 0 if successful, -1 otherwise and error code is set
     //!
@@ -202,9 +197,9 @@ class RaidMetaLayout : public Layout
 
 
     //--------------------------------------------------------------------------
-    //! Get size of file
+    //! Get the total size of the file
     //--------------------------------------------------------------------------
-    virtual uint64_t Size(); // returns the total size of the file
+    virtual uint64_t Size(); 
 
   protected:
 
@@ -214,9 +209,9 @@ class RaidMetaLayout : public Layout
     bool mUpdateHeader;                ///< mark if header updated
     bool mDoneRecovery;                ///< mark if recovery done
     bool mFullDataBlocks;              ///< mark if we have all data blocks to compute parity
+    bool mIsStreaming;                 ///< file is written in streaming mode
     bool mStoreRecovery;               ///< set if recovery also triggers writing back to the
                                        ///< files, this also means that all files must be available
-    bool mIsStreaming;                 ///< file is written in streaming mode
 
     unsigned int mStripeHead;          ///< head stripe value
     unsigned int mPhysicalStripeIndex; ///< physical index of the current stripe
@@ -237,8 +232,6 @@ class RaidMetaLayout : public Layout
     off_t mSizeGroup;                  ///< size of a group of blocks
                                        ///< eg. RAIDDP: group = noDataStr^2 blocks
 
-
-    std::string mAlgorithmType;                     ///< layout type used
     std::string mBookingOpaque;                     ///< opaque information
     std::vector<char*> mDataBlocks;                 ///< vector containing the data in a group
     std::vector<FileIo*> mStripeFiles;              ///< vector containing the file IO layout
@@ -249,10 +242,10 @@ class RaidMetaLayout : public Layout
     std::map<off_t, size_t> mMapPieces;             ///< map of pieces written for which parity
                                                     ///< computation has not been done yet
 
-    char* mFirstBlock;                 ///< first extra block for reading aligned 
+    char* mFirstBlock;                 ///< first extra block for reading aligned
     char* mLastBlock;                  ///< last extra block for reading aligned
     std::vector<char*> mPtrBlocks;     ///< vector containing pointers to where
-                                       ///< newly read block are placed
+                                       ///< new blocks are to be read
   
     //--------------------------------------------------------------------------
     //! Test and recover any corrupted headers in the stripe files
@@ -275,6 +268,15 @@ class RaidMetaLayout : public Layout
                                 std::map<off_t, size_t>& mapPieces );
 
 
+    //--------------------------------------------------------------------------
+    //! Compute and write parity blocks corresponding to a group of blocks
+    //!
+    //! @param offsetGroup offset of group of blocks
+    //!
+    //--------------------------------------------------------------------------
+    void DoBlockParity( off_t offsetGroup );
+
+  
     //--------------------------------------------------------------------------
     //! Recover corrupted pieces from the current group
     //!
@@ -301,16 +303,7 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     virtual void AddDataBlock( off_t offset, char* buffer, size_t length ) = 0;
 
-
-    //--------------------------------------------------------------------------
-    //! Compute and write parity blocks corresponding to a group of blocks
-    //!
-    //! @param offsetGroup offset of group of blocks
-    //!
-    //--------------------------------------------------------------------------
-    void DoBlockParity( off_t offsetGroup );
-
-
+  
     //--------------------------------------------------------------------------
     //! Compute parity information for a group of blocks
     //--------------------------------------------------------------------------
@@ -398,37 +391,58 @@ class RaidMetaLayout : public Layout
 
 
     //--------------------------------------------------------------------------
-    //! Expand the current range so that it is aligned with respect to
-    //! blockSize operations, either read or write
+    //! Expand the current range so that it is aligned with respect to the
+    //! block xs size 
     //!
     //! @param offset offset
     //! @param length length
-    //! @param blockSize size of a block of data
+    //! @param sizeBlockXs block xs size
     //! @param alignedOffset aligned offset value
     //! @param alignedLength aligned length value
     //!
     //--------------------------------------------------------------------------
-    void AlignExpandBlocks( char* ptrBuffer,
+    void AlignExpandBlocks( char*             ptrBuffer,
                             XrdSfsFileOffset  offset,
-                            XrdSfsXferSize    length,
+                            XrdSfsXferSize    sizeBlockXs,
                             XrdSfsFileOffset& alignedOffset,
                             XrdSfsXferSize&   alignedLength );
 
-     void CopyExtraBlocks( char*            buffer,
-                           XrdSfsFileOffset offset,
-                           XrdSfsXferSize   length,
-                           XrdSfsFileOffset alignedOffset,
-                           XrdSfsXferSize   alignedLength);
+  
+    //--------------------------------------------------------------------------
+    //!Copy any data from the extra block back to the original buffer
+    //!
+    //! @param buffer pointer to original buffer
+    //! @param offset original offset
+    //! @param length original length
+    //! @param alignedOffset aligned offset value
+    //! @param alignedLength aligned length value
+    //!
+    //--------------------------------------------------------------------------
+    void CopyExtraBlocks( char*            buffer,
+                          XrdSfsFileOffset offset,
+                          XrdSfsXferSize   length,
+                          XrdSfsFileOffset alignedOffset,
+                          XrdSfsXferSize   alignedLength );
 
 
-     std::pair<off_t, size_t> GetMatchingPart( XrdSfsFileOffset offset,
-                                               XrdSfsXferSize   length,
-                                               XrdSfsFileOffset blockOffset );
-
-         
-
+    //--------------------------------------------------------------------------
+    //! Return matching part between original buffer and the extra block which 
+    //! was read, so that we can copy back only the required data
+    //!
+    //! @param offset original offset
+    //! @param length original length
+    //! @param blockOffset offset of extra block
+    //!
+    //! @return the overlapping part in terms of offset and length in the
+    //!         original file
+    //--------------------------------------------------------------------------
+    std::pair<off_t, size_t> GetMatchingPart( XrdSfsFileOffset offset,
+                                              XrdSfsXferSize   length,
+                                              XrdSfsFileOffset blockOffset );
+  
 };
 
 EOSFSTNAMESPACE_END
 
 #endif  // __EOSFST_RAIDMETALAYOUT_HH__
+

@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: Layout.hh
-// Author: Andreas-Joachim Peters - CERN
+//! @file Layout.hh
+//! @author Andreas-Joachim Peters - CERN
+//! @brief Abstraction of the physical layout of a file
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,12 +22,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-//! @file Layout.hh
-//! @author Andreas-Joachim Peters - CERN
-//! @brief Abstraction of the physical layout of a file
-//------------------------------------------------------------------------------
-
 #ifndef __EOSFST_LAYOUT_HH__
 #define __EOSFST_LAYOUT_HH__
 
@@ -44,7 +39,7 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-// Forward declaration 
+//! Forward declaration
 class XrdFstOfsFile;
 
 //------------------------------------------------------------------------------

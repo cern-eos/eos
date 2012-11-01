@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: XrdClFileIo.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file XrdClFileIo.hh
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Class used for doing remote IO operations unsing the xrd client
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -20,12 +21,6 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-//------------------------------------------------------------------------------
-//! @file XrdClFileIo.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class used for doing remote IO operations unsing the xrd client
-//------------------------------------------------------------------------------
 
 #ifndef __EOSFST_XRDFILEIO_HH__
 #define __EOSFST_XRDFILEIO_HH__
@@ -49,12 +44,12 @@ class AsyncMetaHandler;
 struct ReadaheadBlock {
 
   static const uint64_t sDefaultBlocksize; ///< default value for readahead
-  
+
   //----------------------------------------------------------------------------
   //! Constuctor
   //!
   //! @param blocksize the size of the readahead
-  //!  
+  //!
   //----------------------------------------------------------------------------
   ReadaheadBlock( uint64_t blocksize = sDefaultBlocksize ) {
     buffer = new char[blocksize];
@@ -63,30 +58,30 @@ struct ReadaheadBlock {
 
 
   //----------------------------------------------------------------------------
-  //! Update current request 
+  //! Update current request
   //!
   //! @param offset offset
   //! @param length length
   //! @param isWrite true if write request, otherwise false
-  //!  
+  //!
   //----------------------------------------------------------------------------
   void Update( uint64_t offset, uint32_t length, bool isWrite ) {
-    handler->Update( offset, length, isWrite);
+    handler->Update( offset, length, isWrite );
   }
 
-  
+
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   ~ReadaheadBlock() {
     delete[] buffer;
-    delete handler;    
+    delete handler;
   }
-  
+
   char*          buffer;  ///< pointer to where the data is read
   SimpleHandler* handler; ///< async handler for the requests
 };
-  
+
 
 //------------------------------------------------------------------------------
 //! Class used for doing remote IO operations using the Xrd client
@@ -178,7 +173,7 @@ class XrdFileIo: public FileIo
                           char*            buffer,
                           XrdSfsXferSize   length,
                           void*            pFileHandler,
-                          bool             readahead = false);
+                          bool             readahead = false );
 
 
     //--------------------------------------------------------------------------
@@ -254,7 +249,7 @@ class XrdFileIo: public FileIo
     std::string      mPath;         ///< path to file
     XrdCl::File*     mXrdFile;      ///< handler to xrd file
     ReadaheadBlock** mReadahead;    ///< two blocks used for readahead
-  
+
     //--------------------------------------------------------------------------
     //! Method used to prefetch the next block using the readahead mechanism
     //!
@@ -264,24 +259,22 @@ class XrdFileIo: public FileIo
     //--------------------------------------------------------------------------
     void PrefetchBlock( uint64_t offsetEnd, bool isWrite );
 
-  
+
     //--------------------------------------------------------------------------
     //! Disable copy constructor
     //--------------------------------------------------------------------------
     XrdFileIo( const XrdFileIo& ) = delete;
 
-  
+
     //--------------------------------------------------------------------------
     //! Disable assign operator
     //--------------------------------------------------------------------------
     XrdFileIo& operator =( const XrdFileIo& ) = delete;
 
-  
+
 };
 
 EOSFSTNAMESPACE_END
 
 #endif  // __EOSFST_XRDFILEIO_HH__
-
-
 
