@@ -1263,7 +1263,6 @@ Storage::Remover()
 
   // this thread unlinks stored files
   while(1) {
-    bool hadDeletions=false;
     // since we use vector and erase from the beginning, this is not really a perfect choice, but we don't have any performance issues here
     deletionsMutex.Lock();
     if (deletions.size()) {
@@ -1272,7 +1271,6 @@ Storage::Remover()
       deletionsMutex.UnLock();
       
       for (unsigned int j=0; j< todelete.fIdVector.size(); j++) {
-	hadDeletions=true;
         eos_static_debug("Deleting File Id=%llu on Fs=%u", todelete.fIdVector[j], todelete.fsId);
         // delete the file
         XrdOucString hexstring="";
@@ -2142,7 +2140,10 @@ Storage::Publish()
   // ---------------------------------------------------------------------
   char* tmpname = tmpnam(NULL);
   XrdOucString getnetspeed = "ip route list | sed -ne '/^default/s/.*dev //p' | xargs ethtool | grep Speed | cut -d ':' -f2 | cut -d 'M' -f1 >> "; getnetspeed += tmpname;
-  system(getnetspeed.c_str());
+  int rc = system(getnetspeed.c_str());
+  if (WEXITSTATUS(rc)) {
+    eos_static_err("retrieve netspeed call failed");
+  }
 
   FILE* fnetspeed = fopen(tmpname,"r");
   if (fnetspeed) {
@@ -2161,6 +2162,12 @@ Storage::Publish()
   // ---------------------------------------------------------------------
   XrdSysTimer sleeper;
   sleeper.Snooze(3);
+
+  while ( !(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str())) {
+    XrdSysTimer sleeper;
+    sleeper.Snooze(5);
+    eos_static_info("Snoozing ...");
+  }
 
   eos::common::FileSystem::fsid_t fsid=0;
   std::string publish_uptime="";
