@@ -613,9 +613,7 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
         // Save errors in the map to be recovered
         //....................................................................
         if ( got_error ) {
-          std::pair<off_t, size_t> err_pair = GetMatchingPart( offset, length, current_offset );
-          map_all_errors.insert( err_pair );
-          eos_info( "Add error offset=%lli, length=%lu ", err_pair.first, err_pair.second );
+          map_all_errors.insert( GetMatchingPart( offset, length, current_offset ) );
           do_recovery = true;
         }
       }
@@ -643,10 +641,9 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
             if ( ( current_offset < offset ) ||
                  ( current_offset + len > static_cast<size_t>( end_raw_offset ) ) )
               {
-              std::pair<off_t, size_t> err_pair = GetMatchingPart( offset, length, current_offset );
-              map_all_errors.insert( err_pair );              
+              map_all_errors.insert( GetMatchingPart( offset, length, current_offset ) );              
             } else {
-              map_all_errors.insert( std::make_pair( block_off, block_len ) );
+              map_all_errors.insert( std::make_pair( current_offset, len ) );
             }
           }
 
