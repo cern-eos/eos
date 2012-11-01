@@ -2162,7 +2162,8 @@ Storage::Publish()
   // ---------------------------------------------------------------------
   XrdSysTimer sleeper;
   sleeper.Snooze(3);
-
+  
+  const char* val=0;
   while ( !(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str())) {
     XrdSysTimer sleeper;
     sleeper.Snooze(5);
