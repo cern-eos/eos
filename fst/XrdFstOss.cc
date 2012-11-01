@@ -50,6 +50,9 @@ EOSFSTNAMESPACE_BEGIN
 //! pointer to the current OSS implementation to be used by the oss files
 XrdFstOss* XrdFstSS = 0;
 
+//! the block xs size is set to 4KB by default
+const unsigned long long XrdFstOssFile::msXsBlockSize = 4 * 1024;
+
 
 //------------------------------------------------------------------------------
 // Constuctor
@@ -59,7 +62,6 @@ XrdFstOssFile::XrdFstOssFile( const char* tid ):
   eos::common::LogId(),
   mIsRW( false ),
   mRWLockXs( 0 ),
-  mBlockSize( 0 ),
   mBlockXs( 0 )
 {
   // empty
@@ -120,14 +122,13 @@ XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
       mBlockXs = ChecksumPlugins::GetChecksumObject( lid, true );
 
       if ( mBlockXs ) {
-        mBlockSize = eos::common::LayoutId::GetBlocksize( lid );
         XrdOucString xs_path = mBlockXs->MakeBlockXSPath( mPath.c_str() );
         struct stat buf;
         int retc = XrdFstSS->Stat( mPath.c_str(), &buf );
 
         if ( !mBlockXs->OpenMap( xs_path.c_str(),
                                  ( retc ? booking_size : buf.st_size ),
-                                 mBlockSize, false ) ) {
+                                 msXsBlockSize, false ) ) {
           eos_err( "error=unable to open the blockchecksum file: %s",
                    xs_path.c_str() );
           return -EIO;
@@ -333,7 +334,7 @@ XrdFstOss::Init( XrdSysLogger* lp, const char* configfn )
   eos::common::Logging::Init();
   eos::common::Logging::SetLogPriority( LOG_DEBUG );
   eos::common::Logging::SetUnit( unit.c_str() );
-  eos_info( "info=\"oss logging configured\"" );
+  eos_debug( "info=\"oss logging configured\"" );
   return rc;
 }
 
@@ -360,7 +361,7 @@ XrdFstOss::AddMapping( const std::string& fileName,
 {
   XrdSysRWLockHelper wr_lock( mRWMap, 0 );                  // --> wrlock map
   std::pair<XrdSysRWLock*, CheckSum*> pair_value;
-  eos_info( "Initial map size: %i and filename: %s.",
+  eos_debug( "Initial map size: %i and filename: %s.",
             mMapFileXs.size(), fileName.c_str() );
 
   if ( mMapFileXs.count( fileName ) ) {
@@ -375,7 +376,7 @@ XrdFstOss::AddMapping( const std::string& fileName,
       delete pair_value.second;
       pair_value = std::make_pair( pair_value.first, blockXs );
       mMapFileXs[fileName] = pair_value;
-      eos_info( "Update old entry, map size: %i. ", mMapFileXs.size() );
+      eos_debug( "Update old entry, map size: %i. ", mMapFileXs.size() );
     } else {
       delete blockXs;
       blockXs = pair_value.second;
@@ -391,7 +392,7 @@ XrdFstOss::AddMapping( const std::string& fileName,
     //..........................................................................
     blockXs->IncrementRef( isRW );
     mMapFileXs[fileName] = pair_value;
-    eos_info( "Add completely new obj, map size: %i and filename: %s.",
+    eos_debug( "Add completely new obj, map size: %i and filename: %s.",
               mMapFileXs.size(), fileName.c_str() );
     return mutex_xs;
   }
@@ -456,7 +457,7 @@ XrdFstOss::DropXs( const std::string& fileName, bool force )
       delete pair_value.second;
       mMapFileXs.erase( fileName );
     } else {
-      eos_info( "Do not drop the mapping" );
+      eos_debug( "Do not drop the mapping" );
       pair_value.first->UnLock();                           // <-- unlock xs obj
     }
   }
@@ -485,7 +486,7 @@ XrdFstOss::Unlink( const char* path, int opts, XrdOucEnv* ep )
              xs_path );
   } else {
     if ( !xs.UnlinkXSPath() ) {
-      eos_info( "info=\"removed block-xs\" path=%s.", path );
+      eos_debug( "info=\"removed block-xs\" path=%s.", path );
     }
   }
 

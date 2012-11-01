@@ -114,7 +114,8 @@ int64_t
 LocalFileIo::Read( XrdSfsFileOffset offset,
                    char*            buffer,
                    XrdSfsXferSize   length,
-                   void*            handler )
+                   void*            handler,
+                   bool             readahead )
 {
   return SFS_ERROR;
 }

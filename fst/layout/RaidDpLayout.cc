@@ -225,7 +225,6 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   std::map<uint64_t, uint32_t> mapErrors;
   vector<unsigned int> simple_parity = GetSimpleParityIndices();
   vector<unsigned int> double_parity = GetDoubleParityIndices();
-  fprintf( stderr, "Allocating %i slots for status_blocks. \n", mNbTotalBlocks );
   status_blocks = static_cast<bool*>( calloc( mNbTotalBlocks, sizeof( bool ) ) );
  
   //............................................................................
@@ -242,34 +241,35 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
     physical_id = mapLP[stripe_id];
     offset_local = ( offset_group / mSizeLine ) *  mStripeWidth +
                    ( ( i / mNbTotalFiles ) * mStripeWidth );
-    offset_local += mStripeWidth;
+    offset_local += mSizeHeader;
 
-    if ( physical_id ) {
-      //........................................................................
-      // Do remote read operation
-      //........................................................................
-      if ( mStripeFiles[physical_id] ) {
+    if ( mStripeFiles[physical_id] ) {
+      if ( physical_id ) {
+        //........................................................................
+        // Do remote read operation
+        //........................................................................
         mStripeFiles[physical_id]->Read( offset_local,
                                          mDataBlocks[i],
                                          mStripeWidth,
-                                         mMetaHandlers[physical_id] );
+                                         mMetaHandlers[physical_id],
+                                         true );
+      } else {
+        //........................................................................
+        // Do local read operation
+        //........................................................................
+        int nread = mStripeFiles[physical_id]->Read( offset_local,
+                                                     mDataBlocks[i],
+                                                     mStripeWidth );
+        
+        if ( nread != mStripeWidth ) {
+          status_blocks[i] = false;
+          corrupt_ids.push_back( i );
+        }
       }
-      else {
-        status_blocks[i] = false;
-        corrupt_ids.push_back( i );
-      }
-    } else {
-      //........................................................................
-      // Do local read operation
-      //........................................................................
-      int nread = mStripeFiles[physical_id]->Read( offset_local,
-                                                   mDataBlocks[i],
-                                                   mStripeWidth );
-
-      if ( nread != mStripeWidth ) {
-        status_blocks[i] = false;
-        corrupt_ids.push_back( i );
-      }
+    } 
+    else {
+      status_blocks[i] = false;
+      corrupt_ids.push_back( i );
     }
   }
 
@@ -285,7 +285,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
             iter++ )
       {
         offset_local = iter->first;
-        offset_local -= mStripeWidth;
+        offset_local -= mSizeHeader;
         int line = ( ( offset_local % mSizeLine ) / mStripeWidth );
         int index = line * mNbTotalFiles + mapPL[i];
         status_blocks[index] = false;
@@ -351,37 +351,38 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
       physical_id = mapLP[stripe_id];
       offset_local = ( ( offset_group / mSizeLine ) * mStripeWidth ) +
                      ( ( id_corrupted / mNbTotalFiles ) * mStripeWidth );
-      offset_local += mStripeWidth;
+      offset_local += mSizeHeader;
 
       if ( mStoreRecovery ) {
-        if ( physical_id ) {
-          //....................................................................
-          // Do remote write operation
-          //....................................................................
-          if ( mStripeFiles[physical_id] ) {
-           mStripeFiles[physical_id]->Write( offset_local,
+        if ( mStripeFiles[physical_id] ) {
+          fprintf( stderr, "Storing block to file ( simple parity ). \n" );
+          if ( physical_id ) {
+            //....................................................................
+            // Do remote write operation
+            //....................................................................
+            mStripeFiles[physical_id]->Write( offset_local,
                                               mDataBlocks[id_corrupted],
                                               mStripeWidth,
                                               mMetaHandlers[physical_id] );
+          } else {
+            //....................................................................
+            // Do local write operation
+            //....................................................................
+            eos_info( "Do local write operation" );
+            int nwrite = mStripeFiles[physical_id]->Write( offset_local,
+                                                           mDataBlocks[id_corrupted],
+                                                           mStripeWidth );
+            
+            if ( nwrite != mStripeWidth ) {
+              eos_err( "error=while doing local write operation offset=%lli",
+                       offset_local );
+              ret = false;
+            }
           }
-          else {
-            eos_warning("warning=could not write recovered block because file is "
-                        "not opened ( simple parity).");
-          }
-        } else {
-          //....................................................................
-          // Do local write operation
-          //....................................................................
-          eos_info( "Do local write operation" );
-          int nwrite = mStripeFiles[physical_id]->Write( offset_local,
-                                                         mDataBlocks[id_corrupted],
-                                                         mStripeWidth );
-
-          if ( nwrite != mStripeWidth ) {
-            eos_err( "error=while doing local write operation offset=%lli",
-                     offset_local + mSizeHeader );
-            ret = false;
-          }
+        }
+        else {
+          eos_warning("warning=could not write recovered block because file is "
+                      "not opened ( simple parity).");
         }
       }
 
@@ -447,36 +448,39 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
         physical_id = mapLP[stripe_id];
         offset_local = ( ( offset_group / mSizeLine ) * mStripeWidth ) +
                        ( ( id_corrupted / mNbTotalFiles ) * mStripeWidth );
-        offset_local += mStripeWidth;
+        offset_local += mSizeHeader;
 
         if ( mStoreRecovery ) {
-          if ( physical_id ) {
-            //....................................................................
-            // Do remote write operation
-            //....................................................................
-            if ( mStripeFiles[physical_id] ) {
+          if ( mStripeFiles[physical_id] ) {
+            fprintf( stderr, "Storing block to file ( double parity ). \n" );
+            if ( physical_id ) {
+              //....................................................................
+              // Do remote write operation
+              //....................................................................
+              
               mStripeFiles[physical_id]->Write( offset_local,
                                                 mDataBlocks[id_corrupted],
                                                 mStripeWidth,
                                                 mMetaHandlers[physical_id] );
             }
             else {
-              eos_warning("warning=could not write recovered block because file is "
-                          "not opened ( double parity ).");
+              //....................................................................
+              // Do local write operation
+              //....................................................................
+              int nwrite = mStripeFiles[physical_id]->Write( offset_local,
+                                                             mDataBlocks[id_corrupted],
+                                                             mStripeWidth );
+              
+              if ( nwrite != mStripeWidth ) {
+                eos_err( "error=while doing local write operation offset=%lli",
+                         offset_local + mSizeHeader );
+                ret = false;
+              }
             }
-          } else {
-            //....................................................................
-            // Do local write operation
-            //....................................................................
-            int nwrite = mStripeFiles[physical_id]->Write( offset_local,
-                                                           mDataBlocks[id_corrupted],
-                                                           mStripeWidth );
-
-            if ( nwrite != mStripeWidth ) {
-              eos_err( "error=while doing local write operation offset=%lli",
-                       offset_local + mSizeHeader );
-              ret = false;
-            }
+          }
+          else {
+            eos_warning("warning=could not write recovered block because file is "
+                        "not opened ( double parity ).");
           }
         }
 
@@ -621,7 +625,7 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
     index_pblock = ( i + 1 ) * mNbDataFiles + 2 * i;
     index_dpblock = ( i + 1 ) * ( mNbDataFiles + 1 ) +  i;
     off_parity_local = ( offsetGroup / mNbDataFiles ) + ( i * mStripeWidth );
-    off_parity_local += mStripeWidth;
+    off_parity_local += mSizeHeader;
 
     //..........................................................................
     // Writing simple parity
@@ -768,8 +772,6 @@ RaidDpLayout::ValidHorizStripe( std::vector<unsigned int>& rStripes,
                                 bool*                      pStatusBlock,
                                 unsigned int               blockId )
 {
-  fprintf( stderr, "ValidHorzStripe: mNbTotalFiles=%i \n", mNbTotalFiles );
-  
   int corrupted = 0;
   long int base_id = ( blockId / mNbTotalFiles ) * mNbTotalFiles;
   rStripes.clear();

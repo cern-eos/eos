@@ -201,7 +201,8 @@ class LocalFileIo: public FileIo
     virtual int64_t Read( XrdSfsFileOffset offset,
                           char*            buffer,
                           XrdSfsXferSize   length,
-                          void*            handler );
+                          void*            handler,
+                          bool             readahead = false );
 
 
     //--------------------------------------------------------------------------

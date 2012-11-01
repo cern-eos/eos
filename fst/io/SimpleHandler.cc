@@ -87,7 +87,7 @@ SimpleHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
     pResponse->Get( chunk );
     mRespLength = chunk->length;
   }
-
+  
   mCond.Lock();
   mRespOK = pStatus->IsOK();
   mReqDone = true;

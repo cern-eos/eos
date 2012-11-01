@@ -142,7 +142,8 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
         mStripeFiles[physical_id]->Read( offset_local,
                                          mDataBlocks[i],
                                          mStripeWidth,
-                                         mMetaHandlers[physical_id] );
+                                         mMetaHandlers[physical_id],
+                                         true );
       } else {
         //........................................................................
         // Do local read operation
@@ -283,7 +284,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
 
         if ( nwrite != mStripeWidth ) {
           eos_err( "error=while doing local write operation offset=%lli",
-                   offset_local + mSizeHeader );
+                   offset_local );
           ret = false;
         }
       }
@@ -512,7 +513,7 @@ ReedSLayout::WriteParityToFiles( off_t offsetGroup )
 
         if ( nwrite != mStripeWidth ) {
           eos_err( "error=while doing local write operation offset=%lli",
-                   offset_local + mSizeHeader );
+                   offset_local );
           ret = SFS_ERROR;
         }
       }

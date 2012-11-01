@@ -28,6 +28,9 @@
 
 EOSFSTNAMESPACE_BEGIN
 
+///! maximum number of obj in cache used for recycling
+const unsigned int AsyncMetaHandler::msMaxCacheSize = 8; 
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------

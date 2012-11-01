@@ -32,6 +32,8 @@
 
 EOSFSTNAMESPACE_BEGIN
 
+const uint64_t ReadaheadBlock::sDefaultBlocksize = 1024 * 1024;  ///< 1MB default
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -41,7 +43,7 @@ XrdFileIo::XrdFileIo( XrdFstOfsFile*      file,
     FileIo( file, client, error ),
     mIndex( 0 ),
     mDoReadahead( false  ),
-    mBlocksize( xrdDefaultBlocksize ),
+    mBlocksize( ReadaheadBlock::sDefaultBlocksize ),
     mReadahead( NULL )
 {
   // empty
@@ -83,25 +85,20 @@ XrdFileIo::Open( const std::string& path,
   //............................................................................
   // Decide if readahead is used and the block size 
   //............................................................................
-
-  // TODO: fix this condition to eanble readahead
-  if ( false && ( val = open_opaque.Get( "eos.readahead" ) ) &&
+  if ( ( val = open_opaque.Get( "fst.readahead" ) ) &&
        ( strncmp(val, "true", 4 ) == 0 ) )
   {
     mDoReadahead = true;
     mReadahead = new ReadaheadBlock*[2];
 
     val = 0;
-    if ( ( val = open_opaque.Get( "eos.blocksize" ) ) ) {
+    if ( false && ( val = open_opaque.Get( "fst.blocksize" ) ) ) {
       mBlocksize = static_cast<uint64_t>( atoll( val ) );
     }
 
     for ( unsigned int i = 0; i < 2; i++ ) {
       mReadahead[i] = new ReadaheadBlock( mBlocksize );
     }
-
-    eos_debug( "Readahead enabled with blocksize: %lli.",
-               static_cast<int64_t>( mBlocksize ) );
  }
     
   mLocalPath = path;
@@ -184,7 +181,8 @@ int64_t
 XrdFileIo::Read( XrdSfsFileOffset offset,
                  char*            buffer,
                  XrdSfsXferSize   length,
-                 void*            pFileHandler )
+                 void*            pFileHandler,
+                 bool             readahead )
 {
   eos_debug( "offset = %lli, length = %lli",
              static_cast<int64_t>( offset ),
@@ -192,8 +190,12 @@ XrdFileIo::Read( XrdSfsFileOffset offset,
   XrdCl::XRootDStatus status;
   ChunkHandler* handler = NULL;
 
-  if ( !mDoReadahead) {
-    handler = ((AsyncMetaHandler*)pFileHandler)->Register( offset, length, false );
+  if ( !mDoReadahead ) {
+    readahead = false;
+  }
+  
+  if ( !readahead ) {
+    handler = static_cast<AsyncMetaHandler*>( pFileHandler )->Register( offset, length, false );
     status = mXrdFile->Read( static_cast<uint64_t>( offset ),
                              static_cast<uint32_t>( length ),
                              buffer,
@@ -210,35 +212,49 @@ XrdFileIo::Read( XrdSfsFileOffset offset,
     // Try to read from the previously cached block
     //..........................................................................
     bool done_reading = false;
+    eos_debug( "Check block %i if it has request. ", mIndex );
     SimpleHandler* sh= mReadahead[mIndex]->handler;
     if ( sh->HasRequest() ) {
-      eos_debug( "Have a request, now we wait for it." );
+      eos_debug( "Have a request in block: %i , now we wait for it.", mIndex );
       if ( sh->WaitOK() ) {
         if ( ( static_cast<uint64_t>( offset ) >= sh->GetOffset() ) &&
              ( static_cast<uint64_t>( offset + length ) <= sh->GetOffset() + sh->GetRespLength() ) )
         {
           eos_debug( "Got block from readahead cache ##$$##!" );
           uint64_t shift = offset - sh->GetOffset();
+          eos_debug( "Get block from readahead cache offset=%lli, length=%lli, "
+                     "cache_offset=%lli, cache_length=%lli, shift=%lli \n",
+                     (long long int) offset,
+                     (long long int) length,
+                     (long long int) sh->GetOffset(),
+                     (long long int) sh->GetLength(),
+                     (long long int) shift );
+          
           char* ptr_buffer = mReadahead[mIndex]->buffer + shift;
           buffer = static_cast<char*>( memcpy( buffer, ptr_buffer, length ) );
           done_reading = true;                                    
         }
       }
+      else {
+        eos_debug( "Request corrupted offset=%lli, "
+                   "length=%lli, cache_offset=%lli, cache_length=%lli \n",
+                   (long long int) offset,
+                   (long long int) length,
+                   (long long int) sh->GetOffset(),
+                   (long long int) sh->GetLength() );
+      }
     }
-
-    mIndex = (  mIndex + 1 ) % 2;
-    
+   
     //..........................................................................
     // If readahead not useful, use the classic way to read 
     //..........................................................................
     if ( !done_reading ) {
-      eos_debug( "Readahead not useful, use the classic way." );
-      XrdCl::XRootDStatus status;
-      handler = ((AsyncMetaHandler*)pFileHandler)->Register( offset, length, false );
+      eos_debug( "Readahead not useful, use the classic way. \n" );
+      handler = static_cast<AsyncMetaHandler*>( pFileHandler )->Register( offset, length, false );
       status = mXrdFile->Read( static_cast<uint64_t>( offset ),
                                static_cast<uint32_t>( length ),
                                buffer,
-                               static_cast<XrdCl::ResponseHandler*>( handler ) );      
+                               handler );      
     }
   }
   return length;
@@ -264,7 +280,7 @@ XrdFileIo::Write( XrdSfsFileOffset offset,
   status = mXrdFile->Write( static_cast<uint64_t>( offset ),
                             static_cast<uint32_t>( length ),
                             buffer,
-                            static_cast<XrdCl::ResponseHandler*>( handler ) );
+                            handler );
   return length;
 }
 
@@ -385,15 +401,15 @@ void
 XrdFileIo::PrefetchBlock( uint64_t offsetEnd, bool isWrite )
 {
   XrdCl::XRootDStatus status;
-  eos_debug( "Try to prefetch with end offset: %lli", offsetEnd );
+  eos_debug( "Try to prefetch with end offset: %lli and in block: %i",
+             offsetEnd, mIndex );
   
   mReadahead[mIndex]->handler->Update( offsetEnd, mBlocksize, isWrite );
   
-  status = mXrdFile->Read( offsetEnd ,
+  status = mXrdFile->Read( offsetEnd,
                            mBlocksize,
                            mReadahead[mIndex]->buffer,
-                           static_cast<XrdCl::ResponseHandler*>(
-                               mReadahead[mIndex]->handler ) );
+                           mReadahead[mIndex]->handler );
   
   mIndex = (  mIndex + 1 ) % 2;
 }

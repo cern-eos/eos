@@ -132,8 +132,9 @@ class XrdFstOssFile : public XrdOssFile, public eos::common::LogId
     XrdOucString        mPath;      ///< path of the file
     bool                mIsRW;      ///< mark if opened for rw operations
     XrdSysRWLock*       mRWLockXs;  ///< rw lock for the block xs
-    unsigned long long  mBlockSize; ///< block xs size
     CheckSum*           mBlockXs;   ///< block xs object
+  
+    static const unsigned long long  msXsBlockSize; ///< block xs size
 
 };
 

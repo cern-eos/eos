@@ -104,9 +104,6 @@ class AsyncMetaHandler
 
   private:
 
-    ///! maximum number of obj in cache
-    static const unsigned int msMaxCacheSize = 8; 
-
     bool mState;           ///< true if all requests are ok, otherwise false
     int mNumExpectedResp;  ///< expected number of responses
     int mNumReceivedResp;  ///< received number of responses
@@ -116,6 +113,10 @@ class AsyncMetaHandler
     std::list<ChunkHandler*> listReq;        ///< list of registered async requests
     std::list<ChunkHandler*> listCache;      ///< list of cached request objects
     std::map<uint64_t, uint32_t> mMapErrors; ///< chunks for which the request failed
+
+    ///! maximum number of obj in cache used for recycling
+    static const unsigned int msMaxCacheSize;
+  
 };
 
 EOSFSTNAMESPACE_END

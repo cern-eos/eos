@@ -142,7 +142,8 @@ class FileIo: public eos::common::LogId
     virtual int64_t Read( XrdSfsFileOffset offset,
                           char*            buffer,
                           XrdSfsXferSize   length,
-                          void*            handler ) = 0;
+                          void*            handler,
+                          bool             readahead = false ) = 0;
 
 
     //--------------------------------------------------------------------------

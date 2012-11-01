@@ -42,20 +42,21 @@ EOSFSTNAMESPACE_BEGIN
 
 class AsyncMetaHandler;
 
-static const uint64_t xrdDefaultBlocksize = 1024 * 1024;  ///< 1MB default
 
 //------------------------------------------------------------------------------
 //! Struct that holds a readahead buffer and corresponding handler
 //------------------------------------------------------------------------------
 struct ReadaheadBlock {
 
+  static const uint64_t sDefaultBlocksize; ///< default value for readahead
+  
   //----------------------------------------------------------------------------
   //! Constuctor
   //!
   //! @param blocksize the size of the readahead
   //!  
   //----------------------------------------------------------------------------
-  ReadaheadBlock( uint64_t blocksize = xrdDefaultBlocksize ) {
+  ReadaheadBlock( uint64_t blocksize = sDefaultBlocksize ) {
     buffer = new char[blocksize];
     handler = new SimpleHandler();
   }
@@ -167,7 +168,8 @@ class XrdFileIo: public FileIo
     //! @param offset offset in file
     //! @param buffer where the data is read
     //! @param length read length
-    //! @param handler async read handler
+    //! @param pFileHandler async handler for file
+    //! @param readahead true if readahead is to be enabled, otherwise false
     //!
     //! @return number of bytes read or -1 if error
     //!
@@ -175,7 +177,8 @@ class XrdFileIo: public FileIo
     virtual int64_t Read( XrdSfsFileOffset offset,
                           char*            buffer,
                           XrdSfsXferSize   length,
-                          void*            handler );
+                          void*            pFileHandler,
+                          bool             readahead = false);
 
 
     //--------------------------------------------------------------------------
@@ -192,7 +195,7 @@ class XrdFileIo: public FileIo
     virtual int64_t Write( XrdSfsFileOffset offset,
                            char*            buffer,
                            XrdSfsXferSize   length,
-                           void*            handler );
+                           void*            pFileHandler );
 
 
     //--------------------------------------------------------------------------
@@ -251,8 +254,7 @@ class XrdFileIo: public FileIo
     std::string      mPath;         ///< path to file
     XrdCl::File*     mXrdFile;      ///< handler to xrd file
     ReadaheadBlock** mReadahead;    ///< two blocks used for readahead
-
-
+  
     //--------------------------------------------------------------------------
     //! Method used to prefetch the next block using the readahead mechanism
     //!
