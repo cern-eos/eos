@@ -334,7 +334,11 @@ com_cp (char* argin) {
     if ( (target.find(":/")==STR_NPOS) && (!target.beginswith("as3:")) ) {
       if (target.endswith("/")) {
 	XrdOucString mktarget = "mkdir --mode 755 -p "; mktarget += target.c_str();
-	system(mktarget.c_str());
+	int rc = system(mktarget.c_str());
+	if (WEXITSTATUS(rc)) {
+	  // we check with access if it worked 
+	  rc = 0;
+	}
 	if (access(target.c_str(), R_OK|W_OK)) {
 	  fprintf(stderr,"error: cannot create/access your target directory!\n");
 	  exit(0);
@@ -342,7 +346,11 @@ com_cp (char* argin) {
       } else {
 	eos::common::Path cTarget(target.c_str());
 	XrdOucString mktarget = "mkdir --mode 755 -p "; mktarget += cTarget.GetParentPath();
-	system(mktarget.c_str());
+	int rc = system(mktarget.c_str());
+	if (WEXITSTATUS(rc)) {
+	  // we check with access if it worked 
+	  rc = 0;
+	}
 	if (access(cTarget.GetParentPath(), R_OK|W_OK)) {
 	  fprintf(stderr,"error: cannot create/access your target directory!\n");
 	  exit(0);
