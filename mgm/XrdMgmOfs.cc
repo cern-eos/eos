@@ -464,9 +464,9 @@ XrdMgmOfs::PathRemap(const char* inpath, XrdOucString &outpath)
 
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfsDirectory::open(const char          *inpath,   // In
-                             const XrdSecEntity  *client,   // In
-                             const char        *ininfo)     // In
+int XrdMgmOfsDirectory::open(const char          *inpath,  // In
+                             const XrdSecEntity  *client,  // In
+                             const char          *ininfo)  // In
 /*
   Function: Open the directory `path' and prepare for reading.
 
@@ -697,6 +697,7 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
   int isRW = 0;
   int isRewrite = 0;
   bool isCreation = false;
+  bool isPio = false; // flag indicating parallel IO access
 
   int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
 
@@ -761,6 +762,12 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
   
   //  mode_t acc_mode = Mode & S_IAMB;
   
+  XrdOucString sPio = (openOpaque)?openOpaque->Get("eos.cli.access"):"";
+  if (sPio == "pio") {
+    isPio = true;
+  }
+    
+
   int rcode=SFS_ERROR;
   
   XrdOucString redirectionhost="invalid?";
@@ -1387,9 +1394,13 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
   redirectionhost= targethost;
   redirectionhost+= "?";
 
-
-  // rebuild the layout ID (for read it should indicate only the number of available stripes for reading);
-  newlayoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::GetLayoutType(layoutId), eos::common::LayoutId::GetChecksum(layoutId), (int)selectedfs.size(), eos::common::LayoutId::GetBlocksizeType(layoutId), eos::common::LayoutId::GetBlockChecksum(layoutId));
+  //......................................................................................................
+  // Rebuild the layout ID (for read it should indicate only the number of available stripes for reading);
+  // For 'pio' mode we hand out plain layouts to the client and add the IO layout as an extra fiedl
+  //......................................................................................................
+  
+ 
+  newlayoutId = eos::common::LayoutId::GetId(isPio?eos::common::LayoutId::kPlain:eos::common::LayoutId::GetLayoutType(layoutId), eos::common::LayoutId::GetChecksum(layoutId), (int)selectedfs.size(), eos::common::LayoutId::GetBlocksizeType(layoutId), eos::common::LayoutId::GetBlockChecksum(layoutId));
   capability += "&mgm.lid=";    
   capability += (int)newlayoutId;
   // space to be prebooked/allocated
@@ -1418,6 +1429,8 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
 
   XrdOucString infolog="";
 
+  XrdOucString piolist="";
+  
   if ((eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReplica) || 
       (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kRaidDP) || 
       (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReedS)) {
@@ -1462,7 +1475,14 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
       capability += replicahost; capability += ":"; capability += replicaport; capability += "//";
       // add replica fsid
       capability += "&mgm.fsid"; capability += i; capability += "="; capability += (int)repfilesystem->GetId();
-
+      if (isPio) {
+	piolist += "pio.";piolist += (int)i;
+	piolist += "=";
+        piolist += replicahost; 
+        piolist += ":";
+	piolist += replicaport;
+	piolist += "&";
+      }
       eos_debug("Redirection Url %d => %s", i, replicahost.c_str());
       infolog += "target["; 
       infolog += (int) i; 
@@ -1486,27 +1506,33 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
   }
   
   int caplen=0;
-  redirectionhost+=capabilityenv->Env(caplen);
-  redirectionhost+= "&mgm.logid="; redirectionhost+=this->logId;
-  if (openOpaque->Get("eos.blockchecksum")) {
-    redirectionhost += "&mgm.blockchecksum=";
-    redirectionhost += openOpaque->Get("eos.blockchecksum");
+  if (isPio) {
+    redirectionhost=piolist;
+    redirectionhost+= "&mgm.logid="; redirectionhost+=this->logId;
+    redirectionhost+= "&";
+    redirectionhost+= capabilityenv->Env(caplen);
   } else {
-    if ( (!isRW) && ( eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReplica) ) {
-      redirectionhost += "&mgm.blockchecksum=ignore";
+    redirectionhost+=capabilityenv->Env(caplen);
+    redirectionhost+= "&mgm.logid="; redirectionhost+=this->logId;
+    if (openOpaque->Get("eos.blockchecksum")) {
+      redirectionhost += "&mgm.blockchecksum=";
+      redirectionhost += openOpaque->Get("eos.blockchecksum");
+    } else {
+      if ( (!isRW) && ( eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReplica) ) {
+        redirectionhost += "&mgm.blockchecksum=ignore";
+      }
     }
-  }
     
-  if (openOpaque->Get("eos.checksum")) {
-    redirectionhost += "&mgm.checksum=";
-    redirectionhost += openOpaque->Get("eos.checksum");
+    if (openOpaque->Get("eos.checksum")) {
+      redirectionhost += "&mgm.checksum=";
+      redirectionhost += openOpaque->Get("eos.checksum");
+    }
+  
+   
+    // for the moment we redirect only on storage nodes
+    redirectionhost+= "&mgm.replicaindex="; redirectionhost += (int)fsIndex;
+    redirectionhost+= "&mgm.replicahead="; redirectionhost += (int)fsIndex;
   }
-
-
-  // for the moment we redirect only on storage nodes
-  redirectionhost+= "&mgm.replicaindex="; redirectionhost += (int)fsIndex;
-  redirectionhost+= "&mgm.replicahead="; redirectionhost += (int)fsIndex;
-
   // always redirect
   ecode = targetport;
   rcode = SFS_REDIRECT;
@@ -2403,7 +2429,6 @@ int XrdMgmOfs::_mkdir(const char            *path,    // In
 	  vid.gid = d_gid;
 	}
       }
-      
       bool stdpermcheck=false;
       if ( acl.HasAcl() ) {
 	if ( (!acl.CanWrite()) && (!acl.CanWriteOnce()) ) {
@@ -3186,6 +3211,7 @@ int XrdMgmOfs::stat(const char              *inpath,      // In
   static const char *epname = "stat";
   const char *tident = error.getErrUser(); 
 
+
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
@@ -3210,11 +3236,11 @@ int XrdMgmOfs::stat(const char              *inpath,      // In
 }
 
 /*----------------------------------------------------------------------------*/
-int XrdMgmOfs::_stat(const char              *path,        // In
-                     struct stat       *buf,         // Out
-                     XrdOucErrInfo     &error,       // Out
-                     eos::common::Mapping::VirtualIdentity &vid,  // In
-                     const char              *ininfo)        // In
+int XrdMgmOfs::_stat(const char                            *path,    // In
+                     struct stat                           *buf,     // Out
+                     XrdOucErrInfo                         &error,   // Out
+                     eos::common::Mapping::VirtualIdentity &vid,     // In
+                     const char                          *ininfo)    // In
 {
   static const char *epname = "_stat";
 
@@ -4064,7 +4090,7 @@ XrdMgmOfs::FSctl(const int               cmd,
   const char* ininfo = iopaque;
 
   NAMESPACEMAP;
-  info=0; // for compiler happyness;
+  info=0; if (info)info=0;// for compiler happyness;
 
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
@@ -4217,6 +4243,7 @@ XrdMgmOfs::FSctl(const int               cmd,
         eos::Buffer checksumbuffer;
         checksumbuffer.putData(binchecksum, SHA_DIGEST_LENGTH);
 
+        fprintf( stderr, "The size of the commit is: %s. ", asize );
         if (checksum) {
           eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu checksum=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, dropfsid, checksum, amtime, amtimensec);
         } else {
@@ -4747,6 +4774,36 @@ XrdMgmOfs::FSctl(const int               cmd,
         return SFS_DATA;
       }
     }
+
+    if (execmd == "open") {
+      // ----------------------------------------------------------------------
+      // check access rights
+      // ----------------------------------------------------------------------
+      ACCESSMODE_R;
+      MAYSTALL;
+      MAYREDIRECT;
+
+      gOFS->MgmStats.Add("OpenLayout",vid.uid,vid.gid,1);  
+
+      XrdMgmOfsFile* file = new XrdMgmOfsFile();
+      if (file) {
+	opaque += "&eos.cli.access=pio";
+	int rc = file->open(spath.c_str(),SFS_O_RDONLY,0,client,opaque.c_str());
+	error.setErrInfo(strlen(file->error.getErrText())+1,file->error.getErrText());
+	if (rc == SFS_REDIRECT) {
+	  delete file;
+	  return SFS_DATA;
+	} else {
+	  error.setErrCode(file->error.getErrInfo());
+	  delete file;
+	  return SFS_ERROR;
+	}
+      } else {
+	error.setErrInfo(ENOMEM,"allocate file object");
+	return SFS_ERROR;
+      }
+    }
+
 
     if (execmd == "utimes") {
       // ----------------------------------------------------------------------
