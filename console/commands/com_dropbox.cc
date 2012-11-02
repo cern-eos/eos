@@ -114,9 +114,15 @@ com_dropbox (char *arg) {
   if (subcommand == "start") {
     XrdOucString resync = subtokenizer.GetToken();    
     if (resync.length()) {
-      system("eosdropboxd --resync");
+      int rc = system("eosdropboxd --resync");
+      if (!WEXITSTATUS(rc)) {
+	fprintf(stderr,"error: failed to run eosdropboxd --resync\n");
+      }
     } else {
-      system("eosdropboxd");
+      int rc = system("eosdropboxd");
+      if (!WEXITSTATUS(rc)) {
+	fprintf(stderr,"error: failed to run eosdropboxd\n");
+      }
     }
     global_retc = 0;
     return (0);
@@ -129,7 +135,10 @@ com_dropbox (char *arg) {
   }
 
   if (subcommand == "stop") {
-    system("pkill -15 eosdropboxd >& /dev/null");
+    int rc = system("pkill -15 eosdropboxd >& /dev/null");
+    if (!WEXITSTATUS(rc)) {
+      fprintf(stderr,"warning: didn't kill any esodropboxd");
+    }
     global_retc = 0;
     return (0);
   }

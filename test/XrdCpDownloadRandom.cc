@@ -46,7 +46,6 @@ int main (int argc, char* argv[]) {
     
     if (fdRead>=0) {
       char* buffer = (char*)malloc(256 * 4096);
-      bool first=true;
       
       // download 1000 random chunks
       for (int i=0 ;i< 1000; i++) {
@@ -62,7 +61,6 @@ int main (int argc, char* argv[]) {
 	  fprintf(stderr,"error: read failed at offset %lld length %lu \n", (unsigned long long)offset,(unsigned long)length);
 	  exit(-1);
 	}
-	first = false;
       }
       int rc = XrdPosixXrootd::Close(fdRead);
       if (rc) {
