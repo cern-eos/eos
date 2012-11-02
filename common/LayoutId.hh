@@ -41,9 +41,11 @@ class LayoutId
 {
   public:
   typedef unsigned long layoutid_t;
-  
+    
   // A layout id is constructed as an xor as defined in GetId()
-  
+
+  static const uint64_t OssXsBlockSize = 4 * 1024; ///< block xs size 4KB
+    
   //--------------------------------------------------------------------------
   //! Definition of layout errors
   //--------------------------------------------------------------------------
@@ -502,7 +504,7 @@ class LayoutId
     
     return ( kOneStripe + 1 );
   }
-  
+
   //--------------------------------------------------------------------------
   //! Constructor
   //--------------------------------------------------------------------------

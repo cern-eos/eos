@@ -257,8 +257,8 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
         // Do local read operation
         //........................................................................
         int nread = mStripeFiles[physical_id]->Read( offset_local,
-                    mDataBlocks[i],
-                    mStripeWidth );
+                                                     mDataBlocks[i],
+                                                     mStripeWidth );
 
         if ( nread != mStripeWidth ) {
           status_blocks[i] = false;
@@ -355,8 +355,8 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
             // Do local write operation
             //....................................................................
             int nwrite = mStripeFiles[physical_id]->Write( offset_local,
-                         mDataBlocks[id_corrupted],
-                         mStripeWidth );
+                                                           mDataBlocks[id_corrupted],
+                                                           mStripeWidth );
 
             if ( nwrite != mStripeWidth ) {
               eos_err( "error=while doing local write operation offset=%lli",
@@ -445,8 +445,8 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
               // Do local write operation
               //....................................................................
               int nwrite = mStripeFiles[physical_id]->Write( offset_local,
-                           mDataBlocks[id_corrupted],
-                           mStripeWidth );
+                                                             mDataBlocks[id_corrupted],
+                                                             mStripeWidth );
 
               if ( nwrite != mStripeWidth ) {
                 eos_err( "error=while doing local write operation offset=%lli",
@@ -637,8 +637,8 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
       // Do local write operation
       //........................................................................
       int64_t nwrite = mStripeFiles[physical_dpindex]->Write( off_parity_local,
-                       mDataBlocks[index_dpblock],
-                       mStripeWidth );
+                                                              mDataBlocks[index_dpblock],
+                                                              mStripeWidth );
 
       if ( nwrite != mStripeWidth ) {
         eos_err( "error=error while writing local parity information" );

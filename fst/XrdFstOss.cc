@@ -50,9 +50,6 @@ EOSFSTNAMESPACE_BEGIN
 //! pointer to the current OSS implementation to be used by the oss files
 XrdFstOss* XrdFstSS = 0;
 
-//! the block xs size is set to 4KB by default
-const unsigned long long XrdFstOssFile::msXsBlockSize = 4 * 1024;
-
 
 //------------------------------------------------------------------------------
 // Constuctor
@@ -128,7 +125,8 @@ XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
 
         if ( !mBlockXs->OpenMap( xs_path.c_str(),
                                  ( retc ? booking_size : buf.st_size ),
-                                 msXsBlockSize, false ) ) {
+                                 eos::common::LayoutId::OssXsBlockSize,
+                                 false ) ) {
           eos_err( "error=unable to open the blockchecksum file: %s",
                    xs_path.c_str() );
           return -EIO;

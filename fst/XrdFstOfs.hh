@@ -174,19 +174,19 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId
     }
 
 
-    int            rem( const char*             path,
-                        XrdOucErrInfo&    out_error,
-                        const XrdSecEntity*     client,
-                        const char*             info = 0 ) ;
+    int            rem( const char*         path,
+                        XrdOucErrInfo&      out_error,
+                        const XrdSecEntity* client,
+                        const char*         info = 0 ) ;
 
-    int            _rem( const char*             path,
-                         XrdOucErrInfo&           out_error,
-                         const XrdSecEntity*     client,
-                         XrdOucEnv*              info = 0,
-                         const char*               fstPath = 0,
-                         unsigned long long      fid = 0,
-                         unsigned long           fsid = 0,
-                         bool     ignoreifnotexist = false ) ;
+    int            _rem( const char*         path,
+                         XrdOucErrInfo&      out_error,
+                         const XrdSecEntity* client,
+                         XrdOucEnv*          info = 0,
+                         const char*         fstPath = 0,
+                         unsigned long long  fid = 0,
+                         unsigned long       fsid = 0,
+                         bool                ignoreifnotexist = false ) ;
 
     int            remdir( const char*             dirName,
                            XrdOucErrInfo&          out_error,
@@ -210,7 +210,11 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId
                          const XrdSecEntity*     client,
                          const char*             opaque = 0 );
 
-    int            CallManager( XrdOucErrInfo* error, const char* path, const char* manager, XrdOucString& capOpaqueFile, XrdOucString* return_result = 0 );
+    int            CallManager( XrdOucErrInfo* error,
+                                const char*    path,
+                                const char*    manager,
+                                XrdOucString&  capOpaqueFile,
+                                XrdOucString*  return_result = 0 );
 
 
     // this function deals with plugin calls

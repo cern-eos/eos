@@ -36,7 +36,6 @@
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
-#include "XrdOss/XrdOssApi.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSfs/XrdSfsAio.hh"

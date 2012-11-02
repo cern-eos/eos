@@ -29,7 +29,6 @@
 #include <map>
 #include <string>
 /*----------------------------------------------------------------------------*/
-#include "authz/XrdCapability.hh"
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
 #include "common/Logging.hh"
@@ -47,7 +46,7 @@ EOSFSTNAMESPACE_BEGIN
 class XrdFstOssFile : public XrdOssFile, public eos::common::LogId
 {
   public:
-
+  
     //--------------------------------------------------------------------------
     //! Constuctor
     //!
@@ -126,16 +125,12 @@ class XrdFstOssFile : public XrdOssFile, public eos::common::LogId
     //--------------------------------------------------------------------------
     virtual int Close( long long* retsz = 0 );
 
-
   private:
 
     XrdOucString        mPath;      ///< path of the file
     bool                mIsRW;      ///< mark if opened for rw operations
     XrdSysRWLock*       mRWLockXs;  ///< rw lock for the block xs
     CheckSum*           mBlockXs;   ///< block xs object
-  
-    static const unsigned long long  msXsBlockSize; ///< block xs size
-
 };
 
 
