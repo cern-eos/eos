@@ -74,7 +74,7 @@ public:
   std::string mType;
   
   BaseView(){mStatus="unknown";mHeartBeat=0;mInQueue=0;}
-  ~BaseView(){};
+  virtual ~BaseView(){};
   
   virtual const char* GetConfigQueuePrefix() { return "";}
 
@@ -143,7 +143,7 @@ public:
 #endif
 
   }
-  ~FsSpace() { 
+  virtual ~FsSpace() { 
 #ifndef EOSMGMFSVIEWTEST
     if (mBalancer) delete mBalancer;
 #endif
@@ -200,7 +200,7 @@ public:
     mGwQueue = new eos::common::TransferQueue(mName.c_str(), n.c_str(), "txq", (eos::common::FileSystem*)0, eos::common::GlobalConfig::gConfig.SOM(), false);
   }
 
-  ~FsNode();
+  virtual ~FsNode();
 
 
   void SetNodeConfigDefault() { 
@@ -331,7 +331,7 @@ public:
     }
   }
 
-  ~FsView() {
+  virtual ~FsView() {
     StopHeartBeat();
   };
 

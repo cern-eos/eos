@@ -445,7 +445,7 @@ while(1) {
             $mastermgm =system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mgm >&/dev/null");
             $mastermq  =system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mq >&/dev/null");
             $mastersync=system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status sync >&/dev/null");
-            $mastersync=system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status fed >&/dev/null");
+            $masterfed =system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status fed >&/dev/null");
             $eossync=system("env CONSOLETYPE=serial /etc/rc.d/init.d/eossync status >&/dev/null");
             $mastermgm = ($mastermgm >> 8);
             $mastermq  = ($mastermq >> 8);

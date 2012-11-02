@@ -342,11 +342,9 @@ RaidIO::write(off_t offset, char* buffer, size_t length)
   size_t nwrite;
   size_t writeLength = 0;
   off_t offsetLocal;
-  off_t offsetStart;
   off_t offsetEnd;
   unsigned int stripeId = -1;
 
-  offsetStart = offset;
   offsetEnd = offset + length;
 
   while (length) {
