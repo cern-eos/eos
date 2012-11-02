@@ -122,6 +122,13 @@ public:
     if (!fullPath.length()) {
       fullPath="/";
     }
+    
+    if (fullPath.find("/") == STR_NPOS) {
+      // is this is just a filename without path
+      lastPath = fullPath;
+      parentPath = "";
+      return;
+    }
 
     int lastpos=0;
     int pos=0;
