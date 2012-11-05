@@ -74,6 +74,8 @@ if [ -e /etc/eos.keytab ]; then
 	chmod 400 /etc/eos.keytab
 fi
 
+#
+EOS_CONFIGDIR=${EOS_CONFIGDIR-`cat /etc/xrd.cf.mgm | grep -v "^#" | grep mgmofs.configdir | awk '{print \$2}' 2>/dev/null`/`hostname -f`};
 
 start() {
 	# Start xrootd daemons
@@ -116,13 +118,13 @@ start() {
 			# Setup xrootd environment
 
                         if [ -z "${XRD_USER}" ]; then 
-			    mkdir -p ${XRD_COREDIR}/core/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR} ${XRD_CONFIGDIR}/`hostname -f`/
-			    touch ${XRD_CONFIGDIR}/`hostname -f`/default.eoscf
+			    mkdir -p ${XRD_COREDIR}/core/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR} ${EOS_CONFIGDIR}/default.eoscf
+			    touch ${EOS_CONFIGDIR}/default.eoscf
 			    chown -R ${XRD_USER} ${XRD_COREDIR}; 
 			    chmod -R 775 ${XRD_COREDIR}
 			else
-			    mkdir -p ${XRD_COREDIR}/core/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR} ${XRD_CONFIGDIR}/`hostname -f`/
-			    touch ${XRD_CONFIGDIR}/`hostname -f`/default.eoscf
+			    mkdir -p ${XRD_COREDIR}/core/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR} ${EOS_CONFIGDIR}/default.eoscf
+			    touch ${EOS_CONFIGDIR}/default.eoscf
 			    chown -R ${XRD_USER} ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
 			    chown -R ${XRD_USER} ${XRD_COREDIR}; 
 			    chmod -R 775 ${XRD_COREDIR}
