@@ -529,18 +529,27 @@ XrdFstOfs::stat(  const char             *path,
 }
 
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// CallManager function
+//------------------------------------------------------------------------------
 int
-XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manager, XrdOucString &capOpaqueFile, XrdOucString* return_result) {
-  EPNAME("CallManager");
-  int rc=SFS_OK;
-
-  char result[8192]; result[0]=0;
-  int  result_size=8192;
+XrdFstOfs::CallManager( XrdOucErrInfo* error,
+                        const char*    path,
+                        const char*    manager,
+                        XrdOucString&  capOpaqueFile,
+                        XrdOucString*  return_result )
+{
+  EPNAME( "CallManager" );
+  int rc = SFS_OK;
+  int  result_size = 8192;
+  char result[result_size];
+  result[0] = 0;
   
-  XrdOucString url = "root://"; url += manager; url += "//dummy";
+  XrdOucString url = "root://";
+  url += manager;
+  url += "//dummy";
   XrdClientAdmin* admin = new XrdClientAdmin(url.c_str());
-  XrdOucString msg="";
+  XrdOucString msg = "";
       
   if (admin) {
     admin->Connect();

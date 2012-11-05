@@ -354,107 +354,30 @@ XrdFileCache::WaitFinishWrites( FileAbstraction& rFileAbst )
     mpCacheImpl->FlushWrites( rFileAbst );
     rFileAbst.WaitFinishWrites();
 
+    /*
     if ( !rFileAbst.IsInUse( false ) ) {
       RemoveFileInode( rFileAbst.GetInode(), false );
     }
+    */
   }
 }
 
 
 //------------------------------------------------------------------------------
 // Method used to wait for the writes corresponding to a file to be commited.
-// It also forces the incompletele (not full) write blocks from cache to be
-// added to the writes queue and implicitly to be written to the file.
+// It also forces the incompletele (not full) write blocks from cache to be added
+// to the writes queue and implicitly to be written to the file. 
 //------------------------------------------------------------------------------
-void
-XrdFileCache::WaitFinishWrites( unsigned long inode )
-{
-  FileAbstraction* pAbst = GetFileObj( inode, false );
-
-  if ( pAbst && ( pAbst->GetSizeWrites() != 0 ) ) {
-    mpCacheImpl->FlushWrites( *pAbst );
-    pAbst->WaitFinishWrites();
-
-    if ( !pAbst->IsInUse( false ) ) {
-      if ( RemoveFileInode( pAbst->GetInode(), false ) ) {
-        return;
-      }
-    }
-  }
-
-  if ( pAbst ) {
-    pAbst->DecrementNoReferences();
-  }
-
-  return;
-}
-
-/*----------------------------------------------------------------------------*/
-/** 
- * Method used to wait for the writes corresponding to a file to be commited.
- * It also forces the incompletele (not full) write blocks from cache to be added
- * to the writes queue and implicitly to be written to the file. 
- * 
- * @param fileAbst handler to file abstraction object
- *
- */
-/*----------------------------------------------------------------------------*/
 void
 XrdFileCache::WaitWritesAndRemove(FileAbstraction &fileAbst)
 {
   if (fileAbst.GetSizeWrites() != 0) {
     mpCacheImpl->FlushWrites(fileAbst);
     fileAbst.WaitFinishWrites();
-    if (!fileAbst.IsInUse(false)) {
-      RemoveFileInode(fileAbst.GetInode(), false);
-    }
+  }
+
+  if (!fileAbst.IsInUse(false)) {
+    RemoveFileInode(fileAbst.GetInode(), false);
   }
 }
 
-/*
-//------------------------------------------------------------------------------
-size_t
-XrdFileCache::getReadV(unsigned long inode, int filed, void* buf,
-off_t* offset, size_t* length, int nbuf)
-{
-size_t ret = 0;
-char* ptrBuf = static_cast<char*>(buf);
-long long int key;
-CacheEntry* pEntry = NULL;
-FileAbstraction* pAbst = getFileObj(inode, true);
-
-for (int i = 0; i < nbuf; i++) {
-key = pAbst->GenerateBlockKey(offset[i]);
-pEntry = mpCacheImpl->getRead(key, pAbst);
-
-if (pEntry && (pEntry->GetLength() == length[i])) {
-ptrBuf = (char*)memcpy(ptrBuf, pEntry->GetDataBuffer(), pEntry->GetLength());
-ptrBuf += length[i];
-ret += length[i];
-} else break;
-}
-
-return ret;
-}
-
-
-//------------------------------------------------------------------------------
-void
-XrdFileCache::putReadV(unsigned long inode, int filed, void* buf,
-off_t* offset, size_t* length, int nbuf)
-{
-char* ptrBuf = static_cast<char*>(buf);
-long long int key;
-CacheEntry* pEntry = NULL;
-FileAbstraction* pAbst = getFileObj(inode, true);
-
-for (int i = 0; i < nbuf; i++) {
-pEntry = mpCacheImpl->getRecycledBlock(filed, ptrBuf, offset[i], length[i], pAbst);
-key = pAbst->GenerateBlockKey(offset[i]);
-mpCacheImpl->Insert(key, pEntry);
-ptrBuf += length[i];
-}
-
-return;
-}
-*/

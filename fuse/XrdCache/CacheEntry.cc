@@ -424,19 +424,18 @@ CacheEntry::DoWrite()
 {
   int retc = 0;
   off_t off_relative;
+  XrdCl::XRootDStatus status;
   std::map<off_t, size_t>::iterator iCurrent = mMapPieces.begin();
   const std::map<off_t, size_t>::iterator iEnd = mMapPieces.end();
 
   for ( ; iCurrent != iEnd; iCurrent++ ) {
     off_relative = iCurrent->first % GetMaxSize();
-    XrdCl::XRootDStatus status =
-      mpFile->Write( iCurrent->first, iCurrent->second, mpBuffer + off_relative );
+    status = mpFile->Write( iCurrent->first, iCurrent->second, mpBuffer + off_relative );
 
-    if ( status.IsOK() ) {
-      retc = iCurrent->second;
-    } else {
+    if ( !status.IsOK() ) {
       fprintf( stderr, "\n[%s] error=error while writing using XrdCl::File\n\n",
                __FUNCTION__ );
+      retc = status.errNo;
     }
   }
 

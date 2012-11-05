@@ -90,6 +90,7 @@ class XrdFileCache
                     off_t            off,
                     size_t           len );
 
+  
     // -------------------------------------------------------------------------
     //! Add read to cache
     //!
@@ -108,29 +109,24 @@ class XrdFileCache
                     off_t            off,
                     size_t           len );
 
-    // -------------------------------------------------------------------------
-    //! Wait for all pending writes on a file
+  
+    //--------------------------------------------------------------------------
+    //! Wait for all pending writes on a file and remove the mapping
     //!
-    //! @param inode file inode
+    //! @param fAbst file abstraction reference
     //!
-
+    //--------------------------------------------------------------------------
     void WaitWritesAndRemove(FileAbstraction &fAbst);
 
-    // -------------------------------------------------------------------------
-    //! Wait for all pending writes on a file
-    //!
-    //! @param inode file inode
-    //!
-    // -------------------------------------------------------------------------
-    void WaitFinishWrites( unsigned long inode );
 
     // -------------------------------------------------------------------------
     //! Wait for all pending writes on a file
     //!
-    //! @param rFileAbst FileAbstraction handler
+    //! @param rFileAbst file abstraction reference
     //!
     // -------------------------------------------------------------------------
     void WaitFinishWrites( FileAbstraction& rFileAbst );
+  
 
     // -------------------------------------------------------------------------
     //! Remove file inode from mapping. If strongConstraint is true then we
@@ -146,6 +142,7 @@ class XrdFileCache
     // -------------------------------------------------------------------------
     bool RemoveFileInode( unsigned long inode, bool strongConstraint );
 
+  
     // -------------------------------------------------------------------------
     //! Get handler to the errors queue
     //!
@@ -156,6 +153,7 @@ class XrdFileCache
     // -------------------------------------------------------------------------
     ConcurrentQueue<error_type>& GetErrorQueue( unsigned long inode );
 
+  
     // -------------------------------------------------------------------------
     //! Get handler to the file abstraction object
     //!
@@ -167,21 +165,6 @@ class XrdFileCache
     // -------------------------------------------------------------------------
     FileAbstraction* GetFileObj( unsigned long inode, bool getNew );
 
-    //vector reads - not implemented
-    /*size_t getReadV(unsigned long inode,
-                      int           filed,
-                      void*         buf,
-                      off_t*        offset,
-                      size_t*       length,
-                      int           nbuf);
-
-    void putReadV(unsigned long inode,
-                  int           filed,
-                  void*         buf,
-                  off_t*        offset,
-                  size_t*       length,
-                  int           nbuf);
-    */
 
   private:
 

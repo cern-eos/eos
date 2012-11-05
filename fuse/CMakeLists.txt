@@ -43,7 +43,6 @@ add_executable ( eosd
                  xrdposix.cc            xrdposix.hh
 		 FuseCacheEntry.cc	FuseCacheEntry.hh)
 
-set_target_properties ( eosfsd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 target_link_libraries ( eosfsd 
      		      	${XRDCL_LIB}	
 			XrdUtils 
@@ -53,7 +52,6 @@ target_link_libraries ( eosfsd
 			${FUSE_LIBRARY} 
 			pthread )
 
-set_target_properties ( eosd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 target_link_libraries ( eosd 
      		      	${XRDCL_LIB}		      	     
 			XrdUtils 
@@ -63,7 +61,9 @@ target_link_libraries ( eosd
 			${FUSE_LIBRARY} 
 			pthread )
 
-INSTALL_PROGRAMS( /sbin FILES eosd )
+set_target_properties ( eosd eosfsd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+
+install_programs( /sbin FILES eosd )
 
 install ( TARGETS eosfsd
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
