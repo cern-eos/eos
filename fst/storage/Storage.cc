@@ -2882,10 +2882,6 @@ Storage::MgmSyncer()
     while (gOFS.WrittenFilesQueue.size()>0) {
       // we enter this loop with the WrittenFilesQueueMutex locked
       time_t now = time(NULL);
-      gOFS.WrittenFilesQueueMutex.UnLock();
-      
-      gOFS.WrittenFilesQueueMutex.Lock();
-      // fetch the next item to check
       struct FmdSqlite::FMD fmd = gOFS.WrittenFilesQueue.front();
       gOFS.WrittenFilesQueueMutex.UnLock();	
       
@@ -2916,6 +2912,7 @@ Storage::MgmSyncer()
 	// now do the consistency check
 	if (gFmdSqliteHandler.ResyncMgm(fmd.fsid, fmd.fid, manager.c_str())) {
 	  eos_static_debug("msg=\"resync ok\" fsid=%lu fid=%llx", fmd.fsid,fmd.fid);
+	  gOFS.WrittenFilesQueueMutex.Lock();
 	  gOFS.WrittenFilesQueue.pop();
 	} else {
 	  eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx", fmd.fsid,fmd.fid);
@@ -2925,8 +2922,8 @@ Storage::MgmSyncer()
 	}
       } else {
 	// if there was still a reference, we can just discard this check since the other write open will trigger a new entry in the queue
-	gOFS.WrittenFilesQueue.pop();
 	gOFS.WrittenFilesQueueMutex.Lock(); // put back the lock
+	gOFS.WrittenFilesQueue.pop();
       }
     }
     gOFS.WrittenFilesQueueMutex.UnLock();
