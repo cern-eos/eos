@@ -36,7 +36,7 @@ add_executable ( eosha
                  eosha.cc
 )
 
-INSTALL_PROGRAMS( /sbin FILES eoshapl )
+INSTALL_PROGRAMS( /sbin FILES eoshapl eossh-timeout)
 
 target_link_libraries ( eosdirsync eosCommon-Static XrdClient XrdUtils )
 target_link_libraries ( eosfilesync eosCommon-Static XrdClient XrdUtils )

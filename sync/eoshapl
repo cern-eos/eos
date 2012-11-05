@@ -46,6 +46,7 @@ my $mgmstatus="";
 my $mqstatus="";
 my $syncstatus="";
 my $eossyncstatus="";
+my $eosshtimeout=10;
 
 my $mastermgm=0;
 my $mastermq=0;
@@ -84,6 +85,11 @@ sub getconfig {
     if ( $ENV{'EOS_AUTOLOAD_CONFIG'} ne "" ) {
         $configname = $ENV{'EOS_AUTOLOAD_CONFIG'};
     }
+    
+    if ( $ENV{'EOS_MGM_TIMEOUT'} ne "" ) {
+	$eosshtimeout = $ENV{'EOS_MGM_TIMEOUT'};
+    }
+ 
     chomp $confdir;
     chomp $metadir;
     chomp $configname;
@@ -504,6 +510,19 @@ while(1) {
             # service dead ... let's restart
             my $startupsync = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eossync restart >> $logfile 2>&1 ");
          }  
+	# check that the MGM is operational
+	if (!$mastermgm) {
+	    my $mgmdead=`eossh-timeout -t $eosshtimeout xrd localhost stat /`;
+	    if ($mgmdead) {
+		now();
+		printf "$now ===================================================================\n";
+		printf "$now local alive test gave a timeout after $eosshtimeout seconds ...\n";
+		printf "$now ___________________________________________________________________\n";
+		if ( $ENV{'EOS_NOTIFY'} ne "" ) {
+                system("echo $now MGM on $host\\(me\\) didn't reply within timeout of $eosshtimeout seconds ... | $ENV{EOS_NOTIFY}");
+		}
+	    }
+	}
     }
 
     sleep(5);
