@@ -309,8 +309,10 @@ status() {
     if [ $GRETVAL -eq 1 ]; then
 	[ -f "/var/lock/subsys/$sysprog" ] && echo "$sysprog (partially) dead but subsys locked";
 	[ ! -f "/var/lock/subsys/$sysprog" ] && echo "$sysprog is stopped";
+	RETVAL=1
     else 
 	echo "$sysprog is running..."
+	RETVAL=0
     fi
 
     return $GRETVAL
