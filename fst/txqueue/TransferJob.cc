@@ -295,8 +295,6 @@ void TransferJob::DoIt(){
 
   bool iskrb5=false;
   bool isgsi=false;
-  bool canrun=true;
-
 
   if ( (mJob) && (mJob->GetEnv())) {
     // retrieve bandwidth from the opaque tx.bandwidth tag if defined
@@ -440,7 +438,6 @@ void TransferJob::DoIt(){
       // check for root protocol otherwise discard 
       if (!mSource.beginswith("root://")) {
 	eos_static_err("illegal source protocol specified: %s", mSource.c_str());
-	canrun = false;
       }
     }
   } else {
@@ -486,13 +483,11 @@ void TransferJob::DoIt(){
     if (mDestination.beginswith("http://")) {
       // HTTP upload
       eos_static_err("illegal target protocol specified: %s [not supported]", mDestination.c_str());
-      canrun = false;
     }
     
     if (mDestination.beginswith("https://")) {
       // HTTPS upload disabling certificate check (for the moment)
       eos_static_err("illegal target protocol specified: %s [not supported]", mDestination.c_str());
-      canrun = false;
     }
     
     if (mDestination.beginswith("gsiftp://")) {
@@ -804,11 +799,16 @@ void TransferJob::DoIt(){
 
   // move the output to the log file  
   cattolog = "touch /var/log/eos/fst/eoscp.log; cat "; cattolog += fileOutput.c_str(); cattolog +=" >> /var/log/eos/fst/eoscp.log 2>/dev/null";
-  system(cattolog.c_str());
-  
+  rc = system(cattolog.c_str());
+  if (WEXITSTATUS(rc)) { 
+    fprintf(stderr,"error: failed to append to eoscp log file (%s)\n", cattolog.c_str());
+  }
   if (stagefile.length()) {
     // move the output to the log file
-    std::string cattolog = "touch /var/log/eos/fst/eoscp.log; echo ______________________ STAGEOUT _____________________ >> /var/log/eos/fst/eoscp.log 2>/dev/null; cat "; cattolog += fileStageOutput.c_str(); cattolog +=" | grep -v \"bytes remaining\" >> /var/log/eos/fst/eoscp.log 2>/dev/null;"; system(cattolog.c_str());
+    std::string cattolog = "touch /var/log/eos/fst/eoscp.log; echo ______________________ STAGEOUT _____________________ >> /var/log/eos/fst/eoscp.log 2>/dev/null; cat "; cattolog += fileStageOutput.c_str(); cattolog +=" | grep -v \"bytes remaining\" >> /var/log/eos/fst/eoscp.log 2>/dev/null;"; rc = system(cattolog.c_str());
+    if (WEXITSTATUS(rc)) {
+      fprintf(stderr,"error: failed to append to eoscp log file (%s)\n", cattolog.c_str());
+    }
   }
 
   // ---- release the static log lock mutex ----

@@ -78,6 +78,11 @@ com_fuse (char* arg1) {
   if (!mountpoint.length()) 
     goto com_fuse_usage;
 
+  if (!mountpoint.beginswith("/")) {
+    fprintf(stderr,"warning: assuming you gave a relative path with respect to current working directory => mountpoint=%s\n", mountpoint.c_str());
+    mountpoint.insert(getenv("PWD"));
+  }
+
   if (cmd == "mount") {
     struct stat buf;
     struct stat buf2;
@@ -91,6 +96,7 @@ com_fuse (char* arg1) {
         fprintf(stderr,"error: creation of mountpoint failed");
       }
     }
+
     
     if (stat(mountpoint.c_str(),&buf)) {
       fprintf(stderr,"\nerror: cannot create mountpoint %s !\n", mountpoint.c_str());

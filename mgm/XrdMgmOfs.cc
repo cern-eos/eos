@@ -3024,7 +3024,7 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
     const char* ininfo = infoO;
     NAMESPACEMAP;   
     oldn = path;
-    info = 0;
+    if (info)info = 0;
   }
 
   {
@@ -3033,7 +3033,7 @@ int XrdMgmOfs::rename(const char             *old_name,  // In
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;   
     newn = path;
-    info = 0;
+    if (info)info = 0;
   }
   
   ACCESSMODE_W;
@@ -4090,7 +4090,7 @@ XrdMgmOfs::FSctl(const int               cmd,
   const char* ininfo = iopaque;
 
   NAMESPACEMAP;
-  info=0; if (info)info=0;// for compiler happyness;
+  if (info) info=0; // for compiler happyness;
 
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;

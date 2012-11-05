@@ -411,7 +411,10 @@ com_find (char* arg1) {
     cmd += " | grep -v 'Bucket' | grep -v '\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-' | grep -v 'Key' | awk -v prefix="; cmd += "'"; cmd += bucket.c_str(); cmd += "' "; cmd += "'{print \\\"as3:\\\"prefix\\\"/\\\"\\$1}'";
 
     cmd += "\"";
-    system(cmd.c_str());
+    rc = system(cmd.c_str());
+    if (WEXITSTATUS(rc)) {
+      fprintf(stderr,"error: failed to run %s\n", cmd.c_str());
+    }
   }
   
   // the find to change a layout
