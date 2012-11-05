@@ -174,8 +174,8 @@ com_transfer (char* argin) {
 	  // now poll the state
 
 	  errno=0;
-	  strtol(id.c_str(),0,10);
-	  if (errno) {
+	  long lid = strtol(id.c_str(),0,10);
+	  if (errno || (lid == LONG_MIN) || (lid == LONG_MAX) ) {
 	    fprintf(stderr,"error: submission of transfer probably failed - check with 'transfer ls'\n");
 	    global_retc=EFAULT;
 	    return (0);

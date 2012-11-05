@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
     if (mapptr) {
       for (off_t i =0; i < (off_t)(buf.st_size/sizeof(unsigned long long)); i+=10) {
 	unsigned long long b = *((unsigned long long*)mapptr + i);
-	b = 0;
+	if (b) b = 0; // compiler warning
 	percentage = 1+ (int) ( i * 100.0 / buf.st_size );
 	if ( !(percentage%10)) {
 	  if (last_percentage != percentage) {

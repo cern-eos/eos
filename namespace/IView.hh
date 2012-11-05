@@ -190,12 +190,17 @@ namespace eos
       virtual void renameContainer( ContainerMD *container,
                                     const std::string &newName )
         throw( MDException ) = 0;
-
+ 
       //------------------------------------------------------------------------
       //! Rename file
       //------------------------------------------------------------------------
       virtual void renameFile( FileMD *file, const std::string &newName )
         throw( MDException ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~IView() {}
   };
 };
 

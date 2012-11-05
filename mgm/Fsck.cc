@@ -818,20 +818,26 @@ Fsck::Repair(XrdOucString &out, XrdOucString &err, XrdOucString option)
 	try {
 	  fmd = gOFS->eosFileService->getFileMD(*it);
 	} catch ( eos::MDException &e ) {
+	  fmd = 0;
 	}
-	
-	int lretc = 0;
-	// issue a resync command for a filesystem/fid pair
-	lretc = gOFS->SendResync( *it, efsmapit->first);
-	if (lretc) {
-	  char outline[1024];
-	  snprintf(outline,sizeof(outline)-1, "success: sending resync to fsid=%u fxid=%llx\n",efsmapit->first,*it);
-	  out += outline;
+	if (fmd) {
+	  int lretc = 0;
+	  // issue a resync command for a filesystem/fid pair
+	  lretc = gOFS->SendResync( *it, efsmapit->first);
+	  if (lretc) {
+	    char outline[1024];
+	    snprintf(outline,sizeof(outline)-1, "success: sending resync to fsid=%u fxid=%llx\n",efsmapit->first,*it);
+	    out += outline;
+	  } else {
+	    char outline[1024];
+	    snprintf(outline,sizeof(outline)-1, "error: sending resync to fsid=%u failed for fxid=%llx\n",efsmapit->first,*it);
+	    out += outline;
+	  }
 	} else {
 	  char outline[1024];
-	  snprintf(outline,sizeof(outline)-1, "error: sending resync to fsid=%u failed for fxid=%llx\n",efsmapit->first,*it);
+	  snprintf(outline,sizeof(outline)-1, "error: no file meta data for fsid=%u failed for fxid=%llx\n",efsmapit->first,*it);
 	  out += outline;
-}
+	}
       }
     }
     return true;

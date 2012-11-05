@@ -122,7 +122,11 @@ int main(int argc, char* argv[])
   syskill += (int) getuid();
   syskill += " | grep -v grep | grep -v "; syskill += (int) getpid(); syskill += " | awk '{printf(\"%s \",$1)}' `";
   eos_static_debug("system: %s", syskill.c_str());
-  system(syskill.c_str());
+  int rc = system(syskill.c_str());
+  if (WEXITSTATUS(rc)) {
+    // nothing to do, might happen that there is nothing to kill
+    rc = 0;
+  }
   
   // go into background mode
   pid_t m_pid=fork();
@@ -151,9 +155,13 @@ int main(int argc, char* argv[])
   
 
   close(STDERR_FILENO);
-  freopen(logfile.c_str(),"w+",stderr);
-  freopen(logfile.c_str(),"w+",stdout);
+  FILE* ferr = freopen(logfile.c_str(),"w+",stderr);
+  FILE* fout = freopen(logfile.c_str(),"w+",stdout);
 
+  if ( (!ferr) || (!fout) ) {
+    eos_static_err("failed to reopen stdout/stderr");
+    exit(-1);
+  }
   eos_static_info("started %s ...", PROGNAME);
 
   // configurations are stored here
