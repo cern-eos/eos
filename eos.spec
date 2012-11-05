@@ -102,6 +102,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/lib64/libXrdEosMgm.so
 /usr/sbin/eos-log-compact
 /usr/sbin/eos-log-repair
+/usr/sbin/eossh-timeout
 %attr(700,daemon,daemon) /var/eos
 %attr(755,daemon,daemon) /var/log/eos/
 %config(noreplace) /etc/xrd.cf.fst
