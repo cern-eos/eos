@@ -2046,12 +2046,15 @@ ssize_t xrd_pwrite( int           fildes,
     XFC->SubmitWrite( file, inode, const_cast<void*>( buf ), offset, nbyte );
     ret = nbyte;
   } else {
-    status = file->Write( offset, nbyte, const_cast<void*>( buf ), ret );
+    status = file->Write( offset, nbyte, const_cast<void*>( buf ) );
 
     if ( !status.IsOK() ) {
       errno = status.errNo;
       ret = -1;
     }
+    else {
+      ret = nbyte;
+    }          
   }
 
   COMMONTIMING( "end", &xpw );
@@ -2227,7 +2230,13 @@ void xrd_init()
     fs = 0;
   }
 
-  std::string address = "root://localhost:1094";
+  std::string address = getenv( "EOS_RDRURL" );
+  if ( address != "" ) {
+    fprintf( stderr, "error: EOS_RDRURL is not defined so we fall back to  "
+             "root://localhost:1094 \n" );
+    address = "root://localhost:1094";
+  }
+  
   XrdCl::URL url( address );
 
   if ( !url.IsValid() ) {
