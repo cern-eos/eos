@@ -226,16 +226,31 @@ namespace eos
       {
         return ::lseek( pFd, 0, SEEK_END );
       }
+
+      //------------------------------------------------------------------------
+      //! Get user flags
+      //------------------------------------------------------------------------
+      uint8_t getUserFlags() const
+      {
+        return pUserFlags;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set the user flags
+      //------------------------------------------------------------------------
+      void setUserFlags( uint8_t flags ) throw( MDException );
+
     private:
 
       //------------------------------------------------------------------------
       // Decode the header flags of the log file
       //------------------------------------------------------------------------
       static void decodeHeaderFlags( uint32_t flags, uint8_t &version,
-                                     uint16_t &contentFlag )
+                                     uint16_t &contentFlag, uint8_t &userFlags )
       {
         version     = flags & 0x000000ff;
         contentFlag = (flags >> 8) & 0x0000ffff;
+        userFlags   = (flags >> 24) & 0x000000ff;
       }
 
       //------------------------------------------------------------------------
@@ -244,6 +259,7 @@ namespace eos
       int      pFd;
       bool     pIsOpen;
       uint8_t  pVersion;
+      uint8_t  pUserFlags;
       uint64_t pSeqNumber;
       uint16_t pContentFlag;
   };

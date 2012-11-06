@@ -123,7 +123,7 @@ namespace eos
     {
       uint32_t fileFlags = checkHeader( fd, name );
       uint8_t  version   = 0;
-      decodeHeaderFlags( fileFlags, version, pContentFlag );
+      decodeHeaderFlags( fileFlags, version, pContentFlag, pUserFlags );
 
       if( version == 0 || version > 1 )
       {
@@ -786,7 +786,8 @@ namespace eos
     {
       uint32_t headerFlags = checkHeader( fd, filename );
       uint8_t  version     = 0;
-      decodeHeaderFlags( headerFlags, version, contentFlag );
+      uint8_t  userFlags   = 0;
+      decodeHeaderFlags( headerFlags, version, contentFlag, userFlags );
       if( feedback )
         feedback->reportHeaderStatus( true, "", version, contentFlag );
     }
@@ -857,5 +858,39 @@ namespace eos
       if( feedback )
         feedback->reportProgress( stats );
     }
+  }
+
+  //----------------------------------------------------------------------------
+  // Set the user flags
+  //----------------------------------------------------------------------------
+  void ChangeLogFile::setUserFlags( uint8_t flags ) throw( MDException )
+  {
+    //--------------------------------------------------------------------------
+    // Check if the file is open
+    //--------------------------------------------------------------------------
+    if( !pIsOpen )
+    {
+      MDException ex( EFAULT );
+      ex.getMessage() << "setUserFlags: Changelog file is not open";
+      throw ex;
+    }
+
+    uint32_t tmp;
+    uint32_t fileFlags = 0;
+    fileFlags |= pVersion;
+    tmp = pContentFlag;
+    fileFlags |= (tmp << 8);
+    tmp = flags;
+    fileFlags |= (tmp << 24);
+
+    if( pwrite( pFd, &fileFlags, 4, 4 ) != 4 )
+    {
+      MDException ex( errno );
+      ex.getMessage() << "Unable to write user flags: ";
+      ex.getMessage() << strerror( errno );
+      throw ex;
+    }
+
+    pUserFlags = flags;
   }
 }
