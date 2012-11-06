@@ -472,7 +472,8 @@ namespace eos
   //----------------------------------------------------------------------------
   // Follow a file
   //----------------------------------------------------------------------------
-  void ChangeLogFile::follow( ILogRecordScanner* scanner, unsigned poll )
+  uint64_t ChangeLogFile::follow( ILogRecordScanner *scanner,
+                                  uint64_t           startOffset )
     throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -489,7 +490,7 @@ namespace eos
     // Off we go - we only exit if an error occurs
     //--------------------------------------------------------------------------
     Descriptor   fd( pFd );
-    off_t        offset = 8;
+    off_t        offset = startOffset;
     uint16_t    *magic;
     uint16_t    *size;
     uint32_t    *chkSum1;
@@ -504,9 +505,10 @@ namespace eos
       //------------------------------------------------------------------------
       // Read the header
       //------------------------------------------------------------------------
+      unsigned bytesRead = 0;
       try
       {
-        fd.offsetReadNonBlocking( buffer, 20, offset, poll );
+        bytesRead = fd.tryRead( buffer, 20, offset );
       }
       catch( DescriptorException &e )
       {
@@ -515,6 +517,9 @@ namespace eos
         ex.getMessage() << e.getMessage().str();
         throw ex;
       }
+
+      if( bytesRead != 20 )
+        return offset;
 
       magic   = (uint16_t*)(buffer);
       size    = (uint16_t*)(buffer+2);
@@ -536,10 +541,10 @@ namespace eos
       // Read the second part of the buffer
       //------------------------------------------------------------------------
       record.resize( *size+4, 0 );
+      bytesRead = 0;
       try
       {
-        fd.offsetReadNonBlocking( record.getDataPtr(), *size+4, offset+20,
-                                  poll );
+        bytesRead = fd.tryRead( record.getDataPtr(), *size+4, offset+20 );
       }
       catch( DescriptorException &e )
       {
@@ -548,6 +553,10 @@ namespace eos
         ex.getMessage() << ": " << e.getMessage().str();
         throw ex;
       }
+
+      if( (ssize_t)bytesRead != (*size+4) )
+        return offset;
+
       record.grabData( record.size()-4, &chkSum2, 4 );
       record.resize( *size );
 

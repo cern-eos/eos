@@ -197,12 +197,14 @@ namespace eos
         throw( MDException );
 
       //------------------------------------------------------------------------
-      //! Follow a file
+      //! Follow the new records in a file starting at a given offset and
+      //! ignore incomplete records at the end
       //!
-      //! @param scanner a listener to be notified about a new record
-      //! @param poll    look for new data every poll microseconds
+      //! @param scanner     a listener to be notified about a new record
+      //! @param startOffset offset to start at
+      //! @return offset after the last successfully scanned record
       //------------------------------------------------------------------------
-      void follow( ILogRecordScanner* scanner, unsigned poll = 100000 )
+      uint64_t follow( ILogRecordScanner *scanner, uint64_t startOffset )
         throw( MDException );
 
       //------------------------------------------------------------------------
