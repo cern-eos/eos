@@ -41,8 +41,8 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "fst/io/RaidDpFile.hh"
-#include "fst/io/ReedSFile.hh"
+#include "fst/io/RaidDpPio.hh"
+#include "fst/io/ReedSPio.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/io/ChunkHandler.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
@@ -115,7 +115,7 @@ uint32_t buffersize = DEFAULTBUFFERSIZE;
 
 double read_wait = 0;         ///< statistics about total read time
 double write_wait = 0;        ///< statistics about total write time
-char* buffer;                 ///< used for doing the reading
+char* buffer= NULL;                 ///< used for doing the reading
 bool first_time = true;       ///< first time prefetch two blocks
 eos::fst::ChunkHandler* handler = NULL;    ///< handler for async requests
 eos::fst::ChunkHandler* wr_handler = NULL; ///< handler for async write requests
@@ -133,7 +133,7 @@ bool isStreamFile    = false;     ///< the file is streamed
 bool doStoreRecovery = false;     ///< store recoveries if the file is corrupted
 
 std::string replicationType = "";
-eos::fst::RaidIo* redundancyObj = NULL;
+eos::fst::RaidMetaPio* redundancyObj = NULL;
 
 //..............................................................................
 // Checksum variables
@@ -745,6 +745,7 @@ int main( int argc, char* argv[] )
     else {
       src_type.push_back( LOCAL_ACCESS );
     }
+    fprintf( stderr, "\n" );
   }
 
   //............................................................................
@@ -1111,13 +1112,13 @@ int main( int argc, char* argv[] )
             }
 
             if ( replicationType == "raidDP" ) {
-              redundancyObj = new eos::fst::RaidDpFile( vectUrl, nparitystripes,
-                                                        doStoreRecovery,
-                                                        isStreamFile, stripeWidth );
-            } else if ( replicationType == "reedS" ) {
-              redundancyObj = new eos::fst::ReedSFile( vectUrl, nparitystripes,
+              redundancyObj = new eos::fst::RaidDpPio( vectUrl, nparitystripes,
                                                        doStoreRecovery,
                                                        isStreamFile, stripeWidth );
+            } else if ( replicationType == "reedS" ) {
+              redundancyObj = new eos::fst::ReedSPio( vectUrl, nparitystripes,
+                                                      doStoreRecovery,
+                                                      isStreamFile, stripeWidth );
             }
 
             if ( debug ) {
@@ -1253,13 +1254,13 @@ int main( int argc, char* argv[] )
             }
 
             if ( replicationType == "raidDP" ) {
-              redundancyObj = new eos::fst::RaidDpFile( vectUrl, nparitystripes,
-                                                        doStoreRecovery,
-                                                        isStreamFile, stripeWidth );
-            } else if ( replicationType == "reedS" ) {
-              redundancyObj = new eos::fst::ReedSFile( vectUrl, nparitystripes,
+              redundancyObj = new eos::fst::RaidDpPio( vectUrl, nparitystripes,
                                                        doStoreRecovery,
                                                        isStreamFile, stripeWidth );
+            } else if ( replicationType == "reedS" ) {
+              redundancyObj = new eos::fst::ReedSPio( vectUrl, nparitystripes,
+                                                      doStoreRecovery,
+                                                      isStreamFile, stripeWidth );
             }
 
             if ( debug ) {
@@ -1495,7 +1496,13 @@ int main( int argc, char* argv[] )
         {
           clock_gettime(CLOCK_REALTIME, &start );
           
-          nread = do_readahead( offsetXrd, buffersize, ptr_buffer );
+          //nread = do_readahead( offsetXrd, buffersize, ptr_buffer );
+          status = src_handler[0].second->Read( offsetXrd, buffersize, ptr_buffer, nread );
+
+          if ( !status.IsOK() ) {
+            fprintf( stderr, "Error while doing reading. \n" );
+            exit( -1 );
+          }
           
           clock_gettime(CLOCK_REALTIME, &end );
           wait_time = static_cast<double>( ( end.tv_sec * 1000 + end.tv_nsec / 1000000 )-
@@ -1554,7 +1561,6 @@ int main( int argc, char* argv[] )
                        dst_location[i].second.c_str(), ( long long )nwrite, ( long long )nread );
               exit( -EIO );
             }
-            
 
             /*
             // WRITING IN ASYNC MODE

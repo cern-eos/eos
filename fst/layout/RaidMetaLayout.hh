@@ -331,6 +331,22 @@ class RaidMetaLayout : public Layout
     //--------------------------------------------------------------------------
     virtual unsigned int MapSmallToBig( unsigned int idSmall ) = 0;
 
+  
+    //--------------------------------------------------------------------------
+    //! Non-streaming operation
+    //! Compute parity for the non-streaming case and write it to files
+    //!
+    //! @param force if true force parity computation of incomplete groups,
+    //!              this means that parity will be computed even if there are
+    //!              still some pieces missing - this is useful at the end of
+    //!              a write operation when closing the file
+    //!
+    //! @return true if successful, otherwise error
+    //!
+    //--------------------------------------------------------------------------
+    bool SparseParityComputation( bool force );
+
+
 
   private:
 
@@ -373,21 +389,6 @@ class RaidMetaLayout : public Layout
     //!
     //--------------------------------------------------------------------------
     bool ReadGroup( off_t offsetGroup );
-
-
-    //--------------------------------------------------------------------------
-    //! Non-streaming operation
-    //! Compute parity for the non-streaming case and write it to files
-    //!
-    //! @param force if true force parity computation of incomplete groups,
-    //!              this means that parity will be computed even if there are
-    //!              still some pieces missing - this is useful at the end of
-    //!              a write operation when closing the file
-    //!
-    //! @return true if successful, otherwise error
-    //!
-    //--------------------------------------------------------------------------
-    bool SparseParityComputation( bool force );
 
 
     //--------------------------------------------------------------------------

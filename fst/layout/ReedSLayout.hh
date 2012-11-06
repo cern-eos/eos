@@ -34,7 +34,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Implementation of the Reed-Solomon layout
 //------------------------------------------------------------------------------
-class ReedSLayout : public RaidMetaLayout
+class ReedSLayout : virtual public RaidMetaLayout
 {
   public:
 

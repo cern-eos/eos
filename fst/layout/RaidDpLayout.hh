@@ -39,7 +39,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Implementation of the RAID-double parity layout
 //------------------------------------------------------------------------------
-class RaidDpLayout : public RaidMetaLayout
+class RaidDpLayout : virtual public RaidMetaLayout
 {
   public:
 
