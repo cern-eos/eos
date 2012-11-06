@@ -48,6 +48,10 @@
 #include <sys/types.h>
 #include <attr/xattr.h>
 #include <math.h>
+#include <stdio.h>
+#include <execinfo.h>
+#include <signal.h>
+#include <stdlib.h>
 /*----------------------------------------------------------------------------*/
 // the global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
@@ -94,6 +98,24 @@ extern "C"
 }
 
 EOSFSTNAMESPACE_BEGIN
+
+/*----------------------------------------------------------------------------*/
+void
+XrdFstOfs::xrdfstofs_stacktrace(int sig) {
+  (void) signal(SIGINT,SIG_IGN);
+  (void) signal(SIGTERM,SIG_IGN);
+  (void) signal(SIGQUIT,SIG_IGN);
+  void *array[10];
+  size_t size;
+
+  // get void*'s for all entries on the stack
+  size = backtrace(array, 10);
+
+  // print out all the frames to stderr
+  fprintf(stderr, "Error: signal %d:\n", sig);
+  backtrace_symbols_fd(array, size, 2);
+  exit(1);
+}
 
 /*----------------------------------------------------------------------------*/
 void

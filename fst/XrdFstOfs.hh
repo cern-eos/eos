@@ -104,12 +104,17 @@ public:
   int Configure(XrdSysError &error);
 
   static void xrdfstofs_shutdown(int sig);
+  static void xrdfstofs_stacktrace(int sig);
 
   XrdFstOfs() {
     eos::common::LogId(); Eroute = 0; Messaging = 0; Storage = 0; TransferScheduler = 0; 
     (void) signal(SIGINT,xrdfstofs_shutdown);
     (void) signal(SIGTERM,xrdfstofs_shutdown);
     (void) signal(SIGQUIT,xrdfstofs_shutdown);
+    // add SEGV handler
+    (void) signal(SIGSEGV, xrdfstofs_stacktrace);
+    (void) signal(SIGABRT, xrdfstofs_stacktrace);
+    (void) signal(SIGBUS,  xrdfstofs_stacktrace);
     Simulate_IO_read_error = Simulate_IO_write_error = Simulate_XS_read_error = Simulate_XS_write_error = false;
   }
 
