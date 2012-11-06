@@ -206,6 +206,7 @@ void LogCompactingTest::correctnessTest()
   CPPUNIT_ASSERT_NO_THROW( file.scanAllRecords( &stampScanner ) );
   CPPUNIT_ASSERT( stampScanner.stampCount() == 1 );
   CPPUNIT_ASSERT( stampScanner.isStampLast() );
+  CPPUNIT_ASSERT( file.getUserFlags() & eos::LOG_FLAG_COMPACTED );
   file.close();
 
   unlink( fileNameOld.c_str() );
