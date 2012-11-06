@@ -253,7 +253,12 @@ void *followerThread( void *data )
 {
   eos::ChangeLogFile &file = *reinterpret_cast<eos::ChangeLogFile*>(data);
   FileFollower f;
-  file.follow( &f, 100 );
+  uint64_t offset = file.getFirstOffset();
+  while( 1 )
+  {
+    offset = file.follow( &f, offset );
+    usleep( 100 );
+  }
   return 0;
 }
 
