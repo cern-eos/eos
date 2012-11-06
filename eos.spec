@@ -1,8 +1,8 @@
 %define _unpackaged_files_terminate_build 0
 Summary: The EOS project
 Name: eos
-Version: 0.2.22 
-Release: 1
+Version: 0.2.22
+Release: rc1
 Prefix: /usr
 License: none
 Group: Applications/File
