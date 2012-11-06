@@ -183,6 +183,7 @@ namespace eos
     //--------------------------------------------------------------------------
     // Cleanup
     //--------------------------------------------------------------------------
+    outputFile.setUserFlags( outputFile.getUserFlags() | eos::LOG_FLAG_COMPACTED );
     inputFile.close();
     outputFile.close();
   }

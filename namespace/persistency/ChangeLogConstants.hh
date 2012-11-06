@@ -33,6 +33,7 @@ namespace eos
   extern const uint8_t  COMPACT_STAMP_RECORD_MAGIC;
   extern const uint16_t FILE_LOG_MAGIC;
   extern const uint16_t CONTAINER_LOG_MAGIC;
+  extern const uint8_t  LOG_FLAG_COMPACTED;
 }
 
 #endif // EOS_NS_CHANGELOG_CONSTANTS_HH
