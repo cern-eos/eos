@@ -51,7 +51,7 @@ namespace eos
     if( !pFileSvc )
     {
       MDException e( EINVAL );
-      e.getMessage() << "Container MD Service was not set";
+      e.getMessage() << "File MD Service was not set";
       throw e;
     }
   }
