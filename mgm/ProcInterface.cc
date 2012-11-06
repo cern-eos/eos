@@ -1083,13 +1083,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               tident.erase(0,addpos+1);
             }
           }
+
+	  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
           
           if ( (vid_in.uid!=0) && ( (vid_in.prot != "sss") || tident.compare(0, tident.length(), rnodename, 0, tident.length()) )) {
             stdErr+="error: nodes can only be configured as 'root' or from the node itself them using sss protocol\n";
             retc = EPERM;
           }  else {
             
-            eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
             if (!FsView::gFsView.mNodeView.count(nodename)) {
               stdOut="info: creating node '"; stdOut += nodename.c_str(); stdOut += "'";
               
