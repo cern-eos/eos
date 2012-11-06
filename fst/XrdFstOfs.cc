@@ -1142,7 +1142,7 @@ XrdFstOfsFile::verifychecksum()
 	return false;
       }
     } else {
-      if (!rvec.size()) {
+      if ( (!rvec.size()) && (!wvec.size()) ) {
 	eos_debug("info=\"skipping checksum (re-scan) for access without any IO ...\"");
 	delete checkSum;
 	checkSum=0;
