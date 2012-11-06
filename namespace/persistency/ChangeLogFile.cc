@@ -157,7 +157,7 @@ namespace eos
       //------------------------------------------------------------------------
       // Truncate if needed
       //------------------------------------------------------------------------
-      if( (flags & Truncate) && ::ftruncate( fd, 8 ) != 0 )
+      if( (flags & Truncate) && ::ftruncate( fd, getFirstOffset() ) != 0 )
       {
         MDException ex( EFAULT );
         ex.getMessage() << "Unable to truncate: " << name << ": ";
@@ -411,7 +411,7 @@ namespace eos
   uint64_t ChangeLogFile::scanAllRecords( ILogRecordScanner *scanner )
     throw( MDException )
   {
-    return scanAllRecordsAtOffset( scanner, 8 );
+    return scanAllRecordsAtOffset( scanner, getFirstOffset() );
   }
 
   //----------------------------------------------------------------------------
@@ -806,10 +806,10 @@ namespace eos
     Buffer  buff;
     uint8_t type;
     off_t   fsize  = ::lseek( fd, 0, SEEK_END );
-    off_t   offset = 8;
+    off_t   offset = 8; // offset of the first record
 
     stats.bytesTotal    = fsize;
-    stats.bytesAccepted = 8;  // offset
+    stats.bytesAccepted = 8; // the file header size
 
     while( offset < fsize )
     {
