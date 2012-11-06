@@ -210,6 +210,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   // Obs: RecoverPiecesInGroup also checks the simple and double parity blocks
   //............................................................................
   eos_debug( "_" );
+  int64_t nread = 0;
   bool ret = true;
   bool* status_blocks;
   char* pBuff;
@@ -232,7 +233,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   for ( unsigned int i = 0; i < mMetaHandlers.size(); i++ ) {
     mMetaHandlers[i]->Reset();
   }
-
+  
   for ( unsigned int i = 0; i < mNbTotalBlocks; i++ ) {
     memset( mDataBlocks[i], 0, mStripeWidth );
     status_blocks[i] = true;
@@ -242,28 +243,19 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
                    ( ( i / mNbTotalFiles ) * mStripeWidth );
     offset_local += mSizeHeader;
 
+    //..........................................................................
+    // Read data from stripe
+    //..........................................................................
     if ( mStripeFiles[physical_id] ) {
-      if ( physical_id ) {
-        //........................................................................
-        // Do remote read operation
-        //........................................................................
-        mStripeFiles[physical_id]->Read( offset_local,
-                                         mDataBlocks[i],
-                                         mStripeWidth,
-                                         mMetaHandlers[physical_id],
-                                         true ); // enable readahead
-      } else {
-        //........................................................................
-        // Do local read operation
-        //........................................................................
-        int nread = mStripeFiles[physical_id]->Read( offset_local,
-                                                     mDataBlocks[i],
-                                                     mStripeWidth );
+      nread = mStripeFiles[physical_id]->Read( offset_local,
+                                               mDataBlocks[i],
+                                               mStripeWidth,
+                                               mMetaHandlers[physical_id],
+                                               true ); // enable readahead
 
-        if ( nread != mStripeWidth ) {
-          status_blocks[i] = false;
-          corrupt_ids.push_back( i );
-        }
+      if ( nread != mStripeWidth ) {
+        status_blocks[i] = false;
+        corrupt_ids.push_back( i );
       }
     } else {
       status_blocks[i] = false;
@@ -301,6 +293,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   //............................................................................
   // Recovery algorithm
   //............................................................................
+  int64_t nwrite;
   unsigned int id_corrupted;
   vector<unsigned int> horizontal_stripe;
   vector<unsigned int> diagonal_stripe;
@@ -342,34 +335,22 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
 
       if ( mStoreRecovery ) {
         if ( mStripeFiles[physical_id] ) {
-          if ( physical_id ) {
-            //....................................................................
-            // Do remote write operation
-            //....................................................................
-            mStripeFiles[physical_id]->Write( offset_local,
-                                              mDataBlocks[id_corrupted],
-                                              mStripeWidth,
-                                              mMetaHandlers[physical_id] );
-          } else {
-            //....................................................................
-            // Do local write operation
-            //....................................................................
-            int nwrite = mStripeFiles[physical_id]->Write( offset_local,
-                                                           mDataBlocks[id_corrupted],
-                                                           mStripeWidth );
-
-            if ( nwrite != mStripeWidth ) {
-              eos_err( "error=while doing local write operation offset=%lli",
-                       offset_local );
-              ret = false;
-            }
+          nwrite = mStripeFiles[physical_id]->Write( offset_local,
+                                                     mDataBlocks[id_corrupted],
+                                                     mStripeWidth,
+                                                     mMetaHandlers[physical_id] );
+          
+          if ( nwrite != mStripeWidth ) {
+            eos_err( "error=while doing local write operation offset=%lli",
+                     offset_local );
+            ret = false;
           }
         } else {
           eos_warning( "warning=could not write recovered block because file is "
                        "not opened ( simple parity)." );
         }
       }
-
+      
       //......................................................................
       // Return corrected information to the buffer
       //......................................................................
@@ -432,27 +413,15 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
 
         if ( mStoreRecovery ) {
           if ( mStripeFiles[physical_id] ) {
-            if ( physical_id ) {
-              //....................................................................
-              // Do remote write operation
-              //....................................................................
-              mStripeFiles[physical_id]->Write( offset_local,
-                                                mDataBlocks[id_corrupted],
-                                                mStripeWidth,
-                                                mMetaHandlers[physical_id] );
-            } else {
-              //....................................................................
-              // Do local write operation
-              //....................................................................
-              int nwrite = mStripeFiles[physical_id]->Write( offset_local,
-                                                             mDataBlocks[id_corrupted],
-                                                             mStripeWidth );
-
-              if ( nwrite != mStripeWidth ) {
-                eos_err( "error=while doing local write operation offset=%lli",
-                         offset_local + mSizeHeader );
-                ret = false;
-              }
+            nwrite = mStripeFiles[physical_id]->Write( offset_local,
+                                                       mDataBlocks[id_corrupted],
+                                                       mStripeWidth,
+                                                       mMetaHandlers[physical_id] );
+            
+            if ( nwrite != mStripeWidth ) {
+              eos_err( "error=while doing local write operation offset=%lli",
+                       offset_local + mSizeHeader );
+              ret = false;
             }
           } else {
             eos_warning( "warning=could not write recovered block because file is "
@@ -587,6 +556,7 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
 {
   eos_debug( "offsetGroup = %zu", offsetGroup );
   int ret = SFS_OK;
+  int64_t nwrite = 0;
   off_t off_parity_local;
   unsigned int index_pblock;
   unsigned int index_dpblock;
@@ -604,46 +574,39 @@ RaidDpLayout::WriteParityToFiles( off_t offsetGroup )
     //..........................................................................
     // Writing simple parity
     //..........................................................................
-    if ( physical_pindex ) {
-      //........................................................................
-      // Do remote write operation
-      //........................................................................
-      mStripeFiles[physical_pindex]->Write( off_parity_local,
-                                            mDataBlocks[index_pblock],
-                                            mStripeWidth,
-                                            mMetaHandlers[physical_pindex] );
-    } else {
-      //........................................................................
-      // Do local write operation
-      //........................................................................
-      mStripeFiles[physical_pindex]->Write( off_parity_local,
-                                            mDataBlocks[index_pblock],
-                                            mStripeWidth );
-    }
-
-    //..........................................................................
-    // Writing double parity
-    //..........................................................................
-    if ( physical_dpindex ) {
-      //........................................................................
-      // Do remote write operation
-      //........................................................................
-      mStripeFiles[physical_dpindex]->Write( off_parity_local,
-                                             mDataBlocks[index_dpblock],
-                                             mStripeWidth,
-                                             mMetaHandlers[physical_dpindex] );
-    } else {
-      //........................................................................
-      // Do local write operation
-      //........................................................................
-      int64_t nwrite = mStripeFiles[physical_dpindex]->Write( off_parity_local,
-                                                              mDataBlocks[index_dpblock],
-                                                              mStripeWidth );
-
+    if ( mStripeFiles[physical_pindex] ) {
+      nwrite = mStripeFiles[physical_pindex]->Write( off_parity_local,
+                                                     mDataBlocks[index_pblock],
+                                                     mStripeWidth,
+                                                     mMetaHandlers[physical_pindex] );
       if ( nwrite != mStripeWidth ) {
         eos_err( "error=error while writing local parity information" );
         ret = SFS_ERROR;
+        break;
       }
+    } else {
+      eos_err( "error=file not opened for simple parity write" );
+      ret = SFS_ERROR;
+      break;
+    }
+  
+    //..........................................................................
+    // Writing double parity
+    //..........................................................................
+    if ( mStripeFiles[physical_dpindex] ) {
+      nwrite = mStripeFiles[physical_dpindex]->Write( off_parity_local,
+                                                      mDataBlocks[index_dpblock],
+                                                      mStripeWidth,
+                                                      mMetaHandlers[physical_dpindex] );
+      if ( nwrite != mStripeWidth ) {
+        eos_err( "error=error while writing local parity information" );
+        ret = SFS_ERROR;
+        break;
+      }
+    } else {
+      eos_err( "error=file not opened for double parity write" );
+      ret = SFS_ERROR;
+      break;
     }
   }
 

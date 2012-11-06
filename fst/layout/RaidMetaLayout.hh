@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //! @file RaidMetaLayout.hh
 //! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Generic class to read/write RAID-like layout files
+//! @brief Generic class to read/write RAID-like layout files using a gateway
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -274,7 +274,7 @@ class RaidMetaLayout : public Layout
     //! @param offsetGroup offset of group of blocks
     //!
     //--------------------------------------------------------------------------
-    void DoBlockParity( off_t offsetGroup );
+    virtual void DoBlockParity( off_t offsetGroup );
 
   
     //--------------------------------------------------------------------------

@@ -448,12 +448,10 @@ XrdFstOfsFile::open( const char*                path,
 
   layOut->SetLogId( logId, vid, tident );
   
-  if ( isRW ||
-       ( ( opaqueCheckSum != "ignore" ) ) ) {
+  if ( isRW || ( opaqueCheckSum != "ignore" ) ) {
       checkSum = eos::fst::ChecksumPlugins::GetChecksumObject( lid );
       eos_debug( "checksum requested %d %u", checkSum, lid );
   }
-
 
   eos_info("checksum=%llu entryserver=%d", checkSum, layOut->IsEntryServer());
 

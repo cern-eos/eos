@@ -117,6 +117,8 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   // Obs: RecoverPiecesInGroup also checks the parity blocks
   //............................................................................
   bool ret = true;
+  int64_t nread = 0;
+  int64_t nwrite = 0;
   unsigned int num_blocks_corrupted;
   unsigned int physical_id;
   vector<unsigned int> valid_ids;
@@ -131,33 +133,22 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
     physical_id = mapLP[i];
     mMetaHandlers[physical_id]->Reset();
-
+    
+    //........................................................................
+    // Read data from stripe
+    //........................................................................
     if ( mStripeFiles[physical_id] ) {
-      if ( physical_id ) {
-        //........................................................................
-        // Do remote read operation
-        //........................................................................
-        mStripeFiles[physical_id]->Read( offset_local,
-                                         mDataBlocks[i],
-                                         mStripeWidth,
-                                         mMetaHandlers[physical_id],
-                                         true ); //enable readahead
-      } else {
-        //........................................................................
-        // Do local read operation
-        //........................................................................
-        int nread = mStripeFiles[physical_id]->Read( offset_local,
-                                                     mDataBlocks[i],
-                                                     mStripeWidth );
-
-        if ( nread != mStripeWidth ) {
-          eos_err( "error=local block corrupted id=%i.", i );
-          invalid_ids.push_back( i );
-          num_blocks_corrupted++;
-        } else {
-          valid_ids.push_back( i );
-        }
-      }
+      nread = mStripeFiles[physical_id]->Read( offset_local,
+                                               mDataBlocks[i],
+                                               mStripeWidth,
+                                               mMetaHandlers[physical_id],
+                                               true ); //enable readahead
+      
+      if ( nread != mStripeWidth ) {
+        eos_err( "error=local block corrupted id=%i.", i );
+        invalid_ids.push_back( i );
+        num_blocks_corrupted++;
+      } 
     } else {
       //........................................................................
       // File not opened, register it as an error
@@ -178,14 +169,16 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
         eos_err( "error=remote block corrupted id=%i", i );
         invalid_ids.push_back( i );
         num_blocks_corrupted++;
-      } else {
-        //............................................................................
-        // Don't add any blocks which were proved to be invalid already
-        //............................................................................
-        if ( find( invalid_ids.begin(), invalid_ids.end(), i ) == invalid_ids.end() ) {
-          valid_ids.push_back( i );
-        }
-      }
+      } 
+    }
+  }
+
+  //............................................................................
+  // Get the rest of the valid ids
+  //............................................................................
+  for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
+    if ( find( invalid_ids.begin(), invalid_ids.end(), i ) == invalid_ids.end() ) {
+      valid_ids.push_back( i );
     }
   }
 
@@ -260,31 +253,19 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
     physical_id = mapLP[stripe_id];
 
     if ( mStoreRecovery && mStripeFiles[physical_id] ) {
-      if ( physical_id ) {
-        //......................................................................
-        // Do remote write operation
-        //......................................................................
-        mMetaHandlers[physical_id]->Reset();
-        mStripeFiles[physical_id]->Write( offset_local,
-                                          mDataBlocks[stripe_id],
-                                          mStripeWidth,
-                                          mMetaHandlers[physical_id] );
-      } else {
-        //......................................................................
-        // Do local write operation
-        //......................................................................
-        int nwrite = mStripeFiles[physical_id]->Write( offset_local,
-                                                       mDataBlocks[stripe_id],
-                                                       mStripeWidth );
-
-        if ( nwrite != mStripeWidth ) {
-          eos_err( "error=while doing local write operation offset=%lli",
-                   offset_local );
-          ret = false;
-        }
+      mMetaHandlers[physical_id]->Reset();
+      nwrite = mStripeFiles[physical_id]->Write( offset_local,
+                                                 mDataBlocks[stripe_id],
+                                                 mStripeWidth,
+                                                 mMetaHandlers[physical_id] );
+      
+      if ( nwrite != mStripeWidth ) {
+        eos_err( "error=while doing local write operation offset=%lli", offset_local );
+        ret = false;
+        break;
       }
     }
-
+  
     //..........................................................................
     // Write the correct block to the reading buffer, if it is not parity info
     //..........................................................................
@@ -481,35 +462,28 @@ int
 ReedSLayout::WriteParityToFiles( off_t offsetGroup )
 {
   int ret = SFS_OK;
+  int64_t nwrite = 0;
   unsigned int physical_id;
   off_t offset_local = ( offsetGroup / mNbDataFiles ) + mStripeWidth;
 
   for ( unsigned int i = mNbDataFiles; i < mNbTotalFiles; i++ ) {
     physical_id = mapLP[i];
 
+    //..........................................................................
+    // Write parity block
+    //..........................................................................
     if ( mStripeFiles[physical_id] ) {
-      if ( physical_id ) {
-        //......................................................................
-        // Do local write operation
-        //......................................................................
-        mMetaHandlers[physical_id]->Reset();
-        mStripeFiles[physical_id]->Write( offset_local,
-                                          mDataBlocks[i],
-                                          mStripeWidth,
-                                          mMetaHandlers[physical_id] );
-      } else {
-        //......................................................................
-        // Do local write operation
-        //......................................................................
-        int nwrite = mStripeFiles[physical_id]->Write( offset_local,
-                                                       mDataBlocks[i],
-                                                       mStripeWidth );
-
-        if ( nwrite != mStripeWidth ) {
-          eos_err( "error=while doing local write operation offset=%lli",
-                   offset_local );
-          ret = SFS_ERROR;
-        }
+      mMetaHandlers[physical_id]->Reset();
+      nwrite = mStripeFiles[physical_id]->Write( offset_local,
+                                                 mDataBlocks[i],
+                                                 mStripeWidth,
+                                                 mMetaHandlers[physical_id] );
+      
+      if ( nwrite != mStripeWidth ) {
+        eos_err( "error=while doing local write operation offset=%lli",
+                 offset_local );
+        ret = SFS_ERROR;
+        break;
       }
     }
   }

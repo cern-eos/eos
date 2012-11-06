@@ -126,7 +126,7 @@ XrdFileIo::Read( XrdSfsFileOffset offset,
   eos_debug( "offset = %lli, length = %lli",
              static_cast<int64_t>( offset ),
              static_cast<int64_t>( length ) );
-  uint32_t bytes_read;
+  uint32_t bytes_read = 0;
   XrdCl::XRootDStatus status = mXrdFile->Read( static_cast<uint64_t>( offset ),
                                                static_cast<uint32_t>( length ),
                                                buffer,
@@ -140,7 +140,7 @@ XrdFileIo::Read( XrdSfsFileOffset offset,
     return SFS_ERROR;
   }
 
-  return length;
+  return bytes_read;
 }
 
 

@@ -105,6 +105,42 @@ class LocalFileIo: public FileIo
                            XrdSfsXferSize   length );
 
 
+      //--------------------------------------------------------------------------
+    //! Read from file async - falls back to synchrounous mode
+    //!
+    //! @param offset offset in file
+    //! @param buffer where the data is read
+    //! @param length read length
+    //! @param handler async read handler
+    //!
+    //! @return number of bytes read or -1 if error
+    //!
+    //--------------------------------------------------------------------------
+    virtual int64_t Read( XrdSfsFileOffset offset,
+                          char*            buffer,
+                          XrdSfsXferSize   length,
+                          void*            handler,
+                          bool             readahead = false );
+
+
+    //--------------------------------------------------------------------------
+    //! Write to file async - falls back to synchronous mode
+    //!
+    //! @param offset offset
+    //! @param buffer data to be written
+    //! @param length length
+    //! @param handler async write handler
+    //!
+    //! @return number of bytes written or -1 if error
+    //!
+    //--------------------------------------------------------------------------
+    virtual int64_t Write( XrdSfsFileOffset offset,
+                           char*            buffer,
+                           XrdSfsXferSize   length,
+                           void*            handler );
+
+
+  
     //--------------------------------------------------------------------------
     //! Truncate
     //!
@@ -180,42 +216,6 @@ class LocalFileIo: public FileIo
   private:
 
     bool mIsOpen;  ///< mark if file is opened
-
-
-    //--------------------------------------------------------------------------
-    //! Read from file - async - not used yet
-    //!
-    //! @param offset offset in file
-    //! @param buffer where the data is read
-    //! @param length read length
-    //! @param handler async read handler
-    //!
-    //! @return number of bytes read or -1 if error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int64_t Read( XrdSfsFileOffset offset,
-                          char*            buffer,
-                          XrdSfsXferSize   length,
-                          void*            handler,
-                          bool             readahead = false );
-
-
-    //--------------------------------------------------------------------------
-    //! Write to file - async - not used yet
-    //!
-    //! @param offset offset
-    //! @param buffer data to be written
-    //! @param length length
-    //! @param handler async write handler
-    //!
-    //! @return number of bytes written or -1 if error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int64_t Write( XrdSfsFileOffset offset,
-                           char*            buffer,
-                           XrdSfsXferSize   length,
-                           void*            handler );
-
 
     //--------------------------------------------------------------------------
     //! Disable copy constructor

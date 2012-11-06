@@ -106,7 +106,7 @@ LocalFileIo::Write( XrdSfsFileOffset offset,
 
 
 //------------------------------------------------------------------------------
-// Read from file - async
+// Read from file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
 int64_t
 LocalFileIo::Read( XrdSfsFileOffset offset,
@@ -115,12 +115,12 @@ LocalFileIo::Read( XrdSfsFileOffset offset,
                    void*            handler,
                    bool             readahead )
 {
-  return SFS_ERROR;
+  return Read( offset, buffer, length );
 }
 
 
 //------------------------------------------------------------------------------
-// Write to file - async
+// Write to file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
 int64_t
 LocalFileIo::Write( XrdSfsFileOffset offset,
@@ -128,7 +128,7 @@ LocalFileIo::Write( XrdSfsFileOffset offset,
                     XrdSfsXferSize   length,
                     void*            handler )
 {
-  return SFS_ERROR;
+  return Write( offset, buffer, length );
 }
 
 

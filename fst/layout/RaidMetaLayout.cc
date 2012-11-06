@@ -539,6 +539,7 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
       XrdSfsXferSize align_length;
       bool do_recovery = false;
       bool got_error = false;
+      int64_t nbytes = 0;
       
       AlignExpandBlocks( buffer, offset, length, align_offset, align_length );
 
@@ -552,31 +553,18 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
         offset_local += mSizeHeader; 
 
         if ( mStripeFiles[physical_id] ) {
-          if ( physical_id ) {
-            //..................................................................
-            // Do remote read operation
-            //..................................................................
-            eos_debug( "Remote read stripe_id=%i, current_offset=%lli, local_offset=%lli",
-                       stripe_id, current_offset, offset_local );
-            mStripeFiles[physical_id]->Read( offset_local,
-                                             mPtrBlocks[i],
-                                             mStripeWidth,
-                                             mMetaHandlers[physical_id],
-                                             true );
-          } else {
-            //..................................................................
-            // Do local read operation
-            //..................................................................
-            eos_debug( "Local read stripe_id=%i, current_offset=%lli, local_offset=%lli",
-                       stripe_id, current_offset, offset_local );
-            int64_t nbytes = mStripeFiles[physical_id]->Read( offset_local,
-                                                              mPtrBlocks[i],
-                                                              mStripeWidth );
-
-            if ( nbytes != mStripeWidth ) {
-              got_error = true;
-            }
+          eos_debug( "Read stripe_id=%i, current_offset=%lli, local_offset=%lli",
+                     stripe_id, current_offset, offset_local );
+          nbytes = mStripeFiles[physical_id]->Read( offset_local,
+                                                    mPtrBlocks[i],
+                                                    mStripeWidth,
+                                                    mMetaHandlers[physical_id],
+                                                    true );
+          
+          if ( nbytes != mStripeWidth ) {
+            got_error = true;
           }
+          
         } else {
           //....................................................................
           // File not opened, we register it as a read error
@@ -658,7 +646,8 @@ RaidMetaLayout::Write( XrdSfsFileOffset offset,
 {
   eos::common::Timing wt( "write" );
   COMMONTIMING( "start", &wt );
-  size_t nwrite;
+  int64_t nwrite;
+  int64_t nbytes;
   int64_t write_length = 0;
   off_t offset_local;
   off_t offset_end = offset + length;
@@ -687,23 +676,22 @@ RaidMetaLayout::Write( XrdSfsFileOffset offset,
       offset_local += mSizeHeader;
       COMMONTIMING( "write remote", &wt );
 
-      if ( physical_id ) {
-        //......................................................................
-        // Do remote write operation - chunk info is not interesting
-        //......................................................................
-        mStripeFiles[physical_id]->Write( offset_local,
-                                          buffer,
-                                          nwrite,
-                                          mMetaHandlers[physical_id] );
-      } else {
-        //......................................................................
-        // Do local write operation
-        //......................................................................
-        mStripeFiles[physical_id]->Write( offset_local,
-                                          buffer,
-                                          nwrite );
+      //........................................................................
+      // Write to stripe
+      //........................................................................
+      if ( mStripeFiles[physical_id] ) {
+        nbytes = mStripeFiles[physical_id]->Write( offset_local,
+                                                   buffer,
+                                                   nwrite,
+                                                   mMetaHandlers[physical_id] );
+        
+        if ( nbytes != nwrite ) {
+          eos_err( "error=failed while write operation" );
+          write_length = -1;
+          break;
+        }
       }
-
+      
       //........................................................................
       // Streaming mode - add data and try to compute parity, else add pice to map
       //........................................................................
@@ -712,7 +700,7 @@ RaidMetaLayout::Write( XrdSfsFileOffset offset,
       } else {
         AddPiece( offset, nwrite );
       }
-
+      
       offset += nwrite;
       length -= nwrite;
       buffer += nwrite;
@@ -874,6 +862,7 @@ RaidMetaLayout::ReadGroup( off_t offsetGroup )
   off_t offset_local;
   bool ret = true;
   int id_stripe;
+  int64_t nread = 0;
 
   for ( unsigned int i = 0; i < mMetaHandlers.size(); i++ ) {
     mMetaHandlers[i]->Reset();
@@ -887,29 +876,20 @@ RaidMetaLayout::ReadGroup( off_t offsetGroup )
     offset_local += mSizeHeader;
 
     if ( mStripeFiles[physical_id] ) {
-      if ( physical_id ) {
-        //........................................................................
-        // Do remote read operation - chunk info is not interesting at this point
-        // !!!Here we can only do normal async requests without readahead as this
-        // would lead to corruptions in the parity information computed!!!
-        //........................................................................
-        mStripeFiles[physical_id]->Read( offset_local,
-                                         mDataBlocks[MapSmallToBig( i )],
-                                         mStripeWidth,
-                                         mMetaHandlers[physical_id] );
-      } else {
-        //........................................................................
-        // Do local read operation
-        //........................................................................
-        int64_t nbytes = mStripeFiles[physical_id]->Read( offset_local,
-                                                          mDataBlocks[MapSmallToBig( i )],
-                                                          mStripeWidth );
-
-        if ( nbytes != mStripeWidth ) {
-          eos_err( "error=error while reading local data blocks" );
-          ret = false;
-          break;
-        }
+      //........................................................................
+      // Do read operation - chunk info is not interesting at this point
+      // !!!Here we can only do normal async requests without readahead as this
+      // would lead to corruptions in the parity information computed!!!
+      //........................................................................
+      nread = mStripeFiles[physical_id]->Read( offset_local,
+                                                mDataBlocks[MapSmallToBig( i )],
+                                                mStripeWidth,
+                                                mMetaHandlers[physical_id] );
+      
+      if ( nread != mStripeWidth ) {
+        eos_err( "error=error while reading local data blocks" );
+        ret = false;
+        break;
       }
     } else {
       eos_err( "error=error FS not available" );
