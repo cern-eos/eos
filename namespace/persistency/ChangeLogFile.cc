@@ -408,18 +408,18 @@ namespace eos
   //----------------------------------------------------------------------------
   // Scan all the records in the changelog file
   //----------------------------------------------------------------------------
-  void ChangeLogFile::scanAllRecords( ILogRecordScanner *scanner )
+  uint64_t ChangeLogFile::scanAllRecords( ILogRecordScanner *scanner )
     throw( MDException )
   {
-    scanAllRecordsAtOffset( scanner, 8 );
+    return scanAllRecordsAtOffset( scanner, 8 );
   }
 
   //----------------------------------------------------------------------------
   // Scan all the records in the changelog file starting from a given
   // offset
   //----------------------------------------------------------------------------
-  void ChangeLogFile::scanAllRecordsAtOffset( ILogRecordScanner *scanner,
-                                              uint64_t           startOffset )
+  uint64_t ChangeLogFile::scanAllRecordsAtOffset( ILogRecordScanner *scanner,
+                                                  uint64_t           startOffset )
     throw( MDException )
   {
     if( !pIsOpen )
@@ -460,10 +460,13 @@ namespace eos
     while( offset < end )
     {
       type = readRecord( offset, data );
-      scanner->processRecord( offset, type, data );
+      bool proceed = scanner->processRecord( offset, type, data );
       offset += data.size();
       offset += 24;
+      if( !proceed )
+        break;
     }
+    return offset;
   }
 
   //----------------------------------------------------------------------------

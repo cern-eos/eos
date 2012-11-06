@@ -91,7 +91,7 @@ namespace
       //------------------------------------------------------------------------
       // Process the records
       //------------------------------------------------------------------------
-      virtual void processRecord( uint64_t           offset,
+      virtual bool processRecord( uint64_t           offset,
                                   char               type,
                                   const eos::Buffer &buffer )
       {
@@ -110,6 +110,8 @@ namespace
           pUpdates[id] = RecordData( offset, id, newOffset );
         else if( type == eos::DELETE_RECORD_MAGIC )
           pUpdates.erase( id );
+
+        return true;
       }
 
       //------------------------------------------------------------------------
@@ -303,7 +305,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Scan the changelog and put the appropriate data in the lookup table
   //----------------------------------------------------------------------------
-  void ChangeLogFileMDSvc::FileMDScanner::processRecord( uint64_t      offset,
+  bool ChangeLogFileMDSvc::FileMDScanner::processRecord( uint64_t      offset,
                                                          char          type,
                                                          const Buffer &buffer )
   {
@@ -337,6 +339,8 @@ namespace eos
       }
       if( pLargestId < id ) pLargestId = id;
     }
+
+    return true;
   }
 
   //----------------------------------------------------------------------------

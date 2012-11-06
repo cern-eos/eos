@@ -49,7 +49,7 @@ namespace
       //------------------------------------------------------------------------
       // Got through the records
       //------------------------------------------------------------------------
-      virtual void processRecord( uint64_t offset, char type,
+      virtual bool processRecord( uint64_t offset, char type,
                                   const eos::Buffer &buffer )
       {
         //----------------------------------------------------------------------
@@ -92,6 +92,8 @@ namespace
         if( pFeedback )
           pFeedback->reportProgress( pStats,
                                      eos::ILogCompactingFeedback::InitialScan );
+
+        return true;
       }
 
     private:

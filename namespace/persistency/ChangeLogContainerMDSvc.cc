@@ -324,7 +324,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Scan the changelog and put the appropriate data in the lookup table
   //----------------------------------------------------------------------------
-  void ChangeLogContainerMDSvc::ContainerMDScanner::processRecord(
+  bool ChangeLogContainerMDSvc::ContainerMDScanner::processRecord(
                            uint64_t offset, char type, const Buffer &buffer )
   {
     //--------------------------------------------------------------------------
@@ -350,5 +350,6 @@ namespace eos
         pIdMap.erase( it );
       if( pLargestId < id ) pLargestId = id;
     }
+    return true;
   }
 }

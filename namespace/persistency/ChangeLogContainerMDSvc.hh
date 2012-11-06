@@ -148,7 +148,7 @@ namespace eos
         public:
           ContainerMDScanner( IdMap &idMap ): pIdMap( idMap ), pLargestId( 0 )
           {}
-          virtual void processRecord( uint64_t offset, char type,
+          virtual bool processRecord( uint64_t offset, char type,
                                       const Buffer &buffer );
           ContainerMD::id_t getLargestId() const
           {

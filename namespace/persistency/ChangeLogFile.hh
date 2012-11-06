@@ -41,8 +41,9 @@ namespace eos
     public:
       //------------------------------------------------------------------------
       //! Process record
+      //! @return true if the scanning should proceed, false if it should stop
       //------------------------------------------------------------------------
-      virtual void processRecord( uint64_t offset, char type,
+      virtual bool processRecord( uint64_t offset, char type,
                                   const Buffer &buffer ) = 0;
   };
 
@@ -180,15 +181,19 @@ namespace eos
 
       //------------------------------------------------------------------------
       //! Scan all the records in the changelog file
+      //!
+      //! @return offset of the record following the last scanned record
       //------------------------------------------------------------------------
-      void scanAllRecords( ILogRecordScanner *scanner ) throw( MDException );
+      uint64_t scanAllRecords( ILogRecordScanner *scanner ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Scan all the records in the changelog file starting from a given
       //! offset
+      //!
+      //! @return offset of the record following the last scanned record
       //------------------------------------------------------------------------
-      void scanAllRecordsAtOffset( ILogRecordScanner *scanner,
-                                   uint64_t           startOffset )
+      uint64_t scanAllRecordsAtOffset( ILogRecordScanner *scanner,
+                                       uint64_t           startOffset )
         throw( MDException );
 
       //------------------------------------------------------------------------

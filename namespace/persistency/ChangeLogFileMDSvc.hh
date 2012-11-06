@@ -201,7 +201,7 @@ namespace eos
         public:
           FileMDScanner( IdMap &idMap ): pIdMap( idMap ), pLargestId( 0 )
           {}
-          virtual void processRecord( uint64_t offset, char type,
+          virtual bool processRecord( uint64_t offset, char type,
                                   const Buffer &buffer );
           uint64_t getLargestId() const
           {
