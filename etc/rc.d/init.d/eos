@@ -118,12 +118,12 @@ start() {
 			# Setup xrootd environment
 
                         if [ -z "${XRD_USER}" ]; then 
-			    mkdir -p ${XRD_COREDIR}/core/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR} ${EOS_CONFIGDIR}/default.eoscf
+			    mkdir -p ${XRD_COREDIR}/core/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR} ${EOS_CONFIGDIR}/
 			    touch ${EOS_CONFIGDIR}/default.eoscf
 			    chown -R ${XRD_USER} ${XRD_COREDIR}; 
 			    chmod -R 775 ${XRD_COREDIR}
 			else
-			    mkdir -p ${XRD_COREDIR}/core/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR} ${EOS_CONFIGDIR}/default.eoscf
+			    mkdir -p ${XRD_COREDIR}/core/$i ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR} ${EOS_CONFIGDIR}/
 			    touch ${EOS_CONFIGDIR}/default.eoscf
 			    chown -R ${XRD_USER} ${XRD_ADMINDIR} ${XRD_LOGDIR} ${XRD_CONFIGDIR}
 			    chown -R ${XRD_USER} ${XRD_COREDIR}; 
