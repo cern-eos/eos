@@ -378,6 +378,45 @@ namespace eos
   }
 
   //----------------------------------------------------------------------------
+  // Try to read len bytes at offset
+  //----------------------------------------------------------------------------
+  unsigned Descriptor::tryRead( char *buffer, unsigned len, off_t offset )
+    throw( DescriptorException )
+  {
+    if( len == 0 )
+      return 0;
+
+    int   ret;
+    off_t off  = offset;
+    int   left = len;
+    char *ptr  = buffer;
+    while( 1 )
+    {
+      ret = ::pread( pFD, ptr, left, off );
+      if( ret == -1 )
+      {
+        DescriptorException ex;
+        ex.getMessage() << "Descriptor: Unable to read " << len << " bytes";
+        ex.getMessage() << "at offset " << offset << ": ";
+        ex.getMessage() << strerror( errno );
+        throw ex;
+      }
+
+      if( ret == 0 )
+        return len-left;
+
+      left -= ret;
+      off  += ret;
+
+      if( !left )
+        return len;
+
+      ptr += ret;
+    }
+    return len;
+  }
+
+  //----------------------------------------------------------------------------
   // Write data to the descriptor
   //----------------------------------------------------------------------------
   void Descriptor::write( const char *buffer, unsigned len )

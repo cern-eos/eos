@@ -159,6 +159,17 @@ namespace eos
         throw( DescriptorException );
 
       //------------------------------------------------------------------------
+      //! Try to read len bytes at offset
+      //!
+      //! @param  buffer buffer pointer
+      //! @param  len    length of the buffer
+      //! @param  offset offset
+      //! @return number of available bytes
+      //------------------------------------------------------------------------
+      unsigned tryRead( char *buffer, unsigned len, off_t offset )
+        throw( DescriptorException );
+
+      //------------------------------------------------------------------------
       //! Write data to the descriptor
       //!
       //! @param buffer buffer pointer
