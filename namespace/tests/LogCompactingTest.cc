@@ -156,7 +156,7 @@ class StampsScanner: public eos::ILogRecordScanner
     //--------------------------------------------------------------------------
     // Go through the records
     //--------------------------------------------------------------------------
-    virtual void processRecord( uint64_t offset, char type,
+    virtual bool processRecord( uint64_t offset, char type,
                                 const eos::Buffer &buffer )
     {
       if( type == eos::COMPACT_STAMP_RECORD_MAGIC )
@@ -165,7 +165,8 @@ class StampsScanner: public eos::ILogRecordScanner
         pStampLast = true;
       }
       else
-      pStampLast = false;
+        pStampLast = false;
+      return true;
     }
 
     //--------------------------------------------------------------------------

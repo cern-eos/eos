@@ -147,10 +147,11 @@ void checkFileMD( eos::FileMD &fileMetadata, unsigned i )
 class FileScanner: public eos::ILogRecordScanner
 {
   public:
-    virtual void processRecord( uint64_t offset, char type,
+    virtual bool processRecord( uint64_t offset, char type,
                                 const eos::Buffer &buffer )
     {
       pRecords.push_back( std::make_pair( offset, buffer.size() ) );
+      return true;
     }
 
     std::vector<std::pair<uint64_t, uint16_t> > &getRecords()
@@ -169,7 +170,7 @@ class FileFollower: public eos::ILogRecordScanner
 {
   public:
     FileFollower(): pIndex( 0 ) {}
-    virtual void processRecord( uint64_t offset, char type,
+    virtual bool processRecord( uint64_t offset, char type,
                                 const eos::Buffer &buffer )
     {
       DummyFileMDSvc fmd;
@@ -178,6 +179,7 @@ class FileFollower: public eos::ILogRecordScanner
       checkFileMD( fileMetadata, pIndex++ );
       if( pIndex == NUMTESTFILES )
         pthread_exit( 0 );
+      return true;
     }
 
   private:
