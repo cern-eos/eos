@@ -5870,7 +5870,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	// get all the filesystem's of that node
 	eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 	std::string snodename=nodename.c_str()?nodename.c_str():"-none-";
-	if (!FsView::gFsView.mNodeView[snodename]) {
+	if (!FsView::gFsView.mNodeView.count(snodename)) {
 	  eos_static_warning("msg=\"node is not configured\" name=%s",snodename.c_str());
 	  return Emsg(epname, error, EINVAL, "unable to schedule - node is not existing");
 	}
