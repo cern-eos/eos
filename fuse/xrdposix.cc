@@ -221,15 +221,18 @@ void xrd_store_child_p2i( unsigned long long inode,
   std::string fullpath = inode2path[inode];
   std::string sname = name;
 
+  fprintf( stderr, "Full path is: %s. \n", fullpath.c_str() );
+
   if ( sname != "." ) {
     // we don't need to store this one
     if ( sname == ".." ) {
       if ( inode == 1 ) {
         fullpath = "/";
       } else {
-        size_t spos = fullpath.rfind( "/" );
+        size_t spos = fullpath.find( "/" );
+        size_t bpos = fullpath.rfind( "/" );
 
-        if ( spos != std::string::npos ) {
+        if ( ( spos != std::string::npos ) && ( spos != bpos ) ) {
           fullpath.erase( spos );
         }
       }
@@ -1851,6 +1854,47 @@ int xrd_open( const char* path, int oflags, mode_t mode )
       return retc;
     }
   }
+
+  //............................................................................
+  // Try to open file using pio ( parallel io )
+  //............................................................................
+  {
+    std::string request;
+    XrdCl::Buffer arg;
+    XrdCl::Buffer* response = 0;
+    request = path;
+    size_t spos = request.rfind( "//" );
+
+    if ( spos != std::string::npos ) {
+      request.erase( 0, spos + 1 );
+    }
+    
+    request += "?mgm.pcmd=open";
+    arg.FromString( request );
+    XrdCl::XRootDStatus status = fs->Query( XrdCl::QueryCode::OpaqueFile,
+                                            arg, response );
+
+    if ( status.IsOK() ) {
+      //int items = 0;
+      //char tag[1024];
+      //........................................................................
+      // Parse output
+      //........................................................................
+      fprintf( stderr, "The response is: %s. \n", response->GetBuffer() );
+      /*
+        items = sscanf( response->GetBuffer(), "%s retc=%i", tag, &retc );
+
+        if ( ( items != 2 ) || ( strcmp( tag, "rmxattr:" ) ) ) {
+        retc = -ENOENT;
+        } else {
+        retc = -retc;
+        }
+      */
+    } else {
+      fprintf( stderr, "We got an error." );
+      //retc = -EFAULT;
+    }
+  }
   
   spath += "?eos.app=fuse";
   XrdCl::File* file = new XrdCl::File();
@@ -2231,16 +2275,17 @@ void xrd_init()
   }
 
   std::string address = getenv( "EOS_RDRURL" );
-  if ( address != "" ) {
+  if ( address == "" ) {
     fprintf( stderr, "error: EOS_RDRURL is not defined so we fall back to  "
-             "root://localhost:1094 \n" );
-    address = "root://localhost:1094";
+             "root://localhost:1094// \n" );
+    address = "root://localhost:1094//";
   }
   
   XrdCl::URL url( address );
 
   if ( !url.IsValid() ) {
     eos_static_info( "URL is not valid." );
+    exit( -1 ); 
   }
 
   fs = new XrdCl::FileSystem( url );

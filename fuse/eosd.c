@@ -51,8 +51,8 @@
 
 int isdebug = 0;  ///< set debug on/off
 
-char mounthostport[1024]; ///< mount hostport;
-char mountprefix[1024];   ///< mount prefix
+char mounthostport[1024]; ///< mount hostport of the form: hostname:port
+char mountprefix[1024];   ///< mount prefix of the form: dir1/dir2/dir3
 
 double entrycachetime = 5.0;
 double attrcachetime = 5.0;
@@ -75,7 +75,7 @@ static void eosfs_ll_readlink( fuse_req_t req, fuse_ino_t ino )
     return;
   }
 
-  sprintf( fullpath, "/%s/%s", mountprefix, name );
+  sprintf( fullpath, "/%s%s", mountprefix, name );
   xrd_unlock_r_p2i();         // <=
 
   if ( isdebug ) {
@@ -114,7 +114,7 @@ static void eosfs_ll_getattr( fuse_req_t             req,
     return;
   }
 
-  sprintf( fullpath, "/%s/%s", mountprefix, name );
+  sprintf( fullpath, "/%s%s", mountprefix, name );
   xrd_unlock_r_p2i();       // <=
 
   if ( isdebug ) {
@@ -154,7 +154,7 @@ static void eosfs_ll_setattr( fuse_req_t             req,
     return;
   }
 
-  sprintf( fullpath, "/%s/%s", mountprefix, name );
+  sprintf( fullpath, "/%s%s", mountprefix, name );
   xrd_unlock_r_p2i();         // <=
 
   if ( to_set & FUSE_SET_ATTR_MODE ) {
@@ -275,10 +275,15 @@ static void eosfs_ll_lookup( fuse_req_t  req,
   if ( name[0] == '/' ) {
     sprintf( ifullpath, "%s%s", parentpath, name );
   } else {
-    sprintf( ifullpath, "%s/%s", parentpath, name );
+    if ( ( strlen( parentpath) == 1 ) && ( parentpath[0] == '/' ) ) {
+      sprintf( ifullpath, "/%s", name );
+    }
+    else {
+      sprintf( ifullpath, "%s/%s", parentpath, name );
+    }
   }
 
-  sprintf( fullpath, "%s/%s/%s", mountprefix, parentpath, name );
+  sprintf( fullpath, "/%s%s", mountprefix, ifullpath );
   xrd_unlock_r_p2i();         // <=
 
   if ( isdebug ) {
@@ -445,9 +450,9 @@ static void eosfs_ll_readdir( fuse_req_t             req,
     return;
   }
 
-  sprintf( dirfullpath, "/%s/%s", mountprefix, name );
+  sprintf( dirfullpath, "/%s%s", mountprefix, name );
   sprintf( fullpath, "root://%s@%s//proc/user/?mgm.cmd=fuse&"
-           "mgm.subcmd=inodirlist&mgm.path=%s/%s",
+           "mgm.subcmd=inodirlist&mgm.path=/%s%s",
            xrd_mapuser( req->ctx.uid ), mounthostport, mountprefix, name );
 
   if ( isdebug ) {
@@ -627,15 +632,21 @@ static void eosfs_ll_mknod( fuse_req_t  req,
       return;
     }
 
-    sprintf( partialpath, "%s%s/%s", mountprefix, parentpath, name );
+    sprintf( partialpath, "/%s%s/%s", mountprefix, parentpath, name );
         
-    sprintf( fullpath, "root://%s@%s/%s%s/%s", xrd_mapuser( req->ctx.uid ),
+    sprintf( fullpath, "root://%s@%s//%s%s/%s", xrd_mapuser( req->ctx.uid ),
              mounthostport, mountprefix, parentpath, name );
 
-    sprintf( fullparentpath, "root://%s@%s/%s%s", xrd_mapuser( req->ctx.uid ),
+    sprintf( fullparentpath, "root://%s@%s//%s%s", xrd_mapuser( req->ctx.uid ),
              mounthostport, mountprefix, parentpath );
 
-    sprintf( ifullpath, "%s/%s", parentpath, name );
+    if ( ( strlen( parentpath ) == 1 ) && ( parentpath[0] == '/' ) ) {
+      sprintf( ifullpath, "/%s", name );
+    }
+    else{
+      sprintf( ifullpath, "%s/%s", parentpath, name );
+    }
+    
     xrd_unlock_r_p2i(); // <=
 
     if ( isdebug ) {
@@ -1034,7 +1045,7 @@ static void eosfs_ll_access( fuse_req_t req, fuse_ino_t ino, int mask )
     return;
   }
 
-  sprintf( fullpath, "/%s/%s", mountprefix, name );
+  sprintf( fullpath, "/%s%s", mountprefix, name );
   xrd_unlock_r_p2i();         // <=
 
   if ( isdebug ) {
@@ -1059,6 +1070,7 @@ static void eosfs_ll_open( fuse_req_t             req,
                            fuse_ino_t             ino,
                            struct fuse_file_info* fi )
 {
+  int res;
   struct stat stbuf;
   char fullpath[16384];
   const char* name = NULL;
@@ -1072,12 +1084,10 @@ static void eosfs_ll_open( fuse_req_t             req,
     return;
   }
 
-  sprintf( fullpath, "root://%s@%s/%s%s", xrd_mapuser( req->ctx.uid ),
+  sprintf( fullpath, "root://%s@%s//%s%s", xrd_mapuser( req->ctx.uid ),
            mounthostport, mountprefix, name );
   
   xrd_unlock_r_p2i();         // <=
-
-  int res;
 
   if ( fi->flags & ( O_RDWR | O_WRONLY | O_CREAT ) ) {
     if ( ( res = xrd_get_open_fd( ( unsigned long long )ino, req->ctx.uid ) ) > 0 ) {
@@ -1320,7 +1330,7 @@ static void eosfs_ll_flush( fuse_req_t             req,
 	xrd_lock_r_p2i();     // =>
 	const char* name = xrd_path((unsigned long long)ino);
 	if ( name ) {
-	  sprintf( fullpath,"/%s/%s", mountprefix, name );
+	  sprintf( fullpath,"/%s%s", mountprefix, name );
 	  if (isdebug) fprintf( stderr,"[%s]: inode=%lld path=%s\n", __FUNCTION__,
                                 (long long)ino, fullpath );
 	}
@@ -1370,7 +1380,7 @@ static void eosfs_ll_getxattr( fuse_req_t  req,
     return;
   }
 
-  sprintf( fullpath, "/%s/%s", mountprefix, name );
+  sprintf( fullpath, "/%s%s", mountprefix, name );
   xrd_unlock_r_p2i();         // <=
 
   if ( isdebug ) {
@@ -1419,7 +1429,7 @@ static void eosfs_ll_listxattr( fuse_req_t req, fuse_ino_t ino, size_t size )
     return;
   }
 
-  sprintf( fullpath, "/%s/%s", mountprefix, name );
+  sprintf( fullpath, "/%s%s", mountprefix, name );
   xrd_unlock_r_p2i();         // <=
 
   if ( isdebug ) {
@@ -1469,7 +1479,7 @@ static void eosfs_ll_removexattr( fuse_req_t  req,
     return;
   }
 
-  sprintf( fullpath, "/%s/%s", mountprefix, name );
+  sprintf( fullpath, "/%s%s", mountprefix, name );
   xrd_unlock_r_p2i();         // <=
 
   if ( isdebug ) {
@@ -1506,8 +1516,7 @@ static void eosfs_ll_setxattr( fuse_req_t  req,
     return;
   }
 
-  sprintf( fullpath, "/%s/%s", xrd_mapuser( req->ctx.uid ),
-           mounthostport, mountprefix, name );
+  sprintf( fullpath, "/%s%s", mountprefix, name );
 
   xrd_unlock_r_p2i();         // <=
 
@@ -1600,7 +1609,6 @@ int main( int argc, char* argv[] )
   }
 
   rdr = getenv( "EOS_RDRURL" );
-  fprintf( stderr, "EOS_RDRURL = %s\n", getenv( "EOS_RDRURL" ) );
 
   if ( !rdr ) {
     fprintf( stderr, "error: EOS_RDRURL is not defined or add "
@@ -1628,26 +1636,21 @@ int main( int argc, char* argv[] )
   }
 
   pmounthostport += 7;
-  strcpy( mounthostport, pmounthostport );
 
-  if ( !( smountprefix = strstr( mounthostport, "//" ) ) ) {
+  if ( !( smountprefix = strstr( pmounthostport, "//" ) ) ) {
     fprintf( stderr, "error: EOS_RDRURL or url option is not valid\n" );
     exit( -1 );
   } else {
+    strncpy( mounthostport, pmounthostport, smountprefix - pmounthostport );
+    *smountprefix = 0;
+    smountprefix++;
     smountprefix++;
     strcpy( mountprefix, smountprefix );
-    *smountprefix = 0;
 
-    if ( mountprefix[strlen( mountprefix ) - 1] == '/' ) {
-      mountprefix[strlen( mountprefix ) - 1] = 0;
-    }
-
-    if ( mountprefix[strlen( mountprefix ) - 1] == '/' ) {
-      mountprefix[strlen( mountprefix ) - 1] = 0;
+    while ( mountprefix[strlen( mountprefix ) - 1] == '/' ) {
+      mountprefix[strlen( mountprefix ) - 1] = '\0';
     }
   }
-
-  fprintf( stderr, "mounthost=%s mountprefix=%s\n", mounthostport, mountprefix );
 
   if ( !isdebug ) {
     pid_t m_pid = fork();
