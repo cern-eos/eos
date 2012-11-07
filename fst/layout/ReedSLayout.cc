@@ -128,7 +128,7 @@ ReedSLayout::RecoverPiecesInGroup( off_t                    offsetInit,
   off_t offset_group = ( offset / mSizeGroup ) * mSizeGroup;
   size_t length = 0;
   num_blocks_corrupted = 0;
-  offset_local += mStripeWidth;
+  offset_local += mSizeHeader;
 
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
     physical_id = mapLP[i];

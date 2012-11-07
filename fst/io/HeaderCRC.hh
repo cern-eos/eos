@@ -50,13 +50,13 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    HeaderCRC( int sizeHeader);
+    HeaderCRC( int sizeHeader, int sizeBlock );
 
   
     //--------------------------------------------------------------------------
     //! Constructor with parameter
     //--------------------------------------------------------------------------
-    HeaderCRC( int sizeHeader, long long int numBlocks );
+    HeaderCRC( int sizeHeader, long long int numBlocks, int sizeBlock );
 
   
     //--------------------------------------------------------------------------
@@ -126,6 +126,14 @@ class HeaderCRC: public eos::common::LogId
 
 
     //--------------------------------------------------------------------------
+    //! Get block size the file contains
+    //--------------------------------------------------------------------------
+    inline size_t GetSizeBlock() const {
+      return mSizeBlock;
+    }
+
+  
+    //--------------------------------------------------------------------------
     //! Get size of last block in file
     //--------------------------------------------------------------------------
     inline size_t GetSizeLastBlock() const {
@@ -193,7 +201,7 @@ class HeaderCRC: public eos::common::LogId
     //--------------------------------------------------------------------------
     off_t GetSizeFile() const {
       if ( mNumBlocks ) {
-        return static_cast<off_t>( ( mNumBlocks - 1 ) * mSizeHeader +
+        return static_cast<off_t>( ( mNumBlocks - 1 ) * mSizeBlock +
                                    mSizeLastBlock );
       }
       else return 0;
@@ -206,8 +214,9 @@ class HeaderCRC: public eos::common::LogId
     long long int mNumBlocks; ///< total number of blocks
     unsigned int mIdStripe;   ///< index of the stripe the header belongs to
     size_t mSizeLastBlock;    ///< size of the last block of data
+    size_t mSizeBlock;        ///< size of a block of data 
 
-    int mSizeHeader;         ///< size of the header
+    int mSizeHeader;          ///< size of the header
     static char msTagName[];  ///< default tag name
 };
 

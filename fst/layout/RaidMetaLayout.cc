@@ -62,7 +62,7 @@ RaidMetaLayout::RaidMetaLayout( XrdFstOfsFile*      file,
   mNbTotalFiles = eos::common::LayoutId::GetStripeNumber( lid ) + 1;
   mNbParityFiles = 2;         //TODO: fix this, by adding more info to the layout ?!
   mNbDataFiles = mNbTotalFiles - mNbParityFiles;
-  mSizeHeader = mStripeWidth;
+  mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
   mOffGroupParity = -1;
   mPhysicalStripeIndex = -1;
   mIsEntryServer = false;
@@ -186,7 +186,7 @@ RaidMetaLayout::Open( const std::string& path,
   }
 
   mStripeFiles.push_back( file );
-  mHdrInfo.push_back( new HeaderCRC( mStripeWidth ) );
+  mHdrInfo.push_back( new HeaderCRC( mSizeHeader, mStripeWidth ) );
   mMetaHandlers.push_back( new AsyncMetaHandler() );
   
   //......................................................................
@@ -303,7 +303,7 @@ RaidMetaLayout::Open( const std::string& path,
         }
 
         mStripeFiles.push_back( file );
-        mHdrInfo.push_back( new HeaderCRC( mStripeWidth ) );
+        mHdrInfo.push_back( new HeaderCRC( mSizeHeader, mStripeWidth ) );
         mMetaHandlers.push_back( new AsyncMetaHandler() );
         
         //......................................................................
@@ -415,7 +415,7 @@ RaidMetaLayout::OpenPio( std::vector<std::string>&& stripeUrls,
     }
     
     mStripeFiles.push_back( file );
-    mHdrInfo.push_back( new HeaderCRC( mStripeWidth ) );
+    mHdrInfo.push_back( new HeaderCRC( mSizeHeader, mStripeWidth ) );
     mMetaHandlers.push_back( new AsyncMetaHandler() );
     
     //......................................................................

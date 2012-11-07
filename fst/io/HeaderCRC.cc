@@ -34,11 +34,12 @@ char HeaderCRC::msTagName[] = "_HEADER__RAIDIO_";
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-HeaderCRC::HeaderCRC( int sizeHeader):
+HeaderCRC::HeaderCRC( int sizeHeader, int sizeBlock ):
   mValid( false ),
   mNumBlocks( -1 ),
   mIdStripe( -1 ),
   mSizeLastBlock( -1 ),
+  mSizeBlock( sizeBlock ),
   mSizeHeader( sizeHeader )
   
 {
@@ -49,11 +50,12 @@ HeaderCRC::HeaderCRC( int sizeHeader):
 //------------------------------------------------------------------------------
 // Constructor with parameter
 //------------------------------------------------------------------------------
-HeaderCRC::HeaderCRC( int sizeHeader, long long numBlocks ):
+HeaderCRC::HeaderCRC( int sizeHeader, long long numBlocks, int sizeBlock ):
   mValid( false ),
   mNumBlocks( numBlocks ),
   mIdStripe( -1 ),
   mSizeLastBlock( -1 ),
+  mSizeBlock( sizeBlock ),
   mSizeHeader( sizeHeader )
 {
   strncpy( mTag, msTagName, strlen( msTagName ) );
@@ -77,6 +79,8 @@ HeaderCRC::ReadFromFile( XrdCl::File*& pFile )
 {
   uint32_t ret;
   long int offset = 0;
+  size_t read_sizeblock = 0;
+  
   char* buff = static_cast< char* >( calloc( mSizeHeader, sizeof( char ) ) );
 
   if ( !( pFile->Read( offset, mSizeHeader, buff, ret ).IsOK() )
@@ -100,6 +104,13 @@ HeaderCRC::ReadFromFile( XrdCl::File*& pFile )
   memcpy( &mNumBlocks, buff + offset, sizeof mNumBlocks );
   offset += sizeof mNumBlocks;
   memcpy( &mSizeLastBlock, buff + offset, sizeof mSizeLastBlock );
+  offset += sizeof mSizeLastBlock;
+  memcpy( &read_sizeblock, buff + offset, sizeof read_sizeblock );
+
+  if ( mSizeBlock != read_sizeblock ) {
+    eos_err( "error=block size read from file does not match block size expected" );
+  }
+  
   free( buff );
   mValid = true;
   return mValid;
@@ -113,6 +124,8 @@ bool
 HeaderCRC::ReadFromFile( FileIo*& pFile )
 {
   long int offset = 0;
+  size_t read_sizeblock = 0;
+    
   char* buff = static_cast< char* >( calloc( mSizeHeader, sizeof( char ) ) );
 
   if ( pFile->Read( offset, buff, mSizeHeader ) !=
@@ -138,6 +151,12 @@ HeaderCRC::ReadFromFile( FileIo*& pFile )
   memcpy( &mNumBlocks, buff + offset, sizeof mNumBlocks );
   offset += sizeof mNumBlocks;
   memcpy( &mSizeLastBlock, buff + offset, sizeof mSizeLastBlock );
+  offset += sizeof mSizeLastBlock;
+  memcpy( &read_sizeblock, buff + offset, sizeof read_sizeblock );
+
+  if ( mSizeBlock != read_sizeblock ) {
+    eos_err( "error=block size read from file does not match block size expected" );
+  }
 
   free( buff );
   mValid = true;
@@ -163,6 +182,8 @@ HeaderCRC::WriteToFile( XrdCl::File*& pFile )
   offset += sizeof mNumBlocks;
   memcpy( buff + offset, &mSizeLastBlock, sizeof mSizeLastBlock );
   offset += sizeof mSizeLastBlock;
+  memcpy( buff + offset, &mSizeBlock, sizeof mSizeBlock );
+  offset += sizeof mSizeBlock;
   memset( buff + offset, 0, mSizeHeader - offset );
 
   if ( !( pFile->Write( 0, mSizeHeader, buff ).IsOK() ) ) {
@@ -193,6 +214,8 @@ HeaderCRC::WriteToFile( FileIo*& pFile )
   offset += sizeof mNumBlocks;
   memcpy( buff + offset, &mSizeLastBlock, sizeof mSizeLastBlock );
   offset += sizeof mSizeLastBlock;
+  memcpy( buff + offset, &mSizeBlock, sizeof mSizeBlock );
+  offset += sizeof mSizeBlock;
   memset( buff + offset, 0, mSizeHeader - offset );
 
   if ( pFile->Write( 0, buff, mSizeHeader ) < 0 ) {
